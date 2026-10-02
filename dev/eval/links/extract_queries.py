@@ -22,9 +22,12 @@ OUT_PATH = os.path.join(os.path.dirname(__file__), "queries.json")
 MIN_PHRASES = 3
 MAX_SETS = 25
 
-# Matches --phrase "..." (double-quoted) or --phrase '...' (single-quoted)
-PHRASE_DOUBLE = re.compile(r'--phrase\s+"([^"]+)"')
-PHRASE_SINGLE = re.compile(r"--phrase\s+'([^']+)'")
+# Matches --phrase "..." / --phrase="..." (double-quoted) or --phrase '...' / --phrase='...'
+# (single-quoted) -- an ongoing mining tool with no date cutoff, so both the space-separated
+# and `=` forms must keep matching (#787/D16/7.15: a real `--phrase=<value>` invocation, the
+# now-safe form, would otherwise silently vanish from this tool's own output).
+PHRASE_DOUBLE = re.compile(r'--phrase[\s=]+"([^"]+)"')
+PHRASE_SINGLE = re.compile(r"--phrase[\s=]+'([^']+)'")
 
 
 def extract_phrases(cmd: str) -> list[str]:
