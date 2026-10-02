@@ -174,7 +174,7 @@ A runbook note carrying `skill_hash` (capability `skill-runbook-registration`) a
 - **THEN** after the fold, E's link to P is `{note: P, via: offered, hash: H2}` — promoted to primary
 
 ### Requirement: engram show SHALL print an exchanged note's exchange hash
-For a note that carries `xid` (a note that has taken part in exchange), `engram show` SHALL print `# exchange_hash: <hash>` as its first output line, before the frontmatter. For a note without `xid`, its output SHALL be unchanged. On the local-miss parent fallback, the `# from_parent: true` label SHALL come first, followed by the parent's `show` output, which starts with the parent note's own exchange-hash line when that note carries `xid`. The served `show` route without `raw` SHALL return exactly the local `engram show` output, header included.
+For a note that carries `xid` (a note that has taken part in exchange), `engram show` SHALL print `# exchange_hash: <hash>` as its first output line, before the frontmatter. A note whose lines end in `\r\n` SHALL be read as its LF form for this: it gets the header when its LF form carries `xid`, and the hash SHALL be its LF form's, the hash amend's `--expect-hash` check compares; the note itself is printed verbatim. For a note without `xid`, its output SHALL be unchanged. On the local-miss parent fallback, the `# from_parent: true` label SHALL come first, followed by the parent's `show` output, which starts with the parent note's own exchange-hash line when that note carries `xid`. The served `show` route without `raw` SHALL return exactly the local `engram show` output, header included.
 
 #### Scenario: Header on an exchanged note
 - **WHEN** `engram show <basename>` runs on a pending offer carrying `xid`
@@ -195,6 +195,10 @@ For a note that carries `xid` (a note that has taken part in exchange), `engram 
 #### Scenario: The expected hash is required
 - **WHEN** `engram amend --target N --discard --into E` runs on a served offer without `--expect-hash`
 - **THEN** the command fails, and nothing changes
+
+#### Scenario: Header on a CRLF note
+- **WHEN** `engram show <basename>` runs on a pending offer carrying `xid` whose lines, frontmatter included, end in `\r\n`
+- **THEN** the first line is `# exchange_hash: xh1:…`, the note follows byte for byte, and `engram amend --target <basename> --clear-pending --expect-hash` with that hash succeeds
 
 ### Requirement: The pending-offer marker SHALL apply to every note type
 A note of any type (`fact`, `feedback`, or `runbook`, with or without `skill_hash`) that carries the pending-offer marker SHALL be treated as a pending offer. It SHALL be excluded from normal query results, counted by pending-offer detection, and reported at every surfacing point.

@@ -63,7 +63,7 @@
 
 ## 6. Close-out (not done by the implementing agent)
 
-- [ ] 6.1 Review, rebase on main, `git merge --ff-only`.
-- [ ] 6.2 `go install ./cmd/engram` and `engram update` from the merged main checkout.
-- [ ] 6.3 Archive the change.
-- [ ] 6.4 Close #789.
+- [x] 6.1 Review, rebase on main, `git merge --ff-only`.
+- [x] 6.2 `go install ./cmd/engram` and `engram update` from the merged main checkout.
+- [x] 6.3 Archive the change.
+- [x] 6.4 Close #789.
