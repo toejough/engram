@@ -8,6 +8,7 @@ package cli_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -184,21 +185,7 @@ func TestBackfillIdentity_PreservesUnknownKeysAndAnchorsProperty(t *testing.T) {
 			rt.Fatalf("CRLF (%s) left in the written note: %q", layout, written)
 		}
 
-		after := decodeBackfillFrontmatter(rt, written)
-
-		for key, value := range before {
-			if slices.Contains([]string{"repo", "user", "vault", "created"}, key) {
-				continue
-			}
-
-			if fmt.Sprint(after[key]) != fmt.Sprint(value) {
-				rt.Fatalf("key %s: before %v, after %v\n%s", key, value, after[key], vault.files["/vault/1.2026-01-01.a.md"])
-			}
-		}
-
-		if after["user"] != "bob@example.com" || after["vault"] != "personal" {
-			rt.Fatalf("identity not stamped: %v", after)
-		}
+		assertBackfillKeptKeys(rt, before, written)
 	})
 }
 
@@ -239,6 +226,57 @@ func TestBackfillIdentity_RefusesAnchoredIdentityKey(t *testing.T) {
 	})
 }
 
+// TestBackfillIdentity_WriteAndRebuildFailuresSurface: a failed note write,
+// a failed re-embed of a converted note, and a failed sidecar write each
+// fail the run, naming the note.
+func TestBackfillIdentity_WriteAndRebuildFailuresSurface(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name     string
+		embedder embed.Embedder
+		failPath string
+		want     string
+	}{
+		{"note write", stubEmbedder{modelID: "stub@4", dims: 4}, ".md", "write"},
+		{"re-embed", failingEmbedder{}, "", "re-embedding"},
+		{"sidecar write", stubEmbedder{modelID: "stub@4", dims: 4}, ".vec.json", "writing sidecar"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			deps := cli.IdentityDeps{
+				Lock:     func(string) (func(), error) { return func() {}, nil },
+				ListMD:   func(string) ([]string, error) { return []string{"1.2026-01-01.a.md"}, nil },
+				ReadFile: func(string) ([]byte, error) { return []byte(toCRLF(backfillNodeNote("fact", "source: agent\n"))), nil },
+				WriteFile: func(path string, _ []byte) error {
+					if tc.failPath != "" && strings.HasSuffix(path, tc.failPath) {
+						return errBackfillDiskFull
+					}
+
+					return nil
+				},
+				DetectRepo: func(context.Context) string { return "" },
+				DetectUser: func(context.Context) string { return "bob@example.com" },
+				Getenv:     func(string) string { return "" },
+				Embedder:   tc.embedder,
+			}
+
+			_, err := cli.ExportBackfillIdentity(t.Context(), "/vault", deps, false)
+			g.Expect(err).To(MatchError(ContainSubstring(tc.want)))
+			g.Expect(err).To(MatchError(ContainSubstring("1.2026-01-01.a")))
+		})
+	}
+}
+
+// unexported variables.
+var (
+	errBackfillDiskFull = errors.New("disk full")
+)
+
 // backfillVault is an in-memory vault for backfill tests: path → content,
 // and a count of writes.
 type backfillVault struct {
@@ -273,6 +311,27 @@ func (v *backfillVault) backfill(ctx context.Context, dryRun bool) (int, error) 
 	}
 
 	return cli.ExportBackfillIdentity(ctx, "/vault", deps, dryRun)
+}
+
+// assertBackfillKeptKeys checks a backfilled note: every key but the
+// identity keys and created: decodes to its input value, and user:/vault:
+// are stamped.
+func assertBackfillKeptKeys(rt *rapid.T, before map[string]any, written string) {
+	after := decodeBackfillFrontmatter(rt, written)
+
+	for key, value := range before {
+		if slices.Contains([]string{"repo", "user", "vault", "created"}, key) {
+			continue
+		}
+
+		if fmt.Sprint(after[key]) != fmt.Sprint(value) {
+			rt.Fatalf("key %s: before %v, after %v\n%s", key, value, after[key], written)
+		}
+	}
+
+	if after["user"] != "bob@example.com" || after["vault"] != "personal" {
+		rt.Fatalf("identity not stamped: %v", after)
+	}
 }
 
 // backfillNodeNote is a note missing identity with extra frontmatter lines
