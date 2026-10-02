@@ -195,3 +195,45 @@ def test_operator_data_dir_falls_back_to_local_share(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     expected = os.path.realpath(str(tmp_path / ".local" / "share" / "engram"))
     assert isolation.operator_data_dir() == expected
+
+
+# ----- install_skill: the shared warm-skill install primitive (#749 Gate-B DRY follow-up) -----
+#
+# wrun.py::build_warm_cfg, matrix.py::build_cfg_template, and probe.py::build_cfg_template all
+# install skills through this one primitive now, instead of each hand-mirroring the
+# source-exists / SKILL.md-exists / copy / destination-verify sequence.
+
+def test_install_skill_raises_on_missing_source_dir(tmp_path):
+    src_root = str(tmp_path / "skills")  # does not exist at all
+    dst_skills = str(tmp_path / "cfg" / "skills")
+
+    with pytest.raises(isolation.IsolationError) as exc:
+        isolation.install_skill(src_root, "recall", dst_skills)
+    assert "recall" in str(exc.value)
+    assert os.path.join(src_root, "recall") in str(exc.value)
+
+
+def test_install_skill_raises_on_empty_source_dir_no_skill_md(tmp_path):
+    src_root = str(tmp_path / "skills")
+    os.makedirs(os.path.join(src_root, "recall"))  # exists, but no SKILL.md
+    dst_skills = str(tmp_path / "cfg" / "skills")
+
+    with pytest.raises(isolation.IsolationError) as exc:
+        isolation.install_skill(src_root, "recall", dst_skills)
+    assert "recall" in str(exc.value)
+    assert "SKILL.md" in str(exc.value)
+
+
+def test_install_skill_copies_and_verifies_destination_content(tmp_path):
+    src_root = str(tmp_path / "skills")
+    src_skill = os.path.join(src_root, "recall")
+    os.makedirs(src_skill)
+    (open(os.path.join(src_skill, "SKILL.md"), "w")).write("# Recall\n")
+    dst_skills = str(tmp_path / "cfg" / "skills")
+    os.makedirs(dst_skills)
+
+    isolation.install_skill(src_root, "recall", dst_skills)
+
+    dst_skill_md = os.path.join(dst_skills, "recall", "SKILL.md")
+    assert os.path.exists(dst_skill_md)
+    assert open(dst_skill_md).read() == "# Recall\n"

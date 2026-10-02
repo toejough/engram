@@ -19,6 +19,7 @@ pulling in the cumulative harness's model tables.
 import hashlib
 import os
 import re
+import shutil
 
 # The three vars that decide whether a trial reaches real memory. CLAUDE_CONFIG_DIR is checked
 # separately: it is required to be set, but it is not an engram path so it is not compared against
@@ -171,6 +172,42 @@ def isolated_env(cfg, trial_dir, cwd=None, base=None):
 
     assert_isolated(env, cwd)
     return env
+
+
+def install_skill(src_skills_root, skill, dst_skills_dir):
+    """Copy ONE skill into a trial cfg's skills/ dir, verified at both ends.
+
+    Every WARM-cfg builder (wrun.py::build_warm_cfg, matrix.py::build_cfg_template,
+    probe.py::build_cfg_template) installed skills this same way, hand-mirrored into three
+    places — exactly how #749 happened: a stale source path silently no-op'd in one of the
+    three copies for a month before anyone noticed. Shared here so there is only one place
+    left to get it wrong.
+
+    src_skills_root: the skills directory to copy FROM (e.g. REPO/agent-instructions/skills) —
+        callers derive this from their own REPO constant; this function never guesses a repo
+        root itself, since a wrong guess there is exactly the #749 bug class.
+    skill: the skill's directory name (e.g. "recall").
+    dst_skills_dir: the trial cfg's own skills/ dir (e.g. os.path.join(dst, "skills")) — the
+        skill is copied to dst_skills_dir/<skill>.
+
+    Raises IsolationError (a RuntimeError subclass) naming the skill and the path checked if
+    the source is missing or has no SKILL.md, or if the post-copy destination doesn't actually
+    have SKILL.md — never silently installs fewer skills than asked.
+    """
+    src = os.path.join(src_skills_root, skill)
+    if not os.path.isdir(src):
+        raise IsolationError(f"skill source missing: {skill} not found at {src}")
+    skill_md = os.path.join(src, "SKILL.md")
+    if not os.path.exists(skill_md):
+        raise IsolationError(f"skill source invalid: {skill} at {src} has no SKILL.md")
+
+    dst_skill = os.path.join(dst_skills_dir, skill)
+    shutil.copytree(src, dst_skill, dirs_exist_ok=True)
+
+    if not os.path.exists(os.path.join(dst_skill, "SKILL.md")):
+        raise IsolationError(
+            f"skill installation failed: {skill} SKILL.md not found at destination {dst_skill}"
+        )
 
 
 def vault_fingerprint(vault=None):

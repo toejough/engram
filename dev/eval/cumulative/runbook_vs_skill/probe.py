@@ -169,24 +169,13 @@ def build_cfg_template(dst, skills=("recall", "learn")):
     base["projects"] = {}
     json.dump(base, open(os.path.join(dst, ".claude.json"), "w"))
     os.makedirs(os.path.join(dst, "skills"), exist_ok=True)
+    # install_skill raises on a missing/empty source rather than silently skipping the copy --
+    # the same silent-no-op bug class #749 found in matrix.py's sibling implementation
+    # (design.md D6: a scoped consistency fix, not itself one of the five filed issues).
+    # Shared with matrix.py/wrun.py's own warm-cfg builders (Gate-B DRY follow-up).
+    skills_root = os.path.join(REPO, "agent-instructions", "skills")
     for skill in skills:
-        src = os.path.join(REPO, "agent-instructions", "skills", skill)
-        # Raise on a missing/empty source rather than silently skipping the copy -- the same
-        # silent-no-op bug class #749 found in matrix.py's sibling implementation (design.md D6:
-        # a scoped consistency fix, not itself one of the five filed issues).
-        if not os.path.isdir(src):
-            raise RuntimeError(f"skill source missing: {skill} not found at {src}")
-        skill_md = os.path.join(src, "SKILL.md")
-        if not os.path.exists(skill_md):
-            raise RuntimeError(f"skill source invalid: {skill} at {src} has no SKILL.md")
-
-        dst_skill = os.path.join(dst, "skills", skill)
-        shutil.copytree(src, dst_skill, dirs_exist_ok=True)
-
-        if not os.path.exists(os.path.join(dst_skill, "SKILL.md")):
-            raise RuntimeError(
-                f"skill installation failed: {skill} SKILL.md not found at destination {dst_skill}"
-            )
+        isolation.install_skill(skills_root, skill, os.path.join(dst, "skills"))
 
 
 def build_cfg_pool(run_root, n, skills=("recall", "learn")):

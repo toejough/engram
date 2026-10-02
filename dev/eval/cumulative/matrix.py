@@ -25,7 +25,9 @@ import argparse, concurrent.futures as cf, datetime, json, os, queue, shutil, su
 CUM = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(CUM)))  # dev/eval/cumulative -> repo root
 sys.path.insert(0, CUM)
+sys.path.insert(0, os.path.dirname(CUM))  # dev/eval
 import harness  # REGIMES, MODELS, engram_sha
+import isolation  # install_skill — the shared warm-skill install primitive (#749)
 
 ROOT = os.environ.get("CUMMATRIX_ROOT", "/tmp/cummatrix")
 VAULTS = ROOT + "/vaults"
@@ -83,24 +85,14 @@ def build_cfg_template(dst, warm):
 
     if warm:
         # real.full: both /recall and /learn skills from the repo (the shipped skills).
-        # Verify source + post-copy destination content; never silently skip a missing or
-        # empty source (#749 -- this path was stale from the 2026-07-24 agent-instructions/
-        # move, and its old `if os.path.isdir(src):` guard silently no-op'd on it).
+        # install_skill verifies source + post-copy destination content; never silently skips
+        # a missing or empty source (#749 -- this path was stale from the 2026-07-24
+        # agent-instructions/ move, and its old `if os.path.isdir(src):` guard silently
+        # no-op'd on it). Shared with wrun.py/probe.py's own warm-cfg builders (Gate-B DRY
+        # follow-up) so the three can't drift apart the way this one already did.
+        skills_root = os.path.join(REPO, "agent-instructions", "skills")
         for skill in ("recall", "learn"):
-            src = os.path.join(REPO, "agent-instructions", "skills", skill)
-            if not os.path.isdir(src):
-                raise RuntimeError(f"skill source missing: {skill} not found at {src}")
-            skill_md = os.path.join(src, "SKILL.md")
-            if not os.path.exists(skill_md):
-                raise RuntimeError(f"skill source invalid: {skill} at {src} has no SKILL.md")
-
-            dst_skill = os.path.join(dst, "skills", skill)
-            shutil.copytree(src, dst_skill, dirs_exist_ok=True)
-
-            if not os.path.exists(os.path.join(dst_skill, "SKILL.md")):
-                raise RuntimeError(
-                    f"skill installation failed: {skill} SKILL.md not found at destination {dst_skill}"
-                )
+            isolation.install_skill(skills_root, skill, os.path.join(dst, "skills"))
 
 
 def refresh_creds(cfg):
