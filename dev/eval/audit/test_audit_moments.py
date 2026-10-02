@@ -1996,6 +1996,19 @@ class TestEngramQueryErrorHandling:
             assert len(result.get("items", [])) == 0, "items should be empty list when no results"
             assert result.get("error") is None, "error should be None on success"
 
+    def test_build_engram_query_argv_joins_phrase_as_single_equals_arg(self):
+        """#787: the shared argv builder must join `--phrase=<value>` as one element."""
+        argv = audit_moments._build_engram_query_argv(
+            ["--text verbatim scenario dropped from modified requirement", "second phrase"]
+        )
+        assert argv == [
+            "engram",
+            "query",
+            "--lazy-chunks",
+            "--phrase=--text verbatim scenario dropped from modified requirement",
+            "--phrase=second phrase",
+        ]
+
     def test_phrase_starting_with_dashdash_is_passed_as_single_equals_arg(self):
         """#787: a phrase beginning with '--' must not be split into two argv elements.
 

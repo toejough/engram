@@ -490,6 +490,23 @@ def _filter_chunks_by_ingestion_date(chunks_dir: str, timestamp: str, scratch_di
     return filtered_chunks_dir
 
 
+def _build_engram_query_argv(search_phrases: List[str]) -> List[str]:
+    """
+    Build the argv for an `engram query --lazy-chunks` invocation.
+
+    Shared by `_run_engram_query_at_moment` (the primary existence-check
+    invocation) and `run_window_sample.py`'s diagnostic rerun, so the two
+    invocations can never drift apart again the way they did for #787: each
+    phrase is passed as a single `--phrase=<value>` argv element (not two
+    separate elements) so a phrase beginning with "--" can never be
+    misparsed by engram's own CLI flag parser as a new flag.
+    """
+    args = ["engram", "query", "--lazy-chunks"]
+    for phrase in search_phrases:
+        args.append(f"--phrase={phrase}")
+    return args
+
+
 def _run_engram_query_at_moment(
     vault_path: str,
     chunks_path: str,
@@ -532,12 +549,8 @@ def _run_engram_query_at_moment(
         sys.stderr.write(f"[audit_moments] {error_msg}\n")
         return {"items": None, "error": error_msg}
 
-    # Build engram query command. Use the single-argument `--phrase=<value>` form
-    # (not two separate argv elements) so a phrase beginning with "--" can never be
-    # misparsed by engram's own CLI flag parser as a new flag (#787).
-    args = ["engram", "query", "--lazy-chunks"]
-    for phrase in search_phrases:
-        args.append(f"--phrase={phrase}")
+    # Build engram query command.
+    args = _build_engram_query_argv(search_phrases)
 
     try:
         result = subprocess.run(

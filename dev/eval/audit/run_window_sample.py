@@ -143,9 +143,9 @@ def install_recorders(output_dir: Path, current: Dict[str, Any]) -> None:
             try:
                 import isolation
                 env = isolation.engram_env(vault=vault_path, chunks=chunks_path)
-                args_q = ["engram", "query", "--lazy-chunks"]
-                for phrase in search_phrases:
-                    args_q.append(f"--phrase={phrase}")
+                # Shared with the primary invocation this rerun is diagnosing, so the
+                # two can never drift apart again the way they did for #787.
+                args_q = audit_moments._build_engram_query_argv(search_phrases)
                 rerun = subprocess.run(args_q, env=env, capture_output=True, text=True, timeout=60)
                 diag.update({"rerun_rc": rerun.returncode, "rerun_stdout_tail": rerun.stdout[-2000:],
                              "rerun_stderr_tail": rerun.stderr[-2000:]})

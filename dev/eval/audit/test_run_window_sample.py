@@ -2,6 +2,7 @@
 
 import os
 import sys
+import unittest.mock
 
 import pytest
 
@@ -62,3 +63,42 @@ def test_audit_one_window_fails_loud_on_window_drift(monkeypatch):
 def test_projected_total_includes_prior_spend():
     assert rws.projected_total(17.65, 10.0, 4, 47) == pytest.approx(17.65 + 2.5 * 47)
     assert rws.projected_total(5.0, 0.0, 0, 47) == 5.0
+
+
+def test_query_wrapper_diagnostic_rerun_does_not_misparse_dashdash_phrase(tmp_path, monkeypatch):
+    """#787: install_recorders' diagnostic rerun must build the same safe argv as the
+    primary invocation it's diagnosing -- a phrase beginning with "--" must reach
+    `engram query` as a single `--phrase=<value>` element, never two argv elements.
+
+    Drives the REAL `_run_engram_query_at_moment` (not a stub) through the wrapper,
+    so the primary call's own `engram query` invocation fails first (mocked
+    subprocess.run, rc=1) -- which is what triggers the diagnostic rerun -- and then
+    asserts the rerun's own argv (the second subprocess.run call) is safe.
+    """
+    # Register the real originals with monkeypatch BEFORE install_recorders
+    # overwrites them directly, so both are restored at teardown even though
+    # install_recorders itself reassigns module attributes without monkeypatch.
+    monkeypatch.setattr(audit_moments, "_run_claude_p", audit_moments._run_claude_p)
+    monkeypatch.setattr(
+        audit_moments,
+        "_run_engram_query_at_moment",
+        audit_moments._run_engram_query_at_moment,
+    )
+
+    current = {"path": "/t/x.jsonl"}
+    rws.install_recorders(tmp_path, current)
+
+    phrase = "--text verbatim scenario dropped from modified requirement"
+    with unittest.mock.patch("subprocess.run") as mock_run:
+        mock_run.side_effect = [
+            unittest.mock.Mock(returncode=1, stdout="", stderr="simulated primary failure"),
+            unittest.mock.Mock(returncode=0, stdout="", stderr=""),
+        ]
+        audit_moments._run_engram_query_at_moment("/tmp/vault", "/tmp/chunks", [phrase])
+
+    assert mock_run.call_count == 2, "expected the primary call plus the diagnostic rerun"
+    rerun_argv = mock_run.call_args_list[1][0][0]
+    assert f"--phrase={phrase}" in rerun_argv, (
+        f"expected a single joined --phrase=<value> argument, got argv={rerun_argv!r}"
+    )
+    assert "--phrase" not in rerun_argv, f"argv should not contain a bare '--phrase' element, got argv={rerun_argv!r}"
