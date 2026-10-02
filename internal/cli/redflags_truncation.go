@@ -36,6 +36,8 @@ const (
 // budget, is returned unchanged (byte-identical) — this function must never
 // touch a note that was never at truncation risk.
 func capRedFlagsForPreview(content, basename string) string {
+	content = string(toLF([]byte(content))) // a CRLF note is previewed as its LF form (#789 design D8)
+
 	blockStart := strings.Index(content, redFlagsBlockStart)
 	if blockStart < 0 {
 		return content

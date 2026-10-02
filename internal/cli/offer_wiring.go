@@ -97,6 +97,14 @@ func cachedParentVaultID(state exchangeState, vault, parentURL string) string {
 // other drain error is warned. Neither fails the command.
 func drainForCommand(ctx context.Context, deps Deps, vault, parentURL string, ignoreBackoff bool) {
 	store := outboxStoreFromDeps(deps)
+
+	// Kept receipts need no parent contact: record them before the gate
+	// (#789 review finding 4).
+	keptErr := recordKeptReceipts(store, vault, parentURL, newReceiptApplier(ctx, deps))
+	if keptErr != nil {
+		logWarningTo(deps.Stderr)(offerDrainWarningFormat, keptErr)
+	}
+
 	if !gateParentContact(store, vault, parentURL, ignoreBackoff) {
 		return
 	}

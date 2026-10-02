@@ -9,6 +9,7 @@ package cli_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"path/filepath"
 	"strings"
@@ -18,6 +19,59 @@ import (
 
 	"github.com/toejough/engram/internal/cli"
 )
+
+// TestDrainForCommand_KeptReceiptFromAnotherParentDiscarded: a kept receipt
+// whose vault ID is not the configured parent's (the parent was
+// reconfigured, or reports another vault) is never recorded: it is
+// discarded with a warning and the entry is queued for the current parent.
+func TestDrainForCommand_KeptReceiptFromAnotherParentDiscarded(t *testing.T) {
+	t.Parallel()
+
+	for name, cache := range map[string]struct{ url, id string }{
+		"parent URL reconfigured":      {"http://old-parent:9", seqID(91)},
+		"parent reports another vault": {parentURL, seqID(92)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			env, path := heldReceiptWiringEnv(t, cache.url, cache.id, seqID(91))
+
+			env.learnFact("another")
+			g.Expect(readFileString(t, path)).NotTo(ContainSubstring("parent-copy"), "the stale receipt is not recorded")
+			g.Expect(env.lastStderr).To(ContainSubstring("discarding the kept receipt"))
+
+			states := map[string]any{}
+			for _, raw := range env.outboxEntries() {
+				entry, isMap := raw.(map[string]any)
+				g.Expect(isMap).To(BeTrue())
+
+				xid, isString := entry["xid"].(string)
+				g.Expect(isString).To(BeTrue())
+
+				states[xid] = entry["state"]
+				g.Expect(entry).NotTo(HaveKey("receipt"))
+			}
+
+			g.Expect(states).To(HaveKeyWithValue(xidA, "queued"))
+		})
+	}
+}
+
+// TestDrainForCommand_KeptReceiptRecordedInsideBackoff: a fixed note's
+// kept receipt is recorded by the next command's drain step even while the
+// parent is backed off, with no request to the parent (it needs none).
+func TestDrainForCommand_KeptReceiptRecordedInsideBackoff(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env, path := heldReceiptWiringEnv(t, parentURL, seqID(91), seqID(91))
+
+	env.learnFact("another")
+	g.Expect(env.parent.requests()).To(BeEmpty(), "inside the backoff window nothing contacts the parent")
+	g.Expect(readFileString(t, path)).To(ContainSubstring("note: 9.2026-09-27.parent-copy"))
+	g.Expect(env.outboxEntries()).To(HaveLen(1), "only the new note's entry is left")
+}
 
 // TestDrainOutbox_AttentionEntryWithoutReceiptIsSent: an attention entry
 // with no kept receipt (an older binary saved the outbox and dropped it) is
@@ -51,7 +105,7 @@ func TestDrainOutbox_AttentionResumesAndRequeuesAChangedNote(t *testing.T) {
 	env.fsys.put(attentionNotePath(env), []byte(anchoredParentNote("body one")))
 	env.enqueue(xidA)
 
-	_, err := env.drainApplying(&fakeParent{
+	err := env.drainApplying(&fakeParent{
 		script: map[string]cli.OfferSendResultForTest{xidA: accepted("9.2026-09-27.parent-copy")},
 	})
 	g.Expect(err).NotTo(HaveOccurred())
@@ -59,10 +113,9 @@ func TestDrainOutbox_AttentionResumesAndRequeuesAChangedNote(t *testing.T) {
 
 	env.fsys.put(attentionNotePath(env), []byte(plainParentNote("body two")))
 
-	parent := &fakeParent{}
-	_, resumeErr := env.drainApplying(parent)
-	g.Expect(resumeErr).NotTo(HaveOccurred())
-	g.Expect(parent.sent).To(BeEmpty(), "the kept receipt is recorded without contacting the parent")
+	// Recording the kept receipt is local; the entry is then queued again
+	// because the note changed since it was sent.
+	g.Expect(cli.ExportRecordKeptReceipts(env.store, env.vault, parentURL, parentFor(env).apply)).To(Succeed())
 	g.Expect(string(env.noteRaw(attentionNoteName))).To(ContainSubstring("note: 9.2026-09-27.parent-copy"))
 
 	box := env.outbox()
@@ -71,7 +124,7 @@ func TestDrainOutbox_AttentionResumesAndRequeuesAChangedNote(t *testing.T) {
 	g.Expect(box.Entries[0].Receipt).To(BeNil())
 
 	next := &fakeParent{}
-	_, nextErr := env.drainApplying(next)
+	nextErr := env.drainApplying(next)
 	g.Expect(nextErr).NotTo(HaveOccurred())
 	g.Expect(sentXIDs(next)).To(Equal([]string{xidA}), "the changed note is offered again")
 }
@@ -92,8 +145,11 @@ func TestDrainOutbox_AttentionRetryFailureIsReported(t *testing.T) {
 		"sent_hash": mustHash(t, []byte(plainParentNote("body one"))),
 	}}})
 
+	env.fsys.put(filepath.Join(env.vault, ".engram", "parent.json"),
+		[]byte(`{"url":"`+parentURL+`","vault_id":"`+parentVaultID+`","failures":0}`))
+
 	parent := &fakeParent{applyErr: errors.New("disk full")}
-	_, err := env.drain(parent)
+	err := cli.ExportRecordKeptReceipts(env.store, env.vault, parentURL, parent.apply)
 	g.Expect(err).To(MatchError(ContainSubstring("disk full")))
 	g.Expect(parent.sent).To(BeEmpty())
 	g.Expect(parent.applied).To(Equal([]string{"1.2026-09-27.a"}))
@@ -101,6 +157,31 @@ func TestDrainOutbox_AttentionRetryFailureIsReported(t *testing.T) {
 	box := env.outbox()
 	g.Expect(box.Entries[0].State).To(Equal("attention"))
 	g.Expect(box.Entries[0].LastError).To(ContainSubstring("disk full"))
+}
+
+// TestDrainOutbox_NoUserEntryRequeuedOnceBuilt: an entry waiting in
+// attention for a user identity goes back to queued as soon as its payload
+// builds, so a network failure on that send keeps it queued (counted, and
+// not listed as needing attention).
+func TestDrainOutbox_NoUserEntryRequeuedOnceBuilt(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
+	env.writeOutbox(map[string]any{"version": 1, "entries": []map[string]any{{
+		"xid": xidA, "queued": testNow, "attempts": 0, "state": "attention",
+		"last_error": "cannot offer: no user identity detected; set git user.email",
+	}}})
+
+	down := cli.ExportClassifyOfferResponse(cli.FetchResponse{}, errors.New("down"))
+	_, err := env.drain(&fakeParent{script: map[string]cli.OfferSendResultForTest{xidA: down}})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	box := env.outbox()
+	g.Expect(box.Entries).To(HaveLen(1))
+	g.Expect(box.Entries[0].State).To(Equal("queued"))
+	g.Expect(cli.ExportQueuedOfferCount(box)).To(Equal(1))
 }
 
 // TestDrainOutbox_RefusedReceiptNeedsAttention: the parent accepts, but the
@@ -119,7 +200,7 @@ func TestDrainOutbox_RefusedReceiptNeedsAttention(t *testing.T) {
 	env.enqueue(xidA)
 
 	first := &fakeParent{script: map[string]cli.OfferSendResultForTest{xidA: accepted("9.2026-09-27.parent-copy")}}
-	_, err := env.drainApplying(first)
+	err := env.drainApplying(first)
 	g.Expect(err).NotTo(HaveOccurred(), "the refusal is warned, not returned as a drain error")
 	g.Expect(sentXIDs(first)).To(Equal([]string{xidA}))
 	g.Expect(env.noteRaw(attentionNoteName)).To(Equal(anchored), "a refused receipt leaves the note untouched")
@@ -138,7 +219,7 @@ func TestDrainOutbox_RefusedReceiptNeedsAttention(t *testing.T) {
 
 	for range 2 {
 		again := &fakeParent{}
-		_, againErr := env.drainApplying(again)
+		againErr := env.drainApplying(again)
 		g.Expect(againErr).NotTo(HaveOccurred())
 		g.Expect(again.sent).To(BeEmpty(), "an attention entry is never re-sent")
 		g.Expect(env.outbox().Entries[0].State).To(Equal("attention"))
@@ -149,12 +230,46 @@ func TestDrainOutbox_RefusedReceiptNeedsAttention(t *testing.T) {
 	env.fsys.put(attentionNotePath(env), []byte(plainParentNote("body one")))
 
 	resumed := &fakeParent{}
-	_, resumeErr := env.drainApplying(resumed)
+	resumeErr := env.drainApplying(resumed)
 	g.Expect(resumeErr).NotTo(HaveOccurred())
 	g.Expect(resumed.sent).To(BeEmpty())
 	g.Expect(env.outbox().Entries).To(BeEmpty(), "the receipt is recorded and the entry is done")
 	g.Expect(string(env.noteRaw(attentionNoteName))).To(ContainSubstring("note: 9.2026-09-27.parent-copy"))
 	g.Expect(string(env.noteRaw(attentionNoteName))).To(ContainSubstring("via: offered"))
+}
+
+// TestRecordKeptReceipts_DropsEntryOfDeletedNote: a kept receipt whose
+// note is gone is dropped with its entry, as any entry of a deleted note.
+func TestRecordKeptReceipts_DropsEntryOfDeletedNote(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	env.writeOutbox(map[string]any{"version": 1, "entries": []map[string]any{{
+		"xid": xidA, "queued": testNow, "attempts": 1, "state": "attention", "last_error": "anchored",
+		"receipt": accepted("9.2026-09-27.parent-copy").Receipt, "sent_hash": "xh1:gone",
+	}}})
+
+	g.Expect(cli.ExportRecordKeptReceipts(env.store, env.vault, parentURL, (&fakeParent{}).apply)).To(Succeed())
+	g.Expect(env.outbox().Entries).To(BeEmpty())
+}
+
+// TestRecordKeptReceipts_ScanFailureSurfaces: a vault that cannot be
+// listed fails the local pass.
+func TestRecordKeptReceipts_ScanFailureSurfaces(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	env.writeOutbox(map[string]any{"version": 1, "entries": []map[string]any{{
+		"xid": xidA, "queued": testNow, "attempts": 1, "state": "attention", "last_error": "anchored",
+		"receipt": accepted("9.2026-09-27.parent-copy").Receipt, "sent_hash": "xh1:x",
+	}}})
+	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
+	env.fsys.failReadOf(filepath.Join(env.vault, "1.2026-09-27.a.md"), errors.New("disk gone"))
+
+	err := cli.ExportRecordKeptReceipts(env.store, env.vault, parentURL, (&fakeParent{}).apply)
+	g.Expect(err).To(MatchError(ContainSubstring("disk gone")))
 }
 
 // TestUpdateExchange_ReportsEntryNeedingAttention: through the production
@@ -203,7 +318,7 @@ const (
 
 // drainApplying drains with a receipt applier that runs the real
 // applyReceiptToContent on the in-memory note and writes the result.
-func (e *outboxEnv) drainApplying(parent *fakeParent) (cli.DrainResultForTest, error) {
+func (e *outboxEnv) drainApplying(parent *fakeParent) error {
 	apply := func(note cli.OfferNoteForTest, receipt cli.OfferReceiptForTest) error {
 		parent.applied = append(parent.applied, note.Basename)
 
@@ -219,7 +334,15 @@ func (e *outboxEnv) drainApplying(parent *fakeParent) (cli.DrainResultForTest, e
 		return nil
 	}
 
-	return cli.ExportDrainOutbox(context.Background(), e.store, e.vault, parentURL, parent.send, apply)
+	// As drainForCommand does: kept receipts first, locally, then the drain.
+	keptErr := cli.ExportRecordKeptReceipts(e.store, e.vault, parentURL, apply)
+	if keptErr != nil {
+		return keptErr
+	}
+
+	_, drainErr := cli.ExportDrainOutbox(context.Background(), e.store, e.vault, parentURL, parent.send, apply)
+
+	return drainErr
 }
 
 // anchoredParentNote is a fact note queued as xidA whose parent: carries an
@@ -231,6 +354,59 @@ func anchoredParentNote(body string) string {
 
 func attentionNotePath(env *outboxEnv) string {
 	return filepath.Join(env.vault, attentionNoteName)
+}
+
+// heldReceiptWiringEnv is a wiring env whose vault holds a fixed note (xidA)
+// with an attention entry keeping a receipt from receiptVault, and a parent
+// cache for cacheURL/cacheID inside a backoff window.
+func heldReceiptWiringEnv(t *testing.T, cacheURL, cacheID, receiptVault string) (*wiringEnv, string) {
+	t.Helper()
+
+	env := newWiringEnv(t)
+	env.parent.setDown(true)
+	env.stampVault("")
+
+	note := plainParentNote("body one")
+	env.plant(attentionNoteName, []byte(note))
+
+	sent, err := cli.ExportExchangeHash([]byte(note))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	receipt := accepted("9.2026-09-27.parent-copy").Receipt
+	receipt.VaultID = receiptVault
+
+	box := map[string]any{"version": 1, "entries": []map[string]any{{
+		"xid": xidA, "queued": env.now(), "attempts": 1, "state": "attention", "last_error": "anchored",
+		"receipt": receipt, "sent_hash": sent,
+	}}}
+
+	encoded, marshalErr := json.Marshal(box)
+	if marshalErr != nil {
+		t.Fatal(marshalErr)
+	}
+
+	env.writeState("outbox.json", string(encoded))
+	env.writeState("parent.json", `{"url":"`+cacheURL+`","vault_id":"`+cacheID+
+		`","backoff_until":"2999-01-01T00:00:00Z","failures":3}`)
+
+	return env, filepath.Join(env.vault, attentionNoteName)
+}
+
+// parentFor is a fake parent whose receipt applier runs the real
+// applyReceiptToContent on env's in-memory notes (as drainApplying does).
+func parentFor(env *outboxEnv) *fakeParent {
+	return &fakeParent{applyFn: func(note cli.OfferNoteForTest, receipt cli.OfferReceiptForTest) error {
+		updated, applyErr := cli.ExportApplyReceiptToContent(note.Raw, receipt)
+		if applyErr != nil {
+			return applyErr
+		}
+
+		env.fsys.put(note.Path, []byte(updated))
+
+		return nil
+	}}
 }
 
 // plainParentNote is anchoredParentNote with the anchor and its alias

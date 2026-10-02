@@ -402,7 +402,7 @@ func TestNotesMissingIdentityFields(t *testing.T) {
 			fileSystem := newU1FS()
 			maps.Copy(fileSystem.files, tc.files)
 
-			got := cli.ExportNotesMissingIdentityFields("/vault", fileSystem)
+			got := cli.ExportNotesMissingIdentityFields("/vault", fileSystem, true)
 			g.Expect(got).To(Equal(tc.want))
 		})
 	}

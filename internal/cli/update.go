@@ -484,7 +484,8 @@ func runPostUpdateChecks(
 	chunksDir := ResolveChunksDir("", report.Home, deps.Env.Getenv)
 	report.ChunkIndexHasEmptyFiles = chunkIndexHasEmptyFiles(chunksDir, deps.FS)
 	report.ChunkIndexHasPrunableDuplicates = chunkIndexHasPrunableDuplicates(chunksDir, deps.FS)
-	report.VaultHasNotesMissingIdentity = notesMissingIdentityFields(vaultPath, deps.FS)
+	report.VaultHasNotesMissingIdentity = notesMissingIdentityFields(vaultPath, deps.FS,
+		userDetectable(ctx, deps.Identity))
 	report.VaultHasPendingOffers = vaultHasPendingOffers(vaultPath, deps.FS)
 	report.VaultIDUncommitted = vaultIDUncommitted(ctx, vaultPath, deps.FS, deps.Cmd)
 

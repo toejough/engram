@@ -1198,7 +1198,7 @@ func kindFromContent(content string) string {
 		return unknownKind
 	}
 
-	scan := content
+	scan := string(toLF([]byte(content))) // CRLF reads as LF (#789 design D8)
 	if len(scan) > maxScan {
 		scan = scan[:maxScan]
 	}

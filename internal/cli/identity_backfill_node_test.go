@@ -129,13 +129,20 @@ func TestBackfillIdentity_FillsAnOmittedUser(t *testing.T) {
 		g.Expect(vault.writes).To(BeZero())
 	})
 
-	t.Run("flagged by update", func(t *testing.T) {
+	t.Run("flagged by update only when backfill can stamp it", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
 		fileSystem := newU1FS()
 		fileSystem.files["/vault/1.2026-01-01.a.md"] = []byte(userless)
-		g.Expect(cli.ExportNotesMissingIdentityFields("/vault", fileSystem)).To(BeTrue())
+		g.Expect(cli.ExportNotesMissingIdentityFields("/vault", fileSystem, true)).To(BeTrue())
+		g.Expect(cli.ExportNotesMissingIdentityFields("/vault", fileSystem, false)).
+			To(BeFalse(), "with no user detected, backfill cannot stamp a note that has vault:, so no notice")
+
+		legacy := newU1FS()
+		legacy.files["/vault/2.2026-01-01.b.md"] = []byte(backfillNodeNote("fact", "source: agent\n"))
+		g.Expect(cli.ExportNotesMissingIdentityFields("/vault", legacy, false)).
+			To(BeTrue(), "a note with no vault: is stampable even without a user")
 	})
 }
 

@@ -182,8 +182,10 @@ var (
 	ExportPrintStatsReport              = printStatsReport
 	ExportProbeProjectIdentity          = probeProjectIdentity
 	ExportProcessVocabDefinitionNote    = processVocabDefinitionNote
+	ExportQueuedOfferCount              = queuedOfferCount
 	ExportReadCentroidsDoc              = readCentroidsDoc
 	ExportRecencyMultiplier             = recencyMultiplier
+	ExportRecordKeptReceipts            = recordKeptReceipts
 	ExportRecordParentFailure           = recordParentFailure
 	ExportRecordParentSuccess           = recordParentSuccess
 	ExportRegenVocab                    = regenVocab

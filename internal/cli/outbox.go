@@ -67,8 +67,14 @@ const (
 
 // unexported variables.
 var (
-	errOfferLoopRefused = errors.New("the parent refused the offer as a loop (its vault ID is on offer.path)")
-	errOfferMalformed   = errors.New("the parent's offer receipt is malformed: its vault_id is not 32 lowercase " +
+	// errReceiptNeedsAttention marks a receipt the local note refused: the
+	// entry moved to the attention state, and the merge warns once instead
+	// of returning it as a drain error (#789 design D3).
+	// errKeptReceiptDiscarded marks a kept receipt from a parent other than
+	// the configured one, discarded with one warning.
+	errKeptReceiptDiscarded = errors.New("a link counts only under the configured parent")
+	errOfferLoopRefused     = errors.New("the parent refused the offer as a loop (its vault ID is on offer.path)")
+	errOfferMalformed       = errors.New("the parent's offer receipt is malformed: its vault_id is not 32 lowercase " +
 		"hex, or its basename or for is not a Luhmann basename free of '/', '\\' and '|'")
 	// errOfferNoUserIdentity: the note has no user: and none is detected,
 	// so no offer can be built.
@@ -80,9 +86,6 @@ var (
 	errOfferWithdrawn      = errors.New("offer withdrawn at send time")
 	errParentTooOld        = errors.New("the parent is too old: its offer receipt carries no vault_id or basename " +
 		"(upgrade engram on the parent host)")
-	// errReceiptNeedsAttention marks a receipt the local note refused: the
-	// entry moved to the attention state, and the merge warns once instead
-	// of returning it as a drain error (#789 design D3).
 	errReceiptNeedsAttention = errors.New("the offer will not be re-sent, and the receipt is recorded on a " +
 		"later drain once the note's frontmatter decodes and its parent: carries no YAML anchor")
 )
@@ -252,7 +255,7 @@ func applyDrainStep(
 	case offerWithdrawn:
 		return applyWithdrawnStep(step, box, found.note), nil
 	case offerHeld:
-		return applyHeldStep(step, box, found.note, apply)
+		return applyHeldStep(step, box, found.note, apply, *cache, parentURL)
 	case offerFailed, offerTooOld, offerSkipped:
 	}
 
@@ -266,7 +269,20 @@ func applyDrainStep(
 // returned.
 func applyHeldStep(
 	step drainStep, box outboxFile, note offerNote, apply func(offerNote, offerReceipt) error,
+	cache parentCache, parentURL string,
 ) (outboxFile, error) {
+	// A link counts only under the configured parent's vault (ruling S16):
+	// a receipt kept from another parent, or one the configured parent no
+	// longer matches, is discarded and the offer queued for the current
+	// parent (#789 review, set-aside b).
+	if cache.URL != parentURL || cache.VaultID != step.outcome.Receipt.VaultID {
+		requeued := keepOutboxEntryQueued(box, step)
+
+		return requeued, fmt.Errorf("outbox: discarding the kept receipt for %s: it came from parent vault %s, "+
+			"but the configured parent is %s (vault %s); the offer is queued for the current parent: %w",
+			note.Basename, step.outcome.Receipt.VaultID, parentURL, orUnknown(cache, parentURL), errKeptReceiptDiscarded)
+	}
+
 	applyErr := apply(note, step.outcome.Receipt)
 	if receiptRefused(applyErr) {
 		return box, nil
@@ -553,6 +569,11 @@ func keepOutboxEntryQueued(box outboxFile, step drainStep) outboxFile {
 	})
 }
 
+// keepsReceipt reports whether an entry is in attention keeping a receipt.
+func keepsReceipt(entry outboxEntry) bool {
+	return entry.State == outboxStateAttention && entry.Receipt != nil
+}
+
 // loadOutbox reads .engram/outbox.json; a missing file is an empty outbox.
 func loadOutbox(state exchangeState, vault string) (outboxFile, error) {
 	raw, readErr := state.fs.ReadFile(outboxPath(vault))
@@ -626,6 +647,7 @@ func mergeDrainSteps(
 	for _, step := range steps {
 		var stepErr error
 
+		box = requeueBuiltOffer(box, step)
 		box, stepErr = applyDrainStep(step, box, &cache, current, apply, store.now(), parentURL, &result)
 		if needsAttentionWarning(stepErr) {
 			_, _ = fmt.Fprintf(store.stderr, receiptAttentionWarningFormat, stepErr)
@@ -652,10 +674,12 @@ func mergeDrainSteps(
 }
 
 // needsAttentionWarning reports whether a drain step's error is the one
-// warning of an entry moving to the attention state (a refused receipt, or
-// no user identity), printed by the merge rather than returned.
+// warning of an entry changing state on its own (moving to attention for a
+// refused receipt or no user identity, or a kept receipt discarded),
+// printed by the merge rather than returned.
 func needsAttentionWarning(err error) bool {
-	return errors.Is(err, errReceiptNeedsAttention) || errors.Is(err, errOfferNoUserIdentity)
+	return errors.Is(err, errReceiptNeedsAttention) || errors.Is(err, errOfferNoUserIdentity) ||
+		errors.Is(err, errKeptReceiptDiscarded)
 }
 
 // newOfferSender is the production send step: build the payload from the
@@ -694,6 +718,15 @@ func newOutboxStore(
 	stderr io.Writer,
 ) outboxStore {
 	return outboxStore{state: state, lock: lock, listMD: listMD, now: now, stderr: stderr}
+}
+
+// orUnknown is the configured parent's cached vault ID, or "unknown".
+func orUnknown(cache parentCache, parentURL string) string {
+	if cache.URL != parentURL || cache.VaultID == "" {
+		return "unknown"
+	}
+
+	return cache.VaultID
 }
 
 // outboxPath is <vault>/.engram/outbox.json.
@@ -739,6 +772,46 @@ func queuedOfferCount(box outboxFile) int {
 	return len(box.Entries) - outboxStateCount(box, outboxStateRejected) - outboxStateCount(box, outboxStateAttention)
 }
 
+// recordKeptReceipts is the local half of a drain (#789 review finding 4):
+// under the vault lock it retries recording every attention entry's kept
+// receipt on its note, as the merge's offerHeld steps. It never contacts
+// the parent, so a command runs it before the backoff and reachability
+// gate: a fixed note takes its receipt even while the parent is away.
+func recordKeptReceipts(store outboxStore, vault, parentURL string, apply func(offerNote, offerReceipt) error) error {
+	snapshot, loadErr := lockedLoadOutbox(store, vault)
+	if loadErr != nil || !slices.ContainsFunc(snapshot.Entries, keepsReceipt) {
+		return loadErr
+	}
+
+	notes, scanErr := scanOfferNotes(store, vault)
+	if scanErr != nil {
+		return scanErr
+	}
+
+	steps := make([]drainStep, 0, len(snapshot.Entries))
+
+	for _, entry := range snapshot.Entries {
+		if !keepsReceipt(entry) {
+			continue
+		}
+
+		if found, ok := notes[entry.XID]; !ok || found.pending {
+			steps = append(steps, drainStep{xid: entry.XID, queued: entry.Queued, drop: true})
+
+			continue
+		}
+
+		steps = append(steps, drainStep{
+			xid: entry.XID, queued: entry.Queued, hash: entry.SentHash,
+			outcome: offerSendResult{Outcome: offerHeld, Receipt: *entry.Receipt},
+		})
+	}
+
+	_, mergeErr := mergeDrainSteps(store, vault, parentURL, steps, apply)
+
+	return mergeErr
+}
+
 // refusingVaultID reads the refusing parent's vault ID from a loop
 // refusal's 409 body ("" when it carries none, or a malformed one).
 func refusingVaultID(body []byte) string {
@@ -758,6 +831,22 @@ func removeOutboxEntry(box outboxFile, xid string) outboxFile {
 	})
 
 	return box
+}
+
+// requeueBuiltOffer moves an entry waiting in attention for a user identity
+// (no kept receipt) back to queued once its payload built — any outcome
+// but the no-identity one — so a later failure keeps it queued and counted
+// (#789 review finding 3).
+func requeueBuiltOffer(box outboxFile, step drainStep) outboxFile {
+	if step.drop || step.outcome.Outcome == offerHeld || errors.Is(step.outcome.Err, errOfferNoUserIdentity) {
+		return box
+	}
+
+	return updateOutboxEntry(box, step, func(entry *outboxEntry) {
+		if entry.State == outboxStateAttention && entry.Receipt == nil {
+			entry.State = outboxStateQueued
+		}
+	})
 }
 
 // resolveCycleRefusal turns a loop refusal from a vault other than this one
@@ -840,8 +929,8 @@ func scanOfferNotes(store outboxStore, vault string) (map[string]scannedOffer, e
 // sendOutboxEntries is the drain's unlocked send phase: each entry in
 // first-queued order, dropping entries whose note is gone or pending,
 // skipping rejected entries whose note has not changed, and never sending
-// an attention entry that keeps its receipt: that receipt is retried
-// locally in the merge instead (an offerHeld step). It stops at an
+// an attention entry that keeps its receipt: recordKeptReceipts retries
+// that receipt locally instead. It stops at an
 // unreachable parent, a too-old parent, or a receipt that names this
 // vault itself (the self-parent guard).
 func sendOutboxEntries(
@@ -863,13 +952,8 @@ func sendOutboxEntries(
 			continue
 		}
 
-		if entry.State == outboxStateAttention && entry.Receipt != nil {
-			steps = append(steps, drainStep{
-				xid: entry.XID, queued: entry.Queued, hash: entry.SentHash,
-				outcome: offerSendResult{Outcome: offerHeld, Receipt: *entry.Receipt},
-			})
-
-			continue
+		if keepsReceipt(entry) {
+			continue // never sent: recordKeptReceipts retries it locally
 		}
 
 		outcome := resolveCycleRefusal(send(ctx, found.note), localID, stderr, &cycleWarned)

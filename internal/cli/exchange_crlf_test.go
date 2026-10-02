@@ -59,7 +59,7 @@ func TestDrainOutbox_FindsCRLFNote(t *testing.T) {
 	env.enqueue(xidA)
 
 	parent := &fakeParent{script: map[string]cli.OfferSendResultForTest{xidA: accepted("9.2026-09-27.parent-copy")}}
-	_, err := env.drainApplying(parent)
+	err := env.drainApplying(parent)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(sentXIDs(parent)).To(Equal([]string{xidA}))
 	g.Expect(env.outbox().Entries).To(BeEmpty())

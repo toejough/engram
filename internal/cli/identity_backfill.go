@@ -62,7 +62,8 @@ func applyIdentityBackfill(
 	report.IdentityBackfillNotesStamped = stamped
 
 	if !dryRun {
-		report.VaultHasNotesMissingIdentity = notesMissingIdentityFields(vaultPath, fileSystem)
+		report.VaultHasNotesMissingIdentity = notesMissingIdentityFields(vaultPath, fileSystem,
+			userDetectable(ctx, identityDeps))
 	}
 
 	return nil
@@ -255,6 +256,30 @@ func newIdentityDeps(d Deps) IdentityDeps {
 	}
 }
 
+// noteStampableNow reports whether backfill can stamp a note right now: a
+// fact or feedback note without user:, and either without vault: too (it
+// predates identity) or with a user detected to fill in (#789 review
+// finding 2). A CRLF note is read as LF; anything unparseable is not.
+func noteStampableNow(raw []byte, userDetected bool) bool {
+	frontmatter, ok := splitFrontmatter(raw)
+	if !ok {
+		return false
+	}
+
+	noteType := peekNoteType(frontmatter)
+	if noteType != typeFact && noteType != typeFeedback {
+		return false
+	}
+
+	var probe struct {
+		User  string `yaml:"user"`
+		Vault string `yaml:"vault"`
+	}
+
+	return yaml.Unmarshal(frontmatter, &probe) == nil && identityMissing(probe.User) &&
+		(probe.Vault == "" || userDetected)
+}
+
 // notesMissingIdentityFields reports whether vaultPath holds at least one
 // fact/feedback note with no repo:/user:/vault: provenance (identityMissing)
 // — the signal that `engram update --backfill-identity` has genuine work to
@@ -262,7 +287,7 @@ func newIdentityDeps(d Deps) IdentityDeps {
 // treated as no-signal (self-silencing, same convention as
 // oldVocabFilesPresent): a detection failure must never fail `engram
 // update`'s primary job.
-func notesMissingIdentityFields(vaultPath string, fileSystem update.Filesystem) bool {
+func notesMissingIdentityFields(vaultPath string, fileSystem update.Filesystem, userDetected bool) bool {
 	entries, readErr := fileSystem.ReadDir(vaultPath)
 	if readErr != nil {
 		return false
@@ -274,26 +299,7 @@ func notesMissingIdentityFields(vaultPath string, fileSystem update.Filesystem) 
 		}
 
 		raw, fileErr := fileSystem.ReadFile(filepath.Join(vaultPath, entry.Name()))
-		if fileErr != nil {
-			continue
-		}
-
-		frontmatter, ok := splitFrontmatter(toLF(raw)) // a CRLF note is backfilled too (#789)
-		if !ok {
-			continue
-		}
-
-		var probe struct {
-			User  string `yaml:"user"`
-			Vault string `yaml:"vault"`
-		}
-
-		noteType := peekNoteType(frontmatter)
-		if noteType != typeFact && noteType != typeFeedback {
-			continue
-		}
-
-		if yaml.Unmarshal(frontmatter, &probe) == nil && identityMissing(probe.User) {
+		if fileErr == nil && noteStampableNow(raw, userDetected) {
 			return true
 		}
 	}
@@ -319,6 +325,12 @@ func resolvedBackfillIdentity(
 		User:  deps.DetectUser(ctx),
 		Vault: resolveVaultName("", deps.Getenv),
 	}
+}
+
+// userDetectable reports whether user detection resolves now, so backfill
+// could stamp a note that has vault: but no user:.
+func userDetectable(ctx context.Context, deps IdentityDeps) bool {
+	return deps.DetectUser != nil && deps.DetectUser(ctx) != ""
 }
 
 // writeBackfilledNote writes a stamped note in one atomic write and, when

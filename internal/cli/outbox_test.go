@@ -1160,6 +1160,7 @@ type failer interface {
 // during (another process's work) while the offer is in flight.
 type fakeParent struct {
 	applyErr error
+	applyFn  func(cli.OfferNoteForTest, cli.OfferReceiptForTest) error
 	script   map[string]cli.OfferSendResultForTest
 	during   func(cli.OfferNoteForTest)
 	events   *drainEventLog
@@ -1167,12 +1168,16 @@ type fakeParent struct {
 	applied  []string
 }
 
-func (p *fakeParent) apply(note cli.OfferNoteForTest, _ cli.OfferReceiptForTest) error {
+func (p *fakeParent) apply(note cli.OfferNoteForTest, receipt cli.OfferReceiptForTest) error {
 	if p.events != nil {
 		p.events.add("apply")
 	}
 
 	p.applied = append(p.applied, note.Basename)
+
+	if p.applyFn != nil {
+		return p.applyFn(note, receipt)
+	}
 
 	return p.applyErr
 }
