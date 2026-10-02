@@ -61,7 +61,7 @@
     "name": "File bar.py's pre-existing regression as its own follow-up issue in ISSUES.md (runbook 846 step 6; tracked only, not end-state-gating -- see D13)",
     "any_of": [
       {"signal": "tool_path", "tools": ["Edit", "Write"], "pattern": "ISSUES\\.md$"},
-      {"signal": "bash_regex", "pattern": "(>>|cat\\s*>>?|tee\\s+-a)\\s*.*ISSUES\\.md"}
+      {"signal": "bash_regex", "pattern": "(>>|tee\\s+-a)\\s*ISSUES\\.md|cat\\s+\\S+\\s*>>?\\s*ISSUES\\.md"}
     ],
     "after": 6
   }

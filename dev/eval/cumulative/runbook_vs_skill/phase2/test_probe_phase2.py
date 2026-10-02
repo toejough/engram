@@ -3139,6 +3139,38 @@ def test_bisect_before_fix_step8_false_when_step6_never_matched():
     assert results.get("8") is False
 
 
+def test_bisect_before_fix_step8_file_issue_via_tee_append_after_step6():
+    """Gate-B follow-up (anchoring fix): `tee -a ISSUES.md` is a real write and must still
+    score as followed."""
+    steps = pp.load_steps("bisect-before-fix")
+    events = [
+        _tool_use("Bash", {"command": "sed -i '' '/print(/d' bar.py"}, idx=0),
+        _tool_use("Bash", {"command": "echo '## bar.py pre-existing bug' | tee -a ISSUES.md"}, idx=1),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results.get("8") is True
+
+
+@pytest.mark.parametrize("command", [
+    'echo "run complete" >> run.log && cat ISSUES.md',
+    'grep -n ">>" ISSUES.md',
+    'echo x >> a.log; less ISSUES.md',
+])
+def test_bisect_before_fix_step8_false_for_unanchored_append_or_mention(command):
+    """Gate-B follow-up: step 8's prior pattern (`(>>|cat\\s*>>?|tee\\s+-a)\\s*.*ISSUES\\.md`)
+    had an unanchored `.*`, so it matched a CHAINED command that appends to or greps an
+    UNRELATED file and merely mentions/reads ISSUES.md afterward in the same bash invocation --
+    never a real write to ISSUES.md itself. Each of these three commands reproduces that false
+    positive against the current (unfixed) pattern."""
+    steps = pp.load_steps("bisect-before-fix")
+    events = [
+        _tool_use("Bash", {"command": "sed -i '' '/print(/d' bar.py"}, idx=0),
+        _tool_use("Bash", {"command": command}, idx=1),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results.get("8") is False
+
+
 # --- tdd-order ---
 
 def test_tdd_order_steps_json_is_valid_and_registered():
