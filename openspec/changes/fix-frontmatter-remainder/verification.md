@@ -67,3 +67,21 @@ Same setup as task 5.1: a fresh scratch build (`go build`, no `go install`), `en
 | D5 | `engram embed status` | `stale: 1` (was 2): A's sidecar was rebuilt; the remaining stale sidecar is B's, from the hand conversion, and backfill does not write B. **PASS** |
 
 `TestBackfillIdentity_ParityWithPreChangeBackfill` still reproduces all 14 goldens byte for byte.
+
+## Follow-ups D4–D6: real-binary check (2026-10-02)
+
+A scratch build of the working tree (`go build`, no `go install`), every command under `env -i PATH=/usr/bin:/bin HOME=$S/home XDG_DATA_HOME=$S/data` from `$S/plain` (no git repository above it), each vault inside `$S`. A scratch parent ran `engram serve --addr 127.0.0.1:18790 --vault $S/pvault` with its own scratch `HOME` and `XDG_DATA_HOME`.
+
+| # | Check | Result |
+|---|---|---|
+| E1 | A hand-written pending served offer (`xid`, `offer.origin`), converted to all-CRLF: `engram show 5.2026-09-28.offer` | line 1: `# exchange_hash: xh1:284b1015…19b`. **PASS** |
+| E2 | `engram query --phrase …` on that vault | the CRLF pending offer is not listed (0 hits), and the payload says `pending_offers: true`: it is still a pending offer. **PASS** |
+| E3 | `engram amend --target 5.2026-09-28.offer --clear-pending --expect-hash <E1's hash>` | exit 0; the note is written as LF (0 CR lines) and is no longer pending. **PASS** |
+| E4 | A note learned while the parent was unreachable (entry `queued`), then converted to all-CRLF (17 CR lines); backoff cleared; `engram query` with `ENGRAM_PARENT` set | exit 0; outbox empty; the note now carries `via: offered` and has 0 CR lines; `engram embed status`: `stale: 0`. The parent vault holds the one offer. **PASS** |
+| E5 | A parent note converted to all-CRLF; in an empty child vault, `engram activate --note <parent basename>` | exit 0; one pulled copy, `pending: true`, `via: pulled`, 0 CR lines. **PASS** |
+| S1 | A learned note given `supersedes:` entries A (with `x_reason: kept`) and B; `engram amend --supersedes "9.2026-01-01.a\|refutes\|new a" --supersedes "9.2026-01-01.c\|narrows\|new c"` | exit 0; A is `type: refutes`, `claim: new a`, `x_reason: kept`; B is gone; C has only `note`, `type`, `claim`. **PASS** |
+| U1 | `engram learn` with no git `user.email` (a scratch `HOME` without `.gitconfig`), from a CGO-free scratch build under `env -i` (no `USER`) | `user: joe`: on macOS the OS username lookup still resolves, so empty detection is not reachable from the real binary on this machine, as the archived change recorded for amend. The empty case is pinned by `TestLearn_OmitsEmptyUser` and, through the production wiring with git and the OS lookup both failing, `TestActivate_PullDownOmitsEmptyUser`. **Recorded, not a failure.** |
+
+The parent server was stopped afterwards and `$S` removed.
+
+Parity after D4–D6: `TestRunAmend_ExchangeHashParityWithPreChangeAmend` matches all 32 exchange hashes and 29 of 32 notes byte for byte; the other 3 (`{fact,feedback,runbook}-minimal-clear-pending`) match byte for byte once the golden's `user: ""` line is removed, the one intended difference (design D6). `TestBackfillIdentity_ParityWithPreChangeBackfill` still matches all 14 goldens.

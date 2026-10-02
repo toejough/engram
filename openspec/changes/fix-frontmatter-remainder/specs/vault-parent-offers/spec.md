@@ -43,3 +43,24 @@ When the local note refuses the receipt because its frontmatter cannot take the 
 #### Scenario: Update reports an entry that needs attention
 - **WHEN** `engram update` runs while the outbox holds one queued entry and one `attention` entry for note L
 - **THEN** its notice counts one queued offer and one that needs attention, and names L with the reason
+
+## ADDED Requirements
+
+### Requirement: Exchange readers SHALL read a note as its LF form
+Every reader that gates an exchange operation on a note's frontmatter SHALL read the note as its LF form (each `\r\n` converted to `\n`), so a note with CRLF line endings takes part in exchange exactly as its LF form does. These readers are: the exchange hash; the exchange-field decode behind `engram show`'s header, the judged-version check and the curation fold; the pending-offer marker check behind query exclusion, pending-offer warnings and the served raw `show`; the outbox and served-learn note scan; offer classification at write time; the offer payload; the offer receipt; the pull-down envelope parse and the decline record; and activate's parent-link re-check. None of them SHALL write a note only to convert it. A receipt that is recorded on a CRLF note SHALL write it as LF in that same write and rebuild its sidecar.
+
+#### Scenario: A CRLF note hashes as its LF form
+- **WHEN** a note's frontmatter and body end in `\r\n`
+- **THEN** its exchange hash equals the exchange hash of its LF form
+
+#### Scenario: A queued CRLF note is sent
+- **WHEN** the outbox drains an entry whose note has CRLF line endings
+- **THEN** the offer is sent, the receipt is recorded, and the note is written as LF with a fresh sidecar
+
+#### Scenario: A CRLF pending offer stays pending
+- **WHEN** a note carrying `pending: true` has CRLF line endings
+- **THEN** query excludes it, and the served raw `show` refuses it as a pending offer
+
+#### Scenario: A CRLF parent note pulls down
+- **WHEN** the parent serves a note whose envelope content has CRLF line endings
+- **THEN** activate pulls it down as an LF pending copy linked at the parent's hash

@@ -21,11 +21,16 @@ Each claim was checked against the code at `0f5d91b7`:
 - amend and backfill write the same bytes as before for notes without CRLF, unknown keys or anchors.
 - identity backfill stamps CRLF notes too, converting them to LF only when it writes them, with fresh sidecars (coordinator follow-up, 2026-10-02: no exception for this pre-existing gap).
 
+- every reader that gates an exchange operation reads a note as its LF form, so `engram show` prints the exchange hash of a CRLF note and `--expect-hash` works on it (Joe, 2026-10-02; D4).
+- amend keeps unknown sub-keys inside a `supersedes:` entry that survives a replacement (Joe, 2026-10-02; D5).
+- no write ever produces `user: ""`: an undetectable user is omitted and warned once, and backfill fills it in later (Joe, 2026-10-02; D6).
+
 **Non-Goals:**
-- General CRLF support in `embed.SplitFrontmatter`, or in `engram show`'s `# exchange_hash:` header. A hand-converted CRLF-frontmatter note still gets no header (see Risks).
-- Converting a note amend does not write: a bare `--discard` target, a fold's offer, or a fold's existing note when the fold changes nothing.
-- Unknown sub-keys inside a modeled list entry that amend replaces (unchanged from the archived change, V6 F4 step 3).
-- Re-offering a note's new content while its entry needs attention. The note must take the old receipt first; then the hash-change check queues it again.
+- General CRLF support in `embed.SplitFrontmatter` (Joe, 2026-10-02: keep it unchanged). Readers outside exchange still treat a CRLF note's frontmatter as absent; see Risks.
+
+**Intended behaviour (not deferrals; Joe, 2026-10-02):**
+- A note amend does not write is never converted: a bare `--discard` target, a fold's offer, or a fold's existing note when the fold changes nothing. Conversion happens only inside a write a path already makes, as on every other path.
+- While an outbox entry needs attention, the note's new content is not offered. The note takes the kept receipt first; then the hash-change check queues it again.
 
 ## Decisions
 
@@ -87,7 +92,41 @@ Retrying the local apply is safe because the receipt is idempotent: `applyReceip
 
 **Version skew.** An older binary reading an `attention` entry treats it as `queued` (its sends skip only `rejected`) and re-sends it, which is the pre-change behaviour. When it saves the outbox it drops the `receipt` and `sent_hash` fields it does not know, but keeps `state: attention`. So the new binary treats an `attention` entry without a kept receipt as `queued`: it sends it again, and a refused receipt puts it back in `attention` with a fresh receipt (and one more warning).
 
-### D4: tests
+### D4 (follow-up 1): exchange readers read a note as its LF form
+
+`embed.SplitFrontmatter` stays LF-only. Instead each reader that gates an exchange operation on the frontmatter applies `toLF` before splitting:
+
+| Reader | Function | Operations it gates |
+|---|---|---|
+| exchange hash | `exchangeHash` (`exchangehash.go`) | show's header, `--expect-hash`, outbox change checks, rejected re-arm, loop suppression, dedupe rule 2, `offer.key`, pull-down skip and hash check, served `dedupe-keys`, raw `show` envelope hash |
+| exchange-field decode | `decodeExchangeFrontmatter` (`amend_fold.go`) | show's header (`xid`), the judged-version rule (`offer.origin`), the curation fold |
+| pending marker | `noteHasPendingMarker` (`offer.go`) | query's pending-offer exclusion, pending-offer warnings and update notice, served raw `show` refusal |
+| exchange note scan | `parseExchangeNote` (`serve_learn.go`), used by `scanExchangeNotes` | the outbox drain, `supersedes` translation targets, served-learn lookup, merged-query dedupe, pull-down session, served `dedupe-keys` aliases |
+| offer classification | `parseOfferClassNote` (`offer_classify.go`) | whether a write is offered |
+| offer payload | `buildOfferPayload` (`offer_payload.go`) | the fields and body sent to the parent |
+| offer receipt | `applyReceiptToContent` (`offer_receipt.go`) | recording the parent link |
+| pull-down | `parsePulledSource`, `pulledDecline` (`pulldown.go`) | parsing a fetched envelope; the decline record of a discarded pulled note |
+| parent-link re-check | `appendParentLinks` (`activate.go`) | activate's re-check of linked parent notes |
+
+`exchangeHash` hashing the LF form makes every hash comparison agree for CRLF and LF forms; it supersedes the archived D5 note that converting a CRLF-frontmatter note changes its hash (it no longer does). The archived test pinning that such a note's `xid` is unreadable is replaced by one pinning that it decodes as its LF form.
+
+None of these readers writes a note just to convert it. The one that writes, the receipt, writes the LF result in its existing single write when it has something to record (it compares against the LF form, so an already-linked CRLF note is not rewritten), and then rebuilds the converted note's sidecar (`rebuildConvertedSidecar`, shared with backfill), since conversion changes `embed.ContentHash`.
+
+### D5 (follow-up 2): amend keeps unknown sub-keys of surviving list entries
+
+`applyTypedEdit` replaces a changed key's value whole. For a modeled list of mappings, `listEntryIdentity` names the entry key that identifies an entry: `supersedes` → `note`. `mergeListEntries` builds the new value: each entry of the new list whose identity (the `note` value as a basename, a trailing `.md` ignored, since older notes stored `x.md` and amend writes `x`) matches an unused entry of the old list is a clone of that old entry with the new entry's keys set in it (`setMappingValueOrdered`), so keys the typed entry does not define survive; any other entry is written as encoded. The other lists amend rewrites (`sources`, `red_flags`, `triggers`, `tags`) are lists of scalars, with no sub-keys to keep. The anchor refusal still covers the whole old value first.
+
+For a note without unknown sub-keys every kept entry ends up with exactly the encoded keys and values, in the typed order, so the output is unchanged; the 32 amend goldens still match (see D6 for the one-line exception).
+
+### D6 (follow-up 3): no write produces `user: ""`
+
+`user:` gets `omitempty` on the typed fact, feedback and runbook docs. The first-write sites (`engram learn`, a served learn's in-place rewrite, a pull-down) build their identity with `firstWriteIdentity`, which prints one warning (`<command>: user detection resolved empty …; writing the note without user:`) when detection is empty. A pull-down sets `user:` on its node-edited copy only when detected and otherwise deletes the key, so the parent's own `user:` never stands in. A served learn cannot reach the empty case: its identity floor already rejects an empty declared user (`TestServeLearn_EmptyDeclaredIdentity_Rejected`), so that site is covered by the shared helper and that guard.
+
+Amend never writes `user: ""` either: when detection is empty and there is no prior value, the key stays absent. That changes 3 of the 32 amend goldens (`{fact,feedback,runbook}-minimal-clear-pending`) by exactly one line: the pre-change bookkeeping amend inserted `user: ""` into a note with no `user:` because the typed field had no `omitempty`. The parity test removes that line from those goldens before comparing (the golden files stay as written at `49cfc120`); every other byte, and all 32 exchange hashes, match.
+
+Readers of a missing `user:`: the exchange hash excludes identity; `engram show` prints the file; the offer payload falls back to detection (`TestBuildOfferPayload_DeclaresNotesOwnIdentity`); backfill now counts a note as missing identity when it has no `user:`, and for a note that has `vault:` it fills in only `user:` (and leaves the note alone while detection is still empty), so `repo:`/`vault:` from the first write are kept.
+
+### D7: tests
 
 Strict TDD, a failing test first for each defect, `t.Parallel()` everywhere, gomega assertions, a fresh fixture per subtest.
 
@@ -95,12 +134,13 @@ Strict TDD, a failing test first for each defect, `t.Parallel()` everywhere, gom
 - Rapid properties:
   - **P1 (backfill):** for a generated fact or feedback note missing identity, with 0–3 unknown keys (scalars, lists or maps), optionally an anchor on an unedited key (`source`, aliased by another key), and a CRLF layout (none, all, frontmatter only, body only), backfill succeeds, writes no `\r\n`, every unknown key decodes to its input value, the anchored key and its alias decode to the same value, and `repo`/`user`/`vault` are set.
   - **P2 (amend CRLF):** for a generated note and amend kind, amend of the all-CRLF form equals, byte for byte, amend of the LF form, and contains no `\r\n`.
+  - **P3 (supersedes sub-keys):** for any old `supersedes:` list drawn from a pool of notes, each entry optionally carrying an unknown sub-key, and any new list from the same pool, amend writes the new list in order with its modeled values; an entry that survived keeps its unknown sub-key; any other entry carries exactly `note`, `type` and `claim`.
 - Parity: `TestBackfillIdentity_ParityWithPreChangeBackfill` (14 goldens from `0f5d91b7`, generated before any code change). Amend's parity is pinned by the existing `TestRunAmend_ExchangeHashParityWithPreChangeAmend` (32 goldens); this change re-generated those 32 outputs with the code at `0f5d91b7` before any change (32/32 byte-identical to the committed goldens), and a binary built from `0f5d91b7` reproduced the 26 that need no chunk index byte for byte.
 
 ## Risks / Trade-offs
 
-- [Risk] A CRLF-frontmatter note that carries `offer.origin` and `xid` gets no `# exchange_hash:` header from `engram show`, so a curator cannot pass `--expect-hash` to clear or discard it. → Such a note exists only if someone hand-converts a served offer to CRLF. Any amend that writes it (for example `--activate`) converts it, after which show prints the header. Recorded, not fixed (show is out of scope).
-- [Risk] Converting a CRLF-frontmatter note changes its exchange hash. → As in the archived D5: before conversion its `xid` is unreadable, so no exchange path can have recorded a hash for the CRLF form, and the converted note hashes as its LF original.
+- [Risk] Readers outside exchange (the query situation text and recency, vocab tagging and refit, `engram check`/`count`, chunk dedupe of note sources) still treat a CRLF note's frontmatter as absent, because `embed.SplitFrontmatter` is unchanged by decision. → Every rewrite path converts the CRLF notes it writes, so such notes are only ones hand-converted and not yet rewritten.
+- [Risk] Hashing the LF form changes the exchange hash of a note with CRLF frontmatter compared with older binaries. → Before, such a note's `xid` was unreadable, so no exchange path can have recorded a hash for its CRLF form; it now hashes as its LF form, which is what every recorded hash for that note describes.
 - [Risk] A note whose entry needs attention is not re-offered when its content changes, until the anchor is removed. → The warning names the note and the reason, and the notice keeps listing it. Re-sending would fail to record again.
 - [Risk] Backfill now fails the command when it refuses a note. → It still stamps every other note first, and the refusal names the note and key. Such anchors exist only in hand-written YAML.
 
