@@ -11,7 +11,10 @@ the mechanical ground truth.
 """
 import json
 import os
+import shutil
 import subprocess
+import tempfile
+import unittest.mock as mock
 
 import probe as p
 
@@ -236,6 +239,54 @@ def test_build_cfg_pool_skills_empty_propagates_to_every_worker(tmp_path):
     assert len(dirs) == 2
     for d in dirs:
         assert os.listdir(os.path.join(d, "skills")) == []
+
+
+def test_build_cfg_template_raises_on_missing_skill_source(tmp_path):
+    """#749 D6 consistency fix: probe.py's own build_cfg_template currently still silently
+    skips a missing skill source via `if os.path.isdir(src):` with no raise -- not itself one
+    of the five filed issues, but the same silent-no-op bug class #749 found in matrix.py's
+    sibling implementation of this contract. Apply the same raise-on-missing behavior here."""
+    dst = str(tmp_path / "cfg")
+    fake_repo = tempfile.mkdtemp()
+    try:
+        with mock.patch.object(p, "REPO", fake_repo):
+            try:
+                p.build_cfg_template(dst)
+                assert False, "expected an error for the missing skill source"
+            except Exception as e:
+                error_msg = str(e)
+                assert "recall" in error_msg or "learn" in error_msg, (
+                    f"error message should name the missing skill: {error_msg}"
+                )
+                assert "agent-instructions" in error_msg or "skills" in error_msg, (
+                    f"error message should name the path checked: {error_msg}"
+                )
+    finally:
+        shutil.rmtree(fake_repo, ignore_errors=True)
+
+
+def test_build_cfg_template_raises_on_empty_skill_source(tmp_path):
+    """Same consistency fix, empty-source case: a skill source dir exists but has no
+    SKILL.md."""
+    dst = str(tmp_path / "cfg")
+    fake_repo = tempfile.mkdtemp()
+    try:
+        os.makedirs(os.path.join(fake_repo, "agent-instructions", "skills", "recall"))
+        os.makedirs(os.path.join(fake_repo, "agent-instructions", "skills", "learn"))
+        with mock.patch.object(p, "REPO", fake_repo):
+            try:
+                p.build_cfg_template(dst)
+                assert False, "expected an error for the empty skill source"
+            except Exception as e:
+                error_msg = str(e)
+                assert "recall" in error_msg or "learn" in error_msg, (
+                    f"error message should name the empty skill: {error_msg}"
+                )
+                assert "SKILL.md" in error_msg or "agent-instructions" in error_msg, (
+                    f"error message should indicate an invalid/empty source: {error_msg}"
+                )
+    finally:
+        shutil.rmtree(fake_repo, ignore_errors=True)
 
 
 # ----- procedure-step detection: mutation-only (round-1 review) -----

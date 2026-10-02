@@ -83,10 +83,24 @@ def build_cfg_template(dst, warm):
 
     if warm:
         # real.full: both /recall and /learn skills from the repo (the shipped skills).
+        # Verify source + post-copy destination content; never silently skip a missing or
+        # empty source (#749 -- this path was stale from the 2026-07-24 agent-instructions/
+        # move, and its old `if os.path.isdir(src):` guard silently no-op'd on it).
         for skill in ("recall", "learn"):
-            src = os.path.join(REPO, "skills", skill)
-            if os.path.isdir(src):
-                shutil.copytree(src, os.path.join(dst, "skills", skill))
+            src = os.path.join(REPO, "agent-instructions", "skills", skill)
+            if not os.path.isdir(src):
+                raise RuntimeError(f"skill source missing: {skill} not found at {src}")
+            skill_md = os.path.join(src, "SKILL.md")
+            if not os.path.exists(skill_md):
+                raise RuntimeError(f"skill source invalid: {skill} at {src} has no SKILL.md")
+
+            dst_skill = os.path.join(dst, "skills", skill)
+            shutil.copytree(src, dst_skill, dirs_exist_ok=True)
+
+            if not os.path.exists(os.path.join(dst_skill, "SKILL.md")):
+                raise RuntimeError(
+                    f"skill installation failed: {skill} SKILL.md not found at destination {dst_skill}"
+                )
 
 
 def refresh_creds(cfg):

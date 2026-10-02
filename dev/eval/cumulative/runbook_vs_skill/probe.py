@@ -141,21 +141,20 @@ def build_claude_md(marker):
 # ----- shared cfg (Ruling 3) -----
 
 def build_cfg_template(dst, skills=("recall", "learn")):
-    """Isolated CLAUDE_CONFIG_DIR carrying the repo's REAL recall+learn skills (warm), mirroring
-    matrix.py::build_cfg_template(dst, warm=True) — but NOT calling it directly. Verified
-    (see report): matrix.py's skill source is `REPO/skills/<skill>`, which does not exist in
-    this repo (the skills live at `REPO/agent-instructions/skills/<skill>`, per this repo's own
-    CLAUDE.md directory-structure section). Calling matrix.build_cfg_template as-is silently
-    copies NOTHING (its `if os.path.isdir(src)` guard just skips), producing a cfg with no
-    recall/learn skill — which would fail this eval's own pre-registered "recall delivery" smoke
-    bar. matrix.py is out of scope to edit from this task, so this is a corrected LOCAL copy
-    pointed at the real path; idempotent like the original (skips a rebuild once skills/ exists).
+    """Isolated CLAUDE_CONFIG_DIR carrying the repo's REAL recall+learn skills (warm). A LOCAL
+    copy of the same `agent-instructions/skills/<skill>` contract matrix.py::build_cfg_template
+    (dst, warm=True) implements independently (#749 fixed matrix.py's own, previously-stale,
+    copy of this path) — kept local, not delegated to matrix.py, because `skills` here is a
+    TUPLE naming which skills to install (and `skills=()` builds a cfg with NO installed engram
+    skills, for the runbook-shim-follow-frame eval's shim-only / no-skills trial arms, openspec
+    change runbook-shim-follow-frame task 2.1), while matrix.py's own signature is a `warm: bool`
+    that unconditionally installs exactly `("recall", "learn")` — it cannot express an empty
+    skill set without a behavior change to its own four other call sites (design.md D6).
+    Idempotent like matrix.py's version (skips a rebuild once skills/ exists).
 
     `skills` names which of `REPO/agent-instructions/skills/<name>` get copied into the cfg's
     `skills/` dir — default `("recall", "learn")` preserves every existing call site's behavior
-    unchanged. Pass `skills=()` to build a cfg with NO installed engram skills (the
-    runbook-shim-follow-frame eval's shim-only / no-skills trial arms, openspec change
-    runbook-shim-follow-frame task 2.1)."""
+    unchanged."""
     if os.path.exists(os.path.join(dst, ".claude.json")) and os.path.isdir(os.path.join(dst, "skills")):
         return
     shutil.rmtree(dst, ignore_errors=True)
@@ -172,8 +171,22 @@ def build_cfg_template(dst, skills=("recall", "learn")):
     os.makedirs(os.path.join(dst, "skills"), exist_ok=True)
     for skill in skills:
         src = os.path.join(REPO, "agent-instructions", "skills", skill)
-        if os.path.isdir(src):
-            shutil.copytree(src, os.path.join(dst, "skills", skill))
+        # Raise on a missing/empty source rather than silently skipping the copy -- the same
+        # silent-no-op bug class #749 found in matrix.py's sibling implementation (design.md D6:
+        # a scoped consistency fix, not itself one of the five filed issues).
+        if not os.path.isdir(src):
+            raise RuntimeError(f"skill source missing: {skill} not found at {src}")
+        skill_md = os.path.join(src, "SKILL.md")
+        if not os.path.exists(skill_md):
+            raise RuntimeError(f"skill source invalid: {skill} at {src} has no SKILL.md")
+
+        dst_skill = os.path.join(dst, "skills", skill)
+        shutil.copytree(src, dst_skill, dirs_exist_ok=True)
+
+        if not os.path.exists(os.path.join(dst_skill, "SKILL.md")):
+            raise RuntimeError(
+                f"skill installation failed: {skill} SKILL.md not found at destination {dst_skill}"
+            )
 
 
 def build_cfg_pool(run_root, n, skills=("recall", "learn")):
