@@ -19,6 +19,11 @@ The `runbook_vs_skill` phase2 probe's fixture `steps.json` step definitions SHAL
 - **WHEN** a trial's bash history contains a command that merely contains the substring `filter-repo` without being a `git`/`git-filter-repo` invocation (e.g. `cat notes-about-filter-repo.md`)
 - **THEN** the `history-rewrite` fixture's step 3 does not score as followed
 
+#### Scenario: A broadened separator class does not create new false positives on a letter-adjacent substring
+
+- **WHEN** a trial's bash history contains `digit-filter-repo --some-arg` or `mygit-filter-repo --some-arg` — a command whose text happens to contain the literal substring `git-filter-repo` immediately preceded by a word character, not a real git invocation
+- **THEN** the `history-rewrite` fixture's step 3 does not score as followed, because the matched pattern requires a left boundary before `git` and not merely a hyphen-or-whitespace separator after it
+
 ### Requirement: `question_stop` detection SHALL be order-aware relative to task completion
 
 The `runbook_vs_skill` phase2 probe's `detect_question_stop` SHALL only report a trial as a legitimate clarity stop when the last ambiguity-posing text in the transcript precedes the trial's task completion, not merely when no mutating tool call follows that text. A trailing, genuinely separate follow-up question asked after the trial has already completed and verified its task (per the trial's own end-state check) SHALL NOT be scored identically to a trial that stopped before finishing the task.
