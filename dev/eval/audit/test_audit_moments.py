@@ -1996,6 +1996,58 @@ class TestEngramQueryErrorHandling:
             assert len(result.get("items", [])) == 0, "items should be empty list when no results"
             assert result.get("error") is None, "error should be None on success"
 
+    def test_phrase_starting_with_dashdash_is_passed_as_single_equals_arg(self):
+        """#787: a phrase beginning with '--' must not be split into two argv elements.
+
+        engram's own CLI flag parser treats a bare `--phrase <value>` where value
+        starts with `--` as a new flag, not the phrase's value. Building the argv as
+        a single `--phrase=<value>` element makes the value unparseable as a flag
+        regardless of its content.
+        """
+        with unittest.mock.patch("subprocess.run") as mock_run:
+            mock_run.return_value = unittest.mock.Mock(
+                returncode=0,
+                stdout="version: 1\nphrases:\n  - test phrase\nitems:\nclusters: []",
+                stderr="",
+            )
+
+            audit_moments._run_engram_query_at_moment(
+                "/tmp/vault",
+                "/tmp/chunks",
+                ["--text verbatim scenario dropped from modified requirement"],
+            )
+
+            call_args = mock_run.call_args
+            assert call_args is not None, "subprocess.run should have been called"
+            argv = call_args[0][0]
+            assert (
+                "--phrase=--text verbatim scenario dropped from modified requirement"
+                in argv
+            ), f"expected a single joined --phrase=<value> argument, got argv={argv!r}"
+            assert "--phrase" not in argv, (
+                "argv should not contain a bare '--phrase' element "
+                f"(it must be joined with '='), got argv={argv!r}"
+            )
+
+    def test_real_cli_error_on_stdout_is_preserved_in_error_field(self):
+        """#787: engram's own CLI errors print to stdout, not stderr; preserve them."""
+        with unittest.mock.patch("subprocess.run") as mock_run:
+            mock_run.return_value = unittest.mock.Mock(
+                returncode=1,
+                stdout="Error: flag needs an argument: --phrase",
+                stderr="",
+            )
+
+            result = audit_moments._run_engram_query_at_moment(
+                "/tmp/vault", "/tmp/chunks", ["test phrase"]
+            )
+
+            assert result.get("items") is None
+            error = result.get("error") or ""
+            assert "Error: flag needs an argument: --phrase" in error, (
+                f"expected the real stdout error text in the error field, got: {error!r}"
+            )
+
     def test_judge_moment_with_engram_query_error(
         self, fixture_main_session, detect_stub
     ):

@@ -532,10 +532,12 @@ def _run_engram_query_at_moment(
         sys.stderr.write(f"[audit_moments] {error_msg}\n")
         return {"items": None, "error": error_msg}
 
-    # Build engram query command
+    # Build engram query command. Use the single-argument `--phrase=<value>` form
+    # (not two separate argv elements) so a phrase beginning with "--" can never be
+    # misparsed by engram's own CLI flag parser as a new flag (#787).
     args = ["engram", "query", "--lazy-chunks"]
     for phrase in search_phrases:
-        args.extend(["--phrase", phrase])
+        args.append(f"--phrase={phrase}")
 
     try:
         result = subprocess.run(
@@ -547,7 +549,12 @@ def _run_engram_query_at_moment(
         )
 
         if result.returncode != 0:
-            error_msg = f"engram query failed with rc {result.returncode}: {result.stderr}"
+            # engram's own CLI errors print to stdout, not stderr -- preserve whichever
+            # stream actually carries the real error text instead of dropping it (#787).
+            error_msg = (
+                f"engram query failed with rc {result.returncode}: "
+                f"stdout={result.stdout!r} stderr={result.stderr!r}"
+            )
             sys.stderr.write(f"[audit_moments] {error_msg}\n")
             return {"items": None, "error": error_msg}
 

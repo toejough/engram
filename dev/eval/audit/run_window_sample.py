@@ -145,7 +145,7 @@ def install_recorders(output_dir: Path, current: Dict[str, Any]) -> None:
                 env = isolation.engram_env(vault=vault_path, chunks=chunks_path)
                 args_q = ["engram", "query", "--lazy-chunks"]
                 for phrase in search_phrases:
-                    args_q.extend(["--phrase", phrase])
+                    args_q.append(f"--phrase={phrase}")
                 rerun = subprocess.run(args_q, env=env, capture_output=True, text=True, timeout=60)
                 diag.update({"rerun_rc": rerun.returncode, "rerun_stdout_tail": rerun.stdout[-2000:],
                              "rerun_stderr_tail": rerun.stderr[-2000:]})
