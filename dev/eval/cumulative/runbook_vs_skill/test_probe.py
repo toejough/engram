@@ -151,6 +151,41 @@ def test_recall_fired_false_when_absent(tmp_path):
     assert p.score_recall_fired(events) is False
 
 
+# ----- score_recall_fired: the `/recall ...` slash-command delivery path (Route A follow-up,
+# 7.17) -- confirmed live against a real trial transcript: `/recall <args>` injects
+# "Base directory for this skill: <cfg>/skills/recall" + the real SKILL.md body directly as a
+# plain user-role message, never as a `tool_use` named "Skill". The tool_use-only check is a
+# false negative for this (real, documented -- `claude -p --bare --help` says "Skills still
+# resolve via /skill-name") delivery path.
+
+def test_recall_fired_true_when_delivered_via_slash_command_not_tool_use(tmp_path):
+    lines = [_tool_use_line("Bash", {"command": "ls"}, tool_id="tu1")]
+    path = _write_transcript(tmp_path, lines)
+    events = p.parse_transcript_events([path])
+    raw_text = (
+        "Base directory for this skill: /tmp/some-cfg/skills/recall\n\n# Recall from Unified Memory"
+    )
+    assert p.score_recall_fired(events, raw_text=raw_text) is True
+
+
+def test_recall_fired_false_when_absent_even_with_raw_text_given(tmp_path):
+    lines = [_tool_use_line("Bash", {"command": "ls"}, tool_id="tu1")]
+    path = _write_transcript(tmp_path, lines)
+    events = p.parse_transcript_events([path])
+    raw_text = "nothing relevant here"
+    assert p.score_recall_fired(events, raw_text=raw_text) is False
+
+
+def test_recall_fired_false_for_a_different_skills_base_directory_line(tmp_path):
+    """A `/route` or `/curate` slash-command's own "Base directory" line must not false-positive
+    recall_fired."""
+    lines = [_tool_use_line("Bash", {"command": "ls"}, tool_id="tu1")]
+    path = _write_transcript(tmp_path, lines)
+    events = p.parse_transcript_events([path])
+    raw_text = "Base directory for this skill: /tmp/some-cfg/skills/route\n\n# Route"
+    assert p.score_recall_fired(events, raw_text=raw_text) is False
+
+
 # ----- parse_transcript_events: assistant "text" blocks (task 4.1's restated-as-plan/ -----
 # ----- question-stop signals both need the assistant's own prose, not just tool_use/result) ----
 
@@ -736,3 +771,50 @@ def test_run_plumbing_uses_the_new_trial_leak_guard_not_the_old_fingerprint():
     assert "isolation.vault_fingerprint" in src
     assert "isolation.assert_no_trial_leak" in src
     assert "_real_vault_fingerprint" not in src
+
+
+# ----- spawn_claude: dash-leading prompt must never reach argv positionally (Route A follow-up,
+# 7.17) -----
+#
+# Confirmed live, $0 cost: `claude -p "- Fix the typo..."` makes claude's own CLI parser read the
+# dash-leading prompt as an unknown OPTION ("error: unknown option '- Fix the typo...'"), not a
+# positional prompt -- exit 1 in <4s, no session ever created. Same flag-misparse defect class as
+# #787/#754/#749/#750/#755, just hitting the harness's own outer `claude` invocation instead of an
+# `engram` subcommand. Confirmed fix, also $0: pipe the prompt via stdin (`input=prompt`, no
+# positional prompt arg at all) -- verified it reaches real argument validation (a deliberately
+# invalid --model value produced "unrecognized_model", not a parse error).
+
+def test_spawn_claude_passes_a_dash_leading_prompt_via_stdin_not_positionally():
+    captured = {}
+
+    def fake_run(args, **kwargs):
+        captured["args"] = args
+        captured["input"] = kwargs.get("input")
+        return subprocess.CompletedProcess(args, 0, stdout='{"total_cost_usd": 0.01}', stderr="")
+
+    dash_prompt = "- Fix the typo in the login error message."
+    with mock.patch("probe.subprocess.run", side_effect=fake_run):
+        p.spawn_claude({}, "sonnet", "/tmp", dash_prompt, 30)
+
+    assert dash_prompt not in captured["args"], (
+        "the prompt must never appear as a positional argv element -- a dash-leading value "
+        "there is misread as an unknown CLI option by claude's own parser"
+    )
+    assert captured["input"] == dash_prompt, "the prompt must be piped via stdin instead"
+
+
+def test_spawn_claude_still_requests_json_output_and_the_right_model():
+    captured = {}
+
+    def fake_run(args, **kwargs):
+        captured["args"] = args
+        return subprocess.CompletedProcess(args, 0, stdout='{"total_cost_usd": 0.01}', stderr="")
+
+    with mock.patch("probe.subprocess.run", side_effect=fake_run):
+        p.spawn_claude({}, "sonnet", "/tmp", "ordinary prompt, no leading dash", 30)
+
+    args = captured["args"]
+    assert "-p" in args
+    assert "--output-format" in args and "json" in args
+    assert "--model" in args and p.MODELS["sonnet"] in args
+    assert "--permission-mode" in args and "bypassPermissions" in args

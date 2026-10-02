@@ -114,11 +114,16 @@ def claude(cfg, model, vault, cwd, prompt, resume_sid=None, chunks=None, extra_e
     # Re-assert: the overrides above run AFTER isolated_env's own check, so a caller-supplied path
     # inside the operator's data dir would otherwise slip through unnoticed.
     isolation.assert_isolated(env)
-    args = ["claude", "-p", prompt, "--output-format", "json",
+    # The prompt is piped via stdin, NEVER passed as a positional argv element (Route A
+    # follow-up, 7.17): a dash-leading prompt in argv position is misread by claude's own CLI
+    # parser as an unknown OPTION, not a positional prompt -- confirmed live, $0 cost. Same
+    # flag-misparse defect class as #787/#754/#749/#750/#755, just hitting this harness's own
+    # outer `claude` invocation instead of an `engram` subcommand.
+    args = ["claude", "-p", "--output-format", "json",
             "--model", MODELS[model], "--permission-mode", "bypassPermissions"]
     if resume_sid:
         args = ["claude", "--resume", resume_sid] + args[1:]
-    r = subprocess.run(args, cwd=cwd, env=env, capture_output=True, text=True)
+    r = subprocess.run(args, cwd=cwd, env=env, input=prompt, capture_output=True, text=True)
     try:
         return json.loads(r.stdout)
     except Exception:

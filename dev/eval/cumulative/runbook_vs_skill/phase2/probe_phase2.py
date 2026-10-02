@@ -1990,7 +1990,7 @@ def run_plumbing(task_key, model):
     events = p1.parse_transcript_events(transcript_paths)
 
     marker_seen = p1.is_marker_seen(raw_text, marker)
-    recall_fired = p1.score_recall_fired(events)
+    recall_fired = p1.score_recall_fired(events, raw_text=raw_text)
     query_events = [ev for ev in events if ev["kind"] == "tool_use" and ev.get("name") == "Bash"
                     and "engram query" in ((ev.get("input") or {}).get("command", "") or "")]
     query_ran = bool(query_events)

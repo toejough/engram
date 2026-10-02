@@ -285,15 +285,24 @@ def spawn_claude(env, model, cwd, prompt, timeout_s):
     """`claude -p` subprocess idiom (harness.py::claude's flags/PATH/permissions/output-format),
     reimplemented locally because harness.claude() does not expose a wall-clock timeout — Ruling 3
     requires one, with timed_out recorded and repo state still scored. Retries the transient
-    degraded-call signature (harness.py's own do_build backoff pattern)."""
-    args = ["claude", "-p", prompt, "--output-format", "json",
+    degraded-call signature (harness.py's own do_build backoff pattern).
+
+    The prompt is piped via stdin, NEVER passed as a positional argv element (Route A follow-up,
+    7.17): a dash-leading prompt (e.g. "- Fix the typo...") in argv position is misread by
+    claude's own CLI parser as an unknown OPTION, not a positional prompt -- confirmed live, $0
+    cost: `claude -p "- Fix the typo..."` exits 1 in under 4s with `error: unknown option
+    '- Fix the typo...'`, no session ever created. Same flag-misparse defect class as
+    #787/#754/#749/#750/#755, just hitting this harness's own outer `claude` invocation instead
+    of an `engram` subcommand."""
+    args = ["claude", "-p", "--output-format", "json",
             "--model", MODELS[model], "--permission-mode", "bypassPermissions"]
     out, timed_out = {}, False
     for backoff in TRANSIENT_BACKOFFS:
         if backoff:
             time.sleep(backoff)
         try:
-            r = subprocess.run(args, cwd=cwd, env=env, capture_output=True, text=True, timeout=timeout_s)
+            r = subprocess.run(args, cwd=cwd, env=env, input=prompt, capture_output=True,
+                                text=True, timeout=timeout_s)
         except subprocess.TimeoutExpired:
             timed_out = True
             break
@@ -558,9 +567,23 @@ def score_found(arm, events, note_basename):
     return False, None
 
 
-def score_recall_fired(events):
-    return any(ev["kind"] == "tool_use" and ev.get("name") == "Skill"
-               and (ev.get("input") or {}).get("skill") == "recall" for ev in events)
+_SKILL_BASE_DIR_RE = re.compile(r"Base directory for this skill:\s*\S*/skills/([A-Za-z0-9_-]+)")
+
+
+def score_recall_fired(events, raw_text=""):
+    """True if recall was delivered via EITHER path: a `tool_use` named "Skill" with
+    input.skill == "recall" (the organic, model-chosen invocation), OR the literal `/recall
+    <args>` slash-command form, which Claude Code injects directly as a plain user-role message
+    ("Base directory for this skill: <cfg>/skills/recall" + the real SKILL.md body) and never as
+    a `tool_use` event at all (confirmed against a real trial transcript, Route A follow-up
+    7.17 -- `claude -p --bare --help` documents "Skills still resolve via /skill-name"). Checking
+    only the tool_use path is a false negative for the slash-command delivery path."""
+    tool_use_fired = any(ev["kind"] == "tool_use" and ev.get("name") == "Skill"
+                          and (ev.get("input") or {}).get("skill") == "recall" for ev in events)
+    if tool_use_fired:
+        return True
+    match = _SKILL_BASE_DIR_RE.search(raw_text or "")
+    return bool(match and match.group(1) == "recall")
 
 
 # ----- FOLLOWED per-step checks (Ruling 5) -----
@@ -679,7 +702,7 @@ def run_one_trial(run_root, cfg, arm, model, trial_index, marker, timeout_s):
     marker_seen = is_marker_seen(raw_text, marker)
     found, found_idx = score_found(arm, events, note_basename)
     first_step_idx = first_procedure_step_index(events)
-    recall_fired = score_recall_fired(events)
+    recall_fired = score_recall_fired(events, raw_text=raw_text)
     followed_steps, followed_k = score_followed(repo_path, events)
     end_state, end_state_output = check_end_state(repo_path)
 
@@ -802,7 +825,7 @@ def run_plumbing(model):
     events = parse_transcript_events(transcript_paths)
 
     marker_seen = is_marker_seen(raw_text, marker)
-    recall_fired = score_recall_fired(events)
+    recall_fired = score_recall_fired(events, raw_text=raw_text)
     query_events = [ev for ev in events if ev["kind"] == "tool_use" and ev.get("name") == "Bash"
                     and "engram query" in ((ev.get("input") or {}).get("command", "") or "")]
     query_ran = bool(query_events)
