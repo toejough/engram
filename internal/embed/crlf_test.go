@@ -16,9 +16,9 @@ import (
 func TestEmbedReaders_CRLFNoteReadsAsLF(t *testing.T) {
 	t.Parallel()
 
-	lf := "---\ntype: fact\nsituation: when converting line endings\nsubject: a\n---\n\n" +
+	lfNote := "---\ntype: fact\nsituation: when converting line endings\nsubject: a\n---\n\n" +
 		"Information learned: body.\n\nmore\n"
-	crlf := strings.ReplaceAll(lf, "\n", "\r\n")
+	crlf := strings.ReplaceAll(lfNote, "\n", "\r\n")
 
 	t.Run("situation", func(t *testing.T) {
 		t.Parallel()
@@ -28,12 +28,12 @@ func TestEmbedReaders_CRLFNoteReadsAsLF(t *testing.T) {
 	t.Run("body", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
-		g.Expect(string(embed.ExtractBody([]byte(crlf)))).To(Equal(string(embed.ExtractBody([]byte(lf)))))
-		g.Expect(string(embed.BodyText([]byte(crlf)))).To(Equal(string(embed.BodyText([]byte(lf)))))
+		g.Expect(string(embed.ExtractBody([]byte(crlf)))).To(Equal(string(embed.ExtractBody([]byte(lfNote)))))
+		g.Expect(string(embed.BodyText([]byte(crlf)))).To(Equal(string(embed.BodyText([]byte(lfNote)))))
 	})
 
 	t.Run("content hash", func(t *testing.T) {
 		t.Parallel()
-		NewWithT(t).Expect(embed.ContentHash([]byte(crlf))).To(Equal(embed.ContentHash([]byte(lf))))
+		NewWithT(t).Expect(embed.ContentHash([]byte(crlf))).To(Equal(embed.ContentHash([]byte(lfNote))))
 	})
 }
