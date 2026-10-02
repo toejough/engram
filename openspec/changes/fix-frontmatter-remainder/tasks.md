@@ -29,7 +29,7 @@
 ## 5. Verification
 
 - [x] 5.1 Real-binary check on a scratch vault: `go build` into a temp dir (no `go install`), `XDG_DATA_HOME` and `--vault` in the temp dir, cwd outside any repo; never the real vault or `~/.claude`. Cover CRLF amend (content and `--supersedes`), backfill keeping `luhmann_old:` and refusing an anchored `user:`, and a refused receipt against a scratch parent (`engram serve` on a second scratch vault): one warning, no re-send on the next drain, recovery after the anchor is removed. Record results in `verification.md`.
-- [ ] 5.2 `targ test`, `targ check-full` (9/9 after commit) and `openspec validate --all --strict` are green. Every MODIFIED block carries every base scenario header verbatim.
+- [x] 5.2 `targ test`, `targ check-full` (9/9 after commit) and `openspec validate --all --strict` are green. Every MODIFIED block carries every base scenario header verbatim. (`targ test` exit 0; `targ check-full` PASS:9; `openspec validate --all --strict` 51 passed, 0 failed; scenario coverage: all 14 + 4 + 4 + 1 base scenario headers present in the four MODIFIED blocks.)
 
 ## 6. Close-out (not done by the implementing agent)
 
