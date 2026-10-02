@@ -36,6 +36,7 @@ const (
 	ExportOfferRejected             = offerRejected
 	ExportOfferSkipped              = offerSkipped
 	ExportOfferTooOld               = offerTooOld
+	ExportOfferWithdrawn            = offerWithdrawn
 	ExportVocabNameMatchThreshold   = vocabNameMatchThreshold
 	ExportVocabOriginDerived        = vocabOriginDerived
 	ExportVocabOriginProposed       = vocabOriginProposed

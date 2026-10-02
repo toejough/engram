@@ -18,11 +18,18 @@ const (
 	// refusal from a vault other than this one (ruling S13).
 	cycleRefusedWarningFormat = "engram: warning: parent cycle or misconfiguration detected: vault %s refused " +
 		"an offer because its ID is already on the offer's path; the offer is marked rejected\n"
-	learnRoute          = "/learn"
-	outboxFileName      = "outbox.json"
-	outboxStateQueued   = "queued"
-	outboxStateRejected = "rejected"
-	outboxVersion       = 1
+	learnRoute     = "/learn"
+	outboxFileName = "outbox.json"
+	// outboxStateAttention: the parent accepted the offer, but the local
+	// note refuses its receipt (#789 design D3). The entry keeps the
+	// receipt and is never re-sent; each drain retries recording it.
+	outboxStateAttention = "attention"
+	outboxStateQueued    = "queued"
+	outboxStateRejected  = "rejected"
+	outboxVersion        = 1
+	// receiptAttentionWarningFormat is the one warning printed when an
+	// entry moves to the attention state (errReceiptNeedsAttention).
+	receiptAttentionWarningFormat = "engram: warning: %v\n"
 )
 
 // offerOutcome classifies one send.
@@ -53,6 +60,9 @@ const (
 	// parent already holds its content. The parent was not contacted; the
 	// entry is dropped unless the note changed since.
 	offerWithdrawn
+	// offerHeld: an attention entry's kept receipt, retried locally — the
+	// parent was not contacted (#789 design D3).
+	offerHeld
 )
 
 // unexported variables.
@@ -67,6 +77,11 @@ var (
 	errOfferWithdrawn   = errors.New("offer withdrawn at send time")
 	errParentTooOld     = errors.New("the parent is too old: its offer receipt carries no vault_id or basename " +
 		"(upgrade engram on the parent host)")
+	// errReceiptNeedsAttention marks a receipt the local note refused: the
+	// entry moved to the attention state, and the merge warns once instead
+	// of returning it as a drain error (#789 design D3).
+	errReceiptNeedsAttention = errors.New("the offer will not be re-sent, and the receipt is recorded on a " +
+		"later drain once the note's frontmatter decodes and its parent: carries no YAML anchor")
 )
 
 // drainResult summarizes one drain for its caller: how many offers were
@@ -119,6 +134,10 @@ type outboxEntry struct {
 	LastError    string    `json:"last_error,omitempty"` //nolint:tagliatelle // design D6 fixes outbox.json's keys
 	State        string    `json:"state"`
 	RejectedHash string    `json:"rejected_hash,omitempty"` //nolint:tagliatelle // design D6 fixes outbox.json's keys
+	// Receipt and SentHash are kept on an attention entry (#789 design D3):
+	// the receipt the parent gave and the exchange hash that was sent.
+	Receipt  *offerReceipt `json:"receipt,omitempty"`
+	SentHash string        `json:"sent_hash,omitempty"` //nolint:tagliatelle // design D6 fixes outbox.json's keys
 }
 
 // outboxFile is <vault>/.engram/outbox.json.
@@ -146,11 +165,30 @@ type scannedOffer struct {
 
 // applyAcceptedStep records an accepted offer's receipt on the note (the
 // injected receipt writer) and keeps the entry queued only when the note
-// changed since it was sent; otherwise the entry is done.
+// changed since it was sent; otherwise the entry is done. A receipt the
+// note refuses (receiptRefused) moves the entry to the attention state,
+// keeping the receipt and the sent hash, and is reported as
+// errReceiptNeedsAttention for the merge to warn once (#789 design D3); any other
+// failure keeps the entry queued, to be resent.
 func applyAcceptedStep(
 	step drainStep, box outboxFile, note offerNote, apply func(offerNote, offerReceipt) error,
 ) (outboxFile, error) {
 	applyErr := apply(note, step.outcome.Receipt)
+	if receiptRefused(applyErr) {
+		receipt := step.outcome.Receipt
+
+		held := updateOutboxEntry(box, step, func(entry *outboxEntry) {
+			entry.Attempts++
+			entry.State = outboxStateAttention
+			entry.LastError = applyErr.Error()
+			entry.Receipt = &receipt
+			entry.SentHash = step.hash
+		})
+
+		return held, fmt.Errorf("outbox: the parent accepted the offer of %s, but the note refuses its receipt (%w); %w",
+			note.Basename, applyErr, errReceiptNeedsAttention)
+	}
+
 	if applyErr != nil {
 		return updateOutboxEntry(box, step, func(entry *outboxEntry) {
 			entry.Attempts++
@@ -158,11 +196,7 @@ func applyAcceptedStep(
 		}), fmt.Errorf("outbox: recording the receipt on %s: %w", note.Basename, applyErr)
 	}
 
-	if exchangeHashChanged(step.hash, note.Hash) {
-		return keepOutboxEntryQueued(box, step), nil
-	}
-
-	return removeOutboxEntry(box, step.xid), nil
+	return finishAcceptedEntry(box, step, note), nil
 }
 
 // applyDrainStep folds one send outcome into the re-read outbox and the
@@ -213,15 +247,35 @@ func applyDrainStep(
 			entry.LastError = errorText(step.outcome.Err)
 		}), nil
 	case offerWithdrawn:
-		if !exchangeHashChanged(step.hash, found.note.Hash) {
-			return removeOutboxEntry(box, step.xid), nil
-		}
-
-		return box, nil
+		return applyWithdrawnStep(step, box, found.note), nil
+	case offerHeld:
+		return applyHeldStep(step, box, found.note, apply)
 	case offerFailed, offerTooOld, offerSkipped:
 	}
 
 	return applyUnsentStep(step, box, cache, now, parentURL, result), nil
+}
+
+// applyHeldStep retries recording an attention entry's kept receipt on the
+// note as it is now, without contacting the parent (#789 design D3). Still
+// refused, the entry is left as it is, silently; recorded, the entry
+// finishes as an accepted one does; any other failure is recorded and
+// returned.
+func applyHeldStep(
+	step drainStep, box outboxFile, note offerNote, apply func(offerNote, offerReceipt) error,
+) (outboxFile, error) {
+	applyErr := apply(note, step.outcome.Receipt)
+	if receiptRefused(applyErr) {
+		return box, nil
+	}
+
+	if applyErr != nil {
+		return updateOutboxEntry(box, step, func(entry *outboxEntry) {
+			entry.LastError = applyErr.Error()
+		}), fmt.Errorf("outbox: recording the kept receipt on %s: %w", note.Basename, applyErr)
+	}
+
+	return finishAcceptedEntry(box, step, note), nil
 }
 
 // applyUnsentStep folds a send that produced no receipt: an unreachable
@@ -237,13 +291,23 @@ func applyUnsentStep(
 		result.Unreachable, result.RetryAfter = true, cache.BackoffUntil
 	case offerTooOld:
 		*cache = noteParentSuccess(*cache, parentURL, "")
-	case offerAccepted, offerRejected, offerRefused, offerSkipped, offerWithdrawn:
+	case offerAccepted, offerRejected, offerRefused, offerSkipped, offerWithdrawn, offerHeld:
 	}
 
 	return updateOutboxEntry(box, step, func(entry *outboxEntry) {
 		entry.Attempts++
 		entry.LastError = errorText(step.outcome.Err)
 	})
+}
+
+// applyWithdrawnStep drops a withdrawn offer's entry unless the note
+// changed since the snapshot.
+func applyWithdrawnStep(step drainStep, box outboxFile, note offerNote) outboxFile {
+	if !exchangeHashChanged(step.hash, note.Hash) {
+		return removeOutboxEntry(box, step.xid)
+	}
+
+	return box
 }
 
 // classifyOfferResponse maps a parent /learn response to the drain's
@@ -394,6 +458,16 @@ func fifoEntries(entries []outboxEntry) []outboxEntry {
 	return ordered
 }
 
+// finishAcceptedEntry ends an entry whose receipt was recorded: queued
+// again when the note changed since it was sent, otherwise removed.
+func finishAcceptedEntry(box outboxFile, step drainStep, note offerNote) outboxFile {
+	if exchangeHashChanged(step.hash, note.Hash) {
+		return keepOutboxEntryQueued(box, step)
+	}
+
+	return removeOutboxEntry(box, step.xid)
+}
+
 // isLoopRefusal reports whether a 409 body carries the loop discriminator
 // (ruling S13); any other 409 is an ordinary rejection.
 func isLoopRefusal(body []byte) bool {
@@ -425,7 +499,7 @@ func judgeSendOutcome(outcome offerSendResult, localID string, stderr io.Writer)
 		return outcome, true, nil
 	case offerFailed:
 		return outcome, true, nil
-	case offerRejected, offerSkipped, offerWithdrawn:
+	case offerRejected, offerSkipped, offerWithdrawn, offerHeld:
 	}
 
 	return outcome, false, nil
@@ -442,6 +516,8 @@ func keepOutboxEntryQueued(box outboxFile, step drainStep) outboxFile {
 		entry.State = outboxStateQueued
 		entry.RejectedHash = ""
 		entry.LastError = ""
+		entry.Receipt = nil
+		entry.SentHash = ""
 	})
 }
 
@@ -519,6 +595,12 @@ func mergeDrainSteps(
 		var stepErr error
 
 		box, stepErr = applyDrainStep(step, box, &cache, current, apply, store.now(), parentURL, &result)
+		if errors.Is(stepErr, errReceiptNeedsAttention) {
+			_, _ = fmt.Fprintf(store.stderr, receiptAttentionWarningFormat, stepErr)
+
+			continue
+		}
+
 		applyErrs = append(applyErrs, stepErr)
 	}
 
@@ -580,6 +662,19 @@ func outboxPath(vault string) string {
 	return filepath.Join(vault, stateDirName, outboxFileName)
 }
 
+// outboxStateCount counts the entries in state.
+func outboxStateCount(box outboxFile, state string) int {
+	count := 0
+
+	for _, entry := range box.Entries {
+		if entry.State == state {
+			count++
+		}
+	}
+
+	return count
+}
+
 // outboxStoreFromDeps composes the store over the production carrier.
 func outboxStoreFromDeps(deps Deps) outboxStore {
 	return newOutboxStore(
@@ -600,17 +695,9 @@ func outboxUpsert(box outboxFile, xid string, now time.Time) outboxFile {
 }
 
 // queuedOfferCount counts the entries still waiting to be sent (rejected
-// entries are not counted).
+// and attention entries are not counted).
 func queuedOfferCount(box outboxFile) int {
-	count := 0
-
-	for _, entry := range box.Entries {
-		if entry.State != outboxStateRejected {
-			count++
-		}
-	}
-
-	return count
+	return len(box.Entries) - outboxStateCount(box, outboxStateRejected) - outboxStateCount(box, outboxStateAttention)
 }
 
 // refusingVaultID reads the refusing parent's vault ID from a loop
@@ -712,8 +799,10 @@ func scanOfferNotes(store outboxStore, vault string) (map[string]scannedOffer, e
 }
 
 // sendOutboxEntries is the drain's unlocked send phase: each entry in
-// first-queued order, dropping entries whose note is gone or pending and
-// skipping rejected entries whose note has not changed. It stops at an
+// first-queued order, dropping entries whose note is gone or pending,
+// skipping rejected entries whose note has not changed, and never sending
+// an attention entry that keeps its receipt: that receipt is retried
+// locally in the merge instead (an offerHeld step). It stops at an
 // unreachable parent, a too-old parent, or a receipt that names this
 // vault itself (the self-parent guard).
 func sendOutboxEntries(
@@ -732,6 +821,15 @@ func sendOutboxEntries(
 		}
 
 		if entry.State == outboxStateRejected && !exchangeHashChanged(entry.RejectedHash, found.note.Hash) {
+			continue
+		}
+
+		if entry.State == outboxStateAttention && entry.Receipt != nil {
+			steps = append(steps, drainStep{
+				xid: entry.XID, queued: entry.Queued, hash: entry.SentHash,
+				outcome: offerSendResult{Outcome: offerHeld, Receipt: *entry.Receipt},
+			})
+
 			continue
 		}
 

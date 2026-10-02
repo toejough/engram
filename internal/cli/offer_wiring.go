@@ -293,9 +293,32 @@ func newUpdateExchange(deps Deps) func(ctx context.Context, vault string, dryRun
 	}
 }
 
+// outboxCountLine is the notice's first line: the queued and rejected
+// counts, the attention count when there is any (#789 design D3, so an
+// outbox without such entries reports exactly as before), and the oldest
+// entry's age.
+func outboxCountLine(box outboxFile, now time.Time) string {
+	oldest := now
+
+	for _, entry := range box.Entries {
+		if entry.Queued.Before(oldest) {
+			oldest = entry.Queued
+		}
+	}
+
+	attention := ""
+	if count := outboxStateCount(box, outboxStateAttention); count > 0 {
+		attention = fmt.Sprintf(", %d need attention", count)
+	}
+
+	return fmt.Sprintf("parent outbox: %d offer(s) queued, %d rejected%s, oldest queued %s ago\n",
+		queuedOfferCount(box), outboxStateCount(box, outboxStateRejected), attention,
+		now.Sub(oldest).Round(time.Second))
+}
+
 // outboxNotice is update's notify-only outbox report: the queued count,
-// the oldest entry's age, each rejected entry with its note and error, and
-// the backoff retry time. It is "" when the outbox is empty and no backoff
+// the oldest entry's age, each rejected or attention entry with its note
+// and error, and the backoff retry time. It is "" when the outbox is empty and no backoff
 // is active.
 func outboxNotice(store outboxStore, vault, parentURL string) string {
 	box, boxErr := loadOutbox(store.state, vault)
@@ -314,18 +337,7 @@ func outboxNotice(store outboxStore, vault, parentURL string) string {
 	var notice strings.Builder
 
 	if len(box.Entries) > 0 {
-		oldest := now
-
-		for _, entry := range box.Entries {
-			if entry.Queued.Before(oldest) {
-				oldest = entry.Queued
-			}
-		}
-
-		rejected := len(box.Entries) - queuedOfferCount(box)
-
-		fmt.Fprintf(&notice, "parent outbox: %d offer(s) queued, %d rejected, oldest queued %s ago\n",
-			queuedOfferCount(box), rejected, now.Sub(oldest).Round(time.Second))
+		notice.WriteString(outboxCountLine(box, now))
 		writeRejectedEntries(&notice, store, vault, box)
 	}
 
@@ -388,8 +400,9 @@ func supersedesTargets(store outboxStore, vault, parentVaultID string) (map[stri
 	return targets, nil
 }
 
-// writeRejectedEntries lists each rejected entry by its note's current
-// basename (its xid when the note is gone) and its error.
+// writeRejectedEntries lists each rejected entry, then each entry that
+// needs attention (#789 design D3), by its note's current basename (its xid
+// when the note is gone) and its error.
 func writeRejectedEntries(notice *strings.Builder, store outboxStore, vault string, box outboxFile) {
 	names := map[string]string{}
 
@@ -400,16 +413,22 @@ func writeRejectedEntries(notice *strings.Builder, store outboxStore, vault stri
 		}
 	}
 
-	for _, entry := range fifoEntries(box.Entries) {
-		if entry.State != outboxStateRejected {
-			continue
-		}
+	labels := []struct{ state, label string }{
+		{outboxStateRejected, "rejected"}, {outboxStateAttention, "needs attention"},
+	}
 
-		name := names[entry.XID]
-		if name == "" {
-			name = entry.XID
-		}
+	for _, kind := range labels {
+		for _, entry := range fifoEntries(box.Entries) {
+			if entry.State != kind.state {
+				continue
+			}
 
-		fmt.Fprintf(notice, "  rejected: %s: %s\n", name, entry.LastError)
+			name := names[entry.XID]
+			if name == "" {
+				name = entry.XID
+			}
+
+			fmt.Fprintf(notice, "  %s: %s: %s\n", kind.label, name, entry.LastError)
+		}
 	}
 }

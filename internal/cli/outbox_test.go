@@ -862,6 +862,48 @@ func TestDrainOutbox_UnmarkedConflictRejectsAndContinues(t *testing.T) {
 	g.Expect(env.outbox().Entries[0].State).To(Equal("rejected"))
 }
 
+// TestDrainOutbox_WithdrawnEntryDroppedUnlessChanged (ruling S16): a
+// withdrawn offer's entry is dropped, unless the note changed while the
+// offer was being built, in which case it stays for the next drain.
+func TestDrainOutbox_WithdrawnEntryDroppedUnlessChanged(t *testing.T) {
+	t.Parallel()
+
+	withdrawn := cli.OfferSendResultForTest{Outcome: cli.ExportOfferWithdrawn, Err: cli.ErrOfferWithdrawnForTest}
+
+	t.Run("unchanged", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		env := newOutboxEnv(t)
+		env.writeNote("1.2026-09-27.a.md", xidA, "first", false)
+		env.enqueue(xidA)
+
+		_, err := env.drain(&fakeParent{script: map[string]cli.OfferSendResultForTest{xidA: withdrawn}})
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(env.outbox().Entries).To(BeEmpty())
+	})
+
+	t.Run("changed meanwhile", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		env := newOutboxEnv(t)
+		env.writeNote("1.2026-09-27.a.md", xidA, "first", false)
+		env.enqueue(xidA)
+
+		parent := &fakeParent{
+			script: map[string]cli.OfferSendResultForTest{xidA: withdrawn},
+			during: func(cli.OfferNoteForTest) {
+				env.writeNote("1.2026-09-27.a.md", xidA, "amended mid-flight", false)
+			},
+		}
+
+		_, err := env.drain(parent)
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(entryXIDs(env.outbox())).To(Equal([]string{xidA}))
+	})
+}
+
 // TestEnqueueOutbox_CoalescesByXID: at most one entry per note; a repeat
 // enqueue keeps the entry's first-queued time (and its FIFO slot).
 func TestEnqueueOutbox_CoalescesByXID(t *testing.T) {

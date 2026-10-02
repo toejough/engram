@@ -19,12 +19,12 @@
 
 ## 3. Defect 3: a refused receipt needs attention (design D3)
 
-- [ ] 3.1 RED: in `outbox_test.go`, with a receipt applier that runs the real `applyReceiptToContent` on the in-memory note: a refused receipt moves the entry to `attention` with the receipt, `sent_hash` and reason, leaves the note untouched, and warns once naming the note and `parent`; two further drains send nothing and print nothing; after the anchor is removed, the next drain records the receipt without sending and removes the entry; a note changed since it was sent goes back to `queued`; an `attention` entry with no kept receipt is sent; a write failure still keeps the entry queued. In `offer_wiring_test.go`: the update notice counts and lists an entry that needs attention, and prints as before when there is none. Confirm they fail.
-- [ ] 3.2 GREEN: the `attention` state, `receipt` and `sent_hash` fields, `receiptRefused`, `errReceiptNoteUndecodable`, the `offerHeld` outcome, the merge-time warning, `queuedOfferCount` and the notice. Run `targ test`.
+- [x] 3.1 RED: in `outbox_test.go`, with a receipt applier that runs the real `applyReceiptToContent` on the in-memory note: a refused receipt moves the entry to `attention` with the receipt, `sent_hash` and reason, leaves the note untouched, and warns once naming the note and `parent`; two further drains send nothing and print nothing; after the anchor is removed, the next drain records the receipt without sending and removes the entry; a note changed since it was sent goes back to `queued`; an `attention` entry with no kept receipt is sent; a write failure still keeps the entry queued. In `offer_wiring_test.go`: the update notice counts and lists an entry that needs attention, and prints as before when there is none. Confirm they fail. (RED: the refused-receipt and requeue tests failed with `outbox: recording the receipt on 1.2026-09-27.a: offer receipt: frontmatter key the edit replaces carries a YAML anchor: parent` returned as a drain error and the entry left queued; the wiring test's notice read `1 offer(s) queued, 0 rejected` with no attention count. The no-receipt `attention` entry test passed, since today's code sends any non-`rejected` entry; it is kept as the version-skew guard. The existing write-failure test stayed green.)
+- [x] 3.2 GREEN: the `attention` state, `receipt` and `sent_hash` fields, `receiptRefused`, `errReceiptNoteUndecodable`, the `offerHeld` outcome, the merge-time warning, `queuedOfferCount` and the notice. Run `targ test`.
 
 ## 4. Docs
 
-- [ ] 4.1 `docs/ROADMAP.md` row 9: mark #789 done on this branch, pending merge. `docs/GLOSSARY.md` `outbox`: add the `attention` state. `docs/architecture/adr.md` D6: one sentence on the `attention` state.
+- [x] 4.1 `docs/ROADMAP.md` row 9: mark #789 done on this branch, pending merge. `docs/GLOSSARY.md` `outbox`: add the `attention` state. `docs/architecture/adr.md` D6: one sentence on the `attention` state.
 
 ## 5. Verification
 

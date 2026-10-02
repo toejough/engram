@@ -19,6 +19,9 @@ const (
 // unexported variables.
 var (
 	errNoteNoFrontmatter = errors.New("the note has no frontmatter")
+	// errReceiptNoteUndecodable: the note's parent: does not decode, so a
+	// receipt cannot be recorded on it.
+	errReceiptNoteUndecodable = errors.New("the note's frontmatter does not decode")
 )
 
 // applyReceiptToContent records an offer receipt on the note (design D6):
@@ -44,7 +47,7 @@ func applyReceiptToContent(raw []byte, receipt offerReceipt) (string, error) {
 
 	unmarshalErr := yaml.Unmarshal(frontmatter, &doc)
 	if unmarshalErr != nil {
-		return "", fmt.Errorf("offer receipt: parsing parent: %w", unmarshalErr)
+		return "", fmt.Errorf("offer receipt: %w: parsing parent: %w", errReceiptNoteUndecodable, unmarshalErr)
 	}
 
 	updated, editErr := editExchangeBlocks(raw, exchangeBlocksEdit{
@@ -105,6 +108,15 @@ func linkedParent(current parentLinks, receipt offerReceipt) parentLinks {
 	current.Links = append([]parentLink{{Note: target, Via: linkViaOffered, Hash: receipt.StoredHash}}, kept...)
 
 	return current
+}
+
+// receiptRefused reports whether err is the local note refusing a receipt
+// because of its frontmatter — an anchored parent:, or frontmatter that does
+// not decode — rather than a failure to write it (#789 design D3).
+func receiptRefused(err error) bool {
+	return errors.Is(err, errFrontmatterAnchoredKey) || errors.Is(err, errFrontmatterUndecodable) ||
+		errors.Is(err, errFrontmatterNotMapping) || errors.Is(err, errNoteNoFrontmatter) ||
+		errors.Is(err, errReceiptNoteUndecodable)
 }
 
 // setXIDField stamps xid onto a note that has none (the lazy stamp, design
