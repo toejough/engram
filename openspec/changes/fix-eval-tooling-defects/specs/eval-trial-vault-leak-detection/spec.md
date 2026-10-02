@@ -26,6 +26,12 @@ Replacing whole-vault diffing with trial-side detection SHALL NOT weaken the gua
 - **WHEN** a note appears in the real vault after the run that did not exist before it, and that note's content names a trial directory or session identifier from the run
 - **THEN** the guard raises, naming the note and the trial/session it references
 
+#### Scenario: A new real-vault note naming only a distinctive trial basename is still flagged
+
+- **GIVEN** a run whose trial marker's basename is itself distinctive (e.g. a `tempfile.mkdtemp`-style random suffix, unlikely to appear by chance in unrelated prose)
+- **WHEN** a note appears in the real vault after the run whose content names only that distinctive basename, not the trial's full path
+- **THEN** the guard still raises, naming the note and the matched basename
+
 ### Requirement: The leak guard's detection limits SHALL be stated, not implied as complete
 
 The trial-side guard SHALL NOT be described or relied upon as an unconditional leak-proof. Its detection is scoped to leaks that are traceable to a registered trial marker in the leaked note's own content; it SHALL NOT be claimed to catch every possible leak path.
@@ -47,3 +53,9 @@ The trial-side guard SHALL NOT be described or relied upon as an unconditional l
 - **GIVEN** the guard's fingerprint is based on the real vault's set of `.md` basenames, not on file modification times
 - **WHEN** an existing real-vault note's content is mutated in place, with no change to the vault's set of note basenames
 - **THEN** the guard does not flag it as a leak, because the basename-based fingerprint is identical before and after — this is a documented limitation (a capability the guard's prior mtime-based fingerprint had, dropped when the mechanism changed), accepted because a mutation of this shape is only reachable through the same unmediated code path already named above, never through a trial env built via the standard isolation primitive
+
+#### Scenario: A leak naming only a non-distinctive basename is not caught
+
+- **GIVEN** a trial's marker basename is short and deterministic (e.g. a fixed task/arm name plus a small index, not a random suffix) rather than distinctive
+- **WHEN** a leaked note's content names only that non-distinctive basename, and never the trial's full path
+- **THEN** the guard does not flag it as a leak — this is a documented limitation, accepted in exchange for not false-matching an orchestrator note that merely mentions a short, deterministic trial basename in passing (the dominant real leak shape, a note quoting the trial's full path, is unaffected)

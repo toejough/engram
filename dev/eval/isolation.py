@@ -32,8 +32,9 @@ ENGRAM_STATE_VARS = ("ENGRAM_VAULT_PATH", "ENGRAM_CHUNKS_DIR", "ENGRAM_TRANSCRIP
 # measured ~48 operator-global files swept into a per-trial index, displacing the planted chunk.
 CWD_ANCESTOR_MARKERS = (".claude", ".git", ".hg", ".jj")
 
-# How many note names to name in an assert_vault_unchanged failure. A bare count delta costs a
-# diagnosis round-trip; the whole list would bury the signal on a large vault.
+# How many of the most-recently-appeared note names assert_no_trial_leak scans for a registered
+# trial marker. A bare count delta costs a diagnosis round-trip; the whole list would bury the
+# signal on a large vault.
 _NAMED_ON_FAILURE = 10
 
 # Trial-marker registry (#750): isolated_env/engram_env append here, automatically, the moment
@@ -240,27 +241,23 @@ def vault_fingerprint(vault=None):
     return len(names), hashlib.sha256("\n".join(names).encode()).hexdigest()
 
 
-def assert_vault_unchanged(before, vault=None):
-    """Raise IsolationError if the vault's note set moved since `before`.
+# A trial marker's basename is only a safe secondary leak signal when it is unlikely to appear
+# by accident in unrelated prose. `tempfile.mkdtemp`'s default random suffix is 8 characters
+# (`_RandomNameSequence`); this harness's OWN deterministic trial-dir basenames (e.g.
+# "plumbing-0", "setup-only-0", "history-rewrite-R-0" — a fixed name plus a short arm/index
+# tail) are exactly the opposite shape and false-matched an orchestrator note that merely
+# mentioned the fixture by name (#750 Gate-B follow-up, F2).
+_MIN_DISTINCTIVE_TAIL_LEN = 8
 
-    The backstop for a path the env vars do not cover — a subcommand resolving its own way, or a
-    spawn site that skipped isolated_env entirely. Names the notes that appeared or vanished,
-    because a bare count delta costs a diagnosis round-trip.
-    """
-    root = vault if vault is not None else operator_vault()
-    after = vault_fingerprint(root)
-    if after == before:
-        return
 
-    now = set(_note_names(root))
-    # `before` is a fingerprint, not a name list, so the exact appeared/vanished split is only
-    # recoverable when notes were ADDED — the common case, and the one #708 produced.
-    appeared = sorted(now)[-_NAMED_ON_FAILURE:] if after[0] > before[0] else []
-    detail = f" Newest notes: {', '.join(appeared)}." if appeared else ""
-    raise IsolationError(
-        f"vault {root} changed during the run: {before[0]} notes before, {after[0]} after. "
-        f"A trial reached real memory.{detail}"
-    )
+def _is_distinctive_basename(basename):
+    """True if `basename`'s trailing '-'/'_'-delimited segment is long enough (>= 8 chars, the
+    length of tempfile.mkdtemp's default random suffix) to be an implausible accidental match.
+    A short, deterministic tail ("0", "3", "R-0") is NOT distinctive — the rule is about the
+    tail specifically, not the whole basename's length, because this harness's own task/arm
+    names are often long AND end in a short, non-random index."""
+    tail = re.split(r"[-_]", basename)[-1]
+    return len(tail) >= _MIN_DISTINCTIVE_TAIL_LEN
 
 
 def assert_no_trial_leak(before, vault=None):
@@ -270,15 +267,18 @@ def assert_no_trial_leak(before, vault=None):
     /route recall-glance sidecar, costing a real investigation for nothing).
 
     Single layer, stated plainly: a newly-appeared note is flagged as a leak only if its content
-    names one of the trial markers isolated_env/engram_env registered during this run (a
-    directory path, or a distinctive substring of one — its basename). A newly-appeared note
+    names one of the trial markers isolated_env/engram_env registered during this run — either
+    the marker's FULL path, or its basename when that basename is itself distinctive enough
+    not to appear by accident (see `_is_distinctive_basename`; a short, deterministic basename
+    like "plumbing-0" does NOT qualify — matching on it false-positived on an orchestrator note
+    that merely mentioned the fixture by name, #750 Gate-B follow-up). A newly-appeared note
     naming no registered marker is treated as an orchestrator-side write and does NOT raise.
     This does not catch (1) a leak through any code path that never calls isolated_env/
     engram_env at all, (2) a genuine leak whose note content happens not to mention any
-    registered marker, or (3) a same-filename in-place content mutation of an existing note
-    (the basename-based fingerprint below is identical before and after) — see
-    openspec/specs/eval-trial-vault-leak-detection/spec.md for why these are accepted, documented
-    limitations rather than regressions.
+    registered marker (or mentions only a non-distinctive basename of one), or (3) a
+    same-filename in-place content mutation of an existing note (the basename-based fingerprint
+    below is identical before and after) — see openspec/specs/eval-trial-vault-leak-detection/
+    spec.md for why these are accepted, documented limitations rather than regressions.
     """
     root = vault if vault is not None else operator_vault()
     after = vault_fingerprint(root)
@@ -286,8 +286,8 @@ def assert_no_trial_leak(before, vault=None):
         return
 
     now = set(_note_names(root))
-    # Same "appeared" derivation assert_vault_unchanged already uses (see its own comment above)
-    # — only recoverable when the note count strictly increased.
+    # `before` is a fingerprint, not a name list, so the exact appeared/vanished split is only
+    # recoverable when notes were ADDED — the common case, and the one #708 produced.
     appeared = sorted(now)[-_NAMED_ON_FAILURE:] if after[0] > before[0] else []
     if not appeared:
         return
@@ -301,9 +301,15 @@ def assert_no_trial_leak(before, vault=None):
         except OSError:
             continue
         for marker in markers:
+            if marker in content:
+                raise IsolationError(
+                    f"real-vault leak: note {note} in {root} names trial marker {marker!r} — "
+                    "a trial reached the operator's real vault."
+                )
             basename = os.path.basename(marker.rstrip(os.sep))
-            if marker in content or (basename and basename in content):
+            if basename and _is_distinctive_basename(basename) and basename in content:
                 raise IsolationError(
                     f"real-vault leak: note {note} in {root} names trial marker {marker!r} "
-                    f"(matched via {basename!r}) — a trial reached the operator's real vault."
+                    f"(matched via distinctive basename {basename!r}) — a trial reached the "
+                    "operator's real vault."
                 )

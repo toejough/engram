@@ -165,26 +165,6 @@ def test_vault_fingerprint_of_missing_vault_is_empty(tmp_path):
     assert count == 0
 
 
-def test_assert_vault_unchanged_passes_when_untouched(tmp_path):
-    vault = tmp_path / "vault"
-    os.makedirs(vault)
-    (vault / "1.note.md").write_text("a")
-
-    before = isolation.vault_fingerprint(str(vault))
-    isolation.assert_vault_unchanged(before, str(vault))  # must not raise
-
-
-def test_assert_vault_unchanged_raises_when_a_note_appears(tmp_path):
-    vault = tmp_path / "vault"
-    os.makedirs(vault)
-    before = isolation.vault_fingerprint(str(vault))
-    (vault / "533.leaked.md").write_text("a trial wrote this")
-
-    with pytest.raises(isolation.IsolationError) as exc:
-        isolation.assert_vault_unchanged(before, str(vault))
-    assert "533.leaked.md" in str(exc.value)
-
-
 def test_operator_data_dir_follows_xdg(tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
     assert isolation.operator_data_dir() == os.path.realpath(str(tmp_path / "engram"))
@@ -288,17 +268,16 @@ def test_engram_env_registers_vault(tmp_path, clean_trial_markers):
 
 def test_assert_no_trial_leak_ignores_a_new_note_naming_no_registered_marker(tmp_path, clean_trial_markers):
     """4.3: the exact #750 false-positive case -- a new real-vault note (the orchestrating
-    session's own write) that does not mention any registered trial marker must NOT raise.
-    Confirms the OLD assert_vault_unchanged raises on this today, which is the bug."""
+    session's own write) that does not mention any registered trial marker must NOT raise. (The
+    retired whole-vault-diff guard -- assert_vault_unchanged -- used to raise on exactly this;
+    that was the bug. It has since been deleted, per Joe's "git is the fallback" rule -- see
+    git history for its last form, not a kept-for-revert copy.)"""
     vault = tmp_path / "vault"
     os.makedirs(vault)
     before = isolation.vault_fingerprint(str(vault))
     isolation._register_trial_marker(str(tmp_path / "trial-abc"))
 
     (vault / "999.orchestrator-route-note.md").write_text("a /route recall-glance sidecar note")
-
-    with pytest.raises(isolation.IsolationError):
-        isolation.assert_vault_unchanged(before, str(vault))  # the old guard: false-positives
 
     isolation.assert_no_trial_leak(before, str(vault))  # the new guard: must NOT raise
 
@@ -318,3 +297,40 @@ def test_assert_no_trial_leak_raises_when_new_note_names_a_registered_marker(tmp
         isolation.assert_no_trial_leak(before, str(vault))
     assert "999.leaked.md" in str(exc.value)
     assert trial_dir in str(exc.value) or os.path.basename(trial_dir) in str(exc.value)
+
+
+def test_assert_no_trial_leak_ignores_a_short_generic_basename_mentioned_in_passing(tmp_path, clean_trial_markers):
+    """Gate-B follow-up (F2): over-detection. probe.py/probe_phase2.py register trial markers
+    like ".../trials/plumbing-0" or ".../trials/setup-only-0" -- short, deterministic basenames
+    (a fixed name + a small index), not a random mkdtemp suffix. The basename-fallback match
+    must NOT fire on an unrelated orchestrator note that merely happens to mention "plumbing-0"
+    in passing (e.g. discussing this very fixture) -- only the FULL registered path, or a
+    sufficiently distinctive basename, counts as a leak signal."""
+    vault = tmp_path / "vault"
+    os.makedirs(vault)
+    before = isolation.vault_fingerprint(str(vault))
+    trial_dir = str(tmp_path / "trials" / "plumbing-0")
+    isolation._register_trial_marker(trial_dir)
+
+    (vault / "999.orchestrator-discussion.md").write_text(
+        "Reviewed the plumbing-0 trial fixture's task-prompt wording for the #750 writeup."
+    )
+
+    isolation.assert_no_trial_leak(before, str(vault))  # must NOT raise
+
+
+def test_assert_no_trial_leak_still_raises_on_a_distinctive_basename_alone(tmp_path, clean_trial_markers):
+    """Regression guard for F2's fix: a genuinely distinctive basename (the shape of a real
+    tempfile.mkdtemp 8-char random suffix) must still be caught as a leak signal even when the
+    leaked note's content names only the basename, not the full registered path."""
+    vault = tmp_path / "vault"
+    os.makedirs(vault)
+    before = isolation.vault_fingerprint(str(vault))
+    trial_dir = str(tmp_path / "ws" / "sometrap-0-state-x7k2m9qa")
+    isolation._register_trial_marker(trial_dir)
+
+    (vault / "999.leaked.md").write_text("a note written from sometrap-0-state-x7k2m9qa")
+
+    with pytest.raises(isolation.IsolationError) as exc:
+        isolation.assert_no_trial_leak(before, str(vault))
+    assert "999.leaked.md" in str(exc.value)
