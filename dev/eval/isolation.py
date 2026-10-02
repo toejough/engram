@@ -251,12 +251,21 @@ _MIN_DISTINCTIVE_TAIL_LEN = 8
 
 
 def _is_distinctive_basename(basename):
-    """True if `basename`'s trailing '-'/'_'-delimited segment is long enough (>= 8 chars, the
+    """True if `basename`'s trailing '-'-delimited segment is long enough (>= 8 chars, the
     length of tempfile.mkdtemp's default random suffix) to be an implausible accidental match.
     A short, deterministic tail ("0", "3", "R-0") is NOT distinctive — the rule is about the
     tail specifically, not the whole basename's length, because this harness's own task/arm
-    names are often long AND end in a short, non-random index."""
-    tail = re.split(r"[-_]", basename)[-1]
+    names are often long AND end in a short, non-random index.
+
+    Split on '-' ONLY, never '_' (Gate-B follow-up, round 2): tempfile's own random-name
+    alphabet is `string.ascii_lowercase + string.digits + "_"` (`tempfile._get_candidate_names`)
+    — it includes underscore. Splitting on `[-_]` could cut a real mkdtemp suffix short at an
+    embedded `_` (e.g. "...-2vl_5xn_" -> trailing segment "" after the last `_`), silently
+    misclassifying it as non-distinctive — measured at ~1 in 5 real mkdtemp suffixes. This
+    harness's own deterministic trial-dir basenames ("plumbing-0", "setup-only-0",
+    "history-rewrite-R-0", "R-0", "F-3") never contain '_', so splitting on '-' alone still
+    correctly classifies every one of them as non-distinctive."""
+    tail = basename.rsplit("-", 1)[-1]
     return len(tail) >= _MIN_DISTINCTIVE_TAIL_LEN
 
 

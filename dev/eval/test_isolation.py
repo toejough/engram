@@ -6,6 +6,7 @@ operator's real vault (#708) and its `engram query` reads the operator's real ch
 """
 import os
 import sys
+import tempfile
 
 import pytest
 
@@ -334,3 +335,32 @@ def test_assert_no_trial_leak_still_raises_on_a_distinctive_basename_alone(tmp_p
     with pytest.raises(isolation.IsolationError) as exc:
         isolation.assert_no_trial_leak(before, str(vault))
     assert "999.leaked.md" in str(exc.value)
+
+
+def test_is_distinctive_basename_classifies_real_mkdtemp_suffixes_correctly(tmp_path):
+    """Gate-B follow-up (round 2): tempfile's random-name alphabet is
+    `abcdefghijklmnopqrstuvwxyz0123456789_` -- it includes underscore. Splitting on `[-_]`
+    (the prior code) can cut a real mkdtemp suffix short at an embedded `_` and misclassify it
+    as non-distinctive. Property-style: every one of 500 REAL `tempfile.mkdtemp` suffixes, at
+    the exact prefix shape `traps/run.py`'s own `state` dirs use, must classify as distinctive."""
+    misclassified = []
+    for i in range(500):
+        d = tempfile.mkdtemp(prefix="sometrap-0-state-", dir=str(tmp_path))
+        basename = os.path.basename(d)
+        if not isolation._is_distinctive_basename(basename):
+            misclassified.append(basename)
+    assert not misclassified, f"{len(misclassified)}/500 real mkdtemp basenames misclassified: {misclassified[:5]}"
+
+
+def test_is_distinctive_basename_classifies_a_fixed_underscore_bearing_suffix():
+    """Fixed regression case: an mkdtemp-shaped suffix containing an underscore must still be
+    distinctive. Splitting on `[-_]` cuts this to a trailing empty string (length 0) today."""
+    assert isolation._is_distinctive_basename("sometrap-0-state-2vl_5xn_") is True
+
+
+def test_is_distinctive_basename_rejects_this_harnesss_own_deterministic_names():
+    """Explicit negative case, per design.md D10's 4th limitation bullet: this harness's own
+    short, deterministic trial-dir basenames (a fixed task/arm name plus a small index, never a
+    random suffix) must stay non-distinctive, splitting on `-` only."""
+    for basename in ("plumbing-0", "setup-only-0", "history-rewrite-R-0", "R-0", "F-3"):
+        assert isolation._is_distinctive_basename(basename) is False, basename
