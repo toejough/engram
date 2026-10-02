@@ -44,6 +44,14 @@
 - [x] 3c.4 GREEN: `toLF` in the embed and cli readers of D8's table and `vocabAssignmentUnchanged`; `errOfferNoUserIdentity` and `applyNotSentStep`; `vault,omitempty`, `fillEmptyVault`, `warnIfNoVault`, the first-write and pull-down vault handling. Pinned tests updated with the spec delta: `TestRenderFrontmatter_{Feedback,Runbook}` (no `vault: ""`), and the amend parity adjustment (ruling W1, D10). Run `targ test`.
 - [x] 3c.5 Spec deltas (vault-note-identity: vault requirement MODIFIED, note-reader requirement ADDED; vault-parent-offers: no-identity paragraph and scenario), design (W1 record, D8–D10, Non-Goal and Risk removed), enumeration and verification updated.
 
+## 3d. Final-review fixes (2026-10-02; design D12)
+
+- [x] 3d.1 RED (finding 1): `TestKindFromContent_CRLFNote` (kind label, qa-question exclusion), `TestTriggerIndex_CRLFRunbook` (index and match), `TestCapRedFlagsForPreview_CRLFNote`. (RED: kind `fact\r`; the qa-question was not excluded; the trigger index was empty; the CRLF preview was not capped.)
+- [x] 3d.2 RED (finding 2): `TestBackfillIdentity_FillsAnOmittedUser/flagged by update only when backfill can stamp it`. (RED: the notice flagged a vault-present note with no user detected.)
+- [x] 3d.3 RED (finding 3): `TestDrainOutbox_NoUserEntryRequeuedOnceBuilt`. (RED: the entry stayed `attention` after a network failure.)
+- [x] 3d.4 RED (finding 4, set-aside b): `TestDrainForCommand_KeptReceiptRecordedInsideBackoff`, `TestDrainForCommand_KeptReceiptFromAnotherParentDiscarded` (URL reconfigured; parent reports another vault). (RED: inside the backoff the kept receipt was not recorded; a receipt from another parent was neither discarded nor warned about.) Coverage guards: `TestRecordKeptReceipts_DropsEntryOfDeletedNote`, `TestRecordKeptReceipts_ScanFailureSurfaces`.
+- [x] 3d.5 GREEN and docs (finding 5): proposal Impact and "Not changed", enumeration header, GLOSSARY `outbox` and ADR D6 (no-user `attention`, kept-receipt pass, other-parent discard), spec deltas and design D12. Set-aside (a) checked: no defect (D12.5).
+
 ## 4. Docs
 
 - [x] 4.1 `docs/ROADMAP.md` row 9: mark #789 done on this branch, pending merge. `docs/GLOSSARY.md` `outbox`: add the `attention` state. `docs/architecture/adr.md` D6: one sentence on the `attention` state.

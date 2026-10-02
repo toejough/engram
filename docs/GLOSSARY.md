@@ -760,7 +760,11 @@ and backs the parent off (`.engram/parent.json`'s `backoff_until`); a 4xx marks 
 the note's exchange hash changes (design D6). When the parent accepts an offer but the local note
 refuses its receipt (an anchored `parent:`, or frontmatter that does not decode), the entry moves to
 `attention`: it keeps the receipt, warns once, is never re-sent, is listed by `engram update`'s
-notice, and records the kept receipt on a later drain once the note is fixed (#789).
+notice, and records the kept receipt locally — before the backoff gate, never contacting the parent —
+on a later drain once the note is fixed; a kept receipt from a parent other than the configured one is
+discarded with a warning and the offer queued again. An offer that cannot be built because the note
+has no `user:` and no user is detected also waits in `attention` (one warning: set git
+`user.email`), is never sent, and returns to queued as soon as its payload builds (#789).
 
 ### exchange hash
 `xh1:` + a SHA-256 over the canonical JSON of every **offered** content field (`type`, `situation`,

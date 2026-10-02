@@ -101,3 +101,16 @@ Same setup: a scratch build (`go build`, no `go install`), `env -i PATH=/usr/bin
 | N1 | Offering with no detectable user | Not reachable from the real binary on this machine (macOS resolves the OS username, as recorded for U1). Pinned through the production wiring by `TestUpdateExchange_NoUserIdentityWaitsThenOffers`: learn omits `user:`, the offer is not sent and the warning says `cannot offer`, update reports `1 need attention` with the reason, and once detection works the next exchange offers it. **Recorded.** |
 
 Parity after W2: amend 32/32 exchange hashes; 29/32 byte-identical and the 3 `minimal-clear-pending` notes byte-identical after the golden's `user: ""` and `vault: ""` lines are replaced by `vault: personal` (rulings W1, W2; design D10). Backfill 14/14 and fold/receipt 11/11 byte-identical.
+
+## Final-review fixes: real-binary check (2026-10-02)
+
+Same setup (scratch build, `env -i`, scratch `HOME`/`XDG_DATA_HOME`, cwd `$S/plain`; a scratch `engram serve` parent on 127.0.0.1:18791).
+
+| # | Check | Result |
+|---|---|---|
+| K1 | A runbook learned with `--trigger "rotate the signing keys"`, converted to all-CRLF, and a plain fact about gardening; `engram query --text "please rotate the signing keys now" --phrase "unrelated plain fact about gardening"` | the CRLF runbook is first (a trigger hit, though the phrase matches the fact), labelled `kind: runbook`; 0 `kind:` lines carry `\r`. **PASS** |
+| K2 | A note given an anchored `parent:` and amended with `ENGRAM_PARENT` set: entry `attention` with a kept receipt. Anchor removed; `parent.json` set inside a backoff window; another `engram learn` | stderr only the usual `parent unreachable (retry after 2999-…)` line (no parent contact); the kept receipt was recorded (`via: offered` on the note) and its entry is done; only the new note's entry remains, `queued`. **PASS** |
+| K3 | Same `attention` entry; anchor removed; `engram learn` with `ENGRAM_PARENT` changed to another URL | stderr: `discarding the kept receipt for 1.2026-10-02.held-reconfigured: it came from parent vault 025cefe3…, but the configured parent is http://127.0.0.1:18799 (vault unknown)`; the note gained no link to the old parent; the entry is `queued` with no kept receipt. **PASS** |
+| K4 | Backfill notice and no-user requeue with no detectable user | not reachable from the real binary on this machine (macOS resolves the OS username; see U1); pinned by `TestBackfillIdentity_FillsAnOmittedUser` and `TestDrainOutbox_NoUserEntryRequeuedOnceBuilt`. **Recorded.** |
+
+Parity: amend 32/32 exchange hashes, 29/32 bytes plus the 3 W1/W2 notes; backfill 14/14; fold/receipt 11/11.

@@ -1,6 +1,6 @@
 # Doc-surface enumeration: fix-frontmatter-remainder
 
-This change alters four documented behaviours:
+This change alters these documented behaviours:
 
 - amend converts the CRLF notes it writes to LF instead of refusing them;
 - identity backfill keeps keys it does not set, refuses an anchored key it would set, and stamps CRLF notes (as LF) instead of skipping them;
@@ -11,7 +11,8 @@ This change alters four documented behaviours:
 - no write produces `user: ""`;
 - every note reader (embedding, query, vocab, check, count) reads a CRLF note as its LF form;
 - no offer is sent without a user identity;
-- no write produces `vault: ""`.
+- no write produces `vault: ""`;
+- the backfill notice counts only notes backfill can stamp now; a no-user `attention` entry returns to queued once its payload builds; kept receipts are recorded before the backoff gate, and one from another parent is discarded (review fixes).
 
 **Search** (2026-10-02, worktree `runbook-vs-skill`, branch `fix-789-frontmatter-remainder`):
 
@@ -40,6 +41,7 @@ grep -rn -i -E "crlf|backfill-identity|identity backfill|outbox|receipt|rejected
 | 6g | `openspec/specs/vault-note-identity/spec.md` "Vault field resolved from explicit configuration" | spec delta: amend fills an empty `vault:`; never `vault: ""` | `grep -n "A bookkeeping amend on a note without vault" openspec/changes/fix-frontmatter-remainder/specs/vault-note-identity/spec.md` | — |
 | 6h | `openspec/specs/vault-note-identity/spec.md` | spec delta (ADDED): note readers read a CRLF note as its LF form | `grep -n "Note readers SHALL read a CRLF note as its LF form" openspec/changes/fix-frontmatter-remainder/specs/vault-note-identity/spec.md` | — |
 | 6i | `openspec/specs/vault-parent-offers/spec.md` receipt requirement | spec delta: no-identity offers wait in `attention` | `grep -n "No user identity holds the offer" openspec/changes/fix-frontmatter-remainder/specs/vault-parent-offers/spec.md` | — |
+| 2b | `docs/GLOSSARY.md` `### outbox`, `docs/architecture/adr.md` D6 | append: the no-user `attention` case, the kept-receipt pass and the other-parent discard | `grep -n 'user.email' docs/GLOSSARY.md docs/architecture/adr.md` | — |
 | 7 | `openspec/specs/vault-parent-offers/spec.md` "The outbox SHALL drain …" | no change: queued/rejected rules are unchanged; `attention` is specified under the receipt requirement | — | — |
 | 8 | `openspec/specs/update-reparent-luhmann-batch`, `skill-runbook-registration` CRLF requirements | no change: rename, adopt and refresh already convert | — | — |
 | 9 | `docs/architecture/adr.md` lines 702, 744, 814 ("out of scope") | no change: unrelated (shadowed copies, chunk-index cleanup, update version skew) | — | — |

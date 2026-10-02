@@ -158,7 +158,7 @@ The curation fold (`engram amend --discard --into`) and the offer receipt SHALL 
 ### Requirement: Backfill for pre-existing notes missing identity fields
 `engram update` SHALL detect notes missing `repo:`, `user:`, or `vault:` frontmatter fields and surface a notify-only notice naming the `--backfill-identity` flag, following the same detect-and-notify convention as the vocab-migration, Luhmann-branching, and chunk-pruning notices. `engram update --backfill-identity` SHALL rewrite each flagged note's `repo:`, `user:`, and `vault:` fields using the same `user:`/`vault:` detection as `learn`/`amend`, and the project-field-preferred `repo:` fallback described above, leaving all other note fields unchanged.
 
-A note counts as missing identity when it has no `user:`. A note that also has no `vault:` predates identity and SHALL be stamped with all three fields, as described above. A note that has `vault:` but no `user:` was first written where user detection resolved empty; backfill SHALL fill in only `user:`, keeping its `repo:` and `vault:`, and SHALL leave it untouched while detection still resolves empty.
+A note counts as missing identity when it has no `user:`. A note that also has no `vault:` predates identity and SHALL be stamped with all three fields, as described above. A note that has `vault:` but no `user:` was first written where user detection resolved empty; backfill SHALL fill in only `user:`, keeping its `repo:` and `vault:`, and SHALL leave it untouched while detection still resolves empty. `engram update`'s missing-identity notice SHALL count only notes backfill can stamp at that moment, so it never asks for a backfill that would stamp nothing.
 
 Identity backfill SHALL make that edit on the parsed frontmatter as YAML-node edits: it sets `repo:`, `user:` and `vault:`, and re-emits `created:` in its quoted form when the file's text for it differs. Every other key SHALL keep its value, including keys the typed note model does not define and YAML anchors on keys it does not edit. When a key it would set or re-emit, or that key's value, or anything beneath the value, carries a YAML anchor, backfill SHALL leave that note untouched, continue with the other notes, and then fail naming each refused note and key (`errFrontmatterAnchoredKey`). Before writing, it SHALL decode the rewritten frontmatter again and refuse to write a note whose frontmatter does not decode (`errFrontmatterUndecodable`). `--dry-run` SHALL report the same refusals without writing. For a note without CRLF line endings, unknown keys or anchors, backfill SHALL write the same bytes as before this requirement.
 
@@ -196,6 +196,10 @@ Identity backfill, and `engram update`'s missing-identity detection, SHALL read 
 - **WHEN** `engram update --backfill-identity` runs on a vault holding a fact or feedback note missing identity whose lines end in `\r\n`
 - **THEN** the note is stamped and written with no `\r\n`, byte-identical to the backfill of its LF form, and its sidecar is fresh; `engram update` without the flag had counted it in the missing-identity notice
 
+#### Scenario: No backfill notice for a note backfill cannot stamp
+- **WHEN** `engram update` runs where user detection resolves empty, and the only note without `user:` has `vault:`
+- **THEN** no identity-backfill notice appears
+
 #### Scenario: Backfill fills in an omitted user
 - **WHEN** `engram update --backfill-identity` runs on a note carrying `repo:` and `vault: work` but no `user:`, where user detection resolves
 - **THEN** the note gains the detected `user:`, and its `repo:` and `vault: work` are unchanged; where detection still resolves empty, the note is not written
@@ -207,7 +211,7 @@ Identity backfill, and `engram update`'s missing-identity detection, SHALL read 
 ## ADDED Requirements
 
 ### Requirement: Note readers SHALL read a CRLF note as its LF form
-Every reader of a note's frontmatter or body SHALL read the note as its LF form (each `\r\n` converted to `\n`), so a note with CRLF line endings is read exactly as its LF conversion: the situation and body it is embedded from and its content hash, `engram query`'s project filter, recency and vault metadata (tags, supersedes, triggers), vocab tagging, removal and refit, `engram check` and `engram count`. `embed.SplitFrontmatter` SHALL stay LF-only; the readers convert before splitting. No reader SHALL write a note only to convert it: a writer converts a CRLF note only inside a write it makes anyway, and an assignment that changes nothing writes nothing.
+Every reader of a note's frontmatter or body SHALL read the note as its LF form (each `\r\n` converted to `\n`), so a note with CRLF line endings is read exactly as its LF conversion: the situation and body it is embedded from and its content hash, `engram query`'s project filter, recency, vault metadata (tags, supersedes, triggers), note kind (runbook trigger indexing, the qa-question exclusion and the kind label) and red-flags preview, vocab tagging, removal and refit, `engram check` and `engram count`. `embed.SplitFrontmatter` SHALL stay LF-only; the readers convert before splitting. No reader SHALL write a note only to convert it: a writer converts a CRLF note only inside a write it makes anyway, and an assignment that changes nothing writes nothing.
 
 #### Scenario: A CRLF note embeds and hashes as its LF form
 - **WHEN** a note's lines end in `\r\n`
@@ -216,6 +220,10 @@ Every reader of a note's frontmatter or body SHALL read the note as its LF form 
 #### Scenario: Query, check and count read a CRLF note
 - **WHEN** `engram query --project <p>`, `engram check` and `engram count` run on a vault holding a CRLF note whose `project:` is `<p>`
 - **THEN** query returns the note, check judges its `situation:`, and count includes it
+
+#### Scenario: A CRLF runbook's trigger matches
+- **WHEN** `engram query --text` contains a trigger of a runbook whose lines end in `\r\n`
+- **THEN** the runbook is placed ahead as a trigger hit, labelled `kind: runbook`
 
 #### Scenario: Vocab tagging reads a CRLF note
 - **WHEN** vocab assignment tags a CRLF note with a new term

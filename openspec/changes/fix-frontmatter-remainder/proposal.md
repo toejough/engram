@@ -35,7 +35,8 @@ None.
 
 ## Impact
 
-- **Code (`internal/cli`):** `amend.go` and `amend_fold.go` (read sites, re-embed on conversion), `identity_backfill.go` (node edit), `frontmatter_node.go` (a shared typed-edit helper), `offer_receipt.go`, `outbox.go` and `offer_wiring.go` (the `attention` state, the warning and the notice).
-- **Not changed:** `embed.SplitFrontmatter`, `engram show`, the exchange hash, the parent's `/learn` handling, and every outbox state other than the new one. An older binary reading an outbox with an `attention` entry treats it as queued and re-sends it, which is the pre-change behaviour.
+- **Code (`internal/cli`):** `amend.go`, `amend_fold.go` (LF read sites, re-embed on conversion, list-entry merge, vault fill); `identity_backfill.go`, `identity.go` (node edit, CRLF, first-write identity, stampable notice); `frontmatter_node.go` (shared typed edit, list merge); `outbox.go`, `offer_wiring.go`, `offer_receipt.go`, `offer_payload.go`, `offer_classify.go`, `offer.go` (the `attention` state and its edges, LF exchange readers, no-identity offers, kept-receipt pass); `exchangehash.go`, `serve_learn.go`, `activate.go`, `pulldown.go` (LF exchange readers, user/vault omission); `learn.go` (`user`/`vault` omitempty); `luhmann_reparent.go` (`rebuildConvertedSidecar`); `resituate.go`, `vocab.go`, `vocab_commands.go`, `query.go`, `recency.go`, `query_vault_meta.go`, `redflags_truncation.go` (LF note readers); `update.go` (stampable notice).
+- **Code (`internal/embed`):** `hash.go` (`ExtractBody` and `SituationText` read LF, so `BodyText` and `ContentHash` too).
+- **Not changed:** `embed.SplitFrontmatter` (still LF-only; readers convert before splitting, design D8), the parent's `/learn` handling, and the `queued`/`rejected` outbox states. An older binary reading an outbox with an `attention` entry treats it as queued and re-sends it, which is the pre-change behaviour.
 - **Docs:** `docs/ROADMAP.md` row 9, the `outbox` entry in `docs/GLOSSARY.md`, and ADR D6 in `docs/architecture/adr.md`.
 - **Vault:** no migration. Notes without CRLF, unknown keys or anchors are written byte-for-byte as before by amend and backfill.
