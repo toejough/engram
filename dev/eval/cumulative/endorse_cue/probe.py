@@ -248,4 +248,4 @@ if __name__ == "__main__":
     try:
         main()
     finally:
-        isolation.assert_vault_unchanged(_vault_before)
+        isolation.assert_no_trial_leak(_vault_before)

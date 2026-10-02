@@ -6,6 +6,7 @@ Transcript-scoring tests build synthetic event lists directly (mirroring phase-1
 style), matching the real Claude Code session-transcript shape probe.py's parse_transcript_events
 already verified against a real transcript.
 """
+import inspect
 import json
 import os
 import re
@@ -5518,3 +5519,38 @@ def test_write_memory_steps_json_still_rejects_the_plural_tags_mistake():
     events = [_tool_use("Bash", {"command": command}, idx=0)]
     results, _k, _all = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
     assert results["4"] is False
+
+
+# ----- trial-side leak detection migration (#750, tasks 4.9-4.12) -----
+#
+# None of these four functions is directly unit-testable end to end (each spawns or orchestrates
+# real `claude -p` trials), so the per-site guard here is structural: read each function's own
+# source and assert it calls the new isolation.py primitive (via the already-imported `p1`), not
+# the old `p1._real_vault_fingerprint()`. Mutation-sensitive — fails if any of the four reverts.
+
+def test_run_batch_uses_the_new_trial_leak_guard_not_the_old_fingerprint():
+    src = inspect.getsource(pp.run_batch)
+    assert "p1.isolation.vault_fingerprint" in src
+    assert "p1.isolation.assert_no_trial_leak" in src
+    assert "_real_vault_fingerprint" not in src
+
+
+def test_run_baseline_uses_the_new_trial_leak_guard_not_the_old_fingerprint():
+    src = inspect.getsource(pp.run_baseline)
+    assert "p1.isolation.vault_fingerprint" in src
+    assert "p1.isolation.assert_no_trial_leak" in src
+    assert "_real_vault_fingerprint" not in src
+
+
+def test_run_plumbing_uses_the_new_trial_leak_guard_not_the_old_fingerprint():
+    src = inspect.getsource(pp.run_plumbing)
+    assert "p1.isolation.vault_fingerprint" in src
+    assert "p1.isolation.assert_no_trial_leak" in src
+    assert "_real_vault_fingerprint" not in src
+
+
+def test_run_setup_only_uses_the_new_trial_leak_guard_not_the_old_fingerprint():
+    src = inspect.getsource(pp.run_setup_only)
+    assert "p1.isolation.vault_fingerprint" in src
+    assert "p1.isolation.assert_no_trial_leak" in src
+    assert "_real_vault_fingerprint" not in src

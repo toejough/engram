@@ -237,3 +237,84 @@ def test_install_skill_copies_and_verifies_destination_content(tmp_path):
     dst_skill_md = os.path.join(dst_skills, "recall", "SKILL.md")
     assert os.path.exists(dst_skill_md)
     assert open(dst_skill_md).read() == "# Recall\n"
+
+
+# ----- trial-marker registry + assert_no_trial_leak (#750) -----
+#
+# Replaces whole-real-vault diffing (assert_vault_unchanged) with trial-side detection: the
+# registry records every trial's identifying marker automatically, at the point isolated_env/
+# engram_env builds that trial's env, so no caller has to thread anything through its own call
+# stack. This repo forbids shared mutable state between tests, and the registry is process-global
+# module state other tests in this file already touch (via isolated_env/engram_env) -- so every
+# test below uses the clean_trial_markers fixture and asserts only a SUBSET check against its own
+# markers, never an exact-count/exact-contents assertion.
+
+import threading
+
+
+@pytest.fixture
+def clean_trial_markers():
+    isolation._reset_trial_markers()
+    yield
+    isolation._reset_trial_markers()
+
+
+def test_isolated_env_registers_trial_dir_concurrently(tmp_path, clean_trial_markers):
+    """4.1: several threads building isolated_env concurrently (mirroring the real
+    ThreadPoolExecutor usage in every caller) must all land in the registry, none dropped."""
+    trial_dirs = [str(tmp_path / f"trial{i}") for i in range(8)]
+
+    def worker(i):
+        isolation.isolated_env(str(tmp_path / f"cfg{i}"), trial_dirs[i], base={})
+
+    threads = [threading.Thread(target=worker, args=(i,)) for i in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    for trial_dir in trial_dirs:
+        assert trial_dir in isolation._trial_markers
+
+
+def test_engram_env_registers_vault(tmp_path, clean_trial_markers):
+    """4.2: engram_env (the direct-CLI-call builder, used by audit_moments.py and others that
+    don't go through isolated_env) also registers its vault path."""
+    vault = str(tmp_path / "vault")
+    isolation.engram_env(vault=vault, chunks=str(tmp_path / "chunks"))
+
+    assert vault in isolation._trial_markers
+
+
+def test_assert_no_trial_leak_ignores_a_new_note_naming_no_registered_marker(tmp_path, clean_trial_markers):
+    """4.3: the exact #750 false-positive case -- a new real-vault note (the orchestrating
+    session's own write) that does not mention any registered trial marker must NOT raise.
+    Confirms the OLD assert_vault_unchanged raises on this today, which is the bug."""
+    vault = tmp_path / "vault"
+    os.makedirs(vault)
+    before = isolation.vault_fingerprint(str(vault))
+    isolation._register_trial_marker(str(tmp_path / "trial-abc"))
+
+    (vault / "999.orchestrator-route-note.md").write_text("a /route recall-glance sidecar note")
+
+    with pytest.raises(isolation.IsolationError):
+        isolation.assert_vault_unchanged(before, str(vault))  # the old guard: false-positives
+
+    isolation.assert_no_trial_leak(before, str(vault))  # the new guard: must NOT raise
+
+
+def test_assert_no_trial_leak_raises_when_new_note_names_a_registered_marker(tmp_path, clean_trial_markers):
+    """4.4: a genuine leak -- a new real-vault note whose content names a registered trial
+    marker -- must still raise, naming the note and the marker."""
+    vault = tmp_path / "vault"
+    os.makedirs(vault)
+    before = isolation.vault_fingerprint(str(vault))
+    trial_dir = str(tmp_path / "trial-xyz")
+    isolation._register_trial_marker(trial_dir)
+
+    (vault / "999.leaked.md").write_text(f"written during a run at {trial_dir}")
+
+    with pytest.raises(isolation.IsolationError) as exc:
+        isolation.assert_no_trial_leak(before, str(vault))
+    assert "999.leaked.md" in str(exc.value)
+    assert trial_dir in str(exc.value) or os.path.basename(trial_dir) in str(exc.value)

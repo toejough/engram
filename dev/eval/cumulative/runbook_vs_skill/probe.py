@@ -9,11 +9,14 @@ harness's --summarize mode applies.
 
 Reused plumbing (never reinvented):
   * isolation.py — per-trial ENGRAM_VAULT_PATH/ENGRAM_CHUNKS_DIR/ENGRAM_TRANSCRIPT_DIR and the
-    isolated_env()/assert_isolated() contract. The operator-real-vault abort-report guard
-    (`_real_vault_fingerprint` below) is a LOCAL reimplementation, not `isolation.vault_fingerprint`
-    — a deliberate choice: `isolation.vault_fingerprint` hashes the sorted set of note BASENAMES,
-    which catches additions/removals/renames but would miss a same-filename in-place content
-    mutation; `_real_vault_fingerprint`'s (file count, newest mtime) also catches that case.
+    isolated_env()/assert_isolated() contract. The operator-real-vault leak guard (`run_batch`/
+    `run_plumbing`'s `before_fp`/`ABORT-REPORT`) is `isolation.vault_fingerprint` +
+    `isolation.assert_no_trial_leak` — trial-side detection (#750), not a whole-vault diff: a
+    new real-vault note only aborts the run if its content names a trial marker this run's own
+    `isolated_env`/`engram_env` calls registered, so the orchestrating session's own legitimate
+    writes (e.g. a /route recall-glance sidecar) never false-positive. (The prior LOCAL
+    file-count-plus-newest-mtime reimplementation this module used to carry is retired; both of
+    this file's call sites and all 4 of `probe_phase2.py`'s now use the shared primitive above.)
   * harness.py — MODELS registry and ENGRAM_BIN_DIR (so `engram` is reachable on PATH exactly
     the way every other dev/eval harness resolves it).
   * matrix.py — `refresh_creds` (the keychain seam). Its per-worker cfg-pool PATTERN (not its
@@ -208,20 +211,6 @@ def trial_env(cfg, trial_dir, repo_path):
     env["PATH"] = ENGRAM_BIN_DIR + ":" + env.get("PATH", "")
     isolation.assert_isolated(env)
     return env
-
-
-def _real_vault_fingerprint():
-    """(file count, newest mtime) for the operator's real vault dir — the abort-report guard
-    (Ruling 2). A LOCAL reimplementation, not `isolation.vault_fingerprint` (see module
-    docstring for why: mtime also catches a same-filename in-place content mutation that a
-    basename-hash would miss). Returns (0, None) if the vault doesn't exist (nothing to change)."""
-    vault = isolation.operator_vault()
-    try:
-        names = os.listdir(vault)
-    except FileNotFoundError:
-        return 0, None
-    mtimes = [os.path.getmtime(os.path.join(vault, n)) for n in names]
-    return len(names), (max(mtimes) if mtimes else None)
 
 
 # ----- trial cwd / vault setup -----
@@ -745,7 +734,7 @@ def run_batch(args):
         cfg_pool.put(cfg_dir)
 
     marker = f"RUNBOOK-VS-SKILL-PROBE-{uuid.uuid4().hex[:8]}"
-    before_fp = _real_vault_fingerprint()
+    before_fp = isolation.vault_fingerprint()
 
     jobs = [(arm, i) for arm in arms for i in range(args.n)]
     print(f"run_id={run_id} arms={arms} n={args.n} model={args.model} "
@@ -771,11 +760,14 @@ def run_batch(args):
                       f"end_state={record['end_state']} cost=${record['total_cost_usd']:.2f} "
                       f"timed_out={record['timed_out']}")
     finally:
-        after_fp = _real_vault_fingerprint()
-        if after_fp != before_fp:
-            print(f"ABORT-REPORT: operator's real vault fingerprint changed! before={before_fp} "
-                  f"after={after_fp}. A trial may have reached real memory. Investigate before "
-                  "trusting any result in this run.", file=sys.stderr)
+        # Trial-side leak detection (#750), not a whole-vault diff: this catches a genuine leak
+        # while ignoring the orchestrating session's own real-vault writes (e.g. a /route
+        # recall-glance sidecar) made while this run was in progress. Caught (not raised) here
+        # so the cleanup below still runs even when a leak is detected.
+        try:
+            isolation.assert_no_trial_leak(before_fp)
+        except isolation.IsolationError as e:
+            print(f"ABORT-REPORT: {e}", file=sys.stderr)
         if not args.keep:
             shutil.rmtree(run_root, ignore_errors=True)
 
@@ -794,7 +786,7 @@ def run_plumbing(model):
     build_cfg_template(cfg)
     matrix.refresh_creds(cfg)
 
-    before_fp = _real_vault_fingerprint()
+    before_fp = isolation.vault_fingerprint()
     marker = f"RUNBOOK-VS-SKILL-PROBE-{uuid.uuid4().hex[:8]}"
     trial_dir = os.path.join(run_root, "trials", "plumbing-0")
     os.makedirs(trial_dir, exist_ok=True)
@@ -804,7 +796,6 @@ def run_plumbing(model):
     note_basename = fixture_note_basename("R")
 
     result, timed_out = spawn_claude(env, model, repo_path, PLUMBING_PROMPT, DEFAULT_TIMEOUT_S)
-    after_fp = _real_vault_fingerprint()
 
     transcript_paths = discover_transcript_paths(cfg, repo_path)
     raw_text = transcript_raw_text(transcript_paths)
@@ -829,9 +820,13 @@ def run_plumbing(model):
     print(f"timed_out={timed_out}")
     print(f"transcript_path={transcript_paths[0] if transcript_paths else None}")
     print(f"run_root={run_root}")
-    if after_fp != before_fp:
-        print(f"ABORT-REPORT: operator's real vault fingerprint changed! before={before_fp} "
-              f"after={after_fp}.", file=sys.stderr)
+    # Trial-side leak detection (#750) — see run_batch's own comment for why this is caught
+    # (not raised); this site has no cleanup step to protect, so it's solely for printed-
+    # diagnostic parity with run_batch's own non-raising posture.
+    try:
+        isolation.assert_no_trial_leak(before_fp)
+    except isolation.IsolationError as e:
+        print(f"ABORT-REPORT: {e}", file=sys.stderr)
 
 
 # ----- summarize / decision frame (Ruling 9, PLAN.md lines 518-537) -----

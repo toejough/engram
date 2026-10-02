@@ -9,6 +9,7 @@ hand-completed clone of fixture-repo-template (built via the real init_fixture_r
 stub — per the harness's own note-505 "no keyword-on-final-text scoring" discipline, done_when is
 the mechanical ground truth.
 """
+import inspect
 import json
 import os
 import shutil
@@ -714,3 +715,24 @@ def test_slug_prefix_candidate_rejects_unrelated_short_prefix():
 def test_slug_prefix_candidate_rejects_non_prefix_even_if_long_enough():
     full_slug = "-trials-gitignore-nested-1-repo"
     assert p._slug_prefix_candidate("-completely-different-t7vm24", full_slug) is False
+
+
+# ----- trial-side leak detection migration (#750, task 4.7) -----
+#
+# run_batch/run_plumbing neither spawn a real `claude -p` nor are directly unit-testable end to
+# end (both call spawn_claude), so the per-site guard here is structural: read each function's
+# own source and assert it calls the new isolation.py primitive, not the old local
+# _real_vault_fingerprint. This is mutation-sensitive -- it fails if either site reverts.
+
+def test_run_batch_uses_the_new_trial_leak_guard_not_the_old_fingerprint():
+    src = inspect.getsource(p.run_batch)
+    assert "isolation.vault_fingerprint" in src
+    assert "isolation.assert_no_trial_leak" in src
+    assert "_real_vault_fingerprint" not in src
+
+
+def test_run_plumbing_uses_the_new_trial_leak_guard_not_the_old_fingerprint():
+    src = inspect.getsource(p.run_plumbing)
+    assert "isolation.vault_fingerprint" in src
+    assert "isolation.assert_no_trial_leak" in src
+    assert "_real_vault_fingerprint" not in src

@@ -20,6 +20,7 @@ import hashlib
 import os
 import re
 import shutil
+import threading
 
 # The three vars that decide whether a trial reaches real memory. CLAUDE_CONFIG_DIR is checked
 # separately: it is required to be set, but it is not an engram path so it is not compared against
@@ -34,6 +35,26 @@ CWD_ANCESTOR_MARKERS = (".claude", ".git", ".hg", ".jj")
 # How many note names to name in an assert_vault_unchanged failure. A bare count delta costs a
 # diagnosis round-trip; the whole list would bury the signal on a large vault.
 _NAMED_ON_FAILURE = 10
+
+# Trial-marker registry (#750): isolated_env/engram_env append here, automatically, the moment
+# they build an already-proven-isolated env — never a caller's own responsibility to collect or
+# pass along. assert_no_trial_leak reads it to tell a genuine leak apart from the orchestrating
+# session's own real-vault writes. Process-global for the lifetime of one harness run (and,
+# within one pytest session, across tests too — see the clean_trial_markers fixture in
+# test_isolation.py); append-only, so the lock only ever needs to guard an append or a read.
+_trial_markers_lock = threading.Lock()
+_trial_markers = []
+
+
+def _register_trial_marker(marker):
+    with _trial_markers_lock:
+        _trial_markers.append(marker)
+
+
+def _reset_trial_markers():
+    """Test-only: clear the registry. No production call site uses this."""
+    with _trial_markers_lock:
+        _trial_markers.clear()
 
 
 class IsolationError(RuntimeError):
@@ -124,6 +145,7 @@ def engram_env(vault, chunks=None, base=None):
     env["ENGRAM_CHUNKS_DIR"] = chunks or os.path.abspath(vault) + ".chunks"
     os.makedirs(env["ENGRAM_CHUNKS_DIR"], exist_ok=True)
     assert_engram_isolated(env)
+    _register_trial_marker(vault)  # #750: only ever an already-proven-isolated vault
     return env
 
 
@@ -171,6 +193,7 @@ def isolated_env(cfg, trial_dir, cwd=None, base=None):
     env["ENGRAM_TRANSCRIPT_DIR"] = os.path.join(projects, project_slug(cwd)) if cwd else projects
 
     assert_isolated(env, cwd)
+    _register_trial_marker(trial_dir)  # #750: only ever an already-proven-isolated trial_dir
     return env
 
 
@@ -238,3 +261,49 @@ def assert_vault_unchanged(before, vault=None):
         f"vault {root} changed during the run: {before[0]} notes before, {after[0]} after. "
         f"A trial reached real memory.{detail}"
     )
+
+
+def assert_no_trial_leak(before, vault=None):
+    """Raise IsolationError only if a note that appeared since `before` names a trial from THIS
+    run — not merely because the vault changed at all (#750: that whole-vault-diff posture is
+    exactly what false-alarmed on the orchestrating session's own legitimate writes, e.g. a
+    /route recall-glance sidecar, costing a real investigation for nothing).
+
+    Single layer, stated plainly: a newly-appeared note is flagged as a leak only if its content
+    names one of the trial markers isolated_env/engram_env registered during this run (a
+    directory path, or a distinctive substring of one — its basename). A newly-appeared note
+    naming no registered marker is treated as an orchestrator-side write and does NOT raise.
+    This does not catch (1) a leak through any code path that never calls isolated_env/
+    engram_env at all, (2) a genuine leak whose note content happens not to mention any
+    registered marker, or (3) a same-filename in-place content mutation of an existing note
+    (the basename-based fingerprint below is identical before and after) — see
+    openspec/specs/eval-trial-vault-leak-detection/spec.md for why these are accepted, documented
+    limitations rather than regressions.
+    """
+    root = vault if vault is not None else operator_vault()
+    after = vault_fingerprint(root)
+    if after == before:
+        return
+
+    now = set(_note_names(root))
+    # Same "appeared" derivation assert_vault_unchanged already uses (see its own comment above)
+    # — only recoverable when the note count strictly increased.
+    appeared = sorted(now)[-_NAMED_ON_FAILURE:] if after[0] > before[0] else []
+    if not appeared:
+        return
+
+    with _trial_markers_lock:
+        markers = list(_trial_markers)
+
+    for note in appeared:
+        try:
+            content = open(os.path.join(root, note)).read()
+        except OSError:
+            continue
+        for marker in markers:
+            basename = os.path.basename(marker.rstrip(os.sep))
+            if marker in content or (basename and basename in content):
+                raise IsolationError(
+                    f"real-vault leak: note {note} in {root} names trial marker {marker!r} "
+                    f"(matched via {basename!r}) — a trial reached the operator's real vault."
+                )

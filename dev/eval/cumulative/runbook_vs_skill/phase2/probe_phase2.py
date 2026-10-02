@@ -1781,7 +1781,7 @@ def run_batch(args):
         cfg_pool.put(cfg_dir)
 
     marker = f"RUNBOOK-VS-SKILL-PROBE2-{uuid.uuid4().hex[:8]}"
-    before_fp = p1._real_vault_fingerprint()
+    before_fp = p1.isolation.vault_fingerprint()
 
     jobs = [(arm, i) for arm in arms for i in range(args.n)]
     print(f"run_id={run_id} task={task_key} arms={arms} n={args.n} model={args.model} "
@@ -1810,11 +1810,13 @@ def run_batch(args):
                       f"followed={record['followed_k']}/{record['n_steps']} end_state={record['end_state']} "
                       f"cost=${record['total_cost_usd']:.2f} timed_out={record['timed_out']}")
     finally:
-        after_fp = p1._real_vault_fingerprint()
-        if after_fp != before_fp:
-            print(f"ABORT-REPORT: operator's real vault fingerprint changed! before={before_fp} "
-                  f"after={after_fp}. A trial may have reached real memory. Investigate before "
-                  "trusting any result in this run.", file=sys.stderr)
+        # Trial-side leak detection (#750), not a whole-vault diff — ignores the orchestrating
+        # session's own real-vault writes, catches a genuine leak. Caught (not raised) so the
+        # cleanup below still runs even when a leak is detected.
+        try:
+            p1.isolation.assert_no_trial_leak(before_fp)
+        except p1.isolation.IsolationError as e:
+            print(f"ABORT-REPORT: {e}", file=sys.stderr)
         if not args.keep:
             shutil.rmtree(run_root, ignore_errors=True)
 
@@ -1904,7 +1906,7 @@ def run_baseline(args):
         cfg_pool.put(cfg_dir)
 
     marker = f"RUNBOOK-VS-SKILL-BASELINE-{uuid.uuid4().hex[:8]}"
-    before_fp = p1._real_vault_fingerprint()
+    before_fp = p1.isolation.vault_fingerprint()
 
     print(f"run_id={run_id} task={task_key} arm=N n={args.n} model={args.model} "
           f"timeout={args.timeout}s workers={args.workers} root={run_root}")
@@ -1933,11 +1935,11 @@ def run_baseline(args):
                       f"followed={record['followed_k']}/{record['n_steps']} "
                       f"cost=${record['total_cost_usd']:.2f} timed_out={record['timed_out']}")
     finally:
-        after_fp = p1._real_vault_fingerprint()
-        if after_fp != before_fp:
-            print(f"ABORT-REPORT: operator's real vault fingerprint changed! before={before_fp} "
-                  f"after={after_fp}. A trial may have reached real memory. Investigate before "
-                  "trusting any result in this run.", file=sys.stderr)
+        # Trial-side leak detection (#750) — see run_batch's own comment above.
+        try:
+            p1.isolation.assert_no_trial_leak(before_fp)
+        except p1.isolation.IsolationError as e:
+            print(f"ABORT-REPORT: {e}", file=sys.stderr)
         if not args.keep:
             shutil.rmtree(run_root, ignore_errors=True)
 
@@ -1958,7 +1960,7 @@ def run_plumbing(task_key, model):
     build_cfg_template_phase2(cfg)
     p1.matrix.refresh_creds(cfg)
 
-    before_fp = p1._real_vault_fingerprint()
+    before_fp = p1.isolation.vault_fingerprint()
     marker = f"RUNBOOK-VS-SKILL-PROBE2-{uuid.uuid4().hex[:8]}"
     trial_dir = os.path.join(run_root, "trials", "plumbing-0")
     os.makedirs(trial_dir, exist_ok=True)
@@ -1967,7 +1969,6 @@ def run_plumbing(task_key, model):
     carrier_basename, vault_copy_s = setup_trial_vault(env, task_key, "R")
 
     result, timed_out = p1.spawn_claude(env, model, repo_path, plumbing_prompt(task_key), p1.DEFAULT_TIMEOUT_S)
-    after_fp = p1._real_vault_fingerprint()
 
     transcript_paths = p1.discover_transcript_paths(cfg, repo_path)
     raw_text = p1.transcript_raw_text(transcript_paths)
@@ -2002,9 +2003,13 @@ def run_plumbing(task_key, model):
             print("---")
             print(snippet)
     shutil.rmtree(env["ENGRAM_VAULT_PATH"], ignore_errors=True)
-    if after_fp != before_fp:
-        print(f"ABORT-REPORT: operator's real vault fingerprint changed! before={before_fp} "
-              f"after={after_fp}.", file=sys.stderr)
+    # Trial-side leak detection (#750) — this site has no cleanup step to protect (the vault
+    # rmtree above already ran); the try/except is solely for printed-diagnostic parity with
+    # the other three pairs' non-raising posture.
+    try:
+        p1.isolation.assert_no_trial_leak(before_fp)
+    except p1.isolation.IsolationError as e:
+        print(f"ABORT-REPORT: {e}", file=sys.stderr)
 
 
 # ----- setup-only mode: dry run, no claude call -----
@@ -2026,7 +2031,7 @@ def run_setup_only(task_key, arm, exclude_luhmann_min=EXCLUDE_LUHMANN_MIN, add_r
     os.makedirs(cfg, exist_ok=True)
     marker = f"RUNBOOK-VS-SKILL-PROBE2-{uuid.uuid4().hex[:8]}"
 
-    before_fp = p1._real_vault_fingerprint()
+    before_fp = p1.isolation.vault_fingerprint()
     env = None
     try:
         repo_path = setup_trial_repo(trial_dir, task_key, arm, marker, shim_md=shim_md)
@@ -2065,10 +2070,13 @@ def run_setup_only(task_key, arm, exclude_luhmann_min=EXCLUDE_LUHMANN_MIN, add_r
         # Keep vault and repo for manual inspection of the trial repo/vault (removed after verification checks)
         # if env is not None:
         #     shutil.rmtree(env["ENGRAM_VAULT_PATH"], ignore_errors=True)
-        after_fp = p1._real_vault_fingerprint()
-        if after_fp != before_fp:
-            print(f"ABORT-REPORT: operator's real vault fingerprint changed! before={before_fp} "
-                  f"after={after_fp}.", file=sys.stderr)
+        # Trial-side leak detection (#750) — see run_batch's own comment above. Caught (not
+        # raised) for consistency with the other three pairs, even though this finally's own
+        # cleanup is commented out (nothing else to protect here either).
+        try:
+            p1.isolation.assert_no_trial_leak(before_fp)
+        except p1.isolation.IsolationError as e:
+            print(f"ABORT-REPORT: {e}", file=sys.stderr)
         # shutil.rmtree(run_root, ignore_errors=True)
 
 
