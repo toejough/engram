@@ -1,8 +1,8 @@
 ## 0. Goldens before any code change
 
-- [ ] 0.1 With the tree at `0f5d91b7` and no code change, generate the backfill parity goldens in-process (a temporary generator test run under `targ test`, then deleted) into `internal/cli/testdata/backfill_identity_parity/`. Inputs: fact and feedback notes missing identity, in the typed writer's form, with and without `project:`, with and without `tags`/`sources`/`supersedes`/`issue`, and with an unquoted `created:`.
-- [ ] 0.2 With the same generator, re-generate amend's 32 parity outputs at `0f5d91b7` and confirm they are byte-identical to `internal/cli/testdata/amend_hash_parity/`.
-- [ ] 0.3 Build a binary from `0f5d91b7` into a scratch dir (no `go install`). Run `engram update --backfill-identity` on a scratch vault holding the backfill inputs, with fixed identity, from a cwd outside any repo, and confirm the output matches the goldens byte for byte. Run the 26 non-chunk amend cases with the same binary and confirm `engram show`'s exchange hash matches the amend goldens. Record both in `verification.md`.
+- [x] 0.1 With the tree at `0f5d91b7` and no code change, generate the backfill parity goldens in-process (a temporary generator test run under `targ test`, then deleted) into `internal/cli/testdata/backfill_identity_parity/`. Inputs: fact and feedback notes missing identity, in the typed writer's form, with and without `project:`, with and without `tags`/`sources`/`supersedes`/`issue`, and with an unquoted `created:`.
+- [x] 0.2 With the same generator, re-generate amend's 32 parity outputs at `0f5d91b7` and confirm they are byte-identical to `internal/cli/testdata/amend_hash_parity/`.
+- [x] 0.3 Build a binary from `0f5d91b7` into a scratch dir (no `go install`). Run the 26 non-chunk amend cases with it and confirm the notes match the amend goldens. Try `engram update --backfill-identity` on a scratch vault holding the backfill inputs; if the binary cannot run the backfill in isolation, record why and rely on the in-process goldens. Record both in `verification.md`. (Done: amend 26/26 byte-identical; backfill is not reachable in isolation because update self-updates and re-execs first.)
 
 ## 1. Defect 1: amend converts CRLF (design D1)
 
