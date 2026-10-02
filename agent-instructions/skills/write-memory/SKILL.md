@@ -43,19 +43,21 @@ kind=feedback:
 
 ```bash
 engram learn feedback --slug <kebab-slug> --position <top|continuation|sibling> [--target <id>] \
-  --source "<source>" \
-  --situation "<retrieval-shaped phrase: when does this apply>" \
-  --behavior "<what was done>" --impact "<why it was wrong/costly>" --action "<what to do instead>" \
+  --source="<source>" \
+  --situation="<retrieval-shaped phrase: when does this apply>" \
+  --behavior="<what was done>" --impact="<why it was wrong/costly>" --action="<what to do instead>" \
   [--tag <family>/<value> ...]
 ```
+
+A free-text flag value (for example `--situation`, `--source`, `--subject`, `--behavior`) must be written as `--flag="value"` — the quote touching the `=`, no space — because a value beginning with `-` is otherwise misread as a new flag and the command fails.
 
 kind=fact:
 
 ```bash
 engram learn fact --slug <kebab-slug> --position <top|continuation|sibling> [--target <id>] \
-  --source "<source>" \
-  --situation "<retrieval-shaped phrase: when does this apply>" \
-  --subject "<the thing>" --predicate "<requires / must use / is>" --object "<the standard or value>" \
+  --source="<source>" \
+  --situation="<retrieval-shaped phrase: when does this apply>" \
+  --subject="<the thing>" --predicate="<requires / must use / is>" --object="<the standard or value>" \
   [--tag <family>/<value> ...]
 ```
 
@@ -67,12 +69,12 @@ kind=runbook:
 
 ```bash
 engram learn runbook --slug <kebab-slug> --position <top|continuation|sibling> [--target <id>] \
-  --source "<source>" \
-  --situation "<retrieval-shaped phrase: when should this runbook be used>" \
-  --done-when "<what should be true when the procedure is complete>" \
-  --body "<numbered steps, may [[wikilink]] fact/feedback notes to consider>" \
-  [--red-flag "<task-specific failure mode>" ...] \
-  [--trigger "<literal cue>" ...] \
+  --source="<source>" \
+  --situation="<retrieval-shaped phrase: when should this runbook be used>" \
+  --done-when="<what should be true when the procedure is complete>" \
+  --body="<numbered steps, may [[wikilink]] fact/feedback notes to consider>" \
+  [--red-flag="<task-specific failure mode>" ...] \
+  [--trigger="<literal cue>" ...] \
   [--tag <family>/<value> ...]
 ```
 
@@ -98,12 +100,12 @@ kind=qa:
 
 ```bash
 engram learn qa \
-  --slug "<kebab summary of the question>" \
-  --question "<verbatim question>" \
-  --answer "<the answer body, copied — no re-derive>" \
-  --contributors "<full-basename>" \
-  --certainty "<high|medium|low>" \
-  --source "<source>"
+  --slug="<kebab summary of the question>" \
+  --question="<verbatim question>" \
+  --answer="<the answer body, copied — no re-derive>" \
+  --contributors="<full-basename>" \
+  --certainty="<high|medium|low>" \
+  --source="<source>"
 ```
 
 Append to any kind:
@@ -113,7 +115,7 @@ Append to any kind:
   `engram amend` take no `--tag`; a qa handoff carrying tags → drop them and say so: append the
   exact line `tags dropped: qa takes no tag flags` to whatever you output, even command-only
   output)
-- `--supersedes "<basename>|<type>|<claim>"` if provided (repeatable)
+- `--supersedes="<basename>|<type>|<claim>"` if provided (repeatable)
 - for qa: one `--contributors <full-basename>` per basename the parent provided
 
 Rules:

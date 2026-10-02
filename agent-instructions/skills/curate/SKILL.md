@@ -37,7 +37,7 @@ never discard it, and always keep it in the vault.
 - `red_flags`: the skill's key failure modes — aim for the 1200-byte `engram query` preview budget
   (rendered YAML bytes); never drop a valid red flag to fit
 
-Amend the note: `engram amend --target <basename> --situation "<text>" --done-when "<text>" --red-flag "<text>" --trigger "<phrase>"` (repeat `--trigger` and `--red-flag` for multiple entries). Then clear the marker: `engram amend --target <basename> --clear-pending` (a skill note has no xid, so
+Amend the note: `engram amend --target <basename> --situation="<text>" --done-when="<text>" --red-flag="<text>" --trigger="<phrase>"` (repeat `--trigger` and `--red-flag` for multiple entries; a free-text flag value must be written as `--flag="value"` — the quote touching the `=`, no space — because a value beginning with `-` is otherwise misread as a new flag and the command fails). Then clear the marker: `engram amend --target <basename> --clear-pending` (a skill note has no xid, so
 `engram show` prints no `# exchange_hash` line and there is no `--expect-hash` to pass).
 
 **For refreshed notes (fields already present):** Re-check each field against the skill's current body.
@@ -64,7 +64,7 @@ without `xid` has no such line; then there is no hash to pass.)
 **An offer carrying `offer.for: <note>` is an amend-offer for that note: judge it against that note
 first** (`engram show <note>`), before any query. It is usually near (it adds a claim) or covered.
 
-Otherwise, `engram query --phrase "<offer's situation>"` finds related existing notes the normal way
+Otherwise, `engram query --phrase="<offer's situation>"` finds related existing notes the normal way
 (it already excludes offers, so every result is a real candidate to judge against).
 
 Every bookkeeping step (`--clear-pending`, `--discard`, `--discard --into`) on an offer whose

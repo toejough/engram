@@ -102,10 +102,12 @@ results to the top-30 matches per phrase.
 
 ```bash
 engram query --lazy-chunks \
-  --phrase "<phrase 1>" \
-  --phrase "<phrase 2>"
+  --phrase="<phrase 1>" \
+  --phrase="<phrase 2>"
   # ... one --phrase per Step 1 phrase (deep: 10; glance: ~3)
 ```
+
+A free-text flag value (for example `--situation`, `--source`, `--subject`, `--behavior`) must be written as `--flag="value"` — the quote touching the `=`, no space — because a value beginning with `-` is otherwise misread as a new flag and the command fails.
 
 One call; with `ENGRAM_PARENT` set the binary merges the parent's notes (never chunks) and dedupes,
 keeping local copies. `engram query` always runs the unified D1
@@ -192,9 +194,9 @@ because it lacks a recent instance.
 
 | Outcome | Criterion | Action |
 | --- | --- | --- |
-| **Covered** | A candidate's claim states the cluster's principle with **no material omission** vs the recency-weighted members | `engram amend --target <candidate-path> --activate --chunk-source <new-chunk-ids>` — provenance-enrich only; **do not rewrite content**. If this note CORRECTS/narrows/refutes a surfaced note, also pass `--supersedes "<basename>\|<type>\|<claim>"` (types: `updates\|narrows\|refutes`). |
-| **Near** | A candidate addresses the same situation but omits ≥ 1 substantive claim the members evidence (judge against the recency-weighted view — a candidate that only matches the superseded content is **near**, not covered) | `engram amend --target <candidate-path> --chunk-source <chunk-ids> --subject ... --predicate ... --object ...` (or `--behavior/--impact/--action`) — re-synthesize content from all members, recency-weighted. Add `--supersedes "<basename>\|<type>\|<claim>"` if this note corrects a surfaced note. |
-| **Absent** | No candidate addresses the situation | Invoke the **write-memory** skill with this handoff — kind=fact or feedback (pick per the cluster's principle), situation + content fields, `--source "<descriptive>"`, the cluster's chunk-source IDs, plus supersedes details if the new note corrects a surfaced note. write-memory composes, executes, and reports the note path. |
+| **Covered** | A candidate's claim states the cluster's principle with **no material omission** vs the recency-weighted members | `engram amend --target <candidate-path> --activate --chunk-source <new-chunk-ids>` — provenance-enrich only; **do not rewrite content**. If this note CORRECTS/narrows/refutes a surfaced note, also pass `--supersedes="<basename>\|<type>\|<claim>"` (types: `updates\|narrows\|refutes`). |
+| **Near** | A candidate addresses the same situation but omits ≥ 1 substantive claim the members evidence (judge against the recency-weighted view — a candidate that only matches the superseded content is **near**, not covered) | `engram amend --target <candidate-path> --chunk-source <chunk-ids> --subject ... --predicate ... --object ...` (or `--behavior/--impact/--action`) — re-synthesize content from all members, recency-weighted. Add `--supersedes="<basename>\|<type>\|<claim>"` if this note corrects a surfaced note. |
+| **Absent** | No candidate addresses the situation | Invoke the **write-memory** skill with this handoff — kind=fact or feedback (pick per the cluster's principle), situation + content fields, `--source="<descriptive>"`, the cluster's chunk-source IDs, plus supersedes details if the new note corrects a surfaced note. write-memory composes, executes, and reports the note path. |
 
 **A `from_parent` item is never an amend target, and neither is its pending pulled copy.** When one
 covers the cluster, the action is Step 2.7's `engram activate` (which pulls it down) — no
@@ -262,9 +264,9 @@ during the work), run ONE more query first, keyed to the recommendation itself, 
 
 ```bash
 engram query --lazy-chunks \
-  --phrase "<the recommendation, in its own words>" \
-  --phrase "<the recommendation> rolled back rejected not worth it superseded" \
-  --phrase "<the recommendation> tried measured outcome"
+  --phrase="<the recommendation, in its own words>" \
+  --phrase="<the recommendation> rolled back rejected not worth it superseded" \
+  --phrase="<the recommendation> tried measured outcome"
 ```
 
 Apply Step 2.5B's recency weight to what returns. The synthesis MUST carry one `Re-entry:` line
@@ -307,7 +309,7 @@ Hand ONE synthesis note per conclusion to the **write-memory** skill (kind=fact 
 - **Certainty by inference mode:** deduction → state it as following necessarily; **abduction / induction
   → mark it _probable / best-explanation / defeasible_**, never as certain. (Note 69: a non-truth-
   preserving inference is a hypothesis, not a fact.)
-- **Mark it as derived** in `--source`, e.g. `--source "synthesis (abduction) from recalled memory"`, so
+- **Mark it as derived** in `--source`, e.g. `--source="synthesis (abduction) from recalled memory"`, so
   a human or a weaker model can tell it is a reasoned conclusion to review — not a primitive fact.
 - **If the synthesis conclusion CORRECTS, narrows, or refutes an existing surfaced note**, include
   the superseded note's basename, type (`updates|narrows|refutes`), and claim in the write-memory

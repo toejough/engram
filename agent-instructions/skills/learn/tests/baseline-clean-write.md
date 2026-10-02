@@ -12,11 +12,11 @@ After a long debugging session, the user says: "let's remember: when an LSP erro
 ```bash
 engram learn feedback --slug lsp-lags-post-commit-rerun-build \
   --position top \
-  --source "session <date>, context: debugging LSP errors after commit" \
-  --situation "after a commit, LSP reports errors but the build tool passed" \
-  --behavior "chasing the LSP error directly" \
-  --impact "wastes time on phantom errors that the commit already fixed" \
-  --action "re-run the build tool first; if it passes, the LSP error is stale lag"
+  --source="session <date>, context: debugging LSP errors after commit" \
+  --situation="after a commit, LSP reports errors but the build tool passed" \
+  --behavior="chasing the LSP error directly" \
+  --impact="wastes time on phantom errors that the commit already fixed" \
+  --action="re-run the build tool first; if it passes, the LSP error is stale lag"
 ```
 
 - **One note, one write, done.** No Luhmann-continuation logic. No gate checks. No position arithmetic. `--position top` is the default for new notes.

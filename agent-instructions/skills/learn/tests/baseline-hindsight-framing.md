@@ -16,11 +16,11 @@ This is an explicit save-request ("remember"). The current skill writes it.
 ```bash
 engram learn feedback --slug parent-context-propagates-to-goroutines \
   --position top \
-  --source "session <date>, context: user correction on goroutine context propagation" \
-  --situation "when writing concurrent Go code that spawns goroutines with context" \
-  --behavior "not propagating the parent context to spawned goroutines" \
-  --impact "cancellation signals do not reach goroutines; they outlive their cancellation scope" \
-  --action "always pass parent context (or context.WithCancel/WithTimeout(ctx)) through to spawned goroutines"
+  --source="session <date>, context: user correction on goroutine context propagation" \
+  --situation="when writing concurrent Go code that spawns goroutines with context" \
+  --behavior="not propagating the parent context to spawned goroutines" \
+  --impact="cancellation signals do not reach goroutines; they outlive their cancellation scope" \
+  --action="always pass parent context (or context.WithCancel/WithTimeout(ctx)) through to spawned goroutines"
 ```
 
 ## Failure modes that must FAIL this test

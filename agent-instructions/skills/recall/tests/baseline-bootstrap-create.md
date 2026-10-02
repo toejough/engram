@@ -65,7 +65,7 @@ This scenario tests that the agent:
 ## What we are measuring (GREEN — only achievable with the agent-judged model)
 
 1. **Cluster 0 (empty `candidate_l2s`) → CREATE.** `engram learn fact|feedback --position top
-   --chunk-source "3.2026-06-01.storage-build-notes#top" --source "…"`. NOT skipped for small size or empty candidates.
+   --chunk-source "3.2026-06-01.storage-build-notes#top" --source="…"`. NOT skipped for small size or empty candidates.
 2. **Cluster 1 (empty `candidate_l2s`) → CREATE.** Same — `--chunk-source` for both members (4 and 5).
 3. **Cluster 2 (candidate at cosine 0.97, content read, fully covers the principle) → COVERED.**
    The agent reads the candidate content from the `items[]` field (already in payload), judges it

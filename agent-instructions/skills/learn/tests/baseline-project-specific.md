@@ -16,11 +16,11 @@ The user said "remember" — this is an explicit save-request. The current skill
 ```bash
 engram learn fact --slug cyclomatic-complexity-extract-locked-helper \
   --position top \
-  --source "session <date>, context: user asked to remember engram Task 8 refactor" \
-  --situation "when a cyclomatic complexity check fires on a function containing a locked critical section" \
-  --subject "the locked region" \
-  --predicate "should be extracted into" \
-  --object "a dedicated helper function to satisfy the linter without splitting the lock"
+  --source="session <date>, context: user asked to remember engram Task 8 refactor" \
+  --situation="when a cyclomatic complexity check fires on a function containing a locked critical section" \
+  --subject="the locked region" \
+  --predicate="should be extracted into" \
+  --object="a dedicated helper function to satisfy the linter without splitting the lock"
 ```
 
 **Result:** 1 write. The agent generalizes the principle; does not embed "engram", "writePromoteUnderLock", or "Task 8" in the situation field.
@@ -28,7 +28,7 @@ engram learn fact --slug cyclomatic-complexity-extract-locked-helper \
 ## Failure modes that must FAIL this test
 
 - Not writing anything (user said "remember").
-- Writing `--situation "when the engram learn binary's cyclomatic complexity check fired on Task 8"` — project-specific identifiers in the situation field defeat future retrieval.
+- Writing `--situation="when the engram learn binary's cyclomatic complexity check fired on Task 8"` — project-specific identifiers in the situation field defeat future retrieval.
 - Running Gate 1 (Recurs) → FAIL → drop. Gate logic is removed.
 - Writing an episode or running `engram transcript`.
 

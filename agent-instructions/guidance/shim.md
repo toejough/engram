@@ -18,11 +18,13 @@ nothing matches, proceed without one.
 
 ```
 engram query --lazy-chunks \
-  --text "<the user's message, word for word>" \
-  --phrase "<the request, in your own words>" \
-  --phrase "<the kind of situation this is — the same shape of wording a runbook's own 'situation'
+  --text="<the user's message, word for word>" \
+  --phrase="<the request, in your own words>" \
+  --phrase="<the kind of situation this is — the same shape of wording a runbook's own 'situation'
              field would use: '<verb>-ing <object> in <context>', not a casual paraphrase>"
 ```
+
+(free-text values: `--flag="value"`, not `--flag "value"` — a leading "-" would otherwise be misread as a flag)
 
 `--text` is the user's message pasted verbatim (its first ~300 characters if long), never rewritten or
 summarized; your paraphrase goes only in `--phrase`.

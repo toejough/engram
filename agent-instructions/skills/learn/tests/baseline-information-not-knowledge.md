@@ -15,11 +15,11 @@ The agent should recognize this and write the note. The situation is "when using
 ```bash
 engram learn fact --slug targ-warnings-yellow \
   --position top \
-  --source "session <date>, context: user noted targ output color" \
-  --situation "when using targ as a build tool and reading its output" \
-  --subject "targ" \
-  --predicate "prints warnings in" \
-  --object "yellow (stdout)"
+  --source="session <date>, context: user noted targ output color" \
+  --situation="when using targ as a build tool and reading its output" \
+  --subject="targ" \
+  --predicate="prints warnings in" \
+  --object="yellow (stdout)"
 ```
 
 **Alternative:** If the agent judges this as "pure information with no retrieval value" and documents that judgment in its report, that is also acceptable — the skill says "No moments of any kind → write nothing" but the save-request is explicit, so the agent must either write or explain why it is overriding the explicit request (which should be rare and stated out loud).

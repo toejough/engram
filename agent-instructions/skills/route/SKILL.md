@@ -144,7 +144,7 @@ write-memory has no amend form, so this is a deliberate, structurally-forced exc
 write-site doctrine (parents judge, worker writes), not an oversight. Look it up:
 
 ```bash
-engram query --lazy-chunks --phrase "route evidence <work-kind> tier tally"
+engram query --lazy-chunks --phrase="route evidence <work-kind> tier tally"
 ```
 
 Deterministic check: for each returned `path:` (items or any cluster's candidate_l2s), take the
@@ -161,7 +161,7 @@ guessing which one applies — the real lookup result, once run, picks the one y
 
   ```bash
   engram amend --target <matched basename, no .md> \
-    --object "<tier tallies, e.g. cheap 14/16, mid 2/2> as of <date> — evidence: [[<existing
+    --object="<tier tallies, e.g. cheap 14/16, mid 2/2> as of <date> — evidence: [[<existing
     evidence wikilinks, kept>]], [[<new evidence-note basename>]]"
   ```
 
@@ -178,12 +178,14 @@ guessing which one applies — the real lookup result, once run, picks the one y
 
     ```bash
     engram learn fact --slug route-evidence-<work-kind> --position top \
-      --source "route dispatch record, <project>, <date>" \
-      --situation "routing <work-kind> work: which tier the evidence supports" \
-      --subject "route evidence for <work-kind>" \
-      --predicate "tallies" \
-      --object "<tier> 1/1 as of <date> — evidence: [[<evidence-note basename>]]"
+      --source="route dispatch record, <project>, <date>" \
+      --situation="routing <work-kind> work: which tier the evidence supports" \
+      --subject="route evidence for <work-kind>" \
+      --predicate="tallies" \
+      --object="<tier> 1/1 as of <date> — evidence: [[<evidence-note basename>]]"
     ```
+
+    A free-text flag value (for example `--situation`, `--source`, `--subject`, `--behavior`) must be written as `--flag="value"` — the quote touching the `=`, no space — because a value beginning with `-` is otherwise misread as a new flag and the command fails.
 
   - **Uniqueness check finds more than one match** → merge instead of creating: union the
     evidence wikilinks from every matched aggregate's object text, recompute the tally via the
