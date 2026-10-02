@@ -6,9 +6,7 @@ command, `engram update --reparent-luhmann` (see `update-reparent-luhmann-batch`
 that only points at a mechanism affecting future notes (the `learn` skill's per-capture
 disposition step, restored by `restore-luhmann-branching-disposition`) is impotent for a vault
 that has been flat since f620bfaf — this gives the notice a real remedy to point at.
-
 ## Requirements
-
 ### Requirement: Update detects an all-top-level Luhmann ID vault
 `engram update` SHALL detect, on each run, whether every note in the vault has a top-level
 (depth-1) Luhmann ID — i.e. no `continuation` or `sibling` (child) note exists anywhere in the
@@ -29,7 +27,8 @@ vault.
 
 ### Requirement: Update surfaces a one-line notice offering a fresh Luhmann re-eval
 When `engram update` detects an all-top-level vault, it SHALL print a one-line notice pointing
-the user at a fresh Luhmann disposition pass. It SHALL NOT modify any note's ID.
+the user at a fresh Luhmann disposition pass. The notice SHALL name the learn skill's batch mode as the way the candidate
+payload's answers are produced. It SHALL NOT modify any note's ID.
 
 #### Scenario: Notice printed on detection
 - **WHEN** the update Report records the vault as all-top-level
@@ -39,3 +38,8 @@ the user at a fresh Luhmann disposition pass. It SHALL NOT modify any note's ID.
 #### Scenario: Silent when not all-top-level
 - **WHEN** the update Report does NOT record the vault as all-top-level
 - **THEN** `engram update`'s output includes no Luhmann-branching notice
+
+#### Scenario: Notice names the answering procedure
+- **WHEN** the update Report records the vault as all-top-level
+- **THEN** the notice names both `engram update --reparent-luhmann` and the learn skill's batch mode
+

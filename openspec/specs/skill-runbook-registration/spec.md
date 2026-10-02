@@ -1,9 +1,7 @@
 ## Purpose
 
 Skills remain the shipping form of every procedure, and their files stay exactly as skill-loading harnesses expect; engram's own skills ship from `agent-instructions/skills/` via `engram update`. Registration scans every default skill folder a harness loads: every skill, command, and Pi prompt template in the Claude Code user, claude.ai-synced, Pi user and `~/.agents`, Pi-configured (settings paths and packages), enabled plugin, project-local Claude, and trusted Pi project sources. That scanned default set is the shipped set this spec refers to. Each skill in it may have one runbook note in the vault that mirrors the skill's text and carries the runbook fields (`situation`, `triggers`, `done_when`, `red_flags`) authored on the note, so memory can surface the procedure by situation and trigger, the shim's follow-frame can drive it, and it can flow across vault-graph edges. Each note is identified by a source-qualified skill key (`claude:route`, `claude:cmd:audit`, `pi:<n>`, `<plugin>:<n>`, `project:<repo>:<n>`, …); no key is bare, there is no engram namespace, and a skill that engram installs is keyed like any other entry of the folder it is found in. Engram offers to create, refresh, and remove these notes; removal is offered only for a note whose own namespace's source was successfully read in that run. The user decides, and a declined offer is not repeated. The six notes created for engram's own skills before keys were qualified were migrated to `claude:<n>` by `--adopt`. Why: vault notes 1054 (reversing 1031; the four 2026-09 delete-conversions broke distribution for every install but Joe's) and 1066a (registration covers every default folder, not just engram's six). Validation: `dev/eval/LEDGER.md#register-skills-all-skill-folders` (mechanism unit-tested; real-binary offer counts verified), superseding `#register-skills-as-runbooks`.
-
 ## Requirements
-
 ### Requirement: Skill files SHALL carry no engram-specific metadata
 Registration SHALL NOT read, require, or write any frontmatter field in a skill's `SKILL.md`, a command's `.md` file, or a Pi prompt template, other than using the file's bytes as the note body and hash input. It SHALL NOT require any additional file in the skill directory, command directory, or prompt directory.
 
@@ -99,8 +97,13 @@ Accepting a refresh offer SHALL do the following:
 - set `skill_hash` to the current hash;
 - set `skill_source` to the current resolved source, keeping `skill_key`;
 - preserve `situation`, `triggers`, `done_when`, `red_flags`, `created`, and the basename;
+- preserve every other frontmatter key with its value, including keys the typed runbook note model does not define;
 - rebuild the sidecar;
 - set `pending: true`, so curation re-checks the fields against the new text.
+
+A refresh of a CRLF note SHALL convert it to LF inside the same single write, as adopt does.
+
+Refresh edits `skill_hash`, `skill_key`, `skill_source`, and `pending` as a YAML node. When a key it is about to set or delete — or that key's value, or anything beneath the value — carries a YAML anchor, refresh SHALL refuse the note untouched and name the key (`errFrontmatterAnchoredKey`), rather than drop the value and leave an alias to it dangling. Before writing, refresh SHALL decode the rewritten frontmatter again and refuse to write it if it does not decode (`errFrontmatterUndecodable`).
 
 #### Scenario: Accepted refresh
 - **WHEN** the user accepts a refresh of a note whose skill changed
@@ -109,6 +112,18 @@ Accepting a refresh offer SHALL do the following:
 #### Scenario: Refresh follows a plugin version bump
 - **WHEN** a plugin skill's bytes change with a new `installPath` version and the refresh is accepted
 - **THEN** `skill_source` and the preamble name the new version's path
+
+#### Scenario: Refresh keeps an unmodeled key
+- **WHEN** a refresh is accepted for a note whose frontmatter carries a key the runbook note model does not define (e.g. `luhmann_old: "12"`)
+- **THEN** the refreshed note still carries that key with the same value
+
+#### Scenario: Refresh converts a CRLF note
+- **WHEN** a refresh is accepted for a skill note whose lines end in `\r\n`
+- **THEN** the refresh succeeds, inside its single write the note is converted to LF, and its authored fields are unchanged
+
+#### Scenario: Refresh refuses an anchored key
+- **WHEN** an accepted refresh would replace or delete a frontmatter key (`skill_hash`, `skill_key`, `skill_source`, or `pending`) that carries a YAML anchor, or whose value does
+- **THEN** the refresh is refused, naming the key, and the note is unchanged
 
 ### Requirement: Accepting a removal SHALL remove the note and its sidecar
 Accepting a removal offer SHALL remove the skill note and its `.vec.json` sidecar. Registration SHALL NOT remove any note without an accepted offer.
@@ -149,13 +164,23 @@ When stdin is not a terminal and no `--accept`/`--decline` answer covers an offe
 - rename it to the slug derived from `<key>`, keeping its Luhmann id and date and rewriting every inbound wikilink (with its sidecar);
 - replace its body with the current source file and preamble;
 - set `skill_hash`, `skill_key`, and `skill_source`;
-- preserve its runbook fields.
+- preserve its runbook fields and every other frontmatter key with its value, including keys the typed runbook note model does not define.
 
 `<key>` SHALL name a scanned skill or command. The adopted note SHALL NOT be marked pending.
+
+Adopt edits `skill_hash`, `skill_key`, `skill_source`, and `pending` as a YAML node, the same way refresh does, and checks this before it renames the note. When a key it is about to set or delete — or that key's value, or anything beneath the value — carries a YAML anchor, adopt SHALL refuse the note untouched and name the key (`errFrontmatterAnchoredKey`), before any rename. Before writing, adopt SHALL decode the rewritten frontmatter again and refuse to write it if it does not decode (`errFrontmatterUndecodable`).
 
 #### Scenario: Adopting a previously promoted note
 - **WHEN** `engram register-skills --adopt claude:curate=1049` runs and note 1049 is `1049.2026-09-21.skill-curate.md` with no `skill_key`
 - **THEN** note 1049 is renamed to `1049.2026-09-21.skill-claude-curate.md`, links to its old basename now point to the new one, its body is the curate skill preceded by a preamble naming its `skill_source`, its runbook fields are unchanged, and it has `skill_hash`, `skill_key: claude:curate`, `skill_source`, and no `pending` marker
+
+#### Scenario: Adopt keeps an unmodeled key
+- **WHEN** `--adopt` runs on a runbook note whose frontmatter carries a key the runbook note model does not define
+- **THEN** the adopted note still carries that key with the same value
+
+#### Scenario: Adopt refuses an anchored key
+- **WHEN** `--adopt` targets a runbook note whose `skill_hash`, `skill_key`, `skill_source`, or `pending` key carries a YAML anchor, or whose value does
+- **THEN** the adopt is refused, naming the key, and the note is neither renamed nor rewritten
 
 ### Requirement: Registration SHALL scan the default skill and command source set
 Registration SHALL compare against the skills, commands, and Pi prompt templates found in one default source set, resolved identically for `engram register-skills` and `engram update`. The set SHALL consist of the following sources:
@@ -495,3 +520,4 @@ Removal offers SHALL be answered only by an exact key or an individual prompt, n
 #### Scenario: Unknown schema version fails loudly
 - **WHEN** `skill-registrations.json` has `schema_version: 3`
 - **THEN** registration reports an error and writes nothing
+

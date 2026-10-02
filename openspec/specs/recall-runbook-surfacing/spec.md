@@ -38,8 +38,7 @@ regression risk to existing retrieval). Why: `docs/architecture/adr.md` ADR-0026
 - **THEN** it precedes all similarity-ranked items; runbooks that are not trigger hits are ranked by similarity alone as before
 
 ### Requirement: A surfaced runbook SHALL render its `red_flags` and be retrievable in full
-
-When a `runbook` note appears in a query payload (`items[]` or `candidate_l2s`), its rendered content SHALL include the `red_flags` field when present. `engram show <basename>` SHALL return the full note (frontmatter and body) so an agent can restate every step when the payload's inline content is truncated. When a runbook's `red_flags` list is large enough that the calling harness's own output truncation would otherwise drop entries silently, `engram query` and `engram show` SHALL both keep the most-recently-added entries and SHALL replace any dropped earlier entries with an explicit in-band marker naming the omission and how to retrieve the full list — `engram show <basename>` is not exempt from this guarantee merely because it is the prescribed fallback for a truncated preview.
+When a `runbook` note appears in a query payload (`items[]` or `candidate_l2s`), its rendered content SHALL include the `red_flags` field when present. `engram show <basename>` SHALL return the full note (frontmatter and body), with every `red_flags` entry and no omission marker, so an agent can restate every step and check every red flag when the payload's inline content is truncated. `engram show` is the full-fidelity source the guidance shim names, so it SHALL NOT apply any `red_flags` preview budget. When a runbook's `red_flags` list renders to more than the query preview budget (1200 bytes, measured in rendered YAML bytes), `engram query` SHALL keep the most-recently-added entries that fit and SHALL replace the dropped earlier entries with one in-band marker. The marker SHALL state how many entries were omitted and the list's total, and SHALL name the note's actual basename in an `engram show <basename>` command that returns the full list. A `red_flags` list within the budget SHALL render byte-identically to the note file.
 
 #### Scenario: Red flags visible in the query payload
 - **WHEN** a runbook note with `red_flags` is returned by `engram query`
@@ -49,7 +48,15 @@ When a `runbook` note appears in a query payload (`items[]` or `candidate_l2s`),
 - **WHEN** an agent runs `engram show <runbook basename>`
 - **THEN** the output contains the complete frontmatter (situation, done_when, red_flags if any) and the full step body
 
+#### Scenario: Show never truncates red flags
+- **WHEN** an agent runs `engram show <basename>` on a runbook whose `red_flags` render to more than 1200 bytes
+- **THEN** the output contains every `red_flags` entry from the note file, in file order, and no omission marker
+
 #### Scenario: Oversized red_flags list keeps its newest entry
-- **WHEN** a runbook's `red_flags` list is large enough that rendering it in full would exceed the external output-truncation boundary the calling harness applies
-- **THEN** both `engram query`'s item content and `engram show`'s output keep the most-recently-added `red_flags` entries and include an explicit marker naming how many earlier entries were omitted and how to retrieve them
+- **WHEN** `engram query` returns a runbook whose `red_flags` render to more than the 1200-byte preview budget
+- **THEN** the item's content keeps the most-recently-added entries that fit, preceded by a marker naming the number of omitted entries, the total entry count, and `engram show <that note's basename>` as the command that returns all of them — `engram show` itself is exempt from this truncation (see "Show never truncates red flags")
+
+#### Scenario: The omission marker's command does not itself truncate
+- **WHEN** an agent runs the exact command named in a query omission marker
+- **THEN** the output contains every `red_flags` entry, including the ones the marker reported as omitted
 

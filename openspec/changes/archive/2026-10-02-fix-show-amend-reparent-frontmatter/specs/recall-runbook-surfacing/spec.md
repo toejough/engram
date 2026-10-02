@@ -15,9 +15,9 @@ When a `runbook` note appears in a query payload (`items[]` or `candidate_l2s`),
 - **WHEN** an agent runs `engram show <basename>` on a runbook whose `red_flags` render to more than 1200 bytes
 - **THEN** the output contains every `red_flags` entry from the note file, in file order, and no omission marker
 
-#### Scenario: Oversized red_flags list keeps its newest entry in query
+#### Scenario: Oversized red_flags list keeps its newest entry
 - **WHEN** `engram query` returns a runbook whose `red_flags` render to more than the 1200-byte preview budget
-- **THEN** the item's content keeps the most-recently-added entries that fit, preceded by a marker naming the number of omitted entries, the total entry count, and `engram show <that note's basename>` as the command that returns all of them
+- **THEN** the item's content keeps the most-recently-added entries that fit, preceded by a marker naming the number of omitted entries, the total entry count, and `engram show <that note's basename>` as the command that returns all of them — `engram show` itself is exempt from this truncation (see "Show never truncates red flags")
 
 #### Scenario: The omission marker's command does not itself truncate
 - **WHEN** an agent runs the exact command named in a query omission marker
