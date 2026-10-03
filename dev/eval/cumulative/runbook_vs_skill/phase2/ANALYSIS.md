@@ -852,3 +852,28 @@ python3 probe_phase2.py --summarize results/4.3_stage1_rerun3_sonnet5_shimonly_h
 python3 probe_phase2.py --summarize results/4.4_stage2_rerun_sonnet5_shimonly_bisect-before-fix.jsonl
 python3 probe_phase2.py --summarize results/4.4_stage2_rerun5_sonnet5_shimonly_route.jsonl
 ```
+
+## `1.3_skill_sonnet5_{curate,please}` results predate live-skill fixes (Route A, task 7.12, 2026-10-02)
+
+`results/1.3_skill_sonnet5_curate.jsonl` / `.rescored.jsonl` and `results/1.3_skill_sonnet5_please.jsonl`
+/ `.rescored.jsonl` are Arm-S results scored against the FROZEN `skill_src` copies
+(`encodings/taskCurate/Curate-S/skills/curate/SKILL.md`, `encodings/taskPlease/Please-S/skills/please/SKILL.md`)
+as they stood at the time those trials ran — not against the live skills' current text. Both
+frozen copies have since drifted from (and, as of this note, been resynced to) the live skills:
+
+- **curate**: the frozen copy at trial time predated three unrelated live-skill fixes —
+  `7da2e5d2`, `b4943608`, `ea0a5021` (the "Special Case — Pending Skill Runbook Notes" section,
+  `--expect-hash` exchange-hash discipline, and the `--discard --into` fold convention) — and, as
+  of the Route A change, also predated `c190de73`'s `--flag="value"` conversion and `ecf3a811`'s
+  D18-sentence restoration.
+- **please**: the frozen copy at trial time predated an unrelated later wording drift in the
+  live skill's lessons-handoff text (in-flight lesson judging vs. hand-to-closing-`/learn`
+  wording) — unrelated to Route A's `--flag` work; see `test_probe.py`'s historical "a stale
+  source path silently no-op'd" note (#749) for why these two copies drift independently of any
+  one change.
+
+**Both frozen copies were resynced to the current live skills on 2026-10-02 (Route A task 7.11)**,
+so any trial run AFTER that resync measures the current text; these two `1.3_*` result files
+specifically do not, and should not be cited as current-behavior evidence for either skill
+without this caveat. No re-run was done for this task (read-only finding, matching this change's
+established pattern — G13).
