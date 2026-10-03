@@ -10,7 +10,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -345,7 +344,7 @@ func (v *backfillVault) backfill(ctx context.Context, dryRun bool) (int, error) 
 		Lock: func(string) (func(), error) { return func() {}, nil },
 		ListMD: func(string) ([]string, error) {
 			names := make([]string, 0, len(v.files))
-			for path := range maps.Keys(v.files) {
+			for path := range v.files {
 				names = append(names, strings.TrimPrefix(path, "/vault/"))
 			}
 
