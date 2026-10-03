@@ -1725,6 +1725,64 @@ def test_rescore_file_question_stop_false_when_end_state_true_despite_trailing_q
     assert rescored_record["question_stop"] is False
 
 
+# ----- Gate B (STOP 2 round 2): score_recall_fired's raw_text param must be threaded through
+# BOTH _score_trial and rescore_file, not just probe.py's own call sites -- recall-escalation /
+# recall-glance trials are scored through these two, with recall_fired as a reported column, so
+# the slash-command false-negative was live here too. -----
+
+_RECALL_SLASH_INJECTION_TEXT = (
+    "Base directory for this skill: /some/cfg/skills/recall\n\n# Recall from Unified Memory"
+)
+
+
+def test_score_trial_recall_fired_true_for_a_slash_invoked_recall_transcript(tmp_path):
+    """A `/recall <args>` slash-command delivery injects "Base directory for this skill:
+    .../skills/recall" as a plain user-role message, never a `Skill` tool_use -- confirmed
+    against a real trial transcript (Route A 7.10). Without raw_text threaded through,
+    _score_trial's recall_fired stays False even though recall genuinely fired."""
+    repo = str(tmp_path / "repo")
+    os.makedirs(repo, exist_ok=True)
+    events = [_tool_use("Bash", {"command": "ls"}, idx=0)]  # no Skill tool_use at all
+    scored = pp._score_trial("A", "R", events, repo_path=repo, carrier_basename=None,
+                              raw_text=_RECALL_SLASH_INJECTION_TEXT)
+    assert scored["recall_fired"] is True
+
+
+def test_rescore_file_recall_fired_true_for_a_slash_invoked_recall_transcript(tmp_path):
+    """Same wiring check as above, through the --rescore entry point: rescore_file already
+    computes raw_text locally (for marker/validity reclassification) -- it must pass that same
+    raw_text into score_recall_fired too."""
+    repo_path = pp.setup_trial_repo(str(tmp_path / "trial"), "A", "R",
+                                     marker="RUNBOOK-VS-SKILL-PROBE2-recall-slash-rescore")
+
+    transcript_path = tmp_path / "session.jsonl"
+    lines = [
+        json.dumps({
+            "type": "user", "timestamp": "2026-09-11T00:00:00.000Z",
+            "message": {"content": _RECALL_SLASH_INJECTION_TEXT},
+        }),
+        json.dumps({
+            "type": "assistant", "timestamp": "2026-09-11T00:00:01.000Z",
+            "message": {"content": [{"type": "tool_use", "id": "tu1", "name": "Bash",
+                                      "input": {"command": "ls"}}]},
+        }),
+    ]
+    with open(transcript_path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+
+    minimal_record = {"task": "A", "arm": "R", "repo_path": repo_path,
+                       "transcript_path": str(transcript_path), "carrier_basename": None}
+    results_path = tmp_path / "minimal.jsonl"
+    with open(results_path, "w") as f:
+        f.write(json.dumps(minimal_record) + "\n")
+    rescored_path = tmp_path / "minimal.rescored.jsonl"
+    pp.rescore_file(str(results_path), str(rescored_path))
+    rescored_record = pp.load_jsonl(str(rescored_path))[0]
+
+    assert rescored_record.get("error") is None, rescored_record.get("error")
+    assert rescored_record["recall_fired"] is True
+
+
 def test_score_trial_load_steps_exception_is_captured_not_raised(monkeypatch, tmp_path):
     """Round-2 review: load_steps() itself must be inside the try — a missing/invalid steps.json
     must not break the 'never raises' contract either. n_steps stays at its 0 default since it

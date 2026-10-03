@@ -37,7 +37,7 @@ never discard it, and always keep it in the vault.
 - `red_flags`: the skill's key failure modes — aim for the 1200-byte `engram query` preview budget
   (rendered YAML bytes); never drop a valid red flag to fit
 
-Amend the note: `engram amend --target <basename> --situation="<text>" --done-when="<text>" --red-flag="<text>" --trigger="<phrase>"` (repeat `--trigger` and `--red-flag` for multiple entries; a free-text flag value must be written as `--flag="value"` — the quote touching the `=`, no space — because a value beginning with `-` is otherwise misread as a new flag and the command fails). Then clear the marker: `engram amend --target <basename> --clear-pending` (a skill note has no xid, so
+Amend the note: `engram amend --target <basename> --situation="<text>" --done-when="<text>" --red-flag="<text>" --trigger="<phrase>"` (repeat `--trigger` and `--red-flag` for multiple entries). A free-text flag value (for example `--situation`, `--source`, `--subject`, `--behavior`) must be written as `--flag="value"` — the quote touching the `=`, no space — because a value beginning with `-` is otherwise misread as a new flag and the command fails. Then clear the marker: `engram amend --target <basename> --clear-pending` (a skill note has no xid, so
 `engram show` prints no `# exchange_hash` line and there is no `--expect-hash` to pass).
 
 **For refreshed notes (fields already present):** Re-check each field against the skill's current body.

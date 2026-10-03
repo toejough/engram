@@ -30,6 +30,35 @@ FREE_TEXT_FLAGS = (
     "supersedes", "contributors",
 )
 
+# design.md D18's exact sentence, identical across all four skills (G10 -- one sentence, not
+# one per skill's own voice). Gate B (STOP 2 round 2) caught curate/SKILL.md:40 folding a
+# shortened, lowercase variant into an existing parenthetical instead of carrying this verbatim
+# -- the regex-only scan above can't catch wording drift, only the space-vs-equals form, so this
+# is a separate, exact-string check.
+D18_SENTENCE = (
+    'A free-text flag value (for example `--situation`, `--source`, `--subject`, `--behavior`) '
+    'must be written as `--flag="value"` — the quote touching the `=`, no space — because a '
+    'value beginning with `-` is otherwise misread as a new flag and the command fails.'
+)
+
+D18_SKILLS = ("recall", "route", "curate", "write-memory")
+
+
+def test_d18_sentence_appears_verbatim_in_each_of_the_four_skills():
+    missing = []
+    for skill in D18_SKILLS:
+        path = os.path.join(REPO, "agent-instructions", "skills", skill, "SKILL.md")
+        with open(path) as f:
+            text = f.read()
+        if D18_SENTENCE not in text:
+            missing.append(skill)
+    assert not missing, (
+        f"design.md D18's exact sentence is missing (or paraphrased/folded into something else) "
+        f"in: {missing} -- it must appear as its own standalone sentence, verbatim, identical "
+        f"across all four skills"
+    )
+
+
 # Matches `--flag "value"` / `--flag 'value'` (a space, then a quote) but NOT `--flag="value"`
 # (no space before the quote) and NOT a longer flag name this one is a prefix of (e.g. --sourced).
 _SPACE_FORM_RES = {

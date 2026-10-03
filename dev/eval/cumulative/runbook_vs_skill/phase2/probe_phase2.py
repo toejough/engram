@@ -1565,7 +1565,7 @@ def detect_stalled_asking(transcript_paths):
 
 # ----- one trial -----
 
-def _score_trial(task_key, arm, events, repo_path, carrier_basename, env=None):
+def _score_trial(task_key, arm, events, repo_path, carrier_basename, env=None, raw_text=""):
     """Run all trial scoring (FOUND, recall_fired, FOLLOWED, END-STATE) and NEVER raise — an
     exception here is caught and recorded as `scoring_error`, with safe defaults for the rest of
     the fields. Round-1 review finding: an unhandled exception in scoring propagates through the
@@ -1598,7 +1598,7 @@ def _score_trial(task_key, arm, events, repo_path, carrier_basename, env=None):
         scored["found_index"] = found_idx
         scored["first_procedure_step_index"] = first_mutating_step_index(events, task_key)
         scored["restated_as_plan"] = detect_restated_as_plan(events, task_key)
-        scored["recall_fired"] = p1.score_recall_fired(events)
+        scored["recall_fired"] = p1.score_recall_fired(events, raw_text=raw_text)
         followed_steps, followed_k, followed_all = evaluate_steps(steps, events, repo_path)
         scored["followed_steps"] = followed_steps
         scored["followed_k"] = followed_k
@@ -1648,7 +1648,7 @@ def run_one_trial_phase2(run_root, cfg_dir, task_key, arm, model, trial_index, m
     events = p1.parse_transcript_events(transcript_paths)
 
     marker_seen = p1.is_marker_seen(raw_text, marker)
-    scored = _score_trial(task_key, arm, events, repo_path, carrier_basename, env=env)
+    scored = _score_trial(task_key, arm, events, repo_path, carrier_basename, env=env, raw_text=raw_text)
     if scored["scoring_error"]:
         scoring_msg = f"scoring exception: {scored['scoring_error']}"
         error = f"{error}; {scoring_msg}" if error else scoring_msg
@@ -2467,7 +2467,7 @@ def rescore_file(in_path, out_path):
             record["found_index"] = found_idx
             record["found_method"] = found_method(arm, found, found_via)
             record["first_procedure_step_index"] = first_mutating_step_index(events, task_key)
-            record["recall_fired"] = p1.score_recall_fired(events)
+            record["recall_fired"] = p1.score_recall_fired(events, raw_text=raw_text)
 
             steps = load_steps(task_key)
             record["n_steps"] = len(steps)
