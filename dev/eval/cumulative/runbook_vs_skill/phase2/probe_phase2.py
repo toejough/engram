@@ -9,11 +9,13 @@ at real-vault scale (per-trial background vault = a copy of the operator's real 
 task's covering notes removed, per SOURCE_MATERIALS.md).
 
 This module IMPORTS phase-1's probe.py (as `p1`) for transcript parsing, the marker-validity gate,
-the per-worker cfg pool, `spawn_claude`, the isolation env builder, the real-vault fingerprint
-guard, and the CLAUDE.md builder (`p1.build_claude_md`, extended here to append an optional
-"## Project procedure" section for Arm Rdirect). See PLAN-2-conversion-parity.md's Global
-Constraints and Controller rulings (task-3-brief.md) for the design this file implements; probe.py
-and its own module docstring for the plumbing this file reuses without reimplementing.
+the per-worker cfg pool, `spawn_claude`, the isolation env builder, the trial-side leak-detection
+registry (`isolation.vault_fingerprint`/`assert_no_trial_leak` — fixed 2026-10-02,
+`fix-eval-tooling-defects` #750; no longer the old whole-vault-diff `assert_vault_unchanged`), and
+the CLAUDE.md builder (`p1.build_claude_md`, extended here to append an optional "## Project
+procedure" section for Arm Rdirect). See PLAN-2-conversion-parity.md's Global Constraints and
+Controller rulings (task-3-brief.md) for the design this file implements; probe.py and its own
+module docstring for the plumbing this file reuses without reimplementing.
 
 Usage:
   python3 probe_phase2.py --task A --model sonnet --n 1 --out results/smoke_A.jsonl
@@ -75,6 +77,10 @@ NOTE_830_BASENAME = "830.2026-08-29.gitignore-narrowing-anchor-and-visible-set"
 # fixtures' own methods — a background-vault leak that would apply to every arm and task, not
 # just the task-specific removal lists. Every note whose leading luhmann number is >= this floor
 # is excluded from EVERY trial's background vault (see remove_eval_session_notes below).
+# (Note slugs listed here, e.g. "real-vault-fingerprint", are historical note TITLES from that
+# session, not a live description of the current isolation mechanism — the vault's actual leak
+# guard has since moved to the trial-side registry, fix-eval-tooling-defects #750; see the module
+# docstring above.)
 EXCLUDE_LUHMANN_MIN = 955
 
 # Covering-note removal lists (SOURCE_MATERIALS.md §3). Note 830 is handled separately (kept
@@ -335,8 +341,8 @@ def _task_b_830_body():
 def rdirect_procedure_text(task_key):
     """Verbatim runbook body for the arm-Rdirect '## Project procedure' section: the A-R note's
     body (Task A) or the real vault's 830 note body (Task B) — read-only access to the real vault,
-    never a write (note 956: writes/activations during a fingerprinted run are the hazard, reads
-    are not)."""
+    never a write (note 956: writes/activations during a leak-detected run are the hazard, reads
+    are not — true under the current trial-side-registry mechanism too, #750)."""
     return _task_a_runbook_body() if task_key == "A" else _task_b_830_body()
 
 

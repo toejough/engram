@@ -208,8 +208,12 @@ Each trial gets:
 
 All trials for one run live under one scratch root
 (`$RUNBOOK_VS_SKILL_ROOT`, defaulting to a path under the harness's scratchpad directory) and are
-deleted on exit unless `--keep` is passed. The operator's real vault is fingerprinted (file count +
-newest mtime) before and after every run; if it changed, the run prints an `ABORT-REPORT` to
+deleted on exit unless `--keep` is passed. Leak detection is trial-side, not a whole-vault diff
+(fixed 2026-10-02, `fix-eval-tooling-defects` #750): every `isolation.isolated_env`/`engram_env`
+call registers the per-trial path it just proved isolated, and `isolation.assert_no_trial_leak`
+checks, after every run, whether any NEW real-vault note's content names one of those registered
+trial markers — the operator's own legitimate writes during the run never false-positive, since
+they never mention a trial marker. If a leak is found, the run prints an `ABORT-REPORT` to
 stderr — a trial reached real memory and the results should not be trusted.
 
 ## Reuse Notes

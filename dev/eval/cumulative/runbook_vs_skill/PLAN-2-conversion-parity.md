@@ -573,17 +573,17 @@ For each trial:
 
 Measurement: `du -sh trial_scratch_dir/vault/` once; compute per-run disk requirement as 40 × size; document cleanup (vault copies deleted after scoring even under --keep; record carrier basename instead).
 
-- [ ] **Step 4: Implement vault fingerprinting (leak detection per #750)**
+- [x] **Step 4: Implement vault fingerprinting (leak detection per #750) — SUPERSEDED 2026-10-02 by `fix-eval-tooling-defects` #750.** The whole-vault-diff mechanism this step describes (file-count + newest-mtime before/after, checking for unchanged count and no new/deleted files) is retired — it couldn't tell the operator's own legitimate writes during a run apart from a genuine trial leak. The actual mechanism is now trial-side: every `isolation.isolated_env`/`engram_env` call registers the per-trial path it just proved isolated (`_register_trial_marker`), and `isolation.assert_no_trial_leak(before_fp)` checks, after the run, whether any NEW real-vault note's content names one of those registered trial markers. See `dev/eval/isolation.py` (`vault_fingerprint`, `assert_no_trial_leak`) — this checklist item is kept for history, not re-implemented as written below.
 
-Before all trials run:
-- Fingerprint real vault: file count + newest mtime of all .md files
+~~Before all trials run:~~
+~~- Fingerprint real vault: file count + newest mtime of all .md files~~
 
-After all trials run:
-- Re-fingerprint real vault
-- Check: file count unchanged, no new/deleted .md files
-- Report: "real vault unchanged" or "LEAK DETECTED: <list changed files>"
+~~After all trials run:~~
+~~- Re-fingerprint real vault~~
+~~- Check: file count unchanged, no new/deleted .md files~~
+~~- Report: "real vault unchanged" or "LEAK DETECTED: <list changed files>"~~
 
-Scope: detect trial-side writes only (controller writes nothing during run per #750 interim rule).
+~~Scope: detect trial-side writes only (controller writes nothing during run per #750 interim rule).~~
 
 - [ ] **Step 5: Implement marker validity gate**
 

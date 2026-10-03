@@ -752,6 +752,8 @@ mutation follows the *last* ambiguity-posing text, not whether one preceded it �
 scope for this narrow-clause fix. R-1 is the one genuine pre-completion stop (asked permission
 before applying the fix, left `bar.py` unfixed).
 
+**Dated note (2026-10-02, `fix-eval-tooling-defects` #755):** the `question_stop=True` finding above was computed under the OLD, order-insensitive `question_stop` scorer this change's task group 5 replaced — it checked only whether a mutation followed the *last* ambiguity-posing text, exactly the gap this paragraph names. The scorer now takes `end_state` as a required, order-aware input (short-circuits to `False` when `end_state` is `True`), so a re-run under the current scorer would NOT reproduce this `question_stop=True` result for R-0/R-2 (both finished the real work before the genuinely separate administrative question). This note records that the number above predates the fix; it is not retroactively corrected.
+
 **D8 bar MET on both readings**: raw numbers alone clear it without any exclusion (found 3/3,
 restated_as_plan 3/3, end_state 2/3 — matching the skill row's 2/3 exactly); reclassifying by
 legitimacy (excluding only R-1's genuine stop) gives an even stronger 2/2 on followed_all and
