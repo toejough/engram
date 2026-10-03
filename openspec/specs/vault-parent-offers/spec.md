@@ -58,15 +58,15 @@ Offers SHALL carry notes only, never transcript chunks.
 - **THEN** the note exists in the local vault as a live note, and the parent receives one learn-offer for it
 
 #### Scenario: A content amend of a linked note is an amend-offer
-- **WHEN** `engram amend --target L --object "..."` runs on a local note L whose primary link names parent note P
+- **WHEN** `engram amend --target L --object="..."` runs on a local note L whose primary link names parent note P
 - **THEN** the parent receives an offer whose `offer.for` is P
 
 #### Scenario: A runbook-field amend is offered
-- **WHEN** `engram amend --target R --red-flag "..."` runs on a linked runbook R
+- **WHEN** `engram amend --target R --red-flag="..."` runs on a linked runbook R
 - **THEN** an amend-offer is queued, because R's exchange hash changed
 
 #### Scenario: A content amend of an unlinked note is a learn-offer
-- **WHEN** `engram amend --target L --object "..."` runs on a local note L with no parent link
+- **WHEN** `engram amend --target L --object="..."` runs on a local note L with no parent link
 - **THEN** the parent receives a learn-offer carrying L's current content
 
 #### Scenario: Bookkeeping amends stay local

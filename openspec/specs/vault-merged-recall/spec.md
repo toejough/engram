@@ -84,7 +84,7 @@ these budgets apply).
   `recall-payload-cuts`)
 
 #### Scenario: trigger hits lead the merged payload, local before parent
-- **WHEN** `engram query --text "<msg>" --limit 1` runs with `ENGRAM_PARENT`
+- **WHEN** `engram query --text="<msg>" --limit 1` runs with `ENGRAM_PARENT`
   set, the local vault returns one trigger hit and a score-0.9 item, and
   the parent returns one trigger hit and a score-0.8 item
 - **THEN** the merged `items[]` order is: local trigger hit, parent

@@ -73,7 +73,7 @@ rare edge case; a routine one in a non-trivial vault.
   requirement
 
 #### Scenario: Trigger hits do not consume the limit
-- **WHEN** `engram query --text "<msg>" --limit N` runs and one or more
+- **WHEN** `engram query --text="<msg>" --limit N` runs and one or more
   runbooks are trigger hits for `<msg>`
 - **THEN** `items[]` lists every trigger hit first, followed by at most N
   other Channel 1 items — the hits are not counted against N

@@ -39,7 +39,7 @@ A runbook note SHALL support an optional frontmatter field `triggers` (a list of
 A runbook is a trigger hit when any of its `triggers` entries occurs in `--text` as a whole word, compared case-insensitively after collapsing whitespace runs to a single space on both sides. An occurrence is a whole-word match when, on each side where the trigger's own edge character is a letter or digit, the character immediately adjacent to the occurrence (if any) is not a letter or digit (Unicode-aware; underscore, hyphen, slash, and other punctuation are boundaries; the start or end of the text is a boundary). On a side where the trigger's own edge character is not a letter or digit, no boundary is required. Every occurrence SHALL be considered, so a later occurrence can match when an earlier one does not. Every trigger hit SHALL appear in the payload's top-level `items[]`, before all similarity-ranked items, with `trigger` listed among its `provenances`. Trigger hits SHALL be exempt from the relevance floor, the match-set cap, the matched-note floor, and `--limit`. A trigger hit that also matched by similarity SHALL keep its similarity score and its other provenance roles. Only `type: runbook` notes SHALL be trigger candidates.
 
 #### Scenario: Hit with no similarity match
-- **WHEN** `engram query --text "/please fix the flaky login test" --phrase "fixing a flaky test" --phrase "diagnosing intermittent test failures"` is run and a runbook with `triggers: ["/please"]` has no similarity match above the floor
+- **WHEN** `engram query --text="/please fix the flaky login test" --phrase="fixing a flaky test" --phrase="diagnosing intermittent test failures"` is run and a runbook with `triggers: ["/please"]` has no similarity match above the floor
 - **THEN** that runbook is `items[0]` with `provenances: [trigger]` and `kind: runbook`
 
 #### Scenario: Hit ranks above a stronger similarity match
@@ -91,7 +91,7 @@ A runbook is a trigger hit when any of its `triggers` entries occurs in `--text`
 - **THEN** the runbook is a trigger hit
 
 ### Requirement: The shim SHALL pass the user's verbatim message as `--text`
-The shim's first-action `engram query` block SHALL include `--text "<the user's message, word for word>"` alongside the two `--phrase` values, with the instruction that the text is pasted verbatim (first ~300 characters if long) and never rewritten.
+The shim's first-action `engram query` block SHALL include `--text="<the user's message, word for word>"` alongside the two `--phrase` values, with the instruction that the text is pasted verbatim (first ~300 characters if long) and never rewritten, and that the flag uses the `--flag="value"` form (the quote touching the `=`, no space) rather than a space-separated `--text "value"` — a verbatim user message can begin with `-` with no control over its shape, and the space-separated form has no defense against that (`fix-eval-tooling-defects` D14/D17).
 
 #### Scenario: Shim-only agent passes the raw message
 - **WHEN** an agent with the updated shim receives the message "/please rename the tally CLI's --out flag to --output"

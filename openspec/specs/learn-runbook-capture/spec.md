@@ -14,7 +14,7 @@ The system SHALL accept a `runbook` capture path in `engram learn`, writing a si
 
 #### Scenario: Successful runbook capture
 
-- **WHEN** `engram learn runbook --slug <kebab> --situation "<when to use this runbook>" --done-when "<what should be true when done>" --body "<numbered steps>" --source "<provenance>" --position <top|continuation|sibling> [--target <luhmann-id>] [--contributors ...]` is invoked
+- **WHEN** `engram learn runbook --slug <kebab> --situation="<when to use this runbook>" --done-when="<what should be true when done>" --body="<numbered steps>" --source="<provenance>" --position <top|continuation|sibling> [--target <luhmann-id>] [--contributors ...]` is invoked
 - **THEN** one note is written: `<luhmann-id>.<YYYY-MM-DD>.<slug>.md`, under the vault root, with `type: runbook` in frontmatter — the same filename scheme `fact`/`feedback` use
 
 ### Requirement: Runbook notes SHALL answer the three schema questions
@@ -51,7 +51,7 @@ A runbook note's schema answers exactly: when should you use it, what are the st
 A runbook note SHALL support an optional frontmatter field `red_flags` (a list of strings), each naming a condition specific to this procedure that a general "follow the steps" rule would not catch (e.g. "filter-branch on all refs sweeps the backup branch"). `engram learn runbook` SHALL accept a repeatable `--red-flag <text>` flag that populates it. Entries SHALL be task-specific; the general behavioral floor (shim) is not restated here.
 
 #### Scenario: Runbook captured with red flags
-- **WHEN** `engram learn runbook … --red-flag "<text A>" --red-flag "<text B>"` is invoked
+- **WHEN** `engram learn runbook … --red-flag="<text A>" --red-flag="<text B>"` is invoked
 - **THEN** the written note's frontmatter contains `red_flags:` with the two entries in order, and the note otherwise matches the runbook schema
 
 #### Scenario: Runbook captured without red flags
@@ -80,7 +80,7 @@ A runbook note SHALL receive both embedding (dual-vector sidecar: situation vect
 A runbook note SHALL support an optional frontmatter field `triggers` (a list of strings). `engram learn runbook` SHALL accept a repeatable `--trigger <text>` flag that populates it in order, wired through the same capture pipeline as `--red-flag` (Luhmann disposition, lock, embed, vocab). Full matching semantics are specified in capability `runbook-lexical-triggers`.
 
 #### Scenario: Runbook captured with triggers
-- **WHEN** `engram learn runbook … --trigger "<cue A>" --trigger "<cue B>"` is invoked
+- **WHEN** `engram learn runbook … --trigger="<cue A>" --trigger="<cue B>"` is invoked
 - **THEN** the written note's frontmatter contains `triggers:` with the two entries in order, after `red_flags` if present
 
 #### Scenario: Runbook captured without triggers

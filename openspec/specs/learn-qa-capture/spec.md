@@ -12,7 +12,7 @@ The system SHALL create both notes in a single operation with atomic-ish semanti
 
 #### Scenario: Successful pair capture
 
-- **WHEN** `engram learn qa --slug <kebab> --question "<text>" --answer "<body>" --source "<provenance>" --certainty <level> [--contributors ...]` is invoked
+- **WHEN** `engram learn qa --slug <kebab> --question="<text>" --answer="<body>" --source="<provenance>" --certainty <level> [--contributors ...]` is invoked
 - **THEN** two notes are written atomically: `qa.<YYYY-MM-DD>.<slug>.q.md` (question) and `qa.<YYYY-MM-DD>.<slug>.a.md` (answer), both under the vault root
 
 #### Scenario: Partial failure recovery

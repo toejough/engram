@@ -322,7 +322,7 @@ The curation fold (`engram amend --discard --into`) and the offer receipt SHALL 
 - **THEN** the amend succeeds, the written note contains no `\r\n`, it is byte-identical to what the same amend writes for the LF form of the note, and its sidecar is fresh
 
 #### Scenario: Amend keeps unknown sub-keys of a kept supersedes entry
-- **WHEN** `engram amend --supersedes "A|refutes|new" --supersedes "C|narrows|c"` rewrites a note whose `supersedes:` names A with an extra key `x_reason: kept`, and names B
+- **WHEN** `engram amend --supersedes="A|refutes|new" --supersedes="C|narrows|c"` rewrites a note whose `supersedes:` names A with an extra key `x_reason: kept`, and names B
 - **THEN** the A entry carries `type: refutes`, `claim: new` and `x_reason: kept`; B is gone; and the C entry carries only `note`, `type` and `claim`
 
 #### Scenario: Fold converts a CRLF existing note

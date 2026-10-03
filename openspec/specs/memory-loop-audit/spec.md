@@ -49,6 +49,20 @@ Each detected moment's record SHALL answer every question needed to see where, i
 - **WHEN** an audit run completes
 - **THEN** a before/after fingerprint of the live vault shows no change attributable to the audit
 
+### Requirement: The existence check's `engram query` invocation SHALL be safe against any phrase/text value, and SHALL NOT silently swallow a real failure
+
+The point-in-time existence check (`dev/eval/audit/audit_moments.py::_run_engram_query_at_moment`, or any function building an `engram query` CLI invocation from auditor-generated phrase/text strings) SHALL pass each phrase/text value in a form `engram`'s CLI flag parser cannot mistake for a new flag, regardless of the value's own content (including a value that itself starts with `--`). If the invocation still fails (non-zero exit), the function's returned error information SHALL include the tool's actual error output — on whichever stream it was written — not merely whichever stream happened to be empty. A failed existence check SHALL be diagnosable from its own recorded error field alone, without needing to re-run the command by hand.
+
+#### Scenario: A phrase starting with `--` does not break the invocation
+
+- **WHEN** the existence check is given a search phrase whose text begins with `--` (e.g. `"--text verbatim scenario dropped from modified requirement"`)
+- **THEN** `engram query` runs successfully against that phrase and the existence check's result reflects a real query outcome, not a CLI flag-parsing error
+
+#### Scenario: A real `engram query` failure's error text is preserved
+
+- **WHEN** `engram query` exits non-zero and writes its error message to stdout (not stderr)
+- **THEN** the existence check's returned `error` field contains that error message, never an empty or uninformative string
+
 ### Requirement: Prompt-injected memories count as searched and surfaced
 
 For subagent moments, any memory present in the dispatch prompt SHALL count as found (Joe's rule, 2026-08-30) — it's recorded as "a search ran (injected)" and "surfaced: yes." Forked subagents inherit the whole parent conversation, so everything in it counts as found for them automatically. The gap on the finding side — memories the orchestrator had surfaced but didn't hand over — SHALL be measured from the orchestrator's side, at the moment of dispatch, using a simple structural check across the full corpus, validated against a smaller LLM-judged sample that tells apart genuinely missing content from content that was just paraphrased into the prompt instead of quoted directly.
