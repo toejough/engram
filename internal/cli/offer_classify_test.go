@@ -238,7 +238,7 @@ func (n offerTestNote) renderWithLinkHash(linkHash string) []byte {
 
 	var builder strings.Builder
 
-	builder.WriteString("---\ntype: " + noteType + "\ntier: L2\nsituation: when testing\n")
+	fmt.Fprintf(&builder, "---\ntype: %s\ntier: L2\nsituation: when testing\n", noteType)
 
 	if noteType == "runbook" {
 		builder.WriteString("done_when: done\n")
@@ -248,20 +248,20 @@ func (n offerTestNote) renderWithLinkHash(linkHash string) []byte {
 			object = "c"
 		}
 
-		builder.WriteString("subject: a\npredicate: b\nobject: " + object + "\n")
+		fmt.Fprintf(&builder, "subject: a\npredicate: b\nobject: %s\n", object)
 	}
 
 	builder.WriteString("luhmann: \"1\"\ncreated: \"2026-09-27\"\nsource: test\nuser: alice\nvault: personal\n")
 
 	if n.skillHash != "" {
-		builder.WriteString("skill_hash: " + n.skillHash + "\n")
+		fmt.Fprintf(&builder, "skill_hash: %s\n", n.skillHash)
 	}
 
 	if n.pending {
 		builder.WriteString("pending: true\n")
 	}
 
-	builder.WriteString("xid: " + xidA + "\n")
+	fmt.Fprintf(&builder, "xid: %s\n", xidA)
 	n.writeExchange(&builder, linkHash)
 	builder.WriteString("---\n\nInformation learned: body.\n")
 
@@ -271,11 +271,11 @@ func (n offerTestNote) renderWithLinkHash(linkHash string) []byte {
 // writeExchange renders the parent and offer fields.
 func (n offerTestNote) writeExchange(builder *strings.Builder, linkHash string) {
 	if n.parentVault != "" {
-		builder.WriteString("parent:\n  vault: " + n.parentVault + "\n  links:\n")
+		fmt.Fprintf(builder, "parent:\n  vault: %s\n  links:\n", n.parentVault)
 		fmt.Fprintf(builder, "    - note: 5.2026-09-27.p\n      via: %s\n      hash: %s\n", n.linkVia, linkHash)
 
 		if n.coveredNote != "" {
-			builder.WriteString("    - note: " + n.coveredNote + "\n      via: covered\n      hash: xh1:c\n")
+			fmt.Fprintf(builder, "    - note: %s\n      via: covered\n      hash: xh1:c\n", n.coveredNote)
 		}
 	}
 
@@ -283,13 +283,13 @@ func (n offerTestNote) writeExchange(builder *strings.Builder, linkHash string) 
 		return
 	}
 
-	builder.WriteString("offer:\n  origin: " + n.origin + "\n")
+	fmt.Fprintf(builder, "offer:\n  origin: %s\n", n.origin)
 
 	if len(n.path) > 0 {
 		builder.WriteString("  path:\n")
 
 		for _, entry := range n.path {
-			builder.WriteString("    - " + entry + "\n")
+			fmt.Fprintf(builder, "    - %s\n", entry)
 		}
 	}
 }

@@ -3,6 +3,7 @@ package cli_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -81,7 +82,7 @@ func TestRunQuery_OversizedRedFlagsListKeepsNewestEntry(t *testing.T) {
 		"done_when: the dispatch is recorded\nred_flags:\n")
 
 	for range 20 {
-		body.WriteString("    - " + strings.Repeat("a pre-existing red flag entry with enough filler text ", 3) + "\n")
+		fmt.Fprintf(&body, "    - %s\n", strings.Repeat("a pre-existing red flag entry with enough filler text ", 3))
 	}
 
 	body.WriteString("    - the newly added red flag entry for this specific defect\n---\n\n1. Dispatch\n2. Record\n")

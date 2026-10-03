@@ -439,11 +439,11 @@ func drawBackfillExtraKeys(rt *rapid.T) string {
 
 		switch rapid.IntRange(0, 2).Draw(rt, key+"-shape") { // scalar, list, map
 		case 0:
-			lines.WriteString(key + ": " + word + "\n")
+			fmt.Fprintf(&lines, "%s: %s\n", key, word)
 		case 1:
-			lines.WriteString(key + ":\n    - " + word + "\n    - " + word + "2\n")
+			fmt.Fprintf(&lines, "%s:\n    - %s\n    - %s2\n", key, word, word)
 		default:
-			lines.WriteString(key + ":\n    inner: " + word + "\n")
+			fmt.Fprintf(&lines, "%s:\n    inner: %s\n", key, word)
 		}
 	}
 

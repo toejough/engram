@@ -80,7 +80,7 @@ func TestRunShow_NeverTruncatesOversizedRedFlags(t *testing.T) {
 	for index := range entryCount {
 		entries[index] = fmt.Sprintf("red flag entry %02d with enough filler text to push the list over budget",
 			index+1)
-		body.WriteString("    - " + entries[index] + "\n")
+		fmt.Fprintf(&body, "    - %s\n", entries[index])
 	}
 
 	body.WriteString("---\n\n1. Dispatch\n2. Record\n")

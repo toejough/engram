@@ -6,6 +6,7 @@ package cli
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -20,8 +21,8 @@ func TestCapRedFlagsForPreview_CRLFNote(t *testing.T) {
 
 	var flags strings.Builder
 	for index := range 40 {
-		flags.WriteString("    - a red flag long enough to push the preview over its budget, number " +
-			string(rune('a'+index%26)) + "\n")
+		fmt.Fprintf(&flags, "    - a red flag long enough to push the preview over its budget, number %c\n",
+			rune('a'+index%26))
 	}
 
 	lf := "---\ntype: runbook\nsituation: s\ndone_when: d\nred_flags:\n" + flags.String() +

@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	"maps"
 	"os"
@@ -765,15 +766,15 @@ func foldNote(exchange foldExchange, pending bool) string {
 	}
 
 	if exchange.xid != "" {
-		builder.WriteString("xid: " + exchange.xid + "\n")
+		fmt.Fprintf(&builder, "xid: %s\n", exchange.xid)
 	}
 
 	if len(exchange.links) > 0 {
-		builder.WriteString("parent:\n    vault: " + exchange.vault + "\n    links:\n")
+		fmt.Fprintf(&builder, "parent:\n    vault: %s\n    links:\n", exchange.vault)
 
 		for _, link := range exchange.links {
-			builder.WriteString("        - note: " + link.note + "\n          via: " + link.via +
-				"\n          hash: " + link.hash + "\n")
+			fmt.Fprintf(&builder, "        - note: %s\n          via: %s\n          hash: %s\n",
+				link.note, link.via, link.hash)
 		}
 	}
 
@@ -781,12 +782,12 @@ func foldNote(exchange foldExchange, pending bool) string {
 		builder.WriteString("aliases:\n")
 
 		for _, alias := range exchange.aliases {
-			builder.WriteString("    - " + alias + "\n")
+			fmt.Fprintf(&builder, "    - %s\n", alias)
 		}
 	}
 
 	if exchange.origin {
-		builder.WriteString("offer:\n    origin: " + foldOtherVault + ":" + foldXIDO + "\n    key: k1\n")
+		fmt.Fprintf(&builder, "offer:\n    origin: %s:%s\n    key: k1\n", foldOtherVault, foldXIDO)
 	}
 
 	builder.WriteString("---\n\nInformation learned: when local, l m n.\n")

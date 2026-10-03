@@ -32,7 +32,7 @@ func TestCapRedFlagsForPreview_KeepsNewestEntryWhenOverBudget(t *testing.T) {
 	b.WriteString("---\ntype: runbook\nsituation: x\ndone_when: y\nred_flags:\n")
 
 	for range 20 {
-		b.WriteString("    - " + strings.Repeat("filler ", 20) + "\n")
+		fmt.Fprintf(&b, "    - %s\n", strings.Repeat("filler ", 20))
 	}
 
 	b.WriteString("    - the newest entry added to fix a specific defect\n")

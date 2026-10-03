@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -514,12 +515,12 @@ func (p *recordingParent) queryResponse(url string) cli.FetchResponse {
 		items.WriteString("items:\n")
 
 		for _, note := range p.notes {
-			items.WriteString("  - path: " + note.basename + ".md\n    kind: fact\n    score: 0.9\n" +
-				"    provenances: [direct]\n    content: " + strconv.Quote(note.content) + "\n")
+			fmt.Fprintf(&items, "  - path: %s.md\n    kind: fact\n    score: 0.9\n"+
+				"    provenances: [direct]\n    content: %s\n", note.basename, strconv.Quote(note.content))
 
 			if dedupeKeys {
 				hash, _ := cli.ExportExchangeHash([]byte(note.content))
-				items.WriteString("    exchange_hash: " + hash + "\n")
+				fmt.Fprintf(&items, "    exchange_hash: %s\n", hash)
 			}
 		}
 
