@@ -1565,7 +1565,7 @@ def detect_stalled_asking(transcript_paths):
 
 # ----- one trial -----
 
-def _score_trial(task_key, arm, events, repo_path, carrier_basename, env=None, raw_text=""):
+def _score_trial(task_key, arm, events, repo_path, carrier_basename, raw_text, env=None):
     """Run all trial scoring (FOUND, recall_fired, FOLLOWED, END-STATE) and NEVER raise — an
     exception here is caught and recorded as `scoring_error`, with safe defaults for the rest of
     the fields. Round-1 review finding: an unhandled exception in scoring propagates through the

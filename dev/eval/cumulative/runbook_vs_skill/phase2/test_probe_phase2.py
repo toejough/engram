@@ -1582,7 +1582,7 @@ def test_score_trial_scoring_exception_is_captured_not_raised(monkeypatch, tmp_p
     monkeypatch.setattr(pp, "score_found_phase2", _boom)
     repo = str(tmp_path / "repo")
     os.makedirs(repo, exist_ok=True)
-    scored = pp._score_trial("A", "R", events=[], repo_path=repo, carrier_basename="x")
+    scored = pp._score_trial("A", "R", events=[], repo_path=repo, carrier_basename="x", raw_text="")
     assert scored["scoring_error"] is not None
     assert "synthetic scoring failure" in scored["scoring_error"]
     # safe defaults, not a raised exception
@@ -1592,19 +1592,19 @@ def test_score_trial_scoring_exception_is_captured_not_raised(monkeypatch, tmp_p
 
 
 def test_score_trial_no_exception_leaves_scoring_error_none():
-    scored = pp._score_trial("A", "S", events=[], repo_path="/does/not/exist", carrier_basename=None)
+    scored = pp._score_trial("A", "S", events=[], repo_path="/does/not/exist", carrier_basename=None, raw_text="")
     assert scored["scoring_error"] is None
 
 
 def test_score_trial_populates_trailer_for_task_a(tmp_path):
     repo = str(tmp_path / "repo")
     _commit_with_message(repo, "feat(pkg): bump version\n\nwhy\n\nAI-Used: [claude]")
-    scored = pp._score_trial("A", "S", events=[], repo_path=repo, carrier_basename=None)
+    scored = pp._score_trial("A", "S", events=[], repo_path=repo, carrier_basename=None, raw_text="")
     assert scored["trailer"] == "ai_used"
 
 
 def test_score_trial_trailer_is_na_for_task_b():
-    scored = pp._score_trial("B", "S", events=[], repo_path="/does/not/exist", carrier_basename=None)
+    scored = pp._score_trial("B", "S", events=[], repo_path="/does/not/exist", carrier_basename=None, raw_text="")
     assert scored["trailer"] == "n/a"
 
 
@@ -1653,7 +1653,7 @@ def test_live_scoring_and_rescore_emit_the_same_scored_field_set(tmp_path):
     # --- live path: _score_trial's scored keys (minus scoring_error, a live-only diagnostic
     # never persisted as a scored field name in the record schema itself) ---
     events = pp.p1.parse_transcript_events([str(transcript_path)])
-    scored = pp._score_trial("A", "R", events, repo_path, carrier)
+    scored = pp._score_trial("A", "R", events, repo_path, carrier, raw_text="")
     live_scored_keys = ((set(scored.keys()) - {"scoring_error"})
                          | {"valid", "marker_seen", "invalid_reason", "api_error"})
 
@@ -1686,7 +1686,7 @@ def test_score_trial_question_stop_false_when_end_state_true_despite_trailing_qu
         _tool_use("Bash", {"command": "git commit -m 'feat: done'"}, idx=0),
         _text_ev("All done. Would you also like me to update the README?", idx=1),
     ]
-    scored = pp._score_trial("A", "R", events, repo_path="/does/not/exist", carrier_basename=None)
+    scored = pp._score_trial("A", "R", events, repo_path="/does/not/exist", carrier_basename=None, raw_text="")
     assert scored["end_state"] is True
     assert scored["question_stop"] is False
 
@@ -1748,6 +1748,22 @@ def test_score_trial_recall_fired_true_for_a_slash_invoked_recall_transcript(tmp
     assert scored["recall_fired"] is True
 
 
+def test_score_trial_raw_text_is_required_not_defaulted(tmp_path):
+    """Reviewer-requested hardening (STOP 2 round 2 follow-up): raw_text must be a REQUIRED
+    parameter, matching D11's required `end_state` on detect_question_stop -- a silent default
+    would let a future caller fall back to the buggy tool_use-only recall_fired detection without
+    ever noticing. Calling _score_trial without raw_text must raise TypeError."""
+    repo = str(tmp_path / "repo")
+    os.makedirs(repo, exist_ok=True)
+    events = [_tool_use("Bash", {"command": "ls"}, idx=0)]
+    try:
+        pp._score_trial("A", "R", events, repo_path=repo, carrier_basename=None)
+    except TypeError:
+        pass
+    else:
+        raise AssertionError("_score_trial() must require raw_text -- it accepted a call without it")
+
+
 def test_rescore_file_recall_fired_true_for_a_slash_invoked_recall_transcript(tmp_path):
     """Same wiring check as above, through the --rescore entry point: rescore_file already
     computes raw_text locally (for marker/validity reclassification) -- it must pass that same
@@ -1793,7 +1809,7 @@ def test_score_trial_load_steps_exception_is_captured_not_raised(monkeypatch, tm
     monkeypatch.setattr(pp, "load_steps", _boom)
     repo = str(tmp_path / "repo")
     os.makedirs(repo, exist_ok=True)
-    scored = pp._score_trial("A", "R", events=[], repo_path=repo, carrier_basename="x")
+    scored = pp._score_trial("A", "R", events=[], repo_path=repo, carrier_basename="x", raw_text="")
     assert scored["scoring_error"] is not None
     assert "synthetic missing steps.json" in scored["scoring_error"]
     assert scored["n_steps"] == 0
