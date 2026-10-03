@@ -106,7 +106,7 @@ omission, judged against the recency-weighted view) → `engram amend --activate
 (refresh recency + provenance, no content rewrite); **near** (same situation, ≥1 substantive claim omitted)
 → `engram amend --chunk-source … <re-synthesized content>` (update in place, recency-weighted, D6);
 **absent** (no candidate addresses the situation) → invoke the **write-memory** skill (2026-07-04 worker extraction; native invocation restored by `register-skills-as-runbooks`), which composes and runs `engram learn fact|feedback --chunk-source …
---source "<descriptive>"` (create the single representative note). An additional write path,
+--source="<descriptive>"` (create the single representative note). An additional write path,
 `engram learn qa` (shipped round 1, 2026-07-03; since 2026-07-04 executed via the write-memory
 handoff), captures Q&A pairs: the A-note competes in the main matched set (D5′); the Q-note is
 excluded from the main set. A dedicated q-space channel to surface the Q-note is *proposed but NOT
@@ -180,7 +180,7 @@ sequenceDiagram
             E->>V: acquire flock, replace content fields, merge provenance, re-embed
             V-->>E: written path
         else absent — no candidate addresses the situation
-            H->>E: engram learn fact|feedback --chunk-source <ids> --source "<desc>"
+            H->>E: engram learn fact|feedback --chunk-source <ids> --source="<desc>"
             E->>V: acquire flock, compute Luhmann ID, write note
             V-->>E: written path
         end

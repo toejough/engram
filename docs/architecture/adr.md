@@ -984,7 +984,7 @@ surface in the shim-only arm (end_state 0/3, 3.3) and, after shim fixes, still m
 *third semantic phrase* changed the runbook's rank or score in 0 of 95 scratch-vault cells:
 embedding similarity on a paraphrase cannot reproduce a literal-cue fire. Decision: a runbook MAY
 carry an author-declared `triggers:` list (`engram learn runbook --trigger`, repeatable;
-`engram amend --trigger` replaces the list); `engram query --text "<user message, verbatim>"` is
+`engram amend --trigger` replaces the list); `engram query --text="<user message, verbatim>"` is
 matched against it by case-insensitive whole-word match after whitespace collapse (amended 2026-09-21: was a plain substring, which let a bare-word trigger fire inside longer words such as "accurate"; see `openspec/changes/runbook-trigger-whole-word`), and a hit surfaces
 first in `items[]` (provenance `trigger`, ahead of every similarity-ranked item, exempt from the
 relevance floor, matched-set cap, and `--limit`). This is the single lexical exception: `--text` is
