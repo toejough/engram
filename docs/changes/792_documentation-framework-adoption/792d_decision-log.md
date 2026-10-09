@@ -1,0 +1,457 @@
+# Documentation Framework Adoption - Decision Log
+
+These are choices made during the #792 migration, recorded for Joe to validate afterwards. Questions
+that need Joe's input are in [`792e_open-questions.md`](./792e_open-questions.md). Nodes append new
+decisions as `792dN`, continuing the sequence.
+
+## 792d1 Change directory and artifact set
+
+- **Choice:** `docs/changes/792_documentation-framework-adoption/` holds `792a_product-spec.md`,
+  `792b_technical-spec.md`, `792c_implementation-plan.md`, `792d_decision-log.md` and
+  `792e_open-questions.md`.
+- **Rationale:** #792 is the tracking issue, and `docs/AGENTS.md` roots change IDs at the issue key.
+  Joe asked for one log of choices to validate and a separate document of questions needing his
+  input.
+- **Alternatives:** one change per capability. Rejected because Joe asked for a single change with a
+  plan that tracks the whole migration.
+
+## 792d2 OpenSpec is legacy documentation in scope
+
+- **Choice:** `openspec/specs/**` and `openspec/changes/archive/**` are migrated like
+  `docs/deprecated/`. Each spec file is deleted once its content is ported. Capability nodes mine the
+  archive for rationale, and node 792c8c deletes it, because the lifecycle guide forbids keeping a
+  completed-change archive. Removing the OpenSpec tooling is deferred to 792e3. Vault note 913
+  ("designs go through openspec") is superseded; the orchestrator amends it, since vault writes are
+  outside the repository.
+- **Rationale:** the new framework replaces OpenSpec as the behavior record. #792 asks for the
+  relationship between the two to be decided, and Joe's direction on 2026-10-09 was to adopt the
+  framework.
+- **Alternatives:** keep OpenSpec alongside the new specs. Rejected because two normative records
+  would duplicate each other.
+
+## 792d3 Skills and guidance are product behavior
+
+- **Choice:** the procedures in `agent-instructions/skills/*` and `agent-instructions/guidance/*`
+  are described in product specs. The SKILL.md and guidance files stay where they are as shipped
+  product source; they are not documentation to delete.
+- **Rationale:** what a skill does is observable by its user, Joe or an agent. The files themselves
+  are what `engram update` deploys.
+- **Alternatives:** treat each SKILL.md as its own canonical spec. Rejected because it would bypass
+  the framework's ID and UAT rules.
+
+## 792d4 Skill procedures are not technical components
+
+- **Choice:** recall, learn, write-memory, please, route and curate get product capabilities but no
+  technical component sections.
+- **Rationale:** they meet the responsibility, ownership, stability and necessity criteria, but not
+  independent verification. The technical guide requires a direct, deterministic contract test for
+  every canonical technical requirement. Skill behavior is checked only by markdown baselines and
+  headless evals, which aren't contract tests. The technical constraints they share live in
+  `agent-instruction-bundle` (792d5).
+- **Alternatives:** one component per skill, as in the legacy report's C25–C30. Rejected because
+  every requirement would lack a contract test. A single procedure component was rejected for the
+  same reason.
+
+## 792d5 `agent-instruction-bundle` qualifies as a component
+
+- **Choice:** one component owns the constraints on shipped instruction artifacts: harness metadata
+  limits, command-template safety (`--flag="value"`), and the rule that skills write to the vault only
+  through the CLI.
+- **Rationale:** `TestSkillDescriptionsFitMetadataLimit` tests this contract directly, and a harness
+  only loads a skill whose metadata fits. `engram-command-template-safety` and invariant S1 need an
+  owner.
+- **Alternatives:** make command-template safety a product requirement repeated in every skill
+  capability. Rejected because it would duplicate one rule across capabilities.
+
+## 792d6 Removed features are not documented; enduring absences become MUST NOT
+
+- **Choice:** removed and parked features stay out of the specs. These include episodes, tiers,
+  L3 synthesis, MOCs, the `Permanent/` folder, tag nomination, graph-expanded retrieval, the
+  clusters-first payload, the OpenCode and Shelley harnesses, the recall subprocess, and hooks.
+  `ENGRAM_SERVER`, which the legacy docs explicitly reject, becomes a **MUST NOT** in parent-sync.
+- **Rationale:** the lifecycle guide keeps only current behavior in canonical specs, and keeps
+  absences only when they are enduring contracts. ROADMAP Provenance already records the dead ends.
+- **Alternatives:** keep a "retired" section in each spec. Rejected because git is the fallback.
+
+## 792d7 Rationale lives beside the requirement it justifies
+
+- **Choice:** ADR, design and archive reasoning becomes a short `Rationale:` paragraph under the
+  requirement or orientation it justifies.
+- **Rationale:** Joe asked for this, and it keeps each decision next to the rule it explains.
+- **Alternatives:** a separate decision document. Rejected because Joe asked for rationale in the
+  relevant sections. The tension with the lifecycle guide's "concise context only" rule for canonical
+  specs is left open as 792e4, and doesn't block anything.
+
+## 792d8 Per-component technical structure
+
+- **Choice:** each component section has orientation, sequences, behavior requirements with Gherkin,
+  and product-scenario mapping (792c3b). The option-analysis, impact and alternatives sections are
+  omitted, and 792b1 states why once.
+- **Rationale:** this change documents an existing system, so there are no options to compare.
+- **Alternatives:** the guide's full eight-part structure. Rejected because its comparison sections
+  would be empty.
+
+## 792d9 Every operation is Added
+
+- **Choice:** every capability and component section is an **Added** delta.
+- **Rationale:** no canonical specs exist yet, so there is nothing to modify or remove.
+- **Alternatives:** none apply.
+
+## 792d10 Test renaming
+
+- **Choice:**
+  - Existing tests are renamed `Test<ScenarioID>_<PreviousDescriptiveName>`, for example
+    `Test792a3b1a_RunLearn_WritesNote`. Python tests use `test_<ScenarioID>_<previous_name>`.
+  - A test that verifies several scenarios takes the first scenario's ID and lists the others as
+    `split deferred`.
+  - References to each old name are grepped and updated before the rename.
+  - Scenarios with no test are listed as coverage gaps; tests that verify no scenario keep their
+    names and are listed.
+  - No new tests are written.
+- **Rationale:** the ID is all lowercase letters and digits, so it needs no character substitution.
+  The underscore keeps the ID visually separate from the old descriptive name, which already uses
+  underscores.
+- **Alternatives:**
+  - The guide's example form with no separator (`TestCAP_1434b1a1SelectPriorMonth`). Not used:
+    the orchestrator chose the underscore form, and this deviation from the guide's example needs
+    Joe's validation.
+  - Splitting tests that cover several scenarios. Deferred, because splitting rewrites tests rather
+    than renaming them.
+
+## 792d11 Statuses
+
+- **Choice:** work entries and rename entries use the non-test vocabulary (`Not started` →
+  `In progress` → `Done`). Nodes use Blocked by, Ready, In progress, and Complete. The guide's Merged
+  status is omitted.
+- **Rationale:** no tests are written, so the test-driven status ladder doesn't apply. There are no
+  per-node branches, so Merged would add nothing beyond Complete.
+- **Alternatives:** the test-status ladder for renames. Rejected because a rename has no red or green
+  phase.
+
+## 792d12 Research, eval-process notes and plans are non-normative
+
+- **Choice:** the durable knowledge in `docs/deprecated/research/*`, the superpowers plan, and the
+  eval-process notes goes into rationale paragraphs, the GLOSSARY or the ROADMAP. The rest is deleted.
+- **Rationale:** these documents never stated behavior. Their conclusions already appear in
+  ADR-0027 and ADR-0028 and in the ROADMAP north-star track.
+- **Alternatives:** keep a `docs/research/` directory. Rejected because `docs/AGENTS.md` defines no
+  such directory.
+
+## 792d13 Agent governance moves to root `AGENTS.md`
+
+- **Choice:** `docs/deprecated/agents/*` (issue tracker, triage labels, domain docs) is merged into
+  the root `AGENTS.md` sections that already point to those files.
+- **Rationale:** these are workflow conventions for agents, not product or technical specifications.
+- **Alternatives:** separate governance files under `docs/`. Rejected because `docs/AGENTS.md` lists
+  a fixed set of governance files.
+
+## 792d14 The in-flight design becomes its own change
+
+- **Choice:** `parallel-memory-agent-requirements.md` describes a feature that isn't built yet. It
+  moves to its own `docs/changes/<issue-key>_parallel-memory-agent/` directory. `gh issue list` found
+  no matching issue, so the key is open question 792e2. No issue was filed.
+- **Rationale:** the lifecycle guide puts unbuilt behavior in an active change, never in canonical
+  specs.
+- **Alternatives:** root it under #792. Rejected because the feature is unrelated to this migration.
+
+## 792d15 Capability granularity: 22 capabilities
+
+- **Choice:**
+  - Capabilities are grouped by what a user does or gets: one per shipped skill, and one per
+    distinct CLI goal.
+  - In plan order, the 22 are: vault-identity, note-writing, note-revision, chunk-indexing,
+    controlled-vocabulary, memory-query, vault-counting, vault-health, vault-migration,
+    install-and-update, skill-runbook-registration, write-memory, recall, learn, lessons-contract,
+    route, please, ambient-guidance, vault-serving, parent-sync, curate, and
+    memory-effectiveness-evaluation.
+- **Rationale:** the three discovery reports proposed 27, 12 and about 11 capabilities.
+  - The 27-capability list split single surfaces apart, for example note provenance and QA from
+    note writing.
+  - The 12- and 11-capability lists merged unrelated goals, for example `check`, `count` and `embed`
+    into one "vault-health", and please and route into one "orchestration".
+  - Grouping by user goal keeps each file stable when the commands inside it change.
+- **Alternatives:** the 27-, 12- and 11-capability inventories in `792f_discovery/`.
+
+## 792d16 Capability names
+
+- **Choice:** names use Joe's vocabulary from the GLOSSARY and commit scopes. Each skill capability
+  is named after its skill. `memory-query` is the CLI retrieval surface and `recall` is the skill.
+  `chunk-indexing` is used over `transcript-ingest`, because ingest also covers markdown.
+  `parent-sync` follows "local-first parent sync". `install-and-update` is used over `engram-update`.
+- **Rationale:** avoid coined jargon (vault note 291) and the retired names (episode, MOC, nomination,
+  promote, `ENGRAM_SERVER`).
+- **Alternatives:** `memory-recall` for the query surface. Rejected because it collides with the
+  recall skill. Also `session-ingestion` and `vault-sharing`.
+
+## 792d17 Runbooks are spread across their surfaces
+
+- **Choice:** there is no `runbook-memory` capability. Runbook capture is in note-writing, trigger
+  surfacing is in memory-query, and the follow-frame is in ambient-guidance.
+- **Rationale:** a runbook is a note kind. Each of these behaviors already belongs to a surface that
+  owns the same behavior for the other kinds.
+- **Alternatives:** a runbook-memory capability, as legacy P6. Rejected because it would cut across
+  three surfaces.
+
+## 792d18 The QA kind is documented as current
+
+- **Choice:** `engram learn qa` capture belongs to note-writing, and ad hoc QA capture to learn. Both
+  are documented as current, even though #727 and #765 are reconsidering the kind.
+- **Rationale:** the kind ships today. A reconsideration is a future change, not current behavior.
+- **Alternatives:** a separate `question-answer-memory` capability. Rejected as one surface split in
+  two.
+
+## 792d19 One ambient-guidance capability
+
+- **Choice:** recall.md, learn.md, delegate.md and shim.md, together with their activation, form one
+  `ambient-guidance` capability.
+- **Rationale:** they share one opt-in deployment (`--with-guidance`) and one activation mechanism.
+  #773 is reconciling their overlapping cues, and separate files would freeze that duplication.
+- **Alternatives:** four capabilities named after the AGENTS.md labels.
+
+## 792d20 `lessons-contract` is its own capability
+
+- **Choice:** the LESSONS line contract has one capability. The OpenSpec `learn`, `please` and
+  `route` specs map to it, because their content is entirely the LESSONS slice.
+- **Rationale:** a single owner prevents duplicating the rule across learn, please, route and the
+  guidance capability.
+- **Alternatives:** put the requirements in each skill's capability.
+
+## 792d21 Vault identity comes first; `ENGRAM_SERVER` belongs to parent-sync
+
+- **Choice:** `vault-identity` is the first capability. It covers path resolution, first-use
+  creation, the vault ID, and the copy/clone and self-parent refusals. The `ENGRAM_SERVER` **MUST
+  NOT** sits in parent-sync.
+- **Rationale:** every command depends on resolving the vault. `ENGRAM_SERVER`'s replacement is
+  `ENGRAM_PARENT`.
+- **Alternatives:** fold vault identity into parent-sync, as code-tests discovery proposed. Rejected
+  because first-use creation affects every user, not only users of the exchange.
+
+## 792d22 Counting is separate from health
+
+- **Choice:** `vault-counting` (`count`) is separate from `vault-health` (`check`, `embed`).
+- **Rationale:** ADR-0018 makes counting a distinct surface, and route depends on it as an evidence
+  audit.
+- **Alternatives:** a merged `vault-health`.
+
+## 792d23 A vault-migration capability
+
+- **Choice:** `update --reparent-luhmann/--answers`, `--backfill-identity`, and the flat-vault notice
+  form `vault-migration`.
+- **Rationale:** they are one-shot structural maintenance of an existing vault, and share neither
+  trigger nor contract with installation.
+- **Alternatives:** fold them into install-and-update.
+
+## 792d24 The vault exchange is split three ways
+
+- **Choice:** vault-serving (`engram serve`), parent-sync (child side), and curate (the pending-offer
+  review skill).
+- **Rationale:** each has a different user and entry point: the host operator, the child vault user,
+  and the curating agent.
+- **Alternatives:** one `vault-federation` capability.
+
+## 792d25 Eval tooling is a provisional last capability
+
+- **Choice:** `memory-effectiveness-evaluation` and its components `eval-trial-harness` and
+  `memory-loop-auditor` come last, pending 792e1.
+- **Rationale:** five OpenSpec specs and ADR-0028 must go somewhere for the deprecated docs to empty.
+  Placing these last means a "no" from Joe removes the group without reordering anything.
+- **Alternatives:** delete them as dev tooling. Vault note 293 says not to spec dev tooling as
+  product, but ADR-0028 D5 calls the audit product.
+
+## 792d26 Component inventory: 38 components
+
+- **Choice:** the code-tests discovery list of 34 components is the base, because it is grounded in
+  code and tests. It is adjusted as follows:
+  - `installer` is split into `self-installer` (ADR-0023) and `harness-deploy-sync` (ADR-0022).
+  - `vault-bootstrap` is folded into `vault-identity-registry`.
+  - `recall-usage-tracking` (activate) is folded into `note-amendment`.
+  - Note lookup (`show`) becomes caller routing in `command-line-surface`.
+  - `vault-statistics` is kept as `vault-counter`.
+  - `agent-instruction-bundle` is added (792d5), and so are the two eval components (792d25).
+- **Rationale:** each kept component meets all five qualification criteria. Each split follows an
+  ADR boundary, and each fold removes a contract too thin to stand alone.
+- **Alternatives:** the legacy report's 32 components, which include the skill procedures (792d4),
+  and the history report's 14 package-level groupings, which merge independent contracts.
+
+## 792d27 Excluded component candidates
+
+- **Choice:** these candidates are excluded:
+  - `debug-log` fails necessity: no production code emits a log line.
+  - `interrupt-handling` fails necessity: no product requirement mentions interruption.
+  - The composition root (`cli.Primitives`, `cli.NewDeps`, `cmd/engram`) is a dependency-injection
+    seam, which the guide says can't qualify on that basis alone.
+  - Their tests are listed as no-scenario tests in the `command-line-surface` node. `debug-log`'s
+    legacy text (c3 K11) is deleted in node 792c8a.
+- **Rationale:** the guide's necessity rule, and its rule that a mockable seam does not qualify
+  solely because it can be injected.
+- **Alternatives:** keep them as MAY-level components.
+
+## 792d28 Component names
+
+- **Choice:** names describe each contract, with no package or function names. For example,
+  `query-engine`, not `semantic-retrieval-engine`; `query-payload-renderer`, not
+  `recall-payload-renderer`, because recall is the skill; `vocabulary-engine`; `embedding-sidecar`;
+  `note-provenance`; `pending-offer-bookkeeping`.
+- **Rationale:** the guide's stability criterion, plus Joe's vocabulary (792d16).
+- **Alternatives:** the discovery reports' names.
+
+## 792d29 Order and topology
+
+- **Choice:** the order is foundational first: vault, notes, chunks, vocabulary, query, maintenance,
+  deployment, skills, guidance, exchange, evaluation. Within a capability, callees come before
+  callers. The nodes run as a linear chain, except that 792c8b and 792c8c may run in parallel.
+- **Rationale:** each component is migrated in the first capability that needs it, so foundational
+  components land first and later capabilities only extend them. Every node edits the same 792a,
+  792b and 792c files, and Joe asked for capability-by-capability order. Both facts serialize the
+  work.
+- **Alternatives:** parallel worktrees per capability. Rejected because they would conflict on the
+  shared change files.
+
+## 792d30 Components are migrated once and extended later
+
+- **Choice:** a component node writes the component's section in full. Later capability nodes add
+  mapping rows and any newly sourced requirements to that section (step 6 of 792c4a), and rename the
+  tests that newly match.
+- **Rationale:** this is Joe's instruction: migrate each component once, then add mappings.
+- **Alternatives:** a separate node per capability-component pair. Rejected as 65+ extra nodes.
+
+## 792d31 Each legacy item has one owning node
+
+- **Choice:**
+  - Every legacy file, section, ADR and OpenSpec spec is listed under exactly one node for each part
+    it contains. Nodes remove only what they port, a file is deleted once it is empty, and node
+    792c8d removes whatever remains.
+  - Coverage: 21 files under `docs/deprecated/`, 29 ADRs plus the "not made into ADRs" section, 53
+    OpenSpec specs, and 42 archive entries. The discovery brief said there were 56 specs; there are
+    53.
+  - Archive entries are read-only rationale sources until node 792c8c deletes them.
+- **Rationale:** per-part ownership lets a mixed file (an ADR, a C4 view, a mixed spec) be emptied
+  across several nodes without losing content.
+- **Alternatives:** file-level ownership. Rejected because a node can't port content another node
+  has already deleted.
+
+## 792d32 Skill product specs are derived from the shipped SKILL.md
+
+- **Choice:** where a legacy source doesn't fully describe a skill or guidance behavior, the product
+  spec describes the shipped SKILL.md or guidance file.
+- **Rationale:** most of the recall, learn, please, route and curate behavior exists only in SKILL.md.
+  The OpenSpec skill specs are delta-shaped slices (legacy report, Overlaps).
+- **Alternatives:** document only what the legacy specs state. Rejected because it would leave the
+  capabilities mostly empty.
+
+## 792d33 Behavior is described, not validated
+
+- **Choice:** nodes describe current behavior from the legacy docs, code and tests, without
+  confirming each requirement with Joe. The product guide's per-requirement interview is replaced by
+  this log and 792e.
+- **Rationale:** Joe said "Do not attempt to validate correctness yet." Vault note 645: in a
+  descriptive spec tree, a divergence found later becomes a change proposal.
+- **Alternatives:** an interview for each requirement. Rejected because Joe deferred validation.
+
+## 792d34 References are repointed to the change sections
+
+- **Choice:** stale references are repointed to the `792a` and `792b` section anchors, which exist
+  now. At promotion, one grep for `792a_` and `792b_` moves them to `docs/specs/...`. The IDs are
+  stable, so the anchors survive.
+- **Rationale:** the canonical files won't exist until promotion (792d44). Pointing at them now would
+  break links in every commit until then.
+- **Alternatives:** point at the future canonical paths.
+
+## 792d35 Product scenarios are restated at their first technical mapping
+
+- **Choice:** a product scenario is restated in full in 792b at the first place it is mapped, and
+  referenced by ID afterwards.
+- **Rationale:** the technical guide requires it. The rule against duplicating scenario text applies
+  only to canonical technical specs, and promotion drops these restatements.
+- **Alternatives:** IDs only. Rejected as a deviation from the guide.
+
+## 792d36 ID templates and overflow
+
+- **Choice:** the templates in 792c3a and 792c3b match the `docs/AGENTS.md` example. Capability
+  sections are `## 792aN Added: <name>`, requirements `### 792aNx`, UAT groups `#### 792aNx1`, and
+  scenarios `792aNx1a`. Components follow the same pattern with letter subsections a–d. More than 25
+  letter siblings continue as `za`–`zy`. Section numbers are fixed in the catalog: 792a2–792a23 and
+  792b2–792b39.
+- **Rationale:** fixed numbers stop later nodes from drifting. Reserving `z` as a prefix keeps
+  letter IDs unambiguous.
+- **Alternatives:** assign numbers as nodes run.
+
+## 792d37 Exemptions from the stale-reference sweep
+
+- **Choice:** the sweep exempts `dev/eval/raw/` (named by #792) and dated eval records, which are
+  historical results: `dev/eval/LEDGER.md` rows, `dev/eval/audit/*` reports, `dev/eval/cumulative/**`
+  analyses, and fixture encodings. Code comments in live tooling (`dev/eval/isolation.py`,
+  `dev/eval/cumulative/test_matrix.py`) are repointed.
+- **Rationale:** #792 exempts historical records. Live comments mislead the next reader.
+- **Alternatives:** exempt only `dev/eval/raw/`. Rejected because it would mean rewriting records of
+  past experiments.
+
+## 792d38 `TARG_BASELINE_PATTERN` (provisional)
+
+- **Choice:** `dev/targs.go` sets `TARG_BASELINE_PATTERN='TestT[0-9]+_'`. Only eight tests match it,
+  and the renames in 792c7b5 and 792c7d2 remove that prefix. The first node that renames a `TestT`
+  test updates the pattern to match the new scenario-ID prefix, which keeps the old tests in
+  baseline selection. Node 792c8e confirms the final value.
+- **Rationale:** without the update, those renames would silently empty the baseline selection. targ
+  is a black box, so the final value is asked as 792e7.
+- **Alternatives:** keep the `TestT` prefix on those tests. Rejected because it conflicts with
+  792d10.
+
+## 792d39 GLOSSARY
+
+- **Choice:** retired-term entries are dropped: Permanent, MOC, vocab nomination, term-note,
+  vocab-index, `Vocab:` line, and `ENGRAM_SERVER`, whose absence is now a spec MUST NOT. Normative
+  definitions link to their spec section instead of restating the rule.
+- **Rationale:** git is the fallback. Keeping one normative copy follows the lifecycle guide.
+- **Alternatives:** keep a "retired" section.
+
+## 792d40 SKILL.md reference edits follow the root rule
+
+- **Choice:** repointing a path inside a SKILL.md, as in route SKILL.md, is a SKILL.md edit, and the
+  root `AGENTS.md` skill-editing rule applies to it. This plan doesn't waive the rule or name a
+  skill.
+- **Rationale:** the root `AGENTS.md` says the rule has no exceptions, and the plan guide forbids
+  prescribing skills.
+- **Alternatives:** none.
+
+## 792d41 Root README stays as orientation
+
+- **Choice:** root `README.md` keeps its orientation content and CLI reference. Only its links are
+  repointed, in nodes 792c8c and 792c8d.
+- **Rationale:** it isn't under `docs/` and isn't legacy. It is the repository's front page.
+- **Alternatives:** move the CLI reference into the product specs. Rejected as unrequested scope.
+
+## 792d42 Known divergences between docs and code
+
+- **Choice:** where the docs and the code clearly disagree about whether a feature is live, the
+  node describes what the code does now and records the divergence here. Known cases so far:
+  - First-use bootstrap creates `Permanent/` even though the docs call it retired.
+  - `learn --tier` is still a flag after tiers were removed.
+  - Recency decay is inactive (#774).
+  - `amend` has undocumented `--pending/--repo/--user` flags.
+  - c3's "Dead/test-only surface" section is stale, because `count` uses `BuildGraph`.
+- **Rationale:** 792d6 and 792d33. A divergence becomes a later change proposal (vault note 645).
+- **Alternatives:** fix the code during migration. Rejected as out of scope.
+
+## 792d43 Build-tag classification is a separate, deferred node
+
+- **Choice:** node 792c8e classifies tests as `integration` or `network`. The migration nodes don't.
+- **Rationale:** this was decided up front, and it keeps renames separate from build-tag edits.
+  Discovery found about 70 candidate files, no `network` cases, and an existing `parity` tag.
+- **Alternatives:** classify tests in each component node.
+
+## 792d44 Promotion is excluded from this plan
+
+- **Choice:** applying the deltas to `docs/specs/` and deleting the change directory happen after Joe
+  validates this log and answers 792e.
+- **Rationale:** Joe deferred validation of correctness, and promoting would make unvalidated text
+  canonical.
+- **Alternatives:** a promotion node at the end. Its timing is asked as 792e6.
+
+## 792d45 `792f_discovery/` holds the working inventories
+
+- **Choice:** `792f_discovery/{legacy-docs,code-tests,history-memory}.md` holds the three discovery
+  reports that this plan reconciles. The directory is deleted with the change directory.
+- **Rationale:** the session scratchpad that first held them was lost. Nodes cite their test maps and
+  source maps.
+- **Alternatives:** inline the reports into 792c. Rejected as duplicating working data in the plan.
