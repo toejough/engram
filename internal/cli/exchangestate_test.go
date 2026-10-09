@@ -20,87 +20,9 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestCheckVaultLocation_CopyIsMismatch: a `cp -R` copy carries the same ID
-// and home.json, but its canonical path differs from the record, so the
-// check fails (design D2 copy detection) while the original still passes.
-func TestCheckVaultLocation_CopyIsMismatch(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := createdVault(t)
-	copyVault := filepath.Join(t.TempDir(), "copy")
-	copyTree(t, vault, copyVault)
-
-	state := cli.ExportExchangeStateFromDeps(exchangeDeps(io.Discard, 9))
-
-	copyStatus, copyErr := cli.ExportCheckVaultLocation(state, copyVault)
-	g.Expect(copyErr).NotTo(HaveOccurred())
-	g.Expect(copyStatus).To(Equal(cli.ExportLocationMismatch))
-
-	origStatus, origErr := cli.ExportCheckVaultLocation(state, vault)
-	g.Expect(origErr).NotTo(HaveOccurred())
-	g.Expect(origStatus).To(Equal(cli.ExportLocationOK))
-}
-
-// TestCheckVaultLocation_MissingRecordIsMissing: a fresh `git clone` has the
-// tracked ID file but no (untracked) .engram/home.json.
-func TestCheckVaultLocation_MissingRecordIsMissing(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := createdVault(t)
-	g.Expect(os.Remove(filepath.Join(vault, ".engram", "home.json"))).To(Succeed())
-
-	status, err := cli.ExportCheckVaultLocation(cli.ExportExchangeStateFromDeps(exchangeDeps(io.Discard, 1)), vault)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(status).To(Equal(cli.ExportLocationMissing))
-}
-
-// TestCheckVaultLocation_NoIDIsReported: a vault that never got an ID
-// reports that, rather than missing/mismatch.
-func TestCheckVaultLocation_NoIDIsReported(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	status, err := cli.ExportCheckVaultLocation(
-		cli.ExportExchangeStateFromDeps(exchangeDeps(io.Discard, 1)), t.TempDir())
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(status).To(Equal(cli.ExportLocationNoID))
-}
-
-// TestCheckVaultLocation_RecordForOtherIDIsMismatch: a record naming a
-// different ID than .engram-vault-id fails the check.
-func TestCheckVaultLocation_RecordForOtherIDIsMismatch(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := createdVault(t)
-	g.Expect(os.WriteFile(filepath.Join(vault, ".engram-vault-id"),
-		[]byte(strings.Repeat("ab", 16)+"\n"), 0o600)).To(Succeed())
-
-	status, err := cli.ExportCheckVaultLocation(cli.ExportExchangeStateFromDeps(exchangeDeps(io.Discard, 1)), vault)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(status).To(Equal(cli.ExportLocationMismatch))
-}
-
-// TestCheckVaultLocation_SymlinkedPathPasses: reaching the same vault
-// through a symlink is not a false positive (EvalSymlinks canonicalization).
-func TestCheckVaultLocation_SymlinkedPathPasses(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := createdVault(t)
-	link := filepath.Join(t.TempDir(), "link")
-	g.Expect(os.Symlink(vault, link)).To(Succeed())
-
-	status, err := cli.ExportCheckVaultLocation(cli.ExportExchangeStateFromDeps(exchangeDeps(io.Discard, 1)), link)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(status).To(Equal(cli.ExportLocationOK))
-}
-
-// TestClaimVaultLocation_MovedVaultKeepsIDAndPasses: `--claim` rewrites only
+// Test792b5c10a1_ClaimVaultLocation_MovedVaultKeepsIDAndPasses: `--claim` rewrites only
 // the location record; the ID and every other file are unchanged.
-func TestClaimVaultLocation_MovedVaultKeepsIDAndPasses(t *testing.T) {
+func Test792b5c10a1_ClaimVaultLocation_MovedVaultKeepsIDAndPasses(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -133,9 +55,9 @@ func TestClaimVaultLocation_MovedVaultKeepsIDAndPasses(t *testing.T) {
 	g.Expect(status).To(Equal(cli.ExportLocationOK))
 }
 
-// TestClaimVaultLocation_NoIDIsError: there is nothing to claim in a vault
+// Test792b5c10a2_ClaimVaultLocation_NoIDIsError: there is nothing to claim in a vault
 // that never got an ID.
-func TestClaimVaultLocation_NoIDIsError(t *testing.T) {
+func Test792b5c10a2_ClaimVaultLocation_NoIDIsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -143,11 +65,43 @@ func TestClaimVaultLocation_NoIDIsError(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
-// TestEnsureVault_CreatesMissingVaultWithIDAndStateDir pins design D2's
+// Test792b5c12a1_SelfParentGuard_Property: the guard fires iff the parent reports the
+// local vault's own (non-empty) ID; firing prints exactly one warning naming
+// `engram vault-id --regenerate`, not firing prints nothing.
+func Test792b5c12a1_SelfParentGuard_Property(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		hexID := rapid.StringMatching(`[0-9a-f]{32}`)
+		local := rapid.OneOf(hexID, rapid.Just("")).Draw(rt, "local")
+		parent := rapid.OneOf(hexID, rapid.Just(local)).Draw(rt, "parent")
+
+		var stderr bytes.Buffer
+
+		fired := cli.ExportSelfParentGuard(local, parent, &stderr)
+		want := local != "" && local == parent
+
+		if fired != want {
+			rt.Fatalf("guard(%q, %q) = %v, want %v", local, parent, fired, want)
+		}
+
+		lines := nonEmptyLines(stderr.String())
+
+		if want && (len(lines) != 1 || !strings.Contains(lines[0], "engram vault-id --regenerate")) {
+			rt.Fatalf("want one warning naming --regenerate, got %q", stderr.String())
+		}
+
+		if !want && len(lines) != 0 {
+			rt.Fatalf("want no output, got %q", stderr.String())
+		}
+	})
+}
+
+// Test792b5c1a1_EnsureVault_CreatesMissingVaultWithIDAndStateDir pins design D2's
 // first-use creation: starters, a 32-hex ID from the injected RandRead, a
 // self-ignoring .engram/, a {vault_id, path} home.json with the canonical
 // path and no hostname, and exactly one stderr creation line.
-func TestEnsureVault_CreatesMissingVaultWithIDAndStateDir(t *testing.T) {
+func Test792b5c1a1_EnsureVault_CreatesMissingVaultWithIDAndStateDir(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -169,9 +123,9 @@ func TestEnsureVault_CreatesMissingVaultWithIDAndStateDir(t *testing.T) {
 	g.Expect(record).To(HaveKeyWithValue("path", canonicalPath(t, vault)))
 }
 
-// TestEnsureVault_ExistingVaultWithoutIDWritesNothing: read-only use of an
+// Test792b5c1a2_EnsureVault_ExistingVaultWithoutIDWritesNothing: read-only use of an
 // existing vault never creates the ID, state dir, or anything else.
-func TestEnsureVault_ExistingVaultWithoutIDWritesNothing(t *testing.T) {
+func Test792b5c1a2_EnsureVault_ExistingVaultWithoutIDWritesNothing(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -188,9 +142,56 @@ func TestEnsureVault_ExistingVaultWithoutIDWritesNothing(t *testing.T) {
 	g.Expect(treeSnapshot(t, vault)).To(Equal(before))
 }
 
-// TestEnsureVault_RandFailureIsError: a failing random source surfaces as
+// Test792b5c1a3_EnsureVault_SecondRunCreatesAndPrintsNothing: idempotence — the second
+// call leaves the tree byte-identical and prints nothing.
+func Test792b5c1a3_EnsureVault_SecondRunCreatesAndPrintsNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := filepath.Join(t.TempDir(), "vault")
+	g.Expect(cli.ExportEnsureVault(exchangeDeps(io.Discard, 1), vault)).To(Succeed())
+
+	before := treeSnapshot(t, vault)
+
+	var stderr bytes.Buffer
+
+	g.Expect(cli.ExportEnsureVault(exchangeDeps(&stderr, 77), vault)).To(Succeed())
+	g.Expect(stderr.String()).To(BeEmpty())
+	g.Expect(treeSnapshot(t, vault)).To(Equal(before))
+}
+
+// Test792b5c1a4_EnsureVault_RegularFileIsNotAVault: a vault path naming a regular file
+// is refused, not treated as an existing vault.
+func Test792b5c1a4_EnsureVault_RegularFileIsNotAVault(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	file := filepath.Join(t.TempDir(), "file")
+	g.Expect(os.WriteFile(file, []byte("x"), 0o600)).To(Succeed())
+	g.Expect(cli.ExportEnsureVault(exchangeDeps(io.Discard, 1), file)).To(MatchError(ContainSubstring("not a directory")))
+}
+
+// Test792b5c1a5_EnsureVault_StatFailureIsError: a vault path that cannot be stat'd for
+// a reason other than absence (a path under a regular file) is an error, and
+// the command never runs.
+func Test792b5c1a5_EnsureVault_StatFailureIsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	file := filepath.Join(t.TempDir(), "file")
+	g.Expect(os.WriteFile(file, []byte("x"), 0o600)).To(Succeed())
+
+	vault := filepath.Join(file, "vault")
+	g.Expect(cli.ExportEnsureVault(exchangeDeps(io.Discard, 1), vault)).To(HaveOccurred())
+
+	_, stderr := runWithRand(t, []string{"engram", "count", "--vault", vault, "--group-by", "type"}, 1)
+	g.Expect(stderr).To(ContainSubstring(vault))
+	g.Expect(stderr).NotTo(ContainSubstring(createdVaultLine))
+}
+
+// Test792b5c1a6_EnsureVault_RandFailureIsError: a failing random source surfaces as
 // an error and leaves no ID file behind.
-func TestEnsureVault_RandFailureIsError(t *testing.T) {
+func Test792b5c1a6_EnsureVault_RandFailureIsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -202,21 +203,10 @@ func TestEnsureVault_RandFailureIsError(t *testing.T) {
 	g.Expect(filepath.Join(vault, ".engram-vault-id")).NotTo(BeAnExistingFile())
 }
 
-// TestEnsureVault_RegularFileIsNotAVault: a vault path naming a regular file
-// is refused, not treated as an existing vault.
-func TestEnsureVault_RegularFileIsNotAVault(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	file := filepath.Join(t.TempDir(), "file")
-	g.Expect(os.WriteFile(file, []byte("x"), 0o600)).To(Succeed())
-	g.Expect(cli.ExportEnsureVault(exchangeDeps(io.Discard, 1), file)).To(MatchError(ContainSubstring("not a directory")))
-}
-
-// TestEnsureVault_RepairsHalfCreatedVault: a first-use stamp that failed
+// Test792b5c2a1_EnsureVault_RepairsHalfCreatedVault: a first-use stamp that failed
 // (random source down) leaves .engram/ but no ID; the next run stamps it
 // with one line, and later runs print nothing.
-func TestEnsureVault_RepairsHalfCreatedVault(t *testing.T) {
+func Test792b5c2a1_EnsureVault_RepairsHalfCreatedVault(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -239,46 +229,76 @@ func TestEnsureVault_RepairsHalfCreatedVault(t *testing.T) {
 	g.Expect(quiet.String()).To(BeEmpty())
 }
 
-// TestEnsureVault_SecondRunCreatesAndPrintsNothing: idempotence — the second
-// call leaves the tree byte-identical and prints nothing.
-func TestEnsureVault_SecondRunCreatesAndPrintsNothing(t *testing.T) {
+// Test792b5c4a1_StampVaultID_ConcurrentCreatorsConverge: two processes racing to stamp
+// the same vault both end up with the single ID that won the exclusive
+// create, and that ID is the file's content.
+func Test792b5c4a1_StampVaultID_ConcurrentCreatorsConverge(t *testing.T) {
+	t.Parallel()
+
+	const rounds = 20
+
+	for round := range rounds {
+		t.Run(fmt.Sprintf("round-%d", round), func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			vault := t.TempDir()
+			ids := make([]string, 2)
+			errs := make([]error, 2)
+
+			var wg sync.WaitGroup
+
+			for i := range 2 {
+				wg.Go(func() {
+					state := cli.ExportExchangeStateFromDeps(exchangeDeps(io.Discard, byte(1+i*100)))
+					ids[i], errs[i] = cli.ExportStampVaultID(state, vault)
+				})
+			}
+
+			wg.Wait()
+
+			g.Expect(errs).To(HaveEach(Not(HaveOccurred())))
+			g.Expect(ids[0]).To(Equal(ids[1]))
+			g.Expect(readFileString(t, filepath.Join(vault, ".engram-vault-id"))).To(Equal(ids[0] + "\n"))
+		})
+	}
+}
+
+// Test792b5c4a2_StampVaultID_LoserAdoptsWinnersID drives the race deterministically:
+// the exclusive create reports the file already exists, and the loser
+// re-reads it (retrying past a torn, still-empty read) and adopts the
+// winner's ID without writing a location record of its own.
+func Test792b5c4a2_StampVaultID_LoserAdoptsWinnersID(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	vault := filepath.Join(t.TempDir(), "vault")
-	g.Expect(cli.ExportEnsureVault(exchangeDeps(io.Discard, 1), vault)).To(Succeed())
+	winner := strings.Repeat("c3", 16)
+	fakeFS := &raceLoserFS{reads: []string{absentRead, "", winner + "\n"}}
+	state := cli.ExportNewExchangeState(fakeFS, seqRand(1), identityPath, func() (string, error) { return "/", nil })
 
-	before := treeSnapshot(t, vault)
-
-	var stderr bytes.Buffer
-
-	g.Expect(cli.ExportEnsureVault(exchangeDeps(&stderr, 77), vault)).To(Succeed())
-	g.Expect(stderr.String()).To(BeEmpty())
-	g.Expect(treeSnapshot(t, vault)).To(Equal(before))
+	id, err := cli.ExportStampVaultID(state, "/vault")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(id).To(Equal(winner))
+	g.Expect(fakeFS.exclAttempts).To(Equal([]string{"/vault/.engram-vault-id"}))
+	g.Expect(fakeFS.atomicWrites).To(BeEmpty())
 }
 
-// TestEnsureVault_StatFailureIsError: a vault path that cannot be stat'd for
-// a reason other than absence (a path under a regular file) is an error, and
-// the command never runs.
-func TestEnsureVault_StatFailureIsError(t *testing.T) {
+// Test792b5c4a3_StampVaultID_UsesInjectedRand: the ID is the hex of the injected
+// random source's bytes (deterministic under a fake).
+func Test792b5c4a3_StampVaultID_UsesInjectedRand(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	file := filepath.Join(t.TempDir(), "file")
-	g.Expect(os.WriteFile(file, []byte("x"), 0o600)).To(Succeed())
-
-	vault := filepath.Join(file, "vault")
-	g.Expect(cli.ExportEnsureVault(exchangeDeps(io.Discard, 1), vault)).To(HaveOccurred())
-
-	_, stderr := runWithRand(t, []string{"engram", "count", "--vault", vault, "--group-by", "type"}, 1)
-	g.Expect(stderr).To(ContainSubstring(vault))
-	g.Expect(stderr).NotTo(ContainSubstring(createdVaultLine))
+	id, err := cli.ExportStampVaultID(cli.ExportExchangeStateFromDeps(exchangeDeps(io.Discard, 7)), t.TempDir())
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(id).To(Equal(seqID(7)))
+	g.Expect(id).To(MatchRegexp(`^[0-9a-f]{32}$`))
 }
 
-// TestExchangeState_ErrorPaths drives the adapter's failure branches over a
+// Test792b5c5a1_ExchangeState_ErrorPaths drives the adapter's failure branches over a
 // scripted filesystem: every I/O failure surfaces as an error (or, for the
 // location check's unparseable record, as a mismatch) and never panics.
-func TestExchangeState_ErrorPaths(t *testing.T) {
+func Test792b5c5a1_ExchangeState_ErrorPaths(t *testing.T) {
 	t.Parallel()
 
 	const (
@@ -454,10 +474,137 @@ func TestExchangeState_ErrorPaths(t *testing.T) {
 	})
 }
 
-// TestRegenerateVaultID_CopyGetsOwnIdentity: `--regenerate` in a copy mints
+// Test792b5c6a1_StampVaultID_ExistingVaultKeepsRootGitignoreAndReusesID: serve's lazy
+// stamp creates the ID and .engram/ in an existing vault, never touches the
+// tracked root .gitignore, and later stamps reuse the ID unchanged.
+func Test792b5c6a1_StampVaultID_ExistingVaultKeepsRootGitignoreAndReusesID(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	g.Expect(os.WriteFile(filepath.Join(vault, ".gitignore"), []byte("custom\n"), 0o600)).To(Succeed())
+
+	id, err := cli.ExportStampVaultID(cli.ExportExchangeStateFromDeps(exchangeDeps(io.Discard, 5)), vault)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(id).To(Equal(seqID(5)))
+	g.Expect(readFileString(t, filepath.Join(vault, ".gitignore"))).To(Equal("custom\n"))
+	g.Expect(readFileString(t, filepath.Join(vault, ".engram", ".gitignore"))).To(Equal("*\n"))
+	g.Expect(readHomeRecord(t, vault)).To(HaveKeyWithValue("vault_id", id))
+
+	again, againErr := cli.ExportStampVaultID(cli.ExportExchangeStateFromDeps(exchangeDeps(io.Discard, 99)), vault)
+	g.Expect(againErr).NotTo(HaveOccurred())
+	g.Expect(again).To(Equal(id))
+}
+
+// Test792b5c7a1_CheckVaultLocation_CopyIsMismatch: a `cp -R` copy carries the same ID
+// and home.json, but its canonical path differs from the record, so the
+// check fails (design D2 copy detection) while the original still passes.
+func Test792b5c7a1_CheckVaultLocation_CopyIsMismatch(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := createdVault(t)
+	copyVault := filepath.Join(t.TempDir(), "copy")
+	copyTree(t, vault, copyVault)
+
+	state := cli.ExportExchangeStateFromDeps(exchangeDeps(io.Discard, 9))
+
+	copyStatus, copyErr := cli.ExportCheckVaultLocation(state, copyVault)
+	g.Expect(copyErr).NotTo(HaveOccurred())
+	g.Expect(copyStatus).To(Equal(cli.ExportLocationMismatch))
+
+	origStatus, origErr := cli.ExportCheckVaultLocation(state, vault)
+	g.Expect(origErr).NotTo(HaveOccurred())
+	g.Expect(origStatus).To(Equal(cli.ExportLocationOK))
+}
+
+// Test792b5c7a2_CheckVaultLocation_MissingRecordIsMissing: a fresh `git clone` has the
+// tracked ID file but no (untracked) .engram/home.json.
+func Test792b5c7a2_CheckVaultLocation_MissingRecordIsMissing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := createdVault(t)
+	g.Expect(os.Remove(filepath.Join(vault, ".engram", "home.json"))).To(Succeed())
+
+	status, err := cli.ExportCheckVaultLocation(cli.ExportExchangeStateFromDeps(exchangeDeps(io.Discard, 1)), vault)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(status).To(Equal(cli.ExportLocationMissing))
+}
+
+// Test792b5c7a3_CheckVaultLocation_NoIDIsReported: a vault that never got an ID
+// reports that, rather than missing/mismatch.
+func Test792b5c7a3_CheckVaultLocation_NoIDIsReported(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	status, err := cli.ExportCheckVaultLocation(
+		cli.ExportExchangeStateFromDeps(exchangeDeps(io.Discard, 1)), t.TempDir())
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(status).To(Equal(cli.ExportLocationNoID))
+}
+
+// Test792b5c7a4_CheckVaultLocation_RecordForOtherIDIsMismatch: a record naming a
+// different ID than .engram-vault-id fails the check.
+func Test792b5c7a4_CheckVaultLocation_RecordForOtherIDIsMismatch(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := createdVault(t)
+	g.Expect(os.WriteFile(filepath.Join(vault, ".engram-vault-id"),
+		[]byte(strings.Repeat("ab", 16)+"\n"), 0o600)).To(Succeed())
+
+	status, err := cli.ExportCheckVaultLocation(cli.ExportExchangeStateFromDeps(exchangeDeps(io.Discard, 1)), vault)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(status).To(Equal(cli.ExportLocationMismatch))
+}
+
+// Test792b5c7a5_CheckVaultLocation_SymlinkedPathPasses: reaching the same vault
+// through a symlink is not a false positive (EvalSymlinks canonicalization).
+func Test792b5c7a5_CheckVaultLocation_SymlinkedPathPasses(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := createdVault(t)
+	link := filepath.Join(t.TempDir(), "link")
+	g.Expect(os.Symlink(vault, link)).To(Succeed())
+
+	status, err := cli.ExportCheckVaultLocation(cli.ExportExchangeStateFromDeps(exchangeDeps(io.Discard, 1)), link)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(status).To(Equal(cli.ExportLocationOK))
+}
+
+// Test792b5c8a1_WarnVaultLocation_OneWarningNamingBothRemedies: a failing location
+// check prints exactly one warning naming both `engram vault-id` remedies;
+// a passing one prints nothing.
+func Test792b5c8a1_WarnVaultLocation_OneWarningNamingBothRemedies(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := createdVault(t)
+	state := cli.ExportExchangeStateFromDeps(exchangeDeps(io.Discard, 1))
+
+	var quiet bytes.Buffer
+
+	g.Expect(cli.ExportWarnVaultLocation(state, vault, &quiet)).To(BeTrue())
+	g.Expect(quiet.String()).To(BeEmpty())
+
+	g.Expect(os.Remove(filepath.Join(vault, ".engram", "home.json"))).To(Succeed())
+
+	var loud bytes.Buffer
+
+	g.Expect(cli.ExportWarnVaultLocation(state, vault, &loud)).To(BeFalse())
+
+	lines := nonEmptyLines(loud.String())
+	g.Expect(lines).To(HaveLen(1))
+	g.Expect(lines[0]).To(ContainSubstring("engram vault-id --regenerate"))
+	g.Expect(lines[0]).To(ContainSubstring("engram vault-id --claim"))
+}
+
+// Test792b5c9a1_RegenerateVaultID_CopyGetsOwnIdentity: `--regenerate` in a copy mints
 // a new ID, rewrites the ID file and record, passes the check, and changes
 // no note file.
-func TestRegenerateVaultID_CopyGetsOwnIdentity(t *testing.T) {
+func Test792b5c9a1_RegenerateVaultID_CopyGetsOwnIdentity(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -482,153 +629,6 @@ func TestRegenerateVaultID_CopyGetsOwnIdentity(t *testing.T) {
 	g.Expect(status).To(Equal(cli.ExportLocationOK))
 
 	g.Expect(readFileString(t, filepath.Join(vault, ".engram-vault-id"))).To(Equal(seqID(1) + "\n"))
-}
-
-// TestSelfParentGuard_Property: the guard fires iff the parent reports the
-// local vault's own (non-empty) ID; firing prints exactly one warning naming
-// `engram vault-id --regenerate`, not firing prints nothing.
-func TestSelfParentGuard_Property(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		hexID := rapid.StringMatching(`[0-9a-f]{32}`)
-		local := rapid.OneOf(hexID, rapid.Just("")).Draw(rt, "local")
-		parent := rapid.OneOf(hexID, rapid.Just(local)).Draw(rt, "parent")
-
-		var stderr bytes.Buffer
-
-		fired := cli.ExportSelfParentGuard(local, parent, &stderr)
-		want := local != "" && local == parent
-
-		if fired != want {
-			rt.Fatalf("guard(%q, %q) = %v, want %v", local, parent, fired, want)
-		}
-
-		lines := nonEmptyLines(stderr.String())
-
-		if want && (len(lines) != 1 || !strings.Contains(lines[0], "engram vault-id --regenerate")) {
-			rt.Fatalf("want one warning naming --regenerate, got %q", stderr.String())
-		}
-
-		if !want && len(lines) != 0 {
-			rt.Fatalf("want no output, got %q", stderr.String())
-		}
-	})
-}
-
-// TestStampVaultID_ConcurrentCreatorsConverge: two processes racing to stamp
-// the same vault both end up with the single ID that won the exclusive
-// create, and that ID is the file's content.
-func TestStampVaultID_ConcurrentCreatorsConverge(t *testing.T) {
-	t.Parallel()
-
-	const rounds = 20
-
-	for round := range rounds {
-		t.Run(fmt.Sprintf("round-%d", round), func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			vault := t.TempDir()
-			ids := make([]string, 2)
-			errs := make([]error, 2)
-
-			var wg sync.WaitGroup
-
-			for i := range 2 {
-				wg.Go(func() {
-					state := cli.ExportExchangeStateFromDeps(exchangeDeps(io.Discard, byte(1+i*100)))
-					ids[i], errs[i] = cli.ExportStampVaultID(state, vault)
-				})
-			}
-
-			wg.Wait()
-
-			g.Expect(errs).To(HaveEach(Not(HaveOccurred())))
-			g.Expect(ids[0]).To(Equal(ids[1]))
-			g.Expect(readFileString(t, filepath.Join(vault, ".engram-vault-id"))).To(Equal(ids[0] + "\n"))
-		})
-	}
-}
-
-// TestStampVaultID_ExistingVaultKeepsRootGitignoreAndReusesID: serve's lazy
-// stamp creates the ID and .engram/ in an existing vault, never touches the
-// tracked root .gitignore, and later stamps reuse the ID unchanged.
-func TestStampVaultID_ExistingVaultKeepsRootGitignoreAndReusesID(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	g.Expect(os.WriteFile(filepath.Join(vault, ".gitignore"), []byte("custom\n"), 0o600)).To(Succeed())
-
-	id, err := cli.ExportStampVaultID(cli.ExportExchangeStateFromDeps(exchangeDeps(io.Discard, 5)), vault)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(id).To(Equal(seqID(5)))
-	g.Expect(readFileString(t, filepath.Join(vault, ".gitignore"))).To(Equal("custom\n"))
-	g.Expect(readFileString(t, filepath.Join(vault, ".engram", ".gitignore"))).To(Equal("*\n"))
-	g.Expect(readHomeRecord(t, vault)).To(HaveKeyWithValue("vault_id", id))
-
-	again, againErr := cli.ExportStampVaultID(cli.ExportExchangeStateFromDeps(exchangeDeps(io.Discard, 99)), vault)
-	g.Expect(againErr).NotTo(HaveOccurred())
-	g.Expect(again).To(Equal(id))
-}
-
-// TestStampVaultID_LoserAdoptsWinnersID drives the race deterministically:
-// the exclusive create reports the file already exists, and the loser
-// re-reads it (retrying past a torn, still-empty read) and adopts the
-// winner's ID without writing a location record of its own.
-func TestStampVaultID_LoserAdoptsWinnersID(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	winner := strings.Repeat("c3", 16)
-	fakeFS := &raceLoserFS{reads: []string{absentRead, "", winner + "\n"}}
-	state := cli.ExportNewExchangeState(fakeFS, seqRand(1), identityPath, func() (string, error) { return "/", nil })
-
-	id, err := cli.ExportStampVaultID(state, "/vault")
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(id).To(Equal(winner))
-	g.Expect(fakeFS.exclAttempts).To(Equal([]string{"/vault/.engram-vault-id"}))
-	g.Expect(fakeFS.atomicWrites).To(BeEmpty())
-}
-
-// TestStampVaultID_UsesInjectedRand: the ID is the hex of the injected
-// random source's bytes (deterministic under a fake).
-func TestStampVaultID_UsesInjectedRand(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	id, err := cli.ExportStampVaultID(cli.ExportExchangeStateFromDeps(exchangeDeps(io.Discard, 7)), t.TempDir())
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(id).To(Equal(seqID(7)))
-	g.Expect(id).To(MatchRegexp(`^[0-9a-f]{32}$`))
-}
-
-// TestWarnVaultLocation_OneWarningNamingBothRemedies: a failing location
-// check prints exactly one warning naming both `engram vault-id` remedies;
-// a passing one prints nothing.
-func TestWarnVaultLocation_OneWarningNamingBothRemedies(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := createdVault(t)
-	state := cli.ExportExchangeStateFromDeps(exchangeDeps(io.Discard, 1))
-
-	var quiet bytes.Buffer
-
-	g.Expect(cli.ExportWarnVaultLocation(state, vault, &quiet)).To(BeTrue())
-	g.Expect(quiet.String()).To(BeEmpty())
-
-	g.Expect(os.Remove(filepath.Join(vault, ".engram", "home.json"))).To(Succeed())
-
-	var loud bytes.Buffer
-
-	g.Expect(cli.ExportWarnVaultLocation(state, vault, &loud)).To(BeFalse())
-
-	lines := nonEmptyLines(loud.String())
-	g.Expect(lines).To(HaveLen(1))
-	g.Expect(lines[0]).To(ContainSubstring("engram vault-id --regenerate"))
-	g.Expect(lines[0]).To(ContainSubstring("engram vault-id --claim"))
 }
 
 // unexported constants.

@@ -706,3 +706,552 @@ Scenario: 792a2i1d A vault outside git is not flagged
   When the user runs engram update
   Then its report includes no commit notice
 ```
+
+## 792b5 Added: vault-identity-registry
+
+Canonical target: `docs/specs/technical/vault-identity-registry.md` (title `Vault Identity Registry - Technical Spec`).
+
+### 792b5a Orientation
+
+- Ownership: Repository component.
+- Responsibility: brings a vault into existence on first use and owns its identity: the tracked
+  vault ID, the untracked `.engram/` state directory, and the location record that tells a copied,
+  moved or cloned vault from the original. It stamps, validates, regenerates and claims the ID,
+  checks and reports the location, refuses exchange with a parent that reports the vault's own ID,
+  and detects an uncommitted ID file.
+- Current realization (informational): `internal/cli/exchangestate.go` (`ensureVault`,
+  `repairVaultID`, `stampVaultID`, `checkVaultLocation`, `warnVaultLocation`,
+  `regenerateVaultID`, `claimVaultLocation`, `selfParentGuard`, `vaultIDUncommitted`),
+  `internal/cli/vaultid.go` (`RunVaultID`), `internal/cli/vault_init.go` (`initializeVault`). The
+  parent cache, declined pulls and exchange-identifier checks in `exchangestate.go` are added by
+  parent-sync (792c7t1).
+- Qualification: responsibility, the identity contract is stated without naming any command;
+  ownership, commands decide when to exchange, while this component decides whether the vault's
+  identity allows it; independent verification, every requirement is tested directly over a
+  temp-dir or scripted filesystem and an injected random source; stability, the ID file, state
+  directory and location record are on-disk contracts that survive refactoring; necessity,
+  vault-identity's creation, ID and refusal requirements all depend on it.
+- Supported capabilities: 792a2 vault-identity.
+
+Rationale (ADR-0029 D2): every environment has its own local vault, created by the first command
+that resolves its path, and a stable random vault ID in the tracked `.engram-vault-id`. Exchange
+links key on that ID, never on URL or hostname, so DNS or IP churn breaks nothing. The untracked
+`.engram/home.json` location record catches a `cp -R` copy or a `git clone` before it exchanges.
+Transient exchange state lives in `.engram/`, which ignores itself, so the vault's tracked root
+`.gitignore` is never touched. Losing `.engram/`, for example through a fresh clone, pauses
+child-side exchange until `--claim` or `--regenerate` runs; links and IDs live in tracked files, so
+no note content is lost.
+
+### 792b5b Sequences
+
+```mermaid
+sequenceDiagram
+  participant CLI as command-line-surface
+  participant Registry as vault-identity-registry
+  participant Store as durable-file-store
+  CLI->>Registry: ensure the vault at path (792b5c1)
+  Registry->>Store: stat the path
+  alt path is missing
+    Registry->>Store: write the starter files (792b5c3)
+    Registry->>Store: create .engram/ and its .gitignore (792b5c6)
+    Registry->>Registry: stamp the vault ID (792b5c4)
+    Registry-->>CLI: ready, one creation line on stderr (792b5c1)
+  else path is a directory
+    alt .engram/ exists and the ID file is missing
+      Registry->>Registry: stamp the vault ID (792b5c4)
+      Registry-->>CLI: ready, one repair line on stderr (792b5c2)
+    else any other existing vault
+      Registry-->>CLI: ready, nothing written (792b5c1)
+    end
+  else path is not a directory, or stat fails
+    Registry-->>CLI: error (792b5c1)
+  end
+```
+
+```mermaid
+sequenceDiagram
+  participant Caller as Command
+  participant Registry as vault-identity-registry
+  participant Store as durable-file-store
+  Caller->>Registry: stamp the vault ID (792b5c4)
+  Registry->>Store: read .engram-vault-id
+  alt the file exists
+    Registry->>Store: re-read until it holds a valid ID (792b5c5)
+    Registry-->>Caller: the existing ID
+  else the file is missing
+    Registry->>Registry: mint 16 random bytes as 32 lowercase hex
+    Registry->>Store: create .engram-vault-id exclusively
+    alt this process created it
+      Registry->>Store: re-read the winning ID
+      Registry->>Store: write the location record (792b5c7)
+      Registry-->>Caller: the new ID
+    else another process created it first
+      Registry->>Store: re-read the winning ID
+      Registry-->>Caller: the winner's ID, no location record written
+    end
+  end
+```
+
+### 792b5c Behavior Requirements
+
+#### 792b5c1 First-use ensure
+
+Requirement: 792b5c1 Given a vault path, the vault-identity-registry MUST, when nothing exists at
+the path, write the starter files, create `.engram/`, stamp a vault ID with its location record,
+and print exactly one stderr line `engram: created new vault at <path>`. It MUST leave an existing
+directory untouched (except the repair in 792b5c2), MUST fail when the path exists but is not a
+directory, and MUST fail when the path can't be inspected or the random source fails.
+
+Supports: 792a2e1a, 792a2e1b, 792a2e1c, 792a2e1d, 792a2f1a.
+
+##### 792b5c1a Scenarios
+
+```gherkin
+Scenario: 792b5c1a1 A missing vault is created with its ID and state directory
+  Given nothing exists at the vault path
+  When the vault is ensured with a fixed random source
+  Then the starters, a 32-hex ID from that source, .engram/.gitignore holding *, and a location record of exactly the ID and the canonical path exist, and stderr has exactly one creation line
+
+Scenario: 792b5c1a2 An existing vault without an ID is left alone
+  Given an existing vault directory with no ID file and no .engram/
+  When the vault is ensured
+  Then nothing is created or changed and nothing is printed
+
+Scenario: 792b5c1a3 A second ensure creates and prints nothing
+  Given a vault that was just created
+  When the vault is ensured again
+  Then nothing is printed and the ID is unchanged
+
+Scenario: 792b5c1a4 A regular file is not a vault
+  Given a regular file at the vault path
+  When the vault is ensured
+  Then it fails saying the path is not a directory
+
+Scenario: 792b5c1a5 An inspection failure is an error
+  Given a vault path whose stat fails with an error other than not-exist
+  When the vault is ensured
+  Then that error is returned
+
+Scenario: 792b5c1a6 A random-source failure is an error
+  Given nothing exists at the vault path and a failing random source
+  When the vault is ensured
+  Then an error naming the random source is returned
+```
+
+#### 792b5c2 Half-created vault repair
+
+Requirement: 792b5c2 When an existing vault has `.engram/` but no `.engram-vault-id`, the
+vault-identity-registry MUST stamp the vault ID and print exactly one stderr line
+`engram: stamped the missing vault ID of <path>`.
+
+Supports: 792a2g1a.
+
+Rationale: first-use creation writes `.engram/` before the ID, so `.engram/` marks a vault engram
+created, and a stamp that failed part-way is finished by the next run.
+
+##### 792b5c2a Scenarios
+
+```gherkin
+Scenario: 792b5c2a1 A half-created vault is repaired
+  Given an existing vault with .engram/ and no ID file
+  When the vault is ensured
+  Then the ID file and location record are written and stderr has exactly one repair line
+```
+
+#### 792b5c3 Starter files
+
+Requirement: 792b5c3 The vault-identity-registry MUST initialize a vault by creating `.obsidian/`
+and writing `.obsidian/app.json` (`{}`), a `.gitignore` listing `.luhmann.lock`,
+`.obsidian/workspace*` and `.obsidian/cache`, and the starter `README.md`, writing each only when it
+is missing, and MUST return any directory or write failure.
+
+Supports: 792a2d1a, 792a2e1a.
+
+Rationale: the minimal `.obsidian/app.json` lets Obsidian open the directory as a vault without
+engram shipping an Obsidian configuration. The `.gitignore` keeps lock and workspace files out of
+git for users who track their vault.
+
+##### 792b5c3a Scenarios
+
+```gherkin
+Scenario: 792b5c3a1 The starter set is written
+  Given an empty vault directory
+  When the vault is initialized
+  Then .obsidian/app.json, .gitignore and README.md exist with the starter content
+
+Scenario: 792b5c3a2 Initialization is idempotent
+  Given a vault whose starter files were edited
+  When the vault is initialized again
+  Then no existing file is changed
+
+Scenario: 792b5c3a3 Directory and write failures are returned
+  Given a filesystem whose directory creation or file write fails
+  When the vault is initialized
+  Then an error naming the failed step is returned
+```
+
+#### 792b5c4 Vault ID stamping
+
+Requirement: 792b5c4 The vault-identity-registry MUST return the vault's existing ID when
+`.engram-vault-id` exists, and otherwise MUST mint 16 bytes from the injected random source as 32
+lowercase hex characters, create the file exclusively, re-read it, and use whatever ID the file
+holds. Only the process whose exclusive create succeeded writes the location record. An existing
+vault is stamped only by `engram serve` at startup and by a command's first parent contact.
+
+Supports: 792a2h1a, 792a2h1b, 792a2h1c.
+
+Rationale: exclusive create followed by a re-read makes concurrent creators converge on one ID. The
+random source is injected so tests are deterministic.
+
+##### 792b5c4a Scenarios
+
+```gherkin
+Scenario: 792b5c4a1 Concurrent creators converge
+  Given two processes stamping the same vault at once
+  When both finish
+  Then the file holds one ID and both processes returned it
+
+Scenario: 792b5c4a2 The loser adopts the winner's ID
+  Given the exclusive create reports the file already exists and its first read is empty
+  When the vault ID is stamped
+  Then the loser retries the read, returns the winner's ID, and writes no location record
+
+Scenario: 792b5c4a3 The ID comes from the injected random source
+  Given a fixed random source
+  When a new vault ID is stamped
+  Then the ID is the hex encoding of that source's bytes
+
+Scenario: 792b5c4a4 An existing ID is reused
+  Given a vault with a valid ID file
+  When the vault ID is stamped
+  Then the existing ID is returned and the file is unchanged
+```
+
+#### 792b5c5 Vault ID validation
+
+Requirement: 792b5c5 The vault-identity-registry MUST accept the ID file's content, ignoring
+trailing whitespace, only when it is 32 lowercase hex characters, and MUST otherwise fail with an
+error saying the vault ID is invalid and naming `engram vault-id --regenerate`. A re-read after a
+lost race retries an invalid read a bounded number of times before failing.
+
+Supports: 792a2j1a, 792a2j1b, 792a2j1c.
+
+##### 792b5c5a Scenarios
+
+```gherkin
+Scenario: 792b5c5a1 Invalid content is refused
+  Given an ID file holding something other than 32 lowercase hex characters
+  When the vault ID is read
+  Then it fails with the invalid-vault-ID error naming engram vault-id --regenerate
+
+Scenario: 792b5c5a2 A read failure is returned
+  Given an ID file that cannot be read
+  When the vault ID is read
+  Then the read error is returned
+```
+
+#### 792b5c6 State directory
+
+Requirement: 792b5c6 The vault-identity-registry MUST create `<vault>/.engram/` with a `.gitignore`
+holding only `*`, writing that `.gitignore` only when it is missing, and MUST NOT write the vault's
+root `.gitignore`.
+
+Supports: 792a2k1a, 792a2k1b.
+
+##### 792b5c6a Scenarios
+
+```gherkin
+Scenario: 792b5c6a1 The root .gitignore is untouched
+  Given an existing vault with its own root .gitignore and no ID
+  When its ID is stamped
+  Then .engram/.gitignore holds *, the root .gitignore is unchanged, and a second stamp reuses the ID
+
+Scenario: 792b5c6a2 State-directory failures are returned
+  Given a filesystem where .engram/ or its .gitignore cannot be created
+  When the state directory is ensured
+  Then the failure is returned
+```
+
+#### 792b5c7 Location record and check
+
+Requirement: 792b5c7 The vault-identity-registry MUST record a vault's location in
+`.engram/home.json` as exactly its vault ID and its canonical path (symlinks evaluated, made
+absolute against the working directory, cleaned), with no hostname. Checking the location MUST
+report `no vault id` when there is no ID, `missing` when there is no record, `mismatch` when the
+record is unparseable or names another ID or path, and `ok` otherwise.
+
+Supports: 792a2l1a, 792a2l1b, 792a2l1c, 792a2p1a, 792a2p1b, 792a2p1c, 792a2p1d, 792a2p1e.
+
+Rationale: a hostname would give false positives, because DHCP, `.local` renames and containers
+change it without the vault moving. Canonicalizing the path keeps a symlinked route to the same
+vault from failing.
+
+##### 792b5c7a Scenarios
+
+```gherkin
+Scenario: 792b5c7a1 A copy is a mismatch
+  Given a vault copied to another path
+  When the copy's location is checked
+  Then the result is mismatch
+
+Scenario: 792b5c7a2 A missing record is missing
+  Given a vault with an ID and no location record
+  When its location is checked
+  Then the result is missing
+
+Scenario: 792b5c7a3 No ID is reported
+  Given a vault with no ID file
+  When its location is checked
+  Then the result is no vault id
+
+Scenario: 792b5c7a4 A record for another ID is a mismatch
+  Given a location record naming a different vault ID
+  When the location is checked
+  Then the result is mismatch
+
+Scenario: 792b5c7a5 A symlinked path passes
+  Given a vault reached through a symlink to its recorded path
+  When its location is checked
+  Then the result is ok
+```
+
+#### 792b5c8 Location warning
+
+Requirement: 792b5c8 When the location check does not pass, or cannot run, the
+vault-identity-registry MUST print exactly one warning naming the vault, the check result, and both
+`engram vault-id --regenerate` and `engram vault-id --claim`, and report the failure to the caller;
+a passing check prints nothing.
+
+Supports: 792a2p1a, 792a2p1b, 792a2p1c.
+
+##### 792b5c8a Scenarios
+
+```gherkin
+Scenario: 792b5c8a1 A failed check warns once with both remedies
+  Given a vault whose location check fails
+  When the location warning runs
+  Then exactly one warning naming both remedies is printed and the failure is reported, while a passing check prints nothing
+```
+
+#### 792b5c9 Regenerate
+
+Requirement: 792b5c9 Regenerating MUST mint a new vault ID, atomically rewrite `.engram-vault-id`
+and the location record with it, and touch no note.
+
+Supports: 792a2m1a.
+
+##### 792b5c9a Scenarios
+
+```gherkin
+Scenario: 792b5c9a1 A copy gets its own identity
+  Given a copied vault with notes
+  When its ID is regenerated
+  Then the ID differs from the original's, the location check passes, and no note file changed
+```
+
+#### 792b5c10 Claim
+
+Requirement: 792b5c10 Claiming MUST rewrite only the location record for the vault's current ID and
+path, and MUST fail with an error saying the vault has no vault ID when the ID file is absent.
+
+Supports: 792a2n1a, 792a2n1b.
+
+##### 792b5c10a Scenarios
+
+```gherkin
+Scenario: 792b5c10a1 A moved vault keeps its ID and passes
+  Given a vault moved to a new path
+  When its location is claimed
+  Then the ID is unchanged and the location check passes
+
+Scenario: 792b5c10a2 Claim without an ID fails
+  Given a vault with no ID file
+  When its location is claimed
+  Then it fails saying the vault has no vault ID
+```
+
+#### 792b5c11 vault-id report
+
+Requirement: 792b5c11 The `vault-id` command MUST refuse `--regenerate` and `--claim` together,
+print `vault_id: <id> (regenerated)` or `vault_id: <id> (location claimed)` after those actions, and
+with no flag print `vault_id:` (the ID or `none`) and `location:` (the check result), adding one
+remedy line naming both commands when the result is `missing` or `mismatch`, without writing
+anything.
+
+Supports: 792a2l1a, 792a2l1b, 792a2l1c, 792a2o1a.
+
+##### 792b5c11a Scenarios
+
+```gherkin
+Scenario: 792b5c11a1 The report prints the ID and the check
+  Given a vault with an ID at its recorded path
+  When the vault-id report runs with no flag
+  Then it prints vault_id: with the ID and location: ok, and writes nothing
+
+Scenario: 792b5c11a2 Both flags are refused
+  Given both --regenerate and --claim
+  When the vault-id command runs
+  Then it fails as mutually exclusive and changes nothing
+```
+
+#### 792b5c12 Self-parent guard
+
+Requirement: 792b5c12 Given the local vault ID and a parent's reported vault ID, the
+vault-identity-registry MUST report a self-parent, and print exactly one warning naming
+`engram vault-id --regenerate`, exactly when the local ID is non-empty and equal to the parent's,
+and MUST print nothing otherwise.
+
+Supports: 792a2q1a.
+
+##### 792b5c12a Scenarios
+
+```gherkin
+Scenario: 792b5c12a1 Only an equal, non-empty ID is a self-parent
+  Given any local vault ID, possibly empty, and any parent vault ID
+  When the self-parent guard runs
+  Then it fires with one warning naming engram vault-id --regenerate exactly when the local ID is non-empty and equals the parent's
+```
+
+#### 792b5c13 Uncommitted ID detection
+
+Requirement: 792b5c13 The vault-identity-registry MUST report the vault ID as uncommitted when
+`.engram-vault-id` exists in a git work tree and is either not in the index (untracked or ignored)
+or staged or modified relative to the last commit, and MUST report it as committed when the file is
+absent, the vault is not a git work tree, the file is committed and unchanged, or git status fails.
+
+Supports: 792a2i1a, 792a2i1b, 792a2i1c, 792a2i1d.
+
+Rationale: `git status` alone hides an ignored file, so index membership is checked first.
+
+##### 792b5c13a Scenarios
+
+```gherkin
+Scenario Outline: 792b5c13a1 Uncommitted detection
+  Given a vault where <case>
+  When uncommitted detection runs
+  Then it reports <result>
+
+  Examples:
+    | case                                  | result      |
+    | the ID file is untracked              | uncommitted |
+    | the ID file is ignored                | uncommitted |
+    | the ID file is staged, not committed  | uncommitted |
+    | the ID file is committed              | committed   |
+    | git status fails                      | committed   |
+    | the vault is not a git work tree      | committed   |
+    | there is no ID file                   | committed   |
+
+Scenario: 792b5c13a2 The update report carries the notice only when flagged
+  Given the uncommitted flag is set or clear
+  When the update report is written
+  Then it names .engram-vault-id and asks for a commit only when the flag is set
+```
+
+### 792b5d Product-Scenario Mapping
+
+| Product scenario | Technical requirements |
+| --- | --- |
+| 792a2d1a | 792b5c3 |
+| 792a2e1a | 792b5c1, 792b5c3 |
+| 792a2e1b | 792b5c1 |
+| 792a2e1c | 792b5c1 |
+| 792a2e1d | 792b5c1 |
+| 792a2f1a | 792b5c1 |
+| 792a2g1a | 792b5c2 |
+| 792a2h1a | 792b5c4 |
+| 792a2h1b | 792b5c4 |
+| 792a2h1c | 792b5c4 |
+| 792a2i1a | 792b5c13 |
+| 792a2i1b | 792b5c13 |
+| 792a2i1c | 792b5c13 |
+| 792a2i1d | 792b5c13 |
+| 792a2j1a | 792b5c5 |
+| 792a2j1b | 792b5c5 |
+| 792a2j1c | 792b5c5 |
+| 792a2k1a | 792b5c6 |
+| 792a2k1b | 792b5c6 |
+| 792a2l1a | 792b5c7, 792b5c11 |
+| 792a2l1b | 792b5c7, 792b5c11 |
+| 792a2l1c | 792b5c7, 792b5c11 |
+| 792a2m1a | 792b5c9 |
+| 792a2n1a | 792b5c10 |
+| 792a2n1b | 792b5c10 |
+| 792a2o1a | 792b5c11 |
+| 792a2p1a | 792b5c7, 792b5c8 |
+| 792a2p1b | 792b5c7, 792b5c8 |
+| 792a2p1c | 792b5c7, 792b5c8 |
+| 792a2p1d | 792b5c7 |
+| 792a2p1e | 792b5c7 |
+| 792a2q1a | 792b5c12 |
+
+```gherkin
+Scenario: 792a2h1b The first parent contact stamps an existing vault
+  Given an existing vault that has no .engram-vault-id and ENGRAM_PARENT set
+  When the user runs engram query
+  Then .engram-vault-id is created and no location warning is printed
+
+Scenario: 792a2j1a serve starts despite a corrupt ID
+  Given a vault whose .engram-vault-id is empty or holds a git conflict marker
+  When engram serve starts on it
+  Then it warns naming engram vault-id --regenerate, serves, and leaves the file unchanged
+
+Scenario: 792a2j1b A merged query warns and still runs
+  Given a vault whose .engram-vault-id holds junk and ENGRAM_PARENT set
+  When the user runs engram query
+  Then stderr says the vault ID could not be stamped and names engram vault-id --regenerate, and the local results are returned
+
+Scenario: 792a2k1a State does not dirty the vault's git
+  Given a git-backed vault
+  When an offer is queued in it
+  Then git status --porcelain in the vault shows no change caused by exchange state
+
+Scenario: 792a2k1b The root .gitignore is untouched
+  Given an existing vault with its own root .gitignore
+  When engram stamps the vault's ID and creates .engram/
+  Then the root .gitignore is byte-for-byte unchanged
+
+Scenario: 792a2l1a A healthy vault reports its ID
+  Given a vault that engram created at its current path
+  When the user runs engram vault-id
+  Then stdout shows its vault ID and location: ok, and stderr is empty
+
+Scenario: 792a2l1b A moved vault reports a mismatch with both remedies
+  Given a vault that was moved after engram created it
+  When the user runs engram vault-id
+  Then stdout shows location: mismatch and names both engram vault-id --claim and engram vault-id --regenerate
+
+Scenario: 792a2l1c A vault without an ID is reported without writing
+  Given an existing vault with no vault ID
+  When the user runs engram vault-id
+  Then stdout shows location: no vault id, and no file in the vault is created or changed
+
+Scenario: 792a2p1a A cloned child is caught before it offers
+  Given vault A is cloned with git to a new host with ENGRAM_PARENT set
+  When the clone runs engram learn
+  Then the note is written locally and queued, no offer is sent, and the warning names both engram vault-id remedies
+
+Scenario: 792a2p1b A cloned child's merged query still runs
+  Given a vault with ENGRAM_PARENT set whose location record is missing
+  When the user runs engram query
+  Then the query returns its results, and stderr carries one warning naming both engram vault-id remedies
+
+Scenario: 792a2p1c serve starts despite a mismatched record
+  Given a vault whose location record is missing or differs
+  When engram serve starts on it
+  Then it prints the warning and serves normally
+
+Scenario: 792a2p1d A symlinked path is not a false positive
+  Given a vault reached through a symlink to its recorded path
+  When the location check runs
+  Then the check passes
+
+Scenario: 792a2p1e A hostname change is not a false positive
+  Given a host whose name changed while the vault path did not
+  When the location check runs
+  Then the check passes
+
+Scenario: 792a2q1a A copied vault served back to itself
+  Given a copy of vault V is served and V's environment points ENGRAM_PARENT at it
+  When the user runs engram query in V
+  Then it returns local-only results with a warning naming engram vault-id --regenerate, and no offer is sent
+```

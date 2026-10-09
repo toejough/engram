@@ -1142,15 +1142,8 @@ pulled note bouncing back up once is intended (B1).
 - **D1 — `ENGRAM_SERVER` is a hard error, for every command including `serve`.** A single
   pre-dispatch guard exits non-zero before any vault, chunk-index or network access, naming
   `ENGRAM_PARENT` as the replacement. No compat shim, no exemption.
-- **D2 — Every environment always has a local vault, and a stable vault ID.** The vault is created
-  on the first command that resolves its path (folding in #766), with a one-line stderr notice. A
-  32-hex-character random **vault ID** lives in the tracked `<vault>/.engram-vault-id`; exchange
-  links key on this ID, never on URL or hostname, so DNS/IP churn breaks nothing. An untracked
-  `.engram/home.json` location record catches a `cp -R` copy or a `git clone` before it exchanges;
-  `engram vault-id --regenerate`/`--claim` resolve the two cases, and a self-parent guard refuses
-  exchange when the parent reports the local vault's own ID. Transient exchange state
-  (`outbox.json`, `declined.json`, `parent.json`, `home.json`) lives in `<vault>/.engram/`, which
-  `.gitignore`s itself — the vault's tracked root `.gitignore` is never touched.
+- **D2 — Every environment always has a local vault, and a stable vault ID.** Ported to
+  [792b5](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b5-added-vault-identity-registry).
 - **D3 — A new exchange hash covers exactly the offered content fields.** `xh1:` + SHA-256 over a
   canonical JSON of `type`, `situation`, the fact/feedback/runbook fields, `done_when`,
   `red_flags`, `triggers`, and the body — never identity, `pending`, `tags`, `sources`,

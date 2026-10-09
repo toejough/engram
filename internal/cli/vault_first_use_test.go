@@ -78,120 +78,9 @@ func Test792a2e1b_Targets_AmendActivateMissingVaultFailOnNotFound(t *testing.T) 
 	g.Expect(strings.ToLower(stderr)).NotTo(ContainSubstring("lock"))
 }
 
-// Test792b2c3a1_Targets_EveryVaultCommandCreatesMissingVault pins design D2's
-// first-use creation through dispatch: every vault-resolving command on a
-// missing path creates the starters, the vault ID and the self-ignoring
-// .engram/, printing exactly one creation line; a second run creates and
-// prints nothing. amend/activate/resituate/show fail only on their own
-// merits (not found), never on a lock error.
-func Test792b2c3a1_Targets_EveryVaultCommandCreatesMissingVault(t *testing.T) {
-	t.Parallel()
-
-	commands := []struct {
-		name string
-		args func(vault, scratch string) []string
-	}{
-		{"query", func(v, s string) []string { return []string{"query", "--phrase", "x", "--vault", v, "--chunks-dir", s} }},
-		{"show", func(v, _ string) []string { return []string{"show", "nope", "--vault", v} }},
-		{"amend", func(v, s string) []string {
-			return []string{"amend", "--vault", v, "--target", "nope", "--situation", "s", "--chunks-dir", s}
-		}},
-		{"activate", func(v, _ string) []string { return []string{"activate", "--vault", v, "--note", "nope.md"} }},
-		{"resituate", func(v, _ string) []string {
-			return []string{"resituate", "--vault", v, "--note", "nope", "--situation", "s"}
-		}},
-		{"count", func(v, _ string) []string { return []string{"count", "--vault", v, "--group-by", "type"} }},
-		{"check", func(v, _ string) []string { return []string{"check", "--vault", v} }},
-		{"register-skills", func(v, s string) []string {
-			return []string{"register-skills", "--vault", v, "--skills-dir", s, "--dry-run"}
-		}},
-		{"embed-status", func(v, _ string) []string { return []string{"embed", "status", "--vault", v} }},
-		{"vocab-stats", func(v, _ string) []string { return []string{"vocab", "stats", "--vault", v} }},
-		{"vault-id", func(v, _ string) []string { return []string{"vault-id", "--vault", v} }},
-		{"ingest", func(v, s string) []string {
-			return []string{"ingest", "--vault", v, "--chunks-dir", s, "--sweep", s}
-		}},
-		{"learn-fact", func(v, _ string) []string {
-			return []string{
-				"learn", "fact", "--vault", v, "--situation", "s", "--source", "test",
-				"--subject", "a", "--predicate", "b", "--object", "c",
-			}
-		}},
-	}
-
-	for _, command := range commands {
-		t.Run(command.name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			vault := filepath.Join(t.TempDir(), "vault")
-			args := append([]string{"engram"}, command.args(vault, t.TempDir())...)
-
-			_, firstErr := runWithRand(t, args, 3)
-			g.Expect(strings.Count(firstErr, createdVaultLine)).To(Equal(1), firstErr)
-			g.Expect(firstErr).To(ContainSubstring(createdVaultLine + vault + "\n"))
-			g.Expect(strings.ToLower(firstErr)).NotTo(ContainSubstring("lock"))
-			g.Expect(readFileString(t, filepath.Join(vault, ".engram-vault-id"))).To(Equal(seqID(3) + "\n"))
-			g.Expect(readFileString(t, filepath.Join(vault, ".engram", ".gitignore"))).To(Equal("*\n"))
-			g.Expect(filepath.Join(vault, ".obsidian", "app.json")).To(BeARegularFile())
-
-			_, secondErr := runWithRand(t, args, 90)
-			g.Expect(secondErr).NotTo(ContainSubstring(createdVaultLine))
-			g.Expect(readFileString(t, filepath.Join(vault, ".engram-vault-id"))).To(Equal(seqID(3) + "\n"))
-		})
-	}
-}
-
-// Test792b2c3a1_Targets_ServeCreatesMissingVault: serve is a vault-resolving command
-// like the rest — a missing vault is created (one line) before it binds.
-func Test792b2c3a1_Targets_ServeCreatesMissingVault(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := filepath.Join(t.TempDir(), "vault")
-
-	var stderr bytes.Buffer
-
-	served := false
-	deps := fakeServeDeps(&stderr, 2, &served)
-
-	err := targExecute([]string{
-		"engram", "serve", "--addr", "127.0.0.1:0", "--vault", vault, "--chunks-dir", t.TempDir(),
-	}, deps)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(served).To(BeTrue())
-	g.Expect(stderr.String()).To(Equal(createdVaultLine + vault + "\n"))
-	g.Expect(readFileString(t, filepath.Join(vault, ".engram-vault-id"))).To(Equal(seqID(2) + "\n"))
-}
-
-// TestRunServe_CorruptVaultIDWarnsAndStarts: a corrupt or empty ID file (a
-// partial write, a git conflict) never stops serve — it warns, naming
-// `engram vault-id --regenerate`, and serves; the file is left alone.
-func TestRunServe_CorruptVaultIDWarnsAndStarts(t *testing.T) {
-	t.Parallel()
-
-	for _, content := range []string{"", "<<<<<<< HEAD\n"} {
-		g := NewWithT(t)
-
-		vault := t.TempDir()
-		idPath := filepath.Join(vault, ".engram-vault-id")
-		g.Expect(os.WriteFile(idPath, []byte(content), 0o600)).To(Succeed())
-
-		var stderr bytes.Buffer
-
-		served := false
-		args := cli.ServeArgs{Addr: "127.0.0.1:0", Vault: vault, VaultName: "personal", ChunksDir: t.TempDir()}
-
-		g.Expect(cli.RunServe(context.Background(), args, fakeServeDeps(&stderr, 1, &served))).To(Succeed())
-		g.Expect(served).To(BeTrue())
-		g.Expect(stderr.String()).To(ContainSubstring("engram vault-id --regenerate"))
-		g.Expect(readFileString(t, idPath)).To(Equal(content))
-	}
-}
-
-// TestRunServe_StampsMissingVaultIDAndReusesIt: serve stamps an existing
+// Test792a2h1a_RunServe_StampsMissingVaultIDAndReusesIt: serve stamps an existing
 // vault's missing ID at startup; a later start reuses it unchanged.
-func TestRunServe_StampsMissingVaultIDAndReusesIt(t *testing.T) {
+func Test792a2h1a_RunServe_StampsMissingVaultIDAndReusesIt(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -209,35 +98,11 @@ func TestRunServe_StampsMissingVaultIDAndReusesIt(t *testing.T) {
 	g.Expect(stderr.String()).To(BeEmpty())
 }
 
-// TestRunServe_WarnsOnLocationMismatchAndStartsAnyway: serve never refuses
-// over a failed location check — it warns once and serves.
-func TestRunServe_WarnsOnLocationMismatchAndStartsAnyway(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := createdVault(t)
-	moved := filepath.Join(t.TempDir(), "moved")
-	g.Expect(os.Rename(vault, moved)).To(Succeed())
-
-	var stderr bytes.Buffer
-
-	served := false
-	args := cli.ServeArgs{Addr: "127.0.0.1:0", Vault: moved, VaultName: "personal", ChunksDir: t.TempDir()}
-
-	g.Expect(cli.RunServe(context.Background(), args, fakeServeDeps(&stderr, 1, &served))).To(Succeed())
-	g.Expect(served).To(BeTrue())
-
-	lines := nonEmptyLines(stderr.String())
-	g.Expect(lines).To(HaveLen(1))
-	g.Expect(lines[0]).To(ContainSubstring("engram vault-id --regenerate"))
-	g.Expect(lines[0]).To(ContainSubstring("engram vault-id --claim"))
-}
-
-// TestTargets_QueryWithParent_StampsIDAndWarnsOnLocationMismatch: the first
+// Test792a2h1b_Targets_QueryWithParent_StampsIDAndWarnsOnLocationMismatch: the first
 // parent contact stamps a missing vault ID (no warning, the record is
 // fresh); a vault whose location record is missing (a clone) still runs the
 // merged query but prints the one remedies warning.
-func TestTargets_QueryWithParent_StampsIDAndWarnsOnLocationMismatch(t *testing.T) {
+func Test792a2h1b_Targets_QueryWithParent_StampsIDAndWarnsOnLocationMismatch(t *testing.T) {
 	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
 
 	g := NewWithT(t)
@@ -270,10 +135,35 @@ func TestTargets_QueryWithParent_StampsIDAndWarnsOnLocationMismatch(t *testing.T
 	g.Expect(parsed.Items).To(HaveLen(1))
 }
 
-// TestTargets_QueryWithParent_UnstampableIDOnlyWarns: a vault whose ID file
+// Test792a2j1a_RunServe_CorruptVaultIDWarnsAndStarts: a corrupt or empty ID file (a
+// partial write, a git conflict) never stops serve — it warns, naming
+// `engram vault-id --regenerate`, and serves; the file is left alone.
+func Test792a2j1a_RunServe_CorruptVaultIDWarnsAndStarts(t *testing.T) {
+	t.Parallel()
+
+	for _, content := range []string{"", "<<<<<<< HEAD\n"} {
+		g := NewWithT(t)
+
+		vault := t.TempDir()
+		idPath := filepath.Join(vault, ".engram-vault-id")
+		g.Expect(os.WriteFile(idPath, []byte(content), 0o600)).To(Succeed())
+
+		var stderr bytes.Buffer
+
+		served := false
+		args := cli.ServeArgs{Addr: "127.0.0.1:0", Vault: vault, VaultName: "personal", ChunksDir: t.TempDir()}
+
+		g.Expect(cli.RunServe(context.Background(), args, fakeServeDeps(&stderr, 1, &served))).To(Succeed())
+		g.Expect(served).To(BeTrue())
+		g.Expect(stderr.String()).To(ContainSubstring("engram vault-id --regenerate"))
+		g.Expect(readFileString(t, idPath)).To(Equal(content))
+	}
+}
+
+// Test792a2j1b_Targets_QueryWithParent_UnstampableIDOnlyWarns: a vault whose ID file
 // is corrupt cannot be stamped at parent contact; the query warns and still
 // runs rather than failing.
-func TestTargets_QueryWithParent_UnstampableIDOnlyWarns(t *testing.T) {
+func Test792a2j1b_Targets_QueryWithParent_UnstampableIDOnlyWarns(t *testing.T) {
 	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
 
 	g := NewWithT(t)
@@ -300,10 +190,10 @@ func TestTargets_QueryWithParent_UnstampableIDOnlyWarns(t *testing.T) {
 	g.Expect(parsed.Items).To(HaveLen(1))
 }
 
-// TestTargets_VaultID covers `engram vault-id [--regenerate | --claim]`: no
+// Test792a2l1a_Targets_VaultID covers `engram vault-id [--regenerate | --claim]`: no
 // flag prints the ID and the location check; --regenerate mints a new ID;
 // --claim fixes a moved vault's record; both flags together are refused.
-func TestTargets_VaultID(t *testing.T) {
+func Test792a2l1a_Targets_VaultID(t *testing.T) {
 	t.Parallel()
 
 	t.Run("no-flag-prints-id-and-check", func(t *testing.T) {
@@ -400,9 +290,119 @@ func TestTargets_VaultID(t *testing.T) {
 	})
 }
 
-// TestVaultIDUncommitted pins `engram update`'s notify-only detector: true
+// Test792a2p1c_RunServe_WarnsOnLocationMismatchAndStartsAnyway: serve never refuses
+// over a failed location check — it warns once and serves.
+func Test792a2p1c_RunServe_WarnsOnLocationMismatchAndStartsAnyway(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := createdVault(t)
+	moved := filepath.Join(t.TempDir(), "moved")
+	g.Expect(os.Rename(vault, moved)).To(Succeed())
+
+	var stderr bytes.Buffer
+
+	served := false
+	args := cli.ServeArgs{Addr: "127.0.0.1:0", Vault: moved, VaultName: "personal", ChunksDir: t.TempDir()}
+
+	g.Expect(cli.RunServe(context.Background(), args, fakeServeDeps(&stderr, 1, &served))).To(Succeed())
+	g.Expect(served).To(BeTrue())
+
+	lines := nonEmptyLines(stderr.String())
+	g.Expect(lines).To(HaveLen(1))
+	g.Expect(lines[0]).To(ContainSubstring("engram vault-id --regenerate"))
+	g.Expect(lines[0]).To(ContainSubstring("engram vault-id --claim"))
+}
+
+// Test792b2c3a1_Targets_EveryVaultCommandCreatesMissingVault pins design D2's
+// first-use creation through dispatch: every vault-resolving command on a
+// missing path creates the starters, the vault ID and the self-ignoring
+// .engram/, printing exactly one creation line; a second run creates and
+// prints nothing. amend/activate/resituate/show fail only on their own
+// merits (not found), never on a lock error.
+func Test792b2c3a1_Targets_EveryVaultCommandCreatesMissingVault(t *testing.T) {
+	t.Parallel()
+
+	commands := []struct {
+		name string
+		args func(vault, scratch string) []string
+	}{
+		{"query", func(v, s string) []string { return []string{"query", "--phrase", "x", "--vault", v, "--chunks-dir", s} }},
+		{"show", func(v, _ string) []string { return []string{"show", "nope", "--vault", v} }},
+		{"amend", func(v, s string) []string {
+			return []string{"amend", "--vault", v, "--target", "nope", "--situation", "s", "--chunks-dir", s}
+		}},
+		{"activate", func(v, _ string) []string { return []string{"activate", "--vault", v, "--note", "nope.md"} }},
+		{"resituate", func(v, _ string) []string {
+			return []string{"resituate", "--vault", v, "--note", "nope", "--situation", "s"}
+		}},
+		{"count", func(v, _ string) []string { return []string{"count", "--vault", v, "--group-by", "type"} }},
+		{"check", func(v, _ string) []string { return []string{"check", "--vault", v} }},
+		{"register-skills", func(v, s string) []string {
+			return []string{"register-skills", "--vault", v, "--skills-dir", s, "--dry-run"}
+		}},
+		{"embed-status", func(v, _ string) []string { return []string{"embed", "status", "--vault", v} }},
+		{"vocab-stats", func(v, _ string) []string { return []string{"vocab", "stats", "--vault", v} }},
+		{"vault-id", func(v, _ string) []string { return []string{"vault-id", "--vault", v} }},
+		{"ingest", func(v, s string) []string {
+			return []string{"ingest", "--vault", v, "--chunks-dir", s, "--sweep", s}
+		}},
+		{"learn-fact", func(v, _ string) []string {
+			return []string{
+				"learn", "fact", "--vault", v, "--situation", "s", "--source", "test",
+				"--subject", "a", "--predicate", "b", "--object", "c",
+			}
+		}},
+	}
+
+	for _, command := range commands {
+		t.Run(command.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			vault := filepath.Join(t.TempDir(), "vault")
+			args := append([]string{"engram"}, command.args(vault, t.TempDir())...)
+
+			_, firstErr := runWithRand(t, args, 3)
+			g.Expect(strings.Count(firstErr, createdVaultLine)).To(Equal(1), firstErr)
+			g.Expect(firstErr).To(ContainSubstring(createdVaultLine + vault + "\n"))
+			g.Expect(strings.ToLower(firstErr)).NotTo(ContainSubstring("lock"))
+			g.Expect(readFileString(t, filepath.Join(vault, ".engram-vault-id"))).To(Equal(seqID(3) + "\n"))
+			g.Expect(readFileString(t, filepath.Join(vault, ".engram", ".gitignore"))).To(Equal("*\n"))
+			g.Expect(filepath.Join(vault, ".obsidian", "app.json")).To(BeARegularFile())
+
+			_, secondErr := runWithRand(t, args, 90)
+			g.Expect(secondErr).NotTo(ContainSubstring(createdVaultLine))
+			g.Expect(readFileString(t, filepath.Join(vault, ".engram-vault-id"))).To(Equal(seqID(3) + "\n"))
+		})
+	}
+}
+
+// Test792b2c3a1_Targets_ServeCreatesMissingVault: serve is a vault-resolving command
+// like the rest — a missing vault is created (one line) before it binds.
+func Test792b2c3a1_Targets_ServeCreatesMissingVault(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := filepath.Join(t.TempDir(), "vault")
+
+	var stderr bytes.Buffer
+
+	served := false
+	deps := fakeServeDeps(&stderr, 2, &served)
+
+	err := targExecute([]string{
+		"engram", "serve", "--addr", "127.0.0.1:0", "--vault", vault, "--chunks-dir", t.TempDir(),
+	}, deps)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(served).To(BeTrue())
+	g.Expect(stderr.String()).To(Equal(createdVaultLine + vault + "\n"))
+	g.Expect(readFileString(t, filepath.Join(vault, ".engram-vault-id"))).To(Equal(seqID(2) + "\n"))
+}
+
+// Test792b5c13a1_VaultIDUncommitted pins `engram update`'s notify-only detector: true
 // only when the ID file exists and git reports it untracked/uncommitted.
-func TestVaultIDUncommitted(t *testing.T) {
+func Test792b5c13a1_VaultIDUncommitted(t *testing.T) {
 	t.Parallel()
 
 	const (
@@ -449,10 +449,10 @@ func TestVaultIDUncommitted(t *testing.T) {
 	}
 }
 
-// TestVaultIDUncommitted_RealGitIgnoredAndCommitted drives the detector
+// Test792b5c13a1_VaultIDUncommitted_RealGitIgnoredAndCommitted drives the detector
 // against real git: an ignored ID file is still flagged (git status alone
 // hides it), and a committed one is not.
-func TestVaultIDUncommitted_RealGitIgnoredAndCommitted(t *testing.T) {
+func Test792b5c13a1_VaultIDUncommitted_RealGitIgnoredAndCommitted(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -476,9 +476,9 @@ func TestVaultIDUncommitted_RealGitIgnoredAndCommitted(t *testing.T) {
 	g.Expect(cli.ExportVaultIDUncommitted(t.Context(), vault, fileSystem, commander)).To(BeFalse())
 }
 
-// TestWriteUpdateReport_VaultIDUncommittedNotice: the report asks for the
+// Test792b5c13a2_WriteUpdateReport_VaultIDUncommittedNotice: the report asks for the
 // one-time vault commit only while the flag is set.
-func TestWriteUpdateReport_VaultIDUncommittedNotice(t *testing.T) {
+func Test792b5c13a2_WriteUpdateReport_VaultIDUncommittedNotice(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 

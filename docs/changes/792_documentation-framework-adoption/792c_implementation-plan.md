@@ -202,8 +202,8 @@ flowchart TD
   N792c7a2["792c7a2 command-line-surface tech spec<br/>Complete"]
   N792c7a3["792c7a3 durable-file-store tech spec<br/>Complete"]
   N792c7a4["792c7a4 subprocess-runner tech spec<br/>Complete"]
-  N792c7a5["792c7a5 vault-identity-registry tech spec<br/>Ready"]
-  N792c7b1["792c7b1 note-writing product spec<br/>Blocked by: 792c7a5"]
+  N792c7a5["792c7a5 vault-identity-registry tech spec<br/>Complete"]
+  N792c7b1["792c7b1 note-writing product spec<br/>Ready"]
   N792c7b2["792c7b2 note-document-format tech spec<br/>Blocked by: 792c7b1"]
   N792c7b3["792c7b3 luhmann-addressing tech spec<br/>Blocked by: 792c7b2"]
   N792c7b4["792c7b4 vault-write-lock tech spec<br/>Blocked by: 792c7b3"]
@@ -416,7 +416,7 @@ Target: `792b2` (`docs/specs/technical/command-line-surface.md`).
 | 792b2c4a1 | `TestNewErrHandler` → `Test792b2c4a1_NewErrHandler` (split deferred: 792b2c4a2) | Pure unit (recording exit) | Failure and success reporting | Done |
 
 **Coverage gaps:** 792b2c3a2 (no dispatch-level test stops a command after a failed first-use step;
-`TestEnsureVault_RegularFileIsNotAVault` covers only the registry's half), 792a2a1a–792a2a1d end to
+`Test792b5c1a4_EnsureVault_RegularFileIsNotAVault` covers only the registry's half), 792a2a1a–792a2a1d end to
 end (covered only through 792b2c1), 792a2b1b and 792a2b1c end to end (covered only through
 792b2c2), 792a2e1c, 792a2f1a and 792a2g1a end to end (registry-level tests are renamed in
 792c7a5), 792a2j1c, 792a2n1b and 792a2o1a (dispatch tests are renamed in 792c7a5).
@@ -570,11 +570,61 @@ Target: `792b5` (`docs/specs/technical/vault-identity-registry.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7a5a | Port the component contract to `792b5` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7a5b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7a5c | Repoint stale references to `792b5` | Non-test action | Keeps live links valid | Not started |
-| 792c7a5d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7a5e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7a5a | Port the component contract to `792b5` | Non-test action | Documents the component in the framework format | Done |
+| 792c7a5b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7a5c | Repoint stale references to `792b5` | Non-test action | Keeps live links valid | Done |
+| 792c7a5d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7a5e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b5c1a1 | `TestEnsureVault_CreatesMissingVaultWithIDAndStateDir` → `Test792b5c1a1_EnsureVault_CreatesMissingVaultWithIDAndStateDir` (split deferred: 792a2p1e) | Pure unit (temp-dir vault, injected random source) | Full first-use creation, location record without hostname | Done |
+| 792b5c1a2 | `TestEnsureVault_ExistingVaultWithoutIDWritesNothing` → `Test792b5c1a2_EnsureVault_ExistingVaultWithoutIDWritesNothing` | Pure unit (temp-dir vault, injected random source) | Existing vault untouched | Done |
+| 792b5c1a3 | `TestEnsureVault_SecondRunCreatesAndPrintsNothing` → `Test792b5c1a3_EnsureVault_SecondRunCreatesAndPrintsNothing` | Pure unit (temp-dir vault, injected random source) | Quiet second run | Done |
+| 792b5c1a4 | `TestEnsureVault_RegularFileIsNotAVault` → `Test792b5c1a4_EnsureVault_RegularFileIsNotAVault` | Pure unit (temp-dir vault, injected random source) | Not a directory | Done |
+| 792b5c1a5 | `TestEnsureVault_StatFailureIsError` → `Test792b5c1a5_EnsureVault_StatFailureIsError` | Pure unit (scripted filesystem) | Inspection failure | Done |
+| 792b5c1a6 | `TestEnsureVault_RandFailureIsError` → `Test792b5c1a6_EnsureVault_RandFailureIsError` | Pure unit (temp-dir vault, injected random source) | Random-source failure | Done |
+| 792b5c2a1 | `TestEnsureVault_RepairsHalfCreatedVault` → `Test792b5c2a1_EnsureVault_RepairsHalfCreatedVault` | Pure unit (temp-dir vault, injected random source) | Half-created repair | Done |
+| 792b5c3a1 | `TestInitializeVault_CreatesDirsAndStarterFiles` → `Test792b5c3a1_InitializeVault_CreatesDirsAndStarterFiles` | Pure unit (in-memory init FS) | Starter set | Done |
+| 792b5c3a2 | `TestInitializeVault_Idempotent` → `Test792b5c3a2_InitializeVault_Idempotent` | Pure unit (in-memory init FS) | Skip-if-exists | Done |
+| 792b5c3a3 | `TestInitializeVault_PropagatesMkdirError` → `Test792b5c3a3_InitializeVault_PropagatesMkdirError` | Pure unit (erroring init FS) | Directory failure | Done |
+| 792b5c3a3 | `TestInitializeVault_PropagatesWriteError` → `Test792b5c3a3_InitializeVault_PropagatesWriteError` | Pure unit (erroring init FS) | Write failure | Done |
+| 792b5c4a1 | `TestStampVaultID_ConcurrentCreatorsConverge` → `Test792b5c4a1_StampVaultID_ConcurrentCreatorsConverge` | Pure unit (temp-dir vault, injected random source) | Race convergence | Done |
+| 792b5c4a2 | `TestStampVaultID_LoserAdoptsWinnersID` → `Test792b5c4a2_StampVaultID_LoserAdoptsWinnersID` | Pure unit (scripted filesystem) | Deterministic lost race | Done |
+| 792b5c4a3 | `TestStampVaultID_UsesInjectedRand` → `Test792b5c4a3_StampVaultID_UsesInjectedRand` | Pure unit (temp-dir vault, injected random source) | Injected randomness | Done |
+| 792b5c5a1 | `TestExchangeState_ErrorPaths` → `Test792b5c5a1_ExchangeState_ErrorPaths` (split deferred: 792b5c5a2, 792b5c6a2) | Pure unit (scripted filesystem) table | Invalid ID and every I/O error path | Done |
+| 792b5c6a1 | `TestStampVaultID_ExistingVaultKeepsRootGitignoreAndReusesID` → `Test792b5c6a1_StampVaultID_ExistingVaultKeepsRootGitignoreAndReusesID` (split deferred: 792b5c4a4) | Pure unit (temp-dir vault, injected random source) | Root .gitignore untouched, ID reused | Done |
+| 792b5c7a1 | `TestCheckVaultLocation_CopyIsMismatch` → `Test792b5c7a1_CheckVaultLocation_CopyIsMismatch` | Pure unit (temp-dir vault, injected random source) | Copy detection | Done |
+| 792b5c7a2 | `TestCheckVaultLocation_MissingRecordIsMissing` → `Test792b5c7a2_CheckVaultLocation_MissingRecordIsMissing` | Pure unit (temp-dir vault, injected random source) | Clone detection | Done |
+| 792b5c7a3 | `TestCheckVaultLocation_NoIDIsReported` → `Test792b5c7a3_CheckVaultLocation_NoIDIsReported` | Pure unit (temp-dir vault, injected random source) | No ID | Done |
+| 792b5c7a4 | `TestCheckVaultLocation_RecordForOtherIDIsMismatch` → `Test792b5c7a4_CheckVaultLocation_RecordForOtherIDIsMismatch` | Pure unit (temp-dir vault, injected random source) | Other ID | Done |
+| 792b5c7a5 | `TestCheckVaultLocation_SymlinkedPathPasses` → `Test792b5c7a5_CheckVaultLocation_SymlinkedPathPasses` | Pure unit (temp-dir vault, injected random source) | Symlink canonicalization | Done |
+| 792b5c8a1 | `TestWarnVaultLocation_OneWarningNamingBothRemedies` → `Test792b5c8a1_WarnVaultLocation_OneWarningNamingBothRemedies` | Pure unit (temp-dir vault, injected random source) | One warning, both remedies | Done |
+| 792b5c9a1 | `TestRegenerateVaultID_CopyGetsOwnIdentity` → `Test792b5c9a1_RegenerateVaultID_CopyGetsOwnIdentity` | Pure unit (temp-dir vault, injected random source) | Regenerate | Done |
+| 792b5c10a1 | `TestClaimVaultLocation_MovedVaultKeepsIDAndPasses` → `Test792b5c10a1_ClaimVaultLocation_MovedVaultKeepsIDAndPasses` | Pure unit (temp-dir vault, injected random source) | Claim | Done |
+| 792b5c10a2 | `TestClaimVaultLocation_NoIDIsError` → `Test792b5c10a2_ClaimVaultLocation_NoIDIsError` | Pure unit (temp-dir vault, injected random source) | Claim without ID | Done |
+| 792b5c12a1 | `TestSelfParentGuard_Property` → `Test792b5c12a1_SelfParentGuard_Property` | Property test (rapid) | Self-parent guard over all ID pairs | Done |
+| 792b5c13a1 | `TestVaultIDUncommitted` → `Test792b5c13a1_VaultIDUncommitted` | Pure unit table (scripted git, fake FS) | Every detection case | Done |
+| 792b5c13a1 | `TestVaultIDUncommitted_RealGitIgnoredAndCommitted` → `Test792b5c13a1_VaultIDUncommitted_RealGitIgnoredAndCommitted` | Real `git` subprocess, temp dir | Ignored and committed over real git | Done |
+| 792b5c13a2 | `TestWriteUpdateReport_VaultIDUncommittedNotice` → `Test792b5c13a2_WriteUpdateReport_VaultIDUncommittedNotice` | Pure unit (report writer) | Notice only when flagged | Done |
+| 792a2h1a | `TestRunServe_StampsMissingVaultIDAndReusesIt` → `Test792a2h1a_RunServe_StampsMissingVaultIDAndReusesIt` | `RunServe` with fake server binding, temp-dir vault | Product scenario end to end | Done |
+| 792a2h1b | `TestTargets_QueryWithParent_StampsIDAndWarnsOnLocationMismatch` → `Test792a2h1b_Targets_QueryWithParent_StampsIDAndWarnsOnLocationMismatch` (split deferred: 792a2p1b) | Dispatch through `Targets`, `t.Setenv`, failing fetch | Product scenario end to end | Done |
+| 792a2j1a | `TestRunServe_CorruptVaultIDWarnsAndStarts` → `Test792a2j1a_RunServe_CorruptVaultIDWarnsAndStarts` | `RunServe` with fake server binding, temp-dir vault | Product scenario end to end | Done |
+| 792a2j1b | `TestTargets_QueryWithParent_UnstampableIDOnlyWarns` → `Test792a2j1b_Targets_QueryWithParent_UnstampableIDOnlyWarns` | Dispatch through `Targets`, `t.Setenv`, failing fetch | Product scenario end to end | Done |
+| 792a2l1a | `TestTargets_VaultID` → `Test792a2l1a_Targets_VaultID` (split deferred: 792a2l1b, 792a2l1c, 792a2m1a, 792a2n1a, 792a2n1b, 792a2j1c, 792a2o1a) | Dispatch through `Targets`, temp-dir vault, subtests | `vault-id` outputs and errors end to end | Done |
+| 792a2p1c | `TestRunServe_WarnsOnLocationMismatchAndStartsAnyway` → `Test792a2p1c_RunServe_WarnsOnLocationMismatchAndStartsAnyway` | `RunServe` with fake server binding, temp-dir vault | Product scenario end to end | Done |
+
+**Coverage gaps:** 792b5c11a1 and 792b5c11a2 have no direct test of the report (covered end to end
+by `Test792a2l1a_Targets_VaultID`); 792a2k1a has no registry-level test (offer queuing is
+parent-sync, 792c7t1); 792a2p1a, 792a2p1b (beyond the split above) and 792a2q1a are verified by
+`outbox_test` and `merged_query_w9_dispatch_test` tests that parent-sync (792c7t1) renames;
+792a2p1e has no test that changes the hostname (the record's lack of a hostname is checked by
+792b5c1a1); 792a2e1c has no end-to-end test of a child host's first query creating its vault.
+
+**No-scenario tests:** none in `exchangestate_test`, `vault_first_use_test` or `vault_init_test`. The
+parent-cache, decline and exchange-identifier tests elsewhere are left to parent-sync (792c7t1).
 
 ### 792c7b note-writing
 

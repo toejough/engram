@@ -1,7 +1,7 @@
 # vault-local-first Specification
 
 ## Purpose
-Makes the removed `ENGRAM_SERVER` thin-client mode a hard error. The vault-identity behavior that was here is in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a2-added-vault-identity`.
+Makes the removed `ENGRAM_SERVER` thin-client mode a hard error. The vault-identity behavior that was here is in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a2-added-vault-identity` and `docs/changes/792_documentation-framework-adoption/792b_technical-spec.md#792b5-added-vault-identity-registry`.
 
 ## Requirements
 ### Requirement: ENGRAM_SERVER SHALL be a hard error
@@ -22,11 +22,3 @@ When the `ENGRAM_SERVER` environment variable is set to a non-empty value, every
 #### Scenario: ENGRAM_SERVER is not honored as an alias
 - **WHEN** `ENGRAM_SERVER` is set and `ENGRAM_PARENT` is not
 - **THEN** no command contacts the `ENGRAM_SERVER` URL
-
-### Requirement: Vault identity technical residue (pending node 792c7a5)
-The product behavior formerly here is in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a2-added-vault-identity`. These technical clauses remain until node 792c7a5 ports them:
-- The vault ID file SHALL be created with exclusive create and then re-read, so that concurrent creators all end up using the single ID that won.
-- The random source SHALL be injected, so tests are deterministic.
-- When the vault ID is created, the untracked exchange state SHALL record the vault's location: the ID and the canonical vault path (symlinks evaluated, made absolute, cleaned). It SHALL NOT include a hostname.
-- `engram vault-id --regenerate` SHALL mint a new ID, rewrite `.engram-vault-id` and the location record, and change no note.
-- `engram vault-id --claim` SHALL rewrite the location record only.

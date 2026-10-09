@@ -54,7 +54,7 @@ func Test792b2c1a4_ResolveVault_HomeFallback(t *testing.T) {
 	g.Expect(got).To(Equal("/home/u/.local/share/engram/vault"))
 }
 
-func TestInitializeVault_CreatesDirsAndStarterFiles(t *testing.T) {
+func Test792b5c3a1_InitializeVault_CreatesDirsAndStarterFiles(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -80,7 +80,7 @@ func TestInitializeVault_CreatesDirsAndStarterFiles(t *testing.T) {
 	g.Expect(string(fakeFS.wrote[filepath.Join("/v", ".obsidian", "app.json")])).To(Equal("{}\n"))
 }
 
-func TestInitializeVault_Idempotent(t *testing.T) {
+func Test792b5c3a2_InitializeVault_Idempotent(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -92,7 +92,7 @@ func TestInitializeVault_Idempotent(t *testing.T) {
 	g.Expect(fakeFS.wrote).To(HaveLen(priorCount))
 }
 
-func TestInitializeVault_PropagatesMkdirError(t *testing.T) {
+func Test792b5c3a3_InitializeVault_PropagatesMkdirError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -100,7 +100,7 @@ func TestInitializeVault_PropagatesMkdirError(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("mkdir")))
 }
 
-func TestInitializeVault_PropagatesWriteError(t *testing.T) {
+func Test792b5c3a3_InitializeVault_PropagatesWriteError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
