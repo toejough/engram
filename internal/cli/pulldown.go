@@ -628,8 +628,9 @@ func pulledSlug(basename string) string {
 // recordDeclineUnlessUnstamped records a decline (recordDeclinedPull),
 // except in a vault with no parent configured and no vault ID: stamping an
 // ID there would break "stamp only on serve start or first parent
-// contact" (spec vault-local-first; ruling S18), and such a vault can
-// never pull the note again anyway until it contacts a parent.
+// contact" (792a2h, docs/changes/792_documentation-framework-adoption/
+// 792a_product-spec.md; ruling S18), and such a vault can never pull the
+// note again anyway until it contacts a parent.
 func recordDeclineUnlessUnstamped(
 	state exchangeState, vault string, parentConfigured bool, entry declinedPull,
 ) error {

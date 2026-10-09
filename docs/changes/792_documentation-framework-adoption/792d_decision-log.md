@@ -455,3 +455,55 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** the session scratchpad that first held them was lost. Nodes cite their test maps and
   source maps.
 - **Alternatives:** inline the reports into 792c. Rejected as duplicating working data in the plan.
+
+## 792d46 First-use creation does not create `Permanent/`
+
+- **Choice:** 792a2e describes the vault that first-use creation actually builds: `.obsidian/app.json`,
+  `.gitignore`, the starter `README.md`, the vault ID and `.engram/`. The first known divergence in
+  792d42 is corrected: no code creates `Permanent/`. Only the doc comment on `initializeVault`
+  (`internal/cli/vault_init.go`) still names it. Root `README.md` "Vault location" also still says
+  that only `engram learn` creates a missing vault and that other commands fail with "vault not
+  found"; every vault-resolving command creates it now. Both stale texts are left for a later change
+  (792d41, 792d33).
+- **Rationale:** discovery inferred the divergence from the comment. Reading `initializeVault` and
+  `TestTargets_EveryVaultCommandCreatesMissingVault` shows the current behavior.
+- **Alternatives:** fix the comment and README now. Rejected as outside a documentation-only node.
+
+## 792d47 Exchange-state location belongs to vault-identity
+
+- **Choice:** the OpenSpec requirement "Exchange state SHALL live outside the vault's tracked files"
+  is ported to 792a2k, not left for parent-sync (792c7t1).
+- **Rationale:** `.engram/` is created with the vault and its ID, before any parent is configured,
+  and `vault-identity-registry` owns it. Parent-sync keeps what is written there (outbox, declines,
+  parent cache).
+- **Alternatives:** leave it with the exchange requirements for 792c7t1.
+
+## 792d48 The vault name is specified in vault-identity
+
+- **Choice:** `--vault-name`/`ENGRAM_VAULT_NAME` and its default `personal` are requirement 792a2b,
+  as the 792c7a1 catalog lists. Note-writing and note-provenance (792c7b1, 792c7b7) map their
+  `vault:` stamping to 792a2b rather than restating it.
+- **Rationale:** the precedence mirrors the vault path's (792a2a), and one owner avoids duplicating
+  the rule.
+- **Alternatives:** specify it only under note-writing.
+
+## 792d49 Product requirements beyond the OpenSpec text
+
+- **Choice:** 792a2 adds requirements that the legacy sources don't state but the code and tests
+  show: the flat layout's exclusion of subdirectories (792a2c), the starter README (792a2d), repair
+  of a half-created vault (792a2g), corrupt-ID handling (792a2j), the ignored, committed and non-git
+  cases of the uncommitted-ID notice (792a2i), the `vault-id` outputs and flag errors
+  (792a2l–792a2o), and the merged query's warning on a clone (792a2p1b).
+- **Rationale:** 792d33 describes current behavior from code and tests. Each addition is observable
+  and already tested.
+- **Alternatives:** port only the OpenSpec text.
+
+## 792d50 Technical clauses of a mixed OpenSpec spec stay in place for their component node
+
+- **Choice:** when a capability node ports a mixed OpenSpec spec, the technical clauses listed for a
+  later component node stay in the spec file under a residue requirement that names the node. For
+  `vault-local-first`, the exclusive-create-and-re-read, injected random source, location-record
+  contents, and regenerate/claim file effects wait for 792c7a5.
+- **Rationale:** 792d31 per-part ownership. A node removes only what it ports.
+- **Alternatives:** port the technical clauses early into 792a. Rejected because product specs
+  exclude implementation detail.

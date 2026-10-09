@@ -857,8 +857,8 @@ func TestAmend_DiscardDeclineRecording(t *testing.T) {
 	})
 }
 
-// TestAmend_DiscardOfPulledNoteStampsNothingUnconfigured (ruling S18, spec
-// vault-local-first): with no parent configured and no vault ID, a bare
+// TestAmend_DiscardOfPulledNoteStampsNothingUnconfigured (ruling S18,
+// 792a2h): with no parent configured and no vault ID, a bare
 // discard of a pulled note deletes it and records no decline — no vault ID
 // and no .engram/ are created.
 func TestAmend_DiscardOfPulledNoteStampsNothingUnconfigured(t *testing.T) {

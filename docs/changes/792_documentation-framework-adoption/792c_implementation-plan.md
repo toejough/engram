@@ -198,8 +198,8 @@ The orchestrator commits each node once all of its entries are Done.
 
 ```mermaid
 flowchart TD
-  N792c7a1["792c7a1 vault-identity product spec<br/>Ready"]
-  N792c7a2["792c7a2 command-line-surface tech spec<br/>Blocked by: 792c7a1"]
+  N792c7a1["792c7a1 vault-identity product spec<br/>Complete"]
+  N792c7a2["792c7a2 command-line-surface tech spec<br/>Ready"]
   N792c7a3["792c7a3 durable-file-store tech spec<br/>Blocked by: 792c7a2"]
   N792c7a4["792c7a4 subprocess-runner tech spec<br/>Blocked by: 792c7a3"]
   N792c7a5["792c7a5 vault-identity-registry tech spec<br/>Blocked by: 792c7a4"]
@@ -365,10 +365,13 @@ Target: `792a2` (`docs/specs/product/vault-identity.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7a1a | Port product requirements and UAT to `792a2` | Non-test action | Moves current behavior into the framework format | Not started |
-| 792c7a1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7a1c | Repoint stale references to `792a2` | Non-test action | Keeps live links valid | Not started |
-| 792c7a1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Not started |
+| 792c7a1a | Port product requirements and UAT to `792a2` | Non-test action | Moves current behavior into the framework format | Done |
+| 792c7a1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7a1c | Repoint stale references to `792a2` | Non-test action | Keeps live links valid | Done |
+| 792c7a1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Done |
+
+**Outcome:** the four supporting components are confirmed unchanged. The `Permanent/` caution is
+resolved by 792d46; other choices are 792d47–792d50.
 
 #### 792c7a2 command-line-surface tech spec
 
