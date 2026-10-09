@@ -179,7 +179,7 @@ block beneath the table, headed with its ID. Every later mapping uses the ID onl
 6. Run `targ check-full`; the node can't be completed until it passes. Record new choices and
    questions, and update statuses.
 
-The orchestrator commits each node once all of its entries are Done.
+The executing agent commits each node once all of its entries are Done (792d54).
 
 ## 792c5 Status Vocabulary
 

@@ -544,3 +544,14 @@ decisions as `792dN`, continuing the sequence.
   792c8c, and the `.superpowers/` plan material is handled under 792d12.
 - **Alternatives:** rewrite every occurrence. Rejected: the first such rename rewrote eval audit
   transcripts, which 792d37 exempts.
+
+## 792d54 Node agents commit their own nodes
+
+- **Choice:** the agent executing a capability group commits each node itself as the node
+  completes (one commit per node, `docs(792): <node ID> <title>`), instead of the orchestrator
+  committing (as 792c4b's last line originally said).
+- **Rationale:** a group runs several nodes in sequence; per-node commits by the executor keep each
+  status transition in the commit that establishes it (implementation-plan guide) without
+  stalling between nodes.
+- **Alternatives:** orchestrator commits after each node. Rejected: it forces one agent dispatch
+  per node, roughly tripling the dispatches for no review benefit.
