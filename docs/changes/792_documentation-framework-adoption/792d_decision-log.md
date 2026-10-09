@@ -555,3 +555,79 @@ decisions as `792dN`, continuing the sequence.
   stalling between nodes.
 - **Alternatives:** orchestrator commits after each node. Rejected: it forces one agent dispatch
   per node, roughly tripling the dispatches for no review benefit.
+
+## 792d55 `learn --tier` is documented as a frontmatter field
+
+- **Choice:** 792a3i specifies `--tier`: it writes `tier: L2` by default and writes `L1`, `L2` or
+  `L3` as given, and 792a3g refuses any other value. This resolves the second known divergence in
+  792d42: the flag survives the removal of tiers because it still has an observable effect.
+- **Rationale:** 792d33 describes current behavior. The note's `tier:` field is visible to the user,
+  even though no retrieval path reads it.
+- **Alternatives:** leave `--tier` out as a retired feature (792d6). Rejected because the field is
+  still written to every note.
+
+## 792d56 Placement under a target that does not exist is permitted
+
+- **Choice:** 792a3l states, as **MAY**, that `engram learn --position continuation` or `sibling`
+  can place a note under a `--target` that names no note: `--target 77` in a vault without note 77
+  writes note `77a`. No scenario protects it.
+- **Rationale:** the code does not check that the target exists, and no legacy source promises
+  either outcome. Stating it as **MAY** describes the behavior without making it a contract. A
+  change could later make it a refusal (vault note 645).
+- **Alternatives:** a **MUST NOT** with a coverage gap. Rejected because it would describe behavior
+  the code does not have.
+
+## 792d57 Mixed sources of note-writing are split by owner
+
+- **Choice:** node 792c7b1 ports only the note-writing parts of its mixed sources, and leaves the
+  rest in place for the node that owns it (792d31, 792d50):
+  - `learn-qa-capture` is ported whole and deleted.
+  - `learn-runbook-capture` keeps the write-memory requirement for 792c7l1 and the skill runbook note
+    requirement for 792c7k1.
+  - `vault-embed-on-write` keeps everything but the `learn` guarantee. The `amend` and `resituate`
+    re-embedding requirement is added to the sources of note-revision (792c7c1).
+  - `vault-note-identity` keeps a residue requirement with the repo and user detection mechanism, the
+    first-write user rule for served learns and pull-downs, and the empty-vault-name rules, for
+    792c7b7.
+  - `vault-concurrency-safe-writes` keeps all its text for 792c7b4; only its Purpose gains a pointer.
+  - ADR-0012 keeps its round-2 and round-3 gating caveat for 792c8a, the `vocab stats` QA lines for
+    792c7e1, and the `stripMachineLines` QA markers for 792c7b6.
+  - ADR-0026 keeps its retrieval decision for 792c7f1, its learn-routing decision for 792c7n1, its
+    historical consequences for 792c8a, and its two 2026-09-26 registration amendments for 792c7k1.
+  The catalog entries of those nodes now list these parts.
+- **Rationale:** each part has one owner, and a node removes only what it ports.
+- **Alternatives:** port the other parts into 792a3 now. Rejected because they describe other
+  capabilities' behavior.
+
+## 792d58 Note-writing requirements beyond the legacy text
+
+- **Choice:** 792a3 adds requirements that the legacy sources don't state but the code, `--help` and
+  tests show: the fact and feedback body formulas and the dropped leading `When` (792a3a, 792a3b),
+  the argument validations (792a3g), the optional metadata fields (792a3h), the letter rollover and
+  the placement refusals (792a3j, 792a3k), the empty-situation refusal (792a3f), the QA validations
+  and certainty default (792a3r), and the warning when embedding fails (792a3n).
+- **Rationale:** 792d33 and 792d49. Each addition is observable through `engram learn` and is
+  already exercised by the shipped binary.
+- **Alternatives:** port only the OpenSpec text.
+
+## 792d59 QA retrieval and per-kind vocabulary tagging belong to note-writing
+
+- **Choice:** 792a3t (query returns answers but never questions) and 792a3u (vocabulary tagging
+  applies to every kind but questions) are note-writing requirements, although `engram query` and
+  the vocabulary engine carry them out. The query-engine (792c7f5) and vocabulary-engine (792c7e3)
+  nodes map these scenarios to their requirements.
+- **Rationale:** both are the defining contract of the QA kind (ADR-0012), which `learn-qa-capture`
+  states and this node owns. Restating them in memory-query and controlled-vocabulary would duplicate
+  the rule.
+- **Alternatives:** move 792a3t to memory-query and 792a3u to controlled-vocabulary.
+
+## 792d60 command-line-surface refuses undefined and missing required flags
+
+- **Choice:** note-writing adds requirement 792b2c5 to command-line-surface: an undefined flag or a
+  missing required flag is refused before the command runs. `TestTargets_LearnRunbook_NoSkillHashFlag`
+  and `TestTargets_NoSkillKeyOrSourceFlags` are renamed to its first scenario, 792b2c5a1; the
+  skill-runbook-registration node (792c7k1) lists its own scenario for them as `split deferred`.
+- **Rationale:** 792a3e1a, 792a3f1a and parts of 792a3g1a and 792a3r1a are refused by argument
+  parsing, which this component owns (792b2a), before any `learn` code runs. Those two tests are the
+  existing direct tests of that refusal.
+- **Alternatives:** leave the tests for 792c7k1. Rejected because 792b2c5a1 would then have no test.

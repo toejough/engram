@@ -267,31 +267,19 @@ supersessions). The wikilink graph itself is unaffected: it remains authored-and
 
 **Status:** Accepted (2026-07-03) · supersedes D5 (full QA exclusion)
 
-**Context.** An earlier design (D5) proposed excluding all QA-derived notes from the main matched
-set, treating captured question/answer pairs as a channel apart from facts/feedback. That
-treats a qa-answer and a qa-question identically, but they are not: a qa-answer is a synthesized,
-pre-reasoned conclusion with provenance, while a qa-question is situational wording that
-measurably loses retrieval against content-bearing notes (the question-anchored-crystallization
-finding — no delivery benefit and 10/10 retrieval lost when notes were re-anchored to their
-question; `dev/eval/LEDGER.md#qanchor-park`, vintage 2026-07-01, ⛔ PARKED).
+The context and decision (linked capture, answers compete, questions excluded) are in
+[792a3q](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a3q-question-and-answer-pairs)
+and [792a3t](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a3t-question-and-answer-retrieval).
 
-**Decision.** qa-answer notes COMPETE in the main matched set on the same standing as any other
-fact/feedback note. qa-question notes are EXCLUDED from the main set at all four
-query-pipeline seam points (`isQueryExcludedKind`) and are reachable only via a dedicated q-space
-channel with an `answered_by` ride-along — deferred to round 3, gated. Decision record:
-`docs/design/2026-07-03-qa-memory-proposals.md` (deleted 2026-07 with the docs restructure —
-`git log` recovers it).
-
-**Consequences.** Round-1 (capture) shipped 2026-07-03: `engram learn qa`, D5′ exclusion,
-`stripMachineLines` QA markers, `qa pairs:` / `qa round-2 gate:` lines in `engram vocab stats`.
+**Consequences.** `stripMachineLines` strips the QA marker lines; `engram vocab stats` prints
+`qa pairs:` / `qa round-2 gate:` lines.
 **Caveat carried forward to round-2/3 gating:** D5′'s asymmetry rests on n=5 synthetic pairs
-(source: the decision record above, vintage 2026-07-03), not yet re-validated at corpus scale —
-round-2 gates on ≥20 real captured pairs (or ~2026-07-17, whichever comes first) against
-pre-registered bands (PASS ≥8, BORDERLINE 6–7, FAIL <6; P2′/P3′ definitions, `docs/ROADMAP.md` →
-GATED — Q&A memory round-2/3). The dedicated q-space channel needs its own premise check (Arm V) to reach PASS (≥80%)
-before round-3 is licensed; Arm V large-n came in BORDERLINE 63% (19/30)
-(`dev/eval/LEDGER.md#qa-arm-v-borderline`, vintage 2026-07-03), so round-3 remains unlicensed
-pending a further check.
+(vintage 2026-07-03), not yet re-validated at corpus scale — round-2 gates on ≥20 real captured
+pairs (or ~2026-07-17, whichever comes first) against pre-registered bands (PASS ≥8, BORDERLINE
+6–7, FAIL <6; P2′/P3′ definitions, `docs/ROADMAP.md` → GATED — Q&A memory round-2/3). The dedicated
+q-space channel needs its own premise check (Arm V) to reach PASS (≥80%) before round-3 is
+licensed; Arm V large-n came in BORDERLINE 63% (19/30) (`dev/eval/LEDGER.md#qa-arm-v-borderline`,
+vintage 2026-07-03), so round-3 remains unlicensed pending a further check.
 
 ---
 
@@ -905,52 +893,18 @@ Link: `openspec/changes/recall-centroid-sampling`.
 
 **Status:** Accepted (2026-08-24).
 
-**Context.** Kind-4 confirmed-approaches ("what worked, do it again") lived awkwardly inside
-`feedback` notes' `action` field as a single sentence — no structural way to represent an ordered,
-multi-step procedure or a distinct ending condition. SPL (optillm's System Prompt Learning plugin)
-research showed procedural-strategy injection lifts weak-model performance materially
-(OptiLLMBench +4%, AIME24 +7%, Arena-Hard +8.6%), motivating a first-class kind rather than a tag
-convention on `feedback`. Two design-review corrections during implementation (both driven by
-inline comments on the openspec change's design.md, `.review/events.jsonl` threads
-`6c7d2c3de70a93ece18b99c0d6cd5e75` and `01727d1c429bb66e76a439e1167ff005`) materially changed the
-shipped shape from the original proposal:
+The context and the capture decision (name, three-question schema, no `task_type` or `inputs`
+field, fact/feedback filename and Luhmann placement) are in
+[792a3c](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a3c-runbook-notes)
+and [792a3e](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a3e-no-task-type-or-input-fields).
 
-1. A `task_type` classification field + `engram query --task-type` pre-filter was originally
-   planned, justified by the SPL numbers above. Those numbers measure SPL's whole bundled system
-   (type-classification + strategy injection + refinement/pruning) — no ablation in the source
-   material isolates type-classification's own contribution, so they don't specifically justify a
-   new ranking mechanism and its regression risk to existing retrieval. Dropped entirely (not just
-   the pre-filter — the schema field too).
-2. `runbook` was originally going to use a kind-prefixed flat filename (`runbook.<date>.<slug>.md`,
-   no Luhmann ID), modeled on `qa.*`, on the reasoning that runbooks lack a natural parent idea.
-   That reasoning didn't hold: `nextLuhmannID`'s `position=top` branch mints a fresh top-level ID
-   with no target required (`internal/cli/luhmann.go`), so "no relationship yet" was never a real
-   blocker — every `fact`/`feedback` note already handles that case the same way. `qa` turned out to
-   be the wrong template entirely: it's the one kind that deliberately skips Luhmann disposition
-   (`internal/cli/qa.go`) and gets partially retrieval-excluded (`isQueryExcludedKind`) — neither of
-   which applies to `runbook`.
-
-**Decision.** `type: runbook` (Joe, 2026-08-23, vault note 789 — chosen over `procedure`, `function`,
-`strategy`; deliberately non-consonant with `fact`/`feedback`, the ops vibe is intended; `procedure`
-collides with existing "recall procedure" prose, `function` with tool-calling vocabulary). Schema
-answers exactly three questions: *when should you use this runbook* (`situation`, embedded as the
-situation vector exactly like fact/feedback), *what are the steps* (body, numbered, may
-`[[wikilink]]` fact/feedback notes to consider), *what should be true when you're done*
-(`done_when`, required — also makes runbooks scorable for #718's future efficacy tracking, deferred,
-not shipped here). No `inputs`/calling-convention field (considered during the #728 adapter
-experiment, rejected). Capture reuses the existing `fact`/`feedback` pipeline as a third `learn`
-targ.Group subcommand (`internal/cli/targets.go`/`learn.go`: `LearnRunbookArgs` embeds
-`CommonLearnArgs`, gets `--target`/`--position` Luhmann disposition for free) — not a bespoke
-standalone implementation. Filename/ID: `<luhmann-id>.<date>.<slug>.md`, identical to fact/feedback,
-assigned via the same top/continuation/sibling disposition judgment; `--reparent-luhmann` covers
-runbook notes automatically, with no code change, since it operates on Luhmann IDs generically.
-Retrieval: no exclusion treatment (`isQueryExcludedKind` untouched — a mechanism only `qa-question`
-uses), ranks purely by situation-similarity in the main matched set, identical to fact/feedback — no
-new query flag, no new ranking mechanism, no recall Step-1 changes. `learn`'s Step 2 kind-4
-(confirmed approaches) now routes by shape: a reusable multi-step procedure for a recurring task →
-`kind=runbook`; a single behavioral tweak with no step structure → `kind=feedback`, as before. A
-runbook capture is itself the "remember to do it this way" note — it does not also fire a redundant
-kind=fact save-request when the user says "do that going forward."
+**Decision (remainder).** Retrieval: no exclusion treatment (`isQueryExcludedKind` untouched — a
+mechanism only `qa-question` uses), ranks purely by situation-similarity in the main matched set,
+identical to fact/feedback — no new query flag, no new ranking mechanism, no recall Step-1 changes.
+`learn`'s Step 2 kind-4 (confirmed approaches) now routes by shape: a reusable multi-step procedure
+for a recurring task → `kind=runbook`; a single behavioral tweak with no step structure →
+`kind=feedback`, as before. A runbook capture is itself the "remember to do it this way" note — it
+does not also fire a redundant kind=fact save-request when the user says "do that going forward."
 
 **Consequences.**
 

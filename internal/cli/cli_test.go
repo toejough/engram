@@ -11,7 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestEngramLearn_Fact_EndToEnd(t *testing.T) {
+func Test792a3a1a_EngramLearn_Fact_EndToEnd(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -66,7 +66,7 @@ func TestEngramLearn_Fact_EndToEnd(t *testing.T) {
 	expectSidecarValid(g, filepath.Join(expectedPath, sidecarName))
 }
 
-func TestEngramLearn_Feedback_EndToEnd(t *testing.T) {
+func Test792a3b1a_EngramLearn_Feedback_EndToEnd(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 

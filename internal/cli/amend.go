@@ -38,8 +38,8 @@ type AmendArgs struct {
 	DoneWhen  string `json:"doneWhen"  targ:"flag,name=done-when,desc=replace done_when (runbook; optional)"`
 	Body      string `json:"body"      targ:"flag,name=body,desc=replace the numbered-steps body (runbook; optional)"`
 	// RedFlags replaces the whole red_flags: list when non-empty (repeatable
-	// `--red-flag <text>`) — mirrors LearnArgs.RedFlags (learn-runbook-capture
-	// spec), full-list replace rather than merge, matching how the rest of
+	// `--red-flag <text>`) — mirrors LearnArgs.RedFlags (note-writing
+	// 792a3d), full-list replace rather than merge, matching how the rest of
 	// amend's content flags overwrite-when-supplied.
 	RedFlags []string `json:"redFlags" targ:"flag,name=red-flag,desc=replace red_flags (runbook; repeatable; optional)"` //nolint:lll // single unbreakable struct-tag string
 	// Triggers replaces the whole triggers: list when non-empty (repeatable

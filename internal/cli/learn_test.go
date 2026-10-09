@@ -778,7 +778,7 @@ func TestRenderFrontmatter_Runbook(t *testing.T) {
 
 // TestRenderRunbookFrontmatter_IncludesRedFlagsInOrder guards the populated
 // case: red_flags must render as a YAML list preserving entry order
-// (learn-runbook-capture spec, "Runbook captured with red flags").
+// (note-writing 792a3d1a, "Red flags are kept in order").
 func TestRenderRunbookFrontmatter_IncludesRedFlagsInOrder(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -852,7 +852,7 @@ func TestRenderRunbookFrontmatter_IncludesSkillKeyAndSourceWhenSet(t *testing.T)
 
 // TestRenderRunbookFrontmatter_OmitsRedFlagsWhenAbsent guards the no-flag
 // case: red_flags must not appear at all when the caller supplies none
-// (learn-runbook-capture spec, "Runbook captured without red flags").
+// (note-writing 792a3d1c, "Neither flag means neither field").
 func TestRenderRunbookFrontmatter_OmitsRedFlagsWhenAbsent(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -1451,7 +1451,7 @@ func TestRunLearn_Runbook_WritesExpectedFile(t *testing.T) {
 
 // TestRunLearn_Runbook_WritesRedFlagsWhenProvided proves args.RedFlags flows
 // through assembleLearnContent into the written frontmatter, in order
-// (learn-runbook-capture spec, "Runbook captured with red flags").
+// (note-writing 792a3d1a, "Red flags are kept in order").
 func TestRunLearn_Runbook_WritesRedFlagsWhenProvided(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

@@ -203,8 +203,8 @@ flowchart TD
   N792c7a3["792c7a3 durable-file-store tech spec<br/>Complete"]
   N792c7a4["792c7a4 subprocess-runner tech spec<br/>Complete"]
   N792c7a5["792c7a5 vault-identity-registry tech spec<br/>Complete"]
-  N792c7b1["792c7b1 note-writing product spec<br/>Ready"]
-  N792c7b2["792c7b2 note-document-format tech spec<br/>Blocked by: 792c7b1"]
+  N792c7b1["792c7b1 note-writing product spec<br/>Complete"]
+  N792c7b2["792c7b2 note-document-format tech spec<br/>Ready"]
   N792c7b3["792c7b3 luhmann-addressing tech spec<br/>Blocked by: 792c7b2"]
   N792c7b4["792c7b4 vault-write-lock tech spec<br/>Blocked by: 792c7b3"]
   N792c7b5["792c7b5 text-embedder tech spec<br/>Blocked by: 792c7b4"]
@@ -431,9 +431,9 @@ end (covered only through 792b2c1), 792a2b1b and 792a2b1c end to end (covered on
   `TestRunSafe`, `TestTargets`, `TestTargets_ActivateNoNotes`, `TestTargets_Amend_NoSkillHashFlag`,
   `TestTargets_CheckEmptyVault`, `TestTargets_EmbedApplyDryRun`, `TestTargets_EmbedStatus`,
   `TestTargets_IngestAndQueryChunksEmpty`, `TestTargets_LearnRunbook_NoSkillHashFlag`,
-  `TestTargets_NoSkillKeyOrSourceFlags`, `TestTargets_PruneEmpty`, `TestTargets_QueryEmptyVault`,
+  `TestTargets_NoSkillKeyOrSourceFlags` (both renamed by 792c7b1), `TestTargets_PruneEmpty`, `TestTargets_QueryEmptyVault`,
   `TestTargets_Resituate` (each command's own capability may claim them).
-- `cli_test`: `TestEngramLearn_Fact_EndToEnd`, `TestEngramLearn_Feedback_EndToEnd` (note-writing
+- `cli_test`: `TestEngramLearn_Fact_EndToEnd`, `TestEngramLearn_Feedback_EndToEnd` (renamed by note-writing
   792c7b1), `TestOpenDebugFile_EndToEnd` (excluded debug-log, 792d27), `TestRunCommand_EndToEnd`
   (install-and-update 792c7j1).
 - Excluded components (792d27): `signal_test`, `signal_integration_test`, the debuglog tests,
@@ -676,11 +676,32 @@ Target: `792a3` (`docs/specs/product/note-writing.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7b1a | Port product requirements and UAT to `792a3` | Non-test action | Moves current behavior into the framework format | Not started |
-| 792c7b1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7b1c | Repoint stale references to `792a3` | Non-test action | Keeps live links valid | Not started |
-| 792c7b1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Not started |
-| 792c7b1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Not started |
+| 792c7b1a | Port product requirements and UAT to `792a3` | Non-test action | Moves current behavior into the framework format | Done |
+| 792c7b1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7b1c | Repoint stale references to `792a3` | Non-test action | Keeps live links valid | Done |
+| 792c7b1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Done |
+| 792c7b1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
+
+**Outcome:** the seven new and four extended supporting components are confirmed. command-line-surface
+gains 792b2c5 (792d60); vault-identity-registry gains no mapping, because note-writing's first-use
+creation is vault-identity's 792a2e. Other choices are 792d55–792d59.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792a3a1a | `TestEngramLearn_Fact_EndToEnd` → `Test792a3a1a_EngramLearn_Fact_EndToEnd` (split deferred: 792a3n1a) | Built binary as a subprocess, temp-dir vault | Fact note and its sidecar end to end | Done |
+| 792a3b1a | `TestEngramLearn_Feedback_EndToEnd` → `Test792a3b1a_EngramLearn_Feedback_EndToEnd` (split deferred: 792a3n1a) | Built binary as a subprocess, temp-dir vault | Feedback note and its sidecar end to end | Done |
+| 792b2c5a1 | `TestTargets_LearnRunbook_NoSkillHashFlag` → `Test792b2c5a1_Targets_LearnRunbook_NoSkillHashFlag` | Dispatch through `Targets`, temp-dir vault | Undefined flag refused | Done |
+| 792b2c5a1 | `TestTargets_NoSkillKeyOrSourceFlags` → `Test792b2c5a1_Targets_NoSkillKeyOrSourceFlags` | Dispatch through `Targets`, temp-dir vault, subtests | Undefined flags refused on learn and amend | Done |
+
+**Coverage gaps:** 792b2c5a2 (no test dispatches a command without a required flag). Every other
+792a3 scenario has no end-to-end test; the component nodes 792c7b2–792c7b8 rename the unit tests of
+their technical scenarios and list the product scenarios still uncovered. Mapped to b3 and b4 here,
+792a3m1a, 792a3o1a–792a3o1c and 792a3p1a–792a3p1c are left to vault-write-lock (792c7b4) and
+note-provenance (792c7b7), whose tests verify them.
+
+**No-scenario tests:** none newly identified in the already-migrated components' test files.
 
 #### 792c7b2 note-document-format tech spec
 
@@ -789,6 +810,7 @@ Target: `792b10` (`docs/specs/technical/embedding-sidecar.md`).
 
 **Legacy sources (port, then remove):**
 
+- `docs/deprecated/architecture/adr.md` ADR-0012 Consequences (`stripMachineLines` QA markers, 792d57)
 - `docs/deprecated/architecture/adr.md` ADR-0003
 - `docs/deprecated/architecture/adr.md` ADR-0006 (only the surviving situation-vector and dual-vector residue; the episode content is dead)
 - `openspec/specs/vault-embed-on-write/spec.md` (technical requirements: state classification)
@@ -862,6 +884,7 @@ Target: `792a4` (`docs/specs/product/note-revision.md`).
 
 **Legacy sources (port, then remove):**
 
+- `openspec/specs/vault-embed-on-write/spec.md` (the `amend` and `resituate` re-embedding requirement, 792d57)
 - `openspec/specs/vault-wikilink-resolution/spec.md` (product requirements; the G3 dangling-link scenario goes to 792c7h1)
 - `docs/deprecated/architecture/c3-components.md` Component catalog K4w (product behavior of amend, resituate, activate)
 
@@ -1097,6 +1120,7 @@ Target: `792a6` (`docs/specs/product/controlled-vocabulary.md`).
 
 **Legacy sources (port, then remove):**
 
+- `docs/deprecated/architecture/adr.md` ADR-0012 Consequences (the `vocab stats` QA lines, 792d57)
 - `openspec/specs/vault-vocab-lifecycle/spec.md` (product requirements)
 - `docs/deprecated/architecture/adr.md` ADR-0019 (tags are the sole categorical representation)
 
@@ -1193,6 +1217,7 @@ Target: `792a7` (`docs/specs/product/memory-query.md`).
 
 **Legacy sources (port, then remove):**
 
+- `docs/deprecated/architecture/adr.md` ADR-0026 Decision remainder (retrieval, 792d57)
 - `openspec/specs/recall-two-channel-payload/spec.md`
 - `openspec/specs/recall-matched-note-floor/spec.md`
 - `openspec/specs/recall-centroid-sampling/spec.md`
@@ -1639,6 +1664,8 @@ Target: `792a12` (`docs/specs/product/skill-runbook-registration.md`).
 
 **Legacy sources (port, then remove):**
 
+- `openspec/specs/learn-runbook-capture/spec.md` (skill runbook note requirement, 792d57)
+- `docs/deprecated/architecture/adr.md` ADR-0026 Amendments of 2026-09-26 (registration, 792d57)
 - `openspec/specs/skill-runbook-registration/spec.md` (product requirements)
 - `openspec/specs/update-deploy-sync/spec.md` (the requirement that update runs registration offers)
 - `docs/deprecated/architecture/adr.md` ADR-0015 Amendment (2026-09-26)
@@ -1730,6 +1757,7 @@ Target: `792a13` (`docs/specs/product/write-memory.md`).
 
 **Legacy sources (port, then remove):**
 
+- `openspec/specs/learn-runbook-capture/spec.md` (write-memory requirement, 792d57)
 - `openspec/specs/write-memory-worker/spec.md` (worker requirements; the four-capture-kinds requirement goes to 792c7n1 and the lessons-audit requirement to 792c7q1)
 - `docs/deprecated/architecture/adr.md` ADR-0015 (excluding the Amendment)
 
@@ -1839,6 +1867,7 @@ Target: `792a15` (`docs/specs/product/learn.md`).
 
 **Legacy sources (port, then remove):**
 
+- `docs/deprecated/architecture/adr.md` ADR-0026 Decision remainder (learn routing by shape, 792d57)
 - `openspec/specs/learn-adhoc-qa-capture/spec.md`
 - `openspec/specs/learn-branching-disposition/spec.md`
 - `openspec/specs/write-memory-worker/spec.md` (the requirement that learn captures four kinds)
@@ -2382,6 +2411,7 @@ Target: `792b39` (`docs/specs/technical/memory-loop-auditor.md`).
 - `docs/deprecated/agents/{domain,issue-tracker,triage-labels}.md`: port into the root `AGENTS.md` "Agent skills" subsections. Rewrite "Domain docs" to point at `docs/AGENTS.md`.
 - `docs/deprecated/design/2026-07-01-engram-recall-subprocess-design.md`: the design was rejected. Confirm its ROADMAP Provenance row, then delete it.
 - The six research files `docs/deprecated/research/2026-08-30-memory-taxonomy-human.md`, `-llm-agents.md`, `-composition.md`, `-critic.md`, `-engram-map.md` and `-synthesis.md`: port durable conclusions not already in ADR-0027/0028 or the ROADMAP north-star track to ROADMAP or GLOSSARY, then delete.
+- `docs/deprecated/architecture/adr.md` ADR-0012 and ADR-0026: delete the historical consequences left by 792c7b1 (792d57), after checking that ROADMAP covers the QA round-2/3 gate.
 - `docs/deprecated/architecture/adr.md`: delete the preamble and status legend and the dead ADR-0004, ADR-0005, ADR-0008 and ADR-0009, after checking that ROADMAP Provenance covers them. Delete ADR-0016, which the framework supersedes. Port ADR-0020 to the root `AGENTS.md` Design Principles (already summarized there) and ADR-0027 to the ROADMAP north-star track. Delete the file.
 - `docs/deprecated/architecture/c1-system-context.md`: intro, L1 diagram, Element catalog S1, Relationships R1, Key flows intro, Related. Delete the file.
 - `docs/deprecated/architecture/c2-containers.md`: intro, L2 diagram, Cross-level note, Key flows (L2) intro. Delete the file.

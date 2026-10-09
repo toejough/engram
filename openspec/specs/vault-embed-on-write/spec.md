@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Every note written to the vault gets a sibling `.vec.json` sidecar file stamped with dual embedding vectors (one for the note's `situation:` field, one for the body), embedding model ID, dimensions, and content hash. The sidecar is self-contained—no separate index to build or maintain—and its dual vectors let retrieval match against whichever angle of the note fits best. Why: `docs/architecture/adr.md` ADR-0003. Validation: correctness rests on embed/sidecar invariants (`docs/architecture/memory-invariants.md`) and unit tests.
+The product guarantee that every note `engram learn` writes gets its sidecar is in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a3-added-note-writing` (792a3n). Each sidecar is a sibling `.vec.json` file stamped with dual embedding vectors (one for the note's `situation:` field, one for the body), embedding model ID, dimensions, and content hash. The sidecar is self-contained—no separate index to build or maintain—and its dual vectors let retrieval match against whichever angle of the note fits best. Why: `docs/architecture/adr.md` ADR-0003. Validation: correctness rests on embed/sidecar invariants (`docs/architecture/memory-invariants.md`) and unit tests.
 
 ## Requirements
 
@@ -33,7 +33,7 @@ When a note has no `situation:` frontmatter field, the body text SHALL be embedd
 - **THEN** the situation vector is computed from the situation field; the body vector is computed from the body text independently
 
 ### Requirement: Sidecar written on every note write
-Every `engram learn`, `engram amend`, and `engram resituate` SHALL write both the note content and its sidecar. The sidecar path MUST be derived as `<note-path>.vec.json` (e.g., `1aa.note.md` → `1aa.note.vec.json`).
+Every `engram amend` and `engram resituate` SHALL write both the note content and its sidecar (for `engram learn`, see 792a3n). The sidecar path MUST be derived as `<note-path>.vec.json` (e.g., `1aa.note.md` → `1aa.note.vec.json`).
 
 #### Scenario: Learn triggers embed
 - **WHEN** `RunLearn` writes a new fact/feedback note

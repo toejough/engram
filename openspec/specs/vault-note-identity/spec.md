@@ -1,51 +1,17 @@
 ## Purpose
 
-Every note gets structured, auto-detected provenance — which repo, which person, and which vault instance produced it — so origin survives beyond the existing free-text `source:` description and can be relied on by downstream consumers (filtering, attribution, parent exchange: `xid`, vault-qualified `parent` links, `aliases`).
+The repo/user provenance stamped by `engram learn` is in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a3-added-note-writing`. Every note gets structured, auto-detected provenance — which repo, which person, and which vault instance produced it — so origin survives beyond the existing free-text `source:` description and can be relied on by downstream consumers (filtering, attribution, parent exchange: `xid`, vault-qualified `parent` links, `aliases`).
 ## Requirements
-### Requirement: Repo field auto-detected at note creation
-`engram learn` SHALL stamp the note's `repo:` frontmatter field from the git remote `origin` URL of the working directory, falling back to the git root directory's basename when no `origin` remote is configured, and omitting the field entirely when the working directory is not inside a git repository.
+### Requirement: Identity detection residue (node 792c7b7)
+The product behavior of `repo:` and `user:` stamping by `engram learn` is in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a3-added-note-writing` (792a3o, 792a3p), and the vault name in 792a2b. These technical clauses wait for node 792c7b7 (note-provenance):
 
-#### Scenario: Origin remote configured
-- **WHEN** `engram learn` runs in a working directory inside a git repo with an `origin` remote configured
-- **THEN** the note's `repo:` frontmatter field is set to the `origin` remote's URL
+- `repo:` comes from `git remote get-url origin` run in the working directory, falling back to the basename printed by `git rev-parse --show-toplevel`.
+- `user:` comes from `git config user.email`, falling back to the OS username. The same detection SHALL stamp every first write: `engram learn`, a served learn's in-place rewrite of a pending offer, and a pull-down. When both sources resolve empty, the note SHALL be written with no `user:` key, never `user: ""`, and the command SHALL print one warning saying user detection resolved empty. A pull-down SHALL NOT keep the parent note's own `user:` in that case. Identity backfill, or a later re-stamping amend, fills the key in.
+- No write SHALL produce `vault: ""`. An amend, bookkeeping included, SHALL write the resolved vault name into a note whose `vault:` is absent or empty, and SHALL keep a declared `vault:`. A writer that has no resolved vault name (a direct caller that skipped the resolution) SHALL omit the key and print one warning.
 
-#### Scenario: No origin remote
-- **WHEN** `engram learn` runs in a working directory inside a git repo with no `origin` remote configured
-- **THEN** the note's `repo:` frontmatter field is set to the basename of the git repo's top-level directory
-
-#### Scenario: Not inside a git repo
-- **WHEN** `engram learn` runs in a working directory that is not inside any git repository
-- **THEN** the note's frontmatter has no `repo:` field
-
-### Requirement: User field auto-detected at note creation
-`engram learn` SHALL stamp the note's `user:` frontmatter field from `git config user.email` resolved at the working directory, falling back to the machine's OS username when no `user.email` is configured. The same detection SHALL stamp every first write: `engram learn`, a served learn's in-place rewrite of a pending offer, and a pull-down. When both sources resolve empty, the note SHALL be written with no `user:` key, never `user: ""`, and the command SHALL print one warning saying user detection resolved empty. A pull-down SHALL NOT keep the parent note's own `user:` in that case. Identity backfill, or a later re-stamping amend, fills the key in.
-
-#### Scenario: Git user.email configured
-- **WHEN** `engram learn` runs where `git config user.email` resolves to a non-empty value (repo-local or global config)
-- **THEN** the note's `user:` frontmatter field is set to that email address
-
-#### Scenario: No git user.email configured
-- **WHEN** `engram learn` runs where `git config user.email` resolves to nothing
-- **THEN** the note's `user:` frontmatter field is set to the OS username of the process running `engram learn`
-
-#### Scenario: No user detectable
-- **WHEN** `engram learn` or a pull-down runs where neither `git config user.email` nor the OS username lookup resolves
+#### Scenario: No user detectable on a pull-down
+- **WHEN** a pull-down runs where neither `git config user.email` nor the OS username lookup resolves
 - **THEN** the note has no `user:` key, `vault:` is stamped as usual, and stderr carries one warning that user detection resolved empty
-
-### Requirement: Vault field resolved from explicit configuration
-`engram learn` SHALL stamp the note's `vault:` frontmatter field by resolving, in order: a `--vault-name` flag, then an `ENGRAM_VAULT_NAME` environment variable, then the default value `"personal"` — the same flag-then-env-then-default order the existing `--vault`/`ENGRAM_VAULT_PATH` resolution already uses. No write SHALL produce `vault: ""`. An amend, bookkeeping included, SHALL write the resolved vault name into a note whose `vault:` is absent or empty, and SHALL keep a declared `vault:`. A writer that has no resolved vault name (a direct caller that skipped the resolution) SHALL omit the key and print one warning.
-
-#### Scenario: Vault name flag supplied
-- **WHEN** `engram learn --vault-name <name>` is run
-- **THEN** the note's `vault:` frontmatter field is set to `<name>`
-
-#### Scenario: Vault name from environment
-- **WHEN** `engram learn` runs with `ENGRAM_VAULT_NAME` set in the environment and no `--vault-name` flag supplied
-- **THEN** the note's `vault:` frontmatter field is set to the environment variable's value
-
-#### Scenario: Vault name defaulted
-- **WHEN** `engram learn` runs with neither `--vault-name` nor `ENGRAM_VAULT_NAME` set
-- **THEN** the note's `vault:` frontmatter field is set to `"personal"`
 
 #### Scenario: A bookkeeping amend on a note without vault
 - **WHEN** `engram amend --clear-pending` runs on a pending note that predates identity (no `user:`, no `vault:`), with no vault name configured

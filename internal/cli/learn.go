@@ -67,7 +67,7 @@ type LearnArgs struct {
 	// RedFlags carries repeatable `--red-flag <text>` entries: task-specific
 	// failure modes a general "follow the steps" rule would not catch.
 	// Written to the frontmatter red_flags: list when non-empty; absent flag
-	// → no field, no error (learn-runbook-capture spec).
+	// → no field, no error (note-writing 792a3d).
 	RedFlags []string `json:"redFlags"`
 	// Triggers carries repeatable `--trigger <text>` entries: literal cues
 	// that, found in the user's raw message, surface this runbook first
@@ -389,8 +389,8 @@ type runbookFields struct {
 	ChunkSources []string
 	Tags         []string
 	Supersedes   []supersedesEntry
-	// RedFlags: optional task-specific failure modes (learn-runbook-capture
-	// spec) — see LearnArgs.RedFlags.
+	// RedFlags: optional task-specific failure modes (note-writing
+	// 792a3d) — see LearnArgs.RedFlags.
 	RedFlags []string
 	// Triggers: optional literal cue strings (runbook-lexical-triggers spec)
 	// — see LearnArgs.Triggers.

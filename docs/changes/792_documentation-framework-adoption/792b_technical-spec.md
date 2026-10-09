@@ -51,7 +51,7 @@ Canonical target: `docs/specs/technical/command-line-surface.md` (title `Command
   from each command's own behavior; independent verification, its precedence and gating are tested
   through dispatch with injected environment and filesystem; stability, the surface survives any
   refactoring of command internals; necessity, every product capability is reached through it.
-- Supported capabilities: 792a2 vault-identity. Later capabilities add their own routing
+- Supported capabilities: 792a2 vault-identity, 792a3 note-writing. Later capabilities add their own routing
   requirements here (792d30, 792d51).
 
 Rationale: each `engram <subcommand>` is its own process. Commands never call each other in
@@ -70,20 +70,24 @@ sequenceDiagram
   participant Registry as vault-identity-registry
   participant Command as Selected command
   Caller->>CLI: engram subcommand with flags and environment
-  CLI->>CLI: resolve vault path (792b2c1) and vault name (792b2c2)
-  CLI->>Registry: ensure the vault exists (792b2c3)
-  alt vault ready
-    Registry-->>CLI: ready, created or already present
-    CLI->>Command: run the command
-    Command-->>CLI: result
-    alt command succeeded
-      CLI-->>Caller: output on stdout, exit 0 (792b2c4)
-    else command failed
-      CLI-->>Caller: error on stderr, non-zero exit (792b2c4)
+  alt undefined flag or missing required flag
+    CLI-->>Caller: error naming the flag on stderr, non-zero exit, command not run (792b2c5)
+  else arguments parsed
+    CLI->>CLI: resolve vault path (792b2c1) and vault name (792b2c2)
+    CLI->>Registry: ensure the vault exists (792b2c3)
+    alt vault ready
+      Registry-->>CLI: ready, created or already present
+      CLI->>Command: run the command
+      Command-->>CLI: result
+      alt command succeeded
+        CLI-->>Caller: output on stdout, exit 0 (792b2c4)
+      else command failed
+        CLI-->>Caller: error on stderr, non-zero exit (792b2c4)
+      end
+    else first-use step failed
+      Registry-->>CLI: error
+      CLI-->>Caller: error on stderr, non-zero exit, command not run (792b2c3)
     end
-  else first-use step failed
-    Registry-->>CLI: error
-    CLI-->>Caller: error on stderr, non-zero exit, command not run (792b2c3)
   end
 ```
 
@@ -179,7 +183,8 @@ Requirement: 792b2c4 The command-line-surface MUST write a failed command's erro
 with a non-zero status, and MUST neither exit nor write to stderr on the command's behalf when the
 command succeeds.
 
-Supports: 792a2e1b, 792a2j1c, 792a2n1b, 792a2o1a.
+Supports: 792a2e1b, 792a2j1c, 792a2n1b, 792a2o1a, 792a3f1b, 792a3g1a, 792a3k1a, 792a3k1b, 792a3k1c,
+792a3r1a, 792a3s1a.
 
 ##### 792b2c4a Scenarios
 
@@ -193,6 +198,28 @@ Scenario: 792b2c4a2 A success neither exits nor writes stderr
   Given a command that succeeds
   When its result is reported
   Then nothing is written to stderr and no exit is requested
+```
+
+#### 792b2c5 Argument refusal
+
+Requirement: 792b2c5 The command-line-surface MUST refuse an invocation that passes a flag the
+command does not define, or omits a flag the command marks required, by writing an error naming the
+flag to stderr and exiting non-zero without running the command.
+
+Supports: 792a3e1a, 792a3f1a, 792a3f1c, 792a3g1a, 792a3r1a.
+
+##### 792b2c5a Scenarios
+
+```gherkin
+Scenario: 792b2c5a1 An undefined flag is refused
+  Given a command that defines no --skill-hash flag
+  When it is dispatched with --skill-hash
+  Then the exit status is non-zero and the command does not run
+
+Scenario: 792b2c5a2 A missing required flag is refused
+  Given a command that marks --done-when required
+  When it is dispatched without --done-when
+  Then stderr names --done-when, the exit status is non-zero, and the command does not run
 ```
 
 ### 792b2d Product-Scenario Mapping
@@ -215,6 +242,16 @@ Scenario: 792b2c4a2 A success neither exits nor writes stderr
 | 792a2j1c | 792b2c4 |
 | 792a2n1b | 792b2c4 |
 | 792a2o1a | 792b2c4 |
+| 792a3e1a | 792b2c5 |
+| 792a3f1a | 792b2c5 |
+| 792a3f1b | 792b2c4 |
+| 792a3f1c | 792b2c5 |
+| 792a3g1a | 792b2c4, 792b2c5 |
+| 792a3k1a | 792b2c4 |
+| 792a3k1b | 792b2c4 |
+| 792a3k1c | 792b2c4 |
+| 792a3r1a | 792b2c4, 792b2c5 |
+| 792a3s1a | 792b2c4 |
 
 ```gherkin
 Scenario: 792a2a1a The flag wins over the environment
@@ -298,6 +335,80 @@ Scenario: 792a2o1a Both flags are refused
   Then it fails naming --regenerate, and the vault ID is unchanged
 ```
 
+```gherkin
+Scenario: 792a3e1a A task type is refused
+  Given an existing vault
+  When the user runs engram learn runbook with --task-type foo
+  Then it fails naming --task-type as an undefined flag, and no note is written
+
+Scenario: 792a3f1a A missing situation is refused
+  Given an existing vault
+  When the user runs engram learn fact without --situation
+  Then it fails naming --situation, and no note is written
+
+Scenario: 792a3f1b A blank situation is refused
+  Given an existing vault
+  When the user runs engram learn feedback with --situation "  "
+  Then it fails saying --situation is required, and no note is written
+
+Scenario: 792a3f1c A runbook without done-when is refused
+  Given an existing vault
+  When the user runs engram learn runbook without --done-when
+  Then it fails naming --done-when, and no note is written
+
+Scenario Outline: 792a3g1a An invalid argument is refused before any write
+  Given an existing vault
+  When the user runs engram learn <kind> with <argument>
+  Then it fails with an error saying <problem>, and no note is written
+
+  Examples:
+    | kind    | argument               | problem                                         |
+    | fact    | no --source            | --source is a missing required flag             |
+    | fact    | no --slug              | slug is required                                |
+    | fact    | --slug X_y             | slug must match [a-z0-9-]+                      |
+    | fact    | --project A            | project slug must match [a-z0-9-]+              |
+    | fact    | --issue "a b"          | issue must be non-empty with no whitespace      |
+    | fact    | --tag "A B"            | tag must be <family> or <family>/<value>        |
+    | runbook | --trigger ab           | trigger must be at least 3 characters           |
+    | fact    | --tier L9              | tier must be L2, or L1 or L3                    |
+    | fact    | --supersedes "a\|bogus\|c" | supersedes type must be updates, narrows or refutes |
+
+Scenario: 792a3k1a A missing position is refused
+  Given an existing vault
+  When the user runs engram learn fact without --position
+  Then it fails saying the position must be top, continuation or sibling, and no note is written
+
+Scenario: 792a3k1b A continuation without a target is refused
+  Given an existing vault
+  When the user runs engram learn fact --position continuation without --target
+  Then it fails saying a target is required, and no note is written
+
+Scenario: 792a3k1c A sibling of a top-level note is refused
+  Given a vault whose note has ID 1
+  When the user runs engram learn fact --position sibling --target 1
+  Then it fails saying a sibling of a top-level note requires --position top, and no note is written
+
+Scenario Outline: 792a3r1a An invalid pair is refused before any write
+  Given an existing vault
+  When the user runs engram learn qa with <argument>
+  Then it fails with an error saying <problem>, and neither note is written
+
+  Examples:
+    | argument                       | problem                                      |
+    | no --question                  | --question is required                       |
+    | both --answer and --answer-file | exactly one of --answer or --answer-file is required |
+    | neither --answer nor --answer-file | exactly one of --answer or --answer-file is required |
+    | --certainty huge               | certainty must be high, medium, or low       |
+    | --contributors nope            | contributor not found in vault               |
+    | --slug X_y                     | slug must match [a-z0-9-]+                   |
+    | no --source                    | --source is a missing required flag          |
+
+Scenario: 792a3s1a A failed answer removes the question
+  Given a vault that already holds a file named like today's answer note for slug why-x
+  When the user runs engram learn qa --slug why-x
+  Then it fails saying the answer note could not be written, and no question note for why-x remains
+```
+
 ## 792b3 Added: durable-file-store
 
 Canonical target: `docs/specs/technical/durable-file-store.md` (title `Durable File Store - Technical Spec`).
@@ -317,7 +428,7 @@ Canonical target: `docs/specs/technical/durable-file-store.md` (title `Durable F
   component decides how a write reaches the disk; independent verification, it is tested directly
   over fake primitives and over the real filesystem; stability, the contract survives any change to
   the injection seam; necessity, every vault-identity, note and index write depends on it.
-- Supported capabilities: 792a2 vault-identity.
+- Supported capabilities: 792a2 vault-identity, 792a3 note-writing.
 
 Rationale: `os.WriteFile` is not atomic. Before ADR-0013, unlocked non-atomic writes let two
 concurrent `engram ingest` or `engram amend` runs corrupt state in production. A same-directory
@@ -367,7 +478,7 @@ the requested mode regardless of umask, and renaming the temp onto the target, s
 reader sees either the old or the new content. On any failure after the temp is created it MUST
 remove the temp, leave the original unchanged, and return an error naming the target path.
 
-Supports: 792a2h1a, 792a2m1a, 792a2n1a.
+Supports: 792a2h1a, 792a2m1a, 792a2n1a, 792a3n1a, 792a3u1a, 792a3u1b.
 
 Rationale: the unique temp name (target base, clock nanoseconds, attempt counter) is retried a
 bounded number of times on a name collision, so two writers of the same file never share a temp.
@@ -424,7 +535,7 @@ satisfies `errors.Is(err, fs.ErrExist)` when one does. When writing the data fai
 takes precedence over a close error; when the write succeeds and the close fails, the close error
 is returned.
 
-Supports: 792a2h1c.
+Supports: 792a2h1c, 792a3a1a, 792a3b1a, 792a3c1a, 792a3m1a, 792a3q1a, 792a3s1a.
 
 Rationale: exclusive create is the collision backstop for concurrent creators, such as two
 processes stamping the same vault ID or racing for the same Luhmann ID.
@@ -485,7 +596,7 @@ files directly inside it, leaving out subdirectories, other files and the untouc
 `README.md`, MUST return an empty list when the directory does not exist, and MUST return any other
 read error.
 
-Supports: 792a2c1a, 792a2d1a, 792a2d1b.
+Supports: 792a2c1a, 792a2d1a, 792a2d1b, 792a3r1a.
 
 Rationale: this listing is the one shared point where every vault scanner (query, check, embed,
 count) stops seeing subdirectories and the starter README.
@@ -527,6 +638,16 @@ Scenario: 792b3c4a4 The starter README is left out
 | 792a2h1c | 792b3c2 |
 | 792a2m1a | 792b3c1 |
 | 792a2n1a | 792b3c1 |
+| 792a3a1a | 792b3c2 |
+| 792a3b1a | 792b3c2 |
+| 792a3c1a | 792b3c2 |
+| 792a3m1a | 792b3c2 |
+| 792a3n1a | 792b3c1 |
+| 792a3q1a | 792b3c2 |
+| 792a3r1a | 792b3c4 |
+| 792a3s1a | 792b3c2 |
+| 792a3u1a | 792b3c1 |
+| 792a3u1b | 792b3c1 |
 
 ```gherkin
 Scenario: 792a2c1a A Markdown file in a subdirectory is not a note
@@ -565,6 +686,48 @@ Scenario: 792a2n1a Claim accepts a moved vault
   Then the ID is unchanged, engram vault-id then reports location: ok, and exchange resumes
 ```
 
+```gherkin
+Scenario: 792a3a1a A fact note is written
+  Given an empty vault
+  When the user runs engram learn fact --slug ctx-fact --position top --source "smoke test" --situation "concurrent Go code" --subject goroutines --predicate "leak when" --object "ctx is ignored"
+  Then stdout prints the path of 1.<today>.ctx-fact.md at the vault root, whose frontmatter has type: fact and whose body reads "Information learned: when in concurrent Go code, goroutines leak when ctx is ignored."
+
+Scenario: 792a3b1a A feedback note is written
+  Given an empty vault
+  When the user runs engram learn feedback --slug ctx-rule --position top --source "smoke test" --situation "writing concurrent Go code" --behavior "ignoring ctx" --impact "leaks goroutines" --action "check ctx.Done()"
+  Then stdout prints the path of 1.<today>.ctx-rule.md, whose frontmatter has type: feedback and whose body reads "Lesson learned: when writing concurrent Go code, check ctx.Done()."
+
+Scenario: 792a3c1a A runbook note is written
+  Given an empty vault
+  When the user runs engram learn runbook --slug rb --position top --source src --situation "releasing a build" --done-when "the tag is pushed" --body "1. Run the checks"
+  Then stdout prints the path of 1.<today>.rb.md, whose frontmatter has type: runbook, situation and done_when, and whose body is "1. Run the checks"
+
+Scenario: 792a3m1a Concurrent learns get distinct IDs
+  Given an existing vault
+  When two engram learn fact --position top runs start at the same time
+  Then two notes exist with different Luhmann IDs, each holding its own content
+
+Scenario: 792a3n1a A learned note has its sidecar
+  Given an empty vault
+  When the user runs engram learn fact, feedback, runbook or qa
+  Then every note written has a .vec.json sidecar beside it, and engram check reports no note missing a sidecar
+
+Scenario: 792a3q1a A pair is captured
+  Given a vault holding note 1.2026-10-09.a-fact
+  When the user runs engram learn qa --slug why-x --question "Why X?" --answer "Because." --source src --contributors 1.2026-10-09.a-fact
+  Then stdout prints the paths of qa.<today>.why-x.q.md and then qa.<today>.why-x.a.md, the question note ends "Answered by: [[qa.<today>.why-x.a]]", and the answer note ends "Answers: [[qa.<today>.why-x.q]]" and "Contributors: [[1.2026-10-09.a-fact]]"
+
+Scenario: 792a3u1a A runbook is tagged
+  Given a vault with a vocabulary term close to a runbook's text
+  When the user runs engram learn runbook with that text
+  Then the runbook carries the term's vocab tag
+
+Scenario: 792a3u1b The answer is tagged and the question is not
+  Given a vault with a vocabulary term close to both a question and its answer
+  When the user runs engram learn qa with them
+  Then the answer note carries the term's vocab tag, and the question note has no tags: field
+```
+
 ## 792b4 Added: subprocess-runner
 
 Canonical target: `docs/specs/technical/subprocess-runner.md` (title `Subprocess Runner - Technical Spec`).
@@ -583,9 +746,9 @@ Canonical target: `docs/specs/technical/subprocess-runner.md` (title `Subprocess
   naming any caller; ownership, callers choose the program and interpret its output, while this
   component owns collection, error context and not-found translation; independent verification, it
   is tested directly over a fake run primitive and over real processes; stability, the contract
-  survives any change to the injection seam; necessity, the uncommitted vault-ID notice depends on
-  running `git`.
-- Supported capabilities: 792a2 vault-identity.
+  survives any change to the injection seam; necessity, the uncommitted vault-ID notice and note
+  provenance depend on running `git`.
+- Supported capabilities: 792a2 vault-identity, 792a3 note-writing.
 
 No legacy document describes this component. It is derived from its realization and tests.
 
@@ -618,7 +781,7 @@ Requirement: 792b4c1 The subprocess-runner MUST run the named program with the g
 the given directory, or in the process's working directory when none is given, and MUST return
 everything the program wrote to stdout and stderr with no error when it exits successfully.
 
-Supports: 792a2i1a, 792a2i1b, 792a2i1c.
+Supports: 792a2i1a, 792a2i1b, 792a2i1c, 792a3o1a, 792a3o1b, 792a3o1c, 792a3p1a, 792a3p1b.
 
 ##### 792b4c1a Scenarios
 
@@ -640,7 +803,7 @@ Requirement: 792b4c2 When the program cannot run or exits unsuccessfully, the su
 return an error that names the program and its arguments and wraps the underlying failure, along
 with whatever output was captured.
 
-Supports: 792a2i1d.
+Supports: 792a2i1d, 792a3o1c, 792a3p1b, 792a3p1c.
 
 ##### 792b4c2a Scenarios
 
@@ -684,6 +847,12 @@ Scenario: 792b4c3a2 Without a configured not-found error nothing is translated
 | 792a2i1b | 792b4c1 |
 | 792a2i1c | 792b4c1 |
 | 792a2i1d | 792b4c2, 792b4c3 |
+| 792a3o1a | 792b4c1 |
+| 792a3o1b | 792b4c1 |
+| 792a3o1c | 792b4c1, 792b4c2 |
+| 792a3p1a | 792b4c1 |
+| 792a3p1b | 792b4c1, 792b4c2 |
+| 792a3p1c | 792b4c2 |
 
 ```gherkin
 Scenario: 792a2i1a Uncommitted ID is flagged
@@ -705,6 +874,38 @@ Scenario: 792a2i1d A vault outside git is not flagged
   Given a vault that is not a git work tree and has a .engram-vault-id
   When the user runs engram update
   Then its report includes no commit notice
+```
+
+```gherkin
+Scenario: 792a3o1a The origin remote names the repo
+  Given a working directory inside a git repository whose origin is git@example.com:o/r.git
+  When the user runs engram learn fact
+  Then the note's repo: is git@example.com:o/r.git
+
+Scenario: 792a3o1b Without an origin the top-level directory names the repo
+  Given a working directory inside a git repository named proj with no origin remote
+  When the user runs engram learn fact
+  Then the note's repo: is proj
+
+Scenario: 792a3o1c Outside a git repository there is no repo
+  Given a working directory outside any git repository
+  When the user runs engram learn fact
+  Then the note has no repo: field
+
+Scenario: 792a3p1a The git email names the user
+  Given git config user.email resolves to a@example.com
+  When the user runs engram learn fact
+  Then the note's user: is a@example.com
+
+Scenario: 792a3p1b The OS username is the fallback
+  Given git config user.email resolves to nothing and the OS username is joe
+  When the user runs engram learn fact
+  Then the note's user: is joe
+
+Scenario: 792a3p1c No detectable user
+  Given neither git config user.email nor the OS username resolves
+  When the user runs engram learn fact
+  Then the note has no user: field, vault: is stamped as usual, and stderr carries one warning that user detection resolved empty
 ```
 
 ## 792b5 Added: vault-identity-registry

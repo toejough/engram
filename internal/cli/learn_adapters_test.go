@@ -244,7 +244,7 @@ func TestRunLearnFromFeedbackArgs_WritesFile(t *testing.T) {
 
 // TestRunLearnFromRunbookArgs_NoRedFlag_NoFieldNoError proves the absent-flag
 // case writes cleanly with no red_flags field and no error
-// (learn-runbook-capture spec, "Runbook captured without red flags").
+// (note-writing 792a3d1c, "Neither flag means neither field").
 func TestRunLearnFromRunbookArgs_NoRedFlag_NoFieldNoError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -286,7 +286,7 @@ func TestRunLearnFromRunbookArgs_NoRedFlag_NoFieldNoError(t *testing.T) {
 
 // TestRunLearnFromRunbookArgs_RedFlagRepeatableFlagWritesField proves the
 // repeatable --red-flag CLI flag (bound to LearnRunbookArgs.RedFlags) reaches
-// the written note, in order (learn-runbook-capture spec).
+// the written note, in order (note-writing 792a3d).
 func TestRunLearnFromRunbookArgs_RedFlagRepeatableFlagWritesField(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

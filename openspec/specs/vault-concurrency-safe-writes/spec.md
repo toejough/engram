@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Every vault writer (learn, amend, resituate, activate, ingest, prune) acquires an exclusive file lock at its entry point and holds it through all read-modify-write operations. Separate locks protect manifest changes (ingest, prune) and note+sidecar changes (amend, resituate, activate). Why: `docs/architecture/adr.md` ADR-0013. Atomic temp-rename writes are in `docs/changes/792_documentation-framework-adoption/792b_technical-spec.md#792b3-added-durable-file-store`. Validation: concurrent-writers regression test + `targ check-full` (commit `f7f6b389`); correctness is test-locked, not eval-measured.
+The product guarantee that concurrent `engram learn` runs never collide is in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a3-added-note-writing` (792a3m). Every vault writer (learn, amend, resituate, activate, ingest, prune) acquires an exclusive file lock at its entry point and holds it through all read-modify-write operations. Separate locks protect manifest changes (ingest, prune) and note+sidecar changes (amend, resituate, activate). Why: `docs/architecture/adr.md` ADR-0013. Atomic temp-rename writes are in `docs/changes/792_documentation-framework-adoption/792b_technical-spec.md#792b3-added-durable-file-store`. Validation: concurrent-writers regression test + `targ check-full` (commit `f7f6b389`); correctness is test-locked, not eval-measured.
 
 ## Requirements
 
