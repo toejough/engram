@@ -13,7 +13,7 @@ import (
 	"github.com/toejough/engram/internal/update"
 )
 
-func TestCommander_CollectsOutputOnSuccess(t *testing.T) {
+func Test792b4c1a1_Commander_CollectsOutputOnSuccess(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -31,22 +31,7 @@ func TestCommander_CollectsOutputOnSuccess(t *testing.T) {
 	g.Expect(string(stderr)).To(Equal("err-bytes"))
 }
 
-func TestCommander_NilNotFoundErrNeverTranslates(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	errSpawn := errors.New("spawn failed")
-	run := func(_ context.Context, _, _ string, _ []string, _, _ io.Writer) error {
-		return errSpawn
-	}
-
-	_, _, err := commanderOver(run, nil).Run(context.Background(), "", "tool")
-	g.Expect(err).To(MatchError(errSpawn))
-	g.Expect(err).NotTo(MatchError(update.ErrCommandNotFound))
-}
-
-func TestCommander_PassesCallThrough(t *testing.T) {
+func Test792b4c1a2_Commander_PassesCallThrough(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -68,22 +53,7 @@ func TestCommander_PassesCallThrough(t *testing.T) {
 	g.Expect(gotArgs).To(Equal([]string{"clone", "url"}))
 }
 
-func TestCommander_TranslatesInjectedNotFound(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	errPlatformNotFound := errors.New("platform: executable file not found")
-	run := func(_ context.Context, _, _ string, _ []string, _, _ io.Writer) error {
-		return fmt.Errorf("spawning: %w", errPlatformNotFound)
-	}
-
-	_, _, err := commanderOver(run, errPlatformNotFound).Run(context.Background(), "", "ghost")
-	g.Expect(err).To(MatchError(update.ErrCommandNotFound))
-	g.Expect(err).To(MatchError(errPlatformNotFound))
-}
-
-func TestCommander_WrapsFailureAndKeepsOutput(t *testing.T) {
+func Test792b4c2a1_Commander_WrapsFailureAndKeepsOutput(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -103,6 +73,36 @@ func TestCommander_WrapsFailureAndKeepsOutput(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("tool [arg]")))
 	g.Expect(string(stdout)).To(Equal("partial"))
 	g.Expect(string(stderr)).To(Equal("diagnostic"))
+}
+
+func Test792b4c3a1_Commander_TranslatesInjectedNotFound(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	errPlatformNotFound := errors.New("platform: executable file not found")
+	run := func(_ context.Context, _, _ string, _ []string, _, _ io.Writer) error {
+		return fmt.Errorf("spawning: %w", errPlatformNotFound)
+	}
+
+	_, _, err := commanderOver(run, errPlatformNotFound).Run(context.Background(), "", "ghost")
+	g.Expect(err).To(MatchError(update.ErrCommandNotFound))
+	g.Expect(err).To(MatchError(errPlatformNotFound))
+}
+
+func Test792b4c3a2_Commander_NilNotFoundErrNeverTranslates(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	errSpawn := errors.New("spawn failed")
+	run := func(_ context.Context, _, _ string, _ []string, _, _ io.Writer) error {
+		return errSpawn
+	}
+
+	_, _, err := commanderOver(run, nil).Run(context.Background(), "", "tool")
+	g.Expect(err).To(MatchError(errSpawn))
+	g.Expect(err).NotTo(MatchError(update.ErrCommandNotFound))
 }
 
 // commanderOver builds the composed update.Commander from a fake RunCommand

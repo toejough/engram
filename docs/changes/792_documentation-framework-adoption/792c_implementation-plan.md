@@ -201,8 +201,8 @@ flowchart TD
   N792c7a1["792c7a1 vault-identity product spec<br/>Complete"]
   N792c7a2["792c7a2 command-line-surface tech spec<br/>Complete"]
   N792c7a3["792c7a3 durable-file-store tech spec<br/>Complete"]
-  N792c7a4["792c7a4 subprocess-runner tech spec<br/>Ready"]
-  N792c7a5["792c7a5 vault-identity-registry tech spec<br/>Blocked by: 792c7a4"]
+  N792c7a4["792c7a4 subprocess-runner tech spec<br/>Complete"]
+  N792c7a5["792c7a5 vault-identity-registry tech spec<br/>Ready"]
   N792c7b1["792c7b1 note-writing product spec<br/>Blocked by: 792c7a5"]
   N792c7b2["792c7b2 note-document-format tech spec<br/>Blocked by: 792c7b1"]
   N792c7b3["792c7b3 luhmann-addressing tech spec<br/>Blocked by: 792c7b2"]
@@ -426,7 +426,7 @@ end (covered only through 792b2c1), 792a2b1b and 792a2b1c end to end (covered on
 - Deferred to the capability node that adds their routing requirement here (792d51):
   `removed_server_test` (2, parent-sync 792c7t1), `chunksdir_test` (1, chunk-indexing 792c7d1),
   `show_test` (9, memory-query 792c7f1), `cmd/engram/main_test` `TestSpawnPrimitives_*` (4,
-  subprocess-runner 792c7a4).
+  install-and-update 792c7j1, via subprocess-runner).
 - `targets_test`: `TestCacheDirFromHome` (text-embedder 792c7b5), `TestProjectSlugFromPath`,
   `TestRunSafe`, `TestTargets`, `TestTargets_ActivateNoNotes`, `TestTargets_Amend_NoSkillHashFlag`,
   `TestTargets_CheckEmptyVault`, `TestTargets_EmbedApplyDryRun`, `TestTargets_EmbedStatus`,
@@ -522,11 +522,35 @@ Target: `792b4` (`docs/specs/technical/subprocess-runner.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7a4a | Port the component contract to `792b4` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7a4b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7a4c | Repoint stale references to `792b4` | Non-test action | Keeps live links valid | Not started |
-| 792c7a4d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7a4e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7a4a | Port the component contract to `792b4` | Non-test action | Documents the component in the framework format | Done |
+| 792c7a4b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7a4c | Repoint stale references to `792b4` | Non-test action | Keeps live links valid | Done |
+| 792c7a4d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7a4e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b4c1a1 | `TestCommander_CollectsOutputOnSuccess` → `Test792b4c1a1_Commander_CollectsOutputOnSuccess` | Pure unit (fake run primitive) | Output collected | Done |
+| 792b4c1a1 | `TestCommanderIntegration_RunsCommand` → `Test792b4c1a1_CommanderIntegration_RunsCommand` | Real process (`echo`) | Output collected over the OS | Done |
+| 792b4c1a2 | `TestCommander_PassesCallThrough` → `Test792b4c1a2_Commander_PassesCallThrough` | Pure unit (fake run primitive) | Program, args and dir reach the primitive | Done |
+| 792b4c1a2 | `TestCommanderIntegration_RunsInDir` → `Test792b4c1a2_CommanderIntegration_RunsInDir` | Real process (`pwd -P`), temp dir | Runs in the given directory | Done |
+| 792b4c2a1 | `TestCommander_WrapsFailureAndKeepsOutput` → `Test792b4c2a1_Commander_WrapsFailureAndKeepsOutput` | Pure unit (fake run primitive) | Failure context and kept output | Done |
+| 792b4c2a1 | `TestCommanderIntegration_ReportsFailure` → `Test792b4c2a1_CommanderIntegration_ReportsFailure` | Real process (`false`) | Failure over the OS | Done |
+| 792b4c3a1 | `TestCommander_TranslatesInjectedNotFound` → `Test792b4c3a1_Commander_TranslatesInjectedNotFound` | Pure unit (fake run primitive) | Not-found translation | Done |
+| 792b4c3a1 | `TestCommanderIntegration_TranslatesNotFound` → `Test792b4c3a1_CommanderIntegration_TranslatesNotFound` | Real process (missing binary) | Not-found over the OS | Done |
+| 792b4c3a2 | `TestCommander_NilNotFoundErrNeverTranslates` → `Test792b4c3a2_Commander_NilNotFoundErrNeverTranslates` | Pure unit (fake run primitive) | No translation without a sentinel | Done |
+
+**Coverage gaps:** none for 792b4. The product scenarios 792a2i1a–792a2i1d are renamed with the
+registry's tests in 792c7a5.
+
+**No-scenario tests:** deferred to install-and-update (792c7j1, 792d51), which adds the inherited-stdio
+spawn requirements: `spawner_test` `TestSpawner_PassesCallThroughOnSuccess`,
+`TestSpawner_PassesThroughNonZeroExitWithNilErr`, `TestSpawner_PassesThroughSpawnFailure`, and
+`cmd/engram/main_test` `TestSpawnPrimitives_ExitCodeOnNonZeroExit`, `TestSpawnPrimitives_ExitCodeOnSuccess`,
+`TestSpawnPrimitives_PassesArgsAndEnv`, `TestSpawnPrimitives_SpawnFailureReturnsErr`. The generated
+`generated_MockCommander_test.go` is a helper, not a test.
 
 #### 792c7a5 vault-identity-registry tech spec
 

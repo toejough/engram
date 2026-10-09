@@ -11,24 +11,7 @@ import (
 	"github.com/toejough/engram/internal/update"
 )
 
-// These tests drive the composed primCommander over the REAL exec
-// primitive (realPrimitives mirrors cmd/engram/main.go's literal).
-// The production C-1 closure is guarded end-to-end by cli_test.go's
-// TestRunCommand_EndToEnd (#700). The integration tests below verify
-// the composed Commander over real os funcs.
-
-func TestCommanderIntegration_ReportsFailure(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	commander := realDepsForTest().Commander
-
-	_, _, err := commander.Run(context.Background(), "", "false")
-	g.Expect(err).To(HaveOccurred())
-}
-
-func TestCommanderIntegration_RunsCommand(t *testing.T) {
+func Test792b4c1a1_CommanderIntegration_RunsCommand(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -40,7 +23,7 @@ func TestCommanderIntegration_RunsCommand(t *testing.T) {
 	g.Expect(strings.TrimSpace(string(stdout))).To(Equal("hello world"))
 }
 
-func TestCommanderIntegration_RunsInDir(t *testing.T) {
+func Test792b4c1a2_CommanderIntegration_RunsInDir(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -64,7 +47,24 @@ func TestCommanderIntegration_RunsInDir(t *testing.T) {
 	g.Expect(strings.TrimSpace(string(stdout))).To(Equal(resolved))
 }
 
-func TestCommanderIntegration_TranslatesNotFound(t *testing.T) {
+// These tests drive the composed primCommander over the REAL exec
+// primitive (realPrimitives mirrors cmd/engram/main.go's literal).
+// The production C-1 closure is guarded end-to-end by cli_test.go's
+// TestRunCommand_EndToEnd (#700). The integration tests below verify
+// the composed Commander over real os funcs.
+
+func Test792b4c2a1_CommanderIntegration_ReportsFailure(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	commander := realDepsForTest().Commander
+
+	_, _, err := commander.Run(context.Background(), "", "false")
+	g.Expect(err).To(HaveOccurred())
+}
+
+func Test792b4c3a1_CommanderIntegration_TranslatesNotFound(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)

@@ -564,3 +564,145 @@ Scenario: 792a2n1a Claim accepts a moved vault
   When the user runs engram vault-id --claim
   Then the ID is unchanged, engram vault-id then reports location: ok, and exchange resumes
 ```
+
+## 792b4 Added: subprocess-runner
+
+Canonical target: `docs/specs/technical/subprocess-runner.md` (title `Subprocess Runner - Technical Spec`).
+
+### 792b4a Orientation
+
+- Ownership: Repository-owned dependency-boundary interaction (operating-system processes).
+- Responsibility: runs an external program, such as `git` or `go`, in a chosen directory and hands
+  back what it printed, or reports why it failed, telling "program not installed" apart from other
+  failures.
+- Current realization (informational): `primCommander` in `internal/cli/commander.go` (the
+  `update.Commander` interface), over the raw `ExecPrims` that `cmd/engram/main.go` supplies.
+  `primSpawner` in `internal/cli/spawner.go` runs a child with inherited stdio; its requirements are
+  added by install-and-update (792c7j1, 792d51).
+- Qualification: responsibility, running a program and collecting its output is stated without
+  naming any caller; ownership, callers choose the program and interpret its output, while this
+  component owns collection, error context and not-found translation; independent verification, it
+  is tested directly over a fake run primitive and over real processes; stability, the contract
+  survives any change to the injection seam; necessity, the uncommitted vault-ID notice depends on
+  running `git`.
+- Supported capabilities: 792a2 vault-identity.
+
+No legacy document describes this component. It is derived from its realization and tests.
+
+### 792b4b Sequences
+
+```mermaid
+sequenceDiagram
+  participant Caller as Command
+  participant Runner as subprocess-runner
+  participant OS as Operating system
+  Caller->>Runner: run program with args in dir (792b4c1)
+  Runner->>OS: start the program and capture stdout and stderr
+  alt program exits 0
+    OS-->>Runner: output
+    Runner-->>Caller: stdout and stderr, no error (792b4c1)
+  else program not found
+    OS-->>Runner: not-found error
+    Runner-->>Caller: output so far and a command-not-found error (792b4c3)
+  else program fails
+    OS-->>Runner: failure
+    Runner-->>Caller: output so far and an error naming program and args (792b4c2)
+  end
+```
+
+### 792b4c Behavior Requirements
+
+#### 792b4c1 Run and collect output
+
+Requirement: 792b4c1 The subprocess-runner MUST run the named program with the given arguments in
+the given directory, or in the process's working directory when none is given, and MUST return
+everything the program wrote to stdout and stderr with no error when it exits successfully.
+
+Supports: 792a2i1a, 792a2i1b, 792a2i1c.
+
+##### 792b4c1a Scenarios
+
+```gherkin
+Scenario: 792b4c1a1 Output is collected on success
+  Given a program that writes to stdout and stderr and exits 0
+  When it is run
+  Then its stdout and stderr are returned and there is no error
+
+Scenario: 792b4c1a2 The program runs in the given directory
+  Given a directory
+  When pwd -P is run in it
+  Then the output is that directory's resolved path, and the program, arguments and directory reach the run primitive unchanged
+```
+
+#### 792b4c2 Failure reporting
+
+Requirement: 792b4c2 When the program cannot run or exits unsuccessfully, the subprocess-runner MUST
+return an error that names the program and its arguments and wraps the underlying failure, along
+with whatever output was captured.
+
+Supports: 792a2i1d.
+
+##### 792b4c2a Scenarios
+
+```gherkin
+Scenario: 792b4c2a1 A failing program is reported with its output
+  Given a program that writes output and then fails
+  When it is run
+  Then an error naming the program and arguments is returned, and the captured output is kept
+```
+
+#### 792b4c3 Not-found translation
+
+Requirement: 792b4c3 When the failure is the platform's "program not found" error, the
+subprocess-runner MUST also make the error satisfy `errors.Is(err, update.ErrCommandNotFound)`, and
+it MUST NOT do so for any other failure, including when no platform not-found error is configured.
+
+Supports: 792a2i1d.
+
+Rationale: callers such as the self-installer report a missing `git` or `go` differently from a
+failed one, without knowing the platform's error value.
+
+##### 792b4c3a Scenarios
+
+```gherkin
+Scenario: 792b4c3a1 A missing program is reported as not found
+  Given no program by the given name is installed
+  When it is run
+  Then the error satisfies errors.Is for the command-not-found error and still wraps the platform error
+
+Scenario: 792b4c3a2 Without a configured not-found error nothing is translated
+  Given no platform not-found error is configured and the program fails to start
+  When it is run
+  Then the error wraps the failure and does not satisfy errors.Is for the command-not-found error
+```
+
+### 792b4d Product-Scenario Mapping
+
+| Product scenario | Technical requirements |
+| --- | --- |
+| 792a2i1a | 792b4c1 |
+| 792a2i1b | 792b4c1 |
+| 792a2i1c | 792b4c1 |
+| 792a2i1d | 792b4c2, 792b4c3 |
+
+```gherkin
+Scenario: 792a2i1a Uncommitted ID is flagged
+  Given a git-backed vault whose .engram-vault-id is untracked
+  When the user runs engram update
+  Then its report includes a notice asking for a one-time vault commit
+
+Scenario: 792a2i1b An ignored ID is flagged
+  Given a git-backed vault whose .engram-vault-id is ignored by its .gitignore
+  When the user runs engram update
+  Then its report includes the commit notice
+
+Scenario: 792a2i1c A committed ID is not flagged
+  Given a git-backed vault whose .engram-vault-id is committed and unmodified
+  When the user runs engram update
+  Then its report includes no commit notice
+
+Scenario: 792a2i1d A vault outside git is not flagged
+  Given a vault that is not a git work tree and has a .engram-vault-id
+  When the user runs engram update
+  Then its report includes no commit notice
+```
