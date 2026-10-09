@@ -199,8 +199,8 @@ The orchestrator commits each node once all of its entries are Done.
 ```mermaid
 flowchart TD
   N792c7a1["792c7a1 vault-identity product spec<br/>Complete"]
-  N792c7a2["792c7a2 command-line-surface tech spec<br/>Ready"]
-  N792c7a3["792c7a3 durable-file-store tech spec<br/>Blocked by: 792c7a2"]
+  N792c7a2["792c7a2 command-line-surface tech spec<br/>Complete"]
+  N792c7a3["792c7a3 durable-file-store tech spec<br/>Ready"]
   N792c7a4["792c7a4 subprocess-runner tech spec<br/>Blocked by: 792c7a3"]
   N792c7a5["792c7a5 vault-identity-registry tech spec<br/>Blocked by: 792c7a4"]
   N792c7b1["792c7b1 note-writing product spec<br/>Blocked by: 792c7a5"]
@@ -392,11 +392,53 @@ Target: `792b2` (`docs/specs/technical/command-line-surface.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7a2a | Port the component contract to `792b2` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7a2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7a2c | Repoint stale references to `792b2` | Non-test action | Keeps live links valid | Not started |
-| 792c7a2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7a2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7a2a | Port the component contract to `792b2` | Non-test action | Documents the component in the framework format | Done |
+| 792c7a2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7a2c | Repoint stale references to `792b2` | Non-test action | Keeps live links valid | Done |
+| 792c7a2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7a2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b2c1a1 | `TestResolveVault_FlagWins` → `Test792b2c1a1_ResolveVault_FlagWins` | Pure unit (injected getenv) | Flag precedence | Done |
+| 792b2c1a2 | `TestResolveVault_EnvFallback` → `Test792b2c1a2_ResolveVault_EnvFallback` | Pure unit (injected getenv) | Environment precedence | Done |
+| 792b2c1a3 | `TestResolveVault_XDGDefault` → `Test792b2c1a3_ResolveVault_XDGDefault` | Pure unit (injected getenv) | XDG default | Done |
+| 792b2c1a3 | `TestDataDirFromHome` → `Test792b2c1a3_DataDirFromHome` (split deferred: 792b2c1a4) | Pure unit (injected getenv) | Data-directory half of both defaults | Done |
+| 792b2c1a4 | `TestResolveVault_HomeFallback` → `Test792b2c1a4_ResolveVault_HomeFallback` | Pure unit (injected getenv) | Home fallback | Done |
+| 792b2c2a1 | `TestResolveVaultName` → `Test792b2c2a1_ResolveVaultName` (split deferred: 792b2c2a2, 792b2c2a3) | Pure unit table (injected getenv) | All three name precedence cases | Done |
+| 792a2b1a | `TestTargets_AmendDefaultVaultName` → `Test792a2b1a_Targets_AmendDefaultVaultName` | Dispatch through `Targets` with temp-dir vault and pinned environment | Default name written to a note end to end | Done |
+| 792b2c3a1 | `TestTargets_EveryVaultCommandCreatesMissingVault` → `Test792b2c3a1_Targets_EveryVaultCommandCreatesMissingVault` (split deferred: 792a2e1d) | Dispatch through `Targets`, temp-dir vault, injected random source | Gating for every vault-resolving command, and the quiet second run | Done |
+| 792b2c3a1 | `TestTargets_ServeCreatesMissingVault` → `Test792b2c3a1_Targets_ServeCreatesMissingVault` | Dispatch through `Targets`, fake server binding | `serve` is gated like every other command | Done |
+| 792a2e1a | `TestTargets_QueryMissingVaultReturnsEmptyResult` → `Test792a2e1a_Targets_QueryMissingVaultReturnsEmptyResult` | Dispatch through `Targets`, temp-dir vault | The product scenario end to end | Done |
+| 792a2e1b | `TestTargets_AmendActivateMissingVaultFailOnNotFound` → `Test792a2e1b_Targets_AmendActivateMissingVaultFailOnNotFound` | Dispatch through `Targets`, temp-dir vault | The product scenario end to end (amend half) | Done |
+| 792b2c4a1 | `TestNewErrHandler` → `Test792b2c4a1_NewErrHandler` (split deferred: 792b2c4a2) | Pure unit (recording exit) | Failure and success reporting | Done |
+
+**Coverage gaps:** 792b2c3a2 (no dispatch-level test stops a command after a failed first-use step;
+`TestEnsureVault_RegularFileIsNotAVault` covers only the registry's half), 792a2a1a–792a2a1d end to
+end (covered only through 792b2c1), 792a2b1b and 792a2b1c end to end (covered only through
+792b2c2), 792a2e1c, 792a2f1a and 792a2g1a end to end (registry-level tests are renamed in
+792c7a5), 792a2j1c, 792a2n1b and 792a2o1a (dispatch tests are renamed in 792c7a5).
+
+**No-scenario tests:**
+
+- Deferred to the capability node that adds their routing requirement here (792d51):
+  `removed_server_test` (2, parent-sync 792c7t1), `chunksdir_test` (1, chunk-indexing 792c7d1),
+  `show_test` (9, memory-query 792c7f1), `cmd/engram/main_test` `TestSpawnPrimitives_*` (4,
+  subprocess-runner 792c7a4).
+- `targets_test`: `TestCacheDirFromHome` (text-embedder 792c7b5), `TestProjectSlugFromPath`,
+  `TestRunSafe`, `TestTargets`, `TestTargets_ActivateNoNotes`, `TestTargets_Amend_NoSkillHashFlag`,
+  `TestTargets_CheckEmptyVault`, `TestTargets_EmbedApplyDryRun`, `TestTargets_EmbedStatus`,
+  `TestTargets_IngestAndQueryChunksEmpty`, `TestTargets_LearnRunbook_NoSkillHashFlag`,
+  `TestTargets_NoSkillKeyOrSourceFlags`, `TestTargets_PruneEmpty`, `TestTargets_QueryEmptyVault`,
+  `TestTargets_Resituate` (each command's own capability may claim them).
+- `cli_test`: `TestEngramLearn_Fact_EndToEnd`, `TestEngramLearn_Feedback_EndToEnd` (note-writing
+  792c7b1), `TestOpenDebugFile_EndToEnd` (excluded debug-log, 792d27), `TestRunCommand_EndToEnd`
+  (install-and-update 792c7j1).
+- Excluded components (792d27): `signal_test`, `signal_integration_test`, the debuglog tests,
+  `deps_compose_test`, `deps_compose_internal_test`, `primitives_test`, and the wiring parts of
+  `primitives_integration_test`.
 
 #### 792c7a3 durable-file-store tech spec
 

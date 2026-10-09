@@ -6,13 +6,6 @@ verified defect, re-verified each time this doc is edited (see
 [memory-invariants](memory-invariants.md)). These component IDs are the
 vocabulary the [L3 sequence/flow diagrams](#key-flows-l3--component-internal-sequences) reuse.
 
-**Crucial: K1/K4/K6 are SEPARATE PROCESS invocations, not in-process collaborators.**
-Each `engram <subcommand>` is its own process. The **C1·Skills orchestrator** (off-binary)
-wires them: it reads one subcommand's **stdout** and shells the next. The binary's components
-never call each other across subcommands. (This corrects an earlier draft that drew a
-fabricated in-process `query→learn` edge — `query.go` has 0 `learn` refs; it ends at
-`renderQueryPayload(stdout,…)`.)
-
 ```mermaid
 flowchart TB
     classDef comp  fill:#1168bd,stroke:#0b4884,color:#fff

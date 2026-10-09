@@ -16,6 +16,41 @@ import (
 	"github.com/toejough/engram/internal/update"
 )
 
+// Test792b2c2a1_ResolveVaultName covers the flag -> env -> default("personal") order,
+// mirroring resolveVault's flag/env/default shape for the vault path.
+func Test792b2c2a1_ResolveVaultName(t *testing.T) {
+	t.Parallel()
+
+	table := []struct {
+		name string
+		flag string
+		env  string
+		want string
+	}{
+		{name: "flag set wins", flag: "work", env: "personal-env", want: "work"},
+		{name: "env used when flag empty", flag: "", env: "team", want: "team"},
+		{name: "defaults to personal when neither set", flag: "", env: "", want: "personal"},
+	}
+
+	for _, tc := range table {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			getenv := func(key string) string {
+				if key == "ENGRAM_VAULT_NAME" {
+					return tc.env
+				}
+
+				return ""
+			}
+
+			got := cli.ExportResolveVaultName(tc.flag, getenv)
+			g.Expect(got).To(Equal(tc.want))
+		})
+	}
+}
+
 // TestApplyIdentityBackfill covers the update.Report-copying wrapper around
 // backfillIdentity: a non-dry-run backfill sets IdentityBackfillRan/
 // NotesStamped and re-checks VaultHasNotesMissingIdentity (false once
@@ -439,41 +474,6 @@ func TestRepoWithProjectFallback(t *testing.T) {
 			g := NewWithT(t)
 
 			got := cli.ExportRepoWithProjectFallback(tc.project, tc.freshRepo)
-			g.Expect(got).To(Equal(tc.want))
-		})
-	}
-}
-
-// TestResolveVaultName covers the flag -> env -> default("personal") order,
-// mirroring resolveVault's flag/env/default shape for the vault path.
-func TestResolveVaultName(t *testing.T) {
-	t.Parallel()
-
-	table := []struct {
-		name string
-		flag string
-		env  string
-		want string
-	}{
-		{name: "flag set wins", flag: "work", env: "personal-env", want: "work"},
-		{name: "env used when flag empty", flag: "", env: "team", want: "team"},
-		{name: "defaults to personal when neither set", flag: "", env: "", want: "personal"},
-	}
-
-	for _, tc := range table {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			getenv := func(key string) string {
-				if key == "ENGRAM_VAULT_NAME" {
-					return tc.env
-				}
-
-				return ""
-			}
-
-			got := cli.ExportResolveVaultName(tc.flag, getenv)
 			g.Expect(got).To(Equal(tc.want))
 		})
 	}

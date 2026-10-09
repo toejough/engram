@@ -18,35 +18,51 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-func TestCacheDirFromHome(t *testing.T) {
+// Test792a2b1a_Targets_AmendDefaultVaultName is the evidence design D3 (#776) cites
+// for the already-fixed part of the issue: targets.go:144 already resolves
+// vault: through resolveVaultName (flag -> ENGRAM_VAULT_NAME -> "personal",
+// commit 98e85e09, 2026-08-20) before RunAmend ever sees it, so a
+// re-stamping amend driven through the real targ wiring, with neither
+// --vault-name nor ENGRAM_VAULT_NAME set, stamps vault: personal — never
+// vault: "". This test is expected to PASS as written (regression guard,
+// not a RED->GREEN pair): the unit test in TestRunAmend_EmptyUserDetection*
+// is the evidence for the part of #776 that WAS broken (user:).
+func Test792a2b1a_Targets_AmendDefaultVaultName(t *testing.T) {
 	t.Parallel()
+	g := gomega.NewWithT(t)
 
-	const modelID = "minilm-l6-v2@384"
+	vault := t.TempDir()
+	home := t.TempDir()
+	notePath := filepath.Join(vault, "1.2026-01-01.fact.md")
+	note := "---\ntype: fact\ntier: L2\nsituation: ctx\nsubject: A\npredicate: has\nobject: old\n" +
+		"luhmann: \"1\"\ncreated: \"2026-01-01\"\nsource: test\n---\n\n" +
+		"Information learned: when in ctx, A has old.\n\n"
+	g.Expect(os.WriteFile(notePath, []byte(note), 0o600)).To(gomega.Succeed())
 
-	t.Run("returns XDG cache path when no env override", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		dir := cli.CacheDirFromHome("/Users/joe", modelID, func(string) string { return "" })
-		g.Expect(dir).To(gomega.Equal("/Users/joe/.cache/engram/models/minilm-l6-v2@384"))
-	})
-
-	t.Run("respects XDG_CACHE_HOME when set", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		dir := cli.CacheDirFromHome("/Users/joe", modelID, func(key string) string {
-			if key == "XDG_CACHE_HOME" {
-				return "/custom/cache"
+	// The DI seam pins the environment (ruling S34): a scratch home and
+	// XDG_DATA_HOME, and no ENGRAM_VAULT_NAME or ENGRAM_PARENT — so the
+	// developer's shell can neither name the vault nor route an offer.
+	stderr := executeForTestWithDeps(t, []string{
+		"engram", "amend", "--vault", vault, "--target", "1", "--object", "new",
+	}, func(d *cli.Deps) {
+		d.UserHomeDir = func() (string, error) { return home, nil }
+		d.Getenv = func(key string) string {
+			if key == "XDG_DATA_HOME" {
+				return filepath.Join(home, "data")
 			}
 
 			return ""
-		})
-		g.Expect(dir).To(gomega.Equal("/custom/cache/engram/models/minilm-l6-v2@384"))
+		}
 	})
+	g.Expect(stderr).To(gomega.BeEmpty())
+
+	written, readErr := os.ReadFile(notePath)
+	g.Expect(readErr).NotTo(gomega.HaveOccurred())
+	g.Expect(string(written)).To(gomega.ContainSubstring("vault: personal"))
+	g.Expect(string(written)).NotTo(gomega.ContainSubstring("vault: \"\""))
 }
 
-func TestDataDirFromHome(t *testing.T) {
+func Test792b2c1a3_DataDirFromHome(t *testing.T) {
 	t.Parallel()
 
 	t.Run("returns XDG data path when no env override", func(t *testing.T) {
@@ -72,7 +88,7 @@ func TestDataDirFromHome(t *testing.T) {
 	})
 }
 
-func TestNewErrHandler(t *testing.T) {
+func Test792b2c4a1_NewErrHandler(t *testing.T) {
 	t.Parallel()
 
 	t.Run("calls exit with non-zero when err is non-nil", func(t *testing.T) {
@@ -110,6 +126,34 @@ func TestNewErrHandler(t *testing.T) {
 
 		g.Expect(called).To(gomega.BeFalse())
 		g.Expect(stderr.String()).To(gomega.BeEmpty())
+	})
+}
+
+func TestCacheDirFromHome(t *testing.T) {
+	t.Parallel()
+
+	const modelID = "minilm-l6-v2@384"
+
+	t.Run("returns XDG cache path when no env override", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		dir := cli.CacheDirFromHome("/Users/joe", modelID, func(string) string { return "" })
+		g.Expect(dir).To(gomega.Equal("/Users/joe/.cache/engram/models/minilm-l6-v2@384"))
+	})
+
+	t.Run("respects XDG_CACHE_HOME when set", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		dir := cli.CacheDirFromHome("/Users/joe", modelID, func(key string) string {
+			if key == "XDG_CACHE_HOME" {
+				return "/custom/cache"
+			}
+
+			return ""
+		})
+		g.Expect(dir).To(gomega.Equal("/custom/cache/engram/models/minilm-l6-v2@384"))
 	})
 }
 
@@ -382,50 +426,6 @@ func TestTargets_ActivateNoNotes(t *testing.T) {
 
 	stderr := executeForTest(t, []string{"engram", "activate", "--vault", vault})
 	g.Expect(stderr).To(gomega.BeEmpty())
-}
-
-// TestTargets_AmendDefaultVaultName is the evidence design D3 (#776) cites
-// for the already-fixed part of the issue: targets.go:144 already resolves
-// vault: through resolveVaultName (flag -> ENGRAM_VAULT_NAME -> "personal",
-// commit 98e85e09, 2026-08-20) before RunAmend ever sees it, so a
-// re-stamping amend driven through the real targ wiring, with neither
-// --vault-name nor ENGRAM_VAULT_NAME set, stamps vault: personal — never
-// vault: "". This test is expected to PASS as written (regression guard,
-// not a RED->GREEN pair): the unit test in TestRunAmend_EmptyUserDetection*
-// is the evidence for the part of #776 that WAS broken (user:).
-func TestTargets_AmendDefaultVaultName(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	vault := t.TempDir()
-	home := t.TempDir()
-	notePath := filepath.Join(vault, "1.2026-01-01.fact.md")
-	note := "---\ntype: fact\ntier: L2\nsituation: ctx\nsubject: A\npredicate: has\nobject: old\n" +
-		"luhmann: \"1\"\ncreated: \"2026-01-01\"\nsource: test\n---\n\n" +
-		"Information learned: when in ctx, A has old.\n\n"
-	g.Expect(os.WriteFile(notePath, []byte(note), 0o600)).To(gomega.Succeed())
-
-	// The DI seam pins the environment (ruling S34): a scratch home and
-	// XDG_DATA_HOME, and no ENGRAM_VAULT_NAME or ENGRAM_PARENT — so the
-	// developer's shell can neither name the vault nor route an offer.
-	stderr := executeForTestWithDeps(t, []string{
-		"engram", "amend", "--vault", vault, "--target", "1", "--object", "new",
-	}, func(d *cli.Deps) {
-		d.UserHomeDir = func() (string, error) { return home, nil }
-		d.Getenv = func(key string) string {
-			if key == "XDG_DATA_HOME" {
-				return filepath.Join(home, "data")
-			}
-
-			return ""
-		}
-	})
-	g.Expect(stderr).To(gomega.BeEmpty())
-
-	written, readErr := os.ReadFile(notePath)
-	g.Expect(readErr).NotTo(gomega.HaveOccurred())
-	g.Expect(string(written)).To(gomega.ContainSubstring("vault: personal"))
-	g.Expect(string(written)).NotTo(gomega.ContainSubstring("vault: \"\""))
 }
 
 // TestTargets_Amend_NoSkillHashFlag proves `engram amend` has no --skill-hash

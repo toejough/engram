@@ -12,6 +12,48 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+func Test792b2c1a1_ResolveVault_FlagWins(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	got := cli.ExportResolveVault("/explicit", "/home/u", func(string) string { return "/env" })
+	g.Expect(got).To(Equal("/explicit"))
+}
+
+func Test792b2c1a2_ResolveVault_EnvFallback(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	getenv := func(name string) string {
+		if name == "ENGRAM_VAULT_PATH" {
+			return "/from/env"
+		}
+
+		return ""
+	}
+	got := cli.ExportResolveVault("", "/home/u", getenv)
+	g.Expect(got).To(Equal("/from/env"))
+}
+
+func Test792b2c1a3_ResolveVault_XDGDefault(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	getenv := func(name string) string {
+		if name == "XDG_DATA_HOME" {
+			return "/xdg/data"
+		}
+
+		return ""
+	}
+	got := cli.ExportResolveVault("", "/home/u", getenv)
+	g.Expect(got).To(Equal("/xdg/data/engram/vault"))
+}
+
+func Test792b2c1a4_ResolveVault_HomeFallback(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	got := cli.ExportResolveVault("", "/home/u", func(string) string { return "" })
+	g.Expect(got).To(Equal("/home/u/.local/share/engram/vault"))
+}
+
 func TestInitializeVault_CreatesDirsAndStarterFiles(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -64,48 +106,6 @@ func TestInitializeVault_PropagatesWriteError(t *testing.T) {
 
 	err := cli.ExportInitializeVault(&erroringInitFS{writeErr: errInjected}, "/v")
 	g.Expect(err).To(MatchError(ContainSubstring("write")))
-}
-
-func TestResolveVault_EnvFallback(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	getenv := func(name string) string {
-		if name == "ENGRAM_VAULT_PATH" {
-			return "/from/env"
-		}
-
-		return ""
-	}
-	got := cli.ExportResolveVault("", "/home/u", getenv)
-	g.Expect(got).To(Equal("/from/env"))
-}
-
-func TestResolveVault_FlagWins(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	got := cli.ExportResolveVault("/explicit", "/home/u", func(string) string { return "/env" })
-	g.Expect(got).To(Equal("/explicit"))
-}
-
-func TestResolveVault_HomeFallback(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	got := cli.ExportResolveVault("", "/home/u", func(string) string { return "" })
-	g.Expect(got).To(Equal("/home/u/.local/share/engram/vault"))
-}
-
-func TestResolveVault_XDGDefault(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	getenv := func(name string) string {
-		if name == "XDG_DATA_HOME" {
-			return "/xdg/data"
-		}
-
-		return ""
-	}
-	got := cli.ExportResolveVault("", "/home/u", getenv)
-	g.Expect(got).To(Equal("/xdg/data/engram/vault"))
 }
 
 // unexported variables.

@@ -466,7 +466,7 @@ decisions as `792dN`, continuing the sequence.
   found"; every vault-resolving command creates it now. Both stale texts are left for a later change
   (792d41, 792d33).
 - **Rationale:** discovery inferred the divergence from the comment. Reading `initializeVault` and
-  `TestTargets_EveryVaultCommandCreatesMissingVault` shows the current behavior.
+  `Test792b2c3a1_Targets_EveryVaultCommandCreatesMissingVault` shows the current behavior.
 - **Alternatives:** fix the comment and README now. Rejected as outside a documentation-only node.
 
 ## 792d47 Exchange-state location belongs to vault-identity
@@ -507,3 +507,29 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792d31 per-part ownership. A node removes only what it ports.
 - **Alternatives:** port the technical clauses early into 792a. Rejected because product specs
   exclude implementation detail.
+
+## 792d51 command-line-surface routing requirements arrive with their scenarios
+
+- **Choice:** 792b2 specifies only the routing that vault-identity's scenarios need: vault path and
+  vault name resolution, first-use gating and result reporting. The `ENGRAM_SERVER` pre-dispatch
+  guard, chunks-dir resolution and `show` local/parent routing are added to 792b2 by parent-sync
+  (792c7t1), chunk-indexing (792c7d1) and memory-query (792c7f1), which introduce the product
+  scenarios those requirements support. Their tests stay unrenamed until then and are listed as
+  deferred no-scenario tests. The C2 container row's per-command detail is deleted rather than
+  ported, because root `README.md` "Binary commands" and the later nodes' sources state the same
+  facts; 792b2a keeps the command inventory.
+- **Rationale:** the technical guide requires every requirement to name the product scenarios it
+  supports, and those scenarios don't exist yet. 792d30 already has later capability nodes extend a
+  migrated component.
+- **Alternatives:** write the requirements now with no supported scenarios. Rejected as untraceable.
+
+## 792d52 Test IDs: product scenario for end-to-end checks, technical scenario otherwise
+
+- **Choice:** a test that runs a whole command through dispatch and asserts a product scenario's
+  observable outcome takes the product scenario ID (for example
+  `Test792a2e1a_Targets_QueryMissingVaultReturnsEmptyResult`). A test of one component's contract
+  takes the technical scenario ID (for example `Test792b2c1a1_ResolveVault_FlagWins`).
+- **Rationale:** 792c4b step 4 renames tests that verify either spec's scenarios; this rule picks
+  one ID deterministically when a test could be read as verifying both.
+- **Alternatives:** always use the technical ID. Rejected because an end-to-end test is the direct
+  evidence for its product scenario.
