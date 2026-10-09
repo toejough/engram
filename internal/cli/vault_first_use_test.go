@@ -18,6 +18,32 @@ import (
 	"github.com/toejough/engram/internal/update"
 )
 
+// Test792a2d1a_Targets_StarterReadmeHiddenUserReadmeVisible: the untouched starter
+// README (identified by content) is invisible to check and embed status, so
+// a fresh vault is clean; a user's own README.md stays a visible note.
+func Test792a2d1a_Targets_StarterReadmeHiddenUserReadmeVisible(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := createdVault(t)
+
+	checkOut, checkErr := runWithRand(t, []string{"engram", "check", "--vault", vault}, 1)
+	g.Expect(checkErr).To(BeEmpty())
+	g.Expect(checkOut).NotTo(ContainSubstring("missing a sidecar"))
+
+	statusOut, _ := runWithRand(t, []string{"engram", "embed", "status", "--vault", vault}, 1)
+	g.Expect(statusOut).To(MatchRegexp(`total: +0\n`))
+	g.Expect(statusOut).To(MatchRegexp(`without: +0\n`))
+
+	g.Expect(os.WriteFile(filepath.Join(vault, "README.md"), []byte("# my notes\n"), 0o600)).To(Succeed())
+
+	userOut, _ := runWithRand(t, []string{"engram", "embed", "status", "--vault", vault}, 1)
+	g.Expect(userOut).To(MatchRegexp(`total: +1\n`))
+
+	userCheck, _ := runWithRand(t, []string{"engram", "check", "--vault", vault}, 1)
+	g.Expect(userCheck).To(ContainSubstring("1 note(s) missing a sidecar"))
+}
+
 // Test792a2e1a_Targets_QueryMissingVaultReturnsEmptyResult: the spec's "A read
 // command creates the vault" — the query then returns an empty result
 // without error.
@@ -272,32 +298,6 @@ func TestTargets_QueryWithParent_UnstampableIDOnlyWarns(t *testing.T) {
 	var parsed queryParsed
 	g.Expect(yaml.Unmarshal([]byte(stdout), &parsed)).To(Succeed())
 	g.Expect(parsed.Items).To(HaveLen(1))
-}
-
-// TestTargets_StarterReadmeHiddenUserReadmeVisible: the untouched starter
-// README (identified by content) is invisible to check and embed status, so
-// a fresh vault is clean; a user's own README.md stays a visible note.
-func TestTargets_StarterReadmeHiddenUserReadmeVisible(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := createdVault(t)
-
-	checkOut, checkErr := runWithRand(t, []string{"engram", "check", "--vault", vault}, 1)
-	g.Expect(checkErr).To(BeEmpty())
-	g.Expect(checkOut).NotTo(ContainSubstring("missing a sidecar"))
-
-	statusOut, _ := runWithRand(t, []string{"engram", "embed", "status", "--vault", vault}, 1)
-	g.Expect(statusOut).To(MatchRegexp(`total: +0\n`))
-	g.Expect(statusOut).To(MatchRegexp(`without: +0\n`))
-
-	g.Expect(os.WriteFile(filepath.Join(vault, "README.md"), []byte("# my notes\n"), 0o600)).To(Succeed())
-
-	userOut, _ := runWithRand(t, []string{"engram", "embed", "status", "--vault", vault}, 1)
-	g.Expect(userOut).To(MatchRegexp(`total: +1\n`))
-
-	userCheck, _ := runWithRand(t, []string{"engram", "check", "--vault", vault}, 1)
-	g.Expect(userCheck).To(ContainSubstring("1 note(s) missing a sidecar"))
 }
 
 // TestTargets_VaultID covers `engram vault-id [--regenerate | --claim]`: no

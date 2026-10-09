@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Every vault writer (learn, amend, resituate, activate, ingest, prune) acquires an exclusive file lock at its entry point and holds it through all read-modify-write operations, with atomic rename ensuring concurrent readers see either the old or new file, never a torn write. Separate locks protect manifest changes (ingest, prune) and note+sidecar changes (amend, resituate, activate). Why: `docs/architecture/adr.md` ADR-0013. Validation: concurrent-writers regression test + `targ check-full` (commit `f7f6b389`); correctness is test-locked, not eval-measured.
+Every vault writer (learn, amend, resituate, activate, ingest, prune) acquires an exclusive file lock at its entry point and holds it through all read-modify-write operations. Separate locks protect manifest changes (ingest, prune) and note+sidecar changes (amend, resituate, activate). Why: `docs/architecture/adr.md` ADR-0013. Atomic temp-rename writes are in `docs/changes/792_documentation-framework-adoption/792b_technical-spec.md#792b3-added-durable-file-store`. Validation: concurrent-writers regression test + `targ check-full` (commit `f7f6b389`); correctness is test-locked, not eval-measured.
 
 ## Requirements
 
@@ -27,17 +27,6 @@ Every `engram learn`, `engram learn qa`, `engram amend`, `engram resituate`, `en
 #### Scenario: Sidecar activate under lock
 - **WHEN** `RunActivate` or vocab commands call `reEmbedAndActivate` to bump a note's `last_used` sidecar field
 - **THEN** this happens within the `.luhmann.lock` critical section held by the entry point
-
-### Requirement: Atomic temp-rename writes
-Every vault file write (note, sidecar, manifest) SHALL use atomic temp-file-then-rename semantics (not bare `os.WriteFile`). A temp file MUST be written with random suffix, then atomically renamed to the target path via `os.Rename`, ensuring concurrent readers never see a partial write.
-
-#### Scenario: Temp-rename for sidecar writes
-- **WHEN** a sidecar is rewritten (embed, activate, etc.)
-- **THEN** `WriteFileAtomic` writes to a temporary file (e.g., `<sidecar>.tmp<random>`) and then calls `os.Rename(temp, sidecar)`, so readers see either the old sidecar or the new one, never an in-progress write
-
-#### Scenario: Manifest file renamed under lock
-- **WHEN** manifest changes (chunk-index entries added/removed)
-- **THEN** the new manifest is written to a temp file and renamed to `.jsonl` while `.manifest.lock` is held
 
 ### Requirement: Lock-free shared write helpers
 Read-modify-write operations SHALL call shared helpers (`bumpLastUsed`, `writeManifestFile`, `reEmbedAndActivate`) which assume the caller already holds the lock. These helpers MUST NOT acquire locks themselves, relying on a convention that they are called only from a `Run*` entry point (which holds the lock). Violating this convention by calling a helper from within another helper risks deadlock.

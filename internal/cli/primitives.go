@@ -156,7 +156,7 @@ type WriteSyncer interface {
 }
 
 // NewDeps composes the production Deps carrier from raw primitives: the
-// EdgeFS implementation (contextual %w wrapping + the ADR-0013 atomic-write
+// EdgeFS implementation (contextual %w wrapping + the 792b3c1 atomic-write
 // dance), the flock lifecycle, the debug sink (ENGRAM_DEBUG_LOG; empty path
 // or failed open → nil → no-op logger), and the repeated-signal force-exit
 // watcher. cmd/engram calls this exactly once from main(); tests call it

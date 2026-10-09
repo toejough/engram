@@ -303,7 +303,7 @@ pending a further check.
 write the vault and chunk index concurrently. Before this fix, only `learn`'s Luhmann-ID
 sequencing was flock-protected (`writeLearnUnderLock`, `learn.go:571`); `ingest`/`prune`'s manifest
 read-modify-write, `amend`/`resituate`'s vault-note read-modify-write, and `activate`'s sidecar
-rewrite were all unlocked, non-atomic writes (`os.WriteFile` assumed atomic — it is not). Any two
+rewrite were all unlocked writes (the atomic-write half is in 792b3c1). Any two
 concurrent `engram ingest`/`amend` runs corrupted state, independent of retrieval quality or cost —
 and this bit in production.
 
@@ -311,8 +311,7 @@ and this bit in production.
 writer: `.manifest.lock` guards `ingest`+`prune`'s manifest RMW; `.luhmann.lock` guards
 `amend`+`resituate`+`activate`'s vault-note/sidecar RMW. Locks are acquired only at `Run*` entry
 points; shared write helpers (`bumpLastUsed`, `writeManifestFile`, `reEmbedAndActivate`) stay
-lock-free, to be called only by a `Run*` that already holds the lock (avoids self-deadlock). Every
-writer's edge also gets one shared atomic-temp-rename helper, replacing bare `os.WriteFile`.
+lock-free, to be called only by a `Run*` that already holds the lock (avoids self-deadlock).
 
 **Consequences.** `targ check-full` green plus a concurrent-writers regression test gate the fix
 (no eval-ledger row — correctness is locked by the regression test, commit `f7f6b389`, 2026-07-01). Payload-prune production is

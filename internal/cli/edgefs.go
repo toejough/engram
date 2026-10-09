@@ -22,7 +22,7 @@ var (
 
 // primFS is the production EdgeFS: it composes the injected raw primitives
 // with contextual error wrapping (%w preserves errors.Is chains such as
-// fs.ErrNotExist) and the ADR-0013 atomic-write dance. All orchestration
+// fs.ErrNotExist) and the 792b3c1 atomic-write dance. All orchestration
 // lives here in internal/; cmd/engram contributes only raw os/filepath
 // references (#700).
 type primFS struct {
@@ -111,7 +111,7 @@ func (f primFS) RemoveAll(path string) error {
 }
 
 // Rename atomically renames oldPath to newPath (same-directory renames are
-// atomic on POSIX — the ADR-0013 primitive).
+// atomic on POSIX — the 792b3c1 primitive).
 func (f primFS) Rename(oldPath, newPath string) error {
 	err := f.prims.FS.Rename(oldPath, newPath)
 	if err != nil {
@@ -170,7 +170,7 @@ func (f primFS) WriteFile(path string, data []byte, perm fs.FileMode) error {
 // same-directory rename is atomic on POSIX — a concurrent reader sees
 // either the old or the new file, never a partial one. On any failure
 // after creation the temp file is removed and the original (if any) is
-// left untouched (ADR-0013; design flag P-4: the unique-temp-name policy
+// left untouched (792b3c1; design flag P-4: the unique-temp-name policy
 // is INTERNAL — cmd contributes only the single-call OpenFileExcl eraser,
 // doctrine survivor S-1, plus the restored direct Chmod primitive for
 // umask-independent perms).
@@ -202,7 +202,7 @@ func (f primFS) WriteFileAtomic(path string, data []byte, perm fs.FileMode) erro
 }
 
 // WriteFileExcl creates path exclusively via the base OpenFileExcl eraser
-// (O_CREATE|O_EXCL — the ADR-0013 K1 collision backstop). The composition
+// (O_CREATE|O_EXCL — 792b3c2, the invariant K1 collision backstop). The composition
 // handles write+close error precedence: write errors take priority; when
 // write succeeds and close fails, the close error surfaces. Errors wrap
 // exactly once here, preserving the fs.ErrExist chain from OpenFileExcl

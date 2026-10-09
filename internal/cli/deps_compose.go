@@ -126,7 +126,7 @@ func vaultLockFromLocker(locker FileLocker) func(string) (func(), error) {
 }
 
 // writeAtomicFromFS returns an atomic-rewrite func (temp+rename via
-// EdgeFS.WriteFileAtomic — ADR-0013's atomic-rename edge). opName labels the
+// EdgeFS.WriteFileAtomic — the 792b3c1 atomic replace). opName labels the
 // wrapped error (e.g. "write note", "write sidecar") — the single atomic-write
 // composition shared by the note and sidecar call sites.
 func writeAtomicFromFS(fsys EdgeFS, opName string) func(string, []byte) error {
@@ -141,7 +141,7 @@ func writeAtomicFromFS(fsys EdgeFS, opName string) func(string, []byte) error {
 }
 
 // writeAtomicWithPathFromFS returns an atomic-rewrite func (temp+rename via
-// EdgeFS.WriteFileAtomic — ADR-0013's atomic-rename edge) whose error wrap
+// EdgeFS.WriteFileAtomic — the 792b3c1 atomic replace) whose error wrap
 // carries the target path ("write %s: %w") — the composition shared by the
 // amend and resituate Write call sites.
 func writeAtomicWithPathFromFS(fsys EdgeFS) func(string, []byte) error {

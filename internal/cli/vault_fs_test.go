@@ -12,7 +12,7 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-func TestVaultFS_ListMD_FiltersDirsAndNonMd(t *testing.T) {
+func Test792b3c4a1_VaultFS_ListMD_FiltersDirsAndNonMd(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -32,7 +32,7 @@ func TestVaultFS_ListMD_FiltersDirsAndNonMd(t *testing.T) {
 	g.Expect(names).To(ConsistOf("note.md"))
 }
 
-func TestVaultFS_ListMD_MissingDirReturnsEmpty(t *testing.T) {
+func Test792b3c4a2_VaultFS_ListMD_MissingDirReturnsEmpty(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -47,20 +47,7 @@ func TestVaultFS_ListMD_MissingDirReturnsEmpty(t *testing.T) {
 	g.Expect(names).To(BeEmpty())
 }
 
-func TestVaultFS_ListMD_NonExistError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// dir is a regular file, not a directory → ReadDir returns ENOTDIR (not not-exist).
-	path := filepath.Join(t.TempDir(), "file")
-	g.Expect(os.WriteFile(path, []byte("x"), 0o600)).To(Succeed())
-
-	vfs := cli.ExportNewVaultFS(realFSForTest())
-	_, err := vfs.ListMD(path)
-	g.Expect(err).To(HaveOccurred())
-}
-
-func TestVaultFS_ListMD_WrappedNotExistReturnsEmpty(t *testing.T) {
+func Test792b3c4a2_VaultFS_ListMD_WrappedNotExistReturnsEmpty(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -75,6 +62,19 @@ func TestVaultFS_ListMD_WrappedNotExistReturnsEmpty(t *testing.T) {
 	}
 
 	g.Expect(names).To(BeEmpty())
+}
+
+func Test792b3c4a3_VaultFS_ListMD_NonExistError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// dir is a regular file, not a directory → ReadDir returns ENOTDIR (not not-exist).
+	path := filepath.Join(t.TempDir(), "file")
+	g.Expect(os.WriteFile(path, []byte("x"), 0o600)).To(Succeed())
+
+	vfs := cli.ExportNewVaultFS(realFSForTest())
+	_, err := vfs.ListMD(path)
+	g.Expect(err).To(HaveOccurred())
 }
 
 func TestVaultFS_ReadFile_MissingPathError(t *testing.T) {

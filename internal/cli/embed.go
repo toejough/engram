@@ -190,7 +190,7 @@ func applyOne(
 // impure capability set. Pure composition — all I/O flows through d.FS and
 // d.Embed, wired via cli.NewDeps at the edge. Sidecar writes go through
 // WriteFileAtomic (temp+rename) so concurrent readers always see either
-// the old or new file, never a torn write (ADR-0013 semantics preserved).
+// the old or new file, never a torn write (792b3c1).
 func newEmbedDeps(d Deps) EmbedDeps {
 	return EmbedDeps{
 		Scan: func(vault string) ([]vaultgraph.Note, error) {

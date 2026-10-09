@@ -18,6 +18,209 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+func Test792b3c1a1_RealEdgeFS_WriteFileAtomicReplacesContentAndCleansTemp(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "note.md")
+	fsys := realFSForTest()
+
+	g.Expect(fsys.WriteFile(path, []byte("v1"), realFSFilePerm)).To(gomega.Succeed())
+	g.Expect(fsys.WriteFileAtomic(path, []byte("v2"), realFSFilePerm)).To(gomega.Succeed())
+
+	data, err := fsys.ReadFile(path)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(data)).To(gomega.Equal("v2"))
+
+	entries, readErr := fsys.ReadDir(dir)
+	g.Expect(readErr).NotTo(gomega.HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(entries).To(gomega.HaveLen(1), "temp files must be renamed or removed")
+}
+
+func Test792b3c1a2_RealEdgeFS_WriteFileAtomicWritesNewFile(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	dir := t.TempDir()
+	target := filepath.Join(dir, "out.txt")
+	content := []byte("hello atomic world")
+	fsys := realFSForTest()
+
+	g.Expect(fsys.WriteFileAtomic(target, content, realFSFilePerm)).To(gomega.Succeed())
+
+	got, readErr := os.ReadFile(target)
+	g.Expect(readErr).NotTo(gomega.HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(got).To(gomega.Equal(content), "file must contain exactly the written bytes")
+}
+
+// Test792b3c1a3_RealEdgeFS_WriteFileAtomicPermsAreUmaskIndependent proves the restored
+// Chmod step (P-4) makes WriteFileAtomic's final perm exact regardless of
+// the process umask — parity with the pre-#700 dance.
+//
+//nolint:paralleltest // serial by design: syscall.Umask is process-global; parallel file-creating tests would flake
+func Test792b3c1a3_RealEdgeFS_WriteFileAtomicPermsAreUmaskIndependent(t *testing.T) {
+	g := gomega.NewWithT(t)
+
+	old := syscall.Umask(umaskParityRestrictiveMask)
+	defer syscall.Umask(old)
+
+	dir := t.TempDir()
+	target := filepath.Join(dir, "note.md")
+	fsys := realFSForTest()
+
+	g.Expect(fsys.WriteFileAtomic(target, []byte("v1"), umaskParityPerm)).To(gomega.Succeed())
+
+	info, err := os.Stat(target)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(info.Mode().Perm()).To(gomega.Equal(umaskParityPerm))
+}
+
+func Test792b3c1a4_RealEdgeFS_WriteFileAtomicRenameFailureCleansTempAndOriginal(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	dir := t.TempDir()
+	target := filepath.Join(dir, "file.txt")
+	original := []byte("original content")
+
+	g.Expect(os.WriteFile(target, original, realFSFilePerm)).To(gomega.Succeed())
+
+	// Real primitives except Rename — parameterizing the dance over
+	// Primitives is what lets this test inject the rename failure with no
+	// export shim (replaces writesafe_test.go's injected-rename test).
+	var tmpSeen string
+
+	prims := realPrimitives()
+	prims.FS.Rename = func(oldPath, _ string) error {
+		tmpSeen = oldPath
+
+		return errInjectedRename
+	}
+
+	err := fsFromPrims(prims).WriteFileAtomic(target, []byte("new content"), realFSFilePerm)
+	g.Expect(err).To(gomega.MatchError(errInjectedRename))
+	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("rename")),
+		"error must name the failing dance step")
+
+	got, readErr := os.ReadFile(target)
+	g.Expect(readErr).NotTo(gomega.HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(got).To(gomega.Equal(original), "original must be untouched after rename failure")
+
+	g.Expect(tmpSeen).NotTo(gomega.BeEmpty(), "the dance must reach the rename step")
+	g.Expect(tmpSeen).NotTo(gomega.BeAnExistingFile(), "temp file must be removed by the failure cleanup")
+
+	tmpFiles, globErr := filepath.Glob(filepath.Join(dir, ".file.txt.tmp-*"))
+	g.Expect(globErr).NotTo(gomega.HaveOccurred())
+	g.Expect(tmpFiles).To(gomega.BeEmpty(), "no leftover .tmp-* files must remain after failure")
+}
+
+func Test792b3c1a6_RealEdgeFS_WriteFileAtomicExclCreateFailureLeavesOriginalUntouched(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	dir := t.TempDir()
+	fsys := realFSForTest()
+
+	// A read-only directory makes the exclusive-create (WriteFileExcl)
+	// primitive fail with a non-ErrExist error, so the dance aborts before
+	// creating anything (relocated writesafe_test.go behavior; the
+	// fs.ErrExist retry path is covered by the fake-prims
+	// Test792b3c1a7_EdgeFS_WriteFileAtomicUniqueNameRetry).
+	subdir := filepath.Join(dir, "sub")
+	g.Expect(os.Mkdir(subdir, writableDirPerm)).To(gomega.Succeed())
+
+	target := filepath.Join(subdir, "original.txt")
+	original := []byte("original untouched content")
+	g.Expect(os.WriteFile(target, original, realFSFilePerm)).To(gomega.Succeed())
+
+	g.Expect(os.Chmod(subdir, readOnlyDirPerm)).To(gomega.Succeed())
+
+	// Restore permissions so TempDir cleanup can succeed.
+	t.Cleanup(func() { _ = os.Chmod(subdir, writableDirPerm) })
+
+	err := fsys.WriteFileAtomic(target, []byte("new content"), realFSFilePerm)
+	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("create temp")),
+		"write into a read-only dir must fail at temp creation")
+
+	// Make the directory readable again for the assertions.
+	g.Expect(os.Chmod(subdir, writableDirPerm)).To(gomega.Succeed())
+
+	got, readErr := os.ReadFile(target)
+	g.Expect(readErr).NotTo(gomega.HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(got).To(gomega.Equal(original), "original file must be untouched after failure")
+
+	tmpFiles, globErr := filepath.Glob(filepath.Join(subdir, ".original.txt.tmp-*"))
+	g.Expect(globErr).NotTo(gomega.HaveOccurred())
+	g.Expect(tmpFiles).To(gomega.BeEmpty(), "no leftover .tmp-* files must remain after failure")
+}
+
+// Test792b3c2a1_RealEdgeFS_WriteFileExclRefusesExistingFile is survivor S-1's named
+// behavior-mirror test: the real WriteFileExcl primitive backs both the
+// atomic-write dance's unique-temp creation (P-4) and EdgeFS.WriteFileExcl
+// (X-1) — this proves the O_EXCL contract over the real primitive.
+func Test792b3c2a1_RealEdgeFS_WriteFileExclRefusesExistingFile(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	path := filepath.Join(t.TempDir(), "note.md")
+	fsys := realFSForTest()
+
+	g.Expect(fsys.WriteFileExcl(path, []byte("first"), realFSFilePerm)).To(gomega.Succeed())
+
+	err := fsys.WriteFileExcl(path, []byte("second"), realFSFilePerm)
+	g.Expect(err).To(gomega.MatchError(fs.ErrExist), "O_EXCL contract: existing path must satisfy fs.ErrExist")
+
+	data, readErr := fsys.ReadFile(path)
+	g.Expect(readErr).NotTo(gomega.HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(string(data)).To(gomega.Equal("first"), "the losing writer must not clobber the existing note")
+}
+
+func Test792b3c3a1_RealEdgeFS_ReadFileMissingSatisfiesErrNotExist(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	fsys := realFSForTest()
+
+	_, err := fsys.ReadFile(filepath.Join(t.TempDir(), "missing.txt"))
+	g.Expect(err).To(gomega.MatchError(fs.ErrNotExist))
+}
+
 // This file exercises the internally-composed EdgeFS/FileLocker/debug-sink
 // implementations over REAL os/syscall primitives — the relocated
 // cmd/engram adapter integration suite (#700 rework). realPrimitives()
@@ -137,16 +340,6 @@ func TestRealEdgeFS_MkdirTempAndWalkDir(t *testing.T) {
 	g.Expect(visited).To(gomega.ContainElement(filepath.Join(tmpDir, "leaf.txt")))
 }
 
-func TestRealEdgeFS_ReadFileMissingSatisfiesErrNotExist(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	fsys := realFSForTest()
-
-	_, err := fsys.ReadFile(filepath.Join(t.TempDir(), "missing.txt"))
-	g.Expect(err).To(gomega.MatchError(fs.ErrNotExist))
-}
-
 func TestRealEdgeFS_ReadWriteRoundTrip(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -190,199 +383,6 @@ func TestRealEdgeFS_RenameRemoveRemoveAll(t *testing.T) {
 	g.Expect(fsys.WriteFile(filepath.Join(sub, "f"), []byte("x"), realFSFilePerm)).To(gomega.Succeed())
 	g.Expect(fsys.RemoveAll(sub)).To(gomega.Succeed())
 	g.Expect(sub).NotTo(gomega.BeADirectory())
-}
-
-func TestRealEdgeFS_WriteFileAtomicExclCreateFailureLeavesOriginalUntouched(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	dir := t.TempDir()
-	fsys := realFSForTest()
-
-	// A read-only directory makes the exclusive-create (WriteFileExcl)
-	// primitive fail with a non-ErrExist error, so the dance aborts before
-	// creating anything (relocated writesafe_test.go behavior; the
-	// fs.ErrExist retry path is covered by the fake-prims
-	// TestEdgeFS_WriteFileAtomicUniqueNameRetry).
-	subdir := filepath.Join(dir, "sub")
-	g.Expect(os.Mkdir(subdir, writableDirPerm)).To(gomega.Succeed())
-
-	target := filepath.Join(subdir, "original.txt")
-	original := []byte("original untouched content")
-	g.Expect(os.WriteFile(target, original, realFSFilePerm)).To(gomega.Succeed())
-
-	g.Expect(os.Chmod(subdir, readOnlyDirPerm)).To(gomega.Succeed())
-
-	// Restore permissions so TempDir cleanup can succeed.
-	t.Cleanup(func() { _ = os.Chmod(subdir, writableDirPerm) })
-
-	err := fsys.WriteFileAtomic(target, []byte("new content"), realFSFilePerm)
-	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("create temp")),
-		"write into a read-only dir must fail at temp creation")
-
-	// Make the directory readable again for the assertions.
-	g.Expect(os.Chmod(subdir, writableDirPerm)).To(gomega.Succeed())
-
-	got, readErr := os.ReadFile(target)
-	g.Expect(readErr).NotTo(gomega.HaveOccurred())
-
-	if readErr != nil {
-		return
-	}
-
-	g.Expect(got).To(gomega.Equal(original), "original file must be untouched after failure")
-
-	tmpFiles, globErr := filepath.Glob(filepath.Join(subdir, ".original.txt.tmp-*"))
-	g.Expect(globErr).NotTo(gomega.HaveOccurred())
-	g.Expect(tmpFiles).To(gomega.BeEmpty(), "no leftover .tmp-* files must remain after failure")
-}
-
-// TestRealEdgeFS_WriteFileAtomicPermsAreUmaskIndependent proves the restored
-// Chmod step (P-4) makes WriteFileAtomic's final perm exact regardless of
-// the process umask — parity with the pre-#700 dance.
-//
-//nolint:paralleltest // serial by design: syscall.Umask is process-global; parallel file-creating tests would flake
-func TestRealEdgeFS_WriteFileAtomicPermsAreUmaskIndependent(t *testing.T) {
-	g := gomega.NewWithT(t)
-
-	old := syscall.Umask(umaskParityRestrictiveMask)
-	defer syscall.Umask(old)
-
-	dir := t.TempDir()
-	target := filepath.Join(dir, "note.md")
-	fsys := realFSForTest()
-
-	g.Expect(fsys.WriteFileAtomic(target, []byte("v1"), umaskParityPerm)).To(gomega.Succeed())
-
-	info, err := os.Stat(target)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(info.Mode().Perm()).To(gomega.Equal(umaskParityPerm))
-}
-
-func TestRealEdgeFS_WriteFileAtomicRenameFailureCleansTempAndOriginal(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	dir := t.TempDir()
-	target := filepath.Join(dir, "file.txt")
-	original := []byte("original content")
-
-	g.Expect(os.WriteFile(target, original, realFSFilePerm)).To(gomega.Succeed())
-
-	// Real primitives except Rename — parameterizing the dance over
-	// Primitives is what lets this test inject the rename failure with no
-	// export shim (replaces writesafe_test.go's injected-rename test).
-	var tmpSeen string
-
-	prims := realPrimitives()
-	prims.FS.Rename = func(oldPath, _ string) error {
-		tmpSeen = oldPath
-
-		return errInjectedRename
-	}
-
-	err := fsFromPrims(prims).WriteFileAtomic(target, []byte("new content"), realFSFilePerm)
-	g.Expect(err).To(gomega.MatchError(errInjectedRename))
-	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("rename")),
-		"error must name the failing dance step")
-
-	got, readErr := os.ReadFile(target)
-	g.Expect(readErr).NotTo(gomega.HaveOccurred())
-
-	if readErr != nil {
-		return
-	}
-
-	g.Expect(got).To(gomega.Equal(original), "original must be untouched after rename failure")
-
-	g.Expect(tmpSeen).NotTo(gomega.BeEmpty(), "the dance must reach the rename step")
-	g.Expect(tmpSeen).NotTo(gomega.BeAnExistingFile(), "temp file must be removed by the failure cleanup")
-
-	tmpFiles, globErr := filepath.Glob(filepath.Join(dir, ".file.txt.tmp-*"))
-	g.Expect(globErr).NotTo(gomega.HaveOccurred())
-	g.Expect(tmpFiles).To(gomega.BeEmpty(), "no leftover .tmp-* files must remain after failure")
-}
-
-func TestRealEdgeFS_WriteFileAtomicReplacesContentAndCleansTemp(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	dir := t.TempDir()
-	path := filepath.Join(dir, "note.md")
-	fsys := realFSForTest()
-
-	g.Expect(fsys.WriteFile(path, []byte("v1"), realFSFilePerm)).To(gomega.Succeed())
-	g.Expect(fsys.WriteFileAtomic(path, []byte("v2"), realFSFilePerm)).To(gomega.Succeed())
-
-	data, err := fsys.ReadFile(path)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(string(data)).To(gomega.Equal("v2"))
-
-	entries, readErr := fsys.ReadDir(dir)
-	g.Expect(readErr).NotTo(gomega.HaveOccurred())
-
-	if readErr != nil {
-		return
-	}
-
-	g.Expect(entries).To(gomega.HaveLen(1), "temp files must be renamed or removed")
-}
-
-func TestRealEdgeFS_WriteFileAtomicWritesNewFile(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	dir := t.TempDir()
-	target := filepath.Join(dir, "out.txt")
-	content := []byte("hello atomic world")
-	fsys := realFSForTest()
-
-	g.Expect(fsys.WriteFileAtomic(target, content, realFSFilePerm)).To(gomega.Succeed())
-
-	got, readErr := os.ReadFile(target)
-	g.Expect(readErr).NotTo(gomega.HaveOccurred())
-
-	if readErr != nil {
-		return
-	}
-
-	g.Expect(got).To(gomega.Equal(content), "file must contain exactly the written bytes")
-}
-
-// TestRealEdgeFS_WriteFileExclRefusesExistingFile is survivor S-1's named
-// behavior-mirror test: the real WriteFileExcl primitive backs both the
-// atomic-write dance's unique-temp creation (P-4) and EdgeFS.WriteFileExcl
-// (X-1) — this proves the O_EXCL contract over the real primitive.
-func TestRealEdgeFS_WriteFileExclRefusesExistingFile(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	path := filepath.Join(t.TempDir(), "note.md")
-	fsys := realFSForTest()
-
-	g.Expect(fsys.WriteFileExcl(path, []byte("first"), realFSFilePerm)).To(gomega.Succeed())
-
-	err := fsys.WriteFileExcl(path, []byte("second"), realFSFilePerm)
-	g.Expect(err).To(gomega.MatchError(fs.ErrExist), "O_EXCL contract: existing path must satisfy fs.ErrExist")
-
-	data, readErr := fsys.ReadFile(path)
-	g.Expect(readErr).NotTo(gomega.HaveOccurred())
-
-	if readErr != nil {
-		return
-	}
-
-	g.Expect(string(data)).To(gomega.Equal("first"), "the losing writer must not clobber the existing note")
 }
 
 // TestRealFlockLocker_SecondLockWaitsForUnlock is the relocated ADR-0013

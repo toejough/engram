@@ -533,3 +533,14 @@ decisions as `792dN`, continuing the sequence.
   one ID deterministically when a test could be read as verifying both.
 - **Alternatives:** always use the technical ID. Rejected because an end-to-end test is the direct
   evidence for its product scenario.
+
+## 792d53 Test-rename reference updates skip historical records
+
+- **Choice:** when a test is renamed, references are updated everywhere except the 792d37 exemption
+  set (`dev/eval/raw/`, `dev/eval/audit/`, `dev/eval/LEDGER.md`, `dev/eval/cumulative/`),
+  `openspec/changes/archive/`, and the `.superpowers/sdd/` briefs and progress notes, which are
+  dated execution records of finished work.
+- **Rationale:** rewriting a dated record falsifies what it recorded. The archive is deleted by
+  792c8c, and the `.superpowers/` plan material is handled under 792d12.
+- **Alternatives:** rewrite every occurrence. Rejected: the first such rename rewrote eval audit
+  transcripts, which 792d37 exempts.
