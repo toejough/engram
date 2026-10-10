@@ -13,21 +13,96 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-func TestRunQuery_NoPhrasesAndNoTextIsRejected(t *testing.T) {
+func Test792b22c1a2_RunQuery_NonRunbookTriggersNeverHit(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	plantNoteWithSidecar(t, memFS, vault, "1.2026-09-20.fact-with-triggers.md",
+		"---\ntype: fact\nsituation: a fact\ntriggers:\n    - /please\n---\n\nInformation learned: a fact.\n")
+
+	parsed, _ := runTriggerQuery(t, memFS, vault, cli.QueryArgs{
+		Phrases: []string{"a fact"}, Text: "/please do it", Limit: 20,
+	})
+
+	for _, item := range parsed.Items {
+		g.Expect(item.Provenances).NotTo(ContainElement("trigger"))
+	}
+}
+
+func Test792b22c2a3_RunQuery_TriggerMatchIsCaseAndWhitespaceInsensitive(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	memFS, vault := plantTriggerVault(t)
 
-	var out bytes.Buffer
+	parsed, _ := runTriggerQuery(t, memFS, vault, cli.QueryArgs{
+		Phrases: triggerPhrases, Text: "PLEASE   TAKE   this\tend-to-end: rename X", Limit: 20,
+	})
 
-	err := cli.RunQuery(context.Background(), cli.QueryArgs{VaultPath: vault}, newQueryDeps(memFS), &out)
-	g.Expect(err).To(HaveOccurred())
+	g.Expect(parsed.Items).NotTo(BeEmpty())
+
+	if len(parsed.Items) == 0 {
+		return
+	}
+
+	g.Expect(parsed.Items[0].Path).To(Equal(triggerRunbookName))
+	g.Expect(parsed.Items[0].Provenances).To(ContainElement("trigger"))
 }
 
-// TestRunQuery_NoTextPayloadUnchanged: without --text (or with text hitting
+// Test792b22c4a1_RunQuery_TriggerHitSurfacesFirst: a runbook whose trigger appears in
+// --text is items[0] with provenance "trigger", ahead of a strongly
+// similarity-matched feedback note (792a7za).
+func Test792b22c4a1_RunQuery_TriggerHitSurfacesFirst(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	memFS, vault := plantTriggerVault(t)
+
+	parsed, _ := runTriggerQuery(t, memFS, vault, cli.QueryArgs{
+		Phrases: triggerPhrases, Text: "/please fix the flaky login test", Limit: 20,
+	})
+
+	g.Expect(parsed.Items).NotTo(BeEmpty())
+
+	if len(parsed.Items) == 0 {
+		return
+	}
+
+	g.Expect(parsed.Items[0].Path).To(Equal(triggerRunbookName))
+	g.Expect(parsed.Items[0].Kind).To(Equal("runbook"))
+	g.Expect(parsed.Items[0].Provenances).To(ContainElement("trigger"))
+	g.Expect(parsed.Items[0].Content).To(ContainSubstring("Do it"))
+
+	paths := make([]string, 0, len(parsed.Items))
+	for _, item := range parsed.Items {
+		paths = append(paths, item.Path)
+	}
+
+	g.Expect(paths).To(ContainElement(triggerFeedbackName))
+}
+
+func Test792b22c6a1_RunQuery_TextWithoutPhrasesReturnsJustHit(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	memFS, vault := plantTriggerVault(t)
+
+	parsed, _ := runTriggerQuery(t, memFS, vault, cli.QueryArgs{Text: "/please anything", Limit: 20})
+
+	g.Expect(parsed.Items).To(HaveLen(1))
+
+	if len(parsed.Items) == 1 {
+		g.Expect(parsed.Items[0].Path).To(Equal(triggerRunbookName))
+		g.Expect(parsed.Items[0].Provenances).To(Equal([]string{"trigger"}))
+	}
+}
+
+// Test792b22c7a1_RunQuery_NoTextPayloadUnchanged: without --text (or with text hitting
 // nothing) trigger matching never runs and no item carries "trigger".
-func TestRunQuery_NoTextPayloadUnchanged(t *testing.T) {
+func Test792b22c7a1_RunQuery_NoTextPayloadUnchanged(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -46,23 +121,16 @@ func TestRunQuery_NoTextPayloadUnchanged(t *testing.T) {
 	g.Expect(noText).NotTo(ContainSubstring("- trigger\n"), "no item carries provenance role trigger")
 }
 
-func TestRunQuery_NonRunbookTriggersNeverHit(t *testing.T) {
+func TestRunQuery_NoPhrasesAndNoTextIsRejected(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
+	memFS, vault := plantTriggerVault(t)
 
-	plantNoteWithSidecar(t, memFS, vault, "1.2026-09-20.fact-with-triggers.md",
-		"---\ntype: fact\nsituation: a fact\ntriggers:\n    - /please\n---\n\nInformation learned: a fact.\n")
+	var out bytes.Buffer
 
-	parsed, _ := runTriggerQuery(t, memFS, vault, cli.QueryArgs{
-		Phrases: []string{"a fact"}, Text: "/please do it", Limit: 20,
-	})
-
-	for _, item := range parsed.Items {
-		g.Expect(item.Provenances).NotTo(ContainElement("trigger"))
-	}
+	err := cli.RunQuery(context.Background(), cli.QueryArgs{VaultPath: vault}, newQueryDeps(memFS), &out)
+	g.Expect(err).To(HaveOccurred())
 }
 
 // TestRunQuery_OversizedRedFlagsListKeepsNewestEntry reproduces engram#763:
@@ -234,22 +302,6 @@ func TestRunQuery_RunbookItemContentIncludesRedFlags(t *testing.T) {
 	g.Expect(runbookContent).To(ContainSubstring("force-push without --force-with-lease"))
 }
 
-func TestRunQuery_TextWithoutPhrasesReturnsJustHit(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	memFS, vault := plantTriggerVault(t)
-
-	parsed, _ := runTriggerQuery(t, memFS, vault, cli.QueryArgs{Text: "/please anything", Limit: 20})
-
-	g.Expect(parsed.Items).To(HaveLen(1))
-
-	if len(parsed.Items) == 1 {
-		g.Expect(parsed.Items[0].Path).To(Equal(triggerRunbookName))
-		g.Expect(parsed.Items[0].Provenances).To(Equal([]string{"trigger"}))
-	}
-}
-
 // TestRunQuery_TriggerHitDoesNotConsumeLimit: --limit 1 returns the hit plus
 // one similarity item.
 func TestRunQuery_TriggerHitDoesNotConsumeLimit(t *testing.T) {
@@ -274,58 +326,6 @@ func TestRunQuery_TriggerHitDoesNotConsumeLimit(t *testing.T) {
 		g.Expect(parsed.Items[0].Path).To(Equal(triggerRunbookName))
 		g.Expect(parsed.Items[1].Path).NotTo(Equal(triggerRunbookName))
 	}
-}
-
-// TestRunQuery_TriggerHitSurfacesFirst: a runbook whose trigger appears in
-// --text is items[0] with provenance "trigger", ahead of a strongly
-// similarity-matched feedback note (792a7za).
-func TestRunQuery_TriggerHitSurfacesFirst(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	memFS, vault := plantTriggerVault(t)
-
-	parsed, _ := runTriggerQuery(t, memFS, vault, cli.QueryArgs{
-		Phrases: triggerPhrases, Text: "/please fix the flaky login test", Limit: 20,
-	})
-
-	g.Expect(parsed.Items).NotTo(BeEmpty())
-
-	if len(parsed.Items) == 0 {
-		return
-	}
-
-	g.Expect(parsed.Items[0].Path).To(Equal(triggerRunbookName))
-	g.Expect(parsed.Items[0].Kind).To(Equal("runbook"))
-	g.Expect(parsed.Items[0].Provenances).To(ContainElement("trigger"))
-	g.Expect(parsed.Items[0].Content).To(ContainSubstring("Do it"))
-
-	paths := make([]string, 0, len(parsed.Items))
-	for _, item := range parsed.Items {
-		paths = append(paths, item.Path)
-	}
-
-	g.Expect(paths).To(ContainElement(triggerFeedbackName))
-}
-
-func TestRunQuery_TriggerMatchIsCaseAndWhitespaceInsensitive(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	memFS, vault := plantTriggerVault(t)
-
-	parsed, _ := runTriggerQuery(t, memFS, vault, cli.QueryArgs{
-		Phrases: triggerPhrases, Text: "PLEASE   TAKE   this\tend-to-end: rename X", Limit: 20,
-	})
-
-	g.Expect(parsed.Items).NotTo(BeEmpty())
-
-	if len(parsed.Items) == 0 {
-		return
-	}
-
-	g.Expect(parsed.Items[0].Path).To(Equal(triggerRunbookName))
-	g.Expect(parsed.Items[0].Provenances).To(ContainElement("trigger"))
 }
 
 // unexported constants.

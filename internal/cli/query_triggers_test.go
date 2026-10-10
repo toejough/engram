@@ -8,7 +8,7 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-func TestMatchTriggers_WholeWord(t *testing.T) {
+func Test792b22c2a1_MatchTriggers_WholeWord(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {

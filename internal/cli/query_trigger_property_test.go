@@ -13,12 +13,12 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestMatchTriggers_HitsIffNormalizedWholeWord: a note is a hit iff some
+// Test792b22c2a2_MatchTriggers_HitsIffNormalizedWholeWord: a note is a hit iff some
 // trigger, lowercased with whitespace runs collapsed, occurs in the text
 // normalized the same way with a non-letter/digit (or text edge) on each side
 // where the trigger's own edge rune is a letter or digit. The oracle is a
 // regexp, independent of the implementation's rune scan.
-func TestMatchTriggers_HitsIffNormalizedWholeWord(t *testing.T) {
+func Test792b22c2a2_MatchTriggers_HitsIffNormalizedWholeWord(t *testing.T) {
 	t.Parallel()
 
 	const alphabet = `[A-Za-z0-9é_/.-]`
@@ -58,9 +58,9 @@ func TestMatchTriggers_HitsIffNormalizedWholeWord(t *testing.T) {
 	})
 }
 
-// TestResolvedItemLess_TriggerAlwaysFirst: for arbitrary provenance sets and
+// Test792b22c5a1_ResolvedItemLess_TriggerAlwaysFirst: for arbitrary provenance sets and
 // scores, an item with "trigger" provenance precedes every item without it.
-func TestResolvedItemLess_TriggerAlwaysFirst(t *testing.T) {
+func Test792b22c5a1_ResolvedItemLess_TriggerAlwaysFirst(t *testing.T) {
 	t.Parallel()
 
 	roles := []string{"direct", "cluster_rep", "explore", "recent", "ride_along"}

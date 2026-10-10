@@ -46,6 +46,19 @@ func Test792b21c3a6_ParseCreatedFromNote_CRLFNote(t *testing.T) {
 	NewWithT(t).Expect(parseCreatedFromNote([]byte(crlfReaderNote("")))).To(Equal("2026-01-01"))
 }
 
+func Test792b22c1a3_TriggerIndex_CRLFRunbook(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	runbook := strings.ReplaceAll("---\ntype: runbook\nsituation: s\ndone_when: d\ntriggers:\n    - rotate the keys\n"+
+		"luhmann: \"1\"\n---\n\n1. step\n", "\n", "\r\n")
+
+	meta := loadAllVaultNotesMeta([]compatibleSidecar{{note: vaultgraph.Note{Basename: "1.2026-01-01.rb"}}}, "/vault",
+		func(string) ([]byte, error) { return []byte(runbook), nil })
+	g.Expect(meta.TriggerIndex).To(HaveKeyWithValue("1.2026-01-01.rb", []string{"rotate the keys"}))
+	g.Expect(matchTriggers("please rotate the keys today", meta.TriggerIndex)).To(Equal([]string{"1.2026-01-01.rb"}))
+}
+
 func TestCapRedFlagsForPreview_CRLFNote(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -110,19 +123,6 @@ func TestReadNoteAttrs_CRLFNote(t *testing.T) {
 	g := NewWithT(t)
 	g.Expect(ok).To(BeTrue())
 	g.Expect(attrs).To(HaveKeyWithValue("type", "fact"))
-}
-
-func TestTriggerIndex_CRLFRunbook(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	runbook := strings.ReplaceAll("---\ntype: runbook\nsituation: s\ndone_when: d\ntriggers:\n    - rotate the keys\n"+
-		"luhmann: \"1\"\n---\n\n1. step\n", "\n", "\r\n")
-
-	meta := loadAllVaultNotesMeta([]compatibleSidecar{{note: vaultgraph.Note{Basename: "1.2026-01-01.rb"}}}, "/vault",
-		func(string) ([]byte, error) { return []byte(runbook), nil })
-	g.Expect(meta.TriggerIndex).To(HaveKeyWithValue("1.2026-01-01.rb", []string{"rotate the keys"}))
-	g.Expect(matchTriggers("please rotate the keys today", meta.TriggerIndex)).To(Equal([]string{"1.2026-01-01.rb"}))
 }
 
 // crlfReaderNote is a fact note with extra frontmatter lines, all CRLF.

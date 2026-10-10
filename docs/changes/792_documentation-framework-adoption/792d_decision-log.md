@@ -1271,3 +1271,24 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792d51 and 792d52: a test goes to the component whose contract it checks.
 - **Alternatives:** rename the band helpers' tests to a MAY requirement. Rejected because no production
   path uses them.
+
+## 792d94 runbook-trigger-matching scope and the tests it leaves
+
+- **Choice:**
+  - 792b22 specifies the trigger index, the whole-word occurrence rule, the list of hits, their
+    placement, the trigger rank, the lookup by message alone and the absence of a message. Two
+    interaction rules belong to the callers (792c3c): a hit's exemption from the relevance floor, the
+    matched-set cap and the matched-note floor belongs to query-engine (792c7f5), which adds hits after
+    matching, and its exemption from `--limit` to query-payload-renderer (792c7f4), which splits hits
+    off before the cap.
+  - The `RunQuery` tests that check the trigger path take technical IDs of 792b22 (792d52), because each
+    asserts the contract of this component through the whole command; the product scenarios they
+    support are in the mapping table. Three tests of `query_runbook_test` go elsewhere:
+    `TestRunQuery_TriggerHitDoesNotConsumeLimit`, `TestRunQuery_OversizedRedFlagsListKeepsNewestEntry`
+    and `TestRunQuery_RunbookItemContentIncludesRedFlags` to query-payload-renderer (792c7f4), and
+    `TestRunQuery_NoPhrasesAndNoTextIsRejected` and `TestRunQuery_RunbookCompetesInMainMatchedSet` to
+    query-engine (792c7f5).
+  - ADR-0026's 2026-09-20 amendment is replaced by a pointer to 792b22 and 792a7za. The served `--text`
+    clause stays in `runbook-lexical-triggers` for vault-serving (792d90).
+- **Rationale:** 792c3c and 792d52.
+- **Alternatives:** none apply.

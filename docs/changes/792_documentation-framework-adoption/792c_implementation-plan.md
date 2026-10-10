@@ -224,8 +224,8 @@ flowchart TD
   N792c7e3["792c7e3 vocabulary-engine tech spec<br/>Complete"]
   N792c7f1["792c7f1 memory-query product spec<br/>Complete"]
   N792c7f2["792c7f2 recency-ranking tech spec<br/>Complete"]
-  N792c7f3["792c7f3 runbook-trigger-matching tech spec<br/>Ready"]
-  N792c7f4["792c7f4 query-payload-renderer tech spec<br/>Blocked by: 792c7f3"]
+  N792c7f3["792c7f3 runbook-trigger-matching tech spec<br/>Complete"]
+  N792c7f4["792c7f4 query-payload-renderer tech spec<br/>Ready"]
   N792c7f5["792c7f5 query-engine tech spec<br/>Blocked by: 792c7f4"]
   N792c7g1["792c7g1 vault-counting product spec<br/>Blocked by: 792c7f5"]
   N792c7g2["792c7g2 vault-counter tech spec<br/>Blocked by: 792c7g1"]
@@ -2370,11 +2370,37 @@ Target: `792b22` (`docs/specs/technical/runbook-trigger-matching.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7f3a | Port the component contract to `792b22` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7f3b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7f3c | Repoint stale references to `792b22` | Non-test action | Keeps live links valid | Not started |
-| 792c7f3d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7f3e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7f3a | Port the component contract to `792b22` | Non-test action | Documents the component in the framework format | Done |
+| 792c7f3b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7f3c | Repoint stale references to `792b22` | Non-test action | Keeps live links valid | Done |
+| 792c7f3d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7f3e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+**Outcome:** 792b22 specifies seven requirements. ADR-0026's lexical-trigger amendment is replaced by a
+pointer, and the OpenSpec residues stay with their owners (792d90, 792d94).
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b22c1a2 | `TestRunQuery_NonRunbookTriggersNeverHit` → `Test792b22c1a2_RunQuery_NonRunbookTriggersNeverHit` | `RunQuery` over an in-memory vault | A fact's triggers are ignored | Done |
+| 792b22c1a3 | `TestTriggerIndex_CRLFRunbook` → `Test792b22c1a3_TriggerIndex_CRLFRunbook` | Vault-metadata pass and matcher over a CRLF note | CRLF runbook indexed and matched | Done |
+| 792b22c2a1 | `TestMatchTriggers_WholeWord` → `Test792b22c2a1_MatchTriggers_WholeWord` | Table-driven unit, 32 cases; split deferred: 792b22c3a2 (its empty-message case) | Boundary rules | Done |
+| 792b22c2a2 | `TestMatchTriggers_HitsIffNormalizedWholeWord` → `Test792b22c2a2_MatchTriggers_HitsIffNormalizedWholeWord` | Property (rapid) against a regular-expression oracle | Hit iff whole word | Done |
+| 792b22c2a3 | `TestRunQuery_TriggerMatchIsCaseAndWhitespaceInsensitive` → `Test792b22c2a3_RunQuery_TriggerMatchIsCaseAndWhitespaceInsensitive` | `RunQuery` over an in-memory vault | Case and whitespace | Done |
+| 792b22c4a1 | `TestRunQuery_TriggerHitSurfacesFirst` → `Test792b22c4a1_RunQuery_TriggerHitSurfacesFirst` | `RunQuery` over an in-memory vault | Hit leads the payload | Done |
+| 792b22c5a1 | `TestResolvedItemLess_TriggerAlwaysFirst` → `Test792b22c5a1_ResolvedItemLess_TriggerAlwaysFirst` | Property (rapid) | Trigger sorts first | Done |
+| 792b22c6a1 | `TestRunQuery_TextWithoutPhrasesReturnsJustHit` → `Test792b22c6a1_RunQuery_TextWithoutPhrasesReturnsJustHit` | `RunQuery` over an in-memory vault | Message alone | Done |
+| 792b22c7a1 | `TestRunQuery_NoTextPayloadUnchanged` → `Test792b22c7a1_RunQuery_NoTextPayloadUnchanged` | `RunQuery` over an in-memory vault | No message, no change | Done |
+
+**Coverage gaps:** 792b22c1a1 (no test builds an LF runbook's entry directly; the `RunQuery` tests
+exercise it), 792b22c3a1 (no test checks sorting or one listing per runbook), 792b22c4a2 (a ranked hit
+keeps its score), 792b22c4a3 (a chunk is not a hit), 792b22c4a4 (the project rule) and 792b22c4a5. Of
+the product scenarios only 792a7y1a, 792a7y1b, 792a7za1a, 792a7za1b and 792a7zb1a have a `RunQuery`
+test among these; 792a7za1d and 792a7za1e have none.
+
+**No-scenario tests:** none in the files examined; three tests of `query_runbook_test` wait for
+query-payload-renderer (792c7f4) and two for query-engine (792c7f5) (792d94).
 
 #### 792c7f4 query-payload-renderer tech spec
 
