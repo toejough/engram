@@ -43,13 +43,13 @@ Non-test actions use `Not started` → `In progress` → `Done`.
 
 Record each checkpoint and its evidence in the same commit. Do not move past an uncommitted
 transition. Existing validation is historical evidence, not a completed catalog checkpoint.
-Local commits require explicit user authorization; publishing and integration remain review steps.
+Local commits were authorized by the user; publishing and integration remain review steps.
 
 ## 794c5 Dependency Tree
 
 ```mermaid
 graph TD
-    N794c8a["794c8a Policy and target contracts — Ready"]
+    N794c8a["794c8a Policy and target contracts — In progress: 0/3 entries complete"]
     N794c8b["794c8b Command boundary contracts — Blocked by: 794c8a"]
     N794c8c["794c8c Validation and integration — Blocked by: 794c8b"]
     N794c8a --> N794c8b
@@ -77,9 +77,9 @@ result is committed. Merged additionally requires delivery and branch/worktree c
 
 | Entry | Gherkin | Classification | Why | Status |
 |---|---|---|---|---|
-| 794c8a1 Mode arguments | [794b3a1a Scope and mode arguments](./794b_technical-spec.md#794b3a1-contract-scenarios) | Dedicated examples | Exact check/fix argument contracts | Not started |
-| 794c8a2 Environment precedence | [794b3b1a Resolve present and absent settings](./794b_technical-spec.md#794b3b1-contract-scenarios) | Dedicated examples | Absent, partial, explicit, and empty settings | Not started |
-| 794c8a3 Entry-point routing | [794b4a1a Direct and aggregate target routing](./794b_technical-spec.md#794b4a1-contract-scenarios) | Pinned dependency contract | Actual Targ target identity, names, and aggregate references; extend the existing wiring test | Not started |
+| 794c8a1 Mode arguments | [794b3a1a Scope and mode arguments](./794b_technical-spec.md#794b3a1-contract-scenarios) | Dedicated examples | Exact check/fix argument contracts | Red |
+| 794c8a2 Environment precedence | [794b3b1a Resolve present and absent settings](./794b_technical-spec.md#794b3b1-contract-scenarios) | Dedicated examples | Absent, partial, explicit, and empty settings | Red |
+| 794c8a3 Entry-point routing | [794b4a1a Direct and aggregate target routing](./794b_technical-spec.md#794b4a1-contract-scenarios) | Pinned dependency contract | Actual Targ target identity, names, and aggregate references; extend the existing wiring test | Red |
 
 ### 794c8b Command boundary contracts
 

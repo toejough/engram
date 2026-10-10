@@ -23,11 +23,25 @@ was taken. Remediation validation must be recorded separately when it is perform
 
 ## 794d3 Remediation Status
 
-The documentation and root instruction edits are prepared. The original tests still lack
+The documentation and root instruction edits are committed. The original tests now have
 scenario-prefixed names, and the additional command-boundary/acceptance tests in
 [794c8 Implementation-Ordered Test Catalog](./794c_implementation-plan.md#794c8-implementation-ordered-test-catalog)
-have not been implemented. Catalog entries remain Not started. No RED checkpoint, checkpoint
-commit, canonical promotion, merge, or push is claimed.
+have not been implemented. Policy/routing entries have reached Red; other entries remain
+Not started. No canonical promotion, merge, or push is claimed.
 
-Local checkpoint commits await explicit user authorization. Canonical promotion and deletion of
-the active change directory belong to a later authorized integration.
+Local checkpoint commits are explicitly authorized. The updated sandbox excludes the original
+sibling worktree, so validation and local commits continue in a local shared clone at
+`/tmp/engram-794-resume` on the same branch name. The original worktree is not modified by this
+clone. Canonical promotion and deletion of the active change directory belong to a later
+authorized integration.
+
+## 794d4 Regression Replay
+
+With the original unrestricted arguments, no subprocess environment overrides, and original
+shared target wiring restored, `targ test-dev` fails the three scenario-prefixed policy/routing
+tests for missing include arguments, missing resource defaults, and missing configured target
+routing. This is a regression replay observed during remediation, not a claim that the original
+implementation was test-first. Other dev-package tests pass.
+
+Commands in the temporary clone use `XDG_CACHE_HOME=/tmp/engram-794-cache` and
+`GOCACHE=/tmp/engram-794-go-build` to keep build/cache writes inside the sandbox.
