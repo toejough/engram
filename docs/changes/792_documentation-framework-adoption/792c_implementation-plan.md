@@ -256,8 +256,8 @@ flowchart TD
   N792c7t3["792c7t3 parent-vault-client tech spec<br/>Complete"]
   N792c7u1["792c7u1 curate product spec<br/>Complete"]
   N792c7v1["792c7v1 memory-effectiveness-evaluation product spec<br/>Complete"]
-  N792c7v2["792c7v2 eval-trial-harness tech spec<br/>Ready"]
-  N792c7v3["792c7v3 memory-loop-auditor tech spec<br/>Blocked by: 792c7v2"]
+  N792c7v2["792c7v2 eval-trial-harness tech spec<br/>Complete"]
+  N792c7v3["792c7v3 memory-loop-auditor tech spec<br/>Ready"]
   N792c8a["792c8a Residual legacy sweep<br/>Blocked by: 792c7v3"]
   N792c8b["792c8b In-flight design relocation<br/>Blocked by: 792c8a"]
   N792c8c["792c8c OpenSpec archive and tooling removal<br/>Blocked by: 792c8a"]
@@ -5479,11 +5479,115 @@ Target: `792b38` (`docs/specs/technical/eval-trial-harness.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7v2a | Port the component contract to `792b38` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7v2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7v2c | Repoint stale references to `792b38` | Non-test action | Keeps live links valid | Not started |
-| 792c7v2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7v2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7v2a | Port the component contract to `792b38` | Non-test action | Documents the component in the framework format | Done |
+| 792c7v2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7v2c | Repoint stale references to `792b38` | Non-test action | Keeps live links valid | Done |
+| 792c7v2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7v2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+792b38 has eleven requirements (792b38c1 to 792b38c11) and one sequence, a trial run, whose `alt` branches each have their own
+requirement: the skill installation, the warm-configuration builders, the isolated environment, the real-vault fingerprint, the leak
+guard, the harnesses' use of it, the step detection of every command form, the question stop, the fixture's local target, the rank
+of a surfaced note, and the spawn sites' use of the environment primitive (792d126). It maps 27 scenarios of 792a23.
+Legacy removal: the four eval and probe specs are deleted, and the two code comments that cited them cite 792a23 and 792b38.
+
+**Test Traceability**
+
+Python tests are renamed `test_<ID>_<previous_name>` (792d10). Paths are relative to `dev/eval`.
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b38c1a1 | `test_isolation.py` `test_install_skill_raises_on_missing_source_dir` → `test_792b38c1a1_install_skill_raises_on_missing_source_dir` | Pure unit (temp directory) | A missing source raises naming the skill and path | Done |
+| 792b38c1a2 | `test_isolation.py` `test_install_skill_raises_on_empty_source_dir_no_skill_md` → `test_792b38c1a2_install_skill_raises_on_empty_source_dir_no_skill_md` | Pure unit (temp directory) | A source with no SKILL.md raises | Done |
+| 792b38c1a3 | `test_isolation.py` `test_install_skill_copies_and_verifies_destination_content` → `test_792b38c1a3_install_skill_copies_and_verifies_destination_content` | Pure unit (temp directory) | The copy is verified at the destination | Done |
+| 792b38c2a1 | `traps/test_wrun.py` `test_successful_skill_installation_verified` → `test_792b38c2a1_successful_skill_installation_verified` (split deferred: 792a23a1a) | Pure unit (temp directory) | The trap harness verifies a successful installation | Done |
+| 792b38c2a2 | `traps/test_wrun.py` `test_missing_skill_source_raises` → `test_792b38c2a2_missing_skill_source_raises` (split deferred: 792a23b1a) | Pure unit (temp directory) | The trap harness raises on a missing source | Done |
+| 792b38c2a3 | `traps/test_wrun.py` `test_empty_skill_source_raises` → `test_792b38c2a3_empty_skill_source_raises` (split deferred: 792a23b1b) | Pure unit (temp directory) | The trap harness raises on an empty source | Done |
+| 792b38c2a4 | `cumulative/test_matrix.py` `test_build_cfg_template_warm_installs_real_recall_and_learn_skills` → `test_792b38c2a4_build_cfg_template_warm_installs_real_recall_and_learn_skills` (split deferred: 792a23a1c) | Unit over the real skill sources | The cumulative harness installs the real skills | Done |
+| 792b38c2a5 | `cumulative/test_matrix.py` `test_build_cfg_template_warm_raises_on_missing_skill_source` → `test_792b38c2a5_build_cfg_template_warm_raises_on_missing_skill_source` (split deferred: 792a23b1c) | Unit with a patched skills root | The cumulative harness raises on a missing source | Done |
+| 792b38c2a6 | `cumulative/test_matrix.py` `test_build_cfg_template_warm_raises_on_empty_skill_source` → `test_792b38c2a6_build_cfg_template_warm_raises_on_empty_skill_source` | Unit with a patched skills root | The cumulative harness raises on an empty source | Done |
+| 792b38c2a7 | `cumulative/test_matrix.py` `test_make_pools_warm_cfg_still_succeeds_end_to_end` → `test_792b38c2a7_make_pools_warm_cfg_still_succeeds_end_to_end` | Unit over the real skill sources | The pools are still built end to end | Done |
+| 792b38c2a8 | `cumulative/runbook_vs_skill/test_probe.py` `test_build_cfg_template_default_skills_unchanged` → `test_792b38c2a8_build_cfg_template_default_skills_unchanged` | Unit over the real skill sources | The probe harness keeps its default skills | Done |
+| 792b38c2a9 | `cumulative/runbook_vs_skill/test_probe.py` `test_build_cfg_template_skills_empty_installs_no_skills` → `test_792b38c2a9_build_cfg_template_skills_empty_installs_no_skills` | Unit (temp directory) | An empty skills list installs none | Done |
+| 792b38c2a9 | `cumulative/runbook_vs_skill/test_probe.py` `test_build_cfg_pool_skills_empty_propagates_to_every_worker` → `test_792b38c2a9_build_cfg_pool_skills_empty_propagates_to_every_worker` | Unit (temp directory) | A pool inherits an empty skills list | Done |
+| 792b38c2a10 | `cumulative/runbook_vs_skill/test_probe.py` `test_build_cfg_template_raises_on_missing_skill_source` → `test_792b38c2a10_build_cfg_template_raises_on_missing_skill_source` | Unit with a patched skills root | The probe harness raises on a missing source | Done |
+| 792b38c2a11 | `cumulative/runbook_vs_skill/test_probe.py` `test_build_cfg_template_raises_on_empty_skill_source` → `test_792b38c2a11_build_cfg_template_raises_on_empty_skill_source` | Unit with a patched skills root | The probe harness raises on an empty source | Done |
+| 792b38c3a1 | `test_isolation.py` `test_isolated_env_sets_all_four_vars` → `test_792b38c3a1_isolated_env_sets_all_four_vars` (split deferred: 792a23d1b) | Pure unit (temp directory, injected base environment) | Every state variable points into the trial | Done |
+| 792b38c3a2 | `test_isolation.py` `test_isolated_env_creates_the_dirs` → `test_792b38c3a2_isolated_env_creates_the_dirs` | Pure unit (temp directory) | The vault and chunk directories exist | Done |
+| 792b38c3a3 | `test_isolation.py` `test_isolated_env_preserves_base_entries` → `test_792b38c3a3_isolated_env_preserves_base_entries` | Pure unit (temp directory) | The base environment is kept | Done |
+| 792b38c3a4 | `test_isolation.py` `test_assert_isolated_rejects_unset_var` → `test_792b38c3a4_assert_isolated_rejects_unset_var` | Parametrized pure unit | An unset state variable is refused | Done |
+| 792b38c3a5 | `test_isolation.py` `test_assert_isolated_rejects_unset_config_dir` → `test_792b38c3a5_assert_isolated_rejects_unset_config_dir` | Pure unit | An unset configuration directory is refused | Done |
+| 792b38c3a6 | `test_isolation.py` `test_assert_isolated_rejects_path_inside_operator_data_dir` → `test_792b38c3a6_assert_isolated_rejects_path_inside_operator_data_dir` | Parametrized unit with a patched data directory | A path inside the maintainer's data directory is refused | Done |
+| 792b38c3a7 | `test_isolation.py` `test_assert_isolated_rejects_cwd_with_dotclaude_ancestor` → `test_792b38c3a7_assert_isolated_rejects_cwd_with_dotclaude_ancestor` | Pure unit (temp directory) | A working directory below .claude is refused | Done |
+| 792b38c3a7 | `test_isolation.py` `test_assert_isolated_rejects_cwd_with_git_ancestor` → `test_792b38c3a7_assert_isolated_rejects_cwd_with_git_ancestor` | Pure unit (temp directory) | A working directory below .git is refused | Done |
+| 792b38c3a8 | `test_isolation.py` `test_assert_isolated_accepts_a_clean_trial` → `test_792b38c3a8_assert_isolated_accepts_a_clean_trial` | Pure unit (temp directory) | A clean trial is accepted | Done |
+| 792b38c3a9 | `test_isolation.py` `test_engram_env_sets_both_paths_and_defaults_chunks_to_the_sibling` → `test_792b38c3a9_engram_env_sets_both_paths_and_defaults_chunks_to_the_sibling` | Pure unit (temp directory) | The chunk directory defaults to the vault's sibling | Done |
+| 792b38c3a9 | `test_isolation.py` `test_engram_env_accepts_an_explicit_chunks_dir` → `test_792b38c3a9_engram_env_accepts_an_explicit_chunks_dir` | Pure unit (temp directory) | An explicit chunk directory is used | Done |
+| 792b38c3a10 | `test_isolation.py` `test_engram_env_rejects_the_operators_real_vault` → `test_792b38c3a10_engram_env_rejects_the_operators_real_vault` | Unit with a patched data directory | The real vault is refused for a direct call | Done |
+| 792b38c3a11 | `test_isolation.py` `test_assert_engram_isolated_ignores_claude_vars` → `test_792b38c3a11_assert_engram_isolated_ignores_claude_vars` | Pure unit | A direct call is judged without the Claude variables | Done |
+| 792b38c3a12 | `test_isolation.py` `test_operator_data_dir_follows_xdg` → `test_792b38c3a12_operator_data_dir_follows_xdg` | Unit with a patched environment | XDG_DATA_HOME is followed | Done |
+| 792b38c3a12 | `test_isolation.py` `test_operator_data_dir_falls_back_to_local_share` → `test_792b38c3a12_operator_data_dir_falls_back_to_local_share` | Unit with a patched environment | The fallback is ~/.local/share | Done |
+| 792b38c3a13 | `test_isolation.py` `test_isolated_env_registers_trial_dir_concurrently` → `test_792b38c3a13_isolated_env_registers_trial_dir_concurrently` | Concurrent unit (threads) | Eight concurrent builds register all their trial directories | Done |
+| 792b38c3a14 | `test_isolation.py` `test_engram_env_registers_vault` → `test_792b38c3a14_engram_env_registers_vault` | Pure unit | A direct call's vault is registered | Done |
+| 792b38c4a1 | `test_isolation.py` `test_vault_fingerprint_counts_notes_and_ignores_sidecars` → `test_792b38c4a1_vault_fingerprint_counts_notes_and_ignores_sidecars` (split deferred: 792a23f1c) | Pure unit (temp directory) | Notes are counted and sidecars ignored | Done |
+| 792b38c4a2 | `test_isolation.py` `test_vault_fingerprint_of_missing_vault_is_empty` → `test_792b38c4a2_vault_fingerprint_of_missing_vault_is_empty` | Pure unit | A missing vault is empty | Done |
+| 792b38c5a1 | `test_isolation.py` `test_assert_no_trial_leak_ignores_a_new_note_naming_no_registered_marker` → `test_792b38c5a1_assert_no_trial_leak_ignores_a_new_note_naming_no_registered_marker` (split deferred: 792a23d1a) | Pure unit (temp directory) | A note naming no registered marker is ignored | Done |
+| 792b38c5a2 | `test_isolation.py` `test_assert_no_trial_leak_raises_when_new_note_names_a_registered_marker` → `test_792b38c5a2_assert_no_trial_leak_raises_when_new_note_names_a_registered_marker` (split deferred: 792a23e1a) | Pure unit (temp directory) | A note naming a registered marker raises | Done |
+| 792b38c5a3 | `test_isolation.py` `test_assert_no_trial_leak_ignores_a_short_generic_basename_mentioned_in_passing` → `test_792b38c5a3_assert_no_trial_leak_ignores_a_short_generic_basename_mentioned_in_passing` (split deferred: 792a23e1c, 792a23f1d) | Pure unit (temp directory) | A short generic basename in passing is ignored | Done |
+| 792b38c5a4 | `test_isolation.py` `test_assert_no_trial_leak_still_raises_on_a_distinctive_basename_alone` → `test_792b38c5a4_assert_no_trial_leak_still_raises_on_a_distinctive_basename_alone` (split deferred: 792a23e1b) | Pure unit (temp directory) | A distinctive basename alone raises | Done |
+| 792b38c5a5 | `test_isolation.py` `test_is_distinctive_basename_classifies_real_mkdtemp_suffixes_correctly` → `test_792b38c5a5_is_distinctive_basename_classifies_real_mkdtemp_suffixes_correctly` | Property-style loop over real suffixes | Real mkdtemp suffixes are distinctive | Done |
+| 792b38c5a6 | `test_isolation.py` `test_is_distinctive_basename_classifies_a_fixed_underscore_bearing_suffix` → `test_792b38c5a6_is_distinctive_basename_classifies_a_fixed_underscore_bearing_suffix` | Pure unit | A fixed underscore-bearing suffix is judged by its last segment | Done |
+| 792b38c5a7 | `test_isolation.py` `test_is_distinctive_basename_rejects_this_harnesss_own_deterministic_names` → `test_792b38c5a7_is_distinctive_basename_rejects_this_harnesss_own_deterministic_names` | Pure unit | The harness's own deterministic names are not distinctive | Done |
+| 792b38c6a1 | `test_vault_guard.py` `test_every_harness_snapshots_the_real_vault` → `test_792b38c6a1_every_harness_snapshots_the_real_vault` (split deferred: 792a23d1c) | Static source check | Every harness calls vault_fingerprint | Done |
+| 792b38c6a2 | `test_vault_guard.py` `test_every_harness_asserts_no_trial_leak` → `test_792b38c6a2_every_harness_asserts_no_trial_leak` | Static source check | Every harness calls assert_no_trial_leak | Done |
+| 792b38c6a3 | `test_vault_guard.py` `test_real_vault_fingerprint_is_gone_from_its_two_former_call_sites` → `test_792b38c6a3_real_vault_fingerprint_is_gone_from_its_two_former_call_sites` | Static source check | The retired comparison is gone | Done |
+| 792b38c7a1 | `cumulative/runbook_vs_skill/phase2/test_probe_phase2.py` `test_history_rewrite_step3_matches_hyphenated_filter_repo_form_and_negative` → `test_792b38c7a1_history_rewrite_step3_matches_hyphenated_filter_repo_form_and_negative` (split deferred: 792a23g1a, 792a23g1c) | Pure unit over the real steps.json | The hyphenated form matches and a mention does not | Done |
+| 792b38c7a2 | `cumulative/runbook_vs_skill/phase2/test_probe_phase2.py` `test_history_rewrite_step3_still_matches_space_separated_filter_repo_form` → `test_792b38c7a2_history_rewrite_step3_still_matches_space_separated_filter_repo_form` (split deferred: 792a23g1b) | Pure unit over the real steps.json | The space-separated form still matches | Done |
+| 792b38c7a3 | `cumulative/runbook_vs_skill/phase2/test_probe_phase2.py` `test_history_rewrite_step3_discriminates_letter_adjacent_false_positives` → `test_792b38c7a3_history_rewrite_step3_discriminates_letter_adjacent_false_positives` (split deferred: 792a23g1d) | Pure unit over the real steps.json | Letter-adjacent substrings do not match | Done |
+| 792b38c7a4 | `cumulative/runbook_vs_skill/phase2/test_probe_phase2.py` `test_history_rewrite_full_trial_scores_followed_all_true_with_hyphenated_form` → `test_792b38c7a4_history_rewrite_full_trial_scores_followed_all_true_with_hyphenated_form` | Unit over a synthetic transcript | Steps 3 to 6 score as followed | Done |
+| 792b38c8a1 | `cumulative/runbook_vs_skill/phase2/test_probe_phase2.py` `test_question_stop_true_when_ambiguity_text_ends_transcript_with_no_further_calls` → `test_792b38c8a1_question_stop_true_when_ambiguity_text_ends_transcript_with_no_further_calls` (split deferred: 792a23h1b) | Pure unit over synthetic events | Ambiguity text ending the transcript is a stop | Done |
+| 792b38c8a2 | `cumulative/runbook_vs_skill/phase2/test_probe_phase2.py` `test_question_stop_true_when_question_is_mid_paragraph_not_at_the_very_end` → `test_792b38c8a2_question_stop_true_when_question_is_mid_paragraph_not_at_the_very_end` | Pure unit over synthetic events | A question mid-paragraph counts | Done |
+| 792b38c8a3 | `cumulative/runbook_vs_skill/phase2/test_probe_phase2.py` `test_question_stop_false_when_mutation_follows_the_ambiguity_text` → `test_792b38c8a3_question_stop_false_when_mutation_follows_the_ambiguity_text` | Pure unit over synthetic events | A later mutation means no stop | Done |
+| 792b38c8a4 | `cumulative/runbook_vs_skill/phase2/test_probe_phase2.py` `test_question_stop_false_when_no_ambiguity_ever_raised` → `test_792b38c8a4_question_stop_false_when_no_ambiguity_ever_raised` | Pure unit over synthetic events | No ambiguity, no stop | Done |
+| 792b38c8a5 | `cumulative/runbook_vs_skill/phase2/test_probe_phase2.py` `test_question_stop_true_when_ask_user_question_tool_follows_ambiguity_with_no_mutation` → `test_792b38c8a5_question_stop_true_when_ask_user_question_tool_follows_ambiguity_with_no_mutation` | Pure unit over synthetic events | An AskUserQuestion after the ambiguity is a stop | Done |
+| 792b38c8a6 | `cumulative/runbook_vs_skill/phase2/test_probe_phase2.py` `test_question_stop_uses_the_last_ambiguity_mention_not_the_first` → `test_792b38c8a6_question_stop_uses_the_last_ambiguity_mention_not_the_first` | Pure unit over synthetic events | The last ambiguity mention decides | Done |
+| 792b38c8a7 | `cumulative/runbook_vs_skill/phase2/test_probe_phase2.py` `test_question_stop_false_when_end_state_true_despite_trailing_question` → `test_792b38c8a7_question_stop_false_when_end_state_true_despite_trailing_question` (split deferred: 792a23h1a) | Pure unit over synthetic events | A trailing question after completion is not a stop | Done |
+| 792b38c8a8 | `cumulative/runbook_vs_skill/phase2/test_probe_phase2.py` `test_question_stop_true_when_end_state_false_and_ambiguity_raised` → `test_792b38c8a8_question_stop_true_when_end_state_false_and_ambiguity_raised` | Pure unit over synthetic events | A failing end state with an ambiguity is a stop | Done |
+| 792b38c8a9 | `cumulative/runbook_vs_skill/phase2/test_probe_phase2.py` `test_score_trial_question_stop_false_when_end_state_true_despite_trailing_question` → `test_792b38c8a9_score_trial_question_stop_false_when_end_state_true_despite_trailing_question` | Unit over a patched scorer | Live scoring wires the end state | Done |
+| 792b38c8a10 | `cumulative/runbook_vs_skill/phase2/test_probe_phase2.py` `test_rescore_file_question_stop_false_when_end_state_true_despite_trailing_question` → `test_792b38c8a10_rescore_file_question_stop_false_when_end_state_true_despite_trailing_question` | Unit over a recorded trial | Re-scoring wires the end state | Done |
+| 792b38c9a3 | `cumulative/runbook_vs_skill/phase2/test_probe_phase2.py` `test_bisect_before_fix_step8_file_issue_via_native_edit_after_step6` → `test_792b38c9a3_bisect_before_fix_step8_file_issue_via_native_edit_after_step6` (split deferred: 792a23i1a) | Pure unit over the real steps.json | Filing through a native edit scores | Done |
+| 792b38c9a4 | `cumulative/runbook_vs_skill/phase2/test_probe_phase2.py` `test_bisect_before_fix_step8_file_issue_via_bash_append_after_step6` → `test_792b38c9a4_bisect_before_fix_step8_file_issue_via_bash_append_after_step6` | Pure unit over the real steps.json | Filing through a bash append scores | Done |
+| 792b38c9a4 | `cumulative/runbook_vs_skill/phase2/test_probe_phase2.py` `test_bisect_before_fix_step8_file_issue_via_tee_append_after_step6` → `test_792b38c9a4_bisect_before_fix_step8_file_issue_via_tee_append_after_step6` | Pure unit over the real steps.json | Filing through tee -a scores | Done |
+| 792b38c9a5 | `cumulative/runbook_vs_skill/phase2/test_probe_phase2.py` `test_bisect_before_fix_step8_false_when_step6_never_matched` → `test_792b38c9a5_bisect_before_fix_step8_false_when_step6_never_matched` | Pure unit over the real steps.json | Step 8 is false when step 6 never matched | Done |
+| 792b38c9a6 | `cumulative/runbook_vs_skill/phase2/test_probe_phase2.py` `test_bisect_before_fix_step8_false_for_unanchored_append_or_mention` → `test_792b38c9a6_bisect_before_fix_step8_false_for_unanchored_append_or_mention` | Parametrized pure unit | An unanchored append or a mention does not score | Done |
+| 792b38c10a1 | `traps/test_runbook_probe.py` `test_rank_in_payload_reads_items_not_candidate_l2s` → `test_792b38c10a1_rank_in_payload_reads_items_not_candidate_l2s` (split deferred: 792a23j1a, 792a23j1b) | Pure unit over a synthetic payload | A target in items[] surfaces at its rank | Done |
+| 792b38c10a2 | `traps/test_runbook_probe.py` `test_rank_in_payload_old_logic_control_arm` → `test_792b38c10a2_rank_in_payload_old_logic_control_arm` | Pure unit over a synthetic payload | The old candidate_l2s logic would have missed it | Done |
+| 792b38c10a3 | `traps/test_runbook_probe.py` `test_probe_runbook_batched_success` → `test_792b38c10a3_probe_runbook_batched_success` | Unit with a patched subprocess | A batched probe reports success | Done |
+| 792b38c10a3 | `traps/test_runbook_probe.py` `test_probe_runbook_batched_miss` → `test_792b38c10a3_probe_runbook_batched_miss` | Unit with a patched subprocess | A batched probe reports a miss | Done |
+| 792b38c10a3 | `traps/test_runbook_probe.py` `test_probe_runbook_batched_subprocess_fails` → `test_792b38c10a3_probe_runbook_batched_subprocess_fails` | Unit with a patched subprocess | A failed subprocess is reported | Done |
+| 792b38c10a4 | `traps/test_runbook_probe.py` `test_probe_runbook_escalation_per_phrase` → `test_792b38c10a4_probe_runbook_escalation_per_phrase` | Unit with a patched subprocess | Escalation is per phrase | Done |
+| 792b38c10a4 | `traps/test_runbook_probe.py` `test_probe_all_runbooks_loads_corpus` → `test_792b38c10a4_probe_all_runbooks_loads_corpus` | Unit over the runbook corpus | Every runbook of the corpus is loaded | Done |
+| 792b38c11a1 | `test_tier_a_sites.py` `test_tier_a_sites_import_isolation` → `test_792b38c11a1_tier_a_sites_import_isolation` | Static source check | Tier A sites import the isolation module | Done |
+| 792b38c11a2 | `test_tier_a_sites.py` `test_tier_a_sites_call_isolated_env` → `test_792b38c11a2_tier_a_sites_call_isolated_env` | Static source check | Tier A sites call isolated_env | Done |
+| 792b38c11a3 | `test_tier_a_sites.py` `test_tier_a_sites_have_no_handrolled_env` → `test_792b38c11a3_tier_a_sites_have_no_handrolled_env` | Static source check | No tier A site hand-rolls its environment | Done |
+| 792b38c11a4 | `test_tier_b_sites.py` `test_no_python_site_sets_a_vault_without_a_chunks_dir` → `test_792b38c11a4_no_python_site_sets_a_vault_without_a_chunks_dir` | Static source check | No Python site sets a vault without a chunk directory | Done |
+| 792b38c11a5 | `test_tier_b_sites.py` `test_tier_b_python_sites_use_the_engram_env_helper` → `test_792b38c11a5_tier_b_python_sites_use_the_engram_env_helper` | Static source check | Tier B Python sites use engram_env | Done |
+| 792b38c11a6 | `test_tier_b_sites.py` `test_no_shell_site_sets_a_vault_without_a_chunks_dir` → `test_792b38c11a6_no_shell_site_sets_a_vault_without_a_chunks_dir` | Static source check | No shell site sets a vault without a chunk directory | Done |
+| 792b38c11a7 | `test_tier_b_sites.py` `test_harness_claude_delegates_to_the_isolation_module` → `test_792b38c11a7_harness_claude_delegates_to_the_isolation_module` | Static source check | The Claude harness delegates to the isolation module | Done |
+
+**Coverage gaps:** 792b38c2a12 (no test reads a builder's source for a hard-coded path), 792b38c5a8 (the limits of the leak guard are
+documented, and a test would have to show a leak it cannot see), 792b38c9a1 and 792b38c9a2 (no test reads the fixture's task prompt
+or its template's initial commit for `ISSUES.md`; the fixture was observed to hold both).
+
+**No-scenario tests:** the Go harness behind `targ eval` is not specified (792d126, 792e8), so its tests keep their names:
+`adapters_test`, `aggregate_test`, `arms_test`, `result_test`, `run_test`, `scenarios_test`, `score_test`, `transcript_test`, the
+generated mock tests and `mocks_generate_test` under `dev/eval`, and `recency-centroid-652/eval_test.go`. So do the Python tests
+that verify the tools' own behavior and no scenario of 792a23: `test_no_space_form_free_text_flags.py` (already named by 792c7l2), the
+remaining tests of `cumulative/runbook_vs_skill/phase2/test_probe_phase2.py` and `cumulative/runbook_vs_skill/test_probe.py`
+(scoring, trial setup and aggregation), the other `cumulative/test_*.py` files, `cumulative/contradiction_recheck`,
+`cumulative/please_step7_probe`, `cumulative/underload_repro`, `learn-at-return/test_*.py`, `links/test_*.py`,
+`traps/test_agg`, `test_score`, `test_crowd`, `test_gate`, `test_qanchor` and `test_recall_time_prequery`, and
+`traps/recency_value/test_*.py`. The audit's tests are 792c7v3's.
 
 #### 792c7v3 memory-loop-auditor tech spec
 

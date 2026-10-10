@@ -30,17 +30,17 @@ def _src(rel):
         return f.read()
 
 
-def test_tier_a_sites_import_isolation():
+def test_792b38c11a1_tier_a_sites_import_isolation():
     missing = [rel for rel in TIER_A if "import isolation" not in _src(rel)]
     assert not missing, f"these do not import the isolation module: {missing}"
 
 
-def test_tier_a_sites_call_isolated_env():
+def test_792b38c11a2_tier_a_sites_call_isolated_env():
     missing = [rel for rel in TIER_A if "isolation.isolated_env(" not in _src(rel)]
     assert not missing, f"these do not call isolated_env: {missing}"
 
 
-def test_tier_a_sites_have_no_handrolled_env():
+def test_792b38c11a3_tier_a_sites_have_no_handrolled_env():
     offenders = [rel for rel in TIER_A if HANDROLLED.search(_src(rel))]
     assert not offenders, (
         f"these still build a subprocess env by hand: {offenders} — route them through "

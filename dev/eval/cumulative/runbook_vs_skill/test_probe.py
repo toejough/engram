@@ -252,14 +252,14 @@ def test_build_cfg_pool_creates_distinct_dirs_from_one_template(tmp_path):
         assert os.path.realpath(d) != os.path.realpath(template)
 
 
-def test_build_cfg_template_default_skills_unchanged(tmp_path):
+def test_792b38c2a8_build_cfg_template_default_skills_unchanged(tmp_path):
     dst = os.path.join(str(tmp_path), "cfg")
     p.build_cfg_template(dst)
     assert os.path.isdir(os.path.join(dst, "skills", "recall"))
     assert os.path.isdir(os.path.join(dst, "skills", "learn"))
 
 
-def test_build_cfg_template_skills_empty_installs_no_skills(tmp_path):
+def test_792b38c2a9_build_cfg_template_skills_empty_installs_no_skills(tmp_path):
     """runbook-shim-follow-frame task 2.1: skills=() must produce a cfg with NO installed
     engram skills (the shim-only / no-skills trial arm), while still writing .claude.json and
     an (empty) skills/ dir."""
@@ -270,14 +270,14 @@ def test_build_cfg_template_skills_empty_installs_no_skills(tmp_path):
     assert os.listdir(os.path.join(dst, "skills")) == []
 
 
-def test_build_cfg_pool_skills_empty_propagates_to_every_worker(tmp_path):
+def test_792b38c2a9_build_cfg_pool_skills_empty_propagates_to_every_worker(tmp_path):
     dirs = p.build_cfg_pool(str(tmp_path), 2, skills=())
     assert len(dirs) == 2
     for d in dirs:
         assert os.listdir(os.path.join(d, "skills")) == []
 
 
-def test_build_cfg_template_raises_on_missing_skill_source(tmp_path):
+def test_792b38c2a10_build_cfg_template_raises_on_missing_skill_source(tmp_path):
     """#749 D6 consistency fix: probe.py's own build_cfg_template currently still silently
     skips a missing skill source via `if os.path.isdir(src):` with no raise -- not itself one
     of the five filed issues, but the same silent-no-op bug class #749 found in matrix.py's
@@ -301,7 +301,7 @@ def test_build_cfg_template_raises_on_missing_skill_source(tmp_path):
         shutil.rmtree(fake_repo, ignore_errors=True)
 
 
-def test_build_cfg_template_raises_on_empty_skill_source(tmp_path):
+def test_792b38c2a11_build_cfg_template_raises_on_empty_skill_source(tmp_path):
     """Same consistency fix, empty-source case: a skill source dir exists but has no
     SKILL.md."""
     dst = str(tmp_path / "cfg")

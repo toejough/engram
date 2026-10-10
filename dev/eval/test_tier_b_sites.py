@@ -34,7 +34,7 @@ def _src(rel):
         return f.read()
 
 
-def test_no_python_site_sets_a_vault_without_a_chunks_dir():
+def test_792b38c11a4_no_python_site_sets_a_vault_without_a_chunks_dir():
     """Direct `engram` CLI callers route through isolation.engram_env, which owns both paths.
 
     Asserted as "no hand-set vault survives" rather than "engram_env appears", because the
@@ -51,12 +51,12 @@ def test_no_python_site_sets_a_vault_without_a_chunks_dir():
     )
 
 
-def test_tier_b_python_sites_use_the_engram_env_helper():
+def test_792b38c11a5_tier_b_python_sites_use_the_engram_env_helper():
     missing = [rel for rel in TIER_B_PYTHON if "isolation.engram_env(" not in _src(rel)]
     assert not missing, f"these build an engram env by hand: {missing}"
 
 
-def test_no_shell_site_sets_a_vault_without_a_chunks_dir():
+def test_792b38c11a6_no_shell_site_sets_a_vault_without_a_chunks_dir():
     offenders = [
         rel for rel in TIER_B_SHELL
         if "ENGRAM_VAULT_PATH" in _src(rel) and not SETS_CHUNKS.search(_src(rel))
@@ -66,7 +66,7 @@ def test_no_shell_site_sets_a_vault_without_a_chunks_dir():
     )
 
 
-def test_harness_claude_delegates_to_the_isolation_module():
+def test_792b38c11a7_harness_claude_delegates_to_the_isolation_module():
     """One implementation of the isolation contract, not two."""
     src = _src("cumulative/harness.py")
     assert "isolation.isolated_env(" in src, (

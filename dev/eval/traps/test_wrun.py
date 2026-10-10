@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import wrun
 
 
-def test_successful_skill_installation_verified():
+def test_792b38c2a1_successful_skill_installation_verified():
     """Scenario: Successful skill installation is verified.
 
     WHEN build_warm_cfg is called with the REAL agent-instructions/skills sources
@@ -34,7 +34,7 @@ def test_successful_skill_installation_verified():
         assert os.path.getsize(learn_skill) > 0, f"learn SKILL.md is empty"
 
 
-def test_missing_skill_source_raises():
+def test_792b38c2a2_missing_skill_source_raises():
     """Scenario: Missing skill source raises.
 
     WHEN build_warm_cfg is called and a skill source directory does not exist
@@ -60,7 +60,7 @@ def test_missing_skill_source_raises():
             shutil.rmtree(fake_repo, ignore_errors=True)
 
 
-def test_empty_skill_source_raises():
+def test_792b38c2a3_empty_skill_source_raises():
     """Scenario: Empty skill source raises.
 
     WHEN build_warm_cfg is called and a skill source directory exists but is empty (no SKILL.md)
@@ -90,9 +90,9 @@ def test_empty_skill_source_raises():
 
 if __name__ == "__main__":
     tests = [
-        test_successful_skill_installation_verified,
-        test_missing_skill_source_raises,
-        test_empty_skill_source_raises,
+        test_792b38c2a1_successful_skill_installation_verified,
+        test_792b38c2a2_missing_skill_source_raises,
+        test_792b38c2a3_empty_skill_source_raises,
     ]
     for test_fn in tests:
         try:

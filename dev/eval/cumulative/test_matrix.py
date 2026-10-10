@@ -1,8 +1,7 @@
 """TDD for matrix.py's build_cfg_template(dst, warm=True): verify that skills are structurally
 present in a WARM trial config.
 
-Requirement (openspec/specs/eval-warm-config-fidelity/spec.md, extended by fix-eval-tooling-defects
-#749): a WARM trial config SHALL be verified to carry the real recall/learn skill sources it
+Requirement (792a23a and 792a23b, 792b38c1 and 792b38c2; #749): a WARM trial config SHALL be verified to carry the real recall/learn skill sources it
 claims to grant. A missing or empty skill source SHALL raise, never silently proceed with fewer
 skills than requested. matrix.py::build_cfg_template is a second, independent implementation of
 this same contract as wrun.py::build_warm_cfg (dev/eval/traps/test_wrun.py) -- its own source path
@@ -19,7 +18,7 @@ import unittest.mock as mock
 import matrix
 
 
-def test_build_cfg_template_warm_installs_real_recall_and_learn_skills():
+def test_792b38c2a4_build_cfg_template_warm_installs_real_recall_and_learn_skills():
     """Scenario: Successful skill installation is verified.
 
     WHEN build_cfg_template(dst, warm=True) is called with the REAL agent-instructions/skills
@@ -38,7 +37,7 @@ def test_build_cfg_template_warm_installs_real_recall_and_learn_skills():
         assert os.path.getsize(learn_skill) > 0, "learn SKILL.md is empty"
 
 
-def test_build_cfg_template_warm_raises_on_missing_skill_source():
+def test_792b38c2a5_build_cfg_template_warm_raises_on_missing_skill_source():
     """Scenario: Missing skill source raises.
 
     WHEN build_cfg_template(dst, warm=True) is called and a named skill's source directory does
@@ -65,7 +64,7 @@ def test_build_cfg_template_warm_raises_on_missing_skill_source():
             shutil.rmtree(fake_repo, ignore_errors=True)
 
 
-def test_make_pools_warm_cfg_still_succeeds_end_to_end(tmp_path, monkeypatch):
+def test_792b38c2a7_make_pools_warm_cfg_still_succeeds_end_to_end(tmp_path, monkeypatch):
     """Task 3.5: matrix.py's own CLI entry point (make_pools) must still succeed end-to-end
     against the real repo's real agent-instructions/skills/{recall,learn} sources, exercised
     against a throwaway temp CFGPOOL rather than the real /tmp/cummatrix."""
@@ -78,7 +77,7 @@ def test_make_pools_warm_cfg_still_succeeds_end_to_end(tmp_path, monkeypatch):
     assert not os.path.isdir(os.path.join(cold_dir, "skills"))
 
 
-def test_build_cfg_template_warm_raises_on_empty_skill_source():
+def test_792b38c2a6_build_cfg_template_warm_raises_on_empty_skill_source():
     """Scenario: Empty skill source raises.
 
     WHEN build_cfg_template(dst, warm=True) is called and a named skill's source directory

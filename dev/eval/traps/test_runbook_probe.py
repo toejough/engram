@@ -12,7 +12,7 @@ import retrieval_probe as rp
 # Signal-Fidelity Tests (Task 2.3)
 # ============================================================================
 
-def test_rank_in_payload_reads_items_not_candidate_l2s():
+def test_792b38c10a1_rank_in_payload_reads_items_not_candidate_l2s():
     """Core requirement: rank_in_payload MUST read items[] as the surfacing signal,
     never candidate_l2s (which is capped top-5-per-cluster L2-synthesis candidates).
 
@@ -48,7 +48,7 @@ def test_rank_in_payload_reads_items_not_candidate_l2s():
     assert result["rank"] == 2, f"Expected rank 2, got {result['rank']}"
 
 
-def test_rank_in_payload_old_logic_control_arm():
+def test_792b38c10a2_rank_in_payload_old_logic_control_arm():
     """Discriminating control: reproduce the OLD, wrong way of checking surfacing
     (searching candidate_l2s instead of items[]) to prove the fixture actually
     distinguishes old from new behavior."""
@@ -106,7 +106,7 @@ def test_rank_in_payload_old_logic_control_arm():
 # Batched Probe Tests (Task 2.1/2.2)
 # ============================================================================
 
-def test_probe_runbook_batched_success():
+def test_792b38c10a3_probe_runbook_batched_success():
     """Batched probe: run one multi-phrase query, return rank result."""
     target = {
         "luhmann_id": "820",
@@ -149,7 +149,7 @@ def test_probe_runbook_batched_success():
             assert result["rank"] == 2
 
 
-def test_probe_runbook_batched_miss():
+def test_792b38c10a3_probe_runbook_batched_miss():
     """Batched probe: target missing from items[] reports surfaced=False."""
     target = {
         "luhmann_id": "821",
@@ -181,7 +181,7 @@ def test_probe_runbook_batched_miss():
             assert result["rank"] is None
 
 
-def test_probe_runbook_batched_subprocess_fails():
+def test_792b38c10a3_probe_runbook_batched_subprocess_fails():
     """Batched probe: fail loud on non-zero exit."""
     target = {
         "luhmann_id": "820",
@@ -210,7 +210,7 @@ def test_probe_runbook_batched_subprocess_fails():
 # Escalation Tests (Task 2.4)
 # ============================================================================
 
-def test_probe_runbook_escalation_per_phrase():
+def test_792b38c10a4_probe_runbook_escalation_per_phrase():
     """Escalation: run isolated per-phrase queries for a target that missed batched."""
     target = {
         "luhmann_id": "820",
@@ -263,7 +263,7 @@ def test_probe_runbook_escalation_per_phrase():
             assert mock_run.call_count == 3
 
 
-def test_probe_all_runbooks_loads_corpus():
+def test_792b38c10a4_probe_all_runbooks_loads_corpus():
     """Load corpus and probe all entries."""
     # Mock load_runbook_corpus to return a small test corpus
     test_corpus = [

@@ -286,8 +286,7 @@ def assert_no_trial_leak(before, vault=None):
     engram_env at all, (2) a genuine leak whose note content happens not to mention any
     registered marker (or mentions only a non-distinctive basename of one), or (3) a
     same-filename in-place content mutation of an existing note (the basename-based fingerprint
-    below is identical before and after) — see openspec/specs/eval-trial-vault-leak-detection/
-    spec.md for why these are accepted, documented limitations rather than regressions.
+    below is identical before and after) — see 792a23f and 792b38c5 (docs/changes/792_documentation-framework-adoption/) for why these are accepted, documented limitations rather than regressions.
     """
     root = vault if vault is not None else operator_vault()
     after = vault_fingerprint(root)

@@ -87,3 +87,16 @@ by it can continue. Choices that need only validation, not input, are in
   3. Joe states the pattern's purpose and its target value.
 - **Recommendation:** 3, then apply it in node 792c8e.
 - **Blocks:** nothing. Default: 792d38 (update the pattern at the first `TestT` rename).
+
+## 792e8 Should the Go eval harness behind `targ eval` be specified?
+
+- **Context:** `dev/eval/*.go` (arms `nothing`, `skills-only` and `current-state`, three scenarios, behavior checks, aggregation and
+  a JSONL results writer) is the Milestone 1 harness that `targ eval` runs. No legacy source states its behavior, and
+  ADR-0028 D7 retired the build-value direction that the cumulative harness served. 792a23 and 792b38 specify the Python
+  tooling that the four eval specs cover and leave this harness out.
+- **Options:**
+  1. Leave it unspecified and keep its tests as no-scenario tests.
+  2. Specify it as another requirement set of eval-trial-harness, with scenarios derived from its tests.
+  3. Retire it.
+- **Recommendation:** 1, until Joe says whether `targ eval` is still used.
+- **Blocks:** nothing. Default: option 1.

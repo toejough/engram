@@ -24,12 +24,12 @@ def _src(rel):
         return f.read()
 
 
-def test_every_harness_snapshots_the_real_vault():
+def test_792b38c6a1_every_harness_snapshots_the_real_vault():
     missing = [rel for rel in HARNESSES if "vault_fingerprint(" not in _src(rel)]
     assert not missing, f"these never snapshot the real vault before running trials: {missing}"
 
 
-def test_every_harness_asserts_no_trial_leak():
+def test_792b38c6a2_every_harness_asserts_no_trial_leak():
     missing = [rel for rel in HARNESSES if "assert_no_trial_leak(" not in _src(rel)]
     assert not missing, f"these never assert no trial leaked into the real vault: {missing}"
 
@@ -50,6 +50,6 @@ REAL_VAULT_FINGERPRINT_MIGRATED_FILES = [
 ]
 
 
-def test_real_vault_fingerprint_is_gone_from_its_two_former_call_sites():
+def test_792b38c6a3_real_vault_fingerprint_is_gone_from_its_two_former_call_sites():
     present = [rel for rel in REAL_VAULT_FINGERPRINT_MIGRATED_FILES if "_real_vault_fingerprint" in _src(rel)]
     assert not present, f"these still reference the retired _real_vault_fingerprint: {present}"

@@ -2283,3 +2283,34 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792d3, 792d6, 792d33, 792d117 and 792d124.
 - **Alternatives:** keep the four specs' technical requirements out of the product spec and write only components. This is 792e1's
   option 2, left for Joe.
+
+## 792d126 eval-trial-harness scope, the Go harness left unspecified, and where the sources differ from the code
+
+- **Choice:**
+  - 792b38 specifies eleven requirements (792b38c1 to 792b38c11) and the trial-run sequence. Its first ten carry the technical
+    sides of the four eval and probe specs; the eleventh (792b38c11, the spawn sites' use of the environment primitive) comes from
+    the tier-A and tier-B site tests, which guard the property the leak and isolation specs presuppose, and supports
+    792a23d1b. The isolated environment (792b38c3) and the fingerprint (792b38c4) are not in any legacy spec; they are the
+    primitives that the leak-detection spec refers to as "the standard isolation primitive", and their tests are many.
+  - The component is a repository component of dev tooling whose realization spans three directories of Python and the fixtures.
+    The probe of 792a23j is in it because the catalog lists the retrieval-probe spec for it; its batched runbook probe
+    (792b38c10a3, 792b38c10a4) is described from its tests and is in no legacy spec.
+  - The four specs are deleted. The comments that cited two of them (`isolation.py`, `cumulative/test_matrix.py`) cite 792a23 and
+    792b38, and the dated records under `dev/eval/audit`, the ledger and `dev/eval/raw` that name the specs are left as they are
+    (792d53).
+  - The Go harness behind `targ eval` (`dev/eval/*.go`: arms, scenarios, scoring, aggregation) is not specified, because no
+    legacy source states its behavior and 792a23 states only what the tools promise. Its tests are listed as no-scenario
+    tests (792e8).
+  - Renames: 77 Python tests, as `test_<ID>_<previous_name>` in their own files. A test that is parametrized keeps one name.
+    The tests that an earlier node already named (792c7l2) keep their names. `pytest` passes for every renamed file (the changed files are
+    not run by `targ`, which runs only the Go tests of `dev/eval` under `targ test-dev`).
+- **Divergences noted (792d33):**
+  - 792a23a and 792a23b say that any function that builds a warm configuration verifies each skill's source. The Go
+    harness does not (792d125), and 792b38c2 names only the three Python builders.
+  - The probe harness's configuration builder installs the skills it is given and no skills for an empty list, which the legacy
+    spec's two-skill wording does not say (792b38c2).
+  - 792b38c8 states the order-awareness of `question_stop` as the end-state check short-circuiting to false; the legacy spec
+    says the ambiguity must precede completion, which the code decides only through that end-state result.
+- **Rationale:** 792d3, 792d10, 792d33, 792d52, 792d53 and 792d125.
+- **Alternatives:** write the Go harness's arms, scenarios and scoring as requirements now. Rejected for lack of a source and of
+  a product statement to support them.

@@ -635,7 +635,7 @@ def test_restated_as_plan_true_when_no_mutation_occurs_at_all():
 # the exact bug #755 found. Every pre-existing test below passes end_state=False explicitly —
 # none of them simulate genuine completion, so False preserves their original expected outcome.
 
-def test_question_stop_true_when_ambiguity_text_ends_transcript_with_no_further_calls():
+def test_792b38c8a1_question_stop_true_when_ambiguity_text_ends_transcript_with_no_further_calls():
     """Question-stop-with-no-further-calls: the transcript simply ends right after the assistant
     poses its question — the clean, unambiguous case."""
     events = [
@@ -645,7 +645,7 @@ def test_question_stop_true_when_ambiguity_text_ends_transcript_with_no_further_
     assert pp.detect_question_stop(events, "A", end_state=False) is True
 
 
-def test_question_stop_true_when_question_is_mid_paragraph_not_at_the_very_end():
+def test_792b38c8a2_question_stop_true_when_question_is_mid_paragraph_not_at_the_very_end():
     """Verified against a real 2.3 GREEN-round2 trial transcript: the actual clarifying question
     sat mid-paragraph ('...or is X acceptable here?'), followed by one more sentence that ends
     with a period, not '?'. The signal must not require the text BLOCK's own last character to
@@ -662,7 +662,7 @@ def test_question_stop_true_when_question_is_mid_paragraph_not_at_the_very_end()
     assert pp.detect_question_stop(events, "A", end_state=False) is True
 
 
-def test_question_stop_false_when_mutation_follows_the_ambiguity_text():
+def test_792b38c8a3_question_stop_false_when_mutation_follows_the_ambiguity_text():
     """Deviate-without-stopping: the agent raises the same ambiguity but then goes on to mutate
     anyway, rather than actually waiting — never a real stop."""
     events = [
@@ -672,7 +672,7 @@ def test_question_stop_false_when_mutation_follows_the_ambiguity_text():
     assert pp.detect_question_stop(events, "A", end_state=False) is False
 
 
-def test_question_stop_false_when_no_ambiguity_ever_raised():
+def test_792b38c8a4_question_stop_false_when_no_ambiguity_ever_raised():
     events = [
         _tool_use("Bash", {"command": "git status"}, idx=0),
         _text_ev("Everything looks good, committing now.", idx=1),
@@ -681,7 +681,7 @@ def test_question_stop_false_when_no_ambiguity_ever_raised():
     assert pp.detect_question_stop(events, "A", end_state=False) is False
 
 
-def test_question_stop_true_when_ask_user_question_tool_follows_ambiguity_with_no_mutation():
+def test_792b38c8a5_question_stop_true_when_ask_user_question_tool_follows_ambiguity_with_no_mutation():
     events = [
         _text_ev("Which approach would you like: A or B?", idx=0),
         _tool_use("AskUserQuestion", {"question": "A or B?"}, idx=1),
@@ -689,7 +689,7 @@ def test_question_stop_true_when_ask_user_question_tool_follows_ambiguity_with_n
     assert pp.detect_question_stop(events, "A", end_state=False) is True
 
 
-def test_question_stop_uses_the_last_ambiguity_mention_not_the_first():
+def test_792b38c8a6_question_stop_uses_the_last_ambiguity_mention_not_the_first():
     """An early rhetorical '?' followed by real work, then a genuine late stop, must still score
     True — the LAST ambiguity-bearing text block is what matters, not the first."""
     events = [
@@ -700,7 +700,7 @@ def test_question_stop_uses_the_last_ambiguity_mention_not_the_first():
     assert pp.detect_question_stop(events, "A", end_state=False) is True
 
 
-def test_question_stop_false_when_end_state_true_despite_trailing_question():
+def test_792b38c8a7_question_stop_false_when_end_state_true_despite_trailing_question():
     """5.1/D11: the real R-0 shape from #755 -- a trial that fully completes and verifies its
     task, then asks a separate, genuinely trailing follow-up question with no further mutation.
     end_state=True must short-circuit this to False: that ambiguity cannot have blocked any
@@ -716,7 +716,7 @@ def test_question_stop_false_when_end_state_true_despite_trailing_question():
     assert pp.detect_question_stop(events, "A", end_state=True) is False
 
 
-def test_question_stop_true_when_end_state_false_and_ambiguity_raised():
+def test_792b38c8a8_question_stop_true_when_end_state_false_and_ambiguity_raised():
     """5.2/D11: the real R-1 shape from #755 -- a genuine pre-completion stop. The exact same
     ambiguity-posing shape as the very first test above, but passed end_state=False explicitly
     (the task never actually completed) -- must still score True. Confirms the fix doesn't
@@ -1674,7 +1674,7 @@ def test_live_scoring_and_rescore_emit_the_same_scored_field_set(tmp_path):
 
 # ----- #755 D11: both detect_question_stop call sites wire end_state through correctly -----
 
-def test_score_trial_question_stop_false_when_end_state_true_despite_trailing_question(monkeypatch):
+def test_792b38c8a9_score_trial_question_stop_false_when_end_state_true_despite_trailing_question(monkeypatch):
     """5.4, call site 1 (_score_trial / the live scoring path): a trailing follow-up question
     after genuine completion must score question_stop=False. Proves _score_trial computes
     end_state BEFORE calling detect_question_stop and actually passes it through -- it would
@@ -1691,7 +1691,7 @@ def test_score_trial_question_stop_false_when_end_state_true_despite_trailing_qu
     assert scored["question_stop"] is False
 
 
-def test_rescore_file_question_stop_false_when_end_state_true_despite_trailing_question(tmp_path, monkeypatch):
+def test_792b38c8a10_rescore_file_question_stop_false_when_end_state_true_despite_trailing_question(tmp_path, monkeypatch):
     """5.4, call site 2 (rescore_file / the --rescore path): same wiring check as above, through
     the rescore entry point. The rescore path already computed end_state before calling
     detect_question_stop -- this confirms the new required argument is actually passed."""
@@ -2937,7 +2937,7 @@ def test_history_rewrite_step3_run_rewrite_tool_bash_and_negative():
 _HISTORY_REWRITE_REFUTED_DRAFT_PATTERN = r"git[\s-]+(filter-branch|filter-repo)\b"
 
 
-def test_history_rewrite_step3_matches_hyphenated_filter_repo_form_and_negative():
+def test_792b38c7a1_history_rewrite_step3_matches_hyphenated_filter_repo_form_and_negative():
     """#754: `git-filter-repo` -- the standalone hyphenated invocation (pip/brew-installed onto
     PATH) -- is an equally valid real-world invocation the original space-only pattern missed,
     false-negativing a genuine success and cascading to steps 4-6 (gated behind it). The
@@ -2951,7 +2951,7 @@ def test_history_rewrite_step3_matches_hyphenated_filter_repo_form_and_negative(
     )
 
 
-def test_history_rewrite_step3_still_matches_space_separated_filter_repo_form():
+def test_792b38c7a2_history_rewrite_step3_still_matches_space_separated_filter_repo_form():
     """Regression guard: the space-separated `git filter-repo` form (distinct from the
     `git filter-branch` form the existing test above covers) must also keep matching."""
     steps = pp.load_steps("history-rewrite")
@@ -2967,7 +2967,7 @@ def test_history_rewrite_step3_still_matches_space_separated_filter_repo_form():
 
 
 @pytest.mark.parametrize("command", ["digit-filter-repo --some-arg", "mygit-filter-repo --some-arg"])
-def test_history_rewrite_step3_discriminates_letter_adjacent_false_positives(command):
+def test_792b38c7a3_history_rewrite_step3_discriminates_letter_adjacent_false_positives(command):
     """The refuted draft pattern (no left-boundary guard on `git`) DOES match both
     `digit-filter-repo` and `mygit-filter-repo` -- the substring `git-filter-repo` appears right
     after a word character in each -- which is the new false-positive class D4 rejected. The
@@ -2983,7 +2983,7 @@ def test_history_rewrite_step3_discriminates_letter_adjacent_false_positives(com
     assert results["3"] is False
 
 
-def test_history_rewrite_full_trial_scores_followed_all_true_with_hyphenated_form():
+def test_792b38c7a4_history_rewrite_full_trial_scores_followed_all_true_with_hyphenated_form():
     """#754 REFACTOR: reproduce the real history-rewrite-R-0/R-1 shape end-to-end through
     evaluate_steps directly -- the original trial directories no longer exist on disk, and
     rescore_fork_followed.py is the wrong tool (phase2's rescore entry point expects a prior
@@ -3183,7 +3183,7 @@ def test_bisect_before_fix_step7_false_when_step6_never_matched():
     assert results["7"] is False
 
 
-def test_bisect_before_fix_step8_file_issue_via_native_edit_after_step6():
+def test_792b38c9a3_bisect_before_fix_step8_file_issue_via_native_edit_after_step6():
     """#755 D12/D13: runbook 846's step 6 requires filing the pre-existing bar.py regression as
     its own follow-up issue; the fixture now gives it a local ISSUES.md target. Tracked, not
     gating end_state (D13) -- a new step 8, after step 6."""
@@ -3196,7 +3196,7 @@ def test_bisect_before_fix_step8_file_issue_via_native_edit_after_step6():
     assert results.get("8") is True
 
 
-def test_bisect_before_fix_step8_file_issue_via_bash_append_after_step6():
+def test_792b38c9a4_bisect_before_fix_step8_file_issue_via_bash_append_after_step6():
     steps = pp.load_steps("bisect-before-fix")
     events = [
         _tool_use("Bash", {"command": "sed -i '' '/print(/d' bar.py"}, idx=0),
@@ -3206,14 +3206,14 @@ def test_bisect_before_fix_step8_file_issue_via_bash_append_after_step6():
     assert results.get("8") is True
 
 
-def test_bisect_before_fix_step8_false_when_step6_never_matched():
+def test_792b38c9a5_bisect_before_fix_step8_false_when_step6_never_matched():
     steps = pp.load_steps("bisect-before-fix")
     events = [_tool_use("Edit", {"file_path": "/repo/ISSUES.md"}, idx=0)]
     results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
     assert results.get("8") is False
 
 
-def test_bisect_before_fix_step8_file_issue_via_tee_append_after_step6():
+def test_792b38c9a4_bisect_before_fix_step8_file_issue_via_tee_append_after_step6():
     """Gate-B follow-up (anchoring fix): `tee -a ISSUES.md` is a real write and must still
     score as followed."""
     steps = pp.load_steps("bisect-before-fix")
@@ -3230,7 +3230,7 @@ def test_bisect_before_fix_step8_file_issue_via_tee_append_after_step6():
     'grep -n ">>" ISSUES.md',
     'echo x >> a.log; less ISSUES.md',
 ])
-def test_bisect_before_fix_step8_false_for_unanchored_append_or_mention(command):
+def test_792b38c9a6_bisect_before_fix_step8_false_for_unanchored_append_or_mention(command):
     """Gate-B follow-up: step 8's prior pattern (`(>>|cat\\s*>>?|tee\\s+-a)\\s*.*ISSUES\\.md`)
     had an unanchored `.*`, so it matched a CHAINED command that appends to or greps an
     UNRELATED file and merely mentions/reads ISSUES.md afterward in the same bash invocation --
