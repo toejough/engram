@@ -81,6 +81,18 @@ func Test792a4a1b_Targets_Resituate(t *testing.T) {
 	g.Expect(stderr).To(gomega.ContainSubstring("not found"))
 }
 
+// Test792a9a1f_Targets_CheckEmptyVault exercises the check closure's local
+// (non-served) dispatch through Targets() against an empty vault.
+func Test792a9a1f_Targets_CheckEmptyVault(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	vault := t.TempDir()
+
+	stderr := executeForTest(t, []string{"engram", "check", "--vault", vault})
+	g.Expect(stderr).To(gomega.BeEmpty())
+}
+
 func Test792b2c1a3_DataDirFromHome(t *testing.T) {
 	t.Parallel()
 
@@ -515,18 +527,6 @@ func TestTargets_ActivateNoNotes(t *testing.T) {
 	vault := t.TempDir()
 
 	stderr := executeForTest(t, []string{"engram", "activate", "--vault", vault})
-	g.Expect(stderr).To(gomega.BeEmpty())
-}
-
-// TestTargets_CheckEmptyVault exercises the check closure's local
-// (non-served) dispatch through Targets() against an empty vault.
-func TestTargets_CheckEmptyVault(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	vault := t.TempDir()
-
-	stderr := executeForTest(t, []string{"engram", "check", "--vault", vault})
 	g.Expect(stderr).To(gomega.BeEmpty())
 }
 

@@ -1431,3 +1431,22 @@ decisions as `792dN`, continuing the sequence.
 - **Alternatives:** specify G2 and E1 as requirements of the checker. Rejected because the checker does
   not implement them (792d33); they are noted as divergences instead.
 
+## 792d100 vault-invariant-checker scope and the tests it leaves
+
+- **Choice:**
+  - 792b26 specifies six requirements: running the checks, link resolution (G0 and G3), situation presence
+    (M5), the sidecar schema (S1), the example lists, and the absence of writes. It specifies what
+    `engram check` runs (792d99): G2 (orphans) and the legacy E1 as a FAIL are not in it, because the code
+    does not run them. `memory-invariants` points G2 at this entry.
+  - `memory-system-rigor` is deleted. Its rationale for an executable checker is 792b26a's rationale, with
+    the `targ` gate recorded as unrealized (792d99); the rest of the file is the process history of a
+    2026-06 effort, with its retired invariants.
+  - The invariants document keeps its other rows for 792c8a. The severity model, which named M2-segments,
+    M4, M6, M7, M8, S1 and S2 beside the checker's own, is dropped; a `FAIL` and a `WARN` are defined in
+    792a9a and 792b26a.
+  - `TestTargets_CheckEmptyVault` runs the command through dispatch and takes 792a9a1f (792d52). Each
+    `RunCheck` test that asserts the error identity takes the 792b26c1 scenario it also verifies, and lists
+    the others as `split deferred` (792d10).
+- **Rationale:** 792d10, 792d30, 792d52, 792d99.
+- **Alternatives:** specify G2 as a requirement. Rejected because no code or test supports it (792d33).
+

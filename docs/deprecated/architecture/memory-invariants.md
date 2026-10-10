@@ -21,8 +21,8 @@ G0 (the write-form and resolve-form of a link differ) is [792a9b](../../changes/
 |---|---|---|---|
 | **G0 (link-form normalization, root cause)** | Ported to [792a9b](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a9b-links-that-should-resolve). | — | — |
 | **G1** | **[RETIRED — L1/L2/L3 tier ladder removed in recall-v2; no episode kind; notes are now untiered fact/feedback.]** ~~Tier ladder downward: every L3 links ≥1 L2; every L2 links ≥1 L1.~~ | — | RETIRED |
-| **G2** | No orphans: no note has in-degree 0 AND out-degree 0. (WARN — a legitimately standalone principle is allowed; this is corpus health, not correctness.) | WARN | **BROKEN** — 138 (mostly masked by G0) |
-| **G3** | No dangling wikilinks; the checker surfaces them. (The binary silently drops dangling at build — `graph.go:78` — so a dangling link is a lost intended edge.) | WARN | **BROKEN** — 155 edge-instances on the real graph |
+| **G2** | Not run by `engram check` ([792d100](../../changes/792_documentation-framework-adoption/792d_decision-log.md#792d100-vault-invariant-checker-scope-and-the-tests-it-leaves)). | — | — |
+| **G3** | Ported to [792b26c2](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b26c2-link-resolution). | — | — |
 | **G4** | **[RETIRED — L2/episode provenance links removed in recall-v2; chunk-source provenance is now recorded as frontmatter, not wikilinks.]** ~~Provenance edges present: L2→its episode; L3→each constituent L2.~~ | — | RETIRED |
 | **G5 (episode-body wikilink isolation)** | **[RETIRED — episode kind removed; `[[x]]` in chunk bodies no longer parsed as vault edges.]** ~~graph edges come from authored relation context, NOT from `[[x]]` strings embedded in episode verbatim transcript bodies.~~ | — | RETIRED |
 
@@ -37,7 +37,7 @@ G0 (the write-form and resolve-form of a link differ) is [792a9b](../../changes/
 ## C. Embedding integrity — `[VC]`
 | id | invariant | status |
 |---|---|---|
-| **E1** | Presence: every note has a sibling `.vec.json`. | **OK** 171/171 |
+| **E1** | Ported to [792b26c4](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b26c4-sidecar-schema) (a missing sidecar is a warning there). | — |
 | **E3** | **[RETIRED — episode kind removed; all notes (fact/feedback) embed body. `embed.Text` still has situational logic but the episode-specific branch is dead.]** ~~Embed source by kind: episodes embed `situation`; all other kinds embed body.~~ | — | RETIRED |
 | **E4** | **[RETIRED — episode kind (and its `situation`-only embed source) removed. The hash/embed mismatch for episodes no longer applies. For fact/feedback, body is both embedded and hashed — no disjoint path.]** | — | RETIRED |
 | **E5** | **[RETIRED — episode kind removed; no episode `situation` field to be empty.]** | — | RETIRED |
@@ -78,7 +78,7 @@ M7 marker-monotonicity, M8 luhmann-uniqueness.)
 | id | invariant | sev | status |
 |---|---|---|---|
 | **M4** | Ported to [792b10c7](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b10c7-state-classification) (792d66). | — | — |
-| **M5 (situation on facts/feedback)** | every fact/feedback has non-empty `situation` (R1 depends on it; the key is always written, 792b6c3, and capture refuses a blank one, 792a3f). **[Note: the claim "CLI marks it required only for episodes" is RETIRED — no episode kind; but the `situation` optionality for fact/feedback remains an unguarded gap.]** | **FAIL** | clean now, unguarded |
+| **M5 (situation on facts/feedback)** | Ported to [792b26c3](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b26c3-situation-presence) (the format side is 792b6c3). | — | — |
 | **M6 (learn idempotency)** | re-running `/learn` over the same window does not spawn duplicate/near-duplicate notes (marker is the only dedup; arcs may overlap). | WARN | untested |
 | **M7 (marker monotonicity)** | per source, `marker_after ≥ marker_before` across runs (never regress → never silently re-emit history). | **FAIL** | untested (companion to the M1–M3 transcript invariants) |
 | **M8** | Ported to [792b7](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b7-added-luhmann-addressing). | — | — |
@@ -88,8 +88,6 @@ M7 marker-monotonicity, M8 luhmann-uniqueness.)
 - **R2** **[RETIRED — recall no longer does graph traversal; disposition moot.]**
 - **Agent-discipline items are RT-only, NEVER checker-gated:** recall Step-0 plan-print, §3a synthesis gate, binding-principle judgement, please-runbook step-ordering. (RT-1 itself is RETIRED — see above.)
 - **P1 status correction:** **[RETIRED — episode kind and transcript-path provenance removed.]**
-- **Severity model (required so the checker can PASS):** FAIL = breaks correctness (G0, E1, M2-segments, M4, M5, M7). WARN = corpus health (G2–G3, M6, M8, S1, S2). **[Note: G1/G4/G5/T1a/E4/E5/P1 removed from severity lists — all RETIRED above.]** The Phase-8 checker FAILs CI only on FAIL-class; WARN is reported, non-blocking.
-- **Checker robustness requirement:** parse UTF-8/bytes-robustly. BSD `grep` aborts on invalid multibyte sequences and silently skipped 7 non-UTF-8 notes in the antagonist's first census (false "7 untagged"). A grep-based checker would false-positive exactly the way both of us did.
 
 ## Phase-3 additions (surfaced by sequence-diagram grounding; agreed)
 
@@ -99,6 +97,3 @@ Skill↔binary boundary invariant the flow diagrams exposed. (S2, single represe
 | id | invariant (testable property) | sev | status |
 |---|---|---|---|
 | **S1 (no unmediated vault WRITES)** | the skill layer must not *edit/write* vault note files outside a sync-preserving `engram` path. Reading member files directly in recall §3a is **intended** — the agent decides per-cluster whether the abstract signal is worth investigating; that lazy, judgment-based read stays. | WARN | §3a member read: **OK by design** (operator 2026-06-04 — keep paths-only payload). §6b situation-edit: **FIX via `engram resituate`** (D4) — today a manual file poke that can desync the two `situation` copies (INV-S2). |
-
-## What the checker (`engram check`, Phase 8) must implement
-What the user sees (the report, the exit status, G0) is [792a9a](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a9a-the-check-report). The technical side waits for vault-health's checker node (792c7h2). **[RETIRED: `applyTierFilter` / `nearest_l3` / `hubs` — those fields and the tier-filter code no longer exist in the query path.]**

@@ -2,8 +2,7 @@
 
 Retrospective ADRs. The decisions below were mostly made implicitly across the system's
 evolution; this log records them so they can be challenged, and ties each to the **verified
-defects it produced** (the `⚠ KNOWN` lines). Rigor cross-reference: the
-[memory-system rigor effort](memory-system-rigor.md).
+defects it produced** (the `⚠ KNOWN` lines).
 
 History: the founding design narrative (tiered-memory research, embedder choice, lazy-L2
 synthesis, and the decisions superseded along the way) lived in `docs/DESIGN-HISTORY.md`,

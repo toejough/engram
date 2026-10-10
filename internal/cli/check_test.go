@@ -14,130 +14,7 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
-func TestPrintLinkExamples_CapsAtMax(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	links := make([]vaultgraph.UnresolvedLink, 12)
-	for i := range links {
-		links[i] = vaultgraph.UnresolvedLink{Source: "s", Target: "t"}
-	}
-
-	var out bytes.Buffer
-
-	cli.ExportPrintLinkExamples(&out, links)
-
-	g.Expect(out.String()).To(ContainSubstring("and 2 more"))
-}
-
-func TestPrintNoteExamples_CapsAtMax(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	names := make([]string, 12)
-	for i := range names {
-		names[i] = "n"
-	}
-
-	var out bytes.Buffer
-
-	cli.ExportPrintNoteExamples(&out, names)
-
-	g.Expect(out.String()).To(ContainSubstring("and 2 more"))
-}
-
-func TestRunCheck_DanglingLinkIsWarnNotFail(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	g.Expect(os.MkdirAll(vault, 0o700)).To(Succeed())
-	// [[999]] targets no note → dangling (G3/WARN), not a FAIL.
-	g.Expect(os.WriteFile(filepath.Join(vault, "1.2026-05-30.foo.md"),
-		[]byte("---\ntype: fact\nsituation: testing the checker\n---\nbody\n\nRelated to:\n- [[999]] — x.\n"),
-		0o600)).To(Succeed())
-
-	var out bytes.Buffer
-
-	err := cli.RunCheck(context.Background(), cli.CheckArgs{VaultPath: vault},
-		cli.ExportNewCheckDeps(realFSForTest()), &out)
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(out.String()).To(ContainSubstring("WARN"))
-	g.Expect(out.String()).To(ContainSubstring("PASS  G0"))
-}
-
-func TestRunCheck_FailsOnMissingSituation(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	g.Expect(os.MkdirAll(vault, 0o700)).To(Succeed())
-	// A fact note with no situation field → S1 FAIL (catches a pre-M5 note that
-	// slipped in without one — no write-path test can find that).
-	g.Expect(os.WriteFile(filepath.Join(vault, "1.2026-05-30.foo.md"),
-		[]byte("---\ntype: fact\nsubject: x\n---\nbody\n"), 0o600)).To(Succeed())
-
-	var out bytes.Buffer
-
-	err := cli.RunCheck(context.Background(), cli.CheckArgs{VaultPath: vault},
-		cli.ExportNewCheckDeps(realFSForTest()), &out)
-
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(out.String()).To(ContainSubstring("FAIL"))
-	g.Expect(out.String()).To(ContainSubstring("M5 situation-presence"))
-	g.Expect(out.String()).To(ContainSubstring("1.2026-05-30.foo"))
-}
-
-func TestRunCheck_FailsOnOldSchemaSidecar(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	deps := cli.CheckDeps{
-		Scan:     func(string) ([]vaultgraph.Note, error) { return []vaultgraph.Note{{Basename: "1.fact"}}, nil },
-		ReadNote: func(string) ([]byte, error) { return []byte("---\ntype: fact\nsituation: x\n---\n\nb\n"), nil },
-		ReadSidecar: func(string) ([]byte, error) {
-			return []byte(`{"embedding_model_id":"m@4","dims":4,"vector":[1,0,0,0],"content_hash":"sha256:x"}`), nil
-		},
-	}
-
-	var out bytes.Buffer
-
-	err := cli.RunCheck(context.Background(), cli.CheckArgs{VaultPath: "v"}, deps, &out)
-	g.Expect(err).To(MatchError(cli.ErrCheckFailedForTest))
-	g.Expect(out.String()).To(ContainSubstring("FAIL  S1"))
-}
-
-func TestRunCheck_FailsOnUnresolvedG0Links(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	deps := cli.CheckDeps{
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{
-				// Bare-id link — resolves to no basename (the G0 bug).
-				{Basename: "105.2026-05-30.foo", Outgoing: []string{"105"}},
-			}, nil
-		},
-	}
-
-	var out bytes.Buffer
-
-	err := cli.RunCheck(context.Background(), cli.CheckArgs{VaultPath: "v"}, deps, &out)
-
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(out.String()).To(ContainSubstring("FAIL"))
-	g.Expect(out.String()).To(ContainSubstring("G0"))
-	g.Expect(out.String()).To(ContainSubstring("105"))
-}
-
-func TestRunCheck_PassesOnCurrentSidecar(t *testing.T) {
+func Test792b26c1a1_RunCheck_PassesOnCurrentSidecar(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -162,7 +39,49 @@ func TestRunCheck_PassesOnCurrentSidecar(t *testing.T) {
 	g.Expect(out.String()).To(ContainSubstring("PASS  S1"))
 }
 
-func TestRunCheck_PassesWhenAllLinksResolve(t *testing.T) {
+func Test792b26c1a2_RunCheck_FailsOnOldSchemaSidecar(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	deps := cli.CheckDeps{
+		Scan:     func(string) ([]vaultgraph.Note, error) { return []vaultgraph.Note{{Basename: "1.fact"}}, nil },
+		ReadNote: func(string) ([]byte, error) { return []byte("---\ntype: fact\nsituation: x\n---\n\nb\n"), nil },
+		ReadSidecar: func(string) ([]byte, error) {
+			return []byte(`{"embedding_model_id":"m@4","dims":4,"vector":[1,0,0,0],"content_hash":"sha256:x"}`), nil
+		},
+	}
+
+	var out bytes.Buffer
+
+	err := cli.RunCheck(context.Background(), cli.CheckArgs{VaultPath: "v"}, deps, &out)
+	g.Expect(err).To(MatchError(cli.ErrCheckFailedForTest))
+	g.Expect(out.String()).To(ContainSubstring("FAIL  S1"))
+}
+
+func Test792b26c1a3_RunCheck_DanglingLinkIsWarnNotFail(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	g.Expect(os.MkdirAll(vault, 0o700)).To(Succeed())
+	// [[999]] targets no note → dangling (G3/WARN), not a FAIL.
+	g.Expect(os.WriteFile(filepath.Join(vault, "1.2026-05-30.foo.md"),
+		[]byte("---\ntype: fact\nsituation: testing the checker\n---\nbody\n\nRelated to:\n- [[999]] — x.\n"),
+		0o600)).To(Succeed())
+
+	var out bytes.Buffer
+
+	err := cli.RunCheck(context.Background(), cli.CheckArgs{VaultPath: vault},
+		cli.ExportNewCheckDeps(realFSForTest()), &out)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(out.String()).To(ContainSubstring("WARN"))
+	g.Expect(out.String()).To(ContainSubstring("PASS  G0"))
+}
+
+func Test792b26c2a1_RunCheck_FailsOnUnresolvedG0Links(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -170,8 +89,8 @@ func TestRunCheck_PassesWhenAllLinksResolve(t *testing.T) {
 	deps := cli.CheckDeps{
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{
-				{Basename: "A", Outgoing: []string{"B"}},
-				{Basename: "B"},
+				// Bare-id link — resolves to no basename (the G0 bug).
+				{Basename: "105.2026-05-30.foo", Outgoing: []string{"105"}},
 			}, nil
 		},
 	}
@@ -180,12 +99,13 @@ func TestRunCheck_PassesWhenAllLinksResolve(t *testing.T) {
 
 	err := cli.RunCheck(context.Background(), cli.CheckArgs{VaultPath: "v"}, deps, &out)
 
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(out.String()).To(ContainSubstring("PASS"))
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(out.String()).To(ContainSubstring("FAIL"))
 	g.Expect(out.String()).To(ContainSubstring("G0"))
+	g.Expect(out.String()).To(ContainSubstring("105"))
 }
 
-func TestRunCheck_RealDepsFlagBareIDLinks(t *testing.T) {
+func Test792b26c2a1_RunCheck_RealDepsFlagBareIDLinks(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -212,7 +132,53 @@ func TestRunCheck_RealDepsFlagBareIDLinks(t *testing.T) {
 	g.Expect(out.String()).To(ContainSubstring("[[2]]"))
 }
 
-func TestRunCheck_SituationPresenceSkipsNonBearingNotes(t *testing.T) {
+func Test792b26c2a2_RunCheck_PassesWhenAllLinksResolve(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	deps := cli.CheckDeps{
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{
+				{Basename: "A", Outgoing: []string{"B"}},
+				{Basename: "B"},
+			}, nil
+		},
+	}
+
+	var out bytes.Buffer
+
+	err := cli.RunCheck(context.Background(), cli.CheckArgs{VaultPath: "v"}, deps, &out)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(out.String()).To(ContainSubstring("PASS"))
+	g.Expect(out.String()).To(ContainSubstring("G0"))
+}
+
+func Test792b26c3a1_RunCheck_FailsOnMissingSituation(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	g.Expect(os.MkdirAll(vault, 0o700)).To(Succeed())
+	// A fact note with no situation field → S1 FAIL (catches a pre-M5 note that
+	// slipped in without one — no write-path test can find that).
+	g.Expect(os.WriteFile(filepath.Join(vault, "1.2026-05-30.foo.md"),
+		[]byte("---\ntype: fact\nsubject: x\n---\nbody\n"), 0o600)).To(Succeed())
+
+	var out bytes.Buffer
+
+	err := cli.RunCheck(context.Background(), cli.CheckArgs{VaultPath: vault},
+		cli.ExportNewCheckDeps(realFSForTest()), &out)
+
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(out.String()).To(ContainSubstring("FAIL"))
+	g.Expect(out.String()).To(ContainSubstring("M5 situation-presence"))
+	g.Expect(out.String()).To(ContainSubstring("1.2026-05-30.foo"))
+}
+
+func Test792b26c3a3_RunCheck_SituationPresenceSkipsNonBearingNotes(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -240,4 +206,38 @@ func TestRunCheck_SituationPresenceSkipsNonBearingNotes(t *testing.T) {
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(out.String()).To(ContainSubstring("PASS  M5 situation-presence"))
+}
+
+func Test792b26c5a1_PrintLinkExamples_CapsAtMax(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	links := make([]vaultgraph.UnresolvedLink, 12)
+	for i := range links {
+		links[i] = vaultgraph.UnresolvedLink{Source: "s", Target: "t"}
+	}
+
+	var out bytes.Buffer
+
+	cli.ExportPrintLinkExamples(&out, links)
+
+	g.Expect(out.String()).To(ContainSubstring("and 2 more"))
+}
+
+func Test792b26c5a2_PrintNoteExamples_CapsAtMax(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	names := make([]string, 12)
+	for i := range names {
+		names[i] = "n"
+	}
+
+	var out bytes.Buffer
+
+	cli.ExportPrintNoteExamples(&out, names)
+
+	g.Expect(out.String()).To(ContainSubstring("and 2 more"))
 }

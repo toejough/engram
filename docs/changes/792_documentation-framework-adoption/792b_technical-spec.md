@@ -2173,7 +2173,7 @@ that ends in `---`, or an indented `---` inside a block value, MUST NOT close th
 empty frontmatter MUST split cleanly, and a text that has no leading `---` line or no closing line
 MUST be treated as having no frontmatter.
 
-Supports: 792a3n1a, 792a3u1a, 792a3u1b, 792a8d1a, 792a8d1c.
+Supports: 792a3n1a, 792a3u1a, 792a3u1b, 792a8d1a, 792a8d1c, 792a9d1e.
 
 Rationale: a skill key, for example, can end in `---`; matching only a whole line keeps such a value
 from cutting the frontmatter short.
@@ -2266,7 +2266,7 @@ Requirement: 792b6c8 The note-document-format MUST read a note for splitting and
 form, converting each `\r\n` to `\n` and keeping a lone `\r`, while frontmatter splitting itself
 stays LF-only (792b6c6).
 
-Supports: 792a4m1a, 792a4m1b, 792a6f1a, 792a8d1c.
+Supports: 792a4m1a, 792a4m1b, 792a6f1a, 792a8d1c, 792a9d1f.
 
 Rationale: a CRLF-aware split would hand the writers that splice its slices back into a note CRLF
 lines, and they would write mixed line endings; converting at the reader leaves every writer working
@@ -2324,6 +2324,8 @@ Scenario: 792b6c8a1 CRLF pairs become LF
 | 792a6f1a | 792b6c8 |
 | 792a8d1a | 792b6c6 |
 | 792a8d1c | 792b6c6, 792b6c8 |
+| 792a9d1e | 792b6c6 |
+| 792a9d1f | 792b6c8 |
 
 ```gherkin
 Scenario: 792a3a1b A leading When is not doubled
@@ -2454,6 +2456,18 @@ Scenario: 792a8d1c A CRLF note is counted
   Given a note with type: feedback whose lines end in \r\n
   When the user runs engram count --group-by type
   Then feedback is printed with the count 1, followed by "total: 1"
+```
+
+```gherkin
+Scenario: 792a9d1e A note without usable frontmatter is not judged
+  Given a note with no frontmatter and a note whose frontmatter is malformed YAML
+  When the user runs engram check
+  Then M5 passes
+
+Scenario: 792a9d1f A CRLF note is judged
+  Given a fact note whose lines end in \r\n and whose situation is empty
+  When the user runs engram check
+  Then M5 fails naming the note
 ```
 
 ## 792b7 Added: luhmann-addressing
@@ -4725,7 +4739,7 @@ without `.md`, with the Luhmann ID that leads the filename (empty when there is 
 targets of the links in its text. A failure to list the vault or to read a file MUST be returned,
 naming the path.
 
-Supports: 792a2c1a, 792a2d1a, 792a2d1b, 792a4a1a, 792a4a1b, 792a8e1i, 792a8e1j.
+Supports: 792a2c1a, 792a2d1a, 792a2d1b, 792a4a1a, 792a4a1b, 792a8e1i, 792a8e1j, 792a9a1e.
 
 ##### 792b13c1a Scenarios
 
@@ -4982,6 +4996,7 @@ Scenario: 792b13c6a3 A legacy suffixed link resolves
 | 792a8e1h | 792b13c4 |
 | 792a8e1i | 792b13c1 |
 | 792a8e1j | 792b13c1 |
+| 792a9a1e | 792b13c1 |
 | 792a9b1a | 792b13c6 |
 | 792a9b1b | 792b13c6 |
 | 792a9b1c | 792b13c3, 792b13c6 |
@@ -11709,4 +11724,392 @@ Scenario: 792a8h1b Every note is counted without sidecars
   Given a vault of 600 notes with type: fact and no sidecars
   When the user runs engram count --group-by type
   Then stdout is "fact", a tab and 600, then "total: 600"
+```
+
+## 792b26 Added: vault-invariant-checker
+
+Canonical target: `docs/specs/technical/vault-invariant-checker.md` (title `Vault Invariant Checker - Technical Spec`).
+
+### 792b26a Orientation
+
+- Ownership: Repository component.
+- Responsibility: reads the notes and sidecars at a vault's root and reports which of the vault's
+  invariants they violate. It classifies each violation as a correctness failure or a corpus-health
+  warning, lists the offending items, and says whether any failure was found. It writes nothing.
+- Current realization (informational): `internal/cli/check.go` (`RunCheck`, `CheckArgs`, `CheckDeps`,
+  `checkGraphResolution`, `checkSituationPresence`, `checkSidecars`, `printLinkExamples`,
+  `printNoteExamples`).
+- Qualification: responsibility, the invariants and their severities are stated without naming any
+  function; ownership, the command-line-surface decides how the failure reaches stderr and the exit
+  status, while this component decides what is judged and how; independent verification, it is
+  tested directly over a fake scan, note reader and sidecar reader and over a real directory;
+  stability, a vault with invariants that something checks is a lasting need; necessity, `engram
+  check` is this contract.
+- Supported capabilities: 792a9 vault-health.
+
+Rationale: the memory system once shipped structural breaks that went uncaught for a long time, and
+its testing validated downstream results, never its own internals. A link written in one form and
+resolved in another dropped most of the vault's edges, and nothing reported it. The cause was
+trusting `grep` and a report of success over reading the frontmatter and running the binary, with no
+invariant defined to trip over. So the invariants are executable: a check over the real vault that
+parses it, rather than searching its text, and reports a violation where an agent or a person will
+see it. The original plan wired the check as a `targ` gate so that a violation fails CI; no such gate
+exists today (792d99). Severity separates a break in correctness from corpus health: only a `FAIL`
+breaks correctness and fails the run, while a `WARN` reports without blocking, because a
+legitimately standalone note or a deleted note's name is not an error.
+
+### 792b26b Sequences
+
+```mermaid
+sequenceDiagram
+  participant Caller as command-line-surface
+  participant Checker as vault-invariant-checker
+  participant Graph as wikilink-graph
+  participant Store as durable-file-store
+  Caller->>Checker: check the vault
+  Checker->>Graph: scan the vault (792b13c1)
+  alt the scan fails
+    Graph-->>Checker: error
+    Checker-->>Caller: error naming the scan, no report (792b26c1)
+  else notes scanned
+    Graph-->>Checker: notes with their link targets
+    Checker->>Graph: list the links that resolve to no note (792b13c6)
+    Checker-->>Caller: G0 and G3 lines (792b26c2)
+    loop each note
+      Checker->>Store: read the note, and its sidecar
+      Store-->>Checker: contents, or an error (the note is skipped, 792b26c3, 792b26c4)
+    end
+    Checker-->>Caller: M5 line (792b26c3), then S1 lines (792b26c4)
+    alt any FAIL line was printed
+      Checker-->>Caller: error: FAIL-class invariant violations found (792b26c1)
+    else only PASS and WARN lines
+      Checker-->>Caller: success (792b26c1)
+    end
+  end
+```
+
+### 792b26c Behavior Requirements
+
+#### 792b26c1 Running the checks
+
+Requirement: 792b26c1 The vault-invariant-checker MUST scan the vault (792b13c1), run the link check
+(792b26c2), then the situation check (792b26c3), then the sidecar check (792b26c4), and print each
+check's lines in that order. It MUST return the error `check: FAIL-class invariant violations found`
+when any check reported a failure, and MUST return no error when its worst line is a `WARN`. It MUST
+return a scan failure as `check: scan: <error>` before printing any line. It MUST judge a note by
+parsing its bytes, so that a note whose text is not valid UTF-8 is checked like any other.
+
+Supports: 792a9a1a, 792a9a1b, 792a9a1c, 792a9a1e, 792a9a1f, 792a9a1g.
+
+Rationale: a text search that stops at an invalid multibyte sequence silently skipped notes in an early
+census and gave a false count of untagged notes, so a checker must not be built on one.
+
+##### 792b26c1a Scenarios
+
+```gherkin
+Scenario: 792b26c1a1 A clean vault returns no error
+  Given notes whose links resolve, whose fact notes all have a situation, and whose sidecars are current
+  When the vault is checked
+  Then no error is returned and the S1 line begins PASS
+
+Scenario: 792b26c1a2 A failure is returned as an error
+  Given a note whose sidecar is on the old schema
+  When the vault is checked
+  Then the error "check: FAIL-class invariant violations found" is returned and an S1 FAIL line is printed
+
+Scenario: 792b26c1a3 A warning is not an error
+  Given a note whose only link targets no note
+  When the vault is checked
+  Then a WARN line is printed, the G0 line begins PASS, and no error is returned
+
+Scenario: 792b26c1a4 A scan failure is returned before any line
+  Given a vault whose scan fails
+  When the vault is checked
+  Then it fails with an error beginning "check: scan:" and nothing is printed
+
+Scenario: 792b26c1a5 A note that is not valid UTF-8 is checked
+  Given a note with invalid UTF-8 bytes that links a missing note
+  When the vault is checked
+  Then the dangling link is reported
+```
+
+#### 792b26c2 Link resolution
+
+Requirement: 792b26c2 The vault-invariant-checker MUST take the links that resolve to no note
+(792b13c6) and treat a link as a G0 violation when its target is a bare Luhmann ID, one or more digits
+followed by letters or digits, equal to the part of a scanned note's basename before its first `.`; every
+other unresolved link MUST be a G3 finding. It MUST print `FAIL  G0 graph-resolution: <N> bare-id links
+that should resolve` and list the G0 links, or `PASS  G0 graph-resolution: every authored link resolves
+by form` when there are none, and MUST report a failure for G0. It MUST print `WARN  G3 dangling: <N>
+authored links target no note` and list the G3 links when there are any, and MUST NOT report a failure
+for them.
+
+Supports: 792a9a1a, 792a9a1b, 792a9a1c, 792a9b1a, 792a9b1b, 792a9b1c, 792a9c1a, 792a9c1b, 792a9c1c,
+792a9c1d, 792a9c1e.
+
+Rationale: a link `[[105]]` for a note `105.2026-05-30.foo` could resolve if written in the form the
+graph keys on, so it is a defect to fix and fails the run. A link to a name that is no note at all
+cannot be fixed by rewriting it, so it is only reported.
+
+##### 792b26c2a Scenarios
+
+```gherkin
+Scenario: 792b26c2a1 A bare-ID link fails
+  Given a note 105.2026-05-30.foo that links 105
+  When the vault is checked
+  Then a FAIL line names G0, the link 105.2026-05-30.foo → [[105]] is listed, and a failure is reported
+
+Scenario: 792b26c2a2 Resolving links pass
+  Given a note A that links B, and a note B
+  When the vault is checked
+  Then a PASS line names G0 and no failure is reported
+
+Scenario: 792b26c2a3 A link to a missing note warns
+  Given a note whose link [[999]] matches no note
+  When the vault is checked
+  Then a WARN line names G3, the G0 line begins PASS, and no failure is reported
+
+Scenario: 792b26c2a4 A bare ID that matches no note is dangling
+  Given a note that links 999, and no note whose basename begins "999."
+  When the vault is checked
+  Then the link is counted under G3 and not under G0
+
+Scenario: 792b26c2a5 No G3 line without a dangling link
+  Given notes whose links all resolve
+  When the vault is checked
+  Then no G3 line is printed
+```
+
+#### 792b26c3 Situation presence
+
+Requirement: 792b26c3 The vault-invariant-checker MUST read each scanned note, as its LF form, and
+split its frontmatter (792b6c6), and MUST count a note of type `fact` or `feedback` whose `situation`
+is absent, empty or only whitespace. It MUST print `FAIL  M5 situation-presence: <N> note(s) missing
+a situation` and list those notes, or `PASS  M5 situation-presence: every fact/feedback names a
+situation` when there are none, and MUST report a failure for M5. It MUST skip a note it cannot read,
+a note with no frontmatter, a note whose frontmatter does not parse, and a note of any other type.
+
+Supports: 792a9a1a, 792a9d1a, 792a9d1b, 792a9d1c, 792a9d1d, 792a9d1e, 792a9d1f.
+
+Rationale: recall matches a query against each note's situation (792a7d1h), so a fact or feedback note
+without one cannot be found by the situation it was written for. The write paths refuse a blank one
+(792a3f), so this finds a note that reached the vault another way. A note that cannot be read or
+parsed is left for the checks that report it.
+
+##### 792b26c3a Scenarios
+
+```gherkin
+Scenario: 792b26c3a1 A fact without a situation fails
+  Given a fact note with no situation
+  When the vault is checked
+  Then a FAIL line names M5 and the note, and a failure is reported
+
+Scenario: 792b26c3a2 A blank situation fails
+  Given a fact note whose situation is only whitespace
+  When the vault is checked
+  Then M5 fails naming the note
+
+Scenario: 792b26c3a3 Every situation present passes
+  Given a fact note with a situation
+  When the vault is checked
+  Then a PASS line names M5
+
+Scenario: 792b26c3a4 Other types are skipped
+  Given a note of type moc with no situation
+  When the vault is checked
+  Then M5 passes
+
+Scenario: 792b26c3a5 Unparseable notes are skipped
+  Given a note with malformed YAML frontmatter and a note with no frontmatter
+  When the vault is checked
+  Then M5 passes
+
+Scenario: 792b26c3a6 A CRLF note is judged
+  Given a fact note whose lines end in \r\n and whose situation is empty
+  When the vault is checked
+  Then M5 fails naming the note
+
+Scenario: 792b26c3a7 An unreadable note is skipped
+  Given a scanned note whose file cannot be read
+  When the vault is checked
+  Then it is not counted under M5
+```
+
+#### 792b26c4 Sidecar schema
+
+Requirement: 792b26c4 The vault-invariant-checker MUST read the sidecar of each scanned note and
+decode it under the current schema (792b10c1). It MUST count a note with no readable sidecar file as
+missing, and a sidecar that does not decode as invalid. It MUST print `WARN  S1 sidecar-schema: <N>
+note(s) missing a sidecar (run `engram embed apply`)` when notes are missing a sidecar and MUST NOT
+report a failure for them. It MUST print `FAIL  S1 sidecar-schema: <N> sidecar(s) on an old/invalid
+schema (run `engram embed apply --force`)` and list the notes when a sidecar is invalid, and MUST
+report a failure. It MUST print `PASS  S1 sidecar-schema: every sidecar parses under the current
+schema` when no sidecar is invalid, after any missing-sidecar line.
+
+Supports: 792a9a1a, 792a9e1a, 792a9e1b, 792a9e1c, 792a9e1d.
+
+##### 792b26c4a Scenarios
+
+```gherkin
+Scenario: 792b26c4a1 An old-schema sidecar fails
+  Given a sidecar with the old single-vector schema
+  When the vault is checked
+  Then a FAIL line names S1 and the note, and a failure is reported
+
+Scenario: 792b26c4a2 A current sidecar passes
+  Given a current sidecar
+  When the vault is checked
+  Then a PASS line names S1
+
+Scenario: 792b26c4a3 A missing sidecar warns
+  Given a note whose sidecar cannot be read
+  When the vault is checked
+  Then a WARN line counts it, the PASS line follows, and no failure is reported
+
+Scenario: 792b26c4a4 A malformed sidecar fails
+  Given a sidecar that is not valid JSON
+  When the vault is checked
+  Then a FAIL line names S1 and the note
+```
+
+#### 792b26c5 Example lists
+
+Requirement: 792b26c5 The vault-invariant-checker MUST list at most ten offending items under a
+violated invariant, one per line, a link as `<source> → [[<target>]]` and a note by its basename, and
+MUST follow ten with the line `… and <N> more` when more were found.
+
+Supports: 792a9a1d.
+
+##### 792b26c5a Scenarios
+
+```gherkin
+Scenario: 792b26c5a1 Links are capped
+  Given twelve offending links
+  When they are listed
+  Then ten are listed and the next line says "and 2 more"
+
+Scenario: 792b26c5a2 Notes are capped
+  Given twelve offending notes
+  When they are listed
+  Then ten are listed and the next line says "and 2 more"
+```
+
+#### 792b26c6 No writes
+
+Requirement: 792b26c6 The vault-invariant-checker MUST NOT create, modify or delete any file.
+
+Supports: 792a9f1a.
+
+Rationale: the checker is given listing and reading capabilities only, so it cannot write.
+
+##### 792b26c6a Scenarios
+
+```gherkin
+Scenario: 792b26c6a1 A check writes nothing
+  Given a vault that violates every invariant
+  When the vault is checked
+  Then no file is created, changed or deleted
+```
+
+### 792b26d Product-Scenario Mapping
+
+| Product scenario | Technical requirements |
+| --- | --- |
+| 792a9a1a | 792b26c1, 792b26c2, 792b26c3, 792b26c4 |
+| 792a9a1b | 792b26c1, 792b26c2 |
+| 792a9a1c | 792b26c1, 792b26c2 |
+| 792a9a1d | 792b26c5 |
+| 792a9a1e | 792b26c1 |
+| 792a9a1f | 792b26c1 |
+| 792a9a1g | 792b26c1 |
+| 792a9b1a | 792b26c2 |
+| 792a9b1b | 792b26c2 |
+| 792a9b1c | 792b26c2 |
+| 792a9c1a | 792b26c2 |
+| 792a9c1b | 792b26c2 |
+| 792a9c1c | 792b26c2 |
+| 792a9c1d | 792b26c2 |
+| 792a9c1e | 792b26c2 |
+| 792a9d1a | 792b26c3 |
+| 792a9d1b | 792b26c3 |
+| 792a9d1c | 792b26c3 |
+| 792a9d1d | 792b26c3 |
+| 792a9d1e | 792b26c3, 792b6c6 |
+| 792a9d1f | 792b26c3, 792b6c8 |
+| 792a9e1a | 792b26c4 |
+| 792a9e1b | 792b26c4 |
+| 792a9e1c | 792b26c4 |
+| 792a9e1d | 792b26c4 |
+| 792a9f1a | 792b26c6 |
+
+```gherkin
+Scenario: 792a9a1a A clean vault passes
+  Given a vault whose links resolve, whose fact notes all have a situation, and whose sidecars are current
+  When the user runs engram check
+  Then stdout has a PASS line for G0 graph-resolution, M5 situation-presence and S1 sidecar-schema, and the exit status is zero
+
+Scenario: 792a9a1c A WARN line does not fail the command
+  Given a vault whose only finding is a link to a note that does not exist
+  When the user runs engram check
+  Then a line beginning WARN names G3 dangling, and the exit status is zero
+
+Scenario: 792a9a1d Offenders are capped at ten
+  Given a vault in which twelve links target no note
+  When the user runs engram check
+  Then ten of them are listed, followed by the line "… and 2 more"
+
+Scenario: 792a9a1f An empty vault passes
+  Given an existing vault with no notes
+  When the user runs engram check
+  Then every line begins PASS, the exit status is zero, and stderr is empty
+
+Scenario: 792a9a1g A note that is not valid UTF-8 is still checked
+  Given a note with invalid UTF-8 bytes in its body that links [[ghost]], and no such note
+  When the user runs engram check
+  Then the dangling link is reported, as it would be without the invalid bytes
+
+Scenario: 792a9d1a A fact without a situation fails
+  Given a fact note whose frontmatter has no situation key
+  When the user runs engram check
+  Then stdout has "FAIL  M5 situation-presence: 1 note(s) missing a situation" naming the note, and the exit status is non-zero
+
+Scenario: 792a9d1b A blank situation fails
+  Given a feedback note whose situation is only spaces
+  When the user runs engram check
+  Then M5 fails naming the note
+
+Scenario: 792a9d1c Every situation present passes
+  Given fact and feedback notes that each name a situation
+  When the user runs engram check
+  Then stdout has "PASS  M5 situation-presence: every fact/feedback names a situation"
+
+Scenario: 792a9d1d Other note types are not judged
+  Given a note of type moc and a note of type runbook, neither with a situation
+  When the user runs engram check
+  Then M5 passes
+
+Scenario: 792a9e1a An old-schema sidecar fails
+  Given a fact note whose sidecar has the old single-vector schema
+  When the user runs engram check
+  Then stdout has a FAIL line for S1 sidecar-schema naming the note and `engram embed apply --force`, and the exit status is non-zero
+
+Scenario: 792a9e1b A malformed sidecar fails
+  Given a note whose sidecar is not valid JSON
+  When the user runs engram check
+  Then S1 fails naming the note
+
+Scenario: 792a9e1c A current sidecar passes
+  Given a note with a current sidecar
+  When the user runs engram check
+  Then stdout has "PASS  S1 sidecar-schema: every sidecar parses under the current schema"
+
+Scenario: 792a9e1d A missing sidecar warns
+  Given notes with no sidecar and no invalid sidecar
+  When the user runs engram check
+  Then stdout has a WARN line for S1 sidecar-schema counting the notes and naming `engram embed apply`, and the exit status is zero
+
+Scenario: 792a9f1a A check leaves the vault as it was
+  Given an existing vault with notes, some with sidecars, some violating invariants
+  When the user runs engram check
+  Then every file in the vault is byte-identical afterwards, and no file was created
 ```

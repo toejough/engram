@@ -230,8 +230,8 @@ flowchart TD
   N792c7g1["792c7g1 vault-counting product spec<br/>Complete"]
   N792c7g2["792c7g2 vault-counter tech spec<br/>Complete"]
   N792c7h1["792c7h1 vault-health product spec<br/>Complete"]
-  N792c7h2["792c7h2 vault-invariant-checker tech spec<br/>Ready"]
-  N792c7i1["792c7i1 vault-migration product spec<br/>Blocked by: 792c7h2"]
+  N792c7h2["792c7h2 vault-invariant-checker tech spec<br/>Complete"]
+  N792c7i1["792c7i1 vault-migration product spec<br/>Ready"]
   N792c7i2["792c7i2 note-reparenting tech spec<br/>Blocked by: 792c7i1"]
   N792c7j1["792c7j1 install-and-update product spec<br/>Blocked by: 792c7i2"]
   N792c7j2["792c7j2 self-installer tech spec<br/>Blocked by: 792c7j1"]
@@ -2863,11 +2863,41 @@ Target: `792b26` (`docs/specs/technical/vault-invariant-checker.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7h2a | Port the component contract to `792b26` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7h2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7h2c | Repoint stale references to `792b26` | Non-test action | Keeps live links valid | Not started |
-| 792c7h2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7h2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7h2a | Port the component contract to `792b26` | Non-test action | Documents the component in the framework format | Done |
+| 792c7h2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7h2c | Repoint stale references to `792b26` | Non-test action | Keeps live links valid | Done |
+| 792c7h2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7h2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+**Outcome:** the component is specified in six requirements, 792b26c1 to 792b26c6 (792d100). Its scan and
+unresolved-link list are wikilink-graph's 792b13c1 and 792b13c6, and its sidecar decoding is
+embedding-sidecar's 792b10c1. `memory-system-rigor` is deleted: its rationale is 792b26a's, and the rest
+is process history. `memory-invariants` points its G3, E1 and M5 rows at 792b26 and drops its severity
+model, its robustness requirement and the checker section; G2 is noted as not run (792d100).
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b26c1a1 | `TestRunCheck_PassesOnCurrentSidecar` → `Test792b26c1a1_RunCheck_PassesOnCurrentSidecar` | `RunCheck` over fake readers | Clean vault returns no error; also verifies 792b26c4a2 (`split deferred`) | Done |
+| 792b26c1a2 | `TestRunCheck_FailsOnOldSchemaSidecar` → `Test792b26c1a2_RunCheck_FailsOnOldSchemaSidecar` | `RunCheck` over fake readers | Failure returned as the check error; also verifies 792b26c4a1 (`split deferred`) | Done |
+| 792b26c1a3 | `TestRunCheck_DanglingLinkIsWarnNotFail` → `Test792b26c1a3_RunCheck_DanglingLinkIsWarnNotFail` | `RunCheck` over a temporary directory | Warning is no error; also verifies 792b26c2a3 (`split deferred`) | Done |
+| 792b26c2a1 | `TestRunCheck_FailsOnUnresolvedG0Links` → `Test792b26c2a1_RunCheck_FailsOnUnresolvedG0Links` | `RunCheck` over a fake scan | Bare-ID link fails | Done |
+| 792b26c2a1 | `TestRunCheck_RealDepsFlagBareIDLinks` → `Test792b26c2a1_RunCheck_RealDepsFlagBareIDLinks` | `RunCheck` over a temporary directory | Bare-ID link fails on real files | Done |
+| 792b26c2a2 | `TestRunCheck_PassesWhenAllLinksResolve` → `Test792b26c2a2_RunCheck_PassesWhenAllLinksResolve` | `RunCheck` over a fake scan | Resolving links pass | Done |
+| 792b26c3a1 | `TestRunCheck_FailsOnMissingSituation` → `Test792b26c3a1_RunCheck_FailsOnMissingSituation` | `RunCheck` over a temporary directory | Missing situation fails | Done |
+| 792b26c3a3 | `TestRunCheck_SituationPresenceSkipsNonBearingNotes` → `Test792b26c3a3_RunCheck_SituationPresenceSkipsNonBearingNotes` | `RunCheck` over a temporary directory | Passes; also verifies 792b26c3a4 and 792b26c3a5 (`split deferred`) | Done |
+| 792b26c3a6 | `TestCheckSituationPresence_CRLFNote` → `Test792b26c3a6_CheckSituationPresence_CRLFNote` | Internal unit (`internal/cli`) | CRLF note judged | Done |
+| 792b26c5a1 | `TestPrintLinkExamples_CapsAtMax` → `Test792b26c5a1_PrintLinkExamples_CapsAtMax` | Pure unit (`internal/cli`) | Links capped | Done |
+| 792b26c5a2 | `TestPrintNoteExamples_CapsAtMax` → `Test792b26c5a2_PrintNoteExamples_CapsAtMax` | Pure unit (`internal/cli`) | Notes capped | Done |
+| 792a9a1f | `TestTargets_CheckEmptyVault` → `Test792a9a1f_Targets_CheckEmptyVault` | `Targets` dispatch over a temporary directory | Empty vault checks clean (792d52) | Done |
+
+**Coverage gaps:** 792b26c1a4 (scan failure), 792b26c1a5 (a note that is not valid UTF-8), 792b26c2a4
+(a bare ID that matches no note), 792b26c2a5 (no G3 line), 792b26c3a2 (a blank situation), 792b26c3a7 (an
+unreadable note), 792b26c4a3 (a missing sidecar), 792b26c4a4 (a malformed sidecar), 792b26c6a1 (no
+writes). Every 792a9 scenario except 792a9a1f has no end-to-end test.
+
+**No-scenario tests:** none for the checker. The embed tests that remain are listed under 792c7h1.
 
 ### 792c7i vault-migration
 
