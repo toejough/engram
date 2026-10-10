@@ -1781,3 +1781,32 @@ decisions as `792dN`, continuing the sequence.
     dial's reasoning is the measured rows in `dev/eval/LEDGER.md` (cited in 792a14c and 792a14d).
 - **Rationale:** 792d3, 792d4, 792d12, 792d32, 792d33 and 792d90.
 - **Alternatives:** none beyond those stated.
+
+## 792d112 learn scope, the tests it leaves, and known divergences
+
+- **Choice:**
+  - 792a15 describes the shipped `SKILL.md`: twelve requirements (792a15a to 792a15l), including the vocabulary
+    check (Step 1.5) and the re-parent batch mode, which are in the skill and which the catalog's sources did not
+    name. The binary half of both is described elsewhere (792a6, 792a10c); the agent's half is here.
+  - The `LESSONS:` handling (judging a returned line on the fast path, the closing backstop, the kind-4 completion
+    anchor and the audit-derived exemplars) is lessons-contract's (792c7o1). 792a15c states only the correction
+    fast path and points at 792a16 for the subagent return. 792a15g carries the kind-4 bar and the exemplars as
+    the skill states them in Step 2, and 792c7o1 states the completion-moment anchor.
+  - The third requirement of `learn-branching-disposition` (the write-memory handoff carries placement fields) is
+    792a13g. It was not on this node's list but sits in a file this node deletes; it is not ported twice.
+  - The B2 capture-phrasing convention ("capture abstraction = generic-actionable") is the rationale of 792a15i.
+    The other bullet of "Decisions deliberately NOT made into ADRs" (B10, a reversed operational decision) is
+    deleted with the section; ROADMAP Provenance records dead ends (792d6).
+  - vocabulary-engine is added to the components this node extends with mappings, because the refit procedure's
+    scenarios (792a15d) have their binary half in 792b20c7 and 792b20c15 to 792b20c18.
+  - No test is renamed. The learn baselines are markdown evidence (792d10).
+- **Divergences noted (792d33):**
+  - `agent-instructions/skills/learn/tests/baseline-clean-write.md` says the Luhmann-continuation and `--target`
+    write path is removed from the skill. The restored disposition step (archive 2026-08-09, in 792a15h) reverses
+    that; the baseline was not updated. It is a skill-test edit.
+  - The mid-task fast path is stated in the skill as for a "correction moment" or a subagent return; the ambient
+    learn guidance carries the firing cue (792c7r1).
+  - Step 2 never sets `--tier`; `learn --tier` remains a flag in the binary (792d55).
+- **Rationale:** 792d3, 792d12, 792d32, 792d33, 792d57 and 792d111.
+- **Alternatives:** leave the vocabulary check and batch mode out of the learn capability. Rejected because the
+  shipped skill carries them and no other node describes the agent's side.

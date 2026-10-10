@@ -313,10 +313,8 @@ and [792a3e](../../changes/792_documentation-framework-adoption/792a_product-spe
 
 **Decision (remainder).** Retrieval is in
 [792a7v](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a7v-runbooks-rank-like-other-notes).
-`learn`'s Step 2 kind-4 (confirmed approaches) now routes by shape: a reusable multi-step procedure
-for a recurring task → `kind=runbook`; a single behavioral tweak with no step structure →
-`kind=feedback`, as before. A runbook capture is itself the "remember to do it this way" note — it
-does not also fire a redundant kind=fact save-request when the user says "do that going forward."
+`learn`'s routing of a confirmed approach by shape is
+[792a15g](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a15g-a-confirmed-approach-needs-a-bet-or-specific-praise-and-takes-the-kind-its-shape-calls-for).
 
 **Consequences.**
 
@@ -647,12 +645,3 @@ pulled note bouncing back up once is intended (B1).
 Link: `openspec/changes/local-first-parent-sync/{proposal.md,design.md}`; vault notes 784, 784a;
 `internal/cli/{serve.go,serve_client.go,serve_learn.go,serve_exchange_read.go,outbox.go,pulldown.go,merged_query.go,exchangehash.go,exchangefields.go,amend_fold.go}`;
 #766 #743 #744 #745 #746.
-
----
-
-## Decisions deliberately NOT made into ADRs
-
-- **"Curate, don't regenerate" → full rebuild** (B10): a reversed operational decision, not an
-  architectural one — recorded as a dated reversal in Phase 0, not an ADR.
-- **Capture abstraction = generic-actionable** (B2): a *skill-authoring* convention (how to phrase
-  a note), gated by RT/eval, not a C2 architecture decision.

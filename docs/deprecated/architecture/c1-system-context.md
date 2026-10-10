@@ -69,63 +69,6 @@ shorthand participant aliases `Op` (S1), `H` (S3), `E` (S2), `V` (S4), `Tr`
 (S5), `Go` (S6) and only declares the participants that flow touches. Source
 references cite the entry-point symbol on `main` — grep the symbol, since line numbers drift.
 
-### Flow: learn
-
-Operator runs `/learn` (or the harness self-fires after substantive work). The
-harness first invokes `engram ingest --auto` to merge-append any new chunks from
-session transcripts (S5) and markdown sources into the chunk index — re-chunking
-and re-embedding only changed content. Within one source this is still append-only
-(D5): a re-chunk never drops a prior record. Across sources the guarantee is
-narrower: byte-identical content is deduplicated by content hash, keeping one
-canonical copy per hash group; a duplicate's index is removed only once its
-retained twin's index file is verified to cover every one of the duplicate's own
-records ([792b18](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b18-added-chunk-index-store)), never on hash-match alone. It then writes any EXPLICIT lessons (corrections, explicit save-requests,
-self-discovered reversals, and confirmed approaches) into the vault via
-`engram learn {feedback|fact}`. Each write acquires a `flock`
-on the vault root before computing the Luhmann ID and emitting the new file.
-Source: `internal/cli/ingest.go` (`RunIngest`) and `internal/cli/learn.go`
-(`runLearn`). The `engram learn episode` subcommand and `engram transcript --mark`
-are retired: episodes are superseded by the chunk layer (D4); transcript reading
-is subsumed by `engram ingest --auto`.
-
-> Every `learn`, `amend`, and `resituate` write runs an in-process vocab trigger check
-> (token-free) that persists `refit_pending` in `vocab.centroids.json` when thresholds
-> trip (growth-only: ≥40 new notes AND ≥14 days since last refit — untagged-rate and
-> hub concentration are `vocab stats` diagnostics only, never triggers); surfaced via
-> the `engram vocab stats` verdict line + a ≈5-token `refit_pending` field in the query output payload;
-> the learn skill's Step 1.5 acts on the verdict autonomously (2026-07-03).
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Op as S1 Operator
-    participant H as S3 Harness
-    participant E as S2 Engram CLI
-    participant V as S4 Vault
-
-    Op->>H: invoke /learn (or self-fire after substantive work)
-
-    H->>E: engram ingest --auto
-    E->>V: stat known sources (session transcripts, markdown); re-chunk + re-embed changed content only
-    Note over E: merge-append new chunks by ContentHash (D5, within-source append-only); across sources, dedup by content hash keeps one canonical copy per group, evicting a duplicate only when its retained twin verifiably covers its records (792b18c7)
-    V-->>E: written chunk count
-    E-->>H: per-source chunk tally (or "memory index up to date")
-
-    Note over H: scan THIS session for exactly four kinds: corrections, explicit save-requests, reversals (presented-then-overturned), confirmed approaches (positive reinforcement)
-
-    loop per explicit lesson (one parallel tool-use block)
-        H->>E: engram learn feedback|fact --slug ... --source ... --situation ...
-        alt vault dir missing
-            E->>V: bootstrap .obsidian, README, .gitignore
-        end
-        E->>V: acquire flock, compute Luhmann ID, write note
-        V-->>E: written path
-        E-->>H: emit written path on stdout
-    end
-
-    H-->>Op: report chunk tally plus written permanent paths
-```
-
 ### Flow: please
 
 `/please` is a skill-based orchestration of the engram repo's other skills — it has no dedicated subcommand. The harness loads `/please` the same way it loads `/recall` and `/learn` (matched by its own `/please`, `take this end-to-end`, `please` triggers); a session that received only its registered runbook note follows it via `engram query --text` and the literal `triggers:` instead. The diagram below shows the seven-step bracket;
@@ -199,9 +142,9 @@ Ported: the product behavior is [792a11](../../changes/792_documentation-framewo
 ### L1 decision flowcharts
 
 The sequence diagrams above show *message order*; these flowcharts show the *operator-level decision
-logic* — when the system is engaged at all, and how `/please` sequences it. (L2 carries the
-internal-branch flowcharts: the learn capture kinds, and marker forward-progress. Recall's coverage decision is
-[792a14](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a14-added-recall).)
+logic* — when the system is engaged at all, and how `/please` sequences it. (Recall's coverage decision is
+[792a14](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a14-added-recall), and learn's
+capture kinds are [792a15](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a15-added-learn).)
 
 #### Flow: engram engagement — the read → work → write → synthesize lifecycle
 
@@ -248,7 +191,7 @@ flowchart TD
 #### Companion: who reviews at `/please` gates A–D
 
 The flowchart above shows *when* gates A–D fire; this sequence diagram is the swimlane companion showing *who* reviews. It elides the `engram query`/`learn`
-call mechanics already diagrammed in [792a14](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a14-added-recall) and Flow: learn above, and focuses on the
+call mechanics already diagrammed in [792a14](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a14-added-recall) and [792a15](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a15-added-learn), and focuses on the
 fan-out to fresh per-angle reviewer subagents and the argue-to-ACK loop. As in the Flow: please
 diagram, the orchestrator's consult of the `route` skill (also mirrored as a registered runbook) for reviewer staffing (agent/model/effort)
 is in-context guidance, not an L1 edge — shown here as a `Note`, never a message or a participant

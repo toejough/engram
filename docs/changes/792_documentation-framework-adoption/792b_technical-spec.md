@@ -5245,6 +5245,10 @@ Scenario: 792b12c7a2 A captured runbook has no skill key or source
 | 792a13l1a | 792b12c4 |
 | 792a13m1a | 792b12c4 |
 | 792a13m1c | 792b12c4 |
+| 792a15h1a | 792b12c3 |
+| 792a15h1b | 792b12c3 |
+| 792a15h1c | 792b12c3 |
+| 792a15k1a | 792b12c5 |
 
 ```gherkin
 Scenario: 792a3r1b Certainty defaults to medium
@@ -5316,6 +5320,26 @@ Scenario: 792a13m1c A deliberate over-fire is passed through
   Given a runbook handoff with the trigger please and a statement that over-firing is a deliberate, accepted choice
   When the worker composes the command
   Then it carries --trigger="please"
+
+Scenario: 792a15h1a A sub-point is a continuation
+  Given the new note develops one specific sub-point raised inside a note written earlier this session
+  When learn decides placement
+  Then the handoff carries position continuation and that note's ID as the target
+
+Scenario: 792a15h1b The same thought at the same level is a sibling
+  Given the new note extends the same overall thought as an in-session note without being a sub-point of it
+  When learn decides placement
+  Then the handoff carries position sibling and that note's ID as the target
+
+Scenario: 792a15h1c An unrelated note is top-level
+  Given the new note relates to no note written or recalled earlier this session
+  When learn decides placement
+  Then the handoff carries position top and no target
+
+Scenario: 792a15k1a A cited answer gets a pair
+  Given a question answered with a body that cites [[a]] and [[b]]
+  When learn captures it
+  Then write-memory receives kind qa with the verbatim question, the copied answer and contributors a and b
 ```
 
 ## 792b13 Added: wikilink-graph
@@ -8065,6 +8089,7 @@ Scenario: 792b18c15a10 A malformed manifest is no backlog
 | 792a11n1b | 792b18c11, 792b18c15 |
 | 792a11n1c | 792b18c15 |
 | 792a11n1d | 792b18c15 |
+| 792a15b1a | 792b18c3 |
 
 ```gherkin
 Scenario: 792a5c1b A swept file that vanishes is skipped
@@ -8180,6 +8205,11 @@ Scenario: 792a11n1d A clean or missing index is silent
   Given a chunk index with no duplicates and no empty files, or no chunk index
   When the user runs engram update
   Then it prints neither notice
+
+Scenario: 792a15b1a The sweep runs and is reported
+  Given no sweep has run in this session
+  When the agent runs learn
+  Then it runs engram ingest --auto and reports the tally or "memory index up to date"
 ```
 
 ## 792b19 Added: similarity-clustering
@@ -9423,6 +9453,12 @@ Scenario: 792b20c22a2 A missing self-tag is detected
 | 792a7k1b | 792b20c1 |
 | 792a7zd1a | 792b20c6 |
 | 792a7zd1b | 792b20c6 |
+| 792a15d1b | 792b20c7 |
+| 792a15d1c | 792b20c15 |
+| 792a15d1d | 792b20c15, 792b20c16, 792b20c17 |
+| 792a15d1e | 792b20c17 |
+| 792a15d1f | 792b20c18 |
+| 792a15d1g | 792b20c7 |
 
 ```gherkin
 Scenario: 792a6a1b A definition is never assigned a term
@@ -9600,6 +9636,36 @@ Scenario: 792a7zd1b Otherwise the field is absent
   Given a vault whose vocab.centroids.json has no pending refit, or no such file
   When the user runs engram query with a phrase
   Then the payload has no refit_pending
+
+Scenario: 792a15d1b A pending refit is run autonomously
+  Given engram vocab stats prints verdict: REFIT_PENDING (growth: 52 notes, 20 days)
+  When learn reads it
+  Then it runs engram vocab refit without asking the user
+
+Scenario: 792a15d1c No structure found is reported as such
+  Given engram vocab refit prints "vocab refit: no structure found; vocabulary unchanged"
+  When learn reports
+  Then it says the refit ran with no structure found and the vocabulary unchanged, and does not claim an applied refit
+
+Scenario: 792a15d1d New clusters are named and the refit re-run
+  Given engram vocab refit prints naming requests and a fingerprint
+  When learn answers
+  Then it names every new cluster exactly once, echoes the fingerprint verbatim in the answers file and re-runs the refit with --names
+
+Scenario: 792a15d1e A stale answer restarts the refit
+  Given the re-run fails with a stale-names error
+  When learn recovers
+  Then it re-runs engram vocab refit from scratch and answers the regenerated requests
+
+Scenario: 792a15d1f An applied refit is reported loudly
+  Given a refit is applied
+  When learn reports
+  Then it states "Vocab refit applied: <version bump>. Triggered by: <reason>."
+
+Scenario: 792a15d1g The QA round-2 gate is reported and not run
+  Given the stats output carries qa round-2 gate: READY (20>=20)
+  When learn reads it
+  Then it tells the user the round-2 validation is due and does not run it
 ```
 
 ## 792b21 Added: recency-ranking

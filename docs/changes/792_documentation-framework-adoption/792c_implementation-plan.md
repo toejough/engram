@@ -242,8 +242,8 @@ flowchart TD
   N792c7l1["792c7l1 write-memory product spec<br/>Complete"]
   N792c7l2["792c7l2 agent-instruction-bundle tech spec<br/>Complete"]
   N792c7m1["792c7m1 recall product spec<br/>Complete"]
-  N792c7n1["792c7n1 learn product spec<br/>Ready"]
-  N792c7o1["792c7o1 lessons-contract product spec<br/>Blocked by: 792c7n1"]
+  N792c7n1["792c7n1 learn product spec<br/>Complete"]
+  N792c7o1["792c7o1 lessons-contract product spec<br/>Ready"]
   N792c7p1["792c7p1 route product spec<br/>Blocked by: 792c7o1"]
   N792c7q1["792c7q1 please product spec<br/>Blocked by: 792c7p1"]
   N792c7r1["792c7r1 ambient-guidance product spec<br/>Blocked by: 792c7q1"]
@@ -4230,11 +4230,46 @@ Target: `792a15` (`docs/specs/product/learn.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7n1a | Port product requirements and UAT to `792a15` | Non-test action | Moves current behavior into the framework format | Not started |
-| 792c7n1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7n1c | Repoint stale references to `792a15` | Non-test action | Keeps live links valid | Not started |
-| 792c7n1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Not started |
-| 792c7n1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Not started |
+| 792c7n1a | Port product requirements and UAT to `792a15` | Non-test action | Moves current behavior into the framework format | Done |
+| 792c7n1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7n1c | Repoint stale references to `792a15` | Non-test action | Keeps live links valid | Done |
+| 792c7n1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Done |
+| 792c7n1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
+
+792a15 has twelve requirements (792a15a to 792a15l): the writes learn does not make, the sweep, the single-note
+capture at a correction, the vocabulary check and refit, the four kinds, reversals, the confirmed-approach bar and
+its routing by shape, placement, the general principle, the parent-offer report, the answered-question pair and the
+re-parent batch mode (792d112). Extended components: note-authoring gains mapping rows for 792b12c3 and 792b12c5,
+chunk-index-store gains 792b18c3, and vocabulary-engine, which the catalog did not list, gains 792b20c7, 792b20c15,
+792b20c16, 792b20c17 and 792b20c18 because the refit procedure's binary half lives there; agent-instruction-bundle
+gains nothing. Legacy removal: the `learn-adhoc-qa-capture` and `learn-branching-disposition` specs are deleted;
+the four-kinds requirement is removed from `write-memory-worker`; the learn flow of the context view, the whole
+key-flows section of the container view (its learn flow and flowchart, and the boundary text its introduction
+repeated) and the "not made into ADRs" section of the ADR file are deleted; ADR-0026's remainder points at 792a15g.
+
+**Test Traceability**
+
+No Go or Python test is renamed: learn is a markdown skill. The baselines under
+`agent-instructions/skills/learn/tests` are its tests (`README.md` indexes them) and keep their names (792d112).
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792a15b1a, 792a15e1b, 792a15h1c | `baseline-clean-write.md` (not renamed) | Skill baseline (writing-skills RED/GREEN, subagent) | The sweep runs first, then one clean write at the top position | Done |
+| 792a15e1b | `baseline-information-not-knowledge.md` (not renamed) | Skill baseline | An explicit save-request writes even for low-signal information | Done |
+| 792a15i1a | `baseline-project-specific.md` (not renamed) | Skill baseline | The situation is generalized into a retrieval handle | Done |
+| 792a15i1a | `baseline-hindsight-framing.md` (not renamed) | Skill baseline | A hindsight-worded situation is reframed to the moment before the fix | Done |
+| 792a15a1a, 792a15e1c, 792a15g1c | `baseline-autonomous-trigger.md` (not renamed) | Skill baseline | Self-fire applies all four kinds, including self-discovered ones, and writes nothing for a plain fact | Done |
+| 792a15d1b to 792a15d1f | `baseline-vocab-refit.md` (not renamed) | Skill baseline | A pending refit is run autonomously, named, echoed and reported | Done |
+| 792a15g1a to 792a15g1d | `baseline-confirmed-approach.md` (not renamed) | Skill baseline | Specific praise and a confirmed bet write; a bare thanks, a routine success and an unconfirmed guess do not | Done |
+
+**Coverage gaps:** no baseline covers 792a15b1b to 792a15b1d (sweep failure, skip and closing sweep), 792a15c
+(the correction fast path, measured by `dev/eval/LEDGER.md` rows for the learn guidance instead), 792a15d1a and
+792a15d1g, 792a15e1a, 792a15e1d and 792a15e1e, 792a15f, 792a15g1e to 792a15g1g (the runbook routing), 792a15h1a, 792a15h1b,
+792a15h1d and 792a15h1e (the placement test itself), 792a15j, 792a15k and 792a15l. The mapped technical scenarios
+have their own tests (792b12, 792b18, 792b20).
+
+**No-scenario tests:** none. `baseline-clean-write.md` still says the Luhmann-continuation and `--target` write
+path was removed from the skill, which the restored placement step (792a15h) reverses (792d112).
 
 ### 792c7o lessons-contract
 
