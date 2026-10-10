@@ -17,7 +17,7 @@ type ShowArgs struct {
 	Ref       string `targ:"positional,required,desc=note ref: full basename | [[wikilink]] | trailing .md | or bare Luhmann id"` //nolint:lll // single struct-tag string
 	VaultPath string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
 	// Parent routes this lookup to ENGRAM_PARENT instead of the local
-	// vault (vault-merged-recall) — errors if ENGRAM_PARENT is not
+	// vault (792a21) — errors if ENGRAM_PARENT is not
 	// configured.
 	Parent bool `targ:"flag,name=parent,desc=resolve this ref against ENGRAM_PARENT instead of the local vault"`
 }

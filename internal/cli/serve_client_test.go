@@ -94,7 +94,7 @@ func Test792a21l1a_ShowParent_RoutesThroughFetch(t *testing.T) {
 // Test792a21l1c_ShowFallback_LocalHitDoesNotContactParent covers "Without --parent,
 // behavior is unchanged": with ENGRAM_PARENT configured but the ref found
 // locally, `engram show` (no --parent) returns the local note and never
-// contacts the parent — vault-merged-recall D8's fallback fires only on a
+// contacts the parent — 792a21 D8's fallback fires only on a
 // local miss.
 func Test792a21l1c_ShowFallback_LocalHitDoesNotContactParent(t *testing.T) {
 	g := NewWithT(t)
@@ -121,7 +121,7 @@ func Test792a21l1c_ShowFallback_LocalHitDoesNotContactParent(t *testing.T) {
 // Test792a21l1d_ShowFallback_LocalMissRoutesToParentLabeled covers "Local miss falls
 // back to the parent": with ENGRAM_PARENT configured and
 // no local match, bare `engram show <ref>` resolves the ref against the
-// parent and labels the output as parent-sourced (vault-merged-recall D8).
+// parent and labels the output as parent-sourced (792a21 D8).
 func Test792a21l1d_ShowFallback_LocalMissRoutesToParentLabeled(t *testing.T) {
 	g := NewWithT(t)
 	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
@@ -221,88 +221,83 @@ func Test792b2c10a5_Show_NoParent_RunsLocally(t *testing.T) {
 	g.Expect(fetchCalled).To(BeFalse())
 }
 
-// TestFetchQueryPayload_AllParamsSet exercises every setBoolParam/
-// setIntParam/setStringParam "value present" branch of the parent /query
-// request in one call (the absent branches are covered by the other
-// TestFetchQueryPayload_* tests, which set none of them).
-func TestFetchQueryPayload_AllParamsSet(t *testing.T) {
+// Test792b37c10a1_WriteParentSourced_MarkerWriteErrorWraps covers writeParentSourced's
+// first write-error branch: the marker line itself fails to write.
+func Test792b37c10a1_WriteParentSourced_MarkerWriteErrorWraps(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.ExportWriteParentSourced(&writeNTimesThenFail{remaining: 0}, []byte("body"))
+	g.Expect(err).To(MatchError(ContainSubstring("write response")))
+}
+
+// Test792b37c10a2_WriteParentSourced_BodyWriteErrorWraps covers writeParentSourced's
+// second write-error branch: the marker line writes fine, but the body
+// write fails.
+func Test792b37c10a2_WriteParentSourced_BodyWriteErrorWraps(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.ExportWriteParentSourced(&writeNTimesThenFail{remaining: 1}, []byte("body"))
+	g.Expect(err).To(MatchError(ContainSubstring("write response")))
+}
+
+// Test792b37c1a1_ParentBase_ReadsEngramParentEnv covers parentBase resolving from the
+// ENGRAM_PARENT environment variable — dispatch-level, not a QueryArgs
+// flag threaded through args (design.md Decision 5).
+func Test792b37c1a1_ParentBase_ReadsEngramParentEnv(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.Deps{Getenv: func(key string) string {
+		if key == "ENGRAM_PARENT" {
+			return "http://parent-host:8420"
+		}
+
+		return ""
+	}}
+
+	g.Expect(cli.ExportParentBase(deps)).To(Equal("http://parent-host:8420"))
+}
+
+// Test792b37c1a2_ParentBase_NilGetenv covers parentBase's nil-safety guard, mirroring
+// TestServerBase_NilGetenv.
+func Test792b37c1a2_ParentBase_NilGetenv(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	g.Expect(cli.ExportParentBase(cli.Deps{})).To(Equal(""))
+}
+
+// Test792b37c2a1_ShowParent_PercentEncodesQueryValues covers the hand-rolled query
+// encoder (internal/ may not import net/url): a note ref containing
+// characters needing escaping round-trips correctly into the parent URL.
+func Test792b37c2a1_ShowParent_PercentEncodesQueryValues(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	var got fakeFetchCall
 
-	deps := cli.Deps{Fetch: func(_ context.Context, method, url string, _ []byte) (cli.FetchResponse, error) {
-		got = fakeFetchCall{method: method, url: url}
+	stdout, stderr := executeCapturingBoth(t,
+		[]string{"engram", "show", "1.2026-01-01.a note", "--parent", "--vault", t.TempDir()},
+		func(d *cli.Deps) {
+			d.Getenv = parentOnlyGetenv("http://parent-host:8420")
+			d.Fetch = func(_ context.Context, method, url string, _ []byte) (cli.FetchResponse, error) {
+				got = fakeFetchCall{method: method, url: url}
 
-		return cli.FetchResponse{Status: 200, Body: []byte("version: 1\nitems: []\n")}, nil
-	}}
+				return cli.FetchResponse{Status: 200, Body: []byte("note content\n")}, nil
+			}
+		})
 
-	_, err := cli.ExportFetchQueryPayload(context.Background(), deps, "http://parent-host:8420", cli.QueryArgs{
-		Phrases: []string{"hello"}, Limit: 7, Project: "engram", ContentBudget: 9, RecentFill: 2,
-		LazyChunks: true, Timings: true,
-	})
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(got.method).To(Equal("GET"))
-	g.Expect(got.url).To(Equal(
-		"http://parent-host:8420/query?content-budget=9&dedupe-keys=1&lazy-chunks=true&limit=7" +
-			"&phrase=hello&project=engram&recent-fill=2&timings=true",
-	))
+	g.Expect(stderr).To(BeEmpty())
+	g.Expect(stdout).To(Equal("note content\n"))
+	g.Expect(got.url).To(Equal("http://parent-host:8420/show?note=1.2026-01-01.a%20note"))
 }
 
-// TestFetchQueryPayload_DecodesSuccessfulResponse covers the happy path: a
-// parent's /query YAML response decodes into the same queryPayload type
-// RunQuery's own rendering produces.
-func TestFetchQueryPayload_DecodesSuccessfulResponse(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	deps := cli.Deps{Fetch: func(_ context.Context, _, _ string, _ []byte) (cli.FetchResponse, error) {
-		return cli.FetchResponse{Status: 200, Body: []byte("version: 1\nmodel_id: m@4\nitems: []\n")}, nil
-	}}
-
-	payload, err := cli.ExportFetchQueryPayload(
-		context.Background(), deps, "http://parent-host:8420", cli.QueryArgs{Phrases: []string{"x"}})
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(cli.ExportQueryPayloadModelID(payload)).To(Equal("m@4"))
-}
-
-// TestFetchQueryPayload_MalformedBodyErrors covers a response body that
-// isn't valid YAML.
-func TestFetchQueryPayload_MalformedBodyErrors(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	deps := cli.Deps{Fetch: func(_ context.Context, _, _ string, _ []byte) (cli.FetchResponse, error) {
-		return cli.FetchResponse{Status: 200, Body: []byte("not: [valid: yaml")}, nil
-	}}
-
-	_, err := cli.ExportFetchQueryPayload(
-		context.Background(), deps, "http://parent-host:8420", cli.QueryArgs{})
-
-	g.Expect(err).To(HaveOccurred())
-}
-
-// TestFetchQueryPayload_NonOKStatusErrors covers a non-2xx response.
-func TestFetchQueryPayload_NonOKStatusErrors(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	deps := cli.Deps{Fetch: func(_ context.Context, _, _ string, _ []byte) (cli.FetchResponse, error) {
-		return cli.FetchResponse{Status: 500, Body: []byte(`{"error":"boom"}`)}, nil
-	}}
-
-	_, err := cli.ExportFetchQueryPayload(
-		context.Background(), deps, "http://parent-host:8420", cli.QueryArgs{})
-
-	g.Expect(err).To(MatchError(ContainSubstring("boom")))
-}
-
-// TestFetchQueryPayload_TextRoundTripsByteIdentically: a 1 KB --text with
+// Test792b37c2a2_FetchQueryPayload_TextRoundTripsByteIdentically: a 1 KB --text with
 // quotes, newlines, '&', '=', '%' and non-ASCII characters survives the
 // hand-rolled query encoder unchanged when decoded by a standard parser.
-func TestFetchQueryPayload_TextRoundTripsByteIdentically(t *testing.T) {
+func Test792b37c2a2_FetchQueryPayload_TextRoundTripsByteIdentically(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -334,9 +329,125 @@ func TestFetchQueryPayload_TextRoundTripsByteIdentically(t *testing.T) {
 	g.Expect(parsed.Query()["phrase"]).To(BeEmpty())
 }
 
-// TestFetchQueryPayload_TransportErrorPropagates covers a transport-level
+// Test792b37c2a4_ShowParent_NonOKResponse_MalformedBody_FallsBackToRawText covers
+// describeErrorBody's non-JSON fallback branch: a non-2xx parent response
+// whose body isn't {"error": "..."} JSON still surfaces its raw text.
+func Test792b37c2a4_ShowParent_NonOKResponse_MalformedBody_FallsBackToRawText(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	_, stderr := executeCapturingBoth(t, []string{"engram", "show", "missing-note", "--parent", "--vault", t.TempDir()},
+		func(d *cli.Deps) {
+			d.Getenv = parentOnlyGetenv("http://parent-host:8420")
+			d.Fetch = func(_ context.Context, _, _ string, _ []byte) (cli.FetchResponse, error) {
+				return cli.FetchResponse{Status: 500, Body: []byte("  internal error, not json  ")}, nil
+			}
+		})
+
+	g.Expect(stderr).To(ContainSubstring("internal error, not json"))
+}
+
+// Test792b37c2a4_ShowParent_NonOKResponse_SurfacesError covers the parent client's
+// error path: a non-2xx parent response surfaces as a CLI error rather
+// than being silently swallowed.
+func Test792b37c2a4_ShowParent_NonOKResponse_SurfacesError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	_, stderr := executeCapturingBoth(t, []string{"engram", "show", "missing-note", "--parent", "--vault", t.TempDir()},
+		func(d *cli.Deps) {
+			d.Getenv = parentOnlyGetenv("http://parent-host:8420")
+			d.Fetch = func(_ context.Context, _, _ string, _ []byte) (cli.FetchResponse, error) {
+				errBody, _ := json.Marshal(map[string]string{"error": "note not found"})
+
+				return cli.FetchResponse{Status: 404, Body: errBody}, nil
+			}
+		})
+
+	g.Expect(stderr).To(ContainSubstring("note not found"))
+}
+
+// Test792b37c3a1_FetchQueryPayload_AllParamsSet exercises every setBoolParam/
+// setIntParam/setStringParam "value present" branch of the parent /query
+// request in one call (the absent branches are covered by the other
+// TestFetchQueryPayload_* tests, which set none of them).
+func Test792b37c3a1_FetchQueryPayload_AllParamsSet(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var got fakeFetchCall
+
+	deps := cli.Deps{Fetch: func(_ context.Context, method, url string, _ []byte) (cli.FetchResponse, error) {
+		got = fakeFetchCall{method: method, url: url}
+
+		return cli.FetchResponse{Status: 200, Body: []byte("version: 1\nitems: []\n")}, nil
+	}}
+
+	_, err := cli.ExportFetchQueryPayload(context.Background(), deps, "http://parent-host:8420", cli.QueryArgs{
+		Phrases: []string{"hello"}, Limit: 7, Project: "engram", ContentBudget: 9, RecentFill: 2,
+		LazyChunks: true, Timings: true,
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(got.method).To(Equal("GET"))
+	g.Expect(got.url).To(Equal(
+		"http://parent-host:8420/query?content-budget=9&dedupe-keys=1&lazy-chunks=true&limit=7" +
+			"&phrase=hello&project=engram&recent-fill=2&timings=true",
+	))
+}
+
+// Test792b37c3a2_FetchQueryPayload_DecodesSuccessfulResponse covers the happy path: a
+// parent's /query YAML response decodes into the same queryPayload type
+// RunQuery's own rendering produces.
+func Test792b37c3a2_FetchQueryPayload_DecodesSuccessfulResponse(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.Deps{Fetch: func(_ context.Context, _, _ string, _ []byte) (cli.FetchResponse, error) {
+		return cli.FetchResponse{Status: 200, Body: []byte("version: 1\nmodel_id: m@4\nitems: []\n")}, nil
+	}}
+
+	payload, err := cli.ExportFetchQueryPayload(
+		context.Background(), deps, "http://parent-host:8420", cli.QueryArgs{Phrases: []string{"x"}})
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(cli.ExportQueryPayloadModelID(payload)).To(Equal("m@4"))
+}
+
+// Test792b37c3a3_FetchQueryPayload_MalformedBodyErrors covers a response body that
+// isn't valid YAML.
+func Test792b37c3a3_FetchQueryPayload_MalformedBodyErrors(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.Deps{Fetch: func(_ context.Context, _, _ string, _ []byte) (cli.FetchResponse, error) {
+		return cli.FetchResponse{Status: 200, Body: []byte("not: [valid: yaml")}, nil
+	}}
+
+	_, err := cli.ExportFetchQueryPayload(
+		context.Background(), deps, "http://parent-host:8420", cli.QueryArgs{})
+
+	g.Expect(err).To(HaveOccurred())
+}
+
+// Test792b37c3a4_FetchQueryPayload_NonOKStatusErrors covers a non-2xx response.
+func Test792b37c3a4_FetchQueryPayload_NonOKStatusErrors(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.Deps{Fetch: func(_ context.Context, _, _ string, _ []byte) (cli.FetchResponse, error) {
+		return cli.FetchResponse{Status: 500, Body: []byte(`{"error":"boom"}`)}, nil
+	}}
+
+	_, err := cli.ExportFetchQueryPayload(
+		context.Background(), deps, "http://parent-host:8420", cli.QueryArgs{})
+
+	g.Expect(err).To(MatchError(ContainSubstring("boom")))
+}
+
+// Test792b37c3a4_FetchQueryPayload_TransportErrorPropagates covers a transport-level
 // failure (e.g. connection refused).
-func TestFetchQueryPayload_TransportErrorPropagates(t *testing.T) {
+func Test792b37c3a4_FetchQueryPayload_TransportErrorPropagates(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -468,33 +579,6 @@ func TestLocalLearn_NeverSetsPendingMarker(t *testing.T) {
 	g.Expect(string(raw)).NotTo(ContainSubstring("pending:"))
 }
 
-// TestParentBase_NilGetenv covers parentBase's nil-safety guard, mirroring
-// TestServerBase_NilGetenv.
-func TestParentBase_NilGetenv(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	g.Expect(cli.ExportParentBase(cli.Deps{})).To(Equal(""))
-}
-
-// TestParentBase_ReadsEngramParentEnv covers parentBase resolving from the
-// ENGRAM_PARENT environment variable — dispatch-level, not a QueryArgs
-// flag threaded through args (design.md Decision 5).
-func TestParentBase_ReadsEngramParentEnv(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	deps := cli.Deps{Getenv: func(key string) string {
-		if key == "ENGRAM_PARENT" {
-			return "http://parent-host:8420"
-		}
-
-		return ""
-	}}
-
-	g.Expect(cli.ExportParentBase(deps)).To(Equal("http://parent-host:8420"))
-}
-
 // TestShowChunkTarget_LocalDispatch covers show-chunk's local (non-served)
 // branch through Targets(). Getenv is stubbed to "" so the test never
 // depends on the ambient environment (show-chunk resolves locally only).
@@ -508,90 +592,6 @@ func TestShowChunkTarget_LocalDispatch(t *testing.T) {
 			d.Getenv = func(string) string { return "" }
 		})
 	g.Expect(stderr).To(ContainSubstring("chunk not found"))
-}
-
-// TestShowParent_NonOKResponse_MalformedBody_FallsBackToRawText covers
-// describeErrorBody's non-JSON fallback branch: a non-2xx parent response
-// whose body isn't {"error": "..."} JSON still surfaces its raw text.
-func TestShowParent_NonOKResponse_MalformedBody_FallsBackToRawText(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	_, stderr := executeCapturingBoth(t, []string{"engram", "show", "missing-note", "--parent", "--vault", t.TempDir()},
-		func(d *cli.Deps) {
-			d.Getenv = parentOnlyGetenv("http://parent-host:8420")
-			d.Fetch = func(_ context.Context, _, _ string, _ []byte) (cli.FetchResponse, error) {
-				return cli.FetchResponse{Status: 500, Body: []byte("  internal error, not json  ")}, nil
-			}
-		})
-
-	g.Expect(stderr).To(ContainSubstring("internal error, not json"))
-}
-
-// TestShowParent_NonOKResponse_SurfacesError covers the parent client's
-// error path: a non-2xx parent response surfaces as a CLI error rather
-// than being silently swallowed.
-func TestShowParent_NonOKResponse_SurfacesError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	_, stderr := executeCapturingBoth(t, []string{"engram", "show", "missing-note", "--parent", "--vault", t.TempDir()},
-		func(d *cli.Deps) {
-			d.Getenv = parentOnlyGetenv("http://parent-host:8420")
-			d.Fetch = func(_ context.Context, _, _ string, _ []byte) (cli.FetchResponse, error) {
-				errBody, _ := json.Marshal(map[string]string{"error": "note not found"})
-
-				return cli.FetchResponse{Status: 404, Body: errBody}, nil
-			}
-		})
-
-	g.Expect(stderr).To(ContainSubstring("note not found"))
-}
-
-// TestShowParent_PercentEncodesQueryValues covers the hand-rolled query
-// encoder (internal/ may not import net/url): a note ref containing
-// characters needing escaping round-trips correctly into the parent URL.
-func TestShowParent_PercentEncodesQueryValues(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var got fakeFetchCall
-
-	stdout, stderr := executeCapturingBoth(t,
-		[]string{"engram", "show", "1.2026-01-01.a note", "--parent", "--vault", t.TempDir()},
-		func(d *cli.Deps) {
-			d.Getenv = parentOnlyGetenv("http://parent-host:8420")
-			d.Fetch = func(_ context.Context, method, url string, _ []byte) (cli.FetchResponse, error) {
-				got = fakeFetchCall{method: method, url: url}
-
-				return cli.FetchResponse{Status: 200, Body: []byte("note content\n")}, nil
-			}
-		})
-
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(stdout).To(Equal("note content\n"))
-	g.Expect(got.url).To(Equal("http://parent-host:8420/show?note=1.2026-01-01.a%20note"))
-}
-
-// TestWriteParentSourced_BodyWriteErrorWraps covers writeParentSourced's
-// second write-error branch: the marker line writes fine, but the body
-// write fails.
-func TestWriteParentSourced_BodyWriteErrorWraps(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	err := cli.ExportWriteParentSourced(&writeNTimesThenFail{remaining: 1}, []byte("body"))
-	g.Expect(err).To(MatchError(ContainSubstring("write response")))
-}
-
-// TestWriteParentSourced_MarkerWriteErrorWraps covers writeParentSourced's
-// first write-error branch: the marker line itself fails to write.
-func TestWriteParentSourced_MarkerWriteErrorWraps(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	err := cli.ExportWriteParentSourced(&writeNTimesThenFail{remaining: 0}, []byte("body"))
-	g.Expect(err).To(MatchError(ContainSubstring("write response")))
 }
 
 // unexported variables.

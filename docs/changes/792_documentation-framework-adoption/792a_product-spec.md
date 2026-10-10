@@ -10148,7 +10148,7 @@ and MUST return one payload ranked across both sources in the order of 792a21d, 
 reconcile. This merged path is the only query path for a node that has a parent: it MUST NOT offer another remote query
 mode, and no parent chunk MUST appear in a merged payload.
 
-Rationale: a node with a parent wants one coherent view of local and inherited memory (vault-merged-recall). Chunks are
+Rationale: a node with a parent wants one coherent view of local and inherited memory (ADR-0029 D9). Chunks are
 transcript text that belongs to the machine that recorded it, so they never cross vaults, and the merge, its recency
 channel and its chunk budgets are local-only (ADR-0029 D9). The merge fuses two complete payloads rather than
 fusing before clustering, because the second would need the parent to expose its candidates, and it sorts by raw score
@@ -10405,7 +10405,7 @@ instead of failing. While the parent is backed off (792a21s), a query MUST make 
 local results with one warning.
 
 Rationale: a node's local recall should not depend on its parent's network availability, or one host outage takes down
-every environment's recall (vault-merged-recall).
+every environment's recall (ADR-0029 D9).
 
 #### 792a21k1 UAT Scenarios
 
@@ -10436,7 +10436,7 @@ returned as before this capability, without contacting the parent. A miss with n
 not-found error as before. `engram show-chunk` MUST NOT accept `--parent` and MUST NOT fall back to the parent.
 
 Rationale: chunks never cross vaults, so there is no parent chunk lookup. A fallback that fires only on a local miss is
-safe by construction, and the origin tag of 792a21g tells a caller when to ask for the parent explicitly (vault-merged-recall).
+safe by construction, and the origin tag of 792a21g tells a caller when to ask for the parent explicitly (ADR-0029 D9).
 
 #### 792a21l1 UAT Scenarios
 

@@ -309,42 +309,10 @@ func Test792b2c10a9_ShowParent_StampsVaultIDOnParentContact(t *testing.T) {
 	g.Expect(filepath.Join(vault, ".engram-vault-id")).To(BeARegularFile())
 }
 
-// TestTargets_Query_Merged_FailedStampSkipsContactBookkeeping is the merged
-// query's counterpart: the parent is still asked, but no backoff record or
-// drain creates .engram/ without a stamp (ruling S4).
-func TestTargets_Query_Merged_FailedStampSkipsContactBookkeeping(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	plantRealVaultNote(t, vault, "1.fact.md",
-		"---\ntype: fact\ntier: L2\nsituation: x\n---\n\nlocal body\n", []float32{1, 0, 0, 0})
-
-	var fetches atomic.Int32
-
-	stdout, _ := executeCapturingBoth(t,
-		[]string{"engram", "query", "--phrase", "x", "--vault", vault, "--chunks-dir", t.TempDir()},
-		func(d *cli.Deps) {
-			d.FS = &failFirstIDWriteFS{EdgeFS: d.FS}
-			d.Getenv = parentOnlyGetenv(parentURL)
-			d.Embed = fixedVectorEmbedder{modelID: "m@4", vector: []float32{1, 0, 0, 0}}
-			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
-				fetches.Add(1)
-
-				return cli.FetchResponse{}, errors.New("dial tcp: connection refused")
-			}
-		})
-
-	g.Expect(fetches.Load()).To(Equal(int32(1)))
-	g.Expect(stdout).To(ContainSubstring("1.fact.md"))
-	g.Expect(filepath.Join(vault, ".engram")).NotTo(BeAnExistingFile())
-	g.Expect(filepath.Join(vault, ".engram-vault-id")).NotTo(BeAnExistingFile())
-}
-
-// TestTargets_Query_Merged_RequestsDedupeKeysAndCachesVaultID: the merged
+// Test792b37c4a1_Targets_Query_Merged_RequestsDedupeKeysAndCachesVaultID: the merged
 // query asks the parent for dedupe keys and caches the vault_id it
 // reports, so the drain needs no separate probe (W7 carry-over).
-func TestTargets_Query_Merged_RequestsDedupeKeysAndCachesVaultID(t *testing.T) {
+func Test792b37c4a1_Targets_Query_Merged_RequestsDedupeKeysAndCachesVaultID(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -380,6 +348,38 @@ func TestTargets_Query_Merged_RequestsDedupeKeysAndCachesVaultID(t *testing.T) {
 		cli.ExportExchangeStateFromDeps(newTestDeps(io.Discard, io.Discard)), vault)
 	g.Expect(cacheErr).NotTo(HaveOccurred())
 	g.Expect(cache.VaultID).To(Equal(w9ParentVaultID))
+}
+
+// Test792b37c4a2_Targets_Query_Merged_FailedStampSkipsContactBookkeeping is the merged
+// query's counterpart: the parent is still asked, but no backoff record or
+// drain creates .engram/ without a stamp (ruling S4).
+func Test792b37c4a2_Targets_Query_Merged_FailedStampSkipsContactBookkeeping(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	plantRealVaultNote(t, vault, "1.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: x\n---\n\nlocal body\n", []float32{1, 0, 0, 0})
+
+	var fetches atomic.Int32
+
+	stdout, _ := executeCapturingBoth(t,
+		[]string{"engram", "query", "--phrase", "x", "--vault", vault, "--chunks-dir", t.TempDir()},
+		func(d *cli.Deps) {
+			d.FS = &failFirstIDWriteFS{EdgeFS: d.FS}
+			d.Getenv = parentOnlyGetenv(parentURL)
+			d.Embed = fixedVectorEmbedder{modelID: "m@4", vector: []float32{1, 0, 0, 0}}
+			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
+				fetches.Add(1)
+
+				return cli.FetchResponse{}, errors.New("dial tcp: connection refused")
+			}
+		})
+
+	g.Expect(fetches.Load()).To(Equal(int32(1)))
+	g.Expect(stdout).To(ContainSubstring("1.fact.md"))
+	g.Expect(filepath.Join(vault, ".engram")).NotTo(BeAnExistingFile())
+	g.Expect(filepath.Join(vault, ".engram-vault-id")).NotTo(BeAnExistingFile())
 }
 
 // unexported constants.

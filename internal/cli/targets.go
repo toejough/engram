@@ -489,7 +489,7 @@ func showActivateTargets(
 }
 
 // showTargets returns the show/show-chunk subcommands. Split out of
-// showActivateTargets (vault-merged-recall's --parent branch pushed it over
+// showActivateTargets (792a21's --parent branch pushed it over
 // the per-function length budget).
 func showTargets(
 	deps Deps,

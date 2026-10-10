@@ -424,12 +424,12 @@ type queryItem struct {
 	// under (provenance=explore only; empty/omitted otherwise).
 	SourceTerm string `yaml:"source_term,omitempty"`
 	// ModelID names the embedding model of the node that produced this
-	// item (vault-merged-recall) — set only in a merged payload; empty
+	// item (792a21) — set only in a merged payload; empty
 	// otherwise (non-merged payloads carry model_id at the payload level
 	// only, via queryPayload.ModelID).
 	ModelID string `yaml:"model_id,omitempty"`
 	// FromParent is true when this item was produced by ENGRAM_PARENT
-	// rather than the local vault (vault-merged-recall) — nil (and thus
+	// rather than the local vault (792a21) — nil (and thus
 	// omitted) on a non-merged payload; on a merged payload it is always
 	// set, explicitly false for a local item, so *bool (not bool) is
 	// required — a bare bool with omitempty would drop a false value's

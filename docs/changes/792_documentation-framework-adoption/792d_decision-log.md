@@ -2181,3 +2181,34 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792d3, 792d10, 792d30, 792d33, 792d52, 792d118, 792d119 and 792d121.
 - **Alternatives:** one requirement per outcome of `drainOutbox` with no gate requirement. Rejected because the gate has
   its own failure paths (the probe, the location check, the cached self-parent) that no outcome covers.
+
+## 792d123 parent-vault-client scope, the one component for two directions, and where the sources differ from the code
+
+- **Choice:**
+  - 792b37 specifies sixteen requirements (792b37c1 to 792b37c16) and two sequences, a merged query and a pull-down. It is
+    one component for both directions of the child's reading, as the catalog has it: they share the request, the gate, the
+    envelope and the vault-ID bookkeeping. The merge (792b37c5 to 792b37c9) is pure functions over payloads and notes, and
+    the pull-down (792b37c11 to 792b37c16) runs through an injected fetch capability.
+  - The decision that `engram query` takes the merged path when `ENGRAM_PARENT` is set is made in `targets.go`, the caller.
+    792b37c4 states it with the path it selects and not as a requirement of 792b2, since a one-sentence routing requirement
+    would add a component section for no contract of its own. The unset half has no test (a coverage gap).
+  - The `vault-merged-recall` and `vault-parent-pulldown` specs are deleted. Their cap on the merged `--limit` by position
+    and the note floor are 792b37c7; their use of the pull-down's skip rule by the re-check is 792b37c16. The old design
+    notes of the merge (score-sort interleave, no score normalization) are superseded by the direct and explore order and
+    are not kept.
+  - The child side of K14, the edge and row of C2 to S7 and the edge of R7 are pointers to 792a21, 792b35, 792b36 and 792b37.
+  - Tests: 51 renamed, of which one (`TestActivate_PullDownOmitsEmptyUser`) is a command-level test of 792a21zh1a that
+    792c7t1 did not list, because `first_write_user_test` was not among the files it examined. The pull-down and
+    merged-query tests that run a command through `Targets` were renamed to product IDs by 792c7t1 (792d121), and
+    the traceability table here lists them as the evidence for 792b37c4 and 792b37c11 to 792b37c16.
+  - `TestShowChunkTarget_LocalDispatch`, `TestLocalAmend_*` and `TestLocalLearn_NeverSetsPendingMarker` stay unrenamed:
+    the first verifies a local branch of `show-chunk` that no scenario states, and the others verify that a local write
+    never sets the pending marker, which curate (792c7u1) owns.
+- **Divergences noted (792d33):**
+  - The spec says a parent chunk is dropped; the code also drops any parent item whose provenances include `recent`,
+    whatever its kind; a recency item is a chunk, so the second test selects the same items (792b37c5).
+  - The spec does not say that a failed local scan of the notes for dedupe is a warning and not an error; the code warns
+    and merges without dedupe (792b37c6, #782 reads each note twice there).
+- **Rationale:** 792d3, 792d10, 792d30, 792d33, 792d52, 792d121 and 792d122.
+- **Alternatives:** two components, a merged-query client and a pull-down client. Rejected because both are one boundary
+  with one gated contact and one vault-ID cache, and the catalog lists them as one.

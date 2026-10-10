@@ -19,6 +19,34 @@ import (
 	"github.com/toejough/engram/internal/update"
 )
 
+// Test792a21zh1a_Activate_PullDownOmitsEmptyUser: a pull-down whose user detection is
+// empty writes the copy without user: and warns once.
+func Test792a21zh1a_Activate_PullDownOmitsEmptyUser(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	note := pulledFact("7.2026-09-01.pulled", "c", "")
+
+	env := newWiringEnv(t)
+	env.wrap = withoutUserDetection
+	env.parent.addNote(note)
+
+	_, stderr := env.run("activate", "--note", note.basename+".md")
+	g.Expect(env.exitCodes()).To(BeEmpty(), stderr)
+
+	files := env.noteFiles()
+	g.Expect(files).To(HaveLen(1))
+
+	if len(files) != 1 {
+		return
+	}
+
+	raw := readFileString(t, filepath.Join(env.vault, files[0]))
+	frontmatter, _, _ := strings.Cut(strings.TrimPrefix(raw, "---\n"), "\n---\n")
+	g.Expect(frontmatter).NotTo(MatchRegexp(`(?m)^user:`), "no top-level user: key")
+	g.Expect(strings.Count(stderr, "user detection resolved empty")).To(Equal(1))
+}
+
 // Test792b11c3a1_Learn_StampsDetectedUser: a detected user is still stamped, with no
 // warning.
 func Test792b11c3a1_Learn_StampsDetectedUser(t *testing.T) {
@@ -68,34 +96,6 @@ func Test792b11c3a2_Learn_OmitsEmptyUser(t *testing.T) {
 	g.Expect(string(written)).To(ContainSubstring("vault: personal"))
 	g.Expect(warnings).To(HaveLen(1))
 	g.Expect(strings.Join(warnings, "")).To(ContainSubstring("user detection resolved empty"))
-}
-
-// TestActivate_PullDownOmitsEmptyUser: a pull-down whose user detection is
-// empty writes the copy without user: and warns once.
-func TestActivate_PullDownOmitsEmptyUser(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	note := pulledFact("7.2026-09-01.pulled", "c", "")
-
-	env := newWiringEnv(t)
-	env.wrap = withoutUserDetection
-	env.parent.addNote(note)
-
-	_, stderr := env.run("activate", "--note", note.basename+".md")
-	g.Expect(env.exitCodes()).To(BeEmpty(), stderr)
-
-	files := env.noteFiles()
-	g.Expect(files).To(HaveLen(1))
-
-	if len(files) != 1 {
-		return
-	}
-
-	raw := readFileString(t, filepath.Join(env.vault, files[0]))
-	frontmatter, _, _ := strings.Cut(strings.TrimPrefix(raw, "---\n"), "\n---\n")
-	g.Expect(frontmatter).NotTo(MatchRegexp(`(?m)^user:`), "no top-level user: key")
-	g.Expect(strings.Count(stderr, "user detection resolved empty")).To(Equal(1))
 }
 
 // unexported variables.

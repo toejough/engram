@@ -16,7 +16,7 @@ import (
 )
 
 // Test792a21c1a_Targets_Query_MergedMode_CombinesLocalAndParent exercises
-// vault-merged-recall end-to-end through Targets(): ENGRAM_PARENT set,
+// 792a21 end-to-end through Targets(): ENGRAM_PARENT set,
 // a real local vault with one note, a mocked parent response with one
 // item — the merged payload includes both, tagged with their origin.
 func Test792a21c1a_Targets_Query_MergedMode_CombinesLocalAndParent(t *testing.T) {
@@ -60,9 +60,9 @@ func Test792a21c1a_Targets_Query_MergedMode_CombinesLocalAndParent(t *testing.T)
 	// Bound to path, not a whole-stdout substring search, so a swapped tag
 	// (parent-note.md: false, 1.fact.md: true) would fail this assertion.
 	g.Expect(fromParentByPath["1.fact.md"]).To(HaveValue(BeFalse()),
-		"the local item must be tagged from_parent: false per vault-merged-recall (ruling S29)")
+		"the local item must be tagged from_parent: false per 792a21 (ruling S29)")
 	g.Expect(fromParentByPath["parent-note.md"]).To(HaveValue(BeTrue()),
-		"the parent item must be tagged from_parent: true per vault-merged-recall")
+		"the parent item must be tagged from_parent: true per 792a21")
 }
 
 // Test792a21g1a_Targets_ShowFallback_SurfacesParentRunbookAfterMergedQuery is the
@@ -114,7 +114,7 @@ func Test792a21g1a_Targets_ShowFallback_SurfacesParentRunbookAfterMergedQuery(t 
 	g.Expect(queryStderr).To(BeEmpty())
 	g.Expect(queryStdout).To(ContainSubstring("path: " + parentBasename))
 	g.Expect(queryStdout).To(ContainSubstring("from_parent: true"),
-		"the parent-only item must be tagged from_parent per vault-merged-recall")
+		"the parent-only item must be tagged from_parent per 792a21")
 
 	showStdout, showStderr := executeCapturingBoth(t,
 		[]string{"engram", "show", parentBasename, "--vault", vault}, func(d *cli.Deps) {
@@ -158,12 +158,12 @@ func Test792a21k1a_Targets_Query_MergedMode_ParentUnavailableFallsBackToLocal(t 
 	g.Expect(parsed.Items[0].Path).To(Equal("1.fact.md"))
 }
 
-// TestTargets_Query_MergedMode_LocalErrorSurfacesWhenParentSucceeds
+// Test792b37c4a4_Targets_Query_MergedMode_LocalErrorSurfacesWhenParentSucceeds
 // verifies that when the parent fetch succeeds but the local query itself
 // fails (e.g. a note with no matching sidecar), the error surfaces rather
 // than being silently absorbed — merging can't proceed without a local
 // side, so this is a hard failure, unlike parent-unavailable's fallback.
-func TestTargets_Query_MergedMode_LocalErrorSurfacesWhenParentSucceeds(t *testing.T) {
+func Test792b37c4a4_Targets_Query_MergedMode_LocalErrorSurfacesWhenParentSucceeds(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()

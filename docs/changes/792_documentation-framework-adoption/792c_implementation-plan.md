@@ -253,8 +253,8 @@ flowchart TD
   N792c7s4["792c7s4 vault-http-server tech spec<br/>Complete"]
   N792c7t1["792c7t1 parent-sync product spec<br/>Complete"]
   N792c7t2["792c7t2 offer-outbox tech spec<br/>Complete"]
-  N792c7t3["792c7t3 parent-vault-client tech spec<br/>Ready"]
-  N792c7u1["792c7u1 curate product spec<br/>Blocked by: 792c7t3"]
+  N792c7t3["792c7t3 parent-vault-client tech spec<br/>Complete"]
+  N792c7u1["792c7u1 curate product spec<br/>Ready"]
   N792c7v1["792c7v1 memory-effectiveness-evaluation product spec<br/>Blocked by: 792c7u1"]
   N792c7v2["792c7v2 eval-trial-harness tech spec<br/>Blocked by: 792c7v1"]
   N792c7v3["792c7v3 memory-loop-auditor tech spec<br/>Blocked by: 792c7v2"]
@@ -5208,11 +5208,122 @@ Target: `792b37` (`docs/specs/technical/parent-vault-client.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7t3a | Port the component contract to `792b37` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7t3b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7t3c | Repoint stale references to `792b37` | Non-test action | Keeps live links valid | Not started |
-| 792c7t3d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7t3e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7t3a | Port the component contract to `792b37` | Non-test action | Documents the component in the framework format | Done |
+| 792c7t3b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7t3c | Repoint stale references to `792b37` | Non-test action | Keeps live links valid | Done |
+| 792c7t3d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7t3e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+792b37 has sixteen requirements (792b37c1 to 792b37c16) and two sequences, a merged query and a pull-down, whose `alt`
+branches each have their own requirement: the parent address, a request to the parent, its query answer, the merged query,
+the dropping and tagging, the dedupe, the order, the budgets, the payload's own fields, the parent-sourced label, the gated
+pull-down, the raw envelope, the pulled copy, what a pull-down skips, the use signal and the re-check (792d123). It maps 64
+scenarios of 792a21 and completes the traceability of 792c7t1 and 792c7t2. Legacy removal: the `vault-merged-recall` and
+`vault-parent-pulldown` specs are deleted, the child side of K14, the row and edge of C2 to S7 and the edge of R7 are
+pointers, and the comments that cited the two specs cite 792a21.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b37c1a1 | `TestParentBase_ReadsEngramParentEnv` → `Test792b37c1a1_ParentBase_ReadsEngramParentEnv` | Dispatch through `Targets` with a pinned environment | The base URL comes from ENGRAM_PARENT | Done |
+| 792b37c1a2 | `TestParentBase_NilGetenv` → `Test792b37c1a2_ParentBase_NilGetenv` | Unit | No environment, no parent | Done |
+| 792b37c2a1 | `TestShowParent_PercentEncodesQueryValues` → `Test792b37c2a1_ShowParent_PercentEncodesQueryValues` | Dispatch through `Targets` with a scripted fetch | A reference needing escapes round-trips into the URL | Done |
+| 792b37c2a2 | `TestFetchQueryPayload_TextRoundTripsByteIdentically` → `Test792b37c2a2_FetchQueryPayload_TextRoundTripsByteIdentically` | Unit over a scripted fetch | A 1 KB text survives the hand-rolled encoder | Done |
+| 792b37c2a4 | `TestShowParent_NonOKResponse_SurfacesError` → `Test792b37c2a4_ShowParent_NonOKResponse_SurfacesError` | Dispatch through `Targets` with a scripted fetch | A non-2xx answer surfaces the server's message | Done |
+| 792b37c2a4 | `TestShowParent_NonOKResponse_MalformedBody_FallsBackToRawText` → `Test792b37c2a4_ShowParent_NonOKResponse_MalformedBody_FallsBackToRawText` | Dispatch through `Targets` with a scripted fetch | A non-JSON error body surfaces as raw text | Done |
+| 792b37c3a1 | `TestFetchQueryPayload_AllParamsSet` → `Test792b37c3a1_FetchQueryPayload_AllParamsSet` | Unit over a scripted fetch | Every set input is sent with dedupe-keys | Done |
+| 792b37c3a2 | `TestFetchQueryPayload_DecodesSuccessfulResponse` → `Test792b37c3a2_FetchQueryPayload_DecodesSuccessfulResponse` | Unit over a scripted fetch | The answer decodes into the payload type | Done |
+| 792b37c3a3 | `TestFetchQueryPayload_MalformedBodyErrors` → `Test792b37c3a3_FetchQueryPayload_MalformedBodyErrors` | Unit over a scripted fetch | A body that is not YAML fails | Done |
+| 792b37c3a4 | `TestFetchQueryPayload_NonOKStatusErrors` → `Test792b37c3a4_FetchQueryPayload_NonOKStatusErrors` | Unit over a scripted fetch | A non-2xx answer fails | Done |
+| 792b37c3a4 | `TestFetchQueryPayload_TransportErrorPropagates` → `Test792b37c3a4_FetchQueryPayload_TransportErrorPropagates` (split deferred: 792b37c2a3) | Unit over a scripted fetch | A transport failure fails as unreachable | Done |
+| 792b37c4a1 | `TestTargets_Query_Merged_RequestsDedupeKeysAndCachesVaultID` → `Test792b37c4a1_Targets_Query_Merged_RequestsDedupeKeysAndCachesVaultID` | Dispatch through `Targets` with a scripted parent | The request asks for dedupe keys and caches the vault ID | Done |
+| 792b37c4a2 | `TestTargets_Query_Merged_FailedStampSkipsContactBookkeeping` → `Test792b37c4a2_Targets_Query_Merged_FailedStampSkipsContactBookkeeping` | Dispatch through `Targets` with a failing stamp | A failed stamp skips only the bookkeeping | Done |
+| 792b37c4a4 | `TestTargets_Query_MergedMode_LocalErrorSurfacesWhenParentSucceeds` → `Test792b37c4a4_Targets_Query_MergedMode_LocalErrorSurfacesWhenParentSucceeds` | Dispatch through `Targets` with a failing local query | A local failure surfaces | Done |
+| 792b37c5a1 | `TestMergeQueryPayloads_DropsParentChunks` → `Test792b37c5a1_MergeQueryPayloads_DropsParentChunks` | Pure unit over payloads | Parent chunks and recency items are dropped | Done |
+| 792b37c5a2 | `TestMergeQueryPayloads_TagsItemsWithOriginAndModelID` → `Test792b37c5a2_MergeQueryPayloads_TagsItemsWithOriginAndModelID` | Pure unit over payloads | Items carry their source's model and origin | Done |
+| 792b37c5a3 | `TestMergeQueryPayloads_MismatchedModelIDStillMerges` → `Test792b37c5a3_MergeQueryPayloads_MismatchedModelIDStillMerges` | Pure unit over payloads | A mismatched model still merges | Done |
+| 792b37c5a4 | `TestTagItems_EachItemGetsItsOwnFromParentPointer` → `Test792b37c5a4_TagItems_EachItemGetsItsOwnFromParentPointer` | Pure unit | Each tagged item has its own pointer | Done |
+| 792b37c6a1 | `TestMergeQueryPayloads_PrimaryLinkDedupes` → `Test792b37c6a1_MergeQueryPayloads_PrimaryLinkDedupes` | Pure unit over payloads and notes | A primary link dedupes | Done |
+| 792b37c6a2 | `TestMergeQueryPayloads_CoveredLinkDedupes` → `Test792b37c6a2_MergeQueryPayloads_CoveredLinkDedupes` | Pure unit over payloads and notes | A covered link dedupes | Done |
+| 792b37c6a3 | `TestMergeQueryPayloads_AliasLinkDedupes` → `Test792b37c6a3_MergeQueryPayloads_AliasLinkDedupes` | Pure unit over payloads and notes | An alias link dedupes | Done |
+| 792b37c6a4 | `TestMergeQueryPayloads_EqualHashDedupes` → `Test792b37c6a4_MergeQueryPayloads_EqualHashDedupes` | Pure unit over payloads and notes | An equal hash dedupes | Done |
+| 792b37c6a5 | `TestMergeQueryPayloads_PendingLocalCopyDoesNotSuppress` → `Test792b37c6a5_MergeQueryPayloads_PendingLocalCopyDoesNotSuppress` | Pure unit over payloads and notes | A pending copy suppresses nothing | Done |
+| 792b37c6a6 | `TestMergeQueryPayloads_SubstitutesUnrankedLocalCopy` → `Test792b37c6a6_MergeQueryPayloads_SubstitutesUnrankedLocalCopy` | Pure unit over payloads and notes | An unranked local copy takes the parent's place | Done |
+| 792b37c6a7 | `TestMergeQueryPayloads_SubstitutesExploreKeepsSourceTerm` → `Test792b37c6a7_MergeQueryPayloads_SubstitutesExploreKeepsSourceTerm` | Pure unit over payloads and notes | A substituted explore pick keeps its term | Done |
+| 792b37c6a8 | `TestMergeQueryPayloads_NearDuplicatesLeftAlone` → `Test792b37c6a8_MergeQueryPayloads_NearDuplicatesLeftAlone` | Pure unit over payloads and notes | Near-duplicates are left alone | Done |
+| 792b37c6a9 | `TestMergeQueryPayloads_LinkUnderOtherVaultIgnored` → `Test792b37c6a9_MergeQueryPayloads_LinkUnderOtherVaultIgnored` | Pure unit over payloads and notes | A link under another vault is ignored | Done |
+| 792b37c6a10 | `TestMergeQueryPayloads_StripsDedupeKeys` → `Test792b37c6a10_MergeQueryPayloads_StripsDedupeKeys` | Pure unit over payloads | The dedupe keys are stripped | Done |
+| 792b37c6a11 | `TestDedupeProperty_NeverBothLiveLocalAndMatchedParent` → `Test792b37c6a11_DedupeProperty_NeverBothLiveLocalAndMatchedParent` | Property (rapid) | A live local note is never shown with a parent item it matches | Done |
+| 792b37c6a12 | `TestScanDedupeNotes_ScanFailureWarnsAndMergesWithoutDedupe` → `Test792b37c6a12_ScanDedupeNotes_ScanFailureWarnsAndMergesWithoutDedupe` | Unit over a failing scan | A failed scan merges without dedupe | Done |
+| 792b37c7a1 | `TestMergeQueryPayloads_TriggerHitsLeadAndBypassLimit` → `Test792b37c7a1_MergeQueryPayloads_TriggerHitsLeadAndBypassLimit` | Pure unit over payloads | Trigger hits lead and bypass the limit | Done |
+| 792b37c7a2 | `TestMergeQueryPayloads_CombinesAndSortsByScore` → `Test792b37c7a2_MergeQueryPayloads_CombinesAndSortsByScore` | Pure unit over payloads | Items from both sources are one list by score | Done |
+| 792b37c7a3 | `TestMergeQueryPayloads_DirectBeforeExplore` → `Test792b37c7a3_MergeQueryPayloads_DirectBeforeExplore` | Pure unit over payloads | Direct items come before explore picks | Done |
+| 792b37c7a4 | `TestMergeQueryPayloads_LimitCapsTotalMergedSet` → `Test792b37c7a4_MergeQueryPayloads_LimitCapsTotalMergedSet` | Pure unit over payloads | The limit caps the merged set | Done |
+| 792b37c7a5 | `TestMergeQueryPayloads_NoteFloorSurvivesCap` → `Test792b37c7a5_MergeQueryPayloads_NoteFloorSurvivesCap` | Pure unit over payloads | The note floor survives the cap | Done |
+| 792b37c7a6 | `TestMergeQueryPayloads_NoteFloorSkipsLowScoringNotes` → `Test792b37c7a6_MergeQueryPayloads_NoteFloorSkipsLowScoringNotes` | Pure unit over payloads | A low-scoring note is not promoted | Done |
+| 792b37c7a7 | `TestMergeQueryPayloads_FloorOnIssueShape` → `Test792b37c7a7_MergeQueryPayloads_FloorOnIssueShape` | Pure unit over payloads | The reported crowding shape keeps its notes | Done |
+| 792b37c8a1 | `TestMergeQueryPayloads_ContentBudgetCapsMergedChunks` → `Test792b37c8a1_MergeQueryPayloads_ContentBudgetCapsMergedChunks` | Pure unit over payloads | The content budget spans the merged set | Done |
+| 792b37c8a2 | `TestMergeQueryPayloads_RecentFillCapsMergedRecencyChannel` → `Test792b37c8a2_MergeQueryPayloads_RecentFillCapsMergedRecencyChannel` | Pure unit over payloads | The recency channel is capped as a group | Done |
+| 792b37c8a3 | `TestMergeQueryPayloads_LimitDoesNotStarveRecencyChannel` → `Test792b37c8a3_MergeQueryPayloads_LimitDoesNotStarveRecencyChannel` | Pure unit over payloads | The limit never starves the recency channel | Done |
+| 792b37c8a4 | `TestMergeQueryPayloads_RecencyItemsDoNotCountAgainstMainRanking` → `Test792b37c8a4_MergeQueryPayloads_RecencyItemsDoNotCountAgainstMainRanking` | Pure unit over payloads | Recency items follow the relevance items | Done |
+| 792b37c9a1 | `TestMergeQueryPayloads_ClustersStayLocalOnly` → `Test792b37c9a1_MergeQueryPayloads_ClustersStayLocalOnly` | Pure unit over payloads | Clusters stay local | Done |
+| 792b37c9a2 | `TestMergeQueryPayloads_AdvisoryFlagsAreLocalOnly` → `Test792b37c9a2_MergeQueryPayloads_AdvisoryFlagsAreLocalOnly` | Pure unit over payloads | The advisory flags are the local query's | Done |
+| 792b37c9a3 | `TestMergeQueryPayloads_PendingOffersHintFollowsFlag` → `Test792b37c9a3_MergeQueryPayloads_PendingOffersHintFollowsFlag` | Pure unit over payloads | The hint follows the flag | Done |
+| 792b37c9a4 | `TestMergeQueryPayloads_PendingHintIsLocalOnly` → `Test792b37c9a4_MergeQueryPayloads_PendingHintIsLocalOnly` | Pure unit over payloads | A parent's pending flag is ignored | Done |
+| 792b37c9a5 | `TestMergeQueryPayloads_PayloadModelIDIsQueryingNodesOwn` → `Test792b37c9a5_MergeQueryPayloads_PayloadModelIDIsQueryingNodesOwn` | Pure unit over payloads | The payload's model is the local node's | Done |
+| 792b37c9a6 | `TestMergeQueryPayloads_BudgetBlockReportsMergeValues` → `Test792b37c9a6_MergeQueryPayloads_BudgetBlockReportsMergeValues` | Pure unit over payloads | The budget block reports the merge | Done |
+| 792b37c9a7 | `TestMergeQueryPayloads_BudgetBlockUnderLazyChunks` → `Test792b37c9a7_MergeQueryPayloads_BudgetBlockUnderLazyChunks` | Pure unit over payloads | Lazy chunks are reported | Done |
+| 792b37c10a1 | `TestWriteParentSourced_MarkerWriteErrorWraps` → `Test792b37c10a1_WriteParentSourced_MarkerWriteErrorWraps` | Unit over a failing writer | A failed label write is reported | Done |
+| 792b37c10a2 | `TestWriteParentSourced_BodyWriteErrorWraps` → `Test792b37c10a2_WriteParentSourced_BodyWriteErrorWraps` | Unit over a failing writer | A failed body write is reported | Done |
+| 792a21zh1a | `TestActivate_PullDownOmitsEmptyUser` → `Test792a21zh1a_Activate_PullDownOmitsEmptyUser` (split deferred: 792b37c13a3) | Dispatch through `Targets` with a scripted parent | A pull-down whose user detection is empty omits user: and warns once | Done |
+| 792b37c4a3 | `Test792a2q1a_Targets_Query_Merged_SelfParentReturnsLocalOnly` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | A parent that reports this vault's own ID returns the local results | Done |
+| 792b37c4a5 | `Test792a21k1a_Targets_Query_MergedMode_ParentUnavailableFallsBackToLocal` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | A failing parent leaves the local results and a warning | Done |
+| 792b37c4a6 | `Test792a21k1b_Targets_Query_BackoffSkipsParentInsideWindow` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | A backed-off parent is not asked | Done |
+| 792b37c4a7 | `Test792a21g1a_Targets_ShowFallback_SurfacesParentRunbookAfterMergedQuery` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | A parent-only runbook is returned and then shown | Done |
+| 792b37c4a8 | `Test792a21q1b_Targets_OfflineWritesCoalesceThenQueryDrains` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | A merged query drains the backlog | Done |
+| 792b37c11a1 | `Test792a21zg1c_Activate_PauseChecks, Test792a21zg1c_Activate_UnusableExchangeStatePauses` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | Each failed check pauses the pull-down | Done |
+| 792b37c11a2 | `Test792a21zg1d_Activate_ParentUnreachablePausesPulls` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | An outage pauses the later refs | Done |
+| 792b37c11a3 | `Test792a21zg1d_Activate_UnrecordableBackoffIsReported` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | An unrecordable failure names the error | Done |
+| 792b37c11a4 | `Test792a21zg1e_Activate_PullDownDrainsTheOutbox` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | A pull-down drains the outbox | Done |
+| 792b37c12a1 | `Test792a21zd1d_Activate_ParentTooOld` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | A rendered or id-less answer is a too-old parent | Done |
+| 792b37c12a2 | `Test792a21zd1e_Activate_MalformedEnvelopeWritesNothing` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | A malformed envelope writes nothing | Done |
+| 792b37c12a3 | `Test792a21zd1f_Activate_HashMismatchWritesNothing` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | A mismatched hash writes nothing | Done |
+| 792b37c12a4 | `Test792a21zd1g_Activate_NonExchangeTypeRefused` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | A note of another type is refused | Done |
+| 792b37c12a5 | `Test792a21zb1d_Activate_PullsCRLFParentNote` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | A CRLF envelope pulls as LF | Done |
+| 792b37c12a6 | `Test792a21zg1f_Activate_PullDownFetchesWithNoLockHeld` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | The fetch holds no lock | Done |
+| 792b37c12a7 | `Test792a21zf1f_Activate_ServedParentPendingAndRecheck` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | A pending parent note is never pulled | Done |
+| 792b37c13a1 | `Test792a21zc1a_Activate_PullsParentNoteAsPendingCopy` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | The copy is pending, linked and stripped | Done |
+| 792b37c13a2 | `Test792a21zc1a_Activate_PullsParentNoteAsPendingCopy` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | The identity is stamped locally | Done |
+| 792b37c13a4 | `Test792a21zc1a_Activate_PullsParentNoteAsPendingCopy` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | The copy hashes like the parent's note and is embedded | Done |
+| 792b37c13a5 | `Test792a21zc1a_Activate_PullsParentNoteAsPendingCopy` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | The parent's tags are not kept | Done |
+| 792b37c14a1 | `Test792a21ze1b_Activate_CoveredLinkSkipsAndBumpsLiveNote` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | A linked live note is bumped, not copied | Done |
+| 792b37c14a2 | `Test792a21ze1c_Activate_DeclinedPullIsRemembered` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | A decline suppresses an unchanged note | Done |
+| 792b37c14a3 | `Test792a21ze1g_Activate_DeclineIsKeyedByParentVault` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | A decline under another parent does not apply | Done |
+| 792b37c14a4 | `Test792a21ze1a_Activate_ReActivationSkipsUnlessChanged` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | A changed note arrives again | Done |
+| 792b37c14a5 | `Test792a21ze1k_Activate_RecheckUnderTheWriteLock` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | A copy that lands mid-pull is seen | Done |
+| 792b37c14a6 | `Test792a21ze1k_Activate_ConcurrentActivatesWriteOneCopy` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | Racing pulls write one copy | Done |
+| 792b37c14a7 | `Test792a21ze1l_Activate_PullSequencesNeverDuplicate` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | No sequence duplicates | Done |
+| 792b37c15a1 | `Test792a21zc1a_Activate_PullsParentNoteAsPendingCopy` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | The parent's recency is bumped, with the lock released | Done |
+| 792b37c15a2 | `Test792a21zg1b_Activate_ParentActivateFailureIsNotFatal` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | A failed signal is harmless | Done |
+| 792b37c16a1 | `Test792a21zf1a_Activate_ParentChangeRoundTrip` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | A changed parent note arrives through the local copy | Done |
+| 792b37c16a2 | `Test792a21zf1b_Activate_LinkedLocalNoteRecheck` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | An unchanged or declined note writes nothing | Done |
+| 792b37c16a3 | `Test792a21zf1b_Activate_LinkedLocalNoteRecheck` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | A link under another parent is never written | Done |
+| 792b37c16a4 | `Test792a21zf1b_Activate_LinkedLocalNoteRecheck` (renamed by 792c7t1) | Dispatch through `Targets` with a scripted parent | An unreachable parent does not fail the activate | Done |
+
+**Coverage gaps (792b37):** none: every scenario is verified by a test above, directly or by a command-level test that
+792c7t1 renamed.
+
+**Coverage gaps (792a21, completing 792c7t1 and 792c7t2):** every scenario of 792a21 maps to a requirement some of whose
+scenarios a test verifies, so the scenarios that no test carries by ID are verified through those technical scenarios. The
+behaviors that no test exercises at all are: 792a21zj1b (a changed address of the same parent keeps links valid; only
+the other-parent case is tested), the unset half of 792a21m1a (no test asserts that `engram query` makes no request with no
+parent), 792b36c4a8, 792b36c5a6, 792b2c10a6, 792b5c15a1, 792b5c15a2 and 792b5c16a4.
+
+**No-scenario tests:** `serve_client_test` `TestShowChunkTarget_LocalDispatch` (show-chunk's local branch), `TestLocalAmend_*` and
+`TestLocalLearn_NeverSetsPendingMarker` (curate, 792c7u1), and `pulldown_recheck_test` `TestCurateNearOrder_PulledOffer`
+(curate, 792c7u1).
+
 
 ### 792c7u curate
 

@@ -24,7 +24,7 @@ const (
 	// bound the "success" range without importing net/http here.
 	httpStatusMultipleChoices = 300
 	// parentSourcedMarker labels engram show's local-miss parent fallback
-	// output as parent-sourced (vault-merged-recall D8) — the
+	// output as parent-sourced (792a21 D8) — the
 	// human-readable analog of a merged query payload's per-item
 	// from_parent tag. Only the fallback path is labeled; the explicit
 	// --parent route (fetchShow) stays byte-identical to a direct parent
@@ -99,7 +99,7 @@ func describeErrorBody(body []byte) string {
 
 // dispatchShow runs `engram show` against the local vault, then — only on a
 // not-found miss with ENGRAM_PARENT configured — falls back to the parent
-// and labels the result as parent-sourced (vault-merged-recall D8: "Local
+// and labels the result as parent-sourced (792a21 D8: "Local
 // miss falls back to the parent"). Callers reach this only after ruling out
 // an explicit --parent, which takes precedence and never falls through
 // here. A local hit, or any error other than a miss

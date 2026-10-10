@@ -52,7 +52,7 @@ func hasProvenance(item queryItem, role string) bool {
 }
 
 // mergeQueryPayloads combines a local and parent queryPayload into one
-// merged payload (vault-merged-recall, design D9):
+// merged payload (792a21, design D9):
 //  1. every parent chunk item is dropped, including the parent's recency
 //     channel (Q1);
 //  2. parent notes that match a live local note are deduped, keeping the
@@ -195,7 +195,7 @@ func runLocalQueryPayload(ctx context.Context, deps Deps, args QueryArgs) (query
 }
 
 // runMergedQuery orchestrates ENGRAM_PARENT-gated local+parent query fusion
-// (vault-merged-recall, design D9). It degrades to an ordinary local-only
+// (792a21, design D9). It degrades to an ordinary local-only
 // RunQuery (no merge, no drain) when the parent is backed off, is this
 // vault itself (the self-parent guard, checked on the cached ID before the
 // request and on the reported ID after it), or fails — the last with a

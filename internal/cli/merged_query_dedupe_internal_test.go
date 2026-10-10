@@ -13,10 +13,54 @@ import (
 	"pgregory.net/rapid"
 )
 
-// TestDedupeProperty_NeverBothLiveLocalAndMatchedParent: whatever the local
+// Test792b37c5a1_MergeQueryPayloads_DropsParentChunks: every parent chunk item is
+// dropped, including the parent's recency channel (Q1); parent notes and
+// local chunks stay.
+func Test792b37c5a1_MergeQueryPayloads_DropsParentChunks(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	merged := mergeQueryPayloads(
+		queryPayload{ModelID: testLocalModel, Items: []queryItem{
+			{Path: "local-chunk", Kind: chunkItemKind, Score: 0.4, Provenances: []string{provenanceDirect}},
+			{Path: "local-recent", Kind: chunkItemKind, Provenances: []string{provenanceRecent}},
+		}},
+		queryPayload{ModelID: testParentModel, Items: []queryItem{
+			{Path: "parent-chunk", Kind: chunkItemKind, Score: 0.9, Provenances: []string{provenanceDirect}},
+			{Path: "parent-recent", Kind: chunkItemKind, Provenances: []string{provenanceRecent}},
+			{Path: "parent-note.md", Kind: typeFact, Score: 0.5, Provenances: []string{provenanceDirect}},
+		}},
+		nil, QueryArgs{})
+
+	g.Expect(itemPaths(merged.Items)).To(Equal([]string{"parent-note.md", "local-chunk", "local-recent"}))
+}
+
+// Test792b37c6a10_MergeQueryPayloads_StripsDedupeKeys: exchange_hash and aliases never
+// reach the merged payload, and neither does the parent's vault_id.
+func Test792b37c6a10_MergeQueryPayloads_StripsDedupeKeys(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	merged := mergeQueryPayloads(
+		queryPayload{ModelID: testLocalModel},
+		queryPayload{ModelID: testParentModel, VaultID: testParentVaultID, Items: []queryItem{
+			{
+				Path: "900.parent.md", Kind: typeFact, Score: 0.6, Provenances: []string{provenanceDirect},
+				ExchangeHash: "xh1:abc", Aliases: []string{"12.old"},
+			},
+		}},
+		nil, QueryArgs{})
+
+	g.Expect(merged.VaultID).To(BeEmpty())
+	g.Expect(merged.Items).To(HaveLen(1))
+	g.Expect(merged.Items[0].ExchangeHash).To(BeEmpty())
+	g.Expect(merged.Items[0].Aliases).To(BeNil())
+}
+
+// Test792b37c6a11_DedupeProperty_NeverBothLiveLocalAndMatchedParent: whatever the local
 // notes and parent items, the merged output never holds a live local note
-// together with a parent item that note matches (vault-merged-recall).
-func TestDedupeProperty_NeverBothLiveLocalAndMatchedParent(t *testing.T) {
+// together with a parent item that note matches (792a21).
+func Test792b37c6a11_DedupeProperty_NeverBothLiveLocalAndMatchedParent(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -60,9 +104,68 @@ func TestDedupeProperty_NeverBothLiveLocalAndMatchedParent(t *testing.T) {
 	})
 }
 
-// TestMergeQueryPayloads_AliasLinkDedupes: L links basename O, and the
+// Test792b37c6a12_ScanDedupeNotes_ScanFailureWarnsAndMergesWithoutDedupe: a failed
+// local-notes scan warns and yields no dedupe candidates rather than
+// failing the read-only query.
+func Test792b37c6a12_ScanDedupeNotes_ScanFailureWarnsAndMergesWithoutDedupe(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var stderr bytes.Buffer
+
+	notes := scanDedupeNotes(Deps{FS: failingListFS{}, Stderr: &stderr}, "/vault")
+
+	g.Expect(notes).To(BeNil())
+	g.Expect(stderr.String()).To(ContainSubstring("could not read local notes for dedupe"))
+}
+
+// Test792b37c6a1_MergeQueryPayloads_PrimaryLinkDedupes: a linked note that ranked
+// locally appears once, as the local copy.
+func Test792b37c6a1_MergeQueryPayloads_PrimaryLinkDedupes(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	local := dedupeNote(t, "5.local", linkFrontmatter(testParentVaultID, "900.parent", "offered"), "body")
+
+	merged := mergeQueryPayloads(
+		queryPayload{ModelID: testLocalModel, Items: []queryItem{
+			{Path: "5.local.md", Kind: typeFact, Score: 0.5, Provenances: []string{provenanceDirect}},
+		}},
+		queryPayload{ModelID: testParentModel, VaultID: testParentVaultID, Items: []queryItem{
+			{Path: "900.parent.md", Kind: typeFact, Score: 0.6, Provenances: []string{provenanceDirect}},
+		}},
+		[]exchangeNote{local}, QueryArgs{})
+
+	g.Expect(merged.Items).To(HaveLen(1))
+	g.Expect(merged.Items[0].Path).To(Equal("5.local.md"))
+	g.Expect(merged.Items[0].FromParent).To(HaveValue(BeFalse()))
+}
+
+// Test792b37c6a2_MergeQueryPayloads_CoveredLinkDedupes: a covered link dedupes a
+// second parent note, and L appears once.
+func Test792b37c6a2_MergeQueryPayloads_CoveredLinkDedupes(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	frontmatter := "parent:\n    vault: " + testParentVaultID + "\n    links:\n" +
+		"        - note: 1100.primary\n          via: offered\n" +
+		"        - note: 812.covered\n          via: covered\n"
+	local := dedupeNote(t, "5.local", frontmatter, "body")
+
+	merged := mergeQueryPayloads(
+		queryPayload{ModelID: testLocalModel},
+		queryPayload{ModelID: testParentModel, VaultID: testParentVaultID, Items: []queryItem{
+			{Path: "1100.primary.md", Kind: typeFact, Score: 0.7, Provenances: []string{provenanceDirect}},
+			{Path: "812.covered.md", Kind: typeFact, Score: 0.6, Provenances: []string{provenanceDirect}},
+		}},
+		[]exchangeNote{local}, QueryArgs{})
+
+	g.Expect(itemPaths(merged.Items)).To(Equal([]string{"5.local.md"}))
+}
+
+// Test792b37c6a3_MergeQueryPayloads_AliasLinkDedupes: L links basename O, and the
 // parent's note E lists O among its aliases — E is dropped, L kept.
-func TestMergeQueryPayloads_AliasLinkDedupes(t *testing.T) {
+func Test792b37c6a3_MergeQueryPayloads_AliasLinkDedupes(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -83,85 +186,162 @@ func TestMergeQueryPayloads_AliasLinkDedupes(t *testing.T) {
 	g.Expect(itemPaths(merged.Items)).To(Equal([]string{"5.local.md"}))
 }
 
-// TestMergeQueryPayloads_BudgetBlockReportsMergeValues: the budget block
-// carries the values the merge applied (#743).
-func TestMergeQueryPayloads_BudgetBlockReportsMergeValues(t *testing.T) {
+// Test792b37c6a4_MergeQueryPayloads_EqualHashDedupes: an unlinked live local note
+// whose exchange hash equals the parent item's is the same note.
+func Test792b37c6a4_MergeQueryPayloads_EqualHashDedupes(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	long := "line one\n" + strings.Repeat("x", 300)
-
-	merged := mergeQueryPayloads(
-		queryPayload{
-			ModelID: testLocalModel,
-			Budget:  queryBudget{ExploreAllocated: map[string]int{"term-a": 2, "term-b": 1}},
-			Items: []queryItem{
-				{Path: "c1", Kind: chunkItemKind, Score: 0.9, Provenances: []string{provenanceDirect}, Content: long},
-				{Path: "c2", Kind: chunkItemKind, Score: 0.8, Provenances: []string{provenanceDirect}, Content: long},
-				{Path: "c3", Kind: chunkItemKind, Score: 0.7, Provenances: []string{provenanceDirect}, Content: long},
-			},
-		},
-		queryPayload{
-			ModelID: testParentModel,
-			Budget:  queryBudget{ExploreAllocated: map[string]int{"term-a": 3, "term-c": 4}},
-		},
-		nil, QueryArgs{Limit: 5, ContentBudget: 2})
-
-	g.Expect(merged.Budget.Limit).To(Equal(5))
-	g.Expect(merged.Budget.ContentBudget).To(Equal(2))
-	g.Expect(merged.Budget.LazyChunks).To(BeFalse())
-	g.Expect(merged.Budget.ChunksSnippeted).To(Equal(1))
-	g.Expect(merged.Budget.ExploreAllocated).To(Equal(map[string]int{"term-a": 5, "term-b": 1, "term-c": 4}))
-}
-
-// TestMergeQueryPayloads_BudgetBlockUnderLazyChunks mirrors the spec
-// scenario `--limit 5 --content-budget 2 --lazy-chunks`: lazy mode clears
-// chunk content, so nothing is snippeted, and the block says so.
-func TestMergeQueryPayloads_BudgetBlockUnderLazyChunks(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
+	local := dedupeNote(t, "5.local", "", "shared body")
 
 	merged := mergeQueryPayloads(
 		queryPayload{ModelID: testLocalModel, Items: []queryItem{
-			{Path: "c1", Kind: chunkItemKind, Score: 0.9, Provenances: []string{provenanceDirect}, Content: "text"},
+			{Path: "5.local.md", Kind: typeFact, Score: 0.5, Provenances: []string{provenanceDirect}},
 		}},
-		queryPayload{ModelID: testParentModel},
-		nil, QueryArgs{Limit: 5, ContentBudget: 2, LazyChunks: true})
-
-	g.Expect(merged.Budget.Limit).To(Equal(5))
-	g.Expect(merged.Budget.ContentBudget).To(Equal(2))
-	g.Expect(merged.Budget.LazyChunks).To(BeTrue())
-	g.Expect(merged.Budget.ChunksSnippeted).To(BeZero())
-	g.Expect(merged.Budget.ExploreAllocated).NotTo(BeNil())
-	g.Expect(merged.Items[0].Content).To(BeEmpty())
-}
-
-// TestMergeQueryPayloads_CoveredLinkDedupes: a covered link dedupes a
-// second parent note, and L appears once.
-func TestMergeQueryPayloads_CoveredLinkDedupes(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	frontmatter := "parent:\n    vault: " + testParentVaultID + "\n    links:\n" +
-		"        - note: 1100.primary\n          via: offered\n" +
-		"        - note: 812.covered\n          via: covered\n"
-	local := dedupeNote(t, "5.local", frontmatter, "body")
-
-	merged := mergeQueryPayloads(
-		queryPayload{ModelID: testLocalModel},
 		queryPayload{ModelID: testParentModel, VaultID: testParentVaultID, Items: []queryItem{
-			{Path: "1100.primary.md", Kind: typeFact, Score: 0.7, Provenances: []string{provenanceDirect}},
-			{Path: "812.covered.md", Kind: typeFact, Score: 0.6, Provenances: []string{provenanceDirect}},
+			{
+				Path: "900.parent.md", Kind: typeFact, Score: 0.6, Provenances: []string{provenanceDirect},
+				ExchangeHash: mustExchangeHash(t, local.raw),
+			},
 		}},
 		[]exchangeNote{local}, QueryArgs{})
 
 	g.Expect(itemPaths(merged.Items)).To(Equal([]string{"5.local.md"}))
 }
 
-// TestMergeQueryPayloads_DirectBeforeExplore: explore picks never crowd
+// Test792b37c6a5_MergeQueryPayloads_PendingLocalCopyDoesNotSuppress: a pending
+// pulled copy never hides the parent note it copies.
+func Test792b37c6a5_MergeQueryPayloads_PendingLocalCopyDoesNotSuppress(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	frontmatter := linkFrontmatter(testParentVaultID, "900.parent", "pulled") + "pending: true\n"
+	pendingCopy := dedupeNote(t, "5.pulled", frontmatter, "body")
+
+	merged := mergeQueryPayloads(
+		queryPayload{ModelID: testLocalModel},
+		queryPayload{ModelID: testParentModel, VaultID: testParentVaultID, Items: []queryItem{
+			{
+				Path: "900.parent.md", Kind: typeFact, Score: 0.6, Provenances: []string{provenanceDirect},
+				ExchangeHash: mustExchangeHash(t, pendingCopy.raw),
+			},
+		}},
+		[]exchangeNote{pendingCopy}, QueryArgs{})
+
+	g.Expect(merged.Items).To(HaveLen(1))
+	g.Expect(merged.Items[0].Path).To(Equal("900.parent.md"))
+	g.Expect(merged.Items[0].FromParent).To(HaveValue(BeTrue()))
+}
+
+// Test792b37c6a6_MergeQueryPayloads_SubstitutesUnrankedLocalCopy: P matches L, and L
+// did not rank locally — L takes P's place with exactly the M4 fields.
+func Test792b37c6a6_MergeQueryPayloads_SubstitutesUnrankedLocalCopy(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	local := dedupeNote(t, "5.local", linkFrontmatter(testParentVaultID, "900.parent", "offered"),
+		"see [[7.other]] for more")
+	clusterID := 3
+
+	merged := mergeQueryPayloads(
+		queryPayload{ModelID: testLocalModel, Items: []queryItem{
+			{Path: "8.ranked.md", Kind: typeFact, Score: 0.7, Provenances: []string{provenanceDirect}},
+			{Path: "9.ranked.md", Kind: typeFact, Score: 0.3, Provenances: []string{provenanceDirect}},
+		}},
+		queryPayload{ModelID: testParentModel, VaultID: testParentVaultID, Items: []queryItem{
+			{
+				Path: "900.parent.md", Kind: typeFeedback, Score: 0.6, ClusterID: &clusterID,
+				Provenances: []string{provenanceDirect, provenanceClusterRep}, SourceTerm: "ignored",
+				Content: "parent content", ExchangeHash: "xh1:other", Aliases: []string{"1.a"},
+			},
+		}},
+		[]exchangeNote{local}, QueryArgs{})
+
+	g.Expect(itemPaths(merged.Items)).To(Equal([]string{"8.ranked.md", "5.local.md", "9.ranked.md"}))
+	g.Expect(merged.Items[1]).To(Equal(queryItem{
+		Path:        "5.local.md",
+		Kind:        typeFact,
+		Score:       0.6,
+		Provenances: []string{provenanceDirect, provenanceClusterRep},
+		Content:     capRedFlagsForPreview(stripWikilinks(string(local.raw)), local.basename),
+		ModelID:     testLocalModel,
+		FromParent:  new(false),
+	}))
+}
+
+// Test792b37c6a7_MergeQueryPayloads_SubstitutesExploreKeepsSourceTerm: a substituted
+// explore pick keeps P's source_term and renders L as an explore pick does.
+func Test792b37c6a7_MergeQueryPayloads_SubstitutesExploreKeepsSourceTerm(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	local := dedupeNote(t, "5.local", linkFrontmatter(testParentVaultID, "900.parent", "offered"),
+		"see [[7.other]] for more")
+
+	merged := mergeQueryPayloads(
+		queryPayload{ModelID: testLocalModel},
+		queryPayload{ModelID: testParentModel, VaultID: testParentVaultID, Items: []queryItem{
+			{
+				Path: "900.parent.md", Kind: typeFact, Score: 0.8,
+				Provenances: []string{provenanceExplore}, SourceTerm: "vocab/term",
+			},
+		}},
+		[]exchangeNote{local}, QueryArgs{})
+
+	g.Expect(merged.Items).To(HaveLen(1))
+	g.Expect(merged.Items[0].SourceTerm).To(Equal("vocab/term"))
+	g.Expect(merged.Items[0].Content).To(Equal(stripWikilinks(string(local.raw))))
+}
+
+// Test792b37c6a8_MergeQueryPayloads_NearDuplicatesLeftAlone: different content and no
+// link — both appear; the query never judges similarity.
+func Test792b37c6a8_MergeQueryPayloads_NearDuplicatesLeftAlone(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	local := dedupeNote(t, "5.local", "", "almost the same body")
+	other := dedupeNote(t, "6.other", "", "almost the same body!")
+
+	merged := mergeQueryPayloads(
+		queryPayload{ModelID: testLocalModel, Items: []queryItem{
+			{Path: "5.local.md", Kind: typeFact, Score: 0.5, Provenances: []string{provenanceDirect}},
+		}},
+		queryPayload{ModelID: testParentModel, VaultID: testParentVaultID, Items: []queryItem{
+			{
+				Path: "900.parent.md", Kind: typeFact, Score: 0.6, Provenances: []string{provenanceDirect},
+				ExchangeHash: mustExchangeHash(t, other.raw),
+			},
+		}},
+		[]exchangeNote{local}, QueryArgs{})
+
+	g.Expect(itemPaths(merged.Items)).To(Equal([]string{"900.parent.md", "5.local.md"}))
+}
+
+// Test792b37c6a9_MergeQueryPayloads_LinkUnderOtherVaultIgnored: a link recorded under
+// a vault ID other than the one the parent reported in this query never
+// dedupes (S16).
+func Test792b37c6a9_MergeQueryPayloads_LinkUnderOtherVaultIgnored(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	local := dedupeNote(t, "5.local", linkFrontmatter(testOtherVaultID, "900.parent", "offered"), "body")
+
+	merged := mergeQueryPayloads(
+		queryPayload{ModelID: testLocalModel, Items: []queryItem{
+			{Path: "5.local.md", Kind: typeFact, Score: 0.5, Provenances: []string{provenanceDirect}},
+		}},
+		queryPayload{ModelID: testParentModel, VaultID: testParentVaultID, Items: []queryItem{
+			{Path: "900.parent.md", Kind: typeFact, Score: 0.6, Provenances: []string{provenanceDirect}},
+		}},
+		[]exchangeNote{local}, QueryArgs{})
+
+	g.Expect(itemPaths(merged.Items)).To(Equal([]string{"900.parent.md", "5.local.md"}))
+}
+
+// Test792b37c7a3_MergeQueryPayloads_DirectBeforeExplore: explore picks never crowd
 // out direct matches under --limit (#744, spec scenario: 12 explore picks
 // at 0.8–0.9, 15 direct items at 0.5–0.7, --limit 10).
-func TestMergeQueryPayloads_DirectBeforeExplore(t *testing.T) {
+func Test792b37c7a3_MergeQueryPayloads_DirectBeforeExplore(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -207,56 +387,57 @@ func TestMergeQueryPayloads_DirectBeforeExplore(t *testing.T) {
 	}
 }
 
-// TestMergeQueryPayloads_DropsParentChunks: every parent chunk item is
-// dropped, including the parent's recency channel (Q1); parent notes and
-// local chunks stay.
-func TestMergeQueryPayloads_DropsParentChunks(t *testing.T) {
+// Test792b37c7a5_MergeQueryPayloads_NoteFloorSurvivesCap is the spec scenario: 5
+// direct chunks at 0.9 and 3 direct notes at 0.5 under --limit 5 keep all
+// 3 notes and the 2 highest-scoring chunks, in score order (M3).
+func Test792b37c7a5_MergeQueryPayloads_NoteFloorSurvivesCap(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	localItems := []queryItem{
+		{Path: "c1", Kind: chunkItemKind, Score: 0.95, Provenances: []string{provenanceDirect}},
+		{Path: "c2", Kind: chunkItemKind, Score: 0.94, Provenances: []string{provenanceDirect}},
+		{Path: "c3", Kind: chunkItemKind, Score: 0.93, Provenances: []string{provenanceDirect}},
+		{Path: "c4", Kind: chunkItemKind, Score: 0.92, Provenances: []string{provenanceDirect}},
+		{Path: "c5", Kind: chunkItemKind, Score: 0.91, Provenances: []string{provenanceDirect}},
+		{Path: "n1.md", Kind: typeFact, Score: 0.5, Provenances: []string{provenanceDirect}},
+	}
+	parentItems := []queryItem{
+		{Path: "n2.md", Kind: typeFeedback, Score: 0.49, Provenances: []string{provenanceDirect}},
+		{Path: "n3.md", Kind: typeRunbook, Score: 0.48, Provenances: []string{provenanceDirect}},
+	}
+
+	merged := mergeQueryPayloads(
+		queryPayload{ModelID: testLocalModel, Items: localItems},
+		queryPayload{ModelID: testParentModel, Items: parentItems},
+		nil, QueryArgs{Limit: 5})
+
+	g.Expect(itemPaths(merged.Items)).To(Equal([]string{"c1", "c2", "n1.md", "n2.md", "n3.md"}))
+}
+
+// Test792b37c7a6_MergeQueryPayloads_NoteFloorSkipsLowScoringNotes: a direct note
+// below the 0.25 relevance floor is not promoted.
+func Test792b37c7a6_MergeQueryPayloads_NoteFloorSkipsLowScoringNotes(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	merged := mergeQueryPayloads(
 		queryPayload{ModelID: testLocalModel, Items: []queryItem{
-			{Path: "local-chunk", Kind: chunkItemKind, Score: 0.4, Provenances: []string{provenanceDirect}},
-			{Path: "local-recent", Kind: chunkItemKind, Provenances: []string{provenanceRecent}},
+			{Path: "c1", Kind: chunkItemKind, Score: 0.9, Provenances: []string{provenanceDirect}},
+			{Path: "c2", Kind: chunkItemKind, Score: 0.8, Provenances: []string{provenanceDirect}},
+			{Path: "low.md", Kind: typeFact, Score: 0.2, Provenances: []string{provenanceDirect}},
 		}},
-		queryPayload{ModelID: testParentModel, Items: []queryItem{
-			{Path: "parent-chunk", Kind: chunkItemKind, Score: 0.9, Provenances: []string{provenanceDirect}},
-			{Path: "parent-recent", Kind: chunkItemKind, Provenances: []string{provenanceRecent}},
-			{Path: "parent-note.md", Kind: typeFact, Score: 0.5, Provenances: []string{provenanceDirect}},
-		}},
-		nil, QueryArgs{})
+		queryPayload{ModelID: testParentModel},
+		nil, QueryArgs{Limit: 2})
 
-	g.Expect(itemPaths(merged.Items)).To(Equal([]string{"parent-note.md", "local-chunk", "local-recent"}))
+	g.Expect(itemPaths(merged.Items)).To(Equal([]string{"c1", "c2"}))
 }
 
-// TestMergeQueryPayloads_EqualHashDedupes: an unlinked live local note
-// whose exchange hash equals the parent item's is the same note.
-func TestMergeQueryPayloads_EqualHashDedupes(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	local := dedupeNote(t, "5.local", "", "shared body")
-
-	merged := mergeQueryPayloads(
-		queryPayload{ModelID: testLocalModel, Items: []queryItem{
-			{Path: "5.local.md", Kind: typeFact, Score: 0.5, Provenances: []string{provenanceDirect}},
-		}},
-		queryPayload{ModelID: testParentModel, VaultID: testParentVaultID, Items: []queryItem{
-			{
-				Path: "900.parent.md", Kind: typeFact, Score: 0.6, Provenances: []string{provenanceDirect},
-				ExchangeHash: mustExchangeHash(t, local.raw),
-			},
-		}},
-		[]exchangeNote{local}, QueryArgs{})
-
-	g.Expect(itemPaths(merged.Items)).To(Equal([]string{"5.local.md"}))
-}
-
-// TestMergeQueryPayloads_FloorOnIssueShape: the #744 reproduction shape —
+// Test792b37c7a7_MergeQueryPayloads_FloorOnIssueShape: the #744 reproduction shape —
 // 10 phrases' worth of direct notes and chunks, explore picks at 0.75–0.89
 // — delivers direct items first and keeps the note floor under the default
 // --limit.
-func TestMergeQueryPayloads_FloorOnIssueShape(t *testing.T) {
+func Test792b37c7a7_MergeQueryPayloads_FloorOnIssueShape(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -320,100 +501,9 @@ func TestMergeQueryPayloads_FloorOnIssueShape(t *testing.T) {
 	g.Expect(scoresDescending(merged.Items)).To(BeTrue())
 }
 
-// TestMergeQueryPayloads_LinkUnderOtherVaultIgnored: a link recorded under
-// a vault ID other than the one the parent reported in this query never
-// dedupes (S16).
-func TestMergeQueryPayloads_LinkUnderOtherVaultIgnored(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	local := dedupeNote(t, "5.local", linkFrontmatter(testOtherVaultID, "900.parent", "offered"), "body")
-
-	merged := mergeQueryPayloads(
-		queryPayload{ModelID: testLocalModel, Items: []queryItem{
-			{Path: "5.local.md", Kind: typeFact, Score: 0.5, Provenances: []string{provenanceDirect}},
-		}},
-		queryPayload{ModelID: testParentModel, VaultID: testParentVaultID, Items: []queryItem{
-			{Path: "900.parent.md", Kind: typeFact, Score: 0.6, Provenances: []string{provenanceDirect}},
-		}},
-		[]exchangeNote{local}, QueryArgs{})
-
-	g.Expect(itemPaths(merged.Items)).To(Equal([]string{"900.parent.md", "5.local.md"}))
-}
-
-// TestMergeQueryPayloads_NearDuplicatesLeftAlone: different content and no
-// link — both appear; the query never judges similarity.
-func TestMergeQueryPayloads_NearDuplicatesLeftAlone(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	local := dedupeNote(t, "5.local", "", "almost the same body")
-	other := dedupeNote(t, "6.other", "", "almost the same body!")
-
-	merged := mergeQueryPayloads(
-		queryPayload{ModelID: testLocalModel, Items: []queryItem{
-			{Path: "5.local.md", Kind: typeFact, Score: 0.5, Provenances: []string{provenanceDirect}},
-		}},
-		queryPayload{ModelID: testParentModel, VaultID: testParentVaultID, Items: []queryItem{
-			{
-				Path: "900.parent.md", Kind: typeFact, Score: 0.6, Provenances: []string{provenanceDirect},
-				ExchangeHash: mustExchangeHash(t, other.raw),
-			},
-		}},
-		[]exchangeNote{local}, QueryArgs{})
-
-	g.Expect(itemPaths(merged.Items)).To(Equal([]string{"900.parent.md", "5.local.md"}))
-}
-
-// TestMergeQueryPayloads_NoteFloorSkipsLowScoringNotes: a direct note
-// below the 0.25 relevance floor is not promoted.
-func TestMergeQueryPayloads_NoteFloorSkipsLowScoringNotes(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	merged := mergeQueryPayloads(
-		queryPayload{ModelID: testLocalModel, Items: []queryItem{
-			{Path: "c1", Kind: chunkItemKind, Score: 0.9, Provenances: []string{provenanceDirect}},
-			{Path: "c2", Kind: chunkItemKind, Score: 0.8, Provenances: []string{provenanceDirect}},
-			{Path: "low.md", Kind: typeFact, Score: 0.2, Provenances: []string{provenanceDirect}},
-		}},
-		queryPayload{ModelID: testParentModel},
-		nil, QueryArgs{Limit: 2})
-
-	g.Expect(itemPaths(merged.Items)).To(Equal([]string{"c1", "c2"}))
-}
-
-// TestMergeQueryPayloads_NoteFloorSurvivesCap is the spec scenario: 5
-// direct chunks at 0.9 and 3 direct notes at 0.5 under --limit 5 keep all
-// 3 notes and the 2 highest-scoring chunks, in score order (M3).
-func TestMergeQueryPayloads_NoteFloorSurvivesCap(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	localItems := []queryItem{
-		{Path: "c1", Kind: chunkItemKind, Score: 0.95, Provenances: []string{provenanceDirect}},
-		{Path: "c2", Kind: chunkItemKind, Score: 0.94, Provenances: []string{provenanceDirect}},
-		{Path: "c3", Kind: chunkItemKind, Score: 0.93, Provenances: []string{provenanceDirect}},
-		{Path: "c4", Kind: chunkItemKind, Score: 0.92, Provenances: []string{provenanceDirect}},
-		{Path: "c5", Kind: chunkItemKind, Score: 0.91, Provenances: []string{provenanceDirect}},
-		{Path: "n1.md", Kind: typeFact, Score: 0.5, Provenances: []string{provenanceDirect}},
-	}
-	parentItems := []queryItem{
-		{Path: "n2.md", Kind: typeFeedback, Score: 0.49, Provenances: []string{provenanceDirect}},
-		{Path: "n3.md", Kind: typeRunbook, Score: 0.48, Provenances: []string{provenanceDirect}},
-	}
-
-	merged := mergeQueryPayloads(
-		queryPayload{ModelID: testLocalModel, Items: localItems},
-		queryPayload{ModelID: testParentModel, Items: parentItems},
-		nil, QueryArgs{Limit: 5})
-
-	g.Expect(itemPaths(merged.Items)).To(Equal([]string{"c1", "c2", "n1.md", "n2.md", "n3.md"}))
-}
-
-// TestMergeQueryPayloads_PendingHintIsLocalOnly: the parent's pending flag
+// Test792b37c9a4_MergeQueryPayloads_PendingHintIsLocalOnly: the parent's pending flag
 // is ignored; only local pending offers raise the hint (H4).
-func TestMergeQueryPayloads_PendingHintIsLocalOnly(t *testing.T) {
+func Test792b37c9a4_MergeQueryPayloads_PendingHintIsLocalOnly(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -427,147 +517,57 @@ func TestMergeQueryPayloads_PendingHintIsLocalOnly(t *testing.T) {
 	g.Expect(fromLocal.PendingOffersHint).To(Equal(pendingOfferCurateInstruction))
 }
 
-// TestMergeQueryPayloads_PendingLocalCopyDoesNotSuppress: a pending
-// pulled copy never hides the parent note it copies.
-func TestMergeQueryPayloads_PendingLocalCopyDoesNotSuppress(t *testing.T) {
+// Test792b37c9a6_MergeQueryPayloads_BudgetBlockReportsMergeValues: the budget block
+// carries the values the merge applied (#743).
+func Test792b37c9a6_MergeQueryPayloads_BudgetBlockReportsMergeValues(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	frontmatter := linkFrontmatter(testParentVaultID, "900.parent", "pulled") + "pending: true\n"
-	pendingCopy := dedupeNote(t, "5.pulled", frontmatter, "body")
+	long := "line one\n" + strings.Repeat("x", 300)
 
 	merged := mergeQueryPayloads(
-		queryPayload{ModelID: testLocalModel},
-		queryPayload{ModelID: testParentModel, VaultID: testParentVaultID, Items: []queryItem{
-			{
-				Path: "900.parent.md", Kind: typeFact, Score: 0.6, Provenances: []string{provenanceDirect},
-				ExchangeHash: mustExchangeHash(t, pendingCopy.raw),
+		queryPayload{
+			ModelID: testLocalModel,
+			Budget:  queryBudget{ExploreAllocated: map[string]int{"term-a": 2, "term-b": 1}},
+			Items: []queryItem{
+				{Path: "c1", Kind: chunkItemKind, Score: 0.9, Provenances: []string{provenanceDirect}, Content: long},
+				{Path: "c2", Kind: chunkItemKind, Score: 0.8, Provenances: []string{provenanceDirect}, Content: long},
+				{Path: "c3", Kind: chunkItemKind, Score: 0.7, Provenances: []string{provenanceDirect}, Content: long},
 			},
-		}},
-		[]exchangeNote{pendingCopy}, QueryArgs{})
+		},
+		queryPayload{
+			ModelID: testParentModel,
+			Budget:  queryBudget{ExploreAllocated: map[string]int{"term-a": 3, "term-c": 4}},
+		},
+		nil, QueryArgs{Limit: 5, ContentBudget: 2})
 
-	g.Expect(merged.Items).To(HaveLen(1))
-	g.Expect(merged.Items[0].Path).To(Equal("900.parent.md"))
-	g.Expect(merged.Items[0].FromParent).To(HaveValue(BeTrue()))
+	g.Expect(merged.Budget.Limit).To(Equal(5))
+	g.Expect(merged.Budget.ContentBudget).To(Equal(2))
+	g.Expect(merged.Budget.LazyChunks).To(BeFalse())
+	g.Expect(merged.Budget.ChunksSnippeted).To(Equal(1))
+	g.Expect(merged.Budget.ExploreAllocated).To(Equal(map[string]int{"term-a": 5, "term-b": 1, "term-c": 4}))
 }
 
-// TestMergeQueryPayloads_PrimaryLinkDedupes: a linked note that ranked
-// locally appears once, as the local copy.
-func TestMergeQueryPayloads_PrimaryLinkDedupes(t *testing.T) {
+// Test792b37c9a7_MergeQueryPayloads_BudgetBlockUnderLazyChunks mirrors the spec
+// scenario `--limit 5 --content-budget 2 --lazy-chunks`: lazy mode clears
+// chunk content, so nothing is snippeted, and the block says so.
+func Test792b37c9a7_MergeQueryPayloads_BudgetBlockUnderLazyChunks(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
-
-	local := dedupeNote(t, "5.local", linkFrontmatter(testParentVaultID, "900.parent", "offered"), "body")
 
 	merged := mergeQueryPayloads(
 		queryPayload{ModelID: testLocalModel, Items: []queryItem{
-			{Path: "5.local.md", Kind: typeFact, Score: 0.5, Provenances: []string{provenanceDirect}},
+			{Path: "c1", Kind: chunkItemKind, Score: 0.9, Provenances: []string{provenanceDirect}, Content: "text"},
 		}},
-		queryPayload{ModelID: testParentModel, VaultID: testParentVaultID, Items: []queryItem{
-			{Path: "900.parent.md", Kind: typeFact, Score: 0.6, Provenances: []string{provenanceDirect}},
-		}},
-		[]exchangeNote{local}, QueryArgs{})
+		queryPayload{ModelID: testParentModel},
+		nil, QueryArgs{Limit: 5, ContentBudget: 2, LazyChunks: true})
 
-	g.Expect(merged.Items).To(HaveLen(1))
-	g.Expect(merged.Items[0].Path).To(Equal("5.local.md"))
-	g.Expect(merged.Items[0].FromParent).To(HaveValue(BeFalse()))
-}
-
-// TestMergeQueryPayloads_StripsDedupeKeys: exchange_hash and aliases never
-// reach the merged payload, and neither does the parent's vault_id.
-func TestMergeQueryPayloads_StripsDedupeKeys(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	merged := mergeQueryPayloads(
-		queryPayload{ModelID: testLocalModel},
-		queryPayload{ModelID: testParentModel, VaultID: testParentVaultID, Items: []queryItem{
-			{
-				Path: "900.parent.md", Kind: typeFact, Score: 0.6, Provenances: []string{provenanceDirect},
-				ExchangeHash: "xh1:abc", Aliases: []string{"12.old"},
-			},
-		}},
-		nil, QueryArgs{})
-
-	g.Expect(merged.VaultID).To(BeEmpty())
-	g.Expect(merged.Items).To(HaveLen(1))
-	g.Expect(merged.Items[0].ExchangeHash).To(BeEmpty())
-	g.Expect(merged.Items[0].Aliases).To(BeNil())
-}
-
-// TestMergeQueryPayloads_SubstitutesExploreKeepsSourceTerm: a substituted
-// explore pick keeps P's source_term and renders L as an explore pick does.
-func TestMergeQueryPayloads_SubstitutesExploreKeepsSourceTerm(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	local := dedupeNote(t, "5.local", linkFrontmatter(testParentVaultID, "900.parent", "offered"),
-		"see [[7.other]] for more")
-
-	merged := mergeQueryPayloads(
-		queryPayload{ModelID: testLocalModel},
-		queryPayload{ModelID: testParentModel, VaultID: testParentVaultID, Items: []queryItem{
-			{
-				Path: "900.parent.md", Kind: typeFact, Score: 0.8,
-				Provenances: []string{provenanceExplore}, SourceTerm: "vocab/term",
-			},
-		}},
-		[]exchangeNote{local}, QueryArgs{})
-
-	g.Expect(merged.Items).To(HaveLen(1))
-	g.Expect(merged.Items[0].SourceTerm).To(Equal("vocab/term"))
-	g.Expect(merged.Items[0].Content).To(Equal(stripWikilinks(string(local.raw))))
-}
-
-// TestMergeQueryPayloads_SubstitutesUnrankedLocalCopy: P matches L, and L
-// did not rank locally — L takes P's place with exactly the M4 fields.
-func TestMergeQueryPayloads_SubstitutesUnrankedLocalCopy(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	local := dedupeNote(t, "5.local", linkFrontmatter(testParentVaultID, "900.parent", "offered"),
-		"see [[7.other]] for more")
-	clusterID := 3
-
-	merged := mergeQueryPayloads(
-		queryPayload{ModelID: testLocalModel, Items: []queryItem{
-			{Path: "8.ranked.md", Kind: typeFact, Score: 0.7, Provenances: []string{provenanceDirect}},
-			{Path: "9.ranked.md", Kind: typeFact, Score: 0.3, Provenances: []string{provenanceDirect}},
-		}},
-		queryPayload{ModelID: testParentModel, VaultID: testParentVaultID, Items: []queryItem{
-			{
-				Path: "900.parent.md", Kind: typeFeedback, Score: 0.6, ClusterID: &clusterID,
-				Provenances: []string{provenanceDirect, provenanceClusterRep}, SourceTerm: "ignored",
-				Content: "parent content", ExchangeHash: "xh1:other", Aliases: []string{"1.a"},
-			},
-		}},
-		[]exchangeNote{local}, QueryArgs{})
-
-	g.Expect(itemPaths(merged.Items)).To(Equal([]string{"8.ranked.md", "5.local.md", "9.ranked.md"}))
-	g.Expect(merged.Items[1]).To(Equal(queryItem{
-		Path:        "5.local.md",
-		Kind:        typeFact,
-		Score:       0.6,
-		Provenances: []string{provenanceDirect, provenanceClusterRep},
-		Content:     capRedFlagsForPreview(stripWikilinks(string(local.raw)), local.basename),
-		ModelID:     testLocalModel,
-		FromParent:  new(false),
-	}))
-}
-
-// TestScanDedupeNotes_ScanFailureWarnsAndMergesWithoutDedupe: a failed
-// local-notes scan warns and yields no dedupe candidates rather than
-// failing the read-only query.
-func TestScanDedupeNotes_ScanFailureWarnsAndMergesWithoutDedupe(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var stderr bytes.Buffer
-
-	notes := scanDedupeNotes(Deps{FS: failingListFS{}, Stderr: &stderr}, "/vault")
-
-	g.Expect(notes).To(BeNil())
-	g.Expect(stderr.String()).To(ContainSubstring("could not read local notes for dedupe"))
+	g.Expect(merged.Budget.Limit).To(Equal(5))
+	g.Expect(merged.Budget.ContentBudget).To(Equal(2))
+	g.Expect(merged.Budget.LazyChunks).To(BeTrue())
+	g.Expect(merged.Budget.ChunksSnippeted).To(BeZero())
+	g.Expect(merged.Budget.ExploreAllocated).NotTo(BeNil())
+	g.Expect(merged.Items[0].Content).To(BeEmpty())
 }
 
 // unexported constants.
