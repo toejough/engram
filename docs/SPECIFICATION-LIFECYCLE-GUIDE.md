@@ -31,6 +31,10 @@ canonical truth as one or more explicit operations:
 
 Renames and relocations of addressable nodes are modifications, not removal followed by addition.
 
+A node that a change placed under the wrong parent, before that change is integrated, was misnumbered
+rather than relocated: give it an ID beneath its correct parent. The misplaced ID was never
+canonical, so it is not reserved. Relocating an integrated node keeps its ID.
+
 A materially new addressable requirement or scenario MUST receive a new ID. Existing addressable
 IDs MUST remain stable through modification, promotion, rename, and relocation. Removed IDs MUST
 NOT be reused.
