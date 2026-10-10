@@ -30,7 +30,8 @@ exchanging notes under another vault's name. The chunk-only commands `prune`, `q
 
 Requirement: [792a2a Vault location](#792a2a-vault-location) Engram MUST use, as the vault path, the first of these that is set: the
 `--vault` flag, the `ENGRAM_VAULT_PATH` environment variable, `$XDG_DATA_HOME/engram/vault`, and
-`~/.local/share/engram/vault`.
+`~/.local/share/engram/vault`. `engram update` defines no `--vault` flag and rejects one, so it
+takes its vault from the last three only.
 
 #### 792a2a1 UAT Scenarios
 
@@ -199,8 +200,9 @@ Scenario: 792a2g1a A half-created vault gets its ID
 
 Requirement: [792a2h Stable vault ID](#792a2h-stable-vault-id) Every vault MUST have a random vault ID of 32 lowercase hex characters in the
 tracked file `<vault>/.engram-vault-id`. A new vault gets it when it is created. An existing vault
-without one gets it only when `engram serve` starts on it or when a command first contacts a parent
-from it. The ID changes only through `engram vault-id --regenerate`.
+without one gets it only when `engram serve` starts on it, when a command with a parent configured
+first writes exchange state in it (contacting the parent, queueing an offer or recording a declined
+pull), or through `engram vault-id --regenerate`. The ID changes only through `engram vault-id --regenerate`.
 
 Rationale: links to a parent's notes are keyed by the parent's vault ID, never by URL, so a hostname
 or IP change breaks nothing. Lazy stamping keeps read-only use of an existing vault from creating a
@@ -438,7 +440,8 @@ Scenario: 792a2p1e A hostname change is not a false positive
 
 Requirement: [792a2q A vault does not exchange with itself](#792a2q-a-vault-does-not-exchange-with-itself) When a parent reports the same vault ID as the local vault, a command MUST NOT
 merge, offer or pull down, and MUST behave as if no parent were configured, apart from printing
-exactly one warning naming `engram vault-id --regenerate`.
+exactly one warning naming `engram vault-id --regenerate` and from still queueing offers for local
+writes, which stay unsent until the ID is regenerated, as in [792a2p Copied and cloned vaults pause exchange](#792a2p-copied-and-cloned-vaults-pause-exchange).
 
 Rationale: a child cloned from its parent whose location record was copied too, at a matching path,
 passes the location check ([792a2p Copied and cloned vaults pause exchange](#792a2p-copied-and-cloned-vaults-pause-exchange)); this guard catches it instead.

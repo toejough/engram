@@ -150,6 +150,7 @@ Requirement: [792b2c1 Vault path resolution](#792b2c1-vault-path-resolution) The
 when it is non-empty, else to `ENGRAM_VAULT_PATH` when it is non-empty, else to
 `$XDG_DATA_HOME/engram/vault` when `XDG_DATA_HOME` is non-empty, else to
 `$HOME/.local/share/engram/vault`, and MUST return that path without checking that it exists.
+`engram update` defines no `--vault` flag, so it resolves with an empty flag value.
 
 Supports: [792a2a1a The flag wins over the environment](./792a_product-spec.md#792a2a1-uat-scenarios), [792a2a1b The environment variable is used without a flag](./792a_product-spec.md#792a2a1-uat-scenarios), [792a2a1c The XDG data directory is the default](./792a_product-spec.md#792a2a1-uat-scenarios), [792a2a1d The home directory is the last fallback](./792a_product-spec.md#792a2a1-uat-scenarios), [792a6t1a Stats on an empty vault](./792a_product-spec.md#792a6t1-uat-scenarios).
 
@@ -1909,7 +1910,9 @@ Requirement: [792b5c4 Vault ID stamping](#792b5c4-vault-id-stamping) The vault-i
 `.engram-vault-id` exists, and otherwise MUST mint 16 bytes from the injected random source as 32
 lowercase hex characters, create the file exclusively, re-read it, and use whatever ID the file
 holds. Only the process whose exclusive create succeeded writes the location record. An existing
-vault is stamped only by `engram serve` at startup and by a command's first parent contact.
+vault is stamped only by `engram serve` at startup, by a command with a parent configured that first
+writes exchange state (parent contact, a queued offer or a recorded declined pull), and by
+regenerating ([792b5c9 Regenerate](#792b5c9-regenerate)).
 
 Supports: [792a2h1a serve stamps an existing vault](./792a_product-spec.md#792a2h1-uat-scenarios), [792a2h1b The first parent contact stamps an existing vault](./792a_product-spec.md#792a2h1-uat-scenarios), [792a2h1c Concurrent creation converges](./792a_product-spec.md#792a2h1-uat-scenarios).
 
