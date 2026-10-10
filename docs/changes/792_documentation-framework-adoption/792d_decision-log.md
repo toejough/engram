@@ -861,3 +861,24 @@ decisions as `792dN`, continuing the sequence.
   `[[note|display]]` and `[[note#heading]]` do not resolve to `note` in the graph, although note
   references (792b13c2) strip a `|display` part. Recorded for vault-counting and vault-health to
   describe, not resolved here (792d33).
+
+## 792d76 note-amendment scope and the tests it leaves
+
+- **Choice:** 792b14 specifies the locked read-modify-write of amend, resituate and activate: the
+  lock, amend's refusals, field replacement, supersessions and chunk sources, re-stamp gating and the
+  vault fill, the sidecar rebuild, CRLF revision, resituation, the last-used bump and local
+  activation refs. These stay for later nodes, with their tests unrenamed: the curation flags
+  (`TestDiscardNote_*`, `TestRunAmend_CRLFJudgedVersionUsesTheLFForm`,
+  `TestRunAmend_DiscardIntoConvertsCRLFExisting`, `TestRunAmend_ClearPendingKeepsOfferAuthor`) for
+  curate (792c7u1); the pulled-note decline (`TestRunAmend_DiscardRecordsDeclineOfCRLFPulledNote`)
+  for parent-sync (792c7t1); the vocabulary assignment after a revision
+  (`TestApplyVocabAssignmentAfterAmend_TriggerFires`, `TestApplyVocabAssignmentAfterResituate_*`,
+  `TestRunResituate_CallsVocabAssignment`) for controlled-vocabulary (792c7e1); the skill-hash
+  survival tests (`TestRunAmend_Runbook_PreservesSkillHash_*`) for skill-runbook-registration
+  (792c7k1); the supersession inverse used by query (`TestBuildSupersedesInverse`) for memory-query
+  (792c7f1); and the chunk-ID set read from the index (`TestBuildChunkIDSet_ReturnsSourceAnchorKeys`)
+  for chunk-index-store (792c7d5). The `amend` and `resituate` lock clauses of
+  `vault-concurrency-safe-writes` and the vault-lock helpers of its lock-free helper requirement are
+  ported; `writeManifestFile` stays for chunk-index-store.
+- **Rationale:** 792d51 and 792d63: a caller's ordering under the lock is the caller's requirement.
+- **Alternatives:** none considered.

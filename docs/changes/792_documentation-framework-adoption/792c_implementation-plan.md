@@ -213,8 +213,8 @@ flowchart TD
   N792c7b8["792c7b8 note-authoring tech spec<br/>Complete"]
   N792c7c1["792c7c1 note-revision product spec<br/>Complete"]
   N792c7c2["792c7c2 wikilink-graph tech spec<br/>Complete"]
-  N792c7c3["792c7c3 note-amendment tech spec<br/>Ready"]
-  N792c7d1["792c7d1 chunk-indexing product spec<br/>Blocked by: 792c7c3"]
+  N792c7c3["792c7c3 note-amendment tech spec<br/>Complete"]
+  N792c7d1["792c7d1 chunk-indexing product spec<br/>Ready"]
   N792c7d2["792c7d2 transcript-reader tech spec<br/>Blocked by: 792c7d1"]
   N792c7d3["792c7d3 source-chunking tech spec<br/>Blocked by: 792c7d2"]
   N792c7d4["792c7d4 ingestion-source-discovery tech spec<br/>Blocked by: 792c7d3"]
@@ -1382,11 +1382,95 @@ Target: `792b14` (`docs/specs/technical/note-amendment.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7c3a | Port the component contract to `792b14` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7c3b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7c3c | Repoint stale references to `792b14` | Non-test action | Keeps live links valid | Not started |
-| 792c7c3d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7c3e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7c3a | Port the component contract to `792b14` | Non-test action | Documents the component in the framework format | Done |
+| 792c7c3b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7c3c | Repoint stale references to `792b14` | Non-test action | Keeps live links valid | Done |
+| 792c7c3d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7c3e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+**Outcome:** the `amend`, `resituate` and `activate` lock clauses and the vault-lock helpers of
+`vault-concurrency-safe-writes` are ported, and c3 K4w is reduced to a pointer. The curation,
+pull-down, vocabulary, skill-hash, query and chunk-index tests are left to their capabilities
+(792d76). This completes group 792c7c.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b6c7a1 | `TestRunAmend_PreservesTagsFrontmatter` → `Test792b6c7a1_RunAmend_PreservesTagsFrontmatter` | `RunAmend` over injected deps | tags: kept | Done |
+| 792b6c7a1 | `TestRunAmend_Runbook_ToleratesUnknownFrontmatterKey` → `Test792b6c7a1_RunAmend_Runbook_ToleratesUnknownFrontmatterKey` | `RunAmend` over injected deps | Unknown key kept | Done |
+| 792b6c7a1 | `TestRunResituate_KeepsUnmodeledKeys` → `Test792b6c7a1_RunResituate_KeepsUnmodeledKeys` | `RunResituate` over injected deps | Unmodeled keys kept | Done |
+| 792b13c2a1 | `TestRunAmend_ResolvesTargetWithMdSuffix` → `Test792b13c2a1_RunAmend_ResolvesTargetWithMdSuffix` | `RunAmend` over injected deps | .md reference | Done |
+| 792b13c2a1 | `TestRunResituate_LocatesByFullBasename` → `Test792b13c2a1_RunResituate_LocatesByFullBasename` | `RunResituate` over injected deps | Basename reference | Done |
+| 792b13c2a2 | `TestRunResituate_NotFound` → `Test792b13c2a2_RunResituate_NotFound` | `RunResituate` over injected deps | Not found | Done |
+| 792b14c1a1 | `TestRunAmend_LocksVaultAroundReadModifyWrite` → `Test792b14c1a1_RunAmend_LocksVaultAroundReadModifyWrite` | `RunAmend` with a recording lock | Lock order | Done |
+| 792b14c1a2 | `TestRunResituate_LocksVaultAroundReadModifyWrite` → `Test792b14c1a2_RunResituate_LocksVaultAroundReadModifyWrite` | `RunResituate` with a recording lock | Lock order | Done |
+| 792b14c1a3 | `TestRunActivate_LocksVaultAroundBumpLoop` → `Test792b14c1a3_RunActivate_LocksVaultAroundBumpLoop` | `RunActivate` with a recording lock | Lock around bumps | Done |
+| 792b14c2a1 | `TestRunAmend_NoteNotFound` → `Test792b14c2a1_RunAmend_NoteNotFound` | `RunAmend` over injected deps | Not found | Done |
+| 792b14c2a2 | `TestRunAmend_NoFrontmatter_Errors` → `Test792b14c2a2_RunAmend_NoFrontmatter_Errors` | `RunAmend` over injected deps | No frontmatter | Done |
+| 792b14c2a3 | `TestRunAmend_UnknownNoteType_Errors` → `Test792b14c2a3_RunAmend_UnknownNoteType_Errors` | `RunAmend` over injected deps | Unknown kind | Done |
+| 792b14c2a4 | `TestRunAmend_MalformedCreated_Errors` → `Test792b14c2a4_RunAmend_MalformedCreated_Errors` | `RunAmend` over injected deps | Bad created | Done |
+| 792b14c2a5 | `TestRunAmend_ProvMerge_UnresolvedChunkSource_Errors` → `Test792b14c2a5_RunAmend_ProvMerge_UnresolvedChunkSource_Errors` | `RunAmend` over injected deps | Unknown chunk | Done |
+| 792b14c2a6 | `TestRunAmend_Runbook_InvalidTriggerRejectedWritesNothing` → `Test792b14c2a6_RunAmend_Runbook_InvalidTriggerRejectedWritesNothing` | `RunAmend` over injected deps | Short trigger | Done |
+| 792b14c3a1 | `TestRunAmend_FieldReplacement_Fact_SubjectOnly` → `Test792b14c3a1_RunAmend_FieldReplacement_Fact_SubjectOnly` | `RunAmend` over injected deps | One fact field | Done |
+| 792b14c3a1 | `TestRunAmend_RoundTrip_FactNote` → `Test792b14c3a1_RunAmend_RoundTrip_FactNote` (split deferred: 792b14c4a2) | Production amend deps over a temp-dir vault | Field and chunk source on disk | Done |
+| 792b14c3a2 | `TestRunAmend_FieldReplacement_Feedback_ActionAndProvMerge` → `Test792b14c3a2_RunAmend_FieldReplacement_Feedback_ActionAndProvMerge` | `RunAmend` over injected deps | Feedback field and merge | Done |
+| 792b14c3a3 | `TestRunAmend_FieldReplacement_Runbook_BodyDoneWhenRedFlags` → `Test792b14c3a3_RunAmend_FieldReplacement_Runbook_BodyDoneWhenRedFlags` | `RunAmend` over injected deps | Runbook fields | Done |
+| 792b14c3a4 | `TestRunAmend_FieldReplacement_Runbook_SituationOnly_PreservesBody` → `Test792b14c3a4_RunAmend_FieldReplacement_Runbook_SituationOnly_PreservesBody` | `RunAmend` over injected deps | Steps kept | Done |
+| 792b14c3a5 | `TestRunAmend_Runbook_TriggersReplaceWholeList` → `Test792b14c3a5_RunAmend_Runbook_TriggersReplaceWholeList` | `RunAmend` over injected deps | Triggers replaced | Done |
+| 792b14c3a6 | `TestRunAmend_FieldReplacement_NoContentChange_NoReEmbed` → `Test792b14c3a6_RunAmend_FieldReplacement_NoContentChange_NoReEmbed` | `RunAmend` over injected deps, spy embedder | Equal values, no re-embed | Done |
+| 792b14c4a1 | `TestAmendFactNote_Supersedes_WrittenToFrontmatterAndBody` → `Test792b14c4a1_AmendFactNote_Supersedes_WrittenToFrontmatterAndBody` | `RunAmend` over injected deps | Fact supersession | Done |
+| 792b14c4a1 | `TestAmend_Supersedes_WrittenToFrontmatterAndBody` → `Test792b14c4a1_Amend_Supersedes_WrittenToFrontmatterAndBody` | `RunAmend` over injected deps | Feedback supersession | Done |
+| 792b14c4a2 | `TestRunAmend_ProvMerge_ChunkSources_Written` → `Test792b14c4a2_RunAmend_ProvMerge_ChunkSources_Written` | `RunAmend` over injected deps | Sources merged | Done |
+| 792b14c5a1 | `TestRunAmend_ReStampsIdentityFields` → `Test792b14c5a1_RunAmend_ReStampsIdentityFields` | `RunAmend` with fake detection | Re-stamp | Done |
+| 792b14c5a2 | `TestRunAmend_AddsIdentityFieldsToPreExistingNote` → `Test792b14c5a2_RunAmend_AddsIdentityFieldsToPreExistingNote` | `RunAmend` over injected deps | Identity added | Done |
+| 792b14c5a3 | `TestRunAmend_RepoReStamp_IgnoresProjectField` → `Test792b14c5a3_RunAmend_RepoReStamp_IgnoresProjectField` | `RunAmend` with fake detection | project: ignored | Done |
+| 792b14c5a4 | `TestRunAmend_IdentityRestampProperty` → `Test792b14c5a4_RunAmend_IdentityRestampProperty` (split deferred: 792b11c4a1) | Property test (rapid), `RunAmend` | Re-stamp follows the flags | Done |
+| 792b14c5a5 | `TestRunAmend_BookkeepingAmendsKeepIdentity` → `Test792b14c5a5_RunAmend_BookkeepingAmendsKeepIdentity` | `RunAmend` with fake detection, subtests | Bookkeeping keeps identity | Done |
+| 792b14c5a6 | `TestRunAmend_BookkeepingNeverWritesEmptyVault` → `Test792b14c5a6_RunAmend_BookkeepingNeverWritesEmptyVault` | `RunAmend` over injected deps, subtests | Vault filled or omitted | Done |
+| 792b14c6a1 | `TestRunAmend_SupersedesOnlyReStamp_DoesNotTriggerReEmbed` → `Test792b14c6a1_RunAmend_SupersedesOnlyReStamp_DoesNotTriggerReEmbed` | `RunAmend` over injected deps, spy embedder | No re-embed | Done |
+| 792b14c6a2 | `TestRunAmend_ReEmbedFailure_WarnsAndContinues` → `Test792b14c6a2_RunAmend_ReEmbedFailure_WarnsAndContinues` | `RunAmend` with a failing embedder | Warn and continue | Done |
+| 792b14c7a1 | `TestRunAmend_ConvertsCRLFNote` → `Test792b14c7a1_RunAmend_ConvertsCRLFNote` | `RunAmend` over injected deps, subtests | CRLF converted, re-embedded | Done |
+| 792b14c7a2 | `TestRunAmend_CRLFOutputEqualsLFOutputProperty` → `Test792b14c7a2_RunAmend_CRLFOutputEqualsLFOutputProperty` | Property test (rapid), `RunAmend` | CRLF output equals LF | Done |
+| 792b14c7a3 | `TestRunResituate_ConvertsCRLFNote` → `Test792b14c7a3_RunResituate_ConvertsCRLFNote` | `RunResituate` over injected deps, subtests | CRLF converted | Done |
+| 792b14c8a1 | `TestRunResituate_Fact` → `Test792b14c8a1_RunResituate_Fact` | `RunResituate` over injected deps | Fact resituated | Done |
+| 792b14c8a2 | `TestRunResituate_Feedback` → `Test792b14c8a2_RunResituate_Feedback` | `RunResituate` over injected deps | Feedback resituated | Done |
+| 792b14c8a3 | `TestRunResituate_ContentErrors` → `Test792b14c8a3_RunResituate_ContentErrors` | `RunResituate` over injected deps, subtests | Refused notes | Done |
+| 792b14c8a4 | `TestRunResituate_KeepsEveryKeyButSituationProperty` → `Test792b14c8a4_RunResituate_KeepsEveryKeyButSituationProperty` | Property test (rapid), `RunResituate` | Any other keys kept | Done |
+| 792b14c8a4 | `TestRunResituate_KeepsCreatedString` → `Test792b14c8a4_RunResituate_KeepsCreatedString` | `RunResituate` over injected deps | created: string kept | Done |
+| 792b14c8a4 | `TestRunResituate_PreservesEveryUntouchedField` → `Test792b14c8a4_RunResituate_PreservesEveryUntouchedField` | `RunResituate` over injected deps | Untouched fields kept | Done |
+| 792b14c8a4 | `TestRunResituate_PreservesEveryUntouchedFieldProperty` → `Test792b14c8a4_RunResituate_PreservesEveryUntouchedFieldProperty` | Property test (rapid), `RunResituate` | Any untouched fields | Done |
+| 792b14c8a5 | `TestRunResituate_IOErrors` → `Test792b14c8a5_RunResituate_IOErrors` | `RunResituate` with failing deps, subtests | Every failure returned | Done |
+| 792b14c9a1 | `TestBumpLastUsedSetsDatePreservesVectors` → `Test792b14c9a1_BumpLastUsedSetsDatePreservesVectors` | Pure unit (fake read/write) | Date set, vectors kept | Done |
+| 792b14c9a2 | `TestBumpLastUsedIdempotentForSameDate` → `Test792b14c9a2_BumpLastUsedIdempotentForSameDate` | Pure unit (fake read/write) | Same date not rewritten | Done |
+| 792b14c9a3 | `TestBumpLastUsedReadFailureWrapsPath` → `Test792b14c9a3_BumpLastUsedReadFailureWrapsPath` | Pure unit (fake read/write) | Unreadable sidecar | Done |
+| 792b14c9a4 | `TestRunAmend_Activate_BumpsLastUsed` → `Test792b14c9a4_RunAmend_Activate_BumpsLastUsed` | `RunAmend` over injected deps | amend --activate bumps | Done |
+| 792b14c9a4 | `TestRunAmend_Activate_PreservesLastUsedAcrossReEmbed` → `Test792b14c9a4_RunAmend_Activate_PreservesLastUsedAcrossReEmbed` | `RunAmend` over injected deps, spy embedder | Bump after the rebuild | Done |
+| 792b14c9a5 | `TestNewActivateDeps_BumpsRealSidecar` → `Test792b14c9a5_NewActivateDeps_BumpsRealSidecar` | Production activate deps over a temp dir | Real sidecar bumped | Done |
+| 792b14c10a1 | `TestRunActivateBumpsAllNotes` → `Test792b14c10a1_RunActivateBumpsAllNotes` | `RunActivate` over injected deps | Every note bumped | Done |
+| 792b14c10a2 | `TestRunActivateAcceptsAbsoluteNotePath` → `Test792b14c10a2_RunActivateAcceptsAbsoluteNotePath` | `RunActivate` over injected deps | Absolute path | Done |
+| 792b14c10a2 | `TestRunActivateResolvesRelativeNoteAgainstVault` → `Test792b14c10a2_RunActivateResolvesRelativeNoteAgainstVault` | `RunActivate` over injected deps | Vault-relative ref | Done |
+| 792b14c10a3 | `TestRunActivateLogsContinuesOnBadPath` → `Test792b14c10a3_RunActivateLogsContinuesOnBadPath` | `RunActivate` over injected deps | Missing ref warned | Done |
+| 792b14c10a4 | `TestRunActivateAllFailReturnsError` → `Test792b14c10a4_RunActivateAllFailReturnsError` | `RunActivate` over injected deps | All refs fail | Done |
+
+**Coverage gaps:** 792b14 has none. Of the 792a4 scenarios, only 792a4a1b
+(`Test792a4a1b_Targets_Resituate`) and 792a4n1c (`Test792a4n1c_Activate_MissWithoutParentFails`)
+have an end-to-end test; the others are covered only by the component tests above and in
+792c7c1–792c7c2, and 792a4o1a and 792a4o1b have no concurrency test at all.
+
+**No-scenario tests:** `amend_targets_test` `TestTargets_AmendRegistered` (checks only that the
+command is wired). Deferred to the capability that adds their requirement (792d76):
+`amend_test` `TestDiscardNote_PropagatesNoteRemoveError`, `TestDiscardNote_PropagatesSidecarRemoveError`,
+`TestDiscardNote_TreatsMissingSidecarAsSuccess` and `amend_crlf_test`
+`TestRunAmend_CRLFJudgedVersionUsesTheLFForm`, `TestRunAmend_DiscardIntoConvertsCRLFExisting` (curate
+792c7u1); `amend_crlf_test` `TestRunAmend_DiscardRecordsDeclineOfCRLFPulledNote` (parent-sync
+792c7t1); `amend_test` `TestApplyVocabAssignmentAfterAmend_TriggerFires` and `resituate_test`
+`TestApplyVocabAssignmentAfterResituate_TagsNote`, `TestApplyVocabAssignmentAfterResituate_TriggerFires`,
+`TestRunResituate_CallsVocabAssignment` (controlled-vocabulary 792c7e1); `amend_test`
+`TestRunAmend_Runbook_PreservesSkillHash_ContentChanged`, `TestRunAmend_Runbook_PreservesSkillHash_IdentityOnlyRestamp`
+(skill-runbook-registration 792c7k1); `supersedes_test` `TestBuildSupersedesInverse` (memory-query
+792c7f1); and `amend_test` `TestBuildChunkIDSet_ReturnsSourceAnchorKeys` (chunk-index-store
+792c7d5).
 
 ### 792c7d chunk-indexing
 
@@ -1509,7 +1593,7 @@ Target: `792b18` (`docs/specs/technical/chunk-index-store.md`).
 
 **Legacy sources (port, then remove):**
 
-- `openspec/specs/vault-concurrency-safe-writes/spec.md` (the manifest lock requirement, 792d63)
+- `openspec/specs/vault-concurrency-safe-writes/spec.md` (the manifest lock requirement and the `writeManifestFile` clause of the lock-free helpers residue, 792d63)
 - `docs/deprecated/architecture/adr.md` ADR-0021 (D1–D8, D10; D9 goes to 792c7j1)
 - `docs/deprecated/architecture/c2-containers.md` Flowchart: ingest/chunking (remaining steps)
 - `docs/deprecated/architecture/c3-components.md` Component catalog K1 (index part; "marker advance" is stale) and K12

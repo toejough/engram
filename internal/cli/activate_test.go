@@ -14,194 +14,11 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-func TestBumpLastUsedIdempotentForSameDate(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	orig := embed.Sidecar{
-		SchemaVersion:    embed.SidecarSchemaVersion,
-		EmbeddingModelID: "m@1",
-		Dims:             1,
-		SituationVector:  []float32{0.1},
-		BodyVector:       []float32{0.2},
-		ContentHash:      "sha256:x",
-		LastUsed:         "2026-06-17",
-	}
-	store := map[string][]byte{"n.vec.json": embed.MarshalSidecar(orig)}
-	writes := 0
-	read := func(p string) ([]byte, error) { return store[p], nil }
-	write := func(p string, b []byte) error { writes++; store[p] = b; return nil }
-
-	err := cli.ExportBumpLastUsed("n.vec.json", "2026-06-17", read, write)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(writes).To(Equal(0), "no write when date is already set")
-}
-
-func TestBumpLastUsedReadFailureWrapsPath(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	readErr := errors.New("disk failure")
-	read := func(_ string) ([]byte, error) { return nil, readErr }
-	write := func(_ string, _ []byte) error { return nil }
-
-	err := cli.ExportBumpLastUsed("missing.vec.json", "2026-06-17", read, write)
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(err.Error()).To(ContainSubstring("activate:"))
-	g.Expect(err.Error()).To(ContainSubstring("missing.vec.json"))
-}
-
-// ---------------------------------------------------------------------------
-// Task 3.1: bumpLastUsed
-// ---------------------------------------------------------------------------
-
-func TestBumpLastUsedSetsDatePreservesVectors(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	orig := embed.Sidecar{
-		SchemaVersion:    embed.SidecarSchemaVersion,
-		EmbeddingModelID: "m@1",
-		Dims:             1,
-		SituationVector:  []float32{0.1},
-		BodyVector:       []float32{0.2},
-		ContentHash:      "sha256:x",
-	}
-	store := map[string][]byte{"n.vec.json": embed.MarshalSidecar(orig)}
-	read := func(p string) ([]byte, error) { return store[p], nil }
-	write := func(p string, b []byte) error { store[p] = b; return nil }
-
-	err := cli.ExportBumpLastUsed("n.vec.json", "2026-06-17", read, write)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	got, derr := embed.UnmarshalSidecar(store["n.vec.json"])
-	g.Expect(derr).NotTo(HaveOccurred())
-
-	if derr != nil {
-		return
-	}
-
-	g.Expect(got.LastUsed).To(Equal("2026-06-17"))
-	g.Expect(got.ContentHash).To(Equal("sha256:x"))
-	g.Expect(got.BodyVector).To(Equal([]float32{0.2}))
-}
-
-// ---------------------------------------------------------------------------
-// Wiring coverage: newActivateDeps composed over real-OS test Deps
-// ---------------------------------------------------------------------------
-
-// TestNewActivateDeps_BumpsRealSidecar exercises newActivateDeps and its
-// WriteFileAtomic-backed sidecar write against a real file in a temp
-// directory.
-func TestNewActivateDeps_BumpsRealSidecar(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dir := t.TempDir()
-	notePath := dir + "/1.note.md"
-	sidecarPath := embed.SidecarPath(notePath)
-
-	orig := embed.Sidecar{
-		SchemaVersion:    embed.SidecarSchemaVersion,
-		EmbeddingModelID: "m@1",
-		Dims:             1,
-		SituationVector:  []float32{0.1},
-		BodyVector:       []float32{0.2},
-		ContentHash:      "sha256:real",
-	}
-
-	writeErr := os.WriteFile(sidecarPath, embed.MarshalSidecar(orig), 0o600)
-	g.Expect(writeErr).NotTo(HaveOccurred())
-
-	if writeErr != nil {
-		return
-	}
-
-	// The note file itself makes the ref a local hit (design D8, M8).
-	g.Expect(os.WriteFile(notePath, []byte("---\ntype: fact\n---\n"), 0o600)).To(Succeed())
-
-	deps := cli.ExportNewActivateDeps(cli.ExportNewTestOsDeps())
-
-	runErr := cli.ExportRunActivate(context.Background(), cli.ActivateArgs{Notes: []string{notePath}}, deps)
-	g.Expect(runErr).NotTo(HaveOccurred())
-
-	if runErr != nil {
-		return
-	}
-
-	rawBytes, readErr := os.ReadFile(sidecarPath)
-	g.Expect(readErr).NotTo(HaveOccurred())
-
-	if readErr != nil {
-		return
-	}
-
-	got, derr := embed.UnmarshalSidecar(rawBytes)
-	g.Expect(derr).NotTo(HaveOccurred())
-
-	today := time.Now().Format("2006-01-02")
-	g.Expect(got.LastUsed).To(Equal(today))
-}
-
-func TestRunActivateAcceptsAbsoluteNotePath(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	abs := "/elsewhere/n.md"
-	sc := embed.Sidecar{
-		SchemaVersion: embed.SidecarSchemaVersion, EmbeddingModelID: "m@1", Dims: 1,
-		SituationVector: []float32{0.1}, BodyVector: []float32{0.2}, ContentHash: "sha256:x",
-	}
-	store := map[string][]byte{"/elsewhere/n.vec.json": embed.MarshalSidecar(sc)}
-	deps := cli.ActivateDeps{
-		Now: func() time.Time { return time.Date(2026, 6, 17, 0, 0, 0, 0, time.UTC) },
-		Read: func(p string) ([]byte, error) {
-			b, ok := store[p]
-			if !ok {
-				return nil, os.ErrNotExist
-			}
-
-			return b, nil
-		},
-		Write:      func(p string, b []byte) error { store[p] = b; return nil },
-		LogWarning: func(string, ...any) {},
-		NoteExists: func(string) bool { return true },
-	}
-	// Vault set, but an ABSOLUTE note must NOT be joined to it.
-	err := cli.ExportRunActivate(context.Background(), cli.ActivateArgs{Vault: "/vault", Notes: []string{abs}}, deps)
-	g.Expect(err).NotTo(HaveOccurred())
-}
-
-func TestRunActivateAllFailReturnsError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	read := func(_ string) ([]byte, error) { return nil, errors.New("not found") }
-	write := func(_ string, _ []byte) error { return nil }
-	fixedNow := time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC)
-
-	err := cli.ExportRunActivate(context.Background(),
-		cli.ActivateArgs{Notes: []string{"missing1.md", "missing2.md"}},
-		cli.ActivateDeps{
-			Now:        func() time.Time { return fixedNow },
-			Read:       read,
-			Write:      write,
-			LogWarning: func(string, ...any) {},
-			NoteExists: func(p string) bool { return !strings.Contains(p, "missing") },
-		},
-	)
-	g.Expect(err).To(HaveOccurred(), "all failed must return an error")
-}
-
 // ---------------------------------------------------------------------------
 // Task 3.2: RunActivate
 // ---------------------------------------------------------------------------
 
-func TestRunActivateBumpsAllNotes(t *testing.T) {
+func Test792b14c10a1_RunActivateBumpsAllNotes(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -251,7 +68,81 @@ func TestRunActivateBumpsAllNotes(t *testing.T) {
 	}
 }
 
-func TestRunActivateLogsContinuesOnBadPath(t *testing.T) {
+func Test792b14c10a2_RunActivateAcceptsAbsoluteNotePath(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	abs := "/elsewhere/n.md"
+	sc := embed.Sidecar{
+		SchemaVersion: embed.SidecarSchemaVersion, EmbeddingModelID: "m@1", Dims: 1,
+		SituationVector: []float32{0.1}, BodyVector: []float32{0.2}, ContentHash: "sha256:x",
+	}
+	store := map[string][]byte{"/elsewhere/n.vec.json": embed.MarshalSidecar(sc)}
+	deps := cli.ActivateDeps{
+		Now: func() time.Time { return time.Date(2026, 6, 17, 0, 0, 0, 0, time.UTC) },
+		Read: func(p string) ([]byte, error) {
+			b, ok := store[p]
+			if !ok {
+				return nil, os.ErrNotExist
+			}
+
+			return b, nil
+		},
+		Write:      func(p string, b []byte) error { store[p] = b; return nil },
+		LogWarning: func(string, ...any) {},
+		NoteExists: func(string) bool { return true },
+	}
+	// Vault set, but an ABSOLUTE note must NOT be joined to it.
+	err := cli.ExportRunActivate(context.Background(), cli.ActivateArgs{Vault: "/vault", Notes: []string{abs}}, deps)
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func Test792b14c10a2_RunActivateResolvesRelativeNoteAgainstVault(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := "/vault"
+	noteBase := "24.2026-06-12.foo.md"
+	sidecar := embed.Sidecar{
+		SchemaVersion: embed.SidecarSchemaVersion, EmbeddingModelID: "m@1", Dims: 1,
+		SituationVector: []float32{0.1}, BodyVector: []float32{0.2}, ContentHash: "sha256:x",
+	}
+	joined := "/vault/24.2026-06-12.foo.vec.json"
+	store := map[string][]byte{joined: embed.MarshalSidecar(sidecar)}
+
+	deps := cli.ActivateDeps{
+		Now: func() time.Time { return time.Date(2026, 6, 17, 0, 0, 0, 0, time.UTC) },
+		Read: func(p string) ([]byte, error) {
+			b, ok := store[p]
+			if !ok {
+				return nil, os.ErrNotExist
+			}
+
+			return b, nil
+		},
+		Write:      func(p string, b []byte) error { store[p] = b; return nil },
+		LogWarning: func(string, ...any) {},
+		NoteExists: func(string) bool { return true },
+	}
+
+	err := cli.ExportRunActivate(context.Background(), cli.ActivateArgs{Vault: vault, Notes: []string{noteBase}}, deps)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	got, derr := embed.UnmarshalSidecar(store[joined])
+	g.Expect(derr).NotTo(HaveOccurred())
+
+	if derr != nil {
+		return
+	}
+
+	g.Expect(got.LastUsed).To(Equal("2026-06-17"))
+}
+
+func Test792b14c10a3_RunActivateLogsContinuesOnBadPath(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -297,56 +188,32 @@ func TestRunActivateLogsContinuesOnBadPath(t *testing.T) {
 	g.Expect(sc.LastUsed).To(Equal("2026-06-17"))
 }
 
-func TestRunActivateResolvesRelativeNoteAgainstVault(t *testing.T) {
+func Test792b14c10a4_RunActivateAllFailReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	vault := "/vault"
-	noteBase := "24.2026-06-12.foo.md"
-	sidecar := embed.Sidecar{
-		SchemaVersion: embed.SidecarSchemaVersion, EmbeddingModelID: "m@1", Dims: 1,
-		SituationVector: []float32{0.1}, BodyVector: []float32{0.2}, ContentHash: "sha256:x",
-	}
-	joined := "/vault/24.2026-06-12.foo.vec.json"
-	store := map[string][]byte{joined: embed.MarshalSidecar(sidecar)}
+	read := func(_ string) ([]byte, error) { return nil, errors.New("not found") }
+	write := func(_ string, _ []byte) error { return nil }
+	fixedNow := time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC)
 
-	deps := cli.ActivateDeps{
-		Now: func() time.Time { return time.Date(2026, 6, 17, 0, 0, 0, 0, time.UTC) },
-		Read: func(p string) ([]byte, error) {
-			b, ok := store[p]
-			if !ok {
-				return nil, os.ErrNotExist
-			}
-
-			return b, nil
+	err := cli.ExportRunActivate(context.Background(),
+		cli.ActivateArgs{Notes: []string{"missing1.md", "missing2.md"}},
+		cli.ActivateDeps{
+			Now:        func() time.Time { return fixedNow },
+			Read:       read,
+			Write:      write,
+			LogWarning: func(string, ...any) {},
+			NoteExists: func(p string) bool { return !strings.Contains(p, "missing") },
 		},
-		Write:      func(p string, b []byte) error { store[p] = b; return nil },
-		LogWarning: func(string, ...any) {},
-		NoteExists: func(string) bool { return true },
-	}
-
-	err := cli.ExportRunActivate(context.Background(), cli.ActivateArgs{Vault: vault, Notes: []string{noteBase}}, deps)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	got, derr := embed.UnmarshalSidecar(store[joined])
-	g.Expect(derr).NotTo(HaveOccurred())
-
-	if derr != nil {
-		return
-	}
-
-	g.Expect(got.LastUsed).To(Equal("2026-06-17"))
+	)
+	g.Expect(err).To(HaveOccurred(), "all failed must return an error")
 }
 
-// TestRunActivate_LocksVaultAroundBumpLoop asserts that RunActivate acquires the
+// Test792b14c1a3_RunActivate_LocksVaultAroundBumpLoop asserts that RunActivate acquires the
 // vault lock BEFORE the first sidecar bump and releases it AFTER the last write,
 // so a concurrent amend/resituate re-embed cannot clobber the freshly-written
 // sidecar vectors with stale ones.
-func TestRunActivate_LocksVaultAroundBumpLoop(t *testing.T) {
+func Test792b14c1a3_RunActivate_LocksVaultAroundBumpLoop(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -413,4 +280,137 @@ func TestRunActivate_LocksVaultAroundBumpLoop(t *testing.T) {
 	g.Expect(lockIdx).To(BeNumerically("<", readIdx), "lock must precede first read")
 	g.Expect(readIdx).To(BeNumerically("<", writeIdx), "read must precede write")
 	g.Expect(writeIdx).To(BeNumerically("<", unlockIdx), "last write must precede unlock")
+}
+
+// ---------------------------------------------------------------------------
+// Task 3.1: bumpLastUsed
+// ---------------------------------------------------------------------------
+
+func Test792b14c9a1_BumpLastUsedSetsDatePreservesVectors(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	orig := embed.Sidecar{
+		SchemaVersion:    embed.SidecarSchemaVersion,
+		EmbeddingModelID: "m@1",
+		Dims:             1,
+		SituationVector:  []float32{0.1},
+		BodyVector:       []float32{0.2},
+		ContentHash:      "sha256:x",
+	}
+	store := map[string][]byte{"n.vec.json": embed.MarshalSidecar(orig)}
+	read := func(p string) ([]byte, error) { return store[p], nil }
+	write := func(p string, b []byte) error { store[p] = b; return nil }
+
+	err := cli.ExportBumpLastUsed("n.vec.json", "2026-06-17", read, write)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	got, derr := embed.UnmarshalSidecar(store["n.vec.json"])
+	g.Expect(derr).NotTo(HaveOccurred())
+
+	if derr != nil {
+		return
+	}
+
+	g.Expect(got.LastUsed).To(Equal("2026-06-17"))
+	g.Expect(got.ContentHash).To(Equal("sha256:x"))
+	g.Expect(got.BodyVector).To(Equal([]float32{0.2}))
+}
+
+func Test792b14c9a2_BumpLastUsedIdempotentForSameDate(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	orig := embed.Sidecar{
+		SchemaVersion:    embed.SidecarSchemaVersion,
+		EmbeddingModelID: "m@1",
+		Dims:             1,
+		SituationVector:  []float32{0.1},
+		BodyVector:       []float32{0.2},
+		ContentHash:      "sha256:x",
+		LastUsed:         "2026-06-17",
+	}
+	store := map[string][]byte{"n.vec.json": embed.MarshalSidecar(orig)}
+	writes := 0
+	read := func(p string) ([]byte, error) { return store[p], nil }
+	write := func(p string, b []byte) error { writes++; store[p] = b; return nil }
+
+	err := cli.ExportBumpLastUsed("n.vec.json", "2026-06-17", read, write)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(writes).To(Equal(0), "no write when date is already set")
+}
+
+func Test792b14c9a3_BumpLastUsedReadFailureWrapsPath(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	readErr := errors.New("disk failure")
+	read := func(_ string) ([]byte, error) { return nil, readErr }
+	write := func(_ string, _ []byte) error { return nil }
+
+	err := cli.ExportBumpLastUsed("missing.vec.json", "2026-06-17", read, write)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("activate:"))
+	g.Expect(err.Error()).To(ContainSubstring("missing.vec.json"))
+}
+
+// ---------------------------------------------------------------------------
+// Wiring coverage: newActivateDeps composed over real-OS test Deps
+// ---------------------------------------------------------------------------
+
+// Test792b14c9a5_NewActivateDeps_BumpsRealSidecar exercises newActivateDeps and its
+// WriteFileAtomic-backed sidecar write against a real file in a temp
+// directory.
+func Test792b14c9a5_NewActivateDeps_BumpsRealSidecar(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	notePath := dir + "/1.note.md"
+	sidecarPath := embed.SidecarPath(notePath)
+
+	orig := embed.Sidecar{
+		SchemaVersion:    embed.SidecarSchemaVersion,
+		EmbeddingModelID: "m@1",
+		Dims:             1,
+		SituationVector:  []float32{0.1},
+		BodyVector:       []float32{0.2},
+		ContentHash:      "sha256:real",
+	}
+
+	writeErr := os.WriteFile(sidecarPath, embed.MarshalSidecar(orig), 0o600)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	if writeErr != nil {
+		return
+	}
+
+	// The note file itself makes the ref a local hit (design D8, M8).
+	g.Expect(os.WriteFile(notePath, []byte("---\ntype: fact\n---\n"), 0o600)).To(Succeed())
+
+	deps := cli.ExportNewActivateDeps(cli.ExportNewTestOsDeps())
+
+	runErr := cli.ExportRunActivate(context.Background(), cli.ActivateArgs{Notes: []string{notePath}}, deps)
+	g.Expect(runErr).NotTo(HaveOccurred())
+
+	if runErr != nil {
+		return
+	}
+
+	rawBytes, readErr := os.ReadFile(sidecarPath)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	got, derr := embed.UnmarshalSidecar(rawBytes)
+	g.Expect(derr).NotTo(HaveOccurred())
+
+	today := time.Now().Format("2006-01-02")
+	g.Expect(got.LastUsed).To(Equal(today))
 }

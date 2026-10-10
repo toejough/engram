@@ -1,8 +1,7 @@
 package cli_test
 
 // resituate preserves every field it does not change (design D10 M7,
-// vault-note-identity "Resituate preserves every untouched field"; task
-// 3.4): only situation: and the body opener differ.
+// note-revision 792a4j1d; task 3.4): only situation: and the body opener differ.
 
 import (
 	"strings"
@@ -13,10 +12,10 @@ import (
 	"pgregory.net/rapid"
 )
 
-// TestRunResituate_KeepsCreatedString pins that resituate re-emits the
+// Test792b14c8a4_RunResituate_KeepsCreatedString pins that resituate re-emits the
 // note's own created: string (quoted by the frontmatter writer, as learn
 // writes it) rather than a date rebuilt from time.Parse.
-func TestRunResituate_KeepsCreatedString(t *testing.T) {
+func Test792b14c8a4_RunResituate_KeepsCreatedString(t *testing.T) {
 	t.Parallel()
 
 	for name, created := range map[string]string{
@@ -38,11 +37,11 @@ func TestRunResituate_KeepsCreatedString(t *testing.T) {
 	}
 }
 
-// TestRunResituate_PreservesEveryUntouchedField is the spec scenario: a
+// Test792b14c8a4_RunResituate_PreservesEveryUntouchedField is the spec scenario: a
 // pending note carrying tags, sources, supersedes, vocab_version, issue,
 // project, parent and aliases comes out of resituate with all of them and
 // the pending marker unchanged; only situation and the body opener differ.
-func TestRunResituate_PreservesEveryUntouchedField(t *testing.T) {
+func Test792b14c8a4_RunResituate_PreservesEveryUntouchedField(t *testing.T) {
 	t.Parallel()
 
 	for _, noteType := range []string{"fact", "feedback"} {
@@ -75,10 +74,10 @@ func TestRunResituate_PreservesEveryUntouchedField(t *testing.T) {
 	}
 }
 
-// TestRunResituate_PreservesEveryUntouchedFieldProperty is the property form:
+// Test792b14c8a4_RunResituate_PreservesEveryUntouchedFieldProperty is the property form:
 // whichever optional fields a fact or feedback note carries, resituate
 // changes only situation: and the body opener.
-func TestRunResituate_PreservesEveryUntouchedFieldProperty(t *testing.T) {
+func Test792b14c8a4_RunResituate_PreservesEveryUntouchedFieldProperty(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		noteType := rapid.SampledFrom([]string{"fact", "feedback"}).Draw(rt, "type")

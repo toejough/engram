@@ -3960,3 +3960,540 @@ Scenario Outline: 792a4a1a Every reference form finds the note
     | "[[1.2026-10-09.a\|x]]" |
     | 1                       |
 ```
+
+## 792b14 Added: note-amendment
+
+Canonical target: `docs/specs/technical/note-amendment.md` (title `Note Amendment - Technical Spec`).
+
+### 792b14a Orientation
+
+- Ownership: Repository component (caller of wikilink-graph, note-document-format,
+  note-provenance, embedding-sidecar, durable-file-store and vault-write-lock).
+- Responsibility: revises a note that already exists. Under the vault lock it finds the note,
+  reads it as LF, checks the revision's arguments, applies the field, supersession, chunk-source and
+  identity changes, writes the note once, and rebuilds its sidecar when what is embedded changed. It
+  rewrites a fact's or feedback note's situation in both of its places, and records a note's use
+  in its sidecar.
+- Current realization (informational): `internal/cli/amend.go` (`RunAmend`), `resituate.go`
+  (`RunResituate`), `supersedes.go` (`replaceSupersedes`, `parseAllSupersedes`), `activate.go`
+  (`RunActivate`, `bumpLastUsed`); the amend and resituate targets in `internal/cli/targets.go`.
+  The curation flags in `amend_fold.go`, the offer hooks and the pull-down are added by curate and
+  parent-sync.
+- Qualification: responsibility, revising a stored note is stated without naming any function;
+  ownership, it owns the ordering of lookup, validation, edit, write and re-embed, while the format,
+  provenance, sidecar and lock contracts belong to the components it calls; independent
+  verification, `RunAmend`, `RunResituate` and `RunActivate` are tested directly over injected
+  lookup, read, write, lock and embedder fakes; stability, the read-modify-write contract survives any
+  change to the flags that drive it; necessity, every change an agent makes to an existing note
+  goes through it.
+- Supported capabilities: 792a4 note-revision. Write-memory, recall, parent-sync and curate add
+  their requirements (792d30).
+
+Rationale: a revision is a read-modify-write of a note and its sidecar, so two revisions, or a
+revision and a learn, that interleave could each overwrite the other's change. Every revision takes
+the vault's lock at its command's entry point and holds it through the note write, the sidecar
+rebuild and the last-used bump. The helpers it shares with other writers never take the lock
+themselves, because the lock is held per file descriptor and a nested acquire would wait on itself.
+
+### 792b14b Sequences
+
+```mermaid
+sequenceDiagram
+  participant CLI as command-line-surface
+  participant Amend as note-amendment
+  participant Lock as vault-write-lock
+  participant Graph as wikilink-graph
+  participant Format as note-document-format
+  participant Provenance as note-provenance
+  participant Sidecar as embedding-sidecar
+  participant Store as durable-file-store
+  CLI->>Amend: engram amend --target <ref> with its flags
+  Amend->>Lock: lock the vault (792b14c1)
+  Amend->>Graph: scan the vault and resolve the reference (792b13c1, 792b13c2)
+  alt no note matches
+    Amend-->>CLI: not found, nothing written (792b14c2)
+  else the note is found
+    Amend->>Store: read the note, as LF (792b14c7)
+    alt the note or an argument is refused
+      Amend-->>CLI: error, nothing written (792b14c2)
+    else the arguments are valid
+      opt a content flag, --supersedes or --chunk-source is given
+        Amend->>Provenance: re-stamp repo, user and vault (792b14c5)
+      end
+      Amend->>Format: edit the frontmatter and body (792b14c3, 792b14c4)
+      Amend->>Store: write the note once (792b14c3)
+      opt a content field changed, or the note was converted from CRLF
+        Amend->>Sidecar: build the sidecar, then write it (792b14c6)
+      end
+      opt --activate
+        Amend->>Store: record today as the sidecar's last use (792b14c9)
+      end
+      Amend-->>CLI: the note's path (792b14c3)
+    end
+  end
+  Amend->>Lock: release the vault
+```
+
+```mermaid
+sequenceDiagram
+  participant CLI as command-line-surface
+  participant Reviser as note-amendment
+  participant Lock as vault-write-lock
+  participant Graph as wikilink-graph
+  participant Sidecar as embedding-sidecar
+  participant Store as durable-file-store
+  CLI->>Reviser: engram resituate --note <ref> --situation <text>
+  Reviser->>Lock: lock the vault (792b14c1)
+  Reviser->>Graph: scan the vault and resolve the reference (792b13c2)
+  Reviser->>Store: read the note, as LF (792b14c7)
+  alt not a fact or feedback note, or not editable
+    Reviser-->>CLI: error, nothing written (792b14c8)
+  else rewritten
+    Reviser->>Store: write the note once (792b14c8)
+    Reviser->>Sidecar: build the sidecar, then write it (792b14c8)
+    alt the sidecar is written
+      Reviser-->>CLI: the note's path
+    else building or writing fails
+      Reviser-->>CLI: error naming the note, the note already rewritten (792b14c8)
+    end
+  end
+  Reviser->>Lock: release the vault
+```
+
+```mermaid
+sequenceDiagram
+  participant CLI as command-line-surface
+  participant Reviser as note-amendment
+  participant Lock as vault-write-lock
+  participant Store as durable-file-store
+  CLI->>Reviser: engram activate --note <ref>...
+  Reviser->>Lock: lock the vault (792b14c1)
+  loop each ref
+    alt the note's file exists
+      Reviser->>Store: record today as the sidecar's last use, unless it already is (792b14c9)
+    else no note, no parent configured
+      Reviser->>Reviser: warn naming the ref, count it failed (792b14c10)
+    end
+  end
+  Reviser->>Lock: release the vault
+  alt any ref failed
+    Reviser-->>CLI: error saying how many refs failed (792b14c10)
+  else
+    Reviser-->>CLI: done
+  end
+```
+
+### 792b14c Behavior Requirements
+
+#### 792b14c1 Locked revision
+
+Requirement: 792b14c1 The note-amendment MUST take the vault lock (792b8c4) before amend, resituate
+or activate reads any note or sidecar, MUST hold it through every read and write of the note and
+its sidecar, including the sidecar rebuild and the last-used bump, MUST release it before
+returning, and MUST NOT take it again in the helpers it calls while holding it. A failure to take the
+lock MUST be returned with nothing read or written.
+
+Supports: 792a4o1a, 792a4o1b.
+
+##### 792b14c1a Scenarios
+
+```gherkin
+Scenario: 792b14c1a1 An amend holds the lock across its read-modify-write
+  Given a lock that records when it is taken and released
+  When an amend reads, writes and re-embeds a note
+  Then the lock is taken before the scan and the read, and released after the note and sidecar writes
+
+Scenario: 792b14c1a2 A resituate holds the lock across its read-modify-write
+  Given a lock that records when it is taken and released
+  When a resituate rewrites a note and its sidecar
+  Then the lock is taken before the read and released after both writes
+
+Scenario: 792b14c1a3 An activate holds the lock around its bumps
+  Given a lock that records when it is taken and released
+  When an activate bumps two notes' sidecars
+  Then the lock is taken once before the first bump and released after the last
+```
+
+#### 792b14c2 Amend refusals
+
+Requirement: 792b14c2 The note-amendment MUST refuse an amend, writing nothing, when no note
+matches the reference, when the note has no frontmatter, is not a fact, feedback or runbook note, or
+has a `created:` that is not a `YYYY-MM-DD` date, when a `--chunk-source` ID is not in the chunk
+index, when a `--supersedes` value does not parse (792b12c1), or when a `--trigger` is shorter than
+three characters after trimming.
+
+Supports: 792a4a1b, 792a4c1a, 792a4f1a.
+
+##### 792b14c2a Scenarios
+
+```gherkin
+Scenario: 792b14c2a1 No matching note
+  Given a vault with no note matching the target
+  When an amend runs
+  Then it fails as not found, and nothing is written
+
+Scenario: 792b14c2a2 A note without frontmatter
+  Given a target note with no frontmatter
+  When an amend runs
+  Then it fails saying the note has no parseable frontmatter, and nothing is written
+
+Scenario: 792b14c2a3 A note of another kind
+  Given a target note whose type is not fact, feedback or runbook
+  When an amend runs
+  Then it fails saying the note type is unknown, and nothing is written
+
+Scenario: 792b14c2a4 A malformed creation date
+  Given a target note whose created: is not a YYYY-MM-DD date
+  When an amend runs
+  Then it fails, and nothing is written
+
+Scenario: 792b14c2a5 An unknown chunk source
+  Given a chunk index that does not hold nope#x
+  When an amend runs with --chunk-source nope#x
+  Then it fails naming nope#x as unresolved, and nothing is written
+
+Scenario: 792b14c2a6 A trigger that is too short
+  Given a runbook note
+  When an amend runs with --trigger ab
+  Then it fails saying a trigger must be at least 3 characters, and nothing is written
+```
+
+#### 792b14c3 Field replacement
+
+Requirement: 792b14c3 The note-amendment MUST overwrite each content field of the note's kind that
+the amend supplies with a value different from the note's, MUST replace a runbook's whole
+`red_flags:` or `triggers:` list when one is supplied and differs, and MUST treat the amend as
+changing content exactly when one of these values changed. When content changed it MUST rebuild a
+fact or feedback body from its formula (792b6c4) and a runbook body from the supplied steps, or the
+note's own steps when none are supplied, followed by the supersession lines; otherwise it MUST keep
+the body and only replace its supersession lines. It MUST write the note once and print its path.
+
+Supports: 792a4b1a, 792a4b1b, 792a4b1c, 792a4g1a, 792a4g1b.
+
+##### 792b14c3a Scenarios
+
+```gherkin
+Scenario: 792b14c3a1 One fact field is replaced
+  Given a fact note
+  When an amend supplies only --subject with a new value
+  Then only subject: changes in the frontmatter, the body formula is rebuilt with it, and the note's path is printed
+
+Scenario: 792b14c3a2 Feedback fields are replaced
+  Given a feedback note
+  When an amend supplies --action with a new value
+  Then action: and the body formula carry the new action
+
+Scenario: 792b14c3a3 A runbook's body, done-when and red flags are replaced
+  Given a runbook note
+  When an amend supplies --body, --done-when and --red-flag
+  Then the body is the new steps, done_when: is new, and red_flags: holds only the given flags
+
+Scenario: 792b14c3a4 A runbook's situation alone keeps its steps
+  Given a runbook note with steps
+  When an amend supplies only --situation
+  Then situation: changes and the body keeps the note's steps
+
+Scenario: 792b14c3a5 Triggers are replaced whole
+  Given a runbook note whose triggers: lists two triggers
+  When an amend supplies one --trigger
+  Then triggers: lists only that trigger
+
+Scenario: 792b14c3a6 An unchanged value is not a content change
+  Given a note
+  When an amend supplies only values equal to the note's own
+  Then the amend is not a content change, and the sidecar is not rebuilt
+```
+
+#### 792b14c4 Supersessions and chunk sources
+
+Requirement: 792b14c4 The note-amendment MUST replace a note's whole `supersedes:` list with the
+entries an amend supplies, rewriting the body's `Supersedes:` lines to match (792b6c4), and MUST
+merge each supplied `--chunk-source` ID into `sources:` after the IDs already there, once.
+
+Supports: 792a4d1a, 792a4d1b, 792a4e1a.
+
+##### 792b14c4a Scenarios
+
+```gherkin
+Scenario: 792b14c4a1 A supersession is written to the frontmatter and the body
+  Given a fact or feedback note
+  When an amend supplies --supersedes "<note>.md|refutes|claim"
+  Then supersedes: holds the entry with note <note>.md, and the body ends with "Supersedes: [[<note>]] — refutes: claim"
+
+Scenario: 792b14c4a2 Chunk sources are merged
+  Given a note whose sources: lists one ID, and a chunk index holding it and another
+  When an amend supplies both IDs
+  Then sources: lists the existing ID and then the new one, each once
+```
+
+#### 792b14c5 Identity re-stamp gating
+
+Requirement: 792b14c5 The note-amendment MUST have note-provenance re-stamp a note (792b11c4) exactly
+when the amend supplies a content flag of any kind, a `--red-flag`, a `--trigger`, a `--supersedes`
+or a `--chunk-source`, detecting the repository from the working directory whatever the note's
+`project:`, and MUST NOT re-stamp it otherwise. On every amend it writes, it MUST fill an absent or
+empty `vault:` with the resolved vault name, keep a declared one, and, when no vault name was
+resolved, leave `vault:` out and log a warning.
+
+Supports: 792a4h1a, 792a4h1b, 792a4h1c, 792a4h1f, 792a4h1g, 792a4i1a.
+
+##### 792b14c5a Scenarios
+
+```gherkin
+Scenario: 792b14c5a1 A content, supersession or chunk-source amend re-stamps
+  Given a note whose repo:, user: and vault: differ from the detected ones
+  When an amend supplies a content flag, --supersedes or --chunk-source
+  Then repo:, user: and vault: are the detected ones
+
+Scenario: 792b14c5a2 A note without identity gains it
+  Given a note with no repo:, user: or vault:
+  When an amend supplies --chunk-source
+  Then it gains the detected repo:, user: and vault:
+
+Scenario: 792b14c5a3 The project field is not the repository
+  Given a note whose project: differs from the detected repository
+  When an amend re-stamps it
+  Then repo: is the detected repository
+
+Scenario: 792b14c5a4 Re-stamping follows the flags exactly
+  Given any combination of amend flags on any kind of note
+  When the amend runs
+  Then identity is re-stamped exactly when a content flag of that kind, --supersedes or --chunk-source is present, and is otherwise as declared
+
+Scenario: 792b14c5a5 A bookkeeping amend keeps the declared identity
+  Given a fact, feedback or runbook note with a declared identity
+  When an amend supplies only --activate
+  Then repo:, user: and vault: are unchanged, and the note was rewritten
+
+Scenario: 792b14c5a6 An empty vault is filled, never written empty
+  Given a note with no vault:
+  When an amend that does not re-stamp runs with the vault name personal, and again with no vault name
+  Then the first writes vault: personal with no warning, and the second writes no vault: key and warns naming vault
+```
+
+#### 792b14c6 Sidecar rebuild after an amend
+
+Requirement: 792b14c6 After writing the note, the note-amendment MUST build the note's sidecar from
+the written text (792b10c5) and write it to the sidecar path (792b3c1) when the amend changed content
+or converted the note from CRLF, and MUST NOT rebuild it otherwise. When building or writing fails,
+it MUST log a warning naming the note and complete the amend.
+
+Supports: 792a4g1a, 792a4g1b, 792a4g1c, 792a4m1a.
+
+##### 792b14c6a Scenarios
+
+```gherkin
+Scenario: 792b14c6a1 A provenance-only amend does not re-embed
+  Given a note
+  When an amend supplies only --supersedes, or only values equal to the note's own
+  Then the embedder is not called and no sidecar is written
+
+Scenario: 792b14c6a2 A failed re-embed only warns
+  Given an embedder that fails
+  When an amend changes a content field
+  Then the note is written, a warning naming the note is logged, and the amend succeeds
+```
+
+#### 792b14c7 CRLF revision
+
+Requirement: 792b14c7 The note-amendment MUST read the note an amend or resituate edits as its LF
+form (792b6c8), MUST write it as LF in the single write it makes, byte-identical to the same
+revision of the note's LF form, and MUST count the conversion as a reason to rebuild the sidecar.
+
+Supports: 792a4m1a, 792a4m1b.
+
+##### 792b14c7a Scenarios
+
+```gherkin
+Scenario: 792b14c7a1 An amend converts a CRLF note
+  Given a fact, feedback or runbook note whose lines end in \r\n
+  When an amend of any kind that writes the note runs
+  Then the note is written once with no \r\n, and its sidecar is rebuilt
+
+Scenario: 792b14c7a2 The output equals the LF note's
+  Given any note and its CRLF form
+  When the same amend runs on each
+  Then the two written notes are byte-identical
+
+Scenario: 792b14c7a3 A resituate converts a CRLF note
+  Given a fact or feedback note whose lines end in \r\n
+  When a resituate runs
+  Then it is written once with no \r, keeping its other keys
+```
+
+#### 792b14c8 Resituation
+
+Requirement: 792b14c8 The note-amendment MUST resituate only a fact or feedback note with a
+`created:` that is a `YYYY-MM-DD` date, by setting `situation:` and re-emitting `created:` as the
+note's own string (792b6c7), replacing the body's first line with the formula's first line for the
+new situation and keeping the rest of the body, writing the note once and printing its path. It
+MUST then build and write the note's sidecar, and MUST return a failure to scan, read, write, embed
+or write the sidecar.
+
+Supports: 792a4j1d, 792a4l1a, 792a4l1b, 792a4l1c.
+
+##### 792b14c8a Scenarios
+
+```gherkin
+Scenario: 792b14c8a1 A fact is resituated
+  Given a fact note
+  When it is resituated
+  Then the written note equals the original with the old situation replaced in situation: and the body formula, and the sidecar's content hash tracks the new text
+
+Scenario: 792b14c8a2 A feedback note is resituated
+  Given a feedback note
+  When it is resituated
+  Then situation: and the body's first line carry the new situation, and the rest is unchanged
+
+Scenario: 792b14c8a3 Other notes are refused
+  Given a note with no frontmatter, malformed frontmatter, an unparseable created:, or another kind
+  When it is resituated
+  Then it fails and nothing is written
+
+Scenario: 792b14c8a4 Every untouched key and the created string are kept
+  Given a note carrying any other keys, and a created: written in its quoted form
+  When it is resituated
+  Then every key but situation: is unchanged, and created: keeps the note's own string
+
+Scenario: 792b14c8a5 Every failure is returned
+  Given a scan, read, note write, embedding or sidecar write that fails
+  When a note is resituated
+  Then that failure is returned
+```
+
+#### 792b14c9 Recording a use
+
+Requirement: 792b14c9 The note-amendment MUST record a use by reading the note's sidecar, setting
+its last-used date to today and writing it back atomically with every other field unchanged, and
+MUST skip the write when the date is already today. A sidecar that cannot be read or decoded MUST
+fail the bump with an error naming the sidecar. An amend with `--activate` MUST bump after any
+rebuild, so the rebuilt sidecar carries today's date, and MUST warn and complete the amend when the
+bump fails.
+
+Supports: 792a4n1a, 792a4n1d.
+
+Rationale: the last-used date is metadata outside the content hash, so the bump never makes the
+sidecar stale and never triggers a re-embed.
+
+##### 792b14c9a Scenarios
+
+```gherkin
+Scenario: 792b14c9a1 The date is set and the vectors kept
+  Given a sidecar with vectors and a content hash
+  When a use is recorded on 2026-06-17
+  Then the sidecar's last_used is 2026-06-17 and its vectors and content hash are unchanged
+
+Scenario: 792b14c9a2 The same date is not rewritten
+  Given a sidecar whose last_used is already today
+  When a use is recorded
+  Then nothing is written
+
+Scenario: 792b14c9a3 An unreadable sidecar fails the bump
+  Given a sidecar that cannot be read
+  When a use is recorded
+  Then the error names the sidecar's path
+
+Scenario: 792b14c9a4 Amend records a use, after a rebuild
+  Given a note whose amend changes a content field
+  When the amend supplies --activate
+  Then the sidecar written last carries today's last_used
+
+Scenario: 792b14c9a5 The production wiring writes the real sidecar
+  Given a note with a sidecar on disk
+  When a use is recorded through the production dependencies
+  Then the sidecar file on disk carries today's last_used
+```
+
+#### 792b14c10 Activation refs
+
+Requirement: 792b14c10 With no parent configured, the note-amendment MUST resolve each activate ref
+to a note file, as given when absolute and otherwise under the vault, adding `.md` when missing; MUST
+record a use for each ref whose note file exists, counting one without a sidecar as activated; and
+MUST log a warning naming each ref whose note does not exist, continue with the others, and fail
+with an error saying how many refs failed.
+
+Supports: 792a4n1a, 792a4n1b, 792a4n1c.
+
+##### 792b14c10a Scenarios
+
+```gherkin
+Scenario: 792b14c10a1 Every existing note is activated
+  Given two notes with sidecars
+  When both are activated
+  Then each sidecar's last_used is today, and the command succeeds
+
+Scenario: 792b14c10a2 Absolute and vault-relative refs resolve
+  Given a note named by its absolute path, or by its name under the vault
+  When it is activated
+  Then its sidecar is bumped
+
+Scenario: 792b14c10a3 A missing note is warned and the rest continue
+  Given one existing note and one ref naming no note
+  When both are activated
+  Then a warning names the missing ref, the existing note is bumped, and the command fails
+
+Scenario: 792b14c10a4 All refs failing fails the command
+  Given refs none of whose notes exist
+  When they are activated
+  Then the command fails
+```
+
+### 792b14d Product-Scenario Mapping
+
+| Product scenario | Technical requirements |
+| --- | --- |
+| 792a4a1a | 792b14c3 |
+| 792a4a1b | 792b14c2 |
+| 792a4b1a | 792b14c3 |
+| 792a4b1b | 792b14c3 |
+| 792a4b1c | 792b14c3 |
+| 792a4c1a | 792b14c2 |
+| 792a4d1a | 792b14c4 |
+| 792a4d1b | 792b14c4 |
+| 792a4e1a | 792b14c4 |
+| 792a4f1a | 792b14c2 |
+| 792a4g1a | 792b14c3, 792b14c6 |
+| 792a4g1b | 792b14c3, 792b14c6 |
+| 792a4g1c | 792b14c6 |
+| 792a4h1a | 792b14c5 |
+| 792a4h1b | 792b14c5 |
+| 792a4h1c | 792b14c5 |
+| 792a4h1d | 792b14c5 |
+| 792a4h1e | 792b14c5 |
+| 792a4h1f | 792b14c5 |
+| 792a4h1g | 792b14c5 |
+| 792a4i1a | 792b14c5 |
+| 792a4j1a | 792b14c3 |
+| 792a4j1b | 792b14c3 |
+| 792a4j1c | 792b14c4 |
+| 792a4j1d | 792b14c8 |
+| 792a4k1a | 792b14c3 |
+| 792a4k1b | 792b14c8 |
+| 792a4l1a | 792b14c8 |
+| 792a4l1b | 792b14c8 |
+| 792a4l1c | 792b14c8 |
+| 792a4m1a | 792b14c6, 792b14c7 |
+| 792a4m1b | 792b14c7 |
+| 792a4n1a | 792b14c9, 792b14c10 |
+| 792a4n1b | 792b14c10 |
+| 792a4n1c | 792b14c10 |
+| 792a4n1d | 792b14c9 |
+| 792a4o1a | 792b14c1 |
+| 792a4o1b | 792b14c1 |
+
+```gherkin
+Scenario: 792a4e1a Chunk sources are merged without duplicates
+  Given a note whose sources: lists a#1, and a chunk index holding a#1 and b#2
+  When the user runs engram amend --target <note> --chunk-source a#1 --chunk-source b#2
+  Then the note's sources: lists a#1 then b#2
+
+Scenario: 792a4i1a A use recorded on a note without vault fills it in
+  Given a note with no user: and no vault:, and no vault name configured
+  When the user runs engram amend --target <note> --activate
+  Then the note gains vault: personal and gains no user: field
+
+Scenario: 792a4n1b A note without a sidecar still counts
+  Given a note that has no sidecar
+  When the user runs engram activate --note <basename>
+  Then the command succeeds and writes no sidecar
+```

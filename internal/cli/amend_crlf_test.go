@@ -1,8 +1,7 @@
 package cli_test
 
-// Amend converts CRLF notes (#789 defect 1, design D1; spec
-// vault-note-identity "Exchange fields SHALL survive every frontmatter
-// rewrite"): amend reads every note it edits as LF, writes a note only
+// Amend converts CRLF notes (#789 defect 1, design D1; note-revision
+// 792a4m): amend reads every note it edits as LF, writes a note only
 // where it already writes one, and re-embeds a converted note.
 
 import (
@@ -21,78 +20,11 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
-// TestRunAmend_CRLFJudgedVersionUsesTheLFForm: a CRLF served offer's
-// offer.origin is read from its LF form, so --clear-pending needs the
-// judged hash, and that hash is the LF form's.
-func TestRunAmend_CRLFJudgedVersionUsesTheLFForm(t *testing.T) {
-	t.Parallel()
-
-	lfNote := foldNote(foldExchange{xid: foldXIDO, origin: true}, true)
-	notPending := false
-
-	t.Run("required", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		vault := newCRLFAmendVault(toCRLF(lfNote))
-		err := vault.amend(t.Context(), cli.AmendArgs{Pending: &notPending})
-		g.Expect(err).To(MatchError(ContainSubstring("--expect-hash")))
-		g.Expect(vault.files[crlfAmendNoteName]).To(Equal([]byte(toCRLF(lfNote))), "a refused amend writes nothing")
-	})
-
-	t.Run("matches the LF form", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		judged, hashErr := cli.ExportExchangeHash([]byte(lfNote))
-		g.Expect(hashErr).NotTo(HaveOccurred())
-
-		vault := newCRLFAmendVault(toCRLF(lfNote))
-		err := vault.amend(t.Context(), cli.AmendArgs{Pending: &notPending, ExpectHash: judged})
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(string(vault.files[crlfAmendNoteName])).NotTo(ContainSubstring("\r"))
-		g.Expect(string(vault.files[crlfAmendNoteName])).NotTo(ContainSubstring("pending: true"))
-	})
-}
-
-// TestRunAmend_CRLFOutputEqualsLFOutputProperty: for every frontmatter-
-// writing amend kind on fact, feedback and runbook notes, and every CRLF
-// layout, amend of the CRLF form writes exactly what amend of the LF form
-// writes, with no CRLF left.
-func TestRunAmend_CRLFOutputEqualsLFOutputProperty(t *testing.T) {
-	t.Parallel()
-
-	cases := amendParityCases()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		tc := rapid.SampledFrom(cases).Draw(rt, "case")
-		layout := rapid.SampledFrom([]string{"all", "frontmatter", "body"}).Draw(rt, "layout")
-
-		lfOut, lfErr := runAmendLFJudged(context.Background(), tc.input, tc.input, tc.args)
-		if lfErr != nil {
-			rt.Fatalf("LF amend %s: %v", tc.name, lfErr)
-		}
-
-		crlfOut, crlfErr := runAmendLFJudged(context.Background(), crlfLayout(tc.input, layout), tc.input, tc.args)
-		if crlfErr != nil {
-			rt.Fatalf("%s CRLF (%s) amend refused: %v", tc.name, layout, crlfErr)
-		}
-
-		if strings.Contains(crlfOut, "\r\n") {
-			rt.Fatalf("%s (%s): CRLF left in the written note:\n%q", tc.name, layout, crlfOut)
-		}
-
-		if crlfOut != lfOut {
-			rt.Fatalf("%s (%s): CRLF amend differs from LF amend\ncrlf:\n%s\nlf:\n%s", tc.name, layout, crlfOut, lfOut)
-		}
-	})
-}
-
-// TestRunAmend_ConvertsCRLFNote: every amend kind that writes the target
+// Test792b14c7a1_RunAmend_ConvertsCRLFNote: every amend kind that writes the target
 // succeeds on an all-CRLF note, writes it as LF — byte-identical to the
 // same amend of the LF note — and leaves a fresh sidecar, even for kinds
 // that do not otherwise re-embed.
-func TestRunAmend_ConvertsCRLFNote(t *testing.T) {
+func Test792b14c7a1_RunAmend_ConvertsCRLFNote(t *testing.T) {
 	t.Parallel()
 
 	notPending := false
@@ -139,6 +71,73 @@ func TestRunAmend_ConvertsCRLFNote(t *testing.T) {
 				"a converted note is re-embedded, so its sidecar is fresh")
 		})
 	}
+}
+
+// Test792b14c7a2_RunAmend_CRLFOutputEqualsLFOutputProperty: for every frontmatter-
+// writing amend kind on fact, feedback and runbook notes, and every CRLF
+// layout, amend of the CRLF form writes exactly what amend of the LF form
+// writes, with no CRLF left.
+func Test792b14c7a2_RunAmend_CRLFOutputEqualsLFOutputProperty(t *testing.T) {
+	t.Parallel()
+
+	cases := amendParityCases()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		tc := rapid.SampledFrom(cases).Draw(rt, "case")
+		layout := rapid.SampledFrom([]string{"all", "frontmatter", "body"}).Draw(rt, "layout")
+
+		lfOut, lfErr := runAmendLFJudged(context.Background(), tc.input, tc.input, tc.args)
+		if lfErr != nil {
+			rt.Fatalf("LF amend %s: %v", tc.name, lfErr)
+		}
+
+		crlfOut, crlfErr := runAmendLFJudged(context.Background(), crlfLayout(tc.input, layout), tc.input, tc.args)
+		if crlfErr != nil {
+			rt.Fatalf("%s CRLF (%s) amend refused: %v", tc.name, layout, crlfErr)
+		}
+
+		if strings.Contains(crlfOut, "\r\n") {
+			rt.Fatalf("%s (%s): CRLF left in the written note:\n%q", tc.name, layout, crlfOut)
+		}
+
+		if crlfOut != lfOut {
+			rt.Fatalf("%s (%s): CRLF amend differs from LF amend\ncrlf:\n%s\nlf:\n%s", tc.name, layout, crlfOut, lfOut)
+		}
+	})
+}
+
+// TestRunAmend_CRLFJudgedVersionUsesTheLFForm: a CRLF served offer's
+// offer.origin is read from its LF form, so --clear-pending needs the
+// judged hash, and that hash is the LF form's.
+func TestRunAmend_CRLFJudgedVersionUsesTheLFForm(t *testing.T) {
+	t.Parallel()
+
+	lfNote := foldNote(foldExchange{xid: foldXIDO, origin: true}, true)
+	notPending := false
+
+	t.Run("required", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		vault := newCRLFAmendVault(toCRLF(lfNote))
+		err := vault.amend(t.Context(), cli.AmendArgs{Pending: &notPending})
+		g.Expect(err).To(MatchError(ContainSubstring("--expect-hash")))
+		g.Expect(vault.files[crlfAmendNoteName]).To(Equal([]byte(toCRLF(lfNote))), "a refused amend writes nothing")
+	})
+
+	t.Run("matches the LF form", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		judged, hashErr := cli.ExportExchangeHash([]byte(lfNote))
+		g.Expect(hashErr).NotTo(HaveOccurred())
+
+		vault := newCRLFAmendVault(toCRLF(lfNote))
+		err := vault.amend(t.Context(), cli.AmendArgs{Pending: &notPending, ExpectHash: judged})
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(string(vault.files[crlfAmendNoteName])).NotTo(ContainSubstring("\r"))
+		g.Expect(string(vault.files[crlfAmendNoteName])).NotTo(ContainSubstring("pending: true"))
+	})
 }
 
 // TestRunAmend_DiscardIntoConvertsCRLFExisting: a fold that changes a CRLF

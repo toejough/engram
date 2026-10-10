@@ -41,6 +41,36 @@ func Test792b11c3a3_Learn_OmitsEmptyVault(t *testing.T) {
 	g.Expect(strings.Join(warnings, "\n")).To(ContainSubstring("vault"))
 }
 
+// Test792b14c5a6_RunAmend_BookkeepingNeverWritesEmptyVault: a bookkeeping amend on a
+// note with no vault: writes the resolved vault name; with none resolved
+// it omits the key and warns — never vault: "".
+func Test792b14c5a6_RunAmend_BookkeepingNeverWritesEmptyVault(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct{ name, vaultName, want string }{
+		{"resolved", "personal", "vault: personal\n"},
+		{"unresolved", "", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			written, warnings := runVaultlessClearPending(t.Context(), tc.vaultName)
+			g.Expect(written).NotTo(ContainSubstring("vault: \"\""))
+
+			if tc.want != "" {
+				g.Expect(written).To(ContainSubstring(tc.want))
+				g.Expect(warnings).To(BeEmpty())
+
+				return
+			}
+
+			g.Expect(written).NotTo(MatchRegexp(`(?m)^vault:`))
+			g.Expect(strings.Join(warnings, "\n")).To(ContainSubstring("vault"))
+		})
+	}
+}
+
 // TestBuildOfferPayload_NoUserIdentityRefuses: a note with no user: on a
 // host whose user detection is empty builds no payload, rather than
 // sending user: "" for the parent to reject.
@@ -93,36 +123,6 @@ func TestDrainOutbox_NoUserIdentityNeedsAttention(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(sentXIDs(parent)).To(Equal([]string{xidA}), "resumes once a payload can be built")
 	g.Expect(env.outbox().Entries).To(BeEmpty())
-}
-
-// TestRunAmend_BookkeepingNeverWritesEmptyVault: a bookkeeping amend on a
-// note with no vault: writes the resolved vault name; with none resolved
-// it omits the key and warns — never vault: "".
-func TestRunAmend_BookkeepingNeverWritesEmptyVault(t *testing.T) {
-	t.Parallel()
-
-	for _, tc := range []struct{ name, vaultName, want string }{
-		{"resolved", "personal", "vault: personal\n"},
-		{"unresolved", "", ""},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			written, warnings := runVaultlessClearPending(t.Context(), tc.vaultName)
-			g.Expect(written).NotTo(ContainSubstring("vault: \"\""))
-
-			if tc.want != "" {
-				g.Expect(written).To(ContainSubstring(tc.want))
-				g.Expect(warnings).To(BeEmpty())
-
-				return
-			}
-
-			g.Expect(written).NotTo(MatchRegexp(`(?m)^vault:`))
-			g.Expect(strings.Join(warnings, "\n")).To(ContainSubstring("vault"))
-		})
-	}
 }
 
 // TestUpdateExchange_NoUserIdentityWaitsThenOffers: through the production

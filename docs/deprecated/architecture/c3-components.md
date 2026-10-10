@@ -37,7 +37,7 @@ flowchart TB
       upd["K9 · update<br/>go install, re-exec fresh binary for sync (ENGRAM_UPDATE_REEXEC, ADR-0023); sync artifacts to engram-owned roots, materialize symlinks; dark migration, cleanup; --with-guidance; manifest fallback (ADR-0022)"]
     end
     subgraph PW[engram amend / resituate / activate — write-modifier processes]
-      wm["K4w · amend · resituate · activate<br/>read-modify-write a note/sidecar under .luhmann.lock; share K4/K5/K10 kernels"]
+      wm["K4w · amend · resituate · activate<br/>see 792b14 note-amendment"]
     end
     subgraph PS[engram serve — process]
       srv["K14 · serve<br/>query/show/activate/learn HTTP door; served learn: idempotency-first, in-place pending update, 409 loop refusal"]

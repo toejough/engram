@@ -20,6 +20,423 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
+// Test792b13c2a1_RunResituate_LocatesByFullBasename verifies the note can be found by
+// its complete basename, not just the leading luhmann id.
+func Test792b13c2a1_RunResituate_LocatesByFullBasename(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const basename = "9aa.2026-05-10.nilaway-guard"
+
+	vault := t.TempDir()
+	notePath := filepath.Join(vault, basename+".md")
+	writeResituateFixture(t, notePath, resituateFactNote)
+
+	deps := cli.ExportNewResituateDeps(cli.ExportNewTestOsDeps(), successEmbedder{})
+
+	var stdout strings.Builder
+
+	err := cli.RunResituate(t.Context(), cli.ResituateArgs{
+		Vault:     vault,
+		Note:      basename,
+		Situation: resituateNewSituation,
+	}, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	got, readErr := os.ReadFile(notePath)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(string(got)).To(ContainSubstring("situation: " + resituateNewSituation))
+}
+
+// Test792b13c2a2_RunResituate_NotFound asserts the sentinel error when no note in the
+// vault matches the requested id or basename.
+func Test792b13c2a2_RunResituate_NotFound(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	g.Expect(os.MkdirAll(vault, 0o750)).To(Succeed())
+
+	deps := cli.ExportNewResituateDeps(cli.ExportNewTestOsDeps(), successEmbedder{})
+
+	var stdout strings.Builder
+
+	err := cli.RunResituate(t.Context(), cli.ResituateArgs{
+		Vault:     vault,
+		Note:      "does-not-exist",
+		Situation: resituateNewSituation,
+	}, deps, &stdout)
+	g.Expect(err).To(MatchError(cli.ErrResituateNoteNotFoundForTest))
+}
+
+// Test792b14c1a2_RunResituate_LocksVaultAroundReadModifyWrite asserts that RunResituate
+// acquires the vault lock BEFORE reading the note and releases it AFTER
+// writing the sidecar, so concurrent amend/resituate/learn runs do not lose
+// each other's writes.
+func Test792b14c1a2_RunResituate_LocksVaultAroundReadModifyWrite(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var order []string
+
+	noteName := "9zz.2026-05-10.lock-test"
+	noteContent := `---
+type: fact
+tier: L2
+situation: original situation
+subject: A
+predicate: has
+object: B
+luhmann: "9zz"
+created: "2026-05-10"
+source: test
+---
+
+Information learned: when in original situation, A has B.
+`
+
+	deps := cli.ResituateDeps{
+		Lock: func(string) (func(), error) {
+			order = append(order, "lock")
+
+			return func() { order = append(order, "unlock") }, nil
+		},
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: noteName, LuhmannID: "9zz"}}, nil
+		},
+		Read: func(string) ([]byte, error) {
+			order = append(order, "read")
+
+			return []byte(noteContent), nil
+		},
+		Write: func(string, []byte) error {
+			order = append(order, "write")
+
+			return nil
+		},
+		Embedder: successEmbedder{},
+	}
+
+	args := cli.ResituateArgs{
+		Vault:     "/vault",
+		Note:      "9zz",
+		Situation: "new test situation",
+	}
+
+	var stdout strings.Builder
+
+	err := cli.RunResituate(t.Context(), args, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(order).To(ContainElements("lock", "read", "write", "unlock"),
+		"all lock events must be recorded")
+
+	lockIdx := sliceIndex(order, "lock")
+	readIdx := sliceIndex(order, "read")
+	writeIdx := sliceIndex(order, "write")
+	unlockIdx := sliceIndex(order, "unlock")
+
+	g.Expect(lockIdx).To(BeNumerically("<", readIdx), "lock must precede read")
+	g.Expect(readIdx).To(BeNumerically("<", writeIdx), "read must precede write")
+	g.Expect(writeIdx).To(BeNumerically("<", unlockIdx), "final write must precede unlock")
+}
+
+// Test792b14c8a1_RunResituate_Fact rewrites a fact note's situation and asserts the
+// whole document equals the original with every occurrence of the old
+// situation replaced — this single oracle covers the frontmatter
+// situation: field, the body formula clause, and preservation of every
+// other field (created, tier, luhmann, issue, relations). It also asserts
+// the re-embedded sidecar's content_hash tracks the new embed source.
+func Test792b14c8a1_RunResituate_Fact(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	notePath := filepath.Join(vault, "9aa.2026-05-10.nilaway-guard.md")
+	writeResituateFixture(t, notePath, resituateFactNote)
+
+	originalHash := embed.ContentHash([]byte(resituateFactNote))
+
+	deps := cli.ExportNewResituateDeps(cli.ExportNewTestOsDeps(), successEmbedder{})
+
+	var stdout strings.Builder
+
+	err := cli.RunResituate(t.Context(), cli.ResituateArgs{
+		Vault:     vault,
+		Note:      "9aa",
+		Situation: resituateNewSituation,
+	}, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	got, readErr := os.ReadFile(notePath)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	want := strings.ReplaceAll(resituateFactNote, resituateOldSituation, resituateNewSituation)
+	g.Expect(string(got)).To(Equal(want))
+
+	newHash := readSidecarHash(t, notePath)
+	g.Expect(newHash).NotTo(Equal(originalHash))
+	g.Expect(newHash).To(Equal(embed.ContentHash([]byte(want))))
+}
+
+// Test792b14c8a2_RunResituate_Feedback rewrites a feedback note's situation. Both the
+// frontmatter situation: field and the body formula's "when <situation>"
+// clause become the new value; every other field and the related-to tail
+// are preserved. Same ReplaceAll oracle as the fact case.
+func Test792b14c8a2_RunResituate_Feedback(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	notePath := filepath.Join(vault, "9ac.2026-05-12.nilaway-guard.md")
+	writeResituateFixture(t, notePath, resituateFeedbackNote)
+
+	originalHash := embed.ContentHash([]byte(resituateFeedbackNote))
+
+	deps := cli.ExportNewResituateDeps(cli.ExportNewTestOsDeps(), successEmbedder{})
+
+	var stdout strings.Builder
+
+	err := cli.RunResituate(t.Context(), cli.ResituateArgs{
+		Vault:     vault,
+		Note:      "9ac",
+		Situation: resituateNewSituation,
+	}, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	got, readErr := os.ReadFile(notePath)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	want := strings.ReplaceAll(resituateFeedbackNote, resituateOldSituation, resituateNewSituation)
+	g.Expect(string(got)).To(Equal(want))
+
+	newHash := readSidecarHash(t, notePath)
+	g.Expect(newHash).NotTo(Equal(originalHash))
+	g.Expect(newHash).To(Equal(embed.ContentHash([]byte(want))))
+}
+
+// Test792b14c8a3_RunResituate_ContentErrors drives the render-path failure branches:
+// a note with no frontmatter, a note whose delimited frontmatter is not
+// valid YAML (routed to the unknown-type arm), and a note whose created
+// date will not parse. Each is served via injected Read so no temp files
+// are needed; the write/embedder are no-ops because resituateContent fails
+// before either runs.
+func Test792b14c8a3_RunResituate_ContentErrors(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		note string
+	}{
+		{name: "no frontmatter", note: "just a body, no frontmatter\n"},
+		{name: "malformed frontmatter yaml", note: "---\n\ttype: fact\n---\n\nbody\n"},
+		{name: "fact unparseable created", note: factNoteWithCreated("not-a-date")},
+		{name: "feedback unparseable created", note: feedbackNoteWithCreated("not-a-date")},
+		{name: "body without newline", note: factNoteBody("single line no newline")},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			deps := injectedNoteDeps(tc.note, successEmbedder{}, nil)
+
+			var stdout strings.Builder
+
+			err := cli.RunResituate(t.Context(), cli.ResituateArgs{
+				Vault:     "/v",
+				Note:      injectedNoteID,
+				Situation: resituateNewSituation,
+			}, deps, &stdout)
+
+			// "body without newline" is a valid rewrite (empty related tail);
+			// the others are hard failures. Either way the render path runs.
+			if tc.name == "body without newline" {
+				g.Expect(err).NotTo(HaveOccurred())
+
+				return
+			}
+
+			g.Expect(err).To(HaveOccurred())
+		})
+	}
+}
+
+// Test792b14c8a4_RunResituate_KeepsEveryKeyButSituationProperty is P3 (design D7): for
+// a fact or feedback note carrying 0-3 unknown keys (scalar, list, nested
+// map) and optionally an anchored unknown value aliased by another key,
+// every key except situation decodes to the same value after resituate —
+// unless situation: or created: carries an aliased anchor, which refuses
+// the note unwritten (ruling V3).
+func Test792b14c8a4_RunResituate_KeepsEveryKeyButSituationProperty(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		noteType := rapid.SampledFrom([]string{"fact", "feedback"}).Draw(rt, "type")
+		unknown := skillUnknownKeysGen().Draw(rt, "unknown")
+
+		if rapid.Bool().Draw(rt, "anchored") {
+			unknown += "x_anchor: &k \"shared value\"\nx_alias: *k\n"
+		}
+
+		before := resituateUnknownKeysNote(noteType, unknown)
+
+		// An anchor on a key resituate sets refuses the note unwritten
+		// (ruling V3).
+		edited := rapid.SampledFrom([]string{"", "situation: ", "created: "}).Draw(rt, "anchoredEditedKey")
+		if edited != "" {
+			before = strings.Replace(before, "\n"+edited, "\n"+edited+"&e ", 1)
+			before = strings.Replace(before, "vault: v\n", "vault: v\nx_edit_ref: *e\n", 1)
+		}
+
+		// A CRLF note is converted to LF in the same write (design D5).
+		input := before
+		if rapid.Bool().Draw(rt, "crlf") {
+			input = crlf(before)
+		}
+
+		after, writes, err := runExchangeSurvivalResituate(context.Background(), input)
+
+		if edited != "" {
+			if !errors.Is(err, cli.ErrFrontmatterAnchoredKeyForTest) || writes != 0 {
+				rt.Fatalf("anchored %q: err = %v, writes = %d; want the anchored-key refusal, unwritten", edited, err, writes)
+			}
+
+			return
+		}
+
+		assertOnlySituationChanged(rt, before, after, err)
+	})
+}
+
+// Test792b14c8a5_RunResituate_IOErrors drives the I/O failure branches of RunResituate
+// and writeResituatedSidecar via injected deps: scan failure, read failure,
+// note-write failure, embed failure, and sidecar-write failure.
+func Test792b14c8a5_RunResituate_IOErrors(t *testing.T) {
+	t.Parallel()
+
+	t.Run("scan error", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		deps := injectedNoteDeps(resituateFactNote, successEmbedder{}, nil)
+		deps.Scan = func(string) ([]vaultgraph.Note, error) { return nil, errInjectedIO }
+
+		err := cli.RunResituate(t.Context(), resituateArgs(), deps, &strings.Builder{})
+		g.Expect(err).To(MatchError(errInjectedIO))
+	})
+
+	t.Run("read error", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		deps := injectedNoteDeps(resituateFactNote, successEmbedder{}, nil)
+		deps.Read = func(string) ([]byte, error) { return nil, errInjectedIO }
+
+		err := cli.RunResituate(t.Context(), resituateArgs(), deps, &strings.Builder{})
+		g.Expect(err).To(MatchError(errInjectedIO))
+	})
+
+	t.Run("note write error", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		deps := injectedNoteDeps(resituateFactNote, successEmbedder{}, func(string, []byte) error {
+			return errInjectedIO
+		})
+
+		err := cli.RunResituate(t.Context(), resituateArgs(), deps, &strings.Builder{})
+		g.Expect(err).To(MatchError(errInjectedIO))
+	})
+
+	t.Run("embed error", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		deps := injectedNoteDeps(resituateFactNote, failingEmbedder{}, nil)
+
+		err := cli.RunResituate(t.Context(), resituateArgs(), deps, &strings.Builder{})
+		g.Expect(err).To(MatchError(errEmbedDown))
+	})
+
+	t.Run("sidecar write error", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		// Note write succeeds; only the sidecar (.vec.json) write fails.
+		deps := injectedNoteDeps(
+			resituateFactNote,
+			successEmbedder{},
+			func(path string, _ []byte) error {
+				if strings.HasSuffix(path, ".vec.json") {
+					return errInjectedIO
+				}
+
+				return nil
+			},
+		)
+
+		err := cli.RunResituate(t.Context(), resituateArgs(), deps, &strings.Builder{})
+		g.Expect(err).To(MatchError(errInjectedIO))
+	})
+}
+
+// Test792b6c7a1_RunResituate_KeepsUnmodeledKeys covers note-revision 792a4j1d's
+// unmodeled key (design D6b): on a fact and on a
+// feedback note, `luhmann_old: "12"` and a nested unknown map survive.
+func Test792b6c7a1_RunResituate_KeepsUnmodeledKeys(t *testing.T) {
+	t.Parallel()
+
+	const unknown = "luhmann_old: \"12\"\nprovenance:\n    origin: import\n    steps: [a, b]\n"
+
+	for _, noteType := range []string{"fact", "feedback"} {
+		t.Run(noteType, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			before := resituateUnknownKeysNote(noteType, unknown)
+
+			after, writes, err := runExchangeSurvivalResituate(t.Context(), before)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(writes).To(Equal(1))
+
+			fields := frontmatterOf(after)
+			g.Expect(fields["situation"]).To(Equal("resituated context"))
+			g.Expect(fields["luhmann_old"]).To(Equal("12"))
+			g.Expect(fields["provenance"]).To(Equal(map[string]any{"origin": "import", "steps": []any{"a", "b"}}))
+		})
+	}
+}
+
 // TestApplyVocabAssignmentAfterResituate_TagsNote verifies that
 // applyVocabAssignmentAfterResituate assigns a vocab term to the note body
 // when the body vector is close enough to the term vector.
@@ -185,423 +602,6 @@ func TestRunResituate_CallsVocabAssignment(t *testing.T) {
 	}
 
 	g.Expect(loadTermsCalled).To(BeTrue(), "LoadTermVectors must be called after writing the note")
-}
-
-// TestRunResituate_ContentErrors drives the render-path failure branches:
-// a note with no frontmatter, a note whose delimited frontmatter is not
-// valid YAML (routed to the unknown-type arm), and a note whose created
-// date will not parse. Each is served via injected Read so no temp files
-// are needed; the write/embedder are no-ops because resituateContent fails
-// before either runs.
-func TestRunResituate_ContentErrors(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		name string
-		note string
-	}{
-		{name: "no frontmatter", note: "just a body, no frontmatter\n"},
-		{name: "malformed frontmatter yaml", note: "---\n\ttype: fact\n---\n\nbody\n"},
-		{name: "fact unparseable created", note: factNoteWithCreated("not-a-date")},
-		{name: "feedback unparseable created", note: feedbackNoteWithCreated("not-a-date")},
-		{name: "body without newline", note: factNoteBody("single line no newline")},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			deps := injectedNoteDeps(tc.note, successEmbedder{}, nil)
-
-			var stdout strings.Builder
-
-			err := cli.RunResituate(t.Context(), cli.ResituateArgs{
-				Vault:     "/v",
-				Note:      injectedNoteID,
-				Situation: resituateNewSituation,
-			}, deps, &stdout)
-
-			// "body without newline" is a valid rewrite (empty related tail);
-			// the others are hard failures. Either way the render path runs.
-			if tc.name == "body without newline" {
-				g.Expect(err).NotTo(HaveOccurred())
-
-				return
-			}
-
-			g.Expect(err).To(HaveOccurred())
-		})
-	}
-}
-
-// TestRunResituate_Fact rewrites a fact note's situation and asserts the
-// whole document equals the original with every occurrence of the old
-// situation replaced — this single oracle covers the frontmatter
-// situation: field, the body formula clause, and preservation of every
-// other field (created, tier, luhmann, issue, relations). It also asserts
-// the re-embedded sidecar's content_hash tracks the new embed source.
-func TestRunResituate_Fact(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	notePath := filepath.Join(vault, "9aa.2026-05-10.nilaway-guard.md")
-	writeResituateFixture(t, notePath, resituateFactNote)
-
-	originalHash := embed.ContentHash([]byte(resituateFactNote))
-
-	deps := cli.ExportNewResituateDeps(cli.ExportNewTestOsDeps(), successEmbedder{})
-
-	var stdout strings.Builder
-
-	err := cli.RunResituate(t.Context(), cli.ResituateArgs{
-		Vault:     vault,
-		Note:      "9aa",
-		Situation: resituateNewSituation,
-	}, deps, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	got, readErr := os.ReadFile(notePath)
-	g.Expect(readErr).NotTo(HaveOccurred())
-
-	if readErr != nil {
-		return
-	}
-
-	want := strings.ReplaceAll(resituateFactNote, resituateOldSituation, resituateNewSituation)
-	g.Expect(string(got)).To(Equal(want))
-
-	newHash := readSidecarHash(t, notePath)
-	g.Expect(newHash).NotTo(Equal(originalHash))
-	g.Expect(newHash).To(Equal(embed.ContentHash([]byte(want))))
-}
-
-// TestRunResituate_Feedback rewrites a feedback note's situation. Both the
-// frontmatter situation: field and the body formula's "when <situation>"
-// clause become the new value; every other field and the related-to tail
-// are preserved. Same ReplaceAll oracle as the fact case.
-func TestRunResituate_Feedback(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	notePath := filepath.Join(vault, "9ac.2026-05-12.nilaway-guard.md")
-	writeResituateFixture(t, notePath, resituateFeedbackNote)
-
-	originalHash := embed.ContentHash([]byte(resituateFeedbackNote))
-
-	deps := cli.ExportNewResituateDeps(cli.ExportNewTestOsDeps(), successEmbedder{})
-
-	var stdout strings.Builder
-
-	err := cli.RunResituate(t.Context(), cli.ResituateArgs{
-		Vault:     vault,
-		Note:      "9ac",
-		Situation: resituateNewSituation,
-	}, deps, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	got, readErr := os.ReadFile(notePath)
-	g.Expect(readErr).NotTo(HaveOccurred())
-
-	if readErr != nil {
-		return
-	}
-
-	want := strings.ReplaceAll(resituateFeedbackNote, resituateOldSituation, resituateNewSituation)
-	g.Expect(string(got)).To(Equal(want))
-
-	newHash := readSidecarHash(t, notePath)
-	g.Expect(newHash).NotTo(Equal(originalHash))
-	g.Expect(newHash).To(Equal(embed.ContentHash([]byte(want))))
-}
-
-// TestRunResituate_IOErrors drives the I/O failure branches of RunResituate
-// and writeResituatedSidecar via injected deps: scan failure, read failure,
-// note-write failure, embed failure, and sidecar-write failure.
-func TestRunResituate_IOErrors(t *testing.T) {
-	t.Parallel()
-
-	t.Run("scan error", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		deps := injectedNoteDeps(resituateFactNote, successEmbedder{}, nil)
-		deps.Scan = func(string) ([]vaultgraph.Note, error) { return nil, errInjectedIO }
-
-		err := cli.RunResituate(t.Context(), resituateArgs(), deps, &strings.Builder{})
-		g.Expect(err).To(MatchError(errInjectedIO))
-	})
-
-	t.Run("read error", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		deps := injectedNoteDeps(resituateFactNote, successEmbedder{}, nil)
-		deps.Read = func(string) ([]byte, error) { return nil, errInjectedIO }
-
-		err := cli.RunResituate(t.Context(), resituateArgs(), deps, &strings.Builder{})
-		g.Expect(err).To(MatchError(errInjectedIO))
-	})
-
-	t.Run("note write error", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		deps := injectedNoteDeps(resituateFactNote, successEmbedder{}, func(string, []byte) error {
-			return errInjectedIO
-		})
-
-		err := cli.RunResituate(t.Context(), resituateArgs(), deps, &strings.Builder{})
-		g.Expect(err).To(MatchError(errInjectedIO))
-	})
-
-	t.Run("embed error", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		deps := injectedNoteDeps(resituateFactNote, failingEmbedder{}, nil)
-
-		err := cli.RunResituate(t.Context(), resituateArgs(), deps, &strings.Builder{})
-		g.Expect(err).To(MatchError(errEmbedDown))
-	})
-
-	t.Run("sidecar write error", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		// Note write succeeds; only the sidecar (.vec.json) write fails.
-		deps := injectedNoteDeps(
-			resituateFactNote,
-			successEmbedder{},
-			func(path string, _ []byte) error {
-				if strings.HasSuffix(path, ".vec.json") {
-					return errInjectedIO
-				}
-
-				return nil
-			},
-		)
-
-		err := cli.RunResituate(t.Context(), resituateArgs(), deps, &strings.Builder{})
-		g.Expect(err).To(MatchError(errInjectedIO))
-	})
-}
-
-// TestRunResituate_KeepsEveryKeyButSituationProperty is P3 (design D7): for
-// a fact or feedback note carrying 0-3 unknown keys (scalar, list, nested
-// map) and optionally an anchored unknown value aliased by another key,
-// every key except situation decodes to the same value after resituate —
-// unless situation: or created: carries an aliased anchor, which refuses
-// the note unwritten (ruling V3).
-func TestRunResituate_KeepsEveryKeyButSituationProperty(t *testing.T) {
-	t.Parallel()
-	rapid.Check(t, func(rt *rapid.T) {
-		noteType := rapid.SampledFrom([]string{"fact", "feedback"}).Draw(rt, "type")
-		unknown := skillUnknownKeysGen().Draw(rt, "unknown")
-
-		if rapid.Bool().Draw(rt, "anchored") {
-			unknown += "x_anchor: &k \"shared value\"\nx_alias: *k\n"
-		}
-
-		before := resituateUnknownKeysNote(noteType, unknown)
-
-		// An anchor on a key resituate sets refuses the note unwritten
-		// (ruling V3).
-		edited := rapid.SampledFrom([]string{"", "situation: ", "created: "}).Draw(rt, "anchoredEditedKey")
-		if edited != "" {
-			before = strings.Replace(before, "\n"+edited, "\n"+edited+"&e ", 1)
-			before = strings.Replace(before, "vault: v\n", "vault: v\nx_edit_ref: *e\n", 1)
-		}
-
-		// A CRLF note is converted to LF in the same write (design D5).
-		input := before
-		if rapid.Bool().Draw(rt, "crlf") {
-			input = crlf(before)
-		}
-
-		after, writes, err := runExchangeSurvivalResituate(context.Background(), input)
-
-		if edited != "" {
-			if !errors.Is(err, cli.ErrFrontmatterAnchoredKeyForTest) || writes != 0 {
-				rt.Fatalf("anchored %q: err = %v, writes = %d; want the anchored-key refusal, unwritten", edited, err, writes)
-			}
-
-			return
-		}
-
-		assertOnlySituationChanged(rt, before, after, err)
-	})
-}
-
-// TestRunResituate_KeepsUnmodeledKeys is the scenario "Resituate keeps an
-// unmodeled key" (vault-note-identity; design D6b): on a fact and on a
-// feedback note, `luhmann_old: "12"` and a nested unknown map survive.
-func TestRunResituate_KeepsUnmodeledKeys(t *testing.T) {
-	t.Parallel()
-
-	const unknown = "luhmann_old: \"12\"\nprovenance:\n    origin: import\n    steps: [a, b]\n"
-
-	for _, noteType := range []string{"fact", "feedback"} {
-		t.Run(noteType, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			before := resituateUnknownKeysNote(noteType, unknown)
-
-			after, writes, err := runExchangeSurvivalResituate(t.Context(), before)
-			g.Expect(err).NotTo(HaveOccurred())
-			g.Expect(writes).To(Equal(1))
-
-			fields := frontmatterOf(after)
-			g.Expect(fields["situation"]).To(Equal("resituated context"))
-			g.Expect(fields["luhmann_old"]).To(Equal("12"))
-			g.Expect(fields["provenance"]).To(Equal(map[string]any{"origin": "import", "steps": []any{"a", "b"}}))
-		})
-	}
-}
-
-// TestRunResituate_LocatesByFullBasename verifies the note can be found by
-// its complete basename, not just the leading luhmann id.
-func TestRunResituate_LocatesByFullBasename(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	const basename = "9aa.2026-05-10.nilaway-guard"
-
-	vault := t.TempDir()
-	notePath := filepath.Join(vault, basename+".md")
-	writeResituateFixture(t, notePath, resituateFactNote)
-
-	deps := cli.ExportNewResituateDeps(cli.ExportNewTestOsDeps(), successEmbedder{})
-
-	var stdout strings.Builder
-
-	err := cli.RunResituate(t.Context(), cli.ResituateArgs{
-		Vault:     vault,
-		Note:      basename,
-		Situation: resituateNewSituation,
-	}, deps, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	got, readErr := os.ReadFile(notePath)
-	g.Expect(readErr).NotTo(HaveOccurred())
-
-	if readErr != nil {
-		return
-	}
-
-	g.Expect(string(got)).To(ContainSubstring("situation: " + resituateNewSituation))
-}
-
-// TestRunResituate_LocksVaultAroundReadModifyWrite asserts that RunResituate
-// acquires the vault lock BEFORE reading the note and releases it AFTER
-// writing the sidecar, so concurrent amend/resituate/learn runs do not lose
-// each other's writes.
-func TestRunResituate_LocksVaultAroundReadModifyWrite(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var order []string
-
-	noteName := "9zz.2026-05-10.lock-test"
-	noteContent := `---
-type: fact
-tier: L2
-situation: original situation
-subject: A
-predicate: has
-object: B
-luhmann: "9zz"
-created: "2026-05-10"
-source: test
----
-
-Information learned: when in original situation, A has B.
-`
-
-	deps := cli.ResituateDeps{
-		Lock: func(string) (func(), error) {
-			order = append(order, "lock")
-
-			return func() { order = append(order, "unlock") }, nil
-		},
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: noteName, LuhmannID: "9zz"}}, nil
-		},
-		Read: func(string) ([]byte, error) {
-			order = append(order, "read")
-
-			return []byte(noteContent), nil
-		},
-		Write: func(string, []byte) error {
-			order = append(order, "write")
-
-			return nil
-		},
-		Embedder: successEmbedder{},
-	}
-
-	args := cli.ResituateArgs{
-		Vault:     "/vault",
-		Note:      "9zz",
-		Situation: "new test situation",
-	}
-
-	var stdout strings.Builder
-
-	err := cli.RunResituate(t.Context(), args, deps, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(order).To(ContainElements("lock", "read", "write", "unlock"),
-		"all lock events must be recorded")
-
-	lockIdx := sliceIndex(order, "lock")
-	readIdx := sliceIndex(order, "read")
-	writeIdx := sliceIndex(order, "write")
-	unlockIdx := sliceIndex(order, "unlock")
-
-	g.Expect(lockIdx).To(BeNumerically("<", readIdx), "lock must precede read")
-	g.Expect(readIdx).To(BeNumerically("<", writeIdx), "read must precede write")
-	g.Expect(writeIdx).To(BeNumerically("<", unlockIdx), "final write must precede unlock")
-}
-
-// TestRunResituate_NotFound asserts the sentinel error when no note in the
-// vault matches the requested id or basename.
-func TestRunResituate_NotFound(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	g.Expect(os.MkdirAll(vault, 0o750)).To(Succeed())
-
-	deps := cli.ExportNewResituateDeps(cli.ExportNewTestOsDeps(), successEmbedder{})
-
-	var stdout strings.Builder
-
-	err := cli.RunResituate(t.Context(), cli.ResituateArgs{
-		Vault:     vault,
-		Note:      "does-not-exist",
-		Situation: resituateNewSituation,
-	}, deps, &stdout)
-	g.Expect(err).To(MatchError(cli.ErrResituateNoteNotFoundForTest))
 }
 
 // unexported constants.

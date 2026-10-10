@@ -160,28 +160,12 @@ func Test792b12c4a5_LearnFeedback_Supersedes_WrittenToFrontmatterAndBody(t *test
 		"body must contain Supersedes wikilink line")
 }
 
-// Test792b6c4a5_RenderSupersedes_StripsMdFromWikilink verifies the machine-written body
-// line targets the canonical extension-less basename even when the entry's
-// note field carries the full .md filename (which frontmatter keeps).
-func Test792b6c4a5_RenderSupersedes_StripsMdFromWikilink(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	rendered := cli.ExportRenderSupersedes([]cli.ExportSupersedesEntry{
-		{Note: "9e.2026-01-01.old-note.md", Type: "updates", Claim: "old note superseded"},
-	})
-
-	g.Expect(rendered).To(Equal("Supersedes: [[9e.2026-01-01.old-note]] — updates: old note superseded\n"),
-		"wikilink target must drop the .md extension — the graph resolves extension-less basenames")
-}
-
 // ── Unit 5: --supersedes flag ─────────────────────────────────────────────────
 
-// TestAmendFactNote_Supersedes_WrittenToFrontmatterAndBody proves that --supersedes
+// Test792b14c4a1_AmendFactNote_Supersedes_WrittenToFrontmatterAndBody proves that --supersedes
 // on amend of a FACT note writes both frontmatter and body, exercising the
 // overrideFactFields path with parsedSupersedes != nil.
-func TestAmendFactNote_Supersedes_WrittenToFrontmatterAndBody(t *testing.T) {
+func Test792b14c4a1_AmendFactNote_Supersedes_WrittenToFrontmatterAndBody(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -235,9 +219,9 @@ func TestAmendFactNote_Supersedes_WrittenToFrontmatterAndBody(t *testing.T) {
 	))
 }
 
-// TestAmend_Supersedes_WrittenToFrontmatterAndBody proves that --supersedes on
+// Test792b14c4a1_Amend_Supersedes_WrittenToFrontmatterAndBody proves that --supersedes on
 // amend writes both channels and replaces any existing entries.
-func TestAmend_Supersedes_WrittenToFrontmatterAndBody(t *testing.T) {
+func Test792b14c4a1_Amend_Supersedes_WrittenToFrontmatterAndBody(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -286,6 +270,22 @@ func TestAmend_Supersedes_WrittenToFrontmatterAndBody(t *testing.T) {
 	g.Expect(body).To(ContainSubstring("note: 9c.2026-01-01.old"))
 	g.Expect(body).To(ContainSubstring("type: refutes"))
 	g.Expect(body).To(ContainSubstring("Supersedes: [[9c.2026-01-01.old]] — refutes: old claim was wrong"))
+}
+
+// Test792b6c4a5_RenderSupersedes_StripsMdFromWikilink verifies the machine-written body
+// line targets the canonical extension-less basename even when the entry's
+// note field carries the full .md filename (which frontmatter keeps).
+func Test792b6c4a5_RenderSupersedes_StripsMdFromWikilink(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	rendered := cli.ExportRenderSupersedes([]cli.ExportSupersedesEntry{
+		{Note: "9e.2026-01-01.old-note.md", Type: "updates", Claim: "old note superseded"},
+	})
+
+	g.Expect(rendered).To(Equal("Supersedes: [[9e.2026-01-01.old-note]] — updates: old note superseded\n"),
+		"wikilink target must drop the .md extension — the graph resolves extension-less basenames")
 }
 
 // TestBuildSupersedesInverse proves the inverse scan helper correctly maps

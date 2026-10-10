@@ -21,6 +21,1143 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
+// Test792b13c2a1_RunAmend_ResolvesTargetWithMdSuffix asserts that RunAmend resolves a
+// --target passed as "basename.md" (the form emitted by the recall skill's
+// Step-2.5C amend calls) rather than returning "note not found".
+func Test792b13c2a1_RunAmend_ResolvesTargetWithMdSuffix(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1.linting"
+
+	noteContent := makeFactNote("ctx", "A")
+	writeCalled := false
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1"}}, nil
+		},
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(string, []byte) error { writeCalled = true; return nil },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+	}
+	args := cli.AmendArgs{
+		Vault:  "/vault",
+		Target: "1.linting.md", // .md-suffixed form — must resolve to "1.linting"
+	}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(writeCalled).
+		To(BeTrue(), "amend must write the note when target resolves via .md suffix")
+}
+
+// Test792b14c1a1_RunAmend_LocksVaultAroundReadModifyWrite asserts that RunAmend acquires
+// the vault lock BEFORE reading the note and releases it AFTER writing, so
+// concurrent amend/resituate/learn runs cannot produce lost updates.
+func Test792b14c1a1_RunAmend_LocksVaultAroundReadModifyWrite(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-01-01.test"
+
+	noteContent := makeFactNote("ctx", "A")
+
+	var order []string
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Lock: func(string) (func(), error) {
+			order = append(order, "lock")
+
+			return func() { order = append(order, "unlock") }, nil
+		},
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read: func(string) ([]byte, error) {
+			order = append(order, "read")
+
+			return noteContent, nil
+		},
+		Write: func(string, []byte) error {
+			order = append(order, "write")
+
+			return nil
+		},
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+	}
+	args := cli.AmendArgs{
+		Vault:  "/vault",
+		Target: "1aa",
+		// no-op amend: no content change, no embed — lock ordering verified
+	}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(order).To(ContainElements("lock", "read", "write", "unlock"),
+		"all lock events must be recorded")
+
+	lockIdx := sliceIndex(order, "lock")
+	readIdx := sliceIndex(order, "read")
+	writeIdx := sliceIndex(order, "write")
+	unlockIdx := sliceIndex(order, "unlock")
+
+	g.Expect(lockIdx).To(BeNumerically("<", readIdx), "lock must precede read")
+	g.Expect(readIdx).To(BeNumerically("<", writeIdx), "read must precede write")
+	g.Expect(writeIdx).To(BeNumerically("<", unlockIdx), "write must precede unlock")
+}
+
+func Test792b14c2a1_RunAmend_NoteNotFound(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{}, nil
+		},
+		Read:     func(string) ([]byte, error) { return nil, nil },
+		Write:    func(string, []byte) error { return nil },
+		Embedder: nil,
+	}
+	args := cli.AmendArgs{
+		Vault:  "/vault",
+		Target: "999",
+	}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
+	g.Expect(err).To(MatchError(ContainSubstring("note not found")))
+}
+
+func Test792b14c2a2_RunAmend_NoFrontmatter_Errors(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-01-01.raw.md"
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read:  func(string) ([]byte, error) { return []byte("no frontmatter here\n"), nil },
+		Write: func(string, []byte) error { return nil },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+	}
+	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", Situation: "y"}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
+	g.Expect(err).To(MatchError(ContainSubstring("no parseable frontmatter")))
+}
+
+func Test792b14c2a3_RunAmend_UnknownNoteType_Errors(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-01-01.weird.md"
+
+	// a note whose type is neither fact nor feedback
+	noteContent := []byte(
+		"---\ntype: episode\nsituation: x\ncreated: 2026-01-01\nsource: test\n---\n\nbody\n",
+	)
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(string, []byte) error { return nil },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+	}
+	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", Situation: "y"}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
+	g.Expect(err).To(MatchError(ContainSubstring("unknown note type")))
+}
+
+func Test792b14c2a4_RunAmend_MalformedCreated_Errors(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-01-01.test.md"
+
+	// A fact note whose created: date does not parse — applyTypedAmend decodes
+	// the doc, then parseCreated must fail loud rather than write a note with a
+	// zero-value date.
+	noteContent := []byte(
+		"---\ntype: fact\nsituation: x\nsubject: A\npredicate: has\nobject: B\n" +
+			"luhmann: \"1aa\"\ncreated: not-a-date\nsource: test\n---\n\nbody\n",
+	)
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(string, []byte) error { return nil },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+	}
+	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", Subject: "NewSubject"}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
+	g.Expect(err).To(MatchError(ContainSubstring("parsing created date")))
+}
+
+func Test792b14c2a5_RunAmend_ProvMerge_UnresolvedChunkSource_Errors(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-01-01.test.md"
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read:  func(string) ([]byte, error) { return makeFactNote("ctx", "A"), nil },
+		Write: func(string, []byte) error { return nil },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil // empty — id won't resolve
+		},
+	}
+	args := cli.AmendArgs{
+		Vault:        "/vault",
+		Target:       "1aa",
+		ChunkSources: []string{"/sessions/s.jsonl#turn-1"},
+		ChunksDir:    "/chunks",
+	}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
+	g.Expect(err).To(MatchError(ContainSubstring("unresolved chunk-source id")))
+}
+
+func Test792b14c2a6_RunAmend_Runbook_InvalidTriggerRejectedWritesNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var (
+		written []byte
+		writes  int
+	)
+
+	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", Triggers: []string{"ab"}}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(
+		t.Context(), args, runbookAmendDeps(makeRunbookNote("ctx", "done", "1. s\n"), &written, &writes), &buf,
+	)
+	g.Expect(err).To(MatchError(ContainSubstring("trigger")))
+	g.Expect(writes).To(Equal(0))
+}
+
+func Test792b14c3a1_RunAmend_FieldReplacement_Fact_SubjectOnly(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-01-01.test.md"
+
+	noteContent := makeFactNote("ctx", "OldSubject")
+
+	var written []byte
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(_ string, data []byte) error { written = data; return nil },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+	}
+	args := cli.AmendArgs{
+		Vault:   "/vault",
+		Target:  "1aa",
+		Subject: "NewSubject",
+	}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	body := string(written)
+	g.Expect(body).To(ContainSubstring("subject: NewSubject"))
+	g.Expect(body).To(ContainSubstring("predicate: has"))
+	g.Expect(body).To(ContainSubstring("object: B"))
+	g.Expect(body).To(ContainSubstring("situation: ctx"))
+	g.Expect(body).To(ContainSubstring("luhmann: \"1aa\""))
+	// renderFactFrontmatter emits created as a double-quoted scalar (yaml.v3
+	// quotes date-like strings) — matches learn output, not the plan's unquoted form.
+	g.Expect(body).To(ContainSubstring("created: \"2026-01-01\""))
+}
+
+func Test792b14c3a1_RunAmend_RoundTrip_FactNote(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chunksDir := t.TempDir()
+
+	const noteKey = "1aa.2026-01-01.test"
+
+	const chunkID = "/sessions/s.jsonl#turn-1"
+
+	notePath := filepath.Join(dir, noteKey+".md")
+
+	// write initial note
+	noteContent := makeFactNote("original ctx", "OldSubject")
+	err := os.WriteFile(notePath, noteContent, 0o600)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// write a chunk index with one record
+	records := []chunk.Record{{
+		Source: "/sessions/s.jsonl", Anchor: "turn-1",
+		ContentHash: chunk.HashText("t"),
+		Text:        "t", Vector: []float32{0.1},
+	}}
+	data, _ := chunk.EncodeRecords(records)
+	err = os.WriteFile(filepath.Join(chunksDir, "s.jsonl"), data, 0o600)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Use the production deps end-to-end (real Scan/Read/Write/ListBasenames),
+	// overriding only the clock for determinism. This exercises newAmendDeps.
+	deps := cli.ExportNewAmendDeps(cli.ExportNewTestOsDeps())
+	deps.Now = func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) }
+
+	args := cli.AmendArgs{
+		Vault:        dir,
+		Target:       "1aa",
+		Subject:      "NewSubject",
+		ChunkSources: []string{chunkID},
+		ChunksDir:    chunksDir,
+	}
+
+	var buf bytes.Buffer
+
+	err = cli.ExportRunAmend(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Read the amended note back from disk (the production Write persisted it).
+	final, readErr := os.ReadFile(notePath)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	body := string(final)
+	g.Expect(body).To(ContainSubstring("subject: NewSubject"))
+	g.Expect(body).To(ContainSubstring("luhmann: \"1aa\""))
+	g.Expect(body).To(ContainSubstring("created: \"2026-01-01\""))
+	g.Expect(body).To(ContainSubstring("sources:"))
+	g.Expect(body).To(ContainSubstring(chunkID))
+}
+
+func Test792b14c3a2_RunAmend_FieldReplacement_Feedback_ActionAndProvMerge(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-01-01.fb.md"
+
+	const dupID = "/sessions/s.jsonl#turn-1"
+
+	const newID = "/sessions/s.jsonl#turn-2"
+
+	// note already carries dupID in sources: so merging dupID again must dedup.
+	noteContent := makeFeedbackNote("ctx", "did X", "broke Y", "do Z instead", dupID)
+
+	var written []byte
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(_ string, data []byte) error { written = data; return nil },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{dupID: true, newID: true}, nil
+		},
+		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+	}
+	args := cli.AmendArgs{
+		Vault:        "/vault",
+		Target:       "1aa",
+		Action:       "do W instead",
+		ChunkSources: []string{dupID, newID}, // dupID overlaps existing -> dedup path
+	}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	body := string(written)
+	g.Expect(body).To(ContainSubstring("type: feedback"))
+	g.Expect(body).To(ContainSubstring("action: do W instead"))
+	g.Expect(body).To(ContainSubstring("behavior: did X"))
+	g.Expect(body).To(ContainSubstring(newID))
+	// dupID present exactly once (existing + incoming deduped).
+	g.Expect(strings.Count(body, dupID)).To(Equal(1))
+	// body formula re-rendered with the new action.
+	g.Expect(body).To(ContainSubstring("Lesson learned: when ctx, do W instead."))
+}
+
+// makeFeedbackNote renders a minimal feedback note. When source is non-empty it
+// is recorded as a single sources: provenance entry, exercising the
+// existing-sources merge path.
+func Test792b14c3a3_RunAmend_FieldReplacement_Runbook_BodyDoneWhenRedFlags(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-01-01.rb.md"
+
+	noteContent := makeRunbookNote("ctx", "old done", "1. old step\n")
+
+	var written []byte
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(_ string, data []byte) error { written = data; return nil },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+	}
+	args := cli.AmendArgs{
+		Vault:    "/vault",
+		Target:   "1aa",
+		DoneWhen: "new done",
+		Body:     "1. new step\n",
+		RedFlags: []string{"flag one", "flag two"},
+	}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	body := string(written)
+	g.Expect(body).To(ContainSubstring("done_when: new done"))
+	g.Expect(body).To(ContainSubstring("situation: ctx"))
+	g.Expect(body).To(ContainSubstring("1. new step"))
+	g.Expect(body).To(ContainSubstring("red_flags:"))
+	g.Expect(body).To(ContainSubstring("flag one"))
+	g.Expect(body).To(ContainSubstring("flag two"))
+	g.Expect(body).To(ContainSubstring("luhmann: \"1aa\""))
+}
+
+func Test792b14c3a4_RunAmend_FieldReplacement_Runbook_SituationOnly_PreservesBody(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-01-01.rb.md"
+
+	noteContent := makeRunbookNote("old ctx", "old done", "1. old step\n")
+
+	var written []byte
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(_ string, data []byte) error { written = data; return nil },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+	}
+	args := cli.AmendArgs{
+		Vault:     "/vault",
+		Target:    "1aa",
+		Situation: "new ctx",
+	}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	body := string(written)
+	g.Expect(body).To(ContainSubstring("situation: new ctx"))
+	g.Expect(body).To(ContainSubstring("done_when: old done"))
+	g.Expect(body).To(ContainSubstring("1. old step"))
+}
+
+// Test792b14c3a5_RunAmend_Runbook_TriggersReplaceWholeList proves --trigger on amend
+// replaces the entire triggers: list (runbook-lexical-triggers spec).
+func Test792b14c3a5_RunAmend_Runbook_TriggersReplaceWholeList(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	noteContent := []byte("---\ntype: runbook\ntier: L2\nsituation: ctx\ndone_when: done\n" +
+		"triggers:\n    - /old-one\n    - old two cue\n" +
+		"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\n---\n\n1. step\n")
+
+	var (
+		written []byte
+		writes  int
+	)
+
+	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", Triggers: []string{"/please"}}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, runbookAmendDeps(noteContent, &written, &writes), &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	body := string(written)
+	g.Expect(writes).To(Equal(1))
+	g.Expect(body).To(ContainSubstring("/please"))
+	g.Expect(body).NotTo(ContainSubstring("/old-one"))
+	g.Expect(body).NotTo(ContainSubstring("old two cue"))
+	g.Expect(body).To(ContainSubstring("1. step"))
+}
+
+func Test792b14c3a6_RunAmend_FieldReplacement_NoContentChange_NoReEmbed(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-01-01.test.md"
+
+	noteContent := makeFactNote("ctx", "A")
+
+	embedCalled := false
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(string, []byte) error { return nil },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		Now:      func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+		Embedder: &spyEmbedder{called: &embedCalled},
+	}
+	args := cli.AmendArgs{
+		Vault:  "/vault",
+		Target: "1aa",
+		// no semantic field changes — no re-embed expected
+	}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(embedCalled).To(BeFalse(), "no-content-change amend must not trigger re-embed")
+}
+
+func Test792b14c4a2_RunAmend_ProvMerge_ChunkSources_Written(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-01-01.test.md"
+
+	const chunkID = "/sessions/s.jsonl#turn-1"
+
+	noteContent := makeFactNote("ctx", "A")
+
+	var written []byte
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(_ string, data []byte) error { written = data; return nil },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{chunkID: true}, nil
+		},
+		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+	}
+	args := cli.AmendArgs{
+		Vault:        "/vault",
+		Target:       "1aa",
+		ChunkSources: []string{chunkID},
+	}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(written)).To(ContainSubstring("sources:"))
+	g.Expect(string(written)).To(ContainSubstring(chunkID))
+}
+
+// Test792b14c5a1_RunAmend_ReStampsIdentityFields verifies a content amend overwrites a
+// note's repo:/user:/vault: with the current environment's freshly detected
+// values, even when the note's existing values differ — identity fields
+// track the last content writer, not the note's origin.
+func Test792b14c5a1_RunAmend_ReStampsIdentityFields(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-01-01.test.md"
+
+	noteContent := []byte(
+		"---\ntype: fact\ntier: L2\nsituation: ctx\nsubject: A\npredicate: has\nobject: B\n" +
+			"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\n" +
+			"repo: git@github.com:other/repo.git\nuser: someone-else@example.com\nvault: other-vault\n" +
+			"---\n\nInformation learned: when in ctx, A has B.\n\n",
+	)
+
+	var written []byte
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "git@github.com:example/vault.git" },
+		DetectUser: func(context.Context) string { return "agent@example.com" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(_ string, data []byte) error { written = data; return nil },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		Now: func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
+	}
+	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", VaultName: "personal", Object: "C"}
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &bytes.Buffer{})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	got := string(written)
+	g.Expect(got).To(ContainSubstring("repo: git@github.com:example/vault.git"))
+	g.Expect(got).To(ContainSubstring("user: agent@example.com"))
+	g.Expect(got).To(ContainSubstring("vault: personal"))
+	g.Expect(got).NotTo(ContainSubstring("other/repo.git"))
+	g.Expect(got).NotTo(ContainSubstring("someone-else"))
+}
+
+// Test792b14c5a2_RunAmend_AddsIdentityFieldsToPreExistingNote verifies a --chunk-source
+// amend of a note written before this capability existed (no
+// repo:/user:/vault: fields at all) adds them, same as any other re-stamping
+// amend.
+func Test792b14c5a2_RunAmend_AddsIdentityFieldsToPreExistingNote(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-01-01.test.md"
+
+	noteContent := makeFactNote("ctx", "A") // no repo:/user:/vault: at all
+
+	var written []byte
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "git@github.com:example/vault.git" },
+		DetectUser: func(context.Context) string { return "agent@example.com" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(_ string, data []byte) error { written = data; return nil },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{"session.jsonl#a1": true}, nil
+		},
+		Now: func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
+	}
+	args := cli.AmendArgs{
+		Vault: "/vault", Target: "1aa", VaultName: "personal", ChunkSources: []string{"session.jsonl#a1"},
+	}
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &bytes.Buffer{})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	got := string(written)
+	g.Expect(got).To(ContainSubstring("repo: git@github.com:example/vault.git"))
+	g.Expect(got).To(ContainSubstring("user: agent@example.com"))
+	g.Expect(got).To(ContainSubstring("vault: personal"))
+}
+
+// Test792b14c5a3_RunAmend_RepoReStamp_IgnoresProjectField verifies amend's repo:
+// re-stamp always uses fresh detection from the current working directory,
+// never the note's project: field — unlike backfill, an amend is assumed to
+// run from the repo it's actually about (design.md).
+func Test792b14c5a3_RunAmend_RepoReStamp_IgnoresProjectField(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-01-01.test.md"
+
+	noteContent := []byte(
+		"---\ntype: fact\ntier: L2\nsituation: ctx\nsubject: A\npredicate: has\nobject: B\n" +
+			"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\nproject: other-project\n" +
+			"---\n\nInformation learned: when in ctx, A has B.\n\n",
+	)
+
+	var written []byte
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "git@github.com:example/vault.git" },
+		DetectUser: func(context.Context) string { return "agent@example.com" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(_ string, data []byte) error { written = data; return nil },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		Now: func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
+	}
+	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", VaultName: "personal", Object: "C"}
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &bytes.Buffer{})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	got := string(written)
+	g.Expect(got).To(ContainSubstring("repo: git@github.com:example/vault.git"),
+		"amend's repo: is always fresh detection, ignoring project:")
+	g.Expect(got).NotTo(ContainSubstring("repo: other-project"))
+}
+
+// Test792b14c6a1_RunAmend_SupersedesOnlyReStamp_DoesNotTriggerReEmbed verifies that an
+// amend with only --supersedes (no content-changing flag) — which re-stamps
+// identity — is a provenance-only change and never triggers a re-embed
+// (note-revision 792a4g1b).
+func Test792b14c6a1_RunAmend_SupersedesOnlyReStamp_DoesNotTriggerReEmbed(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-01-01.test.md"
+
+	noteContent := makeFactNote("ctx", "A")
+
+	embedCalled := false
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "git@github.com:example/vault.git" },
+		DetectUser: func(context.Context) string { return "agent@example.com" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(string, []byte) error { return nil },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		Now:      func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
+		Embedder: &spyEmbedder{called: &embedCalled},
+	}
+	// Only --supersedes — this amend re-stamps identity but changes no content.
+	args := cli.AmendArgs{
+		Vault: "/vault", Target: "1aa", VaultName: "personal",
+		Supersedes: []string{"9.2026-01-01.old|narrows|older claim"},
+	}
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &bytes.Buffer{})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(embedCalled).To(BeFalse(), "identity-only re-stamp is provenance-only and must not trigger re-embed")
+}
+
+func Test792b14c6a2_RunAmend_ReEmbedFailure_WarnsAndContinues(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-01-01.test.md"
+
+	noteContent := makeFactNote("ctx", "OldSubject")
+
+	var logged string
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(string, []byte) error { return nil },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		Now:        func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+		Embedder:   &failingEmbedder{},
+		LogWarning: func(format string, a ...any) { logged = fmt.Sprintf(format, a...) },
+	}
+	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", Subject: "NewSubject"}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
+	// embed failure must NOT fail the amend (the note write already succeeded).
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(logged).To(ContainSubstring("embed failed"))
+}
+
+func Test792b14c9a4_RunAmend_Activate_BumpsLastUsed(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-01-01.test.md"
+
+	noteContent := makeFactNote("ctx", "A")
+	// A valid sidecar (correct schema version + matching Dims/vectors) so
+	// bumpLastUsed's UnmarshalSidecar accepts it; the plan's bare LastUsed-only
+	// fixture fails the schema-version guard and never writes.
+	sidecarContent := embed.MarshalSidecar(embed.Sidecar{
+		SchemaVersion:    embed.SidecarSchemaVersion,
+		EmbeddingModelID: "m@1",
+		Dims:             1,
+		SituationVector:  []float32{0.1},
+		BodyVector:       []float32{0.2},
+		ContentHash:      "sha256:x",
+		LastUsed:         "2025-01-01",
+	})
+
+	var writtenPaths []string
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read: func(path string) ([]byte, error) {
+			if strings.HasSuffix(path, ".vec.json") {
+				return sidecarContent, nil
+			}
+
+			return noteContent, nil
+		},
+		Write: func(path string, _ []byte) error {
+			writtenPaths = append(writtenPaths, path)
+
+			return nil
+		},
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		Now: func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
+	}
+	args := cli.AmendArgs{
+		Vault:    "/vault",
+		Target:   "1aa",
+		Activate: true,
+	}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Sidecar write must have happened (the .vec.json path)
+	var hasSidecar bool
+
+	for _, p := range writtenPaths {
+		if strings.HasSuffix(p, ".vec.json") {
+			hasSidecar = true
+		}
+	}
+
+	g.Expect(hasSidecar).To(BeTrue(), "activate must write the sidecar")
+}
+
+func Test792b14c9a4_RunAmend_Activate_PreservesLastUsedAcrossReEmbed(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-01-01.test"
+
+	// A content change triggers a re-embed, which writes a FRESH sidecar with
+	// LastUsed="". --activate must then stamp today's date on that fresh sidecar,
+	// so the final LastUsed is today — not "" (re-embed lost it) nor the stale date.
+	noteContent := makeFactNote("ctx", "OldSubject")
+
+	store := map[string][]byte{}
+
+	var lastSidecar []byte
+
+	embedCalled := false
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read: func(path string) ([]byte, error) {
+			if data, ok := store[path]; ok {
+				return data, nil
+			}
+
+			return noteContent, nil
+		},
+		Write: func(path string, data []byte) error {
+			store[path] = data
+			if strings.HasSuffix(path, ".vec.json") {
+				lastSidecar = data
+			}
+
+			return nil
+		},
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		Now:      func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
+		Embedder: &spyEmbedder{called: &embedCalled},
+	}
+	args := cli.AmendArgs{
+		Vault:    "/vault",
+		Target:   "1aa",
+		Subject:  "NewSubject", // semantic change → re-embed
+		Activate: true,
+	}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(embedCalled).To(BeTrue(), "a subject change must re-embed")
+	g.Expect(lastSidecar).NotTo(BeNil(), "a sidecar must have been written")
+
+	final, unmarshalErr := embed.UnmarshalSidecar(lastSidecar)
+	g.Expect(unmarshalErr).NotTo(HaveOccurred())
+
+	if unmarshalErr != nil {
+		return
+	}
+
+	g.Expect(final.LastUsed).To(Equal("2026-06-01"),
+		"activate must stamp today's LastUsed on the re-embedded sidecar")
+}
+
+// Test792b6c7a1_RunAmend_PreservesTagsFrontmatter (#674): amending a content field of a
+// tagged fact note must not drop tags: — factFrontmatterDoc.Tags carries the
+// list through amend's decode→override→render cycle. No --tag flag exists on
+// amend by design; preservation is the whole contract.
+func Test792b6c7a1_RunAmend_PreservesTagsFrontmatter(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-07-10.route-dispatch-rename.md"
+
+	noteContent := []byte(
+		"---\ntype: fact\nsituation: routing rename work\nsubject: rename dispatch\n" +
+			"predicate: resolved as\nobject: pass\nluhmann: \"1aa\"\ncreated: 2026-07-10\n" +
+			"source: test\ntags:\n    - work-kind/rename\n    - tier/cheap\n    - outcome/pass\n" +
+			"---\n\nbody\n",
+	)
+
+	var written []byte
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(_ string, data []byte) error { written = data; return nil },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		Now: func() time.Time { return time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC) },
+	}
+	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", Object: "fail per review verdict"}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(written)).To(ContainSubstring("tags:"))
+	g.Expect(string(written)).To(ContainSubstring("work-kind/rename"))
+	g.Expect(string(written)).To(ContainSubstring("tier/cheap"))
+	g.Expect(string(written)).To(ContainSubstring("outcome/pass"))
+	g.Expect(string(written)).To(ContainSubstring("object: fail per review verdict"))
+}
+
+// Test792b6c7a1_RunAmend_Runbook_ToleratesUnknownFrontmatterKey proves runbook frontmatter
+// decoding ignores unknown keys, so a binary predating a field can still
+// amend a note carrying it (rollback safety for runbook-lexical-triggers).
+func Test792b6c7a1_RunAmend_Runbook_ToleratesUnknownFrontmatterKey(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	noteContent := []byte("---\ntype: runbook\ntier: L2\nsituation: ctx\ndone_when: done\n" +
+		"some_future_key:\n    - x\nluhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\n---\n\n1. step\n")
+
+	var (
+		written []byte
+		writes  int
+	)
+
+	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", DoneWhen: "new done"}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, runbookAmendDeps(noteContent, &written, &writes), &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(string(written)).To(ContainSubstring("done_when: new done"))
+}
+
 // TestApplyVocabAssignmentAfterAmend_TriggerFires drives applyVocabAssignmentAfterAmend
 // with a vault at the growth threshold and asserts the trigger flag is persisted.
 // ListMD is set but LoadTermVectors is nil — the trigger check must still run.
@@ -212,1007 +1349,6 @@ func TestDiscardNote_TreatsMissingSidecarAsSuccess(t *testing.T) {
 	g.Expect(buf.String()).To(Equal("/vault/1.note.md\n"))
 }
 
-func TestRunAmend_Activate_BumpsLastUsed(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const basename = "1aa.2026-01-01.test.md"
-
-	noteContent := makeFactNote("ctx", "A")
-	// A valid sidecar (correct schema version + matching Dims/vectors) so
-	// bumpLastUsed's UnmarshalSidecar accepts it; the plan's bare LastUsed-only
-	// fixture fails the schema-version guard and never writes.
-	sidecarContent := embed.MarshalSidecar(embed.Sidecar{
-		SchemaVersion:    embed.SidecarSchemaVersion,
-		EmbeddingModelID: "m@1",
-		Dims:             1,
-		SituationVector:  []float32{0.1},
-		BodyVector:       []float32{0.2},
-		ContentHash:      "sha256:x",
-		LastUsed:         "2025-01-01",
-	})
-
-	var writtenPaths []string
-
-	deps := cli.AmendDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read: func(path string) ([]byte, error) {
-			if strings.HasSuffix(path, ".vec.json") {
-				return sidecarContent, nil
-			}
-
-			return noteContent, nil
-		},
-		Write: func(path string, _ []byte) error {
-			writtenPaths = append(writtenPaths, path)
-
-			return nil
-		},
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{}, nil
-		},
-		Now: func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
-	}
-	args := cli.AmendArgs{
-		Vault:    "/vault",
-		Target:   "1aa",
-		Activate: true,
-	}
-
-	var buf bytes.Buffer
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Sidecar write must have happened (the .vec.json path)
-	var hasSidecar bool
-
-	for _, p := range writtenPaths {
-		if strings.HasSuffix(p, ".vec.json") {
-			hasSidecar = true
-		}
-	}
-
-	g.Expect(hasSidecar).To(BeTrue(), "activate must write the sidecar")
-}
-
-func TestRunAmend_Activate_PreservesLastUsedAcrossReEmbed(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const basename = "1aa.2026-01-01.test"
-
-	// A content change triggers a re-embed, which writes a FRESH sidecar with
-	// LastUsed="". --activate must then stamp today's date on that fresh sidecar,
-	// so the final LastUsed is today — not "" (re-embed lost it) nor the stale date.
-	noteContent := makeFactNote("ctx", "OldSubject")
-
-	store := map[string][]byte{}
-
-	var lastSidecar []byte
-
-	embedCalled := false
-	deps := cli.AmendDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read: func(path string) ([]byte, error) {
-			if data, ok := store[path]; ok {
-				return data, nil
-			}
-
-			return noteContent, nil
-		},
-		Write: func(path string, data []byte) error {
-			store[path] = data
-			if strings.HasSuffix(path, ".vec.json") {
-				lastSidecar = data
-			}
-
-			return nil
-		},
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{}, nil
-		},
-		Now:      func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
-		Embedder: &spyEmbedder{called: &embedCalled},
-	}
-	args := cli.AmendArgs{
-		Vault:    "/vault",
-		Target:   "1aa",
-		Subject:  "NewSubject", // semantic change → re-embed
-		Activate: true,
-	}
-
-	var buf bytes.Buffer
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(embedCalled).To(BeTrue(), "a subject change must re-embed")
-	g.Expect(lastSidecar).NotTo(BeNil(), "a sidecar must have been written")
-
-	final, unmarshalErr := embed.UnmarshalSidecar(lastSidecar)
-	g.Expect(unmarshalErr).NotTo(HaveOccurred())
-
-	if unmarshalErr != nil {
-		return
-	}
-
-	g.Expect(final.LastUsed).To(Equal("2026-06-01"),
-		"activate must stamp today's LastUsed on the re-embedded sidecar")
-}
-
-// TestRunAmend_AddsIdentityFieldsToPreExistingNote verifies a --chunk-source
-// amend of a note written before this capability existed (no
-// repo:/user:/vault: fields at all) adds them, same as any other re-stamping
-// amend.
-func TestRunAmend_AddsIdentityFieldsToPreExistingNote(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const basename = "1aa.2026-01-01.test.md"
-
-	noteContent := makeFactNote("ctx", "A") // no repo:/user:/vault: at all
-
-	var written []byte
-
-	deps := cli.AmendDeps{
-		DetectRepo: func(context.Context) string { return "git@github.com:example/vault.git" },
-		DetectUser: func(context.Context) string { return "agent@example.com" },
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read:  func(string) ([]byte, error) { return noteContent, nil },
-		Write: func(_ string, data []byte) error { written = data; return nil },
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{"session.jsonl#a1": true}, nil
-		},
-		Now: func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
-	}
-	args := cli.AmendArgs{
-		Vault: "/vault", Target: "1aa", VaultName: "personal", ChunkSources: []string{"session.jsonl#a1"},
-	}
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &bytes.Buffer{})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	got := string(written)
-	g.Expect(got).To(ContainSubstring("repo: git@github.com:example/vault.git"))
-	g.Expect(got).To(ContainSubstring("user: agent@example.com"))
-	g.Expect(got).To(ContainSubstring("vault: personal"))
-}
-
-func TestRunAmend_FieldReplacement_Fact_SubjectOnly(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const basename = "1aa.2026-01-01.test.md"
-
-	noteContent := makeFactNote("ctx", "OldSubject")
-
-	var written []byte
-
-	deps := cli.AmendDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read:  func(string) ([]byte, error) { return noteContent, nil },
-		Write: func(_ string, data []byte) error { written = data; return nil },
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{}, nil
-		},
-		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
-	}
-	args := cli.AmendArgs{
-		Vault:   "/vault",
-		Target:  "1aa",
-		Subject: "NewSubject",
-	}
-
-	var buf bytes.Buffer
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	body := string(written)
-	g.Expect(body).To(ContainSubstring("subject: NewSubject"))
-	g.Expect(body).To(ContainSubstring("predicate: has"))
-	g.Expect(body).To(ContainSubstring("object: B"))
-	g.Expect(body).To(ContainSubstring("situation: ctx"))
-	g.Expect(body).To(ContainSubstring("luhmann: \"1aa\""))
-	// renderFactFrontmatter emits created as a double-quoted scalar (yaml.v3
-	// quotes date-like strings) — matches learn output, not the plan's unquoted form.
-	g.Expect(body).To(ContainSubstring("created: \"2026-01-01\""))
-}
-
-func TestRunAmend_FieldReplacement_Feedback_ActionAndProvMerge(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const basename = "1aa.2026-01-01.fb.md"
-
-	const dupID = "/sessions/s.jsonl#turn-1"
-
-	const newID = "/sessions/s.jsonl#turn-2"
-
-	// note already carries dupID in sources: so merging dupID again must dedup.
-	noteContent := makeFeedbackNote("ctx", "did X", "broke Y", "do Z instead", dupID)
-
-	var written []byte
-
-	deps := cli.AmendDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read:  func(string) ([]byte, error) { return noteContent, nil },
-		Write: func(_ string, data []byte) error { written = data; return nil },
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{dupID: true, newID: true}, nil
-		},
-		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
-	}
-	args := cli.AmendArgs{
-		Vault:        "/vault",
-		Target:       "1aa",
-		Action:       "do W instead",
-		ChunkSources: []string{dupID, newID}, // dupID overlaps existing -> dedup path
-	}
-
-	var buf bytes.Buffer
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	body := string(written)
-	g.Expect(body).To(ContainSubstring("type: feedback"))
-	g.Expect(body).To(ContainSubstring("action: do W instead"))
-	g.Expect(body).To(ContainSubstring("behavior: did X"))
-	g.Expect(body).To(ContainSubstring(newID))
-	// dupID present exactly once (existing + incoming deduped).
-	g.Expect(strings.Count(body, dupID)).To(Equal(1))
-	// body formula re-rendered with the new action.
-	g.Expect(body).To(ContainSubstring("Lesson learned: when ctx, do W instead."))
-}
-
-func TestRunAmend_FieldReplacement_NoContentChange_NoReEmbed(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const basename = "1aa.2026-01-01.test.md"
-
-	noteContent := makeFactNote("ctx", "A")
-
-	embedCalled := false
-	deps := cli.AmendDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read:  func(string) ([]byte, error) { return noteContent, nil },
-		Write: func(string, []byte) error { return nil },
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{}, nil
-		},
-		Now:      func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
-		Embedder: &spyEmbedder{called: &embedCalled},
-	}
-	args := cli.AmendArgs{
-		Vault:  "/vault",
-		Target: "1aa",
-		// no semantic field changes — no re-embed expected
-	}
-
-	var buf bytes.Buffer
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(embedCalled).To(BeFalse(), "no-content-change amend must not trigger re-embed")
-}
-
-// makeFeedbackNote renders a minimal feedback note. When source is non-empty it
-// is recorded as a single sources: provenance entry, exercising the
-// existing-sources merge path.
-func TestRunAmend_FieldReplacement_Runbook_BodyDoneWhenRedFlags(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const basename = "1aa.2026-01-01.rb.md"
-
-	noteContent := makeRunbookNote("ctx", "old done", "1. old step\n")
-
-	var written []byte
-
-	deps := cli.AmendDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read:  func(string) ([]byte, error) { return noteContent, nil },
-		Write: func(_ string, data []byte) error { written = data; return nil },
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{}, nil
-		},
-		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
-	}
-	args := cli.AmendArgs{
-		Vault:    "/vault",
-		Target:   "1aa",
-		DoneWhen: "new done",
-		Body:     "1. new step\n",
-		RedFlags: []string{"flag one", "flag two"},
-	}
-
-	var buf bytes.Buffer
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	body := string(written)
-	g.Expect(body).To(ContainSubstring("done_when: new done"))
-	g.Expect(body).To(ContainSubstring("situation: ctx"))
-	g.Expect(body).To(ContainSubstring("1. new step"))
-	g.Expect(body).To(ContainSubstring("red_flags:"))
-	g.Expect(body).To(ContainSubstring("flag one"))
-	g.Expect(body).To(ContainSubstring("flag two"))
-	g.Expect(body).To(ContainSubstring("luhmann: \"1aa\""))
-}
-
-func TestRunAmend_FieldReplacement_Runbook_SituationOnly_PreservesBody(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const basename = "1aa.2026-01-01.rb.md"
-
-	noteContent := makeRunbookNote("old ctx", "old done", "1. old step\n")
-
-	var written []byte
-
-	deps := cli.AmendDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read:  func(string) ([]byte, error) { return noteContent, nil },
-		Write: func(_ string, data []byte) error { written = data; return nil },
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{}, nil
-		},
-		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
-	}
-	args := cli.AmendArgs{
-		Vault:     "/vault",
-		Target:    "1aa",
-		Situation: "new ctx",
-	}
-
-	var buf bytes.Buffer
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	body := string(written)
-	g.Expect(body).To(ContainSubstring("situation: new ctx"))
-	g.Expect(body).To(ContainSubstring("done_when: old done"))
-	g.Expect(body).To(ContainSubstring("1. old step"))
-}
-
-// TestRunAmend_LocksVaultAroundReadModifyWrite asserts that RunAmend acquires
-// the vault lock BEFORE reading the note and releases it AFTER writing, so
-// concurrent amend/resituate/learn runs cannot produce lost updates.
-func TestRunAmend_LocksVaultAroundReadModifyWrite(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	const basename = "1aa.2026-01-01.test"
-
-	noteContent := makeFactNote("ctx", "A")
-
-	var order []string
-
-	deps := cli.AmendDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Lock: func(string) (func(), error) {
-			order = append(order, "lock")
-
-			return func() { order = append(order, "unlock") }, nil
-		},
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read: func(string) ([]byte, error) {
-			order = append(order, "read")
-
-			return noteContent, nil
-		},
-		Write: func(string, []byte) error {
-			order = append(order, "write")
-
-			return nil
-		},
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{}, nil
-		},
-		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
-	}
-	args := cli.AmendArgs{
-		Vault:  "/vault",
-		Target: "1aa",
-		// no-op amend: no content change, no embed — lock ordering verified
-	}
-
-	var buf bytes.Buffer
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(order).To(ContainElements("lock", "read", "write", "unlock"),
-		"all lock events must be recorded")
-
-	lockIdx := sliceIndex(order, "lock")
-	readIdx := sliceIndex(order, "read")
-	writeIdx := sliceIndex(order, "write")
-	unlockIdx := sliceIndex(order, "unlock")
-
-	g.Expect(lockIdx).To(BeNumerically("<", readIdx), "lock must precede read")
-	g.Expect(readIdx).To(BeNumerically("<", writeIdx), "read must precede write")
-	g.Expect(writeIdx).To(BeNumerically("<", unlockIdx), "write must precede unlock")
-}
-
-func TestRunAmend_MalformedCreated_Errors(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const basename = "1aa.2026-01-01.test.md"
-
-	// A fact note whose created: date does not parse — applyTypedAmend decodes
-	// the doc, then parseCreated must fail loud rather than write a note with a
-	// zero-value date.
-	noteContent := []byte(
-		"---\ntype: fact\nsituation: x\nsubject: A\npredicate: has\nobject: B\n" +
-			"luhmann: \"1aa\"\ncreated: not-a-date\nsource: test\n---\n\nbody\n",
-	)
-
-	deps := cli.AmendDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read:  func(string) ([]byte, error) { return noteContent, nil },
-		Write: func(string, []byte) error { return nil },
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{}, nil
-		},
-		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
-	}
-	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", Subject: "NewSubject"}
-
-	var buf bytes.Buffer
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
-	g.Expect(err).To(MatchError(ContainSubstring("parsing created date")))
-}
-
-func TestRunAmend_NoFrontmatter_Errors(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const basename = "1aa.2026-01-01.raw.md"
-
-	deps := cli.AmendDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read:  func(string) ([]byte, error) { return []byte("no frontmatter here\n"), nil },
-		Write: func(string, []byte) error { return nil },
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{}, nil
-		},
-		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
-	}
-	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", Situation: "y"}
-
-	var buf bytes.Buffer
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
-	g.Expect(err).To(MatchError(ContainSubstring("no parseable frontmatter")))
-}
-
-func TestRunAmend_NoteNotFound(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	deps := cli.AmendDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{}, nil
-		},
-		Read:     func(string) ([]byte, error) { return nil, nil },
-		Write:    func(string, []byte) error { return nil },
-		Embedder: nil,
-	}
-	args := cli.AmendArgs{
-		Vault:  "/vault",
-		Target: "999",
-	}
-
-	var buf bytes.Buffer
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
-	g.Expect(err).To(MatchError(ContainSubstring("note not found")))
-}
-
-// TestRunAmend_PreservesTagsFrontmatter (#674): amending a content field of a
-// tagged fact note must not drop tags: — factFrontmatterDoc.Tags carries the
-// list through amend's decode→override→render cycle. No --tag flag exists on
-// amend by design; preservation is the whole contract.
-func TestRunAmend_PreservesTagsFrontmatter(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const basename = "1aa.2026-07-10.route-dispatch-rename.md"
-
-	noteContent := []byte(
-		"---\ntype: fact\nsituation: routing rename work\nsubject: rename dispatch\n" +
-			"predicate: resolved as\nobject: pass\nluhmann: \"1aa\"\ncreated: 2026-07-10\n" +
-			"source: test\ntags:\n    - work-kind/rename\n    - tier/cheap\n    - outcome/pass\n" +
-			"---\n\nbody\n",
-	)
-
-	var written []byte
-
-	deps := cli.AmendDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read:  func(string) ([]byte, error) { return noteContent, nil },
-		Write: func(_ string, data []byte) error { written = data; return nil },
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{}, nil
-		},
-		Now: func() time.Time { return time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC) },
-	}
-	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", Object: "fail per review verdict"}
-
-	var buf bytes.Buffer
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(string(written)).To(ContainSubstring("tags:"))
-	g.Expect(string(written)).To(ContainSubstring("work-kind/rename"))
-	g.Expect(string(written)).To(ContainSubstring("tier/cheap"))
-	g.Expect(string(written)).To(ContainSubstring("outcome/pass"))
-	g.Expect(string(written)).To(ContainSubstring("object: fail per review verdict"))
-}
-
-func TestRunAmend_ProvMerge_ChunkSources_Written(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const basename = "1aa.2026-01-01.test.md"
-
-	const chunkID = "/sessions/s.jsonl#turn-1"
-
-	noteContent := makeFactNote("ctx", "A")
-
-	var written []byte
-
-	deps := cli.AmendDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read:  func(string) ([]byte, error) { return noteContent, nil },
-		Write: func(_ string, data []byte) error { written = data; return nil },
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{chunkID: true}, nil
-		},
-		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
-	}
-	args := cli.AmendArgs{
-		Vault:        "/vault",
-		Target:       "1aa",
-		ChunkSources: []string{chunkID},
-	}
-
-	var buf bytes.Buffer
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(string(written)).To(ContainSubstring("sources:"))
-	g.Expect(string(written)).To(ContainSubstring(chunkID))
-}
-
-func TestRunAmend_ProvMerge_UnresolvedChunkSource_Errors(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const basename = "1aa.2026-01-01.test.md"
-
-	deps := cli.AmendDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read:  func(string) ([]byte, error) { return makeFactNote("ctx", "A"), nil },
-		Write: func(string, []byte) error { return nil },
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{}, nil // empty — id won't resolve
-		},
-	}
-	args := cli.AmendArgs{
-		Vault:        "/vault",
-		Target:       "1aa",
-		ChunkSources: []string{"/sessions/s.jsonl#turn-1"},
-		ChunksDir:    "/chunks",
-	}
-
-	var buf bytes.Buffer
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
-	g.Expect(err).To(MatchError(ContainSubstring("unresolved chunk-source id")))
-}
-
-func TestRunAmend_ReEmbedFailure_WarnsAndContinues(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const basename = "1aa.2026-01-01.test.md"
-
-	noteContent := makeFactNote("ctx", "OldSubject")
-
-	var logged string
-
-	deps := cli.AmendDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read:  func(string) ([]byte, error) { return noteContent, nil },
-		Write: func(string, []byte) error { return nil },
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{}, nil
-		},
-		Now:        func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
-		Embedder:   &failingEmbedder{},
-		LogWarning: func(format string, a ...any) { logged = fmt.Sprintf(format, a...) },
-	}
-	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", Subject: "NewSubject"}
-
-	var buf bytes.Buffer
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
-	// embed failure must NOT fail the amend (the note write already succeeded).
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(logged).To(ContainSubstring("embed failed"))
-}
-
-// TestRunAmend_ReStampsIdentityFields verifies a content amend overwrites a
-// note's repo:/user:/vault: with the current environment's freshly detected
-// values, even when the note's existing values differ — identity fields
-// track the last content writer, not the note's origin.
-func TestRunAmend_ReStampsIdentityFields(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const basename = "1aa.2026-01-01.test.md"
-
-	noteContent := []byte(
-		"---\ntype: fact\ntier: L2\nsituation: ctx\nsubject: A\npredicate: has\nobject: B\n" +
-			"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\n" +
-			"repo: git@github.com:other/repo.git\nuser: someone-else@example.com\nvault: other-vault\n" +
-			"---\n\nInformation learned: when in ctx, A has B.\n\n",
-	)
-
-	var written []byte
-
-	deps := cli.AmendDeps{
-		DetectRepo: func(context.Context) string { return "git@github.com:example/vault.git" },
-		DetectUser: func(context.Context) string { return "agent@example.com" },
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read:  func(string) ([]byte, error) { return noteContent, nil },
-		Write: func(_ string, data []byte) error { written = data; return nil },
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{}, nil
-		},
-		Now: func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
-	}
-	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", VaultName: "personal", Object: "C"}
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &bytes.Buffer{})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	got := string(written)
-	g.Expect(got).To(ContainSubstring("repo: git@github.com:example/vault.git"))
-	g.Expect(got).To(ContainSubstring("user: agent@example.com"))
-	g.Expect(got).To(ContainSubstring("vault: personal"))
-	g.Expect(got).NotTo(ContainSubstring("other/repo.git"))
-	g.Expect(got).NotTo(ContainSubstring("someone-else"))
-}
-
-// TestRunAmend_RepoReStamp_IgnoresProjectField verifies amend's repo:
-// re-stamp always uses fresh detection from the current working directory,
-// never the note's project: field — unlike backfill, an amend is assumed to
-// run from the repo it's actually about (design.md).
-func TestRunAmend_RepoReStamp_IgnoresProjectField(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const basename = "1aa.2026-01-01.test.md"
-
-	noteContent := []byte(
-		"---\ntype: fact\ntier: L2\nsituation: ctx\nsubject: A\npredicate: has\nobject: B\n" +
-			"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\nproject: other-project\n" +
-			"---\n\nInformation learned: when in ctx, A has B.\n\n",
-	)
-
-	var written []byte
-
-	deps := cli.AmendDeps{
-		DetectRepo: func(context.Context) string { return "git@github.com:example/vault.git" },
-		DetectUser: func(context.Context) string { return "agent@example.com" },
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read:  func(string) ([]byte, error) { return noteContent, nil },
-		Write: func(_ string, data []byte) error { written = data; return nil },
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{}, nil
-		},
-		Now: func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
-	}
-	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", VaultName: "personal", Object: "C"}
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &bytes.Buffer{})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	got := string(written)
-	g.Expect(got).To(ContainSubstring("repo: git@github.com:example/vault.git"),
-		"amend's repo: is always fresh detection, ignoring project:")
-	g.Expect(got).NotTo(ContainSubstring("repo: other-project"))
-}
-
-// TestRunAmend_ResolvesTargetWithMdSuffix asserts that RunAmend resolves a
-// --target passed as "basename.md" (the form emitted by the recall skill's
-// Step-2.5C amend calls) rather than returning "note not found".
-func TestRunAmend_ResolvesTargetWithMdSuffix(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const basename = "1.linting"
-
-	noteContent := makeFactNote("ctx", "A")
-	writeCalled := false
-
-	deps := cli.AmendDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1"}}, nil
-		},
-		Read:  func(string) ([]byte, error) { return noteContent, nil },
-		Write: func(string, []byte) error { writeCalled = true; return nil },
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{}, nil
-		},
-		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
-	}
-	args := cli.AmendArgs{
-		Vault:  "/vault",
-		Target: "1.linting.md", // .md-suffixed form — must resolve to "1.linting"
-	}
-
-	var buf bytes.Buffer
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(writeCalled).
-		To(BeTrue(), "amend must write the note when target resolves via .md suffix")
-}
-
-func TestRunAmend_RoundTrip_FactNote(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	dir := t.TempDir()
-	chunksDir := t.TempDir()
-
-	const noteKey = "1aa.2026-01-01.test"
-
-	const chunkID = "/sessions/s.jsonl#turn-1"
-
-	notePath := filepath.Join(dir, noteKey+".md")
-
-	// write initial note
-	noteContent := makeFactNote("original ctx", "OldSubject")
-	err := os.WriteFile(notePath, noteContent, 0o600)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// write a chunk index with one record
-	records := []chunk.Record{{
-		Source: "/sessions/s.jsonl", Anchor: "turn-1",
-		ContentHash: chunk.HashText("t"),
-		Text:        "t", Vector: []float32{0.1},
-	}}
-	data, _ := chunk.EncodeRecords(records)
-	err = os.WriteFile(filepath.Join(chunksDir, "s.jsonl"), data, 0o600)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Use the production deps end-to-end (real Scan/Read/Write/ListBasenames),
-	// overriding only the clock for determinism. This exercises newAmendDeps.
-	deps := cli.ExportNewAmendDeps(cli.ExportNewTestOsDeps())
-	deps.Now = func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) }
-
-	args := cli.AmendArgs{
-		Vault:        dir,
-		Target:       "1aa",
-		Subject:      "NewSubject",
-		ChunkSources: []string{chunkID},
-		ChunksDir:    chunksDir,
-	}
-
-	var buf bytes.Buffer
-
-	err = cli.ExportRunAmend(t.Context(), args, deps, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Read the amended note back from disk (the production Write persisted it).
-	final, readErr := os.ReadFile(notePath)
-	g.Expect(readErr).NotTo(HaveOccurred())
-
-	if readErr != nil {
-		return
-	}
-
-	body := string(final)
-	g.Expect(body).To(ContainSubstring("subject: NewSubject"))
-	g.Expect(body).To(ContainSubstring("luhmann: \"1aa\""))
-	g.Expect(body).To(ContainSubstring("created: \"2026-01-01\""))
-	g.Expect(body).To(ContainSubstring("sources:"))
-	g.Expect(body).To(ContainSubstring(chunkID))
-}
-
-func TestRunAmend_Runbook_InvalidTriggerRejectedWritesNothing(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var (
-		written []byte
-		writes  int
-	)
-
-	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", Triggers: []string{"ab"}}
-
-	var buf bytes.Buffer
-
-	err := cli.ExportRunAmend(
-		t.Context(), args, runbookAmendDeps(makeRunbookNote("ctx", "done", "1. s\n"), &written, &writes), &buf,
-	)
-	g.Expect(err).To(MatchError(ContainSubstring("trigger")))
-	g.Expect(writes).To(Equal(0))
-}
-
 // TestRunAmend_Runbook_PreservesSkillHash_ContentChanged proves amend never
 // drops or alters skill_hash when rewriting a runbook note that carries it,
 // even along the content-changed render path that rebuilds the body
@@ -1274,143 +1410,6 @@ func TestRunAmend_Runbook_PreservesSkillHash_IdentityOnlyRestamp(t *testing.T) {
 	}
 
 	g.Expect(string(written)).To(ContainSubstring("skill_hash: abc123def456"))
-}
-
-// TestRunAmend_Runbook_ToleratesUnknownFrontmatterKey proves runbook frontmatter
-// decoding ignores unknown keys, so a binary predating a field can still
-// amend a note carrying it (rollback safety for runbook-lexical-triggers).
-func TestRunAmend_Runbook_ToleratesUnknownFrontmatterKey(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	noteContent := []byte("---\ntype: runbook\ntier: L2\nsituation: ctx\ndone_when: done\n" +
-		"some_future_key:\n    - x\nluhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\n---\n\n1. step\n")
-
-	var (
-		written []byte
-		writes  int
-	)
-
-	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", DoneWhen: "new done"}
-
-	var buf bytes.Buffer
-
-	err := cli.ExportRunAmend(t.Context(), args, runbookAmendDeps(noteContent, &written, &writes), &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(string(written)).To(ContainSubstring("done_when: new done"))
-}
-
-// TestRunAmend_Runbook_TriggersReplaceWholeList proves --trigger on amend
-// replaces the entire triggers: list (runbook-lexical-triggers spec).
-func TestRunAmend_Runbook_TriggersReplaceWholeList(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	noteContent := []byte("---\ntype: runbook\ntier: L2\nsituation: ctx\ndone_when: done\n" +
-		"triggers:\n    - /old-one\n    - old two cue\n" +
-		"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\n---\n\n1. step\n")
-
-	var (
-		written []byte
-		writes  int
-	)
-
-	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", Triggers: []string{"/please"}}
-
-	var buf bytes.Buffer
-
-	err := cli.ExportRunAmend(t.Context(), args, runbookAmendDeps(noteContent, &written, &writes), &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	body := string(written)
-	g.Expect(writes).To(Equal(1))
-	g.Expect(body).To(ContainSubstring("/please"))
-	g.Expect(body).NotTo(ContainSubstring("/old-one"))
-	g.Expect(body).NotTo(ContainSubstring("old two cue"))
-	g.Expect(body).To(ContainSubstring("1. step"))
-}
-
-// TestRunAmend_SupersedesOnlyReStamp_DoesNotTriggerReEmbed verifies that an
-// amend with only --supersedes (no content-changing flag) — which re-stamps
-// identity — is a provenance-only change and never triggers a re-embed
-// (vault-note-identity: "Amend does not trigger re-embed for identity-only
-// changes").
-func TestRunAmend_SupersedesOnlyReStamp_DoesNotTriggerReEmbed(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const basename = "1aa.2026-01-01.test.md"
-
-	noteContent := makeFactNote("ctx", "A")
-
-	embedCalled := false
-
-	deps := cli.AmendDeps{
-		DetectRepo: func(context.Context) string { return "git@github.com:example/vault.git" },
-		DetectUser: func(context.Context) string { return "agent@example.com" },
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read:  func(string) ([]byte, error) { return noteContent, nil },
-		Write: func(string, []byte) error { return nil },
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{}, nil
-		},
-		Now:      func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
-		Embedder: &spyEmbedder{called: &embedCalled},
-	}
-	// Only --supersedes — this amend re-stamps identity but changes no content.
-	args := cli.AmendArgs{
-		Vault: "/vault", Target: "1aa", VaultName: "personal",
-		Supersedes: []string{"9.2026-01-01.old|narrows|older claim"},
-	}
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &bytes.Buffer{})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(embedCalled).To(BeFalse(), "identity-only re-stamp is provenance-only and must not trigger re-embed")
-}
-
-func TestRunAmend_UnknownNoteType_Errors(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const basename = "1aa.2026-01-01.weird.md"
-
-	// a note whose type is neither fact nor feedback
-	noteContent := []byte(
-		"---\ntype: episode\nsituation: x\ncreated: 2026-01-01\nsource: test\n---\n\nbody\n",
-	)
-
-	deps := cli.AmendDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read:  func(string) ([]byte, error) { return noteContent, nil },
-		Write: func(string, []byte) error { return nil },
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{}, nil
-		},
-		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
-	}
-	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", Situation: "y"}
-
-	var buf bytes.Buffer
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
-	g.Expect(err).To(MatchError(ContainSubstring("unknown note type")))
 }
 
 // spyEmbedder is an embed.Embedder that records whether Embed was called.

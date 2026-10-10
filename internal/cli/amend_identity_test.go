@@ -75,12 +75,47 @@ func Test792b11c4a3_RunAmend_EmptyUserDetectionNoPriorUserOmitsUser(t *testing.T
 	}
 }
 
-// TestRunAmend_BookkeepingAmendsKeepIdentity: on every note type (fact and
+// Test792b14c5a4_RunAmend_IdentityRestampProperty: over any combination of amend flags,
+// on any note type, identity is re-stamped exactly when one of that type's
+// content flags, --supersedes or --chunk-source is present; otherwise the
+// declared identity survives.
+func Test792b14c5a4_RunAmend_IdentityRestampProperty(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		noteType := rapid.SampledFrom(identityAmendTypes).Draw(rt, "noteType")
+		args := cli.AmendArgs{Activate: rapid.Bool().Draw(rt, "activate")}
+
+		if rapid.Bool().Draw(rt, "clearPending") {
+			cleared := false
+			args.Pending = &cleared
+		}
+
+		restamps := drawRestampingFlags(rt, noteType, &args)
+
+		written, err := runIdentityAmend(t.Context(), noteType, args)
+		if err != nil {
+			rt.Fatalf("amend: %v", err)
+		}
+
+		declared := strings.Contains(written, "user: alice@example.com") &&
+			strings.Contains(written, "repo: github.com/alice/widgets") &&
+			strings.Contains(written, "vault: alice-vault")
+		detected := strings.Contains(written, "user: bob@example.com") &&
+			strings.Contains(written, "repo: github.com/bob/gadgets") &&
+			strings.Contains(written, "vault: bob-vault")
+
+		if restamps != detected || restamps == declared {
+			rt.Fatalf("restamp want %v, got declared=%v detected=%v:\n%s", restamps, declared, detected, written)
+		}
+	})
+}
+
+// Test792b14c5a5_RunAmend_BookkeepingAmendsKeepIdentity: on every note type (fact and
 // feedback via applyTypedAmend, runbook via applyRunbookAmend), --activate
 // alone and --clear-pending (alone or together) leave repo:, user: and
 // vault: as the note declared them, even when the running environment
 // detects others.
-func TestRunAmend_BookkeepingAmendsKeepIdentity(t *testing.T) {
+func Test792b14c5a5_RunAmend_BookkeepingAmendsKeepIdentity(t *testing.T) {
 	t.Parallel()
 
 	cleared := false
@@ -117,41 +152,6 @@ func TestRunAmend_ClearPendingKeepsOfferAuthor(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(written).To(ContainSubstring("user: alice@example.com"))
 	g.Expect(written).NotTo(ContainSubstring("pending: true"))
-}
-
-// TestRunAmend_IdentityRestampProperty: over any combination of amend flags,
-// on any note type, identity is re-stamped exactly when one of that type's
-// content flags, --supersedes or --chunk-source is present; otherwise the
-// declared identity survives.
-func TestRunAmend_IdentityRestampProperty(t *testing.T) {
-	t.Parallel()
-	rapid.Check(t, func(rt *rapid.T) {
-		noteType := rapid.SampledFrom(identityAmendTypes).Draw(rt, "noteType")
-		args := cli.AmendArgs{Activate: rapid.Bool().Draw(rt, "activate")}
-
-		if rapid.Bool().Draw(rt, "clearPending") {
-			cleared := false
-			args.Pending = &cleared
-		}
-
-		restamps := drawRestampingFlags(rt, noteType, &args)
-
-		written, err := runIdentityAmend(t.Context(), noteType, args)
-		if err != nil {
-			rt.Fatalf("amend: %v", err)
-		}
-
-		declared := strings.Contains(written, "user: alice@example.com") &&
-			strings.Contains(written, "repo: github.com/alice/widgets") &&
-			strings.Contains(written, "vault: alice-vault")
-		detected := strings.Contains(written, "user: bob@example.com") &&
-			strings.Contains(written, "repo: github.com/bob/gadgets") &&
-			strings.Contains(written, "vault: bob-vault")
-
-		if restamps != detected || restamps == declared {
-			rt.Fatalf("restamp want %v, got declared=%v detected=%v:\n%s", restamps, declared, detected, written)
-		}
-	})
 }
 
 // unexported constants.
