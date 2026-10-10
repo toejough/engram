@@ -262,7 +262,7 @@ flowchart TD
   N792c8b["792c8b In-flight design relocation<br/>Complete"]
   N792c8c["792c8c OpenSpec archive and tooling removal<br/>Complete"]
   N792c8d["792c8d Deprecated-directory removal and final stale-reference sweep<br/>Complete"]
-  N792c8e["792c8e Build-tag classification (deferred)<br/>Blocked by: 792c8d"]
+  N792c8e["792c8e Build-tag classification (deferred)<br/>Ready"]
   N792c7a1 --> N792c7a2
   N792c7a2 --> N792c7a3
   N792c7a3 --> N792c7a4
