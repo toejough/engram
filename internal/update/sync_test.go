@@ -15,303 +15,7 @@ import (
 	"github.com/toejough/engram/internal/update"
 )
 
-func TestApplyEngramSyncOps_CreateMkdirError(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	base := newMemFS()
-	base.files["/src/a.md"] = []byte("content")
-
-	mkdirErr := errors.New("mkdir boom")
-	fileSystem := &engramFaultFS{memFS: base, mkdirErr: map[string]error{"/root/skills/a": mkdirErr}}
-
-	ops := []update.EngramSyncOp{
-		{Kind: update.EngramSyncCreate, RelPath: "skills/a/SKILL.md", AbsPath: "/root/skills/a/SKILL.md", Src: "/src/a.md"},
-	}
-
-	applyErr := update.ExportApplyEngramSyncOps(fileSystem, ops)
-	g.Expect(applyErr).To(HaveOccurred())
-	g.Expect(applyErr.Error()).To(ContainSubstring("mkdir boom"))
-}
-
-func TestApplyEngramSyncOps_CreateReadFileError(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	base := newMemFS()
-
-	readErr := errors.New("disk read boom")
-	fileSystem := &engramFaultFS{memFS: base, readFileErr: map[string]error{"/src/a.md": readErr}}
-
-	ops := []update.EngramSyncOp{
-		{Kind: update.EngramSyncCreate, RelPath: "skills/a/SKILL.md", AbsPath: "/root/skills/a/SKILL.md", Src: "/src/a.md"},
-	}
-
-	applyErr := update.ExportApplyEngramSyncOps(fileSystem, ops)
-	g.Expect(applyErr).To(HaveOccurred())
-	g.Expect(applyErr.Error()).To(ContainSubstring("disk read boom"))
-}
-
-func TestApplyEngramSyncOps_CreateWriteFileError(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	base := newMemFS()
-	base.files["/src/a.md"] = []byte("content")
-
-	writeErr := errors.New("write boom")
-	fileSystem := &engramFaultFS{
-		memFS:        base,
-		writeFileErr: map[string]error{"/root/skills/a/SKILL.md": writeErr},
-	}
-
-	ops := []update.EngramSyncOp{
-		{Kind: update.EngramSyncCreate, RelPath: "skills/a/SKILL.md", AbsPath: "/root/skills/a/SKILL.md", Src: "/src/a.md"},
-	}
-
-	applyErr := update.ExportApplyEngramSyncOps(fileSystem, ops)
-	g.Expect(applyErr).To(HaveOccurred())
-	g.Expect(applyErr.Error()).To(ContainSubstring("write boom"))
-}
-
-func TestApplyEngramSyncOps_DeleteRemoveAllError(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	base := newMemFS()
-
-	removeErr := errors.New("remove boom")
-	fileSystem := &engramFaultFS{
-		memFS:        base,
-		removeAllErr: map[string]error{"/root/skills/old/SKILL.md": removeErr},
-	}
-
-	ops := []update.EngramSyncOp{
-		{Kind: update.EngramSyncDelete, RelPath: "skills/old/SKILL.md", AbsPath: "/root/skills/old/SKILL.md"},
-	}
-
-	applyErr := update.ExportApplyEngramSyncOps(fileSystem, ops)
-	g.Expect(applyErr).To(HaveOccurred())
-	g.Expect(applyErr.Error()).To(ContainSubstring("remove boom"))
-}
-
-func TestPlanAndApplyEngramRootSync_Property_RootMatchesIntendedSet(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		intended, preExisting := drawEngramRootFixture(rt)
-
-		fileSystem := newMemFS()
-		fileSystem.files[engramRootSyncFixtureOutside] = []byte("must-not-touch")
-
-		rootIntended := seedIntendedRootFiles(fileSystem, intended)
-		seedPreExistingRootFiles(fileSystem, preExisting)
-
-		ops, planErr := update.ExportPlanEngramRootSync(engramRootSyncFixtureRoot, rootIntended, true, true, fileSystem)
-		if planErr != nil {
-			rt.Fatalf("plan: %v", planErr)
-		}
-
-		applyErr := update.ExportApplyEngramSyncOps(fileSystem, ops)
-		if applyErr != nil {
-			rt.Fatalf("apply: %v", applyErr)
-		}
-
-		pruned, pruneErr := update.ExportPruneEmptyDirs(engramRootSyncFixtureRoot, rootIntended, true, true, fileSystem)
-		if pruneErr != nil {
-			rt.Fatalf("prune: %v", pruneErr)
-		}
-
-		pruneApplyErr := update.ExportApplyPrunedDirs(fileSystem, engramRootSyncFixtureRoot, pruned)
-		if pruneApplyErr != nil {
-			rt.Fatalf("apply prune: %v", pruneApplyErr)
-		}
-
-		assertRootMatchesIntended(rt, fileSystem, intended)
-		assertNothingTouchedOutsideRoot(rt, fileSystem)
-		assertNoEmptyDirsInManagedSubtrees(rt, fileSystem)
-	})
-}
-
-// --- 3.1: engram-owned root + ownership marker -----------------------------
-
-func TestRun_EngramRoot_AbsentCreatesRootAndMarker(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const home = "/home/joe"
-
-	fileSystem := newMemFS()
-	fileSystem.dirs[home+"/.claude"] = true
-	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/agent-instructions/skills"] = true
-	fileSystem.dirs["/repo/agent-instructions/skills/learn"] = true
-	fileSystem.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("learn skill")
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: home, cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	report, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(report.Harnesses).To(HaveLen(1))
-
-	harness := report.Harnesses[0]
-	g.Expect(harness.Err).NotTo(HaveOccurred())
-	g.Expect(harness.EngramRoot).To(Equal(home + "/.claude/engram"))
-	g.Expect(harness.EngramDeletionRefused).To(BeFalse())
-	g.Expect(harness.EngramUnattributable).To(BeEmpty())
-
-	_, markerWritten := fileSystem.written[home+"/.claude/engram/.engram-owned"]
-	g.Expect(markerWritten).To(BeTrue())
-
-	written, ok := fileSystem.written[home+"/.claude/engram/skills/learn/SKILL.md"]
-	g.Expect(ok).To(BeTrue())
-	g.Expect(written).To(Equal([]byte("learn skill")))
-}
-
-func TestRun_EngramRoot_AllHarnessesGetOwnRoots(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const home = "/home/joe"
-
-	fileSystem := newMemFS()
-	fileSystem.dirs[home+"/.claude"] = true
-	fileSystem.dirs[home+"/.pi"] = true
-	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/agent-instructions/skills"] = true
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: home, cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	report, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(report.Harnesses).To(HaveLen(2))
-
-	want := map[update.Harness]string{
-		update.HarnessClaude: home + "/.claude/engram",
-		update.HarnessPi:     home + "/.pi/agent/engram",
-	}
-
-	for _, harness := range report.Harnesses {
-		g.Expect(harness.Err).NotTo(HaveOccurred())
-		g.Expect(harness.EngramRoot).To(Equal(want[harness.Name]), string(harness.Name))
-	}
-}
-
-func TestRun_EngramRoot_ApplyMarkerWriteError(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const home = "/home/joe"
-
-	base := newMemFS()
-	base.dirs[home+"/.claude"] = true
-	base.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	base.dirs["/repo/agent-instructions/skills"] = true
-
-	root := home + "/.claude/engram"
-
-	writeErr := errors.New("marker write boom")
-	fileSystem := &engramFaultFS{memFS: base, writeFileErr: map[string]error{root + "/.engram-owned": writeErr}}
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: home, cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	report, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(report.Harnesses).To(HaveLen(1))
-	g.Expect(report.Harnesses[0].Err).To(HaveOccurred())
-	g.Expect(report.Harnesses[0].Err.Error()).To(ContainSubstring("marker write boom"))
-}
-
-func TestRun_EngramRoot_ApplyMkdirRootError(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const home = "/home/joe"
-
-	base := newMemFS()
-	base.dirs[home+"/.claude"] = true
-	base.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	base.dirs["/repo/agent-instructions/skills"] = true
-
-	root := home + "/.claude/engram"
-
-	mkdirErr := errors.New("mkdir root boom")
-	fileSystem := &engramFaultFS{memFS: base, mkdirErr: map[string]error{root: mkdirErr}}
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: home, cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	report, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(report.Harnesses).To(HaveLen(1))
-	g.Expect(report.Harnesses[0].Err).To(HaveOccurred())
-	g.Expect(report.Harnesses[0].Err.Error()).To(ContainSubstring("mkdir root boom"))
-}
-
-func TestRun_EngramRoot_ApplySyncOpWriteError(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const home = "/home/joe"
-
-	base := newMemFS()
-	base.dirs[home+"/.claude"] = true
-	base.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	base.dirs["/repo/agent-instructions/skills"] = true
-	base.dirs["/repo/agent-instructions/skills/learn"] = true
-	base.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("learn skill")
-
-	root := home + "/.claude/engram"
-
-	writeErr := errors.New("skill write boom")
-	fileSystem := &engramFaultFS{
-		memFS:        base,
-		writeFileErr: map[string]error{root + "/skills/learn/SKILL.md": writeErr},
-	}
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: home, cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	report, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(report.Harnesses).To(HaveLen(1))
-	g.Expect(report.Harnesses[0].Err).To(HaveOccurred())
-	g.Expect(report.Harnesses[0].Err.Error()).To(ContainSubstring("skill write boom"))
-}
-
-func TestRun_EngramRoot_DryRun_NoWrites(t *testing.T) {
+func Test792b29c14a1_Run_EngramRoot_DryRun_NoWrites(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -347,57 +51,9 @@ func TestRun_EngramRoot_DryRun_NoWrites(t *testing.T) {
 	g.Expect(rootNowExists).To(BeFalse())
 }
 
-// TestRun_EngramRoot_DryRun_PrunePreviewedNotApplied checks the prune half of
-// D4 follows the same dry-run contract as sync-deletion itself: the pruned
-// directory is PREVIEWED in the report (same field, dry-run-prefixed by the
-// CLI render layer) but nothing is actually removed from disk.
-func TestRun_EngramRoot_DryRun_PrunePreviewedNotApplied(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const home = "/home/joe"
-
-	fileSystem := newMemFS()
-	fileSystem.dirs[home+"/.claude"] = true
-	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/agent-instructions/skills"] = true
-
-	root := home + "/.claude/engram"
-	fileSystem.dirs[root] = true
-	fileSystem.files[root+"/.engram-owned"] = []byte{}
-	fileSystem.dirs[root+"/skills/oldskill"] = true
-	fileSystem.files[root+"/skills/oldskill/SKILL.md"] = []byte("stale content")
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: home, cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	report, err := updater.Run(context.Background(), update.Options{DryRun: true})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(report.Harnesses).To(HaveLen(1))
-
-	harness := report.Harnesses[0]
-	g.Expect(harness.Err).NotTo(HaveOccurred())
-
-	// Previewed: both the file deletion and the resulting empty-dir prune.
-	g.Expect(harness.EngramSyncDeleted).To(ConsistOf(
-		filepath.Join("skills", "oldskill", "SKILL.md"),
-		filepath.Join("skills", "oldskill"),
-	))
-
-	// Nothing actually removed under dry-run.
-	g.Expect(fileSystem.removed).To(BeEmpty())
-	g.Expect(fileSystem.files[root+"/skills/oldskill/SKILL.md"]).To(Equal([]byte("stale content")))
-	g.Expect(fileSystem.dirs[root+"/skills/oldskill"]).To(BeTrue())
-}
-
 // --- 3.3: guidance opt-in gates management, not removal ---------------------
 
-func TestRun_EngramRoot_GuidanceNotOptedIn_SubtreeUntouched(t *testing.T) {
+func Test792b29c3a4_Run_EngramRoot_GuidanceNotOptedIn_SubtreeUntouched(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -438,7 +94,7 @@ func TestRun_EngramRoot_GuidanceNotOptedIn_SubtreeUntouched(t *testing.T) {
 	g.Expect(fileSystem.files[root+"/guidance/stale.md"]).To(Equal([]byte("leftover from a prior opted-in sync")))
 }
 
-func TestRun_EngramRoot_GuidanceOptedIn_SyncsIncludingDeletion(t *testing.T) {
+func Test792b29c3a7_Run_EngramRoot_GuidanceOptedIn_SyncsIncludingDeletion(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -480,7 +136,183 @@ func TestRun_EngramRoot_GuidanceOptedIn_SyncsIncludingDeletion(t *testing.T) {
 	g.Expect(written).To(Equal([]byte("fresh recall guidance")))
 }
 
-func TestRun_EngramRoot_MarkerAbsent_ClaudeFlatGuidanceIsAdoptableNotUnattributable(t *testing.T) {
+// --- 3.1: engram-owned root + ownership marker -----------------------------
+
+func Test792b29c5a1_Run_EngramRoot_AbsentCreatesRootAndMarker(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	fileSystem := newMemFS()
+	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
+	fileSystem.dirs["/repo/agent-instructions/skills/learn"] = true
+	fileSystem.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("learn skill")
+
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(1))
+
+	harness := report.Harnesses[0]
+	g.Expect(harness.Err).NotTo(HaveOccurred())
+	g.Expect(harness.EngramRoot).To(Equal(home + "/.claude/engram"))
+	g.Expect(harness.EngramDeletionRefused).To(BeFalse())
+	g.Expect(harness.EngramUnattributable).To(BeEmpty())
+
+	_, markerWritten := fileSystem.written[home+"/.claude/engram/.engram-owned"]
+	g.Expect(markerWritten).To(BeTrue())
+
+	written, ok := fileSystem.written[home+"/.claude/engram/skills/learn/SKILL.md"]
+	g.Expect(ok).To(BeTrue())
+	g.Expect(written).To(Equal([]byte("learn skill")))
+}
+
+func Test792b29c5a2_Run_EngramRoot_AllHarnessesGetOwnRoots(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	fileSystem := newMemFS()
+	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.dirs[home+"/.pi"] = true
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
+
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(2))
+
+	want := map[update.Harness]string{
+		update.HarnessClaude: home + "/.claude/engram",
+		update.HarnessPi:     home + "/.pi/agent/engram",
+	}
+
+	for _, harness := range report.Harnesses {
+		g.Expect(harness.Err).NotTo(HaveOccurred())
+		g.Expect(harness.EngramRoot).To(Equal(want[harness.Name]), string(harness.Name))
+	}
+}
+
+func Test792b29c5a3_Run_EngramRoot_MarkerPresent_SyncsIncludingDeletion(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	fileSystem := newMemFS()
+	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
+	fileSystem.dirs["/repo/agent-instructions/skills/learn"] = true
+	fileSystem.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("learn skill v2")
+
+	root := home + "/.claude/engram"
+	fileSystem.dirs[root] = true
+	fileSystem.files[root+"/.engram-owned"] = []byte{}
+	fileSystem.files[root+"/skills/oldskill/SKILL.md"] = []byte("stale content")
+
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(1))
+
+	harness := report.Harnesses[0]
+	g.Expect(harness.Err).NotTo(HaveOccurred())
+	g.Expect(harness.EngramDeletionRefused).To(BeFalse())
+	// The stale file's deletion also empties its directory — pruned in the
+	// same run and reported alongside the file (D4 continued).
+	g.Expect(harness.EngramSyncDeleted).To(ConsistOf(
+		filepath.Join("skills", "oldskill", "SKILL.md"),
+		filepath.Join("skills", "oldskill"),
+	))
+
+	_, staleStillThere := fileSystem.files[root+"/skills/oldskill/SKILL.md"]
+	g.Expect(staleStillThere).To(BeFalse())
+
+	_, staleDirStillThere := fileSystem.dirs[root+"/skills/oldskill"]
+	g.Expect(staleDirStillThere).To(BeFalse())
+
+	written, ok := fileSystem.written[root+"/skills/learn/SKILL.md"]
+	g.Expect(ok).To(BeTrue())
+	g.Expect(written).To(Equal([]byte("learn skill v2")))
+}
+
+func Test792b29c5a4_Run_EngramRoot_MarkerAbsent_RefusesDeletionAndReportsUnattributable(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	fileSystem := newMemFS()
+	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
+	fileSystem.dirs["/repo/agent-instructions/skills/learn"] = true
+	fileSystem.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("learn skill")
+
+	root := home + "/.claude/engram"
+	fileSystem.dirs[root] = true
+	fileSystem.files[root+"/mystery.md"] = []byte("nobody knows")
+
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(1))
+
+	harness := report.Harnesses[0]
+	g.Expect(harness.Err).NotTo(HaveOccurred())
+	g.Expect(harness.EngramDeletionRefused).To(BeTrue())
+	g.Expect(harness.EngramUnattributable).To(ConsistOf("mystery.md"))
+	g.Expect(harness.EngramSyncDeleted).To(BeEmpty())
+
+	// Non-destructive create still applies.
+	written, ok := fileSystem.written[root+"/skills/learn/SKILL.md"]
+	g.Expect(ok).To(BeTrue())
+	g.Expect(written).To(Equal([]byte("learn skill")))
+
+	// The stray was left untouched, never deleted.
+	g.Expect(fileSystem.files[root+"/mystery.md"]).To(Equal([]byte("nobody knows")))
+
+	// The D6 adoption pass DOES stamp the marker this run, even though
+	// sync-deletion of managed-subtree drift stays refused this run.
+	_, markerWritten := fileSystem.written[root+"/.engram-owned"]
+	g.Expect(markerWritten).To(BeTrue())
+}
+
+func Test792b29c5a5_Run_EngramRoot_MarkerAbsent_ClaudeFlatGuidanceIsAdoptableNotUnattributable(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -539,107 +371,7 @@ func TestRun_EngramRoot_MarkerAbsent_ClaudeFlatGuidanceIsAdoptableNotUnattributa
 	g.Expect(markerWritten).To(BeTrue())
 }
 
-func TestRun_EngramRoot_MarkerAbsent_RefusesDeletionAndReportsUnattributable(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const home = "/home/joe"
-
-	fileSystem := newMemFS()
-	fileSystem.dirs[home+"/.claude"] = true
-	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/agent-instructions/skills"] = true
-	fileSystem.dirs["/repo/agent-instructions/skills/learn"] = true
-	fileSystem.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("learn skill")
-
-	root := home + "/.claude/engram"
-	fileSystem.dirs[root] = true
-	fileSystem.files[root+"/mystery.md"] = []byte("nobody knows")
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: home, cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	report, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(report.Harnesses).To(HaveLen(1))
-
-	harness := report.Harnesses[0]
-	g.Expect(harness.Err).NotTo(HaveOccurred())
-	g.Expect(harness.EngramDeletionRefused).To(BeTrue())
-	g.Expect(harness.EngramUnattributable).To(ConsistOf("mystery.md"))
-	g.Expect(harness.EngramSyncDeleted).To(BeEmpty())
-
-	// Non-destructive create still applies.
-	written, ok := fileSystem.written[root+"/skills/learn/SKILL.md"]
-	g.Expect(ok).To(BeTrue())
-	g.Expect(written).To(Equal([]byte("learn skill")))
-
-	// The stray was left untouched, never deleted.
-	g.Expect(fileSystem.files[root+"/mystery.md"]).To(Equal([]byte("nobody knows")))
-
-	// The D6 adoption pass DOES stamp the marker this run, even though
-	// sync-deletion of managed-subtree drift stays refused this run.
-	_, markerWritten := fileSystem.written[root+"/.engram-owned"]
-	g.Expect(markerWritten).To(BeTrue())
-}
-
-func TestRun_EngramRoot_MarkerPresent_SyncsIncludingDeletion(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const home = "/home/joe"
-
-	fileSystem := newMemFS()
-	fileSystem.dirs[home+"/.claude"] = true
-	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/agent-instructions/skills"] = true
-	fileSystem.dirs["/repo/agent-instructions/skills/learn"] = true
-	fileSystem.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("learn skill v2")
-
-	root := home + "/.claude/engram"
-	fileSystem.dirs[root] = true
-	fileSystem.files[root+"/.engram-owned"] = []byte{}
-	fileSystem.files[root+"/skills/oldskill/SKILL.md"] = []byte("stale content")
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: home, cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	report, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(report.Harnesses).To(HaveLen(1))
-
-	harness := report.Harnesses[0]
-	g.Expect(harness.Err).NotTo(HaveOccurred())
-	g.Expect(harness.EngramDeletionRefused).To(BeFalse())
-	// The stale file's deletion also empties its directory — pruned in the
-	// same run and reported alongside the file (D4 continued).
-	g.Expect(harness.EngramSyncDeleted).To(ConsistOf(
-		filepath.Join("skills", "oldskill", "SKILL.md"),
-		filepath.Join("skills", "oldskill"),
-	))
-
-	_, staleStillThere := fileSystem.files[root+"/skills/oldskill/SKILL.md"]
-	g.Expect(staleStillThere).To(BeFalse())
-
-	_, staleDirStillThere := fileSystem.dirs[root+"/skills/oldskill"]
-	g.Expect(staleDirStillThere).To(BeFalse())
-
-	written, ok := fileSystem.written[root+"/skills/learn/SKILL.md"]
-	g.Expect(ok).To(BeTrue())
-	g.Expect(written).To(Equal([]byte("learn skill v2")))
-}
-
-func TestRun_EngramRoot_MarkerStatError(t *testing.T) {
+func Test792b29c5a7_Run_EngramRoot_MarkerStatError(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -671,7 +403,107 @@ func TestRun_EngramRoot_MarkerStatError(t *testing.T) {
 	g.Expect(report.Harnesses[0].Err.Error()).To(ContainSubstring("marker stat boom"))
 }
 
-func TestRun_EngramRoot_PlanReadDirError(t *testing.T) {
+func Test792b29c5a7_Run_EngramRoot_RootStatError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	base := newMemFS()
+	base.dirs[home+"/.claude"] = true
+	base.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	base.dirs["/repo/agent-instructions/skills"] = true
+
+	root := home + "/.claude/engram"
+
+	statErr := errors.New("root stat boom")
+	fileSystem := &engramFaultFS{memFS: base, statErr: map[string]error{root: statErr}}
+
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(1))
+	g.Expect(report.Harnesses[0].Err).To(HaveOccurred())
+	g.Expect(report.Harnesses[0].Err.Error()).To(ContainSubstring("root stat boom"))
+}
+
+func Test792b29c5a8_Run_EngramRoot_UnattributableReadDirError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	base := newMemFS()
+	base.dirs[home+"/.claude"] = true
+	base.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	base.dirs["/repo/agent-instructions/skills"] = true
+
+	root := home + "/.claude/engram"
+	base.dirs[root] = true
+	// No marker present → falls into the unattributable top-level scan.
+
+	readDirErr := errors.New("root readdir boom")
+	fileSystem := &engramFaultFS{memFS: base, readDirErr: map[string]error{root: readDirErr}}
+
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(1))
+	g.Expect(report.Harnesses[0].Err).To(HaveOccurred())
+	g.Expect(report.Harnesses[0].Err.Error()).To(ContainSubstring("root readdir boom"))
+}
+
+func Test792b29c6a10_Run_EngramRoot_ApplySyncOpWriteError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	base := newMemFS()
+	base.dirs[home+"/.claude"] = true
+	base.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	base.dirs["/repo/agent-instructions/skills"] = true
+	base.dirs["/repo/agent-instructions/skills/learn"] = true
+	base.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("learn skill")
+
+	root := home + "/.claude/engram"
+
+	writeErr := errors.New("skill write boom")
+	fileSystem := &engramFaultFS{
+		memFS:        base,
+		writeFileErr: map[string]error{root + "/skills/learn/SKILL.md": writeErr},
+	}
+
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(1))
+	g.Expect(report.Harnesses[0].Err).To(HaveOccurred())
+	g.Expect(report.Harnesses[0].Err.Error()).To(ContainSubstring("skill write boom"))
+}
+
+func Test792b29c6a11_Run_EngramRoot_PlanReadDirError(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -706,7 +538,45 @@ func TestRun_EngramRoot_PlanReadDirError(t *testing.T) {
 	g.Expect(report.Harnesses[0].Err.Error()).To(ContainSubstring("subtree readdir boom"))
 }
 
-// TestRun_EngramRoot_RemovedSkillPrunesSubtreeAndSurfaceLink is the spec
+func Test792b29c6a1_PlanAndApplyEngramRootSync_Property_RootMatchesIntendedSet(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		intended, preExisting := drawEngramRootFixture(rt)
+
+		fileSystem := newMemFS()
+		fileSystem.files[engramRootSyncFixtureOutside] = []byte("must-not-touch")
+
+		rootIntended := seedIntendedRootFiles(fileSystem, intended)
+		seedPreExistingRootFiles(fileSystem, preExisting)
+
+		ops, planErr := update.ExportPlanEngramRootSync(engramRootSyncFixtureRoot, rootIntended, true, true, fileSystem)
+		if planErr != nil {
+			rt.Fatalf("plan: %v", planErr)
+		}
+
+		applyErr := update.ExportApplyEngramSyncOps(fileSystem, ops)
+		if applyErr != nil {
+			rt.Fatalf("apply: %v", applyErr)
+		}
+
+		pruned, pruneErr := update.ExportPruneEmptyDirs(engramRootSyncFixtureRoot, rootIntended, true, true, fileSystem)
+		if pruneErr != nil {
+			rt.Fatalf("prune: %v", pruneErr)
+		}
+
+		pruneApplyErr := update.ExportApplyPrunedDirs(fileSystem, engramRootSyncFixtureRoot, pruned)
+		if pruneApplyErr != nil {
+			rt.Fatalf("apply prune: %v", pruneApplyErr)
+		}
+
+		assertRootMatchesIntended(rt, fileSystem, intended)
+		assertNothingTouchedOutsideRoot(rt, fileSystem)
+		assertNoEmptyDirsInManagedSubtrees(rt, fileSystem)
+	})
+}
+
+// Test792b29c6a2_Run_EngramRoot_RemovedSkillPrunesSubtreeAndSurfaceLink is the spec
 // regression for "Removed source artifact disappears on next update": a
 // skill deployed in one Run(), then deleted from the source before the NEXT
 // Run() call on the same engram root, must have both its file AND its now-
@@ -716,7 +586,7 @@ func TestRun_EngramRoot_PlanReadDirError(t *testing.T) {
 // directory behind; cleanupDanglingLinks then Stat'd that still-present
 // (though hollow) directory as a healthy target and left the surface symlink
 // in place — a visibly present but hollow skill.
-func TestRun_EngramRoot_RemovedSkillPrunesSubtreeAndSurfaceLink(t *testing.T) {
+func Test792b29c6a2_Run_EngramRoot_RemovedSkillPrunesSubtreeAndSurfaceLink(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -787,22 +657,27 @@ func TestRun_EngramRoot_RemovedSkillPrunesSubtreeAndSurfaceLink(t *testing.T) {
 	g.Expect(surfaceLinkStillThere).To(BeFalse())
 }
 
-func TestRun_EngramRoot_RootStatError(t *testing.T) {
+// Test792b29c6a3_Run_EngramRoot_DryRun_PrunePreviewedNotApplied checks the prune half of
+// D4 follows the same dry-run contract as sync-deletion itself: the pruned
+// directory is PREVIEWED in the report (same field, dry-run-prefixed by the
+// CLI render layer) but nothing is actually removed from disk.
+func Test792b29c6a3_Run_EngramRoot_DryRun_PrunePreviewedNotApplied(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
 	const home = "/home/joe"
 
-	base := newMemFS()
-	base.dirs[home+"/.claude"] = true
-	base.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	base.dirs["/repo/agent-instructions/skills"] = true
+	fileSystem := newMemFS()
+	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
 
 	root := home + "/.claude/engram"
-
-	statErr := errors.New("root stat boom")
-	fileSystem := &engramFaultFS{memFS: base, statErr: map[string]error{root: statErr}}
+	fileSystem.dirs[root] = true
+	fileSystem.files[root+"/.engram-owned"] = []byte{}
+	fileSystem.dirs[root+"/skills/oldskill"] = true
+	fileSystem.files[root+"/skills/oldskill/SKILL.md"] = []byte("stale content")
 
 	updater := &update.Updater{
 		FS:    fileSystem,
@@ -811,14 +686,110 @@ func TestRun_EngramRoot_RootStatError(t *testing.T) {
 		Spawn: noopSpawner{},
 	}
 
-	report, err := updater.Run(context.Background(), update.Options{})
+	report, err := updater.Run(context.Background(), update.Options{DryRun: true})
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(report.Harnesses).To(HaveLen(1))
-	g.Expect(report.Harnesses[0].Err).To(HaveOccurred())
-	g.Expect(report.Harnesses[0].Err.Error()).To(ContainSubstring("root stat boom"))
+
+	harness := report.Harnesses[0]
+	g.Expect(harness.Err).NotTo(HaveOccurred())
+
+	// Previewed: both the file deletion and the resulting empty-dir prune.
+	g.Expect(harness.EngramSyncDeleted).To(ConsistOf(
+		filepath.Join("skills", "oldskill", "SKILL.md"),
+		filepath.Join("skills", "oldskill"),
+	))
+
+	// Nothing actually removed under dry-run.
+	g.Expect(fileSystem.removed).To(BeEmpty())
+	g.Expect(fileSystem.files[root+"/skills/oldskill/SKILL.md"]).To(Equal([]byte("stale content")))
+	g.Expect(fileSystem.dirs[root+"/skills/oldskill"]).To(BeTrue())
 }
 
-func TestRun_EngramRoot_UnattributableReadDirError(t *testing.T) {
+func Test792b29c6a4_ApplyEngramSyncOps_CreateMkdirError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	base := newMemFS()
+	base.files["/src/a.md"] = []byte("content")
+
+	mkdirErr := errors.New("mkdir boom")
+	fileSystem := &engramFaultFS{memFS: base, mkdirErr: map[string]error{"/root/skills/a": mkdirErr}}
+
+	ops := []update.EngramSyncOp{
+		{Kind: update.EngramSyncCreate, RelPath: "skills/a/SKILL.md", AbsPath: "/root/skills/a/SKILL.md", Src: "/src/a.md"},
+	}
+
+	applyErr := update.ExportApplyEngramSyncOps(fileSystem, ops)
+	g.Expect(applyErr).To(HaveOccurred())
+	g.Expect(applyErr.Error()).To(ContainSubstring("mkdir boom"))
+}
+
+func Test792b29c6a5_ApplyEngramSyncOps_CreateReadFileError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	base := newMemFS()
+
+	readErr := errors.New("disk read boom")
+	fileSystem := &engramFaultFS{memFS: base, readFileErr: map[string]error{"/src/a.md": readErr}}
+
+	ops := []update.EngramSyncOp{
+		{Kind: update.EngramSyncCreate, RelPath: "skills/a/SKILL.md", AbsPath: "/root/skills/a/SKILL.md", Src: "/src/a.md"},
+	}
+
+	applyErr := update.ExportApplyEngramSyncOps(fileSystem, ops)
+	g.Expect(applyErr).To(HaveOccurred())
+	g.Expect(applyErr.Error()).To(ContainSubstring("disk read boom"))
+}
+
+func Test792b29c6a6_ApplyEngramSyncOps_CreateWriteFileError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	base := newMemFS()
+	base.files["/src/a.md"] = []byte("content")
+
+	writeErr := errors.New("write boom")
+	fileSystem := &engramFaultFS{
+		memFS:        base,
+		writeFileErr: map[string]error{"/root/skills/a/SKILL.md": writeErr},
+	}
+
+	ops := []update.EngramSyncOp{
+		{Kind: update.EngramSyncCreate, RelPath: "skills/a/SKILL.md", AbsPath: "/root/skills/a/SKILL.md", Src: "/src/a.md"},
+	}
+
+	applyErr := update.ExportApplyEngramSyncOps(fileSystem, ops)
+	g.Expect(applyErr).To(HaveOccurred())
+	g.Expect(applyErr.Error()).To(ContainSubstring("write boom"))
+}
+
+func Test792b29c6a7_ApplyEngramSyncOps_DeleteRemoveAllError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	base := newMemFS()
+
+	removeErr := errors.New("remove boom")
+	fileSystem := &engramFaultFS{
+		memFS:        base,
+		removeAllErr: map[string]error{"/root/skills/old/SKILL.md": removeErr},
+	}
+
+	ops := []update.EngramSyncOp{
+		{Kind: update.EngramSyncDelete, RelPath: "skills/old/SKILL.md", AbsPath: "/root/skills/old/SKILL.md"},
+	}
+
+	applyErr := update.ExportApplyEngramSyncOps(fileSystem, ops)
+	g.Expect(applyErr).To(HaveOccurred())
+	g.Expect(applyErr.Error()).To(ContainSubstring("remove boom"))
+}
+
+func Test792b29c6a8_Run_EngramRoot_ApplyMarkerWriteError(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -831,11 +802,9 @@ func TestRun_EngramRoot_UnattributableReadDirError(t *testing.T) {
 	base.dirs["/repo/agent-instructions/skills"] = true
 
 	root := home + "/.claude/engram"
-	base.dirs[root] = true
-	// No marker present → falls into the unattributable top-level scan.
 
-	readDirErr := errors.New("root readdir boom")
-	fileSystem := &engramFaultFS{memFS: base, readDirErr: map[string]error{root: readDirErr}}
+	writeErr := errors.New("marker write boom")
+	fileSystem := &engramFaultFS{memFS: base, writeFileErr: map[string]error{root + "/.engram-owned": writeErr}}
 
 	updater := &update.Updater{
 		FS:    fileSystem,
@@ -848,7 +817,38 @@ func TestRun_EngramRoot_UnattributableReadDirError(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(report.Harnesses).To(HaveLen(1))
 	g.Expect(report.Harnesses[0].Err).To(HaveOccurred())
-	g.Expect(report.Harnesses[0].Err.Error()).To(ContainSubstring("root readdir boom"))
+	g.Expect(report.Harnesses[0].Err.Error()).To(ContainSubstring("marker write boom"))
+}
+
+func Test792b29c6a9_Run_EngramRoot_ApplyMkdirRootError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	base := newMemFS()
+	base.dirs[home+"/.claude"] = true
+	base.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	base.dirs["/repo/agent-instructions/skills"] = true
+
+	root := home + "/.claude/engram"
+
+	mkdirErr := errors.New("mkdir root boom")
+	fileSystem := &engramFaultFS{memFS: base, mkdirErr: map[string]error{root: mkdirErr}}
+
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(1))
+	g.Expect(report.Harnesses[0].Err).To(HaveOccurred())
+	g.Expect(report.Harnesses[0].Err.Error()).To(ContainSubstring("mkdir root boom"))
 }
 
 // unexported constants.

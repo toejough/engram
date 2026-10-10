@@ -930,7 +930,7 @@ An always-loaded ambient doc under `agent-instructions/guidance/` in the engram 
 synced by `engram update --with-guidance` to canonical paths in `~/.claude/engram/guidance/` (Claude Code)
 and `~/.pi/agent/engram/guidance/` (Pi). Four ship today: `recall.md` (recall-firing),
 `delegate.md` (delegation-firing), `learn.md` (learn-firing), and `shim.md` (the runbook-follow-frame
-guidance). First-sync migration creates compat symlinks at old flat paths (`~/.claude/engram/<name>.md`) so existing `@import` lines keep working (ADR-0022 D9).
+guidance). First-sync migration creates compat symlinks at old flat paths (`~/.claude/engram/<name>.md`) so existing `@import` lines keep working ([792a11m](changes/792_documentation-framework-adoption/792a_product-spec.md#792a11m-claude-import-paths-keep-working)).
 Each is activated independently by adding its own
 `@~/.claude/engram/<name>.md` line to `~/.claude/CLAUDE.md` (resolves via compat symlink to canonical path), or
 `@~/.pi/agent/guidance/<name>.md` to `~/.pi/agent/AGENTS.md` (symlink surface path; detection matches this prefix; harness

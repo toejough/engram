@@ -303,7 +303,7 @@ type spawnCall struct {
 }
 
 // reexecFixture builds the minimal local-mode fixture (single Claude
-// harness, no guidance) shared by TestRun_WithoutGuidance_SkipsGuidance and
+// harness, no guidance) shared by Test792b29c3a4_Run_WithoutGuidance_SkipsGuidance and
 // the re-exec boundary tests below.
 func reexecFixture() *memFS {
 	fileSystem := newMemFS()

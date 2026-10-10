@@ -115,7 +115,497 @@ func Test792b28c2a9_WalkUpForModule_Property_TerminatesForAnyPath(t *testing.T) 
 	})
 }
 
-func TestDetectHarnesses_Both_StableOrder(t *testing.T) {
+func Test792b29c13a10_ManifestModeDeletion_DryRunNoWrites(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// Setup: manifest records a path to be deleted
+	fileSystem := newMemFS()
+	manifestData := []string{"/home/joe/.claude/skills/recall/SKILL.md"}
+	manifestJSON, err := json.Marshal(manifestData)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	fileSystem.files["/home/joe/.claude/engram/.engram-manifest.json"] = manifestJSON
+	fileSystem.files["/home/joe/.claude/skills/recall/SKILL.md"] = []byte("# Recall\n")
+	fileSystem.dirs["/home/joe/.claude/engram"] = true
+	fileSystem.dirs["/home/joe/.claude/skills"] = true
+	fileSystem.dirs["/home/joe/.claude/skills/recall"] = true
+
+	// In dry-run mode, nothing should be written
+	err = update.ExportApplyManifestModeDeletion(
+		fileSystem,
+		"/home/joe/.claude/engram",
+		[]string{}, // intended is empty, so recorded path would be deleted
+		true,       // dryRun=true
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// File should still exist after dry-run
+	_, exists := fileSystem.files["/home/joe/.claude/skills/recall/SKILL.md"]
+	g.Expect(exists).To(BeTrue(), "dry-run should not delete files")
+
+	// Manifest should also be unchanged
+	manifest, err := fileSystem.ReadFile("/home/joe/.claude/engram/.engram-manifest.json")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var paths []string
+	g.Expect(json.Unmarshal(manifest, &paths)).NotTo(HaveOccurred())
+	g.Expect(paths).To(HaveLen(1), "manifest should be unchanged in dry-run")
+}
+
+func Test792b29c13a10_ManifestMode_DryRunPreviewsDelectionNoWrites(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	home := "/home/joe"
+	fileSystem := newMemFS()
+	fileSystem.dirs[home] = true
+	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.dirs[home+"/.claude/engram"] = true
+
+	// Setup: prior manifest with one file, new run has no files
+	oldFile := home + "/.claude/skills/recall/SKILL.md"
+	oldManifest := []string{oldFile}
+	oldManifestJSON, err := json.Marshal(oldManifest)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	fileSystem.files[home+"/.claude/engram/.engram-manifest.json"] = oldManifestJSON
+	fileSystem.files[oldFile] = []byte("# Recall\n")
+	fileSystem.dirs[home+"/.claude/skills"] = true
+	fileSystem.dirs[home+"/.claude/skills/recall"] = true
+
+	spec := update.HarnessSpec{
+		Name:            update.HarnessClaude,
+		ProbeRel:        ".claude",
+		SkillsTargetRel: ".claude/skills",
+		EngramRootRel:   ".claude/engram",
+		DeployMode:      update.DeployModeManifest,
+	}
+
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
+
+	// dryRun=true, no files in skillOps
+	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home,
+		nil, nil, false, true)
+
+	g.Expect(reports).To(HaveLen(1))
+	g.Expect(reports[0].Err).NotTo(HaveOccurred())
+
+	// File should still exist (dry-run didn't delete)
+	_, fileExists := fileSystem.files[oldFile]
+	g.Expect(fileExists).To(BeTrue(), "dry-run should not delete files")
+
+	// Old manifest should be unchanged (dry-run didn't write)
+	manifestData, err := fileSystem.ReadFile(home + "/.claude/engram/.engram-manifest.json")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var recorded []string
+
+	err = json.Unmarshal(manifestData, &recorded)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if recorded == nil {
+		recorded = []string{}
+	}
+
+	g.Expect(recorded).To(HaveLen(1))
+	g.Expect(recorded[0]).To(Equal(oldFile))
+}
+
+// Integration tests for manifest recording and deletion through the apply path.
+
+func Test792b29c13a1_ManifestMode_WritesFilesAndRecordsManifest(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	home := "/home/joe"
+	fileSystem := newMemFS()
+	fileSystem.dirs[home] = true
+	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.dirs[home+"/.claude/engram"] = true
+
+	skillSrc := "/repo/agent-instructions/skills/recall/SKILL.md"
+	skillDst := home + "/.claude/skills/recall/SKILL.md"
+	fileSystem.files[skillSrc] = []byte("# Recall\n")
+	fileSystem.dirs[home+"/.claude/skills"] = true
+	fileSystem.dirs[home+"/.claude/skills/recall"] = true
+
+	spec := update.HarnessSpec{
+		Name:            update.HarnessClaude,
+		ProbeRel:        ".claude",
+		SkillsTargetRel: ".claude/skills",
+		EngramRootRel:   ".claude/engram",
+		DeployMode:      update.DeployModeManifest,
+	}
+
+	skillOps := []update.CopyOp{
+		{
+			Harness:  update.HarnessClaude,
+			Src:      skillSrc,
+			Dst:      skillDst,
+			SkillDir: "recall",
+		},
+	}
+
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
+
+	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home,
+		skillOps, nil, false, false)
+
+	g.Expect(reports).To(HaveLen(1))
+	g.Expect(reports[0].Err).NotTo(HaveOccurred())
+	g.Expect(reports[0].SkillDirs).To(HaveLen(1))
+
+	// Manifest should record the written skill path.
+	manifestPath := home + "/.claude/engram/.engram-manifest.json"
+	manifestData, err := fileSystem.ReadFile(manifestPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var recorded []string
+	g.Expect(json.Unmarshal(manifestData, &recorded)).NotTo(HaveOccurred())
+	g.Expect(recorded).To(ContainElement(skillDst))
+}
+
+func Test792b29c13a3_ManifestMode_DeletesObsoleteFilesOnNextRun(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	home := "/home/joe"
+	fileSystem := newMemFS()
+	fileSystem.dirs[home] = true
+	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.dirs[home+"/.claude/engram"] = true
+
+	// Setup: prior manifest with one file, new run only has a different file
+	oldFile := home + "/.claude/skills/recall/SKILL.md"
+	newFile := home + "/.claude/skills/learn/SKILL.md"
+
+	oldManifest := []string{oldFile}
+	oldManifestJSON, err := json.Marshal(oldManifest)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	fileSystem.files[home+"/.claude/engram/.engram-manifest.json"] = oldManifestJSON
+	fileSystem.files[oldFile] = []byte("# Old\n")
+	fileSystem.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("# Learn\n")
+	fileSystem.dirs[home+"/.claude/skills"] = true
+	fileSystem.dirs[home+"/.claude/skills/recall"] = true
+	fileSystem.dirs[home+"/.claude/skills/learn"] = true
+
+	spec := update.HarnessSpec{
+		Name:            update.HarnessClaude,
+		ProbeRel:        ".claude",
+		SkillsTargetRel: ".claude/skills",
+		EngramRootRel:   ".claude/engram",
+		DeployMode:      update.DeployModeManifest,
+	}
+
+	// Only the new file is in the intended set
+	skillOps := []update.CopyOp{
+		{
+			Harness:  update.HarnessClaude,
+			Src:      "/repo/agent-instructions/skills/learn/SKILL.md",
+			Dst:      newFile,
+			SkillDir: "learn",
+		},
+	}
+
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
+
+	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home,
+		skillOps, nil, false, false)
+
+	g.Expect(reports).To(HaveLen(1))
+	g.Expect(reports[0].Err).NotTo(HaveOccurred())
+
+	// Old file should be deleted
+	_, oldExists := fileSystem.files[oldFile]
+	g.Expect(oldExists).To(BeFalse(), "obsolete file should be deleted")
+
+	// New file should exist (copied)
+	_, newExists := fileSystem.files[newFile]
+	g.Expect(newExists).To(BeTrue(), "new file should be written")
+
+	// Manifest should only record the new file
+	manifestPath := home + "/.claude/engram/.engram-manifest.json"
+	manifestData, err := fileSystem.ReadFile(manifestPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var recorded []string
+	g.Expect(json.Unmarshal(manifestData, &recorded)).NotTo(HaveOccurred())
+	g.Expect(recorded).To(ContainElement(newFile))
+	g.Expect(recorded).NotTo(ContainElement(oldFile))
+}
+
+func Test792b29c13a4_ManifestModeDeletion_RemovalPropagates(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// Setup: manifest records a path whose source is gone
+	fileSystem := newMemFS()
+	manifestData := []string{"/home/joe/.claude/skills/recall/SKILL.md"}
+	manifestJSON, err := json.Marshal(manifestData)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	fileSystem.files["/home/joe/.claude/engram/.engram-manifest.json"] = manifestJSON
+	fileSystem.files["/home/joe/.claude/skills/recall/SKILL.md"] = []byte("# Recall\n")
+	fileSystem.dirs["/home/joe/.claude/engram"] = true
+	fileSystem.dirs["/home/joe/.claude/skills"] = true
+	fileSystem.dirs["/home/joe/.claude/skills/recall"] = true
+
+	// Call the manifest deletion logic (exported for testing)
+	err = update.ExportApplyManifestModeDeletion(
+		fileSystem,
+		"/home/joe/.claude/engram",
+		[]string{}, // intended is empty: the recorded path's source is gone
+		false,      // not dryRun
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// After deletion, the recorded path should be gone
+	_, exists := fileSystem.files["/home/joe/.claude/skills/recall/SKILL.md"]
+
+	g.Expect(exists).To(BeFalse(), "recorded path should be deleted when source is gone")
+
+	// Manifest should be empty after deletion
+	manifest, err := fileSystem.ReadFile("/home/joe/.claude/engram/.engram-manifest.json")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var paths []string
+	g.Expect(json.Unmarshal(manifest, &paths)).NotTo(HaveOccurred())
+	g.Expect(paths).To(BeEmpty(), "manifest should be empty after deletion")
+}
+
+func Test792b29c13a5_ManifestModeDeletion_UnrecordedFileSurvives(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// Setup: manifest is empty, but there's an unrecorded stray file
+	fileSystem := newMemFS()
+	fileSystem.files["/home/joe/.claude/engram/.engram-manifest.json"] = []byte("[]")
+	fileSystem.files["/home/joe/.claude/skills/stray/SKILL.md"] = []byte("# Stray\n")
+	fileSystem.dirs["/home/joe/.claude/engram"] = true
+	fileSystem.dirs["/home/joe/.claude/skills"] = true
+	fileSystem.dirs["/home/joe/.claude/skills/stray"] = true
+
+	// Call the manifest deletion logic
+	err := update.ExportApplyManifestModeDeletion(
+		fileSystem,
+		"/home/joe/.claude/engram",
+		[]string{}, // no intended paths
+		false,      // not dryRun
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Unrecorded file should still exist
+	_, exists := fileSystem.files["/home/joe/.claude/skills/stray/SKILL.md"]
+	g.Expect(exists).To(BeTrue(), "unrecorded file should survive deletion pass")
+}
+
+func Test792b29c13a6_ManifestModeDeletion_Property_OnlyRecordedPathsDeleted(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(t *rapid.T) {
+		g := NewWithT(t)
+
+		// Generate arbitrary manifest entries
+		recordedCount := rapid.IntRange(0, 5).Draw(t, "recordedCount")
+		recorded := make([]string, recordedCount)
+
+		for i := range recordedCount {
+			recorded[i] = fmt.Sprintf("/home/joe/.claude/skills/skill%d/SKILL.md", i)
+		}
+
+		// Generate arbitrary unrecorded files
+		unrecordedCount := rapid.IntRange(0, 5).Draw(t, "unrecordedCount")
+		unrecorded := make([]string, unrecordedCount)
+
+		for i := range unrecordedCount {
+			unrecorded[i] = fmt.Sprintf("/home/joe/.claude/skills/stray%d/SKILL.md", i)
+		}
+
+		// Setup: create filesystem with manifest + files
+		fileSystem := newMemFS()
+		manifestJSON, err := json.Marshal(recorded)
+		g.Expect(err).NotTo(HaveOccurred())
+
+		fileSystem.files["/home/joe/.claude/engram/.engram-manifest.json"] = manifestJSON
+		fileSystem.dirs["/home/joe/.claude/engram"] = true
+		fileSystem.dirs["/home/joe/.claude/skills"] = true
+
+		// Add recorded files
+		for _, p := range recorded {
+			fileSystem.files[p] = []byte("content")
+			parts := strings.Split(p, "/")
+			dir := strings.Join(parts[:len(parts)-1], "/")
+			fileSystem.dirs[dir] = true
+		}
+
+		// Add unrecorded files
+		for _, p := range unrecorded {
+			fileSystem.files[p] = []byte("content")
+			parts := strings.Split(p, "/")
+			dir := strings.Join(parts[:len(parts)-1], "/")
+			fileSystem.dirs[dir] = true
+		}
+
+		// Call deletion (no intended paths = all recorded should be deleted)
+		err = update.ExportApplyManifestModeDeletion(
+			fileSystem,
+			"/home/joe/.claude/engram",
+			[]string{},
+			false,
+		)
+		g.Expect(err).NotTo(HaveOccurred())
+
+		// Invariant: only recorded paths should be deleted
+		for _, p := range recorded {
+			_, exists := fileSystem.files[p]
+			g.Expect(exists).To(BeFalse(), "recorded path %s should be deleted", p)
+		}
+
+		for _, p := range unrecorded {
+			_, exists := fileSystem.files[p]
+			g.Expect(exists).To(BeTrue(), "unrecorded path %s should survive", p)
+		}
+	})
+}
+
+func Test792b29c13a7_ManifestModeDeletion_MissingManifestIsEmpty(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// Setup: no manifest file exists (first run)
+	fileSystem := newMemFS()
+	fileSystem.dirs["/home/joe/.claude/engram"] = true
+	fileSystem.dirs["/home/joe/.claude/skills"] = true
+
+	// Should not error; missing manifest is treated as empty
+	err := update.ExportApplyManifestModeDeletion(
+		fileSystem,
+		"/home/joe/.claude/engram",
+		[]string{},
+		false,
+	)
+	g.Expect(err).NotTo(HaveOccurred(), "missing manifest should not cause error")
+}
+
+// Test792b29c13a8_ManifestMode_CorruptManifestReturnsError covers
+// applyManifestRecordingAndDeletion's loadManifestPaths error branch: a
+// manifest file that exists but fails to unmarshal must surface as a
+// per-harness error, not panic or silently proceed.
+func Test792b29c13a8_ManifestMode_CorruptManifestReturnsError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	home := "/home/joe"
+	fileSystem := newMemFS()
+	fileSystem.dirs[home] = true
+	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.dirs[home+"/.claude/engram"] = true
+	fileSystem.files[home+"/.claude/engram/.engram-manifest.json"] = []byte("not valid json")
+
+	spec := update.HarnessSpec{
+		Name:            update.HarnessClaude,
+		ProbeRel:        ".claude",
+		SkillsTargetRel: ".claude/skills",
+		EngramRootRel:   ".claude/engram",
+		DeployMode:      update.DeployModeManifest,
+	}
+
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
+
+	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home,
+		nil, nil, false, false)
+
+	g.Expect(reports).To(HaveLen(1))
+	g.Expect(reports[0].Err).To(MatchError(ContainSubstring("unmarshaling manifest")))
+}
+
+// Test792b29c13a9_ManifestMode_DeletionErrorPropagates covers
+// applyManifestRecordingAndDeletion's applyManifestModeDeletion error
+// branch: a RemoveAll failure on an obsolete recorded path (not in the
+// intended set, dryRun=false) must surface as a per-harness error.
+func Test792b29c13a9_ManifestMode_DeletionErrorPropagates(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	home := "/home/joe"
+	base := newMemFS()
+	base.dirs[home] = true
+	base.dirs[home+"/.claude"] = true
+	base.dirs[home+"/.claude/engram"] = true
+
+	oldFile := home + "/.claude/skills/recall/SKILL.md"
+	oldManifestJSON, err := json.Marshal([]string{oldFile})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	base.files[home+"/.claude/engram/.engram-manifest.json"] = oldManifestJSON
+	base.files[oldFile] = []byte("# Old\n")
+	base.dirs[home+"/.claude/skills"] = true
+	base.dirs[home+"/.claude/skills/recall"] = true
+
+	removeErr := errors.New("disk full")
+	fileSystem := &errRemoveFS{
+		memFS:     base,
+		errPath:   oldFile,
+		removeErr: removeErr,
+	}
+
+	spec := update.HarnessSpec{
+		Name:            update.HarnessClaude,
+		ProbeRel:        ".claude",
+		SkillsTargetRel: ".claude/skills",
+		EngramRootRel:   ".claude/engram",
+		DeployMode:      update.DeployModeManifest,
+	}
+
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
+
+	// No files in the intended set: the only recorded path (oldFile) is
+	// obsolete and must be deleted; the injected RemoveAll failure there
+	// must surface as a per-harness error.
+	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home,
+		nil, nil, false, false)
+
+	g.Expect(reports).To(HaveLen(1))
+	g.Expect(reports[0].Err).To(MatchError(ContainSubstring("disk full")))
+}
+
+func Test792b29c1a1_DetectHarnesses_Both_StableOrder(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -131,7 +621,7 @@ func TestDetectHarnesses_Both_StableOrder(t *testing.T) {
 	g.Expect(detected[1].Name).To(Equal(update.HarnessPi))
 }
 
-func TestDetectHarnesses_ClaudeOnly(t *testing.T) {
+func Test792b29c1a2_DetectHarnesses_ClaudeOnly(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -145,10 +635,22 @@ func TestDetectHarnesses_ClaudeOnly(t *testing.T) {
 	g.Expect(detected[0].Name).To(Equal(update.HarnessClaude))
 }
 
-// TestDetectHarnesses_ExportedTakesStatOnlyProber: the exported entry point
+func Test792b29c1a3_DetectHarnesses_None(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	fileSystem := newMemFS()
+
+	detected, err := update.ExportDetectHarnesses("/home/joe", fileSystem)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(detected).To(BeEmpty())
+}
+
+// Test792b29c1a4_DetectHarnesses_ExportedTakesStatOnlyProber: the exported entry point
 // needs only Stat, so callers outside update (the skill-source resolver) can
 // detect harnesses over their own read-only filesystem.
-func TestDetectHarnesses_ExportedTakesStatOnlyProber(t *testing.T) {
+func Test792b29c1a4_DetectHarnesses_ExportedTakesStatOnlyProber(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -173,19 +675,549 @@ func TestDetectHarnesses_ExportedTakesStatOnlyProber(t *testing.T) {
 	g.Expect(statErr).To(MatchError(fs.ErrPermission))
 }
 
-func TestDetectHarnesses_None(t *testing.T) {
+func Test792b29c1a5_HarnessSpecs_WellKnownPaths(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
 	fileSystem := newMemFS()
+	fileSystem.dirs["/home/joe/.claude"] = true
+	fileSystem.dirs["/home/joe/.pi"] = true
 
 	detected, err := update.ExportDetectHarnesses("/home/joe", fileSystem)
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(detected).To(BeEmpty())
+	g.Expect(detected).To(HaveLen(2))
+
+	claude, piHarness := detected[0], detected[1]
+
+	g.Expect(claude.Name).To(Equal(update.HarnessClaude))
+	g.Expect(claude.ImportsFileRel).To(Equal(filepath.Join(".claude", "CLAUDE.md")))
+
+	g.Expect(piHarness.Name).To(Equal(update.HarnessPi))
+	g.Expect(piHarness.ProbeRel).To(Equal(".pi"))
+	g.Expect(piHarness.SkillsTargetRel).To(Equal(filepath.Join(".pi", "agent", "skills")))
+	g.Expect(piHarness.GuidanceTargetRel).To(Equal(filepath.Join(".pi", "agent", "guidance")))
+	g.Expect(piHarness.ImportsFileRel).To(Equal(filepath.Join(".pi", "agent", "AGENTS.md")))
 }
 
-func TestGuidanceImportAttribution_PerHarness(t *testing.T) {
+func Test792b29c2a1_PlanSkillCopies_FilesUnderHome_Property(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		homeSeg := rapid.StringMatching(`[a-z]{2,5}`).Draw(rt, "home")
+		home := "/h/" + homeSeg
+
+		fileSystem := newMemFS()
+		fileSystem.dirs["/src/agent-instructions/skills"] = true
+		fileSystem.dirs["/src/agent-instructions/skills/learn"] = true
+		fileSystem.files["/src/agent-instructions/skills/learn/SKILL.md"] = []byte("x")
+		fileSystem.dirs["/src/agent-instructions/skills/recall"] = true
+		fileSystem.files["/src/agent-instructions/skills/recall/SKILL.md"] = []byte("x")
+
+		// Detect Claude only.
+		fileSystem.dirs[home+"/.claude"] = true
+
+		harnesses, err := update.ExportDetectHarnesses(home, fileSystem)
+		if err != nil {
+			rt.Fatalf("detect: %v", err)
+		}
+
+		ops, err := update.ExportPlanSkillCopies("/src/agent-instructions/skills", home, harnesses, fileSystem)
+		if err != nil {
+			rt.Fatalf("plan: %v", err)
+		}
+
+		for _, op := range ops {
+			if !strings.HasPrefix(op.Dst, home+string(filepath.Separator)) {
+				rt.Fatalf("dst %q not under home %q", op.Dst, home)
+			}
+		}
+	})
+}
+
+func Test792b29c2a2_PlanSkillCopies_MissingSrc(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	fileSystem := newMemFS()
+	harnesses := []update.HarnessSpec{
+		{Name: update.HarnessClaude, ProbeRel: ".claude", SkillsTargetRel: ".claude/skills"},
+	}
+
+	_, err := update.ExportPlanSkillCopies("/nonexistent", "/home/joe", harnesses, fileSystem)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(errors.Is(err, update.ErrSkillsSrcMissing)).To(BeTrue())
+}
+
+func Test792b29c2a3_PlanGuidanceCopies_FilesUnderHome(t *testing.T) {
+	t.Parallel()
+
+	harnesses := []update.HarnessSpec{
+		{
+			Name:              update.HarnessClaude,
+			ProbeRel:          ".claude",
+			SkillsTargetRel:   ".claude/skills",
+			GuidanceTargetRel: ".claude/engram",
+		},
+		{
+			Name:              update.HarnessPi,
+			ProbeRel:          ".pi",
+			SkillsTargetRel:   ".pi/agent/skills",
+			GuidanceTargetRel: "",
+		},
+	}
+
+	table := []struct {
+		name      string
+		wantCount int
+		wantDst   string
+	}{
+		{
+			name:      "claude-code-gets-op-no-guidance-target-skipped",
+			wantCount: 1,
+			wantDst:   "/home/joe/.claude/engram/recall.md",
+		},
+	}
+
+	for _, tc := range table {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			fileSystem := newMemFS()
+			fileSystem.files["/src/agent-instructions/guidance/recall.md"] = []byte("guidance")
+			fileSystem.dirs["/src/agent-instructions/guidance"] = true
+			// A subdirectory entry alongside the .md files must be skipped, not
+			// treated as a guidance file.
+			fileSystem.dirs["/src/agent-instructions/guidance/subdir"] = true
+
+			ops, err := update.ExportPlanGuidanceCopies("/src/agent-instructions/guidance", "/home/joe", harnesses, fileSystem)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(ops).To(HaveLen(tc.wantCount))
+			g.Expect(ops[0].Dst).To(Equal(tc.wantDst))
+			g.Expect(ops[0].GuidanceFile).To(Equal("recall.md"))
+			g.Expect(ops[0].Harness).To(Equal(update.HarnessClaude))
+		})
+	}
+}
+
+func Test792b29c2a4_PlanGuidanceCopies_MissingSrc(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	fileSystem := newMemFS()
+	harnesses := []update.HarnessSpec{
+		{
+			Name:              update.HarnessClaude,
+			ProbeRel:          ".claude",
+			SkillsTargetRel:   ".claude/skills",
+			GuidanceTargetRel: ".claude/engram",
+		},
+	}
+
+	ops, err := update.ExportPlanGuidanceCopies("/nonexistent", "/home/joe", harnesses, fileSystem)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(ops).To(BeNil())
+}
+
+func Test792b29c3a1_Run_WithGuidance_DeploysToClaudeEngram(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	fileSystem := newMemFS()
+	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
+	fileSystem.files["/repo/agent-instructions/guidance/recall.md"] = []byte("recall guidance content")
+	fileSystem.dirs["/repo/agent-instructions/guidance"] = true
+
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{WithGuidance: true})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(1))
+
+	claudeReport := report.Harnesses[0]
+	g.Expect(claudeReport.GuidanceFiles).To(ConsistOf("recall.md"))
+
+	written, ok := fileSystem.written[home+"/.claude/engram/guidance/recall.md"]
+	g.Expect(ok).To(BeTrue())
+	g.Expect(written).To(Equal([]byte("recall guidance content")))
+	g.Expect(fileSystem.symlinks[home+"/.claude/engram/recall.md"]).
+		To(Equal(home + "/.claude/engram/guidance/recall.md"))
+}
+
+func Test792b29c3a2_Run_PlainUpdate_WhenImported_RefreshesGuidance(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	fileSystem := newMemFS()
+	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
+	fileSystem.files["/repo/agent-instructions/guidance/recall.md"] = []byte("fresh guidance content")
+	fileSystem.dirs["/repo/agent-instructions/guidance"] = true
+	// The user already imports the guidance (opted in) — no --with-guidance flag.
+	fileSystem.files[home+"/.claude/CLAUDE.md"] = []byte("# joe\n\n@~/.claude/engram/recall.md\n")
+
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
+
+	// Plain update MUST refresh the guidance because it is already imported.
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.GuidanceImported).To(BeTrue())
+	g.Expect(report.Harnesses[0].GuidanceFiles).To(ConsistOf("recall.md"))
+
+	written, ok := fileSystem.written[home+"/.claude/engram/guidance/recall.md"]
+	g.Expect(ok).To(BeTrue())
+	g.Expect(written).To(Equal([]byte("fresh guidance content")))
+	g.Expect(fileSystem.symlinks[home+"/.claude/engram/recall.md"]).
+		To(Equal(home + "/.claude/engram/guidance/recall.md"))
+}
+
+func Test792b29c3a3_Run_PlainUpdate_DelegateOnlyImport_RefreshesAll(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	fileSystem := newMemFS()
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
+	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.files["/repo/agent-instructions/guidance/recall.md"] = []byte("recall guidance")
+	fileSystem.files["/repo/agent-instructions/guidance/delegate.md"] = []byte("delegate guidance")
+	// Only delegate.md is imported — recall.md is not.
+	fileSystem.files[home+"/.claude/CLAUDE.md"] = []byte("# joe\n\n@~/.claude/engram/delegate.md\n")
+
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(report.GuidanceImported).To(BeTrue())
+	g.Expect(report.Harnesses[0].GuidanceFiles).To(ConsistOf("recall.md", "delegate.md"))
+
+	// Canonical content lives under guidance/; the flat @import path is a
+	// compat symlink into it (task 5.3), not a flat copy.
+	g.Expect(fileSystem.written[home+"/.claude/engram/guidance/delegate.md"]).NotTo(BeNil())
+	g.Expect(fileSystem.written[home+"/.claude/engram/guidance/recall.md"]).NotTo(BeNil())
+	g.Expect(fileSystem.symlinks[home+"/.claude/engram/delegate.md"]).
+		To(Equal(home + "/.claude/engram/guidance/delegate.md"))
+	g.Expect(fileSystem.symlinks[home+"/.claude/engram/recall.md"]).
+		To(Equal(home + "/.claude/engram/guidance/recall.md"))
+}
+
+func Test792b29c3a4_Run_WithoutGuidance_SkipsGuidance(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	fileSystem := newMemFS()
+	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
+	fileSystem.files["/repo/agent-instructions/guidance/recall.md"] = []byte("recall guidance content")
+	fileSystem.dirs["/repo/agent-instructions/guidance"] = true
+
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(1))
+	g.Expect(report.Harnesses[0].GuidanceFiles).To(BeEmpty())
+	g.Expect(fileSystem.written[home+"/.claude/engram/recall.md"]).To(BeNil())
+}
+
+// Test792b29c3a5_Run_WithGuidance_NewGuidanceFileJoinsExistingOnSubsequentSync covers
+// task 2.4 of runbook-shim-follow-frame: shim.md is a brand-new guidance
+// file added to agent-instructions/guidance/ alongside the already-deployed
+// recall.md/delegate.md/learn.md. The fixture models a genuinely
+// SUBSEQUENT sync (marker present, prior guidance/ copies and compat
+// symlinks already on disk for the three existing files) with shim.md
+// present in source but ABSENT from the destination entirely — no
+// pre-existing guidance/shim.md, no pre-existing compat symlink. This
+// guards against any "only sync files that already exist at the
+// destination" special-casing: planGuidanceCopies (and the compat-link
+// application built on it) must pick up a truly new file on a run that is
+// not the harness's first sync, without disturbing the untouched files.
+func Test792b29c3a5_Run_WithGuidance_NewGuidanceFileJoinsExistingOnSubsequentSync(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	fileSystem := newMemFS()
+	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
+	fileSystem.dirs["/repo/agent-instructions/guidance"] = true
+	fileSystem.files["/repo/agent-instructions/guidance/recall.md"] = []byte("fresh recall guidance")
+	fileSystem.files["/repo/agent-instructions/guidance/delegate.md"] = []byte("fresh delegate guidance")
+	fileSystem.files["/repo/agent-instructions/guidance/learn.md"] = []byte("fresh learn guidance")
+	fileSystem.files["/repo/agent-instructions/guidance/shim.md"] = []byte("fresh shim guidance")
+
+	root := home + "/.claude/engram"
+	fileSystem.dirs[root] = true
+	fileSystem.files[root+"/.engram-owned"] = []byte{}
+	fileSystem.files[root+"/guidance/recall.md"] = []byte("stale recall guidance")
+	fileSystem.files[root+"/guidance/delegate.md"] = []byte("stale delegate guidance")
+	fileSystem.files[root+"/guidance/learn.md"] = []byte("stale learn guidance")
+
+	symlinkErr := fileSystem.Symlink(root+"/guidance/recall.md", root+"/recall.md")
+	g.Expect(symlinkErr).NotTo(HaveOccurred())
+	symlinkErr = fileSystem.Symlink(root+"/guidance/delegate.md", root+"/delegate.md")
+	g.Expect(symlinkErr).NotTo(HaveOccurred())
+	symlinkErr = fileSystem.Symlink(root+"/guidance/learn.md", root+"/learn.md")
+	g.Expect(symlinkErr).NotTo(HaveOccurred())
+
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{WithGuidance: true})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(1))
+
+	harness := report.Harnesses[0]
+	g.Expect(harness.Err).NotTo(HaveOccurred())
+	g.Expect(harness.GuidanceFiles).To(ConsistOf("recall.md", "delegate.md", "learn.md", "shim.md"))
+
+	// The brand-new file gets canonical content and a compat symlink, same
+	// as the pre-existing three.
+	written, ok := fileSystem.written[root+"/guidance/shim.md"]
+	g.Expect(ok).To(BeTrue())
+	g.Expect(written).To(Equal([]byte("fresh shim guidance")))
+
+	target, isSymlink := fileSystem.symlinks[root+"/shim.md"]
+	g.Expect(isSymlink).To(BeTrue())
+	g.Expect(target).To(Equal(root + "/guidance/shim.md"))
+
+	// The pre-existing files are refreshed and stay symlinked; untouched.
+	g.Expect(fileSystem.written[root+"/guidance/recall.md"]).To(Equal([]byte("fresh recall guidance")))
+	g.Expect(fileSystem.written[root+"/guidance/delegate.md"]).To(Equal([]byte("fresh delegate guidance")))
+	g.Expect(fileSystem.written[root+"/guidance/learn.md"]).To(Equal([]byte("fresh learn guidance")))
+	g.Expect(fileSystem.symlinks[root+"/recall.md"]).To(Equal(root + "/guidance/recall.md"))
+	g.Expect(fileSystem.symlinks[root+"/delegate.md"]).To(Equal(root + "/guidance/delegate.md"))
+	g.Expect(fileSystem.symlinks[root+"/learn.md"]).To(Equal(root + "/guidance/learn.md"))
+}
+
+// Test792b29c3a6_Run_WithGuidance_GuidanceCopyError covers applyGuidanceCompatLinks'
+// adoption error branch (materializeOrAdopt's RemoveAll): a pre-existing
+// REAL flat guidance file (today's deployed state) at the compat-link path
+// forces the adopt-not-create branch, and the injected RemoveAll failure
+// there must surface as a per-harness error.
+func Test792b29c3a6_Run_WithGuidance_GuidanceCopyError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	base := newMemFS()
+	base.dirs[home+"/.claude"] = true
+	base.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	base.dirs["/repo/agent-instructions/skills"] = true
+	base.files["/repo/agent-instructions/guidance/recall.md"] = []byte("recall guidance")
+	base.dirs["/repo/agent-instructions/guidance"] = true
+	// Pre-existing REAL flat guidance file — forces adoption, not creation.
+	base.files[home+"/.claude/engram/recall.md"] = []byte("old flat-copied guidance")
+
+	removeErr := errors.New("disk full")
+	fileSystem := &errRemoveFS{
+		memFS:     base,
+		errPath:   home + "/.claude/engram/recall.md",
+		removeErr: removeErr,
+	}
+
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{WithGuidance: true})
+	g.Expect(err).NotTo(HaveOccurred()) // error is per-harness, not top-level
+	g.Expect(report.Harnesses).To(HaveLen(1))
+	g.Expect(report.Harnesses[0].Err).To(MatchError(ContainSubstring("disk full")))
+	g.Expect(report.Harnesses[0].GuidanceFiles).To(BeEmpty())
+}
+
+func Test792b29c4a1_GuidanceImportDetection(t *testing.T) {
+	t.Parallel()
+
+	table := []struct {
+		name     string
+		content  string
+		wantBool bool
+	}{
+		{
+			name:     "tilde-form-detected",
+			content:  "@~/.claude/engram/recall.md\n",
+			wantBool: true,
+		},
+		{
+			name:     "expanded-form-detected",
+			content:  "@/home/joe/.claude/engram/recall.md\n",
+			wantBool: true,
+		},
+		{
+			name:     "absent-returns-false",
+			content:  "# no import here\n",
+			wantBool: false,
+		},
+		{
+			name:     "inside-code-fence-ignored",
+			content:  "```\n@~/.claude/engram/recall.md\n```\n",
+			wantBool: false,
+		},
+		{
+			name:     "nested-path-rejected",
+			content:  "@~/.claude/engram/sub/recall.md\n",
+			wantBool: false,
+		},
+		{
+			name:     "non-md-suffix-rejected",
+			content:  "@~/.claude/engram/recall.txt\n",
+			wantBool: false,
+		},
+		{
+			name:     "bare-prefix-no-basename-rejected",
+			content:  "@~/.claude/engram/\n",
+			wantBool: false,
+		},
+	}
+
+	for _, tc := range table {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			fileSystem := newMemFS()
+			fileSystem.files["/home/joe/.claude/CLAUDE.md"] = []byte(tc.content)
+
+			const home = "/home/joe"
+
+			updater := &update.Updater{
+				FS:    fileSystem,
+				Cmd:   &fakeCmd{},
+				Env:   &fakeEnv{home: home, cwd: "/repo"},
+				Spawn: noopSpawner{},
+			}
+
+			fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+			fileSystem.dirs["/repo/agent-instructions/skills"] = true
+			fileSystem.dirs[home+"/.claude"] = true
+
+			report, err := updater.Run(context.Background(), update.Options{})
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(report.GuidanceImported).To(Equal(tc.wantBool))
+		})
+	}
+}
+
+func Test792b29c4a2_GuidanceImportDetection_MissingClaudeMD(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	fileSystem := newMemFS()
+	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
+	// No CLAUDE.md → GuidanceImported should be false, no error
+
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.GuidanceImported).To(BeFalse())
+}
+
+func Test792b29c4a3_GuidanceImportDetection_PerFileSet(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	fileSystem := newMemFS()
+	fileSystem.files[home+"/.claude/CLAUDE.md"] = []byte(
+		"# joe\n\n@~/.claude/engram/recall.md\n@~/.claude/engram/delegate.md\n",
+	)
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
+	fileSystem.dirs[home+"/.claude"] = true
+
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(report.GuidanceImported).To(BeTrue())
+	g.Expect(report.GuidanceImports[update.HarnessClaude]).To(HaveKeyWithValue("recall.md", true))
+	g.Expect(report.GuidanceImports[update.HarnessClaude]).To(HaveKeyWithValue("delegate.md", true))
+}
+
+func Test792b29c4a4_GuidanceImportAttribution_PerHarness(t *testing.T) {
 	t.Parallel()
 
 	const home = "/home/joe"
@@ -292,7 +1324,7 @@ func TestGuidanceImportAttribution_PerHarness(t *testing.T) {
 	}
 }
 
-func TestGuidanceImportAttribution_Property(t *testing.T) {
+func Test792b29c4a7_GuidanceImportAttribution_Property(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -329,140 +1361,7 @@ func TestGuidanceImportAttribution_Property(t *testing.T) {
 	})
 }
 
-func TestGuidanceImportDetection(t *testing.T) {
-	t.Parallel()
-
-	table := []struct {
-		name     string
-		content  string
-		wantBool bool
-	}{
-		{
-			name:     "tilde-form-detected",
-			content:  "@~/.claude/engram/recall.md\n",
-			wantBool: true,
-		},
-		{
-			name:     "expanded-form-detected",
-			content:  "@/home/joe/.claude/engram/recall.md\n",
-			wantBool: true,
-		},
-		{
-			name:     "absent-returns-false",
-			content:  "# no import here\n",
-			wantBool: false,
-		},
-		{
-			name:     "inside-code-fence-ignored",
-			content:  "```\n@~/.claude/engram/recall.md\n```\n",
-			wantBool: false,
-		},
-		{
-			name:     "nested-path-rejected",
-			content:  "@~/.claude/engram/sub/recall.md\n",
-			wantBool: false,
-		},
-		{
-			name:     "non-md-suffix-rejected",
-			content:  "@~/.claude/engram/recall.txt\n",
-			wantBool: false,
-		},
-		{
-			name:     "bare-prefix-no-basename-rejected",
-			content:  "@~/.claude/engram/\n",
-			wantBool: false,
-		},
-	}
-
-	for _, tc := range table {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			g := NewWithT(t)
-
-			fileSystem := newMemFS()
-			fileSystem.files["/home/joe/.claude/CLAUDE.md"] = []byte(tc.content)
-
-			const home = "/home/joe"
-
-			updater := &update.Updater{
-				FS:    fileSystem,
-				Cmd:   &fakeCmd{},
-				Env:   &fakeEnv{home: home, cwd: "/repo"},
-				Spawn: noopSpawner{},
-			}
-
-			fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-			fileSystem.dirs["/repo/agent-instructions/skills"] = true
-			fileSystem.dirs[home+"/.claude"] = true
-
-			report, err := updater.Run(context.Background(), update.Options{})
-			g.Expect(err).NotTo(HaveOccurred())
-			g.Expect(report.GuidanceImported).To(Equal(tc.wantBool))
-		})
-	}
-}
-
-func TestGuidanceImportDetection_MissingClaudeMD(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const home = "/home/joe"
-
-	fileSystem := newMemFS()
-	fileSystem.dirs[home+"/.claude"] = true
-	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/agent-instructions/skills"] = true
-	// No CLAUDE.md → GuidanceImported should be false, no error
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: home, cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	report, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(report.GuidanceImported).To(BeFalse())
-}
-
-func TestGuidanceImportDetection_PerFileSet(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const home = "/home/joe"
-
-	fileSystem := newMemFS()
-	fileSystem.files[home+"/.claude/CLAUDE.md"] = []byte(
-		"# joe\n\n@~/.claude/engram/recall.md\n@~/.claude/engram/delegate.md\n",
-	)
-	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/agent-instructions/skills"] = true
-	fileSystem.dirs[home+"/.claude"] = true
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: home, cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	report, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(report.GuidanceImported).To(BeTrue())
-	g.Expect(report.GuidanceImports[update.HarnessClaude]).To(HaveKeyWithValue("recall.md", true))
-	g.Expect(report.GuidanceImports[update.HarnessClaude]).To(HaveKeyWithValue("delegate.md", true))
-}
-
-func TestGuidanceImportPrefixDerivation_AllHarnesses(t *testing.T) {
+func Test792b29c4a8_GuidanceImportPrefixDerivation_AllHarnesses(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -487,905 +1386,6 @@ func TestGuidanceImportPrefixDerivation_AllHarnesses(t *testing.T) {
 		g.Expect(tilde).To(Equal(want[spec.Name][0]), string(spec.Name))
 		g.Expect(expanded).To(Equal(want[spec.Name][1]), string(spec.Name))
 	}
-}
-
-func TestHarnessSpecs_WellKnownPaths(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	fileSystem := newMemFS()
-	fileSystem.dirs["/home/joe/.claude"] = true
-	fileSystem.dirs["/home/joe/.pi"] = true
-
-	detected, err := update.ExportDetectHarnesses("/home/joe", fileSystem)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(detected).To(HaveLen(2))
-
-	claude, piHarness := detected[0], detected[1]
-
-	g.Expect(claude.Name).To(Equal(update.HarnessClaude))
-	g.Expect(claude.ImportsFileRel).To(Equal(filepath.Join(".claude", "CLAUDE.md")))
-
-	g.Expect(piHarness.Name).To(Equal(update.HarnessPi))
-	g.Expect(piHarness.ProbeRel).To(Equal(".pi"))
-	g.Expect(piHarness.SkillsTargetRel).To(Equal(filepath.Join(".pi", "agent", "skills")))
-	g.Expect(piHarness.GuidanceTargetRel).To(Equal(filepath.Join(".pi", "agent", "guidance")))
-	g.Expect(piHarness.ImportsFileRel).To(Equal(filepath.Join(".pi", "agent", "AGENTS.md")))
-}
-
-func TestManifestModeDeletion_DryRunNoWrites(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	// Setup: manifest records a path to be deleted
-	fileSystem := newMemFS()
-	manifestData := []string{"/home/joe/.claude/skills/recall/SKILL.md"}
-	manifestJSON, err := json.Marshal(manifestData)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	fileSystem.files["/home/joe/.claude/engram/.engram-manifest.json"] = manifestJSON
-	fileSystem.files["/home/joe/.claude/skills/recall/SKILL.md"] = []byte("# Recall\n")
-	fileSystem.dirs["/home/joe/.claude/engram"] = true
-	fileSystem.dirs["/home/joe/.claude/skills"] = true
-	fileSystem.dirs["/home/joe/.claude/skills/recall"] = true
-
-	// In dry-run mode, nothing should be written
-	err = update.ExportApplyManifestModeDeletion(
-		fileSystem,
-		"/home/joe/.claude/engram",
-		[]string{}, // intended is empty, so recorded path would be deleted
-		true,       // dryRun=true
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	// File should still exist after dry-run
-	_, exists := fileSystem.files["/home/joe/.claude/skills/recall/SKILL.md"]
-	g.Expect(exists).To(BeTrue(), "dry-run should not delete files")
-
-	// Manifest should also be unchanged
-	manifest, err := fileSystem.ReadFile("/home/joe/.claude/engram/.engram-manifest.json")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var paths []string
-	g.Expect(json.Unmarshal(manifest, &paths)).NotTo(HaveOccurred())
-	g.Expect(paths).To(HaveLen(1), "manifest should be unchanged in dry-run")
-}
-
-func TestManifestModeDeletion_MissingManifestIsEmpty(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	// Setup: no manifest file exists (first run)
-	fileSystem := newMemFS()
-	fileSystem.dirs["/home/joe/.claude/engram"] = true
-	fileSystem.dirs["/home/joe/.claude/skills"] = true
-
-	// Should not error; missing manifest is treated as empty
-	err := update.ExportApplyManifestModeDeletion(
-		fileSystem,
-		"/home/joe/.claude/engram",
-		[]string{},
-		false,
-	)
-	g.Expect(err).NotTo(HaveOccurred(), "missing manifest should not cause error")
-}
-
-func TestManifestModeDeletion_Property_OnlyRecordedPathsDeleted(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(t *rapid.T) {
-		g := NewWithT(t)
-
-		// Generate arbitrary manifest entries
-		recordedCount := rapid.IntRange(0, 5).Draw(t, "recordedCount")
-		recorded := make([]string, recordedCount)
-
-		for i := range recordedCount {
-			recorded[i] = fmt.Sprintf("/home/joe/.claude/skills/skill%d/SKILL.md", i)
-		}
-
-		// Generate arbitrary unrecorded files
-		unrecordedCount := rapid.IntRange(0, 5).Draw(t, "unrecordedCount")
-		unrecorded := make([]string, unrecordedCount)
-
-		for i := range unrecordedCount {
-			unrecorded[i] = fmt.Sprintf("/home/joe/.claude/skills/stray%d/SKILL.md", i)
-		}
-
-		// Setup: create filesystem with manifest + files
-		fileSystem := newMemFS()
-		manifestJSON, err := json.Marshal(recorded)
-		g.Expect(err).NotTo(HaveOccurred())
-
-		fileSystem.files["/home/joe/.claude/engram/.engram-manifest.json"] = manifestJSON
-		fileSystem.dirs["/home/joe/.claude/engram"] = true
-		fileSystem.dirs["/home/joe/.claude/skills"] = true
-
-		// Add recorded files
-		for _, p := range recorded {
-			fileSystem.files[p] = []byte("content")
-			parts := strings.Split(p, "/")
-			dir := strings.Join(parts[:len(parts)-1], "/")
-			fileSystem.dirs[dir] = true
-		}
-
-		// Add unrecorded files
-		for _, p := range unrecorded {
-			fileSystem.files[p] = []byte("content")
-			parts := strings.Split(p, "/")
-			dir := strings.Join(parts[:len(parts)-1], "/")
-			fileSystem.dirs[dir] = true
-		}
-
-		// Call deletion (no intended paths = all recorded should be deleted)
-		err = update.ExportApplyManifestModeDeletion(
-			fileSystem,
-			"/home/joe/.claude/engram",
-			[]string{},
-			false,
-		)
-		g.Expect(err).NotTo(HaveOccurred())
-
-		// Invariant: only recorded paths should be deleted
-		for _, p := range recorded {
-			_, exists := fileSystem.files[p]
-			g.Expect(exists).To(BeFalse(), "recorded path %s should be deleted", p)
-		}
-
-		for _, p := range unrecorded {
-			_, exists := fileSystem.files[p]
-			g.Expect(exists).To(BeTrue(), "unrecorded path %s should survive", p)
-		}
-	})
-}
-
-func TestManifestModeDeletion_RemovalPropagates(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	// Setup: manifest records a path whose source is gone
-	fileSystem := newMemFS()
-	manifestData := []string{"/home/joe/.claude/skills/recall/SKILL.md"}
-	manifestJSON, err := json.Marshal(manifestData)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	fileSystem.files["/home/joe/.claude/engram/.engram-manifest.json"] = manifestJSON
-	fileSystem.files["/home/joe/.claude/skills/recall/SKILL.md"] = []byte("# Recall\n")
-	fileSystem.dirs["/home/joe/.claude/engram"] = true
-	fileSystem.dirs["/home/joe/.claude/skills"] = true
-	fileSystem.dirs["/home/joe/.claude/skills/recall"] = true
-
-	// Call the manifest deletion logic (exported for testing)
-	err = update.ExportApplyManifestModeDeletion(
-		fileSystem,
-		"/home/joe/.claude/engram",
-		[]string{}, // intended is empty: the recorded path's source is gone
-		false,      // not dryRun
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	// After deletion, the recorded path should be gone
-	_, exists := fileSystem.files["/home/joe/.claude/skills/recall/SKILL.md"]
-
-	g.Expect(exists).To(BeFalse(), "recorded path should be deleted when source is gone")
-
-	// Manifest should be empty after deletion
-	manifest, err := fileSystem.ReadFile("/home/joe/.claude/engram/.engram-manifest.json")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var paths []string
-	g.Expect(json.Unmarshal(manifest, &paths)).NotTo(HaveOccurred())
-	g.Expect(paths).To(BeEmpty(), "manifest should be empty after deletion")
-}
-
-func TestManifestModeDeletion_UnrecordedFileSurvives(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	// Setup: manifest is empty, but there's an unrecorded stray file
-	fileSystem := newMemFS()
-	fileSystem.files["/home/joe/.claude/engram/.engram-manifest.json"] = []byte("[]")
-	fileSystem.files["/home/joe/.claude/skills/stray/SKILL.md"] = []byte("# Stray\n")
-	fileSystem.dirs["/home/joe/.claude/engram"] = true
-	fileSystem.dirs["/home/joe/.claude/skills"] = true
-	fileSystem.dirs["/home/joe/.claude/skills/stray"] = true
-
-	// Call the manifest deletion logic
-	err := update.ExportApplyManifestModeDeletion(
-		fileSystem,
-		"/home/joe/.claude/engram",
-		[]string{}, // no intended paths
-		false,      // not dryRun
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	// Unrecorded file should still exist
-	_, exists := fileSystem.files["/home/joe/.claude/skills/stray/SKILL.md"]
-	g.Expect(exists).To(BeTrue(), "unrecorded file should survive deletion pass")
-}
-
-// TestManifestMode_CorruptManifestReturnsError covers
-// applyManifestRecordingAndDeletion's loadManifestPaths error branch: a
-// manifest file that exists but fails to unmarshal must surface as a
-// per-harness error, not panic or silently proceed.
-func TestManifestMode_CorruptManifestReturnsError(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	home := "/home/joe"
-	fileSystem := newMemFS()
-	fileSystem.dirs[home] = true
-	fileSystem.dirs[home+"/.claude"] = true
-	fileSystem.dirs[home+"/.claude/engram"] = true
-	fileSystem.files[home+"/.claude/engram/.engram-manifest.json"] = []byte("not valid json")
-
-	spec := update.HarnessSpec{
-		Name:            update.HarnessClaude,
-		ProbeRel:        ".claude",
-		SkillsTargetRel: ".claude/skills",
-		EngramRootRel:   ".claude/engram",
-		DeployMode:      update.DeployModeManifest,
-	}
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: home, cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home,
-		nil, nil, false, false)
-
-	g.Expect(reports).To(HaveLen(1))
-	g.Expect(reports[0].Err).To(MatchError(ContainSubstring("unmarshaling manifest")))
-}
-
-func TestManifestMode_DeletesObsoleteFilesOnNextRun(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	home := "/home/joe"
-	fileSystem := newMemFS()
-	fileSystem.dirs[home] = true
-	fileSystem.dirs[home+"/.claude"] = true
-	fileSystem.dirs[home+"/.claude/engram"] = true
-
-	// Setup: prior manifest with one file, new run only has a different file
-	oldFile := home + "/.claude/skills/recall/SKILL.md"
-	newFile := home + "/.claude/skills/learn/SKILL.md"
-
-	oldManifest := []string{oldFile}
-	oldManifestJSON, err := json.Marshal(oldManifest)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	fileSystem.files[home+"/.claude/engram/.engram-manifest.json"] = oldManifestJSON
-	fileSystem.files[oldFile] = []byte("# Old\n")
-	fileSystem.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("# Learn\n")
-	fileSystem.dirs[home+"/.claude/skills"] = true
-	fileSystem.dirs[home+"/.claude/skills/recall"] = true
-	fileSystem.dirs[home+"/.claude/skills/learn"] = true
-
-	spec := update.HarnessSpec{
-		Name:            update.HarnessClaude,
-		ProbeRel:        ".claude",
-		SkillsTargetRel: ".claude/skills",
-		EngramRootRel:   ".claude/engram",
-		DeployMode:      update.DeployModeManifest,
-	}
-
-	// Only the new file is in the intended set
-	skillOps := []update.CopyOp{
-		{
-			Harness:  update.HarnessClaude,
-			Src:      "/repo/agent-instructions/skills/learn/SKILL.md",
-			Dst:      newFile,
-			SkillDir: "learn",
-		},
-	}
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: home, cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home,
-		skillOps, nil, false, false)
-
-	g.Expect(reports).To(HaveLen(1))
-	g.Expect(reports[0].Err).NotTo(HaveOccurred())
-
-	// Old file should be deleted
-	_, oldExists := fileSystem.files[oldFile]
-	g.Expect(oldExists).To(BeFalse(), "obsolete file should be deleted")
-
-	// New file should exist (copied)
-	_, newExists := fileSystem.files[newFile]
-	g.Expect(newExists).To(BeTrue(), "new file should be written")
-
-	// Manifest should only record the new file
-	manifestPath := home + "/.claude/engram/.engram-manifest.json"
-	manifestData, err := fileSystem.ReadFile(manifestPath)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var recorded []string
-	g.Expect(json.Unmarshal(manifestData, &recorded)).NotTo(HaveOccurred())
-	g.Expect(recorded).To(ContainElement(newFile))
-	g.Expect(recorded).NotTo(ContainElement(oldFile))
-}
-
-// TestManifestMode_DeletionErrorPropagates covers
-// applyManifestRecordingAndDeletion's applyManifestModeDeletion error
-// branch: a RemoveAll failure on an obsolete recorded path (not in the
-// intended set, dryRun=false) must surface as a per-harness error.
-func TestManifestMode_DeletionErrorPropagates(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	home := "/home/joe"
-	base := newMemFS()
-	base.dirs[home] = true
-	base.dirs[home+"/.claude"] = true
-	base.dirs[home+"/.claude/engram"] = true
-
-	oldFile := home + "/.claude/skills/recall/SKILL.md"
-	oldManifestJSON, err := json.Marshal([]string{oldFile})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	base.files[home+"/.claude/engram/.engram-manifest.json"] = oldManifestJSON
-	base.files[oldFile] = []byte("# Old\n")
-	base.dirs[home+"/.claude/skills"] = true
-	base.dirs[home+"/.claude/skills/recall"] = true
-
-	removeErr := errors.New("disk full")
-	fileSystem := &errRemoveFS{
-		memFS:     base,
-		errPath:   oldFile,
-		removeErr: removeErr,
-	}
-
-	spec := update.HarnessSpec{
-		Name:            update.HarnessClaude,
-		ProbeRel:        ".claude",
-		SkillsTargetRel: ".claude/skills",
-		EngramRootRel:   ".claude/engram",
-		DeployMode:      update.DeployModeManifest,
-	}
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: home, cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	// No files in the intended set: the only recorded path (oldFile) is
-	// obsolete and must be deleted; the injected RemoveAll failure there
-	// must surface as a per-harness error.
-	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home,
-		nil, nil, false, false)
-
-	g.Expect(reports).To(HaveLen(1))
-	g.Expect(reports[0].Err).To(MatchError(ContainSubstring("disk full")))
-}
-
-func TestManifestMode_DryRunPreviewsDelectionNoWrites(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	home := "/home/joe"
-	fileSystem := newMemFS()
-	fileSystem.dirs[home] = true
-	fileSystem.dirs[home+"/.claude"] = true
-	fileSystem.dirs[home+"/.claude/engram"] = true
-
-	// Setup: prior manifest with one file, new run has no files
-	oldFile := home + "/.claude/skills/recall/SKILL.md"
-	oldManifest := []string{oldFile}
-	oldManifestJSON, err := json.Marshal(oldManifest)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	fileSystem.files[home+"/.claude/engram/.engram-manifest.json"] = oldManifestJSON
-	fileSystem.files[oldFile] = []byte("# Recall\n")
-	fileSystem.dirs[home+"/.claude/skills"] = true
-	fileSystem.dirs[home+"/.claude/skills/recall"] = true
-
-	spec := update.HarnessSpec{
-		Name:            update.HarnessClaude,
-		ProbeRel:        ".claude",
-		SkillsTargetRel: ".claude/skills",
-		EngramRootRel:   ".claude/engram",
-		DeployMode:      update.DeployModeManifest,
-	}
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: home, cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	// dryRun=true, no files in skillOps
-	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home,
-		nil, nil, false, true)
-
-	g.Expect(reports).To(HaveLen(1))
-	g.Expect(reports[0].Err).NotTo(HaveOccurred())
-
-	// File should still exist (dry-run didn't delete)
-	_, fileExists := fileSystem.files[oldFile]
-	g.Expect(fileExists).To(BeTrue(), "dry-run should not delete files")
-
-	// Old manifest should be unchanged (dry-run didn't write)
-	manifestData, err := fileSystem.ReadFile(home + "/.claude/engram/.engram-manifest.json")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var recorded []string
-
-	err = json.Unmarshal(manifestData, &recorded)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if recorded == nil {
-		recorded = []string{}
-	}
-
-	g.Expect(recorded).To(HaveLen(1))
-	g.Expect(recorded[0]).To(Equal(oldFile))
-}
-
-// Integration tests for manifest recording and deletion through the apply path.
-
-func TestManifestMode_WritesFilesAndRecordsManifest(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	home := "/home/joe"
-	fileSystem := newMemFS()
-	fileSystem.dirs[home] = true
-	fileSystem.dirs[home+"/.claude"] = true
-	fileSystem.dirs[home+"/.claude/engram"] = true
-
-	skillSrc := "/repo/agent-instructions/skills/recall/SKILL.md"
-	skillDst := home + "/.claude/skills/recall/SKILL.md"
-	fileSystem.files[skillSrc] = []byte("# Recall\n")
-	fileSystem.dirs[home+"/.claude/skills"] = true
-	fileSystem.dirs[home+"/.claude/skills/recall"] = true
-
-	spec := update.HarnessSpec{
-		Name:            update.HarnessClaude,
-		ProbeRel:        ".claude",
-		SkillsTargetRel: ".claude/skills",
-		EngramRootRel:   ".claude/engram",
-		DeployMode:      update.DeployModeManifest,
-	}
-
-	skillOps := []update.CopyOp{
-		{
-			Harness:  update.HarnessClaude,
-			Src:      skillSrc,
-			Dst:      skillDst,
-			SkillDir: "recall",
-		},
-	}
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: home, cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home,
-		skillOps, nil, false, false)
-
-	g.Expect(reports).To(HaveLen(1))
-	g.Expect(reports[0].Err).NotTo(HaveOccurred())
-	g.Expect(reports[0].SkillDirs).To(HaveLen(1))
-
-	// Manifest should record the written skill path.
-	manifestPath := home + "/.claude/engram/.engram-manifest.json"
-	manifestData, err := fileSystem.ReadFile(manifestPath)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var recorded []string
-	g.Expect(json.Unmarshal(manifestData, &recorded)).NotTo(HaveOccurred())
-	g.Expect(recorded).To(ContainElement(skillDst))
-}
-
-func TestPlanGuidanceCopies_FilesUnderHome(t *testing.T) {
-	t.Parallel()
-
-	harnesses := []update.HarnessSpec{
-		{
-			Name:              update.HarnessClaude,
-			ProbeRel:          ".claude",
-			SkillsTargetRel:   ".claude/skills",
-			GuidanceTargetRel: ".claude/engram",
-		},
-		{
-			Name:              update.HarnessPi,
-			ProbeRel:          ".pi",
-			SkillsTargetRel:   ".pi/agent/skills",
-			GuidanceTargetRel: "",
-		},
-	}
-
-	table := []struct {
-		name      string
-		wantCount int
-		wantDst   string
-	}{
-		{
-			name:      "claude-code-gets-op-no-guidance-target-skipped",
-			wantCount: 1,
-			wantDst:   "/home/joe/.claude/engram/recall.md",
-		},
-	}
-
-	for _, tc := range table {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			g := NewWithT(t)
-
-			fileSystem := newMemFS()
-			fileSystem.files["/src/agent-instructions/guidance/recall.md"] = []byte("guidance")
-			fileSystem.dirs["/src/agent-instructions/guidance"] = true
-			// A subdirectory entry alongside the .md files must be skipped, not
-			// treated as a guidance file.
-			fileSystem.dirs["/src/agent-instructions/guidance/subdir"] = true
-
-			ops, err := update.ExportPlanGuidanceCopies("/src/agent-instructions/guidance", "/home/joe", harnesses, fileSystem)
-			g.Expect(err).NotTo(HaveOccurred())
-			g.Expect(ops).To(HaveLen(tc.wantCount))
-			g.Expect(ops[0].Dst).To(Equal(tc.wantDst))
-			g.Expect(ops[0].GuidanceFile).To(Equal("recall.md"))
-			g.Expect(ops[0].Harness).To(Equal(update.HarnessClaude))
-		})
-	}
-}
-
-func TestPlanGuidanceCopies_MissingSrc(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	fileSystem := newMemFS()
-	harnesses := []update.HarnessSpec{
-		{
-			Name:              update.HarnessClaude,
-			ProbeRel:          ".claude",
-			SkillsTargetRel:   ".claude/skills",
-			GuidanceTargetRel: ".claude/engram",
-		},
-	}
-
-	ops, err := update.ExportPlanGuidanceCopies("/nonexistent", "/home/joe", harnesses, fileSystem)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(ops).To(BeNil())
-}
-
-func TestPlanSkillCopies_FilesUnderHome_Property(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		homeSeg := rapid.StringMatching(`[a-z]{2,5}`).Draw(rt, "home")
-		home := "/h/" + homeSeg
-
-		fileSystem := newMemFS()
-		fileSystem.dirs["/src/agent-instructions/skills"] = true
-		fileSystem.dirs["/src/agent-instructions/skills/learn"] = true
-		fileSystem.files["/src/agent-instructions/skills/learn/SKILL.md"] = []byte("x")
-		fileSystem.dirs["/src/agent-instructions/skills/recall"] = true
-		fileSystem.files["/src/agent-instructions/skills/recall/SKILL.md"] = []byte("x")
-
-		// Detect Claude only.
-		fileSystem.dirs[home+"/.claude"] = true
-
-		harnesses, err := update.ExportDetectHarnesses(home, fileSystem)
-		if err != nil {
-			rt.Fatalf("detect: %v", err)
-		}
-
-		ops, err := update.ExportPlanSkillCopies("/src/agent-instructions/skills", home, harnesses, fileSystem)
-		if err != nil {
-			rt.Fatalf("plan: %v", err)
-		}
-
-		for _, op := range ops {
-			if !strings.HasPrefix(op.Dst, home+string(filepath.Separator)) {
-				rt.Fatalf("dst %q not under home %q", op.Dst, home)
-			}
-		}
-	})
-}
-
-func TestPlanSkillCopies_MissingSrc(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	fileSystem := newMemFS()
-	harnesses := []update.HarnessSpec{
-		{Name: update.HarnessClaude, ProbeRel: ".claude", SkillsTargetRel: ".claude/skills"},
-	}
-
-	_, err := update.ExportPlanSkillCopies("/nonexistent", "/home/joe", harnesses, fileSystem)
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(errors.Is(err, update.ErrSkillsSrcMissing)).To(BeTrue())
-}
-
-func TestRun_PlainUpdate_DelegateOnlyImport_RefreshesAll(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const home = "/home/joe"
-
-	fileSystem := newMemFS()
-	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/agent-instructions/skills"] = true
-	fileSystem.dirs[home+"/.claude"] = true
-	fileSystem.files["/repo/agent-instructions/guidance/recall.md"] = []byte("recall guidance")
-	fileSystem.files["/repo/agent-instructions/guidance/delegate.md"] = []byte("delegate guidance")
-	// Only delegate.md is imported — recall.md is not.
-	fileSystem.files[home+"/.claude/CLAUDE.md"] = []byte("# joe\n\n@~/.claude/engram/delegate.md\n")
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: home, cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	report, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(report.GuidanceImported).To(BeTrue())
-	g.Expect(report.Harnesses[0].GuidanceFiles).To(ConsistOf("recall.md", "delegate.md"))
-
-	// Canonical content lives under guidance/; the flat @import path is a
-	// compat symlink into it (task 5.3), not a flat copy.
-	g.Expect(fileSystem.written[home+"/.claude/engram/guidance/delegate.md"]).NotTo(BeNil())
-	g.Expect(fileSystem.written[home+"/.claude/engram/guidance/recall.md"]).NotTo(BeNil())
-	g.Expect(fileSystem.symlinks[home+"/.claude/engram/delegate.md"]).
-		To(Equal(home + "/.claude/engram/guidance/delegate.md"))
-	g.Expect(fileSystem.symlinks[home+"/.claude/engram/recall.md"]).
-		To(Equal(home + "/.claude/engram/guidance/recall.md"))
-}
-
-func TestRun_PlainUpdate_WhenImported_RefreshesGuidance(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const home = "/home/joe"
-
-	fileSystem := newMemFS()
-	fileSystem.dirs[home+"/.claude"] = true
-	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/agent-instructions/skills"] = true
-	fileSystem.files["/repo/agent-instructions/guidance/recall.md"] = []byte("fresh guidance content")
-	fileSystem.dirs["/repo/agent-instructions/guidance"] = true
-	// The user already imports the guidance (opted in) — no --with-guidance flag.
-	fileSystem.files[home+"/.claude/CLAUDE.md"] = []byte("# joe\n\n@~/.claude/engram/recall.md\n")
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: home, cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	// Plain update MUST refresh the guidance because it is already imported.
-	report, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(report.GuidanceImported).To(BeTrue())
-	g.Expect(report.Harnesses[0].GuidanceFiles).To(ConsistOf("recall.md"))
-
-	written, ok := fileSystem.written[home+"/.claude/engram/guidance/recall.md"]
-	g.Expect(ok).To(BeTrue())
-	g.Expect(written).To(Equal([]byte("fresh guidance content")))
-	g.Expect(fileSystem.symlinks[home+"/.claude/engram/recall.md"]).
-		To(Equal(home + "/.claude/engram/guidance/recall.md"))
-}
-
-func TestRun_WithGuidance_DeploysToClaudeEngram(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const home = "/home/joe"
-
-	fileSystem := newMemFS()
-	fileSystem.dirs[home+"/.claude"] = true
-	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/agent-instructions/skills"] = true
-	fileSystem.files["/repo/agent-instructions/guidance/recall.md"] = []byte("recall guidance content")
-	fileSystem.dirs["/repo/agent-instructions/guidance"] = true
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: home, cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	report, err := updater.Run(context.Background(), update.Options{WithGuidance: true})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(report.Harnesses).To(HaveLen(1))
-
-	claudeReport := report.Harnesses[0]
-	g.Expect(claudeReport.GuidanceFiles).To(ConsistOf("recall.md"))
-
-	written, ok := fileSystem.written[home+"/.claude/engram/guidance/recall.md"]
-	g.Expect(ok).To(BeTrue())
-	g.Expect(written).To(Equal([]byte("recall guidance content")))
-	g.Expect(fileSystem.symlinks[home+"/.claude/engram/recall.md"]).
-		To(Equal(home + "/.claude/engram/guidance/recall.md"))
-}
-
-// TestRun_WithGuidance_GuidanceCopyError covers applyGuidanceCompatLinks'
-// adoption error branch (materializeOrAdopt's RemoveAll): a pre-existing
-// REAL flat guidance file (today's deployed state) at the compat-link path
-// forces the adopt-not-create branch, and the injected RemoveAll failure
-// there must surface as a per-harness error.
-func TestRun_WithGuidance_GuidanceCopyError(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const home = "/home/joe"
-
-	base := newMemFS()
-	base.dirs[home+"/.claude"] = true
-	base.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	base.dirs["/repo/agent-instructions/skills"] = true
-	base.files["/repo/agent-instructions/guidance/recall.md"] = []byte("recall guidance")
-	base.dirs["/repo/agent-instructions/guidance"] = true
-	// Pre-existing REAL flat guidance file — forces adoption, not creation.
-	base.files[home+"/.claude/engram/recall.md"] = []byte("old flat-copied guidance")
-
-	removeErr := errors.New("disk full")
-	fileSystem := &errRemoveFS{
-		memFS:     base,
-		errPath:   home + "/.claude/engram/recall.md",
-		removeErr: removeErr,
-	}
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: home, cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	report, err := updater.Run(context.Background(), update.Options{WithGuidance: true})
-	g.Expect(err).NotTo(HaveOccurred()) // error is per-harness, not top-level
-	g.Expect(report.Harnesses).To(HaveLen(1))
-	g.Expect(report.Harnesses[0].Err).To(MatchError(ContainSubstring("disk full")))
-	g.Expect(report.Harnesses[0].GuidanceFiles).To(BeEmpty())
-}
-
-// TestRun_WithGuidance_NewGuidanceFileJoinsExistingOnSubsequentSync covers
-// task 2.4 of runbook-shim-follow-frame: shim.md is a brand-new guidance
-// file added to agent-instructions/guidance/ alongside the already-deployed
-// recall.md/delegate.md/learn.md. The fixture models a genuinely
-// SUBSEQUENT sync (marker present, prior guidance/ copies and compat
-// symlinks already on disk for the three existing files) with shim.md
-// present in source but ABSENT from the destination entirely — no
-// pre-existing guidance/shim.md, no pre-existing compat symlink. This
-// guards against any "only sync files that already exist at the
-// destination" special-casing: planGuidanceCopies (and the compat-link
-// application built on it) must pick up a truly new file on a run that is
-// not the harness's first sync, without disturbing the untouched files.
-func TestRun_WithGuidance_NewGuidanceFileJoinsExistingOnSubsequentSync(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const home = "/home/joe"
-
-	fileSystem := newMemFS()
-	fileSystem.dirs[home+"/.claude"] = true
-	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/agent-instructions/skills"] = true
-	fileSystem.dirs["/repo/agent-instructions/guidance"] = true
-	fileSystem.files["/repo/agent-instructions/guidance/recall.md"] = []byte("fresh recall guidance")
-	fileSystem.files["/repo/agent-instructions/guidance/delegate.md"] = []byte("fresh delegate guidance")
-	fileSystem.files["/repo/agent-instructions/guidance/learn.md"] = []byte("fresh learn guidance")
-	fileSystem.files["/repo/agent-instructions/guidance/shim.md"] = []byte("fresh shim guidance")
-
-	root := home + "/.claude/engram"
-	fileSystem.dirs[root] = true
-	fileSystem.files[root+"/.engram-owned"] = []byte{}
-	fileSystem.files[root+"/guidance/recall.md"] = []byte("stale recall guidance")
-	fileSystem.files[root+"/guidance/delegate.md"] = []byte("stale delegate guidance")
-	fileSystem.files[root+"/guidance/learn.md"] = []byte("stale learn guidance")
-
-	symlinkErr := fileSystem.Symlink(root+"/guidance/recall.md", root+"/recall.md")
-	g.Expect(symlinkErr).NotTo(HaveOccurred())
-	symlinkErr = fileSystem.Symlink(root+"/guidance/delegate.md", root+"/delegate.md")
-	g.Expect(symlinkErr).NotTo(HaveOccurred())
-	symlinkErr = fileSystem.Symlink(root+"/guidance/learn.md", root+"/learn.md")
-	g.Expect(symlinkErr).NotTo(HaveOccurred())
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: home, cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	report, err := updater.Run(context.Background(), update.Options{WithGuidance: true})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(report.Harnesses).To(HaveLen(1))
-
-	harness := report.Harnesses[0]
-	g.Expect(harness.Err).NotTo(HaveOccurred())
-	g.Expect(harness.GuidanceFiles).To(ConsistOf("recall.md", "delegate.md", "learn.md", "shim.md"))
-
-	// The brand-new file gets canonical content and a compat symlink, same
-	// as the pre-existing three.
-	written, ok := fileSystem.written[root+"/guidance/shim.md"]
-	g.Expect(ok).To(BeTrue())
-	g.Expect(written).To(Equal([]byte("fresh shim guidance")))
-
-	target, isSymlink := fileSystem.symlinks[root+"/shim.md"]
-	g.Expect(isSymlink).To(BeTrue())
-	g.Expect(target).To(Equal(root + "/guidance/shim.md"))
-
-	// The pre-existing files are refreshed and stay symlinked; untouched.
-	g.Expect(fileSystem.written[root+"/guidance/recall.md"]).To(Equal([]byte("fresh recall guidance")))
-	g.Expect(fileSystem.written[root+"/guidance/delegate.md"]).To(Equal([]byte("fresh delegate guidance")))
-	g.Expect(fileSystem.written[root+"/guidance/learn.md"]).To(Equal([]byte("fresh learn guidance")))
-	g.Expect(fileSystem.symlinks[root+"/recall.md"]).To(Equal(root + "/guidance/recall.md"))
-	g.Expect(fileSystem.symlinks[root+"/delegate.md"]).To(Equal(root + "/guidance/delegate.md"))
-	g.Expect(fileSystem.symlinks[root+"/learn.md"]).To(Equal(root + "/guidance/learn.md"))
-}
-
-func TestRun_WithoutGuidance_SkipsGuidance(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const home = "/home/joe"
-
-	fileSystem := newMemFS()
-	fileSystem.dirs[home+"/.claude"] = true
-	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/agent-instructions/skills"] = true
-	fileSystem.files["/repo/agent-instructions/guidance/recall.md"] = []byte("recall guidance content")
-	fileSystem.dirs["/repo/agent-instructions/guidance"] = true
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: home, cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	report, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(report.Harnesses).To(HaveLen(1))
-	g.Expect(report.Harnesses[0].GuidanceFiles).To(BeEmpty())
-	g.Expect(fileSystem.written[home+"/.claude/engram/recall.md"]).To(BeNil())
 }
 
 // errFS returns the same error for every ReadFile call.

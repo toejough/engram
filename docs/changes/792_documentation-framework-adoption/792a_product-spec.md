@@ -5343,8 +5343,8 @@ Scenario: 792a11h1e Re-running changes nothing
 ### 792a11i Removal propagates
 
 Requirement: 792a11i `engram update` MUST delete from a harness's engram-owned root every file in a
-managed subtree (`skills/`, and `guidance/` while guidance is managed) that is not in the deploy set it
-computes from the source, MUST delete a directory in those subtrees that would be left holding nothing
+managed subtree (`skills/`, `commands/` and, while guidance is managed, `guidance/`) that is not in the
+deploy set it computes from the source (engram deploys no commands, so it deletes any file in `commands/`), MUST delete a directory in those subtrees that would be left holding nothing
 the deploy set keeps, and MUST list each deletion in the report as `engram root: deleted <path>`. The
 harness link for a skill whose directory was deleted MUST be gone by the end of the same run.
 
@@ -5446,14 +5446,15 @@ Scenario: 792a11k1c The unmanaged list is not repeated
 ### 792a11l Guidance is managed only after opt-in
 
 Requirement: 792a11l `engram update` MUST include the guidance documents of `agent-instructions/guidance/`
-(the `.md` files directly in it) in a harness's deploy set only when `--with-guidance` is given or the
-harness's config file already imports a guidance file, and MUST otherwise leave the root's `guidance/`
-subtree and any guidance link untouched, neither refreshing nor deleting it. A config file imports a guidance file when a
-line outside a code fence is exactly `@~/<guidance dir>/<name>.md` or the same path with the home
-directory spelled out (`~/.claude/CLAUDE.md` with the `~/.claude/engram/` guidance dir for Claude Code,
-`~/.pi/agent/AGENTS.md` with `~/.pi/agent/guidance/` for Pi). It MUST deploy a guidance document as
-`<engram root>/guidance/<name>.md` and link it from the harness's guidance directory, and MUST delete
-from `guidance/`, when guidance is managed, a document that has left the source.
+(the `.md` files directly in it) in the deploy set of every detected harness only when `--with-guidance`
+is given or the config file of at least one detected harness already imports a guidance file, and MUST
+otherwise leave the root's `guidance/` subtree and any guidance link untouched, neither refreshing nor
+deleting it. A config file imports a guidance file when a line outside a code fence is exactly
+`@~/<guidance dir>/<name>.md` or the same path with the home directory spelled out (`~/.claude/CLAUDE.md`
+with the `~/.claude/engram/` guidance dir for Claude Code, `~/.pi/agent/AGENTS.md` with
+`~/.pi/agent/guidance/` for Pi). It MUST deploy a guidance document as `<engram root>/guidance/<name>.md`
+and link it from the harness's guidance directory, and MUST delete from `guidance/`, when guidance is
+managed, a document that has left the source.
 
 Rationale: management is an opt-in once, so that after a user wires an import, a plain `engram update`
 keeps their guidance current as it does skills. Not being in the deploy set means unmanaged, not removed.
@@ -5492,6 +5493,11 @@ Scenario: 792a11l1f Pi guidance is linked into Pi's guidance directory
   Given the user passes --with-guidance and ~/.pi exists
   When the user runs engram update
   Then ~/.pi/agent/guidance/recall.md is a link to ~/.pi/agent/engram/guidance/recall.md
+
+Scenario: 792a11l1g One harness's import manages guidance for every harness
+  Given only ~/.claude/CLAUDE.md imports a guidance file, no flag is passed, and ~/.pi exists
+  When the user runs engram update
+  Then guidance is also deployed for Pi
 ```
 
 ### 792a11m Claude import paths keep working

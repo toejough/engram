@@ -98,14 +98,14 @@ func Test792b28c4a4_Invariant_U1_MissingGoSentinel(t *testing.T) {
 	g.Expect(finishErr).To(MatchError(update.ErrGoNotFound))
 }
 
-// TestInvariant_U1_UpdateIdempotent locks the idempotence half of invariant
+// Test792b29c16a2_Invariant_U1_UpdateIdempotent locks the idempotence half of invariant
 // U1: re-running `engram update` with identical source is a copy-equivalent
 // no-op — the second run changes nothing on disk. We drive update.Updater
 // (the DI'd core behind the CLI's runUpdate) with in-memory fakes over the
 // exported Filesystem/Commander/Env interfaces, route each run's outcome
 // through the CLI's finishUpdate decision tail, and assert the destination
 // file set is byte-identical after the second run.
-func TestInvariant_U1_UpdateIdempotent(t *testing.T) {
+func Test792b29c16a2_Invariant_U1_UpdateIdempotent(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 

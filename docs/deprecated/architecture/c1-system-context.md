@@ -59,7 +59,7 @@ flowchart LR
 | <a id="r2"></a>R2 | S3 LLM coding harness | S2 Engram | Invokes the `/recall`, `/learn`, `/please`, `/route`, `/curate`, and `/write-memory` skills; subprocess-executes the engram CLI for each invocation. |
 | <a id="r4"></a>R4 | S2 Engram | S5 Harness session stores | See [792b18](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b18-added-chunk-index-store) and [792b15](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b15-added-transcript-reader) |
 | <a id="r5"></a>R5 | S2 Engram | S6 Go toolchain | See [792b28](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b28-added-self-installer) |
-| <a id="r6"></a>R6 | S2 Engram | S3 LLM coding harness | During `engram update`, syncs refreshed `agent-instructions/skills/` to engram-owned roots (`~/.claude/engram/skills/`, `~/.pi/agent/engram/skills/`, etc.; ADR-0022 D1) and materializes them as symlinks in each harness's surface dirs (`~/.claude/skills/`, `~/.pi/agent/skills/`); removals from the source propagate (sync-delete); first update performs dark migration of pre-existing copies to symlinks; dangling symlinks are cleaned up. `--with-guidance` additionally syncs guidance docs to the root's `guidance/` subtree (`~/.claude/engram/guidance/`, `~/.pi/agent/engram/guidance/`; canonical paths) and materializes symlinks; compat symlinks at flat paths (`~/.claude/engram/*.md`) resolve existing `@import` lines (opt-in). Manifest-mode fallback for harnesses whose discovery fails symlink verification (ADR-0022 D7) |
+| <a id="r6"></a>R6 | S2 Engram | S3 LLM coding harness | See [792b29](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b29-added-harness-deploy-sync) |
 | <a id="r7"></a>R7 | S2 Engram | S7 Parent engram vault | With `ENGRAM_PARENT` set: `engram query` fetches the parent's `/query?dedupe-keys=1` and merges notes only (never chunks) into the local payload; `engram learn`/a content `amend`/`resituate` offer the note, queued in a local outbox and drained with backoff to the parent's `/learn`; `engram activate` on a local miss pulls the parent's note down via `GET /show?raw=1` as a new local pending offer, then best-effort bumps its use on the parent (ADR-0029) |
 
 ## Key flows
@@ -279,39 +279,7 @@ sequenceDiagram
 
 ### Flow: update
 
-The product behavior of `engram update` is in [792a11](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a11-added-install-and-update). The install and hand-off sequence is [792b28b](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b28-added-self-installer); the sync sequence below is ported by harness-deploy-sync (792c7j3). Source: `internal/cli/update.go` (`runUpdate`) and `internal/update/update.go` (`Updater.Run`, `reexecAfterInstall`); design: ADR-0022.
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Op as S1 Operator
-    participant H as S3 Harness
-    participant E as S2 Engram CLI
-
-    Op->>H: invoke engram update (or --dry-run)
-    H->>E: engram update
-
-    Note over E: detect each harness (Claude Code, Pi) and its deploy mode (symlink or manifest)
-
-    Note over E: compute intended deploy set per harness (skills, guidance if --with-guidance)
-
-    loop per harness: create/migrate/sync engram-owned root
-        Note over E: if first sync: create root + marker, migrate pre-existing copies to root + symlinks, report unknowns
-        Note over E: if subsequent: sync root to intended set (create missing, overwrite changed, delete removed)
-        Note over E: materialize symlinks (or manifest copies) into harness surface dirs (~/.claude/skills, ~/.pi/agent/skills, etc.)
-        Note over E: clean up dangling symlinks pointing into engram root
-    end
-
-    opt --with-guidance (opt-in; Claude Code + Pi)
-        Note over E: sync guidance root (create root's guidance/ subtree with canonical paths); materialize symlinks; create Claude compat symlinks at flat paths (~/.claude/engram/*.md)
-    end
-
-    E-->>H: per-harness report (synced artifacts, removals, migrations, dry-run lines if --dry-run)
-    H-->>Op: rendered report
-```
-
-The sync loop, symlink materialization, cleanup, and Go-toolchain calls are
-modeled in the static L1 as relationships [R6](#r6) and [R5](#r5) respectively.
+Ported: the product behavior is [792a11](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a11-added-install-and-update), the install and hand-off sequence [792b28](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b28-added-self-installer), and the sync sequence [792b29](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b29-added-harness-deploy-sync).
 
 ### L1 decision flowcharts
 

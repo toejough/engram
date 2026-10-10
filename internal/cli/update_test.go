@@ -1305,17 +1305,7 @@ func Test792b28c15a5_FinishUpdate_ExitStatusProperty(t *testing.T) {
 	})
 }
 
-func TestPluralFile(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	g.Expect(cli.ExportPluralFile(0)).To(Equal("files"))
-	g.Expect(cli.ExportPluralFile(1)).To(Equal("file"))
-	g.Expect(cli.ExportPluralFile(2)).To(Equal("files"))
-}
-
-func TestWriteUpdateReport_EngramRootNotice(t *testing.T) {
+func Test792b29c17a1_WriteUpdateReport_EngramRootNotice(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -1346,11 +1336,11 @@ func TestWriteUpdateReport_EngramRootNotice(t *testing.T) {
 	g.Expect(out).To(ContainSubstring("unattributable: mystery.md"))
 }
 
-// TestWriteUpdateReport_EngramRootNotice_AdoptedAndSurfaceStray covers task
+// Test792b29c17a2_WriteUpdateReport_EngramRootNotice_AdoptedAndSurfaceStray covers task
 // 5.1's EngramAdopted field and task 5.2's SurfaceUnmanaged
 // listing — both must render (D6's spec requirement that a stray is
 // "listed in the update report", not just tracked internally).
-func TestWriteUpdateReport_EngramRootNotice_AdoptedAndSurfaceStray(t *testing.T) {
+func Test792b29c17a2_WriteUpdateReport_EngramRootNotice_AdoptedAndSurfaceStray(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -1379,7 +1369,7 @@ func TestWriteUpdateReport_EngramRootNotice_AdoptedAndSurfaceStray(t *testing.T)
 	g.Expect(out).To(ContainSubstring("unmanaged (left alone): ~/.claude/skills/user-own-tool"))
 }
 
-func TestWriteUpdateReport_EngramRootNotice_AdoptedAndSurfaceStray_DryRunPrefixesAdopted(t *testing.T) {
+func Test792b29c17a3_WriteUpdateReport_EngramRootNotice_AdoptedAndSurfaceStray_DryRunPrefixesAdopted(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -1405,7 +1395,7 @@ func TestWriteUpdateReport_EngramRootNotice_AdoptedAndSurfaceStray_DryRunPrefixe
 	g.Expect(buffer.String()).To(ContainSubstring("[dry-run] adopted: ~/.claude/skills/recall"))
 }
 
-func TestWriteUpdateReport_EngramRootNotice_DryRunPrefixesDeletions(t *testing.T) {
+func Test792b29c17a4_WriteUpdateReport_EngramRootNotice_DryRunPrefixesDeletions(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -1431,7 +1421,7 @@ func TestWriteUpdateReport_EngramRootNotice_DryRunPrefixesDeletions(t *testing.T
 	g.Expect(buffer.String()).To(ContainSubstring("[dry-run] engram root: deleted guidance/stale.md"))
 }
 
-func TestWriteUpdateReport_EngramRootNotice_SilentWhenNothingToReport(t *testing.T) {
+func Test792b29c17a5_WriteUpdateReport_EngramRootNotice_SilentWhenNothingToReport(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -1447,6 +1437,70 @@ func TestWriteUpdateReport_EngramRootNotice_SilentWhenNothingToReport(t *testing
 	g.Expect(writeErr).NotTo(HaveOccurred())
 	g.Expect(buffer.String()).NotTo(ContainSubstring("engram root"))
 	g.Expect(buffer.String()).NotTo(ContainSubstring("unattributable"))
+}
+
+// Test792b29c17a6_WriteUpdateReport_GuidanceCanonicalPathHint covers task 5.3: when a
+// harness's guidance surface IS its engram root (Claude today — D1's
+// guidance caveat), the report states the canonical guidance/ path
+// alongside the flat @import path, since the flat path is now a compat
+// symlink rather than where the real content lives.
+func Test792b29c17a6_WriteUpdateReport_GuidanceCanonicalPathHint(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	report := update.Report{
+		Home:         "/home/joe",
+		WithGuidance: true,
+		Harnesses: []update.HarnessReport{
+			{
+				Name:              update.HarnessClaude,
+				ProbeRoot:         ".claude",
+				SkillsRoot:        "/home/joe/.claude/skills",
+				GuidanceTargetRel: ".claude/engram",
+				ImportsFileRel:    ".claude/CLAUDE.md",
+				EngramRoot:        "/home/joe/.claude/engram",
+				GuidanceFiles:     []string{"recall.md"},
+			},
+		},
+	}
+
+	var buffer bytes.Buffer
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, report)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+	g.Expect(buffer.String()).To(ContainSubstring("(canonical: ~/.claude/engram/guidance/recall.md)"))
+}
+
+// Test792b29c17a7_WriteUpdateReport_GuidanceCanonicalPathHint_PiOmitted covers the
+// negative: Pi's guidance dir is a surface distinct from its engram root, so
+// no canonical-path suffix is rendered — the flat/deployed path already IS
+// the canonical one for Pi.
+func Test792b29c17a7_WriteUpdateReport_GuidanceCanonicalPathHint_PiOmitted(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	report := update.Report{
+		Home:      "/home/joe",
+		Harnesses: []update.HarnessReport{piHarnessReport("recall.md")},
+	}
+
+	var buffer bytes.Buffer
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, report)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+	g.Expect(buffer.String()).NotTo(ContainSubstring("canonical:"))
+}
+
+func Test792b29c17a8_PluralFile(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	g.Expect(cli.ExportPluralFile(0)).To(Equal("files"))
+	g.Expect(cli.ExportPluralFile(1)).To(Equal("file"))
+	g.Expect(cli.ExportPluralFile(2)).To(Equal("files"))
 }
 
 func TestWriteUpdateReport_GuidanceActivationHint(t *testing.T) {
@@ -1577,60 +1631,6 @@ func TestWriteUpdateReport_GuidanceActivationHint(t *testing.T) {
 			}
 		})
 	}
-}
-
-// TestWriteUpdateReport_GuidanceCanonicalPathHint covers task 5.3: when a
-// harness's guidance surface IS its engram root (Claude today — D1's
-// guidance caveat), the report states the canonical guidance/ path
-// alongside the flat @import path, since the flat path is now a compat
-// symlink rather than where the real content lives.
-func TestWriteUpdateReport_GuidanceCanonicalPathHint(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	report := update.Report{
-		Home:         "/home/joe",
-		WithGuidance: true,
-		Harnesses: []update.HarnessReport{
-			{
-				Name:              update.HarnessClaude,
-				ProbeRoot:         ".claude",
-				SkillsRoot:        "/home/joe/.claude/skills",
-				GuidanceTargetRel: ".claude/engram",
-				ImportsFileRel:    ".claude/CLAUDE.md",
-				EngramRoot:        "/home/joe/.claude/engram",
-				GuidanceFiles:     []string{"recall.md"},
-			},
-		},
-	}
-
-	var buffer bytes.Buffer
-
-	writeErr := cli.ExportWriteUpdateReport(&buffer, report)
-	g.Expect(writeErr).NotTo(HaveOccurred())
-	g.Expect(buffer.String()).To(ContainSubstring("(canonical: ~/.claude/engram/guidance/recall.md)"))
-}
-
-// TestWriteUpdateReport_GuidanceCanonicalPathHint_PiOmitted covers the
-// negative: Pi's guidance dir is a surface distinct from its engram root, so
-// no canonical-path suffix is rendered — the flat/deployed path already IS
-// the canonical one for Pi.
-func TestWriteUpdateReport_GuidanceCanonicalPathHint_PiOmitted(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	report := update.Report{
-		Home:      "/home/joe",
-		Harnesses: []update.HarnessReport{piHarnessReport("recall.md")},
-	}
-
-	var buffer bytes.Buffer
-
-	writeErr := cli.ExportWriteUpdateReport(&buffer, report)
-	g.Expect(writeErr).NotTo(HaveOccurred())
-	g.Expect(buffer.String()).NotTo(ContainSubstring("canonical:"))
 }
 
 // TestWriteUpdateReport_PendingOfferHint covers vault-offer-curation's

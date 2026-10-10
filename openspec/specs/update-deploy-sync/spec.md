@@ -2,16 +2,9 @@
 
 ## Purpose
 
-The product behavior of the sync deployment model (engram-owned roots, symlinked surfaces, removals that propagate, the ownership marker, dangling-link cleanup, first-sync migration, guidance opt-in, the Claude import compat links and the dry-run preview) is in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a11-added-install-and-update` (792a11f, 792a11h to 792a11m). The manifest fallback below waits for harness-deploy-sync (792c7j3), and the registration requirement for skill-runbook-registration (792c7k1). Why: docs/architecture/adr.md ADR-0022. Validation: internal/update/sync_test.go, internal/update/symlink_test.go, internal/update/migration_test.go, plus manifest and dry-run contract tests in internal/update/update_test.go and internal/cli/update_test.go.
+The sync deployment model of `engram update` is in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a11-added-install-and-update` (product) and `docs/changes/792_documentation-framework-adoption/792b_technical-spec.md#792b29-added-harness-deploy-sync` (technical). The registration requirement below waits for skill-runbook-registration (792c7k1).
 
 ## Requirements
-
-### Requirement: Manifest fallback for harnesses without symlink discovery
-A harness whose skill discovery fails symlink verification SHALL run in manifest deploy mode: artifacts are materialized as real copies, every written path is recorded in a manifest inside the engram-owned root, and sync SHALL delete exactly those recorded paths whose source artifacts no longer exist. Paths not recorded in the manifest MUST NOT be deleted.
-
-#### Scenario: Removal propagates via manifest
-- **WHEN** a manifest-mode harness has a deployed skill file recorded in the manifest and the skill's source is deleted, and `engram update` runs
-- **THEN** the deployed skill file is deleted, the manifest entry is dropped, and unrecorded files in the same directory are untouched
 
 ### Requirement: Update SHALL run registration offers after deploying skills
 After the engram-owned root sync completes, `engram update` SHALL run skill registration (capability `skill-runbook-registration`) against the resolved vault over the same default skill and command source set that standalone `engram register-skills` scans — resolved by the same function from the same home directory and working directory, and not from `<sourceRoot>/agent-instructions/skills` — prompting for each outstanding offer when stdin is a terminal, and otherwise writing nothing and reporting the outstanding offers. Registration failures SHALL be reported and SHALL NOT roll back the deploy.

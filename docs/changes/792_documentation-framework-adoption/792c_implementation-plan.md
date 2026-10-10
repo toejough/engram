@@ -235,8 +235,8 @@ flowchart TD
   N792c7i2["792c7i2 note-reparenting tech spec<br/>Complete"]
   N792c7j1["792c7j1 install-and-update product spec<br/>Complete"]
   N792c7j2["792c7j2 self-installer tech spec<br/>Complete"]
-  N792c7j3["792c7j3 harness-deploy-sync tech spec<br/>Ready"]
-  N792c7k1["792c7k1 skill-runbook-registration product spec<br/>Blocked by: 792c7j3"]
+  N792c7j3["792c7j3 harness-deploy-sync tech spec<br/>Complete"]
+  N792c7k1["792c7k1 skill-runbook-registration product spec<br/>Ready"]
   N792c7k2["792c7k2 skill-source-discovery tech spec<br/>Blocked by: 792c7k1"]
   N792c7k3["792c7k3 skill-registration-ledger tech spec<br/>Blocked by: 792c7k2"]
   N792c7l1["792c7l1 write-memory product spec<br/>Blocked by: 792c7k3"]
@@ -3311,11 +3311,186 @@ Target: `792b29` (`docs/specs/technical/harness-deploy-sync.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7j3a | Port the component contract to `792b29` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7j3b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7j3c | Repoint stale references to `792b29` | Non-test action | Keeps live links valid | Not started |
-| 792c7j3d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7j3e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7j3a | Port the component contract to `792b29` | Non-test action | Documents the component in the framework format | Done |
+| 792c7j3b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7j3c | Repoint stale references to `792b29` | Non-test action | Keeps live links valid | Done |
+| 792c7j3d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7j3e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+792b29 has seventeen requirements (792b29c1 to 792b29c17): harness detection, the deploy set, guidance
+management, import detection, root ownership, root synchronization, skill links, adoption, guidance
+links, dangling-link cleanup, unmanaged entries, the first sync without a trace, manifest mode, the dry
+run, harness isolation, idempotence and the harness sections of the report (792d105). It maps 32 product
+scenarios of 792a11. Legacy removal: ADR-0022 is deleted; invariant U1 points at 792b29c16; the c1 update
+flow and its R6 row, the c2 update edge and the c3 K9 row point at 792b28 and 792b29; `update-deploy-sync`
+keeps only the registration requirement for 792c7k1; the README and GLOSSARY citations of ADR-0022 point
+at 792a11. The ADR-0022 citations in `agent-instructions/guidance/*.md` and in the root `AGENTS.md` wait
+for ambient-guidance (792c7r1), which owns those documents.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b29c13a10 | `TestApplyOps_ManifestMode_DryRun_NoWrites` → `Test792b29c13a10_ApplyOps_ManifestMode_DryRun_NoWrites` | Pure unit (in-memory filesystem), manifest mode | A dry run previews and writes nothing; copy step dry run | Done |
+| 792b29c13a2 | `TestApplyOps_ManifestMode_FallsThroughToCopyBehavior` → `Test792b29c13a2_ApplyOps_ManifestMode_FallsThroughToCopyBehavior` | Pure unit (in-memory filesystem), manifest mode | A manifest-mode update copies as before | Done |
+| 792b29c13a11 | `TestApplyOps_ManifestMode_GuidanceCopyErrorIsHarnessError` → `Test792b29c13a11_ApplyOps_ManifestMode_GuidanceCopyErrorIsHarnessError` | Pure unit (in-memory filesystem), manifest mode | A clear, copy, create or write failure is a harness error; guidance write | Done |
+| 792b29c13a11 | `TestApplyOps_ManifestMode_SkillClearFailureIsHarnessError` → `Test792b29c13a11_ApplyOps_ManifestMode_SkillClearFailureIsHarnessError` | Pure unit (in-memory filesystem), manifest mode | A clear, copy, create or write failure is a harness error; clear | Done |
+| 792b29c13a11 | `TestApplyOps_ManifestMode_SkillCopyErrorIsHarnessError` → `Test792b29c13a11_ApplyOps_ManifestMode_SkillCopyErrorIsHarnessError` | Pure unit (in-memory filesystem), manifest mode | A clear, copy, create or write failure is a harness error; source read | Done |
+| 792b29c13a11 | `TestApplyOps_ManifestMode_SkillMkdirErrorIsHarnessError` → `Test792b29c13a11_ApplyOps_ManifestMode_SkillMkdirErrorIsHarnessError` | Pure unit (in-memory filesystem), manifest mode | A clear, copy, create or write failure is a harness error; directory creation | Done |
+| 792b29c13a11 | `TestApplyOps_ManifestMode_SkillWriteErrorIsHarnessError` → `Test792b29c13a11_ApplyOps_ManifestMode_SkillWriteErrorIsHarnessError` | Pure unit (in-memory filesystem), manifest mode | A clear, copy, create or write failure is a harness error; skill write | Done |
+| 792b29c10a9 | `TestCleanupDanglingLinksInDir_DryRun_RecordsWithoutRemoving` → `Test792b29c10a9_CleanupDanglingLinksInDir_DryRun_RecordsWithoutRemoving` | Pure unit (in-memory filesystem) | A dry run records without removing | Done |
+| 792b29c10a10 | `TestCleanupDanglingLinksInDir_EmptyDirParam_NoOp` → `Test792b29c10a10_CleanupDanglingLinksInDir_EmptyDirParam_NoOp` | Pure unit (in-memory filesystem) | No directory is a no-op | Done |
+| 792b29c10a1 | `TestCleanupDanglingLinksInDir_EngramLinkTargetMissing_Removed` → `Test792b29c10a1_CleanupDanglingLinksInDir_EngramLinkTargetMissing_Removed` | Pure unit (in-memory filesystem) | A dangling engram link is removed | Done |
+| 792b29c10a2 | `TestCleanupDanglingLinksInDir_EngramLinkTargetPresent_Kept` → `Test792b29c10a2_CleanupDanglingLinksInDir_EngramLinkTargetPresent_Kept` | Pure unit (in-memory filesystem) | A healthy engram link is kept | Done |
+| 792b29c10a3 | `TestCleanupDanglingLinksInDir_ForeignSymlinkTargetMissing_NeverTouched` → `Test792b29c10a3_CleanupDanglingLinksInDir_ForeignSymlinkTargetMissing_NeverTouched` | Pure unit (in-memory filesystem) | A foreign link with a missing target is untouched | Done |
+| 792b29c10a4 | `TestCleanupDanglingLinksInDir_ForeignSymlinkTargetPresent_NeverTouched` → `Test792b29c10a4_CleanupDanglingLinksInDir_ForeignSymlinkTargetPresent_NeverTouched` | Pure unit (in-memory filesystem) | A foreign link with a present target is untouched | Done |
+| 792b29c10a14 | `TestCleanupDanglingLinksInDir_LstatError_Propagates` → `Test792b29c10a14_CleanupDanglingLinksInDir_LstatError_Propagates` | Pure unit (in-memory filesystem with an injected fault) | An inspection failure is an error | Done |
+| 792b29c10a11 | `TestCleanupDanglingLinksInDir_MissingDir_NoOp` → `Test792b29c10a11_CleanupDanglingLinksInDir_MissingDir_NoOp` | Pure unit (in-memory filesystem) | A missing directory is a no-op | Done |
+| 792b29c10a12 | `TestCleanupDanglingLinksInDir_Property_OnlyRootMatchedDanglingLinksRemoved` → `Test792b29c10a12_CleanupDanglingLinksInDir_Property_OnlyRootMatchedDanglingLinksRemoved` | Property (rapid) | Only root-matched dangling links are removed | Done |
+| 792b29c10a13 | `TestCleanupDanglingLinksInDir_ReadDirError_Propagates` → `Test792b29c10a13_CleanupDanglingLinksInDir_ReadDirError_Propagates` | Pure unit (in-memory filesystem with an injected fault) | A listing failure is an error | Done |
+| 792b29c10a15 | `TestCleanupDanglingLinksInDir_ReadLinkError_Propagates` → `Test792b29c10a15_CleanupDanglingLinksInDir_ReadLinkError_Propagates` | Pure unit (in-memory filesystem with an injected fault) | A link that cannot be read is an error | Done |
+| 792b29c10a5 | `TestCleanupDanglingLinksInDir_RealDir_NeverTouched` → `Test792b29c10a5_CleanupDanglingLinksInDir_RealDir_NeverTouched` | Pure unit (in-memory filesystem) | A real directory is untouched | Done |
+| 792b29c10a6 | `TestCleanupDanglingLinksInDir_RealFile_NeverTouched` → `Test792b29c10a6_CleanupDanglingLinksInDir_RealFile_NeverTouched` | Pure unit (in-memory filesystem) | A real file is untouched | Done |
+| 792b29c10a7 | `TestCleanupDanglingLinksInDir_RelativeTargetResolvesLexically_Dangling` → `Test792b29c10a7_CleanupDanglingLinksInDir_RelativeTargetResolvesLexically_Dangling` | Pure unit (in-memory filesystem) | A relative dangling target resolves lexically | Done |
+| 792b29c10a8 | `TestCleanupDanglingLinksInDir_RelativeTargetResolvesLexically_Healthy` → `Test792b29c10a8_CleanupDanglingLinksInDir_RelativeTargetResolvesLexically_Healthy` | Pure unit (in-memory filesystem) | A relative healthy target resolves lexically | Done |
+| 792b29c10a17 | `TestCleanupDanglingLinksInDir_RemoveAllError_Propagates` → `Test792b29c10a17_CleanupDanglingLinksInDir_RemoveAllError_Propagates` | Pure unit (in-memory filesystem with an injected fault) | A removal failure is an error | Done |
+| 792b29c10a16 | `TestCleanupDanglingLinksInDir_StatError_Propagates` → `Test792b29c10a16_CleanupDanglingLinksInDir_StatError_Propagates` | Pure unit (in-memory filesystem with an injected fault) | A target that cannot be statted is an error | Done |
+| 792b29c10a18 | `TestCleanupDanglingLinks_NoGuidanceSurface_ScansOnlySkillsRoot` → `Test792b29c10a18_CleanupDanglingLinks_NoGuidanceSurface_ScansOnlySkillsRoot` | Pure unit (in-memory filesystem) | A harness without guidance scans only its skills directory | Done |
+| 792b29c10a19 | `TestCleanupDanglingLinks_ScanError_SetsRepErrAndStops` → `Test792b29c10a19_CleanupDanglingLinks_ScanError_SetsRepErrAndStops` | Pure unit (in-memory filesystem with an injected fault) | A scan failure ends the harness | Done |
+| 792b29c10a20 | `TestLexicallyResolveSymlinkTarget_Absolute` → `Test792b29c10a20_LexicallyResolveSymlinkTarget_Absolute` | Pure unit (in-memory filesystem) | A link target is resolved lexically; absolute target kept | Done |
+| 792b29c10a20 | `TestLexicallyResolveSymlinkTarget_RelativeJoinsParent` → `Test792b29c10a20_LexicallyResolveSymlinkTarget_RelativeJoinsParent` | Pure unit (in-memory filesystem) | A link target is resolved lexically; relative target joined | Done |
+| 792b29c10a20 | `TestLexicallyResolveSymlinkTarget_RelativeSameDir` → `Test792b29c10a20_LexicallyResolveSymlinkTarget_RelativeSameDir` | Pure unit (in-memory filesystem) | A link target is resolved lexically; target in the link's own directory | Done |
+| 792b29c7a1 | `TestMaterializeSymlink_AbsentCreatesLink` → `Test792b29c7a1_MaterializeSymlink_AbsentCreatesLink` | Pure unit (in-memory filesystem) | An absent link is created | Done |
+| 792b29c7a2 | `TestMaterializeSymlink_AbsentDryRun_NoWrite` → `Test792b29c7a2_MaterializeSymlink_AbsentDryRun_NoWrite` | Pure unit (in-memory filesystem) | An absent link is not created in a dry run | Done |
+| 792b29c7a3 | `TestMaterializeSymlink_ExistingCorrectSymlink_NoOp` → `Test792b29c7a3_MaterializeSymlink_ExistingCorrectSymlink_NoOp` | Pure unit (in-memory filesystem) | A correct link is left alone | Done |
+| 792b29c7a5 | `TestMaterializeSymlink_ExistingWrongSymlink_DryRun_NoWrite` → `Test792b29c7a5_MaterializeSymlink_ExistingWrongSymlink_DryRun_NoWrite` | Pure unit (in-memory filesystem) | A wrong link is not repointed in a dry run | Done |
+| 792b29c7a4 | `TestMaterializeSymlink_ExistingWrongSymlink_Repoints` → `Test792b29c7a4_MaterializeSymlink_ExistingWrongSymlink_Repoints` | Pure unit (in-memory filesystem) | A wrong link is repointed | Done |
+| 792b29c7a8 | `TestMaterializeSymlink_LstatError_Propagates` → `Test792b29c7a8_MaterializeSymlink_LstatError_Propagates` | Pure unit (in-memory filesystem with an injected fault) | An inspection failure is an error | Done |
+| 792b29c7a9 | `TestMaterializeSymlink_MkdirError_Propagates` → `Test792b29c7a9_MaterializeSymlink_MkdirError_Propagates` | Pure unit (in-memory filesystem with an injected fault) | A parent that cannot be created is an error | Done |
+| 792b29c7a10 | `TestMaterializeSymlink_ReadLinkError_Propagates` → `Test792b29c7a10_MaterializeSymlink_ReadLinkError_Propagates` | Pure unit (in-memory filesystem with an injected fault) | A link that cannot be read is an error | Done |
+| 792b29c7a6 | `TestMaterializeSymlink_RealDir_LeftUntouchedAndBlocked` → `Test792b29c7a6_MaterializeSymlink_RealDir_LeftUntouchedAndBlocked` | Pure unit (in-memory filesystem) | A real directory is untouched and blocked | Done |
+| 792b29c7a7 | `TestMaterializeSymlink_RealFile_LeftUntouchedAndBlocked` → `Test792b29c7a7_MaterializeSymlink_RealFile_LeftUntouchedAndBlocked` | Pure unit (in-memory filesystem) | A real file is untouched and blocked | Done |
+| 792b29c7a11 | `TestMaterializeSymlink_RepointRemoveError_Propagates` → `Test792b29c7a11_MaterializeSymlink_RepointRemoveError_Propagates` | Pure unit (in-memory filesystem with an injected fault) | A repoint that cannot remove the old link is an error | Done |
+| 792b29c7a12 | `TestMaterializeSymlink_RepointSymlinkCreateError_Propagates` → `Test792b29c7a12_MaterializeSymlink_RepointSymlinkCreateError_Propagates` | Pure unit (in-memory filesystem with an injected fault) | A repoint that cannot re-create the link is an error | Done |
+| 792b29c7a13 | `TestMaterializeSymlink_SymlinkCreateError_Propagates` → `Test792b29c7a13_MaterializeSymlink_SymlinkCreateError_Propagates` | Pure unit (in-memory filesystem with an injected fault) | A link that cannot be created is an error | Done |
+| 792b29c10a21 | `TestPathWithinRoot_ExactMatch` → `Test792b29c10a21_PathWithinRoot_ExactMatch` | Pure unit (in-memory filesystem) | A path is within the root by whole segments; exact match | Done |
+| 792b29c10a21 | `TestPathWithinRoot_NestedMatch` → `Test792b29c10a21_PathWithinRoot_NestedMatch` | Pure unit (in-memory filesystem) | A path is within the root by whole segments; nested path | Done |
+| 792b29c10a21 | `TestPathWithinRoot_OutsideEntirely` → `Test792b29c10a21_PathWithinRoot_OutsideEntirely` | Pure unit (in-memory filesystem) | A path is within the root by whole segments; outside path | Done |
+| 792b29c10a21 | `TestPathWithinRoot_SiblingPrefixNotMatched` → `Test792b29c10a21_PathWithinRoot_SiblingPrefixNotMatched` | Pure unit (in-memory filesystem) | A path is within the root by whole segments; sibling sharing the prefix | Done |
+| 792b29c10a24 | `TestRun_SymlinkFreeTree_CleanupAndMaterializationRecordNothingUnexpected` → `Test792b29c10a24_Run_SymlinkFreeTree_CleanupAndMaterializationRecordNothingUnexpected` | Pure unit (`Updater.Run` over an in-memory filesystem) | A tree with no links records only exact logical paths | Done |
+| 792b29c9a1 | `TestRun_SymlinkMode_ClaudeGuidanceCreatesCompatSymlink` → `Test792b29c9a1_Run_SymlinkMode_ClaudeGuidanceCreatesCompatSymlink` | Pure unit (`Updater.Run` over an in-memory filesystem) | Claude Code gets compat links at the top of its root | Done |
+| 792b29c10a22 | `TestRun_SymlinkMode_DanglingLinkRemovedWhenSourceArtifactGone` → `Test792b29c10a22_Run_SymlinkMode_DanglingLinkRemovedWhenSourceArtifactGone` | Pure unit (`Updater.Run` over an in-memory filesystem) | A dangling link is removed by an update | Done |
+| 792b29c14a2 | `TestRun_SymlinkMode_DryRun_NoLinksCreated` → `Test792b29c14a2_Run_SymlinkMode_DryRun_NoLinksCreated` | Pure unit (`Updater.Run` over an in-memory filesystem) | No link is created | Done |
+| 792b29c10a23 | `TestRun_SymlinkMode_ForeignSymlinkNeverTouched` → `Test792b29c10a23_Run_SymlinkMode_ForeignSymlinkNeverTouched` | Pure unit (`Updater.Run` over an in-memory filesystem) | A foreign link is never touched by an update | Done |
+| 792b29c9a3 | `TestRun_SymlinkMode_PiGuidanceLinkError_IsHarnessError` → `Test792b29c9a3_Run_SymlinkMode_PiGuidanceLinkError_IsHarnessError` | Pure unit (`Updater.Run` over an in-memory filesystem) | A Pi link failure fails Pi | Done |
+| 792b29c9a2 | `TestRun_SymlinkMode_PiGuidanceLinksGuidanceFiles` → `Test792b29c9a2_Run_SymlinkMode_PiGuidanceLinksGuidanceFiles` | Pure unit (`Updater.Run` over an in-memory filesystem) | Pi gets one link per file in its guidance directory | Done |
+| 792b29c8a10 | `TestRun_SymlinkMode_PiRealGuidanceFile_AdoptsToSymlink` → `Test792b29c8a10_Run_SymlinkMode_PiRealGuidanceFile_AdoptsToSymlink` | Pure unit (`Updater.Run` over an in-memory filesystem) | A real Pi guidance file is adopted | Done |
+| 792b29c8a8 | `TestRun_SymlinkMode_RealSkillDirAdoptsToSymlink` → `Test792b29c8a8_Run_SymlinkMode_RealSkillDirAdoptsToSymlink` | Pure unit (`Updater.Run` over an in-memory filesystem) | A copied skill directory is adopted by an update; through a symlink-mode run | Done |
+| 792b29c7a14 | `TestRun_SymlinkMode_WrongTargetLinkRepointed` → `Test792b29c7a14_Run_SymlinkMode_WrongTargetLinkRepointed` | Pure unit (`Updater.Run` over an in-memory filesystem) | A wrong link is repointed by an update | Done |
+| 792b29c1a1 | `TestDetectHarnesses_Both_StableOrder` → `Test792b29c1a1_DetectHarnesses_Both_StableOrder` | Pure unit (`Updater.Run` over an in-memory filesystem) | Both harnesses are found in a stable order | Done |
+| 792b29c1a2 | `TestDetectHarnesses_ClaudeOnly` → `Test792b29c1a2_DetectHarnesses_ClaudeOnly` | Pure unit (`Updater.Run` over an in-memory filesystem) | Only Claude Code | Done |
+| 792b29c1a4 | `TestDetectHarnesses_ExportedTakesStatOnlyProber` → `Test792b29c1a4_DetectHarnesses_ExportedTakesStatOnlyProber` | Pure unit (`Updater.Run` over an in-memory filesystem) | Detection needs only a stat capability | Done |
+| 792b29c1a3 | `TestDetectHarnesses_None` → `Test792b29c1a3_DetectHarnesses_None` | Pure unit (`Updater.Run` over an in-memory filesystem) | No harness | Done |
+| 792b29c4a4 | `TestGuidanceImportAttribution_PerHarness` → `Test792b29c4a4_GuidanceImportAttribution_PerHarness` | Pure unit (in-memory filesystem) | An import is attributed to its own harness; the subtests also verify 792b29c4a5 and 792b29c4a6 (`split deferred`) | Done |
+| 792b29c4a7 | `TestGuidanceImportAttribution_Property` → `Test792b29c4a7_GuidanceImportAttribution_Property` | Property (rapid) | Attribution holds for any combination | Done |
+| 792b29c4a1 | `TestGuidanceImportDetection` → `Test792b29c4a1_GuidanceImportDetection` | Pure unit (in-memory filesystem) | An import is detected | Done |
+| 792b29c4a2 | `TestGuidanceImportDetection_MissingClaudeMD` → `Test792b29c4a2_GuidanceImportDetection_MissingClaudeMD` | Pure unit (in-memory filesystem) | A missing config file imports nothing | Done |
+| 792b29c4a3 | `TestGuidanceImportDetection_PerFileSet` → `Test792b29c4a3_GuidanceImportDetection_PerFileSet` | Pure unit (in-memory filesystem) | The set is per file | Done |
+| 792b29c4a8 | `TestGuidanceImportPrefixDerivation_AllHarnesses` → `Test792b29c4a8_GuidanceImportPrefixDerivation_AllHarnesses` | Pure unit (in-memory filesystem) | Prefixes come from the specification | Done |
+| 792b29c1a5 | `TestHarnessSpecs_WellKnownPaths` → `Test792b29c1a5_HarnessSpecs_WellKnownPaths` | Pure unit (in-memory filesystem) | The well-known paths | Done |
+| 792b29c13a10 | `TestManifestModeDeletion_DryRunNoWrites` → `Test792b29c13a10_ManifestModeDeletion_DryRunNoWrites` | Pure unit (in-memory filesystem), manifest mode | A dry run previews and writes nothing; deletion step dry run | Done |
+| 792b29c13a7 | `TestManifestModeDeletion_MissingManifestIsEmpty` → `Test792b29c13a7_ManifestModeDeletion_MissingManifestIsEmpty` | Pure unit (in-memory filesystem), manifest mode | A missing manifest is empty | Done |
+| 792b29c13a6 | `TestManifestModeDeletion_Property_OnlyRecordedPathsDeleted` → `Test792b29c13a6_ManifestModeDeletion_Property_OnlyRecordedPathsDeleted` | Property (rapid) | Only recorded paths are deleted | Done |
+| 792b29c13a4 | `TestManifestModeDeletion_RemovalPropagates` → `Test792b29c13a4_ManifestModeDeletion_RemovalPropagates` | Pure unit (in-memory filesystem), manifest mode | Removal propagates through the manifest | Done |
+| 792b29c13a5 | `TestManifestModeDeletion_UnrecordedFileSurvives` → `Test792b29c13a5_ManifestModeDeletion_UnrecordedFileSurvives` | Pure unit (in-memory filesystem), manifest mode | Unrecorded files survive | Done |
+| 792b29c13a8 | `TestManifestMode_CorruptManifestReturnsError` → `Test792b29c13a8_ManifestMode_CorruptManifestReturnsError` | Pure unit (in-memory filesystem), manifest mode | A corrupt manifest is an error | Done |
+| 792b29c13a3 | `TestManifestMode_DeletesObsoleteFilesOnNextRun` → `Test792b29c13a3_ManifestMode_DeletesObsoleteFilesOnNextRun` | Pure unit (in-memory filesystem), manifest mode | An obsolete recorded file is deleted on the next run | Done |
+| 792b29c13a9 | `TestManifestMode_DeletionErrorPropagates` → `Test792b29c13a9_ManifestMode_DeletionErrorPropagates` | Pure unit (in-memory filesystem), manifest mode | A deletion failure is a harness error | Done |
+| 792b29c13a10 | `TestManifestMode_DryRunPreviewsDelectionNoWrites` → `Test792b29c13a10_ManifestMode_DryRunPreviewsDelectionNoWrites` | Pure unit (in-memory filesystem), manifest mode | A dry run previews and writes nothing; update-level dry run | Done |
+| 792b29c13a1 | `TestManifestMode_WritesFilesAndRecordsManifest` → `Test792b29c13a1_ManifestMode_WritesFilesAndRecordsManifest` | Pure unit (in-memory filesystem), manifest mode | Files are copied and recorded | Done |
+| 792b29c2a3 | `TestPlanGuidanceCopies_FilesUnderHome` → `Test792b29c2a3_PlanGuidanceCopies_FilesUnderHome` | Pure unit (in-memory filesystem) | Guidance files are planned per harness | Done |
+| 792b29c2a4 | `TestPlanGuidanceCopies_MissingSrc` → `Test792b29c2a4_PlanGuidanceCopies_MissingSrc` | Pure unit (in-memory filesystem) | A missing guidance source plans nothing | Done |
+| 792b29c2a1 | `TestPlanSkillCopies_FilesUnderHome_Property` → `Test792b29c2a1_PlanSkillCopies_FilesUnderHome_Property` | Property (rapid) | Every skill file is planned for every harness | Done |
+| 792b29c2a2 | `TestPlanSkillCopies_MissingSrc` → `Test792b29c2a2_PlanSkillCopies_MissingSrc` | Pure unit (in-memory filesystem) | A missing skills source is an error | Done |
+| 792b29c3a3 | `TestRun_PlainUpdate_DelegateOnlyImport_RefreshesAll` → `Test792b29c3a3_Run_PlainUpdate_DelegateOnlyImport_RefreshesAll` | Pure unit (`Updater.Run` over an in-memory filesystem) | A single imported file refreshes all | Done |
+| 792b29c3a2 | `TestRun_PlainUpdate_WhenImported_RefreshesGuidance` → `Test792b29c3a2_Run_PlainUpdate_WhenImported_RefreshesGuidance` | Pure unit (`Updater.Run` over an in-memory filesystem) | An import keeps guidance current | Done |
+| 792b29c3a1 | `TestRun_WithGuidance_DeploysToClaudeEngram` → `Test792b29c3a1_Run_WithGuidance_DeploysToClaudeEngram` | Pure unit (`Updater.Run` over an in-memory filesystem) | The flag deploys guidance | Done |
+| 792b29c3a6 | `TestRun_WithGuidance_GuidanceCopyError` → `Test792b29c3a6_Run_WithGuidance_GuidanceCopyError` | Pure unit (`Updater.Run` over an in-memory filesystem) | A deploy failure is a harness error | Done |
+| 792b29c3a5 | `TestRun_WithGuidance_NewGuidanceFileJoinsExistingOnSubsequentSync` → `Test792b29c3a5_Run_WithGuidance_NewGuidanceFileJoinsExistingOnSubsequentSync` | Pure unit (`Updater.Run` over an in-memory filesystem) | A new guidance file joins on a later sync | Done |
+| 792b29c3a4 | `TestRun_WithoutGuidance_SkipsGuidance` → `Test792b29c3a4_Run_WithoutGuidance_SkipsGuidance` | Pure unit (`Updater.Run` over an in-memory filesystem) | Without opt-in guidance is skipped and its subtree untouched; no guidance planned | Done |
+| 792b29c8a1 | `TestMaterializeOrAdopt_AbsentCreatesLinkNotAdopted` → `Test792b29c8a1_MaterializeOrAdopt_AbsentCreatesLinkNotAdopted` | Pure unit (in-memory filesystem) | An absent link is created, not adopted | Done |
+| 792b29c8a5 | `TestMaterializeOrAdopt_DryRun_RealDir_PreviewsAdoptionWithoutWriting` → `Test792b29c8a5_MaterializeOrAdopt_DryRun_RealDir_PreviewsAdoptionWithoutWriting` | Pure unit (in-memory filesystem) | A dry run previews the adoption | Done |
+| 792b29c8a2 | `TestMaterializeOrAdopt_ExistingCorrectSymlink_NotAdopted` → `Test792b29c8a2_MaterializeOrAdopt_ExistingCorrectSymlink_NotAdopted` | Pure unit (in-memory filesystem) | A correct link is not adopted | Done |
+| 792b29c8a3 | `TestMaterializeOrAdopt_RealDir_ReplacedWithSymlink` → `Test792b29c8a3_MaterializeOrAdopt_RealDir_ReplacedWithSymlink` | Pure unit (in-memory filesystem) | A real directory is replaced | Done |
+| 792b29c8a4 | `TestMaterializeOrAdopt_RealFile_ReplacedWithSymlink` → `Test792b29c8a4_MaterializeOrAdopt_RealFile_ReplacedWithSymlink` | Pure unit (in-memory filesystem) | A real file is replaced | Done |
+| 792b29c8a6 | `TestMaterializeOrAdopt_RemoveAllError_Propagates` → `Test792b29c8a6_MaterializeOrAdopt_RemoveAllError_Propagates` | Pure unit (in-memory filesystem with an injected fault) | A copy that cannot be removed is an error | Done |
+| 792b29c8a7 | `TestMaterializeOrAdopt_SymlinkCreateError_Propagates` → `Test792b29c8a7_MaterializeOrAdopt_SymlinkCreateError_Propagates` | Pure unit (in-memory filesystem with an injected fault) | A link that cannot be created is an error | Done |
+| 792b29c9a4 | `TestRun_Migration_ClaudeCompatLinkDeletedWhenGuidanceRemovedFromSource` → `Test792b29c9a4_Run_Migration_ClaudeCompatLinkDeletedWhenGuidanceRemovedFromSource` | Pure unit (`Updater.Run` over an in-memory filesystem) | A compat link is deleted when its file leaves the source | Done |
+| 792b29c8a11 | `TestRun_Migration_ClaudeFlatGuidanceFileAdopted` → `Test792b29c8a11_Run_Migration_ClaudeFlatGuidanceFileAdopted` | Pure unit (`Updater.Run` over an in-memory filesystem) | A real flat Claude guidance file is adopted | Done |
+| 792b29c9a1 | `TestRun_Migration_ClaudeGuidanceCompatSymlinkCreated` → `Test792b29c9a1_Run_Migration_ClaudeGuidanceCompatSymlinkCreated` | Pure unit (`Updater.Run` over an in-memory filesystem) | Claude Code gets compat links at the top of its root | Done |
+| 792b29c8a9 | `TestRun_Migration_CopiedSkillDirAdoptsToSymlink` → `Test792b29c8a9_Run_Migration_CopiedSkillDirAdoptsToSymlink` | Pure unit (`Updater.Run` over an in-memory filesystem) | A copied skill is adopted on the first sync; first-sync migration | Done |
+| 792b29c12a1 | `TestRun_Migration_DryRun_NeverSyncedHarness_LeavesNoTrace` → `Test792b29c12a1_Run_Migration_DryRun_NeverSyncedHarness_LeavesNoTrace` | Pure unit (`Updater.Run` over an in-memory filesystem) | A never-synced harness leaves no trace | Done |
+| 792b29c12a2 | `TestRun_Migration_DryRun_PreExistingMarkerlessRoot_LeavesNoTrace` → `Test792b29c12a2_Run_Migration_DryRun_PreExistingMarkerlessRoot_LeavesNoTrace` | Pure unit (`Updater.Run` over an in-memory filesystem) | A pre-existing unmarked root leaves no trace | Done |
+| 792b29c5a9 | `TestRun_Migration_RootMarkerStampedAfterAdoptionPass` → `Test792b29c5a9_Run_Migration_RootMarkerStampedAfterAdoptionPass` | Pure unit (`Updater.Run` over an in-memory filesystem) | The marker is stamped after the adoption pass and then enables deletion; marker after adoption | Done |
+| 792b29c5a9 | `TestRun_Migration_SubsequentSyncTreatsAdoptedRootAsOwned` → `Test792b29c5a9_Run_Migration_SubsequentSyncTreatsAdoptedRootAsOwned` | Pure unit (`Updater.Run` over an in-memory filesystem) | The marker is stamped after the adoption pass and then enables deletion; second run deletes | Done |
+| 792b29c11a7 | `TestRun_Migration_SurfaceStrayOutsideIntendedSet_ReportedNeverDeleted` → `Test792b29c11a7_Run_Migration_SurfaceStrayOutsideIntendedSet_ReportedNeverDeleted` | Pure unit (`Updater.Run` over an in-memory filesystem) | An unmanaged entry is reported and never deleted | Done |
+| 792b29c11a1 | `TestSurfaceStrays_IntendedEntry_NotReported` → `Test792b29c11a1_SurfaceStrays_IntendedEntry_NotReported` | Pure unit (in-memory filesystem) | An entry in the deploy set is not reported | Done |
+| 792b29c11a2 | `TestSurfaceStrays_LstatError_Propagates` → `Test792b29c11a2_SurfaceStrays_LstatError_Propagates` | Pure unit (in-memory filesystem with an injected fault) | An inspection failure is an error | Done |
+| 792b29c11a3 | `TestSurfaceStrays_MissingDir_NoStrays` → `Test792b29c11a3_SurfaceStrays_MissingDir_NoStrays` | Pure unit (in-memory filesystem) | A missing directory has none | Done |
+| 792b29c11a4 | `TestSurfaceStrays_ReadDirError_Propagates` → `Test792b29c11a4_SurfaceStrays_ReadDirError_Propagates` | Pure unit (in-memory filesystem with an injected fault) | A listing failure is an error | Done |
+| 792b29c11a5 | `TestSurfaceStrays_RealEntryNotIntended_Reported` → `Test792b29c11a5_SurfaceStrays_RealEntryNotIntended_Reported` | Pure unit (in-memory filesystem) | A real entry outside the deploy set is reported | Done |
+| 792b29c11a6 | `TestSurfaceStrays_SymlinkEntry_SkippedNotReported` → `Test792b29c11a6_SurfaceStrays_SymlinkEntry_SkippedNotReported` | Pure unit (in-memory filesystem) | A link is skipped | Done |
+| 792b29c6a4 | `TestApplyEngramSyncOps_CreateMkdirError` → `Test792b29c6a4_ApplyEngramSyncOps_CreateMkdirError` | Pure unit (in-memory filesystem with an injected fault) | A directory that cannot be created fails the harness | Done |
+| 792b29c6a5 | `TestApplyEngramSyncOps_CreateReadFileError` → `Test792b29c6a5_ApplyEngramSyncOps_CreateReadFileError` | Pure unit (in-memory filesystem with an injected fault) | A source file that cannot be read fails the harness | Done |
+| 792b29c6a6 | `TestApplyEngramSyncOps_CreateWriteFileError` → `Test792b29c6a6_ApplyEngramSyncOps_CreateWriteFileError` | Pure unit (in-memory filesystem with an injected fault) | A file that cannot be written fails the harness | Done |
+| 792b29c6a7 | `TestApplyEngramSyncOps_DeleteRemoveAllError` → `Test792b29c6a7_ApplyEngramSyncOps_DeleteRemoveAllError` | Pure unit (in-memory filesystem with an injected fault) | A path that cannot be removed fails the harness | Done |
+| 792b29c6a1 | `TestPlanAndApplyEngramRootSync_Property_RootMatchesIntendedSet` → `Test792b29c6a1_PlanAndApplyEngramRootSync_Property_RootMatchesIntendedSet` | Property (rapid) | The root equals the deploy set | Done |
+| 792b29c5a1 | `TestRun_EngramRoot_AbsentCreatesRootAndMarker` → `Test792b29c5a1_Run_EngramRoot_AbsentCreatesRootAndMarker` | Pure unit (`Updater.Run` over an in-memory filesystem) | An absent root is created with its marker | Done |
+| 792b29c5a2 | `TestRun_EngramRoot_AllHarnessesGetOwnRoots` → `Test792b29c5a2_Run_EngramRoot_AllHarnessesGetOwnRoots` | Pure unit (`Updater.Run` over an in-memory filesystem) | Every harness has its own root | Done |
+| 792b29c6a8 | `TestRun_EngramRoot_ApplyMarkerWriteError` → `Test792b29c6a8_Run_EngramRoot_ApplyMarkerWriteError` | Pure unit (`Updater.Run` over an in-memory filesystem) | A marker that cannot be written fails the harness | Done |
+| 792b29c6a9 | `TestRun_EngramRoot_ApplyMkdirRootError` → `Test792b29c6a9_Run_EngramRoot_ApplyMkdirRootError` | Pure unit (`Updater.Run` over an in-memory filesystem) | A root that cannot be created fails the harness | Done |
+| 792b29c6a10 | `TestRun_EngramRoot_ApplySyncOpWriteError` → `Test792b29c6a10_Run_EngramRoot_ApplySyncOpWriteError` | Pure unit (`Updater.Run` over an in-memory filesystem) | A write failure during the sync fails the harness | Done |
+| 792b29c14a1 | `TestRun_EngramRoot_DryRun_NoWrites` → `Test792b29c14a1_Run_EngramRoot_DryRun_NoWrites` | Pure unit (`Updater.Run` over an in-memory filesystem) | The root sync writes nothing | Done |
+| 792b29c6a3 | `TestRun_EngramRoot_DryRun_PrunePreviewedNotApplied` → `Test792b29c6a3_Run_EngramRoot_DryRun_PrunePreviewedNotApplied` | Pure unit (`Updater.Run` over an in-memory filesystem) | A dry run previews a prune without removing | Done |
+| 792b29c3a4 | `TestRun_EngramRoot_GuidanceNotOptedIn_SubtreeUntouched` → `Test792b29c3a4_Run_EngramRoot_GuidanceNotOptedIn_SubtreeUntouched` | Pure unit (`Updater.Run` over an in-memory filesystem) | Without opt-in guidance is skipped and its subtree untouched; stale.md survives | Done |
+| 792b29c3a7 | `TestRun_EngramRoot_GuidanceOptedIn_SyncsIncludingDeletion` → `Test792b29c3a7_Run_EngramRoot_GuidanceOptedIn_SyncsIncludingDeletion` | Pure unit (`Updater.Run` over an in-memory filesystem) | A removed guidance file is deleted once managed | Done |
+| 792b29c5a5 | `TestRun_EngramRoot_MarkerAbsent_ClaudeFlatGuidanceIsAdoptableNotUnattributable` → `Test792b29c5a5_Run_EngramRoot_MarkerAbsent_ClaudeFlatGuidanceIsAdoptableNotUnattributable` | Pure unit (`Updater.Run` over an in-memory filesystem) | A flat guidance file in the deploy set is adoptable | Done |
+| 792b29c5a4 | `TestRun_EngramRoot_MarkerAbsent_RefusesDeletionAndReportsUnattributable` → `Test792b29c5a4_Run_EngramRoot_MarkerAbsent_RefusesDeletionAndReportsUnattributable` | Pure unit (`Updater.Run` over an in-memory filesystem) | An unmarked root refuses deletion | Done |
+| 792b29c5a3 | `TestRun_EngramRoot_MarkerPresent_SyncsIncludingDeletion` → `Test792b29c5a3_Run_EngramRoot_MarkerPresent_SyncsIncludingDeletion` | Pure unit (`Updater.Run` over an in-memory filesystem) | A marked root syncs with deletion | Done |
+| 792b29c5a7 | `TestRun_EngramRoot_MarkerStatError` → `Test792b29c5a7_Run_EngramRoot_MarkerStatError` | Pure unit (`Updater.Run` over an in-memory filesystem) | An unreadable root or marker is an error; marker stat failure | Done |
+| 792b29c6a11 | `TestRun_EngramRoot_PlanReadDirError` → `Test792b29c6a11_Run_EngramRoot_PlanReadDirError` | Pure unit (`Updater.Run` over an in-memory filesystem) | A subtree that cannot be listed fails the harness | Done |
+| 792b29c6a2 | `TestRun_EngramRoot_RemovedSkillPrunesSubtreeAndSurfaceLink` → `Test792b29c6a2_Run_EngramRoot_RemovedSkillPrunesSubtreeAndSurfaceLink` | Pure unit (`Updater.Run` over an in-memory filesystem) | A removed skill disappears with its link in one run | Done |
+| 792b29c5a7 | `TestRun_EngramRoot_RootStatError` → `Test792b29c5a7_Run_EngramRoot_RootStatError` | Pure unit (`Updater.Run` over an in-memory filesystem) | An unreadable root or marker is an error; root stat failure | Done |
+| 792b29c5a8 | `TestRun_EngramRoot_UnattributableReadDirError` → `Test792b29c5a8_Run_EngramRoot_UnattributableReadDirError` | Pure unit (`Updater.Run` over an in-memory filesystem) | An unreadable top level is an error | Done |
+| 792b29c1a6 | `TestDetectHarnesses_Property_ResultIsSubset` → `Test792b29c1a6_DetectHarnesses_Property_ResultIsSubset` | Property (rapid) | Any combination of probes gives a subset in canonical order | Done |
+| 792b29c16a1 | `TestUpdater_Run_Local_Idempotent_Property` → `Test792b29c16a1_Updater_Run_Local_Idempotent_Property` | Property (rapid) | A second run changes nothing | Done |
+| 792b29c8a8 | `TestUpdater_Run_Local_RealExistingSkillDir_AdoptsToSymlink` → `Test792b29c8a8_Updater_Run_Local_RealExistingSkillDir_AdoptsToSymlink` | Pure unit (`Updater.Run` over an in-memory filesystem) | A copied skill directory is adopted by an update; through a local update | Done |
+| 792b29c7a15 | `TestUpdater_Run_Local_SkillLinkRepointRemoveFailureIsHarnessError` → `Test792b29c7a15_Updater_Run_Local_SkillLinkRepointRemoveFailureIsHarnessError` | Pure unit (`Updater.Run` over an in-memory filesystem) | A repoint failure fails that harness | Done |
+| 792b29c15a1 | `TestUpdater_Run_PartialFailure_AllFail` → `Test792b29c15a1_Updater_Run_PartialFailure_AllFail` | Pure unit (`Updater.Run` over an in-memory filesystem) | A failing harness is reported and the run continues; the root write fails | Done |
+| 792b29c2a2 | `TestUpdater_Run_SkillsSrcMissing` → `Test792b29c2a2_Updater_Run_SkillsSrcMissing` | Pure unit (`Updater.Run` over an in-memory filesystem) | A missing skills source is an error | Done |
+| 792b29c17a8 | `TestPluralFile` → `Test792b29c17a8_PluralFile` | Pure unit (report writer) | File counts are singular or plural | Done |
+| 792b29c17a1 | `TestWriteUpdateReport_EngramRootNotice` → `Test792b29c17a1_WriteUpdateReport_EngramRootNotice` | Pure unit (report writer) | Deletions, the refusal and unattributable files are reported | Done |
+| 792b29c17a2 | `TestWriteUpdateReport_EngramRootNotice_AdoptedAndSurfaceStray` → `Test792b29c17a2_WriteUpdateReport_EngramRootNotice_AdoptedAndSurfaceStray` | Pure unit (report writer) | Adoptions and unmanaged entries are reported | Done |
+| 792b29c17a3 | `TestWriteUpdateReport_EngramRootNotice_AdoptedAndSurfaceStray_DryRunPrefixesAdopted` → `Test792b29c17a3_WriteUpdateReport_EngramRootNotice_AdoptedAndSurfaceStray_DryRunPrefixesAdopted` | Pure unit (report writer) | A dry run prefixes the adoption | Done |
+| 792b29c17a4 | `TestWriteUpdateReport_EngramRootNotice_DryRunPrefixesDeletions` → `Test792b29c17a4_WriteUpdateReport_EngramRootNotice_DryRunPrefixesDeletions` | Pure unit (report writer) | A dry run prefixes the deletion | Done |
+| 792b29c17a5 | `TestWriteUpdateReport_EngramRootNotice_SilentWhenNothingToReport` → `Test792b29c17a5_WriteUpdateReport_EngramRootNotice_SilentWhenNothingToReport` | Pure unit (report writer) | A harness with nothing to report is silent | Done |
+| 792b29c17a6 | `TestWriteUpdateReport_GuidanceCanonicalPathHint` → `Test792b29c17a6_WriteUpdateReport_GuidanceCanonicalPathHint` | Pure unit (report writer) | Claude Code guidance states its canonical path | Done |
+| 792b29c17a7 | `TestWriteUpdateReport_GuidanceCanonicalPathHint_PiOmitted` → `Test792b29c17a7_WriteUpdateReport_GuidanceCanonicalPathHint_PiOmitted` | Pure unit (report writer) | Pi guidance states no canonical path | Done |
+| 792b29c16a2 | `TestInvariant_U1_UpdateIdempotent` → `Test792b29c16a2_Invariant_U1_UpdateIdempotent` | Pure unit (`Updater.Run` and `finishUpdate` over an in-memory filesystem) | A second run through the report tail succeeds and changes nothing | Done |
+
+**Coverage gaps:** 792b29c1a7 (an unreadable probe), 792b29c3a8 (one harness's import manages every
+harness), 792b29c5a6 (a root that is a file) and 792b29c15a2 (a failing harness does not stop the
+other). 792b29c17a9 (the skill rows) is verified only by the report test that 792c7j2 renamed
+(`Test792b28c12a1_WriteUpdateReport_LocalDryRunWithBothHarnesses`, `split deferred`). The sync was run
+against a built binary through the loop-guard sentinel over temporary directories (792d105); the
+deploy of a fresh clone and the hand-off were not.
+
+**No-scenario tests:** `update_test` `TestWriteUpdateReport_GuidanceActivationHint` (the activation hints,
+left to ambient-guidance, 792c7r1), `TestWriteUpdateReport_PendingOfferHint` (curate, 792c7u1) and
+`TestWriteUpdateReport_SkillRegistrationErrorHint` (skill-runbook-registration, 792c7k1);
+`offer_wiring_test` `TestWriteUpdateReport_OutboxNotice` (parent-sync, 792c7t1); and the five
+`update_skillreg_internal_test` tests (skill-runbook-registration, 792c7k3). The fakes and fixtures in the
+update package's tests (`memFS`, `fakeCmd`, `fakeEnv`, `engramFaultFS`, `symlinkFaultFS`) are helpers.
 
 ### 792c7k skill-runbook-registration
 

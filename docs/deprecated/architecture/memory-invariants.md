@@ -64,7 +64,7 @@ R1 (the recall mirror: a note written with situation S is found by a query phras
 ## H. Update / deployment — `[IT]`
 | id | invariant | status |
 |---|---|---|
-| **U1** | `update` idempotence: re-running `engram update` with identical source is a copy-equivalent no-op; missing-go / no-harness / missing-skills fail with sentinels (`ErrGoNotFound` / `ErrNoHarness` / `ErrSkillsSrcMissing`). | uncaptured surface |
+| **U1** | Ported to [792b29c16](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b29-added-harness-deploy-sync) (idempotence) and [792b28c3](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b28-added-self-installer), [792b28c4](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b28-added-self-installer) and [792b28c15](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b28-added-self-installer) (the sentinel errors). | — |
 
 ## Acceptance / self-tests already in the system (keep, don't duplicate)
 - **RT-1** **[RETIRED — `--tier` flag and L3 ADR kind removed in recall-v2; §6b self-verify via `engram query --tier L3` is no longer meaningful.]** ~~§6b self-verify: after writing an L3 ADR, `engram query --tier L3 --phrase "<seed>"` must return it in `items`.~~

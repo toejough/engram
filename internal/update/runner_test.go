@@ -475,40 +475,37 @@ func Test792b28c8a1_Updater_Run_DryRun_NoWritesNoCommands(t *testing.T) {
 	g.Expect(cmd.calls).To(Equal([][]string{{"git", "rev-parse", "--short", "HEAD"}}))
 }
 
-// Property tests --------------------------------------------------------
-
-func TestDetectHarnesses_Property_ResultIsSubset(t *testing.T) {
+func Test792b29c15a1_Updater_Run_PartialFailure_AllFail(t *testing.T) {
 	t.Parallel()
 
-	// Generate any combination of harness probes; verify result is a subset
-	// in stable canonical order.
-	for _, combo := range [][]string{
-		{},
-		{".claude"},
-		{".pi"},
-		{".claude", ".pi"},
-		{".pi", ".claude"}, // order of insertion shouldn't matter
-	} {
-		fileSystem := newMemFS()
-		for _, probe := range combo {
-			fileSystem.dirs["/home/joe/"+probe] = true
-		}
+	g := NewWithT(t)
 
-		got, err := update.ExportDetectHarnesses("/home/joe", fileSystem)
-		if err != nil {
-			t.Fatalf("detect: %v", err)
-		}
+	base := newMemFS()
+	base.dirs["/home/joe/.claude"] = true
+	base.dirs["/repo"] = true
+	base.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	base.dirs["/repo/agent-instructions/skills"] = true
+	base.dirs["/repo/agent-instructions/skills/learn"] = true
+	base.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("x")
 
-		// Order check.
-		for i := 1; i < len(got); i++ {
-			if got[i-1].Name == update.HarnessPi && got[i].Name == update.HarnessClaude {
-				t.Fatalf("unexpected order: %v", got)
-			}
-		}
+	// Symlink mode writes real skill content under the engram root, not the
+	// harness surface (which only gets a symlink) — fail the write there.
+	fileSystem := &failWriteFS{memFS: base, failOn: ".claude/engram/skills"}
+
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: "/home/joe", cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(1))
+	g.Expect(report.Harnesses[0].Err).To(HaveOccurred())
 }
 
-func TestUpdater_Run_Local_Idempotent_Property(t *testing.T) {
+func Test792b29c16a1_Updater_Run_Local_Idempotent_Property(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -549,11 +546,108 @@ func TestUpdater_Run_Local_Idempotent_Property(t *testing.T) {
 	})
 }
 
-// TestUpdater_Run_Local_RealExistingSkillDir_AdoptsToSymlink covers task
+// Property tests --------------------------------------------------------
+
+func Test792b29c1a6_DetectHarnesses_Property_ResultIsSubset(t *testing.T) {
+	t.Parallel()
+
+	// Generate any combination of harness probes; verify result is a subset
+	// in stable canonical order.
+	for _, combo := range [][]string{
+		{},
+		{".claude"},
+		{".pi"},
+		{".claude", ".pi"},
+		{".pi", ".claude"}, // order of insertion shouldn't matter
+	} {
+		fileSystem := newMemFS()
+		for _, probe := range combo {
+			fileSystem.dirs["/home/joe/"+probe] = true
+		}
+
+		got, err := update.ExportDetectHarnesses("/home/joe", fileSystem)
+		if err != nil {
+			t.Fatalf("detect: %v", err)
+		}
+
+		// Order check.
+		for i := 1; i < len(got); i++ {
+			if got[i-1].Name == update.HarnessPi && got[i].Name == update.HarnessClaude {
+				t.Fatalf("unexpected order: %v", got)
+			}
+		}
+	}
+}
+
+func Test792b29c2a2_Updater_Run_SkillsSrcMissing(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	fileSystem := newMemFS()
+	fileSystem.dirs["/home/joe/.claude"] = true
+	fileSystem.dirs["/repo"] = true
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	// No /repo/skills present.
+
+	cmd := &fakeCmd{}
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   cmd,
+		Env:   &fakeEnv{home: "/home/joe", cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
+
+	_, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(errors.Is(err, update.ErrSkillsSrcMissing)).To(BeTrue())
+}
+
+// Test792b29c7a15_Updater_Run_Local_SkillLinkRepointRemoveFailureIsHarnessError covers
+// the D3/D5 replacement for the old copy-mode "clear before write" failure:
+// symlink mode never RemoveAlls a fresh skill surface (materializeSymlink's
+// absent branch just creates the link), so the only RemoveAll a skill
+// surface sees is a REPOINT of an existing wrong-target symlink.
+func Test792b29c7a15_Updater_Run_Local_SkillLinkRepointRemoveFailureIsHarnessError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	mem := newMemFS()
+	mem.dirs["/home/joe/.claude"] = true
+	mem.dirs["/repo"] = true
+	mem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	mem.dirs["/repo/agent-instructions/skills"] = true
+	mem.dirs["/repo/agent-instructions/skills/learn"] = true
+	mem.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("x")
+
+	// A pre-existing symlink at the skill surface pointing at the WRONG
+	// target — triggers materializeSymlink's repoint branch.
+	mem.dirs["/home/joe/.claude/skills"] = true
+	symlinkErr := mem.Symlink("/home/joe/.claude/engram/skills/old-learn", "/home/joe/.claude/skills/learn")
+	g.Expect(symlinkErr).NotTo(HaveOccurred())
+
+	fileSystem := &failRemoveAllFS{memFS: mem, failOn: "skills/learn"}
+
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: "/home/joe", cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(1))
+	g.Expect(report.Harnesses[0].Err).To(HaveOccurred())
+	g.Expect(report.Harnesses[0].Err.Error()).To(ContainSubstring("remove boom"))
+}
+
+// Test792b29c8a8_Updater_Run_Local_RealExistingSkillDir_AdoptsToSymlink covers task
 // 5.1: a real skill dir already occupying a symlink-mode harness's skills
 // surface (a pre-migration copy) is REPLACED by a symlink into the engram
 // root's already-synced content, and reported via EngramAdopted.
-func TestUpdater_Run_Local_RealExistingSkillDir_AdoptsToSymlink(t *testing.T) {
+func Test792b29c8a8_Updater_Run_Local_RealExistingSkillDir_AdoptsToSymlink(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -599,100 +693,6 @@ func TestUpdater_Run_Local_RealExistingSkillDir_AdoptsToSymlink(t *testing.T) {
 	// The intended content lives under the engram root.
 	_, newPresent := fileSystem.written[engramPath+"/SKILL.md"]
 	g.Expect(newPresent).To(BeTrue())
-}
-
-// TestUpdater_Run_Local_SkillLinkRepointRemoveFailureIsHarnessError covers
-// the D3/D5 replacement for the old copy-mode "clear before write" failure:
-// symlink mode never RemoveAlls a fresh skill surface (materializeSymlink's
-// absent branch just creates the link), so the only RemoveAll a skill
-// surface sees is a REPOINT of an existing wrong-target symlink.
-func TestUpdater_Run_Local_SkillLinkRepointRemoveFailureIsHarnessError(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	mem := newMemFS()
-	mem.dirs["/home/joe/.claude"] = true
-	mem.dirs["/repo"] = true
-	mem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	mem.dirs["/repo/agent-instructions/skills"] = true
-	mem.dirs["/repo/agent-instructions/skills/learn"] = true
-	mem.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("x")
-
-	// A pre-existing symlink at the skill surface pointing at the WRONG
-	// target — triggers materializeSymlink's repoint branch.
-	mem.dirs["/home/joe/.claude/skills"] = true
-	symlinkErr := mem.Symlink("/home/joe/.claude/engram/skills/old-learn", "/home/joe/.claude/skills/learn")
-	g.Expect(symlinkErr).NotTo(HaveOccurred())
-
-	fileSystem := &failRemoveAllFS{memFS: mem, failOn: "skills/learn"}
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: "/home/joe", cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	report, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(report.Harnesses).To(HaveLen(1))
-	g.Expect(report.Harnesses[0].Err).To(HaveOccurred())
-	g.Expect(report.Harnesses[0].Err.Error()).To(ContainSubstring("remove boom"))
-}
-
-func TestUpdater_Run_PartialFailure_AllFail(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	base := newMemFS()
-	base.dirs["/home/joe/.claude"] = true
-	base.dirs["/repo"] = true
-	base.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	base.dirs["/repo/agent-instructions/skills"] = true
-	base.dirs["/repo/agent-instructions/skills/learn"] = true
-	base.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("x")
-
-	// Symlink mode writes real skill content under the engram root, not the
-	// harness surface (which only gets a symlink) — fail the write there.
-	fileSystem := &failWriteFS{memFS: base, failOn: ".claude/engram/skills"}
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: "/home/joe", cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	report, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(report.Harnesses).To(HaveLen(1))
-	g.Expect(report.Harnesses[0].Err).To(HaveOccurred())
-}
-
-func TestUpdater_Run_SkillsSrcMissing(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	fileSystem := newMemFS()
-	fileSystem.dirs["/home/joe/.claude"] = true
-	fileSystem.dirs["/repo"] = true
-	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	// No /repo/skills present.
-
-	cmd := &fakeCmd{}
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   cmd,
-		Env:   &fakeEnv{home: "/home/joe", cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	_, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(errors.Is(err, update.ErrSkillsSrcMissing)).To(BeTrue())
 }
 
 // failRemoveAllFS wraps memFS but returns an error from RemoveAll.

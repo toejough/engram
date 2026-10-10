@@ -1576,3 +1576,43 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792d30, 792d51, 792d52, 792d89, 792d101 and 792d103.
 - **Alternatives:** a separate update-report component. Rejected because the inventory of components is
   fixed (792d30) and the report is the update run's own contract.
+
+## 792d105 harness-deploy-sync scope, and the behaviors the code shows
+
+- **Choice:**
+  - 792b29 specifies seventeen requirements. It owns harness detection, the deploy set, the roots, the links,
+    the cleanup, the first-sync findings, manifest mode and the harness sections of the report; the update
+    run, the install and the report header and notices are self-installer's (792d104). The import detection
+    that decides whether guidance is managed is here (792b29c4); the hints that tell a user which `@import`
+    line to add stay with ambient-guidance (792c7r1), which also owns the ADR-0022 citations in
+    `agent-instructions/guidance/*.md` and the root `AGENTS.md`.
+  - Manifest mode has no product scenario of its own. It is specified as an alternative route to 792a11i1a,
+    removal that propagates, and carries that scenario in its `Supports`, because no shipped harness uses
+    it and nothing in the product requires it (792d103).
+  - The cleanup, link and adoption tests that the catalog lists for the update package are split by the
+    contract they assert: the link step (792b29c7), the adoption step (792b29c8) and the scan (792b29c10).
+    The three `TestLexicallyResolveSymlinkTarget_*` and four `TestPathWithinRoot_*` tests share the one
+    scenario of their helper (792b29c10a20, 792b29c10a21).
+  - Where `update_test` lists a test of the report's harness lines (`TestWriteUpdateReport_EngramRootNotice*`,
+    `TestPluralFile`, `TestWriteUpdateReport_GuidanceCanonicalPathHint*`), it takes a 792b29c17 scenario.
+- **Divergences noted (792d33):**
+  - Guidance is managed for every harness when any one of them imports a guidance file or `--with-guidance`
+    is given: `GuidanceImported` is true when any harness has an import, and it gates the guidance of all of
+    them. The OpenSpec scenario read as per harness, and the first product draft followed it. Confirmed by
+    running a sentinel update over a temporary home in which only `~/.claude/CLAUDE.md` imported a file: Pi's
+    guidance was deployed and linked too.
+  - `commands/` is still a managed subtree of the root, although engram deploys no commands since OpenCode
+    support was removed (#721), so any file under `commands/` is deleted on a sync.
+  - The report lists a deleted directory as `engram root: deleted <dir>` after the files in it.
+  - `unmanaged (left alone)` entries come from the first sync only; the markerless-root run counts as first.
+  - The scan for strays covers a harness's skills directory and, for Pi, its guidance directory; Claude
+    Code's flat guidance files at its root are found by the unattributable-file scan instead.
+  - `internal/update` still carries `applyGuidanceOps`, `applySkillOps` and `clearSkillDirOnce` for manifest
+    mode, whose only users are the tests and a mode no harness selects.
+  - A temporary-home update through the sentinel confirmed the unmarked-root run (marker written, the
+    stray file listed as unattributable, the copied skill adopted, the unrelated skill listed as unmanaged),
+    the next run (a stale file, a removed skill's directory and its dangling link deleted, a foreign dangling
+    link kept), and the guidance deploy with its compat and Pi links.
+- **Rationale:** 792d30, 792d51, 792d52, 792d101, 792d103 and 792d104.
+- **Alternatives:** make manifest mode a requirement of its own with a product scenario. Rejected because the
+  product never exposes it (792d6).
