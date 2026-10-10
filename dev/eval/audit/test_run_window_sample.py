@@ -65,7 +65,7 @@ def test_projected_total_includes_prior_spend():
     assert rws.projected_total(5.0, 0.0, 0, 47) == 5.0
 
 
-def test_query_wrapper_diagnostic_rerun_does_not_misparse_dashdash_phrase(tmp_path, monkeypatch):
+def test_792b39c5a2_query_wrapper_diagnostic_rerun_does_not_misparse_dashdash_phrase(tmp_path, monkeypatch):
     """#787: install_recorders' diagnostic rerun must build the same safe argv as the
     primary invocation it's diagnosing -- a phrase beginning with "--" must reach
     `engram query` as a single `--phrase=<value>` element, never two argv elements.

@@ -172,8 +172,9 @@ experience records — ADR-0028 D4), **#748** replay/mining modes for `run_audit
 #718's v2 multiplier must be proven on; the parked watcher's data pipeline). Parked (3.4 decision, 2026-09-29; revisit per D-F):
 mechanical LESSONS validator, watcher/metacognition layer, hooks (`learn-rate-skill-only` design D-F).
 
-**Decisions carried from ADR-0028 (D4 to D7, Joe 2026-08-30).** Its other decisions (D1 to D3 and D8) are specified with the
-memory-loop auditor (792b39) and the memory-effectiveness-evaluation capability (792a23).
+**Decisions carried from ADR-0028 (D4 to D7, Joe 2026-08-30).** The ADR itself is deleted (git history keeps it); its other
+decisions (D1 to D3 and D8) are specified with the memory-loop auditor (792b39) and the memory-effectiveness-evaluation
+capability (792a23).
 
 - **D4, situation-conditioned experience, not scalar ratings (#718, #747, #748).** A note that hurt in one situation may help in
   another, so each note gains an *experience record*: a capped, frecency-evicted list of (situation text and vector, outcome,

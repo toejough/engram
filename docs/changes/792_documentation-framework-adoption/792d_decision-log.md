@@ -2314,3 +2314,30 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792d3, 792d10, 792d33, 792d52, 792d53 and 792d125.
 - **Alternatives:** write the Go harness's arms, scenarios and scoring as requirements now. Rejected for lack of a source and of
   a product statement to support them.
+
+## 792d127 memory-loop-auditor scope, ADR-0028 deleted, and where the sources differ from the code
+
+- **Choice:**
+  - 792b39 specifies eight requirements (792b39c1 to 792b39c8) and the audit sequence. The memory-loop-audit spec supplied the
+    existence check, the query invocation, injected memories and credit records; ADR-0028 D1 to D3 supplied the orientation's rationale
+    (the standing instrument, the loss-stage questions, judged-only credit); the rest (windows, detection, the record, the fork context
+    and the outcome-record rules) is described from `audit_moments.py`, `generate_outcome_records.py` and their tests.
+  - The `memory-loop-audit` spec and ADR-0028 are deleted, and `openspec/specs/` is empty. The ADR's D4 to D7 went to the ROADMAP
+    (792d125), D8 and the hard gate are in the orientation's rationale, and its context, consequences and risks are in the
+    rationale of 792b39a and 792a23. The extractor, the runner, the scorecard, the parent-capture script and the re-judging and
+    merge scripts of `dev/eval/audit` are not specified: they produce and report the corpus the auditor reads (a one-time measurement
+    that is complete), and the spec states only the instrument. Their tests are no-scenario tests.
+  - Renames: 86 Python tests, as `test_<ID>_<previous_name>`, in `test_audit_moments.py` (85) and `test_run_window_sample.py` (1). All
+    90 tests of those two files pass.
+- **Divergences noted (792d33):**
+  - The legacy spec says the audit measures the orchestrator-side gap with a structural check validated by a sampled model judgment of
+    paraphrased content. `judge_moment` leaves `memories_orchestrator_had_but_left_out` null for every dispatch moment (deferred to the
+    full-corpus runner, which cannot see the parent either), and no paraphrase check exists in `dev/eval/audit`; the gap in the
+    ledger was computed outside the record (792b39c7, 792a23o1b, 792a23o1c).
+  - The spec says the existence check judges against the vault "as of" T by a checkout at the last commit at or before T; the code
+    does so only for a commit that has the 2026-06-12 flat-vault migration commit as an ancestor, and otherwise uses the ESTIMATE
+    branch (792b39c4).
+  - The legacy spec's go/no-go requirement (a joint review of the real results, with no pre-set formula) is not ported (792d125).
+- **Rationale:** 792d3, 792d10, 792d33, 792d125 and 792d126.
+- **Alternatives:** specify the runner and the scorecard too. Rejected: they are the measurement of one finished experiment, and no
+  legacy source states a contract for them.

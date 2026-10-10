@@ -89,7 +89,7 @@ def judge_stub():
 class TestWindowSplitting:
     """Test transcript windowing logic."""
 
-    def test_small_file_single_window(self, fixture_main_session):
+    def test_792b39c1a1_small_file_single_window(self, fixture_main_session):
         """Files < 500 KB should produce a single window."""
         windows = audit_moments.split_into_windows(fixture_main_session)
 
@@ -99,7 +99,7 @@ class TestWindowSplitting:
         assert windows[0]["window_index"] == 0
         assert windows[0]["transcript_path"] == fixture_main_session
 
-    def test_window_preserves_lines_as_is(self, fixture_main_session):
+    def test_792b39c1a2_window_preserves_lines_as_is(self, fixture_main_session):
         """Window lines should be complete, unmodified JSONL lines."""
         windows = audit_moments.split_into_windows(fixture_main_session)
         assert len(windows) > 0
@@ -111,7 +111,7 @@ class TestWindowSplitting:
         if len(windows) == 1:
             assert windows[0]["lines"] == original_lines
 
-    def test_window_has_required_fields(self, fixture_main_session):
+    def test_792b39c1a3_window_has_required_fields(self, fixture_main_session):
         """Every window must have all required metadata fields."""
         windows = audit_moments.split_into_windows(fixture_main_session)
         required_fields = {
@@ -131,7 +131,7 @@ class TestWindowSplitting:
             assert window["window_index"] >= 0
             assert window["total_windows"] >= 1
 
-    def test_location_ranges_are_1_indexed(self, fixture_main_session):
+    def test_792b39c1a4_location_ranges_are_1_indexed(self, fixture_main_session):
         """location_start and location_end should be 1-indexed line numbers."""
         windows = audit_moments.split_into_windows(fixture_main_session)
 
@@ -147,7 +147,7 @@ class TestWindowSplitting:
 class TestMomentDetection:
     """Test moment detection and judgment."""
 
-    def test_detect_moments_with_stub(self, fixture_main_session, detect_stub):
+    def test_792b39c2a1_detect_moments_with_stub(self, fixture_main_session, detect_stub):
         """detect_moments with stub should return candidates without real LLM call."""
         windows = audit_moments.split_into_windows(fixture_main_session)
         window = windows[0]
@@ -167,7 +167,7 @@ class TestMomentDetection:
                 "dispatch",
             ]
 
-    def test_judge_moment_with_stub(
+    def test_792b39c3a1_judge_moment_with_stub(
         self, fixture_main_session, detect_stub, judge_stub
     ):
         """judge_moment with stub should return complete record without real LLM call."""
@@ -193,7 +193,7 @@ class TestMomentDetection:
 class TestMomentSchema:
     """Test that moment records conform to the required schema."""
 
-    def test_moment_record_has_all_required_fields(
+    def test_792b39c3a2_moment_record_has_all_required_fields(
         self, fixture_main_session, detect_stub, judge_stub
     ):
         """Every moment record must have all scorecard fields from design.md D-D."""
@@ -271,7 +271,7 @@ class TestMomentSchema:
         }
         assert set(record["handoff"].keys()) == required_handoff
 
-    def test_deferred_fields_are_null_without_search_phrases(
+    def test_792b39c3a3_deferred_fields_are_null_without_search_phrases(
         self, fixture_main_session, detect_stub, judge_stub
     ):
         """When no search_phrases are generated, deferred fields must be explicitly null."""
@@ -300,7 +300,7 @@ class TestMomentSchema:
         assert "memories_orchestrator_had_but_left_out" in record["handoff"]
         assert record["handoff"]["memories_orchestrator_had_but_left_out"] is None
 
-    def test_moment_id_is_stable(
+    def test_792b39c3a4_moment_id_is_stable(
         self, fixture_main_session, detect_stub, judge_stub
     ):
         """moment_id should be deterministic and stable."""
@@ -325,7 +325,7 @@ class TestMomentSchema:
 class TestFullPipeline:
     """Test end-to-end pipeline."""
 
-    def test_full_audit_transcript_pipeline(
+    def test_792b39c3a11_full_audit_transcript_pipeline(
         self, fixture_main_session, detect_stub, judge_stub
     ):
         """Full pipeline should produce moment records without real LLM calls.
@@ -349,7 +349,7 @@ class TestFullPipeline:
             json_str = json.dumps(moment)
             assert len(json_str) > 0
 
-    def test_full_pipeline_no_subprocess_calls(
+    def test_792b39c3a11_full_pipeline_no_subprocess_calls(
         self, fixture_main_session, detect_stub, judge_stub
     ):
         """When stubs are provided, no real subprocess should be invoked.
@@ -367,7 +367,7 @@ class TestFullPipeline:
         # If we got here without exception, stubs were used
         assert len(moments) > 0
 
-    def test_moments_are_json_serializable(
+    def test_792b39c3a11_moments_are_json_serializable(
         self, fixture_main_session, detect_stub, judge_stub
     ):
         """All moment records should be JSON-serializable.
@@ -392,7 +392,7 @@ class TestFullPipeline:
 class TestLowYieldRecheck:
     """Test the low-yield re-check logic."""
 
-    def test_low_yield_recheck_triggered(self):
+    def test_792b39c2a2_low_yield_recheck_triggered(self):
         """If haiku returns fewer than LOW_YIELD_THRESHOLD candidates, sonnet should re-check."""
         # Create a stub that returns different counts based on model
         def low_yield_stub(prompt: str, model: str) -> dict:
@@ -474,7 +474,7 @@ class TestLowYieldRecheck:
 class TestRecordConsistency:
     """Test that records are consistent with extracted events."""
 
-    def test_record_reflects_extracted_events(
+    def test_792b39c3a10_record_reflects_extracted_events(
         self, fixture_main_session, detect_stub, judge_stub
     ):
         """Moment records should reflect the structural data from extract_transcript."""
@@ -505,14 +505,14 @@ class TestRecordConsistency:
 class TestFixtureCompatibility:
     """Test compatibility with real fixture files."""
 
-    def test_works_with_main_session_fixture(self, fixture_main_session):
+    def test_792b39c3a11_works_with_main_session_fixture(self, fixture_main_session):
         """audit_moments should work with real main session fixture."""
         # Just verify the file is readable and has expected structure
         with open(fixture_main_session) as f:
             lines = f.readlines()
         assert len(lines) > 0
 
-    def test_audit_produces_records_from_fixture(self, fixture_main_session):
+    def test_792b39c3a11_audit_produces_records_from_fixture(self, fixture_main_session):
         """Full audit on fixture should produce records."""
         # Use stubs to avoid real network calls
         def simple_detect_stub(prompt: str, model: str) -> dict:
@@ -550,7 +550,7 @@ class TestFixtureCompatibility:
 class TestMultiWindowSplitting:
     """Test windowing for large files (>=500KB)."""
 
-    def test_multiwindow_splitting_produces_multiple_windows(self):
+    def test_792b39c1a5_multiwindow_splitting_produces_multiple_windows(self):
         """A synthetic >=500KB file should produce multiple windows."""
         # Create a temporary large JSONL file
         with tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False) as f:
@@ -579,7 +579,7 @@ class TestMultiWindowSplitting:
         finally:
             os.unlink(temp_path)
 
-    def test_multiwindow_lines_not_split(self):
+    def test_792b39c1a5_multiwindow_lines_not_split(self):
         """Lines should never be split across windows."""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False) as f:
             temp_path = f.name
@@ -606,7 +606,7 @@ class TestMultiWindowSplitting:
 class TestSubprocessIntegration:
     """Test subprocess invocation and JSON parsing."""
 
-    def test_subprocess_not_called_with_stub(self, monkeypatch):
+    def test_792b39c2a9_subprocess_not_called_with_stub(self, monkeypatch):
         """When stub is provided, subprocess.run should not be called."""
         call_tracker = {"called": False}
 
@@ -633,7 +633,7 @@ class TestSubprocessIntegration:
         candidates = audit_moments.detect_moments(window, model="haiku", stub=stub)
         assert not call_tracker["called"], "subprocess.run was called despite stub being provided"
 
-    def test_json_parsing_from_subprocess_response(self, monkeypatch):
+    def test_792b39c2a4_json_parsing_from_subprocess_response(self, monkeypatch):
         """_run_claude_p should correctly parse JSON from subprocess stdout."""
         def mock_run(*args, **kwargs):
             # Simulate real claude -p JSON response format
@@ -660,7 +660,7 @@ class TestSubprocessIntegration:
         assert result["total_cost_usd"] == 0.005
         assert result["exhausted_retries"] is False
 
-    def test_json_parsing_with_is_error_true(self, monkeypatch):
+    def test_792b39c2a4_json_parsing_with_is_error_true(self, monkeypatch):
         """_run_claude_p should handle is_error=true in response."""
         call_count = {"count": 0}
 
@@ -697,7 +697,7 @@ class TestSubprocessIntegration:
         assert call_count["count"] >= 4
         assert result["exhausted_retries"] is False
 
-    def test_json_parse_error_handling(self, monkeypatch):
+    def test_792b39c2a4_json_parse_error_handling(self, monkeypatch):
         """_run_claude_p should handle malformed JSON from subprocess."""
         def mock_run(*args, **kwargs):
             # Return invalid JSON
@@ -723,7 +723,7 @@ class TestSubprocessIntegration:
 class TestOversizedLineDetection:
     """Test oversized line detection across multi-window splits (Finding 3)."""
 
-    def test_oversized_line_detected_in_middle_window(self):
+    def test_792b39c1a6_oversized_line_detected_in_middle_window(self):
         """A >150KB single line in the middle of a multi-window file should be marked oversized_line=True."""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False) as f:
             temp_path = f.name
@@ -781,7 +781,7 @@ class TestOversizedLineDetection:
 class TestInjectedMemoryFreshRole:
     """Test D-E injected memory detection for fresh/workflow/pi_subagent roles (Finding 1)."""
 
-    def test_judge_moment_with_fresh_role_and_parent_transcript(self, fixture_main_session):
+    def test_792b39c7a1_judge_moment_with_fresh_role_and_parent_transcript(self, fixture_main_session):
         """judge_moment should detect injected memory for fresh role when parent_transcript is provided."""
         extracted = extract_transcript(fixture_main_session)
         windows = audit_moments.split_into_windows(fixture_main_session)
@@ -873,7 +873,7 @@ class TestForkParentContextResolution:
     (d) -- a matched_item whose file is gone from the vault -- is folded into the main
     fixture itself (901.md deliberately doesn't exist in fake-vault/)."""
 
-    def test_finds_last_qualifying_recall_before_fork_point(self, fork_fake_vault):
+    def test_792b39c6a1_finds_last_qualifying_recall_before_fork_point(self, fork_fake_vault):
         fork_path = _fork_context_fixture_path(
             FORK_CONTEXT_PARENT_SESSION_ID, "subagents", "agent-testfork001.jsonl"
         )
@@ -891,7 +891,7 @@ class TestForkParentContextResolution:
         assert note["kind"] == "feedback"
         assert "exponential backoff with jitter" in note["content"]
 
-    def test_early_bound_has_no_qualifying_recall(self, fork_fake_vault):
+    def test_792b39c6a2_early_bound_has_no_qualifying_recall(self, fork_fake_vault):
         """Edge case (c): every recall_call in the parent happened AFTER the fork's
         bound line -- recalled_notes must be empty, with a distinct reason from a
         resolution failure (available stays True; nothing went wrong, there just
@@ -905,7 +905,7 @@ class TestForkParentContextResolution:
         assert result["reason"] == "no recall before fork point"
         assert result["recalled_notes"] == []
 
-    def test_missing_parent_transcript(self, fork_fake_vault):
+    def test_792b39c6a3_missing_parent_transcript(self, fork_fake_vault):
         """Edge case (a): retention deleted the parent transcript independently of the
         fork's own transcript -- a real, observed case, not hypothetical."""
         fork_path = _fork_context_fixture_path(
@@ -917,7 +917,7 @@ class TestForkParentContextResolution:
         assert result["reason"] == "parent transcript not found"
         assert result["recalled_notes"] == []
 
-    def test_not_a_fork_transcript(self, fixture_main_session):
+    def test_792b39c6a4_not_a_fork_transcript(self, fixture_main_session):
         """Edge case (b): the transcript's first line isn't a fork-context-ref."""
         result = audit_moments._resolve_fork_parent_context(fixture_main_session)
 
@@ -925,7 +925,7 @@ class TestForkParentContextResolution:
         assert result["reason"] == "not a fork transcript"
         assert result["recalled_notes"] == []
 
-    def test_skips_missing_vault_note_but_keeps_others(self, fork_fake_vault):
+    def test_792b39c6a5_skips_missing_vault_note_but_keeps_others(self, fork_fake_vault):
         """Edge case (d): a matched_item (901) has no corresponding file left in the
         live vault -- must be skipped silently, without crashing, while the other
         resolvable note (900) from the same recall_call still comes back."""
@@ -946,7 +946,7 @@ class TestForkJudgmentPromptInjection:
     leave every other case's prompt exactly as it was before this fix (zero behavior
     change) -- non-fork roles, and fork moments where resolution finds nothing."""
 
-    def test_fork_role_prompt_includes_inherited_recall_context(self, fork_fake_vault):
+    def test_792b39c6a6_fork_role_prompt_includes_inherited_recall_context(self, fork_fake_vault):
         fork_path = _fork_context_fixture_path(
             FORK_CONTEXT_PARENT_SESSION_ID, "subagents", "agent-testfork001.jsonl"
         )
@@ -1018,7 +1018,7 @@ class TestForkJudgmentPromptInjection:
         assert record["finding_side"]["search_ran"] == "injected"
         assert record["finding_side"]["surfaced"] is True
 
-    def test_non_fork_role_prompt_has_no_fork_context_section(
+    def test_792b39c6a7_non_fork_role_prompt_has_no_fork_context_section(
         self, fixture_main_session, detect_stub
     ):
         """Regression: a main-role moment's prompt must be unchanged from before this
@@ -1057,7 +1057,7 @@ class TestForkJudgmentPromptInjection:
         assert "forked subagent" not in prompt
         assert "already been recalled and surfaced there" not in prompt
 
-    def test_fork_role_without_resolvable_context_has_no_dangling_section(self):
+    def test_792b39c6a8_fork_role_without_resolvable_context_has_no_dangling_section(self):
         """When role=='fork' but _resolve_fork_parent_context finds nothing to inject
         (here: parent transcript retention-deleted), judgment_prompt must fall back to
         the exact unmodified template -- no empty/dangling section marker, and the
@@ -1115,7 +1115,7 @@ class TestForkJudgmentPromptInjection:
 class TestSubprocessBypassDetection:
     """Test stub-bypass regression prevention (Finding 4)."""
 
-    def test_subprocess_not_called_in_judge_moment(self, monkeypatch):
+    def test_792b39c3a11_subprocess_not_called_in_judge_moment(self, monkeypatch):
         """When judge_stub is provided, no real subprocess should be called from judge_moment."""
         call_tracker = {"called": False}
 
@@ -1173,7 +1173,7 @@ class TestSubprocessBypassDetection:
         assert not call_tracker["called"], "subprocess.run was called despite stub being provided"
         assert isinstance(record, dict)
 
-    def test_subprocess_not_called_in_full_pipeline(self, monkeypatch, fixture_main_session):
+    def test_792b39c3a11_subprocess_not_called_in_full_pipeline(self, monkeypatch, fixture_main_session):
         """When both detect_stub and judge_stub are provided, no real subprocess should be called in audit_transcript."""
         call_tracker = {"called": False}
 
@@ -1218,7 +1218,7 @@ class TestSubprocessBypassDetection:
 class TestTimestampExtraction:
     """Test timestamp extraction from transcript lines."""
 
-    def test_timestamp_extracted_correctly(self):
+    def test_792b39c3a5_timestamp_extracted_correctly(self):
         """_extract_timestamp_from_window should extract timestamp from JSON line."""
         window = {
             "lines": [
@@ -1241,7 +1241,7 @@ class TestTimestampExtraction:
         ts = audit_moments._extract_timestamp_from_window(window, 2)
         assert ts == "2026-08-31T10:00:05Z"
 
-    def test_timestamp_returned_in_moment_record(self, fixture_main_session):
+    def test_792b39c3a5_timestamp_returned_in_moment_record(self, fixture_main_session):
         """Moment records should include extracted timestamp."""
         extracted = extract_transcript(fixture_main_session)
         windows = audit_moments.split_into_windows(fixture_main_session)
@@ -1278,7 +1278,7 @@ class TestTimestampExtraction:
 class TestPointInTimeCheck:
     """Test the point-in-time memory existence check (task 3.2)."""
 
-    def test_sandboxing_empty_vault_returns_zero_results(self):
+    def test_792b39c4a1_sandboxing_empty_vault_returns_zero_results(self):
         """Prove sandboxing works: an empty scratch vault returns zero results from engram query."""
         sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
         import isolation
@@ -1326,7 +1326,7 @@ class TestPointInTimeCheck:
         finally:
             shutil.rmtree(scratch_root, ignore_errors=True)
 
-    def test_live_vault_unchanged_after_ptc_check(self):
+    def test_792b39c4a2_live_vault_unchanged_after_ptc_check(self):
         """Prove the real vault is not modified by the point-in-time check.
 
         This is a real trial using actual vault data, but the check only runs read-only
@@ -1390,7 +1390,7 @@ class TestPointInTimeCheck:
             after = isolation.vault_fingerprint(vault_path)
             assert before == after, f"vault was modified: {before} -> {after}"
 
-    def test_worktree_cleanup_on_engram_query_failure(self, monkeypatch):
+    def test_792b39c4a3_worktree_cleanup_on_engram_query_failure(self, monkeypatch):
         """Prove worktrees are cleaned up even when git worktree remove fails."""
         vault_path = os.path.expanduser("~/.local/share/engram/vault")
 
@@ -1469,7 +1469,7 @@ class TestPointInTimeCheck:
         finally:
             shutil.rmtree(scratch_dir, ignore_errors=True)
 
-    def test_filter_chunks_by_ingestion_date_excludes_legacy(self):
+    def test_792b39c4a4_filter_chunks_by_ingestion_date_excludes_legacy(self):
         """Test that chunk filtering excludes legacy records (no ingested_at)."""
         # Create a test chunk index with mixed records
         scratch_dir = tempfile.mkdtemp(prefix="test-chunk-filter-")
@@ -1547,7 +1547,7 @@ class TestPointInTimeCheck:
         finally:
             shutil.rmtree(scratch_dir, ignore_errors=True)
 
-    def test_point_in_time_check_integration_with_search_phrases(self, fixture_main_session):
+    def test_792b39c4a7_point_in_time_check_integration_with_search_phrases(self, fixture_main_session):
         """Test that judge_moment actually populates memory_existed/kind when search_phrases are present."""
         extracted = extract_transcript(fixture_main_session)
         windows = audit_moments.split_into_windows(fixture_main_session)
@@ -1604,7 +1604,7 @@ class TestPointInTimeCheck:
         assert record["finding_side"]["existence_derived_or_estimate"] in ["derived", "estimate"], \
             f"unexpected existence_derived_or_estimate: {record['finding_side']['existence_derived_or_estimate']}"
 
-    def test_derived_vs_estimate_boundary(self):
+    def test_792b39c4a5_derived_vs_estimate_boundary(self):
         """Test DERIVED/ESTIMATE determination at the vault migration boundary."""
         vault_path = os.path.expanduser("~/.local/share/engram/vault")
 
@@ -1636,7 +1636,7 @@ class TestPointInTimeCheck:
             # If we found a commit before migration, it should fail the ancestry check
             assert not is_derived, "pre-migration commit incorrectly marked as DERIVED"
 
-    def test_estimate_branch_real_pre_migration_timestamp_content_derived(
+    def test_792b39c4a6_estimate_branch_real_pre_migration_timestamp_content_derived(
         self, fixture_main_session
     ):
         """
@@ -1746,7 +1746,7 @@ class TestLineNumberingFix:
     instruct the model to report the EXACT line number shown, not to count lines itself.
     """
 
-    def test_detect_moments_with_line_numbering_synthetic_window(self):
+    def test_792b39c2a3_detect_moments_with_line_numbering_synthetic_window(self):
         """Verify detect_moments builds prompts with explicit line numbers."""
         # Create a synthetic window of 45 lines (dense, JSON-like)
         lines = []
@@ -1804,7 +1804,7 @@ class TestLineNumberingFix:
         assert len(candidates) == 1
         assert candidates[0]["location"] == 125, "location should be the absolute line number reported"
 
-    def test_judge_moment_with_line_numbering_synthetic_window(self):
+    def test_792b39c2a3_judge_moment_with_line_numbering_synthetic_window(self):
         """Verify judge_moment builds prompts with explicit line numbers."""
         # Create a synthetic window of 50 lines
         lines = []
@@ -1877,7 +1877,7 @@ class TestLineNumberingFix:
         assert isinstance(record, dict)
         assert record["location"] == 225
 
-    def test_line_numbering_round_trip_with_absolute_offsets(self):
+    def test_792b39c2a3_line_numbering_round_trip_with_absolute_offsets(self):
         """Verify that absolute line numbers in prompts enable correct location round-tripping.
 
         This is the core test: if the prompt has explicit line numbers, the model should
@@ -1946,7 +1946,7 @@ class TestEngramQueryErrorHandling:
     surfaced in the record.
     """
 
-    def test_run_engram_query_subprocess_failure(self):
+    def test_792b39c5a4_run_engram_query_subprocess_failure(self):
         """_run_engram_query_at_moment should return error indicator on subprocess failure."""
         # Mock subprocess.run to return failure
         with unittest.mock.patch("subprocess.run") as mock_run:
@@ -1965,7 +1965,7 @@ class TestEngramQueryErrorHandling:
             assert result.get("error") is not None, "error should be set on subprocess failure"
             assert "rc 1" in result.get("error", ""), "error should mention return code"
 
-    def test_run_engram_query_timeout(self):
+    def test_792b39c5a4_run_engram_query_timeout(self):
         """_run_engram_query_at_moment should return error indicator on timeout."""
         with unittest.mock.patch("subprocess.run") as mock_run:
             mock_run.side_effect = subprocess.TimeoutExpired("engram", 60)
@@ -1978,7 +1978,7 @@ class TestEngramQueryErrorHandling:
             assert result.get("items") is None, "items should be None on timeout"
             assert "timed out" in result.get("error", "").lower(), "error should mention timeout"
 
-    def test_run_engram_query_success_no_results(self):
+    def test_792b39c5a4_run_engram_query_success_no_results(self):
         """_run_engram_query_at_moment should return empty items list on successful check with no results."""
         with unittest.mock.patch("subprocess.run") as mock_run:
             mock_run.return_value = unittest.mock.Mock(
@@ -1996,7 +1996,7 @@ class TestEngramQueryErrorHandling:
             assert len(result.get("items", [])) == 0, "items should be empty list when no results"
             assert result.get("error") is None, "error should be None on success"
 
-    def test_build_engram_query_argv_joins_phrase_as_single_equals_arg(self):
+    def test_792b39c5a1_build_engram_query_argv_joins_phrase_as_single_equals_arg(self):
         """#787: the shared argv builder must join `--phrase=<value>` as one element."""
         argv = audit_moments._build_engram_query_argv(
             ["--text verbatim scenario dropped from modified requirement", "second phrase"]
@@ -2009,7 +2009,7 @@ class TestEngramQueryErrorHandling:
             "--phrase=second phrase",
         ]
 
-    def test_phrase_starting_with_dashdash_is_passed_as_single_equals_arg(self):
+    def test_792b39c5a2_phrase_starting_with_dashdash_is_passed_as_single_equals_arg(self):
         """#787: a phrase beginning with '--' must not be split into two argv elements.
 
         engram's own CLI flag parser treats a bare `--phrase <value>` where value
@@ -2042,7 +2042,7 @@ class TestEngramQueryErrorHandling:
                 f"(it must be joined with '='), got argv={argv!r}"
             )
 
-    def test_real_cli_error_on_stdout_is_preserved_in_error_field(self):
+    def test_792b39c5a3_real_cli_error_on_stdout_is_preserved_in_error_field(self):
         """#787: engram's own CLI errors print to stdout, not stderr; preserve them."""
         with unittest.mock.patch("subprocess.run") as mock_run:
             mock_run.return_value = unittest.mock.Mock(
@@ -2061,7 +2061,7 @@ class TestEngramQueryErrorHandling:
                 f"expected the real stdout error text in the error field, got: {error!r}"
             )
 
-    def test_judge_moment_with_engram_query_error(
+    def test_792b39c5a5_judge_moment_with_engram_query_error(
         self, fixture_main_session, detect_stub
     ):
         """judge_moment should set memory_existed=None and existence_check_error when query fails."""
@@ -2110,7 +2110,7 @@ class TestEngramQueryErrorHandling:
         assert finding["existence_check_error"] is not None, "existence_check_error should be set"
         assert "vault checkout failed" in finding["existence_check_error"], "error message should be preserved"
 
-    def test_judge_moment_with_engram_query_success_no_results(
+    def test_792b39c5a5_judge_moment_with_engram_query_success_no_results(
         self, fixture_main_session, detect_stub
     ):
         """judge_moment should distinguish error (None) from success-with-no-results (False)."""
@@ -2191,7 +2191,7 @@ class TestExhaustedRetriesPropagation:
             "role": "main",
         }
 
-    def test_run_claude_p_signals_exhausted_when_subprocess_always_fails(self, monkeypatch):
+    def test_792b39c2a5_run_claude_p_signals_exhausted_when_subprocess_always_fails(self, monkeypatch):
         """_run_claude_p should set exhausted_retries=True when every subprocess.run
         attempt in the backoff sequence fails (simulating a sustained auth/API outage)."""
         call_count = {"count": 0}
@@ -2216,10 +2216,10 @@ class TestExhaustedRetriesPropagation:
         # All 4 backoff slots (0, 15, 45, 120) were attempted, not just the first
         # (call_count also includes the one keychain-seeding subprocess.run call that
         # _build_cfg_dir makes before the retry loop starts, same as the existing
-        # test_json_parsing_with_is_error_true pattern's ">= 4").
+        # test_792b39c2a4_json_parsing_with_is_error_true pattern's ">= 4").
         assert call_count["count"] >= 4
 
-    def test_run_claude_p_distinguishable_from_genuine_empty_result(self, monkeypatch):
+    def test_792b39c2a5_run_claude_p_distinguishable_from_genuine_empty_result(self, monkeypatch):
         """A real (non-erroring) response with an empty result string must NOT be
         flagged as exhausted_retries -- that's a genuine "nothing" answer, distinct
         from "we never got a real answer"."""
@@ -2237,7 +2237,7 @@ class TestExhaustedRetriesPropagation:
         assert result["exhausted_retries"] is False
         assert result["result"] == ""
 
-    def test_detect_moments_raises_on_exhausted_retries(self, monkeypatch):
+    def test_792b39c2a5_detect_moments_raises_on_exhausted_retries(self, monkeypatch):
         """detect_moments must propagate exhausted_retries as a raised exception, not
         return an empty candidate list indistinguishable from a genuine zero-yield
         window."""
@@ -2256,7 +2256,7 @@ class TestExhaustedRetriesPropagation:
         with pytest.raises(audit_moments.ExhaustedRetriesError):
             audit_moments.detect_moments(window, model="haiku")
 
-    def test_detect_moments_genuine_zero_candidates_does_not_raise(self):
+    def test_792b39c2a6_detect_moments_genuine_zero_candidates_does_not_raise(self):
         """A genuine, successful "no moments found" response must still return an empty
         list without raising -- proving the two cases are distinguishable."""
 
@@ -2272,7 +2272,7 @@ class TestExhaustedRetriesPropagation:
 
         assert candidates == []
 
-    def test_judge_moment_raises_on_exhausted_retries(self, monkeypatch):
+    def test_792b39c3a12_judge_moment_raises_on_exhausted_retries(self, monkeypatch):
         """judge_moment must propagate exhausted_retries as a raised exception, not
         return a default/empty judgment indistinguishable from a genuine judgment."""
 
@@ -2292,7 +2292,7 @@ class TestExhaustedRetriesPropagation:
         with pytest.raises(audit_moments.ExhaustedRetriesError):
             audit_moments.judge_moment(candidate, window, extracted, model="sonnet")
 
-    def test_judge_moment_exhausted_retries_stub_raises(self):
+    def test_792b39c3a12_judge_moment_exhausted_retries_stub_raises(self):
         """A stub simulating an exhausted-retries response (as a real _run_claude_p call
         would produce during the 2026-09-02-style outage) must also raise, not silently
         return a default judgment record -- proving detect_moments/judge_moment check
@@ -2317,7 +2317,7 @@ class TestSingleWindowThresholdGap:
     separate 500 KB cutoff.
     """
 
-    def test_previously_unsafe_gap_file_now_splits_into_multiple_windows(self):
+    def test_792b39c1a5_previously_unsafe_gap_file_now_splits_into_multiple_windows(self):
         """A synthetic ~300-400 KB file (squarely inside the old 150-500 KB single-window
         gap) must now be split into multiple <=150 KB windows, not returned as one
         unsplit window."""
@@ -2370,7 +2370,7 @@ class TestSingleWindowThresholdGap:
         finally:
             os.unlink(temp_path)
 
-    def test_file_just_under_max_kb_stays_single_window(self):
+    def test_792b39c1a1_file_just_under_max_kb_stays_single_window(self):
         """A file comfortably within max_kb (150 KB) should still be a single window --
         the fix must not over-correct into splitting small files unnecessarily."""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False) as f:
@@ -2421,7 +2421,7 @@ class TestPromptTooLongFastFail:
             "role": "main",
         }
 
-    def test_run_claude_p_returns_immediately_on_prompt_too_long(self, monkeypatch):
+    def test_792b39c2a7_run_claude_p_returns_immediately_on_prompt_too_long(self, monkeypatch):
         """_run_claude_p must call the `claude` subprocess exactly ONCE (no
         retry-loop delay) when the response is a deterministic prompt_too_long
         rejection, and must set prompt_too_long=True, exhausted_retries=False."""
@@ -2464,7 +2464,7 @@ class TestPromptTooLongFastFail:
         assert result["prompt_too_long"] is True
         assert result["exhausted_retries"] is False
 
-    def test_genuine_transient_error_still_retries_as_before(self, monkeypatch):
+    def test_792b39c2a8_genuine_transient_error_still_retries_as_before(self, monkeypatch):
         """A genuinely transient is_error/low-cost response (no terminal_reason at all)
         must still go through the full retry-with-backoff sequence -- the
         prompt_too_long check must not break existing transient-failure handling."""
@@ -2490,14 +2490,14 @@ class TestPromptTooLongFastFail:
         assert result["exhausted_retries"] is False
         assert result["prompt_too_long"] is False
 
-    def test_detect_moments_raises_prompt_too_long_not_exhausted_retries(self, monkeypatch):
+    def test_792b39c2a7_detect_moments_raises_prompt_too_long_not_exhausted_retries(self, monkeypatch):
         """detect_moments must raise the distinct PromptTooLongError, not
         ExhaustedRetriesError, when the window's content is too large -- and must not
         retry (the `claude` subprocess called exactly once)."""
         claude_call_count = {"count": 0}
 
         def prompt_too_long_run(*args, **kwargs):
-            # See test_run_claude_p_returns_immediately_on_prompt_too_long: only count
+            # See test_792b39c2a7_run_claude_p_returns_immediately_on_prompt_too_long: only count
             # the actual `claude` invocation, not _build_cfg_dir's keychain-seeding call.
             invoked = args[0] if args else kwargs.get("args", [])
             if invoked and invoked[0] == "claude":
@@ -2526,7 +2526,7 @@ class TestPromptTooLongFastFail:
 
         assert claude_call_count["count"] == 1
 
-    def test_judge_moment_raises_prompt_too_long_not_exhausted_retries(self, monkeypatch):
+    def test_792b39c3a12_judge_moment_raises_prompt_too_long_not_exhausted_retries(self, monkeypatch):
         """judge_moment must raise the distinct PromptTooLongError, not
         ExhaustedRetriesError, when the moment's window content is too large."""
 
@@ -2552,7 +2552,7 @@ class TestPromptTooLongFastFail:
         with pytest.raises(audit_moments.PromptTooLongError):
             audit_moments.judge_moment(candidate, window, extracted, model="sonnet")
 
-    def test_detect_moments_prompt_too_long_stub_raises(self):
+    def test_792b39c2a7_detect_moments_prompt_too_long_stub_raises(self):
         """A stub simulating a prompt_too_long response (as a real _run_claude_p call
         would produce) must also raise PromptTooLongError, not ExhaustedRetriesError
         and not silently return an empty candidate list."""
@@ -2654,7 +2654,7 @@ class TestFailureCategoryPromptScope:
         assert len(captured_prompts) == 1
         return captured_prompts[0]
 
-    def test_rework_moment_gets_categorization_guidance(self):
+    def test_792b39c3a9_rework_moment_gets_categorization_guidance(self):
         """A rework moment's prompt must contain the runbook-824 categorization
         question -- not scoped away behind moment_type=='failure'."""
         prompt = self._capture_judgment_prompt("rework")
@@ -2669,7 +2669,7 @@ class TestFailureCategoryPromptScope:
         # The JSON response schema line stays unchanged.
         assert self.SCHEMA_LINE in prompt
 
-    def test_success_moment_gets_capture_reachability_variant(self):
+    def test_792b39c3a9_success_moment_gets_capture_reachability_variant(self):
         """A success moment's prompt must ask the capture-reachability variant:
         could a mandatory record-lessons-in-completion-report step realistically
         have captured the lesson?"""
@@ -2687,7 +2687,7 @@ class TestFailureCategoryPromptScope:
         # The JSON response schema line stays unchanged (same enum values).
         assert self.SCHEMA_LINE in prompt
 
-    def test_failure_moment_regression_keeps_runbook_824_wording(self):
+    def test_792b39c3a9_failure_moment_regression_keeps_runbook_824_wording(self):
         """Regression: a failure moment still gets the original runbook-824
         question with the original enum line, not the capture-reachability
         variant."""
@@ -2772,7 +2772,7 @@ class TestInstrumentV2PromptContent:
         assert len(captured) == 1
         return captured[0]
 
-    def test_followed_enum_includes_not_applicable_with_null_ban(self):
+    def test_792b39c3a7_followed_enum_includes_not_applicable_with_null_ban(self):
         """The followed instruction must include "not_applicable" in the enum and
         the exact null-ban framing that worked in rejudge_followed_nulls.py."""
         prompt = self._capture_judgment_prompt()
@@ -2790,7 +2790,7 @@ class TestInstrumentV2PromptContent:
             "with a rationale is the honest answer" in prompt
         )
 
-    def test_conditional_fields_get_not_applicable_instruction(self):
+    def test_792b39c3a7_conditional_fields_get_not_applicable_instruction(self):
         """Every conditional judged field must be told to answer not_applicable
         (never a bare null) when its condition does not hold."""
         prompt = self._capture_judgment_prompt()
@@ -2822,7 +2822,7 @@ class TestInstrumentV2PromptContent:
         ):
             assert f'"{field}": true | false | "not_applicable"' in prompt
 
-    def test_rationales_object_requested(self):
+    def test_792b39c3a7_rationales_object_requested(self):
         """The judge must be asked for a one-sentence rationale per answered
         question, delivered as a "rationales" object in the response."""
         prompt = self._capture_judgment_prompt()
@@ -2849,14 +2849,14 @@ class TestInstrumentV2NotApplicableParsing:
             stub=judge_stub,
         )
 
-    def test_followed_not_applicable_parses_to_null_plus_reason(self):
+    def test_792b39c3a6_followed_not_applicable_parses_to_null_plus_reason(self):
         record = self._judge(followed="not_applicable")
 
         finding = record["finding_side"]
         assert finding["followed"] is None
         assert finding["followed_null_reason"] == "judged_not_applicable"
 
-    def test_conditional_finding_fields_not_applicable_stamp_null_reason(self):
+    def test_792b39c3a6_conditional_finding_fields_not_applicable_stamp_null_reason(self):
         record = self._judge(
             search_targeted_right_thing="not_applicable",
             outdated_outranked_replacement="not_applicable",
@@ -2868,7 +2868,7 @@ class TestInstrumentV2NotApplicableParsing:
         assert finding["outdated_outranked_replacement"] is None
         assert finding["outdated_outranked_replacement_null_reason"] == "judged_not_applicable"
 
-    def test_conditional_writing_fields_not_applicable_stamp_null_reason(self):
+    def test_792b39c3a6_conditional_writing_fields_not_applicable_stamp_null_reason(self):
         record = self._judge(
             note_well_targeted="not_applicable",
             note_superseded_correctly="not_applicable",
@@ -2886,13 +2886,13 @@ class TestInstrumentV2NotApplicableParsing:
             assert writing[field] is None, field
             assert writing[f"{field}_null_reason"] == "judged_not_applicable", field
 
-    def test_failure_category_not_applicable_stamps_null_reason(self):
+    def test_792b39c3a6_failure_category_not_applicable_stamps_null_reason(self):
         record = self._judge(failure_category="not_applicable")
 
         assert record["failure_category"] is None
         assert record["failure_category_null_reason"] == "judged_not_applicable"
 
-    def test_real_verdicts_leave_no_null_reason_keys(self):
+    def test_792b39c3a6_real_verdicts_leave_no_null_reason_keys(self):
         """A fully-valued judgment must not sprout any *_null_reason keys --
         the stamp appears only where a not_applicable verdict earned it."""
         record = self._judge()
@@ -2904,7 +2904,7 @@ class TestInstrumentV2NotApplicableParsing:
         assert record["finding_side"]["followed"] == "yes"
         assert record["failure_category"] == "fixable"
 
-    def test_rationales_stored_as_judgment_rationales(self):
+    def test_792b39c3a7_rationales_stored_as_judgment_rationales(self):
         rationales = {
             "followed": "The agent applied the memory verbatim.",
             "failure_category": "A recalled note names this exact gotcha.",
@@ -2913,7 +2913,7 @@ class TestInstrumentV2NotApplicableParsing:
 
         assert record["judgment_rationales"] == rationales
 
-    def test_malformed_rationales_default_to_empty_object(self):
+    def test_792b39c3a7_malformed_rationales_default_to_empty_object(self):
         record = self._judge(rationales="not a dict")
 
         assert record["judgment_rationales"] == {}
@@ -2924,10 +2924,10 @@ class TestInstrumentVersionStamp:
     guard, vault note 282's deploy-byte-identical lesson): version 1 is the
     original run, this module is version 2."""
 
-    def test_module_constant_is_2(self):
+    def test_792b39c3a8_module_constant_is_2(self):
         assert audit_moments.INSTRUMENT_VERSION == 2
 
-    def test_record_carries_instrument_version(self):
+    def test_792b39c3a8_record_carries_instrument_version(self):
         def judge_stub(prompt: str, model: str) -> dict:
             return _judgment_result()
 
@@ -3010,7 +3010,7 @@ class TestExistenceTop5AndRelevanceGrade:
             stub=two_phase_stub,
         )
 
-    def test_top5_captured_and_relevance_graded(self, monkeypatch):
+    def test_792b39c4a8_top5_captured_and_relevance_graded(self, monkeypatch):
         captured = []
         relevance_result = json.dumps(
             {"relevance_grade": "relevant_top1", "rationale": "Rank 1 names this exact trap."}
@@ -3043,7 +3043,7 @@ class TestExistenceTop5AndRelevanceGrade:
         assert "note-1.md" in relevance_prompt
         assert "note-5.md" in relevance_prompt
 
-    def test_no_items_returned_skips_relevance_call(self, monkeypatch):
+    def test_792b39c4a8_no_items_returned_skips_relevance_call(self, monkeypatch):
         captured = []
         record = self._run_judge(monkeypatch, [], "unused", captured)
 
@@ -3053,7 +3053,7 @@ class TestExistenceTop5AndRelevanceGrade:
         assert finding["relevance_grade"] is None
         assert len(captured) == 1  # judgment call only
 
-    def test_invalid_relevance_response_leaves_grade_null(self, monkeypatch):
+    def test_792b39c4a8_invalid_relevance_response_leaves_grade_null(self, monkeypatch):
         record = self._run_judge(
             monkeypatch, self.ITEMS, json.dumps({"relevance_grade": "very_relevant"})
         )

@@ -257,8 +257,8 @@ flowchart TD
   N792c7u1["792c7u1 curate product spec<br/>Complete"]
   N792c7v1["792c7v1 memory-effectiveness-evaluation product spec<br/>Complete"]
   N792c7v2["792c7v2 eval-trial-harness tech spec<br/>Complete"]
-  N792c7v3["792c7v3 memory-loop-auditor tech spec<br/>Ready"]
-  N792c8a["792c8a Residual legacy sweep<br/>Blocked by: 792c7v3"]
+  N792c7v3["792c7v3 memory-loop-auditor tech spec<br/>Complete"]
+  N792c8a["792c8a Residual legacy sweep<br/>Ready"]
   N792c8b["792c8b In-flight design relocation<br/>Blocked by: 792c8a"]
   N792c8c["792c8c OpenSpec archive and tooling removal<br/>Blocked by: 792c8a"]
   N792c8d["792c8d Deprecated-directory removal and final stale-reference sweep<br/>Blocked by: 792c8b, 792c8c"]
@@ -5606,11 +5606,118 @@ Target: `792b39` (`docs/specs/technical/memory-loop-auditor.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7v3a | Port the component contract to `792b39` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7v3b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7v3c | Repoint stale references to `792b39` | Non-test action | Keeps live links valid | Not started |
-| 792c7v3d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7v3e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7v3a | Port the component contract to `792b39` | Non-test action | Documents the component in the framework format | Done |
+| 792c7v3b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7v3c | Repoint stale references to `792b39` | Non-test action | Keeps live links valid | Done |
+| 792c7v3d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7v3e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+792b39 has eight requirements (792b39c1 to 792b39c8) and one sequence, an audit of a transcript, whose `alt` branches each
+have their own requirement: the windows, the detection (with its two failure exceptions), the moment record, the existence check
+as of the moment's time (with its derived and estimate branches), the check's query, a fork's inherited memory, a dispatch prompt's
+memories and the outcome records (792d127). It maps 12 scenarios of 792a23. Legacy removal: the `memory-loop-audit` spec is deleted
+(its go/no-go requirement was not ported, 792d125) and ADR-0028 is deleted; `openspec/specs/` is now empty.
+
+**Test Traceability**
+
+Python tests are renamed `test_<ID>_<previous_name>` (792d10). Paths are relative to `dev/eval`.
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b39c1a1 | `audit/test_audit_moments.py` `test_small_file_single_window` → `test_792b39c1a1_small_file_single_window` | Unit with a stub for the model | A small file is one window | Done |
+| 792b39c1a1 | `audit/test_audit_moments.py` `test_file_just_under_max_kb_stays_single_window` → `test_792b39c1a1_file_just_under_max_kb_stays_single_window` | Unit with a stub for the model | A file just under the cap stays one window | Done |
+| 792b39c1a2 | `audit/test_audit_moments.py` `test_window_preserves_lines_as_is` → `test_792b39c1a2_window_preserves_lines_as_is` | Unit with a stub for the model | The lines are preserved as they are | Done |
+| 792b39c1a3 | `audit/test_audit_moments.py` `test_window_has_required_fields` → `test_792b39c1a3_window_has_required_fields` | Unit with a stub for the model | A window carries its fields | Done |
+| 792b39c1a4 | `audit/test_audit_moments.py` `test_location_ranges_are_1_indexed` → `test_792b39c1a4_location_ranges_are_1_indexed` | Unit with a stub for the model | Locations count from one | Done |
+| 792b39c1a5 | `audit/test_audit_moments.py` `test_multiwindow_splitting_produces_multiple_windows` → `test_792b39c1a5_multiwindow_splitting_produces_multiple_windows` | Unit with a stub for the model | A larger file is split into several windows | Done |
+| 792b39c1a5 | `audit/test_audit_moments.py` `test_multiwindow_lines_not_split` → `test_792b39c1a5_multiwindow_lines_not_split` | Unit with a stub for the model | No line is cut | Done |
+| 792b39c1a5 | `audit/test_audit_moments.py` `test_previously_unsafe_gap_file_now_splits_into_multiple_windows` → `test_792b39c1a5_previously_unsafe_gap_file_now_splits_into_multiple_windows` | Unit with a stub for the model | A file in the former gap now splits | Done |
+| 792b39c1a6 | `audit/test_audit_moments.py` `test_oversized_line_detected_in_middle_window` → `test_792b39c1a6_oversized_line_detected_in_middle_window` | Unit with a stub for the model | An oversized line is detected | Done |
+| 792b39c2a1 | `audit/test_audit_moments.py` `test_detect_moments_with_stub` → `test_792b39c2a1_detect_moments_with_stub` | Unit with a stub for the model | Moments are detected from a window | Done |
+| 792b39c2a2 | `audit/test_audit_moments.py` `test_low_yield_recheck_triggered` → `test_792b39c2a2_low_yield_recheck_triggered` | Unit with a stub for the model | A low-yield window is re-read with the stronger model | Done |
+| 792b39c2a3 | `audit/test_audit_moments.py` `test_detect_moments_with_line_numbering_synthetic_window` → `test_792b39c2a3_detect_moments_with_line_numbering_synthetic_window` | Unit with a stub for the model | Detection numbers lines by absolute location | Done |
+| 792b39c2a3 | `audit/test_audit_moments.py` `test_judge_moment_with_line_numbering_synthetic_window` → `test_792b39c2a3_judge_moment_with_line_numbering_synthetic_window` | Unit with a stub for the model | Judgment numbers lines by absolute location | Done |
+| 792b39c2a3 | `audit/test_audit_moments.py` `test_line_numbering_round_trip_with_absolute_offsets` → `test_792b39c2a3_line_numbering_round_trip_with_absolute_offsets` | Unit with a stub for the model | The numbers round-trip to the file | Done |
+| 792b39c2a4 | `audit/test_audit_moments.py` `test_json_parsing_from_subprocess_response` → `test_792b39c2a4_json_parsing_from_subprocess_response` | Unit with a patched subprocess | A JSON reply parses | Done |
+| 792b39c2a4 | `audit/test_audit_moments.py` `test_json_parsing_with_is_error_true` → `test_792b39c2a4_json_parsing_with_is_error_true` | Unit with a patched subprocess | An error-flagged reply is handled | Done |
+| 792b39c2a4 | `audit/test_audit_moments.py` `test_json_parse_error_handling` → `test_792b39c2a4_json_parse_error_handling` | Unit with a patched subprocess | A reply that is not JSON is a parse error | Done |
+| 792b39c2a5 | `audit/test_audit_moments.py` `test_run_claude_p_signals_exhausted_when_subprocess_always_fails` → `test_792b39c2a5_run_claude_p_signals_exhausted_when_subprocess_always_fails` | Unit with a patched subprocess | Exhausted retries are signalled | Done |
+| 792b39c2a5 | `audit/test_audit_moments.py` `test_run_claude_p_distinguishable_from_genuine_empty_result` → `test_792b39c2a5_run_claude_p_distinguishable_from_genuine_empty_result` | Unit with a patched subprocess | Exhaustion differs from an empty result | Done |
+| 792b39c2a5 | `audit/test_audit_moments.py` `test_detect_moments_raises_on_exhausted_retries` → `test_792b39c2a5_detect_moments_raises_on_exhausted_retries` | Unit with a patched subprocess | Detection raises on exhausted retries | Done |
+| 792b39c2a6 | `audit/test_audit_moments.py` `test_detect_moments_genuine_zero_candidates_does_not_raise` → `test_792b39c2a6_detect_moments_genuine_zero_candidates_does_not_raise` | Unit with a patched subprocess | A genuine zero is not an error | Done |
+| 792b39c2a7 | `audit/test_audit_moments.py` `test_run_claude_p_returns_immediately_on_prompt_too_long` → `test_792b39c2a7_run_claude_p_returns_immediately_on_prompt_too_long` | Unit with a patched subprocess | A too-long prompt fails at once | Done |
+| 792b39c2a7 | `audit/test_audit_moments.py` `test_detect_moments_raises_prompt_too_long_not_exhausted_retries` → `test_792b39c2a7_detect_moments_raises_prompt_too_long_not_exhausted_retries` | Unit with a patched subprocess | Detection raises the prompt-too-long error | Done |
+| 792b39c2a7 | `audit/test_audit_moments.py` `test_detect_moments_prompt_too_long_stub_raises` → `test_792b39c2a7_detect_moments_prompt_too_long_stub_raises` | Unit with a stub for the model | A stub raises the prompt-too-long error | Done |
+| 792b39c2a8 | `audit/test_audit_moments.py` `test_genuine_transient_error_still_retries_as_before` → `test_792b39c2a8_genuine_transient_error_still_retries_as_before` | Unit with a patched subprocess | A transient error still retries | Done |
+| 792b39c2a9 | `audit/test_audit_moments.py` `test_subprocess_not_called_with_stub` → `test_792b39c2a9_subprocess_not_called_with_stub` | Unit with a patched subprocess | A stub makes no subprocess call | Done |
+| 792b39c3a1 | `audit/test_audit_moments.py` `test_judge_moment_with_stub` → `test_792b39c3a1_judge_moment_with_stub` | Unit with a stub for the model | A candidate is judged into a record | Done |
+| 792b39c3a2 | `audit/test_audit_moments.py` `test_moment_record_has_all_required_fields` → `test_792b39c3a2_moment_record_has_all_required_fields` | Unit with a stub for the model | A record has every field of the scorecard | Done |
+| 792b39c3a3 | `audit/test_audit_moments.py` `test_deferred_fields_are_null_without_search_phrases` → `test_792b39c3a3_deferred_fields_are_null_without_search_phrases` | Unit with a stub for the model | Deferred fields are null without search phrases | Done |
+| 792b39c3a4 | `audit/test_audit_moments.py` `test_moment_id_is_stable` → `test_792b39c3a4_moment_id_is_stable` | Unit with a stub for the model | The moment identifier is stable | Done |
+| 792b39c3a5 | `audit/test_audit_moments.py` `test_timestamp_extracted_correctly` → `test_792b39c3a5_timestamp_extracted_correctly` | Unit with a stub for the model | The timestamp is read from the window | Done |
+| 792b39c3a5 | `audit/test_audit_moments.py` `test_timestamp_returned_in_moment_record` → `test_792b39c3a5_timestamp_returned_in_moment_record` | Unit with a stub for the model | The timestamp is on the record | Done |
+| 792b39c3a6 | `audit/test_audit_moments.py` `test_followed_not_applicable_parses_to_null_plus_reason` → `test_792b39c3a6_followed_not_applicable_parses_to_null_plus_reason` | Unit with a stub for the model | followed not applicable parses to null plus a reason | Done |
+| 792b39c3a6 | `audit/test_audit_moments.py` `test_conditional_finding_fields_not_applicable_stamp_null_reason` → `test_792b39c3a6_conditional_finding_fields_not_applicable_stamp_null_reason` | Unit with a stub for the model | Finding-side fields are stamped | Done |
+| 792b39c3a6 | `audit/test_audit_moments.py` `test_conditional_writing_fields_not_applicable_stamp_null_reason` → `test_792b39c3a6_conditional_writing_fields_not_applicable_stamp_null_reason` | Unit with a stub for the model | Writing-side fields are stamped | Done |
+| 792b39c3a6 | `audit/test_audit_moments.py` `test_failure_category_not_applicable_stamps_null_reason` → `test_792b39c3a6_failure_category_not_applicable_stamps_null_reason` | Unit with a stub for the model | The failure category is stamped | Done |
+| 792b39c3a6 | `audit/test_audit_moments.py` `test_real_verdicts_leave_no_null_reason_keys` → `test_792b39c3a6_real_verdicts_leave_no_null_reason_keys` | Unit with a stub for the model | Real answers leave no null reason | Done |
+| 792b39c3a7 | `audit/test_audit_moments.py` `test_followed_enum_includes_not_applicable_with_null_ban` → `test_792b39c3a7_followed_enum_includes_not_applicable_with_null_ban` | Prompt content check | The prompt offers not_applicable and bans bare nulls | Done |
+| 792b39c3a7 | `audit/test_audit_moments.py` `test_conditional_fields_get_not_applicable_instruction` → `test_792b39c3a7_conditional_fields_get_not_applicable_instruction` | Prompt content check | Conditional fields get the instruction | Done |
+| 792b39c3a7 | `audit/test_audit_moments.py` `test_rationales_object_requested` → `test_792b39c3a7_rationales_object_requested` | Prompt content check | A rationale object is requested | Done |
+| 792b39c3a7 | `audit/test_audit_moments.py` `test_rationales_stored_as_judgment_rationales` → `test_792b39c3a7_rationales_stored_as_judgment_rationales` | Unit with a stub for the model | Rationales are stored on the record | Done |
+| 792b39c3a7 | `audit/test_audit_moments.py` `test_malformed_rationales_default_to_empty_object` → `test_792b39c3a7_malformed_rationales_default_to_empty_object` | Unit with a stub for the model | Malformed rationales become an empty object | Done |
+| 792b39c3a8 | `audit/test_audit_moments.py` `test_module_constant_is_2` → `test_792b39c3a8_module_constant_is_2` | Pure unit | The instrument version constant is 2 | Done |
+| 792b39c3a8 | `audit/test_audit_moments.py` `test_record_carries_instrument_version` → `test_792b39c3a8_record_carries_instrument_version` | Unit with a stub for the model | The record carries the version | Done |
+| 792b39c3a9 | `audit/test_audit_moments.py` `test_rework_moment_gets_categorization_guidance` → `test_792b39c3a9_rework_moment_gets_categorization_guidance` | Prompt content check | Rework gets the categorization guidance | Done |
+| 792b39c3a9 | `audit/test_audit_moments.py` `test_success_moment_gets_capture_reachability_variant` → `test_792b39c3a9_success_moment_gets_capture_reachability_variant` | Prompt content check | Success gets the capture-reachability variant | Done |
+| 792b39c3a9 | `audit/test_audit_moments.py` `test_failure_moment_regression_keeps_runbook_824_wording` → `test_792b39c3a9_failure_moment_regression_keeps_runbook_824_wording` | Prompt content check | Failure keeps runbook 824 wording | Done |
+| 792b39c3a10 | `audit/test_audit_moments.py` `test_record_reflects_extracted_events` → `test_792b39c3a10_record_reflects_extracted_events` | Unit with a stub for the model | The record reflects the extracted events | Done |
+| 792b39c3a11 | `audit/test_audit_moments.py` `test_full_audit_transcript_pipeline` → `test_792b39c3a11_full_audit_transcript_pipeline` | Pipeline with stubs | The whole pipeline runs on stubs | Done |
+| 792b39c3a11 | `audit/test_audit_moments.py` `test_full_pipeline_no_subprocess_calls` → `test_792b39c3a11_full_pipeline_no_subprocess_calls` | Pipeline with stubs | The pipeline makes no subprocess call | Done |
+| 792b39c3a11 | `audit/test_audit_moments.py` `test_moments_are_json_serializable` → `test_792b39c3a11_moments_are_json_serializable` | Pipeline with stubs | Records are JSON-serializable | Done |
+| 792b39c3a11 | `audit/test_audit_moments.py` `test_works_with_main_session_fixture` → `test_792b39c3a11_works_with_main_session_fixture` | Pipeline with stubs | The main-session fixture works | Done |
+| 792b39c3a11 | `audit/test_audit_moments.py` `test_audit_produces_records_from_fixture` → `test_792b39c3a11_audit_produces_records_from_fixture` | Pipeline with stubs | Records are produced from the fixture | Done |
+| 792b39c3a11 | `audit/test_audit_moments.py` `test_subprocess_not_called_in_judge_moment` → `test_792b39c3a11_subprocess_not_called_in_judge_moment` | Unit with a patched subprocess | Judgment makes no subprocess call under a stub | Done |
+| 792b39c3a11 | `audit/test_audit_moments.py` `test_subprocess_not_called_in_full_pipeline` → `test_792b39c3a11_subprocess_not_called_in_full_pipeline` | Unit with a patched subprocess | The pipeline makes no subprocess call under stubs | Done |
+| 792b39c3a12 | `audit/test_audit_moments.py` `test_judge_moment_raises_on_exhausted_retries` → `test_792b39c3a12_judge_moment_raises_on_exhausted_retries` | Unit with a patched subprocess | Judgment raises on exhausted retries | Done |
+| 792b39c3a12 | `audit/test_audit_moments.py` `test_judge_moment_exhausted_retries_stub_raises` → `test_792b39c3a12_judge_moment_exhausted_retries_stub_raises` | Unit with a stub for the model | A stub raises on exhausted retries | Done |
+| 792b39c3a12 | `audit/test_audit_moments.py` `test_judge_moment_raises_prompt_too_long_not_exhausted_retries` → `test_792b39c3a12_judge_moment_raises_prompt_too_long_not_exhausted_retries` | Unit with a patched subprocess | Judgment raises the prompt-too-long error | Done |
+| 792b39c4a1 | `audit/test_audit_moments.py` `test_sandboxing_empty_vault_returns_zero_results` → `test_792b39c4a1_sandboxing_empty_vault_returns_zero_results` | Unit with the real engram binary and a scratch vault | An empty scratch vault returns nothing | Done |
+| 792b39c4a2 | `audit/test_audit_moments.py` `test_live_vault_unchanged_after_ptc_check` → `test_792b39c4a2_live_vault_unchanged_after_ptc_check` | Unit with a scratch vault and a fingerprint | The live vault is unchanged | Done |
+| 792b39c4a3 | `audit/test_audit_moments.py` `test_worktree_cleanup_on_engram_query_failure` → `test_792b39c4a3_worktree_cleanup_on_engram_query_failure` | Unit with a scratch git repository | The worktree is removed when the query fails | Done |
+| 792b39c4a4 | `audit/test_audit_moments.py` `test_filter_chunks_by_ingestion_date_excludes_legacy` → `test_792b39c4a4_filter_chunks_by_ingestion_date_excludes_legacy` | Unit over temporary chunk files | Chunks are filtered by ingestion date | Done |
+| 792b39c4a5 | `audit/test_audit_moments.py` `test_derived_vs_estimate_boundary` → `test_792b39c4a5_derived_vs_estimate_boundary` | Unit with a scratch git repository | The migration boundary separates derived from estimate | Done |
+| 792b39c4a6 | `audit/test_audit_moments.py` `test_estimate_branch_real_pre_migration_timestamp_content_derived` → `test_792b39c4a6_estimate_branch_real_pre_migration_timestamp_content_derived` | Unit with a scratch vault | The estimate branch returns real content | Done |
+| 792b39c4a7 | `audit/test_audit_moments.py` `test_point_in_time_check_integration_with_search_phrases` → `test_792b39c4a7_point_in_time_check_integration_with_search_phrases` | Unit with the real engram binary and a scratch vault | The check runs with the moment's phrases | Done |
+| 792b39c4a8 | `audit/test_audit_moments.py` `test_top5_captured_and_relevance_graded` → `test_792b39c4a8_top5_captured_and_relevance_graded` | Unit with a stub for the model | The top five are captured and graded | Done |
+| 792b39c4a8 | `audit/test_audit_moments.py` `test_no_items_returned_skips_relevance_call` → `test_792b39c4a8_no_items_returned_skips_relevance_call` | Unit with a stub for the model | No grading call for an empty result | Done |
+| 792b39c4a8 | `audit/test_audit_moments.py` `test_invalid_relevance_response_leaves_grade_null` → `test_792b39c4a8_invalid_relevance_response_leaves_grade_null` | Unit with a stub for the model | An invalid grade leaves the grade null | Done |
+| 792b39c5a1 | `audit/test_audit_moments.py` `test_build_engram_query_argv_joins_phrase_as_single_equals_arg` → `test_792b39c5a1_build_engram_query_argv_joins_phrase_as_single_equals_arg` | Pure unit | A phrase is one argument | Done |
+| 792b39c5a2 | `audit/test_audit_moments.py` `test_phrase_starting_with_dashdash_is_passed_as_single_equals_arg` → `test_792b39c5a2_phrase_starting_with_dashdash_is_passed_as_single_equals_arg` | Pure unit | A phrase starting with -- cannot break the invocation | Done |
+| 792b39c5a3 | `audit/test_audit_moments.py` `test_real_cli_error_on_stdout_is_preserved_in_error_field` → `test_792b39c5a3_real_cli_error_on_stdout_is_preserved_in_error_field` | Unit with a patched subprocess | A real error on standard output is preserved | Done |
+| 792b39c5a4 | `audit/test_audit_moments.py` `test_run_engram_query_subprocess_failure` → `test_792b39c5a4_run_engram_query_subprocess_failure` | Unit with a patched subprocess | A failing subprocess returns items null with an error | Done |
+| 792b39c5a4 | `audit/test_audit_moments.py` `test_run_engram_query_timeout` → `test_792b39c5a4_run_engram_query_timeout` | Unit with a patched subprocess | A timeout returns items null with an error | Done |
+| 792b39c5a4 | `audit/test_audit_moments.py` `test_run_engram_query_success_no_results` → `test_792b39c5a4_run_engram_query_success_no_results` | Unit with a patched subprocess | An empty result is an empty list with no error | Done |
+| 792b39c5a5 | `audit/test_audit_moments.py` `test_judge_moment_with_engram_query_error` → `test_792b39c5a5_judge_moment_with_engram_query_error` | Unit with a stub for the model | A query error is recorded | Done |
+| 792b39c5a5 | `audit/test_audit_moments.py` `test_judge_moment_with_engram_query_success_no_results` → `test_792b39c5a5_judge_moment_with_engram_query_success_no_results` | Unit with a stub for the model | An empty result is recorded | Done |
+| 792b39c6a1 | `audit/test_audit_moments.py` `test_finds_last_qualifying_recall_before_fork_point` → `test_792b39c6a1_finds_last_qualifying_recall_before_fork_point` | Unit over fixture transcripts | The last recall before the fork point is found | Done |
+| 792b39c6a2 | `audit/test_audit_moments.py` `test_early_bound_has_no_qualifying_recall` → `test_792b39c6a2_early_bound_has_no_qualifying_recall` | Unit over fixture transcripts | An early branch point has no recall | Done |
+| 792b39c6a3 | `audit/test_audit_moments.py` `test_missing_parent_transcript` → `test_792b39c6a3_missing_parent_transcript` | Unit over fixture transcripts | A missing parent transcript is reported | Done |
+| 792b39c6a4 | `audit/test_audit_moments.py` `test_not_a_fork_transcript` → `test_792b39c6a4_not_a_fork_transcript` | Unit over fixture transcripts | A non-fork transcript is reported | Done |
+| 792b39c6a5 | `audit/test_audit_moments.py` `test_skips_missing_vault_note_but_keeps_others` → `test_792b39c6a5_skips_missing_vault_note_but_keeps_others` | Unit over fixture transcripts | A deleted note is skipped and the rest kept | Done |
+| 792b39c6a6 | `audit/test_audit_moments.py` `test_fork_role_prompt_includes_inherited_recall_context` → `test_792b39c6a6_fork_role_prompt_includes_inherited_recall_context` | Prompt content check | A fork prompt includes the inherited recall | Done |
+| 792b39c6a7 | `audit/test_audit_moments.py` `test_non_fork_role_prompt_has_no_fork_context_section` → `test_792b39c6a7_non_fork_role_prompt_has_no_fork_context_section` | Prompt content check | A non-fork prompt has no such section | Done |
+| 792b39c6a8 | `audit/test_audit_moments.py` `test_fork_role_without_resolvable_context_has_no_dangling_section` → `test_792b39c6a8_fork_role_without_resolvable_context_has_no_dangling_section` | Prompt content check | An unresolvable fork has no dangling section | Done |
+| 792b39c7a1 | `audit/test_audit_moments.py` `test_judge_moment_with_fresh_role_and_parent_transcript` → `test_792b39c7a1_judge_moment_with_fresh_role_and_parent_transcript` | Unit with a stub for the model | A fresh subagent's injected memories count as found | Done |
+| 792b39c5a2 | `audit/test_run_window_sample.py` `test_query_wrapper_diagnostic_rerun_does_not_misparse_dashdash_phrase` → `test_792b39c5a2_query_wrapper_diagnostic_rerun_does_not_misparse_dashdash_phrase` | Pure unit | The sampler's diagnostic rerun uses the same builder | Done |
+
+**Coverage gaps:** 792b39c8a1 to 792b39c8a5 (no test covers `generate_outcome_records.py`) and, for 792a23, 792a23k1c (the calibration is a document, `CALIBRATION.md`, and no test reads it), 792a23l1b (no test checks that a report
+names its counting unit and labels its numbers), 792a23o1b's left-out half and 792a23o1c (the field is null in every record and the
+paraphrase check is not built, 792d127), and 792a23q1a (no test checks the ledger's anchors).
+
+**No-scenario tests:** the extractor's tests (`audit/test_extract.py`), the runner's (`audit/test_run_audit.py`), the scorecard's
+(`audit/test_build_scorecard.py`), the parent-capture script's (`audit/test_parent_capture.py`), and the remaining tests of
+`audit/test_run_window_sample.py` keep their names (792d127).
 
 ## 792c8 Closing Node Catalog
 
