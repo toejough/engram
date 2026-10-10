@@ -691,10 +691,12 @@ Scenario: 792a3i1b A legacy tier is written as given
 ### 792a3j Luhmann placement
 
 Requirement: [792a3j Luhmann placement](#792a3j-luhmann-placement) `engram learn fact`, `feedback` and `runbook` MUST give the new note, for
-`--position top`, the next unused top-level number; for `--position continuation`, the next unused
-child ID of `--target`; and for `--position sibling`, the next unused child ID of the target's
-parent. A child of an ID ending in a number ends in the next unused letter (`a` to `z`, then `aa`),
-and a child of an ID ending in a letter ends in the next unused number.
+`--position top`, the top-level number one above the highest existing one (`1` when there is
+none); for `--position continuation`, the next child ID of `--target` after its highest existing
+child; and for `--position sibling`, the next child ID of the target's parent after its highest
+existing child. A child of an ID ending in a number ends in the letter after the highest existing
+letter child (`a` to `z`, then `aa`), and a child of an ID ending in a letter ends in one more than
+the highest existing numeric child. A gap left by a missing ID is never refilled.
 
 Rationale: runbooks take part in the hierarchy exactly as facts and feedback do, with no
 kind-specific opt-out.
