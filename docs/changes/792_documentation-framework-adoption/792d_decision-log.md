@@ -2458,3 +2458,15 @@ decisions as `792dN`, continuing the sequence.
   canonical).
 - **Alternatives:** split the requirements across the existing recall, learn and ambient-guidance capabilities. Rejected in 793b1. Promote the
   requirements to `docs/specs/` now. Rejected: the feature is unbuilt and 792d44 excludes promotion.
+
+## 792d132 `docs/deprecated/` is gone; the last sweep found no live reference
+
+- **Choice:**
+  - **Removal.** The directory no longer exists. Its last file was deleted by node 792c8b (792d131), so git left no empty directory behind.
+  - **Sweep.** `git grep` for `parallel-memory-agent-requirements`, `docs/deprecated` and `docs/design/parallel` (excluding `.claude/worktrees/`,
+    `.review/events.jsonl` and the `dev/eval` `raw/` and `results/` directories) found no hit outside this change. Nothing needed repointing.
+  - **Left as records.** The remaining hits are in this change: the 792c node text that names its sources, 792d14, 792d130 and 792d131, the context of
+    792e2, and the `792f_discovery` findings (dated 2026-10-09, one cites the old design path and the branch name). They describe what was
+    moved and why, so they stay (792d37).
+- **Rationale:** 792d37 and 792d53 (a dated record is not rewritten), 792d31 (a legacy file is deleted once empty).
+- **Alternatives:** rewrite the 792f discovery rows to the 793 paths. Rejected: discovery records what was found before the move.

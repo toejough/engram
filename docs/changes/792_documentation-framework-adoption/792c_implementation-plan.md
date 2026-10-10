@@ -261,7 +261,7 @@ flowchart TD
   N792c8a["792c8a Residual legacy sweep<br/>Complete"]
   N792c8b["792c8b In-flight design relocation<br/>Complete"]
   N792c8c["792c8c OpenSpec archive and tooling removal<br/>Complete"]
-  N792c8d["792c8d Deprecated-directory removal and final stale-reference sweep<br/>In progress: 1/2 entries complete"]
+  N792c8d["792c8d Deprecated-directory removal and final stale-reference sweep<br/>Complete"]
   N792c8e["792c8e Build-tag classification (deferred)<br/>Blocked by: 792c8d"]
   N792c7a1 --> N792c7a2
   N792c7a2 --> N792c7a3
@@ -5773,7 +5773,7 @@ paraphrase check is not built, 792d127), and 792a23q1a (no test checks the ledge
 
 ### 792c8d Deprecated-directory removal and final stale-reference sweep
 
-**Status note:** the image move, the final sweep and every deletion are done (792d130). Removing `docs/deprecated/` waits only on `docs/deprecated/design/parallel-memory-agent-requirements.md`, which node 792c8b relocates after 792e2. The rest of this node completes with that removal.
+**Status note:** complete. The image move, the final sweep and every deletion are done (792d130). `docs/deprecated/` was removed once node 792c8b relocated its last file to change 793 (792d131, 792d132).
 
 **Sources and work:**
 
@@ -5784,7 +5784,7 @@ paraphrase check is not built, 792d127), and 792a23q1a (no test checks the ledge
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c8da | Carry out the source and work items listed above | Non-test action | Ports or removes the residual legacy surface | In progress |
+| 792c8da | Carry out the source and work items listed above | Non-test action | Ports or removes the residual legacy surface | Done |
 | 792c8db | Record new choices in 792d and questions in 792e | Non-test action | Keeps the decision trail complete | Done |
 
 ### 792c8e Build-tag classification (deferred)
