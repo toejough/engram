@@ -206,7 +206,7 @@ Scenario: 792b2c2a3 The flag wins
 #### 792b2c3 First-use gating
 
 Requirement: [792b2c3](#792b2c3-first-use-gating) For every vault-resolving command, the command-line-surface MUST ask the
-vault-identity-registry to ensure the vault at the resolved path before running the command, and
+vault-identity-registry ([792b5 vault-identity-registry](#792b5-added-vault-identity-registry)) to ensure the vault at the resolved path before running the command, and
 MUST NOT run the command when that step fails.
 
 Supports: [792a2e1a](./792a_product-spec.md#792a2e1-uat-scenarios), [792a2e1b](./792a_product-spec.md#792a2e1-uat-scenarios), [792a2e1c](./792a_product-spec.md#792a2e1-uat-scenarios), [792a2e1d](./792a_product-spec.md#792a2e1-uat-scenarios), [792a2f1a](./792a_product-spec.md#792a2f1-uat-scenarios), [792a2g1a](./792a_product-spec.md#792a2g1-uat-scenarios), [792a6t1a](./792a_product-spec.md#792a6t1-uat-scenarios).
@@ -1102,7 +1102,7 @@ Canonical target: `docs/specs/technical/durable-file-store.md` (title `Durable F
   without naming any caller; ownership, callers decide what to write and when, while this
   component decides how a write reaches the disk; independent verification, it is tested directly
   over fake primitives and over the real filesystem; stability, the contract survives any change to
-  the injection seam; necessity, every vault-identity, note and index write depends on it.
+  the injection seam; necessity, every vault-identity ([792a2 vault-identity](./792a_product-spec.md#792a2-added-vault-identity)), note and index write depends on it.
 - Supported capabilities: [792a2](./792a_product-spec.md#792a2-added-vault-identity) vault-identity, [792a3](./792a_product-spec.md#792a3-added-note-writing) note-writing, [792a4](./792a_product-spec.md#792a4-added-note-revision) note-revision, [792a5](./792a_product-spec.md#792a5-added-chunk-indexing)
   chunk-indexing.
 
@@ -1564,7 +1564,7 @@ it MUST NOT do so for any other failure, including when no platform not-found er
 
 Supports: [792a2i1d](./792a_product-spec.md#792a2i1-uat-scenarios).
 
-Rationale: callers such as the self-installer report a missing `git` or `go` differently from a
+Rationale: callers such as the self-installer ([792b28 self-installer](#792b28-added-self-installer)) report a missing `git` or `go` differently from a
 failed one, without knowing the platform's error value.
 
 ##### 792b4c3a Scenarios
@@ -1743,7 +1743,7 @@ Canonical target: `docs/specs/technical/vault-identity-registry.md` (title `Vaul
   identity allows it; independent verification, every requirement is tested directly over a
   temp-dir or scripted filesystem and an injected random source; stability, the ID file, state
   directory and location record are on-disk contracts that survive refactoring; necessity,
-  vault-identity's creation, ID and refusal requirements all depend on it.
+  vault-identity's ([792a2 vault-identity](./792a_product-spec.md#792a2-added-vault-identity)) creation, ID and refusal requirements all depend on it.
 - Supported capabilities: [792a2](./792a_product-spec.md#792a2-added-vault-identity) vault-identity, [792a21](./792a_product-spec.md#792a21-added-parent-sync) parent-sync ([792b5c14](#792b5c14-the-parent-cache-and-the-contact-backoff) to [792b5c16](#792b5c16-the-declined-pull-record)).
 
 Rationale (ADR-0029 D2): every environment has its own local vault, created by the first command
@@ -2492,7 +2492,7 @@ Canonical target: `docs/specs/technical/note-document-format.md` (title `Note Do
   hand-edited and Obsidian-edited notes depend on it; necessity, every note engram writes or reads
   passes through it.
 - Supported capabilities: [792a3](./792a_product-spec.md#792a3-added-note-writing) note-writing, [792a4](./792a_product-spec.md#792a4-added-note-revision) note-revision, [792a6](./792a_product-spec.md#792a6-added-controlled-vocabulary) controlled-vocabulary.
-  Skill-runbook-registration ([792a12](./792a_product-spec.md#792a12-added-skill-runbook-registration)) adds [792b6c9](#792b6c9-skill-identity-fields) and [792b6c10](#792b6c10-rewrites-by-other-writers-keep-the-skill-identity-fields). Vault-counting and parent-sync add
+  Skill-runbook-registration ([792a12](./792a_product-spec.md#792a12-added-skill-runbook-registration)) adds [792b6c9](#792b6c9-skill-identity-fields) and [792b6c10](#792b6c10-rewrites-by-other-writers-keep-the-skill-identity-fields). Vault-counting ([792a8 vault-counting](./792a_product-spec.md#792a8-added-vault-counting)) and parent-sync ([792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync)) add
   their requirements here ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later), [792d61](./792d_decision-log.md#792d61-note-document-formats-edit-crlf-and-field-survival-contracts-arrive-with-their-scenarios)).
 
 Rationale: the vault is flat. Notes sit at the vault root, and a note's place in the hierarchy is
@@ -2504,7 +2504,7 @@ situation ([792d62](./792d_decision-log.md#792d62-a-fact-or-feedback-situation-i
 
 ### 792b6b Sequences
 
-The note-document-format owns no flow. Note-authoring calls it to name and render a new note, and
+The note-document-format owns no flow. Note-authoring ([792b12 note-authoring](#792b12-added-note-authoring)) calls it to name and render a new note, and
 every reader of a note calls it to split the note's text.
 
 ### 792b6c Behavior Requirements
@@ -3158,22 +3158,22 @@ Canonical target: `docs/specs/technical/luhmann-addressing.md` (title `Luhmann A
 - Current realization (informational): `ParseID`, `FromBasename` and `LetterLess` in
   `internal/luhmann/luhmann.go`; `nextLuhmannID` and its helpers in `internal/cli/luhmann.go`;
   `extractLuhmannFromFilename` in `internal/cli/learn.go`. The parse and order functions are a
-  shared kernel: note-authoring, the vault scanner, Luhmann reparenting and the exchange code all
+  shared kernel: note-authoring ([792b12 note-authoring](#792b12-added-note-authoring)), the vault scanner, Luhmann reparenting and the exchange code all
   use them.
 - Qualification: responsibility, the scheme is stated without naming any caller; ownership, callers
   choose the target and position, while this component decides what ID they yield; independent
   verification, parsing, ordering and allocation are pure functions tested directly; stability, the
   scheme is the vault's addressing convention and outlives any refactoring; necessity, every fact,
   feedback and runbook note is placed by it.
-- Supported capabilities: [792a3](./792a_product-spec.md#792a3-added-note-writing) note-writing. Vault-migration adds reparenting's needs ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
+- Supported capabilities: [792a3](./792a_product-spec.md#792a3-added-note-writing) note-writing. Vault-migration ([792a10 vault-migration](./792a_product-spec.md#792a10-added-vault-migration)) adds reparenting's needs ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
 
 Rationale: Luhmann IDs must be unique across the vault and well formed, a digit-led run of digits
 and letters. The allocator only ever returns an ID that no existing note holds; two concurrent
-writers are kept from allocating the same one by the vault-write-lock.
+writers are kept from allocating the same one by the vault-write-lock ([792b8 vault-write-lock](#792b8-added-vault-write-lock)).
 
 ### 792b7b Sequences
 
-The luhmann-addressing owns no flow. Note-authoring calls it, under the vault write lock, with the
+The luhmann-addressing owns no flow. Note-authoring ([792b12 note-authoring](#792b12-added-note-authoring)) calls it, under the vault write lock, with the
 vault's existing IDs.
 
 ### 792b7c Behavior Requirements
@@ -3435,7 +3435,7 @@ Canonical target: `docs/specs/technical/vault-write-lock.md` (title `Vault Write
   primitives and over a real lock file; stability, the contract survives any change to the
   injection seam; necessity, concurrent note writes depend on it.
 - Supported capabilities: [792a3](./792a_product-spec.md#792a3-added-note-writing) note-writing, [792a4](./792a_product-spec.md#792a4-added-note-revision) note-revision, [792a5](./792a_product-spec.md#792a5-added-chunk-indexing) chunk-indexing.
-  Controlled-vocabulary adds its callers' requirements ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later), [792d63](./792d_decision-log.md#792d63-which-writer-takes-which-lock-is-the-writers-requirement)).
+  Controlled-vocabulary ([792a6 controlled-vocabulary](./792a_product-spec.md#792a6-added-controlled-vocabulary)) adds its callers' requirements ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later), [792d63](./792d_decision-log.md#792d63-which-writer-takes-which-lock-is-the-writers-requirement)).
 
 Rationale: before every read-modify-write writer took a lock, only `learn`'s Luhmann-ID allocation
 was locked, and two concurrent `ingest`, `amend`, `resituate` or `activate` runs corrupted the vault
@@ -3614,7 +3614,7 @@ Canonical target: `docs/specs/technical/text-embedder.md` (title `Text Embedder 
   backends and cache filesystems and over the real bundled model; stability, the contract survives
   a change of runtime library; necessity, every sidecar and every query phrase depends on it.
 - Supported capabilities: [792a3](./792a_product-spec.md#792a3-added-note-writing) note-writing, [792a5](./792a_product-spec.md#792a5-added-chunk-indexing) chunk-indexing, [792a6](./792a_product-spec.md#792a6-added-controlled-vocabulary) controlled-vocabulary,
-  [792a7](./792a_product-spec.md#792a7-added-memory-query) memory-query. Vault-health adds its mappings ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
+  [792a7](./792a_product-spec.md#792a7-added-memory-query) memory-query. Vault-health ([792a9 vault-health](./792a_product-spec.md#792a9-added-vault-health)) adds its mappings ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
 
 Rationale: an early design embedded through an external API, which brought a network dependency,
 per-call cost and latency, and sent vault content off the machine. Instead the
@@ -3977,7 +3977,7 @@ Canonical target: `docs/specs/technical/embedding-sidecar.md` (title `Embedding 
   reads it.
 - Supported capabilities: [792a2](./792a_product-spec.md#792a2-added-vault-identity) vault-identity, [792a3](./792a_product-spec.md#792a3-added-note-writing) note-writing, [792a4](./792a_product-spec.md#792a4-added-note-revision) note-revision, [792a5](./792a_product-spec.md#792a5-added-chunk-indexing)
   chunk-indexing, [792a6](./792a_product-spec.md#792a6-added-controlled-vocabulary) controlled-vocabulary, [792a7](./792a_product-spec.md#792a7-added-memory-query) memory-query, [792a9](./792a_product-spec.md#792a9-added-vault-health) vault-health.
-  Vault-migration adds its mappings ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
+  Vault-migration ([792a10 vault-migration](./792a_product-spec.md#792a10-added-vault-migration)) adds its mappings ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
 
 Rationale: semantic search needs vectors, but a vector database or a separate rebuild step is a
 moving part that can drift from the notes. Instead every note carries its own sidecar, written as
@@ -4753,7 +4753,7 @@ Canonical target: `docs/specs/technical/note-provenance.md` (title `Note Provena
 ### 792b11a Orientation
 
 - Ownership: Repository-owned dependency-boundary interaction (`git`, through the
-  subprocess-runner, and the operating system's user lookup).
+  subprocess-runner ([792b4 subprocess-runner](#792b4-added-subprocess-runner)), and the operating system's user lookup).
 - Responsibility: works out who and where a note write comes from: the repository of the working
   directory and the writing user. It stamps them, with the vault name, on a note's first write and
   re-stamps them on a revision, and omits, with a warning, any value that does not resolve, except
@@ -4768,7 +4768,7 @@ Canonical target: `docs/specs/technical/note-provenance.md` (title `Note Provena
   lookup; stability, the fields and their sources survive any change to the writers; necessity,
   every note's `repo:`, `user:` and `vault:` come from it.
 - Supported capabilities: [792a2](./792a_product-spec.md#792a2-added-vault-identity) vault-identity, [792a3](./792a_product-spec.md#792a3-added-note-writing) note-writing, [792a4](./792a_product-spec.md#792a4-added-note-revision) note-revision, [792a10](./792a_product-spec.md#792a10-added-vault-migration)
-  vault-migration. Vault-serving and parent-sync add their requirements ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later), [792d67](./792d_decision-log.md#792d67-note-provenance-covers-detection-and-the-first-write-stamp)).
+  vault-migration ([792a10 vault-migration](./792a_product-spec.md#792a10-added-vault-migration)). Vault-serving ([792a20 vault-serving](./792a_product-spec.md#792a20-added-vault-serving)) and parent-sync ([792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync)) add their requirements ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later), [792d67](./792d_decision-log.md#792d67-note-provenance-covers-detection-and-the-first-write-stamp)).
 
 Rationale: detection shells out to `git` rather than reading `.git/config`, because reproducing
 git's own configuration precedence (worktrees, `includeIf` and so on) would bring no benefit.
@@ -5275,8 +5275,8 @@ Canonical target: `docs/specs/technical/note-authoring.md` (title `Note Authorin
 
 ### 792b12a Orientation
 
-- Ownership: Repository component (caller of note-document-format, luhmann-addressing,
-  vault-write-lock, embedding-sidecar, note-provenance and durable-file-store).
+- Ownership: Repository component (caller of note-document-format ([792b6 note-document-format](#792b6-added-note-document-format)), luhmann-addressing ([792b7 luhmann-addressing](#792b7-added-luhmann-addressing)),
+  vault-write-lock ([792b8 vault-write-lock](#792b8-added-vault-write-lock)), embedding-sidecar ([792b10 embedding-sidecar](#792b10-added-embedding-sidecar)), note-provenance ([792b11 note-provenance](#792b11-added-note-provenance)) and durable-file-store ([792b3 durable-file-store](#792b3-added-durable-file-store))).
 - Responsibility: carries out `engram learn fact`, `feedback`, `runbook` and `qa`. It validates the
   arguments, turns them into a note's fields, and orders the write: lock the vault, allocate the
   Luhmann ID, stamp provenance, render and create the note, write its sidecar and vocabulary tags,
@@ -5294,7 +5294,7 @@ Canonical target: `docs/specs/technical/note-authoring.md` (title `Note Authorin
   it is tested directly over injected dependencies; stability, the capture flow survives any
   refactoring of the components it calls; necessity, every new note is written through it.
 - Supported capabilities: [792a3](./792a_product-spec.md#792a3-added-note-writing) note-writing, [792a6](./792a_product-spec.md#792a6-added-controlled-vocabulary) controlled-vocabulary, [792a22](./792a_product-spec.md#792a22-added-curate) curate ([792b12c8](#792b12c8-the-pending-marker-is-not-set-by-a-local-learn)).
-  Skill-runbook-registration, write-memory, learn, vault-serving and parent-sync add their requirements ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
+  Skill-runbook-registration ([792a12 skill-runbook-registration](./792a_product-spec.md#792a12-added-skill-runbook-registration)), write-memory ([792a13 write-memory](./792a_product-spec.md#792a13-added-write-memory)), learn ([792a15 learn](./792a_product-spec.md#792a15-added-learn)), vault-serving ([792a20 vault-serving](./792a_product-spec.md#792a20-added-vault-serving)) and parent-sync ([792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync)) add their requirements ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
 
 Rationale: the vault lock spans everything from listing the existing IDs to creating the note, so
 two concurrent writers never allocate the same ID; creating the note exclusively is a backstop that
@@ -5593,7 +5593,7 @@ Scenario: 792b12c5a7 A failed removal is reported too
 
 Requirement: [792b12c6](#792b12c6-vocabulary-tagging-after-a-write) After creating a fact, feedback or runbook note and writing its sidecar, and
 after writing both sidecars of a question-and-answer pair, the note-authoring MUST have the
-vocabulary-engine tag the written note (the answer only, never the question) and then check whether
+vocabulary-engine ([792b20 vocabulary-engine](#792b20-added-vocabulary-engine)) tag the written note (the answer only, never the question) and then check whether
 a refit is due, and MUST still succeed when tagging or the check does nothing.
 
 Supports: [792a3u1a](./792a_product-spec.md#792a3u1-uat-scenarios), [792a3u1b](./792a_product-spec.md#792a3u1-uat-scenarios), [792a6c1a](./792a_product-spec.md#792a6c1-uat-scenarios), [792a6d1a](./792a_product-spec.md#792a6d1-uat-scenarios), [792a6e1a](./792a_product-spec.md#792a6e1-uat-scenarios), [792a6e1b](./792a_product-spec.md#792a6e1-uat-scenarios), [792a6s1a](./792a_product-spec.md#792a6s1-uat-scenarios), [792a6s1c](./792a_product-spec.md#792a6s1-uat-scenarios).
@@ -5854,8 +5854,8 @@ Canonical target: `docs/specs/technical/wikilink-graph.md` (title `Wikilink Grap
 - Responsibility: the vault seen as a set of linked notes. It scans the notes at the vault root,
   keying each by its basename without `.md` and recording its leading Luhmann ID and the link
   targets in its text, and it resolves a reference a user gives for a note to the note it names.
-  It builds the directed link graph, reads a note's in-degree for the vault-counter, and lists the
-  links that resolve to no note for vault-health.
+  It builds the directed link graph, reads a note's in-degree for the vault-counter ([792b25 vault-counter](#792b25-added-vault-counter)), and lists the
+  links that resolve to no note for vault-health ([792a9 vault-health](./792a_product-spec.md#792a9-added-vault-health)).
 - Current realization (informational): `internal/vaultgraph` (`ScanVault`, `ParseBasename`,
   `ParseWikilinks`, `BuildGraph`, `UnresolvedTargets`); `normalizeNoteRef` in
   `internal/cli/note_ref.go`; `findNote` in `internal/cli/resituate.go`. `BFSWithCap`,
@@ -5867,7 +5867,7 @@ Canonical target: `docs/specs/technical/wikilink-graph.md` (title `Wikilink Grap
   basename key is the link form notes and Obsidian share, and it survives any refactoring;
   necessity, every command that reads or revises a named note finds it here.
 - Supported capabilities: [792a2](./792a_product-spec.md#792a2-added-vault-identity) vault-identity, [792a4](./792a_product-spec.md#792a4-added-note-revision) note-revision, [792a7](./792a_product-spec.md#792a7-added-memory-query) memory-query, [792a8](./792a_product-spec.md#792a8-added-vault-counting)
-  vault-counting, [792a9](./792a_product-spec.md#792a9-added-vault-health) vault-health. Vault-migration adds its mappings ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later), [792d75](./792d_decision-log.md#792d75-wikilink-graphs-link-graph-and-resolution-contracts-arrive-with-their-scenarios)).
+  vault-counting ([792a8 vault-counting](./792a_product-spec.md#792a8-added-vault-counting)), [792a9](./792a_product-spec.md#792a9-added-vault-health) vault-health. Vault-migration ([792a10 vault-migration](./792a_product-spec.md#792a10-added-vault-migration)) adds its mappings ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later), [792d75](./792d_decision-log.md#792d75-wikilink-graphs-link-graph-and-resolution-contracts-arrive-with-their-scenarios)).
 
 Rationale: navigation lives in authored relations, the wikilinks in note text, rather than in a
 separate graph store that could drift from the notes, so the graph is derived from the notes each
@@ -6294,8 +6294,8 @@ Canonical target: `docs/specs/technical/note-amendment.md` (title `Note Amendmen
 
 ### 792b14a Orientation
 
-- Ownership: Repository component (caller of wikilink-graph, note-document-format,
-  note-provenance, embedding-sidecar, durable-file-store and vault-write-lock).
+- Ownership: Repository component (caller of wikilink-graph ([792b13 wikilink-graph](#792b13-added-wikilink-graph)), note-document-format ([792b6 note-document-format](#792b6-added-note-document-format)),
+  note-provenance ([792b11 note-provenance](#792b11-added-note-provenance)), embedding-sidecar ([792b10 embedding-sidecar](#792b10-added-embedding-sidecar)), durable-file-store ([792b3 durable-file-store](#792b3-added-durable-file-store)) and vault-write-lock ([792b8 vault-write-lock](#792b8-added-vault-write-lock))).
 - Responsibility: revises a note that already exists. Under the vault lock it finds the note,
   reads it as LF, checks the revision's arguments, applies the field, supersession, chunk-source and
   identity changes, writes the note once, and rebuilds its sidecar when what is embedded changed. It
@@ -6304,7 +6304,7 @@ Canonical target: `docs/specs/technical/note-amendment.md` (title `Note Amendmen
 - Current realization (informational): `internal/cli/amend.go` (`RunAmend`), `resituate.go`
   (`RunResituate`), `supersedes.go` (`replaceSupersedes`, `parseAllSupersedes`), `activate.go`
   (`RunActivate`, `bumpLastUsed`); the amend and resituate targets in `internal/cli/targets.go`.
-  The curation flags in `amend_fold.go` are curate's, the offer hooks are offer-outbox's ([792b36](#792b36-added-offer-outbox)) and
+  The curation flags in `amend_fold.go` are curate's ([792a22 curate](./792a_product-spec.md#792a22-added-curate)), the offer hooks are offer-outbox's ([792b36](#792b36-added-offer-outbox)) and
   the pull-down is parent-vault-client's ([792b37](#792b37-added-parent-vault-client)).
 - Qualification: responsibility, revising a stored note is stated without naming any function;
   ownership, it owns the ordering of lookup, validation, edit, write and re-embed, while the format,
@@ -6314,7 +6314,7 @@ Canonical target: `docs/specs/technical/note-amendment.md` (title `Note Amendmen
   change to the flags that drive it; necessity, every change an agent makes to an existing note
   goes through it.
 - Supported capabilities: [792a4](./792a_product-spec.md#792a4-added-note-revision) note-revision, [792a6](./792a_product-spec.md#792a6-added-controlled-vocabulary) controlled-vocabulary, [792a21](./792a_product-spec.md#792a21-added-parent-sync) parent-sync ([792b14c12](#792b14c12-activation-against-the-parent),
-  [792b14c13](#792b14c13-a-discard-of-a-pulled-note-records-its-decline)), [792a22](./792a_product-spec.md#792a22-added-curate) curate ([792b14c14](#792b14c14-settling-a-pending-offer)). Write-memory and recall add their requirements ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
+  [792b14c13](#792b14c13-a-discard-of-a-pulled-note-records-its-decline)), [792a22](./792a_product-spec.md#792a22-added-curate) curate ([792b14c14](#792b14c14-settling-a-pending-offer)). Write-memory ([792a13 write-memory](./792a_product-spec.md#792a13-added-write-memory)) and recall ([792a14 recall](./792a_product-spec.md#792a14-added-recall)) add their requirements ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
 
 Rationale: a revision is a read-modify-write of a note and its sidecar, so two revisions, or a
 revision and a learn, that interleave could each overwrite the other's change. Every revision takes
@@ -6557,7 +6557,7 @@ Scenario: 792b14c4a2 Chunk sources are merged
 
 #### 792b14c5 Identity re-stamp gating
 
-Requirement: [792b14c5](#792b14c5-identity-re-stamp-gating) The note-amendment MUST have note-provenance re-stamp a note ([792b11c4](#792b11c4-re-stamp)) exactly
+Requirement: [792b14c5](#792b14c5-identity-re-stamp-gating) The note-amendment MUST have note-provenance ([792b11 note-provenance](#792b11-added-note-provenance)) re-stamp a note ([792b11c4](#792b11c4-re-stamp)) exactly
 when the amend supplies a content flag of any kind, a `--red-flag`, a `--trigger`, a `--supersedes`
 or a `--chunk-source`, detecting the repository from the working directory whatever the note's
 `project:`, and MUST NOT re-stamp it otherwise. On every amend it writes, it MUST fill an absent or
@@ -6770,7 +6770,7 @@ Scenario: 792b14c10a4 All refs failing fails the command
 #### 792b14c11 Vocabulary tagging after a revision
 
 Requirement: [792b14c11](#792b14c11-vocabulary-tagging-after-a-revision) After an amend or a resituate writes the note (and, for a resituate, after its
-sidecar is rewritten), the note-amendment MUST have the vocabulary-engine tag the note's written
+sidecar is rewritten), the note-amendment MUST have the vocabulary-engine ([792b20 vocabulary-engine](#792b20-added-vocabulary-engine)) tag the note's written
 content and then check whether a refit is due.
 
 Supports: [792a6d1d](./792a_product-spec.md#792a6d1-uat-scenarios), [792a6d1e](./792a_product-spec.md#792a6d1-uat-scenarios).
@@ -7187,7 +7187,7 @@ Canonical target: `docs/specs/technical/transcript-reader.md` (title `Transcript
   the last entry it kept.
 - Session stores: engram reads the harnesses' transcripts as files, not through a harness API.
   Claude Code writes `~/.claude/projects/<slug>/*.jsonl`; Pi writes session JSONL under `.pi`
-  directories, which chunk-indexing sweeps ([792a5d](./792a_product-spec.md#792a5d-automatic-sweep-roots)) or names with `--pi-sessions` ([792a5b](./792a_product-spec.md#792a5b-explicitly-named-sources)). Only
+  directories, which chunk-indexing ([792a5 chunk-indexing](./792a_product-spec.md#792a5-added-chunk-indexing)) sweeps ([792a5d](./792a_product-spec.md#792a5d-automatic-sweep-roots)) or names with `--pi-sessions` ([792a5b](./792a_product-spec.md#792a5b-explicitly-named-sources)). Only
   JSONL is read.
 - Current realization (informational): `JSONLReader.ReadFrom` in `internal/transcript/transcript.go`,
   over `StripWithConfigIndexed` with `ToolSummaryMode` and the shared cleaning helpers in
@@ -7605,7 +7605,7 @@ Canonical target: `docs/specs/technical/ingestion-source-discovery.md` (title `I
 
 ### 792b17a Orientation
 
-- Ownership: Repository component, walking the local filesystem through the durable-file-store's
+- Ownership: Repository component, walking the local filesystem through the durable-file-store's ([792b3 durable-file-store](#792b3-added-durable-file-store))
   directory walk.
 - Responsibility: turns one `engram ingest` invocation into the list of source files to index. It
   takes the named files, expands the named Pi session directories, resolves the sweep roots, both
@@ -7618,7 +7618,7 @@ Canonical target: `docs/specs/technical/ingestion-source-discovery.md` (title `I
   `internal/cli/ingest_dedup.go`; `SweepSpec`, `DefaultSweepSpec`, `LoadSweepSpec`,
   `ResolveSweepRoots` and `dropNonPersistentRoots` in `internal/cli/sweepspec.go`.
 - Qualification: responsibility, finding the sources to index is stated without naming any
-  function; ownership, the chunk-index-store decides what to do with each source, while this
+  function; ownership, the chunk-index-store ([792b18 chunk-index-store](#792b18-added-chunk-index-store)) decides what to do with each source, while this
   component owns which files are sources and how each was found; independent verification, root
   resolution is tested as a pure function of the spec and an injected directory check, and
   gathering over fake listings; stability, the contract survives any change to the index;
@@ -8021,8 +8021,8 @@ Canonical target: `docs/specs/technical/chunk-index-store.md` (title `Chunk Inde
 
 ### 792b18a Orientation
 
-- Ownership: Repository component (caller of ingestion-source-discovery, transcript-reader,
-  source-chunking, text-embedder, durable-file-store and vault-write-lock).
+- Ownership: Repository component (caller of ingestion-source-discovery ([792b17 ingestion-source-discovery](#792b17-added-ingestion-source-discovery)), transcript-reader ([792b15 transcript-reader](#792b15-added-transcript-reader)),
+  source-chunking ([792b16 source-chunking](#792b16-added-source-chunking)), text-embedder ([792b9 text-embedder](#792b9-added-text-embedder)), durable-file-store ([792b3 durable-file-store](#792b3-added-durable-file-store)) and vault-write-lock ([792b8 vault-write-lock](#792b8-added-vault-write-lock))).
 - Responsibility: keeps the chunk index in its directory: one index file of embedded chunk records
   per indexed source, and a manifest recording every source it knows with its staleness signature
   and, for a copy, the source it copies. Under the manifest lock it reconciles the index with the
@@ -8047,7 +8047,7 @@ Canonical target: `docs/specs/technical/chunk-index-store.md` (title `Chunk Inde
   embedders and recording locks, and over the real filesystem; stability, the contract survives any
   change to how sources are found or chunked; necessity, every chunk a query returns comes from it.
 - Supported capabilities: [792a5](./792a_product-spec.md#792a5-added-chunk-indexing) chunk-indexing, [792a4](./792a_product-spec.md#792a4-added-note-revision) note-revision (chunk IDs), [792a7](./792a_product-spec.md#792a7-added-memory-query) memory-query
-  (the first-indexed time), [792a11](./792a_product-spec.md#792a11-added-install-and-update) install-and-update (the backlog check). Learn adds its requirements
+  (the first-indexed time), [792a11](./792a_product-spec.md#792a11-added-install-and-update) install-and-update (the backlog check). Learn ([792a15 learn](./792a_product-spec.md#792a15-added-learn)) adds its requirements
   ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
 
 Rationale: the index is rebuilt incrementally and offline, with no LLM. A source's index file is
@@ -8147,7 +8147,7 @@ in the chunks directory, one JSON record per line holding `source`, `anchor`, `c
 (`sha256:` and the hex SHA-256 of the text), `text`, `vector`, and `ingested_at` when set, and MUST
 keep `manifest.json` there mapping each known source path to its `mtime_unix_nano`, `size`,
 `file_hash` (`sha256:` and the hex SHA-256 of its bytes) and, for a recorded copy, `duplicate_of`.
-It MUST write both through the durable-file-store's atomic replace ([792b3c1](#792b3c1-atomic-replace)) with mode `0600`,
+It MUST write both through the durable-file-store's ([792b3 durable-file-store](#792b3-added-durable-file-store)) atomic replace ([792b3c1](#792b3c1-atomic-replace)) with mode `0600`,
 creating the chunks directory with mode `0700` when absent. Reading an index file MUST skip blank
 lines and fail on a line that is not a record.
 
@@ -8178,7 +8178,7 @@ Scenario: 792b18c1a3 A source's staleness signature is its modification time and
 #### 792b18c2 Locked reconciliation
 
 Requirement: [792b18c2](#792b18c2-locked-reconciliation) The chunk-index-store MUST create the chunks directory and take the
-vault-write-lock on `<chunks>/.manifest.lock` ([792b8c1](#792b8c1-exclusive-hold)) before `engram ingest` or `engram prune`
+vault-write-lock ([792b8 vault-write-lock](#792b8-added-vault-write-lock)) on `<chunks>/.manifest.lock` ([792b8c1](#792b8c1-exclusive-hold)) before `engram ingest` or `engram prune`
 reads the manifest, MUST hold it through every index-file and manifest write of the run, and MUST
 release it before returning. Its helpers, the manifest write among them, MUST NOT take the lock
 themselves. A failure to create the directory or take the lock MUST be returned with nothing read.
@@ -8263,7 +8263,7 @@ Scenario: 792b18c3a4 A missing index file is rebuilt
 
 Requirement: [792b18c4](#792b18c4-read-and-write-failures) When a source cannot be read, the chunk-index-store MUST return an error
 naming it if the source was named ([792b17c1](#792b17c1-named-sources)), and otherwise MUST print `skip <path>: <error>` on
-stdout and go on without it. Every other failure, of the transcript-reader, the embedder, or an
+stdout and go on without it. Every other failure, of the transcript-reader ([792b15 transcript-reader](#792b15-added-transcript-reader)), the embedder, or an
 index-file or manifest write, MUST be returned as an error.
 
 Supports: [792a5b1d](./792a_product-spec.md#792a5b1-uat-scenarios), [792a5c1b](./792a_product-spec.md#792a5c1-uat-scenarios).
@@ -8706,7 +8706,7 @@ Scenario: 792b18c13a2 A failure is an error
 #### 792b18c14 First-indexed time
 
 Requirement: [792b18c14](#792b18c14-first-indexed-time) When rebuilding a source ([792b18c5](#792b18c5-rebuilding-a-sources-index)), the chunk-index-store MUST stamp each chunk
-it embeds with `ingested_at`: for a transcript the last timestamp the transcript-reader returned
+it embeds with `ingested_at`: for a transcript the last timestamp the transcript-reader ([792b15 transcript-reader](#792b15-added-transcript-reader)) returned
 ([792b15c6](#792b15c6-last-timestamp)) when there is one, and otherwise, and for any other source, the current time. It MUST keep
 the `ingested_at` of every record it already holds, including one whose chunk is unchanged on a later
 rebuild. It MUST give a held record that has none the modification time that the manifest records for
@@ -9011,7 +9011,7 @@ Canonical target: `docs/specs/technical/similarity-clustering.md` (title `Simila
   cluster means, while this component owns the partition and its score; independent verification,
   it is tested directly on vectors; stability, the contract survives any change to its callers or to
   how vectors are stored; necessity, the vocabulary's terms are its clusters.
-- Supported capabilities: [792a6](./792a_product-spec.md#792a6-added-controlled-vocabulary) controlled-vocabulary, [792a7](./792a_product-spec.md#792a7-added-memory-query) memory-query. Vault-migration adds its
+- Supported capabilities: [792a6](./792a_product-spec.md#792a6-added-controlled-vocabulary) controlled-vocabulary, [792a7](./792a_product-spec.md#792a7-added-memory-query) memory-query. Vault-migration ([792a10 vault-migration](./792a_product-spec.md#792a10-added-vault-migration)) adds its
   mappings and requirements ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
 
 Rationale: the vocabulary is derived from the vault's own geometry, so it reuses the clustering that
@@ -9253,9 +9253,9 @@ Canonical target: `docs/specs/technical/vocabulary-engine.md` (title `Vocabulary
 
 ### 792b20a Orientation
 
-- Ownership: Repository component (caller of vault-write-lock, durable-file-store,
-  luhmann-addressing, note-document-format, text-embedder, embedding-sidecar and
-  similarity-clustering).
+- Ownership: Repository component (caller of vault-write-lock ([792b8 vault-write-lock](#792b8-added-vault-write-lock)), durable-file-store ([792b3 durable-file-store](#792b3-added-durable-file-store)),
+  luhmann-addressing ([792b7 luhmann-addressing](#792b7-added-luhmann-addressing)), note-document-format ([792b6 note-document-format](#792b6-added-note-document-format)), text-embedder ([792b9 text-embedder](#792b9-added-text-embedder)), embedding-sidecar ([792b10 embedding-sidecar](#792b10-added-embedding-sidecar)) and
+  similarity-clustering ([792b19 similarity-clustering](#792b19-added-similarity-clustering))).
 - Responsibility: keeps the vault's controlled vocabulary. It recognizes definition notes and their
   terms, chooses each term's vector, tags a note with its closest terms, records the refit baseline and
   marks a refit due, reports vocabulary statistics, and carries out bootstrap, propose, refit, the
@@ -9278,7 +9278,7 @@ Canonical target: `docs/specs/technical/vocabulary-engine.md` (title `Vocabulary
 - Supported capabilities: [792a6](./792a_product-spec.md#792a6-added-controlled-vocabulary) controlled-vocabulary, note-writing's [792a3u](./792a_product-spec.md#792a3u-vocabulary-tagging-by-kind) and [792a7](./792a_product-spec.md#792a7-added-memory-query) memory-query.
 
 Rationale: tags are assigned at write time by cosine alone, so the write path needs no LLM and the
-vocabulary's cost stays off retrieval. Controlled-vocabulary tags were adopted after graph traversal
+vocabulary's cost stays off retrieval. Controlled-vocabulary ([792a6 controlled-vocabulary](./792a_product-spec.md#792a6-added-controlled-vocabulary)) tags were adopted after graph traversal
 over wikilinks was measured and rejected for retrieval; each write once assigned terms through two
 channels, and since the vocabulary moved onto tags ([792a6c](./792a_product-spec.md#792a6c-categorical-tags-share-one-list)) the `tags:` list is the only one. The
 term set used to be edited from an LLM-authored plan, which only ever grew; it is now derived from
@@ -9865,7 +9865,7 @@ Scenario: 792b20c12a3 The origin survives a failed definition write
 #### 792b20c13 Deriving clusters
 
 Requirement: [792b20c13](#792b20c13-deriving-clusters) For a refit, the vocabulary-engine MUST cluster the body vectors of every note
-that is not a definition and has a readable sidecar, in name order, with the similarity-clustering
+that is not a definition and has a readable sidecar, in name order, with the similarity-clustering ([792b19 similarity-clustering](#792b19-added-similarity-clustering))
 ([792b19c4](#792b19c4-choosing-the-number-of-clusters)) over K from 2 to 40 with floor 0.02 and seed 1; when the previous derivation's K (the
 number of existing terms not marked proposed, an absent origin counting as derived) is at least 2
 and differs from the result, it MUST also cluster at exactly that K and keep that result when it has
@@ -10741,7 +10741,7 @@ Canonical target: `docs/specs/technical/runbook-trigger-matching.md` (title `Run
   tested directly on texts and trigger lists, with a property test against a regular-expression
   oracle; stability, the contract survives any change to how notes are scanned or the payload is
   rendered; necessity, a cue-triggered runbook can be surfaced reliably only through it.
-- Supported capabilities: [792a7](./792a_product-spec.md#792a7-added-memory-query) memory-query. Ambient-guidance extends it (the shim passes the
+- Supported capabilities: [792a7](./792a_product-spec.md#792a7-added-memory-query) memory-query. Ambient-guidance ([792a19 ambient-guidance](./792a_product-spec.md#792a19-added-ambient-guidance)) extends it (the shim passes the
   message, [792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
 
 Rationale: a runbook is normally found by the similarity of its situation to the agent's phrases, but
@@ -11151,7 +11151,7 @@ Canonical target: `docs/specs/technical/query-payload-renderer.md` (title `Query
 ### 792b23a Orientation
 
 - Ownership: Repository component; the YAML document goes to stdout.
-- Responsibility: turns what the query-engine found into the payload the reader gets. It puts the
+- Responsibility: turns what the query-engine ([792b24 query-engine](#792b24-added-query-engine)) found into the payload the reader gets. It puts the
   trigger hits first and the newest chunks last, cuts the matched items to the limit, applies the chunk
   content policy (full text, snippets or none), previews an oversized red-flag list, labels each item,
   fills the budget block and the header fields, adds the stage timings and encodes the YAML document.
@@ -11161,10 +11161,10 @@ Canonical target: `docs/specs/technical/query-payload-renderer.md` (title `Query
   `snippet`, `resolveContentBudget`, `renderTimings` and the types `queryPayload`, `queryItem`,
   `queryBudget` and `queryTimings` in `internal/cli/query.go`, `query_triggers.go` and
   `merged_query.go`; `capRedFlagsForPreview` in `internal/cli/redflags_truncation.go`. The keys that
-  lead a payload with pending offers (curate) are added by that capability ([792d51](./792d_decision-log.md#792d51-command-line-surface-routing-requirements-arrive-with-their-scenarios)), and the tags of a
+  lead a payload with pending offers (curate ([792a22 curate](./792a_product-spec.md#792a22-added-curate))) are added by that capability ([792d51](./792d_decision-log.md#792d51-command-line-surface-routing-requirements-arrive-with-their-scenarios)), and the tags of a
   merged payload are [792b23c9](#792b23c9-the-item-tags-of-a-merge).
 - Qualification: responsibility, shaping and cutting a payload is stated without naming any
-  function; ownership, the query-engine decides what is in it, while this component owns its order,
+  function; ownership, the query-engine ([792b24 query-engine](#792b24-added-query-engine)) decides what is in it, while this component owns its order,
   its cuts and its labels; independent verification, it is tested directly on item lists and notes,
   with a property test for the red-flag preview; stability, the contract survives any change to how
   matches are found; necessity, every query payload is made by it.
@@ -11383,7 +11383,7 @@ Scenario: 792b23c5a3 Without lazy mode the key is absent
 
 Requirement: [792b23c6](#792b23c6-budget-block) The query-payload-renderer MUST fill the budget with the phrases queried, the notes
 in the vault, the notes with embeddings, the clusters found, the limit and the explore allocation as
-the query-engine gives them, `direct_hits_returned` as the number of items printed whose provenances include `direct`,
+the query-engine ([792b24 query-engine](#792b24-added-query-engine)) gives them, `direct_hits_returned` as the number of items printed whose provenances include `direct`,
 `items_with_full_content` as the number of items printed with content, less those reduced to snippets,
 `content_budget` as the budget resolved by [792b23c4](#792b23c4-chunk-content-budget) and `chunks_snippeted` as the number reduced, and
 MUST print `explore_allocated` in every payload, `{}` when empty.
@@ -11413,7 +11413,7 @@ Scenario: 792b23c6a3 The allocation is always present
 
 Requirement: [792b23c7](#792b23c7-stage-timings) When timing is on, the query-payload-renderer MUST read the injected clock to end the
 render stage and MUST add the `timings` block with `scan_ms`, `embed_ms`, `cluster_ms`, `nominate_ms`
-and `render_ms`, each the whole milliseconds between the readings that the query-engine took at the
+and `render_ms`, each the whole milliseconds between the readings that the query-engine ([792b24 query-engine](#792b24-added-query-engine)) took at the
 start of the query and at the end of each stage, the stages following one another. A run MUST read the
 clock six times in all. When timing is off, or there is no clock, it MUST NOT read the clock for
 timing and MUST NOT add the block.
@@ -11752,9 +11752,9 @@ Canonical target: `docs/specs/technical/query-engine.md` (title `Query Engine - 
 
 ### 792b24a Orientation
 
-- Ownership: Repository component (the caller of the text-embedder, the embedding-sidecar, the
-  chunk-index-store, the similarity-clustering, the vocabulary-engine, the recency-ranking, the
-  runbook-trigger-matching and the query-payload-renderer).
+- Ownership: Repository component (the caller of the text-embedder ([792b9 text-embedder](#792b9-added-text-embedder)), the embedding-sidecar ([792b10 embedding-sidecar](#792b10-added-embedding-sidecar)), the
+  chunk-index-store ([792b18 chunk-index-store](#792b18-added-chunk-index-store)), the similarity-clustering ([792b19 similarity-clustering](#792b19-added-similarity-clustering)), the vocabulary-engine ([792b20 vocabulary-engine](#792b20-added-vocabulary-engine)), the recency-ranking ([792b21 recency-ranking](#792b21-added-recency-ranking)), the
+  runbook-trigger-matching ([792b22 runbook-trigger-matching](#792b22-added-runbook-trigger-matching)) and the query-payload-renderer ([792b23 query-payload-renderer](#792b23-added-query-payload-renderer))).
 - Responsibility: answers a query. It reads the vault's notes and their sidecars and the chunk index,
   embeds each phrase, scores notes and chunks against it, keeps the best of each phrase, merges and
   bounds the matches, clusters them once, nominates each cluster's candidate notes, samples the
@@ -11766,15 +11766,15 @@ Canonical target: `docs/specs/technical/query-engine.md` (title `Query Engine - 
   `internal/cli/query_vault_meta.go` (the one pass over every note's metadata, the supersession
   ride-along); `internal/cli/query_explore.go` (the explore half). The pending-offer exclusion in
   `internal/cli/offer.go` and the merge with a parent vault in `internal/cli/merged_query.go` are
-  added by curate and parent-sync.
+  added by curate ([792a22 curate](./792a_product-spec.md#792a22-added-curate)) and parent-sync ([792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync)).
 - Qualification: responsibility, finding and bounding what answers a query is stated without naming
   any function; ownership, the renderer shapes the payload and the callers choose the vault and the
   flags, while this component owns what is matched, clustered and sampled; independent verification,
   it is tested through `RunQuery` and its helpers over an in-memory vault and a fixed embedder, and by
   property tests; stability, the contract survives any change to the embedder, the index layout or
   the payload's shape; necessity, every recall passes through it.
-- Supported capabilities: [792a7](./792a_product-spec.md#792a7-added-memory-query) memory-query and note-writing's [792a3t](./792a_product-spec.md#792a3t-question-and-answer-retrieval). Recall, ambient-guidance,
-  vault-serving and parent-sync extend it ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
+- Supported capabilities: [792a7](./792a_product-spec.md#792a7-added-memory-query) memory-query and note-writing's [792a3t](./792a_product-spec.md#792a3t-question-and-answer-retrieval). Recall ([792a14 recall](./792a_product-spec.md#792a14-added-recall)), ambient-guidance ([792a19 ambient-guidance](./792a_product-spec.md#792a19-added-ambient-guidance)),
+  vault-serving ([792a20 vault-serving](./792a_product-spec.md#792a20-added-vault-serving)) and parent-sync ([792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync)) extend it ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
 
 Rationale: the engine is one deterministic pass with no LLM, so the same vault and phrases give the
 same payload, and the judgment about coverage stays with the reader. A single query process loads the
@@ -12096,7 +12096,7 @@ Scenario: 792b24c8a2 Without a chunk index only notes are returned
 
 #### 792b24c9 Clusters
 
-Requirement: [792b24c9](#792b24c9-clusters) The query-engine MUST cluster the matched set once with the similarity-clustering
+Requirement: [792b24c9](#792b24c9-clusters) The query-engine MUST cluster the matched set once with the similarity-clustering ([792b19 similarity-clustering](#792b19-added-similarity-clustering))
 ([792b19c4](#792b19c4-choosing-the-number-of-clusters)) for 2 to 7 clusters and a floor of 0.10, seeded from the FNV-1a hash of the phrases joined
 by line breaks, so that the same vault and phrases give the same clusters. When no clustering is found,
 or it fails, the whole set MUST be one cluster, its centroid the mean of the members' vectors and its
@@ -12587,7 +12587,7 @@ Requirement: [792b24c23](#792b24c23-searching-chunks-alone) For `query-chunks` t
 empty payload with `total_chunks: 0` and without embedding when the index holds no chunk. Otherwise it
 MUST score each chunk by its highest cosine over the phrases, rank by score, keep the first `limit`
 (20 when zero), and print `version: 1`, `space: chunks`, the phrases, the items, the clusters of the
-returned chunks, found by the similarity-clustering for 2 to 7 clusters, a floor of 0.10 and the seed 1,
+returned chunks, found by the similarity-clustering ([792b19 similarity-clustering](#792b19-added-similarity-clustering)) for 2 to 7 clusters, a floor of 0.10 and the seed 1,
 when there are at least six, and the budget `total_chunks` and `returned`.
 
 Supports: [792a7zf1a](./792a_product-spec.md#792a7zf1-uat-scenarios), [792a7zf1b](./792a_product-spec.md#792a7zf1-uat-scenarios), [792a7zf1c](./792a_product-spec.md#792a7zf1-uat-scenarios), [792a7zf1d](./792a_product-spec.md#792a7zf1-uat-scenarios), [792a7zf1e](./792a_product-spec.md#792a7zf1-uat-scenarios).
@@ -13034,12 +13034,12 @@ Canonical target: `docs/specs/technical/vault-counter.md` (title `Vault Counter 
   reports how many notes link to a named note and which ones. It reads notes and never writes.
 - Current realization (informational): `internal/cli/count.go` (`RunCount`, `CountArgs`, `CountDeps`).
 - Qualification: responsibility, counting by attribute value and by incoming link is stated without
-  naming any function; ownership, the command-line-surface decides when to run it and how to report
+  naming any function; ownership, the command-line-surface ([792b2 command-line-surface](#792b2-added-command-line-surface)) decides when to run it and how to report
   its error, while this component decides what is counted, in what order, and what is skipped;
   independent verification, it is tested directly over a fake vault listing and fake note contents;
   stability, an exact count over the whole vault is a lasting need that a change to recall does not
   touch; necessity, `engram count` is this contract.
-- Supported capabilities: [792a8](./792a_product-spec.md#792a8-added-vault-counting) vault-counting. The route capability extends it by using it as its
+- Supported capabilities: [792a8](./792a_product-spec.md#792a8-added-vault-counting) vault-counting. The route ([792a17 route](./792a_product-spec.md#792a17-added-route)) capability extends it by using it as its
   audit surface ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
 
 Rationale: a count and a recall answer different questions. Recall returns a similarity-ranked,
@@ -13528,7 +13528,7 @@ Canonical target: `docs/specs/technical/vault-invariant-checker.md` (title `Vaul
   `checkGraphResolution`, `checkSituationPresence`, `checkSidecars`, `printLinkExamples`,
   `printNoteExamples`).
 - Qualification: responsibility, the invariants and their severities are stated without naming any
-  function; ownership, the command-line-surface decides how the failure reaches stderr and the exit
+  function; ownership, the command-line-surface ([792b2 command-line-surface](#792b2-added-command-line-surface)) decides how the failure reaches stderr and the exit
   status, while this component decides what is judged and how; independent verification, it is
   tested directly over a fake scan, note reader and sidecar reader and over a real directory;
   stability, a vault with invariants that something checks is a lasting need; necessity, `engram
@@ -13924,7 +13924,7 @@ Canonical target: `docs/specs/technical/note-reparenting.md` (title `Note Repare
   directly over fake listing, reading, writing and renaming; stability, a vault whose IDs must change
   without breaking its links is a lasting need; necessity, `engram update --reparent-luhmann` is this
   contract.
-- Supported capabilities: [792a10](./792a_product-spec.md#792a10-added-vault-migration) vault-migration, [792a21](./792a_product-spec.md#792a21-added-parent-sync) parent-sync (the alias, [792b27c6](#792b27c6-rename-and-link-rewrite)). Install-and-update
+- Supported capabilities: [792a10](./792a_product-spec.md#792a10-added-vault-migration) vault-migration, [792a21](./792a_product-spec.md#792a21-added-parent-sync) parent-sync (the alias, [792b27c6](#792b27c6-rename-and-link-rewrite)). Install-and-update ([792a11 install-and-update](./792a_product-spec.md#792a11-added-install-and-update))
   extends it with the command's routing and notices ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
 
 Rationale: whether one note is a sub-point of another is a judgment of content that embeddings cannot
@@ -14629,14 +14629,14 @@ Canonical target: `docs/specs/technical/self-installer.md` (title `Self Installe
   `update.Filesystem`.
 - Qualification: responsibility, installing a newer binary and carrying the update out in it is stated
   without naming any function; ownership, it owns acquisition, the downgrade gate, the hand-off and the
-  report, while the deploy of skills and guidance belongs to harness-deploy-sync and each notice's
+  report, while the deploy of skills and guidance belongs to harness-deploy-sync ([792b29 harness-deploy-sync](#792b29-added-harness-deploy-sync)) and each notice's
   detection to the component that owns the state it reports; independent verification, the install
   steps run over a fake commander, filesystem and spawner, and the update run over fakes of those and a
   recording exit function; stability, the contract survives any change to how the deploy works;
   necessity, `engram update` is the only way a machine receives a new release.
 - Supported capabilities: [792a11](./792a_product-spec.md#792a11-added-install-and-update) install-and-update, [792a10](./792a_product-spec.md#792a10-added-vault-migration) vault-migration (the notices and the flag
   routing), [792a6](./792a_product-spec.md#792a6-added-controlled-vocabulary) controlled-vocabulary (the notices and the `--regen-vocab` summary).
-  Skill-runbook-registration, parent-sync and curate add the registration, outbox and pending-offer
+  Skill-runbook-registration ([792a12 skill-runbook-registration](./792a_product-spec.md#792a12-added-skill-runbook-registration)), parent-sync ([792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync)) and curate ([792a22 curate](./792a_product-spec.md#792a22-added-curate)) add the registration, outbox and pending-offer
   steps and notices of the update run ([792d103](./792d_decision-log.md#792d103-install-and-update-scope-ownership-of-the-update-run-and-the-behaviors-the-code-shows)).
 
 Rationale: the installed binary, not the running one, must carry out the deploy, because a release that
@@ -15742,11 +15742,11 @@ Canonical target: `docs/specs/technical/harness-deploy-sync.md` (title `Harness 
   `writeHarnessGuidanceHints`), over the injected `update.Filesystem`.
 - Qualification: responsibility, converging a harness onto a deploy set without deleting foreign files
   is stated without naming any function; ownership, it owns the roots, links and findings, while the
-  source choice, install and hand-off belong to self-installer and the guidance documents and the hints
-  that activate them to ambient-guidance; independent verification, every step runs over an in-memory
+  source choice, install and hand-off belong to self-installer ([792b28 self-installer](#792b28-added-self-installer)) and the guidance documents and the hints
+  that activate them to ambient-guidance ([792a19 ambient-guidance](./792a_product-spec.md#792a19-added-ambient-guidance)); independent verification, every step runs over an in-memory
   filesystem with injected faults; stability, the contract survives any change to the harness list or the
   deploy mode; necessity, a skill reaches a harness only through it.
-- Supported capabilities: [792a11](./792a_product-spec.md#792a11-added-install-and-update) install-and-update. Skill-runbook-registration and ambient-guidance
+- Supported capabilities: [792a11](./792a_product-spec.md#792a11-added-install-and-update) install-and-update. Skill-runbook-registration ([792a12 skill-runbook-registration](./792a_product-spec.md#792a12-added-skill-runbook-registration)) and ambient-guidance ([792a19 ambient-guidance](./792a_product-spec.md#792a19-added-ambient-guidance))
   extend it (the registration sources read the deployed skills, and the activation hints name the
   guidance it deploys).
 
@@ -15803,7 +15803,7 @@ when a probe fails for a reason other than not existing.
 Supports: [792a11g1a](./792a_product-spec.md#792a11g1-uat-scenarios), [792a11g1b](./792a_product-spec.md#792a11g1-uat-scenarios), [792a11g1c](./792a_product-spec.md#792a11g1-uat-scenarios).
 
 Rationale: OpenCode support was removed (#721), so the list holds two harnesses; the same detection is
-used by skill-source-discovery so the two never disagree on which harnesses exist.
+used by skill-source-discovery ([792b30 skill-source-discovery](#792b30-added-skill-source-discovery)) so the two never disagree on which harnesses exist.
 
 ##### 792b29c1a Scenarios
 
@@ -17109,7 +17109,7 @@ Canonical target: `docs/specs/technical/skill-source-discovery.md` (title `Skill
   `internal/cli/skillkeys.go` (`AssignSkillKeys`, `SkillKeySlug`, `parseSkillKey`).
 - Qualification: responsibility, discovering the skills a harness loads is stated without naming any
   scanner; ownership, it owns discovery, keys and read status, while the comparison with the vault belongs
-  to skill-registration-ledger and the harness list to harness-deploy-sync; independent verification, each
+  to skill-registration-ledger ([792b31 skill-registration-ledger](#792b31-added-skill-registration-ledger)) and the harness list to harness-deploy-sync ([792b29 harness-deploy-sync](#792b29-added-harness-deploy-sync)); independent verification, each
   scanner runs over an in-memory filesystem with injected read faults; stability, the contract survives the
   addition of a source or a change in how a harness stores its settings; necessity, no offer can be made
   without it.
@@ -18371,7 +18371,7 @@ Canonical target: `docs/specs/technical/skill-registration-ledger.md` (title `Sk
 ### 792b31a Orientation
 
 - Ownership: Repository component; terminal detection boundary.
-- Responsibility: turns the keyed candidates of skill-source-discovery and the vault's skill notes into
+- Responsibility: turns the keyed candidates of skill-source-discovery ([792b30 skill-source-discovery](#792b30-added-skill-source-discovery)) and the vault's skill notes into
   offers, remembers declined hashes, answers the offers from flags or a terminal, and carries an accepted
   offer out by writing, refreshing, adopting or removing the skill's runbook note, so that nothing is
   written without an answer.
@@ -18382,7 +18382,7 @@ Canonical target: `docs/specs/technical/skill-registration-ledger.md` (title `Sk
   `internal/cli/targets.go`, over the injected terminal gate, vault lock, filesystem and embedder.
 - Qualification: responsibility, deciding and recording what to offer and carrying the answer out is stated
   without naming any function; ownership, it owns offers, declines and note writes, while discovery and keys
-  belong to skill-source-discovery and the note format to note-document-format; independent verification,
+  belong to skill-source-discovery ([792b30 skill-source-discovery](#792b30-added-skill-source-discovery)) and the note format to note-document-format ([792b6 note-document-format](#792b6-added-note-document-format)); independent verification,
   the comparison, the answers and each action run over an in-memory vault with injected faults and a fake
   terminal; stability, the contract survives a new source or a new prompt style; necessity, it is the only
   writer of skill notes.
@@ -19679,13 +19679,13 @@ Canonical target: `docs/specs/technical/agent-instruction-bundle.md` (title `Age
 - Current realization (informational): `agent-instructions/skills/*/SKILL.md` and
   `agent-instructions/guidance/*.md`, checked by `dev/skillsmeta/metadata_test.go`.
 - Qualification: responsibility, the shape of what is shipped to an agent is stated without naming any file;
-  ownership, no other component constrains the text of a skill, while harness-deploy-sync only copies it and each
+  ownership, no other component constrains the text of a skill, while harness-deploy-sync ([792b29 harness-deploy-sync](#792b29-added-harness-deploy-sync)) only copies it and each
   skill capability owns its own procedure; independent verification, the metadata limit is checked directly
   against the shipped files; stability, the constraints survive a new skill or a new harness; necessity, a
   harness loads a skill only when its metadata fits, and a command template that breaks on a dash-led value fails
   silently at the agent.
-- Supported capabilities: [792a13](./792a_product-spec.md#792a13-added-write-memory) write-memory. Later capabilities that extend it: recall, learn,
-  lessons-contract, route, please, ambient-guidance and curate ([792d5](./792d_decision-log.md#792d5-agent-instruction-bundle-qualifies-as-a-component)).
+- Supported capabilities: [792a13](./792a_product-spec.md#792a13-added-write-memory) write-memory. Later capabilities that extend it: recall ([792a14 recall](./792a_product-spec.md#792a14-added-recall)), learn ([792a15 learn](./792a_product-spec.md#792a15-added-learn)),
+  lessons-contract ([792a16 lessons-contract](./792a_product-spec.md#792a16-added-lessons-contract)), route ([792a17 route](./792a_product-spec.md#792a17-added-route)), please ([792a18 please](./792a_product-spec.md#792a18-added-please)), ambient-guidance ([792a19 ambient-guidance](./792a_product-spec.md#792a19-added-ambient-guidance)) and curate ([792d5](./792d_decision-log.md#792d5-agent-instruction-bundle-qualifies-as-a-component)).
 
 Rationale: behavior lives in markdown skills that the agent executes, and deterministic compute lives in the
 binary. The two communicate only through the command line (arguments in, standard output out) and the vault on
@@ -19872,13 +19872,13 @@ Canonical target: `docs/specs/technical/exchange-versioning.md` (title `Exchange
   and `offer_receipt.go` (`exchangeHash`, `compareExchangeHashes`, `exchangeKeyClassification`,
   `exchangeFrontmatter`, `editExchangeBlocks`, `applyReceiptToContent`, `setXIDField`).
 - Qualification: responsibility, the hash, its comparison and the link edit are stated without naming a function;
-  ownership, it owns what is hashed and how two hashes compare, while note-document-format owns the frontmatter
+  ownership, it owns what is hashed and how two hashes compare, while note-document-format ([792b6 note-document-format](#792b6-added-note-document-format)) owns the frontmatter
   edit machinery it reuses and the exchange paths that call it (served learn, the outbox, pull-down, curation) own
   when to hash and edit; independent verification, a golden note fixes the hash and a property test moves each
   field in turn; stability, the contract survives a new frontmatter key, because a reflection test refuses an
   unclassified one; necessity, two vaults cannot tell whether a note changed, nor link it to its counterpart,
   without it.
-- Supported capabilities: [792a20](./792a_product-spec.md#792a20-added-vault-serving) vault-serving, [792a21](./792a_product-spec.md#792a21-added-parent-sync) parent-sync. Curate extends it later.
+- Supported capabilities: [792a20](./792a_product-spec.md#792a20-added-vault-serving) vault-serving, [792a21](./792a_product-spec.md#792a21-added-parent-sync) parent-sync. Curate ([792a22 curate](./792a_product-spec.md#792a22-added-curate)) extends it later.
 
 Rationale: a vault that exchanges notes needs a hash that changes when and only when an offered note's content
 changes. The sidecar's content hash (`embed.ContentHash`) covers other fields and exists to detect a stale
@@ -19890,8 +19890,8 @@ on a child and on its parent.
 
 ### 792b33b Sequences
 
-The exchange-versioning owns no flow: the exchange paths that call it ([792b35](#792b35-added-vault-http-server) for a served learn, parent-sync for the
-outbox and pull-down, curate for the fold) own their sequences.
+The exchange-versioning owns no flow: the exchange paths that call it ([792b35](#792b35-added-vault-http-server) for a served learn, parent-sync ([792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync)) for the
+outbox and pull-down, curate ([792a22 curate](./792a_product-spec.md#792a22-added-curate)) for the fold) own their sequences.
 
 ### 792b33c Behavior Requirements
 
@@ -19925,7 +19925,7 @@ feedback or runbook note, and MUST NOT change when any other frontmatter key cha
 `skill_hash`, `skill_key`, `skill_source`, `xid`, `parent`, `aliases` and `offer`. Every key of the fact, feedback and
 runbook frontmatter MUST be classified as offered or not offered, and a key on no frontmatter MUST NOT be classified.
 
-Supports: none. The hash is consumed by parent-sync and curate, whose scenarios map it ([792d118](./792d_decision-log.md#792d118-exchange-versioning-scope-requirements-with-no-product-scenario-yet-and-the-tests-it-keeps-apart)).
+Supports: none. The hash is consumed by parent-sync ([792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync)) and curate ([792a22 curate](./792a_product-spec.md#792a22-added-curate)), whose scenarios map it ([792d118](./792d_decision-log.md#792d118-exchange-versioning-scope-requirements-with-no-product-scenario-yet-and-the-tests-it-keeps-apart)).
 
 Rationale: placement, provenance, identity, bookkeeping and the exchange's own fields differ between a note and its
 counterpart in another vault without the content having changed, so hashing them would report a change that is none.
@@ -20142,7 +20142,7 @@ not decode, MUST return a note it leaves unchanged byte for byte, and MUST place
 writer does (`parent`, `aliases`, `offer`). A note without unknown keys or anchors MUST be written with the same
 bytes, and the same exchange hash, as the line-based rewrite it replaced.
 
-Supports: none. The edit is used by curate's fold and by the offer receipt ([792d118](./792d_decision-log.md#792d118-exchange-versioning-scope-requirements-with-no-product-scenario-yet-and-the-tests-it-keeps-apart)).
+Supports: none. The edit is used by curate's ([792a22 curate](./792a_product-spec.md#792a22-added-curate)) fold and by the offer receipt ([792d118](./792d_decision-log.md#792d118-exchange-versioning-scope-requirements-with-no-product-scenario-yet-and-the-tests-it-keeps-apart)).
 
 Rationale: an anchored value cannot be replaced without leaving its aliases dangling, and a rewrite that does not
 decode would corrupt a note an agent depends on, so the edit refuses before it writes. The fold refuses before it
@@ -20471,8 +20471,8 @@ Canonical target: `docs/specs/technical/pending-offer-bookkeeping.md` (title `Pe
   `vaultHasPendingOffers`, `warnIfPendingOffers`, `pendingOfferCurateInstruction`) and `internal/cli/amend_fold.go`
   (`checkJudgedVersion`, `foldInto`, `foldParentLinks`, `foldAliases`), with the header written by `RunShow`.
 - Qualification: responsibility, the marker, the scan, the check and the fold are stated without naming a function;
-  ownership, it owns what makes a note pending and how an offer is settled, while exchange-versioning owns the hash and
-  the link edit it calls, served learn and pull-down own the writing of a pending note, and curate owns the judgment;
+  ownership, it owns what makes a note pending and how an offer is settled, while exchange-versioning ([792b33 exchange-versioning](#792b33-added-exchange-versioning)) owns the hash and
+  the link edit it calls, served learn and pull-down own the writing of a pending note, and curate ([792a22 curate](./792a_product-spec.md#792a22-added-curate)) owns the judgment;
   independent verification, each runs over in-memory notes and a fake vault; stability, the contract survives a new
   note type or a new surfacing point; necessity, without it a pending offer would be served as a live note and an
   offer changed after it was judged could be accepted unseen.
@@ -20486,7 +20486,7 @@ the existing note's content is unchanged and only its links and names grow (ADR-
 
 ### 792b34b Sequences
 
-The pending-offer-bookkeeping owns no flow: the curation sequence is curate's, and the served write that creates a
+The pending-offer-bookkeeping owns no flow: the curation sequence is curate's ([792a22 curate](./792a_product-spec.md#792a22-added-curate)), and the served write that creates a
 pending offer is [792b35](#792b35-added-vault-http-server)'s.
 
 ### 792b34c Behavior Requirements
@@ -20961,7 +20961,7 @@ Canonical target: `docs/specs/technical/vault-http-server.md` (title `Vault HTTP
   `net/http` edge in `cmd/engram/serve.go` (the mux, the route registration, the listener and the bounded fetch client).
 - Qualification: responsibility, serving the four commands over HTTP is stated without naming a function or a handler;
   ownership, it owns the routes, statuses, size caps and the served-learn lookup, while the commands own their results
-  and exchange-versioning and pending-offer-bookkeeping own the hash and the marker it calls; independent verification,
+  and exchange-versioning ([792b33 exchange-versioning](#792b33-added-exchange-versioning)) and pending-offer-bookkeeping ([792b34 pending-offer-bookkeeping](#792b34-added-pending-offer-bookkeeping)) own the hash and the marker it calls; independent verification,
   every handler runs over an in-memory request and a temporary vault, and a real mux serves two round trips over TCP;
   stability, the route table and receipt are the contract children depend on; necessity, a child cannot offer or pull
   without it.
@@ -21550,7 +21550,7 @@ connect step is bounded to at most 3 seconds and whose total time is bounded to 
 proxy, TLS-handshake and idle-connection settings, and MUST read at most one byte more than the largest response a child
 accepts (16 MiB), so that an oversized response is detected and not truncated.
 
-Supports: none. The exchange that uses the client is parent-sync's, which maps its scenarios ([792d120](./792d_decision-log.md#792d120-vault-http-server-scope-the-fetch-boundary-and-what-the-built-server-showed)).
+Supports: none. The exchange that uses the client is parent-sync's ([792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync)), which maps its scenarios ([792d120](./792d_decision-log.md#792d120-vault-http-server-scope-the-fetch-boundary-and-what-the-built-server-showed)).
 
 Rationale: an unreachable parent costs at most 3 seconds once per backoff window, and a malicious parent cannot exhaust a
 child's memory.
@@ -21901,11 +21901,11 @@ Canonical target: `docs/specs/technical/offer-outbox.md` (title `Offer Outbox - 
 - Current realization (informational): `internal/cli/offer_classify.go` (`classifyOffer`), `offer_payload.go`
   (`buildOfferPayload`), `outbox.go` (`enqueueOutbox`, `drainOutbox`, `recordKeptReceipts`, `classifyOfferResponse`) and
   `offer_wiring.go` (`offerHooks`, `drainForCommand`, `ensureParentVaultID`, `newUpdateExchange`, `outboxNotice`). The
-  receipt edit it calls is exchange-versioning's `applyReceiptToContent` ([792b33c9](#792b33c9-recording-an-offer-receipt)).
+  receipt edit it calls is exchange-versioning's ([792b33 exchange-versioning](#792b33-added-exchange-versioning)) `applyReceiptToContent` ([792b33c9](#792b33c9-recording-an-offer-receipt)).
 - Qualification: responsibility, the offered writes, the outbox and the drain are stated without naming a function;
-  ownership, it owns what is offered, queued and sent, while exchange-versioning owns the hash and the receipt edit,
-  vault-identity-registry owns the parent cache, the backoff gate and the location and self-parent checks, the
-  vault-http-server owns the route that answers an offer, and the commands own when to drain; independent verification,
+  ownership, it owns what is offered, queued and sent, while exchange-versioning ([792b33 exchange-versioning](#792b33-added-exchange-versioning)) owns the hash and the receipt edit,
+  vault-identity-registry ([792b5 vault-identity-registry](#792b5-added-vault-identity-registry)) owns the parent cache, the backoff gate and the location and self-parent checks, the
+  vault-http-server ([792b35 vault-http-server](#792b35-added-vault-http-server)) owns the route that answers an offer, and the commands own when to drain; independent verification,
   every requirement is tested over an in-memory filesystem, lock, clock and fetch capability; stability, the contract
   survives a new offered command or a new outcome of a send; necessity, without it a child could not share what it
   learns and a local write would depend on its parent being up.
@@ -22362,7 +22362,7 @@ Scenario: 792b36c7a4 A forbidden basename character is never accepted
 #### 792b36c8 An accepted offer
 
 Requirement: [792b36c8](#792b36c8-an-accepted-offer) For an accepted offer, the drain MUST, under the lock, cache the vault ID the receipt reports and reset
-the failure count, record the receipt on the note with exchange-versioning's receipt edit ([792b33c9](#792b33c9-recording-an-offer-receipt)), and finish the
+the failure count, record the receipt on the note with exchange-versioning's ([792b33 exchange-versioning](#792b33-added-exchange-versioning)) receipt edit ([792b33c9](#792b33c9-recording-an-offer-receipt)), and finish the
 entry: removed when the note's exchange hash equals the hash that was sent, and queued again when it changed since. A
 receipt for a note that has been deleted since the snapshot MUST be discarded and its entry dropped. A receipt that
 fails to record for a reason other than the note refusing it ([792b36c15](#792b36c15-an-entry-that-waits)) MUST keep the entry queued, with the attempt
@@ -23094,7 +23094,7 @@ Canonical target: `docs/specs/technical/parent-vault-client.md` (title `Parent V
 - Qualification: responsibility, the parent requests, the merge and the pull-down are stated without naming a function;
   ownership, it owns what is asked of the parent and how the answer enters the vault, while the parent's side of each route
   is vault-http-server's ([792b35](#792b35-added-vault-http-server)), the cache, the backoff gate and the declined-pull record are
-  vault-identity-registry's ([792b5c14](#792b5c14-the-parent-cache-and-the-contact-backoff) to [792b5c16](#792b5c16-the-declined-pull-record)), the routing of `show` and `activate` is the command-line-surface's and
+  vault-identity-registry's ([792b5c14](#792b5c14-the-parent-cache-and-the-contact-backoff) to [792b5c16](#792b5c16-the-declined-pull-record)), the routing of `show` and `activate` is the command-line-surface's ([792b2 command-line-surface](#792b2-added-command-line-surface)) and
   note-amendment's ([792b2c10](#792b2c10-parent-routing-of-note-lookup), [792b14c12](#792b14c12-activation-against-the-parent)), and the outbox drain it triggers is offer-outbox's ([792b36](#792b36-added-offer-outbox)); independent
   verification, the merge is tested as pure functions over payloads and notes, and the requests through an injected fetch
   capability over scripted answers; stability, the contract survives a new parent route or a change to the merge's
