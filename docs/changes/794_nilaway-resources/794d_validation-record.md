@@ -102,3 +102,19 @@ environment mutation. The fixture analyzes only two tiny packages. No hard RSS g
 After these refinements, `targ reorder-decls-check`, `targ test-dev`, and
 `targ test-dev-integration` pass. The prior full check passed seven gates, failed declaration
 ordering (now fixed) and the existing sandbox-denied loopback test. Final validation stays open.
+
+## 794d10 Final Local Validation and Handoff
+
+Independent reviewer ACKs `c7f7d1c5` for implementation and plan reconciliation, not delivery.
+The final clean-checkpoint `targ check-full --dep-mode serial` reports eight passing gates:
+clean tree, declaration ordering, fast lint, full lint, deadcode, thin API, configured NilAway
+(9.658 seconds), and integration. Only `check-coverage-for-fail` fails because existing
+`Test792a20e1c_ServeAndFetch_LearnRoundTrip` cannot bind `[::1]:0` in this sandbox.
+The two explicit dev suites also pass with race detection. `git diff --check` passes.
+
+The original sibling worktree remains outside writable roots. A verified Git bundle at
+`/tmp/engram-794-checkpoints.bundle` preserves the continuation commits, with `e38a2f17`
+as its prerequisite. Transfer must reconcile the original worktree's uncommitted intermediate
+files; do not blindly overwrite or discard them. The `gh issue comment` update could not
+reach `api.github.com`; no successful tracker update is claimed. Final validation, original
+worktree transfer, authorized integration, and canonical promotion remain open.
