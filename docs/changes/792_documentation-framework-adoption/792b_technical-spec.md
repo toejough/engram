@@ -413,7 +413,7 @@ used, and `ENGRAM_SERVER` MUST NOT be read for any other purpose: its value is o
 Supports: [792a21a1a A command run with ENGRAM_SERVER set fails fast](./792a_product-spec.md#792a21a1-uat-scenarios), [792a21a1b Writes are refused too](./792a_product-spec.md#792a21a1-uat-scenarios), [792a21a1c serve is not exempt](./792a_product-spec.md#792a21a1-uat-scenarios), [792a21a1d ENGRAM_SERVER is not honored as an alias](./792a_product-spec.md#792a21a1-uat-scenarios).
 
 Rationale: the thin-client mode that read this variable sent ten commands to a remote server and touched no local file.
-Joe ruled out an alias shim and an exemption for `serve` (ADR-0029 D1), so the check sits ahead of every target and
+Joe ruled out an alias shim and an exemption for `serve`, so the check sits ahead of every target and
 nothing can reach a vault, a lock, a fetch or a bind first. A fleet host that still sets it fails on its first command
 and is told the replacement.
 
@@ -451,7 +451,7 @@ Supports: [792a21l1a --parent routes to the configured parent](./792a_product-sp
 Rationale: a bare Luhmann ID is minted per vault, so a lookup that guessed local-first without being told could return the
 wrong note with no error; the explicit flag and the origin tag of a merged item ([792a21g Merged items say where they came from](./792a_product-spec.md#792a21g-merged-items-say-where-they-came-from)) remove the guess, and a
 fallback that fires only after a local miss cannot return a wrong local note. Chunks never cross vaults, so there is no
-parent chunk lookup (ADR-0029 D9). The explicit `--parent` route is byte-identical to the parent's own answer, and only
+parent chunk lookup. The explicit `--parent` route is byte-identical to the parent's own answer, and only
 the fallback is labeled, because only the fallback leaves the reader unsure where the text came from.
 
 ##### 792b2c10a Scenarios
@@ -1107,7 +1107,7 @@ Canonical target: `docs/specs/technical/durable-file-store.md` (title `Durable F
 - Supported capabilities: [792a2 vault-identity](./792a_product-spec.md#792a2-added-vault-identity) vault-identity, [792a3 note-writing](./792a_product-spec.md#792a3-added-note-writing) note-writing, [792a4 note-revision](./792a_product-spec.md#792a4-added-note-revision) note-revision, [792a5 chunk-indexing](./792a_product-spec.md#792a5-added-chunk-indexing)
   chunk-indexing.
 
-Rationale: `os.WriteFile` is not atomic. Before ADR-0013, unlocked non-atomic writes let two
+Rationale: `os.WriteFile` is not atomic. Before the atomic-write rule, unlocked non-atomic writes let two
 concurrent `engram ingest` or `engram amend` runs corrupt state in production. A same-directory
 rename is atomic on POSIX, so a reader sees either the old file or the new one, never a partial
 write.
@@ -1747,7 +1747,7 @@ Canonical target: `docs/specs/technical/vault-identity-registry.md` (title `Vaul
   vault-identity's ([792a2 vault-identity](./792a_product-spec.md#792a2-added-vault-identity)) creation, ID and refusal requirements all depend on it.
 - Supported capabilities: [792a2 vault-identity](./792a_product-spec.md#792a2-added-vault-identity) vault-identity, [792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync) parent-sync ([792b5c14 The parent cache and the contact backoff](#792b5c14-the-parent-cache-and-the-contact-backoff) to [792b5c16 The declined-pull record](#792b5c16-the-declined-pull-record)).
 
-Rationale (ADR-0029 D2): every environment has its own local vault, created by the first command
+Rationale: every environment has its own local vault, created by the first command
 that resolves its path, and a stable random vault ID in the tracked `.engram-vault-id`. Exchange
 links key on that ID, never on URL or hostname, so DNS or IP churn breaks nothing. The untracked
 `.engram/home.json` location record catches a `cp -R` copy or a `git clone` before it exchanges.
@@ -2179,7 +2179,7 @@ cannot be read or written MUST be reported to its caller as an error.
 Supports: [792a21k1b A query inside the backoff window skips the parent](./792a_product-spec.md#792a21k1-uat-scenarios), [792a21s1a Commands inside the backoff window make no request](./792a_product-spec.md#792a21s1-uat-scenarios), [792a21s1b update always tries](./792a_product-spec.md#792a21s1-uat-scenarios), [792a21s1c The delay grows and is capped](./792a_product-spec.md#792a21s1-uat-scenarios), [792a21s1d A success resets the count](./792a_product-spec.md#792a21s1-uat-scenarios), [792a21s1e A different parent URL is not backed off](./792a_product-spec.md#792a21s1-uat-scenarios), [792a21s1f The window ends](./792a_product-spec.md#792a21s1-uat-scenarios).
 
 Rationale: without a backoff every command would wait out the connect timeout while a parent is down, and one offline
-host would slow every command the user runs (ADR-0029 D6). The record keys on the URL that failed, so reconfiguring the
+host would slow every command the user runs. The record keys on the URL that failed, so reconfiguring the
 parent tries the new one at once, and `update` always tries so that the end of an outage is noticed. The remembered vault
 ID is what lets a link count only under the parent it was made for ([792a21zj An exchanged note carries vault-qualified parent links](./792a_product-spec.md#792a21zj-an-exchanged-note-carries-vault-qualified-parent-links)).
 
@@ -2232,7 +2232,7 @@ Supports: [792a21v1b A malformed receipt is not recorded](./792a_product-spec.md
 
 Rationale: the parent is another machine's input. An accepted basename is stored in frontmatter, in the declined-pull
 record and in offers, so a separator would become a path and a `|` would corrupt the `note|type|claim` encoding of a
-supersession (ADR-0029 D6, D8).
+supersession.
 
 ##### 792b5c15a Scenarios
 
@@ -2260,7 +2260,7 @@ changed. A missing file MUST read as empty, and an unreadable or undecodable one
 Supports: [792a21ze1c A declined pull is remembered](./792a_product-spec.md#792a21ze1-uat-scenarios), [792a21ze1d A decline survives a parent rename](./792a_product-spec.md#792a21ze1-uat-scenarios), [792a21ze1g A decline under another parent does not apply](./792a_product-spec.md#792a21ze1-uat-scenarios).
 
 Rationale: a decline keyed by the parent's vault ID never suppresses a note of another parent, naming the aliases keeps a
-declined note declined after the parent renames it, and a changed hash is new information, so it pulls again (ADR-0029 D8).
+declined note declined after the parent renames it, and a changed hash is new information, so it pulls again.
 
 ##### 792b5c16a Scenarios
 
@@ -6819,7 +6819,7 @@ Supports: [792a21zc1a A parent-only ref pulls down](./792a_product-spec.md#792a2
 
 Rationale: a bare Luhmann ID names an unrelated note in another vault, so only a basename may leave this vault. The local
 pass holds the vault lock and each pull takes it only for its own write, because a fetch under the lock would stall every
-other writer for as long as the parent took to answer (ADR-0029 D8).
+other writer for as long as the parent took to answer.
 
 ##### 792b14c12a Scenarios
 
@@ -6877,7 +6877,7 @@ Supports: [792a21ze1c A declined pull is remembered](./792a_product-spec.md#792a
 
 Rationale: the decline is what stops an unchanged parent note that curation rejected from coming back on the next
 activate. A decline that failed to record must not delete the note, or the note could return unrecorded. Recording a
-decline in a vault with no parent would stamp a vault ID for no purpose (ADR-0029 D8).
+decline in a vault with no parent would stamp a vault ID for no purpose.
 
 ##### 792b14c13a Scenarios
 
@@ -6920,7 +6920,7 @@ sidecar. The judged-version check ([792b34c5 The judged-version check](#792b34c5
 Supports: [792a22b1b A local amend never sets the marker](./792a_product-spec.md#792a22b1-uat-scenarios), [792a22h1a An absent offer is accepted](./792a_product-spec.md#792a22h1-uat-scenarios), [792a22h1b Accepting an offer keeps its author](./792a_product-spec.md#792a22h1-uat-scenarios), [792a22k1d Clearing a skill note's marker makes it live](./792a_product-spec.md#792a22k1-uat-scenarios).
 
 Rationale: `--clear-pending` is the only way a curator accepts an offer, and the offer keeps its declared author because the
-bookkeeping amends do not re-stamp it (ADR-0029 D10). A pending note is a real file, so discarding it is a deletion, not a
+bookkeeping amends do not re-stamp it. A pending note is a real file, so discarding it is a deletion, not a
 revision.
 
 ##### 792b14c14a Scenarios
@@ -13048,7 +13048,7 @@ Canonical target: `docs/specs/technical/vault-counter.md` (title `Vault Counter 
 Rationale: a count and a recall answer different questions. Recall returns a similarity-ranked,
 truncated sample of the vault, so it cannot say how many notes carry a tag or link to a note.
 Counting is therefore a separate, read-only surface that never embeds, scores cosine similarity or
-clusters (ADR-0018). Its design goal is that each mode can be checked by hand against its own
+clusters. Its design goal is that each mode can be checked by hand against its own
 Obsidian view: `--group-by` against a property or tag filter, `--backlinks-of` against the
 backlinks panel.
 
@@ -13350,7 +13350,7 @@ from the notes alone, without a sidecar or an embedding.
 
 Supports: [792a8h1a A count leaves the vault as it was](./792a_product-spec.md#792a8h1-uat-scenarios), [792a8h1b Every note is counted without sidecars](./792a_product-spec.md#792a8h1-uat-scenarios).
 
-Rationale: counting is read-only and off the recall path (ADR-0018). The component is given only
+Rationale: counting is read-only and off the recall path. The component is given only
 listing and reading capabilities, so it cannot write.
 
 ##### 792b25c8a Scenarios
@@ -14644,7 +14644,7 @@ Canonical target: `docs/specs/technical/self-installer.md` (title `Self Installe
   steps and notices of the update run ([792d103 install-and-update scope, ownership of the update run, and the behaviors the code shows](./792d_decision-log.md#792d103-install-and-update-scope-ownership-of-the-update-run-and-the-behaviors-the-code-shows)).
 
 Rationale: the installed binary, not the running one, must carry out the deploy, because a release that
-changes how an update works would otherwise take effect one update late (ADR-0023). Because the child
+changes how an update works would otherwise take effect one update late. Because the child
 inherits the parent's streams and starts after the parent has printed, the output is one report in the
 order install result, then deploy and checks. A downgrade gate that fails open is the only safe shape: an
 update whose safety cannot be proved must still be possible, and only a provable regression blocks
@@ -15755,7 +15755,7 @@ Canonical target: `docs/specs/technical/harness-deploy-sync.md` (title `Harness 
   guidance it deploys).
 
 Rationale: an earlier update copied artifacts additively into the harness directories, so an artifact
-deleted from the source was never removed and a stray file persisted until deleted by hand (ADR-0022).
+deleted from the source was never removed and a stray file persisted until deleted by hand.
 Real files now live only in one root per harness that engram alone writes, and every discovery path is a
 link into it or a file the user owns. Because the only deletions are inside a root engram proved is its
 own and of links that provably point into it, the sync can propagate removals without risking user files.
@@ -20271,7 +20271,7 @@ Supports: [792a21zi1b The xid survives a rename](./792a_product-spec.md#792a21zi
 
 Rationale: a link or an exchange ID lost to an unrelated rewrite would silently disconnect a note from its counterpart,
 and the next exchange would treat the note as new. Each rewrite site has its own survival test because each rewrites
-the frontmatter in its own way, some by re-marshalling the typed document and some line by line (ADR-0029 D4).
+the frontmatter in its own way, some by re-marshalling the typed document and some line by line.
 
 ##### 792b33c10a Scenarios
 
@@ -20498,7 +20498,7 @@ Rationale: an offered note, whether sent by a child or pulled down from a parent
 knowledge, so everything that reads the vault must tell it apart from a live note, and what settles it must not act on
 a version nobody judged. Curation is expected upkeep, so the same instruction travels with every signal that offers are
 waiting. The fold refuses to guess: it never re-embeds, re-stamps identity, queues an offer or records a decline, because
-the existing note's content is unchanged and only its links and names grow (ADR-0029 D10).
+the existing note's content is unchanged and only its links and names grow.
 
 ### 792b34b Sequences
 
@@ -20987,7 +20987,7 @@ Rationale: a child needs to reach its parent without a second implementation of 
 command's own code, sharing its locks. The server takes its vault, vault name and chunk index once at startup, so no
 request can aim it elsewhere. A served write is an offer to be judged, never a live note, and the caller declares who it
 is, because the server has no authentication of its own and its trust boundary is network reachability. The net/http
-types stay in `cmd/engram`, so every other part of the server runs over primitives (ADR-0020).
+types stay in `cmd/engram`, so every other part of the server runs over primitives.
 
 ### 792b35b Sequences
 
@@ -21927,7 +21927,7 @@ Canonical target: `docs/specs/technical/offer-outbox.md` (title `Offer Outbox - 
   learns and a local write would depend on its parent being up.
 - Supported capabilities: [792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync) parent-sync.
 
-Rationale (ADR-0029 D5, D6): a local write must never fail because of the parent, so the outbox is written under the
+Rationale: a local write must never fail because of the parent, so the outbox is written under the
 vault lock in the write's own critical section, and the offer is built from the note when it is sent, so offline learn and
 amend coalesce into one offer carrying the latest content. The queue keys on the note's `xid`, which survives a rename,
 where a basename key would lose the entry. The drain sends with no lock held, because a lock held across a slow network
@@ -22021,7 +22021,7 @@ Supports: [792a21n1a learn is written locally and offered](./792a_product-spec.m
 Rationale: a content change is what a parent can use, and bookkeeping (a use, a discard, a relation) is local. Accepting
 a served offer is itself a local learn at that level, so it is offered onward unless it came from the parent, which
 keeps the single-parent tree free of loops. Suppressing an offer whose hash equals the link's hash is what stops a pulled
-note from bouncing back, while a link under another parent never suppresses (ADR-0029 D5, D12).
+note from bouncing back, while a link under another parent never suppresses.
 
 ##### 792b36c1a Scenarios
 
@@ -22186,7 +22186,7 @@ stamped MUST fail the enqueue. With no parent configured it MUST offer nothing, 
 Supports: [792a21m1b A write with no parent exchanges nothing](./792a_product-spec.md#792a21m1-uat-scenarios), [792a21q1a The parent is unreachable during learn](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21q1b Offline learn then amend coalesce](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21q1e A queued note is stamped with an exchange ID](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21q1g The first offer creates the exchange state in the right order](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21q1h A note is written even when no exchange ID can be made](./792a_product-spec.md#792a21q1-uat-scenarios), [792a2k1a State does not dirty the vault's git](./792a_product-spec.md#792a2k1-uat-scenarios), [792a2k1b The root .gitignore is untouched](./792a_product-spec.md#792a2k1-uat-scenarios).
 
 Rationale: the write completes locally whether or not the parent is up, so the outbox lives next to the note and is
-written in the write's own lock. Stamping the vault ID first keeps `.engram/` meaning created-by-engram (ADR-0029 D2).
+written in the write's own lock. Stamping the vault ID first keeps `.engram/` meaning created-by-engram.
 
 ##### 792b36c4a Scenarios
 
@@ -22349,7 +22349,7 @@ exchange basename ([792b5c15 Exchange identifiers](#792b5c15-exchange-identifier
 Supports: [792a21v1a A pre-change parent is detected](./792a_product-spec.md#792a21v1-uat-scenarios), [792a21v1b A malformed receipt is not recorded](./792a_product-spec.md#792a21v1-uat-scenarios).
 
 Rationale: the parent is another machine's input, so what it returns is checked before it is written into frontmatter.
-Only a 2xx with a whole, well formed receipt is a success, and a 5xx or a silent parent is an outage (ADR-0029 D6).
+Only a 2xx with a whole, well formed receipt is a success, and a 5xx or a silent parent is an outage.
 
 ##### 792b36c7a Scenarios
 
@@ -22567,7 +22567,7 @@ A step for an entry that another drain already cleared MUST NOT revive it.
 Supports: [792a21q1b Offline learn then amend coalesce](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21r1d A concurrent enqueue survives the drain](./792a_product-spec.md#792a21r1-uat-scenarios).
 
 Rationale: the sends ran without the lock, so the state they began from may be stale, and merging into a fresh read is
-what keeps both a concurrent enqueue and a concurrent clear (ADR-0029 D6).
+what keeps both a concurrent enqueue and a concurrent clear.
 
 ##### 792b36c14a Scenarios
 
@@ -22602,7 +22602,7 @@ Supports: [792a21w1a A refused receipt needs attention](./792a_product-spec.md#7
 
 Rationale: the parent accepted the offer, so resending it would be wrong, and the note cannot take its link until its
 owner repairs it. Keeping the receipt rather than the offer makes the repair automatic, and recording it before the
-gate means a fixed note is linked even while the parent is away (ADR-0029 D6).
+gate means a fixed note is linked even while the parent is away.
 
 ##### 792b36c15a Scenarios
 
@@ -23117,7 +23117,7 @@ Canonical target: `docs/specs/technical/parent-vault-client.md` (title `Parent V
   ordering; necessity, without it a child could neither read its parent's notes nor use them.
 - Supported capabilities: [792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync) parent-sync.
 
-Rationale (ADR-0029 D8, D9): a node with a parent wants one coherent answer, so the merge fuses two complete payloads and
+Rationale: a node with a parent wants one coherent answer, so the merge fuses two complete payloads and
 leaves the clusters to the local node, and it fuses notes only, because chunks are the machine's own transcript text. A
 pull-down never writes a note live: it lands as a pending offer with the parent's exact content, so curation judges
 it before it counts as knowledge, and its exchange hash equals the parent's, which is what lets the skip rule and the
@@ -23343,7 +23343,7 @@ not the two `model_id` values match.
 
 Supports: [792a21c1a Local and parent results appear in one ranked list](./792a_product-spec.md#792a21c1-uat-scenarios), [792a21c1b A parent chunk never appears](./792a_product-spec.md#792a21c1-uat-scenarios), [792a21f1a Mismatched model_id does not block the merge](./792a_product-spec.md#792a21f1-uat-scenarios), [792a21f1b Every merged item carries its source's model](./792a_product-spec.md#792a21f1-uat-scenarios), [792a21g1a Parent-origin and local-origin items are distinguishable](./792a_product-spec.md#792a21g1-uat-scenarios).
 
-Rationale: chunks never cross vaults (ADR-0029 D9). A refusal on a model mismatch would break merged recall across a fleet
+Rationale: chunks never cross vaults. A refusal on a model mismatch would break merged recall across a fleet
 that upgrades its embedding model one environment at a time. Each item gets its own pointer so that a later write
 through one never aliases another (ruling S29).
 
@@ -23388,7 +23388,7 @@ Supports: [792a21j1a A linked note appears once, as the local copy](./792a_produ
 
 Rationale: an exchanged note must not show twice, and the local copy is the one the child can curate. Matching also by
 alias covers a parent that renamed or folded the note. An unlinked near-duplicate is left to curation and heals through
-the link graph (ADR-0029 D4, D9).
+the link graph.
 
 ##### 792b37c6a Scenarios
 
@@ -23774,7 +23774,7 @@ note linked to it.
 Supports: [792a21ze1a Re-activating an unchanged parent note](./792a_product-spec.md#792a21ze1-uat-scenarios), [792a21ze1b A covered parent note is not pulled again](./792a_product-spec.md#792a21ze1-uat-scenarios), [792a21ze1c A declined pull is remembered](./792a_product-spec.md#792a21ze1-uat-scenarios), [792a21ze1d A decline survives a parent rename](./792a_product-spec.md#792a21ze1-uat-scenarios), [792a21ze1e A changed parent note arrives as a new offer](./792a_product-spec.md#792a21ze1-uat-scenarios), [792a21ze1g A decline under another parent does not apply](./792a_product-spec.md#792a21ze1-uat-scenarios), [792a21ze1k Racing activates write one copy](./792a_product-spec.md#792a21ze1-uat-scenarios), [792a21ze1l No sequence leaves two linked copies](./792a_product-spec.md#792a21ze1-uat-scenarios).
 
 Rationale: re-pulling an unchanged note on every use would fill the vault with copies; the check under the lock is what
-makes two racing activates safe, since the first check ran before the fetch (ADR-0029 D8).
+makes two racing activates safe, since the first check ran before the fetch.
 
 ##### 792b37c14a Scenarios
 
@@ -23823,7 +23823,7 @@ parent off. The re-check of a linked note ([792b37c16 Re-checking a linked note'
 
 Supports: [792a21zg1a Parent recency is bumped](./792a_product-spec.md#792a21zg1-uat-scenarios), [792a21zg1b A failed signal is not fatal](./792a_product-spec.md#792a21zg1-uat-scenarios), [792a21zg1f The fetch holds no lock](./792a_product-spec.md#792a21zg1-uat-scenarios).
 
-Rationale: the parent ranks what its children use, and a lost hint costs nothing (ADR-0029 D8, Q2).
+Rationale: the parent ranks what its children use, and a lost hint costs nothing.
 
 ##### 792b37c15a Scenarios
 
@@ -25013,7 +25013,7 @@ Canonical target: `docs/specs/technical/memory-loop-auditor.md` (title `Memory L
   memory loop loses what it should have kept.
 - Supported capabilities: [792a23 memory-effectiveness-evaluation](./792a_product-spec.md#792a23-added-memory-effectiveness-evaluation) memory-effectiveness-evaluation.
 
-Rationale (ADR-0028 D1 to D3, D8): engram is meant to close the loop that lets a fixed-weight model learn from experience, and the
+Rationale: engram is meant to close the loop that lets a fixed-weight model learn from experience, and the
 audit is the step that looks back and labels what happened a win or a loss. It is a standing instrument, built Python-first under
 `dev/eval`, with one run mode built (observe, over real transcripts), and replay and mine, which re-score a candidate change
 against recorded moments, still planned (#748). Its questions are the loss stages of the loop, asked for failures and
@@ -25453,7 +25453,7 @@ moment it MUST emit an `absent-needed` record when no memory existed, or one exi
 
 Supports: [792a23p1a Output only, no side effects](./792a_product-spec.md#792a23p1-uat-scenarios).
 
-Rationale: acting on the records takes a human judgment, so the audit labels and a person acts (ADR-0028 D3). Determinism means the same inputs
+Rationale: acting on the records takes a human judgment, so the audit labels and a person acts. Determinism means the same inputs
 reproduce the same file byte for byte.
 
 ##### 792b39c8a Scenarios

@@ -3451,7 +3451,7 @@ Its presence in `items` MUST be what counts as surfacing: a runbook missing from
 Rationale: a `task_type` classification field with a pre-filter was considered and rejected: the
 benchmark evidence for it measured a whole bundled system, not type classification on its own, which
 was too little to justify a new ranking mechanism and its risk to existing retrieval. Only
-`qa-question` notes are withheld from retrieval, so a runbook needs no exclusion (ADR-0026). A literal cue the author declares is the one exception, because the agent
+`qa-question` notes are withheld from retrieval, so a runbook needs no exclusion. A literal cue the author declares is the one exception, because the agent
 paraphrases the user's request into its phrases and the paraphrase drops the cue: on a real `/please`
 ask "please" and "end-to-end" vanished and the deliverable was named instead, and adding the user's
 words as a third phrase changed the runbook's rank or score in none of 95 scratch-vault cells.
@@ -3590,7 +3590,7 @@ same as it was before `--text` existed.
 
 Rationale: matching the agent's paraphrase of a request against a runbook misses a literal cue like
 `/please` too often for cue-triggered skills to rest on similarity alone, so the user's own words are
-passed unchanged (ADR-0026). The served form of `--text` is [792a20m A served query takes the message and can return dedupe keys](#792a20m-a-served-query-takes-the-message-and-can-return-dedupe-keys).
+passed unchanged. The served form of `--text` is [792a20m A served query takes the message and can return dedupe keys](#792a20m-a-served-query-takes-the-message-and-can-return-dedupe-keys).
 
 #### 792a7y1 UAT Scenarios
 
@@ -4161,8 +4161,7 @@ Rationale: each mode can be checked by hand against its own Obsidian view (`--gr
 property or tag filter, `--backlinks-of` against the backlinks panel), and the two are not equal to
 each other. An index or map-of-content page links every note on a topic without carrying the topic
 in its own frontmatter, so it counts toward `--backlinks-of` and not toward `--group-by`. Reporting
-the two as "the same count" would make the modes look redundant when they are complementary
-(ADR-0018). The relationship was checked on the live vault in July 2026: 33
+the two as "the same count" would make the modes look redundant when they are complementary. The relationship was checked on the live vault in July 2026: 33
 members of `retrieval-design` and an in-degree of 34, the extra linker being a generated index page
 that was retired later.
 
@@ -4187,7 +4186,7 @@ vault, and MUST NOT need a note's sidecar or an embedding to count it. It MUST c
 the vault root, not a ranked or truncated subset.
 
 Rationale: counting is a read-only aggregation, deliberately off the recall and similarity path. It
-never embeds, scores cosine similarity or clusters (ADR-0018).
+never embeds, scores cosine similarity or clusters.
 
 #### 792a8h1 UAT Scenarios
 
@@ -5237,8 +5236,7 @@ that pre-update logic completed the run. It MUST NOT hand off when `--dry-run` i
 was installed.
 
 Rationale: an update that installed a new release and then deployed with the old release's logic made
-users one update behind on update behavior itself, so a new deployment rule took effect a run late
-(ADR-0023). The bootstrap run, the first update after this behavior shipped, is the last one to run
+users one update behind on update behavior itself, so a new deployment rule took effect a run late. The bootstrap run, the first update after this behavior shipped, is the last one to run
 stale. Local mode installs from the clone it runs in, not from a fresh pull, so a stale checkout still
 downgrades on hand-off; the downgrade check covers it ([792a11c A provable downgrade is refused](#792a11c-a-provable-downgrade-is-refused)).
 The old process hands off to a child rather than replacing itself with `syscall.Exec`, because the captured-output
@@ -5400,7 +5398,7 @@ the deploy set keeps, and MUST list each deletion in the report as `engram root:
 harness link for a skill whose directory was deleted MUST be gone by the end of the same run.
 
 Rationale: an earlier update copied additively, so an artifact deleted from the source was never removed
-from a harness, and a stray file in the source persisted until deleted by hand (ADR-0022). Removing a
+from a harness, and a stray file in the source persisted until deleted by hand. Removing a
 skill is now a source change followed by an update.
 
 #### 792a11i1 UAT Scenarios
@@ -5600,7 +5598,7 @@ refused by prune's coverage check. It MUST NOT remove anything itself.
 Rationale: removing index files is a destructive one-shot migration over a user's memory store. Unlike an
 empty file, which holds no records, a duplicate's removal is safe only while the record-subset check holds
 at the moment it runs, so it runs when the user asks for it and not as a side effect of a routine
-refresh (ADR-0021 decision 9). Detection keeps no sentinel: it reports the live backlog every run and
+refresh. Detection keeps no sentinel: it reports the live backlog every run and
 goes quiet once it is cleared. It runs prune's own dry-run check so the notice fires only when a removal
 would happen, and a backlog whose every group would be refused stays silent because no command resolves
 it (#713).
@@ -7610,7 +7608,7 @@ Scenario: 792a15f1b A repo-doc correction does not count
 
 Requirement: [792a15g A confirmed approach needs a bet or specific praise, and takes the kind its shape calls for](#792a15g-a-confirmed-approach-needs-a-bet-or-specific-praise-and-takes-the-kind-its-shape-calls-for) Learn MUST capture a confirmed approach only when either the user explicitly praised or thanked a specific behavior that can be restated as a reusable tactic, or the agent made a genuine guess or was uncertain about a plan, acted on it, and a session-recorded outcome (a test passed, the user confirmed it, an artifact functioned, a blocker cleared) then confirmed it. It MUST NOT capture a bare pleasantry that names no behavior, a routine success with no bet behind it, or an unconfirmed guess. It MUST hand off a reusable, ordered, multi-step procedure for a recurring task as a runbook note (with `done_when` and a body of numbered steps, which may link fact or feedback notes) and a single behavioral tweak with no step structure as a feedback note. When it writes a runbook and the user also says to do that going forward, it MUST NOT additionally write a fact note for a save-request on the same content.
 
-Rationale: a routing by shape was added when the runbook kind was introduced (ADR-0026): a runbook capture is itself the "remember to do it this way" note. The confirmed-approach kind is the positive mirror of a reversal and, in practice, the kind that fires least often, so the skill carries exemplars (a design assumption checked by a targeted code search, a suspected defect confirmed by a reproduction test, a vendor claim verified against evidence), but the bar does not move: a resolved uncertainty or an explicit specific confirmation, never "it worked".
+Rationale: a routing by shape was added when the runbook kind was introduced: a runbook capture is itself the "remember to do it this way" note. The confirmed-approach kind is the positive mirror of a reversal and, in practice, the kind that fires least often, so the skill carries exemplars (a design assumption checked by a targeted code search, a suspected defect confirmed by a reproduction test, a vendor claim verified against evidence), but the bar does not move: a resolved uncertainty or an explicit specific confirmation, never "it worked".
 
 #### 792a15g1 UAT Scenarios
 
@@ -9257,7 +9255,7 @@ only when the notes leave a gap, and its presence alone is not an instruction.
 
 Rationale: the query is not filtered by kind, so the agent must read each item's `kind`. Four content kinds exist,
 `fact`, `feedback`, `qa` and `runbook`, and `qa` is excluded from retrieval ([792a7v Runbooks rank like other notes](#792a7v-runbooks-rank-like-other-notes)). A runbook is structurally the
-same as a fact or feedback note in storage and ranking, so no validation gate guarded it (ADR-0026). Migrating
+same as a fact or feedback note in storage and ranking, so no validation gate guarded it. Migrating
 existing kind-4 feedback into runbook notes is out of scope and is #730, still untriaged.
 The frame lives in the shim and not in the recall skill because it must exist before any runbook is loaded;
 were it in recall, recall would itself become a runbook. The shim's first action fires on every request: the
@@ -9661,7 +9659,7 @@ POST) over HTTP, and MUST NOT expose `amend`, `query-chunks`, `show-chunk`, `ing
 
 Rationale: `amend` left the served set along with the `ENGRAM_SERVER` thin client, its only caller, and children offer
 amendments through `learn` with an offer target. `query-chunks` and `show-chunk` left because chunks never cross
-vaults. One write route keeps one path for offers (ADR-0029 D7).
+vaults. One write route keeps one path for offers.
 The route split is by mutation: the two read-only commands are GET and the two writes are POST. `learn` is a
 POST because its repeatable flags and free text do not fit in a URL, and `activate` follows the split because it
 is a write. The server verifies no field of a served `learn`: the `user:` that carries the attribution weight is
@@ -10227,7 +10225,7 @@ thin-client mode MUST remain.
 
 Rationale: `ENGRAM_SERVER` made the CLI a thin HTTP client with no local vault, so every write landed only on the remote
 and a server outage failed every command. Joe replaced it with the local-first model on 2026-09-27 and ruled out an
-alias shim and an exemption for `serve` (ADR-0029 D1). A host that still sets it fails loudly instead of quietly
+alias shim and an exemption for `serve`. A host that still sets it fails loudly instead of quietly
 behaving as something else.
 
 #### 792a21a1 UAT Scenarios
@@ -10259,7 +10257,7 @@ Scenario: 792a21a1d ENGRAM_SERVER is not honored as an alias
 Requirement: [792a21b One parent per vault](#792a21b-one-parent-per-vault) `engram query` MUST accept an `ENGRAM_PARENT` environment variable that names exactly one parent
 vault's base URL, and MUST NOT offer any way to configure more than one parent at a time.
 
-Rationale: the vaults form a single-parent tree, so a mesh and its cycles cannot be configured (ADR-0029).
+Rationale: the vaults form a single-parent tree, so a mesh and its cycles cannot be configured.
 
 #### 792a21b1 UAT Scenarios
 
@@ -10278,9 +10276,9 @@ and MUST return one payload ranked across both sources in the order of [792a21d 
 reconcile. This merged path is the only query path for a node that has a parent: it MUST NOT offer another remote query
 mode, and no parent chunk MUST appear in a merged payload.
 
-Rationale: a node with a parent wants one coherent view of local and inherited memory (ADR-0029 D9). Chunks are
+Rationale: a node with a parent wants one coherent view of local and inherited memory. Chunks are
 transcript text that belongs to the machine that recorded it, so they never cross vaults, and the merge, its recency
-channel and its chunk budgets are local-only (ADR-0029 D9). The merge fuses two complete payloads rather than
+channel and its chunk budgets are local-only. The merge fuses two complete payloads rather than
 fusing before clustering, because the second would need the parent to expose its candidates, and it sorts by raw score
 without normalizing it, because a within-batch rescale makes a weak match look as strong as a good one.
 
@@ -10475,8 +10473,7 @@ keys (`exchange_hash`, `aliases`, and the parent's `vault_id`) MUST NOT appear i
 Rationale: a note exchanged between the vaults would otherwise show twice, and the local copy is the one the child can
 amend and curate. A link names a basename or an alias because the parent may have renamed or folded the note since. A
 pending copy is unjudged, so it must not hide the parent's note, and near-duplicates are left to curation, which heals
-them through the link graph; an unlinked near-duplicate may show twice until a later pull-down or fold links the pair
-(ADR-0029 D4, D9).
+them through the link graph; an unlinked near-duplicate may show twice until a later pull-down or fold links the pair.
 
 #### 792a21j1 UAT Scenarios
 
@@ -10535,7 +10532,7 @@ instead of failing. While the parent is backed off ([792a21s An unreachable pare
 local results with one warning.
 
 Rationale: a node's local recall should not depend on its parent's network availability, or one host outage takes down
-every environment's recall (ADR-0029 D9).
+every environment's recall.
 
 #### 792a21k1 UAT Scenarios
 
@@ -10566,7 +10563,7 @@ returned as before this capability, without contacting the parent. A miss with n
 not-found error as before. `engram show-chunk` MUST NOT accept `--parent` and MUST NOT fall back to the parent.
 
 Rationale: chunks never cross vaults, so there is no parent chunk lookup. A fallback that fires only on a local miss is
-safe by construction, and the origin tag of [792a21g Merged items say where they came from](#792a21g-merged-items-say-where-they-came-from) tells a caller when to ask for the parent explicitly (ADR-0029 D9).
+safe by construction, and the origin tag of [792a21g Merged items say where they came from](#792a21g-merged-items-say-where-they-came-from) tells a caller when to ask for the parent explicitly.
 
 #### 792a21l1 UAT Scenarios
 
@@ -10650,7 +10647,7 @@ skipped when the offer's own origin is the parent so that the single-parent tree
 curation folds into a note of its own goes up once more, as an amend of that note, because the local addition is the
 point of the fold, and the parent's curated result comes back down only on the next use. Stopping propagation at the first
 level would defeat the personal, team and organization tree, and a fold marker that suppressed the bounce would lose the
-local addition upstream (ADR-0029 D5, D12).
+local addition upstream.
 
 #### 792a21n1 UAT Scenarios
 
@@ -10738,7 +10735,7 @@ and the pull-down skip, decline matching, the rejected-offer re-arm and the send
 
 Rationale: placement, provenance and the exchange's own fields differ between a note and its counterpart without the
 content having changed, so hashing them would report a change that is none. Treating a version change as unknown spares
-the fleet a storm of spurious offers and pulls when the hash is revised (ADR-0029 D3). The hash itself, its comparison
+the fleet a storm of spurious offers and pulls when the hash is revised. The hash itself, its comparison
 and the classification of every frontmatter key are exchange-versioning's ([792b33 exchange-versioning](./792b_technical-spec.md#792b33-added-exchange-versioning)).
 
 #### 792a21o1 UAT Scenarios
@@ -10772,7 +10769,7 @@ the accepted note's `offer.path` plus the local ID for a propagated one) and, fo
 
 Rationale: placement is each vault's own (Luhmann IDs are minted per vault), tags are the sending vault's own
 vocabulary, and a note's declared author must survive the trip, so the drainer's identity is only a fallback. Building at
-send time sends the latest content and never a stale snapshot (ADR-0029 D5, D6).
+send time sends the latest content and never a stale snapshot.
 
 #### 792a21p1 UAT Scenarios
 
@@ -10819,7 +10816,7 @@ note MUST NOT orphan its entry.
 Rationale: the outbox is `<vault>/.engram/outbox.json` ([792a2k Exchange state outside tracked files](#792a2k-exchange-state-outside-tracked-files)). Keying it by `xid` makes a rename harmless, where a
 basename key would lose the entry. An offer is built when it is sent, so offline learn and amend coalesce into one offer.
 A snapshot directory per offer would send stale content and duplicates, a line-per-offer file could not coalesce without
-rewriting, and failing the local write when the parent is down would contradict "local writes always succeed" (ADR-0029 D6).
+rewriting, and failing the local write when the parent is down would contradict "local writes always succeed".
 
 #### 792a21q1 UAT Scenarios
 
@@ -10881,7 +10878,7 @@ reports no vault ID (the parent is too old), or is followed by an unreachable pa
 
 Rationale: a drain that held the lock while it waited on the network would block every local write for as long as the
 parent took to answer. Re-reading the outbox before merging is what lets another process queue an entry mid-drain
-without losing it (ADR-0029 D6).
+without losing it.
 
 #### 792a21r1 UAT Scenarios
 
@@ -10957,7 +10954,7 @@ from the parent, a 4xx or a loop refusal included, counts as a successful contac
 2xx answer to an offer whose body cannot be decoded as a receipt is not an answer and counts as a failure. A parent
 other than the one backed off MUST NOT be affected.
 
-Rationale: without a backoff every command would wait up to the full connect timeout while a parent is down (ADR-0029 D6).
+Rationale: without a backoff every command would wait up to the full connect timeout while a parent is down.
 `update` always tries so that a cleared outage is noticed. A 4xx or a refusal is an answer from a reachable parent.
 
 #### 792a21s1 UAT Scenarios
@@ -11001,7 +10998,7 @@ parent ([792a20g A served learn finds the note an offer belongs to](#792a20g-a-s
 same content from the same note always carries the same key.
 
 Rationale: an offer whose response is lost is sent again, and the parent must answer with the receipt of the note it
-already has (ADR-0029 D6).
+already has.
 
 #### 792a21t1 UAT Scenarios
 
@@ -11022,7 +11019,7 @@ MUST NOT re-embed the note or re-stamp `repo`, `user` or `vault`, so the note ke
 
 Rationale: the link is what later lets a query show the note once and a pull-down skip it. The parent's stored hash is
 what a future comparison sees from the parent's side, and a rewrite that re-embedded would change nothing the vectors
-depend on (ADR-0029 D4, D6).
+depend on.
 
 #### 792a21u1 UAT Scenarios
 
@@ -11062,8 +11059,7 @@ the failure recorded.
 Rationale: the parent is another machine's input. A basename containing a separator would become a path, and a vault ID
 that is not the expected shape would poison the cache that decides which links count. A receipt without a vault ID comes
 from a parent that predates the exchange, and the same check detects it at pull-down. A merged query is not refused for
-this reason, it only degrades: the merge keeps the old parent's results and its dedupe finds no keys to match
-(ADR-0029 risks).
+this reason, it only degrades: the merge keeps the old parent's results and its dedupe finds no keys to match.
 
 #### 792a21v1 UAT Scenarios
 
@@ -11292,7 +11288,7 @@ activate on stderr and MUST exit non-zero if any ref failed.
 
 Rationale: Luhmann IDs are minted per vault, so the same ID in the parent names an unrelated note, and resolving a bare
 one there could pull down the wrong note. A local hit never contacts the parent, so a note the vault already holds costs
-no network (ADR-0029 D8).
+no network.
 
 #### 792a21zc1 UAT Scenarios
 
@@ -11356,8 +11352,7 @@ Rationale: a pulled note is never written live: curation judges it before it cou
 offer in the other direction ([792a22 curate](#792a22-added-curate)). The exact content keeps its exchange hash equal to the parent's, which is what
 lets the skip rule and the dedupe recognize the pair. The parent's identity fields, tags and chunk provenance mean
 nothing in this vault, and local vocabulary reassigns the tags. A `parent:` path prefix in payloads would break consumers
-such as a bare `engram show <basename>`, and the rendered `show` output cannot carry a raw envelope because it is altered
-(ADR-0029 D8).
+such as a bare `engram show <basename>`, and the rendered `show` output cannot carry a raw envelope because it is altered.
 
 #### 792a21zd1 UAT Scenarios
 
@@ -11425,7 +11420,7 @@ more than one local note linked to it.
 
 Rationale: re-pulling an unchanged note on every use would fill the vault with copies. A decline is keyed by the parent's
 vault ID and the hash, so a decline under one parent never suppresses a note of another, and it covers the aliases so that
-a rename on the parent does not bring a declined note back (ADR-0029 D8, D12).
+a rename on the parent does not bring a declined note back.
 
 #### 792a21ze1 UAT Scenarios
 
@@ -11551,7 +11546,7 @@ count, and make no further request for the later refs of the same command, all o
 drain the outbox.
 
 Rationale: the parent's recency ranks what its children use, and a signal that failed is only a lost hint, so it neither
-fails the command nor waits in a queue (ADR-0029 D8, Q2).
+fails the command nor waits in a queue.
 
 #### 792a21zg1 UAT Scenarios
 
@@ -11613,7 +11608,7 @@ in exchange MUST carry no `xid`. Every frontmatter field that exchange adds (`xi
 it did before.
 
 Rationale: a rename-stable identifier lets the outbox and the idempotency keys survive a Luhmann re-parenting. Stamping
-lazily means no vault pays for exchange it never uses (ADR-0029 D4).
+lazily means no vault pays for exchange it never uses.
 
 #### 792a21zi1 UAT Scenarios
 
@@ -11640,7 +11635,7 @@ address change of the same parent keeps them valid. Only an offer receipt, a pul
 MUST set or change `parent`, and a note never exchanged MUST carry no `parent` key.
 
 Rationale: keying links by URL would break on every hostname or address change, so they key on the parent's stable vault
-ID, and a second parent vault simply ignores the old links (ADR-0029 D2, D4).
+ID, and a second parent vault simply ignores the old links.
 
 #### 792a21zj1 UAT Scenarios
 
@@ -11671,7 +11666,7 @@ primary link becomes a `covered` link on E, and otherwise it becomes E's primary
 an offer.
 
 Rationale: a parent's or a child's reference to a renamed or folded note keeps resolving through the alias, and the
-merged query and the pull-down skip both follow aliases (ADR-0029 D4, D10).
+merged query and the pull-down skip both follow aliases.
 
 #### 792a21zk1 UAT Scenarios
 
@@ -11706,7 +11701,7 @@ existing note or deletes the offer, so that a refusal leaves both files untouche
 anchors both MUST write the same bytes as before.
 
 Rationale: a link or an exchange ID lost to an unrelated rewrite would silently disconnect a note from its counterpart, and
-the next exchange would treat the note as new. Each rewrite site has its own survival test (ADR-0029 D4).
+the next exchange would treat the note as new. Each rewrite site has its own survival test.
 
 #### 792a21zl1 UAT Scenarios
 
@@ -11955,7 +11950,7 @@ The marker is cleared only on an offer that is kept: a discarded offer carries n
 own parent, accepting a served offer MUST also offer the note onward ([792a21n A local write is offered to the parent](#792a21n-a-local-write-is-offered-to-the-parent)).
 
 Rationale: the note already exists as the offer, so clearing the marker is the entire action. The bookkeeping amends do not
-re-stamp identity, so an accepted offer keeps its author, which is the person who learned it and not the curator (ADR-0029 D10).
+re-stamp identity, so an accepted offer keeps its author, which is the person who learned it and not the curator.
 
 #### 792a22h1 UAT Scenarios
 
@@ -12098,7 +12093,7 @@ the LF form, which for a note whose frontmatter is LF is the hash `engram show` 
 
 Rationale: the fold is for an offer that curation judged covered or near, where E already holds the content, so only its names
 and links grow; the links keep the parent note from being pulled down again and the aliases keep a later reference to O
-resolving (ADR-0029 D10). A hand-edited or Windows-edited note with CRLF line endings must still be foldable.
+resolving. A hand-edited or Windows-edited note with CRLF line endings must still be foldable.
 
 #### 792a22m1 UAT Scenarios
 
@@ -12523,7 +12518,7 @@ non-matches afterwards. Its quality bar MUST be a miss rate, how many real momen
 hand-labeled examples and agreed before any full-corpus run, and never how often it over-flags.
 
 Rationale: about 68% of corrections are subtle enough that word-matching alone misses roughly two thirds of them (vault note
-112), and the successes are the reinforcement half of the loop (ADR-0028 D2).
+112), and the successes are the reinforcement half of the loop.
 
 #### 792a23k1 UAT Scenarios
 
@@ -12562,7 +12557,7 @@ MUST NOT be computed before its counting unit (per moment, per dispatch or per t
 number MUST be labeled DERIVED (computed from real records) or ESTIMATE (approximated because the exact data was not
 available).
 
-Rationale: the funnel of ADR-0028 D2 names the loss stages of the loop, and a record that skips one cannot show where the loss
+Rationale: the loop's funnel names the loss stages of the loop, and a record that skips one cannot show where the loss
 happened. A rate with no stated unit is a number nobody can check.
 
 #### 792a23l1 UAT Scenarios
@@ -12590,7 +12585,7 @@ date MUST always give a DERIVED answer. The check MUST NOT write to the live vau
 under the eval harness's sandboxing (#708).
 
 Rationale: a memory written after a moment cannot have been missed at it, and an exact answer is worth a checkout where history
-allows one (ADR-0028 D6).
+allows one.
 
 #### 792a23m1 UAT Scenarios
 
@@ -12679,7 +12674,7 @@ evidence{transcript, anchor}}` with `outcome` one of `applied-helped`, `applied-
 records takes a human judgment and belongs to a separate, later capability.
 
 Rationale: engram's learning loop is judged-only: nothing in the vault changes unjudged, so the audit labels what happened and a person
-acts on it (ADR-0028 D3).
+acts on it.
 
 #### 792a23p1 UAT Scenarios
 
@@ -12697,7 +12692,7 @@ raw data, and reflected in a coverage-map index that maps each memory function a
 real-world rate. Recording audit results MUST NOT rename, rewrite (beyond the format's own way of superseding a row) or remove any existing
 row or anchor.
 
-Rationale: other documents cite the ledger's anchors, so the ledger grows and is never rebuilt (ADR-0028 D7).
+Rationale: other documents cite the ledger's anchors, so the ledger grows and is never rebuilt.
 
 #### 792a23q1 UAT Scenarios
 
