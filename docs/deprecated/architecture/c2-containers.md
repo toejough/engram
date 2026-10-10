@@ -64,7 +64,7 @@ flowchart TD
     D --> E{"changed vs the manifest entry?"}
     E -->|no| SK2["skip: cheap mtime+size match, no read"]
     E -->|yes| F["strip harness noise (context.Strip)"]
-    F --> G["chunk (chunk.Transcript / chunk.Markdown, byte-budget capped)"]
+    F --> G["chunk (792b16 source-chunking)"]
     G --> H["embed each new-hash chunk (existing hashes reused, never re-embedded)"]
     H --> I["merge-append chunk records + manifest entry under flock(.manifest.lock) — cross-source dedup groups gathered sources by (content hash, chunking class) first; only the canonical member (selectCanonical) is indexed, others recorded as manifestEntry.DuplicateOf (ADR-0021)"]
     I --> J["chunk index: per-source record file + manifest.json (mtime/size/hash)"]

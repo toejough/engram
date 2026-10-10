@@ -216,8 +216,8 @@ flowchart TD
   N792c7c3["792c7c3 note-amendment tech spec<br/>Complete"]
   N792c7d1["792c7d1 chunk-indexing product spec<br/>Complete"]
   N792c7d2["792c7d2 transcript-reader tech spec<br/>Complete"]
-  N792c7d3["792c7d3 source-chunking tech spec<br/>Ready"]
-  N792c7d4["792c7d4 ingestion-source-discovery tech spec<br/>Blocked by: 792c7d3"]
+  N792c7d3["792c7d3 source-chunking tech spec<br/>Complete"]
+  N792c7d4["792c7d4 ingestion-source-discovery tech spec<br/>Ready"]
   N792c7d5["792c7d5 chunk-index-store tech spec<br/>Blocked by: 792c7d4"]
   N792c7e1["792c7e1 controlled-vocabulary product spec<br/>Blocked by: 792c7d5"]
   N792c7e2["792c7e2 similarity-clustering tech spec<br/>Blocked by: 792c7e1"]
@@ -1609,11 +1609,33 @@ Target: `792b16` (`docs/specs/technical/source-chunking.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7d3a | Port the component contract to `792b16` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7d3b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7d3c | Repoint stale references to `792b16` | Non-test action | Keeps live links valid | Not started |
-| 792c7d3d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7d3e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7d3a | Port the component contract to `792b16` | Non-test action | Documents the component in the framework format | Done |
+| 792c7d3b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7d3c | Repoint stale references to `792b16` | Non-test action | Keeps live links valid | Done |
+| 792c7d3d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7d3e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+**Outcome:** the c2 flowchart's chunk step now points at 792b16, without its stale byte-budget
+clause, and 792a5h gains 792a5h1d (792d82).
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b16c1a1 | `TestChunkMarkdownSplitsOnHeadings` → `Test792b16c1a1_ChunkMarkdownSplitsOnHeadings` | Pure unit (`internal/chunk`) | Section per heading | Done |
+| 792b16c1a2 | `TestChunkMarkdownIgnoresFencedHeadings` → `Test792b16c1a2_ChunkMarkdownIgnoresFencedHeadings` | Pure unit (`internal/chunk`) | Fenced heading | Done |
+| 792b16c2a1 | `TestChunkTranscriptMergesTurnsToTarget` → `Test792b16c2a1_ChunkTranscriptMergesTurnsToTarget` | Pure unit (`internal/chunk`) | Turns merged | Done |
+| 792b16c2a2 | `TestChunkTranscriptStartsNewChunkPastTarget` → `Test792b16c2a2_ChunkTranscriptStartsNewChunkPastTarget` | Pure unit (`internal/chunk`) | Target closes a chunk | Done |
+| 792b16c2a3 | `TestChunkTranscriptContentBeforeFirstUserTurnIsPreamble` → `Test792b16c2a3_ChunkTranscriptContentBeforeFirstUserTurnIsPreamble` | Pure unit (`internal/chunk`) | Preamble anchor | Done |
+| 792b16c3a1 | `TestChunkMarkdownSplitsOversizedSectionOnParagraphs` → `Test792b16c3a1_ChunkMarkdownSplitsOversizedSectionOnParagraphs` | Pure unit (`internal/chunk`) | Section split | Done |
+| 792b16c3a2 | `TestChunkTranscriptSplitsOversizedTurn` → `Test792b16c3a2_ChunkTranscriptSplitsOversizedTurn` | Pure unit (`internal/chunk`) | Turn split | Done |
+| 792b16c4a1 | `TestChunkTranscriptDropsNoise` → `Test792b16c4a1_ChunkTranscriptDropsNoise` | Pure unit (`internal/chunk`) | Tiny transcript | Done |
+
+**Coverage gaps:** 792b16c1a3 (no test of a Markdown preamble) and 792b16c4a2 (no test of a tiny
+Markdown section). 792a5h1a–792a5h1d have no end-to-end test; `TestIngestMarkdownFile` checks an
+anchor through ingestion and is examined by chunk-index-store (792c7d5).
+
+**No-scenario tests:** none.
 
 #### 792c7d4 ingestion-source-discovery tech spec
 

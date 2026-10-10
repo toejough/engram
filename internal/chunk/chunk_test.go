@@ -9,31 +9,7 @@ import (
 	"github.com/toejough/engram/internal/chunk"
 )
 
-func TestChunkMarkdownIgnoresFencedHeadings(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	raw := strings.Join([]string{
-		"## Real section",
-		"Content before the fence shows the convention applied in real code below.",
-		"```",
-		"# not a heading, just a comment inside a code fence",
-		"```",
-		"Content after the fence continues the very same section without a split.",
-	}, "\n")
-
-	chunks := chunk.Markdown(raw, 1500)
-
-	g.Expect(chunks).To(gomega.HaveLen(1))
-
-	if len(chunks) != 1 {
-		return
-	}
-
-	g.Expect(chunks[0].Text).To(gomega.ContainSubstring("not a heading"))
-}
-
-func TestChunkMarkdownSplitsOnHeadings(t *testing.T) {
+func Test792b16c1a1_ChunkMarkdownSplitsOnHeadings(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -59,53 +35,31 @@ func TestChunkMarkdownSplitsOnHeadings(t *testing.T) {
 	g.Expect(chunks[2].Text).To(gomega.ContainSubstring("second convention"))
 }
 
-func TestChunkMarkdownSplitsOversizedSectionOnParagraphs(t *testing.T) {
+func Test792b16c1a2_ChunkMarkdownIgnoresFencedHeadings(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	para := strings.Repeat("paragraph words for the oversized section test ", 20) // ~940 chars
-	raw := "## Big\n" + para + "\n\n" + para + "\n\n" + para
+	raw := strings.Join([]string{
+		"## Real section",
+		"Content before the fence shows the convention applied in real code below.",
+		"```",
+		"# not a heading, just a comment inside a code fence",
+		"```",
+		"Content after the fence continues the very same section without a split.",
+	}, "\n")
 
 	chunks := chunk.Markdown(raw, 1500)
 
-	g.Expect(len(chunks)).To(gomega.BeNumerically(">", 1))
+	g.Expect(chunks).To(gomega.HaveLen(1))
 
-	for _, c := range chunks {
-		g.Expect(len(c.Text)).To(gomega.BeNumerically("<=", 1500))
-		g.Expect(c.Anchor).To(gomega.Equal("Big"))
-	}
-}
-
-func TestChunkTranscriptContentBeforeFirstUserTurnIsPreamble(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	stripped := strings.Join([]string{
-		"ASSISTANT: leftover assistant text from a resumed session goes first here",
-		"USER: now the actual first user turn with plenty of text to keep around",
-	}, "\n")
-
-	chunks := chunk.Transcript(stripped, 30, 1500)
-
-	g.Expect(chunks).NotTo(gomega.BeEmpty())
-
-	if len(chunks) == 0 {
+	if len(chunks) != 1 {
 		return
 	}
 
-	g.Expect(chunks[0].Anchor).To(gomega.Equal("preamble"))
+	g.Expect(chunks[0].Text).To(gomega.ContainSubstring("not a heading"))
 }
 
-func TestChunkTranscriptDropsNoise(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	chunks := chunk.Transcript("USER: ok", 500, 1500)
-
-	g.Expect(chunks).To(gomega.BeEmpty())
-}
-
-func TestChunkTranscriptMergesTurnsToTarget(t *testing.T) {
+func Test792b16c2a1_ChunkTranscriptMergesTurnsToTarget(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -133,30 +87,7 @@ func TestChunkTranscriptMergesTurnsToTarget(t *testing.T) {
 	g.Expect(chunks[0].Anchor).To(gomega.Equal("turn-1"))
 }
 
-func TestChunkTranscriptSplitsOversizedTurn(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	// A single turn far beyond max must be split so every chunk embeds fully.
-	lines := make([]string, 0, 81)
-	lines = append(lines, "USER: giant dump follows")
-
-	for range 80 {
-		lines = append(lines, "ASSISTANT: "+strings.Repeat("x", 50))
-	}
-
-	stripped := strings.Join(lines, "\n")
-
-	chunks := chunk.Transcript(stripped, 500, 1500)
-
-	g.Expect(len(chunks)).To(gomega.BeNumerically(">", 1))
-
-	for _, c := range chunks {
-		g.Expect(len(c.Text)).To(gomega.BeNumerically("<=", 1500))
-	}
-}
-
-func TestChunkTranscriptStartsNewChunkPastTarget(t *testing.T) {
+func Test792b16c2a2_ChunkTranscriptStartsNewChunkPastTarget(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -179,4 +110,73 @@ func TestChunkTranscriptStartsNewChunkPastTarget(t *testing.T) {
 	g.Expect(chunks[0].Text).To(gomega.ContainSubstring("first ask"))
 	g.Expect(chunks[1].Text).To(gomega.ContainSubstring("second ask"))
 	g.Expect(chunks[1].Anchor).To(gomega.Equal("turn-2"))
+}
+
+func Test792b16c2a3_ChunkTranscriptContentBeforeFirstUserTurnIsPreamble(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	stripped := strings.Join([]string{
+		"ASSISTANT: leftover assistant text from a resumed session goes first here",
+		"USER: now the actual first user turn with plenty of text to keep around",
+	}, "\n")
+
+	chunks := chunk.Transcript(stripped, 30, 1500)
+
+	g.Expect(chunks).NotTo(gomega.BeEmpty())
+
+	if len(chunks) == 0 {
+		return
+	}
+
+	g.Expect(chunks[0].Anchor).To(gomega.Equal("preamble"))
+}
+
+func Test792b16c3a1_ChunkMarkdownSplitsOversizedSectionOnParagraphs(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	para := strings.Repeat("paragraph words for the oversized section test ", 20) // ~940 chars
+	raw := "## Big\n" + para + "\n\n" + para + "\n\n" + para
+
+	chunks := chunk.Markdown(raw, 1500)
+
+	g.Expect(len(chunks)).To(gomega.BeNumerically(">", 1))
+
+	for _, c := range chunks {
+		g.Expect(len(c.Text)).To(gomega.BeNumerically("<=", 1500))
+		g.Expect(c.Anchor).To(gomega.Equal("Big"))
+	}
+}
+
+func Test792b16c3a2_ChunkTranscriptSplitsOversizedTurn(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	// A single turn far beyond max must be split so every chunk embeds fully.
+	lines := make([]string, 0, 81)
+	lines = append(lines, "USER: giant dump follows")
+
+	for range 80 {
+		lines = append(lines, "ASSISTANT: "+strings.Repeat("x", 50))
+	}
+
+	stripped := strings.Join(lines, "\n")
+
+	chunks := chunk.Transcript(stripped, 500, 1500)
+
+	g.Expect(len(chunks)).To(gomega.BeNumerically(">", 1))
+
+	for _, c := range chunks {
+		g.Expect(len(c.Text)).To(gomega.BeNumerically("<=", 1500))
+	}
+}
+
+func Test792b16c4a1_ChunkTranscriptDropsNoise(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	chunks := chunk.Transcript("USER: ok", 500, 1500)
+
+	g.Expect(chunks).To(gomega.BeEmpty())
 }

@@ -1686,6 +1686,11 @@ Scenario: 792a5h1c Short sections are not indexed
   Given d.md whose only section is "## A" followed by "tiny"
   When the user runs engram ingest --markdown d.md
   Then no chunk of d.md is indexed
+
+Scenario: 792a5h1d A long section is split under one anchor
+  Given d.md whose "## Big" section is three paragraphs of about 940 characters each
+  When the user runs engram ingest --markdown d.md
+  Then the index holds several chunks d.md#Big, each at most 1500 characters long
 ```
 
 ### 792a5i Incremental re-indexing

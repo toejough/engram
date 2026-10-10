@@ -979,3 +979,15 @@ decisions as `792dN`, continuing the sequence.
   and a test-only entry point is not a component's contract.
 - **Alternatives:** count the `Strip` tests as verifying the shared cleaning helpers. Rejected
   because production reaches those helpers only through the summary mode, which has its own tests.
+
+## 792d82 source-chunking and the stale byte budget
+
+- **Choice:** 792b16 specifies section and turn boundaries, anchors, the line-packing split and the
+  40-character floor. The c2 ingest flowchart's chunk step said chunking was "byte-budget capped";
+  no budget applies, because ingestion reads every transcript whole (`ingestBudgetBytes` is 0), so
+  the clause is dropped and the step points at 792b16. 792a5h gains scenario 792a5h1d, because its
+  split branch had no UAT scenario. An oversized section is packed line by line, not paragraph by
+  paragraph as `TestChunkMarkdownSplitsOversizedSectionOnParagraphs`' name says; blank lines are
+  dropped from the pieces.
+- **Rationale:** 792d33; the product guide requires a scenario for every mandatory branch.
+- **Alternatives:** none considered.
