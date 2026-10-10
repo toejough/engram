@@ -79,9 +79,9 @@ result is committed. Merged additionally requires delivery and branch/worktree c
 
 | Entry | Gherkin | Classification | Why | Status |
 |---|---|---|---|---|
-| 794c8a1 Mode arguments | [794b3a1a Scope and mode arguments](./794b_technical-spec.md#794b3a1-contract-scenarios) | Dedicated examples | Exact check/fix argument contracts | Green-all |
-| 794c8a2 Environment precedence | [794b3b1a Resolve present and absent settings](./794b_technical-spec.md#794b3b1-contract-scenarios) | Dedicated examples | Absent, partial, explicit, and empty settings | Green-all |
-| 794c8a3 Entry-point routing | [794b4a1a Direct and aggregate target routing](./794b_technical-spec.md#794b4a1-contract-scenarios) | Pinned dependency contract | Actual Targ target identity, names, and aggregate references; extend the existing wiring test | Green-all |
+| 794c8a1 Mode arguments | [794b3a1a Scope and mode arguments](./794b_technical-spec.md#794b3a1-contract-scenarios) | Dedicated examples | Exact check/fix argument contracts | Refactor-complexity |
+| 794c8a2 Environment precedence | [794b3b1a Resolve present and absent settings](./794b_technical-spec.md#794b3b1-contract-scenarios) | Dedicated examples | Absent, partial, explicit, and empty settings | Refactor-complexity |
+| 794c8a3 Entry-point routing | [794b4a1a Direct and aggregate target routing](./794b_technical-spec.md#794b4a1-contract-scenarios) | Pinned dependency contract | Actual Targ target identity, names, and aggregate references; extend the existing wiring test | Refactor-complexity |
 
 ### 794c8b Command boundary contracts
 
