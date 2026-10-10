@@ -14,29 +14,131 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-func TestScanClaudePlugins_CommandsFieldReplacesCommandsDir(t *testing.T) {
+func Test792b30c7a10_ScanClaudePlugins_ReservedAndColonNamesAreSkipped(t *testing.T) {
 	t.Parallel()
-	g := NewWithT(t)
 
-	root := pluginCacheRoot + "/hud/hud/0.8.0"
-	fsys := newFakeSkillFS().
-		file(root+"/.claude-plugin/plugin.json", `{"name":"hud","commands":["./commands/setup.md"]}`).
-		file(root+"/commands/setup.md", "setup").
-		file(root+"/commands/configure.md", "configure")
-	writePluginManifests(
-		g,
-		fsys,
-		[]pluginInstall{{key: "hud@hud", installPath: root}},
-		map[string]bool{"hud@hud": true},
-	)
+	for _, name := range []string{
+		"claude", "pi", "agents", "project", "anthropic-skills", "pi-settings", "pi-pkg", "pi-prompt", "a:b",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
 
-	result := cli.ScanClaudePlugins(fsys, pluginScanInput())
+			root := pluginCacheRoot + "/m/x/1"
+			fsys := newFakeSkillFS().file(root+"/skills/s/SKILL.md", "s")
+			writePluginManifests(g, fsys, []pluginInstall{{key: name + "@m", installPath: root}},
+				map[string]bool{name + "@m": true})
 
-	g.Expect(pluginCandidateIDs(result)).To(Equal([]string{"plugin:hud command setup"}))
-	g.Expect(pluginStatus(result, "hud")).To(Equal(pluginStatusScanned))
+			result := cli.ScanClaudePlugins(fsys, pluginScanInput())
+
+			g.Expect(result.Candidates).To(BeEmpty())
+			g.Expect(pluginStatus(result, name)).To(Equal(pluginStatusNotScanned))
+			g.Expect(warningsMention(result.SkillScanResult, name)).To(BeTrue())
+		})
+	}
 }
 
-func TestScanClaudePlugins_ConflictProperty(t *testing.T) {
+func Test792b30c7a11_ScanClaudePlugins_ScopeProperty(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(rt)
+
+		scope := rapid.SampledFrom([]string{"user", "project", "local", "managed"}).
+			Draw(rt, "scope")
+		projectPath := rapid.SampledFrom([]string{"", pluginRepoTop, "/home/repos/other"}).
+			Draw(rt, "projectPath")
+		repoTop := rapid.SampledFrom([]string{"", pluginRepoTop}).Draw(rt, "repoTop")
+
+		root := pluginCacheRoot + "/m/p/1"
+		fsys := newFakeSkillFS().file(root+"/skills/s/SKILL.md", "s")
+		writePluginManifests(
+			g,
+			fsys,
+			[]pluginInstall{
+				{key: "p@m", installPath: root, scope: scope, projectPath: projectPath},
+			},
+			map[string]bool{"p@m": true},
+		)
+
+		result := cli.ScanClaudePlugins(
+			fsys,
+			cli.ClaudePluginScan{ClaudeDir: pluginClaudeDir, RepoTopLevel: repoTop},
+		)
+
+		want := scope == "user" ||
+			((scope == "project" || scope == "local") && repoTop != "" && projectPath == repoTop)
+
+		g.Expect(pluginStatus(result, "p")).To(Equal(pluginStatusFor(want)))
+		g.Expect(result.Candidates).To(HaveLen(boolCount(want)))
+	})
+}
+
+func Test792b30c7a12_ScanClaudePlugins_UnscannablePluginContents(t *testing.T) {
+	t.Parallel()
+
+	root := pluginCacheRoot + "/m/p/1"
+
+	cases := map[string]struct {
+		setup func(*fakeSkillFS)
+		warns bool
+	}{
+		"unreadable skill child": {warns: true, setup: func(f *fakeSkillFS) {
+			f.file(root+"/skills/ok/SKILL.md", "ok").file(root+"/skills/bad/SKILL.md", "bad").
+				failRead(root + "/skills/bad/SKILL.md")
+		}},
+		"unreadable install path": {warns: true, setup: func(f *fakeSkillFS) {
+			f.file(root+"/skills/ok/SKILL.md", "ok").failRead(root)
+		}},
+		"bad plugin.json": {warns: true, setup: func(f *fakeSkillFS) {
+			f.file(root+"/skills/ok/SKILL.md", "ok").file(root+"/.claude-plugin/plugin.json", `{`)
+		}},
+		"object-map commands": {warns: true, setup: func(f *fakeSkillFS) {
+			f.file(root+"/skills/ok/SKILL.md", "ok").
+				file(root+"/.claude-plugin/plugin.json", `{"commands":{"x":{"source":"./x.md"}}}`)
+		}},
+		"bad skills field": {warns: true, setup: func(f *fakeSkillFS) {
+			f.file(root+"/skills/ok/SKILL.md", "ok").
+				file(root+"/.claude-plugin/plugin.json", `{"skills":{"a":1}}`)
+		}},
+		"declared skills path missing": {warns: true, setup: func(f *fakeSkillFS) {
+			f.file(root+"/skills/ok/SKILL.md", "ok").
+				file(root+"/.claude-plugin/plugin.json", `{"skills":["./nowhere"]}`)
+		}},
+		"plugin root holds SKILL.md": {warns: true, setup: func(f *fakeSkillFS) {
+			f.file(root+"/SKILL.md", "root").
+				file(root+"/.claude-plugin/plugin.json", `{"skills":["."]}`)
+		}},
+		"unreadable declared skill": {warns: true, setup: func(f *fakeSkillFS) {
+			f.file(root+"/one/SKILL.md", "one").failRead(root+"/one/SKILL.md").
+				file(root+"/.claude-plugin/plugin.json", `{"skills":"./one"}`)
+		}},
+		"missing install path": {setup: func(*fakeSkillFS) {}},
+	}
+
+	for name, testCase := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			fsys := newFakeSkillFS()
+			testCase.setup(fsys)
+			writePluginManifests(
+				g,
+				fsys,
+				[]pluginInstall{{key: "p@m", installPath: root}},
+				map[string]bool{"p@m": true},
+			)
+
+			result := cli.ScanClaudePlugins(fsys, pluginScanInput())
+
+			g.Expect(pluginStatus(result, "p")).To(Equal(pluginStatusNotScanned))
+			g.Expect(result.Warnings != nil).To(Equal(testCase.warns), "%v", result.Warnings)
+		})
+	}
+}
+
+func Test792b30c7a13_ScanClaudePlugins_ConflictProperty(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -99,173 +201,7 @@ func TestScanClaudePlugins_ConflictProperty(t *testing.T) {
 	})
 }
 
-// TestScanClaudePlugins_DeclaredPathsStayInsideThePlugin covers the
-// plugin.json path guard: an absolute declared path, a `..` escape, or a
-// path whose symlinks resolve outside the resolved installPath is refused
-// with a warning and marks the plugin not scanned, for `skills` and
-// `commands` alike; so is a single command file that is not `.md`. None of
-// the escaping files is read into a candidate.
-func TestScanClaudePlugins_DeclaredPathsStayInsideThePlugin(t *testing.T) {
-	t.Parallel()
-
-	root := pluginCacheRoot + "/m/p/1"
-	secret := "/home/.ssh"
-
-	cases := map[string]struct {
-		manifest string
-		setup    func(*fakeSkillFS)
-		warning  string
-	}{
-		"absolute command path": {
-			manifest: `{"commands":["` + secret + `/id_rsa.md"]}`,
-			warning:  secret + "/id_rsa.md",
-		},
-		"dot-dot command escape": {
-			manifest: `{"commands":["../../../../../.ssh/id_rsa.md"]}`,
-			warning:  "../../../../../.ssh/id_rsa.md",
-		},
-		"dot-dot command escape without .md": {
-			manifest: `{"commands":["../../../../../.ssh/id_rsa"]}`,
-			warning:  "../../../../../.ssh/id_rsa",
-		},
-		"symlinked command dir escaping": {
-			manifest: `{"commands":"./cmds"}`,
-			setup:    func(f *fakeSkillFS) { f.link(root+"/cmds", secret) },
-			warning:  "./cmds",
-		},
-		"absolute skills path": {
-			manifest: `{"skills":["` + secret + `"]}`,
-			warning:  secret,
-		},
-		"dot-dot skills escape": {
-			manifest: `{"skills":"../../../../../.ssh"}`,
-			warning:  "../../../../../.ssh",
-		},
-		"symlinked skill folder escaping": {
-			manifest: `{"skills":["./one"]}`,
-			setup:    func(f *fakeSkillFS) { f.link(root+"/one", secret+"/leak") },
-			warning:  "./one",
-		},
-		"non-md command file": {
-			manifest: `{"commands":["./commands/setup.txt"]}`,
-			setup:    func(f *fakeSkillFS) { f.file(root+"/commands/setup.txt", "not markdown") },
-			warning:  "setup.txt",
-		},
-		"missing declared command path": {
-			manifest: `{"commands":["./gone.md"]}`,
-			warning:  "./gone.md",
-		},
-	}
-
-	for name, testCase := range cases {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			fsys := newFakeSkillFS().
-				file(root+"/skills/ok/SKILL.md", "ok").
-				file(root+"/.claude-plugin/plugin.json", testCase.manifest).
-				file(secret+"/id_rsa.md", "PRIVATE KEY").
-				file(secret+"/id_rsa", "PRIVATE KEY").
-				file(secret+"/leak/SKILL.md", "PRIVATE KEY").
-				file(secret+"/SKILL.md", "PRIVATE KEY")
-			if testCase.setup != nil {
-				testCase.setup(fsys)
-			}
-
-			writePluginManifests(g, fsys, []pluginInstall{{key: "p@m", installPath: root}},
-				map[string]bool{"p@m": true})
-
-			result := cli.ScanClaudePlugins(fsys, pluginScanInput())
-
-			g.Expect(pluginStatus(result, "p")).To(Equal(pluginStatusNotScanned))
-			g.Expect(warningsMention(result.SkillScanResult, testCase.warning)).To(BeTrue(), "%v", result.Warnings)
-
-			for _, candidate := range result.Candidates {
-				g.Expect(string(candidate.Content)).NotTo(Equal("PRIVATE KEY"), candidate.SourcePath)
-				g.Expect(candidate.SourcePath).To(HavePrefix(root + "/"))
-			}
-		})
-	}
-}
-
-func TestScanClaudePlugins_DisabledPluginReadsNothingBeyondManifests(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	mock, imp := MockSkillSourceFS(t)
-	done := make(chan cli.ClaudePluginScanResult)
-
-	go func() {
-		done <- cli.ScanClaudePlugins(mock, cli.ClaudePluginScan{ClaudeDir: "/c"})
-	}()
-
-	dirInfo := func(name string) fs.FileInfo {
-		return fakeSkillInfo{name: name, node: &fakeSkillNode{kind: fakeSkillDir}}
-	}
-	fileInfo := func(name string) fs.FileInfo {
-		return fakeSkillInfo{name: name, node: &fakeSkillNode{kind: fakeSkillFile}}
-	}
-
-	installed := `{"version":2,"plugins":{"hookify@m":[{"scope":"user","installPath":"/c/plugins/cache/m/hookify/1"}]}}`
-
-	imp.Lstat.ArgsEqual("/c").Return(dirInfo("c"), nil)
-	imp.Lstat.ArgsEqual("/c/plugins").Return(dirInfo("plugins"), nil)
-	imp.Lstat.ArgsEqual("/c/plugins/installed_plugins.json").
-		Return(fileInfo("installed_plugins.json"), nil)
-	imp.ReadFile.ArgsEqual("/c/plugins/installed_plugins.json").Return([]byte(installed), nil)
-	imp.Lstat.ArgsEqual("/c").Return(dirInfo("c"), nil)
-	imp.Lstat.ArgsEqual("/c/settings.json").Return(fileInfo("settings.json"), nil)
-	imp.ReadFile.ArgsEqual("/c/settings.json").
-		Return([]byte(`{"enabledPlugins":{"hookify@m":false}}`), nil)
-
-	result := <-done
-
-	g.Expect(result.Candidates).To(BeEmpty())
-	g.Expect(result.ManifestsRead).To(BeTrue())
-	g.Expect(pluginStatus(result, "hookify")).To(Equal(pluginStatusNotScanned))
-}
-
-func TestScanClaudePlugins_EnablementProperty(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		g := NewWithT(rt)
-
-		setting := rapid.SampledFrom([]string{"true", "false", "absent"}).Draw(rt, "enabledPlugins")
-		defaultEnabled := rapid.SampledFrom([]string{"true", "false", "absent", "no-manifest"}).
-			Draw(rt, "defaultEnabled")
-
-		root := pluginCacheRoot + "/m/p/1.0.0"
-		fsys := newFakeSkillFS().file(root+"/skills/s/SKILL.md", "s")
-
-		switch defaultEnabled {
-		case "true", "false":
-			fsys.file(
-				root+"/.claude-plugin/plugin.json",
-				`{"name":"p","defaultEnabled":`+defaultEnabled+`}`,
-			)
-		case "absent":
-			fsys.file(root+"/.claude-plugin/plugin.json", `{"name":"p"}`)
-		}
-
-		enabled := map[string]bool{}
-		if setting != "absent" {
-			enabled["p@m"] = setting == "true"
-		}
-
-		writePluginManifests(g, fsys, []pluginInstall{{key: "p@m", installPath: root}}, enabled)
-
-		result := cli.ScanClaudePlugins(fsys, pluginScanInput())
-
-		want := setting == "true" || (setting == "absent" && defaultEnabled != "false")
-
-		g.Expect(pluginStatus(result, "p")).To(Equal(pluginStatusFor(want)))
-		g.Expect(result.Candidates).To(HaveLen(boolCount(want)))
-	})
-}
-
-func TestScanClaudePlugins_MachineShape(t *testing.T) {
+func Test792b30c7a1_ScanClaudePlugins_MachineShape(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -352,7 +288,217 @@ func TestScanClaudePlugins_MachineShape(t *testing.T) {
 	g.Expect(result.Warnings).To(BeEmpty())
 }
 
-func TestScanClaudePlugins_ManifestFailures(t *testing.T) {
+func Test792b30c7a2_ScanClaudePlugins_CommandsFieldReplacesCommandsDir(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	root := pluginCacheRoot + "/hud/hud/0.8.0"
+	fsys := newFakeSkillFS().
+		file(root+"/.claude-plugin/plugin.json", `{"name":"hud","commands":["./commands/setup.md"]}`).
+		file(root+"/commands/setup.md", "setup").
+		file(root+"/commands/configure.md", "configure")
+	writePluginManifests(
+		g,
+		fsys,
+		[]pluginInstall{{key: "hud@hud", installPath: root}},
+		map[string]bool{"hud@hud": true},
+	)
+
+	result := cli.ScanClaudePlugins(fsys, pluginScanInput())
+
+	g.Expect(pluginCandidateIDs(result)).To(Equal([]string{"plugin:hud command setup"}))
+	g.Expect(pluginStatus(result, "hud")).To(Equal(pluginStatusScanned))
+}
+
+func Test792b30c7a3_ScanClaudePlugins_PluginJSONSkillsAddToDefault(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	root := pluginCacheRoot + "/m/p/1.0.0"
+	fsys := newFakeSkillFS().
+		file(root+"/.claude-plugin/plugin.json", `{"name":"p","skills":["./extra/","./single","./skills"]}`).
+		file(root+"/skills/base/SKILL.md", "base").
+		file(root+"/extra/more/SKILL.md", "more").
+		file(root+"/single/SKILL.md", "single")
+	writePluginManifests(g, fsys, []pluginInstall{{key: "p@m", installPath: root}}, map[string]bool{})
+
+	result := cli.ScanClaudePlugins(fsys, pluginScanInput())
+
+	g.Expect(pluginCandidateIDs(result)).To(Equal([]string{
+		"plugin:p skill base",
+		"plugin:p skill more",
+		"plugin:p skill single",
+	}))
+	g.Expect(pluginStatus(result, "p")).To(Equal(pluginStatusScanned))
+}
+
+// Test792b30c7a4_ScanClaudePlugins_DeclaredPathsStayInsideThePlugin covers the
+// plugin.json path guard: an absolute declared path, a `..` escape, or a
+// path whose symlinks resolve outside the resolved installPath is refused
+// with a warning and marks the plugin not scanned, for `skills` and
+// `commands` alike; so is a single command file that is not `.md`. None of
+// the escaping files is read into a candidate.
+func Test792b30c7a4_ScanClaudePlugins_DeclaredPathsStayInsideThePlugin(t *testing.T) {
+	t.Parallel()
+
+	root := pluginCacheRoot + "/m/p/1"
+	secret := "/home/.ssh"
+
+	cases := map[string]struct {
+		manifest string
+		setup    func(*fakeSkillFS)
+		warning  string
+	}{
+		"absolute command path": {
+			manifest: `{"commands":["` + secret + `/id_rsa.md"]}`,
+			warning:  secret + "/id_rsa.md",
+		},
+		"dot-dot command escape": {
+			manifest: `{"commands":["../../../../../.ssh/id_rsa.md"]}`,
+			warning:  "../../../../../.ssh/id_rsa.md",
+		},
+		"dot-dot command escape without .md": {
+			manifest: `{"commands":["../../../../../.ssh/id_rsa"]}`,
+			warning:  "../../../../../.ssh/id_rsa",
+		},
+		"symlinked command dir escaping": {
+			manifest: `{"commands":"./cmds"}`,
+			setup:    func(f *fakeSkillFS) { f.link(root+"/cmds", secret) },
+			warning:  "./cmds",
+		},
+		"absolute skills path": {
+			manifest: `{"skills":["` + secret + `"]}`,
+			warning:  secret,
+		},
+		"dot-dot skills escape": {
+			manifest: `{"skills":"../../../../../.ssh"}`,
+			warning:  "../../../../../.ssh",
+		},
+		"symlinked skill folder escaping": {
+			manifest: `{"skills":["./one"]}`,
+			setup:    func(f *fakeSkillFS) { f.link(root+"/one", secret+"/leak") },
+			warning:  "./one",
+		},
+		"non-md command file": {
+			manifest: `{"commands":["./commands/setup.txt"]}`,
+			setup:    func(f *fakeSkillFS) { f.file(root+"/commands/setup.txt", "not markdown") },
+			warning:  "setup.txt",
+		},
+		"missing declared command path": {
+			manifest: `{"commands":["./gone.md"]}`,
+			warning:  "./gone.md",
+		},
+	}
+
+	for name, testCase := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			fsys := newFakeSkillFS().
+				file(root+"/skills/ok/SKILL.md", "ok").
+				file(root+"/.claude-plugin/plugin.json", testCase.manifest).
+				file(secret+"/id_rsa.md", "PRIVATE KEY").
+				file(secret+"/id_rsa", "PRIVATE KEY").
+				file(secret+"/leak/SKILL.md", "PRIVATE KEY").
+				file(secret+"/SKILL.md", "PRIVATE KEY")
+			if testCase.setup != nil {
+				testCase.setup(fsys)
+			}
+
+			writePluginManifests(g, fsys, []pluginInstall{{key: "p@m", installPath: root}},
+				map[string]bool{"p@m": true})
+
+			result := cli.ScanClaudePlugins(fsys, pluginScanInput())
+
+			g.Expect(pluginStatus(result, "p")).To(Equal(pluginStatusNotScanned))
+			g.Expect(warningsMention(result.SkillScanResult, testCase.warning)).To(BeTrue(), "%v", result.Warnings)
+
+			for _, candidate := range result.Candidates {
+				g.Expect(string(candidate.Content)).NotTo(Equal("PRIVATE KEY"), candidate.SourcePath)
+				g.Expect(candidate.SourcePath).To(HavePrefix(root + "/"))
+			}
+		})
+	}
+}
+
+func Test792b30c7a5_ScanClaudePlugins_DisabledPluginReadsNothingBeyondManifests(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	mock, imp := MockSkillSourceFS(t)
+	done := make(chan cli.ClaudePluginScanResult)
+
+	go func() {
+		done <- cli.ScanClaudePlugins(mock, cli.ClaudePluginScan{ClaudeDir: "/c"})
+	}()
+
+	dirInfo := func(name string) fs.FileInfo {
+		return fakeSkillInfo{name: name, node: &fakeSkillNode{kind: fakeSkillDir}}
+	}
+	fileInfo := func(name string) fs.FileInfo {
+		return fakeSkillInfo{name: name, node: &fakeSkillNode{kind: fakeSkillFile}}
+	}
+
+	installed := `{"version":2,"plugins":{"hookify@m":[{"scope":"user","installPath":"/c/plugins/cache/m/hookify/1"}]}}`
+
+	imp.Lstat.ArgsEqual("/c").Return(dirInfo("c"), nil)
+	imp.Lstat.ArgsEqual("/c/plugins").Return(dirInfo("plugins"), nil)
+	imp.Lstat.ArgsEqual("/c/plugins/installed_plugins.json").
+		Return(fileInfo("installed_plugins.json"), nil)
+	imp.ReadFile.ArgsEqual("/c/plugins/installed_plugins.json").Return([]byte(installed), nil)
+	imp.Lstat.ArgsEqual("/c").Return(dirInfo("c"), nil)
+	imp.Lstat.ArgsEqual("/c/settings.json").Return(fileInfo("settings.json"), nil)
+	imp.ReadFile.ArgsEqual("/c/settings.json").
+		Return([]byte(`{"enabledPlugins":{"hookify@m":false}}`), nil)
+
+	result := <-done
+
+	g.Expect(result.Candidates).To(BeEmpty())
+	g.Expect(result.ManifestsRead).To(BeTrue())
+	g.Expect(pluginStatus(result, "hookify")).To(Equal(pluginStatusNotScanned))
+}
+
+func Test792b30c7a6_ScanClaudePlugins_EnablementProperty(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(rt)
+
+		setting := rapid.SampledFrom([]string{"true", "false", "absent"}).Draw(rt, "enabledPlugins")
+		defaultEnabled := rapid.SampledFrom([]string{"true", "false", "absent", "no-manifest"}).
+			Draw(rt, "defaultEnabled")
+
+		root := pluginCacheRoot + "/m/p/1.0.0"
+		fsys := newFakeSkillFS().file(root+"/skills/s/SKILL.md", "s")
+
+		switch defaultEnabled {
+		case "true", "false":
+			fsys.file(
+				root+"/.claude-plugin/plugin.json",
+				`{"name":"p","defaultEnabled":`+defaultEnabled+`}`,
+			)
+		case "absent":
+			fsys.file(root+"/.claude-plugin/plugin.json", `{"name":"p"}`)
+		}
+
+		enabled := map[string]bool{}
+		if setting != "absent" {
+			enabled["p@m"] = setting == "true"
+		}
+
+		writePluginManifests(g, fsys, []pluginInstall{{key: "p@m", installPath: root}}, enabled)
+
+		result := cli.ScanClaudePlugins(fsys, pluginScanInput())
+
+		want := setting == "true" || (setting == "absent" && defaultEnabled != "false")
+
+		g.Expect(pluginStatus(result, "p")).To(Equal(pluginStatusFor(want)))
+		g.Expect(result.Candidates).To(HaveLen(boolCount(want)))
+	})
+}
+
+func Test792b30c7a7_ScanClaudePlugins_ManifestFailures(t *testing.T) {
 	t.Parallel()
 
 	type manifestCase struct {
@@ -412,7 +558,7 @@ func TestScanClaudePlugins_ManifestFailures(t *testing.T) {
 	}
 }
 
-func TestScanClaudePlugins_MostSpecificScopeWins(t *testing.T) {
+func Test792b30c7a8_ScanClaudePlugins_MostSpecificScopeWins(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -437,7 +583,7 @@ func TestScanClaudePlugins_MostSpecificScopeWins(t *testing.T) {
 	g.Expect(string(result.Candidates[0].Content)).To(Equal("local"))
 }
 
-func TestScanClaudePlugins_NonBooleanEnabledValueIsNotScanned(t *testing.T) {
+func Test792b30c7a9_ScanClaudePlugins_NonBooleanEnabledValueIsNotScanned(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -451,152 +597,6 @@ func TestScanClaudePlugins_NonBooleanEnabledValueIsNotScanned(t *testing.T) {
 	g.Expect(result.Candidates).To(BeEmpty())
 	g.Expect(pluginStatus(result, "p")).To(Equal(pluginStatusNotScanned))
 	g.Expect(warningsMention(result.SkillScanResult, "p@m")).To(BeTrue())
-}
-
-func TestScanClaudePlugins_PluginJSONSkillsAddToDefault(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	root := pluginCacheRoot + "/m/p/1.0.0"
-	fsys := newFakeSkillFS().
-		file(root+"/.claude-plugin/plugin.json", `{"name":"p","skills":["./extra/","./single","./skills"]}`).
-		file(root+"/skills/base/SKILL.md", "base").
-		file(root+"/extra/more/SKILL.md", "more").
-		file(root+"/single/SKILL.md", "single")
-	writePluginManifests(g, fsys, []pluginInstall{{key: "p@m", installPath: root}}, map[string]bool{})
-
-	result := cli.ScanClaudePlugins(fsys, pluginScanInput())
-
-	g.Expect(pluginCandidateIDs(result)).To(Equal([]string{
-		"plugin:p skill base",
-		"plugin:p skill more",
-		"plugin:p skill single",
-	}))
-	g.Expect(pluginStatus(result, "p")).To(Equal(pluginStatusScanned))
-}
-
-func TestScanClaudePlugins_ReservedAndColonNamesAreSkipped(t *testing.T) {
-	t.Parallel()
-
-	for _, name := range []string{
-		"claude", "pi", "agents", "project", "anthropic-skills", "pi-settings", "pi-pkg", "pi-prompt", "a:b",
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			root := pluginCacheRoot + "/m/x/1"
-			fsys := newFakeSkillFS().file(root+"/skills/s/SKILL.md", "s")
-			writePluginManifests(g, fsys, []pluginInstall{{key: name + "@m", installPath: root}},
-				map[string]bool{name + "@m": true})
-
-			result := cli.ScanClaudePlugins(fsys, pluginScanInput())
-
-			g.Expect(result.Candidates).To(BeEmpty())
-			g.Expect(pluginStatus(result, name)).To(Equal(pluginStatusNotScanned))
-			g.Expect(warningsMention(result.SkillScanResult, name)).To(BeTrue())
-		})
-	}
-}
-
-func TestScanClaudePlugins_ScopeProperty(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		g := NewWithT(rt)
-
-		scope := rapid.SampledFrom([]string{"user", "project", "local", "managed"}).
-			Draw(rt, "scope")
-		projectPath := rapid.SampledFrom([]string{"", pluginRepoTop, "/home/repos/other"}).
-			Draw(rt, "projectPath")
-		repoTop := rapid.SampledFrom([]string{"", pluginRepoTop}).Draw(rt, "repoTop")
-
-		root := pluginCacheRoot + "/m/p/1"
-		fsys := newFakeSkillFS().file(root+"/skills/s/SKILL.md", "s")
-		writePluginManifests(
-			g,
-			fsys,
-			[]pluginInstall{
-				{key: "p@m", installPath: root, scope: scope, projectPath: projectPath},
-			},
-			map[string]bool{"p@m": true},
-		)
-
-		result := cli.ScanClaudePlugins(
-			fsys,
-			cli.ClaudePluginScan{ClaudeDir: pluginClaudeDir, RepoTopLevel: repoTop},
-		)
-
-		want := scope == "user" ||
-			((scope == "project" || scope == "local") && repoTop != "" && projectPath == repoTop)
-
-		g.Expect(pluginStatus(result, "p")).To(Equal(pluginStatusFor(want)))
-		g.Expect(result.Candidates).To(HaveLen(boolCount(want)))
-	})
-}
-
-func TestScanClaudePlugins_UnscannablePluginContents(t *testing.T) {
-	t.Parallel()
-
-	root := pluginCacheRoot + "/m/p/1"
-
-	cases := map[string]struct {
-		setup func(*fakeSkillFS)
-		warns bool
-	}{
-		"unreadable skill child": {warns: true, setup: func(f *fakeSkillFS) {
-			f.file(root+"/skills/ok/SKILL.md", "ok").file(root+"/skills/bad/SKILL.md", "bad").
-				failRead(root + "/skills/bad/SKILL.md")
-		}},
-		"unreadable install path": {warns: true, setup: func(f *fakeSkillFS) {
-			f.file(root+"/skills/ok/SKILL.md", "ok").failRead(root)
-		}},
-		"bad plugin.json": {warns: true, setup: func(f *fakeSkillFS) {
-			f.file(root+"/skills/ok/SKILL.md", "ok").file(root+"/.claude-plugin/plugin.json", `{`)
-		}},
-		"object-map commands": {warns: true, setup: func(f *fakeSkillFS) {
-			f.file(root+"/skills/ok/SKILL.md", "ok").
-				file(root+"/.claude-plugin/plugin.json", `{"commands":{"x":{"source":"./x.md"}}}`)
-		}},
-		"bad skills field": {warns: true, setup: func(f *fakeSkillFS) {
-			f.file(root+"/skills/ok/SKILL.md", "ok").
-				file(root+"/.claude-plugin/plugin.json", `{"skills":{"a":1}}`)
-		}},
-		"declared skills path missing": {warns: true, setup: func(f *fakeSkillFS) {
-			f.file(root+"/skills/ok/SKILL.md", "ok").
-				file(root+"/.claude-plugin/plugin.json", `{"skills":["./nowhere"]}`)
-		}},
-		"plugin root holds SKILL.md": {warns: true, setup: func(f *fakeSkillFS) {
-			f.file(root+"/SKILL.md", "root").
-				file(root+"/.claude-plugin/plugin.json", `{"skills":["."]}`)
-		}},
-		"unreadable declared skill": {warns: true, setup: func(f *fakeSkillFS) {
-			f.file(root+"/one/SKILL.md", "one").failRead(root+"/one/SKILL.md").
-				file(root+"/.claude-plugin/plugin.json", `{"skills":"./one"}`)
-		}},
-		"missing install path": {setup: func(*fakeSkillFS) {}},
-	}
-
-	for name, testCase := range cases {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			fsys := newFakeSkillFS()
-			testCase.setup(fsys)
-			writePluginManifests(
-				g,
-				fsys,
-				[]pluginInstall{{key: "p@m", installPath: root}},
-				map[string]bool{"p@m": true},
-			)
-
-			result := cli.ScanClaudePlugins(fsys, pluginScanInput())
-
-			g.Expect(pluginStatus(result, "p")).To(Equal(pluginStatusNotScanned))
-			g.Expect(result.Warnings != nil).To(Equal(testCase.warns), "%v", result.Warnings)
-		})
-	}
 }
 
 // unexported constants.

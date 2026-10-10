@@ -237,8 +237,8 @@ flowchart TD
   N792c7j2["792c7j2 self-installer tech spec<br/>Complete"]
   N792c7j3["792c7j3 harness-deploy-sync tech spec<br/>Complete"]
   N792c7k1["792c7k1 skill-runbook-registration product spec<br/>Complete"]
-  N792c7k2["792c7k2 skill-source-discovery tech spec<br/>Ready"]
-  N792c7k3["792c7k3 skill-registration-ledger tech spec<br/>Blocked by: 792c7k2"]
+  N792c7k2["792c7k2 skill-source-discovery tech spec<br/>Complete"]
+  N792c7k3["792c7k3 skill-registration-ledger tech spec<br/>Ready"]
   N792c7l1["792c7l1 write-memory product spec<br/>Blocked by: 792c7k3"]
   N792c7l2["792c7l2 agent-instruction-bundle tech spec<br/>Blocked by: 792c7l1"]
   N792c7m1["792c7m1 recall product spec<br/>Blocked by: 792c7l2"]
@@ -3621,11 +3621,181 @@ Target: `792b30` (`docs/specs/technical/skill-source-discovery.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7k2a | Port the component contract to `792b30` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7k2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7k2c | Repoint stale references to `792b30` | Non-test action | Keeps live links valid | Not started |
-| 792c7k2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7k2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7k2a | Port the component contract to `792b30` | Non-test action | Documents the component in the framework format | Done |
+| 792c7k2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7k2c | Repoint stale references to `792b30` | Non-test action | Keeps live links valid | Done |
+| 792c7k2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7k2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+792b30 has seventeen requirements (792b30c1 to 792b30c17): path resolution, root read status, the Claude Code
+user, command, synced and plugin sources, the Pi skill, prompt, trust, project and configured sources, Pi's
+settings and overrides, project identity, the Claude Code project sources, composition and precedence, and the
+keys (792d107). It maps all 36 product scenarios of 792a12j to 792a12o that concern discovery. Legacy removal:
+the source-scan and source-key requirements of `skill-runbook-registration` are deleted and the c1 S3 row
+points at 792a12 and 792b30.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b30c1a1 | `TestResolveSkillPath_ChainProperty` → `Test792b30c1a1_ResolveSkillPath_ChainProperty` | Property (rapid) | A chain resolves to its terminal | Done |
+| 792b30c1a2 | `TestResolveSkillPath_DanglingLinkIsNotExist` → `Test792b30c1a2_ResolveSkillPath_DanglingLinkIsNotExist` | Pure unit (scanner over an in-memory filesystem) | A dangling link is not-exist | Done |
+| 792b30c1a3 | `TestResolveSkillPath_DotDotEndsOnParentDir` → `Test792b30c1a3_ResolveSkillPath_DotDotEndsOnParentDir` | Pure unit (scanner over an in-memory filesystem) | Dot-dot ends on the parent | Done |
+| 792b30c1a4 | `TestResolveSkillPath_LinkLoopErrors` → `Test792b30c1a4_ResolveSkillPath_LinkLoopErrors` | Pure unit (scanner over an in-memory filesystem) | A link loop is an error | Done |
+| 792b30c1a5 | `TestResolveSkillPath_RelativeTargetAndSymlinkedParent` → `Test792b30c1a5_ResolveSkillPath_RelativeTargetAndSymlinkedParent` | Pure unit (scanner over an in-memory filesystem) | A relative target and a symlinked parent resolve | Done |
+| 792b30c2a4 | `TestScanClaudeUserSkills_ChildReadErrorMarksRootNotScanned` → `Test792b30c2a4_ScanClaudeUserSkills_ChildReadErrorMarksRootNotScanned` | Pure unit (scanner over an in-memory filesystem) | A child that cannot be read marks the root not scanned | Done |
+| 792b30c2a5 | `TestScanClaudeUserSkills_ChildStatErrorMarksRootNotScanned` → `Test792b30c2a5_ScanClaudeUserSkills_ChildStatErrorMarksRootNotScanned` | Pure unit (scanner over an in-memory filesystem) | A child that cannot be inspected marks the root not scanned | Done |
+| 792b30c2a1 | `TestScanClaudeUserSkills_MissingRootIsNotScanned` → `Test792b30c2a1_ScanClaudeUserSkills_MissingRootIsNotScanned` | Pure unit (scanner over an in-memory filesystem) | A missing root is not scanned and silent | Done |
+| 792b30c2a2 | `TestScanClaudeUserSkills_ReadDirErrorIsNotScanned` → `Test792b30c2a2_ScanClaudeUserSkills_ReadDirErrorIsNotScanned` | Pure unit (scanner over an in-memory filesystem) | A listing failure is not scanned and warned | Done |
+| 792b30c2a3 | `TestScanClaudeUserSkills_ReadErrorOnRootIsNotScanned` → `Test792b30c2a3_ScanClaudeUserSkills_ReadErrorOnRootIsNotScanned` | Pure unit (scanner over an in-memory filesystem) | A failure on the root path is not scanned | Done |
+| 792b30c3a3 | `TestScanClaudeUserSkills_SkipsNonSkillEntries` → `Test792b30c3a3_ScanClaudeUserSkills_SkipsNonSkillEntries` | Pure unit (scanner over an in-memory filesystem) | Non-skill entries are skipped | Done |
+| 792b30c3a2 | `TestScanClaudeUserSkills_SymlinkedRootIsResolved` → `Test792b30c3a2_ScanClaudeUserSkills_SymlinkedRootIsResolved` | Pure unit (scanner over an in-memory filesystem) | A symlinked root is resolved | Done |
+| 792b30c3a1 | `TestScanClaudeUserSkills_SymlinkedSkillIsFound` → `Test792b30c3a1_ScanClaudeUserSkills_SymlinkedSkillIsFound` | Pure unit (scanner over an in-memory filesystem) | A symlinked skill is found | Done |
+| 792b30c4a3 | `TestScanCommandDir_CycleTerminates` → `Test792b30c4a3_ScanCommandDir_CycleTerminates` | Pure unit (scanner over an in-memory filesystem) | A link cycle ends | Done |
+| 792b30c4a4 | `TestScanCommandDir_MissingRootIsNotScanned` → `Test792b30c4a4_ScanCommandDir_MissingRootIsNotScanned` | Pure unit (scanner over an in-memory filesystem) | A missing root is not scanned | Done |
+| 792b30c4a2 | `TestScanCommandDir_NameProperty` → `Test792b30c4a2_ScanCommandDir_NameProperty` | Property (rapid) | Names are the path with colons | Done |
+| 792b30c4a1 | `TestScanCommandDir_NamesFollowSymlinksAndSkipNonMarkdown` → `Test792b30c4a1_ScanCommandDir_NamesFollowSymlinksAndSkipNonMarkdown` | Pure unit (scanner over an in-memory filesystem) | Names follow symlinks and skip non-markdown | Done |
+| 792b30c4a5 | `TestScanCommandDir_SubdirReadErrorMarksRootNotScanned` → `Test792b30c4a5_ScanCommandDir_SubdirReadErrorMarksRootNotScanned` | Pure unit (scanner over an in-memory filesystem) | A subdirectory that cannot be read marks the root not scanned | Done |
+| 792b30c4a6 | `TestScanCommandDir_SkipsEntriesContainingAColon` → `Test792b30c4a6_ScanCommandDir_SkipsEntriesContainingAColon` | Pure unit (scanner over an in-memory filesystem) | A name with a colon is skipped | Done |
+| 792b30c6a1 | `TestScanPluginCommands_AbsentFieldUsesCommandsDir` → `Test792b30c6a1_ScanPluginCommands_AbsentFieldUsesCommandsDir` | Pure unit (scanner over an in-memory filesystem) | An absent field uses the commands directory | Done |
+| 792b30c6a2 | `TestScanPluginCommands_StringPathToDir` → `Test792b30c6a2_ScanPluginCommands_StringPathToDir` | Pure unit (scanner over an in-memory filesystem) | A string path names a directory | Done |
+| 792b30c6a3 | `TestScanPluginCommands_ArrayReplacesCommandsDir` → `Test792b30c6a3_ScanPluginCommands_ArrayReplacesCommandsDir` | Pure unit (scanner over an in-memory filesystem) | An array replaces the commands directory | Done |
+| 792b30c6a4 | `TestScanPluginCommands_ObjectMapIsSkippedWithWarning` → `Test792b30c6a4_ScanPluginCommands_ObjectMapIsSkippedWithWarning` | Pure unit (scanner over an in-memory filesystem) | An object map is skipped with a warning | Done |
+| 792b30c6a5 | `TestScanPluginCommands_MissingDeclaredPathIsNotScanned` → `Test792b30c6a5_ScanPluginCommands_MissingDeclaredPathIsNotScanned` | Pure unit (scanner over an in-memory filesystem) | A missing declared path is not scanned | Done |
+| 792b30c6a6 | `TestScanPluginCommands_DeclaredFileReadErrorIsNotScanned` → `Test792b30c6a6_ScanPluginCommands_DeclaredFileReadErrorIsNotScanned` | Pure unit (scanner over an in-memory filesystem) | A declared file that cannot be read is not scanned | Done |
+| 792b30c6a7 | `TestScanPluginCommands_SkipsDeclaredFileWithAColon` → `Test792b30c6a7_ScanPluginCommands_SkipsDeclaredFileWithAColon` | Pure unit (scanner over an in-memory filesystem) | A declared file with a colon is skipped | Done |
+| 792b30c3a4 | `TestScanSkillChildren_Property` → `Test792b30c3a4_ScanSkillChildren_Property` | Property (rapid) | Children are exactly the skills built | Done |
+| 792b30c5a1 | `TestScanSyncedSkills_ManifestBucketAndStrayFile` → `Test792b30c5a1_ScanSyncedSkills_ManifestBucketAndStrayFile` | Pure unit (scanner over an in-memory filesystem) | A manifest bucket is scanned and a stray file ignored | Done |
+| 792b30c5a2 | `TestScanSyncedSkills_BadManifestBucketContributesNothing` → `Test792b30c5a2_ScanSyncedSkills_BadManifestBucketContributesNothing` | Pure unit (scanner over an in-memory filesystem) | A bucket with a bad manifest contributes nothing | Done |
+| 792b30c5a3 | `TestScanSyncedSkills_DuplicateNameAcrossBucketsEmitsBoth` → `Test792b30c5a3_ScanSyncedSkills_DuplicateNameAcrossBucketsEmitsBoth` | Pure unit (scanner over an in-memory filesystem) | A skill in two buckets is emitted twice | Done |
+| 792b30c5a4 | `TestScanSyncedSkills_MissingRootIsNotScanned` → `Test792b30c5a4_ScanSyncedSkills_MissingRootIsNotScanned` | Pure unit (scanner over an in-memory filesystem) | A missing synced root is not scanned | Done |
+| 792b30c5a5 | `TestScanSyncedSkills_NoParsedManifestIsNotScanned` → `Test792b30c5a5_ScanSyncedSkills_NoParsedManifestIsNotScanned` | Pure unit (scanner over an in-memory filesystem) | No parsed manifest means the root is not scanned | Done |
+| 792b30c5a6 | `TestScanSyncedSkills_Property` → `Test792b30c5a6_ScanSyncedSkills_Property` | Property (rapid) | Candidates come only from parseable buckets | Done |
+| 792b30c10a1 | `TestResolvePiProjectTrust_DefaultAlwaysTrusts` → `Test792b30c10a1_ResolvePiProjectTrust_DefaultAlwaysTrusts` | Pure unit (scanner over an in-memory filesystem) | Always trusts by default | Done |
+| 792b30c10a2 | `TestResolvePiProjectTrust_FallbackOtherThanAlwaysIsUntrusted` → `Test792b30c10a2_ResolvePiProjectTrust_FallbackOtherThanAlwaysIsUntrusted` | Pure unit (scanner over an in-memory filesystem) | Another fallback is untrusted | Done |
+| 792b30c10a3 | `TestResolvePiProjectTrust_FromTrustFile` → `Test792b30c10a3_ResolvePiProjectTrust_FromTrustFile` | Pure unit (scanner over an in-memory filesystem) | A saved decision decides | Done |
+| 792b30c10a4 | `TestResolvePiProjectTrust_InvalidFilesAreUntrustedWithWarning` → `Test792b30c10a4_ResolvePiProjectTrust_InvalidFilesAreUntrustedWithWarning` | Pure unit (scanner over an in-memory filesystem) | Invalid files are untrusted with a warning | Done |
+| 792b30c10a5 | `TestResolvePiProjectTrust_NearestDecisionProperty` → `Test792b30c10a5_ResolvePiProjectTrust_NearestDecisionProperty` | Property (rapid) | The nearest decision wins | Done |
+| 792b30c10a6 | `TestResolvePiProjectTrust_SymlinkedCwdIsCanonicalized` → `Test792b30c10a6_ResolvePiProjectTrust_SymlinkedCwdIsCanonicalized` | Pure unit (scanner over an in-memory filesystem) | A symlinked working directory is canonicalized | Done |
+| 792b30c11a4 | `TestScanAgentsProjectSkills_FromSubdirectoryFindsTopLevel` → `Test792b30c11a4_ScanAgentsProjectSkills_FromSubdirectoryFindsTopLevel` | Pure unit (scanner over an in-memory filesystem) | The agents chain is found from a subdirectory | Done |
+| 792b30c11a5 | `TestScanAgentsProjectSkills_ChainProperty` → `Test792b30c11a5_ScanAgentsProjectSkills_ChainProperty` | Property (rapid) | The agents chain finds exactly the levels that hold skills | Done |
+| 792b30c11a6 | `TestScanAgentsProjectSkills_SkipsUserAgentsRoot` → `Test792b30c11a6_ScanAgentsProjectSkills_SkipsUserAgentsRoot` | Pure unit (scanner over an in-memory filesystem) | The user agents root is not a project level | Done |
+| 792b30c11a7 | `TestScanAgentsProjectSkills_SymlinkedCwdStopsAtTopLevel` → `Test792b30c11a7_ScanAgentsProjectSkills_SymlinkedCwdStopsAtTopLevel` | Pure unit (scanner over an in-memory filesystem) | A symlinked working directory stops at the top-level | Done |
+| 792b30c8a12 | `TestScanAgentsUserSkills_IgnoresRootMarkdown` → `Test792b30c8a12_ScanAgentsUserSkills_IgnoresRootMarkdown` | Pure unit (scanner over an in-memory filesystem) | The agents root ignores root markdown | Done |
+| 792b30c11a1 | `TestScanPiProjectSkills_TrustedScansCwdPiSkills` → `Test792b30c11a1_ScanPiProjectSkills_TrustedScansCwdPiSkills` | Pure unit (scanner over an in-memory filesystem) | A trusted project scans the working directory's Pi skills | Done |
+| 792b30c11a2 | `TestScanPiProjectPrompts_TrustedScansCwdPiPrompts` → `Test792b30c11a2_ScanPiProjectPrompts_TrustedScansCwdPiPrompts` | Pure unit (scanner over an in-memory filesystem) | A trusted project scans its Pi prompts | Done |
+| 792b30c11a3 | `TestScanPiProjectSources_UntrustedReadsNothing` → `Test792b30c11a3_ScanPiProjectSources_UntrustedReadsNothing` | Pure unit (scanner over an in-memory filesystem) | An untrusted project reads nothing | Done |
+| 792b30c11a8 | `TestScanPiProjectScanners_StampSourceSegment` → `Test792b30c11a8_ScanPiProjectScanners_StampSourceSegment` | Pure unit (scanner over an in-memory filesystem) | Candidates carry their source segment | Done |
+| 792b30c9a4 | `TestScanPiPromptDir_FlatMarkdownProperty` → `Test792b30c9a4_ScanPiPromptDir_FlatMarkdownProperty` | Property (rapid) | Only flat markdown files are prompts | Done |
+| 792b30c8a8 | `TestScanPiSkillDir_ChildStatErrorMarksRootNotScanned` → `Test792b30c8a8_ScanPiSkillDir_ChildStatErrorMarksRootNotScanned` | Pure unit (scanner over an in-memory filesystem) | A child that cannot be inspected marks the root not scanned | Done |
+| 792b30c8a6 | `TestScanPiSkillDir_CycleTerminates` → `Test792b30c8a6_ScanPiSkillDir_CycleTerminates` | Pure unit (scanner over an in-memory filesystem) | A link cycle ends | Done |
+| 792b30c8a7 | `TestScanPiSkillDir_DepthLimitMarksRootNotScanned` → `Test792b30c8a7_ScanPiSkillDir_DepthLimitMarksRootNotScanned` | Pure unit (scanner over an in-memory filesystem) | A depth past the limit marks the root not scanned | Done |
+| 792b30c8a5 | `TestScanPiSkillDir_DiscoveryProperty` → `Test792b30c8a5_ScanPiSkillDir_DiscoveryProperty` | Property (rapid) | Discovery finds exactly the skill directories | Done |
+| 792b30c8a3 | `TestScanPiSkillDir_HiddenAndNodeModulesAreSkipped` → `Test792b30c8a3_ScanPiSkillDir_HiddenAndNodeModulesAreSkipped` | Pure unit (scanner over an in-memory filesystem) | Hidden directories and node_modules are skipped | Done |
+| 792b30c8a11 | `TestScanPiSkillDir_MissingRootIsNotScanned` → `Test792b30c8a11_ScanPiSkillDir_MissingRootIsNotScanned` | Pure unit (scanner over an in-memory filesystem) | A missing root is not scanned | Done |
+| 792b30c8a4 | `TestScanPiSkillDir_RootHoldingSkillIsOneSkill` → `Test792b30c8a4_ScanPiSkillDir_RootHoldingSkillIsOneSkill` | Pure unit (scanner over an in-memory filesystem) | A root holding SKILL.md is one skill | Done |
+| 792b30c8a9 | `TestScanPiSkillDir_SkillFileReadErrorMarksRootNotScanned` → `Test792b30c8a9_ScanPiSkillDir_SkillFileReadErrorMarksRootNotScanned` | Pure unit (scanner over an in-memory filesystem) | A skill file that cannot be read marks the root not scanned | Done |
+| 792b30c8a10 | `TestScanPiSkillDir_SubdirReadErrorMarksRootNotScanned` → `Test792b30c8a10_ScanPiSkillDir_SubdirReadErrorMarksRootNotScanned` | Pure unit (scanner over an in-memory filesystem) | A subdirectory that cannot be read marks the root not scanned | Done |
+| 792b30c9a1 | `TestScanPiUserPrompts_GlobalPromptNamedByStem` → `Test792b30c9a1_ScanPiUserPrompts_GlobalPromptNamedByStem` | Pure unit (scanner over an in-memory filesystem) | A global prompt is named by its stem | Done |
+| 792b30c9a2 | `TestScanPiUserPrompts_MissingDirIsNotScanned` → `Test792b30c9a2_ScanPiUserPrompts_MissingDirIsNotScanned` | Pure unit (scanner over an in-memory filesystem) | A missing directory is not scanned | Done |
+| 792b30c9a3 | `TestScanPiUserPrompts_UnreadablePromptMarksRootNotScanned` → `Test792b30c9a3_ScanPiUserPrompts_UnreadablePromptMarksRootNotScanned` | Pure unit (scanner over an in-memory filesystem) | An unreadable prompt marks the root not scanned | Done |
+| 792b30c8a1 | `TestScanPiUserSkills_RecursiveDiscoveryAndRootMarkdown` → `Test792b30c8a1_ScanPiUserSkills_RecursiveDiscoveryAndRootMarkdown` | Pure unit (scanner over an in-memory filesystem) | Recursive discovery and root markdown | Done |
+| 792b30c8a2 | `TestScanPiUserSkills_SymlinksFollowed` → `Test792b30c8a2_ScanPiUserSkills_SymlinksFollowed` | Pure unit (scanner over an in-memory filesystem) | Links are followed | Done |
+| 792b30c12a1 | `TestReadPiSettings_ReadsResolvedFile` → `Test792b30c12a1_ReadPiSettings_ReadsResolvedFile` | Pure unit (scanner over an in-memory filesystem) | Settings are read from the resolved file | Done |
+| 792b30c12a2 | `TestReadPiSettings_LegacySkillsObjectAndErrors` → `Test792b30c12a2_ReadPiSettings_LegacySkillsObjectAndErrors` | Pure unit (scanner over an in-memory filesystem) | The legacy skills object and errors | Done |
+| 792b30c12a3 | `TestApplyPiSettingsOverrides_DisablesDefaultFolderSkills` → `Test792b30c12a3_ApplyPiSettingsOverrides_DisablesDefaultFolderSkills` | Pure unit (scanner over an in-memory filesystem) | Overrides disable default-folder skills | Done |
+| 792b30c12a4 | `TestApplyPiSettingsOverrides_EnabledProperty` → `Test792b30c12a4_ApplyPiSettingsOverrides_EnabledProperty` | Property (rapid) | The override rule holds for names and exact paths | Done |
+| 792b30c12a5 | `TestApplyPiSettingsOverrides_FallsBackToSourcePath` → `Test792b30c12a5_ApplyPiSettingsOverrides_FallsBackToSourcePath` | Pure unit (scanner over an in-memory filesystem) | The source path is the fallback | Done |
+| 792b30c12a6 | `TestApplyPiSettingsOverrides_GlobstarDisablesAllWithWarning` → `Test792b30c12a6_ApplyPiSettingsOverrides_GlobstarDisablesAllWithWarning` | Pure unit (scanner over an in-memory filesystem) | A globstar disables all with a warning | Done |
+| 792b30c12a7 | `TestApplyPiSettingsOverrides_MatchesWalkedPathNotResolved` → `Test792b30c12a7_ApplyPiSettingsOverrides_MatchesWalkedPathNotResolved` | Pure unit (scanner over an in-memory filesystem) | The walked path is matched, not the resolved one | Done |
+| 792b30c12a8 | `TestApplyPiSettingsOverrides_PromptsByFileName` → `Test792b30c12a8_ApplyPiSettingsOverrides_PromptsByFileName` | Pure unit (scanner over an in-memory filesystem) | Prompts are matched by file name | Done |
+| 792b30c13a1 | `TestScanPiConfiguredSources_SettingsSkillPath` → `Test792b30c13a1_ScanPiConfiguredSources_SettingsSkillPath` | Pure unit (scanner over an in-memory filesystem) | A settings skill path | Done |
+| 792b30c13a2 | `TestScanPiConfiguredSources_DirectoryEntryIncludesRootMarkdown` → `Test792b30c13a2_ScanPiConfiguredSources_DirectoryEntryIncludesRootMarkdown` | Pure unit (scanner over an in-memory filesystem) | A directory entry includes its root markdown | Done |
+| 792b30c13a3 | `TestScanPiConfiguredSources_FileEntriesAreOneSkillEach` → `Test792b30c13a3_ScanPiConfiguredSources_FileEntriesAreOneSkillEach` | Pure unit (scanner over an in-memory filesystem) | File entries are one skill each | Done |
+| 792b30c13a4 | `TestScanPiConfiguredSources_GitAndLocalPackageRoots` → `Test792b30c13a4_ScanPiConfiguredSources_GitAndLocalPackageRoots` | Pure unit (scanner over an in-memory filesystem) | Git and local package roots | Done |
+| 792b30c13a5 | `TestScanPiConfiguredSources_AutoloadFalseIsNotScanned` → `Test792b30c13a5_ScanPiConfiguredSources_AutoloadFalseIsNotScanned` | Pure unit (scanner over an in-memory filesystem) | Autoload false is not scanned | Done |
+| 792b30c13a6 | `TestScanPiConfiguredSources_GlobstarPatternIsNotScanned` → `Test792b30c13a6_ScanPiConfiguredSources_GlobstarPatternIsNotScanned` | Pure unit (scanner over an in-memory filesystem) | A globstar pattern is not scanned | Done |
+| 792b30c13a7 | `TestScanPiConfiguredSources_MachineShape` → `Test792b30c13a7_ScanPiConfiguredSources_MachineShape` | Pure unit (scanner over an in-memory filesystem) | The machine's shape | Done |
+| 792b30c13a8 | `TestScanPiConfiguredSources_ManifestGlobsAndOverrides` → `Test792b30c13a8_ScanPiConfiguredSources_ManifestGlobsAndOverrides` | Pure unit (scanner over an in-memory filesystem) | Manifest globs and overrides | Done |
+| 792b30c13a9 | `TestScanPiConfiguredSources_ManifestGlobstarIsNotScanned` → `Test792b30c13a9_ScanPiConfiguredSources_ManifestGlobstarIsNotScanned` | Pure unit (scanner over an in-memory filesystem) | A manifest globstar is not scanned | Done |
+| 792b30c13a10 | `TestScanPiConfiguredSources_MissingEntryIsNotScannedSilently` → `Test792b30c13a10_ScanPiConfiguredSources_MissingEntryIsNotScannedSilently` | Pure unit (scanner over an in-memory filesystem) | A missing entry is not scanned and silent | Done |
+| 792b30c13a11 | `TestScanPiConfiguredSources_NoPiKeyUsesConventionDirs` → `Test792b30c13a11_ScanPiConfiguredSources_NoPiKeyUsesConventionDirs` | Pure unit (scanner over an in-memory filesystem) | Without a pi key the convention directories are used | Done |
+| 792b30c13a12 | `TestScanPiConfiguredSources_NpmManifestSkills` → `Test792b30c13a12_ScanPiConfiguredSources_NpmManifestSkills` | Pure unit (scanner over an in-memory filesystem) | An npm manifest lists skills | Done |
+| 792b30c13a13 | `TestScanPiConfiguredSources_ObjectFormFilters` → `Test792b30c13a13_ScanPiConfiguredSources_ObjectFormFilters` | Pure unit (scanner over an in-memory filesystem) | Object-form filters | Done |
+| 792b30c13a14 | `TestScanPiConfiguredSources_PatternFilterProperty` → `Test792b30c13a14_ScanPiConfiguredSources_PatternFilterProperty` | Property (rapid) | A pattern filter follows Pi's rule | Done |
+| 792b30c13a15 | `TestScanPiConfiguredSources_ProjectPackageOverridesGlobal` → `Test792b30c13a15_ScanPiConfiguredSources_ProjectPackageOverridesGlobal` | Pure unit (scanner over an in-memory filesystem) | Project packages override global ones | Done |
+| 792b30c13a16 | `TestScanPiConfiguredSources_ProjectPackageOverrideProperty` → `Test792b30c13a16_ScanPiConfiguredSources_ProjectPackageOverrideProperty` | Property (rapid) | The override holds for any lists | Done |
+| 792b30c13a17 | `TestScanPiConfiguredSources_ProjectSettingsNeedTrust` → `Test792b30c13a17_ScanPiConfiguredSources_ProjectSettingsNeedTrust` | Pure unit (scanner over an in-memory filesystem) | Project settings need trust | Done |
+| 792b30c13a18 | `TestScanPiConfiguredSources_PromptTreeDepthLimit` → `Test792b30c13a18_ScanPiConfiguredSources_PromptTreeDepthLimit` | Pure unit (scanner over an in-memory filesystem) | A prompt tree has a depth limit | Done |
+| 792b30c13a19 | `TestScanPiConfiguredSources_PromptTreeEdgeCases` → `Test792b30c13a19_ScanPiConfiguredSources_PromptTreeEdgeCases` | Pure unit (scanner over an in-memory filesystem) | Prompt tree edge cases | Done |
+| 792b30c13a20 | `TestScanPiConfiguredSources_SettingsPromptDirIsRecursive` → `Test792b30c13a20_ScanPiConfiguredSources_SettingsPromptDirIsRecursive` | Pure unit (scanner over an in-memory filesystem) | A settings prompt directory is recursive | Done |
+| 792b30c13a21 | `TestScanPiConfiguredSources_UnreadableChildMarksEntryNotScanned` → `Test792b30c13a21_ScanPiConfiguredSources_UnreadableChildMarksEntryNotScanned` | Pure unit (scanner over an in-memory filesystem) | An unreadable child marks its entry not scanned | Done |
+| 792b30c13a22 | `TestScanPiConfiguredSources_UnreadableManifestIsNotScanned` → `Test792b30c13a22_ScanPiConfiguredSources_UnreadableManifestIsNotScanned` | Pure unit (scanner over an in-memory filesystem) | An unreadable manifest is not scanned | Done |
+| 792b30c14a1 | `TestNormalizeProjectRemote_VariantProperty` → `Test792b30c14a1_NormalizeProjectRemote_VariantProperty` | Property (rapid) | Variants of one remote normalize alike | Done |
+| 792b30c14a2 | `TestNormalizeProjectRemote_Examples` → `Test792b30c14a2_NormalizeProjectRemote_Examples` | Pure unit | Examples | Done |
+| 792b30c14a3 | `TestNormalizeProjectRemote_DistinctForgesStayDistinct` → `Test792b30c14a3_NormalizeProjectRemote_DistinctForgesStayDistinct` | Pure unit | Distinct forges stay distinct | Done |
+| 792b30c14a4 | `TestProbeProjectIdentity_LinkedWorktreeUsesOrigin` → `Test792b30c14a4_ProbeProjectIdentity_LinkedWorktreeUsesOrigin` | Pure unit (fake git) | A linked worktree uses the origin | Done |
+| 792b30c14a5 | `TestProbeProjectIdentity_NoOriginUsesCommonDirParent` → `Test792b30c14a5_ProbeProjectIdentity_NoOriginUsesCommonDirParent` | Pure unit (fake git) | Without an origin the common directory names the project | Done |
+| 792b30c14a6 | `TestProbeProjectIdentity_NotARepoHasNoProject` → `Test792b30c14a6_ProbeProjectIdentity_NotARepoHasNoProject` | Pure unit (fake git) | A directory outside a repository has no project | Done |
+| 792b30c14a7 | `TestProbeProjectIdentity_UnusableFallbacks` → `Test792b30c14a7_ProbeProjectIdentity_UnusableFallbacks` | Pure unit (fake git) | Unusable fallbacks give no project | Done |
+| 792b30c15a1 | `TestScanClaudeProjectSources_ChainProperty` → `Test792b30c15a1_ScanClaudeProjectSources_ChainProperty` | Property (rapid) | The chain finds exactly the levels that hold sources | Done |
+| 792b30c15a2 | `TestScanClaudeProjectSources_CwdOutsideTopLevelScansNothing` → `Test792b30c15a2_ScanClaudeProjectSources_CwdOutsideTopLevelScansNothing` | Pure unit (scanner over an in-memory filesystem) | A working directory outside the top-level scans nothing | Done |
+| 792b30c15a3 | `TestScanClaudeProjectSources_SameNameAtTwoLevelsEmitsBoth` → `Test792b30c15a3_ScanClaudeProjectSources_SameNameAtTwoLevelsEmitsBoth` | Pure unit (scanner over an in-memory filesystem) | The same name at two levels is emitted twice | Done |
+| 792b30c15a4 | `TestScanClaudeProjectSources_SkipsUserRootsWhenTopLevelIsHome` → `Test792b30c15a4_ScanClaudeProjectSources_SkipsUserRootsWhenTopLevelIsHome` | Pure unit (scanner over an in-memory filesystem) | The user roots are skipped when the top-level is home | Done |
+| 792b30c15a5 | `TestScanClaudeProjectSources_SubdirectoryEqualsTopLevel` → `Test792b30c15a5_ScanClaudeProjectSources_SubdirectoryEqualsTopLevel` | Pure unit (scanner over an in-memory filesystem) | A subdirectory equals the top-level | Done |
+| 792b30c15a6 | `TestScanClaudeProjectSources_SymlinkedCwdMeetsTopLevel` → `Test792b30c15a6_ScanClaudeProjectSources_SymlinkedCwdMeetsTopLevel` | Pure unit (scanner over an in-memory filesystem) | A symlinked working directory meets the top-level | Done |
+| 792b30c15a7 | `TestScanClaudeProjectSources_UnreadableLevelIsNotScanned` → `Test792b30c15a7_ScanClaudeProjectSources_UnreadableLevelIsNotScanned` | Pure unit (scanner over an in-memory filesystem) | An unreadable level is not scanned | Done |
+| 792b30c7a1 | `TestScanClaudePlugins_MachineShape` → `Test792b30c7a1_ScanClaudePlugins_MachineShape` | Pure unit (scanner over an in-memory filesystem) | The machine's plugin shape | Done |
+| 792b30c7a2 | `TestScanClaudePlugins_CommandsFieldReplacesCommandsDir` → `Test792b30c7a2_ScanClaudePlugins_CommandsFieldReplacesCommandsDir` | Pure unit (scanner over an in-memory filesystem) | plugin.json commands replace the commands directory | Done |
+| 792b30c7a3 | `TestScanClaudePlugins_PluginJSONSkillsAddToDefault` → `Test792b30c7a3_ScanClaudePlugins_PluginJSONSkillsAddToDefault` | Pure unit (scanner over an in-memory filesystem) | plugin.json skills add to the default | Done |
+| 792b30c7a4 | `TestScanClaudePlugins_DeclaredPathsStayInsideThePlugin` → `Test792b30c7a4_ScanClaudePlugins_DeclaredPathsStayInsideThePlugin` | Pure unit (scanner over an in-memory filesystem) | Declared paths stay inside the plugin | Done |
+| 792b30c7a5 | `TestScanClaudePlugins_DisabledPluginReadsNothingBeyondManifests` → `Test792b30c7a5_ScanClaudePlugins_DisabledPluginReadsNothingBeyondManifests` | Pure unit (scanner over an in-memory filesystem) | A disabled plugin reads nothing beyond manifests | Done |
+| 792b30c7a6 | `TestScanClaudePlugins_EnablementProperty` → `Test792b30c7a6_ScanClaudePlugins_EnablementProperty` | Property (rapid) | Enablement follows the setting and the default | Done |
+| 792b30c7a7 | `TestScanClaudePlugins_ManifestFailures` → `Test792b30c7a7_ScanClaudePlugins_ManifestFailures` | Pure unit (scanner over an in-memory filesystem) | Manifest failures are handled | Done |
+| 792b30c7a8 | `TestScanClaudePlugins_MostSpecificScopeWins` → `Test792b30c7a8_ScanClaudePlugins_MostSpecificScopeWins` | Pure unit (scanner over an in-memory filesystem) | The most specific scope wins | Done |
+| 792b30c7a9 | `TestScanClaudePlugins_NonBooleanEnabledValueIsNotScanned` → `Test792b30c7a9_ScanClaudePlugins_NonBooleanEnabledValueIsNotScanned` | Pure unit (scanner over an in-memory filesystem) | A non-boolean enabled value is not scanned | Done |
+| 792b30c7a10 | `TestScanClaudePlugins_ReservedAndColonNamesAreSkipped` → `Test792b30c7a10_ScanClaudePlugins_ReservedAndColonNamesAreSkipped` | Pure unit (scanner over an in-memory filesystem) | Reserved and colon names are skipped | Done |
+| 792b30c7a11 | `TestScanClaudePlugins_ScopeProperty` → `Test792b30c7a11_ScanClaudePlugins_ScopeProperty` | Property (rapid) | The scope rule holds for any installs | Done |
+| 792b30c7a12 | `TestScanClaudePlugins_UnscannablePluginContents` → `Test792b30c7a12_ScanClaudePlugins_UnscannablePluginContents` | Pure unit (scanner over an in-memory filesystem) | Unscannable contents make the plugin not scanned | Done |
+| 792b30c7a13 | `TestScanClaudePlugins_ConflictProperty` → `Test792b30c7a13_ScanClaudePlugins_ConflictProperty` | Property (rapid) | A plugin from two marketplaces is a conflict | Done |
+| 792b30c7a14 | `TestScanClaudePlugins_ReservedNameCheckFollowsEnablement` → `Test792b30c7a14_ScanClaudePlugins_ReservedNameCheckFollowsEnablement` | Pure unit (scanner over an in-memory filesystem) | The reserved-name check follows enablement | Done |
+| 792b30c16a1 | `TestResolveSkillSources_AbsentHarnessSourcesAreNotRead` → `Test792b30c16a1_ResolveSkillSources_AbsentHarnessSourcesAreNotRead` | Pure unit (`ResolveSkillSources` over an in-memory filesystem and a fake git) | Absent harness sources are not read | Done |
+| 792b30c16a2 | `TestResolveSkillSources_ComposesEverySourceInPrecedenceOrder` → `Test792b30c16a2_ResolveSkillSources_ComposesEverySourceInPrecedenceOrder` | Pure unit (`ResolveSkillSources` over an in-memory filesystem and a fake git) | Every source is composed in precedence order | Done |
+| 792b30c16a3 | `TestResolveSkillSources_HarnessProbeErrorFails` → `Test792b30c16a3_ResolveSkillSources_HarnessProbeErrorFails` | Pure unit (`ResolveSkillSources` over an in-memory filesystem and a fake git) | A probe error fails | Done |
+| 792b30c16a4 | `TestResolveSkillSources_OutsideARepoHasNoProjectSources` → `Test792b30c16a4_ResolveSkillSources_OutsideARepoHasNoProjectSources` | Pure unit (`ResolveSkillSources` over an in-memory filesystem and a fake git) | Outside a repository there are no project sources | Done |
+| 792b30c16a5 | `TestResolveSkillSources_OverridesSkipCandidateWithUnknownLevel` → `Test792b30c16a5_ResolveSkillSources_OverridesSkipCandidateWithUnknownLevel` | Pure unit (`ResolveSkillSources` over an in-memory filesystem and a fake git) | An override for an unknown level keeps the candidate with a warning | Done |
+| 792b30c16a6 | `TestResolveSkillSources_PiOverridesDisableDefaultFolders` → `Test792b30c16a6_ResolveSkillSources_PiOverridesDisableDefaultFolders` | Pure unit (`ResolveSkillSources` over an in-memory filesystem and a fake git) | Pi overrides disable default folders | Done |
+| 792b30c16a7 | `TestResolveSkillSources_PluginConflictPassesThrough` → `Test792b30c16a7_ResolveSkillSources_PluginConflictPassesThrough` | Pure unit (`ResolveSkillSources` over an in-memory filesystem and a fake git) | A plugin conflict passes through | Done |
+| 792b30c16a8 | `TestResolveSkillSources_PrecedenceProperty` → `Test792b30c16a8_ResolveSkillSources_PrecedenceProperty` | Property (rapid) | Precedence holds for any subset of sources | Done |
+| 792b30c16a9 | `TestResolveSkillSources_ProjectGlobstarOverrideDisablesAgentsChain` → `Test792b30c16a9_ResolveSkillSources_ProjectGlobstarOverrideDisablesAgentsChain` | Pure unit (`ResolveSkillSources` over an in-memory filesystem and a fake git) | A project globstar disables the agents chain | Done |
+| 792b30c16a10 | `TestResolveSkillSources_UntrustedProjectSkipsPiProjectSources` → `Test792b30c16a10_ResolveSkillSources_UntrustedProjectSkipsPiProjectSources` | Pure unit (`ResolveSkillSources` over an in-memory filesystem and a fake git) | An untrusted project skips Pi project sources | Done |
+| 792b30c16a11 | `TestPiScanners_ReadRootIsARecordedRootProperty` → `Test792b30c16a11_PiScanners_ReadRootIsARecordedRootProperty` | Property (rapid) | Pi default-folder candidates have a recorded read root | Done |
+| 792b30c16a12 | `TestResolveSkillSources_PiLinkThroughSymlinkedHome` → `Test792b30c16a12_ResolveSkillSources_PiLinkThroughSymlinkedHome` | Pure unit (`ResolveSkillSources` over an in-memory filesystem and a fake git) | A symlinked home keys Pi's link by its folder | Done |
+| 792b30c16a13 | `TestResolveSkillSources_PiOnlyKeysByFolderAndIgnoresLegacyNote` → `Test792b30c16a13_ResolveSkillSources_PiOnlyKeysByFolderAndIgnoresLegacyNote` | Pure unit (`ResolveSkillSources` over an in-memory filesystem and a fake git) | A Pi-only machine keys by folder and ignores a legacy note | Done |
+| 792b30c16a14 | `TestResolveSkillSources_StampsKeysAndDropsColonNames` → `Test792b30c16a14_ResolveSkillSources_StampsKeysAndDropsColonNames` | Pure unit (`ResolveSkillSources` over an in-memory filesystem and a fake git) | Keys are stamped and colon names dropped | Done |
+| 792b30c16a15 | `TestRegisterSkillsCLI_DefaultSetResolvesEveryFolder` → `Test792b30c16a15_RegisterSkillsCLI_DefaultSetResolvesEveryFolder` | Pure unit (production-composed dependencies over an in-memory filesystem) | The default set resolves every folder | Done |
+| 792b30c16a16 | `TestRegisterSkillsCLI_SymlinkedHomeRoundTripsSkillSource` → `Test792b30c16a16_RegisterSkillsCLI_SymlinkedHomeRoundTripsSkillSource` | Pure unit (production-composed dependencies over an in-memory filesystem) | A symlinked home round-trips skill_source | Done |
+| 792b30c17a1 | `TestAssignSkillKeys_BuildsDesignD3Keys` → `Test792b30c17a1_AssignSkillKeys_BuildsDesignD3Keys` | Pure unit | The keys of every source | Done |
+| 792b30c17a2 | `TestAssignSkillKeys_DisabledCandidatesAreKeyed` → `Test792b30c17a2_AssignSkillKeys_DisabledCandidatesAreKeyed` | Pure unit | A disabled candidate is keyed | Done |
+| 792b30c17a3 | `TestAssignSkillKeys_KeyProperty` → `Test792b30c17a3_AssignSkillKeys_KeyProperty` | Property (rapid) | Every key is qualified and parsed | Done |
+| 792b30c17a4 | `TestAssignSkillKeys_SkipsUnkeyableCandidates` → `Test792b30c17a4_AssignSkillKeys_SkipsUnkeyableCandidates` | Pure unit | Unkeyable candidates are skipped | Done |
+| 792b30c17a5 | `TestAssignSkillKeys_QualifiesClaudeUserSources` → `Test792b30c17a5_AssignSkillKeys_QualifiesClaudeUserSources` | Pure unit | Claude user sources are qualified | Done |
+| 792b30c17a6 | `TestSkillKeySlug` → `Test792b30c17a6_SkillKeySlug` | Pure unit | A key becomes a slug | Done |
+| 792b30c17a7 | `TestSkillKeySlug_Property` → `Test792b30c17a7_SkillKeySlug_Property` | Property (rapid) | Slugging holds for any key | Done |
+| 792a12t1d | `TestUpdateSkillRegistration_SeesTheSameOffersAsRegisterSkills` → `Test792a12t1d_UpdateSkillRegistration_SeesTheSameOffersAsRegisterSkills` | Pure unit (production-composed dependencies over an in-memory filesystem) | The same offers from update and register-skills (792a12t1d) | Done |
+
+**Coverage gaps:** 792b30c3a5, 792b30c11a9.
+`register-skills --dry-run` with a temporary HOME found the Claude user, command and Pi user and prompt
+sources, applied the harness gate and keyed them (792d106); the plugin, package and project sources were
+verified only by the unit tests.
+
+**No-scenario tests:** the offer, note and update tests that these files hold are left to
+skill-registration-ledger (792c7k3): `skillkeys_qualified_test` `TestAdoptSkillNote_MigratesAnUnkeyedLegacyNote`,
+`TestCompareSkillOffers_ClaudeKeysParseToClaudeForms`, `TestCompareSkillOffers_SixLegacyNotesYieldSixRegisterOffers`,
+`TestCompareSkillOffers_UnkeyedNotesNeverChangeTheOfferSet`, `TestCompareSkillOffers_UnrecognizedKeyProperty`,
+`TestCompareSkillOffers_UnrecognizedKeysAreNeverMatchedOrRemoved`, `TestFindSkillNote_DuplicateQualifiedKeyIsAnError`
+and `TestFindSkillNote_SlugAloneLocatesNothing`, and `register_skills_resolve_test`
+`TestUpdateSkillRegistration_RealRunPrintsScanWarnings`. `skillsources_fakefs_test` is a helper.
 
 #### 792c7k3 skill-registration-ledger tech spec
 

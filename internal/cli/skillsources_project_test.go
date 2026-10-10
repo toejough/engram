@@ -15,21 +15,73 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-func TestNormalizeProjectRemote_DistinctForgesStayDistinct(t *testing.T) {
+// Test792b30c11a8_ScanPiProjectScanners_StampSourceSegment (ruling R11): the Pi project
+// scanners stamp the segment that tells their candidates apart inside one
+// `project:<r>` scope — `pi`, `agents`, `pi-prompt` — mirroring the user
+// scopes pi-user, agents-user and pi-prompt.
+func Test792b30c11a8_ScanPiProjectScanners_StampSourceSegment(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	githubID, githubOK := cli.ExportNormalizeProjectRemote("ssh://git@GitHub.com:22/toejough/engram.git")
-	gitlabID, gitlabOK := cli.ExportNormalizeProjectRemote("https://gitlab.com/toejough/engram")
+	fsys := newFakeSkillFS().
+		file(projectTop+"/.pi/skills/foo/SKILL.md", "pi foo").
+		file(projectTop+"/.agents/skills/foo/SKILL.md", "agents foo").
+		file(projectTop+"/.pi/prompts/foo.md", "prompt foo")
+	scan := cli.PiProjectScan{
+		Cwd: projectTop, TopLevel: projectTop, UserAgentsRoot: agentsUserRoot, ScopeID: projectScope, Trusted: true,
+	}
 
-	g.Expect(githubOK).To(BeTrue())
-	g.Expect(gitlabOK).To(BeTrue())
-	g.Expect(githubID).To(Equal("github.com/toejough/engram"))
-	g.Expect(gitlabID).To(Equal("gitlab.com/toejough/engram"))
-	g.Expect(githubID).NotTo(Equal(gitlabID))
+	segments := map[string][]string{}
+
+	for _, result := range []cli.SkillScanResult{
+		cli.ScanPiProjectSkills(fsys, scan),
+		cli.ScanAgentsProjectSkills(fsys, scan),
+		cli.ScanPiProjectPrompts(fsys, scan),
+	} {
+		for _, candidate := range result.Candidates {
+			segments[candidate.SourceSegment] = append(segments[candidate.SourceSegment], candidate.Name)
+		}
+	}
+
+	g.Expect(segments).To(Equal(map[string][]string{
+		cli.SkillSegmentPi:     {"foo"},
+		cli.SkillSegmentAgents: {"foo"},
+		cli.SkillScopePiPrompt: {"foo"},
+	}))
 }
 
-func TestNormalizeProjectRemote_Examples(t *testing.T) {
+// Test792b30c14a1_NormalizeProjectRemote_VariantProperty: every scheme, userinfo, port,
+// case and trailing-suffix variant of one remote yields the same
+// `<host>/<path>` (the oracle builds it from the generated parts), and
+// normalization is idempotent.
+func Test792b30c14a1_NormalizeProjectRemote_VariantProperty(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(rt)
+
+		host := rapid.StringMatching(`[a-z][a-z0-9-]{0,6}(\.[a-z]{2,4}){1,2}`).Draw(rt, "host")
+		segments := rapid.SliceOfN(rapid.StringMatching(`[a-z0-9_][a-z0-9_.-]{0,6}[a-z0-9_]`), 1, 2).
+			Draw(rt, "owners")
+		repo := rapid.StringMatching(`[a-z0-9_][a-z0-9_-]{0,8}`).Draw(rt, "repo")
+		path := strings.Join(append(segments, repo), "/")
+		want := host + "/" + path
+
+		url := drawRemoteVariant(rt, host, path)
+
+		got, ok := cli.ExportNormalizeProjectRemote(url)
+		g.Expect(ok).To(BeTrue(), url)
+		g.Expect(got).To(Equal(want), url)
+
+		// Idempotence over the canonical form re-expressed as a URL (a bare
+		// `host/path` is a local path to git, so it is not a raw origin).
+		again, againOK := cli.ExportNormalizeProjectRemote("ssh://" + got)
+		g.Expect(againOK).To(BeTrue())
+		g.Expect(again).To(Equal(got))
+	})
+}
+
+func Test792b30c14a2_NormalizeProjectRemote_Examples(t *testing.T) {
 	t.Parallel()
 
 	table := []struct {
@@ -84,38 +136,21 @@ func TestNormalizeProjectRemote_Examples(t *testing.T) {
 	}
 }
 
-// TestNormalizeProjectRemote_VariantProperty: every scheme, userinfo, port,
-// case and trailing-suffix variant of one remote yields the same
-// `<host>/<path>` (the oracle builds it from the generated parts), and
-// normalization is idempotent.
-func TestNormalizeProjectRemote_VariantProperty(t *testing.T) {
+func Test792b30c14a3_NormalizeProjectRemote_DistinctForgesStayDistinct(t *testing.T) {
 	t.Parallel()
+	g := NewWithT(t)
 
-	rapid.Check(t, func(rt *rapid.T) {
-		g := NewWithT(rt)
+	githubID, githubOK := cli.ExportNormalizeProjectRemote("ssh://git@GitHub.com:22/toejough/engram.git")
+	gitlabID, gitlabOK := cli.ExportNormalizeProjectRemote("https://gitlab.com/toejough/engram")
 
-		host := rapid.StringMatching(`[a-z][a-z0-9-]{0,6}(\.[a-z]{2,4}){1,2}`).Draw(rt, "host")
-		segments := rapid.SliceOfN(rapid.StringMatching(`[a-z0-9_][a-z0-9_.-]{0,6}[a-z0-9_]`), 1, 2).
-			Draw(rt, "owners")
-		repo := rapid.StringMatching(`[a-z0-9_][a-z0-9_-]{0,8}`).Draw(rt, "repo")
-		path := strings.Join(append(segments, repo), "/")
-		want := host + "/" + path
-
-		url := drawRemoteVariant(rt, host, path)
-
-		got, ok := cli.ExportNormalizeProjectRemote(url)
-		g.Expect(ok).To(BeTrue(), url)
-		g.Expect(got).To(Equal(want), url)
-
-		// Idempotence over the canonical form re-expressed as a URL (a bare
-		// `host/path` is a local path to git, so it is not a raw origin).
-		again, againOK := cli.ExportNormalizeProjectRemote("ssh://" + got)
-		g.Expect(againOK).To(BeTrue())
-		g.Expect(again).To(Equal(got))
-	})
+	g.Expect(githubOK).To(BeTrue())
+	g.Expect(gitlabOK).To(BeTrue())
+	g.Expect(githubID).To(Equal("github.com/toejough/engram"))
+	g.Expect(gitlabID).To(Equal("gitlab.com/toejough/engram"))
+	g.Expect(githubID).NotTo(Equal(gitlabID))
 }
 
-func TestProbeProjectIdentity_LinkedWorktreeUsesOrigin(t *testing.T) {
+func Test792b30c14a4_ProbeProjectIdentity_LinkedWorktreeUsesOrigin(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -141,7 +176,7 @@ func TestProbeProjectIdentity_LinkedWorktreeUsesOrigin(t *testing.T) {
 	g.Expect(outcome.identity.ScopeID()).To(Equal(projectScope))
 }
 
-func TestProbeProjectIdentity_NoOriginUsesCommonDirParent(t *testing.T) {
+func Test792b30c14a5_ProbeProjectIdentity_NoOriginUsesCommonDirParent(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -167,7 +202,7 @@ func TestProbeProjectIdentity_NoOriginUsesCommonDirParent(t *testing.T) {
 	g.Expect(outcome.identity).To(Equal(cli.ProjectIdentity{ID: "local/engram", TopLevel: worktree}))
 }
 
-func TestProbeProjectIdentity_NotARepoHasNoProject(t *testing.T) {
+func Test792b30c14a6_ProbeProjectIdentity_NotARepoHasNoProject(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -189,7 +224,7 @@ func TestProbeProjectIdentity_NotARepoHasNoProject(t *testing.T) {
 	g.Expect(outcome.identity).To(Equal(cli.ProjectIdentity{}))
 }
 
-func TestProbeProjectIdentity_UnusableFallbacks(t *testing.T) {
+func Test792b30c14a7_ProbeProjectIdentity_UnusableFallbacks(t *testing.T) {
 	t.Parallel()
 
 	table := []struct {
@@ -237,13 +272,13 @@ func TestProbeProjectIdentity_UnusableFallbacks(t *testing.T) {
 	}
 }
 
-// TestScanClaudeProjectSources_ChainProperty: for any repository depth, cwd
+// Test792b30c15a1_ScanClaudeProjectSources_ChainProperty: for any repository depth, cwd
 // level, and set of levels holding `.claude/skills`/`.claude/commands`
 // (plus a same-named skill at several levels and a `.claude` dir above the
 // top-level), the scan yields exactly the entries of the levels from cwd up
 // to the top-level (the oracle), each existing directory is recorded as its
 // own scanned root, and a level without the directory records no root.
-func TestScanClaudeProjectSources_ChainProperty(t *testing.T) {
+func Test792b30c15a1_ScanClaudeProjectSources_ChainProperty(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -299,7 +334,7 @@ func TestScanClaudeProjectSources_ChainProperty(t *testing.T) {
 	})
 }
 
-func TestScanClaudeProjectSources_CwdOutsideTopLevelScansNothing(t *testing.T) {
+func Test792b30c15a2_ScanClaudeProjectSources_CwdOutsideTopLevelScansNothing(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -316,7 +351,7 @@ func TestScanClaudeProjectSources_CwdOutsideTopLevelScansNothing(t *testing.T) {
 	g.Expect(result.Roots).To(BeEmpty())
 }
 
-func TestScanClaudeProjectSources_SameNameAtTwoLevelsEmitsBoth(t *testing.T) {
+func Test792b30c15a3_ScanClaudeProjectSources_SameNameAtTwoLevelsEmitsBoth(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -332,7 +367,7 @@ func TestScanClaudeProjectSources_SameNameAtTwoLevelsEmitsBoth(t *testing.T) {
 	}))
 }
 
-func TestScanClaudeProjectSources_SkipsUserRootsWhenTopLevelIsHome(t *testing.T) {
+func Test792b30c15a4_ScanClaudeProjectSources_SkipsUserRootsWhenTopLevelIsHome(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -350,7 +385,7 @@ func TestScanClaudeProjectSources_SkipsUserRootsWhenTopLevelIsHome(t *testing.T)
 	g.Expect(result.Roots).To(HaveLen(1))
 }
 
-func TestScanClaudeProjectSources_SubdirectoryEqualsTopLevel(t *testing.T) {
+func Test792b30c15a5_ScanClaudeProjectSources_SubdirectoryEqualsTopLevel(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -377,7 +412,7 @@ func TestScanClaudeProjectSources_SubdirectoryEqualsTopLevel(t *testing.T) {
 	))
 }
 
-func TestScanClaudeProjectSources_SymlinkedCwdMeetsTopLevel(t *testing.T) {
+func Test792b30c15a6_ScanClaudeProjectSources_SymlinkedCwdMeetsTopLevel(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -391,7 +426,7 @@ func TestScanClaudeProjectSources_SymlinkedCwdMeetsTopLevel(t *testing.T) {
 	g.Expect(candidateNames(result)).To(Equal([]string{"x"}))
 }
 
-func TestScanClaudeProjectSources_UnreadableLevelIsNotScanned(t *testing.T) {
+func Test792b30c15a7_ScanClaudeProjectSources_UnreadableLevelIsNotScanned(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -411,41 +446,6 @@ func TestScanClaudeProjectSources_UnreadableLevelIsNotScanned(t *testing.T) {
 
 	topScanned, _ := rootScanned(result, projectTop+"/.claude/skills")
 	g.Expect(topScanned).To(BeTrue())
-}
-
-// TestScanPiProjectScanners_StampSourceSegment (ruling R11): the Pi project
-// scanners stamp the segment that tells their candidates apart inside one
-// `project:<r>` scope — `pi`, `agents`, `pi-prompt` — mirroring the user
-// scopes pi-user, agents-user and pi-prompt.
-func TestScanPiProjectScanners_StampSourceSegment(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fsys := newFakeSkillFS().
-		file(projectTop+"/.pi/skills/foo/SKILL.md", "pi foo").
-		file(projectTop+"/.agents/skills/foo/SKILL.md", "agents foo").
-		file(projectTop+"/.pi/prompts/foo.md", "prompt foo")
-	scan := cli.PiProjectScan{
-		Cwd: projectTop, TopLevel: projectTop, UserAgentsRoot: agentsUserRoot, ScopeID: projectScope, Trusted: true,
-	}
-
-	segments := map[string][]string{}
-
-	for _, result := range []cli.SkillScanResult{
-		cli.ScanPiProjectSkills(fsys, scan),
-		cli.ScanAgentsProjectSkills(fsys, scan),
-		cli.ScanPiProjectPrompts(fsys, scan),
-	} {
-		for _, candidate := range result.Candidates {
-			segments[candidate.SourceSegment] = append(segments[candidate.SourceSegment], candidate.Name)
-		}
-	}
-
-	g.Expect(segments).To(Equal(map[string][]string{
-		cli.SkillSegmentPi:     {"foo"},
-		cli.SkillSegmentAgents: {"foo"},
-		cli.SkillScopePiPrompt: {"foo"},
-	}))
 }
 
 // unexported constants.

@@ -14,7 +14,95 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-func TestAssignSkillKeys_BuildsDesignD3Keys(t *testing.T) {
+// Test792b30c16a12_ResolveSkillSources_PiLinkThroughSymlinkedHome: `$HOME` is a symlink
+// and Pi's route resolves into engram's installed copy; the entry is
+// keyed by its folder (`pi:route`), and the resolved home is reported for
+// writing `~`-relative skill_source values (design D8).
+func Test792b30c16a12_ResolveSkillSources_PiLinkThroughSymlinkedHome(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fsys := newFakeSkillFS().
+		file(engramPiSkills+"/route/SKILL.md", "route").
+		link(piUserRoot+"/route", engramPiSkills+"/route").
+		link("/links/home", fakeHome)
+
+	resolved, err := cli.ResolveSkillSources(context.Background(), "/links/home", "/", cli.SkillSourceDeps{
+		FS: fsys, Commander: scriptedGit{},
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(resolvedKeys(resolved)).To(Equal([]string{"pi:route"}))
+	g.Expect(resolved.ResolvedHome).To(Equal(fakeHome), "skill_source is written relative to the resolved home too")
+}
+
+// Test792b30c16a13_ResolveSkillSources_PiOnlyKeysByFolderAndIgnoresLegacyNote is the
+// Pi-only fork case (design Risks): no ~/.claude, Pi's route resolves under
+// Pi's engram root and is keyed `pi:route`; the unkeyed legacy note 1036 is
+// no skill note, so it is neither refreshed nor an alias, and `pi:route` is
+// offered for registration.
+func Test792b30c16a13_ResolveSkillSources_PiOnlyKeysByFolderAndIgnoresLegacyNote(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fsys := newFakeSkillFS().
+		file(engramPiSkills+"/route/SKILL.md", "route").
+		link(piUserRoot+"/route", engramPiSkills+"/route")
+
+	resolved, err := cli.ResolveSkillSources(context.Background(), fakeHome, "/", cli.SkillSourceDeps{
+		FS: fsys, Commander: scriptedGit{},
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(resolvedKeys(resolved)).To(Equal([]string{"pi:route"}))
+
+	vault := newSkillregFixtureVault()
+	vault.put(legacyRouteNote, legacySkillNote("1036", "route", cli.SkillContentHash([]byte("route"))))
+
+	comparison, offerErr := cli.CompareSkillOffers(cli.SkillOfferInput{
+		Vault: skillregFixtureVaultRoot, Names: []string{legacyRouteNote}, ReadFile: vault.readFile,
+		Declined: map[string]string{}, Home: fakeHome, Sources: resolved,
+	})
+
+	g.Expect(offerErr).NotTo(HaveOccurred())
+	g.Expect(offerScopes(comparison)).To(Equal([]string{"register pi:route pi-user"}))
+}
+
+func Test792b30c16a14_ResolveSkillSources_StampsKeysAndDropsColonNames(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fsys := resolverFixture(g).file(userSkillsRoot+"/bad:name/SKILL.md", "bad")
+
+	resolved, err := cli.ResolveSkillSources(
+		context.Background(), fakeHome, projectTop, resolverDeps(fsys),
+	)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(resolvedKeys(resolved)).To(Equal([]string{
+		"claude:c4",
+		"claude:cmd:audit",
+		"anthropic-skills:pdf",
+		"pi:ping",
+		"agents:ag",
+		"pi-settings:fmt",
+		"pi-prompt:review",
+		"pi-settings:pi-prompt:tidy",
+		"pi-pkg:pk:pks",
+		"tools:tl",
+		projectScope + ":openspec-propose",
+		projectScope + ":cmd:commit",
+		projectScope + ":pi:pj",
+		projectScope + ":agents:aj",
+		projectScope + ":pi-settings:px",
+		projectScope + ":pi-prompt:pp",
+		projectScope + ":pi-settings:pi-prompt:pq",
+		projectScope + ":pi-pkg:ppk:ppks",
+	}))
+	g.Expect(warningsMention(resolved.SkillScanResult, "bad:name")).To(BeTrue())
+}
+
+func Test792b30c17a1_AssignSkillKeys_BuildsDesignD3Keys(t *testing.T) {
 	t.Parallel()
 
 	const project = "project:github.com/toejough/engram"
@@ -71,7 +159,7 @@ func TestAssignSkillKeys_BuildsDesignD3Keys(t *testing.T) {
 	}
 }
 
-func TestAssignSkillKeys_DisabledCandidatesAreKeyed(t *testing.T) {
+func Test792b30c17a2_AssignSkillKeys_DisabledCandidatesAreKeyed(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -91,13 +179,13 @@ func TestAssignSkillKeys_DisabledCandidatesAreKeyed(t *testing.T) {
 	g.Expect(keyed[0].Disabled).To(BeTrue())
 }
 
-// TestAssignSkillKeys_KeyProperty checks D3's key rules over generated
+// Test792b30c17a3_AssignSkillKeys_KeyProperty checks D3's key rules over generated
 // candidates: every key contains `:` and ends in `:<name>`; the key parser
 // recognizes it and maps it to exactly one removal form (a fixed or
 // source-rooted form, or a plugin) — the candidate's own — and to the
 // candidate's scope; keys of distinct sources never collide; and every
 // key's slug has the note-slug shape.
-func TestAssignSkillKeys_KeyProperty(t *testing.T) {
+func Test792b30c17a3_AssignSkillKeys_KeyProperty(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		count := rapid.IntRange(1, 12).Draw(rt, "count")
@@ -140,7 +228,7 @@ func TestAssignSkillKeys_KeyProperty(t *testing.T) {
 	})
 }
 
-func TestAssignSkillKeys_SkipsUnkeyableCandidates(t *testing.T) {
+func Test792b30c17a4_AssignSkillKeys_SkipsUnkeyableCandidates(t *testing.T) {
 	t.Parallel()
 
 	for _, testCase := range []struct {
@@ -203,130 +291,7 @@ func TestAssignSkillKeys_SkipsUnkeyableCandidates(t *testing.T) {
 	}
 }
 
-// TestResolveSkillSources_PiLinkThroughSymlinkedHome: `$HOME` is a symlink
-// and Pi's route resolves into engram's installed copy; the entry is
-// keyed by its folder (`pi:route`), and the resolved home is reported for
-// writing `~`-relative skill_source values (design D8).
-func TestResolveSkillSources_PiLinkThroughSymlinkedHome(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fsys := newFakeSkillFS().
-		file(engramPiSkills+"/route/SKILL.md", "route").
-		link(piUserRoot+"/route", engramPiSkills+"/route").
-		link("/links/home", fakeHome)
-
-	resolved, err := cli.ResolveSkillSources(context.Background(), "/links/home", "/", cli.SkillSourceDeps{
-		FS: fsys, Commander: scriptedGit{},
-	})
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(resolvedKeys(resolved)).To(Equal([]string{"pi:route"}))
-	g.Expect(resolved.ResolvedHome).To(Equal(fakeHome), "skill_source is written relative to the resolved home too")
-}
-
-// TestResolveSkillSources_PiOnlyKeysByFolderAndIgnoresLegacyNote is the
-// Pi-only fork case (design Risks): no ~/.claude, Pi's route resolves under
-// Pi's engram root and is keyed `pi:route`; the unkeyed legacy note 1036 is
-// no skill note, so it is neither refreshed nor an alias, and `pi:route` is
-// offered for registration.
-func TestResolveSkillSources_PiOnlyKeysByFolderAndIgnoresLegacyNote(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fsys := newFakeSkillFS().
-		file(engramPiSkills+"/route/SKILL.md", "route").
-		link(piUserRoot+"/route", engramPiSkills+"/route")
-
-	resolved, err := cli.ResolveSkillSources(context.Background(), fakeHome, "/", cli.SkillSourceDeps{
-		FS: fsys, Commander: scriptedGit{},
-	})
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(resolvedKeys(resolved)).To(Equal([]string{"pi:route"}))
-
-	vault := newSkillregFixtureVault()
-	vault.put(legacyRouteNote, legacySkillNote("1036", "route", cli.SkillContentHash([]byte("route"))))
-
-	comparison, offerErr := cli.CompareSkillOffers(cli.SkillOfferInput{
-		Vault: skillregFixtureVaultRoot, Names: []string{legacyRouteNote}, ReadFile: vault.readFile,
-		Declined: map[string]string{}, Home: fakeHome, Sources: resolved,
-	})
-
-	g.Expect(offerErr).NotTo(HaveOccurred())
-	g.Expect(offerScopes(comparison)).To(Equal([]string{"register pi:route pi-user"}))
-}
-
-func TestResolveSkillSources_StampsKeysAndDropsColonNames(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fsys := resolverFixture(g).file(userSkillsRoot+"/bad:name/SKILL.md", "bad")
-
-	resolved, err := cli.ResolveSkillSources(
-		context.Background(), fakeHome, projectTop, resolverDeps(fsys),
-	)
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(resolvedKeys(resolved)).To(Equal([]string{
-		"claude:c4",
-		"claude:cmd:audit",
-		"anthropic-skills:pdf",
-		"pi:ping",
-		"agents:ag",
-		"pi-settings:fmt",
-		"pi-prompt:review",
-		"pi-settings:pi-prompt:tidy",
-		"pi-pkg:pk:pks",
-		"tools:tl",
-		projectScope + ":openspec-propose",
-		projectScope + ":cmd:commit",
-		projectScope + ":pi:pj",
-		projectScope + ":agents:aj",
-		projectScope + ":pi-settings:px",
-		projectScope + ":pi-prompt:pp",
-		projectScope + ":pi-settings:pi-prompt:pq",
-		projectScope + ":pi-pkg:ppk:ppks",
-	}))
-	g.Expect(warningsMention(resolved.SkillScanResult, "bad:name")).To(BeTrue())
-}
-
-func TestScanCommandDir_SkipsEntriesContainingAColon(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	root := fakeHome + "/.claude/commands"
-	fsys := newFakeSkillFS().
-		file(root+"/ok.md", "ok").
-		file(root+"/a:b.md", "flat").
-		file(root+"/x:y/z.md", "nested").
-		file(root+"/ns/c:d.md", "deep")
-
-	result := cli.ScanCommandDir(fsys, root, cli.SkillScopeClaudeCmd)
-
-	g.Expect(candidateNames(result)).To(Equal([]string{"ok"}))
-
-	scanned, found := rootScanned(result, root)
-	g.Expect(found).To(BeTrue())
-	g.Expect(scanned).To(BeTrue())
-	g.Expect(result.Warnings).To(ConsistOf(
-		ContainSubstring("a:b.md"), ContainSubstring("x:y"), ContainSubstring("c:d.md"),
-	))
-}
-
-func TestScanPluginCommands_SkipsDeclaredFileWithAColon(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fsys := newFakeSkillFS().file("/plug/extra/a:b.md", "flat")
-
-	result := cli.ScanPluginCommands(fsys, "/plug", []byte(`["extra/a:b.md"]`), "plugin:plug")
-
-	g.Expect(result.Candidates).To(BeEmpty())
-	g.Expect(warningsMention(result, "a:b.md")).To(BeTrue())
-}
-
-func TestSkillKeySlug(t *testing.T) {
+func Test792b30c17a6_SkillKeySlug(t *testing.T) {
 	t.Parallel()
 
 	for key, slug := range map[string]string{
@@ -350,10 +315,10 @@ func TestSkillKeySlug(t *testing.T) {
 	}
 }
 
-// TestSkillKeySlug_Property: any key holding a slug character yields a slug
+// Test792b30c17a7_SkillKeySlug_Property: any key holding a slug character yields a slug
 // of the note-slug shape; a key already of that shape maps to `skill-<key>`;
 // and slugging is idempotent on the remainder.
-func TestSkillKeySlug_Property(t *testing.T) {
+func Test792b30c17a7_SkillKeySlug_Property(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		key := rapid.String().Draw(rt, "key") + rapid.StringMatching(`[A-Za-z0-9]`).Draw(rt, "anchor") +
@@ -374,6 +339,41 @@ func TestSkillKeySlug_Property(t *testing.T) {
 			rt.Fatalf("slug-shaped input %q gives slug %q", plain, cli.SkillKeySlug(plain))
 		}
 	})
+}
+
+func Test792b30c4a6_ScanCommandDir_SkipsEntriesContainingAColon(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	root := fakeHome + "/.claude/commands"
+	fsys := newFakeSkillFS().
+		file(root+"/ok.md", "ok").
+		file(root+"/a:b.md", "flat").
+		file(root+"/x:y/z.md", "nested").
+		file(root+"/ns/c:d.md", "deep")
+
+	result := cli.ScanCommandDir(fsys, root, cli.SkillScopeClaudeCmd)
+
+	g.Expect(candidateNames(result)).To(Equal([]string{"ok"}))
+
+	scanned, found := rootScanned(result, root)
+	g.Expect(found).To(BeTrue())
+	g.Expect(scanned).To(BeTrue())
+	g.Expect(result.Warnings).To(ConsistOf(
+		ContainSubstring("a:b.md"), ContainSubstring("x:y"), ContainSubstring("c:d.md"),
+	))
+}
+
+func Test792b30c6a7_ScanPluginCommands_SkipsDeclaredFileWithAColon(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fsys := newFakeSkillFS().file("/plug/extra/a:b.md", "flat")
+
+	result := cli.ScanPluginCommands(fsys, "/plug", []byte(`["extra/a:b.md"]`), "plugin:plug")
+
+	g.Expect(result.Candidates).To(BeEmpty())
+	g.Expect(warningsMention(result, "a:b.md")).To(BeTrue())
 }
 
 // unexported constants.

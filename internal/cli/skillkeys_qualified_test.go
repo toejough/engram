@@ -22,6 +22,108 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
+// Test792b30c17a5_AssignSkillKeys_QualifiesClaudeUserSources covers design D3's Claude
+// user rows: skills key as `claude:<n>` and commands as `claude:cmd:<ns:…:n>`
+// (a skill named `cmd` is `claude:cmd`), and engram's installed skills are
+// keyed by the folder they are found in, with no path-based exception.
+func Test792b30c17a5_AssignSkillKeys_QualifiesClaudeUserSources(t *testing.T) {
+	t.Parallel()
+
+	skill, command := cli.SkillSourceKindSkill, cli.SkillSourceKindCommand
+
+	for _, testCase := range []struct {
+		scope      string
+		kind       cli.SkillSourceKind
+		name, path string
+		key        string
+	}{
+		{cli.SkillScopeClaudeUser, skill, "c4", userSkillsRoot + "/c4/SKILL.md", "claude:c4"},
+		{cli.SkillScopeClaudeUser, skill, "cmd", userSkillsRoot + "/cmd/SKILL.md", "claude:cmd"},
+		{cli.SkillScopeClaudeCmd, command, "audit", fakeHome + "/.claude/commands/audit.md", "claude:cmd:audit"},
+		{cli.SkillScopeClaudeCmd, command, "opsx:apply", fakeHome + "/.claude/commands/opsx/apply.md",
+			"claude:cmd:opsx:apply"},
+		{cli.SkillScopeClaudeUser, skill, "route", engramClaudeSkills + "/route/SKILL.md", "claude:route"},
+		{cli.SkillScopePiUser, skill, "route", engramPiSkills + "/route/SKILL.md", "pi:route"},
+	} {
+		t.Run(testCase.key+" from "+testCase.path, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			keyed, warnings := cli.AssignSkillKeys([]cli.SkillCandidate{{
+				Name: testCase.name, ScopeID: testCase.scope, Kind: testCase.kind, SourcePath: testCase.path,
+			}})
+
+			g.Expect(warnings).To(BeEmpty())
+			g.Expect(keyed).To(HaveLen(1))
+
+			if len(keyed) != 1 {
+				return
+			}
+
+			g.Expect(keyed[0].Key).To(Equal(testCase.key))
+		})
+	}
+}
+
+// Test792b30c7a14_ScanClaudePlugins_ReservedNameCheckFollowsEnablement covers the spec
+// scenarios "A plugin named claude is reserved", "A disabled reserved-name
+// plugin is silent" and "A plugin named cmd is an ordinary plugin" (design
+// D3): the reserved set is exactly the top-level key forms, and the check
+// runs only once the plugin is known to be enabled.
+func Test792b30c7a14_ScanClaudePlugins_ReservedNameCheckFollowsEnablement(t *testing.T) {
+	t.Parallel()
+
+	for _, testCase := range []struct {
+		name         string
+		plugin       string
+		enabled      bool
+		wantWarning  bool
+		wantKeys     []string
+		manifestJSON string
+	}{
+		{name: "enabled claude@m warns", plugin: "claude", enabled: true, wantWarning: true},
+		{name: "disabled pi@m is silent", plugin: "pi", enabled: false},
+		{name: "disabled engram@engram is silent", plugin: "engram", enabled: false},
+		{
+			name: "claude@m disabled by defaultEnabled is silent", plugin: "claude", enabled: true,
+			manifestJSON: `{"name":"claude","defaultEnabled":false}`,
+		},
+		{name: "enabled cmd@m is an ordinary plugin", plugin: "cmd", enabled: true, wantKeys: []string{"cmd:x"}},
+		{name: "enabled engram@m is an ordinary plugin", plugin: "engram", enabled: true, wantKeys: []string{"engram:x"}},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			marketplace := "m"
+			if testCase.plugin == "engram" && !testCase.enabled {
+				marketplace = "engram"
+			}
+
+			pluginKey := testCase.plugin + "@" + marketplace
+			root := pluginCacheRoot + "/" + marketplace + "/" + testCase.plugin + "/1"
+			fsys := newFakeSkillFS().file(root+"/skills/x/SKILL.md", "x")
+
+			enabled := map[string]bool{pluginKey: testCase.enabled}
+			if testCase.manifestJSON != "" {
+				fsys.file(root+"/.claude-plugin/plugin.json", testCase.manifestJSON)
+				enabled = map[string]bool{}
+			}
+
+			writePluginManifests(g, fsys, []pluginInstall{{key: pluginKey, installPath: root}}, enabled)
+
+			result := cli.ScanClaudePlugins(fsys, pluginScanInput())
+			keyed, _ := cli.AssignSkillKeys(result.Candidates)
+
+			g.Expect(resolvedKeys(cli.ResolvedSkillSources{
+				SkillScanResult: cli.SkillScanResult{Candidates: keyed},
+			})).To(Equal(stringsOrEmpty(testCase.wantKeys)))
+			g.Expect(warningsMention(result.SkillScanResult, "reserved")).To(Equal(testCase.wantWarning),
+				"warnings: %v", result.Warnings)
+		})
+	}
+}
+
 // TestAdoptSkillNote_MigratesAnUnkeyedLegacyNote is the spec scenario
 // "Adopting a previously promoted note" for D11's migration: `--adopt
 // claude:curate=1049` over the unkeyed legacy note 1049 renames it to the
@@ -92,49 +194,6 @@ func TestAdoptSkillNote_MigratesAnUnkeyedLegacyNote(t *testing.T) {
 	g.Expect(rewritten).NotTo(ContainSubstring("[[" + oldBasename + "]]"))
 	g.Expect(embed.ComputeState(vault, "/vault/"+referrer+".md", fakeEmbedder.ModelID())).To(Equal(embed.StateOK))
 	g.Expect(stdout.String()).NotTo(ContainSubstring("awaiting an answer"), "the adopted key makes no offer")
-}
-
-// TestAssignSkillKeys_QualifiesClaudeUserSources covers design D3's Claude
-// user rows: skills key as `claude:<n>` and commands as `claude:cmd:<ns:…:n>`
-// (a skill named `cmd` is `claude:cmd`), and engram's installed skills are
-// keyed by the folder they are found in, with no path-based exception.
-func TestAssignSkillKeys_QualifiesClaudeUserSources(t *testing.T) {
-	t.Parallel()
-
-	skill, command := cli.SkillSourceKindSkill, cli.SkillSourceKindCommand
-
-	for _, testCase := range []struct {
-		scope      string
-		kind       cli.SkillSourceKind
-		name, path string
-		key        string
-	}{
-		{cli.SkillScopeClaudeUser, skill, "c4", userSkillsRoot + "/c4/SKILL.md", "claude:c4"},
-		{cli.SkillScopeClaudeUser, skill, "cmd", userSkillsRoot + "/cmd/SKILL.md", "claude:cmd"},
-		{cli.SkillScopeClaudeCmd, command, "audit", fakeHome + "/.claude/commands/audit.md", "claude:cmd:audit"},
-		{cli.SkillScopeClaudeCmd, command, "opsx:apply", fakeHome + "/.claude/commands/opsx/apply.md",
-			"claude:cmd:opsx:apply"},
-		{cli.SkillScopeClaudeUser, skill, "route", engramClaudeSkills + "/route/SKILL.md", "claude:route"},
-		{cli.SkillScopePiUser, skill, "route", engramPiSkills + "/route/SKILL.md", "pi:route"},
-	} {
-		t.Run(testCase.key+" from "+testCase.path, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			keyed, warnings := cli.AssignSkillKeys([]cli.SkillCandidate{{
-				Name: testCase.name, ScopeID: testCase.scope, Kind: testCase.kind, SourcePath: testCase.path,
-			}})
-
-			g.Expect(warnings).To(BeEmpty())
-			g.Expect(keyed).To(HaveLen(1))
-
-			if len(keyed) != 1 {
-				return
-			}
-
-			g.Expect(keyed[0].Key).To(Equal(testCase.key))
-		})
-	}
 }
 
 // TestCompareSkillOffers_ClaudeKeysParseToClaudeForms covers the key parser
@@ -389,65 +448,6 @@ func TestFindSkillNote_SlugAloneLocatesNothing(t *testing.T) {
 				g.Expect(found).To(BeFalse())
 			})
 		}
-	}
-}
-
-// TestScanClaudePlugins_ReservedNameCheckFollowsEnablement covers the spec
-// scenarios "A plugin named claude is reserved", "A disabled reserved-name
-// plugin is silent" and "A plugin named cmd is an ordinary plugin" (design
-// D3): the reserved set is exactly the top-level key forms, and the check
-// runs only once the plugin is known to be enabled.
-func TestScanClaudePlugins_ReservedNameCheckFollowsEnablement(t *testing.T) {
-	t.Parallel()
-
-	for _, testCase := range []struct {
-		name         string
-		plugin       string
-		enabled      bool
-		wantWarning  bool
-		wantKeys     []string
-		manifestJSON string
-	}{
-		{name: "enabled claude@m warns", plugin: "claude", enabled: true, wantWarning: true},
-		{name: "disabled pi@m is silent", plugin: "pi", enabled: false},
-		{name: "disabled engram@engram is silent", plugin: "engram", enabled: false},
-		{
-			name: "claude@m disabled by defaultEnabled is silent", plugin: "claude", enabled: true,
-			manifestJSON: `{"name":"claude","defaultEnabled":false}`,
-		},
-		{name: "enabled cmd@m is an ordinary plugin", plugin: "cmd", enabled: true, wantKeys: []string{"cmd:x"}},
-		{name: "enabled engram@m is an ordinary plugin", plugin: "engram", enabled: true, wantKeys: []string{"engram:x"}},
-	} {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			marketplace := "m"
-			if testCase.plugin == "engram" && !testCase.enabled {
-				marketplace = "engram"
-			}
-
-			pluginKey := testCase.plugin + "@" + marketplace
-			root := pluginCacheRoot + "/" + marketplace + "/" + testCase.plugin + "/1"
-			fsys := newFakeSkillFS().file(root+"/skills/x/SKILL.md", "x")
-
-			enabled := map[string]bool{pluginKey: testCase.enabled}
-			if testCase.manifestJSON != "" {
-				fsys.file(root+"/.claude-plugin/plugin.json", testCase.manifestJSON)
-				enabled = map[string]bool{}
-			}
-
-			writePluginManifests(g, fsys, []pluginInstall{{key: pluginKey, installPath: root}}, enabled)
-
-			result := cli.ScanClaudePlugins(fsys, pluginScanInput())
-			keyed, _ := cli.AssignSkillKeys(result.Candidates)
-
-			g.Expect(resolvedKeys(cli.ResolvedSkillSources{
-				SkillScanResult: cli.SkillScanResult{Candidates: keyed},
-			})).To(Equal(stringsOrEmpty(testCase.wantKeys)))
-			g.Expect(warningsMention(result.SkillScanResult, "reserved")).To(Equal(testCase.wantWarning),
-				"warnings: %v", result.Warnings)
-		})
 	}
 }
 

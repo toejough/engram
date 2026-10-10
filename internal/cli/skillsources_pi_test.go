@@ -19,7 +19,7 @@ import (
 // ResolvePiProjectTrust (task 1.6)
 // ---------------------------------------------------------------------------
 
-func TestResolvePiProjectTrust_DefaultAlwaysTrusts(t *testing.T) {
+func Test792b30c10a1_ResolvePiProjectTrust_DefaultAlwaysTrusts(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -35,7 +35,7 @@ func TestResolvePiProjectTrust_DefaultAlwaysTrusts(t *testing.T) {
 	g.Expect(warnings).To(BeEmpty())
 }
 
-func TestResolvePiProjectTrust_FallbackOtherThanAlwaysIsUntrusted(t *testing.T) {
+func Test792b30c10a2_ResolvePiProjectTrust_FallbackOtherThanAlwaysIsUntrusted(t *testing.T) {
 	t.Parallel()
 
 	for _, settings := range []string{
@@ -59,10 +59,10 @@ func TestResolvePiProjectTrust_FallbackOtherThanAlwaysIsUntrusted(t *testing.T) 
 	}
 }
 
-// TestResolvePiProjectTrust_FromTrustFile drives the FS interactively: the
+// Test792b30c10a3_ResolvePiProjectTrust_FromTrustFile drives the FS interactively: the
 // cwd is canonicalized, then trust.json is resolved and read; a decision is
 // found, so settings.json is never read.
-func TestResolvePiProjectTrust_FromTrustFile(t *testing.T) {
+func Test792b30c10a3_ResolvePiProjectTrust_FromTrustFile(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -87,7 +87,7 @@ func TestResolvePiProjectTrust_FromTrustFile(t *testing.T) {
 	g.Expect(<-done).To(BeTrue())
 }
 
-func TestResolvePiProjectTrust_InvalidFilesAreUntrustedWithWarning(t *testing.T) {
+func Test792b30c10a4_ResolvePiProjectTrust_InvalidFilesAreUntrustedWithWarning(t *testing.T) {
 	t.Parallel()
 
 	cases := map[string]func(*fakeSkillFS){
@@ -121,12 +121,12 @@ func TestResolvePiProjectTrust_InvalidFilesAreUntrustedWithWarning(t *testing.T)
 	}
 }
 
-// TestResolvePiProjectTrust_NearestDecisionProperty: for any assignment of
+// Test792b30c10a5_ResolvePiProjectTrust_NearestDecisionProperty: for any assignment of
 // saved decisions (true / false / null / none) to the cwd and its ancestors,
 // and any defaultProjectTrust, the project is trusted iff the nearest non-null
 // decision is true, or there is none and the default is "always" (oracle:
 // Pi's findNearestTrustEntry + resolveProjectTrusted).
-func TestResolvePiProjectTrust_NearestDecisionProperty(t *testing.T) {
+func Test792b30c10a5_ResolvePiProjectTrust_NearestDecisionProperty(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -180,7 +180,7 @@ func TestResolvePiProjectTrust_NearestDecisionProperty(t *testing.T) {
 	})
 }
 
-func TestResolvePiProjectTrust_SymlinkedCwdIsCanonicalized(t *testing.T) {
+func Test792b30c10a6_ResolvePiProjectTrust_SymlinkedCwdIsCanonicalized(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -197,16 +197,97 @@ func TestResolvePiProjectTrust_SymlinkedCwdIsCanonicalized(t *testing.T) {
 	g.Expect(warnings).To(BeEmpty())
 }
 
+func Test792b30c11a1_ScanPiProjectSkills_TrustedScansCwdPiSkills(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fsys := newFakeSkillFS().
+		file(projectTop+"/.pi/skills/foo/SKILL.md", "foo").
+		file(projectTop+"/.pi/skills/notes.md", "notes").
+		file("/work/.pi/skills/parent/SKILL.md", "cwd only, never ancestors")
+
+	result := cli.ScanPiProjectSkills(fsys, cli.PiProjectScan{Cwd: projectTop, ScopeID: projectScope, Trusted: true})
+
+	g.Expect(candidateNames(result)).To(Equal([]string{"foo", "notes"}))
+	g.Expect(result.Candidates[0].ScopeID).To(Equal(projectScope))
+	g.Expect(result.Roots).To(Equal([]cli.ScannedRoot{{
+		Path: projectTop + "/.pi/skills", Resolved: projectTop + "/.pi/skills", Scanned: true,
+	}}))
+}
+
+func Test792b30c11a2_ScanPiProjectPrompts_TrustedScansCwdPiPrompts(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fsys := newFakeSkillFS().file(projectTop+"/.pi/prompts/review.md", "review")
+
+	result := cli.ScanPiProjectPrompts(fsys, cli.PiProjectScan{Cwd: projectTop, ScopeID: projectScope, Trusted: true})
+
+	g.Expect(candidateNames(result)).To(Equal([]string{"review"}))
+	g.Expect(result.Candidates[0].ScopeID).To(Equal(projectScope))
+	g.Expect(result.Candidates[0].Kind).To(Equal(cli.SkillSourceKindPrompt))
+}
+
+// Test792b30c11a3_ScanPiProjectSources_UntrustedReadsNothing: untrusted → the Pi project
+// scanners read nothing and record no root (spec "Untrusted Pi project is not
+// scanned").
+func Test792b30c11a3_ScanPiProjectSources_UntrustedReadsNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fake := newFakeSkillFS().
+		file(projectTop+"/.pi/skills/foo/SKILL.md", "foo").
+		file(projectTop+"/.pi/prompts/review.md", "review").
+		file(projectTop+"/.agents/skills/lint/SKILL.md", "lint")
+	recorder := &recordingSkillFS{inner: fake}
+	scan := cli.PiProjectScan{
+		Cwd: projectTop, TopLevel: projectTop, UserAgentsRoot: agentsUserRoot, ScopeID: projectScope, Trusted: false,
+	}
+
+	for _, result := range []cli.SkillScanResult{
+		cli.ScanPiProjectSkills(recorder, scan),
+		cli.ScanAgentsProjectSkills(recorder, scan),
+		cli.ScanPiProjectPrompts(recorder, scan),
+	} {
+		g.Expect(result.Candidates).To(BeEmpty())
+		g.Expect(result.Roots).To(BeEmpty())
+	}
+
+	g.Expect(recorder.calls).To(BeEmpty())
+}
+
+func Test792b30c11a4_ScanAgentsProjectSkills_FromSubdirectoryFindsTopLevel(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fsys := newFakeSkillFS().
+		file(projectTop+"/.agents/skills/lint/SKILL.md", "lint").
+		file(projectTop+"/.agents/skills/notes.md", "root md ignored").
+		file("/work/.agents/skills/outside/SKILL.md", "above the top-level").
+		dir(projectTop + "/internal/sub")
+
+	result := cli.ScanAgentsProjectSkills(fsys, cli.PiProjectScan{
+		Cwd: projectTop + "/internal/sub", TopLevel: projectTop, UserAgentsRoot: agentsUserRoot,
+		ScopeID: projectScope, Trusted: true,
+	})
+
+	g.Expect(candidateNames(result)).To(Equal([]string{"lint"}))
+	g.Expect(result.Candidates[0].ScopeID).To(Equal(projectScope))
+	g.Expect(result.Roots).To(Equal([]cli.ScannedRoot{{
+		Path: projectTop + "/.agents/skills", Resolved: projectTop + "/.agents/skills", Scanned: true,
+	}}))
+}
+
 // ---------------------------------------------------------------------------
 // Pi project skills (task 1.4, trust-gated per 1.6)
 // ---------------------------------------------------------------------------
 
-// TestScanAgentsProjectSkills_ChainProperty: for any cwd depth below the
+// Test792b30c11a5_ScanAgentsProjectSkills_ChainProperty: for any cwd depth below the
 // top-level and any set of chain levels holding `.agents/skills/<n>`, the
 // scan finds exactly those levels' skills (same name at two levels: both),
 // records each existing level as its own scanned root, and never reads above
 // the top-level.
-func TestScanAgentsProjectSkills_ChainProperty(t *testing.T) {
+func Test792b30c11a5_ScanAgentsProjectSkills_ChainProperty(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -276,31 +357,9 @@ func TestScanAgentsProjectSkills_ChainProperty(t *testing.T) {
 	})
 }
 
-func TestScanAgentsProjectSkills_FromSubdirectoryFindsTopLevel(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fsys := newFakeSkillFS().
-		file(projectTop+"/.agents/skills/lint/SKILL.md", "lint").
-		file(projectTop+"/.agents/skills/notes.md", "root md ignored").
-		file("/work/.agents/skills/outside/SKILL.md", "above the top-level").
-		dir(projectTop + "/internal/sub")
-
-	result := cli.ScanAgentsProjectSkills(fsys, cli.PiProjectScan{
-		Cwd: projectTop + "/internal/sub", TopLevel: projectTop, UserAgentsRoot: agentsUserRoot,
-		ScopeID: projectScope, Trusted: true,
-	})
-
-	g.Expect(candidateNames(result)).To(Equal([]string{"lint"}))
-	g.Expect(result.Candidates[0].ScopeID).To(Equal(projectScope))
-	g.Expect(result.Roots).To(Equal([]cli.ScannedRoot{{
-		Path: projectTop + "/.agents/skills", Resolved: projectTop + "/.agents/skills", Scanned: true,
-	}}))
-}
-
-// TestScanAgentsProjectSkills_SkipsUserAgentsRoot: when the chain reaches
+// Test792b30c11a6_ScanAgentsProjectSkills_SkipsUserAgentsRoot: when the chain reaches
 // $HOME, ~/.agents/skills is the user source, never a project level.
-func TestScanAgentsProjectSkills_SkipsUserAgentsRoot(t *testing.T) {
+func Test792b30c11a6_ScanAgentsProjectSkills_SkipsUserAgentsRoot(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -318,10 +377,10 @@ func TestScanAgentsProjectSkills_SkipsUserAgentsRoot(t *testing.T) {
 	g.Expect(recorded).To(BeFalse())
 }
 
-// TestScanAgentsProjectSkills_SymlinkedCwdStopsAtTopLevel: a cwd reached
+// Test792b30c11a7_ScanAgentsProjectSkills_SymlinkedCwdStopsAtTopLevel: a cwd reached
 // through a symlink is resolved, so the walk still meets the (physical)
 // top-level and never climbs past it.
-func TestScanAgentsProjectSkills_SymlinkedCwdStopsAtTopLevel(t *testing.T) {
+func Test792b30c11a7_ScanAgentsProjectSkills_SymlinkedCwdStopsAtTopLevel(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -339,11 +398,40 @@ func TestScanAgentsProjectSkills_SymlinkedCwdStopsAtTopLevel(t *testing.T) {
 	g.Expect(candidateNames(result)).To(Equal([]string{"lint"}))
 }
 
+func Test792b30c8a10_ScanPiSkillDir_SubdirReadErrorMarksRootNotScanned(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fsys := newFakeSkillFS().
+		file(piUserRoot+"/good/SKILL.md", "good").
+		file(piUserRoot+"/group/locked/SKILL.md", "locked").
+		failRead(piUserRoot + "/group")
+
+	result := cli.ScanPiUserSkills(fsys, piUserRoot)
+
+	g.Expect(candidateNames(result)).To(Equal([]string{"good"}))
+
+	scanned, _ := rootScanned(result, piUserRoot)
+	g.Expect(scanned).To(BeFalse())
+	g.Expect(warningsMention(result, piUserRoot+"/group")).To(BeTrue())
+}
+
+func Test792b30c8a11_ScanPiSkillDir_MissingRootIsNotScanned(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	result := cli.ScanPiUserSkills(newFakeSkillFS(), piUserRoot)
+
+	g.Expect(result.Candidates).To(BeEmpty())
+	g.Expect(result.Warnings).To(BeEmpty())
+	g.Expect(result.Roots).To(Equal([]cli.ScannedRoot{{Path: piUserRoot}}))
+}
+
 // ---------------------------------------------------------------------------
 // ScanPiUserSkills / ScanAgentsUserSkills / ScanPiSkillDir (task 1.4)
 // ---------------------------------------------------------------------------
 
-func TestScanAgentsUserSkills_IgnoresRootMarkdown(t *testing.T) {
+func Test792b30c8a12_ScanAgentsUserSkills_IgnoresRootMarkdown(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -358,180 +446,101 @@ func TestScanAgentsUserSkills_IgnoresRootMarkdown(t *testing.T) {
 	g.Expect(result.Roots).To(Equal([]cli.ScannedRoot{{Path: agentsUserRoot, Resolved: agentsUserRoot, Scanned: true}}))
 }
 
-func TestScanPiProjectPrompts_TrustedScansCwdPiPrompts(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fsys := newFakeSkillFS().file(projectTop+"/.pi/prompts/review.md", "review")
-
-	result := cli.ScanPiProjectPrompts(fsys, cli.PiProjectScan{Cwd: projectTop, ScopeID: projectScope, Trusted: true})
-
-	g.Expect(candidateNames(result)).To(Equal([]string{"review"}))
-	g.Expect(result.Candidates[0].ScopeID).To(Equal(projectScope))
-	g.Expect(result.Candidates[0].Kind).To(Equal(cli.SkillSourceKindPrompt))
-}
-
-func TestScanPiProjectSkills_TrustedScansCwdPiSkills(t *testing.T) {
+func Test792b30c8a1_ScanPiUserSkills_RecursiveDiscoveryAndRootMarkdown(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	fsys := newFakeSkillFS().
-		file(projectTop+"/.pi/skills/foo/SKILL.md", "foo").
-		file(projectTop+"/.pi/skills/notes.md", "notes").
-		file("/work/.pi/skills/parent/SKILL.md", "cwd only, never ancestors")
-
-	result := cli.ScanPiProjectSkills(fsys, cli.PiProjectScan{Cwd: projectTop, ScopeID: projectScope, Trusted: true})
-
-	g.Expect(candidateNames(result)).To(Equal([]string{"foo", "notes"}))
-	g.Expect(result.Candidates[0].ScopeID).To(Equal(projectScope))
-	g.Expect(result.Roots).To(Equal([]cli.ScannedRoot{{
-		Path: projectTop + "/.pi/skills", Resolved: projectTop + "/.pi/skills", Scanned: true,
-	}}))
-}
-
-// TestScanPiProjectSources_UntrustedReadsNothing: untrusted → the Pi project
-// scanners read nothing and record no root (spec "Untrusted Pi project is not
-// scanned").
-func TestScanPiProjectSources_UntrustedReadsNothing(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fake := newFakeSkillFS().
-		file(projectTop+"/.pi/skills/foo/SKILL.md", "foo").
-		file(projectTop+"/.pi/prompts/review.md", "review").
-		file(projectTop+"/.agents/skills/lint/SKILL.md", "lint")
-	recorder := &recordingSkillFS{inner: fake}
-	scan := cli.PiProjectScan{
-		Cwd: projectTop, TopLevel: projectTop, UserAgentsRoot: agentsUserRoot, ScopeID: projectScope, Trusted: false,
-	}
-
-	for _, result := range []cli.SkillScanResult{
-		cli.ScanPiProjectSkills(recorder, scan),
-		cli.ScanAgentsProjectSkills(recorder, scan),
-		cli.ScanPiProjectPrompts(recorder, scan),
-	} {
-		g.Expect(result.Candidates).To(BeEmpty())
-		g.Expect(result.Roots).To(BeEmpty())
-	}
-
-	g.Expect(recorder.calls).To(BeEmpty())
-}
-
-// ---------------------------------------------------------------------------
-// Pi prompt templates (task 1.4b)
-// ---------------------------------------------------------------------------
-
-// TestScanPiPromptDir_FlatMarkdownProperty: for any flat mix of entries, the
-// prompts are exactly the non-hidden `.md` files (regular or symlinked),
-// named by stem; subdirectories are never descended.
-func TestScanPiPromptDir_FlatMarkdownProperty(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		g := NewWithT(rt)
-
-		names := rapid.SliceOfDistinct(rapid.StringMatching(`\.?[a-z][a-z0-9-]{0,5}`), rapid.ID[string]).
-			Draw(rt, "names")
-		fsys := newFakeSkillFS().dir(piPromptsRoot)
-		want := []string{}
-
-		for index, name := range names {
-			switch rapid.IntRange(0, promptShapeCount-1).Draw(rt, fmt.Sprintf("shape%d", index)) {
-			case promptShapeMarkdown:
-				fsys.file(piPromptsRoot+"/"+name+".md", name)
-
-				if !strings.HasPrefix(name, ".") {
-					want = append(want, name)
-				}
-			case promptShapeLinked:
-				fsys.file("/src/prompts/"+name+".md", name).link(piPromptsRoot+"/"+name+".md", "/src/prompts/"+name+".md")
-
-				if !strings.HasPrefix(name, ".") {
-					want = append(want, name)
-				}
-			case promptShapeOther:
-				fsys.file(piPromptsRoot+"/"+name+".txt", name)
-			case promptShapeSubdir:
-				fsys.file(piPromptsRoot+"/"+name+"/nested.md", name)
-			}
-		}
-
-		sort.Strings(want)
-
-		result := cli.ScanPiPromptDir(fsys, piPromptsRoot, cli.SkillScopePiPrompt)
-
-		g.Expect(candidateNames(result)).To(Equal(want))
-
-		for _, candidate := range result.Candidates {
-			g.Expect(candidate.Kind).To(Equal(cli.SkillSourceKindPrompt))
-		}
-
-		scanned, _ := rootScanned(result, piPromptsRoot)
-		g.Expect(scanned).To(BeTrue())
-	})
-}
-
-func TestScanPiSkillDir_ChildStatErrorMarksRootNotScanned(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fsys := newFakeSkillFS().
-		file(piUserRoot+"/good/SKILL.md", "good").
-		link(piUserRoot+"/odd", "/elsewhere/odd").
-		dir("/elsewhere/odd").
-		failLstat("/elsewhere/odd")
+		file(piUserRoot+"/a/foo/SKILL.md", "foo a").
+		file(piUserRoot+"/b/foo/SKILL.md", "foo b").
+		file(piUserRoot+"/bar/SKILL.md", "bar").
+		file(piUserRoot+"/bar/nested/SKILL.md", "nested stops at bar").
+		file(piUserRoot+"/a/deep.md", "not a root file").
+		file(piUserRoot+"/notes.md", "notes").
+		file(piUserRoot+"/readme.txt", "not markdown")
 
 	result := cli.ScanPiUserSkills(fsys, piUserRoot)
 
-	g.Expect(candidateNames(result)).To(Equal([]string{"good"}))
+	g.Expect(candidateNames(result)).To(Equal([]string{"bar", "foo", "foo", "notes"}))
 
-	scanned, _ := rootScanned(result, piUserRoot)
-	g.Expect(scanned).To(BeFalse())
-	g.Expect(warningsMention(result, piUserRoot+"/odd")).To(BeTrue())
+	for _, candidate := range result.Candidates {
+		g.Expect(candidate.ScopeID).To(Equal(cli.SkillScopePiUser))
+		g.Expect(candidate.Kind).To(Equal(cli.SkillSourceKindSkill))
+		g.Expect(candidate.ReadRoot).To(Equal(piUserRoot))
+		g.Expect(candidate.Key).To(BeEmpty())
+	}
+
+	g.Expect(result.Candidates[1].SourcePath).To(Equal(piUserRoot + "/a/foo/SKILL.md"))
+	g.Expect(string(result.Candidates[1].Content)).To(Equal("foo a"))
+	g.Expect(result.Candidates[3].SourcePath).To(Equal(piUserRoot + "/notes.md"))
+	g.Expect(result.Roots).To(Equal([]cli.ScannedRoot{{Path: piUserRoot, Resolved: piUserRoot, Scanned: true}}))
 }
 
-func TestScanPiSkillDir_CycleTerminates(t *testing.T) {
+// Test792b30c8a2_ScanPiUserSkills_SymlinksFollowed mirrors this machine: engram's skills
+// are symlinks into ~/.pi/agent/engram/skills; a dangling link is skipped.
+func Test792b30c8a2_ScanPiUserSkills_SymlinksFollowed(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
+	engramRoute := piAgentDir + "/engram/skills/route"
 	fsys := newFakeSkillFS().
-		file(piUserRoot+"/a/foo/SKILL.md", "foo").
-		link(piUserRoot+"/a/loop", piUserRoot+"/a").
-		link(piUserRoot+"/a/up", piUserRoot)
+		file(engramRoute+"/SKILL.md", "route").
+		link(piUserRoot+"/route", "../engram/skills/route").
+		file("/src/ping/SKILL.md", "ping").
+		dir(piUserRoot+"/ping").
+		link(piUserRoot+"/ping/SKILL.md", "/src/ping/SKILL.md").
+		file("/src/tip.md", "tip").
+		link(piUserRoot+"/tip.md", "/src/tip.md").
+		link(piUserRoot+"/gone", "/nowhere/gone")
 
 	result := cli.ScanPiUserSkills(fsys, piUserRoot)
 
-	g.Expect(candidateNames(result)).To(Equal([]string{"foo"}))
+	g.Expect(candidateNames(result)).To(Equal([]string{"ping", "route", "tip"}))
+	g.Expect(result.Candidates[0].SourcePath).To(Equal("/src/ping/SKILL.md"))
+	g.Expect(result.Candidates[1].SourcePath).To(Equal(engramRoute + "/SKILL.md"))
+	g.Expect(result.Candidates[2].SourcePath).To(Equal("/src/tip.md"))
 
 	scanned, _ := rootScanned(result, piUserRoot)
 	g.Expect(scanned).To(BeTrue())
 }
 
-func TestScanPiSkillDir_DepthLimitMarksRootNotScanned(t *testing.T) {
+func Test792b30c8a3_ScanPiSkillDir_HiddenAndNodeModulesAreSkipped(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	deep := piUserRoot + strings.Repeat("/d", piDeepNesting)
 	fsys := newFakeSkillFS().
-		file(piUserRoot+"/shallow/SKILL.md", "shallow").
-		file(deep+"/buried/SKILL.md", "buried")
+		file(piUserRoot+"/.hidden/SKILL.md", "hidden").
+		file(piUserRoot+"/node_modules/dep/SKILL.md", "dep").
+		file(piUserRoot+"/.draft.md", "draft").
+		file(piUserRoot+"/kept/SKILL.md", "kept")
 
 	result := cli.ScanPiUserSkills(fsys, piUserRoot)
 
-	g.Expect(candidateNames(result)).To(Equal([]string{"shallow"}))
-
-	scanned, _ := rootScanned(result, piUserRoot)
-	g.Expect(scanned).To(BeFalse())
-	g.Expect(result.Warnings).NotTo(BeEmpty())
+	g.Expect(candidateNames(result)).To(Equal([]string{"kept"}))
 }
 
-// TestScanPiSkillDir_DiscoveryProperty: for any tree of directories (some
+func Test792b30c8a4_ScanPiSkillDir_RootHoldingSkillIsOneSkill(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fsys := newFakeSkillFS().
+		file(piUserRoot+"/SKILL.md", "root skill").
+		file(piUserRoot+"/notes.md", "notes").
+		file(piUserRoot+"/inner/SKILL.md", "inner")
+
+	result := cli.ScanPiUserSkills(fsys, piUserRoot)
+
+	g.Expect(candidateNames(result)).To(Equal([]string{"skills"}))
+	g.Expect(result.Candidates[0].SourcePath).To(Equal(piUserRoot + "/SKILL.md"))
+}
+
+// Test792b30c8a5_ScanPiSkillDir_DiscoveryProperty: for any tree of directories (some
 // holding SKILL.md) plus markdown files, the scan finds exactly the
 // directories holding SKILL.md with no SKILL.md-holding ancestor below the
 // root, named by directory name, plus — for the Pi mode only — root-level
 // `.md` files named by stem (oracle computed from the generated tree, Pi's
 // collectSkillEntries rules).
-func TestScanPiSkillDir_DiscoveryProperty(t *testing.T) {
+func Test792b30c8a5_ScanPiSkillDir_DiscoveryProperty(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -596,48 +605,61 @@ func TestScanPiSkillDir_DiscoveryProperty(t *testing.T) {
 	})
 }
 
-func TestScanPiSkillDir_HiddenAndNodeModulesAreSkipped(t *testing.T) {
+func Test792b30c8a6_ScanPiSkillDir_CycleTerminates(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	fsys := newFakeSkillFS().
-		file(piUserRoot+"/.hidden/SKILL.md", "hidden").
-		file(piUserRoot+"/node_modules/dep/SKILL.md", "dep").
-		file(piUserRoot+"/.draft.md", "draft").
-		file(piUserRoot+"/kept/SKILL.md", "kept")
+		file(piUserRoot+"/a/foo/SKILL.md", "foo").
+		link(piUserRoot+"/a/loop", piUserRoot+"/a").
+		link(piUserRoot+"/a/up", piUserRoot)
 
 	result := cli.ScanPiUserSkills(fsys, piUserRoot)
 
-	g.Expect(candidateNames(result)).To(Equal([]string{"kept"}))
+	g.Expect(candidateNames(result)).To(Equal([]string{"foo"}))
+
+	scanned, _ := rootScanned(result, piUserRoot)
+	g.Expect(scanned).To(BeTrue())
 }
 
-func TestScanPiSkillDir_MissingRootIsNotScanned(t *testing.T) {
+func Test792b30c8a7_ScanPiSkillDir_DepthLimitMarksRootNotScanned(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	result := cli.ScanPiUserSkills(newFakeSkillFS(), piUserRoot)
+	deep := piUserRoot + strings.Repeat("/d", piDeepNesting)
+	fsys := newFakeSkillFS().
+		file(piUserRoot+"/shallow/SKILL.md", "shallow").
+		file(deep+"/buried/SKILL.md", "buried")
 
-	g.Expect(result.Candidates).To(BeEmpty())
-	g.Expect(result.Warnings).To(BeEmpty())
-	g.Expect(result.Roots).To(Equal([]cli.ScannedRoot{{Path: piUserRoot}}))
+	result := cli.ScanPiUserSkills(fsys, piUserRoot)
+
+	g.Expect(candidateNames(result)).To(Equal([]string{"shallow"}))
+
+	scanned, _ := rootScanned(result, piUserRoot)
+	g.Expect(scanned).To(BeFalse())
+	g.Expect(result.Warnings).NotTo(BeEmpty())
 }
 
-func TestScanPiSkillDir_RootHoldingSkillIsOneSkill(t *testing.T) {
+func Test792b30c8a8_ScanPiSkillDir_ChildStatErrorMarksRootNotScanned(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	fsys := newFakeSkillFS().
-		file(piUserRoot+"/SKILL.md", "root skill").
-		file(piUserRoot+"/notes.md", "notes").
-		file(piUserRoot+"/inner/SKILL.md", "inner")
+		file(piUserRoot+"/good/SKILL.md", "good").
+		link(piUserRoot+"/odd", "/elsewhere/odd").
+		dir("/elsewhere/odd").
+		failLstat("/elsewhere/odd")
 
 	result := cli.ScanPiUserSkills(fsys, piUserRoot)
 
-	g.Expect(candidateNames(result)).To(Equal([]string{"skills"}))
-	g.Expect(result.Candidates[0].SourcePath).To(Equal(piUserRoot + "/SKILL.md"))
+	g.Expect(candidateNames(result)).To(Equal([]string{"good"}))
+
+	scanned, _ := rootScanned(result, piUserRoot)
+	g.Expect(scanned).To(BeFalse())
+	g.Expect(warningsMention(result, piUserRoot+"/odd")).To(BeTrue())
 }
 
-func TestScanPiSkillDir_SkillFileReadErrorMarksRootNotScanned(t *testing.T) {
+func Test792b30c8a9_ScanPiSkillDir_SkillFileReadErrorMarksRootNotScanned(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -658,25 +680,7 @@ func TestScanPiSkillDir_SkillFileReadErrorMarksRootNotScanned(t *testing.T) {
 	g.Expect(warningsMention(result, piUserRoot+"/notes.md")).To(BeTrue())
 }
 
-func TestScanPiSkillDir_SubdirReadErrorMarksRootNotScanned(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fsys := newFakeSkillFS().
-		file(piUserRoot+"/good/SKILL.md", "good").
-		file(piUserRoot+"/group/locked/SKILL.md", "locked").
-		failRead(piUserRoot + "/group")
-
-	result := cli.ScanPiUserSkills(fsys, piUserRoot)
-
-	g.Expect(candidateNames(result)).To(Equal([]string{"good"}))
-
-	scanned, _ := rootScanned(result, piUserRoot)
-	g.Expect(scanned).To(BeFalse())
-	g.Expect(warningsMention(result, piUserRoot+"/group")).To(BeTrue())
-}
-
-func TestScanPiUserPrompts_GlobalPromptNamedByStem(t *testing.T) {
+func Test792b30c9a1_ScanPiUserPrompts_GlobalPromptNamedByStem(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -696,7 +700,7 @@ func TestScanPiUserPrompts_GlobalPromptNamedByStem(t *testing.T) {
 	g.Expect(result.Roots).To(Equal([]cli.ScannedRoot{{Path: piPromptsRoot, Resolved: piPromptsRoot, Scanned: true}}))
 }
 
-func TestScanPiUserPrompts_MissingDirIsNotScanned(t *testing.T) {
+func Test792b30c9a2_ScanPiUserPrompts_MissingDirIsNotScanned(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -707,7 +711,7 @@ func TestScanPiUserPrompts_MissingDirIsNotScanned(t *testing.T) {
 	g.Expect(result.Roots).To(Equal([]cli.ScannedRoot{{Path: piPromptsRoot}}))
 }
 
-func TestScanPiUserPrompts_UnreadablePromptMarksRootNotScanned(t *testing.T) {
+func Test792b30c9a3_ScanPiUserPrompts_UnreadablePromptMarksRootNotScanned(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -726,62 +730,58 @@ func TestScanPiUserPrompts_UnreadablePromptMarksRootNotScanned(t *testing.T) {
 	g.Expect(warningsMention(result, piPromptsRoot+"/locked.md")).To(BeTrue())
 }
 
-func TestScanPiUserSkills_RecursiveDiscoveryAndRootMarkdown(t *testing.T) {
+// ---------------------------------------------------------------------------
+// Pi prompt templates (task 1.4b)
+// ---------------------------------------------------------------------------
+
+// Test792b30c9a4_ScanPiPromptDir_FlatMarkdownProperty: for any flat mix of entries, the
+// prompts are exactly the non-hidden `.md` files (regular or symlinked),
+// named by stem; subdirectories are never descended.
+func Test792b30c9a4_ScanPiPromptDir_FlatMarkdownProperty(t *testing.T) {
 	t.Parallel()
-	g := NewWithT(t)
 
-	fsys := newFakeSkillFS().
-		file(piUserRoot+"/a/foo/SKILL.md", "foo a").
-		file(piUserRoot+"/b/foo/SKILL.md", "foo b").
-		file(piUserRoot+"/bar/SKILL.md", "bar").
-		file(piUserRoot+"/bar/nested/SKILL.md", "nested stops at bar").
-		file(piUserRoot+"/a/deep.md", "not a root file").
-		file(piUserRoot+"/notes.md", "notes").
-		file(piUserRoot+"/readme.txt", "not markdown")
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(rt)
 
-	result := cli.ScanPiUserSkills(fsys, piUserRoot)
+		names := rapid.SliceOfDistinct(rapid.StringMatching(`\.?[a-z][a-z0-9-]{0,5}`), rapid.ID[string]).
+			Draw(rt, "names")
+		fsys := newFakeSkillFS().dir(piPromptsRoot)
+		want := []string{}
 
-	g.Expect(candidateNames(result)).To(Equal([]string{"bar", "foo", "foo", "notes"}))
+		for index, name := range names {
+			switch rapid.IntRange(0, promptShapeCount-1).Draw(rt, fmt.Sprintf("shape%d", index)) {
+			case promptShapeMarkdown:
+				fsys.file(piPromptsRoot+"/"+name+".md", name)
 
-	for _, candidate := range result.Candidates {
-		g.Expect(candidate.ScopeID).To(Equal(cli.SkillScopePiUser))
-		g.Expect(candidate.Kind).To(Equal(cli.SkillSourceKindSkill))
-		g.Expect(candidate.ReadRoot).To(Equal(piUserRoot))
-		g.Expect(candidate.Key).To(BeEmpty())
-	}
+				if !strings.HasPrefix(name, ".") {
+					want = append(want, name)
+				}
+			case promptShapeLinked:
+				fsys.file("/src/prompts/"+name+".md", name).link(piPromptsRoot+"/"+name+".md", "/src/prompts/"+name+".md")
 
-	g.Expect(result.Candidates[1].SourcePath).To(Equal(piUserRoot + "/a/foo/SKILL.md"))
-	g.Expect(string(result.Candidates[1].Content)).To(Equal("foo a"))
-	g.Expect(result.Candidates[3].SourcePath).To(Equal(piUserRoot + "/notes.md"))
-	g.Expect(result.Roots).To(Equal([]cli.ScannedRoot{{Path: piUserRoot, Resolved: piUserRoot, Scanned: true}}))
-}
+				if !strings.HasPrefix(name, ".") {
+					want = append(want, name)
+				}
+			case promptShapeOther:
+				fsys.file(piPromptsRoot+"/"+name+".txt", name)
+			case promptShapeSubdir:
+				fsys.file(piPromptsRoot+"/"+name+"/nested.md", name)
+			}
+		}
 
-// TestScanPiUserSkills_SymlinksFollowed mirrors this machine: engram's skills
-// are symlinks into ~/.pi/agent/engram/skills; a dangling link is skipped.
-func TestScanPiUserSkills_SymlinksFollowed(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
+		sort.Strings(want)
 
-	engramRoute := piAgentDir + "/engram/skills/route"
-	fsys := newFakeSkillFS().
-		file(engramRoute+"/SKILL.md", "route").
-		link(piUserRoot+"/route", "../engram/skills/route").
-		file("/src/ping/SKILL.md", "ping").
-		dir(piUserRoot+"/ping").
-		link(piUserRoot+"/ping/SKILL.md", "/src/ping/SKILL.md").
-		file("/src/tip.md", "tip").
-		link(piUserRoot+"/tip.md", "/src/tip.md").
-		link(piUserRoot+"/gone", "/nowhere/gone")
+		result := cli.ScanPiPromptDir(fsys, piPromptsRoot, cli.SkillScopePiPrompt)
 
-	result := cli.ScanPiUserSkills(fsys, piUserRoot)
+		g.Expect(candidateNames(result)).To(Equal(want))
 
-	g.Expect(candidateNames(result)).To(Equal([]string{"ping", "route", "tip"}))
-	g.Expect(result.Candidates[0].SourcePath).To(Equal("/src/ping/SKILL.md"))
-	g.Expect(result.Candidates[1].SourcePath).To(Equal(engramRoute + "/SKILL.md"))
-	g.Expect(result.Candidates[2].SourcePath).To(Equal("/src/tip.md"))
+		for _, candidate := range result.Candidates {
+			g.Expect(candidate.Kind).To(Equal(cli.SkillSourceKindPrompt))
+		}
 
-	scanned, _ := rootScanned(result, piUserRoot)
-	g.Expect(scanned).To(BeTrue())
+		scanned, _ := rootScanned(result, piPromptsRoot)
+		g.Expect(scanned).To(BeTrue())
+	})
 }
 
 // unexported constants.

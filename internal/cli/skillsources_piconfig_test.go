@@ -15,10 +15,66 @@ import (
 )
 
 // ---------------------------------------------------------------------------
+// ReadPiSettings
+// ---------------------------------------------------------------------------
+
+// Test792b30c12a1_ReadPiSettings_ReadsResolvedFile drives the FS interactively: the
+// settings path is resolved (Lstat) and then read.
+func Test792b30c12a1_ReadPiSettings_ReadsResolvedFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	mock, imp := MockSkillSourceFS(t)
+	done := make(chan cli.PiSettings)
+
+	go func() {
+		settings, _ := cli.ReadPiSettings(mock, "/s.json")
+		done <- settings
+	}()
+
+	imp.Lstat.ArgsEqual("/s.json").Return(fakeSkillInfo{name: "s.json", node: &fakeSkillNode{kind: fakeSkillFile}}, nil)
+	imp.ReadFile.ArgsEqual("/s.json").
+		Return([]byte(`{"skills": ["a", "!b"], "prompts": ["p"], "theme": "x"}`), nil)
+
+	settings := <-done
+	g.Expect(settings.Skills).To(Equal([]string{"a", "!b"}))
+	g.Expect(settings.Prompts).To(Equal([]string{"p"}))
+}
+
+func Test792b30c12a2_ReadPiSettings_LegacySkillsObjectAndErrors(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fsys := newFakeSkillFS().
+		file("/a/settings.json", `{"skills": {"customDirectories": ["~/x"]}}`).
+		file("/b/settings.json", `{"skills": [`).
+		file("/c/settings.json", `{}`).failRead("/c/settings.json")
+
+	legacy, warnings := cli.ReadPiSettings(fsys, "/a/settings.json")
+	g.Expect(warnings).To(BeEmpty())
+	g.Expect(legacy.Skills).To(Equal([]string{"~/x"}))
+
+	missing, warnings := cli.ReadPiSettings(fsys, "/none/settings.json")
+	g.Expect(warnings).To(BeEmpty())
+	g.Expect(missing.Skills).To(BeEmpty())
+
+	_, warnings = cli.ReadPiSettings(fsys, "/b/settings.json")
+	g.Expect(warnings).To(HaveLen(1))
+
+	fsys.file("/d/settings.json", `{"skills": [1], "prompts": "p", "packages": [{"skills": []}]}`)
+	shapes, warnings := cli.ReadPiSettings(fsys, "/d/settings.json")
+	g.Expect(warnings).To(HaveLen(3))
+	g.Expect(shapes.Skills).To(BeEmpty())
+
+	_, warnings = cli.ReadPiSettings(fsys, "/c/settings.json")
+	g.Expect(warnings).To(HaveLen(1))
+}
+
+// ---------------------------------------------------------------------------
 // ApplyPiSettingsOverrides (ruling R8)
 // ---------------------------------------------------------------------------
 
-func TestApplyPiSettingsOverrides_DisablesDefaultFolderSkills(t *testing.T) {
+func Test792b30c12a3_ApplyPiSettingsOverrides_DisablesDefaultFolderSkills(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -40,11 +96,11 @@ func TestApplyPiSettingsOverrides_DisablesDefaultFolderSkills(t *testing.T) {
 	g.Expect(disabledNames(scanned.Candidates)).To(BeEmpty())
 }
 
-// TestApplyPiSettingsOverrides_EnabledProperty checks Pi's
+// Test792b30c12a4_ApplyPiSettingsOverrides_EnabledProperty checks Pi's
 // isEnabledByOverrides (package-manager.js:515-539) for name excludes and
 // exact absolute +/- paths: enabled = !(excluded) , then +forced → true,
 // then -forced → false.
-func TestApplyPiSettingsOverrides_EnabledProperty(t *testing.T) {
+func Test792b30c12a4_ApplyPiSettingsOverrides_EnabledProperty(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -89,7 +145,7 @@ func TestApplyPiSettingsOverrides_EnabledProperty(t *testing.T) {
 	})
 }
 
-func TestApplyPiSettingsOverrides_FallsBackToSourcePath(t *testing.T) {
+func Test792b30c12a5_ApplyPiSettingsOverrides_FallsBackToSourcePath(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -100,7 +156,7 @@ func TestApplyPiSettingsOverrides_FallsBackToSourcePath(t *testing.T) {
 	g.Expect(disabledNames(got)).To(Equal([]string{"x"}))
 }
 
-func TestApplyPiSettingsOverrides_GlobstarDisablesAllWithWarning(t *testing.T) {
+func Test792b30c12a6_ApplyPiSettingsOverrides_GlobstarDisablesAllWithWarning(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -113,9 +169,9 @@ func TestApplyPiSettingsOverrides_GlobstarDisablesAllWithWarning(t *testing.T) {
 	g.Expect(disabledNames(got)).To(Equal([]string{"ping"}))
 }
 
-// TestApplyPiSettingsOverrides_MatchesWalkedPathNotResolved: Pi matches the
+// Test792b30c12a7_ApplyPiSettingsOverrides_MatchesWalkedPathNotResolved: Pi matches the
 // path as discovered, so a symlinked skill is matched by its link location.
-func TestApplyPiSettingsOverrides_MatchesWalkedPathNotResolved(t *testing.T) {
+func Test792b30c12a7_ApplyPiSettingsOverrides_MatchesWalkedPathNotResolved(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -132,7 +188,7 @@ func TestApplyPiSettingsOverrides_MatchesWalkedPathNotResolved(t *testing.T) {
 	g.Expect(disabledNames(got)).To(Equal([]string{"route"}))
 }
 
-func TestApplyPiSettingsOverrides_PromptsByFileName(t *testing.T) {
+func Test792b30c12a8_ApplyPiSettingsOverrides_PromptsByFileName(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -144,254 +200,7 @@ func TestApplyPiSettingsOverrides_PromptsByFileName(t *testing.T) {
 	g.Expect(disabledNames(got)).To(Equal([]string{"review"}))
 }
 
-func TestReadPiSettings_LegacySkillsObjectAndErrors(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fsys := newFakeSkillFS().
-		file("/a/settings.json", `{"skills": {"customDirectories": ["~/x"]}}`).
-		file("/b/settings.json", `{"skills": [`).
-		file("/c/settings.json", `{}`).failRead("/c/settings.json")
-
-	legacy, warnings := cli.ReadPiSettings(fsys, "/a/settings.json")
-	g.Expect(warnings).To(BeEmpty())
-	g.Expect(legacy.Skills).To(Equal([]string{"~/x"}))
-
-	missing, warnings := cli.ReadPiSettings(fsys, "/none/settings.json")
-	g.Expect(warnings).To(BeEmpty())
-	g.Expect(missing.Skills).To(BeEmpty())
-
-	_, warnings = cli.ReadPiSettings(fsys, "/b/settings.json")
-	g.Expect(warnings).To(HaveLen(1))
-
-	fsys.file("/d/settings.json", `{"skills": [1], "prompts": "p", "packages": [{"skills": []}]}`)
-	shapes, warnings := cli.ReadPiSettings(fsys, "/d/settings.json")
-	g.Expect(warnings).To(HaveLen(3))
-	g.Expect(shapes.Skills).To(BeEmpty())
-
-	_, warnings = cli.ReadPiSettings(fsys, "/c/settings.json")
-	g.Expect(warnings).To(HaveLen(1))
-}
-
-// ---------------------------------------------------------------------------
-// ReadPiSettings
-// ---------------------------------------------------------------------------
-
-// TestReadPiSettings_ReadsResolvedFile drives the FS interactively: the
-// settings path is resolved (Lstat) and then read.
-func TestReadPiSettings_ReadsResolvedFile(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	mock, imp := MockSkillSourceFS(t)
-	done := make(chan cli.PiSettings)
-
-	go func() {
-		settings, _ := cli.ReadPiSettings(mock, "/s.json")
-		done <- settings
-	}()
-
-	imp.Lstat.ArgsEqual("/s.json").Return(fakeSkillInfo{name: "s.json", node: &fakeSkillNode{kind: fakeSkillFile}}, nil)
-	imp.ReadFile.ArgsEqual("/s.json").
-		Return([]byte(`{"skills": ["a", "!b"], "prompts": ["p"], "theme": "x"}`), nil)
-
-	settings := <-done
-	g.Expect(settings.Skills).To(Equal([]string{"a", "!b"}))
-	g.Expect(settings.Prompts).To(Equal([]string{"p"}))
-}
-
-// ---------------------------------------------------------------------------
-// ScanPiConfiguredSources: packages (task 1.5)
-// ---------------------------------------------------------------------------
-
-func TestScanPiConfiguredSources_AutoloadFalseIsNotScanned(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fsys := newFakeSkillFS().
-		file(piAgentDir+"/settings.json", `{"packages": [{"source": "npm:x", "autoload": false}]}`).
-		file(piNpmModules+"/x/skills/fmt/SKILL.md", "fmt")
-
-	result := cli.ScanPiConfiguredSources(fsys, piConfiguredScan(false))
-
-	g.Expect(result.Candidates).To(BeEmpty())
-	g.Expect(warningsMention(result, "autoload")).To(BeTrue())
-
-	scanned, found := rootScanned(result, piNpmModules+"/x")
-	g.Expect(found).To(BeTrue())
-	g.Expect(scanned).To(BeFalse())
-}
-
-// ---------------------------------------------------------------------------
-// ScanPiConfiguredSources: settings `skills` / `prompts` (task 1.5)
-// ---------------------------------------------------------------------------
-
-func TestScanPiConfiguredSources_DirectoryEntryIncludesRootMarkdown(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// Ruling R10 Q1 (package-manager.js:241): a settings directory entry
-	// loads its own root `.md` files, and relative entries resolve against
-	// ~/.pi/agent.
-	fsys := newFakeSkillFS().
-		file(piAgentDir+"/settings.json", `{"skills": ["mine"]}`).
-		file(piAgentDir+"/mine/notes.md", "notes").
-		file(piAgentDir+"/mine/deep/a/SKILL.md", "a").
-		file(piAgentDir+"/mine/deep/a/extra.md", "extra")
-
-	result := cli.ScanPiConfiguredSources(fsys, piConfiguredScan(false))
-
-	g.Expect(candidateNames(result)).To(Equal([]string{"a", "notes"}))
-
-	scanned, _ := rootScanned(result, piAgentDir+"/mine")
-	g.Expect(scanned).To(BeTrue())
-}
-
-func TestScanPiConfiguredSources_FileEntriesAreOneSkillEach(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fsys := newFakeSkillFS().
-		file(piAgentDir+"/settings.json", `{"skills": ["~/x/tool.md", "~/y/lint/SKILL.md", "~/z/readme.txt"]}`).
-		file(fakeHome+"/x/tool.md", "tool").
-		file(fakeHome+"/y/lint/SKILL.md", "lint").
-		file(fakeHome+"/z/readme.txt", "no")
-
-	result := cli.ScanPiConfiguredSources(fsys, piConfiguredScan(false))
-
-	g.Expect(candidateNames(result)).To(Equal([]string{"lint", "tool"}))
-
-	scanned, _ := rootScanned(result, fakeHome+"/x/tool.md")
-	g.Expect(scanned).To(BeTrue())
-}
-
-func TestScanPiConfiguredSources_GitAndLocalPackageRoots(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct{ source, root, pkgID string }{
-		{"git:github.com/u/repo@v1", piAgentDir + "/git/github.com/u/repo", "github.com/u/repo"},
-		{"https://gitlab.com/a/b.git", piAgentDir + "/git/gitlab.com/a/b", "gitlab.com/a/b"},
-		{"git:git@github.com:u/r2", piAgentDir + "/git/github.com/u/r2", "github.com/u/r2"},
-		{"ssh://git@example.org/o/p", piAgentDir + "/git/example.org/o/p", "example.org/o/p"},
-		{"../../pkgs/local", fakeHome + "/pkgs/local", "~/pkgs/local"},
-		{"~/pkgs/tilde", fakeHome + "/pkgs/tilde", "~/pkgs/tilde"},
-		{"/opt/abs", "/opt/abs", "/opt/abs"},
-	}
-
-	for _, testCase := range cases {
-		t.Run(testCase.source, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			fsys := newFakeSkillFS().
-				file(piAgentDir+"/settings.json", `{"packages": ["`+testCase.source+`"]}`).
-				file(testCase.root+"/skills/fmt/SKILL.md", "fmt")
-
-			result := cli.ScanPiConfiguredSources(fsys, piConfiguredScan(false))
-
-			g.Expect(result.Candidates).To(HaveLen(1))
-
-			if len(result.Candidates) != 1 {
-				return
-			}
-
-			g.Expect(result.Candidates[0].ScopeID).To(Equal("pi-pkg:" + testCase.pkgID))
-			g.Expect(result.Candidates[0].SourceSegment).To(Equal("pi-pkg:" + testCase.pkgID))
-			g.Expect(result.Candidates[0].ReadRoot).To(Equal(testCase.root))
-
-			scanned, _ := rootScanned(result, testCase.root)
-			g.Expect(scanned).To(BeTrue())
-		})
-	}
-}
-
-func TestScanPiConfiguredSources_GlobstarPatternIsNotScanned(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fsys := newFakeSkillFS().
-		file(piAgentDir+"/settings.json", `{"skills": ["~/extra-skills", "!**/fmt"]}`).
-		file(fakeHome+"/extra-skills/fmt/SKILL.md", "fmt")
-
-	result := cli.ScanPiConfiguredSources(fsys, piConfiguredScan(false))
-
-	g.Expect(result.Candidates).To(BeEmpty())
-	g.Expect(warningsMention(result, "**")).To(BeTrue())
-
-	scanned, found := rootScanned(result, fakeHome+"/extra-skills")
-	g.Expect(found).To(BeTrue())
-	g.Expect(scanned).To(BeFalse())
-}
-
-// TestScanPiConfiguredSources_MachineShape: this machine's Pi settings list
-// one local package that does not exist, and pi-intercom is installed under
-// ~/.pi/agent/npm but not configured. Nothing is found, the missing package
-// is recorded as not scanned without a warning, and pi-intercom is never
-// read.
-func TestScanPiConfiguredSources_MachineShape(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	inner := newFakeSkillFS().
-		file(piAgentDir+"/settings.json",
-			`{"theme": "light/dark", "packages": ["../../repos/personal/pi-skills/bare-skills"]}`).
-		file(piNpmModules+"/pi-intercom/package.json", `{"pi": {"skills": ["./skills"]}}`).
-		file(piNpmModules+"/pi-intercom/skills/pi-intercom/SKILL.md", "intercom")
-	recorder := &recordingSkillFS{inner: inner}
-
-	result := cli.ScanPiConfiguredSources(recorder, piConfiguredScan(false))
-
-	g.Expect(result.Candidates).To(BeEmpty())
-	g.Expect(result.Warnings).To(BeEmpty())
-
-	scanned, found := rootScanned(result, fakeHome+"/repos/personal/pi-skills/bare-skills")
-	g.Expect(found).To(BeTrue())
-	g.Expect(scanned).To(BeFalse())
-
-	for _, call := range recorder.calls {
-		g.Expect(call).NotTo(ContainSubstring("pi-intercom"))
-	}
-}
-
-func TestScanPiConfiguredSources_ManifestGlobsAndOverrides(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// Manifest entries: a glob expands per segment, `!` drops (not even
-	// Disabled — Pi's addManifestEntries adds only enabled files).
-	fsys := newFakeSkillFS().
-		file(piAgentDir+"/settings.json", `{"packages": ["npm:x"]}`).
-		file(piNpmModules+"/x/package.json", `{"pi": {"skills": ["./sk/*", "!old"], "prompts": ["./pr"]}}`).
-		file(piNpmModules+"/x/sk/fmt/SKILL.md", "fmt").
-		file(piNpmModules+"/x/sk/old/SKILL.md", "old").
-		file(piNpmModules+"/x/sk/.dot/SKILL.md", "dot").
-		file(piNpmModules+"/x/pr/deep/review.md", "review")
-
-	result := cli.ScanPiConfiguredSources(fsys, piConfiguredScan(false))
-
-	g.Expect(candidateNames(result)).To(Equal([]string{"fmt", "review"}))
-	g.Expect(disabledNames(result.Candidates)).To(BeEmpty())
-}
-
-func TestScanPiConfiguredSources_ManifestGlobstarIsNotScanned(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fsys := newFakeSkillFS().
-		file(piAgentDir+"/settings.json", `{"packages": ["npm:x"]}`).
-		file(piNpmModules+"/x/package.json", `{"pi": {"skills": ["./**/SKILL.md"]}}`).
-		file(piNpmModules+"/x/sk/fmt/SKILL.md", "fmt")
-
-	result := cli.ScanPiConfiguredSources(fsys, piConfiguredScan(false))
-
-	g.Expect(result.Candidates).To(BeEmpty())
-	g.Expect(warningsMention(result, "**")).To(BeTrue())
-
-	scanned, _ := rootScanned(result, piNpmModules+"/x")
-	g.Expect(scanned).To(BeFalse())
-}
-
-func TestScanPiConfiguredSources_MissingEntryIsNotScannedSilently(t *testing.T) {
+func Test792b30c13a10_ScanPiConfiguredSources_MissingEntryIsNotScannedSilently(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -407,7 +216,7 @@ func TestScanPiConfiguredSources_MissingEntryIsNotScannedSilently(t *testing.T) 
 	g.Expect(scanned).To(BeFalse())
 }
 
-func TestScanPiConfiguredSources_NoPiKeyUsesConventionDirs(t *testing.T) {
+func Test792b30c13a11_ScanPiConfiguredSources_NoPiKeyUsesConventionDirs(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -427,9 +236,9 @@ func TestScanPiConfiguredSources_NoPiKeyUsesConventionDirs(t *testing.T) {
 	}
 }
 
-// TestScanPiConfiguredSources_NpmManifestSkills covers the spec scenario
+// Test792b30c13a12_ScanPiConfiguredSources_NpmManifestSkills covers the spec scenario
 // "npm package skills from its manifest".
-func TestScanPiConfiguredSources_NpmManifestSkills(t *testing.T) {
+func Test792b30c13a12_ScanPiConfiguredSources_NpmManifestSkills(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -454,10 +263,10 @@ func TestScanPiConfiguredSources_NpmManifestSkills(t *testing.T) {
 	g.Expect(scanned).To(BeTrue())
 }
 
-// TestScanPiConfiguredSources_ObjectFormFilters covers the spec scenarios
+// Test792b30c13a13_ScanPiConfiguredSources_ObjectFormFilters covers the spec scenarios
 // "String-form package with a pi key ignores convention dirs", "Object-form
 // omitted type falls back per type" and "Object-form empty skills filter".
-func TestScanPiConfiguredSources_ObjectFormFilters(t *testing.T) {
+func Test792b30c13a13_ScanPiConfiguredSources_ObjectFormFilters(t *testing.T) {
 	t.Parallel()
 
 	piKeyOnlyExtensions := `{"pi": {"extensions": ["./index.ts"]}}`
@@ -507,12 +316,12 @@ func TestScanPiConfiguredSources_ObjectFormFilters(t *testing.T) {
 	}
 }
 
-// TestScanPiConfiguredSources_PatternFilterProperty checks Pi's
+// Test792b30c13a14_ScanPiConfiguredSources_PatternFilterProperty checks Pi's
 // applyPatterns (package-manager.js:540-584) over one settings directory:
 // plain globs include by name (all when none), `!` excludes by name, `+`
 // re-adds by exact path, `-` removes by exact path. Filtered-out skills are
 // still emitted, marked Disabled (ruling R10 Q3).
-func TestScanPiConfiguredSources_PatternFilterProperty(t *testing.T) {
+func Test792b30c13a14_ScanPiConfiguredSources_PatternFilterProperty(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -565,10 +374,39 @@ func TestScanPiConfiguredSources_PatternFilterProperty(t *testing.T) {
 	})
 }
 
-// TestScanPiConfiguredSources_ProjectPackageOverrideProperty: for any global
+func Test792b30c13a15_ScanPiConfiguredSources_ProjectPackageOverridesGlobal(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fsys := newFakeSkillFS().
+		file(piAgentDir+"/settings.json", `{"packages": ["npm:x@1", "npm:y"]}`).
+		file(piNpmModules+"/x/skills/global/SKILL.md", "g").
+		file(piNpmModules+"/y/skills/why/SKILL.md", "y").
+		file(projectTop+"/.pi/settings.json", `{"packages": ["npm:x@2"]}`).
+		file(projectTop+"/.pi/npm/node_modules/x/skills/local/SKILL.md", "l")
+
+	result := cli.ScanPiConfiguredSources(fsys, piConfiguredScan(true))
+
+	g.Expect(candidateNames(result)).To(Equal([]string{"local", "why"}))
+
+	for _, candidate := range result.Candidates {
+		switch candidate.Name {
+		case "local":
+			g.Expect(candidate.ScopeID).To(Equal(projectScope))
+			g.Expect(candidate.SourceSegment).To(Equal("pi-pkg:x"))
+		case "why":
+			g.Expect(candidate.ScopeID).To(Equal("pi-pkg:y"))
+		}
+	}
+
+	_, globalRecorded := rootScanned(result, piNpmModules+"/x")
+	g.Expect(globalRecorded).To(BeFalse())
+}
+
+// Test792b30c13a16_ScanPiConfiguredSources_ProjectPackageOverrideProperty: for any global
 // and project npm package lists, exactly one root per identity is scanned,
 // and the project's wins.
-func TestScanPiConfiguredSources_ProjectPackageOverrideProperty(t *testing.T) {
+func Test792b30c13a16_ScanPiConfiguredSources_ProjectPackageOverrideProperty(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -609,36 +447,7 @@ func TestScanPiConfiguredSources_ProjectPackageOverrideProperty(t *testing.T) {
 	})
 }
 
-func TestScanPiConfiguredSources_ProjectPackageOverridesGlobal(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fsys := newFakeSkillFS().
-		file(piAgentDir+"/settings.json", `{"packages": ["npm:x@1", "npm:y"]}`).
-		file(piNpmModules+"/x/skills/global/SKILL.md", "g").
-		file(piNpmModules+"/y/skills/why/SKILL.md", "y").
-		file(projectTop+"/.pi/settings.json", `{"packages": ["npm:x@2"]}`).
-		file(projectTop+"/.pi/npm/node_modules/x/skills/local/SKILL.md", "l")
-
-	result := cli.ScanPiConfiguredSources(fsys, piConfiguredScan(true))
-
-	g.Expect(candidateNames(result)).To(Equal([]string{"local", "why"}))
-
-	for _, candidate := range result.Candidates {
-		switch candidate.Name {
-		case "local":
-			g.Expect(candidate.ScopeID).To(Equal(projectScope))
-			g.Expect(candidate.SourceSegment).To(Equal("pi-pkg:x"))
-		case "why":
-			g.Expect(candidate.ScopeID).To(Equal("pi-pkg:y"))
-		}
-	}
-
-	_, globalRecorded := rootScanned(result, piNpmModules+"/x")
-	g.Expect(globalRecorded).To(BeFalse())
-}
-
-func TestScanPiConfiguredSources_ProjectSettingsNeedTrust(t *testing.T) {
+func Test792b30c13a17_ScanPiConfiguredSources_ProjectSettingsNeedTrust(t *testing.T) {
 	t.Parallel()
 
 	for _, trusted := range []bool{true, false} {
@@ -671,7 +480,7 @@ func TestScanPiConfiguredSources_ProjectSettingsNeedTrust(t *testing.T) {
 	}
 }
 
-func TestScanPiConfiguredSources_PromptTreeDepthLimit(t *testing.T) {
+func Test792b30c13a18_ScanPiConfiguredSources_PromptTreeDepthLimit(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -686,7 +495,7 @@ func TestScanPiConfiguredSources_PromptTreeDepthLimit(t *testing.T) {
 	g.Expect(scanned).To(BeFalse())
 }
 
-func TestScanPiConfiguredSources_PromptTreeEdgeCases(t *testing.T) {
+func Test792b30c13a19_ScanPiConfiguredSources_PromptTreeEdgeCases(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -716,34 +525,10 @@ func TestScanPiConfiguredSources_PromptTreeEdgeCases(t *testing.T) {
 	g.Expect(result.Warnings).To(HaveLen(3))
 }
 
-func TestScanPiConfiguredSources_SettingsPromptDirIsRecursive(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// Ruling R10 Q2 (package-manager.js:149-192, 463).
-	fsys := newFakeSkillFS().
-		file(piAgentDir+"/settings.json", `{"prompts": ["~/p", "~/one.md"]}`).
-		file(fakeHome+"/p/a.md", "a").
-		file(fakeHome+"/p/sub/b.md", "b").
-		file(fakeHome+"/p/.hidden/c.md", "c").
-		file(fakeHome+"/p/node_modules/d.md", "d").
-		file(fakeHome+"/p/e.txt", "e").
-		file(fakeHome+"/one.md", "one")
-
-	result := cli.ScanPiConfiguredSources(fsys, piConfiguredScan(false))
-
-	g.Expect(candidateNames(result)).To(Equal([]string{"a", "b", "one"}))
-
-	for _, candidate := range result.Candidates {
-		g.Expect(candidate.Kind).To(Equal(cli.SkillSourceKindPrompt))
-		g.Expect(candidate.ScopeID).To(Equal(cli.SkillScopePiSettings))
-	}
-}
-
-// TestScanPiConfiguredSources_SettingsSkillPath covers the spec scenario
+// Test792b30c13a1_ScanPiConfiguredSources_SettingsSkillPath covers the spec scenario
 // "Pi settings skill path", with the entry naming the skills folder and the
 // skill folder itself.
-func TestScanPiConfiguredSources_SettingsSkillPath(t *testing.T) {
+func Test792b30c13a1_ScanPiConfiguredSources_SettingsSkillPath(t *testing.T) {
 	t.Parallel()
 
 	for _, entry := range []string{"~/extra-skills", "~/extra-skills/fmt"} {
@@ -776,7 +561,31 @@ func TestScanPiConfiguredSources_SettingsSkillPath(t *testing.T) {
 	}
 }
 
-func TestScanPiConfiguredSources_UnreadableChildMarksEntryNotScanned(t *testing.T) {
+func Test792b30c13a20_ScanPiConfiguredSources_SettingsPromptDirIsRecursive(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Ruling R10 Q2 (package-manager.js:149-192, 463).
+	fsys := newFakeSkillFS().
+		file(piAgentDir+"/settings.json", `{"prompts": ["~/p", "~/one.md"]}`).
+		file(fakeHome+"/p/a.md", "a").
+		file(fakeHome+"/p/sub/b.md", "b").
+		file(fakeHome+"/p/.hidden/c.md", "c").
+		file(fakeHome+"/p/node_modules/d.md", "d").
+		file(fakeHome+"/p/e.txt", "e").
+		file(fakeHome+"/one.md", "one")
+
+	result := cli.ScanPiConfiguredSources(fsys, piConfiguredScan(false))
+
+	g.Expect(candidateNames(result)).To(Equal([]string{"a", "b", "one"}))
+
+	for _, candidate := range result.Candidates {
+		g.Expect(candidate.Kind).To(Equal(cli.SkillSourceKindPrompt))
+		g.Expect(candidate.ScopeID).To(Equal(cli.SkillScopePiSettings))
+	}
+}
+
+func Test792b30c13a21_ScanPiConfiguredSources_UnreadableChildMarksEntryNotScanned(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -794,7 +603,7 @@ func TestScanPiConfiguredSources_UnreadableChildMarksEntryNotScanned(t *testing.
 	g.Expect(result.Warnings).NotTo(BeEmpty())
 }
 
-func TestScanPiConfiguredSources_UnreadableManifestIsNotScanned(t *testing.T) {
+func Test792b30c13a22_ScanPiConfiguredSources_UnreadableManifestIsNotScanned(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -807,6 +616,197 @@ func TestScanPiConfiguredSources_UnreadableManifestIsNotScanned(t *testing.T) {
 
 	g.Expect(result.Candidates).To(BeEmpty())
 	g.Expect(result.Warnings).NotTo(BeEmpty())
+
+	scanned, _ := rootScanned(result, piNpmModules+"/x")
+	g.Expect(scanned).To(BeFalse())
+}
+
+// ---------------------------------------------------------------------------
+// ScanPiConfiguredSources: settings `skills` / `prompts` (task 1.5)
+// ---------------------------------------------------------------------------
+
+func Test792b30c13a2_ScanPiConfiguredSources_DirectoryEntryIncludesRootMarkdown(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Ruling R10 Q1 (package-manager.js:241): a settings directory entry
+	// loads its own root `.md` files, and relative entries resolve against
+	// ~/.pi/agent.
+	fsys := newFakeSkillFS().
+		file(piAgentDir+"/settings.json", `{"skills": ["mine"]}`).
+		file(piAgentDir+"/mine/notes.md", "notes").
+		file(piAgentDir+"/mine/deep/a/SKILL.md", "a").
+		file(piAgentDir+"/mine/deep/a/extra.md", "extra")
+
+	result := cli.ScanPiConfiguredSources(fsys, piConfiguredScan(false))
+
+	g.Expect(candidateNames(result)).To(Equal([]string{"a", "notes"}))
+
+	scanned, _ := rootScanned(result, piAgentDir+"/mine")
+	g.Expect(scanned).To(BeTrue())
+}
+
+func Test792b30c13a3_ScanPiConfiguredSources_FileEntriesAreOneSkillEach(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fsys := newFakeSkillFS().
+		file(piAgentDir+"/settings.json", `{"skills": ["~/x/tool.md", "~/y/lint/SKILL.md", "~/z/readme.txt"]}`).
+		file(fakeHome+"/x/tool.md", "tool").
+		file(fakeHome+"/y/lint/SKILL.md", "lint").
+		file(fakeHome+"/z/readme.txt", "no")
+
+	result := cli.ScanPiConfiguredSources(fsys, piConfiguredScan(false))
+
+	g.Expect(candidateNames(result)).To(Equal([]string{"lint", "tool"}))
+
+	scanned, _ := rootScanned(result, fakeHome+"/x/tool.md")
+	g.Expect(scanned).To(BeTrue())
+}
+
+func Test792b30c13a4_ScanPiConfiguredSources_GitAndLocalPackageRoots(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct{ source, root, pkgID string }{
+		{"git:github.com/u/repo@v1", piAgentDir + "/git/github.com/u/repo", "github.com/u/repo"},
+		{"https://gitlab.com/a/b.git", piAgentDir + "/git/gitlab.com/a/b", "gitlab.com/a/b"},
+		{"git:git@github.com:u/r2", piAgentDir + "/git/github.com/u/r2", "github.com/u/r2"},
+		{"ssh://git@example.org/o/p", piAgentDir + "/git/example.org/o/p", "example.org/o/p"},
+		{"../../pkgs/local", fakeHome + "/pkgs/local", "~/pkgs/local"},
+		{"~/pkgs/tilde", fakeHome + "/pkgs/tilde", "~/pkgs/tilde"},
+		{"/opt/abs", "/opt/abs", "/opt/abs"},
+	}
+
+	for _, testCase := range cases {
+		t.Run(testCase.source, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			fsys := newFakeSkillFS().
+				file(piAgentDir+"/settings.json", `{"packages": ["`+testCase.source+`"]}`).
+				file(testCase.root+"/skills/fmt/SKILL.md", "fmt")
+
+			result := cli.ScanPiConfiguredSources(fsys, piConfiguredScan(false))
+
+			g.Expect(result.Candidates).To(HaveLen(1))
+
+			if len(result.Candidates) != 1 {
+				return
+			}
+
+			g.Expect(result.Candidates[0].ScopeID).To(Equal("pi-pkg:" + testCase.pkgID))
+			g.Expect(result.Candidates[0].SourceSegment).To(Equal("pi-pkg:" + testCase.pkgID))
+			g.Expect(result.Candidates[0].ReadRoot).To(Equal(testCase.root))
+
+			scanned, _ := rootScanned(result, testCase.root)
+			g.Expect(scanned).To(BeTrue())
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// ScanPiConfiguredSources: packages (task 1.5)
+// ---------------------------------------------------------------------------
+
+func Test792b30c13a5_ScanPiConfiguredSources_AutoloadFalseIsNotScanned(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fsys := newFakeSkillFS().
+		file(piAgentDir+"/settings.json", `{"packages": [{"source": "npm:x", "autoload": false}]}`).
+		file(piNpmModules+"/x/skills/fmt/SKILL.md", "fmt")
+
+	result := cli.ScanPiConfiguredSources(fsys, piConfiguredScan(false))
+
+	g.Expect(result.Candidates).To(BeEmpty())
+	g.Expect(warningsMention(result, "autoload")).To(BeTrue())
+
+	scanned, found := rootScanned(result, piNpmModules+"/x")
+	g.Expect(found).To(BeTrue())
+	g.Expect(scanned).To(BeFalse())
+}
+
+func Test792b30c13a6_ScanPiConfiguredSources_GlobstarPatternIsNotScanned(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fsys := newFakeSkillFS().
+		file(piAgentDir+"/settings.json", `{"skills": ["~/extra-skills", "!**/fmt"]}`).
+		file(fakeHome+"/extra-skills/fmt/SKILL.md", "fmt")
+
+	result := cli.ScanPiConfiguredSources(fsys, piConfiguredScan(false))
+
+	g.Expect(result.Candidates).To(BeEmpty())
+	g.Expect(warningsMention(result, "**")).To(BeTrue())
+
+	scanned, found := rootScanned(result, fakeHome+"/extra-skills")
+	g.Expect(found).To(BeTrue())
+	g.Expect(scanned).To(BeFalse())
+}
+
+// Test792b30c13a7_ScanPiConfiguredSources_MachineShape: this machine's Pi settings list
+// one local package that does not exist, and pi-intercom is installed under
+// ~/.pi/agent/npm but not configured. Nothing is found, the missing package
+// is recorded as not scanned without a warning, and pi-intercom is never
+// read.
+func Test792b30c13a7_ScanPiConfiguredSources_MachineShape(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	inner := newFakeSkillFS().
+		file(piAgentDir+"/settings.json",
+			`{"theme": "light/dark", "packages": ["../../repos/personal/pi-skills/bare-skills"]}`).
+		file(piNpmModules+"/pi-intercom/package.json", `{"pi": {"skills": ["./skills"]}}`).
+		file(piNpmModules+"/pi-intercom/skills/pi-intercom/SKILL.md", "intercom")
+	recorder := &recordingSkillFS{inner: inner}
+
+	result := cli.ScanPiConfiguredSources(recorder, piConfiguredScan(false))
+
+	g.Expect(result.Candidates).To(BeEmpty())
+	g.Expect(result.Warnings).To(BeEmpty())
+
+	scanned, found := rootScanned(result, fakeHome+"/repos/personal/pi-skills/bare-skills")
+	g.Expect(found).To(BeTrue())
+	g.Expect(scanned).To(BeFalse())
+
+	for _, call := range recorder.calls {
+		g.Expect(call).NotTo(ContainSubstring("pi-intercom"))
+	}
+}
+
+func Test792b30c13a8_ScanPiConfiguredSources_ManifestGlobsAndOverrides(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Manifest entries: a glob expands per segment, `!` drops (not even
+	// Disabled — Pi's addManifestEntries adds only enabled files).
+	fsys := newFakeSkillFS().
+		file(piAgentDir+"/settings.json", `{"packages": ["npm:x"]}`).
+		file(piNpmModules+"/x/package.json", `{"pi": {"skills": ["./sk/*", "!old"], "prompts": ["./pr"]}}`).
+		file(piNpmModules+"/x/sk/fmt/SKILL.md", "fmt").
+		file(piNpmModules+"/x/sk/old/SKILL.md", "old").
+		file(piNpmModules+"/x/sk/.dot/SKILL.md", "dot").
+		file(piNpmModules+"/x/pr/deep/review.md", "review")
+
+	result := cli.ScanPiConfiguredSources(fsys, piConfiguredScan(false))
+
+	g.Expect(candidateNames(result)).To(Equal([]string{"fmt", "review"}))
+	g.Expect(disabledNames(result.Candidates)).To(BeEmpty())
+}
+
+func Test792b30c13a9_ScanPiConfiguredSources_ManifestGlobstarIsNotScanned(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fsys := newFakeSkillFS().
+		file(piAgentDir+"/settings.json", `{"packages": ["npm:x"]}`).
+		file(piNpmModules+"/x/package.json", `{"pi": {"skills": ["./**/SKILL.md"]}}`).
+		file(piNpmModules+"/x/sk/fmt/SKILL.md", "fmt")
+
+	result := cli.ScanPiConfiguredSources(fsys, piConfiguredScan(false))
+
+	g.Expect(result.Candidates).To(BeEmpty())
+	g.Expect(warningsMention(result, "**")).To(BeTrue())
 
 	scanned, _ := rootScanned(result, piNpmModules+"/x")
 	g.Expect(scanned).To(BeFalse())

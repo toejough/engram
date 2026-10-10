@@ -14,12 +14,35 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestPiScanners_ReadRootIsARecordedRootProperty: every candidate a Pi
+func Test792b30c16a10_ResolveSkillSources_UntrustedProjectSkipsPiProjectSources(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fsys := resolverFixture(g).file(piAgentDir+"/trust.json", `{"`+projectTop+`": false}`)
+
+	resolved, err := cli.ResolveSkillSources(context.Background(), fakeHome, projectTop, resolverDeps(fsys))
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	scopes := resolvedScopePrefixes(resolved)
+	g.Expect(scopes).To(ContainElement("project|"))
+	g.Expect(scopes).NotTo(ContainElement("project|pi"))
+	g.Expect(scopes).NotTo(ContainElement("project|agents"))
+	g.Expect(scopes).NotTo(ContainElement("project|pi-settings"))
+	g.Expect(scopes).NotTo(ContainElement("project|pi-prompt"))
+
+	for _, root := range resolved.Roots {
+		g.Expect(root.Path).NotTo(HavePrefix(projectTop + "/.pi"))
+		g.Expect(root.Path).NotTo(HavePrefix(projectTop + "/.agents"))
+	}
+}
+
+// Test792b30c16a11_PiScanners_ReadRootIsARecordedRootProperty: every candidate a Pi
 // default-folder scanner emits has a ReadRoot equal to one of its result's
 // recorded resolved roots, over real and symlinked roots at every chain
 // level — the invariant withAgentsChainOverrides relies on to find each
 // candidate's `.agents` base.
-func TestPiScanners_ReadRootIsARecordedRootProperty(t *testing.T) {
+func Test792b30c16a11_PiScanners_ReadRootIsARecordedRootProperty(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -81,7 +104,7 @@ func TestPiScanners_ReadRootIsARecordedRootProperty(t *testing.T) {
 	})
 }
 
-func TestResolveSkillSources_AbsentHarnessSourcesAreNotRead(t *testing.T) {
+func Test792b30c16a1_ResolveSkillSources_AbsentHarnessSourcesAreNotRead(t *testing.T) {
 	t.Parallel()
 
 	table := []struct {
@@ -135,7 +158,7 @@ func TestResolveSkillSources_AbsentHarnessSourcesAreNotRead(t *testing.T) {
 	}
 }
 
-func TestResolveSkillSources_ComposesEverySourceInPrecedenceOrder(t *testing.T) {
+func Test792b30c16a2_ResolveSkillSources_ComposesEverySourceInPrecedenceOrder(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -186,7 +209,7 @@ func TestResolveSkillSources_ComposesEverySourceInPrecedenceOrder(t *testing.T) 
 	}
 }
 
-func TestResolveSkillSources_HarnessProbeErrorFails(t *testing.T) {
+func Test792b30c16a3_ResolveSkillSources_HarnessProbeErrorFails(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -197,7 +220,7 @@ func TestResolveSkillSources_HarnessProbeErrorFails(t *testing.T) {
 	g.Expect(err).To(MatchError(fs.ErrPermission))
 }
 
-func TestResolveSkillSources_OutsideARepoHasNoProjectSources(t *testing.T) {
+func Test792b30c16a4_ResolveSkillSources_OutsideARepoHasNoProjectSources(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -215,14 +238,14 @@ func TestResolveSkillSources_OutsideARepoHasNoProjectSources(t *testing.T) {
 	}
 }
 
-// TestResolveSkillSources_PiOverridesDisableDefaultFolders (rulings R8/R10):
+// Test792b30c16a6_ResolveSkillSources_PiOverridesDisableDefaultFolders (rulings R8/R10):
 // the global settings' `!` overrides switch off default-folder files and the
 // project settings' overrides switch off project default-folder files; the
 // Disabled candidates stay in the result.
-// TestResolveSkillSources_OverridesSkipCandidateWithUnknownLevel: a
+// Test792b30c16a5_ResolveSkillSources_OverridesSkipCandidateWithUnknownLevel: a
 // `.agents/skills` candidate whose ReadRoot matches no recorded level is left
 // unchanged (never matched against an empty base) and reported.
-func TestResolveSkillSources_OverridesSkipCandidateWithUnknownLevel(t *testing.T) {
+func Test792b30c16a5_ResolveSkillSources_OverridesSkipCandidateWithUnknownLevel(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -241,7 +264,7 @@ func TestResolveSkillSources_OverridesSkipCandidateWithUnknownLevel(t *testing.T
 	g.Expect(out.Warnings).To(ContainElement(ContainSubstring("/elsewhere/stray/SKILL.md")))
 }
 
-func TestResolveSkillSources_PiOverridesDisableDefaultFolders(t *testing.T) {
+func Test792b30c16a6_ResolveSkillSources_PiOverridesDisableDefaultFolders(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -258,7 +281,7 @@ func TestResolveSkillSources_PiOverridesDisableDefaultFolders(t *testing.T) {
 	g.Expect(candidateNames(resolved.SkillScanResult)).To(ContainElements("ping", "review", "ag", "ag2", "pj", "aj", "pp"))
 }
 
-func TestResolveSkillSources_PluginConflictPassesThrough(t *testing.T) {
+func Test792b30c16a7_ResolveSkillSources_PluginConflictPassesThrough(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -284,10 +307,10 @@ func TestResolveSkillSources_PluginConflictPassesThrough(t *testing.T) {
 	g.Expect(resolvedScopePrefixes(resolved)).NotTo(ContainElement("plugin:tools"))
 }
 
-// TestResolveSkillSources_PrecedenceProperty: whichever subset of sources
+// Test792b30c16a8_ResolveSkillSources_PrecedenceProperty: whichever subset of sources
 // exists, the resolver's candidates appear in design D2 precedence order —
 // the rank of each candidate's source never decreases along the result.
-func TestResolveSkillSources_PrecedenceProperty(t *testing.T) {
+func Test792b30c16a8_ResolveSkillSources_PrecedenceProperty(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -314,10 +337,10 @@ func TestResolveSkillSources_PrecedenceProperty(t *testing.T) {
 	})
 }
 
-// TestResolveSkillSources_ProjectGlobstarOverrideDisablesAgentsChain: a
+// Test792b30c16a9_ResolveSkillSources_ProjectGlobstarOverrideDisablesAgentsChain: a
 // project `**` override cannot be evaluated, so every candidate of each
 // `.agents/skills` level is Disabled, with one warning per level.
-func TestResolveSkillSources_ProjectGlobstarOverrideDisablesAgentsChain(t *testing.T) {
+func Test792b30c16a9_ResolveSkillSources_ProjectGlobstarOverrideDisablesAgentsChain(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -350,29 +373,6 @@ func TestResolveSkillSources_ProjectGlobstarOverrideDisablesAgentsChain(t *testi
 	}
 
 	g.Expect(globstarWarnings).To(Equal(2), "%v", resolved.Warnings)
-}
-
-func TestResolveSkillSources_UntrustedProjectSkipsPiProjectSources(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fsys := resolverFixture(g).file(piAgentDir+"/trust.json", `{"`+projectTop+`": false}`)
-
-	resolved, err := cli.ResolveSkillSources(context.Background(), fakeHome, projectTop, resolverDeps(fsys))
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	scopes := resolvedScopePrefixes(resolved)
-	g.Expect(scopes).To(ContainElement("project|"))
-	g.Expect(scopes).NotTo(ContainElement("project|pi"))
-	g.Expect(scopes).NotTo(ContainElement("project|agents"))
-	g.Expect(scopes).NotTo(ContainElement("project|pi-settings"))
-	g.Expect(scopes).NotTo(ContainElement("project|pi-prompt"))
-
-	for _, root := range resolved.Roots {
-		g.Expect(root.Path).NotTo(HavePrefix(projectTop + "/.pi"))
-		g.Expect(root.Path).NotTo(HavePrefix(projectTop + "/.agents"))
-	}
 }
 
 // unexported constants.

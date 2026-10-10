@@ -14,13 +14,47 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestRegisterSkillsCLI_DefaultSetResolvesEveryFolder covers task 5.1 (design
+// Test792a12t1d_UpdateSkillRegistration_SeesTheSameOffersAsRegisterSkills covers task
+// 5.2 and update-deploy-sync's "Update and register-skills see the same
+// offers": over one set of production-composed Deps (same home, vault and
+// working directory), `engram update`'s registration hook and `engram
+// register-skills --dry-run` list byte-identical offers.
+func Test792a12t1d_UpdateSkillRegistration_SeesTheSameOffersAsRegisterSkills(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fixture := newResolveCLIFixture(t, g)
+
+	var registerOut bytes.Buffer
+
+	stderr := executeForTestWithDeps(t, []string{
+		"engram", "register-skills", "--dry-run", "--vault", fixture.vault,
+	}, func(d *cli.Deps) {
+		fixture.customize(d)
+		d.Stdout = &registerOut
+	})
+	g.Expect(stderr).To(BeEmpty())
+
+	deps := newTestDeps(&bytes.Buffer{}, &bytes.Buffer{})
+	fixture.customize(&deps)
+
+	var updateOut bytes.Buffer
+
+	err := cli.ExportRunUpdateSkillRegistrationFromDeps(
+		context.Background(), deps, true, fixture.vault, fixture.home, &updateOut)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(registerOut.String()).To(Equal(fixture.expectedDryRun()))
+	g.Expect(updateOut.String()).To(Equal(registerOut.String()))
+}
+
+// Test792b30c16a15_RegisterSkillsCLI_DefaultSetResolvesEveryFolder covers task 5.1 (design
 // D1): with no --skills-dir, `engram register-skills` resolves the default
 // source set from the home and the working directory — a real Claude user
 // skill, a user command, engram's own deployed skill (reached through its
 // harness symlink) and a project command in the cwd's repository all offer,
 // with their resolved source paths.
-func TestRegisterSkillsCLI_DefaultSetResolvesEveryFolder(t *testing.T) {
+func Test792b30c16a15_RegisterSkillsCLI_DefaultSetResolvesEveryFolder(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -39,12 +73,12 @@ func TestRegisterSkillsCLI_DefaultSetResolvesEveryFolder(t *testing.T) {
 	g.Expect(stdout.String()).To(Equal(fixture.expectedDryRun()))
 }
 
-// TestRegisterSkillsCLI_SymlinkedHomeRoundTripsSkillSource covers task 5.1's
+// Test792b30c16a16_RegisterSkillsCLI_SymlinkedHomeRoundTripsSkillSource covers task 5.1's
 // symlinked-home case (design D8): accepting offers under a home reached
 // through a symlink records each note's skill_source `~`-relative, and a
 // second run over the same vault offers nothing — no re-register, and no
 // removal of the notes just written.
-func TestRegisterSkillsCLI_SymlinkedHomeRoundTripsSkillSource(t *testing.T) {
+func Test792b30c16a16_RegisterSkillsCLI_SymlinkedHomeRoundTripsSkillSource(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -122,40 +156,6 @@ func TestUpdateSkillRegistration_RealRunPrintsScanWarnings(t *testing.T) {
 		context.Background(), deps, false, fixture.vault, fixture.home, &updateOut)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(updateOut.String()).To(ContainSubstring(`engram: skipping skill "bad:name"`))
-}
-
-// TestUpdateSkillRegistration_SeesTheSameOffersAsRegisterSkills covers task
-// 5.2 and update-deploy-sync's "Update and register-skills see the same
-// offers": over one set of production-composed Deps (same home, vault and
-// working directory), `engram update`'s registration hook and `engram
-// register-skills --dry-run` list byte-identical offers.
-func TestUpdateSkillRegistration_SeesTheSameOffersAsRegisterSkills(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fixture := newResolveCLIFixture(t, g)
-
-	var registerOut bytes.Buffer
-
-	stderr := executeForTestWithDeps(t, []string{
-		"engram", "register-skills", "--dry-run", "--vault", fixture.vault,
-	}, func(d *cli.Deps) {
-		fixture.customize(d)
-		d.Stdout = &registerOut
-	})
-	g.Expect(stderr).To(BeEmpty())
-
-	deps := newTestDeps(&bytes.Buffer{}, &bytes.Buffer{})
-	fixture.customize(&deps)
-
-	var updateOut bytes.Buffer
-
-	err := cli.ExportRunUpdateSkillRegistrationFromDeps(
-		context.Background(), deps, true, fixture.vault, fixture.home, &updateOut)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	g.Expect(registerOut.String()).To(Equal(fixture.expectedDryRun()))
-	g.Expect(updateOut.String()).To(Equal(registerOut.String()))
 }
 
 // resolveCLIFixture is a real-filesystem home reached through a symlink, a

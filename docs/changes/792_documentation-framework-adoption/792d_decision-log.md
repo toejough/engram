@@ -1652,3 +1652,28 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792d30, 792d57, 792d61, 792d68 and 792d104.
 - **Alternatives:** port the scan mechanics into the product spec. Rejected because package filters and trust
   decisions are not behavior a user states.
+
+## 792d107 skill-source-discovery scope, and the behaviors the code shows
+
+- **Choice:**
+  - 792b30 specifies seventeen requirements. The user-visible source scenarios stay in 792a12 (792d106); the
+    package filters, the trust gate, the depth limits and the read-status rule are specified here. The
+    generic read-status rule (792b30c2) is shown through the Claude Code user-skills scanner, whose tests
+    assert it, and the other scanners' missing-root and read-failure tests take their own scanner's scenario.
+  - The comparison and note tests that share the key and scanner test files belong to
+    skill-registration-ledger (792c7k3), as does `TestUpdateSkillRegistration_RealRunPrintsScanWarnings`.
+    `TestUpdateSkillRegistration_SeesTheSameOffersAsRegisterSkills` runs both commands over one set of
+    production-composed dependencies and takes the product scenario 792a12t1d (792d52).
+  - The two `register_skills_resolve_test` tests of the default set and of a symlinked home take composition
+    scenarios 792b30c16a15 and 792b30c16a16.
+- **Divergences noted (792d33):**
+  - Discovery reads the Pi and `~/.agents` sources only when `~/.pi` exists, and the Claude Code sources only
+    when `~/.claude` exists. A skill in `~/.agents/skills` is invisible on a Claude-only machine.
+  - A project-package entry overrides a global one of the same identity, so a package that is both global and
+    project-scoped is scanned once, from the project.
+  - Past the depth limit a recursive scan marks its root not scanned instead of truncating, so no removal is
+    offered for notes under it.
+  - A plugin whose `plugin.json` names the plugin root itself as a skill is reported and not scanned, because
+    a skill needs a folder name to key on.
+- **Rationale:** 792d30, 792d52, 792d106.
+- **Alternatives:** none beyond 792d106.
