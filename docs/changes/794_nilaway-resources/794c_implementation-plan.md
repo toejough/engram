@@ -88,12 +88,12 @@ result is committed. Merged additionally requires delivery and branch/worktree c
 
 | Entry | Gherkin | Classification | Why | Status |
 |---|---|---|---|---|
-| 794c8b1 Successful request | [794b4b1a Successful configured invocation](./794b_technical-spec.md#794b4b1-contract-scenarios) | Injected imptest interaction | One call, context, mode, resolved environment, and success propagation | Refactor-consistency |
-| 794c8b2 Failed request | [794b4b1b Failed configured invocation](./794b_technical-spec.md#794b4b1-contract-scenarios) | Injected imptest interaction | Exact failure propagation without retry | Refactor-consistency |
-| 794c8b3 Environment isolation | [794b4b1c Child environment isolation](./794b_technical-spec.md#794b4b1-contract-scenarios) | Local integration dependency contract | Real Targ subprocess environment and unchanged parent | Refactor-consistency |
-| 794c8b4 Acceptance scope | [794a2a1a Existing entry points use project analysis](./794a_product-spec.md#794a2a1-uat-scenarios) | Local integration acceptance example | Local integration with the installed NilAway: a fixture has first-party and replaced third-party modules, each with a known nil dereference; include both filesystem roots in diagnostic reporting, verify the first-party diagnostic, and verify absence of the dependency diagnostic | Refactor-consistency |
-| 794c8b5 Acceptance defaults | [794a2b1a Absent settings use subprocess defaults](./794a_product-spec.md#794a2b1-uat-scenarios) | Local integration acceptance example | Check/fix child defaults and parent preservation | Refactor-consistency |
-| 794c8b6 Acceptance overrides | [794a2c1a Supplied settings take precedence](./794a_product-spec.md#794a2c1-uat-scenarios) | Local integration acceptance example | Developer-controlled effective settings | Refactor-consistency |
+| 794c8b1 Successful request | [794b4b1a Successful configured invocation](./794b_technical-spec.md#794b4b1-contract-scenarios) | Injected imptest interaction | One call, context, mode, resolved environment, and success propagation | Refactor-boundaries |
+| 794c8b2 Failed request | [794b4b1b Failed configured invocation](./794b_technical-spec.md#794b4b1-contract-scenarios) | Injected imptest interaction | Exact failure propagation without retry | Refactor-boundaries |
+| 794c8b3 Environment isolation | [794b4b1c Child environment isolation](./794b_technical-spec.md#794b4b1-contract-scenarios) | Local integration dependency contract | Real Targ subprocess environment and unchanged parent | Refactor-boundaries |
+| 794c8b4 Acceptance scope | [794a2a1a Existing entry points use project analysis](./794a_product-spec.md#794a2a1-uat-scenarios) | Local integration acceptance example | Local integration with the installed NilAway: a fixture has first-party and replaced third-party modules, each with a known nil dereference; include both filesystem roots in diagnostic reporting, verify the first-party diagnostic, and verify absence of the dependency diagnostic | Refactor-boundaries |
+| 794c8b5 Acceptance defaults | [794a2b1a Absent settings use subprocess defaults](./794a_product-spec.md#794a2b1-uat-scenarios) | Local integration acceptance example | Check/fix child defaults and parent preservation | Refactor-boundaries |
+| 794c8b6 Acceptance overrides | [794a2c1a Supplied settings take precedence](./794a_product-spec.md#794a2c1-uat-scenarios) | Local integration acceptance example | Developer-controlled effective settings | Refactor-boundaries |
 
 Each corresponding executable test name begins with its Gherkin ID. A shared fixture may support
 multiple tests, but each scenario keeps an independently named and tracked test.
