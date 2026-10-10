@@ -52,3 +52,18 @@ Restoring the Engram include prefix, resource defaults, and in-place target repl
 all three policy/routing scenario tests pass. `targ test-dev` passes the entire dev suite with
 the race detector. The check retains both shared target objects and the existing aggregate
 entry points; explicit values, including empty values, are preserved by the policy.
+
+## 794d6 Policy Review Checkpoints
+
+The complete applicable dev suite passes. A clean-checkout `targ check-full --dep-mode serial`
+also passes lint, ordering, deadcode, thin API, NilAway, integration, and clean-tree gates.
+Its coverage/test gate fails because the pre-existing untagged HTTP-server test cannot bind
+`[::1]:0` inside this sandbox. Repository-wide validation and delivery remain incomplete.
+No unrelated test is changed to conceal this environment restriction.
+
+Complexity review: the policy has two pure operations and no extra configuration layer.
+Consistency review: check and fix share the same policy and existing target identities.
+Boundary review: process environment access and command execution remain at the dev edge;
+policy inputs are injected for pure tests. Command orchestration tests are the next work package.
+Performance review: no production changes follow the successful scoped real-analyzer run;
+no new performance guarantee is inferred. These review checkpoints do not require code changes.
