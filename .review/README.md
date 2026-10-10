@@ -1,8 +1,8 @@
 # .review/
 
 `events.jsonl` is the append-only event log behind this app's feedback
-threads (see `openspec/changes/add-annotation-feedback/design.md` for the
-full design rationale). This file exists so an agent asked to resolve a
+threads (the design rationale is no longer kept in the repository; git
+history has it). This file exists so an agent asked to resolve a
 comment can do so correctly from this directory alone, without needing
 prior conversation context or a trip through the design doc or server
 source.

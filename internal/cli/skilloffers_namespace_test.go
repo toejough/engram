@@ -1,7 +1,7 @@
 package cli_test
 
-// Tests for openspec change register-skills-all-skill-folders tasks 8.3 and
-// 8.4 (design D4, D5, D8): each key form has exactly one removal rule, which
+// Tests for the removal-rule requirements of skill registration (792b31;
+// design D4, D5, D8): each key form has exactly one removal rule, which
 // consults only that form's roots, and engram's installed skills are an
 // ordinary source — a Claude and a Pi copy are two keys that alias only when
 // byte-identical.

@@ -2375,3 +2375,38 @@ decisions as `792dN`, continuing the sequence.
   home for decisions that still steer work, and the specs are the home for behavior and its rationale, so nothing was kept as an archive.
 - **Alternatives:** keep a `docs/architecture/` overview. Rejected: it would be a second structure view next to the technical spec. Park M6 in
   the ROADMAP. Rejected: no issue or ruling asks for it.
+
+## 792d129 OpenSpec archive mined, OpenSpec removed (792e3 applied), references repointed
+
+- **Choice:**
+  - **Mining.** The 42 archive entries were compared against the `Rationale:` text already in 792a, 792b and the ROADMAP. Most were covered
+    by the capability nodes. The material decisions that were not are now rationale under the requirement they justify: 792a3d (red flags are a
+    field), 792a7h (a null recency result), 792a7x (`show` never truncates), 792a7za (hits live in `items[]`), 792a10b and 792a10c (re-parenting is opt-in and
+    stops before apply), 792a11c, 792a11e and 792a11g (downgrade alternatives, the hand-off child, the harness addendum), 792a12b to 792a12s
+    (one note per skill, pending accepts, declines by hash, conflicts, removals only for read sources, grouping, schema v2), 792a14h (a fix in the
+    skill's own text), 792a16 (why subagents do not run learn), 792a17 and 792a17j (retiring route needs the shim activated; a price table and no
+    cross-harness interface), 792a18a (a positive-only situation), 792a19l and 792a19m (the frame lives in the shim, the same body as a fact gets
+    no frame), 792a20a and 792a20e (the route split, declared identity), 792a22 and 792a22a and 792a22o (curation overrides, a pending offer is
+    a normal note, the flag comes first), 792b20c1 (the definition discriminator) and 792b27c9 (the apply order and its failure). The
+    mixed-scope entry `2026-08-08-batch-small-issues-714-672-683-652` was mined only for 792a17j and 792a7h; its #714 and #683 items are
+    implementation detail that no requirement states.
+  - **Deletions.** `openspec/` is deleted entirely: `openspec/changes/archive/` (42 entries), `openspec/config.yaml`, and no `openspec/specs/`
+    existed. All were tracked.
+  - **Tooling (792e3, option 1 applied).** `.claude/skills/openspec-{apply-change,archive-change,explore,propose,sync-specs,update-change}/` and
+    `.claude/commands/opsx/` (six commands) are deleted. All were tracked in this repository. Test fixtures that use `openspec-propose` or
+    `opsx:apply` as skill names are data about foreign skills and stay.
+  - **Repoints (11 edits outside the ROADMAP).** Root `README.md` (the archived-changes sentence, ADR-0013 and ADR-0002/0003 citations, the c2 pointer, the
+    design-principles and documentation sections, six edits in all; the image link is repointed in the next node),
+    `internal/cli/update_test.go` (a comment now cites 792b28c12), `internal/cli/skillkeys_qualified_test.go` and
+    `internal/cli/skilloffers_namespace_test.go` (comments cite 792b30 and 792b31), `.review/README.md` (the design document it cited,
+    `add-annotation-feedback`, had never been in the archive; the sentence now says the rationale is in git history), and
+    `agent-instructions/guidance/shim.md` line 1.
+  - **`shim.md` line 1 is not a behavioral edit.** It is an HTML comment that named "openspec runbook-shim-follow-frame, D0" and now names 792a19.
+    No instruction the agent reads changes, so the writing-skills red, green and pressure cycle was not run (as in 792d116). The file is
+    deployed by copy, so the comment changes for every user on their next `engram update --with-guidance`.
+  - **ROADMAP.** 11 archive and change-directory citations became "the deleted archive entry `<name>`" or "the deleted `<name>` change"; the
+    header line and the stale `openspec/specs/` mentions were rewritten.
+  - **Vault note 913** ("designs go through openspec") is superseded; the orchestrator amends it, since vault writes are outside the repository.
+- **Rationale:** 792d53 (the archive is deleted by 792c8c) and the lifecycle guide, which forbids keeping a completed-change archive. The
+  mining kept only choices that explain a specified behavior, since task lists, test counts and process notes record work and not behavior.
+- **Alternatives:** port each archive entry's design as an appendix. Rejected: it would recreate the archive inside the specs.

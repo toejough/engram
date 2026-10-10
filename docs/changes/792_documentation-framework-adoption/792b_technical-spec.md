@@ -9408,6 +9408,11 @@ other tag.
 
 Supports: 792a6a1b, 792a6t1c, 792a6u1a.
 
+Rationale: The bare `vocab` tag stays the single definition discriminator rather than a per-term slug. The
+`vocab/<term>` self-tag is an Obsidian-graph affordance only. Tag nominations exclude definitions on both the
+nominee side and the seed side, because the seed side derives terms from a cluster's top-3 delivered notes.
+The backfill is an explicit subcommand, never a side effect of `engram update`.
+
 ##### 792b20c1a Scenarios
 
 ```gherkin
@@ -14353,6 +14358,11 @@ deriving candidates against the resulting vault and printing either `<N> further
 `engram update --reparent-luhmann` again` or `no further candidates — vault fully evaluated`.
 
 Supports: 792a10e1d, 792a10f1a, 792a10f1b, 792a10f1c, 792a10g1a, 792a10g1b.
+
+Rationale: Apply runs the rename and rewrite, then ingest, then prune, so the new paths are indexed before the
+old ones are detached and no renamed note is ever unindexed. A failure in ingest or prune does not roll back
+the rename: the renamed vault is the authoritative state and the chunk index is a derived cache that a later
+`engram ingest --auto` or `prune` rebuilds.
 
 ##### 792b27c9a Scenarios
 

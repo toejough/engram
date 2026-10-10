@@ -517,6 +517,7 @@ which also makes runbooks scorable for later efficacy tracking). Joe chose the n
 and Luhmann placement rather than the `qa` scheme: a top-level position needs no target, so "no
 related note yet" never required a separate scheme, and `qa` is the one kind built to skip the
 hierarchy and be partly excluded from retrieval.
+A kind-prefixed flat filename was an earlier draft, corrected in design review.
 
 #### 792a3c1 UAT Scenarios
 
@@ -536,6 +537,9 @@ write neither field when its flag is absent.
 Rationale: a red flag names a failure mode specific to this procedure that a general "follow the
 steps" rule would not catch; the general floor is not restated on each runbook. How triggers
 surface a runbook belongs to the memory-query capability.
+`red_flags` is a structured field and not a body heading, because the follow frame treats it as a standing
+condition to recheck and so it carries weight that template wording does not. Rewording or bolding body text
+was tried and rejected: six rounds of the eval had already exercised that lever.
 
 #### 792a3d1 UAT Scenarios
 
@@ -2950,6 +2954,8 @@ member's recency was measured on the production vault, on the 16 same-cluster pa
 supersedes another and the cluster has more than five notes, and it changed nothing, with 8 of 16
 (50.0%) superseded notes over-surfaced either way and a mean top-5 relevance of 0.6480 for both
 (`dev/eval/LEDGER.md#652-recency-weighted-centroid-null`), so it did not ship.
+Recency weighting was eval-gated because it is a third recency lever on the same axis and over-rotating toward
+recency is a real risk; a null result closes the question and ships no production change.
 
 #### 792a7h1 UAT Scenarios
 
@@ -3513,6 +3519,10 @@ has been exchanged is preceded by one `# exchange_hash:` line, which belongs to 
 Rationale: `engram show` is the full-fidelity source that the guidance shim names, so an agent can
 restate every step and check every red flag when the query payload truncated them (792a7w). It
 therefore never applies the preview budget.
+`show` never truncates red flags and `query`'s marker names the basename. A bounded `show` with a `--full`
+flag was rejected because one skill's red flags alone render to about 4 KB, which recreates the truncation
+loop. Truncating inside engram is the only reliable fix, because a harness that persists large output keeps
+the full text.
 
 #### 792a7x1 UAT Scenarios
 
@@ -3601,6 +3611,9 @@ list on any other kind MUST be ignored. With `--project`, a hit outside the proj
 Rationale: a literal cue the author declared is evidence that the runbook applies, whatever its
 similarity to the agent's paraphrase. A hit is still only a candidate: the agent judges it against
 the runbook's own applicability text.
+Hits are items with a `trigger` provenance in `items[]` and not a separate key, because the shim's follow
+frame keys on `items[]`. A probe that checks surfacing must read the `items[]` rank;
+`clusters[].candidate_l2s` is only a capped top-5 for synthesis and is not a surfacing signal.
 
 #### 792a7za1 UAT Scenarios
 
@@ -4615,6 +4628,11 @@ Requirement: 792a10b `engram update` MUST NOT rename a note or rewrite a link un
 `--reparent-luhmann`. With the flag it MUST run only the re-parenting and MUST NOT refresh the binary
 or the harness skills.
 
+Rationale: Renaming a note and chasing every reference to its basename changes the note's on-disk identity,
+and a bug could orphan a link or collide two notes onto one filename, which is why it is opt-in with a dry-run
+preview. There is no pre-run uncommitted-changes guard; the dry run plus git as the fallback is the safety
+net.
+
 #### 792a10b1 UAT Scenarios
 
 ```gherkin
@@ -4647,6 +4665,9 @@ instead.
 Rationale: whether one note is a sub-point of another is a judgment of content that an embedding cannot
 make, so the binary proposes pairs and an agent decides. This is the boundary drawn for per-capture
 disposition, and the flow follows `vocab refit`'s derive, names, apply.
+The answering payload defers to the learn skill's batch mode, and the apply step stays with the user or
+orchestrator after a `--dry-run`. Editing the skill to drop its stop-before-apply red flag was rejected,
+because it would lose the human checkpoint before bulk renames.
 
 #### 792a10c1 UAT Scenarios
 
@@ -5125,6 +5146,11 @@ installed, when the installed binary carries no readable revision, or when git c
 Rationale: running `engram update` from a stale clone or an old worktree silently replaced a newer
 installed binary with older code (#715). Only a provable regression blocks, because an unprovable case
 must never stop an update.
+Rejected alternatives: a warning alone, because visibility already existed and was the weaker option; and
+comparing commit timestamps, because clock skew and rebases make wall-clock time a noisy proxy for worse code,
+while ancestry answers whether the new build contains everything the old one did. A feature-branch worktree
+that has not merged the main tip is also blocked, an accepted trade-off with `--allow-downgrade` as the
+intended escape.
 
 #### 792a11c1 UAT Scenarios
 
@@ -5198,6 +5224,10 @@ users one update behind on update behavior itself, so a new deployment rule took
 (ADR-0023). The bootstrap run, the first update after this behavior shipped, is the last one to run
 stale. Local mode installs from the clone it runs in, not from a fresh pull, so a stale checkout still
 downgrades on hand-off; the downgrade check covers it (792a11c).
+The old process hands off to a child rather than replacing itself with `syscall.Exec`, because the captured-output
+commander cannot inherit stdio or pass an environment and the parent must relay the child's exit code.
+The loop guard is an environment variable, not a flag, so it stays off the public command line. A successful
+install always hands off with no version comparison: an unchanged binary costs one local spawn.
 
 #### 792a11e1 UAT Scenarios
 
@@ -5271,6 +5301,10 @@ NOT stop the other from being updated, MUST be reported under that harness as `e
 left out of the `installed:` line, and MUST make the command exit non-zero.
 
 Rationale: OpenCode and Shelley support was removed (#721), so the harness list is Claude Code and Pi.
+The dated addendum to the harness decision, rather than a rewrite, keeps the record of why per-file and per-directory
+symlink granularity were chosen when three harnesses were in scope. The unused commands-deploy
+mechanism was deleted rather than kept dormant, because git history is the fallback and a future harness would
+reintroduce it from scratch.
 
 #### 792a11g1 UAT Scenarios
 
@@ -5652,6 +5686,12 @@ reserved source prefix (`claude`, `pi`, `agents`, `project`, `anthropic-skills`,
 `pi-pkg`, `pi-prompt`) whose remainder lacks that source's shape; any other `<x>:<name>` is plugin
 `<x>`'s key. More than one note for a key MUST be an error naming them.
 
+Rationale: One skill is one procedure, so it gets one note. Several notes per skill were rejected because a
+sub-note has no body source except a second file in the skill directory, and a rule for which skills get
+several notes caused confusion in the first draft. The slug identifies the note, so no frontmatter key is
+scanned across the vault, and runbook fields live on the note and not in `SKILL.md` because the harness owns
+that schema.
+
 #### 792a12b1 UAT Scenarios
 
 ```gherkin
@@ -5701,6 +5741,10 @@ current hash is recorded as declined. Declining an offer MUST record the current
 the vault-root file `skill-registrations.json` and change nothing else; for a removal offer the recorded
 hash is the note's `skill_hash`.
 
+Rationale: Declines live in one vault-root file keyed by skill key, because a declined new skill has no note
+to hold the decline. A changed skill gets a new hash, so the offer returns once. Declines are per key and not
+per scope, so declining all records each key.
+
 #### 792a12c1 UAT Scenarios
 
 ```gherkin
@@ -5738,6 +5782,10 @@ edit the procedure.
 
 Rationale: the runbook fields are authored on the note afterward, by curation, because only the skill's text is
 known at registration.
+Creating the note pending and letting curation author the fields was chosen over drafting them through the LLM
+API, which would skip the review those fields needed in every conversion. A separate create command was
+rejected because it asks the user twice for one decision. Pending keeps the incomplete note out of retrieval
+until it has a situation.
 
 #### 792a12d1 UAT Scenarios
 
@@ -6234,6 +6282,11 @@ engram installs. An entry whose SHA-256 equals that of an entry earlier in sourc
 run, or equals the `skill_hash` of any existing skill note, MUST be an alias: it makes no offer, is
 recorded nowhere, and counts as present for its key.
 
+Rationale: The same key with differing bytes is always a conflict: there is no nearest-wins across a project
+chain and no engram-owned exception, because engram's copies on different harnesses have different keys. A
+conflicted key makes no offer at all. Aliases are never written to notes, because that would write on runs
+where the procedure did not change.
+
 #### 792a12p1 UAT Scenarios
 
 ```gherkin
@@ -6289,6 +6342,12 @@ whose `skill_source` lies under no read root, and a runbook note with `skill_has
 MUST NOT be eligible. Registration MUST offer to remove a skill note only when it is eligible and no
 scanned entry, alias or disabled or not, has its key, and MUST make no removal offer when `--skills-dir`
 is given.
+
+Rationale: An existence-based scan was rejected because an unreadable directory would look empty and flood the
+user with removals; a per-scope scanned flag was rejected because it cannot tell which entry, bucket or
+project a note came from; and a `last_seen` counter was rejected as hidden state that misfires when a project
+is not checked out. The accepted cost is that a note whose source root left the source set is never offered
+for removal, so the user deletes it by hand.
 
 #### 792a12q1 UAT Scenarios
 
@@ -6386,6 +6445,10 @@ only by an exact key or an individual prompt, never by accept-all, a pattern or 
 MUST list each offer as `would offer: <kind> <key> (<source>)` under its `@<scope-id> (<count>)` header,
 naming the note instead of a source for a removal with no recorded source.
 
+Rationale: Offers are grouped by scope because dozens of per-skill prompts are unworkable. Removals are never
+covered by accept-all, a pattern or a selector; each needs its exact key or its own prompt. Scopes are not
+opt-in, because Joe directed that all default folders be scanned.
+
 #### 792a12r1 UAT Scenarios
 
 ```gherkin
@@ -6436,6 +6499,10 @@ Requirement: 792a12s `skill-registrations.json` MUST map keys to declined hashes
 `schema_version` is anything other than 2 (missing, below 2 or above 2), that has an unrecognized field,
 or that cannot be decoded MUST be an error, not an empty decline state, and registration MUST write
 nothing. A missing file MUST mean no declines.
+
+Rationale: Version 1 files are a loud error and are not mapped to `claude:<name>`, because v1 never left the
+unmerged branch and a compatibility mapping for it was rejected. An older binary still reads a v2 file, since
+it ignores the extra keys.
 
 #### 792a12s1 UAT Scenarios
 
@@ -7040,6 +7107,10 @@ Scenario: 792a14g1d An empty matched set is reported
 Requirement: 792a14h Recall MUST read the content of every chunk member of a cluster with `engram show-chunk <source#anchor>` before stating any relevance or coverage judgment about that cluster, including a cluster whose candidate list is empty. It MUST read a note candidate's content directly from the payload, MUST NOT run `engram show` for it, and MUST NOT judge a chunk from its path, title or anchor alone.
 
 Rationale: under `--lazy-chunks` a chunk item carries no content, so a judgment from its path is a judgment without evidence. A measured miss (#733, the recency-standard axis at about 80% against an original 100%) traced to one trial that made no `show-chunk` call and called a load-bearing chunk unrelated seed content from its title, in a cluster with no note candidates. All four passing trials had read the chunk. A vault note could not fix this, because recall's coverage step consults only notes that match the current task's phrases and no step asks whether the step itself is being run correctly, so the fix belongs in the procedure's own text. Wording in skill text is expected to plateau below about 95% per-trial adherence, so a rare repeat of the miss is not evidence of a regression (vault notes 794 and 198).
+The fix is in the skill's own text and not in a vault note, because a note about correctly running that step
+has no trigger surface during the step's own execution. Prose mechanisms plateau below about 95% adherence; at
+95% per trial an all-green 5-trial gate passes only about 77% of the time, so an occasional RED with no real
+regression is expected, and the gate threshold is decided from the measured post-fix rate.
 
 #### 792a14h1 UAT Scenarios
 
@@ -7705,6 +7776,10 @@ Canonical target: `docs/specs/product/lessons-contract.md` (title `Lessons Contr
 When an agent hands work to a subagent, a lesson that the subagent learned but never reported cannot be captured. The lessons contract is the agreement between the orchestrating agent and every subagent it dispatches. Each subagent's completion report ends with a `LESSONS:` line. The orchestrator re-asks once if the line is missing, records every line as it returns, judges each lesson right then, and gives the whole collection to the closing learn as a backstop. The line is a deliberately low-bar offer and not a vault note, so a subagent never decides on its own what enters the vault. The skills that carry the contract are route (the handoff, 792a17), please (the collection and the hand-over at its close, 792a18) and learn (the judgment, 792a15); the ambient cue that fires learn at a return is ambient-guidance's (792a19). This capability states the contract once so that no skill repeats it.
 
 Rationale: the memory-loop audit (`dev/eval/audit/REPORT-2026-09-02.md`) measured the writing side as the loop's dominant loss. Learn fired for only 5.6% (4 of 71, 95% interval 1.4 to 11.3) of the worth-learning moments, and 67 lessons were lost, of which 40 (59.7%) were judged realistically reachable by a completion-report lessons step; the largest bucket was 39 missed success-reinforcements. Most failures that memory would have helped with traced to lessons never captured, so write loss showed up later as failures. The first version (`learn-rate-skill-only`, the #739 D7 direction) was constrained to skill and guidance markdown, with no hooks and no new code, and to a capture-then-curate posture: a low bar at capture and quality control at a separate curation step. A prior effort (#655) measured about 93% adherence to a mandated completion-report output contract, so prose-only enforcement was in reach. A mandatory-line mechanism in prose stays below about 95% per-trial adherence (vault note 198), so the contract raises the rate and guarantees nothing; the mechanical layers that would guarantee it (a validator, a watcher, hooks) were considered and left out. The first version's re-measure found no detectable rise in the learn rate (3 of 66, 4.5%, against 5.6%; `dev/eval/LEDGER.md#learn-rate-remeasure-w2`), and the return-time judgment that followed was validated with confined headless arms (`dev/eval/LEDGER.md#learn-at-return-guidance`).
+33 of the 40 fixable lost lessons (82.5%) sit in dispatched work, but a subagent running learn itself was
+rejected: route already tells subagents to run recall first and the audit measured that failing, a subagent's
+judgment of its own work confabulates, and several dispatch targets have no Skill tool at all. So the subagent
+supplies raw content and the orchestrator judges it.
 
 ### 792a16a A completion report ends with a LESSONS line
 
@@ -7897,6 +7972,9 @@ Canonical target: `docs/specs/product/route.md` (title `Route - Product Spec`).
 `route` is the skill an orchestrating agent follows when it is about to dispatch a subagent and must choose the agent type, the model and the effort. It makes the choice from evidence and not from a fixed table: every unit of work starts at the cheapest tier, and only recalled evidence, or a failed review, raises it. Every dispatch is recorded as a note, and the records become memory that the next routing decision recalls, so the effective rubric improves without anyone editing the skill. Route is skill-level guidance for the orchestrator. It adds no system boundary and no interaction of its own: it is a sibling of please, applied over the existing relationship between the harness and engram. The shipped procedure is `agent-instructions/skills/route/SKILL.md`, with the rates in `price-table.md`. The completion-report contract it hands to every subagent is lessons-contract's (792a16).
 
 Rationale: route encodes the delegate-everything doctrine. Two measured results shaped it. Sonnet with memory fully matched opus with memory across applying conventions (15 of 15), recency supersession (3 of 3) and abduction (6 of 6), while sonnet cold failed the same axes, so memory lets a cheaper model do work that needs a stronger one without it (ADR-0014, vault note 135). That was measured at the deep-to-mid boundary only; other boundaries are inferred, and the retry rule is the safety net for a wrong discount (`dev/eval/LEDGER.md#tier-routing-parity`). The discount is the largest whole-task cost lever found, larger than any payload-byte-level cut. Second, the earlier fixed table (mechanical to cheap, moderate to mid, complex to deep) was asserted and never measured. A baseline showed an agent reading it over-provisioned 5 of 6 generic units to mid or deep by surface look, and a control with no guidance did the same, because the table encoded the model's untested "this looks hard, so use a strong model" instinct (ADR-0017). A first draft that only said "don't upgrade on a looks-hard hunch" still routed perceived difficulty to the deep tier; adding an explicit "genuinely hard is not evidence" test closed the loophole and flipped 5 of 6 over-provisioned units to 0 of 6. Cold-start cost rises for genuinely hard work, which can fail twice before it reaches the tier it needs; that is an accepted bootstrap, recovered by the evidence loop.
+Retiring `route/SKILL.md` requires two things: the eval bar must be met, and the shim must be activated in the
+real target instruction files, because the eval's shim-only fixture does not prove a real session would
+discover the runbook. Retiring on the eval bar alone would have stranded route.
 
 ### 792a17a The orchestrator routes and delegates
 
@@ -8119,6 +8197,11 @@ Scenario: 792a17i1c An escalated dispatch records where it passed
 Requirement: 792a17j The orchestrator MUST take a dispatch's duration and cost from the harness's usage signal when it exposes one (on Claude Code, the `duration_ms` and `subagent_tokens` of the subagent's Task-completion `<usage>` block), MUST record the unit explicitly, and MUST convert tokens to a dollar estimate only when the maintained price table (`price-table.md`, keyed by the concrete model) has an exact-match row for the dispatch's model, showing for example `45,231 tok (~$0.68 @ opus)`; priced by split input, output and cache columns when the usage block splits them, and otherwise as a blended estimate at the input rate labelled as such. When the model has no row, or its platform (Bedrock, Vertex or Foundry) prices it differently, it MUST show the raw unit-labeled token count with its reason (for example `45,231 tok (no rate on hand)`). On a harness with no per-subagent usage signal and no documented alternate source (Pi, as of the skill's writing), it MUST show `n/a` with the stated reason, and MUST NOT fabricate a cost, a duration or a dollar figure.
 
 Rationale: tokens to dollars is a blended estimate from a maintained table, not a bill. A harness that exposes the signals under other names changes nothing in the record.
+The rates live in a maintained table rather than a live pricing lookup, because a lookup adds an I/O
+dependency and a failure mode; a stale row degrades to the raw token count, which is safer than a flaky lookup
+silently defaulting to a wrong number, and updating a rate is a one-line data diff. Each non-Claude-Code
+harness gets its own documented cost and duration source, or an explicit `n/a` with a reason, because
+harnesses expose different signals and a forced common interface would lose information or invite fabrication.
 
 #### 792a17j1 UAT Scenarios
 
@@ -8295,6 +8378,10 @@ Rationale: LLM-generated artifacts do not self-certify. Catching one's own plan'
 Requirement: 792a18a Please MUST fire on the explicit form `/please <ask>` however trivial the ask looks, because the user chose the workflow deliberately, and on natural-language phrasings of the same intent ("please do X", "please work through X", "please take care of X", "work through X end-to-end", "take this end-to-end", "drive X to completion", "see this through"). It MUST NOT fire on a casual "please" attached to a single trivial action ("please read this file", "please rename this var"). For a natural-language ask, it MUST fire when the ask plausibly entails any of planning, more than one file, testing, documentation, a commit or closing an issue, MUST NOT fire when the ask plausibly resolves to a single file edit or tool call with no follow-up, and MUST fire when the boundary is genuinely unclear.
 
 Rationale: the workflow tolerates small asks, and the reverse mistake is more expensive. The bare word "please" is a deliberately over-firing trigger of the runbook note; a trigger hit only makes the runbook a candidate, and the agent judges it against the skill's own conditions (792a13m).
+A runbook's `situation` is the only discriminator retrieval sees, so it is positive-only and process-shaped.
+Embeddings do not encode negation, so a trailing never-for-a-casual-please clause attracted the excluded
+phrases, and ceremony wording was never retrieved because agents phrase the query as the concrete work. A
+situation carrying the eval task's own example would be test-fitting.
 
 #### 792a18a1 UAT Scenarios
 
@@ -9150,6 +9237,10 @@ Rationale: the query is not filtered by kind, so the agent must read each item's
 `fact`, `feedback`, `qa` and `runbook`, and `qa` is excluded from retrieval (792a7v). A runbook is structurally the
 same as a fact or feedback note in storage and ranking, so no validation gate guarded it (ADR-0026). Migrating
 existing kind-4 feedback into runbook notes is out of scope and is #730, still untriaged.
+The frame lives in the shim and not in the recall skill because it must exist before any runbook is loaded;
+were it in recall, recall would itself become a runbook. The shim's first action fires on every request: the
+measured over-fire at task initiation was 3.4x, against 147x to 380x per tool call, which is why a hook was
+rejected.
 
 #### 792a19l1 UAT Scenarios
 
@@ -9180,6 +9271,9 @@ first mutating action, and MUST then do the steps in the runbook's order.
 Rationale: the runbook-versus-skill evaluation found runbooks 3 times in 3 but restated as a plan 0 times in 6, and
 reached the end state 0 times in 6, against a skill row of 3, 3 and 2 (checkpoint 2026-09-13), which is the gap the
 frame closes. The shim-only measurement is `dev/eval/LEDGER.md#shim-follow-frame-d8-bar`.
+A fact with the same body gets no frame, which keeps the original question (does a vanilla fact match?) and
+gives the runbook kind a reason to exist beyond schema. The shim is a fresh file and not an extension of the
+recall guidance, because that guidance names `/recall glance`, which a shim-only session does not have.
 
 #### 792a19m1 UAT Scenarios
 
@@ -9542,6 +9636,10 @@ POST) over HTTP, and MUST NOT expose `amend`, `query-chunks`, `show-chunk`, `ing
 Rationale: `amend` left the served set along with the `ENGRAM_SERVER` thin client, its only caller, and children offer
 amendments through `learn` with an offer target. `query-chunks` and `show-chunk` left because chunks never cross
 vaults. One write route keeps one path for offers (ADR-0029 D7).
+The route split is by mutation: the four read-only commands are GET and the writes are POST, because
+repeatable flags and free text do not fit in a URL. Only the receiving side's `user:` is server-governed,
+because it carries the attribution weight. Offer and curation judgment run off the request path, in a skill
+and not in server code.
 
 #### 792a20a1 UAT Scenarios
 
@@ -9668,6 +9766,11 @@ that accept it do not re-stamp it (792a22).
 Rationale: the server trusts what a caller declares, since the caller and the server share a network trust boundary and
 no more. An empty declaration would write an offer nobody can be asked about, so it is refused outright. Requiring an
 edge header would tie the server to a particular front door.
+A credential map and a trusted-header adapter were both rejected: attribution needs a stable caller-chosen
+name and not an unforgeable one, and the trust boundary is network reachability. Only the empty string is
+refused, since it is the one value that cannot be a real identity. Two `engram serve` instances on one vault
+are allowed, because the flock-covered writes and stateless pending-offer detection make that safe and the
+remaining cost is redundant resource use.
 
 #### 792a20e1 UAT Scenarios
 
@@ -11628,6 +11731,10 @@ checks that make a curator's judgment safe; the judgment itself is the agent's. 
 offer, after the request that created it, and never inside it. How an offer is written, offered and answered is vault-serving
 (792a20) and parent-sync (792a21).
 
+Rationale: The curate skill's behavior overrode the older spec: a covered offer is discarded, and a near offer
+is folded into the existing note and then discarded, because leaving it live creates a second redundant note.
+The marker is cleared only on an offer that is kept (Joe, 2026-09-21).
+
 ### 792a22a Pending offers are left out of normal query results
 
 Requirement: 792a22a `engram query` MUST NOT return a pending offer as part of its normal results, whatever its kind and
@@ -11635,6 +11742,8 @@ whether or not it is a skill runbook note.
 
 Rationale: an offer is unjudged, so recall must not act on it as if it were knowledge. The query can tell the agent that
 offers exist (792a22o) and not which, and the agent finds them by scanning the vault.
+A pending offer is a normal note carrying a marker and not a separate queue. This reuses frontmatter parsing,
+`query` and `amend`, so only the marker's presence changes behavior.
 
 #### 792a22a1 UAT Scenarios
 
@@ -12022,6 +12131,10 @@ Rationale: pending offers are lower-volume and costlier to leave stale than a vo
 signals, one on each place an agent already looks. An agent that met the cue in the middle of unrelated work declined it every
 time as "you didn't ask for that", so the instruction says that curation is expected. A runbook has no description the
 harness reads, so each cue carries the query that surfaces it.
+`pending_offers` and its hint are the first keys of the payload because an unrequested-work cue at the tail of
+a 94 to 112 KB first payload was never seen: the shell preview saved the rest to a file, and 0 of 3 agents saw
+the hint. Shrinking the payload was rejected as a separate lever, and so was a general `notices:` list, which
+would be a new shape for every consumer.
 
 #### 792a22o1 UAT Scenarios
 

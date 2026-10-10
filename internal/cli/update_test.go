@@ -778,7 +778,7 @@ func Test792b28c12a8_RunUpdate_DryRunFromCwd(t *testing.T) {
 }
 
 // Test792b28c12a9_WriteUpdateReport_DryRunContractSweep pins the unified D9 dry-run
-// output contract (openspec/changes/update-deploy-as-sync tasks 7.1/7.2) in
+// output contract (792b28c12) in
 // one pass over a fixture exercising every op class the sync/materialization
 // engine reports: a sync deletion, a first-sync migration adoption, a
 // dangling-link cleanup deletion, an already-imported guidance refresh, and

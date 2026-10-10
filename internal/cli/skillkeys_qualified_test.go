@@ -1,7 +1,6 @@
 package cli_test
 
-// Tests for openspec change register-skills-all-skill-folders section 8,
-// "qualify every key" (design D3, D11): every key is qualified by its
+// Tests for the "qualify every key" requirements (792b30; design D3, D11): every key is qualified by its
 // source, engram-installed skills are keyed by their folder, unkeyed legacy
 // notes are not skill notes, and an unrecognized skill_key is never matched
 // or removed.

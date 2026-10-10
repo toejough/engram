@@ -260,7 +260,7 @@ flowchart TD
   N792c7v3["792c7v3 memory-loop-auditor tech spec<br/>Complete"]
   N792c8a["792c8a Residual legacy sweep<br/>Complete"]
   N792c8b["792c8b In-flight design relocation<br/>Blocked by: 792e2"]
-  N792c8c["792c8c OpenSpec archive and tooling removal<br/>Ready"]
+  N792c8c["792c8c OpenSpec archive and tooling removal<br/>Complete"]
   N792c8d["792c8d Deprecated-directory removal and final stale-reference sweep<br/>Blocked by: 792c8b, 792c8c"]
   N792c8e["792c8e Build-tag classification (deferred)<br/>Blocked by: 792c8d"]
   N792c7a1 --> N792c7a2
@@ -5768,8 +5768,8 @@ paraphrase check is not built, 792d127), and 792a23q1a (no test checks the ledge
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c8ca | Carry out the source and work items listed above | Non-test action | Ports or removes the residual legacy surface | Not started |
-| 792c8cb | Record new choices in 792d and questions in 792e | Non-test action | Keeps the decision trail complete | Not started |
+| 792c8ca | Carry out the source and work items listed above | Non-test action | Ports or removes the residual legacy surface | Done |
+| 792c8cb | Record new choices in 792d and questions in 792e | Non-test action | Keeps the decision trail complete | Done |
 
 ### 792c8d Deprecated-directory removal and final stale-reference sweep
 

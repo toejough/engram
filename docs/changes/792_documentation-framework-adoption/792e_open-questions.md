@@ -43,6 +43,7 @@ by it can continue. Choices that need only validation, not input, are in
 - **Recommendation:** 1. Git is the fallback, and keeping deprecated machinery contradicts Joe's
   standing rule.
 - **Blocks:** the tooling item of node 792c8c. Default: option 1.
+- **Applied default:** option 1 was applied in node 792c8c (792d129).
 
 ## 792e4 Do rationale paragraphs survive promotion?
 
