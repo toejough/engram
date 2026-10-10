@@ -3,7 +3,7 @@
 ## 796a1 Problem Statement
 
 Engram users, and the agents that work in their vaults, can edit the root `README.md` of a vault.
-Today ([792a2d Starter README](../792_documentation-framework-adoption/792a_product-spec.md#792a2d-starter-readme)) engram skips only the untouched starter README and treats an edited or replaced one as a
+Today ([792a2d Starter README](../../specs/product/vault-identity.md#792a2d-starter-readme)) engram skips only the untouched starter README and treats an edited or replaced one as a
 note. A user who writes in the README therefore gets a note that is counted, embedded, checked and
 recalled, although the file was never written as a note. A user who wants to remember something, or to
 change how engram behaves, has no reason to use the README for it: regular notes do that.
@@ -11,7 +11,7 @@ change how engram behaves, has no reason to use the README for it: regular notes
 The needed outcome (issue #796, decided with Joe on 2026-10-10): the root `README.md` is an
 engram-controlled artifact and is never a note. When a command that writes to the vault finds it
 edited, engram restores its own content and prints a stderr warning. Read-only commands leave it alone,
-per [792a2f Existing vaults are left alone](../792_documentation-framework-adoption/792a_product-spec.md#792a2f-existing-vaults-are-left-alone).
+per [792a2f Existing vaults are left alone](../../specs/product/vault-identity.md#792a2f-existing-vaults-are-left-alone).
 
 Terms:
 
@@ -29,32 +29,32 @@ covers only how the README is treated once a vault exists.
 
 ### 796a1a Requirements checked
 
-Every [792a Documentation Framework Adoption - Product Spec](../792_documentation-framework-adoption/792a_product-spec.md) requirement or scenario that
+Every requirement or scenario in the [canonical product specs](../../specs/product/) that
 counts notes, reads the README or depends on it being a note was checked.
 
 | Target | Result |
 | --- | --- |
-| [792a2d Starter README](../792_documentation-framework-adoption/792a_product-spec.md#792a2d-starter-readme) | Modified by [796a2 vault-identity (controlled vault README)](#796a2-modified-vault-identity-controlled-vault-readme) |
-| [792a2d1b A user's README is a note](../792_documentation-framework-adoption/792a_product-spec.md#792a2d1-uat-scenarios) | Removed by [796a3 vault-identity (a user's README is a note)](#796a3-removed-vault-identity-a-users-readme-is-a-note) |
-| [792a2d1a A fresh vault has no notes](../792_documentation-framework-adoption/792a_product-spec.md#792a2d1-uat-scenarios) | Unchanged: a new vault still reports 0 notes |
-| [792a2c Flat vault layout](../792_documentation-framework-adoption/792a_product-spec.md#792a2c-flat-vault-layout) | Unchanged: it concerns subdirectories only |
-| [792a2e First-use vault creation](../792_documentation-framework-adoption/792a_product-spec.md#792a2e-first-use-vault-creation) | Unchanged: it writes the starter README at creation; #795 changes creation |
-| [792a2f Existing vaults are left alone](../792_documentation-framework-adoption/792a_product-spec.md#792a2f-existing-vaults-are-left-alone) | Unchanged: read-only commands already leave every file alone |
-| [792a8h A count changes nothing and is exact](../792_documentation-framework-adoption/792a_product-spec.md#792a8h-a-count-changes-nothing-and-is-exact) | Unchanged: "every note at the vault root" excludes the README by [792a2d Starter README](../792_documentation-framework-adoption/792a_product-spec.md#792a2d-starter-readme) |
-| [792a9f A check changes nothing](../792_documentation-framework-adoption/792a_product-spec.md#792a9f-a-check-changes-nothing) | Unchanged: a check reports on notes only and stays read-only |
-| [792a9g The embedding census](../792_documentation-framework-adoption/792a_product-spec.md#792a9g-the-embedding-census) | Unchanged: the census counts notes, and the README is not one |
-| [792a9h Which notes get embedded](../792_documentation-framework-adoption/792a_product-spec.md#792a9h-which-notes-get-embedded) | Unchanged: the README is never selected, as it is not a note |
-| [792a10a The flat-vault notice](../792_documentation-framework-adoption/792a_product-spec.md#792a10a-the-flat-vault-notice) | Unchanged: it tests notes only |
-| [792a20 vault-serving](../792_documentation-framework-adoption/792a_product-spec.md#792a20-added-vault-serving) and [792a21 parent-sync](../792_documentation-framework-adoption/792a_product-spec.md#792a21-added-parent-sync) | Unchanged: they exchange notes, and the README is not one |
+| [792a2d Starter README](../../specs/product/vault-identity.md#792a2d-starter-readme) | Modified by [796a2 vault-identity (controlled vault README)](#796a2-modified-vault-identity-controlled-vault-readme) |
+| [792a2d1b A user's README is a note](../../specs/product/vault-identity.md#792a2d1-uat-scenarios) | Removed by [796a3 vault-identity (a user's README is a note)](#796a3-removed-vault-identity-a-users-readme-is-a-note) |
+| [792a2d1a A fresh vault has no notes](../../specs/product/vault-identity.md#792a2d1-uat-scenarios) | Unchanged: a new vault still reports 0 notes |
+| [792a2c Flat vault layout](../../specs/product/vault-identity.md#792a2c-flat-vault-layout) | Unchanged: it concerns subdirectories only |
+| [792a2e First-use vault creation](../../specs/product/vault-identity.md#792a2e-first-use-vault-creation) | Unchanged: it writes the starter README at creation; #795 changes creation |
+| [792a2f Existing vaults are left alone](../../specs/product/vault-identity.md#792a2f-existing-vaults-are-left-alone) | Unchanged: read-only commands already leave every file alone |
+| [792a8h A count changes nothing and is exact](../../specs/product/vault-counting.md#792a8h-a-count-changes-nothing-and-is-exact) | Unchanged: "every note at the vault root" excludes the README by [792a2d Starter README](../../specs/product/vault-identity.md#792a2d-starter-readme) |
+| [792a9f A check changes nothing](../../specs/product/vault-health.md#792a9f-a-check-changes-nothing) | Unchanged: a check reports on notes only and stays read-only |
+| [792a9g The embedding census](../../specs/product/vault-health.md#792a9g-the-embedding-census) | Unchanged: the census counts notes, and the README is not one |
+| [792a9h Which notes get embedded](../../specs/product/vault-health.md#792a9h-which-notes-get-embedded) | Unchanged: the README is never selected, as it is not a note |
+| [792a10a The flat-vault notice](../../specs/product/vault-migration.md#792a10a-the-flat-vault-notice) | Unchanged: it tests notes only |
+| [vault-serving](../../specs/product/vault-serving.md) and [parent-sync](../../specs/product/parent-sync.md) | Unchanged: they exchange notes, and the README is not one |
 
 The technical spec for this change, not yet drafted, must also revise
-[792b3c4 Vault Markdown listing](../792_documentation-framework-adoption/792b_technical-spec.md#792b3c4-vault-markdown-listing), which today lists an edited README as a note.
+[792b3c4 Vault Markdown listing](../../specs/technical/durable-file-store.md#792b3c4-vault-markdown-listing), which today lists an edited README as a note.
 
 ## 796a2 Modified: vault-identity (controlled vault README)
 
 Canonical target: `docs/specs/product/vault-identity.md`.
 
-Target: [792a2d Starter README](../792_documentation-framework-adoption/792a_product-spec.md#792a2d-starter-readme). The complete replacement text follows; the ID 792a2d
+Target: [792a2d Starter README](../../specs/product/vault-identity.md#792a2d-starter-readme). The complete replacement text follows; the ID 792a2d
 is preserved.
 
 ### 792a2d Starter README
@@ -80,7 +80,7 @@ Rationale: the README is how engram introduces itself to anyone who opens the va
 engram's to define. Anything a user wants engram to remember, or wants to change in how engram behaves,
 belongs in a regular note, which recall, check and the embedder already handle. Restoring at the first
 write, and only then, fixes the file at the moment engram is already changing the vault, and keeps
-read-only use free of side effects ([792a2f Existing vaults are left alone](../792_documentation-framework-adoption/792a_product-spec.md#792a2f-existing-vaults-are-left-alone)).
+read-only use free of side effects ([792a2f Existing vaults are left alone](../../specs/product/vault-identity.md#792a2f-existing-vaults-are-left-alone)).
 The warning tells the user why their edit vanished and where to put it instead. A missing README is not
 restored here ([796c1 Should a missing README be restored?](./796c_open-questions.md#796c1-should-a-missing-readme-be-restored)).
 
@@ -138,7 +138,7 @@ Scenario: 796a2a8 A dry run leaves an edited README alone
 
 Canonical target: `docs/specs/product/vault-identity.md`.
 
-Target: [792a2d1b A user's README is a note](../792_documentation-framework-adoption/792a_product-spec.md#792a2d1-uat-scenarios). The scenario is removed, and its ID
+Target: [792a2d1b A user's README is a note](../../specs/product/vault-identity.md#792a2d1-uat-scenarios). The scenario is removed, and its ID
 792a2d1b MUST NOT be reused.
 
 Rationale: the scenario asserts that a user-edited README counts as a note, which [796a2 vault-identity (controlled vault README)](#796a2-modified-vault-identity-controlled-vault-readme)

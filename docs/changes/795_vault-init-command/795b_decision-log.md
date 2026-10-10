@@ -5,7 +5,7 @@ Nothing here needs an answer before the spec is usable; each default stands unle
 
 ## 795b1 Modify the creation and repair requirements, remove only their scenarios
 
-- **Choice:** [792a2e First-use vault creation](../792_documentation-framework-adoption/792a_product-spec.md#792a2e-first-use-vault-creation) and [792a2g Interrupted creation is repaired](../792_documentation-framework-adoption/792a_product-spec.md#792a2g-interrupted-creation-is-repaired) are Modified, keeping their IDs ([795a7 Vault creation happens only through engram init](./795a_product-spec.md#795a7-modified-vault-creation-happens-only-through-engram-init), [795a8 Interrupted creation is repaired only by engram init](./795a_product-spec.md#795a8-modified-interrupted-creation-is-repaired-only-by-engram-init)). Only the five
+- **Choice:** [792a2e First-use vault creation](../../specs/product/vault-identity.md#792a2e-first-use-vault-creation) and [792a2g Interrupted creation is repaired](../../specs/product/vault-identity.md#792a2g-interrupted-creation-is-repaired) are Modified, keeping their IDs ([795a7 Vault creation happens only through engram init](./795a_product-spec.md#795a7-modified-vault-creation-happens-only-through-engram-init), [795a8 Interrupted creation is repaired only by engram init](./795a_product-spec.md#795a8-modified-interrupted-creation-is-repaired-only-by-engram-init)). Only the five
   scenarios that assert creation or repair by any command are Removed ([795a13 A read command creates the vault](./795a_product-spec.md#795a13-removed-a-read-command-creates-the-vault) to [795a17 A half-created vault gets its ID](./795a_product-spec.md#795a17-removed-a-half-created-vault-gets-its-id)).
 - **Rationale:** the lifecycle guide treats a changed rule as a modification and a rename as a modification,
   not a removal plus an addition. The requirements still describe creation and repair; only who performs
@@ -15,7 +15,7 @@ Nothing here needs an answer before the spec is usable; each default stands unle
 
 ## 795b2 Contents and exclusivity stay with the creation requirement; the command is separate
 
-- **Choice:** [792a2e First-use vault creation](../792_documentation-framework-adoption/792a_product-spec.md#792a2e-first-use-vault-creation) keeps what a new vault holds and that only `engram init` creates it. [795a2 Init creates the vault](./795a_product-spec.md#795a2-added-init-creates-the-vault) holds
+- **Choice:** [792a2e First-use vault creation](../../specs/product/vault-identity.md#792a2e-first-use-vault-creation) keeps what a new vault holds and that only `engram init` creates it. [795a2 Init creates the vault](./795a_product-spec.md#795a2-added-init-creates-the-vault) holds
   what the command prints and where it runs.
 - **Rationale:** each rule lives in one place, so neither requirement restates the other.
 - **Alternatives:** put everything in the Modified text. Rejected: the command's messages and the
@@ -23,7 +23,7 @@ Nothing here needs an answer before the spec is usable; each default stands unle
 
 ## 795b3 Modified nodes cite scenarios instead of carrying their own
 
-- **Choice:** the Modified operations for [792a2e First-use vault creation](../792_documentation-framework-adoption/792a_product-spec.md#792a2e-first-use-vault-creation) and [792a2g Interrupted creation is repaired](../792_documentation-framework-adoption/792a_product-spec.md#792a2g-interrupted-creation-is-repaired) list the Added scenarios that verify
+- **Choice:** the Modified operations for [792a2e First-use vault creation](../../specs/product/vault-identity.md#792a2e-first-use-vault-creation) and [792a2g Interrupted creation is repaired](../../specs/product/vault-identity.md#792a2g-interrupted-creation-is-repaired) list the Added scenarios that verify
   them, and add none of their own.
 - **Rationale:** the same user-visible behavior would otherwise be written twice with two IDs.
 - **Alternatives:** duplicate the scenarios under the Modified operations. Rejected for the same reason.
@@ -41,7 +41,7 @@ Nothing here needs an answer before the spec is usable; each default stands unle
 
 - **Choice:** [795a3a Existing vaults are left alone by init](./795a_product-spec.md#795a3a-existing-vaults-are-left-alone-by-init) makes `engram init` a no-op on it. It stamps no ID and creates no `.engram/`,
   `.gitignore` or README.
-- **Rationale:** it is a vault made before explicit creation, and [792a2f Existing vaults are left alone](../792_documentation-framework-adoption/792a_product-spec.md#792a2f-existing-vaults-are-left-alone) already keeps such vaults
+- **Rationale:** it is a vault made before explicit creation, and [792a2f Existing vaults are left alone](../../specs/product/vault-identity.md#792a2f-existing-vaults-are-left-alone) already keeps such vaults
   untouched so a git-backed vault is not dirtied. Reporting "nothing changed" matches the issue.
 - **Alternatives:** have init adopt it by stamping the ID. Rejected: the issue says init on an existing
   vault reports that nothing changed. Provisional until Joe confirms.
@@ -75,27 +75,27 @@ Nothing here needs an answer before the spec is usable; each default stands unle
 
 ## 795b8 Repair stays limited to the missing vault ID
 
-- **Choice:** [795a4a Init stamps the missing vault ID](./795a_product-spec.md#795a4a-init-stamps-the-missing-vault-id) repairs exactly what [792a2g Interrupted creation is repaired](../792_documentation-framework-adoption/792a_product-spec.md#792a2g-interrupted-creation-is-repaired) repaired: a `.engram/` directory with no ID.
+- **Choice:** [795a4a Init stamps the missing vault ID](./795a_product-spec.md#795a4a-init-stamps-the-missing-vault-id) repairs exactly what [792a2g Interrupted creation is repaired](../../specs/product/vault-identity.md#792a2g-interrupted-creation-is-repaired) repaired: a `.engram/` directory with no ID.
 - **Rationale:** the issue says init replaces that repair. Recreating a missing `.gitignore` or README
   would add behavior it does not mention.
 - **Alternatives:** have init recreate every missing creation file. Rejected as beyond the decision.
 
 ## 795b9 What "the vault steps" of update are
 
-- **Choice:** [795a6a Update skips its vault steps](./795a_product-spec.md#795a6a-update-skips-its-vault-steps) names the vault notices, skill registration ([792a12t Update runs registration after deploying the skills](../792_documentation-framework-adoption/792a_product-spec.md#792a12t-update-runs-registration-after-deploying-the-skills)) and the three vault
+- **Choice:** [795a6a Update skips its vault steps](./795a_product-spec.md#795a6a-update-skips-its-vault-steps) names the vault notices, skill registration ([792a12t Update runs registration after deploying the skills](../../specs/product/skill-runbook-registration.md#792a12t-update-runs-registration-after-deploying-the-skills)) and the three vault
   options `--regen-vocab`, `--backfill-identity` and `--reparent-luhmann`. The install, the deploy and the
   report continue, and the exit status is unaffected ([795a6c The rest of update still runs](./795a_product-spec.md#795a6c-the-rest-of-update-still-runs)).
-- **Rationale:** these are the update steps that read or write the vault ([792a11 install-and-update](../792_documentation-framework-adoption/792a_product-spec.md#792a11-added-install-and-update)). A missing vault is a
+- **Rationale:** these are the update steps that read or write the vault ([install-and-update](../../specs/product/install-and-update.md)). A missing vault is a
   state to report, not a failure of an update that installed correctly.
 - **Alternatives:** exit non-zero when a vault is missing. Rejected: it would fail every first-time update
   on a machine that has not run `engram init` yet.
 
 ## 795b10 Nodes checked and left unchanged
 
-- **Choice:** the table in [795a1 Problem Statement](./795a_product-spec.md#795a1-problem-statement) lists them with reasons. [792a2f Existing vaults are left alone](../792_documentation-framework-adoption/792a_product-spec.md#792a2f-existing-vaults-are-left-alone) keeps its wording: "the creation
+- **Choice:** the table in [795a1 Problem Statement](./795a_product-spec.md#795a1-problem-statement) lists them with reasons. [792a2f Existing vaults are left alone](../../specs/product/vault-identity.md#792a2f-existing-vaults-are-left-alone) keeps its wording: "the creation
   line" is still true, since only init prints one.
 - **Rationale:** editing a still-true requirement and its scenario for wording alone would add churn.
-- **Alternatives:** reword [792a2f Existing vaults are left alone](../792_documentation-framework-adoption/792a_product-spec.md#792a2f-existing-vaults-are-left-alone) and [792a2f1a An existing vault is untouched by read-only use](../792_documentation-framework-adoption/792a_product-spec.md#792a2f1-uat-scenarios). Rejected.
+- **Alternatives:** reword [792a2f Existing vaults are left alone](../../specs/product/vault-identity.md#792a2f-existing-vaults-are-left-alone) and [792a2f1a An existing vault is untouched by read-only use](../../specs/product/vault-identity.md#792a2f1-uat-scenarios). Rejected.
 
 ## 795b11 Section intros are replaced as whole paragraphs
 
@@ -107,7 +107,7 @@ Nothing here needs an answer before the spec is usable; each default stands unle
 
 ## 795b12 Technical spec follow-up is deferred
 
-- **Choice:** this change does not touch [792b2c3 First-use gating](../792_documentation-framework-adoption/792b_technical-spec.md#792b2c3-first-use-gating), which implements first-use gating, or the Supports
+- **Choice:** this change does not touch [792b2c3 First-use gating](../../specs/technical/command-line-surface.md#792b2c3-first-use-gating), which implements first-use gating, or the Supports
   lists that cite the Removed scenarios.
 - **Rationale:** the request is for the product-spec change only.
 - **Alternatives:** none; the technical change comes next.

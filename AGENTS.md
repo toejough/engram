@@ -24,7 +24,7 @@ engram/
 │   └── vaultgraph/    # Wikilink graph analysis of the vault
 ├── agent-instructions/
 │   ├── skills/        # Source for all six skills — recall, learn, please, route, curate, write-memory
-│   └── guidance/      # Source for the deployable ambient guidance docs — recall-firing (`recall.md`), delegation-firing (`delegate.md`), learn-firing (`learn.md`), and runbook-follow-frame (`shim.md`) — synced by `engram update --with-guidance` to canonical paths in `~/.claude/engram/guidance/` (Claude Code) and `~/.pi/agent/engram/guidance/` (Pi); compat symlinks at old flat paths keep existing `@import` lines in CLAUDE.md / AGENTS.md resolving (792a11m in docs/changes/792_documentation-framework-adoption/792a_product-spec.md); activated via `@import`
+│   └── guidance/      # Source for the deployable ambient guidance docs — recall-firing (`recall.md`), delegation-firing (`delegate.md`), learn-firing (`learn.md`), and runbook-follow-frame (`shim.md`) — synced by `engram update --with-guidance` to canonical paths in `~/.claude/engram/guidance/` (Claude Code) and `~/.pi/agent/engram/guidance/` (Pi); compat symlinks at old flat paths keep existing `@import` lines in CLAUDE.md / AGENTS.md resolving (792a11m in docs/specs/product/install-and-update.md); activated via `@import`
 ├── dev/               # Build tooling (targ definitions, linter configs)
 └── docs/              # Organized per docs/AGENTS.md: changes/, specs/, the authoring guides, GLOSSARY.md, ROADMAP.md, images/
 ```
@@ -38,7 +38,7 @@ engram/
 - `dev/targs.go` — Build targets (targ definitions)
 - `docs/AGENTS.md` — documentation conventions and the index of authoring guides; start here for any `docs/` work
 - `docs/GLOSSARY.md`, `docs/ROADMAP.md` — project terms; planned, parked and shipped work
-- `docs/changes/792_documentation-framework-adoption/` — the behavior record (792a product, 792b technical) until it is promoted to `docs/specs/`
+- `docs/specs/product/`, `docs/specs/technical/` — the canonical behavior record: one file per capability and per component
 
 ## Design Principles
 
@@ -109,7 +109,7 @@ The five canonical triage roles map one-to-one to label strings in this repo's t
 
 ### Domain docs
 
-Single-context repo with its own documentation system, not the `CONTEXT.md`/`docs/adr/` default. Before exploring, read `docs/AGENTS.md` (conventions and the index of guides), the relevant capability sections of the behavior record (`docs/changes/792_documentation-framework-adoption/`, 792a product and 792b technical, until promoted to `docs/specs/`), `docs/GLOSSARY.md`, and this file. If a file does not exist, proceed silently.
+Single-context repo with its own documentation system, not the `CONTEXT.md`/`docs/adr/` default. Before exploring, read `docs/AGENTS.md` (conventions and the index of guides), the relevant capability and component files of the behavior record (`docs/specs/product/` and `docs/specs/technical/`), `docs/GLOSSARY.md`, and this file. If a file does not exist, proceed silently.
 
 - Use the glossary's vocabulary when naming a domain concept in an issue title, refactor proposal, hypothesis or test name. If the concept is missing, either you are inventing language the project does not use or the glossary has a gap worth noting.
 - If your output contradicts a requirement or its rationale in the specs, surface it explicitly ("Contradicts 792b8c1, but worth reopening because...") rather than silently overriding. A behavior change goes through a change under `docs/changes/` per `docs/SPECIFICATION-LIFECYCLE-GUIDE.md`.

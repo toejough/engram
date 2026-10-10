@@ -11,9 +11,9 @@ Issue #796 holds the binding decisions; the entries below fill the gaps it leave
   `register-skills` accept and decline, `update` with vault flags or registration writes, `serve`, and
   `vault-id --regenerate` and `--claim`. Read-only: `query`, `show`, `count`, `check`, `embed status`,
   `vault-id` without a changing flag, and any `--dry-run`. Provisional.
-- **Rationale:** the issue says "a command that writes to the vault" and cites [792a2f Existing vaults are left alone](../792_documentation-framework-adoption/792a_product-spec.md#792a2f-existing-vaults-are-left-alone)
+- **Rationale:** the issue says "a command that writes to the vault" and cites [792a2f Existing vaults are left alone](../../specs/product/vault-identity.md#792a2f-existing-vaults-are-left-alone)
   for read-only commands. Defining it by the effect, not by a command list alone, keeps new commands covered.
-- **Alternatives:** restore on every command. Rejected: it breaks [792a2f Existing vaults are left alone](../792_documentation-framework-adoption/792a_product-spec.md#792a2f-existing-vaults-are-left-alone).
+- **Alternatives:** restore on every command. Rejected: it breaks [792a2f Existing vaults are left alone](../../specs/product/vault-identity.md#792a2f-existing-vaults-are-left-alone).
   Restore only on `learn`. Rejected: other writers would leave the file stale.
 
 ## 796b2 Restore just before the first write, once per invocation
@@ -28,23 +28,23 @@ Issue #796 holds the binding decisions; the entries below fill the gaps it leave
 
 - **Choice:** one stderr line, `engram: restored the engram-controlled README at <path>; put anything you
   want remembered in a regular note`.
-- **Rationale:** it follows the `engram: ...` format of the creation lines ([792a2e First-use vault creation](../792_documentation-framework-adoption/792a_product-spec.md#792a2e-first-use-vault-creation)), says what
+- **Rationale:** it follows the `engram: ...` format of the creation lines ([792a2e First-use vault creation](../../specs/product/vault-identity.md#792a2e-first-use-vault-creation)), says what
   happened, and points to the issue's own guidance that anything to remember goes in a regular note.
 - **Alternatives:** a bare "README restored" line. Rejected: it does not say where the edit should go.
 
 ## 796b4 792a2d keeps its title
 
 - **Choice:** the replacement keeps the heading title "Starter README".
-- **Rationale:** references to [792a2d Starter README](../792_documentation-framework-adoption/792a_product-spec.md#792a2d-starter-readme) elsewhere carry that label, and a rename would need all of them to change.
+- **Rationale:** references to [792a2d Starter README](../../specs/product/vault-identity.md#792a2d-starter-readme) elsewhere carry that label, and a rename would need all of them to change.
 - **Alternatives:** retitle it "Controlled vault README". Rejected for the churn.
 
 ## 796b5 The 792a2d1a scenario is kept
 
-- **Choice:** [792a2d1a A fresh vault has no notes](../792_documentation-framework-adoption/792a_product-spec.md#792a2d1-uat-scenarios) stays unchanged and is restated in the replacement.
+- **Choice:** [792a2d1a A fresh vault has no notes](../../specs/product/vault-identity.md#792a2d1-uat-scenarios) stays unchanged and is restated in the replacement.
 - **Rationale:** a new vault still reports 0 notes.
 
 ## 796b6 Technical spec follow-up
 
-- **Choice:** no technical spec or plan is drafted. [792b3c4 Vault Markdown listing](../792_documentation-framework-adoption/792b_technical-spec.md#792b3c4-vault-markdown-listing) lists an edited README as a note and
+- **Choice:** no technical spec or plan is drafted. [792b3c4 Vault Markdown listing](../../specs/technical/durable-file-store.md#792b3c4-vault-markdown-listing) lists an edited README as a note and
   must change with this behavior.
 - **Rationale:** the task scopes this change to the product spec.

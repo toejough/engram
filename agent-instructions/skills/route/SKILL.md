@@ -105,7 +105,7 @@ Task-completion `<usage>` block — `duration_ms` and `subagent_tokens` (the cos
 harness re-exposes them under other names without changing this table.
 
 **Pi** (`~/.pi/agent/` — the other harness this skill deploys to, per
-792b30 in `docs/changes/792_documentation-framework-adoption/792b_technical-spec.md`) has **no documented per-subagent usage or duration
+792b30 in `docs/specs/technical/skill-source-discovery.md`) has **no documented per-subagent usage or duration
 signal** as of this writing. Dispatches routed on Pi show `n/a` for both cost and duration, with
 that reason stated (e.g. `n/a — Pi exposes no per-subagent usage signal`) — never a fabricated
 number. If Pi later exposes such a signal, wire it in here the same way Claude Code's `<usage>`
@@ -221,7 +221,7 @@ disagrees with an aggregate, amend the aggregate to the recomputed numbers.
 **Drowning audit (same trigger moments):** run the (b) lookup query for a work-kind with many
 evidence notes and confirm the aggregate still surfaces (its `path:` in items or any cluster's
 candidate_l2s). If it does not, that is the pre-registered drowning case — report it rather than
-patching ad hoc; the two candidate remedies are named in 792a6c in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md`.
+patching ad hoc; the two candidate remedies are named in 792a6c in `docs/specs/product/controlled-vocabulary.md`.
 
 ## The loop that improves the rubric
 
