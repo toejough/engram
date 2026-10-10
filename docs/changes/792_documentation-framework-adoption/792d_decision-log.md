@@ -1699,3 +1699,30 @@ decisions as `792dN`, continuing the sequence.
   - The summary line is printed after the unmatched-token notes and before the conflicts.
 - **Rationale:** 792d30, 792d52, 792d106, 792d107.
 - **Alternatives:** none beyond 792d106.
+
+## 792d109 write-memory scope, and what the skill text alone verifies
+
+- **Choice:**
+  - 792a13 describes the shipped `SKILL.md`: fourteen requirements (792a13a to 792a13n). The `write-memory-worker`
+    requirements, the trigger-cue authoring guidance 792d90 deferred to this node, the `learn-runbook-capture`
+    write-memory requirement and ADR-0015 are its sources. The "four kinds of lessons" requirement is learn's
+    (792c7n1) and the Step 7 audit is please's (792c7q1), so both stay in `write-memory-worker`.
+  - The runbook compose block is specified once, from the shipped skill (`--done-when`, `--body`, `--red-flag`,
+    `--trigger`). The old requirement's list of handoff fields (slug, situation, done_when, body/steps, source,
+    position, optional contributors and red flags) is the handoff of 792a13c and 792a13e.
+  - Scenarios whose outcome is the worker composing text stay product scenarios without a technical mapping. Nine
+    scenarios whose outcome is a flag the binary accepts and writes are mapped to note-authoring. Others, such as
+    the default placement, the qa tag drop and the retry bound, have no deterministic realization: the worker is a
+    markdown procedure (792d4), and this skill has no baseline tests.
+  - No Go or Python test is renamed. note-amendment gains no mapping, because the skill never hands off an amend.
+  - SKILL.md is not edited.
+- **Divergences noted (792d33):**
+  - The old spec's runbook-capture requirement lists `contributors` among runbook handoff fields. The shipped
+    skill takes `--contributors` only for qa.
+  - The old spec said the worker handles three kinds. The shipped skill handles four, with runbook.
+  - The old spec's `--trigger "<cue>"` form (space-separated) differs from the shipped `--trigger="<cue>"`; 792a13h
+    follows the shipped form.
+  - Root `AGENTS.md`, `README.md` and the GLOSSARY describe the worker as taking `fact|feedback|qa`; they are not
+    legacy documents and are left to the final sweeps.
+- **Rationale:** 792d3, 792d4, 792d32, 792d33, 792d57 and 792d90.
+- **Alternatives:** keep the three-kind wording of the old spec. Rejected because it contradicts the shipped skill.

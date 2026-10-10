@@ -234,38 +234,6 @@ deep→mid tier boundary only; other tier boundaries are inferred, not separatel
 existing upgrade-if-cheaper-fails rule is the safety net for a wrong discount. The C5
 (recency-standard-honoring) axis flaked in this measurement round and was not re-run.
 
-## ADR-0015 — Skill decomposition stops at the write seam
-
-**Status:** Accepted (2026-07-04)
-
-**Context.** The atomic-skills exploration evaluated decomposing the five skills (recall, learn,
-write-memory, please, route) into shared behavioral atoms — read-memory, write-memory, route-a-task,
-orchestrate — to remove overlap without producing N skills that all do the same thing.
-
-**Decision.** Extract exactly one atom: `write-memory`, a worker invoked at the write seams (recall
-and learn hand off; the worker composes, executes, verifies, reports). Do NOT extract read-memory —
-recall's read+judge+write pipeline is sequential cohesion worth keeping. Leave `please` and `route`
-untouched (route already maps 1:1 to its atom). A skill-share is a worker invoked as the next whole
-action, never a mid-procedure reference fetch. Decision record:
-`docs/design/2026-07-04-atomic-skills-options.md` (deleted 2026-07 with the docs restructure —
-`git log` recovers it).
-
-**Consequences.** Five skills remain; the worker pattern is the sanctioned shape for future skill
-shares. The interim reference-card variant's "0/27 mid-procedure dereference" measurement is
-instrument-invalid and binds nothing (`dev/eval/LEDGER.md#write-memory-atom-dereference-invalid`,
-vintage 2026-07-04); the worker form's fire-rate validation is
-`dev/eval/LEDGER.md#write-memory-worker-fire-rates` (vintage 2026-07-04).
-
-**Historical note (2026-09):** `please` and `route` were later retired from skills to vault
-runbooks (`openspec/changes/archive/2026-09-19-route-skill-to-runbook/`,
-`please-skill-to-runbook`), `curate` followed the same path
-(`curate-skill-to-runbook`), and `write-memory` followed it too
-(`recall-learn-writememory-to-runbook`). "Five skills remain" above is a snapshot of the
-2026-07-04 decision, not the current skill count — see ADR-0026 and the
-`guidance-runbook-follow-frame` spec for the runbook-carrier shape that superseded it.
-
----
-
 ## ADR-0016 — Architecture diagrams are hand-authored mermaid, verified against code
 
 **Status:** Accepted (2026-07-05)

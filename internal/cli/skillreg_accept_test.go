@@ -827,7 +827,7 @@ func Test792b31c7a8_RefreshSkill_PendingClearedBeforehandIsSetAgain(t *testing.T
 	g.Expect(doc.Pending).To(BeTrue())
 }
 
-// Test792b31c7a9_RefreshSkill_RedFlagsSurviveRefresh is the learn-runbook-capture
+// Test792b31c7a9_RefreshSkill_RedFlagsSurviveRefresh is the 792a12e1f
 // scenario "Authored fields survive a refresh": red_flags authored on the
 // note (simulating a prior `engram amend`) are still present after an
 // accepted refresh.

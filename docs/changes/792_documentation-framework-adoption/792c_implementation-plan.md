@@ -239,8 +239,8 @@ flowchart TD
   N792c7k1["792c7k1 skill-runbook-registration product spec<br/>Complete"]
   N792c7k2["792c7k2 skill-source-discovery tech spec<br/>Complete"]
   N792c7k3["792c7k3 skill-registration-ledger tech spec<br/>Complete"]
-  N792c7l1["792c7l1 write-memory product spec<br/>Ready"]
-  N792c7l2["792c7l2 agent-instruction-bundle tech spec<br/>Blocked by: 792c7l1"]
+  N792c7l1["792c7l1 write-memory product spec<br/>Complete"]
+  N792c7l2["792c7l2 agent-instruction-bundle tech spec<br/>Ready"]
   N792c7m1["792c7m1 recall product spec<br/>Blocked by: 792c7l2"]
   N792c7n1["792c7n1 learn product spec<br/>Blocked by: 792c7m1"]
   N792c7o1["792c7o1 lessons-contract product spec<br/>Blocked by: 792c7n1"]
@@ -4032,11 +4032,36 @@ Target: `792a13` (`docs/specs/product/write-memory.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7l1a | Port product requirements and UAT to `792a13` | Non-test action | Moves current behavior into the framework format | Not started |
-| 792c7l1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7l1c | Repoint stale references to `792a13` | Non-test action | Keeps live links valid | Not started |
-| 792c7l1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Not started |
-| 792c7l1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Not started |
+| 792c7l1a | Port product requirements and UAT to `792a13` | Non-test action | Moves current behavior into the framework format | Done |
+| 792c7l1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7l1c | Repoint stale references to `792a13` | Non-test action | Keeps live links valid | Done |
+| 792c7l1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Done |
+| 792c7l1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
+
+792a13 has fourteen requirements (792a13a to 792a13n): the handoff-only rule, invocation by name, the handoff and
+its missing fields, the fact and feedback, runbook and question-and-answer compositions, placement, flag quoting,
+provenance and tags, the tag-free qa note, the kind and notation rules, trigger pass-through and cue authoring,
+and verification (792d109). Extended components: note-authoring gains mapping rows for nine scenarios (792b12c1,
+792b12c3, 792b12c4, 792b12c5) and nothing else; note-amendment gains nothing, because no write-memory scenario
+amends a note. Legacy removal: `learn-runbook-capture` is deleted (its skill note requirement went in 792c7k1 and
+the write-memory requirement here); five requirements of `write-memory-worker` (worker handoff, three kinds, chunk
+sources and tags, verification, trigger pass-through) and the trigger-cue authoring requirement of
+`runbook-lexical-triggers` are removed; ADR-0015 is deleted. Live references to ADR-0015 (GLOSSARY, ROADMAP) and
+to the deleted spec (two Go comments, one research map) point at 792a13, 792a12e1f, 792a12v or 792a3.
+
+**Test Traceability**
+
+No test is renamed. The write-memory worker is a markdown skill with no `tests/` baseline directory, and the
+note-authoring tests that verify the mapped scenarios are already named for their technical scenarios (792b12c1
+to 792b12c5).
+
+**Coverage gaps:** every scenario of 792a13 except the nine mapped to note-authoring (792a13e1a, 792a13f1a,
+792a13g1b, 792a13i1a to 792a13i1c, 792a13l1a, 792a13m1a, 792a13m1c) is behavior of the skill text itself, with
+no deterministic test. Its only evidence is the text-only skill runs recorded at
+`dev/eval/LEDGER.md#write-memory-triggers-contract` and the fire-rate harness at
+`dev/eval/LEDGER.md#write-memory-worker-fire-rates` (792d109).
+
+**No-scenario tests:** none.
 
 #### 792c7l2 agent-instruction-bundle tech spec
 

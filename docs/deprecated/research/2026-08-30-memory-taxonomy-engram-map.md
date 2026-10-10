@@ -106,7 +106,7 @@ cli-count (read-only aggregation, Obsidian-verifiable; now [792a8](../changes/79
 
 ## Part 4 — The four precise questions
 
-### (a) Runbook schema fields and why (ADR-0026; learn-runbook-capture/spec.md; [792a7v](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a7v-runbooks-rank-like-other-notes))
+### (a) Runbook schema fields and why (ADR-0026; [792a3](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a3-added-note-writing); [792a7v](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a7v-runbooks-rank-like-other-notes))
 
 Frontmatter: `type: runbook`, `date`, `luhmann` (full participation — same `nextLuhmannID` top/continuation/sibling machinery as fact/feedback, no opt-out), **`situation`** (required), **`done_when`** (required), `source`, optional `contributors`; body = **numbered steps**, which MAY `[[wikilink]]` fact/feedback notes to read along the way. Plus the cross-kind fields (tags/vocab auto-assign, chunk `sources:`, `supersedes`, repo/user/vault identity) and a dual-vector sidecar — no excluded half, unlike qa.
 

@@ -51,7 +51,7 @@ The skill-decomposition concept from the roadmap's guiding framing: one behavior
 (read-memory, write-memory, route-a-task, orchestrate-a-workflow). Only `write-memory`
 was extracted — as a worker invoked at the write seams, not a mid-procedure reference
 fetch. The full design history (the superseded reference-card form, the decision to stop
-at the write seam) is recorded in `docs/architecture/adr.md` ADR-0015, with its validation
+at the write seam) is recorded in [792a13](changes/792_documentation-framework-adoption/792a_product-spec.md#792a13-added-write-memory), with its validation
 in `dev/eval/LEDGER.md`.
 
 ### write-memory (skill)

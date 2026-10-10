@@ -5236,6 +5236,15 @@ Scenario: 792b12c7a2 A captured runbook has no skill key or source
 | 792a6s1a | 792b12c6 |
 | 792a6s1c | 792b12c6 |
 | 792a12u1g | 792b12c7 |
+| 792a13e1a | 792b12c4 |
+| 792a13f1a | 792b12c5 |
+| 792a13g1b | 792b12c3 |
+| 792a13i1a | 792b12c4 |
+| 792a13i1b | 792b12c4 |
+| 792a13i1c | 792b12c1, 792b12c4 |
+| 792a13l1a | 792b12c4 |
+| 792a13m1a | 792b12c4 |
+| 792a13m1c | 792b12c4 |
 
 ```gherkin
 Scenario: 792a3r1b Certainty defaults to medium
@@ -5262,6 +5271,51 @@ Scenario: 792a6s1c A first write records the baseline
   Given a vault with no refit baseline
   When the user runs engram learn fact
   Then a baseline is recorded, and engram vocab stats reports verdict: OK
+
+Scenario: 792a13e1a A runbook handoff is executed
+  Given learn hands off a confirmed runbook with slug, situation, done-when, body, source, position and two red flags
+  When the worker runs
+  Then it runs engram learn runbook with one --red-flag for each, in order, and reports the written note path
+
+Scenario: 792a13f1a QA composition
+  Given a qa handoff with slug, question, answer, contributors, certainty and source
+  When the worker composes the command
+  Then it is engram learn qa with --slug, --question, --answer, --contributors, --certainty and --source, the answer copied rather than re-derived
+
+Scenario: 792a13g1b A continuation carries its target
+  Given a feedback handoff with position continuation and target 12.3
+  When the worker composes the command
+  Then it has --position continuation --target 12.3
+
+Scenario: 792a13i1a Chunk sources become flags
+  Given a handoff with chunk-sources s#a1 and s#a2
+  When the worker composes the command
+  Then the command carries --chunk-source s#a1 --chunk-source s#a2
+
+Scenario: 792a13i1b Tags are passed through exactly
+  Given a feedback handoff with tags work-kind/rename and outcome/pass
+  When the worker composes the command
+  Then it carries --tag work-kind/rename --tag outcome/pass and no tag of the worker's own
+
+Scenario: 792a13i1c A supersession is passed as given
+  Given a handoff that supersedes note 12.3-old with type refutes and a claim
+  When the worker composes the command
+  Then it carries --supersedes="12.3-old|refutes|<claim>"
+
+Scenario: 792a13l1a Triggers become flags
+  Given a runbook handoff with triggers /please and take this end-to-end
+  When the worker composes the command
+  Then the command ends with --trigger="/please" --trigger="take this end-to-end", after any --red-flag
+
+Scenario: 792a13m1a A distinctive bare word is composed without asking
+  Given a runbook handoff with triggers curate, /curate and pending offers
+  When the worker composes the command
+  Then it carries --trigger="curate" --trigger="/curate" --trigger="pending offers" and asks for nothing
+
+Scenario: 792a13m1c A deliberate over-fire is passed through
+  Given a runbook handoff with the trigger please and a statement that over-firing is a deliberate, accepted choice
+  When the worker composes the command
+  Then it carries --trigger="please"
 ```
 
 ## 792b13 Added: wikilink-graph

@@ -271,8 +271,8 @@ const (
 	// skillNotePreambleFormat is the one-line body preamble every skill
 	// runbook note (register, refresh or adopt) carries, naming the skill
 	// file it mirrors with the same wording for every source, and never
-	// where to edit it (design D8; learn-runbook-capture: "the body SHALL
-	// begin with the one-line preamble ``> Mirrors skill `<skill path>`.``").
+	// where to edit it (design D8; 792a12v: "its body preamble MUST
+	// name the file it mirrors", as the one-line preamble ``> Mirrors skill `<skill path>`.``).
 	skillNotePreambleFormat = "> Mirrors skill `%s`.\n"
 	// skillRegistrationSourcePrefix starts a freshly registered note's
 	// `source:` provenance text, followed by its skill_source.
