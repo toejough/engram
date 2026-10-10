@@ -14,22 +14,64 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-func TestRunShow_EmptyRefErrors(t *testing.T) {
+func Test792b2c7a1_RunShow_ResolvesBareLuhmannID(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
+	plantHub(t, memFS, vault)
+
+	var out bytes.Buffer
+
+	// `engram show 1` must resolve the bare Luhmann id to 1.hub even though a
+	// bare id is not a resolvable wikilink target (it's a normalization
+	// pre-step layered over the basename match).
+	err := cli.RunShow(context.Background(),
+		cli.ShowArgs{Ref: "1", VaultPath: vault}, newShowDeps(memFS), &out)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(out.String()).To(ContainSubstring("hub body links to"))
+}
+
+func Test792b2c7a1_RunShow_ResolvesFullBasename(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+	plantHub(t, memFS, vault)
 
 	var out bytes.Buffer
 
 	err := cli.RunShow(context.Background(),
-		cli.ShowArgs{Ref: "  ", VaultPath: vault}, newShowDeps(memFS), &out)
+		cli.ShowArgs{Ref: "1.hub", VaultPath: vault}, newShowDeps(memFS), &out)
 
-	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(out.String()).To(ContainSubstring("hub body links to"))
+	g.Expect(out.String()).To(ContainSubstring("tier: L3"))
 }
 
-func TestRunShow_ListsOutboundTargetsFenceAware(t *testing.T) {
+func Test792b2c7a1_RunShow_ToleratesWikilinkBracketsAndMdSuffix(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+	plantHub(t, memFS, vault)
+
+	for _, ref := range []string{"[[1.hub]]", "1.hub.md", "[[1.hub|the hub]]"} {
+		var out bytes.Buffer
+
+		err := cli.RunShow(context.Background(),
+			cli.ShowArgs{Ref: ref, VaultPath: vault}, newShowDeps(memFS), &out)
+
+		g.Expect(err).NotTo(HaveOccurred(), "ref %q should resolve", ref)
+		g.Expect(out.String()).To(ContainSubstring("hub body links to"), "ref %q", ref)
+	}
+}
+
+func Test792b2c7a2_RunShow_ListsOutboundTargetsFenceAware(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -55,13 +97,44 @@ func TestRunShow_ListsOutboundTargetsFenceAware(t *testing.T) {
 		"a fenced wikilink must not be reported as an outbound target")
 }
 
-// TestRunShow_NeverTruncatesOversizedRedFlags proves engram show is the
+func Test792b2c7a3_RunShow_NotFoundErrors(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+	plantHub(t, memFS, vault)
+
+	var out bytes.Buffer
+
+	err := cli.RunShow(context.Background(),
+		cli.ShowArgs{Ref: "99.nonexistent", VaultPath: vault}, newShowDeps(memFS), &out)
+
+	g.Expect(err).To(MatchError(ContainSubstring("not found")))
+}
+
+func Test792b2c7a4_RunShow_EmptyRefErrors(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	var out bytes.Buffer
+
+	err := cli.RunShow(context.Background(),
+		cli.ShowArgs{Ref: "  ", VaultPath: vault}, newShowDeps(memFS), &out)
+
+	g.Expect(err).To(HaveOccurred())
+}
+
+// Test792b2c7a5_RunShow_NeverTruncatesOversizedRedFlags proves engram show is the
 // full-fidelity source the guidance shim names: unlike engram query, it
 // never applies the red_flags preview budget (D1/#772,
-// recall-runbook-surfacing "Show never truncates red flags"). Every entry
+// 792a7x). Every entry
 // must appear, in file order, with no omission marker — query's own preview
 // cap is covered separately (query_runbook_test.go).
-func TestRunShow_NeverTruncatesOversizedRedFlags(t *testing.T) {
+func Test792b2c7a5_RunShow_NeverTruncatesOversizedRedFlags(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -104,50 +177,11 @@ func TestRunShow_NeverTruncatesOversizedRedFlags(t *testing.T) {
 	}
 }
 
-func TestRunShow_NotFoundErrors(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-	plantHub(t, memFS, vault)
-
-	var out bytes.Buffer
-
-	err := cli.RunShow(context.Background(),
-		cli.ShowArgs{Ref: "99.nonexistent", VaultPath: vault}, newShowDeps(memFS), &out)
-
-	g.Expect(err).To(MatchError(ContainSubstring("not found")))
-}
-
-func TestRunShow_OsDepsReadRealVault(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	perm := vault
-	g.Expect(os.MkdirAll(perm, 0o755)).To(Succeed())
-
-	body := "---\ntype: fact\ntier: L2\n---\nreal note body, see [[2.other]].\n"
-	g.Expect(os.WriteFile(filepath.Join(perm, "1.real.md"), []byte(body), 0o600)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(perm, "2.other.md"),
-		[]byte("---\ntype: fact\n---\nother\n"), 0o600)).To(Succeed())
-
-	var out bytes.Buffer
-
-	err := cli.RunShow(context.Background(),
-		cli.ShowArgs{Ref: "1.real", VaultPath: vault}, cli.ExportNewShowDeps(realFSForTest()), &out)
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(out.String()).To(ContainSubstring("real note body"))
-	g.Expect(out.String()).To(ContainSubstring("2.other"))
-}
-
-// TestRunShow_RendersRunbookRedFlags proves `engram show` returns the full
+// Test792b2c7a5_RunShow_RendersRunbookRedFlags proves `engram show` returns the full
 // runbook note, including red_flags, when present — so an agent can restate
 // every step and every red flag once the query payload's inline content is
-// truncated (recall-runbook-surfacing spec, "Full runbook via show").
-func TestRunShow_RendersRunbookRedFlags(t *testing.T) {
+// truncated (792a7x).
+func Test792b2c7a5_RunShow_RendersRunbookRedFlags(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -172,61 +206,27 @@ func TestRunShow_RendersRunbookRedFlags(t *testing.T) {
 	g.Expect(out.String()).To(ContainSubstring("force-push without --force-with-lease"))
 }
 
-func TestRunShow_ResolvesBareLuhmannID(t *testing.T) {
+func Test792b2c7a6_RunShow_OsDepsReadRealVault(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	memFS := newInMemoryFS()
-	plantHub(t, memFS, vault)
+	perm := vault
+	g.Expect(os.MkdirAll(perm, 0o755)).To(Succeed())
 
-	var out bytes.Buffer
-
-	// `engram show 1` must resolve the bare Luhmann id to 1.hub even though a
-	// bare id is not a resolvable wikilink target (it's a normalization
-	// pre-step layered over the basename match).
-	err := cli.RunShow(context.Background(),
-		cli.ShowArgs{Ref: "1", VaultPath: vault}, newShowDeps(memFS), &out)
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(out.String()).To(ContainSubstring("hub body links to"))
-}
-
-func TestRunShow_ResolvesFullBasename(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-	plantHub(t, memFS, vault)
+	body := "---\ntype: fact\ntier: L2\n---\nreal note body, see [[2.other]].\n"
+	g.Expect(os.WriteFile(filepath.Join(perm, "1.real.md"), []byte(body), 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(perm, "2.other.md"),
+		[]byte("---\ntype: fact\n---\nother\n"), 0o600)).To(Succeed())
 
 	var out bytes.Buffer
 
 	err := cli.RunShow(context.Background(),
-		cli.ShowArgs{Ref: "1.hub", VaultPath: vault}, newShowDeps(memFS), &out)
+		cli.ShowArgs{Ref: "1.real", VaultPath: vault}, cli.ExportNewShowDeps(realFSForTest()), &out)
 
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(out.String()).To(ContainSubstring("hub body links to"))
-	g.Expect(out.String()).To(ContainSubstring("tier: L3"))
-}
-
-func TestRunShow_ToleratesWikilinkBracketsAndMdSuffix(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-	plantHub(t, memFS, vault)
-
-	for _, ref := range []string{"[[1.hub]]", "1.hub.md", "[[1.hub|the hub]]"} {
-		var out bytes.Buffer
-
-		err := cli.RunShow(context.Background(),
-			cli.ShowArgs{Ref: ref, VaultPath: vault}, newShowDeps(memFS), &out)
-
-		g.Expect(err).NotTo(HaveOccurred(), "ref %q should resolve", ref)
-		g.Expect(out.String()).To(ContainSubstring("hub body links to"), "ref %q", ref)
-	}
+	g.Expect(out.String()).To(ContainSubstring("real note body"))
+	g.Expect(out.String()).To(ContainSubstring("2.other"))
 }
 
 func newShowDeps(memFS *inMemoryFS) cli.ShowDeps {

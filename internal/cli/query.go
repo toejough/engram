@@ -28,7 +28,7 @@ type QueryArgs struct {
 	Project   string   `targ:"flag,name=project,desc=restrict items to notes with matching project: field (optional)"`
 	// Text carries the user's message verbatim. It is matched literally
 	// (never embedded) against runbook triggers: fields; a hit surfaces that
-	// runbook first in items[] (runbook-lexical-triggers spec).
+	// runbook first in items[] (792a7y).
 	Text string `targ:"flag,name=text,desc=the user's message verbatim; runbooks whose triggers appear in it surface first (optional)"` //nolint:lll // single unbreakable struct-tag string
 	// ContentBudget caps how many chunk items (in rank order) render with full
 	// content; later chunks get a one-line snippet. 0 = baked default (15);
@@ -160,7 +160,7 @@ const (
 	// members[], so the skill can render a separate "recent activity" block.
 	provenanceRecent = "recent"
 	// provenanceTrigger tags a runbook whose triggers: entry is a substring of
-	// the query's --text (runbook-lexical-triggers). Trigger items sort first
+	// the query's --text (792a7za). Trigger items sort first
 	// and are exempt from floor, caps, and --limit.
 	provenanceTrigger = "trigger"
 	// singleClusterPhrase is the empty phrase tag on the single synthesis
@@ -217,7 +217,7 @@ type aggregatedSummary struct {
 	// unlike refitPending's persisted-flag read.
 	pendingOffers bool
 	// modelID is the embedding model that produced this query's results
-	// (vault-query-model-provenance) — read from deps.Embedder.ModelID(),
+	// (792a7zc) — read from deps.Embedder.ModelID(),
 	// already computed internally for sidecar matching, now surfaced.
 	modelID string
 	// timer is nil-safe (#691 --timings instrumentation); nil when timing is
@@ -465,7 +465,7 @@ type queryPayload struct {
 	Budget            queryBudget    `yaml:"budget"`
 	RefitPending      bool           `yaml:"refit_pending,omitempty"`
 	// ModelID is the embedding model that produced this query's results
-	// (vault-query-model-provenance) — applies locally and served alike.
+	// (792a7zc) — applies locally and served alike.
 	ModelID string        `yaml:"model_id"`
 	Timings *queryTimings `yaml:"timings,omitempty"`
 }
@@ -1744,7 +1744,7 @@ func renderItems(resolved []resolvedItem) []queryItem {
 func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 	items := renderItems(merged.resolvedItems)
 	clusters := renderClusters(merged.phraseClusters)
-	// Real enforcement of --limit (recall-payload-cuts): before this, limit
+	// Real enforcement of --limit (792a7q): before this, limit
 	// was report-only metadata (Budget.Limit below) and never truncated
 	// items[]. Applied to Channel 1 (relevance-ranked) only, BEFORE
 	// content-budget capping, so "the first N chunks" content-budget

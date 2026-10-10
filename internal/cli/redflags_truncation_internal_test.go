@@ -112,8 +112,7 @@ func TestCapRedFlagsForPreview_MarkerCommandReturnsFullListViaShow(t *testing.T)
 // fix: the omission marker is no longer the fixed, countless, literal
 // "<basename>" placeholder — it names how many entries were dropped, the
 // list's true total, and the note's REAL basename, so the command it prints
-// actually resolves (D1, recall-runbook-surfacing "Oversized red_flags list
-// keeps its newest entry in query").
+// actually resolves (D1, 792a7w).
 //
 // The fixture uses 15 entries of a fixed, known byte width so the expected
 // drop count is a hand-computed oracle, not a re-derivation of the function

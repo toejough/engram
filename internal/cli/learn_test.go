@@ -980,7 +980,7 @@ func Test792b12c4a7_RunLearn_Runbook_TriggersRoundTripProperty(t *testing.T) {
 
 // Test792b12c4a7_RunLearn_Runbook_WritesTriggersInOrderAfterRedFlags proves --trigger
 // entries reach the frontmatter in order, after red_flags when present
-// (runbook-lexical-triggers spec).
+// (792a3d).
 func Test792b12c4a7_RunLearn_Runbook_WritesTriggersInOrderAfterRedFlags(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

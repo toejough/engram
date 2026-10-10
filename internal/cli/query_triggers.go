@@ -13,7 +13,7 @@ import (
 
 // applyTriggerHits marks each trigger-hit note with provenanceTrigger and
 // moves it to the front of resolved, ahead of every similarity-ranked item
-// (runbook-lexical-triggers spec). A hit already present keeps its score and
+// (792a7za). A hit already present keeps its score and
 // other roles; a hit absent from resolved is added with score 0 and its
 // (red_flags-capped) content. --project still filters: a runbook outside the
 // requested project is not surfaced. Returns resolved unchanged when hits is

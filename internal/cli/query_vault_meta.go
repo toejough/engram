@@ -37,7 +37,7 @@ type AllVaultNotesMeta struct {
 	// superseder insertion — the superseder may not be in the matched set).
 	ContentByBasename map[string]string
 	// TriggerIndex maps a runbook note's basename to its non-empty triggers:
-	// frontmatter entries (runbook-lexical-triggers). Only type: runbook notes
+	// frontmatter entries (792a7za). Only type: runbook notes
 	// contribute; other kinds' triggers: lists are ignored.
 	TriggerIndex map[string][]string
 }

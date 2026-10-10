@@ -390,7 +390,7 @@ func Test792b12c4a6_RunLearnFromRunbookArgs_RedFlagRepeatableFlagWritesField(t *
 
 // Test792b12c4a7_RunLearnFromRunbookArgs_TriggerRepeatableFlagWritesField proves the
 // repeatable --trigger CLI flag (bound to LearnRunbookArgs.Triggers) reaches
-// the written note, in order (runbook-lexical-triggers spec).
+// the written note, in order (792a3d).
 func Test792b12c4a7_RunLearnFromRunbookArgs_TriggerRepeatableFlagWritesField(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

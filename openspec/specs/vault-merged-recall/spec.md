@@ -38,7 +38,7 @@ parent chunk ever appears in a merged payload.
   the direct group and within the explore group), with no parent chunk item
 
 (Item-count capping for the merged set is governed by `--limit` — see the
-budgets requirement below, and `recall-payload-cuts` for `--limit`'s base
+budgets requirement below, and 792a7q (`docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a7-added-memory-query`) for `--limit`'s base
 enforcement.)
 
 ### Requirement: Content, recency, and item-count budgets apply to the merged set, not per-source
@@ -51,13 +51,13 @@ chunk items are dropped, every chunk item — including all of Channel 2
 governs Channel 2 (recency) only; `--limit` governs Channel 1 (relevance)
 only and never displaces Channel 2 — the two budgets are independent, not
 stacked into one combined cap. Trigger hits (items whose `provenances` include `trigger`,
-capability `runbook-lexical-triggers`) SHALL be split out of each source
+792a7za in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a7-added-memory-query`) SHALL be split out of each source
 before the `--limit` cap and placed first in the merged `items[]`: local
 trigger hits first, then parent trigger hits, each in the order its source
 returned them, ahead of the other Channel 1 items. They are exempt
 from `--limit` (it caps only the non-trigger Channel 1 items) and are not
 re-sorted by score across sources. `--content-budget` still applies to them
-as part of the final pass. (`recall-payload-cuts` owns `--limit`'s base
+as part of the final pass. (792a7q owns `--limit`'s base
 enforcement; this requirement governs only where in the merge pipeline
 these budgets apply).
 
@@ -81,7 +81,7 @@ these budgets apply).
   at most N, drawn from the combined, score-ranked local+parent set — not
   N from each source independently before merging, and not counting the
   merged recency channel (which `--limit` never displaces — see
-  `recall-payload-cuts`)
+  792a7q)
 
 #### Scenario: trigger hits lead the merged payload, local before parent
 - **WHEN** `engram query --text="<msg>" --limit 1` runs with `ENGRAM_PARENT`
@@ -249,9 +249,9 @@ A merged query's `budget` block SHALL report the values the merge actually appli
 - **THEN** the payload's `budget` shows `limit: 5`, `content_budget: 2`, `lazy_chunks: true`, and the snippeted-chunk count the merge produced
 
 ### Requirement: Local-only query mode is otherwise unaffected
-`engram query`'s behavior and output shape when `ENGRAM_PARENT` is unset SHALL be unchanged by the merge, the dedupe, and the offer machinery. The one exception is `--limit` capping `items[]` count, which capability `recall-payload-cuts` owns.
+`engram query`'s behavior and output shape when `ENGRAM_PARENT` is unset SHALL be unchanged by the merge, the dedupe, and the offer machinery. The one exception is `--limit` capping `items[]` count, which 792a7q owns.
 
 #### Scenario: No parent configured
 - **WHEN** `ENGRAM_PARENT` is not set
-- **THEN** `engram query` makes no network request, and its output matches the single-source pipeline, including `--limit` capping per `recall-payload-cuts`
+- **THEN** `engram query` makes no network request, and its output matches the single-source pipeline, including `--limit` capping per 792a7q
 

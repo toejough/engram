@@ -32,7 +32,18 @@ func Test792b13c1a3_ParseBasename_RejectsNonMd(t *testing.T) {
 	g.Expect(ok).To(BeFalse())
 }
 
-func TestParseWikilinks_AcrossLines(t *testing.T) {
+func Test792b13c3a1_ParseWikilinks_SingleLink(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	body := []byte("see [[9o.2026-05-09.holistic-final-review]] for context.")
+
+	g.Expect(vaultgraph.ParseWikilinks(body)).
+		To(Equal([]string{"9o.2026-05-09.holistic-final-review"}))
+}
+
+func Test792b13c3a2_ParseWikilinks_AcrossLines(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -42,7 +53,7 @@ func TestParseWikilinks_AcrossLines(t *testing.T) {
 	g.Expect(vaultgraph.ParseWikilinks(body)).To(Equal([]string{"X", "Y"}))
 }
 
-func TestParseWikilinks_DedupedSubsetProperty(t *testing.T) {
+func Test792b13c3a2_ParseWikilinks_DedupedSubsetProperty(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -108,7 +119,7 @@ func TestParseWikilinks_DedupedSubsetProperty(t *testing.T) {
 	})
 }
 
-func TestParseWikilinks_Dedupes(t *testing.T) {
+func Test792b13c3a2_ParseWikilinks_Dedupes(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -118,36 +129,17 @@ func TestParseWikilinks_Dedupes(t *testing.T) {
 	g.Expect(vaultgraph.ParseWikilinks(body)).To(Equal([]string{"A", "B"}))
 }
 
-func TestParseWikilinks_DoesNotSpanNewlines(t *testing.T) {
+func Test792b13c3a2_ParseWikilinks_MultipleLinksFirstAppearanceOrder(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	body := []byte("partial [[start\nend]] not a link")
+	body := []byte("ref [[B]] then [[A]] then [[C]].")
 
-	g.Expect(vaultgraph.ParseWikilinks(body)).To(BeEmpty())
+	g.Expect(vaultgraph.ParseWikilinks(body)).To(Equal([]string{"B", "A", "C"}))
 }
 
-func TestParseWikilinks_Empty(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	g.Expect(vaultgraph.ParseWikilinks(nil)).To(BeEmpty())
-	g.Expect(vaultgraph.ParseWikilinks([]byte("no links here, just prose."))).To(BeEmpty())
-}
-
-func TestParseWikilinks_IgnoresEmpty(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	body := []byte("empty [[]] valid [[Real]].")
-
-	g.Expect(vaultgraph.ParseWikilinks(body)).To(Equal([]string{"Real"}))
-}
-
-// TestParseWikilinks_MdNormalizationProperty verifies for any basename that
+// Test792b13c3a3_ParseWikilinks_MdNormalizationProperty verifies for any basename that
 // linking it bare and linking it .md-suffixed parse to identical target lists.
 //
 // The generator excludes basenames whose final dot-segment is literally "md"
@@ -158,14 +150,14 @@ func TestParseWikilinks_IgnoresEmpty(t *testing.T) {
 // own basename is "0.md" — there is no information in the raw text to
 // disambiguate, and Obsidian has the same limitation. ParseWikilinks
 // resolves that ambiguity by always treating a trailing ".md" as the
-// legacy-suffixed form (see TestParseWikilinks_MdSuffixLiteralBasenameEdgeCase),
+// legacy-suffixed form (see Test792b13c3a3_ParseWikilinks_MdSuffixLiteralBasenameEdgeCase),
 // which is correct per vault-wikilink-resolution's normalization spec but
 // necessarily breaks the bare/suffixed equivalence for this input. Real
 // vault basenames (`<id>.<date>.<slug>.md` — kebab-case slugs) don't produce
 // this case, so excluding it from the generator does not narrow real
 // coverage. Do not remove this exclusion without also changing how
 // ParseWikilinks resolves the ambiguity.
-func TestParseWikilinks_MdNormalizationProperty(t *testing.T) {
+func Test792b13c3a3_ParseWikilinks_MdNormalizationProperty(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -186,9 +178,9 @@ func TestParseWikilinks_MdNormalizationProperty(t *testing.T) {
 	})
 }
 
-// TestParseWikilinks_MdSuffixDedupesWithBareForm verifies normalization runs
+// Test792b13c3a3_ParseWikilinks_MdSuffixDedupesWithBareForm verifies normalization runs
 // before dedup: the same target linked bare and .md-suffixed yields one entry.
-func TestParseWikilinks_MdSuffixDedupesWithBareForm(t *testing.T) {
+func Test792b13c3a3_ParseWikilinks_MdSuffixDedupesWithBareForm(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -198,7 +190,7 @@ func TestParseWikilinks_MdSuffixDedupesWithBareForm(t *testing.T) {
 	g.Expect(vaultgraph.ParseWikilinks(body)).To(Equal([]string{"x", "y"}))
 }
 
-// TestParseWikilinks_MdSuffixLiteralBasenameEdgeCase documents the accepted,
+// Test792b13c3a3_ParseWikilinks_MdSuffixLiteralBasenameEdgeCase documents the accepted,
 // intended behavior for the one input the property test above excludes: a
 // bare link whose final dot-segment is literally "md" (e.g. "[[0.md]]").
 // ParseWikilinks always resolves this as the legacy .md-suffixed form,
@@ -208,7 +200,7 @@ func TestParseWikilinks_MdSuffixDedupesWithBareForm(t *testing.T) {
 // gives .md-suffix stripping priority with no exception. If this test ever
 // needs to change to accept a literal "0.md" target, the property test's
 // generator exclusion above must be revisited too.
-func TestParseWikilinks_MdSuffixLiteralBasenameEdgeCase(t *testing.T) {
+func Test792b13c3a3_ParseWikilinks_MdSuffixLiteralBasenameEdgeCase(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -218,17 +210,48 @@ func TestParseWikilinks_MdSuffixLiteralBasenameEdgeCase(t *testing.T) {
 	g.Expect(got).To(Equal([]string{"0"}))
 }
 
-func TestParseWikilinks_MultipleLinksFirstAppearanceOrder(t *testing.T) {
+// Test792b13c3a3_ParseWikilinks_NormalizesMdSuffixedTargets verifies a wikilink written
+// with the .md extension resolves to the extension-less canonical basename.
+func Test792b13c3a3_ParseWikilinks_NormalizesMdSuffixedTargets(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	body := []byte("ref [[B]] then [[A]] then [[C]].")
+	body := []byte("Supersedes: [[210.2026-07-10.old-definition.md]] — updates: retired")
 
-	g.Expect(vaultgraph.ParseWikilinks(body)).To(Equal([]string{"B", "A", "C"}))
+	g.Expect(vaultgraph.ParseWikilinks(body)).To(Equal([]string{"210.2026-07-10.old-definition"}))
 }
 
-func TestParseWikilinks_NoNesting(t *testing.T) {
+func Test792b13c3a4_ParseWikilinks_Empty(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	g.Expect(vaultgraph.ParseWikilinks(nil)).To(BeEmpty())
+	g.Expect(vaultgraph.ParseWikilinks([]byte("no links here, just prose."))).To(BeEmpty())
+}
+
+func Test792b13c3a4_ParseWikilinks_IgnoresEmpty(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	body := []byte("empty [[]] valid [[Real]].")
+
+	g.Expect(vaultgraph.ParseWikilinks(body)).To(Equal([]string{"Real"}))
+}
+
+func Test792b13c3a5_ParseWikilinks_DoesNotSpanNewlines(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	body := []byte("partial [[start\nend]] not a link")
+
+	g.Expect(vaultgraph.ParseWikilinks(body)).To(BeEmpty())
+}
+
+func Test792b13c3a6_ParseWikilinks_NoNesting(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -247,30 +270,7 @@ func TestParseWikilinks_NoNesting(t *testing.T) {
 	g.Expect(result[0]).To(Equal("outer[[inner"))
 }
 
-// TestParseWikilinks_NormalizesMdSuffixedTargets verifies a wikilink written
-// with the .md extension resolves to the extension-less canonical basename.
-func TestParseWikilinks_NormalizesMdSuffixedTargets(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	body := []byte("Supersedes: [[210.2026-07-10.old-definition.md]] — updates: retired")
-
-	g.Expect(vaultgraph.ParseWikilinks(body)).To(Equal([]string{"210.2026-07-10.old-definition"}))
-}
-
-func TestParseWikilinks_SingleLink(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	body := []byte("see [[9o.2026-05-09.holistic-final-review]] for context.")
-
-	g.Expect(vaultgraph.ParseWikilinks(body)).
-		To(Equal([]string{"9o.2026-05-09.holistic-final-review"}))
-}
-
-func TestParseWikilinks_SkipsFencedBlock(t *testing.T) {
+func Test792b13c3a7_ParseWikilinks_SkipsFencedBlock(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -287,7 +287,7 @@ func TestParseWikilinks_SkipsFencedBlock(t *testing.T) {
 	g.Expect(vaultgraph.ParseWikilinks(body)).To(Equal([]string{"y", "z"}))
 }
 
-func TestParseWikilinks_UnclosedFenceRunsToEnd(t *testing.T) {
+func Test792b13c3a8_ParseWikilinks_UnclosedFenceRunsToEnd(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -303,7 +303,7 @@ func TestParseWikilinks_UnclosedFenceRunsToEnd(t *testing.T) {
 	g.Expect(vaultgraph.ParseWikilinks(body)).To(Equal([]string{"y"}))
 }
 
-func TestParseWikilinks_VariableLengthFence(t *testing.T) {
+func Test792b13c3a9_ParseWikilinks_VariableLengthFence(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)

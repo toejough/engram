@@ -10,14 +10,14 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
-// TestParseWikilinks_FenceMembershipProperty asserts the fence contract over a
+// Test792b13c3a7_ParseWikilinks_FenceMembershipProperty asserts the fence contract over a
 // generated body: every wikilink placed OUTSIDE any fenced code block appears
 // in the result, and every wikilink placed INSIDE a ```/~~~-fenced block never
 // does. Inside and outside targets are drawn from disjoint namespaces (in%d vs
 // out%d) so dedup cannot make an inside target "appear" via an outside twin,
 // and every opened fence is closed with an identical marker so no fence leaks
 // past its block to swallow later outside links.
-func TestParseWikilinks_FenceMembershipProperty(t *testing.T) {
+func Test792b13c3a7_ParseWikilinks_FenceMembershipProperty(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {

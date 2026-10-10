@@ -222,8 +222,8 @@ flowchart TD
   N792c7e1["792c7e1 controlled-vocabulary product spec<br/>Complete"]
   N792c7e2["792c7e2 similarity-clustering tech spec<br/>Complete"]
   N792c7e3["792c7e3 vocabulary-engine tech spec<br/>Complete"]
-  N792c7f1["792c7f1 memory-query product spec<br/>Ready"]
-  N792c7f2["792c7f2 recency-ranking tech spec<br/>Blocked by: 792c7f1"]
+  N792c7f1["792c7f1 memory-query product spec<br/>Complete"]
+  N792c7f2["792c7f2 recency-ranking tech spec<br/>Ready"]
   N792c7f3["792c7f3 runbook-trigger-matching tech spec<br/>Blocked by: 792c7f2"]
   N792c7f4["792c7f4 query-payload-renderer tech spec<br/>Blocked by: 792c7f3"]
   N792c7f5["792c7f5 query-engine tech spec<br/>Blocked by: 792c7f4"]
@@ -2225,14 +2225,78 @@ Target: `792a7` (`docs/specs/product/memory-query.md`).
 - `chunk-index-store` (`792b18`)
 - `similarity-clustering` (`792b19`)
 - `vocabulary-engine` (`792b20`)
+- `transcript-reader` (`792b15`, added by this node, 792d91)
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7f1a | Port product requirements and UAT to `792a7` | Non-test action | Moves current behavior into the framework format | Not started |
-| 792c7f1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7f1c | Repoint stale references to `792a7` | Non-test action | Keeps live links valid | Not started |
-| 792c7f1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Not started |
-| 792c7f1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Not started |
+| 792c7f1a | Port product requirements and UAT to `792a7` | Non-test action | Moves current behavior into the framework format | Done |
+| 792c7f1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7f1c | Repoint stale references to `792a7` | Non-test action | Keeps live links valid | Done |
+| 792c7f1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Done |
+| 792c7f1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
+
+**Outcome:** the four new supporting components are confirmed. command-line-surface gains 792b2c7 (note
+lookup) and 792b2c8 (chunk lookup), wikilink-graph 792b13c3 (link targets), chunk-index-store
+792b18c14 (first-indexed time), transcript-reader 792b15c6 (last timestamp) and similarity-clustering
+792b19c5 (per-point silhouette); text-embedder, embedding-sidecar and vocabulary-engine gain mappings
+only (792d91). Six OpenSpec specs are deleted; `recall-payload-cuts` keeps one requirement for
+recall (792c7m1), `runbook-lexical-triggers` three residues for 792c7s1, 792c7r1 and 792c7l1, and
+`vault-note-identity` its check and count readers (792d90). ADR-0026's retrieval decision is 792a7v.
+Known divergences are in 792d92.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b2c7a1 | `TestRunShow_ResolvesFullBasename` → `Test792b2c7a1_RunShow_ResolvesFullBasename` | `RunShow` over an in-memory vault | Full basename | Done |
+| 792b2c7a1 | `TestRunShow_ResolvesBareLuhmannID` → `Test792b2c7a1_RunShow_ResolvesBareLuhmannID` | `RunShow` over an in-memory vault | Bare ID | Done |
+| 792b2c7a1 | `TestRunShow_ToleratesWikilinkBracketsAndMdSuffix` → `Test792b2c7a1_RunShow_ToleratesWikilinkBracketsAndMdSuffix` | `RunShow` over an in-memory vault | Brackets, display and suffix | Done |
+| 792b2c7a2 | `TestRunShow_ListsOutboundTargetsFenceAware` → `Test792b2c7a2_RunShow_ListsOutboundTargetsFenceAware` | `RunShow` over an in-memory vault | Fenced link left out | Done |
+| 792b2c7a3 | `TestRunShow_NotFoundErrors` → `Test792b2c7a3_RunShow_NotFoundErrors` | `RunShow` over an in-memory vault | Unknown reference | Done |
+| 792b2c7a4 | `TestRunShow_EmptyRefErrors` → `Test792b2c7a4_RunShow_EmptyRefErrors` | `RunShow` over an in-memory vault | Blank reference | Done |
+| 792b2c7a5 | `TestRunShow_RendersRunbookRedFlags` → `Test792b2c7a5_RunShow_RendersRunbookRedFlags` | `RunShow` over an in-memory vault | Red flags printed | Done |
+| 792b2c7a5 | `TestRunShow_NeverTruncatesOversizedRedFlags` → `Test792b2c7a5_RunShow_NeverTruncatesOversizedRedFlags` | `RunShow` over an in-memory vault | No omission marker | Done |
+| 792b2c7a6 | `TestRunShow_OsDepsReadRealVault` → `Test792b2c7a6_RunShow_OsDepsReadRealVault` | `RunShow` over the production filesystem and a temporary directory | Real files read | Done |
+| 792b2c8a1 | `TestShowChunkPrintsMatchingText` → `Test792b2c8a1_ShowChunkPrintsMatchingText` | `RunShowChunk` over an in-memory index | Only the named chunk | Done |
+| 792b2c8a2 | `TestShowChunkNotFoundErrors` → `Test792b2c8a2_ShowChunkNotFoundErrors` | `RunShowChunk` over an in-memory index | Not found | Done |
+| 792b2c8a3 | `TestShowChunkEmptyRefErrors` → `Test792b2c8a3_ShowChunkEmptyRefErrors` | `RunShowChunk` over an in-memory index | Blank reference | Done |
+| 792b13c3a1 | `TestParseWikilinks_SingleLink` → `Test792b13c3a1_ParseWikilinks_SingleLink` | Pure unit (`internal/vaultgraph`) | One link | Done |
+| 792b13c3a2 | `TestParseWikilinks_MultipleLinksFirstAppearanceOrder` → `Test792b13c3a2_ParseWikilinks_MultipleLinksFirstAppearanceOrder` | Pure unit | Order | Done |
+| 792b13c3a2 | `TestParseWikilinks_AcrossLines` → `Test792b13c3a2_ParseWikilinks_AcrossLines` | Pure unit | Links on several lines | Done |
+| 792b13c3a2 | `TestParseWikilinks_Dedupes` → `Test792b13c3a2_ParseWikilinks_Dedupes` | Pure unit | Each once | Done |
+| 792b13c3a2 | `TestParseWikilinks_DedupedSubsetProperty` → `Test792b13c3a2_ParseWikilinks_DedupedSubsetProperty` | Property (rapid) | No duplicates, nothing invented | Done |
+| 792b13c3a3 | `TestParseWikilinks_NormalizesMdSuffixedTargets` → `Test792b13c3a3_ParseWikilinks_NormalizesMdSuffixedTargets` | Pure unit | Suffix dropped | Done |
+| 792b13c3a3 | `TestParseWikilinks_MdSuffixDedupesWithBareForm` → `Test792b13c3a3_ParseWikilinks_MdSuffixDedupesWithBareForm` | Pure unit | Normalized before dedup | Done |
+| 792b13c3a3 | `TestParseWikilinks_MdNormalizationProperty` → `Test792b13c3a3_ParseWikilinks_MdNormalizationProperty` | Property (rapid) | Bare and suffixed agree | Done |
+| 792b13c3a3 | `TestParseWikilinks_MdSuffixLiteralBasenameEdgeCase` → `Test792b13c3a3_ParseWikilinks_MdSuffixLiteralBasenameEdgeCase` | Pure unit | `[[0.md]]` is `0` | Done |
+| 792b13c3a4 | `TestParseWikilinks_Empty` → `Test792b13c3a4_ParseWikilinks_Empty` | Pure unit | No links | Done |
+| 792b13c3a4 | `TestParseWikilinks_IgnoresEmpty` → `Test792b13c3a4_ParseWikilinks_IgnoresEmpty` | Pure unit | Empty link | Done |
+| 792b13c3a5 | `TestParseWikilinks_DoesNotSpanNewlines` → `Test792b13c3a5_ParseWikilinks_DoesNotSpanNewlines` | Pure unit | No spanning | Done |
+| 792b13c3a6 | `TestParseWikilinks_NoNesting` → `Test792b13c3a6_ParseWikilinks_NoNesting` | Pure unit | Brackets do not nest | Done |
+| 792b13c3a7 | `TestParseWikilinks_SkipsFencedBlock` → `Test792b13c3a7_ParseWikilinks_SkipsFencedBlock` | Pure unit | Fenced link skipped | Done |
+| 792b13c3a7 | `TestParseWikilinks_FenceMembershipProperty` → `Test792b13c3a7_ParseWikilinks_FenceMembershipProperty` | Property (rapid) | Only outside links appear | Done |
+| 792b13c3a8 | `TestParseWikilinks_UnclosedFenceRunsToEnd` → `Test792b13c3a8_ParseWikilinks_UnclosedFenceRunsToEnd` | Pure unit | Unclosed fence | Done |
+| 792b13c3a9 | `TestParseWikilinks_VariableLengthFence` → `Test792b13c3a9_ParseWikilinks_VariableLengthFence` | Pure unit | Longer fence | Done |
+| 792b18c14a1 | `TestIngestMarkdownSetsIngestedAtFromNow` → `Test792b18c14a1_IngestMarkdownSetsIngestedAtFromNow` | `RunIngest` over an in-memory filesystem and a fixed clock | Markdown time | Done |
+| 792b18c14a2 | `TestIngestTranscriptSetsIngestedAtFromPerRowTimestamp` → `Test792b18c14a2_IngestTranscriptSetsIngestedAtFromPerRowTimestamp` | `RunIngest` over an in-memory filesystem and a stub reader | Session timestamp | Done |
+| 792b18c14a3 | `TestMergeAppendPreservesIngestedAtOnReIngest` → `Test792b18c14a3_MergeAppendPreservesIngestedAtOnReIngest` | `RunIngest` twice over an in-memory filesystem | First time kept | Done |
+| 792b18c14a4 | `TestMergeAppendBackfillsIngestedAtFromManifestMtime` → `Test792b18c14a4_MergeAppendBackfillsIngestedAtFromManifestMtime` | `RunIngest` over an in-memory index and manifest | Legacy record backfilled | Done |
+| 792b18c14a5 | `TestLoadPriorRecordsPreservesIngestedAt` → `Test792b18c14a5_LoadPriorRecordsPreservesIngestedAt` | Loader of prior records over an in-memory file | Time survives the load | Done |
+| 792b18c14a5 | `TestDecodeRecordsPreservesIngestedAt` → `Test792b18c14a5_DecodeRecordsPreservesIngestedAt` | Pure unit (`internal/chunk`) | Codec round trip | Done |
+| 792b18c14a5 | `TestRecordIngestedAtRoundTrips` → `Test792b18c14a5_RecordIngestedAtRoundTrips` | Pure unit (`internal/chunk`) | Codec round trip | Done |
+| 792b18c14a6 | `TestDecodeRecordsZeroIngestedAtWhenAbsent` → `Test792b18c14a6_DecodeRecordsZeroIngestedAtWhenAbsent` | Pure unit (`internal/chunk`) | Absent field | Done |
+| 792b15c6a1 | `TestJSONLReader_ReadFrom_HandlesUnparseableTimestampAndNonJSON` → `Test792b15c6a1_JSONLReader_ReadFrom_HandlesUnparseableTimestampAndNonJSON` | Pure unit over a fake file reader | Unreadable timestamps skipped | Done |
+| 792b15c6a2 | `TestJSONLReader_ReadFrom_NullTimestampRowsInheritPrior` → `Test792b15c6a2_JSONLReader_ReadFrom_NullTimestampRowsInheritPrior` | Pure unit over a fake file reader | Null timestamp inherits | Done |
+| 792b19c5a1 | `TestPointSilhouette_TwoMemberCluster` → `Test792b19c5a1_PointSilhouette_TwoMemberCluster` | Pure unit (`internal/cluster`) | Separated cluster | Done |
+| 792b19c5a2 | `TestPointSilhouette_SingletonOwnClusterReturnsZero` → `Test792b19c5a2_PointSilhouette_SingletonOwnClusterReturnsZero` | Pure unit | Singleton | Done |
+| 792b19c5a3 | `TestPointSilhouette_OutOfRangeOwnClusterReturnsZero` → `Test792b19c5a3_PointSilhouette_OutOfRangeOwnClusterReturnsZero` | Pure unit | Out of range | Done |
+| 792b19c5a4 | `TestPointSilhouette_ZeroDenominator` → `Test792b19c5a4_PointSilhouette_ZeroDenominator` | Pure unit | Identical vectors | Done |
+
+**Coverage gaps:** 792b13c3a10 (no test checks that a `|display` part stays in the target). No 792a7 scenario has an end-to-end test renamed here; the component nodes 792c7f2–792c7f5 rename the
+tests of their scenarios and list the product scenarios still uncovered.
+
+**No-scenario tests:** none added by this node. The tests that need `RunQuery` and its helpers are
+examined by 792c7f5 (792d91).
 
 #### 792c7f2 recency-ranking tech spec
 
@@ -2244,7 +2308,7 @@ Target: `792b21` (`docs/specs/technical/recency-ranking.md`).
 
 **Legacy sources (port, then remove):**
 
-- `openspec/specs/recall-two-channel-payload/spec.md` (technical requirements of the recency channel)
+- none remain: `recall-two-channel-payload` was ported whole and deleted by 792c7f1 (792d90). The component is written from `internal/cli/recency.go`, its tests and the product requirements 792a7f, 792a7o and 792a7p
 
 **Tests to examine (from discovery; `internal/cli` unless prefixed):** recency_test; recency_eval_test, an in-suite experiment that is expected to be a no-scenario test
 
@@ -2267,7 +2331,7 @@ Target: `792b22` (`docs/specs/technical/runbook-trigger-matching.md`).
 **Legacy sources (port, then remove):**
 
 - `docs/deprecated/architecture/adr.md` ADR-0026 (lexical trigger sections)
-- `openspec/specs/runbook-lexical-triggers/spec.md` (technical requirements)
+- `docs/deprecated/architecture/adr.md` ADR-0026 (the 2026-09-20 lexical-trigger amendment) is all that remains; `runbook-lexical-triggers` was ported by 792c7f1 and keeps only the residues for other nodes (792d90)
 
 **Tests to examine (from discovery; `internal/cli` unless prefixed):** query_runbook_test, query_trigger_property_test, query_triggers_test
 
@@ -2289,8 +2353,7 @@ Target: `792b23` (`docs/specs/technical/query-payload-renderer.md`).
 
 **Legacy sources (port, then remove):**
 
-- `openspec/specs/recall-payload-cuts/spec.md` (technical requirements: limit, content budget, lazy chunks)
-- `openspec/specs/recall-query-timings/spec.md` (technical requirements)
+- none remain: `recall-payload-cuts` (apart from the requirement kept for 792c7m1) and `recall-query-timings` were ported by 792c7f1 (792d90). The component is written from the code, its tests and the product requirements 792a7q, 792a7r, 792a7s, 792a7w and 792a7ze
 
 **Tests to examine (from discovery; `internal/cli` unless prefixed):** query_cap_test, query_limit_test, redflags_truncation_internal_test
 
@@ -2321,9 +2384,9 @@ Target: `792b24` (`docs/specs/technical/query-engine.md`).
 - `docs/deprecated/architecture/c3-components.md` Flow: `engram query` internals
 - `docs/deprecated/architecture/c3-components.md` Data contracts (query payload)
 - `docs/deprecated/architecture/memory-invariants.md` F (R1 recall mirror)
-- technical residue of the openspec specs listed for 792c7f1
+- none remain from the openspec specs listed for 792c7f1 (792d90)
 
-**Tests to examine (from discovery; `internal/cli` unless prefixed):** query_test, query_vault_meta_test, query_synthesize_l2_helpers_test (stale name, tests current helpers), query_helpers_test, query_chunks_test, query_cluster_phase1_test, query_cluster_phase2_test, query_unified_test, query_note_floor_test, query_property_test, query_cluster_chunk_bound_property_test, invariants_r1, query_integration_test, query_explore_test, query_explore_integration_test
+**Tests to examine (from discovery; `internal/cli` unless prefixed):** query_test, query_vault_meta_test, query_synthesize_l2_helpers_test (stale name, tests current helpers), query_helpers_test, query_chunks_test, query_cluster_phase1_test, query_cluster_phase2_test, query_unified_test, query_note_floor_test, query_property_test, query_cluster_chunk_bound_property_test, invariants_r1, query_integration_test, query_explore_test, query_explore_integration_test; deferred here (792d91): `ingest_integration_test` `TestChunkQuery*` (4), `qa_test` `TestIsQueryExcludedKind`, `vocab_test` `TestVocabDefinitionNote_FloorPromoted` and `TestVocabDefinitionNote_ReturnedWhenOnlyItem`, `supersedes_test` `TestBuildSupersedesInverse`, `embed_selection_test` `TestKindFromContent`, `crlf_readers_internal_test` (the six query readers), `invariants_c1_property_test` `TestInvariant_C1_ClusteringDeterminism` and `cluster_property_test` `TestProperty_Cluster_NearDuplicateL2CosineAtLeast095`
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
@@ -2733,6 +2796,7 @@ Target: `792a13` (`docs/specs/product/write-memory.md`).
 **Legacy sources (port, then remove):**
 
 - `openspec/specs/learn-runbook-capture/spec.md` (write-memory requirement, 792d57)
+- `openspec/specs/runbook-lexical-triggers/spec.md` (the trigger-cue authoring guidance requirement and its four scenarios, 792d90)
 - `openspec/specs/write-memory-worker/spec.md` (worker requirements; the four-capture-kinds requirement goes to 792c7n1 and the lessons-audit requirement to 792c7q1)
 - `docs/deprecated/architecture/adr.md` ADR-0015 (excluding the Amendment)
 
@@ -3002,6 +3066,7 @@ Target: `792a19` (`docs/specs/product/ambient-guidance.md`).
 - `openspec/specs/guidance-learn-moments/spec.md`
 - `openspec/specs/guidance-delegate/spec.md`
 - `openspec/specs/guidance-runbook-follow-frame/spec.md`
+- `openspec/specs/runbook-lexical-triggers/spec.md` (the shim's verbatim `--text` requirement, 792d90)
 - `openspec/specs/production-guidance-activation/spec.md`
 - `docs/deprecated/architecture/adr.md` ADR-0026 (follow-frame sections)
 - `docs/deprecated/architecture/c1-system-context.md` L1 decision flowcharts: engagement lifecycle
@@ -3046,6 +3111,7 @@ Target: `792a20` (`docs/specs/product/vault-serving.md`).
 
 - `openspec/specs/vault-note-identity/spec.md` (the served-learn clause of the first-write identity residue, 792d67)
 - `openspec/specs/vault-serve-api/spec.md` (product requirements)
+- `openspec/specs/runbook-lexical-triggers/spec.md` (the served `--text` round trip and its 2 KB truncation, 792d90)
 - `docs/deprecated/architecture/adr.md` ADR-0029 D7 (serve API)
 
 **Shipped artifacts to describe:**

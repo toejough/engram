@@ -651,7 +651,7 @@ func Test792b14c3a4_RunAmend_FieldReplacement_Runbook_SituationOnly_PreservesBod
 }
 
 // Test792b14c3a5_RunAmend_Runbook_TriggersReplaceWholeList proves --trigger on amend
-// replaces the entire triggers: list (runbook-lexical-triggers spec).
+// replaces the entire triggers: list (792a4b).
 func Test792b14c3a5_RunAmend_Runbook_TriggersReplaceWholeList(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -1258,7 +1258,7 @@ func Test792b6c7a1_RunAmend_PreservesTagsFrontmatter(t *testing.T) {
 
 // Test792b6c7a1_RunAmend_Runbook_ToleratesUnknownFrontmatterKey proves runbook frontmatter
 // decoding ignores unknown keys, so a binary predating a field can still
-// amend a note carrying it (rollback safety for runbook-lexical-triggers).
+// amend a note carrying it (rollback safety for the triggers field).
 func Test792b6c7a1_RunAmend_Runbook_ToleratesUnknownFrontmatterKey(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

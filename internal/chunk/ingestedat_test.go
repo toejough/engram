@@ -9,7 +9,7 @@ import (
 	"github.com/toejough/engram/internal/chunk"
 )
 
-func TestDecodeRecordsPreservesIngestedAt(t *testing.T) {
+func Test792b18c14a5_DecodeRecordsPreservesIngestedAt(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -46,31 +46,7 @@ func TestDecodeRecordsPreservesIngestedAt(t *testing.T) {
 	g.Expect(decoded[0].IngestedAt).To(gomega.Equal(ingestedAt))
 }
 
-func TestDecodeRecordsZeroIngestedAtWhenAbsent(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	// JSONL without ingested_at (legacy record — migration backfill case)
-	line := `{"source":"s.jsonl","anchor":"turn-1","content_hash":"sha256:abc","text":"hi","vector":[0.1]}` + "\n"
-
-	decoded, err := chunk.DecodeRecords([]byte(line))
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(decoded).To(gomega.HaveLen(1))
-
-	if len(decoded) < 1 {
-		return
-	}
-
-	g.Expect(decoded[0].IngestedAt.IsZero()).To(gomega.BeTrue(),
-		"absent ingested_at must decode as zero time (migration sentinel)")
-}
-
-func TestRecordIngestedAtRoundTrips(t *testing.T) {
+func Test792b18c14a5_RecordIngestedAtRoundTrips(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -101,4 +77,28 @@ func TestRecordIngestedAtRoundTrips(t *testing.T) {
 	}
 
 	g.Expect(got.IngestedAt).To(gomega.Equal(ingestedAt))
+}
+
+func Test792b18c14a6_DecodeRecordsZeroIngestedAtWhenAbsent(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	// JSONL without ingested_at (legacy record — migration backfill case)
+	line := `{"source":"s.jsonl","anchor":"turn-1","content_hash":"sha256:abc","text":"hi","vector":[0.1]}` + "\n"
+
+	decoded, err := chunk.DecodeRecords([]byte(line))
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(decoded).To(gomega.HaveLen(1))
+
+	if len(decoded) < 1 {
+		return
+	}
+
+	g.Expect(decoded[0].IngestedAt.IsZero()).To(gomega.BeTrue(),
+		"absent ingested_at must decode as zero time (migration sentinel)")
 }

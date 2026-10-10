@@ -53,8 +53,8 @@ Canonical target: `docs/specs/technical/command-line-surface.md` (title `Command
   through dispatch with injected environment and filesystem; stability, the surface survives any
   refactoring of command internals; necessity, every product capability is reached through it.
 - Supported capabilities: 792a2 vault-identity, 792a3 note-writing, 792a4 note-revision, 792a5
-  chunk-indexing, 792a6 controlled-vocabulary. Later capabilities add their own routing requirements
-  here (792d30, 792d51).
+  chunk-indexing, 792a6 controlled-vocabulary, 792a7 memory-query. Later capabilities add their own
+  routing requirements here (792d30, 792d51).
 
 Rationale: each `engram <subcommand>` is its own process. Commands never call each other in
 process; a skill reads one command's stdout and runs the next. (An earlier C3 draft drew an
@@ -259,6 +259,99 @@ Scenario: 792b2c6a4 The home directory is the last fallback
   Then the directory is /home/dev/.local/share/engram/chunks
 ```
 
+#### 792b2c7 Note lookup
+
+Requirement: 792b2c7 For `show`, the command-line-surface MUST read the note that the reference names,
+a full basename, a Luhmann ID, or either of them in `[[ ]]` with an optional `|display` or with a
+trailing `.md`, and MUST print its content exactly as stored, a newline after it when it lacks one,
+a blank line, the line `# outbound links (fetch with: engram show <basename>)`, and then the target
+of each link in the note's text (792b13c3), one per line, or `(none)`. It MUST fail with
+`show: empty note reference` when the reference is blank, and with `show: note not found: "<ref>"`,
+quoting the reference as given, when no note matches. It MUST NOT shorten a runbook's `red_flags`,
+and MUST NOT change any note.
+
+Supports: 792a7x1a, 792a7x1b, 792a7x1c, 792a7x1d, 792a7x1e, 792a7x1f, 792a7x1g, 792a7x1h.
+
+Rationale: `engram show` is the full-fidelity source that the guidance shim names, so the preview
+budget that bounds a query payload (792a7w) is not applied here. Resolving a note that is on the
+parent vault, by `--parent` or by a miss with a parent configured, belongs to parent-sync, which adds
+that routing (792d51).
+
+##### 792b2c7a Scenarios
+
+```gherkin
+Scenario Outline: 792b2c7a1 Every reference form resolves
+  Given a vault holding the note 1.hub
+  When `engram show <ref>` runs
+  Then the note's content is printed
+
+  Examples:
+    | ref             |
+    | 1.hub           |
+    | 1               |
+    | [[1.hub]]       |
+    | 1.hub.md        |
+    | [[1.hub\|the hub]] |
+
+Scenario: 792b2c7a2 The outbound links skip fenced code
+  Given the note 1.hub linking [[2.alpha]] and [[3.beta]] and holding [[9.fenced]] inside a code fence
+  When `engram show 1.hub` runs
+  Then the outbound links section lists 2.alpha and 3.beta and not 9.fenced
+
+Scenario: 792b2c7a3 An unknown reference fails
+  Given a vault without a note 99.nonexistent
+  When `engram show 99.nonexistent` runs
+  Then it fails with a not-found error
+
+Scenario: 792b2c7a4 A blank reference fails
+  Given any vault
+  When `engram show` runs with the reference "  "
+  Then it fails
+
+Scenario: 792b2c7a5 A runbook's red flags are printed whole
+  Given a runbook with 20 red flags that take more than 1200 bytes
+  When `engram show` runs for it
+  Then every entry is printed in file order and the output holds no OMITTED marker
+
+Scenario: 792b2c7a6 The production filesystem is read
+  Given a temporary vault on disk holding 1.real, which links [[2.other]]
+  When `engram show 1.real` runs over the production filesystem wiring
+  Then the note's body and 2.other are printed
+```
+
+#### 792b2c8 Chunk lookup
+
+Requirement: 792b2c8 For `show-chunk`, the command-line-surface MUST read every index file in the
+resolved chunk index directory (792b2c6, 792b18c12) and print the text of the record whose
+`<source>#<anchor>` equals the reference with surrounding whitespace trimmed, a newline after it when
+it lacks one. It MUST fail with `show-chunk: empty chunk ref` when the reference is blank, and with
+`chunk not found: <ref>` when no record has that ID. It MUST NOT embed anything and MUST NOT change
+any file.
+
+Supports: 792a7t1a, 792a7t1b, 792a7t1c.
+
+Rationale: with `engram query --lazy-chunks` (792a7s) a payload omits chunk text, and the agent
+fetches one chunk's evidence on demand; the lookup is by ID and needs no model.
+
+##### 792b2c8a Scenarios
+
+```gherkin
+Scenario: 792b2c8a1 A chunk's text is printed
+  Given an index holding /s/a.jsonl#turn-1 and /s/a.jsonl#turn-2
+  When `engram show-chunk /s/a.jsonl#turn-2` runs
+  Then only the second chunk's text is printed
+
+Scenario: 792b2c8a2 An unknown chunk fails
+  Given an index holding only /s/a.jsonl#turn-1
+  When `engram show-chunk /s/a.jsonl#turn-9` runs
+  Then it fails with "chunk not found: /s/a.jsonl#turn-9"
+
+Scenario: 792b2c8a3 A blank reference fails
+  Given any chunk index
+  When `engram show-chunk` runs with the reference "   "
+  Then it fails
+```
+
 ### 792b2d Product-Scenario Mapping
 
 | Product scenario | Technical requirements |
@@ -310,6 +403,17 @@ Scenario: 792b2c6a4 The home directory is the last fallback
 | 792a6i1c | 792b2c4, 792b2c5 |
 | 792a6r1a | 792b2c4, 792b2c5 |
 | 792a6t1a | 792b2c1, 792b2c3, 792b2c4 |
+| 792a7t1a | 792b2c6, 792b2c8 |
+| 792a7t1b | 792b2c8 |
+| 792a7t1c | 792b2c8 |
+| 792a7x1a | 792b2c7 |
+| 792a7x1b | 792b2c7 |
+| 792a7x1c | 792b2c7 |
+| 792a7x1d | 792b2c7 |
+| 792a7x1e | 792b2c7 |
+| 792a7x1f | 792b2c7 |
+| 792a7x1g | 792b2c7 |
+| 792a7x1h | 792b2c7 |
 
 ```gherkin
 Scenario: 792a2a1a The flag wins over the environment
@@ -597,6 +701,63 @@ Scenario: 792a6t1a Stats on an empty vault
   Given an empty vault
   When the user runs engram vocab stats
   Then it prints "terms: 0  member-notes: 0  untagged: 0" and nothing on stderr
+```
+
+```gherkin
+Scenario: 792a7t1a A chunk's text is printed
+  Given an ingested document with a "Baking" section
+  When the user runs engram show-chunk "<document>#Baking"
+  Then stdout is that section's text
+
+Scenario: 792a7t1b An unknown chunk is an error
+  Given a chunk index that holds no chunk "nosuch#x"
+  When the user runs engram show-chunk "nosuch#x"
+  Then it fails with "chunk not found: nosuch#x" and exits non-zero
+
+Scenario: 792a7t1c An empty ID is an error
+  Given any chunk index
+  When the user runs engram show-chunk with a blank ID
+  Then it fails with "show-chunk: empty chunk ref"
+
+Scenario: 792a7x1a A note is printed with its links
+  Given a note 1.hub that links [[2.alpha]] and [[3.beta]]
+  When the user runs engram show 1.hub
+  Then stdout is the note, then the outbound links line and 2.alpha and 3.beta
+
+Scenario: 792a7x1b A note with no links says so
+  Given a note that links to nothing
+  When the user runs engram show <basename>
+  Then stdout ends with the outbound links line and (none)
+
+Scenario: 792a7x1c Every reference form resolves
+  Given the note 1.2026-10-09.go-testing
+  When the user runs engram show with 1.2026-10-09.go-testing, [[1.2026-10-09.go-testing]], 1.2026-10-09.go-testing.md or 1
+  Then each prints the same note
+
+Scenario: 792a7x1d Show never truncates red flags
+  Given a runbook whose red flags take more than 1200 bytes
+  When the user runs engram show for it
+  Then stdout holds every entry in file order and no omission marker
+
+Scenario: 792a7x1e A fenced link is not listed
+  Given a note whose body has [[9.fenced]] inside a code fence and [[2.alpha]] outside it
+  When the user runs engram show for it
+  Then only 2.alpha is listed
+
+Scenario: 792a7x1f An unknown note is an error
+  Given a vault with no note nosuch
+  When the user runs engram show nosuch
+  Then it fails with show: note not found: "nosuch" and exits non-zero
+
+Scenario: 792a7x1g A blank reference is an error
+  Given any vault
+  When the user runs engram show with a blank reference
+  Then it fails with show: empty note reference
+
+Scenario: 792a7x1h Each link is listed once
+  Given a note whose body links [[2.alpha]], [[3.beta.md]], [[2.alpha]] and [[4.gamma|the gamma note]]
+  When the user runs engram show for it
+  Then the outbound links are 2.alpha, 3.beta and 4.gamma|the gamma note, in that order
 ```
 
 ## 792b3 Added: durable-file-store
@@ -2646,8 +2807,8 @@ Canonical target: `docs/specs/technical/text-embedder.md` (title `Text Embedder 
   model, its cache and its window; independent verification, it is tested directly over fake
   backends and cache filesystems and over the real bundled model; stability, the contract survives
   a change of runtime library; necessity, every sidecar and every query phrase depends on it.
-- Supported capabilities: 792a3 note-writing, 792a5 chunk-indexing, 792a6 controlled-vocabulary.
-  Memory-query and vault-health add their mappings (792d30).
+- Supported capabilities: 792a3 note-writing, 792a5 chunk-indexing, 792a6 controlled-vocabulary,
+  792a7 memory-query. Vault-health adds its mappings (792d30).
 
 Rationale: an early design embedded through an external API, which brought a network dependency,
 per-call cost and latency, and sent vault content off the machine. Instead the
@@ -2954,12 +3115,26 @@ Scenario: 792b9c7a5 A missing runtime fails loudly
 | 792a5b1a | 792b9c1, 792b9c2 |
 | 792a5i1b | 792b9c1 |
 | 792a6a1a | 792b9c1 |
+| 792a7d1a | 792b9c1 |
+| 792a7zc1a | 792b9c1 |
 
 ```gherkin
 Scenario: 792a3n1b A failed embedding keeps the note
   Given embedding fails for the note being learned
   When the user runs engram learn fact
   Then the note is written, stderr carries a warning naming it, and the command succeeds
+```
+
+```gherkin
+Scenario: 792a7d1a Notes are ranked by their better axis
+  Given a note whose situation is close to the phrase and whose body is not, and a note whose body is close and whose situation is not
+  When the user runs engram query with that phrase
+  Then each note's score is its higher cosine, and the notes are ordered by it, highest first
+
+Scenario: 792a7zc1a Every payload names its model
+  Given any vault
+  When the user runs engram query with a phrase
+  Then the payload's model_id is minilm-l6-v2@384
 ```
 
 ## 792b10 Added: embedding-sidecar
@@ -2986,8 +3161,8 @@ Canonical target: `docs/specs/technical/embedding-sidecar.md` (title `Embedding 
   the on-disk format is versioned and outlives any refactoring; necessity, every retrieval over notes
   reads it.
 - Supported capabilities: 792a2 vault-identity, 792a3 note-writing, 792a4 note-revision, 792a5
-  chunk-indexing, 792a6 controlled-vocabulary. Memory-query, vault-health and vault-migration add
-  their mappings and requirements (792d30).
+  chunk-indexing, 792a6 controlled-vocabulary, 792a7 memory-query. Vault-health and vault-migration
+  add their mappings and requirements (792d30).
 
 Rationale: semantic search needs vectors, but a vector database or a separate rebuild step is a
 moving part that can drift from the notes. Instead every note carries its own sidecar, written as
@@ -3346,6 +3521,12 @@ Scenario: 792b10c9a1 A CRLF note embeds and hashes as its LF form
 | 792a6e1b | 792b10c6 |
 | 792a6j1a | 792b10c3 |
 | 792a6u1a | 792b10c4, 792b10c7 |
+| 792a7c1a | 792b10c1 |
+| 792a7c1b | 792b10c1 |
+| 792a7c1c | 792b10c1 |
+| 792a7d1a | 792b10c1, 792b10c8 |
+| 792a7f1b | 792b10c1 |
+| 792a7zh1a | 792b10c1 |
 
 ```gherkin
 Scenario: 792a3t1a The answer is found and the question is not
@@ -3406,6 +3587,33 @@ Scenario: 792a6u1a Backfill adds missing self-tags
   Given a vault whose definition notes carry only the bare vocab tag
   When the user runs engram vocab tag-definitions
   Then each per-term definition's tags become [vocab, vocab/<term>], engram embed status reports none of them stale, and one "added" line is printed per note
+```
+
+```gherkin
+Scenario: 792a7c1a Notes of another model are dropped with a warning
+  Given a vault of ten notes of which nine have sidecars made by another model
+  When the user runs engram query --phrase pasta
+  Then stderr says "dropped 9 sidecar(s)" and names the other model and the active one, and the one note with a current sidecar can still be returned
+
+Scenario: 792a7c1b A vault with no usable embeddings is an error
+  Given a vault of notes whose sidecars are all from another model, or missing
+  When the user runs engram query --phrase pasta
+  Then it fails with "query: vault has notes but no current-model embeddings; run `engram embed apply --all`"
+
+Scenario: 792a7c1c Old-schema sidecars are skipped with their own warning
+  Given a vault in which a sidecar is on an old schema version
+  When the user runs engram query --phrase pasta
+  Then stderr says "1 sidecar(s) on an old schema were skipped" and names engram embed apply --force
+
+Scenario: 792a7f1b A long-unused note is scaled down
+  Given two notes with the same text, one whose sidecar says last_used today and one 120 days ago
+  When the user runs engram query with a phrase that matches them
+  Then the first scores four times the second and is listed first
+
+Scenario: 792a7zh1a A query leaves the vault as it was
+  Given a vault with notes and sidecars
+  When the user runs engram query with a phrase that matches them
+  Then every note, sidecar and chunk-index file is byte-identical afterwards, and the payload has no activated field
 ```
 
 ## 792b11 Added: note-provenance
@@ -4111,8 +4319,8 @@ Canonical target: `docs/specs/technical/wikilink-graph.md` (title `Wikilink Grap
   scan and the lookup are tested directly over a fake vault listing and a note list; stability, the
   basename key is the link form notes and Obsidian share, and it survives any refactoring;
   necessity, every command that reads or revises a named note finds it here.
-- Supported capabilities: 792a2 vault-identity, 792a4 note-revision. Memory-query, vault-counting,
-  vault-health and vault-migration add their requirements (792d30, 792d75).
+- Supported capabilities: 792a2 vault-identity, 792a4 note-revision, 792a7 memory-query.
+  Vault-counting, vault-health and vault-migration add their requirements (792d30, 792d75).
 
 Rationale: navigation lives in authored relations, the wikilinks in note text, rather than in a
 separate graph store that could drift from the notes, so the graph is derived from the notes each
@@ -4219,6 +4427,78 @@ Scenario: 792b13c2a2 An unknown reference quotes what was given
   Then it fails as not found, quoting "99.missing.md"
 ```
 
+#### 792b13c3 Link targets
+
+Requirement: 792b13c3 The wikilink-graph MUST list the targets of the links in a text: the text between
+`[[` and the next `]]` on one line, each target once, in order of first appearance, after a trailing
+`.md` is dropped. It MUST leave out a link whose target is empty, a link that would span a line break,
+and every link inside a fenced code block, whose fence is a run of three or more backticks or tildes
+and ends at a line of the same character, at least as long, followed only by whitespace, or at the end
+of the text when none follows. It MUST keep a `|display` part as part of the target, and MUST NOT
+treat brackets inside a target as nesting.
+
+Supports: 792a7x1a, 792a7x1e, 792a7x1h.
+
+Rationale: Obsidian does not resolve a link inside a fenced code block, so verbatim transcript text
+pasted into a note must not make graph edges. The legacy `.md`-suffixed form that engram once wrote
+resolves to the same note as the bare basename, so both are one target. A bare link that ends in the
+three characters `.md` is always read as the suffixed form, because the text cannot say which was
+meant.
+
+##### 792b13c3a Scenarios
+
+```gherkin
+Scenario: 792b13c3a1 A link is a target
+  Given the text "see [[9o.2026-05-09.holistic-final-review]] for context."
+  When its link targets are listed
+  Then the result is 9o.2026-05-09.holistic-final-review
+
+Scenario: 792b13c3a2 Targets are listed once in order of appearance
+  Given the text "ref [[B]] then [[A]] then [[B]] then [[C]]", across lines or on one
+  When its link targets are listed
+  Then the result is B, A, C
+
+Scenario: 792b13c3a3 A .md suffix is dropped
+  Given the text "see [[x]] and [[x.md]] and [[y.md]] and [[0.md]]"
+  When its link targets are listed
+  Then the result is x, y, 0
+
+Scenario: 792b13c3a4 Empty links give nothing
+  Given empty text, text without links, and the text "empty [[]] valid [[Real]]."
+  When their link targets are listed
+  Then the first two give none and the last gives Real
+
+Scenario: 792b13c3a5 A link cannot span lines
+  Given the text "partial [[start" followed by a line break and "end]] not a link"
+  When its link targets are listed
+  Then the result is empty
+
+Scenario: 792b13c3a6 Brackets do not nest
+  Given the text "[[outer[[inner]]"
+  When its link targets are listed
+  Then the result is the single target outer[[inner
+
+Scenario: 792b13c3a7 A fenced link is skipped
+  Given the text "outside [[y]]" then a fenced block holding "inside [[x]]" then "after [[z]]"
+  When its link targets are listed
+  Then the result is y, z, whichever fence characters surround the block
+
+Scenario: 792b13c3a8 An unclosed fence runs to the end
+  Given the text "outside [[y]]" then a fence opener then "inside [[x]]" with no closer
+  When its link targets are listed
+  Then the result is y
+
+Scenario: 792b13c3a9 A shorter fence does not close a longer one
+  Given a four-backtick block that holds a three-backtick line and links on either side of it
+  When its link targets are listed
+  Then every link between the four-backtick lines is skipped and the links outside are kept
+
+Scenario: 792b13c3a10 A display part stays in the target
+  Given the text "see [[4.gamma|the gamma note]]"
+  When its link targets are listed
+  Then the result is 4.gamma|the gamma note
+```
+
 ### 792b13d Product-Scenario Mapping
 
 | Product scenario | Technical requirements |
@@ -4228,6 +4508,11 @@ Scenario: 792b13c2a2 An unknown reference quotes what was given
 | 792a2d1b | 792b13c1 |
 | 792a4a1a | 792b13c1, 792b13c2 |
 | 792a4a1b | 792b13c1, 792b13c2 |
+| 792a7b1a | 792b13c1 |
+| 792a7x1a | 792b13c3 |
+| 792a7x1c | 792b13c2 |
+| 792a7x1e | 792b13c3 |
+| 792a7x1h | 792b13c3 |
 
 ```gherkin
 Scenario Outline: 792a4a1a Every reference form finds the note
@@ -4242,6 +4527,13 @@ Scenario Outline: 792a4a1a Every reference form finds the note
     | "[[1.2026-10-09.a]]"    |
     | "[[1.2026-10-09.a\|x]]" |
     | 1                       |
+```
+
+```gherkin
+Scenario: 792a7b1a The payload has the documented shape
+  Given a vault of six notes, each with a current sidecar, and no chunk index
+  When the user runs engram query --phrase "writing Go tests"
+  Then stdout is a YAML document with version 1, phrases ["writing Go tests"], items, clusters and a budget whose total_notes and with_embeddings are both 6, and a model_id
 ```
 
 ## 792b14 Added: note-amendment
@@ -4855,7 +5147,7 @@ Canonical target: `docs/specs/technical/transcript-reader.md` (title `Transcript
   tested directly over a fake file reader and on raw transcript lines; stability, the contract
   survives any change to how the cleaning is split across packages; necessity, every transcript
   chunk is made from its output.
-- Supported capabilities: 792a5 chunk-indexing.
+- Supported capabilities: 792a5 chunk-indexing, and memory-query's 792a7p (the last timestamp).
 
 Rationale: sessions were once read through finder and reader interfaces with two backends, Claude
 Code JSONL and OpenCode SQLite, and a composite that tried each in turn, so that marker
@@ -5034,6 +5326,33 @@ Scenario: 792b15c5a6 Long arguments and output are cut
   Then the summary line holds [truncated] for each
 ```
 
+#### 792b15c6 Last timestamp
+
+Requirement: 792b15c6 The transcript-reader MUST return, with the conversation text, the timestamp of the
+last entry it kept, treating an entry whose timestamp is absent, null or unreadable, or that is not
+JSON, as carrying the timestamp of the entry before it, and MUST return no timestamp when no entry
+carries a readable one.
+
+Supports: 792a7p1b.
+
+Rationale: the timestamp becomes every chunk's first-indexed time (792b18c14), which orders the
+newest chunks of a query (792a7o), so a session with a few rows that lack a time must still report
+when it ended.
+
+##### 792b15c6a Scenarios
+
+```gherkin
+Scenario: 792b15c6a1 Unreadable timestamps are skipped
+  Given a transcript whose first rows are not JSON, lack a timestamp or carry "not-a-date", and whose last row is stamped 2026-01-01T00:03:00Z
+  When it is read
+  Then the last timestamp is 2026-01-01T00:03:00Z
+
+Scenario: 792b15c6a2 A null timestamp inherits the previous one
+  Given a transcript whose first row has a null timestamp and whose second is stamped 2026-01-01T00:01:00Z
+  When it is read
+  Then both rows are kept, the last timestamp is 2026-01-01T00:01:00Z and the read is not partial
+```
+
 ### 792b15d Product-Scenario Mapping
 
 | Product scenario | Technical requirements |
@@ -5041,6 +5360,7 @@ Scenario: 792b15c5a6 Long arguments and output are cut
 | 792a5b1d | 792b15c1 |
 | 792a5g1a | 792b15c1, 792b15c2, 792b15c3, 792b15c4, 792b15c5 |
 | 792a5h1b | 792b15c2 |
+| 792a7p1b | 792b15c6 |
 
 ```gherkin
 Scenario: 792a5g1a A conversation is indexed as text with tool summaries
@@ -5052,6 +5372,13 @@ Scenario: 792a5h1b A transcript is chunked by turns
   Given s.jsonl holding many short user and assistant turns
   When the user runs engram ingest --transcript s.jsonl
   Then each chunk holds consecutive turns, and their IDs are s.jsonl#turn-1, then the turn numbers at which later chunks start
+```
+
+```gherkin
+Scenario: 792a7p1b A transcript chunk takes the session's last timestamp
+  Given a transcript whose last entry is stamped 2026-05-10 14:00, ingested on 2026-06-01
+  When its index file is read
+  Then each record's ingested_at is 2026-05-10 14:00
 ```
 
 ## 792b16 Added: source-chunking
@@ -5665,8 +5992,8 @@ Canonical target: `docs/specs/technical/chunk-index-store.md` (title `Chunk Inde
   verification, `RunIngest` and `RunPrune` are tested directly over in-memory filesystems, fake
   embedders and recording locks, and over the real filesystem; stability, the contract survives any
   change to how sources are found or chunked; necessity, every chunk a query returns comes from it.
-- Supported capabilities: 792a5 chunk-indexing, 792a4 note-revision (chunk IDs). Memory-query,
-  install-and-update and learn add their requirements (792d30).
+- Supported capabilities: 792a5 chunk-indexing, 792a4 note-revision (chunk IDs), 792a7 memory-query
+  (the first-indexed time). Install-and-update and learn add their requirements (792d30).
 
 Rationale: the index is rebuilt incrementally and offline, with no LLM. A source's index file is
 append-only: an embedded chunk is the memory and its source only provenance, so editing or deleting
@@ -6321,6 +6648,58 @@ Scenario: 792b18c13a2 A failure is an error
   Then the error is returned
 ```
 
+#### 792b18c14 First-indexed time
+
+Requirement: 792b18c14 When rebuilding a source (792b18c5), the chunk-index-store MUST stamp each chunk
+it embeds with `ingested_at`: for a transcript the last timestamp the transcript-reader returned
+(792b15c6) when there is one, and otherwise, and for any other source, the current time. It MUST keep
+the `ingested_at` of every record it already holds, including one whose chunk is unchanged on a later
+rebuild. It MUST give a held record that has none the modification time that the manifest records for
+its source, and none when the manifest has no entry. A record MUST decode with the `ingested_at` it was
+encoded with, and with none when the field is absent.
+
+Supports: 792a7p1a, 792a7p1b, 792a7p1c, 792a7p1d.
+
+Rationale: recency was once approximated from each source file's modification time, so one edit made
+every chunk of a source look new. Stamping each chunk when it is first indexed orders chunks within and
+across sessions; every chunk of one transcript shares the session's last timestamp, a sufficient
+approximation because each session is its own source. A record that predates the field is stamped from
+the manifest in place, because that is the only time the store has for it.
+
+##### 792b18c14a Scenarios
+
+```gherkin
+Scenario: 792b18c14a1 A Markdown chunk takes the current time
+  Given a Markdown document and a clock reading 2026-06-15T12:00:00Z
+  When it is ingested
+  Then its record's ingested_at is 2026-06-15T12:00:00Z
+
+Scenario: 792b18c14a2 A transcript chunk takes the session's last timestamp
+  Given a transcript whose last entry is stamped 2026-05-10T14:00:00Z and a clock reading 2026-06-01
+  When it is ingested
+  Then its record's ingested_at is 2026-05-10T14:00:00Z
+
+Scenario: 792b18c14a3 A rebuilt chunk keeps its first time
+  Given an ingested transcript chunk stamped 2026-04-01, and the same text read again with a last timestamp of 2026-06-01
+  When it is ingested again
+  Then the index still holds one record for it, stamped 2026-04-01
+
+Scenario: 792b18c14a4 A record without a time takes the manifest's time
+  Given an index record with no ingested_at and a manifest entry for its source modified 2026-01-20
+  When the source is ingested again with unchanged text
+  Then the record's ingested_at is 2026-01-20
+
+Scenario: 792b18c14a5 A record reads back with its time
+  Given a record stamped 2026-03-10T08:00:00Z, encoded to an index file and read back
+  When it is decoded, by the codec and by the loader of prior records
+  Then its ingested_at is 2026-03-10T08:00:00Z
+
+Scenario: 792b18c14a6 A record without the field has no time
+  Given an index line that lacks ingested_at
+  When it is decoded
+  Then its ingested_at is the zero time
+```
+
 ### 792b18d Product-Scenario Mapping
 
 | Product scenario | Technical requirements |
@@ -6355,6 +6734,11 @@ Scenario: 792b18c13a2 A failure is an error
 | 792a5r1c | 792b18c11 |
 | 792a5r1d | 792b18c11 |
 | 792a5r1e | 792b18c11 |
+| 792a7p1a | 792b18c14 |
+| 792a7p1b | 792b18c14 |
+| 792a7p1c | 792b18c14 |
+| 792a7p1d | 792b18c14 |
+| 792a7zf1e | 792b18c12 |
 
 ```gherkin
 Scenario: 792a5c1b A swept file that vanishes is skipped
@@ -6428,6 +6812,28 @@ Scenario: 792a5r1d A second run removes nothing more
   Then it prints "prune: removed 0 duplicate(s), retained 0 canonical(s)", and nothing changes
 ```
 
+```gherkin
+Scenario: 792a7p1a A Markdown chunk takes the ingest time
+  Given a Markdown document ingested at 2026-06-15 12:00
+  When its index file is read
+  Then each record's ingested_at is 2026-06-15 12:00
+
+Scenario: 792a7p1c Ingesting again keeps the first time
+  Given an ingested transcript whose chunk is unchanged on a second ingest
+  When the second ingest runs
+  Then the chunk's ingested_at is still the first one
+
+Scenario: 792a7p1d An old chunk gets its source's modification time
+  Given an index record with no ingested_at whose source the manifest records as modified 2026-01-20
+  When the source is ingested again
+  Then the record's ingested_at is 2026-01-20
+
+Scenario: 792a7zf1e An empty index is an empty payload
+  Given a chunk index directory that does not exist
+  When the user runs engram query-chunks --phrase p
+  Then the payload has no items, and the budget says total_chunks: 0
+```
+
 ## 792b19 Added: similarity-clustering
 
 Canonical target: `docs/specs/technical/similarity-clustering.md` (title `Similarity Clustering - Technical Spec`).
@@ -6447,7 +6853,7 @@ Canonical target: `docs/specs/technical/similarity-clustering.md` (title `Simila
   cluster means, while this component owns the partition and its score; independent verification,
   it is tested directly on vectors; stability, the contract survives any change to its callers or to
   how vectors are stored; necessity, the vocabulary's terms are its clusters.
-- Supported capabilities: 792a6 controlled-vocabulary. Memory-query and vault-migration add their
+- Supported capabilities: 792a6 controlled-vocabulary, 792a7 memory-query. Vault-migration adds its
   mappings and requirements (792d30).
 
 Rationale: the vocabulary is derived from the vault's own geometry, so it reuses the clustering that
@@ -6595,6 +7001,42 @@ Scenario: 792b19c4a4 Singletons are folded into a cluster
   Then every returned cluster has at least two members
 ```
 
+#### 792b19c5 Per-point silhouette
+
+Requirement: 792b19c5 The similarity-clustering MUST score one point, given every vector, the members of
+each cluster, the point's cluster and its own index, as (b - a) / max(a, b) with a and b as in 792b19c3,
+and MUST score 0 when the point's cluster is out of range or holds only that point, when no other
+non-empty cluster exists, and when a and b are both 0.
+
+Supports: 792a7g1a.
+
+Rationale: the query reports each cluster's silhouette as the mean of its members' scores, which the
+whole-partition mean of 792b19c3 cannot give.
+
+##### 792b19c5a Scenarios
+
+```gherkin
+Scenario: 792b19c5a1 A point in a separated cluster scores high
+  Given two clusters of two well-separated vectors each
+  When the first vector is scored
+  Then the score is above 0.5
+
+Scenario: 792b19c5a2 A point alone in its cluster scores zero
+  Given two clusters of one vector each
+  When the first vector is scored
+  Then the score is 0
+
+Scenario: 792b19c5a3 An out-of-range cluster scores zero
+  Given a point whose cluster number is -1 or beyond the clusters
+  When it is scored
+  Then the score is 0
+
+Scenario: 792b19c5a4 Identical vectors score zero
+  Given four identical vectors in two clusters of two
+  When the first vector is scored
+  Then the score is 0
+```
+
 ### 792b19d Product-Scenario Mapping
 
 | Product scenario | Technical requirements |
@@ -6603,6 +7045,10 @@ Scenario: 792b19c4a4 Singletons are folded into a cluster
 | 792a6j1b | 792b19c4 |
 | 792a6k1a | 792b19c4 |
 | 792a6l1a | 792b19c3, 792b19c4 |
+| 792a7g1a | 792b19c4, 792b19c5 |
+| 792a7g1b | 792b19c4 |
+| 792a7g1d | 792b19c2 |
+| 792a7zf1c | 792b19c4 |
 
 ```gherkin
 Scenario: 792a6j1b A vault without structure keeps its vocabulary
@@ -6619,6 +7065,28 @@ Scenario: 792a6l1a Dry run reports the derivation diff without writing
   Given a vault whose derivation matches one term, finds one new cluster and retires one term
   When the user runs engram vocab refit --dry-run
   Then the K and silhouette line, the matched, new and retired lines are printed, and no vault file or centroids file is modified
+```
+
+```gherkin
+Scenario: 792a7g1a Matches form clusters with a representative
+  Given a vault whose matches fall into two topics
+  When the user runs engram query with phrases for both
+  Then clusters holds two clusters, each listing its members by score and marking exactly one representative
+
+Scenario: 792a7g1b Matches with no structure form one cluster
+  Given a vault whose matches are too alike to split
+  When the user runs engram query with a phrase that matches them
+  Then clusters holds one cluster holding every match, with silhouette 0
+
+Scenario: 792a7g1d The same query gives the same clusters
+  Given a vault and a set of phrases
+  When the user runs engram query with them twice
+  Then both payloads hold the same clusters
+
+Scenario: 792a7zf1c Many chunks are clustered
+  Given a chunk index of twelve chunks about two topics
+  When the user runs engram query-chunks with a phrase
+  Then the payload has clusters, each with an id, a size and members
 ```
 
 ## 792b20 Added: vocabulary-engine
@@ -6649,8 +7117,7 @@ Canonical target: `docs/specs/technical/vocabulary-engine.md` (title `Vocabulary
   derived; independent verification, it is tested directly over injected dependencies; stability, the
   contract survives any refactoring of the commands that call it; necessity, every `vocab/` tag and
   definition note is written through it.
-- Supported capabilities: 792a6 controlled-vocabulary, and note-writing's 792a3u. Memory-query adds
-  its mappings (792d30).
+- Supported capabilities: 792a6 controlled-vocabulary, note-writing's 792a3u and 792a7 memory-query.
 
 Rationale: tags are assigned at write time by cosine alone, so the write path needs no LLM and the
 vocabulary's cost stays off retrieval. Controlled-vocabulary tags were adopted after graph traversal
@@ -7603,6 +8070,11 @@ Scenario: 792b20c22a2 A missing self-tag is detected
 | 792a6w1a | 792b20c11, 792b20c21, 792b20c22 |
 | 792a6w1b | 792b20c21 |
 | 792a6w1c | 792b20c21 |
+| 792a7d1g | 792b20c1 |
+| 792a7e1d | 792b20c1 |
+| 792a7k1b | 792b20c1 |
+| 792a7zd1a | 792b20c6 |
+| 792a7zd1b | 792b20c6 |
 
 ```gherkin
 Scenario: 792a6a1b A definition is never assigned a term
@@ -7753,4 +8225,31 @@ Scenario: 792a6w1c Nothing to migrate
   Given a vault with no old-format vocabulary
   When the user runs engram update --regen-vocab
   Then it prints "update --regen-vocab: nothing to regenerate"
+```
+
+```gherkin
+Scenario: 792a7d1g A definition note is an ordinary match
+  Given a vault whose only note close to the phrase is a vocabulary definition note
+  When the user runs engram query with that phrase
+  Then the definition note is returned
+
+Scenario: 792a7e1d A definition note is promoted like any other
+  Given a phrase that 30 chunks match above a vocabulary definition note that scores 0.45
+  When the user runs engram query with that phrase
+  Then the definition note appears among the results
+
+Scenario: 792a7k1b Definition notes are never picked
+  Given a term whose definition note is the closest note to its centroid
+  When the explore notes are picked
+  Then the definition note is not among them
+
+Scenario: 792a7zd1a A pending refit is reported
+  Given a vault whose vocab.centroids.json has refit_pending true
+  When the user runs engram query with a phrase
+  Then the payload has refit_pending: true
+
+Scenario: 792a7zd1b Otherwise the field is absent
+  Given a vault whose vocab.centroids.json has no pending refit, or no such file
+  When the user runs engram query with a phrase
+  Then the payload has no refit_pending
 ```

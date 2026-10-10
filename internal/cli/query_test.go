@@ -547,7 +547,7 @@ func TestQuery_OldSchemaSidecars_EmitSchemaAdvisory(t *testing.T) {
 		"old-schema sidecars must be counted and surfaced via the mismatch advisory, not silently dropped")
 }
 
-// TestQuery_PayloadIncludesModelID covers vault-query-model-provenance for
+// TestQuery_PayloadIncludesModelID covers 792a7zc for
 // the LOCAL query path (the served path is covered separately by
 // TestServeQuery_ExcludesPendingOffersAndSetsModelID): model_id always
 // matches deps.Embedder.ModelID(), even against an empty vault.

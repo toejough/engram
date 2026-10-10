@@ -43,7 +43,7 @@ type AmendArgs struct {
 	// amend's content flags overwrite-when-supplied.
 	RedFlags []string `json:"redFlags" targ:"flag,name=red-flag,desc=replace red_flags (runbook; repeatable; optional)"` //nolint:lll // single unbreakable struct-tag string
 	// Triggers replaces the whole triggers: list when non-empty (repeatable
-	// `--trigger <text>`) — mirrors RedFlags (runbook-lexical-triggers spec).
+	// `--trigger <text>`) — mirrors RedFlags (792a4b).
 	Triggers []string `json:"triggers" targ:"flag,name=trigger,desc=replace triggers (runbook; repeatable; optional)"` //nolint:lll // single unbreakable struct-tag string
 	Activate bool     `json:"activate" targ:"flag,name=activate,desc=bump LastUsed on the sidecar (optional)"`
 	// ClearPending is the CLI-facing surface for clearing the pending-offer

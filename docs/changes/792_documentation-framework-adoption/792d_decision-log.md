@@ -1161,3 +1161,87 @@ decisions as `792dN`, continuing the sequence.
 - **Alternatives:** split the statistics or the migration into their own components. Rejected
   because each is one command over the same definition and tag contracts, with no contract of its own
   that a caller could use apart from the vocabulary.
+
+## 792d90 Mixed sources of memory-query are split by owner
+
+- **Choice:** node 792c7f1 ports the query behavior of its sources into 792a7 and leaves the rest
+  where its owner will find it (792d31, 792d50):
+  - `recall-two-channel-payload`, `recall-matched-note-floor`, `recall-centroid-sampling`,
+    `recall-query-timings`, `recall-runbook-surfacing` and `vault-query-model-provenance` are ported
+    whole and deleted. Their technical clauses were all behavior the product spec already states, so
+    nothing was left for recency-ranking (792c7f2) or query-payload-renderer (792c7f4) to port; those
+    components are written from the code and from their other listed sources.
+  - `recall-payload-cuts` keeps only the requirement that the agent reads chunk content before judging
+    a cluster, for recall (792c7m1). Its lazy-chunks, recent-fill and limit requirements are 792a7s,
+    792a7o and 792a7q.
+  - `runbook-lexical-triggers` keeps three residue requirements: the served `--text` round trip and
+    its 2 KB truncation for vault-serving (792c7s1), the shim's verbatim `--text` instruction for
+    ambient-guidance (792c7r1), and the authoring guidance for trigger cues for write-memory
+    (792c7l1). Their sources now list them. The `triggers` field and its flags were already note-writing's
+    (792a3d, 792a3g) and note-revision's (792a4b).
+  - `vault-note-identity` loses the query clauses of its CRLF reader requirement (792a7zg); the
+    check and count clauses remain, as a residue, for vault-health (792c7h1) and vault-counting
+    (792c7g1).
+  - `vault-vocab-lifecycle` is deleted: its supersession ride-along was its last requirement (792a7n).
+  - ADR-0026's retrieval decision is 792a7v. Its lexical-trigger amendment stays for
+    runbook-trigger-matching (792c7f3), and ADR-0025 for query-engine (792c7f5).
+- **Rationale:** each part has one owner, and a node removes only what it ports.
+- **Alternatives:** keep `recall-two-channel-payload` and `recall-query-timings` for the technical
+  nodes. Rejected because the technical contract they imply (a recency channel with a limit, five
+  timing stages) is the same behavior the product requirements already state, so a technical node would
+  have nothing left to port from them.
+
+## 792d91 Memory-query requirements beyond the legacy text, and the components extended
+
+- **Choice:**
+  - 792a7 adds requirements that the legacy sources do not state but the code, `--help` and the
+    built binary show, each confirmed on a temporary vault: the query input rule (792a7a), the payload
+    shape and budget fields (792a7b), the dropped-sidecar warnings and the no-embeddings failure
+    (792a7c), the per-phrase ranking, floor and cap (792a7d), recency scaling (792a7f), clusters and
+    candidate notes (792a7g, 792a7h), the content budget (792a7r), `engram show-chunk` (792a7t), the
+    project filter (792a7u), `engram show` (792a7x), `query-chunks` (792a7zf), the read-only rule
+    (792a7zh), and the first-indexed time of a chunk (792a7p).
+  - Component sections extended by this node: command-line-surface gains 792b2c7 (note lookup) and
+    792b2c8 (chunk lookup), the routing requirements 792d51 deferred to it; wikilink-graph gains 792b13c3
+    (link targets), the parsing contract 792d75 deferred to it; chunk-index-store gains 792b18c14
+    (first-indexed time); transcript-reader gains 792b15c6 (last timestamp), which was not on this
+    node's list but is the other half of the first-indexed time; similarity-clustering gains 792b19c5
+    (per-point silhouette, 792d88). text-embedder, embedding-sidecar and vocabulary-engine gain
+    mappings only.
+  - Tests renamed here: the `RunShow` and `RunShowChunk` tests, the `ParseWikilinks` tests, the
+    first-indexed-time tests of `ingest_test` and `chunk/ingestedat_test`, the transcript timestamp
+    tests and the `PointSilhouette` tests. The tests that exercise `RunQuery` and the helpers behind it
+    wait for query-engine (792c7f5), which also takes `ingest_integration_test`'s `TestChunkQuery*`
+    (they test `query-chunks`), `qa_test`'s `TestIsQueryExcludedKind`, `vocab_test`'s two
+    `TestVocabDefinitionNote_*` tests, `supersedes_test`'s `TestBuildSupersedesInverse`,
+    `embed_selection_test`'s `TestKindFromContent`, the six query reader tests of
+    `crlf_readers_internal_test`, and the two query-level clustering tests (792d88).
+- **Rationale:** 792d33, 792d49, 792d58 and 792d86; 792d30 for the extensions.
+- **Alternatives:** port only the OpenSpec text.
+
+## 792d92 Known divergences in memory-query
+
+- **Choice:** 792a7 describes these as they are and does not specify the alternative (792d33,
+  792d42):
+  - `--recent-fill 0` means the default of 25, not "off". The OpenSpec scenario "Recent-fill zero
+    disables channel" does not match the code; only a negative value turns the channel off, and the
+    flag takes a negative number only in the form `--recent-fill=-1`.
+  - Recency scaling is live. 792d42 listed it as inactive (#774). The built binary shows it scaling a
+    chunk first indexed 120 days ago to a quarter of its cosine, and a note whose sidecar has
+    `last_used` 120 days ago to a quarter. What #774 describes is narrower: a note that has never been
+    used is not scaled, because `engram learn` quotes `created`, which the date parser rejects, so
+    about 972 of the 1,006 notes in the real vault are unscaled until used. 792a7f states both.
+  - `--project` filters only the matched note items. The explore, ride-along, chunk and recent items,
+    the clusters, and their candidates are not filtered.
+  - A runbook's `red_flags` are capped in the preview only when it is a direct match, a candidate note
+    or a trigger hit. An explore or ride-along item carries the whole list, with no marker (verified on
+    a runbook of 30 flags). The OpenSpec requirement says "in `items[]` or `candidate_l2s`".
+  - `engram show` lists `[[target|display]]` as `target|display`; `engram show` resolves that form.
+  - `--limit` counts every item that is neither a trigger hit nor a recent chunk, so the explore notes,
+    ride-alongs and matched chunks use it as well as the matched notes. The OpenSpec calls these
+    "Channel 1" items.
+  - The C4 views say superseding notes are added to `candidate_l2s`; in the code they are inserted in
+    `items` and `candidate_l2s` holds only the cluster's own notes.
+- **Rationale:** a divergence becomes a later change proposal (vault note 645).
+- **Alternatives:** specify the intended behavior with coverage gaps. Rejected because the code does
+  not do it.

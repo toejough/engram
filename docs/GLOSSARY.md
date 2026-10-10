@@ -269,7 +269,7 @@ the stale answer). Every new cluster must be named; unclaimed derived-origin ter
 apply (family-note supersession + major version bump).
 
 ### explore sampling
-The recall-query mechanism (shipped 2026-07-29, `recall-centroid-sampling`, superseding **vocab
+The recall-query mechanism (shipped 2026-07-29, [792a7i](changes/792_documentation-framework-adoption/792a_product-spec.md#792a7i-half-of-the-notes-are-explored), superseding **vocab
 nomination**/tag nomination below) that surfaces additional note candidates from vocab-term
 centroids by proximity to the query, instead of by shared vocab term with the top-3 delivered
 notes. Budget B equals the exploit half's (matched-note) count; allocation across terms is

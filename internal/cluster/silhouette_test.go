@@ -65,30 +65,7 @@ func Test792b19c3a3_Silhouette_SinglePointPerClusterIsZero(t *testing.T) {
 	g.Expect(score).To(BeNumerically("~", 0, 1e-6))
 }
 
-func TestPointSilhouette_OutOfRangeOwnClusterReturnsZero(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	vectors := [][]float32{{1, 0}, {0, 1}}
-	members := [][]int{{0}, {1}}
-
-	g.Expect(cluster.PointSilhouette(vectors[0], vectors, members, -1, 0)).To(BeZero())
-	g.Expect(cluster.PointSilhouette(vectors[0], vectors, members, 5, 0)).To(BeZero())
-}
-
-func TestPointSilhouette_SingletonOwnClusterReturnsZero(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	vectors := [][]float32{{1, 0}, {0, 1}}
-	members := [][]int{{0}, {1}}
-
-	g.Expect(cluster.PointSilhouette(vectors[0], vectors, members, 0, 0)).To(BeZero())
-}
-
-func TestPointSilhouette_TwoMemberCluster(t *testing.T) {
+func Test792b19c5a1_PointSilhouette_TwoMemberCluster(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -106,7 +83,30 @@ func TestPointSilhouette_TwoMemberCluster(t *testing.T) {
 	g.Expect(score).To(BeNumerically(">", 0.5))
 }
 
-func TestPointSilhouette_ZeroDenominator(t *testing.T) {
+func Test792b19c5a2_PointSilhouette_SingletonOwnClusterReturnsZero(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vectors := [][]float32{{1, 0}, {0, 1}}
+	members := [][]int{{0}, {1}}
+
+	g.Expect(cluster.PointSilhouette(vectors[0], vectors, members, 0, 0)).To(BeZero())
+}
+
+func Test792b19c5a3_PointSilhouette_OutOfRangeOwnClusterReturnsZero(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vectors := [][]float32{{1, 0}, {0, 1}}
+	members := [][]int{{0}, {1}}
+
+	g.Expect(cluster.PointSilhouette(vectors[0], vectors, members, -1, 0)).To(BeZero())
+	g.Expect(cluster.PointSilhouette(vectors[0], vectors, members, 5, 0)).To(BeZero())
+}
+
+func Test792b19c5a4_PointSilhouette_ZeroDenominator(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)

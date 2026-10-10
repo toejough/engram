@@ -95,35 +95,7 @@ func Test792b15c5a1_TranscriptReader_ToolSummaryMode(t *testing.T) {
 	g.Expect(result).To(ContainSubstring("Let me check"), "should contain assistant text")
 }
 
-func TestJSONLReader_ReadFrom_EmitsRowsStrictlyAfterMarker(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	lines := []string{
-		`{"type":"user","timestamp":"2026-01-01T00:00:00Z","message":{"role":"user","content":"a"}}`,
-		`{"type":"user","timestamp":"2026-01-01T00:01:00Z","message":{"role":"user","content":"b"}}`,
-		`{"type":"user","timestamp":"2026-01-01T00:02:00Z","message":{"role":"user","content":"c"}}`,
-	}
-	content := strings.Join(lines, "\n") + "\n"
-
-	reader := transcript.NewJSONLReader(&fakeFileReader{
-		contents: map[string][]byte{"/x.jsonl": []byte(content)},
-	})
-	from, err := time.Parse(time.RFC3339, "2026-01-01T00:01:00Z")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	result, err := reader.ReadFrom("/x.jsonl", from, 1<<20)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(result.Content).To(ContainSubstring("USER: c"))
-	g.Expect(result.Content).NotTo(ContainSubstring("USER: a"))
-	g.Expect(result.Content).NotTo(ContainSubstring("USER: b"))
-
-	expected, _ := time.Parse(time.RFC3339, "2026-01-01T00:02:00Z")
-	g.Expect(result.LastTimestamp.Equal(expected)).To(BeTrue())
-	g.Expect(result.Partial).To(BeFalse())
-}
-
-func TestJSONLReader_ReadFrom_HandlesUnparseableTimestampAndNonJSON(t *testing.T) {
+func Test792b15c6a1_JSONLReader_ReadFrom_HandlesUnparseableTimestampAndNonJSON(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -150,6 +122,61 @@ func TestJSONLReader_ReadFrom_HandlesUnparseableTimestampAndNonJSON(t *testing.T
 	// Row 4's timestamp wins (others all carry zero).
 	expected, _ := time.Parse(time.RFC3339, "2026-01-01T00:03:00Z")
 	g.Expect(result.LastTimestamp.Equal(expected)).To(BeTrue())
+}
+
+func Test792b15c6a2_JSONLReader_ReadFrom_NullTimestampRowsInheritPrior(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Row 1 has timestamp null (e.g. file-history-snapshot). Row 2 has a real
+	// timestamp. Marker = zero. Expect both rows pass filter (null inherits
+	// zero, zero <= ... wait actually null inherits the PRIOR row's time;
+	// row 1 is first so it inherits zero; with marker=zero we DON'T filter,
+	// so both rows are emitted). LastTimestamp comes from row 2.
+	lines := []string{
+		`{"type":"snapshot","timestamp":null}`,
+		`{"type":"user","timestamp":"2026-01-01T00:01:00Z","message":{"role":"user","content":"a"}}`,
+	}
+	content := strings.Join(lines, "\n") + "\n"
+
+	reader := transcript.NewJSONLReader(&fakeFileReader{
+		contents: map[string][]byte{"/x.jsonl": []byte(content)},
+	})
+
+	result, err := reader.ReadFrom("/x.jsonl", time.Time{}, 1<<20)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	expected, _ := time.Parse(time.RFC3339, "2026-01-01T00:01:00Z")
+	g.Expect(result.LastTimestamp.Equal(expected)).To(BeTrue())
+	g.Expect(result.Partial).To(BeFalse())
+}
+
+func TestJSONLReader_ReadFrom_EmitsRowsStrictlyAfterMarker(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	lines := []string{
+		`{"type":"user","timestamp":"2026-01-01T00:00:00Z","message":{"role":"user","content":"a"}}`,
+		`{"type":"user","timestamp":"2026-01-01T00:01:00Z","message":{"role":"user","content":"b"}}`,
+		`{"type":"user","timestamp":"2026-01-01T00:02:00Z","message":{"role":"user","content":"c"}}`,
+	}
+	content := strings.Join(lines, "\n") + "\n"
+
+	reader := transcript.NewJSONLReader(&fakeFileReader{
+		contents: map[string][]byte{"/x.jsonl": []byte(content)},
+	})
+	from, err := time.Parse(time.RFC3339, "2026-01-01T00:01:00Z")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	result, err := reader.ReadFrom("/x.jsonl", from, 1<<20)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(result.Content).To(ContainSubstring("USER: c"))
+	g.Expect(result.Content).NotTo(ContainSubstring("USER: a"))
+	g.Expect(result.Content).NotTo(ContainSubstring("USER: b"))
+
+	expected, _ := time.Parse(time.RFC3339, "2026-01-01T00:02:00Z")
+	g.Expect(result.LastTimestamp.Equal(expected)).To(BeTrue())
+	g.Expect(result.Partial).To(BeFalse())
 }
 
 func TestJSONLReader_ReadFrom_NoCapWhenBudgetZero(t *testing.T) {
@@ -179,33 +206,6 @@ func TestJSONLReader_ReadFrom_NoCapWhenBudgetZero(t *testing.T) {
 	g.Expect(result.Content).To(ContainSubstring("aaaaa"))
 	g.Expect(result.Content).To(ContainSubstring("bbbbb"))
 	g.Expect(result.Content).To(ContainSubstring("ccccc"))
-}
-
-func TestJSONLReader_ReadFrom_NullTimestampRowsInheritPrior(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// Row 1 has timestamp null (e.g. file-history-snapshot). Row 2 has a real
-	// timestamp. Marker = zero. Expect both rows pass filter (null inherits
-	// zero, zero <= ... wait actually null inherits the PRIOR row's time;
-	// row 1 is first so it inherits zero; with marker=zero we DON'T filter,
-	// so both rows are emitted). LastTimestamp comes from row 2.
-	lines := []string{
-		`{"type":"snapshot","timestamp":null}`,
-		`{"type":"user","timestamp":"2026-01-01T00:01:00Z","message":{"role":"user","content":"a"}}`,
-	}
-	content := strings.Join(lines, "\n") + "\n"
-
-	reader := transcript.NewJSONLReader(&fakeFileReader{
-		contents: map[string][]byte{"/x.jsonl": []byte(content)},
-	})
-
-	result, err := reader.ReadFrom("/x.jsonl", time.Time{}, 1<<20)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	expected, _ := time.Parse(time.RFC3339, "2026-01-01T00:01:00Z")
-	g.Expect(result.LastTimestamp.Equal(expected)).To(BeTrue())
-	g.Expect(result.Partial).To(BeFalse())
 }
 
 func TestJSONLReader_ReadFrom_PartialWhenBudgetExceeded(t *testing.T) {

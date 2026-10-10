@@ -11,8 +11,7 @@ const (
 	redFlagsBlockStart = "\nred_flags:\n"
 	// redFlagsPreviewBudget is engram query's red_flags preview budget,
 	// measured in rendered YAML bytes — not a cap on what a runbook may
-	// carry. engram show never applies it (recall-runbook-surfacing,
-	// "Show never truncates red flags"); only the query preview callers in
+	// carry. engram show never applies it (792a7x); only the query preview callers in
 	// this package do.
 	redFlagsPreviewBudget = 1200
 )
@@ -95,8 +94,7 @@ func keepNewestEntriesWithinBudget(entryLines []string, budget int) []string {
 
 // redFlagsOmittedMarker renders the in-band omission marker naming how many
 // entries were dropped, the list's total, and the real `engram show
-// <basename>` command that returns every entry (recall-runbook-surfacing,
-// "Oversized red_flags list keeps its newest entry in query").
+// <basename>` command that returns every entry (792a7w).
 func redFlagsOmittedMarker(dropped, total int, basename string) string {
 	return fmt.Sprintf(
 		"    - \"[%d EARLIER RED_FLAGS OMITTED — run engram show %s for all %d]\"\n",

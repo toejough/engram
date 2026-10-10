@@ -71,7 +71,7 @@ type LearnArgs struct {
 	RedFlags []string `json:"redFlags"`
 	// Triggers carries repeatable `--trigger <text>` entries: literal cues
 	// that, found in the user's raw message, surface this runbook first
-	// (runbook-lexical-triggers spec). Validated by validateTriggers before
+	// (792a3d). Validated by validateTriggers before
 	// any write; absent flag → no field, no error.
 	Triggers []string `json:"triggers"`
 
@@ -392,7 +392,7 @@ type runbookFields struct {
 	// RedFlags: optional task-specific failure modes (note-writing
 	// 792a3d) — see LearnArgs.RedFlags.
 	RedFlags []string
-	// Triggers: optional literal cue strings (runbook-lexical-triggers spec)
+	// Triggers: optional literal cue strings (792a3d)
 	// — see LearnArgs.Triggers.
 	Triggers []string
 	// SkillHash: registration-only identity field — see LearnArgs.SkillHash.
@@ -1009,7 +1009,7 @@ func validateTier(tier string) error {
 
 // validateTriggers rejects any --trigger entry that is empty, whitespace-only,
 // or shorter than minTriggerLen characters after trimming: such cues would
-// substring-match nearly any message (runbook-lexical-triggers spec).
+// substring-match nearly any message (792a3g).
 func validateTriggers(triggers []string) error {
 	for _, trigger := range triggers {
 		if utf8.RuneCountInString(strings.TrimSpace(trigger)) < minTriggerLen {

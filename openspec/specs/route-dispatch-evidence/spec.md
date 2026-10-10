@@ -84,7 +84,7 @@ note-tier frontmatter field, not the `tier/<cheap|mid|deep>` tag family used by 
 - **THEN** the skill text warns that `--group-by tier` groups the pre-existing note-tier frontmatter attribute (L1/L2/L3), not the `tier/` evidence tag family, and that `--group-by tags --filter tags=tier/<t>` is the correct form
 
 ### Requirement: Route SHALL read dispatch evidence through plain recall, never special queries
-When determining the starting tier for a dispatch, the orchestrator SHALL invoke `/recall` with standard phrases; evidence aggregates (route-evidence-<work-kind>) surface as normal memory items via vocab-tagged explore sampling (capability `recall-centroid-sampling`), not through special `engram count` queries on the read path.
+When determining the starting tier for a dispatch, the orchestrator SHALL invoke `/recall` with standard phrases; evidence aggregates (route-evidence-<work-kind>) surface as normal memory items via vocab-tagged explore sampling (792a7i in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a7-added-memory-query`), not through special `engram count` queries on the read path.
 
 #### Scenario: Routing with recalled evidence
 - **WHEN** routing a unit and recall surfaces a route-evidence-<work-kind> aggregate

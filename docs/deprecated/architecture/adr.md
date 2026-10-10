@@ -588,9 +588,8 @@ field, fact/feedback filename and Luhmann placement) are in
 [792a3c](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a3c-runbook-notes)
 and [792a3e](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a3e-no-task-type-or-input-fields).
 
-**Decision (remainder).** Retrieval: no exclusion treatment (`isQueryExcludedKind` untouched — a
-mechanism only `qa-question` uses), ranks purely by situation-similarity in the main matched set,
-identical to fact/feedback — no new query flag, no new ranking mechanism, no recall Step-1 changes.
+**Decision (remainder).** Retrieval is in
+[792a7v](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a7v-runbooks-rank-like-other-notes).
 `learn`'s Step 2 kind-4 (confirmed approaches) now routes by shape: a reusable multi-step procedure
 for a recurring task → `kind=runbook`; a single behavioral tweak with no step structure →
 `kind=feedback`, as before. A runbook capture is itself the "remember to do it this way" note — it

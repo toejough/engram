@@ -116,16 +116,14 @@ func TestRunQuery_OversizedRedFlagsListKeepsNewestEntry(t *testing.T) {
 	g.Expect(runbookContent).To(ContainSubstring("EARLIER RED_FLAGS OMITTED"))
 	// #772: the marker must name a count and the note's real basename, not
 	// the fixed, countless `<basename>` placeholder — and running the exact
-	// command it names must return every entry (recall-runbook-surfacing,
-	// "The omission marker's command does not itself truncate").
+	// command it names must return every entry (792a7x).
 	g.Expect(runbookContent).To(ContainSubstring(
 		"run engram show 1.2026-09-18.oversized-red-flags for all 21"))
 }
 
 // TestRunQuery_RunbookCompetesInMainMatchedSet proves runbook notes receive no
 // exclusion treatment (unlike qa-question) and rank purely by situation
-// similarity, identical to fact/feedback — design.md Decision 2/3,
-// recall-runbook-surfacing spec.
+// similarity, identical to fact/feedback — design.md Decision 2/3, 792a7v.
 func TestRunQuery_RunbookCompetesInMainMatchedSet(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -193,7 +191,7 @@ func TestRunQuery_RunbookCompetesInMainMatchedSet(t *testing.T) {
 // TestRunQuery_RunbookItemContentIncludesRedFlags proves a runbook note's
 // red_flags entries reach the query payload's item content, so an agent
 // never has to fall back to `engram show` just to see them
-// (recall-runbook-surfacing spec, "Red flags visible in the query payload").
+// (792a7w).
 func TestRunQuery_RunbookItemContentIncludesRedFlags(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -280,7 +278,7 @@ func TestRunQuery_TriggerHitDoesNotConsumeLimit(t *testing.T) {
 
 // TestRunQuery_TriggerHitSurfacesFirst: a runbook whose trigger appears in
 // --text is items[0] with provenance "trigger", ahead of a strongly
-// similarity-matched feedback note (runbook-lexical-triggers spec).
+// similarity-matched feedback note (792a7za).
 func TestRunQuery_TriggerHitSurfacesFirst(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
