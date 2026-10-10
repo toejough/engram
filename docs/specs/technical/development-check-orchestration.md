@@ -26,9 +26,9 @@ Scenario: 794b4a1a Direct and aggregate target routing
 
 ## 794b4b Execute configured request
 
-Requirement: 794b4b Development-check orchestration MUST send one NilAway request containing only
-the supplied context and the policy's arguments to the command boundary, and MUST return the
-boundary's result without retrying.
+Requirement: 794b4b Development-check orchestration MUST obtain the arguments for the selected mode
+from the invocation policy, then send one request containing only the supplied context and those
+arguments to the NilAway subprocess.
 
 Supports
 [794a2a1a Existing check entry points report only on Engram's module packages](../product/development-checks.md#794a2a1-uat-scenarios) and
@@ -37,19 +37,48 @@ Supports
 ### 794b4b1 Contract Scenarios
 
 ```gherkin
-Scenario Outline: 794b4b1a Successful configured invocation
+Scenario Outline: 794b4b1a One request carries the context and the policy's arguments
   Given the invocation mode is <mode>
-  When orchestration executes the request
-  Then the command boundary receives one request with the supplied context and policy output
-  And the boundary succeeds
-  And orchestration returns success
+  When orchestration executes the configured check
+  Then the NilAway subprocess receives exactly one request
+  And the request contains only the supplied context and the policy's arguments for <mode>
   Examples:
     | mode  |
     | check |
     | fix   |
+```
 
-Scenario: 794b4b1b Failed configured invocation
-  Given the command boundary returns an analyzer failure
+## 794b4d Successful result
+
+Requirement: 794b4d When the NilAway subprocess returns success, development-check orchestration
+MUST return success to the invoking entry point.
+
+Supports
+[794a2a1a Existing check entry points report only on Engram's module packages](../product/development-checks.md#794a2a1-uat-scenarios).
+
+### 794b4d1 Contract Scenarios
+
+```gherkin
+Scenario: 794b4d1a A successful run returns success
+  Given the NilAway subprocess returns success
   When orchestration executes the configured check
-  Then it returns that failure without retrying
+  Then orchestration returns success
+```
+
+## 794b4e Failed result
+
+Requirement: 794b4e When the NilAway subprocess returns a failure, development-check orchestration
+MUST return that failure to the invoking entry point and MUST NOT retry.
+
+Supports
+[794a2a1a Existing check entry points report only on Engram's module packages](../product/development-checks.md#794a2a1-uat-scenarios).
+
+### 794b4e1 Contract Scenarios
+
+```gherkin
+Scenario: 794b4e1a A failed run returns the failure without retrying
+  Given the NilAway subprocess returns an analyzer failure
+  When orchestration executes the configured check
+  Then orchestration returns that failure
+  And the NilAway subprocess receives no second request
 ```
