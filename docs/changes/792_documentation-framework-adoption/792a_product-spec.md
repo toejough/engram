@@ -9605,39 +9605,6 @@ Scenario: 792a19v1i A dry run prefixes the guidance lines
   Then each guidance line begins with "[dry-run] "
 ```
 
-### 792a19w Engram is engaged around work that is more than a trivial lookup
-
-Requirement: [792a19w Engram is engaged around work that is more than a trivial lookup](#792a19w-engram-is-engaged-around-work-that-is-more-than-a-trivial-lookup) For a request that is more than a trivial lookup or edit, the agent MUST read memory first with
-recall, then do the work, and then, when the work produced a lesson, a correction or a decision, write memory with
-learn; for a trivial lookup or edit it MUST NOT engage the recall and learn skills.
-
-Rationale: this is the read, work, write lifecycle of the operator-level view. Recall is [792a14 recall](#792a14-added-recall) and learn is [792a15 learn](#792a15-added-learn).
-The shim's query ([792a19j The first action on every request is an engram query](#792a19j-the-first-action-on-every-request-is-an-engram-query)) is a lookup for runbooks that runs on every request, and is not the recall skill.
-
-#### 792a19w1 UAT Scenarios
-
-```gherkin
-Scenario: 792a19w1a A trivial lookup does not engage the skills
-  Given a request that is a trivial lookup or edit
-  When the agent handles it
-  Then it engages neither the recall nor the learn skill
-
-Scenario: 792a19w1b Work that is more than trivial reads memory first
-  Given a request that is more than a trivial lookup or edit
-  When the agent starts
-  Then it runs the recall skill before it does the work
-
-Scenario: 792a19w1c A lesson is written
-  Given the work produced a lesson, a correction or a decision
-  When the work is done
-  Then the agent runs the learn skill
-
-Scenario: 792a19w1d No lesson writes nothing
-  Given the work produced no lesson, correction or decision
-  When the work is done
-  Then the agent writes no memory
-```
-
 ## 792a20 Added: vault-serving
 
 Canonical target: `docs/specs/product/vault-serving.md` (title `Vault Serving - Product Spec`).

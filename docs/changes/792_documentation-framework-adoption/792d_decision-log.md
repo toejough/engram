@@ -1916,7 +1916,7 @@ decisions as `792dN`, continuing the sequence.
 
 - **Choice:**
   - [792a19 ambient-guidance](./792a_product-spec.md#792a19-added-ambient-guidance) describes the four shipped documents in `agent-instructions/guidance/` and the activation hints of
-    `engram update`: twenty-three requirements ([792a19a Recall fires at four decision moments](./792a_product-spec.md#792a19a-recall-fires-at-four-decision-moments) to [792a19w Engram is engaged around work that is more than a trivial lookup](./792a_product-spec.md#792a19w-engram-is-engaged-around-work-that-is-more-than-a-trivial-lookup)). The documents are the source of the
+    `engram update`: twenty-two requirements ([792a19a Recall fires at four decision moments](./792a_product-spec.md#792a19a-recall-fires-at-four-decision-moments) to [792a19v The update report says how to activate guidance](./792a_product-spec.md#792a19v-the-update-report-says-how-to-activate-guidance)). The documents are the source of the
     cues; the five OpenSpec specs are the source of the scenarios and rationale, re-checked against the documents.
     The recall cues (a, b), the learn cues (c to f), the delegate cues (g to i) and the shim (j to t) each have a
     requirement per distinct obligation, because the documents state them as separate rules.
@@ -1939,7 +1939,7 @@ decisions as `792dN`, continuing the sequence.
     comment changes no instruction the agent reads, so it is not a behavioral edit and the writing-skills red,
     green and pressure cycle was not run. The documents' text is deployed by copy, so they change for every user on
     their next `engram update`.
-  - The context view's engagement flowchart is the lifecycle of [792a19w Engram is engaged around work that is more than a trivial lookup](./792a_product-spec.md#792a19w-engram-is-engaged-around-work-that-is-more-than-a-trivial-lookup). The flowchart's step that runs
+  - The context view's engagement flowchart gate ("more than a trivial lookup/edit?") is not a requirement; Joe dropped it ([792d133 Requirement 792a19w is dropped (Joe)](#792d133-requirement-792a19w-is-dropped-joe)). The flowchart's step that runs
     `engram ingest --auto` is learn's ([792a15 learn](./792a_product-spec.md#792a15-added-learn)), and the "print Step-0 plan" step is recall's ([792a14a The plan is stated before anything is retrieved](./792a_product-spec.md#792a14a-the-plan-is-stated-before-anything-is-retrieved)), so
     neither is restated.
   - #773 (duplicate cues) and #790 (the shim refused as a suspected prompt injection) are open, and [792a19 ambient-guidance](./792a_product-spec.md#792a19-added-ambient-guidance) states so
@@ -2470,3 +2470,13 @@ decisions as `792dN`, continuing the sequence.
     moved and why, so they stay ([792d37 Exemptions from the stale-reference sweep](#792d37-exemptions-from-the-stale-reference-sweep)).
 - **Rationale:** [792d37 Exemptions from the stale-reference sweep](#792d37-exemptions-from-the-stale-reference-sweep) and [792d53 Test-rename reference updates skip historical records](#792d53-test-rename-reference-updates-skip-historical-records) (a dated record is not rewritten), [792d31 Each legacy item has one owning node](#792d31-each-legacy-item-has-one-owning-node) (a legacy file is deleted once empty).
 - **Alternatives:** rewrite the 792f discovery rows to the 793 paths. Rejected: discovery records what was found before the move.
+
+## 792d133 Requirement 792a19w is dropped (Joe)
+
+- **Choice:**
+  - **Ruling.** Joe, 2026-10-10: "drop it". Requirement 792a19w ("Engram is engaged around work that is more than a trivial lookup") and its scenarios 792a19w1a to 792a19w1d are deleted from [792a Documentation Framework Adoption - Product Spec](./792a_product-spec.md#documentation-framework-adoption---product-spec). The IDs are retired and never reused.
+  - **Why.** Only a June 2026 flowchart in the deleted `docs/architecture/c1-system-context.md` stated the prohibition ("more than a trivial lookup/edit?", no: "engram not engaged"). No shipped guidance states it: the recall and learn skill descriptions are use-when triggers, and `shim.md` and `delegate.md` fire on every request on purpose ([792g19 ambient-guidance audit](./792g_adoption-audit/792g19_ambient-guidance.md)).
+  - **Edits.** [792a19 ambient-guidance](./792a_product-spec.md#792a19-added-ambient-guidance) now has twenty-two requirements, ending at [792a19v The update report says how to activate guidance](./792a_product-spec.md#792a19v-the-update-report-says-how-to-activate-guidance). The mapping sentences in [792d116 ambient-guidance scope, the guidance edits, and where the sources differ from the documents](#792d116-ambient-guidance-scope-the-guidance-edits-and-where-the-sources-differ-from-the-documents) and [792c7r1 ambient-guidance product spec](./792c_implementation-plan.md#792c7r1-ambient-guidance-product-spec) no longer name it, and the 792g19 audit rows are marked "removed (Joe)". No [792b](./792b_technical-spec.md#documentation-framework-adoption---technical-spec) requirement supported it.
+- **Rationale:** [Guide: removed IDs are never reused](../../SPECIFICATION-LIFECYCLE-GUIDE.md#change-scoped-deltas) and the rule that a spec states only confirmed scope ([docs/AGENTS.md](../../AGENTS.md#general-documentation-rules)): a requirement no shipped text states is not current behavior.
+- **Alternatives:** keep it as intent and file a guidance bug. Rejected by Joe's ruling.
+
