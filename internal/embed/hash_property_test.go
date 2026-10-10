@@ -10,33 +10,12 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-// Test792b6c6a1_ExtractBody_ClosingDelimiterIsAWholeLineProperty asserts that for any
-// frontmatter value — including ones containing or ending in "---" — the
-// body ExtractBody returns is exactly the text after the closing "---" line.
-func Test792b6c6a1_ExtractBody_ClosingDelimiterIsAWholeLineProperty(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		value := rapid.StringMatching(`[a-z:]{0,8}-{0,4}`).Draw(rt, "value")
-		body := "Body text.\n"
-		raw := []byte("---\ntype: runbook\nskill_key: " + value + "\nsituation: s\n---\n\n" + body)
-
-		if got := string(embed.ExtractBody(raw)); got != body {
-			rt.Fatalf("ExtractBody: got %q want %q", got, body)
-		}
-
-		if got := string(embed.SituationText(raw)); got != "s" {
-			rt.Fatalf("SituationText: got %q want %q", got, "s")
-		}
-	})
-}
-
-// TestContentHash_EpisodeSituationSensitivityProperty asserts that for an
+// Test792b10c4a2_ContentHash_EpisodeSituationSensitivityProperty asserts that for an
 // episode-shaped note (Text embeds the trimmed situation:), changing only the
 // situation: frontmatter field changes the hash even when the body is
 // byte-identical. Targets are space-free so the trim in Text cannot collapse
 // two distinct draws to the same embedded text.
-func TestContentHash_EpisodeSituationSensitivityProperty(t *testing.T) {
+func Test792b10c4a2_ContentHash_EpisodeSituationSensitivityProperty(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -57,12 +36,12 @@ func TestContentHash_EpisodeSituationSensitivityProperty(t *testing.T) {
 	})
 }
 
-// TestContentHash_FactBodySensitivityProperty asserts that for a fact- or
+// Test792b10c4a2_ContentHash_FactBodySensitivityProperty asserts that for a fact- or
 // feedback-shaped note (Text embeds the body, never the situation:), changing
 // only the body changes the hash while the frontmatter is held fixed. Bodies
 // are newline-free so ExtractBody's single leading-newline strip cannot
 // collapse two distinct draws.
-func TestContentHash_FactBodySensitivityProperty(t *testing.T) {
+func Test792b10c4a2_ContentHash_FactBodySensitivityProperty(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -84,10 +63,10 @@ func TestContentHash_FactBodySensitivityProperty(t *testing.T) {
 	})
 }
 
-// TestContentHash_IdempotentProperty asserts that hashing the same raw note
+// Test792b10c4a4_ContentHash_IdempotentProperty asserts that hashing the same raw note
 // bytes twice yields the identical sha256:-prefixed string, across the note
 // shapes the embedder actually sees (episode, fact, feedback, and bare body).
-func TestContentHash_IdempotentProperty(t *testing.T) {
+func Test792b10c4a4_ContentHash_IdempotentProperty(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -100,6 +79,27 @@ func TestContentHash_IdempotentProperty(t *testing.T) {
 
 		g.Expect(second).To(Equal(first))
 		g.Expect(first).To(HavePrefix("sha256:"))
+	})
+}
+
+// Test792b6c6a1_ExtractBody_ClosingDelimiterIsAWholeLineProperty asserts that for any
+// frontmatter value — including ones containing or ending in "---" — the
+// body ExtractBody returns is exactly the text after the closing "---" line.
+func Test792b6c6a1_ExtractBody_ClosingDelimiterIsAWholeLineProperty(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		value := rapid.StringMatching(`[a-z:]{0,8}-{0,4}`).Draw(rt, "value")
+		body := "Body text.\n"
+		raw := []byte("---\ntype: runbook\nskill_key: " + value + "\nsituation: s\n---\n\n" + body)
+
+		if got := string(embed.ExtractBody(raw)); got != body {
+			rt.Fatalf("ExtractBody: got %q want %q", got, body)
+		}
+
+		if got := string(embed.SituationText(raw)); got != "s" {
+			rt.Fatalf("SituationText: got %q want %q", got, "s")
+		}
 	})
 }
 

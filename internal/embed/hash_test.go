@@ -10,6 +10,258 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
+func Test792b10c3a1_SituationText_ExtractsFieldForAnyType(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	fact := []byte("---\ntype: fact\nsituation: when wiring a Go CLI\n---\n\nbody here\n")
+	g.Expect(string(embed.SituationText(fact))).To(Equal("when wiring a Go CLI"))
+
+	noFM := []byte("just a body, no frontmatter\n")
+	g.Expect(embed.SituationText(noFM)).To(BeEmpty())
+}
+
+// Test792b10c3a1_SituationText_FieldAfterValueEndingInDashes guards SituationText's
+// closing-delimiter match the same way: a preceding value ending in "---"
+// must not cut the frontmatter before situation:.
+func Test792b10c3a1_SituationText_FieldAfterValueEndingInDashes(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	in := []byte("---\ntype: runbook\nskill_key: a:foo---\nsituation: when wiring a Go CLI\n---\n\nBody.\n")
+	g.Expect(string(embed.SituationText(in))).To(Equal("when wiring a Go CLI"))
+}
+
+func Test792b10c3a1_SituationText_WhitespaceIsTrimmed(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	in := []byte("---\ntype: episode\nsituation:  spaced value  \nluhmann: \"7\"\n---\n\nBody.\n")
+	g.Expect(string(embed.SituationText(in))).To(Equal("spaced value"))
+}
+
+func Test792b10c3a2_BodyText_NoFrontmatterReturnsRaw(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	in := []byte("Just a plain note with no frontmatter.\n")
+	g.Expect(string(embed.BodyText(in))).To(Equal("Just a plain note with no frontmatter.\n"))
+}
+
+func Test792b10c3a2_BodyText_StripsFrontmatter(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	raw := []byte("---\ntype: fact\nsituation: x\n---\n\nthe body\n")
+	g.Expect(string(embed.BodyText(raw))).To(Equal("the body\n"))
+}
+
+func Test792b10c3a2_ExtractBody_StripsFrontmatter(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	in := []byte("---\ntype: fact\nluhmann: \"5\"\n---\n\nThis is the body.\n")
+	g.Expect(string(embed.ExtractBody(in))).To(Equal("This is the body.\n"))
+}
+
+func Test792b10c3a3_BodyText_ExcludesSupersedesLines(t *testing.T) {
+	t.Parallel()
+
+	// Same machine-written category as the Supersedes:/Contributors: lines: `Supersedes:` body
+	// lines are replace-whole channel content and must not feed the vector/hash.
+	g := NewWithT(t)
+	raw := []byte("---\ntype: fact\nluhmann: \"2\"\n---\n\n" +
+		"Information learned: when in X, S P O.\n\n" +
+		"Supersedes: [[9.old-note]] — updates: the old claim.\n" +
+		"Supersedes: [[7.other]] — narrows: the scope.\n")
+	want := "Information learned: when in X, S P O.\n"
+	g.Expect(string(embed.BodyText(raw))).To(Equal(want))
+}
+
+func Test792b10c3a3_StripMachineLines_QAMarkersRemoved(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "contributors_line_stripped",
+			in:   "Body line.\n\nContributors: [[100.note]], [[101.note]]\n",
+			want: "Body line.\n",
+		},
+		{
+			name: "answered_by_line_stripped",
+			in:   "What is the question?\n\nAnswered by: [[qa.2026-07-03.slug.a]]\n",
+			want: "What is the question?\n",
+		},
+		{
+			name: "answers_line_stripped",
+			in:   "The answer body.\n\nAnswers: [[qa.2026-07-03.slug.q]]\n",
+			want: "The answer body.\n",
+		},
+		{
+			name: "all_three_stripped_together",
+			in: "Body.\n\nAnswered by: [[qa.2026-07-03.slug.a]]" +
+				"\nAnswers: [[qa.2026-07-03.slug.q]]\nContributors: [[100.note]]\n",
+			want: "Body.\n",
+		},
+		{
+			name: "no_markers_unchanged",
+			in:   "Body without machine lines.\n",
+			want: "Body without machine lines.\n",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+			// BodyText strips frontmatter first; wrap in frontmatter to exercise BodyText.
+			raw := []byte("---\ntype: qa-answer\n---\n\n" + tc.in)
+			got := string(embed.BodyText(raw))
+			g.Expect(got).To(Equal(tc.want))
+		})
+	}
+}
+
+func Test792b10c3a4_BodyText_RelatedToIsOrdinaryBody(t *testing.T) {
+	t.Parallel()
+
+	// The "Related to:" section is ordinary body text now (the vocab
+	// migration that made the exclusion necessary landed 2026-07-10, and no
+	// live vault note carries the section) — BodyText must include it, not
+	// strip it as a machine-written channel block.
+	g := NewWithT(t)
+	raw := []byte("---\ntype: fact\nluhmann: \"1\"\n---\n\n" +
+		"Information learned: when in X, S P O.\n\n" +
+		"Related to:\n- [[2.note]] — because.\n- [[3.note]] — also.\n")
+	want := "Information learned: when in X, S P O.\n\n" +
+		"Related to:\n- [[2.note]] — because.\n- [[3.note]] — also.\n"
+	g.Expect(string(embed.BodyText(raw))).To(Equal(want))
+}
+
+func Test792b10c3a4_BodyText_VocabLineIsOrdinaryBody(t *testing.T) {
+	t.Parallel()
+
+	// The Vocab: body line is ordinary user prose now (the writer no longer
+	// strips it, migration-by-touch is retired) — BodyText must include it,
+	// not treat it as a machine-written channel line.
+	g := NewWithT(t)
+	raw := []byte("---\ntype: fact\nluhmann: \"1\"\n---\n\n" +
+		"Information learned: when in X, S P O.\n\n" +
+		"Vocab: [[vocab.eval-methodology]]\n")
+	want := "Information learned: when in X, S P O.\n\nVocab: [[vocab.eval-methodology]]\n"
+	g.Expect(string(embed.BodyText(raw))).To(Equal(want))
+}
+
+func Test792b10c3a5_BodyText_NormalizesTrailingBlankLines(t *testing.T) {
+	t.Parallel()
+
+	// The learn renderers end bodies with "\n\n" (97/133 live notes), while
+	// the channel writers trim trailing blanks before appending their line —
+	// the original trailing-blank count is unrecoverable after a write. The
+	// hash must therefore be insensitive to trailing blank lines on BOTH
+	// sides: BodyText normalizes them to a single trailing newline.
+	g := NewWithT(t)
+	doubleNewline := []byte("---\ntype: fact\nluhmann: \"4\"\n---\n\n" +
+		"Information learned: when in X, S P O.\n\n")
+	single := []byte("---\ntype: fact\nluhmann: \"4\"\n---\n\n" +
+		"Information learned: when in X, S P O.\n")
+	want := "Information learned: when in X, S P O.\n"
+	g.Expect(string(embed.BodyText(doubleNewline))).To(Equal(want))
+	g.Expect(embed.ContentHash(doubleNewline)).To(Equal(embed.ContentHash(single)))
+}
+
+func Test792b10c4a1_ContentHash_IsSha256OfSituationAndBody(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	raw := []byte("---\ntype: fact\nsituation: when X\n---\n\nthe body.\n")
+
+	hasher := sha256.New()
+	hasher.Write([]byte("when X"))
+	hasher.Write([]byte{0})
+	hasher.Write([]byte("the body.\n"))
+
+	g.Expect(embed.ContentHash(raw)).
+		To(Equal("sha256:" + hex.EncodeToString(hasher.Sum(nil))))
+}
+
+func Test792b10c4a2_ContentHash_ChangesWhenEitherSourceChanges(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	base := []byte("---\ntype: fact\nsituation: A\n---\n\nbody B\n")
+	sitChanged := []byte("---\ntype: fact\nsituation: A2\n---\n\nbody B\n")
+	bodyChanged := []byte("---\ntype: fact\nsituation: A\n---\n\nbody B2\n")
+
+	g.Expect(embed.ContentHash(base)).NotTo(Equal(embed.ContentHash(sitChanged)))
+	g.Expect(embed.ContentHash(base)).NotTo(Equal(embed.ContentHash(bodyChanged)))
+}
+
+func Test792b10c4a2_ContentHash_EpisodeSituationChangeChangesHash(t *testing.T) {
+	t.Parallel()
+
+	// Episodes embed their situation:, so a situation edit must change the
+	// staleness hash even when the body is byte-identical. Otherwise an
+	// edited episode reads as fresh against its outdated vector.
+	g := NewWithT(t)
+	a := []byte("---\ntype: episode\nsituation: evaluating agent memory\n---\nshared body.\n")
+	b := []byte("---\ntype: episode\nsituation: debugging a flaky test\n---\nshared body.\n")
+	g.Expect(embed.ContentHash(a)).NotTo(Equal(embed.ContentHash(b)))
+}
+
+func Test792b10c4a2_ContentHash_FactTracksBody(t *testing.T) {
+	t.Parallel()
+
+	// Facts embed their body, so the hash must change when the body changes.
+	g := NewWithT(t)
+	a := []byte("---\ntype: fact\nluhmann: \"1\"\n---\noriginal body.\n")
+	b := []byte("---\ntype: fact\nluhmann: \"1\"\n---\nedited body.\n")
+	g.Expect(embed.ContentHash(a)).NotTo(Equal(embed.ContentHash(b)))
+}
+
+func Test792b10c4a2_ContentHash_RelatedToEditsChangeHash(t *testing.T) {
+	t.Parallel()
+
+	// "Related to:" is ordinary body text now, not a hash-excluded channel —
+	// appending the block, and later editing its links, both change the hash.
+	g := NewWithT(t)
+	noBlock := []byte("---\ntype: fact\nluhmann: \"1\"\n---\n\n" +
+		"Information learned: when in X, S P O.\n")
+	withBlock := []byte("---\ntype: fact\nluhmann: \"1\"\n---\n\n" +
+		"Information learned: when in X, S P O.\n\n" +
+		"Related to:\n- [[2.note]] — because.\n")
+	diffLinks := []byte("---\ntype: fact\nluhmann: \"1\"\n---\n\n" +
+		"Information learned: when in X, S P O.\n\n" +
+		"Related to:\n- [[2.note]] — because.\n- [[9.other]] — added later.\n")
+
+	g.Expect(embed.ContentHash(noBlock)).NotTo(Equal(embed.ContentHash(withBlock)))
+	g.Expect(embed.ContentHash(withBlock)).NotTo(Equal(embed.ContentHash(diffLinks)))
+}
+
+func Test792b10c4a3_ContentHash_FrontmatterChangeDoesNotChangeHash(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	a := []byte("---\ntype: fact\nluhmann: \"1\"\n---\nshared body.\n")
+	b := []byte("---\ntype: fact\nluhmann: \"1\"\nextra: added\n---\nshared body.\n")
+	g.Expect(embed.ContentHash(a)).To(Equal(embed.ContentHash(b)))
+}
+
+func Test792b10c4a3_ContentHash_IgnoresRunbookTriggersBlock(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	without := []byte("---\ntype: runbook\nsituation: driving a task\ndone_when: done\n" +
+		"luhmann: \"1\"\n---\n\n1. Do it\n")
+	with := []byte("---\ntype: runbook\nsituation: driving a task\ndone_when: done\n" +
+		"triggers:\n    - /please\n    - take this end-to-end\nluhmann: \"1\"\n---\n\n1. Do it\n")
+	g.Expect(embed.ContentHash(with)).To(Equal(embed.ContentHash(without)))
+}
+
 // Test792b6c6a1_ExtractBody_BlockScalarFenceLine guards that an indented "    ---"
 // line inside a |- block scalar (yaml.v3's rendering of a value holding a
 // standalone --- line) does not close the frontmatter.
@@ -67,262 +319,10 @@ func Test792b6c6a3_ExtractBody_UnterminatedFrontmatterReturnedUnchanged(t *testi
 	g.Expect(string(embed.ExtractBody(in))).To(Equal(string(in)))
 }
 
-func TestBodyText_ExcludesSupersedesLines(t *testing.T) {
-	t.Parallel()
-
-	// Same machine-written category as the Supersedes:/Contributors: lines: `Supersedes:` body
-	// lines are replace-whole channel content and must not feed the vector/hash.
-	g := NewWithT(t)
-	raw := []byte("---\ntype: fact\nluhmann: \"2\"\n---\n\n" +
-		"Information learned: when in X, S P O.\n\n" +
-		"Supersedes: [[9.old-note]] — updates: the old claim.\n" +
-		"Supersedes: [[7.other]] — narrows: the scope.\n")
-	want := "Information learned: when in X, S P O.\n"
-	g.Expect(string(embed.BodyText(raw))).To(Equal(want))
-}
-
-func TestBodyText_NoFrontmatterReturnsRaw(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	in := []byte("Just a plain note with no frontmatter.\n")
-	g.Expect(string(embed.BodyText(in))).To(Equal("Just a plain note with no frontmatter.\n"))
-}
-
-func TestBodyText_NormalizesTrailingBlankLines(t *testing.T) {
-	t.Parallel()
-
-	// The learn renderers end bodies with "\n\n" (97/133 live notes), while
-	// the channel writers trim trailing blanks before appending their line —
-	// the original trailing-blank count is unrecoverable after a write. The
-	// hash must therefore be insensitive to trailing blank lines on BOTH
-	// sides: BodyText normalizes them to a single trailing newline.
-	g := NewWithT(t)
-	doubleNewline := []byte("---\ntype: fact\nluhmann: \"4\"\n---\n\n" +
-		"Information learned: when in X, S P O.\n\n")
-	single := []byte("---\ntype: fact\nluhmann: \"4\"\n---\n\n" +
-		"Information learned: when in X, S P O.\n")
-	want := "Information learned: when in X, S P O.\n"
-	g.Expect(string(embed.BodyText(doubleNewline))).To(Equal(want))
-	g.Expect(embed.ContentHash(doubleNewline)).To(Equal(embed.ContentHash(single)))
-}
-
-func TestBodyText_RelatedToIsOrdinaryBody(t *testing.T) {
-	t.Parallel()
-
-	// The "Related to:" section is ordinary body text now (the vocab
-	// migration that made the exclusion necessary landed 2026-07-10, and no
-	// live vault note carries the section) — BodyText must include it, not
-	// strip it as a machine-written channel block.
-	g := NewWithT(t)
-	raw := []byte("---\ntype: fact\nluhmann: \"1\"\n---\n\n" +
-		"Information learned: when in X, S P O.\n\n" +
-		"Related to:\n- [[2.note]] — because.\n- [[3.note]] — also.\n")
-	want := "Information learned: when in X, S P O.\n\n" +
-		"Related to:\n- [[2.note]] — because.\n- [[3.note]] — also.\n"
-	g.Expect(string(embed.BodyText(raw))).To(Equal(want))
-}
-
-func TestBodyText_StripsFrontmatter(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	raw := []byte("---\ntype: fact\nsituation: x\n---\n\nthe body\n")
-	g.Expect(string(embed.BodyText(raw))).To(Equal("the body\n"))
-}
-
-func TestBodyText_VocabLineIsOrdinaryBody(t *testing.T) {
-	t.Parallel()
-
-	// The Vocab: body line is ordinary user prose now (the writer no longer
-	// strips it, migration-by-touch is retired) — BodyText must include it,
-	// not treat it as a machine-written channel line.
-	g := NewWithT(t)
-	raw := []byte("---\ntype: fact\nluhmann: \"1\"\n---\n\n" +
-		"Information learned: when in X, S P O.\n\n" +
-		"Vocab: [[vocab.eval-methodology]]\n")
-	want := "Information learned: when in X, S P O.\n\nVocab: [[vocab.eval-methodology]]\n"
-	g.Expect(string(embed.BodyText(raw))).To(Equal(want))
-}
-
-func TestContentHash_ChangesWhenEitherSourceChanges(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	base := []byte("---\ntype: fact\nsituation: A\n---\n\nbody B\n")
-	sitChanged := []byte("---\ntype: fact\nsituation: A2\n---\n\nbody B\n")
-	bodyChanged := []byte("---\ntype: fact\nsituation: A\n---\n\nbody B2\n")
-
-	g.Expect(embed.ContentHash(base)).NotTo(Equal(embed.ContentHash(sitChanged)))
-	g.Expect(embed.ContentHash(base)).NotTo(Equal(embed.ContentHash(bodyChanged)))
-}
-
-func TestContentHash_EpisodeSituationChangeChangesHash(t *testing.T) {
-	t.Parallel()
-
-	// Episodes embed their situation:, so a situation edit must change the
-	// staleness hash even when the body is byte-identical. Otherwise an
-	// edited episode reads as fresh against its outdated vector.
-	g := NewWithT(t)
-	a := []byte("---\ntype: episode\nsituation: evaluating agent memory\n---\nshared body.\n")
-	b := []byte("---\ntype: episode\nsituation: debugging a flaky test\n---\nshared body.\n")
-	g.Expect(embed.ContentHash(a)).NotTo(Equal(embed.ContentHash(b)))
-}
-
-func TestContentHash_FactTracksBody(t *testing.T) {
-	t.Parallel()
-
-	// Facts embed their body, so the hash must change when the body changes.
-	g := NewWithT(t)
-	a := []byte("---\ntype: fact\nluhmann: \"1\"\n---\noriginal body.\n")
-	b := []byte("---\ntype: fact\nluhmann: \"1\"\n---\nedited body.\n")
-	g.Expect(embed.ContentHash(a)).NotTo(Equal(embed.ContentHash(b)))
-}
-
-func TestContentHash_FrontmatterChangeDoesNotChangeHash(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	a := []byte("---\ntype: fact\nluhmann: \"1\"\n---\nshared body.\n")
-	b := []byte("---\ntype: fact\nluhmann: \"1\"\nextra: added\n---\nshared body.\n")
-	g.Expect(embed.ContentHash(a)).To(Equal(embed.ContentHash(b)))
-}
-
-func TestContentHash_IgnoresRunbookTriggersBlock(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	without := []byte("---\ntype: runbook\nsituation: driving a task\ndone_when: done\n" +
-		"luhmann: \"1\"\n---\n\n1. Do it\n")
-	with := []byte("---\ntype: runbook\nsituation: driving a task\ndone_when: done\n" +
-		"triggers:\n    - /please\n    - take this end-to-end\nluhmann: \"1\"\n---\n\n1. Do it\n")
-	g.Expect(embed.ContentHash(with)).To(Equal(embed.ContentHash(without)))
-}
-
-func TestContentHash_IsSha256OfSituationAndBody(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	raw := []byte("---\ntype: fact\nsituation: when X\n---\n\nthe body.\n")
-
-	hasher := sha256.New()
-	hasher.Write([]byte("when X"))
-	hasher.Write([]byte{0})
-	hasher.Write([]byte("the body.\n"))
-
-	g.Expect(embed.ContentHash(raw)).
-		To(Equal("sha256:" + hex.EncodeToString(hasher.Sum(nil))))
-}
-
-func TestContentHash_RelatedToEditsChangeHash(t *testing.T) {
-	t.Parallel()
-
-	// "Related to:" is ordinary body text now, not a hash-excluded channel —
-	// appending the block, and later editing its links, both change the hash.
-	g := NewWithT(t)
-	noBlock := []byte("---\ntype: fact\nluhmann: \"1\"\n---\n\n" +
-		"Information learned: when in X, S P O.\n")
-	withBlock := []byte("---\ntype: fact\nluhmann: \"1\"\n---\n\n" +
-		"Information learned: when in X, S P O.\n\n" +
-		"Related to:\n- [[2.note]] — because.\n")
-	diffLinks := []byte("---\ntype: fact\nluhmann: \"1\"\n---\n\n" +
-		"Information learned: when in X, S P O.\n\n" +
-		"Related to:\n- [[2.note]] — because.\n- [[9.other]] — added later.\n")
-
-	g.Expect(embed.ContentHash(noBlock)).NotTo(Equal(embed.ContentHash(withBlock)))
-	g.Expect(embed.ContentHash(withBlock)).NotTo(Equal(embed.ContentHash(diffLinks)))
-}
-
 func TestContributorsBodyMarker_IsExported(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 	g.Expect(embed.ContributorsBodyMarker).To(Equal("Contributors:"))
 	g.Expect(embed.AnsweredByBodyMarker).To(Equal("Answered by:"))
 	g.Expect(embed.AnswersBodyMarker).To(Equal("Answers:"))
-}
-
-func TestExtractBody_StripsFrontmatter(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	in := []byte("---\ntype: fact\nluhmann: \"5\"\n---\n\nThis is the body.\n")
-	g.Expect(string(embed.ExtractBody(in))).To(Equal("This is the body.\n"))
-}
-
-func TestSituationText_ExtractsFieldForAnyType(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	fact := []byte("---\ntype: fact\nsituation: when wiring a Go CLI\n---\n\nbody here\n")
-	g.Expect(string(embed.SituationText(fact))).To(Equal("when wiring a Go CLI"))
-
-	noFM := []byte("just a body, no frontmatter\n")
-	g.Expect(embed.SituationText(noFM)).To(BeEmpty())
-}
-
-// TestSituationText_FieldAfterValueEndingInDashes guards SituationText's
-// closing-delimiter match the same way: a preceding value ending in "---"
-// must not cut the frontmatter before situation:.
-func TestSituationText_FieldAfterValueEndingInDashes(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	in := []byte("---\ntype: runbook\nskill_key: a:foo---\nsituation: when wiring a Go CLI\n---\n\nBody.\n")
-	g.Expect(string(embed.SituationText(in))).To(Equal("when wiring a Go CLI"))
-}
-
-func TestSituationText_WhitespaceIsTrimmed(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	in := []byte("---\ntype: episode\nsituation:  spaced value  \nluhmann: \"7\"\n---\n\nBody.\n")
-	g.Expect(string(embed.SituationText(in))).To(Equal("spaced value"))
-}
-
-func TestStripMachineLines_QAMarkersRemoved(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		name string
-		in   string
-		want string
-	}{
-		{
-			name: "contributors_line_stripped",
-			in:   "Body line.\n\nContributors: [[100.note]], [[101.note]]\n",
-			want: "Body line.\n",
-		},
-		{
-			name: "answered_by_line_stripped",
-			in:   "What is the question?\n\nAnswered by: [[qa.2026-07-03.slug.a]]\n",
-			want: "What is the question?\n",
-		},
-		{
-			name: "answers_line_stripped",
-			in:   "The answer body.\n\nAnswers: [[qa.2026-07-03.slug.q]]\n",
-			want: "The answer body.\n",
-		},
-		{
-			name: "all_three_stripped_together",
-			in: "Body.\n\nAnswered by: [[qa.2026-07-03.slug.a]]" +
-				"\nAnswers: [[qa.2026-07-03.slug.q]]\nContributors: [[100.note]]\n",
-			want: "Body.\n",
-		},
-		{
-			name: "no_markers_unchanged",
-			in:   "Body without machine lines.\n",
-			want: "Body without machine lines.\n",
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-			// BodyText strips frontmatter first; wrap in frontmatter to exercise BodyText.
-			raw := []byte("---\ntype: qa-answer\n---\n\n" + tc.in)
-			got := string(embed.BodyText(raw))
-			g.Expect(got).To(Equal(tc.want))
-		})
-	}
 }

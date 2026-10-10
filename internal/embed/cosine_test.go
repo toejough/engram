@@ -10,7 +10,7 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-func TestCosine_Identical(t *testing.T) {
+func Test792b10c8a1_Cosine_Identical(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -18,25 +18,9 @@ func TestCosine_Identical(t *testing.T) {
 	g.Expect(float64(embed.Cosine(v, v))).To(BeNumerically("~", 1.0, cosineFloatTolerance))
 }
 
-func TestCosine_MismatchedLengths(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	g.Expect(embed.Cosine([]float32{1}, []float32{1, 2})).To(Equal(float32(0)))
-}
-
-func TestCosine_Orthogonal(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	a := []float32{1, 0}
-	b := []float32{0, 1}
-	g.Expect(float64(embed.Cosine(a, b))).To(BeNumerically("~", 0.0, cosineFloatTolerance))
-}
-
-// TestCosine_SelfSimilarityProperty asserts cosine(v,v) == 1 for any
+// Test792b10c8a1_Cosine_SelfSimilarityProperty asserts cosine(v,v) == 1 for any
 // non-zero vector.
-func TestCosine_SelfSimilarityProperty(t *testing.T) {
+func Test792b10c8a1_Cosine_SelfSimilarityProperty(t *testing.T) {
 	t.Parallel()
 
 	const propertyTolerance = 1e-4
@@ -61,7 +45,23 @@ func TestCosine_SelfSimilarityProperty(t *testing.T) {
 	})
 }
 
-func TestCosine_ZeroVector(t *testing.T) {
+func Test792b10c8a2_Cosine_Orthogonal(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	a := []float32{1, 0}
+	b := []float32{0, 1}
+	g.Expect(float64(embed.Cosine(a, b))).To(BeNumerically("~", 0.0, cosineFloatTolerance))
+}
+
+func Test792b10c8a3_Cosine_MismatchedLengths(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	g.Expect(embed.Cosine([]float32{1}, []float32{1, 2})).To(Equal(float32(0)))
+}
+
+func Test792b10c8a3_Cosine_ZeroVector(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)

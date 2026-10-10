@@ -208,8 +208,8 @@ flowchart TD
   N792c7b3["792c7b3 luhmann-addressing tech spec<br/>Complete"]
   N792c7b4["792c7b4 vault-write-lock tech spec<br/>Complete"]
   N792c7b5["792c7b5 text-embedder tech spec<br/>Complete"]
-  N792c7b6["792c7b6 embedding-sidecar tech spec<br/>Ready"]
-  N792c7b7["792c7b7 note-provenance tech spec<br/>Blocked by: 792c7b6"]
+  N792c7b6["792c7b6 embedding-sidecar tech spec<br/>Complete"]
+  N792c7b7["792c7b7 note-provenance tech spec<br/>Ready"]
   N792c7b8["792c7b8 note-authoring tech spec<br/>Blocked by: 792c7b7"]
   N792c7c1["792c7c1 note-revision product spec<br/>Blocked by: 792c7b8"]
   N792c7c2["792c7c2 wikilink-graph tech spec<br/>Blocked by: 792c7c1"]
@@ -990,11 +990,77 @@ Target: `792b10` (`docs/specs/technical/embedding-sidecar.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7b6a | Port the component contract to `792b10` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7b6b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7b6c | Repoint stale references to `792b10` | Non-test action | Keeps live links valid | Not started |
-| 792c7b6d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7b6e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7b6a | Port the component contract to `792b10` | Non-test action | Documents the component in the framework format | Done |
+| 792c7b6b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7b6c | Repoint stale references to `792b10` | Non-test action | Keeps live links valid | Done |
+| 792c7b6d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7b6e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+**Outcome:** the `embed apply`, `status` and note-revision sidecar writes are deferred (792d66). ADR-0002, ADR-0003 and the ADR-0012 `stripMachineLines` clause are ported, and ADR-0006 is deleted.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b10c1a1 | `TestMarshalUnmarshal_DualVector_RoundTrip` → `Test792b10c1a1_MarshalUnmarshal_DualVector_RoundTrip` | Pure unit (`internal/embed`) | Round trip | Done |
+| 792b10c1a2 | `TestSidecarLastUsedRoundTripsAndIsOptional` → `Test792b10c1a2_SidecarLastUsedRoundTripsAndIsOptional` | Pure unit (`internal/embed`) | Optional last_used | Done |
+| 792b10c1a3 | `TestUnmarshalSidecar_DimsMismatch_OnEitherVector` → `Test792b10c1a3_UnmarshalSidecar_DimsMismatch_OnEitherVector` | Pure unit (`internal/embed`) | Wrong vector length | Done |
+| 792b10c1a4 | `TestUnmarshalSidecar_Malformed` → `Test792b10c1a4_UnmarshalSidecar_Malformed` | Pure unit (`internal/embed`) | Malformed JSON | Done |
+| 792b10c1a5 | `TestUnmarshalSidecar_OldSingleVector_IsSchemaError` → `Test792b10c1a5_UnmarshalSidecar_OldSingleVector_IsSchemaError` | Pure unit (`internal/embed`) | Old schema | Done |
+| 792b10c2a1 | `TestSidecarPath_FromNotePath` → `Test792b10c2a1_SidecarPath_FromNotePath` | Pure unit (`internal/embed`) | Sidecar path | Done |
+| 792b10c2a2 | `TestSidecarPath_NonMdReturnsAppended` → `Test792b10c2a2_SidecarPath_NonMdReturnsAppended` | Pure unit (`internal/embed`) | Non-Markdown path | Done |
+| 792b10c3a1 | `TestSituationText_ExtractsFieldForAnyType` → `Test792b10c3a1_SituationText_ExtractsFieldForAnyType` | Pure unit (`internal/embed`) | Situation for any kind | Done |
+| 792b10c3a1 | `TestSituationText_FieldAfterValueEndingInDashes` → `Test792b10c3a1_SituationText_FieldAfterValueEndingInDashes` | Pure unit (`internal/embed`) | Situation after a dashed value | Done |
+| 792b10c3a1 | `TestSituationText_WhitespaceIsTrimmed` → `Test792b10c3a1_SituationText_WhitespaceIsTrimmed` | Pure unit (`internal/embed`) | Trimmed situation | Done |
+| 792b10c3a2 | `TestBodyText_StripsFrontmatter` → `Test792b10c3a2_BodyText_StripsFrontmatter` | Pure unit (`internal/embed`) | Body after frontmatter | Done |
+| 792b10c3a2 | `TestExtractBody_StripsFrontmatter` → `Test792b10c3a2_ExtractBody_StripsFrontmatter` | Pure unit (`internal/embed`) | Leading blank line dropped | Done |
+| 792b10c3a2 | `TestBodyText_NoFrontmatterReturnsRaw` → `Test792b10c3a2_BodyText_NoFrontmatterReturnsRaw` | Pure unit (`internal/embed`) | All body without frontmatter | Done |
+| 792b10c3a3 | `TestBodyText_ExcludesSupersedesLines` → `Test792b10c3a3_BodyText_ExcludesSupersedesLines` | Pure unit (`internal/embed`) | Supersedes lines left out | Done |
+| 792b10c3a3 | `TestStripMachineLines_QAMarkersRemoved` → `Test792b10c3a3_StripMachineLines_QAMarkersRemoved` | Pure unit (`internal/embed`) | QA lines left out | Done |
+| 792b10c3a4 | `TestBodyText_RelatedToIsOrdinaryBody` → `Test792b10c3a4_BodyText_RelatedToIsOrdinaryBody` | Pure unit (`internal/embed`) | Related-to section kept | Done |
+| 792b10c3a4 | `TestBodyText_VocabLineIsOrdinaryBody` → `Test792b10c3a4_BodyText_VocabLineIsOrdinaryBody` | Pure unit (`internal/embed`) | Vocabulary line kept | Done |
+| 792b10c3a5 | `TestBodyText_NormalizesTrailingBlankLines` → `Test792b10c3a5_BodyText_NormalizesTrailingBlankLines` | Pure unit (`internal/embed`) | Trailing blanks | Done |
+| 792b10c4a1 | `TestContentHash_IsSha256OfSituationAndBody` → `Test792b10c4a1_ContentHash_IsSha256OfSituationAndBody` | Pure unit (`internal/embed`) | Hash definition | Done |
+| 792b10c4a2 | `TestContentHash_ChangesWhenEitherSourceChanges` → `Test792b10c4a2_ContentHash_ChangesWhenEitherSourceChanges` | Pure unit (`internal/embed`) | Either source | Done |
+| 792b10c4a2 | `TestContentHash_EpisodeSituationChangeChangesHash` → `Test792b10c4a2_ContentHash_EpisodeSituationChangeChangesHash` | Pure unit (`internal/embed`) | Situation change | Done |
+| 792b10c4a2 | `TestContentHash_FactTracksBody` → `Test792b10c4a2_ContentHash_FactTracksBody` | Pure unit (`internal/embed`) | Body change | Done |
+| 792b10c4a2 | `TestContentHash_RelatedToEditsChangeHash` → `Test792b10c4a2_ContentHash_RelatedToEditsChangeHash` | Pure unit (`internal/embed`) | Ordinary body edit | Done |
+| 792b10c4a2 | `TestContentHash_EpisodeSituationSensitivityProperty` → `Test792b10c4a2_ContentHash_EpisodeSituationSensitivityProperty` | Property test (rapid, `internal/embed`) | Any situation change | Done |
+| 792b10c4a2 | `TestContentHash_FactBodySensitivityProperty` → `Test792b10c4a2_ContentHash_FactBodySensitivityProperty` | Property test (rapid, `internal/embed`) | Any body change | Done |
+| 792b10c4a3 | `TestContentHash_FrontmatterChangeDoesNotChangeHash` → `Test792b10c4a3_ContentHash_FrontmatterChangeDoesNotChangeHash` | Pure unit (`internal/embed`) | Other frontmatter | Done |
+| 792b10c4a3 | `TestContentHash_IgnoresRunbookTriggersBlock` → `Test792b10c4a3_ContentHash_IgnoresRunbookTriggersBlock` | Pure unit (`internal/embed`) | Triggers excluded | Done |
+| 792b10c4a4 | `TestContentHash_IdempotentProperty` → `Test792b10c4a4_ContentHash_IdempotentProperty` | Property test (rapid, `internal/embed`) | Repeatable | Done |
+| 792b10c5a1 | `TestBuildSidecar_EmbedsBothAndStamps` → `Test792b10c5a1_BuildSidecar_EmbedsBothAndStamps` | Pure unit (fake embedder, `internal/embed`) | Both vectors and stamps | Done |
+| 792b10c5a2 | `TestBuildSidecar_NoSituation_FallsBackToBody` → `Test792b10c5a2_BuildSidecar_NoSituation_FallsBackToBody` | Pure unit (fake embedder, `internal/embed`) | Body fallback | Done |
+| 792b10c6a1 | `TestAutoEmbedNote_HappyPathWritesValidSidecar` → `Test792b10c6a1_AutoEmbedNote_HappyPathWritesValidSidecar` | Pure unit (fake embedder and writer) | Valid sidecar written | Done |
+| 792b10c6a2 | `TestAutoEmbedNote_EmbedFailureWarnsButReturns` → `Test792b10c6a2_AutoEmbedNote_EmbedFailureWarnsButReturns` | Pure unit (fake embedder and writer) | Embedding failure warns | Done |
+| 792b10c6a3 | `TestAutoEmbedNote_WriteFailureLoggedButSwallowed` → `Test792b10c6a3_AutoEmbedNote_WriteFailureLoggedButSwallowed` | Pure unit (fake embedder and writer) | Write failure warns | Done |
+| 792b10c6a4 | `TestAutoEmbedNote_NilEmbedderIsNoOp` → `Test792b10c6a4_AutoEmbedNote_NilEmbedderIsNoOp` | Pure unit (fake embedder and writer) | No embedder | Done |
+| 792b10c6a4 | `TestAutoEmbedNote_NilWriterIsNoOp` → `Test792b10c6a4_AutoEmbedNote_NilWriterIsNoOp` | Pure unit (fake embedder and writer) | No writer | Done |
+| 792b10c7a1 | `TestComputeState_OK` → `Test792b10c7a1_ComputeState_OK` | Pure unit (fake filesystem, `internal/embed`) | ok | Done |
+| 792b10c7a2 | `TestComputeState_Missing` → `Test792b10c7a2_ComputeState_Missing` | Pure unit (fake filesystem, `internal/embed`) | missing | Done |
+| 792b10c7a2 | `TestNotExist_WrapsFsErrNotExist` → `Test792b10c7a2_NotExist_WrapsFsErrNotExist` | Pure unit (`internal/embed`) | Wrapped not-exist | Done |
+| 792b10c7a2 | `TestNotExist_InterfaceFallbackTrue` → `Test792b10c7a2_NotExist_InterfaceFallbackTrue` | Pure unit (`internal/embed`) | IsNotExist true | Done |
+| 792b10c7a2 | `TestNotExist_InterfaceFallbackFalse` → `Test792b10c7a2_NotExist_InterfaceFallbackFalse` | Pure unit (`internal/embed`) | IsNotExist false | Done |
+| 792b10c7a2 | `TestNotExist_NilFalse` → `Test792b10c7a2_NotExist_NilFalse` | Pure unit (`internal/embed`) | Nil error | Done |
+| 792b10c7a2 | `TestNotExist_UnrelatedErrorFalse` → `Test792b10c7a2_NotExist_UnrelatedErrorFalse` | Pure unit (`internal/embed`) | Unrelated error | Done |
+| 792b10c7a3 | `TestComputeState_Stale` → `Test792b10c7a3_ComputeState_Stale` | Pure unit (fake filesystem, `internal/embed`) | stale | Done |
+| 792b10c7a3 | `TestComputeState_Stale_AfterAddingRelatedToSection` → `Test792b10c7a3_ComputeState_Stale_AfterAddingRelatedToSection` | Pure unit (fake filesystem, `internal/embed`) | Related section added | Done |
+| 792b10c7a3 | `TestComputeState_Stale_AfterBodyChange_BeyondLinks` → `Test792b10c7a3_ComputeState_Stale_AfterBodyChange_BeyondLinks` | Pure unit (fake filesystem, `internal/embed`) | Body change | Done |
+| 792b10c7a4 | `TestComputeState_Incompatible` → `Test792b10c7a4_ComputeState_Incompatible` | Pure unit (fake filesystem, `internal/embed`) | Other model | Done |
+| 792b10c7a4 | `TestComputeState_OldSchemaSidecar_IsIncompatible` → `Test792b10c7a4_ComputeState_OldSchemaSidecar_IsIncompatible` | Pure unit (fake filesystem, `internal/embed`) | Old schema | Done |
+| 792b10c7a5 | `TestComputeState_Broken_BadJSON` → `Test792b10c7a5_ComputeState_Broken_BadJSON` | Pure unit (fake filesystem, `internal/embed`) | Malformed sidecar | Done |
+| 792b10c7a5 | `TestComputeState_Broken_DimsMismatch` → `Test792b10c7a5_ComputeState_Broken_DimsMismatch` | Pure unit (fake filesystem, `internal/embed`) | Wrong vector length | Done |
+| 792b10c7a6 | `TestState_String` → `Test792b10c7a6_State_String` | Pure unit (`internal/embed`) | State labels | Done |
+| 792b10c8a1 | `TestCosine_Identical` → `Test792b10c8a1_Cosine_Identical` | Pure unit (`internal/embed`) | Identical vectors | Done |
+| 792b10c8a1 | `TestCosine_SelfSimilarityProperty` → `Test792b10c8a1_Cosine_SelfSimilarityProperty` | Property test (rapid, `internal/embed`) | Any vector with itself | Done |
+| 792b10c8a2 | `TestCosine_Orthogonal` → `Test792b10c8a2_Cosine_Orthogonal` | Pure unit (`internal/embed`) | Orthogonal | Done |
+| 792b10c8a3 | `TestCosine_MismatchedLengths` → `Test792b10c8a3_Cosine_MismatchedLengths` | Pure unit (`internal/embed`) | Different lengths | Done |
+| 792b10c8a3 | `TestCosine_ZeroVector` → `Test792b10c8a3_Cosine_ZeroVector` | Pure unit (`internal/embed`) | Zero vector | Done |
+
+**Coverage gaps:** none for 792b10. 792a2c1a, 792a2d1a and 792a2d1b are covered end to end by `Test792a2d1a_Targets_StarterReadmeHiddenUserReadmeVisible` and the 792b3c4 listing tests.
+
+**No-scenario tests:** deferred to the capability that adds their requirement here (792d66): `internal/cli` `embed_test` (5) and `embed_selection_test` `TestSelectStates` (vault-health 792c7h1), `embed_selection_test` `TestKindFromContent` (memory-query 792c7f1), and `internal/embed` `crlf_test` `TestEmbedReaders_CRLFNoteReadsAsLF` (note-revision 792c7c1, 792d61). `hash_test` `TestContributorsBodyMarker_IsExported` checks that a constant is exported and verifies no behavior.
 
 #### 792c7b7 note-provenance tech spec
 
@@ -1053,7 +1119,7 @@ Target: `792a4` (`docs/specs/product/note-revision.md`).
 **Legacy sources (port, then remove):**
 
 - `openspec/specs/vault-note-identity/spec.md` (the note-reader CRLF requirement, and the amend and resituate key-preservation, anchor and CRLF paragraphs of "Exchange fields SHALL survive every frontmatter rewrite"; their format side extends `792b6`, 792d61)
-- `openspec/specs/vault-embed-on-write/spec.md` (the `amend` and `resituate` re-embedding requirement, 792d57)
+- `openspec/specs/vault-embed-on-write/spec.md` (the `amend` and `resituate` re-embedding requirement and the lossless `last_used` bump, 792d57, 792d66)
 - `openspec/specs/vault-wikilink-resolution/spec.md` (product requirements; the G3 dangling-link scenario goes to 792c7h1)
 - `docs/deprecated/architecture/c3-components.md` Component catalog K4w (product behavior of amend, resituate, activate)
 
@@ -1603,6 +1669,7 @@ Target: `792a9` (`docs/specs/product/vault-health.md`).
 
 **Legacy sources (port, then remove):**
 
+- `openspec/specs/vault-embed-on-write/spec.md` (the `embed apply` requirements; their selection extends `792b10`, 792d66)
 - `openspec/specs/vault-wikilink-resolution/spec.md` (G3 dangling-link scenario)
 - `docs/deprecated/architecture/c3-components.md` Component catalog K5b (`engram embed` behavior)
 - `docs/deprecated/architecture/memory-invariants.md` What the checker (`engram check`) must implement (what the user sees)

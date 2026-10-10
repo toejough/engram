@@ -8,7 +8,7 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-func TestState_String(t *testing.T) {
+func Test792b10c7a6_State_String(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {

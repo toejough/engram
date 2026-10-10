@@ -2520,3 +2520,358 @@ Scenario: 792a3n1b A failed embedding keeps the note
   When the user runs engram learn fact
   Then the note is written, stderr carries a warning naming it, and the command succeeds
 ```
+
+## 792b10 Added: embedding-sidecar
+
+Canonical target: `docs/specs/technical/embedding-sidecar.md` (title `Embedding Sidecar - Technical Spec`).
+
+### 792b10a Orientation
+
+- Ownership: Repository component.
+- Responsibility: each note's `.vec.json` sidecar. It decides which text of a note is embedded and
+  hashed, builds and writes the sidecar with two vectors, a model ID and a content hash, decodes
+  and validates one, classifies a note's sidecar against the current model, and measures cosine
+  similarity between vectors.
+- Current realization (informational): `internal/embed/sidecar.go` (`Sidecar` format,
+  `SidecarPath`, `MarshalSidecar`, `UnmarshalSidecar`), `internal/embed/embedder.go`
+  (`BuildSidecar`, `State`), `internal/embed/hash.go` (`SituationText`, `BodyText`, `ContentHash`),
+  `internal/embed/state.go` (`ComputeState`), `internal/embed/cosine.go` (`Cosine`), and
+  `autoEmbedNote` in `internal/cli/learn.go`. The `engram embed apply` and `status` selection in
+  `internal/cli/embed.go` is added by vault-health (792d66).
+- Qualification: responsibility, the sidecar contract is stated without naming any writer or
+  reader; ownership, callers decide when to build, read or classify a sidecar, while this component
+  decides its content and what makes it current; independent verification, building, decoding,
+  hashing and classification are tested directly over fake embedders and filesystems; stability,
+  the on-disk format is versioned and outlives any refactoring; necessity, every retrieval over notes
+  reads it.
+- Supported capabilities: 792a2 vault-identity, 792a3 note-writing. Note-revision,
+  controlled-vocabulary, memory-query, vault-health and vault-migration add their mappings and
+  requirements (792d30).
+
+Rationale: semantic search needs vectors, but a vector database or a separate rebuild step is a
+moving part that can drift from the notes. Instead every note carries its own sidecar, written as
+part of the same command: there is no index to maintain or invalidate, and a copied vault is
+self-contained. Each sidecar holds two vectors, one for the note's situation and one for its body,
+so retrieval can match a query against whichever fits better. Notes of every kind embed this way;
+the retired episode kind once embedded only its situation.
+
+### 792b10b Sequences
+
+```mermaid
+sequenceDiagram
+  participant Writer as Note writer
+  participant Sidecar as embedding-sidecar
+  participant Embedder as text-embedder
+  participant Store as durable-file-store
+  Writer->>Sidecar: write the sidecar for a just-written note (792b10c6)
+  Sidecar->>Sidecar: take the situation text, or the body when there is none, and the body text (792b10c3)
+  Sidecar->>Embedder: embed the situation text, then the body text (792b10c5)
+  alt both embedded
+    Embedder-->>Sidecar: two vectors
+    Sidecar->>Store: atomically write <note>.vec.json with the vectors, model ID, dimension and content hash (792b10c1, 792b10c2, 792b10c4)
+    alt write succeeded
+      Sidecar-->>Writer: done
+    else write failed
+      Sidecar-->>Writer: warning naming the note, note kept (792b10c6)
+    end
+  else embedding failed
+    Embedder-->>Sidecar: error
+    Sidecar-->>Writer: warning naming the note, note kept (792b10c6)
+  end
+```
+
+### 792b10c Behavior Requirements
+
+#### 792b10c1 Sidecar format
+
+Requirement: 792b10c1 The embedding-sidecar MUST store a sidecar as JSON with `schema_version` 1,
+`embedding_model_id`, `dims`, `situation_vector`, `body_vector`, `content_hash`, and `last_used`
+only when set. Decoding MUST refuse malformed JSON, MUST refuse any other schema version, such as an
+old single-vector sidecar, before checking lengths, MUST refuse a sidecar whose either vector's
+length differs from `dims`, and MUST read an absent `last_used` as empty.
+
+Supports: 792a3n1a, 792a3u1a, 792a3u1b.
+
+Rationale: `last_used` is added metadata. It does not bump the schema version, and it is kept out of
+the content hash, so recording a use never makes a note look stale.
+
+##### 792b10c1a Scenarios
+
+```gherkin
+Scenario: 792b10c1a1 A dual-vector sidecar round-trips
+  Given a sidecar with both vectors, a model ID, a dimension and a content hash
+  When it is encoded and decoded
+  Then every field reads back unchanged
+
+Scenario: 792b10c1a2 last_used is optional
+  Given a sidecar with and without last_used
+  When each is encoded and decoded
+  Then last_used round-trips when set, and a sidecar without it decodes with last_used empty
+
+Scenario: 792b10c1a3 A vector of the wrong length is refused
+  Given a sidecar whose situation or body vector length differs from dims
+  When it is decoded
+  Then the dims-mismatch error is returned
+
+Scenario: 792b10c1a4 Malformed JSON is refused
+  Given text that is not valid sidecar JSON
+  When it is decoded
+  Then the malformed-sidecar error is returned
+
+Scenario: 792b10c1a5 An old single-vector sidecar is a schema error
+  Given a sidecar written by the earlier single-vector schema
+  When it is decoded
+  Then the schema-version error is returned
+```
+
+#### 792b10c2 Sidecar path
+
+Requirement: 792b10c2 The embedding-sidecar MUST place a note's sidecar beside it, named after the
+note with `.md` replaced by `.vec.json`, and MUST append `.vec.json` to any other path.
+
+Supports: 792a3n1a.
+
+##### 792b10c2a Scenarios
+
+```gherkin
+Scenario: 792b10c2a1 A note's sidecar path
+  Given the note path 1aa.note.md
+  When its sidecar path is formed
+  Then it is 1aa.note.vec.json
+
+Scenario: 792b10c2a2 A non-Markdown path gets the suffix appended
+  Given a path that does not end in .md
+  When its sidecar path is formed
+  Then .vec.json is appended to it
+```
+
+#### 792b10c3 Embedding sources
+
+Requirement: 792b10c3 The embedding-sidecar MUST take a note's situation text from its
+`situation:` frontmatter value, trimmed, for any kind of note, and its body text from the text after
+the frontmatter, less one leading blank line, with every machine-written line removed (lines
+starting `Supersedes:`, `Contributors:`, `Answered by:` or `Answers:`) and trailing blank lines
+reduced to one newline. Other body lines MUST be kept. A note with no frontmatter is all body.
+
+Supports: 792a3n1a, 792a3q1a.
+
+Rationale: the machine-written lines are link channels rewritten in place by learn, amend and
+curation. Leaving them out means a link-only change neither moves the body vector nor makes the
+sidecar stale. Trailing blanks are normalized because the writers end bodies differently.
+
+##### 792b10c3a Scenarios
+
+```gherkin
+Scenario: 792b10c3a1 The situation is read from the frontmatter
+  Given notes of any kind with a situation: value, including after a value ending in --- and with surrounding whitespace
+  When the situation text is taken
+  Then it is the value, trimmed
+
+Scenario: 792b10c3a2 The body is the text after the frontmatter
+  Given a note with frontmatter followed by a blank line and a body, or a note without frontmatter
+  When the body text is taken
+  Then it is the body alone, or the whole text
+
+Scenario: 792b10c3a3 Machine-written lines are left out
+  Given a body with Supersedes:, Contributors:, Answered by: or Answers: lines
+  When the body text is taken
+  Then those lines are gone and the rest is unchanged
+
+Scenario: 792b10c3a4 Ordinary lines are kept
+  Given a body with a "Related to" section or a vocabulary line
+  When the body text is taken
+  Then those lines are kept
+
+Scenario: 792b10c3a5 Trailing blank lines are normalized
+  Given bodies that differ only in their trailing blank lines
+  When their body text is taken
+  Then each ends in exactly one newline
+```
+
+#### 792b10c4 Content hash
+
+Requirement: 792b10c4 The embedding-sidecar MUST hash a note as `sha256:` followed by the hex
+SHA-256 of its situation text, a zero byte, and its body text, so the hash changes when either
+changes, does not change for any other frontmatter edit, and is the same for the same note.
+
+Supports: 792a3n1a.
+
+##### 792b10c4a Scenarios
+
+```gherkin
+Scenario: 792b10c4a1 The hash covers situation and body
+  Given a note with a situation and a body
+  When it is hashed
+  Then the hash is sha256: and the hex SHA-256 of the situation, a zero byte and the body
+
+Scenario: 792b10c4a2 Changing either source changes the hash
+  Given a note whose situation or body text changes, for any such texts
+  When it is hashed again
+  Then the hash differs
+
+Scenario: 792b10c4a3 Other frontmatter does not change the hash
+  Given a note whose triggers, tags or other non-situation frontmatter changes
+  When it is hashed again
+  Then the hash is the same
+
+Scenario: 792b10c4a4 Hashing is repeatable
+  Given any note
+  When it is hashed twice
+  Then both hashes are equal
+```
+
+#### 792b10c5 Building a sidecar
+
+Requirement: 792b10c5 The embedding-sidecar MUST build a sidecar by embedding the situation text,
+or the body text when the note has no situation, and the body text, and stamping schema version 1,
+the embedder's model ID and dimension, and the note's content hash; an embedding failure MUST be
+returned.
+
+Supports: 792a3n1a, 792a3n1b.
+
+##### 792b10c5a Scenarios
+
+```gherkin
+Scenario: 792b10c5a1 Both vectors are embedded and stamped
+  Given a note with a situation and a body, and an embedder
+  When its sidecar is built
+  Then the situation vector embeds the situation, the body vector the body, and the model ID, dimension and hash are stamped
+
+Scenario: 792b10c5a2 A note without a situation embeds its body twice
+  Given a note with no situation: field
+  When its sidecar is built
+  Then both vectors embed the body text
+```
+
+#### 792b10c6 Writing a learned note's sidecar
+
+Requirement: 792b10c6 After `engram learn` writes a note, the embedding-sidecar MUST build its
+sidecar and atomically write it to the note's sidecar path. When building or writing fails, it MUST
+log a warning naming the note and return without failing the command. With no embedder or no
+sidecar writer wired, it MUST do nothing.
+
+Supports: 792a3n1a, 792a3n1b.
+
+Rationale: the note itself is already written in one atomic step, so a missing sidecar is
+recoverable later by `engram embed apply --missing`.
+
+##### 792b10c6a Scenarios
+
+```gherkin
+Scenario: 792b10c6a1 A learned note gets a valid sidecar
+  Given a just-written note and an embedder
+  When its sidecar is written
+  Then a sidecar that decodes, with the embedder's model ID, is at its sidecar path
+
+Scenario: 792b10c6a2 An embedding failure only warns
+  Given an embedder that fails
+  When the sidecar is written
+  Then a warning naming the note is logged, and no error is returned
+
+Scenario: 792b10c6a3 A write failure only warns
+  Given a sidecar writer that fails
+  When the sidecar is written
+  Then a warning naming the note is logged, and no error is returned
+
+Scenario: 792b10c6a4 Nothing is done without an embedder or writer
+  Given no embedder, or no sidecar writer
+  When the sidecar is written
+  Then nothing is embedded or written
+```
+
+#### 792b10c7 State classification
+
+Requirement: 792b10c7 The embedding-sidecar MUST classify a note against the current model as
+`broken` when the note cannot be read; `missing` when its sidecar does not exist; `broken` when the
+sidecar cannot be read, is malformed or has a dims mismatch; `incompatible` when it has another
+schema version or another model ID; `stale` when its content hash differs from the note's; and `ok`
+otherwise, checking the model before the hash.
+
+Supports: 792a2c1a, 792a2d1a, 792a2d1b.
+
+Rationale: a re-embed under a new model also picks up any content change, so a model mismatch takes
+precedence. Every failure is a state rather than an error, so a pass over the whole vault never
+stops early. All sidecars are expected to share one model ID. A query skips sidecars made by another
+model with only an advisory, and fails only when none remains, so after a partial model change its
+results can be silently thinner (792d66).
+
+##### 792b10c7a Scenarios
+
+```gherkin
+Scenario: 792b10c7a1 A current sidecar is ok
+  Given a note whose sidecar matches its content and the current model
+  When it is classified
+  Then it is ok
+
+Scenario: 792b10c7a2 An absent sidecar is missing
+  Given a note with no sidecar, whether the read error is fs.ErrNotExist, wraps it, or reports IsNotExist
+  When it is classified
+  Then it is missing, and an unrelated or nil error is not treated as absent
+
+Scenario: 792b10c7a3 Changed content is stale
+  Given a note whose body changed after its sidecar was written, including by adding a related-notes section
+  When it is classified
+  Then it is stale
+
+Scenario: 792b10c7a4 Another model or schema is incompatible
+  Given a sidecar made by another model, or by the old single-vector schema
+  When it is classified
+  Then it is incompatible
+
+Scenario: 792b10c7a5 An unreadable sidecar is broken
+  Given a sidecar that is malformed JSON or has a vector of the wrong length
+  When it is classified
+  Then it is broken
+
+Scenario: 792b10c7a6 States have labels
+  Given each state
+  When it is printed
+  Then it reads ok, missing, stale, incompatible or broken
+```
+
+#### 792b10c8 Cosine similarity
+
+Requirement: 792b10c8 The embedding-sidecar MUST measure two vectors' cosine similarity, and MUST
+return 0 when their lengths differ, when they are empty, or when either has zero magnitude.
+
+Supports: 792a3t1a, 792a3u1a, 792a3u1b.
+
+##### 792b10c8a Scenarios
+
+```gherkin
+Scenario: 792b10c8a1 A vector is fully similar to itself
+  Given any non-zero vector
+  When its cosine with itself is measured
+  Then it is 1
+
+Scenario: 792b10c8a2 Orthogonal vectors are not similar
+  Given two orthogonal vectors
+  When their cosine is measured
+  Then it is 0
+
+Scenario: 792b10c8a3 Vectors without signal score 0
+  Given vectors of different lengths, or a zero vector
+  When their cosine is measured
+  Then it is 0
+```
+
+### 792b10d Product-Scenario Mapping
+
+| Product scenario | Technical requirements |
+| --- | --- |
+| 792a2c1a | 792b10c7 |
+| 792a2d1a | 792b10c7 |
+| 792a2d1b | 792b10c7 |
+| 792a3n1a | 792b10c1, 792b10c2, 792b10c3, 792b10c4, 792b10c5, 792b10c6 |
+| 792a3n1b | 792b10c5, 792b10c6 |
+| 792a3q1a | 792b10c3 |
+| 792a3t1a | 792b10c8 |
+| 792a3u1a | 792b10c1, 792b10c8 |
+| 792a3u1b | 792b10c1, 792b10c8 |
+
+```gherkin
+Scenario: 792a3t1a The answer is found and the question is not
+  Given a vault holding a pair whose question and answer both match a phrase
+  When the user runs engram query with that phrase
+  Then the answer note can appear in the results, and the question note never does
+```

@@ -12,39 +12,9 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-// TestAutoEmbedNote_EmbedFailureWarnsButReturns asserts the warn-and-
-// proceed semantics (UAT 3 spec): embed failure is logged, sidecar is
-// not written, but the caller's learn write succeeds.
-func TestAutoEmbedNote_EmbedFailureWarnsButReturns(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	var warned bool
-
-	var wroteSidecar bool
-
-	deps := cli.LearnDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Embedder:   failingEmbedder{},
-		WriteSidecar: func(string, []byte) error {
-			wroteSidecar = true
-
-			return nil
-		},
-		LogWarning: func(string, ...any) { warned = true },
-	}
-
-	cli.ExportAutoEmbedNote(t.Context(), deps, "1.foo.md", "body")
-
-	g.Expect(warned).To(BeTrue())
-	g.Expect(wroteSidecar).To(BeFalse())
-}
-
-// TestAutoEmbedNote_HappyPathWritesValidSidecar asserts the happy path:
+// Test792b10c6a1_AutoEmbedNote_HappyPathWritesValidSidecar asserts the happy path:
 // embedder returns a vector, sidecar is marshaled and written.
-func TestAutoEmbedNote_HappyPathWritesValidSidecar(t *testing.T) {
+func Test792b10c6a1_AutoEmbedNote_HappyPathWritesValidSidecar(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -82,42 +52,39 @@ func TestAutoEmbedNote_HappyPathWritesValidSidecar(t *testing.T) {
 	g.Expect(parsed.ContentHash).To(HavePrefix("sha256:"))
 }
 
-// TestAutoEmbedNote_NilEmbedderIsNoOp asserts the helper returns early
-// when no embedder is wired — used by tests that don't exercise the
-// embedding pipeline.
-func TestAutoEmbedNote_NilEmbedderIsNoOp(t *testing.T) {
+// Test792b10c6a2_AutoEmbedNote_EmbedFailureWarnsButReturns asserts the warn-and-
+// proceed semantics (UAT 3 spec): embed failure is logged, sidecar is
+// not written, but the caller's learn write succeeds.
+func Test792b10c6a2_AutoEmbedNote_EmbedFailureWarnsButReturns(t *testing.T) {
 	t.Parallel()
 
-	deps := cli.LearnDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		WriteSidecar: func(string, []byte) error {
-			t.Fatal("WriteSidecar should not be called when Embedder is nil")
+	g := NewWithT(t)
 
-			return nil
-		},
-	}
+	var warned bool
 
-	cli.ExportAutoEmbedNote(t.Context(), deps, "1.foo.md", "body")
-}
-
-// TestAutoEmbedNote_NilWriterIsNoOp asserts the helper returns early
-// when WriteSidecar is unset — same shape, opposite arm.
-func TestAutoEmbedNote_NilWriterIsNoOp(t *testing.T) {
-	t.Parallel()
+	var wroteSidecar bool
 
 	deps := cli.LearnDeps{
 		DetectRepo: func(context.Context) string { return "" },
 		DetectUser: func(context.Context) string { return "" },
 		Embedder:   failingEmbedder{},
+		WriteSidecar: func(string, []byte) error {
+			wroteSidecar = true
+
+			return nil
+		},
+		LogWarning: func(string, ...any) { warned = true },
 	}
 
 	cli.ExportAutoEmbedNote(t.Context(), deps, "1.foo.md", "body")
+
+	g.Expect(warned).To(BeTrue())
+	g.Expect(wroteSidecar).To(BeFalse())
 }
 
-// TestAutoEmbedNote_WriteFailureLoggedButSwallowed asserts that even a
+// Test792b10c6a3_AutoEmbedNote_WriteFailureLoggedButSwallowed asserts that even a
 // failed sidecar write doesn't propagate — warn-and-proceed.
-func TestAutoEmbedNote_WriteFailureLoggedButSwallowed(t *testing.T) {
+func Test792b10c6a3_AutoEmbedNote_WriteFailureLoggedButSwallowed(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -134,6 +101,39 @@ func TestAutoEmbedNote_WriteFailureLoggedButSwallowed(t *testing.T) {
 
 	cli.ExportAutoEmbedNote(t.Context(), deps, "1.foo.md", "body")
 	g.Expect(warned).To(BeTrue())
+}
+
+// Test792b10c6a4_AutoEmbedNote_NilEmbedderIsNoOp asserts the helper returns early
+// when no embedder is wired — used by tests that don't exercise the
+// embedding pipeline.
+func Test792b10c6a4_AutoEmbedNote_NilEmbedderIsNoOp(t *testing.T) {
+	t.Parallel()
+
+	deps := cli.LearnDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		WriteSidecar: func(string, []byte) error {
+			t.Fatal("WriteSidecar should not be called when Embedder is nil")
+
+			return nil
+		},
+	}
+
+	cli.ExportAutoEmbedNote(t.Context(), deps, "1.foo.md", "body")
+}
+
+// Test792b10c6a4_AutoEmbedNote_NilWriterIsNoOp asserts the helper returns early
+// when WriteSidecar is unset — same shape, opposite arm.
+func Test792b10c6a4_AutoEmbedNote_NilWriterIsNoOp(t *testing.T) {
+	t.Parallel()
+
+	deps := cli.LearnDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Embedder:   failingEmbedder{},
+	}
+
+	cli.ExportAutoEmbedNote(t.Context(), deps, "1.foo.md", "body")
 }
 
 // unexported variables.

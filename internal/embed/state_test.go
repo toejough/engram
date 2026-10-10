@@ -10,71 +10,7 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-func TestComputeState_Broken_BadJSON(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	filesystem := fakeFS{
-		"x.md":       []byte("body\n"),
-		"x.vec.json": []byte("{not json"),
-	}
-
-	state := embed.ComputeState(filesystem, "x.md", "model@384")
-	g.Expect(state).To(Equal(embed.StateBroken))
-}
-
-func TestComputeState_Broken_DimsMismatch(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	// A current-schema sidecar with a genuine dims mismatch (body vector
-	// shorter than Dims) must classify Broken, not Incompatible — the schema
-	// check passes, the vector-length check fails.
-	filesystem := fakeFS{
-		"x.md": []byte("body\n"),
-		"x.vec.json": []byte(
-			`{"schema_version":1,"embedding_model_id":"model@384","dims":3,` +
-				`"situation_vector":[0.1,0.2,0.3],"body_vector":[0.1,0.2],"content_hash":"sha256:abc"}`,
-		),
-	}
-
-	state := embed.ComputeState(filesystem, "x.md", "model@384")
-	g.Expect(state).To(Equal(embed.StateBroken))
-}
-
-func TestComputeState_Incompatible(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	noteBytes := []byte("---\nx: 1\n---\nbody\n")
-	sidecar := embed.Sidecar{
-		SchemaVersion:    embed.SidecarSchemaVersion,
-		EmbeddingModelID: "OLDmodel@256",
-		Dims:             1,
-		SituationVector:  []float32{0.1},
-		BodyVector:       []float32{0.1},
-		ContentHash:      embed.ContentHash(noteBytes),
-	}
-	filesystem := fakeFS{
-		"x.md":       noteBytes,
-		"x.vec.json": mustSidecar(t, sidecar),
-	}
-
-	state := embed.ComputeState(filesystem, "x.md", "model@384")
-	g.Expect(state).To(Equal(embed.StateIncompatible))
-}
-
-func TestComputeState_Missing(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	filesystem := fakeFS{"x.md": []byte("---\nx: 1\n---\nbody\n")}
-
-	state := embed.ComputeState(filesystem, "x.md", "model@384")
-	g.Expect(state).To(Equal(embed.StateMissing))
-}
-
-func TestComputeState_OK(t *testing.T) {
+func Test792b10c7a1_ComputeState_OK(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -96,24 +32,17 @@ func TestComputeState_OK(t *testing.T) {
 	g.Expect(state).To(Equal(embed.StateOK))
 }
 
-func TestComputeState_OldSchemaSidecar_IsIncompatible(t *testing.T) {
+func Test792b10c7a2_ComputeState_Missing(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
-	note := []byte("---\ntype: fact\nsituation: x\n---\n\nbody\n")
-	oldSidecar := []byte(
-		`{"embedding_model_id":"minilm-l6-v2@384","dims":3,"vector":[0.1,0.2,0.3],"content_hash":"sha256:x"}`,
-	)
-	filesystem := fakeFS{
-		"n.md":       note,
-		"n.vec.json": oldSidecar,
-	}
+	filesystem := fakeFS{"x.md": []byte("---\nx: 1\n---\nbody\n")}
 
-	state := embed.ComputeState(filesystem, "n.md", "minilm-l6-v2@384")
-	g.Expect(state).To(Equal(embed.StateIncompatible))
+	state := embed.ComputeState(filesystem, "x.md", "model@384")
+	g.Expect(state).To(Equal(embed.StateMissing))
 }
 
-func TestComputeState_Stale(t *testing.T) {
+func Test792b10c7a3_ComputeState_Stale(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -134,7 +63,7 @@ func TestComputeState_Stale(t *testing.T) {
 	g.Expect(state).To(Equal(embed.StateStale))
 }
 
-func TestComputeState_Stale_AfterAddingRelatedToSection(t *testing.T) {
+func Test792b10c7a3_ComputeState_Stale_AfterAddingRelatedToSection(t *testing.T) {
 	t.Parallel()
 
 	// A note whose body-only change was adding a "Related to:" section must
@@ -166,7 +95,7 @@ func TestComputeState_Stale_AfterAddingRelatedToSection(t *testing.T) {
 	g.Expect(state).To(Equal(embed.StateStale))
 }
 
-func TestComputeState_Stale_AfterBodyChange_BeyondLinks(t *testing.T) {
+func Test792b10c7a3_ComputeState_Stale_AfterBodyChange_BeyondLinks(t *testing.T) {
 	t.Parallel()
 
 	// A note whose actual body content changed (not just links) must be Stale.
@@ -195,6 +124,77 @@ func TestComputeState_Stale_AfterBodyChange_BeyondLinks(t *testing.T) {
 
 	state := embed.ComputeState(filesystem, "n.md", "model@384")
 	g.Expect(state).To(Equal(embed.StateStale))
+}
+
+func Test792b10c7a4_ComputeState_Incompatible(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	noteBytes := []byte("---\nx: 1\n---\nbody\n")
+	sidecar := embed.Sidecar{
+		SchemaVersion:    embed.SidecarSchemaVersion,
+		EmbeddingModelID: "OLDmodel@256",
+		Dims:             1,
+		SituationVector:  []float32{0.1},
+		BodyVector:       []float32{0.1},
+		ContentHash:      embed.ContentHash(noteBytes),
+	}
+	filesystem := fakeFS{
+		"x.md":       noteBytes,
+		"x.vec.json": mustSidecar(t, sidecar),
+	}
+
+	state := embed.ComputeState(filesystem, "x.md", "model@384")
+	g.Expect(state).To(Equal(embed.StateIncompatible))
+}
+
+func Test792b10c7a4_ComputeState_OldSchemaSidecar_IsIncompatible(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	note := []byte("---\ntype: fact\nsituation: x\n---\n\nbody\n")
+	oldSidecar := []byte(
+		`{"embedding_model_id":"minilm-l6-v2@384","dims":3,"vector":[0.1,0.2,0.3],"content_hash":"sha256:x"}`,
+	)
+	filesystem := fakeFS{
+		"n.md":       note,
+		"n.vec.json": oldSidecar,
+	}
+
+	state := embed.ComputeState(filesystem, "n.md", "minilm-l6-v2@384")
+	g.Expect(state).To(Equal(embed.StateIncompatible))
+}
+
+func Test792b10c7a5_ComputeState_Broken_BadJSON(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	filesystem := fakeFS{
+		"x.md":       []byte("body\n"),
+		"x.vec.json": []byte("{not json"),
+	}
+
+	state := embed.ComputeState(filesystem, "x.md", "model@384")
+	g.Expect(state).To(Equal(embed.StateBroken))
+}
+
+func Test792b10c7a5_ComputeState_Broken_DimsMismatch(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	// A current-schema sidecar with a genuine dims mismatch (body vector
+	// shorter than Dims) must classify Broken, not Incompatible — the schema
+	// check passes, the vector-length check fails.
+	filesystem := fakeFS{
+		"x.md": []byte("body\n"),
+		"x.vec.json": []byte(
+			`{"schema_version":1,"embedding_model_id":"model@384","dims":3,` +
+				`"situation_vector":[0.1,0.2,0.3],"body_vector":[0.1,0.2],"content_hash":"sha256:abc"}`,
+		),
+	}
+
+	state := embed.ComputeState(filesystem, "x.md", "model@384")
+	g.Expect(state).To(Equal(embed.StateBroken))
 }
 
 // fakeFS is a trivial in-memory file map for ComputeState tests.

@@ -9,7 +9,7 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-func TestMarshalUnmarshal_DualVector_RoundTrip(t *testing.T) {
+func Test792b10c1a1_MarshalUnmarshal_DualVector_RoundTrip(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -32,7 +32,7 @@ func TestMarshalUnmarshal_DualVector_RoundTrip(t *testing.T) {
 	g.Expect(out).To(Equal(original))
 }
 
-func TestSidecarLastUsedRoundTripsAndIsOptional(t *testing.T) {
+func Test792b10c1a2_SidecarLastUsedRoundTripsAndIsOptional(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -73,22 +73,7 @@ func TestSidecarLastUsedRoundTripsAndIsOptional(t *testing.T) {
 	g.Expect(got2.LastUsed).To(Equal(""))
 }
 
-func TestSidecarPath_FromNotePath(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	g.Expect(embed.SidecarPath("132.2026-05-23.foo.md")).
-		To(Equal("132.2026-05-23.foo.vec.json"))
-}
-
-func TestSidecarPath_NonMdReturnsAppended(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	g.Expect(embed.SidecarPath("README")).To(Equal("README.vec.json"))
-}
-
-func TestUnmarshalSidecar_DimsMismatch_OnEitherVector(t *testing.T) {
+func Test792b10c1a3_UnmarshalSidecar_DimsMismatch_OnEitherVector(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -105,7 +90,7 @@ func TestUnmarshalSidecar_DimsMismatch_OnEitherVector(t *testing.T) {
 	g.Expect(parseErr).To(MatchError(embed.ErrDimsMismatch))
 }
 
-func TestUnmarshalSidecar_Malformed(t *testing.T) {
+func Test792b10c1a4_UnmarshalSidecar_Malformed(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -113,7 +98,7 @@ func TestUnmarshalSidecar_Malformed(t *testing.T) {
 	g.Expect(err).To(MatchError(embed.ErrSidecarMalformed))
 }
 
-func TestUnmarshalSidecar_OldSingleVector_IsSchemaError(t *testing.T) {
+func Test792b10c1a5_UnmarshalSidecar_OldSingleVector_IsSchemaError(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -124,4 +109,19 @@ func TestUnmarshalSidecar_OldSingleVector_IsSchemaError(t *testing.T) {
 
 	_, parseErr := embed.UnmarshalSidecar(old)
 	g.Expect(parseErr).To(MatchError(embed.ErrSchemaVersion))
+}
+
+func Test792b10c2a1_SidecarPath_FromNotePath(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	g.Expect(embed.SidecarPath("132.2026-05-23.foo.md")).
+		To(Equal("132.2026-05-23.foo.vec.json"))
+}
+
+func Test792b10c2a2_SidecarPath_NonMdReturnsAppended(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	g.Expect(embed.SidecarPath("README")).To(Equal("README.vec.json"))
 }

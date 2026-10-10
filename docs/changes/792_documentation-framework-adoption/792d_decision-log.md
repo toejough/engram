@@ -701,3 +701,23 @@ decisions as `792dN`, continuing the sequence.
   specified.
 - **Rationale:** 792d33 and 792d42. The advice is not current behavior.
 - **Alternatives:** specify the variable. Rejected because setting it changes nothing.
+
+## 792d66 Embedding-sidecar scope, and the partial-model-mismatch gap
+
+- **Choice:**
+  - 792b10 specifies the sidecar format and path, the embedding sources, the content hash,
+    building, the learn-time write, state classification and cosine similarity. The `engram embed
+    apply` and `status` selection waits for vault-health (792c7h1), and the `amend`, `resituate` and
+    `activate` sidecar writes for note-revision (792c7c1); `vault-embed-on-write` keeps those
+    residues, and both nodes' sources now list them. Their tests (`embed_test`, `TestSelectStates`)
+    stay unrenamed; `TestKindFromContent` reads a note's kind for the query payload and is left to
+    memory-query (792c7f1).
+  - The known defect M4 is described, not specified: a query drops sidecars made by another model
+    with only a stderr advisory, so a partial model change silently thins its results, and only a
+    vault with no compatible sidecar at all fails. 792b10c7's rationale states this.
+  - ADR-0006 (embed source by kind) is deleted. Its only surviving content, that every kind embeds a
+    situation and a body, is in 792b10's rationale; the episode kind it routed is retired (792d6).
+    ADR-0002 and ADR-0003 are reduced to pointers.
+- **Rationale:** 792d51, 792d33 and 792d6.
+- **Alternatives:** a **MUST** that all sidecars share one model. Rejected because nothing enforces
+  it.

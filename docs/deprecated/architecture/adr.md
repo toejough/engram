@@ -40,32 +40,17 @@ vault directly — recall reads via `engram show-chunk` / the query payload (not
 
 ## ADR-0002 — Pure-Go embedded model; no external embedding API
 
-**Status:** Accepted (known defect: M4) · supersedes the 2026-05-14 external-Voyage design
-
-The context and decision (a bundled MiniLM model run in pure Go, no external embedding API) are in
-[792b9](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b9-added-text-embedder).
-
-**Consequences.** A single `embedding_model_id` is stamped into every sidecar. ⚠ KNOWN (M4):
-`loadCompatibleSidecars` (`query.go`) silently drops sidecars whose `model_id ≠` the active
-model — a model swap silently empties recall unless `engram embed apply --force` re-embeds first.
-No guard except the all-empty error path.
+Ported to
+[792b9](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b9-added-text-embedder),
+with the M4 consequence in
+[792b10c7](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b10c7-state-classification).
 
 ---
 
 ## ADR-0003 — Embed-on-write with per-note `.vec.json` sidecars
 
-**Status:** Accepted (known defect: K1)
-
-**Context.** Semantic search needs vectors, but a vector DB or a separate rebuild step adds a
-moving part that can drift from the notes.
-
-**Decision.** Every `engram learn` writes a sibling `<note>.vec.json` (`vector` + `model_id` +
-`content_hash`) as part of the same operation. Note + sidecar creation is serialized under
-`flock(.luhmann.lock)` spanning id-compute→write, with `O_EXCL` to prevent clobber.
-
-**Consequences.** No index to maintain or invalidate; sidecars travel with notes (a vault copy is
-self-contained, no re-embed). `content_hash` is meant to detect staleness. E4 (episodes embed `situation` but `ContentHash` hashes the body) was resolved by the episode retirement (2026-06-19, alongside ADR-0006/0008). ⚠ KNOWN (K1): concurrency correctness rests on the flock spanning the entire
-id→write critical section — enforced in code, untested as a property.
+Ported to
+[792b10](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b10-added-embedding-sidecar).
 
 ---
 
@@ -111,24 +96,6 @@ the body "formula") and only the body is embedded/hashed — a frontmatter-only 
 no-op and invisible to `embed apply --stale`. Superseded: per-pass write-time synthesis is replaced
 by recall-time lazy-L2 — the write-sparsity that starved AutoK no longer applies, and INV-S2's
 frontmatter/body desync is resolved by `engram amend` (which rewrites both copies + re-embeds).
-
----
-
-## ADR-0006 — Embed source by kind: episodes embed `situation`, others embed body
-
-**Status:** Superseded — episode type retired (`engram learn episode` removed in 2026-06-19 cleanup); `embed.Text` now embeds body for all note types. E4/E5 defects are resolved by retirement. The `situation` field is still authored in fact/feedback bodies but is no longer a routing key for embedding.
-
-**Context.** Episodes are retrieved by **situation** (the task you were doing — the recall-mirror);
-facts/feedback are retrieved by their content.
-
-**Decision.** `embed.Text` routes `type:episode` → the `situation` frontmatter field; every other
-kind → the body (`hash.go:48-72`).
-
-**Consequences (historical — this ADR is superseded).** Episodes matched task-shaped queries the way recall phrases them. ✅ RESOLVED (E4, E5) by the 2026-06-19 episode retirement: `embed.Text` now embeds the body for every note type, so neither the staleness-hash-vs-`situation` mismatch (E4) nor the empty-`situation` body fallback (E5) can occur.
-⚠ KNOWN (M5, FAIL): fact/feedback retrieval also leans on `situation` (it is rendered into the body
-formula and feeds recall-mirror), yet the CLI marks `situation` `required` only for episodes — an
-empty fact/feedback situation is unguarded (census-clean 107/107). This is the FAIL-class
-situation-presence invariant's architectural home.
 
 ---
 
@@ -266,8 +233,7 @@ The context and decision (linked capture, answers compete, questions excluded) a
 [792a3q](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a3q-question-and-answer-pairs)
 and [792a3t](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a3t-question-and-answer-retrieval).
 
-**Consequences.** `stripMachineLines` strips the QA marker lines; `engram vocab stats` prints
-`qa pairs:` / `qa round-2 gate:` lines.
+**Consequences.** `engram vocab stats` prints `qa pairs:` / `qa round-2 gate:` lines.
 **Caveat carried forward to round-2/3 gating:** D5′'s asymmetry rests on n=5 synthetic pairs
 (vintage 2026-07-03), not yet re-validated at corpus scale — round-2 gates on ≥20 real captured
 pairs (or ~2026-07-17, whichever comes first) against pre-registered bands (PASS ≥8, BORDERLINE

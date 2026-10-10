@@ -10,7 +10,7 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-func TestBuildSidecar_EmbedsBothAndStamps(t *testing.T) {
+func Test792b10c5a1_BuildSidecar_EmbedsBothAndStamps(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -34,7 +34,7 @@ func TestBuildSidecar_EmbedsBothAndStamps(t *testing.T) {
 	g.Expect(sidecar.ContentHash).To(Equal(embed.ContentHash(raw)))
 }
 
-func TestBuildSidecar_NoSituation_FallsBackToBody(t *testing.T) {
+func Test792b10c5a2_BuildSidecar_NoSituation_FallsBackToBody(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
