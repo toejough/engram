@@ -102,7 +102,7 @@ multiple tests, but each scenario keeps an independently named and tracked test.
 
 | Entry | Work | Classification | Why | Status |
 |---|---|---|---|---|
-| 794c8c1 Review and checks | Reconcile scenario links and ownership; run dev and tagged integration tests, configured NilAway, and full checks | Validation | Verify implementation and documentation agree | Not started |
+| 794c8c1 Review and checks | Reconcile scenario links and ownership; run dev and tagged integration tests, configured NilAway, and full checks | Validation | Verify implementation and documentation agree | In progress |
 | 794c8c2 Canonical promotion | Promote product and technical deltas, remove this change directory, and integrate atomically after review | Delivery | Canonical truth changes with implementation/tests | Not started |
 
 ## 794c9 Completion Gates

@@ -30,11 +30,11 @@ are implemented. Policy/routing and command-boundary entries are Done after comm
 checkpoints and passing applicable suites. Final validation remains in progress.
 No canonical promotion, merge, or push is claimed.
 
-Local checkpoint commits are explicitly authorized. The updated sandbox excludes the original
-sibling worktree, so validation and local commits continue in a local shared clone at
-`/tmp/engram-794-resume` on the same branch name. The original worktree is not modified by this
-clone. Canonical promotion and deletion of the active change directory belong to a later
-authorized integration.
+Local checkpoint commits are explicitly authorized. An earlier sandbox excluded the original
+sibling worktree, so continuation checkpoints were created in a shared clone at
+`/tmp/engram-794-resume`. After permissions changed, those reviewed commits were transferred
+back to the original worktree with an ff-only update. Canonical promotion and deletion of the
+active change directory belong to a later authorized integration.
 
 ## 794d4 Regression Replay
 
@@ -118,3 +118,21 @@ as its prerequisite. Transfer must reconcile the original worktree's uncommitted
 files; do not blindly overwrite or discard them. The `gh issue comment` update could not
 reach `api.github.com`; no successful tracker update is claimed. Final validation, original
 worktree transfer, authorized integration, and canonical promotion remain open.
+
+## 794d11 Resumed Original-Worktree Validation
+
+The original worktree was fast-forwarded from `e38a2f17` to `5c47c4e0`. Its three
+intermediate regression-replay files were preserved in the named stash
+`794 pre-transfer regression replay preserved`, not discarded. No unrelated edits were found.
+
+With auto-reviewed escalation allowing normal caches and localhost listeners,
+`targ test-dev`, `targ test-dev-integration`, and `targ check-full --dep-mode serial`
+all pass in the original worktree. The full check includes coverage, clean tree,
+declaration ordering, both lint gates, deadcode, thin API, configured NilAway, and integration.
+The formerly blocked HTTP-server test passes without changing its code.
+
+The existing independent implementation ACK remains applicable: transferred production and
+tests are unchanged. Every catalog scenario has an ID-prefixed test; direct policy, wiring,
+interaction, subprocess, and real-analyzer contracts cover their owning requirements.
+The tracker progress update succeeded. Earlier filesystem, localhost, and network blockers
+are resolved. Integration into main, canonical promotion, and cleanup remain unperformed.
