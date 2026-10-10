@@ -10635,11 +10635,11 @@ Scenario: 792a21m1b A write with no parent exchanges nothing
 Requirement: [792a21n A local write is offered to the parent](#792a21n-a-local-write-is-offered-to-the-parent) With `ENGRAM_PARENT` set, `engram learn fact`, `engram learn feedback` and `engram learn runbook`,
 `engram amend` with any content flag (`--situation`, `--subject`, `--predicate`, `--object`, `--behavior`, `--impact`,
 `--action`, `--done-when`, `--body`, `--red-flag`, `--trigger`), `engram resituate`, and `engram amend --clear-pending`
-(or `--pending=false`, which clears the marker the same way) of a note that carries `offer.origin` (an accepted served
+of a note that carries `offer.origin` (an accepted served
 offer) MUST complete locally exactly as they do without a parent and MUST then queue the note as an offer. The last case MUST NOT be queued when the origin vault ID in
 `offer.origin` is the configured parent's vault ID. A queued offer MUST be an amend-offer that targets the note's
 primary parent link when the note has one for the configured parent's vault ID, and a learn-offer otherwise.
-The following MUST NOT be offered: the bookkeeping amends (`--activate`, `--clear-pending` or `--pending=false` of any other note,
+The following MUST NOT be offered: the bookkeeping amends (`--activate`, `--clear-pending` of any other note,
 `--discard` with or without `--into`, and amends whose only flags are `--supersedes` or `--chunk-source`), identity
 backfill, `engram learn qa` notes, notes that carry `skill_hash`, pending notes, and any write whose resulting
 exchange hash equals the note's primary link hash. Offers MUST carry notes only and never transcript chunks.

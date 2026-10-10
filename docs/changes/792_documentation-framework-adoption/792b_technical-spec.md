@@ -22009,7 +22009,7 @@ Requirement: [792b36c1 Which writes are offered](#792b36c1-which-writes-are-offe
 runbook note whose frontmatter parses and carries neither the pending marker nor `skill_hash`, the command is `learn`
 (not `learn qa`), `resituate`, or an `amend` that is not a discard and carries a content flag (`--situation`,
 `--subject`, `--predicate`, `--object`, `--behavior`, `--impact`, `--action`, `--done-when`, `--body`, `--red-flag` or
-`--trigger`) or clears the pending marker (`--clear-pending` or `--pending=false`) of a note that carries `offer.origin`
+`--trigger`) or clears the pending marker (`--clear-pending`) of a note that carries `offer.origin`
 whose origin vault is not the configured parent's, and the note's exchange hash is not equal to the hash of its primary
 link under the configured parent's vault ID. An amend whose only flags are `--supersedes` or `--chunk-source`, identity
 backfill and skill registration MUST NOT be offered. A link under any other vault ID, or any link while the parent's ID
