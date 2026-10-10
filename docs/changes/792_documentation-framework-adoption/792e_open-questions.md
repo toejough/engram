@@ -57,6 +57,7 @@ by it can continue. Choices that need only validation, not input, are in
   3. Drop it at promotion and rely on git and the issue.
 - **Recommendation:** 2.
 - **Blocks:** nothing until promotion. Default: write the paragraphs now.
+- **Answer (Joe, 2026-10-10):** keep rationale as concise "why" context; remove history, measurements and rejected alternatives at promotion; drop a paragraph that is history only. Recorded as "Rationale at Promotion" in [`docs/SPECIFICATION-LIFECYCLE-GUIDE.md`](../../SPECIFICATION-LIFECYCLE-GUIDE.md).
 
 ## 792e5 Where does `vault-graph.png` live?
 

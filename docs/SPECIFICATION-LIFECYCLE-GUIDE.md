@@ -48,6 +48,16 @@ Do not promote problem statements, implementation plans, implementation decision
 analysis, diagrams, reviews, impact analysis, or other change history into canonical
 specifications.
 
+### Rationale at Promotion
+
+A change MAY carry a `Rationale:` paragraph under the requirement it justifies. At promotion:
+
+- Keep the reason the behavior is the way it is, in one or two sentences.
+- Remove history: dates, what was removed or replaced and when, measurements and evaluation
+  results, how the decision was reached, and rejected alternatives. Git history and the external
+  issue preserve them.
+- Drop the paragraph entirely when nothing remains after that removal.
+
 A canonical specification MAY contain addressable nodes introduced by multiple changes.
 Organizational paths and canonical containers do not replace or rewrite those nodes' stable IDs.
 Canonical filenames and titles MUST be semantic and MUST NOT use change artifact or Luhmann IDs.
@@ -133,6 +143,7 @@ Before completing a change, verify:
   called-component behavior requirement.
 - Canonical technical requirements retain valid product-scenario references.
 - Canonical specifications match behavior present in the completed repository revision.
+- Promoted rationale states only why the behavior is the way it is; its history was removed.
 - Product and technical deltas are promoted in the same integration as implementation and tests.
 - The completed change directory is deleted.
 - No completed-change archive or duplicate normative copy remains.

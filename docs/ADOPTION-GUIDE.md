@@ -106,7 +106,9 @@ For each capability node:
    as the shipped system shows it. Do not judge correctness yet; record any divergence you notice in
    the decision log.
 3. Place each piece of legacy rationale in a `Rationale:` paragraph under the requirement it
-   justifies.
+   justifies. Full history may stay here; it is trimmed at promotion, as
+   [`docs/SPECIFICATION-LIFECYCLE-GUIDE.md`](./SPECIFICATION-LIFECYCLE-GUIDE.md) "Rationale at
+   Promotion" requires.
 4. Remove from the legacy sources only the content you ported. Content listed for a later node stays
    until that node. Delete a legacy file once nothing in it remains unported.
 5. Repoint every live reference to removed content at the new section.
