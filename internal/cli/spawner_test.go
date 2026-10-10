@@ -11,7 +11,7 @@ import (
 	"github.com/toejough/engram/internal/update"
 )
 
-func TestSpawner_PassesCallThroughOnSuccess(t *testing.T) {
+func Test792b4c4a1_Spawner_PassesCallThroughOnSuccess(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -33,7 +33,7 @@ func TestSpawner_PassesCallThroughOnSuccess(t *testing.T) {
 	g.Expect(gotEnv).To(Equal([]string{"ENGRAM_UPDATE_REEXEC=1"}))
 }
 
-func TestSpawner_PassesThroughNonZeroExitWithNilErr(t *testing.T) {
+func Test792b4c4a2_Spawner_PassesThroughNonZeroExitWithNilErr(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -45,7 +45,7 @@ func TestSpawner_PassesThroughNonZeroExitWithNilErr(t *testing.T) {
 	g.Expect(code).To(Equal(3))
 }
 
-func TestSpawner_PassesThroughSpawnFailure(t *testing.T) {
+func Test792b4c4a5_Spawner_PassesThroughSpawnFailure(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)

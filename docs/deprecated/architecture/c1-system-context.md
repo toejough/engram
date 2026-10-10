@@ -279,26 +279,7 @@ sequenceDiagram
 
 ### Flow: update
 
-`engram update` refreshes both the engram binary (via Go) and the harness's
-deployed skills, commands, and (opt-in) guidance. It walks up from `cwd` to
-detect a local clone: on hit it runs `go install ./cmd/engram/` from the clone;
-on miss it clones the repo (`git clone --depth 1`) and runs
-`go install ./cmd/engram/` from the clone — never `go install ...@latest`,
-which would miss the LFS-tracked embedder model (#645). On a successful
-install, the parent writes a handoff report and re-execs the freshly
-installed binary with a loop-guard sentinel (`ENGRAM_UPDATE_REEXEC=1`) to run
-all subsequent phases with fresh logic; the parent then exits with the
-child's exit code (ADR-0023). If re-exec fails to spawn, the parent falls
-back to completing in-process and reports why. The (re-execed, or fallback
-in-process) run then maintains per-harness engram-owned roots (containing the
-real artifacts) synced to match the intended deploy set: first update
-performs dark migration (adopts pre-existing copies to the root + symlinks),
-subsequent updates sync (create missing, overwrite changed, delete removed);
-symlink surfaces are materialized into each harness's discovery paths
-(`~/.claude/skills/`, etc.); dangling symlinks are cleaned up; dry-run skips
-install/re-exec and previews every operation without writing.
-Source: `internal/cli/update.go` (`runUpdate`) and `internal/update/update.go`
-(`Updater.Run`, `reexecAfterInstall`); design: ADR-0022, ADR-0023.
+The product behavior of `engram update` is in [792a11](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a11-added-install-and-update). The sequence below is ported by self-installer (792c7j2) and harness-deploy-sync (792c7j3). Source: `internal/cli/update.go` (`runUpdate`) and `internal/update/update.go` (`Updater.Run`, `reexecAfterInstall`); design: ADR-0022, ADR-0023.
 
 ```mermaid
 sequenceDiagram

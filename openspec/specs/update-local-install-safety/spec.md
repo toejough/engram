@@ -2,19 +2,9 @@
 
 ## Purpose
 
-Guard `engram update`'s local-mode install path against silently overwriting a
-newer installed binary with an older one, while resolving and reporting the
-local module root's git revision alongside the existing remote-mode revision
-reporting.
+The product behavior (the local source's revision in the report, the refusal of a provable downgrade, `--allow-downgrade`, and the fail-open cases) is in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a11-added-install-and-update` (792a11c, 792a11d). The requirements below keep the mechanism for self-installer (792c7j2).
 
 ## Requirements
-
-### Requirement: Local-mode install resolves and reports a git revision
-When `engram update` runs in local mode (a git-tracked module root discovered by walking up from `cwd`), `resolveSource` SHALL resolve the module root's current git revision (short SHA) and report it, the same way remote mode already resolves and reports a revision after cloning.
-
-#### Scenario: Local-mode report shows the resolved revision
-- **WHEN** `engram update` runs in local mode against a module root at a known git commit
-- **THEN** the update report's source description includes the resolved short SHA
 
 ### Requirement: Provable local-mode downgrades are refused without `--allow-downgrade`
 Before running `go install` in local mode, if a binary already exists at the resolved install path, `engram update` SHALL capture that binary's embedded VCS revision (via its Go build info) and SHALL compare it against the module root's resolved revision using git ancestry. When the module root's revision is provably NOT a descendant of the installed binary's revision (both revisions are known to the module root's git history and the ancestry check fails), `engram update` SHALL refuse the install and report the detected downgrade, UNLESS `--allow-downgrade` was passed, in which case the install proceeds as if no check occurred.

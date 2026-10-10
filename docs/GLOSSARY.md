@@ -854,7 +854,7 @@ prints a one-line notice naming the exact command when it detects
 old-format vocab files (#678 — `engram update --regen-vocab`), leftover
 empty `.jsonl` chunk-index files (#694 — `engram prune --empty`), a
 duplicate backlog that `engram prune --duplicates` would actually remove
-(ADR-0021, refined by #713: prune's dry-run coverage gate decides;
+([792a11n](changes/792_documentation-framework-adoption/792a_product-spec.md#792a11n-backlog-notices-for-the-chunk-index), refined by #713: prune's dry-run coverage gate decides;
 refusal-only backlogs stay silent), or a vault holding only top-level
 Luhmann IDs — no `continuation`/`sibling` (child) note anywhere (#701's
 `restore-luhmann-branching-disposition` only fixed disposition for new

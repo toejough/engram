@@ -1243,15 +1243,15 @@ Canonical target: `docs/specs/technical/subprocess-runner.md` (title `Subprocess
   failures.
 - Current realization (informational): `primCommander` in `internal/cli/commander.go` (the
   `update.Commander` interface), over the raw `ExecPrims` that `cmd/engram/main.go` supplies.
-  `primSpawner` in `internal/cli/spawner.go` runs a child with inherited stdio; its requirements are
-  added by install-and-update (792c7j1, 792d51).
+  `primSpawner` in `internal/cli/spawner.go` runs a child with inherited stdio (792b4c4), over the
+  `spawnPrimitives` that `cmd/engram/main.go` supplies.
 - Qualification: responsibility, running a program and collecting its output is stated without
   naming any caller; ownership, callers choose the program and interpret its output, while this
   component owns collection, error context and not-found translation; independent verification, it
   is tested directly over a fake run primitive and over real processes; stability, the contract
   survives any change to the injection seam; necessity, the uncommitted vault-ID notice and note
   provenance depend on running `git`.
-- Supported capabilities: 792a2 vault-identity, 792a3 note-writing.
+- Supported capabilities: 792a2 vault-identity, 792a3 note-writing, 792a11 install-and-update.
 
 No legacy document describes this component. It is derived from its realization and tests.
 
@@ -1342,6 +1342,55 @@ Scenario: 792b4c3a2 Without a configured not-found error nothing is translated
   Then the error wraps the failure and does not satisfy errors.Is for the command-not-found error
 ```
 
+#### 792b4c4 Run with the caller's streams
+
+Requirement: 792b4c4 The subprocess-runner MUST run the named program with the given arguments, with the
+caller's standard input, output and error as the program's, and with the given extra environment entries
+added to the process environment. It MUST return the program's exit status and no error whenever the
+program started, including a non-zero status, and MUST return an error that wraps the failure and names
+the program, and the status -1, when the program could not be started (missing or not executable).
+
+Supports: 792a11e1a, 792a11e1c, 792a11o1b.
+
+Rationale: the caller needs to tell a child that ran and failed from a child that never started, because
+only the second justifies completing the work itself. A handed-off `engram update` writes its report
+straight to the terminal, so the child shares the caller's streams rather than having its output
+collected (792b4c1).
+
+##### 792b4c4a Scenarios
+
+```gherkin
+Scenario: 792b4c4a1 The call reaches the run primitive unchanged
+  Given a fake run primitive that returns status 0
+  When engram is spawned with the arguments update and the extra environment entry ENGRAM_UPDATE_REEXEC=1
+  Then the primitive receives that program, those arguments and that entry, and the result is status 0 with no error
+
+Scenario: 792b4c4a2 A non-zero status is a status, not an error
+  Given a program that exits with status 7, or a fake primitive that returns 3 with no error
+  When it is spawned
+  Then the result is that status and no error
+
+Scenario: 792b4c4a3 A clean exit is status zero
+  Given a program that exits 0
+  When it is spawned
+  Then the result is status 0 and no error
+
+Scenario: 792b4c4a4 Arguments and extra environment reach the program
+  Given a program that succeeds only when its first argument is arg-one and ENGRAM_TEST_SENTINEL is 1
+  When it is spawned with that argument and the extra entry ENGRAM_TEST_SENTINEL=1
+  Then it exits 0
+
+Scenario: 792b4c4a5 A program that cannot start is an error
+  Given a program that does not exist, or a fake primitive that returns -1 and an error
+  When it is spawned
+  Then the result is an error, never a status, and the error wraps the primitive's failure and the status is -1
+
+Scenario: 792b4c4a6 The program shares the caller's streams
+  Given a program that reads its standard input and writes to its standard output and standard error
+  When it is spawned
+  Then its output appears on the caller's standard output and error, and it reads the caller's standard input
+```
+
 ### 792b4d Product-Scenario Mapping
 
 | Product scenario | Technical requirements |
@@ -1356,6 +1405,9 @@ Scenario: 792b4c3a2 Without a configured not-found error nothing is translated
 | 792a3p1a | 792b4c1 |
 | 792a3p1b | 792b4c1, 792b4c2 |
 | 792a3p1c | 792b4c2 |
+| 792a11e1a | 792b4c4 |
+| 792a11e1c | 792b4c4 |
+| 792a11o1b | 792b4c4 |
 
 ```gherkin
 Scenario: 792a2i1a Uncommitted ID is flagged
@@ -1409,6 +1461,23 @@ Scenario: 792a3p1c No detectable user
   Given neither git config user.email nor the OS username resolves
   When the user runs engram learn fact
   Then the note has no user: field, vault: is stamped as usual, and stderr carries one warning that user detection resolved empty
+```
+
+```gherkin
+Scenario: 792a11e1a The deploy runs in the new binary
+  Given an update that installs successfully
+  When the user runs engram update
+  Then the install result is printed once, the deploy report is printed once by the installed binary, and the exit status is that binary's
+
+Scenario: 792a11e1c A failed hand-off falls back
+  Given an install that succeeds but an installed binary that cannot be started
+  When the user runs engram update
+  Then the update still deploys to the harnesses, and its report says re-exec failed, completed with pre-update logic, and why
+
+Scenario: 792a11o1b Options reach the handed-off run
+  Given an update that installs and hands off
+  When the user runs engram update --with-guidance --regen-vocab --backfill-identity
+  Then the installed binary is started as engram update with those three options and no others
 ```
 
 ## 792b5 Added: vault-identity-registry
@@ -6930,7 +6999,8 @@ Canonical target: `docs/specs/technical/chunk-index-store.md` (title `Chunk Inde
   embedders and recording locks, and over the real filesystem; stability, the contract survives any
   change to how sources are found or chunked; necessity, every chunk a query returns comes from it.
 - Supported capabilities: 792a5 chunk-indexing, 792a4 note-revision (chunk IDs), 792a7 memory-query
-  (the first-indexed time). Install-and-update and learn add their requirements (792d30).
+  (the first-indexed time), 792a11 install-and-update (the backlog check). Learn adds its requirements
+  (792d30).
 
 Rationale: the index is rebuilt incrementally and offline, with no LLM. A source's index file is
 append-only: an embedded chunk is the memory and its source only provenance, so editing or deleting
@@ -7637,6 +7707,77 @@ Scenario: 792b18c14a6 A record without the field has no time
   Then its ingested_at is the zero time
 ```
 
+#### 792b18c15 Reporting a prune backlog
+
+Requirement: 792b18c15 The chunk-index-store MUST report, without changing anything, whether the chunks
+directory holds at least one zero-byte file whose name ends in `.jsonl` (skipping directories), and
+whether `--duplicates` (792b18c11) would remove at least one entry. For the second it MUST read the
+manifest and run the same grouping, kept-entry choice and coverage check in dry-run mode, discarding the
+refusal lines, so an entry already recorded as a copy, a group whose members differ in kind or hash, and
+a group whose every removal would be refused count as nothing to remove. It MUST report nothing to prune
+when the directory cannot be listed or the manifest is missing, unreadable or undecodable, because a
+detection failure must never fail the caller.
+
+Supports: 792a11n1a, 792a11n1b, 792a11n1c, 792a11n1d.
+
+Rationale: `engram update` only notifies, so the notice must fire exactly when the command it names would
+work (#713). Re-running prune's own check is cheaper to keep correct than a second copy of it, and costs
+one manifest read, with per-source reads only for groups of two or more.
+
+##### 792b18c15a Scenarios
+
+```gherkin
+Scenario: 792b18c15a1 An empty index file is found
+  Given a chunks directory holding an empty a.jsonl
+  When the backlog is checked
+  Then an empty file is reported
+
+Scenario: 792b18c15a2 An empty file among non-empty ones is found
+  Given a.jsonl with content and an empty b.jsonl
+  When the backlog is checked
+  Then an empty file is reported
+
+Scenario: 792b18c15a3 Non-empty files are not a backlog
+  Given only a.jsonl with content
+  When the backlog is checked
+  Then no empty file is reported
+
+Scenario: 792b18c15a4 An empty file of another kind is ignored
+  Given an empty manifest.json and no empty .jsonl file
+  When the backlog is checked
+  Then no empty file is reported
+
+Scenario: 792b18c15a5 A missing directory has no backlog
+  Given a chunks directory that does not exist
+  When the backlog is checked
+  Then no empty file is reported and there is no error
+
+Scenario: 792b18c15a6 No manifest means no duplicates
+  Given a chunks directory with no manifest.json
+  When the backlog is checked
+  Then nothing is reported for removal
+
+Scenario: 792b18c15a7 Entries that are not a removable group are ignored
+  Given entries with distinct hashes, entries sharing a hash but differing in kind, or an entry already recorded as a copy
+  When the backlog is checked
+  Then nothing is reported for removal
+
+Scenario: 792b18c15a8 A group that prune would collapse is reported
+  Given two entries with the same hash and kind, whose duplicate was never indexed or whose records the kept entry's index covers
+  When the backlog is checked
+  Then a removal is reported, and nothing is removed or written
+
+Scenario: 792b18c15a9 A refusal-only group is silent
+  Given two entries with the same hash and kind where the kept entry has no index file while the other's exists, or where no member is indexed, or where the other holds a record the kept entry lacks
+  When the backlog is checked
+  Then nothing is reported for removal
+
+Scenario: 792b18c15a10 A malformed manifest is no backlog
+  Given a manifest.json that is not valid JSON
+  When the backlog is checked
+  Then nothing is reported for removal, and the check neither panics nor returns an error
+```
+
 ### 792b18d Product-Scenario Mapping
 
 | Product scenario | Technical requirements |
@@ -7676,6 +7817,10 @@ Scenario: 792b18c14a6 A record without the field has no time
 | 792a7p1c | 792b18c14 |
 | 792a7p1d | 792b18c14 |
 | 792a7zf1e | 792b18c12 |
+| 792a11n1a | 792b18c11, 792b18c15 |
+| 792a11n1b | 792b18c11, 792b18c15 |
+| 792a11n1c | 792b18c15 |
+| 792a11n1d | 792b18c15 |
 
 ```gherkin
 Scenario: 792a5c1b A swept file that vanishes is skipped
@@ -7769,6 +7914,28 @@ Scenario: 792a7zf1e An empty index is an empty payload
   Given a chunk index directory that does not exist
   When the user runs engram query-chunks --phrase p
   Then the payload has no items, and the budget says total_chunks: 0
+```
+
+```gherkin
+Scenario: 792a11n1a Update reports the prune command when duplicates exist
+  Given a chunk index with several canonical entries per content-hash group whose removal prune would allow
+  When the user runs engram update
+  Then it prints the duplicates notice naming engram prune --duplicates and its --dry-run preview, and removes nothing
+
+Scenario: 792a11n1b A refusal-only backlog is silent
+  Given duplicate groups none of which prune --duplicates would remove
+  When the user runs engram update
+  Then it prints no duplicates notice
+
+Scenario: 792a11n1c Empty index files are reported
+  Given the chunk index holds a zero-byte .jsonl file
+  When the user runs engram update
+  Then it prints the empty-files notice naming engram prune --empty
+
+Scenario: 792a11n1d A clean or missing index is silent
+  Given a chunk index with no duplicates and no empty files, or no chunk index
+  When the user runs engram update
+  Then it prints neither notice
 ```
 
 ## 792b19 Added: similarity-clustering

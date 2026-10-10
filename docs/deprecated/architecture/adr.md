@@ -366,29 +366,6 @@ primitives, real-os integration tests as internal `_test` files. A new I/O capab
 regression. `cmd/engram` carries no testable logic and stays coverage-exempt as an entry point.
 Seeded `math/rand/v2` stays legal (deterministic computation).
 
-## ADR-0021 — Chunk-index dedup by content hash + canonical precedence; the record-subset eviction gate; update notifies rather than acts
-
-**Status:** Accepted (shipped 2026-07-25/26). The dedup key, canonical precedence, eviction, the record-subset gate, Rule B, `prune --duplicates` and their measurements are in [792a5](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a5-added-chunk-indexing) and [792b18](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b18-added-chunk-index-store); the `.claude/jobs` exclusion is in [792b17](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b17-added-ingestion-source-discovery). Decision 9 waits for install-and-update (792c7j1).
-
-**Decision.**
-
-9. **`engram update` notifies; it does not run the cleanup itself.** An earlier design considered
-   having `engram update` run the retroactive prune automatically, once, on upgrade (a sentinel
-   file marking it done). This was reversed: `update` now only detects whether a live duplicate
-   group exists in the manifest (one cheap read + grouping pass, no per-file index opens) and
-   prints a one-line notice pointing at `engram prune --duplicates` and the README Upgrading
-   section — the same notify-only convention `update` already uses for the #694 empty-file
-   backlog. Reasoning: removing index files is a destructive, one-shot migration over a user's
-   memory store, and — unlike the empty-file case, which is unconditionally safe (empty files hold
-   zero records) — a duplicate removal's safety depends on the record-subset gate holding at the
-   moment it runs. A destructive migration should run only when the user asks for it, not silently
-   as a side effect of a routine binary/skills refresh. Detection is stateless: no sentinel file,
-   because there is nothing to mark "done" — the check simply reports the live count truthfully on
-   every run and goes quiet once the backlog is actually cleared. Refined by #713 (2026-07-27):
-   detection now runs prune's own dry-run coverage gate, so the notice fires only when a removal
-   would actually happen, and it names the command directly (the README Upgrading section it used
-   to point at is removed).
-
 ## ADR-0022 — Deployment as sync: engram-owned roots with symlinked surfaces and removals-propagate semantics
 
 **Status:** Accepted (shipped 2026-07-27 via #706)

@@ -1497,3 +1497,47 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792d10, 792d30, 792d52 and 792d101.
 - **Alternatives:** none beyond 792d101.
 
+## 792d103 install-and-update scope, ownership of the update run, and the behaviors the code shows
+
+- **Choice:**
+  - 792a11 has fifteen requirements (792a11a to 792a11o). The notices that `engram update` prints about
+    the vault belong to the capabilities whose state they report (vocabulary 792a6, vault ID 792a2i,
+    Luhmann branching and missing origin 792a10), the pending-offer notice to curate (792c7u1), the
+    outbox notice to parent-sync (792c7t1) and the registration step and its error line to
+    skill-runbook-registration (792c7k1). The guidance activation hints (the `@import` line to add, the
+    refreshed line, the nudge) belong to ambient-guidance (792c7r1), so `update_test`'s
+    `TestWriteUpdateReport_GuidanceActivationHint` waits for it; the canonical-path suffix on Claude
+    guidance lines is part of the deploy (792a11m1d).
+  - Per 792d101, self-installer (792b28) owns the update run: source acquisition and install, the downgrade
+    gate, the hand-off, flag routing, the post-sync checks and the report's header, notices and exit status.
+    harness-deploy-sync (792b29) owns harness detection, the deploy set, the engram-owned root, the links,
+    the cleanup, the adoption, the guidance gating and the lines the report shows for each harness.
+  - subprocess-runner gains 792b4c4 (the spawn that shares the caller's streams) and chunk-index-store
+    gains 792b18c15 (the backlog check the two chunk-index notices use). command-line-surface gains
+    nothing: the `update` command's flags and routing are the update run's, and the generic result
+    mapping it already specifies needs no new requirement.
+  - A product scenario about the report's text maps to the component that renders it, and a test that
+    runs the command to assert such a scenario takes the product ID (792d52): `TestRunCommand_EndToEnd`
+    takes 792a11a1b.
+- **Divergences noted (792d33):**
+  - `engram update` cannot run its install in this environment (the clone's model is a git-lfs pointer),
+    so the install and the hand-off were not run against a built binary. With a temporary HOME, vault and
+    XDG directories, `engram update --dry-run` was run from the repository, and the sync phase was run
+    through the loop-guard sentinel (`ENGRAM_UPDATE_REEXEC=1 engram update`) over a Claude Code
+    directory that held a copied skill and an unrelated skill: the copy was adopted, the unrelated skill
+    was listed as unmanaged and left, the root and its marker were created, and the links were correct.
+  - The walk from the working directory stops at the first `go.mod`, even one for another module, and then
+    installs from a clone.
+  - A dry run from outside a checkout still removes and re-creates the scratch clone directory and runs
+    `git clone` there, then checks the model; only `go install` is skipped.
+  - `Report.BinaryVersion` is the source revision in both modes, although its comment says local mode
+    leaves it empty, so the binary line reads `engram <short SHA>`. The unit tests of the report use fixtures
+    that predate the clone build (`go install …@latest`), which the code no longer prints.
+  - The registration offers are printed before the report when the stdin is not a terminal or on a dry
+    run, because registration writes to the output directly.
+  - Manifest deploy mode is implemented and tested, but no shipped harness uses it: both Claude Code and Pi
+    run in symlink mode. It is specified by harness-deploy-sync as an alternative route to 792a11i1a.
+- **Rationale:** 792d30, 792d51, 792d52, 792d101 and 792d102.
+- **Alternatives:** put the report's notices in the capabilities that detect them. Rejected because the
+  report's order and silence rules are one contract, and the notice scenarios of 792a10 already wait for
+  the update run's owner.

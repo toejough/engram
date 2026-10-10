@@ -50,7 +50,7 @@ func Test792b4c1a2_CommanderIntegration_RunsInDir(t *testing.T) {
 // These tests drive the composed primCommander over the REAL exec
 // primitive (realPrimitives mirrors cmd/engram/main.go's literal).
 // The production C-1 closure is guarded end-to-end by cli_test.go's
-// TestRunCommand_EndToEnd (#700). The integration tests below verify
+// Test792a11a1b_RunCommand_EndToEnd (#700). The integration tests below verify
 // the composed Commander over real os funcs.
 
 func Test792b4c2a1_CommanderIntegration_ReportsFailure(t *testing.T) {

@@ -11,6 +11,79 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+// Test792a11a1b_RunCommand_EndToEnd guards the production C-1 closure in
+// cmd/engram/main.go's execPrimitives (lines 40-48). Runs engram update
+// from a non-module cwd with fake git/go shims on PATH to prove Cmd.Run
+// executes the closure end-to-end. The shims trap invocations by writing
+// to a marker file, proving the production literal was reached.
+func Test792a11a1b_RunCommand_EndToEnd(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	shimDir := t.TempDir()
+	markerFile := filepath.Join(shimDir, "invocations.txt")
+	workDir := t.TempDir()
+
+	// Write a fake git shim that logs invocations and exits 0.
+	gitShim := filepath.Join(shimDir, "git")
+	gitScript := `#!/bin/sh
+echo "$0 $@" >> "` + markerFile + `"
+exit 0
+`
+	g.Expect(os.WriteFile(gitShim, []byte(gitScript), 0o755)).To(Succeed())
+
+	// Write a fake go shim that logs invocations and exits 0.
+	goShim := filepath.Join(shimDir, "go")
+	goScript := `#!/bin/sh
+echo "$0 $@" >> "` + markerFile + `"
+exit 0
+`
+	g.Expect(os.WriteFile(goShim, []byte(goScript), 0o755)).To(Succeed())
+
+	binPath := sharedEngramBinary(t)
+
+	// Run engram update --dry-run from a non-module cwd with shims on PATH.
+	// Pin the subprocess cache location via XDG_CACHE_HOME to prevent the
+	// binary from materializing a model cache in the repo.
+	run := exec.Command(binPath, "update", "--dry-run")
+	run.Dir = workDir
+
+	cacheDir := filepath.Join(t.TempDir(), "cache")
+	run.Env = append(envWithoutEngramRemotes(), "PATH="+shimDir+":"+os.Getenv("PATH"), "XDG_CACHE_HOME="+cacheDir)
+	run.Env = append(run.Env, isolatedHomeEnv(t)...)
+	_ = run.Run()
+
+	// The update may succeed or fail (dry-run stops before Cmd.Run for
+	// local mode, or completes for remote mode). Both cases are OK as long
+	// as the marker file exists and contains git invocation proof.
+	// Assert the marker file was written by the git shim (proof of reach).
+	markerData, readErr := os.ReadFile(markerFile)
+	g.Expect(readErr).NotTo(HaveOccurred(), "marker file absent — C-1 closure not reached")
+
+	if readErr != nil {
+		return
+	}
+
+	// Verify the marker shows git was called (remote mode calls git clone).
+	marker := string(markerData)
+	g.Expect(marker).To(ContainSubstring("git"), "git shim not invoked — C-1 may not execute git branch")
+
+	// NEGATIVE CONTROL: Run again from the module cwd (resolves to local mode,
+	// skips git). The shims should not be called in local mode.
+	// Also pin the cache location via XDG_CACHE_HOME.
+	run2 := exec.Command(binPath, "update", "--dry-run")
+	run2.Dir = projectRoot(t)
+
+	cacheDir2 := filepath.Join(t.TempDir(), "cache2")
+	run2.Env = append(envWithoutEngramRemotes(), "PATH="+shimDir+":"+os.Getenv("PATH"), "XDG_CACHE_HOME="+cacheDir2)
+	run2.Env = append(run2.Env, isolatedHomeEnv(t)...)
+	_ = run2.Run()
+
+	// Assert marker still only contains invocations from the remote mode test
+	// (local mode doesn't call git). Verify the marker from the first run.
+	g.Expect(markerData).NotTo(BeEmpty())
+}
+
 func Test792a3a1a_EngramLearn_Fact_EndToEnd(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -176,79 +249,6 @@ func TestOpenDebugFile_EndToEnd(t *testing.T) {
 	// Verify the second debug file was NOT created (no env var = no file).
 	_, err2 := os.Stat(debugFile2)
 	g.Expect(err2).To(HaveOccurred(), "debug file created without env var set")
-}
-
-// TestRunCommand_EndToEnd guards the production C-1 closure in
-// cmd/engram/main.go's execPrimitives (lines 40-48). Runs engram update
-// from a non-module cwd with fake git/go shims on PATH to prove Cmd.Run
-// executes the closure end-to-end. The shims trap invocations by writing
-// to a marker file, proving the production literal was reached.
-func TestRunCommand_EndToEnd(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	shimDir := t.TempDir()
-	markerFile := filepath.Join(shimDir, "invocations.txt")
-	workDir := t.TempDir()
-
-	// Write a fake git shim that logs invocations and exits 0.
-	gitShim := filepath.Join(shimDir, "git")
-	gitScript := `#!/bin/sh
-echo "$0 $@" >> "` + markerFile + `"
-exit 0
-`
-	g.Expect(os.WriteFile(gitShim, []byte(gitScript), 0o755)).To(Succeed())
-
-	// Write a fake go shim that logs invocations and exits 0.
-	goShim := filepath.Join(shimDir, "go")
-	goScript := `#!/bin/sh
-echo "$0 $@" >> "` + markerFile + `"
-exit 0
-`
-	g.Expect(os.WriteFile(goShim, []byte(goScript), 0o755)).To(Succeed())
-
-	binPath := sharedEngramBinary(t)
-
-	// Run engram update --dry-run from a non-module cwd with shims on PATH.
-	// Pin the subprocess cache location via XDG_CACHE_HOME to prevent the
-	// binary from materializing a model cache in the repo.
-	run := exec.Command(binPath, "update", "--dry-run")
-	run.Dir = workDir
-
-	cacheDir := filepath.Join(t.TempDir(), "cache")
-	run.Env = append(envWithoutEngramRemotes(), "PATH="+shimDir+":"+os.Getenv("PATH"), "XDG_CACHE_HOME="+cacheDir)
-	run.Env = append(run.Env, isolatedHomeEnv(t)...)
-	_ = run.Run()
-
-	// The update may succeed or fail (dry-run stops before Cmd.Run for
-	// local mode, or completes for remote mode). Both cases are OK as long
-	// as the marker file exists and contains git invocation proof.
-	// Assert the marker file was written by the git shim (proof of reach).
-	markerData, readErr := os.ReadFile(markerFile)
-	g.Expect(readErr).NotTo(HaveOccurred(), "marker file absent — C-1 closure not reached")
-
-	if readErr != nil {
-		return
-	}
-
-	// Verify the marker shows git was called (remote mode calls git clone).
-	marker := string(markerData)
-	g.Expect(marker).To(ContainSubstring("git"), "git shim not invoked — C-1 may not execute git branch")
-
-	// NEGATIVE CONTROL: Run again from the module cwd (resolves to local mode,
-	// skips git). The shims should not be called in local mode.
-	// Also pin the cache location via XDG_CACHE_HOME.
-	run2 := exec.Command(binPath, "update", "--dry-run")
-	run2.Dir = projectRoot(t)
-
-	cacheDir2 := filepath.Join(t.TempDir(), "cache2")
-	run2.Env = append(envWithoutEngramRemotes(), "PATH="+shimDir+":"+os.Getenv("PATH"), "XDG_CACHE_HOME="+cacheDir2)
-	run2.Env = append(run2.Env, isolatedHomeEnv(t)...)
-	_ = run2.Run()
-
-	// Assert marker still only contains invocations from the remote mode test
-	// (local mode doesn't call git). Verify the marker from the first run.
-	g.Expect(markerData).NotTo(BeEmpty())
 }
 
 // envWithoutDebugLog returns a copy of the current process environment

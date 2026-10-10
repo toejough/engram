@@ -22,7 +22,7 @@ import (
 // one NewDeps call over inline real-OS group literals (mirrors
 // cmd/engram/main.go's per-group functions). The production C-1 and
 // OpenDebugFile closures are guarded end-to-end by cli_test.go's
-// TestRunCommand_EndToEnd and TestOpenDebugFile_EndToEnd (#700).
+// Test792a11a1b_RunCommand_EndToEnd and TestOpenDebugFile_EndToEnd (#700).
 // SIG-1 is nil so startForceExit skips. Closures return raw os errors
 // by primitive contract; primFS/primLocker add the single %w wrap.
 func ExportNewTestOsDeps() Deps {

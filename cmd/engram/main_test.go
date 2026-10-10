@@ -8,10 +8,10 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// TestSpawnPrimitives_ExitCodeOnNonZeroExit guards that a started child's
+// Test792b4c4a2_SpawnPrimitives_ExitCodeOnNonZeroExit guards that a started child's
 // non-zero exit comes back via exitCode with a nil error (not via err) —
 // the spawn-failure/exit-code distinction the D1 design requires.
-func TestSpawnPrimitives_ExitCodeOnNonZeroExit(t *testing.T) {
+func Test792b4c4a2_SpawnPrimitives_ExitCodeOnNonZeroExit(t *testing.T) {
 	t.Parallel()
 
 	if runtime.GOOS == "windows" {
@@ -25,10 +25,10 @@ func TestSpawnPrimitives_ExitCodeOnNonZeroExit(t *testing.T) {
 	g.Expect(code).To(Equal(7))
 }
 
-// TestSpawnPrimitives_ExitCodeOnSuccess guards the production spawn
+// Test792b4c4a3_SpawnPrimitives_ExitCodeOnSuccess guards the production spawn
 // closure in main.go's spawnPrimitives: a clean exit returns exit code 0
 // and a nil error.
-func TestSpawnPrimitives_ExitCodeOnSuccess(t *testing.T) {
+func Test792b4c4a3_SpawnPrimitives_ExitCodeOnSuccess(t *testing.T) {
 	t.Parallel()
 
 	if runtime.GOOS == "windows" {
@@ -42,9 +42,9 @@ func TestSpawnPrimitives_ExitCodeOnSuccess(t *testing.T) {
 	g.Expect(code).To(Equal(0))
 }
 
-// TestSpawnPrimitives_PassesArgsAndEnv guards that args and extra
+// Test792b4c4a4_SpawnPrimitives_PassesArgsAndEnv guards that args and extra
 // environment variables reach the child process.
-func TestSpawnPrimitives_PassesArgsAndEnv(t *testing.T) {
+func Test792b4c4a4_SpawnPrimitives_PassesArgsAndEnv(t *testing.T) {
 	t.Parallel()
 
 	if runtime.GOOS == "windows" {
@@ -64,10 +64,10 @@ func TestSpawnPrimitives_PassesArgsAndEnv(t *testing.T) {
 	g.Expect(marker).To(BeAnExistingFile())
 }
 
-// TestSpawnPrimitives_SpawnFailureReturnsErr guards that a binary which
+// Test792b4c4a5_SpawnPrimitives_SpawnFailureReturnsErr guards that a binary which
 // cannot be started (missing/not executable) reports a non-nil err —
 // never confused with a started child's exit code.
-func TestSpawnPrimitives_SpawnFailureReturnsErr(t *testing.T) {
+func Test792b4c4a5_SpawnPrimitives_SpawnFailureReturnsErr(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)

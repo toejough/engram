@@ -275,7 +275,7 @@ func Test792b8c1a1_RealFlockLocker_SecondLockWaitsForUnlock(t *testing.T) {
 // cmd/engram adapter integration suite (#700 rework). realPrimitives()
 // mirrors cmd/engram/main.go's Primitives literal. The production C-1 and
 // OpenDebugFile closures are guarded end-to-end by cli_test.go's
-// TestRunCommand_EndToEnd and TestOpenDebugFile_EndToEnd (#700).
+// Test792a11a1b_RunCommand_EndToEnd and TestOpenDebugFile_EndToEnd (#700).
 
 func TestRealDebugSink_AppendsAcrossOpens(t *testing.T) {
 	t.Parallel()

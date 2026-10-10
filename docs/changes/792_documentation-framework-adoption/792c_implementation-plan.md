@@ -233,8 +233,8 @@ flowchart TD
   N792c7h2["792c7h2 vault-invariant-checker tech spec<br/>Complete"]
   N792c7i1["792c7i1 vault-migration product spec<br/>Complete"]
   N792c7i2["792c7i2 note-reparenting tech spec<br/>Complete"]
-  N792c7j1["792c7j1 install-and-update product spec<br/>Ready"]
-  N792c7j2["792c7j2 self-installer tech spec<br/>Blocked by: 792c7j1"]
+  N792c7j1["792c7j1 install-and-update product spec<br/>Complete"]
+  N792c7j2["792c7j2 self-installer tech spec<br/>Ready"]
   N792c7j3["792c7j3 harness-deploy-sync tech spec<br/>Blocked by: 792c7j2"]
   N792c7k1["792c7k1 skill-runbook-registration product spec<br/>Blocked by: 792c7j3"]
   N792c7k2["792c7k2 skill-source-discovery tech spec<br/>Blocked by: 792c7k1"]
@@ -3117,11 +3117,47 @@ Target: `792a11` (`docs/specs/product/install-and-update.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7j1a | Port product requirements and UAT to `792a11` | Non-test action | Moves current behavior into the framework format | Not started |
-| 792c7j1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7j1c | Repoint stale references to `792a11` | Non-test action | Keeps live links valid | Not started |
-| 792c7j1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Not started |
-| 792c7j1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Not started |
+| 792c7j1a | Port product requirements and UAT to `792a11` | Non-test action | Moves current behavior into the framework format | Done |
+| 792c7j1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7j1c | Repoint stale references to `792a11` | Non-test action | Keeps live links valid | Done |
+| 792c7j1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Done |
+| 792c7j1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
+
+792a11 has fifteen requirements (792a11a to 792a11o): the source and the install, the model check, the
+downgrade refusal, the report header, the hand-off to the new binary, the dry run, the harness list, the
+deploy and its links, removal, the ownership rules, the first-sync adoption, guidance opt-in, the Claude
+import links, the chunk-index notices and the options (792d103). Extended components: subprocess-runner
+gains 792b4c4 (the spawn that shares the caller's streams, with the tests listed in 792d51), and
+chunk-index-store gains 792b18c15 (the prune-backlog check behind the two notices). command-line-surface
+and note-reparenting gain nothing: the `update` command's flags, routing and report belong to
+self-installer (792d101, 792d103), and the flat-vault detection was mapped by 792c7i2. The scenarios of
+792a11 are mapped by self-installer (792c7j2) and harness-deploy-sync (792c7j3), where their tests are
+renamed. Legacy removal: ADR-0021 is deleted (its decision 9 is the rationale of 792a11n) and
+`ingest-chunk-dedup` is deleted; `update-deploy-sync` keeps the manifest fallback for 792c7j3 and the
+registration requirement for 792c7k1; `update-self-reexec` keeps the installed-path and sentinel
+requirements, and `update-local-install-safety` the gate and fail-open requirements, for 792c7j2; the c1
+update flow keeps its sequence for 792c7j2 and 792c7j3.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b4c4a1 | `TestSpawner_PassesCallThroughOnSuccess` → `Test792b4c4a1_Spawner_PassesCallThroughOnSuccess` | Pure unit (fake run primitive through `NewDeps`) | Program, arguments and environment reach the primitive | Done |
+| 792b4c4a2 | `TestSpawner_PassesThroughNonZeroExitWithNilErr` → `Test792b4c4a2_Spawner_PassesThroughNonZeroExitWithNilErr` | Pure unit (fake run primitive) | A non-zero status comes back with no error | Done |
+| 792b4c4a2 | `TestSpawnPrimitives_ExitCodeOnNonZeroExit` → `Test792b4c4a2_SpawnPrimitives_ExitCodeOnNonZeroExit` | Real process (`sh -c "exit 7"`) | A started child's status is not an error | Done |
+| 792b4c4a3 | `TestSpawnPrimitives_ExitCodeOnSuccess` → `Test792b4c4a3_SpawnPrimitives_ExitCodeOnSuccess` | Real process (`true`) | Clean exit is status 0 | Done |
+| 792b4c4a4 | `TestSpawnPrimitives_PassesArgsAndEnv` → `Test792b4c4a4_SpawnPrimitives_PassesArgsAndEnv` | Real process (`sh`) | Arguments and extra environment reach the child | Done |
+| 792b4c4a5 | `TestSpawner_PassesThroughSpawnFailure` → `Test792b4c4a5_Spawner_PassesThroughSpawnFailure` | Pure unit (fake run primitive) | A spawn failure is an error and status -1 | Done |
+| 792b4c4a5 | `TestSpawnPrimitives_SpawnFailureReturnsErr` → `Test792b4c4a5_SpawnPrimitives_SpawnFailureReturnsErr` | Real process (missing binary) | A child that cannot start is an error | Done |
+| 792b18c15a1 | `TestChunkIndexHasEmptyFiles` → `Test792b18c15a1_ChunkIndexHasEmptyFiles` | Pure unit, subtests over an in-memory filesystem | One empty .jsonl; the other subtests verify 792b18c15a2 to 792b18c15a5 (`split deferred`) | Done |
+| 792b18c15a6 | `TestChunkIndexHasPrunableDuplicates` → `Test792b18c15a6_ChunkIndexHasPrunableDuplicates` | Pure unit, subtests over an in-memory filesystem and manifest | No manifest; the other subtests verify 792b18c15a7 to 792b18c15a10 (`split deferred`) | Done |
+| 792a11a1b | `TestRunCommand_EndToEnd` → `Test792a11a1b_RunCommand_EndToEnd` | Real binary with `git` and `go` shims on PATH | Outside a checkout the update reaches `git` | Done |
+
+**Coverage gaps:** 792b4c4a6 (the child sharing the caller's streams; no test reads the child's output or
+feeds its input). The local-clone half of 792a11a1a is asserted nowhere: the end-to-end test's
+negative control, which runs from a checkout, asserts nothing about the shims.
+
+**No-scenario tests:** none found for the two extended components beyond the generated mock.
 
 #### 792c7j2 self-installer tech spec
 
