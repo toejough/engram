@@ -26,8 +26,9 @@ was taken. Remediation validation must be recorded separately when it is perform
 The documentation and root instruction edits are committed. The original tests now have
 scenario-prefixed names, and the additional command-boundary/acceptance tests in
 [794c8 Implementation-Ordered Test Catalog](./794c_implementation-plan.md#794c8-implementation-ordered-test-catalog)
-are implemented. Policy/routing entries are Done; command-boundary entries reached
-Green-single after observed regression failures. No canonical promotion, merge, or push is claimed.
+are implemented. Policy/routing and command-boundary entries are Done after committed
+checkpoints and passing applicable suites. Final validation remains in progress.
+No canonical promotion, merge, or push is claimed.
 
 Local checkpoint commits are explicitly authorized. The updated sandbox excludes the original
 sibling worktree, so validation and local commits continue in a local shared clone at

@@ -53,8 +53,8 @@ Local commits were authorized by the user; publishing and integration remain rev
 ```mermaid
 graph TD
     N794c8a["794c8a Policy and target contracts — Complete"]
-    N794c8b["794c8b Command boundary contracts — In progress: 0/6 entries complete"]
-    N794c8c["794c8c Validation and integration — Blocked by: 794c8b"]
+    N794c8b["794c8b Command boundary contracts — Complete"]
+    N794c8c["794c8c Validation and integration — In progress: 0/2 entries complete"]
     N794c8a --> N794c8b
     N794c8b --> N794c8c
 ```
@@ -88,12 +88,12 @@ result is committed. Merged additionally requires delivery and branch/worktree c
 
 | Entry | Gherkin | Classification | Why | Status |
 |---|---|---|---|---|
-| 794c8b1 Successful request | [794b4b1a Successful configured invocation](./794b_technical-spec.md#794b4b1-contract-scenarios) | Injected imptest interaction | One call, context, mode, resolved environment, and success propagation | Refactor-performance |
-| 794c8b2 Failed request | [794b4b1b Failed configured invocation](./794b_technical-spec.md#794b4b1-contract-scenarios) | Injected imptest interaction | Exact failure propagation without retry | Refactor-performance |
-| 794c8b3 Environment isolation | [794b4b1c Child environment isolation](./794b_technical-spec.md#794b4b1-contract-scenarios) | Local integration dependency contract | Real Targ subprocess environment and unchanged parent | Refactor-performance |
-| 794c8b4 Acceptance scope | [794a2a1a Existing entry points use project analysis](./794a_product-spec.md#794a2a1-uat-scenarios) | Local integration acceptance example | Local integration with the installed NilAway: a fixture has first-party and replaced third-party modules, each with a known nil dereference; include both filesystem roots in diagnostic reporting, verify the first-party diagnostic, and verify absence of the dependency diagnostic | Refactor-performance |
-| 794c8b5 Acceptance defaults | [794a2b1a Absent settings use subprocess defaults](./794a_product-spec.md#794a2b1-uat-scenarios) | Local integration acceptance example | Check/fix child defaults and parent preservation | Refactor-performance |
-| 794c8b6 Acceptance overrides | [794a2c1a Supplied settings take precedence](./794a_product-spec.md#794a2c1-uat-scenarios) | Local integration acceptance example | Developer-controlled effective settings | Refactor-performance |
+| 794c8b1 Successful request | [794b4b1a Successful configured invocation](./794b_technical-spec.md#794b4b1-contract-scenarios) | Injected imptest interaction | One call, context, mode, resolved environment, and success propagation | Done |
+| 794c8b2 Failed request | [794b4b1b Failed configured invocation](./794b_technical-spec.md#794b4b1-contract-scenarios) | Injected imptest interaction | Exact failure propagation without retry | Done |
+| 794c8b3 Environment isolation | [794b4b1c Child environment isolation](./794b_technical-spec.md#794b4b1-contract-scenarios) | Local integration dependency contract | Real Targ subprocess environment and unchanged parent | Done |
+| 794c8b4 Acceptance scope | [794a2a1a Existing entry points use project analysis](./794a_product-spec.md#794a2a1-uat-scenarios) | Local integration acceptance example | Local integration with the installed NilAway: a fixture has first-party and replaced third-party modules, each with a known nil dereference; include both filesystem roots in diagnostic reporting, verify the first-party diagnostic, and verify absence of the dependency diagnostic | Done |
+| 794c8b5 Acceptance defaults | [794a2b1a Absent settings use subprocess defaults](./794a_product-spec.md#794a2b1-uat-scenarios) | Local integration acceptance example | Check/fix child defaults and parent preservation | Done |
+| 794c8b6 Acceptance overrides | [794a2c1a Supplied settings take precedence](./794a_product-spec.md#794a2c1-uat-scenarios) | Local integration acceptance example | Developer-controlled effective settings | Done |
 
 Each corresponding executable test name begins with its Gherkin ID. A shared fixture may support
 multiple tests, but each scenario keeps an independently named and tracked test.
