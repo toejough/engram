@@ -13,7 +13,7 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-func TestAutoSweepUsesSpecRootsAndRepoOverride(t *testing.T) {
+func Test792b17c5a3_AutoSweepUsesSpecRootsAndRepoOverride(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -45,7 +45,7 @@ func TestAutoSweepUsesSpecRootsAndRepoOverride(t *testing.T) {
 	g.Expect(sessionsSwept).To(gomega.BeFalse(), "session_logs disabled by repo override")
 }
 
-func TestDefaultSessionDirIsAllProjects(t *testing.T) {
+func Test792b17c6a1_DefaultSessionDirIsAllProjects(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -62,7 +62,7 @@ func TestDefaultSessionDirIsAllProjects(t *testing.T) {
 	g.Expect(cwd).NotTo(gomega.BeEmpty())
 }
 
-func TestOsListSourcesSkipsExcludedDirs(t *testing.T) {
+func Test792b17c7a1_OsListSourcesSkipsExcludedDirs(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 

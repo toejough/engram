@@ -8,96 +8,7 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-func TestDefaultSweepSpecExcludesDependencyDirs(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	spec := cli.DefaultSweepSpec()
-
-	g.Expect(spec.ExcludeDirs).To(gomega.ContainElements("node_modules", "vendor", ".git"))
-	g.Expect(spec.RepoMarkdown).To(gomega.BeTrue())
-	g.Expect(spec.AncestorClaudeDirs).To(gomega.BeTrue())
-	g.Expect(spec.SessionLogs).To(gomega.BeTrue())
-}
-
-func TestDefaultSweepSpecSkipsNonPersistentWorkspaces(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	spec := cli.DefaultSweepSpec()
-
-	g.Expect(spec.NonPersistentPrefixes).To(gomega.ContainElements("-private-tmp-", "-tmp-", "-var-folders-"))
-}
-
-func TestLoadSweepSpecOverridesDefaults(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	raw := []byte(`{"repo_markdown": false, "exclude_dirs": ["node_modules", "gen"]}`)
-
-	spec, err := cli.LoadSweepSpec(raw)
-
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(spec.RepoMarkdown).To(gomega.BeFalse())
-	g.Expect(spec.ExcludeDirs).To(gomega.ConsistOf("node_modules", "gen"))
-	g.Expect(spec.SessionLogs).To(gomega.BeTrue(), "unset fields keep defaults")
-}
-
-func TestResolveSweepRootsAttachesPrefixesToSessionRootOnly(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	fs := specFS{dirs: map[string]bool{
-		"/home/dev/proj/.git":      true,
-		"/sessions/-home-dev-proj": true,
-	}}
-
-	roots := cli.ResolveSweepRoots(cli.DefaultSweepSpec(), cli.SweepEnv{
-		Cwd: "/home/dev/proj", SessionDir: "/sessions/-home-dev-proj", IsDir: fs.isDir,
-	})
-
-	prefixesByPath := map[string][]string{}
-	for _, root := range roots {
-		prefixesByPath[root.Path] = root.ExcludePrefixes
-	}
-
-	g.Expect(prefixesByPath["/sessions/-home-dev-proj"]).To(gomega.ContainElement("-private-tmp-"),
-		"session-logs root prunes non-persistent project dirs")
-	g.Expect(prefixesByPath["/home/dev/proj"]).To(gomega.BeEmpty(),
-		"repo-markdown root carries no non-persistent prefixes")
-}
-
-func TestResolveSweepRootsClaudeAncestorExcludesJobsScratch(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	// ~/.claude/jobs is agent-harness scratch (whole snapshot copies of the
-	// user's engram vault included) — the .pi sweep already excludes "jobs"
-	// (piExcludes in ResolveSweepRoots, and again in ingest.go's
-	// piSessionSources) because PI has the same subdir shape as Claude. This
-	// asserts the Claude ancestor list carries the matching exclude.
-	fs := specFS{dirs: map[string]bool{
-		"/home/dev/proj/.git":    true,
-		"/home/dev/proj/.claude": true,
-	}}
-
-	roots := cli.ResolveSweepRoots(cli.DefaultSweepSpec(), cli.SweepEnv{
-		Cwd: "/home/dev/proj", SessionDir: "", IsDir: fs.isDir,
-	})
-
-	var claudeExcludes []string
-
-	for _, root := range roots {
-		if root.Path == "/home/dev/proj/.claude" {
-			claudeExcludes = root.ExcludeDirs
-		}
-	}
-
-	g.Expect(claudeExcludes).To(gomega.ContainElement("jobs"),
-		"jobs/ under .claude is agent scratch (whole vault snapshot copies), not user memory")
-}
-
-func TestResolveSweepRootsCoversRepoAncestorsAndSessions(t *testing.T) {
+func Test792b17c3a1_ResolveSweepRootsCoversRepoAncestorsAndSessions(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -131,7 +42,108 @@ func TestResolveSweepRootsCoversRepoAncestorsAndSessions(t *testing.T) {
 		"repo sweeps keep only the general excludes")
 }
 
-func TestResolveSweepRootsDropsRootsUnderNonPersistentPaths(t *testing.T) {
+func Test792b17c3a2_ResolveSweepRootsNoRepoFallsBackToCwd(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	fs := specFS{dirs: map[string]bool{}}
+
+	// Cwd deliberately outside any non-persistent prefix: this test targets
+	// repoRootFor's cwd-fallback behavior, not the non-persistent-path drop
+	// (covered by Test792b17c4a1_ResolveSweepRootsDropsRootsUnderNonPersistentPaths).
+	roots := cli.ResolveSweepRoots(cli.DefaultSweepSpec(), cli.SweepEnv{
+		Cwd: "/home/dev/scratch", SessionDir: "", IsDir: fs.isDir,
+	})
+
+	paths := make([]string, 0, len(roots))
+	for _, root := range roots {
+		paths = append(paths, root.Path)
+	}
+
+	g.Expect(paths).To(gomega.ContainElement("/home/dev/scratch"), "no VCS marker: sweep cwd itself")
+}
+
+func Test792b17c3a3_ResolveSweepRootsClaudeAncestorExcludesJobsScratch(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	// ~/.claude/jobs is agent-harness scratch (whole snapshot copies of the
+	// user's engram vault included) — the .pi sweep already excludes "jobs"
+	// (piExcludes in ResolveSweepRoots, and again in ingest.go's
+	// piSessionSources) because PI has the same subdir shape as Claude. This
+	// asserts the Claude ancestor list carries the matching exclude.
+	fs := specFS{dirs: map[string]bool{
+		"/home/dev/proj/.git":    true,
+		"/home/dev/proj/.claude": true,
+	}}
+
+	roots := cli.ResolveSweepRoots(cli.DefaultSweepSpec(), cli.SweepEnv{
+		Cwd: "/home/dev/proj", SessionDir: "", IsDir: fs.isDir,
+	})
+
+	var claudeExcludes []string
+
+	for _, root := range roots {
+		if root.Path == "/home/dev/proj/.claude" {
+			claudeExcludes = root.ExcludeDirs
+		}
+	}
+
+	g.Expect(claudeExcludes).To(gomega.ContainElement("jobs"),
+		"jobs/ under .claude is agent scratch (whole vault snapshot copies), not user memory")
+}
+
+func Test792b17c3a4_ResolveSweepRootsAttachesPrefixesToSessionRootOnly(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	fs := specFS{dirs: map[string]bool{
+		"/home/dev/proj/.git":      true,
+		"/sessions/-home-dev-proj": true,
+	}}
+
+	roots := cli.ResolveSweepRoots(cli.DefaultSweepSpec(), cli.SweepEnv{
+		Cwd: "/home/dev/proj", SessionDir: "/sessions/-home-dev-proj", IsDir: fs.isDir,
+	})
+
+	prefixesByPath := map[string][]string{}
+	for _, root := range roots {
+		prefixesByPath[root.Path] = root.ExcludePrefixes
+	}
+
+	g.Expect(prefixesByPath["/sessions/-home-dev-proj"]).To(gomega.ContainElement("-private-tmp-"),
+		"session-logs root prunes non-persistent project dirs")
+	g.Expect(prefixesByPath["/home/dev/proj"]).To(gomega.BeEmpty(),
+		"repo-markdown root carries no non-persistent prefixes")
+}
+
+func Test792b17c3a5_ResolveSweepRootsHonorsSpecToggles(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	fs := specFS{dirs: map[string]bool{
+		"/home/dev/proj/.git":    true,
+		"/home/dev/proj/.claude": true,
+	}}
+	spec := cli.SweepSpec{
+		RepoMarkdown: false, AncestorClaudeDirs: false, SessionLogs: false,
+		ExtraRoots: []string{"/opt/notes"},
+	}
+
+	roots := cli.ResolveSweepRoots(spec, cli.SweepEnv{
+		Cwd: "/home/dev/proj", SessionDir: "/sessions/x", IsDir: fs.isDir,
+	})
+
+	g.Expect(roots).To(gomega.HaveLen(1), "only extra_roots when toggles are off")
+
+	if len(roots) != 1 {
+		return
+	}
+
+	g.Expect(roots[0].Path).To(gomega.Equal("/opt/notes"))
+}
+
+func Test792b17c4a1_ResolveSweepRootsDropsRootsUnderNonPersistentPaths(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -155,7 +167,7 @@ func TestResolveSweepRootsDropsRootsUnderNonPersistentPaths(t *testing.T) {
 	}
 }
 
-func TestResolveSweepRootsExtraRootsBypassNonPersistentPathDrop(t *testing.T) {
+func Test792b17c4a2_ResolveSweepRootsExtraRootsBypassNonPersistentPathDrop(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -184,51 +196,39 @@ func TestResolveSweepRootsExtraRootsBypassNonPersistentPathDrop(t *testing.T) {
 		"ExtraRoots must be swept verbatim even under a non-persistent path prefix")
 }
 
-func TestResolveSweepRootsHonorsSpecToggles(t *testing.T) {
+func Test792b17c5a1_DefaultSweepSpecExcludesDependencyDirs(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	fs := specFS{dirs: map[string]bool{
-		"/home/dev/proj/.git":    true,
-		"/home/dev/proj/.claude": true,
-	}}
-	spec := cli.SweepSpec{
-		RepoMarkdown: false, AncestorClaudeDirs: false, SessionLogs: false,
-		ExtraRoots: []string{"/opt/notes"},
-	}
+	spec := cli.DefaultSweepSpec()
 
-	roots := cli.ResolveSweepRoots(spec, cli.SweepEnv{
-		Cwd: "/home/dev/proj", SessionDir: "/sessions/x", IsDir: fs.isDir,
-	})
-
-	g.Expect(roots).To(gomega.HaveLen(1), "only extra_roots when toggles are off")
-
-	if len(roots) != 1 {
-		return
-	}
-
-	g.Expect(roots[0].Path).To(gomega.Equal("/opt/notes"))
+	g.Expect(spec.ExcludeDirs).To(gomega.ContainElements("node_modules", "vendor", ".git"))
+	g.Expect(spec.RepoMarkdown).To(gomega.BeTrue())
+	g.Expect(spec.AncestorClaudeDirs).To(gomega.BeTrue())
+	g.Expect(spec.SessionLogs).To(gomega.BeTrue())
 }
 
-func TestResolveSweepRootsNoRepoFallsBackToCwd(t *testing.T) {
+func Test792b17c5a1_DefaultSweepSpecSkipsNonPersistentWorkspaces(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	fs := specFS{dirs: map[string]bool{}}
+	spec := cli.DefaultSweepSpec()
 
-	// Cwd deliberately outside any non-persistent prefix: this test targets
-	// repoRootFor's cwd-fallback behavior, not the non-persistent-path drop
-	// (covered by TestResolveSweepRootsDropsRootsUnderNonPersistentPaths).
-	roots := cli.ResolveSweepRoots(cli.DefaultSweepSpec(), cli.SweepEnv{
-		Cwd: "/home/dev/scratch", SessionDir: "", IsDir: fs.isDir,
-	})
+	g.Expect(spec.NonPersistentPrefixes).To(gomega.ContainElements("-private-tmp-", "-tmp-", "-var-folders-"))
+}
 
-	paths := make([]string, 0, len(roots))
-	for _, root := range roots {
-		paths = append(paths, root.Path)
-	}
+func Test792b17c5a2_LoadSweepSpecOverridesDefaults(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
 
-	g.Expect(paths).To(gomega.ContainElement("/home/dev/scratch"), "no VCS marker: sweep cwd itself")
+	raw := []byte(`{"repo_markdown": false, "exclude_dirs": ["node_modules", "gen"]}`)
+
+	spec, err := cli.LoadSweepSpec(raw)
+
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(spec.RepoMarkdown).To(gomega.BeFalse())
+	g.Expect(spec.ExcludeDirs).To(gomega.ConsistOf("node_modules", "gen"))
+	g.Expect(spec.SessionLogs).To(gomega.BeTrue(), "unset fields keep defaults")
 }
 
 // specFS fakes the directory-existence checks spec resolution makes.

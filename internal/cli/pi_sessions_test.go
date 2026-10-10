@@ -17,36 +17,42 @@ import (
 	"github.com/toejough/engram/internal/transcript"
 )
 
-// TestPiSessionsAutoSweepIngestsPISessionsFromAncestor verifies that PI sessions
-// in ancestor directories are auto-swept when AncestorPiDirs is enabled.
-func TestPiSessionsAutoSweepIngestsPISessionsFromAncestor(t *testing.T) {
+// Test792b17c1a1_PiSessionsWithTranscriptsCombinesBothSources verifies that explicit --pi-sessions
+// works alongside explicit --transcript flags.
+func Test792b17c1a1_PiSessionsWithTranscriptsCombinesBothSources(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	line := piRecordLine("user", "2026-01-01T00:00:00Z", "USER: auto-swept session")
+	mdContent := "# Markdown\nSome content here that is long enough to clear the ingest noise floor " +
+		"comfortably for chunking.\n"
+	piLine := piRecordLine("user", "2026-01-01T00:00:00Z", "USER: pi session")
 	fs := &memFS{files: map[string][]byte{
-		"/.pi/session.jsonl": []byte(line + "\n"),
+		"/docs/markdown.md":  []byte(mdContent),
+		"/.pi/session.jsonl": []byte(piLine + "\n"),
 	}}
 
 	deps := ingestDeps(fs)
 
-	// Use explicit --sweep with AncestorPiDirs=true to trigger PI directory sweeping
 	args := cli.IngestArgs{
-		Sweep:     []string{"/"},
-		ChunksDir: "/chunks",
+		Transcripts: []string{"/docs/markdown.md"},
+		PiSessions:  []string{"/.pi"},
+		ChunksDir:   "/chunks",
 	}
 
 	err := cli.RunIngest(context.Background(), args, deps, io.Discard)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	// The auto-swept PI session should be indexed
-	_, ok := fs.files["/chunks/"+cli.ExportIndexFileName("/.pi/session.jsonl")]
-	g.Expect(ok).To(gomega.BeTrue(), "auto-swept PI session must be indexed")
+	// Both sources should be indexed
+	_, mdOk := fs.files["/chunks/"+cli.ExportIndexFileName("/docs/markdown.md")]
+	_, piOk := fs.files["/chunks/"+cli.ExportIndexFileName("/.pi/session.jsonl")]
+
+	g.Expect(mdOk).To(gomega.BeTrue(), "markdown file must be indexed")
+	g.Expect(piOk).To(gomega.BeTrue(), "/.pi/session.jsonl must be indexed")
 }
 
-// TestPiSessionsExplicitFlagHandlesMultipleDirectories verifies multiple PI
+// Test792b17c1a2_PiSessionsExplicitFlagHandlesMultipleDirectories verifies multiple PI
 // session directories are all ingested.
-func TestPiSessionsExplicitFlagHandlesMultipleDirectories(t *testing.T) {
+func Test792b17c1a2_PiSessionsExplicitFlagHandlesMultipleDirectories(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -74,9 +80,9 @@ func TestPiSessionsExplicitFlagHandlesMultipleDirectories(t *testing.T) {
 	}
 }
 
-// TestPiSessionsExplicitFlagIngestsPIDirectories verifies that explicit --pi-sessions
+// Test792b17c1a2_PiSessionsExplicitFlagIngestsPIDirectories verifies that explicit --pi-sessions
 // flag accepts PI session transcript directories and ingests them.
-func TestPiSessionsExplicitFlagIngestsPIDirectories(t *testing.T) {
+func Test792b17c1a2_PiSessionsExplicitFlagIngestsPIDirectories(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -119,9 +125,39 @@ func TestPiSessionsExplicitFlagIngestsPIDirectories(t *testing.T) {
 	}
 }
 
-// TestPiSessionsExplicitFlagSkipsNonDirectories verifies that non-existent
+// Test792b17c1a2_PiSessionsRespectsBudget verifies that PI sessions respect the ingestion budget.
+func Test792b17c1a2_PiSessionsRespectsBudget(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	line := piRecordLine("user", "2026-01-01T00:00:00Z", "USER: small session")
+	fs := &memFS{files: map[string][]byte{
+		"/.pi/small.jsonl": []byte(line + "\n"),
+	}}
+
+	deps := ingestDeps(fs)
+
+	args := cli.IngestArgs{
+		PiSessions: []string{"/.pi"},
+		ChunksDir:  "/chunks",
+	}
+
+	err := cli.RunIngest(context.Background(), args, deps, io.Discard)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	present, ok := fs.files["/chunks/"+cli.ExportIndexFileName("/.pi/small.jsonl")]
+	g.Expect(ok).To(gomega.BeTrue(), "PI session must be indexed")
+
+	if ok {
+		records, err := chunk.DecodeRecords(present)
+		g.Expect(err).NotTo(gomega.HaveOccurred())
+		g.Expect(records).NotTo(gomega.BeEmpty(), "should have records for this PI session")
+	}
+}
+
+// Test792b17c1a3_PiSessionsExplicitFlagSkipsNonDirectories verifies that non-existent
 // PI session directories are silently skipped (not an error).
-func TestPiSessionsExplicitFlagSkipsNonDirectories(t *testing.T) {
+func Test792b17c1a3_PiSessionsExplicitFlagSkipsNonDirectories(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -144,8 +180,8 @@ func TestPiSessionsExplicitFlagSkipsNonDirectories(t *testing.T) {
 	g.Expect(ok).To(gomega.BeTrue(), "valid PI session must be ingested")
 }
 
-// TestPiSessionsReadErrorOnDirScan verifies errors scanning PI session directories propagate.
-func TestPiSessionsReadErrorOnDirScan(t *testing.T) {
+// Test792b17c7a3_PiSessionsReadErrorOnDirScan verifies errors scanning PI session directories propagate.
+func Test792b17c7a3_PiSessionsReadErrorOnDirScan(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -163,6 +199,33 @@ func TestPiSessionsReadErrorOnDirScan(t *testing.T) {
 
 	err := cli.RunIngest(context.Background(), args, deps, io.Discard)
 	g.Expect(err).To(gomega.HaveOccurred())
+}
+
+// Test792b17c8a3_PiSessionsAutoSweepIngestsPISessionsFromAncestor verifies that PI sessions
+// in ancestor directories are auto-swept when AncestorPiDirs is enabled.
+func Test792b17c8a3_PiSessionsAutoSweepIngestsPISessionsFromAncestor(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	line := piRecordLine("user", "2026-01-01T00:00:00Z", "USER: auto-swept session")
+	fs := &memFS{files: map[string][]byte{
+		"/.pi/session.jsonl": []byte(line + "\n"),
+	}}
+
+	deps := ingestDeps(fs)
+
+	// Use explicit --sweep with AncestorPiDirs=true to trigger PI directory sweeping
+	args := cli.IngestArgs{
+		Sweep:     []string{"/"},
+		ChunksDir: "/chunks",
+	}
+
+	err := cli.RunIngest(context.Background(), args, deps, io.Discard)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	// The auto-swept PI session should be indexed
+	_, ok := fs.files["/chunks/"+cli.ExportIndexFileName("/.pi/session.jsonl")]
+	g.Expect(ok).To(gomega.BeTrue(), "auto-swept PI session must be indexed")
 }
 
 // TestPiSessionsReadErrorPropagates verifies that errors reading PI sessions are
@@ -196,69 +259,6 @@ func TestPiSessionsReadErrorPropagates(t *testing.T) {
 
 	err := cli.RunIngest(context.Background(), args, deps, io.Discard)
 	g.Expect(err).To(gomega.HaveOccurred()) // Should fail on invalid JSONL
-}
-
-// TestPiSessionsRespectsBudget verifies that PI sessions respect the ingestion budget.
-func TestPiSessionsRespectsBudget(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	line := piRecordLine("user", "2026-01-01T00:00:00Z", "USER: small session")
-	fs := &memFS{files: map[string][]byte{
-		"/.pi/small.jsonl": []byte(line + "\n"),
-	}}
-
-	deps := ingestDeps(fs)
-
-	args := cli.IngestArgs{
-		PiSessions: []string{"/.pi"},
-		ChunksDir:  "/chunks",
-	}
-
-	err := cli.RunIngest(context.Background(), args, deps, io.Discard)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	present, ok := fs.files["/chunks/"+cli.ExportIndexFileName("/.pi/small.jsonl")]
-	g.Expect(ok).To(gomega.BeTrue(), "PI session must be indexed")
-
-	if ok {
-		records, err := chunk.DecodeRecords(present)
-		g.Expect(err).NotTo(gomega.HaveOccurred())
-		g.Expect(records).NotTo(gomega.BeEmpty(), "should have records for this PI session")
-	}
-}
-
-// TestPiSessionsWithTranscriptsCombinesBothSources verifies that explicit --pi-sessions
-// works alongside explicit --transcript flags.
-func TestPiSessionsWithTranscriptsCombinesBothSources(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	mdContent := "# Markdown\nSome content here that is long enough to clear the ingest noise floor " +
-		"comfortably for chunking.\n"
-	piLine := piRecordLine("user", "2026-01-01T00:00:00Z", "USER: pi session")
-	fs := &memFS{files: map[string][]byte{
-		"/docs/markdown.md":  []byte(mdContent),
-		"/.pi/session.jsonl": []byte(piLine + "\n"),
-	}}
-
-	deps := ingestDeps(fs)
-
-	args := cli.IngestArgs{
-		Transcripts: []string{"/docs/markdown.md"},
-		PiSessions:  []string{"/.pi"},
-		ChunksDir:   "/chunks",
-	}
-
-	err := cli.RunIngest(context.Background(), args, deps, io.Discard)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	// Both sources should be indexed
-	_, mdOk := fs.files["/chunks/"+cli.ExportIndexFileName("/docs/markdown.md")]
-	_, piOk := fs.files["/chunks/"+cli.ExportIndexFileName("/.pi/session.jsonl")]
-
-	g.Expect(mdOk).To(gomega.BeTrue(), "markdown file must be indexed")
-	g.Expect(piOk).To(gomega.BeTrue(), "/.pi/session.jsonl must be indexed")
 }
 
 // unexported constants.

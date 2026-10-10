@@ -991,3 +991,23 @@ decisions as `792dN`, continuing the sequence.
   dropped from the pieces.
 - **Rationale:** 792d33; the product guide requires a scenario for every mandatory branch.
 - **Alternatives:** none considered.
+
+## 792d83 ingestion-source-discovery scope and the tests it leaves
+
+- **Choice:**
+  - 792b17 specifies how sources are found: named files, Pi directories, `--sweep` roots, the
+    `--auto` roots with their exclusions and depths, the throwaway-path drop, the sweep
+    configuration, the session-log directory, the walk and the source filter. How a source's read
+    failure is handled, Rule B, deduplication and everything after are chunk-index-store's
+    (792c7d5), so the tests of those (the `TestSweep*` tests, the `TestIngest*` dedup tests and
+    `TestPiSessionsReadErrorPropagates`) wait for 792c7d5.
+  - The c2 C2→S5 row is ported whole and points at 792b17, 792b15 and 792a5i. Its "byte-capped with
+    continuation signalling" clause is stale (792d82) and is dropped. `ingest-auto-sweep` keeps only
+    its zero-record residue for 792c7d5.
+  - `TestIngestPrefersPhysicallyCloserAncestorAcrossTypes` checks the ancestor depth through
+    deduplication, so 792c7d5 gives it a chunk-index-store scenario with 792b17c3a6 `split
+    deferred`. `TestPiSessionsRespectsBudget` tests no budget: it checks that one Pi session is
+    indexed, which is 792b17c1a2.
+- **Rationale:** 792d30, and one owner per requirement.
+- **Alternatives:** put the read-failure policy here, since it depends on whether a source was
+  named. Rejected because the read and its failure happen in the index's reconciliation.

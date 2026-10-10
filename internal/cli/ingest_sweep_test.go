@@ -14,7 +14,7 @@ import (
 	"github.com/toejough/engram/internal/transcript"
 )
 
-func TestExplicitSweepIngestsNonPersistentWorkspace(t *testing.T) {
+func Test792b17c2a1_ExplicitSweepIngestsNonPersistentWorkspace(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -38,7 +38,7 @@ func TestExplicitSweepIngestsNonPersistentWorkspace(t *testing.T) {
 	g.Expect(present).To(gomega.BeTrue(), "explicit --sweep bypasses non-persistent prevention")
 }
 
-func TestShouldSkipDir(t *testing.T) {
+func Test792b17c7a2_ShouldSkipDir(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 

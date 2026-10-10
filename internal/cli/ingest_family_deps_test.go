@@ -13,6 +13,44 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+func Test792b17c6a1_IngestDepsSessionDirDefaultsToClaudeProjects(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	d := newTestDeps(io.Discard, io.Discard)
+	d.Getenv = func(string) string { return "" }
+	d.UserHomeDir = func() (string, error) { return "/home/u", nil }
+
+	deps := cli.ExportNewIngestDeps(d, fakeIngestEmbedder{})
+
+	g.Expect(deps.SessionDir("/anywhere")).
+		To(gomega.Equal(filepath.Join("/home/u", ".claude", "projects")))
+
+	d.UserHomeDir = func() (string, error) { return "", errBoom }
+	deps = cli.ExportNewIngestDeps(d, fakeIngestEmbedder{})
+
+	g.Expect(deps.SessionDir("/anywhere")).To(gomega.BeEmpty(),
+		"unresolvable home yields empty session dir, not a panic")
+}
+
+func Test792b17c6a2_IngestDepsSessionDirHonorsTranscriptDirEnv(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	d := newTestDeps(io.Discard, io.Discard)
+	d.Getenv = func(key string) string {
+		if key == "ENGRAM_TRANSCRIPT_DIR" {
+			return "/custom/sessions"
+		}
+
+		return ""
+	}
+
+	deps := cli.ExportNewIngestDeps(d, fakeIngestEmbedder{})
+
+	g.Expect(deps.SessionDir("/anywhere")).To(gomega.Equal("/custom/sessions"))
+}
+
 func TestIngestDepsLockMkdirErrorPropagates(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -102,44 +140,6 @@ func TestIngestDepsReadTranscriptReadsViaFS(t *testing.T) {
 
 	g.Expect(readPath).To(gomega.Equal(transcriptPath), "fsFileReader must read via the injected EdgeFS")
 	g.Expect(result.Content).To(gomega.ContainSubstring("hello there"))
-}
-
-func TestIngestDepsSessionDirDefaultsToClaudeProjects(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	d := newTestDeps(io.Discard, io.Discard)
-	d.Getenv = func(string) string { return "" }
-	d.UserHomeDir = func() (string, error) { return "/home/u", nil }
-
-	deps := cli.ExportNewIngestDeps(d, fakeIngestEmbedder{})
-
-	g.Expect(deps.SessionDir("/anywhere")).
-		To(gomega.Equal(filepath.Join("/home/u", ".claude", "projects")))
-
-	d.UserHomeDir = func() (string, error) { return "", errBoom }
-	deps = cli.ExportNewIngestDeps(d, fakeIngestEmbedder{})
-
-	g.Expect(deps.SessionDir("/anywhere")).To(gomega.BeEmpty(),
-		"unresolvable home yields empty session dir, not a panic")
-}
-
-func TestIngestDepsSessionDirHonorsTranscriptDirEnv(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	d := newTestDeps(io.Discard, io.Discard)
-	d.Getenv = func(key string) string {
-		if key == "ENGRAM_TRANSCRIPT_DIR" {
-			return "/custom/sessions"
-		}
-
-		return ""
-	}
-
-	deps := cli.ExportNewIngestDeps(d, fakeIngestEmbedder{})
-
-	g.Expect(deps.SessionDir("/anywhere")).To(gomega.Equal("/custom/sessions"))
 }
 
 func TestIngestDepsStatMapsFileInfoToSourceStat(t *testing.T) {

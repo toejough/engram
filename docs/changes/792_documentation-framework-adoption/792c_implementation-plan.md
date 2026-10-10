@@ -217,8 +217,8 @@ flowchart TD
   N792c7d1["792c7d1 chunk-indexing product spec<br/>Complete"]
   N792c7d2["792c7d2 transcript-reader tech spec<br/>Complete"]
   N792c7d3["792c7d3 source-chunking tech spec<br/>Complete"]
-  N792c7d4["792c7d4 ingestion-source-discovery tech spec<br/>Ready"]
-  N792c7d5["792c7d5 chunk-index-store tech spec<br/>Blocked by: 792c7d4"]
+  N792c7d4["792c7d4 ingestion-source-discovery tech spec<br/>Complete"]
+  N792c7d5["792c7d5 chunk-index-store tech spec<br/>Ready"]
   N792c7e1["792c7e1 controlled-vocabulary product spec<br/>Blocked by: 792c7d5"]
   N792c7e2["792c7e2 similarity-clustering tech spec<br/>Blocked by: 792c7e1"]
   N792c7e3["792c7e3 vocabulary-engine tech spec<br/>Blocked by: 792c7e2"]
@@ -1654,11 +1654,52 @@ Target: `792b17` (`docs/specs/technical/ingestion-source-discovery.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7d4a | Port the component contract to `792b17` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7d4b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7d4c | Repoint stale references to `792b17` | Non-test action | Keeps live links valid | Not started |
-| 792c7d4d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7d4e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7d4a | Port the component contract to `792b17` | Non-test action | Documents the component in the framework format | Done |
+| 792c7d4b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7d4c | Repoint stale references to `792b17` | Non-test action | Keeps live links valid | Done |
+| 792c7d4d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7d4e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+**Outcome:** the c2 C2→S5 row points at 792b17, 792b15 and 792a5i, and `ingest-auto-sweep` keeps
+only its zero-record residue for 792c7d5 (792d83).
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b17c1a1 | `TestPiSessionsWithTranscriptsCombinesBothSources` → `Test792b17c1a1_PiSessionsWithTranscriptsCombinesBothSources` | `RunIngest` over injected deps, in-memory listing | Named file and Pi directory | Done |
+| 792b17c1a2 | `TestPiSessionsExplicitFlagIngestsPIDirectories` → `Test792b17c1a2_PiSessionsExplicitFlagIngestsPIDirectories` | `RunIngest` over injected deps, in-memory listing | Pi files indexed | Done |
+| 792b17c1a2 | `TestPiSessionsExplicitFlagHandlesMultipleDirectories` → `Test792b17c1a2_PiSessionsExplicitFlagHandlesMultipleDirectories` | `RunIngest` over injected deps, in-memory listing | Every Pi file | Done |
+| 792b17c1a2 | `TestPiSessionsRespectsBudget` → `Test792b17c1a2_PiSessionsRespectsBudget` | `RunIngest` over injected deps, in-memory listing | One Pi session indexed | Done |
+| 792b17c1a3 | `TestPiSessionsExplicitFlagSkipsNonDirectories` → `Test792b17c1a3_PiSessionsExplicitFlagSkipsNonDirectories` | `RunIngest` over injected deps, in-memory listing | Non-directory skipped | Done |
+| 792b17c2a1 | `TestExplicitSweepIngestsNonPersistentWorkspace` → `Test792b17c2a1_ExplicitSweepIngestsNonPersistentWorkspace` | `RunIngest` over injected deps, fake listing | `--sweep` under /private/tmp | Done |
+| 792b17c3a1 | `TestResolveSweepRootsCoversRepoAncestorsAndSessions` → `Test792b17c3a1_ResolveSweepRootsCoversRepoAncestorsAndSessions` | Pure unit, fake directory check | Roots and excludes | Done |
+| 792b17c3a2 | `TestResolveSweepRootsNoRepoFallsBackToCwd` → `Test792b17c3a2_ResolveSweepRootsNoRepoFallsBackToCwd` | Pure unit, fake directory check | No marker | Done |
+| 792b17c3a3 | `TestResolveSweepRootsClaudeAncestorExcludesJobsScratch` → `Test792b17c3a3_ResolveSweepRootsClaudeAncestorExcludesJobsScratch` | Pure unit, fake directory check | jobs excluded | Done |
+| 792b17c3a4 | `TestResolveSweepRootsAttachesPrefixesToSessionRootOnly` → `Test792b17c3a4_ResolveSweepRootsAttachesPrefixesToSessionRootOnly` | Pure unit, fake directory check | Name prefixes placement | Done |
+| 792b17c3a5 | `TestResolveSweepRootsHonorsSpecToggles` → `Test792b17c3a5_ResolveSweepRootsHonorsSpecToggles` | Pure unit, fake directory check | Settings off | Done |
+| 792b17c4a1 | `TestResolveSweepRootsDropsRootsUnderNonPersistentPaths` → `Test792b17c4a1_ResolveSweepRootsDropsRootsUnderNonPersistentPaths` | Pure unit, fake directory check | Throwaway roots dropped | Done |
+| 792b17c4a2 | `TestResolveSweepRootsExtraRootsBypassNonPersistentPathDrop` → `Test792b17c4a2_ResolveSweepRootsExtraRootsBypassNonPersistentPathDrop` | Pure unit, fake directory check | Extra roots kept | Done |
+| 792b17c5a1 | `TestDefaultSweepSpecExcludesDependencyDirs` → `Test792b17c5a1_DefaultSweepSpecExcludesDependencyDirs` | Pure unit | Default settings | Done |
+| 792b17c5a1 | `TestDefaultSweepSpecSkipsNonPersistentWorkspaces` → `Test792b17c5a1_DefaultSweepSpecSkipsNonPersistentWorkspaces` | Pure unit | Default name prefixes | Done |
+| 792b17c5a2 | `TestLoadSweepSpecOverridesDefaults` → `Test792b17c5a2_LoadSweepSpecOverridesDefaults` | Pure unit | Overlay | Done |
+| 792b17c5a3 | `TestAutoSweepUsesSpecRootsAndRepoOverride` → `Test792b17c5a3_AutoSweepUsesSpecRootsAndRepoOverride` | `RunIngest` over injected deps, fake listing | Repository file read | Done |
+| 792b17c6a1 | `TestIngestDepsSessionDirDefaultsToClaudeProjects` → `Test792b17c6a1_IngestDepsSessionDirDefaultsToClaudeProjects` | Production ingest deps over injected environment | Default and no home | Done |
+| 792b17c6a1 | `TestDefaultSessionDirIsAllProjects` → `Test792b17c6a1_DefaultSessionDirIsAllProjects` | Production ingest deps over test OS deps | Default directory | Done |
+| 792b17c6a2 | `TestIngestDepsSessionDirHonorsTranscriptDirEnv` → `Test792b17c6a2_IngestDepsSessionDirHonorsTranscriptDirEnv` | Production ingest deps over injected environment | Environment | Done |
+| 792b17c7a1 | `TestOsListSourcesSkipsExcludedDirs` → `Test792b17c7a1_OsListSourcesSkipsExcludedDirs` | Production lister over a temp dir | Excluded and hidden pruned | Done |
+| 792b17c7a2 | `TestShouldSkipDir` → `Test792b17c7a2_ShouldSkipDir` | Pure unit | Name and prefix | Done |
+| 792b17c7a3 | `TestPiSessionsReadErrorOnDirScan` → `Test792b17c7a3_PiSessionsReadErrorOnDirScan` | `RunIngest` with a failing lister | Walk failure | Done |
+| 792b17c8a3 | `TestPiSessionsAutoSweepIngestsPISessionsFromAncestor` → `Test792b17c8a3_PiSessionsAutoSweepIngestsPISessionsFromAncestor` | `RunIngest` over injected deps, in-memory listing | Swept root's file | Done |
+
+**Coverage gaps:** 792b17c3a6 (taken as `split deferred` by chunk-index-store's ancestor-precedence
+test, 792d83), 792b17c5a4 (no test of an invalid `sweep.json`), 792b17c8a1 and 792b17c8a2 (no test
+of the extension filter or of the chunk-directory skip). No 792a5 scenario this section maps has an
+end-to-end test.
+
+**No-scenario tests:** none. Deferred to chunk-index-store (792c7d5, 792d83): the rest of
+`ingest_sweep_test`, `TestPiSessionsReadErrorPropagates` and the `ingest_family_deps_test` lock,
+stat, write, prune-deps and transcript-read tests.
 
 #### 792c7d5 chunk-index-store tech spec
 
