@@ -116,7 +116,7 @@ writing a new one — reword an existing note whose `situation:` line missed the
 than duplicating it. A vault note is the user's own and takes effect on their next recall;
 anything shipped from the repo instead (code, skills, guidance) makes the user wait on a
 release, so that path is proposed only as a last resort and never filed automatically.
-Specified in [792a18q](changes/792_documentation-framework-adoption/792a_product-spec.md#792a18q-a-lesson-about-to-be-captured-asks-what-should-have-surfaced-it).
+Specified in [792a18q A lesson about to be captured asks what should have surfaced it](changes/792_documentation-framework-adoption/792a_product-spec.md#792a18q-a-lesson-about-to-be-captured-asks-what-should-have-surfaced-it).
 
 **Status:** committed in
 `agent-instructions/skills/please/SKILL.md` (`662e50ba`); the file was retired 2026-09-20 to a vault-only note and restored as a skill by `register-skills-as-runbooks` — the rule now lives in the please skill's own Step 7 text (please is one note, not a separate lessons-audit sub-runbook); unvalidated (no measurement supports it). The
@@ -266,7 +266,7 @@ the stale answer). Every new cluster must be named; unclaimed derived-origin ter
 apply (family-note supersession + major version bump).
 
 ### explore sampling
-The recall-query mechanism (shipped 2026-07-29, [792a7i](changes/792_documentation-framework-adoption/792a_product-spec.md#792a7i-half-of-the-notes-are-explored), superseding **vocab
+The recall-query mechanism (shipped 2026-07-29, [792a7i Half of the notes are explored](changes/792_documentation-framework-adoption/792a_product-spec.md#792a7i-half-of-the-notes-are-explored), superseding **vocab
 nomination**/tag nomination below) that surfaces additional note candidates from vocab-term
 centroids by proximity to the query, instead of by shared vocab term with the top-3 delivered
 notes. Budget B equals the exploit half's (matched-note) count; allocation across terms is
@@ -277,7 +277,7 @@ Explore picks dedupe against the exploit half and across terms, backfilling free
 allocation order. Delivered as top-level `items[]` entries — never cluster members, never in
 `candidate_l2s` — carrying `provenance: explore` and `source_term`; budget reported in
 `explore_allocated` (term → delivered-count map, always present, `{}` on missing/unreadable
-centroid data — degrading visibly to exploit-only rather than failing silently). See [792b24c16](changes/792_documentation-framework-adoption/792b_technical-spec.md#792b24c16-delivering-the-explore-half).
+centroid data — degrading visibly to exploit-only rather than failing silently). See [792b24c16 Delivering the explore half](changes/792_documentation-framework-adoption/792b_technical-spec.md#792b24c16-delivering-the-explore-half).
 
 ### vocab nomination (retired)
 The tag-match extension to `candidate_l2s` (shipped 2026-07-03, retired 2026-07-29 by **explore
@@ -510,7 +510,7 @@ Repeatable categorical-tag flag on `engram learn fact` / `engram learn feedback`
 amend — amend nonetheless round-trips an existing `tags:` list unchanged). Each value must match
 `[a-z0-9-]+` (bare family) or `[a-z0-9-]+/[a-z0-9-]+` (family/value); anything else is rejected
 before any write. Writes the frontmatter `tags:` string list — the sole categorical
-representation ([792a6c](changes/792_documentation-framework-adoption/792a_product-spec.md#792a6c-categorical-tags-share-one-list)). The binary also auto-assigns vocab terms into the same list under the
+representation ([792a6c Categorical tags share one list](changes/792_documentation-framework-adoption/792a_product-spec.md#792a6c-categorical-tags-share-one-list)). The binary also auto-assigns vocab terms into the same list under the
 `vocab/` namespace (see **vocab definition note**) — hand-authored `--tag` values and the binary's
 `vocab/<term>` entries share the one list but are written by different actors; never hand-author a
 `vocab/` tag yourself.
@@ -596,7 +596,7 @@ qa-answer notes COMPETE (they are synthesis notes — pre-reasoned conclusions
 with provenance); qa-question notes are EXCLUDED (reachable instead via a
 dedicated q-space channel with an `answered_by` ride-along, round 3, gated).
 Supersedes the original full-exclusion D5. Decision record and rationale:
-[792a3q](changes/792_documentation-framework-adoption/792a_product-spec.md#792a3q-question-and-answer-pairs).
+[792a3q Question-and-answer pairs](changes/792_documentation-framework-adoption/792a_product-spec.md#792a3q-question-and-answer-pairs).
 
 ### contributors (QA frontmatter + body field)
 A frontmatter list (`contributors: [<basename>, ...]`) and a matching
@@ -624,7 +624,7 @@ One fact note per work-kind, slug `route-evidence-<work-kind>`, whose object tex
 current tier tallies ("cheap 14/16, mid 2/2 as of <date>") and wikilinks every evidence note it
 summarizes (append-only trail). Amended (`engram amend --object`) as each dispatch lands; created
 untagged. Route READS it via plain recall — it surfaces as a normal memory; `engram count` over
-the evidence notes' tags is the audit that verifies/repairs its tallies ([792a6c](changes/792_documentation-framework-adoption/792a_product-spec.md#792a6c-categorical-tags-share-one-list)).
+the evidence notes' tags is the audit that verifies/repairs its tallies ([792a6c Categorical tags share one list](changes/792_documentation-framework-adoption/792a_product-spec.md#792a6c-categorical-tags-share-one-list)).
 
 ### family definition note / bare-tag convention
 A fact note documenting a tag family — its meaning, allowed values, and counting pattern —
@@ -664,7 +664,7 @@ to cover every one of the duplicate's own chunk records — never on
 hash-match alone, since a source's index file can hold historical records
 from a previous ingest that its current byte-identical twin's index does
 not. A later, higher-precedence copy of an already-indexed group evicts the
-lower-precedence one it replaces ([792b18](changes/792_documentation-framework-adoption/792b_technical-spec.md#792b18-added-chunk-index-store)). See the `engram prune` entry
+lower-precedence one it replaces ([792b18 chunk-index-store](changes/792_documentation-framework-adoption/792b_technical-spec.md#792b18-added-chunk-index-store)). See the `engram prune` entry
 below for the retroactive `--duplicates` cleanup mode. `--auto` sweeps all known sources, skips
 session-log directories whose slugified project path starts with a
 **non-persistent-workspace prefix** (`-private-tmp-`, `-tmp-`,
@@ -710,7 +710,7 @@ collapses every exact-content-hash group in the manifest (grouped by
 `FileHash` + `chunkingClass`, the same partition `engram ingest`'s dedup
 uses) down to one canonical member, and DOES remove the other members' index
 files plus their manifest entries — cleanup for duplicates indexed before
-ingest-time dedup existed ([792b18](changes/792_documentation-framework-adoption/792b_technical-spec.md#792b18-added-chunk-index-store)). Safe by construction: a duplicate is
+ingest-time dedup existed ([792b18 chunk-index-store](changes/792_documentation-framework-adoption/792b_technical-spec.md#792b18-added-chunk-index-store)). Safe by construction: a duplicate is
 removed only when the retained canonical's index file exists right now AND
 verifiably covers every one of the duplicate's own chunk records; otherwise
 the removal is refused and reported (structural refusals — the canonical has
@@ -841,7 +841,7 @@ writes a handoff report (the install result — source and binary lines) and
 re-execs the freshly installed binary (loop-guarded via
 `ENGRAM_UPDATE_REEXEC`) so the sync/check phase runs with the new logic
 rather than the old process's stale in-memory code; a spawn failure falls
-back to completing in-process and reports why ([792a11e](changes/792_documentation-framework-adoption/792a_product-spec.md#792a11e-the-rest-of-the-update-runs-in-the-new-binary)). `--dry-run` shows
+back to completing in-process and reports why ([792a11e The rest of the update runs in the new binary](changes/792_documentation-framework-adoption/792a_product-spec.md#792a11e-the-rest-of-the-update-runs-in-the-new-binary)). `--dry-run` shows
 the diff without writing (and never installs or re-execs). `--with-guidance`
 additionally deploys the guidance docs
 (`recall.md`, `delegate.md`, `learn.md`, `shim.md`) to the `guidance/` subtree of each
@@ -854,7 +854,7 @@ prints a one-line notice naming the exact command when it detects
 old-format vocab files (#678 — `engram update --regen-vocab`), leftover
 empty `.jsonl` chunk-index files (#694 — `engram prune --empty`), a
 duplicate backlog that `engram prune --duplicates` would actually remove
-([792a11n](changes/792_documentation-framework-adoption/792a_product-spec.md#792a11n-backlog-notices-for-the-chunk-index), refined by #713: prune's dry-run coverage gate decides;
+([792a11n Backlog notices for the chunk index](changes/792_documentation-framework-adoption/792a_product-spec.md#792a11n-backlog-notices-for-the-chunk-index), refined by #713: prune's dry-run coverage gate decides;
 refusal-only backlogs stay silent), or a vault holding only top-level
 Luhmann IDs — no `continuation`/`sibling` (child) note anywhere (#701's
 `restore-luhmann-branching-disposition` only fixed disposition for new
@@ -921,16 +921,16 @@ frontmatter/property/tag filter (or Dataview), `--backlinks-of` against the note
 `--group-by` counts only frontmatter members, so they diverge by the number of *non-member
 linkers* (e.g. a hand-authored MOC/hub page that links every note on a topic without itself carrying
 that topic in frontmatter; `vocab.index.md` was a machine-generated instance of this pattern, retired
-2026-07-10 under #678). See [792a8](changes/792_documentation-framework-adoption/792a_product-spec.md#792a8-added-vault-counting). Since #674 it is also the audit surface for route's dispatch-evidence tallies —
+2026-07-10 under #678). See [792a8 vault-counting](changes/792_documentation-framework-adoption/792a_product-spec.md#792a8-added-vault-counting). Since #674 it is also the audit surface for route's dispatch-evidence tallies —
 `--group-by tags --filter tags=...` recomputes ground truth from evidence-note tags (see
-"aggregate note (route)" and [792a6c](changes/792_documentation-framework-adoption/792a_product-spec.md#792a6c-categorical-tags-share-one-list)); audit only, never the routing read path.
+"aggregate note (route)" and [792a6c Categorical tags share one list](changes/792_documentation-framework-adoption/792a_product-spec.md#792a6c-categorical-tags-share-one-list)); audit only, never the routing read path.
 
 ### guidance file
 An always-loaded ambient doc under `agent-instructions/guidance/` in the engram repo,
 synced by `engram update --with-guidance` to canonical paths in `~/.claude/engram/guidance/` (Claude Code)
 and `~/.pi/agent/engram/guidance/` (Pi). Four ship today: `recall.md` (recall-firing),
 `delegate.md` (delegation-firing), `learn.md` (learn-firing), and `shim.md` (the runbook-follow-frame
-guidance). First-sync migration creates compat symlinks at old flat paths (`~/.claude/engram/<name>.md`) so existing `@import` lines keep working ([792a11m](changes/792_documentation-framework-adoption/792a_product-spec.md#792a11m-claude-import-paths-keep-working)).
+guidance). First-sync migration creates compat symlinks at old flat paths (`~/.claude/engram/<name>.md`) so existing `@import` lines keep working ([792a11m Claude import paths keep working](changes/792_documentation-framework-adoption/792a_product-spec.md#792a11m-claude-import-paths-keep-working)).
 Each is activated independently by adding its own
 `@~/.claude/engram/<name>.md` line to `~/.claude/CLAUDE.md` (resolves via compat symlink to canonical path), or
 `@~/.pi/agent/guidance/<name>.md` to `~/.pi/agent/AGENTS.md` (symlink surface path; detection matches this prefix; harness

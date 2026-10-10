@@ -59,10 +59,13 @@ Engram reads and writes a zettelkasten vault. Resolution order:
 2. `ENGRAM_VAULT_PATH` environment variable
 3. `$XDG_DATA_HOME/engram/vault` (fallback: `~/.local/share/engram/vault`)
 
-On first `engram learn` against a missing vault, the directory is
-bootstrapped with a minimal `.obsidian/` config so Obsidian recognizes
-it, a `.gitignore`, and a `README.md`. Other subcommands do not
-bootstrap — they error with "vault not found" so the user notices.
+Every vault-resolving command (not only `engram learn`) creates a missing vault on
+first use: the directory is bootstrapped with a minimal `.obsidian/` config so
+Obsidian recognizes it, a `.gitignore`, a starter `README.md`, a `.engram/` state
+directory and a vault ID, and one stderr line (`engram: created new vault at <path>`)
+announces it so a mistyped `--vault` path is visible. An existing vault is left
+untouched by read-only use. See
+[792a2f Existing vaults are left alone](docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a2f-existing-vaults-are-left-alone).
 
 Vault layout (flat since the 2026-06-12 flat-vault migration — notes live at the
 vault root; the `Permanent/` and `MOCs/` subdirectories are retired and ignored
