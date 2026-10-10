@@ -172,6 +172,33 @@ experience records — ADR-0028 D4), **#748** replay/mining modes for `run_audit
 #718's v2 multiplier must be proven on; the parked watcher's data pipeline). Parked (3.4 decision, 2026-09-29; revisit per D-F):
 mechanical LESSONS validator, watcher/metacognition layer, hooks (`learn-rate-skill-only` design D-F).
 
+**Decisions carried from ADR-0028 (D4 to D7, Joe 2026-08-30).** Its other decisions (D1 to D3 and D8) are specified with the
+memory-loop auditor (792b39) and the memory-effectiveness-evaluation capability (792a23).
+
+- **D4, situation-conditioned experience, not scalar ratings (#718, #747, #748).** A note that hurt in one situation may help in
+  another, so each note gains an *experience record*: a capped, frecency-evicted list of (situation text and vector, outcome,
+  timestamp, evidence pointer), admitted only by the judged pass. Ranking use is phased, probe-before-build: v1 puts admitted
+  entries in the query payload where the agent sees them, as supersession ride-alongs are; v2 is a mechanical
+  similarity-weighted multiplier, only after replay proves it on recorded moments, with the C4i trap as its regression guard.
+  A note with no entries ranks exactly as today, and absence of data is never a penalty. Storage strength (validated
+  correctness, which never self-decays) is unchanged.
+- **D5, product and dev-eval split.** The vault-content loop (audit extraction, credit-record emission, the judged consumer and
+  the experience records) ships as engram capabilities, binary and skills, so every user's vault learns from their own
+  transcripts. `dev/eval` evaluates engram's own skills and shapes: observe reports on the maintainer's corpus, replay, mine, and
+  the LEDGER. The instrument is Python-first under `dev/eval`, and promotion into an `engram audit` subcommand lands with the
+  credit-loop change.
+- **D6, the versioned surface is the judged surface.** Git is a hard precondition of the learning-loop capabilities and not of
+  core engram. With git, the "existed at T" oracle is a read-only worktree at the last commit at or before T (DERIVED); without
+  it, a `created ≤ T` filter labeled ESTIMATE, and the judged consumer refuses **prune**. Commits are judged-pass discipline, one
+  per judged session (the closing learn, curate, the credit consumer) with evidence pointers in the message, and never
+  per-command auto-commits. Tracked: note `.md` files and the experience records (a sibling `.exp.json`, so admissions do not
+  change a note's content hash). Ignored: the `.vec.json` sidecars. Pending offers sit uncommitted until curated. Sparse history
+  in old vaults means ESTIMATE for old moments, with no backfill.
+- **D7, the build-value harness is retired and the LEDGER grows additively.** The warm-versus-cold build value-proof direction
+  (the `dev/eval/cumulative` matrix and harness as a value instrument, the #642 hard-regime plan) is closed: the audit's observe
+  mode replaces it on the value question. The traps gate and the per-issue probes stay as the interventional half, and C4i
+  stays #742's regression guard. `dev/eval/LEDGER.md` keeps every row and anchor and carries the coverage-map index (done).
+
 ### GATED — external / date / validation trigger
 | Item | Axis | Trigger |
 |---|---|---|

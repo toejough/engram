@@ -2250,3 +2250,36 @@ decisions as `792dN`, continuing the sequence.
 - **Alternatives:** one requirement per outcome of the legacy spec's single large judgment requirement, with the scenarios
   attached to it. Rejected because the guide asks for separate requirements for materially different behaviors, and the five
   outcomes differ in their actions.
+
+## 792d125 memory-effectiveness-evaluation scope, 792e1's default, and where ADR-0028's decisions went
+
+- **Choice:**
+  - 792e1's provisional default is applied: eval and audit tooling is the product capability 792a23, with the components
+    eval-trial-harness (792b38) and memory-loop-auditor (792b39). Its expected user is the maintainer, since the tools are dev
+    tooling in this repository and not part of the shipped command line. If Joe answers option 2 or 3, 792a23 moves under the
+    technical specs or to `dev/eval` documentation and its rationale paragraphs stay as they are.
+  - 792a23 states seventeen requirements. The first ten come from the four eval and probe specs (warm configuration, the leak
+    guard, the fixtures' scoring and the surfacing probe), and the last seven from `memory-loop-audit`: moments, the record, the
+    vault as of the moment, the safe query, injected memories, credit records and the additive ledger. The `memory-loop-audit`
+    requirement for the #739 Phase 2 go/no-go decision (a joint review of the real results, with no pre-set formula, Joe
+    2026-09-01) is not ported: it was a one-time procedure for a change that is done (the ROADMAP records the decision and the
+    audit report is §9 of `dev/eval/audit/REPORT-2026-09-02.md`), and a product spec states what the tools do now.
+  - The four eval specs stay whole until 792c7v2 and `memory-loop-audit` until 792c7v3, because each requirement states both a
+    promise and a contract (792d117). Their comments in code (`isolation.py`, `cumulative/test_matrix.py`) are repointed when
+    they are deleted.
+  - ADR-0028 D4 to D7 are in `docs/ROADMAP.md` as a block under the memory north-star track, whose D4 row already cites them (#718,
+    #747, #748). D4, D5 and D6 are planned work (experience records, the `engram audit` subcommand, vault commit discipline) and
+    D7 is done (the build-value harness is retired and the ledger has its coverage map). D1 to D3 and D8, with the context, the
+    consequences and the risks, stay in the ADR for 792c7v3.
+  - This node renames no test.
+- **Divergences noted (792d33):**
+  - The warm-configuration requirement says any function that builds a warm configuration verifies each skill's source. The
+    Go harness behind `targ eval` (`NewOSConfigBuilder`) installs skills with `cp -R` from the operator's `~/.claude/skills/<skill>`
+    and not from the repository, and checks no `SKILL.md`: a missing source fails the copy, but an empty source directory is
+    installed silently. The three Python builders share `isolation.install_skill`.
+  - When the vault gained notes, the leak guard reads only the last ten note names in alphabetical order, and it does nothing
+    when the count did not grow; a leak that sits among earlier names, or that replaces one note by another at the same count, is
+    not detected, limits that 792a23f's scenarios do not list.
+- **Rationale:** 792d3, 792d6, 792d33, 792d117 and 792d124.
+- **Alternatives:** keep the four specs' technical requirements out of the product spec and write only components. This is 792e1's
+  option 2, left for Joe.

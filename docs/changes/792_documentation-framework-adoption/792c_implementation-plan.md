@@ -255,8 +255,8 @@ flowchart TD
   N792c7t2["792c7t2 offer-outbox tech spec<br/>Complete"]
   N792c7t3["792c7t3 parent-vault-client tech spec<br/>Complete"]
   N792c7u1["792c7u1 curate product spec<br/>Complete"]
-  N792c7v1["792c7v1 memory-effectiveness-evaluation product spec<br/>Ready"]
-  N792c7v2["792c7v2 eval-trial-harness tech spec<br/>Blocked by: 792c7v1"]
+  N792c7v1["792c7v1 memory-effectiveness-evaluation product spec<br/>Complete"]
+  N792c7v2["792c7v2 eval-trial-harness tech spec<br/>Ready"]
   N792c7v3["792c7v3 memory-loop-auditor tech spec<br/>Blocked by: 792c7v2"]
   N792c8a["792c8a Residual legacy sweep<br/>Blocked by: 792c7v3"]
   N792c8b["792c8b In-flight design relocation<br/>Blocked by: 792c8a"]
@@ -5447,10 +5447,21 @@ Target: `792a23` (`docs/specs/product/memory-effectiveness-evaluation.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7v1a | Port product requirements and UAT to `792a23` | Non-test action | Moves current behavior into the framework format | Not started |
-| 792c7v1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7v1c | Repoint stale references to `792a23` | Non-test action | Keeps live links valid | Not started |
-| 792c7v1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Not started |
+| 792c7v1a | Port product requirements and UAT to `792a23` | Non-test action | Moves current behavior into the framework format | Done |
+| 792c7v1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7v1c | Repoint stale references to `792a23` | Non-test action | Keeps live links valid | Done |
+| 792c7v1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Done |
+
+792a23 has seventeen requirements (792a23a to 792a23q) and 43 scenarios: the warm trial carries the skills it claims, a missing
+or empty source stops the build, the source path comes from the harness's own location, the trial-side leak guard (what it
+checks, what it catches and its stated limits), the step detection of every command form, the order-aware `question_stop`,
+the local target for a runbook's follow-up action, the rank a surfacing probe reads, and the audit (moments read in context,
+a complete record, the vault as of the moment, a query that a phrase cannot break, injected memories, credit records that are
+emitted and never consumed, and additive ledger rows). 792e1's default is applied (792d125). The four eval and probe specs stay
+whole for 792c7v2 and the `memory-loop-audit` spec for 792c7v3, since each requirement of them is both a promise to the
+maintainer and a contract of the harness or the auditor. ADR-0028 D4 to D7 moved to the ROADMAP (a new block under the memory
+north-star track), and D1 to D3 and D8 stay for 792c7v3. This node renames no test: the scenarios are verified by the Python
+and Go tests that 792c7v2 and 792c7v3 rename.
 
 #### 792c7v2 eval-trial-harness tech spec
 
