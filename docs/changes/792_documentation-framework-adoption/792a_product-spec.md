@@ -4055,8 +4055,9 @@ Scenario: 792a8d1c A CRLF note is counted
 Requirement: [792a8e Count the notes that link to a note](#792a8e-count-the-notes-that-link-to-a-note) `engram count --backlinks-of <basename>` MUST print `in-degree: <N>`, where
 `<N>` is the number of other notes at the vault root whose text links to the note named
 `<basename>`, followed by those notes' basenames one per line in ascending order. A note that links
-more than once MUST count once. A note's link to itself, a link inside a fenced code block, and a
-link to a note that is not at the vault root MUST NOT count. A link written with a trailing `.md`
+more than once MUST count once. A note's link to itself, a link inside a fenced code block, a
+link written in a note below the vault root, and a link to a note that is not at the vault root
+MUST NOT count. A link written with a trailing `.md`
 MUST count as the link without it. `<basename>` is matched exactly as given. The command MUST fail
 with a non-zero exit, naming the file, when any note at the vault root cannot be read.
 
@@ -4152,7 +4153,9 @@ Requirement: [792a8g The two modes measure different things](#792a8g-the-two-mod
 note, whether or not that note carries a given attribute value, and `engram count --group-by` MUST
 count only the notes that carry the value, whether or not they link. For a note named for an
 attribute value, the in-degree therefore equals the `--group-by` count of that value plus the
-number of linking notes that do not carry the value.
+number of linking notes that do not carry the value, provided every note that carries the value
+links to the note. A note that carries the value without linking to it counts toward `--group-by`
+and not toward `--backlinks-of`.
 
 Rationale: each mode can be checked by hand against its own Obsidian view (`--group-by` against a
 property or tag filter, `--backlinks-of` against the backlinks panel), and the two are not equal to

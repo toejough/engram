@@ -13324,7 +13324,8 @@ Scenario: 792b25c6a4 A scan failure is returned
 
 Requirement: [792b25c7 The two measures are independent](#792b25c7-the-two-measures-are-independent) The vault-counter MUST count by attribute only the notes that carry the value
 ([792b25c2 Attribute membership counting](#792b25c2-attribute-membership-counting)) and MUST count by incoming link every note that links ([792b25c6 Incoming-link report](#792b25c6-incoming-link-report)), so that a node's
-in-degree equals the attribute count of its value plus the number of linkers that do not carry it.
+in-degree equals the attribute count of its value plus the number of linkers that do not carry it,
+when every note that carries the value links to the node.
 
 Supports: [792a8g1a The modes agree when every linker is a member](./792a_product-spec.md#792a8g1-uat-scenarios), [792a8g1b The in-degree exceeds the count by the non-member linkers](./792a_product-spec.md#792a8g1-uat-scenarios).
 
