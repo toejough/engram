@@ -11788,12 +11788,16 @@ Scenario: 792a22a1b A pending skill runbook note does not surface either
 
 ### 792a22b A note becomes pending only by an exchange
 
-Requirement: [792a22b A note becomes pending only by an exchange](#792a22b-a-note-becomes-pending-only-by-an-exchange) A local `engram learn` and a local `engram amend` MUST NOT write the pending-offer marker. Only a served `learn` ([792a20d A served learn lands as a pending offer and returns a receipt](#792a20d-a-served-learn-lands-as-a-pending-offer-and-returns-a-receipt))
-and a pull-down ([792a21zd A pulled-down note is an exact-content local pending offer](#792a21zd-a-pulled-down-note-is-an-exact-content-local-pending-offer)) MUST make a note pending, and `engram amend --clear-pending` MUST be how a curator clears the marker of a
-note one of them left behind.
+Requirement: [792a22b A note becomes pending only by an exchange](#792a22b-a-note-becomes-pending-only-by-an-exchange) A local `engram learn` and a local `engram amend` MUST NOT write the pending-offer marker. A served `learn` ([792a20d A served learn lands as a pending offer and returns a receipt](#792a20d-a-served-learn-lands-as-a-pending-offer-and-returns-a-receipt)),
+a pull-down ([792a21zd A pulled-down note is an exact-content local pending offer](#792a21zd-a-pulled-down-note-is-an-exact-content-local-pending-offer)), accepting a skill's registration offer
+([792a12d Accepting a registration creates a pending note](#792a12d-accepting-a-registration-creates-a-pending-note)) and accepting its refresh offer
+([792a12e Accepting a refresh replaces the body, keeps the fields, and marks the note pending](#792a12e-accepting-a-refresh-replaces-the-body-keeps-the-fields-and-marks-the-note-pending)) MUST make a note pending, and a skill note is then
+authored by curation ([792a22k A pending skill runbook note is authored, not judged](#792a22k-a-pending-skill-runbook-note-is-authored-not-judged)). `engram amend --clear-pending` MUST be how a curator clears the marker of a
+note any of them left behind.
 
-Rationale: the marker means that the note came from another vault and has not been judged, so a note the user writes in their own vault
-is never held back from recall.
+Rationale: the marker means that the note came from another vault, or from a skill file, and has not been judged or authored, so a note the user
+writes in their own vault is never held back from recall. Only the exchanges and the skill registration write it; `engram learn` has no flag for it, and the
+only amend flag that touches the marker clears it.
 
 #### 792a22b1 UAT Scenarios
 

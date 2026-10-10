@@ -60,9 +60,9 @@ type AmendArgs struct {
 	// assigns it after decode.
 	Pending *bool `json:"pending"`
 	// Discard deletes the target note and its sidecar under the vault lock,
-	// instead of amending content — the curate runbook's "covered" outcome
-	// (792a22): the pending offer's content is already covered
-	// by an existing note, so the offer is removed rather than folded in.
+	// instead of amending content — how curation (792a22) settles an offer it
+	// does not keep: bare for a rejected offer (a pulled one records a
+	// decline), with Into for a covered or near offer (the fold).
 	// RunAmend short-circuits to delete-and-return as soon as the target is
 	// resolved; every content-amend flag is ignored when this is set.
 	Discard bool `json:"discard" targ:"flag,name=discard,desc=delete the note and its sidecar instead of amending (792a22)"` //nolint:lll // single unbreakable struct-tag string

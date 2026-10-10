@@ -5645,7 +5645,7 @@ Scenario: 792b12c7a2 A captured runbook has no skill key or source
 #### 792b12c8 The pending marker is not set by a local learn
 
 Requirement: [792b12c8 The pending marker is not set by a local learn](#792b12c8-the-pending-marker-is-not-set-by-a-local-learn) The note-authoring MUST write `pending: true` only when the arguments it is given carry the pending marker, which
-a served learn and a pull-down build, and the command line MUST NOT expose a flag that sets it, so that a local `engram learn`
+a served learn, a pull-down and a skill registration build, and the command line MUST NOT expose a flag that sets it, so that a local `engram learn`
 never writes a pending note.
 
 Supports: [792a22b1a A local learn is never pending](./792a_product-spec.md#792a22b1-uat-scenarios).
@@ -6910,7 +6910,7 @@ Scenario: 792b14c13a5 A CRLF pulled note's decline is recorded
 
 #### 792b14c14 Settling a pending offer
 
-Requirement: [792b14c14 Settling a pending offer](#792b14c14-settling-a-pending-offer) The note-amendment MUST clear the pending marker of its target for `--clear-pending` and for `--pending=false`, on a
+Requirement: [792b14c14 Settling a pending offer](#792b14c14-settling-a-pending-offer) The note-amendment MUST clear the pending marker of its target for `--clear-pending` (and for the amend arguments' own pending field set false, which is not a command-line flag: `--pending` is listed by `--help` only by mistake, #797), on a
 fact, feedback or runbook note, a runbook note that carries `skill_hash` included, changing no other field of the note and not
 re-stamping its identity ([792b14c5 Identity re-stamp gating](#792b14c5-identity-re-stamp-gating)), and MUST NOT set the marker in any local amend. It MUST, for `--discard`, delete the note
 and then its sidecar under the vault lock the amend holds, print the note's path only when both were deleted, treat a missing
