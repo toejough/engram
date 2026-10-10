@@ -980,7 +980,7 @@ clusters, and learn's Step 2 hands off inline to write-memory.
 ### contradiction
 Two surfaced notes making incompatible claims about the same thing. The
 vault preserves contradictions; recall surfaces both; the noting note passes
-`--supersedes "<basename>|refutes|<claim>"` on the `engram learn`/`amend` call
+`--supersedes="<basename>|refutes|<claim>"` on the `engram learn`/`amend` call
 (typed supersession — no body ritual). Never smoothed.
 
 ### capability axes (C1–C7)
