@@ -32,6 +32,46 @@ func Test792b33c3a2_ExchangeHash_CRLFFrontmatterHashesAsLF(t *testing.T) {
 	g.Expect(crlfHash).To(Equal(lfHash))
 }
 
+// Test792b34c1a4_NoteHasPendingMarker_CRLF: a pending offer with CRLF line endings is
+// still a pending offer, so query excludes it and serve never hands it out
+// as live.
+func Test792b34c1a4_NoteHasPendingMarker_CRLF(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	g.Expect(cli.ExportNoteHasPendingMarker([]byte(toCRLF(foldNote(foldExchange{xid: foldXIDO}, true))))).To(BeTrue())
+	g.Expect(cli.ExportNoteHasPendingMarker([]byte(toCRLF(foldNote(foldExchange{xid: foldXIDO}, false))))).To(BeFalse())
+}
+
+// Test792b34c8a3_Show_ExchangeHashHeaderForCRLFNote: show prints the exchange hash
+// line for a note with CRLF frontmatter, and that hash passes amend's
+// --expect-hash check on the same note.
+func Test792b34c8a3_Show_ExchangeHashHeaderForCRLFNote(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	crlf := toCRLF(foldNote(foldExchange{xid: foldXIDO, origin: true}, true))
+
+	memFS := newInMemoryFS()
+	memFS.files["/vault/"+foldOfferName] = []byte(crlf)
+
+	var shown bytes.Buffer
+
+	g.Expect(cli.RunShow(t.Context(), cli.ShowArgs{Ref: "5", VaultPath: "/vault"}, newShowDeps(memFS), &shown)).
+		To(Succeed())
+
+	header, _, _ := strings.Cut(shown.String(), "\n")
+	g.Expect(header).To(HavePrefix("# exchange_hash: xh1:"))
+	g.Expect(strings.TrimPrefix(shown.String(), header+"\n")).To(HavePrefix(crlf), "the body is printed verbatim")
+
+	vault := newCRLFAmendVault(crlf)
+	notPending := false
+	err := vault.amend(t.Context(), cli.AmendArgs{
+		Pending: &notPending, ExpectHash: strings.TrimPrefix(header, "# exchange_hash: "),
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
 // TestActivate_PullsCRLFParentNote: a parent note served with CRLF line
 // endings pulls down as an LF pending copy linked at the parent's hash.
 func TestActivate_PullsCRLFParentNote(t *testing.T) {
@@ -83,44 +123,4 @@ func TestDrainOutbox_FindsCRLFNote(t *testing.T) {
 	written := string(env.noteRaw(attentionNoteName))
 	g.Expect(written).To(ContainSubstring("note: 9.2026-09-27.parent-copy"))
 	g.Expect(written).NotTo(ContainSubstring("\r\n"), "the receipt write converts the note")
-}
-
-// TestNoteHasPendingMarker_CRLF: a pending offer with CRLF line endings is
-// still a pending offer, so query excludes it and serve never hands it out
-// as live.
-func TestNoteHasPendingMarker_CRLF(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	g.Expect(cli.ExportNoteHasPendingMarker([]byte(toCRLF(foldNote(foldExchange{xid: foldXIDO}, true))))).To(BeTrue())
-	g.Expect(cli.ExportNoteHasPendingMarker([]byte(toCRLF(foldNote(foldExchange{xid: foldXIDO}, false))))).To(BeFalse())
-}
-
-// TestShow_ExchangeHashHeaderForCRLFNote: show prints the exchange hash
-// line for a note with CRLF frontmatter, and that hash passes amend's
-// --expect-hash check on the same note.
-func TestShow_ExchangeHashHeaderForCRLFNote(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	crlf := toCRLF(foldNote(foldExchange{xid: foldXIDO, origin: true}, true))
-
-	memFS := newInMemoryFS()
-	memFS.files["/vault/"+foldOfferName] = []byte(crlf)
-
-	var shown bytes.Buffer
-
-	g.Expect(cli.RunShow(t.Context(), cli.ShowArgs{Ref: "5", VaultPath: "/vault"}, newShowDeps(memFS), &shown)).
-		To(Succeed())
-
-	header, _, _ := strings.Cut(shown.String(), "\n")
-	g.Expect(header).To(HavePrefix("# exchange_hash: xh1:"))
-	g.Expect(strings.TrimPrefix(shown.String(), header+"\n")).To(HavePrefix(crlf), "the body is printed verbatim")
-
-	vault := newCRLFAmendVault(crlf)
-	notPending := false
-	err := vault.amend(t.Context(), cli.AmendArgs{
-		Pending: &notPending, ExpectHash: strings.TrimPrefix(header, "# exchange_hash: "),
-	})
-	g.Expect(err).NotTo(HaveOccurred())
 }

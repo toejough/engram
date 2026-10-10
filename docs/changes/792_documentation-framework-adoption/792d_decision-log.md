@@ -2026,3 +2026,36 @@ decisions as `792dN`, continuing the sequence.
     names them.
 - **Rationale:** 792d3, 792d10, 792d30, 792d33, 792d52, 792d61 and 792d110.
 - **Alternatives:** map the hash to parent-sync scenarios now. Rejected because those scenarios do not exist yet.
+
+## 792d119 pending-offer-bookkeeping scope, the requirements taken out of vault-offer-curation, and the tests it takes
+
+- **Choice:**
+  - 792b34 specifies eight requirements (792b34c1 to 792b34c8). It takes six requirements out of the
+    `vault-offer-curation` spec because each one is the contract of the marker, the scan, the check or the fold that
+    `offer.go` and `amend_fold.go` realize: the marker on skill runbooks and on every type, the stateless scan, the
+    judged-version check, the merge of parent links and the exchange-hash header of `engram show`. The product
+    requirements of that spec stay for curate (792c7u1): served writes land pending, `activate` commits directly,
+    pending offers are excluded from query results, the judgment, the outcome not reported and the three surfacing
+    points. 792c7u1 maps its scenarios onto 792b34.
+  - The spec's pointer in its Purpose names 792b34c1 to 792b34c8, as the earlier trimmed specs name their targets.
+  - The three scenarios that trailed the `show` requirement of that spec belong to the judged-version check (two) and
+    to the header (the CRLF note), and move with them.
+  - The `engram show` header has no component of its own in the inventory, and
+    it exists so that a curator can name the judged version, so it is a requirement of this component. Its served form
+    (792b35) and its parent-fallback label order (parent-sync) are theirs.
+  - The query payload's flag and hint are rendered by query-payload-renderer; the two tests of the rendered hint are
+    renamed to 792b34c4a2 here, because the scenario is about the instruction following the flag. The tests of the
+    update notice and of the lead position of the flag in the payload (`TestQueryPayload_PendingOffersLeadPayload`) are
+    curate's and keep their names.
+  - A bare `--discard` also records a decline of the parent note; that is pull-down's (parent-sync), not specified here.
+  - `TestVaultHasPendingOffers` and `TestWarnIfPendingOffers` are tables or sequences over several scenarios; each
+    takes the first and lists the rest as `split deferred`. So does the property test of the fold, which also
+    verifies 792b34c7a1 and 792b34c7a2.
+- **Divergences noted (792d33):**
+  - The spec says a hash that "cannot be computed at all (S21)" fails; the code returns the hashing error, and no test
+    asserts it for a given expected hash (a coverage gap).
+  - The spec says the fold's note-level effects cover "the offer's basename and all of its `aliases`"; the code also
+    excludes E's own basename and duplicates.
+- **Rationale:** 792d3, 792d10, 792d30, 792d33 and 792d118.
+- **Alternatives:** leave the six requirements for curate. Rejected because they are not product behavior: no user
+  observes the fold's link rules, only the result of curation.

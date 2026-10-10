@@ -423,23 +423,16 @@ pulled note bouncing back up once is intended (B1).
   #744. A note floor keeps a minimum of qualifying note-kind items even under a tight `--limit`.
   The budget block reports merge-applied values — fixing #743. `pending_offers` reflects local
   offers only, since a child can't curate its parent.
-- **D10 — Curation gains a fold, and stops re-stamping identity on bookkeeping.**
-  `engram amend --discard --into <existing>` unions the offer's basename and aliases into
-  `<existing>.aliases`, and folds its parent links into `<existing>`'s: an existing link keeps its
-  role and takes the offer's hash; the offer's primary (`offered`/`pulled`) stays primary only when
-  `<existing>` has none, otherwise it becomes `covered` — and a fold promotes a held `covered` link
-  to the offer's primary role when `<existing>` has no primary of its own. When the offer links a
-  different parent vault than `<existing>` does, `<existing>`'s links under the old vault are
-  dropped (links count only under the current parent, matching a receipt's own replacement rule).
-  `<existing>` keeps its own author; the offer's author is not carried (documented loss, the
-  basename survives in `aliases`). A **judged-version check** guards every curation bookkeeping
-  step on an offer (`--clear-pending`, `--discard`, `--discard --into`, pending or live): it
-  requires `--expect-hash`, and only an **equal** hash passes — a hash of another version, or an
-  *unknown*-classified one, fails exactly as a changed one does, so the curator re-judges rather
-  than silently accepting or discarding content nobody reviewed. Bookkeeping amends
-  (`--activate`, `--clear-pending`, `--discard --into`, a link-only receipt write) no longer
-  re-stamp `repo`/`user`/`vault`, so an accepted offer keeps its declared author. `resituate`
-  preserves every field it doesn't change.
+- **D10 — Curation gains a fold, and stops re-stamping identity on bookkeeping.** The fold, its merge of parent links
+  and the judged-version check are in
+  [792b34c5](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b34c5-the-judged-version-check)
+  to
+  [792b34c7](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b34c7-merging-parent-links).
+  The bookkeeping amends that no longer re-stamp `repo`/`user`/`vault`, and `resituate` preserving every field it does
+  not change, are in
+  [792a4h](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a4h-identity-re-stamp)
+  and
+  [792a4i](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a4i-vault-name-on-every-amend).
 - **D11 — Tests: DI fakes plus hermetic headless skill arms.** Go unit tests use the `Deps.Fetch`
   seam and FS/lock fakes. Skill TDD (recall/learn/curate) runs each RED/GREEN arm as a fresh
   headless `claude -p` process (never a subagent, which would inherit session context), under an

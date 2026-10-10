@@ -13,12 +13,71 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
-// TestExcludePendingOffers covers the query-time filter: a pending note is
+// Test792b34c1a1_NoteHasPendingMarker covers noteHasPendingMarker: a pending fact/
+// feedback note is flagged, a normal one isn't, and a non-fact/feedback
+// note (e.g. a vocab definition) is never flagged even if its raw bytes
+// happen to be unparseable as fact/feedback frontmatter.
+func Test792b34c1a1_NoteHasPendingMarker(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	g.Expect(cli.ExportNoteHasPendingMarker([]byte(pendingFactNote))).To(BeTrue())
+	g.Expect(cli.ExportNoteHasPendingMarker([]byte(pendingFeedbackNote))).To(BeTrue())
+	g.Expect(cli.ExportNoteHasPendingMarker([]byte(normalFactNote))).To(BeFalse())
+	g.Expect(cli.ExportNoteHasPendingMarker([]byte(vocabDefNoteWithPendingLikeContent))).To(BeFalse())
+	g.Expect(cli.ExportNoteHasPendingMarker([]byte("not frontmatter at all"))).To(BeFalse())
+}
+
+// Test792b34c1a2_NoteHasPendingMarker_EveryNoteType covers the pending-offer marker on
+// every note type (vault-offer-curation "The pending-offer marker SHALL
+// apply to every note type", design D7 G1): a runbook with `pending: true`
+// is a pending offer with or without `skill_hash`, and a `skill_hash`
+// runbook that isn't pending is not one.
+func Test792b34c1a2_NoteHasPendingMarker_EveryNoteType(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	g.Expect(cli.ExportNoteHasPendingMarker([]byte(pendingSkillRunbookNote))).To(BeTrue())
+	g.Expect(cli.ExportNoteHasPendingMarker([]byte(pendingRunbookNoSkillHashNote))).To(BeTrue())
+	g.Expect(cli.ExportNoteHasPendingMarker([]byte(nonPendingSkillRunbookNote))).To(BeFalse())
+}
+
+// Test792b34c1a3_NoteHasPendingMarker_PendingFlagDecidesForEveryType is the property
+// behind G1: for every offerable note type, with or without `skill_hash`,
+// the note is a pending offer exactly when it carries `pending: true`.
+func Test792b34c1a3_NoteHasPendingMarker_PendingFlagDecidesForEveryType(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		noteType := rapid.SampledFrom([]string{"fact", "feedback", "runbook"}).Draw(rt, "type")
+		pending := rapid.Bool().Draw(rt, "pending")
+		skillHash := rapid.SampledFrom([]string{"", "abc123"}).Draw(rt, "skillHash")
+
+		frontmatter := "---\ntype: " + noteType + "\nsituation: s\nluhmann: \"9\"\ncreated: 2026-01-09\n" +
+			"source: agent\nuser: u\nvault: personal\n"
+		if skillHash != "" {
+			frontmatter += "skill_hash: " + skillHash + "\n"
+		}
+
+		if pending {
+			frontmatter += "pending: true\n"
+		}
+
+		note := frontmatter + "---\n\nbody\n"
+
+		if cli.ExportNoteHasPendingMarker([]byte(note)) != pending {
+			rt.Fatalf("type %s skill_hash %q pending %v: marker reported %v",
+				noteType, skillHash, pending, !pending)
+		}
+	})
+}
+
+// Test792b34c2a1_ExcludePendingOffers covers the query-time filter: a pending note is
 // dropped from the returned slice and anyPending reports true; an
 // all-normal vault returns every note with anyPending false; a note whose
 // read fails is kept (fail-open, never silently drop a note query would
 // otherwise return over an unrelated read glitch).
-func TestExcludePendingOffers(t *testing.T) {
+func Test792b34c2a1_ExcludePendingOffers(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -57,9 +116,9 @@ func TestExcludePendingOffers(t *testing.T) {
 	g.Expect(basenames).To(ConsistOf("2.2026-01-02.normal", "3.2026-01-03.unreadable"))
 }
 
-// TestExcludePendingOffers_NoneReportsFalse covers the all-normal case: no
+// Test792b34c2a2_ExcludePendingOffers_NoneReportsFalse covers the all-normal case: no
 // pending notes means every note survives and anyPending is false.
-func TestExcludePendingOffers_NoneReportsFalse(t *testing.T) {
+func Test792b34c2a2_ExcludePendingOffers_NoneReportsFalse(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -81,11 +140,11 @@ func TestExcludePendingOffers_NoneReportsFalse(t *testing.T) {
 	g.Expect(kept).To(HaveLen(1))
 }
 
-// TestExcludePendingOffers_SkillRunbookNote proves excludePendingOffers (and
+// Test792b34c2a3_ExcludePendingOffers_SkillRunbookNote proves excludePendingOffers (and
 // therefore engram query's exclusion + pending_offers flag, since both route
 // through noteHasPendingMarker) drops a pending skill-runbook note exactly
 // like a pending fact/feedback note, while an ordinary runbook survives.
-func TestExcludePendingOffers_SkillRunbookNote(t *testing.T) {
+func Test792b34c2a3_ExcludePendingOffers_SkillRunbookNote(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -112,70 +171,11 @@ func TestExcludePendingOffers_SkillRunbookNote(t *testing.T) {
 	g.Expect(kept[0].Basename).To(Equal("7.2026-01-07.normal-runbook"))
 }
 
-// TestNoteHasPendingMarker covers noteHasPendingMarker: a pending fact/
-// feedback note is flagged, a normal one isn't, and a non-fact/feedback
-// note (e.g. a vocab definition) is never flagged even if its raw bytes
-// happen to be unparseable as fact/feedback frontmatter.
-func TestNoteHasPendingMarker(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	g.Expect(cli.ExportNoteHasPendingMarker([]byte(pendingFactNote))).To(BeTrue())
-	g.Expect(cli.ExportNoteHasPendingMarker([]byte(pendingFeedbackNote))).To(BeTrue())
-	g.Expect(cli.ExportNoteHasPendingMarker([]byte(normalFactNote))).To(BeFalse())
-	g.Expect(cli.ExportNoteHasPendingMarker([]byte(vocabDefNoteWithPendingLikeContent))).To(BeFalse())
-	g.Expect(cli.ExportNoteHasPendingMarker([]byte("not frontmatter at all"))).To(BeFalse())
-}
-
-// TestNoteHasPendingMarker_EveryNoteType covers the pending-offer marker on
-// every note type (vault-offer-curation "The pending-offer marker SHALL
-// apply to every note type", design D7 G1): a runbook with `pending: true`
-// is a pending offer with or without `skill_hash`, and a `skill_hash`
-// runbook that isn't pending is not one.
-func TestNoteHasPendingMarker_EveryNoteType(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	g.Expect(cli.ExportNoteHasPendingMarker([]byte(pendingSkillRunbookNote))).To(BeTrue())
-	g.Expect(cli.ExportNoteHasPendingMarker([]byte(pendingRunbookNoSkillHashNote))).To(BeTrue())
-	g.Expect(cli.ExportNoteHasPendingMarker([]byte(nonPendingSkillRunbookNote))).To(BeFalse())
-}
-
-// TestNoteHasPendingMarker_PendingFlagDecidesForEveryType is the property
-// behind G1: for every offerable note type, with or without `skill_hash`,
-// the note is a pending offer exactly when it carries `pending: true`.
-func TestNoteHasPendingMarker_PendingFlagDecidesForEveryType(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		noteType := rapid.SampledFrom([]string{"fact", "feedback", "runbook"}).Draw(rt, "type")
-		pending := rapid.Bool().Draw(rt, "pending")
-		skillHash := rapid.SampledFrom([]string{"", "abc123"}).Draw(rt, "skillHash")
-
-		frontmatter := "---\ntype: " + noteType + "\nsituation: s\nluhmann: \"9\"\ncreated: 2026-01-09\n" +
-			"source: agent\nuser: u\nvault: personal\n"
-		if skillHash != "" {
-			frontmatter += "skill_hash: " + skillHash + "\n"
-		}
-
-		if pending {
-			frontmatter += "pending: true\n"
-		}
-
-		note := frontmatter + "---\n\nbody\n"
-
-		if cli.ExportNoteHasPendingMarker([]byte(note)) != pending {
-			rt.Fatalf("type %s skill_hash %q pending %v: marker reported %v",
-				noteType, skillHash, pending, !pending)
-		}
-	})
-}
-
-// TestVaultHasPendingOffers covers the engram-update detector: a vault
+// Test792b34c3a1_VaultHasPendingOffers covers the engram-update detector: a vault
 // holding one pending note flags true, an all-normal vault flags false, and
 // a missing vault directory self-silences to false (same convention as
 // notesMissingIdentityFields).
-func TestVaultHasPendingOffers(t *testing.T) {
+func Test792b34c3a1_VaultHasPendingOffers(t *testing.T) {
 	t.Parallel()
 
 	table := []struct {
@@ -214,10 +214,10 @@ func TestVaultHasPendingOffers(t *testing.T) {
 	}
 }
 
-// TestWarnIfPendingOffers covers the write-path log-only nudge: fires when
+// Test792b34c3a4_WarnIfPendingOffers covers the write-path log-only nudge: fires when
 // the vault holds a pending offer, silent otherwise, and a no-op when any
 // dep is nil (mirrors checkAndPersistVocabRefitTrigger's nil-tolerance).
-func TestWarnIfPendingOffers(t *testing.T) {
+func Test792b34c3a4_WarnIfPendingOffers(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 

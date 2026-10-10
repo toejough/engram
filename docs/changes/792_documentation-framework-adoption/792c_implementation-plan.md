@@ -249,8 +249,8 @@ flowchart TD
   N792c7r1["792c7r1 ambient-guidance product spec<br/>Complete"]
   N792c7s1["792c7s1 vault-serving product spec<br/>Complete"]
   N792c7s2["792c7s2 exchange-versioning tech spec<br/>Complete"]
-  N792c7s3["792c7s3 pending-offer-bookkeeping tech spec<br/>Ready"]
-  N792c7s4["792c7s4 vault-http-server tech spec<br/>Blocked by: 792c7s3"]
+  N792c7s3["792c7s3 pending-offer-bookkeeping tech spec<br/>Complete"]
+  N792c7s4["792c7s4 vault-http-server tech spec<br/>Ready"]
   N792c7t1["792c7t1 parent-sync product spec<br/>Blocked by: 792c7s4"]
   N792c7t2["792c7t2 offer-outbox tech spec<br/>Blocked by: 792c7t1"]
   N792c7t3["792c7t3 parent-vault-client tech spec<br/>Blocked by: 792c7t2"]
@@ -4704,10 +4704,9 @@ is parent-sync's). 792b33c7a2, 792b33c7a3 and 792b33c9a6 are verified by `TestSe
 792c7s4 renames.
 
 **No-scenario tests:** `Test792b6c8a1_ToLF` is note-document-format's (already named). These verify a scenario of another
-component and keep their names: `TestActivate_PullsCRLFParentNote` and `TestDrainOutbox_FindsCRLFNote` (parent-sync,
-792c7t1), `TestNoteHasPendingMarker_CRLF` (the pending marker, 792c7s3) and `TestShow_ExchangeHashHeaderForCRLFNote`
-(the exchange-hash header of `engram show` and the `--expect-hash` check, curate, 792c7u1).
-
+component and keep their names or are renamed by that component's node: `TestActivate_PullsCRLFParentNote` and
+`TestDrainOutbox_FindsCRLFNote` (parent-sync, 792c7t1); `TestNoteHasPendingMarker_CRLF` and
+`TestShow_ExchangeHashHeaderForCRLFNote` are renamed by 792c7s3 to 792b34c1a4 and 792b34c8a3.
 
 #### 792c7s3 pending-offer-bookkeeping tech spec
 
@@ -4726,11 +4725,53 @@ Target: `792b34` (`docs/specs/technical/pending-offer-bookkeeping.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7s3a | Port the component contract to `792b34` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7s3b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7s3c | Repoint stale references to `792b34` | Non-test action | Keeps live links valid | Not started |
-| 792c7s3d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7s3e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7s3a | Port the component contract to `792b34` | Non-test action | Documents the component in the framework format | Done |
+| 792c7s3b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7s3c | Repoint stale references to `792b34` | Non-test action | Keeps live links valid | Done |
+| 792c7s3d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7s3e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+792b34 has eight requirements (792b34c1 to 792b34c8): the marker, leaving pending offers out of a list, finding them, the
+curate instruction, the judged-version check, the fold, the merge of parent links and the exchange-hash header of `show`
+(792d119). It owns no sequence. Legacy removal: six requirements of `vault-offer-curation` are removed (the marker for
+skill runbooks and for every type, the stateless scan, the judged-version check, the link merge and the `show` header,
+with the scenarios that trailed the `show` requirement), the spec's Purpose points at 792b34, and ADR-0029 D10 becomes a
+pointer.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b34c1a1 | `TestNoteHasPendingMarker` → `Test792b34c1a1_NoteHasPendingMarker` | Unit | Pending fact and feedback flagged; vocabulary definition and no-frontmatter text not | Done |
+| 792b34c1a2 | `TestNoteHasPendingMarker_EveryNoteType` → `Test792b34c1a2_NoteHasPendingMarker_EveryNoteType` | Unit | A pending runbook is flagged with or without skill_hash | Done |
+| 792b34c1a3 | `TestNoteHasPendingMarker_PendingFlagDecidesForEveryType` → `Test792b34c1a3_NoteHasPendingMarker_PendingFlagDecidesForEveryType` | Property (rapid) | The pending flag decides for every type | Done |
+| 792b34c1a4 | `TestNoteHasPendingMarker_CRLF` → `Test792b34c1a4_NoteHasPendingMarker_CRLF` | Unit | A CRLF offer is still pending | Done |
+| 792b34c2a1 | `TestExcludePendingOffers` → `Test792b34c2a1_ExcludePendingOffers` | Unit | Pending dropped, unreadable kept, flag reported | Done |
+| 792b34c2a2 | `TestExcludePendingOffers_NoneReportsFalse` → `Test792b34c2a2_ExcludePendingOffers_NoneReportsFalse` | Unit | No pending offer keeps every note and reads <vault>/<basename>.md | Done |
+| 792b34c2a3 | `TestExcludePendingOffers_SkillRunbookNote` → `Test792b34c2a3_ExcludePendingOffers_SkillRunbookNote` | Unit | A pending skill runbook is dropped | Done |
+| 792b34c3a1 | `TestVaultHasPendingOffers` → `Test792b34c3a1_VaultHasPendingOffers` | Table unit | Pending note flags the vault (c3a2, c3a3 split deferred) | Done |
+| 792b34c3a4 | `TestWarnIfPendingOffers` → `Test792b34c3a4_WarnIfPendingOffers` | Unit | The write-path nudge fires, is silent, and no-ops without deps (c3a5, c3a6 split deferred) | Done |
+| 792b34c4a1 | `TestPendingOfferCurateInstruction_IsExpectedUpkeep` → `Test792b34c4a1_PendingOfferCurateInstruction_IsExpectedUpkeep` | Unit | The instruction says curation is expected upkeep | Done |
+| 792b34c4a2 | `TestQueryPayload_PendingOffersHintPresentWhenTrue` → `Test792b34c4a2_QueryPayload_PendingOffersHintPresentWhenTrue` | Unit | The hint follows the flag | Done |
+| 792b34c4a2 | `TestQueryPayload_PendingOffersHintOmittedWhenFalse` → `Test792b34c4a2_QueryPayload_PendingOffersHintOmittedWhenFalse` | Unit | The hint follows the flag | Done |
+| 792b34c5a1 | `TestRunAmend_ExpectHashTruthTable` → `Test792b34c5a1_RunAmend_ExpectHashTruthTable` | Table unit | The truth table over every mode, origin, pending state and expected hash | Done |
+| 792b34c5a2 | `TestRunAmend_OfferUpdatedAfterJudgmentIsNotAccepted` → `Test792b34c5a2_RunAmend_OfferUpdatedAfterJudgmentIsNotAccepted` | Unit | An offer updated after judgment is not accepted | Done |
+| 792b34c5a3 | `TestRunAmend_UnparseableNoteNeedsNoHash` → `Test792b34c5a3_RunAmend_UnparseableNoteNeedsNoHash` | Unit | An unparseable note needs no hash | Done |
+| 792b34c6a1 | `TestRunAmend_DiscardIntoFoldsPulledCopy` → `Test792b34c6a1_RunAmend_DiscardIntoFoldsPulledCopy` | Unit | A pulled copy is folded into a note that has a primary | Done |
+| 792b34c6a2 | `TestRunAmend_DiscardIntoMakesOfferPrimaryWhenTargetHasNone` → `Test792b34c6a2_RunAmend_DiscardIntoMakesOfferPrimaryWhenTargetHasNone` | Unit | The offer's primary stays primary when E has none | Done |
+| 792b34c6a3 | `TestRunAmend_DiscardIntoPropertyUnionsIdentity` → `Test792b34c6a3_RunAmend_DiscardIntoPropertyUnionsIdentity` | Property (rapid) | Aliases and links are unioned (c7a1, c7a2 split deferred) | Done |
+| 792b34c6a4 | `TestRunAmend_DiscardIntoRejectsBadTargets` → `Test792b34c6a4_RunAmend_DiscardIntoRejectsBadTargets` | Table unit | Bad targets are refused | Done |
+| 792b34c7a3 | `TestRunAmend_DiscardIntoPromotesHeldCoveredLink` → `Test792b34c7a3_RunAmend_DiscardIntoPromotesHeldCoveredLink` | Unit | A held covered link is promoted | Done |
+| 792b34c8a1 | `TestShow_ExchangeHashHeaderOnlyForXIDNotes` → `Test792b34c8a1_Show_ExchangeHashHeaderOnlyForXIDNotes` | Unit | Header first on an exchanged note (c8a2 split deferred) | Done |
+| 792b34c8a3 | `TestShow_ExchangeHashHeaderForCRLFNote` → `Test792b34c8a3_Show_ExchangeHashHeaderForCRLFNote` | Unit | A CRLF note shows its LF hash and the amend accepts it | Done |
+
+**Coverage gaps:** 792b34c5a4 (a hash that cannot be computed is not tested for a given `--expect-hash`).
+
+**No-scenario tests:** `TestServeShow_ExchangeHashHeaderMatchesLocal` (served show equals local, 792c7s4) and
+`TestShowFallback_LabelPrecedesParentExchangeHash` (the parent fallback label, parent-sync) are in `amend_fold_test` and
+verify scenarios of other components; they keep their names until those nodes. `TestQueryPayload_PendingOffersLeadPayload`
+and the update notice test belong to curate.
+
 
 #### 792c7s4 vault-http-server tech spec
 

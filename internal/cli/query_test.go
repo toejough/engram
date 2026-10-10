@@ -1167,10 +1167,10 @@ func Test792b24c5a5_Query_MultiPhrase_DeduplicatesItemsByPath(t *testing.T) {
 	}
 }
 
-// TestPendingOfferCurateInstruction_IsExpectedUpkeep: the shared instruction
+// Test792b34c4a1_PendingOfferCurateInstruction_IsExpectedUpkeep: the shared instruction
 // says curation is expected upkeep, done after the user's request, without
 // asking (curate-skill-to-runbook D9, D11).
-func TestPendingOfferCurateInstruction_IsExpectedUpkeep(t *testing.T) {
+func Test792b34c4a1_PendingOfferCurateInstruction_IsExpectedUpkeep(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -1179,6 +1179,51 @@ func TestPendingOfferCurateInstruction_IsExpectedUpkeep(t *testing.T) {
 	g.Expect(instruction).To(ContainSubstring("after you finish the user's request"))
 	g.Expect(instruction).To(ContainSubstring("without asking"))
 	g.Expect(instruction).NotTo(ContainSubstring("\n"))
+}
+
+// Test792b34c4a2_QueryPayload_PendingOffersHintOmittedWhenFalse: without pending offers
+// neither the flag nor the hint appears, so the payload is byte-identical to
+// one built before the hint existed.
+func Test792b34c4a2_QueryPayload_PendingOffersHintOmittedWhenFalse(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	out, err := cli.ExportRenderQueryPayloadPendingOffers(false)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out).NotTo(ContainSubstring("pending_offers"))
+
+	baseline, baselineErr := cli.ExportRenderQueryPayloadRefitPending(false)
+	g.Expect(baselineErr).NotTo(HaveOccurred())
+	g.Expect(out).To(Equal(baseline))
+}
+
+// Test792b34c4a2_QueryPayload_PendingOffersHintPresentWhenTrue: pending_offers: true is
+// accompanied by pending_offers_hint carrying the shared curate instruction.
+func Test792b34c4a2_QueryPayload_PendingOffersHintPresentWhenTrue(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	out, err := cli.ExportRenderQueryPayloadPendingOffers(true)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out).To(ContainSubstring("pending_offers: true"))
+
+	var decoded struct {
+		Hint string `yaml:"pending_offers_hint"`
+	}
+
+	g.Expect(yaml.Unmarshal([]byte(out), &decoded)).To(Succeed())
+	g.Expect(decoded.Hint).To(Equal(cli.ExportPendingOfferCurateInstruction))
+	g.Expect(decoded.Hint).To(ContainSubstring(`engram query --text="curate pending offers"`))
 }
 
 // TestQueryPayload_NoFromParentKeyWithoutMerge verifies a non-merged payload
@@ -1201,51 +1246,6 @@ func TestQueryPayload_NoFromParentKeyWithoutMerge(t *testing.T) {
 	}
 
 	g.Expect(out).NotTo(ContainSubstring("from_parent"))
-}
-
-// TestQueryPayload_PendingOffersHintOmittedWhenFalse: without pending offers
-// neither the flag nor the hint appears, so the payload is byte-identical to
-// one built before the hint existed.
-func TestQueryPayload_PendingOffersHintOmittedWhenFalse(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	out, err := cli.ExportRenderQueryPayloadPendingOffers(false)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(out).NotTo(ContainSubstring("pending_offers"))
-
-	baseline, baselineErr := cli.ExportRenderQueryPayloadRefitPending(false)
-	g.Expect(baselineErr).NotTo(HaveOccurred())
-	g.Expect(out).To(Equal(baseline))
-}
-
-// TestQueryPayload_PendingOffersHintPresentWhenTrue: pending_offers: true is
-// accompanied by pending_offers_hint carrying the shared curate instruction.
-func TestQueryPayload_PendingOffersHintPresentWhenTrue(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	out, err := cli.ExportRenderQueryPayloadPendingOffers(true)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(out).To(ContainSubstring("pending_offers: true"))
-
-	var decoded struct {
-		Hint string `yaml:"pending_offers_hint"`
-	}
-
-	g.Expect(yaml.Unmarshal([]byte(out), &decoded)).To(Succeed())
-	g.Expect(decoded.Hint).To(Equal(cli.ExportPendingOfferCurateInstruction))
-	g.Expect(decoded.Hint).To(ContainSubstring(`engram query --text="curate pending offers"`))
 }
 
 // TestQueryPayload_PendingOffersLeadPayload: pending_offers and its hint
