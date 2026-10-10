@@ -41,6 +41,11 @@ func Test792b20c5a5_Vocab_CRLFNote(t *testing.T) {
 	})
 }
 
+func Test792b21c3a6_ParseCreatedFromNote_CRLFNote(t *testing.T) {
+	t.Parallel()
+	NewWithT(t).Expect(parseCreatedFromNote([]byte(crlfReaderNote("")))).To(Equal("2026-01-01"))
+}
+
 func TestCapRedFlagsForPreview_CRLFNote(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -87,11 +92,6 @@ func TestKindFromContent_CRLFNote(t *testing.T) {
 	g.Expect(kindFromContent(crlfReaderNote(""))).To(Equal("fact"), "the kind label carries no \\r")
 	g.Expect(isQueryExcludedKind(strings.Replace(crlfReaderNote(""), "type: fact", "type: qa-question", 1))).
 		To(BeTrue(), "a CRLF qa-question note is excluded from the main set")
-}
-
-func TestParseCreatedFromNote_CRLFNote(t *testing.T) {
-	t.Parallel()
-	NewWithT(t).Expect(parseCreatedFromNote([]byte(crlfReaderNote("")))).To(Equal("2026-01-01"))
 }
 
 func TestParseNoteQueryFrontmatter_CRLFNote(t *testing.T) {

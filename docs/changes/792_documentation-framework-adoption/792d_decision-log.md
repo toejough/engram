@@ -1245,3 +1245,29 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** a divergence becomes a later change proposal (vault note 645).
 - **Alternatives:** specify the intended behavior with coverage gaps. Rejected because the code does
   not do it.
+
+## 792d93 recency-ranking scope and the tests it leaves
+
+- **Choice:**
+  - 792b21 specifies the recency factor, a note's age, the creation date read from a note, turn
+    positions and the newest chunks. How the factor is applied to note and chunk scores, and the age of
+    a chunk, are the query-engine's (792c7f5), so `RunQuery`'s three recency tests wait there:
+    `TestRunQuery_NoteRecencyDecayRanksFreshLastUsedFirst`,
+    `TestRunQuery_RecencyLiftsRecentChunkOverStaleHighCosine` and
+    `TestCluster_NewerChunkRanksAboveOlderWithSameVector`.
+  - `fillRecencyBand`, `spliceRecent` and `mostRecentlyUsedNoteItems` have no caller outside tests, so
+    they are not specified, as with the unwired parts of the transcript reader (792d81). Their tests,
+    and the `TestSortScoredDescOrdersDescending` test of a sort that production code does not call, are
+    listed as no-scenario tests. So is `TestDefaultRecencyParamsSaneDefaults`, which checks a `floor`
+    value that only those helpers read, and `TestRecencyEvalDiscriminatingHalfLife`, an in-suite
+    experiment that sweeps half-lives and logs the ranks.
+  - The six query reader tests of `crlf_readers_internal_test` (792d91) go to the component each tests,
+    not all to query-engine: `TestParseCreatedFromNote_CRLFNote` is 792b21c3a6;
+    `TestTriggerIndex_CRLFRunbook` goes to runbook-trigger-matching (792c7f3) and
+    `TestCapRedFlagsForPreview_CRLFNote` to query-payload-renderer (792c7f4).
+  - 792a7 gains the scenarios 792a7f1e (a late turn is lifted) and 792a7zg1d to 792a7zg1g (the
+    recency date, red-flag preview, kind and frontmatter lists of a CRLF note), which the component
+    tests above verify.
+- **Rationale:** 792d51 and 792d52: a test goes to the component whose contract it checks.
+- **Alternatives:** rename the band helpers' tests to a MAY requirement. Rejected because no production
+  path uses them.

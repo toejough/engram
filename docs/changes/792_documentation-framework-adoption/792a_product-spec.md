@@ -2883,6 +2883,11 @@ Scenario: 792a7f1d A note that was never used is not scaled
   Given a note engram learn wrote 120 days ago, with no last_used in its sidecar
   When the user runs engram query with a phrase that matches it
   Then its score is its cosine
+
+Scenario: 792a7f1e A late turn is lifted
+  Given two chunks of one transcript with the same cosine to the phrase, one at its first turn and one at its last, both first indexed today
+  When the user runs engram query with a phrase that matches them
+  Then the last turn's score is 1.2 times the first turn's
 ```
 
 ### 792a7g Clusters
@@ -3818,6 +3823,26 @@ Scenario: 792a7zg1c A CRLF note is not rewritten
   Given a note with CRLF line endings
   When the user runs engram query with a phrase that matches it
   Then the note's file is byte-identical afterwards
+
+Scenario: 792a7zg1d The creation date of a CRLF note is read
+  Given a CRLF note whose created line is the bare date 120 days ago and whose sidecar has no last_used
+  When the user runs engram query with a phrase that matches it
+  Then its score is scaled by that age, as for the same note with LF line endings
+
+Scenario: 792a7zg1e A CRLF runbook's red flags are previewed
+  Given a runbook whose lines end in \r\n and whose red flags take more than 1200 bytes
+  When the user runs engram query with a phrase that matches it
+  Then its content holds the omission marker and the newest entries, as for the same note with LF line endings
+
+Scenario: 792a7zg1f A CRLF note keeps its kind
+  Given a fact note whose lines end in \r\n
+  When the user runs engram query with a phrase that matches it
+  Then its item has kind fact
+
+Scenario: 792a7zg1g The lists in a CRLF note's frontmatter are read
+  Given a CRLF note tagged vocab/cooking, and a CRLF note that supersedes another
+  When the user runs engram query with phrases that match the term's members, and the superseded note
+  Then the tagged note can be an explore note, and the superseding note rides along
 ```
 
 ### 792a7zh A query changes nothing

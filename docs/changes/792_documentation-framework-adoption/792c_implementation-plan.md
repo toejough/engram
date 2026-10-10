@@ -223,8 +223,8 @@ flowchart TD
   N792c7e2["792c7e2 similarity-clustering tech spec<br/>Complete"]
   N792c7e3["792c7e3 vocabulary-engine tech spec<br/>Complete"]
   N792c7f1["792c7f1 memory-query product spec<br/>Complete"]
-  N792c7f2["792c7f2 recency-ranking tech spec<br/>Ready"]
-  N792c7f3["792c7f3 runbook-trigger-matching tech spec<br/>Blocked by: 792c7f2"]
+  N792c7f2["792c7f2 recency-ranking tech spec<br/>Complete"]
+  N792c7f3["792c7f3 runbook-trigger-matching tech spec<br/>Ready"]
   N792c7f4["792c7f4 query-payload-renderer tech spec<br/>Blocked by: 792c7f3"]
   N792c7f5["792c7f5 query-engine tech spec<br/>Blocked by: 792c7f4"]
   N792c7g1["792c7g1 vault-counting product spec<br/>Blocked by: 792c7f5"]
@@ -2314,11 +2314,44 @@ Target: `792b21` (`docs/specs/technical/recency-ranking.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7f2a | Port the component contract to `792b21` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7f2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7f2c | Repoint stale references to `792b21` | Non-test action | Keeps live links valid | Not started |
-| 792c7f2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7f2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7f2a | Port the component contract to `792b21` | Non-test action | Documents the component in the framework format | Done |
+| 792c7f2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7f2c | Repoint stale references to `792b21` | Non-test action | Keeps live links valid | Done |
+| 792c7f2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7f2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+**Outcome:** 792b21 specifies five requirements; nothing remained in the legacy sources to remove (792d90),
+and no live reference named the component. The band helpers and the experiment are not specified
+(792d93).
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b21c1a1 | `TestRecencyMultiplier` → `Test792b21c1a1_RecencyMultiplier` | Pure unit | Factor for age and position; split deferred: the "older is smaller" row is part of the same outline | Done |
+| 792b21c2a1 | `TestNoteAgeDaysPrefersLastUsedThenCreated` → `Test792b21c2a1_NoteAgeDaysPrefersLastUsedThenCreated` | Pure unit | Ages from the two dates | Done |
+| 792b21c3a1 | `TestParseCreatedFromNote` → `Test792b21c3a1_ParseCreatedFromNote` | Pure unit | Date read; none without frontmatter | Done |
+| 792b21c3a2 | `TestParseCreatedFromNoteFrontmatterBoundary` → `Test792b21c3a2_ParseCreatedFromNoteFrontmatterBoundary` | Pure unit | Body line ignored | Done |
+| 792b21c3a3 | `TestParseCreatedFromNote_IgnoresIndentedCreatedLine` → `Test792b21c3a3_ParseCreatedFromNote_IgnoresIndentedCreatedLine` | Pure unit | Indented line ignored | Done |
+| 792b21c3a4 | `TestParseCreatedFromNote_IndentedFenceInBlockScalar` → `Test792b21c3a4_ParseCreatedFromNote_IndentedFenceInBlockScalar` | Pure unit | Indented fence | Done |
+| 792b21c3a5 | `TestParseCreatedFromNote_QuotedValueIsVerbatim` → `Test792b21c3a5_ParseCreatedFromNote_QuotedValueIsVerbatim` | Pure unit | Quotes kept (#774) | Done |
+| 792b21c3a6 | `TestParseCreatedFromNote_CRLFNote` → `Test792b21c3a6_ParseCreatedFromNote_CRLFNote` | Pure unit (`crlf_readers_internal_test`) | CRLF read as LF | Done |
+| 792b21c4a1 | `TestParseTurnN` → `Test792b21c4a1_ParseTurnN` | Pure unit (table) | Turn numbers | Done |
+| 792b21c4a2 | `TestMaxTurnBySource` → `Test792b21c4a2_MaxTurnBySource` | Pure unit | Highest turn per source | Done |
+| 792b21c5a1 | `TestNewestChunkItemsNZeroReturnsNil` → `Test792b21c5a1_NewestChunkItemsNZeroReturnsNil` | Pure unit | Count of zero | Done |
+| 792b21c5a2 | `TestNewestChunkItemsOrdersByAgeAscending` → `Test792b21c5a2_NewestChunkItemsOrdersByAgeAscending` | Pure unit | Newest first | Done |
+| 792b21c5a2 | `TestNewestChunkItemsSortsByIngestedAt` → `Test792b21c5a2_NewestChunkItemsSortsByIngestedAt` | Pure unit | Newest first | Done |
+| 792b21c5a3 | `TestNewestChunkItemsTieBreaksByTurnDesc` → `Test792b21c5a3_NewestChunkItemsTieBreaksByTurnDesc` | Pure unit | Tie to the later turn | Done |
+| 792b21c5a3 | `TestNewestChunkItemsTieBreaksByTurnDescIngestedAt` → `Test792b21c5a3_NewestChunkItemsTieBreaksByTurnDescIngestedAt` | Pure unit | Tie to the later turn | Done |
+
+**Coverage gaps:** 792b21c1a2 (no test checks the production weights), 792b21c2a2 (no test reads an
+unreadable or future date) and 792b21c5a4 (no test sorts a chunk without a time last). The product
+scenarios 792a7f1a, 792a7f1b, 792a7f1d, 792a7f1e, 792a7o1a, 792a7o1c, 792a7o1f and 792a7zg1d have only these
+component tests until query-engine (792c7f5) renames its tests of `RunQuery`.
+
+**No-scenario tests:** `recency_test` `TestDefaultRecencyParamsSaneDefaults`, `TestFillRecencyBand*` (4),
+`TestMostRecentlyUsedNoteItems*` (4) and `TestSortScoredDescOrdersDescending`, and `recency_eval_test`
+`TestRecencyEvalDiscriminatingHalfLife` (792d93).
 
 #### 792c7f3 runbook-trigger-matching tech spec
 
@@ -2386,7 +2419,7 @@ Target: `792b24` (`docs/specs/technical/query-engine.md`).
 - `docs/deprecated/architecture/memory-invariants.md` F (R1 recall mirror)
 - none remain from the openspec specs listed for 792c7f1 (792d90)
 
-**Tests to examine (from discovery; `internal/cli` unless prefixed):** query_test, query_vault_meta_test, query_synthesize_l2_helpers_test (stale name, tests current helpers), query_helpers_test, query_chunks_test, query_cluster_phase1_test, query_cluster_phase2_test, query_unified_test, query_note_floor_test, query_property_test, query_cluster_chunk_bound_property_test, invariants_r1, query_integration_test, query_explore_test, query_explore_integration_test; deferred here (792d91): `ingest_integration_test` `TestChunkQuery*` (4), `qa_test` `TestIsQueryExcludedKind`, `vocab_test` `TestVocabDefinitionNote_FloorPromoted` and `TestVocabDefinitionNote_ReturnedWhenOnlyItem`, `supersedes_test` `TestBuildSupersedesInverse`, `embed_selection_test` `TestKindFromContent`, `crlf_readers_internal_test` (the six query readers), `invariants_c1_property_test` `TestInvariant_C1_ClusteringDeterminism` and `cluster_property_test` `TestProperty_Cluster_NearDuplicateL2CosineAtLeast095`
+**Tests to examine (from discovery; `internal/cli` unless prefixed):** query_test, query_vault_meta_test, query_synthesize_l2_helpers_test (stale name, tests current helpers), query_helpers_test, query_chunks_test, query_cluster_phase1_test, query_cluster_phase2_test, query_unified_test, query_note_floor_test, query_property_test, query_cluster_chunk_bound_property_test, invariants_r1, query_integration_test, query_explore_test, query_explore_integration_test; deferred here (792d91): `ingest_integration_test` `TestChunkQuery*` (4), `qa_test` `TestIsQueryExcludedKind`, `vocab_test` `TestVocabDefinitionNote_FloorPromoted` and `TestVocabDefinitionNote_ReturnedWhenOnlyItem`, `supersedes_test` `TestBuildSupersedesInverse`, `embed_selection_test` `TestKindFromContent`, `crlf_readers_internal_test` (the three query readers that remain after 792c7f2, 792c7f3 and 792c7f4 take theirs, 792d93), `invariants_c1_property_test` `TestInvariant_C1_ClusteringDeterminism` and `cluster_property_test` `TestProperty_Cluster_NearDuplicateL2CosineAtLeast095`
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
