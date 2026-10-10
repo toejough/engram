@@ -9662,10 +9662,11 @@ POST) over HTTP, and MUST NOT expose `amend`, `query-chunks`, `show-chunk`, `ing
 Rationale: `amend` left the served set along with the `ENGRAM_SERVER` thin client, its only caller, and children offer
 amendments through `learn` with an offer target. `query-chunks` and `show-chunk` left because chunks never cross
 vaults. One write route keeps one path for offers (ADR-0029 D7).
-The route split is by mutation: the four read-only commands are GET and the writes are POST, because
-repeatable flags and free text do not fit in a URL. Only the receiving side's `user:` is server-governed,
-because it carries the attribution weight. Offer and curation judgment run off the request path, in a skill
-and not in server code.
+The route split is by mutation: the two read-only commands are GET and the two writes are POST. `learn` is a
+POST because its repeatable flags and free text do not fit in a URL, and `activate` follows the split because it
+is a write. The server verifies no field of a served `learn`: the `user:` that carries the attribution weight is
+the one the caller declares ([792a20e A served learn is attributed to the identity the caller declares](#792a20e-a-served-learn-is-attributed-to-the-identity-the-caller-declares)). Offer and
+curation judgment run off the request path, in a skill and not in server code.
 
 #### 792a20a1 UAT Scenarios
 

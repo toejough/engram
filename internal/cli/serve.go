@@ -70,8 +70,9 @@ type ServeRequest struct {
 	// value, e.g. repeated ?phrase=...). GET routes only.
 	Query map[string][]string
 	// Header is the request's headers, keyed by canonical MIME header name
-	// (e.g. "Cf-Access-Authenticated-User-Email") with every value for that
-	// key — the same shape net/http.Request.Header already has.
+	// (e.g. "Content-Type") with every value for that key — the same shape
+	// net/http.Request.Header already has. No route reads it: a served
+	// learn's identity comes from the request body (792a20e), not a header.
 	Header map[string][]string
 	// Body is the raw request body. POST routes only.
 	Body []byte
