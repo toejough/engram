@@ -90,7 +90,7 @@ class TestWindowSplitting:
     """Test transcript windowing logic."""
 
     def test_792b39c1a1_small_file_single_window(self, fixture_main_session):
-        """Files < 500 KB should produce a single window."""
+        """A file of at most 150 KB (the window cap) produces a single window."""
         windows = audit_moments.split_into_windows(fixture_main_session)
 
         assert len(windows) == 1
@@ -548,14 +548,14 @@ class TestFixtureCompatibility:
 
 
 class TestMultiWindowSplitting:
-    """Test windowing for large files (>=500KB)."""
+    """Test windowing for large files (over the 150 KB window cap)."""
 
     def test_792b39c1a5_multiwindow_splitting_produces_multiple_windows(self):
-        """A synthetic >=500KB file should produce multiple windows."""
+        """A synthetic file over the 150 KB cap should produce multiple windows."""
         # Create a temporary large JSONL file
         with tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False) as f:
             temp_path = f.name
-            # Write many lines to exceed 500KB
+            # Write many lines to exceed the 150KB cap
             for i in range(400):
                 line = {
                     "type": "user",
@@ -583,7 +583,7 @@ class TestMultiWindowSplitting:
         """Lines should never be split across windows."""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False) as f:
             temp_path = f.name
-            # Write lines to exceed 500KB
+            # Write lines to exceed the 150KB cap
             for i in range(400):
                 line = {
                     "type": "user",
@@ -727,7 +727,7 @@ class TestOversizedLineDetection:
         """A >150KB single line in the middle of a multi-window file should be marked oversized_line=True."""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False) as f:
             temp_path = f.name
-            # Write lines to exceed 500KB total
+            # Write lines to exceed the 150KB cap in total
             # Window 1: normal lines (150KB+)
             for i in range(120):
                 line = {

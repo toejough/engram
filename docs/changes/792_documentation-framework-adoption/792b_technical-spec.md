@@ -24275,7 +24275,7 @@ sequenceDiagram
 Requirement: [792b38c1 Installing a skill into a trial configuration](#792b38c1-installing-a-skill-into-a-trial-configuration) The eval-trial-harness MUST, to install a skill into a trial configuration's `skills/` directory from a skills
 root, raise an error that names the skill and the path checked when the skill's source directory does not exist, and one
 that names the skill, the path and `SKILL.md` when the directory holds no `SKILL.md`. It MUST otherwise copy the skill tree to
-the destination, replacing what is there, and MUST raise when `SKILL.md` is not present at the destination afterwards, so that
+the destination, overwriting the files already there (a file that exists only at the destination stays), and MUST raise when `SKILL.md` is not present at the destination afterwards, so that
 it never installs fewer skills than it was asked to.
 
 Supports: [792a23a1a Successful skill installation is verified](./792a_product-spec.md#792a23a1-uat-scenarios), [792a23a1b Post-copy destination content is confirmed](./792a_product-spec.md#792a23a1-uat-scenarios), [792a23b1a A missing skill source raises](./792a_product-spec.md#792a23b1-uat-scenarios), [792a23b1b An empty skill source raises](./792a_product-spec.md#792a23b1-uat-scenarios).
@@ -24309,7 +24309,7 @@ skill through the one installation of [792b38c1 Installing a skill into a trial 
 computes from its own file's location and never from a hard-coded absolute path, so that a missing or empty source raises
 through it. The cumulative harness's builder MUST install `recall` and `learn` for a warm configuration, and the probe harness's
 builder MUST install the skills it is given, `recall` and `learn` by default and none for an empty list, and propagate the
-choice to every configuration it copies. Each builder MUST skip rebuilding a configuration that is already built.
+choice to every configuration it copies. The cumulative and probe builders MUST skip rebuilding a configuration that is already built; the trap harness's builder rebuilds its configuration on every call.
 
 Supports: [792a23a1c Every warm-configuration builder verifies the same way](./792a_product-spec.md#792a23a1-uat-scenarios), [792a23b1c Every builder raises on a missing source](./792a_product-spec.md#792a23b1-uat-scenarios), [792a23c1a The path resolves independent of the working directory](./792a_product-spec.md#792a23c1-uat-scenarios), [792a23c1b The cumulative harness resolves its path the same way](./792a_product-spec.md#792a23c1-uat-scenarios).
 
@@ -24502,7 +24502,7 @@ Scenario: 792b38c4a2 A missing vault is empty
 #### 792b38c5 The leak guard
 
 Requirement: [792b38c5 The leak guard](#792b38c5-the-leak-guard) The eval-trial-harness MUST, given the fingerprint from before a run, return without a finding when the real vault's fingerprint is
-unchanged and when no note was added, and otherwise read the last ten note names in alphabetical order and raise an error that
+unchanged and when no note was added, and otherwise read the notes that appeared and raise an error that
 names the note and the marker when a note's content names the full path of a registered trial marker, or the marker's basename
 when that basename is distinctive. A basename MUST be distinctive when its last segment after the final `-` is at least 8
 characters, the length of the random suffix of `tempfile.mkdtemp`, whatever its characters, and a short deterministic name such as
@@ -24560,9 +24560,7 @@ Scenario: 792b38c5a8 A leak the guard cannot see is not raised
 
 #### 792b38c6 Every harness guards the real vault
 
-Requirement: [792b38c6 Every harness guards the real vault](#792b38c6-every-harness-guards-the-real-vault) Every harness of the eval-trial-harness that spawns trials MUST take the real vault's fingerprint before it runs them and call the leak guard
-after, and no harness MUST still compare a whole-vault fingerprint of its own: the retired `_real_vault_fingerprint` MUST be absent from the two
-files that used it.
+Requirement: [792b38c6 Every harness guards the real vault](#792b38c6-every-harness-guards-the-real-vault) Each of the seven tier-A harnesses of [792b38c11 Every spawn site builds its environment through the primitive](#792b38c11-every-spawn-site-builds-its-environment-through-the-primitive) and each runbook-versus-skill probe MUST take the real vault's fingerprint before it runs its trials and call the leak guard after, and no harness MUST still compare a whole-vault fingerprint of its own: the retired `_real_vault_fingerprint` MUST be absent from the two files that used it. The older experiment harnesses (`dev/eval/traps/c4.py`, `c5.py`, `c6.py`, `cake.py`, `compound_eval.py`, `wrun.py` and their kin) isolate their environment by hand and take no fingerprint; they are outside this requirement.
 
 Supports: [792a23d1c Every harness snapshots the real vault and asserts no leak](./792a_product-spec.md#792a23d1-uat-scenarios).
 
@@ -24572,12 +24570,12 @@ Rationale: a harness that forgets the guard is the failure the guard exists for,
 
 ```gherkin
 Scenario: 792b38c6a1 Every harness snapshots the real vault
-  Given each harness that spawns trials
+  Given each tier-A harness
   When its source is read
   Then it calls vault_fingerprint
 
 Scenario: 792b38c6a2 Every harness asserts no leak
-  Given each harness that spawns trials
+  Given each tier-A harness
   When its source is read
   Then it calls assert_no_trial_leak
 
@@ -24741,7 +24739,7 @@ Scenario: 792b38c9a6 An unanchored append or a mention does not score
 Requirement: [792b38c10 The rank of a surfaced note](#792b38c10-the-rank-of-a-surfaced-note) The eval-trial-harness MUST, to decide whether a target note surfaced in an `engram query` payload, look for the target
 among the payload's top-level `items[]` by path or basename and report `surfaced` true with its one-based rank there, and `surfaced`
 false when it is absent, and MUST NOT consult any cluster's `candidate_l2s`. A probe over a set of runbooks MUST do this for each
-and report a batch outcome per runbook, a miss included, a failed subprocess included, and escalate per phrase.
+and report a batch outcome per runbook, a miss included, and MUST raise `RuntimeError` naming the runbook, the exit code and the error output when the query subprocess exits non-zero. A runbook that missed MAY then be escalated, one query per phrase.
 
 Supports: [792a23j1a A target present in items() counts as surfaced](./792a_product-spec.md#792a23j1-uat-scenarios), [792a23j1b candidate_l2s absence does not count as a miss](./792a_product-spec.md#792a23j1-uat-scenarios).
 
@@ -24763,7 +24761,7 @@ Scenario: 792b38c10a2 The old candidate_l2s logic would have missed it
 Scenario: 792b38c10a3 A batched runbook probe reports success, miss and failure
   Given runbook probes whose query finds the runbook, does not, or whose subprocess fails
   When each is probed in a batch
-  Then each reports success, a miss or a subprocess failure respectively
+  Then the first reports surfaced at its rank, the second reports surfaced false with no rank, and the third raises RuntimeError carrying the exit code and the error output
 
 Scenario: 792b38c10a4 Escalation is per phrase and the corpus loads
   Given a runbook that a first phrase misses and a later phrase finds, and the runbook corpus
@@ -24773,10 +24771,8 @@ Scenario: 792b38c10a4 Escalation is per phrase and the corpus loads
 
 #### 792b38c11 Every spawn site builds its environment through the primitive
 
-Requirement: [792b38c11 Every spawn site builds its environment through the primitive](#792b38c11-every-spawn-site-builds-its-environment-through-the-primitive) Every site of the eval-trial-harness that spawns a trial MUST build its environment with the isolated-environment
-primitive of [792b38c3 The isolated environment of a trial](#792b38c3-the-isolated-environment-of-a-trial) and import it, and MUST NOT hand-roll `env = dict(os.environ)`. A Python site that sets a vault MUST also
-set the chunk directory, by building its direct-call environment with `engram_env`, and a shell site that sets a vault MUST set the
-chunk directory too. The Claude harness's own environment building MUST delegate to the isolation module.
+Requirement: [792b38c11 Every spawn site builds its environment through the primitive](#792b38c11-every-spawn-site-builds-its-environment-through-the-primitive) Each of the seven tier-A sites of the eval-trial-harness that spawn a trial MUST build its environment with the isolated-environment
+primitive of [792b38c3 The isolated environment of a trial](#792b38c3-the-isolated-environment-of-a-trial) and import it, and MUST NOT hand-roll `env = dict(os.environ)`. A tier-B Python site that sets a vault MUST also set the chunk directory, by building its direct-call environment with `engram_env`, and a tier-B shell site that sets a vault MUST set the chunk directory too. The Claude harness's own environment building MUST delegate to the isolation module. The older experiment harnesses (`dev/eval/traps/c4.py`, `c5.py`, `c6.py`, `cake.py`, `compound_eval.py`, `wrun.py` and their kin) build their environment by hand and set the vault and the chunk directory together; they are outside the two site lists.
 
 Supports: [792a23d1b A harness captures no trial evidence itself and still gets a correct guard](./792a_product-spec.md#792a23d1-uat-scenarios).
 
@@ -24907,7 +24903,7 @@ Scenario: 792a23d1b A harness captures no trial evidence itself and still gets a
   Then the guard reflects every trial that ran, because each environment was recorded when it was built
 
 Scenario: 792a23d1c Every harness snapshots the real vault and asserts no leak
-  Given each harness that spawns trials
+  Given each tier-A harness and each runbook-versus-skill probe
   When its code is read
   Then it takes the real vault's fingerprint before the run and calls the leak guard after it, and no harness still holds the former whole-vault comparison
 
@@ -25072,7 +25068,7 @@ sequenceDiagram
 Requirement: [792b39c1 Windows](#792b39c1-windows) The memory-loop-auditor MUST return a transcript file of at most `max_kb` (150 KB) as a single window, and MUST split a
 larger file into windows of at most `max_kb` at line boundaries, never inside a line, with the single-window threshold the
 same number and not a larger one. Each window MUST carry its lines exactly as they are in the file, its path, its first and
-last line locations counted from one in the file, and its size. A single line larger than the cap MUST be detected in the
+last line locations counted from one in the file, its index among the windows and their total, and whether it is a single line larger than the cap. A single line larger than the cap MUST be detected in the
 window that holds it.
 
 Supports: [792a23k1a A subtle correction is detected](./792a_product-spec.md#792a23k1-uat-scenarios), [792a23k1b A success moment is detected](./792a_product-spec.md#792a23k1-uat-scenarios).
@@ -25097,7 +25093,7 @@ Scenario: 792b39c1a2 The lines are preserved as they are
 Scenario: 792b39c1a3 A window carries its fields
   Given a window
   When it is read
-  Then it holds its path, its first and last line locations, its lines and its size
+  Then it holds its path, its first and last line locations, its lines, its index and the total, and its oversized-line flag
 
 Scenario: 792b39c1a4 Locations count from one
   Given a transcript
@@ -25121,7 +25117,7 @@ Requirement: [792b39c2 Detecting moments](#792b39c2-detecting-moments) The memor
 file, and to return the moments it finds as failures, corrections, rework, successes and dispatches, each with its location, and
 MUST flag generously. It MUST read the window with the faster model first and re-read it with the stronger one, merging the
 candidates by location, when the first returns fewer than the low-yield threshold (2). It MUST parse the model's JSON reply
-including a reply flagged as an error and one that is not JSON. It MUST raise `ExhaustedRetriesError` when every attempt of the
+tolerating a code fence around it, and a reply whose content is not JSON MUST yield no candidates. At the level of the `claude -p` response, a reply flagged as an error at a cost under 0.02 USD, and a reply that is not JSON, MUST be treated as transient failures and retried on the backoff sequence, and a flagged error that cost more MUST be returned as it is. It MUST raise `ExhaustedRetriesError` when every attempt of the
 backoff sequence fails, so that a sustained outage never looks like a run of clean zero-moment windows, and a window that
 genuinely yields no candidate MUST NOT raise. It MUST raise `PromptTooLongError` at once, without retrying, when the model
 answers `prompt_too_long`, and MUST still retry a genuine transient error. A stub in place of the model MUST make no subprocess call.
@@ -25153,7 +25149,7 @@ Scenario: 792b39c2a3 Lines are numbered by absolute location
 Scenario: 792b39c2a4 A reply parses whether JSON, an error flag or garbage
   Given a model reply that is valid JSON, one flagged is_error, and one that is not JSON
   When each is parsed
-  Then the first yields its content, the second is handled as an error and the third as a parse error
+  Then the first yields its result and cost, the second is retried until a good reply, and the third is retried and raises ExhaustedRetriesError when every attempt fails
 
 Scenario: 792b39c2a5 Exhausted retries raise
   Given a model call that fails on every attempt
@@ -25268,9 +25264,8 @@ Scenario: 792b39c3a12 Judgment failures raise their own errors
 Requirement: [792b39c4 Existence as of the moment's time](#792b39c4-existence-as-of-the-moments-time) The memory-loop-auditor MUST judge whether a relevant memory existed by running `engram query` in the sandbox of
 [792b38c3 The isolated environment of a trial](#792b38c3-the-isolated-environment-of-a-trial) against the vault as of the moment's timestamp T. When the vault's git history has a commit at or before T and the flat-vault
 migration's commit (2026-06-12) is an ancestor of it, it MUST query a detached worktree at that commit, remove the worktree afterwards even when the query fails, prune a dangling registration, and
-label the answer DERIVED. Otherwise it MUST query only the notes whose creation date is at or before T and label the answer
-ESTIMATE. It MUST query a copy of the chunk index that holds only the records ingested at or before T, excluding records with no
-ingestion date, and label the chunk answer DERIVED. It MUST capture the top five items on the record and grade whether any is
+label the answer DERIVED. Otherwise (the ESTIMATE branch) it MUST NOT run `engram query`: it MUST take the notes of the live vault whose creation date is at or before T, a note with no creation date included, report that a memory existed when any of them contains any of the moment's search phrases (case-insensitively), and label the answer ESTIMATE. That branch records no top five and no grade. It MUST query a copy of the chunk index that holds only the records ingested at or before T, excluding records with no
+ingestion date, and label the chunk answer DERIVED. When it ran the query, it MUST capture the top five items on the record and grade whether any is
 relevant to the moment (`relevant_top1`, `relevant_in_top5` or `nothing_relevant`) with a follow-up call, skipping that call when
 no item came back and leaving the grade null for a reply that is not one of the three. It MUST NOT write to the live vault.
 
@@ -25454,8 +25449,7 @@ deterministically, with each record `{moment_id, note_ref, situation_text, outco
 `followed` answer is set and whose search ran, it MUST emit one record per distinct note found (a fork's inherited recall for an injected search, otherwise the last
 recall at or before the moment) tagged `applied-helped` when followed is yes, `applied-hurt` when contradicted, and `injected-unused` for an
 injected search or `surfaced-ignored` otherwise when it was ignored, partly followed, skipped or mis-ordered, or one record with a null note reference when no note resolves. For a failure or rework
-moment it MUST emit an `absent-needed` record when no memory existed, or one existed and did not surface. It MUST make no LLM call and MUST NOT
-write, amend, activate, supersede or remove any vault note.
+moment it MUST emit an `absent-needed` record when no memory existed, or one existed and did not surface. It MUST make no LLM call and MUST NOT write, amend, activate, supersede or remove any vault note. The command-line entry point reads `results/moments.jsonl` and `results/transcript-events.jsonl` and writes `results/outcome-records.jsonl`, and it refuses (by assertion) a corpus other than the 150 moments and 568 transcript-event records it was written for; the derivation function itself takes any moment records and events.
 
 Supports: [792a23p1a Output only, no side effects](./792a_product-spec.md#792a23p1-uat-scenarios).
 

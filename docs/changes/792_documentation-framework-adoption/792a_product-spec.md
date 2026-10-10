@@ -12339,7 +12339,7 @@ Scenario: 792a23d1b A harness captures no trial evidence itself and still gets a
   Then the guard reflects every trial that ran, because each environment was recorded when it was built
 
 Scenario: 792a23d1c Every harness snapshots the real vault and asserts no leak
-  Given each harness that spawns trials
+  Given each tier-A harness and each runbook-versus-skill probe
   When its code is read
   Then it takes the real vault's fingerprint before the run and calls the leak guard after it, and no harness still holds the former whole-vault comparison
 ```
