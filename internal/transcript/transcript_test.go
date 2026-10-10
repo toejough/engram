@@ -12,6 +12,89 @@ import (
 	"github.com/toejough/engram/internal/transcript"
 )
 
+//go:generate impgen transcript.Reader --dependency --import-path github.com/toejough/engram/internal/transcript
+
+func Test792b15c1a1_TranscriptReader_ReadError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	reader := transcript.NewJSONLReader(&fakeFileReader{
+		err: errors.New("file not found"),
+	})
+
+	const budget = 10000
+
+	_, _, err := readAll(reader, "/missing.jsonl", budget)
+	g.Expect(err).To(MatchError(ContainSubstring("file not found")))
+	g.Expect(err).To(MatchError(ContainSubstring("reading transcript")))
+}
+
+func Test792b15c2a3_TranscriptReader_StripsToolResults(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	lines := []string{
+		`{"type":"user","message":{"role":"user","content":"hello"}}`,
+		`{"role":"toolResult","content":"big result data"}`,
+		`{"type":"assistant","message":{"role":"assistant","content":"response"}}`,
+	}
+	content := strings.Join(lines, "\n") + "\n"
+
+	reader := transcript.NewJSONLReader(&fakeFileReader{
+		contents: map[string][]byte{"/transcript.jsonl": []byte(content)},
+	})
+
+	const largeBudget = 10000
+
+	result, bytesRead, err := readAll(reader, "/transcript.jsonl", largeBudget)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).To(ContainSubstring("USER: hello"))
+	g.Expect(result).To(ContainSubstring("ASSISTANT: response"))
+	g.Expect(result).NotTo(ContainSubstring("toolResult"))
+	g.Expect(bytesRead).To(BeNumerically(">", 0))
+}
+
+func Test792b15c5a1_TranscriptReader_ToolSummaryMode(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	lines := []string{
+		`{"type":"assistant","message":{"role":"assistant","content":[` +
+			`{"type":"text","text":"Let me check"},` +
+			`{"type":"tool_use","id":"tu1","name":"Bash","input":{"command":"ls"}}` +
+			`]}}`,
+		`{"type":"user","message":{"role":"user","content":[` +
+			`{"type":"tool_result","tool_use_id":"tu1","content":"file1.go\nfile2.go","is_error":false}` +
+			`]}}`,
+	}
+	content := strings.Join(lines, "\n") + "\n"
+
+	reader := transcript.NewJSONLReader(&fakeFileReader{
+		contents: map[string][]byte{"/transcript.jsonl": []byte(content)},
+	})
+
+	const largeBudget = 10000
+
+	result, _, err := readAll(reader, "/transcript.jsonl", largeBudget)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).To(ContainSubstring("[tool]"), "should contain tool summary line")
+	g.Expect(result).To(ContainSubstring("Bash"), "should contain tool name")
+	g.Expect(result).To(ContainSubstring("Let me check"), "should contain assistant text")
+}
+
 func TestJSONLReader_ReadFrom_EmitsRowsStrictlyAfterMarker(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -384,24 +467,6 @@ func TestSegmentsFromStripped_ZeroTimestampSkipped(t *testing.T) {
 	g.Expect(segs[0].Preview).To(ContainSubstring("ask with timestamp"))
 }
 
-//go:generate impgen transcript.Reader --dependency --import-path github.com/toejough/engram/internal/transcript
-
-func TestTranscriptReader_ReadError(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	reader := transcript.NewJSONLReader(&fakeFileReader{
-		err: errors.New("file not found"),
-	})
-
-	const budget = 10000
-
-	_, _, err := readAll(reader, "/missing.jsonl", budget)
-	g.Expect(err).To(MatchError(ContainSubstring("file not found")))
-	g.Expect(err).To(MatchError(ContainSubstring("reading transcript")))
-}
-
 func TestTranscriptReader_RespectsBudget(t *testing.T) {
 	t.Parallel()
 
@@ -471,71 +536,6 @@ func TestTranscriptReader_ReturnsLeadingRowsWhenBudgetLimited(t *testing.T) {
 
 	g.Expect(result).To(ContainSubstring("alpha"), "should contain earliest content")
 	g.Expect(result).NotTo(ContainSubstring("zeta"), "should not contain latest content")
-}
-
-func TestTranscriptReader_StripsToolResults(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	lines := []string{
-		`{"type":"user","message":{"role":"user","content":"hello"}}`,
-		`{"role":"toolResult","content":"big result data"}`,
-		`{"type":"assistant","message":{"role":"assistant","content":"response"}}`,
-	}
-	content := strings.Join(lines, "\n") + "\n"
-
-	reader := transcript.NewJSONLReader(&fakeFileReader{
-		contents: map[string][]byte{"/transcript.jsonl": []byte(content)},
-	})
-
-	const largeBudget = 10000
-
-	result, bytesRead, err := readAll(reader, "/transcript.jsonl", largeBudget)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(result).To(ContainSubstring("USER: hello"))
-	g.Expect(result).To(ContainSubstring("ASSISTANT: response"))
-	g.Expect(result).NotTo(ContainSubstring("toolResult"))
-	g.Expect(bytesRead).To(BeNumerically(">", 0))
-}
-
-func TestTranscriptReader_ToolSummaryMode(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	lines := []string{
-		`{"type":"assistant","message":{"role":"assistant","content":[` +
-			`{"type":"text","text":"Let me check"},` +
-			`{"type":"tool_use","id":"tu1","name":"Bash","input":{"command":"ls"}}` +
-			`]}}`,
-		`{"type":"user","message":{"role":"user","content":[` +
-			`{"type":"tool_result","tool_use_id":"tu1","content":"file1.go\nfile2.go","is_error":false}` +
-			`]}}`,
-	}
-	content := strings.Join(lines, "\n") + "\n"
-
-	reader := transcript.NewJSONLReader(&fakeFileReader{
-		contents: map[string][]byte{"/transcript.jsonl": []byte(content)},
-	})
-
-	const largeBudget = 10000
-
-	result, _, err := readAll(reader, "/transcript.jsonl", largeBudget)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(result).To(ContainSubstring("[tool]"), "should contain tool summary line")
-	g.Expect(result).To(ContainSubstring("Bash"), "should contain tool name")
-	g.Expect(result).To(ContainSubstring("Let me check"), "should contain assistant text")
 }
 
 // --- Fake implementations ---

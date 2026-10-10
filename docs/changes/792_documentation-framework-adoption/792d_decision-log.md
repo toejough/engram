@@ -953,3 +953,29 @@ decisions as `792dN`, continuing the sequence.
   and are examined in 792c7d5.
 - **Rationale:** 792d30 and 792d51.
 - **Alternatives:** none considered.
+
+## 792d81 transcript-reader scope and the tests it leaves
+
+- **Choice:**
+  - 792b15 specifies the production read only: the whole file, user and assistant entries, harness
+    noise, oversized content and tool-call summaries. `ReadFrom`'s start time and byte budget, which
+    ingestion leaves unset, and `SegmentsFrom`, `Strip` and the `KeepToolCalls` mode, which have no
+    production caller, are not specified. Their tests verify no scenario and keep their names,
+    including `TestT138`–`TestT143`, which test `Strip`. 792d38 expected this node to rename those
+    six; the catalog's expectation that `Strip` tests are no-scenario tests wins, so the
+    `T[0-9]+` alternative of `TARG_BASELINE_PATTERN` (792d64) still matches them, and 792e7 is
+    unchanged.
+  - The last kept entry's timestamp only feeds the time a chunk was first indexed, which is left to
+    memory-query (792d78), so its two tests wait for 792c7f1.
+  - ADR-0010 is deleted: its surviving JSONL reader is 792b15a's rationale, and its OpenCode backend
+    and composite dispatch are retired (792d6). The c1 S5 row and the reader part of c3 K1 point at
+    792b15.
+  - 792a5b1d becomes a Scenario Outline over `--markdown` and `--transcript`, so a transcript that
+    cannot be read is covered too.
+- **Divergence noted:** a `tool_result` whose content is a list of blocks, the form Claude Code
+  records for some tools, matches no summary, so neither the call nor its result appears in the
+  chunk. 792a5g and 792b15c5 state this as current behavior (792d33).
+- **Rationale:** 792d51 and 792d75: requirements arrive with the product scenarios they support,
+  and a test-only entry point is not a component's contract.
+- **Alternatives:** count the `Strip` tests as verifying the shared cleaning helpers. Rejected
+  because production reaches those helpers only through the summary mode, which has its own tests.

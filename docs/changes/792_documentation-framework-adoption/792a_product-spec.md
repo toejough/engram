@@ -1483,10 +1483,15 @@ Scenario: 792a5b1c A Pi sessions value that is not a directory is ignored
   When the user runs engram ingest --pi-sessions f
   Then the command succeeds and indexes nothing
 
-Scenario: 792a5b1d An unreadable named file fails the command
-  Given no file exists at missing.md
-  When the user runs engram ingest --markdown missing.md
-  Then the command fails with an error naming missing.md
+Scenario Outline: 792a5b1d An unreadable named file fails the command
+  Given no file exists at <file>
+  When the user runs engram ingest <flag> <file>
+  Then the command fails with an error naming <file>
+
+  Examples:
+    | flag         | file          |
+    | --markdown   | missing.md    |
+    | --transcript | missing.jsonl |
 ```
 
 ### 792a5c Swept directories
@@ -1635,8 +1640,9 @@ Scenario: 792a5f1d Explicit sources are indexed anywhere
 ### 792a5g Transcript content
 
 Requirement: 792a5g `engram ingest` MUST index a session transcript as its user and assistant text,
-each turn's text prefixed `USER: ` or `ASSISTANT: `, with each tool call and its result shown as one
-`[tool] <name>(<arguments>) → exit <0|1> | <first output line>` line, and MUST leave out every other
+each turn's text prefixed `USER: ` or `ASSISTANT: `, with each tool call whose result is recorded as
+plain text shown as one `[tool] <name>(<arguments>) → exit <0|1> | <first output line>` line, and
+MUST leave out every other
 transcript entry, system reminders, injected skill bodies, local-command output, task notifications,
 and slash-command invocations other than their arguments.
 

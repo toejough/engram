@@ -160,25 +160,6 @@ no longer reachable.
 
 ---
 
-## ADR-0010 — Sessions are read behind reader/finder interfaces; a composite dispatches across backends
-
-**Status:** Superseded (partial) · the OpenCode SQLite backend (`internal/transcript/opencode.go`) was deleted in the 2026-06-20 deep clean — `git log` recovers it; only the JSONL reader (`internal/transcript/transcript.go`) survives, wired by `engram ingest`
-
-**Superseded (partial):** The OpenCode SQLite backend (`OpencodeTranscriptReader`, `OpencodeSessionFinder`, `CompositeSessionFinder`, `CompositeTranscriptReader`) was never wired into production ingest and was removed in the 2026-06-20 deep clean. Engram reads JSONL only (`~/.claude/projects/<slug>/*.jsonl`). The `JSONLReader`/`Finder` interfaces remain as the sole production path.
-
-**Context.** Engram must read session transcripts from more than one harness — Claude Code stores
-them as per-session `.jsonl` files; OpenCode stores them in a SQLite database. The marker,
-byte-budget, noise-strip, and emit logic must not care which backend a session came from.
-
-**Decision.** Define `Finder` (locate sessions) and `Reader` (read rows) interfaces. Provide two backends — `JSONLReader` + `SessionFinder` (Claude) and `OpencodeTranscriptReader` + `OpencodeSessionFinder` (OpenCode SQLite) — plus a `CompositeSessionFinder` / `CompositeTranscriptReader` that wrap a list and dispatch to the **first backend that succeeds** (as originally implemented in the now-removed `opencode.go`, first-success dispatch). `engram ingest` wires the composite over both backends; the `SegmentsFrom`/`SegmentsReader` path and the `--segments` flag retired with the episode surface (ADR-0008/ADR-0009).
-
-**Consequences.** Marker forward-progress (ADR-0009), stripping, and emit are backend-agnostic —
-they run on the composite, never on a concrete backend. Session-id **scheme** dispatch (bare UUID →
-Claude `.jsonl`; `opencode://…` → SQLite) is part of the same seam. Adding a third harness is an
-interface implementation, not a change to the read pipeline.
-
----
-
 ## ADR-0011 — Controlled-vocab tag nomination over graph traversal
 
 **Status:** Accepted (2026-07-02/03) · supersedes graph-traversal (PPR / spreading-activation) as

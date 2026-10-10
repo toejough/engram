@@ -215,8 +215,8 @@ flowchart TD
   N792c7c2["792c7c2 wikilink-graph tech spec<br/>Complete"]
   N792c7c3["792c7c3 note-amendment tech spec<br/>Complete"]
   N792c7d1["792c7d1 chunk-indexing product spec<br/>Complete"]
-  N792c7d2["792c7d2 transcript-reader tech spec<br/>Ready"]
-  N792c7d3["792c7d3 source-chunking tech spec<br/>Blocked by: 792c7d2"]
+  N792c7d2["792c7d2 transcript-reader tech spec<br/>Complete"]
+  N792c7d3["792c7d3 source-chunking tech spec<br/>Ready"]
   N792c7d4["792c7d4 ingestion-source-discovery tech spec<br/>Blocked by: 792c7d3"]
   N792c7d5["792c7d5 chunk-index-store tech spec<br/>Blocked by: 792c7d4"]
   N792c7e1["792c7e1 controlled-vocabulary product spec<br/>Blocked by: 792c7d5"]
@@ -1552,11 +1552,46 @@ Target: `792b15` (`docs/specs/technical/transcript-reader.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7d2a | Port the component contract to `792b15` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7d2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7d2c | Repoint stale references to `792b15` | Non-test action | Keeps live links valid | Not started |
-| 792c7d2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7d2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7d2a | Port the component contract to `792b15` | Non-test action | Documents the component in the framework format | Done |
+| 792c7d2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7d2c | Repoint stale references to `792b15` | Non-test action | Keeps live links valid | Done |
+| 792c7d2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7d2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+**Outcome:** ADR-0010 is deleted; the c1 S5 row and c3 K1's reader part point at 792b15. Only the
+production read is specified; the `Strip` path, the start time and budget, segments and the last
+timestamp are left out or deferred (792d81).
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b15c1a1 | `TestTranscriptReader_ReadError` → `Test792b15c1a1_TranscriptReader_ReadError` | Pure unit (`internal/transcript`, fake file reader) | Read failure wrapped | Done |
+| 792b15c2a1 | `TestToolSummaryMode_StringContent` → `Test792b15c2a1_ToolSummaryMode_StringContent` | Pure unit (`internal/context`, summary mode) | String content prefixed | Done |
+| 792b15c2a2 | `TestToolSummaryMode_DropsMalformedAndEmpty` → `Test792b15c2a2_ToolSummaryMode_DropsMalformedAndEmpty` (split deferred: 792b15c3a1) | Pure unit (`internal/context`, summary mode) | Non-JSON, other types, empty, reminder | Done |
+| 792b15c2a3 | `TestTranscriptReader_StripsToolResults` → `Test792b15c2a3_TranscriptReader_StripsToolResults` | Pure unit (`internal/transcript`, fake file reader) | Other role dropped | Done |
+| 792b15c5a1 | `TestToolSummaryMode_BasicPair` → `Test792b15c5a1_ToolSummaryMode_BasicPair` | Pure unit (`internal/context`, summary mode) | One summary line | Done |
+| 792b15c5a1 | `TestTranscriptReader_ToolSummaryMode` → `Test792b15c5a1_TranscriptReader_ToolSummaryMode` | Pure unit (`internal/transcript`, fake file reader) | Summary through the read | Done |
+| 792b15c5a2 | `TestToolSummaryMode_ErrorResult` → `Test792b15c5a2_ToolSummaryMode_ErrorResult` | Pure unit (`internal/context`, summary mode) | Exit 1 | Done |
+| 792b15c5a3 | `TestToolSummaryMode_MultilineOutput` → `Test792b15c5a3_ToolSummaryMode_MultilineOutput` | Pure unit (`internal/context`, summary mode) | First line only | Done |
+| 792b15c5a4 | `TestToolSummaryMode_MixedTextAndToolCalls` → `Test792b15c5a4_ToolSummaryMode_MixedTextAndToolCalls` | Pure unit (`internal/context`, summary mode) | Order kept | Done |
+| 792b15c5a4 | `TestToolSummaryMode_MultipleToolCalls` → `Test792b15c5a4_ToolSummaryMode_MultipleToolCalls` | Pure unit (`internal/context`, summary mode) | Several calls | Done |
+| 792b15c5a5 | `TestToolSummaryMode_OrphanedToolUse` → `Test792b15c5a5_ToolSummaryMode_OrphanedToolUse` | Pure unit (`internal/context`, summary mode) | Unanswered call dropped | Done |
+| 792b15c5a6 | `TestToolSummaryMode_ArgsTruncated` → `Test792b15c5a6_ToolSummaryMode_ArgsTruncated` | Pure unit (`internal/context`, summary mode) | Arguments cut | Done |
+| 792b15c5a6 | `TestToolSummaryMode_OutputTruncated` → `Test792b15c5a6_ToolSummaryMode_OutputTruncated` | Pure unit (`internal/context`, summary mode) | Output cut | Done |
+
+**Coverage gaps:** 792b15c3a2, 792b15c3a3, 792b15c4a1 and 792b15c4a2 (tested only through
+`Strip`, which production does not call). 792a5g1a, 792a5h1b and 792a5b1d have no end-to-end test;
+the ingest read-error tests are examined by chunk-index-store (792c7d5).
+
+**No-scenario tests:** `context_test` `TestStrip_*` (10) and `TestT138`–`TestT143` (6), and
+`stripconfig_test` `TestStripWithConfig_*` (8) (the test-only `Strip` and `KeepToolCalls` paths);
+`transcript_test` `TestJSONLReader_ReadFrom_EmitsRowsStrictlyAfterMarker`,
+`TestJSONLReader_ReadFrom_NoCapWhenBudgetZero`, `TestJSONLReader_ReadFrom_PartialWhenBudgetExceeded`,
+`TestTranscriptReader_RespectsBudget`, `TestTranscriptReader_ReturnsLeadingRowsWhenBudgetLimited`,
+`TestJSONLReader_SegmentsFrom_*` (4) and `TestSegmentsFromStripped_*` (5) (start time, budget and
+segments, 792d81). Deferred to memory-query (792c7f1): `TestJSONLReader_ReadFrom_HandlesUnparseableTimestampAndNonJSON`
+and `TestJSONLReader_ReadFrom_NullTimestampRowsInheritPrior` (the last kept timestamp).
 
 #### 792c7d3 source-chunking tech spec
 
