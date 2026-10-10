@@ -16883,50 +16883,50 @@ Scenario: 792b29c18a10 A dry run prefixes the guidance lines
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a11f1a | 792b29c12, 792b29c14 |
-| 792a11f1b | 792b29c14, 792b29c17 |
-| 792a11g1a | 792b29c1 |
-| 792a11g1b | 792b29c1 |
-| 792a11g1c | 792b29c1 |
-| 792a11g1d | 792b29c15, 792b29c17 |
-| 792a11g1e | 792b29c2 |
-| 792a11h1a | 792b29c2, 792b29c6, 792b29c7 |
-| 792a11h1b | 792b29c6 |
-| 792a11h1c | 792b29c7 |
-| 792a11h1d | 792b29c17 |
-| 792a11h1e | 792b29c16 |
-| 792a11i1a | 792b29c6, 792b29c13, 792b29c17 |
-| 792a11i1b | 792b29c6 |
-| 792a11j1a | 792b29c5, 792b29c17 |
-| 792a11j1b | 792b29c5 |
-| 792a11j1c | 792b29c10, 792b29c17 |
-| 792a11j1d | 792b29c7, 792b29c8, 792b29c10 |
-| 792a11j1e | 792b29c5 |
-| 792a11k1a | 792b29c5, 792b29c8, 792b29c17 |
-| 792a11k1b | 792b29c11, 792b29c17 |
-| 792a11k1c | 792b29c11 |
-| 792a11l1a | 792b29c2, 792b29c3 |
-| 792a11l1b | 792b29c3, 792b29c4 |
-| 792a11l1c | 792b29c3 |
-| 792a11l1d | 792b29c4 |
-| 792a11l1e | 792b29c3 |
-| 792a11l1f | 792b29c9 |
-| 792a11l1g | 792b29c3, 792b29c4 |
-| 792a11m1a | 792b29c9 |
-| 792a11m1b | 792b29c8, 792b29c9 |
-| 792a11m1c | 792b29c9 |
-| 792a11m1d | 792b29c17 |
-| 792a19u1a | 792b29c4, 792b29c18 |
-| 792a19u1b | 792b29c4, 792b29c18 |
-| 792a19v1a | 792b29c18 |
-| 792a19v1b | 792b29c18 |
-| 792a19v1c | 792b29c18 |
-| 792a19v1d | 792b29c18 |
-| 792a19v1e | 792b29c18 |
-| 792a19v1f | 792b29c18 |
-| 792a19v1g | 792b29c18 |
-| 792a19v1h | 792b29c18 |
-| 792a19v1i | 792b29c18 |
+| [792a11f1a](./792a_product-spec.md#792a11f1-uat-scenarios) | [792b29c12](#792b29c12-first-sync-without-a-trace), [792b29c14](#792b29c14-dry-run) |
+| [792a11f1b](./792a_product-spec.md#792a11f1-uat-scenarios) | [792b29c14](#792b29c14-dry-run), [792b29c17](#792b29c17-harness-sections-of-the-report) |
+| [792a11g1a](./792a_product-spec.md#792a11g1-uat-scenarios) | [792b29c1](#792b29c1-harness-detection) |
+| [792a11g1b](./792a_product-spec.md#792a11g1-uat-scenarios) | [792b29c1](#792b29c1-harness-detection) |
+| [792a11g1c](./792a_product-spec.md#792a11g1-uat-scenarios) | [792b29c1](#792b29c1-harness-detection) |
+| [792a11g1d](./792a_product-spec.md#792a11g1-uat-scenarios) | [792b29c15](#792b29c15-harness-isolation), [792b29c17](#792b29c17-harness-sections-of-the-report) |
+| [792a11g1e](./792a_product-spec.md#792a11g1-uat-scenarios) | [792b29c2](#792b29c2-the-deploy-set) |
+| [792a11h1a](./792a_product-spec.md#792a11h1-uat-scenarios) | [792b29c2](#792b29c2-the-deploy-set), [792b29c6](#792b29c6-root-synchronization), [792b29c7](#792b29c7-skill-links) |
+| [792a11h1b](./792a_product-spec.md#792a11h1-uat-scenarios) | [792b29c6](#792b29c6-root-synchronization) |
+| [792a11h1c](./792a_product-spec.md#792a11h1-uat-scenarios) | [792b29c7](#792b29c7-skill-links) |
+| [792a11h1d](./792a_product-spec.md#792a11h1-uat-scenarios) | [792b29c17](#792b29c17-harness-sections-of-the-report) |
+| [792a11h1e](./792a_product-spec.md#792a11h1-uat-scenarios) | [792b29c16](#792b29c16-idempotence) |
+| [792a11i1a](./792a_product-spec.md#792a11i1-uat-scenarios) | [792b29c6](#792b29c6-root-synchronization), [792b29c13](#792b29c13-manifest-mode), [792b29c17](#792b29c17-harness-sections-of-the-report) |
+| [792a11i1b](./792a_product-spec.md#792a11i1-uat-scenarios) | [792b29c6](#792b29c6-root-synchronization) |
+| [792a11j1a](./792a_product-spec.md#792a11j1-uat-scenarios) | [792b29c5](#792b29c5-root-ownership), [792b29c17](#792b29c17-harness-sections-of-the-report) |
+| [792a11j1b](./792a_product-spec.md#792a11j1-uat-scenarios) | [792b29c5](#792b29c5-root-ownership) |
+| [792a11j1c](./792a_product-spec.md#792a11j1-uat-scenarios) | [792b29c10](#792b29c10-dangling-link-cleanup), [792b29c17](#792b29c17-harness-sections-of-the-report) |
+| [792a11j1d](./792a_product-spec.md#792a11j1-uat-scenarios) | [792b29c7](#792b29c7-skill-links), [792b29c8](#792b29c8-adopting-earlier-copies), [792b29c10](#792b29c10-dangling-link-cleanup) |
+| [792a11j1e](./792a_product-spec.md#792a11j1-uat-scenarios) | [792b29c5](#792b29c5-root-ownership) |
+| [792a11k1a](./792a_product-spec.md#792a11k1-uat-scenarios) | [792b29c5](#792b29c5-root-ownership), [792b29c8](#792b29c8-adopting-earlier-copies), [792b29c17](#792b29c17-harness-sections-of-the-report) |
+| [792a11k1b](./792a_product-spec.md#792a11k1-uat-scenarios) | [792b29c11](#792b29c11-unmanaged-entries), [792b29c17](#792b29c17-harness-sections-of-the-report) |
+| [792a11k1c](./792a_product-spec.md#792a11k1-uat-scenarios) | [792b29c11](#792b29c11-unmanaged-entries) |
+| [792a11l1a](./792a_product-spec.md#792a11l1-uat-scenarios) | [792b29c2](#792b29c2-the-deploy-set), [792b29c3](#792b29c3-guidance-management) |
+| [792a11l1b](./792a_product-spec.md#792a11l1-uat-scenarios) | [792b29c3](#792b29c3-guidance-management), [792b29c4](#792b29c4-import-detection) |
+| [792a11l1c](./792a_product-spec.md#792a11l1-uat-scenarios) | [792b29c3](#792b29c3-guidance-management) |
+| [792a11l1d](./792a_product-spec.md#792a11l1-uat-scenarios) | [792b29c4](#792b29c4-import-detection) |
+| [792a11l1e](./792a_product-spec.md#792a11l1-uat-scenarios) | [792b29c3](#792b29c3-guidance-management) |
+| [792a11l1f](./792a_product-spec.md#792a11l1-uat-scenarios) | [792b29c9](#792b29c9-guidance-links) |
+| [792a11l1g](./792a_product-spec.md#792a11l1-uat-scenarios) | [792b29c3](#792b29c3-guidance-management), [792b29c4](#792b29c4-import-detection) |
+| [792a11m1a](./792a_product-spec.md#792a11m1-uat-scenarios) | [792b29c9](#792b29c9-guidance-links) |
+| [792a11m1b](./792a_product-spec.md#792a11m1-uat-scenarios) | [792b29c8](#792b29c8-adopting-earlier-copies), [792b29c9](#792b29c9-guidance-links) |
+| [792a11m1c](./792a_product-spec.md#792a11m1-uat-scenarios) | [792b29c9](#792b29c9-guidance-links) |
+| [792a11m1d](./792a_product-spec.md#792a11m1-uat-scenarios) | [792b29c17](#792b29c17-harness-sections-of-the-report) |
+| [792a19u1a](./792a_product-spec.md#792a19u1-uat-scenarios) | [792b29c4](#792b29c4-import-detection), [792b29c18](#792b29c18-guidance-activation-hints) |
+| [792a19u1b](./792a_product-spec.md#792a19u1-uat-scenarios) | [792b29c4](#792b29c4-import-detection), [792b29c18](#792b29c18-guidance-activation-hints) |
+| [792a19v1a](./792a_product-spec.md#792a19v1-uat-scenarios) | [792b29c18](#792b29c18-guidance-activation-hints) |
+| [792a19v1b](./792a_product-spec.md#792a19v1-uat-scenarios) | [792b29c18](#792b29c18-guidance-activation-hints) |
+| [792a19v1c](./792a_product-spec.md#792a19v1-uat-scenarios) | [792b29c18](#792b29c18-guidance-activation-hints) |
+| [792a19v1d](./792a_product-spec.md#792a19v1-uat-scenarios) | [792b29c18](#792b29c18-guidance-activation-hints) |
+| [792a19v1e](./792a_product-spec.md#792a19v1-uat-scenarios) | [792b29c18](#792b29c18-guidance-activation-hints) |
+| [792a19v1f](./792a_product-spec.md#792a19v1-uat-scenarios) | [792b29c18](#792b29c18-guidance-activation-hints) |
+| [792a19v1g](./792a_product-spec.md#792a19v1-uat-scenarios) | [792b29c18](#792b29c18-guidance-activation-hints) |
+| [792a19v1h](./792a_product-spec.md#792a19v1-uat-scenarios) | [792b29c18](#792b29c18-guidance-activation-hints) |
+| [792a19v1i](./792a_product-spec.md#792a19v1-uat-scenarios) | [792b29c18](#792b29c18-guidance-activation-hints) |
 
 ```gherkin
 Scenario: 792a11f1a A dry run on a never-synced harness leaves no trace
@@ -24881,33 +24881,33 @@ Scenario: 792b38c11a7 The Claude harness delegates to the isolation module
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a23a1a | 792b38c1 |
-| 792a23a1b | 792b38c1 |
-| 792a23a1c | 792b38c2 |
-| 792a23b1a | 792b38c1 |
-| 792a23b1b | 792b38c1 |
-| 792a23b1c | 792b38c2 |
-| 792a23c1a | 792b38c2 |
-| 792a23c1b | 792b38c2 |
-| 792a23d1a | 792b38c3, 792b38c5 |
-| 792a23d1b | 792b38c3, 792b38c11 |
-| 792a23d1c | 792b38c6 |
-| 792a23e1a | 792b38c5 |
-| 792a23e1b | 792b38c5 |
-| 792a23e1c | 792b38c5 |
-| 792a23f1a | 792b38c5 |
-| 792a23f1b | 792b38c5 |
-| 792a23f1c | 792b38c4, 792b38c5 |
-| 792a23f1d | 792b38c5 |
-| 792a23g1a | 792b38c7 |
-| 792a23g1b | 792b38c7 |
-| 792a23g1c | 792b38c7 |
-| 792a23g1d | 792b38c7 |
-| 792a23h1a | 792b38c8 |
-| 792a23h1b | 792b38c8 |
-| 792a23i1a | 792b38c9 |
-| 792a23j1a | 792b38c10 |
-| 792a23j1b | 792b38c10 |
+| [792a23a1a](./792a_product-spec.md#792a23a1-uat-scenarios) | [792b38c1](#792b38c1-installing-a-skill-into-a-trial-configuration) |
+| [792a23a1b](./792a_product-spec.md#792a23a1-uat-scenarios) | [792b38c1](#792b38c1-installing-a-skill-into-a-trial-configuration) |
+| [792a23a1c](./792a_product-spec.md#792a23a1-uat-scenarios) | [792b38c2](#792b38c2-the-warm-configuration-builders) |
+| [792a23b1a](./792a_product-spec.md#792a23b1-uat-scenarios) | [792b38c1](#792b38c1-installing-a-skill-into-a-trial-configuration) |
+| [792a23b1b](./792a_product-spec.md#792a23b1-uat-scenarios) | [792b38c1](#792b38c1-installing-a-skill-into-a-trial-configuration) |
+| [792a23b1c](./792a_product-spec.md#792a23b1-uat-scenarios) | [792b38c2](#792b38c2-the-warm-configuration-builders) |
+| [792a23c1a](./792a_product-spec.md#792a23c1-uat-scenarios) | [792b38c2](#792b38c2-the-warm-configuration-builders) |
+| [792a23c1b](./792a_product-spec.md#792a23c1-uat-scenarios) | [792b38c2](#792b38c2-the-warm-configuration-builders) |
+| [792a23d1a](./792a_product-spec.md#792a23d1-uat-scenarios) | [792b38c3](#792b38c3-the-isolated-environment-of-a-trial), [792b38c5](#792b38c5-the-leak-guard) |
+| [792a23d1b](./792a_product-spec.md#792a23d1-uat-scenarios) | [792b38c3](#792b38c3-the-isolated-environment-of-a-trial), [792b38c11](#792b38c11-every-spawn-site-builds-its-environment-through-the-primitive) |
+| [792a23d1c](./792a_product-spec.md#792a23d1-uat-scenarios) | [792b38c6](#792b38c6-every-harness-guards-the-real-vault) |
+| [792a23e1a](./792a_product-spec.md#792a23e1-uat-scenarios) | [792b38c5](#792b38c5-the-leak-guard) |
+| [792a23e1b](./792a_product-spec.md#792a23e1-uat-scenarios) | [792b38c5](#792b38c5-the-leak-guard) |
+| [792a23e1c](./792a_product-spec.md#792a23e1-uat-scenarios) | [792b38c5](#792b38c5-the-leak-guard) |
+| [792a23f1a](./792a_product-spec.md#792a23f1-uat-scenarios) | [792b38c5](#792b38c5-the-leak-guard) |
+| [792a23f1b](./792a_product-spec.md#792a23f1-uat-scenarios) | [792b38c5](#792b38c5-the-leak-guard) |
+| [792a23f1c](./792a_product-spec.md#792a23f1-uat-scenarios) | [792b38c4](#792b38c4-the-real-vault-fingerprint), [792b38c5](#792b38c5-the-leak-guard) |
+| [792a23f1d](./792a_product-spec.md#792a23f1-uat-scenarios) | [792b38c5](#792b38c5-the-leak-guard) |
+| [792a23g1a](./792a_product-spec.md#792a23g1-uat-scenarios) | [792b38c7](#792b38c7-detecting-a-step-in-every-form-of-its-command) |
+| [792a23g1b](./792a_product-spec.md#792a23g1-uat-scenarios) | [792b38c7](#792b38c7-detecting-a-step-in-every-form-of-its-command) |
+| [792a23g1c](./792a_product-spec.md#792a23g1-uat-scenarios) | [792b38c7](#792b38c7-detecting-a-step-in-every-form-of-its-command) |
+| [792a23g1d](./792a_product-spec.md#792a23g1-uat-scenarios) | [792b38c7](#792b38c7-detecting-a-step-in-every-form-of-its-command) |
+| [792a23h1a](./792a_product-spec.md#792a23h1-uat-scenarios) | [792b38c8](#792b38c8-a-question-stop) |
+| [792a23h1b](./792a_product-spec.md#792a23h1-uat-scenarios) | [792b38c8](#792b38c8-a-question-stop) |
+| [792a23i1a](./792a_product-spec.md#792a23i1-uat-scenarios) | [792b38c9](#792b38c9-a-fixtures-local-follow-up-target) |
+| [792a23j1a](./792a_product-spec.md#792a23j1-uat-scenarios) | [792b38c10](#792b38c10-the-rank-of-a-surfaced-note) |
+| [792a23j1b](./792a_product-spec.md#792a23j1-uat-scenarios) | [792b38c10](#792b38c10-the-rank-of-a-surfaced-note) |
 
 ```gherkin
 Scenario: 792a23a1a Successful skill installation is verified
