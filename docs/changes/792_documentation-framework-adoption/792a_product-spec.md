@@ -1112,7 +1112,7 @@ Scenario: 792a4e1a Chunk sources are merged without duplicates
 ### 792a4f Amend argument validation
 
 Requirement: [792a4f Amend argument validation](#792a4f-amend-argument-validation) `engram amend` MUST refuse, writing nothing, a `--supersedes` that is not
-`<note>|<type>|<claim>` with a type of `updates`, `narrows` or `refutes`, a `--trigger` shorter than
+`<note>|<type>|<claim>` with a type of `updates`, `narrows` or `refutes` and a non-empty claim, a `--trigger` shorter than
 three characters after trimming, and a `--chunk-source` ID that the chunk index does not hold.
 
 Rationale: `engram learn` records chunk sources without checking them, because the chunks a note is
@@ -1128,9 +1128,10 @@ Scenario Outline: 792a4f1a An invalid amend argument is refused before any write
 
   Examples:
     | argument                     | problem                                        |
-    | --supersedes "a\|bogus\|c"   | supersedes type must be updates, narrows or refutes |
-    | --supersedes "a\|updates"    | supersedes format must be <basename>\|<type>\|<claim> |
-    | --trigger ab                 | trigger must be at least 3 characters          |
+    | --supersedes "a\|bogus\|c"   | type must be updates\|narrows\|refutes, got "bogus" |
+    | --supersedes "a\|updates"    | format must be "<basename>\|<type>\|<claim>"    |
+    | --supersedes "a\|updates\|"  | claim must be non-empty                        |
+    | --trigger ab                 | trigger must be at least 3 characters after trimming |
     | --chunk-source nope#x        | unresolved chunk-source id "nope#x"            |
 ```
 
