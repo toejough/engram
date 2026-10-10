@@ -119,9 +119,9 @@ Scenario: CAP-1434a1a1a Select the prior month during the year
 
 - Every reference to an addressable node MUST cite the node's stable ID and MUST be a Markdown
   link to that node. Do not refer to addressable content by name or description alone.
-- The link label MUST be the ID followed by the target's title: the target heading's text after
-  the ID, without a leading delta-operation word such as `Added:`. Keep the title in the label so
-  human readers see what the ID names.
+- The link label MUST be the ID followed by the node's title: the text after the ID on the node's
+  own heading or `Scenario:` line, without a leading delta-operation word such as `Added:`. Keep
+  the title in the label so human readers see what the ID names.
 - A reference to a canonical capability or component file MUST link to that file.
 - Link to the node's own heading. When the node is not itself a heading, such as a scenario line
   or a table row, link to the nearest heading that contains it.

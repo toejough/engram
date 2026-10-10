@@ -18,7 +18,7 @@ by it can continue. Choices that need only validation, not input, are in
      specs are deleted.
 - **Recommendation:** 1. Joe is the user of these tools, their contracts are tested, and option 3
   would lose stated requirements.
-- **Blocks:** nodes [792c7v1](./792c_implementation-plan.md#792c7v1-memory-effectiveness-evaluation-product-spec)–[792c7v3](./792c_implementation-plan.md#792c7v3-memory-loop-auditor-tech-spec), which are last in the plan. Default: option 1.
+- **Blocks:** nodes [792c7v1 memory-effectiveness-evaluation product spec](./792c_implementation-plan.md#792c7v1-memory-effectiveness-evaluation-product-spec)–[792c7v3 memory-loop-auditor tech spec](./792c_implementation-plan.md#792c7v3-memory-loop-auditor-tech-spec), which are last in the plan. Default: option 1.
 
 ## 792e2 Which issue key roots the parallel memory agent change?
 
@@ -27,11 +27,11 @@ by it can continue. Choices that need only validation, not input, are in
   migration must not file one.
 - **Options:**
   1. Joe files or names an issue; the design moves to `docs/changes/<key>_parallel-memory-agent/`.
-  2. Root it under #792 for now. This conflicts with [792d14](./792d_decision-log.md#792d14-the-in-flight-design-becomes-its-own-change).
+  2. Root it under #792 for now. This conflicts with [792d14 The in-flight design becomes its own change](./792d_decision-log.md#792d14-the-in-flight-design-becomes-its-own-change).
   3. Delete it and rely on git history.
 - **Recommendation:** 1.
-- **Blocks:** node [792c8b](./792c_implementation-plan.md#792c8b-in-flight-design-relocation), and through it [792c8d](./792c_implementation-plan.md#792c8d-deprecated-directory-removal-and-final-stale-reference-sweep) and [792c8e](./792c_implementation-plan.md#792c8e-build-tag-classification-deferred). Default: none. The node waits.
-- **Answer:** option 1. Joe filed #793, and the design is rooted there ([792d131](./792d_decision-log.md#792d131-the-parallel-memory-agent-design-moves-to-change-793-792e2-answered)).
+- **Blocks:** node [792c8b In-flight design relocation](./792c_implementation-plan.md#792c8b-in-flight-design-relocation), and through it [792c8d Deprecated-directory removal and final stale-reference sweep](./792c_implementation-plan.md#792c8d-deprecated-directory-removal-and-final-stale-reference-sweep) and [792c8e Build-tag classification (deferred)](./792c_implementation-plan.md#792c8e-build-tag-classification-deferred). Default: none. The node waits.
+- **Answer:** option 1. Joe filed #793, and the design is rooted there ([792d131 The parallel memory agent design moves to change 793 (792e2 answered)](./792d_decision-log.md#792d131-the-parallel-memory-agent-design-moves-to-change-793-792e2-answered)).
 
 ## 792e3 Should the OpenSpec tooling be removed?
 
@@ -39,16 +39,16 @@ by it can continue. Choices that need only validation, not input, are in
   `.claude/commands/opsx/*` have no specs to act on. The config still describes `openspec/specs/` as
   the primary behavior record.
 - **Options:**
-  1. Remove all of it in node [792c8c](./792c_implementation-plan.md#792c8c-openspec-archive-and-tooling-removal).
+  1. Remove all of it in node [792c8c OpenSpec archive and tooling removal](./792c_implementation-plan.md#792c8c-openspec-archive-and-tooling-removal).
   2. Keep it for other uses.
 - **Recommendation:** 1. Git is the fallback, and keeping deprecated machinery contradicts Joe's
   standing rule.
-- **Blocks:** the tooling item of node [792c8c](./792c_implementation-plan.md#792c8c-openspec-archive-and-tooling-removal). Default: option 1.
-- **Applied default:** option 1 was applied in node [792c8c](./792c_implementation-plan.md#792c8c-openspec-archive-and-tooling-removal) ([792d129](./792d_decision-log.md#792d129-openspec-archive-mined-openspec-removed-792e3-applied-references-repointed)).
+- **Blocks:** the tooling item of node [792c8c OpenSpec archive and tooling removal](./792c_implementation-plan.md#792c8c-openspec-archive-and-tooling-removal). Default: option 1.
+- **Applied default:** option 1 was applied in node [792c8c OpenSpec archive and tooling removal](./792c_implementation-plan.md#792c8c-openspec-archive-and-tooling-removal) ([792d129 OpenSpec archive mined, OpenSpec removed (792e3 applied), references repointed](./792d_decision-log.md#792d129-openspec-archive-mined-openspec-removed-792e3-applied-references-repointed)).
 
 ## 792e4 Do rationale paragraphs survive promotion?
 
-- **Context:** [792d7](./792d_decision-log.md#792d7-rationale-lives-beside-the-requirement-it-justifies) puts a `Rationale:` paragraph under each requirement. The lifecycle guide allows
+- **Context:** [792d7 Rationale lives beside the requirement it justifies](./792d_decision-log.md#792d7-rationale-lives-beside-the-requirement-it-justifies) puts a `Rationale:` paragraph under each requirement. The lifecycle guide allows
   only "the concise context needed to understand that behavior" in canonical specs, and keeps
   implementation decisions out of them.
 - **Options:**
@@ -67,14 +67,14 @@ by it can continue. Choices that need only validation, not input, are in
   2. A repository-root `assets/` directory.
   3. Drop the image from the README.
 - **Recommendation:** 1.
-- **Blocks:** one item in node [792c8d](./792c_implementation-plan.md#792c8d-deprecated-directory-removal-and-final-stale-reference-sweep). Default: option 1.
+- **Blocks:** one item in node [792c8d Deprecated-directory removal and final stale-reference sweep](./792c_implementation-plan.md#792c8d-deprecated-directory-removal-and-final-stale-reference-sweep). Default: option 1.
 
 ## 792e6 When are the specs promoted?
 
-- **Context:** the plan excludes promotion ([792d44](./792d_decision-log.md#792d44-promotion-is-excluded-from-this-plan)). Until promotion, references point at the change
-  files ([792d34](./792d_decision-log.md#792d34-references-are-repointed-to-the-change-sections)).
+- **Context:** the plan excludes promotion ([792d44 Promotion is excluded from this plan](./792d_decision-log.md#792d44-promotion-is-excluded-from-this-plan)). Until promotion, references point at the change
+  files ([792d34 References are repointed to the change sections](./792d_decision-log.md#792d34-references-are-repointed-to-the-change-sections)).
 - **Options:**
-  1. Promote once Joe has validated [792d](./792d_decision-log.md#documentation-framework-adoption---decision-log) and answered [792e](#documentation-framework-adoption---open-questions).
+  1. Promote once Joe has validated [792d Documentation Framework Adoption - Decision Log](./792d_decision-log.md#documentation-framework-adoption---decision-log) and answered [792e Documentation Framework Adoption - Open Questions](#documentation-framework-adoption---open-questions).
   2. Promote capability by capability during later work.
 - **Recommendation:** 1, as a single integration.
 - **Blocks:** nothing in this plan.
@@ -87,14 +87,14 @@ by it can continue. Choices that need only validation, not input, are in
   1. Match the new scenario-ID prefix.
   2. Remove the default.
   3. Joe states the pattern's purpose and its target value.
-- **Recommendation:** 3, then apply it in node [792c8e](./792c_implementation-plan.md#792c8e-build-tag-classification-deferred).
-- **Blocks:** nothing. Default: [792d38](./792d_decision-log.md#792d38-targ_baseline_pattern-provisional) (update the pattern at the first `TestT` rename).
+- **Recommendation:** 3, then apply it in node [792c8e Build-tag classification (deferred)](./792c_implementation-plan.md#792c8e-build-tag-classification-deferred).
+- **Blocks:** nothing. Default: [792d38 TARG_BASELINE_PATTERN (provisional)](./792d_decision-log.md#792d38-targ_baseline_pattern-provisional) (update the pattern at the first `TestT` rename).
 
 ## 792e8 Should the Go eval harness behind `targ eval` be specified?
 
 - **Context:** `dev/eval/*.go` (arms `nothing`, `skills-only` and `current-state`, three scenarios, behavior checks, aggregation and
   a JSONL results writer) is the Milestone 1 harness that `targ eval` runs. No legacy source states its behavior, and
-  ADR-0028 D7 retired the build-value direction that the cumulative harness served. [792a23](./792a_product-spec.md#792a23-added-memory-effectiveness-evaluation) and [792b38](./792b_technical-spec.md#792b38-added-eval-trial-harness) specify the Python
+  ADR-0028 D7 retired the build-value direction that the cumulative harness served. [792a23 memory-effectiveness-evaluation](./792a_product-spec.md#792a23-added-memory-effectiveness-evaluation) and [792b38 eval-trial-harness](./792b_technical-spec.md#792b38-added-eval-trial-harness) specify the Python
   tooling that the four eval specs cover and leave this harness out.
 - **Options:**
   1. Leave it unspecified and keep its tests as no-scenario tests.

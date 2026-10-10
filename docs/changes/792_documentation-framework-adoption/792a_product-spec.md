@@ -12,9 +12,9 @@ verified. Each capability and component needs one specification in the framework
 stable issue-rooted IDs. The tests need to be traceable to the scenarios they verify, and no legacy
 documentation can be left behind.
 
-Capability sections [792a2](#792a2-added-vault-identity) through [792a23](#792a23-added-memory-effectiveness-evaluation) are added by the nodes of
+Capability sections [792a2 vault-identity](#792a2-added-vault-identity) through [792a23 memory-effectiveness-evaluation](#792a23-added-memory-effectiveness-evaluation) are added by the nodes of
 [`792c_implementation-plan.md`](./792c_implementation-plan.md), using the template in its section
-[792c3](./792c_implementation-plan.md#792c3-spec-section-templates).
+[792c3 Spec Section Templates](./792c_implementation-plan.md#792c3-spec-section-templates).
 
 ## 792a2 Added: vault-identity
 
@@ -28,7 +28,7 @@ exchanging notes under another vault's name. The chunk-only commands `prune`, `q
 
 ### 792a2a Vault location
 
-Requirement: [792a2a](#792a2a-vault-location) Engram MUST use, as the vault path, the first of these that is set: the
+Requirement: [792a2a Vault location](#792a2a-vault-location) Engram MUST use, as the vault path, the first of these that is set: the
 `--vault` flag, the `ENGRAM_VAULT_PATH` environment variable, `$XDG_DATA_HOME/engram/vault`, and
 `~/.local/share/engram/vault`.
 
@@ -58,7 +58,7 @@ Scenario: 792a2a1d The home directory is the last fallback
 
 ### 792a2b Vault name
 
-Requirement: [792a2b](#792a2b-vault-name) Engram MUST record a vault name in the `vault:` field of every note it writes,
+Requirement: [792a2b Vault name](#792a2b-vault-name) Engram MUST record a vault name in the `vault:` field of every note it writes,
 taken from the first of these that is set: the `--vault-name` flag, the `ENGRAM_VAULT_NAME`
 environment variable, and the default `personal`.
 
@@ -83,7 +83,7 @@ Scenario: 792a2b1c The flag wins over the environment
 
 ### 792a2c Flat vault layout
 
-Requirement: [792a2c](#792a2c-flat-vault-layout) Engram MUST NOT treat a file inside a vault subdirectory as a note; notes live
+Requirement: [792a2c Flat vault layout](#792a2c-flat-vault-layout) Engram MUST NOT treat a file inside a vault subdirectory as a note; notes live
 at the vault root.
 
 Rationale: the 2026-06-12 flat-vault migration retired the `Permanent/` and `MOCs/` tiers, so a
@@ -100,7 +100,7 @@ Scenario: 792a2c1a A Markdown file in a subdirectory is not a note
 
 ### 792a2d Starter README
 
-Requirement: [792a2d](#792a2d-starter-readme) Engram MUST NOT treat the untouched starter `README.md` it writes into a new
+Requirement: [792a2d Starter README](#792a2d-starter-readme) Engram MUST NOT treat the untouched starter `README.md` it writes into a new
 vault as a note, and MUST treat any other root `README.md` as a note.
 
 Rationale: a freshly created vault must report itself clean; the starter README is recognized by
@@ -127,11 +127,11 @@ Scenario: 792a2d1b A user's README is a note
 
 ### 792a2e First-use vault creation
 
-Requirement: [792a2e](#792a2e-first-use-vault-creation) Every command that resolves a vault path MUST, when no vault exists at that
+Requirement: [792a2e First-use vault creation](#792a2e-first-use-vault-creation) Every command that resolves a vault path MUST, when no vault exists at that
 path, create one before the command runs, whether or not `ENGRAM_PARENT` is set, and print exactly
 one stderr line, `engram: created new vault at <path>`. The new vault contains `.obsidian/app.json`,
-a `.gitignore`, a starter `README.md`, a vault ID ([792a2h](#792a2h-stable-vault-id)) and the `.engram/` state directory
-([792a2k](#792a2k-exchange-state-outside-tracked-files)).
+a `.gitignore`, a starter `README.md`, a vault ID ([792a2h Stable vault ID](#792a2h-stable-vault-id)) and the `.engram/` state directory
+([792a2k Exchange state outside tracked files](#792a2k-exchange-state-outside-tracked-files)).
 
 Rationale: Joe chose creation by any command (#766) over creating only on `update` or warning
 without creating. The single stderr line makes a mistyped `--vault` or `ENGRAM_VAULT_PATH` visible.
@@ -163,7 +163,7 @@ Scenario: 792a2e1d A second run creates nothing
 
 ### 792a2f Existing vaults are left alone
 
-Requirement: [792a2f](#792a2f-existing-vaults-are-left-alone) A command MUST NOT create or modify any file, or print the creation line, when it
+Requirement: [792a2f Existing vaults are left alone](#792a2f-existing-vaults-are-left-alone) A command MUST NOT create or modify any file, or print the creation line, when it
 runs read-only against an existing vault while no parent is configured.
 
 Rationale: `.engram-vault-id` is tracked, so stamping it on read-only use would dirty a git-backed
@@ -180,12 +180,12 @@ Scenario: 792a2f1a An existing vault is untouched by read-only use
 
 ### 792a2g Interrupted creation is repaired
 
-Requirement: [792a2g](#792a2g-interrupted-creation-is-repaired) When a vault has the `.engram/` state directory but no vault ID, because its
+Requirement: [792a2g Interrupted creation is repaired](#792a2g-interrupted-creation-is-repaired) When a vault has the `.engram/` state directory but no vault ID, because its
 first-use creation stopped part-way, the next command that resolves it MUST give it a vault ID and
 print exactly one stderr line, `engram: stamped the missing vault ID of <path>`.
 
 Rationale: creation writes `.engram/` before the ID, so `.engram/` marks a vault engram created,
-and a pre-existing vault with neither stays untouched ([792a2f](#792a2f-existing-vaults-are-left-alone)).
+and a pre-existing vault with neither stays untouched ([792a2f Existing vaults are left alone](#792a2f-existing-vaults-are-left-alone)).
 
 #### 792a2g1 UAT Scenarios
 
@@ -198,14 +198,14 @@ Scenario: 792a2g1a A half-created vault gets its ID
 
 ### 792a2h Stable vault ID
 
-Requirement: [792a2h](#792a2h-stable-vault-id) Every vault MUST have a random vault ID of 32 lowercase hex characters in the
+Requirement: [792a2h Stable vault ID](#792a2h-stable-vault-id) Every vault MUST have a random vault ID of 32 lowercase hex characters in the
 tracked file `<vault>/.engram-vault-id`. A new vault gets it when it is created. An existing vault
 without one gets it only when `engram serve` starts on it or when a command first contacts a parent
 from it. The ID changes only through `engram vault-id --regenerate`.
 
 Rationale: links to a parent's notes are keyed by the parent's vault ID, never by URL, so a hostname
 or IP change breaks nothing. Lazy stamping keeps read-only use of an existing vault from creating a
-tracked file ([792a2f](#792a2f-existing-vaults-are-left-alone)).
+tracked file ([792a2f Existing vaults are left alone](#792a2f-existing-vaults-are-left-alone)).
 
 #### 792a2h1 UAT Scenarios
 
@@ -228,7 +228,7 @@ Scenario: 792a2h1c Concurrent creation converges
 
 ### 792a2i Uncommitted vault ID notice
 
-Requirement: [792a2i](#792a2i-uncommitted-vault-id-notice) `engram update` MUST print a notice asking for a one-time vault commit while
+Requirement: [792a2i Uncommitted vault ID notice](#792a2i-uncommitted-vault-id-notice) `engram update` MUST print a notice asking for a one-time vault commit while
 `.engram-vault-id` exists in a git-backed vault and is untracked, ignored, staged, or modified
 relative to the last commit, and MUST print no such notice otherwise.
 
@@ -261,7 +261,7 @@ Scenario: 792a2i1d A vault outside git is not flagged
 
 ### 792a2j Corrupt vault ID
 
-Requirement: [792a2j](#792a2j-corrupt-vault-id) When `.engram-vault-id` is empty or does not hold 32 lowercase hex characters,
+Requirement: [792a2j Corrupt vault ID](#792a2j-corrupt-vault-id) When `.engram-vault-id` is empty or does not hold 32 lowercase hex characters,
 engram MUST report it as invalid with a message naming `engram vault-id --regenerate`, and MUST
 leave the file unchanged. `engram serve` still starts, and a merged query still returns its local
 results.
@@ -290,7 +290,7 @@ Scenario: 792a2j1c vault-id reports the corrupt file
 
 ### 792a2k Exchange state outside tracked files
 
-Requirement: [792a2k](#792a2k-exchange-state-outside-tracked-files) Engram MUST keep transient exchange state in `<vault>/.engram/`, whose own
+Requirement: [792a2k Exchange state outside tracked files](#792a2k-exchange-state-outside-tracked-files) Engram MUST keep transient exchange state in `<vault>/.engram/`, whose own
 `.gitignore` holds only the pattern `*`, and MUST NOT write exchange state to the vault root or
 modify the vault's root `.gitignore`.
 
@@ -314,7 +314,7 @@ Scenario: 792a2k1b The root .gitignore is untouched
 
 ### 792a2l Inspecting the vault ID
 
-Requirement: [792a2l](#792a2l-inspecting-the-vault-id) `engram vault-id` with no flag MUST print the vault ID, or `none`, and the
+Requirement: [792a2l Inspecting the vault ID](#792a2l-inspecting-the-vault-id) `engram vault-id` with no flag MUST print the vault ID, or `none`, and the
 location check result (`ok`, `missing`, `mismatch` or `no vault id`), MUST also print a remedy line
 naming `engram vault-id --regenerate` and `engram vault-id --claim` when the check is `missing` or
 `mismatch`, and MUST write nothing.
@@ -340,7 +340,7 @@ Scenario: 792a2l1c A vault without an ID is reported without writing
 
 ### 792a2m Regenerating the vault ID
 
-Requirement: [792a2m](#792a2m-regenerating-the-vault-id) `engram vault-id --regenerate` MUST give the vault a new vault ID, record the
+Requirement: [792a2m Regenerating the vault ID](#792a2m-regenerating-the-vault-id) `engram vault-id --regenerate` MUST give the vault a new vault ID, record the
 vault's current location for it, and change no note.
 
 Rationale: this is the remedy for a copy. Links point at parent vault IDs and stay valid, and
@@ -357,7 +357,7 @@ Scenario: 792a2m1a Regenerate gives a copy its own identity
 
 ### 792a2n Claiming a moved vault
 
-Requirement: [792a2n](#792a2n-claiming-a-moved-vault) `engram vault-id --claim` MUST record the vault's current location for its
+Requirement: [792a2n Claiming a moved vault](#792a2n-claiming-a-moved-vault) `engram vault-id --claim` MUST record the vault's current location for its
 existing vault ID without changing the ID, and MUST fail when the vault has no vault ID.
 
 Rationale: this is the remedy for the same vault moved or re-cloned.
@@ -378,7 +378,7 @@ Scenario: 792a2n1b Claim needs an ID
 
 ### 792a2o Regenerate and claim are exclusive
 
-Requirement: [792a2o](#792a2o-regenerate-and-claim-are-exclusive) `engram vault-id` MUST refuse `--regenerate` and `--claim` together and leave
+Requirement: [792a2o Regenerate and claim are exclusive](#792a2o-regenerate-and-claim-are-exclusive) `engram vault-id` MUST refuse `--regenerate` and `--claim` together and leave
 the vault ID unchanged.
 
 #### 792a2o1 UAT Scenarios
@@ -392,7 +392,7 @@ Scenario: 792a2o1a Both flags are refused
 
 ### 792a2p Copied and cloned vaults pause exchange
 
-Requirement: [792a2p](#792a2p-copied-and-cloned-vaults-pause-exchange) Before sending an offer or pulling a note down, a command MUST check that the
+Requirement: [792a2p Copied and cloned vaults pause exchange](#792a2p-copied-and-cloned-vaults-pause-exchange) Before sending an offer or pulling a note down, a command MUST check that the
 vault's location record matches its current vault ID and canonical path. When the record is missing
 (a fresh `git clone`) or differs (a `cp -R` or a move), the command sends no offer and pulls nothing
 down, still writes locally and queues offers, and prints exactly one warning naming both
@@ -437,12 +437,12 @@ Scenario: 792a2p1e A hostname change is not a false positive
 
 ### 792a2q A vault does not exchange with itself
 
-Requirement: [792a2q](#792a2q-a-vault-does-not-exchange-with-itself) When a parent reports the same vault ID as the local vault, a command MUST NOT
+Requirement: [792a2q A vault does not exchange with itself](#792a2q-a-vault-does-not-exchange-with-itself) When a parent reports the same vault ID as the local vault, a command MUST NOT
 merge, offer or pull down, and MUST behave as if no parent were configured, apart from printing
 exactly one warning naming `engram vault-id --regenerate`.
 
 Rationale: a child cloned from its parent whose location record was copied too, at a matching path,
-passes the location check ([792a2p](#792a2p-copied-and-cloned-vaults-pause-exchange)); this guard catches it instead.
+passes the location check ([792a2p Copied and cloned vaults pause exchange](#792a2p-copied-and-cloned-vaults-pause-exchange)); this guard catches it instead.
 
 #### 792a2q1 UAT Scenarios
 
@@ -459,13 +459,13 @@ Canonical target: `docs/specs/product/note-writing.md` (title `Note Writing - Pr
 
 `engram learn` writes new notes into the vault: `fact`, `feedback` and `runbook` notes, each placed
 in the vault's Luhmann hierarchy, and `qa` pairs of a question note and an answer note. Each note's
-`vault:` field takes the vault name of [792a2b](#792a2b-vault-name). Changing an existing note is the note-revision
+`vault:` field takes the vault name of [792a2b Vault name](#792a2b-vault-name). Changing an existing note is the note-revision
 capability ([792a4 note-revision](#792a4-added-note-revision)); deciding which lessons to capture, and how to phrase them, belongs to the learn ([792a15 learn](#792a15-added-learn)) and
 write-memory ([792a13 write-memory](#792a13-added-write-memory)) skills.
 
 ### 792a3a Fact notes
 
-Requirement: [792a3a](#792a3a-fact-notes) `engram learn fact` MUST write one note named
+Requirement: [792a3a Fact notes](#792a3a-fact-notes) `engram learn fact` MUST write one note named
 `<luhmann>.<YYYY-MM-DD>.<slug>.md` at the vault root, whose frontmatter carries `type: fact`, the
 situation, subject, predicate and object, the Luhmann ID, the creation date and the source, and
 whose body reads `Information learned: when in <situation>, <subject> <predicate> <object>.` with
@@ -487,7 +487,7 @@ Scenario: 792a3a1b A leading When is not doubled
 
 ### 792a3b Feedback notes
 
-Requirement: [792a3b](#792a3b-feedback-notes) `engram learn feedback` MUST write one note with the same filename shape, whose
+Requirement: [792a3b Feedback notes](#792a3b-feedback-notes) `engram learn feedback` MUST write one note with the same filename shape, whose
 frontmatter carries `type: feedback`, the situation, behavior, impact and action, the Luhmann ID,
 the creation date and the source, and whose body reads `Lesson learned: when <situation>, <action>.`
 with any leading `When ` dropped from the situation, and MUST print the note's path on stdout.
@@ -508,7 +508,7 @@ Scenario: 792a3b1b A leading When is not doubled
 
 ### 792a3c Runbook notes
 
-Requirement: [792a3c](#792a3c-runbook-notes) `engram learn runbook` MUST write one note with the same filename shape, whose
+Requirement: [792a3c Runbook notes](#792a3c-runbook-notes) `engram learn runbook` MUST write one note with the same filename shape, whose
 frontmatter carries `type: runbook`, the situation, `done_when`, the Luhmann ID, the creation date
 and the source, and whose body is the `--body` steps verbatim, and MUST print the note's path on
 stdout.
@@ -535,7 +535,7 @@ Scenario: 792a3c1a A runbook note is written
 
 ### 792a3d Runbook red flags and triggers
 
-Requirement: [792a3d](#792a3d-runbook-red-flags-and-triggers) `engram learn runbook` MUST write each `--red-flag` value, in order, to a
+Requirement: [792a3d Runbook red flags and triggers](#792a3d-runbook-red-flags-and-triggers) `engram learn runbook` MUST write each `--red-flag` value, in order, to a
 `red_flags:` list and each `--trigger` value, in order, to a `triggers:` list after it, and MUST
 write neither field when its flag is absent.
 
@@ -567,7 +567,7 @@ Scenario: 792a3d1c Neither flag means neither field
 
 ### 792a3e No task-type or input fields
 
-Requirement: [792a3e](#792a3e-no-task-type-or-input-fields) `engram learn runbook` MUST NOT accept a task-type or input-signature field.
+Requirement: [792a3e No task-type or input fields](#792a3e-no-task-type-or-input-fields) `engram learn runbook` MUST NOT accept a task-type or input-signature field.
 
 Rationale: a `task_type` field with a query pre-filter was planned on the strength of benchmark gains
 for a whole bundled system, none of which isolated the classification step, so it could not justify a
@@ -585,7 +585,7 @@ Scenario: 792a3e1a A task type is refused
 
 ### 792a3f Required content
 
-Requirement: [792a3f](#792a3f-required-content) `engram learn fact`, `feedback` and `runbook` MUST refuse to write a note whose
+Requirement: [792a3f Required content](#792a3f-required-content) `engram learn fact`, `feedback` and `runbook` MUST refuse to write a note whose
 `--situation` is missing or blank, and `engram learn runbook` MUST also refuse one whose
 `--done-when` is missing or blank, with an error naming the missing flag.
 
@@ -613,7 +613,7 @@ Scenario: 792a3f1c A runbook without done-when is refused
 
 ### 792a3g Argument validation
 
-Requirement: [792a3g](#792a3g-argument-validation) `engram learn fact`, `feedback` and `runbook` MUST require `--source` and a
+Requirement: [792a3g Argument validation](#792a3g-argument-validation) `engram learn fact`, `feedback` and `runbook` MUST require `--source` and a
 `--slug` matching `[a-z0-9-]+`, and MUST refuse, before writing anything, a `--project` that is not
 kebab-case, an `--issue` containing whitespace, a `--tag` that is not `<family>` or
 `<family>/<value>` with kebab-case segments, a `--trigger` shorter than three characters after
@@ -643,7 +643,7 @@ Scenario Outline: 792a3g1a An invalid argument is refused before any write
 
 ### 792a3h Optional metadata
 
-Requirement: [792a3h](#792a3h-optional-metadata) `engram learn fact`, `feedback` and `runbook` MUST write a given `--project` to
+Requirement: [792a3h Optional metadata](#792a3h-optional-metadata) `engram learn fact`, `feedback` and `runbook` MUST write a given `--project` to
 `project:`, `--issue` to `issue:`, each `--tag` to `tags:`, each `--chunk-source` to `sources:`, and
 each `--supersedes` both to a `supersedes:` entry and to a body line
 `Supersedes: [[<note>]] — <type>: <claim>`, and MUST omit each of these fields when its flag is
@@ -669,7 +669,7 @@ Scenario: 792a3h1b Absent metadata writes no field
 
 ### 792a3i Tier field
 
-Requirement: [792a3i](#792a3i-tier-field) `engram learn fact`, `feedback` and `runbook` MUST write `tier: L2` when `--tier`
+Requirement: [792a3i Tier field](#792a3i-tier-field) `engram learn fact`, `feedback` and `runbook` MUST write `tier: L2` when `--tier`
 is absent, and the given value when `--tier` is `L1`, `L2` or `L3`.
 
 Rationale: the three-tier model is retired; `L1` and `L3` are still accepted so that hand-edited notes
@@ -691,7 +691,7 @@ Scenario: 792a3i1b A legacy tier is written as given
 
 ### 792a3j Luhmann placement
 
-Requirement: [792a3j](#792a3j-luhmann-placement) `engram learn fact`, `feedback` and `runbook` MUST give the new note, for
+Requirement: [792a3j Luhmann placement](#792a3j-luhmann-placement) `engram learn fact`, `feedback` and `runbook` MUST give the new note, for
 `--position top`, the next unused top-level number; for `--position continuation`, the next unused
 child ID of `--target`; and for `--position sibling`, the next unused child ID of the target's
 parent. A child of an ID ending in a number ends in the next unused letter (`a` to `z`, then `aa`),
@@ -731,7 +731,7 @@ Scenario: 792a3j1e Letters roll over from z to aa
 
 ### 792a3k Placement refusals
 
-Requirement: [792a3k](#792a3k-placement-refusals) `engram learn fact`, `feedback` and `runbook` MUST refuse, with no note written,
+Requirement: [792a3k Placement refusals](#792a3k-placement-refusals) `engram learn fact`, `feedback` and `runbook` MUST refuse, with no note written,
 a missing or unknown `--position`, a `continuation` or `sibling` without `--target`, a `--target`
 that is not a Luhmann ID, and a `sibling` of a top-level ID, which must use `--position top`
 instead.
@@ -762,11 +762,11 @@ Scenario: 792a3k1d A malformed target is refused
 
 ### 792a3l Placement under an absent target
 
-Requirement: [792a3l](#792a3l-placement-under-an-absent-target) `engram learn` MAY place a note under a `--target` that names no existing note.
+Requirement: [792a3l Placement under an absent target](#792a3l-placement-under-an-absent-target) `engram learn` MAY place a note under a `--target` that names no existing note.
 
 ### 792a3m Concurrent writes never collide
 
-Requirement: [792a3m](#792a3m-concurrent-writes-never-collide) Two `engram learn` runs against one vault at the same time MUST give their notes
+Requirement: [792a3m Concurrent writes never collide](#792a3m-concurrent-writes-never-collide) Two `engram learn` runs against one vault at the same time MUST give their notes
 distinct Luhmann IDs and MUST NOT overwrite each other's note.
 
 Rationale: before every vault writer took the vault lock, two concurrent writers corrupted vault and
@@ -784,7 +784,7 @@ Scenario: 792a3m1a Concurrent learns get distinct IDs
 
 ### 792a3n Embed on write
 
-Requirement: [792a3n](#792a3n-embed-on-write) Every note `engram learn` writes MUST have a sibling `.vec.json` embedding
+Requirement: [792a3n Embed on write](#792a3n-embed-on-write) Every note `engram learn` writes MUST have a sibling `.vec.json` embedding
 sidecar, named after the note, by the time the command returns. When embedding the note fails, the
 note MUST still be written, and the command MUST print a warning naming the note and succeed.
 
@@ -808,7 +808,7 @@ Scenario: 792a3n1b A failed embedding keeps the note
 
 ### 792a3o Repository provenance
 
-Requirement: [792a3o](#792a3o-repository-provenance) `engram learn fact`, `feedback` and `runbook` MUST stamp `repo:` with the
+Requirement: [792a3o Repository provenance](#792a3o-repository-provenance) `engram learn fact`, `feedback` and `runbook` MUST stamp `repo:` with the
 working directory's git `origin` remote URL, or, when there is no `origin` remote, with the basename
 of the working directory's git top-level directory, and MUST omit `repo:` outside a git repository.
 
@@ -838,7 +838,7 @@ Scenario: 792a3o1c Outside a git repository there is no repo
 
 ### 792a3p User provenance
 
-Requirement: [792a3p](#792a3p-user-provenance) `engram learn fact`, `feedback` and `runbook` MUST stamp `user:` with
+Requirement: [792a3p User provenance](#792a3p-user-provenance) `engram learn fact`, `feedback` and `runbook` MUST stamp `user:` with
 `git config user.email`, or, when that resolves to nothing, with the OS username. When neither
 resolves, the note MUST be written without a `user:` field, never with an empty one, and the command
 MUST print one warning that user detection resolved empty.
@@ -864,7 +864,7 @@ Scenario: 792a3p1c No detectable user
 
 ### 792a3q Question-and-answer pairs
 
-Requirement: [792a3q](#792a3q-question-and-answer-pairs) `engram learn qa` MUST write two notes at the vault root,
+Requirement: [792a3q Question-and-answer pairs](#792a3q-question-and-answer-pairs) `engram learn qa` MUST write two notes at the vault root,
 `qa.<YYYY-MM-DD>.<slug>.q.md` and `qa.<YYYY-MM-DD>.<slug>.a.md`, and print both paths, the question's
 first. The question note's frontmatter carries `type: qa-question`, `date`,
 `answered_by: <answer basename>` and `source`, and its body is the question followed by the line
@@ -878,7 +878,7 @@ Rationale: an answer is a reasoned conclusion with provenance, while a question 
 wording that measurably loses retrieval against notes with content: re-anchoring notes to their
 questions gave no delivery benefit and lost retrieval in 10 of 10 cases. So the pair is linked both
 ways, the answer competes for retrieval, and the question is reachable only through its answer
-([792a3t](#792a3t-question-and-answer-retrieval)). An earlier design excluded both halves.
+([792a3t Question-and-answer retrieval](#792a3t-question-and-answer-retrieval)). An earlier design excluded both halves.
 
 #### 792a3q1 UAT Scenarios
 
@@ -901,7 +901,7 @@ Scenario: 792a3q1c The answer can come from a file
 
 ### 792a3r Question-and-answer validation
 
-Requirement: [792a3r](#792a3r-question-and-answer-validation) `engram learn qa` MUST refuse, before writing either note, a missing or invalid
+Requirement: [792a3r Question-and-answer validation](#792a3r-question-and-answer-validation) `engram learn qa` MUST refuse, before writing either note, a missing or invalid
 `--slug`, a missing or blank `--question`, anything other than exactly one of `--answer` and
 `--answer-file`, a missing `--source`, a `--certainty` other than `high`, `medium` or `low`, and a
 `--contributors` value that is not the basename of a note in the vault. An absent `--certainty`
@@ -933,7 +933,7 @@ Scenario: 792a3r1b Certainty defaults to medium
 
 ### 792a3s Question-and-answer partial failure
 
-Requirement: [792a3s](#792a3s-question-and-answer-partial-failure) When the answer note cannot be written, `engram learn qa` MUST remove the
+Requirement: [792a3s Question-and-answer partial failure](#792a3s-question-and-answer-partial-failure) When the answer note cannot be written, `engram learn qa` MUST remove the
 question note it has just written and fail with an error saying the answer note failed.
 
 #### 792a3s1 UAT Scenarios
@@ -947,7 +947,7 @@ Scenario: 792a3s1a A failed answer removes the question
 
 ### 792a3t Question-and-answer retrieval
 
-Requirement: [792a3t](#792a3t-question-and-answer-retrieval) `engram query` MUST return answer notes as it returns any other note, and MUST
+Requirement: [792a3t Question-and-answer retrieval](#792a3t-question-and-answer-retrieval) `engram query` MUST return answer notes as it returns any other note, and MUST
 NOT return question notes.
 
 #### 792a3t1 UAT Scenarios
@@ -961,7 +961,7 @@ Scenario: 792a3t1a The answer is found and the question is not
 
 ### 792a3u Vocabulary tagging by kind
 
-Requirement: [792a3u](#792a3u-vocabulary-tagging-by-kind) The vault's write-time vocabulary tagging MUST apply to every fact, feedback,
+Requirement: [792a3u Vocabulary tagging by kind](#792a3u-vocabulary-tagging-by-kind) The vault's write-time vocabulary tagging MUST apply to every fact, feedback,
 runbook and answer note `engram learn` writes, and MUST NOT apply to question notes.
 
 Rationale: the answer is the half that competes for retrieval, so it is tagged like any other note;
@@ -995,7 +995,7 @@ controlled-vocabulary ([792a6 controlled-vocabulary](#792a6-added-controlled-voc
 
 ### 792a4a Note references
 
-Requirement: [792a4a](#792a4a-note-references) `engram amend --target` and `engram resituate --note` MUST accept a note's full
+Requirement: [792a4a Note references](#792a4a-note-references) `engram amend --target` and `engram resituate --note` MUST accept a note's full
 basename, the basename followed by `.md`, a `[[wikilink]]` to it (with or without a `|display`
 part), or its bare Luhmann ID, and MUST fail with an error saying the note was not found, naming
 the reference as given, and write nothing when no note matches.
@@ -1024,7 +1024,7 @@ Scenario: 792a4a1b An unknown reference is refused
 
 ### 792a4b Field replacement
 
-Requirement: [792a4b](#792a4b-field-replacement) `engram amend` MUST replace only the content fields it is given that belong to
+Requirement: [792a4b Field replacement](#792a4b-field-replacement) `engram amend` MUST replace only the content fields it is given that belong to
 the note's kind — `--situation`, `--subject`, `--predicate` and `--object` for a fact;
 `--situation`, `--behavior`, `--impact` and `--action` for feedback; `--situation`, `--done-when`,
 `--body`, and the whole `red_flags:` and `triggers:` lists from repeated `--red-flag` and
@@ -1056,7 +1056,7 @@ Scenario: 792a4b1c A runbook's steps and red flags are replaced
 
 ### 792a4c Other note kinds are refused
 
-Requirement: [792a4c](#792a4c-other-note-kinds-are-refused) `engram amend` MUST refuse, writing nothing, a note that is not a fact,
+Requirement: [792a4c Other note kinds are refused](#792a4c-other-note-kinds-are-refused) `engram amend` MUST refuse, writing nothing, a note that is not a fact,
 feedback or runbook note, or that has no frontmatter.
 
 #### 792a4c1 UAT Scenarios
@@ -1070,7 +1070,7 @@ Scenario: 792a4c1a A question-and-answer note is refused
 
 ### 792a4d Supersession
 
-Requirement: [792a4d](#792a4d-supersession) `engram amend --supersedes <note>|<type>|<claim>`, repeatable, MUST replace the
+Requirement: [792a4d Supersession](#792a4d-supersession) `engram amend --supersedes <note>|<type>|<claim>`, repeatable, MUST replace the
 note's whole `supersedes:` list and all of its `Supersedes:` body lines with the given entries, and
 `engram learn` and `engram amend` MUST write each body line as `Supersedes: [[<target>]] — <type>:
 <claim>`, where `<target>` drops any trailing `.md` from the given note, while the entry's `note:`
@@ -1097,7 +1097,7 @@ Scenario: 792a4d1b The list is replaced, not appended to
 
 ### 792a4e Chunk sources
 
-Requirement: [792a4e](#792a4e-chunk-sources) `engram amend --chunk-source <source#anchor>`, repeatable, MUST add each chunk
+Requirement: [792a4e Chunk sources](#792a4e-chunk-sources) `engram amend --chunk-source <source#anchor>`, repeatable, MUST add each chunk
 ID to the note's `sources:` once, after the IDs already there, and MUST keep every ID already
 there.
 
@@ -1112,12 +1112,12 @@ Scenario: 792a4e1a Chunk sources are merged without duplicates
 
 ### 792a4f Amend argument validation
 
-Requirement: [792a4f](#792a4f-amend-argument-validation) `engram amend` MUST refuse, writing nothing, a `--supersedes` that is not
+Requirement: [792a4f Amend argument validation](#792a4f-amend-argument-validation) `engram amend` MUST refuse, writing nothing, a `--supersedes` that is not
 `<note>|<type>|<claim>` with a type of `updates`, `narrows` or `refutes`, a `--trigger` shorter than
 three characters after trimming, and a `--chunk-source` ID that the chunk index does not hold.
 
 Rationale: `engram learn` records chunk sources without checking them, because the chunks a note is
-written from may not be indexed yet ([792a3h](#792a3h-optional-metadata)). An amend runs later, so it can check them.
+written from may not be indexed yet ([792a3h Optional metadata](#792a3h-optional-metadata)). An amend runs later, so it can check them.
 
 #### 792a4f1 UAT Scenarios
 
@@ -1137,7 +1137,7 @@ Scenario Outline: 792a4f1a An invalid amend argument is refused before any write
 
 ### 792a4g Re-embedding after an amend
 
-Requirement: [792a4g](#792a4g-re-embedding-after-an-amend) When `engram amend` changes a content field of the note, it MUST rebuild the
+Requirement: [792a4g Re-embedding after an amend](#792a4g-re-embedding-after-an-amend) When `engram amend` changes a content field of the note, it MUST rebuild the
 note's `.vec.json` sidecar, and when it changes only supersessions, chunk sources or identity, it
 MUST NOT rebuild the sidecar. When rebuilding fails, the note MUST still be written, and the
 command MUST print a warning naming the note and succeed.
@@ -1168,9 +1168,9 @@ Scenario: 792a4g1c A failed re-embed keeps the amend
 
 ### 792a4h Identity re-stamp
 
-Requirement: [792a4h](#792a4h-identity-re-stamp) An `engram amend` given any content flag, `--supersedes` or `--chunk-source`
+Requirement: [792a4h Identity re-stamp](#792a4h-identity-re-stamp) An `engram amend` given any content flag, `--supersedes` or `--chunk-source`
 MUST overwrite the note's `repo:`, `user:` and `vault:` with the values detected in its own
-environment, as `engram learn` detects them ([792a3o](#792a3o-repository-provenance), [792a3p](#792a3p-user-provenance), [792a2b](#792a2b-vault-name)), whatever the note held
+environment, as `engram learn` detects them ([792a3o Repository provenance](#792a3o-repository-provenance), [792a3p User provenance](#792a3p-user-provenance), [792a2b Vault name](#792a2b-vault-name)), whatever the note held
 before and whatever its `project:` says. When user detection resolves empty, it MUST keep a
 non-empty `user:` the note already has and print a warning naming the note, and MUST leave `user:`
 absent when the note has none, never writing `user: ""`. An `engram amend --activate` with none of
@@ -1224,8 +1224,8 @@ Scenario: 792a4h1g Recording a use keeps the declared identity
 
 ### 792a4i Vault name on every amend
 
-Requirement: [792a4i](#792a4i-vault-name-on-every-amend) Every `engram amend` that writes a note, one that keeps its declared identity
-included, MUST write the resolved vault name ([792a2b](#792a2b-vault-name)) into a note whose `vault:` is absent or
+Requirement: [792a4i Vault name on every amend](#792a4i-vault-name-on-every-amend) Every `engram amend` that writes a note, one that keeps its declared identity
+included, MUST write the resolved vault name ([792a2b Vault name](#792a2b-vault-name)) into a note whose `vault:` is absent or
 empty, and MUST keep a `vault:` the note declares.
 
 Rationale: a `vault: ""` would look like a real value to every later reader, and a note written
@@ -1242,7 +1242,7 @@ Scenario: 792a4i1a A use recorded on a note without vault fills it in
 
 ### 792a4j Untouched frontmatter is kept
 
-Requirement: [792a4j](#792a4j-untouched-frontmatter-is-kept) `engram amend` and `engram resituate` MUST keep every frontmatter key they do
+Requirement: [792a4j Untouched frontmatter is kept](#792a4j-untouched-frontmatter-is-kept) `engram amend` and `engram resituate` MUST keep every frontmatter key they do
 not change, with its value, including keys engram does not define and YAML anchors on keys they do
 not edit. When an amend replaces `supersedes:`, an entry that names the same note as an existing
 entry, compared without a trailing `.md`, MUST keep the existing entry's keys that engram does not
@@ -1278,7 +1278,7 @@ Scenario: 792a4j1d Resituate keeps every untouched field
 
 ### 792a4k Anchored keys are refused
 
-Requirement: [792a4k](#792a4k-anchored-keys-are-refused) `engram amend` and `engram resituate` MUST refuse, leaving the note unchanged,
+Requirement: [792a4k Anchored keys are refused](#792a4k-anchored-keys-are-refused) `engram amend` and `engram resituate` MUST refuse, leaving the note unchanged,
 an edit to a frontmatter key whose key or value, or anything beneath the value, carries a YAML
 anchor, with an error naming the key.
 
@@ -1301,7 +1301,7 @@ Scenario: 792a4k1b Resituate refuses an anchored situation
 
 ### 792a4l Resituation
 
-Requirement: [792a4l](#792a4l-resituation) `engram resituate --note <ref> --situation <text>` MUST replace a fact or
+Requirement: [792a4l Resituation](#792a4l-resituation) `engram resituate --note <ref> --situation <text>` MUST replace a fact or
 feedback note's `situation:` with the text, rebuild the first line of its body around it, keep the
 rest of the body, rebuild the note's sidecar, and print the note's path on stdout, and MUST refuse,
 writing nothing, a note of any other kind. When rebuilding the sidecar fails, the command MUST fail
@@ -1333,7 +1333,7 @@ Scenario: 792a4l1c A failed sidecar rebuild fails the command
 
 ### 792a4m CRLF notes
 
-Requirement: [792a4m](#792a4m-crlf-notes) `engram amend` and `engram resituate` MUST read a note whose lines end in
+Requirement: [792a4m CRLF notes](#792a4m-crlf-notes) `engram amend` and `engram resituate` MUST read a note whose lines end in
 `\r\n` as its LF form, never refusing it for its line endings, MUST write it as LF in the single
 write they make, byte-identical to what the same command writes for the note's LF form, and MUST
 rebuild its sidecar.
@@ -1359,7 +1359,7 @@ Scenario: 792a4m1b Resituate converts a CRLF note
 
 ### 792a4n Activation
 
-Requirement: [792a4n](#792a4n-activation) `engram activate --note <ref>`, repeatable, where each ref is a note's path,
+Requirement: [792a4n Activation](#792a4n-activation) `engram activate --note <ref>`, repeatable, where each ref is a note's path,
 absolute or relative to the vault, with or without `.md`, MUST record today's date as the last-used
 date in each named note's sidecar, changing nothing else in the sidecar and nothing in the note, and
 MUST count a note that has no sidecar as activated. With no parent configured, a ref that names no
@@ -1397,7 +1397,7 @@ Scenario: 792a4n1d Amend records a use
 
 ### 792a4o Concurrent revisions never lose an update
 
-Requirement: [792a4o](#792a4o-concurrent-revisions-never-lose-an-update) Two vault writers — `engram amend`, `resituate`, `activate` or `learn` —
+Requirement: [792a4o Concurrent revisions never lose an update](#792a4o-concurrent-revisions-never-lose-an-update) Two vault writers — `engram amend`, `resituate`, `activate` or `learn` —
 running against one vault at the same time MUST NOT lose either one's change to a note, and MUST
 NOT leave a note's sidecar holding the vectors of the note's earlier text.
 
@@ -1432,7 +1432,7 @@ duplicate index files belongs to install-and-update ([792a11 install-and-update]
 
 ### 792a5a Chunk index location
 
-Requirement: [792a5a](#792a5a-chunk-index-location) Every engram command that reads or writes the chunk index MUST use the
+Requirement: [792a5a Chunk index location](#792a5a-chunk-index-location) Every engram command that reads or writes the chunk index MUST use the
 directory given by `--chunks-dir` when it is non-empty, else `ENGRAM_CHUNKS_DIR` when it is
 non-empty, else `$XDG_DATA_HOME/engram/chunks` when `XDG_DATA_HOME` is non-empty, else
 `~/.local/share/engram/chunks`.
@@ -1467,7 +1467,7 @@ Scenario: 792a5a1d The home directory is the last fallback
 
 ### 792a5b Explicitly named sources
 
-Requirement: [792a5b](#792a5b-explicitly-named-sources) `engram ingest` MUST index each file named by a repeatable `--transcript`
+Requirement: [792a5b Explicitly named sources](#792a5b-explicitly-named-sources) `engram ingest` MUST index each file named by a repeatable `--transcript`
 (a session transcript) or `--markdown` (a Markdown document), and each `.md` and `.jsonl` file under
 each directory named by a repeatable `--pi-sessions`, skipping that directory's `jobs/` and
 `projects/` subdirectories and its hidden subdirectories. It MUST ignore a `--pi-sessions` value that
@@ -1505,7 +1505,7 @@ Scenario Outline: 792a5b1d An unreadable named file fails the command
 
 ### 792a5c Swept directories
 
-Requirement: [792a5c](#792a5c-swept-directories) `engram ingest --sweep <dir>`, repeatable, MUST index every `.md` and `.jsonl`
+Requirement: [792a5c Swept directories](#792a5c-swept-directories) `engram ingest --sweep <dir>`, repeatable, MUST index every `.md` and `.jsonl`
 file under the directory, skipping hidden subdirectories, subdirectories named `node_modules`,
 `vendor`, `.git`, `.hg`, `.jj`, `dist`, `build`, `target`, `.venv`, `venv`, `__pycache__`, `.next`,
 `.cache` or `.idea`, and any file inside the chunk index directory. A swept file that cannot be read
@@ -1537,7 +1537,7 @@ Scenario: 792a5c1c The chunk index directory is never indexed
 
 ### 792a5d Automatic sweep roots
 
-Requirement: [792a5d](#792a5d-automatic-sweep-roots) `engram ingest --auto` MUST sweep, as in [792a5c](#792a5c-swept-directories), the repository root (the
+Requirement: [792a5d Automatic sweep roots](#792a5d-automatic-sweep-roots) `engram ingest --auto` MUST sweep, as in [792a5c Swept directories](#792a5c-swept-directories), the repository root (the
 nearest ancestor of the working directory, itself included, that contains `.git`, `.hg` or `.jj`, or
 the working directory when none does), every `.claude` and every `.pi` directory on the working
 directory's ancestor chain up to the filesystem root, and the session-log directory
@@ -1580,7 +1580,7 @@ Scenario: 792a5d1d ENGRAM_TRANSCRIPT_DIR names the session logs
 
 ### 792a5e Repository sweep configuration
 
-Requirement: [792a5e](#792a5e-repository-sweep-configuration) `engram ingest --auto` MUST read `.engram/sweep.json` at the repository root
+Requirement: [792a5e Repository sweep configuration](#792a5e-repository-sweep-configuration) `engram ingest --auto` MUST read `.engram/sweep.json` at the repository root
 when it exists, letting each key it sets replace that setting's default: `repo_markdown`,
 `ancestor_claude_dirs`, `ancestor_pi_dirs` and `session_logs` (each root on or off),
 `extra_roots` (more directories to sweep), `exclude_dirs`, `claude_exclude_dirs`,
@@ -1607,7 +1607,7 @@ Scenario: 792a5e1b A malformed sweep file is refused
 
 ### 792a5f Throwaway workspaces are not swept
 
-Requirement: [792a5f](#792a5f-throwaway-workspaces-are-not-swept) `engram ingest --auto` MUST NOT index a session-log project directory whose name
+Requirement: [792a5f Throwaway workspaces are not swept](#792a5f-throwaway-workspaces-are-not-swept) `engram ingest --auto` MUST NOT index a session-log project directory whose name
 starts with `-private-tmp-`, `-tmp-`, `-var-folders-` or `-private-var-folders-`, and MUST NOT sweep a
 repository, `.claude`, `.pi` or session-log root whose own path is, or is under, `/tmp`,
 `/private/tmp`, `/var/folders` or `/private/var/folders`. Files named by `--transcript`, `--markdown`
@@ -1648,7 +1648,7 @@ Scenario: 792a5f1d Explicit sources are indexed anywhere
 
 ### 792a5g Transcript content
 
-Requirement: [792a5g](#792a5g-transcript-content) `engram ingest` MUST index a session transcript as its user and assistant text,
+Requirement: [792a5g Transcript content](#792a5g-transcript-content) `engram ingest` MUST index a session transcript as its user and assistant text,
 each turn's text prefixed `USER: ` or `ASSISTANT: `, with each tool call whose result is recorded as
 plain text shown as one `[tool] <name>(<arguments>) → exit <0|1> | <first output line>` line, and
 MUST leave out every other
@@ -1670,7 +1670,7 @@ Scenario: 792a5g1a A conversation is indexed as text with tool summaries
 
 ### 792a5h Chunk boundaries and IDs
 
-Requirement: [792a5h](#792a5h-chunk-boundaries-and-ids) `engram ingest` MUST cut a Markdown document into one chunk per heading section,
+Requirement: [792a5h Chunk boundaries and IDs](#792a5h-chunk-boundaries-and-ids) `engram ingest` MUST cut a Markdown document into one chunk per heading section,
 ignoring headings inside fenced code, with the heading's text as the anchor and `preamble` for text
 before the first heading. It MUST cut a transcript into chunks of consecutive turns of about 500
 characters, anchored `turn-<N>` by the first user turn they hold, or `preamble` for text before the
@@ -1704,7 +1704,7 @@ Scenario: 792a5h1d A long section is split under one anchor
 
 ### 792a5i Incremental re-indexing
 
-Requirement: [792a5i](#792a5i-incremental-re-indexing) `engram ingest` MUST NOT read or re-embed a source whose modification time and
+Requirement: [792a5i Incremental re-indexing](#792a5i-incremental-re-indexing) `engram ingest` MUST NOT read or re-embed a source whose modification time and
 size match its last ingest, MUST re-chunk a source whose content changed and embed only the chunks
 whose text is not already in that source's index, and MUST print
 `ingest <path>: <N> chunks (<R> reused, <E> embedded)` for each source it re-chunks, where `<N>` is
@@ -1730,7 +1730,7 @@ Scenario: 792a5i1b A changed source embeds only its new text
 
 ### 792a5j A source's chunks are never dropped
 
-Requirement: [792a5j](#792a5j-a-sources-chunks-are-never-dropped) When a source's content changes, `engram ingest` MUST keep every chunk the source
+Requirement: [792a5j A source's chunks are never dropped](#792a5j-a-sources-chunks-are-never-dropped) When a source's content changes, `engram ingest` MUST keep every chunk the source
 yielded on earlier ingests, alongside the chunks of its new content.
 
 Rationale: an embedded chunk is the memory; its source is only where it came from. Keeping earlier
@@ -1748,7 +1748,7 @@ Scenario: 792a5j1a Edited-away text stays searchable
 
 ### 792a5k Sources without chunks leave no index file
 
-Requirement: [792a5k](#792a5k-sources-without-chunks-leave-no-index-file) `engram ingest` MUST NOT write an index file for a source that yields no
+Requirement: [792a5k Sources without chunks leave no index file](#792a5k-sources-without-chunks-leave-no-index-file) `engram ingest` MUST NOT write an index file for a source that yields no
 chunks.
 
 Rationale: every query opens every index file, so an empty file costs a read on every query and adds
@@ -1765,7 +1765,7 @@ Scenario: 792a5k1a An empty transcript writes no index file
 
 ### 792a5l Identical content is indexed once
 
-Requirement: [792a5l](#792a5l-identical-content-is-indexed-once) When sources of the same kind (transcript or Markdown) have byte-identical
+Requirement: [792a5l Identical content is indexed once](#792a5l-identical-content-is-indexed-once) When sources of the same kind (transcript or Markdown) have byte-identical
 content, `engram ingest` MUST index only one of them, chosen by precedence: a source named by
 `--transcript`, `--markdown` or `--pi-sessions`; then one under the repository root; then one under
 an ancestor `.claude` or `.pi` directory, nearest the working directory first; then any other; and
@@ -1808,15 +1808,15 @@ Scenario: 792a5l1d A transcript and a document with the same bytes are both inde
 
 ### 792a5m A later, preferred copy replaces an indexed one
 
-Requirement: [792a5m](#792a5m-a-later-preferred-copy-replaces-an-indexed-one) When an already-indexed source becomes a copy of a newly found source that takes
-precedence over it ([792a5l](#792a5l-identical-content-is-indexed-once)), `engram ingest` MUST index the preferred source and remove the other
+Requirement: [792a5m A later, preferred copy replaces an indexed one](#792a5m-a-later-preferred-copy-replaces-an-indexed-one) When an already-indexed source becomes a copy of a newly found source that takes
+precedence over it ([792a5l Identical content is indexed once](#792a5l-identical-content-is-indexed-once)), `engram ingest` MUST index the preferred source and remove the other
 source's chunks, but only when every chunk the other source holds is also among the preferred
 source's chunks. Otherwise it MUST keep the other source's chunks and print
 ``ingest: refusing to evict <path>: canonical <path> does not verifiably cover its records (needs review — run `engram prune --duplicates` once resolved)``.
 When the preferred copy stops being found, the remaining copy MUST be indexed again.
 
 Rationale: byte-identical content today does not mean identical chunks, because a source keeps every
-chunk of its earlier versions ([792a5j](#792a5j-a-sources-chunks-are-never-dropped)). Two files equal now can hold different histories, and
+chunk of its earlier versions ([792a5j A source's chunks are never dropped](#792a5j-a-sources-chunks-are-never-dropped)). Two files equal now can hold different histories, and
 removing one on the strength of the other would destroy chunks that exist nowhere else. On a real
 index, 124 of 6,612 index files held chunks from more than one ingest day, which is exactly that
 shape.
@@ -1842,8 +1842,8 @@ Scenario: 792a5m1c The remaining copy is indexed when the preferred one goes awa
 
 ### 792a5n Stray vault-note copies are not indexed
 
-Requirement: [792a5n](#792a5n-stray-vault-note-copies-are-not-indexed) `engram ingest` MUST NOT index a swept `.md` file that has a sibling `.vec.json`
-file and lies outside the vault ([792a2a](#792a2a-vault-location)), and MUST index such a file when it lies inside the vault or
+Requirement: [792a5n Stray vault-note copies are not indexed](#792a5n-stray-vault-note-copies-are-not-indexed) `engram ingest` MUST NOT index a swept `.md` file that has a sibling `.vec.json`
+file and lies outside the vault ([792a2a Vault location](#792a2a-vault-location)), and MUST index such a file when it lies inside the vault or
 is named by `--markdown`.
 
 Rationale: a vault note always has a `.vec.json` sidecar beside it, so such a file outside the vault
@@ -1862,7 +1862,7 @@ Scenario: 792a5n1a A vault-note copy outside the vault is skipped
 
 ### 792a5o Concurrent index writers never lose an update
 
-Requirement: [792a5o](#792a5o-concurrent-index-writers-never-lose-an-update) `engram ingest` and `engram prune` runs against one chunk index at the same time
+Requirement: [792a5o Concurrent index writers never lose an update](#792a5o-concurrent-index-writers-never-lose-an-update) `engram ingest` and `engram prune` runs against one chunk index at the same time
 MUST NOT lose either one's change to the index's record of sources.
 
 Rationale: concurrent ingest and prune runs once lost manifest entries in production (#660): each
@@ -1879,7 +1879,7 @@ Scenario: 792a5o1a An ingest and a prune at the same time both take effect
 
 ### 792a5p Prune detaches vanished sources
 
-Requirement: [792a5p](#792a5p-prune-detaches-vanished-sources) `engram prune` MUST stop recording each indexed source whose file no longer
+Requirement: [792a5p Prune detaches vanished sources](#792a5p-prune-detaches-vanished-sources) `engram prune` MUST stop recording each indexed source whose file no longer
 exists, MUST keep that source's chunks in the index and searchable, and MUST print
 `prune: detached <N> source(s) — embedded chunks preserved (still searchable)`, or
 `prune: no dead sources` when every recorded source exists, or `prune: no manifest, nothing to prune`
@@ -1916,11 +1916,11 @@ Scenario: 792a5p1d A dry run changes nothing
 
 ### 792a5q Prune removes empty index files
 
-Requirement: [792a5q](#792a5q-prune-removes-empty-index-files) `engram prune --empty` MUST remove every empty index file in the chunk index and
+Requirement: [792a5q Prune removes empty index files](#792a5q-prune-removes-empty-index-files) `engram prune --empty` MUST remove every empty index file in the chunk index and
 print `prune: removed <N> empty chunk-index file(s) of <M> scanned`. With `--dry-run` it MUST print
 the same line prefixed `[dry-run] ` and remove nothing.
 
-Rationale: indexes built before [792a5k](#792a5k-sources-without-chunks-leave-no-index-file) left an empty file for each source with no chunks. Removing
+Rationale: indexes built before [792a5k Sources without chunks leave no index file](#792a5k-sources-without-chunks-leave-no-index-file) left an empty file for each source with no chunks. Removing
 them changes no search result, since they hold no chunks.
 
 #### 792a5q1 UAT Scenarios
@@ -1939,8 +1939,8 @@ Scenario: 792a5q1b A dry run removes nothing
 
 ### 792a5r Prune removes duplicate index files
 
-Requirement: [792a5r](#792a5r-prune-removes-duplicate-index-files) `engram prune --duplicates` MUST group the recorded sources that are not already
-recorded as copies by content and kind ([792a5l](#792a5l-identical-content-is-indexed-once)), keep one source of each group, choosing the path
+Requirement: [792a5r Prune removes duplicate index files](#792a5r-prune-removes-duplicate-index-files) `engram prune --duplicates` MUST group the recorded sources that are not already
+recorded as copies by content and kind ([792a5l Identical content is indexed once](#792a5l-identical-content-is-indexed-once)), keep one source of each group, choosing the path
 with the fewest separators and then the lexicographically first path, and remove every other
 source's chunks and record, but only when the kept source has chunks in the index that include all
 of the removed source's chunks. It MUST then print
@@ -1952,11 +1952,11 @@ refusal whose group does have chunks elsewhere. A removal that fails MUST print
 how many of how many removals failed. With `--dry-run` it MUST report the same counts, each line
 prefixed `[dry-run] `, and change nothing.
 
-Rationale: ingest-time deduplication ([792a5l](#792a5l-identical-content-is-indexed-once)) prevents new copies but does nothing for copies
+Rationale: ingest-time deduplication ([792a5l Identical content is indexed once](#792a5l-identical-content-is-indexed-once)) prevents new copies but does nothing for copies
 indexed before it existed, so this mode cleans up that backlog. It runs only when asked, because it
 removes index files from the user's memory store. It knows only the paths in the index's record, not
 how each was found, so it cannot apply ingest's precedence; a later `engram ingest --auto` may then
-replace the copy it kept with a preferred one ([792a5m](#792a5m-a-later-preferred-copy-replaces-an-indexed-one)), once per group. On one real index it removed
+replace the copy it kept with a preferred one ([792a5m A later, preferred copy replaces an indexed one](#792a5m-a-later-preferred-copy-replaces-an-indexed-one)), once per group. On one real index it removed
 1,960 of 8,572 index files (−23%).
 
 #### 792a5r1 UAT Scenarios
@@ -1997,14 +1997,14 @@ Every note that engram writes is tagged `vocab/<term>` with the terms closest to
 `engram vocab refit` re-derives the term set from the vault's own notes as it grows. `engram vocab`
 also seeds, extends, reports on and repairs the vocabulary, and `engram update` flags vaults that
 need a vocabulary migration. Which kinds of note are tagged (every kind but questions) is
-note-writing's [792a3u](#792a3u-vocabulary-tagging-by-kind). Using the vocabulary at query time, including the query payload's
+note-writing's [792a3u Vocabulary tagging by kind](#792a3u-vocabulary-tagging-by-kind). Using the vocabulary at query time, including the query payload's
 `refit_pending` field, is the memory-query capability ([792a7 memory-query](#792a7-added-memory-query)); acting on a pending refit is the learn
 skill's ([792a15 learn](#792a15-added-learn)). Tagging the notes that a pull-down or a served learn writes belongs to parent-sync ([792a21 parent-sync](#792a21-added-parent-sync)) and
-vault-serving ([792a20o](#792a20o-the-receiving-vault-tags-a-served-offer)).
+vault-serving ([792a20o The receiving vault tags a served offer](#792a20o-the-receiving-vault-tags-a-served-offer)).
 
 ### 792a6a Definition notes
 
-Requirement: [792a6a](#792a6a-definition-notes) Every term definition that `engram vocab bootstrap`, `engram vocab propose` or
+Requirement: [792a6a Definition notes](#792a6a-definition-notes) Every term definition that `engram vocab bootstrap`, `engram vocab propose` or
 `engram vocab refit` writes MUST be a top-level fact note with the slug `vocab-<term>-definition`,
 `tags: [vocab, vocab/<term>]`, `tier: L2`, situation `recalling what the <term> vocab term covers, or
 assigning vocab terms`, subject `the <term> vocab term`, predicate `covers`, the term's description as
@@ -2036,7 +2036,7 @@ Scenario: 792a6a1b A definition is never assigned a term
 
 ### 792a6b The family note
 
-Requirement: [792a6b](#792a6b-the-family-note) The vault's vocabulary MUST be recorded by one family note, slug
+Requirement: [792a6b The family note](#792a6b-the-family-note) The vault's vocabulary MUST be recorded by one family note, slug
 `vocab-definition`, tagged only `vocab`, whose frontmatter carries the vault-wide `vocab_version`
 and whose text describes the tagging convention without naming any term. `engram vocab bootstrap`
 and `engram update --regen-vocab` MUST create it with version `1.0` when it is absent and MUST leave
@@ -2063,7 +2063,7 @@ Scenario: 792a6b1b The version follows propose and refit
 
 ### 792a6c Categorical tags share one list
 
-Requirement: [792a6c](#792a6c-categorical-tags-share-one-list) A note's categorical classifications MUST all live in its `tags:` list:
+Requirement: [792a6c Categorical tags share one list](#792a6c-categorical-tags-share-one-list) A note's categorical classifications MUST all live in its `tags:` list:
 vocabulary tagging, refit and `engram update --regen-vocab` MUST change only the `vocab/<term>`
 entries, keeping every other tag and its order.
 
@@ -2100,7 +2100,7 @@ Scenario: 792a6c1b A categorical tag survives a refit
 
 ### 792a6d Write-time vocabulary tagging
 
-Requirement: [792a6d](#792a6d-write-time-vocabulary-tagging) After `engram learn`, `engram amend` or `engram resituate` writes a note, the
+Requirement: [792a6d Write-time vocabulary tagging](#792a6d-write-time-vocabulary-tagging) After `engram learn`, `engram amend` or `engram resituate` writes a note, the
 note's `vocab/<term>` tags MUST be set to the terms whose vector has a cosine similarity of at least
 0.35 with the note's body vector, at most three, highest first with ties in term-name order,
 replacing any earlier vocabulary tags. A note with no qualifying term MUST lose its vocabulary tags,
@@ -2145,7 +2145,7 @@ Scenario: 792a6d1e A resituated note is re-tagged
 
 ### 792a6e Tagging is skipped without a vocabulary or an embedding
 
-Requirement: [792a6e](#792a6e-tagging-is-skipped-without-a-vocabulary-or-an-embedding) A note write MUST succeed and write no vocabulary tag when the vault has no
+Requirement: [792a6e Tagging is skipped without a vocabulary or an embedding](#792a6e-tagging-is-skipped-without-a-vocabulary-or-an-embedding) A note write MUST succeed and write no vocabulary tag when the vault has no
 definition note with a sidecar, or when the written note has no sidecar.
 
 #### 792a6e1 UAT Scenarios
@@ -2164,7 +2164,7 @@ Scenario: 792a6e1b A note whose embedding failed is not tagged
 
 ### 792a6f CRLF notes
 
-Requirement: [792a6f](#792a6f-crlf-notes) Vocabulary tagging, term removal and refit MUST read a note with CRLF line
+Requirement: [792a6f CRLF notes](#792a6f-crlf-notes) Vocabulary tagging, term removal and refit MUST read a note with CRLF line
 endings as its LF form. A tagging that changes a CRLF note's tags MUST write the note with LF
 endings, and one that changes nothing MUST NOT write the note.
 
@@ -2182,20 +2182,20 @@ Scenario: 792a6f1a Vocab tagging reads a CRLF note
 
 ### 792a6g Bootstrapping a vocabulary
 
-Requirement: [792a6g](#792a6g-bootstrapping-a-vocabulary) `engram vocab bootstrap --seed <file>` MUST read a YAML list of entries with
-`term`, `description` and optional `exemplars`, create the family note when absent ([792a6b](#792a6b-the-family-note)), create a
-definition note ([792a6a](#792a6a-definition-notes)) for every term that has none, and leave terms that already have one
+Requirement: [792a6g Bootstrapping a vocabulary](#792a6g-bootstrapping-a-vocabulary) `engram vocab bootstrap --seed <file>` MUST read a YAML list of entries with
+`term`, `description` and optional `exemplars`, create the family note when absent ([792a6b The family note](#792a6b-the-family-note)), create a
+definition note ([792a6a Definition notes](#792a6a-definition-notes)) for every term that has none, and leave terms that already have one
 untouched. It MUST then tag every note that is neither a definition nor a question in two passes, first
 against the definitions' embeddings and then against each term's centroid (the mean of the notes the
 first pass gave it), MUST record those centroids and the vault's current note count and date as the
 refit baseline, MUST clear any pending refit, and MUST print
 `vocab bootstrap: <N> terms, <M> notes assigned`, where `<N>` is the number of seed entries and `<M>`
 the number of term assignments the second pass made. `--floor` MAY replace the 0.35 similarity floor
-of [792a6d](#792a6d-write-time-vocabulary-tagging) for this run.
+of [792a6d Write-time vocabulary tagging](#792a6d-write-time-vocabulary-tagging) for this run.
 
 Rationale: the second pass replaces each description embedding with the centroid of its members, so
 terms are placed where their notes actually are; centroid assignment is what the 0.35, three-term
-setting of [792a6d](#792a6d-write-time-vocabulary-tagging) was measured with.
+setting of [792a6d Write-time vocabulary tagging](#792a6d-write-time-vocabulary-tagging) was measured with.
 
 #### 792a6g1 UAT Scenarios
 
@@ -2213,7 +2213,7 @@ Scenario: 792a6g1b A second bootstrap creates nothing new
 
 ### 792a6h Bootstrap failures
 
-Requirement: [792a6h](#792a6h-bootstrap-failures) `engram vocab bootstrap` MUST be refused when `--seed` is absent, and MUST fail
+Requirement: [792a6h Bootstrap failures](#792a6h-bootstrap-failures) `engram vocab bootstrap` MUST be refused when `--seed` is absent, and MUST fail
 with an error when the seed file cannot be read or is not a YAML list of entries, in each case
 before writing anything.
 
@@ -2234,9 +2234,9 @@ Scenario Outline: 792a6h1a A bad seed is refused
 
 ### 792a6i Proposing a term
 
-Requirement: [792a6i](#792a6i-proposing-a-term) `engram vocab propose --term <term> --description <text>` MUST require both
-flags, create the term's definition note ([792a6a](#792a6a-definition-notes)), raise the vocabulary's minor version ([792a6b](#792a6b-the-family-note)),
-record the term as proposed ([792a6q](#792a6q-proposed-terms-survive-derivation)), and print `vocab propose: created <term> (version → <v>)`. In a
+Requirement: [792a6i Proposing a term](#792a6i-proposing-a-term) `engram vocab propose --term <term> --description <text>` MUST require both
+flags, create the term's definition note ([792a6a Definition notes](#792a6a-definition-notes)), raise the vocabulary's minor version ([792a6b The family note](#792a6b-the-family-note)),
+record the term as proposed ([792a6q Proposed terms survive derivation](#792a6q-proposed-terms-survive-derivation)), and print `vocab propose: created <term> (version → <v>)`. In a
 vault without a family note it MUST still create the definition and warn that the family note was
 not found.
 
@@ -2266,7 +2266,7 @@ Scenario: 792a6i1c Both flags are required
 
 ### 792a6j Deriving the vocabulary
 
-Requirement: [792a6j](#792a6j-deriving-the-vocabulary) `engram vocab refit` MUST cluster the embeddings of every note that is not a
+Requirement: [792a6j Deriving the vocabulary](#792a6j-deriving-the-vocabulary) `engram vocab refit` MUST cluster the embeddings of every note that is not a
 definition, choosing the number of clusters K between 2 and 40 that gives the highest silhouette
 score, and keeping the previous derivation's K when its score is within 0.02 of the best. When no
 clustering scores at least 0.02, or there are too few notes to cluster, it MUST print
@@ -2297,10 +2297,10 @@ Scenario: 792a6j1b A vault without structure keeps its vocabulary
 
 ### 792a6k Term names stay stable
 
-Requirement: [792a6k](#792a6k-term-names-stay-stable) A derived cluster MUST keep the name and definition note of the existing term
+Requirement: [792a6k Term names stay stable](#792a6k-term-names-stay-stable) A derived cluster MUST keep the name and definition note of the existing term
 whose vector has a cosine similarity of at least 0.80 with the cluster's centroid, pairing clusters
 and terms best match first, each at most once. A cluster that matches no term is new and needs a
-name; an existing term that no cluster matches is retired ([792a6p](#792a6p-retiring-a-term)) unless it was proposed ([792a6q](#792a6q-proposed-terms-survive-derivation)).
+name; an existing term that no cluster matches is retired ([792a6p Retiring a term](#792a6p-retiring-a-term)) unless it was proposed ([792a6q Proposed terms survive derivation](#792a6q-proposed-terms-survive-derivation)).
 
 Rationale: names users and notes already rely on survive re-derivation when the concept is still
 there. Greedy best-first matching is auditable and stable at a few tens of terms.
@@ -2321,7 +2321,7 @@ Scenario: 792a6k1b Unmatched clusters and terms are reported
 
 ### 792a6l Dry run
 
-Requirement: [792a6l](#792a6l-dry-run) `engram vocab refit --dry-run` MUST print `vocab refit (dry-run): K=<k>
+Requirement: [792a6l Dry run](#792a6l-dry-run) `engram vocab refit --dry-run` MUST print `vocab refit (dry-run): K=<k>
 silhouette=<s>`, one `matched:` line per kept term, one `new:` line per new cluster and one
 `retired:` line per retired term, and MUST write nothing.
 
@@ -2339,7 +2339,7 @@ Scenario: 792a6l1a Dry run reports the derivation diff without writing
 
 ### 792a6m Naming requests
 
-Requirement: [792a6m](#792a6m-naming-requests) When a refit finds new clusters and no `--names` file is given, `engram vocab
+Requirement: [792a6m Naming requests](#792a6m-naming-requests) When a refit finds new clusters and no `--names` file is given, `engram vocab
 refit` MUST print a JSON document with a `naming_requests` list, one entry per new cluster holding its
 `cluster` index, `member_count` and up to three `exemplars` (the members nearest its centroid, each
 with its `note` basename, a `title` from its slug and a `snippet` of at most 200 bytes of its body),
@@ -2359,7 +2359,7 @@ Scenario: 792a6m1a New clusters are emitted as naming requests
 
 ### 792a6n Naming answers
 
-Requirement: [792a6n](#792a6n-naming-answers) `engram vocab refit --names <file>` MUST apply the derivation only when the file
+Requirement: [792a6n Naming answers](#792a6n-naming-answers) `engram vocab refit --names <file>` MUST apply the derivation only when the file
 is JSON `{"names":[{"cluster":N,"term":"...","description":"..."}],"fingerprint":"..."}` whose
 fingerprint equals the current vault's, whose entries each name a new cluster exactly once with a
 non-empty term and description, and which names every new cluster. Otherwise it MUST fail, writing
@@ -2391,8 +2391,8 @@ Scenario Outline: 792a6n1a A bad naming answer is refused
 
 ### 792a6o Applying a refit
 
-Requirement: [792a6o](#792a6o-applying-a-refit) A refit that has no new clusters, or whose `--names` answer is accepted, MUST
-raise the major version ([792a6b](#792a6b-the-family-note)), retire the unmatched derived terms ([792a6p](#792a6p-retiring-a-term)), create a definition
+Requirement: [792a6o Applying a refit](#792a6o-applying-a-refit) A refit that has no new clusters, or whose `--names` answer is accepted, MUST
+raise the major version ([792a6b The family note](#792a6b-the-family-note)), retire the unmatched derived terms ([792a6p Retiring a term](#792a6p-retiring-a-term)), create a definition
 note for each named cluster with its exemplars' snippets, re-tag every note that is neither a
 definition nor a question against the derived centroids, record each term's centroid, member count and
 origin with the derivation's K, silhouette and date and a new refit baseline, clear any pending refit,
@@ -2414,7 +2414,7 @@ Scenario: 792a6o1b A refit with nothing to name applies at once
 
 ### 792a6p Retiring a term
 
-Requirement: [792a6p](#792a6p-retiring-a-term) Retiring a term MUST delete its definition note and the note's sidecar, remove
+Requirement: [792a6p Retiring a term](#792a6p-retiring-a-term) Retiring a term MUST delete its definition note and the note's sidecar, remove
 its `vocab/<term>` tag from every note, and remove every reference to the deleted note from the other
 notes' bodies and `supersedes:` lists: a `supersedes:` entry naming it is dropped (and the
 `supersedes:` key with its last entry), a `Supersedes: [[...]]` line linking it is dropped, and any
@@ -2443,7 +2443,7 @@ Scenario: 792a6p1b Retirement leaves no dangling body link
 
 ### 792a6q Proposed terms survive derivation
 
-Requirement: [792a6q](#792a6q-proposed-terms-survive-derivation) A term created by `engram vocab propose` MUST NOT be retired by a refit that
+Requirement: [792a6q Proposed terms survive derivation](#792a6q-proposed-terms-survive-derivation) A term created by `engram vocab propose` MUST NOT be retired by a refit that
 finds no cluster for it: its definition note, its recorded origin `proposed` and its members' tags
 MUST remain, and it MUST keep taking part in tagging.
 
@@ -2461,11 +2461,11 @@ Scenario: 792a6q1a An unmatched proposed term is kept
 
 ### 792a6r Refit takes no term plan
 
-Requirement: [792a6r](#792a6r-refit-takes-no-term-plan) `engram vocab refit` MUST NOT accept an externally authored term plan: the
+Requirement: [792a6r Refit takes no term plan](#792a6r-refit-takes-no-term-plan) `engram vocab refit` MUST NOT accept an externally authored term plan: the
 `--plan` and `--emit-request` flags MUST be refused as undefined.
 
 Rationale: an authored term list cannot coexist with derivation; keeping the plan flow would keep the
-additive path that [792a6j](#792a6j-deriving-the-vocabulary) removed.
+additive path that [792a6j Deriving the vocabulary](#792a6j-deriving-the-vocabulary) removed.
 
 #### 792a6r1 UAT Scenarios
 
@@ -2483,7 +2483,7 @@ Scenario Outline: 792a6r1a The plan flow is gone
 
 ### 792a6s Refit trigger
 
-Requirement: [792a6s](#792a6s-refit-trigger) After every `engram learn`, `engram amend` and `engram resituate` write, the vault
+Requirement: [792a6s Refit trigger](#792a6s-refit-trigger) After every `engram learn`, `engram amend` and `engram resituate` write, the vault
 MUST check whether a refit is due, without running one: when no refit baseline is recorded it MUST
 record the current number of notes that are neither definitions nor questions, and today's date, as
 the baseline; otherwise, when that number has grown by at least 40 since the baseline and at least 14
@@ -2522,18 +2522,18 @@ Scenario: 792a6s1d A high untagged rate alone does not trigger
 
 ### 792a6t Vocabulary statistics
 
-Requirement: [792a6t](#792a6t-vocabulary-statistics) `engram vocab stats` MUST print, without writing anything:
+Requirement: [792a6t Vocabulary statistics](#792a6t-vocabulary-statistics) `engram vocab stats` MUST print, without writing anything:
 `vocab stats (version: <v>)` (`1.0` when there is no family note); `terms: <T>  member-notes: <M>
 untagged: <U>`; `untagged-rate: <r>%`, followed by ` [high]` when the rate is above 8%; for each term
 in name order `  <term>: <n> members`, followed by ` [hub]` when the term tags more than a quarter
 of the member notes and ` [orphan]` when it has fewer than two members; `verdict: REFIT_PENDING
-(<reason>)` when a refit is pending ([792a6s](#792a6s-refit-trigger)) and `verdict: OK` otherwise; `qa pairs: <P>`, the number
+(<reason>)` when a refit is pending ([792a6s Refit trigger](#792a6s-refit-trigger)) and `verdict: OK` otherwise; `qa pairs: <P>`, the number
 of question notes whose answer note exists; and `qa round-2 gate: READY (<P>>=20)` when `<P>` is at
 least 20, else `qa round-2 gate: accumulating (<P>/20)`. Member notes MUST exclude definition notes,
 question notes and files without frontmatter; answer notes MUST count like any other note.
 
 Rationale: the counts describe the notes that tagging applies to, so definitions (whose self-tag is
-display-only) and questions (which carry no vocabulary, [792a3u](#792a3u-vocabulary-tagging-by-kind)) are left out. The untagged rate and
+display-only) and questions (which carry no vocabulary, [792a3u Vocabulary tagging by kind](#792a3u-vocabulary-tagging-by-kind)) are left out. The untagged rate and
 hubs are diagnostics for a person reading the report. The QA lines track the question-and-answer
 kind's second round, which waits for 20 real captured pairs.
 
@@ -2563,7 +2563,7 @@ Scenario: 792a6t1d A pending refit is the verdict
 
 ### 792a6u Self-tag backfill
 
-Requirement: [792a6u](#792a6u-self-tag-backfill) `engram vocab tag-definitions` MUST add the missing `vocab/<term>` self-tag to
+Requirement: [792a6u Self-tag backfill](#792a6u-self-tag-backfill) `engram vocab tag-definitions` MUST add the missing `vocab/<term>` self-tag to
 every definition note, taking the term from its slug, and print `<basename>: added` for each, MUST
 leave a definition that already has it unchanged and print `<basename>: already present`, MUST skip
 the family note printing `<basename>: family note (skipped)`, and MUST skip a bare-`vocab` note whose
@@ -2591,7 +2591,7 @@ Scenario: 792a6u1b Backfill is idempotent
 
 ### 792a6v Update notices
 
-Requirement: [792a6v](#792a6v-update-notices) `engram update` MUST print
+Requirement: [792a6v Update notices](#792a6v-update-notices) `engram update` MUST print
 `old-format vocab files found — run `engram update --regen-vocab` to migrate them (preview with
 `engram update --regen-vocab --dry-run`)` when the vault holds a file named `vocab.<name>.md`, and
 `vocab definition notes missing their vocab/<term> self-tag found — run `engram vocab
@@ -2621,16 +2621,16 @@ Scenario: 792a6v1c A current vault gets no vocab notice
 
 ### 792a6w Migrating an old-format vocabulary
 
-Requirement: [792a6w](#792a6w-migrating-an-old-format-vocabulary) `engram update --regen-vocab` MUST migrate a vault that holds old-format
+Requirement: [792a6w Migrating an old-format vocabulary](#792a6w-migrating-an-old-format-vocabulary) `engram update --regen-vocab` MUST migrate a vault that holds old-format
 vocabulary files: it MUST create the family note when absent and a definition note for each
 `vocab.<term>.md` term note from its `term`, `description` and `Exemplars:` list, remove the `vocab:`
 frontmatter line and `Vocab:` body line from every note that has them, delete every `vocab.<name>.md`
-file and its sidecar, and re-tag every note as bootstrap does ([792a6g](#792a6g-bootstrapping-a-vocabulary)). It MUST then print
+file and its sidecar, and re-tag every note as bootstrap does ([792a6g Bootstrapping a vocabulary](#792a6g-bootstrapping-a-vocabulary)). It MUST then print
 `update --regen-vocab: removed <F> old-format file(s), cleaned <C> member note(s), seeded <S> term(s),
 reassigned <A> note(s)`, or `update --regen-vocab: nothing to regenerate` when there were no old files
 and no legacy lines. With `--dry-run` it MUST change nothing and print the same line prefixed
 `[dry-run] ` with `would remove` in place of `removed`. After a migration, the old-format notice of
-[792a6v](#792a6v-update-notices) MUST NOT be printed.
+[792a6v Update notices](#792a6v-update-notices) MUST NOT be printed.
 
 Rationale: before the vocabulary moved onto tags, terms were `vocab.<term>.md` notes, a generated
 `vocab.index.md` listed them, and members carried a `Vocab:` line and a `vocab:` key. The migration
@@ -2664,15 +2664,15 @@ phrases and prints one YAML payload: the matched notes and chunks, the clusters 
 newest chunks, and a budget of counts. `engram show` prints one note in full, `engram show-chunk`
 prints one chunk's text, and `engram query-chunks` searches the chunk index alone. All four only
 read. The `recall` skill is the main caller and decides what to do with the payload. A query on a
-vault that does not exist creates it first and returns an empty payload ([792a2e](#792a2e-first-use-vault-creation)). The payload's
+vault that does not exist creates it first and returns an empty payload ([792a2e First-use vault creation](#792a2e-first-use-vault-creation)). The payload's
 `pending_offers` flag and the exclusion of pending offers from results belong to curate ([792a22 curate](#792a22-added-curate)), results
 merged in from a parent vault belong to parent-sync ([792a21 parent-sync](#792a21-added-parent-sync)), and the served form of a query belongs to
-vault-serving ([792a20m](#792a20m-a-served-query-takes-the-message-and-can-return-dedupe-keys)). Which kinds of note a query returns, and that it never returns a question note, is
-note-writing's [792a3t](#792a3t-question-and-answer-retrieval).
+vault-serving ([792a20m A served query takes the message and can return dedupe keys](#792a20m-a-served-query-takes-the-message-and-can-return-dedupe-keys)). Which kinds of note a query returns, and that it never returns a question note, is
+note-writing's [792a3t Question-and-answer retrieval](#792a3t-question-and-answer-retrieval).
 
 ### 792a7a Query input
 
-Requirement: [792a7a](#792a7a-query-input) `engram query` MUST accept one or more `--phrase` values and an optional
+Requirement: [792a7a Query input](#792a7a-query-input) `engram query` MUST accept one or more `--phrase` values and an optional
 `--text`, and MUST fail with `query: empty query string` and a non-zero exit when it is given no
 phrase and a `--text` that is empty or only whitespace.
 
@@ -2692,12 +2692,12 @@ Scenario: 792a7a1b Several phrases are searched together
 
 ### 792a7b The payload
 
-Requirement: [792a7b](#792a7b-the-payload) `engram query` MUST print one YAML document on stdout with `version: 1`, the
-`phrases` it was given, `items`, `clusters`, a `budget` and the `model_id` ([792a7zc](#792a7zc-the-embedding-model)), and MUST give
+Requirement: [792a7b The payload](#792a7b-the-payload) `engram query` MUST print one YAML document on stdout with `version: 1`, the
+`phrases` it was given, `items`, `clusters`, a `budget` and the `model_id` ([792a7zc The embedding model](#792a7zc-the-embedding-model)), and MUST give
 each item a `path`, a `kind`, a `score`, its `provenances` and, unless the item was reduced to path
-and score ([792a7s](#792a7s-lazy-chunks)), its `content`. A note item's `path` MUST be the note's file name and its `kind`
+and score ([792a7s Lazy chunks](#792a7s-lazy-chunks)), its `content`. A note item's `path` MUST be the note's file name and its `kind`
 the note's `type`, or `unknown` when it has none; a chunk item's `path` MUST be its chunk ID
-`<source>#<anchor>` ([792a5](#792a5-added-chunk-indexing)) and its `kind` `chunk`. A note's content MUST show each `[[target]]` as
+`<source>#<anchor>` ([792a5 chunk-indexing](#792a5-added-chunk-indexing)) and its `kind` `chunk`. A note's content MUST show each `[[target]]` as
 `target` and each `[[target|display]]` as `display`. The `budget` MUST report `phrases_queried`,
 `total_notes`, `with_embeddings`, `clusters_found`, `direct_hits_returned` (the items whose
 provenances include `direct`), `items_with_full_content`, `limit`, `content_budget`,
@@ -2728,7 +2728,7 @@ Scenario: 792a7b1c Wikilinks are flattened in the content
 
 ### 792a7c Embeddings of the current model
 
-Requirement: [792a7c](#792a7c-embeddings-of-the-current-model) `engram query` MUST ignore a note whose sidecar was made by another embedding
+Requirement: [792a7c Embeddings of the current model](#792a7c-embeddings-of-the-current-model) `engram query` MUST ignore a note whose sidecar was made by another embedding
 model, and MUST print one warning on stderr naming the number dropped, their model IDs and
 `engram embed apply --all`. It MUST ignore a note whose sidecar is on an old schema and print one
 warning naming the number skipped and `engram embed apply --force`. When the vault has notes but none
@@ -2760,15 +2760,15 @@ Scenario: 792a7c1c Old-schema sidecars are skipped with their own warning
 
 ### 792a7d Matched notes and chunks
 
-Requirement: [792a7d](#792a7d-matched-notes-and-chunks) For each phrase `engram query` MUST score every note by the higher of its
+Requirement: [792a7d Matched notes and chunks](#792a7d-matched-notes-and-chunks) For each phrase `engram query` MUST score every note by the higher of its
 situation and body cosine to the phrase, and every indexed chunk by its cosine, rank them together
-by recency-scaled score ([792a7f](#792a7f-recency-scaling)) with ties by path, and keep the 30 best. It MUST then merge the
+by recency-scaled score ([792a7f Recency scaling](#792a7f-recency-scaling)) with ties by path, and keep the 30 best. It MUST then merge the
 phrases keeping each item's best score, drop every item whose unscaled cosine is below 0.25, and
 keep at most the 300 highest-scored. Every item kept MUST carry the provenance `direct`. The
 matched notes MUST come first in `items`, highest score first, and the matched chunks, highest score
-first, MUST follow the notes and the other note items ([792a7m](#792a7m-explore-picks-are-reported), [792a7n](#792a7n-superseding-notes-ride-along)).
-Only question notes ([792a3t](#792a3t-question-and-answer-retrieval)) MUST be left out of the matched set: a vocabulary definition note
-([792a6a](#792a6a-definition-notes)) MUST be matched like any other note.
+first, MUST follow the notes and the other note items ([792a7m Explore picks are reported](#792a7m-explore-picks-are-reported), [792a7n Superseding notes ride along](#792a7n-superseding-notes-ride-along)).
+Only question notes ([792a3t Question-and-answer retrieval](#792a3t-question-and-answer-retrieval)) MUST be left out of the matched set: a vocabulary definition note
+([792a6a Definition notes](#792a6a-definition-notes)) MUST be matched like any other note.
 
 Rationale: the floor is applied to the unscaled cosine, so a topically perfect but old item still
 qualifies (vault note 53). The cap bounds the cost of clustering the set, whose silhouette scoring
@@ -2822,7 +2822,7 @@ Scenario: 792a7d1h A note is found by its own situation
 
 ### 792a7e Matched-note floor
 
-Requirement: [792a7e](#792a7e-matched-note-floor) Before keeping a phrase's 30 best, `engram query` MUST reserve up to 5 of the
+Requirement: [792a7e Matched-note floor](#792a7e-matched-note-floor) Before keeping a phrase's 30 best, `engram query` MUST reserve up to 5 of the
 slots for notes whose unscaled cosine is at least 0.25, promoting the best such notes ranked below
 the cut and evicting the lowest-scoring chunks to make room. A note whose unscaled cosine is below
 0.25 MUST NOT be promoted.
@@ -2860,9 +2860,9 @@ Scenario: 792a7e1d A definition note is promoted like any other
 
 ### 792a7f Recency scaling
 
-Requirement: [792a7f](#792a7f-recency-scaling) `engram query` MUST multiply an item's cosine by a recency factor of
+Requirement: [792a7f Recency scaling](#792a7f-recency-scaling) `engram query` MUST multiply an item's cosine by a recency factor of
 2 to the power of minus its age in days over 60 before ranking, so that an item loses half its score
-every 60 days. A chunk's age MUST be the time since it was first indexed ([792a7p](#792a7p-when-a-chunk-was-first-indexed)), and a chunk from
+every 60 days. A chunk's age MUST be the time since it was first indexed ([792a7p When a chunk was first indexed](#792a7p-when-a-chunk-was-first-indexed)), and a chunk from
 a transcript turn MUST also gain up to 20% in proportion to how late in its session the turn
 falls. A note's age MUST be the time since the date in its sidecar's `last_used`, or, when it has
 none, since its `created` date when that is written as a bare date; a note with neither MUST NOT be
@@ -2870,8 +2870,8 @@ scaled. An item with an age of zero, or with an unreadable date, MUST NOT be sca
 
 Rationale: operators work in monthly cycles, so the decay is a soft tilt that favours recent
 content without drowning relevance (2 weeks 0.85, 1 month 0.71, 2 months 0.50). The newest chunks
-are guaranteed a place separately by the recency channel ([792a7o](#792a7o-the-newest-chunks)), so the scaling need not carry
-that guarantee. A recency-weighted cluster centroid was tried and did not ship ([792a7h](#792a7h-candidate-notes)). Notes that
+are guaranteed a place separately by the recency channel ([792a7o The newest chunks](#792a7o-the-newest-chunks)), so the scaling need not carry
+that guarantee. A recency-weighted cluster centroid was tried and did not ship ([792a7h Candidate notes](#792a7h-candidate-notes)). Notes that
 `engram learn` writes quote their `created` date, which cannot be read as a bare date, so such a
 note is not scaled until it has been used (#774).
 
@@ -2906,7 +2906,7 @@ Scenario: 792a7f1e A late turn is lifted
 
 ### 792a7g Clusters
 
-Requirement: [792a7g](#792a7g-clusters) `engram query` MUST cluster the matched notes and chunks together, once for
+Requirement: [792a7g Clusters](#792a7g-clusters) `engram query` MUST cluster the matched notes and chunks together, once for
 all the phrases and not once per phrase, into `clusters`. Each cluster MUST have an `id`, an empty
 `phrase`, a `size`, a `silhouette` (the mean silhouette score of its members, 0 for the one-cluster
 case below), and `members` listing each member's `path` and `score`, highest
@@ -2946,12 +2946,12 @@ Scenario: 792a7g1d The same query gives the same clusters
 
 ### 792a7h Candidate notes
 
-Requirement: [792a7h](#792a7h-candidate-notes) `engram query` MUST give each cluster that has note members a `candidate_l2s`
+Requirement: [792a7h Candidate notes](#792a7h-candidate-notes) `engram query` MUST give each cluster that has note members a `candidate_l2s`
 list of its own notes, at most five, ranked by the higher of each note's situation and body cosine
 to the cluster's centroid, highest first with ties by path, each with its `path`, `cosine` and
 `content`. A cluster with no note members MUST have no `candidate_l2s`. The list MUST hold nothing
-but the cluster's own notes: not notes sampled for other topics ([792a7i](#792a7i-half-of-the-notes-are-explored)) and not superseding notes
-([792a7n](#792a7n-superseding-notes-ride-along)), which travel in `items`.
+but the cluster's own notes: not notes sampled for other topics ([792a7i Half of the notes are explored](#792a7i-half-of-the-notes-are-explored)) and not superseding notes
+([792a7n Superseding notes ride along](#792a7n-superseding-notes-ride-along)), which travel in `items`.
 
 Rationale: the cosine only nominates; whether a candidate covers the situation is the reader's
 judgement. The centroid is the unweighted mean of the cluster's vectors: a centroid weighted by each
@@ -2983,8 +2983,8 @@ Scenario: 792a7h1c A small cluster lists all its notes
 
 ### 792a7i Half of the notes are explored
 
-Requirement: [792a7i](#792a7i-half-of-the-notes-are-explored) The notes `engram query` delivers MUST be an exploit half, the notes matched
-above ([792a7d](#792a7d-matched-notes-and-chunks)), and an explore half sampled from the vocabulary's terms ([792a6](#792a6-added-controlled-vocabulary)) by their
+Requirement: [792a7i Half of the notes are explored](#792a7i-half-of-the-notes-are-explored) The notes `engram query` delivers MUST be an exploit half, the notes matched
+above ([792a7d Matched notes and chunks](#792a7d-matched-notes-and-chunks)), and an explore half sampled from the vocabulary's terms ([792a6 controlled-vocabulary](#792a6-added-controlled-vocabulary)) by their
 closeness to the query. The explore half's budget MUST be the number of distinct notes in the
 exploit half, so the halves are equal in notes, and chunks MUST count towards neither. When the
 exploit half holds no note the query MUST skip explore sampling. When the explore half cannot be
@@ -3024,7 +3024,7 @@ Scenario: 792a7i1d A small vault shortens the explore half
 
 ### 792a7j Explore allocation follows the query
 
-Requirement: [792a7j](#792a7j-explore-allocation-follows-the-query) `engram query` MUST divide the explore budget among the vocabulary's terms in
+Requirement: [792a7j Explore allocation follows the query](#792a7j-explore-allocation-follows-the-query) `engram query` MUST divide the explore budget among the vocabulary's terms in
 proportion to the softmax of the cosine between the mean of the phrases' vectors and the term's
 centroid, divided by a temperature of 0.106, so that every term with a centroid takes part, nearer
 terms are allocated at least as much as farther ones, and the allocations total the budget. A term
@@ -3059,8 +3059,8 @@ Scenario: 792a7j1c The bonus does not stack
 
 ### 792a7k Explore picks the core of a term
 
-Requirement: [792a7k](#792a7k-explore-picks-the-core-of-a-term) `engram query` MUST pick a term's explore notes from the notes tagged
-`vocab/<term>`, leaving out definition notes ([792a6a](#792a6a-definition-notes)), question notes and notes without a vector,
+Requirement: [792a7k Explore picks the core of a term](#792a7k-explore-picks-the-core-of-a-term) `engram query` MUST pick a term's explore notes from the notes tagged
+`vocab/<term>`, leaving out definition notes ([792a6a Definition notes](#792a6a-definition-notes)), question notes and notes without a vector,
 in descending order of the cosine between each note's body vector and the term's centroid, ties by
 path. A note with several terms MUST be a candidate under each.
 
@@ -3084,7 +3084,7 @@ Scenario: 792a7k1b Definition notes are never picked
 
 ### 792a7l Explore picks are not repeated
 
-Requirement: [792a7l](#792a7l-explore-picks-are-not-repeated) `engram query` MUST drop an explore pick that is already in the exploit half or
+Requirement: [792a7l Explore picks are not repeated](#792a7l-explore-picks-are-not-repeated) `engram query` MUST drop an explore pick that is already in the exploit half or
 that another term already picked, and MUST refill each freed slot from the terms in order of
 allocation, until the explore budget is met or no candidates remain.
 
@@ -3109,7 +3109,7 @@ Scenario: 792a7l1c Exhausted candidates leave the budget unmet
 
 ### 792a7m Explore picks are reported
 
-Requirement: [792a7m](#792a7m-explore-picks-are-reported) `engram query` MUST give every explore note the provenance `explore` and a
+Requirement: [792a7m Explore picks are reported](#792a7m-explore-picks-are-reported) `engram query` MUST give every explore note the provenance `explore` and a
 `source_term` naming its term, the cosine to that term's centroid as its `score`, and its full
 content, and MUST place the explore notes in `items` after the matched notes and before the matched
 chunks. They MUST NOT be members of any cluster or appear in any `candidate_l2s`. The budget's
@@ -3137,7 +3137,7 @@ Scenario: 792a7m1c The budget counts what was delivered
 
 ### 792a7n Superseding notes ride along
 
-Requirement: [792a7n](#792a7n-superseding-notes-ride-along) When a delivered matched note has been superseded, because a newer note's
+Requirement: [792a7n Superseding notes ride along](#792a7n-superseding-notes-ride-along) When a delivered matched note has been superseded, because a newer note's
 `supersedes:` list names it with `updates`, `narrows` or `refutes`, `engram query` MUST insert the
 newer note in `items` directly after it, with the provenance `ride_along` and a score of 0, whether
 or not the newer note matched. When several notes supersede one note it MUST insert them in order,
@@ -3174,13 +3174,13 @@ Scenario: 792a7n1d A missing superseder is skipped
 
 ### 792a7o The newest chunks
 
-Requirement: [792a7o](#792a7o-the-newest-chunks) `engram query` MUST append to `items`, after the matched items, the newest
-chunks of the chunk index by the time they were first indexed ([792a7p](#792a7p-when-a-chunk-was-first-indexed)), newest first and with ties
+Requirement: [792a7o The newest chunks](#792a7o-the-newest-chunks) `engram query` MUST append to `items`, after the matched items, the newest
+chunks of the chunk index by the time they were first indexed ([792a7p When a chunk was first indexed](#792a7p-when-a-chunk-was-first-indexed)), newest first and with ties
 going to the later turn, skipping chunks that are already matched, up to the `--recent-fill` count.
 That count MUST be 25 by default, `ENGRAM_RECENT_FILL` MUST set it from the environment, a positive
 `--recent-fill` MUST replace it, and a negative one MUST turn the channel off. Each chunk MUST carry
 the provenance `recent` and a score of 0, MUST NOT be a member of any cluster, and MUST NOT count
-towards `--limit` ([792a7q](#792a7q-limit)). Fewer chunks than the count MUST give all of them. A chunk with no
+towards `--limit` ([792a7q Limit](#792a7q-limit)). Fewer chunks than the count MUST give all of them. A chunk with no
 first-indexed time MUST sort after every chunk that has one.
 
 Rationale: the agent that has lost its context re-encounters its own recent narration and recovers
@@ -3226,7 +3226,7 @@ Scenario: 792a7o1f A chunk without a time sorts last
 
 ### 792a7p When a chunk was first indexed
 
-Requirement: [792a7p](#792a7p-when-a-chunk-was-first-indexed) Every chunk `engram ingest` indexes MUST record the time it was first indexed:
+Requirement: [792a7p When a chunk was first indexed](#792a7p-when-a-chunk-was-first-indexed) Every chunk `engram ingest` indexes MUST record the time it was first indexed:
 for a Markdown source the time of the ingest, and for a transcript the timestamp of the last entry
 the reader returned. Ingesting a source again MUST keep the recorded time of every chunk it already
 holds. A chunk in an index written before times were recorded MUST be given its source's recorded
@@ -3263,9 +3263,9 @@ Scenario: 792a7p1d An old chunk gets its source's modification time
 
 ### 792a7q Limit
 
-Requirement: [792a7q](#792a7q-limit) `engram query` MUST keep at most `--limit` of the items that are neither trigger
-hits ([792a7za](#792a7za-a-trigger-hit-comes-first)) nor recent chunks ([792a7o](#792a7o-the-newest-chunks)), the highest-ranked first, applied after the recency
-channel is assembled and before chunk content is reduced ([792a7r](#792a7r-chunk-content-budget)). The limit MUST be 20 when the
+Requirement: [792a7q Limit](#792a7q-limit) `engram query` MUST keep at most `--limit` of the items that are neither trigger
+hits ([792a7za A trigger hit comes first](#792a7za-a-trigger-hit-comes-first)) nor recent chunks ([792a7o The newest chunks](#792a7o-the-newest-chunks)), the highest-ranked first, applied after the recency
+channel is assembled and before chunk content is reduced ([792a7r Chunk content budget](#792a7r-chunk-content-budget)). The limit MUST be 20 when the
 flag is absent, MUST come from the flag alone, and MUST be reported as the budget's `limit`. Trigger
 hits MUST NOT be counted against it, so `items` can hold more than `--limit` items of the first
 kind by the number of hits, and recent chunks MUST NOT be counted against it, so a full set of
@@ -3307,7 +3307,7 @@ Scenario: 792a7q1e The recent chunks survive a full set of matches
 
 ### 792a7r Chunk content budget
 
-Requirement: [792a7r](#792a7r-chunk-content-budget) `engram query` MUST give the first `--content-budget` chunk items of `items`, in
+Requirement: [792a7r Chunk content budget](#792a7r-chunk-content-budget) `engram query` MUST give the first `--content-budget` chunk items of `items`, in
 the order printed, their full content, and MUST reduce the content of every later chunk item to a
 snippet: its whitespace collapsed to single spaces, trimmed, and cut to at most 160 characters,
 the last being `…` when it was cut. The budget MUST be 15 by default, `ENGRAM_CONTENT_BUDGET` MUST set
@@ -3345,13 +3345,13 @@ Scenario: 792a7r1d A negative budget means none
 
 ### 792a7s Lazy chunks
 
-Requirement: [792a7s](#792a7s-lazy-chunks) When `--lazy-chunks` is set, or `ENGRAM_LAZY_CHUNKS` is true, `engram query`
+Requirement: [792a7s Lazy chunks](#792a7s-lazy-chunks) When `--lazy-chunks` is set, or `ENGRAM_LAZY_CHUNKS` is true, `engram query`
 MUST print each chunk item with its `path` and `score` but no content, MUST leave note items
 with their full content, and MUST report `lazy_chunks: true` in the budget. A payload without the
 flag MUST NOT contain `lazy_chunks`.
 
 Rationale: a recall pass should carry less to read without losing reach, so the evidence is fetched
-on demand with `engram show-chunk` ([792a7t](#792a7t-reading-one-chunk)) and not delivered up front. On the real vault the
+on demand with `engram show-chunk` ([792a7t Reading one chunk](#792a7t-reading-one-chunk)) and not delivered up front. On the real vault the
 payload shrank 33.7% (146 to 97 KB), and across 13 realistic recalls that were not told to fetch,
 none fetched a chunk, while a chunk that was the only source of a needed fact was fetched when it
 mattered (`dev/eval/LEDGER.md#payload-cut-lazy-chunks`).
@@ -3382,7 +3382,7 @@ Scenario: 792a7s1d Without the flag the field is absent
 
 ### 792a7t Reading one chunk
 
-Requirement: [792a7t](#792a7t-reading-one-chunk) `engram show-chunk <source>#<anchor>` MUST print the text of the chunk with
+Requirement: [792a7t Reading one chunk](#792a7t-reading-one-chunk) `engram show-chunk <source>#<anchor>` MUST print the text of the chunk with
 that chunk ID, followed by a newline when the text lacks one, and MUST NOT write anything. It MUST
 fail with `chunk not found: <id>` when no chunk has that ID, and with `show-chunk: empty chunk ref`
 when the ID is empty or blank.
@@ -3408,7 +3408,7 @@ Scenario: 792a7t1c An empty ID is an error
 
 ### 792a7u Project filter
 
-Requirement: [792a7u](#792a7u-project-filter) `engram query --project <slug>` MUST drop each matched note whose frontmatter
+Requirement: [792a7u Project filter](#792a7u-project-filter) `engram query --project <slug>` MUST drop each matched note whose frontmatter
 `project:` line is not the slug, and each matched note without a readable frontmatter, and MUST NOT
 take a mention of the slug in a note's body as a match. It MUST leave every other item, and the
 clusters, unchanged, and without `--project` it MUST drop nothing.
@@ -3434,10 +3434,10 @@ Scenario: 792a7u1c No filter drops nothing
 
 ### 792a7v Runbooks rank like other notes
 
-Requirement: [792a7v](#792a7v-runbooks-rank-like-other-notes) A `runbook` note MUST be a candidate for `engram query` on the same terms as a
+Requirement: [792a7v Runbooks rank like other notes](#792a7v-runbooks-rank-like-other-notes) A `runbook` note MUST be a candidate for `engram query` on the same terms as a
 `fact` or `feedback` note, with the same floor, phrase limit and deduplication, and MUST appear in
 `items` when it ranks above the floor. It MUST rank by the similarity of its situation alone, with
-no query flag, pre-filter or boost for its kind; a trigger hit ([792a7za](#792a7za-a-trigger-hit-comes-first)) MUST be the only exception.
+no query flag, pre-filter or boost for its kind; a trigger hit ([792a7za A trigger hit comes first](#792a7za-a-trigger-hit-comes-first)) MUST be the only exception.
 Its presence in `items` MUST be what counts as surfacing: a runbook missing from its cluster's
 `candidate_l2s` has still surfaced.
 
@@ -3470,7 +3470,7 @@ Scenario: 792a7v1c A runbook has no kind boost
 
 ### 792a7w Red flags in the query preview
 
-Requirement: [792a7w](#792a7w-red-flags-in-the-query-preview) When a runbook is a direct match, a candidate note or a trigger hit, `engram query`
+Requirement: [792a7w Red flags in the query preview](#792a7w-red-flags-in-the-query-preview) When a runbook is a direct match, a candidate note or a trigger hit, `engram query`
 MUST render its `red_flags` in its content. When the list takes more than 1200 bytes of rendered
 YAML, `engram query` MUST keep the newest entries, those listed last, that fit and MUST replace the
 earlier ones with one marker entry
@@ -3510,7 +3510,7 @@ Scenario: 792a7w1d A trigger hit is truncated the same way
 
 ### 792a7x Reading one note
 
-Requirement: [792a7x](#792a7x-reading-one-note) `engram show <ref>` MUST print the content of the note the ref names,
+Requirement: [792a7x Reading one note](#792a7x-reading-one-note) `engram show <ref>` MUST print the content of the note the ref names,
 frontmatter and body exactly as the file holds them, with every `red_flags` entry and no omission marker, then a line
 `# outbound links (fetch with: engram show <basename>)` followed by the target of each wikilink in
 the note's text, each once in the order it first appears, with a trailing `.md` dropped and a
@@ -3522,7 +3522,7 @@ note matches and with `show: empty note reference` when blank. It MUST NOT chang
 has been exchanged is preceded by one `# exchange_hash:` line, which belongs to curate.
 
 Rationale: `engram show` is the full-fidelity source that the guidance shim names, so an agent can
-restate every step and check every red flag when the query payload truncated them ([792a7w](#792a7w-red-flags-in-the-query-preview)). It
+restate every step and check every red flag when the query payload truncated them ([792a7w Red flags in the query preview](#792a7w-red-flags-in-the-query-preview)). It
 therefore never applies the preview budget.
 `show` never truncates red flags and `query`'s marker names the basename. A bounded `show` with a `--full`
 flag was rejected because one skill's red flags alone render to about 4 KB, which recreates the truncation
@@ -3575,7 +3575,7 @@ Scenario: 792a7x1h Each link is listed once
 
 ### 792a7y Trigger text
 
-Requirement: [792a7y](#792a7y-trigger-text) `engram query` MUST accept the user's message verbatim as `--text`, and MUST
+Requirement: [792a7y Trigger text](#792a7y-trigger-text) `engram query` MUST accept the user's message verbatim as `--text`, and MUST
 use it only to look for runbook triggers: it MUST NOT embed it or match it by similarity. With
 `--text` and no `--phrase` it MUST answer a trigger lookup alone, embedding nothing, with `phrases`
 empty, and no clusters. Without `--text` it MUST NOT look for triggers, and its payload MUST be the
@@ -3583,7 +3583,7 @@ same as it was before `--text` existed.
 
 Rationale: matching the agent's paraphrase of a request against a runbook misses a literal cue like
 `/please` too often for cue-triggered skills to rest on similarity alone, so the user's own words are
-passed unchanged (ADR-0026). The served form of `--text` is [792a20m](#792a20m-a-served-query-takes-the-message-and-can-return-dedupe-keys).
+passed unchanged (ADR-0026). The served form of `--text` is [792a20m A served query takes the message and can return dedupe keys](#792a20m-a-served-query-takes-the-message-and-can-return-dedupe-keys).
 
 #### 792a7y1 UAT Scenarios
 
@@ -3606,7 +3606,7 @@ Scenario: 792a7y1c Text is not matched by similarity
 
 ### 792a7za A trigger hit comes first
 
-Requirement: [792a7za](#792a7za-a-trigger-hit-comes-first) When any entry of a runbook's `triggers` occurs in `--text` ([792a7zb](#792a7zb-triggers-match-whole-words)), the
+Requirement: [792a7za A trigger hit comes first](#792a7za-a-trigger-hit-comes-first) When any entry of a runbook's `triggers` occurs in `--text` ([792a7zb Triggers match whole words](#792a7zb-triggers-match-whole-words)), the
 runbook MUST be a trigger hit: it MUST appear in `items` before every other item, with `trigger`
 among its provenances, exempt from the relevance floor, the matched-set cap, the matched-note floor
 and `--limit`. A hit that also matched by similarity MUST keep its score and its other provenances,
@@ -3651,7 +3651,7 @@ Scenario: 792a7za1e A hit outside the project is not surfaced
 
 ### 792a7zb Triggers match whole words
 
-Requirement: [792a7zb](#792a7zb-triggers-match-whole-words) A trigger MUST occur in `--text` as a whole word, compared without regard to
+Requirement: [792a7zb Triggers match whole words](#792a7zb-triggers-match-whole-words) A trigger MUST occur in `--text` as a whole word, compared without regard to
 case after each run of whitespace in both is collapsed to one space. An occurrence is a whole word
 when, on each side where the trigger's own edge character is a letter or a digit, the character next
 to the occurrence, if there is one, is not a letter or a digit, where letters and digits are those of
@@ -3718,7 +3718,7 @@ Scenario: 792a7zb1i Hyphen and underscore are boundaries
 
 ### 792a7zc The embedding model
 
-Requirement: [792a7zc](#792a7zc-the-embedding-model) `engram query` MUST put in its payload the `model_id` of the embedding model that
+Requirement: [792a7zc The embedding model](#792a7zc-the-embedding-model) `engram query` MUST put in its payload the `model_id` of the embedding model that
 produced its results.
 
 Rationale: a consumer comparing or fusing results from more than one vault can then tell whether
@@ -3735,8 +3735,8 @@ Scenario: 792a7zc1a Every payload names its model
 
 ### 792a7zd A refit is pending
 
-Requirement: [792a7zd](#792a7zd-a-refit-is-pending) `engram query` MUST print `refit_pending: true` when the vault's
-`vocab.centroids.json` records a pending vocabulary refit ([792a6s](#792a6s-refit-trigger)), and MUST NOT print the field
+Requirement: [792a7zd A refit is pending](#792a7zd-a-refit-is-pending) `engram query` MUST print `refit_pending: true` when the vault's
+`vocab.centroids.json` records a pending vocabulary refit ([792a6s Refit trigger](#792a6s-refit-trigger)), and MUST NOT print the field
 otherwise, including when the file is absent or unreadable.
 
 #### 792a7zd1 UAT Scenarios
@@ -3755,7 +3755,7 @@ Scenario: 792a7zd1b Otherwise the field is absent
 
 ### 792a7ze Stage timings
 
-Requirement: [792a7ze](#792a7ze-stage-timings) When `--timings` is set, `engram query` MUST add a `timings` block to the
+Requirement: [792a7ze Stage timings](#792a7ze-stage-timings) When `--timings` is set, `engram query` MUST add a `timings` block to the
 payload with `scan_ms`, `embed_ms`, `cluster_ms`, `nominate_ms` and `render_ms`, the wall-clock
 milliseconds of the stages that read the vault and the chunk index, embed and match the phrases,
 cluster, assemble the explore half, ride-alongs and recent chunks, and prepare the payload for
@@ -3784,11 +3784,11 @@ Scenario: 792a7ze1b Timings are absent by default
 
 ### 792a7zf Searching chunks alone
 
-Requirement: [792a7zf](#792a7zf-searching-chunks-alone) `engram query-chunks --phrase <p>` MUST score every chunk in the chunk index by
+Requirement: [792a7zf Searching chunks alone](#792a7zf-searching-chunks-alone) `engram query-chunks --phrase <p>` MUST score every chunk in the chunk index by
 its best cosine over the phrases, without recency scaling, and print the best `--limit` (20 by
 default) as `items` with `source`, `anchor`, `score` and `content`, highest score first, under
 `version: 1` and `space: chunks`. When it returns at least six chunks it MUST also print `clusters`,
-groups of the returned chunks found by the clustering of [792a7g](#792a7g-clusters), each with an `id`, a `size` and its
+groups of the returned chunks found by the clustering of [792a7g Clusters](#792a7g-clusters), each with an `id`, a `size` and its
 members' `source`, `anchor` and `score`. It MUST end with a `budget` of `total_chunks` and
 `returned`. It MUST fail with `query chunks: at least one --phrase is required` without a phrase. An
 empty or absent chunk index MUST give an empty payload without embedding the phrase.
@@ -3824,7 +3824,7 @@ Scenario: 792a7zf1e An empty index is an empty payload
 
 ### 792a7zg CRLF notes
 
-Requirement: [792a7zg](#792a7zg-crlf-notes) `engram query` MUST read a note whose lines end in `\r\n` as its LF form (each
+Requirement: [792a7zg CRLF notes](#792a7zg-crlf-notes) `engram query` MUST read a note whose lines end in `\r\n` as its LF form (each
 `\r\n` read as `\n`), in its project filter, its recency date, the tags, supersessions and triggers it
 reads from frontmatter, the note's kind label, and the preview of its red flags, and MUST NOT
 write a note only to convert it.
@@ -3870,7 +3870,7 @@ Scenario: 792a7zg1g The lists in a CRLF note's frontmatter are read
 
 ### 792a7zh A query changes nothing
 
-Requirement: [792a7zh](#792a7zh-a-query-changes-nothing) `engram query` MUST NOT write any note, sidecar or chunk-index file, and MUST NOT
+Requirement: [792a7zh A query changes nothing](#792a7zh-a-query-changes-nothing) `engram query` MUST NOT write any note, sidecar or chunk-index file, and MUST NOT
 mark a note as used: it MUST NOT change a sidecar's `last_used`, and its payload MUST NOT carry an
 `activated` field. A note is marked as used only by the agent, through `engram activate` or `engram amend --activate`.
 
@@ -3893,14 +3893,14 @@ Canonical target: `docs/specs/product/vault-counting.md` (title `Vault Counting 
 
 `engram count` answers "how many?" over the whole vault: how many notes carry each value of a
 frontmatter attribute, and how many notes link to a given note. It reads only the Markdown notes at
-the vault's root and changes nothing. It runs against the vault located by [792a2a](#792a2a-vault-location), and a vault that
-does not exist is created first ([792a2e](#792a2e-first-use-vault-creation)). `engram query` answers a different question, "what is
-relevant to this phrase", and returns a ranked, bounded sample of the vault ([792a7](#792a7-added-memory-query)). The `route`
+the vault's root and changes nothing. It runs against the vault located by [792a2a Vault location](#792a2a-vault-location), and a vault that
+does not exist is created first ([792a2e First-use vault creation](#792a2e-first-use-vault-creation)). `engram query` answers a different question, "what is
+relevant to this phrase", and returns a ranked, bounded sample of the vault ([792a7 memory-query](#792a7-added-memory-query)). The `route`
 skill uses `count` to audit the evidence tallies it reports.
 
 ### 792a8a Count notes by attribute value
 
-Requirement: [792a8a](#792a8a-count-notes-by-attribute-value) `engram count --group-by <attr>` MUST print, for each distinct value of the
+Requirement: [792a8a Count notes by attribute value](#792a8a-count-notes-by-attribute-value) `engram count --group-by <attr>` MUST print, for each distinct value of the
 frontmatter attribute `<attr>` among the notes at the vault root, one line `<value>`, a tab and the
 number of notes that carry the value, ordered by that number descending and then by value
 ascending. A list attribute MUST contribute each of its distinct elements once, and a note that
@@ -3941,7 +3941,7 @@ Scenario: 792a8a1e Only notes at the vault root are counted
 
 ### 792a8b Absent attributes and the total
 
-Requirement: [792a8b](#792a8b-absent-attributes-and-the-total) `engram count --group-by <attr>` MUST print, after the value lines and before
+Requirement: [792a8b Absent attributes and the total](#792a8b-absent-attributes-and-the-total) `engram count --group-by <attr>` MUST print, after the value lines and before
 the total, the line `(<attr> absent): <N>` when `<N>` counted notes have no `<attr>` key. It MUST
 end with the line `total: <T>`, where `<T>` is the number of notes counted, not the number of
 values. A note whose `<attr>` is present but empty MUST count toward the total and appear in no
@@ -3974,7 +3974,7 @@ Scenario: 792a8b1d An empty attribute counts only toward the total
 
 ### 792a8c Filter the counted notes
 
-Requirement: [792a8c](#792a8c-filter-the-counted-notes) `engram count --group-by <attr>` MUST count only the notes that satisfy every
+Requirement: [792a8c Filter the counted notes](#792a8c-filter-the-counted-notes) `engram count --group-by <attr>` MUST count only the notes that satisfy every
 `--filter <attr>=<value>` it is given; the flag MAY be repeated. A note satisfies a filter when its
 attribute equals the value (a scalar) or lists the value among its elements (a list). The filter
 text is split at its first `=`. The command MUST refuse a filter that has no `=`, failing with
@@ -4016,13 +4016,13 @@ Scenario: 792a8c1f A filter without = is refused
 
 ### 792a8d Notes that cannot be counted
 
-Requirement: [792a8d](#792a8d-notes-that-cannot-be-counted) `engram count --group-by` MUST skip a note that it cannot read, a note with no
+Requirement: [792a8d Notes that cannot be counted](#792a8d-notes-that-cannot-be-counted) `engram count --group-by` MUST skip a note that it cannot read, a note with no
 frontmatter, and a note whose frontmatter is not valid YAML, counting it neither as a value, nor as
 absent, nor in the total. It MUST count a note whose lines end in `\r\n` exactly as it counts the
 same note with LF line endings.
 
 Rationale: a note that cannot be parsed has no attribute to count, and one stray file must not
-stop a count of the rest. Notes written on a CRLF platform are valid notes ([792d69](./792d_decision-log.md#792d69-mixed-sources-of-note-revision-are-split-by-owner)).
+stop a count of the rest. Notes written on a CRLF platform are valid notes ([792d69 Mixed sources of note-revision are split by owner](./792d_decision-log.md#792d69-mixed-sources-of-note-revision-are-split-by-owner)).
 
 #### 792a8d1 UAT Scenarios
 
@@ -4045,7 +4045,7 @@ Scenario: 792a8d1c A CRLF note is counted
 
 ### 792a8e Count the notes that link to a note
 
-Requirement: [792a8e](#792a8e-count-the-notes-that-link-to-a-note) `engram count --backlinks-of <basename>` MUST print `in-degree: <N>`, where
+Requirement: [792a8e Count the notes that link to a note](#792a8e-count-the-notes-that-link-to-a-note) `engram count --backlinks-of <basename>` MUST print `in-degree: <N>`, where
 `<N>` is the number of other notes at the vault root whose text links to the note named
 `<basename>`, followed by those notes' basenames one per line in ascending order. A note that links
 more than once MUST count once. A note's link to itself, a link inside a fenced code block, and a
@@ -4113,12 +4113,12 @@ Scenario: 792a8e1j An unreadable note fails the report
 
 ### 792a8f One mode per invocation
 
-Requirement: [792a8f](#792a8f-one-mode-per-invocation) `engram count` MUST fail with a non-zero exit, printing nothing to stdout, when
+Requirement: [792a8f One mode per invocation](#792a8f-one-mode-per-invocation) `engram count` MUST fail with a non-zero exit, printing nothing to stdout, when
 it is given both `--group-by` and `--backlinks-of` (`count: --group-by and --backlinks-of are
 mutually exclusive`), and when it is given neither (`count: specify --group-by <attr> or
 --backlinks-of <basename>`).
 
-Rationale: the two modes measure different things ([792a8g](#792a8g-the-two-modes-measure-different-things)), so one invocation does not mix them.
+Rationale: the two modes measure different things ([792a8g The two modes measure different things](#792a8g-the-two-modes-measure-different-things)), so one invocation does not mix them.
 
 #### 792a8f1 UAT Scenarios
 
@@ -4141,7 +4141,7 @@ Scenario: 792a8f1c A filter alone is not a mode
 
 ### 792a8g The two modes measure different things
 
-Requirement: [792a8g](#792a8g-the-two-modes-measure-different-things) `engram count --backlinks-of` MUST count every note that links to the named
+Requirement: [792a8g The two modes measure different things](#792a8g-the-two-modes-measure-different-things) `engram count --backlinks-of` MUST count every note that links to the named
 note, whether or not that note carries a given attribute value, and `engram count --group-by` MUST
 count only the notes that carry the value, whether or not they link. For a note named for an
 attribute value, the in-degree therefore equals the `--group-by` count of that value plus the
@@ -4172,7 +4172,7 @@ Scenario: 792a8g1b The in-degree exceeds the count by the non-member linkers
 
 ### 792a8h A count changes nothing and is exact
 
-Requirement: [792a8h](#792a8h-a-count-changes-nothing-and-is-exact) `engram count` MUST NOT create, modify or delete any note or sidecar in the
+Requirement: [792a8h A count changes nothing and is exact](#792a8h-a-count-changes-nothing-and-is-exact) `engram count` MUST NOT create, modify or delete any note or sidecar in the
 vault, and MUST NOT need a note's sidecar or an embedding to count it. It MUST count every note at
 the vault root, not a ranked or truncated subset.
 
@@ -4197,17 +4197,17 @@ Scenario: 792a8h1b Every note is counted without sidecars
 
 Canonical target: `docs/specs/product/vault-health.md` (title `Vault Health - Product Spec`).
 
-A vault is a directory of notes and a sidecar beside each note holding its embedding ([792a3n](#792a3n-embed-on-write)). Two
+A vault is a directory of notes and a sidecar beside each note holding its embedding ([792a3n Embed on write](#792a3n-embed-on-write)). Two
 commands keep it healthy. `engram check` reads the vault and reports where it breaks its
 invariants: links that cannot resolve, notes recall cannot match, and sidecars that cannot be
 read. `engram embed status` and `engram embed apply` count and repair the sidecars. All three read
-only the Markdown notes at the vault's root, run against the vault located by [792a2a](#792a2a-vault-location), and create a
-vault that does not exist first ([792a2e](#792a2e-first-use-vault-creation)). The model change that makes an embed run necessary is the
-embedding-sidecar's [792b10c7](./792b_technical-spec.md#792b10c7-state-classification).
+only the Markdown notes at the vault's root, run against the vault located by [792a2a Vault location](#792a2a-vault-location), and create a
+vault that does not exist first ([792a2e First-use vault creation](#792a2e-first-use-vault-creation)). The model change that makes an embed run necessary is the
+embedding-sidecar's [792b10c7 State classification](./792b_technical-spec.md#792b10c7-state-classification).
 
 ### 792a9a The check report
 
-Requirement: [792a9a](#792a9a-the-check-report) `engram check` MUST print one line for each invariant it checks, beginning
+Requirement: [792a9a The check report](#792a9a-the-check-report) `engram check` MUST print one line for each invariant it checks, beginning
 `PASS`, `WARN` or `FAIL` and naming the invariant, and under a violated invariant MUST list the
 offending items, one per line, at most ten, followed by `… and <N> more` when there are more. It MUST
 exit non-zero, with `check: FAIL-class invariant violations found` on stderr, when any line begins
@@ -4261,7 +4261,7 @@ Scenario: 792a9a1g A note that is not valid UTF-8 is still checked
 
 ### 792a9b Links that should resolve
 
-Requirement: [792a9b](#792a9b-links-that-should-resolve) `engram check` MUST report `FAIL  G0 graph-resolution: <N> bare-id links that
+Requirement: [792a9b Links that should resolve](#792a9b-links-that-should-resolve) `engram check` MUST report `FAIL  G0 graph-resolution: <N> bare-id links that
 should resolve`, listing each as `<source> → [[<target>]]`, when a note's link target is a bare
 Luhmann ID, digits followed by letters or digits, that is the leading ID of an existing note, and
 MUST otherwise report `PASS  G0 graph-resolution: every authored link resolves by form`. A link to a
@@ -4274,7 +4274,7 @@ basename (or alias). Such a link is a lost edge, and in an early census of a liv
 for every write and read of the same datum the read key must be a function of, or equal to, the write
 key, and a mismatch must be loud, not silent. A machine-written supersession link used to carry a
 `.md` suffix and so never resolved (#717). Machine writers now write the extension-less form, and the
-reader accepts the suffixed form already in the vault ([792b13c3](./792b_technical-spec.md#792b13c3-link-targets)).
+reader accepts the suffixed form already in the vault ([792b13c3 Link targets](./792b_technical-spec.md#792b13c3-link-targets)).
 
 #### 792a9b1 UAT Scenarios
 
@@ -4297,7 +4297,7 @@ Scenario: 792a9b1c A legacy suffixed link resolves
 
 ### 792a9c Links to nothing
 
-Requirement: [792a9c](#792a9c-links-to-nothing) `engram check` MUST warn, without failing, with `WARN  G3 dangling: <N>
+Requirement: [792a9c Links to nothing](#792a9c-links-to-nothing) `engram check` MUST warn, without failing, with `WARN  G3 dangling: <N>
 authored links target no note`, listing each as `<source> → [[<target>]]`, for every distinct link
 in a note whose target, after a trailing `.md` is dropped, is neither a note's basename nor a G0
 bare ID of an existing note. It MUST NOT report a note's link to itself, and MUST NOT report a link
@@ -4338,7 +4338,7 @@ Scenario: 792a9c1e A vault with no dangling link prints no G3 line
 
 ### 792a9d Notes recall can match
 
-Requirement: [792a9d](#792a9d-notes-recall-can-match) `engram check` MUST report `FAIL  M5 situation-presence: <N> note(s) missing a
+Requirement: [792a9d Notes recall can match](#792a9d-notes-recall-can-match) `engram check` MUST report `FAIL  M5 situation-presence: <N> note(s) missing a
 situation`, listing the notes, when a note of type `fact` or `feedback` has a `situation:` that is
 absent, empty or only whitespace, and MUST otherwise report `PASS  M5 situation-presence: every
 fact/feedback names a situation`. It MUST NOT judge a note of any other type, a note with no
@@ -4346,7 +4346,7 @@ frontmatter, or a note whose frontmatter is not valid YAML. It MUST judge a note
 `\r\n` as it judges the same note with LF line endings.
 
 Rationale: recall matches a query against each note's situation, and the embedding is shaped
-around it ([792a7d1h](#792a7d1-uat-scenarios)). Every write path refuses a blank one ([792a3f](#792a3f-required-content)), so this check finds a note that
+around it ([792a7d1h A note is found by its own situation](#792a7d1-uat-scenarios)). Every write path refuses a blank one ([792a3f Required content](#792a3f-required-content)), so this check finds a note that
 reached the vault another way.
 
 #### 792a9d1 UAT Scenarios
@@ -4385,7 +4385,7 @@ Scenario: 792a9d1f A CRLF note is judged
 
 ### 792a9e Sidecars that can be read
 
-Requirement: [792a9e](#792a9e-sidecars-that-can-be-read) `engram check` MUST report `FAIL  S1 sidecar-schema: <N> sidecar(s) on an
+Requirement: [792a9e Sidecars that can be read](#792a9e-sidecars-that-can-be-read) `engram check` MUST report `FAIL  S1 sidecar-schema: <N> sidecar(s) on an
 old/invalid schema (run `engram embed apply --force`)`, listing the notes, when a note's sidecar
 cannot be decoded under the current schema, whether it is the old single-vector schema, malformed
 JSON, or a vector of the wrong length. It MUST report `WARN  S1 sidecar-schema: <N> note(s) missing
@@ -4422,7 +4422,7 @@ Scenario: 792a9e1d A missing sidecar warns
 
 ### 792a9f A check changes nothing
 
-Requirement: [792a9f](#792a9f-a-check-changes-nothing) `engram check` MUST NOT create, modify or delete any note or sidecar.
+Requirement: [792a9f A check changes nothing](#792a9f-a-check-changes-nothing) `engram check` MUST NOT create, modify or delete any note or sidecar.
 
 #### 792a9f1 UAT Scenarios
 
@@ -4435,7 +4435,7 @@ Scenario: 792a9f1a A check leaves the vault as it was
 
 ### 792a9g The embedding census
 
-Requirement: [792a9g](#792a9g-the-embedding-census) `engram embed status` MUST print six lines: `total:`, `with-embeddings:`,
+Requirement: [792a9g The embedding census](#792a9g-the-embedding-census) `engram embed status` MUST print six lines: `total:`, `with-embeddings:`,
 `without:`, `stale:`, `incompatible:` and `broken:`, each with the number of notes at the vault root in
 that state, so that the five counts add up to the total. A note is with-embeddings when its sidecar
 matches its content and the current model, without when it has no sidecar, stale when its content
@@ -4464,7 +4464,7 @@ Scenario: 792a9g1c An unreadable note stops the census
 
 ### 792a9h Which notes get embedded
 
-Requirement: [792a9h](#792a9h-which-notes-get-embedded) `engram embed apply` MUST embed, with no mode flag or with `--missing`, the notes
+Requirement: [792a9h Which notes get embedded](#792a9h-which-notes-get-embedded) `engram embed apply` MUST embed, with no mode flag or with `--missing`, the notes
 that have no sidecar; with `--stale`, the notes whose content changed after their sidecar; with
 `--force`, the notes whose sidecar was made by another model or an older schema; and with `--all`,
 every note. Mode flags MUST combine, each adding its notes, and `--all` MUST select every note whatever
@@ -4510,7 +4510,7 @@ Scenario: 792a9h1f A broken sidecar is always replaced
 
 ### 792a9i Embedding the selected notes
 
-Requirement: [792a9i](#792a9i-embedding-the-selected-notes) `engram embed apply` MUST, for each selected note in ascending basename order,
+Requirement: [792a9i Embedding the selected notes](#792a9i-embedding-the-selected-notes) `engram embed apply` MUST, for each selected note in ascending basename order,
 write the note's sidecar beside it and print `embedded  <note>.md (<state>)`, where `<state>` is the
 state the note was in. With `--dry-run` it MUST instead print `would-embed <note>.md (<state>)` and
 write nothing. It MUST report a note it cannot read as `skip      <note>.md: read error: <error>`, an
@@ -4559,7 +4559,7 @@ Scenario: 792a9i1f An unreadable note stops the run
 
 ### 792a9j CRLF notes embed as LF
 
-Requirement: [792a9j](#792a9j-crlf-notes-embed-as-lf) `engram embed status` and `engram embed apply` MUST treat a note whose lines end in
+Requirement: [792a9j CRLF notes embed as LF](#792a9j-crlf-notes-embed-as-lf) `engram embed status` and `engram embed apply` MUST treat a note whose lines end in
 `\r\n` as the same note with LF line endings, so that its sidecar equals the one its LF form gets and
 is not reported stale for its line endings.
 
@@ -4585,13 +4585,13 @@ Some vaults need a one-off change that no ordinary write makes. A vault that hol
 notes has never branched its Luhmann IDs, and a note written before notes carried their origin has no
 `repo:`, `user:` and `vault:`. `engram update` notices both and names the opt-in remedy, and the remedy
 runs only when asked: `engram update --reparent-luhmann` re-parents top-level notes and
-`engram update --backfill-identity` stamps the missing origin. Both act on the vault located by [792a2a](#792a2a-vault-location).
+`engram update --backfill-identity` stamps the missing origin. Both act on the vault located by [792a2a Vault location](#792a2a-vault-location).
 The notices and the two flags belong to `engram update`, whose binary refresh and harness sync are
 install-and-update's ([792a11 install-and-update](#792a11-added-install-and-update)).
 
 ### 792a10a The flat-vault notice
 
-Requirement: [792a10a](#792a10a-the-flat-vault-notice) `engram update` MUST print a one-line notice naming `engram update
+Requirement: [792a10a The flat-vault notice](#792a10a-the-flat-vault-notice) `engram update` MUST print a one-line notice naming `engram update
 --reparent-luhmann` and the learn skill's batch mode ([792a15l The re-parent batch mode](#792a15l-the-re-parent-batch-mode)) when the vault holds at least one note and the
 Luhmann ID of every note at its root is top-level, one run of digits with no letter or digit branch.
 It MUST NOT print the notice when any note has a deeper ID, when the vault has no note, or when the
@@ -4629,7 +4629,7 @@ Scenario: 792a10a1d The notice names the answering procedure
 
 ### 792a10b Re-parenting only on request
 
-Requirement: [792a10b](#792a10b-re-parenting-only-on-request) `engram update` MUST NOT rename a note or rewrite a link unless it is given
+Requirement: [792a10b Re-parenting only on request](#792a10b-re-parenting-only-on-request) `engram update` MUST NOT rename a note or rewrite a link unless it is given
 `--reparent-luhmann`. With the flag it MUST run only the re-parenting and MUST NOT refresh the binary
 or the harness skills.
 
@@ -4654,7 +4654,7 @@ Scenario: 792a10b1b The flag runs nothing else
 
 ### 792a10c Candidates to judge
 
-Requirement: [792a10c](#792a10c-candidates-to-judge) `engram update --reparent-luhmann` without `--answers` MUST print a JSON payload
+Requirement: [792a10c Candidates to judge](#792a10c-candidates-to-judge) `engram update --reparent-luhmann` without `--answers` MUST print a JSON payload
 and write no file. For each top-level note that has a sidecar, the payload MUST list up to three other
 top-level notes with a sidecar whose body vector has cosine similarity of at least 0.75 with the note's,
 nearest first, as a candidate of the note, its target, a body excerpt of each of at most 200 bytes, and
@@ -4700,7 +4700,7 @@ Scenario: 792a10c1d Only top-level notes with sidecars are considered
 
 ### 792a10d Answers that are refused
 
-Requirement: [792a10d](#792a10d-answers-that-are-refused) `engram update --reparent-luhmann --answers <file>` MUST refuse, writing nothing
+Requirement: [792a10d Answers that are refused](#792a10d-answers-that-are-refused) `engram update --reparent-luhmann --answers <file>` MUST refuse, writing nothing
 and exiting non-zero, an answers file that cannot be read, one that is not valid JSON (`cannot parse
 --answers JSON`), one whose fingerprint differs from the vault's current candidates (the vault changed
 since they were derived), and one that names a note the vault does not hold (`--answers references an
@@ -4732,7 +4732,7 @@ Scenario: 792a10d1d An unknown note
 
 ### 792a10e Renaming and rewriting links
 
-Requirement: [792a10e](#792a10e-renaming-and-rewriting-links) `engram update --reparent-luhmann --answers <file>` MUST give each note the
+Requirement: [792a10e Renaming and rewriting links](#792a10e-renaming-and-rewriting-links) `engram update --reparent-luhmann --answers <file>` MUST give each note the
 answers place as a `continuation` or `sibling` of a target the next ID that placement allocates, processing the
 answers in ascending order of the notes' original IDs. It MUST rename the note's file and its sidecar to
 the new ID, with the same date and slug, set its `luhmann:` to the new ID, record the old basename in its
@@ -4784,7 +4784,7 @@ Scenario: 792a10e1g An untouched note is not written
 
 ### 792a10f The chunk index follows the rename
 
-Requirement: [792a10f](#792a10f-the-chunk-index-follows-the-rename) When an apply renamed at least one note, `engram update --reparent-luhmann` MUST,
+Requirement: [792a10f The chunk index follows the rename](#792a10f-the-chunk-index-follows-the-rename) When an apply renamed at least one note, `engram update --reparent-luhmann` MUST,
 in the same invocation, re-index the renamed notes and detach the chunk-manifest entries of their old
 paths, so no `engram ingest --auto` or `engram prune` is needed. A failure of that step MUST NOT undo
 the rename. It MUST report which stage failed, that the vault rename is intact and authoritative, and
@@ -4812,7 +4812,7 @@ Scenario: 792a10f1c Nothing renamed, nothing re-indexed
 
 ### 792a10g What is left to judge
 
-Requirement: [792a10g](#792a10g-what-is-left-to-judge) After a successful apply, `engram update --reparent-luhmann` MUST report either the
+Requirement: [792a10g What is left to judge](#792a10g-what-is-left-to-judge) After a successful apply, `engram update --reparent-luhmann` MUST report either the
 number of further candidates found in the vault's resulting state and the literal command to continue, or
 that the vault is fully evaluated, with no further instruction. It MUST print `renamed <N> note(s)` first.
 
@@ -4832,9 +4832,9 @@ Scenario: 792a10g1b The vault is fully evaluated
 
 ### 792a10h Previewing an apply
 
-Requirement: [792a10h](#792a10h-previewing-an-apply) `engram update --reparent-luhmann --answers <file> --dry-run` MUST print the
+Requirement: [792a10h Previewing an apply](#792a10h-previewing-an-apply) `engram update --reparent-luhmann --answers <file> --dry-run` MUST print the
 old-to-new basename of each rename and the notes in which a link would be rewritten, and MUST NOT rename,
-rewrite, re-index or prune anything. It MUST report the same refusals as an apply ([792a10i](#792a10i-notes-a-rename-will-not-touch)). The flag
+rewrite, re-index or prune anything. It MUST report the same refusals as an apply ([792a10i Notes a rename will not touch](#792a10i-notes-a-rename-will-not-touch)). The flag
 `--dry-run` without `--answers` MUST be refused as a usage error, since deriving candidates already
 writes nothing.
 
@@ -4862,7 +4862,7 @@ Scenario: 792a10h1c A preview reports a refusal
 
 ### 792a10i Notes a rename will not touch
 
-Requirement: [792a10i](#792a10i-notes-a-rename-will-not-touch) A rename and rewrite MUST check, before it renames or writes any file, every note it
+Requirement: [792a10i Notes a rename will not touch](#792a10i-notes-a-rename-will-not-touch) A rename and rewrite MUST check, before it renames or writes any file, every note it
 would rename, and MUST refuse the whole invocation, naming each refused note and its reason, when the
 rewritten note's frontmatter does not decode as a mapping, or its `luhmann:` is not the new ID. An
 anchored `luhmann:` value that another key aliases is one such note. The invocation MUST then rename and
@@ -4915,7 +4915,7 @@ Scenario: 792a10i1g An anchor-free note renames with every other key intact
 
 ### 792a10j The identity-backfill notice
 
-Requirement: [792a10j](#792a10j-the-identity-backfill-notice) `engram update` MUST print a one-line notice naming `engram update
+Requirement: [792a10j The identity-backfill notice](#792a10j-the-identity-backfill-notice) `engram update` MUST print a one-line notice naming `engram update
 --backfill-identity` when the vault holds a fact or feedback note that the backfill could stamp now. A
 note counts when it has no `user:` and either has no `vault:` (it predates identity) or user detection
 resolves now, and a CRLF note counts as its LF form. It MUST NOT print the notice when no note counts,
@@ -4948,7 +4948,7 @@ Scenario: 792a10j1d A CRLF note is noticed
 
 ### 792a10k Stamping the missing origin
 
-Requirement: [792a10k](#792a10k-stamping-the-missing-origin) `engram update --backfill-identity` MUST stamp `repo:`, `user:` and `vault:` onto each
+Requirement: [792a10k Stamping the missing origin](#792a10k-stamping-the-missing-origin) `engram update --backfill-identity` MUST stamp `repo:`, `user:` and `vault:` onto each
 fact or feedback note that has no `user:` and no `vault:`, taking `user:` and `vault:` from the same
 detection as `learn`, and `repo:` from the note's own `project:` when that is non-empty, else from the
 same detection as `learn` run in the working directory. For a note that has `vault:` but no `user:`,
@@ -5004,7 +5004,7 @@ Scenario: 792a10k1g Other note types are left alone
 
 ### 792a10l What a backfill keeps
 
-Requirement: [792a10l](#792a10l-what-a-backfill-keeps) A backfill MUST make its edit on the note's parsed frontmatter: it sets `repo:`,
+Requirement: [792a10l What a backfill keeps](#792a10l-what-a-backfill-keeps) A backfill MUST make its edit on the note's parsed frontmatter: it sets `repo:`,
 `user:` and `vault:` and re-emits `created:` in its quoted form when the file's text differs, and every other
 key keeps its value, including keys the typed note model does not define and anchors on keys it does not
 edit. When a key it would set or re-emit, its value, or anything beneath it carries a YAML anchor, it MUST
@@ -5064,7 +5064,7 @@ the report around them.
 
 ### 792a11a Installing from a local clone or a fresh clone
 
-Requirement: [792a11a](#792a11a-installing-from-a-local-clone-or-a-fresh-clone) `engram update` MUST install the engram binary from the nearest enclosing
+Requirement: [792a11a Installing from a local clone or a fresh clone](#792a11a-installing-from-a-local-clone-or-a-fresh-clone) `engram update` MUST install the engram binary from the nearest enclosing
 directory of the working directory whose `go.mod` names the module `github.com/toejough/engram`, and
 MUST install it from a fresh shallow clone of the engram repository when no enclosing directory has a
 `go.mod`. It MUST install into `$GOBIN`, else `$GOPATH/bin`, else `~/go/bin`, and MUST fail naming the
@@ -5112,7 +5112,7 @@ Scenario: 792a11a1f Git is missing
 
 ### 792a11b A clone without the model is refused
 
-Requirement: [792a11b](#792a11b-a-clone-without-the-model-is-refused) `engram update` MUST fail without installing when the cloned embedding model file
+Requirement: [792a11b A clone without the model is refused](#792a11b-a-clone-without-the-model-is-refused) `engram update` MUST fail without installing when the cloned embedding model file
 is a git-lfs pointer or holds less than one mebibyte, and its error MUST name git-lfs and tell the user
 to install it and rerun `engram update`.
 
@@ -5140,7 +5140,7 @@ Scenario: 792a11b1c An unreadable model is an error
 
 ### 792a11c A provable downgrade is refused
 
-Requirement: [792a11c](#792a11c-a-provable-downgrade-is-refused) When it installs from a local clone and a binary is already installed at the install
+Requirement: [792a11c A provable downgrade is refused](#792a11c-a-provable-downgrade-is-refused) When it installs from a local clone and a binary is already installed at the install
 location, `engram update` MUST read that binary's embedded source revision and MUST refuse to install,
 exiting non-zero and saying the install would downgrade the installed binary, when git proves that the
 clone's current revision is not a descendant of (and not equal to) the installed revision. It MUST
@@ -5188,7 +5188,7 @@ Scenario: 792a11c1e An unreadable revision does not block
 
 ### 792a11d The report names the source and the install
 
-Requirement: [792a11d](#792a11d-the-report-names-the-source-and-the-install) `engram update` MUST begin its report with the line `engram update`, then a source
+Requirement: [792a11d The report names the source and the install](#792a11d-the-report-names-the-source-and-the-install) `engram update` MUST begin its report with the line `engram update`, then a source
 line naming `local clone at <path> (rev <short SHA>)` or `remote module github.com/toejough/engram <short
 SHA>`, then a binary line naming the install command, and after a real install `... ok (engram <short SHA>
 → <install location>)`. It MUST show a path under the home directory as `~/…`, and MUST show the revision
@@ -5215,7 +5215,7 @@ Scenario: 792a11d1c A remote source reports its revision
 
 ### 792a11e The rest of the update runs in the new binary
 
-Requirement: [792a11e](#792a11e-the-rest-of-the-update-runs-in-the-new-binary) After a successful install, `engram update` MUST print the install result once,
+Requirement: [792a11e The rest of the update runs in the new binary](#792a11e-the-rest-of-the-update-runs-in-the-new-binary) After a successful install, `engram update` MUST print the install result once,
 then hand the rest of the update (deploying to the harnesses and checking the vault and chunk index) to
 the freshly installed binary at the install location, and MUST exit with that binary's exit status
 without repeating those steps itself. The handed-off run MUST NOT install again and MUST NOT print the
@@ -5228,7 +5228,7 @@ Rationale: an update that installed a new release and then deployed with the old
 users one update behind on update behavior itself, so a new deployment rule took effect a run late
 (ADR-0023). The bootstrap run, the first update after this behavior shipped, is the last one to run
 stale. Local mode installs from the clone it runs in, not from a fresh pull, so a stale checkout still
-downgrades on hand-off; the downgrade check covers it ([792a11c](#792a11c-a-provable-downgrade-is-refused)).
+downgrades on hand-off; the downgrade check covers it ([792a11c A provable downgrade is refused](#792a11c-a-provable-downgrade-is-refused)).
 The old process hands off to a child rather than replacing itself with `syscall.Exec`, because the captured-output
 commander cannot inherit stdio or pass an environment and the parent must relay the child's exit code.
 The loop guard is an environment variable, not a flag, so it stays off the public command line. A successful
@@ -5265,7 +5265,7 @@ Scenario: 792a11e1e A dry run never hands off
 
 ### 792a11f Previewing an update
 
-Requirement: [792a11f](#792a11f-previewing-an-update) `engram update --dry-run` MUST install nothing, MUST create, change and delete no
+Requirement: [792a11f Previewing an update](#792a11f-previewing-an-update) `engram update --dry-run` MUST install nothing, MUST create, change and delete no
 file, directory or link in a harness, an engram-owned root or the vault (including a root's marker, and
 including a sync that would create or delete), and MUST print the deploy plan, prefixing with `[dry-run] ` every report line that
 describes something that was or would be done (the title, the `installed:` line, the root deletions, the
@@ -5298,7 +5298,7 @@ Scenario: 792a11f1c A dry run installs nothing
 
 ### 792a11g The harnesses that are updated
 
-Requirement: [792a11g](#792a11g-the-harnesses-that-are-updated) `engram update` MUST update each of Claude Code (detected by `~/.claude`) and Pi
+Requirement: [792a11g The harnesses that are updated](#792a11g-the-harnesses-that-are-updated) `engram update` MUST update each of Claude Code (detected by `~/.claude`) and Pi
 (detected by `~/.pi`) whose directory exists, MUST NOT create the directory of one that is absent, and
 MUST fail with an error saying no supported harness was found at `~/.claude/` or `~/.pi/` when neither
 exists, before installing anything. It MUST NOT deploy to any other harness. A failure in one harness MUST
@@ -5342,7 +5342,7 @@ Scenario: 792a11g1e A missing skills source is an error
 
 ### 792a11h Skills are deployed to an engram-owned root and linked
 
-Requirement: [792a11h](#792a11h-skills-are-deployed-to-an-engram-owned-root-and-linked) `engram update` MUST copy every file under `agent-instructions/skills/` of the
+Requirement: [792a11h Skills are deployed to an engram-owned root and linked](#792a11h-skills-are-deployed-to-an-engram-owned-root-and-linked) `engram update` MUST copy every file under `agent-instructions/skills/` of the
 source into the `skills/` subtree of the harness's engram-owned root (`~/.claude/engram/` for Claude Code,
 `~/.pi/agent/engram/` for Pi), creating a missing file and overwriting a different one, and MUST make
 `~/.claude/skills/<skill>` and `~/.pi/agent/skills/<skill>` each a symbolic link to that skill's directory
@@ -5381,7 +5381,7 @@ Scenario: 792a11h1e Re-running changes nothing
 
 ### 792a11i Removal propagates
 
-Requirement: [792a11i](#792a11i-removal-propagates) `engram update` MUST delete from a harness's engram-owned root every file in a
+Requirement: [792a11i Removal propagates](#792a11i-removal-propagates) `engram update` MUST delete from a harness's engram-owned root every file in a
 managed subtree (`skills/`, `commands/` and, while guidance is managed, `guidance/`) that is not in the
 deploy set it computes from the source (engram deploys no commands, so it deletes any file in `commands/`), MUST delete a directory in those subtrees that would be left holding nothing
 the deploy set keeps, and MUST list each deletion in the report as `engram root: deleted <path>`. The
@@ -5407,7 +5407,7 @@ Scenario: 792a11i1b A removed file inside a kept skill disappears
 
 ### 792a11j Only what engram owns is deleted
 
-Requirement: [792a11j](#792a11j-only-what-engram-owns-is-deleted) `engram update` MUST NOT delete a file in an engram-owned root that lacks the
+Requirement: [792a11j Only what engram owns is deleted](#792a11j-only-what-engram-owns-is-deleted) `engram update` MUST NOT delete a file in an engram-owned root that lacks the
 ownership marker `.engram-owned` at the start of the run, and MUST NOT delete a real (non-link) file or
 directory in a harness's skills or guidance directory. A root that exists without the marker MUST get the
 marker and its deploy set written, MUST NOT have anything deleted in it that run, and MUST be reported
@@ -5452,7 +5452,7 @@ Scenario: 792a11j1e A root that is a file is refused
 
 ### 792a11k The first update adopts earlier copies
 
-Requirement: [792a11k](#792a11k-the-first-update-adopts-earlier-copies) `engram update` MUST replace each deploy-set skill that is a real directory in the
+Requirement: [792a11k The first update adopts earlier copies](#792a11k-the-first-update-adopts-earlier-copies) `engram update` MUST replace each deploy-set skill that is a real directory in the
 harness skills directory (a copy made by an earlier version) with a link to the root's copy, and MUST
 report each as `adopted: <path>`. On the first update of a harness (its engram root absent or lacking the
 marker) it MUST also create the root and its marker, and MUST list every other real file or directory in
@@ -5484,7 +5484,7 @@ Scenario: 792a11k1c The unmanaged list is not repeated
 
 ### 792a11l Guidance is managed only after opt-in
 
-Requirement: [792a11l](#792a11l-guidance-is-managed-only-after-opt-in) `engram update` MUST include the guidance documents of `agent-instructions/guidance/`
+Requirement: [792a11l Guidance is managed only after opt-in](#792a11l-guidance-is-managed-only-after-opt-in) `engram update` MUST include the guidance documents of `agent-instructions/guidance/`
 (the `.md` files directly in it) in the deploy set of every detected harness only when `--with-guidance`
 is given or the config file of at least one detected harness already imports a guidance file, and MUST
 otherwise leave the root's `guidance/` subtree and any guidance link untouched, neither refreshing nor
@@ -5498,7 +5498,7 @@ managed, a document that has left the source.
 Rationale: management is an opt-in once, so that after a user wires an import, a plain `engram update`
 keeps their guidance current as it does skills. Not being in the deploy set means unmanaged, not removed.
 The import lines, the hints that name them and the guidance documents themselves belong to
-ambient-guidance ([792a19](#792a19-added-ambient-guidance)).
+ambient-guidance ([792a19 ambient-guidance](#792a19-added-ambient-guidance)).
 
 #### 792a11l1 UAT Scenarios
 
@@ -5541,7 +5541,7 @@ Scenario: 792a11l1g One harness's import manages guidance for every harness
 
 ### 792a11m Claude import paths keep working
 
-Requirement: [792a11m](#792a11m-claude-import-paths-keep-working) For Claude Code, whose guidance directory is its engram root, `engram update` MUST
+Requirement: [792a11m Claude import paths keep working](#792a11m-claude-import-paths-keep-working) For Claude Code, whose guidance directory is its engram root, `engram update` MUST
 leave for each managed guidance document a symbolic link at `~/.claude/engram/<name>.md` pointing at
 `~/.claude/engram/guidance/<name>.md`, replacing a real file there from an earlier version, so that an
 `@~/.claude/engram/<name>.md` import in `CLAUDE.md` still resolves to the deployed content. It MUST delete
@@ -5577,7 +5577,7 @@ Scenario: 792a11m1d The report states the canonical path
 
 ### 792a11n Backlog notices for the chunk index
 
-Requirement: [792a11n](#792a11n-backlog-notices-for-the-chunk-index) `engram update` MUST print the line ``duplicate chunk-index files found — run `engram
+Requirement: [792a11n Backlog notices for the chunk index](#792a11n-backlog-notices-for-the-chunk-index) `engram update` MUST print the line ``duplicate chunk-index files found — run `engram
 prune --duplicates` to clear them (preview with `engram prune --duplicates --dry-run`)`` when running
 `engram prune --duplicates` would remove at least one index file, and ``empty chunk-index files found —
 run `engram prune --empty` to clear them (preview with `engram prune --empty --dry-run`)`` when the chunk
@@ -5624,12 +5624,12 @@ Scenario: 792a11n1e The notices coexist with the other upgrade notices
 
 ### 792a11o The update options
 
-Requirement: [792a11o](#792a11o-the-update-options) `engram update --help` MUST describe the update as refreshing the engram binary and
+Requirement: [792a11o The update options](#792a11o-the-update-options) `engram update --help` MUST describe the update as refreshing the engram binary and
 harness skills, and MUST list `--dry-run`, `--with-guidance`, `--allow-downgrade`, `--regen-vocab`,
 `--reparent-luhmann`, `--answers <string>` and `--backfill-identity`. `engram update` MUST pass
-`--with-guidance`, `--regen-vocab` and `--backfill-identity` on to the handed-off run ([792a11e](#792a11e-the-rest-of-the-update-runs-in-the-new-binary)), and MUST
+`--with-guidance`, `--regen-vocab` and `--backfill-identity` on to the handed-off run ([792a11e The rest of the update runs in the new binary](#792a11e-the-rest-of-the-update-runs-in-the-new-binary)), and MUST
 NOT pass `--dry-run`, which never hands off. `--reparent-luhmann` MUST run only the re-parenting of
-[792a10](#792a10-added-vault-migration), without installing or deploying anything ([792a10b](#792a10b-re-parenting-only-on-request)).
+[792a10 vault-migration](#792a10-added-vault-migration), without installing or deploying anything ([792a10b Re-parenting only on request](#792a10b-re-parenting-only-on-request)).
 
 #### 792a11o1 UAT Scenarios
 
@@ -5654,11 +5654,11 @@ Scenario: 792a11o1c Re-parenting skips the install and the deploy
 
 Canonical target: `docs/specs/product/skill-runbook-registration.md` (title `Skill Runbook Registration - Product Spec`).
 
-Skills remain the shipping form of every procedure, and their files stay exactly as the harnesses that load them expect. Engram's own skills ship from `agent-instructions/skills/` through `engram update`. Registration lets memory surface a procedure by situation and trigger: each skill, command and Pi prompt template in the folders a harness loads may have one runbook note in the vault that mirrors its text and carries the runbook fields authored on the note, so the runbook shim's follow-frame can drive it and it can flow across vault-graph edges. Engram offers to create, refresh and remove these notes, the user decides, and a declined offer is not repeated. `engram update` runs the offers after deploying ([792a12t](#792a12t-update-runs-registration-after-deploying-the-skills)), and `engram register-skills` runs them on their own. A note mirrors a skill and does not replace it: the direction that retired skills to runbook-only form was reversed ([792d57](./792d_decision-log.md#792d57-mixed-sources-of-note-writing-are-split-by-owner)). Curating the pending notes belongs to the curate capability, and the skills' own procedures to recall, learn, route, please, curate and write-memory.
+Skills remain the shipping form of every procedure, and their files stay exactly as the harnesses that load them expect. Engram's own skills ship from `agent-instructions/skills/` through `engram update`. Registration lets memory surface a procedure by situation and trigger: each skill, command and Pi prompt template in the folders a harness loads may have one runbook note in the vault that mirrors its text and carries the runbook fields authored on the note, so the runbook shim's follow-frame can drive it and it can flow across vault-graph edges. Engram offers to create, refresh and remove these notes, the user decides, and a declined offer is not repeated. `engram update` runs the offers after deploying ([792a12t Update runs registration after deploying the skills](#792a12t-update-runs-registration-after-deploying-the-skills)), and `engram register-skills` runs them on their own. A note mirrors a skill and does not replace it: the direction that retired skills to runbook-only form was reversed ([792d57 Mixed sources of note-writing are split by owner](./792d_decision-log.md#792d57-mixed-sources-of-note-writing-are-split-by-owner)). Curating the pending notes belongs to the curate capability, and the skills' own procedures to recall, learn, route, please, curate and write-memory.
 
 ### 792a12a Skill files are never changed
 
-Requirement: [792a12a](#792a12a-skill-files-are-never-changed) Registration MUST NOT read, require or write any frontmatter field of a skill's `SKILL.md`, a command's
+Requirement: [792a12a Skill files are never changed](#792a12a-skill-files-are-never-changed) Registration MUST NOT read, require or write any frontmatter field of a skill's `SKILL.md`, a command's
 `.md` file or a Pi prompt template, other than using the file's bytes as the note body and as the hash
 input, and MUST NOT require or add any file beside them.
 
@@ -5681,7 +5681,7 @@ Scenario: 792a12a1b Command and prompt files are untouched
 
 ### 792a12b One runbook note per skill, identified by its key
 
-Requirement: [792a12b](#792a12b-one-runbook-note-per-skill-identified-by-its-key) Each registered skill, command or prompt template MUST have at most one runbook note, which registration
+Requirement: [792a12b One runbook note per skill, identified by its key](#792a12b-one-runbook-note-per-skill-identified-by-its-key) Each registered skill, command or prompt template MUST have at most one runbook note, which registration
 MUST identify as the note of type runbook whose basename slug begins `skill-`, that carries a non-empty
 `skill_hash`, and whose `skill_key` equals the key. A note's slug alone MUST NOT identify it. A runbook
 note with `skill_hash` but no `skill_key`, one whose `skill_key` is unrecognized, and one without
@@ -5738,10 +5738,10 @@ Scenario: 792a12b1g A keyed note with another slug is not found
 
 ### 792a12c Registration offers and remembers declines by hash
 
-Requirement: [792a12c](#792a12c-registration-offers-and-remembers-declines-by-hash) For each scanned skill, command or prompt template that is not an alias and has no key conflict,
+Requirement: [792a12c Registration offers and remembers declines by hash](#792a12c-registration-offers-and-remembers-declines-by-hash) For each scanned skill, command or prompt template that is not an alias and has no key conflict,
 registration MUST offer to register it when it has no note, and to refresh its note when the note's
 `skill_hash` differs from the current hash, and MUST offer to remove a note when its root was read and
-no scanned entry has its key ([792a12q](#792a12q-removal-is-offered-only-for-successfully-read-sources)). It MUST make no offer when the hashes match or when the key's
+no scanned entry has its key ([792a12q Removal is offered only for successfully read sources](#792a12q-removal-is-offered-only-for-successfully-read-sources)). It MUST make no offer when the hashes match or when the key's
 current hash is recorded as declined. Declining an offer MUST record the current hash against the key in
 the vault-root file `skill-registrations.json` and change nothing else; for a removal offer the recorded
 hash is the note's `skill_hash`.
@@ -5776,7 +5776,7 @@ Scenario: 792a12c1d A declined removal is not offered again
 
 ### 792a12d Accepting a registration creates a pending note
 
-Requirement: [792a12d](#792a12d-accepting-a-registration-creates-a-pending-note) Accepting a registration offer MUST create a runbook note through the normal capture path: a fresh
+Requirement: [792a12d Accepting a registration creates a pending note](#792a12d-accepting-a-registration-creates-a-pending-note) Accepting a registration offer MUST create a runbook note through the normal capture path: a fresh
 top-level Luhmann ID, the slug derived from the key, a sidecar embedded on write, the `source:` line
 `skill registration: <skill_source>`, `skill_hash` (the SHA-256 of the source file's bytes),
 `skill_key`, `skill_source` (the resolved source path, home-relative with `~/` when under the home
@@ -5813,7 +5813,7 @@ Scenario: 792a12d1c A command is registered from its file
 
 ### 792a12e Accepting a refresh replaces the body, keeps the fields, and marks the note pending
 
-Requirement: [792a12e](#792a12e-accepting-a-refresh-replaces-the-body-keeps-the-fields-and-marks-the-note-pending) Accepting a refresh offer MUST replace the note's body with the current source file after the preamble,
+Requirement: [792a12e Accepting a refresh replaces the body, keeps the fields, and marks the note pending](#792a12e-accepting-a-refresh-replaces-the-body-keeps-the-fields-and-marks-the-note-pending) Accepting a refresh offer MUST replace the note's body with the current source file after the preamble,
 set `skill_hash` to the current hash, set `skill_source` to the current resolved source while keeping
 `skill_key`, rebuild the sidecar, and set `pending: true` so that curation re-checks the fields against
 the new text. It MUST preserve `situation`, `triggers`, `done_when`, `red_flags`, `created`, the
@@ -5859,7 +5859,7 @@ Scenario: 792a12e1f Authored fields survive a refresh
 
 ### 792a12f Accepting a removal deletes the note and its sidecar
 
-Requirement: [792a12f](#792a12f-accepting-a-removal-deletes-the-note-and-its-sidecar) Accepting a removal offer MUST delete the skill note and its `.vec.json` sidecar. Registration MUST NOT
+Requirement: [792a12f Accepting a removal deletes the note and its sidecar](#792a12f-accepting-a-removal-deletes-the-note-and-its-sidecar) Accepting a removal offer MUST delete the skill note and its `.vec.json` sidecar. Registration MUST NOT
 delete any note without an accepted offer.
 
 #### 792a12f1 UAT Scenarios
@@ -5873,7 +5873,7 @@ Scenario: 792a12f1a A skill no longer shipped
 
 ### 792a12g Registration never prompts or writes without a terminal
 
-Requirement: [792a12g](#792a12g-registration-never-prompts-or-writes-without-a-terminal) When stdin is not a terminal and no `--accept` or `--decline` answer covers an offer, registration MUST
+Requirement: [792a12g Registration never prompts or writes without a terminal](#792a12g-registration-never-prompts-or-writes-without-a-terminal) When stdin is not a terminal and no `--accept` or `--decline` answer covers an offer, registration MUST
 NOT prompt, MUST NOT write a note, and MUST NOT record a decline for that offer. It MUST print one line
 giving the total number of outstanding offers (`offer` for one, `offers` otherwise), each scope's
 selector with its count, and the commands that answer them: ``engram: <N> skill runbook offers awaiting
@@ -5891,7 +5891,7 @@ Scenario: 792a12g1a An agent runs update through a shell
 
 ### 792a12h Registration can run on its own with explicit answers
 
-Requirement: [792a12h](#792a12h-registration-can-run-on-its-own-with-explicit-answers) `engram register-skills` MUST run the same comparison over the same default source set as `engram
+Requirement: [792a12h Registration can run on its own with explicit answers](#792a12h-registration-can-run-on-its-own-with-explicit-answers) `engram register-skills` MUST run the same comparison over the same default source set as `engram
 update`. `--accept <key|pattern|@scope>` and `--decline <key|pattern|@scope>` (each repeatable) MUST
 answer the matching offers without prompting, and an answer that matches no offer MUST print ``engram:
 no pending offer for skill "<token>" — ignoring --accept`` (or `--decline`) and continue. `--dry-run`
@@ -5940,7 +5940,7 @@ Scenario: 792a12h1f One answer in both flags is refused
 
 ### 792a12i An existing runbook note can be adopted as a skill's note
 
-Requirement: [792a12i](#792a12i-an-existing-runbook-note-can-be-adopted-as-a-skills-note) `engram register-skills --adopt <key>=<note-ref>` MUST, for a runbook note named by Luhmann ID or
+Requirement: [792a12i An existing runbook note can be adopted as a skill's note](#792a12i-an-existing-runbook-note-can-be-adopted-as-a-skills-note) `engram register-skills --adopt <key>=<note-ref>` MUST, for a runbook note named by Luhmann ID or
 basename, rename it to the slug derived from `<key>` keeping its Luhmann ID and date and recording its
 old basename in `aliases`, rewrite every inbound wikilink and move its sidecar, replace its body with
 the preamble and the current source file, set `skill_hash`, `skill_key` and `skill_source`, remove any
@@ -6005,7 +6005,7 @@ Scenario: 792a12i1i A dry run adopts nothing
 
 ### 792a12j Claude Code skills, commands and synced skills are found
 
-Requirement: [792a12j](#792a12j-claude-code-skills-commands-and-synced-skills-are-found) Registration MUST find, for a detected Claude Code harness (`~/.claude`), its user skills as
+Requirement: [792a12j Claude Code skills, commands and synced skills are found](#792a12j-claude-code-skills-commands-and-synced-skills-are-found) Registration MUST find, for a detected Claude Code harness (`~/.claude`), its user skills as
 `~/.claude/skills/<name>/SKILL.md` from immediate children that are directories or symlinks resolving to
 directories, its user commands as `~/.claude/commands/**/*.md` named by their relative path with `/`
 replaced by `:`, and its claude.ai-synced skills as `<bucket>/<name>/SKILL.md` for each directory bucket
@@ -6039,7 +6039,7 @@ Scenario: 792a12j1d Synced skills come from manifest buckets
 
 ### 792a12k Pi, agents and Pi-configured skills, commands and prompts are found
 
-Requirement: [792a12k](#792a12k-pi-agents-and-pi-configured-skills-commands-and-prompts-are-found) Registration MUST find, for a detected Pi harness (`~/.pi`), its user skills in `~/.pi/agent/skills/`
+Requirement: [792a12k Pi, agents and Pi-configured skills, commands and prompts are found](#792a12k-pi-agents-and-pi-configured-skills-commands-and-prompts-are-found) Registration MUST find, for a detected Pi harness (`~/.pi`), its user skills in `~/.pi/agent/skills/`
 (recursively discovered skill directories, plus root `.md` files), the skills in `~/.agents/skills/`
 (recursively, ignoring root `.md` files), its prompt templates in `~/.pi/agent/prompts/*.md` (flat,
 named by file stem), and the `skills` and `prompts` paths and `packages` configured in Pi's global
@@ -6099,7 +6099,7 @@ Scenario: 792a12k1h A configured package with a missing path contributes nothing
 
 ### 792a12l Installed Claude Code plugins' skills and commands are found
 
-Requirement: [792a12l](#792a12l-installed-claude-code-plugins-skills-and-commands-are-found) Registration MUST find the skills and commands of each installed Claude Code plugin that is enabled by
+Requirement: [792a12l Installed Claude Code plugins' skills and commands are found](#792a12l-installed-claude-code-plugins-skills-and-commands-are-found) Registration MUST find the skills and commands of each installed Claude Code plugin that is enabled by
 its `enabledPlugins` entry or, when the entry is absent, by its `plugin.json` `defaultEnabled` (default
 true), whose scope is `user` or is project-scoped to the current repository, and whose `installPath`
 exists. Its skills MUST come from `<installPath>/skills/<name>/SKILL.md` plus any `plugin.json` `skills`
@@ -6134,7 +6134,7 @@ Scenario: 792a12l1d Only the installed version is read
 
 ### 792a12m Project skills and commands are found
 
-Requirement: [792a12m](#792a12m-project-skills-and-commands-are-found) Inside a git repository, registration MUST find the Claude Code project skills and commands
+Requirement: [792a12m Project skills and commands are found](#792a12m-project-skills-and-commands-are-found) Inside a git repository, registration MUST find the Claude Code project skills and commands
 `.claude/skills/<name>/SKILL.md` and `.claude/commands/**/*.md` in the working directory and each
 ancestor up to the repository top-level, ignoring root `.md` files in `.claude/skills`. For a project Pi
 trusts it MUST also find, in this precedence order, `.pi/skills/`, `.agents/skills/` in the working
@@ -6180,10 +6180,10 @@ Scenario: 792a12m1f Outside a repository there are no project entries
 
 ### 792a12n Sources are read only for detected harnesses, and names come from the file system
 
-Requirement: [792a12n](#792a12n-sources-are-read-only-for-detected-harnesses-and-names-come-from-the-file-system) Registration MUST read the Claude Code sources only when `~/.claude` exists and the Pi and `~/.agents`
+Requirement: [792a12n Sources are read only for detected harnesses, and names come from the file system](#792a12n-sources-are-read-only-for-detected-harnesses-and-names-come-from-the-file-system) Registration MUST read the Claude Code sources only when `~/.claude` exists and the Pi and `~/.agents`
 sources only when `~/.pi` exists. A name MUST be the directory name, file stem or command path, never a
 frontmatter field. An entry whose name contains `:` (other than a command's namespace separators) MUST
-be skipped with a warning, and an entry whose key is not recognized ([792a12b](#792a12b-one-runbook-note-per-skill-identified-by-its-key)) MUST be skipped with a
+be skipped with a warning, and an entry whose key is not recognized ([792a12b One runbook note per skill, identified by its key](#792a12b-one-runbook-note-per-skill-identified-by-its-key)) MUST be skipped with a
 warning.
 
 #### 792a12n1 UAT Scenarios
@@ -6202,7 +6202,7 @@ Scenario: 792a12n1b A name with a colon is skipped
 
 ### 792a12o Every scanned entry has a source-qualified key
 
-Requirement: [792a12o](#792a12o-every-scanned-entry-has-a-source-qualified-key) Each scanned entry MUST have a key determined by the source folder it was found in, and no key MUST be
+Requirement: [792a12o Every scanned entry has a source-qualified key](#792a12o-every-scanned-entry-has-a-source-qualified-key) Each scanned entry MUST have a key determined by the source folder it was found in, and no key MUST be
 bare: Claude Code user skill `claude:<name>`; Claude Code user command `claude:cmd:<name>`;
 claude.ai-synced skill `anthropic-skills:<name>`; Pi user skill `pi:<name>`; `~/.agents/skills` skill
 `agents:<name>`; Pi settings skill `pi-settings:<name>`; Pi package skill `pi-pkg:<pkg-id>:<name>`; Pi
@@ -6277,7 +6277,7 @@ Scenario: 792a12o1j A prompt template's key
 
 ### 792a12p Copies of one skill collapse and key conflicts are reported
 
-Requirement: [792a12p](#792a12p-copies-of-one-skill-collapse-and-key-conflicts-are-reported) Scanned entries resolving to the same file MUST be one entry. Entries with the same key MUST collapse
+Requirement: [792a12p Copies of one skill collapse and key conflicts are reported](#792a12p-copies-of-one-skill-collapse-and-key-conflicts-are-reported) Scanned entries resolving to the same file MUST be one entry. Entries with the same key MUST collapse
 when byte-identical, and when they differ MUST be reported as a key conflict naming every path, with no
 offer for that key, and the run MUST exit with a failure status after handling every other offer. The
 same name found at two levels of a project directory chain is such a conflict. A plugin name installed
@@ -6333,7 +6333,7 @@ Scenario: 792a12p1g A diverged plugin skill of the same name is its own skill
 
 ### 792a12q Removal is offered only for successfully read sources
 
-Requirement: [792a12q](#792a12q-removal-is-offered-only-for-successfully-read-sources) A source root MUST count as read only when its read succeeded: a read error of any kind, including
+Requirement: [792a12q Removal is offered only for successfully read sources](#792a12q-removal-is-offered-only-for-successfully-read-sources) A source root MUST count as read only when its read succeeded: a read error of any kind, including
 not-exist, means not read, never empty. A skill note MUST be eligible for removal only as follows. For
 `claude:`, `claude:cmd:`, `pi:`, `agents:` and `pi-prompt:` keys, the one fixed user root of that form
 (`~/.claude/skills`, `~/.claude/commands`, `~/.pi/agent/skills`, `~/.agents/skills`,
@@ -6435,7 +6435,7 @@ Scenario: 792a12q1o A machine without the harness
 
 ### 792a12r Offers are grouped by scope and answered by key, pattern or selector
 
-Requirement: [792a12r](#792a12r-offers-are-grouped-by-scope-and-answered-by-key-pattern-or-selector) Each offer MUST belong to a scope: `claude-user` for `claude:` skill keys, `claude-cmd` for
+Requirement: [792a12r Offers are grouped by scope and answered by key, pattern or selector](#792a12r-offers-are-grouped-by-scope-and-answered-by-key-pattern-or-selector) Each offer MUST belong to a scope: `claude-user` for `claude:` skill keys, `claude-cmd` for
 `claude:cmd:` keys, `synced`, `pi-user`, `agents-user`, `pi-settings` and `pi-prompt` for those sources,
 `pi-pkg:<pkg-id>` for a Pi package, `plugin:<plugin>` for a plugin and `project:<r>` for a project.
 Offers MUST be ordered by scope then key, a scope's display label being its selector `@<scope-id>` with
@@ -6500,7 +6500,7 @@ Scenario: 792a12r1h End of input at a prompt records nothing
 
 ### 792a12s Declines are keyed by skill key under schema version 2
 
-Requirement: [792a12s](#792a12s-declines-are-keyed-by-skill-key-under-schema-version-2) `skill-registrations.json` MUST map keys to declined hashes under `schema_version: 2`. A file whose
+Requirement: [792a12s Declines are keyed by skill key under schema version 2](#792a12s-declines-are-keyed-by-skill-key-under-schema-version-2) `skill-registrations.json` MUST map keys to declined hashes under `schema_version: 2`. A file whose
 `schema_version` is anything other than 2 (missing, below 2 or above 2), that has an unrecognized field,
 or that cannot be decoded MUST be an error, not an empty decline state, and registration MUST write
 nothing. A missing file MUST mean no declines.
@@ -6530,7 +6530,7 @@ Scenario: 792a12s1c A missing file is no declines
 
 ### 792a12t Update runs registration after deploying the skills
 
-Requirement: [792a12t](#792a12t-update-runs-registration-after-deploying-the-skills) After the engram-owned root sync completes, `engram update` MUST run skill registration against the
+Requirement: [792a12t Update runs registration after deploying the skills](#792a12t-update-runs-registration-after-deploying-the-skills) After the engram-owned root sync completes, `engram update` MUST run skill registration against the
 resolved vault over the same default source set that `engram register-skills` scans, resolved by the
 same function from the same home and working directory and not from `agent-instructions/skills` of the
 source, using its own `--dry-run` flag and no explicit answers. It MUST prompt for each outstanding
@@ -6569,7 +6569,7 @@ Scenario: 792a12t1e A registration failure does not roll back the deploy
 
 ### 792a12u Skill identity fields belong to registration
 
-Requirement: [792a12u](#792a12u-skill-identity-fields-belong-to-registration) A runbook note created, adopted or refreshed by registration MUST carry `skill_hash`, `skill_key` and
+Requirement: [792a12u Skill identity fields belong to registration](#792a12u-skill-identity-fields-belong-to-registration) A runbook note created, adopted or refreshed by registration MUST carry `skill_hash`, `skill_key` and
 `skill_source`, and every path that rewrites a note's frontmatter without being registration MUST
 preserve all three unchanged: `engram amend` (including `--clear-pending`), `engram resituate`, Luhmann
 re-parenting, the rename-and-rewrite of wikilinks, the identity backfill and the vocabulary tag
@@ -6617,7 +6617,7 @@ Scenario: 792a12u1g Ordinary capture carries none
 
 ### 792a12v Skill notes behave like captured runbooks
 
-Requirement: [792a12v](#792a12v-skill-notes-behave-like-captured-runbooks) A runbook note mirroring a skill MUST participate in the Luhmann hierarchy, embedding, vocabulary
+Requirement: [792a12v Skill notes behave like captured runbooks](#792a12v-skill-notes-behave-like-captured-runbooks) A runbook note mirroring a skill MUST participate in the Luhmann hierarchy, embedding, vocabulary
 tagging, retrieval, triggers and the follow-frame of the runbook shim exactly as a captured runbook
 does, with its `situation`, `done_when`, `red_flags` and `triggers` authored on the note and edited with
 `engram amend`. Until curated, a note registered or refreshed by registration is a pending offer. Its
@@ -6657,13 +6657,13 @@ Scenario: 792a12v1e A pending skill note is a pending offer
 
 Canonical target: `docs/specs/product/write-memory.md` (title `Write Memory - Product Spec`).
 
-`write-memory` is the skill that turns a decision to remember something into a vault note. A parent skill (recall or learn) decides what to capture and why, then hands the worker a structured request; the worker composes the matching `engram learn` command, runs it, checks the result and reports the written note path. The judgment stays with the parent and the mechanics stay with the worker. The shipped procedure is `agent-instructions/skills/write-memory/SKILL.md`; the vault runbook note that mirrors it is registered by the skill-runbook-registration capability ([792a12](#792a12-added-skill-runbook-registration)). What each note kind contains and how the binary writes it are note-writing's ([792a3](#792a3-added-note-writing)); amending a note is note-revision's ([792a4](#792a4-added-note-revision)); what makes a good capture belongs to learn and recall.
+`write-memory` is the skill that turns a decision to remember something into a vault note. A parent skill (recall or learn) decides what to capture and why, then hands the worker a structured request; the worker composes the matching `engram learn` command, runs it, checks the result and reports the written note path. The judgment stays with the parent and the mechanics stay with the worker. The shipped procedure is `agent-instructions/skills/write-memory/SKILL.md`; the vault runbook note that mirrors it is registered by the skill-runbook-registration capability ([792a12 skill-runbook-registration](#792a12-added-skill-runbook-registration)). What each note kind contains and how the binary writes it are note-writing's ([792a3 note-writing](#792a3-added-note-writing)); amending a note is note-revision's ([792a4 note-revision](#792a4-added-note-revision)); what makes a good capture belongs to learn and recall.
 
-Rationale: the atomic-skills exploration (2026-07-04) evaluated splitting the skills into shared behavioral atoms. It extracted exactly one, the write seam, as a worker invoked as the parent's next whole action, never a mid-procedure reference fetch. It did not extract a read-memory atom, because recall's read, judge and write pipeline is sequentially cohesive. An earlier reference-card form of the same atom was dropped, and its "0/27 mid-procedure dereference" measurement binds nothing, because the instrument was invalid. The worker form's fire rates were measured with a fixed, marker-gated harness: the handoff fired at its seams, no boundary was violated and no spurious fire occurred in six non-handoff trials (`dev/eval/LEDGER.md#write-memory-worker-fire-rates`, 2026-07-04). The skills-to-runbooks conversion of this worker was proposed and then reversed; the skill file is the shipped form ([792d57](./792d_decision-log.md#792d57-mixed-sources-of-note-writing-are-split-by-owner)).
+Rationale: the atomic-skills exploration (2026-07-04) evaluated splitting the skills into shared behavioral atoms. It extracted exactly one, the write seam, as a worker invoked as the parent's next whole action, never a mid-procedure reference fetch. It did not extract a read-memory atom, because recall's read, judge and write pipeline is sequentially cohesive. An earlier reference-card form of the same atom was dropped, and its "0/27 mid-procedure dereference" measurement binds nothing, because the instrument was invalid. The worker form's fire rates were measured with a fixed, marker-gated harness: the handoff fired at its seams, no boundary was violated and no spurious fire occurred in six non-handoff trials (`dev/eval/LEDGER.md#write-memory-worker-fire-rates`, 2026-07-04). The skills-to-runbooks conversion of this worker was proposed and then reversed; the skill file is the shipped form ([792d57 Mixed sources of note-writing are split by owner](./792d_decision-log.md#792d57-mixed-sources-of-note-writing-are-split-by-owner)).
 
 ### 792a13a The worker runs only on a handoff and never re-judges it
 
-Requirement: [792a13a](#792a13a-the-worker-runs-only-on-a-handoff-and-never-re-judges-it) The write-memory worker MUST run only when a parent skill hands it a write, MUST execute that write without re-judging whether it deserves to be made, and MUST NOT write anything the parent did not hand off.
+Requirement: [792a13a The worker runs only on a handoff and never re-judges it](#792a13a-the-worker-runs-only-on-a-handoff-and-never-re-judges-it) The write-memory worker MUST run only when a parent skill hands it a write, MUST execute that write without re-judging whether it deserves to be made, and MUST NOT write anything the parent did not hand off.
 
 Rationale: the skill's `description:` names only parent-instructed invocation, so it never competes for autonomous firing. The worker has no trigger of its own and no user's words reach it directly.
 
@@ -6688,7 +6688,7 @@ Scenario: 792a13a1c No handoff, no fire
 
 ### 792a13b Parent skills invoke the worker by name
 
-Requirement: [792a13b](#792a13b-parent-skills-invoke-the-worker-by-name) A parent skill (recall or learn) MUST name write-memory as its next action at each write site and invoke it natively as a skill, and MUST NOT rely on `engram query` surfacing it by trigger or similarity.
+Requirement: [792a13b Parent skills invoke the worker by name](#792a13b-parent-skills-invoke-the-worker-by-name) A parent skill (recall or learn) MUST name write-memory as its next action at each write site and invoke it natively as a skill, and MUST NOT rely on `engram query` surfacing it by trigger or similarity.
 
 Rationale: write-memory is reached only from a parent's own text, so a name in that text is the dependable route, as the please skill names route.
 
@@ -6708,7 +6708,7 @@ Scenario: 792a13b1b A session without the skill follows the runbook note
 
 ### 792a13c The handoff and its missing fields
 
-Requirement: [792a13c](#792a13c-the-handoff-and-its-missing-fields) The worker MUST accept a handoff of a kind (`fact`, `feedback`, `qa` or `runbook`), the content fields of that kind and a human-readable source, with optional chunk-sources, tags, supersedes, placement (position and target), red flags and triggers. When a required field is missing it MUST ask the in-session parent for it and MUST NOT invent content on the parent's behalf.
+Requirement: [792a13c The handoff and its missing fields](#792a13c-the-handoff-and-its-missing-fields) The worker MUST accept a handoff of a kind (`fact`, `feedback`, `qa` or `runbook`), the content fields of that kind and a human-readable source, with optional chunk-sources, tags, supersedes, placement (position and target), red flags and triggers. When a required field is missing it MUST ask the in-session parent for it and MUST NOT invent content on the parent's behalf.
 
 #### 792a13c1 UAT Scenarios
 
@@ -6726,7 +6726,7 @@ Scenario: 792a13c1b Content is never invented
 
 ### 792a13d Fact and feedback notes
 
-Requirement: [792a13d](#792a13d-fact-and-feedback-notes) The worker MUST compose a feedback handoff as `engram learn feedback` with `--slug`, `--position`, `--source`, `--situation`, `--behavior`, `--impact` and `--action`, and a fact handoff as `engram learn fact` with `--slug`, `--position`, `--source`, `--situation`, `--subject`, `--predicate` and `--object`, each followed by one `--tag` per handed-off tag. The situation MUST be the retrieval-shaped phrase the parent supplied.
+Requirement: [792a13d Fact and feedback notes](#792a13d-fact-and-feedback-notes) The worker MUST compose a feedback handoff as `engram learn feedback` with `--slug`, `--position`, `--source`, `--situation`, `--behavior`, `--impact` and `--action`, and a fact handoff as `engram learn fact` with `--slug`, `--position`, `--source`, `--situation`, `--subject`, `--predicate` and `--object`, each followed by one `--tag` per handed-off tag. The situation MUST be the retrieval-shaped phrase the parent supplied.
 
 #### 792a13d1 UAT Scenarios
 
@@ -6744,7 +6744,7 @@ Scenario: 792a13d1b Fact composition
 
 ### 792a13e Runbook notes and their red flags
 
-Requirement: [792a13e](#792a13e-runbook-notes-and-their-red-flags) The worker MUST compose a runbook handoff as `engram learn runbook` with `--slug`, `--position`, `--source`, `--situation`, `--done-when` and `--body`, with one `--red-flag` per handed-off red flag in the handed-off order, and with no `--red-flag` when the handoff carries none.
+Requirement: [792a13e Runbook notes and their red flags](#792a13e-runbook-notes-and-their-red-flags) The worker MUST compose a runbook handoff as `engram learn runbook` with `--slug`, `--position`, `--source`, `--situation`, `--done-when` and `--body`, with one `--red-flag` per handed-off red flag in the handed-off order, and with no `--red-flag` when the handoff carries none.
 
 #### 792a13e1 UAT Scenarios
 
@@ -6762,7 +6762,7 @@ Scenario: 792a13e1b No red flags, no flag
 
 ### 792a13f Question-and-answer notes
 
-Requirement: [792a13f](#792a13f-question-and-answer-notes) The worker MUST compose a qa handoff as `engram learn qa` with `--slug`, `--question`, `--answer`, `--certainty` (`high`, `medium` or `low`) and `--source`, with one `--contributors` per handed-off contributor basename, copying the answer as handed off.
+Requirement: [792a13f Question-and-answer notes](#792a13f-question-and-answer-notes) The worker MUST compose a qa handoff as `engram learn qa` with `--slug`, `--question`, `--answer`, `--certainty` (`high`, `medium` or `low`) and `--source`, with one `--contributors` per handed-off contributor basename, copying the answer as handed off.
 
 #### 792a13f1 UAT Scenarios
 
@@ -6775,7 +6775,7 @@ Scenario: 792a13f1a QA composition
 
 ### 792a13g Placement
 
-Requirement: [792a13g](#792a13g-placement) The worker MUST pass `--position top` when the handoff carries no placement, MUST pass the handed-off `--position` (`top`, `continuation` or `sibling`) when it carries one, and MUST pass `--target <id>` only when the position is `continuation` or `sibling`, never alongside `top`. Placement applies to fact, feedback and runbook handoffs.
+Requirement: [792a13g Placement](#792a13g-placement) The worker MUST pass `--position top` when the handoff carries no placement, MUST pass the handed-off `--position` (`top`, `continuation` or `sibling`) when it carries one, and MUST pass `--target <id>` only when the position is `continuation` or `sibling`, never alongside `top`. Placement applies to fact, feedback and runbook handoffs.
 
 #### 792a13g1 UAT Scenarios
 
@@ -6798,7 +6798,7 @@ Scenario: 792a13g1c Top never carries a target
 
 ### 792a13h Free-text flags are written with the value touching the equals sign
 
-Requirement: [792a13h](#792a13h-free-text-flags-are-written-with-the-value-touching-the-equals-sign) The worker MUST write every free-text flag value (for example `--situation`, `--source`, `--subject`, `--behavior`) as `--flag="value"`, with the quote touching the `=` and no space.
+Requirement: [792a13h Free-text flags are written with the value touching the equals sign](#792a13h-free-text-flags-are-written-with-the-value-touching-the-equals-sign) The worker MUST write every free-text flag value (for example `--situation`, `--source`, `--subject`, `--behavior`) as `--flag="value"`, with the quote touching the `=` and no space.
 
 Rationale: a value that begins with `-` is otherwise read as a new flag, and the command fails.
 
@@ -6813,7 +6813,7 @@ Scenario: 792a13h1a A value beginning with a dash survives
 
 ### 792a13i Provenance, tags, supersession and contributors
 
-Requirement: [792a13i](#792a13i-provenance-tags-supersession-and-contributors) The worker MUST append one `--chunk-source <source#anchor>` per handed-off chunk ID, one `--tag <family>/<value>` per handed-off tag for fact, feedback and runbook handoffs, exactly as provided, and `--supersedes="<basename>|<type>|<claim>"` for each handed-off supersession (type `updates`, `narrows` or `refutes`). It MUST NOT invent tags and MUST NOT write the `vocab/` namespace.
+Requirement: [792a13i Provenance, tags, supersession and contributors](#792a13i-provenance-tags-supersession-and-contributors) The worker MUST append one `--chunk-source <source#anchor>` per handed-off chunk ID, one `--tag <family>/<value>` per handed-off tag for fact, feedback and runbook handoffs, exactly as provided, and `--supersedes="<basename>|<type>|<claim>"` for each handed-off supersession (type `updates`, `narrows` or `refutes`). It MUST NOT invent tags and MUST NOT write the `vocab/` namespace.
 
 Rationale: the binary assigns `vocab/` terms itself and writes the `Supersedes:` body line when `--supersedes` is passed. Handed-off categorical tags travel in the same `tags` list as vocabulary terms but are not vocabulary.
 
@@ -6838,7 +6838,7 @@ Scenario: 792a13i1c A supersession is passed as given
 
 ### 792a13j A qa note takes no tags
 
-Requirement: [792a13j](#792a13j-a-qa-note-takes-no-tags) When a qa handoff carries tags, the worker MUST drop them and MUST append the exact line `tags dropped: qa takes no tag flags` to its output, even when the output is only the command.
+Requirement: [792a13j A qa note takes no tags](#792a13j-a-qa-note-takes-no-tags) When a qa handoff carries tags, the worker MUST drop them and MUST append the exact line `tags dropped: qa takes no tag flags` to its output, even when the output is only the command.
 
 #### 792a13j1 UAT Scenarios
 
@@ -6851,7 +6851,7 @@ Scenario: 792a13j1a QA tags are dropped and reported
 
 ### 792a13k Kinds are never mixed, and the binary's own notation is not hand-authored
 
-Requirement: [792a13k](#792a13k-kinds-are-never-mixed-and-the-binarys-own-notation-is-not-hand-authored) The worker MUST NOT mix fact flags (`--subject`, `--predicate`, `--object`), feedback flags (`--behavior`, `--impact`, `--action`) and runbook flags (`--done-when`, `--body`, `--red-flag`, `--trigger`) in one command, and MUST NOT hand-author a `vocab/<term>` tag or a `Supersedes:` backlink. An inline `[[basename]]` citation MAY be typed directly into a handed-off `--body` or `--object` when the handoff content calls for citing a note.
+Requirement: [792a13k Kinds are never mixed, and the binary's own notation is not hand-authored](#792a13k-kinds-are-never-mixed-and-the-binarys-own-notation-is-not-hand-authored) The worker MUST NOT mix fact flags (`--subject`, `--predicate`, `--object`), feedback flags (`--behavior`, `--impact`, `--action`) and runbook flags (`--done-when`, `--body`, `--red-flag`, `--trigger`) in one command, and MUST NOT hand-author a `vocab/<term>` tag or a `Supersedes:` backlink. An inline `[[basename]]` citation MAY be typed directly into a handed-off `--body` or `--object` when the handoff content calls for citing a note.
 
 #### 792a13k1 UAT Scenarios
 
@@ -6869,7 +6869,7 @@ Scenario: 792a13k1b A cited note is written inline
 
 ### 792a13l Runbook triggers are passed through
 
-Requirement: [792a13l](#792a13l-runbook-triggers-are-passed-through) The worker MUST append one `--trigger="<cue>"` per handed-off trigger, in order, after any `--red-flag`, and MUST emit no `--trigger` when the handoff carries none.
+Requirement: [792a13l Runbook triggers are passed through](#792a13l-runbook-triggers-are-passed-through) The worker MUST append one `--trigger="<cue>"` per handed-off trigger, in order, after any `--red-flag`, and MUST emit no `--trigger` when the handoff carries none.
 
 #### 792a13l1 UAT Scenarios
 
@@ -6887,7 +6887,7 @@ Scenario: 792a13l1b No triggers, no flag
 
 ### 792a13m Trigger cues are specific, author-chosen strings
 
-Requirement: [792a13m](#792a13m-trigger-cues-are-specific-author-chosen-strings) The worker MUST treat a trigger as a cue word or phrase that the user, or an engram notice, would literally write (a slash form, a multi-word phrase, or a single distinctive word of at least three characters), matched case-insensitively, with whitespace collapsed, and as a whole word at letter and digit edges. When a handed-off single word is common in ordinary prose, the worker MUST ask the parent for a distinctive cue instead of passing it through, unless the handoff states that over-firing is a deliberate, accepted choice, in which case the worker MUST pass it through.
+Requirement: [792a13m Trigger cues are specific, author-chosen strings](#792a13m-trigger-cues-are-specific-author-chosen-strings) The worker MUST treat a trigger as a cue word or phrase that the user, or an engram notice, would literally write (a slash form, a multi-word phrase, or a single distinctive word of at least three characters), matched case-insensitively, with whitespace collapsed, and as a whole word at letter and digit edges. When a handed-off single word is common in ordinary prose, the worker MUST ask the parent for a distinctive cue instead of passing it through, unless the handoff states that over-firing is a deliberate, accepted choice, in which case the worker MUST pass it through.
 
 Rationale: a trigger hit only makes the runbook a candidate, and the agent still judges it against the runbook's own `situation`, so over-firing is tolerable and triggers never replace a well-written situation. A text-only skill test (12 fresh runs per arm) found the old skill dropped triggers silently and never questioned a lone common word, while the revised skill passed the trigger scenarios 12 of 12 (`dev/eval/LEDGER.md#write-memory-triggers-contract`, 2026-09-20).
 
@@ -6912,7 +6912,7 @@ Scenario: 792a13m1c A deliberate over-fire is passed through
 
 ### 792a13n The write is verified and reported
 
-Requirement: [792a13n](#792a13n-the-write-is-verified-and-reported) The worker MUST run the composed command and, when it succeeds, MUST report the printed note path or paths to the parent in one line. When the command fails with a CLI error, the worker MUST read the error, correct exactly the problem it names, and retry at most twice. When the command still fails after the retries, it MUST report the exact command and the CLI error verbatim, and MUST NOT silently skip a handed-off write.
+Requirement: [792a13n The write is verified and reported](#792a13n-the-write-is-verified-and-reported) The worker MUST run the composed command and, when it succeeds, MUST report the printed note path or paths to the parent in one line. When the command fails with a CLI error, the worker MUST read the error, correct exactly the problem it names, and retry at most twice. When the command still fails after the retries, it MUST report the exact command and the CLI error verbatim, and MUST NOT silently skip a handed-off write.
 
 #### 792a13n1 UAT Scenarios
 
@@ -6937,11 +6937,11 @@ Scenario: 792a13n1c Persistent failure is reported verbatim
 
 Canonical target: `docs/specs/product/recall.md` (title `Recall - Product Spec`).
 
-`recall` is the skill an agent runs before work that takes more than a single tool call or quick thought. It states the agent's plan, retrieves raw conversation chunks and crystallized vault notes in one ranking, judges what the retrieved items say against the plan, and reports out loud whether memory changed the plan. At its deeper rung it also grows the vault: it refreshes or rewrites the notes that cover a cluster of evidence and writes a note where none does. The retrieval it runs is memory-query's ([792a7](#792a7-added-memory-query)), and the writes go through learn's worker ([792a13](#792a13-added-write-memory)) and note revision ([792a4](#792a4-added-note-revision)); this capability is what the agent does with them. The shipped procedure is `agent-instructions/skills/recall/SKILL.md`. Its steps are numbered in the skill (Step 0 to Step 4) and cited here by those numbers.
+`recall` is the skill an agent runs before work that takes more than a single tool call or quick thought. It states the agent's plan, retrieves raw conversation chunks and crystallized vault notes in one ranking, judges what the retrieved items say against the plan, and reports out loud whether memory changed the plan. At its deeper rung it also grows the vault: it refreshes or rewrites the notes that cover a cluster of evidence and writes a note where none does. The retrieval it runs is memory-query's ([792a7 memory-query](#792a7-added-memory-query)), and the writes go through learn's worker ([792a13 write-memory](#792a13-added-write-memory)) and note revision ([792a4 note-revision](#792a4-added-note-revision)); this capability is what the agent does with them. The shipped procedure is `agent-instructions/skills/recall/SKILL.md`. Its steps are numbered in the skill (Step 0 to Step 4) and cited here by those numbers.
 
 ### 792a14a The plan is stated before anything is retrieved
 
-Requirement: [792a14a](#792a14a-the-plan-is-stated-before-anything-is-retrieved) Recall MUST print, before any `engram` call, three blocks in plain prose: the Ask (what is being asked, in the agent's own words, in one or two sentences), the Situation (the concrete context, such as the repository, the branch, the operation underway and what is loaded) and the Plan (the numbered actions the agent would take next absent any guidance from memory).
+Requirement: [792a14a The plan is stated before anything is retrieved](#792a14a-the-plan-is-stated-before-anything-is-retrieved) Recall MUST print, before any `engram` call, three blocks in plain prose: the Ask (what is being asked, in the agent's own words, in one or two sentences), the Situation (the concrete context, such as the repository, the branch, the operation underway and what is loaded) and the Plan (the numbered actions the agent would take next absent any guidance from memory).
 
 Rationale: an unstated plan cannot be tested against memory. The synthesis at the end walks this plan item by item, so skipping the step leaves the rest of the procedure with nothing to compare.
 
@@ -6961,7 +6961,7 @@ Scenario: 792a14a1b The plan is the unguided plan
 
 ### 792a14b The index is swept once per session
 
-Requirement: [792a14b](#792a14b-the-index-is-swept-once-per-session) Recall MUST run `engram ingest --auto` before it queries, so that the index holds the latest sessions and document edits, MUST NOT run it again when a sweep already ran earlier in the same session, and MUST continue to query when the sweep fails, saying so.
+Requirement: [792a14b The index is swept once per session](#792a14b-the-index-is-swept-once-per-session) Recall MUST run `engram ingest --auto` before it queries, so that the index holds the latest sessions and document edits, MUST NOT run it again when a sweep already ran earlier in the same session, and MUST continue to query when the sweep fails, saying so.
 
 Rationale: a sweep takes seconds when nothing changed. A re-sweep inside a session indexes only turns already in the agent's context, and a change made elsewhere is picked up by the next sweep, so suspicion of one is not a reason to sweep again. A slightly stale index still beats no retrieval.
 
@@ -6986,7 +6986,7 @@ Scenario: 792a14b1c A failed sweep does not stop recall
 
 ### 792a14c Recall has two depths
 
-Requirement: [792a14c](#792a14c-recall-has-two-depths) Recall MUST run in one of two modes chosen by the caller: `deep`, which MUST be the mode when the caller names none, and `glance`, which MUST be used when the caller names it. Deep MUST run the whole procedure, applying memory to the decision and growing the vault. Glance MUST apply memory to the decision without writing vault knowledge: it MUST use about three query phrases instead of ten, MUST keep the reading of candidates (Step 2.5A), the recency weighting (Step 2.5B), the activation (Step 2.7), the closing synthesis (Step 3) and the re-entry query (Step 3.5), and MUST skip the coverage writes (Step 2.5C) and the persisting of a conclusion (Step 4).
+Requirement: [792a14c Recall has two depths](#792a14c-recall-has-two-depths) Recall MUST run in one of two modes chosen by the caller: `deep`, which MUST be the mode when the caller names none, and `glance`, which MUST be used when the caller names it. Deep MUST run the whole procedure, applying memory to the decision and growing the vault. Glance MUST apply memory to the decision without writing vault knowledge: it MUST use about three query phrases instead of ten, MUST keep the reading of candidates (Step 2.5A), the recency weighting (Step 2.5B), the activation (Step 2.7), the closing synthesis (Step 3) and the re-entry query (Step 3.5), and MUST skip the coverage writes (Step 2.5C) and the persisting of a conclusion (Step 4).
 
 Rationale: glance exists so that recall can fire often at everyday decision points, and deep for weighty or irreversible ones, or when recall should also learn. A real-scale vault (400+ notes) showed glance 2.23 times faster and 46% cheaper per fire than deep, while a tiny vault had shown only 1.2 times, which was an artifact of vault size (`dev/eval/LEDGER.md#glance-cost-realvault`). Glance delivered the convention, recency-supersession and abduction wins at their verified bars (`dev/eval/LEDGER.md#glance-delivers-c3-c4i-c6`). Its activation still bumps the used notes' recency metadata and pulls a used parent note down as a pending copy, which are kept; neither is a knowledge write.
 
@@ -7016,7 +7016,7 @@ Scenario: 792a14c1d Glance still reads, weights, activates and synthesizes
 
 ### 792a14d Glance escalates to deep for a recent standard
 
-Requirement: [792a14d](#792a14d-glance-escalates-to-deep-for-a-recent-standard) Recall in glance mode MUST switch to deep when its decision turns on honoring a standard that surfaced in the recent-activity channel (an item such as "use X going forward" or "the new convention is Y"), and MUST NOT escalate for applying conventions, for recency supersession within the matched set, or for abduction and synthesis.
+Requirement: [792a14d Glance escalates to deep for a recent standard](#792a14d-glance-escalates-to-deep-for-a-recent-standard) Recall in glance mode MUST switch to deep when its decision turns on honoring a standard that surfaced in the recent-activity channel (an item such as "use X going forward" or "the new convention is Y"), and MUST NOT escalate for applying conventions, for recency supersession within the matched set, or for abduction and synthesis.
 
 Rationale: glance reliably surfaces a recent-channel item but does not elevate it to a requirement: it honored such a standard 0 of 5 times where deep honored it 4 of 5 (`dev/eval/LEDGER.md#glance-fails-c5-delivery`, 2026-06-29). Glance is validated as deep-equivalent only for the other three.
 
@@ -7036,7 +7036,7 @@ Scenario: 792a14d1b Ordinary conventions do not escalate
 
 ### 792a14e Ten phrases from ten angles
 
-Requirement: [792a14e](#792a14e-ten-phrases-from-ten-angles) Recall in deep mode MUST generate exactly ten short, specific query phrases, one from each of these angles: the situation or setting, the user's intent or goal, the current concrete action, the problem or blocker, a candidate solution or approach, the tooling or technology in play, prior related work, an adjacent technique, a failure mode to avoid and the domain or concept. It MUST NOT pre-filter them beyond dropping obvious dross such as a bare noun, and MUST phrase them by the task and not by fear.
+Requirement: [792a14e Ten phrases from ten angles](#792a14e-ten-phrases-from-ten-angles) Recall in deep mode MUST generate exactly ten short, specific query phrases, one from each of these angles: the situation or setting, the user's intent or goal, the current concrete action, the problem or blocker, a candidate solution or approach, the tooling or technology in play, prior related work, an adjacent technique, a failure mode to avoid and the domain or concept. It MUST NOT pre-filter them beyond dropping obvious dross such as a bare noun, and MUST phrase them by the task and not by fear.
 
 Rationale: the agent cannot know what memory holds before it queries, so breadth is for finding crystallization candidates. "Implementing Claude Code hooks" retrieves the lessons for the task, while "common mistakes when writing hooks" retrieves only warnings. The binary caps each phrase to its top 30 matches. Glance's three phrases are the measured retrieval floor (#661).
 
@@ -7056,7 +7056,7 @@ Scenario: 792a14e1b Phrases name the task, not the fear
 
 ### 792a14f One unified query
 
-Requirement: [792a14f](#792a14f-one-unified-query) Recall MUST run ONE `engram query --lazy-chunks` that carries every phrase as a repeatable `--phrase="<phrase>"`, MUST NOT run one query per phrase, and MUST NOT pass `--vault` or `--chunks-dir`, because the binary resolves the vault and the chunk index itself. It MUST NOT dispatch subagents to synthesize clusters.
+Requirement: [792a14f One unified query](#792a14f-one-unified-query) Recall MUST run ONE `engram query --lazy-chunks` that carries every phrase as a repeatable `--phrase="<phrase>"`, MUST NOT run one query per phrase, and MUST NOT pass `--vault` or `--chunks-dir`, because the binary resolves the vault and the chunk index itself. It MUST NOT dispatch subagents to synthesize clusters.
 
 Rationale: the query clusters the matched notes and chunks together in one pass, which phrase-by-phrase calls would split. Cluster synthesis runs inline in the recall skill, and a per-cluster subagent was removed.
 
@@ -7081,7 +7081,7 @@ Scenario: 792a14f1c Values are attached to their flags
 
 ### 792a14g The payload is read by kind and by channel
 
-Requirement: [792a14g](#792a14g-the-payload-is-read-by-kind-and-by-channel) Recall MUST read the items of the matched channel by kind and MUST treat the recent-activity channel as situational context only. A chunk item is evidence from which the agent extracts the convention, decision or correction it shows, and MUST NOT be quoted wholesale. A fact, feedback or runbook note is a crystallized lesson that the agent applies directly from its inline content. An item with `provenance: explore` is judged with the notes the clusters nominate. Items with `provenance: recent` MUST NOT be used for coverage or synthesis judgment, are the agent's own recent activity and MUST NOT be re-derived or met with surprise. When the matched channel is empty, recall MUST say so in one sentence, skip the coverage step and proceed with its plan, and a non-empty recent block alone MUST NOT count as something surfacing.
+Requirement: [792a14g The payload is read by kind and by channel](#792a14g-the-payload-is-read-by-kind-and-by-channel) Recall MUST read the items of the matched channel by kind and MUST treat the recent-activity channel as situational context only. A chunk item is evidence from which the agent extracts the convention, decision or correction it shows, and MUST NOT be quoted wholesale. A fact, feedback or runbook note is a crystallized lesson that the agent applies directly from its inline content. An item with `provenance: explore` is judged with the notes the clusters nominate. Items with `provenance: recent` MUST NOT be used for coverage or synthesis judgment, are the agent's own recent activity and MUST NOT be re-derived or met with surprise. When the matched channel is empty, recall MUST say so in one sentence, skip the coverage step and proceed with its plan, and a non-empty recent block alone MUST NOT count as something surfacing.
 
 #### 792a14g1 UAT Scenarios
 
@@ -7109,7 +7109,7 @@ Scenario: 792a14g1d An empty matched set is reported
 
 ### 792a14h Chunk content is read before a cluster is judged
 
-Requirement: [792a14h](#792a14h-chunk-content-is-read-before-a-cluster-is-judged) Recall MUST read the content of every chunk member of a cluster with `engram show-chunk <source#anchor>` before stating any relevance or coverage judgment about that cluster, including a cluster whose candidate list is empty. It MUST read a note candidate's content directly from the payload, MUST NOT run `engram show` for it, and MUST NOT judge a chunk from its path, title or anchor alone.
+Requirement: [792a14h Chunk content is read before a cluster is judged](#792a14h-chunk-content-is-read-before-a-cluster-is-judged) Recall MUST read the content of every chunk member of a cluster with `engram show-chunk <source#anchor>` before stating any relevance or coverage judgment about that cluster, including a cluster whose candidate list is empty. It MUST read a note candidate's content directly from the payload, MUST NOT run `engram show` for it, and MUST NOT judge a chunk from its path, title or anchor alone.
 
 Rationale: under `--lazy-chunks` a chunk item carries no content, so a judgment from its path is a judgment without evidence. A measured miss (#733, the recency-standard axis at about 80% against an original 100%) traced to one trial that made no `show-chunk` call and called a load-bearing chunk unrelated seed content from its title, in a cluster with no note candidates. All four passing trials had read the chunk. A vault note could not fix this, because recall's coverage step consults only notes that match the current task's phrases and no step asks whether the step itself is being run correctly, so the fix belongs in the procedure's own text. Wording in skill text is expected to plateau below about 95% per-trial adherence, so a rare repeat of the miss is not evidence of a regression (vault notes 794 and 198).
 The fix is in the skill's own text and not in a vault note, because a note about correctly running that step
@@ -7143,7 +7143,7 @@ Scenario: 792a14h1d Candidate notes are read from the payload
 
 ### 792a14i A newer claim wins only when it conflicts
 
-Requirement: [792a14i](#792a14i-a-newer-claim-wins-only-when-it-conflicts) Recall MUST treat evidence as conflicting only when a newer member explicitly negates or reverses an older claim (for example "no longer", "replaced by", "use X not Y", or the same subject and predicate with a different object in a newer item), and when it conflicts MUST let the newer win. When it does not conflict, recall MUST treat older and newer evidence as independently valid and MUST NOT demote a stable convention because it lacks a recent instance.
+Requirement: [792a14i A newer claim wins only when it conflicts](#792a14i-a-newer-claim-wins-only-when-it-conflicts) Recall MUST treat evidence as conflicting only when a newer member explicitly negates or reverses an older claim (for example "no longer", "replaced by", "use X not Y", or the same subject and predicate with a different object in a newer item), and when it conflicts MUST let the newer win. When it does not conflict, recall MUST treat older and newer evidence as independently valid and MUST NOT demote a stable convention because it lacks a recent instance.
 
 #### 792a14i1 UAT Scenarios
 
@@ -7166,7 +7166,7 @@ Scenario: 792a14i1c A candidate that only matches the superseded claim is near
 
 ### 792a14j Coverage is judged by the agent and written once per cluster
 
-Requirement: [792a14j](#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster) In deep mode, recall MUST judge, for each cluster and then for the explore items, whether a candidate note covers the cluster's principle, from the content read and not from cosine alone, and MUST act on the outcome. When a candidate states the principle with no material omission against the recency-weighted view, the outcome is covered and recall MUST run `engram amend --target <candidate> --activate --chunk-source <ids>` and MUST NOT rewrite its content. When a candidate addresses the same situation but omits at least one substantive claim the members evidence, the outcome is near and recall MUST run `engram amend` with the chunk sources and re-synthesized content flags from all members, recency-weighted. When no candidate addresses the situation, the outcome is absent and recall MUST hand off to the write-memory skill one note of kind fact or feedback with the cluster's chunk-source IDs and a descriptive source. When the write corrects, narrows or refutes a surfaced note, recall MUST also pass `--supersedes="<basename>|<type>|<claim>"` with type `updates`, `narrows` or `refutes`. Recall MUST write at most one note per cluster, the representative being a note and never a chunk, MUST wait for each write before the next cluster, and MUST NOT hand-author vocabulary tags.
+Requirement: [792a14j Coverage is judged by the agent and written once per cluster](#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster) In deep mode, recall MUST judge, for each cluster and then for the explore items, whether a candidate note covers the cluster's principle, from the content read and not from cosine alone, and MUST act on the outcome. When a candidate states the principle with no material omission against the recency-weighted view, the outcome is covered and recall MUST run `engram amend --target <candidate> --activate --chunk-source <ids>` and MUST NOT rewrite its content. When a candidate addresses the same situation but omits at least one substantive claim the members evidence, the outcome is near and recall MUST run `engram amend` with the chunk sources and re-synthesized content flags from all members, recency-weighted. When no candidate addresses the situation, the outcome is absent and recall MUST hand off to the write-memory skill one note of kind fact or feedback with the cluster's chunk-source IDs and a descriptive source. When the write corrects, narrows or refutes a surfaced note, recall MUST also pass `--supersedes="<basename>|<type>|<claim>"` with type `updates`, `narrows` or `refutes`. Recall MUST write at most one note per cluster, the representative being a note and never a chunk, MUST wait for each write before the next cluster, and MUST NOT hand-author vocabulary tags.
 
 Rationale: coverage is judged by the agent, not by a cosine threshold, because cosine only nominates the within-cluster top-five candidates. This reversed an earlier rule (D7, reversed by recall-v2 DECISION-2). An empty or absent candidate list is a reason to create, not to skip the cluster. A write is blocking because the note created or updated for one cluster may be a candidate for another. Updates use `engram amend` and `engram learn` creates only, so the amend path is the one that keeps both copies of a note in step.
 
@@ -7216,7 +7216,7 @@ Scenario: 792a14j1h Updates never use learn
 
 ### 792a14k A note from the parent vault is activated, never amended
 
-Requirement: [792a14k](#792a14k-a-note-from-the-parent-vault-is-activated-never-amended) Recall MUST NOT run `engram amend` on an item with `from_parent: true` or on its pending pulled copy, MUST NOT write a new note that restates it, and MUST activate it when it covers a cluster. This holds even when the user asks to enrich or record against that note: the copy becomes an amend target only after curation accepts it.
+Requirement: [792a14k A note from the parent vault is activated, never amended](#792a14k-a-note-from-the-parent-vault-is-activated-never-amended) Recall MUST NOT run `engram amend` on an item with `from_parent: true` or on its pending pulled copy, MUST NOT write a new note that restates it, and MUST activate it when it covers a cluster. This holds even when the user asks to enrich or record against that note: the copy becomes an amend target only after curation accepts it.
 
 #### 792a14k1 UAT Scenarios
 
@@ -7234,7 +7234,7 @@ Scenario: 792a14k1b A pending copy is not amended
 
 ### 792a14l Only the notes that were used are activated
 
-Requirement: [792a14l](#792a14l-only-the-notes-that-were-used-are-activated) After processing the clusters, recall MUST run one `engram activate` with a `--note` for each note it actually drew on (a candidate judged covered or near, and any note cited in the closing synthesis), and MUST skip the call when it drew on no notes. It MUST NOT activate every returned note, MUST NOT activate a chunk or a recent-channel item, and MUST activate a used `from_parent` note the same way, by its path. Activation applies in both modes. Recall MUST NOT curate the pulled copies as part of the recall in either mode: it MUST leave them pending, finish the user's request, run the curate skill as a separate step afterward, and say in its reply that it did or that the copies await curation.
+Requirement: [792a14l Only the notes that were used are activated](#792a14l-only-the-notes-that-were-used-are-activated) After processing the clusters, recall MUST run one `engram activate` with a `--note` for each note it actually drew on (a candidate judged covered or near, and any note cited in the closing synthesis), and MUST skip the call when it drew on no notes. It MUST NOT activate every returned note, MUST NOT activate a chunk or a recent-channel item, and MUST activate a used `from_parent` note the same way, by its path. Activation applies in both modes. Recall MUST NOT curate the pulled copies as part of the recall in either mode: it MUST leave them pending, finish the user's request, run the curate skill as a separate step afterward, and say in its reply that it did or that the copies await curation.
 
 Rationale: activation is agent-driven (recall-v2): the binary no longer pre-judges use. A returned but unused note's last-used time goes stale and it fades by recency rank, which is the supersede-by-competition mechanism, so bumping every returned note would defeat it. Regularly useful memory stays fresh and never-retrieved memory decays and loses rank. The "vault holds pending offer(s) awaiting curation" warning that activation may print is expected, not an error.
 
@@ -7269,7 +7269,7 @@ Scenario: 792a14l1e No notes drawn, no activation
 
 ### 792a14m The closing synthesis says whether memory changed the plan
 
-Requirement: [792a14m](#792a14m-the-closing-synthesis-says-whether-memory-changed-the-plan) Recall MUST close with a synthesis shown to the user that opens with one sentence counting what the query surfaced and what was crystallized ("Query surfaced N items (K chunks, M notes); crystallized J lessons."), walks the Step 0 plan in order marking each numbered action confirmed, adjusted (and how), contradicted or silent, leads the load-bearing conventions with "Apply these as requirements:" drawn from lessons and chunk evidence alike, and surfaces contradictions inline where they affect the action. It MUST NOT dump the payload, MUST NOT paste whole chunks or list raw scores or paths, and MUST be one sentence when memory was silent on everything.
+Requirement: [792a14m The closing synthesis says whether memory changed the plan](#792a14m-the-closing-synthesis-says-whether-memory-changed-the-plan) Recall MUST close with a synthesis shown to the user that opens with one sentence counting what the query surfaced and what was crystallized ("Query surfaced N items (K chunks, M notes); crystallized J lessons."), walks the Step 0 plan in order marking each numbered action confirmed, adjusted (and how), contradicted or silent, leads the load-bearing conventions with "Apply these as requirements:" drawn from lessons and chunk evidence alike, and surfaces contradictions inline where they affect the action. It MUST NOT dump the payload, MUST NOT paste whole chunks or list raw scores or paths, and MUST be one sentence when memory was silent on everything.
 
 #### 792a14m1 UAT Scenarios
 
@@ -7302,7 +7302,7 @@ Scenario: 792a14m1e No payload dump
 
 ### 792a14n A recommendation is reconciled against the asked task
 
-Requirement: [792a14n](#792a14n-a-recommendation-is-reconciled-against-the-asked-task) Before recall states any option, lever or recommendation that the work generated, it MUST reconcile it against the asked task and the decisions already in context, MUST default to the asked task, and MAY deviate only by naming a genuinely new fact and stating that it is reversing direction. It MUST NOT substitute a prerequisite, a better test or a more rigorous foundation as the thing to do first, and MUST NOT treat reasoning already in context as new evidence.
+Requirement: [792a14n A recommendation is reconciled against the asked task](#792a14n-a-recommendation-is-reconciled-against-the-asked-task) Before recall states any option, lever or recommendation that the work generated, it MUST reconcile it against the asked task and the decisions already in context, MUST default to the asked task, and MAY deviate only by naming a genuinely new fact and stating that it is reversing direction. It MUST NOT substitute a prerequisite, a better test or a more rigorous foundation as the thing to do first, and MUST NOT treat reasoning already in context as new evidence.
 
 Rationale: substituting a prerequisite feels like diligence but relitigates the settled task. Reconcile against prior outcomes, not mere mentions.
 
@@ -7322,9 +7322,9 @@ Scenario: 792a14n1b Old reasoning is not new evidence
 
 ### 792a14o An emergent recommendation is checked against the vault
 
-Requirement: [792a14o](#792a14o-an-emergent-recommendation-is-checked-against-the-vault) Before the synthesis is shown, when it is about to ship a recommendation, lever or approach, named as the thing to do, that does not appear in the Step 0 plan, recall MUST run one more `engram query --lazy-chunks` keyed to the recommendation itself with three phrases (the recommendation in its own words, the recommendation with "rolled back rejected not worth it superseded", and the recommendation with "tried measured outcome"), applying the recency weight to what returns. The synthesis MUST carry one `Re-entry:` line per emergent recommendation directly above the final recommendation statement, in one of three forms: clean (with the best-match basename or "no items"), CLOSED with the prior outcome and "drop", or CLOSED with the prior outcome and "revisit because" named new evidence. A recommendation MUST NOT ship without its line. A CLOSED recommendation marked drop MUST be withdrawn, with the synthesis saying what replaces it. A revisit MUST be valid only with new evidence that did not exist when the note was written, and re-weighing the note's own tradeoffs MUST NOT count. A note this query surfaced and the agent cites MUST be included in the activation, which MUST run again if it already ran. The step MUST run in both modes.
+Requirement: [792a14o An emergent recommendation is checked against the vault](#792a14o-an-emergent-recommendation-is-checked-against-the-vault) Before the synthesis is shown, when it is about to ship a recommendation, lever or approach, named as the thing to do, that does not appear in the Step 0 plan, recall MUST run one more `engram query --lazy-chunks` keyed to the recommendation itself with three phrases (the recommendation in its own words, the recommendation with "rolled back rejected not worth it superseded", and the recommendation with "tried measured outcome"), applying the recency weight to what returns. The synthesis MUST carry one `Re-entry:` line per emergent recommendation directly above the final recommendation statement, in one of three forms: clean (with the best-match basename or "no items"), CLOSED with the prior outcome and "drop", or CLOSED with the prior outcome and "revisit because" named new evidence. A recommendation MUST NOT ship without its line. A CLOSED recommendation marked drop MUST be withdrawn, with the synthesis saying what replaces it. A revisit MUST be valid only with new evidence that did not exist when the note was written, and re-weighing the note's own tradeoffs MUST NOT count. A note this query surfaced and the agent cites MUST be included in the activation, which MUST run again if it already ran. The step MUST run in both modes.
 
-Rationale: this checks the vault for evidence outside the agent's context. The reconcile of [792a14n](#792a14n-a-recommendation-is-reconciled-against-the-asked-task) checks reasoning already in context. The line is the proof that the check ran.
+Rationale: this checks the vault for evidence outside the agent's context. The reconcile of [792a14n A recommendation is reconciled against the asked task](#792a14n-a-recommendation-is-reconciled-against-the-asked-task) checks reasoning already in context. The line is the proof that the check ran.
 
 #### 792a14o1 UAT Scenarios
 
@@ -7362,7 +7362,7 @@ Scenario: 792a14o1f A recommendation without its line violates the step
 
 ### 792a14p A sound conclusion is persisted as a derived note
 
-Requirement: [792a14p](#792a14p-a-sound-conclusion-is-persisted-as-a-derived-note) In deep mode, when the closing synthesis reaches a sound, non-trivial conclusion that no existing note states, recall MUST hand one synthesis note per conclusion to the write-memory skill as a fact or feedback, in which the note is the conclusion itself and not a restatement of an input. Recall MUST state a deduction as following necessarily and MUST mark an abduction or induction as probable, a best explanation or defeasible. It MUST mark the source as derived (for example `--source="synthesis (abduction) from recalled memory"`) and, when the conclusion corrects, narrows or refutes a surfaced note, include that note's basename, type and claim in the handoff. It MUST NOT persist a hunch, a conclusion it would hedge below probable, or a conclusion that merely re-aggregates one note, and MUST NOT hand-author a vocabulary tag or a supersession backlink. It MAY type an inline `[[full-basename]]` citation of an input note into the body.
+Requirement: [792a14p A sound conclusion is persisted as a derived note](#792a14p-a-sound-conclusion-is-persisted-as-a-derived-note) In deep mode, when the closing synthesis reaches a sound, non-trivial conclusion that no existing note states, recall MUST hand one synthesis note per conclusion to the write-memory skill as a fact or feedback, in which the note is the conclusion itself and not a restatement of an input. Recall MUST state a deduction as following necessarily and MUST mark an abduction or induction as probable, a best explanation or defeasible. It MUST mark the source as derived (for example `--source="synthesis (abduction) from recalled memory"`) and, when the conclusion corrects, narrows or refutes a surfaced note, include that note's basename, type and claim in the handoff. It MUST NOT persist a hunch, a conclusion it would hedge below probable, or a conclusion that merely re-aggregates one note, and MUST NOT hand-author a vocabulary tag or a supersession backlink. It MAY type an inline `[[full-basename]]` citation of an input note into the body.
 
 Rationale: reasoning that is never written down evaporates; the note records the outcome and grows the web. A non-truth-preserving inference is a hypothesis, not a fact (vault note 69), and persisting only sound conclusions keeps the vault from rotting (vault note 68).
 
@@ -7397,7 +7397,7 @@ Scenario: 792a14p1e Citations are typed inline
 
 ### 792a14q A cited synthesis is also captured as a question and answer
 
-Requirement: [792a14q](#792a14q-a-cited-synthesis-is-also-captured-as-a-question-and-answer) When a persisted synthesis body contains at least one `[[full-basename]]` wikilink, recall MUST also hand off to the write-memory skill a note of kind qa carrying the verbatim question, the synthesis conclusion as the answer, a certainty matching the synthesis note's label, as contributors the wikilink basenames found in the body, and the source "recall Step 4, session <date>". It MUST NOT ask the agent to list its inputs freely, and MUST skip the capture when the body has no wikilink.
+Requirement: [792a14q A cited synthesis is also captured as a question and answer](#792a14q-a-cited-synthesis-is-also-captured-as-a-question-and-answer) When a persisted synthesis body contains at least one `[[full-basename]]` wikilink, recall MUST also hand off to the write-memory skill a note of kind qa carrying the verbatim question, the synthesis conclusion as the answer, a certainty matching the synthesis note's label, as contributors the wikilink basenames found in the body, and the source "recall Step 4, session <date>". It MUST NOT ask the agent to list its inputs freely, and MUST skip the capture when the body has no wikilink.
 
 Rationale: contributors are extracted from wikilinks the agent already wrote. A body with no citation has no provenance to record, so at least one citation is the bar.
 
@@ -7419,11 +7419,11 @@ Scenario: 792a14q1b An uncited synthesis gets none
 
 Canonical target: `docs/specs/product/learn.md` (title `Learn - Product Spec`).
 
-`learn` is the skill an agent runs to keep memory true at the end of work, and at the moments a lesson is confirmed. It has two jobs, in order: sweep the chunk index so every conversation and document is searchable, and write a vault note for every explicit lesson of the session. The explicit lessons are user corrections, explicit save-requests, presented conclusions that were later overturned, and approaches confirmed good. It writes nothing else. The sweep is chunk-indexing's ([792a5](#792a5-added-chunk-indexing)), the notes are written through write-memory ([792a13](#792a13-added-write-memory)) and note-writing ([792a3](#792a3-added-note-writing)), and the lessons that subagents return are lessons-contract's ([792a16](#792a16-added-lessons-contract)). The shipped procedure is `agent-instructions/skills/learn/SKILL.md`, cited here by the skill's step numbers.
+`learn` is the skill an agent runs to keep memory true at the end of work, and at the moments a lesson is confirmed. It has two jobs, in order: sweep the chunk index so every conversation and document is searchable, and write a vault note for every explicit lesson of the session. The explicit lessons are user corrections, explicit save-requests, presented conclusions that were later overturned, and approaches confirmed good. It writes nothing else. The sweep is chunk-indexing's ([792a5 chunk-indexing](#792a5-added-chunk-indexing)), the notes are written through write-memory ([792a13 write-memory](#792a13-added-write-memory)) and note-writing ([792a3 note-writing](#792a3-added-note-writing)), and the lessons that subagents return are lessons-contract's ([792a16 lessons-contract](#792a16-added-lessons-contract)). The shipped procedure is `agent-instructions/skills/learn/SKILL.md`, cited here by the skill's step numbers.
 
 ### 792a15a Learn writes only explicit lessons
 
-Requirement: [792a15a](#792a15a-learn-writes-only-explicit-lessons) Learn MUST NOT write an episode, a session summary or a note for a fact that nobody asked to remember and that is not one of the four kinds of lesson ([792a15e](#792a15e-the-four-kinds-of-explicit-lesson)), and MUST NOT run `engram transcript` or `engram learn episode`, or write a tier or a decision-record note. A session with no correction, save-request, reversal or confirmed approach MUST end with the sweep and its report alone.
+Requirement: [792a15a Learn writes only explicit lessons](#792a15a-learn-writes-only-explicit-lessons) Learn MUST NOT write an episode, a session summary or a note for a fact that nobody asked to remember and that is not one of the four kinds of lesson ([792a15e The four kinds of explicit lesson](#792a15e-the-four-kinds-of-explicit-lesson)), and MUST NOT run `engram transcript` or `engram learn episode`, or write a tier or a decision-record note. A session with no correction, save-request, reversal or confirmed approach MUST end with the sweep and its report alone.
 
 Rationale: raw event memory is automatic: `engram ingest` chunks and embeds session transcripts and markdown without summaries, episode notes or arc detection, so the agent's only writing job is crystallizing explicit lessons. The episode workflow was retired when the chunk layer replaced it.
 
@@ -7443,7 +7443,7 @@ Scenario: 792a15a1b No episode or summary is written
 
 ### 792a15b The sweep comes first
 
-Requirement: [792a15b](#792a15b-the-sweep-comes-first) Learn MUST begin with `engram ingest --auto` and report the one-line tally it prints (or "memory index up to date"), and MUST continue to the lessons when the sweep fails, surfacing the error. It MUST skip the sweep when one already ran earlier in the same session, unless this is the closing learn of a work cycle, which MUST always sweep.
+Requirement: [792a15b The sweep comes first](#792a15b-the-sweep-comes-first) Learn MUST begin with `engram ingest --auto` and report the one-line tally it prints (or "memory index up to date"), and MUST continue to the lessons when the sweep fails, surfacing the error. It MUST skip the sweep when one already ran earlier in the same session, unless this is the closing learn of a work cycle, which MUST always sweep.
 
 Rationale: an unchanged corpus returns in seconds. The closing learn captures the session's tail for future sessions. A worry that something changed in another terminal is picked up by the next sweep, not by sweeping now on suspicion. Explicit lessons must not be lost to an ingest hiccup.
 
@@ -7473,9 +7473,9 @@ Scenario: 792a15b1d The closing learn always sweeps
 
 ### 792a15c A correction moment gets a single-note capture
 
-Requirement: [792a15c](#792a15c-a-correction-moment-gets-a-single-note-capture) When learn fires at a correction moment in the middle of a task (a review, a failing check, or the user rejecting the approach or naming a different convention), it MUST skip the sweep and the vocabulary check, go straight to crystallizing the one confirmed correction, and hand it to write-memory as always. It MUST NOT run `engram ingest --auto` in the middle of a task.
+Requirement: [792a15c A correction moment gets a single-note capture](#792a15c-a-correction-moment-gets-a-single-note-capture) When learn fires at a correction moment in the middle of a task (a review, a failing check, or the user rejecting the approach or naming a different convention), it MUST skip the sweep and the vocabulary check, go straight to crystallizing the one confirmed correction, and hand it to write-memory as always. It MUST NOT run `engram ingest --auto` in the middle of a task.
 
-Rationale: the capture is a focused single note and not the opening or closing of a cycle. A sweep is a cycle-boundary job: it is wasteful in the middle of a task, can block on a large corpus, and losing the capture to a hung sweep is the failure mode. The closing learn still sweeps. The same fast path serves a subagent return ([792a16](#792a16-added-lessons-contract)).
+Rationale: the capture is a focused single note and not the opening or closing of a cycle. A sweep is a cycle-boundary job: it is wasteful in the middle of a task, can block on a large corpus, and losing the capture to a hung sweep is the failure mode. The closing learn still sweeps. The same fast path serves a subagent return ([792a16 lessons-contract](#792a16-added-lessons-contract)).
 
 #### 792a15c1 UAT Scenarios
 
@@ -7493,9 +7493,9 @@ Scenario: 792a15c1b No mid-task sweep
 
 ### 792a15d The vocabulary check and its autonomous refit
 
-Requirement: [792a15d](#792a15d-the-vocabulary-check-and-its-autonomous-refit) Learn MUST run `engram vocab stats` before it crystallizes lessons in a full cycle. On `verdict: OK` it MUST do nothing more. On `verdict: REFIT_PENDING (<reason>)` it MUST run the refit itself without deferring to the user: it MUST run `engram vocab refit`; when that prints `vocab refit: no structure found; vocabulary unchanged` it MUST report exactly that and not claim an applied refit; when it prints a JSON payload of naming requests and exits without writing it MUST name every new cluster exactly once from its exemplars, write an answers file that echoes the payload's `fingerprint` verbatim, and re-run `engram vocab refit --names <file>`; when that re-run fails with a stale-names error it MUST discard those requests, re-run the refit from scratch and answer the new ones; and when a refit is applied it MUST report "Vocab refit applied: <version bump>. Triggered by: <reason>." When the stats output carries `qa round-2 gate: READY (...)`, learn MUST tell the user that the round-2 validation is due and which gates to schedule, and MUST NOT run that validation itself.
+Requirement: [792a15d The vocabulary check and its autonomous refit](#792a15d-the-vocabulary-check-and-its-autonomous-refit) Learn MUST run `engram vocab stats` before it crystallizes lessons in a full cycle. On `verdict: OK` it MUST do nothing more. On `verdict: REFIT_PENDING (<reason>)` it MUST run the refit itself without deferring to the user: it MUST run `engram vocab refit`; when that prints `vocab refit: no structure found; vocabulary unchanged` it MUST report exactly that and not claim an applied refit; when it prints a JSON payload of naming requests and exits without writing it MUST name every new cluster exactly once from its exemplars, write an answers file that echoes the payload's `fingerprint` verbatim, and re-run `engram vocab refit --names <file>`; when that re-run fails with a stale-names error it MUST discard those requests, re-run the refit from scratch and answer the new ones; and when a refit is applied it MUST report "Vocab refit applied: <version bump>. Triggered by: <reason>." When the stats output carries `qa round-2 gate: READY (...)`, learn MUST tell the user that the round-2 validation is due and which gates to schedule, and MUST NOT run that validation itself.
 
-Rationale: the vault's own write path marks a refit pending when it has grown enough ([792a6s](#792a6s-refit-trigger)) and the learn skill acts on the verdict, so vocabulary drift is repaired without asking. `--dry-run` prints the derivation diff without writing, for a first refit over a long-drifted vault. The round-2 validation needs the user's oversight.
+Rationale: the vault's own write path marks a refit pending when it has grown enough ([792a6s Refit trigger](#792a6s-refit-trigger)) and the learn skill acts on the verdict, so vocabulary drift is repaired without asking. `--dry-run` prints the derivation diff without writing, for a first refit over a long-drifted vault. The round-2 validation needs the user's oversight.
 
 #### 792a15d1 UAT Scenarios
 
@@ -7538,7 +7538,7 @@ Scenario: 792a15d1g The QA round-2 gate is reported and not run
 
 ### 792a15e The four kinds of explicit lesson
 
-Requirement: [792a15e](#792a15e-the-four-kinds-of-explicit-lesson) Learn MUST scan the session for exactly four kinds of moment and MUST hand each to write-memory. A correction (the user corrected the agent's approach or behavior) MUST be handed off as a feedback note carrying the situation, the behavior, its cost as the impact and what to do instead as the action. An explicit save-request ("remember this", "save that", "note for next time", "write this down") MUST be handed off immediately as a fact note carrying the situation, the subject, the predicate and the object. A reversal MUST be handed off as a feedback note whose situation says when the failure mode applies, whose behavior is what the original reasoning did wrong, whose impact is what the reversal cost and whose action is the guard that would have prevented it. A confirmed approach MUST be handed off as a feedback note, or as a runbook note when its shape calls for one ([792a15g](#792a15g-a-confirmed-approach-needs-a-bet-or-specific-praise-and-takes-the-kind-its-shape-calls-for)). Every handoff MUST carry a slug and a source of the form "session <date>, context: <one-line what-was-happening>", and the supersession details when the lesson corrects an existing vault note.
+Requirement: [792a15e The four kinds of explicit lesson](#792a15e-the-four-kinds-of-explicit-lesson) Learn MUST scan the session for exactly four kinds of moment and MUST hand each to write-memory. A correction (the user corrected the agent's approach or behavior) MUST be handed off as a feedback note carrying the situation, the behavior, its cost as the impact and what to do instead as the action. An explicit save-request ("remember this", "save that", "note for next time", "write this down") MUST be handed off immediately as a fact note carrying the situation, the subject, the predicate and the object. A reversal MUST be handed off as a feedback note whose situation says when the failure mode applies, whose behavior is what the original reasoning did wrong, whose impact is what the reversal cost and whose action is the guard that would have prevented it. A confirmed approach MUST be handed off as a feedback note, or as a runbook note when its shape calls for one ([792a15g A confirmed approach needs a bet or specific praise, and takes the kind its shape calls for](#792a15g-a-confirmed-approach-needs-a-bet-or-specific-praise-and-takes-the-kind-its-shape-calls-for)). Every handoff MUST carry a slug and a source of the form "session <date>, context: <one-line what-was-happening>", and the supersession details when the lesson corrects an existing vault note.
 
 #### 792a15e1 UAT Scenarios
 
@@ -7571,7 +7571,7 @@ Scenario: 792a15e1e A correction of an existing note carries a supersession
 
 ### 792a15f Reversals and repo-doc corrections
 
-Requirement: [792a15f](#792a15f-reversals-and-repo-doc-corrections) Learn MUST capture a reversal as a vault note even when nobody said the correction aloud (a self-discovered reversal by the agent, a reviewer or an instrument qualifies), and MUST NOT treat a CORRECTION section or postscript in a repository document as that capture. Learn MUST write the note for the reversal's root cause and not a narrative of the flip.
+Requirement: [792a15f Reversals and repo-doc corrections](#792a15f-reversals-and-repo-doc-corrections) Learn MUST capture a reversal as a vault note even when nobody said the correction aloud (a self-discovered reversal by the agent, a reviewer or an instrument qualifies), and MUST NOT treat a CORRECTION section or postscript in a repository document as that capture. Learn MUST write the note for the reversal's root cause and not a narrative of the flip.
 
 Rationale: a record of a correction is not the capture of its lesson.
 
@@ -7591,7 +7591,7 @@ Scenario: 792a15f1b A repo-doc correction does not count
 
 ### 792a15g A confirmed approach needs a bet or specific praise, and takes the kind its shape calls for
 
-Requirement: [792a15g](#792a15g-a-confirmed-approach-needs-a-bet-or-specific-praise-and-takes-the-kind-its-shape-calls-for) Learn MUST capture a confirmed approach only when either the user explicitly praised or thanked a specific behavior that can be restated as a reusable tactic, or the agent made a genuine guess or was uncertain about a plan, acted on it, and a session-recorded outcome (a test passed, the user confirmed it, an artifact functioned, a blocker cleared) then confirmed it. It MUST NOT capture a bare pleasantry that names no behavior, a routine success with no bet behind it, or an unconfirmed guess. It MUST hand off a reusable, ordered, multi-step procedure for a recurring task as a runbook note (with `done_when` and a body of numbered steps, which may link fact or feedback notes) and a single behavioral tweak with no step structure as a feedback note. When it writes a runbook and the user also says to do that going forward, it MUST NOT additionally write a fact note for a save-request on the same content.
+Requirement: [792a15g A confirmed approach needs a bet or specific praise, and takes the kind its shape calls for](#792a15g-a-confirmed-approach-needs-a-bet-or-specific-praise-and-takes-the-kind-its-shape-calls-for) Learn MUST capture a confirmed approach only when either the user explicitly praised or thanked a specific behavior that can be restated as a reusable tactic, or the agent made a genuine guess or was uncertain about a plan, acted on it, and a session-recorded outcome (a test passed, the user confirmed it, an artifact functioned, a blocker cleared) then confirmed it. It MUST NOT capture a bare pleasantry that names no behavior, a routine success with no bet behind it, or an unconfirmed guess. It MUST hand off a reusable, ordered, multi-step procedure for a recurring task as a runbook note (with `done_when` and a body of numbered steps, which may link fact or feedback notes) and a single behavioral tweak with no step structure as a feedback note. When it writes a runbook and the user also says to do that going forward, it MUST NOT additionally write a fact note for a save-request on the same content.
 
 Rationale: a routing by shape was added when the runbook kind was introduced (ADR-0026): a runbook capture is itself the "remember to do it this way" note. The confirmed-approach kind is the positive mirror of a reversal and, in practice, the kind that fires least often, so the skill carries exemplars (a design assumption checked by a targeted code search, a suspected defect confirmed by a reproduction test, a vendor claim verified against evidence), but the bar does not move: a resolved uncertainty or an explicit specific confirmation, never "it worked".
 
@@ -7636,7 +7636,7 @@ Scenario: 792a15g1g A runbook is not duplicated as a save-request
 
 ### 792a15h Each note is placed by an ordered test
 
-Requirement: [792a15h](#792a15h-each-note-is-placed-by-an-ordered-test) Before each hand-off, learn MUST decide the note's Luhmann placement, considering only notes written or recalled earlier in the same session, and MUST pass the resulting position and target to write-memory. It MUST apply these tests in order: when the note develops one specific sub-point raised inside an in-session note, the placement is `continuation` with that note's ID as the target; otherwise, when it continues or extends the same overall thought at the same level, the placement is `sibling` with that note's ID as the target; otherwise the placement is `top` with no target. When no in-session candidate exists, it MUST choose `top` and MUST NOT search the rest of the vault for a target.
+Requirement: [792a15h Each note is placed by an ordered test](#792a15h-each-note-is-placed-by-an-ordered-test) Before each hand-off, learn MUST decide the note's Luhmann placement, considering only notes written or recalled earlier in the same session, and MUST pass the resulting position and target to write-memory. It MUST apply these tests in order: when the note develops one specific sub-point raised inside an in-session note, the placement is `continuation` with that note's ID as the target; otherwise, when it continues or extends the same overall thought at the same level, the placement is `sibling` with that note's ID as the target; otherwise the placement is `top` with no target. When no in-session candidate exists, it MUST choose `top` and MUST NOT search the rest of the vault for a target.
 
 Rationale: an ID's position encodes where a note sits in the thought tree, which follows Niklas Luhmann's own practice and Sönke Ahrens, *How to Take Smart Notes*. The disposition step had been removed from the skill on 2026-06-12, so for months every capture was `top` and all 447 notes in the vault carried flat integer IDs, leaving the branching the ID scheme was named for unused. Placement is a judgment of content, which the skill makes and the binary does not.
 
@@ -7671,7 +7671,7 @@ Scenario: 792a15h1e The vault is not searched
 
 ### 792a15i A lesson states the general principle
 
-Requirement: [792a15i](#792a15i-a-lesson-states-the-general-principle) Learn MUST state the general principle and not the session-specific instance, MUST phrase `situation` as the retrieval handle a future task would be described by (for example "releasing a Go module"), and MUST write one note per distinct principle.
+Requirement: [792a15i A lesson states the general principle](#792a15i-a-lesson-states-the-general-principle) Learn MUST state the general principle and not the session-specific instance, MUST phrase `situation` as the retrieval handle a future task would be described by (for example "releasing a Go module"), and MUST write one note per distinct principle.
 
 Rationale: capture is generic and actionable, because a future session recalls by situation similarity and not by remembering this one. This is a skill-authoring convention, gated by baselines and evals, and not an architecture decision.
 
@@ -7691,9 +7691,9 @@ Scenario: 792a15i1b One note per principle
 
 ### 792a15j A write to a parent is reported as done
 
-Requirement: [792a15j](#792a15j-a-write-to-a-parent-is-reported-as-done) With `ENGRAM_PARENT` set, learn MUST treat the write as complete once the note is written locally, because the binary offers it upward without anything for the agent to run. When a write prints `engram: parent unreachable (retry after …); N offer(s) queued`, learn MUST report the note as saved and its offer as queued for the parent, MUST NOT re-run the write, MUST NOT call it failed, and MUST NOT set `ENGRAM_SERVER`.
+Requirement: [792a15j A write to a parent is reported as done](#792a15j-a-write-to-a-parent-is-reported-as-done) With `ENGRAM_PARENT` set, learn MUST treat the write as complete once the note is written locally, because the binary offers it upward without anything for the agent to run. When a write prints `engram: parent unreachable (retry after …); N offer(s) queued`, learn MUST report the note as saved and its offer as queued for the parent, MUST NOT re-run the write, MUST NOT call it failed, and MUST NOT set `ENGRAM_SERVER`.
 
-Rationale: the note is in the local vault and the offer waits in the queue until a later engram command reaches the parent. `ENGRAM_SERVER`'s mode is gone and setting it is a hard error ([792a21](#792a21-added-parent-sync)).
+Rationale: the note is in the local vault and the offer waits in the queue until a later engram command reaches the parent. `ENGRAM_SERVER`'s mode is gone and setting it is a hard error ([792a21 parent-sync](#792a21-added-parent-sync)).
 
 #### 792a15j1 UAT Scenarios
 
@@ -7711,7 +7711,7 @@ Scenario: 792a15j1b ENGRAM_SERVER is never set
 
 ### 792a15k An answered question is captured once
 
-Requirement: [792a15k](#792a15k-an-answered-question-is-captured-once) Learn MUST scan the session for a substantive answered question, one whose answer body contains at least one `[[full-basename]]` wikilink or whose answer is a new vault note it crystallized, and for each such question not yet captured MUST hand off to write-memory a note of kind qa with a slug, the verbatim question, the answer body copied, contributor basenames, a certainty and the source "ad-hoc capture, learn session <date>". Contributors MUST come only from the `[[full-basename]]` wikilinks in the written answer, extracted verbatim and never free-listed, and learn MUST NOT pre-validate that they exist; when write-memory reports a contributor rejection, learn MUST surface it. Learn MUST skip a question answered by generic advice or without a wikilink and without a new note. It MUST NOT write a pair that was already written this session (for example by recall's Step 4), and MUST NOT write a pair for a question answered by a Step 2 note written this turn, because that note is the capture. It MUST still write a pair for a question answered by citing an existing earlier note when no new note was written for it. It MUST write one pair per distinct answered question.
+Requirement: [792a15k An answered question is captured once](#792a15k-an-answered-question-is-captured-once) Learn MUST scan the session for a substantive answered question, one whose answer body contains at least one `[[full-basename]]` wikilink or whose answer is a new vault note it crystallized, and for each such question not yet captured MUST hand off to write-memory a note of kind qa with a slug, the verbatim question, the answer body copied, contributor basenames, a certainty and the source "ad-hoc capture, learn session <date>". Contributors MUST come only from the `[[full-basename]]` wikilinks in the written answer, extracted verbatim and never free-listed, and learn MUST NOT pre-validate that they exist; when write-memory reports a contributor rejection, learn MUST surface it. Learn MUST skip a question answered by generic advice or without a wikilink and without a new note. It MUST NOT write a pair that was already written this session (for example by recall's Step 4), and MUST NOT write a pair for a question answered by a Step 2 note written this turn, because that note is the capture. It MUST still write a pair for a question answered by citing an existing earlier note when no new note was written for it. It MUST write one pair per distinct answered question.
 
 Rationale: the traceability bar (a wikilink or a new note) is the observable test of a substantive answer. The self-answered exclusion fixes a production bug found by the write-memory eval (task 3.4b, trial R-0): the old wording treated the agent's own just-written note as a trigger for a second write, producing an unrequested duplicate `engram learn qa` write whenever the agent posed and answered a diagnostic question through its own note in the same turn (`dev/eval/cumulative/runbook_vs_skill/phase2/results/3.4b_write_memory_shim_only_retry2_sonnet5.md`).
 
@@ -7751,7 +7751,7 @@ Scenario: 792a15k1f A rejected contributor is surfaced
 
 ### 792a15l The re-parent batch mode
 
-Requirement: [792a15l](#792a15l-the-re-parent-batch-mode) When learn is handed the derive-phase candidate payload of `engram update --reparent-luhmann` (candidates with `note`, `note_excerpt`, `target`, `target_excerpt` and `similarity`, plus an `instruction` and a `fingerprint`) and asked for its answers file, it MUST judge each candidate by the content of its two excerpts and not by the similarity score alone, applying the placement test of [792a15h](#792a15h-each-note-is-placed-by-an-ordered-test) (sub-point as `continuation`, same thought as `sibling`, otherwise `top`). It MUST write exactly one entry for every distinct `note`, choosing the one `target` and `position` it finds most correct when a note has several candidates. It MUST write the answers as JSON of the shape `{"reparenting": [{"note", "position", "target"}], "fingerprint"}` with the fingerprint echoed verbatim, and tell the user to preview with `engram update --reparent-luhmann --answers <file> --dry-run` and then re-run the command without `--dry-run`. It MUST NOT run either command itself and MUST NOT run this mode as part of an ordinary capture.
+Requirement: [792a15l The re-parent batch mode](#792a15l-the-re-parent-batch-mode) When learn is handed the derive-phase candidate payload of `engram update --reparent-luhmann` (candidates with `note`, `note_excerpt`, `target`, `target_excerpt` and `similarity`, plus an `instruction` and a `fingerprint`) and asked for its answers file, it MUST judge each candidate by the content of its two excerpts and not by the similarity score alone, applying the placement test of [792a15h Each note is placed by an ordered test](#792a15h-each-note-is-placed-by-an-ordered-test) (sub-point as `continuation`, same thought as `sibling`, otherwise `top`). It MUST write exactly one entry for every distinct `note`, choosing the one `target` and `position` it finds most correct when a note has several candidates. It MUST write the answers as JSON of the shape `{"reparenting": [{"note", "position", "target"}], "fingerprint"}` with the fingerprint echoed verbatim, and tell the user to preview with `engram update --reparent-luhmann --answers <file> --dry-run` and then re-run the command without `--dry-run`. It MUST NOT run either command itself and MUST NOT run this mode as part of an ordinary capture.
 
 Rationale: whether one note is a sub-point of another is a judgment of content that an embedding cannot make: two notes can share vocabulary and address different problems. A `top` verdict still needs a full entry, and there is no option to skip a note.
 
@@ -7778,7 +7778,7 @@ Scenario: 792a15l1c The fingerprint is echoed and the next step is the user's
 
 Canonical target: `docs/specs/product/lessons-contract.md` (title `Lessons Contract - Product Spec`).
 
-When an agent hands work to a subagent, a lesson that the subagent learned but never reported cannot be captured. The lessons contract is the agreement between the orchestrating agent and every subagent it dispatches. Each subagent's completion report ends with a `LESSONS:` line. The orchestrator re-asks once if the line is missing, records every line as it returns, judges each lesson right then, and gives the whole collection to the closing learn as a backstop. The line is a deliberately low-bar offer and not a vault note, so a subagent never decides on its own what enters the vault. The skills that carry the contract are route (the handoff, [792a17](#792a17-added-route)), please (the collection and the hand-over at its close, [792a18](#792a18-added-please)) and learn (the judgment, [792a15](#792a15-added-learn)); the ambient cue that fires learn at a return is ambient-guidance's ([792a19](#792a19-added-ambient-guidance)). This capability states the contract once so that no skill repeats it.
+When an agent hands work to a subagent, a lesson that the subagent learned but never reported cannot be captured. The lessons contract is the agreement between the orchestrating agent and every subagent it dispatches. Each subagent's completion report ends with a `LESSONS:` line. The orchestrator re-asks once if the line is missing, records every line as it returns, judges each lesson right then, and gives the whole collection to the closing learn as a backstop. The line is a deliberately low-bar offer and not a vault note, so a subagent never decides on its own what enters the vault. The skills that carry the contract are route (the handoff, [792a17 route](#792a17-added-route)), please (the collection and the hand-over at its close, [792a18 please](#792a18-added-please)) and learn (the judgment, [792a15 learn](#792a15-added-learn)); the ambient cue that fires learn at a return is ambient-guidance's ([792a19 ambient-guidance](#792a19-added-ambient-guidance)). This capability states the contract once so that no skill repeats it.
 
 Rationale: the memory-loop audit (`dev/eval/audit/REPORT-2026-09-02.md`) measured the writing side as the loop's dominant loss. Learn fired for only 5.6% (4 of 71, 95% interval 1.4 to 11.3) of the worth-learning moments, and 67 lessons were lost, of which 40 (59.7%) were judged realistically reachable by a completion-report lessons step; the largest bucket was 39 missed success-reinforcements. Most failures that memory would have helped with traced to lessons never captured, so write loss showed up later as failures. The first version (`learn-rate-skill-only`, the #739 D7 direction) was constrained to skill and guidance markdown, with no hooks and no new code, and to a capture-then-curate posture: a low bar at capture and quality control at a separate curation step. A prior effort (#655) measured about 93% adherence to a mandated completion-report output contract, so prose-only enforcement was in reach. A mandatory-line mechanism in prose stays below about 95% per-trial adherence (vault note 198), so the contract raises the rate and guarantees nothing; the mechanical layers that would guarantee it (a validator, a watcher, hooks) were considered and left out. The first version's re-measure found no detectable rise in the learn rate (3 of 66, 4.5%, against 5.6%; `dev/eval/LEDGER.md#learn-rate-remeasure-w2`), and the return-time judgment that followed was validated with confined headless arms (`dev/eval/LEDGER.md#learn-at-return-guidance`).
 33 of the 40 fixable lost lessons (82.5%) sit in dispatched work, but a subagent running learn itself was
@@ -7788,7 +7788,7 @@ supplies raw content and the orchestrator judges it.
 
 ### 792a16a A completion report ends with a LESSONS line
 
-Requirement: [792a16a](#792a16a-a-completion-report-ends-with-a-lessons-line) Every subagent dispatched through route, whether a fork, a fresh-context agent or a workflow, MUST end its final report with a `LESSONS:` line that is `LESSONS: none`, or one to three one-line lessons separated by commas. Each lesson MUST be a confirmed correction, a surprising finding or a validated approach, summarized in one line. A subagent MUST NOT decide for itself that a lesson becomes a vault note.
+Requirement: [792a16a A completion report ends with a LESSONS line](#792a16a-a-completion-report-ends-with-a-lessons-line) Every subagent dispatched through route, whether a fork, a fresh-context agent or a workflow, MUST end its final report with a `LESSONS:` line that is `LESSONS: none`, or one to three one-line lessons separated by commas. Each lesson MUST be a confirmed correction, a surprising finding or a validated approach, summarized in one line. A subagent MUST NOT decide for itself that a lesson becomes a vault note.
 
 Rationale: the line is a disposable offer tier, intentionally a low bar. The orchestrator judges the offers; a subagent writing notes itself would put quality control at the wrong place.
 
@@ -7813,7 +7813,7 @@ Scenario: 792a16a1c At most three lessons
 
 ### 792a16b Every dispatch is told to report lessons
 
-Requirement: [792a16b](#792a16b-every-dispatch-is-told-to-report-lessons) The handoff that route builds for every dispatch MUST include, among the items it must hand over (exact files and paths, acceptance checks, do-not-touch bounds and the subagent's recall-first instruction), the completion-report contract: the subagent's final report MUST end with a `LESSONS:` line in the format of [792a16a](#792a16a-a-completion-report-ends-with-a-lessons-line). The instruction MUST be prescriptive, and MUST be written out even for a fork, which inherits session context.
+Requirement: [792a16b Every dispatch is told to report lessons](#792a16b-every-dispatch-is-told-to-report-lessons) The handoff that route builds for every dispatch MUST include, among the items it must hand over (exact files and paths, acceptance checks, do-not-touch bounds and the subagent's recall-first instruction), the completion-report contract: the subagent's final report MUST end with a `LESSONS:` line in the format of [792a16a A completion report ends with a LESSONS line](#792a16a-a-completion-report-ends-with-a-lessons-line). The instruction MUST be prescriptive, and MUST be written out even for a fork, which inherits session context.
 
 #### 792a16b1 UAT Scenarios
 
@@ -7836,7 +7836,7 @@ Scenario: 792a16b1c It follows the task description
 
 ### 792a16c A missing line is asked for once
 
-Requirement: [792a16c](#792a16c-a-missing-line-is-asked-for-once) When a returned report does not end with a `LESSONS:` line, the orchestrator MUST send exactly one targeted follow-up that asks only for the line, and MUST NOT re-ask a second time. A line supplied in response MUST be treated like an on-time line. When the line is still missing after the one follow-up, the orchestrator MUST record `LESSONS: none` and proceed without blocking.
+Requirement: [792a16c A missing line is asked for once](#792a16c-a-missing-line-is-asked-for-once) When a returned report does not end with a `LESSONS:` line, the orchestrator MUST send exactly one targeted follow-up that asks only for the line, and MUST NOT re-ask a second time. A line supplied in response MUST be treated like an on-time line. When the line is still missing after the one follow-up, the orchestrator MUST record `LESSONS: none` and proceed without blocking.
 
 #### 792a16c1 UAT Scenarios
 
@@ -7859,7 +7859,7 @@ Scenario: 792a16c1c There is no second re-ask
 
 ### 792a16d Every line is recorded as it returns
 
-Requirement: [792a16d](#792a16d-every-line-is-recorded-as-it-returns) The orchestrator following please MUST record the `LESSONS:` line of every dispatched unit verbatim, including `LESSONS: none`, in a running list for the cycle at the moment each unit's result comes back and before it moves to the next unit, wherever in the workflow the dispatch lands. Judging a line MUST NOT remove or rewrite it, and the list MUST NOT carry marks of what was captured. The please gates MUST NOT block or filter the collection: a line is recorded even when its work is rejected at a gate.
+Requirement: [792a16d Every line is recorded as it returns](#792a16d-every-line-is-recorded-as-it-returns) The orchestrator following please MUST record the `LESSONS:` line of every dispatched unit verbatim, including `LESSONS: none`, in a running list for the cycle at the moment each unit's result comes back and before it moves to the next unit, wherever in the workflow the dispatch lands. Judging a line MUST NOT remove or rewrite it, and the list MUST NOT carry marks of what was captured. The please gates MUST NOT block or filter the collection: a line is recorded even when its work is rejected at a gate.
 
 #### 792a16d1 UAT Scenarios
 
@@ -7882,7 +7882,7 @@ Scenario: 792a16d1c A gate does not filter the list
 
 ### 792a16e Each lesson is judged when it returns
 
-Requirement: [792a16e](#792a16e-each-lesson-is-judged-when-it-returns) When a returned report's `LESSONS:` line is not `none`, the orchestrator MUST judge each lesson in it at that moment, and MUST capture each lesson that clears learn's bar with a fast-path learn (one note per lesson, no sweep, handed to write-memory) before the next dispatch, or before ending its turn when no dispatch is left. A lesson clears the bar when it is one of learn's four kinds of lesson ([792a15e](#792a15e-the-four-kinds-of-explicit-lesson)), is confirmed and not hypothesized, and states a general reusable principle and not a session-specific narrative. The orchestrator MUST NOT capture `none`, a routine "done, tests pass" or an unconfirmed lesson.
+Requirement: [792a16e Each lesson is judged when it returns](#792a16e-each-lesson-is-judged-when-it-returns) When a returned report's `LESSONS:` line is not `none`, the orchestrator MUST judge each lesson in it at that moment, and MUST capture each lesson that clears learn's bar with a fast-path learn (one note per lesson, no sweep, handed to write-memory) before the next dispatch, or before ending its turn when no dispatch is left. A lesson clears the bar when it is one of learn's four kinds of lesson ([792a15e The four kinds of explicit lesson](#792a15e-the-four-kinds-of-explicit-lesson)), is confirmed and not hypothesized, and states a general reusable principle and not a session-specific narrative. The orchestrator MUST NOT capture `none`, a routine "done, tests pass" or an unconfirmed lesson.
 
 Rationale: waiting for the closing learn does not work in practice. In the parent-side capture check (`dev/eval/audit/REPORT-parent-capture-2026-09-29.md`) neither of the two parent sessions that received a non-`none` LESSONS block ran a learn after its last receipt, and the capture that did happen came from writes the parent made in the middle of the session (38 of 53 captured items). The first version's text told parents not to judge in-flight, which ran against that tendency. Judging at the return, while the lesson is in hand, uses the tendency, and the closing learn stays as a backstop. The rule lives in always-loaded guidance because it must hold at every delegation whichever skill mediated it (vault note 855).
 
@@ -7912,7 +7912,7 @@ Scenario: 792a16e1d The last return is captured before the turn ends
 
 ### 792a16f The closing learn gets the whole list
 
-Requirement: [792a16f](#792a16f-the-closing-learn-gets-the-whole-list) At workflow step 7, please MUST hand the full list of `LESSONS:` lines collected across its dispatches, `none` entries included, to the closing learn, alongside the lessons-audit map ([792a18](#792a18-added-please)), and MUST drop no line. Please MUST run the closing learn when the session had no dispatches, handing it an empty collection. The closing learn MUST skip a line that a vault note written earlier this session already covers, MUST judge every other line against the bar of [792a16e](#792a16e-each-lesson-is-judged-when-it-returns), and MUST discard a line that does not clear it silently, with no note and no log. It MUST NOT write a second time a line captured at its return.
+Requirement: [792a16f The closing learn gets the whole list](#792a16f-the-closing-learn-gets-the-whole-list) At workflow step 7, please MUST hand the full list of `LESSONS:` lines collected across its dispatches, `none` entries included, to the closing learn, alongside the lessons-audit map ([792a18 please](#792a18-added-please)), and MUST drop no line. Please MUST run the closing learn when the session had no dispatches, handing it an empty collection. The closing learn MUST skip a line that a vault note written earlier this session already covers, MUST judge every other line against the bar of [792a16e Each lesson is judged when it returns](#792a16e-each-lesson-is-judged-when-it-returns), and MUST discard a line that does not clear it silently, with no note and no log. It MUST NOT write a second time a line captured at its return.
 
 Rationale: a line is a low-bar offer and not a pre-judged lesson, so discarding it is not a loss. Skipping is by vault coverage and not by a mark, because the list stays verbatim and unmarked (Joe, 2026-10-01; the captured marks first proposed were dropped).
 
@@ -7947,7 +7947,7 @@ Scenario: 792a16f1e A mixed batch
 
 ### 792a16g A confirmed approach is looked for at the moment of confirmation
 
-Requirement: [792a16g](#792a16g-a-confirmed-approach-is-looked-for-at-the-moment-of-confirmation) Learn MUST scan for a confirmed approach (kind 4) at the moment a unit of work's outcome is confirmed: a review or gate verdict lands, a check or test passes, or the user explicitly confirms something. That includes the moment the agent reads a dispatched subagent's completion report and its `LESSONS:` line once its outcome is known, and, at the closing learn, the session's completion reports and collected lines. The bar MUST NOT move: a resolved uncertainty or an explicit specific confirmation, never bare success.
+Requirement: [792a16g A confirmed approach is looked for at the moment of confirmation](#792a16g-a-confirmed-approach-is-looked-for-at-the-moment-of-confirmation) Learn MUST scan for a confirmed approach (kind 4) at the moment a unit of work's outcome is confirmed: a review or gate verdict lands, a check or test passes, or the user explicitly confirms something. That includes the moment the agent reads a dispatched subagent's completion report and its `LESSONS:` line once its outcome is known, and, at the closing learn, the session's completion reports and collected lines. The bar MUST NOT move: a resolved uncertainty or an explicit specific confirmation, never bare success.
 
 Rationale: the kind-4 scan is the one that under-fires most, and the audit's largest lost bucket was missed success-reinforcements. Anchoring on the concrete event and calibrating with exemplars from the audit's real missed moments (a design assumption checked by a targeted search, a defect confirmed by a reproduction test, a vendor claim verified against evidence) improves how recognizable the pattern is, not how low the bar is.
 
@@ -7974,7 +7974,7 @@ Scenario: 792a16g1c A bare success is still not kind 4
 
 Canonical target: `docs/specs/product/route.md` (title `Route - Product Spec`).
 
-`route` is the skill an orchestrating agent follows when it is about to dispatch a subagent and must choose the agent type, the model and the effort. It makes the choice from evidence and not from a fixed table: every unit of work starts at the cheapest tier, and only recalled evidence, or a failed review, raises it. Every dispatch is recorded as a note, and the records become memory that the next routing decision recalls, so the effective rubric improves without anyone editing the skill. Route is skill-level guidance for the orchestrator. It adds no system boundary and no interaction of its own: it is a sibling of please, applied over the existing relationship between the harness and engram. The shipped procedure is `agent-instructions/skills/route/SKILL.md`, with the rates in `price-table.md`. The completion-report contract it hands to every subagent is lessons-contract's ([792a16](#792a16-added-lessons-contract)).
+`route` is the skill an orchestrating agent follows when it is about to dispatch a subagent and must choose the agent type, the model and the effort. It makes the choice from evidence and not from a fixed table: every unit of work starts at the cheapest tier, and only recalled evidence, or a failed review, raises it. Every dispatch is recorded as a note, and the records become memory that the next routing decision recalls, so the effective rubric improves without anyone editing the skill. Route is skill-level guidance for the orchestrator. It adds no system boundary and no interaction of its own: it is a sibling of please, applied over the existing relationship between the harness and engram. The shipped procedure is `agent-instructions/skills/route/SKILL.md`, with the rates in `price-table.md`. The completion-report contract it hands to every subagent is lessons-contract's ([792a16 lessons-contract](#792a16-added-lessons-contract)).
 
 Rationale: route encodes the delegate-everything doctrine. Two measured results shaped it. Sonnet with memory fully matched opus with memory across applying conventions (15 of 15), recency supersession (3 of 3) and abduction (6 of 6), while sonnet cold failed the same axes, so memory lets a cheaper model do work that needs a stronger one without it (ADR-0014, vault note 135). That was measured at the deep-to-mid boundary only; other boundaries are inferred, and the retry rule is the safety net for a wrong discount (`dev/eval/LEDGER.md#tier-routing-parity`). The discount is the largest whole-task cost lever found, larger than any payload-byte-level cut. Second, the earlier fixed table (mechanical to cheap, moderate to mid, complex to deep) was asserted and never measured. A baseline showed an agent reading it over-provisioned 5 of 6 generic units to mid or deep by surface look, and a control with no guidance did the same, because the table encoded the model's untested "this looks hard, so use a strong model" instinct (ADR-0017). A first draft that only said "don't upgrade on a looks-hard hunch" still routed perceived difficulty to the deep tier; adding an explicit "genuinely hard is not evidence" test closed the loophole and flipped 5 of 6 over-provisioned units to 0 of 6. Cold-start cost rises for genuinely hard work, which can fail twice before it reaches the tier it needs; that is an accepted bootstrap, recovered by the evidence loop.
 Retiring `route/SKILL.md` requires two things: the eval bar must be met, and the shim must be activated in the
@@ -7983,7 +7983,7 @@ discover the runbook. Retiring on the eval bar alone would have stranded route.
 
 ### 792a17a The orchestrator routes and delegates
 
-Requirement: [792a17a](#792a17a-the-orchestrator-routes-and-delegates) The orchestrator following route MUST do orchestration itself (routing and decomposition decisions, dispatching subagents, sequencing steps, updating the task list, running the meta-skills that are the workflow such as recall, learn and planning, and synthesizing returned results into the next decision or the report) and MUST delegate every piece of object-level work (writing code or prose, running tests or builds, judging the artifact, reviewing it) to a subagent. It MUST NOT do easy work inline: easy work goes to a cheap model and is not skipped.
+Requirement: [792a17a The orchestrator routes and delegates](#792a17a-the-orchestrator-routes-and-delegates) The orchestrator following route MUST do orchestration itself (routing and decomposition decisions, dispatching subagents, sequencing steps, updating the task list, running the meta-skills that are the workflow such as recall, learn and planning, and synthesizing returned results into the next decision or the report) and MUST delegate every piece of object-level work (writing code or prose, running tests or builds, judging the artifact, reviewing it) to a subagent. It MUST NOT do easy work inline: easy work goes to a cheap model and is not skipped.
 
 #### 792a17a1 UAT Scenarios
 
@@ -8006,7 +8006,7 @@ Scenario: 792a17a1c Easy work is delegated cheaply
 
 ### 792a17b The starting tier comes from recalled evidence, otherwise the cheapest tier
 
-Requirement: [792a17b](#792a17b-the-starting-tier-comes-from-recalled-evidence-otherwise-the-cheapest-tier) Before dispatching, the orchestrator MUST check recalled memory for tier-performance evidence on this kind of work, using the plain recall of the agent (the aggregates surface as ordinary memories) and no special query or counting on the read path. Absent recalled evidence, it MUST start every unit at the cheapest, fastest available tier, with no exception for work that merely looks hard (hard debugging, a cross-cutting refactor, a correctness-critical review, a greenfield design). The starting tier MUST NOT be raised for any reason other than recalled evidence of failure at a cheaper tier, and then only to the tier the evidence supports. Predicted difficulty ("genuinely complex", "needs careful reasoning", "broad impact") MUST NOT count as evidence.
+Requirement: [792a17b The starting tier comes from recalled evidence, otherwise the cheapest tier](#792a17b-the-starting-tier-comes-from-recalled-evidence-otherwise-the-cheapest-tier) Before dispatching, the orchestrator MUST check recalled memory for tier-performance evidence on this kind of work, using the plain recall of the agent (the aggregates surface as ordinary memories) and no special query or counting on the read path. Absent recalled evidence, it MUST start every unit at the cheapest, fastest available tier, with no exception for work that merely looks hard (hard debugging, a cross-cutting refactor, a correctness-critical review, a greenfield design). The starting tier MUST NOT be raised for any reason other than recalled evidence of failure at a cheaper tier, and then only to the tier the evidence supports. Predicted difficulty ("genuinely complex", "needs careful reasoning", "broad impact") MUST NOT count as evidence.
 
 Rationale: a sense that a unit needs a strong model is a prediction, and the loop replaces the prediction with observation: a unit is found to need a higher tier by watching the cheap tier fail, never by forecasting. On a cold start a race condition, an eight-file refactor and a new API design all start cheap, like a variable rename.
 
@@ -8041,7 +8041,7 @@ Scenario: 792a17b1e Evidence is read by plain recall
 
 ### 792a17c A failed unit retries the spec before the tier
 
-Requirement: [792a17c](#792a17c-a-failed-unit-retries-the-spec-before-the-tier) When a dispatched unit fails review, the orchestrator MUST first rewrite the handoff (sharper files, acceptance checks and do-not-touch bounds) and retry at the same tier, and MUST escalate one tier only when the same unit fails a second time, repeating until it passes or reaches the deep tier. It MUST NOT escalate on the first failure.
+Requirement: [792a17c A failed unit retries the spec before the tier](#792a17c-a-failed-unit-retries-the-spec-before-the-tier) When a dispatched unit fails review, the orchestrator MUST first rewrite the handoff (sharper files, acceptance checks and do-not-touch bounds) and retry at the same tier, and MUST escalate one tier only when the same unit fails a second time, repeating until it passes or reaches the deep tier. It MUST NOT escalate on the first failure.
 
 Rationale: a first failure is usually a failure of the spec and not of the model, and a cheap-tier model matches an expensive one when the spec is exact. The builder never gets to guess twice off the same spec.
 
@@ -8066,7 +8066,7 @@ Scenario: 792a17c1c Escalation stops at deep
 
 ### 792a17d A memory-backed unit drops one tier
 
-Requirement: [792a17d](#792a17d-a-memory-backed-unit-drops-one-tier) A unit whose needed knowledge is recallable (a known convention, a prior decision, a crystallized diagnostic) MUST be routed one tier cheaper than it otherwise would be, floored at the cheap tier.
+Requirement: [792a17d A memory-backed unit drops one tier](#792a17d-a-memory-backed-unit-drops-one-tier) A unit whose needed knowledge is recallable (a known convention, a prior decision, a crystallized diagnostic) MUST be routed one tier cheaper than it otherwise would be, floored at the cheap tier.
 
 Rationale: the model applies recalled knowledge instead of deriving it.
 
@@ -8086,7 +8086,7 @@ Scenario: 792a17d1b The discount stops at cheap
 
 ### 792a17e The cheap tier is the cheapest agent in the current environment
 
-Requirement: [792a17e](#792a17e-the-cheap-tier-is-the-cheapest-agent-in-the-current-environment) The orchestrator MUST resolve the cheap tier against the current environment: a free local model that is available (for example an LMStudio provider) MUST be tried first for cheap-tier work, and a paid model MUST enter the roster only above the free local options. When no free local model is available, the cheap tier MUST resolve to the cheapest paid model. The example roster (cheap haiku, mid sonnet, deep opus) is an example, not a prescription, and a model name MUST NOT be hard-coded as a rule.
+Requirement: [792a17e The cheap tier is the cheapest agent in the current environment](#792a17e-the-cheap-tier-is-the-cheapest-agent-in-the-current-environment) The orchestrator MUST resolve the cheap tier against the current environment: a free local model that is available (for example an LMStudio provider) MUST be tried first for cheap-tier work, and a paid model MUST enter the roster only above the free local options. When no free local model is available, the cheap tier MUST resolve to the cheapest paid model. The example roster (cheap haiku, mid sonnet, deep opus) is an example, not a prescription, and a model name MUST NOT be hard-coded as a rule.
 
 Rationale: a roster table that named models read as a prescription, and a real cost incident followed: five or more paid dispatches while a free local model sat idle (#702).
 
@@ -8111,7 +8111,7 @@ Scenario: 792a17e1c A paid dispatch with a free option available is a red flag
 
 ### 792a17f Cold-start priors carry only evidence-backed escalations
 
-Requirement: [792a17f](#792a17f-cold-start-priors-carry-only-evidence-backed-escalations) The cold-start priors table MUST list the cheapest tier as the posture for everything by default, MUST list the one-tier discount of a memory-backed unit, and MUST carry a row for a work-kind that starts above cheap only when recorded dispatch evidence for it clears the escalation thresholds (a cheap-tier pass rate below 70% and a mid-tier pass rate above 85%, both past the five-dispatch evidence floor), citing the tally that justified it. Recalled evidence MUST override a prior, and the table MUST NOT be treated as a prescription.
+Requirement: [792a17f Cold-start priors carry only evidence-backed escalations](#792a17f-cold-start-priors-carry-only-evidence-backed-escalations) The cold-start priors table MUST list the cheapest tier as the posture for everything by default, MUST list the one-tier discount of a memory-backed unit, and MUST carry a row for a work-kind that starts above cheap only when recorded dispatch evidence for it clears the escalation thresholds (a cheap-tier pass rate below 70% and a mid-tier pass rate above 85%, both past the five-dispatch evidence floor), citing the tally that justified it. Recalled evidence MUST override a prior, and the table MUST NOT be treated as a prescription.
 
 Rationale: priors are hypotheses that the dispatch record confirms or overturns. When strong repeated evidence accrues for a work-kind, it is folded into the table at periodic consolidation, so a cold session starts warm; until then recall does the improving. Leaving `go-package-implementation` at the default cost every new session a doomed cheap-tier attempt and a spec-retry before recall taught it what the evidence already showed (#722).
 
@@ -8136,7 +8136,7 @@ Scenario: 792a17f1c A recalled outcome overrides a prior
 
 ### 792a17g Every dispatch hands over an exact spec
 
-Requirement: [792a17g](#792a17g-every-dispatch-hands-over-an-exact-spec) The orchestrator MUST hand every dispatched subagent the exact files and paths to create or modify (not "the auth code" but a file and line range), the acceptance checks that mean done (a command with its expected output, a test that must pass, or a property that must hold), the explicit bounds that the unit must leave alone (files, interfaces and behaviors), the instruction to recall first ([792a17h](#792a17h-every-subagent-recalls-first-and-large-units-are-decomposed)), and the completion-report contract of [792a16b](#792a16b-every-dispatch-is-told-to-report-lessons). A vague handoff MUST be fixed before the model is blamed.
+Requirement: [792a17g Every dispatch hands over an exact spec](#792a17g-every-dispatch-hands-over-an-exact-spec) The orchestrator MUST hand every dispatched subagent the exact files and paths to create or modify (not "the auth code" but a file and line range), the acceptance checks that mean done (a command with its expected output, a test that must pass, or a property that must hold), the explicit bounds that the unit must leave alone (files, interfaces and behaviors), the instruction to recall first ([792a17h Every subagent recalls first, and large units are decomposed](#792a17h-every-subagent-recalls-first-and-large-units-are-decomposed)), and the completion-report contract of [792a16b Every dispatch is told to report lessons](#792a16b-every-dispatch-is-told-to-report-lessons). A vague handoff MUST be fixed before the model is blamed.
 
 Rationale: a cheap-tier model matches an expensive one when the spec is exact; when it fails, suspect the spec before the model.
 
@@ -8156,7 +8156,7 @@ Scenario: 792a17g1b A vague handoff is fixed
 
 ### 792a17h Every subagent recalls first, and large units are decomposed
 
-Requirement: [792a17h](#792a17h-every-subagent-recalls-first-and-large-units-are-decomposed) The orchestrator MUST instruct every dispatched subagent that its first action is recall, with phrases drawn from its unit, before it does the work, and this instruction MUST NOT be waived. A unit that spans multiple files or concerns or needs more than one clear deliverable MUST NOT be dispatched as it stands: the orchestrator MUST break it into smaller units and route each, and the decomposition MUST be done by the orchestrator.
+Requirement: [792a17h Every subagent recalls first, and large units are decomposed](#792a17h-every-subagent-recalls-first-and-large-units-are-decomposed) The orchestrator MUST instruct every dispatched subagent that its first action is recall, with phrases drawn from its unit, before it does the work, and this instruction MUST NOT be waived. A unit that spans multiple files or concerns or needs more than one clear deliverable MUST NOT be dispatched as it stands: the orchestrator MUST break it into smaller units and route each, and the decomposition MUST be done by the orchestrator.
 
 #### 792a17h1 UAT Scenarios
 
@@ -8174,7 +8174,7 @@ Scenario: 792a17h1b A large unit is decomposed
 
 ### 792a17i Each dispatch is recorded in a mini-report row
 
-Requirement: [792a17i](#792a17i-each-dispatch-is-recorded-in-a-mini-report-row) After each dispatch resolves, the orchestrator MUST record one evidence row and collect the rows into a compact table in its report. The row MUST carry the work-kind (the orchestrator's classification of the unit, kebab-case, reusing a prior kind before minting a new one), the tier used, the concrete model the tier resolved to at dispatch time, the reason for the tier choice ("recalled evidence (kind K passed at tier T)", "memory-discount applied" or "cold-start default"), the outcome, the tier the unit finally passed at if it escalated, its duration and its cost. The outcome MUST be the review or gate verdict (pass or fail) and MUST NOT be the subagent's own report of success. The record MUST be built from what the orchestrator already knows plus the review's verdict, with no privileged telemetry.
+Requirement: [792a17i Each dispatch is recorded in a mini-report row](#792a17i-each-dispatch-is-recorded-in-a-mini-report-row) After each dispatch resolves, the orchestrator MUST record one evidence row and collect the rows into a compact table in its report. The row MUST carry the work-kind (the orchestrator's classification of the unit, kebab-case, reusing a prior kind before minting a new one), the tier used, the concrete model the tier resolved to at dispatch time, the reason for the tier choice ("recalled evidence (kind K passed at tier T)", "memory-discount applied" or "cold-start default"), the outcome, the tier the unit finally passed at if it escalated, its duration and its cost. The outcome MUST be the review or gate verdict (pass or fail) and MUST NOT be the subagent's own report of success. The record MUST be built from what the orchestrator already knows plus the review's verdict, with no privileged telemetry.
 
 Rationale: the record is the rubric: without it there is no evidence, and the rubric never improves. A subagent's self-report confabulates (vault notes 148 and 162). Deriving the record from what the orchestrator knows keeps the loop harness-agnostic.
 
@@ -8199,7 +8199,7 @@ Scenario: 792a17i1c An escalated dispatch records where it passed
 
 ### 792a17j Cost and duration are real or stated as unavailable
 
-Requirement: [792a17j](#792a17j-cost-and-duration-are-real-or-stated-as-unavailable) The orchestrator MUST take a dispatch's duration and cost from the harness's usage signal when it exposes one (on Claude Code, the `duration_ms` and `subagent_tokens` of the subagent's Task-completion `<usage>` block), MUST record the unit explicitly, and MUST convert tokens to a dollar estimate only when the maintained price table (`price-table.md`, keyed by the concrete model) has an exact-match row for the dispatch's model, showing for example `45,231 tok (~$0.68 @ opus)`; priced by split input, output and cache columns when the usage block splits them, and otherwise as a blended estimate at the input rate labelled as such. When the model has no row, or its platform (Bedrock, Vertex or Foundry) prices it differently, it MUST show the raw unit-labeled token count with its reason (for example `45,231 tok (no rate on hand)`). On a harness with no per-subagent usage signal and no documented alternate source (Pi, as of the skill's writing), it MUST show `n/a` with the stated reason, and MUST NOT fabricate a cost, a duration or a dollar figure.
+Requirement: [792a17j Cost and duration are real or stated as unavailable](#792a17j-cost-and-duration-are-real-or-stated-as-unavailable) The orchestrator MUST take a dispatch's duration and cost from the harness's usage signal when it exposes one (on Claude Code, the `duration_ms` and `subagent_tokens` of the subagent's Task-completion `<usage>` block), MUST record the unit explicitly, and MUST convert tokens to a dollar estimate only when the maintained price table (`price-table.md`, keyed by the concrete model) has an exact-match row for the dispatch's model, showing for example `45,231 tok (~$0.68 @ opus)`; priced by split input, output and cache columns when the usage block splits them, and otherwise as a blended estimate at the input rate labelled as such. When the model has no row, or its platform (Bedrock, Vertex or Foundry) prices it differently, it MUST show the raw unit-labeled token count with its reason (for example `45,231 tok (no rate on hand)`). On a harness with no per-subagent usage signal and no documented alternate source (Pi, as of the skill's writing), it MUST show `n/a` with the stated reason, and MUST NOT fabricate a cost, a duration or a dollar figure.
 
 Rationale: tokens to dollars is a blended estimate from a maintained table, not a bill. A harness that exposes the signals under other names changes nothing in the record.
 The rates live in a maintained table rather than a live pricing lookup, because a lookup adds an I/O
@@ -8239,9 +8239,9 @@ Scenario: 792a17j1e A bare number is never recorded
 
 ### 792a17k Each dispatch is also written to the vault as a tagged evidence note
 
-Requirement: [792a17k](#792a17k-each-dispatch-is-also-written-to-the-vault-as-a-tagged-evidence-note) After each dispatch resolves, with the review verdict in hand, the orchestrator MUST hand a fact to the write-memory skill as a field handoff and not as a command it composes, with the slug `route-dispatch-<work-kind>`, the tags `work-kind/<k>`, `tier/<cheap|mid|deep>` and `outcome/<pass|fail>`, the situation "routing <work-kind> work", the subject "<work-kind> dispatch at <tier> (<model @ dispatch>)", the predicate "resolved as", an object that states the verdict, the reason, the escalation, the duration and the cost with their units, and the source "route dispatch record, <project>, <date>". It MUST state the fields as written and MUST NOT invent a flag for them. The tags MUST be the three closed families only, work-kind an open kebab-case set, tier and outcome closed sets; duration and cost MUST stay in the object prose and never become tags. Producing only the table row MUST NOT count as recording.
+Requirement: [792a17k Each dispatch is also written to the vault as a tagged evidence note](#792a17k-each-dispatch-is-also-written-to-the-vault-as-a-tagged-evidence-note) After each dispatch resolves, with the review verdict in hand, the orchestrator MUST hand a fact to the write-memory skill as a field handoff and not as a command it composes, with the slug `route-dispatch-<work-kind>`, the tags `work-kind/<k>`, `tier/<cheap|mid|deep>` and `outcome/<pass|fail>`, the situation "routing <work-kind> work", the subject "<work-kind> dispatch at <tier> (<model @ dispatch>)", the predicate "resolved as", an object that states the verdict, the reason, the escalation, the duration and the cost with their units, and the source "route dispatch record, <project>, <date>". It MUST state the fields as written and MUST NOT invent a flag for them. The tags MUST be the three closed families only, work-kind an open kebab-case set, tier and outcome closed sets; duration and cost MUST stay in the object prose and never become tags. Producing only the table row MUST NOT count as recording.
 
-Rationale: the table row is the mini-report; the durable evidence is the vault write. Categorical tags are the low-cardinality mechanism that recall, `engram count` and Obsidian can all read ([792a6c](#792a6c-categorical-tags-share-one-list)).
+Rationale: the table row is the mini-report; the durable evidence is the vault write. Categorical tags are the low-cardinality mechanism that recall, `engram count` and Obsidian can all read ([792a6c Categorical tags share one list](#792a6c-categorical-tags-share-one-list)).
 
 #### 792a17k1 UAT Scenarios
 
@@ -8269,9 +8269,9 @@ Scenario: 792a17k1d Fields, not flags
 
 ### 792a17l Each work-kind keeps one aggregate note
 
-Requirement: [792a17l](#792a17l-each-work-kind-keeps-one-aggregate-note) After the evidence note, the orchestrator MUST amend or create the aggregate fact `route-evidence-<work-kind>`, composing and running that write itself and not handing it to write-memory, which has no amend form; this is a stated, structurally forced exception to the write-site doctrine and the skill MUST say so. It MUST look the aggregate up with `engram query --lazy-chunks --phrase="route evidence <work-kind> tier tally"` and take a returned path as a match only when its basename, without `.md` and split on `.`, ends in a slug equal to `route-evidence-<work-kind>` exactly. On a match it MUST recompute the tally from the aggregate's current text plus this dispatch and run `engram amend --target <basename> --object="..."`, keeping the existing evidence wikilinks and appending the new one. On no match it MUST first run a uniqueness check, a listing of vault basenames matching `route-evidence-<work-kind>*` under the same exact rule, and create the aggregate (`engram learn fact --slug route-evidence-<work-kind> --position top`, with a tier tally of 1/1 and a wikilink to the evidence note) only when the check finds nothing; when it finds more than one, it MUST merge them by uniting their evidence wikilinks, recomputing the tally with the count commands of [792a17m](#792a17m-counting-audits-the-tallies-and-never-routes), amending one into the merged aggregate and recording the incident as drowning-remedy evidence. An aggregate MUST NOT carry the work-kind, tier or outcome tags. Its wikilink list MUST be the append-only evidence trail. When recording a dispatch before the lookup has run, the orchestrator MUST state both candidate commands and not guess.
+Requirement: [792a17l Each work-kind keeps one aggregate note](#792a17l-each-work-kind-keeps-one-aggregate-note) After the evidence note, the orchestrator MUST amend or create the aggregate fact `route-evidence-<work-kind>`, composing and running that write itself and not handing it to write-memory, which has no amend form; this is a stated, structurally forced exception to the write-site doctrine and the skill MUST say so. It MUST look the aggregate up with `engram query --lazy-chunks --phrase="route evidence <work-kind> tier tally"` and take a returned path as a match only when its basename, without `.md` and split on `.`, ends in a slug equal to `route-evidence-<work-kind>` exactly. On a match it MUST recompute the tally from the aggregate's current text plus this dispatch and run `engram amend --target <basename> --object="..."`, keeping the existing evidence wikilinks and appending the new one. On no match it MUST first run a uniqueness check, a listing of vault basenames matching `route-evidence-<work-kind>*` under the same exact rule, and create the aggregate (`engram learn fact --slug route-evidence-<work-kind> --position top`, with a tier tally of 1/1 and a wikilink to the evidence note) only when the check finds nothing; when it finds more than one, it MUST merge them by uniting their evidence wikilinks, recomputing the tally with the count commands of [792a17m Counting audits the tallies and never routes](#792a17m-counting-audits-the-tallies-and-never-routes), amending one into the merged aggregate and recording the incident as drowning-remedy evidence. An aggregate MUST NOT carry the work-kind, tier or outcome tags. Its wikilink list MUST be the append-only evidence trail. When recording a dispatch before the lookup has run, the orchestrator MUST state both candidate commands and not guess.
 
-Rationale: the aggregate is the unit the read path surfaces by plain recall. A missed lookup (an embedding miss, or the drowning case of [792a6c](#792a6c-categorical-tags-share-one-list)) must not mint a duplicate, so a deterministic uniqueness check rules it out; aggregates are untagged and cannot be enumerated with `engram count`, which is why the check is a basename listing.
+Rationale: the aggregate is the unit the read path surfaces by plain recall. A missed lookup (an embedding miss, or the drowning case of [792a6c Categorical tags share one list](#792a6c-categorical-tags-share-one-list)) must not mint a duplicate, so a deterministic uniqueness check rules it out; aggregates are untagged and cannot be enumerated with `engram count`, which is why the check is a basename listing.
 
 #### 792a17l1 UAT Scenarios
 
@@ -8309,7 +8309,7 @@ Scenario: 792a17l1f The write-path split is stated
 
 ### 792a17m Counting audits the tallies and never routes
 
-Requirement: [792a17m](#792a17m-counting-audits-the-tallies-and-never-routes) The orchestrator MUST recompute aggregate tallies from the evidence notes' tags with `engram count --group-by tags --filter tags=tier/<t> --filter tags=outcome/pass` for the numerators and `engram count --group-by tags --filter tags=tier/<t>` for the denominators (reading the `work-kind/<k>` rows), or with `--filter tags=work-kind/<k> --filter tags=tier/<t>` and the `total:` line for one kind, when a tally is doubted and at periodic consolidation, and MUST amend an aggregate that disagrees to the recomputed numbers. It MUST NOT use count on the read path, MUST NOT group by `work-kind` (a tag value, not an attribute), and MUST NOT use `--group-by tier`, which runs without error but groups the note-tier frontmatter field (L1, L2, L3) and not the `tier/` tag family.
+Requirement: [792a17m Counting audits the tallies and never routes](#792a17m-counting-audits-the-tallies-and-never-routes) The orchestrator MUST recompute aggregate tallies from the evidence notes' tags with `engram count --group-by tags --filter tags=tier/<t> --filter tags=outcome/pass` for the numerators and `engram count --group-by tags --filter tags=tier/<t>` for the denominators (reading the `work-kind/<k>` rows), or with `--filter tags=work-kind/<k> --filter tags=tier/<t>` and the `total:` line for one kind, when a tally is doubted and at periodic consolidation, and MUST amend an aggregate that disagrees to the recomputed numbers. It MUST NOT use count on the read path, MUST NOT group by `work-kind` (a tag value, not an attribute), and MUST NOT use `--group-by tier`, which runs without error but groups the note-tier frontmatter field (L1, L2, L3) and not the `tier/` tag family.
 
 Rationale: tallies an LLM maintains will drift, so ground truth comes from tags and never from the aggregate's prose.
 
@@ -8334,9 +8334,9 @@ Scenario: 792a17m1c The footgun is avoided
 
 ### 792a17n Drowning is reported, not patched
 
-Requirement: [792a17n](#792a17n-drowning-is-reported-not-patched) At the same moments as the count audit, the orchestrator MUST run the aggregate lookup for a work-kind with many evidence notes and confirm that the aggregate's path still surfaces in the items or in any cluster's candidates; when it does not, it MUST report the pre-registered drowning case and MUST NOT patch the skill ad hoc.
+Requirement: [792a17n Drowning is reported, not patched](#792a17n-drowning-is-reported-not-patched) At the same moments as the count audit, the orchestrator MUST run the aggregate lookup for a work-kind with many evidence notes and confirm that the aggregate's path still surfaces in the items or in any cluster's candidates; when it does not, it MUST report the pre-registered drowning case and MUST NOT patch the skill ad hoc.
 
-Rationale: many near-identical evidence notes could outrank their aggregate on the read query. A scratch-vault gauge (20 evidence notes and one aggregate) passed, so no remedy was built, and the two remedies on record are in [792a6c](#792a6c-categorical-tags-share-one-list).
+Rationale: many near-identical evidence notes could outrank their aggregate on the read query. A scratch-vault gauge (20 evidence notes and one aggregate) passed, so no remedy was built, and the two remedies on record are in [792a6c Categorical tags share one list](#792a6c-categorical-tags-share-one-list).
 
 #### 792a17n1 UAT Scenarios
 
@@ -8354,7 +8354,7 @@ Scenario: 792a17n1b A missing aggregate is reported
 
 ### 792a17o The loop improves the rubric
 
-Requirement: [792a17o](#792a17o-the-loop-improves-the-rubric) When a finding about a work-kind is strong and general (for example, "cheap failed N times on work-kind K, so it needs mid"), the orchestrator MUST crystallize it with learn, as a confirmed approach when a tier's outcome confirms the routing (for example, "cheap sufficed for K") or as a reversal when it overturns a prior tier assumption. The next recall MUST surface that evidence so that the starting tier for similar work reflects it.
+Requirement: [792a17o The loop improves the rubric](#792a17o-the-loop-improves-the-rubric) When a finding about a work-kind is strong and general (for example, "cheap failed N times on work-kind K, so it needs mid"), the orchestrator MUST crystallize it with learn, as a confirmed approach when a tier's outcome confirms the routing (for example, "cheap sufficed for K") or as a reversal when it overturns a prior tier assumption. The next recall MUST surface that evidence so that the starting tier for similar work reflects it.
 
 #### 792a17o1 UAT Scenarios
 
@@ -8374,15 +8374,15 @@ Scenario: 792a17o1b An overturned tier assumption is a reversal
 
 Canonical target: `docs/specs/product/please.md` (title `Please - Product Spec`).
 
-`please` is the skill an agent follows when the user hands over a multi-step piece of work to be carried end-to-end. It runs a fixed seven-step workflow against the user's ask: an opening learn, orientation, a committed plan, execution under test-driven development, documentation, completion, and a closing learn. Four adversarial review gates, each staffed by fresh reviewers that try to refute the artifact, punctuate the workflow. It is meta-orchestration: it tracks the steps on the task list, uses whatever relevant skills the environment provides (engram ships only `recall` and `learn`, and every other step leans on capabilities and not names), and delegates object-level work and gate reviews to subagents routed by route ([792a17](#792a17-added-route)). It has no subcommand of its own. The harness loads it as it loads recall and learn, matched by its own triggers (`/please`, `take this end-to-end`, `please`), and a session that received only its registered runbook note follows it through the runbook shim. The shipped procedure is `agent-instructions/skills/please/SKILL.md`. It is a single skill and a single runbook note: its former sub-runbooks were merged back into it. The completion-report contract and the collection of subagent lessons are lessons-contract's ([792a16](#792a16-added-lessons-contract)), and the closing learn is learn's ([792a15](#792a15-added-learn)).
+`please` is the skill an agent follows when the user hands over a multi-step piece of work to be carried end-to-end. It runs a fixed seven-step workflow against the user's ask: an opening learn, orientation, a committed plan, execution under test-driven development, documentation, completion, and a closing learn. Four adversarial review gates, each staffed by fresh reviewers that try to refute the artifact, punctuate the workflow. It is meta-orchestration: it tracks the steps on the task list, uses whatever relevant skills the environment provides (engram ships only `recall` and `learn`, and every other step leans on capabilities and not names), and delegates object-level work and gate reviews to subagents routed by route ([792a17 route](#792a17-added-route)). It has no subcommand of its own. The harness loads it as it loads recall and learn, matched by its own triggers (`/please`, `take this end-to-end`, `please`), and a session that received only its registered runbook note follows it through the runbook shim. The shipped procedure is `agent-instructions/skills/please/SKILL.md`. It is a single skill and a single runbook note: its former sub-runbooks were merged back into it. The completion-report contract and the collection of subagent lessons are lessons-contract's ([792a16 lessons-contract](#792a16-added-lessons-contract)), and the closing learn is learn's ([792a15 learn](#792a15-added-learn)).
 
 Rationale: LLM-generated artifacts do not self-certify. Catching one's own plan's flaws is necessary and not sufficient, because the author's context carries the author's blind spots; the gates put a fresh reviewer per angle outside that context. The workflow is non-waivable because the cost of a step scales with the work, so a small ask makes a cheap workflow and never an exemption.
 
 ### 792a18a The skill fires on a handed-over multi-step ask
 
-Requirement: [792a18a](#792a18a-the-skill-fires-on-a-handed-over-multi-step-ask) Please MUST fire on the explicit form `/please <ask>` however trivial the ask looks, because the user chose the workflow deliberately, and on natural-language phrasings of the same intent ("please do X", "please work through X", "please take care of X", "work through X end-to-end", "take this end-to-end", "drive X to completion", "see this through"). It MUST NOT fire on a casual "please" attached to a single trivial action ("please read this file", "please rename this var"). For a natural-language ask, it MUST fire when the ask plausibly entails any of planning, more than one file, testing, documentation, a commit or closing an issue, MUST NOT fire when the ask plausibly resolves to a single file edit or tool call with no follow-up, and MUST fire when the boundary is genuinely unclear.
+Requirement: [792a18a The skill fires on a handed-over multi-step ask](#792a18a-the-skill-fires-on-a-handed-over-multi-step-ask) Please MUST fire on the explicit form `/please <ask>` however trivial the ask looks, because the user chose the workflow deliberately, and on natural-language phrasings of the same intent ("please do X", "please work through X", "please take care of X", "work through X end-to-end", "take this end-to-end", "drive X to completion", "see this through"). It MUST NOT fire on a casual "please" attached to a single trivial action ("please read this file", "please rename this var"). For a natural-language ask, it MUST fire when the ask plausibly entails any of planning, more than one file, testing, documentation, a commit or closing an issue, MUST NOT fire when the ask plausibly resolves to a single file edit or tool call with no follow-up, and MUST fire when the boundary is genuinely unclear.
 
-Rationale: the workflow tolerates small asks, and the reverse mistake is more expensive. The bare word "please" is a deliberately over-firing trigger of the runbook note; a trigger hit only makes the runbook a candidate, and the agent judges it against the skill's own conditions ([792a13m](#792a13m-trigger-cues-are-specific-author-chosen-strings)).
+Rationale: the workflow tolerates small asks, and the reverse mistake is more expensive. The bare word "please" is a deliberately over-firing trigger of the runbook note; a trigger hit only makes the runbook a candidate, and the agent judges it against the skill's own conditions ([792a13m Trigger cues are specific, author-chosen strings](#792a13m-trigger-cues-are-specific-author-chosen-strings)).
 A runbook's `situation` is the only discriminator retrieval sees, so it is positive-only and process-shaped.
 Embeddings do not encode negation, so a trailing never-for-a-casual-please clause attracted the excluded
 phrases, and ceremony wording was never retrieved because agents phrase the query as the concrete work. A
@@ -8414,7 +8414,7 @@ Scenario: 792a18a1d An unclear boundary fires
 
 ### 792a18b An ask is required
 
-Requirement: [792a18b](#792a18b-an-ask-is-required) When `/please` is invoked bare, or the natural-language request has no concrete ask, please MUST ask exactly one targeted question ("What would you like me to work on?") through `AskUserQuestion` and wait, and MUST take no other action in the meantime: it MUST NOT create tasks, run recall or learn, read files, or open the transcript.
+Requirement: [792a18b An ask is required](#792a18b-an-ask-is-required) When `/please` is invoked bare, or the natural-language request has no concrete ask, please MUST ask exactly one targeted question ("What would you like me to work on?") through `AskUserQuestion` and wait, and MUST take no other action in the meantime: it MUST NOT create tasks, run recall or learn, read files, or open the transcript.
 
 #### 792a18b1 UAT Scenarios
 
@@ -8432,7 +8432,7 @@ Scenario: 792a18b1b Nothing happens meanwhile
 
 ### 792a18c The seven steps are tracked, ordered and non-waivable
 
-Requirement: [792a18c](#792a18c-the-seven-steps-are-tracked-ordered-and-non-waivable) At the start of execution, please MUST push all seven steps to the task list in a single `TaskCreate` call, mark each step in progress when it begins and completed when it finishes, and start each step only after the previous step is completed. A step MUST be marked not applicable only when its mechanism does not exist in the environment (for example step 6's commit when the repository is not under version control, or step 7's closing learn when the engram binary is absent), with a one-line rationale naming the missing mechanism written into the task description. "Too small to bother", "nothing to document" and "no memories will be relevant" MUST NOT count. The user MUST NOT be able to waive steps by saying "no ceremony", "skip the plan" or "hurry". When the user interrupts and redirects, please MUST update the task list to the new shape and MUST NOT abandon open steps without an explicit close.
+Requirement: [792a18c The seven steps are tracked, ordered and non-waivable](#792a18c-the-seven-steps-are-tracked-ordered-and-non-waivable) At the start of execution, please MUST push all seven steps to the task list in a single `TaskCreate` call, mark each step in progress when it begins and completed when it finishes, and start each step only after the previous step is completed. A step MUST be marked not applicable only when its mechanism does not exist in the environment (for example step 6's commit when the repository is not under version control, or step 7's closing learn when the engram binary is absent), with a one-line rationale naming the missing mechanism written into the task description. "Too small to bother", "nothing to document" and "no memories will be relevant" MUST NOT count. The user MUST NOT be able to waive steps by saying "no ceremony", "skip the plan" or "hurry". When the user interrupts and redirects, please MUST update the task list to the new shape and MUST NOT abandon open steps without an explicit close.
 
 Rationale: a step that produces nothing costs little, and the closing learn records that it did. The workflow is fast when there is little to capture.
 
@@ -8472,7 +8472,7 @@ Scenario: 792a18c1f A redirect updates the list
 
 ### 792a18d The workflow opens with learn and orients with recall
 
-Requirement: [792a18d](#792a18d-the-workflow-opens-with-learn-and-orients-with-recall) Please MUST begin with step 1, the `learn` skill, to preserve anything pending from the session so far, before starting new work. Step 2 MUST begin with a literal invocation of recall, with queries derived from the ask, and MUST NOT substitute reading the working tree for it ("I already know this repo", "small ask", "I'll just grep" are the moments recall matters most): file reads surface working-tree content and recall surfaces vault content. Step 2 MUST loop until the ask is understood: it MUST read the repository's relevant markdown (the project instructions, the files under `docs/`, any glossary, architecture or design notes), MUST ask the user clarifying questions about intent or new concepts through `AskUserQuestion`, MUST NOT move on while material doubt remains about the ask's meaning or whether it should be done as stated, and MUST state the agent's own assessment of the ask (sound, flawed or underspecified).
+Requirement: [792a18d The workflow opens with learn and orients with recall](#792a18d-the-workflow-opens-with-learn-and-orients-with-recall) Please MUST begin with step 1, the `learn` skill, to preserve anything pending from the session so far, before starting new work. Step 2 MUST begin with a literal invocation of recall, with queries derived from the ask, and MUST NOT substitute reading the working tree for it ("I already know this repo", "small ask", "I'll just grep" are the moments recall matters most): file reads surface working-tree content and recall surfaces vault content. Step 2 MUST loop until the ask is understood: it MUST read the repository's relevant markdown (the project instructions, the files under `docs/`, any glossary, architecture or design notes), MUST ask the user clarifying questions about intent or new concepts through `AskUserQuestion`, MUST NOT move on while material doubt remains about the ask's meaning or whether it should be done as stated, and MUST state the agent's own assessment of the ask (sound, flawed or underspecified).
 
 #### 792a18d1 UAT Scenarios
 
@@ -8495,7 +8495,7 @@ Scenario: 792a18d1c Orientation loops on doubt
 
 ### 792a18e The ask is challenged once, directly, then committed to
 
-Requirement: [792a18e](#792a18e-the-ask-is-challenged-once-directly-then-committed-to) Please MUST evaluate the ask on its merits during orientation, treating flaws, cheaper alternatives, contradictions with repository norms or recalled memory, and unnamed risks as findings to raise. It MUST challenge plainly and directly before planning around the problem, stating the issue and its concrete stakes in declarative sentences, and MUST NOT soften it into a leading question, bury it mid-plan or preface it with reflexive praise. A reply MUST NOT open with praise or agreement before analysis. It MUST challenge once, clearly; when the user weighs the challenge and reaffirms, it MUST proceed wholeheartedly and record the dissent in the plan ("considered X; user chose Y because Z") and MUST NOT relitigate it later or hedge passively in the work.
+Requirement: [792a18e The ask is challenged once, directly, then committed to](#792a18e-the-ask-is-challenged-once-directly-then-committed-to) Please MUST evaluate the ask on its merits during orientation, treating flaws, cheaper alternatives, contradictions with repository norms or recalled memory, and unnamed risks as findings to raise. It MUST challenge plainly and directly before planning around the problem, stating the issue and its concrete stakes in declarative sentences, and MUST NOT soften it into a leading question, bury it mid-plan or preface it with reflexive praise. A reply MUST NOT open with praise or agreement before analysis. It MUST challenge once, clearly; when the user weighs the challenge and reaffirms, it MUST proceed wholeheartedly and record the dissent in the plan ("considered X; user chose Y because Z") and MUST NOT relitigate it later or hedge passively in the work.
 
 Rationale: a collaborator is not a yes-machine. Silent execution of a flawed ask is the core sycophancy failure.
 
@@ -8520,9 +8520,9 @@ Scenario: 792a18e1c The user's reaffirmation is recorded and honored
 
 ### 792a18f A challenge does not displace the asked task
 
-Requirement: [792a18f](#792a18f-a-challenge-does-not-displace-the-asked-task) Once the user gives the ask, or a gate approves the plan, please MUST treat the asked task as settled and begin it. It MUST NOT substitute adjacent, deferred or "more rigorous" prerequisite work (a better test, "the real blocker") for what was asked, and MUST NOT treat a dependency-order or "we can't fully verify yet" argument as new evidence. It MUST NOT deviate except by naming a genuinely new fact and stating that it is reversing direction.
+Requirement: [792a18f A challenge does not displace the asked task](#792a18f-a-challenge-does-not-displace-the-asked-task) Once the user gives the ask, or a gate approves the plan, please MUST treat the asked task as settled and begin it. It MUST NOT substitute adjacent, deferred or "more rigorous" prerequisite work (a better test, "the real blocker") for what was asked, and MUST NOT treat a dependency-order or "we can't fully verify yet" argument as new evidence. It MUST NOT deviate except by naming a genuinely new fact and stating that it is reversing direction.
 
-Rationale: challenging the ask means stress-testing it in place. Recommending a prerequisite first feels like diligence but relitigates the settled task. The same rule binds recall's recommendations ([792a14n](#792a14n-a-recommendation-is-reconciled-against-the-asked-task)).
+Rationale: challenging the ask means stress-testing it in place. Recommending a prerequisite first feels like diligence but relitigates the settled task. The same rule binds recall's recommendations ([792a14n A recommendation is reconciled against the asked task](#792a14n-a-recommendation-is-reconciled-against-the-asked-task)).
 
 #### 792a18f1 UAT Scenarios
 
@@ -8540,7 +8540,7 @@ Scenario: 792a18f1b A reversal needs a new fact
 
 ### 792a18g The plan is written, committed and gated
 
-Requirement: [792a18g](#792a18g-the-plan-is-written-committed-and-gated) Step 3 MUST write a plan that accomplishes the ask, using a plan-writing skill when one is installed and writing it directly otherwise. When the user already supplied a plan, please MUST NOT skip the step: it MUST capture the plan as the planning artifact, review it, fill gaps and write it down. When the repository is under version control, it MUST commit the plan, and the plan MUST NOT count as approved until gate A closes. It MUST NOT write code before the plan is committed.
+Requirement: [792a18g The plan is written, committed and gated](#792a18g-the-plan-is-written-committed-and-gated) Step 3 MUST write a plan that accomplishes the ask, using a plan-writing skill when one is installed and writing it directly otherwise. When the user already supplied a plan, please MUST NOT skip the step: it MUST capture the plan as the planning artifact, review it, fill gaps and write it down. When the repository is under version control, it MUST commit the plan, and the plan MUST NOT count as approved until gate A closes. It MUST NOT write code before the plan is committed.
 
 #### 792a18g1 UAT Scenarios
 
@@ -8558,7 +8558,7 @@ Scenario: 792a18g1b The plan is committed before code
 
 ### 792a18h A change to a repeated invariant gets an enumeration grep
 
-Requirement: [792a18h](#792a18h-a-change-to-a-repeated-invariant-gets-an-enumeration-grep) When a planned change alters a repeated invariant (a payload shape, a sweep cadence, a command set, a count or a naming convention echoed across docs, diagrams or skills), please MUST run, before writing the documentation-scrub task, a search of the repository for the term itself, its synonyms, its hyphenated or compound forms and the old text's echoes in diagram labels and comments, and MUST paste the resulting per-file disposition list into the plan. Each entry MUST name the file, a disposition (keep, update, rewrite or N/A) and a one-line reason. The grep MUST run however large the surface looks or however small the change appears.
+Requirement: [792a18h A change to a repeated invariant gets an enumeration grep](#792a18h-a-change-to-a-repeated-invariant-gets-an-enumeration-grep) When a planned change alters a repeated invariant (a payload shape, a sweep cadence, a command set, a count or a naming convention echoed across docs, diagrams or skills), please MUST run, before writing the documentation-scrub task, a search of the repository for the term itself, its synonyms, its hyphenated or compound forms and the old text's echoes in diagram labels and comments, and MUST paste the resulting per-file disposition list into the plan. Each entry MUST name the file, a disposition (keep, update, rewrite or N/A) and a one-line reason. The grep MUST run however large the surface looks or however small the change appears.
 
 Rationale: the failure it targets is salience under load, not a capability gap (issue #685). In a clean probe where documentation scrub was the salient task, the model enumerated the whole surface without the rule, 6 of 6 times; the failure showed up only when the scrub was an incidental consequence of a larger feature ask (`dev/eval/LEDGER.md#685-doc-enumeration-grep`, harness `dev/eval/cumulative/please_step3_probe/`). The rule's cost scales with the surface, so a small surface is a cheap grep and never an exemption.
 
@@ -8588,7 +8588,7 @@ Scenario: 792a18h1d A minimal change to a widely referenced concept
 
 ### 792a18i Execution follows test-driven development
 
-Requirement: [792a18i](#792a18i-execution-follows-test-driven-development) Step 4 MUST take each unit through red, green and refactor, using a test-driven-development skill when one is installed and applying the discipline directly otherwise. Red MUST validate the challenge with a repeatable test (or the closest analogue for non-code work), green MUST make it pass with the minimal change, and refactor MUST keep the result DRY, SRP-respecting and YAGNI-compliant so that updates fit as if written as part of the whole. Each refactor MUST pass gate B before the unit is declared done. Please MUST drive the plan from step 3 with a plan-execution skill when one is installed and by working it task by task otherwise, and MUST verify before declaring any unit done, by a verification skill when installed and otherwise by running the actual commands and reading their output.
+Requirement: [792a18i Execution follows test-driven development](#792a18i-execution-follows-test-driven-development) Step 4 MUST take each unit through red, green and refactor, using a test-driven-development skill when one is installed and applying the discipline directly otherwise. Red MUST validate the challenge with a repeatable test (or the closest analogue for non-code work), green MUST make it pass with the minimal change, and refactor MUST keep the result DRY, SRP-respecting and YAGNI-compliant so that updates fit as if written as part of the whole. Each refactor MUST pass gate B before the unit is declared done. Please MUST drive the plan from step 3 with a plan-execution skill when one is installed and by working it task by task otherwise, and MUST verify before declaring any unit done, by a verification skill when installed and otherwise by running the actual commands and reading their output.
 
 #### 792a18i1 UAT Scenarios
 
@@ -8611,7 +8611,7 @@ Scenario: 792a18i1c Each refactor is gated
 
 ### 792a18j The documentation matches the new reality
 
-Requirement: [792a18j](#792a18j-the-documentation-matches-the-new-reality) Step 5 MUST update every piece of documentation the change touches (`README.md`, `CLAUDE.md`, `docs/`, glossaries, skill references) so that the documentation matches the new reality, and the step MUST complete only when gate C closes over every touched document.
+Requirement: [792a18j The documentation matches the new reality](#792a18j-the-documentation-matches-the-new-reality) Step 5 MUST update every piece of documentation the change touches (`README.md`, `CLAUDE.md`, `docs/`, glossaries, skill references) so that the documentation matches the new reality, and the step MUST complete only when gate C closes over every touched document.
 
 #### 792a18j1 UAT Scenarios
 
@@ -8624,7 +8624,7 @@ Scenario: 792a18j1a Touched docs are updated and gated
 
 ### 792a18k Completion closes the issue, cleans up and commits
 
-Requirement: [792a18k](#792a18k-completion-closes-the-issue-cleans-up-and-commits) Step 6 MUST close the originating issue when the work came from one, MUST delete any planning or temporary build and test artifacts created along the way, and when the repository is under version control MUST stage and commit the changes, through a commit-focused skill when one is installed and directly otherwise. Commit messages and any outward prose MUST pass gate D before the commit or close.
+Requirement: [792a18k Completion closes the issue, cleans up and commits](#792a18k-completion-closes-the-issue-cleans-up-and-commits) Step 6 MUST close the originating issue when the work came from one, MUST delete any planning or temporary build and test artifacts created along the way, and when the repository is under version control MUST stage and commit the changes, through a commit-focused skill when one is installed and directly otherwise. Commit messages and any outward prose MUST pass gate D before the commit or close.
 
 #### 792a18k1 UAT Scenarios
 
@@ -8637,7 +8637,7 @@ Scenario: 792a18k1a Completion cleans up and commits
 
 ### 792a18l Four gates, each with a fresh reviewer per angle
 
-Requirement: [792a18l](#792a18l-four-gates-each-with-a-fresh-reviewer-per-angle) Please MUST run four adversarial review gates. Gate A fires at the end of step 3, before any execution, over the committed plan or spec. Gate B fires in step 4 after every refactor phase, over the refactored unit's diff. Gate C fires at the end of step 5, over every documentation file touched. Gate D fires in step 6 before the commit or close, over commit messages, issue text and any outward prose. At each gate please MUST fan out one fresh-context reviewer subagent per angle, sharing no author context, and the gated step MUST NOT be completed until every finding is resolved. The angles MUST be: for gate A, ask-alignment, code-alignment, docs/diagrams-alignment and clarity/standards; for gate B, design-fit; for gate C, relevance and clarity/cohesion; for gate D, clarity/standards. Running a gate MUST be non-waivable, MUST NOT merge angles into one reviewer, and MUST NOT be skipped because the artifact is "obviously fine" or small; the model for each reviewer MUST be routed per angle by route, with the defaults sonnet for ask-alignment, code-alignment and design-fit and haiku for the others.
+Requirement: [792a18l Four gates, each with a fresh reviewer per angle](#792a18l-four-gates-each-with-a-fresh-reviewer-per-angle) Please MUST run four adversarial review gates. Gate A fires at the end of step 3, before any execution, over the committed plan or spec. Gate B fires in step 4 after every refactor phase, over the refactored unit's diff. Gate C fires at the end of step 5, over every documentation file touched. Gate D fires in step 6 before the commit or close, over commit messages, issue text and any outward prose. At each gate please MUST fan out one fresh-context reviewer subagent per angle, sharing no author context, and the gated step MUST NOT be completed until every finding is resolved. The angles MUST be: for gate A, ask-alignment, code-alignment, docs/diagrams-alignment and clarity/standards; for gate B, design-fit; for gate C, relevance and clarity/cohesion; for gate D, clarity/standards. Running a gate MUST be non-waivable, MUST NOT merge angles into one reviewer, and MUST NOT be skipped because the artifact is "obviously fine" or small; the model for each reviewer MUST be routed per angle by route, with the defaults sonnet for ask-alignment, code-alignment and design-fit and haiku for the others.
 
 Rationale: a small artifact is a cheap review, and "obviously fine" is the author's blind spot. Merging angles merges blind spots.
 
@@ -8682,7 +8682,7 @@ Scenario: 792a18l1g Staffing is routed
 
 ### 792a18m Each reviewer tries to refute the artifact
 
-Requirement: [792a18m](#792a18m-each-reviewer-tries-to-refute-the-artifact) Each reviewer MUST be charged to refute the artifact and not to bless it, by its angle. Ask-alignment MUST trace every element of the user's verbatim ask to a plan item and every plan item back to the ask, with gaps and scope creep as findings, and ask whether the point of the ask is front-and-center. Code-alignment MUST check the plan against the actual working tree (paths, interfaces, patterns, conventions) and verify against the code and not the plan's claims. Docs/diagrams-alignment MUST check the plan against the architecture diagrams, design docs and glossaries, MUST verify every disposition of an author-pasted enumeration-grep list against the files, and MUST still run its own independent discovery pass, because the reviewer is never the list's source and the list never narrows its scan. Clarity/standards MUST check that the prose is clear, concise and per the repository's writing standards. Design-fit MUST check that the refactored result is DRY, SRP-respecting and YAGNI-compliant and reads as if written as part of the whole. Relevance MUST check that each updated document needs the change and whether any other document is now stale. Clarity/cohesion MUST check that each change is clear, concise and cohesive with the surrounding document.
+Requirement: [792a18m Each reviewer tries to refute the artifact](#792a18m-each-reviewer-tries-to-refute-the-artifact) Each reviewer MUST be charged to refute the artifact and not to bless it, by its angle. Ask-alignment MUST trace every element of the user's verbatim ask to a plan item and every plan item back to the ask, with gaps and scope creep as findings, and ask whether the point of the ask is front-and-center. Code-alignment MUST check the plan against the actual working tree (paths, interfaces, patterns, conventions) and verify against the code and not the plan's claims. Docs/diagrams-alignment MUST check the plan against the architecture diagrams, design docs and glossaries, MUST verify every disposition of an author-pasted enumeration-grep list against the files, and MUST still run its own independent discovery pass, because the reviewer is never the list's source and the list never narrows its scan. Clarity/standards MUST check that the prose is clear, concise and per the repository's writing standards. Design-fit MUST check that the refactored result is DRY, SRP-respecting and YAGNI-compliant and reads as if written as part of the whole. Relevance MUST check that each updated document needs the change and whether any other document is now stale. Clarity/cohesion MUST check that each change is clear, concise and cohesive with the surrounding document.
 
 #### 792a18m1 UAT Scenarios
 
@@ -8705,7 +8705,7 @@ Scenario: 792a18m1c A clean pass says what was checked
 
 ### 792a18n Findings are argued to resolution
 
-Requirement: [792a18n](#792a18n-findings-are-argued-to-resolution) Each reviewer MUST recall first, with phrases drawn from the artifact and its angle, before it reviews. Its findings MUST be refutations with concrete stakes (a quote or `file:line`, why it fails the angle, and what better looks like), and a clean pass MUST state what was checked. The author MUST address every finding by fixing it or rebutting it with reasons, the reviewer MUST ACK or counter, and the reviewer MUST be kept alive until its gate closes. A finding MUST NOT be dropped silently. After about two unresolved rounds, please MUST stop, summarize both positions and escalate through `AskUserQuestion`. The gate itself (a fresh reviewer per angle, recall-first, argued to resolution) MUST NOT be waived by the availability of a review-focused skill, which a reviewer may apply as its discipline source. An angle MUST be marked not applicable only when its subject is absent from the environment (no diagrams in the repository, no documents touched) and the missing subject MUST be named out loud; "the artifact is small" MUST NOT be a skip.
+Requirement: [792a18n Findings are argued to resolution](#792a18n-findings-are-argued-to-resolution) Each reviewer MUST recall first, with phrases drawn from the artifact and its angle, before it reviews. Its findings MUST be refutations with concrete stakes (a quote or `file:line`, why it fails the angle, and what better looks like), and a clean pass MUST state what was checked. The author MUST address every finding by fixing it or rebutting it with reasons, the reviewer MUST ACK or counter, and the reviewer MUST be kept alive until its gate closes. A finding MUST NOT be dropped silently. After about two unresolved rounds, please MUST stop, summarize both positions and escalate through `AskUserQuestion`. The gate itself (a fresh reviewer per angle, recall-first, argued to resolution) MUST NOT be waived by the availability of a review-focused skill, which a reviewer may apply as its discipline source. An angle MUST be marked not applicable only when its subject is absent from the environment (no diagrams in the repository, no documents touched) and the missing subject MUST be named out loud; "the artifact is small" MUST NOT be a skip.
 
 #### 792a18n1 UAT Scenarios
 
@@ -8733,7 +8733,7 @@ Scenario: 792a18n1d An absent subject is named
 
 ### 792a18o Measured claims in an escalation carry provenance
 
-Requirement: [792a18o](#792a18o-measured-claims-in-an-escalation-carry-provenance) Any measured claim (a count, rate, cost or duration) in a mid-cycle escalation, an `AskUserQuestion` or a stop report, MUST carry its evidence pointer (the file or command that produced it) and a one-line validity statement that answers "verified how?". A claim whose honest validity line is "not verified" MUST NOT ship as a finding: it MUST be verified first or presented explicitly as an unverified hypothesis.
+Requirement: [792a18o Measured claims in an escalation carry provenance](#792a18o-measured-claims-in-an-escalation-carry-provenance) Any measured claim (a count, rate, cost or duration) in a mid-cycle escalation, an `AskUserQuestion` or a stop report, MUST carry its evidence pointer (the file or command that produced it) and a one-line validity statement that answers "verified how?". A claim whose honest validity line is "not verified" MUST NOT ship as a finding: it MUST be verified first or presented explicitly as an unverified hypothesis.
 
 Rationale: the user decides on escalations, and they get provenance.
 
@@ -8753,7 +8753,7 @@ Scenario: 792a18o1b An unverified figure is labeled
 
 ### 792a18p The closing learn is preceded by a lessons audit
 
-Requirement: [792a18p](#792a18p-the-closing-learn-is-preceded-by-a-lessons-audit) Before the closing learn at step 7, please MUST audit the cycle's mechanical corpus: every pre-registered stop that fired, every gate FAIL verdict, every commit whose message contains CORRECTION, supersede or superseded, instrument-invalid, or redraw or redrawn, and every mid-cycle escalation to the user. It MUST map each item to the vault note that captures its lesson, or write the one-line "no lesson: <why>"; MUST treat an unmapped item as a reversal handoff for the closing learn ([792a15e](#792a15e-the-four-kinds-of-explicit-lesson)); and MUST show the audit list (item → note or no-lesson) in the cycle's closing report to the user. It MUST NOT use the audit for positive reinforcement, which has no mechanical marker and belongs to the closing learn's confirmed-approach scan.
+Requirement: [792a18p The closing learn is preceded by a lessons audit](#792a18p-the-closing-learn-is-preceded-by-a-lessons-audit) Before the closing learn at step 7, please MUST audit the cycle's mechanical corpus: every pre-registered stop that fired, every gate FAIL verdict, every commit whose message contains CORRECTION, supersede or superseded, instrument-invalid, or redraw or redrawn, and every mid-cycle escalation to the user. It MUST map each item to the vault note that captures its lesson, or write the one-line "no lesson: <why>"; MUST treat an unmapped item as a reversal handoff for the closing learn ([792a15e The four kinds of explicit lesson](#792a15e-the-four-kinds-of-explicit-lesson)); and MUST show the audit list (item → note or no-lesson) in the cycle's closing report to the user. It MUST NOT use the audit for positive reinforcement, which has no mechanical marker and belongs to the closing learn's confirmed-approach scan.
 
 Rationale: the audit is failure-shaped by design.
 
@@ -8783,7 +8783,7 @@ Scenario: 792a18p1d The list is in the closing report
 
 ### 792a18q A lesson about to be captured asks what should have surfaced it
 
-Requirement: [792a18q](#792a18q-a-lesson-about-to-be-captured-asks-what-should-have-surfaced-it) For each lesson the cycle is about to capture, please MUST ask which artifact that already existed should have surfaced it first, MUST search the vault for a note that already covers the situation before writing a new one, and MUST, when a note existed but did not surface at the moment it was needed, check whether its `situation:` line matches how the moment actually presented and reword the note when it does not, in preference to writing a second note on the same lesson. It MUST propose a change that ships from the repository (code, skills, guidance) only as a last resort, and MUST NOT file it automatically.
+Requirement: [792a18q A lesson about to be captured asks what should have surfaced it](#792a18q-a-lesson-about-to-be-captured-asks-what-should-have-surfaced-it) For each lesson the cycle is about to capture, please MUST ask which artifact that already existed should have surfaced it first, MUST search the vault for a note that already covers the situation before writing a new one, and MUST, when a note existed but did not surface at the moment it was needed, check whether its `situation:` line matches how the moment actually presented and reword the note when it does not, in preference to writing a second note on the same lesson. It MUST propose a change that ships from the repository (code, skills, guidance) only as a last resort, and MUST NOT file it automatically.
 
 Rationale: a vault note is the user's own and takes effect on their next recall, while anything that ships from the repository makes the user wait on a release. This decision-support addition was committed in 662e50ba and is unvalidated: the larger "surprise harvest" it was proposed with, a seven-marker second pass, rested on a premise that a probe refuted (`dev/eval/LEDGER.md#687-surprise-harvest`), and was not built.
 
@@ -8808,7 +8808,7 @@ Scenario: 792a18q1c A repository change is a last resort
 
 ### 792a18r The closing learn gets the lessons and the audit
 
-Requirement: [792a18r](#792a18r-the-closing-learn-gets-the-lessons-and-the-audit) Please MUST run the `learn` skill again at step 7 and hand it the full list of `LESSONS:` lines collected across step 4's dispatches ([792a16f](#792a16f-the-closing-learn-gets-the-whole-list)) together with the audit's map, and MUST NOT duplicate learn's ad-hoc question-and-answer capture ([792a15k](#792a15k-an-answered-question-is-captured-once)), which learn performs for substantive answered questions.
+Requirement: [792a18r The closing learn gets the lessons and the audit](#792a18r-the-closing-learn-gets-the-lessons-and-the-audit) Please MUST run the `learn` skill again at step 7 and hand it the full list of `LESSONS:` lines collected across step 4's dispatches ([792a16f The closing learn gets the whole list](#792a16f-the-closing-learn-gets-the-whole-list)) together with the audit's map, and MUST NOT duplicate learn's ad-hoc question-and-answer capture ([792a15k An answered question is captured once](#792a15k-an-answered-question-is-captured-once)), which learn performs for substantive answered questions.
 
 #### 792a18r1 UAT Scenarios
 
@@ -8826,7 +8826,7 @@ Scenario: 792a18r1b The question-and-answer capture is learn's
 
 ### 792a18s Object-level work is delegated
 
-Requirement: [792a18s](#792a18s-object-level-work-is-delegated) Please MUST delegate object-level work and gate reviews to subagents per the route skill, and the orchestrator MUST route, decompose and synthesize without doing the object-level work itself.
+Requirement: [792a18s Object-level work is delegated](#792a18s-object-level-work-is-delegated) Please MUST delegate object-level work and gate reviews to subagents per the route skill, and the orchestrator MUST route, decompose and synthesize without doing the object-level work itself.
 
 #### 792a18s1 UAT Scenarios
 
@@ -8846,15 +8846,15 @@ harness, so that every session carries it without anyone invoking a skill. Four 
 `agent-instructions/guidance/`: `recall.md` (when to recall), `learn.md` (when to capture a lesson), `delegate.md`
 (when to hand work to a subagent) and `shim.md` (how to find and follow a runbook note). Each tells the agent when
 to act and points at the skill or note that says how, without restating it. How the documents reach a harness is
-install-and-update's ([792a11l](#792a11l-guidance-is-managed-only-after-opt-in), [792a11m](#792a11m-claude-import-paths-keep-working)); this capability is what they require of the agent and what the update
-report tells the user about activating them. The skills they point at are [792a14](#792a14-added-recall) (recall), [792a15](#792a15-added-learn) (learn), [792a17](#792a17-added-route)
-(route) and [792a18](#792a18-added-please) (please). The issue about duplicated cues (#773) and the issue about the shim being refused as a
+install-and-update's ([792a11l Guidance is managed only after opt-in](#792a11l-guidance-is-managed-only-after-opt-in), [792a11m Claude import paths keep working](#792a11m-claude-import-paths-keep-working)); this capability is what they require of the agent and what the update
+report tells the user about activating them. The skills they point at are [792a14 recall](#792a14-added-recall) (recall), [792a15 learn](#792a15-added-learn) (learn), [792a17 route](#792a17-added-route)
+(route) and [792a18 please](#792a18-added-please) (please). The issue about duplicated cues (#773) and the issue about the shim being refused as a
 prompt injection (#790) are open, and nothing here claims either is resolved. A blanket hook that recalls before
 every tool call was tried and is a dead end (`dev/eval/LEDGER.md#recall-overfire-hook-rejected`).
 
 ### 792a19a Recall fires at four decision moments
 
-Requirement: [792a19a](#792a19a-recall-fires-at-four-decision-moments) An agent that has the recall guidance MUST run `/recall glance` before it proceeds at each of
+Requirement: [792a19a Recall fires at four decision moments](#792a19a-recall-fires-at-four-decision-moments) An agent that has the recall guidance MUST run `/recall glance` before it proceeds at each of
 four moments: before it endorses or ranks a proposed approach, even when only discussing it; before it declares
 work done; once, before it starts guessing, after a failure it cannot immediately explain, and not on every retry;
 and before it starts building a new approach.
@@ -8891,12 +8891,12 @@ Scenario: 792a19a1d A new approach is recalled before it is built
 
 ### 792a19b Recall escalates from glance to deep
 
-Requirement: [792a19b](#792a19b-recall-escalates-from-glance-to-deep) An agent that has the recall guidance MUST escalate from `/recall glance` to `/recall deep`
+Requirement: [792a19b Recall escalates from glance to deep](#792a19b-recall-escalates-from-glance-to-deep) An agent that has the recall guidance MUST escalate from `/recall glance` to `/recall deep`
 when the decision is weighty or irreversible, or when glance flags a gap it cannot resolve.
 
 Rationale: glance is the cheap read-only rung and deep is the thorough one that also crystallizes new lessons, so
 the thorough rung is reserved for decisions where a miss is expensive. The escalation on the recency channel is
-recall's own rule ([792a14d](#792a14d-glance-escalates-to-deep-for-a-recent-standard)).
+recall's own rule ([792a14d Glance escalates to deep for a recent standard](#792a14d-glance-escalates-to-deep-for-a-recent-standard)).
 
 #### 792a19b1 UAT Scenarios
 
@@ -8914,7 +8914,7 @@ Scenario: 792a19b1b An unresolved gap escalates
 
 ### 792a19c Learn fires at the correction moment
 
-Requirement: [792a19c](#792a19c-learn-fires-at-the-correction-moment) An agent that has the learn guidance MUST invoke the `learn` skill, before it applies the fix,
+Requirement: [792a19c Learn fires at the correction moment](#792a19c-learn-fires-at-the-correction-moment) An agent that has the learn guidance MUST invoke the `learn` skill, before it applies the fix,
 when a review or the user rejects its approach, when a build, test or check fails and the non-obvious cause is now
 known, and when it catches its own approach being wrong. Even a one-line fix MUST earn the note.
 
@@ -8948,7 +8948,7 @@ Scenario: 792a19c1d A one-line fix still earns the note
 
 ### 792a19d The capture is learn's fast path
 
-Requirement: [792a19d](#792a19d-the-capture-is-learns-fast-path) When the learn guidance fires, the agent MUST capture the one confirmed lesson with the
+Requirement: [792a19d The capture is learn's fast path](#792a19d-the-capture-is-learns-fast-path) When the learn guidance fires, the agent MUST capture the one confirmed lesson with the
 `learn` skill, invoked as a skill and not as a plain note file or the harness's own project memory, on the
 skill's mid-cycle fast path, and MUST NOT run `engram ingest --auto` mid-task. It MUST capture a confirmed negative
 (what was rejected), which is enough on its own, and MUST NOT crystallize an unconfirmed hunch.
@@ -8984,8 +8984,8 @@ Scenario: 792a19d1d A hunch is not captured
 
 ### 792a19e A returned subagent lesson is captured before the next dispatch
 
-Requirement: [792a19e](#792a19e-a-returned-subagent-lesson-is-captured-before-the-next-dispatch) When a dispatched subagent returns and its `LESSONS:` line is not `none`, the orchestrating agent
-MUST judge each lesson at that moment against the learn skill's bar ([792a15e](#792a15e-the-four-kinds-of-explicit-lesson)): it is one of the four kinds, it is
+Requirement: [792a19e A returned subagent lesson is captured before the next dispatch](#792a19e-a-returned-subagent-lesson-is-captured-before-the-next-dispatch) When a dispatched subagent returns and its `LESSONS:` line is not `none`, the orchestrating agent
+MUST judge each lesson at that moment against the learn skill's bar ([792a15e The four kinds of explicit lesson](#792a15e-the-four-kinds-of-explicit-lesson)): it is one of the four kinds, it is
 confirmed and not hypothesized, and it states a general reusable principle. For each lesson that clears the bar it
 MUST invoke the `learn` skill on the fast path, one note per lesson and no sweep, before it dispatches the next
 subagent or ends its turn. The cue MUST apply to every dispatch, whether or not the route or please skill
@@ -8994,7 +8994,7 @@ mediated it.
 Rationale: at the closing learn a lesson is one line in a long list, if that learn runs at all, so the moment the
 report is read is when the confirmed lesson is cheapest to keep (`dev/eval/LEDGER.md#learn-at-return-guidance`).
 The cue lives in ambient guidance so that an ad hoc dispatch, which no skill mediates, carries it too. The line's
-format and hand-over are the lessons contract ([792a16](#792a16-added-lessons-contract)).
+format and hand-over are the lessons contract ([792a16 lessons-contract](#792a16-added-lessons-contract)).
 
 #### 792a19e1 UAT Scenarios
 
@@ -9027,7 +9027,7 @@ Scenario: 792a19e1e The last return is captured before the turn ends
 
 ### 792a19f A returned line that fails the bar is not captured
 
-Requirement: [792a19f](#792a19f-a-returned-line-that-fails-the-bar-is-not-captured) The learn guidance MUST NOT fire for a returned `LESSONS:` line that is `none`, for a lesson
+Requirement: [792a19f A returned line that fails the bar is not captured](#792a19f-a-returned-line-that-fails-the-bar-is-not-captured) The learn guidance MUST NOT fire for a returned `LESSONS:` line that is `none`, for a lesson
 that is a bare success or routine narrative, or for a lesson that is an unconfirmed hypothesis, which are left for
 the closing learn to discard under the same bar.
 
@@ -9054,7 +9054,7 @@ Scenario: 792a19f1c An unconfirmed hunch is skipped
 
 ### 792a19g Every unit of work is planned and routed first
 
-Requirement: [792a19g](#792a19g-every-unit-of-work-is-planned-and-routed-first) An agent that has the delegate guidance MUST draft a plan and route every unit of work to a
+Requirement: [792a19g Every unit of work is planned and routed first](#792a19g-every-unit-of-work-is-planned-and-routed-first) An agent that has the delegate guidance MUST draft a plan and route every unit of work to a
 subagent before it takes any direct action on the work itself, whether the unit is a multi-file feature, a
 two-file rename, a one-liner or a "quick look", and MUST decompose a multi-step change into units that are
 dispatched separately. Its first tool call on a unit MUST NOT be a read, edit, write or shell command on the work
@@ -9063,7 +9063,7 @@ itself. It MUST route a dispatch with the `route` skill, which sets the tier, th
 Rationale: an agent that does the object-level work itself spends its own context on it and has no fresh
 reviewer. Opening a file to orient is starting the work, and building it because the repository is empty is the
 same. Headless runs flipped the solo behavior to dispatch, including for a trivial rename
-(`dev/eval/LEDGER.md#delegate-guidance-flip`). The routing is [792a17](#792a17-added-route).
+(`dev/eval/LEDGER.md#delegate-guidance-flip`). The routing is [792a17 route](#792a17-added-route).
 
 #### 792a19g1 UAT Scenarios
 
@@ -9096,7 +9096,7 @@ Scenario: 792a19g1e A dispatch is routed
 
 ### 792a19h Solo work needs a recorded measurement
 
-Requirement: [792a19h](#792a19h-solo-work-needs-a-recorded-measurement) An agent that has the delegate guidance MUST NOT do object-level work itself on the strength of
+Requirement: [792a19h Solo work needs a recorded measurement](#792a19h-solo-work-needs-a-recorded-measurement) An agent that has the delegate guidance MUST NOT do object-level work itself on the strength of
 a forecast, such as "it's trivial", "it's just a rename", "a quick fix with the exact files known", "the overhead
 would exceed the work" or "it's greenfield, so I'll build it", and MAY do it inline only when recalled memory shows
 a measured record that this kind of work runs reliably below the routing overhead. Without such a record it MUST
@@ -9127,7 +9127,7 @@ Scenario: 792a19h1c A measured record licenses inline work
 
 ### 792a19i Returned work is reviewed fresh and reported with its evidence
 
-Requirement: [792a19i](#792a19i-returned-work-is-reviewed-fresh-and-reported-with-its-evidence) An agent that has the delegate guidance MUST review what a subagent returns with fresh
+Requirement: [792a19i Returned work is reviewed fresh and reported with its evidence](#792a19i-returned-work-is-reviewed-fresh-and-reported-with-its-evidence) An agent that has the delegate guidance MUST review what a subagent returns with fresh
 context, and not on the strength of the builder's own claim that it is done, and MUST report the outcome with
 route's evidence table, or with the please skill's gate verdicts when please mediated the work.
 
@@ -9150,7 +9150,7 @@ Scenario: 792a19i1b The report carries the route evidence
 
 ### 792a19j The first action on every request is an engram query
 
-Requirement: [792a19j](#792a19j-the-first-action-on-every-request-is-an-engram-query) An agent that has the shim MUST make its first tool call on every user request an
+Requirement: [792a19j The first action on every request is an engram query](#792a19j-the-first-action-on-every-request-is-an-engram-query) An agent that has the shim MUST make its first tool call on every user request an
 `engram query` that carries at least two `--phrase` values (the request in the agent's own words, and the kind of
 situation it is in) and a `--text` value holding the user's message verbatim (its first 300 characters or so when
 long), before it reads a file, answers or asks a clarifying question, and whether or not it has decided to
@@ -9163,8 +9163,8 @@ front of it. A one-line request still gets a query, and the agent proceeds witho
 over-fire on one-shot requests is accepted: it was measured at 3.4 times at the task-initiation fire-unit, and
 each fire costs one query with no crystallization. The command is named literally so it is executable when no
 engram skill is installed. A user's message can begin with `-` (a markdown bullet) with no control over its shape,
-and the space-separated form reads it as a flag and exits; the attached form survives it ([792b32c2](./792b_technical-spec.md#792b32c2-free-text-flag-values-use-the-attached-form)). The raw text,
-not a paraphrase, is what matches a literal trigger ([792a7y](#792a7y-trigger-text), [792a7za](#792a7za-a-trigger-hit-comes-first)). A shim-only configuration reached parity with
+and the space-separated form reads it as a flag and exits; the attached form survives it ([792b32c2 Free-text flag values use the attached form](./792b_technical-spec.md#792b32c2-free-text-flag-values-use-the-attached-form)). The raw text,
+not a paraphrase, is what matches a literal trigger ([792a7y Trigger text](#792a7y-trigger-text), [792a7za A trigger hit comes first](#792a7za-a-trigger-hit-comes-first)). A shim-only configuration reached parity with
 the skill row on two of three real procedures (`dev/eval/LEDGER.md#shim-follow-frame-d8-bar`). #790, about the shim being
 refused as a suspected prompt injection, is open.
 
@@ -9199,7 +9199,7 @@ Scenario: 792a19j1e Deciding to delegate does not skip the query
 
 ### 792a19k The second phrase names a kind of work-handling decision
 
-Requirement: [792a19k](#792a19k-the-second-phrase-names-a-kind-of-work-handling-decision) The shim MUST tell the agent that the second phrase of the first query names the kind of
+Requirement: [792a19k The second phrase names a kind of work-handling decision](#792a19k-the-second-phrase-names-a-kind-of-work-handling-decision) The shim MUST tell the agent that the second phrase of the first query names the kind of
 situation, in the wording a runbook's own `situation` uses, and not the concrete ticket, and MUST tell it to
 re-check that phrase before the query runs and rewrite it as the kind of work-handling decision when it contains a
 concrete noun from the ticket (a file, flag, feature, bug or field name) or restates the request. The shim MUST
@@ -9231,15 +9231,15 @@ Scenario: 792a19k1c The re-check does not regress another runbook's retrieval
 
 ### 792a19l Each returned kind is treated for what it is
 
-Requirement: [792a19l](#792a19l-each-returned-kind-is-treated-for-what-it-is) The shim MUST tell the agent how to treat each kind a query returns, and the follow-frame
-obligations ([792a19m](#792a19m-a-matched-runbook-is-announced-and-its-steps-are-the-plan) to [792a19q](#792a19q-linked-and-truncated-runbooks-get-the-same-frame)) MUST apply to `kind: runbook` only. A `fact` is knowledge and context, taken as
+Requirement: [792a19l Each returned kind is treated for what it is](#792a19l-each-returned-kind-is-treated-for-what-it-is) The shim MUST tell the agent how to treat each kind a query returns, and the follow-frame
+obligations ([792a19m A matched runbook is announced and its steps are the plan](#792a19m-a-matched-runbook-is-announced-and-its-steps-are-the-plan) to [792a19q Linked and truncated runbooks get the same frame](#792a19q-linked-and-truncated-runbooks-get-the-same-frame)) MUST apply to `kind: runbook` only. A `fact` is knowledge and context, taken as
 true for the task unless the repository contradicts it. A `feedback` note is a correction the user already gave,
 treated as a standing instruction so that the mistake it names is not repeated and the decision to honor it is not
 re-derived. A `runbook` is executed under the frame. A `chunk` is raw evidence, fetched with `engram show-chunk`
 only when the notes leave a gap, and its presence alone is not an instruction.
 
 Rationale: the query is not filtered by kind, so the agent must read each item's `kind`. Four content kinds exist,
-`fact`, `feedback`, `qa` and `runbook`, and `qa` is excluded from retrieval ([792a7v](#792a7v-runbooks-rank-like-other-notes)). A runbook is structurally the
+`fact`, `feedback`, `qa` and `runbook`, and `qa` is excluded from retrieval ([792a7v Runbooks rank like other notes](#792a7v-runbooks-rank-like-other-notes)). A runbook is structurally the
 same as a fact or feedback note in storage and ranking, so no validation gate guarded it (ADR-0026). Migrating
 existing kind-4 feedback into runbook notes is out of scope and is #730, still untriaged.
 The frame lives in the shim and not in the recall skill because it must exist before any runbook is loaded;
@@ -9268,7 +9268,7 @@ Scenario: 792a19l1c Chunks are not instructions
 
 ### 792a19m A matched runbook is announced and its steps are the plan
 
-Requirement: [792a19m](#792a19m-a-matched-runbook-is-announced-and-its-steps-are-the-plan) When a returned note has `kind: runbook` and its `situation` matches the task at hand, and not
+Requirement: [792a19m A matched runbook is announced and its steps are the plan](#792a19m-a-matched-runbook-is-announced-and-its-steps-are-the-plan) When a returned note has `kind: runbook` and its `situation` matches the task at hand, and not
 merely a related one, the agent MUST state in a text block which runbook it is executing, by its basename, and MUST
 restate the runbook's steps as its plan, with one todo per step where the harness offers a todo list, before its
 first mutating action, and MUST then do the steps in the runbook's order.
@@ -9301,7 +9301,7 @@ Scenario: 792a19m1c A related runbook is not followed
 
 ### 792a19n A runbook's red flags are read first and stop the agent
 
-Requirement: [792a19n](#792a19n-a-runbooks-red-flags-are-read-first-and-stop-the-agent) The agent MUST read a matched runbook's `red_flags`, if it has any, before it starts, and when a
+Requirement: [792a19n A runbook's red flags are read first and stop the agent](#792a19n-a-runbooks-red-flags-are-read-first-and-stop-the-agent) The agent MUST read a matched runbook's `red_flags`, if it has any, before it starts, and when a
 listed condition occurs it MUST stop, name the red flag and the step it is rereading in its next text block, and
 reread that step before its next mutating command.
 
@@ -9321,7 +9321,7 @@ Scenario: 792a19n1b A runbook without red flags starts normally
 
 ### 792a19o A runbook's done_when is the completion bar
 
-Requirement: [792a19o](#792a19o-a-runbooks-done_when-is-the-completion-bar) The agent MUST NOT report a task done until the matched runbook's `done_when` holds, and MUST
+Requirement: [792a19o A runbook's done_when is the completion bar](#792a19o-a-runbooks-done_when-is-the-completion-bar) The agent MUST NOT report a task done until the matched runbook's `done_when` holds, and MUST
 verify each condition and not assume it.
 
 #### 792a19o1 UAT Scenarios
@@ -9340,7 +9340,7 @@ Scenario: 792a19o1b An unmet condition blocks the report
 
 ### 792a19p The agent stops and asks when a step is genuinely uncertain
 
-Requirement: [792a19p](#792a19p-the-agent-stops-and-asks-when-a-step-is-genuinely-uncertain) When a step of a matched runbook cannot be executed as written, is genuinely ambiguous in this
+Requirement: [792a19p The agent stops and asks when a step is genuinely uncertain](#792a19p-the-agent-stops-and-asks-when-a-step-is-genuinely-uncertain) When a step of a matched runbook cannot be executed as written, is genuinely ambiguous in this
 context, names a target that plainly is not present (no remote, no ticket queue, no CI), or would be deviated from,
 or when two things the runbook requires are in tension, the agent MUST name the step and the specific gap and end
 its turn with a question, and MUST NOT substitute its own action for the step or proceed anyway. It MUST NOT stop
@@ -9379,12 +9379,12 @@ Scenario: 792a19p1d A specific instruction beats its incidental example
 
 ### 792a19q Linked and truncated runbooks get the same frame
 
-Requirement: [792a19q](#792a19q-linked-and-truncated-runbooks-get-the-same-frame) The agent MUST fetch with `engram show <basename>` and apply the whole frame ([792a19m](#792a19m-a-matched-runbook-is-announced-and-its-steps-are-the-plan) to [792a19p](#792a19p-the-agent-stops-and-asks-when-a-step-is-genuinely-uncertain))
+Requirement: [792a19q Linked and truncated runbooks get the same frame](#792a19q-linked-and-truncated-runbooks-get-the-same-frame) The agent MUST fetch with `engram show <basename>` and apply the whole frame ([792a19m A matched runbook is announced and its steps are the plan](#792a19m-a-matched-runbook-is-announced-and-its-steps-are-the-plan) to [792a19p The agent stops and asks when a step is genuinely uncertain](#792a19p-the-agent-stops-and-asks-when-a-step-is-genuinely-uncertain))
 to a runbook that a matched runbook wikilinks, before the step that linked it. It MUST fetch a matched runbook in
 full with `engram show` before it restates the steps when the query payload truncated it, and MUST NOT restate steps
 from a truncated fragment. The frame MUST apply to every returned `kind: runbook` item whatever its origin, including
 a runbook that the query returned from a parent vault (`from_parent`) and the runbook note of a registered skill
-([792a12](#792a12-added-skill-runbook-registration)), whose installation as a skill is no reason to skip the frame.
+([792a12 skill-runbook-registration](#792a12-added-skill-runbook-registration)), whose installation as a skill is no reason to skip the frame.
 
 Rationale: the frame is stated for the kind and not for a source, so the agent does not need to know where a note came
 from. That a bare `engram show <basename>` resolves a note held only in the parent vault is parent-sync's ([792a21 parent-sync](#792a21-added-parent-sync)).
@@ -9415,7 +9415,7 @@ Scenario: 792a19q1e A registered skill's runbook is followed
 
 ### 792a19r One floor beneath every runbook
 
-Requirement: [792a19r](#792a19r-one-floor-beneath-every-runbook) The shim MUST state, once, the rules that apply to every runbook uniformly: the urge to shortcut a
+Requirement: [792a19r One floor beneath every runbook](#792a19r-one-floor-beneath-every-runbook) The shim MUST state, once, the rules that apply to every runbook uniformly: the urge to shortcut a
 step is the cue to reread it and not a reason to skip it; substituting a related action for the one the step names is
 a skip, including "the named thing doesn't apply here, so I'll do what accomplishes the same goal"; and the letter
 of a step is its spirit, so a step that says to run a command is satisfied only by running that command. A runbook note
@@ -9440,14 +9440,14 @@ Scenario: 792a19r1b A related action is not a completion
 
 ### 792a19s A signal of unrequested work is a standing instruction
 
-Requirement: [792a19s](#792a19s-a-signal-of-unrequested-work-is-a-standing-instruction) The shim MUST tell the agent to treat a tool result that names pending work it was not asked to do,
+Requirement: [792a19s A signal of unrequested work is a standing instruction](#792a19s-a-signal-of-unrequested-work-is-a-standing-instruction) The shim MUST tell the agent to treat a tool result that names pending work it was not asked to do,
 such as the `pending_offers` flag and hint of `engram query`, as a standing instruction, and after finishing the
 user's request to do what the signal says without asking, unless the named action is destructive or hard to reverse
 and the agent is genuinely uncertain, in which case it MUST stop and ask. The rule MUST be stated generically, naming
 no skill or runbook, so that a later signal of the same shape needs no further edit.
 
 Rationale: a result outside the scope of the request is easy to read as optional context. Pending offers are curate's
-([792c7u1](./792c_implementation-plan.md#792c7u1-curate-product-spec)).
+([792c7u1 curate product spec](./792c_implementation-plan.md#792c7u1-curate-product-spec)).
 
 #### 792a19s1 UAT Scenarios
 
@@ -9470,13 +9470,13 @@ Scenario: 792a19s1c The rule is generic
 
 ### 792a19t The query runs again at four moments mid-task
 
-Requirement: [792a19t](#792a19t-the-query-runs-again-at-four-moments-mid-task) The shim MUST tell the agent to run `engram query` again, with the same two phrase shapes re-keyed to
+Requirement: [792a19t The query runs again at four moments mid-task](#792a19t-the-query-runs-again-at-four-moments-mid-task) The shim MUST tell the agent to run `engram query` again, with the same two phrase shapes re-keyed to
 what is in front of it, before it endorses or ranks a proposed approach, even when only discussing it; before it
 declares work done, querying first and then verifying; once after a failure it cannot immediately explain; and before
 it starts building a new approach. It MUST tell the agent to escalate to the matched runbook's `deep` procedure, if it
 offers one, when the decision is weighty or irreversible or the pass surfaces a gap it cannot resolve.
 
-Rationale: the first query does not cover the rest of the task. These are the same four moments as [792a19a](#792a19a-recall-fires-at-four-decision-moments), for a
+Rationale: the first query does not cover the rest of the task. These are the same four moments as [792a19a Recall fires at four decision moments](#792a19a-recall-fires-at-four-decision-moments), for a
 session whose recall is carried by the shim.
 
 #### 792a19t1 UAT Scenarios
@@ -9500,13 +9500,13 @@ Scenario: 792a19t1c A weighty decision escalates to deep
 
 ### 792a19u The shim joins the other guidance additively
 
-Requirement: [792a19u](#792a19u-the-shim-joins-the-other-guidance-additively) The set of guidance documents that engram expects a harness's own config file to import MUST be
+Requirement: [792a19u The shim joins the other guidance additively](#792a19u-the-shim-joins-the-other-guidance-additively) The set of guidance documents that engram expects a harness's own config file to import MUST be
 `recall.md`, `delegate.md`, `learn.md` and `shim.md`, with `shim.md` added to the other three and not substituted
 for them, until the recall, learn and write-memory skills are promoted to production runbooks.
 
 Rationale: `shim.md` finds and follows runbook notes and does not reproduce the content of the other three, which
 cover work that is not yet in a runbook (#760, separately scoped). Activating the shim is a policy about which deployed
-documents a session's own config imports, and is distinct from getting the files onto disk ([792a11l](#792a11l-guidance-is-managed-only-after-opt-in)).
+documents a session's own config imports, and is distinct from getting the files onto disk ([792a11l Guidance is managed only after opt-in](#792a11l-guidance-is-managed-only-after-opt-in)).
 
 #### 792a19u1 UAT Scenarios
 
@@ -9524,7 +9524,7 @@ Scenario: 792a19u1b The shim does not replace the other documents
 
 ### 792a19v The update report says how to activate guidance
 
-Requirement: [792a19v](#792a19v-the-update-report-says-how-to-activate-guidance) When guidance is deployed for a harness whose config file can import it, `engram update` MUST print
+Requirement: [792a19v The update report says how to activate guidance](#792a19v-the-update-report-says-how-to-activate-guidance) When guidance is deployed for a harness whose config file can import it, `engram update` MUST print
 one line per deployed document: `guidance refreshed: ~/<guidance dir>/<name>` when that harness's config already imports
 the document, and otherwise `guidance deployed to ~/<guidance dir>/<name> — add '@~/<guidance dir>/<name>' to <config
 file> to activate it (<Harness> will ask you to approve the import once)`, with forward slashes on every operating
@@ -9535,7 +9535,7 @@ Under `--dry-run` each guidance line MUST carry the dry-run prefix.
 
 Rationale: an import is a line in a file the user owns, which engram does not edit, so the report tells the user
 exactly what to add. The nudge is shown only to a user who has neither opted in nor wired an import, and so has not
-yet been told guidance exists. The canonical-path suffix on Claude Code lines is install-and-update's ([792a11 install-and-update](#792a11-added-install-and-update); [792a11m1d](#792a11m1-uat-scenarios)).
+yet been told guidance exists. The canonical-path suffix on Claude Code lines is install-and-update's ([792a11 install-and-update](#792a11-added-install-and-update); [792a11m1d The report states the canonical path](#792a11m1-uat-scenarios)).
 
 #### 792a19v1 UAT Scenarios
 
@@ -9588,12 +9588,12 @@ Scenario: 792a19v1i A dry run prefixes the guidance lines
 
 ### 792a19w Engram is engaged around work that is more than a trivial lookup
 
-Requirement: [792a19w](#792a19w-engram-is-engaged-around-work-that-is-more-than-a-trivial-lookup) For a request that is more than a trivial lookup or edit, the agent MUST read memory first with
+Requirement: [792a19w Engram is engaged around work that is more than a trivial lookup](#792a19w-engram-is-engaged-around-work-that-is-more-than-a-trivial-lookup) For a request that is more than a trivial lookup or edit, the agent MUST read memory first with
 recall, then do the work, and then, when the work produced a lesson, a correction or a decision, write memory with
 learn; for a trivial lookup or edit it MUST NOT engage the recall and learn skills.
 
-Rationale: this is the read, work, write lifecycle of the operator-level view. Recall is [792a14](#792a14-added-recall) and learn is [792a15](#792a15-added-learn).
-The shim's query ([792a19j](#792a19j-the-first-action-on-every-request-is-an-engram-query)) is a lookup for runbooks that runs on every request, and is not the recall skill.
+Rationale: this is the read, work, write lifecycle of the operator-level view. Recall is [792a14 recall](#792a14-added-recall) and learn is [792a15 learn](#792a15-added-learn).
+The shim's query ([792a19j The first action on every request is an engram query](#792a19j-the-first-action-on-every-request-is-an-engram-query)) is a lookup for runbooks that runs on every request, and is not the recall skill.
 
 #### 792a19w1 UAT Scenarios
 
@@ -9627,14 +9627,14 @@ Canonical target: `docs/specs/product/vault-serving.md` (title `Vault Serving - 
 child offers the notes it learns to this node and reads this node's notes back over HTTP, through four commands only
 (`query`, `show`, `activate` and `learn`). The local command line is the same node's local door and never runs through
 the server. The server reuses the command line's code paths and locks, and a served `learn` lands as a pending offer
-(curate judges it; [792a22](#792a22-added-curate)), attributed to the identity the calling instance declares. The server has no
+(curate judges it; [792a22 curate](#792a22-added-curate)), attributed to the identity the calling instance declares. The server has no
 authentication of its own, so the network that can reach its address is the trust boundary. The children's side of the
-exchange (the outbox, merged queries and pull-down) is parent-sync ([792a21](#792a21-added-parent-sync)). The unrelated multi-agent chat server of an
+exchange (the outbox, merged queries and pull-down) is parent-sync ([792a21 parent-sync](#792a21-added-parent-sync)). The unrelated multi-agent chat server of an
 earlier era and the Cloudflare dependency are gone, and nothing here depends on either.
 
 ### 792a20a The served command set is fixed
 
-Requirement: [792a20a](#792a20a-the-served-command-set-is-fixed) `engram serve` MUST expose exactly `query` and `show` (by GET) and `activate` and `learn` (by
+Requirement: [792a20a The served command set is fixed](#792a20a-the-served-command-set-is-fixed) `engram serve` MUST expose exactly `query` and `show` (by GET) and `activate` and `learn` (by
 POST) over HTTP, and MUST NOT expose `amend`, `query-chunks`, `show-chunk`, `ingest`, `vocab refit`, `prune`, `check`,
 `update` or `resituate`: a request for any of them MUST be answered with an error and perform no vault operation.
 
@@ -9667,7 +9667,7 @@ Scenario: 792a20a1c A served command refuses the wrong method
 
 ### 792a20b A bind address must be given
 
-Requirement: [792a20b](#792a20b-a-bind-address-must-be-given) `engram serve` MUST require an explicit bind address in `--addr` and MUST NOT start without one,
+Requirement: [792a20b A bind address must be given](#792a20b-a-bind-address-must-be-given) `engram serve` MUST require an explicit bind address in `--addr` and MUST NOT start without one,
 and MUST NOT default to the wildcard address `0.0.0.0` or to any address. `engram serve --help` MUST describe the four
 served commands, say that the address is required and never defaults to `0.0.0.0`, and list `--vault`, `--vault-name`
 and `--chunks-dir`.
@@ -9696,7 +9696,7 @@ Scenario: 792a20b1c The help states the address rule
 
 ### 792a20c Served commands behave as the local ones
 
-Requirement: [792a20c](#792a20c-served-commands-behave-as-the-local-ones) Every served command MUST run through the same implementation and the same vault locks as the
+Requirement: [792a20c Served commands behave as the local ones](#792a20c-served-commands-behave-as-the-local-ones) Every served command MUST run through the same implementation and the same vault locks as the
 local command, MUST give the result the local command gives for the same arguments, and MUST NOT let a served request
 change which vault, vault name or chunk index the server uses. A served `query` without `dedupe-keys` MUST be
 byte-identical to the local payload, and a served `show` without `raw` MUST be exactly the local output.
@@ -9731,14 +9731,14 @@ Scenario: 792a20c1d A request cannot redirect the server
 
 ### 792a20d A served learn lands as a pending offer and returns a receipt
 
-Requirement: [792a20d](#792a20d-a-served-learn-lands-as-a-pending-offer-and-returns-a-receipt) A served `learn` MUST write its note as a pending offer in the served vault, never as an
+Requirement: [792a20d A served learn lands as a pending offer and returns a receipt](#792a20d-a-served-learn-lands-as-a-pending-offer-and-returns-a-receipt) A served `learn` MUST write its note as a pending offer in the served vault, never as an
 immediately live note, and MUST answer with a receipt that is a JSON object carrying `status` (`offer received`),
 `luhmann` and `basename` of the note the offer landed on, `pending` (its true state: `true` for a pending offer,
 `false` when a retry matched an already accepted live note), `vault_id` (the served vault's ID), `stored_hash` (the
 exchange hash of the note as stored) and, only when the offer resolved to a live note, `for` (that note's basename).
 The receipt MUST NOT carry the note's content or any curation outcome.
 
-Rationale: curation judges an offer before it counts as knowledge ([792a22](#792a22-added-curate)), so the receiving side learns nothing it
+Rationale: curation judges an offer before it counts as knowledge ([792a22 curate](#792a22-added-curate)), so the receiving side learns nothing it
 has not vetted. The receipt tells the child what the note became, so a retry or a later amend finds the same note.
 
 #### 792a20d1 UAT Scenarios
@@ -9762,11 +9762,11 @@ Scenario: 792a20d1c The receipt carries no content
 
 ### 792a20e A served learn is attributed to the identity the caller declares
 
-Requirement: [792a20e](#792a20e-a-served-learn-is-attributed-to-the-identity-the-caller-declares) A served `learn` MUST stamp the note's `user:` from the identity the calling instance declares in
+Requirement: [792a20e A served learn is attributed to the identity the caller declares](#792a20e-a-served-learn-is-attributed-to-the-identity-the-caller-declares) A served `learn` MUST stamp the note's `user:` from the identity the calling instance declares in
 the request body, the same locally detected value that instance would use for a local write, and MUST NOT require or
 consult any edge-authentication header to resolve it. It MUST reject a request whose declared identity is empty with
 an error and write nothing. The declared identity MUST survive the offer's acceptance, because the bookkeeping amends
-that accept it do not re-stamp it ([792a22](#792a22-added-curate)).
+that accept it do not re-stamp it ([792a22 curate](#792a22-added-curate)).
 
 Rationale: the server trusts what a caller declares, since the caller and the server share a network trust boundary and
 no more. An empty declaration would write an offer nobody can be asked about, so it is refused outright. Requiring an
@@ -9798,13 +9798,13 @@ Scenario: 792a20e1c No edge header is needed
 
 ### 792a20f A served learn stamps the caller's repo, the served vault's name and the first-write identity
 
-Requirement: [792a20f](#792a20f-a-served-learn-stamps-the-callers-repo-the-served-vaults-name-and-the-first-write-identity) A served `learn` MUST take `repo:` from the value the caller declares and MUST NOT substitute a
+Requirement: [792a20f A served learn stamps the caller's repo, the served vault's name and the first-write identity](#792a20f-a-served-learn-stamps-the-callers-repo-the-served-vaults-name-and-the-first-write-identity) A served `learn` MUST take `repo:` from the value the caller declares and MUST NOT substitute a
 value the server detects for itself. It MUST stamp `vault:` with the vault name the caller sent and otherwise with the
 name the server was started with. It MUST apply this one stamp to every write of an offer, a new pending note and a
 same-origin pending note rewritten in place, so that the rewrite takes the identity of its own request.
 
 Rationale: the server's own repository context is the remote caller's wrong answer, so detection stays with the
-caller. The first-write stamp is the one every learn applies ([792a3o](#792a3o-repository-provenance), [792a3p](#792a3p-user-provenance)), and a served learn's rewrite of a pending
+caller. The first-write stamp is the one every learn applies ([792a3o Repository provenance](#792a3o-repository-provenance), [792a3p User provenance](#792a3p-user-provenance)), and a served learn's rewrite of a pending
 offer is a first write of that content.
 
 #### 792a20f1 UAT Scenarios
@@ -9828,7 +9828,7 @@ Scenario: 792a20f1c An in-place rewrite is stamped from its own request
 
 ### 792a20g A served learn finds the note an offer belongs to
 
-Requirement: [792a20g](#792a20g-a-served-learn-finds-the-note-an-offer-belongs-to) A served `learn` MUST do its lookup, any rewrite, any re-embed and the building of its receipt in
+Requirement: [792a20g A served learn finds the note an offer belongs to](#792a20g-a-served-learn-finds-the-note-an-offer-belongs-to) A served `learn` MUST do its lookup, any rewrite, any re-embed and the building of its receipt in
 one locked section, and MUST check these cases in order. An offer whose non-empty `offer.key` any note, live or
 pending, already records as its current key or among `offer.prior_keys` MUST write nothing and return that note's
 current receipt. Otherwise an offer whose `offer.origin` a pending note carries MUST rewrite that pending note in
@@ -9911,7 +9911,7 @@ Scenario: 792a20g1l An unreadable note fails the request
 
 ### 792a20h An invalid offer is refused with nothing written
 
-Requirement: [792a20h](#792a20h-an-invalid-offer-is-refused-with-nothing-written) A served `learn` MUST answer 400 and write nothing when `offer.path` has more than 16 entries,
+Requirement: [792a20h An invalid offer is refused with nothing written](#792a20h-an-invalid-offer-is-refused-with-nothing-written) A served `learn` MUST answer 400 and write nothing when `offer.path` has more than 16 entries,
 when any `offer.path` entry is not exactly 32 lowercase hexadecimal characters, when `offer.origin` is not two such
 identifiers joined by `:`, when `offer.key` or `offer.path` is present without `offer.origin`, or when the note content
 fails validation (its type, tier, supersedes or a required field). It MUST answer 409 and write nothing when its own
@@ -9953,12 +9953,12 @@ Scenario: 792a20h1e Invalid note content is a client error
 
 ### 792a20i Placement and tags are the server's
 
-Requirement: [792a20i](#792a20i-placement-and-tags-are-the-servers) A served `learn` MUST place every new pending note at top level and MUST ignore any `target` or
+Requirement: [792a20i Placement and tags are the server's](#792a20i-placement-and-tags-are-the-servers) A served `learn` MUST place every new pending note at top level and MUST ignore any `target` or
 `position` the caller sent, and MUST drop any `tags` in the request, both on a new pending note and on a same-origin
 rewrite.
 
 Rationale: placement in the Luhmann tree is the receiving vault's, and tags are the vocabulary of the vault that holds
-the note, so the receiving vault assigns its own ([792a20o](#792a20o-the-receiving-vault-tags-a-served-offer)).
+the note, so the receiving vault assigns its own ([792a20o The receiving vault tags a served offer](#792a20o-the-receiving-vault-tags-a-served-offer)).
 
 #### 792a20i1 UAT Scenarios
 
@@ -9976,7 +9976,7 @@ Scenario: 792a20i1b Wire tags are dropped
 
 ### 792a20j A caller cannot set link, identity or registration fields
 
-Requirement: [792a20j](#792a20j-a-caller-cannot-set-link-identity-or-registration-fields) A served `learn` MUST NOT let its request body populate a note's `parent`, `aliases`, `xid`,
+Requirement: [792a20j A caller cannot set link, identity or registration fields](#792a20j-a-caller-cannot-set-link-identity-or-registration-fields) A served `learn` MUST NOT let its request body populate a note's `parent`, `aliases`, `xid`,
 `offer.prior_keys`, `skill_hash`, `skill_key` or `skill_source`, whatever the spelling of the key in the body. The only
 exchange fields a caller MAY set are `offer.origin`, `offer.key`, `offer.for` and `offer.path`, and they MUST land only
 on pending notes.
@@ -10001,7 +10001,7 @@ Scenario: 792a20j1b A caller cannot forge a link
 
 ### 792a20k A served show returns a note, and a raw envelope on request
 
-Requirement: [792a20k](#792a20k-a-served-show-returns-a-note-and-a-raw-envelope-on-request) The served `show` MUST, without `raw`, return exactly the local `engram show` output, including the
+Requirement: [792a20k A served show returns a note, and a raw envelope on request](#792a20k-a-served-show-returns-a-note-and-a-raw-envelope-on-request) The served `show` MUST, without `raw`, return exactly the local `engram show` output, including the
 exchange-hash header line for a note that carries an `xid`. With `raw=1` it MUST resolve `note` against basenames and
 then against `aliases` and MUST return a JSON object carrying `vault_id`, `basename` (the note's current basename),
 `content` (the note file's bytes, unmodified, with no `red_flags` preview cap and no appended links section) and
@@ -10047,7 +10047,7 @@ Scenario: 792a20k1f A missing ref is a bad request
 
 ### 792a20l A served activate takes note names only
 
-Requirement: [792a20l](#792a20l-a-served-activate-takes-note-names-only) The served `activate` MUST resolve each ref only against the vault's listed note names, with or
+Requirement: [792a20l A served activate takes note names only](#792a20l-a-served-activate-takes-note-names-only) The served `activate` MUST resolve each ref only against the vault's listed note names, with or
 without `.md`, and never join a ref into a filesystem path. A request with any ref that is an absolute path, contains a
 path separator (`/` or `\`) or contains `..` MUST be answered 400 and nothing MUST be read or written. A listed note
 name MUST have its sidecar's last-used date bumped, committed directly with no pending marker and no curation. The
@@ -10095,7 +10095,7 @@ Scenario: 792a20l1f Local activate keeps paths
 
 ### 792a20m A served query takes the message and can return dedupe keys
 
-Requirement: [792a20m](#792a20m-a-served-query-takes-the-message-and-can-return-dedupe-keys) The served `query` MUST accept the client's `--text` value as the `text` query-string parameter,
+Requirement: [792a20m A served query takes the message and can return dedupe keys](#792a20m-a-served-query-takes-the-message-and-can-return-dedupe-keys) The served `query` MUST accept the client's `--text` value as the `text` query-string parameter,
 and MUST truncate it to at most 2048 bytes on a UTF-8 rune boundary, never splitting a multi-byte character, before it
 runs the query, silently, with no error and no warning. A `text` of 2048 bytes or fewer MUST be passed through unchanged
 (quotes, newlines, `&` and non-ASCII characters included) and produce the payload the local path produces. With
@@ -10132,13 +10132,13 @@ Scenario: 792a20m1d A note whose keys cannot be computed loses only its own
 
 ### 792a20n Request and response bodies are capped
 
-Requirement: [792a20n](#792a20n-request-and-response-bodies-are-capped) `engram serve` MUST read at most 4 MiB of a request body and MUST answer 413 on every route, writing
+Requirement: [792a20n Request and response bodies are capped](#792a20n-request-and-response-bodies-are-capped) `engram serve` MUST read at most 4 MiB of a request body and MUST answer 413 on every route, writing
 nothing, when the body is over that cap, and MUST answer 400 for any other failure to read a body in full. A child MUST
 accept at most 16 MiB of a parent's response, and a longer response MUST be an error and never a truncated payload.
 
 Rationale: an unauthenticated caller must not be able to make the server buffer without bound, and a malicious parent
 must not exhaust a child's memory. An offer or an activate body is a few KB, so the caps leave ample room. The exchange
-that uses a parent's response is parent-sync's ([792a21](#792a21-added-parent-sync)).
+that uses a parent's response is parent-sync's ([792a21 parent-sync](#792a21-added-parent-sync)).
 
 #### 792a20n1 UAT Scenarios
 
@@ -10161,11 +10161,11 @@ Scenario: 792a20n1c An oversized parent response is refused
 
 ### 792a20o The receiving vault tags a served offer
 
-Requirement: [792a20o](#792a20o-the-receiving-vault-tags-a-served-offer) After a served `learn` writes or rewrites a pending offer, the served vault MUST assign it
+Requirement: [792a20o The receiving vault tags a served offer](#792a20o-the-receiving-vault-tags-a-served-offer) After a served `learn` writes or rewrites a pending offer, the served vault MUST assign it
 `vocab/<term>` tags from the vault's own vocabulary as it does for any note it writes, and the offer's own tags MUST NOT
-be kept ([792a20i](#792a20i-placement-and-tags-are-the-servers)).
+be kept ([792a20i Placement and tags are the server's](#792a20i-placement-and-tags-are-the-servers)).
 
-Rationale: tags are the vocabulary of the vault that holds the note ([792a6](#792a6-added-controlled-vocabulary)), so a child's tags would mean nothing here.
+Rationale: tags are the vocabulary of the vault that holds the note ([792a6 controlled-vocabulary](#792a6-added-controlled-vocabulary)), so a child's tags would mean nothing here.
 
 #### 792a20o1 UAT Scenarios
 
@@ -10185,19 +10185,19 @@ Scenario: 792a20o1b A rewrite is re-tagged
 
 Canonical target: `docs/specs/product/parent-sync.md` (title `Parent Sync - Product Spec`).
 
-A vault can have one parent: another engram vault, served with `engram serve` ([792a20](#792a20-added-vault-serving)), that sits above it in a tree
+A vault can have one parent: another engram vault, served with `engram serve` ([792a20 vault-serving](#792a20-added-vault-serving)), that sits above it in a tree
 (personal, then team, then organization) and never in a mesh. `ENGRAM_PARENT` names it. Every environment keeps its own
 local vault whether or not it has a parent, so a command works with the parent unreachable, and the two vaults exchange
 notes in both directions. A node offers what it writes upward, through an outbox that survives being offline. It reads
 its parent's notes back in one merged answer to `engram query`, and pulls a parent's note down when it uses it, as an
-offer for local curation to judge ([792a22](#792a22-added-curate)). Notes are exchanged and transcript chunks never are. How a vault tells a
-clone or a copy of itself from its parent, and what an exchange is allowed to touch, are vault-identity ([792a2](#792a2-added-vault-identity)), and the
-served side of the exchange is vault-serving ([792a20](#792a20-added-vault-serving)). The `ENGRAM_SERVER` thin-client mode that the exchange replaced
-is gone, and [792a21a](#792a21a-engram_server-is-refused) makes setting it an error.
+offer for local curation to judge ([792a22 curate](#792a22-added-curate)). Notes are exchanged and transcript chunks never are. How a vault tells a
+clone or a copy of itself from its parent, and what an exchange is allowed to touch, are vault-identity ([792a2 vault-identity](#792a2-added-vault-identity)), and the
+served side of the exchange is vault-serving ([792a20 vault-serving](#792a20-added-vault-serving)). The `ENGRAM_SERVER` thin-client mode that the exchange replaced
+is gone, and [792a21a ENGRAM_SERVER is refused](#792a21a-engram_server-is-refused) makes setting it an error.
 
 ### 792a21a ENGRAM_SERVER is refused
 
-Requirement: [792a21a](#792a21a-engram_server-is-refused) When the `ENGRAM_SERVER` environment variable is set to a non-empty value, every `engram`
+Requirement: [792a21a ENGRAM_SERVER is refused](#792a21a-engram_server-is-refused) When the `ENGRAM_SERVER` environment variable is set to a non-empty value, every `engram`
 subcommand, `engram serve` included, MUST exit non-zero before it reads or writes a vault or a chunk index or contacts a
 network endpoint, with an error that names `ENGRAM_SERVER` as no longer supported and tells the user to set
 `ENGRAM_PARENT` to the same URL. No subcommand MUST treat `ENGRAM_SERVER` as an alias for `ENGRAM_PARENT`, and no
@@ -10234,7 +10234,7 @@ Scenario: 792a21a1d ENGRAM_SERVER is not honored as an alias
 
 ### 792a21b One parent per vault
 
-Requirement: [792a21b](#792a21b-one-parent-per-vault) `engram query` MUST accept an `ENGRAM_PARENT` environment variable that names exactly one parent
+Requirement: [792a21b One parent per vault](#792a21b-one-parent-per-vault) `engram query` MUST accept an `ENGRAM_PARENT` environment variable that names exactly one parent
 vault's base URL, and MUST NOT offer any way to configure more than one parent at a time.
 
 Rationale: the vaults form a single-parent tree, so a mesh and its cycles cannot be configured (ADR-0029).
@@ -10250,9 +10250,9 @@ Scenario: 792a21b1a ENGRAM_PARENT names the one parent
 
 ### 792a21c A merged query returns the parent's notes, never its chunks, in one list
 
-Requirement: [792a21c](#792a21c-a-merged-query-returns-the-parents-notes-never-its-chunks-in-one-list) With `ENGRAM_PARENT` set, every `engram query` MUST run its local query and ask the parent for
-its answer, MUST drop every item of the parent's answer whose `kind` is `chunk`, MUST remove the duplicates of [792a21j](#792a21j-a-linked-or-identical-note-appears-once-as-the-local-copy),
-and MUST return one payload ranked across both sources in the order of [792a21d](#792a21d-a-merged-query-orders-its-items), not two result sets for the caller to
+Requirement: [792a21c A merged query returns the parent's notes, never its chunks, in one list](#792a21c-a-merged-query-returns-the-parents-notes-never-its-chunks-in-one-list) With `ENGRAM_PARENT` set, every `engram query` MUST run its local query and ask the parent for
+its answer, MUST drop every item of the parent's answer whose `kind` is `chunk`, MUST remove the duplicates of [792a21j A linked or identical note appears once, as the local copy](#792a21j-a-linked-or-identical-note-appears-once-as-the-local-copy),
+and MUST return one payload ranked across both sources in the order of [792a21d A merged query orders its items](#792a21d-a-merged-query-orders-its-items), not two result sets for the caller to
 reconcile. This merged path is the only query path for a node that has a parent: it MUST NOT offer another remote query
 mode, and no parent chunk MUST appear in a merged payload.
 
@@ -10278,7 +10278,7 @@ Scenario: 792a21c1b A parent chunk never appears
 
 ### 792a21d A merged query orders its items
 
-Requirement: [792a21d](#792a21d-a-merged-query-orders-its-items) A merged query MUST place the trigger hits first, the local ones before the parent's, each in the
+Requirement: [792a21d A merged query orders its items](#792a21d-a-merged-query-orders-its-items) A merged query MUST place the trigger hits first, the local ones before the parent's, each in the
 order its source returned them. It MUST then order the other relevance items in two groups, the direct items (those
 whose provenances include none of `trigger`, `explore` or `recent`) from both sources by descending score, followed by
 the explore items (those whose provenances include `explore`) from both sources by descending score. It MUST apply
@@ -10312,7 +10312,7 @@ Scenario: 792a21d1c The note floor survives the merged cap
 
 ### 792a21e The budgets apply to the merged set
 
-Requirement: [792a21e](#792a21e-the-budgets-apply-to-the-merged-set) With `ENGRAM_PARENT` set, `engram query` MUST apply `--content-budget`, `--recent-fill` and `--limit`
+Requirement: [792a21e The budgets apply to the merged set](#792a21e-the-budgets-apply-to-the-merged-set) With `ENGRAM_PARENT` set, `engram query` MUST apply `--content-budget`, `--recent-fill` and `--limit`
 once, over the merged items, and MUST NOT apply them to each source before the merge. `--content-budget` MUST span both
 channels, `--recent-fill` MUST govern the recency channel only, and `--limit` MUST govern the relevance channel only
 and MUST NOT displace the recency channel. Trigger hits MUST be exempt from `--limit`, and `--content-budget` MUST still
@@ -10322,7 +10322,7 @@ vault's.
 Rationale: letting each source apply its own budget and concatenating the results would let the merged answer run to
 twice the requested size, which is the payload-size problem the flags exist to prevent. Each source is therefore
 fetched unbounded and the real values are applied once. The recency channel's newest-first order cannot be merged into
-one chronology, which the payload does not carry, and it is local-only for that reason as well ([792a7q](#792a7q-limit) owns
+one chronology, which the payload does not carry, and it is local-only for that reason as well ([792a7q Limit](#792a7q-limit) owns
 `--limit`'s base enforcement; this requirement says only where in the merge the budgets apply).
 
 #### 792a21e1 UAT Scenarios
@@ -10346,7 +10346,7 @@ Scenario: 792a21e1c limit caps the merged relevance channel
 
 ### 792a21f The merge does not depend on matching models
 
-Requirement: [792a21f](#792a21f-the-merge-does-not-depend-on-matching-models) `engram query` MUST merge the local and the parent results regardless of whether their `model_id`
+Requirement: [792a21f The merge does not depend on matching models](#792a21f-the-merge-does-not-depend-on-matching-models) `engram query` MUST merge the local and the parent results regardless of whether their `model_id`
 values match, and MUST NOT refuse to run, fail or drop either source's results solely because they differ. Each item of
 a merged payload MUST carry the `model_id` of the node that produced it.
 
@@ -10370,7 +10370,7 @@ Scenario: 792a21f1b Every merged item carries its source's model
 
 ### 792a21g Merged items say where they came from
 
-Requirement: [792a21g](#792a21g-merged-items-say-where-they-came-from) Each item of a merged payload MUST carry a boolean `from_parent` that is true for an item the
+Requirement: [792a21g Merged items say where they came from](#792a21g-merged-items-say-where-they-came-from) Each item of a merged payload MUST carry a boolean `from_parent` that is true for an item the
 parent produced and false, written explicitly, for an item produced locally, and an item of a payload that no merge
 produced MUST carry no `from_parent` key.
 
@@ -10394,7 +10394,7 @@ Scenario: 792a21g1b A payload with no merge has no from_parent
 
 ### 792a21h A merged answer does not re-cluster
 
-Requirement: [792a21h](#792a21h-a-merged-answer-does-not-re-cluster) A merged payload MUST present its combined items as one ranked list, with the clusters the local
+Requirement: [792a21h A merged answer does not re-cluster](#792a21h-a-merged-answer-does-not-re-cluster) A merged payload MUST present its combined items as one ranked list, with the clusters the local
 query found, and MUST NOT compute a new grouping that mixes local-origin and parent-origin items in one cluster. The
 payload's `pending_offers` flag and its hint, and its refit flag, MUST reflect the local vault only.
 
@@ -10423,7 +10423,7 @@ Scenario: 792a21h1c A local pending offer shows in a merged payload
 
 ### 792a21i The merged payload reports the budget it applied
 
-Requirement: [792a21i](#792a21i-the-merged-payload-reports-the-budget-it-applied) A merged payload's `budget` block MUST report the values the merge applied and not zeros: the
+Requirement: [792a21i The merged payload reports the budget it applied](#792a21i-the-merged-payload-reports-the-budget-it-applied) A merged payload's `budget` block MUST report the values the merge applied and not zeros: the
 `limit`, `content_budget` and `lazy_chunks` it used, the `chunks_snippeted` its content pass counted, and
 `explore_allocated` summed per term over both sources.
 
@@ -10440,7 +10440,7 @@ Scenario: 792a21i1a The budget block is populated
 
 ### 792a21j A linked or identical note appears once, as the local copy
 
-Requirement: [792a21j](#792a21j-a-linked-or-identical-note-appears-once-as-the-local-copy) Before it orders and caps, a merged query MUST treat a parent note P as the same note as a live
+Requirement: [792a21j A linked or identical note appears once, as the local copy](#792a21j-a-linked-or-identical-note-appears-once-as-the-local-copy) Before it orders and caps, a merged query MUST treat a parent note P as the same note as a live
 (not pending) local note L when L's `parent.vault` equals the vault ID the parent reported in this query and any of L's
 parent links (`offered`, `pulled` or `covered`) names P's basename or one of P's `aliases`, or when L's exchange hash
 equals P's `exchange_hash` and both are non-empty. It MUST keep L and not P: when L is already among the local items P
@@ -10507,9 +10507,9 @@ Scenario: 792a21j1i The dedupe keys are not in the payload
 
 ### 792a21k An unreachable parent leaves the local answer
 
-Requirement: [792a21k](#792a21k-an-unreachable-parent-leaves-the-local-answer) When the parent is unreachable or answers with an error, `engram query` MUST still return the
+Requirement: [792a21k An unreachable parent leaves the local answer](#792a21k-an-unreachable-parent-leaves-the-local-answer) When the parent is unreachable or answers with an error, `engram query` MUST still return the
 local vault's results as in local-only mode, and MUST print a non-fatal warning that the parent was unavailable,
-instead of failing. While the parent is backed off ([792a21s](#792a21s-an-unreachable-parent-is-backed-off)), a query MUST make no parent request and MUST return the
+instead of failing. While the parent is backed off ([792a21s An unreachable parent is backed off](#792a21s-an-unreachable-parent-is-backed-off)), a query MUST make no parent request and MUST return the
 local results with one warning.
 
 Rationale: a node's local recall should not depend on its parent's network availability, or one host outage takes down
@@ -10536,7 +10536,7 @@ Scenario: 792a21k1c A client error is not an outage
 
 ### 792a21l A note can be shown from the parent
 
-Requirement: [792a21l](#792a21l-a-note-can-be-shown-from-the-parent) `engram show` MUST accept a `--parent` flag. With `--parent` set and `ENGRAM_PARENT` configured it
+Requirement: [792a21l A note can be shown from the parent](#792a21l-a-note-can-be-shown-from-the-parent) `engram show` MUST accept a `--parent` flag. With `--parent` set and `ENGRAM_PARENT` configured it
 MUST resolve the ref against the parent vault instead of the local one, and with `--parent` set and `ENGRAM_PARENT`
 unset it MUST fail without a lookup. Without `--parent`, when `ENGRAM_PARENT` is configured and the ref is not found
 locally, it MUST fall back to the parent and label the output as parent-sourced, with the label ahead of any exchange-hash header the parent's note carries, and a ref found locally MUST be
@@ -10544,7 +10544,7 @@ returned as before this capability, without contacting the parent. A miss with n
 not-found error as before. `engram show-chunk` MUST NOT accept `--parent` and MUST NOT fall back to the parent.
 
 Rationale: chunks never cross vaults, so there is no parent chunk lookup. A fallback that fires only on a local miss is
-safe by construction, and the origin tag of [792a21g](#792a21g-merged-items-say-where-they-came-from) tells a caller when to ask for the parent explicitly (ADR-0029 D9).
+safe by construction, and the origin tag of [792a21g Merged items say where they came from](#792a21g-merged-items-say-where-they-came-from) tells a caller when to ask for the parent explicitly (ADR-0029 D9).
 
 #### 792a21l1 UAT Scenarios
 
@@ -10587,10 +10587,10 @@ Scenario: 792a21l1g The parent-sourced label comes before the parent's header
 
 ### 792a21m A vault with no parent behaves as it always did
 
-Requirement: [792a21m](#792a21m-a-vault-with-no-parent-behaves-as-it-always-did) With `ENGRAM_PARENT` unset, `engram query` MUST make no network request, and its output and the
+Requirement: [792a21m A vault with no parent behaves as it always did](#792a21m-a-vault-with-no-parent-behaves-as-it-always-did) With `ENGRAM_PARENT` unset, `engram query` MUST make no network request, and its output and the
 output shape of `learn`, `amend` and `resituate` MUST be unchanged by the merge, the dedupe and the offer machinery,
 and no exchange state MUST be written. The one difference from before the merge is that `--limit` caps the item count
-([792a7q](#792a7q-limit)).
+([792a7q Limit](#792a7q-limit)).
 
 Rationale: the exchange is additive. A set `ENGRAM_PARENT` adds a step to local behavior and never replaces it.
 
@@ -10610,7 +10610,7 @@ Scenario: 792a21m1b A write with no parent exchanges nothing
 
 ### 792a21n A local write is offered to the parent
 
-Requirement: [792a21n](#792a21n-a-local-write-is-offered-to-the-parent) With `ENGRAM_PARENT` set, `engram learn fact`, `engram learn feedback` and `engram learn runbook`,
+Requirement: [792a21n A local write is offered to the parent](#792a21n-a-local-write-is-offered-to-the-parent) With `ENGRAM_PARENT` set, `engram learn fact`, `engram learn feedback` and `engram learn runbook`,
 `engram amend` with any content flag (`--situation`, `--subject`, `--predicate`, `--object`, `--behavior`, `--impact`,
 `--action`, `--done-when`, `--body`, `--red-flag`, `--trigger`), `engram resituate`, and `engram amend --clear-pending`
 of a note that carries `offer.origin` (an accepted served offer) MUST complete locally exactly as they do without a
@@ -10706,7 +10706,7 @@ Scenario: 792a21n1n A link under another parent is not the parent's
 
 ### 792a21o Only a change to offered content is a change
 
-Requirement: [792a21o](#792a21o-only-a-change-to-offered-content-is-a-change) The exchange hash of a note (the comparison that decides whether an offer is queued, whether a rejected
+Requirement: [792a21o Only a change to offered content is a change](#792a21o-only-a-change-to-offered-content-is-a-change) The exchange hash of a note (the comparison that decides whether an offer is queued, whether a rejected
 offer is sent again, whether a parent note is pulled again and whether two notes are the same) MUST change when
 `type`, `situation`, `subject`, `predicate`, `object`, `behavior`, `impact`, `action`, `done_when`, `red_flags`,
 `triggers` or the body text changes, and MUST NOT change when only identity, placement, `pending`, `tags`, `sources`,
@@ -10717,7 +10717,7 @@ and the pull-down skip, decline matching, the rejected-offer re-arm and the send
 Rationale: placement, provenance and the exchange's own fields differ between a note and its counterpart without the
 content having changed, so hashing them would report a change that is none. Treating a version change as unknown spares
 the fleet a storm of spurious offers and pulls when the hash is revised (ADR-0029 D3). The hash itself, its comparison
-and the classification of every frontmatter key are exchange-versioning's ([792b33](./792b_technical-spec.md#792b33-added-exchange-versioning)).
+and the classification of every frontmatter key are exchange-versioning's ([792b33 exchange-versioning](./792b_technical-spec.md#792b33-added-exchange-versioning)).
 
 #### 792a21o1 UAT Scenarios
 
@@ -10740,7 +10740,7 @@ Scenario: 792a21o1c A hash version change is unknown, not changed
 
 ### 792a21p An offer is built for the parent vault
 
-Requirement: [792a21p](#792a21p-an-offer-is-built-for-the-parent-vault) An offer MUST be built from the note's current content at send time, and MUST NOT carry `target`,
+Requirement: [792a21p An offer is built for the parent vault](#792a21p-an-offer-is-built-for-the-parent-vault) An offer MUST be built from the note's current content at send time, and MUST NOT carry `target`,
 `position` or `chunkSources`. Each `supersedes` entry that names a local note MUST be rewritten to that note's
 primary-link parent basename, and MUST be omitted when there is none. The offer MUST declare the note's own `user` and
 `repo` values, falling back to the sending process's detection only when they are empty, and MUST NOT carry `tags`. It
@@ -10788,13 +10788,13 @@ Scenario: 792a21p1f Tags are not offered
 
 ### 792a21q An offer is queued and never lost offline
 
-Requirement: [792a21q](#792a21q-an-offer-is-queued-and-never-lost-offline) Every offerable write MUST stamp the note's `xid` when it has none and MUST add or refresh the
+Requirement: [792a21q An offer is queued and never lost offline](#792a21q-an-offer-is-queued-and-never-lost-offline) Every offerable write MUST stamp the note's `xid` when it has none and MUST add or refresh the
 note's outbox entry, keyed by `xid`, under the vault lock and in the same critical section as the note write, so the
 outbox holds at most one entry per note. The local write MUST succeed whether or not the parent is reachable. An entry
 whose note no longer exists, or now carries the pending-offer marker, MUST be dropped when it is sent, and renaming a
 note MUST NOT orphan its entry.
 
-Rationale: the outbox is `<vault>/.engram/outbox.json` ([792a2k](#792a2k-exchange-state-outside-tracked-files)). Keying it by `xid` makes a rename harmless, where a
+Rationale: the outbox is `<vault>/.engram/outbox.json` ([792a2k Exchange state outside tracked files](#792a2k-exchange-state-outside-tracked-files)). Keying it by `xid` makes a rename harmless, where a
 basename key would lose the entry. An offer is built when it is sent, so offline learn and amend coalesce into one offer.
 A snapshot directory per offer would send stale content and duplicates, a line-per-offer file could not coalesce without
 rewriting, and failing the local write when the parent is down would contradict "local writes always succeed" (ADR-0029 D6).
@@ -10845,7 +10845,7 @@ Scenario: 792a21q1h A note is written even when no exchange ID can be made
 
 ### 792a21r The outbox drains after the parent was reached, without the lock
 
-Requirement: [792a21r](#792a21r-the-outbox-drains-after-the-parent-was-reached-without-the-lock) After a command has successfully contacted the parent (`learn`, a content `amend`, `resituate`,
+Requirement: [792a21r The outbox drains after the parent was reached, without the lock](#792a21r-the-outbox-drains-after-the-parent-was-reached-without-the-lock) After a command has successfully contacted the parent (`learn`, a content `amend`, `resituate`,
 `query` after the parent answers, `activate` after a pull-down, or `update`), it MUST send the queued entries in
 first-queued order while holding no vault lock, and MUST then take the lock again, re-read the outbox from disk and merge
 the outcomes, keeping entries queued meanwhile. A receipt for a note that no longer exists MUST be discarded, and a note
@@ -10927,7 +10927,7 @@ Scenario: 792a21r1l A failed vault-ID probe keeps the offers queued
 
 ### 792a21s An unreachable parent is backed off
 
-Requirement: [792a21s](#792a21s-an-unreachable-parent-is-backed-off) After a transport failure or a timeout against the parent, the vault MUST record a retry time that
+Requirement: [792a21s An unreachable parent is backed off](#792a21s-an-unreachable-parent-is-backed-off) After a transport failure or a timeout against the parent, the vault MUST record a retry time that
 grows exponentially with the consecutive failures, from 30 seconds and capped at 15 minutes. Until that time every
 command except `engram update` MUST skip parent contact, so that queries return local results and offers are only queued,
 and MUST print exactly one warning. A request to the parent MUST use a connect timeout of at most 3 seconds. Any answer
@@ -10973,8 +10973,8 @@ Scenario: 792a21s1f The window ends
 
 ### 792a21t A retried offer is idempotent
 
-Requirement: [792a21t](#792a21t-a-retried-offer-is-idempotent) A retry of an offer that the parent already holds MUST NOT create a second pending note on the
-parent ([792a20g](#792a20g-a-served-learn-finds-the-note-an-offer-belongs-to)): the offer's `offer.key` MUST be derived from `offer.origin` and the offered exchange hash, so that the
+Requirement: [792a21t A retried offer is idempotent](#792a21t-a-retried-offer-is-idempotent) A retry of an offer that the parent already holds MUST NOT create a second pending note on the
+parent ([792a20g A served learn finds the note an offer belongs to](#792a20g-a-served-learn-finds-the-note-an-offer-belongs-to)): the offer's `offer.key` MUST be derived from `offer.origin` and the offered exchange hash, so that the
 same content from the same note always carries the same key.
 
 Rationale: an offer whose response is lost is sent again, and the parent must answer with the receipt of the note it
@@ -10991,7 +10991,7 @@ Scenario: 792a21t1a Lost response, then retry
 
 ### 792a21u A receipt links the local note to its counterpart
 
-Requirement: [792a21u](#792a21u-a-receipt-links-the-local-note-to-its-counterpart) When the parent returns an offer receipt, the local note MUST record the parent's vault ID and
+Requirement: [792a21u A receipt links the local note to its counterpart](#792a21u-a-receipt-links-the-local-note-to-its-counterpart) When the parent returns an offer receipt, the local note MUST record the parent's vault ID and
 MUST set its primary link to `{note, via: offered, hash}`, where `note` is the resolved target basename when the receipt
 names one and otherwise the receipt's basename, and `hash` is the receipt's `stored_hash`, which is the hash the parent
 stored and not the one the child computed. Recording the link MUST be a frontmatter-only rewrite under the vault lock, and
@@ -11027,7 +11027,7 @@ Scenario: 792a21u1d A receipt under another parent starts over
 
 ### 792a21v A reply that is not a valid receipt is not recorded
 
-Requirement: [792a21v](#792a21v-a-reply-that-is-not-a-valid-receipt-is-not-recorded) A receipt that lacks a vault ID or a basename MUST stop exchange with an error saying the parent is
+Requirement: [792a21v A reply that is not a valid receipt is not recorded](#792a21v-a-reply-that-is-not-a-valid-receipt-is-not-recorded) A receipt that lacks a vault ID or a basename MUST stop exchange with an error saying the parent is
 too old, and MUST leave the entry queued. A receipt whose `vault_id` is not 32 lowercase hexadecimal characters, or
 whose `basename` or `for` is not a Luhmann basename free of `/`, `\` and `|`, MUST be treated as an undecodable reply:
 nothing is recorded on the note and the entry stays queued with the failure recorded. A 409 loop refusal whose
@@ -11062,7 +11062,7 @@ Scenario: 792a21v1c A failed write keeps the entry
 
 ### 792a21w A receipt the note refuses needs attention
 
-Requirement: [792a21w](#792a21w-a-receipt-the-note-refuses-needs-attention) When the local note refuses a receipt because its frontmatter cannot take the edit (its `parent:`
+Requirement: [792a21w A receipt the note refuses needs attention](#792a21w-a-receipt-the-note-refuses-needs-attention) When the local note refuses a receipt because its frontmatter cannot take the edit (its `parent:`
 carries a YAML anchor, or its frontmatter does not decode), the note MUST be left untouched and the entry MUST move to the
 `attention` state with the receipt and the exchange hash that was sent kept. The drain MUST print one warning that names
 the note and the reason, at that transition only, and an `attention` entry MUST NOT be sent to the parent again. Each
@@ -11122,14 +11122,14 @@ Scenario: 792a21w1h An attention entry of a deleted note is dropped
 
 ### 792a21x An offer with no author waits
 
-Requirement: [792a21x](#792a21x-an-offer-with-no-author-waits) An offer that cannot be built because the note has no `user:` and no user identity is detected MUST
+Requirement: [792a21x An offer with no author waits](#792a21x-an-offer-with-no-author-waits) An offer that cannot be built because the note has no `user:` and no user identity is detected MUST
 NOT be sent, because the parent would reject `user: ""`. Its entry MUST move to the `attention` state with the reason
 "cannot offer: no user identity detected; set git user.email", and the drain MUST print one warning naming the note, at
 that transition only. Each later drain MUST try to build the offer again, without contacting the parent and without a
 warning while it still cannot, and as soon as the offer can be built the entry MUST return to `queued`, so that a failed
 send leaves it queued and counted and not listed as needing attention.
 
-Rationale: an offer nobody can be asked about is refused by the parent ([792a20e](#792a20e-a-served-learn-is-attributed-to-the-identity-the-caller-declares)), and holding it back with a reason is
+Rationale: an offer nobody can be asked about is refused by the parent ([792a20e A served learn is attributed to the identity the caller declares](#792a20e-a-served-learn-is-attributed-to-the-identity-the-caller-declares)), and holding it back with a reason is
 kinder than a 4xx that marks it rejected.
 
 #### 792a21x1 UAT Scenarios
@@ -11143,7 +11143,7 @@ Scenario: 792a21x1a No user identity holds the offer
 
 ### 792a21y A looping offer is refused
 
-Requirement: [792a21y](#792a21y-a-looping-offer-is-refused) When a parent refuses an offer with a 409 that marks a loop, because its own vault ID is already on
+Requirement: [792a21y A looping offer is refused](#792a21y-a-looping-offer-is-refused) When a parent refuses an offer with a 409 that marks a loop, because its own vault ID is already on
 the offer's `offer.path`, and the refusing vault is not this vault, the entry MUST be marked `rejected`, the drain MUST
 continue, one warning MUST name the refusing vault, and the backoff counters MUST be left alone. A 409 without that mark
 MUST be an ordinary rejection. When the refusing vault is this vault itself, or a receipt reports this vault's own ID,
@@ -11153,7 +11153,7 @@ this vault's own MUST make the drain send nothing.
 
 Rationale: a cycle in a misconfigured tree (A to B to C to A) is caught by the path an offer carries, and it is a real
 fault that rejecting every retry would only repeat. A vault that is its own parent is a copy mistake that the user can
-repair, so its offers wait ([792a2q](#792a2q-a-vault-does-not-exchange-with-itself)).
+repair, so its offers wait ([792a2q A vault does not exchange with itself](#792a2q-a-vault-does-not-exchange-with-itself)).
 
 #### 792a21y1 UAT Scenarios
 
@@ -11186,7 +11186,7 @@ Scenario: 792a21y1e A cached self-parent sends nothing
 
 ### 792a21za The update report shows the outbox
 
-Requirement: [792a21za](#792a21za-the-update-report-shows-the-outbox) `engram update` MUST include a notify-only notice when the outbox is non-empty or a backoff is
+Requirement: [792a21za The update report shows the outbox](#792a21za-the-update-report-shows-the-outbox) `engram update` MUST include a notify-only notice when the outbox is non-empty or a backoff is
 active. The notice MUST give the queued-entry count, the age of the oldest entry, each rejected entry with its error, each
 entry in the `attention` state with its note and reason, and the backoff's retry time. The queued-entry count, in the
 notice and in the backoff and unreachable-parent warnings, MUST NOT count `rejected` or `attention` entries. An idle
@@ -11220,7 +11220,7 @@ Scenario: 792a21za1d Update drains through a backoff
 
 ### 792a21zb A note with CRLF line endings exchanges as its LF form
 
-Requirement: [792a21zb](#792a21zb-a-note-with-crlf-line-endings-exchanges-as-its-lf-form) Every reader that gates an exchange operation on a note's frontmatter MUST read the note as its LF
+Requirement: [792a21zb A note with CRLF line endings exchanges as its LF form](#792a21zb-a-note-with-crlf-line-endings-exchanges-as-its-lf-form) Every reader that gates an exchange operation on a note's frontmatter MUST read the note as its LF
 form (each `\r\n` converted to `\n`), so a note with CRLF line endings takes part in exchange exactly as its LF form
 does. These readers are the exchange hash, the exchange-field decode behind the header of `engram show`, the
 pending-offer marker check behind query exclusion and the served raw `show`, the outbox and served-learn note scan, offer
@@ -11229,7 +11229,7 @@ and activate's parent-link re-check. None of them MUST write a note only to conv
 note MUST write it as LF in that same write and rebuild its sidecar.
 
 Rationale: a vault edited on Windows, or by an editor that rewrites line endings, must not fall out of the exchange or
-make every note look changed (the curate side of this rule is [792a22](#792a22-added-curate)).
+make every note look changed (the curate side of this rule is [792a22 curate](#792a22-added-curate)).
 
 #### 792a21zb1 UAT Scenarios
 
@@ -11257,10 +11257,10 @@ Scenario: 792a21zb1d A CRLF parent note pulls down
 
 ### 792a21zc Activate resolves a ref locally first, then against the parent
 
-Requirement: [792a21zc](#792a21zc-activate-resolves-a-ref-locally-first-then-against-the-parent) `engram activate --note <ref>` MUST treat a ref as a local hit when the note's `.md` file exists in
-the local vault, whether or not it has a sidecar, and on a local hit MUST bump the note's sidecar `LastUsed` as [792a4n](#792a4n-activation)
+Requirement: [792a21zc Activate resolves a ref locally first, then against the parent](#792a21zc-activate-resolves-a-ref-locally-first-then-against-the-parent) `engram activate --note <ref>` MUST treat a ref as a local hit when the note's `.md` file exists in
+the local vault, whether or not it has a sidecar, and on a local hit MUST bump the note's sidecar `LastUsed` as [792a4n Activation](#792a4n-activation)
 says. On a local miss with `ENGRAM_PARENT` set, or for any ref when `--parent` is given, it MUST pull the ref down from the
-parent ([792a21zd](#792a21zd-a-pulled-down-note-is-an-exact-content-local-pending-offer)), but only when the ref is a basename or `<basename>.md`: a bare Luhmann ID MUST NOT be resolved against
+parent ([792a21zd A pulled-down note is an exact-content local pending offer](#792a21zd-a-pulled-down-note-is-an-exact-content-local-pending-offer)), but only when the ref is a basename or `<basename>.md`: a bare Luhmann ID MUST NOT be resolved against
 the parent, and with `--parent` a path ref MUST be refused as not sent and never as not found. `--parent` without
 `ENGRAM_PARENT` configured MUST be an error and no lookup MUST be performed. `activate` MUST report each ref it could not
 activate on stderr and MUST exit non-zero if any ref failed.
@@ -11315,7 +11315,7 @@ Scenario: 792a21zc1h A miss with no parent fails the ref
 
 ### 792a21zd A pulled-down note is an exact-content local pending offer
 
-Requirement: [792a21zd](#792a21zd-a-pulled-down-note-is-an-exact-content-local-pending-offer) A pull-down MUST fetch the parent note as the raw envelope of [792a20k](#792a20k-a-served-show-returns-a-note-and-a-raw-envelope-on-request) while holding no vault lock,
+Requirement: [792a21zd A pulled-down note is an exact-content local pending offer](#792a21zd-a-pulled-down-note-is-an-exact-content-local-pending-offer) A pull-down MUST fetch the parent note as the raw envelope of [792a20k A served show returns a note, and a raw envelope on request](#792a20k-a-served-show-returns-a-note-and-a-raw-envelope-on-request) while holding no vault lock,
 and MUST reject a response that is not a valid envelope (the parent is too old). It MUST also reject, writing nothing, an
 envelope whose `vault_id` is not 32 lowercase hexadecimal characters, whose `basename` is not a Luhmann basename free
 of `/`, `\` and `|`, or whose `exchange_hash` does not match its content, and a fetched note whose type is not `fact`,
@@ -11328,7 +11328,7 @@ exchange hash>}`, and `parent.author` set to the parent note's `repo`, `user` an
 vocabulary, and the command MUST print its path.
 
 Rationale: a pulled note is never written live: curation judges it before it counts as knowledge, so a pull-down is an
-offer in the other direction ([792a22](#792a22-added-curate)). The exact content keeps its exchange hash equal to the parent's, which is what
+offer in the other direction ([792a22 curate](#792a22-added-curate)). The exact content keeps its exchange hash equal to the parent's, which is what
 lets the skip rule and the dedupe recognize the pair. The parent's identity fields, tags and chunk provenance mean
 nothing in this vault, and local vocabulary reassigns the tags. A `parent:` path prefix in payloads would break consumers
 such as a bare `engram show <basename>`, and the rendered `show` output cannot carry a raw envelope because it is altered
@@ -11385,7 +11385,7 @@ Scenario: 792a21zd1i The pulled note is embedded and does not keep the parent's 
 
 ### 792a21ze A pull-down is idempotent, remembers declines and cannot loop
 
-Requirement: [792a21ze](#792a21ze-a-pull-down-is-idempotent-remembers-declines-and-cannot-loop) Under the vault lock a pull-down MUST re-check its skip rule and write nothing when a local note,
+Requirement: [792a21ze A pull-down is idempotent, remembers declines and cannot loop](#792a21ze-a-pull-down-is-idempotent-remembers-declines-and-cannot-loop) Under the vault lock a pull-down MUST re-check its skip rule and write nothing when a local note,
 live or pending, has any link (`offered`, `pulled` or `covered`) to the envelope's basename or one of its aliases and that
 link's hash equals the envelope's exchange hash (bumping the sidecar `LastUsed` of that note instead when it is live),
 or when the vault's declined-pull record holds that exchange hash, under the envelope's vault ID, for the envelope's
@@ -11468,7 +11468,7 @@ Scenario: 792a21ze1l No sequence leaves two linked copies
 
 ### 792a21zf Activating a linked note re-checks its parent note
 
-Requirement: [792a21zf](#792a21zf-activating-a-linked-note-re-checks-its-parent-note) When `engram activate` resolves a ref to a local note that has parent links under the configured
+Requirement: [792a21zf Activating a linked note re-checks its parent note](#792a21zf-activating-a-linked-note-re-checks-its-parent-note) When `engram activate` resolves a ref to a local note that has parent links under the configured
 parent's vault ID, and `ENGRAM_PARENT` is set, it MUST, after the local bump and while holding no vault lock, fetch each
 linked parent note's raw envelope through the same gated, backoff-aware parent contact a pull-down uses, and then apply
 the pull-down's write step under the lock: when the parent note's current exchange hash equals the link's hash, or is
@@ -11478,7 +11478,7 @@ cached the link MUST NOT be contacted at all, and otherwise the envelope MUST st
 once its vault ID differs from the link's. The re-check MUST NOT send the best-effort `activate` request to the parent,
 and its failure (the parent unreachable, backed off or the note gone there) MUST NOT fail the local activate.
 
-Rationale: the merged query shows a linked local note in place of its parent note ([792a21j](#792a21j-a-linked-or-identical-note-appears-once-as-the-local-copy)), so a parent-side change
+Rationale: the merged query shows a linked local note in place of its parent note ([792a21j A linked or identical note appears once, as the local copy](#792a21j-a-linked-or-identical-note-appears-once-as-the-local-copy)), so a parent-side change
 reaches the child only through the local note's use.
 
 #### 792a21zf1 UAT Scenarios
@@ -11517,7 +11517,7 @@ Scenario: 792a21zf1f A served parent works end to end
 
 ### 792a21zg A pull-down tells the parent the note was used
 
-Requirement: [792a21zg](#792a21zg-a-pull-down-tells-the-parent-the-note-was-used) After a pull-down or a skip, once the vault lock is released, `activate` MUST send a best-effort
+Requirement: [792a21zg A pull-down tells the parent the note was used](#792a21zg-a-pull-down-tells-the-parent-the-note-was-used) After a pull-down or a skip, once the vault lock is released, `activate` MUST send a best-effort
 `activate` request for the parent note to the parent. A failure of that request MUST NOT fail the command and MUST NOT be
 queued. A pull-down MUST be a parent contact: it MUST be refused with one warning, writing nothing, when the vault's
 location check fails, the backoff window is active, the parent reports this vault's own ID, or the exchange state cannot be
@@ -11564,10 +11564,10 @@ Scenario: 792a21zg1f The fetch holds no lock
 
 ### 792a21zh A pull-down stamps the first-write identity
 
-Requirement: [792a21zh](#792a21zh-a-pull-down-stamps-the-first-write-identity) A pull-down MUST stamp the new note with the same detection of `repo:`, `user:` and `vault:` that
+Requirement: [792a21zh A pull-down stamps the first-write identity](#792a21zh-a-pull-down-stamps-the-first-write-identity) A pull-down MUST stamp the new note with the same detection of `repo:`, `user:` and `vault:` that
 stamps every first write, and MUST NOT keep the parent note's own `user:` when user detection resolves empty.
 
-Rationale: the pulled note is this vault's note, and the parent's authorship is kept apart in `parent.author` ([792a21zd](#792a21zd-a-pulled-down-note-is-an-exact-content-local-pending-offer)).
+Rationale: the pulled note is this vault's note, and the parent's authorship is kept apart in `parent.author` ([792a21zd A pulled-down note is an exact-content local pending offer](#792a21zd-a-pulled-down-note-is-an-exact-content-local-pending-offer)).
 
 #### 792a21zh1 UAT Scenarios
 
@@ -11580,7 +11580,7 @@ Scenario: 792a21zh1a No user detectable on a pull-down
 
 ### 792a21zi An exchanged note carries a stable exchange ID
 
-Requirement: [792a21zi](#792a21zi-an-exchanged-note-carries-a-stable-exchange-id) A note MUST gain an `xid` frontmatter field, a random identifier, lazily, the first time it takes
+Requirement: [792a21zi An exchanged note carries a stable exchange ID](#792a21zi-an-exchanged-note-carries-a-stable-exchange-id) A note MUST gain an `xid` frontmatter field, a random identifier, lazily, the first time it takes
 part in exchange (queued as an offer, pulled down, or received as a served offer). No migration, backfill or `update` step
 MUST stamp `xid` on existing notes, an `xid` MUST never change once written, a rename included, and a note never involved
 in exchange MUST carry no `xid`. Every frontmatter field that exchange adds (`xid`, `parent` and its members, `aliases`,
@@ -11606,7 +11606,7 @@ Scenario: 792a21zi1b The xid survives a rename
 
 ### 792a21zj An exchanged note carries vault-qualified parent links
 
-Requirement: [792a21zj](#792a21zj-an-exchanged-note-carries-vault-qualified-parent-links) A note linked to parent notes MUST carry a nested `parent` key with `vault` (the parent's vault ID),
+Requirement: [792a21zj An exchanged note carries vault-qualified parent links](#792a21zj-an-exchanged-note-carries-vault-qualified-parent-links) A note linked to parent notes MUST carry a nested `parent` key with `vault` (the parent's vault ID),
 `links` (a list of `{note, via, hash}` entries, where `note` is a parent basename, `via` is `offered`, `pulled` or
 `covered`, and `hash` is the exchange hash last exchanged) and, for pulled notes only, `author` (the parent note's `repo`,
 `user` and `vault`). At most one link MUST have `via` `offered` or `pulled`, and that link is the note's primary link.
@@ -11638,7 +11638,7 @@ Scenario: 792a21zj1c A different parent vault ignores old links
 
 ### 792a21zk Renames and folds record aliases
 
-Requirement: [792a21zk](#792a21zk-renames-and-folds-record-aliases) A note's `aliases` list MUST record the basenames the note answers to in its own vault. A rename by
+Requirement: [792a21zk Renames and folds record aliases](#792a21zk-renames-and-folds-record-aliases) A note's `aliases` list MUST record the basenames the note answers to in its own vault. A rename by
 Luhmann reparenting, or by skill adoption, MUST append the note's old basename to its `aliases` in the same write.
 `engram amend --target O --discard --into E` MUST delete O and its sidecar and MUST add O's basename and all of O's
 `aliases` to E's `aliases` without duplicates, MUST merge O's parent links into E (when E already has a primary link, O's
@@ -11669,7 +11669,7 @@ Scenario: 792a21zk1c A fold keeps E's primary link
 
 ### 792a21zl Exchange fields survive every other frontmatter rewrite
 
-Requirement: [792a21zl](#792a21zl-exchange-fields-survive-every-other-frontmatter-rewrite) `xid`, `parent`, `aliases` and `offer` MUST be preserved unchanged by every path that rewrites a
+Requirement: [792a21zl Exchange fields survive every other frontmatter rewrite](#792a21zl-exchange-fields-survive-every-other-frontmatter-rewrite) `xid`, `parent`, `aliases` and `offer` MUST be preserved unchanged by every path that rewrites a
 note's frontmatter and is not an exchange path (the offer receipt, the pull-down and the curation fold, and the rename's
 append to `aliases`): `engram amend` with every flag, `engram resituate`, identity backfill, Luhmann reparenting and the
 rewrite of wikilinks, the vocabulary tag rewrites (assignment, clear, legacy cleanup, self-tag and version stamp), the
@@ -11726,15 +11726,15 @@ Scenario: 792a21zl1g Every other rewrite path preserves the fields
 
 Canonical target: `docs/specs/product/curate.md` (title `Curate - Product Spec`).
 
-An offer is a note that another vault proposes: a child's served `learn` ([792a20](#792a20-added-vault-serving)) or a parent note pulled down by
-`engram activate` ([792a21](#792a21-added-parent-sync)). It lands as a **pending offer**: a real note file marked `pending: true` that is not yet
+An offer is a note that another vault proposes: a child's served `learn` ([792a20 vault-serving](#792a20-added-vault-serving)) or a parent note pulled down by
+`engram activate` ([792a21 parent-sync](#792a21-added-parent-sync)). It lands as a **pending offer**: a real note file marked `pending: true` that is not yet
 knowledge, because nobody has judged it against what the vault already holds. Curation is that judgment. It is carried by
 the `curate` skill (`agent-instructions/skills/curate/SKILL.md`, which a vault runbook note also mirrors), which uses the
-same covered, near and absent reasoning that `recall` applies to its candidates ([792a14](#792a14-added-recall)), and settles each offer with
+same covered, near and absent reasoning that `recall` applies to its candidates ([792a14 recall](#792a14-added-recall)), and settles each offer with
 `engram amend` flags: `--clear-pending`, `--discard`, `--into` and `--expect-hash`. The binary supplies the flags and the
 checks that make a curator's judgment safe; the judgment itself is the agent's. Curation runs on the host that holds the
 offer, after the request that created it, and never inside it. How an offer is written, offered and answered is vault-serving
-([792a20](#792a20-added-vault-serving)) and parent-sync ([792a21](#792a21-added-parent-sync)).
+([792a20 vault-serving](#792a20-added-vault-serving)) and parent-sync ([792a21 parent-sync](#792a21-added-parent-sync)).
 
 Rationale: The curate skill's behavior overrode the older spec: a covered offer is discarded, and a near offer
 is folded into the existing note and then discarded, because leaving it live creates a second redundant note.
@@ -11742,11 +11742,11 @@ The marker is cleared only on an offer that is kept (Joe, 2026-09-21).
 
 ### 792a22a Pending offers are left out of normal query results
 
-Requirement: [792a22a](#792a22a-pending-offers-are-left-out-of-normal-query-results) `engram query` MUST NOT return a pending offer as part of its normal results, whatever its kind and
+Requirement: [792a22a Pending offers are left out of normal query results](#792a22a-pending-offers-are-left-out-of-normal-query-results) `engram query` MUST NOT return a pending offer as part of its normal results, whatever its kind and
 whether or not it is a skill runbook note.
 
 Rationale: an offer is unjudged, so recall must not act on it as if it were knowledge. The query can tell the agent that
-offers exist ([792a22o](#792a22o-pending-offers-are-surfaced-at-three-points)) and not which, and the agent finds them by scanning the vault.
+offers exist ([792a22o Pending offers are surfaced at three points](#792a22o-pending-offers-are-surfaced-at-three-points)) and not which, and the agent finds them by scanning the vault.
 A pending offer is a normal note carrying a marker and not a separate queue. This reuses frontmatter parsing,
 `query` and `amend`, so only the marker's presence changes behavior.
 
@@ -11766,8 +11766,8 @@ Scenario: 792a22a1b A pending skill runbook note does not surface either
 
 ### 792a22b A note becomes pending only by an exchange
 
-Requirement: [792a22b](#792a22b-a-note-becomes-pending-only-by-an-exchange) A local `engram learn` and a local `engram amend` MUST NOT write the pending-offer marker. Only a served `learn` ([792a20d](#792a20d-a-served-learn-lands-as-a-pending-offer-and-returns-a-receipt))
-and a pull-down ([792a21zd](#792a21zd-a-pulled-down-note-is-an-exact-content-local-pending-offer)) MUST make a note pending, and `engram amend --clear-pending` MUST be how a curator clears the marker of a
+Requirement: [792a22b A note becomes pending only by an exchange](#792a22b-a-note-becomes-pending-only-by-an-exchange) A local `engram learn` and a local `engram amend` MUST NOT write the pending-offer marker. Only a served `learn` ([792a20d A served learn lands as a pending offer and returns a receipt](#792a20d-a-served-learn-lands-as-a-pending-offer-and-returns-a-receipt))
+and a pull-down ([792a21zd A pulled-down note is an exact-content local pending offer](#792a21zd-a-pulled-down-note-is-an-exact-content-local-pending-offer)) MUST make a note pending, and `engram amend --clear-pending` MUST be how a curator clears the marker of a
 note one of them left behind.
 
 Rationale: the marker means that the note came from another vault and has not been judged, so a note the user writes in their own vault
@@ -11789,9 +11789,9 @@ Scenario: 792a22b1b A local amend never sets the marker
 
 ### 792a22c Activating a note commits directly
 
-Requirement: [792a22c](#792a22c-activating-a-note-commits-directly) `engram activate` of a note that exists in the vault it runs against, locally or served, MUST commit
+Requirement: [792a22c Activating a note commits directly](#792a22c-activating-a-note-commits-directly) `engram activate` of a note that exists in the vault it runs against, locally or served, MUST commit
 directly: it MUST bump the note's sidecar `LastUsed` without creating a pending offer and without going through curation.
-Activating a ref that exists only in the parent vault is not an activation of a local note: it is a pull-down ([792a21zd](#792a21zd-a-pulled-down-note-is-an-exact-content-local-pending-offer)),
+Activating a ref that exists only in the parent vault is not an activation of a local note: it is a pull-down ([792a21zd A pulled-down note is an exact-content local pending offer](#792a21zd-a-pulled-down-note-is-an-exact-content-local-pending-offer)),
 which writes a pending copy and marks no existing note pending.
 
 Rationale: activation never changes a note's content, so there is no new claim for curation to judge.
@@ -11812,7 +11812,7 @@ Scenario: 792a22c1b A local activate commits immediately
 
 ### 792a22d Curation judges each offer by its content against the host vault
 
-Requirement: [792a22d](#792a22d-curation-judges-each-offer-by-its-content-against-the-host-vault) Curation MUST judge each pending offer as covered, near or absent against the host vault's existing,
+Requirement: [792a22d Curation judges each offer by its content against the host vault](#792a22d-curation-judges-each-offer-by-its-content-against-the-host-vault) Curation MUST judge each pending offer as covered, near or absent against the host vault's existing,
 non-pending notes, by reading the offer and the candidates in full and judging their content, never by a similarity score
 alone, and MUST find the offers by scanning the vault for `pending: true` and not by `engram query`. It MUST judge an
 offer the same way whether it arrived from a child over the served API or was pulled down from the parent. It MUST run on
@@ -11822,7 +11822,7 @@ request. The vault MUST be checked with `engram check` after a curation pass.
 Rationale: recall's own documented mistake is to apply a threshold, and a high score can still be an unrelated false
 positive while a low one can still be the same claim in different words. A served write's only job is to stamp identity,
 persist the pending marker and answer, so judgment happens later and on the host's own initiative, when one of the three
-signals of [792a22o](#792a22o-pending-offers-are-surfaced-at-three-points) appears or when asked.
+signals of [792a22o Pending offers are surfaced at three points](#792a22o-pending-offers-are-surfaced-at-three-points) appears or when asked.
 
 #### 792a22d1 UAT Scenarios
 
@@ -11855,7 +11855,7 @@ Scenario: 792a22d1e The vault is checked afterwards
 
 ### 792a22e An amend-offer is judged against its target first
 
-Requirement: [792a22e](#792a22e-an-amend-offer-is-judged-against-its-target-first) A pending offer that carries `offer.for` MUST be judged against the note it names before any query, and
+Requirement: [792a22e An amend-offer is judged against its target first](#792a22e-an-amend-offer-is-judged-against-its-target-first) A pending offer that carries `offer.for` MUST be judged against the note it names before any query, and
 a near judgment MUST fold it into that note.
 
 Rationale: an amend-offer is a child's change to a note that the parent holds, so the parent note is the candidate
@@ -11872,7 +11872,7 @@ Scenario: 792a22e1a An amend-offer is judged against its target
 
 ### 792a22f A covered offer is reinforced and folded away
 
-Requirement: [792a22f](#792a22f-a-covered-offer-is-reinforced-and-folded-away) When curation judges an offer covered by an existing note, it MUST reinforce that note with `engram amend
+Requirement: [792a22f A covered offer is reinforced and folded away](#792a22f-a-covered-offer-is-reinforced-and-folded-away) When curation judges an offer covered by an existing note, it MUST reinforce that note with `engram amend
 --activate` and then delete the offer with `engram amend --discard --into <existing>`, so that the offer's basename and
 all of its `aliases` join the existing note's `aliases` and its parent links join that note's. Curation MUST NOT use a bare
 `--discard` for it, and MUST NOT clear the offer's marker. The result MUST be no new or modified note content.
@@ -11897,12 +11897,12 @@ Scenario: 792a22f1b A pulled-down offer covered by a local note
 
 ### 792a22g A near offer is folded away first, then its claim is folded in
 
-Requirement: [792a22g](#792a22g-a-near-offer-is-folded-away-first-then-its-claim-is-folded-in) When curation judges an offer near an existing note, it MUST first delete the offer with `engram amend --discard
+Requirement: [792a22g A near offer is folded away first, then its claim is folded in](#792a22g-a-near-offer-is-folded-away-first-then-its-claim-is-folded-in) When curation judges an offer near an existing note, it MUST first delete the offer with `engram amend --discard
 --into <existing>` and then amend the existing note to incorporate the offer's additional claim, in that order, so that no
 second live note remains and the amend is offered to the parent as an amend of the note the offer came from.
 
 Rationale: the content amend is offered to the parent at once, and only after the fold does the existing note carry a pulled
-offer's parent link, so folding first makes the amend go up as an amend-offer and not as a new note ([792a21n](#792a21n-a-local-write-is-offered-to-the-parent)).
+offer's parent link, so folding first makes the amend go up as an amend-offer and not as a new note ([792a21n A local write is offered to the parent](#792a21n-a-local-write-is-offered-to-the-parent)).
 
 #### 792a22g1 UAT Scenarios
 
@@ -11920,10 +11920,10 @@ Scenario: 792a22g1b The fold comes before the amend
 
 ### 792a22h An absent offer is accepted with its declared author
 
-Requirement: [792a22h](#792a22h-an-absent-offer-is-accepted-with-its-declared-author) When curation judges an offer absent from the vault, it MUST accept it by clearing its own pending-offer marker with
+Requirement: [792a22h An absent offer is accepted with its declared author](#792a22h-an-absent-offer-is-accepted-with-its-declared-author) When curation judges an offer absent from the vault, it MUST accept it by clearing its own pending-offer marker with
 `engram amend --clear-pending`, which MUST keep the offer's declared `repo`, `user` and `vault`, and MUST NOT write a new note.
 The marker is cleared only on an offer that is kept: a discarded offer carries no marker afterwards. On a vault that has its
-own parent, accepting a served offer MUST also offer the note onward ([792a21n](#792a21n-a-local-write-is-offered-to-the-parent)).
+own parent, accepting a served offer MUST also offer the note onward ([792a21n A local write is offered to the parent](#792a21n-a-local-write-is-offered-to-the-parent)).
 
 Rationale: the note already exists as the offer, so clearing the marker is the entire action. The bookkeeping amends do not
 re-stamp identity, so an accepted offer keeps its author, which is the person who learned it and not the curator (ADR-0029 D10).
@@ -11944,13 +11944,13 @@ Scenario: 792a22h1b Accepting an offer keeps its author
 
 ### 792a22i A rejected offer is discarded outright
 
-Requirement: [792a22i](#792a22i-a-rejected-offer-is-discarded-outright) When curation judges an offer wrong, because an existing note or a user correction contradicts it or because it is
+Requirement: [792a22i A rejected offer is discarded outright](#792a22i-a-rejected-offer-is-discarded-outright) When curation judges an offer wrong, because an existing note or a user correction contradicts it or because it is
 advice the agent would never apply, it MUST delete it with a bare `engram amend --discard`, never `--into`. For a pulled-down
 offer the discard MUST record a decline of the parent note at its exchange hash, so that the note is not pulled down again
 unless the parent changes it.
 
 Rationale: `--into` means covered by, so folding a wrong offer into the note that contradicts it would record the bad note
-as covered by the good one ([792a21ze](#792a21ze-a-pull-down-is-idempotent-remembers-declines-and-cannot-loop)).
+as covered by the good one ([792a21ze A pull-down is idempotent, remembers declines and cannot loop](#792a21ze-a-pull-down-is-idempotent-remembers-declines-and-cannot-loop)).
 
 #### 792a22i1 UAT Scenarios
 
@@ -11968,7 +11968,7 @@ Scenario: 792a22i1b A rejected offer is never folded in
 
 ### 792a22j Curation edits existing notes and never composes a new learn
 
-Requirement: [792a22j](#792a22j-curation-edits-existing-notes-and-never-composes-a-new-learn) Every curation action MUST be an `engram amend` call on existing files, with no `engram learn` and no handoff to
+Requirement: [792a22j Curation edits existing notes and never composes a new learn](#792a22j-curation-edits-existing-notes-and-never-composes-a-new-learn) Every curation action MUST be an `engram amend` call on existing files, with no `engram learn` and no handoff to
 `write-memory`, and a free-text flag value MUST be attached to its flag as `--flag="value"`.
 
 Rationale: `write-memory` composes brand-new `engram learn` calls from scratch content fields, and an offer's content already
@@ -11990,7 +11990,7 @@ Scenario: 792a22j1b A free-text value is attached to its flag
 
 ### 792a22k A pending skill runbook note is authored, not judged
 
-Requirement: [792a22k](#792a22k-a-pending-skill-runbook-note-is-authored-not-judged) A pending skill runbook note (a runbook note that carries `skill_hash`) MUST NOT be judged covered, near or absent and
+Requirement: [792a22k A pending skill runbook note is authored, not judged](#792a22k-a-pending-skill-runbook-note-is-authored-not-judged) A pending skill runbook note (a runbook note that carries `skill_hash`) MUST NOT be judged covered, near or absent and
 MUST NOT be discarded. Curation MUST author its `situation`, `done_when`, `triggers` and `red_flags` from its body when it has
 none, or re-check the existing ones against its body after a refresh and amend any that no longer fit, and then clear its marker
 with `engram amend --clear-pending`, with no hash to pass because the note has no `xid`. It MUST NOT drop or shorten a still-valid
@@ -11998,7 +11998,7 @@ red flag merely to fit the 1200-byte preview budget of `engram query`, which is 
 reports the budget it MUST measure it in rendered bytes.
 
 Rationale: a skill note is a registration offer and not a served write, so another note covering similar ground is no reason to
-lose it ([792a12](#792a12-added-skill-runbook-registration)). `engram show` always returns every red flag, so the budget limits only the preview.
+lose it ([792a12 skill-runbook-registration](#792a12-added-skill-runbook-registration)). `engram show` always returns every red flag, so the budget limits only the preview.
 
 #### 792a22k1 UAT Scenarios
 
@@ -12026,7 +12026,7 @@ Scenario: 792a22k1d Clearing a skill note's marker makes it live
 
 ### 792a22l A bookkeeping step names the version that was judged
 
-Requirement: [792a22l](#792a22l-a-bookkeeping-step-names-the-version-that-was-judged) Every bookkeeping step (`--clear-pending`, `--discard`, `--discard --into`) on a note that carries `offer.origin`, pending or live,
+Requirement: [792a22l A bookkeeping step names the version that was judged](#792a22l-a-bookkeeping-step-names-the-version-that-was-judged) Every bookkeeping step (`--clear-pending`, `--discard`, `--discard --into`) on a note that carries `offer.origin`, pending or live,
 MUST pass `--expect-hash` with the exchange hash that `engram show` printed on its first line, and the binary MUST refuse the
 step without it and when the note's current hash is not that hash, changing nothing. When the hash no longer matches, because
 the offer was updated in place after it was read, curation MUST re-read the whole offer, judge it again from scratch and pass
@@ -12061,7 +12061,7 @@ Scenario: 792a22l1d A note with no exchange header needs no hash
 
 ### 792a22m Folding an offer keeps its identity and reads a CRLF note as LF
 
-Requirement: [792a22m](#792a22m-folding-an-offer-keeps-its-identity-and-reads-a-crlf-note-as-lf) `engram amend --target O --discard --into E` MUST delete O and its sidecar after recording O's basename and aliases in E's
+Requirement: [792a22m Folding an offer keeps its identity and reads a CRLF note as LF](#792a22m-folding-an-offer-keeps-its-identity-and-reads-a-crlf-note-as-lf) `engram amend --target O --discard --into E` MUST delete O and its sidecar after recording O's basename and aliases in E's
 `aliases` and merging O's parent links into E's, MUST fail without changing anything for `--into` without `--discard`, for an
 `--into` that names no note and for an `--into` that names O, and MUST NOT re-stamp E's identity, queue an offer or record a
 decline. It MUST read E as its LF form and write it as LF only when the fold changes it, and the judged-version check MUST run on
@@ -12102,11 +12102,11 @@ Scenario: 792a22m1e A fold that changes nothing leaves E alone
 
 ### 792a22n The outcome of a curation is not reported back
 
-Requirement: [792a22n](#792a22n-the-outcome-of-a-curation-is-not-reported-back) The served API's response to a `learn` that creates or updates a pending offer MUST confirm only that the offer was received,
+Requirement: [792a22n The outcome of a curation is not reported back](#792a22n-the-outcome-of-a-curation-is-not-reported-back) The served API's response to a `learn` that creates or updates a pending offer MUST confirm only that the offer was received,
 and MUST NOT report the offer's eventual curation outcome. No later notification of the outcome MUST be sent to the offering
 caller.
 
-Rationale: the response is a receipt ([792a20d](#792a20d-a-served-learn-lands-as-a-pending-offer-and-returns-a-receipt)), and curation happens later on the host, so the caller learns what became of its
+Rationale: the response is a receipt ([792a20d A served learn lands as a pending offer and returns a receipt](#792a20d-a-served-learn-lands-as-a-pending-offer-and-returns-a-receipt)), and curation happens later on the host, so the caller learns what became of its
 offer only by reading the parent's notes or by the next merged query.
 
 #### 792a22n1 UAT Scenarios
@@ -12120,7 +12120,7 @@ Scenario: 792a22n1a The server responds before curation happens
 
 ### 792a22o Pending offers are surfaced at three points
 
-Requirement: [792a22o](#792a22o-pending-offers-are-surfaced-at-three-points) `engram query` MUST include a pending-offer flag in its payload on every call, true exactly when a pending offer exists in
+Requirement: [792a22o Pending offers are surfaced at three points](#792a22o-pending-offers-are-surfaced-at-three-points) `engram query` MUST include a pending-offer flag in its payload on every call, true exactly when a pending offer exists in
 the vault it answers for, and when the flag is true MUST also include a `pending_offers_hint` carrying the curate instruction,
 omitting both when no offer is pending, so that a payload without pending offers is unchanged. When present, `pending_offers`
 and `pending_offers_hint` MUST be the first keys after `version`, before `items`, so that a truncated preview of a large payload
@@ -12202,11 +12202,11 @@ did, and the memory-loop audit under `dev/eval/audit` reads real transcripts and
 recall, action and learning broke. This capability is what those tools promise to the person who relies on their numbers: a
 trial measures what it says it measures, never reaches the maintainer's real vault, is scored as it behaved, and an audit
 records what it saw without changing a note. It is a capability of the repository, not of an engram user's vault, which is
-why the expected user is the maintainer ([792d3](./792d_decision-log.md#792d3-skills-and-guidance-are-product-behavior), [792e1](./792e_open-questions.md#792e1-is-eval-and-audit-tooling-a-product-capability)).
+why the expected user is the maintainer ([792d3 Skills and guidance are product behavior](./792d_decision-log.md#792d3-skills-and-guidance-are-product-behavior), [792e1 Is eval and audit tooling a product capability?](./792e_open-questions.md#792e1-is-eval-and-audit-tooling-a-product-capability)).
 
 ### 792a23a A warm trial carries the skills it claims
 
-Requirement: [792a23a](#792a23a-a-warm-trial-carries-the-skills-it-claims) Any eval code that builds a warm trial configuration (one with skills and memory installed) MUST confirm,
+Requirement: [792a23a A warm trial carries the skills it claims](#792a23a-a-warm-trial-carries-the-skills-it-claims) Any eval code that builds a warm trial configuration (one with skills and memory installed) MUST confirm,
 for each skill it installs, that the skill's source directory exists and holds a `SKILL.md` before it installs the skill, and
 MUST confirm that `SKILL.md` exists at the destination after the copy. It MUST NOT rely on the copy's own success: a copy
 from a wrong source path is indistinguishable from a successful copy of an empty directory unless the source and the
@@ -12237,7 +12237,7 @@ Scenario: 792a23a1c Every warm-configuration builder verifies the same way
 
 ### 792a23b A missing or empty skill source stops the build
 
-Requirement: [792a23b](#792a23b-a-missing-or-empty-skill-source-stops-the-build) When a named skill's source directory does not exist, or exists and holds no `SKILL.md`, the construction of a
+Requirement: [792a23b A missing or empty skill source stops the build](#792a23b-a-missing-or-empty-skill-source-stops-the-build) When a named skill's source directory does not exist, or exists and holds no `SKILL.md`, the construction of a
 warm trial configuration MUST raise an error that names the skill and the path it checked. It MUST NOT log a warning and
 continue, MUST NOT produce a configuration with fewer skills than requested, and MUST NOT leave a partial configuration that
 claims success. This holds for every function that builds a warm configuration.
@@ -12266,7 +12266,7 @@ Scenario: 792a23b1c Every builder raises on a missing source
 
 ### 792a23c Skill sources are found from the harness's own location
 
-Requirement: [792a23c](#792a23c-skill-sources-are-found-from-the-harnesss-own-location) The eval harness MUST compute the repository root it uses to locate skill sources from the calling module's own
+Requirement: [792a23c Skill sources are found from the harness's own location](#792a23c-skill-sources-are-found-from-the-harnesss-own-location) The eval harness MUST compute the repository root it uses to locate skill sources from the calling module's own
 file location, and MUST NOT hard-code a machine- or session-specific absolute path for it. The skill sources are
 `agent-instructions/skills/<skill>` relative to that root.
 
@@ -12289,7 +12289,7 @@ Scenario: 792a23c1b The cumulative harness resolves its path the same way
 
 ### 792a23d A trial that reaches the real vault is detected from the trial's side
 
-Requirement: [792a23d](#792a23d-a-trial-that-reaches-the-real-vault-is-detected-from-the-trials-side) Any harness that spawns isolated eval trials and guards against a trial reaching the maintainer's real vault MUST
+Requirement: [792a23d A trial that reaches the real vault is detected from the trial's side](#792a23d-a-trial-that-reaches-the-real-vault-is-detected-from-the-trials-side) Any harness that spawns isolated eval trials and guards against a trial reaching the maintainer's real vault MUST
 detect a leak by checking trial-side evidence, the isolation state each trial's environment actually carried, and MUST NOT
 use a before-and-after fingerprint of the whole real vault as its only mechanism. The evidence MUST be captured
 automatically by the same primitive that builds a trial's isolated environment, at the moment it builds it, so that a harness
@@ -12320,7 +12320,7 @@ Scenario: 792a23d1c Every harness snapshots the real vault and asserts no leak
 
 ### 792a23e A real leak through the standard primitive is caught and fails loud
 
-Requirement: [792a23e](#792a23e-a-real-leak-through-the-standard-primitive-is-caught-and-fails-loud) When a note is newly present in the real vault after a run, and its content names a trial directory or session identifier of a
+Requirement: [792a23e A real leak through the standard primitive is caught and fails loud](#792a23e-a-real-leak-through-the-standard-primitive-is-caught-and-fails-loud) When a note is newly present in the real vault after a run, and its content names a trial directory or session identifier of a
 trial built through the standard isolation primitive, the leak guard MUST raise an error that names the note and the trial
 marker. It MUST also raise when the content names only the trial marker's basename and that basename is distinctive, a
 random suffix such as `tempfile.mkdtemp` makes, and not when it is a short deterministic name that a note could mention
@@ -12351,7 +12351,7 @@ Scenario: 792a23e1c A note naming only a short deterministic basename is not fla
 
 ### 792a23f The leak guard's limits are stated
 
-Requirement: [792a23f](#792a23f-the-leak-guards-limits-are-stated) The trial-side guard MUST NOT be described or relied on as a complete leak-proof: its detection is scoped to leaks that
+Requirement: [792a23f The leak guard's limits are stated](#792a23f-the-leak-guards-limits-are-stated) The trial-side guard MUST NOT be described or relied on as a complete leak-proof: its detection is scoped to leaks that
 a registered trial marker in the leaked note's own content traces, and the limits that follow MUST stay documented. A leak
 through a path that never builds its environment with the standard primitive, a leaked note whose content names no
 registered trial directory or session identifier, a leak that names only a non-distinctive basename, and an in-place content
@@ -12387,7 +12387,7 @@ Scenario: 792a23f1d A leak naming only a non-distinctive basename is not caught
 
 ### 792a23g A step is detected in every valid form of its command
 
-Requirement: [792a23g](#792a23g-a-step-is-detected-in-every-valid-form-of-its-command) The step definitions of the `runbook_vs_skill` phase 2 probe's fixtures MUST recognize every commonly used invocation
+Requirement: [792a23g A step is detected in every valid form of its command](#792a23g-a-step-is-detected-in-every-valid-form-of-its-command) The step definitions of the `runbook_vs_skill` phase 2 probe's fixtures MUST recognize every commonly used invocation
 form of the command a step is meant to detect, when a later step's detection depends on it, and MUST NOT match a command
 that merely contains the command's name. A command text that happens to contain the literal substring immediately preceded
 by a word character is not a real invocation and MUST NOT match.
@@ -12421,7 +12421,7 @@ Scenario: 792a23g1d A letter-adjacent substring is not matched
 
 ### 792a23h A question stop is judged in the order of the task's completion
 
-Requirement: [792a23h](#792a23h-a-question-stop-is-judged-in-the-order-of-the-tasks-completion) The phase 2 probe MUST report a trial's `question_stop` as true only when the last ambiguity-posing text in its transcript
+Requirement: [792a23h A question stop is judged in the order of the task's completion](#792a23h-a-question-stop-is-judged-in-the-order-of-the-tasks-completion) The phase 2 probe MUST report a trial's `question_stop` as true only when the last ambiguity-posing text in its transcript
 precedes the trial's task completion, and not merely when no mutating tool call follows that text. A genuinely separate
 follow-up question that the trial asks after it has completed and verified its task, as its own end-state check shows, MUST
 NOT be scored as a trial that stopped before finishing.
@@ -12445,7 +12445,7 @@ Scenario: 792a23h1b A genuine pre-completion stop is still detected
 
 ### 792a23i A fixture gives a runbook's follow-up action a local target
 
-Requirement: [792a23i](#792a23i-a-fixture-gives-a-runbooks-follow-up-action-a-local-target) When a runbook that a trial follows prescribes an action that the fixture gives no local way to perform, such as filing a
+Requirement: [792a23i A fixture gives a runbook's follow-up action a local target](#792a23i-a-fixture-gives-a-runbooks-follow-up-action-a-local-target) When a runbook that a trial follows prescribes an action that the fixture gives no local way to perform, such as filing a
 follow-up issue in a fixture repository with no issue tracker, the fixture MUST provide a minimal local convention that
 satisfies the action and the task prompt MUST name it. The runbook MUST NOT be changed to work around a fixture gap.
 
@@ -12463,11 +12463,11 @@ Scenario: 792a23i1a The bisect-before-fix fixture names a local issue-filing tar
 
 ### 792a23j A surfacing probe reads the rank of the item list
 
-Requirement: [792a23j](#792a23j-a-surfacing-probe-reads-the-rank-of-the-item-list) A harness or script that decides whether a target note surfaced for an `engram query` MUST read the query payload's
+Requirement: [792a23j A surfacing probe reads the rank of the item list](#792a23j-a-surfacing-probe-reads-the-rank-of-the-item-list) A harness or script that decides whether a target note surfaced for an `engram query` MUST read the query payload's
 top-level `items[]` list, matching on path or basename, and report the note's one-based rank there. It MUST NOT use
 membership in a cluster's `candidate_l2s` as the surfacing signal, and absence from `candidate_l2s` MUST NOT count as a miss.
 
-Rationale: `candidate_l2s` is a capped top-five, within-cluster subset chosen for synthesis ([792b24c10](./792b_technical-spec.md#792b24c10-candidate-notes)), so a note can be
+Rationale: `candidate_l2s` is a capped top-five, within-cluster subset chosen for synthesis ([792b24c10 Candidate notes](./792b_technical-spec.md#792b24c10-candidate-notes)), so a note can be
 correctly matched and present in `items[]` while absent from every cluster's list because its cluster holds more than five
 members closer to the centroid.
 
@@ -12487,7 +12487,7 @@ Scenario: 792a23j1b candidate_l2s absence does not count as a miss
 
 ### 792a23k The audit detects moments by reading them
 
-Requirement: [792a23k](#792a23k-the-audit-detects-moments-by-reading-them) An audit of the memory loop against real transcripts MUST detect moments, which are failures, corrections, rework,
+Requirement: [792a23k The audit detects moments by reading them](#792a23k-the-audit-detects-moments-by-reading-them) An audit of the memory loop against real transcripts MUST detect moments, which are failures, corrections, rework,
 successes (a case where a surfaced or injected memory visibly shaped what the agent did) and dispatches (a subagent launch),
 by reading the transcript in context and MUST NOT match keywords or fixed phrases. It MUST flag generously and discard
 non-matches afterwards. Its quality bar MUST be a miss rate, how many real moments it fails to catch, measured against
@@ -12517,7 +12517,7 @@ Scenario: 792a23k1c The miss rate is agreed before the real run
 
 ### 792a23l Every audited moment carries a complete record
 
-Requirement: [792a23l](#792a23l-every-audited-moment-carries-a-complete-record) Each detected moment's record MUST answer every question needed to see where the memory loop broke down for it. On the
+Requirement: [792a23l Every audited moment carries a complete record](#792a23l-every-audited-moment-carries-a-complete-record) Each detected moment's record MUST answer every question needed to see where the memory loop broke down for it. On the
 finding side it MUST say whether a relevant memory existed, with its kind (chunk, fact, feedback, runbook or qa), whether it
 was generic or specific to the situation, and whether that existence check was DERIVED or ESTIMATE; whether a search ran (a
 quick glance, a full recall, an injected prompt or none); whether the search targeted the right thing, judged separately;
@@ -12552,7 +12552,7 @@ Scenario: 792a23l1b A rate without a fixed counting unit is a violation
 
 ### 792a23m Whether a memory existed is judged against the vault of that time
 
-Requirement: [792a23m](#792a23m-whether-a-memory-existed-is-judged-against-the-vault-of-that-time) The audit MUST judge "was a relevant memory in the vault" by searching the vault as it was at the moment's own timestamp, with
+Requirement: [792a23m Whether a memory existed is judged against the vault of that time](#792a23m-whether-a-memory-existed-is-judged-against-the-vault-of-that-time) The audit MUST judge "was a relevant memory in the vault" by searching the vault as it was at the moment's own timestamp, with
 search phrases the auditor writes from the moment itself, and the agent's own phrases at the time are judged separately. For
 notes, a read-only checkout of the vault at the last commit at or before the timestamp MUST give a DERIVED answer, and where
 git history does not exist or does not reach back that far, filtering notes by their creation date MUST give an ESTIMATE
@@ -12589,7 +12589,7 @@ Scenario: 792a23m1d Chunks are always judged by ingestion date
 
 ### 792a23n The existence check's query cannot be broken by a phrase and does not swallow a failure
 
-Requirement: [792a23n](#792a23n-the-existence-checks-query-cannot-be-broken-by-a-phrase-and-does-not-swallow-a-failure) The existence check's `engram query` invocation, and any function that builds one from auditor-generated phrase or text
+Requirement: [792a23n The existence check's query cannot be broken by a phrase and does not swallow a failure](#792a23n-the-existence-checks-query-cannot-be-broken-by-a-phrase-and-does-not-swallow-a-failure) The existence check's `engram query` invocation, and any function that builds one from auditor-generated phrase or text
 strings, MUST pass each value in a form `engram`'s flag parser cannot mistake for a new flag, whatever the value's content,
 a value that itself begins with `--` included. When the invocation exits non-zero, the error information it returns MUST
 contain the tool's actual error output, on whichever stream it was written, so that a failed check is diagnosable from its own
@@ -12614,7 +12614,7 @@ Scenario: 792a23n1b A real query failure's error text is preserved
 
 ### 792a23o Prompt-injected memories count as searched and surfaced
 
-Requirement: [792a23o](#792a23o-prompt-injected-memories-count-as-searched-and-surfaced) For a subagent moment, any memory present in the dispatch prompt MUST count as found: it is recorded as "a search ran
+Requirement: [792a23o Prompt-injected memories count as searched and surfaced](#792a23o-prompt-injected-memories-count-as-searched-and-surfaced) For a subagent moment, any memory present in the dispatch prompt MUST count as found: it is recorded as "a search ran
 (injected)" and "surfaced: yes", and a forked subagent, which inherits the whole parent conversation, MUST have everything in it
 count as found. The gap on the finding side, memories the orchestrator surfaced and did not hand over, MUST be measured from the
 orchestrator's side at the moment of dispatch with a structural check across the corpus, validated against a smaller
@@ -12644,7 +12644,7 @@ Scenario: 792a23o1c Paraphrased content is told from missing content
 
 ### 792a23p The audit emits credit records and never consumes them
 
-Requirement: [792a23p](#792a23p-the-audit-emits-credit-records-and-never-consumes-them) The audit MUST emit draft outcome records, each `{moment_id, note_ref, situation_text, outcome, ts,
+Requirement: [792a23p The audit emits credit records and never consumes them](#792a23p-the-audit-emits-credit-records-and-never-consumes-them) The audit MUST emit draft outcome records, each `{moment_id, note_ref, situation_text, outcome, ts,
 evidence{transcript, anchor}}` with `outcome` one of `applied-helped`, `applied-hurt`, `surfaced-ignored`, `injected-unused` and
 `absent-needed`, as plain data files. It MUST NOT write, amend, activate, supersede or remove any vault note, because acting on the
 records takes a human judgment and belongs to a separate, later capability.
@@ -12663,7 +12663,7 @@ Scenario: 792a23p1a Output only, no side effects
 
 ### 792a23q Audit results land additively in the ledger
 
-Requirement: [792a23q](#792a23q-audit-results-land-additively-in-the-ledger) Audit findings MUST be recorded as `dev/eval/LEDGER.md` rows, one claim per row in the existing format, each pointing at its
+Requirement: [792a23q Audit results land additively in the ledger](#792a23q-audit-results-land-additively-in-the-ledger) Audit findings MUST be recorded as `dev/eval/LEDGER.md` rows, one claim per row in the existing format, each pointing at its
 raw data, and reflected in a coverage-map index that maps each memory function and kind to the rows backing it and the measured
 real-world rate. Recording audit results MUST NOT rename, rewrite (beyond the format's own way of superseding a row) or remove any existing
 row or anchor.
