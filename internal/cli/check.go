@@ -70,8 +70,9 @@ var (
 	errCheckFailed  = errors.New("check: FAIL-class invariant violations found")
 )
 
-// checkGraphResolution verifies G0: every authored wikilink resolves to a note.
-// Returns true if the invariant is violated.
+// checkGraphResolution verifies G0 (a bare-ID link that could resolve to a
+// note but is in the wrong form FAILs) and reports G3 (a link to no note at
+// all WARNs, non-blocking). Returns true if G0 is violated.
 func checkGraphResolution(notes []vaultgraph.Note, stdout io.Writer) bool {
 	leadingIDs := make(map[string]struct{}, len(notes))
 	for _, note := range notes {
@@ -106,8 +107,8 @@ func checkGraphResolution(notes []vaultgraph.Note, stdout io.Writer) bool {
 	return len(resolverBroken) > 0
 }
 
-// checkSidecars verifies S1: every situation-bearing note's sidecar parses
-// under the current schema. An old-schema or malformed sidecar FAILs (a
+// checkSidecars verifies S1: every scanned note's sidecar parses under the
+// current schema. An old-schema or malformed sidecar FAILs (a
 // re-embed is required); a missing sidecar WARNs (embed status covers it).
 // Returns true if the FAIL-class invariant is violated.
 func checkSidecars(

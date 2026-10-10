@@ -19,9 +19,8 @@ type EmbedApplyArgs struct {
 	All       bool   `targ:"flag,name=all,desc=re-embed every note regardless of state"`
 	Missing   bool   `targ:"flag,name=missing,desc=embed only notes without sidecars (default if no mode flag)"`
 	Stale     bool   `targ:"flag,name=stale,desc=re-embed notes whose body hash changed"`
-	// Force also re-embeds sidecars whose model_id differs from the binary.
-	// Run once with --stale after deploying D3 (Related-to exclusion from
-	// ContentHash) so all existing sidecars are re-baselined.
+	// Force also re-embeds sidecars made by another model or an older schema
+	// (state incompatible), which the default and --stale leave alone.
 	Force  bool `targ:"flag,name=force,desc=also re-embed sidecars whose model_id differs from the binary"`
 	DryRun bool `targ:"flag,name=dry-run,desc=report what would change without writing"`
 }
@@ -84,9 +83,8 @@ func RunEmbedApply(
 	return nil
 }
 
-// RunEmbedStatus emits one line per state category to stdout. The
-// output shape matches the spike spec verbatim so the values are
-// scriptable.
+// RunEmbedStatus emits a total and one line per state category to stdout
+// (792a9g), in a fixed shape so the values are scriptable.
 func RunEmbedStatus(
 	_ context.Context,
 	args EmbedStatusArgs,
