@@ -8,10 +8,10 @@ import (
 	"github.com/toejough/engram/internal/update"
 )
 
-// TestResolveBinaryPath covers all three of resolveBinaryPath's resolution
+// Test792b28c1a1_ResolveBinaryPath covers all three of resolveBinaryPath's resolution
 // steps, in the go toolchain's own priority order: GOBIN, then GOPATH/bin,
 // then ~/go/bin.
-func TestResolveBinaryPath(t *testing.T) {
+func Test792b28c1a1_ResolveBinaryPath(t *testing.T) {
 	t.Parallel()
 
 	table := []struct {

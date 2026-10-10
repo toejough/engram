@@ -10,7 +10,7 @@ import (
 	"github.com/toejough/engram/internal/update"
 )
 
-func TestRun_DryRun_NeverInstallsOrSpawns(t *testing.T) {
+func Test792b28c8a1_Run_DryRun_NeverInstallsOrSpawns(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -40,66 +40,57 @@ func TestRun_DryRun_NeverInstallsOrSpawns(t *testing.T) {
 	g.Expect(report.ReexecExitCode).To(BeNil())
 }
 
-// TestRun_HandoffFails_PropagatesErrorWithoutSpawningOrFallback covers
-// design-review fix B: a Handoff.WriteHandoff failure is a stdout-write
-// failure, not a re-exec failure (re-exec was never attempted) — it must
-// propagate as a hard error out of Run, not get smoothed into
-// ReexecFallbackErr and an in-process fallback (the same broken stdout
-// would just resurface on that fallback's own report write).
-func TestRun_HandoffFails_PropagatesErrorWithoutSpawningOrFallback(t *testing.T) {
+func Test792b28c8a2_Run_SentinelSet_SkipsInstallAndSpawnRunsInProcess(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	errHandoff := errors.New("write: broken pipe")
+	cmd := &fakeCmd{}
 	spawner := &fakeSpawner{}
 
 	updater := &update.Updater{
-		FS:  reexecFixture(),
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: reexecHome, cwd: "/repo"},
-		Handoff: &fakeHandoff{fn: func(update.Report) error {
-			return errHandoff
-		}},
+		FS:    reexecFixture(),
+		Cmd:   cmd,
+		Env:   &fakeEnv{home: reexecHome, cwd: "/repo", sentinel: "1"},
 		Spawn: spawner,
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(err).To(MatchError(errHandoff))
-	g.Expect(err.Error()).To(ContainSubstring("writing re-exec handoff report:"))
+	g.Expect(err).NotTo(HaveOccurred())
 
-	g.Expect(spawner.calls).To(BeEmpty(), "a handoff-report failure must never reach the spawn call")
+	if err != nil {
+		return
+	}
+
+	g.Expect(cmd.calls).To(Equal([][]string{{"git", "rev-parse", "--short", "HEAD"}}),
+		"sentinel run resolves revision for visibility but must not invoke go install")
+	g.Expect(spawner.calls).To(BeEmpty(), "sentinel run must not spawn again")
 	g.Expect(report.ReexecExitCode).To(BeNil())
-	g.Expect(report.ReexecFallbackErr).To(BeEmpty(), "a handoff failure is not a re-exec fallback")
-	g.Expect(report.Harnesses).To(BeEmpty(), "the run aborts — no in-process fallback runs either")
+	g.Expect(report.Harnesses).To(HaveLen(1), "sentinel run completes sync/checks in-process")
 }
 
-func TestRun_InstallSucceeds_ReportNotMarkedReexecChild(t *testing.T) {
+func Test792b28c8a3_Run_SentinelSet_ReportMarkedReexecChildAndNoInstallClaim(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	var gotChild bool
-
 	updater := &update.Updater{
 		FS:  reexecFixture(),
 		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: reexecHome, cwd: "/repo"},
-		Handoff: &fakeHandoff{fn: func(r update.Report) error {
-			gotChild = r.ReexecChild
-
-			return nil
-		}},
-		Spawn: &fakeSpawner{},
+		Env: &fakeEnv{home: reexecHome, cwd: "/repo", sentinel: "1"},
 	}
 
-	_, err := updater.Run(context.Background(), update.Options{})
+	report, err := updater.Run(context.Background(), update.Options{})
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(gotChild).To(BeFalse(), "the parent's own report is never the child report")
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(report.ReexecChild).To(BeTrue(), "a sentinel-bearing run must mark its report as a re-exec child's")
 }
 
-func TestRun_InstallSucceeds_SpawnsInstalledPathWithSentinelEnvAndOriginalArgs(t *testing.T) {
+func Test792b28c9a1_Run_InstallSucceeds_SpawnsInstalledPathWithSentinelEnvAndOriginalArgs(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -140,7 +131,7 @@ func TestRun_InstallSucceeds_SpawnsInstalledPathWithSentinelEnvAndOriginalArgs(t
 	g.Expect(report.Harnesses).To(BeEmpty(), "parent performs no planning/apply after handing off")
 }
 
-func TestRun_InstallSucceeds_WritesHandoffReportBeforeSpawning(t *testing.T) {
+func Test792b28c9a2_Run_InstallSucceeds_WritesHandoffReportBeforeSpawning(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -168,57 +159,31 @@ func TestRun_InstallSucceeds_WritesHandoffReportBeforeSpawning(t *testing.T) {
 		"the parent's install-result report must be written before the child's inherited-stdio output begins")
 }
 
-func TestRun_SentinelSet_ReportMarkedReexecChildAndNoInstallClaim(t *testing.T) {
+func Test792b28c9a3_Run_InstallSucceeds_ReportNotMarkedReexecChild(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
+
+	var gotChild bool
 
 	updater := &update.Updater{
 		FS:  reexecFixture(),
 		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: reexecHome, cwd: "/repo", sentinel: "1"},
+		Env: &fakeEnv{home: reexecHome, cwd: "/repo"},
+		Handoff: &fakeHandoff{fn: func(r update.Report) error {
+			gotChild = r.ReexecChild
+
+			return nil
+		}},
+		Spawn: &fakeSpawner{},
 	}
 
-	report, err := updater.Run(context.Background(), update.Options{})
+	_, err := updater.Run(context.Background(), update.Options{})
 	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(report.ReexecChild).To(BeTrue(), "a sentinel-bearing run must mark its report as a re-exec child's")
+	g.Expect(gotChild).To(BeFalse(), "the parent's own report is never the child report")
 }
 
-func TestRun_SentinelSet_SkipsInstallAndSpawnRunsInProcess(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	cmd := &fakeCmd{}
-	spawner := &fakeSpawner{}
-
-	updater := &update.Updater{
-		FS:    reexecFixture(),
-		Cmd:   cmd,
-		Env:   &fakeEnv{home: reexecHome, cwd: "/repo", sentinel: "1"},
-		Spawn: spawner,
-	}
-
-	report, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(cmd.calls).To(Equal([][]string{{"git", "rev-parse", "--short", "HEAD"}}),
-		"sentinel run resolves revision for visibility but must not invoke go install")
-	g.Expect(spawner.calls).To(BeEmpty(), "sentinel run must not spawn again")
-	g.Expect(report.ReexecExitCode).To(BeNil())
-	g.Expect(report.Harnesses).To(HaveLen(1), "sentinel run completes sync/checks in-process")
-}
-
-func TestRun_SpawnFails_FallsBackInProcessAndRecordsReport(t *testing.T) {
+func Test792b28c9a4_Run_SpawnFails_FallsBackInProcessAndRecordsReport(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -247,6 +212,41 @@ func TestRun_SpawnFails_FallsBackInProcessAndRecordsReport(t *testing.T) {
 	g.Expect(report.Harnesses).To(HaveLen(1), "fallback completes the full in-process run")
 	g.Expect(report.ReexecFallbackErr).To(ContainSubstring("re-exec failed, completed with pre-update logic:"))
 	g.Expect(report.ReexecFallbackErr).To(ContainSubstring(errSpawn.Error()))
+}
+
+// Test792b28c9a5_Run_HandoffFails_PropagatesErrorWithoutSpawningOrFallback covers
+// design-review fix B: a Handoff.WriteHandoff failure is a stdout-write
+// failure, not a re-exec failure (re-exec was never attempted) — it must
+// propagate as a hard error out of Run, not get smoothed into
+// ReexecFallbackErr and an in-process fallback (the same broken stdout
+// would just resurface on that fallback's own report write).
+func Test792b28c9a5_Run_HandoffFails_PropagatesErrorWithoutSpawningOrFallback(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	errHandoff := errors.New("write: broken pipe")
+	spawner := &fakeSpawner{}
+
+	updater := &update.Updater{
+		FS:  reexecFixture(),
+		Cmd: &fakeCmd{},
+		Env: &fakeEnv{home: reexecHome, cwd: "/repo"},
+		Handoff: &fakeHandoff{fn: func(update.Report) error {
+			return errHandoff
+		}},
+		Spawn: spawner,
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(errHandoff))
+	g.Expect(err.Error()).To(ContainSubstring("writing re-exec handoff report:"))
+
+	g.Expect(spawner.calls).To(BeEmpty(), "a handoff-report failure must never reach the spawn call")
+	g.Expect(report.ReexecExitCode).To(BeNil())
+	g.Expect(report.ReexecFallbackErr).To(BeEmpty(), "a handoff failure is not a re-exec fallback")
+	g.Expect(report.Harnesses).To(BeEmpty(), "the run aborts — no in-process fallback runs either")
 }
 
 // unexported constants.

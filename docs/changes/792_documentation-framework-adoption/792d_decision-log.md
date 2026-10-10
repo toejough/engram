@@ -1541,3 +1541,38 @@ decisions as `792dN`, continuing the sequence.
 - **Alternatives:** put the report's notices in the capabilities that detect them. Rejected because the
   report's order and silence rules are one contract, and the notice scenarios of 792a10 already wait for
   the update run's owner.
+
+## 792d104 self-installer scope, and the behaviors the code shows
+
+- **Choice:**
+  - 792b28 specifies fifteen requirements. It owns the report and its notices (792d101, 792d103): the text
+    and detection of each notice stay with the capability that owns the state, while 792b28c13 owns that
+    each is printed exactly when its flag is set, in a fixed order. The vault-ID notice keeps its scenario in
+    792b5c13a2, and the pending-offer, outbox and registration-error lines keep theirs for curate, parent-sync
+    and skill-runbook-registration.
+  - The tests of the vocabulary, Luhmann, identity and chunk-index notices that 792d89 and 792d101 deferred
+    take the 792b28 IDs: they exercise the report writer. The product scenarios 792a6v1a to 792a6w1c,
+    792a10a1a to 792a10b1b, 792a10j1a, 792a10j1b, 792a10k1a and 792a10k1f are mapped here as well as to the
+    detecting component.
+  - `TestInvariant_U1_SkillsSrcMissingSentinel` takes 792b28c15a6 (the typed error survives the report tail);
+    the same sentinel's source, the deploy-set planning, is harness-deploy-sync's. `update_test`'s fixtures
+    (`stubCommander`, `liveUpdateFS`) and the generated mock stay unrenamed helpers.
+- **Divergences noted (792d33):**
+  - The handed-off run resolves its source again. In remote mode it clones the repository a second time and
+    checks the model again, because the child inherits the working directory and `resolveSource` runs for it;
+    only `go install` is skipped. A local source costs one `git rev-parse`.
+  - Any non-empty value of `ENGRAM_UPDATE_REEXEC` counts as the sentinel; the parent sets it to `1`.
+  - `--allow-downgrade`, `--answers`, `--reparent-luhmann` and `--dry-run` are not forwarded to the child,
+    which never installs, never re-parents and never runs after a dry run.
+  - When `Updater.Run` fails, for example with no harness, no report is written, only the wrapped error.
+  - The hand-off report is the three header lines; a dry run never writes it, so its `[dry-run] ` prefix is
+    never printed there.
+  - `engram update --dry-run`, a sentinel run, and a full update with a `go` shim on PATH that copies a built
+    binary to `GOBIN` were run in this environment with a temporary HOME, vault and XDG directories. They
+    showed the install result printed once before the child's report, the exit status 0, the hand-off, and,
+    from a worktree two commits behind the installed binary's revision, the downgrade refusal with exit 1 and
+    the install going ahead with `--allow-downgrade`. The real `go install` of a fresh clone was not run (the
+    clone's model is a git-lfs pointer here), nor was the remote route.
+- **Rationale:** 792d30, 792d51, 792d52, 792d89, 792d101 and 792d103.
+- **Alternatives:** a separate update-report component. Rejected because the inventory of components is
+  fixed (792d30) and the report is the update run's own contract.

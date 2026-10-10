@@ -17,12 +17,62 @@ import (
 	"github.com/toejough/engram/internal/update"
 )
 
-// TestInvariant_U1_MissingGoSentinel locks U1's missing-go failure surface: a
+// Test792b28c15a6_Invariant_U1_SkillsSrcMissingSentinel locks U1's missing-skills failure
+// surface: a harness is present but the skills source dir is absent → update
+// fails with ErrSkillsSrcMissing, preserved through finishUpdate.
+func Test792b28c15a6_Invariant_U1_SkillsSrcMissingSentinel(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	memFS := newU1FS()
+	memFS.seedLocalRepo()
+	// Drop the entire skills source subtree (files AND dir entries) so
+	// planSkillCopies' walk hits the missing-root case and returns the sentinel.
+	memFS.removeSubtree(filepath.Join(u1RepoRoot, "agent-instructions", "skills"))
+
+	updater := &update.Updater{FS: memFS, Cmd: &u1OKCmd{}, Env: u1LocalEnv(), Spawn: u1NoopSpawner{}}
+
+	_, runErr := updater.Run(context.Background(), update.Options{})
+	g.Expect(runErr).To(MatchError(update.ErrSkillsSrcMissing))
+
+	var out bytes.Buffer
+
+	finishErr := cli.ExportFinishUpdate(&out, update.Report{}, runErr)
+	g.Expect(finishErr).To(MatchError(update.ErrSkillsSrcMissing))
+}
+
+// Test792b28c3a2_Invariant_U1_NoHarnessSentinel locks U1's no-harness failure surface:
+// with no supported harness dir present, update fails with ErrNoHarness, and
+// the sentinel survives the CLI's finishUpdate wrapping (errors.Is /
+// MatchError).
+func Test792b28c3a2_Invariant_U1_NoHarnessSentinel(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	memFS := newU1FS()
+	memFS.seedLocalRepo()
+	// Remove both harness probe dirs so detectHarnesses finds none.
+	delete(memFS.dirs, filepath.Join(u1Home, ".claude"))
+	delete(memFS.dirs, filepath.Join(u1Home, ".pi"))
+
+	updater := &update.Updater{FS: memFS, Cmd: &u1OKCmd{}, Env: u1LocalEnv(), Spawn: u1NoopSpawner{}}
+
+	_, runErr := updater.Run(context.Background(), update.Options{})
+	g.Expect(runErr).To(MatchError(update.ErrNoHarness))
+
+	// The CLI tail wraps the run error but must preserve the sentinel chain.
+	var out bytes.Buffer
+
+	finishErr := cli.ExportFinishUpdate(&out, update.Report{}, runErr)
+	g.Expect(finishErr).To(MatchError(update.ErrNoHarness))
+}
+
+// Test792b28c4a4_Invariant_U1_MissingGoSentinel locks U1's missing-go failure surface: a
 // missing `go` binary (surfaced as update.ErrCommandNotFound from the injected
 // Commander) must make update FAIL with the update.ErrGoNotFound sentinel, and
 // that sentinel must survive the CLI's finishUpdate wrapping (errors.Is /
 // MatchError) — never a silent success, never a bare un-typed error.
-func TestInvariant_U1_MissingGoSentinel(t *testing.T) {
+func Test792b28c4a4_Invariant_U1_MissingGoSentinel(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -46,56 +96,6 @@ func TestInvariant_U1_MissingGoSentinel(t *testing.T) {
 
 	finishErr := cli.ExportFinishUpdate(&out, update.Report{}, runErr)
 	g.Expect(finishErr).To(MatchError(update.ErrGoNotFound))
-}
-
-// TestInvariant_U1_NoHarnessSentinel locks U1's no-harness failure surface:
-// with no supported harness dir present, update fails with ErrNoHarness, and
-// the sentinel survives the CLI's finishUpdate wrapping (errors.Is /
-// MatchError).
-func TestInvariant_U1_NoHarnessSentinel(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	memFS := newU1FS()
-	memFS.seedLocalRepo()
-	// Remove both harness probe dirs so detectHarnesses finds none.
-	delete(memFS.dirs, filepath.Join(u1Home, ".claude"))
-	delete(memFS.dirs, filepath.Join(u1Home, ".pi"))
-
-	updater := &update.Updater{FS: memFS, Cmd: &u1OKCmd{}, Env: u1LocalEnv(), Spawn: u1NoopSpawner{}}
-
-	_, runErr := updater.Run(context.Background(), update.Options{})
-	g.Expect(runErr).To(MatchError(update.ErrNoHarness))
-
-	// The CLI tail wraps the run error but must preserve the sentinel chain.
-	var out bytes.Buffer
-
-	finishErr := cli.ExportFinishUpdate(&out, update.Report{}, runErr)
-	g.Expect(finishErr).To(MatchError(update.ErrNoHarness))
-}
-
-// TestInvariant_U1_SkillsSrcMissingSentinel locks U1's missing-skills failure
-// surface: a harness is present but the skills source dir is absent → update
-// fails with ErrSkillsSrcMissing, preserved through finishUpdate.
-func TestInvariant_U1_SkillsSrcMissingSentinel(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	memFS := newU1FS()
-	memFS.seedLocalRepo()
-	// Drop the entire skills source subtree (files AND dir entries) so
-	// planSkillCopies' walk hits the missing-root case and returns the sentinel.
-	memFS.removeSubtree(filepath.Join(u1RepoRoot, "agent-instructions", "skills"))
-
-	updater := &update.Updater{FS: memFS, Cmd: &u1OKCmd{}, Env: u1LocalEnv(), Spawn: u1NoopSpawner{}}
-
-	_, runErr := updater.Run(context.Background(), update.Options{})
-	g.Expect(runErr).To(MatchError(update.ErrSkillsSrcMissing))
-
-	var out bytes.Buffer
-
-	finishErr := cli.ExportFinishUpdate(&out, update.Report{}, runErr)
-	g.Expect(finishErr).To(MatchError(update.ErrSkillsSrcMissing))
 }
 
 // TestInvariant_U1_UpdateIdempotent locks the idempotence half of invariant

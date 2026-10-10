@@ -10,18 +10,19 @@ import (
 	"github.com/toejough/engram/internal/update"
 )
 
-func TestUpdater_Run_Local_NoPriorBinary_ProceedsNoCheck(t *testing.T) {
+func Test792b28c7a1_Updater_Run_Local_ProvableDowngrade_Refused(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
 	fileSystem := downgradeFixture()
-	// No prior binary at the install path this time.
-	delete(fileSystem.files, downgradeBinaryPath)
-
 	cmd := &fakeCmd{
 		responses: map[string][]byte{
-			"git rev-parse --short HEAD": []byte(downgradeResolvedRev + "\n"),
+			"git rev-parse --short HEAD":           []byte(downgradeResolvedRev + "\n"),
+			"go version -m " + downgradeBinaryPath: []byte("build\tvcs.revision=" + downgradeInstalledRev + "\n"),
+		},
+		errs: map[string]error{
+			"git merge-base --is-ancestor " + downgradeInstalledRev + " " + downgradeResolvedRev: errors.New("exit status 1"),
 		},
 	}
 
@@ -33,25 +34,19 @@ func TestUpdater_Run_Local_NoPriorBinary_ProceedsNoCheck(t *testing.T) {
 	}
 
 	_, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var sawInstall, sawVersionCheck bool
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(errors.Is(err, update.ErrLocalDowngrade)).To(BeTrue())
+	g.Expect(err.Error()).To(ContainSubstring(downgradeInstalledRev))
+	g.Expect(err.Error()).To(ContainSubstring(downgradeResolvedRev))
+	g.Expect(err.Error()).To(ContainSubstring("--allow-downgrade"))
 
 	for _, call := range cmd.calls {
-		if len(call) == 3 && call[0] == "go" && call[1] == "install" {
-			sawInstall = true
-		}
-
-		if len(call) > 1 && call[0] == "go" && call[1] == "version" {
-			sawVersionCheck = true
-		}
+		g.Expect(call).NotTo(Equal([]string{"go", "install", "./cmd/engram/"}),
+			"a provable downgrade must never run go install")
 	}
-
-	g.Expect(sawInstall).To(BeTrue())
-	g.Expect(sawVersionCheck).To(BeFalse(), "no prior binary means go version -m must never run")
 }
 
-func TestUpdater_Run_Local_ProvableDowngrade_AllowDowngradeBypasses(t *testing.T) {
+func Test792b28c7a2_Updater_Run_Local_ProvableDowngrade_AllowDowngradeBypasses(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -94,19 +89,18 @@ func TestUpdater_Run_Local_ProvableDowngrade_AllowDowngradeBypasses(t *testing.T
 	}
 }
 
-func TestUpdater_Run_Local_ProvableDowngrade_Refused(t *testing.T) {
+func Test792b28c7a3_Updater_Run_Local_NoPriorBinary_ProceedsNoCheck(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
 	fileSystem := downgradeFixture()
+	// No prior binary at the install path this time.
+	delete(fileSystem.files, downgradeBinaryPath)
+
 	cmd := &fakeCmd{
 		responses: map[string][]byte{
-			"git rev-parse --short HEAD":           []byte(downgradeResolvedRev + "\n"),
-			"go version -m " + downgradeBinaryPath: []byte("build\tvcs.revision=" + downgradeInstalledRev + "\n"),
-		},
-		errs: map[string]error{
-			"git merge-base --is-ancestor " + downgradeInstalledRev + " " + downgradeResolvedRev: errors.New("exit status 1"),
+			"git rev-parse --short HEAD": []byte(downgradeResolvedRev + "\n"),
 		},
 	}
 
@@ -118,19 +112,25 @@ func TestUpdater_Run_Local_ProvableDowngrade_Refused(t *testing.T) {
 	}
 
 	_, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(errors.Is(err, update.ErrLocalDowngrade)).To(BeTrue())
-	g.Expect(err.Error()).To(ContainSubstring(downgradeInstalledRev))
-	g.Expect(err.Error()).To(ContainSubstring(downgradeResolvedRev))
-	g.Expect(err.Error()).To(ContainSubstring("--allow-downgrade"))
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var sawInstall, sawVersionCheck bool
 
 	for _, call := range cmd.calls {
-		g.Expect(call).NotTo(Equal([]string{"go", "install", "./cmd/engram/"}),
-			"a provable downgrade must never run go install")
+		if len(call) == 3 && call[0] == "go" && call[1] == "install" {
+			sawInstall = true
+		}
+
+		if len(call) > 1 && call[0] == "go" && call[1] == "version" {
+			sawVersionCheck = true
+		}
 	}
+
+	g.Expect(sawInstall).To(BeTrue())
+	g.Expect(sawVersionCheck).To(BeFalse(), "no prior binary means go version -m must never run")
 }
 
-func TestUpdater_Run_Local_UnknownInstalledRevision_FailsOpen(t *testing.T) {
+func Test792b28c7a4_Updater_Run_Local_UnknownInstalledRevision_FailsOpen(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -173,7 +173,7 @@ func TestUpdater_Run_Local_UnknownInstalledRevision_FailsOpen(t *testing.T) {
 	g.Expect(sawInstall).To(BeTrue(), "an unresolvable ancestry check must fail open")
 }
 
-func TestUpdater_Run_Local_UnparseableInstalledRevision_FailsOpen(t *testing.T) {
+func Test792b28c7a5_Updater_Run_Local_UnparseableInstalledRevision_FailsOpen(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)

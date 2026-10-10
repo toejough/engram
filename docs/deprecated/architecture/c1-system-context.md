@@ -24,7 +24,7 @@ flowchart LR
     harness -->|"R2: invokes /recall, /learn, /please, /route, /curate, /write-memory (skills) and runs engram CLI"| engram
     engram -->|"R3: reads & writes notes + sidecars"| vault
     engram -->|"R4: reads session transcripts; re-chunks only mtime/size/hash-changed sources (manifest.json)"| sessions
-    engram -->|"R5: invokes git clone + go install for self-update, then re-execs the fresh binary (ADR-0023)"| gotool
+    engram -->|"R5: invokes git clone + go install for self-update, then re-execs the fresh binary (792b28)"| gotool
     engram -->|"R6: writes refreshed skill files during engram update; --with-guidance adds guidance (Claude Code, Pi)"| harness
     engram -->|"R7: with ENGRAM_PARENT set, offers/pulls notes over HTTP (query, show, activate, learn) — never chunks"| parentvault
 
@@ -58,7 +58,7 @@ flowchart LR
 | <a id="r1"></a>R1 | S1 Engram operator | S3 LLM coding harness | Directs work via prompts in the harness; configures engram via environment variables |
 | <a id="r2"></a>R2 | S3 LLM coding harness | S2 Engram | Invokes the `/recall`, `/learn`, `/please`, `/route`, `/curate`, and `/write-memory` skills; subprocess-executes the engram CLI for each invocation. |
 | <a id="r4"></a>R4 | S2 Engram | S5 Harness session stores | See [792b18](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b18-added-chunk-index-store) and [792b15](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b15-added-transcript-reader) |
-| <a id="r5"></a>R5 | S2 Engram | S6 Go toolchain | During `engram update`, invokes `go install` (local clone) or clones the repo and builds from the clone (remote mode, never `go install …@latest`; #645) to self-update, then re-execs the freshly installed binary to run the sync phase (ADR-0023) |
+| <a id="r5"></a>R5 | S2 Engram | S6 Go toolchain | See [792b28](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b28-added-self-installer) |
 | <a id="r6"></a>R6 | S2 Engram | S3 LLM coding harness | During `engram update`, syncs refreshed `agent-instructions/skills/` to engram-owned roots (`~/.claude/engram/skills/`, `~/.pi/agent/engram/skills/`, etc.; ADR-0022 D1) and materializes them as symlinks in each harness's surface dirs (`~/.claude/skills/`, `~/.pi/agent/skills/`); removals from the source propagate (sync-delete); first update performs dark migration of pre-existing copies to symlinks; dangling symlinks are cleaned up. `--with-guidance` additionally syncs guidance docs to the root's `guidance/` subtree (`~/.claude/engram/guidance/`, `~/.pi/agent/engram/guidance/`; canonical paths) and materializes symlinks; compat symlinks at flat paths (`~/.claude/engram/*.md`) resolve existing `@import` lines (opt-in). Manifest-mode fallback for harnesses whose discovery fails symlink verification (ADR-0022 D7) |
 | <a id="r7"></a>R7 | S2 Engram | S7 Parent engram vault | With `ENGRAM_PARENT` set: `engram query` fetches the parent's `/query?dedupe-keys=1` and merges notes only (never chunks) into the local payload; `engram learn`/a content `amend`/`resituate` offer the note, queued in a local outbox and drained with backoff to the parent's `/learn`; `engram activate` on a local miss pulls the parent's note down via `GET /show?raw=1` as a new local pending offer, then best-effort bumps its use on the parent (ADR-0029) |
 
@@ -279,7 +279,7 @@ sequenceDiagram
 
 ### Flow: update
 
-The product behavior of `engram update` is in [792a11](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a11-added-install-and-update). The sequence below is ported by self-installer (792c7j2) and harness-deploy-sync (792c7j3). Source: `internal/cli/update.go` (`runUpdate`) and `internal/update/update.go` (`Updater.Run`, `reexecAfterInstall`); design: ADR-0022, ADR-0023.
+The product behavior of `engram update` is in [792a11](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a11-added-install-and-update). The install and hand-off sequence is [792b28b](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b28-added-self-installer); the sync sequence below is ported by harness-deploy-sync (792c7j3). Source: `internal/cli/update.go` (`runUpdate`) and `internal/update/update.go` (`Updater.Run`, `reexecAfterInstall`); design: ADR-0022.
 
 ```mermaid
 sequenceDiagram
@@ -287,34 +287,9 @@ sequenceDiagram
     actor Op as S1 Operator
     participant H as S3 Harness
     participant E as S2 Engram CLI
-    participant Go as S6 Go toolchain
 
     Op->>H: invoke engram update (or --dry-run)
     H->>E: engram update
-
-    Note over E: walk up from cwd searching for the local module
-
-    alt local clone found
-        E->>Go: go install ./cmd/engram/
-        Go-->>E: installed engram into GOBIN
-        Note over E: read artifacts from the local module dir
-    else no local clone
-        E->>Go: git clone --depth 1 (LFS-safe, #645)
-        E->>Go: go install ./cmd/engram/ (from the clone)
-        Go-->>E: installed engram into GOBIN
-        Note over E: read artifacts from the clone
-    end
-
-    alt install succeeded and not --dry-run
-        Note over E: write parent handoff report (install result)
-        E->>E: spawn installed binary as child (ENGRAM_UPDATE_REEXEC=1, inherited stdio)
-        alt spawn succeeded
-            Note over E: child observes sentinel, skips install, runs sync/checks with fresh logic
-            E-->>H: child's exit code propagates; parent exits, performs no further phases
-        else spawn failed
-            Note over E: fallback — complete sync/checks in-process, record failure reason on report
-        end
-    end
 
     Note over E: detect each harness (Claude Code, Pi) and its deploy mode (symlink or manifest)
 

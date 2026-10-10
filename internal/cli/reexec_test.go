@@ -14,34 +14,7 @@ import (
 	"github.com/toejough/engram/internal/update"
 )
 
-func TestRunUpdate_ReexecFallback_ProceedsAsToday(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	errSpawn := errors.New("exec: no such file")
-	spawner := &fakeReexecSpawner{err: errSpawn}
-
-	var exitCalls int
-
-	deps := cli.ExportNewUpdateDepsWithSpawn(
-		singleClaudeHarnessFS(), stubCommander{}, reexecEnv{home: reexecHome, cwd: "/repo"}, spawner,
-		func(int) { exitCalls++ },
-	)
-
-	stdout := &bytes.Buffer{}
-	err := cli.ExportRunUpdate(context.Background(), cli.UpdateArgs{}, deps, stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	g.Expect(exitCalls).To(Equal(0), "deps.Exit must not be called on the in-process fallback path")
-
-	out := stdout.String()
-	g.Expect(out).To(ContainSubstring("re-exec failed, completed with pre-update logic:"))
-	g.Expect(out).To(ContainSubstring(errSpawn.Error()))
-	g.Expect(out).To(ContainSubstring("installed:"), "fallback completes the full in-process run and reports it")
-}
-
-func TestRunUpdate_ReexecHandoff_ExitsBeforeVaultChecks(t *testing.T) {
+func Test792b28c10a4_RunUpdate_ReexecHandoff_ExitsBeforeVaultChecks(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -74,7 +47,7 @@ func TestRunUpdate_ReexecHandoff_ExitsBeforeVaultChecks(t *testing.T) {
 	g.Expect(strings.Count(out, "engram update\n")).To(Equal(1))
 }
 
-func TestRunUpdate_ReexecHandoff_WritesHeaderBeforeSpawning(t *testing.T) {
+func Test792b28c10a5_RunUpdate_ReexecHandoff_WritesHeaderBeforeSpawning(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -99,14 +72,41 @@ func TestRunUpdate_ReexecHandoff_WritesHeaderBeforeSpawning(t *testing.T) {
 	g.Expect(stdout.String()[:stdoutLenAtSpawn]).To(ContainSubstring("source: local clone at "))
 }
 
-// TestRunUpdate_SentinelRun_NeverClaimsAnInstall drives runUpdate directly
+func Test792b28c10a6_RunUpdate_ReexecFallback_ProceedsAsToday(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	errSpawn := errors.New("exec: no such file")
+	spawner := &fakeReexecSpawner{err: errSpawn}
+
+	var exitCalls int
+
+	deps := cli.ExportNewUpdateDepsWithSpawn(
+		singleClaudeHarnessFS(), stubCommander{}, reexecEnv{home: reexecHome, cwd: "/repo"}, spawner,
+		func(int) { exitCalls++ },
+	)
+
+	stdout := &bytes.Buffer{}
+	err := cli.ExportRunUpdate(context.Background(), cli.UpdateArgs{}, deps, stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(exitCalls).To(Equal(0), "deps.Exit must not be called on the in-process fallback path")
+
+	out := stdout.String()
+	g.Expect(out).To(ContainSubstring("re-exec failed, completed with pre-update logic:"))
+	g.Expect(out).To(ContainSubstring(errSpawn.Error()))
+	g.Expect(out).To(ContainSubstring("installed:"), "fallback completes the full in-process run and reports it")
+}
+
+// Test792b28c10a7_RunUpdate_SentinelRun_NeverClaimsAnInstall drives runUpdate directly
 // with the loop-guard sentinel already set in Env — the shape a re-execed
 // child actually runs in (Updater.Run reads it via Env.Getenv, same seam a
 // real child process's environment would carry). The child must never print
 // the header it never earned: no install ran, so no "binary: go install ...
 // ok" claim, and no duplicated "engram update" line (the parent already
 // printed its own header before spawning this "child").
-func TestRunUpdate_SentinelRun_NeverClaimsAnInstall(t *testing.T) {
+func Test792b28c10a7_RunUpdate_SentinelRun_NeverClaimsAnInstall(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)

@@ -18,6 +18,103 @@ import (
 	"github.com/toejough/engram/internal/update"
 )
 
+func Test792b28c2a1_WalkUpForModule_FoundAtStart(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	fileSystem := newMemFS()
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n\ngo 1.25.6\n")
+
+	root, found, err := update.ExportWalkUpForModule("/repo", fileSystem)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(found).To(BeTrue())
+	g.Expect(root).To(Equal("/repo"))
+}
+
+func Test792b28c2a2_WalkUpForModule_FoundInAncestor(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	fileSystem := newMemFS()
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+
+	root, found, err := update.ExportWalkUpForModule("/repo/internal/update", fileSystem)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(found).To(BeTrue())
+	g.Expect(root).To(Equal("/repo"))
+}
+
+func Test792b28c2a3_WalkUpForModule_NotFound(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	fileSystem := newMemFS()
+	// no go.mod anywhere
+
+	root, found, err := update.ExportWalkUpForModule("/some/where", fileSystem)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(found).To(BeFalse())
+	g.Expect(root).To(BeEmpty())
+}
+
+func Test792b28c2a4_WalkUpForModule_WrongModuleStopsWalk(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	fileSystem := newMemFS()
+	fileSystem.files["/somewhere/go.mod"] = []byte("module example.com/other\n")
+
+	// Should NOT keep walking up past a found go.mod with the wrong module.
+	root, found, err := update.ExportWalkUpForModule("/somewhere/sub", fileSystem)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(found).To(BeFalse())
+	g.Expect(root).To(BeEmpty())
+}
+
+func Test792b28c2a8_WalkUpForModule_ReadFileErrorPropagates(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	wantErr := errors.New("disk failed")
+	fileSystem := &errFS{readErr: wantErr}
+
+	_, _, err := update.ExportWalkUpForModule("/anywhere", fileSystem)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(errors.Is(err, wantErr)).To(BeTrue())
+}
+
+func Test792b28c2a9_WalkUpForModule_Property_TerminatesForAnyPath(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		// Generate a posix-style absolute path with 0-6 segments.
+		depth := rapid.IntRange(0, 6).Draw(rt, "depth")
+
+		segs := rapid.SliceOfN(rapid.StringMatching(`[a-z]{1,4}`), depth, depth).Draw(rt, "segs")
+
+		path := "/"
+		for _, seg := range segs {
+			path = filepath.Join(path, seg)
+		}
+
+		fileSystem := newMemFS() // no go.mod anywhere
+
+		_, found, err := update.ExportWalkUpForModule(path, fileSystem)
+		if err != nil {
+			rt.Fatalf("unexpected error: %v", err)
+		}
+
+		if found {
+			rt.Fatalf("expected not-found for empty fs, got found=true")
+		}
+	})
+}
+
 func TestDetectHarnesses_Both_StableOrder(t *testing.T) {
 	t.Parallel()
 
@@ -1289,103 +1386,6 @@ func TestRun_WithoutGuidance_SkipsGuidance(t *testing.T) {
 	g.Expect(report.Harnesses).To(HaveLen(1))
 	g.Expect(report.Harnesses[0].GuidanceFiles).To(BeEmpty())
 	g.Expect(fileSystem.written[home+"/.claude/engram/recall.md"]).To(BeNil())
-}
-
-func TestWalkUpForModule_FoundAtStart(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	fileSystem := newMemFS()
-	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n\ngo 1.25.6\n")
-
-	root, found, err := update.ExportWalkUpForModule("/repo", fileSystem)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(found).To(BeTrue())
-	g.Expect(root).To(Equal("/repo"))
-}
-
-func TestWalkUpForModule_FoundInAncestor(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	fileSystem := newMemFS()
-	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-
-	root, found, err := update.ExportWalkUpForModule("/repo/internal/update", fileSystem)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(found).To(BeTrue())
-	g.Expect(root).To(Equal("/repo"))
-}
-
-func TestWalkUpForModule_NotFound(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	fileSystem := newMemFS()
-	// no go.mod anywhere
-
-	root, found, err := update.ExportWalkUpForModule("/some/where", fileSystem)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(found).To(BeFalse())
-	g.Expect(root).To(BeEmpty())
-}
-
-func TestWalkUpForModule_Property_TerminatesForAnyPath(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		// Generate a posix-style absolute path with 0-6 segments.
-		depth := rapid.IntRange(0, 6).Draw(rt, "depth")
-
-		segs := rapid.SliceOfN(rapid.StringMatching(`[a-z]{1,4}`), depth, depth).Draw(rt, "segs")
-
-		path := "/"
-		for _, seg := range segs {
-			path = filepath.Join(path, seg)
-		}
-
-		fileSystem := newMemFS() // no go.mod anywhere
-
-		_, found, err := update.ExportWalkUpForModule(path, fileSystem)
-		if err != nil {
-			rt.Fatalf("unexpected error: %v", err)
-		}
-
-		if found {
-			rt.Fatalf("expected not-found for empty fs, got found=true")
-		}
-	})
-}
-
-func TestWalkUpForModule_ReadFileErrorPropagates(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	wantErr := errors.New("disk failed")
-	fileSystem := &errFS{readErr: wantErr}
-
-	_, _, err := update.ExportWalkUpForModule("/anywhere", fileSystem)
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(errors.Is(err, wantErr)).To(BeTrue())
-}
-
-func TestWalkUpForModule_WrongModuleStopsWalk(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	fileSystem := newMemFS()
-	fileSystem.files["/somewhere/go.mod"] = []byte("module example.com/other\n")
-
-	// Should NOT keep walking up past a found go.mod with the wrong module.
-	root, found, err := update.ExportWalkUpForModule("/somewhere/sub", fileSystem)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(found).To(BeFalse())
-	g.Expect(root).To(BeEmpty())
 }
 
 // errFS returns the same error for every ReadFile call.

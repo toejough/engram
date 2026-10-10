@@ -410,159 +410,95 @@ func Test792b27c1a1_VaultHasOnlyTopLevelNotes(t *testing.T) {
 	})
 }
 
-func TestAnyHarnessFailed(t *testing.T) {
+// Test792b28c10a1_RunUpdate_ReparentLuhmannFlag_ShortCircuitsToDeriveOnly verifies
+// runUpdate routes --reparent-luhmann to RunReparentLuhmann BEFORE running
+// Updater.Run (a nil update.Filesystem/Commander here would panic if the
+// normal install/sync flow ran) and that derive-only output reaches stdout.
+func Test792b28c10a1_RunUpdate_ReparentLuhmannFlag_ShortCircuitsToDeriveOnly(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	g.Expect(cli.ExportAnyHarnessFailed(update.Report{})).To(BeFalse())
-	g.Expect(cli.ExportAnyHarnessFailed(update.Report{
-		Harnesses: []update.HarnessReport{{}},
-	})).To(BeFalse())
-	g.Expect(cli.ExportAnyHarnessFailed(update.Report{
-		Harnesses: []update.HarnessReport{{Err: errors.New("boom")}},
-	})).To(BeTrue())
-	g.Expect(cli.ExportAnyHarnessFailed(update.Report{
-		Harnesses: []update.HarnessReport{{Err: errors.New("boom")}, {}},
-	})).To(BeTrue())
-}
-
-func TestDescribeSource_UnknownMode(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	var buffer bytes.Buffer
-
-	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{})
-	g.Expect(writeErr).NotTo(HaveOccurred())
-	g.Expect(buffer.String()).To(ContainSubstring("source: unknown"))
-}
-
-func TestFinishUpdate_AnyHarnessFailureIsAnError(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	var buffer bytes.Buffer
-
-	report := update.Report{
-		Harnesses: []update.HarnessReport{{Name: "X", Err: errors.New("disk")}},
+	files := map[string][]byte{
+		"/vault/1.2026-01-01.alpha.md": []byte("---\ntype: fact\nluhmann: \"1\"\ncreated: 2026-01-01\n---\n\nbody\n"),
 	}
 
-	err := cli.ExportFinishUpdate(&buffer, report, nil)
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(err.Error()).To(ContainSubstring("harness"))
-}
-
-func TestFinishUpdate_ExitStatusProperty(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		count := rapid.IntRange(1, 5).Draw(rt, "count")
-		fail := rapid.SliceOfN(rapid.Bool(), count, count).Draw(rt, "fail")
-
-		harnesses := make([]update.HarnessReport, 0, count)
-		anyFailed := false
-
-		for i, failed := range fail {
-			rep := update.HarnessReport{Name: update.Harness(rune('A' + i))}
-			if failed {
-				rep.Err = errors.New("boom")
-				anyFailed = true
-			}
-
-			harnesses = append(harnesses, rep)
-		}
-
-		report := update.Report{
-			Source:    update.SourceInfo{Mode: update.SourceLocal, Root: "/r"},
-			GoInstall: "go install ./cmd/engram/",
-			Harnesses: harnesses,
-		}
-
-		var buffer bytes.Buffer
-
-		err := cli.ExportFinishUpdate(&buffer, report, nil)
-		if anyFailed {
-			if err == nil {
-				rt.Fatalf("expected error when any harness failed, got nil")
-			}
-		} else if err != nil {
-			rt.Fatalf("expected no error when no harness failed, got %v", err)
-		}
-	})
-}
-
-func TestFinishUpdate_HappyPath(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	var buffer bytes.Buffer
-
-	report := update.Report{
-		Source:    update.SourceInfo{Mode: update.SourceLocal, Root: "/r"},
-		GoInstall: "go install ./cmd/engram/",
-		Harnesses: []update.HarnessReport{{Name: "X"}},
-	}
-
-	err := cli.ExportFinishUpdate(&buffer, report, nil)
-	g.Expect(err).NotTo(HaveOccurred())
-}
-
-func TestFinishUpdate_PartialFailureIsAnError(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	var buffer bytes.Buffer
-
-	report := update.Report{
-		Source:    update.SourceInfo{Mode: update.SourceLocal, Root: "/r"},
-		GoInstall: "go install ./cmd/engram/",
-		Harnesses: []update.HarnessReport{
-			{Name: "A", Err: errors.New("disk")},
-			{Name: "B"},
+	reparentDeps := cli.ReparentDeps{
+		Rename: cli.RenameRewriteDeps{
+			ListMD:    func(string) ([]string, error) { return []string{"1.2026-01-01.alpha.md"}, nil },
+			ReadFile:  func(path string) ([]byte, error) { return files[path], nil },
+			WriteFile: func(string, []byte) error { return nil },
+			Rename:    func(string, string) error { return nil },
 		},
 	}
 
-	err := cli.ExportFinishUpdate(&buffer, report, nil)
-	g.Expect(err).To(HaveOccurred())
-	// Report still written so the user sees per-harness detail.
-	g.Expect(buffer.String()).To(ContainSubstring("error: disk"))
+	deps := cli.ExportNewUpdateDepsFromWithReparent(nil, nil, fixedHomeUpdateEnv{vault: "/vault"}, reparentDeps)
+
+	stdout := &bytes.Buffer{}
+	err := cli.ExportRunUpdate(context.Background(), cli.UpdateArgs{ReparentLuhmann: true}, deps, stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(stdout.String()).To(ContainSubstring("no candidates found"))
 }
 
-func TestFinishUpdate_PropagatesRunError(t *testing.T) {
+func Test792b28c10a3_RunUpdate_WithGuidanceFlagMapsToOptions(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	var buffer bytes.Buffer
+	stdout := &bytes.Buffer{}
+	deps := cli.ExportNewUpdateDepsFrom(liveUpdateFS{}, stubCommander{}, liveUpdateEnv{home: isolatedUpdateHome(t)})
 
-	runErr := errors.New("boom")
-	err := cli.ExportFinishUpdate(&buffer, update.Report{}, runErr)
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(errors.Is(err, runErr)).To(BeTrue())
+	// Dry-run with --with-guidance; only verifies the flag maps to Options.
+	err := cli.ExportRunUpdate(
+		context.Background(), cli.UpdateArgs{DryRun: true, WithGuidance: true}, deps, stdout)
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("update"))
+	}
 }
 
-func TestPluralFile(t *testing.T) {
+// Test792b28c11a1_RunUpdate_RegenVocabFlag_RunsRegenAndUpdatesReport verifies runUpdate
+// threads args.RegenVocab through to deps.Vocab (the updateDeps field
+// newUpdateDeps composes from newVocabDeps, #712), reporting a --dry-run
+// regen summary rather than the plain migration notice.
+func Test792b28c11a1_RunUpdate_RegenVocabFlag_RunsRegenAndUpdatesReport(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	g.Expect(cli.ExportPluralFile(0)).To(Equal("files"))
-	g.Expect(cli.ExportPluralFile(1)).To(Equal("file"))
-	g.Expect(cli.ExportPluralFile(2)).To(Equal("files"))
+	files := map[string][]byte{
+		"vocab.recall.md": []byte("---\ntype: fact\nterm: recall\ndescription: recall the vault\n---\n\nbody\n"),
+	}
+
+	vocabDeps := cli.VocabDeps{
+		Lock:       func(string) (func(), error) { return func() {}, nil },
+		ListMD:     func(string) ([]string, error) { return []string{"vocab.recall.md"}, nil },
+		ReadFile:   func(path string) ([]byte, error) { return files[filepath.Base(path)], nil },
+		WriteFile:  func(string, []byte) error { return nil },
+		DeleteFile: func(string) error { return nil },
+		LogWarning: func(string, ...any) {},
+		Now:        time.Now,
+	}
+
+	deps := cli.ExportNewUpdateDepsFromWithVocab(
+		liveUpdateFS{}, stubCommander{}, liveUpdateEnv{home: isolatedUpdateHome(t)}, vocabDeps)
+
+	stdout := &bytes.Buffer{}
+	err := cli.ExportRunUpdate(
+		context.Background(), cli.UpdateArgs{DryRun: true, RegenVocab: true}, deps, stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	out := stdout.String()
+	g.Expect(out).To(ContainSubstring("[dry-run] update --regen-vocab: would remove 1 old-format file(s)"))
+	g.Expect(out).NotTo(ContainSubstring("old-format vocab files found"))
 }
 
-// TestRunUpdate_BackfillIdentityFlag_RunsBackfillAndUpdatesReport mirrors
-// TestRunUpdate_RegenVocabFlag_RunsRegenAndUpdatesReport for
+// Test792b28c11a2_RunUpdate_BackfillIdentityFlag_RunsBackfillAndUpdatesReport mirrors
+// Test792b28c11a1_RunUpdate_RegenVocabFlag_RunsRegenAndUpdatesReport for
 // --backfill-identity: verifies runUpdate threads args.BackfillIdentity
 // through runPostUpdateChecks to deps.Identity (composed by newIdentityDeps
 // in production, injected directly here), reporting the --dry-run backfill
 // summary rather than the plain notice.
-func TestRunUpdate_BackfillIdentityFlag_RunsBackfillAndUpdatesReport(t *testing.T) {
+func Test792b28c11a2_RunUpdate_BackfillIdentityFlag_RunsBackfillAndUpdatesReport(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -595,30 +531,7 @@ func TestRunUpdate_BackfillIdentityFlag_RunsBackfillAndUpdatesReport(t *testing.
 	g.Expect(out).NotTo(ContainSubstring("notes missing repo:/user:/vault: provenance found"))
 }
 
-func TestRunUpdate_DryRunFromCwd(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	stdout := &bytes.Buffer{}
-	deps := cli.ExportNewUpdateDepsFrom(liveUpdateFS{}, stubCommander{}, liveUpdateEnv{home: isolatedUpdateHome(t)})
-
-	// Dry-run against the live filesystem: cwd is inside the engram
-	// worktree, so source resolution picks local mode without `go install`.
-	err := cli.ExportRunUpdate(context.Background(), cli.UpdateArgs{DryRun: true}, deps, stdout)
-	out := stdout.String()
-
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("update"))
-
-		return
-	}
-
-	g.Expect(out).To(ContainSubstring("[dry-run] engram update"))
-	g.Expect(out).To(ContainSubstring("source: local clone at "))
-}
-
-// TestRunUpdate_DryRunNeverTouchesRealHome guards the liveUpdateEnv/
+// Test792b28c11a3_RunUpdate_DryRunNeverTouchesRealHome guards the liveUpdateEnv/
 // liveUpdateFS dry-run smoke-test fixtures (S34 residual): runPostUpdate-
 // Checks resolves vaultPath/chunksDir from Env.UserHomeDir/Getenv
 // unconditionally, even under --dry-run, so a fixture whose UserHomeDir
@@ -626,7 +539,7 @@ func TestRunUpdate_DryRunFromCwd(t *testing.T) {
 // actual ~/.local/share/engram vault and ~/.claude skills directory. This
 // pins a scratch home and asserts no path the filesystem sees during a
 // dry run falls under the real home's data or Claude directories.
-func TestRunUpdate_DryRunNeverTouchesRealHome(t *testing.T) {
+func Test792b28c11a3_RunUpdate_DryRunNeverTouchesRealHome(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -652,89 +565,158 @@ func TestRunUpdate_DryRunNeverTouchesRealHome(t *testing.T) {
 	}
 }
 
-// TestRunUpdate_RegenVocabFlag_RunsRegenAndUpdatesReport verifies runUpdate
-// threads args.RegenVocab through to deps.Vocab (the updateDeps field
-// newUpdateDeps composes from newVocabDeps, #712), reporting a --dry-run
-// regen summary rather than the plain migration notice.
-func TestRunUpdate_RegenVocabFlag_RunsRegenAndUpdatesReport(t *testing.T) {
+func Test792b28c12a1_WriteUpdateReport_LocalDryRunWithBothHarnesses(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	files := map[string][]byte{
-		"vocab.recall.md": []byte("---\ntype: fact\nterm: recall\ndescription: recall the vault\n---\n\nbody\n"),
-	}
-
-	vocabDeps := cli.VocabDeps{
-		Lock:       func(string) (func(), error) { return func() {}, nil },
-		ListMD:     func(string) ([]string, error) { return []string{"vocab.recall.md"}, nil },
-		ReadFile:   func(path string) ([]byte, error) { return files[filepath.Base(path)], nil },
-		WriteFile:  func(string, []byte) error { return nil },
-		DeleteFile: func(string) error { return nil },
-		LogWarning: func(string, ...any) {},
-		Now:        time.Now,
-	}
-
-	deps := cli.ExportNewUpdateDepsFromWithVocab(
-		liveUpdateFS{}, stubCommander{}, liveUpdateEnv{home: isolatedUpdateHome(t)}, vocabDeps)
-
-	stdout := &bytes.Buffer{}
-	err := cli.ExportRunUpdate(
-		context.Background(), cli.UpdateArgs{DryRun: true, RegenVocab: true}, deps, stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	out := stdout.String()
-	g.Expect(out).To(ContainSubstring("[dry-run] update --regen-vocab: would remove 1 old-format file(s)"))
-	g.Expect(out).NotTo(ContainSubstring("old-format vocab files found"))
-}
-
-// TestRunUpdate_ReparentLuhmannFlag_ShortCircuitsToDeriveOnly verifies
-// runUpdate routes --reparent-luhmann to RunReparentLuhmann BEFORE running
-// Updater.Run (a nil update.Filesystem/Commander here would panic if the
-// normal install/sync flow ran) and that derive-only output reaches stdout.
-func TestRunUpdate_ReparentLuhmannFlag_ShortCircuitsToDeriveOnly(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	files := map[string][]byte{
-		"/vault/1.2026-01-01.alpha.md": []byte("---\ntype: fact\nluhmann: \"1\"\ncreated: 2026-01-01\n---\n\nbody\n"),
-	}
-
-	reparentDeps := cli.ReparentDeps{
-		Rename: cli.RenameRewriteDeps{
-			ListMD:    func(string) ([]string, error) { return []string{"1.2026-01-01.alpha.md"}, nil },
-			ReadFile:  func(path string) ([]byte, error) { return files[path], nil },
-			WriteFile: func(string, []byte) error { return nil },
-			Rename:    func(string, string) error { return nil },
+	report := update.Report{
+		DryRun:    true,
+		Home:      "/home/joe",
+		Source:    update.SourceInfo{Mode: update.SourceLocal, Root: "/home/joe/src/engram"},
+		GoInstall: "go install ./cmd/engram/",
+		Harnesses: []update.HarnessReport{
+			{
+				Name:       update.HarnessClaude,
+				ProbeRoot:  ".claude",
+				SkillsRoot: "/home/joe/.claude/skills",
+				SkillDirs: []update.SkillDirCount{
+					{Name: "learn", Files: 3},
+					{Name: "recall", Files: 1},
+				},
+			},
+			{
+				Name:       update.HarnessPi,
+				ProbeRoot:  ".pi",
+				SkillsRoot: "/home/joe/.pi/agent/skills",
+				SkillDirs: []update.SkillDirCount{
+					{Name: "learn", Files: 3},
+					{Name: "recall", Files: 1},
+				},
+			},
 		},
 	}
 
-	deps := cli.ExportNewUpdateDepsFromWithReparent(nil, nil, fixedHomeUpdateEnv{vault: "/vault"}, reparentDeps)
+	var buffer bytes.Buffer
 
-	stdout := &bytes.Buffer{}
-	err := cli.ExportRunUpdate(context.Background(), cli.UpdateArgs{ReparentLuhmann: true}, deps, stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(stdout.String()).To(ContainSubstring("no candidates found"))
+	writeErr := cli.ExportWriteUpdateReport(&buffer, report)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	out := buffer.String()
+	g.Expect(out).To(ContainSubstring("[dry-run] engram update"))
+	g.Expect(out).To(ContainSubstring("source: local clone at ~/src/engram"))
+	g.Expect(out).To(ContainSubstring("binary: go install ./cmd/engram/"))
+	g.Expect(out).To(ContainSubstring("Claude Code (~/.claude/):"))
+	g.Expect(out).To(ContainSubstring("agent-instructions/skills/learn/ → ~/.claude/skills/learn/  (3 files)"))
+	g.Expect(out).To(ContainSubstring("agent-instructions/skills/recall/ → ~/.claude/skills/recall/  (1 file)"))
+	g.Expect(out).To(ContainSubstring("Pi (~/.pi/):"))
+	g.Expect(out).To(ContainSubstring("[dry-run] installed: Claude Code, Pi"))
 }
 
-func TestRunUpdate_WithGuidanceFlagMapsToOptions(t *testing.T) {
+// Test792b28c12a2_WriteUpdateReport_LocalSourceIncludesRevision covers
+// update-local-install-safety task 1: local mode's resolved revision must
+// show up in the report's source description alongside the clone path.
+func Test792b28c12a2_WriteUpdateReport_LocalSourceIncludesRevision(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	stdout := &bytes.Buffer{}
-	deps := cli.ExportNewUpdateDepsFrom(liveUpdateFS{}, stubCommander{}, liveUpdateEnv{home: isolatedUpdateHome(t)})
-
-	// Dry-run with --with-guidance; only verifies the flag maps to Options.
-	err := cli.ExportRunUpdate(
-		context.Background(), cli.UpdateArgs{DryRun: true, WithGuidance: true}, deps, stdout)
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("update"))
+	report := update.Report{
+		Home:       "/home/joe",
+		Source:     update.SourceInfo{Mode: update.SourceLocal, Root: "/home/joe/src/engram", Version: "abc1234"},
+		GoInstall:  "go install ./cmd/engram/",
+		BinaryPath: "/home/joe/go/bin/engram",
+		Harnesses: []update.HarnessReport{
+			{
+				Name:       update.HarnessClaude,
+				ProbeRoot:  ".claude",
+				SkillsRoot: "/home/joe/.claude/skills",
+			},
+		},
 	}
+
+	var buffer bytes.Buffer
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, report)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	out := buffer.String()
+	g.Expect(out).To(ContainSubstring("source: local clone at ~/src/engram (rev abc1234)"))
 }
 
-func TestTildify(t *testing.T) {
+func Test792b28c12a3_WriteUpdateReport_RealRunLocalNoVersion(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	report := update.Report{
+		Home:       "/home/joe",
+		Source:     update.SourceInfo{Mode: update.SourceLocal, Root: "/home/joe/src/engram"},
+		GoInstall:  "go install ./cmd/engram/",
+		BinaryPath: "/home/joe/go/bin/engram",
+		Harnesses: []update.HarnessReport{
+			{
+				Name:       update.HarnessClaude,
+				ProbeRoot:  ".claude",
+				SkillsRoot: "/home/joe/.claude/skills",
+				SkillDirs:  []update.SkillDirCount{{Name: "learn", Files: 3}},
+			},
+		},
+	}
+
+	var buffer bytes.Buffer
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, report)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	out := buffer.String()
+	g.Expect(out).
+		To(ContainSubstring("binary: go install ./cmd/engram/ ... ok (engram → ~/go/bin/engram)"))
+}
+
+func Test792b28c12a4_WriteUpdateReport_RealRunRemoteVersionAndBinary(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	report := update.Report{
+		Home:          "/home/joe",
+		Source:        update.SourceInfo{Mode: update.SourceRemote, Version: "v0.2.0"},
+		GoInstall:     "go install github.com/toejough/engram/cmd/engram@latest",
+		BinaryPath:    "/home/joe/go/bin/engram",
+		BinaryVersion: "v0.2.0",
+		Harnesses: []update.HarnessReport{
+			{
+				Name:       update.HarnessClaude,
+				ProbeRoot:  ".claude",
+				SkillsRoot: "/home/joe/.claude/skills",
+			},
+		},
+	}
+
+	var buffer bytes.Buffer
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, report)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	out := buffer.String()
+	g.Expect(out).To(ContainSubstring("ok (engram v0.2.0 → ~/go/bin/engram)"))
+	g.Expect(out).To(ContainSubstring("source: remote module github.com/toejough/engram v0.2.0"))
+}
+
+func Test792b28c12a5_DescribeSource_UnknownMode(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buffer bytes.Buffer
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{})
+	g.Expect(writeErr).NotTo(HaveOccurred())
+	g.Expect(buffer.String()).To(ContainSubstring("source: unknown"))
+}
+
+func Test792b28c12a6_Tildify(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -744,7 +726,58 @@ func TestTildify(t *testing.T) {
 	g.Expect(cli.ExportTildify("/home/joe/x", "")).To(Equal("/home/joe/x"))
 }
 
-// TestWriteUpdateReport_DryRunContractSweep pins the unified D9 dry-run
+func Test792b28c12a7_WriteUpdateReport_RemoteHarnessFailure(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	report := update.Report{
+		Source:    update.SourceInfo{Mode: update.SourceRemote, Version: "v0.2.0"},
+		GoInstall: "go install github.com/toejough/engram/cmd/engram@latest",
+		Harnesses: []update.HarnessReport{
+			{
+				Name:       update.HarnessClaude,
+				SkillsRoot: "/home/joe/.claude/skills",
+				Err:        errors.New("disk full"),
+			},
+		},
+	}
+
+	var buffer bytes.Buffer
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, report)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	out := buffer.String()
+	g.Expect(out).To(ContainSubstring("source: remote module github.com/toejough/engram v0.2.0"))
+	g.Expect(out).To(ContainSubstring("error: disk full"))
+	g.Expect(out).NotTo(ContainSubstring("installed:"))
+}
+
+func Test792b28c12a8_RunUpdate_DryRunFromCwd(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	stdout := &bytes.Buffer{}
+	deps := cli.ExportNewUpdateDepsFrom(liveUpdateFS{}, stubCommander{}, liveUpdateEnv{home: isolatedUpdateHome(t)})
+
+	// Dry-run against the live filesystem: cwd is inside the engram
+	// worktree, so source resolution picks local mode without `go install`.
+	err := cli.ExportRunUpdate(context.Background(), cli.UpdateArgs{DryRun: true}, deps, stdout)
+	out := stdout.String()
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("update"))
+
+		return
+	}
+
+	g.Expect(out).To(ContainSubstring("[dry-run] engram update"))
+	g.Expect(out).To(ContainSubstring("source: local clone at "))
+}
+
+// Test792b28c12a9_WriteUpdateReport_DryRunContractSweep pins the unified D9 dry-run
 // output contract (openspec/changes/update-deploy-as-sync tasks 7.1/7.2) in
 // one pass over a fixture exercising every op class the sync/materialization
 // engine reports: a sync deletion, a first-sync migration adoption, a
@@ -755,7 +788,7 @@ func TestTildify(t *testing.T) {
 // skill-row mapping) must NOT — pinning both #709's fix and its generalized
 // sibling (the "guidance deployed to..." hint) without regressing the
 // existing unprefixed-notice/unprefixed-mapping-row conventions.
-func TestWriteUpdateReport_DryRunContractSweep(t *testing.T) {
+func Test792b28c12a9_WriteUpdateReport_DryRunContractSweep(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -822,13 +855,166 @@ func TestWriteUpdateReport_DryRunContractSweep(t *testing.T) {
 	}
 }
 
-// TestWriteUpdateReport_DuplicatesHint asserts Unit 5's detect-and-notify
+func Test792b28c13a1_WriteUpdateReport_VocabMigrationHint(t *testing.T) {
+	t.Parallel()
+
+	table := []struct {
+		name            string
+		hasOldVocab     bool
+		wantContains    []string
+		wantNotContains []string
+	}{
+		{
+			name:            "old-vocab-present",
+			hasOldVocab:     true,
+			wantContains:    []string{"run `engram update --regen-vocab`"},
+			wantNotContains: []string{"Upgrading", "README.md"},
+		},
+		{
+			name:            "no-old-vocab",
+			hasOldVocab:     false,
+			wantNotContains: []string{"old-format vocab"},
+		},
+	}
+
+	for _, tc := range table {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			report := update.Report{
+				Home:                  "/home/joe",
+				Source:                update.SourceInfo{Mode: update.SourceLocal, Root: "/r"},
+				GoInstall:             "go install ./cmd/engram/",
+				VaultHasOldVocabFiles: tc.hasOldVocab,
+				Harnesses: []update.HarnessReport{
+					{
+						Name:       update.HarnessClaude,
+						ProbeRoot:  ".claude",
+						SkillsRoot: "/home/joe/.claude/skills",
+					},
+				},
+			}
+
+			var buffer bytes.Buffer
+
+			writeErr := cli.ExportWriteUpdateReport(&buffer, report)
+			g.Expect(writeErr).NotTo(HaveOccurred())
+
+			if writeErr != nil {
+				return
+			}
+
+			out := buffer.String()
+
+			for _, s := range tc.wantContains {
+				g.Expect(out).To(ContainSubstring(s))
+			}
+
+			for _, s := range tc.wantNotContains {
+				g.Expect(out).NotTo(ContainSubstring(s))
+			}
+		})
+	}
+}
+
+// Test792b28c13a2_WriteUpdateReport_VocabSelfTagHint pins the detect-and-notify surface
+// for the vocab-definition-self-tags upgrade (4f68fada): when the vault
+// holds definition notes missing their vocab/<term> self-tag, the report
+// names `engram vocab tag-definitions` inline; a fully-tagged vault prints
+// nothing (idempotent-clean); the notice coexists with the other hints.
+func Test792b28c13a2_WriteUpdateReport_VocabSelfTagHint(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buffer bytes.Buffer
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{VaultHasUntaggedVocabDefinitions: true})
+	g.Expect(writeErr).NotTo(HaveOccurred())
+	g.Expect(buffer.String()).To(ContainSubstring("run `engram vocab tag-definitions`"))
+	g.Expect(buffer.String()).NotTo(ContainSubstring("Upgrading"))
+	g.Expect(buffer.String()).NotTo(ContainSubstring("README.md"))
+
+	var clean bytes.Buffer
+
+	cleanErr := cli.ExportWriteUpdateReport(&clean, update.Report{VaultHasUntaggedVocabDefinitions: false})
+	g.Expect(cleanErr).NotTo(HaveOccurred())
+	g.Expect(clean.String()).NotTo(ContainSubstring("self-tag"))
+
+	// Coexists with the other upgrade notices.
+	var both bytes.Buffer
+
+	bothErr := cli.ExportWriteUpdateReport(&both, update.Report{
+		VaultHasOldVocabFiles:            true,
+		VaultHasUntaggedVocabDefinitions: true,
+	})
+	g.Expect(bothErr).NotTo(HaveOccurred())
+	g.Expect(both.String()).To(ContainSubstring("old-format vocab"))
+	g.Expect(both.String()).To(ContainSubstring("vocab tag-definitions"))
+}
+
+func Test792b28c13a3_WriteUpdateReport_LuhmannBranchingHint(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buffer bytes.Buffer
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{VaultHasOnlyTopLevelNotes: true})
+	g.Expect(writeErr).NotTo(HaveOccurred())
+	g.Expect(buffer.String()).To(ContainSubstring("engram update --reparent-luhmann"))
+	// #770/D4: the notice must also name the learn skill's batch mode as
+	// the answering procedure (update-flat-vault-luhmann-notice spec,
+	// "Notice names the answering procedure").
+	g.Expect(buffer.String()).To(ContainSubstring("batch mode"))
+
+	var clean bytes.Buffer
+
+	cleanErr := cli.ExportWriteUpdateReport(&clean, update.Report{VaultHasOnlyTopLevelNotes: false})
+	g.Expect(cleanErr).NotTo(HaveOccurred())
+	g.Expect(clean.String()).NotTo(ContainSubstring("reparent-luhmann"))
+}
+
+func Test792b28c13a4_WriteUpdateReport_EmptyChunkHint(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buffer bytes.Buffer
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{ChunkIndexHasEmptyFiles: true})
+	g.Expect(writeErr).NotTo(HaveOccurred())
+	g.Expect(buffer.String()).To(ContainSubstring("run `engram prune --empty`"))
+	g.Expect(buffer.String()).NotTo(ContainSubstring("Upgrading"))
+	g.Expect(buffer.String()).NotTo(ContainSubstring("README.md"))
+
+	var clean bytes.Buffer
+
+	cleanErr := cli.ExportWriteUpdateReport(&clean, update.Report{ChunkIndexHasEmptyFiles: false})
+	g.Expect(cleanErr).NotTo(HaveOccurred())
+	g.Expect(clean.String()).NotTo(ContainSubstring("empty chunk-index"))
+
+	// Both notices coexist when both conditions hold.
+	var both bytes.Buffer
+
+	bothErr := cli.ExportWriteUpdateReport(&both, update.Report{
+		VaultHasOldVocabFiles:   true,
+		ChunkIndexHasEmptyFiles: true,
+	})
+	g.Expect(bothErr).NotTo(HaveOccurred())
+	g.Expect(both.String()).To(ContainSubstring("empty chunk-index"))
+	g.Expect(both.String()).To(ContainSubstring("old-format vocab"))
+}
+
+// Test792b28c13a5_WriteUpdateReport_DuplicatesHint asserts Unit 5's detect-and-notify
 // surface: when a prunable duplicate backlog was detected — one `engram
 // prune --duplicates` would actually remove something from — the report
 // names that command inline with no README pointer (#713), and update
 // NEVER performs the removal itself (there is no removed/retained count
 // to report; this is purely a notice).
-func TestWriteUpdateReport_DuplicatesHint(t *testing.T) {
+func Test792b28c13a5_WriteUpdateReport_DuplicatesHint(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -859,35 +1045,274 @@ func TestWriteUpdateReport_DuplicatesHint(t *testing.T) {
 	g.Expect(both.String()).To(ContainSubstring("prune --duplicates"))
 }
 
-func TestWriteUpdateReport_EmptyChunkHint(t *testing.T) {
+// Test792b28c13a3_WriteUpdateReport_LuhmannBranchingHint pins the detect-and-notify
+// surface for a flat (all-top-level) vault: when VaultHasOnlyTopLevelNotes
+// is true, the report names `engram update --reparent-luhmann` inline; a
+// vault that already has branched notes prints nothing. This is a read-only
+// notice — nothing here ever mutates a vault note.
+func Test792b28c13a6_WriteUpdateReport_IdentityBackfillHint(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
 	var buffer bytes.Buffer
 
-	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{ChunkIndexHasEmptyFiles: true})
+	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{VaultHasNotesMissingIdentity: true})
 	g.Expect(writeErr).NotTo(HaveOccurred())
-	g.Expect(buffer.String()).To(ContainSubstring("run `engram prune --empty`"))
-	g.Expect(buffer.String()).NotTo(ContainSubstring("Upgrading"))
-	g.Expect(buffer.String()).NotTo(ContainSubstring("README.md"))
+	g.Expect(buffer.String()).To(ContainSubstring("engram update --backfill-identity"))
 
 	var clean bytes.Buffer
 
-	cleanErr := cli.ExportWriteUpdateReport(&clean, update.Report{ChunkIndexHasEmptyFiles: false})
+	cleanErr := cli.ExportWriteUpdateReport(&clean, update.Report{VaultHasNotesMissingIdentity: false})
 	g.Expect(cleanErr).NotTo(HaveOccurred())
-	g.Expect(clean.String()).NotTo(ContainSubstring("empty chunk-index"))
+	g.Expect(clean.String()).NotTo(ContainSubstring("backfill-identity"))
+}
 
-	// Both notices coexist when both conditions hold.
-	var both bytes.Buffer
+// Test792b28c14a1_WriteUpdateReport_VocabRegenReport pins #712's --regen-vocab report
+// rendering: VocabRegenRan renders the regen summary INSTEAD of the plain
+// migration notice (a run that just regenerated never repeats the notice it
+// acted on), a --dry-run regen reports "would remove", a real regen reports
+// "removed", and a regen that found nothing to do prints a cheap no-op line.
+func Test792b28c14a1_WriteUpdateReport_VocabRegenReport(t *testing.T) {
+	t.Parallel()
 
-	bothErr := cli.ExportWriteUpdateReport(&both, update.Report{
-		VaultHasOldVocabFiles:   true,
-		ChunkIndexHasEmptyFiles: true,
+	table := []struct {
+		name            string
+		report          update.Report
+		wantContains    []string
+		wantNotContains []string
+	}{
+		{
+			name: "real-run-removed",
+			report: update.Report{
+				VocabRegenRan:             true,
+				VocabRegenOldFilesRemoved: 2,
+				VocabRegenMembersCleaned:  1,
+				VocabRegenTermsSeeded:     1,
+				VocabRegenNotesAssigned:   3,
+			},
+			wantContains: []string{
+				"update --regen-vocab: removed 2 old-format file(s)",
+				"cleaned 1 member note(s)",
+				"seeded 1 term(s)",
+				"reassigned 3 note(s)",
+			},
+			wantNotContains: []string{"old-format vocab files found", "would remove"},
+		},
+		{
+			name: "dry-run-would-remove",
+			report: update.Report{
+				DryRun:                    true,
+				VocabRegenRan:             true,
+				VocabRegenOldFilesRemoved: 2,
+				VocabRegenMembersCleaned:  1,
+				VocabRegenTermsSeeded:     1,
+			},
+			wantContains:    []string{"[dry-run] update --regen-vocab: would remove 2 old-format file(s)"},
+			wantNotContains: []string{"old-format vocab files found", "removed 2"},
+		},
+		{
+			name:            "nothing-to-regenerate",
+			report:          update.Report{VocabRegenRan: true},
+			wantContains:    []string{"update --regen-vocab: nothing to regenerate"},
+			wantNotContains: []string{"old-format vocab files found"},
+		},
+		{
+			name:            "regen-ran-never-repeats-plain-notice",
+			report:          update.Report{VocabRegenRan: true, VaultHasOldVocabFiles: true},
+			wantNotContains: []string{"old-format vocab files found"},
+		},
+	}
+
+	for _, tc := range table {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			var buffer bytes.Buffer
+
+			writeErr := cli.ExportWriteUpdateReport(&buffer, tc.report)
+			g.Expect(writeErr).NotTo(HaveOccurred())
+
+			out := buffer.String()
+			for _, want := range tc.wantContains {
+				g.Expect(out).To(ContainSubstring(want))
+			}
+
+			for _, notWant := range tc.wantNotContains {
+				g.Expect(out).NotTo(ContainSubstring(notWant))
+			}
+		})
+	}
+}
+
+// Test792b28c14a4_WriteUpdateReport_IdentityBackfillReport verifies the --backfill-identity
+// summary (run) supersedes the plain notice, mirroring
+// Test792b28c14a1_WriteUpdateReport_VocabRegenReport's shape.
+func Test792b28c14a4_WriteUpdateReport_IdentityBackfillReport(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var nothing bytes.Buffer
+
+	nothingErr := cli.ExportWriteUpdateReport(&nothing, update.Report{
+		IdentityBackfillRan: true, VaultHasNotesMissingIdentity: true,
 	})
-	g.Expect(bothErr).NotTo(HaveOccurred())
-	g.Expect(both.String()).To(ContainSubstring("empty chunk-index"))
-	g.Expect(both.String()).To(ContainSubstring("old-format vocab"))
+	g.Expect(nothingErr).NotTo(HaveOccurred())
+	g.Expect(nothing.String()).To(ContainSubstring("update --backfill-identity: nothing to backfill"))
+	g.Expect(nothing.String()).NotTo(ContainSubstring("provenance found"))
+
+	var stamped bytes.Buffer
+
+	stampedErr := cli.ExportWriteUpdateReport(&stamped, update.Report{
+		IdentityBackfillRan: true, IdentityBackfillNotesStamped: 3,
+	})
+	g.Expect(stampedErr).NotTo(HaveOccurred())
+	g.Expect(stamped.String()).To(ContainSubstring("update --backfill-identity: stamped 3 note(s)"))
+
+	var dryRun bytes.Buffer
+
+	dryRunErr := cli.ExportWriteUpdateReport(&dryRun, update.Report{
+		DryRun: true, IdentityBackfillRan: true, IdentityBackfillNotesStamped: 3,
+	})
+	g.Expect(dryRunErr).NotTo(HaveOccurred())
+	g.Expect(dryRun.String()).To(ContainSubstring("[dry-run] update --backfill-identity: would stamp 3 note(s)"))
+}
+
+func Test792b28c15a1_AnyHarnessFailed(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	g.Expect(cli.ExportAnyHarnessFailed(update.Report{})).To(BeFalse())
+	g.Expect(cli.ExportAnyHarnessFailed(update.Report{
+		Harnesses: []update.HarnessReport{{}},
+	})).To(BeFalse())
+	g.Expect(cli.ExportAnyHarnessFailed(update.Report{
+		Harnesses: []update.HarnessReport{{Err: errors.New("boom")}},
+	})).To(BeTrue())
+	g.Expect(cli.ExportAnyHarnessFailed(update.Report{
+		Harnesses: []update.HarnessReport{{Err: errors.New("boom")}, {}},
+	})).To(BeTrue())
+}
+
+func Test792b28c15a1_FinishUpdate_AnyHarnessFailureIsAnError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buffer bytes.Buffer
+
+	report := update.Report{
+		Harnesses: []update.HarnessReport{{Name: "X", Err: errors.New("disk")}},
+	}
+
+	err := cli.ExportFinishUpdate(&buffer, report, nil)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("harness"))
+}
+
+func Test792b28c15a2_FinishUpdate_PartialFailureIsAnError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buffer bytes.Buffer
+
+	report := update.Report{
+		Source:    update.SourceInfo{Mode: update.SourceLocal, Root: "/r"},
+		GoInstall: "go install ./cmd/engram/",
+		Harnesses: []update.HarnessReport{
+			{Name: "A", Err: errors.New("disk")},
+			{Name: "B"},
+		},
+	}
+
+	err := cli.ExportFinishUpdate(&buffer, report, nil)
+	g.Expect(err).To(HaveOccurred())
+	// Report still written so the user sees per-harness detail.
+	g.Expect(buffer.String()).To(ContainSubstring("error: disk"))
+}
+
+func Test792b28c15a3_FinishUpdate_PropagatesRunError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buffer bytes.Buffer
+
+	runErr := errors.New("boom")
+	err := cli.ExportFinishUpdate(&buffer, update.Report{}, runErr)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(errors.Is(err, runErr)).To(BeTrue())
+}
+
+func Test792b28c15a4_FinishUpdate_HappyPath(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buffer bytes.Buffer
+
+	report := update.Report{
+		Source:    update.SourceInfo{Mode: update.SourceLocal, Root: "/r"},
+		GoInstall: "go install ./cmd/engram/",
+		Harnesses: []update.HarnessReport{{Name: "X"}},
+	}
+
+	err := cli.ExportFinishUpdate(&buffer, report, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func Test792b28c15a5_FinishUpdate_ExitStatusProperty(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		count := rapid.IntRange(1, 5).Draw(rt, "count")
+		fail := rapid.SliceOfN(rapid.Bool(), count, count).Draw(rt, "fail")
+
+		harnesses := make([]update.HarnessReport, 0, count)
+		anyFailed := false
+
+		for i, failed := range fail {
+			rep := update.HarnessReport{Name: update.Harness(rune('A' + i))}
+			if failed {
+				rep.Err = errors.New("boom")
+				anyFailed = true
+			}
+
+			harnesses = append(harnesses, rep)
+		}
+
+		report := update.Report{
+			Source:    update.SourceInfo{Mode: update.SourceLocal, Root: "/r"},
+			GoInstall: "go install ./cmd/engram/",
+			Harnesses: harnesses,
+		}
+
+		var buffer bytes.Buffer
+
+		err := cli.ExportFinishUpdate(&buffer, report, nil)
+		if anyFailed {
+			if err == nil {
+				rt.Fatalf("expected error when any harness failed, got nil")
+			}
+		} else if err != nil {
+			rt.Fatalf("expected no error when no harness failed, got %v", err)
+		}
+	})
+}
+
+func TestPluralFile(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	g.Expect(cli.ExportPluralFile(0)).To(Equal("files"))
+	g.Expect(cli.ExportPluralFile(1)).To(Equal("file"))
+	g.Expect(cli.ExportPluralFile(2)).To(Equal("files"))
 }
 
 func TestWriteUpdateReport_EngramRootNotice(t *testing.T) {
@@ -1208,164 +1633,6 @@ func TestWriteUpdateReport_GuidanceCanonicalPathHint_PiOmitted(t *testing.T) {
 	g.Expect(buffer.String()).NotTo(ContainSubstring("canonical:"))
 }
 
-// TestWriteUpdateReport_LuhmannBranchingHint pins the detect-and-notify
-// surface for a flat (all-top-level) vault: when VaultHasOnlyTopLevelNotes
-// is true, the report names `engram update --reparent-luhmann` inline; a
-// vault that already has branched notes prints nothing. This is a read-only
-// notice — nothing here ever mutates a vault note.
-func TestWriteUpdateReport_IdentityBackfillHint(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	var buffer bytes.Buffer
-
-	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{VaultHasNotesMissingIdentity: true})
-	g.Expect(writeErr).NotTo(HaveOccurred())
-	g.Expect(buffer.String()).To(ContainSubstring("engram update --backfill-identity"))
-
-	var clean bytes.Buffer
-
-	cleanErr := cli.ExportWriteUpdateReport(&clean, update.Report{VaultHasNotesMissingIdentity: false})
-	g.Expect(cleanErr).NotTo(HaveOccurred())
-	g.Expect(clean.String()).NotTo(ContainSubstring("backfill-identity"))
-}
-
-// TestWriteUpdateReport_IdentityBackfillReport verifies the --backfill-identity
-// summary (run) supersedes the plain notice, mirroring
-// TestWriteUpdateReport_VocabRegenReport's shape.
-func TestWriteUpdateReport_IdentityBackfillReport(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	var nothing bytes.Buffer
-
-	nothingErr := cli.ExportWriteUpdateReport(&nothing, update.Report{
-		IdentityBackfillRan: true, VaultHasNotesMissingIdentity: true,
-	})
-	g.Expect(nothingErr).NotTo(HaveOccurred())
-	g.Expect(nothing.String()).To(ContainSubstring("update --backfill-identity: nothing to backfill"))
-	g.Expect(nothing.String()).NotTo(ContainSubstring("provenance found"))
-
-	var stamped bytes.Buffer
-
-	stampedErr := cli.ExportWriteUpdateReport(&stamped, update.Report{
-		IdentityBackfillRan: true, IdentityBackfillNotesStamped: 3,
-	})
-	g.Expect(stampedErr).NotTo(HaveOccurred())
-	g.Expect(stamped.String()).To(ContainSubstring("update --backfill-identity: stamped 3 note(s)"))
-
-	var dryRun bytes.Buffer
-
-	dryRunErr := cli.ExportWriteUpdateReport(&dryRun, update.Report{
-		DryRun: true, IdentityBackfillRan: true, IdentityBackfillNotesStamped: 3,
-	})
-	g.Expect(dryRunErr).NotTo(HaveOccurred())
-	g.Expect(dryRun.String()).To(ContainSubstring("[dry-run] update --backfill-identity: would stamp 3 note(s)"))
-}
-
-func TestWriteUpdateReport_LocalDryRunWithBothHarnesses(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	report := update.Report{
-		DryRun:    true,
-		Home:      "/home/joe",
-		Source:    update.SourceInfo{Mode: update.SourceLocal, Root: "/home/joe/src/engram"},
-		GoInstall: "go install ./cmd/engram/",
-		Harnesses: []update.HarnessReport{
-			{
-				Name:       update.HarnessClaude,
-				ProbeRoot:  ".claude",
-				SkillsRoot: "/home/joe/.claude/skills",
-				SkillDirs: []update.SkillDirCount{
-					{Name: "learn", Files: 3},
-					{Name: "recall", Files: 1},
-				},
-			},
-			{
-				Name:       update.HarnessPi,
-				ProbeRoot:  ".pi",
-				SkillsRoot: "/home/joe/.pi/agent/skills",
-				SkillDirs: []update.SkillDirCount{
-					{Name: "learn", Files: 3},
-					{Name: "recall", Files: 1},
-				},
-			},
-		},
-	}
-
-	var buffer bytes.Buffer
-
-	writeErr := cli.ExportWriteUpdateReport(&buffer, report)
-	g.Expect(writeErr).NotTo(HaveOccurred())
-
-	out := buffer.String()
-	g.Expect(out).To(ContainSubstring("[dry-run] engram update"))
-	g.Expect(out).To(ContainSubstring("source: local clone at ~/src/engram"))
-	g.Expect(out).To(ContainSubstring("binary: go install ./cmd/engram/"))
-	g.Expect(out).To(ContainSubstring("Claude Code (~/.claude/):"))
-	g.Expect(out).To(ContainSubstring("agent-instructions/skills/learn/ → ~/.claude/skills/learn/  (3 files)"))
-	g.Expect(out).To(ContainSubstring("agent-instructions/skills/recall/ → ~/.claude/skills/recall/  (1 file)"))
-	g.Expect(out).To(ContainSubstring("Pi (~/.pi/):"))
-	g.Expect(out).To(ContainSubstring("[dry-run] installed: Claude Code, Pi"))
-}
-
-// TestWriteUpdateReport_LocalSourceIncludesRevision covers
-// update-local-install-safety task 1: local mode's resolved revision must
-// show up in the report's source description alongside the clone path.
-func TestWriteUpdateReport_LocalSourceIncludesRevision(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	report := update.Report{
-		Home:       "/home/joe",
-		Source:     update.SourceInfo{Mode: update.SourceLocal, Root: "/home/joe/src/engram", Version: "abc1234"},
-		GoInstall:  "go install ./cmd/engram/",
-		BinaryPath: "/home/joe/go/bin/engram",
-		Harnesses: []update.HarnessReport{
-			{
-				Name:       update.HarnessClaude,
-				ProbeRoot:  ".claude",
-				SkillsRoot: "/home/joe/.claude/skills",
-			},
-		},
-	}
-
-	var buffer bytes.Buffer
-
-	writeErr := cli.ExportWriteUpdateReport(&buffer, report)
-	g.Expect(writeErr).NotTo(HaveOccurred())
-
-	out := buffer.String()
-	g.Expect(out).To(ContainSubstring("source: local clone at ~/src/engram (rev abc1234)"))
-}
-
-func TestWriteUpdateReport_LuhmannBranchingHint(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	var buffer bytes.Buffer
-
-	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{VaultHasOnlyTopLevelNotes: true})
-	g.Expect(writeErr).NotTo(HaveOccurred())
-	g.Expect(buffer.String()).To(ContainSubstring("engram update --reparent-luhmann"))
-	// #770/D4: the notice must also name the learn skill's batch mode as
-	// the answering procedure (update-flat-vault-luhmann-notice spec,
-	// "Notice names the answering procedure").
-	g.Expect(buffer.String()).To(ContainSubstring("batch mode"))
-
-	var clean bytes.Buffer
-
-	cleanErr := cli.ExportWriteUpdateReport(&clean, update.Report{VaultHasOnlyTopLevelNotes: false})
-	g.Expect(cleanErr).NotTo(HaveOccurred())
-	g.Expect(clean.String()).NotTo(ContainSubstring("reparent-luhmann"))
-}
-
 // TestWriteUpdateReport_PendingOfferHint covers vault-offer-curation's
 // engram-update notice: VaultHasPendingOffers=true names the pending_offers
 // query flag; false prints nothing. Unlike backfill-identity, there is no
@@ -1393,94 +1660,6 @@ func TestWriteUpdateReport_PendingOfferHint(t *testing.T) {
 	g.Expect(clean.String()).NotTo(ContainSubstring("pending offer"))
 }
 
-func TestWriteUpdateReport_RealRunLocalNoVersion(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	report := update.Report{
-		Home:       "/home/joe",
-		Source:     update.SourceInfo{Mode: update.SourceLocal, Root: "/home/joe/src/engram"},
-		GoInstall:  "go install ./cmd/engram/",
-		BinaryPath: "/home/joe/go/bin/engram",
-		Harnesses: []update.HarnessReport{
-			{
-				Name:       update.HarnessClaude,
-				ProbeRoot:  ".claude",
-				SkillsRoot: "/home/joe/.claude/skills",
-				SkillDirs:  []update.SkillDirCount{{Name: "learn", Files: 3}},
-			},
-		},
-	}
-
-	var buffer bytes.Buffer
-
-	writeErr := cli.ExportWriteUpdateReport(&buffer, report)
-	g.Expect(writeErr).NotTo(HaveOccurred())
-
-	out := buffer.String()
-	g.Expect(out).
-		To(ContainSubstring("binary: go install ./cmd/engram/ ... ok (engram → ~/go/bin/engram)"))
-}
-
-func TestWriteUpdateReport_RealRunRemoteVersionAndBinary(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	report := update.Report{
-		Home:          "/home/joe",
-		Source:        update.SourceInfo{Mode: update.SourceRemote, Version: "v0.2.0"},
-		GoInstall:     "go install github.com/toejough/engram/cmd/engram@latest",
-		BinaryPath:    "/home/joe/go/bin/engram",
-		BinaryVersion: "v0.2.0",
-		Harnesses: []update.HarnessReport{
-			{
-				Name:       update.HarnessClaude,
-				ProbeRoot:  ".claude",
-				SkillsRoot: "/home/joe/.claude/skills",
-			},
-		},
-	}
-
-	var buffer bytes.Buffer
-
-	writeErr := cli.ExportWriteUpdateReport(&buffer, report)
-	g.Expect(writeErr).NotTo(HaveOccurred())
-
-	out := buffer.String()
-	g.Expect(out).To(ContainSubstring("ok (engram v0.2.0 → ~/go/bin/engram)"))
-	g.Expect(out).To(ContainSubstring("source: remote module github.com/toejough/engram v0.2.0"))
-}
-
-func TestWriteUpdateReport_RemoteHarnessFailure(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	report := update.Report{
-		Source:    update.SourceInfo{Mode: update.SourceRemote, Version: "v0.2.0"},
-		GoInstall: "go install github.com/toejough/engram/cmd/engram@latest",
-		Harnesses: []update.HarnessReport{
-			{
-				Name:       update.HarnessClaude,
-				SkillsRoot: "/home/joe/.claude/skills",
-				Err:        errors.New("disk full"),
-			},
-		},
-	}
-
-	var buffer bytes.Buffer
-
-	writeErr := cli.ExportWriteUpdateReport(&buffer, report)
-	g.Expect(writeErr).NotTo(HaveOccurred())
-
-	out := buffer.String()
-	g.Expect(out).To(ContainSubstring("source: remote module github.com/toejough/engram v0.2.0"))
-	g.Expect(out).To(ContainSubstring("error: disk full"))
-	g.Expect(out).NotTo(ContainSubstring("installed:"))
-}
-
 // TestWriteUpdateReport_SkillRegistrationErrorHint covers update-deploy-sync:
 // "Registration failures SHALL be reported" — a non-empty
 // SkillRegistrationErr prints a one-line notice; an empty one is silent.
@@ -1500,185 +1679,6 @@ func TestWriteUpdateReport_SkillRegistrationErrorHint(t *testing.T) {
 	cleanErr := cli.ExportWriteUpdateReport(&clean, update.Report{})
 	g.Expect(cleanErr).NotTo(HaveOccurred())
 	g.Expect(clean.String()).NotTo(ContainSubstring("skill registration error"))
-}
-
-func TestWriteUpdateReport_VocabMigrationHint(t *testing.T) {
-	t.Parallel()
-
-	table := []struct {
-		name            string
-		hasOldVocab     bool
-		wantContains    []string
-		wantNotContains []string
-	}{
-		{
-			name:            "old-vocab-present",
-			hasOldVocab:     true,
-			wantContains:    []string{"run `engram update --regen-vocab`"},
-			wantNotContains: []string{"Upgrading", "README.md"},
-		},
-		{
-			name:            "no-old-vocab",
-			hasOldVocab:     false,
-			wantNotContains: []string{"old-format vocab"},
-		},
-	}
-
-	for _, tc := range table {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			g := NewWithT(t)
-
-			report := update.Report{
-				Home:                  "/home/joe",
-				Source:                update.SourceInfo{Mode: update.SourceLocal, Root: "/r"},
-				GoInstall:             "go install ./cmd/engram/",
-				VaultHasOldVocabFiles: tc.hasOldVocab,
-				Harnesses: []update.HarnessReport{
-					{
-						Name:       update.HarnessClaude,
-						ProbeRoot:  ".claude",
-						SkillsRoot: "/home/joe/.claude/skills",
-					},
-				},
-			}
-
-			var buffer bytes.Buffer
-
-			writeErr := cli.ExportWriteUpdateReport(&buffer, report)
-			g.Expect(writeErr).NotTo(HaveOccurred())
-
-			if writeErr != nil {
-				return
-			}
-
-			out := buffer.String()
-
-			for _, s := range tc.wantContains {
-				g.Expect(out).To(ContainSubstring(s))
-			}
-
-			for _, s := range tc.wantNotContains {
-				g.Expect(out).NotTo(ContainSubstring(s))
-			}
-		})
-	}
-}
-
-// TestWriteUpdateReport_VocabRegenReport pins #712's --regen-vocab report
-// rendering: VocabRegenRan renders the regen summary INSTEAD of the plain
-// migration notice (a run that just regenerated never repeats the notice it
-// acted on), a --dry-run regen reports "would remove", a real regen reports
-// "removed", and a regen that found nothing to do prints a cheap no-op line.
-func TestWriteUpdateReport_VocabRegenReport(t *testing.T) {
-	t.Parallel()
-
-	table := []struct {
-		name            string
-		report          update.Report
-		wantContains    []string
-		wantNotContains []string
-	}{
-		{
-			name: "real-run-removed",
-			report: update.Report{
-				VocabRegenRan:             true,
-				VocabRegenOldFilesRemoved: 2,
-				VocabRegenMembersCleaned:  1,
-				VocabRegenTermsSeeded:     1,
-				VocabRegenNotesAssigned:   3,
-			},
-			wantContains: []string{
-				"update --regen-vocab: removed 2 old-format file(s)",
-				"cleaned 1 member note(s)",
-				"seeded 1 term(s)",
-				"reassigned 3 note(s)",
-			},
-			wantNotContains: []string{"old-format vocab files found", "would remove"},
-		},
-		{
-			name: "dry-run-would-remove",
-			report: update.Report{
-				DryRun:                    true,
-				VocabRegenRan:             true,
-				VocabRegenOldFilesRemoved: 2,
-				VocabRegenMembersCleaned:  1,
-				VocabRegenTermsSeeded:     1,
-			},
-			wantContains:    []string{"[dry-run] update --regen-vocab: would remove 2 old-format file(s)"},
-			wantNotContains: []string{"old-format vocab files found", "removed 2"},
-		},
-		{
-			name:            "nothing-to-regenerate",
-			report:          update.Report{VocabRegenRan: true},
-			wantContains:    []string{"update --regen-vocab: nothing to regenerate"},
-			wantNotContains: []string{"old-format vocab files found"},
-		},
-		{
-			name:            "regen-ran-never-repeats-plain-notice",
-			report:          update.Report{VocabRegenRan: true, VaultHasOldVocabFiles: true},
-			wantNotContains: []string{"old-format vocab files found"},
-		},
-	}
-
-	for _, tc := range table {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			g := NewWithT(t)
-
-			var buffer bytes.Buffer
-
-			writeErr := cli.ExportWriteUpdateReport(&buffer, tc.report)
-			g.Expect(writeErr).NotTo(HaveOccurred())
-
-			out := buffer.String()
-			for _, want := range tc.wantContains {
-				g.Expect(out).To(ContainSubstring(want))
-			}
-
-			for _, notWant := range tc.wantNotContains {
-				g.Expect(out).NotTo(ContainSubstring(notWant))
-			}
-		})
-	}
-}
-
-// TestWriteUpdateReport_VocabSelfTagHint pins the detect-and-notify surface
-// for the vocab-definition-self-tags upgrade (4f68fada): when the vault
-// holds definition notes missing their vocab/<term> self-tag, the report
-// names `engram vocab tag-definitions` inline; a fully-tagged vault prints
-// nothing (idempotent-clean); the notice coexists with the other hints.
-func TestWriteUpdateReport_VocabSelfTagHint(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	var buffer bytes.Buffer
-
-	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{VaultHasUntaggedVocabDefinitions: true})
-	g.Expect(writeErr).NotTo(HaveOccurred())
-	g.Expect(buffer.String()).To(ContainSubstring("run `engram vocab tag-definitions`"))
-	g.Expect(buffer.String()).NotTo(ContainSubstring("Upgrading"))
-	g.Expect(buffer.String()).NotTo(ContainSubstring("README.md"))
-
-	var clean bytes.Buffer
-
-	cleanErr := cli.ExportWriteUpdateReport(&clean, update.Report{VaultHasUntaggedVocabDefinitions: false})
-	g.Expect(cleanErr).NotTo(HaveOccurred())
-	g.Expect(clean.String()).NotTo(ContainSubstring("self-tag"))
-
-	// Coexists with the other upgrade notices.
-	var both bytes.Buffer
-
-	bothErr := cli.ExportWriteUpdateReport(&both, update.Report{
-		VaultHasOldVocabFiles:            true,
-		VaultHasUntaggedVocabDefinitions: true,
-	})
-	g.Expect(bothErr).NotTo(HaveOccurred())
-	g.Expect(both.String()).To(ContainSubstring("old-format vocab"))
-	g.Expect(both.String()).To(ContainSubstring("vocab tag-definitions"))
 }
 
 // fixedHomeUpdateEnv is a fake update.Env with a fixed home dir and

@@ -843,7 +843,7 @@ writes a handoff report (the install result — source and binary lines) and
 re-execs the freshly installed binary (loop-guarded via
 `ENGRAM_UPDATE_REEXEC`) so the sync/check phase runs with the new logic
 rather than the old process's stale in-memory code; a spawn failure falls
-back to completing in-process and reports why (ADR-0023). `--dry-run` shows
+back to completing in-process and reports why ([792a11e](changes/792_documentation-framework-adoption/792a_product-spec.md#792a11e-the-rest-of-the-update-runs-in-the-new-binary)). `--dry-run` shows
 the diff without writing (and never installs or re-execs). `--with-guidance`
 additionally deploys the guidance docs
 (`recall.md`, `delegate.md`, `learn.md`) to `~/.claude/engram/` (Claude Code) and

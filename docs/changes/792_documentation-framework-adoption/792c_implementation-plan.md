@@ -234,8 +234,8 @@ flowchart TD
   N792c7i1["792c7i1 vault-migration product spec<br/>Complete"]
   N792c7i2["792c7i2 note-reparenting tech spec<br/>Complete"]
   N792c7j1["792c7j1 install-and-update product spec<br/>Complete"]
-  N792c7j2["792c7j2 self-installer tech spec<br/>Ready"]
-  N792c7j3["792c7j3 harness-deploy-sync tech spec<br/>Blocked by: 792c7j2"]
+  N792c7j2["792c7j2 self-installer tech spec<br/>Complete"]
+  N792c7j3["792c7j3 harness-deploy-sync tech spec<br/>Ready"]
   N792c7k1["792c7k1 skill-runbook-registration product spec<br/>Blocked by: 792c7j3"]
   N792c7k2["792c7k2 skill-source-discovery tech spec<br/>Blocked by: 792c7k1"]
   N792c7k3["792c7k3 skill-registration-ledger tech spec<br/>Blocked by: 792c7k2"]
@@ -3181,11 +3181,114 @@ Target: `792b28` (`docs/specs/technical/self-installer.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7j2a | Port the component contract to `792b28` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7j2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7j2c | Repoint stale references to `792b28` | Non-test action | Keeps live links valid | Not started |
-| 792c7j2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7j2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7j2a | Port the component contract to `792b28` | Non-test action | Documents the component in the framework format | Done |
+| 792c7j2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7j2c | Repoint stale references to `792b28` | Non-test action | Keeps live links valid | Done |
+| 792c7j2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7j2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+792b28 has fifteen requirements (792b28c1 to 792b28c15): the install location, the source choice, the
+preconditions, the local install, the clone install, the model check, the downgrade gate, the installs
+that are skipped, the hand-off, the update run and its flags, the checks after the deploy, the report, the
+notices, the summaries of the opt-in flags and the exit status (792d104). It maps 50 product scenarios
+of 792a11, 792a10 and 792a6, including the notice and routing scenarios that 792c7i1 and 792c7e3 left
+unmapped (792d101, 792d89). Legacy removal: ADR-0023, `update-self-reexec` and
+`update-local-install-safety` are deleted; the c1 install sequence is deleted and the c1 R5 row, the c2
+and c3 install clauses and the README and GLOSSARY citations of ADR-0023 point at 792b28 or 792a11e.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b28c8a1 | `TestRun_DryRun_NeverInstallsOrSpawns` → `Test792b28c8a1_Run_DryRun_NeverInstallsOrSpawns` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) | Only the revision lookup runs; no spawn, no exit code | Done |
+| 792b28c9a5 | `TestRun_HandoffFails_PropagatesErrorWithoutSpawningOrFallback` → `Test792b28c9a5_Run_HandoffFails_PropagatesErrorWithoutSpawningOrFallback` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) | A failed hand-off report aborts with no spawn and no fallback | Done |
+| 792b28c9a3 | `TestRun_InstallSucceeds_ReportNotMarkedReexecChild` → `Test792b28c9a3_Run_InstallSucceeds_ReportNotMarkedReexecChild` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) | The parent report is not a handed-off run's | Done |
+| 792b28c9a1 | `TestRun_InstallSucceeds_SpawnsInstalledPathWithSentinelEnvAndOriginalArgs` → `Test792b28c9a1_Run_InstallSucceeds_SpawnsInstalledPathWithSentinelEnvAndOriginalArgs` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) | Install location, arguments, sentinel and verbatim exit code 7 | Done |
+| 792b28c9a2 | `TestRun_InstallSucceeds_WritesHandoffReportBeforeSpawning` → `Test792b28c9a2_Run_InstallSucceeds_WritesHandoffReportBeforeSpawning` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) | Reporter before spawner | Done |
+| 792b28c8a3 | `TestRun_SentinelSet_ReportMarkedReexecChildAndNoInstallClaim` → `Test792b28c8a3_Run_SentinelSet_ReportMarkedReexecChildAndNoInstallClaim` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) | Handed-off report marker | Done |
+| 792b28c8a2 | `TestRun_SentinelSet_SkipsInstallAndSpawnRunsInProcess` → `Test792b28c8a2_Run_SentinelSet_SkipsInstallAndSpawnRunsInProcess` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) | No install, no spawn, the deploy completes here | Done |
+| 792b28c9a4 | `TestRun_SpawnFails_FallsBackInProcessAndRecordsReport` → `Test792b28c9a4_Run_SpawnFails_FallsBackInProcessAndRecordsReport` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) | Fallback note with the cause, full in-process run | Done |
+| 792b28c7a3 | `TestUpdater_Run_Local_NoPriorBinary_ProceedsNoCheck` → `Test792b28c7a3_Updater_Run_Local_NoPriorBinary_ProceedsNoCheck` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) | No `go version -m` without a prior binary | Done |
+| 792b28c7a2 | `TestUpdater_Run_Local_ProvableDowngrade_AllowDowngradeBypasses` → `Test792b28c7a2_Updater_Run_Local_ProvableDowngrade_AllowDowngradeBypasses` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) | Install runs, ancestry check never runs | Done |
+| 792b28c7a1 | `TestUpdater_Run_Local_ProvableDowngrade_Refused` → `Test792b28c7a1_Updater_Run_Local_ProvableDowngrade_Refused` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) | ErrLocalDowngrade names both revisions and the flag; no install | Done |
+| 792b28c7a4 | `TestUpdater_Run_Local_UnknownInstalledRevision_FailsOpen` → `Test792b28c7a4_Updater_Run_Local_UnknownInstalledRevision_FailsOpen` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) | `fatal:` output fails open; the revision is still reported | Done |
+| 792b28c7a5 | `TestUpdater_Run_Local_UnparseableInstalledRevision_FailsOpen` → `Test792b28c7a5_Updater_Run_Local_UnparseableInstalledRevision_FailsOpen` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) | No `vcs.revision` line skips the ancestry check | Done |
+| 792b28c1a1 | `TestResolveBinaryPath` → `Test792b28c1a1_ResolveBinaryPath` | Pure unit, table subtests | GOBIN wins; the GOPATH and home subtests verify 792b28c1a2 and 792b28c1a3 (`split deferred`) | Done |
+| 792b28c2a5 | `TestFirstModuleLine_LeadingBlankAndComment` → `Test792b28c2a5_FirstModuleLine_LeadingBlankAndComment` | Pure unit (the module walk over a fake commander, filesystem and spawner) | Blank and comment lines before the module line | Done |
+| 792b28c2a7 | `TestFirstModuleLine_NotModule` → `Test792b28c2a7_FirstModuleLine_NotModule` | Pure unit (the module walk over a fake commander, filesystem and spawner) | A first directive that is not `module` | Done |
+| 792b28c2a6 | `TestFirstModuleLine_TrailingComment` → `Test792b28c2a6_FirstModuleLine_TrailingComment` | Pure unit (the module walk over a fake commander, filesystem and spawner) | A trailing comment on the module line | Done |
+| 792b28c8a1 | `TestUpdater_Run_DryRun_NoWritesNoCommands` → `Test792b28c8a1_Updater_Run_DryRun_NoWritesNoCommands` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) | Only the revision lookup runs; also verifies the dry-run deploy in harness-deploy-sync (`split deferred`) | Done |
+| 792b28c4a5 | `TestUpdater_Run_GoInstallFails` → `Test792b28c4a5_Updater_Run_GoInstallFails` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) | The install failure is wrapped | Done |
+| 792b28c4a1 | `TestUpdater_Run_Local_GoInstallRunsFromModuleRoot` → `Test792b28c4a1_Updater_Run_Local_GoInstallRunsFromModuleRoot` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) | Both commands run in the module root | Done |
+| 792b28c4a2 | `TestUpdater_Run_Local_HappyPath` → `Test792b28c4a2_Updater_Run_Local_HappyPath` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) | Revision lookup then install; also verifies the deploy scenarios of harness-deploy-sync (`split deferred`) | Done |
+| 792b28c4a2 | `TestUpdater_Run_Local_ResolvesRevision` → `Test792b28c4a2_Updater_Run_Local_ResolvesRevision` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) | The revision is reported | Done |
+| 792b28c3a3 | `TestUpdater_Run_NoCwdReturnsError` → `Test792b28c3a3_Updater_Run_NoCwdReturnsError` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) | `getwd` error | Done |
+| 792b28c3a2 | `TestUpdater_Run_NoHarness` → `Test792b28c3a2_Updater_Run_NoHarness` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) | ErrNoHarness before any command | Done |
+| 792b28c3a1 | `TestUpdater_Run_NoHomeReturnsError` → `Test792b28c3a1_Updater_Run_NoHomeReturnsError` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) | `resolving home` error | Done |
+| 792b28c5a3 | `TestUpdater_Run_RemoteCloneFailures` → `Test792b28c5a3_Updater_Run_RemoteCloneFailures` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) | git missing; the clone-failure and unreadable-model cases verify 792b28c5a4 and 792b28c6a3 (`split deferred`) | Done |
+| 792b28c5a1 | `TestUpdater_Run_RemoteClonesForLFSAndBuildsFromClone` → `Test792b28c5a1_Updater_Run_RemoteClonesForLFSAndBuildsFromClone` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) | Shallow clone, build in the clone, no `@latest`; the real-model case also verifies 792b28c6a4 (`split deferred`) | Done |
+| 792b28c6a1 | `TestUpdater_Run_RemoteModelStubFailsWithGuidance` → `Test792b28c6a1_Updater_Run_RemoteModelStubFailsWithGuidance` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) | Pointer refused with git-lfs guidance; no install | Done |
+| 792b28c5a5 | `TestUpdater_Run_Remote_HappyPath` → `Test792b28c5a5_Updater_Run_Remote_HappyPath` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) | Source is the clone; both harnesses deployed from it | Done |
+| 792b28c2a1 | `TestWalkUpForModule_FoundAtStart` → `Test792b28c2a1_WalkUpForModule_FoundAtStart` | Pure unit (in-memory filesystem) | Module at the working directory | Done |
+| 792b28c2a2 | `TestWalkUpForModule_FoundInAncestor` → `Test792b28c2a2_WalkUpForModule_FoundInAncestor` | Pure unit (in-memory filesystem) | Module in an ancestor | Done |
+| 792b28c2a3 | `TestWalkUpForModule_NotFound` → `Test792b28c2a3_WalkUpForModule_NotFound` | Pure unit (in-memory filesystem) | No go.mod | Done |
+| 792b28c2a9 | `TestWalkUpForModule_Property_TerminatesForAnyPath` → `Test792b28c2a9_WalkUpForModule_Property_TerminatesForAnyPath` | Property (rapid) | The walk ends for any path | Done |
+| 792b28c2a8 | `TestWalkUpForModule_ReadFileErrorPropagates` → `Test792b28c2a8_WalkUpForModule_ReadFileErrorPropagates` | Pure unit (in-memory filesystem) | Unreadable go.mod | Done |
+| 792b28c2a4 | `TestWalkUpForModule_WrongModuleStopsWalk` → `Test792b28c2a4_WalkUpForModule_WrongModuleStopsWalk` | Pure unit (in-memory filesystem) | Another module ends the walk | Done |
+| 792b28c10a6 | `TestRunUpdate_ReexecFallback_ProceedsAsToday` → `Test792b28c10a6_RunUpdate_ReexecFallback_ProceedsAsToday` | Pure unit (`runUpdate` over a fake filesystem, commander, spawner and exit function) | No exit call; fallback note and installed line | Done |
+| 792b28c10a4 | `TestRunUpdate_ReexecHandoff_ExitsBeforeVaultChecks` → `Test792b28c10a4_RunUpdate_ReexecHandoff_ExitsBeforeVaultChecks` | Pure unit (`runUpdate` over a fake filesystem, commander, spawner and exit function) | One exit call with 9; no installed line; one header | Done |
+| 792b28c10a5 | `TestRunUpdate_ReexecHandoff_WritesHeaderBeforeSpawning` → `Test792b28c10a5_RunUpdate_ReexecHandoff_WritesHeaderBeforeSpawning` | Pure unit (`runUpdate` over a fake filesystem, commander, spawner and exit function) | Header on the output when the child starts | Done |
+| 792b28c10a7 | `TestRunUpdate_SentinelRun_NeverClaimsAnInstall` → `Test792b28c10a7_RunUpdate_SentinelRun_NeverClaimsAnInstall` | Pure unit (`runUpdate` over a fake filesystem, commander, spawner and exit function) | No header, no install claim, installed line present | Done |
+| 792b28c4a4 | `TestInvariant_U1_MissingGoSentinel` → `Test792b28c4a4_Invariant_U1_MissingGoSentinel` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) and `finishUpdate` | ErrGoNotFound survives the report tail | Done |
+| 792b28c3a2 | `TestInvariant_U1_NoHarnessSentinel` → `Test792b28c3a2_Invariant_U1_NoHarnessSentinel` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) and `finishUpdate` | ErrNoHarness survives the report tail | Done |
+| 792b28c15a6 | `TestInvariant_U1_SkillsSrcMissingSentinel` → `Test792b28c15a6_Invariant_U1_SkillsSrcMissingSentinel` | Pure unit (`Updater.Run` over a fake commander, filesystem and spawner) and `finishUpdate` | ErrSkillsSrcMissing survives the report tail | Done |
+| 792b28c15a1 | `TestAnyHarnessFailed` → `Test792b28c15a1_AnyHarnessFailed` | Pure unit (`finishUpdate`) | The failure predicate over empty, healthy and failed harnesses | Done |
+| 792b28c12a5 | `TestDescribeSource_UnknownMode` → `Test792b28c12a5_DescribeSource_UnknownMode` | Pure unit (report writer) | Unset source mode reads unknown | Done |
+| 792b28c15a1 | `TestFinishUpdate_AnyHarnessFailureIsAnError` → `Test792b28c15a1_FinishUpdate_AnyHarnessFailureIsAnError` | Pure unit (`finishUpdate`) | A harness error is the harnesses-failed error | Done |
+| 792b28c15a5 | `TestFinishUpdate_ExitStatusProperty` → `Test792b28c15a5_FinishUpdate_ExitStatusProperty` | Property (rapid) over `finishUpdate` | Error exactly when a harness failed | Done |
+| 792b28c15a4 | `TestFinishUpdate_HappyPath` → `Test792b28c15a4_FinishUpdate_HappyPath` | Pure unit (`finishUpdate`) | Clean run, no error | Done |
+| 792b28c15a2 | `TestFinishUpdate_PartialFailureIsAnError` → `Test792b28c15a2_FinishUpdate_PartialFailureIsAnError` | Pure unit (`finishUpdate`) | One failure among successes | Done |
+| 792b28c15a3 | `TestFinishUpdate_PropagatesRunError` → `Test792b28c15a3_FinishUpdate_PropagatesRunError` | Pure unit (`finishUpdate`) | Wrapped, chain kept | Done |
+| 792b28c11a2 | `TestRunUpdate_BackfillIdentityFlag_RunsBackfillAndUpdatesReport` → `Test792b28c11a2_RunUpdate_BackfillIdentityFlag_RunsBackfillAndUpdatesReport` | Pure unit (`runUpdate` over a fake filesystem, commander, spawner and exit function) | The flag runs the backfill and the summary replaces the notice | Done |
+| 792b28c12a8 | `TestRunUpdate_DryRunFromCwd` → `Test792b28c12a8_RunUpdate_DryRunFromCwd` | Pure unit (`runUpdate` over a fake filesystem, commander, spawner and exit function) over the live filesystem | A dry run from the repository names a local source | Done |
+| 792b28c11a3 | `TestRunUpdate_DryRunNeverTouchesRealHome` → `Test792b28c11a3_RunUpdate_DryRunNeverTouchesRealHome` | Pure unit (`runUpdate` over a fake filesystem, commander, spawner and exit function) with a path-recording filesystem | No path under the real home | Done |
+| 792b28c11a1 | `TestRunUpdate_RegenVocabFlag_RunsRegenAndUpdatesReport` → `Test792b28c11a1_RunUpdate_RegenVocabFlag_RunsRegenAndUpdatesReport` | Pure unit (`runUpdate` over a fake filesystem, commander, spawner and exit function) | The flag runs the regeneration and the summary replaces the notice | Done |
+| 792b28c10a1 | `TestRunUpdate_ReparentLuhmannFlag_ShortCircuitsToDeriveOnly` → `Test792b28c10a1_RunUpdate_ReparentLuhmannFlag_ShortCircuitsToDeriveOnly` | Pure unit (`runUpdate` over a fake filesystem, commander, spawner and exit function) with nil filesystem and commander | Derive-only output; the install and deploy would panic if reached | Done |
+| 792b28c10a3 | `TestRunUpdate_WithGuidanceFlagMapsToOptions` → `Test792b28c10a3_RunUpdate_WithGuidanceFlagMapsToOptions` | Pure unit (`runUpdate` over a fake filesystem, commander, spawner and exit function) over the live filesystem | The flag reaches the options (asserts only that a failure names update) | Done |
+| 792b28c12a6 | `TestTildify` → `Test792b28c12a6_Tildify` | Pure unit | Home-prefixed, foreign and empty-home paths | Done |
+| 792b28c12a9 | `TestWriteUpdateReport_DryRunContractSweep` → `Test792b28c12a9_WriteUpdateReport_DryRunContractSweep` | Pure unit (report writer) | Action lines prefixed, notices not; the lines of harness-deploy-sync (792b29) are verified too (`split deferred`) | Done |
+| 792b28c13a5 | `TestWriteUpdateReport_DuplicatesHint` → `Test792b28c13a5_WriteUpdateReport_DuplicatesHint` | Pure unit (report writer) | Notice on and off, coexisting with the empty-files notice | Done |
+| 792b28c13a4 | `TestWriteUpdateReport_EmptyChunkHint` → `Test792b28c13a4_WriteUpdateReport_EmptyChunkHint` | Pure unit (report writer) | Notice on and off, coexisting with the vocabulary notice | Done |
+| 792b28c13a6 | `TestWriteUpdateReport_IdentityBackfillHint` → `Test792b28c13a6_WriteUpdateReport_IdentityBackfillHint` | Pure unit (report writer) | Notice on and off | Done |
+| 792b28c14a4 | `TestWriteUpdateReport_IdentityBackfillReport` → `Test792b28c14a4_WriteUpdateReport_IdentityBackfillReport` | Pure unit (report writer) | Stamped summary replaces the notice; also verifies 792b28c14a5 and 792b28c14a6 (`split deferred`) | Done |
+| 792b28c12a1 | `TestWriteUpdateReport_LocalDryRunWithBothHarnesses` → `Test792b28c12a1_WriteUpdateReport_LocalDryRunWithBothHarnesses` | Pure unit (report writer) | Header, both harness sections and the dry-run installed line; the skill rows are 792b29's (`split deferred`) | Done |
+| 792b28c12a2 | `TestWriteUpdateReport_LocalSourceIncludesRevision` → `Test792b28c12a2_WriteUpdateReport_LocalSourceIncludesRevision` | Pure unit (report writer) | Revision beside the clone path | Done |
+| 792b28c13a3 | `TestWriteUpdateReport_LuhmannBranchingHint` → `Test792b28c13a3_WriteUpdateReport_LuhmannBranchingHint` | Pure unit (report writer) | Notice names the command and batch mode, off when clear | Done |
+| 792b28c12a3 | `TestWriteUpdateReport_RealRunLocalNoVersion` → `Test792b28c12a3_WriteUpdateReport_RealRunLocalNoVersion` | Pure unit (report writer) | `engram →` with no revision | Done |
+| 792b28c12a4 | `TestWriteUpdateReport_RealRunRemoteVersionAndBinary` → `Test792b28c12a4_WriteUpdateReport_RealRunRemoteVersionAndBinary` | Pure unit (report writer) | Remote source and `engram v0.2.0 →` | Done |
+| 792b28c12a7 | `TestWriteUpdateReport_RemoteHarnessFailure` → `Test792b28c12a7_WriteUpdateReport_RemoteHarnessFailure` | Pure unit (report writer) | `error:` line and no installed line | Done |
+| 792b28c13a1 | `TestWriteUpdateReport_VocabMigrationHint` → `Test792b28c13a1_WriteUpdateReport_VocabMigrationHint` | Pure unit (report writer) | Notice on and off | Done |
+| 792b28c14a1 | `TestWriteUpdateReport_VocabRegenReport` → `Test792b28c14a1_WriteUpdateReport_VocabRegenReport` | Pure unit (report writer) | Real-run summary replaces the notice; the dry-run, nothing-to-regenerate and never-repeats subtests verify 792b28c14a2 and 792b28c14a3 (`split deferred`) | Done |
+| 792b28c13a2 | `TestWriteUpdateReport_VocabSelfTagHint` → `Test792b28c13a2_WriteUpdateReport_VocabSelfTagHint` | Pure unit (report writer) | Notice on and off, coexisting with the old-format notice | Done |
+
+**Coverage gaps:** 792b28c4a3 (an unresolvable revision reads unknown), 792b28c5a2 (an earlier scratch
+clone is removed first), 792b28c6a2 (a model under one mebibyte that is not a pointer), 792b28c7a6 (a
+descendant installs), 792b28c8a4 (a remote dry run clones), 792b28c10a2 (the flags forwarded to the
+hand-off), 792b28c10a8 (a plain update never re-parents), 792b28c10a9 (the help), 792b28c11a4 (a failed
+run runs no checks), 792b28c13a8 (the order of the notices) and 792b28c15a7 (a report that cannot be
+written). The install, the downgrade refusal and the hand-off were run against a built binary with a
+`go` shim on PATH that copies the binary (792d104); the real `go install` of the clone was not.
+
+**No-scenario tests:** `update_deps_test` `TestNewUpdateDeps_CommanderPassesThrough`,
+`TestNewUpdateDeps_EnvDelegatesToDepsFuncs`, `TestNewUpdateDeps_FSAdapterLstatPreservesNotExist`,
+`TestNewUpdateDeps_FSAdapterLstatReadsThroughEdgeFS`, `TestNewUpdateDeps_FSAdapterPassesSymlinkFamilyThrough`,
+`TestNewUpdateDeps_FSAdapterPassesWriteSideThrough`, `TestNewUpdateDeps_FSAdapterPreservesNotExist`,
+`TestNewUpdateDeps_FSAdapterReadLinkReadsThroughEdgeFS`, `TestNewUpdateDeps_FSAdapterReadsThroughEdgeFS`
+(composition wiring of the update dependencies) and `TestNewUpdateDeps_ReparentDepsWireThrough` (wiring).
+The tests of `update_test` and the update package that verify the deploy, the links, the cleanup, the
+adoption, the guidance and the sync findings in the report are left to harness-deploy-sync (792c7j3);
+`TestWriteUpdateReport_PendingOfferHint` to curate (792c7u1) and `TestWriteUpdateReport_SkillRegistrationErrorHint`
+to skill-runbook-registration (792c7k1).
 
 #### 792c7j3 harness-deploy-sync tech spec
 
