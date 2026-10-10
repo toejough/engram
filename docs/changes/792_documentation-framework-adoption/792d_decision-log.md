@@ -2439,3 +2439,22 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792d37 and 792d53 (a dated record is not rewritten; live comments are), 792d31 (a legacy file is deleted once empty).
 - **Alternatives:** relocate `parallel-memory-agent-requirements.md` under #792 now. Rejected: 792d14 and 792e2. Delete it. Rejected: it is the only
   copy of an unbuilt feature's requirements, and 792e2 is Joe's call.
+
+## 792d131 The parallel memory agent design moves to change 793 (792e2 answered)
+
+- **Choice:**
+  - **Key.** Joe answered 792e2 with option 1: the design is rooted at the new issue #793. It now lives in
+    `docs/changes/793_parallel-memory-agent/` as `793a_product-spec.md`, `793b_decision-log.md` and `793c_open-questions.md`. The source file
+    `docs/deprecated/design/parallel-memory-agent-requirements.md` was deleted by this node.
+  - **Capability.** All 23 requirements are Added operations against one new canonical file, `docs/specs/product/automatic-memory.md`. The
+    feature replaces the agent's own initiative to recall and learn, so it fits none of 792a14, 792a15 or 792a19 (793b1).
+  - **IDs.** REC, CAP, CTL, IND and NFR requirements became `793a2a`–`793a2g`, `793a3a`–`793a3f`, `793a4a`–`793a4d` and `793a5a`–`793a5f`, each with
+    a "(formerly X)" note (793b2). The 31 draft scenarios keep their order; two scenarios were added to cover the prompt-time and tool-result bounds of
+    the volume requirement, which the product spec guide requires (793b3).
+  - **Dropped sections.** The Terms became problem-statement context. Scope, the coverage limits and the evidence traceability table moved to
+    `793b_decision-log.md` as context, because the guide allows a problem statement, requirements and UAT only (793b4, 793b5).
+  - **Open decisions.** The six Open Decisions became `793c1`–`793c6`. Values the draft marked [proposed] stay marked.
+- **Rationale:** 792d14 (the in-flight design becomes its own change), the product spec guide, and the lifecycle guide (change context is not
+  canonical).
+- **Alternatives:** split the requirements across the existing recall, learn and ambient-guidance capabilities. Rejected in 793b1. Promote the
+  requirements to `docs/specs/` now. Rejected: the feature is unbuilt and 792d44 excludes promotion.

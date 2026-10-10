@@ -31,6 +31,7 @@ by it can continue. Choices that need only validation, not input, are in
   3. Delete it and rely on git history.
 - **Recommendation:** 1.
 - **Blocks:** node 792c8b, and through it 792c8d and 792c8e. Default: none. The node waits.
+- **Answer:** option 1. Joe filed #793, and the design is rooted there (792d131).
 
 ## 792e3 Should the OpenSpec tooling be removed?
 
