@@ -100,7 +100,7 @@ type ServeRoute struct {
 	Handler ServeHandler
 }
 
-// RunServe starts the vault-serve-api HTTP server, blocking until ctx is
+// RunServe starts the vault-serving HTTP server (792a20), blocking until ctx is
 // canceled or an unrecoverable listen error occurs. args.Vault/VaultName/
 // ChunksDir must already be resolved by the caller (targets.go), same as
 // every other command — resolved once at startup, never from a served
@@ -141,8 +141,8 @@ func RunServe(ctx context.Context, args ServeArgs, deps Deps) error {
 	return nil
 }
 
-// ServeRoutes composes the served command set's HTTP routes (vault-serve-
-// api, design D7): exactly query and show (GET) and activate and learn
+// ServeRoutes composes the served command set's HTTP routes (792b35c1,
+// design D7): exactly query and show (GET) and activate and learn
 // (POST). amend, query-chunks and show-chunk have no route — children offer
 // amendments through learn, and chunks never cross vaults. Every handler
 // calls the existing code path for its command — no reimplementation of

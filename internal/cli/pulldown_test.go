@@ -40,6 +40,74 @@ func Test792a4n1c_Activate_MissWithoutParentFails(t *testing.T) {
 	g.Expect(env.parent.requests()).To(BeEmpty())
 }
 
+// Test792b35c7a5_ServeActivate_StatusByOutcome (ruling S18): a served activate
+// answers 5xx only for a server-side failure — none found is 404 and a
+// partial result 200, each with the per-ref result.
+func Test792b35c7a5_ServeActivate_StatusByOutcome(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]struct {
+		notes     []string
+		corrupt   bool
+		status    int
+		activated []string
+		failed    []string
+	}{
+		"none found": {notes: []string{"9.2026-01-01.gone.md"}, status: 404, failed: []string{"9.2026-01-01.gone.md"}},
+		"partial": {
+			notes: []string{"1.2026-01-01.a-note.md", "9.2026-01-01.gone.md"}, status: 200,
+			activated: []string{"1.2026-01-01.a-note.md"}, failed: []string{"9.2026-01-01.gone.md"},
+		},
+		"unreadable sidecar": {notes: []string{"1.2026-01-01.a-note.md"}, corrupt: true, status: 500},
+	}
+
+	for name, testCase := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			vault := t.TempDir()
+			notePath := writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
+
+			sidecar := embed.MarshalSidecar(embed.Sidecar{SchemaVersion: embed.SidecarSchemaVersion})
+			if testCase.corrupt {
+				sidecar = []byte("{not json")
+			}
+
+			g.Expect(os.WriteFile(embed.SidecarPath(notePath), sidecar, 0o600)).To(Succeed())
+
+			routes := cli.ServeRoutes(newTestDeps(&strings.Builder{}, &strings.Builder{}), vault, "personal", t.TempDir())
+
+			body, marshalErr := json.Marshal(map[string][]string{"notes": testCase.notes})
+			g.Expect(marshalErr).NotTo(HaveOccurred())
+
+			resp := routeFor(t, routes, "/activate").Serve(t.Context(), cli.ServeRequest{Body: body})
+			g.Expect(resp.Status).To(Equal(testCase.status))
+
+			if testCase.failed == nil {
+				return
+			}
+
+			var result struct {
+				Activated []string `json:"activated"`
+				Failed    []struct {
+					Ref string `json:"ref"`
+				} `json:"failed"`
+			}
+
+			g.Expect(json.Unmarshal(resp.Body, &result)).To(Succeed())
+			g.Expect(result.Activated).To(Equal(testCase.activated))
+
+			failedRefs := make([]string, 0, len(result.Failed))
+			for _, failure := range result.Failed {
+				failedRefs = append(failedRefs, failure.Ref)
+			}
+
+			g.Expect(failedRefs).To(Equal(testCase.failed))
+		})
+	}
+}
+
 // TestActivate_BareLuhmannIDStaysLocal (spec "Bare Luhmann IDs stay
 // local", M8): a bare ID — with or without .md, with or without --parent —
 // is never sent to the parent, and the ref is reported as failed.
@@ -875,74 +943,6 @@ func TestAmend_DiscardOfPulledNoteStampsNothingUnconfigured(t *testing.T) {
 	g.Expect(env.noteFiles()).To(BeEmpty())
 	g.Expect(filepath.Join(env.vault, ".engram-vault-id")).NotTo(BeAnExistingFile())
 	g.Expect(filepath.Join(env.vault, ".engram")).NotTo(BeADirectory())
-}
-
-// TestServeActivate_StatusByOutcome (ruling S18): a served activate
-// answers 5xx only for a server-side failure — none found is 404 and a
-// partial result 200, each with the per-ref result.
-func TestServeActivate_StatusByOutcome(t *testing.T) {
-	t.Parallel()
-
-	cases := map[string]struct {
-		notes     []string
-		corrupt   bool
-		status    int
-		activated []string
-		failed    []string
-	}{
-		"none found": {notes: []string{"9.2026-01-01.gone.md"}, status: 404, failed: []string{"9.2026-01-01.gone.md"}},
-		"partial": {
-			notes: []string{"1.2026-01-01.a-note.md", "9.2026-01-01.gone.md"}, status: 200,
-			activated: []string{"1.2026-01-01.a-note.md"}, failed: []string{"9.2026-01-01.gone.md"},
-		},
-		"unreadable sidecar": {notes: []string{"1.2026-01-01.a-note.md"}, corrupt: true, status: 500},
-	}
-
-	for name, testCase := range cases {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			vault := t.TempDir()
-			notePath := writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
-
-			sidecar := embed.MarshalSidecar(embed.Sidecar{SchemaVersion: embed.SidecarSchemaVersion})
-			if testCase.corrupt {
-				sidecar = []byte("{not json")
-			}
-
-			g.Expect(os.WriteFile(embed.SidecarPath(notePath), sidecar, 0o600)).To(Succeed())
-
-			routes := cli.ServeRoutes(newTestDeps(&strings.Builder{}, &strings.Builder{}), vault, "personal", t.TempDir())
-
-			body, marshalErr := json.Marshal(map[string][]string{"notes": testCase.notes})
-			g.Expect(marshalErr).NotTo(HaveOccurred())
-
-			resp := routeFor(t, routes, "/activate").Serve(t.Context(), cli.ServeRequest{Body: body})
-			g.Expect(resp.Status).To(Equal(testCase.status))
-
-			if testCase.failed == nil {
-				return
-			}
-
-			var result struct {
-				Activated []string `json:"activated"`
-				Failed    []struct {
-					Ref string `json:"ref"`
-				} `json:"failed"`
-			}
-
-			g.Expect(json.Unmarshal(resp.Body, &result)).To(Succeed())
-			g.Expect(result.Activated).To(Equal(testCase.activated))
-
-			failedRefs := make([]string, 0, len(result.Failed))
-			for _, failure := range result.Failed {
-				failedRefs = append(failedRefs, failure.Ref)
-			}
-
-			g.Expect(failedRefs).To(Equal(testCase.failed))
-		})
-	}
 }
 
 // unexported constants.

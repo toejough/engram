@@ -389,7 +389,7 @@ func validateOffer(offer LearnOffer) error {
 	}
 
 	if offer.Origin == "" {
-		// key and path belong to an origin (spec vault-serve-api): without
+		// key and path belong to an origin (792b35c9): without
 		// one they could collide with another origin's keys.
 		if offer.Key != "" || len(offer.Path) > 0 {
 			return fmt.Errorf("%w: offer.key and offer.path require offer.origin", errOfferInvalid)

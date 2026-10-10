@@ -16,34 +16,10 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestLearnArgs_DecodesOfferButNoExchangeOrSkillFields: a served-learn body
-// carrying xid, parent, aliases and the skill_* fields, in camelCase and in
-// PascalCase, populates none of them, while offer decodes.
-func TestLearnArgs_DecodesOfferButNoExchangeOrSkillFields(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	body := []byte(`{"type":"fact","situation":"s",` + forgedExchangeKeys + `,` +
-		`"offer":{"origin":"o:x","key":"k","for":"12.2026-01-01.t","path":["p"]}}`)
-
-	var args cli.LearnArgs
-
-	g.Expect(json.Unmarshal(body, &args)).To(Succeed())
-	g.Expect(args.XID).To(BeEmpty())
-	g.Expect(args.Parent).To(BeZero())
-	g.Expect(args.Aliases).To(BeEmpty())
-	g.Expect(args.SkillHash).To(BeEmpty())
-	g.Expect(args.SkillKey).To(BeEmpty())
-	g.Expect(args.SkillSource).To(BeEmpty())
-	g.Expect(args.Offer).To(Equal(cli.LearnOffer{
-		Origin: "o:x", Key: "k", For: "12.2026-01-01.t", Path: []string{"p"},
-	}))
-}
-
-// TestLearnArgs_WireKeysAreTheKnownSetPlusOffer pins the JSON keys a served
+// Test792b35c8a5_LearnArgs_WireKeysAreTheKnownSetPlusOffer pins the JSON keys a served
 // learn can set: the pre-exchange keys plus offer, and nothing else. A new
 // LearnArgs field without json:"-" fails here.
-func TestLearnArgs_WireKeysAreTheKnownSetPlusOffer(t *testing.T) {
+func Test792b35c8a5_LearnArgs_WireKeysAreTheKnownSetPlusOffer(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -68,6 +44,30 @@ func TestLearnArgs_WireKeysAreTheKnownSetPlusOffer(t *testing.T) {
 
 	slices.Sort(got)
 	g.Expect(got).To(Equal(want))
+}
+
+// Test792b35c8a6_LearnArgs_DecodesOfferButNoExchangeOrSkillFields: a served-learn body
+// carrying xid, parent, aliases and the skill_* fields, in camelCase and in
+// PascalCase, populates none of them, while offer decodes.
+func Test792b35c8a6_LearnArgs_DecodesOfferButNoExchangeOrSkillFields(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	body := []byte(`{"type":"fact","situation":"s",` + forgedExchangeKeys + `,` +
+		`"offer":{"origin":"o:x","key":"k","for":"12.2026-01-01.t","path":["p"]}}`)
+
+	var args cli.LearnArgs
+
+	g.Expect(json.Unmarshal(body, &args)).To(Succeed())
+	g.Expect(args.XID).To(BeEmpty())
+	g.Expect(args.Parent).To(BeZero())
+	g.Expect(args.Aliases).To(BeEmpty())
+	g.Expect(args.SkillHash).To(BeEmpty())
+	g.Expect(args.SkillKey).To(BeEmpty())
+	g.Expect(args.SkillSource).To(BeEmpty())
+	g.Expect(args.Offer).To(Equal(cli.LearnOffer{
+		Origin: "o:x", Key: "k", For: "12.2026-01-01.t", Path: []string{"p"},
+	}))
 }
 
 // unexported constants.

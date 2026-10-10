@@ -1,6 +1,6 @@
 package cli_test
 
-// Served reads for exchange (design D7 H7, vault-serve-api "Served show
+// Served reads for exchange (design D7 H7, 792b35c6 "Served show
 // SHALL offer a raw JSON envelope" and "Served query SHALL return dedupe
 // keys on request"; tasks 4.4, 4.5).
 
@@ -18,11 +18,11 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestServeQuery_DedupeKeysOnlyOnRequest: with dedupe-keys=1 the payload
+// Test792b35c5a1_ServeQuery_DedupeKeysOnlyOnRequest: with dedupe-keys=1 the payload
 // carries a top-level vault_id and, per note item, its exchange_hash and a
 // non-empty aliases list; without it the payload is byte-identical to a
 // local query with the same arguments.
-func TestServeQuery_DedupeKeysOnlyOnRequest(t *testing.T) {
+func Test792b35c5a1_ServeQuery_DedupeKeysOnlyOnRequest(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -91,10 +91,10 @@ func TestServeQuery_DedupeKeysOnlyOnRequest(t *testing.T) {
 	g.Expect(string(keyed.Body)).NotTo(MatchRegexp(`(?m)^\s+aliases: \[\]`), "an empty aliases list is omitted")
 }
 
-// TestServeQuery_DedupeKeysSkipUnhashableNote: a note whose exchange hash
+// Test792b35c5a2_ServeQuery_DedupeKeysSkipUnhashableNote: a note whose exchange hash
 // cannot be computed loses only its own keys (with a warning); the query
 // still succeeds and every other note keeps its keys.
-func TestServeQuery_DedupeKeysSkipUnhashableNote(t *testing.T) {
+func Test792b35c5a2_ServeQuery_DedupeKeysSkipUnhashableNote(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -139,10 +139,10 @@ func TestServeQuery_DedupeKeysSkipUnhashableNote(t *testing.T) {
 	g.Expect(stderr.String()).To(ContainSubstring("odd-note"))
 }
 
-// TestServeShow_ErrorStatuses: an empty ref is a 400; a listed note that
+// Test792b35c6a3_ServeShow_ErrorStatuses: an empty ref is a 400; a listed note that
 // cannot be read, or whose frontmatter cannot be parsed for its exchange
 // hash, is a 500 — never a 404 or a partial envelope.
-func TestServeShow_ErrorStatuses(t *testing.T) {
+func Test792b35c6a3_ServeShow_ErrorStatuses(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
@@ -175,9 +175,9 @@ func TestServeShow_ErrorStatuses(t *testing.T) {
 	}
 }
 
-// TestServeShow_MissingNoteIsNotFound: a missing note is a 404 with an error
+// Test792b35c6a4_ServeShow_MissingNoteIsNotFound: a missing note is a 404 with an error
 // body, raw or not — never a 500.
-func TestServeShow_MissingNoteIsNotFound(t *testing.T) {
+func Test792b35c6a4_ServeShow_MissingNoteIsNotFound(t *testing.T) {
 	t.Parallel()
 
 	for _, raw := range []string{"", "1"} {
@@ -206,11 +206,11 @@ func TestServeShow_MissingNoteIsNotFound(t *testing.T) {
 	}
 }
 
-// TestServeShow_RawEnvelope: raw=1 returns {vault_id, basename, content,
+// Test792b35c6a5_ServeShow_RawEnvelope: raw=1 returns {vault_id, basename, content,
 // exchange_hash}, with content byte-identical to the note file (no
 // red_flags preview cap, no outbound-links section), resolving a renamed
 // note through its aliases to its current basename.
-func TestServeShow_RawEnvelope(t *testing.T) {
+func Test792b35c6a5_ServeShow_RawEnvelope(t *testing.T) {
 	t.Parallel()
 
 	for _, ref := range []string{"6.2026-01-06.many-flags", "6.2026-01-06.many-flags.md", "2.2026-01-02.old-name"} {
@@ -242,11 +242,11 @@ func TestServeShow_RawEnvelope(t *testing.T) {
 	}
 }
 
-// TestServeShow_RawHidesPendingNotes (final review F8): the raw route
+// Test792b35c6a6_ServeShow_RawHidesPendingNotes (final review F8): the raw route
 // never serves a pending note — by basename or by alias — so a child can't
 // pull another child's unvetted offer down as a parent note; a live note
 // is served as before.
-func TestServeShow_RawHidesPendingNotes(t *testing.T) {
+func Test792b35c6a6_ServeShow_RawHidesPendingNotes(t *testing.T) {
 	t.Parallel()
 
 	for name, ref := range map[string]string{

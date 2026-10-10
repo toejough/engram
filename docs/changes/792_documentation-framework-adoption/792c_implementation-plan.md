@@ -250,8 +250,8 @@ flowchart TD
   N792c7s1["792c7s1 vault-serving product spec<br/>Complete"]
   N792c7s2["792c7s2 exchange-versioning tech spec<br/>Complete"]
   N792c7s3["792c7s3 pending-offer-bookkeeping tech spec<br/>Complete"]
-  N792c7s4["792c7s4 vault-http-server tech spec<br/>Ready"]
-  N792c7t1["792c7t1 parent-sync product spec<br/>Blocked by: 792c7s4"]
+  N792c7s4["792c7s4 vault-http-server tech spec<br/>Complete"]
+  N792c7t1["792c7t1 parent-sync product spec<br/>Ready"]
   N792c7t2["792c7t2 offer-outbox tech spec<br/>Blocked by: 792c7t1"]
   N792c7t3["792c7t3 parent-vault-client tech spec<br/>Blocked by: 792c7t2"]
   N792c7u1["792c7u1 curate product spec<br/>Blocked by: 792c7t3"]
@@ -4625,8 +4625,8 @@ Only the command-level tests are renamed here. The handler-level served tests ve
 | 792a20b1a | `TestServeTarget_RequiresAddr` → `Test792a20b1a_ServeTarget_RequiresAddr` | Dispatch-level unit (end-to-end through the command) | `engram serve` with no `--addr` refuses to start | Done |
 | 792a20b1b | `TestServeTarget_ResolvesArgsAndCallsRunServe` → `Test792a20b1b_ServeTarget_ResolvesArgsAndCallsRunServe` | Dispatch-level unit (end-to-end through the command) | A given address is passed to the listener | Done |
 
-**Coverage gaps:** completed by 792c7s4e, which lists the scenarios of 792a20 that no handler-level or command-level
-test verifies.
+**Coverage gaps:** listed under 792c7s4 (792a20a1c, 792a20b1c, 792a20c1d, 792a20f1c, 792a20h1e, 792a20l1f, the rune
+boundary of 792a20m1b, 792a20n1c, 792a20o1a and 792a20o1b).
 
 **No-scenario tests:** none among the command-level tests.
 
@@ -4790,11 +4790,84 @@ Target: `792b35` (`docs/specs/technical/vault-http-server.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7s4a | Port the component contract to `792b35` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7s4b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7s4c | Repoint stale references to `792b35` | Non-test action | Keeps live links valid | Not started |
-| 792c7s4d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7s4e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7s4a | Port the component contract to `792b35` | Non-test action | Documents the component in the framework format | Done |
+| 792c7s4b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7s4c | Repoint stale references to `792b35` | Non-test action | Keeps live links valid | Done |
+| 792c7s4d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7s4e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+792b35 has seventeen requirements (792b35c1 to 792b35c17) and one sequence, the served `learn`: the route table, starting
+and stopping, request bodies, the query route, dedupe keys, the show route, the activate route, the decoding of a served
+learn, the refusal of an invalid offer, the recorded key, the in-place rewrite, the same-origin live offer, where an offer
+points, a new pending offer, the locked section, the stored hash and the bounded fetch client (792d120). It maps 58 of the
+60 scenarios of 792a20 (792a20b1c and 792a20l1f have no technical owner). Legacy removal: the `vault-serve-api` spec is
+deleted, the serve node and row of the component view no longer describe the server, and the three live references to
+the spec point at 792a20.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b35c1a1 | `TestServeRoutes_MethodsAndPatterns` → `Test792b35c1a1_ServeRoutes_MethodsAndPatterns` | Unit | The route table is the four routes | Done |
+| 792b35c2a1 | `TestRunServe_RegistersAllRoutesAndClassifiesShutdownErr` → `Test792b35c2a1_RunServe_RegistersAllRoutesAndClassifiesShutdownErr` | Unit | Every route is registered once and a listening failure is wrapped (c2a2 split deferred) | Done |
+| 792b35c3a1 | `TestServeRoutes_OversizedBodyIs413` → `Test792b35c3a1_ServeRoutes_OversizedBodyIs413` | Table unit | 413 on every route | Done |
+| 792b35c3a2 | `TestServeRoutes_OtherBodyReadErrorIs400` → `Test792b35c3a2_ServeRoutes_OtherBodyReadErrorIs400` | Table unit | 400 on every route for another read failure | Done |
+| 792b35c3a3 | `TestServeBodyCaps` → `Test792b35c3a3_ServeBodyCaps` | Unit | The request cap is a few MiB (c17a2 split deferred) | Done |
+| 792b35c4a1 | `TestServeQuery_TextCappedAtTwoKB` → `Test792b35c4a1_ServeQuery_TextCappedAtTwoKB` | Table unit | The 2 KB cut at the cue boundary | Done |
+| 792b35c4a2 | `TestServeQuery_ExcludesPendingOffersAndSetsModelID` → `Test792b35c4a2_ServeQuery_ExcludesPendingOffersAndSetsModelID` | Unit | A pending offer is excluded and the flag and model are reported | Done |
+| 792b35c5a1 | `TestServeQuery_DedupeKeysOnlyOnRequest` → `Test792b35c5a1_ServeQuery_DedupeKeysOnlyOnRequest` | Unit | Keys only on request | Done |
+| 792b35c5a2 | `TestServeQuery_DedupeKeysSkipUnhashableNote` → `Test792b35c5a2_ServeQuery_DedupeKeysSkipUnhashableNote` | Unit | An unhashable note is skipped with a warning | Done |
+| 792b35c6a1 | `TestServeShow_MatchesLocalOutput` → `Test792b35c6a1_ServeShow_MatchesLocalOutput` | Unit | Show matches the local output | Done |
+| 792b35c6a2 | `TestServeShow_ExchangeHashHeaderMatchesLocal` → `Test792b35c6a2_ServeShow_ExchangeHashHeaderMatchesLocal` | Unit | The header matches the local one | Done |
+| 792b35c6a3 | `TestServeShow_ErrorStatuses` → `Test792b35c6a3_ServeShow_ErrorStatuses` | Table unit | Error statuses | Done |
+| 792b35c6a4 | `TestServeShow_MissingNoteIsNotFound` → `Test792b35c6a4_ServeShow_MissingNoteIsNotFound` | Table unit | A missing note is 404 | Done |
+| 792b35c6a5 | `TestServeShow_RawEnvelope` → `Test792b35c6a5_ServeShow_RawEnvelope` | Table unit | The raw envelope is exact, by basename, .md and alias | Done |
+| 792b35c6a6 | `TestServeShow_RawHidesPendingNotes` → `Test792b35c6a6_ServeShow_RawHidesPendingNotes` | Table unit | A pending note is not served raw | Done |
+| 792b35c7a1 | `TestServeActivate_CommitsDirectly` → `Test792b35c7a1_ServeActivate_CommitsDirectly` | Unit | Activate commits directly | Done |
+| 792b35c7a2 | `TestServeActivate_ListsVaultDirectoryOnceForMultipleRefs` → `Test792b35c7a2_ServeActivate_ListsVaultDirectoryOnceForMultipleRefs` | Unit | One listing for many refs | Done |
+| 792b35c7a3 | `TestServeActivate_RejectsRefsOutsideTheVault` → `Test792b35c7a3_ServeActivate_RejectsRefsOutsideTheVault` | Table unit | Refs outside the vault are 400 | Done |
+| 792b35c7a4 | `TestServeActivate_ResolvesOnlyListedNames` → `Test792b35c7a4_ServeActivate_ResolvesOnlyListedNames` | Table unit | Only listed names resolve | Done |
+| 792b35c7a5 | `TestServeActivate_StatusByOutcome` → `Test792b35c7a5_ServeActivate_StatusByOutcome` | Table unit | The status follows the outcome | Done |
+| 792b35c8a1 | `TestServeLearn_EmptyDeclaredIdentity_Rejected` → `Test792b35c8a1_ServeLearn_EmptyDeclaredIdentity_Rejected` | Unit | An empty identity is rejected | Done |
+| 792b35c8a2 | `TestServeLearn_StampsClientDeclaredIdentityAndPendingMarker` → `Test792b35c8a2_ServeLearn_StampsClientDeclaredIdentityAndPendingMarker` | Unit | Identity, repo, pending marker and receipt without content | Done |
+| 792b35c8a3 | `TestServeLearn_IgnoresSkillIdentityFields` → `Test792b35c8a3_ServeLearn_IgnoresSkillIdentityFields` | Unit | Skill and exchange fields are ignored | Done |
+| 792b35c8a4 | `TestServeLearn_WireTagsAreDropped` → `Test792b35c8a4_ServeLearn_WireTagsAreDropped` | Unit | Wire tags are dropped | Done |
+| 792b35c8a5 | `TestLearnArgs_WireKeysAreTheKnownSetPlusOffer` → `Test792b35c8a5_LearnArgs_WireKeysAreTheKnownSetPlusOffer` | Reflection unit | The wire keys are the known set | Done |
+| 792b35c8a6 | `TestLearnArgs_DecodesOfferButNoExchangeOrSkillFields` → `Test792b35c8a6_LearnArgs_DecodesOfferButNoExchangeOrSkillFields` | Unit | The offer decodes and the exchange fields do not | Done |
+| 792b35c9a1 | `TestServeLearn_InvalidOfferIsRejected` → `Test792b35c9a1_ServeLearn_InvalidOfferIsRejected` | Table unit | Malformed offers are 400 and a cycle is 409 (c9a4 split deferred) | Done |
+| 792b35c9a2 | `TestServeLearn_PathValidationProperty` → `Test792b35c9a2_ServeLearn_PathValidationProperty` | Property (rapid) | The path is valid exactly when short and hex | Done |
+| 792b35c9a3 | `TestServeLearn_CycleRefusalReportsVaultID` → `Test792b35c9a3_ServeLearn_CycleRefusalReportsVaultID` | Unit | The loop refusal reports the vault ID | Done |
+| 792b35c10a1 | `TestServeLearn_DuplicateKeyWritesNothing` → `Test792b35c10a1_ServeLearn_DuplicateKeyWritesNothing` | Unit | A duplicate key writes nothing | Done |
+| 792b35c10a2 | `TestServeLearn_AcceptedOfferRetry` → `Test792b35c10a2_ServeLearn_AcceptedOfferRetry` | Unit | A retry after acceptance writes nothing (c12a1 split deferred) | Done |
+| 792b35c10a3 | `TestServeLearn_LateRetryOfAcceptedKeyWritesNothing` → `Test792b35c10a3_ServeLearn_LateRetryOfAcceptedKeyWritesNothing` | Unit | A late retry of an accepted key | Done |
+| 792b35c10a4 | `TestServeLearn_LateRetryOfSupersededKeyWritesNothing` → `Test792b35c10a4_ServeLearn_LateRetryOfSupersededKeyWritesNothing` | Unit | A late retry of a superseded key | Done |
+| 792b35c11a1 | `TestServeLearn_AmendBeforeCurationUpdatesInPlace` → `Test792b35c11a1_ServeLearn_AmendBeforeCurationUpdatesInPlace` | Unit | An amend before curation updates in place | Done |
+| 792b35c11a2 | `TestServeLearn_PriorKeysAreBounded` → `Test792b35c11a2_ServeLearn_PriorKeysAreBounded` | Unit | Prior keys are bounded | Done |
+| 792b35c11a3 | `TestServeLearn_ConcurrentSameOriginLeavesOnePending` → `Test792b35c11a3_ServeLearn_ConcurrentSameOriginLeavesOnePending` | Unit | Racing same-origin offers leave one pending note | Done |
+| 792b35c13a1 | `TestServeLearn_ForResolution` → `Test792b35c13a1_ServeLearn_ForResolution` | Subtest table | Resolution: live target, alias, cross-origin, unresolvable (c13a2 to c13a4 split deferred) | Done |
+| 792b35c13a5 | `TestServeLearn_ForIgnoresNonExchangeNotes` → `Test792b35c13a5_ServeLearn_ForIgnoresNonExchangeNotes` | Table unit | Only exchange notes resolve | Done |
+| 792b35c14a1 | `TestServeLearn_NewOfferRecordsOfferAndXID` → `Test792b35c14a1_ServeLearn_NewOfferRecordsOfferAndXID` | Unit | A new offer records its offer, xid and top-level placement | Done |
+| 792b35c15a1 | `TestServeLearn_LockSpansLookupWriteEmbedReceipt` → `Test792b35c15a1_ServeLearn_LockSpansLookupWriteEmbedReceipt` | Unit | One lock spans lookup, write, embed and receipt | Done |
+| 792b35c15a2 | `TestServeLearn_UnreadableNoteFailsTheRequest` → `Test792b35c15a2_ServeLearn_UnreadableNoteFailsTheRequest` | Unit | An unreadable note fails the request | Done |
+| 792b35c15a3 | `TestServeLearn_ConcurrentWithLocalLearn_NoLostUpdate` → `Test792b35c15a3_ServeLearn_ConcurrentWithLocalLearn_NoLostUpdate` | Concurrency unit | Local and served writers lose nothing | Done |
+| 792b35c16a1 | `TestServeLearn_StoredHashMatchesChildHash` → `Test792b35c16a1_ServeLearn_StoredHashMatchesChildHash` | Property (rapid) | The stored hash equals the child hash | Done |
+| 792b35c17a1 | `TestFetchHTTPClient_ConnectTimeoutAtMostThreeSeconds` → `Test792b35c17a1_FetchHTTPClient_ConnectTimeoutAtMostThreeSeconds` | Unit | The fetch client is bounded | Done |
+| 792a20e1c | `TestServeAndFetch_LearnRoundTrip` → `Test792a20e1c_ServeAndFetch_LearnRoundTrip` | Round trip over TCP | Learn over a real mux with the declared user, pending marker and no edge header | Done |
+| 792a20c1b | `TestServeAndFetch_ShowRoundTrip` → `Test792a20c1b_ServeAndFetch_ShowRoundTrip` | Round trip over TCP | Show over a real mux returns the note | Done |
+| 792a20b1a, 792a20b1b | `Test792a20b1a_ServeTarget_RequiresAddr`, `Test792a20b1b_ServeTarget_ResolvesArgsAndCallsRunServe` (renamed by 792c7s1) | Dispatch-level unit | The address is required and passed to the listener | Done |
+| 792b35c2a3 | `Test792a2h1a_RunServe_StampsMissingVaultIDAndReusesIt`, `Test792a2j1a_RunServe_CorruptVaultIDWarnsAndStarts`, `Test792a2p1c_RunServe_WarnsOnLocationMismatchAndStartsAnyway` (already named by vault-identity) | Unit | Serve stamps, warns and serves anyway | Done |
+
+**Coverage gaps (792b35):** 792b35c1a2 (an unrouted path or method; observed with a built binary during this migration, 404 and 405), 792b35c3a4
+(the 10-second header timeout), 792b35c4a3 and 792b35c4a4 (the query parameters and a failing query), 792b35c8a7 and
+792b35c8a8 (the server's vault wins; the vocabulary tags a served offer), 792b35c9a5 (invalid note content), 792b35c12a2
+(the live note is untouched). 792b35c17a2 is verified by `TestServeBodyCaps` (split deferred).
+
+**Coverage gaps (792a20, completing 792c7s1):** no test verifies 792a20a1c, 792a20b1c (the help text), 792a20c1d,
+792a20f1c, 792a20h1e, 792a20l1f (the local activate keeps paths), 792a20m1b's rune boundary (the cut test uses ASCII),
+792a20n1c, 792a20o1a or 792a20o1b.
+
+**No-scenario tests:** none among the listed files.
+
 
 ### 792c7t parent-sync
 

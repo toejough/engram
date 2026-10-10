@@ -168,7 +168,7 @@ After a transport failure or timeout against the parent, the vault's parent cach
 - **THEN** it attempts the parent and drains on success
 
 ### Requirement: Offers SHALL be idempotent across retries
-`offer.key` SHALL be derived from `offer.origin` and the offered exchange hash. A retry of an offer the parent already holds SHALL NOT create a second pending note (capability `vault-serve-api`).
+`offer.key` SHALL be derived from `offer.origin` and the offered exchange hash. A retry of an offer the parent already holds SHALL NOT create a second pending note (792a20g in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a20g-a-served-learn-finds-the-note-an-offer-belongs-to`).
 
 #### Scenario: Lost response, then retry
 - **WHEN** the parent stores an offer but the response is lost, and the entry is resent unchanged

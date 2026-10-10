@@ -50,7 +50,7 @@ func Test792b23c1a2_QueryPayload_RefitPendingOmittedWhenFalse(t *testing.T) {
 
 // Test792b23c1a3_Query_PayloadIncludesModelID covers 792a7zc for
 // the LOCAL query path (the served path is covered separately by
-// TestServeQuery_ExcludesPendingOffersAndSetsModelID): model_id always
+// Test792b35c4a2_ServeQuery_ExcludesPendingOffersAndSetsModelID): model_id always
 // matches deps.Embedder.ModelID(), even against an empty vault.
 func Test792b23c1a3_Query_PayloadIncludesModelID(t *testing.T) {
 	t.Parallel()

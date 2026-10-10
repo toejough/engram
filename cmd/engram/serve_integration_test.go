@@ -15,12 +15,35 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestServeAndFetch_LearnRoundTrip drives POST /learn over a real TCP
+// Test792a20c1b_ServeAndFetch_ShowRoundTrip drives GET /show through a real
+// net/http.ServeMux (realNewServeMux/realRegisterRoute) served by
+// httptest.Server, fetched via realFetch — the same primitives `engram
+// serve` / ENGRAM_PARENT wire in production, exercised over an actual TCP
+// connection rather than direct handler calls.
+func Test792a20c1b_ServeAndFetch_ShowRoundTrip(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	g.Expect(os.WriteFile(filepath.Join(vault, "1.2026-01-01.a-note.md"), []byte(roundTripNote), 0o600)).To(Succeed())
+
+	var stdout, stderr bytes.Buffer
+
+	server := httptest.NewServer(newRealServeMux(t, realServeDeps(&stdout, &stderr), vault, t.TempDir()))
+	defer server.Close()
+
+	resp, err := realFetch(context.Background(), "GET", server.URL+"/show?note=1", nil)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(resp.Status).To(Equal(http.StatusOK))
+	g.Expect(string(resp.Body)).To(ContainSubstring("subject: a"))
+}
+
+// Test792a20e1c_ServeAndFetch_LearnRoundTrip drives POST /learn over a real TCP
 // connection via realFetch (serve-client-declared-identity: no edge-
 // authentication header involved anywhere — identity travels as the
 // LearnArgs body's own User field, proving the served handler needs
 // nothing beyond the body to accept and attribute a write).
-func TestServeAndFetch_LearnRoundTrip(t *testing.T) {
+func Test792a20e1c_ServeAndFetch_LearnRoundTrip(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -61,29 +84,6 @@ func TestServeAndFetch_LearnRoundTrip(t *testing.T) {
 	g.Expect(readErr).NotTo(HaveOccurred())
 	g.Expect(string(raw)).To(ContainSubstring("user: roundtrip@example.com"))
 	g.Expect(string(raw)).To(ContainSubstring("pending: true"))
-}
-
-// TestServeAndFetch_ShowRoundTrip drives GET /show through a real
-// net/http.ServeMux (realNewServeMux/realRegisterRoute) served by
-// httptest.Server, fetched via realFetch — the same primitives `engram
-// serve` / ENGRAM_PARENT wire in production, exercised over an actual TCP
-// connection rather than direct handler calls.
-func TestServeAndFetch_ShowRoundTrip(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	g.Expect(os.WriteFile(filepath.Join(vault, "1.2026-01-01.a-note.md"), []byte(roundTripNote), 0o600)).To(Succeed())
-
-	var stdout, stderr bytes.Buffer
-
-	server := httptest.NewServer(newRealServeMux(t, realServeDeps(&stdout, &stderr), vault, t.TempDir()))
-	defer server.Close()
-
-	resp, err := realFetch(context.Background(), "GET", server.URL+"/show?note=1", nil)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(resp.Status).To(Equal(http.StatusOK))
-	g.Expect(string(resp.Body)).To(ContainSubstring("subject: a"))
 }
 
 // unexported constants.

@@ -408,7 +408,7 @@ func runInVault(deps Deps, vault string, run func() error) error {
 	return run()
 }
 
-// serveTargets returns the `engram serve` subcommand (vault-serve-api).
+// serveTargets returns the `engram serve` subcommand (792a20).
 // Split out of Targets to stay within the per-function length budget.
 func serveTargets(
 	deps Deps,

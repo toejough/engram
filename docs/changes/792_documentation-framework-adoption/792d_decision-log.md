@@ -2059,3 +2059,44 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792d3, 792d10, 792d30, 792d33 and 792d118.
 - **Alternatives:** leave the six requirements for curate. Rejected because they are not product behavior: no user
   observes the fold's link rules, only the result of curation.
+
+## 792d120 vault-http-server scope, the fetch boundary, and what the built server showed
+
+- **Choice:**
+  - 792b35 specifies seventeen requirements (792b35c1 to 792b35c17) and one sequence, the served `learn`, whose `alt`
+    branches each have their own requirement (792b35c9 to 792b35c14), as the guide asks. Its orientation names the
+    component a repository-owned dependency-boundary interaction, as the catalog does. The `net/http` types stay in
+    `cmd/engram` (ADR-0020), so every other requirement runs over primitives.
+  - The bounded client a child fetches through is in `cmd/engram/serve.go` beside the server, and
+    `serve_config_test` is listed for this node, so 792b35c17 specifies its timeouts and read limit. The exchange that
+    uses it (the outbox, the merged query, the pull-down, and the check that a response over 16 MiB is an error) is
+    parent-sync's, which maps 792a20n1c; 792b35c17 says `Supports: none` for that reason.
+  - `vault-serve-api` is deleted with this node, as 792d117 said. The component view's serve node is shortened to a
+    pointer and the serve-side sentence of its K14 row is replaced by one, since the row's remaining text is parent-sync's.
+    The comments in the code and the three OpenSpec specs that cited `vault-serve-api` now cite 792a20 or 792b35.
+  - Two scenarios have no technical owner: 792a20b1c (the help text of `serve`) and 792a20l1f (the local `activate` keeps
+    absolute and vault-relative paths). The first is a string of the command definition, the second a behavior of
+    `activate` that no component of the inventory specifies (note-amendment's 792b14c9 is the use bump only). Both are
+    listed as coverage gaps.
+  - Two real-mux tests that drive a whole route over TCP are named for the product scenario they assert (792d52):
+    `Test792a20e1c_ServeAndFetch_LearnRoundTrip` and `Test792a20c1b_ServeAndFetch_ShowRoundTrip`. The tests that call a
+    handler directly take technical IDs.
+  - `TestServeBodyCaps` asserts three constants; it takes 792b35c3a3 and lists 792b35c17a2 as `split deferred`. Likewise
+    `TestServeLearn_InvalidOfferIsRejected` (792b35c9a4), `TestServeLearn_AcceptedOfferRetry` (792b35c12a1),
+    `TestServeLearn_ForResolution` (792b35c13a2 to 792b35c13a4) and the RunServe registration test (792b35c2a2).
+  - 792b35c2a3 maps to the serve-startup tests that vault-identity already named (`Test792a2h1a`, `Test792a2j1a`,
+    `Test792a2p1c`).
+- **Divergences noted (792d33):**
+  - The `vault-serve-api` spec says a served activate with a ref that is "an absolute path, contains a path separator
+    or `..`" is a 400; the code also treats a name that is a listed note with a different case (`.MD`) as not found (404).
+  - The spec does not say that a served `show` with an empty `note` is a 400 or that an unreadable or unparseable listed
+    note is a 500; the code does, and 792b35c6 states it.
+  - The spec says a served `activate` response is 200/404/200/500 by outcome only implicitly (as "commits directly");
+    792b35c7 states the four statuses from the code.
+  - A GET to `learn` is answered 405 and an unrouted path 404 by the mux; the spec only says there is "no route".
+  - The 409 loop body carries `reason` and `vault_id`; the spec's served-API requirement does not say so.
+  - The `Cf-Access-Authenticated-User-Email` header field in the request type's doc comment is the remnant of the
+    dropped edge authentication; no code reads it (792a20e).
+- **Rationale:** 792d3, 792d30, 792d33, 792d52, 792d117 and 792d118.
+- **Alternatives:** leave the fetch client to parent-sync. Rejected because `cmd/engram/serve.go` realizes both and its
+  connect-timeout test is listed for this node.

@@ -329,9 +329,9 @@ func Test792b34c8a1_Show_ExchangeHashHeaderOnlyForXIDNotes(t *testing.T) {
 	g.Expect(without.String()).NotTo(ContainSubstring("exchange_hash"))
 }
 
-// TestServeShow_ExchangeHashHeaderMatchesLocal: the served non-raw /show
+// Test792b35c6a2_ServeShow_ExchangeHashHeaderMatchesLocal: the served non-raw /show
 // returns exactly the local output, header included.
-func TestServeShow_ExchangeHashHeaderMatchesLocal(t *testing.T) {
+func Test792b35c6a2_ServeShow_ExchangeHashHeaderMatchesLocal(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 

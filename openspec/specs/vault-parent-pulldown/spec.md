@@ -32,7 +32,7 @@ On a local miss with `ENGRAM_PARENT` set, or for any ref when `--parent` is give
 - **THEN** the command errors, and no note is read or written
 
 ### Requirement: A pulled-down note SHALL be an exact-content local pending offer
-A pull-down SHALL fetch the parent note through the served `show` raw envelope (capability `vault-serve-api`), holding no vault lock while it does. It SHALL reject a response that is not a valid envelope; that means the parent is too old. It SHALL also reject, writing nothing, an envelope whose `vault_id` is not 32 lowercase hex characters or whose `basename` is not a Luhmann basename free of `/`, `\` and `|` (a malformed reply). Under the vault lock, it SHALL write a new local note with:
+A pull-down SHALL fetch the parent note through the served `show` raw envelope (792a20k in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a20k-a-served-show-returns-a-note-and-a-raw-envelope-on-request`), holding no vault lock while it does. It SHALL reject a response that is not a valid envelope; that means the parent is too old. It SHALL also reject, writing nothing, an envelope whose `vault_id` is not 32 lowercase hex characters or whose `basename` is not a Luhmann basename free of `/`, `\` and `|` (a malformed reply). Under the vault lock, it SHALL write a new local note with:
 - a fresh local top-level Luhmann ID and its own `xid`;
 - the parent's body unchanged, so its exchange hash equals the envelope's;
 - the pending-offer marker;

@@ -73,7 +73,7 @@ Curation of a pending offer SHALL use the same covered/near/absent judgment `rec
 - **THEN** curation keeps every still-valid entry, and any budget figure it reports is the rendered-YAML byte count, not the sum of the plain strings
 
 ### Requirement: Curation outcome is not reported back to the offering caller
-The served API's response to a `learn` request that creates or updates a pending offer SHALL confirm only that the offer was received, naming the pending note (capability `vault-serve-api`). It SHALL NOT report the offer's eventual curation outcome. No later notification of the outcome SHALL be sent to the offering caller.
+The served API's response to a `learn` request that creates or updates a pending offer SHALL confirm only that the offer was received, naming the pending note (792a20d in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a20d-a-served-learn-lands-as-a-pending-offer-and-returns-a-receipt`). It SHALL NOT report the offer's eventual curation outcome. No later notification of the outcome SHALL be sent to the offering caller.
 
 #### Scenario: Server responds before curation happens
 - **WHEN** a served `learn` request creates a pending offer

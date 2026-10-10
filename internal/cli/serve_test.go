@@ -20,218 +20,7 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-// TestRunServe_RegistersAllRoutesAndClassifiesShutdownErr covers RunServe's
-// own composition (not just ServeRoutes' handler set): every route gets
-// registered exactly once via deps.RegisterRoute, and a ListenAndServe
-// error is wrapped when ctx was NOT canceled but swallowed to nil when it
-// WAS (the context.AfterFunc-triggered-Close/expected-shutdown case
-// realListenAndServe's caller must classify, per serve.go's doc comment).
-func TestRunServe_RegistersAllRoutesAndClassifiesShutdownErr(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	registered := map[string]bool{}
-	deps := newTestDeps(io.Discard, io.Discard)
-	deps.NewServeMux = func() cli.RawServeMux { return "fake-mux" }
-	deps.RegisterRoute = func(mux cli.RawServeMux, method, pattern string, _ cli.ServeHandler) {
-		g.Expect(mux).To(Equal(cli.RawServeMux("fake-mux")))
-		registered[method+" "+pattern] = true
-	}
-
-	errListenFailed := errors.New("listen failed")
-
-	deps.ListenAndServe = func(_ context.Context, _ cli.RawServeMux, addr string) error {
-		g.Expect(addr).To(Equal("127.0.0.1:0"))
-
-		return errListenFailed
-	}
-
-	args := cli.ServeArgs{Addr: "127.0.0.1:0", Vault: t.TempDir(), VaultName: "personal", ChunksDir: t.TempDir()}
-
-	// ctx not canceled: a ListenAndServe error is a real failure, wrapped.
-	err := cli.RunServe(context.Background(), args, deps)
-	g.Expect(err).To(MatchError(ContainSubstring("listen failed")))
-
-	g.Expect(registered).To(Equal(map[string]bool{
-		"GET /query": true, "GET /show": true, "POST /activate": true, "POST /learn": true,
-	}))
-
-	// ctx canceled: the SAME ListenAndServe error is treated as expected
-	// shutdown (nil), not a failure.
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	err = cli.RunServe(ctx, args, deps)
-	g.Expect(err).NotTo(HaveOccurred())
-}
-
-// TestServeActivate_CommitsDirectly covers POST /activate: the sidecar's
-// LastUsed is bumped in the same request (design.md Decisions — activate
-// never becomes a pending offer, it's not a content mutation).
-func TestServeActivate_CommitsDirectly(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	notePath := writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
-	sidecarPath := embed.SidecarPath(notePath)
-	g.Expect(os.WriteFile(
-		sidecarPath, embed.MarshalSidecar(embed.Sidecar{SchemaVersion: embed.SidecarSchemaVersion}), 0o600,
-	)).To(Succeed())
-
-	deps := newTestDeps(io.Discard, io.Discard)
-	routes := cli.ServeRoutes(deps, vault, "personal", t.TempDir())
-
-	body, marshalErr := json.Marshal(map[string][]string{"notes": {"1.2026-01-01.a-note.md"}})
-	g.Expect(marshalErr).NotTo(HaveOccurred())
-
-	resp := routeFor(t, routes, "/activate").Serve(t.Context(), cli.ServeRequest{Body: body})
-	g.Expect(resp.Status).To(Equal(200))
-
-	raw, readErr := os.ReadFile(sidecarPath)
-	g.Expect(readErr).NotTo(HaveOccurred())
-
-	sidecar, unmarshalErr := embed.UnmarshalSidecar(raw)
-	g.Expect(unmarshalErr).NotTo(HaveOccurred())
-	g.Expect(sidecar.LastUsed).To(Equal(time.Now().Format("2006-01-02")))
-}
-
-// TestServeActivate_ListsVaultDirectoryOnceForMultipleRefs (final
-// re-review residual, ruling S34): resolving N refs in one served
-// activate request must cost one directory listing, not one per ref —
-// before the fix, an unauthenticated request with many short refs cost on
-// the order of len(refs) ReadDir calls while holding the vault lock.
-func TestServeActivate_ListsVaultDirectoryOnceForMultipleRefs(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-
-	names := []string{"1.2026-01-01.a-note.md", "2.2026-01-01.b-note.md", "3.2026-01-01.c-note.md"}
-	for _, name := range names {
-		notePath := writeServeVaultFile(t, vault, name)
-		sidecarPath := embed.SidecarPath(notePath)
-		g.Expect(os.WriteFile(
-			sidecarPath, embed.MarshalSidecar(embed.Sidecar{SchemaVersion: embed.SidecarSchemaVersion}), 0o600,
-		)).To(Succeed())
-	}
-
-	deps := newTestDeps(io.Discard, io.Discard)
-	counting := &readDirCountingFS{EdgeFS: deps.FS}
-	deps.FS = counting
-
-	routes := cli.ServeRoutes(deps, vault, "personal", t.TempDir())
-
-	body, marshalErr := json.Marshal(map[string][]string{"notes": names})
-	g.Expect(marshalErr).NotTo(HaveOccurred())
-
-	resp := routeFor(t, routes, "/activate").Serve(t.Context(), cli.ServeRequest{Body: body})
-	g.Expect(resp.Status).To(Equal(200))
-	g.Expect(counting.count()).To(Equal(1), "expected exactly one vault directory listing for 3 refs in one request")
-}
-
-// TestServeActivate_RejectsRefsOutsideTheVault (final review F2): a served
-// activate resolves refs only against the vault's listed note names; an
-// absolute path, a path separator or ".." is a 400, nothing is bumped
-// (not even a valid ref in the same request), and a sidecar outside the
-// vault is never touched.
-func TestServeActivate_RejectsRefsOutsideTheVault(t *testing.T) {
-	t.Parallel()
-
-	root := t.TempDir()
-	outsideNote := filepath.Join(root, "outside", "1.2026-01-01.outside.md")
-
-	for name, ref := range map[string]string{
-		"absolute path":     outsideNote,
-		"etc path":          "/etc/x",
-		"dot-dot relative":  "../outside/1.2026-01-01.outside.md",
-		"dot-dot bare":      "..",
-		"subdirectory":      "sub/1.2026-01-01.a-note.md",
-		"backslash":         `..\outside\1.2026-01-01.outside.md`,
-		"dot-dot in a name": "1.2026-01-01..md",
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			base := t.TempDir()
-			vault := filepath.Join(base, "vault")
-			g.Expect(os.MkdirAll(vault, 0o700)).To(Succeed())
-			g.Expect(os.MkdirAll(filepath.Join(base, "outside"), 0o700)).To(Succeed())
-
-			notePath := writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
-			outside := writeServeVaultFile(t, filepath.Join(base, "outside"), "1.2026-01-01.outside.md")
-
-			staleSidecar := embed.MarshalSidecar(embed.Sidecar{
-				SchemaVersion: embed.SidecarSchemaVersion, LastUsed: "2020-01-01",
-			})
-			g.Expect(os.WriteFile(embed.SidecarPath(notePath), staleSidecar, 0o600)).To(Succeed())
-			g.Expect(os.WriteFile(embed.SidecarPath(outside), staleSidecar, 0o600)).To(Succeed())
-
-			// The absolute-path case names this subtest's own outside note.
-			target := strings.Replace(ref, outsideNote, outside, 1)
-
-			routes := cli.ServeRoutes(newTestDeps(io.Discard, io.Discard), vault, "personal", t.TempDir())
-
-			body, marshalErr := json.Marshal(map[string][]string{"notes": {"1.2026-01-01.a-note.md", target}})
-			g.Expect(marshalErr).NotTo(HaveOccurred())
-
-			resp := routeFor(t, routes, "/activate").Serve(t.Context(), cli.ServeRequest{Body: body})
-			g.Expect(resp.Status).To(Equal(400))
-			g.Expect(string(resp.Body)).To(ContainSubstring("error"))
-
-			g.Expect(os.ReadFile(embed.SidecarPath(outside))).To(Equal(staleSidecar), "outside sidecar untouched")
-			g.Expect(os.ReadFile(embed.SidecarPath(notePath))).To(Equal(staleSidecar), "nothing bumped")
-		})
-	}
-}
-
-// TestServeActivate_ResolvesOnlyListedNames (final review F2): a served
-// ref resolves only to a listed vault note — with or without .md — and a
-// name that is not a listed note is not found (404), never probed as a
-// path.
-func TestServeActivate_ResolvesOnlyListedNames(t *testing.T) {
-	t.Parallel()
-
-	for ref, status := range map[string]int{
-		"1.2026-01-01.a-note.md": 200,
-		"1.2026-01-01.a-note":    200,
-		"1.2026-01-01.a-note.MD": 404,
-		"1":                      404,
-	} {
-		t.Run(ref, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			vault := t.TempDir()
-			writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
-
-			routes := cli.ServeRoutes(newTestDeps(io.Discard, io.Discard), vault, "personal", t.TempDir())
-
-			body, marshalErr := json.Marshal(map[string][]string{"notes": {ref}})
-			g.Expect(marshalErr).NotTo(HaveOccurred())
-
-			resp := routeFor(t, routes, "/activate").Serve(t.Context(), cli.ServeRequest{Body: body})
-			g.Expect(resp.Status).To(Equal(status))
-		})
-	}
-}
-
-// TestServeBodyCaps (final review F7): the caps are sane — a request body
-// is capped at a few MiB, and the fetch read limit is one byte over the
-// largest response accepted, so an oversized response is detected rather
-// than silently truncated.
-func TestServeBodyCaps(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	g.Expect(cli.MaxServeRequestBytes).To(BeNumerically(">=", 1<<20))
-	g.Expect(cli.MaxServeRequestBytes).To(BeNumerically("<=", 16<<20))
-	g.Expect(cli.FetchResponseReadLimit).To(Equal(cli.ExportMaxFetchResponseBytes + 1))
-	g.Expect(cli.ExportMaxFetchResponseBytes).To(BeNumerically(">=", cli.MaxServeRequestBytes))
-}
-
-// TestServeLearn_ConcurrentWithLocalLearn_NoLostUpdate covers tasks.md
+// Test792b35c15a3_ServeLearn_ConcurrentWithLocalLearn_NoLostUpdate covers tasks.md
 // 10.3/792b8: a local `engram learn` writer and a served POST /learn
 // writer racing the SAME vault never lose an update or collide on a
 // Luhmann id. Both paths ultimately share the identical production lock
@@ -240,7 +29,7 @@ func TestServeBodyCaps(t *testing.T) {
 // proves that sharing holds under concurrency, mirroring
 // Test792a3m1a_Invariant_K1_ConcurrentLearnNeverCollides but mixing local and
 // served writers instead of all-local.
-func TestServeLearn_ConcurrentWithLocalLearn_NoLostUpdate(t *testing.T) {
+func Test792b35c15a3_ServeLearn_ConcurrentWithLocalLearn_NoLostUpdate(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -326,11 +115,415 @@ func TestServeLearn_ConcurrentWithLocalLearn_NoLostUpdate(t *testing.T) {
 	g.Expect(ids).To(HaveLen(total), "expected %d distinct luhmann ids, no collisions", total)
 }
 
-// TestServeLearn_EmptyDeclaredIdentity_Rejected covers the identity floor
+// Test792b35c1a1_ServeRoutes_MethodsAndPatterns covers the API contract's route table
+// (design D7): exactly query and show (GET) and activate and learn (POST).
+// No other command — amend, query-chunks, show-chunk, or any host-only
+// command — gets a route.
+func Test792b35c1a1_ServeRoutes_MethodsAndPatterns(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := newTestDeps(io.Discard, io.Discard)
+	routes := cli.ServeRoutes(deps, t.TempDir(), "personal", t.TempDir())
+
+	got := map[string]string{}
+	for _, route := range routes {
+		got[route.Pattern] = route.Method
+	}
+
+	g.Expect(got).To(Equal(map[string]string{
+		"/query":    "GET",
+		"/show":     "GET",
+		"/activate": "POST",
+		"/learn":    "POST",
+	}))
+}
+
+// Test792b35c2a1_RunServe_RegistersAllRoutesAndClassifiesShutdownErr covers RunServe's
+// own composition (not just ServeRoutes' handler set): every route gets
+// registered exactly once via deps.RegisterRoute, and a ListenAndServe
+// error is wrapped when ctx was NOT canceled but swallowed to nil when it
+// WAS (the context.AfterFunc-triggered-Close/expected-shutdown case
+// realListenAndServe's caller must classify, per serve.go's doc comment).
+func Test792b35c2a1_RunServe_RegistersAllRoutesAndClassifiesShutdownErr(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	registered := map[string]bool{}
+	deps := newTestDeps(io.Discard, io.Discard)
+	deps.NewServeMux = func() cli.RawServeMux { return "fake-mux" }
+	deps.RegisterRoute = func(mux cli.RawServeMux, method, pattern string, _ cli.ServeHandler) {
+		g.Expect(mux).To(Equal(cli.RawServeMux("fake-mux")))
+		registered[method+" "+pattern] = true
+	}
+
+	errListenFailed := errors.New("listen failed")
+
+	deps.ListenAndServe = func(_ context.Context, _ cli.RawServeMux, addr string) error {
+		g.Expect(addr).To(Equal("127.0.0.1:0"))
+
+		return errListenFailed
+	}
+
+	args := cli.ServeArgs{Addr: "127.0.0.1:0", Vault: t.TempDir(), VaultName: "personal", ChunksDir: t.TempDir()}
+
+	// ctx not canceled: a ListenAndServe error is a real failure, wrapped.
+	err := cli.RunServe(context.Background(), args, deps)
+	g.Expect(err).To(MatchError(ContainSubstring("listen failed")))
+
+	g.Expect(registered).To(Equal(map[string]bool{
+		"GET /query": true, "GET /show": true, "POST /activate": true, "POST /learn": true,
+	}))
+
+	// ctx canceled: the SAME ListenAndServe error is treated as expected
+	// shutdown (nil), not a failure.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = cli.RunServe(ctx, args, deps)
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+// Test792b35c3a1_ServeRoutes_OversizedBodyIs413 (final review F7; final re-review
+// residual, ruling S34): a request body over MaxServeRequestBytes answers
+// 413 on every route, and nothing is written.
+func Test792b35c3a1_ServeRoutes_OversizedBodyIs413(t *testing.T) {
+	t.Parallel()
+
+	for _, pattern := range []string{"/learn", "/activate", "/query", "/show"} {
+		t.Run(pattern, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			vault := t.TempDir()
+			writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
+
+			before := snapshotVault(t, vault)
+			routes := cli.ServeRoutes(serveTestDeps(), vault, "personal", t.TempDir())
+
+			resp := routeFor(t, routes, pattern).Serve(t.Context(), cli.ServeRequest{
+				Body:         []byte(`{"notes":["1.2026-01-01.a-note.md"]}`),
+				BodyErr:      errors.New("http: request body too large"),
+				BodyTooLarge: true,
+			})
+			g.Expect(resp.Status).To(Equal(413))
+			g.Expect(snapshotVault(t, vault)).To(Equal(before))
+		})
+	}
+}
+
+// Test792b35c3a2_ServeRoutes_OtherBodyReadErrorIs400 (final re-review residual,
+// ruling S34): a body-read error that is NOT the over-the-cap case (e.g. a
+// client disconnect) answers 400 on every route, never 413 — only an
+// oversized body warrants 413 — and nothing is written.
+func Test792b35c3a2_ServeRoutes_OtherBodyReadErrorIs400(t *testing.T) {
+	t.Parallel()
+
+	for _, pattern := range []string{"/learn", "/activate", "/query", "/show"} {
+		t.Run(pattern, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			vault := t.TempDir()
+			writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
+
+			before := snapshotVault(t, vault)
+			routes := cli.ServeRoutes(serveTestDeps(), vault, "personal", t.TempDir())
+
+			resp := routeFor(t, routes, pattern).Serve(t.Context(), cli.ServeRequest{
+				Body:    []byte(`{"notes":["1.2026-01-01.a-note.md"]}`),
+				BodyErr: errors.New("unexpected EOF"),
+			})
+			g.Expect(resp.Status).To(Equal(400))
+			g.Expect(snapshotVault(t, vault)).To(Equal(before))
+		})
+	}
+}
+
+// Test792b35c3a3_ServeBodyCaps (final review F7): the caps are sane — a request body
+// is capped at a few MiB, and the fetch read limit is one byte over the
+// largest response accepted, so an oversized response is detected rather
+// than silently truncated.
+func Test792b35c3a3_ServeBodyCaps(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	g.Expect(cli.MaxServeRequestBytes).To(BeNumerically(">=", 1<<20))
+	g.Expect(cli.MaxServeRequestBytes).To(BeNumerically("<=", 16<<20))
+	g.Expect(cli.FetchResponseReadLimit).To(Equal(cli.ExportMaxFetchResponseBytes + 1))
+	g.Expect(cli.ExportMaxFetchResponseBytes).To(BeNumerically(">=", cli.MaxServeRequestBytes))
+}
+
+// Test792b35c4a1_ServeQuery_TextCappedAtTwoKB: GET /query carries `text` through to
+// trigger matching and truncates it at 2 KB without error — a cue that ends
+// exactly at byte 2048 hits; one that straddles the boundary does not.
+func Test792b35c4a1_ServeQuery_TextCappedAtTwoKB(t *testing.T) {
+	t.Parallel()
+
+	const (
+		capBytes = 2048
+		cue      = "/zz-boundary"
+	)
+
+	cases := []struct {
+		name string
+		text string
+		hit  bool
+	}{
+		{"cue ends at boundary", strings.Repeat("x", capBytes-len(cue)) + cue, true},
+		{"cue straddles boundary", strings.Repeat("x", capBytes-len(cue)+1) + cue, false},
+		{"cue at start of long text", cue + " " + strings.Repeat("x", 4*capBytes), true},
+	}
+
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			vault := t.TempDir()
+			deps := newTestDeps(io.Discard, io.Discard)
+			deps.Embed = stubEmbedder{modelID: "test-model@4", dims: 4}
+
+			learnLocal(t, deps, vault, cli.LearnArgs{
+				Type: "runbook", Slug: "boundary", Position: "top", Source: "local",
+				Situation: "boundary situation", DoneWhen: "done", Body: "1. step",
+				Triggers: []string{cue},
+			})
+
+			routes := cli.ServeRoutes(deps, vault, "personal", t.TempDir())
+
+			resp := routeFor(t, routes, "/query").Serve(t.Context(), cli.ServeRequest{
+				Query: map[string][]string{"text": {testCase.text}},
+			})
+
+			g.Expect(resp.Status).To(Equal(200))
+			g.Expect(strings.Contains(string(resp.Body), "- trigger")).To(Equal(testCase.hit))
+		})
+	}
+}
+
+// Test792b35c4a2_ServeQuery_ExcludesPendingOffersAndSetsModelID covers GET /query:
+// a pending-offer note is excluded from results, the payload's model_id
+// matches the wired embedder, and pending_offers reflects the marker's
+// presence.
+func Test792b35c4a2_ServeQuery_ExcludesPendingOffersAndSetsModelID(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	deps := newTestDeps(io.Discard, io.Discard)
+	deps.Embed = stubEmbedder{modelID: "test-model@4", dims: 4}
+
+	// Write a normal note locally, then a pending offer through the served
+	// path — both auto-embed via the wired stub embedder.
+	learnLocal(t, deps, vault, cli.LearnArgs{
+		Type: "fact", Slug: "normal-note", Position: "top", Source: "local",
+		Situation: "a normal note about coverage", Subject: "engram", Predicate: "covers", Object: "queries",
+	})
+
+	routes := cli.ServeRoutes(deps, vault, "personal", t.TempDir())
+	learnBody, marshalErr := json.Marshal(cli.LearnArgs{
+		Type: "fact", Slug: "pending-note", Position: "top", Source: "remote",
+		Situation: "a pending note about coverage", Subject: "engram", Predicate: "covers", Object: "offers",
+		User: "u@example.com",
+	})
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	learnResp := routeFor(t, routes, "/learn").Serve(t.Context(), cli.ServeRequest{Body: learnBody})
+	g.Expect(learnResp.Status).To(Equal(200))
+
+	resp := routeFor(t, routes, "/query").Serve(t.Context(), cli.ServeRequest{
+		Query: map[string][]string{"phrase": {"coverage"}},
+	})
+
+	g.Expect(resp.Status).To(Equal(200))
+	payload := string(resp.Body)
+	g.Expect(payload).To(ContainSubstring("model_id: test-model@4"))
+	g.Expect(payload).To(ContainSubstring("pending_offers: true"))
+	g.Expect(payload).To(ContainSubstring("pending_offers_hint:"))
+	g.Expect(payload).To(ContainSubstring("curate pending offers"))
+	g.Expect(payload).To(ContainSubstring("normal-note"))
+	g.Expect(payload).NotTo(ContainSubstring("pending-note"))
+}
+
+// Test792b35c6a1_ServeShow_MatchesLocalOutput covers GET /show: response matches
+// local `engram show`'s own output shape (a read-only route, no identity
+// or offer logic involved).
+func Test792b35c6a1_ServeShow_MatchesLocalOutput(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
+
+	deps := newTestDeps(io.Discard, io.Discard)
+	routes := cli.ServeRoutes(deps, vault, "personal", t.TempDir())
+
+	resp := routeFor(t, routes, "/show").Serve(t.Context(), cli.ServeRequest{
+		Query: map[string][]string{"note": {"1"}},
+	})
+
+	g.Expect(resp.Status).To(Equal(200))
+	g.Expect(string(resp.Body)).To(ContainSubstring("subject: a"))
+}
+
+// Test792b35c7a1_ServeActivate_CommitsDirectly covers POST /activate: the sidecar's
+// LastUsed is bumped in the same request (design.md Decisions — activate
+// never becomes a pending offer, it's not a content mutation).
+func Test792b35c7a1_ServeActivate_CommitsDirectly(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	notePath := writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
+	sidecarPath := embed.SidecarPath(notePath)
+	g.Expect(os.WriteFile(
+		sidecarPath, embed.MarshalSidecar(embed.Sidecar{SchemaVersion: embed.SidecarSchemaVersion}), 0o600,
+	)).To(Succeed())
+
+	deps := newTestDeps(io.Discard, io.Discard)
+	routes := cli.ServeRoutes(deps, vault, "personal", t.TempDir())
+
+	body, marshalErr := json.Marshal(map[string][]string{"notes": {"1.2026-01-01.a-note.md"}})
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	resp := routeFor(t, routes, "/activate").Serve(t.Context(), cli.ServeRequest{Body: body})
+	g.Expect(resp.Status).To(Equal(200))
+
+	raw, readErr := os.ReadFile(sidecarPath)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	sidecar, unmarshalErr := embed.UnmarshalSidecar(raw)
+	g.Expect(unmarshalErr).NotTo(HaveOccurred())
+	g.Expect(sidecar.LastUsed).To(Equal(time.Now().Format("2006-01-02")))
+}
+
+// Test792b35c7a2_ServeActivate_ListsVaultDirectoryOnceForMultipleRefs (final
+// re-review residual, ruling S34): resolving N refs in one served
+// activate request must cost one directory listing, not one per ref —
+// before the fix, an unauthenticated request with many short refs cost on
+// the order of len(refs) ReadDir calls while holding the vault lock.
+func Test792b35c7a2_ServeActivate_ListsVaultDirectoryOnceForMultipleRefs(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+
+	names := []string{"1.2026-01-01.a-note.md", "2.2026-01-01.b-note.md", "3.2026-01-01.c-note.md"}
+	for _, name := range names {
+		notePath := writeServeVaultFile(t, vault, name)
+		sidecarPath := embed.SidecarPath(notePath)
+		g.Expect(os.WriteFile(
+			sidecarPath, embed.MarshalSidecar(embed.Sidecar{SchemaVersion: embed.SidecarSchemaVersion}), 0o600,
+		)).To(Succeed())
+	}
+
+	deps := newTestDeps(io.Discard, io.Discard)
+	counting := &readDirCountingFS{EdgeFS: deps.FS}
+	deps.FS = counting
+
+	routes := cli.ServeRoutes(deps, vault, "personal", t.TempDir())
+
+	body, marshalErr := json.Marshal(map[string][]string{"notes": names})
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	resp := routeFor(t, routes, "/activate").Serve(t.Context(), cli.ServeRequest{Body: body})
+	g.Expect(resp.Status).To(Equal(200))
+	g.Expect(counting.count()).To(Equal(1), "expected exactly one vault directory listing for 3 refs in one request")
+}
+
+// Test792b35c7a3_ServeActivate_RejectsRefsOutsideTheVault (final review F2): a served
+// activate resolves refs only against the vault's listed note names; an
+// absolute path, a path separator or ".." is a 400, nothing is bumped
+// (not even a valid ref in the same request), and a sidecar outside the
+// vault is never touched.
+func Test792b35c7a3_ServeActivate_RejectsRefsOutsideTheVault(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	outsideNote := filepath.Join(root, "outside", "1.2026-01-01.outside.md")
+
+	for name, ref := range map[string]string{
+		"absolute path":     outsideNote,
+		"etc path":          "/etc/x",
+		"dot-dot relative":  "../outside/1.2026-01-01.outside.md",
+		"dot-dot bare":      "..",
+		"subdirectory":      "sub/1.2026-01-01.a-note.md",
+		"backslash":         `..\outside\1.2026-01-01.outside.md`,
+		"dot-dot in a name": "1.2026-01-01..md",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			base := t.TempDir()
+			vault := filepath.Join(base, "vault")
+			g.Expect(os.MkdirAll(vault, 0o700)).To(Succeed())
+			g.Expect(os.MkdirAll(filepath.Join(base, "outside"), 0o700)).To(Succeed())
+
+			notePath := writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
+			outside := writeServeVaultFile(t, filepath.Join(base, "outside"), "1.2026-01-01.outside.md")
+
+			staleSidecar := embed.MarshalSidecar(embed.Sidecar{
+				SchemaVersion: embed.SidecarSchemaVersion, LastUsed: "2020-01-01",
+			})
+			g.Expect(os.WriteFile(embed.SidecarPath(notePath), staleSidecar, 0o600)).To(Succeed())
+			g.Expect(os.WriteFile(embed.SidecarPath(outside), staleSidecar, 0o600)).To(Succeed())
+
+			// The absolute-path case names this subtest's own outside note.
+			target := strings.Replace(ref, outsideNote, outside, 1)
+
+			routes := cli.ServeRoutes(newTestDeps(io.Discard, io.Discard), vault, "personal", t.TempDir())
+
+			body, marshalErr := json.Marshal(map[string][]string{"notes": {"1.2026-01-01.a-note.md", target}})
+			g.Expect(marshalErr).NotTo(HaveOccurred())
+
+			resp := routeFor(t, routes, "/activate").Serve(t.Context(), cli.ServeRequest{Body: body})
+			g.Expect(resp.Status).To(Equal(400))
+			g.Expect(string(resp.Body)).To(ContainSubstring("error"))
+
+			g.Expect(os.ReadFile(embed.SidecarPath(outside))).To(Equal(staleSidecar), "outside sidecar untouched")
+			g.Expect(os.ReadFile(embed.SidecarPath(notePath))).To(Equal(staleSidecar), "nothing bumped")
+		})
+	}
+}
+
+// Test792b35c7a4_ServeActivate_ResolvesOnlyListedNames (final review F2): a served
+// ref resolves only to a listed vault note — with or without .md — and a
+// name that is not a listed note is not found (404), never probed as a
+// path.
+func Test792b35c7a4_ServeActivate_ResolvesOnlyListedNames(t *testing.T) {
+	t.Parallel()
+
+	for ref, status := range map[string]int{
+		"1.2026-01-01.a-note.md": 200,
+		"1.2026-01-01.a-note":    200,
+		"1.2026-01-01.a-note.MD": 404,
+		"1":                      404,
+	} {
+		t.Run(ref, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			vault := t.TempDir()
+			writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
+
+			routes := cli.ServeRoutes(newTestDeps(io.Discard, io.Discard), vault, "personal", t.TempDir())
+
+			body, marshalErr := json.Marshal(map[string][]string{"notes": {ref}})
+			g.Expect(marshalErr).NotTo(HaveOccurred())
+
+			resp := routeFor(t, routes, "/activate").Serve(t.Context(), cli.ServeRequest{Body: body})
+			g.Expect(resp.Status).To(Equal(status))
+		})
+	}
+}
+
+// Test792b35c8a1_ServeLearn_EmptyDeclaredIdentity_Rejected covers the identity floor
 // (serve-client-declared-identity): a served learn whose body carries no
 // (or an empty) user: value is refused before any write happens — no
 // edge-authentication header is consulted at all.
-func TestServeLearn_EmptyDeclaredIdentity_Rejected(t *testing.T) {
+func Test792b35c8a1_ServeLearn_EmptyDeclaredIdentity_Rejected(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -346,54 +539,14 @@ func TestServeLearn_EmptyDeclaredIdentity_Rejected(t *testing.T) {
 	g.Expect(matches).To(BeEmpty(), "no note written when declared identity is empty")
 }
 
-// TestServeLearn_IgnoresSkillIdentityFields (ruling R31, design D7 wire
-// safety): the skill-note identity fields are registration-only and the
-// exchange fields (xid, parent, aliases) exchange-only, so a remote client's
-// served learn carrying any of them, in camelCase or PascalCase, writes a
-// runbook with none of their values — a served write can never pose as, or
-// shadow, a registered skill's note, nor forge a link or alias.
-func TestServeLearn_IgnoresSkillIdentityFields(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	deps := newTestDeps(io.Discard, io.Discard)
-	routes := cli.ServeRoutes(deps, vault, "personal", t.TempDir())
-
-	body := []byte(`{"type":"runbook","slug":"skill-route","position":"top","source":"remote",` +
-		`"situation":"s","doneWhen":"d","body":"b","user":"declared-user@example.com",` +
-		forgedExchangeKeys + `}`)
-
-	resp := routeFor(t, routes, "/learn").Serve(t.Context(), cli.ServeRequest{Body: body})
-	g.Expect(resp.Status).To(Equal(200))
-
-	matches, globErr := filepath.Glob(filepath.Join(vault, "*.md"))
-	g.Expect(globErr).NotTo(HaveOccurred())
-	g.Expect(matches).To(HaveLen(1))
-
-	if len(matches) == 0 {
-		return
-	}
-
-	raw, readErr := os.ReadFile(matches[0])
-	g.Expect(readErr).NotTo(HaveOccurred())
-	g.Expect(string(raw)).To(ContainSubstring("type: runbook"))
-	g.Expect(string(raw)).NotTo(ContainSubstring("skill_hash"))
-	g.Expect(string(raw)).NotTo(ContainSubstring("skill_key"))
-	g.Expect(string(raw)).NotTo(ContainSubstring("skill_source"))
-	g.Expect(string(raw)).NotTo(ContainSubstring("forged"), "no forged exchange or skill value may land")
-	g.Expect(string(raw)).NotTo(ContainSubstring("aliases:"))
-	g.Expect(string(raw)).NotTo(ContainSubstring("parent:"))
-}
-
-// TestServeLearn_StampsClientDeclaredIdentityAndPendingMarker covers the
+// Test792b35c8a2_ServeLearn_StampsClientDeclaredIdentityAndPendingMarker covers the
 // core offer-write contract (serve-client-declared-identity): the server's
 // own configured Vault wins over anything in the request, user: comes from
 // the request body's client-declared value (no edge-authentication header
 // involved at all), repo: passes through the client-supplied value
 // unchanged, the note lands pending: true, and the response is the offer
 // receipt, which never carries note content.
-func TestServeLearn_StampsClientDeclaredIdentityAndPendingMarker(t *testing.T) {
+func Test792b35c8a2_ServeLearn_StampsClientDeclaredIdentityAndPendingMarker(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -441,197 +594,44 @@ func TestServeLearn_StampsClientDeclaredIdentityAndPendingMarker(t *testing.T) {
 		"empty VaultName falls back to the server's configured value")
 }
 
-// TestServeQuery_ExcludesPendingOffersAndSetsModelID covers GET /query:
-// a pending-offer note is excluded from results, the payload's model_id
-// matches the wired embedder, and pending_offers reflects the marker's
-// presence.
-func TestServeQuery_ExcludesPendingOffersAndSetsModelID(t *testing.T) {
+// Test792b35c8a3_ServeLearn_IgnoresSkillIdentityFields (ruling R31, design D7 wire
+// safety): the skill-note identity fields are registration-only and the
+// exchange fields (xid, parent, aliases) exchange-only, so a remote client's
+// served learn carrying any of them, in camelCase or PascalCase, writes a
+// runbook with none of their values — a served write can never pose as, or
+// shadow, a registered skill's note, nor forge a link or alias.
+func Test792b35c8a3_ServeLearn_IgnoresSkillIdentityFields(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	vault := t.TempDir()
 	deps := newTestDeps(io.Discard, io.Discard)
-	deps.Embed = stubEmbedder{modelID: "test-model@4", dims: 4}
-
-	// Write a normal note locally, then a pending offer through the served
-	// path — both auto-embed via the wired stub embedder.
-	learnLocal(t, deps, vault, cli.LearnArgs{
-		Type: "fact", Slug: "normal-note", Position: "top", Source: "local",
-		Situation: "a normal note about coverage", Subject: "engram", Predicate: "covers", Object: "queries",
-	})
-
-	routes := cli.ServeRoutes(deps, vault, "personal", t.TempDir())
-	learnBody, marshalErr := json.Marshal(cli.LearnArgs{
-		Type: "fact", Slug: "pending-note", Position: "top", Source: "remote",
-		Situation: "a pending note about coverage", Subject: "engram", Predicate: "covers", Object: "offers",
-		User: "u@example.com",
-	})
-	g.Expect(marshalErr).NotTo(HaveOccurred())
-
-	learnResp := routeFor(t, routes, "/learn").Serve(t.Context(), cli.ServeRequest{Body: learnBody})
-	g.Expect(learnResp.Status).To(Equal(200))
-
-	resp := routeFor(t, routes, "/query").Serve(t.Context(), cli.ServeRequest{
-		Query: map[string][]string{"phrase": {"coverage"}},
-	})
-
-	g.Expect(resp.Status).To(Equal(200))
-	payload := string(resp.Body)
-	g.Expect(payload).To(ContainSubstring("model_id: test-model@4"))
-	g.Expect(payload).To(ContainSubstring("pending_offers: true"))
-	g.Expect(payload).To(ContainSubstring("pending_offers_hint:"))
-	g.Expect(payload).To(ContainSubstring("curate pending offers"))
-	g.Expect(payload).To(ContainSubstring("normal-note"))
-	g.Expect(payload).NotTo(ContainSubstring("pending-note"))
-}
-
-// TestServeQuery_TextCappedAtTwoKB: GET /query carries `text` through to
-// trigger matching and truncates it at 2 KB without error — a cue that ends
-// exactly at byte 2048 hits; one that straddles the boundary does not.
-func TestServeQuery_TextCappedAtTwoKB(t *testing.T) {
-	t.Parallel()
-
-	const (
-		capBytes = 2048
-		cue      = "/zz-boundary"
-	)
-
-	cases := []struct {
-		name string
-		text string
-		hit  bool
-	}{
-		{"cue ends at boundary", strings.Repeat("x", capBytes-len(cue)) + cue, true},
-		{"cue straddles boundary", strings.Repeat("x", capBytes-len(cue)+1) + cue, false},
-		{"cue at start of long text", cue + " " + strings.Repeat("x", 4*capBytes), true},
-	}
-
-	for _, testCase := range cases {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			vault := t.TempDir()
-			deps := newTestDeps(io.Discard, io.Discard)
-			deps.Embed = stubEmbedder{modelID: "test-model@4", dims: 4}
-
-			learnLocal(t, deps, vault, cli.LearnArgs{
-				Type: "runbook", Slug: "boundary", Position: "top", Source: "local",
-				Situation: "boundary situation", DoneWhen: "done", Body: "1. step",
-				Triggers: []string{cue},
-			})
-
-			routes := cli.ServeRoutes(deps, vault, "personal", t.TempDir())
-
-			resp := routeFor(t, routes, "/query").Serve(t.Context(), cli.ServeRequest{
-				Query: map[string][]string{"text": {testCase.text}},
-			})
-
-			g.Expect(resp.Status).To(Equal(200))
-			g.Expect(strings.Contains(string(resp.Body), "- trigger")).To(Equal(testCase.hit))
-		})
-	}
-}
-
-// TestServeRoutes_MethodsAndPatterns covers the API contract's route table
-// (design D7): exactly query and show (GET) and activate and learn (POST).
-// No other command — amend, query-chunks, show-chunk, or any host-only
-// command — gets a route.
-func TestServeRoutes_MethodsAndPatterns(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	deps := newTestDeps(io.Discard, io.Discard)
-	routes := cli.ServeRoutes(deps, t.TempDir(), "personal", t.TempDir())
-
-	got := map[string]string{}
-	for _, route := range routes {
-		got[route.Pattern] = route.Method
-	}
-
-	g.Expect(got).To(Equal(map[string]string{
-		"/query":    "GET",
-		"/show":     "GET",
-		"/activate": "POST",
-		"/learn":    "POST",
-	}))
-}
-
-// TestServeRoutes_OtherBodyReadErrorIs400 (final re-review residual,
-// ruling S34): a body-read error that is NOT the over-the-cap case (e.g. a
-// client disconnect) answers 400 on every route, never 413 — only an
-// oversized body warrants 413 — and nothing is written.
-func TestServeRoutes_OtherBodyReadErrorIs400(t *testing.T) {
-	t.Parallel()
-
-	for _, pattern := range []string{"/learn", "/activate", "/query", "/show"} {
-		t.Run(pattern, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			vault := t.TempDir()
-			writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
-
-			before := snapshotVault(t, vault)
-			routes := cli.ServeRoutes(serveTestDeps(), vault, "personal", t.TempDir())
-
-			resp := routeFor(t, routes, pattern).Serve(t.Context(), cli.ServeRequest{
-				Body:    []byte(`{"notes":["1.2026-01-01.a-note.md"]}`),
-				BodyErr: errors.New("unexpected EOF"),
-			})
-			g.Expect(resp.Status).To(Equal(400))
-			g.Expect(snapshotVault(t, vault)).To(Equal(before))
-		})
-	}
-}
-
-// TestServeRoutes_OversizedBodyIs413 (final review F7; final re-review
-// residual, ruling S34): a request body over MaxServeRequestBytes answers
-// 413 on every route, and nothing is written.
-func TestServeRoutes_OversizedBodyIs413(t *testing.T) {
-	t.Parallel()
-
-	for _, pattern := range []string{"/learn", "/activate", "/query", "/show"} {
-		t.Run(pattern, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			vault := t.TempDir()
-			writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
-
-			before := snapshotVault(t, vault)
-			routes := cli.ServeRoutes(serveTestDeps(), vault, "personal", t.TempDir())
-
-			resp := routeFor(t, routes, pattern).Serve(t.Context(), cli.ServeRequest{
-				Body:         []byte(`{"notes":["1.2026-01-01.a-note.md"]}`),
-				BodyErr:      errors.New("http: request body too large"),
-				BodyTooLarge: true,
-			})
-			g.Expect(resp.Status).To(Equal(413))
-			g.Expect(snapshotVault(t, vault)).To(Equal(before))
-		})
-	}
-}
-
-// TestServeShow_MatchesLocalOutput covers GET /show: response matches
-// local `engram show`'s own output shape (a read-only route, no identity
-// or offer logic involved).
-func TestServeShow_MatchesLocalOutput(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
-
-	deps := newTestDeps(io.Discard, io.Discard)
 	routes := cli.ServeRoutes(deps, vault, "personal", t.TempDir())
 
-	resp := routeFor(t, routes, "/show").Serve(t.Context(), cli.ServeRequest{
-		Query: map[string][]string{"note": {"1"}},
-	})
+	body := []byte(`{"type":"runbook","slug":"skill-route","position":"top","source":"remote",` +
+		`"situation":"s","doneWhen":"d","body":"b","user":"declared-user@example.com",` +
+		forgedExchangeKeys + `}`)
 
+	resp := routeFor(t, routes, "/learn").Serve(t.Context(), cli.ServeRequest{Body: body})
 	g.Expect(resp.Status).To(Equal(200))
-	g.Expect(string(resp.Body)).To(ContainSubstring("subject: a"))
+
+	matches, globErr := filepath.Glob(filepath.Join(vault, "*.md"))
+	g.Expect(globErr).NotTo(HaveOccurred())
+	g.Expect(matches).To(HaveLen(1))
+
+	if len(matches) == 0 {
+		return
+	}
+
+	raw, readErr := os.ReadFile(matches[0])
+	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(string(raw)).To(ContainSubstring("type: runbook"))
+	g.Expect(string(raw)).NotTo(ContainSubstring("skill_hash"))
+	g.Expect(string(raw)).NotTo(ContainSubstring("skill_key"))
+	g.Expect(string(raw)).NotTo(ContainSubstring("skill_source"))
+	g.Expect(string(raw)).NotTo(ContainSubstring("forged"), "no forged exchange or skill value may land")
+	g.Expect(string(raw)).NotTo(ContainSubstring("aliases:"))
+	g.Expect(string(raw)).NotTo(ContainSubstring("parent:"))
 }
 
 // readDirCountingFS wraps an EdgeFS, counting ReadDir calls (final
