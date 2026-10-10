@@ -73,30 +73,6 @@ references cite the entry-point symbol on `main` — grep the symbol, since line
 
 Ported: the product behavior is [792a11](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a11-added-install-and-update), the install and hand-off sequence [792b28](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b28-added-self-installer), and the sync sequence [792b29](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b29-added-harness-deploy-sync).
 
-### L1 decision flowcharts
-
-The sequence diagrams above show *message order*; these flowcharts show the *operator-level decision
-logic* — when the system is engaged at all. (The `/please` workflow and its gates are
-[792a18](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a18-added-please). Recall's coverage decision is
-[792a14](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a14-added-recall), and learn's
-capture kinds are [792a15](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a15-added-learn).)
-
-#### Flow: engram engagement — the read → work → write → synthesize lifecycle
-
-```mermaid
-flowchart TD
-    A[operator request arrives] --> B{more than a trivial lookup/edit?}
-    B -->|no| Z[handle directly — engram not engaged]
-    B -->|yes| C[recall: read memory]
-    C --> D[print Step-0 plan, query, synthesize impact on the plan]
-    D --> E[do the work]
-    E --> F{produced a lesson / correction / decision?}
-    F -->|no| G[done]
-    F -->|yes| H[learn: write memory]
-    H --> I[engram ingest --auto, then write facts/feedback for explicit lessons]
-    I --> G
-```
-
 ## Out of scope at L1
 
 L1 hides containers, components, technologies, protocols, and internal structure.

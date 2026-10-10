@@ -10258,6 +10258,9 @@ Scenario: 792b22c7a1 A query without a hit is unchanged
 | 792a7zb1h | 792b22c2 |
 | 792a7zb1i | 792b22c2 |
 | 792a7zg1b | 792b22c1 |
+| 792a19j1a | 792b22c3 |
+| 792a19j1b | 792b22c7 |
+| 792a19j1c | 792b22c2 |
 
 ```gherkin
 Scenario: 792a7y1a Text alone is a trigger lookup
@@ -10349,6 +10352,21 @@ Scenario: 792a7zg1b A CRLF runbook's trigger matches
   Given a runbook whose lines end in \r\n and whose triggers include "curate"
   When the user runs engram query --text "curate"
   Then it is returned as a trigger hit with kind runbook
+
+Scenario: 792a19j1a A shim-only session queries first
+  Given an agent with the shim in its config and no engram skill installed
+  When it receives a user request
+  Then its first tool call is an engram query carrying the request phrase, the situation phrase and --text with the user's message, before any other tool call
+
+Scenario: 792a19j1b A one-shot request still queries
+  Given a single-step request such as a one-line answer or a single-file typo fix
+  When the agent receives it
+  Then it still runs the query first, and proceeds without a runbook when none matches
+
+Scenario: 792a19j1c The message is passed unchanged
+  Given the user's message "/please rename the tally CLI's --out flag to --output"
+  When the agent runs its first query
+  Then the --text value holds that string verbatim up to whitespace differences, and the paraphrase appears only in a --phrase
 ```
 
 ## 792b23 Added: query-payload-renderer
@@ -11870,6 +11888,9 @@ Scenario: 792b24c24a1 Each stage ends with a reading
 | 792a14g1c | 792b24c19 |
 | 792a14h1d | 792b24c10 |
 | 792a14o1a | 792b24c1 |
+| 792a19j1a | 792b24c1 |
+| 792a19t1a | 792b24c1 |
+| 792a19t1b | 792b24c1 |
 
 ```gherkin
 Scenario: 792a7a1a A query with nothing to search for fails
@@ -12141,6 +12162,16 @@ Scenario: 792a14o1a A new recommendation triggers a re-entry query
   Given the synthesis is about to recommend an approach that is not in the Step 0 plan
   When the agent prepares to show it
   Then it first runs an engram query keyed to that approach with three phrases
+
+Scenario: 792a19t1a Work is queried before it is declared done
+  Given the agent is about to declare work done
+  When it prepares to
+  Then it runs engram query keyed to the current work first, and then verifies
+
+Scenario: 792a19t1b A new approach is queried before it is built
+  Given the agent is about to start building a new approach
+  When it chooses the approach
+  Then it runs engram query with phrases re-keyed to the approach before it starts
 ```
 
 ## 792b25 Added: vault-counter
@@ -15839,6 +15870,77 @@ Scenario: 792b29c17a9 The skill rows map source to skills directory
   Then each row reads "agent-instructions/skills/<skill>/ → ~/<harness skills dir>/<skill>/  (<N> file[s])"
 ```
 
+#### 792b29c18 Guidance activation hints
+
+Requirement: 792b29c18 For each harness that has an imports file, and for each guidance file in its deploy set,
+the harness-deploy-sync MUST give the report one line: `guidance refreshed: ~/<guidance dir>/<name>` when that
+harness's imports include the file, and otherwise `guidance deployed to ~/<guidance dir>/<name> — add
+'@~/<guidance dir>/<name>' to ~/<imports file> to activate it (<Harness> will ask you to approve the import once)`,
+using forward slashes on every operating system and judging each harness and each file on its own imports. It
+MUST give nothing for a harness without an imports file. When no harness deployed any guidance, the run was not
+given `--with-guidance` and no config file imports guidance, it MUST give the one line `engram ships recall- and
+delegation-firing guidance; run 'engram update --with-guidance' to deploy it`, and otherwise MUST NOT. It MUST
+prefix `[dry-run] ` to the refreshed and deployed lines of a dry run, and MUST NOT prefix the nudge.
+
+Supports: 792a19u1a, 792a19u1b, 792a19v1a, 792a19v1b, 792a19v1c, 792a19v1d, 792a19v1e, 792a19v1f, 792a19v1g,
+792a19v1h, 792a19v1i.
+
+Rationale: an import is a line in a file that the user owns, so the report names the exact line to add. The
+canonical-path suffix of Claude Code's lines is 792b29c17.
+
+##### 792b29c18a Scenarios
+
+```gherkin
+Scenario: 792b29c18a1 A Claude Code file not imported is deployed with its line to add
+  Given a Claude Code report with recall.md deployed and not imported, from a run with --with-guidance
+  When the report is written
+  Then it holds "guidance deployed to ~/.claude/engram/recall.md — add '@~/.claude/engram/recall.md' to ~/.claude/CLAUDE.md to activate it (Claude Code will ask you to approve the import once)"
+
+Scenario: 792b29c18a2 An imported Claude Code file is refreshed
+  Given a Claude Code report with recall.md deployed and imported
+  When the report is written
+  Then it holds "guidance refreshed: ~/.claude/engram/recall.md" and no "add '@~/.claude/engram/recall.md'"
+
+Scenario: 792b29c18a3 A Pi file not imported is deployed with Pi's paths
+  Given a Pi report with recall.md deployed and not imported
+  When the report is written
+  Then it holds "guidance deployed to ~/.pi/agent/guidance/recall.md — add '@~/.pi/agent/guidance/recall.md' to ~/.pi/agent/AGENTS.md to activate it (Pi will ask you to approve the import once)"
+
+Scenario: 792b29c18a4 An imported Pi file is refreshed
+  Given a Pi report with recall.md deployed and imported
+  When the report is written
+  Then it holds "guidance refreshed: ~/.pi/agent/guidance/recall.md" and no line to add
+
+Scenario: 792b29c18a5 Each harness is judged on its own imports
+  Given both harnesses with recall.md deployed and only Claude Code importing it
+  When the report is written
+  Then it holds "guidance refreshed: ~/.claude/engram/recall.md" and the line adding '@~/.pi/agent/guidance/recall.md' to ~/.pi/agent/AGENTS.md, and no line adding the Claude Code import
+
+Scenario: 792b29c18a6 A plain update with nothing deployed or imported gives the nudge
+  Given a Claude Code report with no guidance deployed, no --with-guidance and no import
+  When the report is written
+  Then it holds "engram ships recall- and delegation-firing guidance"
+
+Scenario: 792b29c18a7 An existing import silences the nudge
+  Given a Claude Code report with no guidance deployed, no --with-guidance and a guidance import
+  When the report is written
+  Then it holds neither "engram ships" nor "activate it"
+
+Scenario: 792b29c18a8 Each file is judged on its own imports
+  Given Claude Code with recall.md and delegate.md deployed and only recall.md imported
+  When the report is written
+  Then recall.md is reported refreshed and delegate.md is reported deployed with "@~/.claude/engram/delegate.md" to add
+
+Scenario: 792b29c18a9 The flag silences the nudge
+  Given a report from a run with --with-guidance in which no harness deployed guidance
+  When the report is written
+  Then it does not hold "engram ships"
+
+Scenario: 792b29c18a10 A dry run prefixes the guidance lines
+  Given a dry run with guidance deployed and not imported
+  When the report is written
+  Then the line begins "[dry-run] guidance deployed to"
+
 ### 792b29d Product-Scenario Mapping
 
 | Product scenario | Technical requirements |
@@ -15876,6 +15978,17 @@ Scenario: 792b29c17a9 The skill rows map source to skills directory
 | 792a11m1b | 792b29c8, 792b29c9 |
 | 792a11m1c | 792b29c9 |
 | 792a11m1d | 792b29c17 |
+| 792a19u1a | 792b29c4, 792b29c18 |
+| 792a19u1b | 792b29c4, 792b29c18 |
+| 792a19v1a | 792b29c18 |
+| 792a19v1b | 792b29c18 |
+| 792a19v1c | 792b29c18 |
+| 792a19v1d | 792b29c18 |
+| 792a19v1e | 792b29c18 |
+| 792a19v1f | 792b29c18 |
+| 792a19v1g | 792b29c18 |
+| 792a19v1h | 792b29c18 |
+| 792a19v1i | 792b29c18 |
 
 ```gherkin
 Scenario: 792a11f1a A dry run on a never-synced harness leaves no trace
@@ -16027,6 +16140,61 @@ Scenario: 792a11l1g One harness's import manages guidance for every harness
   Given only ~/.claude/CLAUDE.md imports a guidance file, no flag is passed, and ~/.pi exists
   When the user runs engram update
   Then guidance is also deployed for Pi
+
+Scenario: 792a19u1a A config with three imports gains the shim
+  Given a harness config that imports recall.md, delegate.md and learn.md and not shim.md
+  When the user runs engram update
+  Then the report names shim.md as deployed and not yet imported, with the line to add, and the three existing imports are untouched
+
+Scenario: 792a19u1b The shim does not replace the other documents
+  Given the recall, learn and write-memory skills are not promoted to production runbooks
+  When the user activates the shim
+  Then recall.md, delegate.md and learn.md remain imported
+
+Scenario: 792a19v1a A Claude Code document not yet imported is deployed with its line to add
+  Given --with-guidance deploys recall.md for Claude Code and ~/.claude/CLAUDE.md does not import it
+  When the user runs engram update --with-guidance
+  Then the report says "guidance deployed to ~/.claude/engram/recall.md — add '@~/.claude/engram/recall.md' to ~/.claude/CLAUDE.md to activate it" and that Claude Code will ask for approval once
+
+Scenario: 792a19v1b An imported document is refreshed
+  Given ~/.claude/CLAUDE.md imports recall.md
+  When the user runs engram update
+  Then the report says "guidance refreshed: ~/.claude/engram/recall.md" and gives no line to add
+
+Scenario: 792a19v1c A Pi document is deployed with Pi's paths
+  Given --with-guidance deploys recall.md for Pi and ~/.pi/agent/AGENTS.md does not import it
+  When the user runs engram update --with-guidance
+  Then the report says "guidance deployed to ~/.pi/agent/guidance/recall.md — add '@~/.pi/agent/guidance/recall.md' to ~/.pi/agent/AGENTS.md to activate it" and that Pi will ask for approval once
+
+Scenario: 792a19v1d The harnesses are wired independently
+  Given Claude Code imports recall.md and Pi does not
+  When the user runs engram update
+  Then the report says refreshed for Claude Code and gives Pi's line to add
+
+Scenario: 792a19v1e Each document is judged on its own
+  Given Claude Code imports recall.md and not delegate.md
+  When the user runs engram update
+  Then recall.md is reported refreshed and delegate.md is reported deployed with its line to add
+
+Scenario: 792a19v1f A user who has not opted in is nudged
+  Given no --with-guidance, no guidance imported and no guidance deployed
+  When the user runs engram update
+  Then the report says engram ships recall- and delegation-firing guidance and names engram update --with-guidance
+
+Scenario: 792a19v1g A user who already imports is not nudged
+  Given no --with-guidance flag and a config that imports guidance
+  When the user runs engram update
+  Then the report prints neither the nudge nor a line to activate
+
+Scenario: 792a19v1h The flag suppresses the nudge
+  Given --with-guidance and no guidance deployed for any harness
+  When the user runs engram update --with-guidance
+  Then the report does not print the nudge
+
+Scenario: 792a19v1i A dry run prefixes the guidance lines
+  Given a harness with guidance to deploy and a dry run
+  When the user runs engram update --dry-run --with-guidance
+  Then each guidance line begins with "[dry-run] "
 ```
 
 ## 792b30 Added: skill-source-discovery
@@ -18763,6 +18931,7 @@ Scenario: 792b32c4a2 An existing note is edited by amend or resituate
 | 792a13a1a | 792b32c4 |
 | 792a13h1a | 792b32c2, 792b32c3 |
 | 792a14f1c | 792b32c2, 792b32c3 |
+| 792a19j1d | 792b32c2, 792b32c3 |
 
 ```gherkin
 Scenario: 792a13a1a A complete handoff is executed
@@ -18779,5 +18948,10 @@ Scenario: 792a14f1c Values are attached to their flags
   Given a phrase that begins with a dash
   When the agent writes the flag
   Then it is --phrase="-..." with the quote touching the equals sign
+
+Scenario: 792a19j1d A message that begins with a dash survives
+  Given the user's message begins with "-", such as "- fix the login bug"
+  When the agent runs its first query
+  Then --text is written --text="- fix the login bug" and the command runs instead of exiting with a flag needing an argument
 ```
 

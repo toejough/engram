@@ -1911,3 +1911,54 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792d3, 792d12, 792d32, 792d33, 792d57 and 792d113.
 - **Alternatives:** keep the stale sub-runbook text in the requirements. Rejected because it contradicts the shipped
   skill (the caution on this node).
+
+## 792d116 ambient-guidance scope, the guidance edits, and where the sources differ from the documents
+
+- **Choice:**
+  - 792a19 describes the four shipped documents in `agent-instructions/guidance/` and the activation hints of
+    `engram update`: twenty-three requirements (792a19a to 792a19w). The documents are the source of the
+    cues; the five OpenSpec specs are the source of the scenarios and rationale, re-checked against the documents.
+    The recall cues (a, b), the learn cues (c to f), the delegate cues (g to i) and the shim (j to t) each have a
+    requirement per distinct obligation, because the documents state them as separate rules.
+  - The served `--text` round trip stays in `runbook-lexical-triggers` for 792c7s1. Only the shim's verbatim
+    `--text` requirement was removed from that spec, and it is 792a19j. The spec's Purpose now says that a
+    node remains.
+  - ADR-0026, whose capture, retrieval and lexical decisions were ported earlier, held no follow-frame text. Its
+    remainder (four kinds, no validation gate, #730 out of scope) is rationale for 792a19l, and the ADR becomes a
+    pointer like the other ported ADRs.
+  - The activation hints of `engram update` get a harness-deploy-sync requirement (792b29c18), with the product
+    behavior in 792a19v, per 792d103 and 792d105. `TestWriteUpdateReport_GuidanceActivationHint` is one table test
+    over eight cases, so it takes 792b29c18a1 and lists 792b29c18a2 to 792b29c18a8 as split deferred.
+  - Two Python static guards in `dev/eval/test_no_space_form_free_text_flags.py` verify 792b32c2a1 and 792b32c3a1
+    (the attached form in every shipped skill and guidance document, and the sentence in the four skills). The
+    nodes that added those requirements did not list them, so they are renamed here, where the guidance documents
+    they also scan are described. The scanner's own self-tests keep their names.
+  - **Guidance edits (792d40).** The `ADR-0022 D9` citation in the header comment of `recall.md`, `learn.md` and
+    `delegate.md`, and in the root `AGENTS.md`, now names 792a11m (the compat links) in
+    `docs/changes/792_documentation-framework-adoption/792a_product-spec.md`. A repoint of a citation in an HTML
+    comment changes no instruction the agent reads, so it is not a behavioral edit and the writing-skills red,
+    green and pressure cycle was not run. The documents' text is deployed by copy, so they change for every user on
+    their next `engram update`.
+  - The context view's engagement flowchart is the lifecycle of 792a19w. The flowchart's step that runs
+    `engram ingest --auto` is learn's (792a15), and the "print Step-0 plan" step is recall's (792a14a), so
+    neither is restated.
+  - #773 (duplicate cues) and #790 (the shim refused as a suspected prompt injection) are open, and 792a19 states so
+    in its context paragraph. The blanket recall hook is a dead end and is stated as one.
+- **Divergences noted (792d33):**
+  - The recall-moments spec says the glance runs "with phrases derived from the approach". The shipped document says
+    only `/recall glance`; 792a19a1a keeps the phrases because recall's own skill requires them (792a14).
+  - The delegate spec says route picks the tier "starting at cheapest unless recalled evidence raises it" and that
+    the report carries "cost if available". The shipped document says only that route sets tier, handoff and
+    evidence, and names the evidence table and please's gate verdicts. The starting tier and the cost are route's
+    (792a17), and 792a19g and 792a19i follow the document.
+  - The follow-frame spec has a requirement that a runbook named by a skill's own instructions gets the same frame,
+    for a skill that says to "fetch and follow `[[<basename>]]` with this handoff" at a write site. The shipped
+    shim has no such text, and recall and learn now invoke write-memory natively as a skill, not by basename
+    (AGENTS.md). It is not ported, and the scenario 792a19q1b is retired with it. The shim states the frame for the
+    kind, so a runbook from a parent vault or of a registered skill is covered by 792a19q as a consequence.
+  - The `production-guidance-activation` spec treats the full replacement of the other three documents as pending
+    on #760. The ROADMAP records #760 as shipped for all six skills, yet the activation policy is unchanged, so
+    792a19u keeps the spec's wording. This is not described as resolved.
+- **Rationale:** 792d3, 792d19, 792d33, 792d40, 792d52, 792d90, 792d103, 792d105 and 792d113.
+- **Alternatives:** one capability per guidance document. Rejected by 792d19. Run the writing-skills cycle for the
+  citation repoint. Rejected because no instruction changes.

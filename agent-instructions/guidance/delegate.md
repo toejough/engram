@@ -1,4 +1,4 @@
-<!-- engram-owned: delegation-firing guidance. Synced by 'engram update --with-guidance' to canonical paths ~/.claude/engram/guidance/delegate.md (Claude Code) and ~/.pi/agent/engram/guidance/delegate.md (Pi); compat symlinks at old flat paths keep existing imports working (ADR-0022 D9). Activate via '@~/.claude/engram/delegate.md' in CLAUDE.md (resolves via compat symlink) or '@~/.pi/agent/guidance/delegate.md' in AGENTS.md (symlink surface path; detection matches this prefix). Edit via writing-skills TDD. -->
+<!-- engram-owned: delegation-firing guidance. Synced by 'engram update --with-guidance' to canonical paths ~/.claude/engram/guidance/delegate.md (Claude Code) and ~/.pi/agent/engram/guidance/delegate.md (Pi); compat symlinks at old flat paths keep existing imports working (792a11m in docs/changes/792_documentation-framework-adoption/792a_product-spec.md). Activate via '@~/.claude/engram/delegate.md' in CLAUDE.md (resolves via compat symlink) or '@~/.pi/agent/guidance/delegate.md' in AGENTS.md (symlink surface path; detection matches this prefix). Edit via writing-skills TDD. -->
 
 ## Delegate object-level work — plan it, route it, review it, report it
 

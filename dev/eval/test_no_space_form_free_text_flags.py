@@ -44,7 +44,7 @@ D18_SENTENCE = (
 D18_SKILLS = ("recall", "route", "curate", "write-memory")
 
 
-def test_d18_sentence_appears_verbatim_in_each_of_the_four_skills():
+def test_792b32c3a1_d18_sentence_appears_verbatim_in_each_of_the_four_skills():
     missing = []
     for skill in D18_SKILLS:
         path = os.path.join(REPO, "agent-instructions", "skills", skill, "SKILL.md")
@@ -94,7 +94,7 @@ def _skill_and_guidance_paths():
     return paths
 
 
-def test_shipped_skills_and_guidance_have_no_space_form_free_text_flags():
+def test_792b32c2a1_shipped_skills_and_guidance_have_no_space_form_free_text_flags():
     """GREEN: the current, shipped files are clean."""
     offenders = {}
     for path in _skill_and_guidance_paths():

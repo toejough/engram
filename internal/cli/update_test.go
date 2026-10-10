@@ -1524,7 +1524,7 @@ func Test792b29c17a8_PluralFile(t *testing.T) {
 	g.Expect(cli.ExportPluralFile(2)).To(Equal("files"))
 }
 
-func TestWriteUpdateReport_GuidanceActivationHint(t *testing.T) {
+func Test792b29c18a1_WriteUpdateReport_GuidanceActivationHint(t *testing.T) {
 	t.Parallel()
 
 	table := []struct {

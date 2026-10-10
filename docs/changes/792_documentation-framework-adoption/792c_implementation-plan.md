@@ -246,8 +246,8 @@ flowchart TD
   N792c7o1["792c7o1 lessons-contract product spec<br/>Complete"]
   N792c7p1["792c7p1 route product spec<br/>Complete"]
   N792c7q1["792c7q1 please product spec<br/>Complete"]
-  N792c7r1["792c7r1 ambient-guidance product spec<br/>Ready"]
-  N792c7s1["792c7s1 vault-serving product spec<br/>Blocked by: 792c7r1"]
+  N792c7r1["792c7r1 ambient-guidance product spec<br/>Complete"]
+  N792c7s1["792c7s1 vault-serving product spec<br/>Ready"]
   N792c7s2["792c7s2 exchange-versioning tech spec<br/>Blocked by: 792c7s1"]
   N792c7s3["792c7s3 pending-offer-bookkeeping tech spec<br/>Blocked by: 792c7s2"]
   N792c7s4["792c7s4 vault-http-server tech spec<br/>Blocked by: 792c7s3"]
@@ -4510,11 +4510,52 @@ Target: `792a19` (`docs/specs/product/ambient-guidance.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7r1a | Port product requirements and UAT to `792a19` | Non-test action | Moves current behavior into the framework format | Not started |
-| 792c7r1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7r1c | Repoint stale references to `792a19` | Non-test action | Keeps live links valid | Not started |
-| 792c7r1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Not started |
-| 792c7r1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Not started |
+| 792c7r1a | Port product requirements and UAT to `792a19` | Non-test action | Moves current behavior into the framework format | Done |
+| 792c7r1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7r1c | Repoint stale references to `792a19` | Non-test action | Keeps live links valid | Done |
+| 792c7r1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Done |
+| 792c7r1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
+
+792a19 has twenty-three requirements (792a19a to 792a19w): recall at four decision moments and its escalation, learn at
+the correction moment, its fast path, the returned subagent lesson and the lines that do not clear the bar, the
+delegate guidance (plan and route every unit, solo work only on a recorded measurement, fresh review and the evidence
+report), the shim (the first query, the second phrase, the kinds, announce and restate, red flags, `done_when`, the
+genuine-uncertainty stop, linked and skill-named runbooks, the floor, the unrequested-work signal, the four re-entry
+moments), the additive activation of the shim, the update report's activation hints and the engagement lifecycle
+(792d116). harness-deploy-sync gains 792b29c18 (the activation hints) and mapping rows for 792a19u and 792a19v;
+runbook-trigger-matching gains rows for 792b22c2, 792b22c3 and 792b22c7; query-engine gains rows for 792b24c1; and
+agent-instruction-bundle gains a row for 792b32c2 and 792b32c3. Legacy removal: the five `guidance-*` and
+`production-guidance-activation` OpenSpec specs are deleted, the shim requirement is removed from
+`runbook-lexical-triggers` (its served residue stays for 792c7s1), ADR-0026 becomes a pointer, and the context view's
+decision flowchart is removed. Repointed: the `ADR-0022 D9` citations in the three firing guidance documents and the
+root `AGENTS.md` (792d116).
+
+**Test Traceability**
+
+Markdown guidance has no test of this repository's code. Its evidence is the eval ledger and the headless harnesses,
+which keep their names (792d116). One Go test and two Python tests are renamed.
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b29c18a1 (792b29c18a2 to 792b29c18a8 split deferred; mapped 792a19v1a to 792a19v1g) | `TestWriteUpdateReport_GuidanceActivationHint` → `Test792b29c18a1_WriteUpdateReport_GuidanceActivationHint` | Existing Go table test, unit | One table drives eight cases: Claude Code and Pi, imported and not, independent wiring, the nudge, and the mixed case | Done |
+| 792b32c2a1 (mapped 792a19j1d) | `dev/eval/test_no_space_form_free_text_flags.py::test_shipped_skills_and_guidance_have_no_space_form_free_text_flags` → `test_792b32c2a1_shipped_skills_and_guidance_have_no_space_form_free_text_flags` | Existing Python static guard | Scans every skill and every guidance document for the space-separated form of a free-text flag | Done |
+| 792b32c3a1 | `dev/eval/test_no_space_form_free_text_flags.py::test_d18_sentence_appears_verbatim_in_each_of_the_four_skills` → `test_792b32c3a1_d18_sentence_appears_verbatim_in_each_of_the_four_skills` | Existing Python static guard | Checks the attached-form sentence in the four skills that show free-text flags | Done |
+| 792a19a1a | `dev/eval/LEDGER.md#underload-firing-wording-fix` (harness `dev/eval/cumulative/underload_repro`, `endorse_cue`, not renamed) | Confined headless RED/GREEN | The conversational endorse cue lifts firing from 9/18 to 18/18 | Done |
+| 792a19a1b to 792a19a1d | `dev/eval/LEDGER.md#recall-moments-opus48-remeasure` (not renamed) | Confined headless measurement | Cue-firing is not regressed on the production model; the after-failure cue did not fire in the sample | Done |
+| 792a19e1a to 792a19e1e, 792a19f1a to 792a19f1c | `dev/eval/LEDGER.md#learn-at-return-guidance` (harness `dev/eval/learn-at-return`, not renamed) | Confined headless RED/GREEN | Positive cells fire before the next dispatch and the three negative cells do not fire | Done |
+| 792a19g1b, 792a19g1d, 792a19h1a | `dev/eval/LEDGER.md#delegate-guidance-flip` (not renamed) | Confined headless RED/GREEN | A trivial rename flips from solo work to a dispatch | Done |
+| 792a19j1a, 792a19m1a, 792a19m1b | `dev/eval/LEDGER.md#shim-follow-frame-d8-bar` (harness `dev/eval/cumulative/runbook_vs_skill`, not renamed) | Confined headless measurement | A shim-only configuration finds, announces and restates runbooks, with parity on two of three procedures | Done |
+
+**Coverage gaps:** no test or measurement covers 792a19b (the escalation to deep, which the trap gate measures
+instead), 792a19c and 792a19d (learn at the correction moment), 792a19g1a, 792a19g1c and 792a19g1e, 792a19h1b and
+792a19h1c, 792a19i, 792a19j1b to 792a19j1e, 792a19k, 792a19l, 792a19m1c, 792a19n, 792a19o, 792a19p, 792a19q, 792a19r,
+792a19s, 792a19t, 792a19u, 792a19v1h (the flag silences the nudge, though 792b29c18a9 states it), 792a19v1i (the
+dry-run prefix; 792b29c18a10 has no test) and 792a19w. The scenarios 792b29c18a9 and 792b29c18a10 have no test.
+
+**No-scenario tests:** the self-tests of the space-form scanner in `dev/eval/test_no_space_form_free_text_flags.py`
+(`test_scanner_would_have_caught_the_pre_fix_shim_and_skill_text` and the four `test_space_form_detector_*` tests)
+verify the guard itself and no scenario; they keep their names.
+
 
 ### 792c7s vault-serving
 

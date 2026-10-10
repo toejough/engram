@@ -244,42 +244,15 @@ Seeded `math/rand/v2` stays legal (deterministic computation).
 
 ## ADR-0026 — `runbook`: a fourth content kind for task-shaped strategies, symmetric with fact/feedback
 
-**Status:** Accepted (2026-08-24).
-
-The context and the capture decision (name, three-question schema, no `task_type` or `inputs`
-field, fact/feedback filename and Luhmann placement) are in
-[792a3c](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a3c-runbook-notes)
-and [792a3e](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a3e-no-task-type-or-input-fields).
-
-**Decision (remainder).** Retrieval is in
-[792a7v](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a7v-runbooks-rank-like-other-notes).
-`learn`'s routing of a confirmed approach by shape is
-[792a15g](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a15g-a-confirmed-approach-needs-a-bet-or-specific-praise-and-takes-the-kind-its-shape-calls-for).
-
-**Consequences.**
-
-- Four content kinds now exist: `fact | feedback | qa | runbook`. `qa`'s asymmetric
-  capture-and-exclude shape remains a special case for that kind alone, not a template other kinds
-  should follow.
-- Migrating the vault's *existing* kind-4 feedback content into `runbook` notes is explicitly out of
-  scope here — tracked separately as #730 (untriaged: mechanism, disposition, and timing are all
-  still open).
-- No validation gate (vault supply check / A/B recall test / SPL methodology cross-check) shipped —
-  the originally-planned gate existed specifically to de-risk the now-dropped `task_type` pre-filter;
-  with that mechanism gone, `runbook` is structurally identical to how `fact`/`feedback` already
-  work, so there was no novel ranking mechanism left to de-risk.
-- `internal/cli/qa_test.go`'s `Test792b24c7a1_IsQueryExcludedKind` and a new
-  `Test792b24c3a6_RunQuery_RunbookCompetesInMainMatchedSet` (`internal/cli/query_runbook_test.go`) both passed
-  on first run with zero production-code changes for the retrieval side — the "no exclusion"
-  property was already true by construction once capture landed (Decision 2 is an omission, not an
-  addition).
-
-**Amendment (2026-09-20, openspec change `runbook-lexical-triggers`): one lexical exception to "no
-dedicated ranking mechanism."** The measurement, the decision and its whole-word amendment of 2026-09-21
-are in [792b22](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b22-added-runbook-trigger-matching)
-and [792a7za](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a7za-a-trigger-hit-comes-first).
-
-Link: `openspec/changes/runbook-note-kind`.
+Ported to
+[792a3c](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a3c-runbook-notes) and
+[792a3e](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a3e-no-task-type-or-input-fields)
+(capture), [792a7v](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a7v-runbooks-rank-like-other-notes)
+(retrieval), [792a15g](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a15g-a-confirmed-approach-needs-a-bet-or-specific-praise-and-takes-the-kind-its-shape-calls-for)
+(routing by shape), [792b22](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b22-added-runbook-trigger-matching)
+and [792a7za](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a7za-a-trigger-hit-comes-first)
+(the lexical exception), and the four kinds and the treatment of each in
+[792a19l](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a19l-each-returned-kind-is-treated-for-what-it-is).
 
 ---
 
