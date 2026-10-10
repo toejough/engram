@@ -7,10 +7,44 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// TestParseFrontmatterMapping covers each shape a frontmatter block can
+// Test792b6c7a2_SetMappingValueOrdered covers every placement: replace in place,
+// insert after the nearest preceding key, before the nearest following key
+// when none precedes, and append when the mapping holds no ordered key.
+func Test792b6c7a2_SetMappingValueOrdered(t *testing.T) {
+	t.Parallel()
+
+	order := []string{"a", "b", "c", "d"}
+
+	for name, tc := range map[string]struct{ frontmatter, key, want string }{
+		"replace":        {"a: 1\nb: 2\n", "b", "a: 1\nb: new\n"},
+		"after previous": {"a: 1\nd: 4\n", "b", "a: 1\nb: new\nd: 4\n"},
+		"before next":    {"x: 0\nd: 4\n", "b", "x: 0\nb: new\nd: 4\n"},
+		"append":         {"x: 0\n", "c", "x: 0\nc: new\n"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			mapping, err := parseFrontmatterMapping([]byte(tc.frontmatter))
+			g.Expect(err).NotTo(HaveOccurred())
+
+			if err != nil || mapping == nil {
+				return
+			}
+
+			setMappingValueOrdered(mapping, tc.key, encodeNode("new"), order)
+
+			rendered, marshalErr := yaml.Marshal(mapping)
+			g.Expect(marshalErr).NotTo(HaveOccurred())
+			g.Expect(string(rendered)).To(Equal(tc.want))
+		})
+	}
+}
+
+// Test792b6c7a6_ParseFrontmatterMapping covers each shape a frontmatter block can
 // take: a mapping, an empty block (an empty mapping), a non-mapping, and
 // malformed YAML.
-func TestParseFrontmatterMapping(t *testing.T) {
+func Test792b6c7a6_ParseFrontmatterMapping(t *testing.T) {
 	t.Parallel()
 
 	t.Run("mapping", func(t *testing.T) {
@@ -58,38 +92,4 @@ func TestParseFrontmatterMapping(t *testing.T) {
 		_, err := parseFrontmatterMapping([]byte("type: [unclosed\n"))
 		g.Expect(err).To(HaveOccurred())
 	})
-}
-
-// TestSetMappingValueOrdered covers every placement: replace in place,
-// insert after the nearest preceding key, before the nearest following key
-// when none precedes, and append when the mapping holds no ordered key.
-func TestSetMappingValueOrdered(t *testing.T) {
-	t.Parallel()
-
-	order := []string{"a", "b", "c", "d"}
-
-	for name, tc := range map[string]struct{ frontmatter, key, want string }{
-		"replace":        {"a: 1\nb: 2\n", "b", "a: 1\nb: new\n"},
-		"after previous": {"a: 1\nd: 4\n", "b", "a: 1\nb: new\nd: 4\n"},
-		"before next":    {"x: 0\nd: 4\n", "b", "x: 0\nb: new\nd: 4\n"},
-		"append":         {"x: 0\n", "c", "x: 0\nc: new\n"},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			mapping, err := parseFrontmatterMapping([]byte(tc.frontmatter))
-			g.Expect(err).NotTo(HaveOccurred())
-
-			if err != nil || mapping == nil {
-				return
-			}
-
-			setMappingValueOrdered(mapping, tc.key, encodeNode("new"), order)
-
-			rendered, marshalErr := yaml.Marshal(mapping)
-			g.Expect(marshalErr).NotTo(HaveOccurred())
-			g.Expect(string(rendered)).To(Equal(tc.want))
-		})
-	}
 }

@@ -751,3 +751,89 @@ decisions as `792dN`, continuing the sequence.
   `learn` creates a missing vault first, takes command-line-surface's 792b2c3a1 (792c4a step 6).
 - **Rationale:** 792d51, and 792d52 for the bootstrap test.
 - **Alternatives:** none considered.
+
+## 792d69 Mixed sources of note-revision are split by owner
+
+- **Choice:** node 792c7c1 ports only the note-revision parts of its sources (792d31, 792d57):
+  - `vault-note-identity`: the amend re-stamp, its `project:` exclusion, the vault fill and the
+    amend and resituate key-preservation, anchor and CRLF paragraphs are ported. The bookkeeping
+    rule for `--clear-pending`, `--discard --into` and the offer receipt stays as a residue
+    requirement for curate (792c7u1) and parent-sync (792c7t1), with the fold's CRLF and
+    `--expect-hash` clause and the "Accepting an offer keeps its author" and fold scenarios. The
+    clear-pending vault-fill scenario is replaced by an `--activate` one (792a4i1a), because the
+    rule covers every amend that writes.
+  - The note-reader CRLF requirement is split: its embedding clause is 792b10c9, and amend's and
+    resituate's reads are 792a4m. Its query, check, count and vocabulary readers stay in place for
+    memory-query (792c7f1), vault-health (792c7h1), vault-counting (792c7g1) and
+    controlled-vocabulary (792c7e1), whose sources now list them; the `crlf_readers_internal_test`
+    tests go with them.
+  - `vault-embed-on-write`: the amend and resituate re-embedding and the lossless `last_used` bump
+    are ported; the `embed apply` residue stays for 792c7h1.
+  - `vault-wikilink-resolution`: the canonical-form requirement is ported (792a4d). The parser
+    requirement and its two resolution scenarios wait for wikilink-graph (792c7c2), and the
+    dangling-link scenario for 792c7h1.
+  - c3 K4w is only a node of the L3 diagram, with no catalog row. It states no product behavior, so
+    it is left whole for note-amendment (792c7c3).
+- **Rationale:** each part has one owner, and a node removes only what it ports.
+- **Alternatives:** port the CRLF reader requirement whole into 792a4. Rejected because its
+  scenarios are query, check, count and vocabulary behavior, which other capabilities own.
+
+## 792d70 `amend --repo`, `--user` and `--pending` are not specified
+
+- **Choice:** 792a4 leaves out the three undocumented `amend` flags that `--help` lists without a
+  description (the 792d42 divergence). `--repo` and `--user` are accepted and have no effect on a
+  CLI amend; they carry a served write's identity across the wire. `--pending` fails with
+  "unsupported value type: *bool" for any value, because the field is a pointer that targ cannot
+  parse.
+- **Rationale:** 792d33 and 792d42. None of them is observable behavior a user can rely on.
+- **Alternatives:** specify `--repo` and `--user` as ignored (MUST NOT affect the note). Rejected as
+  protecting an accident of how the argument struct is shared with the served path.
+
+## 792d71 Rebuilding a sidecar drops its last-used date
+
+- **Choice:** a content amend or a resituate rebuilds the note's sidecar from scratch, and the new
+  sidecar carries no `last_used`, so a recorded use is lost. 792a4n specifies only that an
+  activation keeps the rest of the sidecar; the loss on a rebuild is recorded here, not specified.
+- **Rationale:** 792d33. Whether a rebuild should carry `last_used` forward is a change proposal.
+- **Alternatives:** a **MUST** that a rebuild keeps `last_used`. Rejected because the code does not.
+
+## 792d72 Note-revision requirements beyond the legacy text
+
+- **Choice:** 792a4 adds requirements that the legacy sources don't state but the code, `--help` and
+  tests show: the accepted reference forms and the not-found refusal (792a4a), field replacement by
+  kind and the rebuilt body formula (792a4b), the refusal of other kinds (792a4c), the chunk-source
+  merge (792a4e), amend's argument validation (792a4f), resituate's limit to fact and feedback and
+  its failure when the sidecar cannot be rebuilt (792a4l), and activation (792a4n). 792a4o states
+  for revisions the guarantee that `vault-concurrency-safe-writes` gives every vault writer.
+  `activate --note` resolves a path or basename, not a bare Luhmann ID, unlike amend and resituate;
+  792a4n describes this as it is.
+- **Rationale:** 792d33, 792d49 and 792d58.
+- **Alternatives:** port only the OpenSpec text.
+
+## 792d73 One rule for the supersession link form
+
+- **Choice:** 792a4d states the canonical `Supersedes: [[<target>]]` line for both `engram learn` and
+  `engram amend`, as the `vault-wikilink-resolution` requirement does. 792a3h already shows the
+  learn line for a target given without `.md`.
+- **Rationale:** both commands write the line through one renderer, and a single owner keeps the rule
+  from being restated in note-writing.
+- **Alternatives:** add a learn-only requirement to 792a3. Rejected as duplicating the rule.
+
+## 792d74 Where note-revision's technical contracts land
+
+- **Choice:**
+  - The YAML-node edits and the CRLF read are note-document-format's 792b6c7 and 792b6c8 (792d61),
+    the re-stamp is note-provenance's 792b11c4 (792d67), and the CRLF embedding read is
+    embedding-sidecar's 792b10c9.
+  - The sidecar rebuild after a revision adds no embedding-sidecar requirement: it builds through
+    792b10c5 and writes through 792b3c1, and warning or failing is the reviser's choice, specified by
+    note-amendment (792c7c3). The last-used bump lives in `activate.go` and is note-amendment's too.
+  - `TestIdentityStamp_Stamp_OverwritesAllThree` verifies the raw stamp that blanks an empty user,
+    which no revision uses, so it is a no-scenario test. 792b11c4a1 is left to the re-stamp property
+    test that note-amendment examines.
+  - `TestTargets_Resituate` and `TestActivate_MissWithoutParentFails` dispatch whole commands and take
+    the product IDs 792a4a1b and 792a4n1c (792d52).
+- **Rationale:** 792d30 and 792d51: a migrated component gains the requirements that a later
+  capability's scenarios need.
+- **Alternatives:** a separate sidecar-rebuild requirement in 792b10. Rejected because building and
+  writing are already specified.

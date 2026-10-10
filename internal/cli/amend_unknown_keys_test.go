@@ -2,8 +2,7 @@ package cli_test
 
 // Amend keeps frontmatter keys the typed note model does not define, and
 // anchors on keys it does not edit (ruling V6, final review F4;
-// vault-note-identity "Exchange fields SHALL survive every frontmatter
-// rewrite").
+// note-revision 792a4j, 792a4k; note-document-format 792b6c7).
 
 import (
 	"context"
@@ -18,9 +17,9 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestRunAmend_KeepsAnchorOnUneditedKey: an anchor on a key amend does not
+// Test792b6c7a1_RunAmend_KeepsAnchorOnUneditedKey: an anchor on a key amend does not
 // edit (source:), aliased by an unknown key, survives a content amend.
-func TestRunAmend_KeepsAnchorOnUneditedKey(t *testing.T) {
+func Test792b6c7a1_RunAmend_KeepsAnchorOnUneditedKey(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -35,11 +34,11 @@ func TestRunAmend_KeepsAnchorOnUneditedKey(t *testing.T) {
 	g.Expect(fields["x_src"]).To(Equal("test"))
 }
 
-// TestRunAmend_KeepsUnknownKeysAndAnchorsProperty: for every amend kind on
+// Test792b6c7a1_RunAmend_KeepsUnknownKeysAndAnchorsProperty: for every amend kind on
 // every note type, 0-3 unknown keys (scalar, list, nested map) and an
 // optional anchor on an unedited key survive with their decoded values; an
 // anchor on the edited key refuses the amend unwritten.
-func TestRunAmend_KeepsUnknownKeysAndAnchorsProperty(t *testing.T) {
+func Test792b6c7a1_RunAmend_KeepsUnknownKeysAndAnchorsProperty(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		tc := rapid.SampledFrom(amendKindCases()).Draw(rt, "case")
@@ -75,9 +74,9 @@ func TestRunAmend_KeepsUnknownKeysAndAnchorsProperty(t *testing.T) {
 	})
 }
 
-// TestRunAmend_KeepsUnmodeledKeys: every amend kind on a fact, feedback and
+// Test792b6c7a1_RunAmend_KeepsUnmodeledKeys: every amend kind on a fact, feedback and
 // runbook note keeps `luhmann_old: "12"` and a nested unknown map.
-func TestRunAmend_KeepsUnmodeledKeys(t *testing.T) {
+func Test792b6c7a1_RunAmend_KeepsUnmodeledKeys(t *testing.T) {
 	t.Parallel()
 
 	const unknown = "luhmann_old: \"12\"\nprovenance:\n    origin: import\n    steps: [a, b]\n"
@@ -99,9 +98,9 @@ func TestRunAmend_KeepsUnmodeledKeys(t *testing.T) {
 	}
 }
 
-// TestRunAmend_RefusesAnchoredEditedKey: an anchor on the key a content
+// Test792b6c7a4_RunAmend_RefusesAnchoredEditedKey: an anchor on the key a content
 // amend replaces refuses the amend unwritten (ruling V3).
-func TestRunAmend_RefusesAnchoredEditedKey(t *testing.T) {
+func Test792b6c7a4_RunAmend_RefusesAnchoredEditedKey(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 

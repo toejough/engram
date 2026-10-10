@@ -62,6 +62,25 @@ func Test792a2b1a_Targets_AmendDefaultVaultName(t *testing.T) {
 	g.Expect(string(written)).NotTo(gomega.ContainSubstring("vault: \"\""))
 }
 
+// Test792a4a1b_Targets_Resituate exercises the resituate closure end-to-end through
+// Targets() so the newResituateDeps wiring is covered. The target is a
+// non-existent note in an empty vault: the real ScanVault runs and finds
+// nothing, so the not-found sentinel surfaces on stderr without unpacking
+// the bundled embedder (no matching note to re-embed).
+func Test792a4a1b_Targets_Resituate(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	vault := t.TempDir()
+	g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
+	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
+
+	stderr := executeForTest(t, []string{
+		"engram", "resituate", "--vault", vault, "--note", "9zz", "--situation", "new topic",
+	})
+	g.Expect(stderr).To(gomega.ContainSubstring("not found"))
+}
+
 func Test792b2c1a3_DataDirFromHome(t *testing.T) {
 	t.Parallel()
 
@@ -127,6 +146,24 @@ func Test792b2c4a1_NewErrHandler(t *testing.T) {
 		g.Expect(called).To(gomega.BeFalse())
 		g.Expect(stderr.String()).To(gomega.BeEmpty())
 	})
+}
+
+// Test792b2c5a1_Targets_Amend_NoSkillHashFlag proves `engram amend` has no --skill-hash
+// flag either — amend can only preserve skill_hash, never set it. See
+// Test792b2c5a1_Targets_LearnRunbook_NoSkillHashFlag for why "exit code 1" is the right
+// assertion here.
+func Test792b2c5a1_Targets_Amend_NoSkillHashFlag(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	vault := t.TempDir()
+
+	stderr := executeForTest(t, []string{
+		"engram", "amend",
+		"--skill-hash", "deadbeef",
+		"--vault", vault, "--target", "1",
+	})
+	g.Expect(stderr).To(gomega.Equal("exit code 1\n"))
 }
 
 // Test792b2c5a1_Targets_LearnRunbook_NoSkillHashFlag proves `engram learn runbook` has
@@ -481,24 +518,6 @@ func TestTargets_ActivateNoNotes(t *testing.T) {
 	g.Expect(stderr).To(gomega.BeEmpty())
 }
 
-// TestTargets_Amend_NoSkillHashFlag proves `engram amend` has no --skill-hash
-// flag either — amend can only preserve skill_hash, never set it. See
-// Test792b2c5a1_Targets_LearnRunbook_NoSkillHashFlag for why "exit code 1" is the right
-// assertion here.
-func TestTargets_Amend_NoSkillHashFlag(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	vault := t.TempDir()
-
-	stderr := executeForTest(t, []string{
-		"engram", "amend",
-		"--skill-hash", "deadbeef",
-		"--vault", vault, "--target", "1",
-	})
-	g.Expect(stderr).To(gomega.Equal("exit code 1\n"))
-}
-
 // TestTargets_CheckEmptyVault exercises the check closure's local
 // (non-served) dispatch through Targets() against an empty vault.
 func TestTargets_CheckEmptyVault(t *testing.T) {
@@ -622,25 +641,6 @@ func TestTargets_QueryEmptyVault(t *testing.T) {
 			d.UserHomeDir = func() (string, error) { return home, nil }
 		})
 	g.Expect(stderr).To(gomega.BeEmpty())
-}
-
-// TestTargets_Resituate exercises the resituate closure end-to-end through
-// Targets() so the newResituateDeps wiring is covered. The target is a
-// non-existent note in an empty vault: the real ScanVault runs and finds
-// nothing, so the not-found sentinel surfaces on stderr without unpacking
-// the bundled embedder (no matching note to re-embed).
-func TestTargets_Resituate(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	vault := t.TempDir()
-	g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
-	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
-
-	stderr := executeForTest(t, []string{
-		"engram", "resituate", "--vault", vault, "--note", "9zz", "--situation", "new topic",
-	})
-	g.Expect(stderr).To(gomega.ContainSubstring("not found"))
 }
 
 // stubEmbedderForTargets satisfies embed.Embedder for targets-level tests that

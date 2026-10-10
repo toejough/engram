@@ -14,6 +14,30 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+// Test792b6c7a4_RunResituate_RefusesAnchoredEditedKey: situation: and created: are
+// the keys resituate sets; an anchor on either refuses the note unwritten.
+func Test792b6c7a4_RunResituate_RefusesAnchoredEditedKey(t *testing.T) {
+	t.Parallel()
+
+	for name, edit := range map[string][2]string{
+		"situation": {"situation: working on it\n", "situation: &s working on it\n"},
+		"created":   {"created: \"2026-01-01\"\n", "created: &c \"2026-01-01\"\n"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			alias := "x_ref: *" + strings.TrimPrefix(strings.Fields(edit[1])[1], "&") + "\n"
+			before := strings.Replace(resituateUnknownKeysNote("fact", alias), edit[0], edit[1], 1)
+
+			_, writes, err := runExchangeSurvivalResituate(t.Context(), before)
+			g.Expect(err).To(MatchError(cli.ErrFrontmatterAnchoredKeyForTest))
+			g.Expect(err).To(MatchError(ContainSubstring(name)))
+			g.Expect(writes).To(BeZero())
+		})
+	}
+}
+
 // TestAdoptSkillNote_RefusesAnchoredPending: adopt deletes pending:; an
 // anchor on it refuses the adopt before any rename or write.
 func TestAdoptSkillNote_RefusesAnchoredPending(t *testing.T) {
@@ -41,28 +65,4 @@ func TestRefreshSkill_RefusesAnchoredSkillKey(t *testing.T) {
 	g.Expect(err).To(MatchError(cli.ErrFrontmatterAnchoredKeyForTest))
 	g.Expect(err).To(MatchError(ContainSubstring("skill_key")))
 	g.Expect(after).To(Equal(before), "the note must not be written")
-}
-
-// TestRunResituate_RefusesAnchoredEditedKey: situation: and created: are
-// the keys resituate sets; an anchor on either refuses the note unwritten.
-func TestRunResituate_RefusesAnchoredEditedKey(t *testing.T) {
-	t.Parallel()
-
-	for name, edit := range map[string][2]string{
-		"situation": {"situation: working on it\n", "situation: &s working on it\n"},
-		"created":   {"created: \"2026-01-01\"\n", "created: &c \"2026-01-01\"\n"},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			alias := "x_ref: *" + strings.TrimPrefix(strings.Fields(edit[1])[1], "&") + "\n"
-			before := strings.Replace(resituateUnknownKeysNote("fact", alias), edit[0], edit[1], 1)
-
-			_, writes, err := runExchangeSurvivalResituate(t.Context(), before)
-			g.Expect(err).To(MatchError(cli.ErrFrontmatterAnchoredKeyForTest))
-			g.Expect(err).To(MatchError(ContainSubstring(name)))
-			g.Expect(writes).To(BeZero())
-		})
-	}
 }

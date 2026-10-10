@@ -211,8 +211,8 @@ flowchart TD
   N792c7b6["792c7b6 embedding-sidecar tech spec<br/>Complete"]
   N792c7b7["792c7b7 note-provenance tech spec<br/>Complete"]
   N792c7b8["792c7b8 note-authoring tech spec<br/>Complete"]
-  N792c7c1["792c7c1 note-revision product spec<br/>Ready"]
-  N792c7c2["792c7c2 wikilink-graph tech spec<br/>Blocked by: 792c7c1"]
+  N792c7c1["792c7c1 note-revision product spec<br/>Complete"]
+  N792c7c2["792c7c2 wikilink-graph tech spec<br/>Ready"]
   N792c7c3["792c7c3 note-amendment tech spec<br/>Blocked by: 792c7c2"]
   N792c7d1["792c7d1 chunk-indexing product spec<br/>Blocked by: 792c7c3"]
   N792c7d2["792c7d2 transcript-reader tech spec<br/>Blocked by: 792c7d1"]
@@ -428,11 +428,11 @@ end (covered only through 792b2c1), 792a2b1b and 792a2b1c end to end (covered on
   `show_test` (9, memory-query 792c7f1), `cmd/engram/main_test` `TestSpawnPrimitives_*` (4,
   install-and-update 792c7j1, via subprocess-runner).
 - `targets_test`: `TestCacheDirFromHome` (text-embedder 792c7b5), `TestProjectSlugFromPath`,
-  `TestRunSafe`, `TestTargets`, `TestTargets_ActivateNoNotes`, `TestTargets_Amend_NoSkillHashFlag`,
+  `TestRunSafe`, `TestTargets`, `TestTargets_ActivateNoNotes`, `TestTargets_Amend_NoSkillHashFlag` (renamed by 792c7c1),
   `TestTargets_CheckEmptyVault`, `TestTargets_EmbedApplyDryRun`, `TestTargets_EmbedStatus`,
   `TestTargets_IngestAndQueryChunksEmpty`, `TestTargets_LearnRunbook_NoSkillHashFlag`,
   `TestTargets_NoSkillKeyOrSourceFlags` (both renamed by 792c7b1), `TestTargets_PruneEmpty`, `TestTargets_QueryEmptyVault`,
-  `TestTargets_Resituate` (each command's own capability may claim them).
+  `TestTargets_Resituate` (renamed by 792c7c1) (each command's own capability may claim them).
 - `cli_test`: `TestEngramLearn_Fact_EndToEnd`, `TestEngramLearn_Feedback_EndToEnd` (renamed by note-writing
   792c7b1), `TestOpenDebugFile_EndToEnd` (excluded debug-log, 792d27), `TestRunCommand_EndToEnd`
   (install-and-update 792c7j1).
@@ -1251,11 +1251,62 @@ Target: `792a4` (`docs/specs/product/note-revision.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7c1a | Port product requirements and UAT to `792a4` | Non-test action | Moves current behavior into the framework format | Not started |
-| 792c7c1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7c1c | Repoint stale references to `792a4` | Non-test action | Keeps live links valid | Not started |
-| 792c7c1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Not started |
-| 792c7c1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Not started |
+| 792c7c1a | Port product requirements and UAT to `792a4` | Non-test action | Moves current behavior into the framework format | Done |
+| 792c7c1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7c1c | Repoint stale references to `792a4` | Non-test action | Keeps live links valid | Done |
+| 792c7c1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Done |
+| 792c7c1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
+
+**Outcome:** the two new and six extended supporting components are confirmed. note-document-format
+gains 792b6c7 and 792b6c8, embedding-sidecar 792b10c9 and note-provenance 792b11c4; command-line-surface,
+durable-file-store and vault-write-lock gain mappings only. The amend wire fields are 792d70; other
+choices are 792d69 and 792d71–792d74. c3 K4w is left whole for 792c7c3.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792a4a1b | `TestTargets_Resituate` → `Test792a4a1b_Targets_Resituate` | Dispatch through `Targets`, temp-dir vault | Unknown note refused | Done |
+| 792a4n1c | `TestActivate_MissWithoutParentFails` → `Test792a4n1c_Activate_MissWithoutParentFails` | Dispatch through the wiring environment, no parent | Missing ref fails, nothing fetched | Done |
+| 792b2c5a1 | `TestTargets_Amend_NoSkillHashFlag` → `Test792b2c5a1_Targets_Amend_NoSkillHashFlag` | Dispatch through `Targets`, temp-dir vault | Undefined flag refused on amend | Done |
+| 792b6c7a1 | `TestRunAmend_KeepsUnmodeledKeys` → `Test792b6c7a1_RunAmend_KeepsUnmodeledKeys` | `RunAmend` over injected deps, subtests | Unmodeled keys kept by every amend kind | Done |
+| 792b6c7a1 | `TestRunAmend_KeepsAnchorOnUneditedKey` → `Test792b6c7a1_RunAmend_KeepsAnchorOnUneditedKey` | `RunAmend` over injected deps | Anchor on an unedited key kept | Done |
+| 792b6c7a1 | `TestRunAmend_KeepsUnknownKeysAndAnchorsProperty` → `Test792b6c7a1_RunAmend_KeepsUnknownKeysAndAnchorsProperty` (split deferred: 792b6c7a4) | Property test (rapid), `RunAmend` over injected deps | Any unknown keys and anchors | Done |
+| 792b6c7a1 | `TestFactAmend_VocabVersionRoundTrip` → `Test792b6c7a1_FactAmend_VocabVersionRoundTrip` | `RunAmend` over test OS deps, temp-dir vault | `vocab_version` kept | Done |
+| 792b6c7a2 | `TestSetMappingValueOrdered` → `Test792b6c7a2_SetMappingValueOrdered` | Pure unit, subtests | Key placement | Done |
+| 792b6c7a3 | `TestRunAmend_SupersedesKeepsUnknownSubKeysOfKeptEntries` → `Test792b6c7a3_RunAmend_SupersedesKeepsUnknownSubKeysOfKeptEntries` | `RunAmend` over injected deps | Kept entry's sub-keys | Done |
+| 792b6c7a3 | `TestRunAmend_SupersedesSubKeysProperty` → `Test792b6c7a3_RunAmend_SupersedesSubKeysProperty` | Property test (rapid), `RunAmend` over injected deps | Any supersedes list | Done |
+| 792b6c7a4 | `TestRunAmend_RefusesAnchoredEditedKey` → `Test792b6c7a4_RunAmend_RefusesAnchoredEditedKey` | `RunAmend` over injected deps | Anchored object refused | Done |
+| 792b6c7a4 | `TestRunResituate_RefusesAnchoredEditedKey` → `Test792b6c7a4_RunResituate_RefusesAnchoredEditedKey` | `RunResituate` over injected deps, subtests | Anchored situation or created refused | Done |
+| 792b6c7a5 | `TestVerifyFrontmatterDecodes` → `Test792b6c7a5_VerifyFrontmatterDecodes` | Pure unit, table | Undecodable result refused | Done |
+| 792b6c7a6 | `TestParseFrontmatterMapping` → `Test792b6c7a6_ParseFrontmatterMapping` | Pure unit, subtests | Block must be a mapping | Done |
+| 792b6c7a7 | `TestRunAmend_ExchangeHashParityWithPreChangeAmend` → `Test792b6c7a7_RunAmend_ExchangeHashParityWithPreChangeAmend` | `RunAmend` over injected deps against golden files | Byte and hash parity on 32 inputs | Done |
+| 792b6c8a1 | `TestToLF` → `Test792b6c8a1_ToLF` | Pure unit | CRLF to LF, lone CR kept | Done |
+| 792b10c9a1 | `TestEmbedReaders_CRLFNoteReadsAsLF` → `Test792b10c9a1_EmbedReaders_CRLFNoteReadsAsLF` | Pure unit (`internal/embed`), subtests | Situation, body and hash | Done |
+| 792b11c4a2 | `TestRunAmend_EmptyUserDetectionKeepsPriorUser` → `Test792b11c4a2_RunAmend_EmptyUserDetectionKeepsPriorUser` | `RunAmend` with failing user detection, subtests | Prior user kept, one warning | Done |
+| 792b11c4a3 | `TestRunAmend_EmptyUserDetectionNoPriorUserOmitsUser` → `Test792b11c4a3_RunAmend_EmptyUserDetectionNoPriorUserOmitsUser` | `RunAmend` with failing user detection, subtests | No user key | Done |
+| 792b11c4a4 | `TestIdentityStamp_Stamp_NilReceiverIsNoop` → `Test792b11c4a4_IdentityStamp_Stamp_NilReceiverIsNoop` | Internal unit | No re-stamp | Done |
+
+**Coverage gaps:** 792b11c4a1 here (the re-stamp property test in `amend_identity_test` is left to
+note-amendment, 792c7c3). Every other 792a4 scenario has no end-to-end test; wikilink-graph
+(792c7c2) and note-amendment (792c7c3) rename the unit tests of their technical scenarios and list
+the product scenarios still uncovered.
+
+**No-scenario tests:** `identity_internal_test` `TestIdentityStamp_Stamp_OverwritesAllThree` (the
+raw stamp, which no revision uses, 792d74) and `targets_test` `TestTargets_ActivateNoNotes` (an
+activate with no refs, which no requirement states). Deferred to the node that owns their behavior
+(792d69): `crlf_readers_internal_test` `TestCapRedFlagsForPreview_CRLFNote`,
+`TestItemMatchesProject_CRLFNote`, `TestKindFromContent_CRLFNote`, `TestParseCreatedFromNote_CRLFNote`,
+`TestParseNoteQueryFrontmatter_CRLFNote`, `TestTriggerIndex_CRLFRunbook` (memory-query 792c7f1),
+`TestCheckSituationPresence_CRLFNote` (vault-health 792c7h1), `TestReadNoteAttrs_CRLFNote`
+(vault-counting 792c7g1) and `TestVocab_CRLFNote` (controlled-vocabulary 792c7e1);
+`crlf_node_edits_test` `TestRefreshSkill_ConvertsCRLFNote` and `frontmatter_anchor_test`
+`TestAdoptSkillNote_RefusesAnchoredPending`, `TestRefreshSkill_RefusesAnchoredSkillKey`
+(skill-runbook-registration 792c7k1); `amend_identity_test` `TestRunAmend_ClearPendingKeepsOfferAuthor`
+(curate 792c7u1); and `amend_identity_test` `TestRunAmend_BookkeepingAmendsKeepIdentity`,
+`TestRunAmend_IdentityRestampProperty`, `identity_gaps_test`
+`TestRunAmend_BookkeepingNeverWritesEmptyVault` and `crlf_node_edits_test`
+`TestRunResituate_ConvertsCRLFNote` (note-amendment 792c7c3).
 
 #### 792c7c2 wikilink-graph tech spec
 
@@ -1458,6 +1509,7 @@ Target: `792a6` (`docs/specs/product/controlled-vocabulary.md`).
 - `docs/deprecated/architecture/c3-components.md` "`engram learn qa` capture path" residue (`vocab stats` leaves question notes out, 792d68)
 - `docs/deprecated/architecture/adr.md` ADR-0012 Consequences (the `vocab stats` QA lines, 792d57)
 - `openspec/specs/vault-vocab-lifecycle/spec.md` (product requirements)
+- `openspec/specs/vault-note-identity/spec.md` (the note-reader CRLF clause for vocab tagging, removal and refit, and the "Vocab tagging reads a CRLF note" scenario, 792d69)
 - `docs/deprecated/architecture/adr.md` ADR-0019 (tags are the sole categorical representation)
 
 **Shipped artifacts to describe:**
@@ -1563,6 +1615,7 @@ Target: `792a7` (`docs/specs/product/memory-query.md`).
 - `openspec/specs/recall-runbook-surfacing/spec.md`
 - `openspec/specs/runbook-lexical-triggers/spec.md`
 - `openspec/specs/vault-query-model-provenance/spec.md`
+- `openspec/specs/vault-note-identity/spec.md` (the note-reader CRLF clauses for the project filter, recency, vault metadata, note kind, trigger index and red-flags preview, and the "Query, check and count" and CRLF-runbook trigger scenarios, 792d69)
 
 **Shipped artifacts to describe:**
 
@@ -1714,6 +1767,7 @@ Target: `792a8` (`docs/specs/product/vault-counting.md`).
 **Legacy sources (port, then remove):**
 
 - `openspec/specs/cli-count/spec.md` (product requirements)
+- `openspec/specs/vault-note-identity/spec.md` (the note-reader CRLF clause for `engram count`, 792d69)
 - `docs/deprecated/architecture/adr.md` ADR-0018
 - `docs/deprecated/architecture/c1-system-context.md` Element catalog S2 (count details)
 
@@ -1771,6 +1825,7 @@ Target: `792a9` (`docs/specs/product/vault-health.md`).
 
 - `openspec/specs/vault-embed-on-write/spec.md` (the `embed apply` requirements; their selection extends `792b10`, 792d66)
 - `openspec/specs/vault-wikilink-resolution/spec.md` (G3 dangling-link scenario)
+- `openspec/specs/vault-note-identity/spec.md` (the note-reader CRLF clause for `engram check`, and the "A CRLF note embeds and hashes as its LF form" scenario; this node deletes the requirement, the last of its readers, 792d69)
 - `docs/deprecated/architecture/c3-components.md` Component catalog K5b (`engram embed` behavior)
 - `docs/deprecated/architecture/memory-invariants.md` What the checker (`engram check`) must implement (what the user sees)
 
@@ -2528,6 +2583,7 @@ Target: `792a21` (`docs/specs/product/parent-sync.md`).
 - `openspec/specs/vault-parent-offers/spec.md` (product requirements)
 - `openspec/specs/vault-parent-pulldown/spec.md` (product requirements)
 - `openspec/specs/vault-note-identity/spec.md` (xid/parent/aliases requirements)
+- `openspec/specs/vault-note-identity/spec.md` (the offer-receipt clause of the bookkeeping-identity residue, 792d69)
 - `docs/deprecated/architecture/adr.md` ADR-0029 (local-first, merged query, pull-down and remaining decisions not ported elsewhere)
 - `docs/deprecated/architecture/c1-system-context.md` Element catalog S7
 
@@ -2625,6 +2681,7 @@ Target: `792a22` (`docs/specs/product/curate.md`).
 **Legacy sources (port, then remove):**
 
 - `openspec/specs/vault-offer-curation/spec.md` (product requirements)
+- `openspec/specs/vault-note-identity/spec.md` (the `--clear-pending` and `--discard --into` clauses of the bookkeeping-identity residue with "Accepting an offer keeps its author", and the fold CRLF and `--expect-hash` clause with "Fold converts a CRLF existing note", 792d69)
 - `docs/deprecated/architecture/adr.md` ADR-0029 (delete the ADR here once it is empty)
 
 **Shipped artifacts to describe:**

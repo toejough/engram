@@ -51,7 +51,7 @@ Canonical target: `docs/specs/technical/command-line-surface.md` (title `Command
   from each command's own behavior; independent verification, its precedence and gating are tested
   through dispatch with injected environment and filesystem; stability, the surface survives any
   refactoring of command internals; necessity, every product capability is reached through it.
-- Supported capabilities: 792a2 vault-identity, 792a3 note-writing. Later capabilities add their own routing
+- Supported capabilities: 792a2 vault-identity, 792a3 note-writing, 792a4 note-revision. Later capabilities add their own routing
   requirements here (792d30, 792d51).
 
 Rationale: each `engram <subcommand>` is its own process. Commands never call each other in
@@ -131,7 +131,7 @@ Scenario: 792b2c1a4 The home directory is the last fallback
 Requirement: 792b2c2 The command-line-surface MUST resolve the vault name to the `--vault-name`
 flag when it is non-empty, else to `ENGRAM_VAULT_NAME` when it is non-empty, else to `personal`.
 
-Supports: 792a2b1a, 792a2b1b, 792a2b1c.
+Supports: 792a2b1a, 792a2b1b, 792a2b1c, 792a4h1f.
 
 ##### 792b2c2a Scenarios
 
@@ -184,7 +184,8 @@ with a non-zero status, and MUST neither exit nor write to stderr on the command
 command succeeds.
 
 Supports: 792a2e1b, 792a2j1c, 792a2n1b, 792a2o1a, 792a3f1b, 792a3g1a, 792a3k1a, 792a3k1b, 792a3k1c,
-792a3k1d, 792a3r1a, 792a3s1a.
+792a3k1d, 792a3r1a, 792a3s1a, 792a4a1b, 792a4c1a, 792a4f1a, 792a4k1a, 792a4k1b, 792a4l1b, 792a4l1c,
+792a4n1c.
 
 ##### 792b2c4a Scenarios
 
@@ -253,6 +254,15 @@ Scenario: 792b2c5a2 A missing required flag is refused
 | 792a3k1d | 792b2c4 |
 | 792a3r1a | 792b2c4, 792b2c5 |
 | 792a3s1a | 792b2c4 |
+| 792a4a1b | 792b2c4 |
+| 792a4c1a | 792b2c4 |
+| 792a4f1a | 792b2c4 |
+| 792a4h1f | 792b2c2 |
+| 792a4k1a | 792b2c4 |
+| 792a4k1b | 792b2c4 |
+| 792a4l1b | 792b2c4 |
+| 792a4l1c | 792b2c4 |
+| 792a4n1c | 792b2c4 |
 
 ```gherkin
 Scenario: 792a2a1a The flag wins over the environment
@@ -415,6 +425,60 @@ Scenario: 792a3s1a A failed answer removes the question
   Then it fails saying the answer note could not be written, and no question note for why-x remains
 ```
 
+```gherkin
+Scenario: 792a4a1b An unknown reference is refused
+  Given a vault with no note 9
+  When the user runs engram amend --target 9, or engram resituate --note 9 --situation s
+  Then it fails saying note "9" was not found, and no note is written
+
+Scenario: 792a4c1a A question-and-answer note is refused
+  Given a vault holding an answer note qa.2026-10-09.why.a
+  When the user runs engram amend --target qa.2026-10-09.why.a --situation s
+  Then it fails saying the note type is unknown, and the note is unchanged
+
+Scenario Outline: 792a4f1a An invalid amend argument is refused before any write
+  Given a vault holding fact note 1
+  When the user runs engram amend --target 1 with <argument>
+  Then it fails with an error saying <problem>, and the note is unchanged
+
+  Examples:
+    | argument                     | problem                                        |
+    | --supersedes "a\|bogus\|c"   | supersedes type must be updates, narrows or refutes |
+    | --supersedes "a\|updates"    | supersedes format must be <basename>\|<type>\|<claim> |
+    | --trigger ab                 | trigger must be at least 3 characters          |
+    | --chunk-source nope#x        | unresolved chunk-source id "nope#x"            |
+
+Scenario: 792a4h1f Without a vault name the default is stamped
+  Given neither --vault-name nor ENGRAM_VAULT_NAME is set
+  When the user runs engram amend --target <note> --object new
+  Then the note's vault: is personal, never an empty string
+
+Scenario: 792a4k1a Amend refuses an anchored edited key
+  Given a fact note whose object: value carries an anchor that another key aliases
+  When the user runs engram amend --target <note> --object new
+  Then it fails naming object, and the note is unchanged
+
+Scenario: 792a4k1b Resituate refuses an anchored situation
+  Given a fact note whose situation: or created: carries an anchor
+  When the user runs engram resituate --note <note> --situation new
+  Then it fails naming the key, and the note is unchanged
+
+Scenario: 792a4l1b A runbook cannot be resituated
+  Given a vault holding runbook note 2
+  When the user runs engram resituate --note 2 --situation new
+  Then it fails saying the note type runbook is unknown, and the note is unchanged
+
+Scenario: 792a4l1c A failed sidecar rebuild fails the command
+  Given embedding fails for the note being resituated
+  When the user runs engram resituate --note <note> --situation new
+  Then the command fails naming the note, and the note's situation is already new
+
+Scenario: 792a4n1c A missing note fails only its own ref
+  Given no parent is configured, a note 3.2026-09-20.local, and no note 7.2026-09-01.gone
+  When the user runs engram activate --note 3.2026-09-20.local --note 7.2026-09-01.gone.md
+  Then 3.2026-09-20.local's last_used is today, stderr names 7.2026-09-01.gone.md as not found, and the command fails saying 1 of 2 refs failed
+```
+
 ## 792b3 Added: durable-file-store
 
 Canonical target: `docs/specs/technical/durable-file-store.md` (title `Durable File Store - Technical Spec`).
@@ -434,7 +498,7 @@ Canonical target: `docs/specs/technical/durable-file-store.md` (title `Durable F
   component decides how a write reaches the disk; independent verification, it is tested directly
   over fake primitives and over the real filesystem; stability, the contract survives any change to
   the injection seam; necessity, every vault-identity, note and index write depends on it.
-- Supported capabilities: 792a2 vault-identity, 792a3 note-writing.
+- Supported capabilities: 792a2 vault-identity, 792a3 note-writing, 792a4 note-revision.
 
 Rationale: `os.WriteFile` is not atomic. Before ADR-0013, unlocked non-atomic writes let two
 concurrent `engram ingest` or `engram amend` runs corrupt state in production. A same-directory
@@ -484,7 +548,8 @@ the requested mode regardless of umask, and renaming the temp onto the target, s
 reader sees either the old or the new content. On any failure after the temp is created it MUST
 remove the temp, leave the original unchanged, and return an error naming the target path.
 
-Supports: 792a2h1a, 792a2m1a, 792a2n1a, 792a3n1a, 792a3u1a, 792a3u1b.
+Supports: 792a2h1a, 792a2m1a, 792a2n1a, 792a3n1a, 792a3u1a, 792a3u1b, 792a4b1a, 792a4l1a, 792a4m1a,
+792a4n1a.
 
 Rationale: the unique temp name (target base, clock nanoseconds, attempt counter) is retried a
 bounded number of times on a name collision, so two writers of the same file never share a temp.
@@ -654,6 +719,10 @@ Scenario: 792b3c4a4 The starter README is left out
 | 792a3s1a | 792b3c2 |
 | 792a3u1a | 792b3c1 |
 | 792a3u1b | 792b3c1 |
+| 792a4b1a | 792b3c1 |
+| 792a4l1a | 792b3c1 |
+| 792a4m1a | 792b3c1 |
+| 792a4n1a | 792b3c1 |
 
 ```gherkin
 Scenario: 792a2c1a A Markdown file in a subdirectory is not a note
@@ -732,6 +801,28 @@ Scenario: 792a3u1b The answer is tagged and the question is not
   Given a vault with a vocabulary term close to both a question and its answer
   When the user runs engram learn qa with them
   Then the answer note carries the term's vocab tag, and the question note has no tags: field
+```
+
+```gherkin
+Scenario: 792a4b1a A fact field is replaced
+  Given a fact note whose situation is "testing", subject s, predicate p and object o
+  When the user runs engram amend --target <note> --object o2
+  Then the note's object: is o2, its other fields are unchanged, its body reads "Information learned: when in testing, s p o2.", and its path is printed
+
+Scenario: 792a4l1a A fact is resituated
+  Given a fact note whose situation is "old" and whose body reads "Information learned: when in old, s p o." followed by a related-notes section
+  When the user runs engram resituate --note <note> --situation new
+  Then situation: is new, the body's first line reads "Information learned: when in new, s p o.", the related-notes section is unchanged, the sidecar is rebuilt, and the note's path is printed
+
+Scenario: 792a4m1a Amend converts a CRLF note
+  Given a fact, feedback or runbook note whose lines end in \r\n
+  When the user runs engram amend --target <note> with a content flag, --supersedes, --chunk-source or --activate
+  Then the amend succeeds, the written note contains no \r\n, it is byte-identical to what the same amend writes for the note's LF form, and its sidecar is fresh
+
+Scenario: 792a4n1a A note's use is recorded
+  Given a note with a current sidecar
+  When the user runs engram activate --note <basename>
+  Then the sidecar's last_used is today, its vectors and content hash are unchanged, the note file is unchanged, and the command succeeds
 ```
 
 ## 792b4 Added: subprocess-runner
@@ -1472,23 +1563,23 @@ Canonical target: `docs/specs/technical/note-document-format.md` (title `Note Do
 - Ownership: Repository component, crossing the YAML library boundary.
 - Responsibility: the on-disk shape of a vault note. It names the note's file, renders its
   frontmatter block with each kind's keys in a fixed order, quotes the scalars that must stay
-  strings, renders the body formulas and the machine-written link lines, and splits a note's text
-  into frontmatter and body.
+  strings, renders the body formulas and the machine-written link lines, splits a note's text
+  into frontmatter and body, reads a CRLF note as its LF form, and edits an existing note's
+  frontmatter in place.
 - Current realization (informational): in `internal/cli/learn.go`, `learnPath`,
   `marshalFrontmatter`, `quotedString`, the `factFrontmatterDoc`, `feedbackFrontmatterDoc` and
   `runbookFrontmatterDoc` types and their `render*` functions; in `internal/cli/qa.go`,
   `qaQuestionPath`, `qaAnswerPath`, `renderQAQuestionNote` and `renderQAAnswerNote`;
   `renderSupersedes` in `internal/cli/supersedes.go`; the exchange fields in
-  `internal/cli/exchangefields.go`; `SplitFrontmatter` in `internal/embed/hash.go`. The YAML-node
-  edits in `internal/cli/frontmatter_node.go` are specified by the capabilities that edit existing
-  notes (792d61).
+  `internal/cli/exchangefields.go`; `SplitFrontmatter` in `internal/embed/hash.go`; the YAML-node
+  edits in `internal/cli/frontmatter_node.go`; `toLF` in `internal/cli/luhmann_reparent.go`.
 - Qualification: responsibility, the file and document shape is stated without naming any writer or
   reader; ownership, writers decide what a note says and when it is written, while this component
   decides how it is laid out; independent verification, rendering, naming and splitting are tested
   directly on strings; stability, the shape survives any change to the commands that write it, and
   hand-edited and Obsidian-edited notes depend on it; necessity, every note engram writes or reads
   passes through it.
-- Supported capabilities: 792a3 note-writing. Note-revision, vault-counting,
+- Supported capabilities: 792a3 note-writing, 792a4 note-revision. Vault-counting,
   skill-runbook-registration and parent-sync add their requirements here (792d30, 792d61).
 
 Rationale: the vault is flat. Notes sit at the vault root, and a note's place in the hierarchy is
@@ -1572,7 +1663,7 @@ out any optional key whose value is empty:
 date as `YYYY-MM-DD`, and list values MUST keep their order.
 
 Supports: 792a3a1a, 792a3b1a, 792a3c1a, 792a3d1a, 792a3d1b, 792a3d1c, 792a3h1a, 792a3h1b, 792a3i1a,
-792a3i1b, 792a3o1c, 792a3p1c.
+792a3i1b, 792a3o1c, 792a3p1c, 792a4b1c.
 
 Rationale: a Luhmann ID is quoted so that an ID such as `1e1` is not read back as the number 10, and
 so that notes written by engram, migrated and written by hand all read the same way. A fact or
@@ -1626,7 +1717,8 @@ situation, and a runbook's as its steps with trailing newlines reduced to one, e
 blank line and then one line `Supersedes: [[<note>]] — <type>: <claim>` per supersession, with any
 `.md` dropped from the linked note.
 
-Supports: 792a3a1a, 792a3a1b, 792a3b1a, 792a3b1b, 792a3c1a, 792a3h1a.
+Supports: 792a3a1a, 792a3a1b, 792a3b1a, 792a3b1b, 792a3c1a, 792a3h1a, 792a4b1a, 792a4b1b, 792a4d1a,
+792a4d1b, 792a4l1a.
 
 Rationale: situations are usually phrased "When …", while the formulas already say "when"; without
 the strip, a body would read "when When". A supersession link drops `.md` because links resolve by
@@ -1724,6 +1816,90 @@ Scenario: 792b6c6a3 A note without frontmatter
   Then it has no frontmatter, and its whole text is the body
 ```
 
+#### 792b6c7 Frontmatter node edits
+
+Requirement: 792b6c7 The note-document-format MUST write an edit to an existing note's frontmatter
+as edits to its parsed YAML mapping: a key whose value the edit changes MUST be replaced in place, a
+key the edit adds MUST be inserted after the nearest key that precedes it in its kind's order
+(before the nearest following one when none precedes, at the end when neither is present), a key
+the edit clears MUST be deleted, and every other key, including keys no kind defines, MUST be left
+exactly as parsed, with its anchors and style. A replaced `supersedes:` list MUST keep, for each new
+entry whose `note:` names the same note as an old entry (compared without a trailing `.md`), the
+old entry's keys that no kind defines. It MUST refuse the edit, naming the key, when a key it would
+set or delete, its value, or anything beneath the value carries a YAML anchor; MUST refuse a
+frontmatter block that is not a mapping; and MUST refuse a result whose frontmatter does not decode.
+For a note whose frontmatter holds only keys its kind defines and no anchors, the edited text MUST
+be byte-identical to the note rendered afresh with the edit.
+
+Supports: 792a4j1a, 792a4j1b, 792a4j1c, 792a4j1d, 792a4k1a, 792a4k1b.
+
+Rationale: re-rendering the whole frontmatter from the typed note model dropped every key the model
+does not define (#780); editing the parsed mapping keeps them. An anchored value cannot be replaced
+without leaving its aliases dangling, and decoding the result again before it is written keeps a
+note that no reader could parse from ever reaching the disk. Byte-identical output for ordinary
+notes keeps their exchange hash unchanged, so the offer paths that compare these bytes behave as
+they did before the node edits.
+
+##### 792b6c7a Scenarios
+
+```gherkin
+Scenario: 792b6c7a1 Keys the edit does not change are kept
+  Given a note's frontmatter carrying keys no kind defines, a nested unknown map, and an anchor on a key the edit does not change
+  When an edit replaces one key its kind defines
+  Then every other key keeps its value and its anchor
+
+Scenario: 792b6c7a2 A set key keeps or takes its kind's position
+  Given the key order a, b, c, d
+  When b is set in "a: 1\nb: 2\n", in "a: 1\nd: 4\n", in "x: 0\nd: 4\n", and c is set in "x: 0\n"
+  Then the results are "a: 1\nb: new\n", "a: 1\nb: new\nd: 4\n", "x: 0\nb: new\nd: 4\n" and "x: 0\nc: new\n"
+
+Scenario: 792b6c7a3 A kept supersession entry keeps its unknown keys
+  Given a supersedes: list naming A with an extra key x_reason: kept, and naming B
+  When the list is replaced by entries naming A and C
+  Then the A entry carries the new type and claim and x_reason: kept, B is gone, and C carries only note, type and claim
+
+Scenario: 792b6c7a4 An anchored edited key is refused
+  Given frontmatter whose key to be replaced carries an anchor that another key aliases
+  When the edit is made
+  Then it fails naming the key, and nothing is written
+
+Scenario: 792b6c7a5 A result that does not decode is refused
+  Given rendered note text whose frontmatter holds a dangling alias, is not a mapping, or is missing
+  When it is checked before a write
+  Then it is refused as undecodable; valid frontmatter, an anchor with its alias, and an empty block pass
+
+Scenario: 792b6c7a6 A frontmatter block must be a mapping
+  Given a frontmatter block
+  When it is parsed for editing
+  Then a mapping is returned as one, an empty block is an empty mapping, a list is refused as not a mapping, and malformed YAML is refused
+
+Scenario: 792b6c7a7 An ordinary note is written as a fresh render
+  Given a fact, feedback or runbook note holding only keys its kind defines and no anchors
+  When any amend kind edits it
+  Then the result is byte-identical to the note rendered afresh with the edit, and its exchange hash is unchanged
+```
+
+#### 792b6c8 CRLF reading
+
+Requirement: 792b6c8 The note-document-format MUST read a note for splitting and editing as its LF
+form, converting each `\r\n` to `\n` and keeping a lone `\r`, while frontmatter splitting itself
+stays LF-only (792b6c6).
+
+Supports: 792a4m1a, 792a4m1b.
+
+Rationale: a CRLF-aware split would hand the writers that splice its slices back into a note CRLF
+lines, and they would write mixed line endings; converting at the reader leaves every writer working
+on the LF form, and a writer converts a note only inside a write it makes anyway.
+
+##### 792b6c8a Scenarios
+
+```gherkin
+Scenario: 792b6c8a1 CRLF pairs become LF
+  Given the text "a\r\nb\rc\r\n\r\n"
+  When it is read as LF
+  Then it is "a\nb\rc\n\n", and text without CRLF is unchanged
+```
+
 ### 792b6d Product-Scenario Mapping
 
 | Product scenario | Technical requirements |
@@ -1748,6 +1924,20 @@ Scenario: 792b6c6a3 A note without frontmatter
 | 792a3q1c | 792b6c5 |
 | 792a3u1a | 792b6c6 |
 | 792a3u1b | 792b6c6 |
+| 792a4b1a | 792b6c4 |
+| 792a4b1b | 792b6c4 |
+| 792a4b1c | 792b6c3 |
+| 792a4d1a | 792b6c4 |
+| 792a4d1b | 792b6c4 |
+| 792a4j1a | 792b6c7 |
+| 792a4j1b | 792b6c7 |
+| 792a4j1c | 792b6c7 |
+| 792a4j1d | 792b6c7 |
+| 792a4k1a | 792b6c7 |
+| 792a4k1b | 792b6c7 |
+| 792a4l1a | 792b6c4 |
+| 792a4m1a | 792b6c8 |
+| 792a4m1b | 792b6c8 |
 
 ```gherkin
 Scenario: 792a3a1b A leading When is not doubled
@@ -1804,6 +1994,53 @@ Scenario: 792a3q1c The answer can come from a file
   Given a file holding the answer text
   When the user runs engram learn qa with --answer-file naming it
   Then the answer note's body is that file's text
+```
+
+```gherkin
+Scenario: 792a4b1b A feedback field is replaced
+  Given a feedback note whose situation is x and action a
+  When the user runs engram amend --target <note> --action b
+  Then the note's action: is b and its body reads "Lesson learned: when x, b."
+
+Scenario: 792a4b1c A runbook's steps and red flags are replaced
+  Given a runbook note with body "1. old" and red flags A and B
+  When the user runs engram amend --target <note> --body "1. new" --red-flag C
+  Then the note's body is "1. new" and its red_flags: lists only C
+
+Scenario: 792a4d1a A supersession is written in canonical form
+  Given a vault holding note 107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior
+  When the user runs engram amend --target <note> --supersedes "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior.md|refutes|claim"
+  Then the body line is "Supersedes: [[107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior]] — refutes: claim", and the supersedes: entry's note: is 107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior.md
+
+Scenario: 792a4d1b The list is replaced, not appended to
+  Given a note whose supersedes: names A and B, with a Supersedes: line for each
+  When the user runs engram amend --target <note> --supersedes "C|narrows|c"
+  Then the note's supersedes: names only C, and its body has one Supersedes: line, for C
+
+Scenario: 792a4j1a Amend keeps an unmodeled key
+  Given a fact, feedback or runbook note whose frontmatter carries luhmann_old: "12" and a nested map that engram does not define
+  When the user runs engram amend --target <note> with a content flag, --supersedes or --chunk-source
+  Then the written note still carries luhmann_old: "12" and the nested map with the same values
+
+Scenario: 792a4j1b Amend keeps an anchor on a key it does not edit
+  Given a fact note whose source: &src test is aliased by another key
+  When the user runs engram amend --target <note> --object new
+  Then the amend succeeds, and source: and the aliasing key both still read test
+
+Scenario: 792a4j1c Amend keeps the extra keys of a kept supersession
+  Given a note whose supersedes: names A with an extra key x_reason: kept, and names B
+  When the user runs engram amend --target <note> --supersedes "A|refutes|new" --supersedes "C|narrows|c"
+  Then the A entry carries type: refutes, claim: new and x_reason: kept; B is gone; and the C entry carries only note, type and claim
+
+Scenario: 792a4j1d Resituate keeps every untouched field
+  Given a fact note carrying tags:, sources:, supersedes:, pending: true, parent:, aliases: and luhmann_old: "12"
+  When the user runs engram resituate --note <note> --situation new
+  Then all of those are unchanged, and only situation: and the body's first line differ
+
+Scenario: 792a4m1b Resituate converts a CRLF note
+  Given a fact or feedback note whose lines end in \r\n
+  When the user runs engram resituate --note <note> --situation new
+  Then the rewrite succeeds, the written note contains no \r, and only situation: and the body's first line changed
 ```
 
 ## 792b7 Added: luhmann-addressing
@@ -2051,7 +2288,7 @@ Canonical target: `docs/specs/technical/vault-write-lock.md` (title `Vault Write
   owns acquiring, waiting and releasing; independent verification, it is tested directly over fake
   primitives and over a real lock file; stability, the contract survives any change to the
   injection seam; necessity, concurrent note writes depend on it.
-- Supported capabilities: 792a3 note-writing. Note-revision, chunk-indexing and
+- Supported capabilities: 792a3 note-writing, 792a4 note-revision. Chunk-indexing and
   controlled-vocabulary add their callers' requirements (792d30, 792d63).
 
 Rationale: before every read-modify-write writer took a lock, only `learn`'s Luhmann-ID allocation
@@ -2098,7 +2335,7 @@ Requirement: 792b8c1 The vault-write-lock MUST open the lock file at the given p
 with mode `0600` when absent, MUST take an exclusive advisory lock on it, waiting while another
 holder has it, and MUST then return a release function.
 
-Supports: 792a3m1a, 792a3q1a.
+Supports: 792a3m1a, 792a3q1a, 792a4o1a, 792a4o1b.
 
 ##### 792b8c1a Scenarios
 
@@ -2168,7 +2405,7 @@ Scenario: 792b8c3a2 A lock failure closes the file
 Requirement: 792b8c4 The vault-write-lock MUST lock a vault by locking the file `.luhmann.lock` at
 the vault root, and releasing that lock MUST release the file's lock.
 
-Supports: 792a3m1a, 792a3q1a.
+Supports: 792a3m1a, 792a3q1a, 792a4o1a, 792a4o1b.
 
 ##### 792b8c4a Scenarios
 
@@ -2185,6 +2422,20 @@ Scenario: 792b8c4a1 A vault is locked through .luhmann.lock
 | --- | --- |
 | 792a3m1a | 792b8c1, 792b8c2, 792b8c4 |
 | 792a3q1a | 792b8c1, 792b8c4 |
+| 792a4o1a | 792b8c1, 792b8c4 |
+| 792a4o1b | 792b8c1, 792b8c4 |
+
+```gherkin
+Scenario: 792a4o1a Concurrent amends both take effect
+  Given a fact note
+  When engram amend --target <note> --subject s2 and engram amend --target <note> --chunk-source a#1 start at the same time
+  Then the note carries both subject: s2 and a#1 in sources:
+
+Scenario: 792a4o1b An activation does not undo a re-embed
+  Given a fact note with a current sidecar
+  When engram amend --target <note> --object new and engram activate --note <note> start at the same time
+  Then the sidecar holds the vectors of the amended text
+```
 
 ## 792b9 Added: text-embedder
 
@@ -2544,8 +2795,8 @@ Canonical target: `docs/specs/technical/embedding-sidecar.md` (title `Embedding 
   hashing and classification are tested directly over fake embedders and filesystems; stability,
   the on-disk format is versioned and outlives any refactoring; necessity, every retrieval over notes
   reads it.
-- Supported capabilities: 792a2 vault-identity, 792a3 note-writing. Note-revision,
-  controlled-vocabulary, memory-query, vault-health and vault-migration add their mappings and
+- Supported capabilities: 792a2 vault-identity, 792a3 note-writing, 792a4 note-revision.
+  Controlled-vocabulary, memory-query, vault-health and vault-migration add their mappings and
   requirements (792d30).
 
 Rationale: semantic search needs vectors, but a vector database or a separate rebuild step is a
@@ -2590,7 +2841,7 @@ only when set. Decoding MUST refuse malformed JSON, MUST refuse any other schema
 old single-vector sidecar, before checking lengths, MUST refuse a sidecar whose either vector's
 length differs from `dims`, and MUST read an absent `last_used` as empty.
 
-Supports: 792a3n1a, 792a3u1a, 792a3u1b.
+Supports: 792a3n1a, 792a3u1a, 792a3u1b, 792a4n1a, 792a4n1d.
 
 Rationale: `last_used` is added metadata. It does not bump the schema version, and it is kept out of
 the content hash, so recording a use never makes a note look stale.
@@ -2653,7 +2904,7 @@ the frontmatter, less one leading blank line, with every machine-written line re
 starting `Supersedes:`, `Contributors:`, `Answered by:` or `Answers:`) and trailing blank lines
 reduced to one newline. Other body lines MUST be kept. A note with no frontmatter is all body.
 
-Supports: 792a3n1a, 792a3q1a.
+Supports: 792a3n1a, 792a3q1a, 792a4g1a, 792a4g1b.
 
 Rationale: the machine-written lines are link channels rewritten in place by learn, amend and
 curation. Leaving them out means a link-only change neither moves the body vector nor makes the
@@ -2694,7 +2945,7 @@ Requirement: 792b10c4 The embedding-sidecar MUST hash a note as `sha256:` follow
 SHA-256 of its situation text, a zero byte, and its body text, so the hash changes when either
 changes, does not change for any other frontmatter edit, and is the same for the same note.
 
-Supports: 792a3n1a.
+Supports: 792a3n1a, 792a4g1a, 792a4g1b.
 
 ##### 792b10c4a Scenarios
 
@@ -2727,7 +2978,7 @@ or the body text when the note has no situation, and the body text, and stamping
 the embedder's model ID and dimension, and the note's content hash; an embedding failure MUST be
 returned.
 
-Supports: 792a3n1a, 792a3n1b.
+Supports: 792a3n1a, 792a3n1b, 792a4g1a, 792a4g1c, 792a4l1a, 792a4l1c, 792a4o1b.
 
 ##### 792b10c5a Scenarios
 
@@ -2855,6 +3106,27 @@ Scenario: 792b10c8a3 Vectors without signal score 0
   Then it is 0
 ```
 
+#### 792b10c9 CRLF notes
+
+Requirement: 792b10c9 The embedding-sidecar MUST take the situation text, the body text and the
+content hash of a note whose lines end in `\r\n` from its LF form, so that each equals the value
+for the note's LF form.
+
+Supports: 792a4m1a.
+
+Rationale: a CRLF note used to be embedded from the wrong text, and a conversion to LF then changed
+its hash. Reading the LF form makes the conversion that a revision makes leave the hash as it
+would be for the LF note.
+
+##### 792b10c9a Scenarios
+
+```gherkin
+Scenario: 792b10c9a1 A CRLF note embeds and hashes as its LF form
+  Given a note whose lines end in \r\n, and the same note with LF line endings
+  When their situation text, body text and content hash are taken
+  Then each equals the LF note's
+```
+
 ### 792b10d Product-Scenario Mapping
 
 | Product scenario | Technical requirements |
@@ -2868,12 +3140,43 @@ Scenario: 792b10c8a3 Vectors without signal score 0
 | 792a3t1a | 792b10c8 |
 | 792a3u1a | 792b10c1, 792b10c8 |
 | 792a3u1b | 792b10c1, 792b10c8 |
+| 792a4g1a | 792b10c3, 792b10c4, 792b10c5 |
+| 792a4g1b | 792b10c3, 792b10c4 |
+| 792a4g1c | 792b10c5 |
+| 792a4l1a | 792b10c5 |
+| 792a4l1c | 792b10c5 |
+| 792a4m1a | 792b10c9 |
+| 792a4n1a | 792b10c1 |
+| 792a4n1d | 792b10c1 |
+| 792a4o1b | 792b10c5 |
 
 ```gherkin
 Scenario: 792a3t1a The answer is found and the question is not
   Given a vault holding a pair whose question and answer both match a phrase
   When the user runs engram query with that phrase
   Then the answer note can appear in the results, and the question note never does
+```
+
+```gherkin
+Scenario: 792a4g1a A content amend re-embeds
+  Given a fact note with a current sidecar
+  When the user runs engram amend --target <note> --object new
+  Then the note's sidecar is rebuilt from the amended text, and engram embed status reports it ok
+
+Scenario: 792a4g1b A provenance-only amend does not re-embed
+  Given a fact note with a current sidecar
+  When the user runs engram amend --target <note> with only --supersedes or --chunk-source
+  Then the note's sidecar file is unchanged
+
+Scenario: 792a4g1c A failed re-embed keeps the amend
+  Given embedding fails for the note being amended
+  When the user runs engram amend --target <note> --object new
+  Then the note is amended, stderr carries a warning naming it, and the command succeeds
+
+Scenario: 792a4n1d Amend records a use
+  Given a note with a current sidecar
+  When the user runs engram amend --target <note> --activate
+  Then the sidecar's last_used is today
 ```
 
 ## 792b11 Added: note-provenance
@@ -2885,18 +3188,19 @@ Canonical target: `docs/specs/technical/note-provenance.md` (title `Note Provena
 - Ownership: Repository-owned dependency-boundary interaction (`git`, through the
   subprocess-runner, and the operating system's user lookup).
 - Responsibility: works out who and where a note write comes from: the repository of the working
-  directory and the writing user. It stamps them, with the vault name, on a note's first write, and
-  omits, with a warning, any value that does not resolve.
+  directory and the writing user. It stamps them, with the vault name, on a note's first write and
+  re-stamps them on a revision, and omits, with a warning, any value that does not resolve, except
+  that a re-stamp keeps a user the note already has.
 - Current realization (informational): `detectRepo`, `detectUser`, `firstWriteIdentity` and
   `identityStamp` in `internal/cli/identity.go`; `newLearnDeps` wires them for `learn`. The amend
-  re-stamp (`identityStamp.stampPreservingUser`) and identity backfill
-  (`internal/cli/identity_backfill.go`) are specified by note-revision and vault-migration (792d67).
+  re-stamp is `identityStamp.stampPreservingUser`; identity backfill
+  (`internal/cli/identity_backfill.go`) is specified by vault-migration (792d67).
 - Qualification: responsibility, provenance detection is stated without naming any command;
   ownership, writers decide when to stamp, while this component decides what the values are;
   independent verification, detection and stamping are tested directly over a fake `git` and user
   lookup; stability, the fields and their sources survive any change to the writers; necessity,
   every note's `repo:`, `user:` and `vault:` come from it.
-- Supported capabilities: 792a2 vault-identity, 792a3 note-writing. Note-revision, vault-migration,
+- Supported capabilities: 792a2 vault-identity, 792a3 note-writing, 792a4 note-revision. Vault-migration,
   vault-serving and parent-sync add their requirements (792d30, 792d67).
 
 Rationale: detection shells out to `git` rather than reading `.git/config`, because reproducing
@@ -2933,6 +3237,21 @@ sequenceDiagram
   Provenance-->>Writer: repo, user and vault, empty ones omitted from the note (792b11c3)
 ```
 
+```mermaid
+sequenceDiagram
+  participant Reviser as Note reviser
+  participant Provenance as note-provenance
+  Reviser->>Provenance: re-stamp a revised note with the resolved vault name (792b11c4)
+  Provenance->>Provenance: resolve the repository and the user (792b11c1, 792b11c2)
+  alt user resolved
+    Provenance-->>Reviser: the note's repo, user and vault overwritten
+  else user empty and the note has a user
+    Provenance-->>Reviser: repo and vault overwritten, the note's user kept, one warning naming the note
+  else user empty and the note has none
+    Provenance-->>Reviser: repo and vault overwritten, no user
+  end
+```
+
 ### 792b11c Behavior Requirements
 
 #### 792b11c1 Repository detection
@@ -2942,7 +3261,7 @@ Requirement: 792b11c1 The note-provenance MUST resolve the repository as the out
 as the basename of the path printed by `git rev-parse --show-toplevel`; and otherwise, including
 when the working directory cannot be resolved, as empty, without failing.
 
-Supports: 792a3o1a, 792a3o1b, 792a3o1c.
+Supports: 792a3o1a, 792a3o1b, 792a3o1c, 792a4h1a, 792a4h1b, 792a4h1c.
 
 ##### 792b11c1a Scenarios
 
@@ -2974,7 +3293,7 @@ Requirement: 792b11c2 The note-provenance MUST resolve the user as the output of
 `git config user.email`, trimmed; when that fails or prints nothing, as the OS username; and when
 that also fails or is unavailable, as empty, without failing.
 
-Supports: 792a3p1a, 792a3p1b, 792a3p1c.
+Supports: 792a3p1a, 792a3p1b, 792a3p1c, 792a4h1a, 792a4h1b, 792a4h1d, 792a4h1e.
 
 ##### 792b11c2a Scenarios
 
@@ -3027,6 +3346,45 @@ Scenario: 792b11c3a3 An empty vault name is left out
   Then it has no vault: key, and a warning names the vault
 ```
 
+#### 792b11c4 Re-stamp
+
+Requirement: 792b11c4 When a revision re-stamps a note, the note-provenance MUST overwrite the
+note's repository, user and vault with the resolved repository, user and vault name; when the
+resolved user is empty it MUST keep a non-empty user the note already has, logging one warning that
+names the note and says user detection resolved empty, and MUST leave the user out when the note has
+none. With no re-stamp to apply, it MUST change nothing.
+
+Supports: 792a4h1a, 792a4h1b, 792a4h1c, 792a4h1d, 792a4h1e, 792a4h1f, 792a4h1g.
+
+Rationale: the alternatives for an empty user were to refuse the revision, which blocks content
+edits on a machine with broken identity, or to keep the old value silently, which hides the broken
+environment (#776). The repository keeps fresh detection even when empty, because a working
+directory outside git is legitimate.
+
+##### 792b11c4a Scenarios
+
+```gherkin
+Scenario: 792b11c4a1 All three are overwritten
+  Given a note with repo old-repo, user old-user and vault old-vault, and resolved repository new-repo, user bob and vault name new-vault
+  When the note is re-stamped
+  Then its repo is new-repo, its user bob and its vault new-vault
+
+Scenario: 792b11c4a2 An empty user keeps the note's user
+  Given a fact, feedback or runbook note whose user is alice, and user detection resolves empty
+  When the note is re-stamped
+  Then its user is still alice, and exactly one warning names the note and says user detection resolved empty
+
+Scenario: 792b11c4a3 An empty user with none on the note is left out
+  Given a fact, feedback or runbook note with no user, and user detection resolves empty
+  When the note is re-stamped
+  Then it has no user: key, and no warning is logged
+
+Scenario: 792b11c4a4 No re-stamp changes nothing
+  Given a note with repo r, user u and vault v
+  When a revision applies no re-stamp
+  Then its repo, user and vault are still r, u and v
+```
+
 ### 792b11d Product-Scenario Mapping
 
 | Product scenario | Technical requirements |
@@ -3040,6 +3398,45 @@ Scenario: 792b11c3a3 An empty vault name is left out
 | 792a3p1a | 792b11c2, 792b11c3 |
 | 792a3p1b | 792b11c2, 792b11c3 |
 | 792a3p1c | 792b11c2, 792b11c3 |
+| 792a4h1a | 792b11c1, 792b11c2, 792b11c4 |
+| 792a4h1b | 792b11c1, 792b11c2, 792b11c4 |
+| 792a4h1c | 792b11c1, 792b11c4 |
+| 792a4h1d | 792b11c2, 792b11c4 |
+| 792a4h1e | 792b11c2, 792b11c4 |
+| 792a4h1f | 792b11c4 |
+| 792a4h1g | 792b11c4 |
+
+```gherkin
+Scenario: 792a4h1a Amend from another environment re-stamps
+  Given a fact note whose repo:, user: and vault: differ from the current environment's
+  When the user runs engram amend --target <note> with a content flag, --supersedes or --chunk-source
+  Then the note's repo:, user: and vault: are the current environment's detected values
+
+Scenario: 792a4h1b Amend backfills missing identity
+  Given a fact note with no repo:, user: or vault:
+  When the user runs engram amend --target <note> --object new
+  Then the note gains the current environment's repo:, user: and vault:
+
+Scenario: 792a4h1c The project field does not stand in for the repo
+  Given a note whose project: differs from the current working directory's repository
+  When the user runs engram amend --target <note> --object new
+  Then the note's repo: is the current working directory's repository, not the project: value
+
+Scenario: 792a4h1d Empty user detection keeps the prior user
+  Given a note whose user: is alice, and neither git config user.email nor the OS username resolves
+  When the user runs engram amend --target <note> --object new
+  Then the note's user: is still alice, stderr carries a warning naming the note, and the amend succeeds
+
+Scenario: 792a4h1e Empty user detection never writes an empty user
+  Given a note with no user:, and neither git config user.email nor the OS username resolves
+  When the user runs engram amend --target <note> --object new
+  Then the note has no user: field
+
+Scenario: 792a4h1g Recording a use keeps the declared identity
+  Given a note whose repo:, user: and vault: differ from the current environment's
+  When the user runs engram amend --target <note> --activate
+  Then the note's repo:, user: and vault: are unchanged
+```
 
 ## 792b12 Added: note-authoring
 

@@ -2,18 +2,9 @@
 
 ## Purpose
 
-The vault's wikilink graph resolves authored links to notes by extension-less basename. This capability closes the resolution gap where machine-written supersession links (learn/amend path) carried a `.md` suffix and therefore never resolved (part of GitHub issue #717): machine writers emit canonical form, and the parser tolerates the legacy suffixed form already present in the vault.
+The canonical form that `engram learn` and `engram amend` write for supersession links is in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a4-added-note-revision` (792a4d). The parser's normalization waits for wikilink-graph (792c7c2), and the dangling-link scenario for vault-health (792c7h1). The vault's wikilink graph resolves authored links to notes by extension-less basename. This capability closes the resolution gap where machine-written supersession links (learn/amend path) carried a `.md` suffix and therefore never resolved (part of GitHub issue #717): machine writers emit canonical form, and the parser tolerates the legacy suffixed form already present in the vault.
 
 ## Requirements
-
-### Requirement: Canonical wikilink form is the extension-less basename
-
-Machine-written wikilinks SHALL target a note by its extension-less basename — the graph's canonical node key (`vaultgraph.ParseBasename`). Specifically, `renderSupersedes` MUST strip a trailing `.md` from each entry's note filename when rendering the `Supersedes: [[...]]` body line. The frontmatter `supersedes:` list's `note:` field is a file reference, not a graph edge, and SHALL continue to carry the full filename with extension.
-
-#### Scenario: Supersession body link renders canonical form
-
-- **WHEN** a supersession is recorded via `engram learn`/`amend` for target note `107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior.md`
-- **THEN** the written body line is `Supersedes: [[107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior]] — <type>: <claim>` (no `.md` inside the wikilink), and the frontmatter `supersedes:` entry's `note:` field remains the full filename with `.md`
 
 ### Requirement: Parser normalizes .md-suffixed wikilink targets
 

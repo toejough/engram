@@ -24,6 +24,22 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
+// Test792a4n1c_Activate_MissWithoutParentFails: with no parent configured a miss
+// is a failed ref and nothing is fetched.
+func Test792a4n1c_Activate_MissWithoutParentFails(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	env.parentURL = ""
+
+	_, stderr := env.run("activate", "--note", "7.2026-09-01.gone.md")
+	g.Expect(stderr).To(ContainSubstring("7.2026-09-01.gone.md"))
+	g.Expect(stderr).To(ContainSubstring("not found"))
+	g.Expect(env.exitCodes()).To(Equal([]int{1}))
+	g.Expect(env.parent.requests()).To(BeEmpty())
+}
+
 // TestActivate_BareLuhmannIDStaysLocal (spec "Bare Luhmann IDs stay
 // local", M8): a bare ID — with or without .md, with or without --parent —
 // is never sent to the parent, and the ref is reported as failed.
@@ -261,22 +277,6 @@ func TestActivate_MalformedEnvelopeWritesNothing(t *testing.T) {
 			g.Expect(env.parentCache().VaultID).To(BeEmpty())
 		})
 	}
-}
-
-// TestActivate_MissWithoutParentFails: with no parent configured a miss
-// is a failed ref and nothing is fetched.
-func TestActivate_MissWithoutParentFails(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newWiringEnv(t)
-	env.parentURL = ""
-
-	_, stderr := env.run("activate", "--note", "7.2026-09-01.gone.md")
-	g.Expect(stderr).To(ContainSubstring("7.2026-09-01.gone.md"))
-	g.Expect(stderr).To(ContainSubstring("not found"))
-	g.Expect(env.exitCodes()).To(Equal([]int{1}))
-	g.Expect(env.parent.requests()).To(BeEmpty())
 }
 
 // TestActivate_NonExchangeTypeRefused: a fetched note that is not a fact,

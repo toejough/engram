@@ -1,8 +1,7 @@
 package cli_test
 
 // Amend keeps unknown sub-keys in list entries it keeps (#789 follow-up,
-// design D5; spec vault-note-identity "Exchange fields SHALL survive every
-// frontmatter rewrite"): when amend replaces supersedes:, an entry that
+// design D5; note-revision 792a4j1c, note-document-format 792b6c7a3): when amend replaces supersedes:, an entry that
 // survives — matched by its note's basename — keeps the keys the typed
 // entry does not define; only new entries are written fresh.
 
@@ -19,12 +18,12 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestRunAmend_SupersedesKeepsUnknownSubKeysOfKeptEntries: A survives
+// Test792b6c7a3_RunAmend_SupersedesKeepsUnknownSubKeysOfKeptEntries: A survives
 // (re-typed and re-claimed, matched by basename although the old entry
 // names it with .md) and keeps x_reason; B is dropped; C is new and
 // carries only the modeled keys. An old entry naming no note matches
 // nothing and is dropped.
-func TestRunAmend_SupersedesKeepsUnknownSubKeysOfKeptEntries(t *testing.T) {
+func Test792b6c7a3_RunAmend_SupersedesKeepsUnknownSubKeysOfKeptEntries(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -48,11 +47,11 @@ func TestRunAmend_SupersedesKeepsUnknownSubKeysOfKeptEntries(t *testing.T) {
 	}))
 }
 
-// TestRunAmend_SupersedesSubKeysProperty: for any existing supersedes list
+// Test792b6c7a3_RunAmend_SupersedesSubKeysProperty: for any existing supersedes list
 // with optional unknown sub-keys and any replacement list, every kept entry
 // keeps its unknown sub-keys, every entry carries the new modeled values in
 // the new order, and a new entry carries only the modeled keys.
-func TestRunAmend_SupersedesSubKeysProperty(t *testing.T) {
+func Test792b6c7a3_RunAmend_SupersedesSubKeysProperty(t *testing.T) {
 	t.Parallel()
 
 	pool := []string{"5.2026-01-01.a", "6.2026-01-01.b", "7.2026-01-01.c", "8.2026-01-01.d"}

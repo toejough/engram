@@ -12,6 +12,15 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+// Test792b6c8a1_ToLF converts every CRLF pair to LF and leaves a lone CR alone.
+func Test792b6c8a1_ToLF(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	g.Expect(string(toLF([]byte("a\r\nb\rc\r\n\r\n")))).To(Equal("a\nb\rc\n\n"))
+	g.Expect(toLF([]byte("plain\n"))).To(Equal([]byte("plain\n")))
+}
+
 // TestDecodeExchangeFrontmatter_CRLFFrontmatterReadsAsLF pins that a note
 // whose frontmatter is CRLF has its exchange fields read from its LF form
 // (#789 design D4), replacing fix-show-amend-reparent-frontmatter's pin
@@ -72,15 +81,6 @@ func TestExchangeHash_ConvertedCRLFFrontmatterMatchesLFAuthored(t *testing.T) {
 	g.Expect(authoredErr).NotTo(HaveOccurred())
 
 	g.Expect(converted).To(Equal(authored))
-}
-
-// TestToLF converts every CRLF pair to LF and leaves a lone CR alone.
-func TestToLF(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	g.Expect(string(toLF([]byte("a\r\nb\rc\r\n\r\n")))).To(Equal("a\nb\rc\n\n"))
-	g.Expect(toLF([]byte("plain\n"))).To(Equal([]byte("plain\n")))
 }
 
 // crlfExchangeNoteLF renders a fact note carrying exchange fields, with its

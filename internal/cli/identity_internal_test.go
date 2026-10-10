@@ -6,13 +6,13 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// TestIdentityStamp_Stamp_NilReceiverIsNoop pins stamp's documented
+// Test792b11c4a4_IdentityStamp_Stamp_NilReceiverIsNoop pins stamp's documented
 // contract directly: a nil *identityStamp (a bookkeeping amend) leaves
 // repo/user/vault untouched. The only production callers now reach stamp
 // through stampPreservingUser, which already guards nil before calling
 // stamp — so stamp's own nil branch needs this direct unit test to stay
 // covered.
-func TestIdentityStamp_Stamp_NilReceiverIsNoop(t *testing.T) {
+func Test792b11c4a4_IdentityStamp_Stamp_NilReceiverIsNoop(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 

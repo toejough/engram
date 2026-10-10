@@ -245,7 +245,7 @@ func amendFrontmatter(mapping, before *yaml.Node, after any, body string) (strin
 
 // amendIdentity returns the identity a content-changing amend re-stamps, or
 // nil for a bookkeeping amend, which preserves the note's declared
-// repo:/user:/vault: (vault-note-identity, design D10 M6/G11). Only a
+// repo:/user:/vault: (note-revision 792a4h, design D10 M6/G11). Only a
 // re-stamping amend runs identity detection. basename names the note being
 // amended, carried on the stamp so a user-detection warning (design D3,
 // #776) can name it.

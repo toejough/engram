@@ -26,12 +26,12 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
-// TestRunAmend_ExchangeHashParityWithPreChangeAmend: for every amend kind on
+// Test792b6c7a7_RunAmend_ExchangeHashParityWithPreChangeAmend: for every amend kind on
 // fact, feedback and runbook notes without unknown keys, the amended note
 // hashes exactly as the pre-change amend's output did — and is in fact
 // byte-identical to it, so the offer paths (which stage and compare these
 // bytes and hashes) see no difference.
-func TestRunAmend_ExchangeHashParityWithPreChangeAmend(t *testing.T) {
+func Test792b6c7a7_RunAmend_ExchangeHashParityWithPreChangeAmend(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range amendParityCases() {

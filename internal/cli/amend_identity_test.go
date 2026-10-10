@@ -1,8 +1,7 @@
 package cli_test
 
-// Which amends re-stamp repo:/user:/vault: (vault-note-identity MODIFIED
-// "Amend re-stamps identity fields on every write", design D10 M6/G11; task
-// 3.6): content, --supersedes and --chunk-source amends re-stamp; bookkeeping
+// Which amends re-stamp repo:/user:/vault: (note-revision 792a4h, design
+// D10 M6/G11; task 3.6): content, --supersedes and --chunk-source amends re-stamp; bookkeeping
 // amends (--activate alone, --clear-pending) preserve the note's declared
 // identity, so an accepted offer keeps its author.
 
@@ -20,6 +19,61 @@ import (
 	"github.com/toejough/engram/internal/cli"
 	"github.com/toejough/engram/internal/vaultgraph"
 )
+
+// Test792b11c4a2_RunAmend_EmptyUserDetectionKeepsPriorUser: design D3 (#776) — a
+// re-stamping amend whose user detection resolves to an empty string (both
+// git config user.email and the OS username lookup failed) keeps the
+// note's existing non-empty user: instead of blanking it to user: "", on
+// every note type (fact via applyTypedAmend's overrideFactFields, feedback
+// via overrideFeedbackFields, runbook via applyRunbookAmend), and warns
+// once naming the note and the failed detection (note-revision 792a4h1d). Plain closures, not an
+// impgen interactive mock — see design D7 and tasks.md task 2.1 for why.
+func Test792b11c4a2_RunAmend_EmptyUserDetectionKeepsPriorUser(t *testing.T) {
+	t.Parallel()
+
+	for _, noteType := range identityAmendTypes {
+		t.Run(noteType, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			written, warnings, err := runEmptyUserDetectionAmend(t.Context(), noteType, "alice@example.com")
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(written).To(ContainSubstring("user: alice@example.com"))
+			g.Expect(warnings).To(HaveLen(1), "LogWarning must be called exactly once")
+
+			if len(warnings) != 1 {
+				return
+			}
+
+			g.Expect(warnings[0]).To(ContainSubstring(emptyUserDetectionBasename), "the warning must name the note")
+			g.Expect(warnings[0]).To(ContainSubstring("user detection"),
+				"the warning must name the failed detection")
+			g.Expect(warnings[0]).To(ContainSubstring("empty"),
+				"the warning must say detection resolved empty")
+		})
+	}
+}
+
+// Test792b11c4a3_RunAmend_EmptyUserDetectionNoPriorUserOmitsUser: a note with no
+// prior user: has nothing to preserve, and an empty detection is never
+// written as user: "" (#789 design D6): the key stays absent, on every note
+// type. The preservation in D3 only applies when there IS a prior value to
+// keep.
+func Test792b11c4a3_RunAmend_EmptyUserDetectionNoPriorUserOmitsUser(t *testing.T) {
+	t.Parallel()
+
+	for _, noteType := range identityAmendTypes {
+		t.Run(noteType, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			written, warnings, err := runEmptyUserDetectionAmend(t.Context(), noteType, "")
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(written).NotTo(ContainSubstring("user:"))
+			g.Expect(warnings).To(BeEmpty(), "nothing to warn about when there was no prior user to keep")
+		})
+	}
+}
 
 // TestRunAmend_BookkeepingAmendsKeepIdentity: on every note type (fact and
 // feedback via applyTypedAmend, runbook via applyRunbookAmend), --activate
@@ -63,62 +117,6 @@ func TestRunAmend_ClearPendingKeepsOfferAuthor(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(written).To(ContainSubstring("user: alice@example.com"))
 	g.Expect(written).NotTo(ContainSubstring("pending: true"))
-}
-
-// TestRunAmend_EmptyUserDetectionKeepsPriorUser: design D3 (#776) — a
-// re-stamping amend whose user detection resolves to an empty string (both
-// git config user.email and the OS username lookup failed) keeps the
-// note's existing non-empty user: instead of blanking it to user: "", on
-// every note type (fact via applyTypedAmend's overrideFactFields, feedback
-// via overrideFeedbackFields, runbook via applyRunbookAmend), and warns
-// once naming the note and the failed detection (vault-note-identity,
-// "Empty user detection keeps the prior user"). Plain closures, not an
-// impgen interactive mock — see design D7 and tasks.md task 2.1 for why.
-func TestRunAmend_EmptyUserDetectionKeepsPriorUser(t *testing.T) {
-	t.Parallel()
-
-	for _, noteType := range identityAmendTypes {
-		t.Run(noteType, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			written, warnings, err := runEmptyUserDetectionAmend(t.Context(), noteType, "alice@example.com")
-			g.Expect(err).NotTo(HaveOccurred())
-			g.Expect(written).To(ContainSubstring("user: alice@example.com"))
-			g.Expect(warnings).To(HaveLen(1), "LogWarning must be called exactly once")
-
-			if len(warnings) != 1 {
-				return
-			}
-
-			g.Expect(warnings[0]).To(ContainSubstring(emptyUserDetectionBasename), "the warning must name the note")
-			g.Expect(warnings[0]).To(ContainSubstring("user detection"),
-				"the warning must name the failed detection")
-			g.Expect(warnings[0]).To(ContainSubstring("empty"),
-				"the warning must say detection resolved empty")
-		})
-	}
-}
-
-// TestRunAmend_EmptyUserDetectionNoPriorUserOmitsUser: a note with no
-// prior user: has nothing to preserve, and an empty detection is never
-// written as user: "" (#789 design D6): the key stays absent, on every note
-// type. The preservation in D3 only applies when there IS a prior value to
-// keep.
-func TestRunAmend_EmptyUserDetectionNoPriorUserOmitsUser(t *testing.T) {
-	t.Parallel()
-
-	for _, noteType := range identityAmendTypes {
-		t.Run(noteType, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			written, warnings, err := runEmptyUserDetectionAmend(t.Context(), noteType, "")
-			g.Expect(err).NotTo(HaveOccurred())
-			g.Expect(written).NotTo(ContainSubstring("user:"))
-			g.Expect(warnings).To(BeEmpty(), "nothing to warn about when there was no prior user to keep")
-		})
-	}
 }
 
 // TestRunAmend_IdentityRestampProperty: over any combination of amend flags,

@@ -13,7 +13,7 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-func TestEmbedReaders_CRLFNoteReadsAsLF(t *testing.T) {
+func Test792b10c9a1_EmbedReaders_CRLFNoteReadsAsLF(t *testing.T) {
 	t.Parallel()
 
 	lfNote := "---\ntype: fact\nsituation: when converting line endings\nsubject: a\n---\n\n" +
