@@ -1810,3 +1810,31 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792d3, 792d12, 792d32, 792d33, 792d57 and 792d111.
 - **Alternatives:** leave the vocabulary check and batch mode out of the learn capability. Rejected because the
   shipped skill carries them and no other node describes the agent's side.
+
+## 792d113 lessons-contract scope, and where the sources differ from the skills
+
+- **Choice:**
+  - 792a16 states the contract once, from the LESSONS sections of the shipped route, please and learn skills
+    and the subagent-return cue of the learn guidance. Its seven requirements are in the order a line travels.
+    The cue's firing (what makes the orchestrator judge at the return) is ambient-guidance's (792c7r1); 792a16e
+    states what the orchestrator does.
+  - The completion-moment anchor and exemplars of kind 4, which the `learn` OpenSpec spec held, are 792a16g.
+    The kind-4 bar itself is in 792a15g.
+  - The `learn`, `please` and `route` OpenSpec specs held nothing but the contract's slices, so they are
+    deleted whole, as the catalog's mapping in 792d20 expected.
+  - No test is renamed: the contract has no Go or Python test. The ledger rows and the confined harness are
+    evidence for the eval node (792c7v).
+- **Divergences noted (792d33):**
+  - The `route` spec says an unanswered re-ask leaves "an empty slot for that subagent" and the `lessons-contract`
+    spec gives the same; the shipped route skill says to record `LESSONS: none` and move on. 792a16c follows
+    the skill.
+  - The `please` spec's scenario "Re-executed work after gate rejection" says lines of a rejected attempt are
+    not carried forward (collect once per final dispatch). The shipped please skill says to record each unit's
+    line as its result comes back, and says nothing of a rejected attempt. The scenario is not ported; 792a16d
+    states only the unconditional recording.
+  - The `lessons-contract` spec says a `LESSONS` line may carry "a single lesson" or "up to three lessons,
+    comma-separated". The skill says "1 to 3 comma-separated one-line lessons". Both are 792a16a.
+  - The `please` spec says please hands the list to learn as an entry such as `lessons_from_session: [...]`; the
+    skill says only that the list is handed over. 792a16f does not name a field.
+- **Rationale:** 792d20, 792d32, 792d33 and 792d111.
+- **Alternatives:** put the requirements in each skill's capability. Rejected in 792d20.

@@ -243,8 +243,8 @@ flowchart TD
   N792c7l2["792c7l2 agent-instruction-bundle tech spec<br/>Complete"]
   N792c7m1["792c7m1 recall product spec<br/>Complete"]
   N792c7n1["792c7n1 learn product spec<br/>Complete"]
-  N792c7o1["792c7o1 lessons-contract product spec<br/>Ready"]
-  N792c7p1["792c7p1 route product spec<br/>Blocked by: 792c7o1"]
+  N792c7o1["792c7o1 lessons-contract product spec<br/>Complete"]
+  N792c7p1["792c7p1 route product spec<br/>Ready"]
   N792c7q1["792c7q1 please product spec<br/>Blocked by: 792c7p1"]
   N792c7r1["792c7r1 ambient-guidance product spec<br/>Blocked by: 792c7q1"]
   N792c7s1["792c7s1 vault-serving product spec<br/>Blocked by: 792c7r1"]
@@ -4299,11 +4299,36 @@ Target: `792a16` (`docs/specs/product/lessons-contract.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7o1a | Port product requirements and UAT to `792a16` | Non-test action | Moves current behavior into the framework format | Not started |
-| 792c7o1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7o1c | Repoint stale references to `792a16` | Non-test action | Keeps live links valid | Not started |
-| 792c7o1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Not started |
-| 792c7o1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Not started |
+| 792c7o1a | Port product requirements and UAT to `792a16` | Non-test action | Moves current behavior into the framework format | Done |
+| 792c7o1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7o1c | Repoint stale references to `792a16` | Non-test action | Keeps live links valid | Done |
+| 792c7o1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Done |
+| 792c7o1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
+
+792a16 has seven requirements (792a16a to 792a16g): the line, the handoff that mandates it, the single re-ask,
+verbatim recording, judging at the return, the whole list for the closing learn, and the completion-moment scan
+for confirmed approaches (792d113). agent-instruction-bundle gains nothing: no scenario of the contract is a
+property of the shipped text's metadata, form or vault path. Legacy removal: the `lessons-contract`, `learn`,
+`please` and `route` OpenSpec specs are deleted, because each held only the `LESSONS:` slice and every one of
+their requirements and scenarios is in 792a16 (the `please` scenario "Re-executed work after gate rejection" is
+the one exception, see 792d113). No live document referenced them.
+
+**Test Traceability**
+
+No Go or Python test is renamed: the contract is carried by skill and guidance markdown. Its evidence is the
+eval ledger and the confined headless harness, not a test of this repository's code, and those keep their names
+(792d113).
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792a16e1a to 792a16e1d | `dev/eval/LEDGER.md#learn-at-return-guidance` (harness `dev/eval/learn-at-return`, not renamed) | Confined headless RED/GREEN arms | The return cue fires on a lesson that clears the bar and not on `none`, trivial or unconfirmed lessons | Done |
+| 792a16a1a, 792a16a1b, 792a16b1a, 792a16c1a | `dev/eval/LEDGER.md#learn-rate-remeasure-w2` (not renamed) | Audit re-measure | The first version's contract, measured; no detectable rise in the learn rate | Done |
+
+**Coverage gaps:** no test covers 792a16a1c, 792a16b1b, 792a16b1c, 792a16c1b, 792a16c1c, 792a16d, 792a16f or 792a16g;
+`route/tests/README.md` lists no baseline for the completion-report contract (it says the behaviors are locked
+by the skill text), and `learn/tests` has no baseline for the closing-learn curation.
+
+**No-scenario tests:** none.
 
 ### 792c7p route
 
