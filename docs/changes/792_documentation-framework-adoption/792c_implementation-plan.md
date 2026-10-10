@@ -5049,8 +5049,8 @@ consequences and risks. The three other parent specs stay whole until the techni
 
 **Coverage gaps (technical scenarios):** [792b2c10a6 Another local error does not reach the parent](./792b_technical-spec.md#792b2c10a-scenarios) (no test dispatches `show` with a blank reference and a parent
 configured), [792b5c15a1 Only a 32-character lowercase hexadecimal string is an identifier](./792b_technical-spec.md#792b5c15a-scenarios) and [792b5c15a2 A basename with a separator is refused](./792b_technical-spec.md#792b5c15a-scenarios) (the identifier checks have no direct test; the malformed receipt and envelope
-tests reach them), [792b5c16a4 A missing record is empty and a corrupt one is an error](./792b_technical-spec.md#792b5c16a-scenarios) (no test reads a missing or corrupt `declined.json`) and [792b14c12a Scenarios](./792b_technical-spec.md#792b14c12a-scenarios)-scenarios are verified
-only end to end, through the `Test792a21zc1x` and `Test792a21zg1x` tests listed above. [792b33c10a Scenarios](./792b_technical-spec.md#792b33c10a-scenarios)-scenarios are verified
+tests reach them), [792b5c16a4 A missing record is empty and a corrupt one is an error](./792b_technical-spec.md#792b5c16a-scenarios) (no test reads a missing or corrupt `declined.json`) and [792b14c12a Scenarios](./792b_technical-spec.md#792b14c12a-scenarios) are verified
+only end to end, through the `Test792a21zc1x` and `Test792a21zg1x` tests listed above. [792b33c10a Scenarios](./792b_technical-spec.md#792b33c10a-scenarios) are verified
 by the survival tests.
 
 **Coverage gaps ([792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync), completed by [792c7t3e](#792c7t3-parent-vault-client-tech-spec)):** the scenarios that no command-level test renamed here verifies are
