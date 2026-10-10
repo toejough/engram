@@ -37,12 +37,14 @@ docs/
       <capability-slug>
     technical/
       <component-slug>
+  images/
 ```
 
 - `docs/changes/` contains active change artifacts.
 - `docs/specs/product/` contains exactly one canonical specification file per user-facing
   capability.
 - `docs/specs/technical/` contains exactly one canonical specification file per stable component.
+- `docs/images/` contains assets (diagrams, screenshots) that documents and the root `README.md` embed. It holds no specification content.
 - Organizational directory names do not establish identity or Luhmann ancestry.
 - Repository-governance files remain directly under `docs/`.
 

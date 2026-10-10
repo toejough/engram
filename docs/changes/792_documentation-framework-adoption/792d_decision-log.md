@@ -2410,3 +2410,32 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792d53 (the archive is deleted by 792c8c) and the lifecycle guide, which forbids keeping a completed-change archive. The
   mining kept only choices that explain a specified behavior, since task lists, test counts and process notes record work and not behavior.
 - **Alternatives:** port each archive entry's design as an appendix. Rejected: it would recreate the archive inside the specs.
+
+## 792d130 Final stale-reference sweep, the image move (792e5 applied), and what the directory removal waits on
+
+- **Choice:**
+  - **Image (792e5, option 1 applied).** `docs/deprecated/images/vault-graph.png` moved to `docs/images/vault-graph.png`, so the root `README.md`
+    link is correct again with no edit. `docs/AGENTS.md` now lists `docs/images/` in its Documentation Structure as an assets directory that holds no
+    specification content.
+  - **`docs/deprecated/` is not yet removed.** One file remains, `design/parallel-memory-agent-requirements.md`, which node 792c8b relocates once
+    792e2 supplies an issue key (default: none). Everything else was deleted by 792c8a or moved by this node. Node 792c8d is therefore In
+    progress, and removing the directory waits only on that file.
+  - **Sweep.** The sweep ran `git grep` over the whole repository, excluding `.claude/worktrees/`, for `docs/deprecated`, `docs/architecture`,
+    `docs/agents`, `docs/design`, `docs/research`, `docs/superpowers`, `docs/images`, `docs/README`, `FEATURES.md`, `openspec/`, `ADR-00`, and the C4
+    element IDs (`c1-system-context`, `c2-containers`, `c3-components`, `K`/`S`/`R` element IDs in prose). Live hits were repointed: ROADMAP (the
+    ADR-0012 gate citation, five deleted-plan paths, the subprocess design path), eight comments in live tooling (`dev/eval/traps/*.py` and
+    `dev/eval/vocab/trigger_replay.py`, per 792d37), and the README lines recorded in 792d129. No tracked file named a C4 element ID outside the
+    exempt records.
+  - **ADR citations are names, not links.** `ADR-00NN` in 792a and 792b rationale, the ROADMAP and two Go comments (`internal/cli/offer.go`,
+    `offer_test.go`) names a decision whose text was ported into the section that cites it. Rewriting each to a requirement ID would invent
+    mappings the sources do not state, so they stay. The deleted record is recoverable with
+    `git show a080d5a0^:docs/deprecated/architecture/adr.md`.
+  - **Added to the exemption set (792d37, 792d53).** Raw outputs and snapshots of past runs: every `raw/` and `results/` directory under
+    `dev/eval/` (`dev/eval/atoms-build/raw/`, `dev/eval/learn-at-return/results/`), the skill-text snapshots the eval arms were run with
+    (`dev/eval/atoms/sandbox-texts/`, `dev/eval/atoms-build/**/candidate/`, `dev/eval/guards/candidate/`), the fixture query
+    `dev/eval/traps/runbook_corpus.json` (a user-message encoding that mentions an `openspec/` directory), and `.review/events.jsonl` (the append-only
+    event log). Rewriting them would falsify what they recorded. The change's own `792a` problem statement and Gherkin example that name the legacy
+    layout (792a1, a path example in 792a23), and `792e`, which quotes the old paths in its question contexts, are records of this change and also stay.
+- **Rationale:** 792d37 and 792d53 (a dated record is not rewritten; live comments are), 792d31 (a legacy file is deleted once empty).
+- **Alternatives:** relocate `parallel-memory-agent-requirements.md` under #792 now. Rejected: 792d14 and 792e2. Delete it. Rejected: it is the only
+  copy of an unbuilt feature's requirements, and 792e2 is Joe's call.

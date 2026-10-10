@@ -31,7 +31,7 @@ created under a CLEAN temp dir NOT nested under any `.claude` (or VCS repo) — 
 `~/.claude/jobs/...` made it sweep the operator's global `~/.claude` into the per-trial recency
 channel (~48 files, displacing phase-1's chunk). See _new_clean_workspace_dir / _assert_clean_cwd.
 
-See docs/superpowers/plans/2026-07-18-646-recency-value-proof.md for the full design.
+The 2026-07-18 #646 recency-value-proof plan held the full design (deleted; git history).
 
 Usage:
   python3 recency_value.py --arm on|off --trials N --model opus [--recent-volume K] --out <path>

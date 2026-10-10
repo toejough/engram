@@ -22,7 +22,7 @@ is marked sleep-contaminated and NOT pooled (span > awake-process wall is physic
 
 Vault modes (Task 1b): the default fixture seeds 5 seed_c3 notes — a small-payload floor that
 never exercises the paging regime the ~190 s prior ran against (real-vault copy, ~141–237 KB
-payloads, ~370–410 chunks; method: git show 51ca6723:docs/design/2026-06-25-recall-cost-isolation.md).
+payloads, ~370–410 chunks; method: the 2026-06-25 recall-cost isolation design, at commit 51ca6723).
 `--vault-copy` instead COPIES the real vault + chunk index into each per-trial sandbox and points
 ENGRAM_VAULT_PATH/ENGRAM_CHUNKS_DIR at the copies — the production paths are read-only sources;
 every write (learn/activate/ingest) lands in the sandbox. Vault-copy rows live under the
