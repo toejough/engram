@@ -25,6 +25,53 @@ requirement or orientation it justifies.
 Component sections `792b2` through `792b39` are added by the nodes of
 [`792c_implementation-plan.md`](./792c_implementation-plan.md).
 
+### 792b1a System context
+
+The operator directs an LLM coding harness. The harness loads engram's skills and runs the `engram`
+command line, which reads and writes the vault, reads the harness's session transcripts, and installs
+and deploys itself. The vault is external to the binary (an operator-configured directory, possibly
+edited in Obsidian) but is the data store the binary owns and writes. The embedding model is part of
+the binary, not an external system. Each `engram` subcommand is its own process; the shared packages
+(`embed`, `luhmann`, the exchange kernel) are compiled into several of them and never call across
+processes. Skills reach the vault only through the command line.
+
+```mermaid
+flowchart TB
+    operator([Operator])
+    harness("LLM coding harness<br/>(Claude Code, Pi)")
+    skills["Skills<br/>recall / learn / please / route / curate / write-memory"]
+    cli["engram command line<br/>ingest, learn, query, amend, embed, update, serve"]
+    model[["Embedded MiniLM-L6 model"]]
+    vault[("Vault<br/>notes + sidecars, flat root")]
+    sessions(["Harness session stores"])
+    gotool(["Go toolchain"])
+    parent(["Parent engram vault<br/>(engram serve)"])
+
+    operator -->|prompts| harness
+    harness -->|loads| skills
+    skills -->|"subprocess"| cli
+    cli -->|embeds text| model
+    cli -->|"reads and writes under the vault lock"| vault
+    cli -->|"reads transcripts, re-chunks changed sources"| sessions
+    cli -->|"go install, then re-exec the fresh binary"| gotool
+    cli -->|"writes skills and guidance"| harness
+    cli -->|"ENGRAM_PARENT: offers and pulls notes over HTTP, never chunks"| parent
+```
+
+| Edge | Specified in |
+| --- | --- |
+| Harness to skills, skills to command line | 792b32 agent-instruction-bundle, 792b2 command-line-surface |
+| Command line to vault | 792b6 note-document-format, 792b8 vault-write-lock, 792b5 vault-identity-registry |
+| Command line to model | 792b9 text-embedder |
+| Command line to session stores | 792b15 transcript-reader, 792b17 ingestion-source-discovery, 792b18 chunk-index-store |
+| Command line to Go toolchain, harness | 792b28 self-installer, 792b29 harness-deploy-sync |
+| Command line to parent vault | 792b35 vault-http-server, 792b36 offer-outbox, 792b37 parent-vault-client |
+
+Rationale: this overview replaces the legacy C4 context, container and component views (deleted by
+792c8a; git history keeps them). The component catalogs those views carried are now the per-component
+sections, which cite the owning package. The command line's own wiring convention (a single-statement
+`main()` supplying raw primitives to `internal/cli`) is in the root `AGENTS.md`.
+
 ## 792b2 Added: command-line-surface
 
 Canonical target: `docs/specs/technical/command-line-surface.md` (title `Command Line Surface - Technical Spec`).

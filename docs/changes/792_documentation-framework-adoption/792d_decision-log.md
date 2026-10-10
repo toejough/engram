@@ -2341,3 +2341,37 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792d3, 792d10, 792d33, 792d125 and 792d126.
 - **Alternatives:** specify the runner and the scorecard too. Rejected: they are the measurement of one finished experiment, and no
   legacy source states a contract for them.
+
+## 792d128 Residual legacy sweep: what was ported where, and what was deleted
+
+- **Choice:** node 792c8a ported the following and deleted the rest of `docs/deprecated/` that is not 792c8b's.
+  - `FEATURES.md`: "Validated goals" is a new `## Validated goals` section of `docs/ROADMAP.md`, before Provenance. The pointer paragraph,
+    `docs/deprecated/README.md` and the index tables are gone, because the file list in `docs/AGENTS.md` is the docs index.
+  - `agents/{domain,issue-tracker,triage-labels}.md`: ported inline to the three "Agent skills" subsections of the root `AGENTS.md`.
+    "Domain docs" now points at `docs/AGENTS.md`, the 792 behavior record and the glossary, and tells agents to surface a conflict with
+    a requirement or its rationale. The wayfinding operations were kept, condensed.
+  - ADR-0027 and the six memory-taxonomy research briefings: a new "Decisions carried from ADR-0027" block in the ROADMAP north-star
+    track, beside the existing ADR-0028 block. It carries the taxonomy-as-checklist ruling, the gap map (firing, apply, scope probe, strength
+    and update, interference, composition, lexical channel, multi-agent routing), the deferred items with their revisit conditions, and the risks.
+    The `runbook` glossary entry gained the "declarative memory about a procedure" framing. The field survey citations, the human-memory
+    literature and the engram-to-human mapping table are background and were deleted.
+  - ADR-0020 is the expanded "DI everywhere" bullet of the root `AGENTS.md` Design Principles (the two-sided boundary, `cli.NewDeps`,
+    the `Primitives` rule). That bullet also carries the `cmd/engram` primitives convention that c3's K13 held.
+  - ADR-0004, 0005, 0008, 0009, 0012 and 0026: the four dead ADRs are one new Provenance row ("Retired memory-model machinery"), since the
+    ROADMAP covered none of them. ADR-0012's round-2/3 gate was already in the GATED band, so its consequences were deleted. ADR-0026 was already a
+    pointer. ADR-0016 (hand-authored mermaid) is superseded by the framework and deleted. The preamble and status legend are deleted.
+  - The 2026-07-01 recall subprocess design had no Provenance row of its own; the payload-prune row names it, and a new Provenance row records the
+    rejection (Joe, 2026-07-08) and the revisit condition.
+  - C4 views: the L1, L2 and L3 diagrams became one system-context diagram and edge table, 792b1a, in the technical spec. Every other catalog
+    row already pointed at its 792b section. K11 debuglog stays excluded (792d27), K13 is in `AGENTS.md`, and "Dead/test-only surface" was
+    stale (it described the removed graph-expansion path) and is deleted.
+  - `memory-invariants.md`: the header, legend, retired items, B, D and RT-1 are deleted. M6 (learn idempotency) was never built and nothing
+    in the ROADMAP or the issues asks for it, so it is deleted with the file rather than parked; M7 (marker monotonicity) is retired with the markers.
+  - `docs/GLOSSARY.md`: the OpenSpec entry is dropped (retired, 792d39), the ADR-0012 reference points at 792a3q, and the stale
+    `fact|feedback|qa` wording of `write-memory` and `handoff contract` now includes `runbook`, matching `write-memory/SKILL.md`.
+  - Root `AGENTS.md`: the `openspec/` line is gone, `docs/` is described per `docs/AGENTS.md`, Key Files name `docs/AGENTS.md`, the glossary,
+    the roadmap and the behavior record, and the Design Principles authority line names the 792b sections and their rationale.
+- **Rationale:** 792d31 (a legacy file is deleted once empty) and the standing rule that git is the fallback. The ROADMAP is the one
+  home for decisions that still steer work, and the specs are the home for behavior and its rationale, so nothing was kept as an archive.
+- **Alternatives:** keep a `docs/architecture/` overview. Rejected: it would be a second structure view next to the technical spec. Park M6 in
+  the ROADMAP. Rejected: no issue or ruling asks for it.

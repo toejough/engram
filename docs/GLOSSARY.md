@@ -45,6 +45,7 @@ Retrieved by `engram query` and followed per the shim's follow frame (announce, 
 a plan, read red flags, verify `done_when`) in addition to, not instead of, being loaded as an installed skill. It is the mechanically-derived carrier for a registered skill's mirror note (slug derived from its skill key, frontmatter `skill_hash`/`skill_key`/`skill_source`) — engram's skills and any other registered skill or command alike (`please`'s former three sub-runbooks merged back into its one note/skill body). Written with
 `engram learn runbook`.
 Distinct from **skill** — a `SKILL.md` deployed to each harness's skills directory; a skill and its runbook mirror coexist.
+Strictly, declarative memory *about* a procedure, not procedural memory (which is compiled and automatic; in an agent stack only weights and executable code qualify): the agent re-enters the novice "reading the recipe" stage on each retrieval, and a runbook's value concentrates where the model lacks priors.
 
 ### atom
 The skill-decomposition concept from the roadmap's guiding framing: one behavior, one skill
@@ -56,13 +57,13 @@ in `dev/eval/LEDGER.md`.
 
 ### write-memory (skill)
 The `write-memory` skill (`agent-instructions/skills/write-memory/SKILL.md`, restored), invoked natively by recall/learn at their write sites — not reached via `engram query`'s trigger/similarity match. Also carries a registered vault runbook note (`skill-claude-write-memory`, key `claude:write-memory`, frontmatter `skill_hash`/`skill_key`/`skill_source`) mirroring the SKILL.md, reachable by basename/wikilink for a session that received only the note. Executes a vault write handed off by recall or learn: composes the
-`engram learn fact|feedback|qa` command from the handoff fields, runs it, retries on
+`engram learn fact|feedback|qa|runbook` command from the handoff fields, runs it, retries on
 CLI errors (max 2), and reports the written note path. Parents judge; the worker writes.
 Amends stay in recall (single-site).
 
 ### handoff contract
 The field set a parent skill passes when invoking write-memory: **kind**
-(`fact|feedback|qa`), the kind's content fields, **source** (provenance string),
+(`fact|feedback|qa|runbook`), the kind's content fields, **source** (provenance string),
 optional **chunk-sources**, optional **supersedes** (`basename|type|claim`).
 The worker asks for missing required fields rather than inventing content.
 
@@ -76,12 +77,6 @@ anti-pattern: pointer-style "apply X verbatim" references to out-of-context
 text (e.g. "see the postscript for details") are unreliable — the referenced
 content may not be read in the target's actual deployed context; prefer
 inlining the content a skill needs directly in its own prose.
-
-### OpenSpec
-A spec-driven development framework (Fission-AI). The `openspec/specs/` tree in
-this repository is the primary behavior record (backfilled 2026-07-27): one
-specification per shipped capability, validated by `openspec validate --specs --strict`.
-Behavior conclusions graduate into `openspec/specs/<id>/spec.md` via the `/opsx:` commands.
 
 ### reversal (capture kind)
 A conclusion, design, or verdict that was presented (to the user, a review gate,
@@ -600,7 +595,7 @@ qa-answer notes COMPETE (they are synthesis notes — pre-reasoned conclusions
 with provenance); qa-question notes are EXCLUDED (reachable instead via a
 dedicated q-space channel with an `answered_by` ride-along, round 3, gated).
 Supersedes the original full-exclusion D5. Decision record and rationale:
-`docs/architecture/adr.md` ADR-0012.
+[792a3q](changes/792_documentation-framework-adoption/792a_product-spec.md#792a3q-question-and-answer-pairs).
 
 ### contributors (QA frontmatter + body field)
 A frontmatter list (`contributors: [<basename>, ...]`) and a matching

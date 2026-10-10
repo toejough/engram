@@ -25,9 +25,8 @@ engram/
 ├── agent-instructions/
 │   ├── skills/        # Source for all six skills — recall, learn, please, route, curate, write-memory
 │   └── guidance/      # Source for the deployable ambient guidance docs — recall-firing (`recall.md`), delegation-firing (`delegate.md`), learn-firing (`learn.md`), and runbook-follow-frame (`shim.md`) — synced by `engram update --with-guidance` to canonical paths in `~/.claude/engram/guidance/` (Claude Code) and `~/.pi/agent/engram/guidance/` (Pi); compat symlinks at old flat paths keep existing `@import` lines in CLAUDE.md / AGENTS.md resolving (792a11m in docs/changes/792_documentation-framework-adoption/792a_product-spec.md); activated via `@import`
-├── openspec/          # Primary behavior specs — one per shipped capability; backfilled 2026-07-27 from docs/FEATURES.md surface
 ├── dev/               # Build tooling (targ definitions, linter configs)
-└── docs/              # Organized by charter — see docs/README.md
+└── docs/              # Organized per docs/AGENTS.md: changes/, specs/, the authoring guides, GLOSSARY.md, ROADMAP.md, images/
 ```
 
 ## Key Files
@@ -37,14 +36,15 @@ engram/
 - `internal/cli/targets.go` — Subcommand wiring
 - `agent-instructions/skills/{learn,recall,please,route,curate,write-memory}/SKILL.md` — Skill definitions for all six skills (each may also carry a companion `skill-claude-<name>` vault runbook note offered by `engram update`/`engram register-skills`)
 - `dev/targs.go` — Build targets (targ definitions)
-- `docs/architecture/c1-system-context.md` — L1 C4 system context diagram + sequence diagrams for the four key flows (recall, learn, please, update)
-- `docs/README.md` — documentation index
+- `docs/AGENTS.md` — documentation conventions and the index of authoring guides; start here for any `docs/` work
+- `docs/GLOSSARY.md`, `docs/ROADMAP.md` — project terms; planned, parked and shipped work
+- `docs/changes/792_documentation-framework-adoption/` — the behavior record (792a product, 792b technical) until it is promoted to `docs/specs/`
 
 ## Design Principles
 
-Authority: `docs/architecture/adr.md` (ADR-0001..0020) — the bullets below are the agent-facing summary.
+Authority: the technical specs (792b) and the rationale under their requirements — the bullets below are the agent-facing summary.
 
-- **DI everywhere:** No function in `internal/` calls `os.*`, `http.*`, `sql.Open`, or any I/O directly. All I/O through injected interfaces. Wire at the edges. Lint-enforced (depguard/forbidigo + `targ check-thin-api`, #700).
+- **DI everywhere:** No function in `internal/` calls `os.*`, `http.*`, `sql.Open`, or any I/O directly. All I/O through injected interfaces. Wire at the edges. Lint-enforced (depguard/forbidigo + `targ check-thin-api`, #700). The boundary is two-sided: `internal/` holds interfaces and ALL logic (adapter composition, error wrapping, lifecycle — built by `cli.NewDeps` from injected `cli.Primitives`) but imports no I/O packages; `cmd/engram` is wiring-only (a single-statement `main()` composing `cli.Primitives` from checker-thin per-group functions of raw capability references such as `os.ReadFile` and `time.Now`, zero orchestration, coverage-exempt). A new I/O capability needs a `Primitives` field plus internal composition. Seeded `math/rand/v2` stays legal.
 - **Pure Go, no CGO.** External API only for LLM operations. Embedder runs through GoMLX's `simplego` backend (CGO not required).
 - **Skills + binary:** Skills for behavior (recall, learn, please, route, curate, write-memory), slim Go binary for computation.
 - **Embed-on-write:** Every note gets a sibling `.vec.json` sidecar on `engram learn`. The bundled MiniLM-L6 model (`minilm-l6-v2@384`) is `go:embed`-ed into the binary from `internal/embed/assets/model/` (git-lfs tracked). Sidecars are stamped with the model_id so future swaps require explicit `engram embed apply --force`.
@@ -91,12 +91,25 @@ When working through issues, the preferred default is:
 
 ### Issue tracker
 
-GitHub Issues (`gh` CLI) — this repo's issues live at github.com/toejough/engram. See `docs/agents/issue-tracker.md`.
+Issues and specs live as GitHub issues at github.com/toejough/engram. Use the `gh` CLI for all operations; it infers the repo from `git remote -v`.
+
+- Create: `gh issue create --title "..." --body "..."` (heredoc for multi-line bodies). Read: `gh issue view <number> --comments`. List: `gh issue list --state open --json number,title,body,labels,comments --jq '...'` with `--label`/`--state` filters.
+- Comment: `gh issue comment <number> --body "..."`. Labels: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`. Close: `gh issue close <number> --comment "..."`.
+- "Publish to the issue tracker" means create a GitHub issue. "Fetch the relevant ticket" means `gh issue view <number> --comments`.
+- **PRs as a request surface: no.** Set it to `yes` if external PRs become feature requests; then PRs run through the same labels and states via `gh pr view|diff|list|comment|edit|close`, keeping only authors with association `CONTRIBUTOR`, `FIRST_TIME_CONTRIBUTOR` or `NONE`. Issues and PRs share one number space, so resolve a bare `#42` with `gh pr view 42` and fall back to `gh issue view 42`.
+
+Wayfinding (`/wayfinder`): the **map** is one issue labelled `wayfinder:map` holding Notes / Decisions-so-far / Fog; a **child ticket** is an issue linked as a GitHub sub-issue (`gh api` on the sub-issues endpoint; without sub-issues, a task list in the map body plus `Part of #<map>` atop the child), labelled `wayfinder:<research|prototype|grilling|task>`.
+
+- **Blocking** uses GitHub's native issue dependencies: `gh api --method POST repos/<owner>/<repo>/issues/<child>/dependencies/blocked_by -F issue_id=<blocker-db-id>`, where the id is the blocker's numeric database id (`gh api repos/<owner>/<repo>/issues/<n> --jq .id`), not its number or `node_id`. Without dependencies, put `Blocked by: #<n>, #<n>` atop the child body. A ticket is unblocked when every blocker is closed.
+- **Frontier**: the map's open children minus any with an open blocker or an assignee; first in map order wins. **Claim**: `gh issue edit <n> --add-assignee @me`, the session's first write. **Resolve**: comment the answer, close the issue, then append a context pointer to the map's Decisions-so-far.
 
 ### Triage labels
 
-Default vocabulary (needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix), label string equals role name. See `docs/agents/triage-labels.md`.
+The five canonical triage roles map one-to-one to label strings in this repo's tracker (label string equals role name): `needs-triage` (maintainer must evaluate), `needs-info` (waiting on reporter), `ready-for-agent` (fully specified, ready for an AFK agent), `ready-for-human` (requires human implementation), `wontfix` (will not be actioned). `wontfix` already exists on GitHub; `triage` creates the other four on first use.
 
 ### Domain docs
 
-Single-context, but not the CONTEXT.md/docs/adr/ default — engram has its own documentation system (docs/README.md as index, docs/architecture/adr.md, openspec/specs/). See `docs/agents/domain.md`.
+Single-context repo with its own documentation system, not the `CONTEXT.md`/`docs/adr/` default. Before exploring, read `docs/AGENTS.md` (conventions and the index of guides), the relevant capability sections of the behavior record (`docs/changes/792_documentation-framework-adoption/`, 792a product and 792b technical, until promoted to `docs/specs/`), `docs/GLOSSARY.md`, and this file. If a file does not exist, proceed silently.
+
+- Use the glossary's vocabulary when naming a domain concept in an issue title, refactor proposal, hypothesis or test name. If the concept is missing, either you are inventing language the project does not use or the glossary has a gap worth noting.
+- If your output contradicts a requirement or its rationale in the specs, surface it explicitly ("Contradicts 792b8c1, but worth reopening because...") rather than silently overriding. A behavior change goes through a change under `docs/changes/` per `docs/SPECIFICATION-LIFECYCLE-GUIDE.md`.
