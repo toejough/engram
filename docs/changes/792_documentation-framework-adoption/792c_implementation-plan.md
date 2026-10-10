@@ -226,8 +226,8 @@ flowchart TD
   N792c7f2["792c7f2 recency-ranking tech spec<br/>Complete"]
   N792c7f3["792c7f3 runbook-trigger-matching tech spec<br/>Complete"]
   N792c7f4["792c7f4 query-payload-renderer tech spec<br/>Complete"]
-  N792c7f5["792c7f5 query-engine tech spec<br/>Ready"]
-  N792c7g1["792c7g1 vault-counting product spec<br/>Blocked by: 792c7f5"]
+  N792c7f5["792c7f5 query-engine tech spec<br/>Complete"]
+  N792c7g1["792c7g1 vault-counting product spec<br/>Ready"]
   N792c7g2["792c7g2 vault-counter tech spec<br/>Blocked by: 792c7g1"]
   N792c7h1["792c7h1 vault-health product spec<br/>Blocked by: 792c7g2"]
   N792c7h2["792c7h2 vault-invariant-checker tech spec<br/>Blocked by: 792c7h1"]
@@ -2500,11 +2500,145 @@ Target: `792b24` (`docs/specs/technical/query-engine.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7f5a | Port the component contract to `792b24` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7f5b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7f5c | Repoint stale references to `792b24` | Non-test action | Keeps live links valid | Not started |
-| 792c7f5d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7f5e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7f5a | Port the component contract to `792b24` | Non-test action | Documents the component in the framework format | Done |
+| 792c7f5b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7f5c | Repoint stale references to `792b24` | Non-test action | Keeps live links valid | Done |
+| 792c7f5d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7f5e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+**Outcome:** 792b24 specifies 24 requirements. ADR-0025 is deleted, and the query mechanics are removed from
+c1 Flow: recall, c2 and c3, which keep the skill steps and the other components. Tests of the
+pending-offer exclusion and the merged payload wait for curate and parent-sync (792d96).
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792a7g1a | `TestEngramQuery_F6F91_EndToEnd` → `Test792a7g1a_EngramQuery_F6F91_EndToEnd` | Production binary on a temporary vault (integration) | Matches form clusters with a representative | Done |
+| 792b18c12a1 | `TestChunkQueryDeps_ListIndexes_ListsOnlyJSONLFiles` → `Test792b18c12a1_ChunkQueryDeps_ListIndexes_ListsOnlyJSONLFiles` | `RunChunkQuery` over an in-memory index | Index files are found by listing the directory | Done |
+| 792b18c12a1 | `TestChunkQueryDeps_ListIndexes_WrappedNotExistIsEmptyIndex` → `Test792b18c12a1_ChunkQueryDeps_ListIndexes_WrappedNotExistIsEmptyIndex` | `RunChunkQuery` over an in-memory index | Index files are found by listing the directory | Done |
+| 792b24c1a1 | `TestQuery_EmptyPhrases_ReturnsError` → `Test792b24c1a1_Query_EmptyPhrases_ReturnsError` | `RunQuery` over an in-memory vault | Nothing to search for is an error | Done |
+| 792b24c1a1 | `TestRunQuery_NoPhrasesAndNoTextIsRejected` → `Test792b24c1a1_RunQuery_NoPhrasesAndNoTextIsRejected` | `RunQuery` over an in-memory vault | Nothing to search for is an error | Done |
+| 792b24c1a2 | `TestQuery_MultiPhrase_BudgetHasPhrasesQueried` → `Test792b24c1a2_Query_MultiPhrase_BudgetHasPhrasesQueried` | `RunQuery` over an in-memory vault | Several phrases are accepted | Done |
+| 792b24c1a2 | `TestQuery_PhrasesFlag_AcceptsMultiplePhrases` → `Test792b24c1a2_Query_PhrasesFlag_AcceptsMultiplePhrases` | `RunQuery` over an in-memory vault | Several phrases are accepted | Done |
+| 792b24c1a3 | `TestRunQuery_DefaultLimitCapsLargeResultSet` → `Test792b24c1a3_RunQuery_DefaultLimitCapsLargeResultSet` | `RunQuery` over an in-memory vault | The default limit is 20 | Done |
+| 792b24c1a4 | `TestQuery_EmbeddingFailureSurfacesError` → `Test792b24c1a4_Query_EmbeddingFailureSurfacesError` | `RunQuery` over an in-memory vault | An embedding failure is an error | Done |
+| 792b24c1a5 | `TestQuery_EmptyVault_ItemsEmpty` → `Test792b24c1a5_Query_EmptyVault_ItemsEmpty` | `RunQuery` over an in-memory vault | An empty vault has no items | Done |
+| 792b24c2a1 | `TestQuery_NotesButNoSidecars_ErrorWithRecoveryHint` → `Test792b24c2a1_Query_NotesButNoSidecars_ErrorWithRecoveryHint` | `RunQuery` over an in-memory vault | Notes without sidecars are an error | Done |
+| 792b24c2a2 | `TestQuery_NotesWithIncompatibleSidecars_ErrorWithRecoveryHint` → `Test792b24c2a2_Query_NotesWithIncompatibleSidecars_ErrorWithRecoveryHint` | `RunQuery` over an in-memory vault | Notes with incompatible sidecars are an error | Done |
+| 792b24c2a3 | `TestQuery_OldSchemaSidecars_EmitSchemaAdvisory` → `Test792b24c2a3_Query_OldSchemaSidecars_EmitSchemaAdvisory` | `RunQuery` over an in-memory vault | Old-schema sidecars are skipped with an advisory | Done |
+| 792b24c2a4 | `TestRunQuery_ModelMismatchEmitsWarning` → `Test792b24c2a4_RunQuery_ModelMismatchEmitsWarning` | `RunQuery` over an in-memory vault | Another model's sidecars are warned about | Done |
+| 792b24c3a1 | `TestQuery_RanksByDescendingCosine` → `Test792b24c3a1_Query_RanksByDescendingCosine` | `RunQuery` over an in-memory vault | Notes are ranked by descending cosine | Done |
+| 792b24c3a2 | `TestQuery_ScoresByMaxOfSituationAndBody` → `Test792b24c3a2_Query_ScoresByMaxOfSituationAndBody` | `RunQuery` over an in-memory vault | The situation axis can win | Done |
+| 792b24c3a3 | `TestQuery_ScoresByMaxWhenBodyWins` → `Test792b24c3a3_Query_ScoresByMaxWhenBodyWins` | `RunQuery` over an in-memory vault | The body axis can win | Done |
+| 792b24c3a4 | `TestQuery_StripsWikilinksFromItemsContent` → `Test792b24c3a4_Query_StripsWikilinksFromItemsContent` | `RunQuery` over an in-memory vault | Wikilinks are flattened | Done |
+| 792b24c3a5 | `TestRunQuery_NoteRecencyDecayRanksFreshLastUsedFirst` → `Test792b24c3a5_RunQuery_NoteRecencyDecayRanksFreshLastUsedFirst` | `RunQuery` over an in-memory vault | A recently used note outranks a stale one | Done |
+| 792b24c3a6 | `TestRunQuery_RunbookCompetesInMainMatchedSet` → `Test792b24c3a6_RunQuery_RunbookCompetesInMainMatchedSet` | `RunQuery` over an in-memory vault | A runbook competes like a fact | Done |
+| 792b24c4a1 | `TestRunQuery_RecencyLiftsRecentChunkOverStaleHighCosine` → `Test792b24c4a1_RunQuery_RecencyLiftsRecentChunkOverStaleHighCosine` | `RunQuery` over an in-memory vault | A recent low-cosine chunk surfaces among stale ones | Done |
+| 792b24c4a2 | `TestCluster_NewerChunkRanksAboveOlderWithSameVector` → `Test792b24c4a2_Cluster_NewerChunkRanksAboveOlderWithSameVector` | `RunQuery` over an in-memory vault and chunk index | A newer chunk outranks an older one with the same vector | Done |
+| 792b24c5a1 | `TestCluster_ItemsBelowRelevanceFloorDropped` → `Test792b24c5a1_Cluster_ItemsBelowRelevanceFloorDropped` | `RunQuery` over an in-memory vault and chunk index | Items below the floor are dropped | Done |
+| 792b24c5a2 | `TestCluster_OnlyTopMatchPhraseLimitPerPhraseEnterUnion` → `Test792b24c5a2_Cluster_OnlyTopMatchPhraseLimitPerPhraseEnterUnion` | `RunQuery` over an in-memory vault and chunk index | Only the best 30 of a phrase enter the union | Done |
+| 792b24c5a3 | `TestCluster_MatchedSetCappedAtMatchSetCap` → `Test792b24c5a3_Cluster_MatchedSetCappedAtMatchSetCap` | `RunQuery` over an in-memory vault and chunk index | The union is capped at 300 | Done |
+| 792b24c5a3 | `TestProperty_Cluster_ChunkItemsBoundedByMatchSetCap` → `Test792b24c5a3_Property_Cluster_ChunkItemsBoundedByMatchSetCap` | Property (rapid) | The union is capped at 300 | Done |
+| 792b24c5a4 | `TestQuery_MultiPhrase_LaterHigherScoreWins` → `Test792b24c5a4_Query_MultiPhrase_LaterHigherScoreWins` | `RunQuery` over an in-memory vault | An item keeps its best score across phrases | Done |
+| 792b24c5a4 | `TestQuery_MultiPhrase_MaxScoreAcrossPhrases` → `Test792b24c5a4_Query_MultiPhrase_MaxScoreAcrossPhrases` | `RunQuery` over an in-memory vault | An item keeps its best score across phrases | Done |
+| 792b24c5a5 | `TestQuery_MultiPhrase_DeduplicatesItemsByPath` → `Test792b24c5a5_Query_MultiPhrase_DeduplicatesItemsByPath` | `RunQuery` over an in-memory vault | An item appears once | Done |
+| 792b24c6a1 | `TestMergePhraseIntoUnion_FloorKeepsRelevantNoteVsManyChunks` → `Test792b24c6a1_MergePhraseIntoUnion_FloorKeepsRelevantNoteVsManyChunks` | Pure unit over the per-phrase union | A relevant note survives a flood of chunks | Done |
+| 792b24c6a2 | `TestVocabDefinitionNote_FloorPromoted` → `Test792b24c6a2_VocabDefinitionNote_FloorPromoted` | Pure unit over the per-phrase union | A definition note is promoted like any other | Done |
+| 792b24c6a3 | `TestVocabDefinitionNote_ReturnedWhenOnlyItem` → `Test792b24c6a3_VocabDefinitionNote_ReturnedWhenOnlyItem` | Pure unit over the per-phrase union | A definition note alone is returned | Done |
+| 792b24c7a1 | `TestIsQueryExcludedKind` → `Test792b24c7a1_IsQueryExcludedKind` | Table-driven unit | Which kinds are left out | Done |
+| 792b24c8a1 | `TestRunQuery_MergesChunkAndVaultSpace` → `Test792b24c8a1_RunQuery_MergesChunkAndVaultSpace` | `RunQuery` over an in-memory vault and chunk index | Chunks and notes are ranked together | Done |
+| 792b24c8a2 | `TestRunQuery_NoChunksDirKeepsVaultOnlyBehavior` → `Test792b24c8a2_RunQuery_NoChunksDirKeepsVaultOnlyBehavior` | `RunQuery` over an in-memory vault and chunk index | Without a chunk index only notes are returned | Done |
+| 792b24c9a1 | `TestQueryProperty_ClusterCountInRange` → `Test792b24c9a1_QueryProperty_ClusterCountInRange` | Property (rapid) | The number of clusters stays in range | Done |
+| 792b24c9a2 | `TestInvariant_C1_ClusteringDeterminism` → `Test792b24c9a2_Invariant_C1_ClusteringDeterminism` | Property (rapid) through `RunQuery` | The same query gives the same payload | Done |
+| 792b24c9a3 | `TestBreakRepresentativeTie_HigherScoreWins` → `Test792b24c9a3_BreakRepresentativeTie_HigherScoreWins` | Pure unit | Ties for the representative are broken | Done |
+| 792b24c9a3 | `TestBreakRepresentativeTie_LexicographicPath` → `Test792b24c9a3_BreakRepresentativeTie_LexicographicPath` | Pure unit | Ties for the representative are broken | Done |
+| 792b24c9a3 | `TestBreakRepresentativeTie_LexicographicPathReverse` → `Test792b24c9a3_BreakRepresentativeTie_LexicographicPathReverse` | Pure unit | Ties for the representative are broken | Done |
+| 792b24c9a3 | `TestBreakRepresentativeTie_SecondHigherWins` → `Test792b24c9a3_BreakRepresentativeTie_SecondHigherWins` | Pure unit | Ties for the representative are broken | Done |
+| 792b24c10a1 | `TestRunQuery_ChunkClustersCarryCandidateL2s` → `Test792b24c10a1_RunQuery_ChunkClustersCarryCandidateL2s` | `RunQuery` over an in-memory vault and chunk index | Chunk clusters carry candidates with inline content | Done |
+| 792b24c10a2 | `TestProperty_Cluster_NearDuplicateL2CosineAtLeast095` → `Test792b24c10a2_Property_Cluster_NearDuplicateL2CosineAtLeast095` | Property (rapid) | A near-duplicate of the centroid has a high cosine | Done |
+| 792b24c11a1 | `TestProvenanceRankFor_ClusterRep` → `Test792b24c11a1_ProvenanceRankFor_ClusterRep` | Pure unit | The rank of a role | Done |
+| 792b24c11a1 | `TestProvenanceRankFor_Direct` → `Test792b24c11a1_ProvenanceRankFor_Direct` | Pure unit | The rank of a role | Done |
+| 792b24c11a1 | `TestProvenanceRankFor_Unknown` → `Test792b24c11a1_ProvenanceRankFor_Unknown` | Pure unit | The rank of a role | Done |
+| 792b24c11a2 | `TestResolvedItemLess_MoreProvenancesWins` → `Test792b24c11a2_ResolvedItemLess_MoreProvenancesWins` | Pure unit | More provenances sort first, then rank, then score | Done |
+| 792b24c11a2 | `TestResolvedItemLess_SameCountHigherRankWins` → `Test792b24c11a2_ResolvedItemLess_SameCountHigherRankWins` | Pure unit | More provenances sort first, then rank, then score | Done |
+| 792b24c11a2 | `TestResolvedItemLess_ScoreBreaksTie` → `Test792b24c11a2_ResolvedItemLess_ScoreBreaksTie` | Pure unit | More provenances sort first, then rank, then score | Done |
+| 792b24c11a3 | `TestAppendUniqueProvenance_AddsNewRole` → `Test792b24c11a3_AppendUniqueProvenance_AddsNewRole` | Pure unit | A provenance is added once | Done |
+| 792b24c11a3 | `TestAppendUniqueProvenance_AppendsDistinctRoles` → `Test792b24c11a3_AppendUniqueProvenance_AppendsDistinctRoles` | Pure unit | A provenance is added once | Done |
+| 792b24c11a3 | `TestAppendUniqueProvenance_DedupsExisting` → `Test792b24c11a3_AppendUniqueProvenance_DedupsExisting` | Pure unit | A provenance is added once | Done |
+| 792b24c12a1 | `TestApplyProjectFilter_BodyProjectMentionDoesNotMatch` → `Test792b24c12a1_ApplyProjectFilter_BodyProjectMentionDoesNotMatch` | `RunQuery` over an in-memory vault | A body mention does not match | Done |
+| 792b24c12a2 | `TestApplyProjectFilter_DropsNonMatching` → `Test792b24c12a2_ApplyProjectFilter_DropsNonMatching` | `RunQuery` over an in-memory vault | Notes of other projects are dropped | Done |
+| 792b24c12a3 | `TestApplyProjectFilter_EmptyProjectReturnsAll` → `Test792b24c12a3_ApplyProjectFilter_EmptyProjectReturnsAll` | `RunQuery` over an in-memory vault | No project keeps everything | Done |
+| 792b24c12a4 | `TestItemMatchesProject_ReadsOnlyTheFrontmatterBlock` → `Test792b24c12a4_ItemMatchesProject_ReadsOnlyTheFrontmatterBlock` | `RunQuery` over an in-memory vault | Only the frontmatter is read | Done |
+| 792b24c12a5 | `TestRunQuery_ProjectFilterRestrictsItems` → `Test792b24c12a5_RunQuery_ProjectFilterRestrictsItems` | `RunQuery` over an in-memory vault | A full query is restricted | Done |
+| 792b24c12a6 | `TestItemMatchesProject_CRLFNote` → `Test792b24c12a6_ItemMatchesProject_CRLFNote` | Pure unit (`crlf_readers_internal_test`) | A CRLF note's project is read | Done |
+| 792b24c13a1 | `TestProperty_SoftmaxAllocate_BudgetConservation` → `Test792b24c13a1_Property_SoftmaxAllocate_BudgetConservation` | Property (rapid) | The allocation adds up | Done |
+| 792b24c13a1 | `TestSoftmaxAllocate_BudgetConservation` → `Test792b24c13a1_SoftmaxAllocate_BudgetConservation` | Pure unit | The allocation adds up | Done |
+| 792b24c13a2 | `TestSoftmaxAllocate_HigherSimilarityGetsMoreOrEqual` → `Test792b24c13a2_SoftmaxAllocate_HigherSimilarityGetsMoreOrEqual` | Pure unit | Nearer terms get at least as much | Done |
+| 792b24c13a3 | `TestProperty_SoftmaxAllocate_Monotonic` → `Test792b24c13a3_Property_SoftmaxAllocate_Monotonic` | Property (rapid) | Nearness never reverses | Done |
+| 792b24c13a4 | `TestSoftmaxAllocate_NoTermsYieldsEmpty` → `Test792b24c13a4_SoftmaxAllocate_NoTermsYieldsEmpty` | Pure unit | No terms or no budget give nothing | Done |
+| 792b24c13a4 | `TestSoftmaxAllocate_ZeroBudgetYieldsEmpty` → `Test792b24c13a4_SoftmaxAllocate_ZeroBudgetYieldsEmpty` | Pure unit | No terms or no budget give nothing | Done |
+| 792b24c13a5 | `TestApplyMatchEvidenceBonus_FlatNonStacking` → `Test792b24c13a5_ApplyMatchEvidenceBonus_FlatNonStacking` | Pure unit | Evidence adds a flat bonus | Done |
+| 792b24c13a6 | `TestApplyMatchEvidenceBonus_LiftsDistantClusterAboveUnevidenced` → `Test792b24c13a6_ApplyMatchEvidenceBonus_LiftsDistantClusterAboveUnevidenced` | Pure unit | Evidence can lift a distant term | Done |
+| 792b24c13a7 | `TestApplyMatchEvidenceBonus_NeverReordersTwoUnevidencedTerms` → `Test792b24c13a7_ApplyMatchEvidenceBonus_NeverReordersTwoUnevidencedTerms` | Pure unit | The bonus never reorders unevidenced terms | Done |
+| 792b24c13a8 | `TestTermsWithExploitEvidence_MembersInExploitHalf` → `Test792b24c13a8_TermsWithExploitEvidence_MembersInExploitHalf` | Pure unit | Members among the matches are found | Done |
+| 792b24c14a1 | `TestSelectWithinCluster_DescendingCentroidCosine` → `Test792b24c14a1_SelectWithinCluster_DescendingCentroidCosine` | Pure unit | The core comes first | Done |
+| 792b24c14a2 | `TestSelectWithinCluster_KGreaterThanMembersReturnsAll` → `Test792b24c14a2_SelectWithinCluster_KGreaterThanMembersReturnsAll` | Pure unit | An allocation above the members returns them all | Done |
+| 792b24c14a3 | `TestSelectWithinCluster_ZeroKReturnsEmpty` → `Test792b24c14a3_SelectWithinCluster_ZeroKReturnsEmpty` | Pure unit | An allocation of zero picks nothing | Done |
+| 792b24c14a4 | `TestComputeExploreHalf_ExcludesDefinitionAndVectorlessMembers` → `Test792b24c14a4_ComputeExploreHalf_ExcludesDefinitionAndVectorlessMembers` | Explore half over an in-memory vault | Definitions and vectorless members are left out | Done |
+| 792b24c15a1 | `TestDedupeAndBackfill_DropsCrossClusterDuplicate` → `Test792b24c15a1_DedupeAndBackfill_DropsCrossClusterDuplicate` | Pure unit | A note under two terms is picked once | Done |
+| 792b24c15a2 | `TestDedupeAndBackfill_DropsExploitHalfDuplicate` → `Test792b24c15a2_DedupeAndBackfill_DropsExploitHalfDuplicate` | Pure unit | A matched note is replaced | Done |
+| 792b24c15a3 | `TestDedupeAndBackfill_ExhaustedCandidatesLeaveBudgetUnmet` → `Test792b24c15a3_DedupeAndBackfill_ExhaustedCandidatesLeaveBudgetUnmet` | Pure unit | Too few candidates leave the budget unmet | Done |
+| 792b24c16a1 | `TestComputeExploreHalf_DeliversMemberNotInExploit` → `Test792b24c16a1_ComputeExploreHalf_DeliversMemberNotInExploit` | Explore half over an in-memory vault | A member outside the matches is delivered | Done |
+| 792b24c16a2 | `TestComputeExploreHalf_ZeroBudget_ReturnsEmptyAllocation` → `Test792b24c16a2_ComputeExploreHalf_ZeroBudget_ReturnsEmptyAllocation` | Explore half over an in-memory vault | A zero budget delivers nothing | Done |
+| 792b24c16a3 | `TestRunQuery_ExploreHalf_FullPipeline_DeliversExploreItem` → `Test792b24c16a3_RunQuery_ExploreHalf_FullPipeline_DeliversExploreItem` | Explore half over an in-memory vault | A full query delivers an explore note | Done |
+| 792b24c16a4 | `TestRunQuery_ExploreHalf_MissingCentroids_ExploitOnly` → `Test792b24c16a4_RunQuery_ExploreHalf_MissingCentroids_ExploitOnly` | Explore half over an in-memory vault | Missing centroids leave only the matches | Done |
+| 792b24c17a1 | `TestApplySupersedesRideAlong_EmptyMeta_Unchanged` → `Test792b24c17a1_ApplySupersedesRideAlong_EmptyMeta_Unchanged` | Pure unit over note metadata | No superseding notes changes nothing | Done |
+| 792b24c17a2 | `TestApplySupersedesRideAlong_OldNoteInPayload_NewNoteInsertedAfter` → `Test792b24c17a2_ApplySupersedesRideAlong_OldNoteInPayload_NewNoteInsertedAfter` | Pure unit over note metadata | The newer note follows the older one | Done |
+| 792b24c17a3 | `TestApplySupersedesRideAlong_NewAlreadyInPayload_NoInsert` → `Test792b24c17a3_ApplySupersedesRideAlong_NewAlreadyInPayload_NoInsert` | Pure unit over note metadata | A note already present is not inserted again | Done |
+| 792b24c17a4 | `TestApplySupersedesRideAlong_SupersederNotInVault_Skipped` → `Test792b24c17a4_ApplySupersedesRideAlong_SupersederNotInVault_Skipped` | Pure unit over note metadata | A missing superseder is skipped | Done |
+| 792b24c17a5 | `TestApplySupersedesRideAlong_TwoSuperseders_BothInsertedAfterOld` → `Test792b24c17a5_ApplySupersedesRideAlong_TwoSuperseders_BothInsertedAfterOld` | Pure unit over note metadata | Several superseders are all inserted | Done |
+| 792b24c17a6 | `TestBuildSupersedesInverse` → `Test792b24c17a6_BuildSupersedesInverse` | Pure unit | The inverse of the supersedes lists is built | Done |
+| 792b24c18a1 | `TestLoadAllVaultNotesMeta_BareVocabTag_ContributesNoTerms` → `Test792b24c18a1_LoadAllVaultNotesMeta_BareVocabTag_ContributesNoTerms` | Pure unit over note metadata | The bare vocab tag contributes no term | Done |
+| 792b24c18a1 | `TestParseNoteQueryFrontmatter_BareVocabTag_IsNotTerm` → `Test792b24c18a1_ParseNoteQueryFrontmatter_BareVocabTag_IsNotTerm` | Pure unit over note metadata | The bare vocab tag contributes no term | Done |
+| 792b24c18a2 | `TestLoadAllVaultNotesMeta_BuildsTermIndexAndInverse` → `Test792b24c18a2_LoadAllVaultNotesMeta_BuildsTermIndexAndInverse` | Pure unit over note metadata | The term index and the inverse are built | Done |
+| 792b24c18a3 | `TestLoadAllVaultNotesMeta_MixedTags_OnlyVocabTermsIndexed` → `Test792b24c18a3_LoadAllVaultNotesMeta_MixedTags_OnlyVocabTermsIndexed` | Pure unit over note metadata | Only vocab terms are indexed | Done |
+| 792b24c18a3 | `TestParseNoteQueryFrontmatter_MixedTags_OnlyVocabExtracted` → `Test792b24c18a3_ParseNoteQueryFrontmatter_MixedTags_OnlyVocabExtracted` | Pure unit over note metadata | Only vocab terms are indexed | Done |
+| 792b24c18a4 | `TestLoadAllVaultNotesMeta_NoVocabOrSupersedes_EmptyMaps` → `Test792b24c18a4_LoadAllVaultNotesMeta_NoVocabOrSupersedes_EmptyMaps` | Pure unit over note metadata | A vault without vocabulary has empty indexes | Done |
+| 792b24c18a5 | `TestParseNoteQueryFrontmatter_TagsBlockStyle_ParsesToTerms` → `Test792b24c18a5_ParseNoteQueryFrontmatter_TagsBlockStyle_ParsesToTerms` | Pure unit over note metadata | A block-style tags list is read | Done |
+| 792b24c18a6 | `TestParseNoteQueryFrontmatter_NoFrontmatter_Empty` → `Test792b24c18a6_ParseNoteQueryFrontmatter_NoFrontmatter_Empty` | Pure unit over note metadata | A note without frontmatter gives nothing | Done |
+| 792b24c18a7 | `TestParseNoteQueryFrontmatter_SupersedesList_Parsed` → `Test792b24c18a7_ParseNoteQueryFrontmatter_SupersedesList_Parsed` | Pure unit over note metadata | Supersedes entries are parsed | Done |
+| 792b24c18a8 | `TestParseNoteQueryFrontmatter_CRLFNote` → `Test792b24c18a8_ParseNoteQueryFrontmatter_CRLFNote` | Pure unit (`crlf_readers_internal_test`) | A CRLF note is parsed as LF | Done |
+| 792b24c19a1 | `TestCluster_RecentChunksAppendedWithRecentProvenance` → `Test792b24c19a1_Cluster_RecentChunksAppendedWithRecentProvenance` | `RunQuery` over an in-memory vault and chunk index | Recent chunks follow the matches with provenance recent | Done |
+| 792b24c19a2 | `TestCluster_RecentChunksNotInClusterMembers` → `Test792b24c19a2_Cluster_RecentChunksNotInClusterMembers` | `RunQuery` over an in-memory vault and chunk index | Recent chunks are in no cluster | Done |
+| 792b24c19a3 | `TestCluster_RecentDeduplicatesAgainstMatchedSet` → `Test792b24c19a3_Cluster_RecentDeduplicatesAgainstMatchedSet` | `RunQuery` over an in-memory vault and chunk index | A matched chunk is not repeated | Done |
+| 792b24c19a4 | `TestCluster_FewerThanRecentFillChunks` → `Test792b24c19a4_Cluster_FewerThanRecentFillChunks` | `RunQuery` over an in-memory vault and chunk index | Fewer chunks than the count are all returned | Done |
+| 792b24c19a5 | `TestResolveRecentFill_DefaultsAndOverrides` → `Test792b24c19a5_ResolveRecentFill_DefaultsAndOverrides` | Pure unit | The count resolves | Done |
+| 792b24c20a1 | `TestRunQuery_NoActivatedFlagInPayload` → `Test792b24c20a1_RunQuery_NoActivatedFlagInPayload` | `RunQuery` over an in-memory vault | No item is activated and no sidecar changes | Done |
+| 792b24c21a1 | `TestRunQuery_RefitPendingFromCentroids` → `Test792b24c21a1_RunQuery_RefitPendingFromCentroids` | `RunQuery` over an in-memory vault | A pending refit is read from the centroids file | Done |
+| 792b24c22a1 | `TestInvariant_R1_RecallMirror` → `Test792b24c22a1_Invariant_R1_RecallMirror` | Property (rapid) through `RunQuery` | A note is returned for its own situation | Done |
+| 792b24c23a1 | `TestChunkQueryRanksByCosine` → `Test792b24c23a1_ChunkQueryRanksByCosine` | `RunChunkQuery` over an in-memory index | Chunks are ranked by cosine | Done |
+| 792b24c23a2 | `TestChunkQueryHonorsLimit` → `Test792b24c23a2_ChunkQueryHonorsLimit` | `RunChunkQuery` over an in-memory index | The limit is honoured | Done |
+| 792b24c23a3 | `TestChunkQueryClustersManyChunks` → `Test792b24c23a3_ChunkQueryClustersManyChunks` | `RunChunkQuery` over an in-memory index | Many chunks are clustered | Done |
+| 792b24c23a4 | `TestChunkQueryRequiresPhrase` → `Test792b24c23a4_ChunkQueryRequiresPhrase` | `RunChunkQuery` over an in-memory index | A phrase is required | Done |
+| 792b24c23a5 | `TestChunkQueryEmptyIndexSaysSo` → `Test792b24c23a5_ChunkQueryEmptyIndexSaysSo` | `RunChunkQuery` over an in-memory index | An empty index is an empty payload | Done |
+| 792b24c23a6 | `TestChunkQueryMissingChunksDirIsEmpty` → `Test792b24c23a6_ChunkQueryMissingChunksDirIsEmpty` | `RunChunkQuery` over an in-memory index | A missing chunk directory is an empty index | Done |
+| 792b24c23a7 | `TestChunkQueryIndexErrorsPropagate` → `Test792b24c23a7_ChunkQueryIndexErrorsPropagate` | `RunChunkQuery` over an in-memory index | A malformed index is an error | Done |
+
+**Coverage gaps:** 792b24c4a3 (no test checks the floor against an old chunk's unscaled cosine) and
+792b24c24a1 (the engine's stage readings are exercised only by the renderer's timing test,
+`Test792b23c7a1_RunQuery_TimingsFlag`). Of the product scenarios in the mapping, 792a7a1b, 792a7g1c,
+792a7i1c, 792a7i1d, 792a7v1b and 792a7zg1c have no test of their own; the rest are covered by the
+technical tests above and in 792c7f2 to 792c7f4.
+
+**No-scenario tests:** `query_synthesize_l2_helpers_test` `TestMergeClusterReps_*` (4; the path no query
+reaches, 792d96). Deferred to the capability that adds their requirement (792d95, 792d96): `query_test`
+`TestPendingOfferCurateInstruction_IsExpectedUpkeep`, `TestQueryPayload_PendingOffersHintOmittedWhenFalse`,
+`TestQueryPayload_PendingOffersHintPresentWhenTrue`, `TestQueryPayload_PendingOffersLeadPayload` and
+`TestRunQuery_ExcludesPendingSkillRunbookNote` (curate 792c7u1), and
+`TestQueryPayload_NoFromParentKeyWithoutMerge` (parent-sync 792c7t1). `merged_query_*` tests
+belong to parent-sync.
+
 
 ### 792c7g vault-counting
 

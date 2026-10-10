@@ -13,7 +13,7 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// TestEngramQuery_F6F91_EndToEnd builds the real binary, writes ~33
+// Test792a7g1a_EngramQuery_F6F91_EndToEnd builds the real binary, writes ~33
 // thematically-clustered notes (3 themes x 1 hub + 10 members, each linking
 // to its hub), runs `engram embed apply --missing` to produce real sidecars
 // via the bundled embedder, then queries with one theme's own text.
@@ -25,7 +25,7 @@ import (
 // environment by default, so on any machine where ENGRAM_PARENT happens to
 // be set, the query subprocess would attempt a vault-merge against that
 // host instead of just querying the local vault this test built.
-func TestEngramQuery_F6F91_EndToEnd(t *testing.T) {
+func Test792a7g1a_EngramQuery_F6F91_EndToEnd(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 

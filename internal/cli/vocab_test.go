@@ -515,14 +515,14 @@ func Test792b20c5a4_ApplyVocabAssignmentCore_SkipsDefinitionNotes(t *testing.T) 
 
 // ── Unit 2: recallability seam (definitions are ordinary notes, #678 Task 6) ─
 
-// TestVocabDefinitionNote_FloorPromoted proves that a bare-vocab-tagged
+// Test792b24c6a2_VocabDefinitionNote_FloorPromoted proves that a bare-vocab-tagged
 // definition note (an ordinary fact-shaped note carrying the bare "vocab" tag)
 // IS promoted by the note-floor reservation when it scores above the floor —
 // the accepted #678 Task 6 behavior change: definitions are ordinary
 // recallable notes, no longer excluded via isQueryExcludedKind. Inverse of
 // the retired TestVocabNote_ExcludedFromFloorPromotion (isFloorQualifyingNote
 // exclusion site).
-func TestVocabDefinitionNote_FloorPromoted(t *testing.T) {
+func Test792b24c6a2_VocabDefinitionNote_FloorPromoted(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -561,11 +561,11 @@ func TestVocabDefinitionNote_FloorPromoted(t *testing.T) {
 		"a bare-vocab-tagged definition note is promoted by the note floor like any other note")
 }
 
-// TestVocabDefinitionNote_ReturnedWhenOnlyItem proves that a bare-vocab-tagged
+// Test792b24c6a3_VocabDefinitionNote_ReturnedWhenOnlyItem proves that a bare-vocab-tagged
 // definition note is returned even when it is the only item in the matched
 // set (mergePhraseIntoUnion's own exclusion site). Inverse of the retired
 // TestVocabNote_ExcludedWhenOnlyItem.
-func TestVocabDefinitionNote_ReturnedWhenOnlyItem(t *testing.T) {
+func Test792b24c6a3_VocabDefinitionNote_ReturnedWhenOnlyItem(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)

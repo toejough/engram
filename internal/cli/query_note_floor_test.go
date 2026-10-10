@@ -10,12 +10,12 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestMergePhraseIntoUnion_FloorKeepsRelevantNoteVsManyChunks proves the
+// Test792b24c6a1_MergePhraseIntoUnion_FloorKeepsRelevantNoteVsManyChunks proves the
 // note-floor: a relevance-qualified note (baseScore >= matchRelevanceFloor) must
 // survive the per-phrase matchPhraseLimit cap even when more than matchPhraseLimit
 // higher-scoring chunks compete. Without the floor the note is evicted by the
 // bare top-30 truncation (the measured drowning).
-func TestMergePhraseIntoUnion_FloorKeepsRelevantNoteVsManyChunks(t *testing.T) {
+func Test792b24c6a1_MergePhraseIntoUnion_FloorKeepsRelevantNoteVsManyChunks(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)

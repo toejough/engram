@@ -386,6 +386,32 @@ func Test792b20c7a5_CountQAPairs(t *testing.T) {
 	g.Expect(cli.ExportCountQAPairs(names)).To(Equal(1))
 }
 
+func Test792b24c7a1_IsQueryExcludedKind(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name    string
+		content string
+		want    bool
+	}{
+		{"vocab_no_longer_excluded", "---\ntype: vocab\n---\n", false},
+		{"vocab_index_no_longer_excluded", "---\ntype: vocab-index\n---\n", false},
+		{"qa_question_excluded", "---\ntype: qa-question\n---\n", true},
+		{"qa_answer_competes", "---\ntype: qa-answer\n---\n", false},
+		{"fact_competes", "---\ntype: fact\n---\n", false},
+		{"feedback_competes", "---\ntype: feedback\n---\n", false},
+		{"runbook_competes", "---\ntype: runbook\n---\n", false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+			g.Expect(cli.ExportIsQueryExcludedKind(tc.content)).To(Equal(tc.want))
+		})
+	}
+}
+
 func Test792b6c5a1_RenderQAQuestionNote_ContainsExpectedParts(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -431,30 +457,4 @@ func Test792b6c5a3_RenderQAAnswerNote_NoContributors_NoContributorsLine(t *testi
 	when := time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC)
 	got := cli.ExportRenderQAAnswerNote("Answer.", "slug", "source", "high", nil, when)
 	g.Expect(got).NotTo(ContainSubstring("Contributors:"))
-}
-
-func TestIsQueryExcludedKind(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		name    string
-		content string
-		want    bool
-	}{
-		{"vocab_no_longer_excluded", "---\ntype: vocab\n---\n", false},
-		{"vocab_index_no_longer_excluded", "---\ntype: vocab-index\n---\n", false},
-		{"qa_question_excluded", "---\ntype: qa-question\n---\n", true},
-		{"qa_answer_competes", "---\ntype: qa-answer\n---\n", false},
-		{"fact_competes", "---\ntype: fact\n---\n", false},
-		{"feedback_competes", "---\ntype: feedback\n---\n", false},
-		{"runbook_competes", "---\ntype: runbook\n---\n", false},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-			g.Expect(cli.ExportIsQueryExcludedKind(tc.content)).To(Equal(tc.want))
-		})
-	}
 }

@@ -12,9 +12,9 @@ import (
 
 // ── Unit: applySupersedesRideAlong ───────────────────────────────────────────
 
-// TestApplySupersedesRideAlong_EmptyMeta_Unchanged verifies that the ride-along
+// Test792b24c17a1_ApplySupersedesRideAlong_EmptyMeta_Unchanged verifies that the ride-along
 // is a no-op when there is no supersedes data — backward compat.
-func TestApplySupersedesRideAlong_EmptyMeta_Unchanged(t *testing.T) {
+func Test792b24c17a1_ApplySupersedesRideAlong_EmptyMeta_Unchanged(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -29,43 +29,10 @@ func TestApplySupersedesRideAlong_EmptyMeta_Unchanged(t *testing.T) {
 	g.Expect(got).To(HaveLen(2), "ride-along must be a no-op when no supersedes data")
 }
 
-// TestApplySupersedesRideAlong_NewAlreadyInPayload_NoInsert verifies that when the
-// superseding note is already in the payload, no duplicate is inserted.
-func TestApplySupersedesRideAlong_NewAlreadyInPayload_NoInsert(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const oldBasename = "1aa.old-note"
-
-	const newBasename = "1bb.new-note"
-
-	const newContent = "---\ntype: fact\nsituation: x\n---\n\nnew content\n"
-
-	// resolved has BOTH old and new already present.
-	resolved := []cli.ExportResolvedItem{
-		cli.ExportNewNoteResolvedItemWithProvenances(newBasename+".md", 0.95, []string{"direct"}),
-		cli.ExportNewNoteResolvedItemWithProvenances(oldBasename+".md", 0.80, []string{"direct"}),
-	}
-
-	meta := cli.ExportNewVaultNotesMetaWithSupersedes(
-		map[string][]cli.ExportSupersedesEntry{
-			newBasename: {{Note: oldBasename, Type: "updates", Claim: "old was incomplete"}},
-		},
-		map[string]string{
-			newBasename: newContent,
-		},
-	)
-
-	got := cli.ExportApplySupersedesRideAlong(resolved, meta)
-
-	g.Expect(got).To(HaveLen(2), "no insert when NEW is already in the payload")
-}
-
-// TestApplySupersedesRideAlong_OldNoteInPayload_NewNoteInsertedAfter is the RED test
+// Test792b24c17a2_ApplySupersedesRideAlong_OldNoteInPayload_NewNoteInsertedAfter is the RED test
 // for supersession ride-along: when query surfaces an OLD note and the NEW (superseding)
 // note is absent from the payload, the NEW note is inserted at old_rank+1 with content.
-func TestApplySupersedesRideAlong_OldNoteInPayload_NewNoteInsertedAfter(t *testing.T) {
+func Test792b24c17a2_ApplySupersedesRideAlong_OldNoteInPayload_NewNoteInsertedAfter(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -113,9 +80,42 @@ func TestApplySupersedesRideAlong_OldNoteInPayload_NewNoteInsertedAfter(t *testi
 		"inserted NEW note must carry ride_along provenance")
 }
 
-// TestApplySupersedesRideAlong_SupersederNotInVault_Skipped verifies that a ride-along
+// Test792b24c17a3_ApplySupersedesRideAlong_NewAlreadyInPayload_NoInsert verifies that when the
+// superseding note is already in the payload, no duplicate is inserted.
+func Test792b24c17a3_ApplySupersedesRideAlong_NewAlreadyInPayload_NoInsert(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const oldBasename = "1aa.old-note"
+
+	const newBasename = "1bb.new-note"
+
+	const newContent = "---\ntype: fact\nsituation: x\n---\n\nnew content\n"
+
+	// resolved has BOTH old and new already present.
+	resolved := []cli.ExportResolvedItem{
+		cli.ExportNewNoteResolvedItemWithProvenances(newBasename+".md", 0.95, []string{"direct"}),
+		cli.ExportNewNoteResolvedItemWithProvenances(oldBasename+".md", 0.80, []string{"direct"}),
+	}
+
+	meta := cli.ExportNewVaultNotesMetaWithSupersedes(
+		map[string][]cli.ExportSupersedesEntry{
+			newBasename: {{Note: oldBasename, Type: "updates", Claim: "old was incomplete"}},
+		},
+		map[string]string{
+			newBasename: newContent,
+		},
+	)
+
+	got := cli.ExportApplySupersedesRideAlong(resolved, meta)
+
+	g.Expect(got).To(HaveLen(2), "no insert when NEW is already in the payload")
+}
+
+// Test792b24c17a4_ApplySupersedesRideAlong_SupersederNotInVault_Skipped verifies that a ride-along
 // is silently skipped when the superseder has no content in the vault.
-func TestApplySupersedesRideAlong_SupersederNotInVault_Skipped(t *testing.T) {
+func Test792b24c17a4_ApplySupersedesRideAlong_SupersederNotInVault_Skipped(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -141,12 +141,12 @@ func TestApplySupersedesRideAlong_SupersederNotInVault_Skipped(t *testing.T) {
 	g.Expect(got).To(HaveLen(1), "no insert when superseder is not in vault")
 }
 
-// TestApplySupersedesRideAlong_TwoSuperseders_BothInsertedAfterOld verifies that
+// Test792b24c17a5_ApplySupersedesRideAlong_TwoSuperseders_BothInsertedAfterOld verifies that
 // a delivered note with TWO superseders gets both inserted directly after it,
 // each carrying ride_along provenance. Insertion order between the two is
 // unspecified (the inverse map is built from map iteration), so the test
 // asserts set membership at positions 1-2, not a fixed order.
-func TestApplySupersedesRideAlong_TwoSuperseders_BothInsertedAfterOld(t *testing.T) {
+func Test792b24c17a5_ApplySupersedesRideAlong_TwoSuperseders_BothInsertedAfterOld(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -199,7 +199,7 @@ func TestApplySupersedesRideAlong_TwoSuperseders_BothInsertedAfterOld(t *testing
 		"the non-superseded note must stay after the insertions")
 }
 
-func TestLoadAllVaultNotesMeta_BareVocabTag_ContributesNoTerms(t *testing.T) {
+func Test792b24c18a1_LoadAllVaultNotesMeta_BareVocabTag_ContributesNoTerms(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -250,11 +250,25 @@ func TestLoadAllVaultNotesMeta_BareVocabTag_ContributesNoTerms(t *testing.T) {
 		"bare vocab definition content must still be captured")
 }
 
+// Test792b24c18a1_ParseNoteQueryFrontmatter_BareVocabTag_IsNotTerm verifies that the bare
+// "vocab" definition marker tag is included in the parsed Tags but does NOT
+// contribute a term (no prefix to strip).
+func Test792b24c18a1_ParseNoteQueryFrontmatter_BareVocabTag_IsNotTerm(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	content := "---\ntype: vocab\ntags:\n    - vocab\n---\n\nthis is a vocab definition\n"
+	doc := cli.ExportParseNoteQueryFrontmatter(content)
+
+	g.Expect(doc.Tags).To(Equal([]string{"vocab"}))
+}
+
 // ── Integration: loadAllVaultNotesMeta ───────────────────────────────────────
 
-// TestLoadAllVaultNotesMeta_BuildsTermIndexAndInverse verifies that a single scan
+// Test792b24c18a2_LoadAllVaultNotesMeta_BuildsTermIndexAndInverse verifies that a single scan
 // over all vault notes builds both the term index and the supersedes inverse map.
-func TestLoadAllVaultNotesMeta_BuildsTermIndexAndInverse(t *testing.T) {
+func Test792b24c18a2_LoadAllVaultNotesMeta_BuildsTermIndexAndInverse(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -327,10 +341,10 @@ func TestLoadAllVaultNotesMeta_BuildsTermIndexAndInverse(t *testing.T) {
 	g.Expect(meta.ContentByBasename).To(HaveKey(basenameA))
 }
 
-// TestLoadAllVaultNotesMeta_MixedTags_OnlyVocabTermsIndexed verifies that a note
+// Test792b24c18a3_LoadAllVaultNotesMeta_MixedTags_OnlyVocabTermsIndexed verifies that a note
 // with mixed categorical and vocab tags contributes only vocab terms to the
 // TermIndex.
-func TestLoadAllVaultNotesMeta_MixedTags_OnlyVocabTermsIndexed(t *testing.T) {
+func Test792b24c18a3_LoadAllVaultNotesMeta_MixedTags_OnlyVocabTermsIndexed(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -383,9 +397,23 @@ func TestLoadAllVaultNotesMeta_MixedTags_OnlyVocabTermsIndexed(t *testing.T) {
 		"TermIndex must NOT include stripped non-vocab tags")
 }
 
-// TestLoadAllVaultNotesMeta_NoVocabOrSupersedes_EmptyMaps verifies that on a vault
+// Test792b24c18a3_ParseNoteQueryFrontmatter_MixedTags_OnlyVocabExtracted verifies that when
+// a note has mixed categorical and vocab tags, only vocab/ entries are
+// extracted as terms.
+func Test792b24c18a3_ParseNoteQueryFrontmatter_MixedTags_OnlyVocabExtracted(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	content := "---\ntype: fact\nsituation: ctx\ntags:\n    - work-kind/rename\n    - vocab/go-conventions\n---\n\nbody\n"
+	doc := cli.ExportParseNoteQueryFrontmatter(content)
+
+	g.Expect(doc.Tags).To(ConsistOf("work-kind/rename", "vocab/go-conventions"))
+}
+
+// Test792b24c18a4_LoadAllVaultNotesMeta_NoVocabOrSupersedes_EmptyMaps verifies that on a vault
 // with no vocab or supersedes data, both maps are empty (backward compat no-op).
-func TestLoadAllVaultNotesMeta_NoVocabOrSupersedes_EmptyMaps(t *testing.T) {
+func Test792b24c18a4_LoadAllVaultNotesMeta_NoVocabOrSupersedes_EmptyMaps(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -436,32 +464,21 @@ func TestLoadAllVaultNotesMeta_NoVocabOrSupersedes_EmptyMaps(t *testing.T) {
 	g.Expect(meta.ContentByBasename).To(HaveKey(basename))
 }
 
-// TestParseNoteQueryFrontmatter_BareVocabTag_IsNotTerm verifies that the bare
-// "vocab" definition marker tag is included in the parsed Tags but does NOT
-// contribute a term (no prefix to strip).
-func TestParseNoteQueryFrontmatter_BareVocabTag_IsNotTerm(t *testing.T) {
+// Test792b24c18a5_ParseNoteQueryFrontmatter_TagsBlockStyle_ParsesToTerms verifies that a
+// note's tags: frontmatter with vocab/ entries is correctly parsed and
+// converted to vocab term names (prefix stripped).
+func Test792b24c18a5_ParseNoteQueryFrontmatter_TagsBlockStyle_ParsesToTerms(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	content := "---\ntype: vocab\ntags:\n    - vocab\n---\n\nthis is a vocab definition\n"
+	content := "---\ntype: fact\nsituation: ctx\ntags:\n" +
+		"    - vocab/eval-methodology\n    - vocab/scope-discipline\n---\n\nbody\n"
 	doc := cli.ExportParseNoteQueryFrontmatter(content)
 
-	g.Expect(doc.Tags).To(Equal([]string{"vocab"}))
-}
-
-// TestParseNoteQueryFrontmatter_MixedTags_OnlyVocabExtracted verifies that when
-// a note has mixed categorical and vocab tags, only vocab/ entries are
-// extracted as terms.
-func TestParseNoteQueryFrontmatter_MixedTags_OnlyVocabExtracted(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	content := "---\ntype: fact\nsituation: ctx\ntags:\n    - work-kind/rename\n    - vocab/go-conventions\n---\n\nbody\n"
-	doc := cli.ExportParseNoteQueryFrontmatter(content)
-
-	g.Expect(doc.Tags).To(ConsistOf("work-kind/rename", "vocab/go-conventions"))
+	// The parsed doc should have Tags with vocab entries; terms
+	// (prefix stripped) are derived by vocabTermsFromTags.
+	g.Expect(doc.Tags).To(ConsistOf("vocab/eval-methodology", "vocab/scope-discipline"))
 }
 
 // NOTE: testNotFoundError is defined in testhelpers_test.go and is reused here.
@@ -469,9 +486,9 @@ func TestParseNoteQueryFrontmatter_MixedTags_OnlyVocabExtracted(t *testing.T) {
 
 // ── Unit: parseNoteQueryFrontmatter ──────────────────────────────────────────
 
-// TestParseNoteQueryFrontmatter_NoFrontmatter_Empty verifies that content without
+// Test792b24c18a6_ParseNoteQueryFrontmatter_NoFrontmatter_Empty verifies that content without
 // a YAML frontmatter block returns empty fields (no crash, backward compat).
-func TestParseNoteQueryFrontmatter_NoFrontmatter_Empty(t *testing.T) {
+func Test792b24c18a6_ParseNoteQueryFrontmatter_NoFrontmatter_Empty(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -483,9 +500,9 @@ func TestParseNoteQueryFrontmatter_NoFrontmatter_Empty(t *testing.T) {
 	g.Expect(doc.Supersedes).To(BeNil())
 }
 
-// TestParseNoteQueryFrontmatter_SupersedesList_Parsed verifies that a note's
+// Test792b24c18a7_ParseNoteQueryFrontmatter_SupersedesList_Parsed verifies that a note's
 // supersedes: frontmatter list is correctly extracted.
-func TestParseNoteQueryFrontmatter_SupersedesList_Parsed(t *testing.T) {
+func Test792b24c18a7_ParseNoteQueryFrontmatter_SupersedesList_Parsed(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -503,21 +520,4 @@ func TestParseNoteQueryFrontmatter_SupersedesList_Parsed(t *testing.T) {
 	g.Expect(doc.Supersedes[0].Note).To(Equal("9a.old"))
 	g.Expect(doc.Supersedes[0].Type).To(Equal("updates"))
 	g.Expect(doc.Supersedes[0].Claim).To(Equal("old was wrong"))
-}
-
-// TestParseNoteQueryFrontmatter_TagsBlockStyle_ParsesToTerms verifies that a
-// note's tags: frontmatter with vocab/ entries is correctly parsed and
-// converted to vocab term names (prefix stripped).
-func TestParseNoteQueryFrontmatter_TagsBlockStyle_ParsesToTerms(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	content := "---\ntype: fact\nsituation: ctx\ntags:\n" +
-		"    - vocab/eval-methodology\n    - vocab/scope-discipline\n---\n\nbody\n"
-	doc := cli.ExportParseNoteQueryFrontmatter(content)
-
-	// The parsed doc should have Tags with vocab entries; terms
-	// (prefix stripped) are derived by vocabTermsFromTags.
-	g.Expect(doc.Tags).To(ConsistOf("vocab/eval-methodology", "vocab/scope-discipline"))
 }

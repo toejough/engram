@@ -13,7 +13,7 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestProperty_Cluster_ChunkItemsBoundedByMatchSetCap locks the
+// Test792b24c5a3_Property_Cluster_ChunkItemsBoundedByMatchSetCap locks the
 // perf-critical bound for the query path: matched chunks (and notes)
 // fed to clustering and emitted in items[] with provenance "direct" are capped
 // at matchSetCap (300), so silhouette stays O(matchSetCap^2) regardless of
@@ -23,7 +23,7 @@ import (
 // Note: the recency channel may add additional "recent"-provenanced chunk
 // items beyond this cap — those do NOT participate in clustering and are NOT
 // subject to matchSetCap. This test counts only matched ("direct") chunks.
-func TestProperty_Cluster_ChunkItemsBoundedByMatchSetCap(t *testing.T) {
+func Test792b24c5a3_Property_Cluster_ChunkItemsBoundedByMatchSetCap(t *testing.T) {
 	t.Parallel()
 
 	queryVec := []float32{1, 0, 0, 0}

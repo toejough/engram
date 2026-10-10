@@ -138,10 +138,10 @@ func Test792b23c5a3_RenderQueryPayload_NonLazyOmitsLazyAndStillCaps(t *testing.T
 	g.Expect(out).To(ContainSubstring("chunks_snippeted: 1"), "non-lazy still caps the over-budget chunk")
 }
 
-// TestResolveRecentFill_DefaultsAndOverrides verifies the recency-channel
+// Test792b24c19a5_ResolveRecentFill_DefaultsAndOverrides verifies the recency-channel
 // fill-count resolution: unset (0) → the baked default (25); positive → itself;
 // negative → 0 (channel off).
-func TestResolveRecentFill_DefaultsAndOverrides(t *testing.T) {
+func Test792b24c19a5_ResolveRecentFill_DefaultsAndOverrides(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)

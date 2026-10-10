@@ -14,7 +14,7 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestInvariant_C1_ClusteringDeterminism locks invariant C1: AutoK
+// Test792b24c9a2_Invariant_C1_ClusteringDeterminism locks invariant C1: AutoK
 // (k-means + silhouette) is seeded by FNV-1a(query) via seedFromQuery, so
 // clustering the SAME vault + SAME phrase twice yields byte-identical
 // output — same K, same member partition, same representatives. We drive
@@ -22,7 +22,7 @@ import (
 // twice over one generated vault and assert the two payloads are
 // byte-for-byte identical. A non-deterministic seed (or unstable k-means)
 // would surface as differing cluster IDs / members / representatives.
-func TestInvariant_C1_ClusteringDeterminism(t *testing.T) {
+func Test792b24c9a2_Invariant_C1_ClusteringDeterminism(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {

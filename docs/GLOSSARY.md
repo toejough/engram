@@ -280,7 +280,7 @@ Explore picks dedupe against the exploit half and across terms, backfilling free
 allocation order. Delivered as top-level `items[]` entries — never cluster members, never in
 `candidate_l2s` — carrying `provenance: explore` and `source_term`; budget reported in
 `explore_allocated` (term → delivered-count map, always present, `{}` on missing/unreadable
-centroid data — degrading visibly to exploit-only rather than failing silently). See ADR-0025.
+centroid data — degrading visibly to exploit-only rather than failing silently). See [792b24c16](changes/792_documentation-framework-adoption/792b_technical-spec.md#792b24c16-delivering-the-explore-half).
 
 ### vocab nomination (retired)
 The tag-match extension to `candidate_l2s` (shipped 2026-07-03, retired 2026-07-29 by **explore

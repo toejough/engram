@@ -2,13 +2,13 @@
 
 ## Purpose
 
-A surfacing probe — a harness or script that measures whether a target note "surfaced" from an `engram query` — reads the correct signal from the query payload: the top-level `items[]` list rank, not the within-cluster `candidate_l2s` membership (which is a capped top-5 centroid-based subset used for synthesis candidate selection, not a general "did this match" signal per ADR-0025). This specification ensures probe implementations measure genuine retrieval success, not a different ranking mechanism.
+A surfacing probe — a harness or script that measures whether a target note "surfaced" from an `engram query` — reads the correct signal from the query payload: the top-level `items[]` list rank, not the within-cluster `candidate_l2s` membership (which is a capped top-5 centroid-based subset used for synthesis candidate selection, not a general "did this match" signal per 792b24c10 in `docs/changes/792_documentation-framework-adoption/792b_technical-spec.md#792b24c10-candidate-notes`). This specification ensures probe implementations measure genuine retrieval success, not a different ranking mechanism.
 
 ## Requirements
 
 ### Requirement: A surfacing probe SHALL read `items[]` rank as the surfacing signal
 
-Any harness or script that determines whether a target note "surfaced" for an `engram query` SHALL do so by checking the query payload's top-level `items[]` list (matching on path/basename) and reporting the note's 1-based rank there. It SHALL NOT use `clusters[].candidate_l2s` membership as the surfacing signal — `candidate_l2s` is a capped top-5-by-centroid-cosine, within-cluster subset used for L2-synthesis-candidate selection (ADR-0025), not a general "did this note match" signal, and a note can be correctly matched and present in `items[]` while absent from every cluster's `candidate_l2s` simply because its cluster has more than 5 members closer to the centroid.
+Any harness or script that determines whether a target note "surfaced" for an `engram query` SHALL do so by checking the query payload's top-level `items[]` list (matching on path/basename) and reporting the note's 1-based rank there. It SHALL NOT use `clusters[].candidate_l2s` membership as the surfacing signal — `candidate_l2s` is a capped top-5-by-centroid-cosine, within-cluster subset used for L2-synthesis-candidate selection (792b24c10 in `docs/changes/792_documentation-framework-adoption/792b_technical-spec.md#792b24c10-candidate-notes`), not a general "did this note match" signal, and a note can be correctly matched and present in `items[]` while absent from every cluster's `candidate_l2s` simply because its cluster has more than 5 members closer to the centroid.
 
 #### Scenario: Target present in items[] counts as surfaced
 

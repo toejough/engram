@@ -272,25 +272,9 @@ func Test792b14c4a1_Amend_Supersedes_WrittenToFrontmatterAndBody(t *testing.T) {
 	g.Expect(body).To(ContainSubstring("Supersedes: [[9c.2026-01-01.old]] — refutes: old claim was wrong"))
 }
 
-// Test792b6c4a5_RenderSupersedes_StripsMdFromWikilink verifies the machine-written body
-// line targets the canonical extension-less basename even when the entry's
-// note field carries the full .md filename (which frontmatter keeps).
-func Test792b6c4a5_RenderSupersedes_StripsMdFromWikilink(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	rendered := cli.ExportRenderSupersedes([]cli.ExportSupersedesEntry{
-		{Note: "9e.2026-01-01.old-note.md", Type: "updates", Claim: "old note superseded"},
-	})
-
-	g.Expect(rendered).To(Equal("Supersedes: [[9e.2026-01-01.old-note]] — updates: old note superseded\n"),
-		"wikilink target must drop the .md extension — the graph resolves extension-less basenames")
-}
-
-// TestBuildSupersedesInverse proves the inverse scan helper correctly maps
+// Test792b24c17a6_BuildSupersedesInverse proves the inverse scan helper correctly maps
 // superseded→[]superseder.
-func TestBuildSupersedesInverse(t *testing.T) {
+func Test792b24c17a6_BuildSupersedesInverse(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -314,4 +298,20 @@ func TestBuildSupersedesInverse(t *testing.T) {
 	// 9b.2026-01-01.other-old is superseded by one note.
 	g.Expect(inverse).To(HaveKey("9b.2026-01-01.other-old"))
 	g.Expect(inverse["9b.2026-01-01.other-old"]).To(HaveLen(1))
+}
+
+// Test792b6c4a5_RenderSupersedes_StripsMdFromWikilink verifies the machine-written body
+// line targets the canonical extension-less basename even when the entry's
+// note field carries the full .md filename (which frontmatter keeps).
+func Test792b6c4a5_RenderSupersedes_StripsMdFromWikilink(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	rendered := cli.ExportRenderSupersedes([]cli.ExportSupersedesEntry{
+		{Note: "9e.2026-01-01.old-note.md", Type: "updates", Claim: "old note superseded"},
+	})
+
+	g.Expect(rendered).To(Equal("Supersedes: [[9e.2026-01-01.old-note]] — updates: old note superseded\n"),
+		"wikilink target must drop the .md extension — the graph resolves extension-less basenames")
 }

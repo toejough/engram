@@ -11,8 +11,8 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-// TestAppendUniqueProvenance_AddsNewRole exercises the append branch.
-func TestAppendUniqueProvenance_AddsNewRole(t *testing.T) {
+// Test792b24c11a3_AppendUniqueProvenance_AddsNewRole exercises the append branch.
+func Test792b24c11a3_AppendUniqueProvenance_AddsNewRole(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -21,8 +21,8 @@ func TestAppendUniqueProvenance_AddsNewRole(t *testing.T) {
 	g.Expect(got).To(Equal([]string{"direct"}))
 }
 
-// TestAppendUniqueProvenance_AppendsDistinctRoles exercises both branches.
-func TestAppendUniqueProvenance_AppendsDistinctRoles(t *testing.T) {
+// Test792b24c11a3_AppendUniqueProvenance_AppendsDistinctRoles exercises both branches.
+func Test792b24c11a3_AppendUniqueProvenance_AppendsDistinctRoles(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -31,8 +31,8 @@ func TestAppendUniqueProvenance_AppendsDistinctRoles(t *testing.T) {
 	g.Expect(got).To(Equal([]string{"direct", "cluster_rep", "hub"}))
 }
 
-// TestAppendUniqueProvenance_DedupsExisting exercises the dedup branch.
-func TestAppendUniqueProvenance_DedupsExisting(t *testing.T) {
+// Test792b24c11a3_AppendUniqueProvenance_DedupsExisting exercises the dedup branch.
+func Test792b24c11a3_AppendUniqueProvenance_DedupsExisting(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -41,8 +41,8 @@ func TestAppendUniqueProvenance_DedupsExisting(t *testing.T) {
 	g.Expect(got).To(Equal([]string{"direct"}))
 }
 
-// TestBreakRepresentativeTie_HigherScoreWins exercises the score-tiebreak branch.
-func TestBreakRepresentativeTie_HigherScoreWins(t *testing.T) {
+// Test792b24c9a3_BreakRepresentativeTie_HigherScoreWins exercises the score-tiebreak branch.
+func Test792b24c9a3_BreakRepresentativeTie_HigherScoreWins(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -51,8 +51,8 @@ func TestBreakRepresentativeTie_HigherScoreWins(t *testing.T) {
 	g.Expect(winner).To(Equal("A.md"))
 }
 
-// TestBreakRepresentativeTie_LexicographicPath exercises the final path tiebreak.
-func TestBreakRepresentativeTie_LexicographicPath(t *testing.T) {
+// Test792b24c9a3_BreakRepresentativeTie_LexicographicPath exercises the final path tiebreak.
+func Test792b24c9a3_BreakRepresentativeTie_LexicographicPath(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -62,8 +62,8 @@ func TestBreakRepresentativeTie_LexicographicPath(t *testing.T) {
 	g.Expect(winner).To(Equal("A.md"))
 }
 
-// TestBreakRepresentativeTie_LexicographicPathReverse exercises the default branch.
-func TestBreakRepresentativeTie_LexicographicPathReverse(t *testing.T) {
+// Test792b24c9a3_BreakRepresentativeTie_LexicographicPathReverse exercises the default branch.
+func Test792b24c9a3_BreakRepresentativeTie_LexicographicPathReverse(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -73,8 +73,8 @@ func TestBreakRepresentativeTie_LexicographicPathReverse(t *testing.T) {
 	g.Expect(winner).To(Equal("A.md"))
 }
 
-// TestBreakRepresentativeTie_SecondHigherWins exercises the reverse score-tiebreak branch.
-func TestBreakRepresentativeTie_SecondHigherWins(t *testing.T) {
+// Test792b24c9a3_BreakRepresentativeTie_SecondHigherWins exercises the reverse score-tiebreak branch.
+func Test792b24c9a3_BreakRepresentativeTie_SecondHigherWins(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)

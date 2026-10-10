@@ -249,7 +249,7 @@ func Test792b23c8a9_RunQuery_RunbookItemContentIncludesRedFlags(t *testing.T) {
 	g.Expect(runbookContent).To(ContainSubstring("force-push without --force-with-lease"))
 }
 
-func TestRunQuery_NoPhrasesAndNoTextIsRejected(t *testing.T) {
+func Test792b24c1a1_RunQuery_NoPhrasesAndNoTextIsRejected(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -261,10 +261,10 @@ func TestRunQuery_NoPhrasesAndNoTextIsRejected(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
-// TestRunQuery_RunbookCompetesInMainMatchedSet proves runbook notes receive no
+// Test792b24c3a6_RunQuery_RunbookCompetesInMainMatchedSet proves runbook notes receive no
 // exclusion treatment (unlike qa-question) and rank purely by situation
 // similarity, identical to fact/feedback — design.md Decision 2/3, 792a7v.
-func TestRunQuery_RunbookCompetesInMainMatchedSet(t *testing.T) {
+func Test792b24c3a6_RunQuery_RunbookCompetesInMainMatchedSet(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 

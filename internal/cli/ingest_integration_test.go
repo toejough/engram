@@ -112,7 +112,7 @@ func Test792b18c5a6_OsIngestThenChunkQuery(t *testing.T) {
 	g.Expect(out.String()).To(gomega.ContainSubstring("Name constants"))
 }
 
-func TestChunkQueryClustersManyChunks(t *testing.T) {
+func Test792b24c23a3_ChunkQueryClustersManyChunks(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -151,7 +151,31 @@ func TestChunkQueryClustersManyChunks(t *testing.T) {
 	g.Expect(out.String()).To(gomega.ContainSubstring("clusters:"))
 }
 
-func TestChunkQueryIndexErrorsPropagate(t *testing.T) {
+func Test792b24c23a4_ChunkQueryRequiresPhrase(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	err := cli.RunChunkQuery(context.Background(), cli.ChunkQueryArgs{ChunksDir: "/x"}, cli.ChunkQueryDeps{}, io.Discard)
+
+	g.Expect(err).To(gomega.HaveOccurred())
+}
+
+func Test792b24c23a6_ChunkQueryMissingChunksDirIsEmpty(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	var out strings.Builder
+
+	deps := cli.ExportNewChunkQueryDeps(realFSForTest(), fakeIngestEmbedder{})
+	err := cli.RunChunkQuery(context.Background(), cli.ChunkQueryArgs{
+		Phrases: []string{"anything"}, ChunksDir: filepath.Join(t.TempDir(), "absent"), Limit: 5,
+	}, deps, &out)
+
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(out.String()).To(gomega.ContainSubstring("total_chunks: 0"))
+}
+
+func Test792b24c23a7_ChunkQueryIndexErrorsPropagate(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -183,30 +207,6 @@ func TestChunkQueryIndexErrorsPropagate(t *testing.T) {
 	err = cli.RunChunkQuery(context.Background(), cli.ChunkQueryArgs{
 		Phrases: []string{"x"}, ChunksDir: "/chunks",
 	}, malformed, io.Discard)
-	g.Expect(err).To(gomega.HaveOccurred())
-}
-
-func TestChunkQueryMissingChunksDirIsEmpty(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	var out strings.Builder
-
-	deps := cli.ExportNewChunkQueryDeps(realFSForTest(), fakeIngestEmbedder{})
-	err := cli.RunChunkQuery(context.Background(), cli.ChunkQueryArgs{
-		Phrases: []string{"anything"}, ChunksDir: filepath.Join(t.TempDir(), "absent"), Limit: 5,
-	}, deps, &out)
-
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(out.String()).To(gomega.ContainSubstring("total_chunks: 0"))
-}
-
-func TestChunkQueryRequiresPhrase(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	err := cli.RunChunkQuery(context.Background(), cli.ChunkQueryArgs{ChunksDir: "/x"}, cli.ChunkQueryDeps{}, io.Discard)
-
 	g.Expect(err).To(gomega.HaveOccurred())
 }
 

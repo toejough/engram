@@ -2804,6 +2804,11 @@ Scenario: 792a7d1g A definition note is an ordinary match
   Given a vault whose only note close to the phrase is a vocabulary definition note
   When the user runs engram query with that phrase
   Then the definition note is returned
+
+Scenario: 792a7d1h A note is found by its own situation
+  Given several notes whose body text is their situation
+  When the user runs engram query with one note's situation as the phrase
+  Then that note is among the items, with cosine 1
 ```
 
 ### 792a7e Matched-note floor
@@ -2979,8 +2984,8 @@ when it is empty.
 Rationale: matches alone only find what resembles the query, so global reach comes from sampling
 near concepts. Tag nomination did this by joining any note that shared a term with the top three
 notes of a cluster, whatever its cosine, which tied candidates to an accident of rank, gave every
-term-sharing note equal footing, and needed a per-cluster cap; it was replaced on 2026-07-29
-(ADR-0025). The missing-centroids case fails loudly, as an empty allocation, rather than silently.
+term-sharing note equal footing, and needed a per-cluster cap; it was replaced on 2026-07-29.
+The missing-centroids case fails loudly, as an empty allocation, rather than silently.
 
 #### 792a7i1 UAT Scenarios
 

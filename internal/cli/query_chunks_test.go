@@ -13,7 +13,7 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-func TestChunkQueryDeps_ListIndexes_ListsOnlyJSONLFiles(t *testing.T) {
+func Test792b18c12a1_ChunkQueryDeps_ListIndexes_ListsOnlyJSONLFiles(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -33,7 +33,7 @@ func TestChunkQueryDeps_ListIndexes_ListsOnlyJSONLFiles(t *testing.T) {
 	g.Expect(paths).To(gomega.ConsistOf(filepath.Join(dir, "a.jsonl")))
 }
 
-func TestChunkQueryDeps_ListIndexes_WrappedNotExistIsEmptyIndex(t *testing.T) {
+func Test792b18c12a1_ChunkQueryDeps_ListIndexes_WrappedNotExistIsEmptyIndex(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -48,58 +48,7 @@ func TestChunkQueryDeps_ListIndexes_WrappedNotExistIsEmptyIndex(t *testing.T) {
 	g.Expect(paths).To(gomega.BeEmpty())
 }
 
-func TestChunkQueryEmptyIndexSaysSo(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	deps := cli.ChunkQueryDeps{
-		ListIndexes: func(string) ([]string, error) { return nil, nil },
-		ReadFile:    (&memFS{files: map[string][]byte{}}).read,
-		Embedder:    axisEmbedder{},
-	}
-
-	var out strings.Builder
-
-	err := cli.RunChunkQuery(context.Background(), cli.ChunkQueryArgs{
-		Phrases: []string{"anything"}, ChunksDir: "/chunks", Limit: 5,
-	}, deps, &out)
-
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(out.String()).To(gomega.ContainSubstring("total_chunks: 0"))
-}
-
-func TestChunkQueryHonorsLimit(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	records := make([]chunk.Record, 0, 10)
-	for i := range 10 {
-		records = append(records, chunk.Record{
-			Source: "/s/a.jsonl", Anchor: "turn-" + string(rune('0'+i)),
-			ContentHash: chunk.HashText(string(rune('a' + i))),
-			Text:        "linter topic variant " + string(rune('a'+i)),
-			Vector:      []float32{1, float32(i) * 0.01, 0},
-		})
-	}
-
-	fs := chunkIndexFS(t, records)
-	deps := cli.ChunkQueryDeps{
-		ListIndexes: func(string) ([]string, error) { return []string{"/chunks/s1.jsonl"}, nil },
-		ReadFile:    fs.read,
-		Embedder:    axisEmbedder{axes: map[string][]float32{"linter": {1, 0, 0}}},
-	}
-
-	var out strings.Builder
-
-	err := cli.RunChunkQuery(context.Background(), cli.ChunkQueryArgs{
-		Phrases: []string{"linter rules"}, ChunksDir: "/chunks", Limit: 3,
-	}, deps, &out)
-
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(strings.Count(out.String(), "- source:")).To(gomega.Equal(3))
-}
-
-func TestChunkQueryRanksByCosine(t *testing.T) {
+func Test792b24c23a1_ChunkQueryRanksByCosine(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -136,6 +85,57 @@ func TestChunkQueryRanksByCosine(t *testing.T) {
 	if second != -1 {
 		g.Expect(first).To(gomega.BeNumerically("<", second), "best match listed first")
 	}
+}
+
+func Test792b24c23a2_ChunkQueryHonorsLimit(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	records := make([]chunk.Record, 0, 10)
+	for i := range 10 {
+		records = append(records, chunk.Record{
+			Source: "/s/a.jsonl", Anchor: "turn-" + string(rune('0'+i)),
+			ContentHash: chunk.HashText(string(rune('a' + i))),
+			Text:        "linter topic variant " + string(rune('a'+i)),
+			Vector:      []float32{1, float32(i) * 0.01, 0},
+		})
+	}
+
+	fs := chunkIndexFS(t, records)
+	deps := cli.ChunkQueryDeps{
+		ListIndexes: func(string) ([]string, error) { return []string{"/chunks/s1.jsonl"}, nil },
+		ReadFile:    fs.read,
+		Embedder:    axisEmbedder{axes: map[string][]float32{"linter": {1, 0, 0}}},
+	}
+
+	var out strings.Builder
+
+	err := cli.RunChunkQuery(context.Background(), cli.ChunkQueryArgs{
+		Phrases: []string{"linter rules"}, ChunksDir: "/chunks", Limit: 3,
+	}, deps, &out)
+
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(strings.Count(out.String(), "- source:")).To(gomega.Equal(3))
+}
+
+func Test792b24c23a5_ChunkQueryEmptyIndexSaysSo(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	deps := cli.ChunkQueryDeps{
+		ListIndexes: func(string) ([]string, error) { return nil, nil },
+		ReadFile:    (&memFS{files: map[string][]byte{}}).read,
+		Embedder:    axisEmbedder{},
+	}
+
+	var out strings.Builder
+
+	err := cli.RunChunkQuery(context.Background(), cli.ChunkQueryArgs{
+		Phrases: []string{"anything"}, ChunksDir: "/chunks", Limit: 5,
+	}, deps, &out)
+
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(out.String()).To(gomega.ContainSubstring("total_chunks: 0"))
 }
 
 // axisEmbedder maps known texts onto fixed unit vectors so cosine ranking is

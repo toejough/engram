@@ -197,10 +197,10 @@ func Test792b23c6a1_RunQuery_BudgetLimitStillReportsResolvedValue(t *testing.T) 
 	g.Expect(parsed.Budget.Limit).To(Equal(7))
 }
 
-// TestRunQuery_DefaultLimitCapsLargeResultSet verifies the default --limit
+// Test792b24c1a3_RunQuery_DefaultLimitCapsLargeResultSet verifies the default --limit
 // (20) now truncates a result set that would otherwise exceed it — before
 // this fix, --limit was report-only metadata and never truncated items[].
-func TestRunQuery_DefaultLimitCapsLargeResultSet(t *testing.T) {
+func Test792b24c1a3_RunQuery_DefaultLimitCapsLargeResultSet(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)

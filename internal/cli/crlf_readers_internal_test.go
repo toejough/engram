@@ -86,6 +86,20 @@ func Test792b23c8a7_CapRedFlagsForPreview_CRLFNote(t *testing.T) {
 	g.Expect(capped).To(Equal(capRedFlagsForPreview(lf, "1.2026-01-01.rb")))
 }
 
+func Test792b24c12a6_ItemMatchesProject_CRLFNote(t *testing.T) {
+	t.Parallel()
+	NewWithT(t).Expect(itemMatchesProject(resolvedItem{content: crlfReaderNote("")}, "widgets")).To(BeTrue())
+}
+
+func Test792b24c18a8_ParseNoteQueryFrontmatter_CRLFNote(t *testing.T) {
+	t.Parallel()
+
+	parsed := parseNoteQueryFrontmatter(crlfReaderNote("tags:\n    - vocab/widgets\ntriggers:\n    - turn it\n"))
+	g := NewWithT(t)
+	g.Expect(parsed.Tags).To(Equal([]string{"vocab/widgets"}))
+	g.Expect(parsed.Triggers).To(Equal([]string{"turn it"}))
+}
+
 func TestCheckSituationPresence_CRLFNote(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -100,20 +114,6 @@ func TestCheckSituationPresence_CRLFNote(t *testing.T) {
 		func(string) ([]byte, error) { return []byte(note), nil }, "/vault", &out)
 	g.Expect(failed).To(BeTrue(), out.String())
 	g.Expect(out.String()).To(ContainSubstring("1.2026-01-01.a"))
-}
-
-func TestItemMatchesProject_CRLFNote(t *testing.T) {
-	t.Parallel()
-	NewWithT(t).Expect(itemMatchesProject(resolvedItem{content: crlfReaderNote("")}, "widgets")).To(BeTrue())
-}
-
-func TestParseNoteQueryFrontmatter_CRLFNote(t *testing.T) {
-	t.Parallel()
-
-	parsed := parseNoteQueryFrontmatter(crlfReaderNote("tags:\n    - vocab/widgets\ntriggers:\n    - turn it\n"))
-	g := NewWithT(t)
-	g.Expect(parsed.Tags).To(Equal([]string{"vocab/widgets"}))
-	g.Expect(parsed.Triggers).To(Equal([]string{"turn it"}))
 }
 
 func TestReadNoteAttrs_CRLFNote(t *testing.T) {

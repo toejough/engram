@@ -8810,6 +8810,7 @@ Scenario: 792b22c7a1 A query without a hit is unchanged
 | --- | --- |
 | 792a7y1a | 792b22c3, 792b22c6 |
 | 792a7y1b | 792b22c7 |
+| 792a7y1c | 792b22c6 |
 | 792a7za1a | 792b22c3, 792b22c4 |
 | 792a7za1b | 792b22c4, 792b22c5 |
 | 792a7za1c | 792b22c1 |
@@ -8826,7 +8827,6 @@ Scenario: 792b22c7a1 A query without a hit is unchanged
 | 792a7zb1i | 792b22c2 |
 | 792a7zg1b | 792b22c1 |
 
-
 ```gherkin
 Scenario: 792a7y1a Text alone is a trigger lookup
   Given a runbook with triggers ["/release"]
@@ -8837,6 +8837,11 @@ Scenario: 792a7y1b Without text nothing changes
   Given a vault whose runbooks carry triggers
   When the user runs engram query with phrases and no --text
   Then the payload is the same as before --text existed and no item has provenance trigger
+
+Scenario: 792a7y1c Text is not matched by similarity
+  Given a runbook whose situation is close to the text but whose triggers are not in it
+  When the user runs engram query --text "<that text>"
+  Then the runbook is not returned
 
 Scenario: 792a7za1a A hit with no similarity match is first
   Given a runbook with triggers ["/please"] and no similarity match above the floor
@@ -9429,4 +9434,1231 @@ Scenario: 792a7zg1f A CRLF note keeps its kind
   Given a fact note whose lines end in \r\n
   When the user runs engram query with a phrase that matches it
   Then its item has kind fact
+```
+
+## 792b24 Added: query-engine
+
+Canonical target: `docs/specs/technical/query-engine.md` (title `Query Engine - Technical Spec`).
+
+### 792b24a Orientation
+
+- Ownership: Repository component (the caller of the text-embedder, the embedding-sidecar, the
+  chunk-index-store, the similarity-clustering, the vocabulary-engine, the recency-ranking, the
+  runbook-trigger-matching and the query-payload-renderer).
+- Responsibility: answers a query. It reads the vault's notes and their sidecars and the chunk index,
+  embeds each phrase, scores notes and chunks against it, keeps the best of each phrase, merges and
+  bounds the matches, clusters them once, nominates each cluster's candidate notes, samples the
+  vocabulary's terms for the explore half, inserts the notes that supersede a match, adds the newest
+  chunks and the trigger hits, and hands the result to the renderer. It also answers a search of the
+  chunk index alone. It writes nothing.
+- Current realization (informational): `RunQuery` and its stages in `internal/cli/query.go`;
+  `internal/cli/query_chunks.go` (`RunChunkQuery`, chunk scoring, `listJSONLIndexes`);
+  `internal/cli/query_vault_meta.go` (the one pass over every note's metadata, the supersession
+  ride-along); `internal/cli/query_explore.go` (the explore half). The pending-offer exclusion in
+  `internal/cli/offer.go` and the merge with a parent vault in `internal/cli/merged_query.go` are
+  added by curate and parent-sync.
+- Qualification: responsibility, finding and bounding what answers a query is stated without naming
+  any function; ownership, the renderer shapes the payload and the callers choose the vault and the
+  flags, while this component owns what is matched, clustered and sampled; independent verification,
+  it is tested through `RunQuery` and its helpers over an in-memory vault and a fixed embedder, and by
+  property tests; stability, the contract survives any change to the embedder, the index layout or
+  the payload's shape; necessity, every recall passes through it.
+- Supported capabilities: 792a7 memory-query and note-writing's 792a3t. Recall, ambient-guidance,
+  vault-serving and parent-sync extend it (792d30).
+
+Rationale: the engine is one deterministic pass with no LLM, so the same vault and phrases give the
+same payload, and the judgment about coverage stays with the reader. A single query process loads the
+vault once and computes everything from it; every command is its own process, so nothing is cached
+between queries. The matched set is bounded before it is clustered because the cost of scoring a
+silhouette grows with the square of its size: the cap of 300 is the 10 phrases a deep recall uses times
+the 30 kept for each, and the chunks the recency channel adds never enter the clustering. The explore
+half exists because matching only finds what resembles the query: tag nomination reached further by
+joining any note that shared a term with the top three notes of a cluster, which tied the reach to an
+accident of rank, treated every term-sharing note alike and needed a per-cluster cap, so it was
+replaced on 2026-07-29 with direct sampling by closeness of the query to each term's centroid.
+Superseding notes ride along in `items`, not in a cluster's candidates, so the candidates stay the
+cluster's own nearest notes.
+
+### 792b24b Sequences
+
+```mermaid
+sequenceDiagram
+  participant Caller as command-line-surface
+  participant Engine as query-engine
+  participant Store as vault and chunk index
+  participant Embed as text-embedder
+  participant Cluster as similarity-clustering
+  participant Render as query-payload-renderer
+  Caller->>Engine: phrases, message, flags
+  alt no phrase and a blank message
+    Engine-->>Caller: query: empty query string (792b24c1)
+  else
+    Engine->>Store: scan the notes, read their sidecars and the chunk index
+    alt notes exist and none has a usable sidecar
+      Engine-->>Caller: no current-model embeddings (792b24c2)
+    else
+      loop each phrase
+        Engine->>Embed: embed the phrase
+        Engine->>Engine: score notes and chunks, keep the best 30 and reserve note slots (792b24c3, 792b24c4, 792b24c5, 792b24c6)
+      end
+      Engine->>Engine: merge phrases, drop below the floor, cap at 300 (792b24c5)
+      Engine->>Cluster: cluster the matched set once (792b24c9)
+      Cluster-->>Engine: clusters, centroids, silhouettes
+      Engine->>Engine: candidate notes (792b24c10), supersession (792b24c17), explore half (792b24c13 to 792b24c16)
+      Engine->>Engine: recent chunks (792b24c19), trigger hits (792b22)
+      Engine->>Render: items, clusters, counts, flags
+    end
+  end
+```
+
+### 792b24c Behavior Requirements
+
+#### 792b24c1 Input and defaults
+
+Requirement: 792b24c1 The query-engine MUST fail with `query: empty query string` when given no phrase and
+a message that is empty after trimming, MUST accept any number of phrases, and MUST use a limit of 20
+when the limit is zero. It MUST fail, wrapping the cause as `query: embed`, when the embedder fails on a
+phrase. It MUST give an empty list of items for a vault with no notes, and MUST report the number of
+phrases it was given.
+
+Supports: 792a7a1a, 792a7a1b, 792a7b1a, 792a7q1a.
+
+##### 792b24c1a Scenarios
+
+```gherkin
+Scenario: 792b24c1a1 Nothing to search for is an error
+  Given a vault, and no phrase and no message, or no phrase and the message "  "
+  When a query runs
+  Then it fails
+
+Scenario: 792b24c1a2 Several phrases are accepted
+  Given the phrases "a" and "b"
+  When a query runs
+  Then it succeeds and the budget counts 2 phrases queried
+
+Scenario: 792b24c1a3 The default limit is 20
+  Given 25 matched notes and no limit
+  When a query runs
+  Then items holds 20
+
+Scenario: 792b24c1a4 An embedding failure is an error
+  Given an embedder that fails
+  When a query runs
+  Then it fails with an error that names the embedder's failure
+
+Scenario: 792b24c1a5 An empty vault has no items
+  Given a vault with no notes
+  When a query runs
+  Then items is empty and the query succeeds
+```
+
+#### 792b24c2 Usable embeddings
+
+Requirement: 792b24c2 The query-engine MUST use only the notes whose sidecar reads, is of the current
+schema and was made by the embedding model of the run. It MUST warn once for the sidecars of another
+model, naming how many, their model IDs, the active one and `engram embed apply --all`, and once for
+sidecars of an old schema, naming `engram embed apply --force`. It MUST fail with
+`query: vault has notes but no current-model embeddings; run `engram embed apply --all`` when the vault
+has notes and none is usable. A note with a missing or unparseable sidecar MUST be left out silently.
+
+Supports: 792a7c1a, 792a7c1b, 792a7c1c.
+
+Rationale: a silent model swap would empty the results with no explanation, so the warning names the
+cause and the remedy; the all-mismatch case fails because an empty payload would read as "nothing is
+relevant".
+
+##### 792b24c2a Scenarios
+
+```gherkin
+Scenario: 792b24c2a1 Notes without sidecars are an error
+  Given a vault of notes with no sidecars
+  When a query runs
+  Then it fails with an error naming engram embed apply --all
+
+Scenario: 792b24c2a2 Notes with incompatible sidecars are an error
+  Given a vault of notes whose sidecars were made by another model
+  When a query runs
+  Then it fails with an error naming engram embed apply --all
+
+Scenario: 792b24c2a3 Old-schema sidecars are skipped with an advisory
+  Given sidecars on an old schema
+  When a query runs
+  Then a warning names the schema and the skipped notes are left out
+
+Scenario: 792b24c2a4 Another model's sidecars are warned about
+  Given sidecars of another model alongside current ones
+  When a query runs
+  Then one warning names the number dropped, their model and the active model
+```
+
+#### 792b24c3 Scoring notes
+
+Requirement: 792b24c3 For each phrase the query-engine MUST score each usable note whose file reads by the
+higher of the cosines between the phrase's vector and the note's situation and body vectors, keep the
+vector of the higher as the note's coordinate, multiply the score by the recency factor of its age
+(792b21c1, 792b21c2) using the time at the end of the scan stage when timing is on and otherwise the
+clock, and not multiply it when no clock was supplied. The unscaled cosine MUST be kept for the floor.
+A note's content MUST show each wikilink as its display text or target, and be previewed for red flags
+(792b23c8). Notes MUST be ordered by score, highest first.
+
+Supports: 792a7b1c, 792a7d1a, 792a7f1b, 792a7v1c.
+
+##### 792b24c3a Scenarios
+
+```gherkin
+Scenario: 792b24c3a1 Notes are ranked by descending cosine
+  Given notes whose cosines to the phrase are 0.9, 0.5 and 0.7
+  When a query runs
+  Then they are returned as 0.9, 0.7, 0.5
+
+Scenario: 792b24c3a2 The situation axis can win
+  Given a note whose situation vector matches the phrase and whose body vector does not
+  When a query runs
+  Then its score is the situation cosine
+
+Scenario: 792b24c3a3 The body axis can win
+  Given a note whose body vector matches the phrase and whose situation vector does not
+  When a query runs
+  Then its score is the body cosine
+
+Scenario: 792b24c3a4 Wikilinks are flattened
+  Given a note whose body contains [[1.target]] and [[2.other|the other note]]
+  When a query runs
+  Then the item's content has 1.target and the other note, and no [[
+
+Scenario: 792b24c3a5 A recently used note outranks a stale one
+  Given two notes with equal cosine, last used 2 days and 120 days before the clock
+  When a query runs with a clock
+  Then the fresher note is first with the higher score
+
+Scenario: 792b24c3a6 A runbook competes like a fact
+  Given a runbook and a fact with the same situation text, in a vault with the chunk index
+  When a query runs
+  Then both appear with the same score, and the runbook is among the candidate notes
+```
+
+#### 792b24c4 Scoring chunks
+
+Requirement: 792b24c4 For each phrase the query-engine MUST score each chunk by the cosine between the
+phrase's vector and the chunk's vector, multiplied by the recency factor (792b21c1) of the days since
+the chunk's `ingested_at`, counting zero when it has none or the clock is absent, and of the chunk's
+turn number over the highest turn number of its source (792b21c4), counting zero when its anchor has no
+turn or its source has none above zero. The unscaled cosine MUST be kept for the floor.
+
+Supports: 792a7f1a, 792a7f1c, 792a7f1e.
+
+##### 792b24c4a Scenarios
+
+```gherkin
+Scenario: 792b24c4a1 A recent low-cosine chunk surfaces among stale ones
+  Given a chunk ingested an hour ago with cosine 0.32 and five chunks ingested 120 days ago with cosine 0.71
+  When a query runs with a clock
+  Then the recent chunk is among the items
+
+Scenario: 792b24c4a2 A newer chunk outranks an older one with the same vector
+  Given two chunks with the same vector, ingested a day and 100 days before the clock
+  When a query runs
+  Then the newer chunk scores higher
+
+Scenario: 792b24c4a3 The floor uses the unscaled cosine
+  Given a chunk with cosine 0.53 ingested 120 days ago
+  When a query runs
+  Then it is a direct match, scored about 0.13
+```
+
+#### 792b24c5 The matched set
+
+Requirement: 792b24c5 For each phrase the query-engine MUST rank the notes and chunks together by score,
+ties by key, and keep the first 30 after the reservation of 792b24c6. It MUST then merge the phrases
+keeping, for each key, the item with the highest score, drop each item whose unscaled cosine is below
+0.25, and keep at most the 300 highest-scored, in key order. It MUST give each kept item the provenance
+`direct`.
+
+Supports: 792a7d1b, 792a7d1c, 792a7d1d, 792a7d1e.
+
+##### 792b24c5a Scenarios
+
+```gherkin
+Scenario: 792b24c5a1 Items below the floor are dropped
+  Given a note and a chunk whose cosines are 0.2
+  When a query runs
+  Then neither is a direct match
+
+Scenario: 792b24c5a2 Only the best 30 of a phrase enter the union
+  Given a phrase that 40 chunks match above the floor
+  When a query runs
+  Then 30 are matched, the 30 with the highest scores
+
+Scenario: 792b24c5a3 The union is capped at 300
+  Given twelve phrases that each match 30 different chunks above the floor, and generated chunk sets of any size
+  When a query runs
+  Then 300 chunks are clustered at most
+
+Scenario: 792b24c5a4 An item keeps its best score across phrases
+  Given a note scoring 0.4 for one phrase and 0.7 for another
+  When a query runs with both
+  Then it is scored 0.7
+
+Scenario: 792b24c5a5 An item appears once
+  Given a note matched by every phrase
+  When a query runs
+  Then items holds it once
+```
+
+#### 792b24c6 The matched-note floor
+
+Requirement: 792b24c6 When a phrase's ranked list is longer than 30, the query-engine MUST reserve up to
+5 of the 30 kept for notes whose unscaled cosine is at least 0.25, promoting the best such notes from
+below the cut and evicting the lowest-scoring chunks to make room, and MUST keep the result ordered by
+score. It MUST NOT promote a note below the floor or a question note, and MUST treat a vocabulary
+definition note as any other note.
+
+Supports: 792a7e1a, 792a7e1b, 792a7e1c, 792a7e1d, 792a7d1g.
+
+##### 792b24c6a Scenarios
+
+```gherkin
+Scenario: 792b24c6a1 A relevant note survives a flood of chunks
+  Given 30 chunks scoring above a note whose cosine is 0.4
+  When the phrase's list is cut
+  Then the note is kept and the lowest-scoring chunk is evicted
+
+Scenario: 792b24c6a2 A definition note is promoted like any other
+  Given 30 chunks scoring 0.50 above a definition note scoring 0.45 and a normal note scoring 0.30
+  When the phrase's list is cut
+  Then the definition note is kept
+
+Scenario: 792b24c6a3 A definition note alone is returned
+  Given a definition note as the only matched item
+  When the phrase's list is cut
+  Then the definition note is kept
+```
+
+#### 792b24c7 Question notes
+
+Requirement: 792b24c7 The query-engine MUST leave a question note out of the matched set at each of the
+four places that build it: when promoting under the matched-note floor, when merging a phrase into the
+union, when dropping below the floor, and when indexing vocabulary members for the explore half. An
+answer note MUST compete as any other note.
+
+Supports: 792a3t1a, 792a7k1a.
+
+##### 792b24c7a Scenarios
+
+```gherkin
+Scenario Outline: 792b24c7a1 Which kinds are left out
+  Given the content <content>
+  When it is tested for exclusion from queries
+  Then the result is <excluded>
+
+  Examples:
+    | case                  | content                           | excluded |
+    | a vocabulary note     | ---\ntype: vocab\n---\n            | no       |
+    | a vocabulary index    | ---\ntype: vocab-index\n---\n      | no       |
+    | a question note       | ---\ntype: qa-question\n---\n      | yes      |
+    | an answer note        | ---\ntype: qa-answer\n---\n        | no       |
+    | a fact                | ---\ntype: fact\n---\n             | no       |
+    | a feedback note       | ---\ntype: feedback\n---\n         | no       |
+    | a runbook             | ---\ntype: runbook\n---\n          | no       |
+```
+
+#### 792b24c8 Chunks and notes together
+
+Requirement: 792b24c8 The query-engine MUST rank the chunks of the chunk index with the notes when a chunk
+index directory and a lister are supplied, cluster them together (792b24c9), and MUST behave as a
+query over the vault alone when none is. A missing chunk index directory MUST be an empty index.
+
+Supports: 792a7d1f.
+
+##### 792b24c8a Scenarios
+
+```gherkin
+Scenario: 792b24c8a1 Chunks and notes are ranked together
+  Given a note and a chunk that both match
+  When a query runs with the chunk index
+  Then both appear, the chunk with kind chunk and the note with kind fact
+
+Scenario: 792b24c8a2 Without a chunk index only notes are returned
+  Given no chunk index directory
+  When a query runs
+  Then the payload is that of the vault alone
+```
+
+#### 792b24c9 Clusters
+
+Requirement: 792b24c9 The query-engine MUST cluster the matched set once with the similarity-clustering
+(792b19c4) for 2 to 7 clusters and a floor of 0.10, seeded from the FNV-1a hash of the phrases joined
+by line breaks, so that the same vault and phrases give the same clusters. When no clustering is found,
+or it fails, the whole set MUST be one cluster, its centroid the mean of the members' vectors and its
+silhouette 0. It MUST report for each cluster the mean per-point silhouette (792b19c5) of its members,
+list its members by score, highest first, with ties kept in order, and mark as representative the
+member whose vector is closest to the centroid, ties going to the higher score and then to the lower
+path. An empty matched set MUST give no clusters.
+
+Supports: 792a7g1a, 792a7g1b, 792a7g1c, 792a7g1d.
+
+Rationale: clustering the union once, not per phrase, keeps the number of clusters small, and the seed
+from the phrases removes run-to-run variation (the former invariant C1).
+
+##### 792b24c9a Scenarios
+
+```gherkin
+Scenario: 792b24c9a1 The number of clusters stays in range
+  Given any vault of one to 30 notes and a phrase
+  When a query runs
+  Then clusters_found is between 0 and 7
+
+Scenario: 792b24c9a2 The same query gives the same payload
+  Given a generated vault with at least six matches and a phrase
+  When a query runs twice
+  Then both payloads are byte for byte identical and have at least one cluster
+
+Scenario: 792b24c9a3 Ties for the representative are broken
+  Given two members at the same distance from the centroid
+  When the representative is chosen
+  Then the higher-scoring member wins, and on equal scores the lower path
+```
+
+#### 792b24c10 Candidate notes
+
+Requirement: 792b24c10 The query-engine MUST give each cluster that has note members a `candidate_l2s`
+list of at most five of those notes, ordered by the higher of the cosines between the cluster's
+centroid and each note's situation and body vectors, highest first, ties by path, each with its
+`path`, `cosine` and `content`. It MUST list no chunk, no note from another cluster and no explore or
+superseding note, and a cluster with no note has none.
+
+Supports: 792a7h1a, 792a7h1b, 792a7h1c.
+
+##### 792b24c10a Scenarios
+
+```gherkin
+Scenario: 792b24c10a1 Chunk clusters carry candidates with inline content
+  Given a note about linting and eight chunks in two neighbourhoods
+  When a query runs for "linter conventions"
+  Then at least one cluster has candidate_l2s, and one candidate carries the note's content
+
+Scenario: 792b24c10a2 A near-duplicate of the centroid has a high cosine
+  Given 1 to 6 notes exactly at the query vector and one note within 0.3 of it on another axis
+  When a query runs
+  Then every cluster's first candidate has cosine at least 0.95
+```
+
+#### 792b24c11 Item order
+
+Requirement: 792b24c11 The query-engine MUST order the direct matches that are notes by the number of
+their provenances, then by the highest rank among them, `trigger` 4, `direct` 3, `cluster_rep` 2 and any
+other 0 (no path of a query gives an item `cluster_rep`, 792d96), then by score, and MUST add a provenance to an item at most once. In `items` the matched notes
+MUST be followed by the notes that ride along (792b24c17), the explore notes (792b24c16), the matched
+chunks by score, the recent chunks (792b24c19), with the trigger hits moved to the front (792b22c4).
+
+Supports: 792a7d1f, 792a7m1a, 792a7n1a, 792a7o1a.
+
+##### 792b24c11a Scenarios
+
+```gherkin
+Scenario Outline: 792b24c11a1 The rank of a role
+  Given the role <role>
+  When its rank is read
+  Then it is <rank>
+
+  Examples:
+    | role         | rank |
+    | trigger      | 4    |
+    | direct       | 3    |
+    | cluster_rep  | 2    |
+    | anything else | 0   |
+
+Scenario: 792b24c11a2 More provenances sort first, then rank, then score
+  Given items with two roles and one role, with equal counts and ranks, and with equal both
+  When they are compared
+  Then the item with more provenances precedes, then the one with the higher rank, then the higher score
+
+Scenario: 792b24c11a3 A provenance is added once
+  Given an item that already has the provenance direct
+  When direct is added again, and when cluster_rep is added
+  Then it keeps direct once and gains cluster_rep
+```
+
+#### 792b24c12 Project filter
+
+Requirement: 792b24c12 When a project is requested the query-engine MUST drop each matched note whose
+content, read as LF, has no frontmatter or has no `project:` line equal to it, the line being at the
+start of a line inside the frontmatter and its slug made of lowercase letters, digits and hyphens, and
+MUST NOT drop anything when no project is requested. The filter MUST apply only to the matched notes
+before the superseding, explore, chunk and recent items are added.
+
+Supports: 792a7u1a, 792a7u1b, 792a7u1c.
+
+##### 792b24c12a Scenarios
+
+```gherkin
+Scenario: 792b24c12a1 A body mention does not match
+  Given a note with project: alpha only in its body
+  When the project alpha is requested
+  Then the note is dropped
+
+Scenario: 792b24c12a2 Notes of other projects are dropped
+  Given notes with project: alpha and project: beta
+  When the project alpha is requested
+  Then only the alpha note remains
+
+Scenario: 792b24c12a3 No project keeps everything
+  Given matched notes of several projects
+  When no project is requested
+  Then all remain
+
+Scenario: 792b24c12a4 Only the frontmatter is read
+  Given a note whose body repeats a project line after the closing fence
+  When the project is tested
+  Then only the frontmatter line counts
+
+Scenario: 792b24c12a5 A full query is restricted
+  Given notes of two projects
+  When the user runs engram query --project alpha
+  Then the items hold only the alpha notes among the matched notes
+
+Scenario: 792b24c12a6 A CRLF note's project is read
+  Given a note whose lines end in \r\n and whose project is widgets
+  When the project widgets is tested
+  Then the note matches
+```
+
+#### 792b24c13 Explore budget and allocation
+
+Requirement: 792b24c13 The query-engine MUST size the explore half as the number of distinct notes among
+the matched notes after the project filter, and MUST skip it when that is zero or when
+`vocab.centroids.json` is absent, unreadable or has no terms, returning an empty allocation. Otherwise it
+MUST divide the budget among the file's terms by the softmax of the cosine between the mean of the
+phrases' vectors and each term's centroid, divided by 0.106, after adding 0.05 once to the cosine of
+each term that has a member among the matched notes, giving each term the floor of its share and the
+remainder, one each, to the terms with the largest fractional parts, ties by higher cosine and then by
+name, so that the allocation always sums to the budget.
+
+Supports: 792a7i1a, 792a7i1b, 792a7i1c, 792a7j1a, 792a7j1b, 792a7j1c.
+
+##### 792b24c13a Scenarios
+
+```gherkin
+Scenario: 792b24c13a1 The allocation adds up
+  Given any set of terms, temperature and budget
+  When the budget is allocated
+  Then the allocations sum to the budget
+
+Scenario: 792b24c13a2 Nearer terms get at least as much
+  Given terms with cosines 0.95 and 0.40
+  When the budget is allocated
+  Then the nearer term's allocation is at least the other's
+
+Scenario: 792b24c13a3 Nearness never reverses
+  Given any two terms whose cosines differ
+  When the budget is allocated
+  Then the nearer term never receives less
+
+Scenario: 792b24c13a4 No terms or no budget give nothing
+  Given no terms, or a budget of zero
+  When the budget is allocated
+  Then the allocation is empty
+
+Scenario: 792b24c13a5 Evidence adds a flat bonus
+  Given a term with one member among the matched notes and a term with three
+  When the bonus is applied
+  Then each has the bonus once, and the other terms none
+
+Scenario: 792b24c13a6 Evidence can lift a distant term
+  Given a term at the vault's median cosine with a member among the matches and a term half a bonus above it with none
+  When the bonus is applied
+  Then the first ranks above the second
+
+Scenario: 792b24c13a7 The bonus never reorders unevidenced terms
+  Given any two terms with no member among the matches
+  When the bonus is applied
+  Then their order is unchanged
+
+Scenario: 792b24c13a8 Members among the matches are found
+  Given terms whose members include a matched note
+  When the evidence is read
+  Then only those terms are marked
+```
+
+#### 792b24c14 Picking a term's core
+
+Requirement: 792b24c14 The query-engine MUST rank a term's member notes by the cosine between each
+note's body vector and the term's centroid, highest first, ties by path, and pick the first as many as
+the term was allocated, all of them when there are fewer, none for an allocation of zero or no members.
+A member MUST be a note tagged `vocab/<term>` that is not a definition note or a question note and
+has a vector, and a note with several terms MUST be a member of each.
+
+Supports: 792a7k1a, 792a7k1b.
+
+##### 792b24c14a Scenarios
+
+```gherkin
+Scenario: 792b24c14a1 The core comes first
+  Given members at cosines 0.99, 0.9 and 0.3 to the centroid and an allocation of 2
+  When the picks are made
+  Then they are the 0.99 and 0.9 members
+
+Scenario: 792b24c14a2 An allocation above the members returns them all
+  Given one member and an allocation of 5
+  When the picks are made
+  Then the one member is returned
+
+Scenario: 792b24c14a3 An allocation of zero picks nothing
+  Given members and an allocation of 0
+  When the picks are made
+  Then the result is empty
+
+Scenario: 792b24c14a4 Definitions and vectorless members are left out
+  Given a definition note and a note with no vector among a term's members
+  When the explore half is computed
+  Then neither is picked
+```
+
+#### 792b24c15 Dedupe and backfill
+
+Requirement: 792b24c15 The query-engine MUST fill each term's allocation from its own ranked members in
+order of the cosines, skipping a note that is among the matched notes or that another term already
+picked, and MUST then sweep the terms again in that order, taking one note at a time from whichever
+still has candidates, until the budget is met or none remain.
+
+Supports: 792a7l1a, 792a7l1b, 792a7l1c.
+
+##### 792b24c15a Scenarios
+
+```gherkin
+Scenario: 792b24c15a1 A note under two terms is picked once
+  Given a note that is the nearest member of two allocated terms
+  When the picks are made
+  Then it is picked under one term only, and the other term takes its next member
+
+Scenario: 792b24c15a2 A matched note is replaced
+  Given a pick that is among the matched notes and another term with an unpicked member
+  When the picks are made
+  Then the pick is dropped and the slot is filled from the other term
+
+Scenario: 792b24c15a3 Too few candidates leave the budget unmet
+  Given fewer eligible notes than the budget
+  When the picks are made
+  Then every eligible note is picked and the result is shorter than the budget
+```
+
+#### 792b24c16 Delivering the explore half
+
+Requirement: 792b24c16 The query-engine MUST deliver each explore pick as an item with provenance
+`explore`, its term as `source_term`, its cosine to the term's centroid as score and content, after the
+matched notes and the notes that ride along and before the matched chunks, and MUST report the
+allocation as the number delivered for each term.
+
+Supports: 792a7i1a, 792a7i1b, 792a7m1a, 792a7m1b, 792a7m1c.
+
+##### 792b24c16a Scenarios
+
+```gherkin
+Scenario: 792b24c16a1 A member outside the matches is delivered
+  Given a term whose member is not among the matched notes
+  When the explore half is computed
+  Then the member is delivered under that term with its cosine
+
+Scenario: 792b24c16a2 A zero budget delivers nothing
+  Given a budget of 0
+  When the explore half is computed
+  Then there are no picks and the allocation is {}
+
+Scenario: 792b24c16a3 A full query delivers an explore note
+  Given a vault with a term and a member orthogonal to the query
+  When a query runs
+  Then the member is an item with provenance explore and its source term, and the budget reports it
+
+Scenario: 792b24c16a4 Missing centroids leave only the matches
+  Given no vocab.centroids.json
+  When a query runs
+  Then no item is an explore item and explore_allocated is {}
+```
+
+#### 792b24c17 Superseding notes
+
+Requirement: 792b24c17 The query-engine MUST read, in one pass over every usable note, the notes that
+supersede each other from the `supersedes:` lists of their frontmatter, and MUST insert each note that
+supersedes a matched note directly after it with provenance `ride_along` and score 0 and its content, in
+the order listed, unless it is already among the items or is not a usable note. It MUST examine only
+the matched notes, not chunks, recent chunks or notes it inserted, and MUST change nothing when no note
+supersedes another.
+
+Supports: 792a7n1a, 792a7n1b, 792a7n1c, 792a7n1d.
+
+##### 792b24c17a Scenarios
+
+```gherkin
+Scenario: 792b24c17a1 No superseding notes changes nothing
+  Given a vault with no supersedes lists
+  When the ride-along is applied
+  Then the items are unchanged
+
+Scenario: 792b24c17a2 The newer note follows the older one
+  Given a matched note P and a note N that supersedes it
+  When the ride-along is applied
+  Then N follows P with provenance ride_along
+
+Scenario: 792b24c17a3 A note already present is not inserted again
+  Given N already among the items
+  When the ride-along is applied
+  Then N appears once
+
+Scenario: 792b24c17a4 A missing superseder is skipped
+  Given a superseder that is not a usable note
+  When the ride-along is applied
+  Then nothing is inserted
+
+Scenario: 792b24c17a5 Several superseders are all inserted
+  Given two notes that supersede P
+  When the ride-along is applied
+  Then both follow P in order
+
+Scenario: 792b24c17a6 The inverse of the supersedes lists is built
+  Given notes whose supersedes lists name older notes
+  When the inverse is built
+  Then each older note maps to its superseders
+```
+
+#### 792b24c18 The metadata pass
+
+Requirement: 792b24c18 The query-engine MUST read, from each usable note's frontmatter read as its LF
+form, the `vocab/<term>` entries of `tags:`, in block or inline form, ignoring the bare `vocab` entry and
+every other tag, the `supersedes:` entries, and the `triggers:` (792b22c1), and MUST index the notes by
+term for the explore half, leaving out question notes. A frontmatter that is absent or does not parse
+MUST give nothing. A vault with no terms and no supersedes lists MUST give empty indexes.
+
+Supports: 792a7zg1g, 792a7k1a.
+
+##### 792b24c18a Scenarios
+
+```gherkin
+Scenario: 792b24c18a1 The bare vocab tag contributes no term
+  Given a definition note tagged [vocab]
+  When the metadata is read
+  Then it contributes no term
+
+Scenario: 792b24c18a2 The term index and the inverse are built
+  Given notes tagged with terms and a note that supersedes another
+  When the vault is read
+  Then the term index lists each term's members with their vectors, and the inverse maps the older note to its superseder
+
+Scenario: 792b24c18a3 Only vocab terms are indexed
+  Given a note tagged [work-kind/review, vocab/a, vocab/b]
+  When the metadata is read
+  Then the terms are a and b
+
+Scenario: 792b24c18a4 A vault without vocabulary has empty indexes
+  Given notes with no vocab tags and no supersedes
+  When the vault is read
+  Then the indexes are empty
+
+Scenario: 792b24c18a5 A block-style tags list is read
+  Given a note whose tags are written one per line
+  When the frontmatter is parsed
+  Then the vocab terms are found
+
+Scenario: 792b24c18a6 A note without frontmatter gives nothing
+  Given a text with no frontmatter
+  When the frontmatter is parsed
+  Then the result is empty
+
+Scenario: 792b24c18a7 Supersedes entries are parsed
+  Given a note with a supersedes list
+  When the frontmatter is parsed
+  Then each entry has its note, type and claim
+
+Scenario: 792b24c18a8 A CRLF note is parsed as LF
+  Given a note whose lines end in \r\n and which has tags and supersedes lists
+  When the frontmatter is parsed
+  Then the lists are read as for the LF note
+```
+
+#### 792b24c19 The newest chunks
+
+Requirement: 792b24c19 The query-engine MUST append the newest chunks (792b21c5) up to the recent-fill
+count, skipping chunks that are matched, with provenance `recent` and score 0, outside every cluster.
+The count MUST be 25 when the flag is zero, the flag's value when positive and none when negative. All
+chunks MUST be returned when there are fewer than the count.
+
+Supports: 792a7o1a, 792a7o1b, 792a7o1c, 792a7o1d, 792a7o1e.
+
+##### 792b24c19a Scenarios
+
+```gherkin
+Scenario: 792b24c19a1 Recent chunks follow the matches with provenance recent
+  Given a chunk index of chunks of different ages
+  When a query runs
+  Then the newest unmatched chunks follow with provenance recent
+
+Scenario: 792b24c19a2 Recent chunks are in no cluster
+  Given a payload with recent chunks
+  When its clusters are read
+  Then no recent chunk is a member
+
+Scenario: 792b24c19a3 A matched chunk is not repeated
+  Given a chunk that is both matched and among the newest
+  When a query runs
+  Then it appears once
+
+Scenario: 792b24c19a4 Fewer chunks than the count are all returned
+  Given three chunks and the default count
+  When a query runs
+  Then all three are returned
+
+Scenario Outline: 792b24c19a5 The count resolves
+  Given the flag value <flag>
+  When the count is resolved
+  Then it is <count>
+
+  Examples:
+    | flag | count |
+    | 0    | 25    |
+    | 5    | 5     |
+    | -1   | 0     |
+```
+
+#### 792b24c20 A query writes nothing
+
+Requirement: 792b24c20 The query-engine MUST NOT write or change any file and MUST NOT put an `activated`
+field on any item.
+
+Supports: 792a7zh1a.
+
+##### 792b24c20a Scenarios
+
+```gherkin
+Scenario: 792b24c20a1 No item is activated and no sidecar changes
+  Given a high-cosine note and a low-cosine note with sidecars
+  When a query runs
+  Then no item has an activated field and the sidecar files are unchanged
+```
+
+#### 792b24c21 The refit flag
+
+Requirement: 792b24c21 The query-engine MUST report a pending refit when `vocab.centroids.json` records one
+and MUST report none when the file is absent or does not parse.
+
+Supports: 792a7zd1a, 792a7zd1b.
+
+##### 792b24c21a Scenarios
+
+```gherkin
+Scenario: 792b24c21a1 A pending refit is read from the centroids file
+  Given a centroids file with refit_pending true
+  When a query runs
+  Then the payload has refit_pending: true
+```
+
+#### 792b24c22 A note is found by its situation
+
+Requirement: 792b24c22 A note whose embedded text is S MUST be returned by a query for the phrase S, with
+a cosine of 1.
+
+Supports: 792a7d1h.
+
+Rationale: learn and recall are inverse over the situation field, so what was written for a situation
+is found by asking for it (the former invariant R1).
+
+##### 792b24c22a Scenarios
+
+```gherkin
+Scenario: 792b24c22a1 A note is returned for its own situation
+  Given several notes whose body is their situation
+  When a query runs with one situation as the phrase
+  Then that note is among the items with cosine 1
+```
+
+#### 792b24c23 Searching chunks alone
+
+Requirement: 792b24c23 For `query-chunks` the query-engine MUST fail with
+`query chunks: at least one --phrase is required` when given no phrase, MUST read every index file
+(792b18c12) and fail, wrapping the cause, when one cannot be listed, read or decoded, and MUST return an
+empty payload with `total_chunks: 0` and without embedding when the index holds no chunk. Otherwise it
+MUST score each chunk by its highest cosine over the phrases, rank by score, keep the first `limit`
+(20 when zero), and print `version: 1`, `space: chunks`, the phrases, the items, the clusters of the
+returned chunks, found by the similarity-clustering for 2 to 7 clusters, a floor of 0.10 and the seed 1,
+when there are at least six, and the budget `total_chunks` and `returned`.
+
+Supports: 792a7zf1a, 792a7zf1b, 792a7zf1c, 792a7zf1d, 792a7zf1e.
+
+##### 792b24c23a Scenarios
+
+```gherkin
+Scenario: 792b24c23a1 Chunks are ranked by cosine
+  Given a chunk index of chunks with different cosines to the phrase
+  When a chunk query runs
+  Then the items are in descending score order
+
+Scenario: 792b24c23a2 The limit is honoured
+  Given ten chunks and a limit of 3
+  When a chunk query runs
+  Then three items are returned
+
+Scenario: 792b24c23a3 Many chunks are clustered
+  Given enough chunks in two neighbourhoods
+  When a chunk query runs
+  Then the output has clusters
+
+Scenario: 792b24c23a4 A phrase is required
+  Given no phrase
+  When a chunk query runs
+  Then it fails
+
+Scenario: 792b24c23a5 An empty index is an empty payload
+  Given an index with no chunks
+  When a chunk query runs
+  Then total_chunks is 0
+
+Scenario: 792b24c23a6 A missing chunk directory is an empty index
+  Given a chunk directory that does not exist
+  When a chunk query runs
+  Then total_chunks is 0
+
+Scenario: 792b24c23a7 A malformed index is an error
+  Given an index file that does not decode
+  When a chunk query runs
+  Then it fails
+```
+
+#### 792b24c24 Stage readings
+
+Requirement: 792b24c24 When timing is on, the query-engine MUST read the injected clock at the start of the
+query and at the end of its scan, embed, cluster and nominate stages, the scan stage ending when the
+notes, sidecars and chunk index have been read, the embed stage when the phrases are embedded and the
+matches found, the cluster stage when the matched set is clustered, and the nominate stage when the
+explore half, the ride-alongs, the chunks and the recent chunks have been assembled, and MUST use the
+reading that ends the scan stage as the time for recency. It MUST NOT read the clock for timing
+otherwise.
+
+Supports: 792a7ze1a.
+
+##### 792b24c24a Scenarios
+
+```gherkin
+Scenario: 792b24c24a1 Each stage ends with a reading
+  Given timing on and a clock that advances between readings
+  When a query runs
+  Then each of scan_ms, embed_ms, cluster_ms and nominate_ms is the gap between its stage's readings
+```
+
+### 792b24d Product-Scenario Mapping
+
+| Product scenario | Technical requirements |
+| --- | --- |
+| 792a3t1a | 792b24c7 |
+| 792a7a1a | 792b24c1 |
+| 792a7a1b | 792b24c1 |
+| 792a7b1a | 792b24c1 |
+| 792a7b1c | 792b24c3 |
+| 792a7c1a | 792b24c2 |
+| 792a7c1b | 792b24c2 |
+| 792a7c1c | 792b24c2 |
+| 792a7d1a | 792b24c3 |
+| 792a7d1b | 792b24c5 |
+| 792a7d1c | 792b24c5 |
+| 792a7d1d | 792b24c5 |
+| 792a7d1e | 792b24c5 |
+| 792a7d1f | 792b24c8, 792b24c11 |
+| 792a7d1g | 792b24c6 |
+| 792a7d1h | 792b24c22 |
+| 792a7e1a | 792b24c6 |
+| 792a7e1b | 792b24c6 |
+| 792a7e1c | 792b24c6 |
+| 792a7e1d | 792b24c6 |
+| 792a7f1a | 792b24c4 |
+| 792a7f1b | 792b24c3 |
+| 792a7f1c | 792b24c4 |
+| 792a7f1e | 792b24c4 |
+| 792a7g1a | 792b24c9 |
+| 792a7g1b | 792b24c9 |
+| 792a7g1c | 792b24c9 |
+| 792a7g1d | 792b24c9 |
+| 792a7h1a | 792b24c10 |
+| 792a7h1b | 792b24c10 |
+| 792a7h1c | 792b24c10 |
+| 792a7i1a | 792b24c13, 792b24c16 |
+| 792a7i1b | 792b24c13, 792b24c16 |
+| 792a7i1c | 792b24c13 |
+| 792a7i1d | 792b24c15 |
+| 792a7j1a | 792b24c13 |
+| 792a7j1b | 792b24c13 |
+| 792a7j1c | 792b24c13 |
+| 792a7k1a | 792b24c7, 792b24c14, 792b24c18 |
+| 792a7k1b | 792b24c14 |
+| 792a7l1a | 792b24c15 |
+| 792a7l1b | 792b24c15 |
+| 792a7l1c | 792b24c15 |
+| 792a7m1a | 792b24c11, 792b24c16 |
+| 792a7m1b | 792b24c16 |
+| 792a7m1c | 792b24c16 |
+| 792a7n1a | 792b24c11, 792b24c17 |
+| 792a7n1b | 792b24c17 |
+| 792a7n1c | 792b24c17 |
+| 792a7n1d | 792b24c17 |
+| 792a7o1a | 792b24c11, 792b24c19 |
+| 792a7o1b | 792b24c19 |
+| 792a7o1c | 792b24c19 |
+| 792a7o1d | 792b24c19 |
+| 792a7o1e | 792b24c19 |
+| 792a7q1a | 792b24c1 |
+| 792a7u1a | 792b24c12 |
+| 792a7u1b | 792b24c12 |
+| 792a7u1c | 792b24c12 |
+| 792a7v1a | 792b24c3 |
+| 792a7v1b | 792b24c3, 792b24c10 |
+| 792a7v1c | 792b24c3 |
+| 792a7zd1a | 792b24c21 |
+| 792a7zd1b | 792b24c21 |
+| 792a7ze1a | 792b24c24 |
+| 792a7zf1a | 792b24c23 |
+| 792a7zf1b | 792b24c23 |
+| 792a7zf1c | 792b24c23 |
+| 792a7zf1d | 792b24c23 |
+| 792a7zf1e | 792b24c23 |
+| 792a7zg1a | 792b24c12 |
+| 792a7zg1c | 792b24c20 |
+| 792a7zg1g | 792b24c18 |
+| 792a7zh1a | 792b24c20 |
+
+```gherkin
+Scenario: 792a7a1a A query with nothing to search for fails
+  Given any vault
+  When the user runs engram query with no --phrase and no --text, or with --text "   "
+  Then it fails with "query: empty query string" and exits non-zero
+
+Scenario: 792a7a1b Several phrases are searched together
+  Given a vault holding a note about Go tests and a chunk about baking
+  When the user runs engram query --phrase "writing Go tests" --phrase "how to bake sourdough bread"
+  Then the payload's phrases lists both phrases in order, and its items hold the note and the chunk
+
+Scenario: 792a7b1c Wikilinks are flattened in the content
+  Given a matched note whose body contains [[1.target]] and [[2.other|the other note]]
+  When the user runs engram query with a phrase that matches it
+  Then its content contains 1.target and the other note, and no [[
+
+Scenario: 792a7d1b An item below the floor is dropped
+  Given a note and a chunk whose cosine to the phrase is below 0.25
+  When the user runs engram query with that phrase
+  Then neither appears among the direct matches
+
+Scenario: 792a7d1c Only the best 30 of a phrase are kept
+  Given a phrase that 40 chunks match above the floor
+  When the user runs engram query with it
+  Then 30 of them are direct matches, the 30 with the highest scores
+
+Scenario: 792a7d1d An item keeps its best score across phrases
+  Given a note that scores 0.4 for one phrase and 0.7 for another
+  When the user runs engram query with both phrases
+  Then the note appears once, scored 0.7
+
+Scenario: 792a7d1e The matched set is capped at 300
+  Given twelve phrases that each match 30 different chunks above the floor
+  When the user runs engram query with them
+  Then 300 matched items are clustered, the 300 with the highest scores
+
+Scenario: 792a7d1f Notes and chunks compete in one list
+  Given a vault note and an indexed chunk that match the phrase
+  When the user runs engram query with that phrase
+  Then both appear, the note first
+
+Scenario: 792a7d1h A note is found by its own situation
+  Given several notes whose body text is their situation
+  When the user runs engram query with one note's situation as the phrase
+  Then that note is among the items, with cosine 1
+
+Scenario: 792a7e1a A relevant note survives a flood of chunks
+  Given a phrase that matches 30 or more chunks above a note that scores 0.4 for it
+  When the user runs engram query with that phrase
+  Then the note appears among the results, in place of the lowest-scoring chunk
+
+Scenario: 792a7e1b A note below the floor is not promoted
+  Given a phrase that matches 30 or more chunks, and a note that scores 0.2 for it
+  When the user runs engram query with that phrase
+  Then the note is not among the results
+
+Scenario: 792a7e1c Several notes share the reserved slots
+  Given a phrase that 40 chunks match above seven notes that each score above 0.25
+  When the user runs engram query with that phrase
+  Then five of the notes appear, the five with the highest scores
+
+Scenario: 792a7f1c The floor ignores the scaling
+  Given a chunk first indexed 120 days ago whose cosine to the phrase is 0.53
+  When the user runs engram query with that phrase
+  Then the chunk is a direct match, scored about 0.13
+
+Scenario: 792a7g1c Nothing matched means no clusters
+  Given a vault with no note above the floor
+  When the user runs engram query with a phrase
+  Then clusters is empty
+
+Scenario: 792a7h1a Candidates are the cluster's nearest notes
+  Given a cluster of seven notes and three chunks
+  When the user runs engram query with a phrase that matches them
+  Then candidate_l2s lists five of the notes, ordered by cosine to the centroid, and no chunk
+
+Scenario: 792a7h1b A cluster of chunks has no candidates
+  Given a cluster whose members are all chunks
+  When the user runs engram query with a phrase that matches them
+  Then that cluster has no candidate_l2s
+
+Scenario: 792a7h1c A small cluster lists all its notes
+  Given a cluster of three notes
+  When the user runs engram query with a phrase that matches them
+  Then candidate_l2s lists all three
+
+Scenario: 792a7i1a The halves are equal on a healthy vault
+  Given a bootstrapped vault with enough notes
+  When the user runs engram query with a phrase that matches two notes
+  Then the payload holds those two notes and two explore notes
+
+Scenario: 792a7i1b Missing centroids leave only the matches
+  Given a vault whose vocab.centroids.json is absent or unreadable
+  When the user runs engram query with a phrase that matches notes
+  Then no item has provenance explore and the budget's explore_allocated is {}
+
+Scenario: 792a7i1c No matched note means no explore half
+  Given a vault whose only matches are chunks
+  When the user runs engram query with a phrase
+  Then no item has provenance explore and explore_allocated is {}
+
+Scenario: 792a7i1d A small vault shortens the explore half
+  Given a vault whose notes are all in the exploit half
+  When the user runs engram query with a phrase
+  Then the explore half is smaller than the exploit half and explore_allocated sums to the number delivered
+
+Scenario: 792a7j1a Nearer terms sample more
+  Given two terms, one with a centroid nearer the query
+  When the explore budget is divided
+  Then the nearer term's allocation is at least the other's, and together they equal the budget
+
+Scenario: 792a7j1b Evidence lifts a distant term
+  Given a distant term with one member in the exploit half and an equally distant term with none
+  When the explore budget is divided
+  Then the term with a member is allocated more
+
+Scenario: 792a7j1c The bonus does not stack
+  Given two terms of equal distance, one with one member in the exploit half and one with three
+  When the explore budget is divided
+  Then the two are allocated the same
+
+Scenario: 792a7k1a The core outranks the fringe
+  Given a term with five member notes and an allocation of two
+  When the explore notes are picked
+  Then they are the two members closest to the term's centroid
+
+Scenario: 792a7l1a A duplicate is replaced
+  Given an explore pick that is already in the exploit half, and other terms with unpicked members
+  When the explore notes are picked
+  Then the duplicate is dropped and its slot is filled from the next term in allocation order
+
+Scenario: 792a7l1b A note under two terms is picked once
+  Given a note that is the nearest member of two allocated terms
+  When the explore notes are picked
+  Then it appears once
+
+Scenario: 792a7l1c Exhausted candidates leave the budget unmet
+  Given fewer eligible notes than the explore budget
+  When the explore notes are picked
+  Then every eligible note is picked and the half is smaller than its budget
+
+Scenario: 792a7m1b Explore notes are outside the clusters
+  Given a payload with an explore note
+  When its clusters are read
+  Then the explore note is not a member of any cluster and not in any candidate_l2s
+
+Scenario: 792a7n1a The newer note follows the older one
+  Given a note P matched by the phrase, and a note N that supersedes P but does not match
+  When the user runs engram query with that phrase
+  Then N is the item directly after P, with provenance ride_along and score 0
+
+Scenario: 792a7n1b A note already present is not inserted again
+  Given both P and N matched
+  When the user runs engram query with a phrase that matches them
+  Then N appears once
+
+Scenario: 792a7n1c Several superseders are all inserted
+  Given two notes N1 and N2 that both supersede P
+  When the user runs engram query with a phrase that matches P
+  Then N1 and N2 follow P in order
+
+Scenario: 792a7n1d A missing superseder is skipped
+  Given a note P whose superseder has no usable sidecar
+  When the user runs engram query with a phrase that matches P
+  Then no item is inserted and the query succeeds
+
+Scenario: 792a7o1b A matched chunk is not repeated
+  Given a chunk that is both matched and among the newest
+  When the user runs engram query with a phrase that matches it
+  Then it appears once, with provenance direct
+
+Scenario: 792a7o1d A negative count turns the channel off
+  Given a chunk index of three chunks
+  When the user runs engram query --recent-fill=-1
+  Then no item has provenance recent
+
+Scenario: 792a7o1e Zero means the default
+  Given a chunk index of three chunks
+  When the user runs engram query --recent-fill 0
+  Then all three chunks are returned as recent, as with no flag
+
+Scenario: 792a7u1a Notes of other projects are dropped
+  Given matched notes with project: alpha and project: beta
+  When the user runs engram query --project alpha
+  Then only the alpha note remains among the matched notes
+
+Scenario: 792a7u1b A body mention does not match
+  Given a matched note whose body says "project: alpha" and whose frontmatter has no project
+  When the user runs engram query --project alpha
+  Then the note is dropped
+
+Scenario: 792a7u1c No filter drops nothing
+  Given matched notes of several projects
+  When the user runs engram query with no --project
+  Then all of them are returned
+
+Scenario: 792a7v1a A runbook is returned like a fact
+  Given a runbook whose situation is close to the phrase
+  When the user runs engram query with that phrase
+  Then it appears in items with kind runbook
+
+Scenario: 792a7v1b Surfacing does not need a candidate slot
+  Given a runbook in items whose cluster's candidate_l2s does not list it
+  When the payload is read
+  Then the runbook has surfaced
+
+Scenario: 792a7v1c A runbook has no kind boost
+  Given a runbook and a feedback note whose situations are equally close to the phrase, and no trigger hit
+  When the user runs engram query with that phrase
+  Then their order follows their scores alone
+
+Scenario: 792a7zf1a Chunks are ranked by cosine
+  Given a chunk index holding a baking chunk and a networking chunk
+  When the user runs engram query-chunks --phrase "sourdough"
+  Then items lists the baking chunk first, each with source, anchor, score and content, and the budget says total_chunks: 2 and returned: 2
+
+Scenario: 792a7zf1b The limit is honoured
+  Given a chunk index of five chunks
+  When the user runs engram query-chunks --phrase p --limit 2
+  Then two items are returned and the budget says returned: 2
+
+Scenario: 792a7zf1d A phrase is required
+  Given any chunk index
+  When the user runs engram query-chunks with no phrase
+  Then it fails with "query chunks: at least one --phrase is required"
+
+Scenario: 792a7zg1a The project filter reads a CRLF note
+  Given a note with CRLF line endings and project: alpha
+  When the user runs engram query --project alpha with a phrase that matches it
+  Then the note is returned
+
+Scenario: 792a7zg1c A CRLF note is not rewritten
+  Given a note with CRLF line endings
+  When the user runs engram query with a phrase that matches it
+  Then the note's file is byte-identical afterwards
+
+Scenario: 792a7zg1g The lists in a CRLF note's frontmatter are read
+  Given a CRLF note tagged vocab/cooking, and a CRLF note that supersedes another
+  When the user runs engram query with phrases that match the term's members, and the superseded note
+  Then the tagged note can be an explore note, and the superseding note rides along
 ```

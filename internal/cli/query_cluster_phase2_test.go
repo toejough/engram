@@ -26,88 +26,12 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestCluster_FewerThanRecentFillChunks verifies invariant (c):
-// when the chunk store has fewer than defaultRecentFill (25) chunks, ALL are
-// included in items[] without error (no panic, no "fewer than N" error).
-// This exercises the boundary: n > len(candidates) path in newestChunkItems.
-func TestCluster_FewerThanRecentFillChunks(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-
-	// One L1 note so the union is non-empty.
-	queryVec := []float32{1, 0, 0, 0}
-
-	plantWithFixedVector(t, memFS, vault, "note1.ep.md",
-		"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\ncontent\n", queryVec)
-
-	baseTime := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-
-	// Plant only 3 chunks (far fewer than defaultRecentFill=25).
-	// Use orthogonal vector so they are NOT in the matched set.
-	const smallCount = 3
-
-	records := make([]chunk.Record, 0, smallCount)
-
-	for i := range smallCount {
-		records = append(records, chunk.Record{
-			Source:      "/s/small.jsonl",
-			Anchor:      fmt.Sprintf("turn-%d", i+1),
-			ContentHash: chunk.HashText(fmt.Sprintf("small chunk %d", i)),
-			Text:        fmt.Sprintf("small chunk %d", i),
-			Vector:      []float32{0, 1, 0, 0}, // orthogonal → below floor
-			IngestedAt:  baseTime.Add(time.Duration(i) * time.Hour),
-		})
-	}
-
-	data, err := chunk.EncodeRecords(records)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	memFS.files["/chunks/small.jsonl"] = data
-
-	deps := newQueryDeps(memFS)
-	deps.Embedder = fixedVectorEmbedder{modelID: "m@4", vector: queryVec}
-	deps.ListChunkIndexes = func(string) ([]string, error) {
-		return []string{"/chunks/small.jsonl"}, nil
-	}
-	deps.Now = func() time.Time { return baseTime }
-
-	var out bytes.Buffer
-
-	// Must not panic or return an error when chunk count < defaultRecentFill.
-	err = cli.RunQuery(context.Background(),
-		cli.QueryArgs{
-			Phrases:   []string{"alpha"},
-			VaultPath: vault,
-			ChunksDir: "/chunks",
-		},
-		deps, &out)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	var parsed queryParsed
-
-	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
-
-	recentCount := countRecentItems(parsed.Items)
-
-	g.Expect(recentCount).To(Equal(smallCount),
-		"with only %d chunks (< defaultRecentFill=25), all %d must appear as recent items, got %d",
-		smallCount, smallCount, recentCount)
-}
-
-// TestCluster_RecentChunksAppendedWithRecentProvenance verifies invariant
+// Test792b24c19a1_Cluster_RecentChunksAppendedWithRecentProvenance verifies invariant
 // (a): chunks NOT in the matched set (orthogonal vector — zero cosine against
 // all query phrases) still appear in items[] with provenance "recent" when they
 // are among the newest by IngestedAt. Up to defaultRecentFill (25) newest
 // un-matched chunks must be included.
-func TestCluster_RecentChunksAppendedWithRecentProvenance(t *testing.T) {
+func Test792b24c19a1_Cluster_RecentChunksAppendedWithRecentProvenance(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -188,10 +112,10 @@ func TestCluster_RecentChunksAppendedWithRecentProvenance(t *testing.T) {
 	}
 }
 
-// TestCluster_RecentChunksNotInClusterMembers verifies invariant (b):
+// Test792b24c19a2_Cluster_RecentChunksNotInClusterMembers verifies invariant (b):
 // items tagged with provenance "recent" must NOT appear in any cluster's
 // members[]. The recent channel is additive and un-clustered by design.
-func TestCluster_RecentChunksNotInClusterMembers(t *testing.T) {
+func Test792b24c19a2_Cluster_RecentChunksNotInClusterMembers(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -277,11 +201,11 @@ func TestCluster_RecentChunksNotInClusterMembers(t *testing.T) {
 	}
 }
 
-// TestCluster_RecentDeduplicatesAgainstMatchedSet verifies that chunks
+// Test792b24c19a3_Cluster_RecentDeduplicatesAgainstMatchedSet verifies that chunks
 // already in the matched set (high cosine → above matchRelevanceFloor) are NOT
 // duplicated in the recent block. A chunk that appears in the matched items[]
 // must NOT also appear as a "recent"-provenanced item.
-func TestCluster_RecentDeduplicatesAgainstMatchedSet(t *testing.T) {
+func Test792b24c19a3_Cluster_RecentDeduplicatesAgainstMatchedSet(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -350,6 +274,82 @@ func TestCluster_RecentDeduplicatesAgainstMatchedSet(t *testing.T) {
 
 	assertMatchedNotDuplicated(g, parsed.Items, "/s/chunks.jsonl#turn-1")
 	assertRecentPresent(g, parsed.Items, "/s/chunks.jsonl#turn-2")
+}
+
+// Test792b24c19a4_Cluster_FewerThanRecentFillChunks verifies invariant (c):
+// when the chunk store has fewer than defaultRecentFill (25) chunks, ALL are
+// included in items[] without error (no panic, no "fewer than N" error).
+// This exercises the boundary: n > len(candidates) path in newestChunkItems.
+func Test792b24c19a4_Cluster_FewerThanRecentFillChunks(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	// One L1 note so the union is non-empty.
+	queryVec := []float32{1, 0, 0, 0}
+
+	plantWithFixedVector(t, memFS, vault, "note1.ep.md",
+		"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\ncontent\n", queryVec)
+
+	baseTime := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	// Plant only 3 chunks (far fewer than defaultRecentFill=25).
+	// Use orthogonal vector so they are NOT in the matched set.
+	const smallCount = 3
+
+	records := make([]chunk.Record, 0, smallCount)
+
+	for i := range smallCount {
+		records = append(records, chunk.Record{
+			Source:      "/s/small.jsonl",
+			Anchor:      fmt.Sprintf("turn-%d", i+1),
+			ContentHash: chunk.HashText(fmt.Sprintf("small chunk %d", i)),
+			Text:        fmt.Sprintf("small chunk %d", i),
+			Vector:      []float32{0, 1, 0, 0}, // orthogonal → below floor
+			IngestedAt:  baseTime.Add(time.Duration(i) * time.Hour),
+		})
+	}
+
+	data, err := chunk.EncodeRecords(records)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	memFS.files["/chunks/small.jsonl"] = data
+
+	deps := newQueryDeps(memFS)
+	deps.Embedder = fixedVectorEmbedder{modelID: "m@4", vector: queryVec}
+	deps.ListChunkIndexes = func(string) ([]string, error) {
+		return []string{"/chunks/small.jsonl"}, nil
+	}
+	deps.Now = func() time.Time { return baseTime }
+
+	var out bytes.Buffer
+
+	// Must not panic or return an error when chunk count < defaultRecentFill.
+	err = cli.RunQuery(context.Background(),
+		cli.QueryArgs{
+			Phrases:   []string{"alpha"},
+			VaultPath: vault,
+			ChunksDir: "/chunks",
+		},
+		deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var parsed queryParsed
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+
+	recentCount := countRecentItems(parsed.Items)
+
+	g.Expect(recentCount).To(Equal(smallCount),
+		"with only %d chunks (< defaultRecentFill=25), all %d must appear as recent items, got %d",
+		smallCount, smallCount, recentCount)
 }
 
 // assertMatchedNotDuplicated asserts the given path appears exactly once in

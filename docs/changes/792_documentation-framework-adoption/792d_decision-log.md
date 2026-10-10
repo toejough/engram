@@ -1317,3 +1317,38 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792c3c, 792d51 and 792d52.
 - **Alternatives:** keep the cluster content in the renderer. Rejected because the clustering and the
   candidate ranking are the query-engine's choices, and the renderer only prints them.
+
+## 792d96 query-engine scope, legacy removal and the tests it leaves
+
+- **Choice:**
+  - 792b24 specifies 24 requirements: input, usable embeddings, note and chunk scoring, the matched set
+    and its floor, question notes, chunks with notes, clusters, candidate notes, item order, the project
+    filter, the explore half in four requirements, superseding notes, the metadata pass, the newest
+    chunks, the read-only rule, the refit flag, the recall mirror, the chunk-only search and the stage
+    readings. The pending-offer exclusion and its payload flag are curate's, and the merge with a parent
+    vault is parent-sync's, so their tests wait for those nodes (792d51, 792d95):
+    `TestRunQuery_ExcludesPendingSkillRunbookNote` joins the four pending-offer renderer tests in
+    curate (792c7u1).
+  - The `RunQuery` tests take technical IDs (792d52) except `TestEngramQuery_F6F91_EndToEnd`, which
+    builds the production binary, runs `engram embed apply` and `engram query` as subprocesses and
+    asserts the observable payload, so it takes the product scenario 792a7g1a. The two
+    `ListIndexes` tests of `query_chunks_test` verify the chunk-index-store's listing contract and take
+    792b18c12a1.
+  - Four tests are listed as no-scenario tests: `TestMergeClusterReps_*` in
+    `query_synthesize_l2_helpers_test`. `mergeClusterReps` is called with an empty matched set, by
+    design ("the representative is agent-decided, not binary-computed"), so no query gives an item the
+    provenance `cluster_rep` and the tests verify a path no command reaches. The rank of `cluster_rep`
+    is still specified in 792b24c11, because `provenanceRankFor` returns it.
+  - The legacy removals are ADR-0025 (deleted; its decision and consequences are 792a7i to 792a7m and
+    792b24c13 to 792b24c16), c1 Flow: recall's query mechanics (its skill steps stay for recall,
+    792c7m1), c2 Flow: recall and Flowchart: recall query pipeline, c3 K6, K8's residue, Flow: engram
+    query internals, the query payload data contract and the `learn qa` capture residue, and invariant
+    R1 (792b24c22). References to ADR-0025 in GLOSSARY, ROADMAP, ADR-0011, the taxonomy map and the
+    retrieval-probe spec point at 792a7i, 792b24 and 792b24c10.
+  - 792a7 gains scenario 792a7d1h (a note is found by its situation) for invariant R1.
+- **Divergences noted (792d33):** the OpenSpec said the c3 K6 candidate list holds "ride-alongs for
+  superseded notes", but in the code they are inserted in `items`; `provenanceClusterRep` is unreachable;
+  c3's "Dead/test-only surface" paragraph is stale and is left to 792c8a.
+- **Rationale:** 792d30, 792d51, 792d52 and 792d89.
+- **Alternatives:** split the explore half into its own component. Rejected because its sampling,
+  its dedupe and its delivery are steps of one query and share its inputs.

@@ -13,8 +13,8 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestQueryProperty_ClusterCountInRange — clusters_found ∈ [0, 7] always.
-func TestQueryProperty_ClusterCountInRange(t *testing.T) {
+// Test792b24c9a1_QueryProperty_ClusterCountInRange — clusters_found ∈ [0, 7] always.
+func Test792b24c9a1_QueryProperty_ClusterCountInRange(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {

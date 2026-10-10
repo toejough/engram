@@ -13,7 +13,7 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-func TestRunQuery_ChunkClustersCarryCandidateL2s(t *testing.T) {
+func Test792b24c10a1_RunQuery_ChunkClustersCarryCandidateL2s(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -94,7 +94,7 @@ func TestRunQuery_ChunkClustersCarryCandidateL2s(t *testing.T) {
 	g.Expect(candidateContentInlined).To(BeTrue(), "O2: candidate_l2s must carry note content inline")
 }
 
-func TestRunQuery_MergesChunkAndVaultSpace(t *testing.T) {
+func Test792b24c8a1_RunQuery_MergesChunkAndVaultSpace(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -125,7 +125,7 @@ func TestRunQuery_MergesChunkAndVaultSpace(t *testing.T) {
 	g.Expect(kinds["fact"]).To(BeTrue(), "the vault note must appear too")
 }
 
-func TestRunQuery_NoChunksDirKeepsVaultOnlyBehavior(t *testing.T) {
+func Test792b24c8a2_RunQuery_NoChunksDirKeepsVaultOnlyBehavior(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 

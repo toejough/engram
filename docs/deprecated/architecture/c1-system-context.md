@@ -79,25 +79,7 @@ call passing each phrase as a separate `--phrase` flag. Recall has two rungs: th
 (read-only, ~3 phrases, no crystallization writes — cheaper per fire). Glance escalates to `deep`
 for C5 (recency-channel standards). The sequence shown is `deep`.
 
-**Channel 1 — Relevance (clustered):** the binary scores both notes and chunks
-against each phrase vector with recency bias (chunk cosine scaled by
-`IngestedAt` time-decay + turn-position; note cosine scaled by `LastUsed` decay),
-takes the top-30 per phrase — but **reserves up to `noteFloorK` (5) of those slots
-for relevance-qualified notes** (`capWithNoteFloor`) so higher-cosine chunks cannot
-fully evict a note that cleared the floor (without this, notes the embedder ranks
-top-5 in isolation fell out of the unified ranking entirely: real-path note
-recall@5 0.22 vs 0.83 isolation — 2026-06-28). It then unions across all 10
-phrases with dedup keeping max score, drops items below a **relevance floor**
-(`matchRelevanceFloor`, baseScore < 0.25), and caps the matched set at **~300**
-(`matchSetCap`, 10×30 per phrase). This bounded matched set is the **only clustering
-input**: one AutoK pass over matched notes+chunks (D1 preserved).
-Each cluster carries `candidate_l2s: [{path, cosine, content}]` — the within-cluster top-5 notes by centroid
-cosine, and nothing else. Separately, an **explore half** samples additional notes from vocab-term
-centroids near the query (softmax allocation over per-term proximity, budget sized to the exploit-half
-note count) and delivers them as top-level `items[]` entries — never cluster members, never in
-`candidate_l2s` — carrying `provenance: explore` and `source_term`; the `explore_allocated` budget field
-(term → delivered count, always present, `{}` on missing/unreadable centroid data) reports the result.
-Superseded-note ride-alongs are inserted at the next rank. The harness then, **inline and blocking**, reads the cluster's members and candidates (plus the explore items) and applies an
+What the binary returns for those phrases (the matched set, its clusters and candidate notes, the explore half, the superseding notes, the newest chunks and the trigger hits) is [792a7](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a7-added-memory-query) and [792b24](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b24-added-query-engine). The harness then, **inline and blocking**, reads the cluster's members and candidates (plus the explore items) and applies an
 **agent-judged coverage decision**: **covered** (candidate already states the principle with no material
 omission, judged against the recency-weighted view) → `engram amend --activate --chunk-source <chunk ids>`
 (refresh recency + provenance, no content rewrite); **near** (same situation, ≥1 substantive claim omitted)
@@ -110,14 +92,6 @@ excluded from the main set. A dedicated q-space channel to surface the Q-note is
 built* — round 3 remains unlicensed (Arm V's larger-n check came back BORDERLINE; see
 `docs/ROADMAP.md` → GATED — Q&A memory round-2/3).
 
-**Channel 2 — Recency (un-clustered):** after the matched+clustered set, the
-binary appends the **newest chunks by `IngestedAt`** (`recentFillChunks`, default **25**, configurable via `--recent-fill` / `ENGRAM_RECENT_FILL`),
-deduped against the matched set and tagged `recent`. These are not added to any cluster — they are
-raw situational context so a post-context-loss agent re-encounters its own recent
-narration and recovers authorship from recency, with no separate provenance
-mechanism. Recency now applies to chunk cosine ranking too (per-chunk `IngestedAt`,
-replacing the older per-source-mtime approximation).
-
 **Activation is agent-driven:** the binary no longer emits an `activated` flag.
 After synthesis, the agent calls `engram activate` only on the notes it actually
 used (the `candidate_l2s` judged Covered/Near and any notes cited in the
@@ -125,19 +99,13 @@ Step 3 synthesis). A returned-but-unused note's `LastUsed` goes stale and fades
 by recency rank — bumping every returned note would defeat the supersede-by-competition
 mechanism. Chunks are never activated.
 
-Source: `internal/cli/query.go` (`RunQuery`, `runQuery`,
-`buildMatchedSetFromPhrases`, `buildRecentFillItems`), the recency/decay in
-`internal/cli/recency.go` (`recencyMultiplier`, `defaultRecencyParams`,
-`newestChunkItems`), `engram activate` in `internal/cli/activate.go`, `engram
-amend` in `internal/cli/amend.go`, and the `internal/cluster/` package
-(`kmeans.go`, `silhouette.go`, `autok.go`).
+Source: `engram activate` in `internal/cli/activate.go` and `engram amend` in `internal/cli/amend.go`; the query is [792b24](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b24-added-query-engine).
 
-> Three deliberate evolutions of earlier decisions, all driven by recency and
-> retrieval precision: (1) recency applies to **both notes and chunks** — per-chunk
-> `IngestedAt` (D5) replaces the per-source-mtime approximation; (2) coverage is
+> Two deliberate evolutions of earlier decisions, both driven by retrieval
+> precision: (1) coverage is
 > **agent-judged** from within-cluster nominees (D7 reversed by recall-v2
 > DECISION-2) — cosine only nominates top-5 candidates **within each cluster**;
-> the agent reads members + candidates and decides; (3) **activation is agent-driven**
+> the agent reads members + candidates and decides; (2) **activation is agent-driven**
 > (recall-v2) — the binary no longer pre-judges use; the agent activates only
 > notes it actually drew on. Consequence (intended, ACT-R): regularly-useful
 > memory stays fresh; never-retrieved memory decays and loses rank.
@@ -153,12 +121,8 @@ sequenceDiagram
     Op->>H: prompt that may need memory
     Note over H: print Step 0 (Ask, Situation, Plan), phrase exactly 10 query strings (one per fixed angle) — deep rung; glance phrases ~3
     H->>E: engram query --phrase <p1> ... --phrase <p10>
-    E->>V: scan sidecars + bodies for compatible-embed notes + chunk index
-    V-->>E: notes, chunks, and vectors
-    Note over E: per phrase — embed; top-30 per phrase (notes+chunks, recency-biased cosine), reserving up to noteFloorK=5 slots for floor-qualified notes (capWithNoteFloor); union across 10 phrases, dedup max score, drop baseScore < 0.25, cap matched set at ~300
-    Note over E: Channel 1 (Relevance): one AutoK cluster over matched notes+chunks (D1 preserved); per cluster emit candidate_l2s top-5 from within-cluster notes
-    Note over E: Channel 2 (Recency): append newest chunks by IngestedAt (recentFillChunks, default 25), deduped vs matched set, tagged recent — NOT in any cluster
-    E-->>H: single YAML payload (phrases[], items[matched+recent], clusters[candidate_l2s], budget)
+    Note over E: the query-engine (792b24) matches, clusters and samples; the renderer (792b23) shapes the payload
+    E-->>H: single YAML payload (phrases[], items, clusters[candidate_l2s], budget)
 
     Note over H: Step 2.5 — per-cluster coverage synthesis (loop below)
     loop per cluster (blocking inline) — coverage judged from matched clusters only

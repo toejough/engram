@@ -13,7 +13,7 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestProperty_Cluster_NearDuplicateL2CosineAtLeast095 locks the lazy-L2
+// Test792b24c10a2_Property_Cluster_NearDuplicateL2CosineAtLeast095 locks the lazy-L2
 // no-op band's precondition: for any vault whose only L2 is a near-duplicate of
 // the cluster centroid, the query reports candidate_l2s[0].cosine >= 0.95.
 //
@@ -22,7 +22,7 @@ import (
 // small epsilon kept under the 0.95-cosine boundary (cos = 1/sqrt(1+e^2) >=
 // 0.95 holds for e <= ~0.329; we draw e in [0, 0.3]). The binary applies no
 // band, so the raw cosine is reported and must clear the threshold.
-func TestProperty_Cluster_NearDuplicateL2CosineAtLeast095(t *testing.T) {
+func Test792b24c10a2_Property_Cluster_NearDuplicateL2CosineAtLeast095(t *testing.T) {
 	t.Parallel()
 
 	const (

@@ -76,76 +76,6 @@ The skill layer no longer reads or edits the vault directly: recall reads candid
 content via `engram show-chunk` (deferred chunk text under `--lazy-chunks`) plus the query payload (notes carry content inline), and all writes go through `engram amend` /
 `engram learn` (INV-S1 resolved — see the C1→C2 row above).
 
-### Flow: recall
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Sk as C1 recall skill
-    participant E as C2 engram CLI
-    participant Md as C3 model
-    participant V as C4 vault
-
-    Note over Sk: Step 0 — print Ask/Situation/Plan; Step 1 — phrase exactly 10 queries (one per fixed angle) — deep rung; glance phrases ~3
-    Sk->>E: shell engram query --lazy-chunks --phrase p1 … --phrase p10 (fresh process)
-    E->>V: Scan notes + load model-compatible sidecars + chunk index
-    V-->>E: notes, chunks, and vectors
-    E->>Md: embed each phrase
-    Md-->>E: query vectors
-    Note over E: build the two-channel matched set + clusters (full stage order and constants in the "recall query pipeline" flowchart below)
-    E-->>Sk: stdout YAML — items[matched+recent], clusters[].candidate_l2s {path, cosine, content} (top-5 within-cluster), budget (lazy_chunks: true → chunk items path/source-only; notes keep full content)
-    loop per cluster (BLOCKING — inline, not fire-and-forget) — coverage from matched clusters only
-        Note over Sk: read candidate_l2s + note members' content inline (no engram show)
-        opt a chunk is the sole carrier of a needed fact (rare across general recalls — notes are load-bearing; measured 0 fetches in 13/13 realistic recalls, on-target fetch when sole-source; MANDATORY exception: zero-note clusters must read all chunk members regardless of general rarity)
-            Sk->>E: shell engram show-chunk <source#anchor> (fetch deferred chunk text under --lazy-chunks)
-            E-->>Sk: chunk text
-        end
-        Note over Sk: apply recency weight; judge coverage (covered/near/absent)
-        alt covered
-            Sk->>E: shell engram amend --target <note> --activate --chunk-source (link-enrich)
-        else near
-            Sk->>E: shell engram amend --target <note> --chunk-source <content flags> (re-synthesize)
-        else absent
-            Note over Sk: invoke the write-memory skill (parents judge, worker writes)
-            Sk->>E: shell engram learn fact|feedback --chunk-source (create; via write-memory)
-        end
-        E->>V: write under flock (amend rewrites both copies + re-embeds; learn O_EXCL)
-    end
-    Note over Sk: agent calls engram activate on notes actually USED (covered/near + cited); binary emits no activated flag
-    Note over Sk: Step 3 — synthesize impact on the Step 0 plan
-```
-
-### Flowchart: recall query pipeline (C2)
-
-Companion to the sequence diagram above — the same `RunQuery` pipeline (component-level view:
-[L3](c3-components.md) `engram query` internals) rendered as a linear stage pipeline, matching the
-current constants in `internal/cli/query.go`, `internal/cli/query_vault_meta.go`, and `internal/cli/query_explore.go`.
-
-```mermaid
-flowchart TD
-    A["embed each phrase (10 deep / ~3 glance)"] --> B["per-phrase top-30: notes+chunks, recency-biased cosine"]
-    B --> C["capWithNoteFloor: reserve up to noteFloorK=5 slots for floor-qualified notes"]
-    C --> D["union across all phrases, dedup keeping max score"]
-    D --> E{"baseScore >= matchRelevanceFloor (0.25)?"}
-    E -->|no| DROP["drop"]
-    E -->|yes| F["cap matched set at matchSetCap=300"]
-    F --> G["ONE AutoK cluster over matched notes+chunks (D1)"]
-    G --> H["per cluster: candidate_l2s = within-cluster top-5 notes only (candidateNoteK)"]
-    H --> J["+ supersession ride-alongs inserted after the superseded note"]
-    G --> EX["explore half: budget B = exploit-half NOTE count; softmax(cosine(query vec, term centroid)/τ) allocation, δ=0.05 match-evidence bonus, core-first within-term selection, dedupe+backfill"]
-    EX --> EXITEMS["explore picks delivered as top-level items[] (provenance=explore, source_term) — NOT cluster members, NOT in candidate_l2s"]
-    F -.-> CH2["Channel 2: append newest chunks by IngestedAt (defaultRecentFill=25), deduped vs matched set, tagged recent — NOT clustered"]
-    J --> PAYLOAD["single YAML payload: items[matched+explore+recent], clusters[].candidate_l2s, budget.explore_allocated"]
-    EXITEMS --> PAYLOAD
-    CH2 --> PAYLOAD
-```
-
-Source: `internal/cli/query.go` (`matchRelevanceFloor`, `matchSetCap`, `noteFloorK`, `capWithNoteFloor`,
-`candidateNoteK`, `defaultRecentFill`, `applyFloorAndCap`), `internal/cli/query_vault_meta.go`
-(`AllVaultNotesMeta`, `VaultTermMember`, `applySupersedesRideAlong`), `internal/cli/query_explore.go`
-(`exploreMatchEvidenceBonus`, `exploreTemperatureDefault`, `computeExploreHalf`, `softmaxAllocate`,
-`dedupeAndBackfill`).
-
 ### Flow: learn
 
 ```mermaid
@@ -208,10 +138,10 @@ Source: `agent-instructions/skills/learn/SKILL.md` (Step 1, Step 2, Step 2.5), `
 
 Synthesis now happens at **recall**, **inline and blocking** — not at learn time and not via
 fire-and-forget subagents. There is **no `engram synthesize`**. The recall skill drives the loop —
-shown in full sequence form under "Flow: recall" above — calling `engram query` / `engram show-chunk`
+shown in full sequence form under "Flow: recall" in [L1](c1-system-context.md#flow-recall) — calling `engram query` / `engram show-chunk`
 / `engram amend` / `engram learn` as **separate processes** and making every coverage decision itself.
 Cosine only *nominates* candidate notes; the agent decides covered/near/absent. The binary never sees
-"the synthesis loop." The covered/near/absent decision (the `alt` block in Flow: recall) is shown
+"the synthesis loop." The covered/near/absent decision (the `alt` block in L1's Flow: recall) is shown
 standalone below.
 
 ### Flowchart: lazy-L2 coverage decision (C1)

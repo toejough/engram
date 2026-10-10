@@ -16,7 +16,7 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestInvariant_R1_RecallMirror locks invariant R1: a note written with
+// Test792b24c22a1_Invariant_R1_RecallMirror locks invariant R1: a note written with
 // situation S is retrievable by a query phrased as S — a purely
 // deterministic cosine match, no LLM. learn and recall are inverse over the
 // situation field. We plant several notes whose embed source IS the
@@ -24,7 +24,7 @@ import (
 // is returned in the top-k items. Because the test embedder is deterministic
 // and the note's vector equals embed(S), the self-match has cosine 1.0 and
 // must rank in items.
-func TestInvariant_R1_RecallMirror(t *testing.T) {
+func Test792b24c22a1_Invariant_R1_RecallMirror(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {

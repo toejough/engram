@@ -4,7 +4,7 @@ Decomposes **C2 · engram CLI** (from [L2](c2-containers.md)) into its Go packag
 components and the data they exchange. Reflects the current system; ⚠ = a
 verified defect, re-verified each time this doc is edited (see
 [memory-invariants](memory-invariants.md)). These component IDs are the
-vocabulary the [L3 sequence/flow diagrams](#key-flows-l3--component-internal-sequences) reuse.
+vocabulary the specs of the components (792b) reuse.
 
 ```mermaid
 flowchart TB
@@ -107,9 +107,9 @@ flowchart TB
 | ID | Component | Key functions | Responsibility | ⚠ |
 |---|---|---|---|---|
 | K1 | `internal/transcript` + `internal/context` + the chunk index (via `engram ingest`) | — | See [792b15](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b15-added-transcript-reader), [792b16](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b16-added-source-chunking), [792b17](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b17-added-ingestion-source-discovery) and [792b18](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b18-added-chunk-index-store). | — |
-| K6 | `cli/query.go` | `RunQuery`, `runQuery`, `buildMatchedSetFromPhrases`, `buildRecentFillItems`, `capWithNoteFloor`, payload assembly | Single query path: per phrase embed → top-30 (notes+chunks, recency-biased cosine), reserving up to `noteFloorK=5` of those slots for relevance-qualified notes (`capWithNoteFloor`) so higher-cosine chunks cannot fully evict a note that cleared the floor; union across 10 phrases, dedup max score, relevance floor (baseScore < 0.25), cap matched set at ~300 (`matchSetCap`); ONE AutoK cluster over matched set (D1 preserved); `candidate_l2s` = within-cluster top-5 from matched note members only, plus superseded-note ride-alongs; separately, an explore half (`internal/cli/query_explore.go`, `computeExploreHalf`) samples notes from vocab-term centroids by proximity to the query (softmax allocation, budget = exploit-half note count, δ=0.05 match-evidence bonus, core-first within-term, dedupe+backfill) and delivers them as top-level `items[]` (`provenance: explore`, `source_term`; budget: `explore_allocated`) — never cluster members, never in `candidate_l2s`; Channel 2 appends the newest chunks by IngestedAt (`recentFillChunks`, default 25, configurable via `--recent-fill` / `ENGRAM_RECENT_FILL`), deduped, tagged `recent`, not in any cluster. All notes cluster as normal notes. Optional `--text="<user message verbatim>"` (never embedded; served path caps it at 2 KB) is matched against a trigger index built in the same whole-vault meta pass (`loadAllVaultNotesMeta` → `TriggerIndex`, `type: runbook` notes' `triggers:` only, and only those with a compatible sidecar, since the index is built from that set; `internal/cli/query_triggers.go`: `matchTriggers` = case-insensitive whole-word match after whitespace collapse (`containsWholeWord`: a letter/digit edge of the trigger needs a non-letter/digit neighbor or text edge), `applyTriggerHits`); each hit is placed first in `items[]` with provenance `trigger` (rank above `direct`), exempt from the relevance floor, matched-set cap, note floor, and `--limit`; `--text` with no `--phrase` runs a trigger-only query (`runTriggerOnlyQuery`); absent `--text`, the pipeline is unchanged. Optional `--lazy-chunks` renders chunk items path/source-only (notes keep content), fetched on demand via the `show-chunk` subcommand (`cli/show_chunk.go`). | — |
+| K6 | `cli/query.go`, `cli/query_chunks.go`, `cli/query_vault_meta.go`, `cli/query_explore.go`, `cli/recency.go`, `cli/query_triggers.go`, `cli/redflags_truncation.go` | `RunQuery`, `RunChunkQuery` | See [792b24](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b24-added-query-engine), [792b21](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b21-added-recency-ranking), [792b22](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b22-added-runbook-trigger-matching) and [792b23](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b23-added-query-payload-renderer). | — |
 | K7 | `internal/vaultgraph` | `ParseWikilinks`, `BuildGraph`, `UnresolvedTargets` | The vault scan and note references are in [792b13](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b13-added-wikilink-graph). Waiting for vault-counting (792c7g1) and vault-health (792c7h1): build the directed wikilink graph (node=basename); identify unresolved links for `engram check`. | **G0** (basename-only resolution); G5 **RETIRED** (episode kind removed; `[[x]]` in chunk bodies no longer parsed as vault edges) |
-| K8 | `internal/cluster` | `KMeans`, `Silhouette`, `AutoK`, `CosineDistance` | See [792b19](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b19-added-similarity-clustering). Waiting for memory-query (792c7f1): silhouette is O(n²) per k swept, so the query bounds what it clusters — the matched set is hard-capped at `matchSetCap`=300 (10 phrases × top-30 per phrase) before clustering, and recency-channel chunks (`recentFillChunks`, default 25; `--recent-fill`) are appended un-clustered and never enter K8. | — |
+| K8 | `internal/cluster` | `KMeans`, `Silhouette`, `AutoK`, `CosineDistance` | See [792b19](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b19-added-similarity-clustering). The bound the query puts on what it clusters is [792b24c5](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b24c5-the-matched-set) and [792b24c19](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b24c19-the-newest-chunks). | — |
 | K9 | `internal/update` | `Run`, `SourceLocal/Remote`, `DeployMode` | `go install` the binary, then re-exec the freshly installed binary for the sync phase (`ENGRAM_UPDATE_REEXEC` loop guard, in-process fallback on spawn failure; ADR-0023); sync refreshed agent-instructions/{skills,commands,guidance} to per-harness engram-owned roots (`~/.claude/engram/`, etc.; ADR-0022 D1); materialize symlinks (or manifest copies for manifest-mode harnesses) at harness surface paths; clean up dangling symlinks pointing to removed artifacts; first sync performs dark migration of pre-existing copies to symlinks and reports unknowns; dry-run previews without writing; `--with-guidance` includes guidance docs in the sync (canonical paths `guidance/`, compat symlinks for existing imports); sentinels `ErrGoNotFound`/`ErrNoHarness`/`ErrSkillsSrcMissing` / `ErrEngramRootNotDir` (if root exists as a file). | **U1** resolved — `TestUpdater_Run_Local_Idempotent_Property`; idempotence verified across symlink/manifest modes under ADR-0022 design verification (spec: update-deploy-sync) |
 | K11 | `internal/debuglog` | tail-friendly sink (pure: writer+clock injected) | Cross-cutting debug log threaded through every CLI target (`targets.go`); sink composition (`openDebugSink` + per-write-`Sync` `syncWriter`, env-gated) lives in `internal/cli/debugsink.go`; `cmd/engram` supplies only the raw `OpenDebugFile` primitive (#700). | — |
 | K5b | `cli/embed.go` | `RunEmbedApply`, `RunEmbedStatus`, `selectStates` | The `engram embed apply/status` subcommand (separate process, operator-run for model migration): re-embeds notes whose sidecar is missing/stale/incompatible via the shared K5 package; `apply` writes sidecars, `status` reports counts. Wired in `targets.go` (grep `Name("embed")`). | drives **M4** remediation |
@@ -138,74 +138,3 @@ graph-expansion subsystem; a future cleanup should confirm and propose its delet
 - **ingest → skill → learn (NOT in-process):** `engram ingest --auto` prints its per-source lines
   to **stdout** ([792a5i](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a5i-incremental-re-indexing));
   the skill reads them and shells `engram learn fact|feedback` as a *new process* per candidate.
-- **K6 payload (to stdout → skill):** `items[]` (matched notes+chunks + recency-channel chunks
-  tagged `recent`; notes carry full content inline, chunk items path/source-only under `--lazy-chunks`, fetched via `show-chunk`) ∪ `clusters[].members` (paths, from matched set only) ∪
-  `clusters[].candidate_l2s` (`[{path, cosine, content}]`, within-cluster top-5 only; ride-alongs for superseded notes) ∪ top-level `items[]` explore entries (`provenance: explore`, `source_term`) ∪ `budget` (includes `explore_allocated`, a term → delivered-count map, always present).
-  Runbook trigger hits (`--text` matched a runbook's `triggers:`) lead `items[]` with `provenances` containing `trigger`, even at similarity score 0.
-  No `nearest_l3` field; no `hubs` field; recency-channel items appear in `items[]` but never in
-  any cluster's `members[]`. The skill — not the binary — consumes it and may shell `engram amend`
-  (covered/near) or `engram learn` (absent) for recall-time lazy synthesis. Activation is
-  agent-driven: the binary emits no `activated` flag; the skill calls `engram activate` on only
-  the notes it actually used.
-
-## Key flows (L3 — component-internal sequences)
-
-These zoom into a single `engram` subcommand process and show the K-component call order verified
-against the code. Each subcommand is its OWN process; nothing here crosses to another subcommand.
-[L2](c2-containers.md) shows the skill↔binary orchestration; this is what one binary call does inside.
-
-### Flow: `engram query` internals (RunQuery)
-
-This is the sole query path (the `--synthesis`/BFS-subgraph path was removed in the 2026-06-20 deep clean; unified clustering is now the only mode).
-
-Verified order: `Scan` → `loadCompatibleSidecars` → `loadClusterChunkRecords`
-→ `buildMatchedSetFromPhrases` (per-phrase unified ranking) → `applyFloorAndCap` →
-`clusterMatchedSet` (K8) →
-`mergeProvenances` → `buildRecentFillItems` → `applyTriggerHits` (a no-op unless `--text` matches a runbook `triggers:` entry) → `renderQueryPayload`.
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Q as K6 query
-    participant Em as K5 embed
-    participant Md as C3 model
-    participant Vg as K7 vaultgraph
-    participant Cl as K8 cluster
-    participant V as C4 vault
-
-    Note over Q: RunQuery — one process; args from the skill, output to stdout
-    Q->>Vg: Scan = vaultgraph.ScanVault
-    Vg->>V: read note files; ParseWikilinks → Outgoing at scan time
-    Vg-->>Q: notes (+ parsed wikilinks)
-    Q->>V: loadCompatibleSidecars — read sidecars, drop off-model [M4]
-    Q->>V: loadClusterChunkRecords — read chunk index
-    loop per phrase (10 phrases)
-        Q->>Em: Embed(phrase)
-        Em->>Md: encode
-        Md-->>Em: vector
-        Em-->>Q: query vector
-        Note over Q: score notes (rankCandidates, recency-biased) + chunks (per-phrase scorer, recencyMultiplier); merge into one list; take top-30 (capWithNoteFloor reserves up to noteFloorK=5 slots for floor-qualified notes)
-    end
-    Note over Q: union across phrases, dedup keeping max score; drop baseScore < 0.25; cap at matchSetCap=300 → matched set
-    Note over Q: matched set holds both note and chunk members (unified ranking)
-    Q->>Cl: clusterUnionForSynthesis — ONE AutoK k-means + silhouette over matched set (D1)
-    Cl-->>Q: clusters with candidate_l2s (within-cluster top-5 by centroid cosine only; ride-alongs added post-cluster)
-    Note over Q: computeExploreHalf — softmax(cosine(query vec, term centroid)/τ) allocation over vocab-term centroids, budget = exploit-half note count, δ=0.05 match-evidence bonus, core-first within-term, dedupe+backfill; picks delivered as top-level items[] (provenance=explore, source_term), NOT cluster members
-    Note over Q: mergeProvenances; applyProjectFilter
-    Note over Q: buildRecentFillItems — newest chunks by IngestedAt (recentFillChunks, default 25), deduped vs matched set, tagged recent; NOT in any cluster
-    Note over Q: applyTriggerHits — only if --text matches a runbook's triggers: (matchTriggers over TriggerIndex); hits moved/added to the FRONT of items[] with provenance=trigger, exempt from floor/cap/--limit
-    Note over Q: renderQueryPayload → stdout (items[matched+explore+recent], clusters[candidate_l2s], budget[explore_allocated])
-```
-
-### `engram learn qa` capture path
-
-The capture path is in
-[792b12](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b12-added-note-authoring)
-(792b12c5), and `vocab stats`' question exclusion in
-[792a6t](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a6t-vocabulary-statistics). Residue for later nodes:
-
-- Query (memory-query): a question note is excluded at all four query-pipeline seam points
-  (`isQueryExcludedKind`): `applyFloorAndCap`, `isFloorQualifyingNote` (the `capWithNoteFloor`
-  reservation), `mergePhraseIntoUnion` (the per-phrase union), and the explore-half `TermIndex`
-  build (`loadAllVaultNotesMeta` in `query_vault_meta.go`, guarded by `isQueryExcludedKind` before
-  a note's terms populate `TermIndex`). The answer note competes like any fact or feedback note.
