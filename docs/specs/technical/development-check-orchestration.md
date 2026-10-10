@@ -1,7 +1,7 @@
 # Development Check Orchestration - Technical Spec
 
 Routes existing nil-check entry points through the configured analyzer invocation while
-preserving shared target identity and isolating child environment settings.
+preserving shared target identity and the inherited environment.
 
 ## 794b4a Preserve entry points
 
@@ -26,25 +26,27 @@ Scenario: 794b4a1a Direct and aggregate target routing
 ## 794b4b Execute configured request
 
 Requirement: 794b4b Development-check orchestration MUST send one configured NilAway request to
-the command boundary with the supplied context, selected arguments, and effective child settings;
-it MUST return the boundary's result without retrying or modifying the parent environment.
-The command adapter MUST apply settings only to the child command while retaining inherited
-environment values for unrelated keys.
+the command boundary with the supplied context and selected arguments; it MUST return the
+boundary's result without retrying. The request MUST carry no resource settings, and the command
+adapter MUST run NilAway with the inherited environment unchanged: it MUST NOT add, change or
+remove `GOMEMLIMIT`, `GOGC` or `GOMAXPROCS`, and MUST NOT modify the parent environment.
 
-Supports [794a2a1a Existing entry points use project analysis](../product/development-checks.md#794a2a1-uat-scenarios),
-[794a2b1a Absent settings use subprocess defaults](../product/development-checks.md#794a2b1-uat-scenarios), and
-[794a2c1a Supplied settings take precedence](../product/development-checks.md#794a2c1-uat-scenarios).
+Supports
+[794a2a1a Existing check entry points analyze only Engram's module packages](../product/development-checks.md#794a2a1-uat-scenarios),
+[794a2a1c The fix command acts only on Engram's module packages](../product/development-checks.md#794a2a1-uat-scenarios),
+[794a2c1a Supplied settings are passed through](../product/development-checks.md#794a2c1-uat-scenarios), and
+[794a2c1b Absent settings stay absent](../product/development-checks.md#794a2c1-uat-scenarios).
 
 ### 794b4b1 Contract Scenarios
 
 ```gherkin
 Scenario Outline: 794b4b1a Successful configured invocation
   Given the invocation mode is <mode>
-  And the environment has a partial explicit resource override
   When orchestration executes the request
   Then the command boundary receives one request with the supplied context and policy output
+  And the request carries no resource settings
   And the boundary succeeds
-  And orchestration returns success without modifying the parent environment
+  And orchestration returns success
   Examples:
     | mode  |
     | check |
@@ -55,9 +57,15 @@ Scenario: 794b4b1b Failed configured invocation
   When orchestration executes the configured check
   Then it returns that failure without retrying
 
-Scenario: 794b4b1c Child environment isolation
-  Given the parent environment has an unrelated marker and no resource overrides
+Scenario Outline: 794b4b1c Inherited environment pass-through
+  Given the parent environment has an unrelated marker and <resources>
   When the command adapter executes a configured analyzer request
-  Then the child receives the marker and all three resource defaults
-  And the parent resource settings remain absent
-```
+  Then the child environment has the marker and <resources>
+  And the child environment has no other resource variable
+  And the parent environment is unchanged
+  Examples:
+    | resources                                  |
+    | none of the resource variables             |
+    | GOMEMLIMIT=4GiB                            |
+    | GOMEMLIMIT=off, GOGC=off, GOMAXPROCS=8     |
+    | all three resource variables set to empty  |

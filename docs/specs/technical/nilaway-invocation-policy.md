@@ -1,13 +1,22 @@
 # NilAway Invocation Policy - Technical Spec
 
-Constructs first-party analyzer arguments and resolves subprocess resource settings.
+Constructs first-party analyzer arguments that limit analysis to Engram's module packages.
 
 ## 794b3a Mode and scope
 
-Requirement: 794b3a The invocation policy MUST produce
-`-include-pkgs=github.com/toejough/engram` and `./...` for both modes, adding `-fix` only in fix mode.
+Requirement: 794b3a The invocation policy MUST produce `-include-pkgs=github.com/toejough/engram/`
+and `./...` for both modes, adding `-fix` only in fix mode. The scope value MUST be Engram's module
+path followed by `/` and MUST NOT be the bare module path.
 
-Supports [794a2a1a Existing entry points use project analysis](../product/development-checks.md#794a2a1-uat-scenarios).
+Rationale: NilAway treats each `-include-pkgs` entry as a package-path prefix, so the bare module
+path would also match `github.com/toejough/engram-eval`. The trailing `/` matches only Engram's
+subpackages, and `./...` loads only the root module, which leaves nested modules out.
+
+Supports
+[794a2a1a Existing check entry points analyze only Engram's module packages](../product/development-checks.md#794a2a1-uat-scenarios),
+[794a2a1b Modules sharing only the path prefix are not analyzed](../product/development-checks.md#794a2a1-uat-scenarios),
+[794a2a1c The fix command acts only on Engram's module packages](../product/development-checks.md#794a2a1-uat-scenarios), and
+[794a2a1d A nested module is not analyzed](../product/development-checks.md#794a2a1-uat-scenarios).
 
 ### 794b3a1 Contract Scenarios
 
@@ -17,31 +26,13 @@ Scenario Outline: 794b3a1a Scope and mode arguments
   When the invocation policy constructs analyzer arguments
   Then the arguments are <arguments>
   Examples:
-    | mode  | arguments                                                 |
-    | check | -include-pkgs=github.com/toejough/engram ./...               |
-    | fix   | -include-pkgs=github.com/toejough/engram -fix ./...          |
-```
+    | mode  | arguments                                           |
+    | check | -include-pkgs=github.com/toejough/engram/ ./...      |
+    | fix   | -include-pkgs=github.com/toejough/engram/ -fix ./... |
 
-## 794b3b Environment precedence
-
-Requirement: 794b3b The invocation policy MUST resolve each resource setting independently:
-use a present environment value verbatim, including empty values; otherwise use
-`GOMEMLIMIT=2GiB`, `GOGC=50`, or `GOMAXPROCS=2` as appropriate.
-
-Supports [794a2b1a Absent settings use subprocess defaults](../product/development-checks.md#794a2b1-uat-scenarios)
-and [794a2c1a Supplied settings take precedence](../product/development-checks.md#794a2c1-uat-scenarios).
-
-### 794b3b1 Contract Scenarios
-
-```gherkin
-Scenario Outline: 794b3b1a Resolve present and absent settings
-  Given the supplied resource settings are <supplied>
-  When the policy resolves the NilAway environment
-  Then the effective values are <effective>
-  Examples:
-    | supplied                             | effective                                |
-    | none                                 | GOMEMLIMIT=2GiB, GOGC=50, GOMAXPROCS=2    |
-    | GOMEMLIMIT=4GiB                       | GOMEMLIMIT=4GiB, GOGC=50, GOMAXPROCS=2     |
-    | GOMEMLIMIT=off, GOGC=off, GOMAXPROCS=8 | GOMEMLIMIT=off, GOGC=off, GOMAXPROCS=8     |
-    | all three explicitly empty           | all three explicitly empty               |
+Scenario: 794b3a1b The scope excludes prefix siblings
+  Given the invocation mode is check
+  When the invocation policy constructs analyzer arguments
+  Then the scope value is a package-path prefix of "github.com/toejough/engram/internal/cli"
+  And the scope value is not a package-path prefix of "github.com/toejough/engram-eval/pkg"
 ```
