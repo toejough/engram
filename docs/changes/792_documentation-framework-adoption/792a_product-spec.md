@@ -106,10 +106,7 @@ vault as a note, and MUST treat any other root `README.md` as a note.
 Rationale: a freshly created vault must report itself clean; the starter README is recognized by
 its exact content, so a user's own README, or an edited starter, stays a normal note.
 
-[joe] you can literally only ever have one root README.md - the file system itself enforces that. The user shouldn't be
-allowed to edit the README - it should be a stable, engram-controlled artifact. If the user wants to remember something,
-or adjust the way engram handles something, 
-it goes in a regular note.
+This behavior is being changed by [796a Controlled Vault README - Product Spec](../796_controlled-vault-readme/796a_product-spec.md) (#796).
 
 #### 792a2d1 UAT Scenarios
 
@@ -136,6 +133,8 @@ a `.gitignore`, a starter `README.md`, a vault ID ([792a2h Stable vault ID](#792
 Rationale: Joe chose creation by any command (#766) over creating only on `update` or warning
 without creating. The single stderr line makes a mistyped `--vault` or `ENGRAM_VAULT_PATH` visible.
 The `.obsidian/` starter lets Obsidian open the directory as a vault.
+
+This behavior is being changed by [795a Vault Init Command - Product Spec](../795_vault-init-command/795a_product-spec.md) (#795).
 
 #### 792a2e1 UAT Scenarios
 
@@ -2592,8 +2591,7 @@ Scenario: 792a6u1b Backfill is idempotent
 ### 792a6v Update notices
 
 Requirement: [792a6v Update notices](#792a6v-update-notices) `engram update` MUST print
-`old-format vocab files found — run `engram update --regen-vocab` to migrate them (preview with
-`engram update --regen-vocab --dry-run`)` when the vault holds a file named `vocab.<name>.md`, and
+`old-format vocab files found — run `engram update --regen-vocab`to migrate them (preview with`engram update --regen-vocab --dry-run`)` when the vault holds a file named `vocab.<name>.md`, and
 `vocab definition notes missing their vocab/<term> self-tag found — run `engram vocab
 tag-definitions` to backfill them` when a definition note lacks its self-tag. It MUST NOT change the
 vault to resolve either.
@@ -5893,15 +5891,15 @@ Scenario: 792a12g1a An agent runs update through a shell
 
 Requirement: [792a12h Registration can run on its own with explicit answers](#792a12h-registration-can-run-on-its-own-with-explicit-answers) `engram register-skills` MUST run the same comparison over the same default source set as `engram
 update`. `--accept <key|pattern|@scope>` and `--decline <key|pattern|@scope>` (each repeatable) MUST
-answer the matching offers without prompting, and an answer that matches no offer MUST print ``engram:
-no pending offer for skill "<token>" — ignoring --accept`` (or `--decline`) and continue. `--dry-run`
+answer the matching offers without prompting, and an answer that matches no offer MUST print `engram:
+no pending offer for skill "<token>" — ignoring --accept` (or `--decline`) and continue. `--dry-run`
 MUST list every offer and write nothing, and run no `--adopt`. `--vault` and `--vault-name` MUST choose
 the vault and the name stamped on a new note's `vault:` field. `--skills-dir <dir>` (repeatable,
 relative to the working directory) MUST replace the default set with the listed directories, each
 scanned as Claude Code user skills and keyed `claude:<name>`; that run MUST be a read-only preview that
 behaves as `--dry-run`, refuses `--accept`, `--decline` and `--adopt` before scanning with
-``register-skills: --skills-dir is a read-only preview; it cannot be combined with --accept, --decline
-or --adopt``, and makes no removal offer. The same key, pattern or selector named in both `--accept` and
+`register-skills: --skills-dir is a read-only preview; it cannot be combined with --accept, --decline
+or --adopt`, and makes no removal offer. The same key, pattern or selector named in both `--accept` and
 `--decline` MUST be refused before anything is acted on.
 
 #### 792a12h1 UAT Scenarios
@@ -7638,7 +7636,7 @@ Scenario: 792a15g1g A runbook is not duplicated as a save-request
 
 Requirement: [792a15h Each note is placed by an ordered test](#792a15h-each-note-is-placed-by-an-ordered-test) Before each hand-off, learn MUST decide the note's Luhmann placement, considering only notes written or recalled earlier in the same session, and MUST pass the resulting position and target to write-memory. It MUST apply these tests in order: when the note develops one specific sub-point raised inside an in-session note, the placement is `continuation` with that note's ID as the target; otherwise, when it continues or extends the same overall thought at the same level, the placement is `sibling` with that note's ID as the target; otherwise the placement is `top` with no target. When no in-session candidate exists, it MUST choose `top` and MUST NOT search the rest of the vault for a target.
 
-Rationale: an ID's position encodes where a note sits in the thought tree, which follows Niklas Luhmann's own practice and Sönke Ahrens, *How to Take Smart Notes*. The disposition step had been removed from the skill on 2026-06-12, so for months every capture was `top` and all 447 notes in the vault carried flat integer IDs, leaving the branching the ID scheme was named for unused. Placement is a judgment of content, which the skill makes and the binary does not.
+Rationale: an ID's position encodes where a note sits in the thought tree, which follows Niklas Luhmann's own practice and Sönke Ahrens, _How to Take Smart Notes_. The disposition step had been removed from the skill on 2026-06-12, so for months every capture was `top` and all 447 notes in the vault carried flat integer IDs, leaving the branching the ID scheme was named for unused. Placement is a judgment of content, which the skill makes and the binary does not.
 
 #### 792a15h1 UAT Scenarios
 
