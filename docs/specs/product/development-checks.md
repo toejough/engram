@@ -2,64 +2,87 @@
 
 ## 794a2a Project analysis
 
-Requirement: 794a2a Engram's nil check and fix commands MUST limit substantive nil analysis to
-Engram's first-party packages while retaining their existing command names and aggregate-check
-entry points.
+Requirement: 794a2a The nil check and fix commands MUST analyze only packages whose import path is
+Engram's module path, or that path followed by `/` (Engram's module packages). They MUST NOT
+analyze any other package, such as a package of `github.com/toejough/engram-eval`, or a nested
+module that has its own `go.mod`. They MUST retain their existing command names and
+aggregate-check entry points.
+
+Rationale: Dependency package bodies are most of the analysis cost and nothing in them is Engram's
+to fix. A module whose path only begins with Engram's is still not Engram's.
 
 ### 794a2a1 UAT Scenarios
 
 ```gherkin
-Scenario Outline: 794a2a1a Existing entry points use project analysis
+Scenario Outline: 794a2a1a Existing check entry points analyze only Engram's module packages
   Given an Engram checkout with NilAway installed
+  And an Engram package contains a known nil dereference
+  And a third-party dependency contains a known nil dereference
   When the developer invokes <entry>
-  Then each invoked NilAway process analyzes Engram's first-party packages
-  And it does not analyze third-party or standard-library package bodies
+  Then the check reports the nil dereference in the Engram package
+  And it reports no finding in the third-party dependency
   Examples:
     | entry               |
-    | check-nils-for-fail  |
-    | check-nils-fix       |
+    | check-nils-for-fail |
     | check-nils          |
     | check               |
     | check-for-fail      |
     | check-full          |
+
+Scenario: 794a2a1b Modules sharing only the path prefix are not analyzed
+  Given an Engram checkout with NilAway installed
+  And an Engram package contains a known nil dereference
+  And Engram depends on a module "github.com/toejough/engram-eval" that contains a known nil dereference
+  When the developer invokes the nil check command
+  Then the check reports the nil dereference in the Engram package
+  And it reports no finding in "github.com/toejough/engram-eval"
+
+Scenario: 794a2a1c The fix command acts only on Engram's module packages
+  Given an Engram checkout with NilAway installed
+  And an Engram package contains a known nil dereference
+  And a third-party dependency contains a known nil dereference
+  When the developer invokes check-nils-fix
+  Then the nil dereference in the Engram package is reported
+  And the third-party dependency is neither modified nor reported on
+
+Scenario: 794a2a1d A nested module is not analyzed
+  Given an Engram checkout with NilAway installed
+  And an Engram package contains a known nil dereference
+  And a nested module with its own go.mod contains a known nil dereference
+  When the developer invokes the nil check command
+  Then the check reports the nil dereference in the Engram package
+  And it reports no finding in the nested module
 ```
 
-## 794a2b Resource defaults
+## 794a2c Resource settings pass-through
 
-Requirement: 794a2b Each NilAway invocation MUST supply a 2 GiB soft Go memory limit, garbage
-collection target of 50, and maximum Go execution parallelism of 2 when those settings are absent
-from the developer's environment. These defaults MUST apply to the NilAway subprocess without
-changing the settings of other checks.
+Requirement: 794a2c Engram MUST pass the developer's `GOMEMLIMIT`, `GOGC` and `GOMAXPROCS` to
+NilAway unchanged. It MUST NOT add, change or remove any of them, whether a variable is absent, set
+to a value, or set to an empty value.
 
-### 794a2b1 UAT Scenarios
-
-```gherkin
-Scenario Outline: 794a2b1a Absent settings use subprocess defaults
-  Given none of GOMEMLIMIT, GOGC, or GOMAXPROCS is set
-  When the developer invokes <entry>
-  Then NilAway receives GOMEMLIMIT=2GiB, GOGC=50, and GOMAXPROCS=2
-  And other checks retain their inherited resource settings
-  Examples:
-    | entry               |
-    | check-nils-for-fail  |
-    | check-nils-fix       |
-```
-
-## 794a2c Developer overrides
-
-Requirement: 794a2c Each NilAway invocation MUST preserve explicitly supplied resource settings,
-including empty values, and default only absent settings.
+Rationale: suitable resource limits depend on the developer's machine, so Engram leaves them to the
+developer. A developer on a memory-constrained machine can set them in their own environment.
 
 ### 794a2c1 UAT Scenarios
 
 ```gherkin
-Scenario Outline: 794a2c1a Supplied settings take precedence
-  Given the developer supplies <settings>
-  When the developer invokes the nil check or fix command
-  Then NilAway receives <effective>
+Scenario Outline: 794a2c1a Supplied settings are passed through
+  Given the developer's environment sets <settings> and none of the other resource variables
+  When the developer invokes <entry>
+  Then the NilAway process runs with <settings>
+  And its environment contains none of <absent>
   Examples:
-    | settings                             | effective                                |
-    | GOMEMLIMIT=4GiB                       | GOMEMLIMIT=4GiB, GOGC=50, GOMAXPROCS=2     |
-    | GOMEMLIMIT=off, GOGC=off, GOMAXPROCS=8 | GOMEMLIMIT=off, GOGC=off, GOMAXPROCS=8     |
-    | all three explicitly empty           | all three explicitly empty               |
+    | entry               | settings                               | absent           |
+    | check-nils-for-fail | GOMEMLIMIT=4GiB                        | GOGC, GOMAXPROCS |
+    | check-nils-fix      | GOMEMLIMIT=off, GOGC=off, GOMAXPROCS=8 | none             |
+    | check-nils-for-fail | all three explicitly empty             | none             |
+
+Scenario Outline: 794a2c1b Absent settings stay absent
+  Given none of GOMEMLIMIT, GOGC, or GOMAXPROCS is set
+  When the developer invokes <entry>
+  Then the NilAway process's environment contains none of them
+  Examples:
+    | entry               |
+    | check-nils-for-fail |
+    | check-nils-fix      |
 ```
