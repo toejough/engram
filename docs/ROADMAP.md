@@ -219,7 +219,7 @@ mechanical LESSONS validator, watcher/metacognition layer, hooks (`learn-rate-sk
 | **#693** vector-read/decode cache | Cost | ~87% of scan but only ~7% of the ~52 s op; new subsystem not worth it (note 270) | decode grows to dominate a larger share of the op |
 | **payload-prune production build** | Cost | rejected 2026-07-08 (subprocess complexity) | a viable subagent route (no engram-launched `claude -p`) |
 | **between-session consolidation pass** | Cost | Joe rejected async-as-relocation (note 108) | proof it *reduces total spend* (not relocates it) |
-| **#671** parallel-builders | Dev | ADR-0017 chose the escalate-ladder | cheapest-first ladder shown insufficient |
+| **#671** parallel-builders | Dev | [792a17](changes/792_documentation-framework-adoption/792a_product-spec.md#792a17-added-route) chose the escalate-ladder | cheapest-first ladder shown insufficient |
 | **#637** `--field` query flags | Corr | large surface, no forcing function. **Scope narrowed (2026-07-24):** the pain the body cites — callers jamming subject/behavior/time into one query string — was answered by #639's repeatable `--phrase` flag, now the production recall path, which leaves only true per-field targeting unbuilt and removes the last candidate forcing function | a concrete forcing function |
 
 ## Standing constraint (non-negotiable)

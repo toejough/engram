@@ -190,28 +190,6 @@ and the vault and manifest locks to
 
 ---
 
-## ADR-0014 — Memory-backed tier discount (route)
-
-**Status:** Accepted (shipped 2026-06-28, commit `2bf959f4`; vault note 135)
-
-**Context.** The `route` skill encodes engram's delegate-everything doctrine, including which
-model tier to dispatch a unit of work to. Measured: sonnet+memory fully matched opus+memory across
-C3 apply-conventions (15/15), C4i recency-supersession (3/3), and C6 abduction (6/6), while
-sonnet *cold* failed the same axes — memory democratizes reasoning across model tiers rather than
-only amplifying the strongest model.
-
-**Decision.** Route by capability *tier*, not model name (the roster backing each tier can
-change), and drop one tier for memory-backed units — a unit where the model applies recalled
-knowledge rather than derives it from scratch is routed one tier cheaper than the same unit cold.
-
-**Consequences.** RED/GREEN showed the router had been over-provisioning memory-backed units to
-mid-tier before this rule; the discount corrects that (`dev/eval/LEDGER.md#tier-routing-parity` owns
-the figures) and is the single largest whole-task-cost lever found to date — bigger than
-any payload-byte-level cut (`dev/eval/LEDGER.md#payload-prune-smoke`). Bound: measured at the
-deep→mid tier boundary only; other tier boundaries are inferred, not separately measured — the
-existing upgrade-if-cheaper-fails rule is the safety net for a wrong discount. The C5
-(recency-standard-honoring) axis flaked in this measurement round and was not re-run.
-
 ## ADR-0016 — Architecture diagrams are hand-authored mermaid, verified against code
 
 **Status:** Accepted (2026-07-05)
@@ -228,44 +206,6 @@ skill's directory convention while leaving its audit half unmet, faking compatib
 **Consequences.** Diagram currency is maintained by direct code review at edit time (as this
 restructure did), not by a generator. Adopting the skill later would be a deliberate migration
 (JSON re-derivation of every diagram + a new targ target), not a file move.
-
----
-
-## ADR-0017 — Evidence-based route rubric
-
-**Status:** Accepted (2026-07-06). Extends ADR-0014.
-
-**Context.** ADR-0014 established route-by-tier plus the memory tier discount, measured only at the
-deep→mid boundary; the remaining tier assignments lived in a hard-coded task-character table
-(mechanical→cheap, moderate→mid, complex→deep) that was asserted, never measured. A RED baseline
-confirmed the cost: reading the old skill, an agent over-provisioned 5/6 generic units to mid/deep by
-surface look, and a no-guidance control did the same — the table encoded the model's untested "this
-looks hard → strong model" instinct.
-
-**Decision.** Make the rubric memory-based, not a fixed table. Every unit starts at the cheapest
-tier; only recalled evidence — or a failed review — raises it. Perceived difficulty is not evidence
-("genuinely hard" and "looks hard" are the same hunch), so there is no cold-start exception for
-hard-looking work. Failures escalate spec-first: the first fail rewrites the handoff and retries the
-same tier, a second fail escalates one tier. Every dispatch is recorded (work-kind, tier, concrete
-model, why, review-sourced outcome); records auto-ingest as recallable memory and crystallize via
-`/learn`, so the effective rubric improves through the record→learn→recall loop rather than by
-editing the skill. The memory tier discount (ADR-0014) survives as the one evidence-backed entry of
-the cold-start priors.
-
-**Consequences.** An initial draft failed: it merely said "don't upgrade on a looks-hard hunch" but
-still routed perceived difficulty to the deep tier. Adding an explicit "genuinely-hard ≠ evidence"
-test closed the loophole, and writing-skills TDD then flipped 5/6 over-provision to 0/6 (everything
-cheap). Cold-start cost rises for genuinely-hard work (up to two failed escalations before it reaches
-the tier it needs), an accepted bootstrap; the evidence loop recovers this overhead by improving the
-rubric for future similar work. Harness-agnostic: the dispatch record is built from what the
-orchestrator already knows plus the review verdict, needing no per-subagent cost/token telemetry. The
-pure-confirmation signal ("cheap sufficed for K", overturning nothing) is captured by `/learn`'s
-kind-4 confirmed-approaches moment (positive reinforcement, shipped 2026-07-06 via #668): a tier
-that passed for a work-kind crystallizes as a confirmed approach, a tier that failed as a reversal. **Deferred:** structured routing-evidence ledger (#669 — resolved 2026-07-10: bespoke store subsumed by
-tags-based evidence notes + evidence-linked aggregate fact notes read via plain recall, with `engram
-count` as the audit surface; build re-scoped into #674, vocab migration #678 shipped 2026-07-10), periodic
-rubric-refit (#670), parallel-builders (#671), cost/duration telemetry (#672). RED/GREEN evidence is
-transient (`git log`); the memory-discount figures remain at `dev/eval/LEDGER.md#tier-routing-parity`.
 
 ---
 

@@ -1838,3 +1838,40 @@ decisions as `792dN`, continuing the sequence.
     skill says only that the list is handed over. 792a16f does not name a field.
 - **Rationale:** 792d20, 792d32, 792d33 and 792d111.
 - **Alternatives:** put the requirements in each skill's capability. Rejected in 792d20.
+
+## 792d114 route scope, the SKILL.md repoint, and where the sources differ from the skill
+
+- **Choice:**
+  - 792a17 describes the shipped `SKILL.md` and `price-table.md`: fifteen requirements (792a17a to 792a17o). The
+    two OpenSpec specs supply the tier rubric and the evidence, aggregate, count and cost requirements; the skill
+    supplies the delegation line (792a17a), the handoff (792a17g), recall-first and decomposition (792a17h) and the
+    loop (792a17o). The completion-report contract is 792a16b, and 792a17g cites it.
+  - Route's "is not an L1 element" paragraph is not a behavior. The orientation sentence says route is skill-level
+    guidance for the orchestrator and adds no boundary.
+  - ADR-0017's "Deferred" list (#669 resolved by tags-based evidence, and #670 periodic rubric refit, #671 parallel
+    builders and #672 cost and duration telemetry) is not specified. #669 is shipped as 792a17k to 792a17m, #672's
+    telemetry is 792a17j, and the others are ROADMAP items.
+  - The route-skill-to-runbook archive is a reversed direction (792d57) and is not read as a requirement.
+  - **SKILL.md repoint (792d40).** Four citations in route's `SKILL.md` pointed at deleted documents:
+    `docs/architecture/c1-system-context.md` S3, and ADR-0019 three times. They now name 792b30 (where the harness
+    sources and the Pi location landed, 792c7k2) and 792a6c (where ADR-0019 landed). Judgement: a repoint of a
+    reference to a moved document changes no instruction, procedure, command, flag or wording of any rule, so it is
+    not a behavioral edit and the writing-skills red, green and pressure cycle that the root `AGENTS.md` requires for
+    behavioral edits was not run. The skill's `skill_hash` changes, so registration will offer a refresh of its
+    runbook note. The cited sections are in a change directory that is promoted later (792d34), so the repoint
+    follows the promotion grep.
+  - Tests that verify the mapped scenarios were renamed by earlier nodes. The extension of note-authoring and
+    note-amendment is for the tag and amend scenarios that the legacy spec named; vault-counter is on the
+    catalog's list.
+- **Divergences noted (792d33):**
+  - The 70% and 85% escalation thresholds and the five-dispatch evidence floor are in the OpenSpec text only. The
+    shipped skill carries the resulting table row and the rule that evidence overwrites priors. 792a17f states the
+    thresholds because the legacy requirement did, and this is the only place they are written.
+  - The OpenSpec spec says the free-local-model red flag is in "route's runbook `red_flags` field"; it is the red
+    flags table of the skill, and 792a17e1c follows the skill.
+  - Both specs gave the re-ask outcome as an empty slot; the skill records `LESSONS: none` (792d113).
+  - The skill's aggregate procedure runs a query and a basename listing and calls the listing "documented"; the
+    skill gives no command for the listing, only the match rule. 792a17l states the rule and the listing without a
+    command.
+- **Rationale:** 792d3, 792d32, 792d33, 792d34, 792d40 and 792d113.
+- **Alternatives:** run the writing-skills cycle for the repoint. Rejected because no behavior changes.

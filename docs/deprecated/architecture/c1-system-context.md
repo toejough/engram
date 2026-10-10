@@ -298,12 +298,6 @@ update subsystem, debug logger) are deferred to L2.
 The embedding model is not an external at L1; it is part of engram
 ([792b9](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b9-added-text-embedder)).
 
-The `route` skill is **not** a new L1 element. It adds no system boundary, no
-external, and no R-edge: it is skill-level guidance the orchestrator applies
-when choosing `Agent`-tool parameters for delegated work (agent type, model,
-effort), operating over the existing harness↔engram relationship rather than a
-new interaction. It is a sibling of the `please` skill (both loaded via the harness's skill mechanism like recall and learn, each with an optional mirrored vault runbook note) under S2 at L2, not a participant at L1.
-
 ## Related
 
 - L2 container diagram: [c2-containers.md](c2-containers.md)

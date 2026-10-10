@@ -5249,6 +5249,8 @@ Scenario: 792b12c7a2 A captured runbook has no skill key or source
 | 792a15h1b | 792b12c3 |
 | 792a15h1c | 792b12c3 |
 | 792a15k1a | 792b12c5 |
+| 792a17k1a | 792b12c4 |
+| 792a17k1c | 792b12c1, 792b12c4 |
 
 ```gherkin
 Scenario: 792a3r1b Certainty defaults to medium
@@ -5340,6 +5342,16 @@ Scenario: 792a15k1a A cited answer gets a pair
   Given a question answered with a body that cites [[a]] and [[b]]
   When learn captures it
   Then write-memory receives kind qa with the verbatim question, the copied answer and contributors a and b
+
+Scenario: 792a17k1a A passing dispatch gets a tagged note
+  Given a dispatch with a passing verdict
+  When the orchestrator records it
+  Then write-memory receives a fact tagged work-kind/<k>, tier/<t> and outcome/pass with the dispatch details in the object
+
+Scenario: 792a17k1c The tag format is validated
+  Given a dispatch record
+  When its tags are written
+  Then each is work-kind/<k>, tier/<t> or outcome/<o> with only lowercase letters, digits and hyphens, and an invalid tag is rejected before the write
 ```
 
 ## 792b13 Added: wikilink-graph
@@ -6345,6 +6357,7 @@ Scenario: 792b14c11a4 The refit check runs after a resituate
 | 792a14j1b | 792b14c3, 792b14c4 |
 | 792a14j1d | 792b14c4 |
 | 792a14l1a | 792b14c10 |
+| 792a17l1b | 792b14c3 |
 
 ```gherkin
 Scenario: 792a4e1a Chunk sources are merged without duplicates
@@ -6391,6 +6404,11 @@ Scenario: 792a14l1a Used notes are activated
   Given the agent judged one candidate covered and cited another in its synthesis
   When it activates
   Then one engram activate call carries a --note for each and for no other note
+
+Scenario: 792a17l1b A later dispatch amends it
+  Given an aggregate for the work-kind
+  When a subsequent dispatch is recorded
+  Then the orchestrator amends the aggregate, recomputes the tier tally and appends the new evidence wikilink while keeping the old ones
 ```
 
 ## 792b15 Added: transcript-reader
@@ -12505,6 +12523,8 @@ Scenario: 792b25c8a2 Notes are counted without sidecars
 | 792a8g1b | 792b25c7 |
 | 792a8h1a | 792b25c8 |
 | 792a8h1b | 792b25c8 |
+| 792a17m1a | 792b25c2, 792b25c3 |
+| 792a17m1c | 792b25c2 |
 
 ```gherkin
 Scenario: 792a8a1a A scalar attribute is counted per value
@@ -12603,6 +12623,16 @@ Scenario: 792a8h1b Every note is counted without sidecars
   Given a vault of 600 notes with type: fact and no sidecars
   When the user runs engram count --group-by type
   Then stdout is "fact", a tab and 600, then "total: 600"
+
+Scenario: 792a17m1a A work-kind is audited
+  Given an aggregate whose tally is doubted
+  When the orchestrator audits tier routing parity for the work-kind
+  Then it runs engram count --group-by tags with the work-kind and tier filters to recompute the numerators from the evidence tags
+
+Scenario: 792a17m1c The footgun is avoided
+  Given the orchestrator needs the count by evidence tier
+  When it composes the command
+  Then it uses --group-by tags --filter tags=tier/<t> and not --group-by tier
 ```
 
 ## 792b26 Added: vault-invariant-checker

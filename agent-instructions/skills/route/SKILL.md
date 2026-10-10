@@ -105,7 +105,7 @@ Task-completion `<usage>` block — `duration_ms` and `subagent_tokens` (the cos
 harness re-exposes them under other names without changing this table.
 
 **Pi** (`~/.pi/agent/` — the other harness this skill deploys to, per
-`docs/architecture/c1-system-context.md` S3) has **no documented per-subagent usage or duration
+792b30 in `docs/changes/792_documentation-framework-adoption/792b_technical-spec.md`) has **no documented per-subagent usage or duration
 signal** as of this writing. Dispatches routed on Pi show `n/a` for both cost and duration, with
 that reason stated (e.g. `n/a — Pi exposes no per-subagent usage signal`) — never a fabricated
 number. If Pi later exposes such a signal, wire it in here the same way Claude Code's `<usage>`
@@ -166,7 +166,7 @@ guessing which one applies — the real lookup result, once run, picks the one y
   ```
 
 - **No match** → before creating a new aggregate, run a uniqueness check to rule out a missed
-  lookup (an embedding miss, or the ADR-0019 drowning case) rather than a genuinely absent
+  lookup (an embedding miss, or the 792a6c drowning case) rather than a genuinely absent
   aggregate: list vault basenames matching `route-evidence-<work-kind>*`, applying the same
   deterministic match rule as the lookup above (strip `.md`, split on `.`, final segment must
   EQUAL `route-evidence-<work-kind>` exactly). This check runs at the same trigger moments as the
@@ -190,7 +190,7 @@ guessing which one applies — the real lookup result, once run, picks the one y
   - **Uniqueness check finds more than one match** → merge instead of creating: union the
     evidence wikilinks from every matched aggregate's object text, recompute the tally via the
     `engram count --group-by tags` commands documented below, `engram amend` one of them into the
-    merged aggregate, and record the incident as evidence for the ADR-0019 drowning-remedy
+    merged aggregate, and record the incident as evidence for the 792a6c drowning-remedy
     decision (see the drowning audit below).
 
 The wikilink list inside the object text is the aggregate's evidence trail — every evidence note
@@ -221,7 +221,7 @@ disagrees with an aggregate, amend the aggregate to the recomputed numbers.
 **Drowning audit (same trigger moments):** run the (b) lookup query for a work-kind with many
 evidence notes and confirm the aggregate still surfaces (its `path:` in items or any cluster's
 candidate_l2s). If it does not, that is the pre-registered drowning case — report it rather than
-patching ad hoc; the two candidate remedies are named in `docs/architecture/adr.md` (ADR-0019).
+patching ad hoc; the two candidate remedies are named in 792a6c in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md`.
 
 ## The loop that improves the rubric
 

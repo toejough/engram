@@ -244,8 +244,8 @@ flowchart TD
   N792c7m1["792c7m1 recall product spec<br/>Complete"]
   N792c7n1["792c7n1 learn product spec<br/>Complete"]
   N792c7o1["792c7o1 lessons-contract product spec<br/>Complete"]
-  N792c7p1["792c7p1 route product spec<br/>Ready"]
-  N792c7q1["792c7q1 please product spec<br/>Blocked by: 792c7p1"]
+  N792c7p1["792c7p1 route product spec<br/>Complete"]
+  N792c7q1["792c7q1 please product spec<br/>Ready"]
   N792c7r1["792c7r1 ambient-guidance product spec<br/>Blocked by: 792c7q1"]
   N792c7s1["792c7s1 vault-serving product spec<br/>Blocked by: 792c7r1"]
   N792c7s2["792c7s2 exchange-versioning tech spec<br/>Blocked by: 792c7s1"]
@@ -4365,11 +4365,44 @@ Target: `792a17` (`docs/specs/product/route.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7p1a | Port product requirements and UAT to `792a17` | Non-test action | Moves current behavior into the framework format | Not started |
-| 792c7p1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7p1c | Repoint stale references to `792a17` | Non-test action | Keeps live links valid | Not started |
-| 792c7p1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Not started |
-| 792c7p1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Not started |
+| 792c7p1a | Port product requirements and UAT to `792a17` | Non-test action | Moves current behavior into the framework format | Done |
+| 792c7p1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7p1c | Repoint stale references to `792a17` | Non-test action | Keeps live links valid | Done |
+| 792c7p1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Done |
+| 792c7p1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
+
+792a17 has fifteen requirements (792a17a to 792a17o): delegation, the starting tier, spec-first retry, the memory
+discount, the cheap tier by environment, the cold-start priors, the exact handoff, recall-first and decomposition,
+the mini-report row, cost and duration, the tagged evidence note, the aggregate, the count audit, the drowning audit
+and the improving loop (792d114). Extended components: vault-counter gains mapping rows for 792b25c2 and 792b25c3,
+note-authoring gains 792b12c1 and 792b12c4, note-amendment gains 792b14c3 (the last two were not on the catalog's
+list; the tests named in the legacy spec verify them), and agent-instruction-bundle gains nothing. Legacy removal:
+the `route-evidence-rubric` and `route-dispatch-evidence` specs, ADR-0014 and ADR-0017 and the route paragraph of
+the context view's out-of-scope section are deleted. Repointed: the ROADMAP row that cited ADR-0017, and the four
+stale citations in route's `SKILL.md` (a pure reference repoint, see 792d114): ADR-0019 became 792a6c in three
+places and the context view's S3 became 792b30.
+
+**Test Traceability**
+
+No test is renamed. The tests that the legacy `route-dispatch-evidence` spec named as its validation were renamed
+by earlier nodes for their technical scenarios, and they verify the mapped scenarios here. The skill has no
+baseline (`route/tests/README.md` says its behaviors are locked by the skill text and a fresh RED scenario is
+authored at edit time), and `memory-discount-microtest.json` is a fixture for the tier-routing measurement
+(`dev/eval/LEDGER.md#tier-routing-parity`), so both keep their names (792d114).
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792a17k1a | `Test792b12c4a3_LearnFact_Tags_WrittenToFrontmatter` (renamed in 792c7b8) | Pure unit (`RunLearn` over an in-memory vault) | A dispatch fact's categorical tags are written to the frontmatter | Done |
+| 792a17k1a | `Test792b6c3a7_RenderFactFrontmatter_TagsRoundtripFidelity` (renamed in 792c7b2) | Pure unit (string rendering) | The tags read back unchanged | Done |
+| 792a17k1c | `Test792b12c1a2_LearnFact_InvalidTag_RejectedBeforeWrite` (renamed in 792c7b8) | Pure unit (`RunLearn` over an in-memory vault) | An invalid tag is rejected before the write | Done |
+
+**Coverage gaps:** no test or baseline covers any other scenario of 792a17. The scenarios of 792a17b to 792a17j are
+behaviors of the skill text, measured by the tier-routing parity run (`dev/eval/LEDGER.md#tier-routing-parity`).
+792a17l, 792a17n and 792a17o are verified only by the scratch-vault gauge the legacy spec cites (20 evidence notes
+and one aggregate). 792a17m1a and 792a17m1c are mapped to vault-counter, whose scenarios have their own tests (792b25).
+
+**No-scenario tests:** `agent-instructions/skills/route/tests/memory-discount-microtest.json`, a fixture of the
+memory-discount measurement, keeps its name.
 
 ### 792c7q please
 
