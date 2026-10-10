@@ -214,8 +214,8 @@ flowchart TD
   N792c7c1["792c7c1 note-revision product spec<br/>Complete"]
   N792c7c2["792c7c2 wikilink-graph tech spec<br/>Complete"]
   N792c7c3["792c7c3 note-amendment tech spec<br/>Complete"]
-  N792c7d1["792c7d1 chunk-indexing product spec<br/>Ready"]
-  N792c7d2["792c7d2 transcript-reader tech spec<br/>Blocked by: 792c7d1"]
+  N792c7d1["792c7d1 chunk-indexing product spec<br/>Complete"]
+  N792c7d2["792c7d2 transcript-reader tech spec<br/>Ready"]
   N792c7d3["792c7d3 source-chunking tech spec<br/>Blocked by: 792c7d2"]
   N792c7d4["792c7d4 ingestion-source-discovery tech spec<br/>Blocked by: 792c7d3"]
   N792c7d5["792c7d5 chunk-index-store tech spec<br/>Blocked by: 792c7d4"]
@@ -1505,14 +1505,34 @@ Target: `792a5` (`docs/specs/product/chunk-indexing.md`).
 - `durable-file-store` (`792b3`)
 - `vault-write-lock` (`792b8`)
 - `text-embedder` (`792b9`)
+- `embedding-sidecar` (`792b10`, added by this node, 792d77)
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7d1a | Port product requirements and UAT to `792a5` | Non-test action | Moves current behavior into the framework format | Not started |
-| 792c7d1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7d1c | Repoint stale references to `792a5` | Non-test action | Keeps live links valid | Not started |
-| 792c7d1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Not started |
-| 792c7d1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Not started |
+| 792c7d1a | Port product requirements and UAT to `792a5` | Non-test action | Moves current behavior into the framework format | Done |
+| 792c7d1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7d1c | Repoint stale references to `792a5` | Non-test action | Keeps live links valid | Done |
+| 792c7d1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Done |
+| 792c7d1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
+
+**Outcome:** the four new supporting components are confirmed and embedding-sidecar is added
+(792d77). command-line-surface gains 792b2c6; durable-file-store, vault-write-lock, text-embedder
+and embedding-sidecar gain mappings only (792d80). The three OpenSpec specs keep technical
+residues for 792c7d4 and 792c7d5, and ADR-0021 stays for 792c7d5. Other choices are 792d78 and
+792d79.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b2c6a1 | `TestResolveChunksDirPrecedence` → `Test792b2c6a1_ResolveChunksDirPrecedence` (split deferred: 792b2c6a2, 792b2c6a4) | Pure unit, injected environment | Flag, environment and home fallback | Done |
+
+**Coverage gaps:** 792b2c6a3 (no test resolves the directory with `XDG_DATA_HOME` set). No 792a5
+scenario has an end-to-end test; the component nodes 792c7d2–792c7d5 rename the unit tests of
+their technical scenarios and list the product scenarios still uncovered.
+
+**No-scenario tests:** `targets_test` `TestTargets_IngestAndQueryChunksEmpty` and
+`TestTargets_PruneEmpty` (wiring checks with nothing to do, 792d80).
 
 #### 792c7d2 transcript-reader tech spec
 
@@ -1602,6 +1622,7 @@ Target: `792b18` (`docs/specs/technical/chunk-index-store.md`).
 - `docs/deprecated/architecture/c1-system-context.md` Relationships R4
 - `openspec/specs/ingest-chunk-dedup/spec.md` (technical requirements)
 - `openspec/specs/ingest-prune-detach/spec.md` (technical requirements)
+- `openspec/specs/ingest-auto-sweep/spec.md` (the zero-record index-file clause of its residue, 792d77)
 
 **Tests to examine (from discovery; `internal/cli` unless prefixed):** ingest_test, prune_duplicates_test, ingest_dedup_test, ingest_family_deps_test, ingest_integration_test, prune_test, ingest_dedup_internal_test, show_chunk_test, chunk/ingestedat_test, prune_integration_test
 

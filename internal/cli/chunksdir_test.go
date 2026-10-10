@@ -9,7 +9,7 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-func TestResolveChunksDirPrecedence(t *testing.T) {
+func Test792b2c6a1_ResolveChunksDirPrecedence(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 

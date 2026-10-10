@@ -882,3 +882,74 @@ decisions as `792dN`, continuing the sequence.
   ported; `writeManifestFile` stays for chunk-index-store.
 - **Rationale:** 792d51 and 792d63: a caller's ordering under the lock is the caller's requirement.
 - **Alternatives:** none considered.
+
+## 792d77 Mixed sources of chunk-indexing are split by owner
+
+- **Choice:** node 792c7d1 ports the product behavior of `ingest-auto-sweep`, `ingest-chunk-dedup`
+  and `ingest-prune-detach` into 792a5 and leaves each file a residue for the node that owns the
+  rest (792d31, 792d50):
+  - `ingest-auto-sweep` keeps the sweep-root mechanics (name prefixes on the session-log root,
+    path prefixes at root derivation, the `.claude` exclude list) for ingestion-source-discovery
+    (792c7d4), and the zero-record index-file clause for chunk-index-store (792c7d5).
+  - `ingest-chunk-dedup` keeps the dedup mechanics for 792c7d5 and the `engram update` backlog
+    notice for install-and-update (792c7j1).
+  - `ingest-prune-detach` keeps the directory-scan clause for 792c7d5.
+  - The prune details of the c1 S2 row are ported (792a5p–792a5r) and the row now points at 792a5.
+  - ADR-0021's measurements and its context for decisions 1–8 and 10 justify the product
+    requirements 792a5d, 792a5l, 792a5m, 792a5n and 792a5r, so their `Rationale:` paragraphs carry
+    them. ADR-0021 itself stays whole for chunk-index-store (792c7d5), its listed owner, which adds
+    the technical rationale and removes the ADR.
+  - `embedding-sidecar` (`792b10`) is added to the extended components: Rule B (792a5n) recognizes a
+    vault-note copy by its sidecar's name, which is 792b10c2.
+- **Rationale:** each part has one owner, and a node removes only what it ports.
+- **Alternatives:** port the mechanics into 792a5. Rejected because product specs exclude
+  implementation detail.
+
+## 792d78 Chunk-indexing requirements beyond the legacy text
+
+- **Choice:** 792a5 adds requirements that the OpenSpec specs don't state but the code, `--help`
+  and tests show, each confirmed against the built binary: the index location (792a5a), the named,
+  Pi and swept sources and their read-failure rules (792a5b, 792a5c), the automatic roots and
+  exclude lists (792a5d), `.engram/sweep.json` (792a5e), transcript stripping (792a5g), chunk
+  boundaries and anchors (792a5h), incremental re-indexing and its stdout line (792a5i), the
+  append-only rule (792a5j), Rule B (792a5n), the prune messages (792a5p) and `prune --duplicates`'
+  origin-blind choice, refusal lines and failure exit (792a5r). The time each chunk was first
+  indexed is left to memory-query (792c7f1), because only the query's recency channel makes it
+  observable.
+- **Rationale:** 792d33, 792d49 and 792d58.
+- **Alternatives:** port only the OpenSpec text.
+
+## 792d79 Known divergences in chunk indexing
+
+- **Choice:** 792a5 describes these as they are and does not specify the alternative (792d33,
+  792d42):
+  - A source that yields no chunks is read, re-chunked and reported
+    (`ingest <path>: 0 chunks (0 reused, 0 embedded)`) on every run, because the cheap skip
+    requires the source's index file to exist. `TestRunIngestSkipsEmptyIndexFile`'s comment says the
+    source "is not re-ingested next sweep"; its fake filesystem has no stat, which makes the skip
+    succeed.
+  - A source is recorded under the path as given. `engram ingest --markdown src/d.md` records
+    `src/d.md`, its chunk IDs start `src/d.md#`, and `engram prune` run from another directory
+    detaches it as gone.
+  - `prune --duplicates` reports a refusal whose kept copy has chunks that don't cover the removed
+    copy as "canonical missing but sibling content still exists", although the kept copy's index
+    file exists.
+  - `RunIngest`'s doc comment says stale chunks of edited content disappear; they are kept
+    (792a5j). Duplicates re-accumulate when copies appear across runs (#771); this is current
+    behavior, not a requirement to fix.
+- **Rationale:** a divergence becomes a later change proposal (vault note 645).
+- **Alternatives:** specify the intended behavior with coverage gaps. Rejected because the code does
+  not do it.
+
+## 792d80 command-line-surface gains chunk index resolution
+
+- **Choice:** chunk-indexing adds 792b2c6, the chunk index directory's precedence, as 792d51
+  planned. `TestResolveChunksDirPrecedence` covers the flag, the environment and the home fallback,
+  so it takes 792b2c6a1 with the others `split deferred`; no test resolves the directory with
+  `XDG_DATA_HOME` set, so 792b2c6a3 is a coverage gap. `TestTargets_IngestAndQueryChunksEmpty` and
+  `TestTargets_PruneEmpty` check only that a command with nothing to do is wired and writes no
+  stderr, so they verify no scenario. durable-file-store, vault-write-lock, text-embedder and
+  embedding-sidecar gain mappings only; their tests that touch the chunk index are chunk-index-store's
+  and are examined in 792c7d5.
+- **Rationale:** 792d30 and 792d51.
+- **Alternatives:** none considered.

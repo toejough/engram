@@ -34,9 +34,9 @@ Canonical target: `docs/specs/technical/command-line-surface.md` (title `Command
 - Ownership: Repository component (caller), crossing the process argv, environment and stdio
   boundary through the targ library.
 - Responsibility: turns one process invocation into one command run. It parses arguments and
-  environment into a typed request, resolves the vault path and vault name, runs the first-use vault
-  step before every vault-resolving command, routes to the command, and maps the result to the
-  output streams and the exit status.
+  environment into a typed request, resolves the vault path, the vault name and the chunk index
+  directory, runs the first-use vault step before every vault-resolving command, routes to the
+  command, and maps the result to the output streams and the exit status.
 - Commands: `learn` (`fact`, `feedback`, `qa`, `runbook`), `query`, `query-chunks`, `show`,
   `show-chunk`, `amend`, `activate`, `resituate`, `ingest`, `prune`, `count`, `check`, `embed`
   (`apply`, `status`), `vocab` (`bootstrap`, `tag-definitions`, `propose`, `stats`, `refit`),
@@ -44,15 +44,16 @@ Canonical target: `docs/specs/technical/command-line-surface.md` (title `Command
   and `show-chunk` resolves a vault. Each command's behavior is specified by its capability.
 - Current realization (informational): `internal/cli/targets.go` (`Targets`, `runInVault`,
   `newErrHandler`), `internal/cli/cli.go`, `resolveVault` in `internal/cli/learn.go`,
-  `resolveVaultName` in `internal/cli/identity.go`, `DataDirFromHome` in `internal/cli/targets.go`;
+  `resolveVaultName` in `internal/cli/identity.go`, `DataDirFromHome` in `internal/cli/targets.go`,
+  `ResolveChunksDir` in `internal/cli/ingest.go`;
   `cmd/engram/main.go` wires the production primitives.
 - Qualification: responsibility, it owns parsing, precedence and routing for every command without
   depending on how any command works; ownership, its routing, gating and exit mapping are distinct
   from each command's own behavior; independent verification, its precedence and gating are tested
   through dispatch with injected environment and filesystem; stability, the surface survives any
   refactoring of command internals; necessity, every product capability is reached through it.
-- Supported capabilities: 792a2 vault-identity, 792a3 note-writing, 792a4 note-revision. Later capabilities add their own routing
-  requirements here (792d30, 792d51).
+- Supported capabilities: 792a2 vault-identity, 792a3 note-writing, 792a4 note-revision, 792a5
+  chunk-indexing. Later capabilities add their own routing requirements here (792d30, 792d51).
 
 Rationale: each `engram <subcommand>` is its own process. Commands never call each other in
 process; a skill reads one command's stdout and runs the next. (An earlier C3 draft drew an
@@ -73,7 +74,7 @@ sequenceDiagram
   alt undefined flag or missing required flag
     CLI-->>Caller: error naming the flag on stderr, non-zero exit, command not run (792b2c5)
   else arguments parsed
-    CLI->>CLI: resolve vault path (792b2c1) and vault name (792b2c2)
+    CLI->>CLI: resolve vault path (792b2c1), vault name (792b2c2) and chunk index directory (792b2c6)
     CLI->>Registry: ensure the vault exists (792b2c3)
     alt vault ready
       Registry-->>CLI: ready, created or already present
@@ -223,6 +224,40 @@ Scenario: 792b2c5a2 A missing required flag is refused
   Then stderr names --done-when, the exit status is non-zero, and the command does not run
 ```
 
+#### 792b2c6 Chunk index directory resolution
+
+Requirement: 792b2c6 For `ingest`, `prune`, `query`, `query-chunks`, `show-chunk`, `amend` and
+`serve`, the command-line-surface MUST resolve the chunk index directory to the `--chunks-dir` flag
+when it is non-empty, else to `ENGRAM_CHUNKS_DIR` when it is non-empty, else to
+`$XDG_DATA_HOME/engram/chunks` when `XDG_DATA_HOME` is non-empty, else to
+`$HOME/.local/share/engram/chunks`, and MUST return that path without checking that it exists.
+
+Supports: 792a5a1a, 792a5a1b, 792a5a1c, 792a5a1d.
+
+##### 792b2c6a Scenarios
+
+```gherkin
+Scenario: 792b2c6a1 The flag wins
+  Given the --chunks-dir flag is /from/flag and ENGRAM_CHUNKS_DIR is /from/env
+  When the chunk index directory is resolved
+  Then the directory is /from/flag
+
+Scenario: 792b2c6a2 The environment is used without a flag
+  Given the --chunks-dir flag is empty and ENGRAM_CHUNKS_DIR is /from/env
+  When the chunk index directory is resolved
+  Then the directory is /from/env
+
+Scenario: 792b2c6a3 XDG_DATA_HOME sets the default
+  Given no flag, no ENGRAM_CHUNKS_DIR, and XDG_DATA_HOME is /xdg/data
+  When the chunk index directory is resolved
+  Then the directory is /xdg/data/engram/chunks
+
+Scenario: 792b2c6a4 The home directory is the last fallback
+  Given no flag, no ENGRAM_CHUNKS_DIR, no XDG_DATA_HOME, and home /home/dev
+  When the chunk index directory is resolved
+  Then the directory is /home/dev/.local/share/engram/chunks
+```
+
 ### 792b2d Product-Scenario Mapping
 
 | Product scenario | Technical requirements |
@@ -263,6 +298,13 @@ Scenario: 792b2c5a2 A missing required flag is refused
 | 792a4l1b | 792b2c4 |
 | 792a4l1c | 792b2c4 |
 | 792a4n1c | 792b2c4 |
+| 792a5a1a | 792b2c6 |
+| 792a5a1b | 792b2c6 |
+| 792a5a1c | 792b2c6 |
+| 792a5a1d | 792b2c6 |
+| 792a5b1d | 792b2c4 |
+| 792a5e1b | 792b2c4 |
+| 792a5r1e | 792b2c4 |
 
 ```gherkin
 Scenario: 792a2a1a The flag wins over the environment
@@ -479,6 +521,43 @@ Scenario: 792a4n1c A missing note fails only its own ref
   Then 3.2026-09-20.local's last_used is today, stderr names 7.2026-09-01.gone.md as not found, and the command fails saying 1 of 2 refs failed
 ```
 
+```gherkin
+Scenario: 792a5a1a The flag wins over the environment
+  Given ENGRAM_CHUNKS_DIR is set to /env/chunks
+  When the user runs engram ingest --chunks-dir /flag/chunks --markdown notes.md
+  Then notes.md is indexed under /flag/chunks
+
+Scenario: 792a5a1b The environment variable is used without a flag
+  Given ENGRAM_CHUNKS_DIR is set to /env/chunks
+  When the user runs engram ingest --markdown notes.md
+  Then notes.md is indexed under /env/chunks
+
+Scenario: 792a5a1c The XDG data directory is the default
+  Given neither --chunks-dir nor ENGRAM_CHUNKS_DIR is set and XDG_DATA_HOME is /data
+  When the user runs engram ingest --markdown notes.md
+  Then notes.md is indexed under /data/engram/chunks
+
+Scenario: 792a5a1d The home directory is the last fallback
+  Given neither --chunks-dir, ENGRAM_CHUNKS_DIR nor XDG_DATA_HOME is set
+  When the user runs engram ingest --markdown notes.md
+  Then notes.md is indexed under ~/.local/share/engram/chunks
+
+Scenario: 792a5b1d An unreadable named file fails the command
+  Given no file exists at missing.md
+  When the user runs engram ingest --markdown missing.md
+  Then the command fails with an error naming missing.md
+
+Scenario: 792a5e1b A malformed sweep file is refused
+  Given a repository whose .engram/sweep.json is not valid JSON
+  When the user runs engram ingest --auto inside it
+  Then the command fails with an error naming .engram/sweep.json, and nothing is indexed
+
+Scenario: 792a5r1e A failed removal is reported and fails the run
+  Given an index with two removable duplicates, one of whose index files cannot be removed
+  When the user runs engram prune --duplicates
+  Then stderr has a "[FAIL]" line naming that file, the other duplicate is removed, and the command fails saying 1 of 2 removals failed
+```
+
 ## 792b3 Added: durable-file-store
 
 Canonical target: `docs/specs/technical/durable-file-store.md` (title `Durable File Store - Technical Spec`).
@@ -498,7 +577,8 @@ Canonical target: `docs/specs/technical/durable-file-store.md` (title `Durable F
   component decides how a write reaches the disk; independent verification, it is tested directly
   over fake primitives and over the real filesystem; stability, the contract survives any change to
   the injection seam; necessity, every vault-identity, note and index write depends on it.
-- Supported capabilities: 792a2 vault-identity, 792a3 note-writing, 792a4 note-revision.
+- Supported capabilities: 792a2 vault-identity, 792a3 note-writing, 792a4 note-revision, 792a5
+  chunk-indexing.
 
 Rationale: `os.WriteFile` is not atomic. Before ADR-0013, unlocked non-atomic writes let two
 concurrent `engram ingest` or `engram amend` runs corrupt state in production. A same-directory
@@ -723,6 +803,13 @@ Scenario: 792b3c4a4 The starter README is left out
 | 792a4l1a | 792b3c1 |
 | 792a4m1a | 792b3c1 |
 | 792a4n1a | 792b3c1 |
+| 792a5b1a | 792b3c1 |
+| 792a5b1d | 792b3c3 |
+| 792a5i1b | 792b3c1 |
+| 792a5j1a | 792b3c1 |
+| 792a5m1a | 792b3c1 |
+| 792a5p1a | 792b3c1 |
+| 792a5r1a | 792b3c1 |
 
 ```gherkin
 Scenario: 792a2c1a A Markdown file in a subdirectory is not a note
@@ -823,6 +910,38 @@ Scenario: 792a4n1a A note's use is recorded
   Given a note with a current sidecar
   When the user runs engram activate --note <basename>
   Then the sidecar's last_used is today, its vectors and content hash are unchanged, the note file is unchanged, and the command succeeds
+```
+
+```gherkin
+Scenario: 792a5b1a A named transcript and document are indexed
+  Given a session transcript s.jsonl and a Markdown document d.md
+  When the user runs engram ingest --transcript s.jsonl --markdown d.md
+  Then the chunk index holds chunks of both files, and stdout has one "ingest <path>: N chunks" line for each
+
+Scenario: 792a5i1b A changed source embeds only its new text
+  Given a Markdown document with sections A and B that was ingested, after which section B was edited
+  When the user runs engram ingest again with the document
+  Then stdout reads "ingest <path>: 3 chunks (1 reused, 1 embedded)", the third chunk being B's earlier text (792a5j)
+
+Scenario: 792a5j1a Edited-away text stays searchable
+  Given a document that was ingested with the paragraph "use flock for the manifest"
+  When the paragraph is replaced by other text and the user runs engram ingest again
+  Then the index holds both the old paragraph's chunk and the new text's chunk
+
+Scenario: 792a5m1a A copy indexed first gives way to the preferred one
+  Given /r/.claude/doc.md was indexed while /r/doc.md did not exist
+  When /r/doc.md is created with the same bytes and the user runs engram ingest --auto from /r
+  Then /r/doc.md is indexed and /r/.claude/doc.md no longer has chunks in the index
+
+Scenario: 792a5p1a A deleted source is detached and stays searchable
+  Given a transcript that was ingested and then deleted
+  When the user runs engram prune and then engram query with a phrase matching it
+  Then prune prints "prune: detached 1 source(s) — embedded chunks preserved (still searchable)", and the query returns its chunks with no re-indexing
+
+Scenario: 792a5r1a A duplicate group is collapsed
+  Given an index where /a/doc.md and /a/b/doc.md are both indexed with identical content and chunks
+  When the user runs engram prune --duplicates
+  Then /a/doc.md is kept, /a/b/doc.md no longer has chunks or a record, and it prints "prune: removed 1 duplicate(s), retained 1 canonical(s)"
 ```
 
 ## 792b4 Added: subprocess-runner
@@ -2288,8 +2407,8 @@ Canonical target: `docs/specs/technical/vault-write-lock.md` (title `Vault Write
   owns acquiring, waiting and releasing; independent verification, it is tested directly over fake
   primitives and over a real lock file; stability, the contract survives any change to the
   injection seam; necessity, concurrent note writes depend on it.
-- Supported capabilities: 792a3 note-writing, 792a4 note-revision. Chunk-indexing and
-  controlled-vocabulary add their callers' requirements (792d30, 792d63).
+- Supported capabilities: 792a3 note-writing, 792a4 note-revision, 792a5 chunk-indexing.
+  Controlled-vocabulary adds its callers' requirements (792d30, 792d63).
 
 Rationale: before every read-modify-write writer took a lock, only `learn`'s Luhmann-ID allocation
 was locked, and two concurrent `ingest`, `amend`, `resituate` or `activate` runs corrupted the vault
@@ -2424,6 +2543,7 @@ Scenario: 792b8c4a1 A vault is locked through .luhmann.lock
 | 792a3q1a | 792b8c1, 792b8c4 |
 | 792a4o1a | 792b8c1, 792b8c4 |
 | 792a4o1b | 792b8c1, 792b8c4 |
+| 792a5o1a | 792b8c1 |
 
 ```gherkin
 Scenario: 792a4o1a Concurrent amends both take effect
@@ -2435,6 +2555,13 @@ Scenario: 792a4o1b An activation does not undo a re-embed
   Given a fact note with a current sidecar
   When engram amend --target <note> --object new and engram activate --note <note> start at the same time
   Then the sidecar holds the vectors of the amended text
+```
+
+```gherkin
+Scenario: 792a5o1a An ingest and a prune at the same time both take effect
+  Given a chunk index that records a source whose file is gone
+  When engram ingest --transcript new.jsonl and engram prune start at the same time
+  Then afterwards the index records new.jsonl and no longer records the gone source
 ```
 
 ## 792b9 Added: text-embedder
@@ -2459,7 +2586,7 @@ Canonical target: `docs/specs/technical/text-embedder.md` (title `Text Embedder 
   model, its cache and its window; independent verification, it is tested directly over fake
   backends and cache filesystems and over the real bundled model; stability, the contract survives
   a change of runtime library; necessity, every sidecar and every query phrase depends on it.
-- Supported capabilities: 792a3 note-writing. Chunk-indexing, controlled-vocabulary,
+- Supported capabilities: 792a3 note-writing, 792a5 chunk-indexing. Controlled-vocabulary,
   memory-query and vault-health add their mappings (792d30).
 
 Rationale: an early design embedded through an external API, which brought a network dependency,
@@ -2764,6 +2891,8 @@ Scenario: 792b9c7a5 A missing runtime fails loudly
 | --- | --- |
 | 792a3n1a | 792b9c1, 792b9c2, 792b9c3, 792b9c4, 792b9c5, 792b9c6, 792b9c7 |
 | 792a3n1b | 792b9c3, 792b9c4, 792b9c5 |
+| 792a5b1a | 792b9c1, 792b9c2 |
+| 792a5i1b | 792b9c1 |
 
 ```gherkin
 Scenario: 792a3n1b A failed embedding keeps the note
@@ -2795,9 +2924,9 @@ Canonical target: `docs/specs/technical/embedding-sidecar.md` (title `Embedding 
   hashing and classification are tested directly over fake embedders and filesystems; stability,
   the on-disk format is versioned and outlives any refactoring; necessity, every retrieval over notes
   reads it.
-- Supported capabilities: 792a2 vault-identity, 792a3 note-writing, 792a4 note-revision.
-  Controlled-vocabulary, memory-query, vault-health and vault-migration add their mappings and
-  requirements (792d30).
+- Supported capabilities: 792a2 vault-identity, 792a3 note-writing, 792a4 note-revision, 792a5
+  chunk-indexing. Controlled-vocabulary, memory-query, vault-health and vault-migration add their
+  mappings and requirements (792d30).
 
 Rationale: semantic search needs vectors, but a vector database or a separate rebuild step is a
 moving part that can drift from the notes. Instead every note carries its own sidecar, written as
@@ -3149,6 +3278,7 @@ Scenario: 792b10c9a1 A CRLF note embeds and hashes as its LF form
 | 792a4n1a | 792b10c1 |
 | 792a4n1d | 792b10c1 |
 | 792a4o1b | 792b10c5 |
+| 792a5n1a | 792b10c2 |
 
 ```gherkin
 Scenario: 792a3t1a The answer is found and the question is not
@@ -3177,6 +3307,13 @@ Scenario: 792a4n1d Amend records a use
   Given a note with a current sidecar
   When the user runs engram amend --target <note> --activate
   Then the sidecar's last_used is today
+```
+
+```gherkin
+Scenario: 792a5n1a A vault-note copy outside the vault is skipped
+  Given a swept directory holding 1.2026-10-09.x.md with 1.2026-10-09.x.vec.json beside it, and plain.md with no sidecar, outside the vault
+  When the user runs engram ingest --sweep <dir>
+  Then plain.md is indexed and 1.2026-10-09.x.md is not
 ```
 
 ## 792b11 Added: note-provenance
