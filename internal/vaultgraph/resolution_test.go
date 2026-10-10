@@ -11,7 +11,7 @@ import (
 // G0 invariant: every authored wikilink resolves to a note. UnresolvedTargets
 // surfaces the links BuildGraph silently drops — non-empty means G0 is broken.
 
-func TestUnresolvedTargets_FlagsBareIDLinks(t *testing.T) {
+func Test792b13c6a1_UnresolvedTargets_FlagsBareIDLinks(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -30,7 +30,7 @@ func TestUnresolvedTargets_FlagsBareIDLinks(t *testing.T) {
 	g.Expect(got[0].Target).To(Equal("105"))
 }
 
-func TestUnresolvedTargets_IgnoresSelfLinksAndResolved(t *testing.T) {
+func Test792b13c6a2_UnresolvedTargets_IgnoresSelfLinksAndResolved(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -43,11 +43,11 @@ func TestUnresolvedTargets_IgnoresSelfLinksAndResolved(t *testing.T) {
 	g.Expect(vaultgraph.UnresolvedTargets(notes)).To(BeEmpty())
 }
 
-// TestUnresolvedTargets_MdSuffixedLinkResolvesViaParse verifies a legacy
+// Test792b13c6a3_UnresolvedTargets_MdSuffixedLinkResolvesViaParse verifies a legacy
 // .md-suffixed supersession link, parsed through ParseWikilinks, resolves to
 // an existing basename — while a truly missing target still reports, in
 // either link form.
-func TestUnresolvedTargets_MdSuffixedLinkResolvesViaParse(t *testing.T) {
+func Test792b13c6a3_UnresolvedTargets_MdSuffixedLinkResolvesViaParse(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)

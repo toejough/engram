@@ -187,7 +187,8 @@ command succeeds.
 
 Supports: 792a2e1b, 792a2j1c, 792a2n1b, 792a2o1a, 792a3f1b, 792a3g1a, 792a3k1a, 792a3k1b, 792a3k1c,
 792a3k1d, 792a3r1a, 792a3s1a, 792a4a1b, 792a4c1a, 792a4f1a, 792a4k1a, 792a4k1b, 792a4l1b, 792a4l1c,
-792a4n1c, 792a6h1a, 792a6i1c, 792a6r1a, 792a6t1a, 792a8c1f, 792a8e1j, 792a8f1a, 792a8f1b, 792a8f1c.
+792a4n1c, 792a6h1a, 792a6i1c, 792a6r1a, 792a6t1a, 792a8c1f, 792a8e1j, 792a8f1a, 792a8f1b, 792a8f1c,
+792a9a1b, 792a9a1e, 792a9g1c, 792a9i1f.
 
 ##### 792b2c4a Scenarios
 
@@ -419,6 +420,10 @@ Scenario: 792b2c8a3 A blank reference fails
 | 792a8f1a | 792b2c4 |
 | 792a8f1b | 792b2c4 |
 | 792a8f1c | 792b2c4 |
+| 792a9a1b | 792b2c4 |
+| 792a9a1e | 792b2c4 |
+| 792a9g1c | 792b2c4 |
+| 792a9i1f | 792b2c4 |
 
 ```gherkin
 Scenario: 792a2a1a The flag wins over the environment
@@ -790,6 +795,28 @@ Scenario: 792a8f1c A filter alone is not a mode
   Given a vault
   When the user runs engram count --filter type=fact
   Then it fails with "count: specify --group-by <attr> or --backlinks-of <basename>"
+```
+
+```gherkin
+Scenario: 792a9a1b A FAIL line fails the command
+  Given a vault with a note whose link is a bare ID that should resolve
+  When the user runs engram check
+  Then a line beginning FAIL names G0 graph-resolution, stderr has "check: FAIL-class invariant violations found", and the exit status is non-zero
+
+Scenario: 792a9a1e An unreadable note stops the check
+  Given a vault with a note the user cannot read
+  When the user runs engram check
+  Then it fails with an error beginning "check: scan:" and naming the file, and prints no PASS, WARN or FAIL line
+
+Scenario: 792a9g1c An unreadable note stops the census
+  Given a vault with a note the user cannot read
+  When the user runs engram embed status
+  Then it fails with an error beginning "embed status: scan:" and naming the file
+
+Scenario: 792a9i1f An unreadable note stops the run
+  Given a vault with a note the user cannot read
+  When the user runs engram embed apply
+  Then it fails with an error beginning "embed apply: scan:" and nothing is embedded
 ```
 
 ## 792b3 Added: durable-file-store
@@ -2897,7 +2924,7 @@ Requirement: 792b9c1 The text-embedder MUST embed text with the bundled model, m
 `minilm-l6-v2@384`, returning one 384-value vector per text, and MUST match the reference
 implementation's similarities for that model.
 
-Supports: 792a3n1a, 792a6a1a.
+Supports: 792a3n1a, 792a6a1a, 792a9i1a.
 
 ##### 792b9c1a Scenarios
 
@@ -3163,6 +3190,7 @@ Scenario: 792b9c7a5 A missing runtime fails loudly
 | 792a6a1a | 792b9c1 |
 | 792a7d1a | 792b9c1 |
 | 792a7zc1a | 792b9c1 |
+| 792a9i1a | 792b9c1 |
 
 ```gherkin
 Scenario: 792a3n1b A failed embedding keeps the note
@@ -3183,6 +3211,13 @@ Scenario: 792a7zc1a Every payload names its model
   Then the payload's model_id is minilm-l6-v2@384
 ```
 
+```gherkin
+Scenario: 792a9i1a A missing sidecar is written
+  Given a note 1.foo.md with no sidecar
+  When the user runs engram embed apply
+  Then stdout has "embedded  1.foo.md (missing)" and the sidecar 1.foo.vec.json exists
+```
+
 ## 792b10 Added: embedding-sidecar
 
 Canonical target: `docs/specs/technical/embedding-sidecar.md` (title `Embedding Sidecar - Technical Spec`).
@@ -3193,13 +3228,14 @@ Canonical target: `docs/specs/technical/embedding-sidecar.md` (title `Embedding 
 - Responsibility: each note's `.vec.json` sidecar. It decides which text of a note is embedded and
   hashed, builds and writes the sidecar with two vectors, a model ID and a content hash, decodes
   and validates one, classifies a note's sidecar against the current model, and measures cosine
-  similarity between vectors.
+  similarity between vectors. It also runs the operator's census of a vault's sidecars and the
+  re-embed of the notes whose sidecar is missing, stale, incompatible or broken.
 - Current realization (informational): `internal/embed/sidecar.go` (`Sidecar` format,
   `SidecarPath`, `MarshalSidecar`, `UnmarshalSidecar`), `internal/embed/embedder.go`
   (`BuildSidecar`, `State`), `internal/embed/hash.go` (`SituationText`, `BodyText`, `ContentHash`),
   `internal/embed/state.go` (`ComputeState`), `internal/embed/cosine.go` (`Cosine`), and
-  `autoEmbedNote` in `internal/cli/learn.go`. The `engram embed apply` and `status` selection in
-  `internal/cli/embed.go` is added by vault-health (792d66).
+  `autoEmbedNote` in `internal/cli/learn.go`, and `RunEmbedApply`, `RunEmbedStatus` and
+  `selectStates` in `internal/cli/embed.go` (the operator's census and re-embed, 792d99).
 - Qualification: responsibility, the sidecar contract is stated without naming any writer or
   reader; ownership, callers decide when to build, read or classify a sidecar, while this component
   decides its content and what makes it current; independent verification, building, decoding,
@@ -3207,8 +3243,8 @@ Canonical target: `docs/specs/technical/embedding-sidecar.md` (title `Embedding 
   the on-disk format is versioned and outlives any refactoring; necessity, every retrieval over notes
   reads it.
 - Supported capabilities: 792a2 vault-identity, 792a3 note-writing, 792a4 note-revision, 792a5
-  chunk-indexing, 792a6 controlled-vocabulary, 792a7 memory-query. Vault-health and vault-migration
-  add their mappings and requirements (792d30).
+  chunk-indexing, 792a6 controlled-vocabulary, 792a7 memory-query, 792a9 vault-health.
+  Vault-migration adds its mappings (792d30).
 
 Rationale: semantic search needs vectors, but a vector database or a separate rebuild step is a
 moving part that can drift from the notes. Instead every note carries its own sidecar, written as
@@ -3239,6 +3275,51 @@ sequenceDiagram
   else embedding failed
     Embedder-->>Sidecar: error
     Sidecar-->>Writer: warning naming the note, note kept (792b10c6)
+  end
+```
+
+The operator's census and re-embed is a second flow:
+
+```mermaid
+sequenceDiagram
+  participant Op as Operator
+  participant Sidecar as embedding-sidecar
+  participant Graph as wikilink-graph
+  participant Embedder as text-embedder
+  participant Store as durable-file-store
+  Op->>Sidecar: embed status (792b10c10) or embed apply with flags (792b10c11, 792b10c12)
+  Sidecar->>Graph: scan the vault (792b13c1)
+  alt the scan fails
+    Graph-->>Sidecar: error
+    Sidecar-->>Op: error naming the scan (792b10c10, 792b10c12)
+  else notes scanned
+    Graph-->>Sidecar: notes
+    loop each note in ascending basename order
+      Sidecar->>Store: read the note and its sidecar, then classify (792b10c7)
+      alt a census
+        Sidecar->>Sidecar: count the note's state (792b10c10)
+      else the note is not selected
+        Sidecar->>Sidecar: leave it (792b10c11)
+      else a dry run
+        Sidecar-->>Op: would-embed line (792b10c12)
+      else the note cannot be read
+        Sidecar-->>Op: skip line (792b10c12)
+      else read
+        Sidecar->>Embedder: embed the situation and the body (792b10c5)
+        alt embedding fails
+          Embedder-->>Sidecar: error
+          Sidecar-->>Op: fail line (792b10c12)
+        else embedded
+          Sidecar->>Store: write the sidecar atomically
+          alt the write fails
+            Sidecar-->>Op: fail line (792b10c12)
+          else written
+            Sidecar-->>Op: embedded line (792b10c12)
+          end
+        end
+      end
+    end
+    Sidecar-->>Op: the census lines (792b10c10)
   end
 ```
 
@@ -3449,7 +3530,8 @@ sidecar cannot be read, is malformed or has a dims mismatch; `incompatible` when
 schema version or another model ID; `stale` when its content hash differs from the note's; and `ok`
 otherwise, checking the model before the hash.
 
-Supports: 792a2c1a, 792a2d1a, 792a2d1b, 792a6u1a.
+Supports: 792a2c1a, 792a2d1a, 792a2d1b, 792a6u1a, 792a9g1a, 792a9g1b, 792a9h1a, 792a9h1b, 792a9h1c,
+792a9h1f.
 
 Rationale: a re-embed under a new model also picks up any content change, so a model mismatch takes
 precedence. Every failure is a state rather than an error, so a pass over the whole vault never
@@ -3523,7 +3605,7 @@ Requirement: 792b10c9 The embedding-sidecar MUST take the situation text, the bo
 content hash of a note whose lines end in `\r\n` from its LF form, so that each equals the value
 for the note's LF form.
 
-Supports: 792a4m1a.
+Supports: 792a4m1a, 792a9j1a, 792a9j1b.
 
 Rationale: a CRLF note used to be embedded from the wrong text, and a conversion to LF then changed
 its hash. Reading the LF form makes the conversion that a revision makes leave the hash as it
@@ -3536,6 +3618,153 @@ Scenario: 792b10c9a1 A CRLF note embeds and hashes as its LF form
   Given a note whose lines end in \r\n, and the same note with LF line endings
   When their situation text, body text and content hash are taken
   Then each equals the LF note's
+```
+
+#### 792b10c10 Embedding census
+
+Requirement: 792b10c10 The embedding-sidecar MUST, for a census, scan the vault, classify each scanned
+note (792b10c7) and print six lines: `total:` and the number of notes, then `with-embeddings:` (ok),
+`without:` (missing), `stale:`, `incompatible:` and `broken:` with their numbers, each label padded
+so the numbers align. It MUST return a scan failure as `embed status: scan: <error>`.
+
+Supports: 792a9g1a, 792a9g1b, 792a9g1c, 792a9j1a.
+
+##### 792b10c10a Scenarios
+
+```gherkin
+Scenario: 792b10c10a1 Notes without sidecars are counted as without
+  Given a vault of two notes and no sidecar
+  When the census is taken
+  Then the output has "total:           2", "with-embeddings: 0" and "without:         2"
+
+Scenario: 792b10c10a2 Every state is counted
+  Given notes that are ok, stale, incompatible and broken
+  When the census is taken
+  Then each of those counts is 1 and the total is 4
+
+Scenario: 792b10c10a3 A scan failure is returned
+  Given a vault whose scan fails
+  When the census is taken
+  Then it fails with an error beginning "embed status: scan:"
+```
+
+#### 792b10c11 Embedding selection
+
+Requirement: 792b10c11 The embedding-sidecar MUST select, with no mode flag or with the missing flag,
+the notes whose state is missing; with the stale flag, the stale notes; with the force flag, the
+incompatible notes; and with the all flag, every note. Mode flags other than all MUST combine, and all
+MUST select every state. It MUST select a note whose state is broken under every selection.
+
+Supports: 792a9h1a, 792a9h1b, 792a9h1c, 792a9h1d, 792a9h1e, 792a9h1f.
+
+Rationale: a broken sidecar cannot be classified against the content, and no selection should leave
+it, so every selection takes it. The force flag is separate from the stale flag because replacing
+another model's sidecars changes the model a vault runs under (792b10c7).
+
+##### 792b10c11a Scenarios
+
+```gherkin
+Scenario: 792b10c11a1 No flag selects the missing notes
+  Given no mode flag
+  When each state is tested for selection
+  Then missing and broken are selected and ok, stale and incompatible are not
+
+Scenario: 792b10c11a2 The all flag selects every state
+  Given the all flag
+  When each state is tested for selection
+  Then every state is selected
+
+Scenario: 792b10c11a3 The stale flag selects stale and broken
+  Given the stale flag
+  When each state is tested for selection
+  Then stale and broken are selected and the others are not
+
+Scenario: 792b10c11a4 The force flag selects incompatible and broken
+  Given the force flag
+  When each state is tested for selection
+  Then incompatible and broken are selected and the others are not
+
+Scenario: 792b10c11a5 The missing flag is the explicit default
+  Given the missing flag
+  When each state is tested for selection
+  Then missing and broken are selected and the others are not
+
+Scenario: 792b10c11a6 Mode flags combine
+  Given the stale and force flags
+  When each state is tested for selection
+  Then stale, incompatible and broken are selected and missing and ok are not
+```
+
+#### 792b10c12 Embedding run
+
+Requirement: 792b10c12 The embedding-sidecar MUST, for each selected note in ascending basename order,
+read the note, build its sidecar (792b10c5), write it atomically beside the note and print
+`embedded  <note>.md (<state>)`. With the dry-run flag it MUST print `would-embed <note>.md (<state>)`
+and write nothing. It MUST print `skip      <note>.md: read error: <error>` for a note it
+cannot read, and `fail      <note>.md: embed: <error>` or `fail      <note>.md: write: <error>` for an
+embedding or a write that fails, and MUST continue with the remaining notes and return no error
+for them. It MUST write nothing but sidecars, and MUST return a scan failure as `embed apply: scan:
+<error>`.
+
+Supports: 792a9h1a, 792a9h1b, 792a9h1c, 792a9h1d, 792a9h1f, 792a9i1a, 792a9i1b, 792a9i1c, 792a9i1d,
+792a9i1e, 792a9i1f, 792a9j1b.
+
+Rationale: a sidecar is a derived file, not part of the note's git-tracked content. It is recomputed
+from the current note, so its content hash stays honest, and it is never stored in or versioned with
+the note file. No lock is taken: a sidecar write does not collide with Luhmann ID assignment.
+
+##### 792b10c12a Scenarios
+
+```gherkin
+Scenario: 792b10c12a1 A missing sidecar is written
+  Given a note with no sidecar
+  When the run embeds the missing notes
+  Then the output has "embedded  <note>.md (missing)" and the sidecar holds the schema version, model ID, dims, both vectors and a sha256 content hash
+
+Scenario: 792b10c12a2 A dry run writes nothing
+  Given a note with no sidecar
+  When the run is a dry run
+  Then the output has "would-embed <note>.md (missing)" and no sidecar is written
+
+Scenario: 792b10c12a3 The stale flag leaves another model's sidecar and the force flag replaces it
+  Given a note whose sidecar names another model
+  When the run uses the stale flag, then the force flag
+  Then the first leaves the sidecar unchanged and the second rewrites it under the current model
+
+Scenario: 792b10c12a4 A failed write is reported
+  Given a note whose sidecar cannot be written
+  When the run embeds it
+  Then the output has a line beginning "fail      " for the note and containing the write error, and no error is returned
+
+Scenario: 792b10c12a5 A failed embedding is reported
+  Given an embedder that fails
+  When the run embeds a note
+  Then the output has a line beginning "fail      " for the note, and no error is returned
+
+Scenario: 792b10c12a6 A stale and a broken note are both embedded
+  Given a stale note and a note with a malformed sidecar
+  When the run uses the stale flag
+  Then both are embedded, printing their states
+
+Scenario: 792b10c12a7 A note that cannot be read is skipped
+  Given a selected note that cannot be read
+  When the run embeds it
+  Then the output has a line beginning "skip      " for the note and the run goes on
+
+Scenario: 792b10c12a8 A scan failure is returned
+  Given a vault whose scan fails
+  When the run starts
+  Then it fails with an error beginning "embed apply: scan:" and writes nothing
+
+Scenario: 792b10c12a9 Notes are embedded in ascending order
+  Given several selected notes
+  When the run embeds them
+  Then their lines are in ascending basename order
+
+Scenario: 792b10c12a10 Only sidecars are written
+  Given selected notes
+  When the run embeds them
+  Then no note file changes and every file written is a sidecar
 ```
 
 ### 792b10d Product-Scenario Mapping
@@ -3573,6 +3802,23 @@ Scenario: 792b10c9a1 A CRLF note embeds and hashes as its LF form
 | 792a7d1a | 792b10c1, 792b10c8 |
 | 792a7f1b | 792b10c1 |
 | 792a7zh1a | 792b10c1 |
+| 792a9g1a | 792b10c10, 792b10c7 |
+| 792a9g1b | 792b10c10, 792b10c7 |
+| 792a9g1c | 792b10c10 |
+| 792a9h1a | 792b10c11, 792b10c12, 792b10c7 |
+| 792a9h1b | 792b10c11, 792b10c12, 792b10c7 |
+| 792a9h1c | 792b10c11, 792b10c12, 792b10c7 |
+| 792a9h1d | 792b10c11, 792b10c12 |
+| 792a9h1e | 792b10c11 |
+| 792a9h1f | 792b10c11, 792b10c12, 792b10c7 |
+| 792a9i1a | 792b10c12 |
+| 792a9i1b | 792b10c12 |
+| 792a9i1c | 792b10c12 |
+| 792a9i1d | 792b10c12 |
+| 792a9i1e | 792b10c12 |
+| 792a9i1f | 792b10c12 |
+| 792a9j1a | 792b10c10, 792b10c9 |
+| 792a9j1b | 792b10c12, 792b10c9 |
 
 ```gherkin
 Scenario: 792a3t1a The answer is found and the question is not
@@ -3660,6 +3906,78 @@ Scenario: 792a7zh1a A query leaves the vault as it was
   Given a vault with notes and sidecars
   When the user runs engram query with a phrase that matches them
   Then every note, sidecar and chunk-index file is byte-identical afterwards, and the payload has no activated field
+```
+
+```gherkin
+Scenario: 792a9g1a Notes without sidecars are counted as without
+  Given a vault of two notes and no sidecar
+  When the user runs engram embed status
+  Then stdout has "total:           2", "with-embeddings: 0" and "without:         2"
+
+Scenario: 792a9g1b Every state is counted
+  Given a vault of four notes: one embedded and current, one whose body changed after embedding, one whose sidecar names another model, and one whose sidecar is malformed
+  When the user runs engram embed status
+  Then total is 4, and with-embeddings, stale, incompatible and broken are each 1
+
+Scenario: 792a9h1a The default embeds only notes without a sidecar
+  Given one note without a sidecar and one with a current sidecar
+  When the user runs engram embed apply
+  Then only the note without a sidecar is embedded
+
+Scenario: 792a9h1b --stale embeds changed notes and not another model's sidecars
+  Given a note whose body changed after its sidecar and a note whose sidecar names another model
+  When the user runs engram embed apply --stale
+  Then the changed note is re-embedded and the other model's sidecar is unchanged
+
+Scenario: 792a9h1c --force replaces another model's sidecar
+  Given a note whose sidecar names another model
+  When the user runs engram embed apply --force
+  Then its sidecar is rewritten under the current model
+
+Scenario: 792a9h1d --all embeds every note
+  Given a note with a current sidecar
+  When the user runs engram embed apply --all
+  Then it is embedded again
+
+Scenario: 792a9h1e Mode flags combine
+  Given a stale note, an incompatible note and a missing note
+  When the user runs engram embed apply --stale --force
+  Then the stale and the incompatible notes are embedded and the missing one is not
+
+Scenario: 792a9h1f A broken sidecar is always replaced
+  Given a note whose sidecar is malformed
+  When the user runs engram embed apply, then with --stale, then with --force
+  Then the note is embedded each time
+
+Scenario: 792a9i1b A dry run writes nothing
+  Given a note 1.foo.md with no sidecar
+  When the user runs engram embed apply --dry-run
+  Then stdout has "would-embed 1.foo.md (missing)" and no sidecar exists
+
+Scenario: 792a9i1c Only sidecars are written
+  Given notes needing embedding
+  When the user runs engram embed apply --all
+  Then every note file is byte-identical afterwards, none of them contains a vector or a model ID, and the only files created are sidecars
+
+Scenario: 792a9i1d A failed write is reported and the run goes on
+  Given two notes, where a directory stands where the first note's sidecar would be
+  When the user runs engram embed apply
+  Then stdout has a line beginning "fail      " for the first note and ending with the write error, the second note is embedded, and the exit status is zero
+
+Scenario: 792a9i1e Notes are embedded in order
+  Given three notes without sidecars
+  When the user runs engram embed apply
+  Then the "embedded" lines are in ascending basename order
+
+Scenario: 792a9j1a A CRLF note is not stale
+  Given a note embedded with LF line endings and then converted to CRLF
+  When the user runs engram embed status
+  Then the note is counted with-embeddings, and stale is 0
+
+Scenario: 792a9j1b A CRLF note gets its LF form's sidecar
+  Given a note with LF line endings and the same note with CRLF line endings
+  When the user runs engram embed apply --all on each
+  Then the two sidecars are byte-identical
 ```
 
 ## 792b11 Added: note-provenance
@@ -4353,8 +4671,8 @@ Canonical target: `docs/specs/technical/wikilink-graph.md` (title `Wikilink Grap
 - Responsibility: the vault seen as a set of linked notes. It scans the notes at the vault root,
   keying each by its basename without `.md` and recording its leading Luhmann ID and the link
   targets in its text, and it resolves a reference a user gives for a note to the note it names.
-  It builds the directed link graph and reads a note's in-degree for the vault-counter. Reporting
-  links that do not resolve is added by vault-health (792d75).
+  It builds the directed link graph, reads a note's in-degree for the vault-counter, and lists the
+  links that resolve to no note for vault-health.
 - Current realization (informational): `internal/vaultgraph` (`ScanVault`, `ParseBasename`,
   `ParseWikilinks`, `BuildGraph`, `UnresolvedTargets`); `normalizeNoteRef` in
   `internal/cli/note_ref.go`; `findNote` in `internal/cli/resituate.go`. `BFSWithCap`,
@@ -4366,7 +4684,7 @@ Canonical target: `docs/specs/technical/wikilink-graph.md` (title `Wikilink Grap
   basename key is the link form notes and Obsidian share, and it survives any refactoring;
   necessity, every command that reads or revises a named note finds it here.
 - Supported capabilities: 792a2 vault-identity, 792a4 note-revision, 792a7 memory-query, 792a8
-  vault-counting. Vault-health and vault-migration add their requirements (792d30, 792d75).
+  vault-counting, 792a9 vault-health. Vault-migration adds its mappings (792d30, 792d75).
 
 Rationale: navigation lives in authored relations, the wikilinks in note text, rather than in a
 separate graph store that could drift from the notes, so the graph is derived from the notes each
@@ -4483,7 +4801,7 @@ and ends at a line of the same character, at least as long, followed only by whi
 of the text when none follows. It MUST keep a `|display` part as part of the target, and MUST NOT
 treat brackets inside a target as nesting.
 
-Supports: 792a7x1a, 792a7x1e, 792a7x1h, 792a8e1f, 792a8e1g.
+Supports: 792a7x1a, 792a7x1e, 792a7x1h, 792a8e1f, 792a8e1g, 792a9b1c, 792a9c1b, 792a9c1d.
 
 Rationale: Obsidian does not resolve a link inside a fenced code block, so verbatim transcript text
 pasted into a note must not make graph edges. The legacy `.md`-suffixed form that engram once wrote
@@ -4609,6 +4927,37 @@ Scenario: 792b13c5a2 An unknown basename has in-degree 0
   Then it is 0
 ```
 
+#### 792b13c6 Unresolved links
+
+Requirement: 792b13c6 The wikilink-graph MUST list, for scanned notes, each link target of a note that
+is neither that note's own basename nor the basename of a scanned note, as the linking note's
+basename and the target, in note order and then in link order.
+
+Supports: 792a9b1a, 792a9b1c, 792a9c1a, 792a9c1b, 792a9c1c, 792a9c1e.
+
+Rationale: the graph drops a link to no note without a sound (792b13c4), so this is the list of the
+edges it dropped. A vault that writes links in a form the graph does not resolve, such as a bare
+Luhmann ID against a basename key, loses most of its edges without it.
+
+##### 792b13c6a Scenarios
+
+```gherkin
+Scenario: 792b13c6a1 A link in the wrong form is listed
+  Given a note 105.2026-05-30.foo that links 105, and a note 1a.2026-05-30.bar that links 105.2026-05-30.foo
+  When the unresolved links are listed
+  Then only 105.2026-05-30.foo linking 105 is listed
+
+Scenario: 792b13c6a2 Self-links and resolved links are not listed
+  Given a note A that links A and B, and a note B
+  When the unresolved links are listed
+  Then none is listed
+
+Scenario: 792b13c6a3 A legacy suffixed link resolves
+  Given a note A whose text links B.md, gone.md and missing, and a note B
+  When the links are parsed and the unresolved links are listed
+  Then gone and missing are listed and B is not
+```
+
 ### 792b13d Product-Scenario Mapping
 
 | Product scenario | Technical requirements |
@@ -4633,6 +4982,14 @@ Scenario: 792b13c5a2 An unknown basename has in-degree 0
 | 792a8e1h | 792b13c4 |
 | 792a8e1i | 792b13c1 |
 | 792a8e1j | 792b13c1 |
+| 792a9b1a | 792b13c6 |
+| 792a9b1b | 792b13c6 |
+| 792a9b1c | 792b13c3, 792b13c6 |
+| 792a9c1a | 792b13c6 |
+| 792a9c1b | 792b13c3, 792b13c6 |
+| 792a9c1c | 792b13c6 |
+| 792a9c1d | 792b13c3 |
+| 792a9c1e | 792b13c6 |
 
 ```gherkin
 Scenario Outline: 792a4a1a Every reference form finds the note
@@ -4703,6 +5060,48 @@ Scenario: 792a8e1c A basename that is not a note
   Given a vault in which the basename nosuchfile never appears
   When the user runs engram count --backlinks-of nosuchfile
   Then stdout is "in-degree: 0" and no linker lines
+```
+
+```gherkin
+Scenario: 792a9b1a A bare-ID link fails
+  Given a note 1.2026-05-30.foo that links [[2]], and a note 2.2026-05-30.bar
+  When the user runs engram check
+  Then stdout has "FAIL  G0 graph-resolution: 1 bare-id links that should resolve" and the line "1.2026-05-30.foo → [[2]]"
+
+Scenario: 792a9b1b A basename link passes
+  Given a note A that links [[B]], and a note B
+  When the user runs engram check
+  Then stdout has "PASS  G0 graph-resolution: every authored link resolves by form"
+
+Scenario: 792a9b1c A legacy suffixed link resolves
+  Given a note body containing "Supersedes: [[B.md]]" and a note B
+  When the user runs engram check
+  Then the link is not reported, neither under G0 nor as dangling under G3
+
+Scenario: 792a9c1a A link to a missing note warns
+  Given a fact note that links [[999]] and no note has the ID 999
+  When the user runs engram check
+  Then stdout has a WARN G3 dangling line listing the link, G0 still passes, and the exit status is zero
+
+Scenario: 792a9c1b A missing note is reported once however it is spelled
+  Given a note that links [[vocab.X]] and [[vocab.X.md]], and no such note
+  When the user runs engram check
+  Then stdout has "WARN  G3 dangling: 1 authored links target no note"
+
+Scenario: 792a9c1c A note's link to itself is not reported
+  Given a note that links its own basename
+  When the user runs engram check
+  Then no G3 line is printed
+
+Scenario: 792a9c1d A link inside a fenced code block is not reported
+  Given a note whose only link to a missing note is inside a fenced code block
+  When the user runs engram check
+  Then no G3 line is printed
+
+Scenario: 792a9c1e A vault with no dangling link prints no G3 line
+  Given a vault whose links all resolve
+  When the user runs engram check
+  Then stdout has no line mentioning G3
 ```
 
 ## 792b14 Added: note-amendment

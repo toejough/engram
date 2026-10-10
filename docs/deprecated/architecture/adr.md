@@ -99,23 +99,6 @@ frontmatter/body desync is resolved by `engram amend` (which rewrites both copie
 
 ---
 
-## ADR-0007 — The wikilink graph is authored and walked by the binary; dangling links dropped
-
-Partly ported: the vault scan and its rationale (authored relations, a graph derived fresh from the
-notes, keyed by basename) to
-[792b13](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b13-added-wikilink-graph),
-and the decision (the graph build keyed by basename, dangling targets dropped, and the in-degree) to
-[792b13c4](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b13c4-link-graph).
-The rest waits for vault-health (792c7h1: the G0 consequence).
-
-**Status:** Accepted (known defect: G0; G5 RETIRED — episode kind removed, `[[x]]` in chunk bodies no longer parsed as vault edges, per memory-invariants.md)
-
-**Consequences.** ⚠ KNOWN (G0): `learn` writes relations as
-**bare Luhmann ids** (`[[105]]`) but `BuildGraph` resolves by **basename** — 155/183 link-instances
-unresolved (151 of them bare-id), 138/171 notes orphaned, mean out-degree 0.16.
-
----
-
 ## ADR-0008 — Per-arc episodes as the L1 evidence layer
 
 **Status:** Superseded — episode type retired; `engram learn episode` and `engram transcript` removed in 2026-06-19 cleanup. Chunks ingested via `engram ingest --auto` are now the L1 evidence layer, referenced from facts/feedback via `--chunk-source`. · commits 98c962ea, b4e24f76, 4901bf78
@@ -169,7 +152,7 @@ why candidate-side augmentation beat graph traversal in the first place.
 
 **Representation update (2026-07-27, openspec change `vocab-definition-self-tags`):** per-term definition notes additionally carry their own `vocab/<term>` self-tag (display-only — connects each definition to its member cluster in tag-based views; the family note stays bare-`vocab`-only). Member semantics unchanged: assignment, stats/trigger math, and tag nomination all exclude definitions via the bare marker.
 
-**Context.** The wikilink graph (ADR-0007) is authored and walked by the binary, but resolves by
+**Context.** The wikilink graph ([792b13](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b13-added-wikilink-graph)) is authored and walked by the binary, but resolves by
 basename against bare-Luhmann-id links — most edges never resolve (⚠ KNOWN G0/G5) — and even a
 healthy graph leaves open how a relational miss (a note topically related to the matched set but
 never phrase-matched) should be recovered at query time. Two mechanisms were evaluated head to
@@ -197,7 +180,7 @@ supersessions, 77 dropped as a non-supersession link *type* (76 thematic/cross-r
 deleted 2026-07 with the docs restructure; `git log` recovers it.
 Typed supersession ride-along is mechanism-proven but fabric-starved (few edges qualify as true
 supersessions). The wikilink graph itself is unaffected: it remains authored-and-walked only by
-`check`/`amend` (ADR-0007), never by the query path.
+`check`/`amend` ([792b13](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b13-added-wikilink-graph)), never by the query path.
 
 ---
 

@@ -229,8 +229,8 @@ flowchart TD
   N792c7f5["792c7f5 query-engine tech spec<br/>Complete"]
   N792c7g1["792c7g1 vault-counting product spec<br/>Complete"]
   N792c7g2["792c7g2 vault-counter tech spec<br/>Complete"]
-  N792c7h1["792c7h1 vault-health product spec<br/>Ready"]
-  N792c7h2["792c7h2 vault-invariant-checker tech spec<br/>Blocked by: 792c7h1"]
+  N792c7h1["792c7h1 vault-health product spec<br/>Complete"]
+  N792c7h2["792c7h2 vault-invariant-checker tech spec<br/>Ready"]
   N792c7i1["792c7i1 vault-migration product spec<br/>Blocked by: 792c7h2"]
   N792c7i2["792c7i2 note-reparenting tech spec<br/>Blocked by: 792c7i1"]
   N792c7j1["792c7j1 install-and-update product spec<br/>Blocked by: 792c7i2"]
@@ -2806,11 +2806,45 @@ Target: `792a9` (`docs/specs/product/vault-health.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7h1a | Port product requirements and UAT to `792a9` | Non-test action | Moves current behavior into the framework format | Not started |
-| 792c7h1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7h1c | Repoint stale references to `792a9` | Non-test action | Keeps live links valid | Not started |
-| 792c7h1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Not started |
-| 792c7h1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Not started |
+| 792c7h1a | Port product requirements and UAT to `792a9` | Non-test action | Moves current behavior into the framework format | Done |
+| 792c7h1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7h1c | Repoint stale references to `792a9` | Non-test action | Keeps live links valid | Done |
+| 792c7h1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Done |
+| 792c7h1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
+
+**Outcome:** the supporting component `vault-invariant-checker` is confirmed. embedding-sidecar gains
+792b10c10 to 792b10c12 (the census, the selection and the run of `engram embed`, 792d66) and a second
+sequence; wikilink-graph gains 792b13c6 (unresolved links); command-line-surface and text-embedder gain
+mappings (792b2c4, 792b9c1). Three OpenSpec files are emptied and deleted: `vault-embed-on-write`,
+`vault-wikilink-resolution` and, with its last reader, the CRLF requirement of `vault-note-identity`
+(which keeps only exchange, backfill and skill-identity requirements for later nodes). ADR-0007 is
+deleted, c3 K7 and the recurring defect shape point at 792b13 and 792a9b, and `memory-invariants` keeps
+its G2, G3, E1 and M5 rows and the severity model for 792c7h2. Known divergences are in 792d99.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b10c10a1 | `TestEmbedStatus_AllMissing` → `Test792b10c10a1_EmbedStatus_AllMissing` | `RunEmbedStatus` over an in-memory vault | Notes without sidecars | Done |
+| 792b10c11a1 | `TestSelectStates` → `Test792b10c11a1_SelectStates` | Pure unit, subtests (`shouldEmbed` per state) | No flag; the subtests for the all, stale, force and missing flags verify 792b10c11a2 to 792b10c11a5 (`split deferred`) | Done |
+| 792b10c12a1 | `TestEmbedApply_MissingOnly_WritesSidecar` → `Test792b10c12a1_EmbedApply_MissingOnly_WritesSidecar` | `RunEmbedApply` over an in-memory vault | Sidecar written and shaped | Done |
+| 792b10c12a2 | `TestEmbedApply_DryRunDoesNotWrite` → `Test792b10c12a2_EmbedApply_DryRunDoesNotWrite` | `RunEmbedApply` over an in-memory vault | Dry run | Done |
+| 792b10c12a3 | `TestEmbedApply_StaleVsIncompatibleDistinction` → `Test792b10c12a3_EmbedApply_StaleVsIncompatibleDistinction` | `RunEmbedApply` over an in-memory vault | Stale leaves, force replaces | Done |
+| 792b10c12a4 | `TestEmbedApply_WriteFailureReported` → `Test792b10c12a4_EmbedApply_WriteFailureReported` | `RunEmbedApply` over a failing write | Write failure reported | Done |
+| 792b10c12a5 | `TestApplyOne_EmbedFailureSurfaces` → `Test792b10c12a5_ApplyOne_EmbedFailureSurfaces` | `RunEmbedApply` over a temporary directory and a failing embedder | Embed failure reported | Done |
+| 792b10c12a6 | `TestApplyOneErrorPaths` → `Test792b10c12a6_ApplyOneErrorPaths` | `RunEmbedApply` and `RunEmbedStatus` over a temporary directory | Stale and broken sidecars embedded | Done |
+| 792b13c6a1 | `TestUnresolvedTargets_FlagsBareIDLinks` → `Test792b13c6a1_UnresolvedTargets_FlagsBareIDLinks` | Pure unit (`internal/vaultgraph`) | Wrong-form link listed | Done |
+| 792b13c6a2 | `TestUnresolvedTargets_IgnoresSelfLinksAndResolved` → `Test792b13c6a2_UnresolvedTargets_IgnoresSelfLinksAndResolved` | Pure unit | Self and resolved links left out | Done |
+| 792b13c6a3 | `TestUnresolvedTargets_MdSuffixedLinkResolvesViaParse` → `Test792b13c6a3_UnresolvedTargets_MdSuffixedLinkResolvesViaParse` | Pure unit | Suffixed link resolves | Done |
+
+**Coverage gaps:** 792b10c10a2 (a census of each state; `Test792b10c12a6_ApplyOneErrorPaths` asserts
+only the total) and 792b10c10a3 (scan failure), 792b10c11a6 (flags combining), 792b10c12a7 to
+792b10c12a10 (an unreadable note, a scan failure, the order of the lines, only sidecars written), and
+every 792a9 scenario: none has an end-to-end test. The check scenarios are covered by 792c7h2.
+
+**No-scenario tests:** `TestEmbedDeps_ReadWriteScanRoundTrip` (wiring of the production dependencies),
+`TestTargets_EmbedApplyDryRun` and `TestTargets_EmbedStatus` (an empty vault through dispatch, with no
+product scenario for it) verify no scenario and keep their names.
 
 #### 792c7h2 vault-invariant-checker tech spec
 

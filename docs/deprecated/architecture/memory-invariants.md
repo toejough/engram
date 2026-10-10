@@ -15,25 +15,11 @@ Test methods:
 
 ## A. Graph / structural integrity — `[VC]`
 
-> **KEYSTONE (Phase-1 antagonist, verified): the write-form ≠ resolve-form bug.**
-> `learn` writes relations as **bare Luhmann IDs** (`[[105]]` — per skill §6a/§6b) but
-> `vaultgraph.BuildGraph` resolves edges **only by full basename** (`graph.go:64-78`). **[RETIRED — recall no longer uses the wikilink graph; `vaultgraph` is now used only by `check`/`amend`, not in the query path. The G0 bug in `BuildGraph` still exists and is relevant to `check`/`amend`, but the claim that "`query.go:557` recall builds its subgraph through that resolver" is no longer accurate.]**
-> Verified counts:
-> **Of 183 authored link-instances, 28 resolve to graph edges and 155 drop: 151 are bare-id
-> (`[[105]]`), unresolvable by the basename resolver, plus 4 dangle to nonexistent notes; the other
-> 28 are basename-form and all resolve. Result: 138/171 notes orphaned (80%), mean out-degree 0.16.
-> (Empirically re-confirmed against the live 171-note vault on 2026-06-04: 151 + 28 + 4 = 183.)**
-> My earlier graph numbers (23
-> orphans, ~1.1 links/note) were **ID-aware** — I resolved `[[105]]`→leading-id `105` by hand.
-> **Neither the binary NOR Obsidian does that** (both resolve only full basenames/aliases — verified
-> against Obsidian's docs 2026-06-04: no prefix matching). That count was a *hypothetical post-fix*
-> graph, not any tool's real behavior, and overstated the binary's real graph ~6×. **[RETIRED — recall no longer does graph-expansion (subgraph/clusters/hubs); INV-R2 below is correspondingly retired. The G0 basename-vs-id mismatch still affects `BuildGraph` and is relevant to `engram check`/`amend`.]**
-> Same bug-class as INV-E4 (writer and reader keyed on disjoint representations). Fixable:
-> normalize bare-id→basename in the resolver, or write basenames.
+G0 (the write-form and resolve-form of a link differ) is [792a9b](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a9b-links-that-should-resolve).
 
 | id | invariant (testable property) | sev | status (BINARY's real graph) |
 |---|---|---|---|
-| **G0 (link-form normalization, root cause)** | every authored `[[target]]` resolves through `BuildGraph` to a node (target is a basename, or the resolver normalizes id→basename). | **FAIL** | **BROKEN** — 155/183 edges dropped |
+| **G0 (link-form normalization, root cause)** | Ported to [792a9b](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a9b-links-that-should-resolve). | — | — |
 | **G1** | **[RETIRED — L1/L2/L3 tier ladder removed in recall-v2; no episode kind; notes are now untiered fact/feedback.]** ~~Tier ladder downward: every L3 links ≥1 L2; every L2 links ≥1 L1.~~ | — | RETIRED |
 | **G2** | No orphans: no note has in-degree 0 AND out-degree 0. (WARN — a legitimately standalone principle is allowed; this is corpus health, not correctness.) | WARN | **BROKEN** — 138 (mostly masked by G0) |
 | **G3** | No dangling wikilinks; the checker surfaces them. (The binary silently drops dangling at build — `graph.go:78` — so a dangling link is a lost intended edge.) | WARN | **BROKEN** — 155 edge-instances on the real graph |
@@ -115,4 +101,4 @@ Skill↔binary boundary invariant the flow diagrams exposed. (S2, single represe
 | **S1 (no unmediated vault WRITES)** | the skill layer must not *edit/write* vault note files outside a sync-preserving `engram` path. Reading member files directly in recall §3a is **intended** — the agent decides per-cluster whether the abstract signal is worth investigating; that lazy, judgment-based read stays. | WARN | §3a member read: **OK by design** (operator 2026-06-04 — keep paths-only payload). §6b situation-edit: **FIX via `engram resituate`** (D4) — today a manual file poke that can desync the two `situation` copies (INV-S2). |
 
 ## What the checker (`engram check`, Phase 8) must implement
-VC-class invariants (A, B[graph-only], D) over the real vault — G0 (link-form normalization), G2/G3 (orphans/dangling), S1/S2 (single-representation, no unmediated writes) — exit non-zero on violation, wired as a `targ` gate. PT-class (E-marker, F, G) become rapid tests in the relevant packages. **[RETIRED: `applyTierFilter` / `nearest_l3` / `hubs` — those fields and the tier-filter code no longer exist in the query path.]**
+What the user sees (the report, the exit status, G0) is [792a9a](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a9a-the-check-report). The technical side waits for vault-health's checker node (792c7h2). **[RETIRED: `applyTierFilter` / `nearest_l3` / `hubs` — those fields and the tier-filter code no longer exist in the query path.]**

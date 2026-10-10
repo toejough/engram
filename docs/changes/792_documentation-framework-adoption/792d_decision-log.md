@@ -1399,3 +1399,35 @@ decisions as `792dN`, continuing the sequence.
 - **Alternatives:** a requirement for the production wiring. Rejected because wiring is an injection
   seam, which the technical guide does not let qualify (it is not a stable contract).
 
+## 792d99 vault-health scope, and the behaviors the code shows
+
+- **Choice:**
+  - 792a9 has ten requirements (792a9a to 792a9j). The checks are the ones `engram check` runs: G0, G3,
+    M5 and the sidecar schema check, which the code calls S1. `engram embed status` and `engram embed apply`
+    are specified in embedding-sidecar as 792b10c10 to 792b10c12 (792d66), with their classification by
+    792b10c7, and the unresolved-link list in wikilink-graph as 792b13c6 (792d75). The checker's own
+    contract is 792b26 (792c7h2).
+  - ADR-0007 is deleted; its decision was 792b13c4 (792d97) and its consequence is the rationale of 792a9b.
+    The KEYSTONE note and the G0 row of `memory-invariants` and c3's recurring defect shape are ported to
+    792a9b. The `vault-embed-on-write` and `vault-wikilink-resolution` specs are deleted, and so is the
+    CRLF requirement of `vault-note-identity`, whose readers are now all ported (792d69).
+  - Embedding-run tests take technical IDs (792d52). The `Targets` tests of `check` take product IDs and
+    are renamed with 792c7h2.
+- **Divergences noted (792d33):**
+  - `engram check` runs four checks. The invariants document also lists G2 (no orphan notes), E1 (every
+    note has a sidecar, a FAIL class there), M6 and M7, which the checker does not run: G2 is not
+    reported at all, and a missing sidecar is a WARN under S1. The document's S1 (the skill layer does not
+    edit the vault) is a different invariant from the checker's S1 (sidecar schema).
+  - The rigor plan wired the checker as a `targ` gate; `dev/targs.go` does not run it, and `check-full`
+    does not call it.
+  - S1 prints its PASS line even when notes lack a sidecar and it has just printed the WARN line.
+  - A link is a G0 violation only when its target is a bare ID equal to an existing note's leading ID; a
+    bare ID matching no note is a G3 warning.
+  - `engram embed apply` exits zero when notes fail to embed or write, and always embeds a note whose
+    sidecar is broken, whatever the selection flag.
+  - The 2026-06 census figures (155 of 183 links dropped, 138 of 171 notes without a link) describe the
+    vault of that date; they are kept in 792a9b's rationale as history and are not a claim about now.
+- **Rationale:** 792d30, 792d33, 792d52, 792d66, 792d69, 792d75 and 792d97.
+- **Alternatives:** specify G2 and E1 as requirements of the checker. Rejected because the checker does
+  not implement them (792d33); they are noted as divergences instead.
+

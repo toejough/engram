@@ -18,7 +18,7 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
-func TestEmbedApply_DryRunDoesNotWrite(t *testing.T) {
+func Test792b10c10a1_EmbedStatus_AllMissing(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -26,19 +26,24 @@ func TestEmbedApply_DryRunDoesNotWrite(t *testing.T) {
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
 	memFS.files[filepath.Join(vault, "1.foo.md")] = []byte("body")
+	memFS.files[filepath.Join(vault, "2.bar.md")] = []byte("body")
 
 	var out bytes.Buffer
 
-	err := cli.RunEmbedApply(context.Background(),
-		cli.EmbedApplyArgs{VaultPath: vault, DryRun: true},
-		newEmbedDeps(memFS), &out)
+	err := cli.RunEmbedStatus(
+		context.Background(),
+		cli.EmbedStatusArgs{VaultPath: vault},
+		newEmbedDeps(memFS),
+		&out,
+	)
 
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(out.String()).To(ContainSubstring("would-embed 1.foo.md (missing)"))
-	g.Expect(memFS.files).NotTo(HaveKey(filepath.Join(vault, "1.foo.vec.json")))
+	g.Expect(out.String()).To(ContainSubstring("total:           2"))
+	g.Expect(out.String()).To(ContainSubstring("with-embeddings: 0"))
+	g.Expect(out.String()).To(ContainSubstring("without:         2"))
 }
 
-func TestEmbedApply_MissingOnly_WritesSidecar(t *testing.T) {
+func Test792b10c12a1_EmbedApply_MissingOnly_WritesSidecar(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -69,7 +74,27 @@ func TestEmbedApply_MissingOnly_WritesSidecar(t *testing.T) {
 	g.Expect(sidecar.ContentHash).To(HavePrefix("sha256:"))
 }
 
-func TestEmbedApply_StaleVsIncompatibleDistinction(t *testing.T) {
+func Test792b10c12a2_EmbedApply_DryRunDoesNotWrite(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+	memFS.files[filepath.Join(vault, "1.foo.md")] = []byte("body")
+
+	var out bytes.Buffer
+
+	err := cli.RunEmbedApply(context.Background(),
+		cli.EmbedApplyArgs{VaultPath: vault, DryRun: true},
+		newEmbedDeps(memFS), &out)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(out.String()).To(ContainSubstring("would-embed 1.foo.md (missing)"))
+	g.Expect(memFS.files).NotTo(HaveKey(filepath.Join(vault, "1.foo.vec.json")))
+}
+
+func Test792b10c12a3_EmbedApply_StaleVsIncompatibleDistinction(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -115,7 +140,7 @@ func TestEmbedApply_StaleVsIncompatibleDistinction(t *testing.T) {
 	g.Expect(fresh.EmbeddingModelID).To(Equal("m@4"))
 }
 
-func TestEmbedApply_WriteFailureReported(t *testing.T) {
+func Test792b10c12a4_EmbedApply_WriteFailureReported(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -134,31 +159,6 @@ func TestEmbedApply_WriteFailureReported(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(out.String()).To(ContainSubstring("fail      1.foo.md"))
 	g.Expect(out.String()).To(ContainSubstring("disk full"))
-}
-
-func TestEmbedStatus_AllMissing(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-	memFS.files[filepath.Join(vault, "1.foo.md")] = []byte("body")
-	memFS.files[filepath.Join(vault, "2.bar.md")] = []byte("body")
-
-	var out bytes.Buffer
-
-	err := cli.RunEmbedStatus(
-		context.Background(),
-		cli.EmbedStatusArgs{VaultPath: vault},
-		newEmbedDeps(memFS),
-		&out,
-	)
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(out.String()).To(ContainSubstring("total:           2"))
-	g.Expect(out.String()).To(ContainSubstring("with-embeddings: 0"))
-	g.Expect(out.String()).To(ContainSubstring("without:         2"))
 }
 
 // inMemoryFS is a tiny map-backed filesystem used by embed CLI tests so

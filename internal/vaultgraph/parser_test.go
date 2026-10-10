@@ -78,7 +78,7 @@ func Test792b13c3a2_ParseWikilinks_DedupedSubsetProperty(t *testing.T) {
 			builder.WriteString("]] ")
 
 			// ParseWikilinks normalizes a legacy .md-suffixed target to its
-			// extension-less form (vault-wikilink-resolution), and the
+			// extension-less form (792b13c3), and the
 			// generator can draw one (e.g. "..md" → "."), so the expected
 			// targets are the normalized inputs.
 			all = append(all, strings.TrimSuffix(target, ".md"))
@@ -151,7 +151,7 @@ func Test792b13c3a2_ParseWikilinks_MultipleLinksFirstAppearanceOrder(t *testing.
 // disambiguate, and Obsidian has the same limitation. ParseWikilinks
 // resolves that ambiguity by always treating a trailing ".md" as the
 // legacy-suffixed form (see Test792b13c3a3_ParseWikilinks_MdSuffixLiteralBasenameEdgeCase),
-// which is correct per vault-wikilink-resolution's normalization spec but
+// which is correct per 792b13c3's normalization spec but
 // necessarily breaks the bare/suffixed equivalence for this input. Real
 // vault basenames (`<id>.<date>.<slug>.md` — kebab-case slugs) don't produce
 // this case, so excluding it from the generator does not narrow real
@@ -195,7 +195,7 @@ func Test792b13c3a3_ParseWikilinks_MdSuffixDedupesWithBareForm(t *testing.T) {
 // bare link whose final dot-segment is literally "md" (e.g. "[[0.md]]").
 // ParseWikilinks always resolves this as the legacy .md-suffixed form,
 // yielding the extension-less basename "0" — never a literal target named
-// "0.md". This matches vault-wikilink-resolution's normalization
+// "0.md". This matches 792b13c3's normalization
 // requirement ("Parser normalizes .md-suffixed wikilink targets"), which
 // gives .md-suffix stripping priority with no exception. If this test ever
 // needs to change to accept a literal "0.md" target, the property test's

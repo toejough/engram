@@ -14,10 +14,46 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-// TestApplyOneErrorPaths drives RunEmbedApply through every classification
+// Test792b10c12a5_ApplyOne_EmbedFailureSurfaces exercises the applyOne fail line by
+// using an embedder that returns an error.
+func Test792b10c12a5_ApplyOne_EmbedFailureSurfaces(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	g.Expect(os.MkdirAll(vault, 0o750)).To(Succeed())
+	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(Succeed())
+
+	notePath := filepath.Join(vault, "1.2026-05-24.probe.md")
+	g.Expect(os.WriteFile(notePath, []byte("body"), 0o600)).To(Succeed())
+
+	deps := cli.ExportNewEmbedDeps(cli.Deps{FS: realFSForTest(), Embed: failingEmbedder{}})
+
+	var out bytes.Buffer
+
+	err := cli.RunEmbedApply(context.Background(),
+		cli.EmbedApplyArgs{VaultPath: vault, Missing: true},
+		deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(out.String()).To(ContainSubstring("fail      1.2026-05-24.probe.md"))
+
+	// Stale flow when read fails for the body (delete the note after planting sidecar).
+	g.Expect(os.Remove(notePath)).To(Succeed())
+
+	out.Reset()
+	err = cli.RunEmbedStatus(context.Background(),
+		cli.EmbedStatusArgs{VaultPath: vault},
+		deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// All notes scanned; one will be missing-on-read → broken.
+	g.Expect(strings.Contains(out.String(), "total:")).To(BeTrue())
+}
+
+// Test792b10c12a6_ApplyOneErrorPaths drives RunEmbedApply through every classification
 // outcome including broken (corrupt sidecar) and read failure inside
 // applyOne. Bumps applyOne + tallyStates coverage past threshold.
-func TestApplyOneErrorPaths(t *testing.T) {
+func Test792b10c12a6_ApplyOneErrorPaths(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -107,42 +143,6 @@ func TestApplyOneErrorPaths(t *testing.T) {
 		deps, &out)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(out.String()).To(ContainSubstring("total:           4"))
-}
-
-// TestApplyOne_EmbedFailureSurfaces exercises the applyOne fail line by
-// using an embedder that returns an error.
-func TestApplyOne_EmbedFailureSurfaces(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	g.Expect(os.MkdirAll(vault, 0o750)).To(Succeed())
-	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(Succeed())
-
-	notePath := filepath.Join(vault, "1.2026-05-24.probe.md")
-	g.Expect(os.WriteFile(notePath, []byte("body"), 0o600)).To(Succeed())
-
-	deps := cli.ExportNewEmbedDeps(cli.Deps{FS: realFSForTest(), Embed: failingEmbedder{}})
-
-	var out bytes.Buffer
-
-	err := cli.RunEmbedApply(context.Background(),
-		cli.EmbedApplyArgs{VaultPath: vault, Missing: true},
-		deps, &out)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(out.String()).To(ContainSubstring("fail      1.2026-05-24.probe.md"))
-
-	// Stale flow when read fails for the body (delete the note after planting sidecar).
-	g.Expect(os.Remove(notePath)).To(Succeed())
-
-	out.Reset()
-	err = cli.RunEmbedStatus(context.Background(),
-		cli.EmbedStatusArgs{VaultPath: vault},
-		deps, &out)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	// All notes scanned; one will be missing-on-read → broken.
-	g.Expect(strings.Contains(out.String(), "total:")).To(BeTrue())
 }
 
 // TestEmbedDeps_ReadWriteScanRoundTrip exercises the composed
