@@ -11,52 +11,7 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-func TestPrimLocker_FlockFailureClosesDescriptor(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	const fakeFD = uintptr(7)
-
-	closed := make([]uintptr, 0, 1)
-	boom := errors.New("flock boom")
-
-	locker := lockerFromPrims(cli.Primitives{Lock: cli.LockPrims{
-		OpenLockFile:   func(string, fs.FileMode) (uintptr, error) { return fakeFD, nil },
-		FlockExclusive: func(uintptr) error { return boom },
-		CloseFD: func(fd uintptr) error {
-			closed = append(closed, fd)
-
-			return nil
-		},
-	}})
-
-	_, err := locker.Lock("/vault/.lock")
-	g.Expect(err).To(gomega.MatchError(boom))
-	g.Expect(err.Error()).To(gomega.ContainSubstring("/vault/.lock"))
-	g.Expect(closed).To(gomega.Equal([]uintptr{fakeFD}), "flock failure must not leak the fd")
-}
-
-func TestPrimLocker_OpenFailureWrapsWithPath(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	boom := errors.New("open boom")
-
-	locker := lockerFromPrims(cli.Primitives{Lock: cli.LockPrims{
-		OpenLockFile: func(string, fs.FileMode) (uintptr, error) { return 0, boom },
-		FlockExclusive: func(uintptr) error {
-			t.Error("flock must not run after a failed open")
-
-			return nil
-		},
-	}})
-
-	_, err := locker.Lock("/vault/.lock")
-	g.Expect(err).To(gomega.MatchError(boom))
-	g.Expect(err.Error()).To(gomega.ContainSubstring("open lock /vault/.lock"))
-}
-
-func TestPrimLocker_UnlockLifecycle(t *testing.T) {
+func Test792b8c2a1_PrimLocker_UnlockLifecycle(t *testing.T) {
 	t.Parallel()
 
 	t.Run("unlock flocks LOCK_UN then closes", func(t *testing.T) {
@@ -147,6 +102,51 @@ func TestPrimLocker_UnlockLifecycle(t *testing.T) {
 		g.Expect(unlockErr).To(gomega.MatchError(boom))
 		g.Expect(unlockErr.Error()).To(gomega.ContainSubstring("close lock"))
 	})
+}
+
+func Test792b8c3a1_PrimLocker_OpenFailureWrapsWithPath(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	boom := errors.New("open boom")
+
+	locker := lockerFromPrims(cli.Primitives{Lock: cli.LockPrims{
+		OpenLockFile: func(string, fs.FileMode) (uintptr, error) { return 0, boom },
+		FlockExclusive: func(uintptr) error {
+			t.Error("flock must not run after a failed open")
+
+			return nil
+		},
+	}})
+
+	_, err := locker.Lock("/vault/.lock")
+	g.Expect(err).To(gomega.MatchError(boom))
+	g.Expect(err.Error()).To(gomega.ContainSubstring("open lock /vault/.lock"))
+}
+
+func Test792b8c3a2_PrimLocker_FlockFailureClosesDescriptor(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	const fakeFD = uintptr(7)
+
+	closed := make([]uintptr, 0, 1)
+	boom := errors.New("flock boom")
+
+	locker := lockerFromPrims(cli.Primitives{Lock: cli.LockPrims{
+		OpenLockFile:   func(string, fs.FileMode) (uintptr, error) { return fakeFD, nil },
+		FlockExclusive: func(uintptr) error { return boom },
+		CloseFD: func(fd uintptr) error {
+			closed = append(closed, fd)
+
+			return nil
+		},
+	}})
+
+	_, err := locker.Lock("/vault/.lock")
+	g.Expect(err).To(gomega.MatchError(boom))
+	g.Expect(err.Error()).To(gomega.ContainSubstring("/vault/.lock"))
+	g.Expect(closed).To(gomega.Equal([]uintptr{fakeFD}), "flock failure must not leak the fd")
 }
 
 // lockerFromPrims composes the production FileLocker from fake primitives

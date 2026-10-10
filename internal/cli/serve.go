@@ -147,7 +147,7 @@ func RunServe(ctx context.Context, args ServeArgs, deps Deps) error {
 // amendments through learn, and chunks never cross vaults. Every handler
 // calls the existing code path for its command — no reimplementation of
 // command logic here (tasks.md 2.2) — sharing the CLI's existing vault
-// locks (ADR-0013). vault/vaultName/chunksDir are resolved once by RunServe
+// locks (vault-write-lock, 792b8). vault/vaultName/chunksDir are resolved once by RunServe
 // and baked into every handler closure; a served request can never redirect
 // the server at a different vault path.
 func ServeRoutes(deps Deps, vault, vaultName, chunksDir string) []ServeRoute {

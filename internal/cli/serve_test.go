@@ -232,13 +232,13 @@ func TestServeBodyCaps(t *testing.T) {
 }
 
 // TestServeLearn_ConcurrentWithLocalLearn_NoLostUpdate covers tasks.md
-// 10.3/ADR-0013: a local `engram learn` writer and a served POST /learn
+// 10.3/792b8: a local `engram learn` writer and a served POST /learn
 // writer racing the SAME vault never lose an update or collide on a
 // Luhmann id. Both paths ultimately share the identical production lock
 // (newLearnDeps(deps).Lock, real flock on .luhmann.lock) since the served
 // handler is built from the same deps as the local RunLearn call — this
 // proves that sharing holds under concurrency, mirroring
-// TestInvariant_K1_ConcurrentLearnNeverCollides but mixing local and
+// Test792a3m1a_Invariant_K1_ConcurrentLearnNeverCollides but mixing local and
 // served writers instead of all-local.
 func TestServeLearn_ConcurrentWithLocalLearn_NoLostUpdate(t *testing.T) {
 	t.Parallel()

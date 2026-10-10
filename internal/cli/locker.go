@@ -14,7 +14,7 @@ var (
 
 // primLocker is the production FileLocker: an exclusive advisory flock via
 // the injected syscall primitives. Open-then-flock, unlock-then-close, and
-// the unlock-error semantics all live here (ADR-0013; #700). The fd-shaped
+// the unlock-error semantics all live here (792b8; #700). The fd-shaped
 // primitives deliberately avoid *os.File (design flag P-3: a dropped
 // *os.File's finalizer would close the fd and silently release the lock
 // mid-hold).

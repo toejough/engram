@@ -285,28 +285,10 @@ vintage 2026-07-03), so round-3 remains unlicensed pending a further check.
 
 ## ADR-0013 — Vault flock + atomic-rename write safety
 
-**Status:** Accepted (shipped 2026-07-01, commit `f7f6b389`; closed #660 + #666; #700 (2026-07): flock/atomic-rename lifecycle composed in `internal/cli` — `primFS`/`primLocker` over raw os/syscall primitives supplied by `cmd/engram` — semantics unchanged, lock-at-`Run*`-entry convention preserved, concurrent-writers regression test carried, now an `internal/cli` real-FS integration test)
-
-**Context.** The planned payload-prune production build spawns many parallel sub-recalls that
-write the vault and chunk index concurrently. Before this fix, only `learn`'s Luhmann-ID
-sequencing was flock-protected (`writeLearnUnderLock`, `learn.go:571`); `ingest`/`prune`'s manifest
-read-modify-write, `amend`/`resituate`'s vault-note read-modify-write, and `activate`'s sidecar
-rewrite were all unlocked writes (the atomic-write half is in 792b3c1). Any two
-concurrent `engram ingest`/`amend` runs corrupted state, independent of retrieval quality or cost —
-and this bit in production.
-
-**Decision.** Extend the existing vault flock (`internal/cli/cli.go`) to every read-modify-write
-writer: `.manifest.lock` guards `ingest`+`prune`'s manifest RMW; `.luhmann.lock` guards
-`amend`+`resituate`+`activate`'s vault-note/sidecar RMW. Locks are acquired only at `Run*` entry
-points; shared write helpers (`bumpLastUsed`, `writeManifestFile`, `reEmbedAndActivate`) stay
-lock-free, to be called only by a `Run*` that already holds the lock (avoids self-deadlock).
-
-**Consequences.** `targ check-full` green plus a concurrent-writers regression test gate the fix
-(no eval-ledger row — correctness is locked by the regression test, commit `f7f6b389`, 2026-07-01). Payload-prune production is
-unblocked — the concurrency correctness ADR-0003 flagged as untested (⚠ KNOWN K1, "enforced in
-code, untested as a property") is now enforced for every RMW writer, not just note+sidecar
-creation. Deadlock-avoidance is a convention (lock at `Run*` entry points only), not a checked
-invariant — a future writer that acquires the lock inside a shared helper reintroduces the risk.
+Ported: atomic replace to
+[792b3](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b3-added-durable-file-store),
+and the vault and manifest locks to
+[792b8](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b8-added-vault-write-lock).
 
 ---
 

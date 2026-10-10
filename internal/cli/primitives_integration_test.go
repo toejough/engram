@@ -221,6 +221,55 @@ func Test792b3c3a1_RealEdgeFS_ReadFileMissingSatisfiesErrNotExist(t *testing.T) 
 	g.Expect(err).To(gomega.MatchError(fs.ErrNotExist))
 }
 
+// Test792b8c1a1_RealFlockLocker_SecondLockWaitsForUnlock is the relocated vault-write-lock (792b8)
+// lock regression guard: a second locker on the same path must block until
+// the first unlocks — never proceed concurrently, never fail.
+func Test792b8c1a1_RealFlockLocker_SecondLockWaitsForUnlock(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	lockPath := filepath.Join(t.TempDir(), "test.lock")
+	locker := realDepsForTest().Lock
+
+	unlock, err := locker.Lock(lockPath)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	acquired := make(chan struct{})
+
+	go func() {
+		secondUnlock, secondErr := locker.Lock(lockPath)
+		if secondErr == nil {
+			_ = secondUnlock()
+		}
+
+		close(acquired)
+	}()
+
+	const holdWindow = 100 * time.Millisecond
+
+	select {
+	case <-acquired:
+		t.Fatal("second locker acquired while first still held the lock")
+	case <-time.After(holdWindow):
+		// good — second locker is blocked while the lock is held
+	}
+
+	g.Expect(unlock()).To(gomega.Succeed())
+
+	const releaseTimeout = 2 * time.Second
+
+	select {
+	case <-acquired:
+		// good — released lock was acquired
+	case <-time.After(releaseTimeout):
+		t.Fatal("second locker did not acquire after unlock")
+	}
+}
+
 // This file exercises the internally-composed EdgeFS/FileLocker/debug-sink
 // implementations over REAL os/syscall primitives — the relocated
 // cmd/engram adapter integration suite (#700 rework). realPrimitives()
@@ -383,55 +432,6 @@ func TestRealEdgeFS_RenameRemoveRemoveAll(t *testing.T) {
 	g.Expect(fsys.WriteFile(filepath.Join(sub, "f"), []byte("x"), realFSFilePerm)).To(gomega.Succeed())
 	g.Expect(fsys.RemoveAll(sub)).To(gomega.Succeed())
 	g.Expect(sub).NotTo(gomega.BeADirectory())
-}
-
-// TestRealFlockLocker_SecondLockWaitsForUnlock is the relocated ADR-0013
-// lock regression guard: a second locker on the same path must block until
-// the first unlocks — never proceed concurrently, never fail.
-func TestRealFlockLocker_SecondLockWaitsForUnlock(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	lockPath := filepath.Join(t.TempDir(), "test.lock")
-	locker := realDepsForTest().Lock
-
-	unlock, err := locker.Lock(lockPath)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	acquired := make(chan struct{})
-
-	go func() {
-		secondUnlock, secondErr := locker.Lock(lockPath)
-		if secondErr == nil {
-			_ = secondUnlock()
-		}
-
-		close(acquired)
-	}()
-
-	const holdWindow = 100 * time.Millisecond
-
-	select {
-	case <-acquired:
-		t.Fatal("second locker acquired while first still held the lock")
-	case <-time.After(holdWindow):
-		// good — second locker is blocked while the lock is held
-	}
-
-	g.Expect(unlock()).To(gomega.Succeed())
-
-	const releaseTimeout = 2 * time.Second
-
-	select {
-	case <-acquired:
-		// good — released lock was acquired
-	case <-time.After(releaseTimeout):
-		t.Fatal("second locker did not acquire after unlock")
-	}
 }
 
 // unexported constants.

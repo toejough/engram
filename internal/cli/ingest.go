@@ -388,7 +388,7 @@ func manifestBackfill(manifest ingestManifest) func(source string) time.Time {
 	}
 }
 
-// manifestLockFrom composes the ADR-0013 manifest lock from the CLI-edge
+// manifestLockFrom composes the manifest lock (vault-write-lock, 792b8) from the CLI-edge
 // Deps: ensure chunksDir exists first (regression: prune's lock on a fresh
 // dir errored without MkdirAll), then take an exclusive advisory lock on
 // chunksDir/.manifest.lock via the injected FileLocker. The unlock error is

@@ -127,7 +127,7 @@ type EdgeFS interface {
 
 // FileLocker acquires an exclusive advisory lock on the file at path,
 // creating it if absent. unlock releases the lock and closes the handle.
-// Production: flock(2) via cmd/engram's flockLocker (ADR-0013).
+// Production: flock(2) via cmd/engram's flockLocker (vault-write-lock, 792b8).
 type FileLocker interface {
 	Lock(path string) (unlock func() error, err error)
 }

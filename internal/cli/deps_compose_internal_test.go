@@ -10,6 +10,34 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+func Test792b8c4a1_VaultLockFromLocker_LocksVaultLuhmannLockFileAndReleases(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var lockedPath string
+
+	unlocked := false
+	locker := fakeLocker{lock: func(path string) (func() error, error) {
+		lockedPath = path
+
+		return func() error { unlocked = true; return nil }, nil
+	}}
+
+	lock := vaultLockFromLocker(locker)
+
+	release, err := lock("/vault")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(lockedPath).To(Equal("/vault/.luhmann.lock"))
+
+	release()
+	g.Expect(unlocked).To(BeTrue())
+}
+
 func TestListJSONLIndexes_FiltersAndTreatsMissingDirAsEmpty(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -86,34 +114,6 @@ func TestNewVaultFS_ReadFile_WrapsWithDistinctVerb(t *testing.T) {
 	_, err := vfs.ReadFile("/vault/x.md")
 	g.Expect(err).To(MatchError(errInjectedCompose))
 	g.Expect(err).To(MatchError(ContainSubstring("vault read")))
-}
-
-func TestVaultLockFromLocker_LocksVaultLuhmannLockFileAndReleases(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var lockedPath string
-
-	unlocked := false
-	locker := fakeLocker{lock: func(path string) (func() error, error) {
-		lockedPath = path
-
-		return func() error { unlocked = true; return nil }, nil
-	}}
-
-	lock := vaultLockFromLocker(locker)
-
-	release, err := lock("/vault")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(lockedPath).To(Equal("/vault/.luhmann.lock"))
-
-	release()
-	g.Expect(unlocked).To(BeTrue())
 }
 
 // unexported variables.

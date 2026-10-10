@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The product guarantee that concurrent `engram learn` runs never collide is in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a3-added-note-writing` (792a3m). Every vault writer (learn, amend, resituate, activate, ingest, prune) acquires an exclusive file lock at its entry point and holds it through all read-modify-write operations. Separate locks protect manifest changes (ingest, prune) and note+sidecar changes (amend, resituate, activate). Why: `docs/architecture/adr.md` ADR-0013. Atomic temp-rename writes are in `docs/changes/792_documentation-framework-adoption/792b_technical-spec.md#792b3-added-durable-file-store`. Validation: concurrent-writers regression test + `targ check-full` (commit `f7f6b389`); correctness is test-locked, not eval-measured.
+The product guarantee that concurrent `engram learn` runs never collide is in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a3-added-note-writing` (792a3m). Every vault writer (learn, amend, resituate, activate, ingest, prune) acquires an exclusive file lock at its entry point and holds it through all read-modify-write operations. Separate locks protect manifest changes (ingest, prune) and note+sidecar changes (amend, resituate, activate). The lock itself (creation, exclusive hold, release and unlock errors) and its rationale are in `docs/changes/792_documentation-framework-adoption/792b_technical-spec.md#792b8-added-vault-write-lock`; the per-command requirements below wait for their callers' nodes (792d63). Atomic temp-rename writes are in `docs/changes/792_documentation-framework-adoption/792b_technical-spec.md#792b3-added-durable-file-store`. Validation: concurrent-writers regression test + `targ check-full` (commit `f7f6b389`); correctness is test-locked, not eval-measured.
 
 ## Requirements
 
@@ -12,10 +12,6 @@ Every `engram ingest` and `engram prune` SHALL acquire an exclusive advisory flo
 #### Scenario: Manifest write under lock
 - **WHEN** `RunIngest` or `RunPrune` is called (entry point)
 - **THEN** `primLocker.Lock(".manifest.lock")` acquires an exclusive flock, all manifest RMW happens while the lock is held, and the lock is released before returning
-
-#### Scenario: Lock creation on first acquisition
-- **WHEN** `Lock(path)` is called and the lock file does not exist
-- **THEN** `prims.Lock.OpenLockFile(path, 0o600)` creates it with mode 0o600
 
 ### Requirement: Exclusive flock on note+sidecar updates
 Every `engram learn`, `engram learn qa`, `engram amend`, `engram resituate`, `engram activate`, and `engram vocab bootstrap`/`refit` SHALL acquire an exclusive advisory flock on `.luhmann.lock` before reading or modifying any vault note or sidecar (dual-vector .vec.json file), holding the lock through all operations. This covers note content rewrites and sidecar rewrites (e.g., re-embedding or bumping `last_used`). All are wired through the shared `vaultLockFromLocker` helper (internal/cli/deps_compose.go:137). Only one writer MUST hold the lock at a time; readers (query's file access) work lock-free.
@@ -38,14 +34,3 @@ Read-modify-write operations SHALL call shared helpers (`bumpLastUsed`, `writeMa
 #### Scenario: No nested lock acquisition
 - **WHEN** a `Run*` method acquires `.luhmann.lock` and calls `reEmbedAndActivate`
 - **THEN** `reEmbedAndActivate` does not attempt to re-acquire the lock (would deadlock); it assumes the lock is already held
-
-### Requirement: Unlock error handling
-If `FlockUnlock` fails, the unlock error SHALL be returned to the caller. If `CloseFD` fails after a successful unlock, the close error MUST be returned. If both fail, the unlock error MUST take precedence. Errors SHALL be wrapped with context (path, operation name) for diagnostics.
-
-#### Scenario: Unlock error before close error
-- **WHEN** `primLocker.Lock().unlock()` is called and `FlockUnlock` returns an error but `CloseFD` succeeds
-- **THEN** the unlock error is returned (close error suppressed)
-
-#### Scenario: Errors wrapped with context
-- **WHEN** unlock or close fails
-- **THEN** error message includes the lock path and operation name (e.g., "funlock .luhmann.lock: <error>")

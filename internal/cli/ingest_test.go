@@ -359,7 +359,7 @@ func TestManifest_ConcurrentWritersDoNotLoseEntries(t *testing.T) {
 		return
 	}
 
-	// The ADR-0013 real flock, shared by both goroutines below so they race on
+	// The real vault-write-lock flock (792b8), shared by both goroutines below so they race on
 	// the SAME lock file and prove locking (not injected serialization)
 	// prevents corruption (R7: repointed off the deleted ExportFlockPath onto
 	// the production FileLocker composed over real OS primitives).

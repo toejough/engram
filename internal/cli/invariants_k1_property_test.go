@@ -15,7 +15,7 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestInvariant_K1_ConcurrentLearnNeverCollides locks invariant K1: the
+// Test792a3m1a_Invariant_K1_ConcurrentLearnNeverCollides locks invariant K1: the
 // vault write-lock (flock on .luhmann.lock spanning id-compute→write, with
 // O_EXCL on WriteNew as a backstop) guarantees concurrent `engram learn`
 // never computes the same next Luhmann id and never overwrites a note.
@@ -27,7 +27,7 @@ import (
 // set, compute the same id, and either collide (O_EXCL error) or lose a
 // write. We assert all N succeed, with N distinct leading ids and N distinct
 // files.
-func TestInvariant_K1_ConcurrentLearnNeverCollides(t *testing.T) {
+func Test792a3m1a_Invariant_K1_ConcurrentLearnNeverCollides(t *testing.T) {
 	t.Parallel()
 
 	counts := []int{2, 5, 10, 20}

@@ -112,7 +112,7 @@ func logWarningTo(w io.Writer) func(string, ...any) {
 }
 
 // vaultLockFromLocker returns a vault-lock func over the injected FileLocker:
-// an exclusive flock on vault/.luhmann.lock (ADR-0013). The locker's
+// an exclusive flock on vault/.luhmann.lock (792b8). The locker's
 // unlock-with-error is adapted to the deps structs' plain release func.
 func vaultLockFromLocker(locker FileLocker) func(string) (func(), error) {
 	return func(vault string) (func(), error) {

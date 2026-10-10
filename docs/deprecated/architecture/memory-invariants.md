@@ -79,7 +79,7 @@ Test methods:
 ## G. Concurrency — `[PT]`
 | id | invariant | status |
 |---|---|---|
-| **K1** | Vault write-lock: concurrent `engram learn` never computes the same next Luhmann id and never overwrites a note (flock on `.luhmann.lock` spans id-compute→write; `O_EXCL` backstops). | enforced in code; untested as a property |
+| **K1** | Ported to [792a3m](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a3m-concurrent-writes-never-collide) and [792b8](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b8-added-vault-write-lock). | — |
 
 ## H. Update / deployment — `[IT]`
 | id | invariant | status |

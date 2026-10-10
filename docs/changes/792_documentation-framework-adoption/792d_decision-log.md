@@ -662,3 +662,21 @@ decisions as `792dN`, continuing the sequence.
   check; the double copy is current behavior.
 - **Alternatives:** a **MUST** that the copies match, enforced by `check`. Rejected because nothing
   enforces it.
+
+## 792d63 Which writer takes which lock is the writer's requirement
+
+- **Choice:** 792b8 specifies the lock itself: exclusive hold of a lock file, its creation, waiting,
+  release and failure reporting, and the vault's lock file `.luhmann.lock`. The per-command clauses
+  of `vault-concurrency-safe-writes` stay in that spec for the callers that own them:
+  `learn` and `learn qa` for note-authoring (792c7b8); `amend`, `resituate`, `activate` and the
+  lock-free shared helpers for note-amendment (792c7c3); the manifest lock for chunk-index-store
+  (792c7d5); and `vocab bootstrap` and `refit` for vocabulary-engine (792c7e3). Those nodes' sources
+  now list them. ADR-0013 is reduced to a pointer to 792b3 and 792b8, and code comments citing it
+  for the lock now cite 792b8.
+  `TestInvariant_K1_ConcurrentLearnNeverCollides` takes product scenario 792a3m1a, because it drives
+  the real locked write path and asserts the product outcome.
+- **Rationale:** the technical guide puts an interaction requirement (what a caller does, and in
+  what order, while holding a dependency) in the caller's component. Holding the lock across
+  ID allocation and the write is note-authoring's ordering, not the lock's behavior.
+- **Alternatives:** port every lock clause into 792b8 now. Rejected because most would support no
+  existing product scenario and would describe callers' ordering.

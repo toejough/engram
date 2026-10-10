@@ -206,8 +206,8 @@ flowchart TD
   N792c7b1["792c7b1 note-writing product spec<br/>Complete"]
   N792c7b2["792c7b2 note-document-format tech spec<br/>Complete"]
   N792c7b3["792c7b3 luhmann-addressing tech spec<br/>Complete"]
-  N792c7b4["792c7b4 vault-write-lock tech spec<br/>Ready"]
-  N792c7b5["792c7b5 text-embedder tech spec<br/>Blocked by: 792c7b4"]
+  N792c7b4["792c7b4 vault-write-lock tech spec<br/>Complete"]
+  N792c7b5["792c7b5 text-embedder tech spec<br/>Ready"]
   N792c7b6["792c7b6 embedding-sidecar tech spec<br/>Blocked by: 792c7b5"]
   N792c7b7["792c7b7 note-provenance tech spec<br/>Blocked by: 792c7b6"]
   N792c7b8["792c7b8 note-authoring tech spec<br/>Blocked by: 792c7b7"]
@@ -867,11 +867,28 @@ Target: `792b8` (`docs/specs/technical/vault-write-lock.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7b4a | Port the component contract to `792b8` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7b4b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7b4c | Repoint stale references to `792b8` | Non-test action | Keeps live links valid | Not started |
-| 792c7b4d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7b4e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7b4a | Port the component contract to `792b8` | Non-test action | Documents the component in the framework format | Done |
+| 792c7b4b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7b4c | Repoint stale references to `792b8` | Non-test action | Keeps live links valid | Done |
+| 792c7b4d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7b4e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+**Outcome:** the per-command lock clauses stay in `vault-concurrency-safe-writes` for their callers (792d63). ADR-0013 is reduced to a pointer.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b8c1a1 | `TestRealFlockLocker_SecondLockWaitsForUnlock` → `Test792b8c1a1_RealFlockLocker_SecondLockWaitsForUnlock` | Real lock file, temp dir (`primitives_integration_test`) | Second holder waits | Done |
+| 792b8c2a1 | `TestPrimLocker_UnlockLifecycle` → `Test792b8c2a1_PrimLocker_UnlockLifecycle` (split deferred: 792b8c2a2, 792b8c2a3) | Pure unit (fake lock primitives), subtests | Unlock then close, and both failure orders | Done |
+| 792b8c3a1 | `TestPrimLocker_OpenFailureWrapsWithPath` → `Test792b8c3a1_PrimLocker_OpenFailureWrapsWithPath` | Pure unit (fake lock primitives) | Open failure | Done |
+| 792b8c3a2 | `TestPrimLocker_FlockFailureClosesDescriptor` → `Test792b8c3a2_PrimLocker_FlockFailureClosesDescriptor` | Pure unit (fake lock primitives) | Lock failure closes the file | Done |
+| 792b8c4a1 | `TestVaultLockFromLocker_LocksVaultLuhmannLockFileAndReleases` → `Test792b8c4a1_VaultLockFromLocker_LocksVaultLuhmannLockFileAndReleases` | Internal unit (fake locker, `deps_compose_internal_test`) | Vault lock path and release | Done |
+| 792a3m1a | `TestInvariant_K1_ConcurrentLearnNeverCollides` → `Test792a3m1a_Invariant_K1_ConcurrentLearnNeverCollides` | `RunLearn` with the production lock, listing and exclusive create over a temp-dir vault, 2–20 goroutines | Concurrent learns get distinct IDs and files | Done |
+
+**Coverage gaps:** 792b8c1a2 (no test asserts the lock file is created with mode 0600). 792a3q1a's locking is covered only through note-authoring (792c7b8).
+
+**No-scenario tests:** none in `locker_test` or `invariants_k1_property_test`. The ingest and serve lock tests are left to chunk-indexing (792c7d1) and vault-serving (792c7s1).
 
 #### 792c7b5 text-embedder tech spec
 
@@ -958,6 +975,7 @@ Target: `792b12` (`docs/specs/technical/note-authoring.md`).
 
 **Legacy sources (port, then remove):**
 
+- `openspec/specs/vault-concurrency-safe-writes/spec.md` (the `learn` and `learn qa` clauses of the note+sidecar lock requirement, 792d63)
 - `docs/deprecated/architecture/c3-components.md` Component catalog K4
 - `docs/deprecated/architecture/c3-components.md` Flow: `engram learn` write internals
 - `docs/deprecated/architecture/c3-components.md` Flow: `engram learn qa` capture path
@@ -1058,6 +1076,7 @@ Target: `792b14` (`docs/specs/technical/note-amendment.md`).
 
 **Legacy sources (port, then remove):**
 
+- `openspec/specs/vault-concurrency-safe-writes/spec.md` (the `amend`, `resituate` and `activate` lock clauses and the lock-free shared helpers requirement, 792d63)
 - `docs/deprecated/architecture/c3-components.md` Component catalog K4w (technical contract)
 
 **Tests to examine (from discovery; `internal/cli` unless prefixed):** amend_test, supersedes_test, resituate_test, amend_crlf_test, resituate_preserve_test, amend_list_entries_test, resituate_internal_test, amend_targets_test, activate_test
@@ -1191,6 +1210,7 @@ Target: `792b18` (`docs/specs/technical/chunk-index-store.md`).
 
 **Legacy sources (port, then remove):**
 
+- `openspec/specs/vault-concurrency-safe-writes/spec.md` (the manifest lock requirement, 792d63)
 - `docs/deprecated/architecture/adr.md` ADR-0021 (D1–D8, D10; D9 goes to 792c7j1)
 - `docs/deprecated/architecture/c2-containers.md` Flowchart: ingest/chunking (remaining steps)
 - `docs/deprecated/architecture/c3-components.md` Component catalog K1 (index part; "marker advance" is stale) and K12
@@ -1292,6 +1312,7 @@ Target: `792b20` (`docs/specs/technical/vocabulary-engine.md`).
 
 **Legacy sources (port, then remove):**
 
+- `openspec/specs/vault-concurrency-safe-writes/spec.md` (the `vocab bootstrap` and `refit` lock clauses, 792d63)
 - `docs/deprecated/architecture/adr.md` ADR-0011 (only the surviving write-time assignment)
 - `docs/deprecated/architecture/adr.md` ADR-0024
 - `docs/deprecated/architecture/c2-containers.md` Flowchart: vocab lifecycle
