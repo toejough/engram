@@ -100,6 +100,15 @@ func Test792b24c18a8_ParseNoteQueryFrontmatter_CRLFNote(t *testing.T) {
 	g.Expect(parsed.Triggers).To(Equal([]string{"turn it"}))
 }
 
+func Test792b25c4a3_ReadNoteAttrs_CRLFNote(t *testing.T) {
+	t.Parallel()
+
+	attrs, ok := readNoteAttrs(func(string) ([]byte, error) { return []byte(crlfReaderNote("")), nil }, "/vault/a.md")
+	g := NewWithT(t)
+	g.Expect(ok).To(BeTrue())
+	g.Expect(attrs).To(HaveKeyWithValue("type", "fact"))
+}
+
 func TestCheckSituationPresence_CRLFNote(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -114,15 +123,6 @@ func TestCheckSituationPresence_CRLFNote(t *testing.T) {
 		func(string) ([]byte, error) { return []byte(note), nil }, "/vault", &out)
 	g.Expect(failed).To(BeTrue(), out.String())
 	g.Expect(out.String()).To(ContainSubstring("1.2026-01-01.a"))
-}
-
-func TestReadNoteAttrs_CRLFNote(t *testing.T) {
-	t.Parallel()
-
-	attrs, ok := readNoteAttrs(func(string) ([]byte, error) { return []byte(crlfReaderNote("")), nil }, "/vault/a.md")
-	g := NewWithT(t)
-	g.Expect(ok).To(BeTrue())
-	g.Expect(attrs).To(HaveKeyWithValue("type", "fact"))
 }
 
 // crlfReaderNote is a fact note with extra frontmatter lines, all CRLF.

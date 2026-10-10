@@ -228,8 +228,8 @@ flowchart TD
   N792c7f4["792c7f4 query-payload-renderer tech spec<br/>Complete"]
   N792c7f5["792c7f5 query-engine tech spec<br/>Complete"]
   N792c7g1["792c7g1 vault-counting product spec<br/>Complete"]
-  N792c7g2["792c7g2 vault-counter tech spec<br/>Ready"]
-  N792c7h1["792c7h1 vault-health product spec<br/>Blocked by: 792c7g2"]
+  N792c7g2["792c7g2 vault-counter tech spec<br/>Complete"]
+  N792c7h1["792c7h1 vault-health product spec<br/>Ready"]
   N792c7h2["792c7h2 vault-invariant-checker tech spec<br/>Blocked by: 792c7h1"]
   N792c7i1["792c7i1 vault-migration product spec<br/>Blocked by: 792c7h2"]
   N792c7i2["792c7i2 note-reparenting tech spec<br/>Blocked by: 792c7i1"]
@@ -2722,11 +2722,50 @@ Target: `792b25` (`docs/specs/technical/vault-counter.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7g2a | Port the component contract to `792b25` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7g2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7g2c | Repoint stale references to `792b25` | Non-test action | Keeps live links valid | Not started |
-| 792c7g2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7g2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7g2a | Port the component contract to `792b25` | Non-test action | Documents the component in the framework format | Done |
+| 792c7g2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7g2c | Repoint stale references to `792b25` | Non-test action | Keeps live links valid | Done |
+| 792c7g2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7g2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+**Outcome:** the component is specified in eight requirements, 792b25c1 to 792b25c8 (792d98). Its link
+graph and in-degree are wikilink-graph's 792b13c4 and 792b13c5 (792c7g1). The `cli-count` OpenSpec
+spec is deleted, as nothing remains in it.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b25c1a1 | `TestRunCount_BothModesError` → `Test792b25c1a1_RunCount_BothModesError` | Pure unit (`RunCount` over an in-memory vault) | Both flags refused | Done |
+| 792b25c1a2 | `TestRunCount_NoModeErrors` → `Test792b25c1a2_RunCount_NoModeErrors` | Pure unit (`RunCount` over an in-memory vault) | No flag refused | Done |
+| 792b25c2a1 | `TestRunCount_GroupByScalarAttr` → `Test792b25c2a1_RunCount_GroupByScalarAttr` | Pure unit (`RunCount` over an in-memory vault) | Scalar counted; also verifies 792b25c5a1 (`split deferred`) | Done |
+| 792b25c2a2 | `TestRunCount_GroupByListAttr` → `Test792b25c2a2_RunCount_GroupByListAttr` | Pure unit (`RunCount` over an in-memory vault) | List elements | Done |
+| 792b25c2a2 | `TestRunCount_GroupBySumProperty` → `Test792b25c2a2_RunCount_GroupBySumProperty` | Property (rapid) | Per-value counts equal distinct memberships | Done |
+| 792b25c2a3 | `TestRunCount_GroupByDedupMembership` → `Test792b25c2a3_RunCount_GroupByDedupMembership` | Pure unit (`RunCount` over an in-memory vault) | Repeated element once; total counts notes | Done |
+| 792b25c2a5 | `TestRunCount_AbsentAttrBucket` → `Test792b25c2a5_RunCount_AbsentAttrBucket` | Pure unit (`RunCount` over an in-memory vault) | Absent note; also verifies 792b25c5a2 (`split deferred`) | Done |
+| 792b25c2a6 | `TestRunCount_ListErrorPropagates` → `Test792b25c2a6_RunCount_ListErrorPropagates` | Pure unit (`RunCount` over a failing listing) | Listing failure | Done |
+| 792b25c3a1 | `TestRunCount_FilterScalarEquality` → `Test792b25c3a1_RunCount_FilterScalarEquality` | Pure unit (`RunCount` over an in-memory vault) | Equality filter | Done |
+| 792b25c3a2 | `TestRunCount_FilterListContains` → `Test792b25c3a2_RunCount_FilterListContains` | Pure unit (`RunCount` over an in-memory vault) | Membership filter | Done |
+| 792b25c3a3 | `TestRunCount_MultipleFiltersAreANDed` → `Test792b25c3a3_RunCount_MultipleFiltersAreANDed` | Pure unit (`RunCount` over an in-memory vault) | Every filter must match | Done |
+| 792b25c3a5 | `TestRunCount_BadFilterErrors` → `Test792b25c3a5_RunCount_BadFilterErrors` | Pure unit (`RunCount` over an in-memory vault) | Filter without = | Done |
+| 792b25c4a1 | `TestRunCount_SkipsUncountableNotes` → `Test792b25c4a1_RunCount_SkipsUncountableNotes` | Pure unit, subtests (`RunCount` over an in-memory vault) | No-frontmatter and malformed notes; the unreadable-note subtest verifies 792b25c4a2 (`split deferred`) | Done |
+| 792b25c4a3 | `TestReadNoteAttrs_CRLFNote` → `Test792b25c4a3_ReadNoteAttrs_CRLFNote` | Internal unit (`internal/cli`) | CRLF read as LF | Done |
+| 792b25c5a4 | `TestRunCount_EmptyFilterResultPrintsNothing` → `Test792b25c5a4_RunCount_EmptyFilterResultPrintsNothing` | Pure unit (`RunCount` over an in-memory vault) | Nothing counted prints nothing | Done |
+| 792b25c6a1 | `TestRunCount_BacklinksOf` → `Test792b25c6a1_RunCount_BacklinksOf` | Pure unit, subtests (`RunCount` over an in-memory vault) | Sorted linkers; the unknown-node subtest verifies 792b25c6a2 and 792b25c6a3 (`split deferred`) | Done |
+| 792b25c6a4 | `TestRunCount_ScanErrorPropagates` → `Test792b25c6a4_RunCount_ScanErrorPropagates` | Pure unit (`RunCount` over a failing scan) | Scan failure | Done |
+| 792b25c7a1 | `TestRunCount_GroupByBacklinksAgreement` → `Test792b25c7a1_RunCount_GroupByBacklinksAgreement` | Pure unit (`RunCount` over an in-memory vault) | Modes agree | Done |
+| 792b25c7a2 | `TestRunCount_BacklinksExceedGroupByForNonMemberLinkers` → `Test792b25c7a2_RunCount_BacklinksExceedGroupByForNonMemberLinkers` | Pure unit (`RunCount` over an in-memory vault) | Non-member linker | Done |
+| 792a8b1c | `TestTargets_CountEmptyVault` → `Test792a8b1c_Targets_CountEmptyVault` | `Targets` dispatch over a temporary directory | Empty vault prints nothing (792d52) | Done |
+
+**Coverage gaps:** 792b25c1a3 and 792b25c1a4 (dispatch by a single flag is exercised by the tests of
+792b25c2 and 792b25c6 but asserted by none), 792b25c2a4 (an empty attribute value), 792b25c3a4 (a note
+without the filter's attribute), 792b25c5a1's tie by value, 792b25c5a3 (every note absent), 792b25c5a5
+(the total counts notes, which `Test792b25c2a3_RunCount_GroupByDedupMembership` shows for one note),
+792b25c8a1 and 792b25c8a2 (nothing writes; no sidecar needed). Every 792a8 scenario except 792a8b1c
+has no end-to-end test: 792a8a1a to 792a8h1b.
+
+**No-scenario tests:** `TestRunCount_OsDepsReadRealVault` checks that the production dependencies
+read a real directory in both modes and verifies no scenario.
 
 ### 792c7h vault-health
 

@@ -1384,3 +1384,18 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792d30, 792d51, 792d52, 792d69 and 792d75.
 - **Alternatives:** port the link parsing again in 792b25. Rejected because 792b13c3 already specifies it.
 
+## 792d98 vault-counter scope and the tests it leaves
+
+- **Choice:**
+  - 792b25 specifies eight requirements: mode selection, attribute membership counting, filters,
+    uncountable notes, the attribute report, the incoming-link report, the independence of the two
+    measures, and the absence of writes. The link graph, in-degree and link parsing are
+    wikilink-graph's (792d97). The five requirements of the OpenSpec `cli-count` spec map
+    to these, and the spec is deleted.
+  - `TestRunCount_AbsentAttrBucket` takes 792b25c2a5, the first scenario it verifies, and lists
+    792b25c5a2 as `split deferred` (792d10). `TestRunCount_OsDepsReadRealVault` checks only the
+    wiring of the production dependencies over a real directory and is a no-scenario test.
+- **Rationale:** 792d10, 792d30, 792d52 and 792d97.
+- **Alternatives:** a requirement for the production wiring. Rejected because wiring is an injection
+  seam, which the technical guide does not let qualify (it is not a stable contract).
+

@@ -15,136 +15,22 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
-// TestRunCount_AbsentAttrBucket covers TDD item 8 (absent): notes lacking the
-// group-by attr surface in the "(attr absent): N" bucket, not dropped.
-func TestRunCount_AbsentAttrBucket(t *testing.T) {
+// Test792a8b1c_Targets_CountEmptyVault exercises the count closure end-to-end through
+// Targets() so the newCountDeps + resolveVault wiring is covered. An empty
+// vault matches zero notes, so group-by prints nothing and stderr stays clean.
+func Test792a8b1c_Targets_CountEmptyVault(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	fixture := newCountFS(map[string]string{
-		"a.md": "---\ntype: feedback\nvocab: [x]\n---\nbody\n",
-		"b.md": "---\ntype: feedback\n---\nbody\n",
-	})
+	vault := t.TempDir()
 
-	var out strings.Builder
-
-	err := cli.RunCount(cli.CountArgs{Vault: countVault, GroupBy: "vocab"}, fixture.deps(), &out)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(out.String()).To(Equal("x\t1\n(vocab absent): 1\ntotal: 2\n"))
+	stderr := executeForTest(t, []string{"engram", "count", "--group-by", "type", "--vault", vault})
+	g.Expect(stderr).To(BeEmpty())
 }
 
-// TestRunCount_BacklinksExceedGroupByForNonMemberLinkers locks in the real-vault
-// relationship the clean agreement test does not cover: --backlinks-of counts
-// EVERY linker (matching Obsidian's backlinks panel), while --group-by counts
-// only frontmatter members. A non-member index/MOC page that links a value node
-// without listing it in frontmatter makes backlinks-of exceed group-by by the
-// number of such non-member linkers — a legitimate divergence, not a bug.
-func TestRunCount_BacklinksExceedGroupByForNonMemberLinkers(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fixture := newCountFS(map[string]string{
-		"n1.md":        "---\ntype: feedback\nfoo: [alpha]\n---\nmember links [[foo.alpha]]\n",
-		"idx.md":       "---\ntype: vocab-index\n---\nindex page links [[foo.alpha]]\n",
-		"foo.alpha.md": "---\ntype: fact\n---\nalpha node\n",
-	})
-	deps := fixture.deps()
-
-	var groupOut strings.Builder
-
-	groupErr := cli.RunCount(cli.CountArgs{Vault: countVault, GroupBy: "foo"}, deps, &groupOut)
-	g.Expect(groupErr).NotTo(HaveOccurred())
-
-	if groupErr != nil {
-		return
-	}
-
-	counts := parseGroupByCounts(groupOut.String())
-	g.Expect(counts["alpha"]).To(Equal(1),
-		"only the frontmatter member counts toward group-by — the index page does not")
-
-	var linkOut strings.Builder
-
-	linkErr := cli.RunCount(cli.CountArgs{Vault: countVault, BacklinksOf: "foo.alpha"}, deps, &linkOut)
-	g.Expect(linkErr).NotTo(HaveOccurred())
-
-	if linkErr != nil {
-		return
-	}
-
-	g.Expect(linkOut.String()).To(Equal("in-degree: 2\nidx\nn1\n"),
-		"backlinks-of counts every linker including the non-member index page")
-	g.Expect(parseInDegree(linkOut.String())).To(Equal(counts["alpha"]+1),
-		"backlinks-of exceeds group-by by the number of non-member (MOC/index) linkers")
-}
-
-// TestRunCount_BacklinksOf covers TDD item 6: in-degree + sorted linkers, and an
-// unknown node → 0 with no linkers.
-func TestRunCount_BacklinksOf(t *testing.T) {
-	t.Parallel()
-
-	fixture := newCountFS(map[string]string{
-		"A.md": "links to [[C]]\n",
-		"B.md": "links to [[C]]\n",
-		"C.md": "no links here\n",
-	})
-
-	t.Run("known node lists sorted linkers", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		var out strings.Builder
-
-		err := cli.RunCount(cli.CountArgs{Vault: countVault, BacklinksOf: "C"}, fixture.deps(), &out)
-		g.Expect(err).NotTo(HaveOccurred())
-
-		if err != nil {
-			return
-		}
-
-		g.Expect(out.String()).To(Equal("in-degree: 2\nA\nB\n"))
-	})
-
-	t.Run("unknown node is zero with no linkers", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		var out strings.Builder
-
-		err := cli.RunCount(cli.CountArgs{Vault: countVault, BacklinksOf: "Z"}, fixture.deps(), &out)
-		g.Expect(err).NotTo(HaveOccurred())
-
-		if err != nil {
-			return
-		}
-
-		g.Expect(out.String()).To(Equal("in-degree: 0\n"))
-	})
-}
-
-// TestRunCount_BadFilterErrors verifies that a --filter without '=' is rejected.
-func TestRunCount_BadFilterErrors(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fixture := newCountFS(map[string]string{"a.md": "---\ntype: feedback\n---\nbody\n"})
-
-	var out strings.Builder
-
-	err := cli.RunCount(
-		cli.CountArgs{Vault: countVault, GroupBy: "type", Filter: []string{"noequals"}},
-		fixture.deps(), &out)
-	g.Expect(err).To(MatchError(cli.ErrCountBadFilterForTest))
-}
-
-// TestRunCount_BothModesError verifies that supplying BOTH --group-by and
+// Test792b25c1a1_RunCount_BothModesError verifies that supplying BOTH --group-by and
 // --backlinks-of is rejected — the two modes are mutually exclusive.
-func TestRunCount_BothModesError(t *testing.T) {
+func Test792b25c1a1_RunCount_BothModesError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -158,175 +44,23 @@ func TestRunCount_BothModesError(t *testing.T) {
 	g.Expect(err).To(MatchError(cli.ErrCountBothModesForTest))
 }
 
-// TestRunCount_EmptyFilterResultPrintsNothing covers TDD item 8 (empty): filters
-// matching zero notes produce no output at all.
-func TestRunCount_EmptyFilterResultPrintsNothing(t *testing.T) {
+// Test792b25c1a2_RunCount_NoModeErrors verifies that neither --group-by nor --backlinks-of
+// is an error (nothing to count).
+func Test792b25c1a2_RunCount_NoModeErrors(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	fixture := newCountFS(map[string]string{
-		"a.md": "---\ntype: feedback\nvocab: [x]\n---\nbody\n",
-	})
+	fixture := newCountFS(map[string]string{"a.md": "---\ntype: feedback\n---\nbody\n"})
 
 	var out strings.Builder
 
-	err := cli.RunCount(
-		cli.CountArgs{Vault: countVault, GroupBy: "vocab", Filter: []string{"type=nonexistent"}},
-		fixture.deps(), &out)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(out.String()).To(BeEmpty(), "an empty filter result prints nothing")
+	err := cli.RunCount(cli.CountArgs{Vault: countVault}, fixture.deps(), &out)
+	g.Expect(err).To(MatchError(cli.ErrCountNoModeForTest))
 }
 
-// TestRunCount_FilterListContains covers TDD item 4 (list): --filter
-// vocab=scope-discipline restricts on list membership.
-func TestRunCount_FilterListContains(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fixture := newCountFS(map[string]string{
-		"a.md": "---\ntype: feedback\nvocab: [scope-discipline, other]\n---\nbody\n",
-		"b.md": "---\ntype: fact\nvocab: [unrelated]\n---\nbody\n",
-	})
-
-	var out strings.Builder
-
-	err := cli.RunCount(
-		cli.CountArgs{Vault: countVault, GroupBy: "type", Filter: []string{"vocab=scope-discipline"}},
-		fixture.deps(), &out)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(out.String()).To(Equal("feedback\t1\ntotal: 1\n"))
-}
-
-// TestRunCount_FilterScalarEquality covers TDD item 4 (scalar): --filter
-// type=feedback restricts the note set before counting.
-func TestRunCount_FilterScalarEquality(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fixture := newCountFS(map[string]string{
-		"a.md": "---\ntype: feedback\nvocab: [x]\n---\nbody\n",
-		"b.md": "---\ntype: fact\nvocab: [y]\n---\nbody\n",
-		"c.md": "---\ntype: feedback\nvocab: [x, z]\n---\nbody\n",
-	})
-
-	var out strings.Builder
-
-	err := cli.RunCount(
-		cli.CountArgs{Vault: countVault, GroupBy: "vocab", Filter: []string{"type=feedback"}},
-		fixture.deps(), &out)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(out.String()).To(Equal("x\t2\nz\t1\ntotal: 2\n"))
-}
-
-// TestRunCount_GroupByBacklinksAgreement covers TDD item 7 (the acceptance
-// proof): over a dual-representation fixture — frontmatter attr AND matching
-// [[attr.val]] wikilinks agree, including a duplicate-listing note — the
-// group-by per-value count equals the backlinks-of in-degree for every value.
-func TestRunCount_GroupByBacklinksAgreement(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fixture := newCountFS(map[string]string{
-		"n1.md":        "---\ntype: feedback\nfoo: [alpha, beta]\n---\nlinks [[foo.alpha]] and [[foo.beta]]\n",
-		"n2.md":        "---\ntype: feedback\nfoo: [alpha]\n---\nlinks [[foo.alpha]]\n",
-		"n3.md":        "---\ntype: feedback\nfoo: [alpha, alpha]\n---\nlinks [[foo.alpha]] [[foo.alpha]]\n",
-		"foo.alpha.md": "---\ntype: fact\n---\nalpha node\n",
-		"foo.beta.md":  "---\ntype: fact\n---\nbeta node\n",
-	})
-	deps := fixture.deps()
-
-	var groupOut strings.Builder
-
-	groupErr := cli.RunCount(cli.CountArgs{Vault: countVault, GroupBy: "foo"}, deps, &groupOut)
-	g.Expect(groupErr).NotTo(HaveOccurred())
-
-	if groupErr != nil {
-		return
-	}
-
-	counts := parseGroupByCounts(groupOut.String())
-	g.Expect(counts).To(Equal(map[string]int{"alpha": 3, "beta": 1}),
-		"group-by must count distinct frontmatter membership")
-
-	for value, count := range counts {
-		var linkOut strings.Builder
-
-		linkErr := cli.RunCount(
-			cli.CountArgs{Vault: countVault, BacklinksOf: "foo." + value}, deps, &linkOut)
-		g.Expect(linkErr).NotTo(HaveOccurred())
-
-		if linkErr != nil {
-			return
-		}
-
-		g.Expect(parseInDegree(linkOut.String())).To(Equal(count),
-			"group-by count for %q must equal backlinks-of in-degree of foo.%s", value, value)
-	}
-}
-
-// TestRunCount_GroupByDedupMembership covers TDD item 3: a note listing the same
-// value twice counts once toward it (locks the InDegree-agreement contract).
-func TestRunCount_GroupByDedupMembership(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fixture := newCountFS(map[string]string{
-		"a.md": "---\ntype: feedback\nvocab: [dup, dup, other]\n---\nbody\n",
-	})
-
-	var out strings.Builder
-
-	err := cli.RunCount(cli.CountArgs{Vault: countVault, GroupBy: "vocab"}, fixture.deps(), &out)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(out.String()).To(Equal("dup\t1\nother\t1\ntotal: 1\n"),
-		"a value listed twice within one note must count once")
-}
-
-// TestRunCount_GroupByListAttr covers TDD item 2: a list attr adds 1 to each of
-// its distinct element buckets.
-func TestRunCount_GroupByListAttr(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fixture := newCountFS(map[string]string{
-		"a.md": "---\ntype: feedback\nvocab: [x, y, z]\n---\nbody\n",
-	})
-
-	var out strings.Builder
-
-	err := cli.RunCount(cli.CountArgs{Vault: countVault, GroupBy: "vocab"}, fixture.deps(), &out)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(out.String()).To(Equal("x\t1\ny\t1\nz\t1\ntotal: 1\n"))
-}
-
-// TestRunCount_GroupByScalarAttr covers TDD item 1: a scalar frontmatter attr
+// Test792b25c2a1_RunCount_GroupByScalarAttr covers TDD item 1: a scalar frontmatter attr
 // (type) counts each note once toward its value.
-func TestRunCount_GroupByScalarAttr(t *testing.T) {
+func Test792b25c2a1_RunCount_GroupByScalarAttr(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -348,9 +82,31 @@ func TestRunCount_GroupByScalarAttr(t *testing.T) {
 	g.Expect(out.String()).To(Equal("feedback\t2\nfact\t1\ntotal: 3\n"))
 }
 
-// TestRunCount_GroupBySumProperty covers TDD item 9: the sum of group-by counts
+// Test792b25c2a2_RunCount_GroupByListAttr covers TDD item 2: a list attr adds 1 to each of
+// its distinct element buckets.
+func Test792b25c2a2_RunCount_GroupByListAttr(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fixture := newCountFS(map[string]string{
+		"a.md": "---\ntype: feedback\nvocab: [x, y, z]\n---\nbody\n",
+	})
+
+	var out strings.Builder
+
+	err := cli.RunCount(cli.CountArgs{Vault: countVault, GroupBy: "vocab"}, fixture.deps(), &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out.String()).To(Equal("x\t1\ny\t1\nz\t1\ntotal: 1\n"))
+}
+
+// Test792b25c2a2_RunCount_GroupBySumProperty covers TDD item 9: the sum of group-by counts
 // equals the number of DISTINCT (note, value) memberships, order-independent.
-func TestRunCount_GroupBySumProperty(t *testing.T) {
+func Test792b25c2a2_RunCount_GroupBySumProperty(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -388,9 +144,55 @@ func TestRunCount_GroupBySumProperty(t *testing.T) {
 	})
 }
 
-// TestRunCount_ListErrorPropagates verifies that a ListMD failure surfaces as a
+// Test792b25c2a3_RunCount_GroupByDedupMembership covers TDD item 3: a note listing the same
+// value twice counts once toward it (locks the InDegree-agreement contract).
+func Test792b25c2a3_RunCount_GroupByDedupMembership(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fixture := newCountFS(map[string]string{
+		"a.md": "---\ntype: feedback\nvocab: [dup, dup, other]\n---\nbody\n",
+	})
+
+	var out strings.Builder
+
+	err := cli.RunCount(cli.CountArgs{Vault: countVault, GroupBy: "vocab"}, fixture.deps(), &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out.String()).To(Equal("dup\t1\nother\t1\ntotal: 1\n"),
+		"a value listed twice within one note must count once")
+}
+
+// Test792b25c2a5_RunCount_AbsentAttrBucket covers TDD item 8 (absent): notes lacking the
+// group-by attr surface in the "(attr absent): N" bucket, not dropped.
+func Test792b25c2a5_RunCount_AbsentAttrBucket(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fixture := newCountFS(map[string]string{
+		"a.md": "---\ntype: feedback\nvocab: [x]\n---\nbody\n",
+		"b.md": "---\ntype: feedback\n---\nbody\n",
+	})
+
+	var out strings.Builder
+
+	err := cli.RunCount(cli.CountArgs{Vault: countVault, GroupBy: "vocab"}, fixture.deps(), &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out.String()).To(Equal("x\t1\n(vocab absent): 1\ntotal: 2\n"))
+}
+
+// Test792b25c2a6_RunCount_ListErrorPropagates verifies that a ListMD failure surfaces as a
 // wrapped error in group-by mode.
-func TestRunCount_ListErrorPropagates(t *testing.T) {
+func Test792b25c2a6_RunCount_ListErrorPropagates(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -406,9 +208,60 @@ func TestRunCount_ListErrorPropagates(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
-// TestRunCount_MultipleFiltersAreANDed covers TDD item 5: two filters are
+// Test792b25c3a1_RunCount_FilterScalarEquality covers TDD item 4 (scalar): --filter
+// type=feedback restricts the note set before counting.
+func Test792b25c3a1_RunCount_FilterScalarEquality(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fixture := newCountFS(map[string]string{
+		"a.md": "---\ntype: feedback\nvocab: [x]\n---\nbody\n",
+		"b.md": "---\ntype: fact\nvocab: [y]\n---\nbody\n",
+		"c.md": "---\ntype: feedback\nvocab: [x, z]\n---\nbody\n",
+	})
+
+	var out strings.Builder
+
+	err := cli.RunCount(
+		cli.CountArgs{Vault: countVault, GroupBy: "vocab", Filter: []string{"type=feedback"}},
+		fixture.deps(), &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out.String()).To(Equal("x\t2\nz\t1\ntotal: 2\n"))
+}
+
+// Test792b25c3a2_RunCount_FilterListContains covers TDD item 4 (list): --filter
+// vocab=scope-discipline restricts on list membership.
+func Test792b25c3a2_RunCount_FilterListContains(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fixture := newCountFS(map[string]string{
+		"a.md": "---\ntype: feedback\nvocab: [scope-discipline, other]\n---\nbody\n",
+		"b.md": "---\ntype: fact\nvocab: [unrelated]\n---\nbody\n",
+	})
+
+	var out strings.Builder
+
+	err := cli.RunCount(
+		cli.CountArgs{Vault: countVault, GroupBy: "type", Filter: []string{"vocab=scope-discipline"}},
+		fixture.deps(), &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out.String()).To(Equal("feedback\t1\ntotal: 1\n"))
+}
+
+// Test792b25c3a3_RunCount_MultipleFiltersAreANDed covers TDD item 5: two filters are
 // AND-ed — a note matching one but not both is excluded.
-func TestRunCount_MultipleFiltersAreANDed(t *testing.T) {
+func Test792b25c3a3_RunCount_MultipleFiltersAreANDed(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -437,9 +290,8 @@ func TestRunCount_MultipleFiltersAreANDed(t *testing.T) {
 		"only the note satisfying BOTH filters must be counted")
 }
 
-// TestRunCount_NoModeErrors verifies that neither --group-by nor --backlinks-of
-// is an error (nothing to count).
-func TestRunCount_NoModeErrors(t *testing.T) {
+// Test792b25c3a5_RunCount_BadFilterErrors verifies that a --filter without '=' is rejected.
+func Test792b25c3a5_RunCount_BadFilterErrors(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -447,68 +299,16 @@ func TestRunCount_NoModeErrors(t *testing.T) {
 
 	var out strings.Builder
 
-	err := cli.RunCount(cli.CountArgs{Vault: countVault}, fixture.deps(), &out)
-	g.Expect(err).To(MatchError(cli.ErrCountNoModeForTest))
+	err := cli.RunCount(
+		cli.CountArgs{Vault: countVault, GroupBy: "type", Filter: []string{"noequals"}},
+		fixture.deps(), &out)
+	g.Expect(err).To(MatchError(cli.ErrCountBadFilterForTest))
 }
 
-// TestRunCount_OsDepsReadRealVault exercises newCountDeps over a real-FS
-// EdgeFS against a real on-disk vault, covering the ListMD, ReadFile, and
-// Scan wiring for both modes.
-func TestRunCount_OsDepsReadRealVault(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	writeVaultFile(t, vault, "m1.md", "---\ntype: feedback\nfoo: [alpha]\n---\nlinks [[foo.alpha]]\n")
-	writeVaultFile(t, vault, "foo.alpha.md", "---\ntype: fact\n---\nalpha node\n")
-
-	deps := cli.ExportNewCountDeps(realFSForTest())
-
-	var groupOut strings.Builder
-
-	groupErr := cli.RunCount(cli.CountArgs{Vault: vault, GroupBy: "foo"}, deps, &groupOut)
-	g.Expect(groupErr).NotTo(HaveOccurred())
-
-	if groupErr != nil {
-		return
-	}
-
-	g.Expect(groupOut.String()).To(ContainSubstring("alpha\t1"))
-
-	var linkOut strings.Builder
-
-	linkErr := cli.RunCount(cli.CountArgs{Vault: vault, BacklinksOf: "foo.alpha"}, deps, &linkOut)
-	g.Expect(linkErr).NotTo(HaveOccurred())
-
-	if linkErr != nil {
-		return
-	}
-
-	g.Expect(linkOut.String()).To(Equal("in-degree: 1\nm1\n"))
-}
-
-// TestRunCount_ScanErrorPropagates verifies that a Scan failure surfaces as a
-// wrapped error in backlinks mode.
-func TestRunCount_ScanErrorPropagates(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	deps := cli.CountDeps{
-		ListMD:   func(string) ([]string, error) { return nil, nil },
-		ReadFile: func(string) ([]byte, error) { return nil, nil },
-		Scan:     func(string) ([]vaultgraph.Note, error) { return nil, &testNotFoundError{path: countVault} },
-	}
-
-	var out strings.Builder
-
-	err := cli.RunCount(cli.CountArgs{Vault: countVault, BacklinksOf: "C"}, deps, &out)
-	g.Expect(err).To(HaveOccurred())
-}
-
-// TestRunCount_SkipsUncountableNotes verifies that notes which are unreadable,
+// Test792b25c4a1_RunCount_SkipsUncountableNotes verifies that notes which are unreadable,
 // carry no frontmatter, or have malformed YAML are skipped (not counted) — the
 // three defensive branches of readNoteAttrs.
-func TestRunCount_SkipsUncountableNotes(t *testing.T) {
+func Test792b25c4a1_RunCount_SkipsUncountableNotes(t *testing.T) {
 	t.Parallel()
 
 	t.Run("no-frontmatter and malformed-yaml notes are skipped", func(t *testing.T) {
@@ -557,17 +357,217 @@ func TestRunCount_SkipsUncountableNotes(t *testing.T) {
 	})
 }
 
-// TestTargets_CountEmptyVault exercises the count closure end-to-end through
-// Targets() so the newCountDeps + resolveVault wiring is covered. An empty
-// vault matches zero notes, so group-by prints nothing and stderr stays clean.
-func TestTargets_CountEmptyVault(t *testing.T) {
+// Test792b25c5a4_RunCount_EmptyFilterResultPrintsNothing covers TDD item 8 (empty): filters
+// matching zero notes produce no output at all.
+func Test792b25c5a4_RunCount_EmptyFilterResultPrintsNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fixture := newCountFS(map[string]string{
+		"a.md": "---\ntype: feedback\nvocab: [x]\n---\nbody\n",
+	})
+
+	var out strings.Builder
+
+	err := cli.RunCount(
+		cli.CountArgs{Vault: countVault, GroupBy: "vocab", Filter: []string{"type=nonexistent"}},
+		fixture.deps(), &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out.String()).To(BeEmpty(), "an empty filter result prints nothing")
+}
+
+// Test792b25c6a1_RunCount_BacklinksOf covers TDD item 6: in-degree + sorted linkers, and an
+// unknown node → 0 with no linkers.
+func Test792b25c6a1_RunCount_BacklinksOf(t *testing.T) {
+	t.Parallel()
+
+	fixture := newCountFS(map[string]string{
+		"A.md": "links to [[C]]\n",
+		"B.md": "links to [[C]]\n",
+		"C.md": "no links here\n",
+	})
+
+	t.Run("known node lists sorted linkers", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		var out strings.Builder
+
+		err := cli.RunCount(cli.CountArgs{Vault: countVault, BacklinksOf: "C"}, fixture.deps(), &out)
+		g.Expect(err).NotTo(HaveOccurred())
+
+		if err != nil {
+			return
+		}
+
+		g.Expect(out.String()).To(Equal("in-degree: 2\nA\nB\n"))
+	})
+
+	t.Run("unknown node is zero with no linkers", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		var out strings.Builder
+
+		err := cli.RunCount(cli.CountArgs{Vault: countVault, BacklinksOf: "Z"}, fixture.deps(), &out)
+		g.Expect(err).NotTo(HaveOccurred())
+
+		if err != nil {
+			return
+		}
+
+		g.Expect(out.String()).To(Equal("in-degree: 0\n"))
+	})
+}
+
+// Test792b25c6a4_RunCount_ScanErrorPropagates verifies that a Scan failure surfaces as a
+// wrapped error in backlinks mode.
+func Test792b25c6a4_RunCount_ScanErrorPropagates(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.CountDeps{
+		ListMD:   func(string) ([]string, error) { return nil, nil },
+		ReadFile: func(string) ([]byte, error) { return nil, nil },
+		Scan:     func(string) ([]vaultgraph.Note, error) { return nil, &testNotFoundError{path: countVault} },
+	}
+
+	var out strings.Builder
+
+	err := cli.RunCount(cli.CountArgs{Vault: countVault, BacklinksOf: "C"}, deps, &out)
+	g.Expect(err).To(HaveOccurred())
+}
+
+// Test792b25c7a1_RunCount_GroupByBacklinksAgreement covers TDD item 7 (the acceptance
+// proof): over a dual-representation fixture — frontmatter attr AND matching
+// [[attr.val]] wikilinks agree, including a duplicate-listing note — the
+// group-by per-value count equals the backlinks-of in-degree for every value.
+func Test792b25c7a1_RunCount_GroupByBacklinksAgreement(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fixture := newCountFS(map[string]string{
+		"n1.md":        "---\ntype: feedback\nfoo: [alpha, beta]\n---\nlinks [[foo.alpha]] and [[foo.beta]]\n",
+		"n2.md":        "---\ntype: feedback\nfoo: [alpha]\n---\nlinks [[foo.alpha]]\n",
+		"n3.md":        "---\ntype: feedback\nfoo: [alpha, alpha]\n---\nlinks [[foo.alpha]] [[foo.alpha]]\n",
+		"foo.alpha.md": "---\ntype: fact\n---\nalpha node\n",
+		"foo.beta.md":  "---\ntype: fact\n---\nbeta node\n",
+	})
+	deps := fixture.deps()
+
+	var groupOut strings.Builder
+
+	groupErr := cli.RunCount(cli.CountArgs{Vault: countVault, GroupBy: "foo"}, deps, &groupOut)
+	g.Expect(groupErr).NotTo(HaveOccurred())
+
+	if groupErr != nil {
+		return
+	}
+
+	counts := parseGroupByCounts(groupOut.String())
+	g.Expect(counts).To(Equal(map[string]int{"alpha": 3, "beta": 1}),
+		"group-by must count distinct frontmatter membership")
+
+	for value, count := range counts {
+		var linkOut strings.Builder
+
+		linkErr := cli.RunCount(
+			cli.CountArgs{Vault: countVault, BacklinksOf: "foo." + value}, deps, &linkOut)
+		g.Expect(linkErr).NotTo(HaveOccurred())
+
+		if linkErr != nil {
+			return
+		}
+
+		g.Expect(parseInDegree(linkOut.String())).To(Equal(count),
+			"group-by count for %q must equal backlinks-of in-degree of foo.%s", value, value)
+	}
+}
+
+// Test792b25c7a2_RunCount_BacklinksExceedGroupByForNonMemberLinkers locks in the real-vault
+// relationship the clean agreement test does not cover: --backlinks-of counts
+// EVERY linker (matching Obsidian's backlinks panel), while --group-by counts
+// only frontmatter members. A non-member index/MOC page that links a value node
+// without listing it in frontmatter makes backlinks-of exceed group-by by the
+// number of such non-member linkers — a legitimate divergence, not a bug.
+func Test792b25c7a2_RunCount_BacklinksExceedGroupByForNonMemberLinkers(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fixture := newCountFS(map[string]string{
+		"n1.md":        "---\ntype: feedback\nfoo: [alpha]\n---\nmember links [[foo.alpha]]\n",
+		"idx.md":       "---\ntype: vocab-index\n---\nindex page links [[foo.alpha]]\n",
+		"foo.alpha.md": "---\ntype: fact\n---\nalpha node\n",
+	})
+	deps := fixture.deps()
+
+	var groupOut strings.Builder
+
+	groupErr := cli.RunCount(cli.CountArgs{Vault: countVault, GroupBy: "foo"}, deps, &groupOut)
+	g.Expect(groupErr).NotTo(HaveOccurred())
+
+	if groupErr != nil {
+		return
+	}
+
+	counts := parseGroupByCounts(groupOut.String())
+	g.Expect(counts["alpha"]).To(Equal(1),
+		"only the frontmatter member counts toward group-by — the index page does not")
+
+	var linkOut strings.Builder
+
+	linkErr := cli.RunCount(cli.CountArgs{Vault: countVault, BacklinksOf: "foo.alpha"}, deps, &linkOut)
+	g.Expect(linkErr).NotTo(HaveOccurred())
+
+	if linkErr != nil {
+		return
+	}
+
+	g.Expect(linkOut.String()).To(Equal("in-degree: 2\nidx\nn1\n"),
+		"backlinks-of counts every linker including the non-member index page")
+	g.Expect(parseInDegree(linkOut.String())).To(Equal(counts["alpha"]+1),
+		"backlinks-of exceeds group-by by the number of non-member (MOC/index) linkers")
+}
+
+// TestRunCount_OsDepsReadRealVault exercises newCountDeps over a real-FS
+// EdgeFS against a real on-disk vault, covering the ListMD, ReadFile, and
+// Scan wiring for both modes.
+func TestRunCount_OsDepsReadRealVault(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	vault := t.TempDir()
+	writeVaultFile(t, vault, "m1.md", "---\ntype: feedback\nfoo: [alpha]\n---\nlinks [[foo.alpha]]\n")
+	writeVaultFile(t, vault, "foo.alpha.md", "---\ntype: fact\n---\nalpha node\n")
 
-	stderr := executeForTest(t, []string{"engram", "count", "--group-by", "type", "--vault", vault})
-	g.Expect(stderr).To(BeEmpty())
+	deps := cli.ExportNewCountDeps(realFSForTest())
+
+	var groupOut strings.Builder
+
+	groupErr := cli.RunCount(cli.CountArgs{Vault: vault, GroupBy: "foo"}, deps, &groupOut)
+	g.Expect(groupErr).NotTo(HaveOccurred())
+
+	if groupErr != nil {
+		return
+	}
+
+	g.Expect(groupOut.String()).To(ContainSubstring("alpha\t1"))
+
+	var linkOut strings.Builder
+
+	linkErr := cli.RunCount(cli.CountArgs{Vault: vault, BacklinksOf: "foo.alpha"}, deps, &linkOut)
+	g.Expect(linkErr).NotTo(HaveOccurred())
+
+	if linkErr != nil {
+		return
+	}
+
+	g.Expect(linkOut.String()).To(Equal("in-degree: 1\nm1\n"))
 }
 
 // unexported constants.
