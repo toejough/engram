@@ -1352,3 +1352,35 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792d30, 792d51, 792d52 and 792d89.
 - **Alternatives:** split the explore half into its own component. Rejected because its sampling,
   its dedupe and its delivery are steps of one query and share its inputs.
+
+## 792d97 vault-counting scope, and the behaviors the code shows
+
+- **Choice:**
+  - 792a8 has eight requirements (792a8a to 792a8h). The graph build and in-degree that 792d75 deferred
+    arrive as 792b13c4 and 792b13c5, with the link parsing of 792b13c3 (ported by 792c7f1) mapped for the
+    fenced-link and `.md` scenarios. The unresolved-link report stays with vault-health (792c7h1).
+  - ADR-0018 is deleted. ADR-0007 keeps its status line and its G0 consequence for 792c7h1; its
+    decision is 792b13c4. The note-reader CRLF clause for `engram count` is out of `vault-note-identity`
+    (792a8d), which keeps the `engram check` reader and its scenario for vault-health.
+  - 792b3c4 gains `Supports: 792a8a1e, 792a8b1c` (the vault root listing), and 792b25d maps those scenarios
+    to it. The `RunCount` tests take technical IDs (792d52); `TestTargets_CountEmptyVault`, which runs the
+    command through dispatch, takes 792a8b1c. `TestRunCount_OsDepsReadRealVault` checks only the wiring of
+    the production dependencies and is a no-scenario test.
+- **Divergences noted (792d33):**
+  - The OpenSpec example printed `total: 557` for 349, 192 and 8 notes, which does not add up. 792a8a1a uses
+    `total: 549`.
+  - `--backlinks-of` fails when any root note cannot be read, naming the file (792a8e1j), while `--group-by`
+    skips an unreadable note (792a8d1b).
+  - A link with a display part, `[[y|shown]]`, is a target of `y|shown` (792b13c3a10), so it is a link to no
+    note and does not count toward `y` in Obsidian's terms. `--backlinks-of` does not normalize its
+    argument (`y.md`, `[[y]]` and `y|shown` all print `in-degree: 0`), unlike the references of
+    `show` and `amend` (792b13c2).
+  - A basename with no note has in-degree 0 whatever links to it (792a8e1h), because the graph drops
+    links to missing notes.
+  - `--filter` is read only by `--group-by`: with `--backlinks-of` it is ignored, and alone it fails as
+    "no mode". Neither is specified as a requirement beyond 792a8f1c.
+  - c3's "Dead/test-only surface" paragraph still says `BuildGraph` has no production consumer; `engram
+    count` uses it. The paragraph is left to 792c8a, as in 792d96.
+- **Rationale:** 792d30, 792d51, 792d52, 792d69 and 792d75.
+- **Alternatives:** port the link parsing again in 792b25. Rejected because 792b13c3 already specifies it.
+

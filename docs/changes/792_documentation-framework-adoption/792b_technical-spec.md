@@ -187,7 +187,7 @@ command succeeds.
 
 Supports: 792a2e1b, 792a2j1c, 792a2n1b, 792a2o1a, 792a3f1b, 792a3g1a, 792a3k1a, 792a3k1b, 792a3k1c,
 792a3k1d, 792a3r1a, 792a3s1a, 792a4a1b, 792a4c1a, 792a4f1a, 792a4k1a, 792a4k1b, 792a4l1b, 792a4l1c,
-792a4n1c, 792a6h1a, 792a6i1c, 792a6r1a, 792a6t1a.
+792a4n1c, 792a6h1a, 792a6i1c, 792a6r1a, 792a6t1a, 792a8c1f, 792a8e1j, 792a8f1a, 792a8f1b, 792a8f1c.
 
 ##### 792b2c4a Scenarios
 
@@ -414,6 +414,11 @@ Scenario: 792b2c8a3 A blank reference fails
 | 792a7x1f | 792b2c7 |
 | 792a7x1g | 792b2c7 |
 | 792a7x1h | 792b2c7 |
+| 792a8c1f | 792b2c4 |
+| 792a8e1j | 792b2c4 |
+| 792a8f1a | 792b2c4 |
+| 792a8f1b | 792b2c4 |
+| 792a8f1c | 792b2c4 |
 
 ```gherkin
 Scenario: 792a2a1a The flag wins over the environment
@@ -760,6 +765,33 @@ Scenario: 792a7x1h Each link is listed once
   Then the outbound links are 2.alpha, 3.beta and 4.gamma|the gamma note, in that order
 ```
 
+```gherkin
+Scenario: 792a8c1f A filter without = is refused
+  Given a vault
+  When the user runs engram count --group-by type --filter bad
+  Then it fails with an error saying --filter must be attr=value and quoting "bad", and prints nothing to stdout
+
+Scenario: 792a8e1j An unreadable note fails the report
+  Given a vault with a note the user cannot read
+  When the user runs engram count --backlinks-of x
+  Then it fails with an error naming the unreadable file, and prints nothing to stdout
+
+Scenario: 792a8f1a Both flags are refused
+  Given a vault
+  When the user runs engram count --group-by type --backlinks-of note.name
+  Then it fails with "count: --group-by and --backlinks-of are mutually exclusive"
+
+Scenario: 792a8f1b Neither flag is refused
+  Given a vault
+  When the user runs engram count with no --group-by and no --backlinks-of
+  Then it fails with "count: specify --group-by <attr> or --backlinks-of <basename>"
+
+Scenario: 792a8f1c A filter alone is not a mode
+  Given a vault
+  When the user runs engram count --filter type=fact
+  Then it fails with "count: specify --group-by <attr> or --backlinks-of <basename>"
+```
+
 ## 792b3 Added: durable-file-store
 
 Canonical target: `docs/specs/technical/durable-file-store.md` (title `Durable File Store - Technical Spec`).
@@ -949,7 +981,7 @@ files directly inside it, leaving out subdirectories, other files and the untouc
 `README.md`, MUST return an empty list when the directory does not exist, and MUST return any other
 read error.
 
-Supports: 792a2c1a, 792a2d1a, 792a2d1b, 792a3r1a.
+Supports: 792a2c1a, 792a2d1a, 792a2d1b, 792a3r1a, 792a8a1e, 792a8b1c.
 
 Rationale: this listing is the one shared point where every vault scanner (query, check, embed,
 count) stops seeing subdirectories and the starter README.
@@ -2114,7 +2146,7 @@ that ends in `---`, or an indented `---` inside a block value, MUST NOT close th
 empty frontmatter MUST split cleanly, and a text that has no leading `---` line or no closing line
 MUST be treated as having no frontmatter.
 
-Supports: 792a3n1a, 792a3u1a, 792a3u1b.
+Supports: 792a3n1a, 792a3u1a, 792a3u1b, 792a8d1a, 792a8d1c.
 
 Rationale: a skill key, for example, can end in `---`; matching only a whole line keeps such a value
 from cutting the frontmatter short.
@@ -2207,7 +2239,7 @@ Requirement: 792b6c8 The note-document-format MUST read a note for splitting and
 form, converting each `\r\n` to `\n` and keeping a lone `\r`, while frontmatter splitting itself
 stays LF-only (792b6c6).
 
-Supports: 792a4m1a, 792a4m1b, 792a6f1a.
+Supports: 792a4m1a, 792a4m1b, 792a6f1a, 792a8d1c.
 
 Rationale: a CRLF-aware split would hand the writers that splice its slices back into a note CRLF
 lines, and they would write mixed line endings; converting at the reader leaves every writer working
@@ -2263,6 +2295,8 @@ Scenario: 792b6c8a1 CRLF pairs become LF
 | 792a6a1a | 792b6c1, 792b6c3, 792b6c4 |
 | 792a6b1a | 792b6c1, 792b6c3 |
 | 792a6f1a | 792b6c8 |
+| 792a8d1a | 792b6c6 |
+| 792a8d1c | 792b6c6, 792b6c8 |
 
 ```gherkin
 Scenario: 792a3a1b A leading When is not doubled
@@ -2381,6 +2415,18 @@ Scenario: 792a6f1a Vocab tagging reads a CRLF note
   Given a note whose lines end in \r\n
   When vocabulary tagging adds a new term to it
   Then the tag is written and the note is written as LF; a CRLF note whose tags do not change is not written
+```
+
+```gherkin
+Scenario: 792a8d1a A note without usable frontmatter is skipped
+  Given one well-formed note with type: feedback, one note with no frontmatter, and one note whose frontmatter is malformed YAML
+  When the user runs engram count --group-by type
+  Then stdout is "feedback", a tab and 1, then "total: 1"
+
+Scenario: 792a8d1c A CRLF note is counted
+  Given a note with type: feedback whose lines end in \r\n
+  When the user runs engram count --group-by type
+  Then feedback is printed with the count 1, followed by "total: 1"
 ```
 
 ## 792b7 Added: luhmann-addressing
@@ -4307,8 +4353,8 @@ Canonical target: `docs/specs/technical/wikilink-graph.md` (title `Wikilink Grap
 - Responsibility: the vault seen as a set of linked notes. It scans the notes at the vault root,
   keying each by its basename without `.md` and recording its leading Luhmann ID and the link
   targets in its text, and it resolves a reference a user gives for a note to the note it names.
-  Building the directed link graph, counting a note's incoming links and reporting links that do
-  not resolve are added by the capabilities that use them (792d75).
+  It builds the directed link graph and reads a note's in-degree for the vault-counter. Reporting
+  links that do not resolve is added by vault-health (792d75).
 - Current realization (informational): `internal/vaultgraph` (`ScanVault`, `ParseBasename`,
   `ParseWikilinks`, `BuildGraph`, `UnresolvedTargets`); `normalizeNoteRef` in
   `internal/cli/note_ref.go`; `findNote` in `internal/cli/resituate.go`. `BFSWithCap`,
@@ -4319,8 +4365,8 @@ Canonical target: `docs/specs/technical/wikilink-graph.md` (title `Wikilink Grap
   scan and the lookup are tested directly over a fake vault listing and a note list; stability, the
   basename key is the link form notes and Obsidian share, and it survives any refactoring;
   necessity, every command that reads or revises a named note finds it here.
-- Supported capabilities: 792a2 vault-identity, 792a4 note-revision, 792a7 memory-query.
-  Vault-counting, vault-health and vault-migration add their requirements (792d30, 792d75).
+- Supported capabilities: 792a2 vault-identity, 792a4 note-revision, 792a7 memory-query, 792a8
+  vault-counting. Vault-health and vault-migration add their requirements (792d30, 792d75).
 
 Rationale: navigation lives in authored relations, the wikilinks in note text, rather than in a
 separate graph store that could drift from the notes, so the graph is derived from the notes each
@@ -4361,7 +4407,7 @@ without `.md`, with the Luhmann ID that leads the filename (empty when there is 
 targets of the links in its text. A failure to list the vault or to read a file MUST be returned,
 naming the path.
 
-Supports: 792a2c1a, 792a2d1a, 792a2d1b, 792a4a1a, 792a4a1b.
+Supports: 792a2c1a, 792a2d1a, 792a2d1b, 792a4a1a, 792a4a1b, 792a8e1i, 792a8e1j.
 
 ##### 792b13c1a Scenarios
 
@@ -4437,7 +4483,7 @@ and ends at a line of the same character, at least as long, followed only by whi
 of the text when none follows. It MUST keep a `|display` part as part of the target, and MUST NOT
 treat brackets inside a target as nesting.
 
-Supports: 792a7x1a, 792a7x1e, 792a7x1h.
+Supports: 792a7x1a, 792a7x1e, 792a7x1h, 792a8e1f, 792a8e1g.
 
 Rationale: Obsidian does not resolve a link inside a fenced code block, so verbatim transcript text
 pasted into a note must not make graph edges. The legacy `.md`-suffixed form that engram once wrote
@@ -4499,6 +4545,70 @@ Scenario: 792b13c3a10 A display part stays in the target
   Then the result is 4.gamma|the gamma note
 ```
 
+#### 792b13c4 Link graph
+
+Requirement: 792b13c4 The wikilink-graph MUST build, from scanned notes, a directed graph with one
+node per note, keyed by its basename, and one edge from a note to each distinct target among its
+link targets that is the basename of a scanned note. It MUST leave out a link whose target is not a
+scanned note and a link from a note to itself, and MUST collapse repeated links to the same target
+into one edge.
+
+Supports: 792a8e1d, 792a8e1e, 792a8e1h.
+
+Rationale: a wikilink names a note by its basename, and Obsidian resolves it the same way. A link
+to no note is not a backlink of any note, and a note linking to itself is not evidence that anything
+else refers to it.
+
+##### 792b13c4a Scenarios
+
+```gherkin
+Scenario: 792b13c4a1 No notes make an empty graph
+  Given no notes
+  When the graph is built
+  Then it has no nodes and no edges
+
+Scenario: 792b13c4a2 A link to a missing note is dropped
+  Given a note A that links B and MISSING, and a note B
+  When the graph is built
+  Then A has an edge to B and none to MISSING, and MISSING has in-degree 0
+
+Scenario: 792b13c4a3 A link to itself is dropped
+  Given a note A that links A and B, and a note B
+  When the graph is built
+  Then A has an edge to B and none to A
+
+Scenario: 792b13c4a4 Edges never outnumber links, and in-degrees sum to out-degrees
+  Given any set of notes
+  When the graph is built
+  Then the number of edges is at most the number of link targets, and the in-degrees of all notes sum to the number of edges
+
+Scenario: 792b13c4a5 No node has an edge to itself
+  Given any set of notes
+  When the graph is built
+  Then no note has an edge to itself
+```
+
+#### 792b13c5 In-degree
+
+Requirement: 792b13c5 The wikilink-graph MUST report a note's in-degree as the number of distinct
+notes with an edge to it (792b13c4), and 0 for a basename that is not a node.
+
+Supports: 792a8e1a, 792a8e1b, 792a8e1c.
+
+##### 792b13c5a Scenarios
+
+```gherkin
+Scenario: 792b13c5a1 In-degree counts the linking notes
+  Given A and B link C, C links A, and D is linked by none
+  When the in-degrees are read
+  Then C has 2, A has 1, and B and D have 0
+
+Scenario: 792b13c5a2 An unknown basename has in-degree 0
+  Given a built graph
+  When the in-degree of a basename that is not a node is read
+  Then it is 0
+```
+
 ### 792b13d Product-Scenario Mapping
 
 | Product scenario | Technical requirements |
@@ -4513,6 +4623,16 @@ Scenario: 792b13c3a10 A display part stays in the target
 | 792a7x1c | 792b13c2 |
 | 792a7x1e | 792b13c3 |
 | 792a7x1h | 792b13c3 |
+| 792a8e1a | 792b13c5 |
+| 792a8e1b | 792b13c5 |
+| 792a8e1c | 792b13c5 |
+| 792a8e1d | 792b13c4 |
+| 792a8e1e | 792b13c4 |
+| 792a8e1f | 792b13c3 |
+| 792a8e1g | 792b13c3 |
+| 792a8e1h | 792b13c4 |
+| 792a8e1i | 792b13c1 |
+| 792a8e1j | 792b13c1 |
 
 ```gherkin
 Scenario Outline: 792a4a1a Every reference form finds the note
@@ -4534,6 +4654,55 @@ Scenario: 792a7b1a The payload has the documented shape
   Given a vault of six notes, each with a current sidecar, and no chunk index
   When the user runs engram query --phrase "writing Go tests"
   Then stdout is a YAML document with version 1, phrases ["writing Go tests"], items, clusters and a budget whose total_notes and with_embeddings are both 6, and a model_id
+```
+
+```gherkin
+Scenario: 792a8e1d A repeated link counts once
+  Given a note x that contains [[y]] twice
+  When the user runs engram count --backlinks-of y
+  Then stdout is "in-degree: 1" then "x"
+
+Scenario: 792a8e1e A note's link to itself does not count
+  Given a note x whose only link is [[x]]
+  When the user runs engram count --backlinks-of x
+  Then stdout is "in-degree: 0"
+
+Scenario: 792a8e1f A link inside a fenced code block does not count
+  Given a note x that contains [[z]] only inside a fenced code block
+  When the user runs engram count --backlinks-of z
+  Then stdout is "in-degree: 0"
+
+Scenario: 792a8e1g A link ending in .md counts as the bare link
+  Given a note x that contains [[y.md]]
+  When the user runs engram count --backlinks-of y
+  Then stdout is "in-degree: 1" then "x"
+
+Scenario: 792a8e1h A link to a missing note counts for no note
+  Given a note x that contains [[nowhere]], and no note named nowhere
+  When the user runs engram count --backlinks-of nowhere
+  Then stdout is "in-degree: 0"
+
+Scenario: 792a8e1i Only notes at the vault root link
+  Given a note in a subdirectory that contains [[x]], and a note x at the vault root
+  When the user runs engram count --backlinks-of x
+  Then stdout is "in-degree: 0"
+```
+
+```gherkin
+Scenario: 792a8e1a A note with incoming links
+  Given three notes that contain [[foo.alpha]]
+  When the user runs engram count --backlinks-of foo.alpha
+  Then stdout starts with "in-degree: 3", followed by the three linkers' basenames, one per line, in ascending order
+
+Scenario: 792a8e1b A note with no incoming links
+  Given no note links to unknown.note
+  When the user runs engram count --backlinks-of unknown.note
+  Then stdout is "in-degree: 0" and no linker lines
+
+Scenario: 792a8e1c A basename that is not a note
+  Given a vault in which the basename nosuchfile never appears
+  When the user runs engram count --backlinks-of nosuchfile
+  Then stdout is "in-degree: 0" and no linker lines
 ```
 
 ## 792b14 Added: note-amendment

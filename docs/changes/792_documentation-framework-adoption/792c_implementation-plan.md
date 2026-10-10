@@ -227,8 +227,8 @@ flowchart TD
   N792c7f3["792c7f3 runbook-trigger-matching tech spec<br/>Complete"]
   N792c7f4["792c7f4 query-payload-renderer tech spec<br/>Complete"]
   N792c7f5["792c7f5 query-engine tech spec<br/>Complete"]
-  N792c7g1["792c7g1 vault-counting product spec<br/>Ready"]
-  N792c7g2["792c7g2 vault-counter tech spec<br/>Blocked by: 792c7g1"]
+  N792c7g1["792c7g1 vault-counting product spec<br/>Complete"]
+  N792c7g2["792c7g2 vault-counter tech spec<br/>Ready"]
   N792c7h1["792c7h1 vault-health product spec<br/>Blocked by: 792c7g2"]
   N792c7h2["792c7h2 vault-invariant-checker tech spec<br/>Blocked by: 792c7h1"]
   N792c7i1["792c7i1 vault-migration product spec<br/>Blocked by: 792c7h2"]
@@ -2671,11 +2671,40 @@ Target: `792a8` (`docs/specs/product/vault-counting.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7g1a | Port product requirements and UAT to `792a8` | Non-test action | Moves current behavior into the framework format | Not started |
-| 792c7g1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7g1c | Repoint stale references to `792a8` | Non-test action | Keeps live links valid | Not started |
-| 792c7g1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Not started |
-| 792c7g1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Not started |
+| 792c7g1a | Port product requirements and UAT to `792a8` | Non-test action | Moves current behavior into the framework format | Done |
+| 792c7g1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7g1c | Repoint stale references to `792a8` | Non-test action | Keeps live links valid | Done |
+| 792c7g1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Done |
+| 792c7g1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
+
+**Outcome:** the supporting component `vault-counter` is confirmed. wikilink-graph gains 792b13c4
+(link graph) and 792b13c5 (in-degree), which are the graph build and in-degree that 792d75 deferred
+here, and mappings to 792b13c1 and 792b13c3; command-line-surface gains mappings to 792b2c4;
+note-document-format gains mappings to 792b6c6 and 792b6c8; durable-file-store gains two `Supports`
+IDs on 792b3c4 (792d97). `cli-count` keeps its technical requirements until 792c7g2, and the
+note-reader CRLF clause for `engram count` is out of `vault-note-identity`, which now keeps only
+the `engram check` reader for vault-health (792d69). ADR-0018 is deleted and ADR-0007 keeps its
+G0 consequence for 792c7h1. Known divergences are in 792d97.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b13c4a1 | `TestBuildGraph_EmptyInput` → `Test792b13c4a1_BuildGraph_EmptyInput` | Pure unit (`internal/vaultgraph`) | No notes | Done |
+| 792b13c4a2 | `TestBuildGraph_DropsBrokenLinks` → `Test792b13c4a2_BuildGraph_DropsBrokenLinks` | Pure unit | Missing target dropped; its `InDegree("MISSING")` assertion also verifies 792b13c5a2 (`split deferred`) | Done |
+| 792b13c4a3 | `TestBuildGraph_DropsSelfLinks` → `Test792b13c4a3_BuildGraph_DropsSelfLinks` | Pure unit | Self-link dropped | Done |
+| 792b13c4a4 | `TestBuildGraph_EdgeCountBoundsProperty` → `Test792b13c4a4_BuildGraph_EdgeCountBoundsProperty` | Property (rapid) | Edges bounded, in equals out | Done |
+| 792b13c4a5 | `TestBuildGraph_NoSelfLinksProperty` → `Test792b13c4a5_BuildGraph_NoSelfLinksProperty` | Property (rapid) | No self-loops | Done |
+| 792b13c5a1 | `TestBuildGraph_InDegree` → `Test792b13c5a1_BuildGraph_InDegree` | Pure unit | Linking notes counted | Done |
+
+**Coverage gaps:** 792b13c5a2 has no test of its own; it is asserted only inside
+`TestBuildGraph_DropsBrokenLinks`. No 792a8
+scenario has an end-to-end test renamed here; the component node 792c7g2 renames the tests of its
+scenarios and lists the product scenarios still uncovered.
+
+**No-scenario tests:** none added. `TestBuildGraph_UndirectedNeighbors`, `bfs_test` and
+`indegree_in_test` stay no-scenario tests (listed under 792c7c2); `resolution_test` waits for
+vault-health (792d75).
 
 #### 792c7g2 vault-counter tech spec
 

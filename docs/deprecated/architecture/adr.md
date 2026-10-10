@@ -103,15 +103,12 @@ frontmatter/body desync is resolved by `engram amend` (which rewrites both copie
 
 Partly ported: the vault scan and its rationale (authored relations, a graph derived fresh from the
 notes, keyed by basename) to
-[792b13](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b13-added-wikilink-graph).
-The rest waits for vault-counting (792c7g1: the graph build and in-degree) and vault-health
-(792c7h1: the G0 consequence).
+[792b13](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b13-added-wikilink-graph),
+and the decision (the graph build keyed by basename, dangling targets dropped, and the in-degree) to
+[792b13c4](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b13c4-link-graph).
+The rest waits for vault-health (792c7h1: the G0 consequence).
 
 **Status:** Accepted (known defect: G0; G5 RETIRED — episode kind removed, `[[x]]` in chunk bodies no longer parsed as vault edges, per memory-invariants.md)
-
-**Decision.** `BuildGraph` builds a directed graph **keyed by basename**. Dangling targets are
-silently dropped at build. The subgraph/hub path was removed in recall-v2 / the 2026-06-20 deep
-clean; `vaultgraph` is not in the query path.
 
 **Consequences.** ⚠ KNOWN (G0): `learn` writes relations as
 **bare Luhmann ids** (`[[105]]`) but `BuildGraph` resolves by **basename** — 155/183 link-instances
@@ -351,46 +348,6 @@ tags-based evidence notes + evidence-linked aggregate fact notes read via plain 
 count` as the audit surface; build re-scoped into #674, vocab migration #678 shipped 2026-07-10), periodic
 rubric-refit (#670), parallel-builders (#671), cost/duration telemetry (#672). RED/GREEN evidence is
 transient (`git log`); the memory-discount figures remain at `dev/eval/LEDGER.md#tier-routing-parity`.
-
----
-
-## ADR-0018 — Counting/aggregation is a surface distinct from similarity recall
-
-**Status:** Accepted (shipped 2026-07-08)
-
-**Context.** `engram query` answers "what's relevant to this phrase" via recency-biased cosine
-similarity over a bounded, truncated matched set (ADR-0004) — by design a fuzzy-ranked *sample*,
-not a complete enumeration. A question like "how many notes carry the `vocab/retrieval-design` tag" or
-"how many notes link to `[[foo.alpha]]`" needs an exact, typed count over the *whole* vault, not a
-top-N approximation — riding it on the recall path would silently return a truncated, similarity-
-ordered subset with no signal that it isn't the real count.
-
-**Decision.** Ship `engram count` (`internal/cli/count.go`) as a read-only counting/aggregation
-surface, deliberately off the recall/similarity path — it never embeds, never scores cosine, never
-clusters. Two mutually exclusive modes: `--group-by <attr>` counts DISTINCT note membership per
-frontmatter-attribute value (a scalar attr contributes its one value; a list attr contributes one
-per distinct element — a note listing a value twice still counts once), optionally restricted by
-repeatable AND-ed `--filter attr=value` predicates (scalar equality or list-contains).
-`--backlinks-of <basename>` prints the wikilink in-degree (plus sorted linkers) of a vault-graph
-node via `vaultgraph.ScanVault`/`BuildGraph` (ADR-0007). The design goal is **per-mode
-Obsidian-verifiability**: each mode is independently hand-checkable against its own Obsidian view —
-`--group-by` against a frontmatter/property/tag filter (or Dataview), `--backlinks-of` against the
-note's backlinks panel.
-
-**Consequences.** The two modes are **not** interchangeable — they measure different things and
-legitimately diverge by the count of *non-member linkers*: an index/MOC page (e.g.
-`vocab.index.md`) links `[[vocab.<term>]]` for every term without carrying that term in its own
-`vocab:` frontmatter, so it counts toward `--backlinks-of` but not `--group-by`. The relationship:
-`backlinks-of(node) == group-by(attr) count for that value + (# non-member linkers)`. Verified on
-the live vault: `--group-by vocab` counts 33 members for the value `retrieval-design`;
-`--backlinks-of vocab.retrieval-design` reports in-degree 34 — the +1 is `vocab.index.md`
-(example vintage 2026-07-08; `vocab.index.md` retired 2026-07-10 under #678 — vocab terms no longer
-produce wikilink edges, so `--backlinks-of vocab.<term>` reads 0; the divergence relationship itself
-remains valid for any non-member linker). Do not
-report count parity as unqualified "count == Obsidian backlinks"; state per-mode verifiability plus
-the divergence relationship, or the two modes read as redundant when they are complementary.
-`TestRunCount_GroupByBacklinksAgreement` locks the clean-fixture case (no non-member linkers, so the
-two agree); `TestRunCount_BacklinksExceedGroupByForNonMemberLinkers` locks the divergence case.
 
 ---
 

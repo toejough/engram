@@ -914,14 +914,14 @@ note listing a value twice counts once), optionally restricted by repeatable AND
 `--filter attr=value` predicates (scalar equality or list-contains) — output is `value<TAB>count`
 lines sorted count-desc then value-asc, an `(attr absent): N` bucket when any in-set note lacks the
 attribute, then `total: N` (an empty result prints nothing). `--backlinks-of <basename>` prints the
-wikilink in-degree of a vault-graph node (ADR-0007) plus its sorted linkers. Each mode is
+wikilink in-degree of a vault-graph node plus its sorted linkers. Each mode is
 independently **Obsidian-verifiable** against its own view — `--group-by` against a
 frontmatter/property/tag filter (or Dataview), `--backlinks-of` against the note's backlinks panel
 — but the two are **not** equal to each other: `--backlinks-of` counts every linker while
 `--group-by` counts only frontmatter members, so they diverge by the number of *non-member
 linkers* (e.g. a hand-authored MOC/hub page that links every note on a topic without itself carrying
 that topic in frontmatter; `vocab.index.md` was a machine-generated instance of this pattern, retired
-2026-07-10 under #678). See ADR-0018. Since #674 it is also the audit surface for route's dispatch-evidence tallies —
+2026-07-10 under #678). See [792a8](changes/792_documentation-framework-adoption/792a_product-spec.md#792a8-added-vault-counting). Since #674 it is also the audit surface for route's dispatch-evidence tallies —
 `--group-by tags --filter tags=...` recomputes ground truth from evidence-note tags (see
 "aggregate note (route)" and [792a6c](changes/792_documentation-framework-adoption/792a_product-spec.md#792a6c-categorical-tags-share-one-list)); audit only, never the routing read path.
 

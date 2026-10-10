@@ -10,7 +10,18 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
-func TestBuildGraph_DropsBrokenLinks(t *testing.T) {
+func Test792b13c4a1_BuildGraph_EmptyInput(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	got := vaultgraph.BuildGraph(nil)
+	g.Expect(got.Notes).To(BeEmpty())
+	g.Expect(got.Outgoing).To(BeEmpty())
+	g.Expect(got.Incoming).To(BeEmpty())
+}
+
+func Test792b13c4a2_BuildGraph_DropsBrokenLinks(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -26,7 +37,7 @@ func TestBuildGraph_DropsBrokenLinks(t *testing.T) {
 	g.Expect(got.InDegree("MISSING")).To(BeZero())
 }
 
-func TestBuildGraph_DropsSelfLinks(t *testing.T) {
+func Test792b13c4a3_BuildGraph_DropsSelfLinks(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -41,7 +52,7 @@ func TestBuildGraph_DropsSelfLinks(t *testing.T) {
 	g.Expect(got.Outgoing["A"]).To(HaveKey("B"))
 }
 
-func TestBuildGraph_EdgeCountBoundsProperty(t *testing.T) {
+func Test792b13c4a4_BuildGraph_EdgeCountBoundsProperty(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -73,18 +84,23 @@ func TestBuildGraph_EdgeCountBoundsProperty(t *testing.T) {
 	})
 }
 
-func TestBuildGraph_EmptyInput(t *testing.T) {
+func Test792b13c4a5_BuildGraph_NoSelfLinksProperty(t *testing.T) {
 	t.Parallel()
 
-	g := NewWithT(t)
+	rapid.Check(t, func(rt *rapid.T) {
+		gExpect := NewWithT(rt)
 
-	got := vaultgraph.BuildGraph(nil)
-	g.Expect(got.Notes).To(BeEmpty())
-	g.Expect(got.Outgoing).To(BeEmpty())
-	g.Expect(got.Incoming).To(BeEmpty())
+		notes := genNotesProperty(rt)
+		got := vaultgraph.BuildGraph(notes)
+
+		for src, dsts := range got.Outgoing {
+			_, selfLoop := dsts[src]
+			gExpect.Expect(selfLoop).To(BeFalse())
+		}
+	})
 }
 
-func TestBuildGraph_InDegree(t *testing.T) {
+func Test792b13c5a1_BuildGraph_InDegree(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -101,22 +117,6 @@ func TestBuildGraph_InDegree(t *testing.T) {
 	g.Expect(got.InDegree("A")).To(Equal(1))
 	g.Expect(got.InDegree("B")).To(Equal(0))
 	g.Expect(got.InDegree("D")).To(Equal(0))
-}
-
-func TestBuildGraph_NoSelfLinksProperty(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		gExpect := NewWithT(rt)
-
-		notes := genNotesProperty(rt)
-		got := vaultgraph.BuildGraph(notes)
-
-		for src, dsts := range got.Outgoing {
-			_, selfLoop := dsts[src]
-			gExpect.Expect(selfLoop).To(BeFalse())
-		}
-	})
 }
 
 func TestBuildGraph_UndirectedNeighbors(t *testing.T) {
