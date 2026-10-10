@@ -1875,3 +1875,39 @@ decisions as `792dN`, continuing the sequence.
     command.
 - **Rationale:** 792d3, 792d32, 792d33, 792d34, 792d40 and 792d113.
 - **Alternatives:** run the writing-skills cycle for the repoint. Rejected because no behavior changes.
+
+## 792d115 please scope, and where the sources differ from the skill
+
+- **Choice:**
+  - 792a18 describes the shipped `SKILL.md`: nineteen requirements (792a18a to 792a18s). The skill is the only
+    source of the workflow, the gates and the anti-sycophancy rules, as 792d32 expects. The enumeration-grep and
+    lessons-audit requirements are ported from the OpenSpec specs and re-checked against the skill.
+  - The gates are one requirement for their firing and staffing (792a18l), one for the reviewer charges (792a18m),
+    and one for the argument protocol (792a18n), because the skill states them as a table, a list of charges and a
+    protocol.
+  - The LESSONS slice of please (collection, hand-over, gates not filtering) is 792a16d and 792a16f. 792a18r only
+    states that the closing learn gets both inputs.
+  - The "terminal report" contents drawn in the context view (commits made, paths written, gate audit, follow-ups
+    offered) are not in the skill, which says only that the audit list appears in the closing report; 792a18p
+    states what the skill says.
+  - The context view's remark that the former gates sub-runbook `1042` was merged is history of a reversed
+    direction (792d57) and is left out.
+  - No test is renamed. There is no `tests/` directory for please.
+- **Divergences noted (792d33):**
+  - The `write-memory-worker` spec's Step 7 requirement says the audit is "carried by the lessons-audit
+    sub-runbook, reached by `[[basename]]` wikilink from the top runbook body", and the `please-doc-enumeration-gate`
+    spec says the gate-A reviewer charge is "carried by the please runbook set's adversarial-review-gates
+    sub-runbook". Both are stale (#768, #758's conversion was merged back into one note). The shipped skill carries
+    both in its own body, and 792a18 follows it.
+  - The same spec's scenario "Vault note citations use wikilink syntax" is a rule of the retired runbook form
+    (a wikilink inside a structured field). The shipped skill says nothing about citation syntax in the audit, so it
+    is not specified.
+  - The `please-doc-enumeration-gate` spec's third scenario, "Carrier is the runbook, not a skill", is the opposite
+    of the shipped carrier and is not ported.
+  - The skill's description, which is also the trigger discrimination, is stated as behavior in 792a18a. The
+    registered runbook note's `triggers` are in 792a12 and 792a13m.
+  - ROADMAP row #768 still records the stale-spec work as open. Its two specs are migrated and deleted here, and the
+    row now says so.
+- **Rationale:** 792d3, 792d12, 792d32, 792d33, 792d57 and 792d113.
+- **Alternatives:** keep the stale sub-runbook text in the requirements. Rejected because it contradicts the shipped
+  skill (the caution on this node).

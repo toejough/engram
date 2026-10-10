@@ -245,8 +245,8 @@ flowchart TD
   N792c7n1["792c7n1 learn product spec<br/>Complete"]
   N792c7o1["792c7o1 lessons-contract product spec<br/>Complete"]
   N792c7p1["792c7p1 route product spec<br/>Complete"]
-  N792c7q1["792c7q1 please product spec<br/>Ready"]
-  N792c7r1["792c7r1 ambient-guidance product spec<br/>Blocked by: 792c7q1"]
+  N792c7q1["792c7q1 please product spec<br/>Complete"]
+  N792c7r1["792c7r1 ambient-guidance product spec<br/>Ready"]
   N792c7s1["792c7s1 vault-serving product spec<br/>Blocked by: 792c7r1"]
   N792c7s2["792c7s2 exchange-versioning tech spec<br/>Blocked by: 792c7s1"]
   N792c7s3["792c7s3 pending-offer-bookkeeping tech spec<br/>Blocked by: 792c7s2"]
@@ -4436,11 +4436,38 @@ Target: `792a18` (`docs/specs/product/please.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7q1a | Port product requirements and UAT to `792a18` | Non-test action | Moves current behavior into the framework format | Not started |
-| 792c7q1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7q1c | Repoint stale references to `792a18` | Non-test action | Keeps live links valid | Not started |
-| 792c7q1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Not started |
-| 792c7q1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Not started |
+| 792c7q1a | Port product requirements and UAT to `792a18` | Non-test action | Moves current behavior into the framework format | Done |
+| 792c7q1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7q1c | Repoint stale references to `792a18` | Non-test action | Keeps live links valid | Done |
+| 792c7q1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Done |
+| 792c7q1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
+
+792a18 has nineteen requirements (792a18a to 792a18s): when the skill fires, the required ask, the tracked and
+non-waivable steps, the opening learn and orientation, the challenge, anti-displacement, the plan, the enumeration
+grep, TDD, documentation, completion, the four gates and their staffing, the reviewer charges, the argument to
+resolution, escalation provenance, the lessons audit, the question of what should have surfaced a lesson, the closing
+learn and delegation (792d115). agent-instruction-bundle gains nothing: no scenario of the workflow is a property of
+the shipped text's metadata, form or vault path. Legacy removal: the `please-doc-enumeration-gate` and
+`write-memory-worker` OpenSpec specs are deleted (their last requirements), and the context view's please flow,
+decision flowchart and gates companion are removed. Repointed: the GLOSSARY entry for the surprise harvest, the
+ROADMAP row for #768, and the context view's flowchart intro.
+
+**Test Traceability**
+
+No test is renamed: please is a markdown skill with no `tests/` directory. Its evidence is the eval ledger and the
+confined headless harnesses, not a test of this repository's code, and those keep their names (792d115).
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792a18h1a to 792a18h1d | `dev/eval/LEDGER.md#685-doc-enumeration-grep` (harness `dev/eval/cumulative/please_step3_probe`, not renamed) | Confined headless probe | The enumeration grep fixes the doc-scrub under-enumeration under a buried-subtask load | Done |
+| 792a18q1a to 792a18q1c | `dev/eval/LEDGER.md#687-surprise-harvest` (harness `dev/eval/cumulative/please_step7_probe`, not renamed) | Confined headless probe | The measurement refuted the larger surprise-harvest premise; the shipped addition is unvalidated | Done |
+
+**Coverage gaps:** no test or baseline covers any other scenario of 792a18. The workflow, the gates and the
+challenge rules are behaviors of the skill text, and the registered runbook note was converted from the skill under a
+fidelity report (`dev/eval/cumulative/runbook_vs_skill/phase2/encodings/please-conversion-fidelity-report.md`),
+which is a historical record.
+
+**No-scenario tests:** none.
 
 ### 792c7r ambient-guidance
 

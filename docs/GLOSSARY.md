@@ -120,6 +120,7 @@ writing a new one — reword an existing note whose `situation:` line missed the
 than duplicating it. A vault note is the user's own and takes effect on their next recall;
 anything shipped from the repo instead (code, skills, guidance) makes the user wait on a
 release, so that path is proposed only as a last resort and never filed automatically.
+Specified in [792a18q](changes/792_documentation-framework-adoption/792a_product-spec.md#792a18q-a-lesson-about-to-be-captured-asks-what-should-have-surfaced-it).
 
 **Status:** committed in
 `agent-instructions/skills/please/SKILL.md` (`662e50ba`); the file was retired 2026-09-20 to a vault-only note and restored as a skill by `register-skills-as-runbooks` — the rule now lives in the please skill's own Step 7 text (please is one note, not a separate lessons-audit sub-runbook); unvalidated (no measurement supports it). The
