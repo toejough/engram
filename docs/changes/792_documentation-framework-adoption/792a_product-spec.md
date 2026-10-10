@@ -4735,7 +4735,7 @@ Scenario: 792a10d1c Stale answers
   Then they are refused with a stale-answers error telling the user to re-run engram update --reparent-luhmann, and no file is written and the chunk index is unchanged
 
 Scenario: 792a10d1d An unknown note
-  Given an answers file naming a note ID that no top-level note has
+  Given an answers file naming a note ID that no note in the vault holds
   When the user applies it
   Then it fails with "--answers references an unknown note" and the vault is unchanged
 ```
