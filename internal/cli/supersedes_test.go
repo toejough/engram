@@ -12,6 +12,154 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
+func Test792b12c1a5_ParseSupersedesFlag_EmptyClaim_Errors(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	_, err := cli.ExportParseSupersedesFlag("note|updates|")
+	g.Expect(err).To(HaveOccurred())
+}
+
+func Test792b12c1a5_ParseSupersedesFlag_EmptyNote_Errors(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	_, err := cli.ExportParseSupersedesFlag("|updates|claim")
+	g.Expect(err).To(HaveOccurred())
+}
+
+func Test792b12c1a5_ParseSupersedesFlag_InvalidType_Errors(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	_, err := cli.ExportParseSupersedesFlag("note|corrects|claim")
+	g.Expect(err).To(MatchError(ContainSubstring("type must be updates|narrows|refutes")))
+}
+
+func Test792b12c1a5_ParseSupersedesFlag_MissingFields_Errors(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	_, err := cli.ExportParseSupersedesFlag("note|updates")
+	g.Expect(err).To(MatchError(ContainSubstring("format must be")))
+}
+
+func Test792b12c1a6_ParseSupersedesFlag_ClaimWithPipeInContent(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// The claim may contain | if the flag uses SplitN(..., 3).
+	entry, err := cli.ExportParseSupersedesFlag("note|updates|claim with | pipe")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(entry.Claim).To(Equal("claim with | pipe"))
+}
+
+func Test792b12c1a6_ParseSupersedesFlag_ValidNarrows(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	entry, err := cli.ExportParseSupersedesFlag("9a.2026-01-01.foo|narrows|narrowed scope")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(entry.Type).To(Equal("narrows"))
+}
+
+func Test792b12c1a6_ParseSupersedesFlag_ValidRefutes(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	entry, err := cli.ExportParseSupersedesFlag("9b.2026-01-01.bar|refutes|the prior claim")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(entry.Type).To(Equal("refutes"))
+}
+
+func Test792b12c1a6_ParseSupersedesFlag_ValidUpdates(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	entry, err := cli.ExportParseSupersedesFlag("105.2026-01-01.old-note|updates|the original claim here")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(entry.Note).To(Equal("105.2026-01-01.old-note"))
+	g.Expect(entry.Type).To(Equal("updates"))
+	g.Expect(entry.Claim).To(Equal("the original claim here"))
+}
+
+// Test792b12c4a5_LearnFeedback_Supersedes_WrittenToFrontmatterAndBody proves that the
+// --supersedes flag writes both the frontmatter list and the body line on learn.
+func Test792b12c4a5_LearnFeedback_Supersedes_WrittenToFrontmatterAndBody(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var written []byte
+
+	args := cli.LearnArgs{
+		Type: "feedback", Slug: "supersedes-test", Position: "top",
+		Source: "test", Situation: "testing supersedes",
+		Behavior: "old behavior", Impact: "bad impact", Action: "new action",
+		Supersedes: []string{"9a.2026-01-01.old-note|updates|old action was insufficient"},
+	}
+	deps := cli.LearnDeps{
+		DetectRepo:    func(context.Context) string { return "" },
+		DetectUser:    func(context.Context) string { return "" },
+		Now:           func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+		Getenv:        func(string) string { return "" },
+		ListIDs:       func(string) ([]string, error) { return nil, nil },
+		ListBasenames: func(string) ([]string, error) { return nil, nil },
+		Lock:          func(string) (func(), error) { return func() {}, nil },
+		WriteNew:      func(_ string, data []byte) error { written = data; return nil },
+	}
+
+	var buf strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	body := string(written)
+
+	g.Expect(body).To(ContainSubstring("supersedes:"),
+		"frontmatter must contain supersedes: list")
+	g.Expect(body).To(ContainSubstring("note: 9a.2026-01-01.old-note"),
+		"frontmatter supersedes entry must have note field")
+	g.Expect(body).To(ContainSubstring("type: updates"),
+		"frontmatter supersedes entry must have type field")
+	g.Expect(body).To(ContainSubstring("claim: old action was insufficient"),
+		"frontmatter supersedes entry must have claim field")
+	g.Expect(body).To(ContainSubstring("Supersedes: [[9a.2026-01-01.old-note]] — updates: old action was insufficient"),
+		"body must contain Supersedes wikilink line")
+}
+
 // Test792b6c4a5_RenderSupersedes_StripsMdFromWikilink verifies the machine-written body
 // line targets the canonical extension-less basename even when the entry's
 // note field carries the full .md filename (which frontmatter keeps).
@@ -166,152 +314,4 @@ func TestBuildSupersedesInverse(t *testing.T) {
 	// 9b.2026-01-01.other-old is superseded by one note.
 	g.Expect(inverse).To(HaveKey("9b.2026-01-01.other-old"))
 	g.Expect(inverse["9b.2026-01-01.other-old"]).To(HaveLen(1))
-}
-
-// TestLearnFeedback_Supersedes_WrittenToFrontmatterAndBody proves that the
-// --supersedes flag writes both the frontmatter list and the body line on learn.
-func TestLearnFeedback_Supersedes_WrittenToFrontmatterAndBody(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	var written []byte
-
-	args := cli.LearnArgs{
-		Type: "feedback", Slug: "supersedes-test", Position: "top",
-		Source: "test", Situation: "testing supersedes",
-		Behavior: "old behavior", Impact: "bad impact", Action: "new action",
-		Supersedes: []string{"9a.2026-01-01.old-note|updates|old action was insufficient"},
-	}
-	deps := cli.LearnDeps{
-		DetectRepo:    func(context.Context) string { return "" },
-		DetectUser:    func(context.Context) string { return "" },
-		Now:           func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
-		Getenv:        func(string) string { return "" },
-		ListIDs:       func(string) ([]string, error) { return nil, nil },
-		ListBasenames: func(string) ([]string, error) { return nil, nil },
-		Lock:          func(string) (func(), error) { return func() {}, nil },
-		WriteNew:      func(_ string, data []byte) error { written = data; return nil },
-	}
-
-	var buf strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	body := string(written)
-
-	g.Expect(body).To(ContainSubstring("supersedes:"),
-		"frontmatter must contain supersedes: list")
-	g.Expect(body).To(ContainSubstring("note: 9a.2026-01-01.old-note"),
-		"frontmatter supersedes entry must have note field")
-	g.Expect(body).To(ContainSubstring("type: updates"),
-		"frontmatter supersedes entry must have type field")
-	g.Expect(body).To(ContainSubstring("claim: old action was insufficient"),
-		"frontmatter supersedes entry must have claim field")
-	g.Expect(body).To(ContainSubstring("Supersedes: [[9a.2026-01-01.old-note]] — updates: old action was insufficient"),
-		"body must contain Supersedes wikilink line")
-}
-
-func TestParseSupersedesFlag_ClaimWithPipeInContent(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	// The claim may contain | if the flag uses SplitN(..., 3).
-	entry, err := cli.ExportParseSupersedesFlag("note|updates|claim with | pipe")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(entry.Claim).To(Equal("claim with | pipe"))
-}
-
-func TestParseSupersedesFlag_EmptyClaim_Errors(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	_, err := cli.ExportParseSupersedesFlag("note|updates|")
-	g.Expect(err).To(HaveOccurred())
-}
-
-func TestParseSupersedesFlag_EmptyNote_Errors(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	_, err := cli.ExportParseSupersedesFlag("|updates|claim")
-	g.Expect(err).To(HaveOccurred())
-}
-
-func TestParseSupersedesFlag_InvalidType_Errors(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	_, err := cli.ExportParseSupersedesFlag("note|corrects|claim")
-	g.Expect(err).To(MatchError(ContainSubstring("type must be updates|narrows|refutes")))
-}
-
-func TestParseSupersedesFlag_MissingFields_Errors(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	_, err := cli.ExportParseSupersedesFlag("note|updates")
-	g.Expect(err).To(MatchError(ContainSubstring("format must be")))
-}
-
-func TestParseSupersedesFlag_ValidNarrows(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	entry, err := cli.ExportParseSupersedesFlag("9a.2026-01-01.foo|narrows|narrowed scope")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(entry.Type).To(Equal("narrows"))
-}
-
-func TestParseSupersedesFlag_ValidRefutes(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	entry, err := cli.ExportParseSupersedesFlag("9b.2026-01-01.bar|refutes|the prior claim")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(entry.Type).To(Equal("refutes"))
-}
-
-func TestParseSupersedesFlag_ValidUpdates(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	entry, err := cli.ExportParseSupersedesFlag("105.2026-01-01.old-note|updates|the original claim here")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(entry.Note).To(Equal("105.2026-01-01.old-note"))
-	g.Expect(entry.Type).To(Equal("updates"))
-	g.Expect(entry.Claim).To(Equal("the original claim here"))
 }

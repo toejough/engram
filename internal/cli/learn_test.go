@@ -79,6 +79,936 @@ func Test792b11c3a1_RunLearn_StampsIdentityFields(t *testing.T) {
 	}
 }
 
+func Test792b12c1a1_RunLearn_RejectsInvalidSlug(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.LearnDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Now:        time.Now,
+		Getenv:     func(string) string { return "" },
+		ListIDs:    func(string) ([]string, error) { return nil, nil },
+		Lock:       func(string) (func(), error) { return func() {}, nil },
+		WriteNew:   func(string, []byte) error { return nil },
+	}
+	args := cli.LearnArgs{Type: "fact", Slug: "Bad Slug", Vault: "/v", Position: "top"}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).To(HaveOccurred())
+}
+
+// Test792b12c1a2_LearnFact_InvalidTag_RejectedBeforeWrite: every malformed tag shape is
+// rejected with the sentinel error, before any file write.
+func Test792b12c1a2_LearnFact_InvalidTag_RejectedBeforeWrite(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	invalidTags := []string{
+		"Work-Kind/Rename", // uppercase
+		"a/b/c",            // two slashes
+		"work kind/rename", // space
+		"/rename",          // empty family
+		"work-kind/",       // empty value
+		"tier=cheap",       // wrong separator
+		"",                 // empty
+	}
+
+	for _, tag := range invalidTags {
+		var wrote bool
+
+		args := cli.LearnArgs{
+			Type: "fact", Slug: "bad-tag", Vault: t.TempDir(), Position: "top",
+			Source: "test", Situation: "s", Subject: "a", Predicate: "b", Object: "c",
+			Tags: []string{"work-kind/ok-sibling", tag},
+		}
+		deps := cli.LearnDeps{
+			DetectRepo:    func(context.Context) string { return "" },
+			DetectUser:    func(context.Context) string { return "" },
+			Now:           func() time.Time { return time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC) },
+			Getenv:        func(string) string { return "" },
+			ListIDs:       func(string) ([]string, error) { return nil, nil },
+			ListBasenames: func(string) ([]string, error) { return nil, nil },
+			Lock:          func(string) (func(), error) { return func() {}, nil },
+			WriteNew:      func(string, []byte) error { wrote = true; return nil },
+		}
+
+		var buf strings.Builder
+
+		err := cli.ExportRunLearn(t.Context(), args, deps, &buf)
+		g.Expect(err).To(MatchError(ContainSubstring("tag must be")), "tag %q must be rejected", tag)
+		g.Expect(wrote).To(BeFalse(), "tag %q must be rejected before any write", tag)
+	}
+}
+
+func Test792b12c1a2_ValidateIssueID_AcceptsEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	g.Expect(cli.ExportValidateIssueID("")).To(Succeed())
+}
+
+func Test792b12c1a2_ValidateIssueID_AcceptsNonWhitespace(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	g.Expect(cli.ExportValidateIssueID("636")).To(Succeed())
+	g.Expect(cli.ExportValidateIssueID("#636")).To(Succeed())
+	g.Expect(cli.ExportValidateIssueID("PROJ-1234")).To(Succeed())
+	g.Expect(cli.ExportValidateIssueID("gh-636")).To(Succeed())
+}
+
+func Test792b12c1a2_ValidateIssueID_RejectsWhitespace(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	g.Expect(cli.ExportValidateIssueID("636 ")).To(HaveOccurred())
+	g.Expect(cli.ExportValidateIssueID("two words")).To(HaveOccurred())
+	g.Expect(cli.ExportValidateIssueID("with\ttab")).To(HaveOccurred())
+}
+
+func Test792b12c1a2_ValidateProjectSlug_AcceptsEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	g.Expect(cli.ExportValidateProjectSlug("")).To(Succeed())
+}
+
+func Test792b12c1a2_ValidateProjectSlug_AcceptsKebabCase(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	g.Expect(cli.ExportValidateProjectSlug("engram")).To(Succeed())
+	g.Expect(cli.ExportValidateProjectSlug("opencode-plugin")).To(Succeed())
+	g.Expect(cli.ExportValidateProjectSlug("proj-123")).To(Succeed())
+}
+
+func Test792b12c1a2_ValidateProjectSlug_RejectsBadShape(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	g.Expect(cli.ExportValidateProjectSlug("Engram")).To(HaveOccurred())
+	g.Expect(cli.ExportValidateProjectSlug("with spaces")).To(HaveOccurred())
+	g.Expect(cli.ExportValidateProjectSlug("punct!")).To(HaveOccurred())
+}
+
+// TestValidateTags_* exercise the validator directly, split per behavior
+// (repo convention — cf. Test792b12c1a2_ValidateProjectSlug_AcceptsEmpty /
+// _AcceptsKebabCase / _RejectsBadShape, learn_test.go:903-917).
+func Test792b12c1a2_ValidateTags_AcceptsEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	g.Expect(cli.ExportValidateTags(nil)).To(Succeed())
+}
+
+func Test792b12c1a2_ValidateTags_AcceptsValidShapes(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	g.Expect(cli.ExportValidateTags([]string{"work-kind"})).To(Succeed())
+	g.Expect(cli.ExportValidateTags([]string{"work-kind/rename", "tier/cheap", "outcome/pass"})).To(Succeed())
+	g.Expect(cli.ExportValidateTags([]string{"a1-b2/c3-d4"})).To(Succeed())
+}
+
+func Test792b12c1a2_ValidateTags_RejectsBadShape(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	g.Expect(cli.ExportValidateTags([]string{"outcome/pass", "BAD"})).To(HaveOccurred())
+}
+
+func Test792b12c1a3_RunLearn_Runbook_InvalidTriggerRejectedWritesNothing(t *testing.T) {
+	t.Parallel()
+
+	for _, bad := range []string{"  ", "", "ab", " ab "} {
+		t.Run(fmt.Sprintf("%q", bad), func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			var (
+				written []byte
+				writes  int
+			)
+
+			var stdout strings.Builder
+
+			args := runbookTriggerArgs([]string{"/please", bad}, nil)
+
+			err := cli.ExportRunLearn(t.Context(), args, runbookTriggerDeps(&written, &writes), &stdout)
+			g.Expect(err).To(MatchError(ContainSubstring("trigger")))
+			g.Expect(err).To(MatchError(ContainSubstring(fmt.Sprintf("%q", bad))))
+			g.Expect(writes).To(Equal(0))
+		})
+	}
+}
+
+// Test792b12c1a4_TierFrontmatter_BadTierRejected verifies that an invalid --tier value
+// returns errLearnBadTier.
+func Test792b12c1a4_TierFrontmatter_BadTierRejected(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.LearnDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Now:        func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
+		Getenv:     func(string) string { return "" },
+		ListIDs:    func(string) ([]string, error) { return nil, nil },
+		Lock:       func(string) (func(), error) { return func() {}, nil },
+		WriteNew:   func(string, []byte) error { return nil },
+	}
+
+	args := cli.LearnArgs{
+		Type:      "fact",
+		Slug:      "tier-bad",
+		Vault:     "/v",
+		Position:  "top",
+		Source:    "src",
+		Situation: "tier bad check",
+		Subject:   "subj",
+		Predicate: "pred",
+		Object:    "obj",
+		Tier:      "L9",
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).To(MatchError(cli.ErrLearnBadTierForTest))
+}
+
+func Test792b12c1a7_RunLearn_RejectsUnknownType(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	deps := cli.LearnDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Now:        time.Now,
+		Getenv:     func(string) string { return "" },
+		ListIDs:    func(string) ([]string, error) { return nil, nil },
+		Lock:       func(string) (func(), error) { return func() {}, nil },
+		WriteNew:   func(string, []byte) error { return nil },
+	}
+	args := cli.LearnArgs{Type: "principle", Slug: "x", Vault: "/v", Position: "top"}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).To(HaveOccurred())
+}
+
+func Test792b12c2a2_RunLearn_RejectsMissingRunbookSituation(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.LearnDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Now:        time.Now,
+		Getenv:     func(string) string { return "" },
+		ListIDs:    func(string) ([]string, error) { return nil, nil },
+		Lock:       func(string) (func(), error) { return func() {}, nil },
+		WriteNew:   func(string, []byte) error { return nil },
+	}
+	args := cli.LearnArgs{
+		Type: "runbook", Slug: "x", Vault: "/v", Position: "top",
+		Source: "test", DoneWhen: "the tag is pushed",
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).To(MatchError(ContainSubstring("situation")))
+}
+
+func Test792b12c2a3_RunLearn_RejectsMissingRunbookDoneWhen(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.LearnDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Now:        time.Now,
+		Getenv:     func(string) string { return "" },
+		ListIDs:    func(string) ([]string, error) { return nil, nil },
+		Lock:       func(string) (func(), error) { return func() {}, nil },
+		WriteNew:   func(string, []byte) error { return nil },
+	}
+	args := cli.LearnArgs{
+		Type: "runbook", Slug: "x", Vault: "/v", Position: "top",
+		Source: "test", Situation: "releasing a module",
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).To(MatchError(ContainSubstring("done-when")))
+}
+
+func Test792b12c3a1_RunLearn_Fact_WritesExpectedFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var (
+		writtenPath    string
+		writtenContent []byte
+	)
+
+	deps := cli.LearnDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Now:        func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
+		Getenv:     func(string) string { return "" },
+		ListIDs:    func(string) ([]string, error) { return nil, nil },
+		Lock:       func(string) (func(), error) { return func() {}, nil },
+		WriteNew: func(path string, data []byte) error {
+			writtenPath = path
+			writtenContent = data
+
+			return nil
+		},
+	}
+
+	args := cli.LearnArgs{
+		Type:      "fact",
+		Slug:      "fact-slug",
+		Vault:     "/vault",
+		Position:  "top",
+		Situation: "s",
+		Subject:   "subj",
+		Predicate: "is",
+		Object:    "obj",
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(writtenPath).To(Equal("/vault/1.2026-05-09.fact-slug.md"))
+	g.Expect(string(writtenContent)).To(ContainSubstring("type: fact"))
+	g.Expect(string(writtenContent)).To(ContainSubstring("Information learned"))
+}
+
+func Test792b12c3a1_RunLearn_Feedback_WritesExpectedFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var (
+		lockAcquired, lockReleased bool
+		writtenPath                string
+		writtenContent             []byte
+	)
+
+	deps := cli.LearnDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Now:        func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
+		Getenv:     func(string) string { return "" },
+		ListIDs: func(string) ([]string, error) {
+			return []string{"1", "2"}, nil
+		},
+		Lock: func(string) (func(), error) {
+			lockAcquired = true
+
+			return func() { lockReleased = true }, nil
+		},
+		WriteNew: func(path string, data []byte) error {
+			writtenPath = path
+			writtenContent = data
+
+			return nil
+		},
+	}
+
+	args := cli.LearnArgs{
+		Type:      "feedback",
+		Slug:      "ctx-cancellation-rule",
+		Vault:     "/vault",
+		Target:    "",
+		Position:  "top",
+		Source:    "session log foo, 2026-05-09 12:00 UTC",
+		Situation: "writing concurrent Go code",
+		Behavior:  "ignoring ctx.Done()",
+		Impact:    "leaks goroutines",
+		Action:    "always check ctx.Done() in select",
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(lockAcquired).To(BeTrue())
+	g.Expect(lockReleased).To(BeTrue())
+	g.Expect(writtenPath).To(Equal("/vault/3.2026-05-09.ctx-cancellation-rule.md"))
+	g.Expect(string(writtenContent)).To(ContainSubstring("type: feedback"))
+	g.Expect(string(writtenContent)).
+		To(ContainSubstring("Lesson learned: when writing concurrent Go code"))
+}
+
+func Test792b12c3a1_RunLearn_Runbook_WritesExpectedFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var (
+		writtenPath    string
+		writtenContent []byte
+	)
+
+	deps := cli.LearnDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Now:        func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
+		Getenv:     func(string) string { return "" },
+		ListIDs:    func(string) ([]string, error) { return nil, nil },
+		Lock:       func(string) (func(), error) { return func() {}, nil },
+		WriteNew: func(path string, data []byte) error {
+			writtenPath = path
+			writtenContent = data
+
+			return nil
+		},
+	}
+
+	args := cli.LearnArgs{
+		Type:      "runbook",
+		Slug:      "release-go-module",
+		Vault:     "/vault",
+		Position:  "top",
+		Source:    "test",
+		Situation: "releasing a new Go module version",
+		DoneWhen:  "the tag is pushed and the changelog is updated",
+		Body:      "1. Run the tests\n2. Tag the release\n3. Push the tag",
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(writtenPath).To(Equal("/vault/1.2026-05-09.release-go-module.md"))
+	g.Expect(string(writtenContent)).To(ContainSubstring("type: runbook"))
+	g.Expect(string(writtenContent)).To(ContainSubstring("done_when: the tag is pushed and the changelog is updated"))
+	g.Expect(string(writtenContent)).To(ContainSubstring("1. Run the tests"))
+	g.Expect(string(writtenContent)).NotTo(ContainSubstring("red_flags"),
+		"no --red-flag supplied: the field must be absent, not an empty list")
+}
+
+func Test792b12c3a2_RunLearn_PropagatesLockError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.LearnDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Now:        func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
+		Getenv:     func(string) string { return "" },
+		ListIDs:    func(string) ([]string, error) { return nil, nil },
+		Lock:       func(string) (func(), error) { return nil, errors.New("locked") },
+		WriteNew:   func(string, []byte) error { return nil },
+	}
+	args := cli.LearnArgs{Type: "fact", Slug: "x", Vault: "/v", Position: "top"}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).To(MatchError(ContainSubstring("acquiring lock")))
+}
+
+func Test792b12c3a3_RunLearn_PropagatesListIDsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.LearnDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Now:        func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
+		Getenv:     func(string) string { return "" },
+		ListIDs:    func(string) ([]string, error) { return nil, errors.New("io fail") },
+		Lock:       func(string) (func(), error) { return func() {}, nil },
+		WriteNew:   func(string, []byte) error { return nil },
+	}
+	args := cli.LearnArgs{Type: "fact", Slug: "x", Vault: "/v", Position: "top"}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).To(MatchError(ContainSubstring("listing existing IDs")))
+}
+
+// Test792b12c4a1_TierFrontmatter_FactDefaultsToL2 verifies that a rendered fact note
+// carries tier: L2 derived from its type.
+func Test792b12c4a1_TierFrontmatter_FactDefaultsToL2(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var writtenContent []byte
+
+	deps := cli.LearnDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Now:        func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
+		Getenv:     func(string) string { return "" },
+		ListIDs:    func(string) ([]string, error) { return nil, nil },
+		Lock:       func(string) (func(), error) { return func() {}, nil },
+		WriteNew:   func(_ string, data []byte) error { writtenContent = data; return nil },
+	}
+
+	args := cli.LearnArgs{
+		Type:      "fact",
+		Slug:      "tier-fact",
+		Vault:     "/v",
+		Position:  "top",
+		Source:    "src",
+		Situation: "tier check",
+		Subject:   "subj",
+		Predicate: "pred",
+		Object:    "obj",
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(writtenContent)).To(ContainSubstring("tier: L2"))
+}
+
+// Test792b12c4a1_TierFrontmatter_FeedbackDefaultsToL2 verifies that a rendered feedback
+// note carries tier: L2 derived from its type.
+func Test792b12c4a1_TierFrontmatter_FeedbackDefaultsToL2(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var writtenContent []byte
+
+	deps := cli.LearnDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Now:        func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
+		Getenv:     func(string) string { return "" },
+		ListIDs:    func(string) ([]string, error) { return nil, nil },
+		Lock:       func(string) (func(), error) { return func() {}, nil },
+		WriteNew:   func(_ string, data []byte) error { writtenContent = data; return nil },
+	}
+
+	args := cli.LearnArgs{
+		Type:      "feedback",
+		Slug:      "tier-feedback",
+		Vault:     "/v",
+		Position:  "top",
+		Source:    "src",
+		Situation: "tier check",
+		Behavior:  "beh",
+		Impact:    "imp",
+		Action:    "act",
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(writtenContent)).To(ContainSubstring("tier: L2"))
+}
+
+// Test792b12c4a1_TierFrontmatter_OverrideL3 verifies that --tier L3 on a fact note
+// overrides the default L2 tier.
+func Test792b12c4a1_TierFrontmatter_OverrideL3(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var writtenContent []byte
+
+	deps := cli.LearnDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Now:        func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
+		Getenv:     func(string) string { return "" },
+		ListIDs:    func(string) ([]string, error) { return nil, nil },
+		Lock:       func(string) (func(), error) { return func() {}, nil },
+		WriteNew:   func(_ string, data []byte) error { writtenContent = data; return nil },
+	}
+
+	args := cli.LearnArgs{
+		Type:      "fact",
+		Slug:      "tier-override",
+		Vault:     "/v",
+		Position:  "top",
+		Source:    "src",
+		Situation: "tier override check",
+		Subject:   "subj",
+		Predicate: "pred",
+		Object:    "obj",
+		Tier:      "L3",
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(writtenContent)).To(ContainSubstring("tier: L3"))
+}
+
+// Test792b12c4a3_LearnFact_EmptyTags_NoTagsKey: no --tag flags → no tags: key (omitempty).
+func Test792b12c4a3_LearnFact_EmptyTags_NoTagsKey(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var written []byte
+
+	args := cli.LearnArgs{
+		Type: "fact", Slug: "untagged", Vault: t.TempDir(), Position: "top",
+		Source: "test", Situation: "no tags", Subject: "A", Predicate: "has", Object: "B",
+	}
+	deps := cli.LearnDeps{
+		DetectRepo:    func(context.Context) string { return "" },
+		DetectUser:    func(context.Context) string { return "" },
+		Now:           func() time.Time { return time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC) },
+		Getenv:        func(string) string { return "" },
+		ListIDs:       func(string) ([]string, error) { return nil, nil },
+		ListBasenames: func(string) ([]string, error) { return nil, nil },
+		Lock:          func(string) (func(), error) { return func() {}, nil },
+		WriteNew:      func(_ string, data []byte) error { written = data; return nil },
+	}
+
+	var buf strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(written)).NotTo(ContainSubstring("tags:"))
+}
+
+// Test792b12c4a3_LearnFact_Tags_WrittenToFrontmatter locks the --tag surface (#674): tags
+// on LearnArgs land in the frontmatter tags: list, preserving order.
+func Test792b12c4a3_LearnFact_Tags_WrittenToFrontmatter(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var written []byte
+
+	args := cli.LearnArgs{
+		Type: "fact", Slug: "route-dispatch-rename", Vault: t.TempDir(), Position: "top",
+		Source: "test", Situation: "routing rename work",
+		Subject: "rename dispatch at cheap (haiku)", Predicate: "resolved as", Object: "pass",
+		Tags: []string{"work-kind/rename", "tier/cheap", "outcome/pass"},
+	}
+	deps := cli.LearnDeps{
+		DetectRepo:    func(context.Context) string { return "" },
+		DetectUser:    func(context.Context) string { return "" },
+		Now:           func() time.Time { return time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC) },
+		Getenv:        func(string) string { return "" },
+		ListIDs:       func(string) ([]string, error) { return nil, nil },
+		ListBasenames: func(string) ([]string, error) { return nil, nil },
+		Lock:          func(string) (func(), error) { return func() {}, nil },
+		WriteNew:      func(_ string, data []byte) error { written = data; return nil },
+	}
+
+	var buf strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	note := string(written)
+	g.Expect(note).To(ContainSubstring("tags:"))
+	g.Expect(note).To(ContainSubstring("work-kind/rename"))
+	g.Expect(note).To(ContainSubstring("tier/cheap"))
+	g.Expect(note).To(ContainSubstring("outcome/pass"))
+	g.Expect(strings.Index(note, "work-kind/rename")).
+		To(BeNumerically("<", strings.Index(note, "tier/cheap")), "tag order must be preserved")
+	g.Expect(strings.Index(note, "tier/cheap")).
+		To(BeNumerically("<", strings.Index(note, "outcome/pass")), "tag order must be preserved")
+}
+
+// Test792b12c4a3_LearnFeedback_Tags_WrittenToFrontmatter: the feedback form carries tags too.
+func Test792b12c4a3_LearnFeedback_Tags_WrittenToFrontmatter(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var written []byte
+
+	args := cli.LearnArgs{
+		Type: "feedback", Slug: "tagged-feedback", Vault: t.TempDir(), Position: "top",
+		Source: "test", Situation: "routing rename work",
+		Behavior: "b", Impact: "i", Action: "a",
+		Tags: []string{"work-kind/rename", "outcome/fail"},
+	}
+	deps := cli.LearnDeps{
+		DetectRepo:    func(context.Context) string { return "" },
+		DetectUser:    func(context.Context) string { return "" },
+		Now:           func() time.Time { return time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC) },
+		Getenv:        func(string) string { return "" },
+		ListIDs:       func(string) ([]string, error) { return nil, nil },
+		ListBasenames: func(string) ([]string, error) { return nil, nil },
+		Lock:          func(string) (func(), error) { return func() {}, nil },
+		WriteNew:      func(_ string, data []byte) error { written = data; return nil },
+	}
+
+	var buf strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(written)).To(ContainSubstring("tags:"))
+	g.Expect(string(written)).To(ContainSubstring("work-kind/rename"))
+	g.Expect(string(written)).To(ContainSubstring("outcome/fail"))
+}
+
+func Test792b12c4a4_LearnFact_ChunkSources_WrittenToFrontmatter(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var written []byte
+
+	args := cli.LearnArgs{
+		Type: "fact", Slug: "test-slug", Vault: t.TempDir(), Position: "top",
+		Source: "test", Situation: "testing chunk sources",
+		Subject: "A", Predicate: "has", Object: "B",
+		ChunkSources: []string{"/sessions/s.jsonl#turn-1", "/sessions/s.jsonl#turn-2"},
+	}
+	deps := cli.LearnDeps{
+		DetectRepo:    func(context.Context) string { return "" },
+		DetectUser:    func(context.Context) string { return "" },
+		Now:           func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+		Getenv:        func(string) string { return "" },
+		ListIDs:       func(string) ([]string, error) { return nil, nil },
+		ListBasenames: func(string) ([]string, error) { return nil, nil },
+		Lock:          func(string) (func(), error) { return func() {}, nil },
+		WriteNew:      func(_ string, data []byte) error { written = data; return nil },
+	}
+
+	var buf strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(written)).To(ContainSubstring("sources:"))
+	g.Expect(string(written)).To(ContainSubstring("/sessions/s.jsonl#turn-1"))
+	g.Expect(string(written)).To(ContainSubstring("/sessions/s.jsonl#turn-2"))
+}
+
+func Test792b12c4a4_LearnFact_EmptyChunkSources_NoSourcesKey(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var written []byte
+
+	args := cli.LearnArgs{
+		Type: "fact", Slug: "test-slug", Vault: t.TempDir(), Position: "top",
+		Source: "test", Situation: "no chunk sources",
+		Subject: "A", Predicate: "has", Object: "B",
+	}
+	deps := cli.LearnDeps{
+		DetectRepo:    func(context.Context) string { return "" },
+		DetectUser:    func(context.Context) string { return "" },
+		Now:           func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+		Getenv:        func(string) string { return "" },
+		ListIDs:       func(string) ([]string, error) { return nil, nil },
+		ListBasenames: func(string) ([]string, error) { return nil, nil },
+		Lock:          func(string) (func(), error) { return func() {}, nil },
+		WriteNew:      func(_ string, data []byte) error { written = data; return nil },
+	}
+
+	var buf strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(written)).NotTo(ContainSubstring("sources:"))
+}
+
+// Test792b12c4a6_RunLearn_Runbook_WritesRedFlagsWhenProvided proves args.RedFlags flows
+// through assembleLearnContent into the written frontmatter, in order
+// (note-writing 792a3d1a, "Red flags are kept in order").
+func Test792b12c4a6_RunLearn_Runbook_WritesRedFlagsWhenProvided(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var writtenContent []byte
+
+	deps := cli.LearnDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Now:        func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
+		Getenv:     func(string) string { return "" },
+		ListIDs:    func(string) ([]string, error) { return nil, nil },
+		Lock:       func(string) (func(), error) { return func() {}, nil },
+		WriteNew: func(_ string, data []byte) error {
+			writtenContent = data
+
+			return nil
+		},
+	}
+
+	args := cli.LearnArgs{
+		Type:      "runbook",
+		Slug:      "history-rewrite",
+		Vault:     "/vault",
+		Position:  "top",
+		Source:    "test",
+		Situation: "rewriting git history",
+		DoneWhen:  "the backup branch still has every original commit",
+		Body:      "1. Create a backup branch\n2. Rewrite history",
+		RedFlags: []string{
+			"filter-branch on all refs sweeps the backup branch",
+			"force-push without --force-with-lease",
+		},
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	const delim = "---\n"
+
+	rendered := string(writtenContent)
+	body := strings.TrimPrefix(rendered, delim)
+	end := strings.Index(body, "\n"+delim)
+	g.Expect(end).To(BeNumerically(">=", 0), "missing closing ---")
+
+	var doc struct {
+		RedFlags []string `yaml:"red_flags"`
+	}
+	g.Expect(yaml.Unmarshal([]byte(body[:end+1]), &doc)).To(Succeed())
+	g.Expect(doc.RedFlags).To(Equal([]string{
+		"filter-branch on all refs sweeps the backup branch",
+		"force-push without --force-with-lease",
+	}))
+}
+
+func Test792b12c4a7_RunLearn_Runbook_NoTriggersWritesNoField(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var (
+		written []byte
+		writes  int
+	)
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), runbookTriggerArgs(nil, nil), runbookTriggerDeps(&written, &writes), &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(string(written)).NotTo(ContainSubstring("triggers"))
+}
+
+// Test792b12c4a7_RunLearn_Runbook_TriggersRoundTripProperty: for any 1-5 valid triggers,
+// the rendered frontmatter parses back to the identical list.
+func Test792b12c4a7_RunLearn_Runbook_TriggersRoundTripProperty(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(rt)
+
+		triggers := rapid.SliceOfN(
+			rapid.StringMatching(`[!-~\p{L}][ -~\p{L}]{1,30}[!-~\p{L}]`), 1, 5,
+		).Draw(rt, "triggers")
+
+		var (
+			written []byte
+			writes  int
+		)
+
+		var stdout strings.Builder
+
+		err := cli.ExportRunLearn(
+			context.Background(), runbookTriggerArgs(triggers, nil), runbookTriggerDeps(&written, &writes), &stdout,
+		)
+		g.Expect(err).NotTo(HaveOccurred())
+
+		if err != nil {
+			return
+		}
+
+		got, parseErr := parseRunbookTriggers(string(written))
+		g.Expect(parseErr).NotTo(HaveOccurred())
+		g.Expect(got).To(Equal(triggers))
+	})
+}
+
+// Test792b12c4a7_RunLearn_Runbook_WritesTriggersInOrderAfterRedFlags proves --trigger
+// entries reach the frontmatter in order, after red_flags when present
+// (runbook-lexical-triggers spec).
+func Test792b12c4a7_RunLearn_Runbook_WritesTriggersInOrderAfterRedFlags(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var (
+		written []byte
+		writes  int
+	)
+
+	args := runbookTriggerArgs([]string{"/please", "take this end-to-end"}, []string{"a red flag"})
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, runbookTriggerDeps(&written, &writes), &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	rendered := string(written)
+
+	triggers, parseErr := parseRunbookTriggers(rendered)
+	g.Expect(parseErr).NotTo(HaveOccurred())
+	g.Expect(triggers).To(Equal([]string{"/please", "take this end-to-end"}))
+	g.Expect(strings.Index(rendered, "triggers:")).To(BeNumerically(">", strings.Index(rendered, "red_flags:")))
+}
+
 func Test792b6c1a1_LearnPath_Permanent(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -686,243 +1616,6 @@ func TestFactAmend_VocabVersionRoundTrip(t *testing.T) {
 	g.Expect(string(final)).To(ContainSubstring("object: updated description"))
 }
 
-func TestLearnFact_ChunkSources_WrittenToFrontmatter(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	var written []byte
-
-	args := cli.LearnArgs{
-		Type: "fact", Slug: "test-slug", Vault: t.TempDir(), Position: "top",
-		Source: "test", Situation: "testing chunk sources",
-		Subject: "A", Predicate: "has", Object: "B",
-		ChunkSources: []string{"/sessions/s.jsonl#turn-1", "/sessions/s.jsonl#turn-2"},
-	}
-	deps := cli.LearnDeps{
-		DetectRepo:    func(context.Context) string { return "" },
-		DetectUser:    func(context.Context) string { return "" },
-		Now:           func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
-		Getenv:        func(string) string { return "" },
-		ListIDs:       func(string) ([]string, error) { return nil, nil },
-		ListBasenames: func(string) ([]string, error) { return nil, nil },
-		Lock:          func(string) (func(), error) { return func() {}, nil },
-		WriteNew:      func(_ string, data []byte) error { written = data; return nil },
-	}
-
-	var buf strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(string(written)).To(ContainSubstring("sources:"))
-	g.Expect(string(written)).To(ContainSubstring("/sessions/s.jsonl#turn-1"))
-	g.Expect(string(written)).To(ContainSubstring("/sessions/s.jsonl#turn-2"))
-}
-
-func TestLearnFact_EmptyChunkSources_NoSourcesKey(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	var written []byte
-
-	args := cli.LearnArgs{
-		Type: "fact", Slug: "test-slug", Vault: t.TempDir(), Position: "top",
-		Source: "test", Situation: "no chunk sources",
-		Subject: "A", Predicate: "has", Object: "B",
-	}
-	deps := cli.LearnDeps{
-		DetectRepo:    func(context.Context) string { return "" },
-		DetectUser:    func(context.Context) string { return "" },
-		Now:           func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
-		Getenv:        func(string) string { return "" },
-		ListIDs:       func(string) ([]string, error) { return nil, nil },
-		ListBasenames: func(string) ([]string, error) { return nil, nil },
-		Lock:          func(string) (func(), error) { return func() {}, nil },
-		WriteNew:      func(_ string, data []byte) error { written = data; return nil },
-	}
-
-	var buf strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(string(written)).NotTo(ContainSubstring("sources:"))
-}
-
-// TestLearnFact_EmptyTags_NoTagsKey: no --tag flags → no tags: key (omitempty).
-func TestLearnFact_EmptyTags_NoTagsKey(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	var written []byte
-
-	args := cli.LearnArgs{
-		Type: "fact", Slug: "untagged", Vault: t.TempDir(), Position: "top",
-		Source: "test", Situation: "no tags", Subject: "A", Predicate: "has", Object: "B",
-	}
-	deps := cli.LearnDeps{
-		DetectRepo:    func(context.Context) string { return "" },
-		DetectUser:    func(context.Context) string { return "" },
-		Now:           func() time.Time { return time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC) },
-		Getenv:        func(string) string { return "" },
-		ListIDs:       func(string) ([]string, error) { return nil, nil },
-		ListBasenames: func(string) ([]string, error) { return nil, nil },
-		Lock:          func(string) (func(), error) { return func() {}, nil },
-		WriteNew:      func(_ string, data []byte) error { written = data; return nil },
-	}
-
-	var buf strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(string(written)).NotTo(ContainSubstring("tags:"))
-}
-
-// TestLearnFact_InvalidTag_RejectedBeforeWrite: every malformed tag shape is
-// rejected with the sentinel error, before any file write.
-func TestLearnFact_InvalidTag_RejectedBeforeWrite(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	invalidTags := []string{
-		"Work-Kind/Rename", // uppercase
-		"a/b/c",            // two slashes
-		"work kind/rename", // space
-		"/rename",          // empty family
-		"work-kind/",       // empty value
-		"tier=cheap",       // wrong separator
-		"",                 // empty
-	}
-
-	for _, tag := range invalidTags {
-		var wrote bool
-
-		args := cli.LearnArgs{
-			Type: "fact", Slug: "bad-tag", Vault: t.TempDir(), Position: "top",
-			Source: "test", Situation: "s", Subject: "a", Predicate: "b", Object: "c",
-			Tags: []string{"work-kind/ok-sibling", tag},
-		}
-		deps := cli.LearnDeps{
-			DetectRepo:    func(context.Context) string { return "" },
-			DetectUser:    func(context.Context) string { return "" },
-			Now:           func() time.Time { return time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC) },
-			Getenv:        func(string) string { return "" },
-			ListIDs:       func(string) ([]string, error) { return nil, nil },
-			ListBasenames: func(string) ([]string, error) { return nil, nil },
-			Lock:          func(string) (func(), error) { return func() {}, nil },
-			WriteNew:      func(string, []byte) error { wrote = true; return nil },
-		}
-
-		var buf strings.Builder
-
-		err := cli.ExportRunLearn(t.Context(), args, deps, &buf)
-		g.Expect(err).To(MatchError(ContainSubstring("tag must be")), "tag %q must be rejected", tag)
-		g.Expect(wrote).To(BeFalse(), "tag %q must be rejected before any write", tag)
-	}
-}
-
-// TestLearnFact_Tags_WrittenToFrontmatter locks the --tag surface (#674): tags
-// on LearnArgs land in the frontmatter tags: list, preserving order.
-func TestLearnFact_Tags_WrittenToFrontmatter(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	var written []byte
-
-	args := cli.LearnArgs{
-		Type: "fact", Slug: "route-dispatch-rename", Vault: t.TempDir(), Position: "top",
-		Source: "test", Situation: "routing rename work",
-		Subject: "rename dispatch at cheap (haiku)", Predicate: "resolved as", Object: "pass",
-		Tags: []string{"work-kind/rename", "tier/cheap", "outcome/pass"},
-	}
-	deps := cli.LearnDeps{
-		DetectRepo:    func(context.Context) string { return "" },
-		DetectUser:    func(context.Context) string { return "" },
-		Now:           func() time.Time { return time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC) },
-		Getenv:        func(string) string { return "" },
-		ListIDs:       func(string) ([]string, error) { return nil, nil },
-		ListBasenames: func(string) ([]string, error) { return nil, nil },
-		Lock:          func(string) (func(), error) { return func() {}, nil },
-		WriteNew:      func(_ string, data []byte) error { written = data; return nil },
-	}
-
-	var buf strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	note := string(written)
-	g.Expect(note).To(ContainSubstring("tags:"))
-	g.Expect(note).To(ContainSubstring("work-kind/rename"))
-	g.Expect(note).To(ContainSubstring("tier/cheap"))
-	g.Expect(note).To(ContainSubstring("outcome/pass"))
-	g.Expect(strings.Index(note, "work-kind/rename")).
-		To(BeNumerically("<", strings.Index(note, "tier/cheap")), "tag order must be preserved")
-	g.Expect(strings.Index(note, "tier/cheap")).
-		To(BeNumerically("<", strings.Index(note, "outcome/pass")), "tag order must be preserved")
-}
-
-// TestLearnFeedback_Tags_WrittenToFrontmatter: the feedback form carries tags too.
-func TestLearnFeedback_Tags_WrittenToFrontmatter(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	var written []byte
-
-	args := cli.LearnArgs{
-		Type: "feedback", Slug: "tagged-feedback", Vault: t.TempDir(), Position: "top",
-		Source: "test", Situation: "routing rename work",
-		Behavior: "b", Impact: "i", Action: "a",
-		Tags: []string{"work-kind/rename", "outcome/fail"},
-	}
-	deps := cli.LearnDeps{
-		DetectRepo:    func(context.Context) string { return "" },
-		DetectUser:    func(context.Context) string { return "" },
-		Now:           func() time.Time { return time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC) },
-		Getenv:        func(string) string { return "" },
-		ListIDs:       func(string) ([]string, error) { return nil, nil },
-		ListBasenames: func(string) ([]string, error) { return nil, nil },
-		Lock:          func(string) (func(), error) { return func() {}, nil },
-		WriteNew:      func(_ string, data []byte) error { written = data; return nil },
-	}
-
-	var buf strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(string(written)).To(ContainSubstring("tags:"))
-	g.Expect(string(written)).To(ContainSubstring("work-kind/rename"))
-	g.Expect(string(written)).To(ContainSubstring("outcome/fail"))
-}
-
 // TestRenderRunbookFrontmatter_IncludesSkillHashWhenSet guards the populated
 // case: skill_hash renders as a plain scalar when a caller sets it on
 // runbookFields — only future registration code ever does this, never
@@ -1075,272 +1768,6 @@ func TestRenderRunbookFrontmatter_SkillKeySourceRoundtripProperty(t *testing.T) 
 	})
 }
 
-func TestRunLearn_Fact_WritesExpectedFile(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var (
-		writtenPath    string
-		writtenContent []byte
-	)
-
-	deps := cli.LearnDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Now:        func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
-		Getenv:     func(string) string { return "" },
-		ListIDs:    func(string) ([]string, error) { return nil, nil },
-		Lock:       func(string) (func(), error) { return func() {}, nil },
-		WriteNew: func(path string, data []byte) error {
-			writtenPath = path
-			writtenContent = data
-
-			return nil
-		},
-	}
-
-	args := cli.LearnArgs{
-		Type:      "fact",
-		Slug:      "fact-slug",
-		Vault:     "/vault",
-		Position:  "top",
-		Situation: "s",
-		Subject:   "subj",
-		Predicate: "is",
-		Object:    "obj",
-	}
-
-	var stdout strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(writtenPath).To(Equal("/vault/1.2026-05-09.fact-slug.md"))
-	g.Expect(string(writtenContent)).To(ContainSubstring("type: fact"))
-	g.Expect(string(writtenContent)).To(ContainSubstring("Information learned"))
-}
-
-func TestRunLearn_Feedback_WritesExpectedFile(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var (
-		lockAcquired, lockReleased bool
-		writtenPath                string
-		writtenContent             []byte
-	)
-
-	deps := cli.LearnDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Now:        func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
-		Getenv:     func(string) string { return "" },
-		ListIDs: func(string) ([]string, error) {
-			return []string{"1", "2"}, nil
-		},
-		Lock: func(string) (func(), error) {
-			lockAcquired = true
-
-			return func() { lockReleased = true }, nil
-		},
-		WriteNew: func(path string, data []byte) error {
-			writtenPath = path
-			writtenContent = data
-
-			return nil
-		},
-	}
-
-	args := cli.LearnArgs{
-		Type:      "feedback",
-		Slug:      "ctx-cancellation-rule",
-		Vault:     "/vault",
-		Target:    "",
-		Position:  "top",
-		Source:    "session log foo, 2026-05-09 12:00 UTC",
-		Situation: "writing concurrent Go code",
-		Behavior:  "ignoring ctx.Done()",
-		Impact:    "leaks goroutines",
-		Action:    "always check ctx.Done() in select",
-	}
-
-	var stdout strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(lockAcquired).To(BeTrue())
-	g.Expect(lockReleased).To(BeTrue())
-	g.Expect(writtenPath).To(Equal("/vault/3.2026-05-09.ctx-cancellation-rule.md"))
-	g.Expect(string(writtenContent)).To(ContainSubstring("type: feedback"))
-	g.Expect(string(writtenContent)).
-		To(ContainSubstring("Lesson learned: when writing concurrent Go code"))
-}
-
-func TestRunLearn_PropagatesListIDsError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	deps := cli.LearnDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Now:        func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
-		Getenv:     func(string) string { return "" },
-		ListIDs:    func(string) ([]string, error) { return nil, errors.New("io fail") },
-		Lock:       func(string) (func(), error) { return func() {}, nil },
-		WriteNew:   func(string, []byte) error { return nil },
-	}
-	args := cli.LearnArgs{Type: "fact", Slug: "x", Vault: "/v", Position: "top"}
-
-	var stdout strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
-	g.Expect(err).To(MatchError(ContainSubstring("listing existing IDs")))
-}
-
-func TestRunLearn_PropagatesLockError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	deps := cli.LearnDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Now:        func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
-		Getenv:     func(string) string { return "" },
-		ListIDs:    func(string) ([]string, error) { return nil, nil },
-		Lock:       func(string) (func(), error) { return nil, errors.New("locked") },
-		WriteNew:   func(string, []byte) error { return nil },
-	}
-	args := cli.LearnArgs{Type: "fact", Slug: "x", Vault: "/v", Position: "top"}
-
-	var stdout strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
-	g.Expect(err).To(MatchError(ContainSubstring("acquiring lock")))
-}
-
-func TestRunLearn_RejectsInvalidSlug(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	deps := cli.LearnDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Now:        time.Now,
-		Getenv:     func(string) string { return "" },
-		ListIDs:    func(string) ([]string, error) { return nil, nil },
-		Lock:       func(string) (func(), error) { return func() {}, nil },
-		WriteNew:   func(string, []byte) error { return nil },
-	}
-	args := cli.LearnArgs{Type: "fact", Slug: "Bad Slug", Vault: "/v", Position: "top"}
-
-	var stdout strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
-	g.Expect(err).To(HaveOccurred())
-}
-
-func TestRunLearn_RejectsMissingRunbookDoneWhen(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	deps := cli.LearnDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Now:        time.Now,
-		Getenv:     func(string) string { return "" },
-		ListIDs:    func(string) ([]string, error) { return nil, nil },
-		Lock:       func(string) (func(), error) { return func() {}, nil },
-		WriteNew:   func(string, []byte) error { return nil },
-	}
-	args := cli.LearnArgs{
-		Type: "runbook", Slug: "x", Vault: "/v", Position: "top",
-		Source: "test", Situation: "releasing a module",
-	}
-
-	var stdout strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
-	g.Expect(err).To(MatchError(ContainSubstring("done-when")))
-}
-
-func TestRunLearn_RejectsMissingRunbookSituation(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	deps := cli.LearnDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Now:        time.Now,
-		Getenv:     func(string) string { return "" },
-		ListIDs:    func(string) ([]string, error) { return nil, nil },
-		Lock:       func(string) (func(), error) { return func() {}, nil },
-		WriteNew:   func(string, []byte) error { return nil },
-	}
-	args := cli.LearnArgs{
-		Type: "runbook", Slug: "x", Vault: "/v", Position: "top",
-		Source: "test", DoneWhen: "the tag is pushed",
-	}
-
-	var stdout strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
-	g.Expect(err).To(MatchError(ContainSubstring("situation")))
-}
-
-func TestRunLearn_RejectsUnknownType(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	deps := cli.LearnDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Now:        time.Now,
-		Getenv:     func(string) string { return "" },
-		ListIDs:    func(string) ([]string, error) { return nil, nil },
-		Lock:       func(string) (func(), error) { return func() {}, nil },
-		WriteNew:   func(string, []byte) error { return nil },
-	}
-	args := cli.LearnArgs{Type: "principle", Slug: "x", Vault: "/v", Position: "top"}
-
-	var stdout strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
-	g.Expect(err).To(HaveOccurred())
-}
-
-func TestRunLearn_Runbook_InvalidTriggerRejectedWritesNothing(t *testing.T) {
-	t.Parallel()
-
-	for _, bad := range []string{"  ", "", "ab", " ab "} {
-		t.Run(fmt.Sprintf("%q", bad), func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			var (
-				written []byte
-				writes  int
-			)
-
-			var stdout strings.Builder
-
-			args := runbookTriggerArgs([]string{"/please", bad}, nil)
-
-			err := cli.ExportRunLearn(t.Context(), args, runbookTriggerDeps(&written, &writes), &stdout)
-			g.Expect(err).To(MatchError(ContainSubstring("trigger")))
-			g.Expect(err).To(MatchError(ContainSubstring(fmt.Sprintf("%q", bad))))
-			g.Expect(writes).To(Equal(0))
-		})
-	}
-}
-
 // TestRunLearn_Runbook_NeverWritesSkillHash proves the local capture path
 // (LearnArgs built the way `engram learn runbook` builds it, with SkillHash
 // left at its zero value) never emits skill_hash — only future registration
@@ -1404,433 +1831,6 @@ func TestRunLearn_Runbook_NeverWritesSkillKeyOrSource(t *testing.T) {
 	g.Expect(written).NotTo(BeEmpty())
 	g.Expect(string(written)).NotTo(ContainSubstring("skill_key"))
 	g.Expect(string(written)).NotTo(ContainSubstring("skill_source"))
-}
-
-func TestRunLearn_Runbook_NoTriggersWritesNoField(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var (
-		written []byte
-		writes  int
-	)
-
-	var stdout strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), runbookTriggerArgs(nil, nil), runbookTriggerDeps(&written, &writes), &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(string(written)).NotTo(ContainSubstring("triggers"))
-}
-
-// TestRunLearn_Runbook_TriggersRoundTripProperty: for any 1-5 valid triggers,
-// the rendered frontmatter parses back to the identical list.
-func TestRunLearn_Runbook_TriggersRoundTripProperty(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		g := NewWithT(rt)
-
-		triggers := rapid.SliceOfN(
-			rapid.StringMatching(`[!-~\p{L}][ -~\p{L}]{1,30}[!-~\p{L}]`), 1, 5,
-		).Draw(rt, "triggers")
-
-		var (
-			written []byte
-			writes  int
-		)
-
-		var stdout strings.Builder
-
-		err := cli.ExportRunLearn(
-			context.Background(), runbookTriggerArgs(triggers, nil), runbookTriggerDeps(&written, &writes), &stdout,
-		)
-		g.Expect(err).NotTo(HaveOccurred())
-
-		if err != nil {
-			return
-		}
-
-		got, parseErr := parseRunbookTriggers(string(written))
-		g.Expect(parseErr).NotTo(HaveOccurred())
-		g.Expect(got).To(Equal(triggers))
-	})
-}
-
-func TestRunLearn_Runbook_WritesExpectedFile(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var (
-		writtenPath    string
-		writtenContent []byte
-	)
-
-	deps := cli.LearnDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Now:        func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
-		Getenv:     func(string) string { return "" },
-		ListIDs:    func(string) ([]string, error) { return nil, nil },
-		Lock:       func(string) (func(), error) { return func() {}, nil },
-		WriteNew: func(path string, data []byte) error {
-			writtenPath = path
-			writtenContent = data
-
-			return nil
-		},
-	}
-
-	args := cli.LearnArgs{
-		Type:      "runbook",
-		Slug:      "release-go-module",
-		Vault:     "/vault",
-		Position:  "top",
-		Source:    "test",
-		Situation: "releasing a new Go module version",
-		DoneWhen:  "the tag is pushed and the changelog is updated",
-		Body:      "1. Run the tests\n2. Tag the release\n3. Push the tag",
-	}
-
-	var stdout strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(writtenPath).To(Equal("/vault/1.2026-05-09.release-go-module.md"))
-	g.Expect(string(writtenContent)).To(ContainSubstring("type: runbook"))
-	g.Expect(string(writtenContent)).To(ContainSubstring("done_when: the tag is pushed and the changelog is updated"))
-	g.Expect(string(writtenContent)).To(ContainSubstring("1. Run the tests"))
-	g.Expect(string(writtenContent)).NotTo(ContainSubstring("red_flags"),
-		"no --red-flag supplied: the field must be absent, not an empty list")
-}
-
-// TestRunLearn_Runbook_WritesRedFlagsWhenProvided proves args.RedFlags flows
-// through assembleLearnContent into the written frontmatter, in order
-// (note-writing 792a3d1a, "Red flags are kept in order").
-func TestRunLearn_Runbook_WritesRedFlagsWhenProvided(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var writtenContent []byte
-
-	deps := cli.LearnDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Now:        func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
-		Getenv:     func(string) string { return "" },
-		ListIDs:    func(string) ([]string, error) { return nil, nil },
-		Lock:       func(string) (func(), error) { return func() {}, nil },
-		WriteNew: func(_ string, data []byte) error {
-			writtenContent = data
-
-			return nil
-		},
-	}
-
-	args := cli.LearnArgs{
-		Type:      "runbook",
-		Slug:      "history-rewrite",
-		Vault:     "/vault",
-		Position:  "top",
-		Source:    "test",
-		Situation: "rewriting git history",
-		DoneWhen:  "the backup branch still has every original commit",
-		Body:      "1. Create a backup branch\n2. Rewrite history",
-		RedFlags: []string{
-			"filter-branch on all refs sweeps the backup branch",
-			"force-push without --force-with-lease",
-		},
-	}
-
-	var stdout strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	const delim = "---\n"
-
-	rendered := string(writtenContent)
-	body := strings.TrimPrefix(rendered, delim)
-	end := strings.Index(body, "\n"+delim)
-	g.Expect(end).To(BeNumerically(">=", 0), "missing closing ---")
-
-	var doc struct {
-		RedFlags []string `yaml:"red_flags"`
-	}
-	g.Expect(yaml.Unmarshal([]byte(body[:end+1]), &doc)).To(Succeed())
-	g.Expect(doc.RedFlags).To(Equal([]string{
-		"filter-branch on all refs sweeps the backup branch",
-		"force-push without --force-with-lease",
-	}))
-}
-
-// TestRunLearn_Runbook_WritesTriggersInOrderAfterRedFlags proves --trigger
-// entries reach the frontmatter in order, after red_flags when present
-// (runbook-lexical-triggers spec).
-func TestRunLearn_Runbook_WritesTriggersInOrderAfterRedFlags(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var (
-		written []byte
-		writes  int
-	)
-
-	args := runbookTriggerArgs([]string{"/please", "take this end-to-end"}, []string{"a red flag"})
-
-	var stdout strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), args, runbookTriggerDeps(&written, &writes), &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	rendered := string(written)
-
-	triggers, parseErr := parseRunbookTriggers(rendered)
-	g.Expect(parseErr).NotTo(HaveOccurred())
-	g.Expect(triggers).To(Equal([]string{"/please", "take this end-to-end"}))
-	g.Expect(strings.Index(rendered, "triggers:")).To(BeNumerically(">", strings.Index(rendered, "red_flags:")))
-}
-
-// TestTierFrontmatter_BadTierRejected verifies that an invalid --tier value
-// returns errLearnBadTier.
-func TestTierFrontmatter_BadTierRejected(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	deps := cli.LearnDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Now:        func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
-		Getenv:     func(string) string { return "" },
-		ListIDs:    func(string) ([]string, error) { return nil, nil },
-		Lock:       func(string) (func(), error) { return func() {}, nil },
-		WriteNew:   func(string, []byte) error { return nil },
-	}
-
-	args := cli.LearnArgs{
-		Type:      "fact",
-		Slug:      "tier-bad",
-		Vault:     "/v",
-		Position:  "top",
-		Source:    "src",
-		Situation: "tier bad check",
-		Subject:   "subj",
-		Predicate: "pred",
-		Object:    "obj",
-		Tier:      "L9",
-	}
-
-	var stdout strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
-	g.Expect(err).To(MatchError(cli.ErrLearnBadTierForTest))
-}
-
-// TestTierFrontmatter_FactDefaultsToL2 verifies that a rendered fact note
-// carries tier: L2 derived from its type.
-func TestTierFrontmatter_FactDefaultsToL2(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var writtenContent []byte
-
-	deps := cli.LearnDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Now:        func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
-		Getenv:     func(string) string { return "" },
-		ListIDs:    func(string) ([]string, error) { return nil, nil },
-		Lock:       func(string) (func(), error) { return func() {}, nil },
-		WriteNew:   func(_ string, data []byte) error { writtenContent = data; return nil },
-	}
-
-	args := cli.LearnArgs{
-		Type:      "fact",
-		Slug:      "tier-fact",
-		Vault:     "/v",
-		Position:  "top",
-		Source:    "src",
-		Situation: "tier check",
-		Subject:   "subj",
-		Predicate: "pred",
-		Object:    "obj",
-	}
-
-	var stdout strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(string(writtenContent)).To(ContainSubstring("tier: L2"))
-}
-
-// TestTierFrontmatter_FeedbackDefaultsToL2 verifies that a rendered feedback
-// note carries tier: L2 derived from its type.
-func TestTierFrontmatter_FeedbackDefaultsToL2(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var writtenContent []byte
-
-	deps := cli.LearnDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Now:        func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
-		Getenv:     func(string) string { return "" },
-		ListIDs:    func(string) ([]string, error) { return nil, nil },
-		Lock:       func(string) (func(), error) { return func() {}, nil },
-		WriteNew:   func(_ string, data []byte) error { writtenContent = data; return nil },
-	}
-
-	args := cli.LearnArgs{
-		Type:      "feedback",
-		Slug:      "tier-feedback",
-		Vault:     "/v",
-		Position:  "top",
-		Source:    "src",
-		Situation: "tier check",
-		Behavior:  "beh",
-		Impact:    "imp",
-		Action:    "act",
-	}
-
-	var stdout strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(string(writtenContent)).To(ContainSubstring("tier: L2"))
-}
-
-// TestTierFrontmatter_OverrideL3 verifies that --tier L3 on a fact note
-// overrides the default L2 tier.
-func TestTierFrontmatter_OverrideL3(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var writtenContent []byte
-
-	deps := cli.LearnDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Now:        func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
-		Getenv:     func(string) string { return "" },
-		ListIDs:    func(string) ([]string, error) { return nil, nil },
-		Lock:       func(string) (func(), error) { return func() {}, nil },
-		WriteNew:   func(_ string, data []byte) error { writtenContent = data; return nil },
-	}
-
-	args := cli.LearnArgs{
-		Type:      "fact",
-		Slug:      "tier-override",
-		Vault:     "/v",
-		Position:  "top",
-		Source:    "src",
-		Situation: "tier override check",
-		Subject:   "subj",
-		Predicate: "pred",
-		Object:    "obj",
-		Tier:      "L3",
-	}
-
-	var stdout strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(string(writtenContent)).To(ContainSubstring("tier: L3"))
-}
-
-func TestValidateIssueID_AcceptsEmpty(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	g.Expect(cli.ExportValidateIssueID("")).To(Succeed())
-}
-
-func TestValidateIssueID_AcceptsNonWhitespace(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	g.Expect(cli.ExportValidateIssueID("636")).To(Succeed())
-	g.Expect(cli.ExportValidateIssueID("#636")).To(Succeed())
-	g.Expect(cli.ExportValidateIssueID("PROJ-1234")).To(Succeed())
-	g.Expect(cli.ExportValidateIssueID("gh-636")).To(Succeed())
-}
-
-func TestValidateIssueID_RejectsWhitespace(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	g.Expect(cli.ExportValidateIssueID("636 ")).To(HaveOccurred())
-	g.Expect(cli.ExportValidateIssueID("two words")).To(HaveOccurred())
-	g.Expect(cli.ExportValidateIssueID("with\ttab")).To(HaveOccurred())
-}
-
-func TestValidateProjectSlug_AcceptsEmpty(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	g.Expect(cli.ExportValidateProjectSlug("")).To(Succeed())
-}
-
-func TestValidateProjectSlug_AcceptsKebabCase(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	g.Expect(cli.ExportValidateProjectSlug("engram")).To(Succeed())
-	g.Expect(cli.ExportValidateProjectSlug("opencode-plugin")).To(Succeed())
-	g.Expect(cli.ExportValidateProjectSlug("proj-123")).To(Succeed())
-}
-
-func TestValidateProjectSlug_RejectsBadShape(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	g.Expect(cli.ExportValidateProjectSlug("Engram")).To(HaveOccurred())
-	g.Expect(cli.ExportValidateProjectSlug("with spaces")).To(HaveOccurred())
-	g.Expect(cli.ExportValidateProjectSlug("punct!")).To(HaveOccurred())
-}
-
-// TestValidateTags_* exercise the validator directly, split per behavior
-// (repo convention — cf. TestValidateProjectSlug_AcceptsEmpty /
-// _AcceptsKebabCase / _RejectsBadShape, learn_test.go:903-917).
-func TestValidateTags_AcceptsEmpty(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	g.Expect(cli.ExportValidateTags(nil)).To(Succeed())
-}
-
-func TestValidateTags_AcceptsValidShapes(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	g.Expect(cli.ExportValidateTags([]string{"work-kind"})).To(Succeed())
-	g.Expect(cli.ExportValidateTags([]string{"work-kind/rename", "tier/cheap", "outcome/pass"})).To(Succeed())
-	g.Expect(cli.ExportValidateTags([]string{"a1-b2/c3-d4"})).To(Succeed())
-}
-
-func TestValidateTags_RejectsBadShape(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	g.Expect(cli.ExportValidateTags([]string{"outcome/pass", "BAD"})).To(HaveOccurred())
 }
 
 // parseFrontmatter strips the "---" delimiters from a rendered frontmatter

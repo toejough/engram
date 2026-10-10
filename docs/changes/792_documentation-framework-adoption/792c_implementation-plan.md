@@ -210,8 +210,8 @@ flowchart TD
   N792c7b5["792c7b5 text-embedder tech spec<br/>Complete"]
   N792c7b6["792c7b6 embedding-sidecar tech spec<br/>Complete"]
   N792c7b7["792c7b7 note-provenance tech spec<br/>Complete"]
-  N792c7b8["792c7b8 note-authoring tech spec<br/>Ready"]
-  N792c7c1["792c7c1 note-revision product spec<br/>Blocked by: 792c7b8"]
+  N792c7b8["792c7b8 note-authoring tech spec<br/>Complete"]
+  N792c7c1["792c7c1 note-revision product spec<br/>Ready"]
   N792c7c2["792c7c2 wikilink-graph tech spec<br/>Blocked by: 792c7c1"]
   N792c7c3["792c7c3 note-amendment tech spec<br/>Blocked by: 792c7c2"]
   N792c7d1["792c7d1 chunk-indexing product spec<br/>Blocked by: 792c7c3"]
@@ -1121,11 +1121,91 @@ Target: `792b12` (`docs/specs/technical/note-authoring.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7b8a | Port the component contract to `792b12` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7b8b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7b8c | Repoint stale references to `792b12` | Non-test action | Keeps live links valid | Not started |
-| 792c7b8d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7b8e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7b8a | Port the component contract to `792b12` | Non-test action | Documents the component in the framework format | Done |
+| 792c7b8b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7b8c | Repoint stale references to `792b12` | Non-test action | Keeps live links valid | Done |
+| 792c7b8d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7b8e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+**Outcome:** the vocabulary, skill-field and question-exclusion tests are left to their capabilities (792d68). This completes group 792c7b.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b12c1a1 | `TestRunLearn_RejectsInvalidSlug` → `Test792b12c1a1_RunLearn_RejectsInvalidSlug` | Pure unit (injected learn dependencies) | Invalid slug | Done |
+| 792b12c1a2 | `TestLearnFact_InvalidTag_RejectedBeforeWrite` → `Test792b12c1a2_LearnFact_InvalidTag_RejectedBeforeWrite` | Pure unit (injected learn dependencies) | Malformed tag before write | Done |
+| 792b12c1a2 | `TestValidateIssueID_AcceptsEmpty` → `Test792b12c1a2_ValidateIssueID_AcceptsEmpty` | Pure unit | Empty issue | Done |
+| 792b12c1a2 | `TestValidateIssueID_AcceptsNonWhitespace` → `Test792b12c1a2_ValidateIssueID_AcceptsNonWhitespace` | Pure unit | Issue shapes | Done |
+| 792b12c1a2 | `TestValidateIssueID_RejectsWhitespace` → `Test792b12c1a2_ValidateIssueID_RejectsWhitespace` | Pure unit | Issue with whitespace | Done |
+| 792b12c1a2 | `TestValidateProjectSlug_AcceptsEmpty` → `Test792b12c1a2_ValidateProjectSlug_AcceptsEmpty` | Pure unit | Empty project | Done |
+| 792b12c1a2 | `TestValidateProjectSlug_AcceptsKebabCase` → `Test792b12c1a2_ValidateProjectSlug_AcceptsKebabCase` | Pure unit | Kebab-case project | Done |
+| 792b12c1a2 | `TestValidateProjectSlug_RejectsBadShape` → `Test792b12c1a2_ValidateProjectSlug_RejectsBadShape` | Pure unit | Bad project | Done |
+| 792b12c1a2 | `TestValidateTags_AcceptsEmpty` → `Test792b12c1a2_ValidateTags_AcceptsEmpty` | Pure unit | No tags | Done |
+| 792b12c1a2 | `TestValidateTags_AcceptsValidShapes` → `Test792b12c1a2_ValidateTags_AcceptsValidShapes` | Pure unit | Family and member tags | Done |
+| 792b12c1a2 | `TestValidateTags_RejectsBadShape` → `Test792b12c1a2_ValidateTags_RejectsBadShape` | Pure unit | Malformed tags | Done |
+| 792b12c1a3 | `TestRunLearn_Runbook_InvalidTriggerRejectedWritesNothing` → `Test792b12c1a3_RunLearn_Runbook_InvalidTriggerRejectedWritesNothing` | Pure unit (injected learn dependencies) | Short trigger | Done |
+| 792b12c1a4 | `TestTierFrontmatter_BadTierRejected` → `Test792b12c1a4_TierFrontmatter_BadTierRejected` | Pure unit (injected learn dependencies) | Unknown tier | Done |
+| 792b12c1a5 | `TestParseSupersedesFlag_MissingFields_Errors` → `Test792b12c1a5_ParseSupersedesFlag_MissingFields_Errors` | Pure unit | Too few fields | Done |
+| 792b12c1a5 | `TestParseSupersedesFlag_InvalidType_Errors` → `Test792b12c1a5_ParseSupersedesFlag_InvalidType_Errors` | Pure unit | Unknown type | Done |
+| 792b12c1a5 | `TestParseSupersedesFlag_EmptyNote_Errors` → `Test792b12c1a5_ParseSupersedesFlag_EmptyNote_Errors` | Pure unit | Empty note | Done |
+| 792b12c1a5 | `TestParseSupersedesFlag_EmptyClaim_Errors` → `Test792b12c1a5_ParseSupersedesFlag_EmptyClaim_Errors` | Pure unit | Empty claim | Done |
+| 792b12c1a6 | `TestParseSupersedesFlag_ValidUpdates` → `Test792b12c1a6_ParseSupersedesFlag_ValidUpdates` | Pure unit | updates | Done |
+| 792b12c1a6 | `TestParseSupersedesFlag_ValidNarrows` → `Test792b12c1a6_ParseSupersedesFlag_ValidNarrows` | Pure unit | narrows | Done |
+| 792b12c1a6 | `TestParseSupersedesFlag_ValidRefutes` → `Test792b12c1a6_ParseSupersedesFlag_ValidRefutes` | Pure unit | refutes | Done |
+| 792b12c1a6 | `TestParseSupersedesFlag_ClaimWithPipeInContent` → `Test792b12c1a6_ParseSupersedesFlag_ClaimWithPipeInContent` | Pure unit | Claim containing | | Done |
+| 792b12c1a7 | `TestRunLearn_RejectsUnknownType` → `Test792b12c1a7_RunLearn_RejectsUnknownType` | Pure unit (injected learn dependencies) | Unknown type | Done |
+| 792b12c2a1 | `TestRunLearnFromFactArgs_RequiresSituation` → `Test792b12c2a1_RunLearnFromFactArgs_RequiresSituation` | Learn adapter over test deps, temp-dir vault | Fact situation | Done |
+| 792b12c2a1 | `TestRunLearnFromFeedbackArgs_RequiresSituation` → `Test792b12c2a1_RunLearnFromFeedbackArgs_RequiresSituation` | Learn adapter over test deps, temp-dir vault | Feedback situation | Done |
+| 792b12c2a2 | `TestRunLearnFromRunbookArgs_RequiresSituation` → `Test792b12c2a2_RunLearnFromRunbookArgs_RequiresSituation` | Learn adapter over test deps, temp-dir vault | Runbook situation through the adapter | Done |
+| 792b12c2a2 | `TestRunLearn_RejectsMissingRunbookSituation` → `Test792b12c2a2_RunLearn_RejectsMissingRunbookSituation` | Pure unit (injected learn dependencies) | Runbook situation | Done |
+| 792b12c2a3 | `TestRunLearn_RejectsMissingRunbookDoneWhen` → `Test792b12c2a3_RunLearn_RejectsMissingRunbookDoneWhen` | Pure unit (injected learn dependencies) | Runbook done-when | Done |
+| 792b12c3a1 | `TestRunLearn_Fact_WritesExpectedFile` → `Test792b12c3a1_RunLearn_Fact_WritesExpectedFile` | Pure unit (injected learn dependencies) | Fact path and content | Done |
+| 792b12c3a1 | `TestRunLearn_Feedback_WritesExpectedFile` → `Test792b12c3a1_RunLearn_Feedback_WritesExpectedFile` | Pure unit (injected learn dependencies) | Feedback path and content | Done |
+| 792b12c3a1 | `TestRunLearn_Runbook_WritesExpectedFile` → `Test792b12c3a1_RunLearn_Runbook_WritesExpectedFile` | Pure unit (injected learn dependencies) | Runbook path and content | Done |
+| 792b12c3a1 | `TestRunLearnFromFactArgs_WritesFile` → `Test792b12c3a1_RunLearnFromFactArgs_WritesFile` | Learn adapter over test deps, temp-dir vault | Fact through the adapter | Done |
+| 792b12c3a1 | `TestRunLearnFromFeedbackArgs_WritesFile` → `Test792b12c3a1_RunLearnFromFeedbackArgs_WritesFile` | Learn adapter over test deps, temp-dir vault | Feedback through the adapter | Done |
+| 792b12c3a1 | `TestRunLearnFromRunbookArgs_WritesFile` → `Test792b12c3a1_RunLearnFromRunbookArgs_WritesFile` | Learn adapter over test deps, temp-dir vault | Runbook through the adapter | Done |
+| 792b12c3a2 | `TestRunLearn_PropagatesLockError` → `Test792b12c3a2_RunLearn_PropagatesLockError` | Pure unit (injected learn dependencies) | Lock failure | Done |
+| 792b12c3a3 | `TestRunLearn_PropagatesListIDsError` → `Test792b12c3a3_RunLearn_PropagatesListIDsError` | Pure unit (injected learn dependencies) | Listing failure | Done |
+| 792b12c3a4 | `TestNewLearnDeps_ListIDs_ReturnsRootNotesOnly` → `Test792b12c3a4_NewLearnDeps_ListIDs_ReturnsRootNotesOnly` | Production learn deps over a real temp dir | Root notes only | Done |
+| 792b12c4a1 | `TestTierFrontmatter_FactDefaultsToL2` → `Test792b12c4a1_TierFrontmatter_FactDefaultsToL2` | Pure unit (injected learn dependencies) | Fact default tier | Done |
+| 792b12c4a1 | `TestTierFrontmatter_FeedbackDefaultsToL2` → `Test792b12c4a1_TierFrontmatter_FeedbackDefaultsToL2` | Pure unit (injected learn dependencies) | Feedback default tier | Done |
+| 792b12c4a1 | `TestTierFrontmatter_OverrideL3` → `Test792b12c4a1_TierFrontmatter_OverrideL3` | Pure unit (injected learn dependencies) | Given tier | Done |
+| 792b12c4a2 | `TestLearnFactArgs_AcceptsProjectAndIssueFlags` → `Test792b12c4a2_LearnFactArgs_AcceptsProjectAndIssueFlags` | Learn adapter over test deps, temp-dir vault | Project and issue | Done |
+| 792b12c4a3 | `TestLearnFact_Tags_WrittenToFrontmatter` → `Test792b12c4a3_LearnFact_Tags_WrittenToFrontmatter` | Pure unit (injected learn dependencies) | Fact tags | Done |
+| 792b12c4a3 | `TestLearnFeedback_Tags_WrittenToFrontmatter` → `Test792b12c4a3_LearnFeedback_Tags_WrittenToFrontmatter` | Pure unit (injected learn dependencies) | Feedback tags | Done |
+| 792b12c4a3 | `TestLearnFact_EmptyTags_NoTagsKey` → `Test792b12c4a3_LearnFact_EmptyTags_NoTagsKey` | Pure unit (injected learn dependencies) | No tags key | Done |
+| 792b12c4a4 | `TestLearnFact_ChunkSources_WrittenToFrontmatter` → `Test792b12c4a4_LearnFact_ChunkSources_WrittenToFrontmatter` | Pure unit (injected learn dependencies) | Chunk sources | Done |
+| 792b12c4a4 | `TestLearnFact_EmptyChunkSources_NoSourcesKey` → `Test792b12c4a4_LearnFact_EmptyChunkSources_NoSourcesKey` | Pure unit (injected learn dependencies) | No sources key | Done |
+| 792b12c4a5 | `TestLearnFeedback_Supersedes_WrittenToFrontmatterAndBody` → `Test792b12c4a5_LearnFeedback_Supersedes_WrittenToFrontmatterAndBody` | Pure unit (injected learn dependencies) | Supersession field and line | Done |
+| 792b12c4a6 | `TestRunLearn_Runbook_WritesRedFlagsWhenProvided` → `Test792b12c4a6_RunLearn_Runbook_WritesRedFlagsWhenProvided` | Pure unit (injected learn dependencies) | Red flags in order | Done |
+| 792b12c4a6 | `TestRunLearnFromRunbookArgs_RedFlagRepeatableFlagWritesField` → `Test792b12c4a6_RunLearnFromRunbookArgs_RedFlagRepeatableFlagWritesField` | Learn adapter over test deps, temp-dir vault | Repeatable --red-flag | Done |
+| 792b12c4a6 | `TestRunLearnFromRunbookArgs_NoRedFlag_NoFieldNoError` → `Test792b12c4a6_RunLearnFromRunbookArgs_NoRedFlag_NoFieldNoError` | Learn adapter over test deps, temp-dir vault | No red flags | Done |
+| 792b12c4a7 | `TestRunLearn_Runbook_WritesTriggersInOrderAfterRedFlags` → `Test792b12c4a7_RunLearn_Runbook_WritesTriggersInOrderAfterRedFlags` | Pure unit (injected learn dependencies) | Triggers after red flags | Done |
+| 792b12c4a7 | `TestRunLearnFromRunbookArgs_TriggerRepeatableFlagWritesField` → `Test792b12c4a7_RunLearnFromRunbookArgs_TriggerRepeatableFlagWritesField` | Learn adapter over test deps, temp-dir vault | Repeatable --trigger | Done |
+| 792b12c4a7 | `TestRunLearn_Runbook_NoTriggersWritesNoField` → `Test792b12c4a7_RunLearn_Runbook_NoTriggersWritesNoField` | Pure unit (injected learn dependencies) | No triggers | Done |
+| 792b12c4a7 | `TestRunLearn_Runbook_TriggersRoundTripProperty` → `Test792b12c4a7_RunLearn_Runbook_TriggersRoundTripProperty` | Property test (rapid, injected learn dependencies) | Any valid triggers | Done |
+| 792b12c5a1 | `TestRunLearnQA_WritesQAndAFiles` → `Test792b12c5a1_RunLearnQA_WritesQAndAFiles` | Pure unit (injected QA dependencies) | Question then answer | Done |
+| 792b12c5a2 | `TestRunLearnQA_WithAnswerFile` → `Test792b12c5a2_RunLearnQA_WithAnswerFile` | Pure unit (injected QA dependencies) | Answer from file | Done |
+| 792b12c5a3 | `TestRunLearnQA_InvalidArgs_Error` → `Test792b12c5a3_RunLearnQA_InvalidArgs_Error` | Pure unit (injected QA dependencies) | Invalid pair refused | Done |
+| 792b12c5a3 | `TestValidateLearnQAArgs_InvalidSlug_Error` → `Test792b12c5a3_ValidateLearnQAArgs_InvalidSlug_Error` | Pure unit | Invalid slug | Done |
+| 792b12c5a3 | `TestValidateLearnQAArgs_MissingQuestion_Error` → `Test792b12c5a3_ValidateLearnQAArgs_MissingQuestion_Error` | Pure unit | No question | Done |
+| 792b12c5a3 | `TestValidateLearnQAArgs_BothAnswerAndFile_Error` → `Test792b12c5a3_ValidateLearnQAArgs_BothAnswerAndFile_Error` | Pure unit | Both answer sources | Done |
+| 792b12c5a3 | `TestValidateLearnQAArgs_MissingSource_Error` → `Test792b12c5a3_ValidateLearnQAArgs_MissingSource_Error` | Pure unit | No source | Done |
+| 792b12c5a3 | `TestValidateLearnQAArgs_InvalidCertainty_Error` → `Test792b12c5a3_ValidateLearnQAArgs_InvalidCertainty_Error` | Pure unit | Unknown certainty | Done |
+| 792b12c5a3 | `TestValidateLearnQAArgs_Valid_NoError` → `Test792b12c5a3_ValidateLearnQAArgs_Valid_NoError` | Pure unit | Valid pair passes | Done |
+| 792b12c5a4 | `TestRunLearnQA_UnknownContributor_ErrorBeforeWrite` → `Test792b12c5a4_RunLearnQA_UnknownContributor_ErrorBeforeWrite` | Pure unit (injected QA dependencies) | Unknown contributor | Done |
+| 792b12c5a4 | `TestValidateContributors_KnownBasename_OK` → `Test792b12c5a4_ValidateContributors_KnownBasename_OK` | Pure unit | Known contributor | Done |
+| 792b12c5a4 | `TestValidateContributors_UnknownBasename_Error` → `Test792b12c5a4_ValidateContributors_UnknownBasename_Error` | Pure unit | Unknown contributor | Done |
+| 792b12c5a5 | `TestRunLearnQA_LockFailure_Error` → `Test792b12c5a5_RunLearnQA_LockFailure_Error` | Pure unit (injected QA dependencies) | Lock failure | Done |
+| 792b12c5a6 | `TestRunLearnQA_AWriteFailure_RemovesQAndErrors` → `Test792b12c5a6_RunLearnQA_AWriteFailure_RemovesQAndErrors` | Pure unit (injected QA dependencies) | Question removed | Done |
+| 792b12c5a7 | `TestRunLearnQA_AWriteAndRemoveFailure_OrphanWarning` → `Test792b12c5a7_RunLearnQA_AWriteAndRemoveFailure_OrphanWarning` | Pure unit (injected QA dependencies) | Orphan reported | Done |
+| 792b2c3a1 | `TestLearnFact_BootstrapsMissingVault` → `Test792b2c3a1_LearnFact_BootstrapsMissingVault` | Dispatch through `Targets`, temp-dir vault, injected random source | `learn` creates a missing vault first | Done |
+
+**Coverage gaps:** 792a3e1a (no test runs `learn runbook --task-type`), 792a3n1b end to end (covered only by 792b10c6), 792a3o1b and 792a3o1c end to end (covered only by 792b11c1), and 792a3t1a (the question exclusion is tested by `qa_test` `TestIsQueryExcludedKind`, left to memory-query, 792d68).
+
+**No-scenario tests:** deferred to the capability that adds their requirement (792d68): `learn_test` `TestApplyVocabAssignmentAfterLearn_TriggerFires` (controlled-vocabulary 792c7e1), `TestFactAmend_VocabVersionRoundTrip` (note-revision 792c7c1), `TestRunLearn_Runbook_NeverWritesSkillHash`, `TestRunLearn_Runbook_NeverWritesSkillKeyOrSource` (skill-runbook-registration 792c7k1); `qa_test` `TestCollectVaultStats_QAQuestionExcluded_QAAnswerCounted`, `TestCountQAPairs`, `TestIsQAQuestionFilename`, `TestScanNonVocabNotes_QAQuestionFilenameSkipped` (controlled-vocabulary 792c7e1) and `TestIsQueryExcludedKind` (memory-query 792c7f1). The skill-field rendering tests in `learn_test` are listed under 792c7b2.
 
 ### 792c7c note-revision
 
@@ -1375,6 +1455,7 @@ Target: `792a6` (`docs/specs/product/controlled-vocabulary.md`).
 
 **Legacy sources (port, then remove):**
 
+- `docs/deprecated/architecture/c3-components.md` "`engram learn qa` capture path" residue (`vocab stats` leaves question notes out, 792d68)
 - `docs/deprecated/architecture/adr.md` ADR-0012 Consequences (the `vocab stats` QA lines, 792d57)
 - `openspec/specs/vault-vocab-lifecycle/spec.md` (product requirements)
 - `docs/deprecated/architecture/adr.md` ADR-0019 (tags are the sole categorical representation)
@@ -1603,6 +1684,7 @@ Target: `792b24` (`docs/specs/technical/query-engine.md`).
 
 **Legacy sources (port, then remove):**
 
+- `docs/deprecated/architecture/c3-components.md` "`engram learn qa` capture path" residue (the question-note exclusion seams, 792d68)
 - `docs/deprecated/architecture/adr.md` ADR-0025
 - `docs/deprecated/architecture/c1-system-context.md` Flow: recall (the query mechanics of channels 1 and 2; the skill steps go to 792c7m1)
 - `docs/deprecated/architecture/c2-containers.md` Flow: recall (L2)

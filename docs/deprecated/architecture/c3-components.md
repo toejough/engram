@@ -107,7 +107,6 @@ flowchart TB
 | ID | Component | Key functions | Responsibility | ⚠ |
 |---|---|---|---|---|
 | K1 | `internal/transcript` + `internal/context` (via `engram ingest`) | `Finder.Find`, `JSONLReader.ReadFrom`, `context.Strip`, manifest write | Find sessions; check mtime/size/hash vs `manifest.json`; re-chunk and re-embed only changed sources within a byte budget; strip harness noise; emit chunk identifiers + write/update the per-source `manifest.json` entry (mtime/size/hash staleness). The manifest read-modify-write is serialized under `flock(.manifest.lock)` (shared with `prune`), and all index/manifest writes are atomic (temp-file + rename) — #660. | — |
-| K4 | `cli/learn.go` + `cli/qa.go` | `writeLearnUnderLock`, `autoEmbedNote`; calls `nextLuhmannID` (in `cli/luhmann.go`); `cli/qa.go` is the sibling `qa` subcommand in the `learn` group (own process, shares these kernels — see "Flow: engram learn qa") | Write fact or feedback — no tier assignment (tier/L1/L2/L3 removed in recall-v2; `--tier` flag removed); compute next Luhmann id and write the note + sidecar atomically (temp-file + rename) under `flock(.luhmann.lock)` + `O_EXCL`. The same `.luhmann.lock` is held by **every** vault writer — `amend`, `resituate`, and `activate` acquire it at their command entry too. | **K1-lock invariant** untested |
 | K6 | `cli/query.go` | `RunQuery`, `runQuery`, `buildMatchedSetFromPhrases`, `buildRecentFillItems`, `capWithNoteFloor`, payload assembly | Single query path: per phrase embed → top-30 (notes+chunks, recency-biased cosine), reserving up to `noteFloorK=5` of those slots for relevance-qualified notes (`capWithNoteFloor`) so higher-cosine chunks cannot fully evict a note that cleared the floor; union across 10 phrases, dedup max score, relevance floor (baseScore < 0.25), cap matched set at ~300 (`matchSetCap`); ONE AutoK cluster over matched set (D1 preserved); `candidate_l2s` = within-cluster top-5 from matched note members only, plus superseded-note ride-alongs; separately, an explore half (`internal/cli/query_explore.go`, `computeExploreHalf`) samples notes from vocab-term centroids by proximity to the query (softmax allocation, budget = exploit-half note count, δ=0.05 match-evidence bonus, core-first within-term, dedupe+backfill) and delivers them as top-level `items[]` (`provenance: explore`, `source_term`; budget: `explore_allocated`) — never cluster members, never in `candidate_l2s`; Channel 2 appends the newest chunks by IngestedAt (`recentFillChunks`, default 25, configurable via `--recent-fill` / `ENGRAM_RECENT_FILL`), deduped, tagged `recent`, not in any cluster. All notes cluster as normal notes. Optional `--text="<user message verbatim>"` (never embedded; served path caps it at 2 KB) is matched against a trigger index built in the same whole-vault meta pass (`loadAllVaultNotesMeta` → `TriggerIndex`, `type: runbook` notes' `triggers:` only, and only those with a compatible sidecar, since the index is built from that set; `internal/cli/query_triggers.go`: `matchTriggers` = case-insensitive whole-word match after whitespace collapse (`containsWholeWord`: a letter/digit edge of the trigger needs a non-letter/digit neighbor or text edge), `applyTriggerHits`); each hit is placed first in `items[]` with provenance `trigger` (rank above `direct`), exempt from the relevance floor, matched-set cap, note floor, and `--limit`; `--text` with no `--phrase` runs a trigger-only query (`runTriggerOnlyQuery`); absent `--text`, the pipeline is unchanged. Optional `--lazy-chunks` renders chunk items path/source-only (notes keep content), fetched on demand via the `show-chunk` subcommand (`cli/show_chunk.go`). | — |
 | K7 | `internal/vaultgraph` | `ParseWikilinks`, `ParseBasename`, `BuildGraph`, `ScanVault`, `UnresolvedTargets` | Build the directed wikilink graph (node=basename); scan vault notes for query; identify unresolved links for `engram check`. | **G0** (basename-only resolution); G5 **RETIRED** (episode kind removed; `[[x]]` in chunk bodies no longer parsed as vault edges) |
 | K8 | `internal/cluster` | `KMeans`, `Silhouette`, `AutoK`, `CosineDistance` | Pick k by silhouette; cluster the matched set. Silhouette is O(n²) per k swept, so clustering inputs are bounded: the matched set is hard-capped at `matchSetCap`=300 (10 phrases × top-30 per phrase) before clustering; recency-channel chunks (`recentFillChunks`, default 25; `--recent-fill`) are appended un-clustered and never enter K8. | C1 resolved — `TestInvariant_C1_ClusteringDeterminism`, `TestKMeans_DeterministicAcrossRuns`; L3-1 RETIRED (L3 note kind removed) |
@@ -198,85 +197,17 @@ sequenceDiagram
     Note over Q: renderQueryPayload → stdout (items[matched+explore+recent], clusters[candidate_l2s], budget[explore_allocated])
 ```
 
-### Flow: `engram learn` write internals (writeLearnUnderLock)
+### `engram learn qa` capture path
 
-Verified order: `Lock` → `ListIDs` → `nextLuhmannID` → `assembleLearnContent` → `WriteNew(O_EXCL)`
-→ `autoEmbedNote` (`Text` → `ContentHash` → encode → `Sidecar` write).
+The capture path is in
+[792b12](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b12-added-note-authoring)
+(792b12c5). Residue for later nodes:
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant L as K4 learn
-    participant Lz as K10 luhmann
-    participant Em as K5 embed
-    participant Md as C3 model
-    participant V as C4 vault
-
-    Note over L: runLearn → writeLearnUnderLock — one process
-    L->>V: Lock(.luhmann.lock) — flock spans id-compute→write [K1-lock]
-    L->>V: ListIDs (existing Luhmann ids)
-    Note over L: nextLuhmannID (K4, cli/luhmann.go)
-    L->>Lz: ParseID · LetterLess — sort/tie-break existing ids
-    Lz-->>L: ordered ids → next id
-    Note over L: assembleLearnContent — frontmatter + body
-    L->>V: WriteNew note (O_EXCL — create-only, errors if exists)
-    L->>Em: autoEmbedNote(path, content)
-    Note over Em: Text — body; ContentHash hashes body
-    Em->>Md: encode
-    Md-->>Em: vector
-    Em->>V: write .vec.json sidecar (vector + model_id + content_hash)
-    Note over L: release lock; emit written path → stdout
-```
-
-### Flow: `engram learn qa` capture path (RunLearnQA)
-
-Captures a question/answer pair as two notes with asymmetric query-time participation
-(D5′ — see `adr.md`, ADR-0012). `engram learn qa` is a sibling subcommand in the same
-`learn` process group as K4 (`cli/qa.go`, sharing K4's `autoEmbedNote` and
-`applyVocabAssignmentAfterLearn` kernels) — its own process, invoked when a skill (recall
-Step 4 / learn Step 2.5) hands off to write-memory with `kind=qa`.
-
-Verified order: `RunLearnQA` → `validateLearnQAArgs` → `ensureQAVault` → (`ReadFile` if `--answer-file`) → `validateContributors`
-→ `writeQANotesUnderLock` (`Lock` → `WriteNew` Q → `WriteNew` A, orphan-cleanup on A-write
-failure → release) → `autoEmbedNote` (Q, no vocab) → `autoEmbedNote` (A) →
-`applyVocabAssignmentAfterLearn` (A only) → stdout (`cli/qa.go`).
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant L as K4 learn
-    participant Em as K5 embed
-    participant Md as C3 model
-    participant V as C4 vault
-
-    Note over L: RunLearnQA (cli/qa.go) — one process, args from the skill (write-memory kind=qa handoff, per recall Step 4 / learn Step 2.5)
-    Note over L: validateLearnQAArgs — slug, question, exactly one of --answer/--answer-file, source, certainty
-    L->>V: ensureQAVault — stat vault dir, init if absent
-    opt --answer-file provided (instead of --answer)
-        L->>V: ReadFile(answer-file) — load the answer body from disk
-    end
-    L->>V: ListMD + validateContributors — every --contributors basename must exist in the vault
-    L->>V: Lock(vault) — flock spans both note writes [K1-lock]
-    L->>V: WriteNew Q note (O_EXCL) — type: qa-question, answered_by: (a-basename), body + "Answered by: [[a-basename]]"
-    L->>V: WriteNew A note (O_EXCL) — type: qa-answer, answers: (q-basename), certainty, contributors?, body + "Answers: [[q-basename]]" (+ "Contributors: [[...]]" if provided)
-    alt A-write fails
-        L->>V: RemoveFile(Q note) — best-effort orphan cleanup (lock released by defer)
-        Note over L: return descriptive error to caller — NO embed / vocab / stdout on this path
-    else A-write succeeds
-        Note over L: release lock (defer) — embed/vocab run OUTSIDE the lock, success path only
-        L->>Em: autoEmbedNote(Q note) — embed only, NO vocab assignment (D5′: Q notes carry no vocab)
-        Em->>Md: encode
-        Md-->>Em: vector
-        Em->>V: write Q .vec.json sidecar
-        L->>Em: autoEmbedNote(A note)
-        Em->>Md: encode
-        Md-->>Em: vector
-        Em->>V: write A .vec.json sidecar
-        L->>V: applyVocabAssignmentAfterLearn(A note) — vocab tags assigned, A-note ONLY
-        Note over L: emit qPath, aPath → stdout
-    end
-    Note over L,V: at later, SEPARATE `engram query` (K6) processes (see the query flow above) — A-note competes in the main matched set like any fact/feedback note, Q-note EXCLUDED at all four query-pipeline seam points (isQueryExcludedKind) — applyFloorAndCap, isFloorQualifyingNote (capWithNoteFloor reservation), mergePhraseIntoUnion (per-phrase union), explore-half TermIndex build (loadAllVaultNotesMeta in query_vault_meta.go, guarded by isQueryExcludedKind before a note's terms populate TermIndex)
-    Note over L,V: at later, SEPARATE `engram vocab stats` processes — Q-note excluded from the totalNotes/untagged counter (collectVaultStats skips isQAQuestionFilename), A-note counts normally
-    Note over L,V: deferred, NOT built — a dedicated q-space channel + answered_by ride-along (round 3) requires Arm V's larger-n premise check to reach PASS (≥80%); the larger-n run already came back BORDERLINE (63%, 19/30), so round-3 remains unlicensed pending a further check (ADR-0012; `docs/ROADMAP.md` → GATED — Q&A memory round-2/3)
-```
-
+- Query (memory-query): a question note is excluded at all four query-pipeline seam points
+  (`isQueryExcludedKind`): `applyFloorAndCap`, `isFloorQualifyingNote` (the `capWithNoteFloor`
+  reservation), `mergePhraseIntoUnion` (the per-phrase union), and the explore-half `TermIndex`
+  build (`loadAllVaultNotesMeta` in `query_vault_meta.go`, guarded by `isQueryExcludedKind` before
+  a note's terms populate `TermIndex`). The answer note competes like any fact or feedback note.
+- Vocabulary statistics (controlled-vocabulary): `engram vocab stats` leaves question notes out of
+  the `totalNotes` and untagged counts (`collectVaultStats` skips `isQAQuestionFilename`); answer
+  notes count normally.

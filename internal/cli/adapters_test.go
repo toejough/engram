@@ -11,11 +11,11 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestNewLearnDeps_ListIDs_ReturnsRootNotesOnly exercises listIDsFromFS
+// Test792b12c3a4_NewLearnDeps_ListIDs_ReturnsRootNotesOnly exercises listIDsFromFS
 // (the #700 T3 replacement for the deleted osLearnFS.ListIDs) through the
 // production Deps composition — same flat-root traversal, same MOCs/
 // subdirectory + non-luhmann filename skips.
-func TestNewLearnDeps_ListIDs_ReturnsRootNotesOnly(t *testing.T) {
+func Test792b12c3a4_NewLearnDeps_ListIDs_ReturnsRootNotesOnly(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 	vault := t.TempDir()

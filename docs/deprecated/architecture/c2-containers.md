@@ -192,11 +192,7 @@ sequenceDiagram
     Note over Sk: scan for the four explicit lesson kinds (corrections, save-requests, reversals, confirmed approaches); hand each to write-memory
     loop per explicit lesson (one parallel tool-use block)
         Note over Sk: invoke the write-memory skill (parents judge, worker writes)
-        Sk->>E: shell engram learn fact|feedback … (fresh process; via write-memory)
-        E->>V: flock, next Luhmann id, write note (O_EXCL)
-        E->>Md: embed body
-        Md-->>E: vector
-        E->>V: write .vec.json sidecar
+        Sk->>E: shell engram learn fact|feedback … (fresh process; via write-memory; binary side in 792b12)
         E-->>Sk: stdout written path
     end
 ```

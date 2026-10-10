@@ -14,10 +14,10 @@ Every `engram ingest` and `engram prune` SHALL acquire an exclusive advisory flo
 - **THEN** `primLocker.Lock(".manifest.lock")` acquires an exclusive flock, all manifest RMW happens while the lock is held, and the lock is released before returning
 
 ### Requirement: Exclusive flock on note+sidecar updates
-Every `engram learn`, `engram learn qa`, `engram amend`, `engram resituate`, `engram activate`, and `engram vocab bootstrap`/`refit` SHALL acquire an exclusive advisory flock on `.luhmann.lock` before reading or modifying any vault note or sidecar (dual-vector .vec.json file), holding the lock through all operations. This covers note content rewrites and sidecar rewrites (e.g., re-embedding or bumping `last_used`). All are wired through the shared `vaultLockFromLocker` helper (internal/cli/deps_compose.go:137). Only one writer MUST hold the lock at a time; readers (query's file access) work lock-free.
+Every `engram amend`, `engram resituate`, `engram activate`, and `engram vocab bootstrap`/`refit` SHALL acquire (for `engram learn` and `engram learn qa`, see 792b12c3 and 792b12c5) an exclusive advisory flock on `.luhmann.lock` before reading or modifying any vault note or sidecar (dual-vector .vec.json file), holding the lock through all operations. This covers note content rewrites and sidecar rewrites (e.g., re-embedding or bumping `last_used`). All are wired through the shared `vaultLockFromLocker` helper (internal/cli/deps_compose.go:137). Only one writer MUST hold the lock at a time; readers (query's file access) work lock-free.
 
 #### Scenario: Note write under lock
-- **WHEN** `RunLearn`, `RunLearnQA`, `RunAmend`, or `RunResituate` is called (entry point)
+- **WHEN** `RunAmend` or `RunResituate` is called (entry point)
 - **THEN** `primLocker.Lock(".luhmann.lock")` acquires an exclusive flock, all vault-note and sidecar RMW happens while the lock is held, and the lock is released before returning
 
 #### Scenario: Sidecar activate under lock

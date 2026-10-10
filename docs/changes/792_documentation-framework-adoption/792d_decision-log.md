@@ -734,3 +734,20 @@ decisions as `792dN`, continuing the sequence.
   requirement, so each takes the first scenario's ID and lists the rest as `split deferred`.
 - **Rationale:** 792d51. Only `learn` has product scenarios so far.
 - **Alternatives:** specify the amend and backfill stamping now, with no supported scenarios.
+
+## 792d68 note-authoring scope and the tests it leaves
+
+- **Choice:** 792b12 specifies argument validation, required content, the locked write, the
+  mapping of arguments to fields, and the question-and-answer write. These stay for later nodes:
+  the vocabulary refit trigger after a learn (`TestApplyVocabAssignmentAfterLearn_TriggerFires`) and
+  `vocab_version` survival through amend (`TestFactAmend_VocabVersionRoundTrip`) for
+  controlled-vocabulary (792c7e1) and note-revision (792c7c1); the rule that `learn` never writes the
+  skill fields (`TestRunLearn_Runbook_NeverWritesSkillHash`,
+  `TestRunLearn_Runbook_NeverWritesSkillKeyOrSource`) for skill-runbook-registration (792c7k1); and
+  the question-note exclusions in query and `vocab stats` for memory-query (792c7f1, query-engine
+  792c7f5) and controlled-vocabulary. The c3 QA flow's notes on those exclusions stay in
+  `c3-components.md` as a residue, and those nodes' sources list it. The c2 learn flow keeps its
+  skill side for learn (792c7n1). `TestLearnFact_BootstrapsMissingVault`, a dispatch test that
+  `learn` creates a missing vault first, takes command-line-surface's 792b2c3a1 (792c4a step 6).
+- **Rationale:** 792d51, and 792d52 for the bootstrap test.
+- **Alternatives:** none considered.

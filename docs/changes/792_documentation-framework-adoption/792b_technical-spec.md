@@ -3040,3 +3040,371 @@ Scenario: 792b11c3a3 An empty vault name is left out
 | 792a3p1a | 792b11c2, 792b11c3 |
 | 792a3p1b | 792b11c2, 792b11c3 |
 | 792a3p1c | 792b11c2, 792b11c3 |
+
+## 792b12 Added: note-authoring
+
+Canonical target: `docs/specs/technical/note-authoring.md` (title `Note Authoring - Technical Spec`).
+
+### 792b12a Orientation
+
+- Ownership: Repository component (caller of note-document-format, luhmann-addressing,
+  vault-write-lock, embedding-sidecar, note-provenance and durable-file-store).
+- Responsibility: carries out `engram learn fact`, `feedback`, `runbook` and `qa`. It validates the
+  arguments, turns them into a note's fields, and orders the write: lock the vault, allocate the
+  Luhmann ID, stamp provenance, render and create the note, write its sidecar and vocabulary tags,
+  release the lock and report the path. For a question-and-answer pair it writes both notes and
+  undoes the first when the second fails.
+- Current realization (informational): `RunLearn`, `writeLearnUnderLock`, `writeLearnLocked`,
+  `assembleLearnContent`, the `validate*` functions and the `learnArgsFrom*` mappings in
+  `internal/cli/learn.go`; `RunLearnQA`, `writeQANotesUnderLock` and the QA validators in
+  `internal/cli/qa.go`; the learn argument types in `internal/cli/targets.go` and `qa.go`;
+  `newLearnDeps` and `newQaDeps`. Each `learn` subcommand is its own process; nothing here calls
+  another subcommand.
+- Qualification: responsibility, capturing a note is stated without naming any function or seam;
+  ownership, it owns validation, field mapping and the order of the write, while the components it
+  calls own the format, the IDs, the lock, the sidecar and provenance; independent verification,
+  it is tested directly over injected dependencies; stability, the capture flow survives any
+  refactoring of the components it calls; necessity, every new note is written through it.
+- Supported capabilities: 792a3 note-writing. Controlled-vocabulary, skill-runbook-registration,
+  write-memory, learn, vault-serving and parent-sync add their requirements (792d30).
+
+Rationale: the vault lock spans everything from listing the existing IDs to creating the note, so
+two concurrent writers never allocate the same ID; creating the note exclusively is a backstop that
+fails rather than overwrites. A question-and-answer pair has no Luhmann ID, so it takes the lock only
+around its two writes and embeds after releasing it: sidecar writes are atomic per file and need no
+lock, and holding it through embedding would stall other writers.
+
+### 792b12b Sequences
+
+```mermaid
+sequenceDiagram
+  participant CLI as command-line-surface
+  participant Author as note-authoring
+  participant Lock as vault-write-lock
+  participant Ids as luhmann-addressing
+  participant Prov as note-provenance
+  participant Format as note-document-format
+  participant Store as durable-file-store
+  participant Sidecar as embedding-sidecar
+  CLI->>Author: learn fact, feedback or runbook with its arguments
+  Author->>Author: validate slug, project, issue, tags and triggers (792b12c1)
+  alt an argument is invalid
+    Author-->>CLI: error, nothing written (792b12c1)
+  else arguments valid
+    Author->>Lock: lock the vault (792b12c3)
+    alt lock failed
+      Lock-->>Author: error
+      Author-->>CLI: error, nothing written (792b12c3)
+    else lock held
+      Author->>Store: list the vault's note IDs
+      Author->>Ids: next ID for the target and position
+      Author->>Prov: stamp repo, user and vault
+      Author->>Author: check tier, supersessions and required content (792b12c1, 792b12c2)
+      alt listing, placement or content refused
+        Author-->>CLI: error, nothing written (792b12c3)
+      else note ready
+        Author->>Format: name and render the note (792b12c4)
+        Author->>Store: create the note exclusively
+        Author->>Sidecar: write its sidecar
+        Author->>Author: apply vocabulary tagging
+        Author->>Lock: release
+        Author-->>CLI: the note's path on stdout (792b12c3)
+      end
+    end
+  end
+```
+
+```mermaid
+sequenceDiagram
+  participant CLI as command-line-surface
+  participant Author as note-authoring
+  participant Lock as vault-write-lock
+  participant Store as durable-file-store
+  participant Sidecar as embedding-sidecar
+  CLI->>Author: learn qa with its arguments
+  Author->>Author: validate slug, question, answer source, source and certainty (792b12c5)
+  opt --answer-file given
+    Author->>Store: read the answer file
+  end
+  Author->>Store: list the vault and check every contributor exists (792b12c5)
+  alt invalid argument, unreadable answer file or unknown contributor
+    Author-->>CLI: error, nothing written (792b12c5)
+  else valid
+    Author->>Lock: lock the vault
+    Author->>Store: create the question note exclusively
+    Author->>Store: create the answer note exclusively
+    alt answer write failed
+      Author->>Store: remove the question note
+      Author->>Lock: release
+      Author-->>CLI: error naming the answer failure, and any removal failure (792b12c5)
+    else both written
+      Author->>Lock: release
+      Author->>Sidecar: write both sidecars
+      Author->>Author: apply vocabulary tagging to the answer only
+      Author-->>CLI: the question's path, then the answer's (792b12c5)
+    end
+  end
+```
+
+### 792b12c Behavior Requirements
+
+#### 792b12c1 Argument validation
+
+Requirement: 792b12c1 The note-authoring MUST refuse, before writing anything, a slug that is empty
+or does not match `[a-z0-9-]+`, a project that is not kebab-case, an issue containing whitespace, a
+tag that is not `<family>` or `<family>/<value>` with kebab-case segments, a trigger shorter than
+three characters after trimming, a tier other than `L1`, `L2` or `L3`, a supersession that is not
+`<note>|<type>|<claim>` with a non-empty note and claim and a type of `updates`, `narrows` or
+`refutes`, and a note type other than fact, feedback or runbook. A claim MAY itself contain `|`.
+
+Supports: 792a3g1a.
+
+##### 792b12c1a Scenarios
+
+```gherkin
+Scenario: 792b12c1a1 An invalid slug is refused
+  Given a learn with slug "Bad Slug"
+  When it runs
+  Then it fails with the invalid-slug error and nothing is written
+
+Scenario: 792b12c1a2 Project, issue and tag shapes are checked
+  Given a project, issue or tag value, empty or not
+  When it is validated
+  Then an empty project, issue or tag list and well-shaped values pass, and a badly shaped project, an issue with whitespace or a malformed tag is refused before any write
+
+Scenario: 792b12c1a3 A short trigger is refused
+  Given a runbook learn with a trigger shorter than three characters
+  When it runs
+  Then it fails and nothing is written
+
+Scenario: 792b12c1a4 An unknown tier is refused
+  Given a learn with tier L9
+  When it runs
+  Then it fails with the bad-tier error and nothing is written
+
+Scenario: 792b12c1a5 A malformed supersession is refused
+  Given a supersession with too few fields, an unknown type, an empty note or an empty claim
+  When it is parsed
+  Then it is refused with the matching error
+
+Scenario: 792b12c1a6 A well-formed supersession is accepted
+  Given a supersession of type updates, narrows or refutes, whose claim may contain |
+  When it is parsed
+  Then its note, type and claim are read, with the claim's | kept
+
+Scenario: 792b12c1a7 An unknown note type is refused
+  Given a learn of an unknown type such as principle
+  When it runs
+  Then it fails with the unknown-type error
+```
+
+#### 792b12c2 Required content
+
+Requirement: 792b12c2 The note-authoring MUST refuse a fact, feedback or runbook whose situation is
+empty or whitespace, and a runbook whose done-when is empty or whitespace, with an error naming the
+missing flag and nothing written.
+
+Supports: 792a3f1a, 792a3f1b, 792a3f1c.
+
+##### 792b12c2a Scenarios
+
+```gherkin
+Scenario: 792b12c2a1 A fact or feedback without a situation is refused
+  Given a fact or feedback learn whose situation is empty or whitespace
+  When it runs
+  Then it fails naming --situation and nothing is written
+
+Scenario: 792b12c2a2 A runbook without a situation is refused
+  Given a runbook learn whose situation is empty
+  When it runs
+  Then it fails naming --situation and nothing is written
+
+Scenario: 792b12c2a3 A runbook without done-when is refused
+  Given a runbook learn whose done-when is empty
+  When it runs
+  Then it fails naming --done-when and nothing is written
+```
+
+#### 792b12c3 Locked write
+
+Requirement: 792b12c3 The note-authoring MUST, for a fact, feedback or runbook, take the vault lock;
+list the vault's note IDs, which are the IDs of the Markdown files at its root; allocate the next ID
+for the target and position; stamp provenance; render and exclusively create the note; write its
+sidecar and apply vocabulary tagging; release the lock; and print the note's path. A lock failure,
+a listing failure, a refused placement or refused content MUST return an error with nothing
+written.
+
+Supports: 792a3a1a, 792a3b1a, 792a3c1a, 792a3j1a, 792a3j1b, 792a3j1c, 792a3j1d, 792a3j1e,
+792a3k1a, 792a3k1b, 792a3k1c, 792a3k1d, 792a3m1a, 792a3n1a, 792a3n1b, 792a3o1a, 792a3p1a, 792a3u1a.
+
+##### 792b12c3a Scenarios
+
+```gherkin
+Scenario: 792b12c3a1 A note is written at its allocated path
+  Given an empty vault and a fact, feedback or runbook learn with slug fact-slug at top on 2026-05-09
+  When it runs
+  Then the note is created at /vault/1.2026-05-09.fact-slug.md with its kind's frontmatter and body, and its path is printed
+
+Scenario: 792b12c3a2 A lock failure writes nothing
+  Given a vault lock that cannot be taken
+  When a learn runs
+  Then it fails with the lock error and nothing is written
+
+Scenario: 792b12c3a3 A listing failure writes nothing
+  Given a vault whose note IDs cannot be listed
+  When a learn runs
+  Then it fails with the listing error and nothing is written
+
+Scenario: 792b12c3a4 Only root notes count as IDs
+  Given a vault with notes 1 and 1a at its root, a note in a subdirectory and a README.md
+  When its note IDs are listed
+  Then they are exactly 1 and 1a
+```
+
+#### 792b12c4 Arguments to fields
+
+Requirement: 792b12c4 The note-authoring MUST give a note `tier: L2` when no tier is given and the
+given tier otherwise, and MUST carry the project, issue, tags, chunk sources, supersessions, and a
+runbook's red flags and triggers in order, into the note's fields, with none written when none is
+given.
+
+Supports: 792a3d1a, 792a3d1b, 792a3d1c, 792a3h1a, 792a3h1b, 792a3i1a, 792a3i1b.
+
+##### 792b12c4a Scenarios
+
+```gherkin
+Scenario: 792b12c4a1 The tier defaults to L2
+  Given a fact or feedback learn without a tier, or with tier L3
+  When it runs
+  Then the note carries tier: L2, or tier: L3
+
+Scenario: 792b12c4a2 Project and issue are carried
+  Given a fact learn with --project engram and --issue 636
+  When it runs
+  Then the note carries project: engram and issue: "636"
+
+Scenario: 792b12c4a3 Tags are carried
+  Given a fact or feedback learn with tags, or with none
+  When it runs
+  Then the note carries the tags in order, or no tags: key
+
+Scenario: 792b12c4a4 Chunk sources are carried
+  Given a fact learn with chunk sources, or with none
+  When it runs
+  Then the note carries them under sources:, or no sources: key
+
+Scenario: 792b12c4a5 Supersessions are carried
+  Given a feedback learn with a supersession
+  When it runs
+  Then the note carries it under supersedes: and as a Supersedes: body line
+
+Scenario: 792b12c4a6 Red flags are carried
+  Given a runbook learn with repeated --red-flag values, or with none
+  When it runs
+  Then the note carries them in order under red_flags:, or no red_flags: key and no error
+
+Scenario: 792b12c4a7 Triggers are carried
+  Given a runbook learn with repeated --trigger values, or with none
+  When it runs
+  Then the note carries them in order under triggers: after red_flags:, or no triggers: key, for any valid triggers
+```
+
+#### 792b12c5 Question-and-answer write
+
+Requirement: 792b12c5 The note-authoring MUST, for a question-and-answer pair, validate the
+arguments, defaulting certainty to `medium`; read the answer from `--answer-file` when given; check
+every contributor against the vault's Markdown files; and only then take the vault lock, create the
+question note and then the answer note, both exclusively, and release the lock. When the answer note
+cannot be created it MUST remove the question note and return an error saying so, also naming the
+failure when the question cannot be removed. After a successful write it MUST write both sidecars,
+apply vocabulary tagging to the answer only, and print the question's path and then the answer's.
+A lock failure MUST return an error with nothing written.
+
+Supports: 792a3n1a, 792a3q1a, 792a3q1b, 792a3q1c, 792a3r1a, 792a3r1b, 792a3s1a, 792a3u1b.
+
+##### 792b12c5a Scenarios
+
+```gherkin
+Scenario: 792b12c5a1 A pair is written question first
+  Given a valid pair
+  When it is learned
+  Then two notes are created, the .q.md first and the .a.md second
+
+Scenario: 792b12c5a2 The answer comes from a file
+  Given a pair whose answer is given by --answer-file
+  When it is learned
+  Then both notes are created with the file's text as the answer
+
+Scenario: 792b12c5a3 Invalid arguments are refused
+  Given a pair with an invalid slug, no question, both or neither answer source, no source, or an unknown certainty
+  When it is validated
+  Then it is refused with the matching error, and a fully valid pair passes
+
+Scenario: 792b12c5a4 An unknown contributor is refused before any write
+  Given a pair whose contributor names no note in the vault
+  When it is learned
+  Then it fails saying the contributor was not found, and nothing is written
+
+Scenario: 792b12c5a5 A lock failure writes nothing
+  Given a vault lock that cannot be taken
+  When a pair is learned
+  Then it fails with the lock error
+
+Scenario: 792b12c5a6 A failed answer removes the question
+  Given an answer note that cannot be created
+  When a pair is learned
+  Then the question note is removed and an error is returned
+
+Scenario: 792b12c5a7 A failed removal is reported too
+  Given an answer note that cannot be created and a question note that cannot be removed
+  When a pair is learned
+  Then the error names the orphaned question note
+```
+
+### 792b12d Product-Scenario Mapping
+
+| Product scenario | Technical requirements |
+| --- | --- |
+| 792a3a1a | 792b12c3 |
+| 792a3b1a | 792b12c3 |
+| 792a3c1a | 792b12c3 |
+| 792a3d1a | 792b12c4 |
+| 792a3d1b | 792b12c4 |
+| 792a3d1c | 792b12c4 |
+| 792a3f1a | 792b12c2 |
+| 792a3f1b | 792b12c2 |
+| 792a3f1c | 792b12c2 |
+| 792a3g1a | 792b12c1 |
+| 792a3h1a | 792b12c4 |
+| 792a3h1b | 792b12c4 |
+| 792a3i1a | 792b12c4 |
+| 792a3i1b | 792b12c4 |
+| 792a3j1a | 792b12c3 |
+| 792a3j1b | 792b12c3 |
+| 792a3j1c | 792b12c3 |
+| 792a3j1d | 792b12c3 |
+| 792a3j1e | 792b12c3 |
+| 792a3k1a | 792b12c3 |
+| 792a3k1b | 792b12c3 |
+| 792a3k1c | 792b12c3 |
+| 792a3k1d | 792b12c3 |
+| 792a3m1a | 792b12c3 |
+| 792a3n1a | 792b12c3, 792b12c5 |
+| 792a3n1b | 792b12c3 |
+| 792a3o1a | 792b12c3 |
+| 792a3p1a | 792b12c3 |
+| 792a3q1a | 792b12c5 |
+| 792a3q1b | 792b12c5 |
+| 792a3q1c | 792b12c5 |
+| 792a3r1a | 792b12c5 |
+| 792a3r1b | 792b12c5 |
+| 792a3s1a | 792b12c5 |
+| 792a3u1a | 792b12c3 |
+| 792a3u1b | 792b12c5 |
+
+```gherkin
+Scenario: 792a3r1b Certainty defaults to medium
+  Given an existing vault
+  When the user runs engram learn qa without --certainty
+  Then the answer note carries certainty: medium
+```
