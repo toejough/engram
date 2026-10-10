@@ -10635,11 +10635,11 @@ Scenario: 792a21m1b A write with no parent exchanges nothing
 Requirement: [792a21n A local write is offered to the parent](#792a21n-a-local-write-is-offered-to-the-parent) With `ENGRAM_PARENT` set, `engram learn fact`, `engram learn feedback` and `engram learn runbook`,
 `engram amend` with any content flag (`--situation`, `--subject`, `--predicate`, `--object`, `--behavior`, `--impact`,
 `--action`, `--done-when`, `--body`, `--red-flag`, `--trigger`), `engram resituate`, and `engram amend --clear-pending`
-of a note that carries `offer.origin` (an accepted served offer) MUST complete locally exactly as they do without a
-parent and MUST then queue the note as an offer. The last case MUST NOT be queued when the origin vault ID in
+(or `--pending=false`, which clears the marker the same way) of a note that carries `offer.origin` (an accepted served
+offer) MUST complete locally exactly as they do without a parent and MUST then queue the note as an offer. The last case MUST NOT be queued when the origin vault ID in
 `offer.origin` is the configured parent's vault ID. A queued offer MUST be an amend-offer that targets the note's
 primary parent link when the note has one for the configured parent's vault ID, and a learn-offer otherwise.
-The following MUST NOT be offered: the bookkeeping amends (`--activate`, `--clear-pending` of any other note,
+The following MUST NOT be offered: the bookkeeping amends (`--activate`, `--clear-pending` or `--pending=false` of any other note,
 `--discard` with or without `--into`, and amends whose only flags are `--supersedes` or `--chunk-source`), identity
 backfill, `engram learn qa` notes, notes that carry `skill_hash`, pending notes, and any write whose resulting
 exchange hash equals the note's primary link hash. Offers MUST carry notes only and never transcript chunks.
@@ -10949,12 +10949,13 @@ Scenario: 792a21r1l A failed vault-ID probe keeps the offers queued
 
 ### 792a21s An unreachable parent is backed off
 
-Requirement: [792a21s An unreachable parent is backed off](#792a21s-an-unreachable-parent-is-backed-off) After a transport failure or a timeout against the parent, the vault MUST record a retry time that
+Requirement: [792a21s An unreachable parent is backed off](#792a21s-an-unreachable-parent-is-backed-off) After a transport failure, a timeout or a 5xx against the parent, the vault MUST record a retry time that
 grows exponentially with the consecutive failures, from 30 seconds and capped at 15 minutes. Until that time every
 command except `engram update` MUST skip parent contact, so that queries return local results and offers are only queued,
 and MUST print exactly one warning. A request to the parent MUST use a connect timeout of at most 3 seconds. Any answer
 from the parent, a 4xx or a loop refusal included, counts as a successful contact and MUST reset the failure count. A
-parent other than the one backed off MUST NOT be affected.
+2xx answer to an offer whose body cannot be decoded as a receipt is not an answer and counts as a failure. A parent
+other than the one backed off MUST NOT be affected.
 
 Rationale: without a backoff every command would wait up to the full connect timeout while a parent is down (ADR-0029 D6).
 `update` always tries so that a cleared outage is noticed. A 4xx or a refusal is an answer from a reachable parent.
@@ -11052,7 +11053,8 @@ Scenario: 792a21u1d A receipt under another parent starts over
 Requirement: [792a21v A reply that is not a valid receipt is not recorded](#792a21v-a-reply-that-is-not-a-valid-receipt-is-not-recorded) A receipt that lacks a vault ID or a basename MUST stop exchange with an error saying the parent is
 too old, and MUST leave the entry queued. A receipt whose `vault_id` is not 32 lowercase hexadecimal characters, or
 whose `basename` or `for` is not a Luhmann basename free of `/`, `\` and `|`, MUST be treated as an undecodable reply:
-nothing is recorded on the note and the entry stays queued with the failure recorded. A 409 loop refusal whose
+nothing is recorded on the note, the entry stays queued with the failure recorded, and the parent is backed off as for an
+outage ([792a21s An unreachable parent is backed off](#792a21s-an-unreachable-parent-is-backed-off)). A 409 loop refusal whose
 `vault_id` is malformed MUST count as a refusal without a vault ID, and a malformed vault ID MUST never be cached as the
 parent's. A receipt that fails to record for another reason, a write error for example, MUST keep the entry queued with
 the failure recorded.
@@ -11074,7 +11076,7 @@ Scenario: 792a21v1a A pre-change parent is detected
 Scenario: 792a21v1b A malformed receipt is not recorded
   Given a receipt whose basename contains | or /, or whose vault_id is not 32 lowercase hexadecimal characters
   When the receipt is classified
-  Then the local note gains no parent link and the entry stays queued with the failure recorded
+  Then the local note gains no parent link, the entry stays queued with the failure recorded, and the parent is backed off
 
 Scenario: 792a21v1c A failed write keeps the entry
   Given recording a valid receipt on the note fails
@@ -11167,7 +11169,8 @@ Scenario: 792a21x1a No user identity holds the offer
 
 Requirement: [792a21y A looping offer is refused](#792a21y-a-looping-offer-is-refused) When a parent refuses an offer with a 409 that marks a loop, because its own vault ID is already on
 the offer's `offer.path`, and the refusing vault is not this vault, the entry MUST be marked `rejected`, the drain MUST
-continue, one warning MUST name the refusing vault, and the backoff counters MUST be left alone. A 409 without that mark
+continue, one warning MUST name the refusing vault, and the refusal MUST NOT back the parent off: it is an answer, so it
+resets the failure count ([792a21s An unreachable parent is backed off](#792a21s-an-unreachable-parent-is-backed-off)). A 409 without that mark
 MUST be an ordinary rejection. When the refusing vault is this vault itself, or a receipt reports this vault's own ID,
 the entries MUST stay queued and not be marked rejected, the parent's vault ID MUST be cached, the drain MUST stop, and one
 warning MUST name `engram vault-id --regenerate`, after which the queued entries send. A cached parent vault ID equal to
@@ -11183,7 +11186,7 @@ repair, so its offers wait ([792a2q A vault does not exchange with itself](#792a
 Scenario: 792a21y1a A cycle rejects the entry and continues
   Given a parent that refuses an offer as a loop and is not this vault
   When the outbox drains
-  Then that entry is rejected, the drain continues, one warning names the refusing vault and not --regenerate, and the backoff counters are unchanged
+  Then that entry is rejected, the drain continues, one warning names the refusing vault and not --regenerate, and the parent is not backed off
 
 Scenario: 792a21y1b An unmarked conflict is an ordinary rejection
   Given a parent that answers 409 without the loop mark
@@ -11346,8 +11349,8 @@ own `xid`, the parent's body unchanged so that its exchange hash equals the enve
 `parent.vault` set to the envelope's vault ID with a primary link `{note: <envelope basename>, via: pulled, hash: <envelope
 exchange hash>}`, and `parent.author` set to the parent note's `repo`, `user` and `vault`. Its top-level `repo`, `user` and
 `vault` MUST be stamped locally. It MUST NOT carry the parent's own `parent`, `aliases`, `offer`, `xid`, `skill_hash`,
-`skill_key`, `skill_source`, `sources`, `supersedes` or `tags`. It MUST be embedded on write and tagged with the local
-vocabulary, and the command MUST print its path.
+`skill_key`, `skill_source`, `sources`, `supersedes`, `tags` or `vocab_version`. It MUST be embedded on write and tagged
+with the local vocabulary, and the command MUST print its path.
 
 Rationale: a pulled note is never written live: curation judges it before it counts as knowledge, so a pull-down is an
 offer in the other direction ([792a22 curate](#792a22-added-curate)). The exact content keeps its exchange hash equal to the parent's, which is what

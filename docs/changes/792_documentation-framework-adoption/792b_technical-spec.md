@@ -2446,7 +2446,7 @@ Scenario: 792a21s1f The window ends
 Scenario: 792a21v1b A malformed receipt is not recorded
   Given a receipt whose basename contains | or /, or whose vault_id is not 32 lowercase hexadecimal characters
   When the receipt is classified
-  Then the local note gains no parent link and the entry stays queued with the failure recorded
+  Then the local note gains no parent link, the entry stays queued with the failure recorded, and the parent is backed off
 
 Scenario: 792a21zd1e A malformed envelope is refused
   Given an envelope whose vault_id is not 32 lowercase hexadecimal characters or whose basename holds a separator or |
@@ -22503,8 +22503,8 @@ Scenario: 792b36c11a1 A too-old parent keeps the entry and errors
 #### 792b36c12 A looping offer
 
 Requirement: [792b36c12 A looping offer](#792b36c12-a-looping-offer) When the parent refuses an offer as a loop, the drain MUST, for a refusing vault other than this one,
-mark the entry `rejected`, continue, print one warning per drain naming the refusing vault, and leave the failure
-counters alone. When the refusing vault is this vault, or an accepted receipt reports this vault's own ID, it MUST keep
+mark the entry `rejected`, continue, print one warning per drain naming the refusing vault, and not back the
+parent off, the refusal being an answer that resets the failure count ([792b36c9 A rejected offer](#792b36c9-a-rejected-offer)). When the refusing vault is this vault, or an accepted receipt reports this vault's own ID, it MUST keep
 the entries queued and not rejected, cache the parent's vault ID, record nothing on any note, stop the drain, and print
 the one self-parent warning naming `engram vault-id --regenerate`.
 
@@ -22519,7 +22519,7 @@ copy mistake whose offers are valid once it is fixed ([792a2q A vault does not e
 Scenario: 792b36c12a1 A cycle rejects the entry and continues
   Given a loop refusal from a vault that is not this one
   When the drain runs
-  Then that entry is rejected, the drain continues, one warning names the refusing vault and not --regenerate, and the backoff counters are unchanged
+  Then that entry is rejected, the drain continues, one warning names the refusing vault and not --regenerate, and the parent is not backed off
 
 Scenario: 792b36c12a2 A self-parent refusal waits for a regenerate
   Given a loop refusal that names this vault's own ID
@@ -23041,7 +23041,7 @@ Scenario: 792a21x1a No user identity holds the offer
 Scenario: 792a21y1a A cycle rejects the entry and continues
   Given a parent that refuses an offer as a loop and is not this vault
   When the outbox drains
-  Then that entry is rejected, the drain continues, one warning names the refusing vault and not --regenerate, and the backoff counters are unchanged
+  Then that entry is rejected, the drain continues, one warning names the refusing vault and not --regenerate, and the parent is not backed off
 
 Scenario: 792a21y1b An unmarked conflict is an ordinary rejection
   Given a parent that answers 409 without the loop mark

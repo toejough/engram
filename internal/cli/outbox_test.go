@@ -109,8 +109,8 @@ func Test792b36c11a1_DrainOutbox_TooOldParentKeepsEntryAndErrors(t *testing.T) {
 // Test792b36c12a1_DrainOutbox_CycleRefusalRejectsAndContinues (ruling S13, D7): a 409
 // loop refusal from a parent whose ID is NOT this vault's is a real cycle
 // (A→B→C→A): that entry is rejected, the drain continues, and one warning
-// names the refusing vault (not --regenerate). A refusal leaves the backoff
-// counters alone.
+// names the refusing vault (not --regenerate). A refusal is an answer
+// (ruling S14), so it resets the failure count and never backs the parent off.
 func Test792b36c12a1_DrainOutbox_CycleRefusalRejectsAndContinues(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
