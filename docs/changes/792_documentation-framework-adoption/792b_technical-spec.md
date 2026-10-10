@@ -6317,6 +6317,10 @@ Scenario: 792b14c11a4 The refit check runs after a resituate
 | 792a4o1b | 792b14c1 |
 | 792a6d1d | 792b14c11 |
 | 792a6d1e | 792b14c11 |
+| 792a14j1a | 792b14c4, 792b14c9 |
+| 792a14j1b | 792b14c3, 792b14c4 |
+| 792a14j1d | 792b14c4 |
+| 792a14l1a | 792b14c10 |
 
 ```gherkin
 Scenario: 792a4e1a Chunk sources are merged without duplicates
@@ -6343,6 +6347,26 @@ Scenario: 792a6d1e A resituated note is re-tagged
   Given a fact note and a vault vocabulary
   When the user runs engram resituate on it
   Then its vocab/ tags are set from its rewritten text
+
+Scenario: 792a14j1a Covered refreshes provenance and recency only
+  Given a candidate that states the cluster's principle with no omission
+  When the agent judges it covered
+  Then it runs engram amend --target <candidate> --activate --chunk-source <new chunk IDs> with no content flags
+
+Scenario: 792a14j1b Near re-synthesizes
+  Given a candidate that omits one claim the members evidence
+  When the agent judges it near
+  Then it runs engram amend with the chunk sources and re-synthesized content flags
+
+Scenario: 792a14j1d A correction carries a supersession
+  Given a write that corrects a surfaced note
+  When the agent writes it
+  Then the command or handoff carries a supersedes value with the note, the type and the claim
+
+Scenario: 792a14l1a Used notes are activated
+  Given the agent judged one candidate covered and cited another in its synthesis
+  When it activates
+  Then one engram activate call carries a --note for each and for no other note
 ```
 
 ## 792b15 Added: transcript-reader
@@ -10636,6 +10660,9 @@ Scenario: 792b23c8a9 A query shows a runbook's red flags
 | 792a7zd1b | 792b23c1 |
 | 792a7zg1e | 792b23c8 |
 | 792a7zg1f | 792b23c2 |
+| 792a14g1b | 792b23c5 |
+| 792a14h1a | 792b23c5 |
+| 792a14h1c | 792b23c5 |
 
 ```gherkin
 Scenario: 792a7b1b A note item is labelled by its type
@@ -10757,6 +10784,16 @@ Scenario: 792a7zg1f A CRLF note keeps its kind
   Given a fact note whose lines end in \r\n
   When the user runs engram query with a phrase that matches it
   Then its item has kind fact
+
+Scenario: 792a14h1a A zero-note cluster still gets its chunks read
+  Given a cluster whose candidate list is empty
+  When the agent processes it
+  Then it runs engram show-chunk on every chunk member before stating any judgment about the cluster
+
+Scenario: 792a14h1c A load-bearing chunk beside a distractor
+  Given a cluster of two chunks and no note, one carrying a hard-requirement convention topically distant from the task
+  When the agent processes the cluster
+  Then it reads both chunks' content before judging either relevant or irrelevant
 ```
 
 ## 792b24 Added: query-engine
@@ -11743,6 +11780,12 @@ Scenario: 792b24c24a1 Each stage ends with a reading
 | 792a7zg1c | 792b24c20 |
 | 792a7zg1g | 792b24c18 |
 | 792a7zh1a | 792b24c20 |
+| 792a14c1b | 792b24c1 |
+| 792a14f1a | 792b24c1 |
+| 792a14g1b | 792b24c10 |
+| 792a14g1c | 792b24c19 |
+| 792a14h1d | 792b24c10 |
+| 792a14o1a | 792b24c1 |
 
 ```gherkin
 Scenario: 792a7a1a A query with nothing to search for fails
@@ -11984,6 +12027,36 @@ Scenario: 792a7zg1g The lists in a CRLF note's frontmatter are read
   Given a CRLF note tagged vocab/cooking, and a CRLF note that supersedes another
   When the user runs engram query with phrases that match the term's members, and the superseded note
   Then the tagged note can be an explore note, and the superseding note rides along
+
+Scenario: 792a14c1b Glance asks for about three phrases
+  Given recall is invoked with the mode glance
+  When it phrases its query
+  Then it generates about three phrases, not ten
+
+Scenario: 792a14f1a All phrases in one call
+  Given ten phrases
+  When the agent queries memory
+  Then it runs one engram query with ten --phrase flags and no other query call for them
+
+Scenario: 792a14g1b Notes are applied as they stand
+  Given a matched fact note with its content inline
+  When the agent judges it
+  Then it applies the note without running engram show
+
+Scenario: 792a14g1c Recent items are read first and not judged
+  Given a payload with a recent-activity block
+  When the agent reads it
+  Then it uses the block to re-immerse in recent work and does not count it for coverage
+
+Scenario: 792a14h1d Candidate notes are read from the payload
+  Given a cluster with candidate notes carrying inline content
+  When the agent reads them
+  Then it runs no engram show for them and reads their content before judging coverage
+
+Scenario: 792a14o1a A new recommendation triggers a re-entry query
+  Given the synthesis is about to recommend an approach that is not in the Step 0 plan
+  When the agent prepares to show it
+  Then it first runs an engram query keyed to that approach with three phrases
 ```
 
 ## 792b25 Added: vault-counter
@@ -18593,6 +18666,7 @@ Scenario: 792b32c4a2 An existing note is edited by amend or resituate
 | --- | --- |
 | 792a13a1a | 792b32c4 |
 | 792a13h1a | 792b32c2, 792b32c3 |
+| 792a14f1c | 792b32c2, 792b32c3 |
 
 ```gherkin
 Scenario: 792a13a1a A complete handoff is executed
@@ -18604,5 +18678,10 @@ Scenario: 792a13h1a A value beginning with a dash survives
   Given a feedback handoff whose behavior begins with "-"
   When the worker composes the command
   Then the flag is written --behavior="-..." and the command runs without a misread flag
+
+Scenario: 792a14f1c Values are attached to their flags
+  Given a phrase that begins with a dash
+  When the agent writes the flag
+  Then it is --phrase="-..." with the quote touching the equals sign
 ```
 

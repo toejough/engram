@@ -39,4 +39,4 @@ When a decision is weighty or irreversible, or when glance flags a gap it can't 
 
 #### Scenario: Weighty decision requires deep escalation
 - **WHEN** a decision is weighty, irreversible, or glance surfaces a gap it cannot resolve
-- **THEN** the agent escalates to `/recall deep` to crystallize the lesson. The recency-channel (C5) escalation rule is owned by the recall-glance-deep-dial spec
+- **THEN** the agent escalates to `/recall deep` to crystallize the lesson. The recency-channel (C5) escalation rule is owned by 792a14d in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a14-added-recall`

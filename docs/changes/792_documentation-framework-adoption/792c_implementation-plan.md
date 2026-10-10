@@ -241,8 +241,8 @@ flowchart TD
   N792c7k3["792c7k3 skill-registration-ledger tech spec<br/>Complete"]
   N792c7l1["792c7l1 write-memory product spec<br/>Complete"]
   N792c7l2["792c7l2 agent-instruction-bundle tech spec<br/>Complete"]
-  N792c7m1["792c7m1 recall product spec<br/>Ready"]
-  N792c7n1["792c7n1 learn product spec<br/>Blocked by: 792c7m1"]
+  N792c7m1["792c7m1 recall product spec<br/>Complete"]
+  N792c7n1["792c7n1 learn product spec<br/>Ready"]
   N792c7o1["792c7o1 lessons-contract product spec<br/>Blocked by: 792c7n1"]
   N792c7p1["792c7p1 route product spec<br/>Blocked by: 792c7o1"]
   N792c7q1["792c7q1 please product spec<br/>Blocked by: 792c7p1"]
@@ -4151,11 +4151,47 @@ Target: `792a14` (`docs/specs/product/recall.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7m1a | Port product requirements and UAT to `792a14` | Non-test action | Moves current behavior into the framework format | Not started |
-| 792c7m1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7m1c | Repoint stale references to `792a14` | Non-test action | Keeps live links valid | Not started |
-| 792c7m1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Not started |
-| 792c7m1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Not started |
+| 792c7m1a | Port product requirements and UAT to `792a14` | Non-test action | Moves current behavior into the framework format | Done |
+| 792c7m1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7m1c | Repoint stale references to `792a14` | Non-test action | Keeps live links valid | Done |
+| 792c7m1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Done |
+| 792c7m1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
+
+792a14 has seventeen requirements (792a14a to 792a14q): the stated plan, the once-per-session sweep, the two depths,
+glance's escalation, the ten phrases, the single query, reading the payload, reading chunk content before
+judging, recency weighting, coverage and its writes, parent notes, activation, the closing synthesis,
+reconciling a recommendation, the re-entry check, persisting a conclusion and its qa capture (792d111). Extended
+components: query-engine gains mapping rows for 792b24c1, 792b24c10 and 792b24c19, query-payload-renderer gains
+792b23c5, note-amendment gains 792b14c3, 792b14c4, 792b14c9 and 792b14c10, and agent-instruction-bundle gains
+792b32c2 and 792b32c3; none gains a requirement, because the sources carry none for them. Legacy removal: the
+`recall-glance-deep-dial` and `recall-payload-cuts` specs, the superpowers plan for #733 and the `docs/deprecated/superpowers`
+directory it emptied are deleted, together with the skill steps of the context view's recall flow and the
+recall-time synthesis sections of the container view. The context view's decision-flow note and gates companion,
+and the guidance spec that cited the dial spec, point at 792a14.
+
+**Test Traceability**
+
+No Go or Python test is renamed: recall is a markdown skill, and the tests that verify the mapped technical
+scenarios already carry their technical scenario IDs. The baselines under `agent-instructions/skills/recall/tests`
+are the skill's tests (`README.md` indexes them). They are scenario inputs for a writing-skills RED/GREEN cycle and
+keep their names (792d111).
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792a14a1a, 792a14b1a, 792a14f1a, 792a14m1a, 792a14m1b | `baseline-judgement-and-synthesis.md` (not renamed) | Skill baseline (writing-skills RED/GREEN, subagent) | Step 0 blocks before retrieval, the sweep, one query, inline coverage, and the count-and-plan-walk synthesis | Done |
+| 792a14f1a, 792a14f1b | `baseline-multi-query.md` (not renamed) | Skill baseline | One call carries every phrase, with no vault flags | Done |
+| 792a14i1a, 792a14i1c | `baseline-recency-conflict.md` (not renamed) | Skill baseline | The newer note wins a conflict, and a candidate matching the superseded stance is near | Done |
+| 792a14j1a, 792a14j1c | `baseline-bootstrap-create.md` (not renamed) | Skill baseline | Empty candidate lists create, covered candidates are amended with `--activate` | Done |
+| 792a14j1c, 792a14j1e | `baseline-empty-vault-skip-l2.md` (not renamed) | Skill baseline | Absent creates, and one note per cluster, under four pushbacks | Done |
+
+**Coverage gaps:** no baseline exists for 792a14b1b and 792a14b1c (the sweep's skip and failure), 792a14c (the
+modes), 792a14d (the escalation, measured by the trap gate of `dev/eval/LEDGER.md#glance-fails-c5-delivery`
+instead), 792a14e, 792a14g, 792a14h (the read-before-judge gate has the RED transcript of #733 and no baseline
+file), 792a14k, 792a14l, 792a14n, 792a14o (the re-entry check is measured in the eval ledger), 792a14p and 792a14q.
+The mapped technical scenarios have their own tests (792b14, 792b23, 792b24, 792b32).
+
+**No-scenario tests:** none. `baseline-multi-query.md` still describes `activated: true` items, five to fifteen
+phrases and `engram show` of candidates, which the shipped skill no longer says (792d111).
 
 ### 792c7n learn
 

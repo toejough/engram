@@ -123,25 +123,3 @@ flowchart TD
 
 Source: `agent-instructions/skills/learn/SKILL.md` (Step 1, Step 2, Step 2.5), `agent-instructions/skills/please/SKILL.md` Step 7 (lessons audit), `internal/cli/qa.go` (`isQueryExcludedKind`, `writeQANotesUnderLock`, the D5′ comments),
 `internal/cli/learn.go` (`writeLearnUnderLock`, `applyVocabAssignmentCore`).
-
-### Recall-time lazy-L2 synthesis — skill-orchestrated, blocking, NOT a binary loop
-
-Synthesis now happens at **recall**, **inline and blocking** — not at learn time and not via
-fire-and-forget subagents. There is **no `engram synthesize`**. The recall skill drives the loop —
-shown in full sequence form under "Flow: recall" in [L1](c1-system-context.md#flow-recall) — calling `engram query` / `engram show-chunk`
-/ `engram amend` / `engram learn` as **separate processes** and making every coverage decision itself.
-Cosine only *nominates* candidate notes; the agent decides covered/near/absent. The binary never sees
-"the synthesis loop." The covered/near/absent decision (the `alt` block in L1's Flow: recall) is shown
-standalone below.
-
-### Flowchart: lazy-L2 coverage decision (C1)
-
-```mermaid
-flowchart TD
-    A["cluster with candidate_l2s (top-5 within-cluster notes)"] --> B["candidate content read inline; chunk members via show-chunk"]
-    B --> C["apply recency weight: recent wins on conflict; old-uncontradicted retained"]
-    C --> D{coverage?}
-    D -->|covered| E["engram amend --target note --activate --chunk-source — link-enrich, no content rewrite"]
-    D -->|near| F["engram amend --target note --chunk-source content-flags — re-synthesize content"]
-    D -->|absent| G["engram learn fact / feedback --chunk-source — create"]
-```

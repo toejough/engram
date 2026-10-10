@@ -1753,3 +1753,31 @@ decisions as `792dN`, continuing the sequence.
     sweeps.
 - **Rationale:** 792d3, 792d4, 792d5, 792d33 and 792d109.
 - **Alternatives:** a product requirement repeated in every skill capability. Rejected in 792d5.
+
+## 792d111 recall scope, the tests it leaves, and known divergences
+
+- **Choice:**
+  - 792a14 describes the shipped `SKILL.md`: seventeen requirements (792a14a to 792a14q). The skill's own step
+    numbers (Step 0 to Step 4) are cited in the capability text, so a reader can find the passage. The legacy
+    specs supply the dial (792a14c, 792a14d), the read-before-judge gate (792a14h) and, with the context and
+    container views, the agent-judged coverage decision (792a14j) and agent-driven activation (792a14l).
+  - What the binary returns (the matched set, clusters, explore half, superseding notes, newest chunks) is
+    memory-query's (792a7). Recall's requirements say what the agent does with the payload.
+  - The recall-time "lazy-L2 synthesis" the container view names is the coverage decision of 792a14j. The
+    view's remark that there is no `engram synthesize` is not specified, because it describes an absence of an
+    old surface (792d6).
+  - The `q-space` channel for question notes is proposed and not built, so it is left out (792d6).
+  - Glance's measured cost (2.23 times faster, 46% cheaper per fire) is rationale and not a requirement, because
+    it is a measurement of a run and not behavior a user can observe.
+  - No test is renamed. The recall baselines are markdown evidence (792d10); the mapped technical scenarios were
+    renamed by the nodes that own those components. The superpowers plan's value was its #733 root-cause evidence,
+    which is the rationale of 792a14h; the rest of the plan is a task list and is deleted (792d12).
+- **Divergences noted (792d33):**
+  - `agent-instructions/skills/recall/tests/baseline-multi-query.md` describes a model the skill has since left:
+    five to fifteen phrases, `activated: true` items batched into one `engram activate`, and candidate notes read
+    through `engram show`. The shipped skill says ten phrases (three in glance), agent-driven activation and
+    candidate content inline. The baseline's file is not changed (a baseline edit is a skill-test edit).
+  - The dial spec cites ADR-0004 as its "why". ADR-0004 is the dead tier decision that 792c8d deletes, so the
+    dial's reasoning is the measured rows in `dev/eval/LEDGER.md` (cited in 792a14c and 792a14d).
+- **Rationale:** 792d3, 792d4, 792d12, 792d32, 792d33 and 792d90.
+- **Alternatives:** none beyond those stated.

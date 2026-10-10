@@ -69,91 +69,6 @@ shorthand participant aliases `Op` (S1), `H` (S3), `E` (S2), `V` (S4), `Tr`
 (S5), `Go` (S6) and only declares the participants that flow touches. Source
 references cite the entry-point symbol on `main` — grep the symbol, since line numbers drift.
 
-### Flow: recall
-
-Operator asks a question that needs prior memory. The harness loads the `recall`
-skill, prints its Step 0 judgement (Ask, Situation, Plan), then phrases exactly
-**10** query strings (one per fixed angle) and issues a single `engram query`
-call passing each phrase as a separate `--phrase` flag. Recall has two rungs: the default `deep`
-(the full procedure shown here, with crystallization writes) and an opt-in `glance` rung
-(read-only, ~3 phrases, no crystallization writes — cheaper per fire). Glance escalates to `deep`
-for C5 (recency-channel standards). The sequence shown is `deep`.
-
-What the binary returns for those phrases (the matched set, its clusters and candidate notes, the explore half, the superseding notes, the newest chunks and the trigger hits) is [792a7](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a7-added-memory-query) and [792b24](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b24-added-query-engine). The harness then, **inline and blocking**, reads the cluster's members and candidates (plus the explore items) and applies an
-**agent-judged coverage decision**: **covered** (candidate already states the principle with no material
-omission, judged against the recency-weighted view) → `engram amend --activate --chunk-source <chunk ids>`
-(refresh recency + provenance, no content rewrite); **near** (same situation, ≥1 substantive claim omitted)
-→ `engram amend --chunk-source … <re-synthesized content>` (update in place, recency-weighted, D6);
-**absent** (no candidate addresses the situation) → invoke the **write-memory** skill (2026-07-04 worker extraction; native invocation restored by `register-skills-as-runbooks`), which composes and runs `engram learn fact|feedback --chunk-source …
---source="<descriptive>"` (create the single representative note). An additional write path,
-`engram learn qa` (shipped round 1, 2026-07-03; since 2026-07-04 executed via the write-memory
-handoff), captures Q&A pairs: the A-note competes in the main matched set (D5′); the Q-note is
-excluded from the main set. A dedicated q-space channel to surface the Q-note is *proposed but NOT
-built* — round 3 remains unlicensed (Arm V's larger-n check came back BORDERLINE; see
-`docs/ROADMAP.md` → GATED — Q&A memory round-2/3).
-
-**Activation is agent-driven:** the binary no longer emits an `activated` flag.
-After synthesis, the agent calls `engram activate` only on the notes it actually
-used (the `candidate_l2s` judged Covered/Near and any notes cited in the
-Step 3 synthesis). A returned-but-unused note's `LastUsed` goes stale and fades
-by recency rank — bumping every returned note would defeat the supersede-by-competition
-mechanism. Chunks are never activated.
-
-Source: `engram activate` in `internal/cli/activate.go` and `engram amend` in `internal/cli/amend.go`; the query is [792b24](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b24-added-query-engine).
-
-> Two deliberate evolutions of earlier decisions, both driven by retrieval
-> precision: (1) coverage is
-> **agent-judged** from within-cluster nominees (D7 reversed by recall-v2
-> DECISION-2) — cosine only nominates top-5 candidates **within each cluster**;
-> the agent reads members + candidates and decides; (2) **activation is agent-driven**
-> (recall-v2) — the binary no longer pre-judges use; the agent activates only
-> notes it actually drew on. Consequence (intended, ACT-R): regularly-useful
-> memory stays fresh; never-retrieved memory decays and loses rank.
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Op as S1 Operator
-    participant H as S3 Harness
-    participant E as S2 Engram CLI
-    participant V as S4 Vault
-
-    Op->>H: prompt that may need memory
-    Note over H: print Step 0 (Ask, Situation, Plan), phrase exactly 10 query strings (one per fixed angle) — deep rung; glance phrases ~3
-    H->>E: engram query --phrase <p1> ... --phrase <p10>
-    Note over E: the query-engine (792b24) matches, clusters and samples; the renderer (792b23) shapes the payload
-    E-->>H: single YAML payload (phrases[], items, clusters[candidate_l2s], budget)
-
-    Note over H: Step 2.5 — per-cluster coverage synthesis (loop below)
-    loop per cluster (blocking inline) — coverage judged from matched clusters only
-        Note over H: read candidate_l2s + note members' content inline from the payload (no engram show)
-        opt a needed fact lives only in a chunk (rare across general recalls — notes are load-bearing; MANDATORY exception: zero-note clusters must read all chunk members regardless of general rarity)
-            H->>E: engram show-chunk <source#anchor> (fetch deferred chunk text under --lazy-chunks)
-            E-->>H: chunk text
-        end
-        Note over H: apply recency weight; judge coverage (covered / near / absent)
-        alt covered — candidate already states the principle
-            H->>E: engram amend --target <note> --activate --chunk-source <ids>
-            E->>V: acquire flock, merge provenance, bump LastUsed
-            V-->>E: written path
-        else near — same situation, substantive claim omitted
-            H->>E: engram amend --target <note> --chunk-source <ids> <re-synth content>
-            E->>V: acquire flock, replace content fields, merge provenance, re-embed
-            V-->>E: written path
-        else absent — no candidate addresses the situation
-            H->>E: engram learn fact|feedback --chunk-source <ids> --source="<desc>"
-            E->>V: acquire flock, compute Luhmann ID, write note
-            V-->>E: written path
-        end
-    end
-
-    Note over H: agent calls engram activate on notes actually USED (covered/near candidates and cited notes only)
-    H->>E: engram activate --note <path> ... (agent-driven; unused returned notes are NOT activated)
-    E->>V: acquire flock, bump LastUsed on each activated note
-    Note over H: Step 3 synthesis against the Step 0 plan
-    H-->>Op: reply with plan walk (confirmed / adjusted / contradicted / silent)
-```
-
 ### Flow: learn
 
 Operator runs `/learn` (or the harness self-fires after substantive work). The
@@ -285,8 +200,8 @@ Ported: the product behavior is [792a11](../../changes/792_documentation-framewo
 
 The sequence diagrams above show *message order*; these flowcharts show the *operator-level decision
 logic* — when the system is engaged at all, and how `/please` sequences it. (L2 carries the
-internal-branch flowcharts: recall's lazy-L2 coverage decision (covered/near/absent) and the
-recall-time lazy-L2 synthesis loop; plus marker forward-progress.)
+internal-branch flowcharts: the learn capture kinds, and marker forward-progress. Recall's coverage decision is
+[792a14](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a14-added-recall).)
 
 #### Flow: engram engagement — the read → work → write → synthesize lifecycle
 
@@ -333,7 +248,7 @@ flowchart TD
 #### Companion: who reviews at `/please` gates A–D
 
 The flowchart above shows *when* gates A–D fire; this sequence diagram is the swimlane companion showing *who* reviews. It elides the `engram query`/`learn`
-call mechanics already diagrammed in Flow: recall and Flow: learn above, and focuses on the
+call mechanics already diagrammed in [792a14](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a14-added-recall) and Flow: learn above, and focuses on the
 fan-out to fresh per-angle reviewer subagents and the argue-to-ACK loop. As in the Flow: please
 diagram, the orchestrator's consult of the `route` skill (also mirrored as a registered runbook) for reviewer staffing (agent/model/effort)
 is in-context guidance, not an L1 edge — shown here as a `Note`, never a message or a participant
