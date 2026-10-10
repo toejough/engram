@@ -13,6 +13,7 @@ The following repository-governance files are unnumbered exceptions. They do not
 - [`docs/PRODUCT-SPEC-GUIDE.md`](./PRODUCT-SPEC-GUIDE.md).
 - [`docs/TECHNICAL-SPEC-GUIDE.md`](./TECHNICAL-SPEC-GUIDE.md).
 - [`docs/IMPLEMENTATION-PLAN-GUIDE.md`](./IMPLEMENTATION-PLAN-GUIDE.md).
+- [`docs/ADOPTION-GUIDE.md`](./ADOPTION-GUIDE.md).
 - [`docs/GLOSSARY.md`](./GLOSSARY.md) — the central glossary of project terms.
 - [`docs/ROADMAP.md`](./ROADMAP.md) — the central record of planned and parked work.
 
@@ -152,6 +153,8 @@ completed change artifacts.
   technical specification; it defines technical component boundaries and direct contract-test
   ownership.
 - Follow [`docs/IMPLEMENTATION-PLAN-GUIDE.md`](./IMPLEMENTATION-PLAN-GUIDE.md) when creating or revising an implementation plan.
+- Follow [`docs/ADOPTION-GUIDE.md`](./ADOPTION-GUIDE.md) when migrating an existing repository's
+  documentation into this framework.
 
 ## Shared Author Checklist
 
