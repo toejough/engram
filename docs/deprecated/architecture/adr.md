@@ -264,16 +264,6 @@ runbooks (`openspec/changes/archive/2026-09-19-route-skill-to-runbook/`,
 2026-07-04 decision, not the current skill count — see ADR-0026 and the
 `guidance-runbook-follow-frame` spec for the runbook-carrier shape that superseded it.
 
-**Amendment (2026-09-26):** The 2026-09 historical note above records `please`, `route`, `curate`,
-and `write-memory` being retired from skills to vault-runbook-only form. The openspec change
-`register-skills-as-runbooks` (`openspec/changes/archive/2026-09-26-register-skills-as-runbooks/`)
-reverses that direction: all six skills (`recall`, `learn`, `please`, `route`, `curate`,
-`write-memory`) ship again as skills under `agent-instructions/skills/`, and the skill remains the
-shipping and authoring form. Each skill may have at most one registered vault runbook note (slug
-`skill-<name>`, frontmatter `skill_hash`) whose body mirrors the `SKILL.md`, for `engram query`
-surfacing — the note mirrors the skill, it no longer replaces it. See ADR-0026's matching
-amendment and the `skill-runbook-registration` spec for the current shape.
-
 ---
 
 ## ADR-0016 — Architecture diagrams are hand-authored mermaid, verified against code
@@ -406,45 +396,6 @@ are in [792b22](../../changes/792_documentation-framework-adoption/792b_technica
 and [792a7za](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a7za-a-trigger-hit-comes-first).
 
 Link: `openspec/changes/runbook-note-kind`.
-
-**Amendment (2026-09-26, openspec change `register-skills-as-runbooks`): the skill-to-runbook-only
-direction is reversed — skills remain the shipping form; runbook notes are registered, derived
-mirrors.** The 2026-09-20 amendment above, and ADR-0015's 2026-09 historical note, record
-`please`, `route`, `curate`, and `write-memory` being retired from `agent-instructions/skills/` to
-vault-runbook-only form. That retirement broke distribution: `engram update` syncs skills and
-guidance, never the vault, so a fresh install shipped only `recall` and `learn`. Vault note 1054
-records the reversal and supersedes note 1031's goal that every skill becomes a runbook and the
-shim is the only custom instruction text. All six skills (`recall`, `learn`, `please`, `route`,
-`curate`, `write-memory`) ship again as skills via `engram update` and remain the shipping and
-authoring form; `please` is again one `SKILL.md`, with no sub-runbooks. Each skill MAY have one
-registered vault runbook note, derived from the skill: slug `skill-<name>`, body copied from the
-`SKILL.md`, and frontmatter `skill_hash` (SHA-256 of the `SKILL.md` bytes last copied). The
-runbook fields (`situation`, `triggers`, `done_when`, `red_flags`) are authored on the note, never
-in `SKILL.md` frontmatter, whose schema belongs to the harness. `engram update` and
-`engram register-skills` (`--accept`/`--decline`/`--dry-run`/`--adopt`) offer to register,
-refresh, or remove each note; declines are remembered by hash in vault-root
-`skill-registrations.json`, and without a terminal or an explicit answer nothing is written. A new
-or refreshed note is a pending offer (`pending: true`, now recognized on runbook notes) that
-`curate` completes. The `runbook` kind, the `triggers:` mechanism above, and the shim's
-follow-frame are unchanged. Links: `openspec/changes/archive/2026-09-26-register-skills-as-runbooks`,
-`openspec/specs/skill-runbook-registration/spec.md`.
-
-**Amendment (2026-09-26, openspec change `register-skills-all-skill-folders`): registration
-covers every default skill folder, not just engram's six.** This lifts the earlier Non-Goal (vault
-note 1066a), which had scoped registration to engram's own shipped skills. `engram
-update`/`engram register-skills` now scan one shared default source set: Claude user skills and
-commands (symlinks followed), claude.ai-synced skills, Pi user and agents skills, Pi's configured
-`settings.json` skill/prompt paths and packages (subject to Pi's trust gate for project sources),
-enabled plugin skills and commands, and project-local Claude sources plus trusted Pi sources from
-the cwd up to the git root. Identity is a source-qualified **skill key** (a `cmd` segment for
-commands; `project:<host>/<owner>/<repo>:…` for project sources; every key source-qualified
-(`claude:<n>`, `claude:cmd:<n>`, …; engram's installed skills are keyed by folder like any other
-source), with engram's six legacy notes migrated to `claude:<n>` by `--adopt`), with the note slug
-derived from the key and `skill_key`/`skill_source` recorded on the note. A removal is offered only
-for a key whose source root was itself read
-successfully, never inferred from an empty or unreadable directory. Offers are grouped by scope and
-answered by exact key, key-prefix pattern, or `@scope` selector; declines move to schema v2, keyed
-by skill key rather than bare name. Design: `openspec/changes/archive/2026-09-27-register-skills-all-skill-folders/design.md`.
 
 ---
 

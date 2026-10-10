@@ -14,36 +14,11 @@ import (
 	"github.com/toejough/engram/internal/update"
 )
 
-// TestRunPostUpdateChecks_SkillRegistrationError_SetsReportFieldDoesNotFailChecks
-// covers update-deploy-sync: "Registration failures SHALL be reported and
-// SHALL NOT roll back the deploy" — a registration failure lands on
-// report.SkillRegistrationErr, and runPostUpdateChecks itself still returns
-// nil.
-func TestRunPostUpdateChecks_SkillRegistrationError_SetsReportFieldDoesNotFailChecks(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	deps := updateDeps{
-		FS:       skillRegUpdateStubFS{},
-		Env:      skillRegUpdateStubEnv{},
-		SkillReg: skillRegUpdateDepsFixture(nil, failingSkillRegGetwd),
-	}
-
-	report := update.Report{Home: "/home/x", Source: update.SourceInfo{Root: "/repo"}}
-
-	var stdout bytesBufferForTest
-
-	err := runPostUpdateChecks(context.Background(), UpdateArgs{}, deps, &report, &stdout)
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(report.SkillRegistrationErr).To(ContainSubstring("injected"))
-}
-
-// TestRunUpdateSkillRegistration_DryRunListsOffers proves the hook resolves
+// Test792b28c16a1_RunUpdateSkillRegistration_DryRunListsOffers proves the hook resolves
 // the default source set from home (a Claude user skill offers, while the
 // source checkout's agent-instructions/skills is never read) and forwards
 // update's own --dry-run flag.
-func TestRunUpdateSkillRegistration_DryRunListsOffers(t *testing.T) {
+func Test792b28c16a1_RunUpdateSkillRegistration_DryRunListsOffers(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -61,25 +36,10 @@ func TestRunUpdateSkillRegistration_DryRunListsOffers(t *testing.T) {
 		"@claude-user (1)\n  would offer: register claude:curate (/home/x/.claude/skills/curate/SKILL.md)\n"))
 }
 
-// TestRunUpdateSkillRegistration_NoOpWhenSkillRegUnconfigured proves the
-// zero-value updateDeps.SkillReg (older test fixtures built before this hook
-// existed) is a safe no-op.
-func TestRunUpdateSkillRegistration_NoOpWhenSkillRegUnconfigured(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var stdout bytesBufferForTest
-
-	err := runUpdateSkillRegistration(context.Background(), false, "/vault", "/home", updateDeps{}, &stdout)
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(stdout.String()).To(BeEmpty())
-}
-
-// TestRunUpdateSkillRegistration_NonInteractive_ReportsSummary covers the
+// Test792b28c16a2_RunUpdateSkillRegistration_NonInteractive_ReportsSummary covers the
 // update-deploy-sync non-interactive scenario: nothing is written, and the
 // output names the waiting skill.
-func TestRunUpdateSkillRegistration_NonInteractive_ReportsSummary(t *testing.T) {
+func Test792b28c16a2_RunUpdateSkillRegistration_NonInteractive_ReportsSummary(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -95,10 +55,25 @@ func TestRunUpdateSkillRegistration_NonInteractive_ReportsSummary(t *testing.T) 
 	g.Expect(stdout.String()).To(ContainSubstring("awaiting an answer: @claude-user 1"))
 }
 
-// TestRunUpdateSkillRegistration_PropagatesError proves a registration
+// Test792b28c16a3_RunUpdateSkillRegistration_NoOpWhenSkillRegUnconfigured proves the
+// zero-value updateDeps.SkillReg (older test fixtures built before this hook
+// existed) is a safe no-op.
+func Test792b28c16a3_RunUpdateSkillRegistration_NoOpWhenSkillRegUnconfigured(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var stdout bytesBufferForTest
+
+	err := runUpdateSkillRegistration(context.Background(), false, "/vault", "/home", updateDeps{}, &stdout)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(stdout.String()).To(BeEmpty())
+}
+
+// Test792b28c16a4_RunUpdateSkillRegistration_PropagatesError proves a registration
 // failure is returned to the caller (runPostUpdateChecks then records it on
 // the report rather than failing).
-func TestRunUpdateSkillRegistration_PropagatesError(t *testing.T) {
+func Test792b28c16a4_RunUpdateSkillRegistration_PropagatesError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -110,6 +85,31 @@ func TestRunUpdateSkillRegistration_PropagatesError(t *testing.T) {
 
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(err).To(MatchError(errSkillRegUpdateFixture))
+}
+
+// Test792b28c16a5_RunPostUpdateChecks_SkillRegistrationError_SetsReportFieldDoesNotFailChecks
+// covers update-deploy-sync: "Registration failures SHALL be reported and
+// SHALL NOT roll back the deploy" — a registration failure lands on
+// report.SkillRegistrationErr, and runPostUpdateChecks itself still returns
+// nil.
+func Test792b28c16a5_RunPostUpdateChecks_SkillRegistrationError_SetsReportFieldDoesNotFailChecks(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := updateDeps{
+		FS:       skillRegUpdateStubFS{},
+		Env:      skillRegUpdateStubEnv{},
+		SkillReg: skillRegUpdateDepsFixture(nil, failingSkillRegGetwd),
+	}
+
+	report := update.Report{Home: "/home/x", Source: update.SourceInfo{Root: "/repo"}}
+
+	var stdout bytesBufferForTest
+
+	err := runPostUpdateChecks(context.Background(), UpdateArgs{}, deps, &report, &stdout)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.SkillRegistrationErr).To(ContainSubstring("injected"))
 }
 
 // unexported variables.

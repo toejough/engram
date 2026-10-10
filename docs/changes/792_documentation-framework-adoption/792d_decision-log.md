@@ -1616,3 +1616,39 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792d30, 792d51, 792d52, 792d101, 792d103 and 792d104.
 - **Alternatives:** make manifest mode a requirement of its own with a product scenario. Rejected because the
   product never exposes it (792d6).
+
+## 792d106 skill-runbook-registration scope, and the behaviors the code shows
+
+- **Choice:**
+  - 792a12 has twenty-two requirements (792a12a to 792a12v). The source scans keep their user-visible
+    scenarios in the product spec (792a12j to 792a12n), as the OpenSpec file did; their mechanics, such as
+    the package filters and the trust gate, are skill-source-discovery's (792c7k2). The accept actions, the
+    offer comparison, the answers and the declines file are skill-registration-ledger's (792c7k3), so the
+    accept-action tests the catalog deferred to this node are renamed there.
+  - The pending-offer warning that a write prints after an accepted registration (``warning: vault holds
+    pending offer(s) awaiting curation …``) belongs to curate (792c7u1) and is not specified here.
+  - The registration step of `engram update` takes 792b28c16 in self-installer, with its six tests.
+  - The tests of the three skill fields that the catalog deferred to this node take note-document-format
+    scenarios (792b6c9, 792b6c10): the render tests and the 15 survival tests of the other writers; the
+    amend tests take the amend scenario and the two learn tests take 792b12c7.
+- **Divergences noted (792d33):**
+  - A skill note is found only when its slug begins `skill-`: a runbook with `skill_hash` and a matching
+    `skill_key` under another slug is not read, so registering its key is offered again. The OpenSpec file
+    said only that a slug never identifies a note.
+  - The Pi sources and `~/.agents/skills` are read only when `~/.pi` exists, and the Claude Code sources only
+    when `~/.claude` exists, although the OpenSpec scenarios do not say so.
+  - At the per-offer prompt any answer other than `y` or `yes` declines and records the hash, while end of
+    input records nothing.
+  - `--dry-run` does not run `--adopt`, and `--accept` with `--dry-run` answers nothing.
+  - A source path in an offer line is the fully resolved path (for example `/private/tmp/…` on macOS), while
+    the note's `skill_source` is home-relative against the resolved home.
+  - `register-skills` against a temporary HOME, vault and XDG directories, without a terminal: the dry run
+    grouped offers by scope, `--accept` registered a note with the preamble, `skill_hash`, `skill_key`,
+    `skill_source`, `pending: true` and a sidecar, `--decline @pi-user` recorded a version-2 declines file, a
+    refresh kept the body's new text and set `pending`, a removal was reported but not carried out by
+    `--accept '*'` and was carried out by its exact key, two Pi skills of one name and different bytes made
+    exit status 1 with a conflict line, `--skills-dir` refused `--accept`, and `--adopt` renamed a runbook note,
+    recorded its old basename under `aliases` and kept its authored fields.
+- **Rationale:** 792d30, 792d57, 792d61, 792d68 and 792d104.
+- **Alternatives:** port the scan mechanics into the product spec. Rejected because package filters and trust
+  decisions are not behavior a user states.

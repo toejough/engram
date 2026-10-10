@@ -236,8 +236,8 @@ flowchart TD
   N792c7j1["792c7j1 install-and-update product spec<br/>Complete"]
   N792c7j2["792c7j2 self-installer tech spec<br/>Complete"]
   N792c7j3["792c7j3 harness-deploy-sync tech spec<br/>Complete"]
-  N792c7k1["792c7k1 skill-runbook-registration product spec<br/>Ready"]
-  N792c7k2["792c7k2 skill-source-discovery tech spec<br/>Blocked by: 792c7k1"]
+  N792c7k1["792c7k1 skill-runbook-registration product spec<br/>Complete"]
+  N792c7k2["792c7k2 skill-source-discovery tech spec<br/>Ready"]
   N792c7k3["792c7k3 skill-registration-ledger tech spec<br/>Blocked by: 792c7k2"]
   N792c7l1["792c7l1 write-memory product spec<br/>Blocked by: 792c7k3"]
   N792c7l2["792c7l2 agent-instruction-bundle tech spec<br/>Blocked by: 792c7l1"]
@@ -3535,11 +3535,74 @@ Target: `792a12` (`docs/specs/product/skill-runbook-registration.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7k1a | Port product requirements and UAT to `792a12` | Non-test action | Moves current behavior into the framework format | Not started |
-| 792c7k1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7k1c | Repoint stale references to `792a12` | Non-test action | Keeps live links valid | Not started |
-| 792c7k1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Not started |
-| 792c7k1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Not started |
+| 792c7k1a | Port product requirements and UAT to `792a12` | Non-test action | Moves current behavior into the framework format | Done |
+| 792c7k1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7k1c | Repoint stale references to `792a12` | Non-test action | Keeps live links valid | Done |
+| 792c7k1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Done |
+| 792c7k1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
+
+792a12 has twenty-two requirements (792a12a to 792a12v): the untouched skill files, the one note per key,
+offers and declines, the accepted registration, refresh and removal, the terminal gate, the standalone
+command, adoption, the Claude, Pi, plugin and project sources, the harness gate, the keys, copies and
+conflicts, removal eligibility, scopes and answers, the declines file, the update step, the skill identity
+fields, and the skill note as a runbook (792d106). Extended components: note-document-format gains 792b6c9
+(the three fields in the document) and 792b6c10 (every other writer keeps them), note-authoring gains
+792b12c7 (learn never writes them), note-reparenting gains mappings for adoption (792b27c6, 792b27c7), and
+self-installer gains 792b28c16 (the registration step). command-line-surface and harness-deploy-sync gain
+nothing: the `register-skills` flags and routing are skill-registration-ledger's (792c7k3), and the
+harness detection the sources use is 792b29c1 as it stands. Legacy removal: ADR-0015's and ADR-0026's
+2026-09-26 amendments, the `update-deploy-sync` spec, the "no metadata" requirement of
+`skill-runbook-registration`, the skill runbook note requirement of `learn-runbook-capture` and the two
+skill-field requirements of `vault-note-identity` are deleted; `skill-runbook-registration` keeps its
+scan, key, conflict, offer, answer, ledger and action requirements for 792c7k2 and 792c7k3; the README
+citation points at 792a12.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b6c9a1 | `TestRenderRunbookFrontmatter_IncludesSkillHashWhenSet` → `Test792b6c9a1_RenderRunbookFrontmatter_IncludesSkillHashWhenSet` | Pure unit (string rendering) | The hash is written when set | Done |
+| 792b6c9a2 | `TestRenderRunbookFrontmatter_IncludesSkillKeyAndSourceWhenSet` → `Test792b6c9a2_RenderRunbookFrontmatter_IncludesSkillKeyAndSourceWhenSet` | Pure unit (string rendering) | The key and source are written when set | Done |
+| 792b6c9a3 | `TestRenderRunbookFrontmatter_OmitsSkillHashWhenAbsent` → `Test792b6c9a3_RenderRunbookFrontmatter_OmitsSkillHashWhenAbsent` | Pure unit (string rendering) | The hash is left out when absent | Done |
+| 792b6c9a4 | `TestRenderRunbookFrontmatter_OmitsSkillKeyAndSourceWhenAbsent` → `Test792b6c9a4_RenderRunbookFrontmatter_OmitsSkillKeyAndSourceWhenAbsent` | Pure unit (string rendering) | The key and source are left out when absent | Done |
+| 792b6c9a5 | `TestRenderRunbookFrontmatter_SkillHashRoundtripFidelity` → `Test792b6c9a5_RenderRunbookFrontmatter_SkillHashRoundtripFidelity` | Pure unit (string rendering) | A hash reads back unchanged | Done |
+| 792b6c9a6 | `TestRenderRunbookFrontmatter_SkillKeySourceRoundtripProperty` → `Test792b6c9a6_RenderRunbookFrontmatter_SkillKeySourceRoundtripProperty` | Property (rapid) | Any key and source read back unchanged | Done |
+| 792b6c10a1 | `TestSkillIdentityFieldsSurvive_AmendClearPending` → `Test792b6c10a1_SkillIdentityFieldsSurvive_AmendClearPending` | Pure unit over an in-memory vault | Amend keeps the fields | Done |
+| 792b6c10a1 | `TestSkillIdentityFieldsSurvive_AmendClearPendingProperty` → `Test792b6c10a1_SkillIdentityFieldsSurvive_AmendClearPendingProperty` | Property (rapid) | Amend keeps the fields; property over key spellings | Done |
+| 792b6c10a1 | `TestSkillIdentityFieldsSurvive_AmendContentChanged` → `Test792b6c10a1_SkillIdentityFieldsSurvive_AmendContentChanged` | Pure unit over an in-memory vault | Amend keeps the fields | Done |
+| 792b6c10a1 | `TestSkillIdentityFieldsSurvive_AmendKeyEndingInDashes` → `Test792b6c10a1_SkillIdentityFieldsSurvive_AmendKeyEndingInDashes` | Pure unit over an in-memory vault | Amend keeps the fields | Done |
+| 792b6c10a5 | `TestSkillIdentityFieldsSurvive_BackfillIdentity` → `Test792b6c10a5_SkillIdentityFieldsSurvive_BackfillIdentity` | Pure unit over an in-memory vault | The identity backfill keeps the fields | Done |
+| 792b6c10a6 | `TestSkillIdentityFieldsSurvive_ClearRemovedVocabTerms` → `Test792b6c10a6_SkillIdentityFieldsSurvive_ClearRemovedVocabTerms` | Pure unit over an in-memory vault | Vocabulary rewrites keep the fields | Done |
+| 792b6c10a4 | `TestSkillIdentityFieldsSurvive_RemoveDeletedNoteReferences` → `Test792b6c10a4_SkillIdentityFieldsSurvive_RemoveDeletedNoteReferences` | Pure unit over an in-memory vault | Link rewrites keep the fields | Done |
+| 792b6c10a3 | `TestSkillIdentityFieldsSurvive_ReparentRenamesSkillNote` → `Test792b6c10a3_SkillIdentityFieldsSurvive_ReparentRenamesSkillNote` | Pure unit over an in-memory vault | Re-parenting keeps the fields | Done |
+| 792b6c10a2 | `TestSkillIdentityFieldsSurvive_Resituate` → `Test792b6c10a2_SkillIdentityFieldsSurvive_Resituate` | Pure unit over an in-memory vault | Resituate keeps the fields | Done |
+| 792b6c10a6 | `TestSkillIdentityFieldsSurvive_StripLegacyVocabChannel` → `Test792b6c10a6_SkillIdentityFieldsSurvive_StripLegacyVocabChannel` | Pure unit over an in-memory vault | Vocabulary rewrites keep the fields | Done |
+| 792b6c10a6 | `TestSkillIdentityFieldsSurvive_VocabAssignment` → `Test792b6c10a6_SkillIdentityFieldsSurvive_VocabAssignment` | Pure unit over an in-memory vault | Vocabulary rewrites keep the fields | Done |
+| 792b6c10a6 | `TestSkillIdentityFieldsSurvive_VocabAssignmentAndWikilinkProperty` → `Test792b6c10a6_SkillIdentityFieldsSurvive_VocabAssignmentAndWikilinkProperty` | Property (rapid) | Vocabulary rewrites keep the fields; property | Done |
+| 792b6c10a6 | `TestSkillIdentityFieldsSurvive_VocabTagDefinitions` → `Test792b6c10a6_SkillIdentityFieldsSurvive_VocabTagDefinitions` | Pure unit over an in-memory vault | Vocabulary rewrites keep the fields | Done |
+| 792b6c10a6 | `TestSkillIdentityFieldsSurvive_VocabVersionKey` → `Test792b6c10a6_SkillIdentityFieldsSurvive_VocabVersionKey` | Pure unit over an in-memory vault | Vocabulary rewrites keep the fields | Done |
+| 792b6c10a4 | `TestSkillIdentityFieldsSurvive_WikilinkRewrite` → `Test792b6c10a4_SkillIdentityFieldsSurvive_WikilinkRewrite` | Pure unit over an in-memory vault | Link rewrites keep the fields | Done |
+| 792b6c10a1 | `TestRunAmend_Runbook_PreservesSkillHash_ContentChanged` → `Test792b6c10a1_RunAmend_Runbook_PreservesSkillHash_ContentChanged` | Pure unit over an in-memory vault | Amend keeps the fields | Done |
+| 792b6c10a1 | `TestRunAmend_Runbook_PreservesSkillHash_IdentityOnlyRestamp` → `Test792b6c10a1_RunAmend_Runbook_PreservesSkillHash_IdentityOnlyRestamp` | Pure unit over an in-memory vault | Amend keeps the fields | Done |
+| 792b12c7a1 | `TestRunLearn_Runbook_NeverWritesSkillHash` → `Test792b12c7a1_RunLearn_Runbook_NeverWritesSkillHash` | Pure unit (`RunLearn` over an in-memory vault) | A captured runbook has no skill hash | Done |
+| 792b12c7a2 | `TestRunLearn_Runbook_NeverWritesSkillKeyOrSource` → `Test792b12c7a2_RunLearn_Runbook_NeverWritesSkillKeyOrSource` | Pure unit (`RunLearn` over an in-memory vault) | A captured runbook has no skill key or source | Done |
+| 792b28c16a5 | `TestRunPostUpdateChecks_SkillRegistrationError_SetsReportFieldDoesNotFailChecks` → `Test792b28c16a5_RunPostUpdateChecks_SkillRegistrationError_SetsReportFieldDoesNotFailChecks` | Pure unit (`runUpdateSkillRegistration` over fakes) | A failure is recorded and does not fail the checks | Done |
+| 792b28c16a1 | `TestRunUpdateSkillRegistration_DryRunListsOffers` → `Test792b28c16a1_RunUpdateSkillRegistration_DryRunListsOffers` | Pure unit (`runUpdateSkillRegistration` over fakes) | The step forwards the dry-run flag and reads the default sources | Done |
+| 792b28c16a3 | `TestRunUpdateSkillRegistration_NoOpWhenSkillRegUnconfigured` → `Test792b28c16a3_RunUpdateSkillRegistration_NoOpWhenSkillRegUnconfigured` | Pure unit (`runUpdateSkillRegistration` over fakes) | An unconfigured step does nothing | Done |
+| 792b28c16a2 | `TestRunUpdateSkillRegistration_NonInteractive_ReportsSummary` → `Test792b28c16a2_RunUpdateSkillRegistration_NonInteractive_ReportsSummary` | Pure unit (`runUpdateSkillRegistration` over fakes) | Without a terminal the step only reports | Done |
+| 792b28c16a4 | `TestRunUpdateSkillRegistration_PropagatesError` → `Test792b28c16a4_RunUpdateSkillRegistration_PropagatesError` | Pure unit (`runUpdateSkillRegistration` over fakes) | The step returns a registration failure | Done |
+| 792b28c16a6 | `TestWriteUpdateReport_SkillRegistrationErrorHint` → `Test792b28c16a6_WriteUpdateReport_SkillRegistrationErrorHint` | Pure unit (report writer) | The report line appears only on failure | Done |
+
+**Coverage gaps:** 792b28c16 has a test for each scenario. Of 792a12, the interactive update (792a12t1a),
+the plugin conflict and the other source scenarios are mapped by 792c7k2 and 792c7k3, where their tests are
+renamed; `register-skills` was run against a built binary with a temporary HOME, vault and XDG directories
+(792d106).
+
+**No-scenario tests:** the accept-action tests that verify 792a12e and 792a12i, left to
+skill-registration-ledger (792c7k3): `crlf_node_edits_test` `TestRefreshSkill_ConvertsCRLFNote`,
+`frontmatter_anchor_test` `TestAdoptSkillNote_RefusesAnchoredPending` and
+`TestRefreshSkill_RefusesAnchoredSkillKey`, and `luhmann_reparent_crlf_test`
+`TestAdoptSkillNote_ConvertsCRLFNote`.
 
 #### 792c7k2 skill-source-discovery tech spec
 

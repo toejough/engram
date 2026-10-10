@@ -29,10 +29,10 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
-// TestSkillIdentityFieldsSurvive_AmendClearPending covers `engram amend
+// Test792b6c10a1_SkillIdentityFieldsSurvive_AmendClearPending covers `engram amend
 // --clear-pending` end to end through the CLI target (amend.go
 // applyRunbookAmend -> renderAmendedRunbook, the no-content-change branch).
-func TestSkillIdentityFieldsSurvive_AmendClearPending(t *testing.T) {
+func Test792b6c10a1_SkillIdentityFieldsSurvive_AmendClearPending(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -50,10 +50,10 @@ func TestSkillIdentityFieldsSurvive_AmendClearPending(t *testing.T) {
 	expectSkillIdentityUnchanged(g, before, string(raw))
 }
 
-// TestSkillIdentityFieldsSurvive_AmendClearPendingProperty is the property
+// Test792b6c10a1_SkillIdentityFieldsSurvive_AmendClearPendingProperty is the property
 // form of the clear-pending case: any skill_key/skill_source value, rendered
 // the way yaml.v3 renders it, survives the amend re-marshal byte-unchanged.
-func TestSkillIdentityFieldsSurvive_AmendClearPendingProperty(t *testing.T) {
+func Test792b6c10a1_SkillIdentityFieldsSurvive_AmendClearPendingProperty(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		key := skillKeyGen().Draw(rt, "skillKey")
@@ -79,10 +79,10 @@ func TestSkillIdentityFieldsSurvive_AmendClearPendingProperty(t *testing.T) {
 	})
 }
 
-// TestSkillIdentityFieldsSurvive_AmendContentChanged covers amend's
+// Test792b6c10a1_SkillIdentityFieldsSurvive_AmendContentChanged covers amend's
 // content-changed branch (renderAmendedRunbook rebuilding the body), the
 // path an agent takes when authoring a registered skill note's situation.
-func TestSkillIdentityFieldsSurvive_AmendContentChanged(t *testing.T) {
+func Test792b6c10a1_SkillIdentityFieldsSurvive_AmendContentChanged(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -107,11 +107,11 @@ func TestSkillIdentityFieldsSurvive_AmendContentChanged(t *testing.T) {
 	expectSkillIdentityUnchanged(g, before, string(written))
 }
 
-// TestSkillIdentityFieldsSurvive_AmendKeyEndingInDashes pins the case the
+// Test792b6c10a1_SkillIdentityFieldsSurvive_AmendKeyEndingInDashes pins the case the
 // clear-pending property found: a skill_key ending in "---" must not be read
 // as the frontmatter's closing delimiter (resituate.go splitFrontmatter,
 // shared by amend), which truncated the frontmatter and dropped the key.
-func TestSkillIdentityFieldsSurvive_AmendKeyEndingInDashes(t *testing.T) {
+func Test792b6c10a1_SkillIdentityFieldsSurvive_AmendKeyEndingInDashes(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -132,93 +132,10 @@ func TestSkillIdentityFieldsSurvive_AmendKeyEndingInDashes(t *testing.T) {
 	expectSkillIdentityUnchanged(g, before, string(written))
 }
 
-// TestSkillIdentityFieldsSurvive_BackfillIdentity covers `engram update
-// --backfill-identity` (identity_backfill.go): it stamps fact/feedback notes
-// only, so a skill (runbook) note missing user:/vault: is never rewritten.
-func TestSkillIdentityFieldsSurvive_BackfillIdentity(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	before := strings.Replace(skillSurvivalNote(), "user: agent@example.com\nvault: personal\n", "", 1)
-	fs := newSkillSurvivalFS(map[string]string{skillSurvivalNoteName: before})
-
-	deps := cli.IdentityDeps{
-		Lock:       func(string) (func(), error) { return func() {}, nil },
-		ListMD:     fs.listMD,
-		ReadFile:   fs.readFile,
-		WriteFile:  fs.writeFile,
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "agent@example.com" },
-		Getenv:     func(string) string { return "" },
-	}
-
-	_, err := cli.ExportBackfillIdentity(t.Context(), "/vault", deps, false)
-	g.Expect(err).NotTo(HaveOccurred())
-	expectSkillIdentityUnchanged(g, before, fs.content(skillSurvivalNoteName))
-}
-
-// TestSkillIdentityFieldsSurvive_ClearRemovedVocabTerms covers vocab refit's
-// term removal (vocab_commands.go clearRemovedTermsFromNote), which rewrites
-// the skill note's tags: block.
-func TestSkillIdentityFieldsSurvive_ClearRemovedVocabTerms(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	before := skillSurvivalNote()
-	fs := newSkillSurvivalFS(map[string]string{skillSurvivalNoteName: before})
-
-	deps := cli.VocabDeps{
-		ListMD: fs.listMD, ReadFile: fs.readFile, WriteFile: fs.writeFile,
-		LogWarning: func(string, ...any) {},
-	}
-
-	err := cli.ExportClearRemovedTermsFromMembers(deps, "/vault", []string{"old-term"})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	after := fs.content(skillSurvivalNoteName)
-	g.Expect(after).NotTo(ContainSubstring("vocab/old-term"), "the rewrite must actually have run")
-	expectSkillIdentityUnchanged(g, before, after)
-}
-
-// TestSkillIdentityFieldsSurvive_RemoveDeletedNoteReferences covers vocab
-// refit's reference scrub (vocab_apply.go removeNoteReferences), which drops
-// a supersedes: entry naming a deleted definition note.
-func TestSkillIdentityFieldsSurvive_RemoveDeletedNoteReferences(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	before := skillSurvivalNote()
-
-	after, changed := cli.ExportRemoveNoteReferences(before, map[string]bool{skillSurvivalSupersededName: true})
-	g.Expect(changed).To(BeTrue(), "the scrub must actually have run")
-	g.Expect(after).NotTo(ContainSubstring(skillSurvivalSupersededName))
-	expectSkillIdentityUnchanged(g, before, after)
-}
-
-// TestSkillIdentityFieldsSurvive_ReparentRenamesSkillNote covers Luhmann
-// reparenting renaming the skill note itself (luhmann_reparent.go
-// renameOneNote -> rewriteLuhmannIDField).
-func TestSkillIdentityFieldsSurvive_ReparentRenamesSkillNote(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	before := skillSurvivalNote()
-	fixture := newReparentFixture(map[string]string{skillSurvivalNoteName: before})
-	oldBasename := strings.TrimSuffix(skillSurvivalNoteName, ".md")
-	newBasename := "3.2026-01-01.skill-superpowers-brainstorming"
-
-	_, err := cli.RenameAndRewriteReferences(fixture.deps(), "/vault", map[string]string{oldBasename: newBasename})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	after := string(fixture.written["/vault/"+newBasename+".md"])
-	g.Expect(after).To(ContainSubstring(`luhmann: "3"`), "the rename must actually have rewritten the note")
-	expectSkillIdentityUnchanged(g, before, after)
-}
-
-// TestSkillIdentityFieldsSurvive_Resituate covers `engram resituate`
+// Test792b6c10a2_SkillIdentityFieldsSurvive_Resituate covers `engram resituate`
 // (resituate.go resituateContent): it re-renders fact/feedback notes only, so
 // a skill (runbook) note is rejected and never written.
-func TestSkillIdentityFieldsSurvive_Resituate(t *testing.T) {
+func Test792b6c10a2_SkillIdentityFieldsSurvive_Resituate(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -242,10 +159,117 @@ func TestSkillIdentityFieldsSurvive_Resituate(t *testing.T) {
 	g.Expect(writes).To(Equal(0), "resituate must never write a skill note")
 }
 
-// TestSkillIdentityFieldsSurvive_StripLegacyVocabChannel covers `engram
+// Test792b6c10a3_SkillIdentityFieldsSurvive_ReparentRenamesSkillNote covers Luhmann
+// reparenting renaming the skill note itself (luhmann_reparent.go
+// renameOneNote -> rewriteLuhmannIDField).
+func Test792b6c10a3_SkillIdentityFieldsSurvive_ReparentRenamesSkillNote(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	before := skillSurvivalNote()
+	fixture := newReparentFixture(map[string]string{skillSurvivalNoteName: before})
+	oldBasename := strings.TrimSuffix(skillSurvivalNoteName, ".md")
+	newBasename := "3.2026-01-01.skill-superpowers-brainstorming"
+
+	_, err := cli.RenameAndRewriteReferences(fixture.deps(), "/vault", map[string]string{oldBasename: newBasename})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	after := string(fixture.written["/vault/"+newBasename+".md"])
+	g.Expect(after).To(ContainSubstring(`luhmann: "3"`), "the rename must actually have rewritten the note")
+	expectSkillIdentityUnchanged(g, before, after)
+}
+
+// Test792b6c10a4_SkillIdentityFieldsSurvive_RemoveDeletedNoteReferences covers vocab
+// refit's reference scrub (vocab_apply.go removeNoteReferences), which drops
+// a supersedes: entry naming a deleted definition note.
+func Test792b6c10a4_SkillIdentityFieldsSurvive_RemoveDeletedNoteReferences(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	before := skillSurvivalNote()
+
+	after, changed := cli.ExportRemoveNoteReferences(before, map[string]bool{skillSurvivalSupersededName: true})
+	g.Expect(changed).To(BeTrue(), "the scrub must actually have run")
+	g.Expect(after).NotTo(ContainSubstring(skillSurvivalSupersededName))
+	expectSkillIdentityUnchanged(g, before, after)
+}
+
+// Test792b6c10a4_SkillIdentityFieldsSurvive_WikilinkRewrite covers rename-and-rewrite
+// of a wikilink inside a skill note's frontmatter and body
+// (luhmann_reparent.go rewriteNoteReferences), when a note the skill note
+// links to is renamed.
+func Test792b6c10a4_SkillIdentityFieldsSurvive_WikilinkRewrite(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	before := skillSurvivalNote()
+	fixture := newReparentFixture(map[string]string{
+		skillSurvivalNoteName:           before,
+		skillSurvivalLinkTarget + ".md": "---\ntype: fact\nluhmann: \"2\"\n---\n\nTarget.\n",
+	})
+
+	_, err := cli.RenameAndRewriteReferences(fixture.deps(), "/vault",
+		map[string]string{skillSurvivalLinkTarget: "4.2026-01-01.old-target"})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	after := string(fixture.written["/vault/"+skillSurvivalNoteName])
+	g.Expect(after).To(ContainSubstring("red_flags:\n    - skipped the checklist in [[4.2026-01-01.old-target]]"),
+		"the frontmatter wikilink must actually have been rewritten")
+	expectSkillIdentityUnchanged(g, before, after)
+}
+
+// Test792b6c10a5_SkillIdentityFieldsSurvive_BackfillIdentity covers `engram update
+// --backfill-identity` (identity_backfill.go): it stamps fact/feedback notes
+// only, so a skill (runbook) note missing user:/vault: is never rewritten.
+func Test792b6c10a5_SkillIdentityFieldsSurvive_BackfillIdentity(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	before := strings.Replace(skillSurvivalNote(), "user: agent@example.com\nvault: personal\n", "", 1)
+	fs := newSkillSurvivalFS(map[string]string{skillSurvivalNoteName: before})
+
+	deps := cli.IdentityDeps{
+		Lock:       func(string) (func(), error) { return func() {}, nil },
+		ListMD:     fs.listMD,
+		ReadFile:   fs.readFile,
+		WriteFile:  fs.writeFile,
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "agent@example.com" },
+		Getenv:     func(string) string { return "" },
+	}
+
+	_, err := cli.ExportBackfillIdentity(t.Context(), "/vault", deps, false)
+	g.Expect(err).NotTo(HaveOccurred())
+	expectSkillIdentityUnchanged(g, before, fs.content(skillSurvivalNoteName))
+}
+
+// Test792b6c10a6_SkillIdentityFieldsSurvive_ClearRemovedVocabTerms covers vocab refit's
+// term removal (vocab_commands.go clearRemovedTermsFromNote), which rewrites
+// the skill note's tags: block.
+func Test792b6c10a6_SkillIdentityFieldsSurvive_ClearRemovedVocabTerms(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	before := skillSurvivalNote()
+	fs := newSkillSurvivalFS(map[string]string{skillSurvivalNoteName: before})
+
+	deps := cli.VocabDeps{
+		ListMD: fs.listMD, ReadFile: fs.readFile, WriteFile: fs.writeFile,
+		LogWarning: func(string, ...any) {},
+	}
+
+	err := cli.ExportClearRemovedTermsFromMembers(deps, "/vault", []string{"old-term"})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	after := fs.content(skillSurvivalNoteName)
+	g.Expect(after).NotTo(ContainSubstring("vocab/old-term"), "the rewrite must actually have run")
+	expectSkillIdentityUnchanged(g, before, after)
+}
+
+// Test792b6c10a6_SkillIdentityFieldsSurvive_StripLegacyVocabChannel covers `engram
 // update --regen-vocab`'s legacy cleanup (vocab_regen.go
 // stripLegacyVocabChannel), which removes a vocab: frontmatter line.
-func TestSkillIdentityFieldsSurvive_StripLegacyVocabChannel(t *testing.T) {
+func Test792b6c10a6_SkillIdentityFieldsSurvive_StripLegacyVocabChannel(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -257,11 +281,11 @@ func TestSkillIdentityFieldsSurvive_StripLegacyVocabChannel(t *testing.T) {
 	expectSkillIdentityUnchanged(g, before, after)
 }
 
-// TestSkillIdentityFieldsSurvive_VocabAssignment covers vocab term
+// Test792b6c10a6_SkillIdentityFieldsSurvive_VocabAssignment covers vocab term
 // assignment (vocab.go WriteVocabAssignment -> rewriteTagsFrontmatterSplit),
 // shared by the post-write assignment in learn/amend/resituate and by `engram
 // vocab` retagging (vocab_commands.go assignVocabToNote).
-func TestSkillIdentityFieldsSurvive_VocabAssignment(t *testing.T) {
+func Test792b6c10a6_SkillIdentityFieldsSurvive_VocabAssignment(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -272,11 +296,11 @@ func TestSkillIdentityFieldsSurvive_VocabAssignment(t *testing.T) {
 	expectSkillIdentityUnchanged(g, before, after)
 }
 
-// TestSkillIdentityFieldsSurvive_VocabAssignmentAndWikilinkProperty is the
+// Test792b6c10a6_SkillIdentityFieldsSurvive_VocabAssignmentAndWikilinkProperty is the
 // property form of the line-based rewrites: for any skill_key/skill_source
 // value, vocab tag assignment followed by a frontmatter wikilink rewrite
 // leaves all three identity blocks byte-unchanged.
-func TestSkillIdentityFieldsSurvive_VocabAssignmentAndWikilinkProperty(t *testing.T) {
+func Test792b6c10a6_SkillIdentityFieldsSurvive_VocabAssignmentAndWikilinkProperty(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		key := skillKeyGen().Draw(rt, "skillKey")
@@ -298,10 +322,10 @@ func TestSkillIdentityFieldsSurvive_VocabAssignmentAndWikilinkProperty(t *testin
 	})
 }
 
-// TestSkillIdentityFieldsSurvive_VocabTagDefinitions covers `engram vocab
+// Test792b6c10a6_SkillIdentityFieldsSurvive_VocabTagDefinitions covers `engram vocab
 // tag-definitions` (vocab_commands.go runVocabTagDefinitions), which rewrites
 // definition notes only — a skill note is never written.
-func TestSkillIdentityFieldsSurvive_VocabTagDefinitions(t *testing.T) {
+func Test792b6c10a6_SkillIdentityFieldsSurvive_VocabTagDefinitions(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -321,11 +345,11 @@ func TestSkillIdentityFieldsSurvive_VocabTagDefinitions(t *testing.T) {
 	g.Expect(fs.writes).To(BeEmpty(), "tag-definitions must never write a skill note")
 }
 
-// TestSkillIdentityFieldsSurvive_VocabVersionKey covers the vocab_version
+// Test792b6c10a6_SkillIdentityFieldsSurvive_VocabVersionKey covers the vocab_version
 // rewrite (vocab_commands.go writeVocabVersionToFamilyNote ->
 // rewriteVocabVersionKey), which targets the vocab family note only — a
 // skill note alongside it is never written.
-func TestSkillIdentityFieldsSurvive_VocabVersionKey(t *testing.T) {
+func Test792b6c10a6_SkillIdentityFieldsSurvive_VocabVersionKey(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -339,30 +363,6 @@ func TestSkillIdentityFieldsSurvive_VocabVersionKey(t *testing.T) {
 	err := cli.ExportWriteVocabVersionToFamilyNote("/vault", "1.1", fs.listMD, fs.readFile, fs.writeFile)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(fs.writes).To(ConsistOf(filepath.Join("/vault", familyName)))
-}
-
-// TestSkillIdentityFieldsSurvive_WikilinkRewrite covers rename-and-rewrite
-// of a wikilink inside a skill note's frontmatter and body
-// (luhmann_reparent.go rewriteNoteReferences), when a note the skill note
-// links to is renamed.
-func TestSkillIdentityFieldsSurvive_WikilinkRewrite(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	before := skillSurvivalNote()
-	fixture := newReparentFixture(map[string]string{
-		skillSurvivalNoteName:           before,
-		skillSurvivalLinkTarget + ".md": "---\ntype: fact\nluhmann: \"2\"\n---\n\nTarget.\n",
-	})
-
-	_, err := cli.RenameAndRewriteReferences(fixture.deps(), "/vault",
-		map[string]string{skillSurvivalLinkTarget: "4.2026-01-01.old-target"})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	after := string(fixture.written["/vault/"+skillSurvivalNoteName])
-	g.Expect(after).To(ContainSubstring("red_flags:\n    - skipped the checklist in [[4.2026-01-01.old-target]]"),
-		"the frontmatter wikilink must actually have been rewritten")
-	expectSkillIdentityUnchanged(g, before, after)
 }
 
 // unexported constants.

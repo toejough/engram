@@ -1305,6 +1305,27 @@ func Test792b28c15a5_FinishUpdate_ExitStatusProperty(t *testing.T) {
 	})
 }
 
+// Test792b28c16a6_WriteUpdateReport_SkillRegistrationErrorHint covers update-deploy-sync:
+// "Registration failures SHALL be reported" — a non-empty
+// SkillRegistrationErr prints a one-line notice; an empty one is silent.
+func Test792b28c16a6_WriteUpdateReport_SkillRegistrationErrorHint(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buffer bytes.Buffer
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{SkillRegistrationErr: "boom"})
+	g.Expect(writeErr).NotTo(HaveOccurred())
+	g.Expect(buffer.String()).To(ContainSubstring("skill registration error: boom"))
+
+	var clean bytes.Buffer
+
+	cleanErr := cli.ExportWriteUpdateReport(&clean, update.Report{})
+	g.Expect(cleanErr).NotTo(HaveOccurred())
+	g.Expect(clean.String()).NotTo(ContainSubstring("skill registration error"))
+}
+
 func Test792b29c17a1_WriteUpdateReport_EngramRootNotice(t *testing.T) {
 	t.Parallel()
 
@@ -1658,27 +1679,6 @@ func TestWriteUpdateReport_PendingOfferHint(t *testing.T) {
 	cleanErr := cli.ExportWriteUpdateReport(&clean, update.Report{VaultHasPendingOffers: false})
 	g.Expect(cleanErr).NotTo(HaveOccurred())
 	g.Expect(clean.String()).NotTo(ContainSubstring("pending offer"))
-}
-
-// TestWriteUpdateReport_SkillRegistrationErrorHint covers update-deploy-sync:
-// "Registration failures SHALL be reported" — a non-empty
-// SkillRegistrationErr prints a one-line notice; an empty one is silent.
-func TestWriteUpdateReport_SkillRegistrationErrorHint(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	var buffer bytes.Buffer
-
-	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{SkillRegistrationErr: "boom"})
-	g.Expect(writeErr).NotTo(HaveOccurred())
-	g.Expect(buffer.String()).To(ContainSubstring("skill registration error: boom"))
-
-	var clean bytes.Buffer
-
-	cleanErr := cli.ExportWriteUpdateReport(&clean, update.Report{})
-	g.Expect(cleanErr).NotTo(HaveOccurred())
-	g.Expect(clean.String()).NotTo(ContainSubstring("skill registration error"))
 }
 
 // fixedHomeUpdateEnv is a fake update.Env with a fixed home dir and

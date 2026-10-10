@@ -1205,6 +1205,69 @@ func Test792b18c13a1_BuildChunkIDSet_ReturnsSourceAnchorKeys(t *testing.T) {
 	g.Expect(ids["nonexistent#anchor"]).To(BeFalse(), "absent id must not be in set")
 }
 
+// Test792b6c10a1_RunAmend_Runbook_PreservesSkillHash_ContentChanged proves amend never
+// drops or alters skill_hash when rewriting a runbook note that carries it,
+// even along the content-changed render path that rebuilds the body
+// (vault-note-identity spec: "amend re-stamps repo/user/vault but SHALL NOT
+// drop or alter skill_hash" — only registration ever changes it).
+func Test792b6c10a1_RunAmend_Runbook_PreservesSkillHash_ContentChanged(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	noteContent := []byte("---\ntype: runbook\ntier: L2\nsituation: ctx\ndone_when: old done\n" +
+		"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\nskill_hash: abc123def456\n---\n\n1. step\n")
+
+	var (
+		written []byte
+		writes  int
+	)
+
+	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", DoneWhen: "new done"}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, runbookAmendDeps(noteContent, &written, &writes), &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	body := string(written)
+	g.Expect(body).To(ContainSubstring("done_when: new done"))
+	g.Expect(body).To(ContainSubstring("skill_hash: abc123def456"))
+}
+
+// Test792b6c10a1_RunAmend_Runbook_PreservesSkillHash_IdentityOnlyRestamp covers the
+// other render path in applyRunbookAmend/renderAmendedRunbook: an amend that
+// only re-stamps identity (no content flags supplied) still preserves
+// skill_hash unchanged.
+func Test792b6c10a1_RunAmend_Runbook_PreservesSkillHash_IdentityOnlyRestamp(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	noteContent := []byte("---\ntype: runbook\ntier: L2\nsituation: ctx\ndone_when: done\n" +
+		"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\nskill_hash: abc123def456\n---\n\n1. step\n")
+
+	var (
+		written []byte
+		writes  int
+	)
+
+	args := cli.AmendArgs{Vault: "/vault", Target: "1aa"}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, runbookAmendDeps(noteContent, &written, &writes), &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(written)).To(ContainSubstring("skill_hash: abc123def456"))
+}
+
 // Test792b6c7a1_RunAmend_PreservesTagsFrontmatter (#674): amending a content field of a
 // tagged fact note must not drop tags: — factFrontmatterDoc.Tags carries the
 // list through amend's decode→override→render cycle. No --tag flag exists on
@@ -1347,69 +1410,6 @@ func TestDiscardNote_TreatsMissingSidecarAsSuccess(t *testing.T) {
 	err := cli.ExportDiscardNote(deps, "/vault/1.note.md", &buf)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(buf.String()).To(Equal("/vault/1.note.md\n"))
-}
-
-// TestRunAmend_Runbook_PreservesSkillHash_ContentChanged proves amend never
-// drops or alters skill_hash when rewriting a runbook note that carries it,
-// even along the content-changed render path that rebuilds the body
-// (vault-note-identity spec: "amend re-stamps repo/user/vault but SHALL NOT
-// drop or alter skill_hash" — only registration ever changes it).
-func TestRunAmend_Runbook_PreservesSkillHash_ContentChanged(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	noteContent := []byte("---\ntype: runbook\ntier: L2\nsituation: ctx\ndone_when: old done\n" +
-		"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\nskill_hash: abc123def456\n---\n\n1. step\n")
-
-	var (
-		written []byte
-		writes  int
-	)
-
-	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", DoneWhen: "new done"}
-
-	var buf bytes.Buffer
-
-	err := cli.ExportRunAmend(t.Context(), args, runbookAmendDeps(noteContent, &written, &writes), &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	body := string(written)
-	g.Expect(body).To(ContainSubstring("done_when: new done"))
-	g.Expect(body).To(ContainSubstring("skill_hash: abc123def456"))
-}
-
-// TestRunAmend_Runbook_PreservesSkillHash_IdentityOnlyRestamp covers the
-// other render path in applyRunbookAmend/renderAmendedRunbook: an amend that
-// only re-stamps identity (no content flags supplied) still preserves
-// skill_hash unchanged.
-func TestRunAmend_Runbook_PreservesSkillHash_IdentityOnlyRestamp(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	noteContent := []byte("---\ntype: runbook\ntier: L2\nsituation: ctx\ndone_when: done\n" +
-		"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\nskill_hash: abc123def456\n---\n\n1. step\n")
-
-	var (
-		written []byte
-		writes  int
-	)
-
-	args := cli.AmendArgs{Vault: "/vault", Target: "1aa"}
-
-	var buf bytes.Buffer
-
-	err := cli.ExportRunAmend(t.Context(), args, runbookAmendDeps(noteContent, &written, &writes), &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(string(written)).To(ContainSubstring("skill_hash: abc123def456"))
 }
 
 // spyEmbedder is an embed.Embedder that records whether Embed was called.

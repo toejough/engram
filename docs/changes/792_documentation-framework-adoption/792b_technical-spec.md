@@ -2055,8 +2055,8 @@ Canonical target: `docs/specs/technical/note-document-format.md` (title `Note Do
   hand-edited and Obsidian-edited notes depend on it; necessity, every note engram writes or reads
   passes through it.
 - Supported capabilities: 792a3 note-writing, 792a4 note-revision, 792a6 controlled-vocabulary.
-  Vault-counting, skill-runbook-registration and parent-sync add their requirements here (792d30,
-  792d61).
+  Skill-runbook-registration (792a12) adds 792b6c9 and 792b6c10. Vault-counting and parent-sync add
+  their requirements here (792d30, 792d61).
 
 Rationale: the vault is flat. Notes sit at the vault root, and a note's place in the hierarchy is
 carried by the Luhmann ID that leads its filename, not by a folder (792a2c). A fact or feedback note
@@ -2376,6 +2376,99 @@ Scenario: 792b6c8a1 CRLF pairs become LF
   Then it is "a\nb\rc\n\n", and text without CRLF is unchanged
 ```
 
+#### 792b6c9 Skill identity fields
+
+Requirement: 792b6c9 The note-document-format MUST write a runbook's `skill_hash`, `skill_key` and
+`skill_source`, at the place 792b6c3 gives them, only when each is non-empty, and MUST read back exactly
+what it wrote for any hash, key and source.
+
+Supports: 792a12d1a, 792a12u1g.
+
+Rationale: a runbook note that mirrors a skill is identified by these three fields (792a12b), so a value
+that does not survive a render and parse would make the note unfindable or its offer unstable.
+
+##### 792b6c9a Scenarios
+
+```gherkin
+Scenario: 792b6c9a1 The hash is written when set
+  Given a runbook with a skill_hash
+  When its frontmatter is rendered
+  Then it contains skill_hash with that value
+
+Scenario: 792b6c9a2 The key and source are written when set
+  Given a runbook with a skill_key and a skill_source
+  When its frontmatter is rendered
+  Then it contains both with their values
+
+Scenario: 792b6c9a3 The hash is left out when absent
+  Given a runbook with no skill_hash
+  When its frontmatter is rendered
+  Then it has no skill_hash key
+
+Scenario: 792b6c9a4 The key and source are left out when absent
+  Given a runbook with no skill_key and no skill_source
+  When its frontmatter is rendered
+  Then it has neither key
+
+Scenario: 792b6c9a5 A hash reads back unchanged
+  Given a runbook with a 64-character hash
+  When its frontmatter is rendered and parsed
+  Then the parsed hash equals the original
+
+Scenario: 792b6c9a6 Any key and source read back unchanged
+  Given any source-qualified key and any path
+  When a runbook carrying them is rendered and parsed
+  Then both read back unchanged
+```
+
+#### 792b6c10 Rewrites by other writers keep the skill identity fields
+
+Requirement: 792b6c10 Every writer other than registration that rewrites a note's frontmatter MUST leave
+`skill_hash`, `skill_key` and `skill_source` as they were: `engram amend` (a content change, an
+identity-only re-stamp, `--clear-pending` and a key that ends in dashes), `engram resituate`, the rename
+of Luhmann re-parenting, the rewrite of wikilinks and the removal of references to deleted notes, the
+identity backfill, and the vocabulary rewrites (assignment, clearing removed terms, definition tagging,
+the version key and the strip of the legacy channel).
+
+Supports: 792a12u1a, 792a12u1b, 792a12u1c, 792a12u1d, 792a12u1e, 792a12u1f.
+
+Rationale: only registration may change them, because registration compares a note's hash with the
+source's to decide whether a skill changed.
+
+##### 792b6c10a Scenarios
+
+```gherkin
+Scenario: 792b6c10a1 Amend keeps the fields
+  Given a runbook carrying all three skill fields
+  When it is amended by a content change, an identity-only re-stamp or --clear-pending, for any key spelling
+  Then the three fields are unchanged in the written note
+
+Scenario: 792b6c10a2 Resituate keeps the fields
+  Given a runbook carrying all three skill fields
+  When it is resituated
+  Then the three fields are unchanged
+
+Scenario: 792b6c10a3 Re-parenting keeps the fields
+  Given a skill note renamed by Luhmann re-parenting
+  When the rename is written
+  Then the three fields are unchanged in the renamed note
+
+Scenario: 792b6c10a4 Link rewrites keep the fields
+  Given a skill note whose frontmatter links are rewritten or whose references to a deleted note are removed
+  When the rewrite is written
+  Then the three fields are unchanged
+
+Scenario: 792b6c10a5 The identity backfill keeps the fields
+  Given a skill note that the identity backfill stamps
+  When the backfill is written
+  Then the three skill fields are unchanged
+
+Scenario: 792b6c10a6 Vocabulary rewrites keep the fields
+  Given a skill note whose tags, vocabulary version or legacy vocabulary channel are rewritten
+  When the rewrite is written
+  Then the three fields are unchanged
+```
+
 ### 792b6d Product-Scenario Mapping
 
 | Product scenario | Technical requirements |
@@ -2421,6 +2514,14 @@ Scenario: 792b6c8a1 CRLF pairs become LF
 | 792a8d1c | 792b6c6, 792b6c8 |
 | 792a9d1e | 792b6c6 |
 | 792a9d1f | 792b6c8 |
+| 792a12d1a | 792b6c9 |
+| 792a12u1a | 792b6c10 |
+| 792a12u1b | 792b6c10 |
+| 792a12u1c | 792b6c10 |
+| 792a12u1d | 792b6c10 |
+| 792a12u1e | 792b6c10 |
+| 792a12u1f | 792b6c10 |
+| 792a12u1g | 792b6c9 |
 
 ```gherkin
 Scenario: 792a3a1b A leading When is not doubled
@@ -2563,6 +2664,48 @@ Scenario: 792a9d1f A CRLF note is judged
   Given a fact note whose lines end in \r\n and whose situation is empty
   When the user runs engram check
   Then M5 fails naming the note
+```
+
+```gherkin
+Scenario: 792a12d1a Accepted registration
+  Given the user accepts registration of claude:curate, whose resolved source is ~/.claude/engram/skills/curate/SKILL.md
+  When the user runs engram register-skills
+  Then a runbook note ending in .skill-claude-curate.md exists with the skill's text after a preamble naming ~/.claude/engram/skills/curate/SKILL.md, skill_hash, pending: true, no runbook fields, and a .vec.json sidecar
+
+Scenario: 792a12u1a Amend preserves the identity fields
+  Given a note carrying skill_hash, skill_key and skill_source
+  When the user runs engram amend on it
+  Then all three are unchanged in the written note
+
+Scenario: 792a12u1b Resituate preserves the identity fields
+  Given a skill note
+  When the user runs engram resituate on it
+  Then all three are unchanged
+
+Scenario: 792a12u1c Reparenting preserves the identity fields
+  Given a skill note carrying all three fields
+  When Luhmann re-parenting renames it
+  Then all three are unchanged in the renamed note
+
+Scenario: 792a12u1d A wikilink rewrite preserves the identity fields
+  Given a rename-and-rewrite pass rewriting a wikilink inside a skill note's frontmatter
+  When it runs
+  Then its skill_hash, skill_key and skill_source are unchanged
+
+Scenario: 792a12u1e The identity backfill preserves the identity fields
+  Given a skill note missing repo, user and vault
+  When the user runs engram update --backfill-identity
+  Then the note is stamped and its three skill fields are unchanged
+
+Scenario: 792a12u1f Vocabulary rewrites preserve the identity fields
+  Given a skill note
+  When vocabulary assignment, tag rewrites or definition tagging rewrite its tags
+  Then its three skill fields are unchanged
+
+Scenario: 792a12u1g Ordinary capture carries none
+  Given a note captured by engram learn outside registration
+  When it is written
+  Then it carries no skill_hash, skill_key or skill_source, and no learn flag sets them
 ```
 
 ## 792b7 Added: luhmann-addressing
@@ -5024,6 +5167,28 @@ Scenario: 792b12c6a3 The question of a pair is not tagged
   Then only the answer note is tagged
 ```
 
+#### 792b12c7 Skill identity fields are not written by learn
+
+Requirement: 792b12c7 The note-authoring MUST NOT write `skill_hash`, `skill_key` or `skill_source` for a
+note captured through `engram learn`, and the learn commands MUST NOT offer a flag for them. Only the
+registration path, which calls the authoring code directly, supplies them.
+
+Supports: 792a12u1g.
+
+##### 792b12c7a Scenarios
+
+```gherkin
+Scenario: 792b12c7a1 A captured runbook has no skill hash
+  Given a runbook learn
+  When it runs
+  Then the note carries no skill_hash
+
+Scenario: 792b12c7a2 A captured runbook has no skill key or source
+  Given a runbook learn
+  When it runs
+  Then the note carries neither skill_key nor skill_source
+```
+
 ### 792b12d Product-Scenario Mapping
 
 | Product scenario | Technical requirements |
@@ -5070,6 +5235,7 @@ Scenario: 792b12c6a3 The question of a pair is not tagged
 | 792a6e1b | 792b12c6 |
 | 792a6s1a | 792b12c6 |
 | 792a6s1c | 792b12c6 |
+| 792a12u1g | 792b12c7 |
 
 ```gherkin
 Scenario: 792a3r1b Certainty defaults to medium
@@ -13197,6 +13363,8 @@ Scenario: 792b27c10a4 The apply skips the chunk pipeline on a preview
 | 792a10i1e | 792b27c7 |
 | 792a10i1f | 792b27c7 |
 | 792a10i1g | 792b27c7 |
+| 792a12i1a | 792b27c6, 792b27c7 |
+| 792a12i1d | 792b27c7 |
 
 ```gherkin
 Scenario: 792a10a1a Only top-level notes
@@ -13313,6 +13481,18 @@ Scenario: 792a10i1g An anchor-free note renames with every other key intact
   Given renamed notes whose frontmatter has no anchor
   When the user applies the answers
   Then each decodes, its luhmann: is its new ID, and every top-level key other than aliases decodes to its earlier value
+```
+
+```gherkin
+Scenario: 792a12i1a Adopting a previously promoted note
+  Given note 1049 is 1049.2026-09-21.skill-curate.md with no skill_key
+  When the user runs engram register-skills --adopt claude:curate=1049
+  Then 1049 is renamed to 1049.2026-09-21.skill-claude-curate.md, links to its old basename now point to the new one, its body is the curate skill after a preamble naming its skill_source, its runbook fields are unchanged, and it has skill_hash, skill_key claude:curate, skill_source and no pending marker
+
+Scenario: 792a12i1d Adopt converts a CRLF note
+  Given a runbook note whose lines end in \r\n
+  When --adopt runs on it
+  Then the note is converted to LF and renamed, and its links are rewritten
 ```
 
 ## 792b28 Added: self-installer
@@ -14108,6 +14288,53 @@ Scenario: 792b28c15a7 A report that cannot be written is an error
   Then the returned error begins "update: writing report:"
 ```
 
+#### 792b28c16 The registration step
+
+Requirement: 792b28c16 After the checks and the opt-in summaries, the self-installer MUST run skill
+registration over the resolved vault and vault name, with the home directory, the update's `--dry-run`
+flag and no explicit answers, and with its output going straight to the command's output. It MUST do
+nothing when no skill-source filesystem is configured. It MUST record a registration failure on the report
+as `skill registration error: <message>` (792b28c13) and MUST NOT let it fail the checks or the update.
+
+Supports: 792a12t1a, 792a12t1b, 792a12t1c, 792a12t1d, 792a12t1e.
+
+Rationale: the step reads the freshly deployed copies and the user's own folders, and a failure there must
+never undo a deploy that already succeeded.
+
+##### 792b28c16a Scenarios
+
+```gherkin
+Scenario: 792b28c16a1 The step forwards the dry-run flag and reads the default sources
+  Given a Claude user skill and a source checkout whose agent-instructions/skills holds other skills
+  When the step runs with --dry-run
+  Then the user skill is offered as a preview, the checkout's skills are never read, and nothing is written
+
+Scenario: 792b28c16a2 Without a terminal the step only reports
+  Given stdin is not a terminal and one skill has no note
+  When the step runs
+  Then nothing is written and the output names the skill's scope
+
+Scenario: 792b28c16a3 An unconfigured step does nothing
+  Given a zero-value registration configuration
+  When the step runs
+  Then it returns without error and writes nothing
+
+Scenario: 792b28c16a4 The step returns a registration failure
+  Given registration fails
+  When the step runs
+  Then the failure is returned to its caller
+
+Scenario: 792b28c16a5 A failure is recorded and does not fail the checks
+  Given registration fails during the checks
+  When the checks run
+  Then the report holds the failure message and the checks return no error
+
+Scenario: 792b28c16a6 The report line appears only on failure
+  Given a report with a registration failure "boom", then one without
+  When each is written
+  Then the first holds "skill registration error: boom" and the second holds no such line
+```
+
 ### 792b28d Product-Scenario Mapping
 
 | Product scenario | Technical requirements |
@@ -14162,6 +14389,11 @@ Scenario: 792b28c15a7 A report that cannot be written is an error
 | 792a10j1b | 792b28c13 |
 | 792a10k1a | 792b28c11, 792b28c14 |
 | 792a10k1f | 792b28c11, 792b28c14 |
+| 792a12t1a | 792b28c16 |
+| 792a12t1b | 792b28c16 |
+| 792a12t1c | 792b28c16 |
+| 792a12t1d | 792b28c16 |
+| 792a12t1e | 792b28c16 |
 
 ```gherkin
 Scenario: 792a11a1a A local clone is installed in place
@@ -14313,6 +14545,33 @@ Scenario: 792a10b1b The flag runs nothing else
   Given a machine with no installed harness
   When the user runs engram update --reparent-luhmann
   Then it derives candidates or applies answers, and does not fail for lack of a harness or a Go toolchain
+```
+
+```gherkin
+Scenario: 792a12t1a An interactive update
+  Given `engram update` runs in a terminal and a shipped skill has no note
+  When the user runs engram update
+  Then the skills are deployed to every harness and the user is offered registration of that skill
+
+Scenario: 792a12t1b A non-interactive update
+  Given `engram update` runs with stdin not a terminal and offers outstanding
+  When the user runs engram update
+  Then the skills are deployed, no vault note or decline record is written, and the report names the skills awaiting an answer
+
+Scenario: 792a12t1c A dry run previews the offers too
+  Given offers outstanding
+  When the user runs engram update --dry-run
+  Then the plan lists the registration offers alongside the sync operations and nothing is written
+
+Scenario: 792a12t1d Update and register-skills see the same offers
+  Given a completed sync
+  When the user runs engram update --dry-run and engram register-skills --dry-run from the same directory against the same home and vault
+  Then both list the same registration offers
+
+Scenario: 792a12t1e A registration failure does not roll back the deploy
+  Given registration fails after the skills are deployed
+  When the user runs engram update
+  Then the report holds a skill registration error line and the deployed skills remain
 ```
 
 ## 792b29 Added: harness-deploy-sync

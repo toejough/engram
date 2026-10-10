@@ -1,6 +1,6 @@
 ## Purpose
 
-The repo/user provenance stamped by `engram learn` is in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a3-added-note-writing`, and its detection in `792b_technical-spec.md#792b11-added-note-provenance`. Revision by `engram amend` and `engram resituate` (identity re-stamp, vault fill, key preservation, anchor refusal and CRLF conversion) is in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a4-added-note-revision`. Every note gets structured, auto-detected provenance — which repo, which person, and which vault instance produced it — so origin survives beyond the existing free-text `source:` description and can be relied on by downstream consumers (filtering, attribution, parent exchange: `xid`, vault-qualified `parent` links, `aliases`).
+The `skill_hash`, `skill_key` and `skill_source` requirements are in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a12u-skill-identity-fields-belong-to-registration` and `792b_technical-spec.md#792b6-added-note-document-format` (792b6c9, 792b6c10). The repo/user provenance stamped by `engram learn` is in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a3-added-note-writing`, and its detection in `792b_technical-spec.md#792b11-added-note-provenance`. Revision by `engram amend` and `engram resituate` (identity re-stamp, vault fill, key preservation, anchor refusal and CRLF conversion) is in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a4-added-note-revision`. Every note gets structured, auto-detected provenance — which repo, which person, and which vault instance produced it — so origin survives beyond the existing free-text `source:` description and can be relied on by downstream consumers (filtering, attribution, parent exchange: `xid`, vault-qualified `parent` links, `aliases`).
 ## Requirements
 ### Requirement: First-write identity residue
 The product behavior of `repo:` and `user:` stamping by `engram learn` is in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a3-added-note-writing` (792a3o, 792a3p), and detection and the first-write stamp in `docs/changes/792_documentation-framework-adoption/792b_technical-spec.md#792b11-added-note-provenance`. These clauses wait for parent-sync (792c7t1) and vault-serving (792c7s1); the amend vault fill is in 792a4i:
@@ -20,43 +20,6 @@ The amend re-stamp and the `--activate` bookkeeping amend are in `docs/changes/7
 #### Scenario: Accepting an offer keeps its author
 - **WHEN** `engram amend --target O --clear-pending` runs on a pending offer whose `user:` is alice, from an environment whose detected user is bob
 - **THEN** O's `user:` is still alice
-
-### Requirement: Skill notes SHALL carry a `skill_hash` field
-A runbook note mirroring a skill SHALL carry `skill_hash: <sha256 of the SKILL.md bytes its body was copied from>` in its frontmatter. The field SHALL be preserved by `engram amend` (amend re-stamps repo/user/vault but SHALL NOT drop or alter `skill_hash`); only registration SHALL change it.
-
-#### Scenario: Amend preserves the hash
-- **WHEN** `engram amend` rewrites a note carrying `skill_hash`
-- **THEN** the field is unchanged in the written note
-
-#### Scenario: Non-skill notes have no such field
-- **WHEN** a note is captured by `engram learn` outside registration
-- **THEN** it carries no `skill_hash` field
-
-### Requirement: Skill-note identity fields SHALL survive every frontmatter rewrite
-A runbook note created, adopted, or refreshed by skill registration SHALL carry these fields:
-
-- `skill_key`, its source-qualified key (capability `skill-runbook-registration`);
-- `skill_source`, the home-relative resolved path it was last copied from.
-
-`skill_hash`, `skill_key`, and `skill_source` SHALL be preserved unchanged by every path that rewrites a note's frontmatter without being registration: `engram amend` (including `--clear-pending`), `engram resituate`, Luhmann reparenting (`engram update --reparent-luhmann`), rename-and-rewrite of wikilinks, identity backfill, and vocab tag rewrites. Only registration SHALL change them.
-
-A note captured by `engram learn` outside registration SHALL carry neither `skill_key` nor `skill_source`.
-
-#### Scenario: Amend preserves skill_key and skill_source
-- **WHEN** `engram amend` rewrites a note carrying `skill_key` and `skill_source`
-- **THEN** both fields are unchanged in the written note
-
-#### Scenario: Reparenting preserves the identity fields
-- **WHEN** Luhmann reparenting renames a skill note carrying `skill_hash`, `skill_key`, and `skill_source`
-- **THEN** all three fields are unchanged in the renamed note
-
-#### Scenario: Wikilink rewrite preserves the identity fields
-- **WHEN** a rename-and-rewrite pass rewrites a wikilink inside a skill note's frontmatter
-- **THEN** its `skill_hash`, `skill_key`, and `skill_source` are unchanged
-
-#### Scenario: Ordinary capture carries neither
-- **WHEN** a note is captured by `engram learn` outside registration
-- **THEN** it carries no `skill_key` and no `skill_source` field
 
 ### Requirement: Exchanged notes SHALL carry a stable exchange ID
 A note SHALL gain an `xid` frontmatter field, a random identifier, lazily: the first time it takes part in exchange (queued as an offer, pulled down, or received as a served offer). No migration, backfill, or `update` step SHALL stamp `xid` on existing notes. An `xid` SHALL never change once written, including across renames. A note never involved in exchange SHALL carry no `xid`.

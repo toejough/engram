@@ -1,18 +1,7 @@
 ## Purpose
 
-Skills remain the shipping form of every procedure, and their files stay exactly as skill-loading harnesses expect; engram's own skills ship from `agent-instructions/skills/` via `engram update`. Registration scans every default skill folder a harness loads: every skill, command, and Pi prompt template in the Claude Code user, claude.ai-synced, Pi user and `~/.agents`, Pi-configured (settings paths and packages), enabled plugin, project-local Claude, and trusted Pi project sources. That scanned default set is the shipped set this spec refers to. Each skill in it may have one runbook note in the vault that mirrors the skill's text and carries the runbook fields (`situation`, `triggers`, `done_when`, `red_flags`) authored on the note, so memory can surface the procedure by situation and trigger, the shim's follow-frame can drive it, and it can flow across vault-graph edges. Each note is identified by a source-qualified skill key (`claude:route`, `claude:cmd:audit`, `pi:<n>`, `<plugin>:<n>`, `project:<repo>:<n>`, …); no key is bare, there is no engram namespace, and a skill that engram installs is keyed like any other entry of the folder it is found in. Engram offers to create, refresh, and remove these notes; removal is offered only for a note whose own namespace's source was successfully read in that run. The user decides, and a declined offer is not repeated. The six notes created for engram's own skills before keys were qualified were migrated to `claude:<n>` by `--adopt`. Why: vault notes 1054 (reversing 1031; the four 2026-09 delete-conversions broke distribution for every install but Joe's) and 1066a (registration covers every default folder, not just engram's six). Validation: `dev/eval/LEDGER.md#register-skills-all-skill-folders` (mechanism unit-tested; real-binary offer counts verified), superseding `#register-skills-as-runbooks`.
+The product behavior of registration is in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a12-added-skill-runbook-registration` (792a12a to 792a12v). The requirements below wait for the technical nodes: the source scan, the source-qualified keys and the conflict rules for skill-source-discovery (792c7k2), and the offers, the declines ledger, the answers and the note actions for skill-registration-ledger (792c7k3). Why: vault notes 1054 (reversing 1031; the four 2026-09 delete-conversions broke distribution for every install but Joe's) and 1066a (registration covers every default folder, not just engram's six). Validation: `dev/eval/LEDGER.md#register-skills-all-skill-folders` (mechanism unit-tested; real-binary offer counts verified), superseding `#register-skills-as-runbooks`.
 ## Requirements
-### Requirement: Skill files SHALL carry no engram-specific metadata
-Registration SHALL NOT read, require, or write any frontmatter field in a skill's `SKILL.md`, a command's `.md` file, or a Pi prompt template, other than using the file's bytes as the note body and hash input. It SHALL NOT require any additional file in the skill directory, command directory, or prompt directory.
-
-#### Scenario: Skill deploys unchanged
-- **WHEN** a skill whose `SKILL.md` frontmatter has only `name` and `description` is deployed and registered
-- **THEN** the deployed `SKILL.md` is byte-identical to the source and no file is added to the skill directory
-
-#### Scenario: Command and prompt files are untouched
-- **WHEN** a command `.md` file with `description`/`argument-hint` frontmatter and a Pi prompt template are registered
-- **THEN** both files are byte-identical afterward, no file is added beside them, and their keys do not depend on any frontmatter field
-
 ### Requirement: Each registered skill SHALL have exactly one runbook note, identified by its skill key
 A registered skill's or command's runbook note SHALL meet these conditions:
 
