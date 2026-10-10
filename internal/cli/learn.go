@@ -19,7 +19,7 @@ import (
 
 // LearnArgs holds the parsed flags for the learn subcommand. JSON tags
 // (musttag-enforced) define the wire shape POST /learn decodes into
-// (design.md API Contract: "LearnArgs-shaped JSON") — the same struct
+// (792b35c8 Decoding a served learn: LearnArgs-shaped JSON) — the same struct
 // serves both the CLI flag path and the served-write path.
 type LearnArgs struct {
 	Type      string `json:"type"`
@@ -91,27 +91,27 @@ type LearnArgs struct {
 	// only by registration (RegisterSkill) constructing LearnArgs directly:
 	// `engram learn runbook` has no flag for them, and they are tagged
 	// `json:"-"` so a remote `engram serve` client's learn request can never
-	// set them (ruling R31) — a served write can never pose as, or shadow, a
-	// registered skill's note. Unused for non-runbook types.
+	// set them (792b12c7 Skill identity fields are not written by learn) — a
+	// served write can never pose as, or shadow, a registered skill's note. Unused for non-runbook types.
 	SkillHash   string `json:"-"`
 	SkillKey    string `json:"-"`
 	SkillSource string `json:"-"`
 
-	// XID, Parent and Aliases are the exchange frontmatter fields (design
-	// D4). Only the exchange paths set them, in process; they are tagged
+	// XID, Parent and Aliases are the exchange frontmatter fields (792b33c6
+	// The exchange fields). Only the exchange paths set them, in process; they are tagged
 	// `json:"-"` so a served learn request can never populate them, whatever
-	// the key spelling (design D7 wire safety).
+	// the key spelling (792b35c8 Decoding a served learn).
 	XID     string      `json:"-"`
 	Parent  parentLinks `json:"-"`
 	Aliases []string    `json:"-"`
 
-	// Offer is the only exchange field a served learn decodes (design D7):
+	// Offer is the only exchange field a served learn decodes (792b35c8 Decoding a served learn):
 	// the offer's origin, idempotency key, amend target and vault path. It
 	// lands only on pending notes, which curation reviews.
 	Offer LearnOffer `json:"offer"`
 
 	// Repo carries a served write's client-detected repo: value across the
-	// wire. repo: carries no privilege (design.md Decisions), so a served
+	// wire. repo: carries no privilege (792a20e), so a served
 	// learn handler passes it through via LearnDeps.DetectRepo unchanged
 	// rather than re-detecting it server-side, which would resolve to the
 	// server process's own repo context instead of the remote client's.
@@ -140,7 +140,7 @@ type LearnArgs struct {
 	skipRunbookRequiredFields bool
 
 	// priorOfferKeys is the superseded-key history a served learn's in-place
-	// rewrite carries onto the pending note (offer.prior_keys, ruling S10).
+	// rewrite carries onto the pending note (offer.prior_keys, 792b35c10 A recorded key is a retry).
 	// Unexported, so no request body can set it.
 	priorOfferKeys []string
 }
@@ -183,12 +183,12 @@ type LearnDeps struct {
 	// Must use full filenames (not stripped basenames) to avoid false-firing the
 	// untagged-rate trigger on every learn.
 	ListMD func(vault string) ([]string, error)
-	// Offers connects learn to the parent outbox (design D5, D6). The zero
+	// Offers connects learn to the parent outbox (792b36c1 Which writes are offered). The zero
 	// value — no parent configured — offers nothing.
 	Offers offerHooks
 }
 
-// LearnOffer is a served learn's offer record on the wire (design D7):
+// LearnOffer is a served learn's offer record on the wire (792b35c8 Decoding a served learn):
 // Origin is "<origin vault id>:<origin xid>", Key the idempotency key, For
 // the basename an amend-offer targets, and Path the vault IDs the offer has
 // passed through.
@@ -218,7 +218,7 @@ func RunLearn(ctx context.Context, args LearnArgs, deps LearnDeps, stdout io.Wri
 
 	_, _ = fmt.Fprintln(stdout, path)
 
-	// The drain runs after the vault lock is released (design D6).
+	// The drain runs after the vault lock is released (792b36c5 Before a drain sends).
 	if queued {
 		deps.Offers.drain(ctx, vault)
 	}
@@ -277,7 +277,7 @@ type factFields struct {
 	// note) — learn/amend never populate it, so factFrontmatterDoc's
 	// omitempty keeps it absent from ordinary fact notes.
 	VocabVersion string
-	// Exchange is carried through re-renders unchanged (design D4).
+	// Exchange is carried through re-renders unchanged (792b33c10).
 	Exchange exchangeFrontmatter
 }
 
@@ -303,7 +303,7 @@ type factFrontmatterDoc struct {
 	VocabVersion string            `yaml:"vocab_version,omitempty"`
 	Tags         []string          `yaml:"tags,omitempty"`
 	Supersedes   []supersedesEntry `yaml:"supersedes,omitempty"`
-	// Exchange carries the exchange fields (design D4); all omitempty.
+	// Exchange carries the exchange fields (792b33c6); all omitempty.
 	Exchange exchangeFrontmatter `json:"-" yaml:",inline"`
 }
 
@@ -324,7 +324,7 @@ type feedbackFields struct {
 	ChunkSources []string
 	Tags         []string
 	Supersedes   []supersedesEntry
-	// Exchange is carried through re-renders unchanged (design D4).
+	// Exchange is carried through re-renders unchanged (792b33c10).
 	Exchange exchangeFrontmatter
 }
 
@@ -348,7 +348,7 @@ type feedbackFrontmatterDoc struct {
 	Sources    []string          `yaml:"sources,omitempty"`
 	Tags       []string          `yaml:"tags,omitempty"`
 	Supersedes []supersedesEntry `yaml:"supersedes,omitempty"`
-	// Exchange carries the exchange fields (design D4); all omitempty.
+	// Exchange carries the exchange fields (792b33c6); all omitempty.
 	Exchange exchangeFrontmatter `json:"-" yaml:",inline"`
 }
 
@@ -402,7 +402,7 @@ type runbookFields struct {
 	// learn` surface sets them.
 	SkillKey    string
 	SkillSource string
-	// Exchange is carried through re-renders unchanged (design D4).
+	// Exchange is carried through re-renders unchanged (792b33c10).
 	Exchange exchangeFrontmatter
 }
 
@@ -443,7 +443,7 @@ type runbookFrontmatterDoc struct {
 	Sources     []string          `yaml:"sources,omitempty"`
 	Tags        []string          `yaml:"tags,omitempty"`
 	Supersedes  []supersedesEntry `yaml:"supersedes,omitempty"`
-	// Exchange carries the exchange fields (design D4); all omitempty.
+	// Exchange carries the exchange fields (792b33c6); all omitempty.
 	Exchange exchangeFrontmatter `json:"-" yaml:",inline"`
 }
 
@@ -586,8 +586,8 @@ func autoEmbedNote(ctx context.Context, deps LearnDeps, notePath, content string
 
 // exchangeFromArgs is the exchange frontmatter a learn writes: the in-process
 // XID, Parent and Aliases, and the offer record. Only the exchange paths
-// set any of them (a served learn's offer only after validation, design
-// D7); a plain local learn leaves them all empty, so nothing renders.
+// set any of them (a served learn's offer only after validation,
+// 792b35c8); a plain local learn leaves them all empty, so nothing renders.
 func exchangeFromArgs(args LearnArgs) exchangeFrontmatter {
 	return exchangeFrontmatter{
 		XID:     args.XID,
@@ -1064,7 +1064,7 @@ func writeLearnLocked(
 // writeLearnUnderLock acquires the vault lock and writes the new note under
 // it (writeLearnLocked). With a parent configured, an offerable learn gets
 // an xid before it is rendered and is queued in the same critical section
-// as the write (design D6); queued reports whether it was.
+// as the write (792b36c4 Queueing an offer); queued reports whether it was.
 func writeLearnUnderLock(
 	ctx context.Context,
 	args LearnArgs,

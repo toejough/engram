@@ -246,7 +246,7 @@ func Test792b23c7a2_RunQuery_NoTimingsByDefault(t *testing.T) {
 
 // Test792b23c9a1_QueryPayload_NoFromParentKeyWithoutMerge verifies a non-merged payload
 // (no ENGRAM_PARENT / no merge step involved) carries no from_parent key at
-// all, matching today's output byte-for-byte (hard constraint, ruling S29):
+// all, matching today's output byte-for-byte (a hard constraint of 792a21 parent-sync):
 // the merged-only field must never leak into an ordinary local query.
 func Test792b23c9a1_QueryPayload_NoFromParentKeyWithoutMerge(t *testing.T) {
 	t.Parallel()

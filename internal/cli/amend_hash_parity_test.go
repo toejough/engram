@@ -1,7 +1,7 @@
 package cli_test
 
-// Amend's exchange-hash parity with the pre-change amend (ruling V6, final
-// review F4): moving amend's frontmatter writes onto the YAML-node edit must
+// Amend's exchange-hash parity with the pre-change amend (792b33c10 The exchange fields survive
+// every other rewrite): moving amend's frontmatter writes onto the YAML-node edit must
 // leave every exchange hash exactly as the typed re-marshal produced it for
 // notes without unknown keys. The goldens under testdata/amend_hash_parity
 // were written by the pre-change amend (HEAD 49cfc120) on these same inputs,
@@ -48,8 +48,8 @@ func Test792b6c7a7_RunAmend_ExchangeHashParityWithPreChangeAmend(t *testing.T) {
 			// The pre-change amend wrote user: "" and vault: "" when a
 			// bookkeeping amend met a note with no identity (the typed
 			// writer's fields had no omitempty). #789 never writes either
-			// empty: user: is omitted (design D6, ruling W1) and vault: takes
-			// the resolved vault name (design D10, ruling W2). Those two lines
+			// empty: user: is omitted (792b11c3 First-write stamp) and vault: takes
+			// the resolved vault name (792b14c5 Identity re-stamp gating). Those two lines
 			// are the only difference; every other byte, and the exchange
 			// hash, match.
 			want = bytes.Replace(want, []byte("user: \"\"\nvault: \"\"\n"), []byte("vault: personal\n"), 1)

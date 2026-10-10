@@ -38,8 +38,8 @@ type vaultStarterFile struct {
 	body    string
 }
 
-// initializeVault creates the standard layout under vaultPath: Permanent/,
-// a minimal .obsidian/app.json so Obsidian recognizes the directory as a
+// initializeVault creates the standard flat layout under vaultPath: the
+// .obsidian/ directory with a minimal app.json so Obsidian recognizes the directory as a
 // vault, a .gitignore, and a short README. All file writes are
 // skip-if-exists; calling on an existing vault is a safe no-op (e.g.,
 // re-runs after partial initialization).

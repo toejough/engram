@@ -51,12 +51,12 @@ type offerNoteDoc struct {
 	Exchange   exchangeFrontmatter `yaml:",inline"`
 }
 
-// offerPayload is the /learn request body an offer sends (design D5): the
+// offerPayload is the /learn request body an offer sends (792b36c2 The offer built from a note): the
 // LearnArgs wire shape, restricted to what an offer carries. It has no
 // target, position, chunkSources, vault or pending key at all — placement
-// and pending are the parent's (G8), chunks never travel (Q1). Tags are
+// and pending are the parent's (792a20i Placement and tags are the server's), chunks never travel. Tags are
 // not sent either: they are this vault's vocabulary, and the parent's own
-// vocab assigns its tags (the same reasoning as D8's pull-down strip).
+// vocab assigns its tags (the same reasoning as the pull-down strip of 792a21zd).
 type offerPayload struct {
 	Type       string     `json:"type"`
 	Slug       string     `json:"slug"`
@@ -95,15 +95,15 @@ type offerPayloadContext struct {
 }
 
 // buildOfferPayload builds the /learn request body for a queued note from
-// its current content (design D5, D6): a learn-offer, or an amend-offer
+// its current content (792b36c2 The offer built from a note): a learn-offer, or an amend-offer
 // whose offer.for is the note's primary link under the parent's vault ID.
 // It carries the note's own user/repo (detection only fills in when they
-// are empty, M5), supersedes translated to parent basenames (dropped when
+// are empty, 792a21p), supersedes translated to parent basenames (dropped when
 // unlinked), offer.origin = <local vault id>:<xid>, offer.key =
 // sha256(origin + exchange hash), and offer.path — the local ID, appended
-// to an accepted served offer's own path when the note is one (M14).
+// to an accepted served offer's own path when the note is one (792b36c2).
 func buildOfferPayload(note offerNote, pctx offerPayloadContext) ([]byte, error) {
-	raw := toLF(note.Raw) // a CRLF note is offered as its LF form (#789 design D4)
+	raw := toLF(note.Raw) // a CRLF note is offered as its LF form (792a21zb CRLF exchanges as LF)
 
 	frontmatter, found := splitFrontmatter(raw)
 	if !found {
@@ -139,7 +139,7 @@ func buildOfferPayload(note offerNote, pctx offerPayloadContext) ([]byte, error)
 
 	if payload.User == "" {
 		// The parent rejects an offer without a user (its identity floor):
-		// build none, so the entry waits in attention (#789 design D9).
+		// build none, so the entry waits in attention (792b36c15 An entry that waits).
 		return nil, errOfferNoUserIdentity
 	}
 
@@ -156,7 +156,7 @@ func buildOfferPayload(note offerNote, pctx offerPayloadContext) ([]byte, error)
 }
 
 // offerKey is the idempotency key: sha256(offer.origin + exchange hash),
-// hex-encoded (design D6).
+// hex-encoded (792a21t A retried offer is idempotent).
 func offerKey(origin, hash string) string {
 	sum := sha256.Sum256([]byte(origin + hash))
 
@@ -169,7 +169,7 @@ func offerRecordFor(note offerNote, exchange exchangeFrontmatter, pctx offerPayl
 
 	path := []string{pctx.localVaultID}
 	if exchange.Offer.Origin != "" {
-		// An accepted served offer going onward (M14, D12): the path it
+		// An accepted served offer going onward (792b36c2 The offer built from a note): the path it
 		// already travelled — at least its origin vault — plus this vault.
 		travelled := slices.Clone(exchange.Offer.Path)
 		if len(travelled) == 0 {
@@ -191,9 +191,9 @@ func offerRecordFor(note offerNote, exchange exchangeFrontmatter, pctx offerPayl
 }
 
 // offerWithdrawnReason is the send-time re-check, with the parent's ID now
-// known (ruling S16): an offer whose origin vault is the parent never goes
-// back to it (D12, unconditional), and one whose content equals its
-// primary link's hash is a loop (D5). Either is withdrawn, not sent.
+// known (792b36c3 An offer withdrawn at send time): an offer whose origin vault is the parent never goes
+// back to it (unconditional), and one whose content equals its
+// primary link's hash is a loop (792a21y A looping offer is refused). Either is withdrawn, not sent.
 func offerWithdrawnReason(note offerNote, exchange exchangeFrontmatter, parentVaultID string) error {
 	if originIsVault(exchange.Offer.Origin, parentVaultID) {
 		return fmt.Errorf("%w: its origin vault %s is the parent", errOfferWithdrawn, parentVaultID)
@@ -234,7 +234,7 @@ func slugOfBasename(basename string) (string, error) {
 
 // translateSupersedes rewrites each supersedes entry to its target's
 // primary-link parent basename, as a --supersedes flag value; an entry
-// whose target has no parent link is dropped (design D5).
+// whose target has no parent link is dropped (792a21p An offer is built for the parent vault).
 func translateSupersedes(entries []supersedesEntry, target func(string) (string, bool)) []string {
 	translated := make([]string, 0, len(entries))
 

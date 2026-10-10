@@ -18,7 +18,7 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
-// Test792b31c6a10_RunSkillRegistration_SkillsDirIsAReadOnlyPreview covers design D9 and
+// Test792b31c6a10_RunSkillRegistration_SkillsDirIsAReadOnlyPreview covers 792b31c6 The registration run and
 // "Skills-dir runs are preview-only": several dirs replace the default set
 // and are scanned with Claude-user rules (a symlinked skill dir is found,
 // keys are `claude:<n>`); the run lists offers under a scope header, prompts
@@ -97,7 +97,7 @@ func Test792b31c6a11_RunSkillRegistration_SkillsDirRefusesAnswersBeforeScanning(
 }
 
 // Test792b31c6a12_RunSkillRegistration_Property_SkillsDirKeysClaudeUserAndWritesNothing
-// is design D9's invariant over any preview dir and vault: every offer a
+// is 792b31c6 The registration run's invariant over any preview dir and vault: every offer a
 // `--skills-dir` run lists is a register or refresh keyed `claude:<n>` under
 // the single @claude-user header, notes whose hash is current get no offer,
 // no removal is listed even for orphaned notes of every key form (one
@@ -272,7 +272,7 @@ func Test792b31c6a16_RunSkillRegistration_AdoptTakesKeyOfAScannedSource(t *testi
 }
 
 // Test792b31c6a17_RunSkillRegistration_AdoptOfAConflictedKeyErrors: a key whose copies
-// differ (design D4) has no single source to mirror, so adopting it is
+// differ (792b31c2 Offer comparison) has no single source to mirror, so adopting it is
 // refused and the note is left untouched.
 func Test792b31c6a17_RunSkillRegistration_AdoptOfAConflictedKeyErrors(t *testing.T) {
 	t.Parallel()
@@ -357,7 +357,7 @@ func Test792b31c7a10_RefreshSkill_FollowsPluginVersionBump(t *testing.T) {
 // the six engram skills behind the real notes (route, please, curate,
 // write-memory, learn, recall), that a copy read through ~/.claude/skills
 // gives the key-derived slug, skill_key, skill_source, and a preamble and
-// `source:` naming the deployed file with no special case (design D8).
+// `source:` naming the deployed file with no special case (792b31c7 Note actions).
 func Test792b31c7a3_RegisterSkill_EngramInstalledPreambleNamesDeployedFile(t *testing.T) {
 	t.Parallel()
 
@@ -500,7 +500,7 @@ func Test792b31c7a5_RegisterSkill_SkillSourceRoundTripsThroughRemovalEligibility
 	})
 }
 
-// Test792b31c7a6_NewSkillNoteSource covers design D8's inputs: every source, engram's
+// Test792b31c7a6_NewSkillNoteSource covers 792b31c7 Note actions' inputs: every source, engram's
 // installed skills included, records its `~`-relative resolved path,
 // through the home or its resolved form, and a path outside both homes
 // stays absolute.
@@ -596,7 +596,7 @@ type writtenNote struct {
 }
 
 // deployedPreamble is the preamble of an engram skill installed under the
-// Claude Code engram skills folder, spelled out byte for byte (design D8).
+// Claude Code engram skills folder, spelled out byte for byte (792b31c7 Note actions).
 func deployedPreamble(name string) string {
 	return "> Mirrors skill `~/.claude/engram/skills/" + filepath.Join(name, "SKILL.md") + "`.\n"
 }
@@ -652,7 +652,7 @@ func pluginSkillSource(version, content string) cli.SkillNoteSource {
 	}
 }
 
-// preambleNaming is the expected preamble line for any source (design D8):
+// preambleNaming is the expected preamble line for any source (792b31c7 Note actions):
 // exactly “> Mirrors skill `<skill_source>`.“, with no edit-location clause.
 func preambleNaming(path string) string {
 	return "> Mirrors skill `" + path + "`.\n"

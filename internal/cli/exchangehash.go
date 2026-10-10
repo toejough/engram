@@ -19,7 +19,7 @@ const (
 )
 
 // hashComparison is the three-way result of comparing two exchange hashes
-// (design D3 versioning).
+// (792b33c5 Comparing two hashes).
 type hashComparison int
 
 // hashComparison values.
@@ -29,7 +29,7 @@ const (
 	hashChanged
 )
 
-// exchangeHashFields is the offered content of a note (design D3): exactly
+// exchangeHashFields is the offered content of a note (792b33c2 What the hash covers): exactly
 // the keys exchangeKeyClassification marks offered. Absent keys decode to
 // empty values.
 type exchangeHashFields struct {
@@ -56,7 +56,7 @@ type exchangeHashFields struct {
 // The text after an LF frontmatter's closing line is normalized before the
 // body is extracted, so a CRLF blank separator line is dropped exactly as an
 // LF one is: a note with LF frontmatter and a CRLF body hashes the same as
-// its LF conversion (fix-show-amend-reparent-frontmatter design D5).
+// its LF conversion (792b33c3 The canonical body).
 func canonicalExchangeBody(raw []byte) string {
 	frontmatter, rest, ok := embed.SplitFrontmatter(raw)
 	if ok {
@@ -96,7 +96,7 @@ func compareExchangeHashes(first, second string) hashComparison {
 // It depends on no non-offered field — identity, pending, tags, sources, supersedes, skill
 // fields, or the exchange fields themselves. The note is hashed as its LF
 // form (toLF), so a note with CRLF line endings hashes exactly as its LF
-// conversion, whichever part carries them (#789 design D4).
+// conversion, whichever part carries them (792b6c8 CRLF reading).
 func exchangeHash(raw []byte) (string, error) {
 	var fields exchangeHashFields
 
@@ -133,14 +133,14 @@ func exchangeHash(raw []byte) (string, error) {
 // exchangeHashChanged reports whether current differs from recorded. It is
 // the check for the pull-down skip, decline matching, rejected-entry re-arm,
 // and the send/apply change check, all of which treat unknown as not
-// changed (design D3).
+// changed (792b33c5 Comparing two hashes).
 func exchangeHashChanged(recorded, current string) bool {
 	return compareExchangeHashes(recorded, current) == hashChanged
 }
 
 // exchangeHashesMatch reports whether two exchange hashes are equal under the
 // current version. Loop suppression and dedupe rule 2 fire only on equal
-// (design D3), never on unknown.
+// (792b33c5 Comparing two hashes), never on unknown.
 func exchangeHashesMatch(first, second string) bool {
 	return compareExchangeHashes(first, second) == hashEqual
 }
@@ -149,7 +149,7 @@ func exchangeHashesMatch(first, second string) bool {
 // YAML key of the fact, feedback and runbook frontmatter structs as offered
 // (true: hashed and sent to the parent) or not offered (false). A
 // reflection test fails when a struct key is missing here, so a new field
-// cannot silently fall outside the hash (design D3, r3-5).
+// cannot silently fall outside the hash (792b33c2 What the hash covers).
 func exchangeKeyClassification() map[string]bool {
 	return map[string]bool{
 		// Offered: the note's content (exchangeHashFields).

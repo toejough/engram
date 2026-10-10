@@ -124,7 +124,7 @@ func TestNewDeps_DebugSinkSyncsEveryWrite(t *testing.T) {
 	g.Expect(sink.syncCount()).To(gomega.Equal(2), "per-line Sync is the tail -F liveness contract")
 }
 
-// TestNewDeps_FetchRejectsOversizedResponse (final review F7): the HTTP
+// TestNewDeps_FetchRejectsOversizedResponse (792b35c17 The bounded fetch client): the HTTP
 // edge reads at most FetchResponseReadLimit bytes of a parent response;
 // a body longer than the accepted maximum is an error, never a silently
 // truncated payload, and a body at the maximum passes through unchanged.

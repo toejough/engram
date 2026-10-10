@@ -14,16 +14,16 @@ import (
 // Exported constants.
 const (
 	// FetchResponseReadLimit is how many bytes of one parent response the
-	// HTTP edge reads (final review F7): one more than the largest response
+	// HTTP edge reads (792b35c17 The bounded fetch client): one more than the largest response
 	// accepted, so NewDeps' Fetch can tell an oversized body from one at
 	// the limit instead of silently truncating it.
 	FetchResponseReadLimit = maxFetchResponseBytes + 1
-	// MaxServeRequestBytes caps one served request body (final review F7):
+	// MaxServeRequestBytes caps one served request body (792b35c3 Request bodies):
 	// an offer or activate body is a few KB, so 4 MiB leaves ample room
 	// while bounding what an unauthenticated caller can make the server
 	// buffer. The HTTP edge enforces it; a route answers 413 only when the
 	// body itself exceeded this cap, and 400 for any other body-read
-	// failure (S34 residual).
+	// failure.
 	MaxServeRequestBytes = 4 << 20
 )
 
@@ -44,7 +44,7 @@ type RawServeMux any
 type ServeArgs struct {
 	// Addr is the bind address (e.g. "127.0.0.1:8420"). Required — no env
 	// fallback, no default — so `engram serve` refuses to start rather than
-	// silently binding 0.0.0.0 (tasks.md 3.1).
+	// silently binding 0.0.0.0 (792a20b A bind address must be given).
 	Addr      string `targ:"flag,name=addr,required,desc=bind address e.g. 127.0.0.1:8420 (required -- never defaults to 0.0.0.0)"` //nolint:lll // single unbreakable struct-tag string
 	Vault     string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
 	VaultName string `targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault name stamped on served notes' vault: field (default \"personal\")"` //nolint:lll // single unbreakable struct-tag string
@@ -78,7 +78,7 @@ type ServeRequest struct {
 	Body []byte
 	// BodyErr is the error reading Body in full (for one, a body over
 	// MaxServeRequestBytes); every route answers 400 when it is set, or
-	// 413 when BodyTooLarge is also set (S34 residual).
+	// 413 when BodyTooLarge is also set.
 	BodyErr error
 	// BodyTooLarge reports whether BodyErr is specifically the body
 	// exceeding MaxServeRequestBytes, as opposed to any other read
@@ -109,7 +109,7 @@ type ServeRoute struct {
 // per-route loop is here (internal/cli), never in cmd/engram, which
 // targ check-thin-api forbids from containing loops.
 func RunServe(ctx context.Context, args ServeArgs, deps Deps) error {
-	// Design D2: serve stamps a missing vault ID at startup (later starts
+	// 792b5c4 Vault ID stamping: serve stamps a missing vault ID at startup (later starts
 	// reuse it), and a failed location check only warns — refusing would
 	// turn a false positive into a host outage.
 	state := exchangeStateFromDeps(deps)
@@ -142,12 +142,12 @@ func RunServe(ctx context.Context, args ServeArgs, deps Deps) error {
 	return nil
 }
 
-// ServeRoutes composes the served command set's HTTP routes (792b35c1,
-// design D7): exactly query and show (GET) and activate and learn
+// ServeRoutes composes the served command set's HTTP routes (792b35c1 The route table):
+// exactly query and show (GET) and activate and learn
 // (POST). amend, query-chunks and show-chunk have no route — children offer
 // amendments through learn, and chunks never cross vaults. Every handler
 // calls the existing code path for its command — no reimplementation of
-// command logic here (tasks.md 2.2) — sharing the CLI's existing vault
+// command logic here (792a20c Served commands behave as the local ones) — sharing the CLI's existing vault
 // locks (vault-write-lock, 792b8). vault/vaultName/chunksDir are resolved once by RunServe
 // and baked into every handler closure; a served request can never redirect
 // the server at a different vault path.
@@ -162,10 +162,10 @@ func ServeRoutes(deps Deps, vault, vaultName, chunksDir string) []ServeRoute {
 
 // unexported constants.
 const (
-	// loopRefusalReason discriminates the 409 loop refusal (ruling S13).
+	// loopRefusalReason discriminates the 409 loop refusal (792b36c12 A looping offer).
 	loopRefusalReason = "loop"
-	// maxFetchResponseBytes is the largest parent response accepted (final
-	// review F7): a merged query asks for unbounded budgets, so it is
+	// maxFetchResponseBytes is the largest parent response accepted (792b35c17
+	// The bounded fetch client): a merged query asks for unbounded budgets, so it is
 	// generous, but bounded so a malicious parent can't exhaust memory.
 	maxFetchResponseBytes = 16 << 20
 	// maxQueryTextBytes caps the served /query text param (2 KB).
@@ -186,7 +186,7 @@ const (
 // unexported variables.
 var (
 	// errServeBodyTooLarge answers 413: the body itself exceeded
-	// MaxServeRequestBytes (S34 residual — split from the generic
+	// MaxServeRequestBytes (split from the generic
 	// unreadable-body case, which answers 400 instead).
 	errServeBodyTooLarge = errors.New("serve: request body over the size limit")
 	// errServeBodyUnreadable answers 400: any other body-read failure
@@ -207,13 +207,13 @@ type activateRequest struct {
 
 // cycleRefusal is the 409 body for an offer whose path already holds this
 // vault's ID: the error plus the vault ID, so a child that is its own parent
-// (or sits on the cycle) can recognize and cache it (ruling S12).
+// (or sits on the cycle) can recognize and cache it (792b36c12 A looping offer).
 type cycleRefusal struct {
 	Error string `json:"error"`
 	// Reason is the explicit discriminator ("loop"), so a child never
-	// reads another 409 cause as a loop (ruling S13).
+	// reads another 409 cause as a loop (792b36c12).
 	Reason  string `json:"reason"`
-	VaultID string `json:"vault_id"` //nolint:tagliatelle // design D7 fixes the exchange's snake_case keys
+	VaultID string `json:"vault_id"` //nolint:tagliatelle // 792b36c12 fixes the exchange's snake_case keys
 }
 
 // errResponse is the JSON response body for any served-route failure.
@@ -237,7 +237,7 @@ func (f serveHandlerFunc) Serve(ctx context.Context, req ServeRequest) ServeResp
 }
 
 // activateResponse maps a served activate's per-ref outcome to a status,
-// so a 5xx only ever means a server-side failure (ruling S18): every ref
+// so a 5xx only ever means a server-side failure (792b35c7 The activate route): every ref
 // activated is 200 {"status":"ok"}; a ref that failed while being
 // activated (not merely missing) is 500; otherwise none found is 404 and a
 // partial result 200, each with the per-ref result as the body.
@@ -337,9 +337,9 @@ func jsonOKResponse() ServeResponse {
 }
 
 // requireReadBody answers for a request whose body could not be read in
-// full (final review F7) — 413 only when the body itself exceeded
+// full (792b35c3 Request bodies) — 413 only when the body itself exceeded
 // MaxServeRequestBytes at the HTTP edge (BodyTooLarge), and 400 for any
-// other body-read failure (S34 residual) — and otherwise hands the
+// other body-read failure — and otherwise hands the
 // request to next, so no route ever acts on a truncated body.
 func requireReadBody(next ServeHandler) ServeHandler {
 	return serveHandlerFunc(func(ctx context.Context, req ServeRequest) ServeResponse {
@@ -358,7 +358,7 @@ func requireReadBody(next ServeHandler) ServeHandler {
 }
 
 // serveActivate handles POST /activate: commits directly, no pending-offer
-// marker, no curation (design.md Decisions — activate never mutates note
+// marker, no curation (792a22c Activating a note commits directly — activate never mutates note
 // content, so there's no new claim for curation to judge).
 func serveActivate(deps Deps, vault string) ServeHandler {
 	return serveHandlerFunc(func(ctx context.Context, req ServeRequest) ServeResponse {
@@ -377,7 +377,7 @@ func serveActivate(deps Deps, vault string) ServeHandler {
 		args := ActivateArgs{Vault: vault, Notes: body.Notes}
 
 		// Local only: a served activate never reaches past this vault, and
-		// resolves refs only against its listed note names (final review F2).
+		// resolves refs only against its listed note names (792a20l A served activate takes note names only).
 		activate := newActivateDeps(deps)
 		activate.Resolve = listedNoteResolver(deps, vault)
 
@@ -391,7 +391,7 @@ func serveActivate(deps Deps, vault string) ServeHandler {
 }
 
 // serveLearn handles POST /learn: a LearnArgs-shaped JSON body, a child's
-// offer (design D7). The body's own User field (client-detected, no
+// offer (792b35c8 Decoding a served learn). The body's own User field (client-detected, no
 // verification — serve-client-declared-identity) stamps user:, rejected
 // outright when empty; its Repo field (also client-detected, no privilege)
 // passes through unchanged rather than being re-detected server-side, which
@@ -449,12 +449,10 @@ func serveLearn(deps Deps, vault, vaultName string) ServeHandler {
 	})
 }
 
-// serveQuery handles GET /query: QueryArgs-shaped query params, response
-// byte-identical to a local `engram query` invocation (design.md API
-// Contract) — the handler captures RunQuery's stdout verbatim rather than
-// re-deriving the payload. With dedupe-keys=1 (design D7) the payload also
-// carries the vault ID and each note item's exchange hash and aliases, the
-// keys a child's merged query dedupes by.
+// serveQuery handles GET /query: QueryArgs-shaped query params, response byte-identical to a local `engram
+// query` invocation (792b35c4 The query route) — the handler captures RunQuery's stdout verbatim rather than
+// re-deriving the payload. With dedupe-keys=1 (792b35c5 Dedupe keys) the payload also carries the vault ID
+// and each note item's exchange hash and aliases, the keys a child's merged query dedupes by.
 func serveQuery(deps Deps, vault, chunksDir string) ServeHandler {
 	return serveHandlerFunc(func(ctx context.Context, req ServeRequest) ServeResponse {
 		args := QueryArgs{
@@ -491,7 +489,7 @@ func serveQuery(deps Deps, vault, chunksDir string) ServeHandler {
 }
 
 // serveShow handles GET /show?note=<ref>, response matching local `engram
-// show`. With raw=1 (design D7 H7) it returns the note's raw JSON envelope
+// show`. With raw=1 (792b35c6 The show route) it returns the note's raw JSON envelope
 // instead. A missing note is a 404.
 func serveShow(deps Deps, vault string) ServeHandler {
 	return serveHandlerFunc(func(ctx context.Context, req ServeRequest) ServeResponse {

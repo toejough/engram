@@ -42,14 +42,14 @@ var (
 )
 
 // declinedFile is .engram/declined.json: the parent notes whose pulled
-// copies were discarded outright (design D8, H5).
+// copies were discarded outright (792a21ze A pull-down is idempotent, remembers declines and cannot loop).
 type declinedFile struct {
 	Version int            `json:"version"`
 	Entries []declinedPull `json:"entries"`
 }
 
 // declinedPull is one declined parent note: the parent's vault ID (a
-// decline is keyed by vault, as links are — ruling S16), its basename and
+// decline is keyed by vault, as links are — 792b36c3 An offer withdrawn at send time), its basename and
 // the exchange hash that was declined.
 type declinedPull struct {
 	Vault    string `json:"vault"`
@@ -57,7 +57,7 @@ type declinedPull struct {
 	Hash     string `json:"hash"`
 }
 
-// pullSession is one activate command's parent side (design D8): the
+// pullSession is one activate command's parent side (792a21zc Activate resolves a ref locally first): the
 // pre-exchange checks run once, and an outage or a failed check pauses
 // every later pull in the same command.
 type pullSession struct {
@@ -76,7 +76,7 @@ type pullSession struct {
 
 // fetchEnvelope fetches GET /show?raw=1 and validates the envelope. Any
 // answer resets the backoff and caches the parent's reported vault ID
-// (design D6, ruling S14); an outage records a failure and pauses the
+// (792b5c14 The parent cache and the contact backoff); an outage records a failure and pauses the
 // session with the one warning.
 func (s *pullSession) fetchEnvelope(ctx context.Context, name string) (rawShowResponse, error) {
 	resp, fetchErr := fetchRaw(ctx, s.deps, s.parentURL, methodGet, "/show",
@@ -105,7 +105,7 @@ func (s *pullSession) fetchEnvelope(ctx context.Context, name string) (rawShowRe
 	}
 
 	// The envelope's vault ID and basename are stored in the pulled copy's
-	// frontmatter and in declined.json: a malformed one writes nothing (F6).
+	// frontmatter and in declined.json: a malformed one writes nothing (792a21zd).
 	if !isExchangeID(envelope.VaultID) || !isExchangeBasename(envelope.Basename) {
 		s.noteContact("")
 
@@ -118,7 +118,7 @@ func (s *pullSession) fetchEnvelope(ctx context.Context, name string) (rawShowRe
 }
 
 // finish runs after every pull: a successful parent contact drains the
-// outbox (design D6), behind the backoff gate.
+// outbox (792a21r The outbox drains after the parent was reached), behind the backoff gate.
 func (s *pullSession) finish(ctx context.Context) {
 	if !s.contacted || s.paused {
 		return
@@ -128,7 +128,7 @@ func (s *pullSession) finish(ctx context.Context) {
 }
 
 // noteContact records an answer from the parent: the backoff resets, and
-// a reported vault ID is cached (W7 carry). Failing to record is not
+// a reported vault ID is cached (792b5c14). Failing to record is not
 // fatal to the pull.
 func (s *pullSession) noteContact(vaultID string) {
 	s.contacted = true
@@ -138,8 +138,8 @@ func (s *pullSession) noteContact(vaultID string) {
 
 // prepare runs the checks a child makes before its first write exchange
 // in a command: the first parent contact stamps a missing vault ID (which
-// creates .engram/, ruling S4), then the location check and cached
-// self-parent guard (ruling S2), then the backoff gate. Each prints its
+// creates .engram/, 792b5c4 Vault ID stamping), then the location check and cached
+// self-parent guard (792b5c12 Self-parent guard), then the backoff gate. Each prints its
 // one warning; any failure pauses the session.
 func (s *pullSession) prepare() bool {
 	if s.prepared {
@@ -173,9 +173,9 @@ func (s *pullSession) prepare() bool {
 	return true
 }
 
-// pull pulls one ref down (design D8): fetch the raw envelope with no lock
-// held, write under the lock (re-checking the skip rule), then signal use
-// to the parent after the lock is released.
+// pull pulls one ref down (792a21zd A pulled-down note is an exact-content local pending offer): fetch the
+// raw envelope with no lock held, write under the lock (re-checking the skip rule), then signal use to the
+// parent after the lock is released.
 func (s *pullSession) pull(ctx context.Context, ref string) error {
 	if !s.prepare() {
 		return errPullPaused
@@ -212,15 +212,12 @@ func (s *pullSession) queuedOffers() int {
 	return queuedOfferCount(box)
 }
 
-// recheck re-checks one parent link of a local hit (ruling S31, final
-// review F1): the merged query keeps a linked local copy in place of its
-// parent note, so a use of that copy is where a changed parent note comes
-// back down. It skips a link under another parent vault (without contact
-// when the parent's ID is cached), then fetches the raw envelope through
-// the same gated, backoff-aware contact as a pull and writes under the
-// lock exactly as a pull does: nothing when the parent's hash is the
-// link's (or a declined one), otherwise a new pending copy. It never
-// signals use to the parent.
+// recheck re-checks one parent link of a local hit (792a21zf Activating a linked note re-checks its parent
+// note): the merged query keeps a linked local copy in place of its parent note, so a use of that copy is
+// where a changed parent note comes back down. It skips a link under another parent vault (without contact
+// when the parent's ID is cached), then fetches the raw envelope through the same gated, backoff-aware
+// contact as a pull and writes under the lock exactly as a pull does: nothing when the parent's hash is the
+// link's (or a declined one), otherwise a new pending copy. It never signals use to the parent.
 func (s *pullSession) recheck(ctx context.Context, link linkedParentNote) error {
 	cached := cachedParentVaultID(s.store.state, s.vault, s.parentURL)
 	if cached != "" && cached != link.vault {
@@ -254,7 +251,7 @@ func (s *pullSession) recheck(ctx context.Context, link linkedParentNote) error 
 	return s.writeUnderLock(ctx, envelope, source)
 }
 
-// signalUse is the best-effort parent bump (design D8 step 5, Q2): POST
+// signalUse is the best-effort parent bump (792a21zg A pull-down tells the parent the note was used): POST
 // /activate for the parent note after the lock is released. Its failure is
 // neither fatal nor queued, and never backs the parent off.
 func (s *pullSession) signalUse(ctx context.Context, basename string) {
@@ -318,7 +315,7 @@ func (s *pullSession) warnUnreachable() {
 }
 
 // writeUnderLock takes the vault lock, re-checks the skip rule, and writes
-// the pulled copy as a new pending note (design D8 step 4), embedding it
+// the pulled copy as a new pending note (792a21zd), embedding it
 // and letting local vocab assign its tags.
 func (s *pullSession) writeUnderLock(ctx context.Context, envelope rawShowResponse, source pulledSource) error {
 	release, lockErr := s.learn.Lock(s.vault)
@@ -389,7 +386,7 @@ type pulledStamp struct {
 	xid      string
 }
 
-// buildPulledNote is the pulled copy's content (design D8): the parent's
+// buildPulledNote is the pulled copy's content (792a21zd): the parent's
 // frontmatter with the parent-side keys stripped, a local Luhmann ID,
 // created date and identity, pending, a fresh xid, and a parent block
 // linking the parent note (via pulled, with its exchange hash) and
@@ -411,7 +408,7 @@ func buildPulledNote(source pulledSource, envelope rawShowResponse, stamp pulled
 	}
 
 	// An undetectable user is omitted, never written as "" — and never left
-	// as the parent's own user: (#789 design D6).
+	// as the parent's own user: (792a21zh A pull-down stamps the first-write identity).
 	if stamp.identity.User != "" {
 		setMappingValue(mapping, "user", encodeNode(stamp.identity.User))
 	} else {
@@ -421,7 +418,7 @@ func buildPulledNote(source pulledSource, envelope rawShowResponse, stamp pulled
 	if stamp.identity.Vault != "" {
 		setMappingValue(mapping, "vault", encodeNode(stamp.identity.Vault))
 	} else {
-		deleteMappingKeys(mapping, "vault") // never vault: "", never the parent's (#789 design D10)
+		deleteMappingKeys(mapping, "vault") // never vault: "", never the parent's (792a21zd)
 	}
 	setMappingValue(mapping, "pending", encodeNode(true))
 	setMappingValue(mapping, xidKey, encodeNode(stamp.xid))
@@ -452,7 +449,7 @@ func buildPulledNote(source pulledSource, envelope rawShowResponse, stamp pulled
 
 // declineMatches reports whether declined.json holds a decline, under
 // parentVaultID, of one of names whose hash is not changed from hash
-// (unknown counts as not changed, D3).
+// (unknown counts as not changed, 792a21ze).
 func declineMatches(file declinedFile, parentVaultID string, names []string, hash string) bool {
 	return slices.ContainsFunc(file.Entries, func(entry declinedPull) bool {
 		return entry.Vault == parentVaultID && slices.Contains(names, entry.Basename) &&
@@ -467,7 +464,7 @@ func declinedPath(vault string) string {
 
 // linkedLocalNotes returns the local notes (live or pending) holding any
 // link under parentVaultID to one of names whose hash is not changed from
-// hash — the skip rule (design D8; unknown counts as not changed, D3).
+// hash — the skip rule (792a21ze; unknown counts as not changed).
 func linkedLocalNotes(notes []exchangeNote, parentVaultID string, names []string, hash string) []exchangeNote {
 	linked := make([]exchangeNote, 0, 1)
 
@@ -533,7 +530,7 @@ func newPullingActivateDeps(deps Deps, args ActivateArgs) ActivateDeps {
 // parsePulledSource parses a fetched note: it must have frontmatter and be
 // a fact, feedback or runbook.
 func parsePulledSource(envelope rawShowResponse) (pulledSource, error) {
-	// A CRLF envelope is pulled as its LF form (#789 design D4).
+	// A CRLF envelope is pulled as its LF form (792a21zb CRLF exchanges as LF).
 	frontmatter, body, found := splitFrontmatterAndBody(string(toLF([]byte(envelope.Content))))
 	if !found {
 		return pulledSource{}, errPullNoFrontmatter
@@ -569,7 +566,7 @@ func parsePulledSource(envelope rawShowResponse) (pulledSource, error) {
 }
 
 // pullStrippedKeys are the parent-side keys a pulled copy never carries
-// (design D8): the parent's own exchange fields, registration identity,
+// (792a21zd): the parent's own exchange fields, registration identity,
 // chunk provenance, supersedes, and its vocab tags (local vocab reassigns
 // them). pending, xid and parent are then set anew.
 func pullStrippedKeys() []string {
@@ -581,7 +578,7 @@ func pullStrippedKeys() []string {
 
 // pulledDecline is the decline a bare discard of a note records: its
 // primary link, when that link is via pulled, under the note's parent
-// vault ID (design D8).
+// vault ID (792a21zd).
 func pulledDecline(raw []byte) (declinedPull, bool) {
 	frontmatter, found := splitFrontmatter(toLF(raw))
 	if !found {
@@ -629,7 +626,7 @@ func pulledSlug(basename string) string {
 // except in a vault with no parent configured and no vault ID: stamping an
 // ID there would break "stamp only on serve start or first parent
 // contact" (792a2h, docs/changes/792_documentation-framework-adoption/
-// 792a_product-spec.md; ruling S18), and such a vault can never pull the
+// 792a_product-spec.md), and such a vault can never pull the
 // note again anyway until it contacts a parent.
 func recordDeclineUnlessUnstamped(
 	state exchangeState, vault string, parentConfigured bool, entry declinedPull,
@@ -648,9 +645,9 @@ func recordDeclineUnlessUnstamped(
 	return recordDeclinedPull(state, vault, entry)
 }
 
-// recordDeclinedPull adds a declined parent note to declined.json (design
-// D8, H5). The caller holds the vault lock; the vault ID is stamped before
-// .engram/ is created (ruling S4). A decline already recorded is kept once.
+// recordDeclinedPull adds a declined parent note to declined.json (792a21ze).
+// The caller holds the vault lock; the vault ID is stamped before
+// .engram/ is created (792b5c4 Vault ID stamping). A decline already recorded is kept once.
 func recordDeclinedPull(state exchangeState, vault string, entry declinedPull) error {
 	dirErr := ensureExchangeStateDir(state, vault)
 	if dirErr != nil {

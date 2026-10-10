@@ -97,7 +97,7 @@ func Test792b5c12a1_SelfParentGuard_Property(t *testing.T) {
 	})
 }
 
-// Test792b5c1a1_EnsureVault_CreatesMissingVaultWithIDAndStateDir pins design D2's
+// Test792b5c1a1_EnsureVault_CreatesMissingVaultWithIDAndStateDir pins 792b5c1 First-use ensure's
 // first-use creation: starters, a 32-hex ID from the injected RandRead, a
 // self-ignoring .engram/, a {vault_id, path} home.json with the canonical
 // path and no hostname, and exactly one stderr creation line.
@@ -498,7 +498,7 @@ func Test792b5c6a1_StampVaultID_ExistingVaultKeepsRootGitignoreAndReusesID(t *te
 
 // Test792b5c7a1_CheckVaultLocation_CopyIsMismatch: a `cp -R` copy carries the same ID
 // and home.json, but its canonical path differs from the record, so the
-// check fails (design D2 copy detection) while the original still passes.
+// check fails (792b5c7 Location record and check) while the original still passes.
 func Test792b5c7a1_CheckVaultLocation_CopyIsMismatch(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -752,7 +752,7 @@ func (s *scriptedStateFS) WriteFileExcl(path string, data []byte, _ fs.FileMode)
 	return nil
 }
 
-// canonicalPath mirrors design D2's EvalSymlinks(Abs(Clean(path))).
+// canonicalPath mirrors 792b5c7's EvalSymlinks(Abs(Clean(path))).
 func canonicalPath(t *testing.T, path string) string {
 	t.Helper()
 

@@ -4,11 +4,11 @@ package cli_test
 // "Exchange fields survive every other frontmatter rewrite"):
 // xid, parent, aliases and offer must come out of every non-exchange
 // frontmatter rewrite byte-unchanged, on every note type that carries them.
-// Siblings of skillfields_survival_test.go (task 3.2), reusing its in-memory
+// Siblings of skillfields_survival_test.go, reusing its in-memory
 // vault (skillSurvivalFS) and raw-block comparison (yamlKeyBlock).
 //
 // Renames are the one licensed change: a rename appends the old basename to
-// the renamed note's own aliases (task 3.5), so the renamed-note cases assert
+// the renamed note's own aliases (792a21zk), so the renamed-note cases assert
 // the exact aliases list: the original entries, then the old basename.
 
 import (
@@ -56,7 +56,7 @@ func Test792b33c10a1_ExchangeFieldsSurvive_Amend(t *testing.T) {
 
 				args.Vault, args.Target = "/vault", "1aa"
 				// The fixture carries offer.origin, so clearing its marker
-				// names the judged version (design D10 r3-2).
+				// names the judged version (792b34c5 Judged-version check).
 				args.ExpectHash = mustExchangeHash(t, before)
 
 				var buf bytes.Buffer
@@ -498,7 +498,7 @@ var (
 	exchangeSurvivalTypes = []string{"fact", "feedback", "runbook"}
 )
 
-// exchangeFixture mirrors the exchange frontmatter fields (design D4) with
+// exchangeFixture mirrors the exchange frontmatter fields (792b33c6 The exchange fields) with
 // the same keys and key order the frontmatter writer uses, so a fixture
 // rendered from it is exactly what a typed re-marshal emits.
 type exchangeFixture struct {
@@ -562,7 +562,7 @@ func basenameGen() *rapid.Generator[string] {
 	return rapid.StringMatching(`[1-9][0-9]{0,3}[a-z]{0,2}\.2026-0[1-9]-[12][0-9]\.[a-z][a-z0-9-]{0,24}`)
 }
 
-// exchangeFixtureGen draws exchange fields of every shape design D4 allows:
+// exchangeFixtureGen draws exchange fields of every shape 792b33c6 allows:
 // a primary link plus covered links, an author, aliases, and an offer with a
 // path.
 func exchangeFixtureGen() *rapid.Generator[exchangeFixture] {
@@ -720,7 +720,7 @@ func exchangeSurvivalSkillNote(exchange exchangeFixture) string {
 // expectExchangeFieldsSurviveRename asserts the renamed note keeps xid,
 // parent and offer byte-unchanged and that its aliases are exactly the
 // fixture's aliases followed by oldBasename (a rename appends the old
-// basename, task 3.5).
+// basename, 792a21zk).
 func expectExchangeFieldsSurviveRename(g Gomega, before, after, oldBasename string) {
 	for _, key := range []string{"xid", "parent", "offer"} {
 		want := yamlKeyBlock(before, key)

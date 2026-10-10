@@ -1,7 +1,7 @@
 package cli
 
 // exchangeFrontmatter is the exchange frontmatter every fact, feedback and
-// runbook note may carry (design D4, 792a21zi to 792a21zl). Every field is
+// runbook note may carry (792b33c6 The exchange fields, 792a21zi to 792a21zl). Every field is
 // omitempty, so a note that never takes part in exchange serializes exactly
 // as it did before exchange existed. Only the exchange paths (offer receipt,
 // pull-down, `amend --discard --into`, a rename's alias, served learn) set or
@@ -28,12 +28,12 @@ type noteAuthor struct {
 	Vault string `json:"-" yaml:"vault,omitempty"`
 }
 
-// offerRecord is a served offer's bookkeeping (design D7): Origin is
+// offerRecord is a served offer's bookkeeping (792b35c8 Decoding a served learn): Origin is
 // "<origin vault id>:<origin xid>", Key the idempotency key, For the
 // basename an amend-offer targets, and Path the vault IDs the offer has
 // passed through. PriorKeys holds the keys an in-place rewrite superseded
 // (the most recent maxPriorOfferKeys, oldest dropped), so a late retry of
-// a superseded key is recognized and never reverts the note (ruling S10).
+// a superseded key is recognized and never reverts the note (792b35c10 A recorded key is a retry).
 // Only served learn's in-place rewrite sets it; it rides under the
 // not-offered "offer" key, so it never enters the exchange hash.
 type offerRecord struct {

@@ -367,7 +367,7 @@ func Test792b29c10a23_Run_SymlinkMode_ForeignSymlinkNeverTouched(t *testing.T) {
 }
 
 // Test792b29c10a24_Run_SymlinkFreeTree_CleanupAndMaterializationRecordNothingUnexpected
-// is the note-475 regression check (design.md D5, vault note 475): a
+// is the note-475 regression check (792b29c10 Dangling-link cleanup, vault note 475): a
 // harness surface holding zero symlinks — only real, pre-migration content
 // — must survive materialization+cleanup with every recorded path an exact
 // match of its logical (Join-and-Clean) spelling. An EvalSymlinks-style
@@ -389,7 +389,7 @@ func Test792b29c10a24_Run_SymlinkFreeTree_CleanupAndMaterializationRecordNothing
 	fileSystem.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("learn skill")
 
 	// The surface holds the SAME skill as a REAL directory (the
-	// pre-migration shape task 5.1 adopts) — NO symlinks anywhere.
+	// pre-migration shape 792b29c8 Adopting earlier copies adopts) — NO symlinks anywhere.
 	fileSystem.dirs[home+"/.claude/skills"] = true
 	fileSystem.dirs[home+"/.claude/skills/learn"] = true
 	fileSystem.files[home+"/.claude/skills/learn/SKILL.md"] = []byte("real copy, pre-migration")
@@ -412,7 +412,7 @@ func Test792b29c10a24_Run_SymlinkFreeTree_CleanupAndMaterializationRecordNothing
 	g.Expect(harness.DanglingLinksRemoved).To(BeEmpty())
 
 	// The real pre-migration copy is an intended-set member (skill "learn"
-	// matches the source) — it is ADOPTED (task 5.1), not left in place:
+	// matches the source) — it is ADOPTED (792b29c8 Adopting earlier copies), not left in place:
 	// removed and replaced by a symlink into the engram root, at its EXACT
 	// logical (unresolved) path — never rewritten by any resolution step.
 	g.Expect(fileSystem.removed).To(ContainElement(home + "/.claude/skills/learn"))
@@ -610,7 +610,7 @@ func Test792b29c13a10_ApplyOps_ManifestMode_DryRun_NoWrites(t *testing.T) {
 // applyGuidanceOps's error branch, only reachable via the manifest-mode
 // fallthrough now that Claude (GuidanceTargetRel == EngramRootRel) uses
 // applyGuidanceCompatLinks and Pi (a separate guidance surface) uses
-// applyGuidanceLinks instead (task 5.3 retired the flat-copy path for
+// applyGuidanceLinks instead (792b29c9 Guidance links retired the flat-copy path for
 // symlink-mode harnesses).
 func Test792b29c13a11_ApplyOps_ManifestMode_GuidanceCopyErrorIsHarnessError(t *testing.T) {
 	t.Parallel()
@@ -828,7 +828,7 @@ func Test792b29c13a11_ApplyOps_ManifestMode_SkillWriteErrorIsHarnessError(t *tes
 	g.Expect(reports[0].Err).To(MatchError(ContainSubstring("write boom")))
 }
 
-// --- 1.4 / D7: manifest-mode fallthrough equals today's copy behavior -------
+// --- 792b29c13 Manifest mode: manifest-mode fallthrough equals today's copy behavior -------
 
 func Test792b29c13a2_ApplyOps_ManifestMode_FallsThroughToCopyBehavior(t *testing.T) {
 	t.Parallel()
@@ -1189,7 +1189,7 @@ func Test792b29c7a9_MaterializeSymlink_MkdirError_Propagates(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("mkdir boom")))
 }
 
-// Test792b29c8a10_Run_SymlinkMode_PiRealGuidanceFile_AdoptsToSymlink covers task 5.1: a
+// Test792b29c8a10_Run_SymlinkMode_PiRealGuidanceFile_AdoptsToSymlink covers 792b29c8 Adopting earlier copies: a
 // real pre-existing guidance file at Pi's SEPARATE guidance surface (an
 // intended-set member) is adopted — replaced by a symlink into the
 // engram root — never merely left in place and reported.
@@ -1240,7 +1240,7 @@ func Test792b29c8a10_Run_SymlinkMode_PiRealGuidanceFile_AdoptsToSymlink(t *testi
 	g.Expect(fileSystem.written[engramPath]).To(Equal([]byte("fresh pi guidance")))
 }
 
-// Test792b29c8a8_Run_SymlinkMode_RealSkillDirAdoptsToSymlink covers task 5.1: a real
+// Test792b29c8a8_Run_SymlinkMode_RealSkillDirAdoptsToSymlink covers 792b29c8 Adopting earlier copies: a real
 // skill dir already occupying a symlink-mode harness's skills surface (an
 // intended-set member) is adopted — replaced by a symlink into the engram
 // root — never merely left in place and reported.
@@ -1287,8 +1287,8 @@ func Test792b29c8a8_Run_SymlinkMode_RealSkillDirAdoptsToSymlink(t *testing.T) {
 	g.Expect(fileSystem.written[home+"/.claude/engram/skills/recall/SKILL.md"]).To(Equal([]byte("fresh")))
 }
 
-// Test792b29c9a1_Run_SymlinkMode_ClaudeGuidanceCreatesCompatSymlink covers task 5.3:
-// the old flat-copy path (applyGuidanceOps) for Claude's D1 guidance
+// Test792b29c9a1_Run_SymlinkMode_ClaudeGuidanceCreatesCompatSymlink covers 792b29c9 Guidance links:
+// the old flat-copy path (applyGuidanceOps) for Claude's guidance (792b29c5 Root ownership)
 // exclusion is RETIRED — the flat path is now a compat symlink into the
 // canonical guidance/ subtree, not a real copy.
 func Test792b29c9a1_Run_SymlinkMode_ClaudeGuidanceCreatesCompatSymlink(t *testing.T) {

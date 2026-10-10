@@ -13,7 +13,7 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// Test792b31c4a10_RecordSkillDeclined_OlderReaderDecodesVersion2 covers design D7's
+// Test792b31c4a10_RecordSkillDeclined_OlderReaderDecodesVersion2 covers 792b31c4 Declines file's
 // compatibility claim: the v2 file keeps exactly the fields the old reader
 // knows, so a strict decode of that shape (unknown fields rejected, as
 // ReadSkillRegistrations always did) still succeeds.
@@ -141,7 +141,7 @@ func Test792b31c4a12_RunSkillRegistration_NonVersion2File_ErrorsAndWritesNothing
 	}
 }
 
-// Test792b31c4a4_ReadSkillRegistrations_AcceptsVersion2 covers design D7: a v2 file's
+// Test792b31c4a4_ReadSkillRegistrations_AcceptsVersion2 covers 792b31c4 Declines file: a v2 file's
 // declines are read keyed by skill key.
 func Test792b31c4a4_ReadSkillRegistrations_AcceptsVersion2(t *testing.T) {
 	t.Parallel()
@@ -157,7 +157,7 @@ func Test792b31c4a4_ReadSkillRegistrations_AcceptsVersion2(t *testing.T) {
 }
 
 // Test792b31c4a5_ReadSkillRegistrations_RejectsEveryVersionButTwo covers "Version-1 file
-// fails loudly" and "Unknown schema version fails loudly" (design D7: v1
+// fails loudly" and "Unknown schema version fails loudly" (792b31c4 Declines file: v1
 // reading is dropped): a schema_version below 2, above 2 or missing is an
 // error, never an empty decline state.
 func Test792b31c4a5_ReadSkillRegistrations_RejectsEveryVersionButTwo(t *testing.T) {
@@ -236,6 +236,6 @@ func Test792b31c4a5_SkillRegistrations_Property_OnlyVersion2IsRead(t *testing.T)
 
 // unexported constants.
 const (
-	// skillRegistrationsVersion2 is design D7's current decline-file schema.
+	// skillRegistrationsVersion2 is 792b31c4 Declines file's current decline-file schema.
 	skillRegistrationsVersion2 = 2
 )

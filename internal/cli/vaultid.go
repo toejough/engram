@@ -6,7 +6,7 @@ import (
 	"io"
 )
 
-// VaultIDArgs holds parsed flags for `engram vault-id` (design D2, r3-4).
+// VaultIDArgs holds parsed flags for `engram vault-id` (792b5c11 vault-id report).
 type VaultIDArgs struct {
 	Vault      string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
 	Regenerate bool   `targ:"flag,name=regenerate,desc=this vault is a copy: mint a new vault ID (no note changes)"`

@@ -1,7 +1,7 @@
 package cli_test
 
 // Identity backfill's byte parity with the pre-change backfill (#789,
-// design D2): moving backfill onto the YAML-node edit must write exactly
+// 792b11c7 Identity backfill): moving backfill onto the YAML-node edit must write exactly
 // what the typed re-marshal wrote for notes without unknown keys or
 // anchors. The goldens under testdata/backfill_identity_parity were written
 // in-process by the backfill at 0f5d91b7, before any change, on these same

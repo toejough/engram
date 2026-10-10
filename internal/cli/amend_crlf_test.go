@@ -1,7 +1,7 @@
 package cli_test
 
-// Amend converts CRLF notes (#789 defect 1, design D1; note-revision
-// 792a4m): amend reads every note it edits as LF, writes a note only
+// Amend converts CRLF notes (#789 defect 1, 792b14c7 CRLF
+// revision; note-revision 792a4m): amend reads every note it edits as LF, writes a note only
 // where it already writes one, and re-embeds a converted note.
 
 import (
@@ -288,7 +288,7 @@ func newCRLFAmendVault(note string) *crlfAmendVault {
 }
 
 // runAmendLFJudged amends input like runAmendParityCase, but judges the
-// version on lfInput — the form amend edits (design D1).
+// version on lfInput — the form amend edits (792b14c7 CRLF revision).
 func runAmendLFJudged(ctx context.Context, input, lfInput string, args cli.AmendArgs) (string, error) {
 	vault := newCRLFAmendVault(input)
 

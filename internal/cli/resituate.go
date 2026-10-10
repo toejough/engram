@@ -38,7 +38,7 @@ type ResituateDeps struct {
 	ListMD          func(vault string) ([]string, error)
 	LogWarning      func(format string, args ...any)
 	Now             func() time.Time
-	// Offers connects resituate to the parent outbox (design D5, D6, E41).
+	// Offers connects resituate to the parent outbox (792b36c1 Which writes are offered).
 	// The zero value — no parent configured — offers nothing.
 	Offers offerHooks
 }
@@ -62,7 +62,7 @@ func RunResituate(
 		return err
 	}
 
-	// The drain runs after the vault lock is released (design D6).
+	// The drain runs after the vault lock is released (792b36c5 Before a drain sends).
 	if queued {
 		deps.Offers.drain(ctx, args.Vault)
 	}
@@ -228,7 +228,7 @@ func resituateContent(raw []byte, situation string) (string, error) {
 }
 
 // resituateTyped edits a note's frontmatter as a YAML node with only its
-// situation replaced (design D10 M7, D6b): every other frontmatter key,
+// situation replaced (792b14c8 Resituation): every other frontmatter key,
 // including keys the typed doc does not define, survives with its value —
 // pending, sources, tags, supersedes, vocab_version, issue, project and the
 // exchange fields among them. The typed doc is decoded from the node only
@@ -292,7 +292,7 @@ func resituateTyped[T any](
 
 // runResituateLocked is RunResituate's locked section: the rewrite, the
 // re-embed, and — with a parent configured — the offer's xid stamp and
-// outbox entry in the same critical section (design D6). It reports
+// outbox entry in the same critical section (792b36c4 Queueing an offer). It reports
 // whether an offer was queued.
 func runResituateLocked(ctx context.Context, args ResituateArgs, deps ResituateDeps, stdout io.Writer) (bool, error) {
 	// Acquire the vault lock before any read-modify-write on the note so
@@ -322,7 +322,7 @@ func runResituateLocked(ctx context.Context, args ResituateArgs, deps ResituateD
 	}
 
 	// Resituate always rewrites the note, so a CRLF note is converted to LF
-	// in that same write (design D5, final review F5).
+	// in that same write (792b14c7 CRLF revision).
 	rendered, renderErr := resituateContent(toLF(raw), args.Situation)
 	if renderErr != nil {
 		return false, renderErr
@@ -356,7 +356,7 @@ func runResituateLocked(ctx context.Context, args ResituateArgs, deps ResituateD
 // the block early). Returns (nil, false) when the note has no leading
 // frontmatter block.
 func splitFrontmatter(raw []byte) ([]byte, bool) {
-	frontmatter, _, ok := embed.SplitFrontmatter(toLF(raw)) // CRLF reads as LF (#789 design D8)
+	frontmatter, _, ok := embed.SplitFrontmatter(toLF(raw)) // CRLF reads as LF (792b6c8 CRLF reading)
 	if !ok {
 		return nil, false
 	}

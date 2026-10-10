@@ -10,12 +10,12 @@ import (
 	"github.com/toejough/engram/internal/update"
 )
 
-// ResolvedSkillSources is ResolveSkillSources' output (design D1).
+// ResolvedSkillSources is ResolveSkillSources' output (792b30c16 Source composition and precedence).
 type ResolvedSkillSources struct {
-	// SkillScanResult holds every candidate in design D2 precedence order,
+	// SkillScanResult holds every candidate in 792b30c16 Source composition and precedence order,
 	// each stamped with its key (AssignSkillKeys, the resolver's last step;
 	// a candidate it cannot key is dropped with a warning), every root a scanner
-	// tried to read with its scanned flag (D5's ScannedRoots are the
+	// tried to read with its scanned flag (792b31c3 Removal eligibility's ScannedRoots are the
 	// Scanned ones), and all scanner warnings. Disabled candidates are kept.
 	SkillScanResult
 
@@ -24,9 +24,9 @@ type ResolvedSkillSources struct {
 	Project      ProjectIdentity
 	ProjectFound bool
 	// PluginManifestsRead, Plugins and PluginConflicts pass the plugin
-	// scanner's facts through unchanged (ruling R3): the caller prints each
-	// conflict and fails (task 2.3) and treats a conflicted or unscanned
-	// plugin's scope as not scanned (task 2.4). They are zero when the
+	// scanner's facts through unchanged (792b30c7 Claude Code plugins): the caller prints each
+	// conflict and fails (792b31c2 Offer comparison) and treats a conflicted or unscanned
+	// plugin's scope as not scanned (792b31c3 Removal eligibility). They are zero when the
 	// Claude Code harness is not detected, so no plugin note is ever
 	// removal-eligible then.
 	PluginManifestsRead bool
@@ -35,7 +35,7 @@ type ResolvedSkillSources struct {
 	// ResolvedHome is home with every symlink resolved (empty when it does
 	// not resolve). Candidates' SourcePaths are fully resolved, so a
 	// `~`-relative skill_source is written against it when home itself is a
-	// symlink (design D8, NewSkillNoteSource).
+	// symlink (792b31c7 Note actions, NewSkillNoteSource).
 	ResolvedHome string
 }
 
@@ -46,20 +46,18 @@ type SkillSourceDeps struct {
 	Commander update.Commander
 }
 
-// ResolveSkillSources resolves the default skill, command and prompt source
-// set (design D1) — the one definition both `engram register-skills` and the
-// `engram update` hook use. Harnesses come from update.DetectHarnesses: the
-// Claude Code sources are read only when its harness is detected, the Pi
-// (and `~/.agents`) sources only when Pi's is. Each harness's paths derive
-// from its HarnessSpec (the config dir is the parent of SkillsTargetRel).
+// ResolveSkillSources resolves the default skill, command and prompt source set (792b30c16 Source composition
+// and precedence) — the one definition both `engram register-skills` and the `engram update` hook use.
+// Harnesses come from update.DetectHarnesses: the Claude Code sources are read only when its harness is
+// detected, the Pi (and `~/.agents`) sources only when Pi's is. Each harness's paths derive from its
+// HarnessSpec (the config dir is the parent of SkillsTargetRel).
 //
-// Candidates are returned in D2 precedence order: Claude user skills, Claude
-// user commands, synced, Pi user, agents user, Pi settings skills, Pi prompt
-// templates (default folder, then settings), Pi packages, Claude plugins,
-// Claude project, then the Pi project sources in the same order as the
-// global Pi ones. Pi's trust decision is computed once (ruling R2) and gates
-// every Pi project source; the global and project settings' `!`/`+`/`-`
-// overrides mark default-folder candidates Disabled (rulings R8/R10).
+// Candidates are returned in 792b30c16 Source composition and precedence order: Claude user skills, Claude
+// user commands, synced, Pi user, agents user, Pi settings skills, Pi prompt templates (default folder, then
+// settings), Pi packages, Claude plugins, Claude project, then the Pi project sources in the same order as
+// the global Pi ones. Pi's trust decision is computed once (792b30c10 Pi project trust) and gates every Pi
+// project source; the global and project settings' `!`/`+`/`-` overrides mark default-folder candidates
+// Disabled (792b30c12 Pi settings reading and overrides, 792b30c13 Pi configured sources).
 //
 // Keys are stamped here, as the last step, so every caller gets keyed
 // candidates from the one definition: AssignSkillKeys over the scanners'
@@ -155,7 +153,7 @@ type skillSourceInputs struct {
 }
 
 // claude scans the Claude Code harness's sources: user skills, commands and
-// synced (D2 1-3), plugins (8), and the project chain (9).
+// synced (792b30c3-c5), plugins (792b30c7), and the project chain (792b30c15).
 func (in skillSourceInputs) claude(configDir, skillsRoot string) claudeSources {
 	var sources claudeSources
 
@@ -192,8 +190,8 @@ func (in skillSourceInputs) claude(configDir, skillsRoot string) claudeSources {
 }
 
 // pi scans the Pi harness's sources: user skills, agents user skills,
-// settings skills, prompt templates and packages (D2 4-7), and — for a
-// trusted project — the project sources (10), applying each settings file's
+// settings skills, prompt templates and packages (792b30c8, c9, c12, c13), and — for a
+// trusted project — the project sources (792b30c11), applying each settings file's
 // overrides to its default folders.
 func (in skillSourceInputs) pi(agentDir, piSkillsRoot string) piSources {
 	var sources piSources
@@ -244,7 +242,7 @@ func (in skillSourceInputs) pi(agentDir, piSkillsRoot string) piSources {
 	return sources
 }
 
-// piProject scans a trusted project's Pi sources (design D2 source 10) in
+// piProject scans a trusted project's Pi sources (792b30c11 Pi project sources) in
 // the global Pi order, stamping each root's project key prefix; the
 // settings and package parts come from ScanPiConfiguredSources.
 func (in skillSourceInputs) piProject(
@@ -313,8 +311,8 @@ func joinSkillScanResults(results ...SkillScanResult) SkillScanResult {
 }
 
 // splitPiConfigured sorts ScanPiConfiguredSources' candidates into their
-// precedence slots: global settings skills (D2 6), global settings prompts
-// (6b), global packages (7), and the same three for the project (10).
+// precedence slots: global settings skills, global settings prompts,
+// global packages (792b30c13 Pi configured sources), and the same three for the project.
 func splitPiConfigured(candidates []SkillCandidate, projectScope string) piConfiguredParts {
 	var parts piConfiguredParts
 
@@ -404,7 +402,7 @@ func withClaudeProjectRootForms(result SkillScanResult, scope string) SkillScanR
 // withFailedRootsResolved gives every root that was not read and has no
 // resolved path its best-effort resolution (resolveSkillPathBestEffort), so
 // a failed root reached through a symlink still hides the notes under its
-// real location from an outer read root (design D5).
+// real location from an outer read root (792b31c3 Removal eligibility).
 func withFailedRootsResolved(fsys SkillSourceFS, roots []ScannedRoot) []ScannedRoot {
 	out := make([]ScannedRoot, 0, len(roots))
 

@@ -14,7 +14,7 @@ const (
 	linkViaPulled  = "pulled"
 )
 
-// offerCommand names the write a classification is asked about (design D5).
+// offerCommand names the write a classification is asked about (792b36c1 Which writes are offered).
 type offerCommand int
 
 // offerCommand values.
@@ -44,7 +44,7 @@ type offerWrite struct {
 }
 
 // amendHasContentFlag reports whether an amend supplies any content flag
-// (design D5): situation, subject/predicate/object, behavior/impact/action,
+// (792b36c1 Which writes are offered): situation, subject/predicate/object, behavior/impact/action,
 // done-when, body, red-flag or trigger. --supersedes and --chunk-source are
 // relations, not content.
 func amendHasContentFlag(args AmendArgs) bool {
@@ -57,10 +57,10 @@ func amendHasContentFlag(args AmendArgs) bool {
 		len(args.RedFlags) > 0 || len(args.Triggers) > 0
 }
 
-// amendIsOffered is the amend rows of design D5: a content amend is
+// amendIsOffered is the amend rows of 792b36c1 Which writes are offered: a content amend is
 // offered; clearing the pending marker of a served offer (one carrying
 // offer.origin) propagates it upward unless its origin vault is the
-// configured parent (M14, D12); every other amend is bookkeeping.
+// configured parent (792b36c1); every other amend is bookkeeping.
 func amendIsOffered(args AmendArgs, note offerClassNote, parentVaultID string) bool {
 	if args.Discard {
 		return false
@@ -80,7 +80,7 @@ func amendIsOffered(args AmendArgs, note offerClassNote, parentVaultID string) b
 	return !originIsVault(note.exchange.Offer.Origin, parentVaultID)
 }
 
-// classifyOffer is design D5's table as one pure function over the write
+// classifyOffer is the 792b36c1 Which writes are offered table as one pure function over the write
 // (command, amend flags, the note as written) and the configured parent's
 // vault ID ("" when not yet known). It reports whether the write is queued
 // as an offer. Whether that offer is a learn-offer or an amend-offer is the
@@ -103,7 +103,7 @@ func classifyOffer(write offerWrite, parentVaultID string) bool {
 		return false
 	}
 
-	// Loop suppression: fires only on an equal current-version hash (D3).
+	// Loop suppression: fires only on an equal current-version hash (792a21y A looping offer is refused).
 	link, linked := primaryParentLink(note.exchange, parentVaultID)
 
 	return !linked || !exchangeHashesMatch(link.Hash, note.hash)
@@ -154,7 +154,7 @@ func parseOfferClassNote(raw []byte) (offerClassNote, bool) {
 // primaryParentLink returns the note's primary link (via offered or
 // pulled) to the configured parent, whose vault ID must be known: a link
 // recorded under any other vault ID — or any link at all while the
-// parent's ID is unknown — is never the parent's (ruling S16).
+// parent's ID is unknown — is never the parent's (792b36c3 An offer withdrawn at send time).
 func primaryParentLink(exchange exchangeFrontmatter, parentVaultID string) (parentLink, bool) {
 	if parentVaultID == "" || exchange.Parent.Vault != parentVaultID {
 		return parentLink{}, false

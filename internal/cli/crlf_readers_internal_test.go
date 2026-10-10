@@ -1,6 +1,6 @@
 package cli
 
-// Non-exchange readers read a CRLF note as its LF form (#789, design D8):
+// Non-exchange readers read a CRLF note as its LF form (792b6c8 CRLF reading):
 // query project filtering, recency's created:, query's vault metadata
 // (tags, supersedes, triggers), vocab tagging, engram check and count.
 

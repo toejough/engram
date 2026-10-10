@@ -97,7 +97,7 @@ func ProjectSlugFromPath(path string) string {
 func Targets(deps Deps) []any {
 	errHandler := newErrHandler(deps.Stderr, deps.Exit)
 
-	// Pre-dispatch guard (design D1): a set envRemovedServer refuses every
+	// Pre-dispatch guard (792b2c9 A removed environment variable is refused): a set envRemovedServer refuses every
 	// command, serve included, before any target — and so any vault, chunk
 	// index, lock, fetch or bind — is built. Production Exit never returns;
 	// the nil target list only matters to a recording Exit in tests.
@@ -344,12 +344,12 @@ func newErrHandler(stderr io.Writer, exit func(int)) func(error) {
 }
 
 // registerSkillsTargets returns the `engram register-skills` subcommand
-// (skill-runbook-registration). It calls the shared
-// source resolver (ResolveSkillSources, design D1) over home and the working
+// (792a12h Registration can run on its own with explicit answers). It calls the shared
+// source resolver (ResolveSkillSources, 792b30c16 Source composition and precedence) over home and the working
 // directory — the same default skill, command and prompt set `engram
 // update`'s registration hook scans. --skills-dir is repeatable (relative to
 // the working directory), replaces the default set, and makes a read-only
-// preview with no removals (design D9).
+// preview with no removals (792b31c6 The registration run).
 func registerSkillsTargets(
 	deps Deps,
 	withLog func(context.Context) context.Context,
@@ -395,7 +395,7 @@ func registerSkillsTargets(
 	}
 }
 
-// runInVault runs the shared first-use step (design D2, #766) for a
+// runInVault runs the shared first-use step (792b2c3 First-use gating, #766) for a
 // resolved vault path — a missing vault is created and announced, an
 // existing one is untouched — then the command. When creating the vault
 // fails, the command does not run.

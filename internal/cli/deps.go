@@ -15,7 +15,7 @@ import (
 // production I/O enters exclusively through this struct (#700).
 type Deps struct {
 	// Stdin supplies interactive prompt input (production: os.Stdin) — read
-	// by skill-runbook-registration's `engram register-skills` prompt loop
+	// by the `engram register-skills` prompt loop (792b31c5 Answers and prompts)
 	// via a bufio.Scanner internal/cli owns; a nil Stdin is safe as long as
 	// no code path that reads it is exercised (e.g. dry-run/non-interactive
 	// registration, or any other command).
@@ -40,9 +40,9 @@ type Deps struct {
 	Username func() (string, error)
 	// IsTerminal reports whether Stdin is an interactive terminal (production:
 	// golang.org/x/term's term.IsTerminal(os.Stdin.Fd()), checked in
-	// cmd/engram/main.go — skill-runbook-registration's interactive-prompt
-	// gate). A nil IsTerminal is treated as non-interactive by callers that
-	// check it.
+	// cmd/engram/main.go — the interactive-prompt
+	// gate of 792a12g Registration never prompts or writes without a terminal). A nil IsTerminal is treated as
+	// non-interactive by callers that check it.
 	IsTerminal func() bool
 	// FS is the filesystem edge (production: cmd/engram's osFS).
 	FS EdgeFS
@@ -79,7 +79,7 @@ type Deps struct {
 	// cmd/engram). Used for parent requests (ENGRAM_PARENT).
 	Fetch func(ctx context.Context, method, url string, body []byte) (FetchResponse, error)
 	// RandRead fills buf with cryptographically random bytes (production:
-	// crypto/rand.Read) — the vault-ID source (design D2).
+	// crypto/rand.Read) — the vault-ID source (792b5c4 Vault ID stamping).
 	RandRead func(buf []byte) (int, error)
 	// EvalSymlinks resolves every symlink in path (production:
 	// filepath.EvalSymlinks) — the vault location record's canonical path.
@@ -110,17 +110,17 @@ type EdgeFS interface {
 	MkdirTemp(dir, pattern string) (string, error)
 	Stat(path string) (fs.FileInfo, error)
 	// Lstat returns FileInfo for path without following a trailing symlink
-	// (D8: distinguishes symlink / real file / dir).
+	// (792b29c10 Dangling-link cleanup: distinguishes symlink / real file / dir).
 	Lstat(path string) (fs.FileInfo, error)
 	ReadDir(path string) ([]fs.DirEntry, error)
 	Remove(path string) error
 	RemoveAll(path string) error
 	Rename(oldPath, newPath string) error
-	// Symlink creates link as a symbolic link to target (D1/D3: materializes
+	// Symlink creates link as a symbolic link to target (792b29c7 Skill links: materializes
 	// the sync engine's engram-owned-root links).
 	Symlink(target, link string) error
 	// Readlink returns the destination that the symbolic link at path
-	// points to (D5: dangling-link cleanup).
+	// points to (792b29c10 Dangling-link cleanup).
 	Readlink(path string) (string, error)
 	WalkDir(root string, fn fs.WalkDirFunc) error
 }

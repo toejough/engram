@@ -6,7 +6,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// Test792b6c7a5_VerifyFrontmatterDecodes is the write guard (ruling V3 b): rendered
+// Test792b6c7a5_VerifyFrontmatterDecodes is the write guard: rendered
 // content whose frontmatter does not decode — a dangling alias, a
 // non-mapping, or no frontmatter at all — is refused.
 func Test792b6c7a5_VerifyFrontmatterDecodes(t *testing.T) {

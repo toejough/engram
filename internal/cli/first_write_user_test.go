@@ -1,6 +1,6 @@
 package cli_test
 
-// First writes omit an undetectable user (#789 follow-up, design D6; 792a3p,
+// First writes omit an undetectable user (#789 follow-up, 792b11c3 First-write stamp; 792a3p,
 // "User provenance"): when
 // user detection comes back empty, learn and pull-down write the note with
 // no user: key and print one warning — never user: "".

@@ -41,7 +41,7 @@ var (
 	errFrontmatterUndecodable = errors.New("rewritten frontmatter does not decode")
 	// listEntryIdentity names, for each modeled list of mappings amend may
 	// replace, the entry key that identifies an entry across the
-	// replacement (#789 design D5): a supersedes entry is the note it names.
+	// replacement (792b6c7 Frontmatter node edits): a supersedes entry is the note it names.
 	//nolint:gochecknoglobals // a fixed lookup table
 	listEntryIdentity = map[string]string{supersedesListKey: supersedesIdentityKey}
 )
@@ -301,7 +301,7 @@ func planTypedEdit(
 // keys present in mapping whose key node, value node, or any node beneath
 // the value carries an anchor — the keys a node edit is about to replace or
 // delete. Any anchor refuses, aliased elsewhere or not: an unaliased anchor
-// is just as hand-authored, and refusing keeps the rule simple (ruling V3).
+// is just as hand-authored, and refusing keeps the rule simple (792b6c7 Frontmatter node edits).
 func refuseAnchoredKeys(mapping *yaml.Node, keys ...string) error {
 	for index := 0; index+1 < len(mapping.Content); index += 2 {
 		key, value := mapping.Content[index], mapping.Content[index+1]

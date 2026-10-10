@@ -1,10 +1,9 @@
 package cli_test
 
-// Tests for the exchange frontmatter fields themselves (design D4,
-// 792a21zi, "An exchanged note carries a stable exchange ID";
-// task 3.3): every frontmatter struct declares them, a note without them
-// serializes exactly as before, nothing stamps them by backfill, and JSON
-// decoding can never populate them.
+// Tests for the exchange frontmatter fields themselves (792b33c6 The exchange fields,
+// 792a21zi, "An exchanged note carries a stable exchange ID"):
+// every frontmatter struct declares them, a note without them serializes exactly as before, nothing stamps
+// them by backfill, and JSON decoding can never populate them.
 
 import (
 	"context"
@@ -89,7 +88,7 @@ func Test792b33c6a2_ExchangeFields_AbsentFieldsSerializeAsToday(t *testing.T) {
 
 // Test792b33c6a3_ExchangeFields_JSONNeverPopulatesThem: decoding JSON into a
 // frontmatter struct, under any key spelling, never sets an exchange field
-// (they are tagged json:"-"; the served-learn wire itself is task 3.7).
+// (they are tagged json:"-"; the served-learn wire itself is 792b35c8).
 func Test792b33c6a3_ExchangeFields_JSONNeverPopulatesThem(t *testing.T) {
 	t.Parallel()
 

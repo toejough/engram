@@ -15,13 +15,13 @@ import (
 // unexported constants.
 const (
 	// cycleRefusedWarningFormat is the one warning per drain for a loop
-	// refusal from a vault other than this one (ruling S13).
+	// refusal from a vault other than this one (792b36c12 A looping offer).
 	cycleRefusedWarningFormat = "engram: warning: parent cycle or misconfiguration detected: vault %s refused " +
 		"an offer because its ID is already on the offer's path; the offer is marked rejected\n"
 	learnRoute     = "/learn"
 	outboxFileName = "outbox.json"
 	// outboxStateAttention: the parent accepted the offer, but the local
-	// note refuses its receipt (#789 design D3). The entry keeps the
+	// note refuses its receipt (792a21w A receipt the note refuses needs attention). The entry keeps the
 	// receipt and is never re-sent; each drain retries recording it.
 	outboxStateAttention = "attention"
 	outboxStateQueued    = "queued"
@@ -44,7 +44,7 @@ const (
 	// offerFailed: a transport error, timeout, 5xx or unreadable 2xx — stop
 	// the drain and back off.
 	offerFailed
-	// offerTooOld: a receipt without vault_id or basename (H7) — stop
+	// offerTooOld: a receipt without vault_id or basename (792b36c11 A parent that is too old) — stop
 	// exchange with errParentTooOld, keep the entry queued.
 	offerTooOld
 	// offerSkipped: the payload could not be built locally — the parent was
@@ -53,15 +53,15 @@ const (
 	// offerRefused: the parent refused the offer as a loop — a 409 because
 	// its vault ID is already on offer.path, or a receipt naming this vault
 	// itself (the self-parent case). Keep the entries queued, cache the
-	// parent's vault ID, stop the drain and warn once (ruling S12).
+	// parent's vault ID, stop the drain and warn once (792b36c12 A looping offer).
 	offerRefused
-	// offerWithdrawn: the send-time re-check (ruling S16) found the offer
+	// offerWithdrawn: the send-time re-check (792b36c3 An offer withdrawn at send time) found the offer
 	// must not go to this parent — its origin vault is the parent, or the
 	// parent already holds its content. The parent was not contacted; the
 	// entry is dropped unless the note changed since.
 	offerWithdrawn
 	// offerHeld: an attention entry's kept receipt, retried locally — the
-	// parent was not contacted (#789 design D3).
+	// parent was not contacted (792a21w).
 	offerHeld
 )
 
@@ -69,7 +69,7 @@ const (
 var (
 	// errReceiptNeedsAttention marks a receipt the local note refused: the
 	// entry moved to the attention state, and the merge warns once instead
-	// of returning it as a drain error (#789 design D3).
+	// of returning it as a drain error (792a21w).
 	// errKeptReceiptDiscarded marks a kept receipt from a parent other than
 	// the configured one, discarded with one warning.
 	errKeptReceiptDiscarded = errors.New("a link counts only under the configured parent")
@@ -130,20 +130,20 @@ type offerSendResult struct {
 	Err     error
 }
 
-// outboxEntry is one queued note, keyed by its xid (design D6). Queued is
+// outboxEntry is one queued note, keyed by its xid (792b36c4 Queueing an offer). Queued is
 // the first-queued time and fixes its FIFO slot; State is queued or
 // rejected; RejectedHash is the exchange hash the parent rejected.
 type outboxEntry struct {
 	XID          string    `json:"xid"`
 	Queued       time.Time `json:"queued"`
 	Attempts     int       `json:"attempts"`
-	LastError    string    `json:"last_error,omitempty"` //nolint:tagliatelle // design D6 fixes outbox.json's keys
+	LastError    string    `json:"last_error,omitempty"` //nolint:tagliatelle // 792b36c4 fixes outbox.json's keys
 	State        string    `json:"state"`
-	RejectedHash string    `json:"rejected_hash,omitempty"` //nolint:tagliatelle // design D6 fixes outbox.json's keys
-	// Receipt and SentHash are kept on an attention entry (#789 design D3):
+	RejectedHash string    `json:"rejected_hash,omitempty"` //nolint:tagliatelle // 792b36c4 fixes outbox.json's keys
+	// Receipt and SentHash are kept on an attention entry (792b36c15 An entry that waits):
 	// the receipt the parent gave and the exchange hash that was sent.
 	Receipt  *offerReceipt `json:"receipt,omitempty"`
-	SentHash string        `json:"sent_hash,omitempty"` //nolint:tagliatelle // design D6 fixes outbox.json's keys
+	SentHash string        `json:"sent_hash,omitempty"` //nolint:tagliatelle // 792b36c4 fixes outbox.json's keys
 }
 
 // outboxFile is <vault>/.engram/outbox.json.
@@ -174,7 +174,7 @@ type scannedOffer struct {
 // changed since it was sent; otherwise the entry is done. A receipt the
 // note refuses (receiptRefused) moves the entry to the attention state,
 // keeping the receipt and the sent hash, and is reported as
-// errReceiptNeedsAttention for the merge to warn once (#789 design D3); any other
+// errReceiptNeedsAttention for the merge to warn once (792a21w); any other
 // failure keeps the entry queued, to be resent.
 func applyAcceptedStep(
 	step drainStep, box outboxFile, note offerNote, apply func(offerNote, offerReceipt) error,
@@ -232,7 +232,7 @@ func applyDrainStep(
 		return applyAcceptedStep(step, box, found.note, apply)
 	case offerRejected:
 		// An answer about the offer — and an answer is a reachable parent,
-		// so the backoff resets (ruling S14).
+		// so the backoff resets (792b36c9 A rejected offer).
 		*cache = noteParentSuccess(*cache, parentURL, "")
 		result.Rejected++
 
@@ -243,10 +243,10 @@ func applyDrainStep(
 			entry.LastError = errorText(step.outcome.Err)
 		}), nil
 	case offerRefused:
-		// The self-parent case (rulings S12, S13): the parent's vault ID is
+		// The self-parent case (792b36c12 A looping offer): the parent's vault ID is
 		// cached so the pre-exchange self-parent guard engages; the entry
 		// stays queued (never rejected) until a regenerate clears it. The
-		// refusal is an answer, so the backoff resets too (ruling S14).
+		// refusal is an answer, so the backoff resets too (792b36c9).
 		*cache = noteParentSuccess(*cache, parentURL, step.outcome.Receipt.VaultID)
 
 		return updateOutboxEntry(keepOutboxEntryQueued(box, step), step, func(entry *outboxEntry) {
@@ -263,7 +263,7 @@ func applyDrainStep(
 }
 
 // applyHeldStep retries recording an attention entry's kept receipt on the
-// note as it is now, without contacting the parent (#789 design D3). Still
+// note as it is now, without contacting the parent (792a21w). Still
 // refused, the entry is left as it is, silently; recorded, the entry
 // finishes as an accepted one does; any other failure is recorded and
 // returned.
@@ -271,7 +271,7 @@ func applyHeldStep(
 	step drainStep, box outboxFile, note offerNote, apply func(offerNote, offerReceipt) error,
 	cache parentCache, parentURL string,
 ) (outboxFile, error) {
-	// A link counts only under the configured parent's vault (ruling S16):
+	// A link counts only under the configured parent's vault (792b36c3 An offer withdrawn at send time):
 	// a receipt kept from another parent, or one the configured parent no
 	// longer matches, is discarded and the offer queued for the current
 	// parent (#789 review, set-aside b).
@@ -299,7 +299,7 @@ func applyHeldStep(
 
 // applyNotSentStep folds a send that produced no receipt. An offer that
 // could not be built for want of a user identity puts its entry in the
-// attention state (#789 design D9): the first time, the cause is returned
+// attention state (792b36c15 An entry that waits): the first time, the cause is returned
 // for the merge to warn once; while it stays there, silently. Each later
 // drain builds the payload again, so the entry is sent once detection
 // works. Anything else is applyUnsentStep.
@@ -326,10 +326,10 @@ func applyNotSentStep(
 	return held, step.outcome.Err
 }
 
-// applyUnsentStep folds a send that produced no receipt: an unreachable
-// parent backs off; a too-old parent still answered, so the backoff resets
-// (rulings S11, S14: the drain stopped, the entry stays queued); a payload
-// never sent leaves the parent cache alone. Each records the attempt.
+// applyUnsentStep folds a send that produced no receipt: an unreachable parent backs off; a too-old parent
+// still answered, so the backoff resets (792b36c10 An unreachable parent, 792b36c11 A parent that is too old:
+// the drain stopped, the entry stays queued); a payload never sent leaves the parent cache alone. Each
+// records the attempt.
 func applyUnsentStep(
 	step drainStep, box outboxFile, cache *parentCache, now time.Time, parentURL string, result *drainResult,
 ) outboxFile {
@@ -359,7 +359,7 @@ func applyWithdrawnStep(step drainStep, box outboxFile, note offerNote) outboxFi
 }
 
 // classifyOfferResponse maps a parent /learn response to the drain's
-// outcome (design D6, H7).
+// outcome (792b36c7 The parent's answer).
 func classifyOfferResponse(resp FetchResponse, fetchErr error) offerSendResult {
 	if fetchErr != nil {
 		return offerSendResult{Outcome: offerFailed, Err: fmt.Errorf("%w: %w", errParentUnreachable, fetchErr)}
@@ -388,7 +388,7 @@ func classifyOfferResponse(resp FetchResponse, fetchErr error) offerSendResult {
 
 // classifyReceipt decodes a 2xx /learn body: a full receipt is accepted, an
 // undecodable one is treated as an outage, and one without vault_id or
-// basename comes from a too-old parent (H7).
+// basename comes from a too-old parent (792b36c11).
 func classifyReceipt(body []byte) offerSendResult {
 	var receipt offerReceipt
 
@@ -401,8 +401,8 @@ func classifyReceipt(body []byte) offerSendResult {
 		return offerSendResult{Outcome: offerTooOld, Receipt: receipt, Err: errParentTooOld}
 	}
 
-	// Parent-supplied identifiers land in frontmatter and later offers, so
-	// a malformed one is an undecodable reply, never a link (F6).
+	// Parent-supplied identifiers land in frontmatter and later offers, so a malformed one is an undecodable
+	// reply, never a link (792a21v A reply that is not a valid receipt is not recorded).
 	if !isExchangeID(receipt.VaultID) || !isExchangeBasename(receipt.Basename) ||
 		(receipt.For != "" && !isExchangeBasename(receipt.For)) {
 		return offerSendResult{Outcome: offerFailed, Err: fmt.Errorf("%w: %w", errOfferUndecodable, errOfferMalformed)}
@@ -412,7 +412,7 @@ func classifyReceipt(body []byte) offerSendResult {
 }
 
 // clearedForExchange runs the checks a child does before any write
-// exchange (design D2, ruling S2): the location check, then the
+// exchange (792b36c5 Before a drain sends): the location check, then the
 // self-parent guard against the parent's cached vault ID. Each failure
 // prints its one warning.
 func clearedForExchange(store outboxStore, vault, parentURL string) (string, bool, error) {
@@ -437,14 +437,14 @@ func clearedForExchange(store outboxStore, vault, parentURL string) (string, boo
 	return localID, true, nil
 }
 
-// drainOutbox sends the queued offers to the parent (design D6): it reads a
+// drainOutbox sends the queued offers to the parent (792b36c6 Which entries are sent): it reads a
 // snapshot under the vault lock, sends each entry in first-queued order
 // with no lock held (building the payload from the note's current content,
 // found by xid), then re-takes the lock, re-reads the outbox and the notes
 // from disk, and merges — so entries queued meanwhile survive and a receipt
-// for a note deleted meanwhile is discarded (M10). The caller has already
+// for a note deleted meanwhile is discarded (792b36c8 An accepted offer). The caller has already
 // contacted the parent (or is `engram update`); the drain itself checks the
-// vault's location and the self-parent guard first (ruling S2).
+// vault's location and the self-parent guard first (792b36c5).
 func drainOutbox(
 	ctx context.Context, store outboxStore, vault, parentURL string,
 	send func(context.Context, offerNote) offerSendResult, apply func(offerNote, offerReceipt) error,
@@ -477,7 +477,7 @@ func drainOutbox(
 // enqueueOutbox adds the note's entry (keyed by xid) or leaves its existing
 // one — at most one entry per note, keeping its first-queued slot — and
 // saves the outbox atomically. The caller holds the vault lock, in the same
-// critical section as the note write (design D6).
+// critical section as the note write (792b36c4).
 func enqueueOutbox(store outboxStore, vault, xid string) error {
 	box, loadErr := loadOutbox(store.state, vault)
 	if loadErr != nil {
@@ -517,7 +517,7 @@ func finishAcceptedEntry(box outboxFile, step drainStep, note offerNote) outboxF
 }
 
 // isLoopRefusal reports whether a 409 body carries the loop discriminator
-// (ruling S13); any other 409 is an ordinary rejection.
+// (792b36c12); any other 409 is an ordinary rejection.
 func isLoopRefusal(body []byte) bool {
 	var refusal cycleRefusal
 
@@ -851,7 +851,7 @@ func requeueBuiltOffer(box outboxFile, step drainStep) outboxFile {
 
 // resolveCycleRefusal turns a loop refusal from a vault other than this one
 // — a real parent cycle (A→B→C→A) or a misconfiguration — into a rejection
-// of that entry (design D7), warning once per drain with the refusing vault
+// of that entry (792b36c12), warning once per drain with the refusing vault
 // ID. A refusal naming this vault itself (the self-parent case) passes
 // through unchanged.
 func resolveCycleRefusal(
@@ -870,7 +870,7 @@ func resolveCycleRefusal(
 }
 
 // saveOutbox writes the outbox atomically. The state directory is created
-// only after the vault ID is stamped (ruling S4).
+// only after the vault ID is stamped (792b5c4 Vault ID stamping).
 func saveOutbox(state exchangeState, vault string, box outboxFile) error {
 	dirErr := ensureExchangeStateDir(state, vault)
 	if dirErr != nil {

@@ -1,7 +1,7 @@
 package cli_test
 
 // Node edits refuse a note whose edited key carries an anchor
-// (fix-show-amend-reparent-frontmatter review finding 1, ruling V3): replacing
+// (792b6c7 Frontmatter node edits): replacing
 // or deleting that value would drop the anchor and leave every alias to it
 // dangling, so the written frontmatter would not decode.
 

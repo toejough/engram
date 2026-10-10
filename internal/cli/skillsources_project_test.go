@@ -15,7 +15,7 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// Test792b30c11a8_ScanPiProjectScanners_StampSourceSegment (ruling R11): the Pi project
+// Test792b30c11a8_ScanPiProjectScanners_StampSourceSegment (792b30c11 Pi project sources): the Pi project
 // scanners stamp the segment that tells their candidates apart inside one
 // `project:<r>` scope — `pi`, `agents`, `pi-prompt` — mirroring the user
 // scopes pi-user, agents-user and pi-prompt.

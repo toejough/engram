@@ -1,7 +1,7 @@
 package cli_test
 
-// Rename pre-flight and CRLF→LF conversion (fix-show-amend-reparent-frontmatter
-// design D5; update-reparent-luhmann-batch "Rename and rewrite SHALL refuse
+// Rename pre-flight and CRLF→LF conversion (792b27c7 Rename safety;
+// 792b27c6 Rename and link rewrite; "Rename and rewrite SHALL refuse
 // undecodable frontmatter and convert written CRLF notes to LF"; tasks
 // 4.1-4.3).
 
@@ -100,7 +100,7 @@ func Test792b27c7a1_RenameAndRewriteReferences_AnchoredLuhmannRefusedUntouched(t
 	}
 }
 
-// Test792b27c7a1_RenameAndRewriteReferences_CRLFProperty is P1 and P1-CRLF (design D7):
+// Test792b27c7a1_RenameAndRewriteReferences_CRLFProperty is P1 and P1-CRLF (792b27c7 Rename safety):
 // over notes with unknown keys, an optionally anchored luhmann: value, a
 // pre-existing aliases: list (block, flow, or anchored and aliased),
 // optional comments, and every CRLF shape, either the rename refuses (always when anchored) and
@@ -287,7 +287,7 @@ func Test792b27c7a5_RenameAndRewriteReferences_UntouchedCRLFNoteNeverWritten(t *
 }
 
 // Test792b27c8a2_RunReparentLuhmann_ApplyRebuildsConvertedNoteSidecars pins the
-// freshness half of design D5: after apply, every note the rename converted
+// freshness half of 792b27c8 Sidecars of rewritten notes: after apply, every note the rename converted
 // from CRLF — the renamed note and a CRLF referrer — has a fresh sidecar.
 func Test792b27c8a2_RunReparentLuhmann_ApplyRebuildsConvertedNoteSidecars(t *testing.T) {
 	t.Parallel()
@@ -324,7 +324,7 @@ func Test792b27c8a2_RunReparentLuhmann_ApplyRebuildsConvertedNoteSidecars(t *tes
 }
 
 // Test792b31c7a28_AdoptSkillNote_ConvertsCRLFNote: adopt converts a CRLF runbook note to
-// LF instead of refusing it (design D5) — both when the adopt renames it and
+// LF instead of refusing it (792b27c7 Rename safety) — both when the adopt renames it and
 // when it already carries the key's slug — keeping its fields and luhmann:.
 func Test792b31c7a28_AdoptSkillNote_ConvertsCRLFNote(t *testing.T) {
 	t.Parallel()
@@ -587,7 +587,7 @@ func reparentAliasesGen() *rapid.Generator[reparentAliases] {
 	return rapid.SampledFrom([]reparentAliases{"", "block", "flow", "anchored"})
 }
 
-// reparentShapeGen draws one of the four CRLF layouts design D7 names.
+// reparentShapeGen draws one of the four CRLF layouts 792b27c7 names.
 func reparentShapeGen() *rapid.Generator[string] {
 	return rapid.SampledFrom([]string{shapeAllLF, shapeAllCRLF, shapeCRLFFrontmatter, shapeCRLFBody})
 }

@@ -1,7 +1,7 @@
 package cli
 
-// Exchange-hash pins for the rename's CRLF→LF conversion (design D5
-// "Exchange hash"; fix-show-amend-reparent-frontmatter task 4.2). The first
+// Exchange-hash pins for the rename's CRLF→LF conversion (792b33c3 The
+// canonical body; 792b27c7 Rename safety). The first
 // three pin existing hashing behavior and passed on first run; they record
 // why converting a CRLF note is harmless to the exchange.
 
@@ -59,7 +59,7 @@ func Test792b33c3a4_ExchangeHash_ConvertedCRLFFrontmatterMatchesLFAuthored(t *te
 
 // Test792b33c6a5_DecodeExchangeFrontmatter_CRLFFrontmatterReadsAsLF pins that a note
 // whose frontmatter is CRLF has its exchange fields read from its LF form
-// (#789 design D4), replacing fix-show-amend-reparent-frontmatter's pin
+// (792b6c8 CRLF reading), replacing the earlier pin
 // that such a note had no readable xid.
 func Test792b33c6a5_DecodeExchangeFrontmatter_CRLFFrontmatterReadsAsLF(t *testing.T) {
 	t.Parallel()

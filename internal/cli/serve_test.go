@@ -20,8 +20,8 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-// Test792b35c15a3_ServeLearn_ConcurrentWithLocalLearn_NoLostUpdate covers tasks.md
-// 10.3/792b8: a local `engram learn` writer and a served POST /learn
+// Test792b35c15a3_ServeLearn_ConcurrentWithLocalLearn_NoLostUpdate covers 792b35c15 The locked section
+// and 792b8: a local `engram learn` writer and a served POST /learn
 // writer racing the SAME vault never lose an update or collide on a
 // Luhmann id. Both paths ultimately share the identical production lock
 // (newLearnDeps(deps).Lock, real flock on .luhmann.lock) since the served
@@ -116,7 +116,7 @@ func Test792b35c15a3_ServeLearn_ConcurrentWithLocalLearn_NoLostUpdate(t *testing
 }
 
 // Test792b35c1a1_ServeRoutes_MethodsAndPatterns covers the API contract's route table
-// (design D7): exactly query and show (GET) and activate and learn (POST).
+// (792b35c1 The route table): exactly query and show (GET) and activate and learn (POST).
 // No other command — amend, query-chunks, show-chunk, or any host-only
 // command — gets a route.
 func Test792b35c1a1_ServeRoutes_MethodsAndPatterns(t *testing.T) {
@@ -184,9 +184,8 @@ func Test792b35c2a1_RunServe_RegistersAllRoutesAndClassifiesShutdownErr(t *testi
 	g.Expect(err).NotTo(HaveOccurred())
 }
 
-// Test792b35c3a1_ServeRoutes_OversizedBodyIs413 (final review F7; final re-review
-// residual, ruling S34): a request body over MaxServeRequestBytes answers
-// 413 on every route, and nothing is written.
+// Test792b35c3a1_ServeRoutes_OversizedBodyIs413 (792b35c3 Request bodies): a request body over
+// MaxServeRequestBytes answers 413 on every route, and nothing is written.
 func Test792b35c3a1_ServeRoutes_OversizedBodyIs413(t *testing.T) {
 	t.Parallel()
 
@@ -212,8 +211,8 @@ func Test792b35c3a1_ServeRoutes_OversizedBodyIs413(t *testing.T) {
 	}
 }
 
-// Test792b35c3a2_ServeRoutes_OtherBodyReadErrorIs400 (final re-review residual,
-// ruling S34): a body-read error that is NOT the over-the-cap case (e.g. a
+// Test792b35c3a2_ServeRoutes_OtherBodyReadErrorIs400 (792b35c3 Request bodies):
+// a body-read error that is NOT the over-the-cap case (e.g. a
 // client disconnect) answers 400 on every route, never 413 — only an
 // oversized body warrants 413 — and nothing is written.
 func Test792b35c3a2_ServeRoutes_OtherBodyReadErrorIs400(t *testing.T) {
@@ -240,7 +239,7 @@ func Test792b35c3a2_ServeRoutes_OtherBodyReadErrorIs400(t *testing.T) {
 	}
 }
 
-// Test792b35c3a3_ServeBodyCaps (final review F7): the caps are sane — a request body
+// Test792b35c3a3_ServeBodyCaps (792b35c3 Request bodies): the caps are sane — a request body
 // is capped at a few MiB, and the fetch read limit is one byte over the
 // largest response accepted, so an oversized response is detected rather
 // than silently truncated.
@@ -368,7 +367,7 @@ func Test792b35c6a1_ServeShow_MatchesLocalOutput(t *testing.T) {
 }
 
 // Test792b35c7a1_ServeActivate_CommitsDirectly covers POST /activate: the sidecar's
-// LastUsed is bumped in the same request (design.md Decisions — activate
+// LastUsed is bumped in the same request (792a22c Activating a note commits directly — activate
 // never becomes a pending offer, it's not a content mutation).
 func Test792b35c7a1_ServeActivate_CommitsDirectly(t *testing.T) {
 	t.Parallel()
@@ -398,8 +397,8 @@ func Test792b35c7a1_ServeActivate_CommitsDirectly(t *testing.T) {
 	g.Expect(sidecar.LastUsed).To(Equal(time.Now().Format("2006-01-02")))
 }
 
-// Test792b35c7a2_ServeActivate_ListsVaultDirectoryOnceForMultipleRefs (final
-// re-review residual, ruling S34): resolving N refs in one served
+// Test792b35c7a2_ServeActivate_ListsVaultDirectoryOnceForMultipleRefs (792a20l A served
+// activate takes note names only): resolving N refs in one served
 // activate request must cost one directory listing, not one per ref —
 // before the fix, an unauthenticated request with many short refs cost on
 // the order of len(refs) ReadDir calls while holding the vault lock.
@@ -432,11 +431,10 @@ func Test792b35c7a2_ServeActivate_ListsVaultDirectoryOnceForMultipleRefs(t *test
 	g.Expect(counting.count()).To(Equal(1), "expected exactly one vault directory listing for 3 refs in one request")
 }
 
-// Test792b35c7a3_ServeActivate_RejectsRefsOutsideTheVault (final review F2): a served
-// activate resolves refs only against the vault's listed note names; an
-// absolute path, a path separator or ".." is a 400, nothing is bumped
-// (not even a valid ref in the same request), and a sidecar outside the
-// vault is never touched.
+// Test792b35c7a3_ServeActivate_RejectsRefsOutsideTheVault (792a20l A served activate takes note names only):
+// a served activate resolves refs only against the vault's listed note names; an absolute path, a path
+// separator or ".." is a 400, nothing is bumped (not even a valid ref in the same request), and a sidecar
+// outside the vault is never touched.
 func Test792b35c7a3_ServeActivate_RejectsRefsOutsideTheVault(t *testing.T) {
 	t.Parallel()
 
@@ -488,10 +486,9 @@ func Test792b35c7a3_ServeActivate_RejectsRefsOutsideTheVault(t *testing.T) {
 	}
 }
 
-// Test792b35c7a4_ServeActivate_ResolvesOnlyListedNames (final review F2): a served
-// ref resolves only to a listed vault note — with or without .md — and a
-// name that is not a listed note is not found (404), never probed as a
-// path.
+// Test792b35c7a4_ServeActivate_ResolvesOnlyListedNames (792a20l A served activate takes note names only): a
+// served ref resolves only to a listed vault note — with or without .md — and a name that is not a listed
+// note is not found (404), never probed as a path.
 func Test792b35c7a4_ServeActivate_ResolvesOnlyListedNames(t *testing.T) {
 	t.Parallel()
 
@@ -594,12 +591,11 @@ func Test792b35c8a2_ServeLearn_StampsClientDeclaredIdentityAndPendingMarker(t *t
 		"empty VaultName falls back to the server's configured value")
 }
 
-// Test792b35c8a3_ServeLearn_IgnoresSkillIdentityFields (ruling R31, design D7 wire
-// safety): the skill-note identity fields are registration-only and the
-// exchange fields (xid, parent, aliases) exchange-only, so a remote client's
-// served learn carrying any of them, in camelCase or PascalCase, writes a
-// runbook with none of their values — a served write can never pose as, or
-// shadow, a registered skill's note, nor forge a link or alias.
+// Test792b35c8a3_ServeLearn_IgnoresSkillIdentityFields (792a20j A caller cannot set link, identity or
+// registration fields): the skill-note identity fields are registration-only and the exchange fields (xid,
+// parent, aliases) exchange-only, so a remote client's served learn carrying any of them, in camelCase or
+// PascalCase, writes a runbook with none of their values — a served write can never pose as, or shadow, a
+// registered skill's note, nor forge a link or alias.
 func Test792b35c8a3_ServeLearn_IgnoresSkillIdentityFields(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -634,8 +630,8 @@ func Test792b35c8a3_ServeLearn_IgnoresSkillIdentityFields(t *testing.T) {
 	g.Expect(string(raw)).NotTo(ContainSubstring("parent:"))
 }
 
-// readDirCountingFS wraps an EdgeFS, counting ReadDir calls (final
-// re-review residual, ruling S34): served activate resolves every ref
+// readDirCountingFS wraps an EdgeFS, counting ReadDir calls
+// (792a20l A served activate takes note names only): served activate resolves every ref
 // against the same listed-name set, so it must list the vault directory
 // once per REQUEST, not once per ref.
 type readDirCountingFS struct {

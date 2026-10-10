@@ -28,8 +28,8 @@ type exchangeBlocksEdit struct {
 	setParentLink bool
 }
 
-// editExchangeBlocks applies edit to raw's frontmatter as YAML-node edits
-// (ruling V7): the aliases: list is replaced whole, and parent: is edited
+// editExchangeBlocks applies edit to raw's frontmatter as YAML-node edits:
+// the aliases: list is replaced whole, and parent: is edited
 // in place — its vault and author set, and each link's node reused when the
 // edit keeps a link to the same note — so unknown keys under parent: and
 // inside its links survive. Every other key is left as parsed. A key it

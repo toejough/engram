@@ -26,7 +26,7 @@ type IdentityDeps struct {
 	DetectUser func(ctx context.Context) string
 	Getenv     func(string) string
 	// Embedder rebuilds the sidecar of a note backfill converted from CRLF
-	// to LF (#789 design D2), since conversion changes its content hash.
+	// to LF (792b11c7 Identity backfill), since conversion changes its content hash.
 	// Nil skips the rebuild.
 	Embedder embed.Embedder
 }
@@ -77,7 +77,7 @@ func applyIdentityBackfill(
 // note the node edit refuses (an anchored key it would set, or a result
 // that does not decode) is left untouched; every other note is still
 // stamped, and the run then fails with every refusal joined, each naming
-// its note (#789 design D2).
+// its note (792b11c7 Identity backfill).
 func backfillIdentity(
 	ctx context.Context,
 	vaultPath string,
@@ -134,7 +134,7 @@ func backfillOneNote(
 		return false, fmt.Errorf("backfill-identity: read %s: %w", notePath, readErr)
 	}
 
-	// Read as LF (#789 design D2): a CRLF note is converted only when
+	// Read as LF (792b11c7 Identity backfill): a CRLF note is converted only when
 	// backfill writes it, in that same write, and its sidecar is rebuilt.
 	lfRaw := toLF(raw)
 
@@ -173,7 +173,7 @@ func backfillOneNote(
 
 // backfillTypedNote computes the stamp of repo:/user:/vault: on a fact or
 // feedback note whose identity is missing, as YAML-node edits on its parsed
-// frontmatter (nodeEditFrontmatter, #789 design D2): every key it does not
+// frontmatter (nodeEditFrontmatter, 792b11c7 Identity backfill): every key it does not
 // set — including keys the typed doc T does not define, and anchors on keys
 // it does not edit — keeps its value. created: is re-emitted in its quoted
 // form, as the typed re-marshal did, so a note without unknown keys is
@@ -226,7 +226,7 @@ func backfillTypedNote[T any](
 // identityMissing reports whether a note lacks user: — either it predates
 // the note-origin-identity capability (user:/vault: both empty), or it was
 // first written where user detection resolved empty, which omits user:
-// rather than writing user: "" (#789 design D6). repo: is never checked: it
+// rather than writing user: "" (792b11c3 First-write stamp). repo: is never checked: it
 // is legitimately omitted for a non-git working directory, so checking it
 // would false-positive forever on git-repo-less notes.
 func identityMissing(user string) bool {
@@ -310,7 +310,7 @@ func notesMissingIdentityFields(vaultPath string, fileSystem update.Filesystem, 
 // resolvedBackfillIdentity computes the repo:/user:/vault: values a flagged
 // note should be stamped with: user:/vault: from the current environment
 // (safe to blind-stamp — vault-wide constants), repo: from the note's own
-// project: field when non-empty, else freshly detected (design.md: a single
+// project: field when non-empty, else freshly detected (792b11c5 Repository for a backfill: a single
 // backfill invocation runs from one working directory but may touch notes
 // that originated in different repos, so project: is a better per-note
 // signal than the invocation's cwd — unlike amend, which always uses fresh
@@ -335,7 +335,7 @@ func userDetectable(ctx context.Context, deps IdentityDeps) bool {
 
 // writeBackfilledNote writes a stamped note in one atomic write and, when
 // backfill converted it from CRLF, rebuilds its sidecar: conversion changes
-// its content hash (#789 design D2). A nil Embedder skips the rebuild.
+// its content hash (792b11c7 Identity backfill). A nil Embedder skips the rebuild.
 func writeBackfilledNote(ctx context.Context, deps IdentityDeps, notePath, rendered string, converted bool) error {
 	writeErr := deps.WriteFile(notePath, []byte(rendered))
 	if writeErr != nil {

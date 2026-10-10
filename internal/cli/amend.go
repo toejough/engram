@@ -67,10 +67,10 @@ type AmendArgs struct {
 	// resolved; every content-amend flag is ignored when this is set.
 	Discard bool `json:"discard" targ:"flag,name=discard,desc=delete the note and its sidecar instead of amending (792a22)"` //nolint:lll // single unbreakable struct-tag string
 	// Into names the existing note a --discard folds the target into
-	// (design D10): the target's basename and aliases join Into's aliases,
+	// (792b34c6 Fold of an offer): the target's basename and aliases join Into's aliases,
 	// and its parent links join Into's. Only valid with --discard.
 	Into string `json:"into" targ:"flag,name=into,desc=with --discard: fold the note's basename and aliases and parent links into this existing note (792a22)"` //nolint:lll // single unbreakable struct-tag string
-	// ExpectHash is the exchange hash curation judged (design D10 r3-2).
+	// ExpectHash is the exchange hash curation judged (792b34c5 Judged-version check).
 	// When given, the amend fails without writing unless the target's
 	// current exchange hash equals it. It is required for --clear-pending
 	// and --discard on a note carrying offer.origin.
@@ -134,12 +134,12 @@ type AmendDeps struct {
 	// Must use full filenames (not stripped basenames) to avoid false-firing the
 	// untagged-rate trigger on every amend.
 	ListMD func(vault string) ([]string, error)
-	// Offers connects amend to the parent outbox (design D5, D6). The zero
+	// Offers connects amend to the parent outbox (792b36c1 Which writes are offered). The zero
 	// value — no parent configured — offers nothing.
 	Offers offerHooks
 	// RecordDecline records a bare discard of a pulled note (one whose
 	// primary link is via pulled) in the vault's declined-pull record, so
-	// the unchanged parent note is not pulled again (design D8, H5). Nil
+	// the unchanged parent note is not pulled again (792b5c16 The declined-pull record). Nil
 	// records nothing.
 	RecordDecline func(vault string, entry declinedPull) error
 }
@@ -159,7 +159,7 @@ func RunAmend(ctx context.Context, args AmendArgs, deps AmendDeps, stdout io.Wri
 		return err
 	}
 
-	// The drain runs after the vault lock is released (design D6).
+	// The drain runs after the vault lock is released (792b36c5 Before a drain sends).
 	if queued {
 		deps.Offers.drain(ctx, args.Vault)
 	}
@@ -245,9 +245,9 @@ func amendFrontmatter(mapping, before *yaml.Node, after any, body string) (strin
 
 // amendIdentity returns the identity a content-changing amend re-stamps, or
 // nil for a bookkeeping amend, which preserves the note's declared
-// repo:/user:/vault: (note-revision 792a4h, design D10 M6/G11). Only a
+// repo:/user:/vault: (note-revision 792a4h, 792b14c5 Identity re-stamp gating). Only a
 // re-stamping amend runs identity detection. basename names the note being
-// amended, carried on the stamp so a user-detection warning (design D3,
+// amended, carried on the stamp so a user-detection warning (792b11c2 User detection,
 // #776) can name it.
 func amendIdentity(ctx context.Context, args AmendArgs, deps AmendDeps, basename string) *identityStamp {
 	if !amendRestampsIdentity(args) {
@@ -446,7 +446,7 @@ func applyRunbookListOverrides(doc *runbookFrontmatterDoc, args AmendArgs) bool 
 // frontmatter into T, preserves the created date, applies the type-specific
 // overrides + provenance merge, and renders. contentChanged is true only when a
 // semantic field actually changed value, so provenance-only or supersedes-only
-// amends do not trigger a re-embed (D3).
+// amends do not trigger a re-embed (792b14c6 Sidecar rebuild after an amend).
 func applyTypedAmend[T any](
 	frontmatter []byte,
 	args AmendArgs,
@@ -566,7 +566,7 @@ func discardWithDecline(deps AmendDeps, vault, full string, stdout io.Writer) er
 
 // fillEmptyVault sets an amended note's empty vault: to the resolved vault
 // name (targets.go resolves it through resolveVaultName), so no amend —
-// bookkeeping included — writes vault: "" (#789 design D10). A declared
+// bookkeeping included — writes vault: "" (792a4i Vault name on every amend). A declared
 // vault: is never touched here.
 func fillEmptyVault(vault *string, resolved string) {
 	if *vault == "" {
@@ -833,7 +833,7 @@ func renderAmendedRunbook(
 
 // runAmendLocked is RunAmend's locked section: the note read-modify-write,
 // and — with a parent configured — the offer's xid stamp and outbox entry
-// in the same critical section (design D6). It reports whether an offer
+// in the same critical section (792b36c4 Queueing an offer). It reports whether an offer
 // was queued.
 func runAmendLocked(ctx context.Context, args AmendArgs, deps AmendDeps, stdout io.Writer) (bool, error) {
 	// Acquire the vault lock before any read-modify-write on the note so
@@ -894,7 +894,7 @@ func runAmendLocked(ctx context.Context, args AmendArgs, deps AmendDeps, stdout 
 	queued := deps.Offers.queue(args.Vault, xid)
 
 	// A converted CRLF note's content hash changed, so it is re-embedded
-	// even when the amend itself would not re-embed (#789 design D1).
+	// even when the amend itself would not re-embed (792b14c7 CRLF revision).
 	reEmbedAndActivate(ctx, args, deps, full, relPath, amended, contentChanged || converted)
 	applyVocabAssignmentAfterAmend(deps, args.Vault, full, amended)
 
@@ -948,7 +948,7 @@ func validateChunkSources(args AmendArgs, deps AmendDeps) error {
 
 // warnIfNoVault warns when an amended note is written with no vault: —
 // no vault name resolved, so the key is omitted rather than written empty
-// (#789 design D10).
+// (792a4i Vault name on every amend).
 func warnIfNoVault(warn func(string, ...any), relPath, rendered string) {
 	if warn == nil {
 		return

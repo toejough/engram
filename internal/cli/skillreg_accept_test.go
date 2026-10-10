@@ -297,7 +297,7 @@ func Test792b31c7a19_AdoptSkillNote_ClearsPreExistingPendingMarker(t *testing.T)
 }
 
 // Test792b31c7a1_RegisterSkill_CreatesPendingNoteWithHashAndPreamble covers the
-// "Accepted registration" scenario (skill-runbook-registration): registering
+// "Accepted registration" scenario (792a12d Accepting a registration creates a pending note): registering
 // curate creates a runbook note ending in .skill-claude-curate.md carrying the
 // skill's text, skill_hash, pending: true, and a .vec.json sidecar.
 func Test792b31c7a1_RegisterSkill_CreatesPendingNoteWithHashAndPreamble(t *testing.T) {
@@ -337,10 +337,10 @@ func Test792b31c7a1_RegisterSkill_CreatesPendingNoteWithHashAndPreamble(t *testi
 	g.Expect(sidecarWritten).To(BeTrue(), "register must embed on write")
 }
 
-// Test792b31c7a21_AdoptSkillNote_RebuildsReferrerSidecars covers task 3.4's "embed status
-// clean after adoption": a note whose [[old-basename]] link the adopt rename
-// rewrote must have its .vec.json sidecar rebuilt, or embed status reports it
-// stale (content_hash no longer matches the rewritten body).
+// Test792b31c7a21_AdoptSkillNote_RebuildsReferrerSidecars covers the "embed status
+// clean after adoption" scenario (792a12i An existing runbook note can be adopted): a note whose
+// [[old-basename]] link the adopt rename rewrote must have its .vec.json sidecar rebuilt, or embed status
+// reports it stale (content_hash no longer matches the rewritten body).
 func Test792b31c7a21_AdoptSkillNote_RebuildsReferrerSidecars(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -554,8 +554,8 @@ func Test792b31c7a27_AdoptSkillNote_RenderFailureLeavesNoteUnrenamed(t *testing.
 }
 
 // Test792b31c7a2_RegisterSkill_NeverSetsRunbookFields proves registration's note has no
-// situation, done_when, triggers, or red_flags (skill-runbook-registration:
-// "Accepting registration SHALL create a pending note without runbook
+// situation, done_when, triggers, or red_flags (792a12d Accepting a registration
+// creates a pending note: "without runbook
 // fields") — the omitempty added to runbookFrontmatterDoc's Situation/
 // DoneWhen (plus the pre-existing omitempty on RedFlags/Triggers) drops them
 // from the rendered frontmatter entirely.
@@ -987,7 +987,7 @@ type skillAcceptFrontmatterProbe struct {
 
 // curatePromotedNoteFixture renders a pre-registration promoted note (no
 // skill_hash, not pending) at 1049.2026-09-21 — the shape of the real notes
-// design D6 describes adopting.
+// 792a12i An existing runbook note can be adopted describes adopting.
 func curatePromotedNoteFixture() string {
 	return curatePromotedNoteFixtureAt("1049", "2026-09-21")
 }

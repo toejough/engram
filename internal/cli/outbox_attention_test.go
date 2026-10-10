@@ -1,6 +1,6 @@
 package cli_test
 
-// A refused receipt needs attention (#789 defect 3, design D3; 792a21w,
+// A refused receipt needs attention (#789 defect 3; 792a21w,
 // "A receipt the note refuses needs attention", and 792b36c15): the entry stops being
 // re-sent, is reported, warns once, and resumes on its own once the note
 // can take the receipt.

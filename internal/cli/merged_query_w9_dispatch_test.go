@@ -173,7 +173,7 @@ func Test792a2q1a_Targets_Query_Merged_SelfParentReturnsLocalOnly(t *testing.T) 
 
 // Test792b2c10a10_ShowParent_FailedStampSkipsContactBookkeeping: when the vault ID
 // can't be stamped, the contact still runs but its bookkeeping is skipped,
-// so no later write creates .engram/ without a stamp (ruling S4).
+// so no later write creates .engram/ without a stamp.
 func Test792b2c10a10_ShowParent_FailedStampSkipsContactBookkeeping(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -269,7 +269,7 @@ func Test792b2c10a8_ShowParent_BackoffMakesNoRequest(t *testing.T) {
 }
 
 // Test792b2c10a9_ShowFallback_StampsVaultIDOnParentContact: the local-miss fallback is
-// a parent contact, so it stamps a missing vault ID (ruling S3).
+// a parent contact, so it stamps a missing vault ID.
 func Test792b2c10a9_ShowFallback_StampsVaultIDOnParentContact(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -289,7 +289,7 @@ func Test792b2c10a9_ShowFallback_StampsVaultIDOnParentContact(t *testing.T) {
 }
 
 // Test792b2c10a9_ShowParent_StampsVaultIDOnParentContact: `show --parent` is a parent
-// contact, so it stamps a missing vault ID (ruling S3).
+// contact, so it stamps a missing vault ID.
 func Test792b2c10a9_ShowParent_StampsVaultIDOnParentContact(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -352,7 +352,7 @@ func Test792b37c4a1_Targets_Query_Merged_RequestsDedupeKeysAndCachesVaultID(t *t
 
 // Test792b37c4a2_Targets_Query_Merged_FailedStampSkipsContactBookkeeping is the merged
 // query's counterpart: the parent is still asked, but no backoff record or
-// drain creates .engram/ without a stamp (ruling S4).
+// drain creates .engram/ without a stamp.
 func Test792b37c4a2_Targets_Query_Merged_FailedStampSkipsContactBookkeeping(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

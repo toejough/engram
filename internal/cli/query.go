@@ -149,7 +149,7 @@ const (
 	provenanceClusterRep = "cluster_rep"
 	provenanceDirect     = "direct"
 	// provenanceExplore tags explore-half note items sampled from global vocab
-	// clusters (design.md Decision 6). Carries a source_term but no cluster_id
+	// clusters (792a7m Explore picks are reported). Carries a source_term but no cluster_id
 	// — explore picks are not cluster members.
 	provenanceExplore        = "explore"
 	provenanceRankClusterRep = 2
@@ -159,8 +159,8 @@ const (
 	// Phase 2). Items carrying this role appear in items[] but in NO cluster's
 	// members[], so the skill can render a separate "recent activity" block.
 	provenanceRecent = "recent"
-	// provenanceTrigger tags a runbook whose triggers: entry is a substring of
-	// the query's --text (792a7za). Trigger items sort first
+	// provenanceTrigger tags a runbook whose triggers: entry appears as a whole word
+	// (letter/digit boundaries, case-insensitive) in the query's --text (792a7za). Trigger items sort first
 	// and are exempt from floor, caps, and --limit.
 	provenanceTrigger = "trigger"
 	// singleClusterPhrase is the empty phrase tag on the single synthesis
@@ -208,12 +208,12 @@ type aggregatedSummary struct {
 	contentBudget  int
 	lazyChunks     bool
 	// exploreAllocated carries the explore-half per-term delivered counts
-	// into the payload budget (design.md Decision 6).
+	// into the payload budget (792a7m Explore picks are reported).
 	exploreAllocated map[string]int
 	refitPending     bool
 	// pendingOffers is true when the vault holds at least one fact/feedback
 	// note carrying the pending-offer marker (792a22).
-	// Computed fresh every call (stateless/unbatched — design.md Decisions),
+	// Computed fresh every call (stateless/unbatched — 792b24c20 A query writes nothing),
 	// unlike refitPending's persisted-flag read.
 	pendingOffers bool
 	// modelID is the embedding model that produced this query's results
@@ -375,7 +375,7 @@ type queryBudget struct {
 	ContentBudget        int `yaml:"content_budget"`
 	ChunksSnippeted      int `yaml:"chunks_snippeted"`
 	// ExploreAllocated surfaces the explore-half per-term delivered sample
-	// counts (design.md Decision 6). Always present, even when empty ({}) —
+	// counts (792a7m Explore picks are reported). Always present, even when empty ({}) —
 	// e.g. missing/unreadable centroids or a zero exploit budget — so a
 	// silent explore-half absence is visible in the payload rather than
 	// omitted (spec: "Missing centroids degrade loudly").
@@ -433,10 +433,10 @@ type queryItem struct {
 	// omitted) on a non-merged payload; on a merged payload it is always
 	// set, explicitly false for a local item, so *bool (not bool) is
 	// required — a bare bool with omitempty would drop a false value's
-	// key even when the merge path meant to show it (ruling S29). Same
+	// key even when the merge path meant to show it (792b23c9 The item tags of a merge). Same
 	// omit-when-nil idiom as ClusterID/InDegree above.
 	FromParent *bool `yaml:"from_parent,omitempty"`
-	// ExchangeHash and Aliases are a note item's dedupe keys (design D7):
+	// ExchangeHash and Aliases are a note item's dedupe keys (792b35c5 Dedupe keys):
 	// set only on a served query asked for dedupe-keys=1, omitted
 	// everywhere else.
 	ExchangeHash string   `yaml:"exchange_hash,omitempty"`
@@ -446,18 +446,18 @@ type queryItem struct {
 // queryPayload is the top-level YAML document.
 type queryPayload struct {
 	Version int `yaml:"version"`
-	// VaultID is the served vault's ID (design D7): set only on a served
+	// VaultID is the served vault's ID (792b35c5 Dedupe keys): set only on a served
 	// query asked for dedupe-keys=1, omitted everywhere else.
 	VaultID string `yaml:"vault_id,omitempty"`
 	// PendingOffers is true when the vault holds at least one pending-offer
 	// note awaiting curation (792a22) — computed fresh on
 	// every call, local and served alike. It and its hint are declared before
 	// Phrases/Items so they lead the payload: a truncated preview of a large
-	// payload still shows them (curate-skill-to-runbook D10).
+	// payload still shows them (792b34c4 The curate instruction).
 	PendingOffers bool `yaml:"pending_offers,omitempty"`
 	// PendingOffersHint tells the reader what to run when PendingOffers is
 	// true (pendingOfferCurateInstruction); omitted otherwise, so payloads
-	// without pending offers are unchanged (curate-skill-to-runbook D9).
+	// without pending offers are unchanged (792b34c4 The curate instruction).
 	PendingOffersHint string         `yaml:"pending_offers_hint,omitempty"`
 	Phrases           []string       `yaml:"phrases"`
 	Items             []queryItem    `yaml:"items"`
@@ -539,7 +539,7 @@ type sidecarLoadResult struct {
 }
 
 // addMatchedChunksToMatchedSet adds matched chunks to the matched set as members
-// (so they cluster with notes — D1) and returns the parallel resolvedItem
+// (so they cluster with notes — 792b24c8 Chunks and notes together) and returns the parallel resolvedItem
 // slice for items[]. Chunks are sorted by score desc so items[] presents them
 // newest-most-relevant first within the chunk block.
 func addMatchedChunksToMatchedSet(chunkUnion []scoredChunk, matchSet *matchedSet) []resolvedItem {
@@ -647,7 +647,7 @@ func applyProjectFilter(items []resolvedItem, project string) []resolvedItem {
 }
 
 // assembleResolvedItems runs the nominate-stage post-cluster assembly:
-// supersession ride-along, explore-half sampling (design.md), the
+// supersession ride-along, explore-half sampling (792b24c13 Explore budget and allocation), the
 // matched-chunk append, and the Channel-2 recency fill. Split out of runQuery
 // so the "nominate" phaseTimer stage (see stage boundaries, #691) maps onto a
 // single named unit of work rather than an inline block.
@@ -663,15 +663,15 @@ func assembleResolvedItems(
 ) ([]resolvedItem, map[string]int) {
 	// mergeProvenances receives an empty matchedSet{} deliberately:
 	// mergeClusterReps must not promote cluster reps into items[] because
-	// the representative is agent-decided, not binary-computed (spec §2 step 4).
+	// the representative is agent-decided, not binary-computed (792b24c9 Clusters).
 	// Direct-hit items come from the note union; chunk items are appended below.
 	resolved := mergeProvenances(noteUnion, matchedSet{}, clusterReport{})
 	resolved = applyProjectFilter(resolved, args.Project)
 
 	// Exploit half is fixed here: the distinct notes delivered post
 	// floor/cap/project-filter, before ride-along or explore append
-	// (design.md: "the existing cosine-nearest notes to the query, with
-	// floors and caps unchanged").
+	// (792a7i Half of the notes are explored: the existing cosine-nearest
+	// notes to the query, with floors and caps unchanged).
 	exploitPaths := make(map[string]struct{}, len(resolved))
 	for _, item := range resolved {
 		if item.kind != chunkItemKind {
@@ -714,7 +714,7 @@ func basenameFromNotePath(notePath string) string {
 
 // bestVector scores a sidecar against the query by the stronger of its two
 // axes and returns that score with the WINNING vector — the coordinate the
-// note is positioned by for clustering (per the lazy-L2 design: a note is
+// note is positioned by for clustering (a note is
 // clustered by the vector that matched it).
 func bestVector(queryVec []float32, sidecar embed.Sidecar) (float32, []float32) {
 	situationScore := embed.Cosine(queryVec, sidecar.SituationVector)
@@ -1174,7 +1174,7 @@ func itemMatchesProject(item resolvedItem, project string) bool {
 		return false
 	}
 
-	front, _, ok := embed.SplitFrontmatter(toLF([]byte(item.content))) // CRLF reads as LF (#789 design D8)
+	front, _, ok := embed.SplitFrontmatter(toLF([]byte(item.content))) // CRLF reads as LF (792a7zg CRLF notes)
 	if !ok {
 		return false
 	}
@@ -1198,7 +1198,7 @@ func kindFromContent(content string) string {
 		return unknownKind
 	}
 
-	scan := string(toLF([]byte(content))) // CRLF reads as LF (#789 design D8)
+	scan := string(toLF([]byte(content))) // CRLF reads as LF (792a7zg CRLF notes)
 	if len(scan) > maxScan {
 		scan = scan[:maxScan]
 	}
@@ -1237,7 +1237,7 @@ func loadClusterChunkRecords(args QueryArgs, deps QueryDeps) ([]chunk.Record, er
 // returns only those whose EmbeddingModelID matches the active model.
 // Missing or malformed sidecars are silently skipped. Sidecars dropped for
 // a stale embedding model are also skipped but recorded in the result's
-// mismatch fields so RunQuery can warn (M4) instead of emptying recall in
+// mismatch fields so RunQuery can warn (792b24c2 Usable embeddings) instead of emptying recall in
 // silence — the all-mismatch case is still surfaced by RunQuery's guard.
 func loadCompatibleSidecars(
 	notes []vaultgraph.Note,
@@ -1407,7 +1407,7 @@ func mergePhraseIntoUnion(
 	}
 }
 
-// mergeProvenances builds the resolved item list per F7's rules:
+// mergeProvenances builds the resolved item list per 792b24c11 Item order:
 // items = direct hits ∪ cluster reps, deduped by basename,
 // each item carrying every applicable provenance role + metadata.
 //
@@ -1575,7 +1575,7 @@ func promoteNotesEvictingChunks(kept, promotable []matchedSetItem, need int) {
 	}
 }
 
-// provenanceRankFor maps a provenance role string to its F7 priority.
+// provenanceRankFor maps a provenance role string to its 792b24c11 Item order priority.
 // Unknown roles get rank 0.
 func provenanceRankFor(role string) int {
 	switch role {
@@ -1675,9 +1675,9 @@ func readRefitPending(vault string, readFile func(string) ([]byte, error)) bool 
 // Members are sorted by score desc and the representative is flagged. Each
 // cluster is tagged with the phrase that produced it.
 //
-// candidate_l2s is nominated from each cluster's OWN note members (Phase 3,
-// within-cluster nomination — reversal of D7). A cluster with no note members
-// yields an empty candidate_l2s (explicitly allowed; chunk-only clusters exist).
+// candidate_l2s is nominated from each cluster's OWN note members (Phase 3, within-cluster nomination —
+// reversal of a full-vault nomination, 792b24c10 Candidate notes). A cluster with no note members yields an
+// empty candidate_l2s (explicitly allowed; chunk-only clusters exist).
 func renderClusters(phraseClusters []phrasedCluster) []queryCluster {
 	var out []queryCluster
 
@@ -1838,7 +1838,7 @@ func resolveRecentFill(raw int) int {
 	return raw
 }
 
-// resolvedItemLess compares two items by F7 rules: provenance count
+// resolvedItemLess compares two items by 792b24c11 Item order rules: provenance count
 // desc → highest-rank provenance desc → score desc.
 func resolvedItemLess(a, b resolvedItem) bool {
 	// Trigger hits precede everything regardless of provenance count: a
@@ -1866,7 +1866,7 @@ func resolvedItemLess(a, b resolvedItem) bool {
 // scores notes and chunks with recency bias, merges into one ranked list
 // (top-matchPhraseLimit=30 per phrase), then unions across phrases with dedup,
 // relevance floor on baseScore, and a hard cap at matchSetCap=300. The
-// resulting matched set is clustered exactly once (D1) and emits per-cluster
+// resulting matched set is clustered exactly once (792b24c9 Clusters) and emits per-cluster
 // candidate_l2s [{path, cosine, content}] so the recall skill can judge coverage.
 func runQuery(
 	ctx context.Context,
@@ -1903,7 +1903,7 @@ func runQuery(
 
 	timer.mark(stageEmbed)
 
-	// D1: build the matched set from the note union, then extend with matched chunks
+	// 792b24c8: build the matched set from the note union, then extend with matched chunks
 	// so one AutoK pass clusters notes and chunks together.
 	matchSet := buildMatchedSet(noteUnion)
 	chunkItems := addMatchedChunksToMatchedSet(chunkUnion, &matchSet)
@@ -2021,8 +2021,8 @@ func stripWikilinks(content string) string {
 // by lexicographic path for stability). K is at least candidateNoteK; when fewer
 // than candidateNoteK notes exist, all are returned. An empty index returns
 // nil. No cosine threshold is applied — all within-cluster note members are
-// eligible (D7's full-vault nomination was reversed; see DESIGN-HISTORY §9). The sort
-// key is CENTROID cosine (per spec §3.3: "top-K by centroid cosine");
+// eligible (792b24c10 Candidate notes; a full-vault nomination was reversed). The sort
+// key is CENTROID cosine (792b24c10 Candidate notes: top-K by centroid cosine);
 // max-member cosine was rejected because it overfits to a cluster fragment.
 func topKCandidateNotes(centroid []float32, idx candidateNoteIndex) []queryCandidateNote {
 	if len(idx.paths) == 0 {
@@ -2069,7 +2069,7 @@ func validateQueryArgs(args QueryArgs) error {
 	return nil
 }
 
-// warnModelMismatch emits a single aggregated advisory (M4) when sidecars
+// warnModelMismatch emits a single aggregated advisory (792b24c2 Usable embeddings) when sidecars
 // were dropped because their embedding model differs from the active one.
 // A no-op when nothing mismatched or no warning hook is wired. The message
 // names the dropped count and the distinct stale model id(s) so a silent

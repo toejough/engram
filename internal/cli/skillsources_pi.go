@@ -12,20 +12,20 @@ import (
 
 // Exported constants.
 const (
-	// SkillScopeAgentsUser is the scope ID of ~/.agents/skills (design D3
+	// SkillScopeAgentsUser is the scope ID of ~/.agents/skills (792b30c17 Skill keys
 	// `agents-user`).
 	SkillScopeAgentsUser = "agents-user"
 	// SkillScopePiPrompt is the scope ID of Pi's global prompt templates,
-	// ~/.pi/agent/prompts (design D3 `pi-prompt`).
+	// ~/.pi/agent/prompts (792b30c17 Skill keys `pi-prompt`).
 	SkillScopePiPrompt = "pi-prompt"
 	// SkillScopePiUser is the scope ID of Pi's user skills,
-	// ~/.pi/agent/skills (design D3 `pi-user`).
+	// ~/.pi/agent/skills (792b30c17 Skill keys `pi-user`).
 	SkillScopePiUser = "pi-user"
 )
 
-// PiProjectScan is the input shared by the Pi project scanners (design D2
-// source 10). The project identity probe (task 1.8) supplies TopLevel and
-// ScopeID; ResolvePiProjectTrust (task 1.6) supplies Trusted. When Trusted
+// PiProjectScan is the input shared by the Pi project scanners (792b30c11 Pi project sources). The project
+// identity probe (792b30c14) supplies TopLevel and
+// ScopeID; ResolvePiProjectTrust (792b30c10) supplies Trusted. When Trusted
 // is false the scanners read nothing and record no root.
 type PiProjectScan struct {
 	// Cwd is the working directory registration runs from.
@@ -45,7 +45,7 @@ type PiProjectScan struct {
 }
 
 // ResolvePiProjectTrust decides whether Pi trusts the project at cwd
-// (design D3 trust test; Pi's resolveProjectTrusted in
+// (792b30c10 Pi project trust; Pi's resolveProjectTrusted in
 // dist/core/project-trust.js). cwd is canonicalized (symlinks resolved), then
 // the nearest saved decision in <agentDir>/trust.json for cwd or any parent
 // wins; a null entry is no decision. With no decision, the project is
@@ -80,13 +80,13 @@ func ResolvePiProjectTrust(fsys SkillSourceFS, agentDir, cwd string) (trusted bo
 }
 
 // ScanAgentsProjectSkills scans `.agents/skills` in scan.Cwd and each of its
-// ancestors up to scan.TopLevel (design D2 source 10; Pi's
+// ancestors up to scan.TopLevel (792b30c11 Pi project sources; Pi's
 // collectAncestorAgentsSkillDirs), with ScanPiSkillDir rules and no root
 // `.md` files. The chain walks the symlink-resolved cwd, so it meets the
 // (resolved) top-level. Each existing level is recorded as its own root; a
 // missing level is absent, not failed. The same name at two levels is
-// emitted twice (a key conflict, task 2.3). Untrusted → nothing is read.
-// Candidates carry SourceSegment SkillSegmentAgents (ruling R11).
+// emitted twice (a key conflict, 792b31c2 Offer comparison). Untrusted → nothing is read.
+// Candidates carry SourceSegment SkillSegmentAgents (792b30c11 Pi project sources).
 func ScanAgentsProjectSkills(fsys SkillSourceFS, scan PiProjectScan) SkillScanResult {
 	var result SkillScanResult
 
@@ -117,17 +117,16 @@ func ScanAgentsProjectSkills(fsys SkillSourceFS, scan PiProjectScan) SkillScanRe
 	return withSourceSegment(result, SkillSegmentAgents)
 }
 
-// ScanAgentsUserSkills scans ~/.agents/skills (design D2 source 5):
+// ScanAgentsUserSkills scans ~/.agents/skills (792b30c8 Pi skill directories):
 // ScanPiSkillDir rules with root `.md` files ignored, scope
 // SkillScopeAgentsUser.
 func ScanAgentsUserSkills(fsys SkillSourceFS, agentsSkillsRoot string) SkillScanResult {
 	return ScanPiSkillDir(fsys, agentsSkillsRoot, SkillScopeAgentsUser, false)
 }
 
-// ScanPiProjectPrompts scans `.pi/prompts/*.md` in scan.Cwd (design D2
-// source 10; ScanPiPromptDir rules). Untrusted → nothing is read and no root
-// is recorded. Candidates carry SourceSegment SkillScopePiPrompt (ruling
-// R11).
+// ScanPiProjectPrompts scans `.pi/prompts/*.md` in scan.Cwd (792b30c11 Pi project sources;
+// ScanPiPromptDir rules). Untrusted → nothing is read and no root
+// is recorded. Candidates carry SourceSegment SkillScopePiPrompt.
 func ScanPiProjectPrompts(fsys SkillSourceFS, scan PiProjectScan) SkillScanResult {
 	if !scan.Trusted {
 		return SkillScanResult{}
@@ -140,10 +139,9 @@ func ScanPiProjectPrompts(fsys SkillSourceFS, scan PiProjectScan) SkillScanResul
 }
 
 // ScanPiProjectSkills scans `.pi/skills` in scan.Cwd only, never its
-// ancestors (design D2 source 10; Pi's project baseDir is `<cwd>/.pi`):
+// ancestors (792b30c11 Pi project sources; Pi's project baseDir is `<cwd>/.pi`):
 // ScanPiSkillDir rules with root `.md` files. Untrusted → nothing is read
-// and no root is recorded. Candidates carry SourceSegment SkillSegmentPi
-// (ruling R11).
+// and no root is recorded. Candidates carry SourceSegment SkillSegmentPi.
 func ScanPiProjectSkills(fsys SkillSourceFS, scan PiProjectScan) SkillScanResult {
 	if !scan.Trusted {
 		return SkillScanResult{}
@@ -161,7 +159,7 @@ func ScanPiProjectSkills(fsys SkillSourceFS, scan PiProjectScan) SkillScanResult
 // SkillSourceKindPrompt. It is flat: subdirectories are never descended.
 // Hidden (`.`-prefixed) entries and dangling links are skipped. Like the
 // other scanners, an entry that exists but cannot be read is a warning and
-// marks the root not scanned (ruling R5).
+// marks the root not scanned (792b30c2 Root read status).
 func ScanPiPromptDir(fsys SkillSourceFS, promptsRoot, scopeID string) SkillScanResult {
 	var result SkillScanResult
 
@@ -216,10 +214,10 @@ func ScanPiPromptDir(fsys SkillSourceFS, promptsRoot, scopeID string) SkillScanR
 //   - When includeRootFiles is set (Pi's `~/.pi/agent/skills` and
 //     `.pi/skills`), skillsRoot's own `*.md` files are skills named by stem.
 //
-// Names never come from frontmatter (design D2). The root is scanned only
+// Names never come from frontmatter (792b30c16 Source composition and precedence). The root is scanned only
 // when it and everything read beneath it were read: any read error other
 // than a dangling link, or a too-deep directory, is a warning and marks the
-// root not scanned (ruling R5).
+// root not scanned (792b30c2 Root read status).
 func ScanPiSkillDir(fsys SkillSourceFS, skillsRoot, scopeID string, includeRootFiles bool) SkillScanResult {
 	var result SkillScanResult
 
@@ -242,13 +240,13 @@ func ScanPiSkillDir(fsys SkillSourceFS, skillsRoot, scopeID string, includeRootF
 	return result
 }
 
-// ScanPiUserPrompts scans ~/.pi/agent/prompts (design D2 source 6b):
+// ScanPiUserPrompts scans ~/.pi/agent/prompts (792b30c9 Pi prompt directories):
 // ScanPiPromptDir rules, scope SkillScopePiPrompt.
 func ScanPiUserPrompts(fsys SkillSourceFS, promptsRoot string) SkillScanResult {
 	return ScanPiPromptDir(fsys, promptsRoot, SkillScopePiPrompt)
 }
 
-// ScanPiUserSkills scans ~/.pi/agent/skills (design D2 source 4):
+// ScanPiUserSkills scans ~/.pi/agent/skills (792b30c8 Pi skill directories):
 // ScanPiSkillDir rules with root `.md` files, scope SkillScopePiUser.
 func ScanPiUserSkills(fsys SkillSourceFS, piSkillsRoot string) SkillScanResult {
 	return ScanPiSkillDir(fsys, piSkillsRoot, SkillScopePiUser, true)

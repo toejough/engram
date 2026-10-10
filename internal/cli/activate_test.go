@@ -389,7 +389,7 @@ func Test792b14c9a5_NewActivateDeps_BumpsRealSidecar(t *testing.T) {
 		return
 	}
 
-	// The note file itself makes the ref a local hit (design D8, M8).
+	// The note file itself makes the ref a local hit (792a21zc Activate resolves a ref locally first).
 	g.Expect(os.WriteFile(notePath, []byte("---\ntype: fact\n---\n"), 0o600)).To(Succeed())
 
 	deps := cli.ExportNewActivateDeps(cli.ExportNewTestOsDeps())

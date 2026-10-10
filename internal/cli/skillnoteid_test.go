@@ -53,7 +53,7 @@ func Test792b31c1a2_FindSkillNote_SkillKeyWithoutHashIsNotASkillNote(t *testing.
 // of keyed, unkeyed and hash-less notes, a key's lookup finds exactly the
 // keyed notes the generator made for it with a skill_hash, reporting a
 // duplicate when there are several; an unkeyed note, whatever its slug, is
-// no key's note (design D3).
+// no key's note (792b30c17 Skill keys).
 func Test792b31c1a3_FindSkillNote_IdentityProperty(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {

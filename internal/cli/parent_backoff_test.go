@@ -15,9 +15,9 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// Test792a21k1b_Targets_Query_BackoffSkipsParentInsideWindow (E51, M9): a query that
-// fails to reach the parent backs off; a second query 10s later makes no
-// parent request, returns local results, and prints exactly one warning.
+// Test792a21k1b_Targets_Query_BackoffSkipsParentInsideWindow (792b5c14 The parent cache and the contact
+// backoff): a query that fails to reach the parent backs off; a second query 10s later makes no parent
+// request, returns local results, and prints exactly one warning.
 func Test792a21k1b_Targets_Query_BackoffSkipsParentInsideWindow(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -100,7 +100,8 @@ func Test792a21k1c_Targets_Query_ParentClientErrorDoesNotBackOff(t *testing.T) {
 	g.Expect(cache.BackoffUntil.IsZero()).To(BeTrue())
 }
 
-// Test792b5c14a1_BackoffDelay_ExponentialFrom30sCappedAt15m (design D6, M9).
+// Test792b5c14a1_BackoffDelay_ExponentialFrom30sCappedAt15m (792b5c14 The parent cache and the contact
+// backoff).
 func Test792b5c14a1_BackoffDelay_ExponentialFrom30sCappedAt15m(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

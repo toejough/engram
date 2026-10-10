@@ -17,8 +17,8 @@ import (
 
 // SkillAcceptDeps holds the dependencies shared by the skill-registration
 // accept actions that mutate an EXISTING runbook note in place — RefreshSkill
-// and RemoveSkill (skill-runbook-registration: "Accepting a refresh ... SHALL
-// replace the body ..."; "Accepting a removal ... SHALL remove the note").
+// and RemoveSkill (792a12e Accepting a refresh replaces the body; 792a12f Accepting a
+// removal deletes the note and its sidecar).
 // Pared down from AmendDeps: no chunk-source validation, vocab assignment, or
 // identity re-stamping — a skill-note sync preserves "all other frontmatter"
 // untouched apart from the fields each action documents.
@@ -51,7 +51,7 @@ type SkillAdoptDeps struct {
 }
 
 // SkillNoteSource is what a skill runbook note mirrors: the source file a
-// key's winning candidate was read from (design D3, D8). Register, Refresh
+// key's winning candidate was read from (792b30c17 Skill keys and 792b31c7 Note actions). Register, Refresh
 // and Adopt write the key-derived slug (SkillKeySlug), skill_key,
 // skill_source and skill_hash from it, and the body's preamble names
 // SkillSource.
@@ -60,7 +60,7 @@ type SkillNoteSource struct {
 	Key string
 	// SkillSource is the `~`-relative resolved source path (absolute when it
 	// lies under no home), recorded as the note's skill_source and named by
-	// its preamble and register provenance (design D8).
+	// its preamble and register provenance (792b31c7 Note actions).
 	SkillSource string
 	// Content is the source file's bytes: the note body and hash input.
 	Content []byte
@@ -69,7 +69,7 @@ type SkillNoteSource struct {
 // NewSkillNoteSource builds the note source for a keyed candidate, with
 // SkillSource home-relative (`~/…`) against the first of homes that
 // contains it — the home as given and its resolved form, since SourcePath
-// is fully resolved while the removal-eligibility check (design D5) expands
+// is fully resolved while the removal-eligibility check (792b31c3 Removal eligibility) expands
 // `~` against the home as given and matches a root's path or its resolved
 // path. A path under no home is kept absolute.
 func NewSkillNoteSource(candidate SkillCandidate, homes ...string) SkillNoteSource {
@@ -81,8 +81,8 @@ func NewSkillNoteSource(candidate SkillCandidate, homes ...string) SkillNoteSour
 }
 
 // AdoptSkillNote implements `engram register-skills --adopt <key>=<note-ref>`
-// (skill-runbook-registration: "An existing runbook note SHALL be adoptable
-// as a skill's note"). It resolves noteRef the same way `engram amend
+// (792a12i An existing runbook note can be adopted
+// as a skill's note). It resolves noteRef the same way `engram amend
 // --target` does, requires the target to be a runbook note, renames it to
 // the slug derived from source's key (SkillKeySlug) via
 // RenameAndRewriteReferences (same Luhmann id and date, inbound wikilinks
@@ -92,7 +92,7 @@ func NewSkillNoteSource(candidate SkillCandidate, homes ...string) SkillNoteSour
 // not define included; comments best-effort), and removes any pending
 // marker — an adopted
 // note is a direct field-for-field promotion, never awaiting curation
-// (design D6: "the fields are kept and the note is not marked pending").
+// (792a12i Adopt: the fields are kept and the note is not marked pending).
 // Adopting a note already carrying the key's slug is a no-op rename
 // (idempotent) that still refreshes body and fields.
 //
@@ -173,8 +173,8 @@ func AdoptSkillNote(
 // against the new text), and preserves every frontmatter key it doesn't set
 // (comments best-effort) — situation, done_when, red_flags, triggers,
 // created, keys the typed runbook model does not define, and the basename
-// all survive untouched (skill-runbook-registration: "Accepting a refresh SHALL
-// replace the body, keep the fields, and mark the note pending").
+// all survive untouched (792a12e Accepting a refresh replaces the body,
+// keeps the fields, and marks the note pending).
 func RefreshSkill(
 	ctx context.Context,
 	vault string,
@@ -198,7 +198,7 @@ func RefreshSkill(
 	}
 
 	// Refresh always rewrites the note, so a CRLF note is converted to LF in
-	// that same write (design D5, final review F5).
+	// that same write (792b6c8 CRLF reading).
 	updated, renderErr := applySkillNoteBody(toLF(raw), source, true)
 	if renderErr != nil {
 		return renderErr
@@ -224,8 +224,8 @@ func RefreshSkill(
 // top-level Luhmann id, the slug derived from source's key, the
 // preamble+source-file body, skill_hash, skill_key, skill_source, and
 // pending: true — no situation, done_when, triggers, or red_flags
-// (skill-runbook-registration: "Accepting registration SHALL create a
-// pending note without runbook fields"). This is the only caller that sets
+// (792a12d Accepting a registration creates a
+// pending note without runbook fields). This is the only caller that sets
 // LearnArgs' unexported skipRunbookRequiredFields bypass; `engram learn
 // runbook`'s own situation/done_when requiredness is unaffected.
 func RegisterSkill(
@@ -251,8 +251,8 @@ func RegisterSkill(
 
 // RemoveSkill accepts a removal offer: it deletes the skill's runbook note
 // and its .vec.json sidecar under the vault lock, reusing discardNote's
-// delete-note-and-sidecar mechanics (skill-runbook-registration: "Accepting
-// a removal offer SHALL remove the skill note and its sidecar").
+// delete-note-and-sidecar mechanics (792a12f Accepting a removal deletes the
+// note and its sidecar).
 func RemoveSkill(vault, basename string, deps SkillAcceptDeps, stdout io.Writer) error {
 	release, lockErr := acquireOptionalLock(deps.Lock, vault)
 	if lockErr != nil {
@@ -271,7 +271,7 @@ const (
 	// skillNotePreambleFormat is the one-line body preamble every skill
 	// runbook note (register, refresh or adopt) carries, naming the skill
 	// file it mirrors with the same wording for every source, and never
-	// where to edit it (design D8; 792a12v: "its body preamble MUST
+	// where to edit it (792b31c7 Note actions; 792a12v: "its body preamble MUST
 	// name the file it mirrors", as the one-line preamble ``> Mirrors skill `<skill path>`.``).
 	skillNotePreambleFormat = "> Mirrors skill `%s`.\n"
 	// skillRegistrationSourcePrefix starts a freshly registered note's
@@ -297,7 +297,7 @@ var (
 
 // adoptRenderInput returns the content an adopt's rename leaves for the
 // note before its body is rendered: raw converted from CRLF to LF (toLF, as
-// the rename converts it — design D5) with its luhmann: field rewritten to
+// the rename converts it — 792b6c8 CRLF reading) with its luhmann: field rewritten to
 // newBasename's id and oldBasename appended to its aliases (as renameOneNote
 // does) when the adopt renames the note, or raw itself when the basename is
 // unchanged and no rename runs. Rendering this before the rename covers
@@ -378,8 +378,8 @@ func applySkillNoteBody(raw []byte, source SkillNoteSource, pending bool) (strin
 }
 
 // checkAdoptConflict errors when key is already registered to a different
-// note than oldBasename (skill-runbook-registration: "Error if a different
-// note for the key already exists").
+// note than oldBasename (792a12i: an adopt is an error if a different
+// note for the key already exists).
 func checkAdoptConflict(vault, key, oldBasename string, deps SkillAdoptDeps) error {
 	names, listErr := deps.Rename.ListMD(vault)
 	if listErr != nil {
@@ -507,8 +507,8 @@ func homeRelativePath(path string, homes []string) string {
 // amend --target` does, and returns its basename and raw content, converted
 // from CRLF to LF — erroring
 // when the ref doesn't resolve to any note, or resolves to a note that isn't
-// type runbook (skill-runbook-registration: "Must be a runbook note; error
-// otherwise").
+// type runbook (792a12i: the target must be a runbook note, else an
+// error).
 func resolveAdoptTarget(vault, noteRef string, deps SkillAdoptDeps) (basename string, raw []byte, err error) {
 	notes, scanErr := deps.Scan(vault)
 	if scanErr != nil {
@@ -528,7 +528,7 @@ func resolveAdoptTarget(vault, noteRef string, deps SkillAdoptDeps) (basename st
 	}
 
 	// Adopt always rewrites the note, so a CRLF note is converted to LF here
-	// and every later step sees LF text (design D5).
+	// and every later step sees LF text (792b6c8 CRLF reading).
 	raw = toLF(raw)
 
 	frontmatter, hasFrontmatter := splitFrontmatter(raw)
@@ -541,7 +541,7 @@ func resolveAdoptTarget(vault, noteRef string, deps SkillAdoptDeps) (basename st
 
 // skillNoteBasename computes the key-derived slug basename (SkillKeySlug)
 // for oldBasename — same Luhmann id and date, only the slug segment changes
-// (skill-runbook-registration D3/D6: adoption keeps the note's identity, it
+// (792a12i An existing runbook note can be adopted: adoption keeps the note's identity, it
 // does not re-mint one).
 func skillNoteBasename(oldBasename, key string) (string, error) {
 	id, date, ok := idAndDateFromNoteFilename(oldBasename + mdExt)

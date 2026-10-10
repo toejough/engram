@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// AssignSkillKeys stamps each candidate's source-qualified key (design D3)
+// AssignSkillKeys stamps each candidate's source-qualified key (792b30c17 Skill keys)
 // and returns the keyed candidates in their input order, plus a warning for
 // every candidate it skips. It is pure.
 //
@@ -47,7 +47,7 @@ func AssignSkillKeys(candidates []SkillCandidate) ([]SkillCandidate, []string) {
 	return keyed, warnings
 }
 
-// SkillKeySlug derives a skill note's slug from its key (design D3): the key
+// SkillKeySlug derives a skill note's slug from its key (792b30c17 Skill keys): the key
 // lowercased, every run of characters outside `[a-z0-9]` replaced by `-`,
 // leading and trailing `-` trimmed, prefixed with `skill-`. A key holding at
 // least one ASCII letter or digit yields a slug matching
@@ -80,7 +80,7 @@ func SkillKeySlug(key string) string {
 // unexported constants.
 const (
 	// skillKeyMinSegments is the fewest segments a recognized key has: a
-	// source qualifier and a name (design D3).
+	// source qualifier and a name (792b30c17 Skill keys).
 	skillKeyMinSegments      = 2
 	skillKeyNameColonProblem = "its name contains `:`"
 	// skillKeySegmentAndName is the length of a key tail holding one
@@ -95,9 +95,10 @@ const (
 	skillKeyUnrecognized      = "its key %q is not a recognized key"
 )
 
-// parsedSkillKey is what a skill key's namespace says (design D3, D5).
+// parsedSkillKey is what a skill key's namespace says (792b30c17 Skill keys and 792b31c3 Removal
+// eligibility).
 type parsedSkillKey struct {
-	// recognized is false for design D3's three unrecognized cases: no
+	// recognized is false for the three unrecognized cases of 792b30c17 Skill keys: no
 	// `:`, an empty segment, or a reserved form's prefix whose tail lacks
 	// that form's shape. An unrecognized key is never matched, never an
 	// alias source and never removal-eligible.
@@ -110,7 +111,7 @@ type parsedSkillKey struct {
 	// plugin is the plugin name of a plugin key: any recognized key whose
 	// first segment is not a reserved form.
 	plugin string
-	// scopeID is the key's answer scope (design D3's scope ID column).
+	// scopeID is the key's answer scope (792b30c17 Skill keys scope ID).
 	scopeID string
 }
 
@@ -125,7 +126,7 @@ func fixedSkillKey(form SkillRootForm, shaped bool) parsedSkillKey {
 }
 
 // isReservedPluginName reports whether a plugin name is one of the
-// top-level key forms (design D3: `claude`, `pi`, `agents`, `project`,
+// top-level key forms (792b30c17 Skill keys: `claude`, `pi`, `agents`, `project`,
 // `anthropic-skills`, `pi-settings`, `pi-pkg`, `pi-prompt`), or cannot be a
 // key segment (it contains `:`).
 func isReservedPluginName(name string) bool {
@@ -145,7 +146,7 @@ func parseClaudeSkillKey(tail []string) parsedSkillKey {
 	return fixedSkillKey(SkillRootFormClaudeCmd, tail[0] == skillKeySegmentCommand)
 }
 
-// parseSkillKey classifies key by its namespace (design D3). The first
+// parseSkillKey classifies key by its namespace (792b30c17 Skill keys). The first
 // segment names the source family (skillKeyFormParsers); any other first
 // segment is a plugin's. A key with no `:`, an empty segment, or a reserved
 // prefix with a malformed tail is unrecognized.
@@ -173,7 +174,7 @@ func piConfiguredKeyTail(tail []string) bool {
 // piPackageKeyTail reports whether tail is a Pi package's `<pkg-id>:` and
 // entry. A pkg-id may itself hold `:` (a local path), so any tail of two
 // or more segments has the shape; the package root that vouches for the
-// note checks the exact prefix (design D5).
+// note checks the exact prefix (792b31c3 Removal eligibility).
 func piPackageKeyTail(tail []string) bool {
 	return len(tail) > 1
 }
@@ -232,7 +233,7 @@ func skillKeyFor(candidate SkillCandidate) (key, problem string) {
 	return key, ""
 }
 
-// skillKeyFormParsers maps each top-level key form (design D3) — the first
+// skillKeyFormParsers maps each top-level key form (792b30c17 Skill keys) — the first
 // segments no plugin may use — to the parser of its tail: `claude:<n>` or
 // `claude:cmd:<ns:…:n>`; one name after `pi:`, `agents:`, `pi-prompt:` and
 // `anthropic-skills:`; a name or `pi-prompt:<n>` after `pi-settings:`; the
@@ -266,7 +267,7 @@ func skillKeyFormParsers() map[string]func(tail []string) parsedSkillKey {
 }
 
 // skillKeyPrefix returns the key segments preceding candidate's name, and
-// false for a scope D3 does not define (including a reserved plugin name).
+// false for a scope 792b30c17 Skill keys does not define (including a reserved plugin name).
 func skillKeyPrefix(candidate SkillCandidate) ([]string, bool) {
 	parts, known := skillScopeKeyParts(candidate.ScopeID)
 	if !known {
@@ -288,9 +289,9 @@ func skillKeyPrefix(candidate SkillCandidate) ([]string, bool) {
 }
 
 // skillRootKeyPrefix is the key prefix of every candidate a root of scope,
-// source segment and kind yields (design D3 without the name): e.g.
+// source segment and kind yields (792b30c17 Skill keys, minus the name): e.g.
 // `project:<r>:cmd:` or `pi-pkg:<id>:pi-prompt:`. A root vouches for the
-// notes whose keys carry it (design D5).
+// notes whose keys carry it (792b31c3 Removal eligibility).
 func skillRootKeyPrefix(scope, segment string, kind SkillSourceKind) string {
 	parts, _ := skillKeyPrefix(SkillCandidate{ScopeID: scope, SourceSegment: segment, Kind: kind})
 

@@ -19,7 +19,7 @@ import (
 )
 
 // Test792a21a1a_EngramServerSet_HardErrorsEveryCommand covers 792a21a
-// "ENGRAM_SERVER is refused" (design D1): with ENGRAM_SERVER set,
+// "ENGRAM_SERVER is refused" (792a21a ENGRAM_SERVER is refused): with ENGRAM_SERVER set,
 // every subcommand — serve included — exits non-zero with a message naming
 // ENGRAM_PARENT and the same URL, before any filesystem, lock, fetch or
 // bind capability is touched.
@@ -82,7 +82,7 @@ func Test792a21a1d_EngramServerSet_NeverFetchesAsAlias(t *testing.T) {
 
 // unexported constants.
 const (
-	// removedServerEnvVar is the removed thin-client variable the D1 guard
+	// removedServerEnvVar is the removed thin-client variable the 792a21a guard
 	// refuses. Other subprocess tests strip it by this name so an ambient
 	// host setting cannot trip the hard error.
 	removedServerEnvVar = "ENGRAM_SERVER"

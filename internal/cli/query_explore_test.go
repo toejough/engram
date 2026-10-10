@@ -9,7 +9,7 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// Test792b24c13a1_Property_SoftmaxAllocate_BudgetConservation locks task 1.1's second
+// Test792b24c13a1_Property_SoftmaxAllocate_BudgetConservation locks the second
 // property: allocations always sum exactly to the explore budget, across an
 // arbitrary term set and temperature.
 func Test792b24c13a1_Property_SoftmaxAllocate_BudgetConservation(t *testing.T) {
@@ -51,7 +51,7 @@ func Test792b24c13a1_Property_SoftmaxAllocate_BudgetConservation(t *testing.T) {
 	})
 }
 
-// Test792b24c13a1_SoftmaxAllocate_BudgetConservation locks task 1.1: allocations across
+// Test792b24c13a1_SoftmaxAllocate_BudgetConservation locks 792b24c13: allocations across
 // terms must sum exactly to the explore budget via largest-remainder
 // apportionment.
 func Test792b24c13a1_SoftmaxAllocate_BudgetConservation(t *testing.T) {
@@ -95,7 +95,7 @@ func Test792b24c13a2_SoftmaxAllocate_HigherSimilarityGetsMoreOrEqual(t *testing.
 }
 
 // Test792b24c13a3_Property_SoftmaxAllocate_Monotonic locks the monotonicity property from
-// tasks.md 1.1: sim_A >= sim_B => allocation(A) >= allocation(B) for
+// 792b24c13 Explore budget and allocation: sim_A >= sim_B => allocation(A) >= allocation(B) for
 // un-boosted terms. Similarities are drawn strictly ordered to avoid the
 // undefined case of two terms tying exactly (a tie forces the
 // largest-remainder tiebreak to favor exactly one, which does not
@@ -142,7 +142,7 @@ func Test792b24c13a4_SoftmaxAllocate_NoTermsYieldsEmpty(t *testing.T) {
 }
 
 // Test792b24c13a4_SoftmaxAllocate_ZeroBudgetYieldsEmpty locks the B=0 skip case from
-// design.md Decision 1: no notes matched -> explore half skipped entirely.
+// 792b24c13 Explore budget and allocation: no notes matched -> explore half skipped entirely.
 func Test792b24c13a4_SoftmaxAllocate_ZeroBudgetYieldsEmpty(t *testing.T) {
 	t.Parallel()
 
@@ -155,7 +155,7 @@ func Test792b24c13a4_SoftmaxAllocate_ZeroBudgetYieldsEmpty(t *testing.T) {
 	g.Expect(allocated).To(BeEmpty())
 }
 
-// Test792b24c13a5_ApplyMatchEvidenceBonus_FlatNonStacking locks task 1.2: a term with
+// Test792b24c13a5_ApplyMatchEvidenceBonus_FlatNonStacking locks 792b24c13: a term with
 // >=1 member in the exploit half gets the fixed delta bonus once, never
 // stacked per member.
 func Test792b24c13a5_ApplyMatchEvidenceBonus_FlatNonStacking(t *testing.T) {
@@ -178,7 +178,7 @@ func Test792b24c13a5_ApplyMatchEvidenceBonus_FlatNonStacking(t *testing.T) {
 }
 
 // Test792b24c13a6_ApplyMatchEvidenceBonus_LiftsDistantClusterAboveUnevidenced covers the
-// design.md 3.1 calibration bar: the bonus must be able to lift a
+// calibration bar of 792b24c13 Explore budget and allocation: the bonus must be able to lift a
 // vault-median-sim evidenced cluster above an un-evidenced cluster at
 // sim_med + delta/2.
 func Test792b24c13a6_ApplyMatchEvidenceBonus_LiftsDistantClusterAboveUnevidenced(t *testing.T) {
@@ -253,9 +253,8 @@ func Test792b24c13a8_TermsWithExploitEvidence_MembersInExploitHalf(t *testing.T)
 	g.Expect(evidenced).NotTo(HaveKey("beta"))
 }
 
-// Test792b24c14a1_SelectWithinCluster_DescendingCentroidCosine locks task 1.3: within a
-// term's members, the top-k selected are those with highest cosine to the
-// term centroid, descending.
+// Test792b24c14a1_SelectWithinCluster_DescendingCentroidCosine locks 792b24c14 Picking a term's core: within
+// a term's members, the top-k selected are those with highest cosine to the term centroid, descending.
 func Test792b24c14a1_SelectWithinCluster_DescendingCentroidCosine(t *testing.T) {
 	t.Parallel()
 
@@ -278,7 +277,7 @@ func Test792b24c14a1_SelectWithinCluster_DescendingCentroidCosine(t *testing.T) 
 }
 
 // Test792b24c14a2_SelectWithinCluster_KGreaterThanMembersReturnsAll covers the
-// candidates-exhausted edge used by dedupe+backfill (task 1.4).
+// candidates-exhausted edge used by dedupe+backfill (792b24c15).
 func Test792b24c14a2_SelectWithinCluster_KGreaterThanMembersReturnsAll(t *testing.T) {
 	t.Parallel()
 
@@ -305,7 +304,7 @@ func Test792b24c14a3_SelectWithinCluster_ZeroKReturnsEmpty(t *testing.T) {
 }
 
 // Test792b24c15a1_DedupeAndBackfill_DropsCrossClusterDuplicate locks the cross-cluster
-// half of task 1.4: the same note tagged under two terms is only selected
+// half of 792b24c15: the same note tagged under two terms is only selected
 // once; the second cluster's slot backfills from its own next member.
 func Test792b24c15a1_DedupeAndBackfill_DropsCrossClusterDuplicate(t *testing.T) {
 	t.Parallel()
@@ -334,7 +333,7 @@ func Test792b24c15a1_DedupeAndBackfill_DropsCrossClusterDuplicate(t *testing.T) 
 	g.Expect(paths).To(ConsistOf("shared.md", "other.md"))
 }
 
-// Test792b24c15a2_DedupeAndBackfill_DropsExploitHalfDuplicate locks task 1.4: a pick
+// Test792b24c15a2_DedupeAndBackfill_DropsExploitHalfDuplicate locks 792b24c15 Dedupe and backfill: a pick
 // duplicating an exploit-half note is dropped and the freed slot refills
 // from the next-highest-weight term with remaining candidates.
 func Test792b24c15a2_DedupeAndBackfill_DropsExploitHalfDuplicate(t *testing.T) {

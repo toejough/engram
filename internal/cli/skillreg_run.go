@@ -15,7 +15,7 @@ import (
 )
 
 // RegisterSkillsArgs holds the parsed flags for `engram register-skills`
-// (skill-runbook-registration). Adopt entries are `<key>=<note-ref>`
+// (792b31c6 The registration run). Adopt entries are `<key>=<note-ref>`
 // strings, parsed by parseAdoptFlags into SkillRegistrationArgs' map — the
 // CLI-facing repeatable-flag shape differs from the internal args' shape,
 // same split as LearnFactArgs/LearnFeedbackArgs/LearnRunbookArgs vs. the
@@ -33,23 +33,23 @@ type RegisterSkillsArgs struct {
 // SkillRegistrationArgs holds RunSkillRegistration's inputs: the resolved
 // vault/vault-name, the home the default source set is resolved from, any
 // `--skills-dir` preview dirs, the dry-run flag, and any explicit
-// --accept/--decline/--adopt answers (skill-runbook-registration).
+// --accept/--decline/--adopt answers (792b31c6 The registration run).
 type SkillRegistrationArgs struct {
 	Vault     string
 	VaultName string
-	// Home is the user's home dir: the default source set is resolved from
-	// it (ResolveSkillSources, design D1), a note's skill_source is written
-	// `~`-relative to it, and removal eligibility expands it (design D5, D8).
+	// Home is the user's home dir: the default source set is resolved from it (ResolveSkillSources, 792b30c16
+	// Source composition and precedence), a note's skill_source is written `~`-relative to it, and removal
+	// eligibility expands it (792b31c3 Removal eligibility and 792b31c7 Note actions).
 	Home string
 	// PreviewDirs are `--skills-dir`'s dirs: they replace the default set,
 	// each scanned with the Claude-user rules (keys `claude:<n>`), and the
-	// run is a read-only preview (design D9).
+	// run is a read-only preview (792b31c6 The registration run).
 	PreviewDirs []string
 	DryRun      bool
 	Accept      []string
 	Decline     []string
 	// Adopt maps a skill key to the note-ref its existing runbook note is
-	// adopted from (design D6). Parsed from RegisterSkillsArgs.Adopt's
+	// adopted from (792b31c5 Answers and prompts). Parsed from RegisterSkillsArgs.Adopt's
 	// "<key>=<note-ref>" strings by the CLI-wiring layer.
 	Adopt map[string]string
 }
@@ -73,8 +73,8 @@ type SkillRegistrationDeps struct {
 	// (CompareSkillOffers/FindSkillNote) — same shape as LearnDeps.ListMD.
 	ListMD func(vault string) ([]string, error)
 	// IsTerminal reports whether stdin is an interactive terminal — the
-	// interactive-prompt gate (skill-runbook-registration: "Registration
-	// SHALL never prompt or write without a terminal"). nil is treated as
+	// interactive-prompt gate (792a12g Registration never prompts or
+	// writes without a terminal). nil is treated as
 	// non-interactive.
 	IsTerminal func() bool
 	// Stdin supplies interactive prompt answers, read one line per offer via
@@ -95,8 +95,8 @@ type SkillRegistrationDeps struct {
 }
 
 // RunSkillRegistration orchestrates `engram register-skills` and `engram
-// update`'s post-deploy registration hook (skill-runbook-registration): it
-// resolves the default source set (ResolveSkillSources, design D1 — the one
+// update`'s post-deploy registration hook (792b31c6 The registration run): it
+// resolves the default source set (ResolveSkillSources, 792b30c16 Source composition and precedence — the one
 // definition both commands share) from args.Home and the working directory,
 // runs any --adopt entries first, computes the
 // register/refresh/remove offers against the vault, and then — for each
@@ -104,7 +104,7 @@ type SkillRegistrationDeps struct {
 // interactively when stdin is a terminal and this isn't a dry run, or else
 // leaves it unanswered. A dry run only previews offers and touches nothing.
 //
-// With PreviewDirs (`--skills-dir`, design D9) the run is a read-only
+// With PreviewDirs (`--skills-dir`, 792b31c6 The registration run) the run is a read-only
 // preview of those dirs alone: any --accept, --decline or --adopt is refused
 // with errSkillsDirReadOnly before anything is scanned, and no removal is
 // offered.
@@ -136,7 +136,7 @@ func RunSkillRegistration(
 const (
 	skillMDFilename = "SKILL.md"
 	// skillRefreshPromptFormat, skillRegisterPromptFormat and
-	// skillRemovePromptFormat are the per-offer prompts (design D4's table):
+	// skillRemovePromptFormat are the per-offer prompts (792b31c2 Offer comparison's table):
 	// each takes the offer's key and offerPromptSource's " (<source>)", which
 	// is empty only for a removal with no recorded skill_source.
 	skillRefreshPromptFormat  = "Skill `%s`%s changed since its note was last synced. Update the note? [y/N] "
@@ -146,7 +146,7 @@ const (
 	// registration: "Registration SHALL never prompt or write without a
 	// terminal ... It SHALL print one line giving the total number of
 	// outstanding offers, each scope's selector with its count, and the
-	// `engram register-skills` command that answers them"; design D6). It
+	// `engram register-skills` command that answers them"; 792b31c5 Answers and prompts). It
 	// fills in the total, "offer"/"offers", and the comma-joined
 	// `@<scope-id> <count>` labels; the `<key|prefix*|@scope>` placeholders
 	// are literal command syntax.
@@ -154,13 +154,13 @@ const (
 		"`engram register-skills` in a terminal, or `engram register-skills --accept <key|prefix*|@scope>` / " +
 		"`--decline <key|prefix*|@scope>`\n"
 	// skillRegistrationDryRunOfferFormat previews one offer under --dry-run,
-	// indented under its scope header (design D6: "`--dry-run` prints `would
+	// indented under its scope header (792b31c5 Answers and prompts: "`--dry-run` prints `would
 	// offer: <kind> <key> (<source>)` under scope headers").
 	skillRegistrationDryRunOfferFormat = "  would offer: %s %s (%s)\n"
 	// skillRegistrationNoOfferFormat reports a --accept/--decline token (key,
 	// pattern or selector) matching no current offer: not an error, just a
-	// one-line note, and registration continues (skill-runbook-registration:
-	// "Registration SHALL be invocable standalone with explicit answers").
+	// one-line note, and registration continues (792a12h Registration can run on its own
+	// with explicit answers).
 	skillRegistrationNoOfferFormat = "engram: no pending offer for skill %q — ignoring --%s\n"
 	skillRemovePromptFormat        = "Skill `%s`%s is no longer found in its source. Remove its runbook note? [y/N] "
 )
@@ -168,7 +168,7 @@ const (
 // unexported variables.
 var (
 	// errAdoptKeyConflict reports an --adopt <key>=<ref> entry whose key's
-	// copies differ (design D4): there is no one file to mirror, and nothing
+	// copies differ (792b31c2 Offer comparison): there is no one file to mirror, and nothing
 	// is written for a conflicted key.
 	errAdoptKeyConflict = errors.New("register-skills: adopt: key conflict")
 	// errAdoptSkillNotShipped reports an --adopt <key>=<ref> entry whose key
@@ -191,7 +191,7 @@ var (
 	// working directory to resolve it against.
 	errSkillsDirNeedsWorkingDir = errors.New("register-skills: --skills-dir: resolving a relative dir")
 	// errSkillsDirReadOnly refuses --accept, --decline and --adopt on a
-	// --skills-dir run, before anything is scanned (design D9).
+	// --skills-dir run, before anything is scanned (792b31c6 The registration run).
 	errSkillsDirReadOnly = errors.New(
 		"register-skills: --skills-dir is a read-only preview; it cannot be combined with " +
 			"--accept, --decline or --adopt")
@@ -251,7 +251,7 @@ func acceptSkillOffer(
 }
 
 // adoptSourceFor returns the note source an --adopt entry for key mirrors:
-// the precedence winner among key's enabled candidates (design D4). A key
+// the precedence winner among key's enabled candidates (792b31c2 Offer comparison). A key
 // with no enabled candidate is errAdoptSkillNotShipped; a key whose copies
 // conflict is errAdoptKeyConflict.
 func adoptSourceFor(key string, sources ResolvedSkillSources, home string) (SkillNoteSource, error) {
@@ -281,7 +281,7 @@ func adoptSourceFor(key string, sources ResolvedSkillSources, home string) (Skil
 // (RecordSkillDeclined).
 //
 // Every read that can fail the run — the decline state (a non-v2 file must
-// write nothing, design D7), the vault listing and the offer comparison — is
+// write nothing, 792b31c4 Declines file), the vault listing and the offer comparison — is
 // done before the first --adopt writes, so a failing read leaves the vault
 // untouched. The decline state is read once and reused; the comparison is
 // recomputed after the adopts, since they rename and re-key notes.
@@ -316,8 +316,8 @@ func answerSkillSources(
 	}
 
 	// The scan and key warnings are printed on every path, not only the
-	// preview (skill-runbook-registration: skipped entries are skipped
-	// "with a warning").
+	// preview (792a12o: skipped entries are skipped
+	// with a warning).
 	comparison.Warnings = append(slices.Clone(sources.Warnings), comparison.Warnings...)
 	noteSources := skillNoteSourcesByRef(sources, args.Home)
 
@@ -447,8 +447,8 @@ func parseAdoptFlags(raw []string) (map[string]string, error) {
 
 // previewSkillSources previews every computed offer under its scope header
 // (PreviewSkillOffers), after sources' scan warnings, and writes nothing,
-// prompts nothing (skill-runbook-registration: "`--dry-run` SHALL list
-// every offer and write nothing"). --adopt entries are not run under a
+// prompts nothing (792a12h: `--dry-run` lists
+// every offer and writes nothing). --adopt entries are not run under a
 // preview either — a dry run touches no vault state.
 func previewSkillSources(
 	vault, home string, sources ResolvedSkillSources, noRemovals bool, deps SkillRegistrationDeps, stdout io.Writer,
@@ -468,7 +468,7 @@ func previewSkillSources(
 	return PreviewSkillOffers(stdout, comparison)
 }
 
-// previewSkillsDirs is a `--skills-dir` run (design D9): it refuses any
+// previewSkillsDirs is a `--skills-dir` run (792b31c6 The registration run): it refuses any
 // --accept, --decline or --adopt before scanning, then scans each preview
 // dir with the Claude-user rules (keys `claude:<n>`) in place of the default
 // set, and previews the offers with no removal offer.
@@ -494,7 +494,7 @@ func previewSkillsDirs(args SkillRegistrationArgs, deps SkillRegistrationDeps, s
 // scanner: y/yes (case-insensitive) accepts, and any other line declines.
 // End of input (scanner.Scan returning false) is no answer at all
 // (SkillAnswerNone): the offer is neither accepted nor declined, like the
-// grouped prompt's skip (ruling R29).
+// grouped prompt's skip (792b31c5 Answers and prompts).
 func promptForOffer(offer SkillOffer, scanner *bufio.Scanner, stdout io.Writer) SkillAnswer {
 	_, _ = fmt.Fprintf(stdout, promptFormatForOfferKind(offer.Kind), offer.Key, offerPromptSource(offer))
 
@@ -510,7 +510,7 @@ func promptForOffer(offer SkillOffer, scanner *bufio.Scanner, stdout io.Writer) 
 	return SkillAnswerDecline
 }
 
-// promptFormatForOfferKind returns the exact prompt text (design D4's table)
+// promptFormatForOfferKind returns the exact prompt text (792b31c2 Offer comparison's table)
 // for kind.
 func promptFormatForOfferKind(kind SkillOfferKind) string {
 	switch kind {
@@ -527,7 +527,7 @@ func promptFormatForOfferKind(kind SkillOfferKind) string {
 
 // readSkillDeclines reads the vault's decline state
 // (ReadSkillRegistrations): a missing file is an empty state, and any other
-// read or schema failure is an error (design D7).
+// read or schema failure is an error (792b31c4 Declines file).
 func readSkillDeclines(vault string, deps SkillRegistrationDeps) (map[string]string, error) {
 	declined, declinedErr := ReadSkillRegistrations(vault, deps.Accept.Read)
 	if declinedErr != nil {
@@ -562,8 +562,8 @@ func resolveDefaultSkillSources(
 }
 
 // runSkillAdoptions runs every args --adopt entry, in sorted-by-key order
-// for determinism, via AdoptSkillNote — before offers are computed (design
-// D6/tasks.md 1.8: "adopt entries ... run first"). Every entry is validated
+// for determinism, via AdoptSkillNote — before offers are computed (792b31c6 The registration run:
+// adopt entries run first). Every entry is validated
 // before the first one writes (validateAdoptEntry; AdoptSkillNote keeps its
 // own checks as defense in depth), and no two entries may name the same
 // target note — adopt never silently re-keys a note. Each entry then writes

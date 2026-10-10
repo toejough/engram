@@ -14,12 +14,12 @@ import (
 // Exported constants.
 const (
 	// SkillScopeProjectPrefix prefixes a project's scope ID: `project:<r>`
-	// (design D3), where `<r>` is ProjectIdentity.ID.
+	// (792b30c17 Skill keys), where `<r>` is ProjectIdentity.ID.
 	SkillScopeProjectPrefix = "project:"
 	// SkillSegmentAgents and SkillSegmentPi are the SourceSegment values of
-	// a project's `.agents/skills` and `.pi/skills` candidates (ruling R11):
+	// a project's `.agents/skills` and `.pi/skills` candidates (792b30c11 Pi project sources):
 	// the key segments the user scopes agents-user and pi-user contribute
-	// (`project:<r>:agents:<n>`, `project:<r>:pi:<n>`, design D3). A
+	// (`project:<r>:agents:<n>`, `project:<r>:pi:<n>`, 792b30c17 Skill keys). A
 	// project's `.pi/prompts` candidates carry SkillScopePiPrompt.
 	SkillSegmentAgents = "agents"
 	SkillSegmentPi     = "pi"
@@ -41,7 +41,7 @@ type ClaudeProjectScan struct {
 	ScopeID string
 }
 
-// ProjectIdentity is the project identity probe's result (design D3).
+// ProjectIdentity is the project identity probe's result (792b30c14 Project identity).
 type ProjectIdentity struct {
 	// ID is `<r>`: `<host>/<owner>/<repo>` from the normalized origin URL,
 	// or `local/<name>` for a repository without a usable origin.
@@ -56,7 +56,7 @@ func (p ProjectIdentity) ScopeID() string {
 	return SkillScopeProjectPrefix + p.ID
 }
 
-// ScanClaudeProjectSources scans Claude Code's project sources (design D2
+// ScanClaudeProjectSources scans Claude Code's project sources (792b30c16 Source composition and precedence
 // source 9): `.claude/skills` (ScanSkillChildren rules, so root `.md` files
 // are ignored) and `.claude/commands` (ScanCommandDir rules) in scan.Cwd and
 // each ancestor up to scan.TopLevel. The chain walks the symlink-resolved
@@ -64,11 +64,11 @@ func (p ProjectIdentity) ScopeID() string {
 // scans nothing.
 //
 // Each existing directory is recorded as its own root, so removal
-// eligibility is tied to the exact directory a note came from (D5); a level
+// eligibility is tied to the exact directory a note came from (792b31c3 Removal eligibility); a level
 // without the directory records no root (absent, not failed). A level that
 // resolves to the user's own ~/.claude/skills or ~/.claude/commands is
 // skipped. The same name at two levels is emitted twice: that is a key
-// conflict (task 2.3), never nearest-wins. Skills precede commands, as in
+// conflict (792b31c2 Offer comparison), never nearest-wins. Skills precede commands, as in
 // the harness ("skills take precedence over commands").
 func ScanClaudeProjectSources(fsys SkillSourceFS, scan ClaudeProjectScan) SkillScanResult {
 	var skills, commands SkillScanResult
@@ -125,7 +125,7 @@ func localProjectID(commonDir string) string {
 }
 
 // normalizeProjectRemote turns a git origin URL into `<host>/<path>` (design
-// D3 `<r>`): the whole string lowercased, userinfo and any `:port` stripped,
+// 792b30c17 Skill keys `<r>`): the whole string lowercased, userinfo and any `:port` stripped,
 // and trailing `.git` and `/` removed. It parses the scheme form
 // (`ssh://`, `https://`, …) and the scp form (`git@host:owner/repo`,
 // including an SSH host alias). Normalization is idempotent: the result,
@@ -176,7 +176,7 @@ func pathWithinRoot(path, root string) bool {
 	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
-// probeProjectIdentity runs the project identity probe (design D3) in cwd
+// probeProjectIdentity runs the project identity probe (792b30c14 Project identity) in cwd
 // through the injected commander. Outside a git repository (show-toplevel
 // fails or is empty), found is false and there are no project sources.
 // Otherwise the ID is the normalized origin URL, or — with no usable origin —

@@ -14,9 +14,9 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// Test792a12t1d_UpdateSkillRegistration_SeesTheSameOffersAsRegisterSkills covers task
-// 5.2 and update-deploy-sync's "Update and register-skills see the same
-// offers": over one set of production-composed Deps (same home, vault and
+// Test792a12t1d_UpdateSkillRegistration_SeesTheSameOffersAsRegisterSkills covers 792a12t Update runs
+// registration after deploying the skills ("Update and register-skills see the same
+// offers"): over one set of production-composed Deps (same home, vault and
 // working directory), `engram update`'s registration hook and `engram
 // register-skills --dry-run` list byte-identical offers.
 func Test792a12t1d_UpdateSkillRegistration_SeesTheSameOffersAsRegisterSkills(t *testing.T) {
@@ -48,8 +48,8 @@ func Test792a12t1d_UpdateSkillRegistration_SeesTheSameOffersAsRegisterSkills(t *
 	g.Expect(updateOut.String()).To(Equal(registerOut.String()))
 }
 
-// Test792b30c16a15_RegisterSkillsCLI_DefaultSetResolvesEveryFolder covers task 5.1 (design
-// D1): with no --skills-dir, `engram register-skills` resolves the default
+// Test792b30c16a15_RegisterSkillsCLI_DefaultSetResolvesEveryFolder covers 792b30c16 Source
+// composition and precedence: with no --skills-dir, `engram register-skills` resolves the default
 // source set from the home and the working directory — a real Claude user
 // skill, a user command, engram's own deployed skill (reached through its
 // harness symlink) and a project command in the cwd's repository all offer,
@@ -73,8 +73,8 @@ func Test792b30c16a15_RegisterSkillsCLI_DefaultSetResolvesEveryFolder(t *testing
 	g.Expect(stdout.String()).To(Equal(fixture.expectedDryRun()))
 }
 
-// Test792b30c16a16_RegisterSkillsCLI_SymlinkedHomeRoundTripsSkillSource covers task 5.1's
-// symlinked-home case (design D8): accepting offers under a home reached
+// Test792b30c16a16_RegisterSkillsCLI_SymlinkedHomeRoundTripsSkillSource covers the
+// symlinked-home case (792b31c7 Note actions): accepting offers under a home reached
 // through a symlink records each note's skill_source `~`-relative, and a
 // second run over the same vault offers nothing — no re-register, and no
 // removal of the notes just written.

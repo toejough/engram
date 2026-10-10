@@ -24,7 +24,7 @@ type identityStamp struct {
 
 	// basename and warn are set only on the amend path (amendIdentity), so
 	// stampPreservingUser can name the note and log a warning when user
-	// detection resolves empty (design D3, #776). Every other construction
+	// detection resolves empty (792b11c2 User detection, #776). Every other construction
 	// site (learn, pulldown, serve_learn, identity backfill) leaves them
 	// zero and never calls stampPreservingUser — those paths have no prior
 	// value to keep (Non-Goals).
@@ -47,7 +47,7 @@ func (s *identityStamp) stamp(repo, user, vault *string) {
 // empty (both git config user.email and the OS username lookup failed) and
 // the note already carries a non-empty user: — then the note's existing
 // value is kept instead of being blanked to user: "", and a warning naming
-// the stamp's basename is emitted through warn (design D3, #776; a nil stamp
+// the stamp's basename is emitted through warn (792b11c2 User detection, #776; a nil stamp
 // is a no-op, matching stamp). The user-preserving behavior itself does not
 // depend on warn: a nil warn (no basename/warn set — not the amend path)
 // still keeps the prior user, it only skips logging the warning.
@@ -129,8 +129,8 @@ func detectUser(
 // served learn's in-place rewrite, a pull-down): repo:/user: freshly
 // detected, vault: as resolved by the caller. When user detection resolves
 // empty, user: is left empty, so the writer omits the key (user,omitempty)
-// instead of writing user: "", and one warning names the command (#789
-// design D6). Backfill or a later re-stamping amend fills it in.
+// instead of writing user: "", and one warning names the command (792b11c3
+// First-write stamp). Backfill or a later re-stamping amend fills it in.
 func firstWriteIdentity(ctx context.Context, deps LearnDeps, vaultName, command string) identityStamp {
 	stamp := identityStamp{Repo: deps.DetectRepo(ctx), User: deps.DetectUser(ctx), Vault: vaultName}
 

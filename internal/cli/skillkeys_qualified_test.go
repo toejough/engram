@@ -1,6 +1,6 @@
 package cli_test
 
-// Tests for the "qualify every key" requirements (792b30; design D3, D11): every key is qualified by its
+// Tests for the "qualify every key" requirements (792b30c17 Skill keys): every key is qualified by its
 // source, engram-installed skills are keyed by their folder, unkeyed legacy
 // notes are not skill notes, and an unrecognized skill_key is never matched
 // or removed.
@@ -21,7 +21,7 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-// Test792b30c17a5_AssignSkillKeys_QualifiesClaudeUserSources covers design D3's Claude
+// Test792b30c17a5_AssignSkillKeys_QualifiesClaudeUserSources covers the Claude
 // user rows: skills key as `claude:<n>` and commands as `claude:cmd:<ns:…:n>`
 // (a skill named `cmd` is `claude:cmd`), and engram's installed skills are
 // keyed by the folder they are found in, with no path-based exception.
@@ -67,7 +67,7 @@ func Test792b30c17a5_AssignSkillKeys_QualifiesClaudeUserSources(t *testing.T) {
 // Test792b30c7a14_ScanClaudePlugins_ReservedNameCheckFollowsEnablement covers the spec
 // scenarios "A plugin named claude is reserved", "A disabled reserved-name
 // plugin is silent" and "A plugin named cmd is an ordinary plugin" (design
-// D3): the reserved set is exactly the top-level key forms, and the check
+// 792b30c17 Skill keys): the reserved set is exactly the top-level key forms, and the check
 // runs only once the plugin is known to be enabled.
 func Test792b30c7a14_ScanClaudePlugins_ReservedNameCheckFollowsEnablement(t *testing.T) {
 	t.Parallel()
@@ -168,7 +168,7 @@ func Test792b31c1a6_FindSkillNote_DuplicateQualifiedKeyIsAnError(t *testing.T) {
 }
 
 // Test792b31c2a10_CompareSkillOffers_SixLegacyNotesYieldSixRegisterOffers is the spec
-// scenario "Unkeyed legacy notes are ignored until adopted" (design D11):
+// scenario "Unkeyed legacy notes are ignored until adopted" (792b31c1 Skill note lookup):
 // the six unkeyed legacy notes, whose skill_hash equals the scanned bytes,
 // are not skill notes, so each of engram's six skills found through
 // ~/.claude/skills is offered for registration as `claude:<n>`; the
@@ -235,10 +235,9 @@ func Test792b31c2a11_CompareSkillOffers_UnkeyedNotesNeverChangeTheOfferSet(t *te
 }
 
 // Test792b31c2a16_CompareSkillOffers_ClaudeKeysParseToClaudeForms covers the key parser
-// for `claude:` keys (design D3, D5): `claude:<n>` is a Claude user skill
-// (scope claude-user, root ~/.claude/skills), `claude:cmd:…` with three or
-// more segments a Claude user command (scope claude-cmd, root
-// ~/.claude/commands), and `claude:cmd` a skill named cmd.
+// for `claude:` keys (792b30c17 Skill keys and 792b31c3 Removal eligibility): `claude:<n>` is a Claude user
+// skill (scope claude-user, root ~/.claude/skills), `claude:cmd:…` with three or more segments a Claude user
+// command (scope claude-cmd, root ~/.claude/commands), and `claude:cmd` a skill named cmd.
 func Test792b31c2a16_CompareSkillOffers_ClaudeKeysParseToClaudeForms(t *testing.T) {
 	t.Parallel()
 
@@ -303,7 +302,7 @@ func Test792b31c2a16_CompareSkillOffers_ClaudeKeysParseToClaudeForms(t *testing.
 
 // Test792b31c2a17_CompareSkillOffers_UnrecognizedKeysAreNeverMatchedOrRemoved is the
 // spec scenario "An unrecognized skill_key is never matched or removed"
-// (design D3): with every source root read and the plugin manifests
+// (792b30c17 Skill keys): with every source root read and the plugin manifests
 // parsed, a note whose key has no `:`, an empty segment, or a reserved
 // prefix with a malformed tail is never offered for removal and makes no
 // scanned entry an alias; any other `<x>:<n>` is a plugin key, removable
@@ -379,7 +378,7 @@ func Test792b31c2a18_CompareSkillOffers_UnrecognizedKeyProperty(t *testing.T) {
 }
 
 // Test792b31c7a20_AdoptSkillNote_MigratesAnUnkeyedLegacyNote is the spec scenario
-// "Adopting a previously promoted note" for D11's migration: `--adopt
+// "Adopting a previously promoted note" for the legacy-note migration (792b31c7 Note actions): `--adopt
 // claude:curate=1049` over the unkeyed legacy note 1049 renames it to the
 // key-derived slug, rewrites the referrer's link and rebuilds its sidecar,
 // names skill_source in the preamble, stamps skill_key and skill_source,
@@ -470,7 +469,7 @@ func (fixture *offerFixture) pluginState(plugin string) (scanned, installed bool
 	return false, false
 }
 
-// assertUnrecognizedNoteIsInert checks an unrecognized note against D3:
+// assertUnrecognizedNoteIsInert checks an unrecognized note against 792b30c17 Skill keys:
 // not removal-eligible, never offered, and its hash aliases nothing (a
 // candidate with the same bytes and a fresh key is still offered).
 func assertUnrecognizedNoteIsInert(rt *rapid.T, fixture *offerFixture, note offerNote, eligible bool) {
@@ -554,7 +553,7 @@ func drawNoteSource(rt *rapid.T) string {
 	return rapid.SampledFrom([]string{"", "/r/own/x/SKILL.md", "~/.claude/skills/x/SKILL.md"}).Draw(rt, "noteSource")
 }
 
-// drawSkillKeyForParsing draws a key and whether design D3 recognizes it:
+// drawSkillKeyForParsing draws a key and whether 792b30c17 Skill keys recognizes it:
 // a well-shaped key of any form (plugin keys included, with a plugin name
 // that is not a reserved form), or one of the three unrecognized shapes.
 func drawSkillKeyForParsing(rt *rapid.T) (string, bool) {
@@ -655,8 +654,8 @@ func offerScopes(comparison cli.SkillOfferComparison) []string {
 	return summaries
 }
 
-// unrecognizedKeyExamples are skill_key values of design D3's three
-// unrecognized cases: no `:`, an empty segment, and a reserved form's
+// unrecognizedKeyExamples are skill_key values of the three
+// unrecognized cases (792b30c17 Skill keys): no `:`, an empty segment, and a reserved form's
 // prefix with a tail that lacks that form's shape.
 func unrecognizedKeyExamples() []string {
 	return []string{

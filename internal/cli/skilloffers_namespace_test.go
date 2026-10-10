@@ -1,7 +1,7 @@
 package cli_test
 
-// Tests for the removal-rule requirements of skill registration (792b31;
-// design D4, D5, D8): each key form has exactly one removal rule, which
+// Tests for the removal-rule requirements of skill registration (792b31c3
+// Removal eligibility): each key form has exactly one removal rule, which
 // consults only that form's roots, and engram's installed skills are an
 // ordinary source — a Claude and a Pi copy are two keys that alias only when
 // byte-identical.
@@ -18,9 +18,9 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// Test792b31c2a9_CompareSkillOffers_InstalledEngramSkillsAreOrdinaryKeys covers design
-// D3/D4's round-3 rule: engram's installed skills are keyed by their folder, with
-// no collision rule and no diverged-copy exception.
+// Test792b31c2a9_CompareSkillOffers_InstalledEngramSkillsAreOrdinaryKeys covers the
+// 792b30c17 Skill keys rule (with 792b31c2 Offer comparison): engram's installed skills are keyed by their
+// folder, with no collision rule and no diverged-copy exception.
 func Test792b31c2a9_CompareSkillOffers_InstalledEngramSkillsAreOrdinaryKeys(t *testing.T) {
 	t.Parallel()
 
@@ -89,7 +89,7 @@ func Test792b31c2a9_CompareSkillOffers_InstalledEngramSkillsAreOrdinaryKeys(t *t
 
 // Test792b31c3a6_CompareSkillOffers_AnotherNamespacesMissingRootDoesNotBlockRemoval is
 // the spec scenario "Another namespace's missing root does not block
-// removal" (the old ruling R39 case), end to end through ResolveSkillSources:
+// removal" (the 792b31c3 Removal eligibility case), end to end through ResolveSkillSources:
 // no ~/.agents/skills, a permission error listing ~/.pi/agent/skills, and a
 // read ~/.claude/skills without c4 → the claude:c4 note is offered for
 // removal.
@@ -145,7 +145,7 @@ func Test792b31c3a7_CompareSkillOffers_UnkeyedLegacyNoteIsNeverOfferedForRemoval
 }
 
 // Test792b31c3a8_SkillRemovalEligibility_FixedFormFollowsOnlyItsOwnRoots is 8.4's
-// property (b), from design D5's rule for the single-root user forms: a note
+// property (b), from 792b31c3 Removal eligibility's rule for the single-root user forms: a note
 // of fixed form F is eligible exactly when at least one root is recorded
 // with form F and every root recorded with form F was read — whatever the
 // roots of every other form, the note's source, or the plugin facts.
@@ -174,7 +174,7 @@ func Test792b31c3a8_SkillRemovalEligibility_FixedFormFollowsOnlyItsOwnRoots(t *t
 }
 
 // Test792b31c3a9_SkillRemovalEligibility_NamespaceIsolation is 8.4's property (a), a
-// metamorphic relation from design D5 ("a note's eligibility depends only
+// metamorphic relation from 792b31c3 Removal eligibility ("a note's eligibility depends only
 // on the roots of its own key form"): flipping the read status of any root
 // whose form differs from the note's key form never changes the note's
 // eligibility, for every recognized key form (plugin keys, whose rule reads

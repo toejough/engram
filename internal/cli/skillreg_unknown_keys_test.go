@@ -1,9 +1,9 @@
 package cli_test
 
 // Adopt and refresh keep frontmatter keys the typed runbook note model does
-// not define (fix-show-amend-reparent-frontmatter design D6;
-// skill-runbook-registration "Refresh keeps an unmodeled key", "Adopt keeps
-// an unmodeled key"; task 5.1).
+// not define (792b6c7 Frontmatter node edits; 792a12e Accepting a refresh,
+// "Refresh keeps an unmodeled key"; 792a12i Adopt, "Adopt keeps
+// an unmodeled key").
 
 import (
 	"bytes"
@@ -72,13 +72,13 @@ func Test792b31c7a13_AdoptAndRefresh_PendingParity(t *testing.T) {
 	}
 }
 
-// Test792b31c7a13_AdoptAndRefresh_UnknownKeysProperty is P2 (design D7): for LF
+// Test792b31c7a13_AdoptAndRefresh_UnknownKeysProperty is property P2 (792b6c7 Frontmatter node edits): for LF
 // runbook notes carrying 0-3 unknown keys (scalar, list or nested map),
 // adopt and refresh write frontmatter that decodes, sets the skill fields,
 // and keeps every other key — unknown ones, and luhmann (and, for refresh,
 // aliases) included — at its decoded value. When a key the edit sets or
 // deletes carries an anchor another key aliases, the note is refused
-// unwritten instead (ruling V3).
+// unwritten instead (792b6c7 Frontmatter node edits).
 func Test792b31c7a13_AdoptAndRefresh_UnknownKeysProperty(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
@@ -98,7 +98,7 @@ func Test792b31c7a13_AdoptAndRefresh_UnknownKeysProperty(t *testing.T) {
 		before := strings.Replace(curatePromotedNoteFixture(), "vault: personal\n", "vault: personal\n"+unknown, 1)
 		before = strings.Replace(before, "created: 2026-09-21\n", "created: \"2026-09-21\"\n", 1)
 
-		// A CRLF note is converted to LF in the same write (design D5).
+		// A CRLF note is converted to LF in the same write (792b6c8 CRLF reading).
 		input := before
 		if rapid.Bool().Draw(rt, "crlf") {
 			input = crlf(before)

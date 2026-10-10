@@ -18,12 +18,11 @@ type dedupeCandidate struct {
 
 // unexported functions (alphabetical).
 
-// applyMergedNoteFloor is the merged cap's note floor (design D9, M3): when
-// the kept direct items hold fewer than min(noteFloorK, |Q|) members of Q —
-// the direct non-chunk items scoring at least matchRelevanceFloor — the
-// lowest-positioned kept chunks are replaced, one for one, by the
-// highest-scoring excluded members of Q. The kept set is then restored to
-// score order. excluded is in score order.
+// applyMergedNoteFloor is the merged cap's note floor (792b37c7 The order of the merged relevance items):
+// when the kept direct items hold fewer than min(noteFloorK, |Q|) members of Q — the direct non-chunk items
+// scoring at least matchRelevanceFloor — the lowest-positioned kept chunks are replaced, one for one, by the
+// highest-scoring excluded members of Q. The kept set is then restored to score order. excluded is in score
+// order.
 func applyMergedNoteFloor(kept, excluded []queryItem) []queryItem {
 	keptNotes := countFloorNotes(kept)
 	promotable := make([]queryItem, 0, len(excluded))
@@ -53,7 +52,7 @@ func applyMergedNoteFloor(kept, excluded []queryItem) []queryItem {
 
 // capMergedChannelOne orders the merged non-trigger Channel 1 items —
 // direct items, then explore picks, each by descending score — and caps
-// them to limit by position, keeping the note floor (design D9, #744).
+// them to limit by position, keeping the note floor (792b37c7 The order of the merged relevance items, #744).
 // limit <= 0 is unbounded.
 func capMergedChannelOne(items []queryItem, limit int) []queryItem {
 	direct := make([]queryItem, 0, len(items))
@@ -116,7 +115,7 @@ func dedupeCandidates(notes []exchangeNote) []dedupeCandidate {
 	return out
 }
 
-// dedupeParentItems applies the D4 dedupe rule to the parent's items: an
+// dedupeParentItems applies the 792b37c6 Deduping against the local notes rule to the parent's items: an
 // item that matches a live local note L is dropped when L is already among
 // the local items (or was already substituted), and is otherwise replaced
 // by a substituted item for L at the same position.
@@ -153,7 +152,7 @@ func dedupeParentItems(
 }
 
 // dropParentChunks removes every parent chunk item, including the parent's
-// recency channel, before any other merge step (design D9, Q1).
+// recency channel, before any other merge step (792b37c5 Dropping and tagging the parent's items).
 func dropParentChunks(items []queryItem) []queryItem {
 	out := make([]queryItem, 0, len(items))
 
@@ -168,15 +167,15 @@ func dropParentChunks(items []queryItem) []queryItem {
 	return out
 }
 
-// isMergedFloorNote reports whether item belongs to the note floor's set Q:
-// a direct non-chunk item scoring at least matchRelevanceFloor (ruling S19,
-// matching the local capWithNoteFloor).
+// isMergedFloorNote reports whether item belongs to the note floor's set Q: a direct non-chunk item scoring
+// at least matchRelevanceFloor (792b37c7 The order of the merged relevance items, matching the local
+// capWithNoteFloor).
 func isMergedFloorNote(item queryItem) bool {
 	return item.Kind != chunkItemKind && item.Score >= matchRelevanceFloor
 }
 
 // linksToAny reports whether note holds a link, under parentVaultID, to any
-// of names. An unknown parent vault ID never matches (S16).
+// of names. An unknown parent vault ID never matches (792b37c6).
 func linksToAny(note exchangeNote, parentVaultID string, names []string) bool {
 	if parentVaultID == "" || note.exchange.Parent.Vault != parentVaultID {
 		return false
@@ -188,7 +187,7 @@ func linksToAny(note exchangeNote, parentVaultID string, names []string) bool {
 }
 
 // matchLocalNote finds the live local note a parent item is the same note
-// as (design D4): a link under the parent's reported vault ID naming the
+// as (792b37c6 Deduping against the local notes): a link under the parent's reported vault ID naming the
 // item's basename or one of its aliases, or an equal, known exchange hash.
 func matchLocalNote(item queryItem, candidates []dedupeCandidate, parentVaultID string) (exchangeNote, bool) {
 	names := append([]string{strings.TrimSuffix(item.Path, mdExt)}, item.Aliases...)
@@ -220,7 +219,7 @@ func stripDedupeKeys(items []queryItem) {
 }
 
 // substituteLocalItem is the item for local note L taking parent item P's
-// place (design D9, M4): L's path, kind and content (rendered as a local
+// place (792b37c6 Deduping against the local notes): L's path, kind and content (rendered as a local
 // query renders it), P's score and provenances, P's source_term only for an
 // explore pick, and the local model.
 func substituteLocalItem(parentItem queryItem, local exchangeNote, localModelID string) queryItem {

@@ -1,9 +1,9 @@
 package cli_test
 
 // Amend keeps unknown sub-keys in list entries it keeps (#789 follow-up,
-// design D5; note-revision 792a4j1c, note-document-format 792b6c7a3): when amend replaces supersedes:, an entry that
-// survives — matched by its note's basename — keeps the keys the typed
-// entry does not define; only new entries are written fresh.
+// 792b6c7 Frontmatter node edits; note-revision 792a4j1c, note-document-format
+// 792b6c7a3): when amend replaces supersedes:, an entry that survives — matched by its note's basename —
+// keeps the keys the typed entry does not define; only new entries are written fresh.
 
 import (
 	"context"

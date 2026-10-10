@@ -107,7 +107,7 @@ func Test792b21c3a4_ParseCreatedFromNote_IndentedFenceInBlockScalar(t *testing.T
 // result for a quoted created: (the form marshalFrontmatter writes): the
 // value comes back with its quotes, so it fails time.Parse and the note
 // keeps its current age-0 recency. Unquoting is a ranking change deferred
-// to a measured follow-up (controller ruling R33).
+// to a measured follow-up (#774).
 func Test792b21c3a5_ParseCreatedFromNote_QuotedValueIsVerbatim(t *testing.T) {
 	t.Parallel()
 

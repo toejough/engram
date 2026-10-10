@@ -15,7 +15,7 @@ import (
 )
 
 // ReparentDeps bundles every capability RunReparentLuhmann's apply phase
-// needs across its full mechanical pipeline (design.md Decision 1): the
+// needs across its full mechanical pipeline (792b27c9 Apply flow): the
 // existing rename/rewrite primitive, plus in-process RunIngest/RunPrune
 // composition so a successful apply never leaves a manual `engram ingest
 // --auto` / `engram prune` step required.
@@ -29,18 +29,18 @@ type ReparentDeps struct {
 }
 
 // RunReparentLuhmann implements `engram update --reparent-luhmann`'s
-// derive/answer/apply/dry-run flow (design.md, specs/update-reparent-luhmann-batch).
+// derive/answer/apply/dry-run flow (792b27c9 Apply flow).
 //
 // No answersFile: derive-only — computes candidate pairs among top-level
 // notes and prints a JSON payload; never writes, regardless of dryRun.
 //
 // answersFile set: apply phase — validates the echoed fingerprint against the
 // vault's current state, computes new Luhmann IDs, and (dryRun==false) calls
-// RenameAndRewriteReferences once with the full rename map, then (design.md
-// Decision 1, only when the rename map is non-empty) re-indexes the renamed
+// RenameAndRewriteReferences once with the full rename map, then (792b27c9 Apply
+// flow, only when the rename map is non-empty) re-indexes the renamed
 // notes via RunIngest and detaches their stale old-path chunk-manifest
 // entries via RunPrune, and finally reports whether further above-floor
-// candidates remain (design.md Decision 3). dryRun==true prints the
+// candidates remain (792b27c9 Apply flow). dryRun==true prints the
 // rename/rewrite preview instead of writing or touching the chunk index.
 //
 // dryRun with no answersFile is rejected as a usage error (nothing to preview).
@@ -68,11 +68,11 @@ const (
 	// (mirrors vocabNamingSnippetMaxLen's role for vocab naming requests).
 	reparentExcerptMaxLen = 200
 	// reparentSimilarityFloor is the minimum cosine similarity for a
-	// candidate pair to be worth an agent's judgment (design.md Decision 1
+	// candidate pair to be worth an agent's judgment (792b27c2 Candidate selection
 	// starting value — tune empirically once run against a real vault).
 	reparentSimilarityFloor = float32(0.75)
 	// reparentTopK is how many nearest OTHER top-level notes a derive pass
-	// considers per note (design.md Decision 1). Kept small to bound the
+	// considers per note (792b27c2 Candidate selection). Kept small to bound the
 	// derive payload on a large vault.
 	reparentTopK = 3
 	// reparentTopLevelDepth is the segment count of a top-level Luhmann ID —
@@ -98,8 +98,8 @@ type reparentAnswerEntry struct {
 	Target   string `json:"target"`
 }
 
-// reparentAnswersDoc is the parsed shape of an --answers file (design.md
-// Decision 2).
+// reparentAnswersDoc is the parsed shape of an --answers file (792b27c4
+// Answers validation).
 type reparentAnswersDoc struct {
 	Reparenting []reparentAnswerEntry `json:"reparenting"`
 	Fingerprint string                `json:"fingerprint"`
@@ -156,7 +156,7 @@ func applyReparentRenames(ctx context.Context, vault string, renameMap map[strin
 
 // buildReparentRenameMap computes the old-basename→new-basename rename map
 // from answered entries, processed in ascending original-ID order
-// (design.md Decision 3): position=top is a no-op; continuation/sibling
+// (792b27c5 Rename map): position=top is a no-op; continuation/sibling
 // compute a new ID via nextLuhmannID against the vault's current ID set,
 // which grows as earlier entries in this same run are assigned.
 func buildReparentRenameMap(
@@ -220,7 +220,7 @@ func buildReparentRenameMap(
 
 // deriveReparentCandidates computes, for each note, its top-K nearest OTHER
 // notes by cosine similarity, keeping only pairs above reparentSimilarityFloor
-// (design.md Decision 1).
+// (792b27c2 Candidate selection).
 func deriveReparentCandidates(vault string, notes []reparentNote, deps RenameRewriteDeps) []reparentCandidate {
 	candidates := make([]reparentCandidate, 0, min(reparentTopK, len(notes))*len(notes))
 
@@ -314,8 +314,8 @@ func previewReparentRenames(
 }
 
 // printReparentPreview prints the old→new basename map and, for each, the
-// list of other notes whose references would be rewritten (design.md
-// Decision 5) — reusing rewriteNoteReferences (the exact function
+// list of other notes whose references would be rewritten (792b27c10
+// Preview) — reusing rewriteNoteReferences (the exact function
 // RenameAndRewriteReferences applies) so the preview can never drift from
 // what apply actually does.
 func printReparentPreview(stdout io.Writer, vault string, deps RenameRewriteDeps, renameMap map[string]string) {
@@ -399,7 +399,7 @@ func reparentFingerprint(notes []reparentNote) string {
 }
 
 // reparentIDLess orders two top-level Luhmann IDs ascending numerically
-// (design.md Decision 3: apply processes answered notes oldest-ID-first).
+// (792b27c5 Rename map: apply processes answered notes oldest-ID-first).
 // Non-numeric IDs (should not occur among derive's top-level candidates) sort
 // after numeric ones, by string comparison, defensively.
 func reparentIDLess(a, b string) bool {
@@ -436,11 +436,11 @@ func reparentSidecarVector(
 }
 
 // runReparentApply validates the --answers file's fingerprint, computes the
-// full rename map (design.md Decision 3), and either previews it (dryRun) or
-// applies it via a single RenameAndRewriteReferences call (design.md
-// Decision 4) followed by the automatic chunk-index reconciliation pipeline
-// (RunIngest then RunPrune, design.md Decision 1) and a further-candidates
-// report (design.md Decision 3).
+// full rename map (792b27c5 Rename map), and either previews it (dryRun) or
+// applies it via a single RenameAndRewriteReferences call (792b27c6
+// Rename and link rewrite) followed by the automatic chunk-index reconciliation pipeline
+// (RunIngest then RunPrune, 792b27c9 Apply flow) and a further-candidates
+// report (792b27c9 Apply flow).
 func runReparentApply(
 	ctx context.Context,
 	vault, chunksDir, answersFile string,
@@ -499,8 +499,8 @@ func runReparentApply(
 
 // runReparentChunkPipeline re-indexes the renamed notes (RunIngest) and then
 // detaches the renamed notes' old-path chunk-manifest entries (RunPrune,
-// plain mode) — design.md Decision 1's call order. A failure in either stage
-// does NOT roll back the already-applied rename (design.md Decision 2): the
+// plain mode) — 792b27c9 Apply flow's call order. A failure in either stage
+// does NOT roll back the already-applied rename (792b27c9 Apply flow): the
 // vault mutation is authoritative, and a manual `engram ingest --auto` /
 // `engram prune` remains a safe fallback to finish reconciling the chunk
 // index. The failure is reported (which stage, and the fallback) before the
@@ -576,7 +576,7 @@ func runReparentDerive(vault string, deps RenameRewriteDeps, stdout io.Writer) e
 // runReparentFurtherCandidatesReport re-derives candidates against the
 // vault's now-current state (read-only — never emits the full payload) and
 // reports either the count with the literal next-command to loop, or that
-// the vault is fully evaluated (design.md Decision 3).
+// the vault is fully evaluated (792b27c9 Apply flow).
 func runReparentFurtherCandidatesReport(vault string, deps RenameRewriteDeps, stdout io.Writer) error {
 	notes, listErr := loadTopLevelReparentNotes(vault, deps)
 	if listErr != nil {

@@ -11,7 +11,7 @@ import (
 
 // Test792b23c9a2_MergeQueryPayloads_LocalItemMarshalsExplicitFromParentFalse verifies a
 // merged payload's local item carries an explicit from_parent: false in the
-// marshaled YAML (design D9, ruling S29) — not merely a false Go field value
+// marshaled YAML (792b23c9 The item tags of a merge) — not merely a false Go field value
 // that an omitempty tag would silently drop from the output.
 func Test792b23c9a2_MergeQueryPayloads_LocalItemMarshalsExplicitFromParentFalse(t *testing.T) {
 	t.Parallel()
@@ -56,8 +56,8 @@ func Test792b37c5a2_MergeQueryPayloads_TagsItemsWithOriginAndModelID(t *testing.
 }
 
 // Test792b37c5a3_MergeQueryPayloads_MismatchedModelIDStillMerges verifies the merge
-// proceeds unconditionally regardless of model_id mismatch (design.md
-// Decision 3 — no refuse, no fallback on mismatch).
+// proceeds unconditionally regardless of model_id mismatch (792a21f The merge does not depend on matching
+// models: no refuse, no fallback on mismatch).
 func Test792b37c5a3_MergeQueryPayloads_MismatchedModelIDStillMerges(t *testing.T) {
 	t.Parallel()
 
@@ -73,7 +73,7 @@ func Test792b37c5a3_MergeQueryPayloads_MismatchedModelIDStillMerges(t *testing.T
 
 // Test792b37c5a4_TagItems_EachItemGetsItsOwnFromParentPointer verifies tagItems gives
 // every item its own *bool rather than sharing one pointer across the whole
-// call (review finding: a shared pointer is safe only as long as nothing
+// call (a shared pointer is safe only as long as nothing
 // ever writes through it; a per-item pointer removes that trap for free).
 func Test792b37c5a4_TagItems_EachItemGetsItsOwnFromParentPointer(t *testing.T) {
 	t.Parallel()
@@ -192,7 +192,7 @@ func Test792b37c8a1_MergeQueryPayloads_ContentBudgetCapsMergedChunks(t *testing.
 		{Path: "l2", Kind: chunkItemKind, Score: 0.8, Content: long},
 		{Path: "l3", Kind: chunkItemKind, Score: 0.7, Content: long},
 	}}
-	// Parent chunks are dropped (Q1), so they never compete for the budget.
+	// Parent chunks are dropped (792b37c5), so they never compete for the budget.
 	parent := queryPayload{Items: []queryItem{
 		{Path: "p1", Kind: chunkItemKind, Score: 0.85, Content: long},
 	}}
@@ -220,7 +220,7 @@ func Test792b37c8a2_MergeQueryPayloads_RecentFillCapsMergedRecencyChannel(t *tes
 		{Path: "l-recent-2", Score: 0, Provenances: []string{provenanceRecent}},
 		{Path: "l-recent-3", Score: 0, Provenances: []string{provenanceRecent}},
 	}}
-	// The parent's recency channel is dropped (Q1).
+	// The parent's recency channel is dropped (792b37c5).
 	parent := queryPayload{Items: []queryItem{
 		{Path: "p-recent-1", Score: 0, Provenances: []string{provenanceRecent}},
 		{Path: "p-recent-2", Score: 0, Provenances: []string{provenanceRecent}},
@@ -316,7 +316,7 @@ func Test792b37c9a1_MergeQueryPayloads_ClustersStayLocalOnly(t *testing.T) {
 
 // Test792b37c9a2_MergeQueryPayloads_AdvisoryFlagsAreLocalOnly verifies RefitPending and
 // PendingOffers follow the local vault only: a child can neither run its
-// parent's refit nor curate its parent's offers (H4, ruling S20).
+// parent's refit nor curate its parent's offers (792b37c9 The merged payload's own fields).
 func Test792b37c9a2_MergeQueryPayloads_AdvisoryFlagsAreLocalOnly(t *testing.T) {
 	t.Parallel()
 

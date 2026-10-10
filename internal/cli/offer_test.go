@@ -30,7 +30,7 @@ func Test792b34c1a1_NoteHasPendingMarker(t *testing.T) {
 
 // Test792b34c1a2_NoteHasPendingMarker_EveryNoteType covers the pending-offer marker on
 // every note type (792a22 "The pending-offer marker SHALL
-// apply to every note type", design D7 G1): a runbook with `pending: true`
+// apply to every note type", 792b34c1 The pending-offer marker): a runbook with `pending: true`
 // is a pending offer with or without `skill_hash`, and a `skill_hash`
 // runbook that isn't pending is not one.
 func Test792b34c1a2_NoteHasPendingMarker_EveryNoteType(t *testing.T) {
@@ -43,7 +43,7 @@ func Test792b34c1a2_NoteHasPendingMarker_EveryNoteType(t *testing.T) {
 }
 
 // Test792b34c1a3_NoteHasPendingMarker_PendingFlagDecidesForEveryType is the property
-// behind G1: for every offerable note type, with or without `skill_hash`,
+// behind 792b34c1: for every offerable note type, with or without `skill_hash`,
 // the note is a pending offer exactly when it carries `pending: true`.
 func Test792b34c1a3_NoteHasPendingMarker_PendingFlagDecidesForEveryType(t *testing.T) {
 	t.Parallel()
@@ -221,7 +221,7 @@ func Test792b34c3a4_WarnIfPendingOffers(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	// listMD returns full .md filenames (ADR-0021 convention); read is
+	// listMD returns full .md filenames (792b34c3 Finding pending offers); read is
 	// joined against vault by the caller, so the fake is keyed by the full
 	// vault-joined path, not the bare filename.
 	files := map[string][]byte{"/vault/1.2026-01-01.a.md": []byte(pendingFactNote)}

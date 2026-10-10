@@ -27,7 +27,7 @@ import (
 // Test792a21zc1a_Activate_PullsParentNoteAsPendingCopy (spec "A parent-only ref
 // pulls down", "Pulled note is pending and linked", "Remote identity and
 // registration fields are stripped", "Chunk provenance does not travel",
-// "Parent recency is bumped"; D8 step 4).
+// "Parent recency is bumped"; 792a21zd).
 func Test792a21zc1a_Activate_PullsParentNoteAsPendingCopy(t *testing.T) {
 	t.Parallel()
 
@@ -96,7 +96,7 @@ func Test792a21zc1a_Activate_PullsParentNoteAsPendingCopy(t *testing.T) {
 }
 
 // Test792a21zc1b_Activate_LocalHitNeverContactsParent (spec "A local hit never
-// contacts the parent", M8): a note whose .md exists is a hit — its
+// contacts the parent", 792a21zc): a note whose .md exists is a hit — its
 // sidecar is bumped, and a note without a sidecar still counts.
 func Test792a21zc1b_Activate_LocalHitNeverContactsParent(t *testing.T) {
 	t.Parallel()
@@ -126,7 +126,7 @@ func Test792a21zc1b_Activate_LocalHitNeverContactsParent(t *testing.T) {
 }
 
 // Test792a21zc1c_Activate_BareLuhmannIDStaysLocal (spec "Bare Luhmann IDs stay
-// local", M8): a bare ID — with or without .md, with or without --parent —
+// local", 792a21zc): a bare ID — with or without .md, with or without --parent —
 // is never sent to the parent, and the ref is reported as failed.
 func Test792a21zc1c_Activate_BareLuhmannIDStaysLocal(t *testing.T) {
 	t.Parallel()
@@ -184,9 +184,8 @@ func Test792a21zc1e_Activate_ParentFlagWithoutParentErrors(t *testing.T) {
 	g.Expect(filepath.Join(env.vault, ".engram")).NotTo(BeADirectory())
 }
 
-// Test792a21zc1f_Activate_ParentFlagPullsEvenOnLocalHit (D8 step 2): with --parent a
-// ref resolves against the parent even when a local file of that name
-// exists.
+// Test792a21zc1f_Activate_ParentFlagPullsEvenOnLocalHit (792a21zc Activate resolves a ref locally first):
+// with --parent a ref resolves against the parent even when a local file of that name exists.
 func Test792a21zc1f_Activate_ParentFlagPullsEvenOnLocalHit(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -200,7 +199,7 @@ func Test792a21zc1f_Activate_ParentFlagPullsEvenOnLocalHit(t *testing.T) {
 	g.Expect(env.linkedCopies(parentNote)).To(HaveLen(1))
 }
 
-// Test792a21zc1g_Activate_ParentFlagPathRefIsNotSent (ruling S18): with --parent a
+// Test792a21zc1g_Activate_ParentFlagPathRefIsNotSent (792a21zc): with --parent a
 // path ref is refused as "not sent", never as "not found" (it was never
 // looked up locally).
 func Test792a21zc1g_Activate_ParentFlagPathRefIsNotSent(t *testing.T) {
@@ -216,7 +215,7 @@ func Test792a21zc1g_Activate_ParentFlagPathRefIsNotSent(t *testing.T) {
 	g.Expect(env.exitCodes()).To(Equal([]int{1}))
 }
 
-// Test792a21zd1d_Activate_ParentTooOld (spec "A pre-change parent is detected", H7):
+// Test792a21zd1d_Activate_ParentTooOld (spec "A pre-change parent is detected", 792a21zd):
 // a rendered answer, or JSON without vault_id, is "parent too old", and
 // nothing is written.
 func Test792a21zd1d_Activate_ParentTooOld(t *testing.T) {
@@ -239,10 +238,10 @@ func Test792a21zd1d_Activate_ParentTooOld(t *testing.T) {
 	}
 }
 
-// Test792a21zd1e_Activate_MalformedEnvelopeWritesNothing (final review F6): an
-// envelope whose vault_id is not 32 lowercase hex, or whose basename is
-// not a Luhmann basename free of '/', '\\' and '|', is a malformed reply:
-// nothing is written and the bad vault ID is never cached.
+// Test792a21zd1e_Activate_MalformedEnvelopeWritesNothing (792a21zd A pulled-down note is an exact-content
+// local pending offer): an envelope whose vault_id is not 32 lowercase hex, or whose basename is not a
+// Luhmann basename free of '/', '\\' and '|', is a malformed reply: nothing is written and the bad vault ID
+// is never cached.
 func Test792a21zd1e_Activate_MalformedEnvelopeWritesNothing(t *testing.T) {
 	t.Parallel()
 
@@ -304,7 +303,7 @@ func Test792a21zd1g_Activate_NonExchangeTypeRefused(t *testing.T) {
 
 // Test792a21ze1a_Activate_ReActivationSkipsUnlessChanged (spec "Re-activating an
 // unchanged parent note", "A changed parent note arrives as a new offer";
-// D3 unknown-is-not-changed).
+// 792a21zf: unknown is not changed).
 func Test792a21ze1a_Activate_ReActivationSkipsUnlessChanged(t *testing.T) {
 	t.Parallel()
 
@@ -420,7 +419,7 @@ func Test792a21ze1b_Activate_CoveredLinkSkipsAndBumpsLiveNote(t *testing.T) {
 }
 
 // Test792a21ze1c_Activate_DeclinedPullIsRemembered (spec "A declined pull is
-// remembered", "A decline survives a parent rename", H5, r3-8): a bare
+// remembered", "A decline survives a parent rename", 792a21ze): a bare
 // --discard of a pulled copy records a decline; an unchanged re-pull —
 // also after the parent renamed the note — writes nothing.
 func Test792a21ze1c_Activate_DeclinedPullIsRemembered(t *testing.T) {
@@ -459,9 +458,9 @@ func Test792a21ze1c_Activate_DeclinedPullIsRemembered(t *testing.T) {
 	}
 }
 
-// Test792a21ze1g_Activate_DeclineIsKeyedByParentVault (ruling S18, S16): a decline
-// recorded under another parent vault does not suppress the same
-// basename and hash under the current parent.
+// Test792a21ze1g_Activate_DeclineIsKeyedByParentVault (792a21ze A pull-down is idempotent, remembers declines
+// and cannot loop): a decline recorded under another parent vault does not suppress the same basename and
+// hash under the current parent.
 func Test792a21ze1g_Activate_DeclineIsKeyedByParentVault(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -476,7 +475,7 @@ func Test792a21ze1g_Activate_DeclineIsKeyedByParentVault(t *testing.T) {
 	g.Expect(env.linkedCopies(parentNote)).To(HaveLen(1))
 }
 
-// Test792a21ze1h_Amend_DiscardDeclineRecording (design D8, H5): a decline that
+// Test792a21ze1h_Amend_DiscardDeclineRecording (792a21ze): a decline that
 // cannot be recorded fails the discard and keeps the note (so it cannot
 // come back unrecorded); a repeated decline is recorded once; discarding
 // a note that is not pulled records nothing.
@@ -538,8 +537,8 @@ func Test792a21ze1h_Amend_DiscardDeclineRecording(t *testing.T) {
 	})
 }
 
-// Test792a21ze1i_Amend_DiscardOfPulledNoteStampsNothingUnconfigured (ruling S18,
-// 792a2h): with no parent configured and no vault ID, a bare
+// Test792a21ze1i_Amend_DiscardOfPulledNoteStampsNothingUnconfigured (792a21ze,
+// 792a2h Stable vault ID): with no parent configured and no vault ID, a bare
 // discard of a pulled note deletes it and records no decline — no vault ID
 // and no .engram/ are created.
 func Test792a21ze1i_Amend_DiscardOfPulledNoteStampsNothingUnconfigured(t *testing.T) {
@@ -558,7 +557,7 @@ func Test792a21ze1i_Amend_DiscardOfPulledNoteStampsNothingUnconfigured(t *testin
 	g.Expect(filepath.Join(env.vault, ".engram")).NotTo(BeADirectory())
 }
 
-// Test792a21ze1j_Activate_LocalContentEditOffersToOrigin (decision 3, B1): after an
+// Test792a21ze1j_Activate_LocalContentEditOffersToOrigin (792a21ze): after an
 // accepted pull, a real local edit is an amend-offer naming the parent
 // note; clearing the pending marker alone queues nothing.
 func Test792a21ze1j_Activate_LocalContentEditOffersToOrigin(t *testing.T) {
@@ -593,7 +592,7 @@ func Test792a21ze1j_Activate_LocalContentEditOffersToOrigin(t *testing.T) {
 	}
 }
 
-// Test792a21ze1k_Activate_ConcurrentActivatesWriteOneCopy (review H5, M8): two
+// Test792a21ze1k_Activate_ConcurrentActivatesWriteOneCopy (792a21ze, 792a21zc): two
 // activates of the same parent note racing on one vault write one copy —
 // the skip rule is re-checked under the write lock.
 func Test792a21ze1k_Activate_ConcurrentActivatesWriteOneCopy(t *testing.T) {
@@ -616,7 +615,7 @@ func Test792a21ze1k_Activate_ConcurrentActivatesWriteOneCopy(t *testing.T) {
 	g.Expect(env.linkedCopies(parentNote)).To(HaveLen(1))
 }
 
-// Test792a21ze1k_Activate_RecheckUnderTheWriteLock (review H5): a copy that lands
+// Test792a21ze1k_Activate_RecheckUnderTheWriteLock (792a21ze): a copy that lands
 // between the fetch and the write lock is seen by the re-check — no second
 // copy.
 func Test792a21ze1k_Activate_RecheckUnderTheWriteLock(t *testing.T) {
@@ -649,9 +648,9 @@ func Test792a21ze1k_Activate_RecheckUnderTheWriteLock(t *testing.T) {
 	g.Expect(env.exitCodes()).To(BeEmpty())
 }
 
-// Test792a21ze1l_Activate_PullSequencesNeverDuplicate is 6.2's rapid property (H5,
-// M8): any sequence of activate, clear-pending, discard and fold (the real
-// `amend --discard --into`, design D10; ruling S17) on an unchanged parent
+// Test792a21ze1l_Activate_PullSequencesNeverDuplicate is a rapid property (792a21ze,
+// 792a21zc): any sequence of activate, clear-pending, discard and fold (the real
+// `amend --discard --into`, 792a22i) on an unchanged parent
 // note never leaves more than one local note linked to it.
 func Test792a21ze1l_Activate_PullSequencesNeverDuplicate(t *testing.T) {
 	t.Parallel()
@@ -676,7 +675,7 @@ func Test792a21ze1l_Activate_PullSequencesNeverDuplicate(t *testing.T) {
 	})
 }
 
-// Test792a21zg1b_Activate_ParentActivateFailureIsNotFatal (Q2): the best-effort
+// Test792a21zg1b_Activate_ParentActivateFailureIsNotFatal (792a21zg): the best-effort
 // parent bump failing neither fails the command nor queues anything.
 func Test792a21zg1b_Activate_ParentActivateFailureIsNotFatal(t *testing.T) {
 	t.Parallel()
@@ -693,7 +692,7 @@ func Test792a21zg1b_Activate_ParentActivateFailureIsNotFatal(t *testing.T) {
 	g.Expect(env.parentCache().Failures).To(BeZero(), "a failed best-effort bump never backs the parent off")
 }
 
-// Test792a21zg1c_Activate_PauseChecks (design D2, rulings S2, S4): a failed location
+// Test792a21zg1c_Activate_PauseChecks (792b36c5 Before a drain sends, 792b5c4): a failed location
 // check, the backoff window, and the self-parent guard each stop the
 // pull-down with its one warning; nothing is written.
 func Test792a21zg1c_Activate_PauseChecks(t *testing.T) {
@@ -782,10 +781,9 @@ func Test792a21zg1c_Activate_UnusableExchangeStatePauses(t *testing.T) {
 	}
 }
 
-// Test792a21zg1d_Activate_ParentUnreachablePausesPulls (design D6, M9): an outage on
-// the first fetch records one failure, prints the one backoff warning
-// with the queued count, and later refs in the same command make no
-// request; every ref fails.
+// Test792a21zg1d_Activate_ParentUnreachablePausesPulls (792b5c14 The parent cache and the contact backoff):
+// an outage on the first fetch records one failure, prints the one backoff warning with the queued count, and
+// later refs in the same command make no request; every ref fails.
 func Test792a21zg1d_Activate_ParentUnreachablePausesPulls(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -803,7 +801,7 @@ func Test792a21zg1d_Activate_ParentUnreachablePausesPulls(t *testing.T) {
 	g.Expect(env.parentCache().Failures).To(Equal(1))
 }
 
-// Test792a21zg1d_Activate_UnrecordableBackoffIsReported (ruling S18): when the
+// Test792a21zg1d_Activate_UnrecordableBackoffIsReported (792b5c14): when the
 // failed contact cannot be recorded, the warning names that error instead
 // of a zero retry time.
 func Test792a21zg1d_Activate_UnrecordableBackoffIsReported(t *testing.T) {
@@ -821,7 +819,7 @@ func Test792a21zg1d_Activate_UnrecordableBackoffIsReported(t *testing.T) {
 	g.Expect(env.exitCodes()).To(Equal([]int{1}))
 }
 
-// Test792a21zg1e_Activate_PullDownDrainsTheOutbox (design D6, W7 carry): a
+// Test792a21zg1e_Activate_PullDownDrainsTheOutbox (792a21r The outbox drains after the parent was reached): a
 // successful pull-down is a parent contact, after which queued offers
 // drain.
 func Test792a21zg1e_Activate_PullDownDrainsTheOutbox(t *testing.T) {
@@ -841,7 +839,7 @@ func Test792a21zg1e_Activate_PullDownDrainsTheOutbox(t *testing.T) {
 	g.Expect(env.outboxEntries()).To(BeEmpty())
 }
 
-// Test792a21zg1f_Activate_PullDownFetchesWithNoLockHeld (D8 steps 3 and 5): the raw
+// Test792a21zg1f_Activate_PullDownFetchesWithNoLockHeld (792a21zd, 792a21zg): the raw
 // fetch and the parent /activate happen with no vault lock held; the
 // write happens under it.
 func Test792a21zg1f_Activate_PullDownFetchesWithNoLockHeld(t *testing.T) {
@@ -877,7 +875,7 @@ func Test792a4n1c_Activate_MissWithoutParentFails(t *testing.T) {
 	g.Expect(env.parent.requests()).To(BeEmpty())
 }
 
-// Test792b35c7a5_ServeActivate_StatusByOutcome (ruling S18): a served activate
+// Test792b35c7a5_ServeActivate_StatusByOutcome (792b35c7 The activate route): a served activate
 // answers 5xx only for a server-side failure — none found is 404 and a
 // partial result 200, each with the per-ref result.
 func Test792b35c7a5_ServeActivate_StatusByOutcome(t *testing.T) {
@@ -1145,7 +1143,7 @@ func (p *recordingParent) hashOf(t *testing.T, basename string) string {
 }
 
 // rename renames a parent note, recording the old basename in its aliases
-// (design D4, H2); its exchange hash is unchanged.
+// (792a21zk Renames and folds record aliases); its exchange hash is unchanged.
 func (p *recordingParent) rename(from, renamed string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()

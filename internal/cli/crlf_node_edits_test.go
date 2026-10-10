@@ -1,7 +1,7 @@
 package cli_test
 
 // Refresh and resituate convert a CRLF note to LF in the write they already
-// make, like adopt and rename (ruling V6, final review F5).
+// make, like adopt and rename.
 
 import (
 	"testing"

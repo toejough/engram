@@ -33,7 +33,7 @@ func Test792b31c5a10_AnswerSkillOffers_SingleOffer_UsesPerOfferPrompt(t *testing
 }
 
 // Test792b31c5a11_AnswerSkillOffers_PerOfferPrompt_EOFRecordsNothingNoDeclines covers
-// ruling R29: end of input at a per-offer y/N prompt is no answer — for a
+// 792b31c5 Answers and prompts: end of input at a per-offer y/N prompt is no answer — for a
 // single offer, under "review each", and for a removal — so nothing is
 // accepted or declined, while an explicit "n" still declines.
 func Test792b31c5a11_AnswerSkillOffers_PerOfferPrompt_EOFRecordsNothingNoDeclines(t *testing.T) {
@@ -104,7 +104,7 @@ func Test792b31c5a12_AnswerSkillOffers_RemovalsPromptIndividually(t *testing.T) 
 
 // Test792b31c5a13_AnswerSkillOffers_PromptsNameEverySource covers the source path shown
 // in the per-offer and grouped prompts for every offer that has one, engram's
-// installed skills included (design D8: no special case), so the user sees
+// installed skills included (792b31c7 Note actions: no special case), so the user sees
 // which file they are accepting.
 func Test792b31c5a13_AnswerSkillOffers_PromptsNameEverySource(t *testing.T) {
 	t.Parallel()
@@ -441,7 +441,7 @@ func Test792b31c5a3_AnswerSkillOffers_UnmatchedToken_PrintsExistingNote(t *testi
 }
 
 // Test792b31c5a4_AnswerSkillOffers_NonInteractiveSummary_NamesScopesAndCounts covers
-// the one-line non-interactive summary (design D6): the total, each scope's
+// the one-line non-interactive summary (792b31c5 Answers and prompts): the total, each scope's
 // `@<scope-id> <count>` in scope order, and the answering command.
 func Test792b31c5a4_AnswerSkillOffers_NonInteractiveSummary_NamesScopesAndCounts(t *testing.T) {
 	t.Parallel()
@@ -514,7 +514,7 @@ func Test792b31c5a5_AnswerSkillOffers_AcceptAll_AcceptsEveryScopeOffer(t *testin
 }
 
 // Test792b31c5a6_AnswerSkillOffers_DeclineAll_DeclinesEveryScopeOffer covers "decline
-// all": each key is declined (recorded per key, design D6 alternative c).
+// all": each key is declined (recorded per key, 792b31c5 Answers and prompts alternative c).
 func Test792b31c5a6_AnswerSkillOffers_DeclineAll_DeclinesEveryScopeOffer(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

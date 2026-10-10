@@ -89,7 +89,7 @@ func Test792b24c14a4_ComputeExploreHalf_ExcludesDefinitionAndVectorlessMembers(t
 }
 
 // Test792b24c16a1_ComputeExploreHalf_DeliversMemberNotInExploit verifies the query-path
-// glue (task 2.1): a vocab term read from vocab.centroids.json, with a
+// glue (792b24c16 Delivering the explore half): a vocab term read from vocab.centroids.json, with a
 // vault-tagged member note not present in the exploit half, is delivered as
 // an explore pick carrying its source term, and the returned delivered-count
 // map reports it under that term.
@@ -169,7 +169,7 @@ func Test792b24c16a2_ComputeExploreHalf_ZeroBudget_ReturnsEmptyAllocation(t *tes
 }
 
 // Test792b24c16a3_RunQuery_ExploreHalf_FullPipeline_DeliversExploreItem drives the full
-// RunQuery pipeline (task 2.1 integration) with a controlled, non-hash
+// RunQuery pipeline (792b24c16 integration) with a controlled, non-hash
 // embedder so the explore-half note is guaranteed to miss the exploit floor
 // (orthogonal to the query) yet be selectable by its own vocab term centroid
 // — exercising contentByPath, explorePicksToResolvedItems, and
@@ -238,7 +238,7 @@ func Test792b24c16a3_RunQuery_ExploreHalf_FullPipeline_DeliversExploreItem(t *te
 }
 
 // Test792b24c16a4_RunQuery_ExploreHalf_MissingCentroids_ExploitOnly verifies the
-// degrade-loudly path (design.md, spec "Missing centroids degrade loudly"):
+// degrade-loudly path (792b24c16 Delivering the explore half, spec "Missing centroids degrade loudly"):
 // when vocab.centroids.json is absent, the payload is exploit-only and the
 // budget reports an explicit empty explore_allocated map, not an omitted one.
 func Test792b24c16a4_RunQuery_ExploreHalf_MissingCentroids_ExploitOnly(t *testing.T) {

@@ -14,8 +14,8 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// Test792a21n1f_Targets_NotOfferedPathsQueueNothing (S16 item 6): every CLI write
-// path design D5 keeps local queues no offer and sends nothing.
+// Test792a21n1f_Targets_NotOfferedPathsQueueNothing: every CLI write
+// path 792b36c1 Which writes are offered keeps local queues no offer and sends nothing.
 func Test792a21n1f_Targets_NotOfferedPathsQueueNothing(t *testing.T) {
 	t.Parallel()
 
@@ -91,9 +91,9 @@ func Test792a21n1f_Targets_NotOfferedPathsQueueNothing(t *testing.T) {
 	}
 }
 
-// Test792a21n1m_Targets_B1NearFoldBouncesUpOnce (D12 B1): a near fold of a pulled
-// note into L is offered once; after its receipt, a bookkeeping write and
-// an equal-hash rewrite of L queue nothing.
+// Test792a21n1m_Targets_B1NearFoldBouncesUpOnce (792b36c3 An offer withdrawn at send time): a near fold of a
+// pulled note into L is offered once; after its receipt, a bookkeeping write and an equal-hash rewrite of L
+// queue nothing.
 func Test792a21n1m_Targets_B1NearFoldBouncesUpOnce(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -126,7 +126,7 @@ func Test792a21n1m_Targets_B1NearFoldBouncesUpOnce(t *testing.T) {
 	g.Expect(env.outboxEntries()).To(BeEmpty())
 }
 
-// Test792a21n1n_Targets_ParentSwitchIgnoresOldLinks (S16 item 1): after ENGRAM_PARENT
+// Test792a21n1n_Targets_ParentSwitchIgnoresOldLinks: after ENGRAM_PARENT
 // changes, the drain learns the new parent's ID first; a write whose
 // content equals the OLD parent's link hash is still offered, with no
 // offer.for and no supersedes translated through old links.
@@ -165,7 +165,7 @@ func Test792a21n1n_Targets_ParentSwitchIgnoresOldLinks(t *testing.T) {
 		To(ContainSubstring("vault: " + seqID(72)))
 }
 
-// Test792a21q1h_Targets_Learn_UnmintableXIDQueuesNothing (S16 item 3): when no xid
+// Test792a21q1h_Targets_Learn_UnmintableXIDQueuesNothing: when no xid
 // can be minted the note is still written, and nothing is queued.
 func Test792a21q1h_Targets_Learn_UnmintableXIDQueuesNothing(t *testing.T) {
 	t.Parallel()
@@ -181,7 +181,7 @@ func Test792a21q1h_Targets_Learn_UnmintableXIDQueuesNothing(t *testing.T) {
 	g.Expect(env.parent.requests()).To(BeEmpty())
 }
 
-// Test792a21r1j_Targets_M14OriginIsParentWithdrawnAtSendTime (S16 item 2, D12): a
+// Test792a21r1j_Targets_M14OriginIsParentWithdrawnAtSendTime (792b36c3 An offer withdrawn at send time): a
 // served offer accepted while the parent's ID is unknown is queued, and
 // withdrawn at send time once the drain learns its origin is the parent.
 func Test792a21r1j_Targets_M14OriginIsParentWithdrawnAtSendTime(t *testing.T) {

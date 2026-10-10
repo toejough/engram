@@ -155,8 +155,8 @@ func procPrimitives() cli.ProcPrims {
 	}
 }
 
-// spawnPrimitives groups the raw process-spawn capability (design D1,
-// update-reexec-fresh-binary): construct the child command, inherit stdio
+// spawnPrimitives groups the raw process-spawn capability (792b28c9
+// Hand-off): construct the child command, inherit stdio
 // and extend the environment (field assignments, zero branching), then
 // split spawn failure from a started child's exit code via
 // cmd.Process/cmd.ProcessState (the single S5 error-guard shape).

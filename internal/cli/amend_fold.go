@@ -26,14 +26,14 @@ var (
 	errAmendIntoWithoutDiscard = errors.New("amend: --into is only valid with --discard")
 )
 
-// checkJudgedVersion is the judged-version check (design D10 r3-2; spec
+// checkJudgedVersion is the judged-version check (792b34c5 Judged-version check; spec
 // 792a22 "Bookkeeping on a served offer SHALL verify the
 // judged version"). A given --expect-hash is verified on any note; it is
 // required for --clear-pending and --discard (bare or --into) on a note
 // carrying offer.origin, pending or live. Only an equal hash passes: a
 // hash of another version is not the version that was judged, so it fails
 // as a changed one does (the spec fails the command whenever the current
-// hash "differs from that value"; design D3's unknown-as-not-changed rule
+// hash "differs from that value"; 792b33c5 Comparing two hashes' unknown-as-not-changed rule
 // covers the exchange's own change checks, not a curator's judgment).
 func checkJudgedVersion(args AmendArgs, raw []byte) error {
 	if args.ExpectHash == "" {
@@ -57,7 +57,7 @@ func checkJudgedVersion(args AmendArgs, raw []byte) error {
 }
 
 // decodeExchangeFrontmatter reads a note's exchange frontmatter, from its
-// LF form (toLF, #789 design D4).
+// LF form (toLF, 792b6c8 CRLF reading).
 func decodeExchangeFrontmatter(raw []byte) (exchangeFrontmatter, error) {
 	frontmatter, found := splitFrontmatter(toLF(raw))
 	if !found {
@@ -89,7 +89,7 @@ func discardTarget(
 	return discardWithDecline(deps, args.Vault, full, stdout)
 }
 
-// foldAliases is into's aliases after a fold (design D10 M12): its own,
+// foldAliases is into's aliases after a fold (792b34c6 Fold of an offer, 792a21zk): its own,
 // then the offer's basename and every alias the offer answered to, each
 // once, never into's own basename.
 func foldAliases(into []string, intoBase, offerBase string, offer []string) []string {
@@ -104,11 +104,11 @@ func foldAliases(into []string, intoBase, offerBase string, offer []string) []st
 	return folded
 }
 
-// foldInto is `amend --discard --into` (design D10): the offer's basename,
+// foldInto is `amend --discard --into` (792b34c6 Fold of an offer): the offer's basename,
 // aliases and parent links are recorded on the existing note, and then the
 // offer and its sidecar are deleted. Only into's aliases: and parent: keys
 // are rewritten: nothing is re-embedded, identity is not re-stamped
-// (ruling S7), no xid is stamped, nothing is queued, and no decline is
+// (792b34c6 Fold of an offer), no xid is stamped, nothing is queued, and no decline is
 // recorded — the links themselves keep the parent note from being pulled
 // again.
 func foldInto(
@@ -130,7 +130,7 @@ func foldInto(
 		return fmt.Errorf("amend: read %s: %w", intoRel, readErr)
 	}
 
-	// into is read as LF (#789 design D1): a CRLF into is converted only
+	// into is read as LF (792b14c7 CRLF revision): a CRLF into is converted only
 	// when the fold writes it, and is then re-embedded.
 	intoLF := toLF(intoRaw)
 
@@ -154,7 +154,7 @@ func foldInto(
 	return discardNote(deps, offerFull, stdout)
 }
 
-// foldParentLinks is into's parent block after a fold (design D10, D4):
+// foldParentLinks is into's parent block after a fold (792b34c7 Merging parent links):
 // every link the offer held joins into's links under the offer's parent
 // vault. The offer's primary (offered or pulled) stays primary only when
 // into has none; otherwise it becomes covered. A link into already holds
@@ -162,8 +162,8 @@ func foldInto(
 // except that a held covered link to the offer's primary note is promoted
 // to that primary role when into has no primary.
 // When the offer links a different parent vault than into does, into's
-// links under the old vault are dropped, as a receipt drops them (D6).
-// The offer's author is not carried: into keeps its own (D10).
+// links under the old vault are dropped, as a receipt drops them (792b33c9 Recording an offer receipt).
+// The offer's author is not carried: into keeps its own (792b34c7 Merging parent links).
 func foldParentLinks(into, offer parentLinks) parentLinks {
 	if len(offer.Links) == 0 {
 		return into
@@ -207,7 +207,7 @@ func foldParentLinks(into, offer parentLinks) parentLinks {
 
 // foldedContent is into's content after folding the offer into it: only
 // the aliases: and parent: keys change, and only when the fold adds to
-// them. They are edited as YAML nodes (editExchangeBlocks, ruling V7), so
+// them. They are edited as YAML nodes (editExchangeBlocks, 792b33c8 Editing the exchange blocks), so
 // unknown keys under parent: and its links survive, and an anchor on an
 // edited key refuses the fold before anything is written or deleted.
 func foldedContent(intoRaw []byte, intoBase string, offerRaw []byte, offerBase string) (string, error) {
@@ -238,7 +238,7 @@ func foldedContent(intoRaw []byte, intoBase string, offerRaw []byte, offerBase s
 }
 
 // isPrimaryLink reports whether a link role is a note's primary
-// counterpart (design D4).
+// counterpart (792b33c6 The exchange fields).
 func isPrimaryLink(via string) bool {
 	return via == linkViaOffered || via == linkViaPulled
 }
@@ -262,7 +262,7 @@ func noteOfferOrigin(raw []byte) string {
 }
 
 // readJudgedTarget reads the amend's target note as LF (toLF: amend edits
-// a CRLF note's LF form, #789 design D1) and runs the judged-version check
+// a CRLF note's LF form, 792b14c7 CRLF revision) and runs the judged-version check
 // on that form (checkJudgedVersion) before anything is written. converted
 // reports whether the note on disk had CRLF line endings, so a write of it
 // is a conversion that needs a fresh sidecar.

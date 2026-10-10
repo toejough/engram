@@ -14,7 +14,7 @@ import (
 )
 
 // Test792b37c5a1_MergeQueryPayloads_DropsParentChunks: every parent chunk item is
-// dropped, including the parent's recency channel (Q1); parent notes and
+// dropped, including the parent's recency channel (792b37c5); parent notes and
 // local chunks stay.
 func Test792b37c5a1_MergeQueryPayloads_DropsParentChunks(t *testing.T) {
 	t.Parallel()
@@ -234,7 +234,7 @@ func Test792b37c6a5_MergeQueryPayloads_PendingLocalCopyDoesNotSuppress(t *testin
 }
 
 // Test792b37c6a6_MergeQueryPayloads_SubstitutesUnrankedLocalCopy: P matches L, and L
-// did not rank locally — L takes P's place with exactly the M4 fields.
+// did not rank locally — L takes P's place with exactly the substituted-copy fields of 792b37c6.
 func Test792b37c6a6_MergeQueryPayloads_SubstitutesUnrankedLocalCopy(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -319,7 +319,7 @@ func Test792b37c6a8_MergeQueryPayloads_NearDuplicatesLeftAlone(t *testing.T) {
 
 // Test792b37c6a9_MergeQueryPayloads_LinkUnderOtherVaultIgnored: a link recorded under
 // a vault ID other than the one the parent reported in this query never
-// dedupes (S16).
+// dedupes (792b37c6).
 func Test792b37c6a9_MergeQueryPayloads_LinkUnderOtherVaultIgnored(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -388,8 +388,8 @@ func Test792b37c7a3_MergeQueryPayloads_DirectBeforeExplore(t *testing.T) {
 }
 
 // Test792b37c7a5_MergeQueryPayloads_NoteFloorSurvivesCap is the spec scenario: 5
-// direct chunks at 0.9 and 3 direct notes at 0.5 under --limit 5 keep all
-// 3 notes and the 2 highest-scoring chunks, in score order (M3).
+// direct chunks at 0.9 and 3 direct notes at 0.5 under --limit 5 keep all 3 notes and the 2 highest-scoring
+// chunks, in score order (792b37c7 The order of the merged relevance items).
 func Test792b37c7a5_MergeQueryPayloads_NoteFloorSurvivesCap(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -502,7 +502,7 @@ func Test792b37c7a7_MergeQueryPayloads_FloorOnIssueShape(t *testing.T) {
 }
 
 // Test792b37c9a4_MergeQueryPayloads_PendingHintIsLocalOnly: the parent's pending flag
-// is ignored; only local pending offers raise the hint (H4).
+// is ignored; only local pending offers raise the hint (792b37c9).
 func Test792b37c9a4_MergeQueryPayloads_PendingHintIsLocalOnly(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -737,7 +737,7 @@ func mustExchangeHash(t interface {
 	return hash
 }
 
-// sameNoteByD4 is the property's oracle, stated as design D4 words it:
+// sameNoteByD4 is the property's oracle, stated as 792b37c6 Deduping against the local notes words it:
 // parent item P and live local note L are the same note when (1) the parent
 // reported a vault ID, L's parent.vault is that ID, and one of L's links
 // names P's basename or one of P's aliases; or (2) both exchange hashes are

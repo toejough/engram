@@ -14,16 +14,16 @@ import (
 // Exported constants.
 const (
 	// SkillScopePluginPrefix prefixes a Claude Code plugin's scope ID:
-	// `plugin:<plugin>` (design D3). Its skills and commands share the
+	// `plugin:<plugin>` (792b30c17 Skill keys). Its skills and commands share the
 	// scope; a candidate's Kind tells them apart (a command's key gains the
-	// `cmd:` segment, task 2.1), so SourceSegment stays empty.
+	// `cmd:` segment, 792b30c17 Skill keys), so SourceSegment stays empty.
 	SkillScopePluginPrefix = "plugin:"
 )
 
 // ClaudePluginConflict is one plugin name installed from more than one
-// marketplace (design D4, ruling R3). It is returned as data: the caller
-// prints the loud line and sets the failure exit (task 2.3), and treats the
-// plugin's scope as not scanned (task 2.4). The scanner emits no candidates
+// marketplace (792b30c7 Claude Code plugins). It is returned as data: the caller
+// prints the loud line and sets the failure exit (792b31c2 Offer comparison), and treats the
+// plugin's scope as not scanned (792b31c3 Removal eligibility). The scanner emits no candidates
 // for it.
 type ClaudePluginConflict struct {
 	// Plugin is the plugin name (the part of the manifest key before `@`).
@@ -38,13 +38,13 @@ type ClaudePluginScan struct {
 	// settings.json (enabledPlugins) are read from it.
 	ClaudeDir string
 	// RepoTopLevel is the current repository's top-level directory (`git
-	// rev-parse --show-toplevel`, task 1.8), or empty outside a repository.
+	// rev-parse --show-toplevel`, 792b30c14 Project identity), or empty outside a repository.
 	// A `project`/`local` install applies only when its projectPath equals it.
 	RepoTopLevel string
 }
 
 // ClaudePluginScanResult is ScanClaudePlugins' output: the shared scan
-// result plus the plugin-level facts removal eligibility needs (design D5
+// result plus the plugin-level facts removal eligibility needs (792b31c3 Removal eligibility
 // "Plugin keys").
 type ClaudePluginScanResult struct {
 	SkillScanResult
@@ -72,7 +72,7 @@ type ClaudePluginStatus struct {
 }
 
 // ScanClaudePlugins scans the skills and commands of Claude Code's installed
-// plugins (design D2 source 8). Each installed_plugins.json (v2) entry is
+// plugins (792b30c7 Claude Code plugins). Each installed_plugins.json (v2) entry is
 // scanned when it is enabled (its settings.json `enabledPlugins` value, or —
 // when absent — its plugin.json `defaultEnabled`, default true), its scope
 // is `user` or `project`/`local` with projectPath equal to
@@ -328,7 +328,7 @@ func groupClaudePluginInstalls(
 }
 
 // readClaudeEnabledPlugins reads settings.json's `enabledPlugins`. parsed is
-// true only when the file was read and parsed (design D5); usable is false
+// true only when the file was read and parsed (792b31c3 Removal eligibility); usable is false
 // when the file exists but cannot be read or parsed, since enablement is
 // then unknown. A missing file is usable and empty (every plugin falls back
 // to defaultEnabled, as Claude Code does).
@@ -449,7 +449,7 @@ func scanClaudePlugin(
 	}
 
 	// The reserved-name check runs only once the plugin is known to be
-	// enabled (design D3): a disabled reserved-name plugin prints nothing.
+	// enabled (792b30c7 Claude Code plugins): a disabled reserved-name plugin prints nothing.
 	if isReservedPluginName(name) {
 		result.Warnings = append(result.Warnings, fmt.Sprintf(claudePluginReservedWarningFormat, name))
 

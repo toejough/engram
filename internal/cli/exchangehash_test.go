@@ -1,6 +1,6 @@
 package cli_test
 
-// Tests for the exchange hash (design D3, 792a21o and 792b33c1 to 792b33c5, "The exchange hash"; task 3.1).
+// Tests for the exchange hash (792a21o and 792b33c1 to 792b33c5, "The exchange hash").
 
 import (
 	"crypto/sha256"
@@ -148,7 +148,7 @@ func Test792b33c2a3_ExchangeHash_NonOfferedFieldsDoNotMoveTheHashProperty(t *tes
 	})
 }
 
-// Test792b33c2a4_ExchangeHash_ClassificationCoversEveryFrontmatterKey is the r3-5
+// Test792b33c2a4_ExchangeHash_ClassificationCoversEveryFrontmatterKey is the
 // reflection test: every YAML key of the fact, feedback and runbook
 // frontmatter structs is classified as offered or not offered, and the table
 // names no key that no struct has.
@@ -173,7 +173,7 @@ func Test792b33c2a4_ExchangeHash_ClassificationCoversEveryFrontmatterKey(t *test
 	}
 }
 
-// Test792b33c2a5_ExchangeHash_ClassifiesTheDesignFields pins design D3's split: the
+// Test792b33c2a5_ExchangeHash_ClassifiesTheDesignFields pins 792b33c2's split: the
 // offered keys are exactly the hashed content fields, and the exchange's own
 // bookkeeping keys are not offered.
 func Test792b33c2a5_ExchangeHash_ClassifiesTheDesignFields(t *testing.T) {
@@ -200,7 +200,7 @@ func Test792b33c2a5_ExchangeHash_ClassifiesTheDesignFields(t *testing.T) {
 	}
 }
 
-// Test792b33c3a1_ExchangeHash_BodyLineEndingsDoNotMoveTheHashProperty (ruling S6): the
+// Test792b33c3a1_ExchangeHash_BodyLineEndingsDoNotMoveTheHashProperty (792b33c3 The canonical body): the
 // canonical body normalizes CRLF to LF and ends in exactly one newline, so the
 // LF, CRLF, and missing-final-newline spellings of the same body — a CRLF
 // body's blank separator line included — hash equally on both sides of an
@@ -214,7 +214,7 @@ func Test792b33c3a1_ExchangeHash_BodyLineEndingsDoNotMoveTheHashProperty(t *test
 		frontmatter, _ := yaml.Marshal(note.fields)
 		head := "---\n" + string(frontmatter) + "---\n"
 		// The blank separator line after the closing delimiter is part of
-		// the body, so a CRLF body may carry it as CRLF too (ruling V2).
+		// the body, so a CRLF body may carry it as CRLF too (792b33c3 The canonical body).
 		separator := rapid.SampledFrom([]string{"\n", "\r\n"}).Draw(rt, "separator")
 
 		lf := strings.Join(lines, "\n")
@@ -305,7 +305,7 @@ func Test792b33c5a1_ExchangeHash_CompareIsThreeWay(t *testing.T) {
 }
 
 // Test792b33c5a2_ExchangeHash_UnknownPerConsumer covers what each exchange consumer does
-// with an unknown comparison (design D3): loop suppression and dedupe rule 2
+// with an unknown comparison (792b33c5 Comparing two hashes): loop suppression and dedupe rule 2
 // fire only on equal; the pull-down skip, decline match, rejected-entry
 // re-arm and send/apply change check treat unknown as not changed.
 func Test792b33c5a2_ExchangeHash_UnknownPerConsumer(t *testing.T) {

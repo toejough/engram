@@ -11,11 +11,11 @@ import (
 const (
 	// exploreMatchEvidenceBonus is the flat additive similarity bonus
 	// applied to a term's cosine before softmax when >=1 of its members
-	// appears in the exploit half (design.md Decision 5). Calibrated
-	// alongside exploreTemperatureDefault via task 3.1.
+	// appears in the exploit half (792b24c13 Explore budget and allocation). Calibrated
+	// alongside exploreTemperatureDefault.
 	exploreMatchEvidenceBonus = float32(0.05)
 	// exploreTemperatureDefault is the softmax temperature for explore-half
-	// centroid allocation, calibrated per design.md Decision 1 (task 3.1):
+	// centroid allocation, calibrated per 792b24c13 Explore budget and allocation:
 	// 10 real production-vault queries, sim_top=0.550 (median of per-query
 	// best centroid cosine), sim_med=0.307 (median of per-query median
 	// centroid cosine), tau=(sim_top-sim_med)/ln(10)=0.106. See
@@ -172,7 +172,7 @@ func computeExploreHalf(
 // Phase 1 fills each term's own allocation from its own ranked list,
 // skipping duplicates. Phase 2 sweeps order again for any remaining deficit,
 // pulling from whichever term still has unused ranked candidates -
-// "next-highest remaining cluster weight" per design.md Decision 4.
+// "next-highest remaining cluster weight" per 792b24c15 Dedupe and backfill.
 func dedupeAndBackfill(
 	allocated map[string]int,
 	order []string,
@@ -199,7 +199,7 @@ func dedupeAndBackfill(
 
 	// Phase 2: sweep order for any remaining deficit, pulling from whichever
 	// term still has unused ranked candidates ("next-highest remaining
-	// cluster weight" per design.md Decision 4).
+	// cluster weight" per 792b24c15 Dedupe and backfill).
 	for len(state.picks) < budget {
 		before := len(state.picks)
 
@@ -221,8 +221,8 @@ func dedupeAndBackfill(
 
 // exploreAllocationOrder returns terms sorted by descending similarity (ties
 // broken by term name), the priority order softmaxAllocate uses for leftover
-// distribution and dedupeAndBackfill reuses for refill priority (design.md
-// Decision 4: "next-highest remaining cluster weight").
+// distribution and dedupeAndBackfill reuses for refill priority (792b24c15
+// Dedupe and backfill: "next-highest remaining cluster weight").
 func exploreAllocationOrder(similarities map[string]float32) []string {
 	terms := make([]string, 0, len(similarities))
 	for term := range similarities {

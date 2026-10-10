@@ -1,7 +1,7 @@
 package cli_test
 
-// resituate preserves every field it does not change (design D10 M7,
-// note-revision 792a4j1d; task 3.4): only situation: and the body opener differ.
+// resituate preserves every field it does not change (792b14c8 Resituation,
+// note-revision 792a4j1d): only situation: and the body opener differ.
 
 import (
 	"strings"

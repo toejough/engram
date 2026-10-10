@@ -18,26 +18,26 @@ import (
 const (
 	envParentBase = "ENGRAM_PARENT"
 	// envRemovedServer names the removed thin-client variable; it survives
-	// only for the pre-dispatch guard that refuses it (design D1).
+	// only for the pre-dispatch guard that refuses it (792a21a ENGRAM_SERVER is refused).
 	envRemovedServer = "ENGRAM_SERVER"
 	// httpStatusMultipleChoices is the first non-2xx status code — used to
 	// bound the "success" range without importing net/http here.
 	httpStatusMultipleChoices = 300
 	// parentSourcedMarker labels engram show's local-miss parent fallback
-	// output as parent-sourced (792a21 D8) — the
+	// output as parent-sourced (792a21l A note can be shown from the parent) — the
 	// human-readable analog of a merged query payload's per-item
 	// from_parent tag. Only the fallback path is labeled; the explicit
 	// --parent route (fetchShow) stays byte-identical to a direct parent
-	// request, unlabeled. show-chunk never contacts the parent (Q1).
+	// request, unlabeled. show-chunk never contacts the parent (792b35c4).
 	parentSourcedMarker = "# from_parent: true\n"
 )
 
 // unexported variables.
 var (
-	// errEngramServerRemoved is the D1 hard error for a set ENGRAM_SERVER.
+	// errEngramServerRemoved is the 792a21a hard error for a set ENGRAM_SERVER.
 	errEngramServerRemoved = errors.New("ENGRAM_SERVER is no longer supported")
 	// errParentBackedOff is returned when a show's parent request is
-	// skipped inside the backoff window (design D6).
+	// skipped inside the backoff window (792b5c14 The parent cache and the contact backoff).
 	errParentBackedOff = errors.New("parent contact skipped inside the backoff window")
 	// errParentNotConfigured is returned when --parent is passed to
 	// show/activate but ENGRAM_PARENT is not set.
@@ -99,7 +99,7 @@ func describeErrorBody(body []byte) string {
 
 // dispatchShow runs `engram show` against the local vault, then — only on a
 // not-found miss with ENGRAM_PARENT configured — falls back to the parent
-// and labels the result as parent-sourced (792a21 D8: "Local
+// and labels the result as parent-sourced (792a21l: "Local
 // miss falls back to the parent"). Callers reach this only after ruling out
 // an explicit --parent, which takes precedence and never falls through
 // here. A local hit, or any error other than a miss
@@ -134,7 +134,7 @@ func dispatchShow(ctx context.Context, deps Deps, args ShowArgs, home string, st
 }
 
 // dispatchShowParent runs `engram show --parent`: the ref is resolved
-// against ENGRAM_PARENT only, as a parent contact (rulings S3, S11).
+// against ENGRAM_PARENT only, as a parent contact (792b37c11 A pull-down is a gated parent contact).
 func dispatchShowParent(ctx context.Context, deps Deps, args ShowArgs, home string, stdout io.Writer) error {
 	parent, parentErr := resolveParentOrError(deps)
 	if parentErr != nil {
@@ -177,7 +177,7 @@ func encodeQuery(query map[string][]string) string {
 // fetchAndCopy issues a GET request and writes the response body verbatim
 // to stdout — byte-identical to a local invocation's own stdout, since the
 // served handler captured that same command's Run* stdout output
-// unmodified (design.md API Contract).
+// unmodified (792a20c Served commands behave as the local ones).
 func fetchAndCopy(
 	ctx context.Context, deps Deps, base, path string, query map[string][]string, stdout io.Writer,
 ) error {
@@ -195,8 +195,8 @@ func fetchAndCopy(
 }
 
 // fetchQueryPayload routes a parent query (ENGRAM_PARENT merge mode)
-// through the parent's /query route, asking for the dedupe keys (design
-// D9), and decodes the response into the same queryPayload type the local
+// through the parent's /query route, asking for the dedupe keys (792b35c5
+// Dedupe keys), and decodes the response into the same queryPayload type the local
 // pipeline produces — instead of piping bytes to stdout — so the merge
 // orchestrator can combine it with the local payload before a single
 // render.
@@ -248,13 +248,13 @@ func fetchShow(ctx context.Context, deps Deps, base string, args ShowArgs, stdou
 }
 
 // fetchShowContact runs one show request against the parent as a parent
-// contact: the vault ID is stamped and the location checked first (ruling
-// S3), the backoff gate may skip the request (errParentBackedOff, after its
-// one warning), and the outcome is recorded for backoff (ruling S11). A
-// failed stamp skips the gate and the record (ruling S4).
+// contact: the vault ID is stamped and the location checked first (792b5c7
+// Location record and check), the backoff gate may skip the request (errParentBackedOff, after its
+// one warning), and the outcome is recorded for backoff (792b5c14). A
+// failed stamp skips the gate and the record (792b5c4 Vault ID stamping).
 func fetchShowContact(ctx context.Context, deps Deps, parent string, args ShowArgs, stdout io.Writer) error {
 	if !prepareParentContact(deps, "show", args.VaultPath) {
-		// Unstamped: contact without bookkeeping (ruling S4).
+		// Unstamped: contact without bookkeeping (792b5c4).
 		return fetchShow(ctx, deps, parent, args, stdout)
 	}
 
@@ -300,7 +300,7 @@ func isURLUnreserved(c byte) bool {
 
 // parentBase returns the ENGRAM_PARENT base URL (e.g. "http://host:port"),
 // or "" when unset. It is additive: a set ENGRAM_PARENT never replaces local
-// behavior, it adds a merge step on top of it (design.md Decision 5).
+// behavior, it adds a merge step on top of it (792a21m A vault with no parent behaves as it always did).
 func parentBase(deps Deps) string {
 	if deps.Getenv == nil {
 		return ""
@@ -327,7 +327,7 @@ func percentEncode(s string) string {
 	return b.String()
 }
 
-// removedServerError returns the D1 hard error when ENGRAM_SERVER is set,
+// removedServerError returns the 792a21a hard error when ENGRAM_SERVER is set,
 // naming ENGRAM_PARENT with the same URL, or nil when it is unset. Never an
 // alias: the value is only echoed back in the message, never contacted.
 func removedServerError(deps Deps) error {

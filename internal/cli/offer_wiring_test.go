@@ -83,7 +83,7 @@ func Test792a21n1b_Targets_Amend_ContentOfLinkedNoteIsAmendOffer(t *testing.T) {
 	g.Expect(offers[1].Object).To(Equal("changed"))
 }
 
-// Test792a21n1e_Targets_Resituate_Offers (E41): resituate is offered like a content
+// Test792a21n1e_Targets_Resituate_Offers: resituate is offered like a content
 // amend.
 func Test792a21n1e_Targets_Resituate_Offers(t *testing.T) {
 	t.Parallel()
@@ -124,7 +124,7 @@ func Test792a21n1f_Targets_Amend_BookkeepingQueuesNothing(t *testing.T) {
 	}
 }
 
-// Test792a21n1g_Targets_Amend_ClearPendingOfServedOfferPropagates (M14, spec
+// Test792a21n1g_Targets_Amend_ClearPendingOfServedOfferPropagates (792a21n, spec
 // "Accepting a served offer propagates upward"): clearing the pending
 // marker of a child's served offer sends a learn-offer carrying the
 // offer's path plus this vault's ID.
@@ -147,7 +147,7 @@ func Test792a21n1g_Targets_Amend_ClearPendingOfServedOfferPropagates(t *testing.
 	g.Expect(offers[0].Offer.Origin).To(Equal(env.localID() + ":" + xidA))
 }
 
-// Test792a21n1h_Targets_Amend_ClearPendingOfParentsOfferNeverReturns (D12, spec "An
+// Test792a21n1h_Targets_Amend_ClearPendingOfParentsOfferNeverReturns (792b36c3, spec "An
 // accepted offer never returns to its origin vault").
 func Test792a21n1h_Targets_Amend_ClearPendingOfParentsOfferNeverReturns(t *testing.T) {
 	t.Parallel()
@@ -217,9 +217,9 @@ func Test792a21q1b_Targets_OfflineWritesCoalesceThenQueryDrains(t *testing.T) {
 	g.Expect(readFileString(t, notePath)).To(ContainSubstring("note: 1100.2026-09-28.coalesce"))
 }
 
-// Test792a21q1e_Targets_Amend_StampsXIDOnFirstOffer (design D4): a note without an
-// xid gets one, in the same write, the first time it is offered; the
-// offer's origin names it.
+// Test792a21q1e_Targets_Amend_StampsXIDOnFirstOffer (792a21zi An exchanged note carries a stable exchange
+// ID): a note without an xid gets one, in the same write, the first time it is offered; the offer's origin
+// names it.
 func Test792a21q1e_Targets_Amend_StampsXIDOnFirstOffer(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -284,10 +284,9 @@ func Test792a21v1a_Targets_Learn_TooOldParentKeepsEntry(t *testing.T) {
 	g.Expect(readFileString(t, notePath)).NotTo(ContainSubstring("parent:"))
 }
 
-// Test792a21v1b_Targets_Learn_MalformedReceiptKeepsEntry (final review F6): a
-// receipt naming a basename that carries a '|' leaves the note unlinked
-// and the entry queued with the failure recorded (handled as an
-// undecodable receipt is, ruling S11).
+// Test792a21v1b_Targets_Learn_MalformedReceiptKeepsEntry (792a21v A reply that is not a valid receipt is not
+// recorded): a receipt naming a basename that carries a '|' leaves the note unlinked and the entry queued
+// with the failure recorded (handled as an undecodable receipt is, 792a21v).
 func Test792a21v1b_Targets_Learn_MalformedReceiptKeepsEntry(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -341,7 +340,7 @@ func Test792b28c13a9_WriteUpdateReport_OutboxNotice(t *testing.T) {
 }
 
 // TestWiringEnv_DepsIsolateRealUserHome guards the wiring test helper
-// itself (final re-review residual, ruling S34): every wiringEnv-driven
+// itself (a test-isolation guard): every wiringEnv-driven
 // command must resolve UserHomeDir/XDG_DATA_HOME to a per-test scratch
 // dir, never the developer's real $HOME, so a future test that forgets
 // --chunks-dir (or any other explicit path flag) lands in scratch instead
@@ -406,8 +405,8 @@ type recordingParent struct {
 	receipt     string
 	rejection   string
 	log         []recordedRequest
-	// pull-down (design D8): the parent's notes served by GET /show?raw=1,
-	// how /show answers, and whether POST /activate fails.
+	// pull-down (792a21zc Activate resolves a ref locally first): the parent's notes served by GET
+	// /show?raw=1, how /show answers, and whether POST /activate fails.
 	notes        []fakeParentNote
 	showMode     string
 	activateDown bool
@@ -579,10 +578,9 @@ func (p *recordingParent) setStoredHash(hash string) {
 type wiringEnv struct {
 	t     failer
 	vault string
-	// home is a per-test scratch dir wired as deps.UserHomeDir (S34
-	// residual): any future caller that forgets --vault/--chunks-dir must
-	// resolve into scratch, never the developer's real
-	// ~/.local/share/engram or ~/.claude.
+	// home is a per-test scratch dir wired as deps.UserHomeDir: any future caller that forgets
+	// --vault/--chunks-dir must resolve into scratch, never the developer's real ~/.local/share/engram or
+	// ~/.claude.
 	home       string
 	parentURL  string
 	parent     *recordingParent
@@ -631,7 +629,7 @@ func (e *wiringEnv) deps() cli.Deps {
 }
 
 // exchangeHashOf is the current exchange hash of the vault note name — the
-// version curation judged, passed as --expect-hash (design D10 r3-2).
+// version curation judged, passed as --expect-hash (792b34c5 The judged-version check).
 func (e *wiringEnv) exchangeHashOf(name string) string {
 	e.t.Helper()
 

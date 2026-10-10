@@ -1,9 +1,9 @@
 package cli_test
 
-// Activate re-checks a linked local note against the parent (ruling S31,
-// final review F1): the merged query keeps a linked local copy in place of
+// Activate re-checks a linked local note against the parent (792a21zf
+// Activating a linked note re-checks its parent note): the merged query keeps a linked local copy in place of
 // its parent note, so the next use of that local copy is where a changed
-// parent note comes back down as a pending offer (design D8, D12).
+// parent note comes back down as a pending offer (792a21zd, 792a21ze).
 
 import (
 	"context"
@@ -19,10 +19,9 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// Test792a21zf1a_Activate_ParentChangeRoundTrip (final review F1, F11): pull a
-// parent note, accept it, change it on the parent; the merged query still
-// returns the local copy, and activating that local copy pulls the
-// changed parent note down as a new pending offer.
+// Test792a21zf1a_Activate_ParentChangeRoundTrip (792a21zf Activating a linked note re-checks its parent
+// note): pull a parent note, accept it, change it on the parent; the merged query still returns the local
+// copy, and activating that local copy pulls the changed parent note down as a new pending offer.
 func Test792a21zf1a_Activate_ParentChangeRoundTrip(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -218,11 +217,10 @@ func Test792a21zf1b_Activate_LinkedLocalNoteRecheck(t *testing.T) {
 	})
 }
 
-// Test792a21zf1f_Activate_ServedParentPendingAndRecheck (final review F8, F1): against
-// a real served parent (cli.ServeRoutes over a vault), a pending parent
-// note is never pulled down, a live one is, and after the child accepts
-// its copy and the parent's note changes, activating the local copy
-// pulls the change down through the raw route.
+// Test792a21zf1f_Activate_ServedParentPendingAndRecheck (792a21zf Activating a linked note re-checks its
+// parent note): against a real served parent (cli.ServeRoutes over a vault), a pending parent note is never
+// pulled down, a live one is, and after the child accepts its copy and the parent's note changes, activating
+// the local copy pulls the change down through the raw route.
 func Test792a21zf1f_Activate_ServedParentPendingAndRecheck(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -274,13 +272,13 @@ func Test792a21zf1f_Activate_ServedParentPendingAndRecheck(t *testing.T) {
 	}))
 }
 
-// Test792a22g1b_CurateNearOrder_PulledOffer (final review F10) traces the curate
+// Test792a22g1b_CurateNearOrder_PulledOffer (792a22g A near offer is folded away first) traces the curate
 // skill's near row for a pulled offer O folded into a live local note E
 // that has no primary link. Amending E first drains at once with E still
 // unlinked, so the bounce goes up as a learn-offer and E's primary becomes
 // the parent's new pending note; folding first gives E O's pulled link as
 // its primary, so the amend goes up as an amend-offer for the pulled
-// note's parent counterpart (design D12 B1).
+// note's parent counterpart (792a22g A near offer is folded away first).
 func Test792a22g1b_CurateNearOrder_PulledOffer(t *testing.T) {
 	t.Parallel()
 

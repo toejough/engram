@@ -20,13 +20,13 @@ const (
 	parentIDProbePhrase = "vault id"
 )
 
-// offerHooks connects a local write path to the parent outbox (design D5,
-// D6). The zero value — no parent configured — offers nothing, stamps
+// offerHooks connects a local write path to the parent outbox (792b36c1 Which writes are offered,
+// 792b36c4 Queueing an offer). The zero value — no parent configured — offers nothing, stamps
 // nothing and writes no exchange state.
 type offerHooks struct {
 	// stage runs under the vault lock with the note content about to be
 	// written: it classifies the write and, when it is offered, stamps an
-	// xid (lazily, D4). It returns the content to write and the xid to
+	// xid (lazily, 792a21zi). It returns the content to write and the xid to
 	// enqueue ("" when the write is not offered).
 	stage func(vault string, write offerWrite) ([]byte, string, error)
 	// mintXID mints an xid for a note learn is about to create.
@@ -91,10 +91,9 @@ func cachedParentVaultID(state exchangeState, vault, parentURL string) string {
 	return cache.VaultID
 }
 
-// drainForCommand is a command's drain step (design D6): the backoff gate
-// (which `engram update` ignores), then the drain. An unreachable parent
-// prints the one "parent unreachable" warning with the queued count; any
-// other drain error is warned. Neither fails the command.
+// drainForCommand is a command's drain step (792a21r The outbox drains after the parent was reached): the
+// backoff gate (which `engram update` ignores), then the drain. An unreachable parent prints the one "parent
+// unreachable" warning with the queued count; any other drain error is warned. Neither fails the command.
 func drainForCommand(ctx context.Context, deps Deps, vault, parentURL string, ignoreBackoff bool) {
 	store := outboxStoreFromDeps(deps)
 
@@ -134,7 +133,7 @@ func drainForCommand(ctx context.Context, deps Deps, vault, parentURL string, ig
 }
 
 // ensureParentVaultID makes sure the configured parent's vault ID is known
-// before any offer is built (ruling S16): links, loop suppression, offer.for
+// before any offer is built (792b36c3 An offer withdrawn at send time): links, loop suppression, offer.for
 // and the supersedes translation all key on it, and a link recorded for
 // another vault never stands in. When the cache has no ID for parentURL and
 // offers are queued, the drain's first contact is a cheap `GET
@@ -291,14 +290,14 @@ func newReceiptApplier(ctx context.Context, deps Deps) func(offerNote, offerRece
 		}
 
 		// The receipt write converted a CRLF note, which changes its
-		// content hash: rebuild its sidecar (#789 design D4).
+		// content hash: rebuild its sidecar (792a21zb CRLF exchanges as LF).
 		return rebuildConvertedSidecar(ctx, deps.Embed, write, note.Path, updated)
 	}
 }
 
-// newUpdateExchange is `engram update`'s parent-exchange step (design D6):
-// with a parent configured and outside --dry-run it drains, ignoring the
-// backoff window; then it returns the outbox notice ("" when idle).
+// newUpdateExchange is `engram update`'s parent-exchange step (792b36c16 The update exchange and the outbox
+// notice): with a parent configured and outside --dry-run it drains, ignoring the backoff window; then it
+// returns the outbox notice ("" when idle).
 func newUpdateExchange(deps Deps) func(ctx context.Context, vault string, dryRun bool) string {
 	return func(ctx context.Context, vault string, dryRun bool) string {
 		parentURL := parentBase(deps)
@@ -311,7 +310,7 @@ func newUpdateExchange(deps Deps) func(ctx context.Context, vault string, dryRun
 }
 
 // outboxCountLine is the notice's first line: the queued and rejected
-// counts, the attention count when there is any (#789 design D3, so an
+// counts, the attention count when there is any (792a21w A receipt the note refuses needs attention, so an
 // outbox without such entries reports exactly as before), and the oldest
 // entry's age.
 func outboxCountLine(box outboxFile, now time.Time) string {
@@ -418,7 +417,7 @@ func supersedesTargets(store outboxStore, vault, parentVaultID string) (map[stri
 }
 
 // writeRejectedEntries lists each rejected entry, then each entry that
-// needs attention (#789 design D3), by its note's current basename (its xid
+// needs attention (792b36c15 An entry that waits), by its note's current basename (its xid
 // when the note is gone) and its error.
 func writeRejectedEntries(notice *strings.Builder, store outboxStore, vault string, box outboxFile) {
 	names := map[string]string{}

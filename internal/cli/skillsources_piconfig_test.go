@@ -71,7 +71,7 @@ func Test792b30c12a2_ReadPiSettings_LegacySkillsObjectAndErrors(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// ApplyPiSettingsOverrides (ruling R8)
+// ApplyPiSettingsOverrides (792b30c12 Pi settings reading and overrides)
 // ---------------------------------------------------------------------------
 
 func Test792b30c12a3_ApplyPiSettingsOverrides_DisablesDefaultFolderSkills(t *testing.T) {
@@ -251,7 +251,7 @@ func Test792b30c13a12_ScanPiConfiguredSources_NpmManifestSkills(t *testing.T) {
 
 	result := cli.ScanPiConfiguredSources(fsys, piConfiguredScan(false))
 
-	// A listed skill dir loads its root `.md` too (ruling R10 Q1).
+	// A listed skill dir loads its root `.md` too (792b30c13 Pi configured sources).
 	g.Expect(candidateNames(result)).To(Equal([]string{"pi-intercom", "root"}))
 
 	for _, candidate := range result.Candidates {
@@ -320,7 +320,7 @@ func Test792b30c13a13_ScanPiConfiguredSources_ObjectFormFilters(t *testing.T) {
 // applyPatterns (package-manager.js:540-584) over one settings directory:
 // plain globs include by name (all when none), `!` excludes by name, `+`
 // re-adds by exact path, `-` removes by exact path. Filtered-out skills are
-// still emitted, marked Disabled (ruling R10 Q3).
+// still emitted, marked Disabled (792b30c13 Pi configured sources).
 func Test792b30c13a14_ScanPiConfiguredSources_PatternFilterProperty(t *testing.T) {
 	t.Parallel()
 
@@ -500,7 +500,7 @@ func Test792b30c13a19_ScanPiConfiguredSources_PromptTreeEdgeCases(t *testing.T) 
 	g := NewWithT(t)
 
 	// A dangling link is skipped, a cycle terminates, an unreadable prompt
-	// or subdir marks only its own entry not scanned (ruling R5).
+	// or subdir marks only its own entry not scanned (792b30c2 Root read status).
 	fsys := newFakeSkillFS().
 		file(piAgentDir+"/settings.json", `{"prompts": ["~/ok", "~/badfile", "~/baddir", "~/bad.md"]}`).
 		file(fakeHome+"/ok/a.md", "a").
@@ -565,7 +565,7 @@ func Test792b30c13a20_ScanPiConfiguredSources_SettingsPromptDirIsRecursive(t *te
 	t.Parallel()
 	g := NewWithT(t)
 
-	// Ruling R10 Q2 (package-manager.js:149-192, 463).
+	// 792b30c13 Pi configured sources (package-manager.js:149-192, 463).
 	fsys := newFakeSkillFS().
 		file(piAgentDir+"/settings.json", `{"prompts": ["~/p", "~/one.md"]}`).
 		file(fakeHome+"/p/a.md", "a").
@@ -622,14 +622,14 @@ func Test792b30c13a22_ScanPiConfiguredSources_UnreadableManifestIsNotScanned(t *
 }
 
 // ---------------------------------------------------------------------------
-// ScanPiConfiguredSources: settings `skills` / `prompts` (task 1.5)
+// ScanPiConfiguredSources: settings `skills` / `prompts` (792b30c13 Pi configured sources)
 // ---------------------------------------------------------------------------
 
 func Test792b30c13a2_ScanPiConfiguredSources_DirectoryEntryIncludesRootMarkdown(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	// Ruling R10 Q1 (package-manager.js:241): a settings directory entry
+	// 792b30c13 Pi configured sources (package-manager.js:241): a settings directory entry
 	// loads its own root `.md` files, and relative entries resolve against
 	// ~/.pi/agent.
 	fsys := newFakeSkillFS().
@@ -705,7 +705,7 @@ func Test792b30c13a4_ScanPiConfiguredSources_GitAndLocalPackageRoots(t *testing.
 }
 
 // ---------------------------------------------------------------------------
-// ScanPiConfiguredSources: packages (task 1.5)
+// ScanPiConfiguredSources: packages (792b30c13 Pi configured sources)
 // ---------------------------------------------------------------------------
 
 func Test792b30c13a5_ScanPiConfiguredSources_AutoloadFalseIsNotScanned(t *testing.T) {

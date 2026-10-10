@@ -1,6 +1,6 @@
 package cli_test
 
-// Served learn (design D7, 792b35c10 to 792b35c13 "Served learn SHALL update a
+// Served learn (792b35c10 to 792b35c13 "Served learn SHALL update a
 // pending offer in place only for the same origin", "Served learn SHALL
 // return an offer receipt naming the pending note and the vault"; tasks
 // 4.3): input validation (400/409), origin matching, offer.for resolution,
@@ -129,7 +129,7 @@ func Test792b35c10a3_ServeLearn_LateRetryOfAcceptedKeyWritesNothing(t *testing.T
 	g.Expect(receipt.Pending).To(BeFalse())
 }
 
-// Test792b35c10a4_ServeLearn_LateRetryOfSupersededKeyWritesNothing (ruling S10): a
+// Test792b35c10a4_ServeLearn_LateRetryOfSupersededKeyWritesNothing (792b35c10 A recorded key is a retry): a
 // pending offer rewritten from K1 to K2 keeps K1 in offer.prior_keys, so a
 // late K1 retry returns the current receipt and never reverts the note —
 // and the history survives acceptance, so the same holds for the live note.
@@ -183,7 +183,7 @@ func Test792b35c10a4_ServeLearn_LateRetryOfSupersededKeyWritesNothing(t *testing
 	g.Expect(decodeReceipt(t, lateAfterAccept).Pending).To(BeFalse())
 }
 
-// Test792b35c11a1_ServeLearn_AmendBeforeCurationUpdatesInPlace (H3): a second offer from
+// Test792b35c11a1_ServeLearn_AmendBeforeCurationUpdatesInPlace (792b35c11): a second offer from
 // the same origin with a new key rewrites the pending note in place — same
 // basename, new content, key and path, re-embedded — and leaves exactly one
 // pending note.
@@ -517,8 +517,8 @@ func Test792b35c15a2_ServeLearn_UnreadableNoteFailsTheRequest(t *testing.T) {
 	g.Expect(noteFiles(t, vault)).To(HaveLen(1), "no second pending note")
 }
 
-// Test792b35c16a1_ServeLearn_StoredHashMatchesChildHash (golden property, design D3
-// "Stored hash"): for any offered content, the stored_hash the parent
+// Test792b35c16a1_ServeLearn_StoredHashMatchesChildHash (golden property,
+// 792b35c16 The stored hash): for any offered content, the stored_hash the parent
 // returns equals the exchange hash the child computes over its own note
 // with the same content — identity, luhmann, pending and the exchange
 // fields never enter it.
@@ -577,10 +577,9 @@ func Test792b35c16a1_ServeLearn_StoredHashMatchesChildHash(t *testing.T) {
 	})
 }
 
-// Test792b35c8a4_ServeLearn_WireTagsAreDropped (design D5, ruling S15; final review
-// F9): offers carry no tags — the parent's own vocab assigns them — so a
-// served learn drops any tags the caller sent, both on a new pending note
-// and on a same-origin in-place rewrite.
+// Test792b35c8a4_ServeLearn_WireTagsAreDropped (792b35c8 Decoding a served learn): offers carry no tags — the
+// parent's own vocab assigns them — so a served learn drops any tags the caller sent, both on a new pending
+// note and on a same-origin in-place rewrite.
 func Test792b35c8a4_ServeLearn_WireTagsAreDropped(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -609,10 +608,9 @@ func Test792b35c8a4_ServeLearn_WireTagsAreDropped(t *testing.T) {
 	g.Expect(written).NotTo(ContainSubstring("wire-family"))
 }
 
-// Test792b35c9a1_ServeLearn_InvalidOfferIsRejected (r4 L-C): an oversized or malformed
-// offer.path, or a malformed offer.origin, answers 400 and writes nothing;
-// a path already holding the server's own vault ID answers 409 and writes
-// nothing (r3-7).
+// Test792b35c9a1_ServeLearn_InvalidOfferIsRejected (792b35c9 Refusing an invalid offer): an oversized or
+// malformed offer.path, or a malformed offer.origin, answers 400 and writes nothing; a path already holding
+// the server's own vault ID answers 409 and writes nothing.
 func Test792b35c9a1_ServeLearn_InvalidOfferIsRejected(t *testing.T) {
 	t.Parallel()
 
@@ -697,7 +695,7 @@ func Test792b35c9a2_ServeLearn_PathValidationProperty(t *testing.T) {
 	})
 }
 
-// Test792b35c9a3_ServeLearn_CycleRefusalReportsVaultID (ruling S12): the 409 loop
+// Test792b35c9a3_ServeLearn_CycleRefusalReportsVaultID (792b35c9 Refusing an invalid offer): the 409 loop
 // refusal carries the server's vault ID, so a child whose own ID it is can
 // recognize itself as its own parent and cache the parent's ID.
 func Test792b35c9a3_ServeLearn_CycleRefusalReportsVaultID(t *testing.T) {
@@ -713,7 +711,7 @@ func Test792b35c9a3_ServeLearn_CycleRefusalReportsVaultID(t *testing.T) {
 	var body struct {
 		Error   string `json:"error"`
 		Reason  string `json:"reason"`
-		VaultID string `json:"vault_id"` //nolint:tagliatelle // the D7 wire key
+		VaultID string `json:"vault_id"` //nolint:tagliatelle // the 792b35c16 wire key
 	}
 	g.Expect(json.Unmarshal(resp.Body, &body)).To(Succeed())
 	g.Expect(body.Error).NotTo(BeEmpty())
@@ -764,14 +762,14 @@ func (l *eventLog) snapshot() []string {
 	return append([]string{}, l.events...)
 }
 
-// receiptBody is the served learn receipt's wire shape (design D7).
+// receiptBody is the served learn receipt's wire shape (792b35c16 The stored hash).
 type receiptBody struct {
 	Status     string `json:"status"`
 	Luhmann    string `json:"luhmann"`
 	Basename   string `json:"basename"`
 	Pending    bool   `json:"pending"`
-	VaultID    string `json:"vault_id"`    //nolint:tagliatelle // design D7 fixes the receipt's snake_case keys
-	StoredHash string `json:"stored_hash"` //nolint:tagliatelle // design D7 fixes the receipt's snake_case keys
+	VaultID    string `json:"vault_id"`    //nolint:tagliatelle // 792b35c16 fixes the receipt's snake_case keys
+	StoredHash string `json:"stored_hash"` //nolint:tagliatelle // 792b35c16 fixes the receipt's snake_case keys
 	For        string `json:"for"`
 }
 

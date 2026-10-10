@@ -20,7 +20,7 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-// Test792a20b1a_ServeTarget_RequiresAddr covers tasks.md 3.1/10.2: `engram serve`
+// Test792a20b1a_ServeTarget_RequiresAddr covers 792a20b A bind address must be given: `engram serve`
 // with no explicit bind address refuses to start rather than silently
 // binding a default (targ's own required-flag validation enforces this —
 // ServeArgs.Addr carries no env fallback either, so there is no path to a
@@ -41,7 +41,7 @@ func Test792a20b1a_ServeTarget_RequiresAddr(t *testing.T) {
 }
 
 // Test792a20b1b_ServeTarget_ResolvesArgsAndCallsRunServe covers the serveTargets
-// success path (task 3.1's other half — a valid --addr, not just the
+// success path (the other half of 792a20b — a valid --addr, not just the
 // missing-flag refusal): Vault/VaultName/ChunksDir get resolved the same
 // way every other target resolves them, then RunServe is reached. A fake
 // ListenAndServe returns immediately so the test doesn't block on a real
@@ -94,7 +94,7 @@ func Test792a21l1a_ShowParent_RoutesThroughFetch(t *testing.T) {
 // Test792a21l1c_ShowFallback_LocalHitDoesNotContactParent covers "Without --parent,
 // behavior is unchanged": with ENGRAM_PARENT configured but the ref found
 // locally, `engram show` (no --parent) returns the local note and never
-// contacts the parent — 792a21 D8's fallback fires only on a
+// contacts the parent — 792a21l's fallback fires only on a
 // local miss.
 func Test792a21l1c_ShowFallback_LocalHitDoesNotContactParent(t *testing.T) {
 	g := NewWithT(t)
@@ -121,7 +121,7 @@ func Test792a21l1c_ShowFallback_LocalHitDoesNotContactParent(t *testing.T) {
 // Test792a21l1d_ShowFallback_LocalMissRoutesToParentLabeled covers "Local miss falls
 // back to the parent": with ENGRAM_PARENT configured and
 // no local match, bare `engram show <ref>` resolves the ref against the
-// parent and labels the output as parent-sourced (792a21 D8).
+// parent and labels the output as parent-sourced (792a21l A note can be shown from the parent).
 func Test792a21l1d_ShowFallback_LocalMissRoutesToParentLabeled(t *testing.T) {
 	g := NewWithT(t)
 	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
@@ -197,8 +197,8 @@ func Test792a21l1f_ShowParent_WithoutEngramParentErrors(t *testing.T) {
 }
 
 // Test792a22b1a_LocalLearn_NeverSetsPendingMarker and Test792a22b1b_LocalAmend_NeverSetsPendingMarker
-// cover tasks.md 10.6's negative case: a local (non-served) learn/amend
-// never carries the pending-offer marker.
+// cover the negative case of 792a22b A note becomes pending only by an exchange: a local (non-served)
+// learn/amend never carries the pending-offer marker.
 func Test792a22b1a_LocalLearn_NeverSetsPendingMarker(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -362,7 +362,7 @@ func Test792b37c10a2_WriteParentSourced_BodyWriteErrorWraps(t *testing.T) {
 
 // Test792b37c1a1_ParentBase_ReadsEngramParentEnv covers parentBase resolving from the
 // ENGRAM_PARENT environment variable — dispatch-level, not a QueryArgs
-// flag threaded through args (design.md Decision 5).
+// flag threaded through args (792b37c1 The parent address).
 func Test792b37c1a1_ParentBase_ReadsEngramParentEnv(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

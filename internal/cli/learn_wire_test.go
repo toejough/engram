@@ -1,6 +1,6 @@
 package cli_test
 
-// Wire-safety tests for served learn (design D7 "Wire safety",
+// Wire-safety tests for served learn (792b35c8 Decoding a served learn,
 // 792a20j, "A caller cannot set link, identity or registration fields"; task
 // 3.7).
 

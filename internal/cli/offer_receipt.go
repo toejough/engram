@@ -24,19 +24,16 @@ var (
 	errReceiptNoteUndecodable = errors.New("the note's frontmatter does not decode")
 )
 
-// applyReceiptToContent records an offer receipt on the note (design D6):
-// parent.vault becomes the receipt's vault ID and the primary link becomes
-// {note: the resolved target when the receipt names one (H3), else the
-// receipt's basename; via: offered; hash: the receipt's stored_hash}.
-// Covered links under the same vault are kept; links under another vault
-// are dropped. Only the parent: key is edited, as YAML nodes
-// (editExchangeBlocks, ruling V7): unknown keys under parent: and inside a
-// kept link survive, an anchored parent: refuses the receipt untouched, and
-// every other key keeps its decoded value — so the exchange hash, identity
-// and every other field are untouched (no re-stamp, and nothing here
+// applyReceiptToContent records an offer receipt on the note (792a21u A receipt links the local note to its
+// counterpart): parent.vault becomes the receipt's vault ID and the primary link becomes {note: the resolved
+// target when the receipt names one, else the receipt's basename; via: offered; hash: the receipt's
+// stored_hash}. Covered links under the same vault are kept; links under another vault are dropped. Only the
+// parent: key is edited, as YAML nodes (editExchangeBlocks): unknown keys under parent: and inside a kept
+// link survive, an anchored parent: refuses the receipt untouched, and every other key keeps its decoded
+// value — so the exchange hash, identity and every other field are untouched (no re-stamp, and nothing here
 // re-embeds).
 func applyReceiptToContent(raw []byte, receipt offerReceipt) (string, error) {
-	raw = toLF(raw) // a CRLF note takes the receipt as LF, converted in that write (#789 design D4)
+	raw = toLF(raw) // a CRLF note takes the receipt as LF, converted in that write (792a21zb CRLF exchanges as LF)
 
 	frontmatter, found := splitFrontmatter(raw)
 	if !found {
@@ -114,16 +111,16 @@ func linkedParent(current parentLinks, receipt offerReceipt) parentLinks {
 
 // receiptRefused reports whether err is the local note refusing a receipt
 // because of its frontmatter — an anchored parent:, or frontmatter that does
-// not decode — rather than a failure to write it (#789 design D3).
+// not decode — rather than a failure to write it (792a21w A receipt the note refuses needs attention).
 func receiptRefused(err error) bool {
 	return errors.Is(err, errFrontmatterAnchoredKey) || errors.Is(err, errFrontmatterUndecodable) ||
 		errors.Is(err, errFrontmatterNotMapping) || errors.Is(err, errNoteNoFrontmatter) ||
 		errors.Is(err, errReceiptNoteUndecodable)
 }
 
-// setXIDField stamps xid onto a note that has none (the lazy stamp, design
-// D4), in the writer's key order (before parent, aliases and offer). A note
-// that already carries an xid is returned unchanged.
+// setXIDField stamps xid onto a note that has none (the lazy stamp, 792a21zi An exchanged note carries a
+// stable exchange ID), in the writer's key order (before parent, aliases and offer). A note that already
+// carries an xid is returned unchanged.
 func setXIDField(content, xid string) (string, error) {
 	frontmatter, _, ok := splitFrontmatterAndBody(content)
 	if !ok {

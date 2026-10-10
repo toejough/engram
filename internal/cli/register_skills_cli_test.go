@@ -14,7 +14,7 @@ import (
 )
 
 // Test792b31c6a10_RegisterSkillsCLI_SkillsDirIsRepeatablePreview covers `--skills-dir`
-// (design D9): repeatable, relative dirs resolve against the working
+// (792b31c6 The registration run): repeatable, relative dirs resolve against the working
 // directory, and the run is a dry-run preview of `claude:` keys that writes
 // nothing to the vault.
 func Test792b31c6a10_RegisterSkillsCLI_SkillsDirIsRepeatablePreview(t *testing.T) {
@@ -306,8 +306,8 @@ func Test792b31c8a3_RegisterSkillsCLI_DryRunListsRegisterOffer(t *testing.T) {
 // built binary (not the in-process targ wiring, which never exercises
 // cmd/engram/main.go's IsTerminal primitive) with stdin redirected from
 // /dev/null — a character device, exactly like an agent harness's `</dev/null`
-// redirection, but not an interactive terminal. skill-runbook-registration's
-// "Registration SHALL never prompt or write without a terminal" must hold
+// redirection, but not an interactive terminal. 792a12g Registration never
+// prompts or writes without a terminal, and must hold
 // here: no prompt text, just the one non-interactive summary line, and the
 // vault stays untouched (regression coverage for the ModeCharDevice
 // misdetection: /dev/null satisfies ModeCharDevice, so os.Stdin.Stat() alone

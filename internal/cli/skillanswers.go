@@ -21,7 +21,7 @@ const (
 // --decline, or SkillAnswerNone.
 type SkillAnswer string
 
-// SkillAnswers holds the parsed --accept and --decline tokens (design D6):
+// SkillAnswers holds the parsed --accept and --decline tokens (792b31c5 Answers and prompts):
 // each an exact key, a key-prefix pattern ending in `*`, or a scope
 // selector `@<scope-id>`. Build it with ParseSkillAnswers.
 type SkillAnswers struct {
@@ -29,7 +29,7 @@ type SkillAnswers struct {
 	decline []string
 }
 
-// Resolve returns offer's explicit answer (design D6 precedence): an exact
+// Resolve returns offer's explicit answer (792b31c5 Answers and prompts precedence): an exact
 // key wins; otherwise the longest matching `*` pattern (by prefix length);
 // otherwise a matching `@<scope-id>` selector. A removal offer is matched
 // only by its exact key, never by a pattern or selector.
@@ -80,7 +80,7 @@ type SkillOfferAnswering struct {
 	Decline func(SkillOffer) error
 }
 
-// AnswerSkillOffers answers each scope's offers, scope by scope (design D6):
+// AnswerSkillOffers answers each scope's offers, scope by scope (792b31c5 Answers and prompts):
 //   - an offer with an explicit answer (SkillAnswers.Resolve) is accepted or
 //     declined without prompting;
 //   - when interactive, a scope with more than one remaining register or
@@ -115,7 +115,7 @@ func AnswerSkillOffers(input SkillOfferAnswering, stdout io.Writer) error {
 
 // ParseSkillAnswers builds SkillAnswers from the --accept and --decline
 // tokens, refusing (errAnswerInBothFlags) any token — key, pattern or
-// selector — named in both, before anything is acted on (design D6).
+// selector — named in both, before anything is acted on (792b31c5 Answers and prompts).
 func ParseSkillAnswers(accept, decline []string) (SkillAnswers, error) {
 	declineSet := toStringSet(decline)
 
@@ -128,7 +128,7 @@ func ParseSkillAnswers(accept, decline []string) (SkillAnswers, error) {
 	return SkillAnswers{accept: accept, decline: decline}, nil
 }
 
-// PreviewSkillOffers prints `--dry-run`'s listing (design D6): each scope's
+// PreviewSkillOffers prints `--dry-run`'s listing (792b31c5 Answers and prompts): each scope's
 // header `@<scope-id> (<count>)`, then one indented `would offer: <kind>
 // <key> (<source>)` line per offer — a removal with no recorded source
 // names its note instead — and finally the comparison's warnings and
@@ -154,18 +154,18 @@ const (
 	answerRankNone        = -1
 	answerRankPatternBase = 1
 	answerRankSelector    = 0
-	// skillAnswerPatternSuffix ends a key-prefix pattern (design D6).
+	// skillAnswerPatternSuffix ends a key-prefix pattern (792b31c5 Answers and prompts).
 	skillAnswerPatternSuffix = "*"
-	// skillAnswerSelectorPrefix starts a scope selector (design D6).
+	// skillAnswerSelectorPrefix starts a scope selector (792b31c5 Answers and prompts).
 	skillAnswerSelectorPrefix = "@"
 	// skillGroupPromptFormat asks once for a scope's register/refresh offers
-	// (design D6), after listing them.
+	// (792b31c5 Answers and prompts), after listing them.
 	skillGroupPromptFormat = "@%s (%d): [a]ccept all / [d]ecline all / [r]eview each / [s]kip for now "
 	// skillGroupPromptOfferFormat lists one offer above the group question.
 	skillGroupPromptOfferFormat = "  %s %s%s\n"
 	// skillOutstandingScopeFormat is one `@<scope-id> <count>` summary label.
 	skillOutstandingScopeFormat = "@%s %d"
-	// skillScopeHeaderFormat heads a scope's --dry-run listing (design D6's
+	// skillScopeHeaderFormat heads a scope's --dry-run listing (792b31c5 Answers and prompts'
 	// label: the answerable selector with its count).
 	skillScopeHeaderFormat = "@%s (%d)\n"
 	// skillSourceNoteFormat names a removal's note when it has no recorded
@@ -187,7 +187,7 @@ const (
 // unexported variables.
 var (
 	// errAnswerInBothFlags refuses a key, pattern or selector named in both
-	// --accept and --decline (design D6).
+	// --accept and --decline (792b31c5 Answers and prompts).
 	errAnswerInBothFlags = errors.New("register-skills: answer named in both --accept and --decline")
 )
 
@@ -278,7 +278,7 @@ func (a *skillOfferAnswerer) askGroup(scopeID string, bulk []SkillOffer) groupCh
 }
 
 // promptEach asks the per-offer y/N question for each offer; end of input
-// is no answer and records nothing (ruling R29).
+// is no answer and records nothing (792b31c5 Answers and prompts).
 func (a *skillOfferAnswerer) promptEach(offers []SkillOffer) error {
 	for _, offer := range offers {
 		answer := promptForOffer(offer, a.scanner, a.stdout)
@@ -334,7 +334,7 @@ func (a *skillOfferAnswerer) promptScope(scopeID string, offers []SkillOffer) er
 	return a.promptEach(removals)
 }
 
-// answerTokenRank ranks token against offer (design D6): an exact key
+// answerTokenRank ranks token against offer (792b31c5 Answers and prompts): an exact key
 // highest, then a matching pattern by prefix length, then a matching
 // selector; a removal is matched only by its exact key.
 func answerTokenRank(offer SkillOffer, token string) int {
@@ -404,7 +404,7 @@ func offerSourceLabel(offer SkillOffer) string {
 }
 
 // printOutstandingSummary prints the one-line non-interactive summary
-// (design D6) when any offer is outstanding.
+// (792b31c5 Answers and prompts) when any offer is outstanding.
 func printOutstandingSummary(stdout io.Writer, scopes []outstandingScope) {
 	if len(scopes) == 0 {
 		return

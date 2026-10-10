@@ -459,12 +459,12 @@ func Test792b14c8a3_RunResituate_ContentErrors(t *testing.T) {
 	}
 }
 
-// Test792b14c8a4_RunResituate_KeepsEveryKeyButSituationProperty is P3 (design D7): for
+// Test792b14c8a4_RunResituate_KeepsEveryKeyButSituationProperty is P3 (792b14c8 Resituation): for
 // a fact or feedback note carrying 0-3 unknown keys (scalar, list, nested
 // map) and optionally an anchored unknown value aliased by another key,
 // every key except situation decodes to the same value after resituate —
 // unless situation: or created: carries an aliased anchor, which refuses
-// the note unwritten (ruling V3).
+// the note unwritten (792b6c7 Frontmatter node edits).
 func Test792b14c8a4_RunResituate_KeepsEveryKeyButSituationProperty(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
@@ -478,14 +478,14 @@ func Test792b14c8a4_RunResituate_KeepsEveryKeyButSituationProperty(t *testing.T)
 		before := resituateUnknownKeysNote(noteType, unknown)
 
 		// An anchor on a key resituate sets refuses the note unwritten
-		// (ruling V3).
+		// (792b6c7 Frontmatter node edits).
 		edited := rapid.SampledFrom([]string{"", "situation: ", "created: "}).Draw(rt, "anchoredEditedKey")
 		if edited != "" {
 			before = strings.Replace(before, "\n"+edited, "\n"+edited+"&e ", 1)
 			before = strings.Replace(before, "vault: v\n", "vault: v\nx_edit_ref: *e\n", 1)
 		}
 
-		// A CRLF note is converted to LF in the same write (design D5).
+		// A CRLF note is converted to LF in the same write (792b14c7 CRLF revision).
 		input := before
 		if rapid.Bool().Draw(rt, "crlf") {
 			input = crlf(before)
@@ -578,7 +578,7 @@ func Test792b14c8a5_RunResituate_IOErrors(t *testing.T) {
 }
 
 // Test792b6c7a1_RunResituate_KeepsUnmodeledKeys covers note-revision 792a4j1d's
-// unmodeled key (design D6b): on a fact and on a
+// unmodeled key (792a4j Untouched frontmatter is kept): on a fact and on a
 // feedback note, `luhmann_old: "12"` and a nested unknown map survive.
 func Test792b6c7a1_RunResituate_KeepsUnmodeledKeys(t *testing.T) {
 	t.Parallel()

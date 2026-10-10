@@ -21,7 +21,7 @@ import (
 const (
 	// backoffBase is the first backoff window after a failed parent
 	// contact; each consecutive failure doubles it up to backoffCap
-	// (design D6, M9).
+	// (792b5c14 The parent cache and the contact backoff).
 	backoffBase = 30 * time.Second
 	backoffCap  = 15 * time.Minute
 	// backoffMaxShift is the doubling count past which the window is
@@ -91,19 +91,19 @@ type exchangeStateFS interface {
 }
 
 // homeRecord is .engram/home.json: the vault ID and its canonical path.
-// No hostname, by design (r4 H-A).
+// No hostname, by design.
 type homeRecord struct {
-	VaultID string `json:"vault_id"` //nolint:tagliatelle // design D2 fixes home.json's snake_case keys
+	VaultID string `json:"vault_id"` //nolint:tagliatelle // 792b5c7 fixes home.json's snake_case keys
 	Path    string `json:"path"`
 }
 
 // parentCache is .engram/parent.json: the configured parent's URL, its
-// reported vault ID, and the backoff state (design D2, D6). The backoff
+// reported vault ID, and the backoff state (792b5c14). The backoff
 // belongs to the URL that failed: a cache for another URL is ignored.
 type parentCache struct {
 	URL          string    `json:"url"`
-	VaultID      string    `json:"vault_id,omitempty"`     //nolint:tagliatelle // design D2 fixes parent.json's keys
-	BackoffUntil time.Time `json:"backoff_until,omitzero"` //nolint:tagliatelle // design D2 fixes parent.json's keys
+	VaultID      string    `json:"vault_id,omitempty"`     //nolint:tagliatelle // 792b5c14 fixes parent.json's keys
+	BackoffUntil time.Time `json:"backoff_until,omitzero"` //nolint:tagliatelle // 792b5c14 fixes parent.json's keys
 	Failures     int       `json:"failures"`
 }
 
@@ -207,7 +207,7 @@ func claimVaultLocation(state exchangeState, vault string) (string, error) {
 
 // ensureExchangeStateDir readies .engram/ for an exchange-state writer
 // (outbox, parent cache): the vault ID is stamped first, so .engram/ keeps
-// meaning created-by-engram (ruling S4), then the directory is ensured.
+// meaning created-by-engram (792b5c4 Vault ID stamping), then the directory is ensured.
 func ensureExchangeStateDir(state exchangeState, vault string) error {
 	_, stampErr := stampVaultID(state, vault)
 	if stampErr != nil {
@@ -237,7 +237,7 @@ func ensureStateDir(state exchangeState, vault string) error {
 }
 
 // ensureVault is the shared first-use step every vault-resolving command
-// runs in dispatch (design D2, #766): a missing vault is created (starters,
+// runs in dispatch (792b5c1 First-use ensure, #766): a missing vault is created (starters,
 // vault ID, .engram/ and its location record) and announced with one stderr
 // line. An existing vault is left completely untouched — read-only use never
 // creates the ID (serve and first parent contact stamp it lazily).
@@ -287,7 +287,7 @@ func exchangeStateFromDeps(deps Deps) exchangeState {
 // gateParentContact decides whether a command may contact the parent now.
 // Inside the backoff window it prints the one warning (retry time and
 // queued-offer count) and returns false; `engram update` passes
-// ignoreBackoff and always tries (design D6).
+// ignoreBackoff and always tries (792b5c14).
 func gateParentContact(store outboxStore, vault, parentURL string, ignoreBackoff bool) bool {
 	if ignoreBackoff {
 		return true
@@ -311,7 +311,7 @@ func gateParentContact(store outboxStore, vault, parentURL string, ignoreBackoff
 }
 
 // isExchangeBasename reports whether name is a note basename another vault
-// may hand this one (final review F6): a Luhmann basename with no path
+// may hand this one (792b5c15 Exchange identifiers): a Luhmann basename with no path
 // separator and no '|' (which would corrupt the note|type|claim supersedes
 // encoding). Parent-supplied basenames are stored in frontmatter,
 // declined.json and offers, so anything else is a malformed reply.
@@ -402,12 +402,12 @@ func mintExchangeID(randRead func([]byte) (int, error), label string) (string, e
 	return hex.EncodeToString(raw), nil
 }
 
-// mintVaultID mints a new vault ID (design D2).
+// mintVaultID mints a new vault ID (792b5c4 Vault ID stamping).
 func mintVaultID(randRead func([]byte) (int, error)) (string, error) {
 	return mintExchangeID(randRead, "vault id")
 }
 
-// mintXID mints a note's exchange ID (design D4).
+// mintXID mints a note's exchange ID (792b33c7 The lazy exchange ID).
 func mintXID(randRead func([]byte) (int, error)) (string, error) {
 	return mintExchangeID(randRead, "xid")
 }
@@ -446,7 +446,7 @@ func noteParentSuccess(cache parentCache, parentURL, vaultID string) parentCache
 	cache.BackoffUntil = time.Time{}
 
 	// Only a well-formed vault ID is remembered: the parent reports it, so
-	// a malformed one is ignored (final review F6).
+	// a malformed one is ignored (792b5c15 Exchange identifiers).
 	if isExchangeID(vaultID) {
 		cache.VaultID = vaultID
 	}
@@ -579,7 +579,7 @@ func rereadWinningVaultID(state exchangeState, vault string) (string, error) {
 }
 
 // saveParentCache writes parent.json atomically, stamping the vault ID
-// before .engram/ is created (ruling S4).
+// before .engram/ is created (792b5c4 Vault ID stamping).
 func saveParentCache(state exchangeState, vault string, cache parentCache) error {
 	dirErr := ensureExchangeStateDir(state, vault)
 	if dirErr != nil {

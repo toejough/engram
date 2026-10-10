@@ -66,7 +66,7 @@ func Test792a21c1a_Targets_Query_MergedMode_CombinesLocalAndParent(t *testing.T)
 }
 
 // Test792a21g1a_Targets_ShowFallback_SurfacesParentRunbookAfterMergedQuery is the
-// register-skills-as-runbooks D8 merged-vault smoke (tasks.md 6.2): a
+// merged-vault smoke for register-skills-as-runbooks (792a21 parent-sync): a
 // runbook note that exists only in the parent vault is surfaced by a
 // client's `engram query` (merged mode, tagged from_parent: true) and then
 // fetched by a bare `engram show <basename>` (no --parent) through the

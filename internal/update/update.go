@@ -23,17 +23,17 @@ const (
 	ModulePath            = "github.com/toejough/engram"
 	// ReexecSentinelEnvVar is the loop-guard environment variable set on a
 	// re-exec child so it skips source resolution/install and never
-	// re-execs again (design D2). Read via Env.Getenv; non-empty means set.
+	// re-execs again (792b28c9 Hand-off). Read via Env.Getenv; non-empty means set.
 	ReexecSentinelEnvVar = "ENGRAM_UPDATE_REEXEC"
 )
 
 // DeployMode selects how one harness's harness-visible artifact surfaces
-// are materialized from the engram-owned root (D7). DeployModeSymlink links
+// are materialized from the engram-owned root (792b29c13 Manifest mode). DeployModeSymlink links
 // the surface path directly into the root — real content lives only in the
-// root (D1), never as a harness-visible copy. DeployModeManifest copies real
+// root (792b29c5 Root ownership), never as a harness-visible copy. DeployModeManifest copies real
 // files and records every written path in a manifest so sync can delete by
-// that record instead of by symlink identity. Per verification-verdicts.md's
-// symlink-discovery probes (tasks 1.1-1.3: Claude Code and Pi both
+// that record instead of by symlink identity. Per the
+// symlink-discovery probes (792b29a Orientation: Claude Code and Pi both
 // discovered a skill and/or guidance file through a symlinked path), both
 // currently-supported harnesses run in DeployModeSymlink —
 // see supportedHarnesses. The zero value is invalid; every entry in
@@ -83,7 +83,7 @@ var (
 	// exec.ErrNotFound) to this sentinel before returning, keeping this
 	// package free of os/exec (#700).
 	ErrCommandNotFound = errors.New("command not found")
-	// ErrEngramRootNotDir means an engram-owned root path (D1) exists but is
+	// ErrEngramRootNotDir means an engram-owned root path (792b29c5 Root ownership) exists but is
 	// a file, not a directory — the sync engine refuses to touch it.
 	ErrEngramRootNotDir = errors.New("engram root exists and is not a directory")
 	ErrGitNotFound      = errors.New("git binary not found on PATH")
@@ -92,8 +92,8 @@ var (
 	// installed binary whose embedded VCS revision the module root's git
 	// history provably does NOT descend from (git merge-base
 	// --is-ancestor failed cleanly, not merely inconclusively) — installing
-	// would silently regress a newer binary to older code (update-local-
-	// install-safety). Refused unless Options.AllowDowngrade is set.
+	// would silently regress a newer binary to older code (792b28c7
+	// Downgrade gate). Refused unless Options.AllowDowngrade is set.
 	ErrLocalDowngrade = errors.New("local install would downgrade the installed binary")
 	// ErrModelLFSStub means the cloned model.onnx is a Git-LFS pointer file,
 	// not the real model — building from it would embed a 133-byte stub and
@@ -130,7 +130,7 @@ type DirEntry interface {
 // EngramSyncOp is one planned action against an engram-owned root: create a
 // missing intended file, overwrite one whose path already holds content, or
 // delete a file present under a managed subtree but absent from the
-// intended set (D4). RelPath is relative to the root; AbsPath is root +
+// intended set (792b29c6 Root synchronization). RelPath is relative to the root; AbsPath is root +
 // RelPath. Src is the absolute source to read from (Create/Overwrite only).
 type EngramSyncOp struct {
 	Kind    EngramSyncOpKind
@@ -151,7 +151,7 @@ type FileInfo interface {
 	IsDir() bool
 	// Mode returns the file mode bits, including the type bits (e.g.
 	// fs.ModeSymlink), so callers can distinguish symlink / real file / dir
-	// without following the entry (D8).
+	// without following the entry (792b29c10 Dangling-link cleanup).
 	Mode() fs.FileMode
 }
 
@@ -170,24 +170,24 @@ type Filesystem interface {
 	// I/O failure.
 	RemoveAll(path string) error
 	// Symlink creates link as a symbolic link to target. Used to
-	// materialize the sync engine's engram-owned-root links (D1/D3). Same
+	// materialize the sync engine's engram-owned-root links (792b29c5 Root ownership and 792b29c7 Skill links). Same
 	// semantics as os.Symlink: errors if link already exists.
 	Symlink(target, link string) error
 	// ReadLink returns the destination that the symbolic link at path
-	// points to. Used by dangling-link cleanup (D5) to resolve a link's
+	// points to. Used by dangling-link cleanup (792b29c10 Dangling-link cleanup) to resolve a link's
 	// logical target without following it. Same semantics as os.Readlink:
 	// errors if path is not a symbolic link.
 	ReadLink(path string) (string, error)
 	// Lstat returns the FileInfo for path without following a trailing
-	// symlink, so callers can distinguish symlink / real file / dir (D8).
+	// symlink, so callers can distinguish symlink / real file / dir (792b29c10 Dangling-link cleanup).
 	// Same semantics as os.Lstat: errors only on real I/O failure.
 	Lstat(path string) (FileInfo, error)
 }
 
 // HandoffReporter writes the parent's install-result report BEFORE the
-// re-exec child is spawned (design D6/D8): the CLI wires this to flush that
+// re-exec child is spawned (792b28c9 Hand-off): the CLI wires this to flush that
 // report to stdout ahead of the child's inherited-stdio output, giving the
-// single-coherent-report ordering the spec requires (install result once,
+// single-coherent-report ordering 792b28c9 Hand-off requires (install result once,
 // first; sync/check report once, from the child). Formatting/writing is a
 // cli-layer concern — Updater has no stdout writer of its own.
 type HandoffReporter interface {
@@ -217,23 +217,23 @@ type HarnessReport struct {
 	SkillDirs         []SkillDirCount
 	GuidanceFiles     []string // basenames of .md files copied into the guidance dir
 	// EngramRoot is the resolved absolute path to this harness's
-	// engram-owned root (D1), maintained by the sync engine below.
+	// engram-owned root (792b29c5 Root ownership), maintained by the sync engine below.
 	EngramRoot string
 	// EngramSyncDeleted lists every path (relative to EngramRoot) the sync
-	// engine deleted this run (D4).
+	// engine deleted this run (792b29c6 Root synchronization).
 	EngramSyncDeleted []string
 	// EngramUnattributable lists basenames found at the top level of a
 	// marker-less engram-owned root that match no intended deploy set
-	// basename — reported for manual review, never deleted (D2).
+	// basename — reported for manual review, never deleted (792b29c5 Root ownership).
 	EngramUnattributable []string
 	// EngramDeletionRefused is true when EngramRoot exists without the
 	// `.engram-owned` marker: sync-deletion was refused there this run,
-	// though creates/overwrites still applied (D2).
+	// though creates/overwrites still applied (792b29c5 Root ownership).
 	EngramDeletionRefused bool
 	// SurfaceUnmanaged lists the absolute harness-visible surface paths
 	// (skill dirs, guidance files) where a REAL file or
 	// directory was found that matches NO intended-set artifact for that
-	// surface (D6/task 5.2) — an unmanaged entry engram has no ownership
+	// surface (792b29c11 Unmanaged entries) — an unmanaged entry engram has no ownership
 	// signal for either way, reported for manual review and left completely
 	// untouched. Populated only on the first sync for a harness (no marker
 	// present at the start of this run): once every intended-set path is a
@@ -246,12 +246,12 @@ type HarnessReport struct {
 	// dirs, guidance files, and Claude's root-level guidance
 	// compat links) where an intended-set REAL file or directory — a
 	// pre-sync copy-mode deploy — was replaced by a symlink into the
-	// engram-owned root this run (D6/task 5.1). Under DryRun these are the
+	// engram-owned root this run (792b29c8 Adopting earlier copies). Under DryRun these are the
 	// paths that WOULD be adopted; nothing is actually changed.
 	EngramAdopted []string
 	// DanglingLinksRemoved lists the absolute paths of every harness-surface
 	// symlink removed this run because its lexically-resolved target lay
-	// inside EngramRoot but no longer existed (D5). Under DryRun these are
+	// inside EngramRoot but no longer existed (792b29c10 Dangling-link cleanup). Under DryRun these are
 	// the links that WOULD be removed; nothing is actually deleted.
 	DanglingLinksRemoved []string
 	Err                  error
@@ -268,8 +268,8 @@ type HarnessSpec struct {
 	GuidanceTargetRel string // guidance install dir under home (empty: skip guidance)
 	ImportsFileRel    string // config file under home scanned for guidance @imports (empty: skip detection)
 	// EngramRootRel is the home-relative engram-owned root this harness's
-	// sync engine maintains (D1): real skill/guidance content lives
-	// only here, synced to exactly match the intended deploy set (D4).
+	// sync engine maintains (792b29c5 Root ownership): real skill/guidance content lives
+	// only here, synced to exactly match the intended deploy set (792b29c6 Root synchronization).
 	// Harness-visible copies/symlinks materializing FROM it are handled by
 	// applySkillLinks/applyGuidanceLinks (symlink mode) or
 	// applyForHarnessManifestMode (manifest mode), plus first-sync migration
@@ -279,7 +279,7 @@ type HarnessSpec struct {
 	// deletion — an empty value would resolve to home itself).
 	EngramRootRel string
 	// DeployMode selects symlink vs manifest materialization for this
-	// harness's surfaces (D7) — see the DeployMode doc comment.
+	// harness's surfaces (792b29c13 Manifest mode) — see the DeployMode doc comment.
 	// supportedHarnesses sets this for every currently-supported harness.
 	DeployMode DeployMode
 }
@@ -289,7 +289,7 @@ type Options struct {
 	DryRun       bool
 	WithGuidance bool // deploy agent-instructions/guidance/*.md to the harness guidance dir
 	// AllowDowngrade bypasses the local-mode provable-downgrade gate
-	// (update-local-install-safety): when true, resolveSource never
+	// (792b28c7 Downgrade gate): when true, resolveSource never
 	// refuses an install on ancestry grounds — same behavior as before the
 	// gate existed. Has no effect in remote mode (re-cloning always builds
 	// the repo's current tip, so there is no analogous downgrade risk).
@@ -297,7 +297,7 @@ type Options struct {
 	// ReexecArgs are the original `engram update` invocation's flags (e.g.
 	// "--with-guidance"), reconstructed by the CLI layer from UpdateArgs and
 	// passed after "update" when re-execing the freshly installed binary
-	// (design D2). Never includes --dry-run: a dry run never re-execs.
+	// (792b28c9 Hand-off). Never includes --dry-run: a dry run never re-execs.
 	ReexecArgs []string
 }
 
@@ -370,30 +370,29 @@ type Report struct {
 	VaultHasPendingOffers bool
 
 	// VaultIDUncommitted is true when a git-backed vault's tracked
-	// .engram-vault-id exists but is untracked or uncommitted (design D2's
+	// .engram-vault-id exists but is untracked or uncommitted (792b28c9 Hand-off's
 	// deliberate one-time vault commit). Set by the cli package after Run
 	// returns (via vaultIDUncommitted); opaque data here.
 	VaultIDUncommitted bool
 
-	// OutboxNotice is the parent-exchange notice (design D6): the queued
+	// OutboxNotice is the parent-exchange notice (792b28c9 Hand-off): the queued
 	// offer count, the oldest entry's age, each rejected entry with its
 	// error, and the backoff state — empty when the outbox is idle. Set by
 	// the cli package after Run returns; opaque data here.
 	OutboxNotice string
 
 	// SkillRegistrationErr, when non-empty, is a skill-registration failure's
-	// message (skill-runbook-registration). Set by the cli package after
+	// message (792b28c16 The registration step). Set by the cli package after
 	// running its post-deploy registration hook — Updater.Run itself never
 	// touches vault or skill paths; this field is opaque data, same
-	// convention as VaultHasPendingOffers above. update-deploy-sync:
-	// "Registration failures SHALL be reported and SHALL NOT roll back the
-	// deploy" — this field is how the failure reaches the report without
+	// convention as VaultHasPendingOffers above. Registration failures are reported and do not roll back the
+	// deploy (792b28c16 The registration step) — this field is how the failure reaches the report without
 	// failing runUpdate.
 	SkillRegistrationErr string
 
 	// ReexecExitCode is set (non-nil) iff this run's install succeeded and
 	// re-exec of the freshly installed binary was spawned and awaited
-	// (design D8): the pointee is the re-execed child's exit code, and Run
+	// (792b28c9 Hand-off): the pointee is the re-execed child's exit code, and Run
 	// returned WITHOUT planning or applying anything — the child performed
 	// the sync/check phase. nil means either no install ran this call
 	// (sentinel set, or --dry-run) or re-exec was attempted and fell back
@@ -401,16 +400,16 @@ type Report struct {
 	ReexecExitCode *int
 	// ReexecFallbackErr is set to a user-facing line ("re-exec failed,
 	// completed with pre-update logic: <err>") when an install succeeded
-	// but spawning the installed binary failed (design D5); the rest of
+	// but spawning the installed binary failed (792b28c9 Hand-off); the rest of
 	// this Report reflects the in-process fallback run that completed
 	// instead. Empty when no fallback occurred.
 	ReexecFallbackErr string
 	// ReexecChild is true when this run observed the loop-guard sentinel
-	// (design D2): it performed no install and its report must not claim
+	// (792b28c9 Hand-off): it performed no install and its report must not claim
 	// one. The cli package's writeUpdateReport uses this to suppress the
 	// header block (source/binary lines) it already printed once as the
 	// PARENT's pre-spawn report — printing it again from the child would
-	// both duplicate the header (D6/spec Req 5) AND misattribute an
+	// both duplicate the header (792b28c9 Hand-off) AND misattribute an
 	// install this run never performed (defect: sentinel run claiming
 	// "binary: go install ... ok").
 	ReexecChild bool
@@ -467,7 +466,7 @@ type SourceInfo struct {
 
 // Spawner runs a binary with args and extra environment variables, with
 // stdio inherited from the parent process (used to re-exec the freshly
-// installed binary so the sync/check phase runs fresh code — design D1).
+// installed binary so the sync/check phase runs fresh code — 792b28c9 Hand-off).
 // err is non-nil ONLY when the process could not be started (binary
 // missing or not executable); a started child's exit code — including a
 // non-zero code for a signal death — comes back via exitCode with err nil.
@@ -555,7 +554,7 @@ func (u *Updater) applyClearedOne(copyOp CopyOp, dryRun bool) error {
 }
 
 // applyEngramRootOps writes the marker (when writeMarker — a freshly-created
-// root, D2) before applying ops, so a mid-plan failure still leaves the root
+// root, 792b29c5 Root ownership) before applying ops, so a mid-plan failure still leaves the root
 // correctly claimed for the next run.
 func (u *Updater) applyEngramRootOps(root string, writeMarker bool, ops []EngramSyncOp) error {
 	if writeMarker {
@@ -573,11 +572,11 @@ func (u *Updater) applyEngramRootOps(root string, writeMarker bool, ops []Engram
 	return applyEngramSyncOps(u.FS, ops)
 }
 
-// applyEngramRootSync maintains spec's engram-owned root (D1): it re-roots
+// applyEngramRootSync maintains spec's engram-owned root (792b29c5 Root ownership): it re-roots
 // this run's skill/command/guidance CopyOps under the root's skills/,
 // commands/, guidance/ subtrees, resolves ownership from the `.engram-owned`
-// marker (D2), plans the sync (D4), plans which managed-subtree directories
-// the deletions would leave empty (pruneEmptyDirs — D4 continued: a
+// marker (792b29c5 Root ownership), plans the sync (792b29c6 Root synchronization), plans which managed-subtree
+// directories the deletions would leave empty (pruneEmptyDirs — 792b29c6 Root synchronization, continued: a
 // directory holding no intended file is as "present-but-unintended" as a
 // file, so it is deleted too, never left as a hollow shell a stale
 // harness-visible symlink could still resolve through), and — unless
@@ -589,14 +588,14 @@ func (u *Updater) applyEngramRootOps(root string, writeMarker bool, ops []Engram
 // so a symlink whose target directory this call just emptied-and-removed is
 // already gone by the time the dangling-link scan runs, in the SAME update
 // invocation (spec: "Removed source artifact disappears on next update").
-// Returns isFirstSync (D6): true when root held no marker at the START of
+// Returns isFirstSync (792b29c8 Adopting earlier copies): true when root held no marker at the START of
 // this run (whether root was absent, or pre-existing and marker-less) — the
-// D6 adoption pass runs and the marker is stamped this run (unless dryRun),
+// 792b29c8 Adopting earlier copies pass runs and the marker is stamped this run (unless dryRun),
 // but sync-deletion (and pruning, gated the same way) of managed-subtree
-// drift is refused THIS run regardless (D2: "no sync-deletion occurs in
+// drift is refused THIS run regardless (792b29c5 Root ownership: "no sync-deletion occurs in
 // that directory" when it started unmarked) and only applies on a genuinely
 // subsequent sync. Callers use isFirstSync to gate the surface stray-scan
-// (task 5.2), which is only worth its ReadDir cost once, before every
+// (792b29c11 Unmanaged entries), which is only worth its ReadDir cost once, before every
 // intended-set path becomes a symlink.
 func (u *Updater) applyEngramRootSync(
 	rep *HarnessReport,
@@ -657,9 +656,9 @@ func (u *Updater) applyEngramRootSync(
 	return ownership.writeMarker
 }
 
-// applyForHarness dispatches to the D7 deploy-mode-specific materialization.
-// DeployModeSymlink harnesses get D3/D5 symlink materialization + cleanup;
-// DeployModeManifest harnesses get copy-based materialization with manifest
+// applyForHarness dispatches to the deploy-mode-specific materialization (792b29c13 Manifest mode, 792b29c7 Skill
+// links). DeployModeSymlink harnesses get symlink materialization + cleanup (792b29c7 Skill links, 792b29c10
+// Dangling-link cleanup); DeployModeManifest harnesses get copy-based materialization with manifest
 // recording and deletion (#6.1).
 func (u *Updater) applyForHarness(
 	rep *HarnessReport,
@@ -712,17 +711,17 @@ func (u *Updater) applyForHarnessManifestMode(
 	u.applyEngramRootSync(rep, spec, home, skillOps, guidanceOps, guidanceManaged, dryRun)
 }
 
-// applyForHarnessSymlinkMode implements D3/D5/D6 for a symlink-mode harness:
-// the engram-owned root sync (D1/D4) runs FIRST so real content exists
-// under the root before any surface symlink is created against it, then
-// skill surfaces are materialized as symlinks (never copies) —
-// adopting any real pre-migration copy found there (task 5.1) — then, on
+// applyForHarnessSymlinkMode implements 792b29c7 Skill links, 792b29c10 Dangling-link cleanup and 792b29c8 Adopting
+// earlier copies for a symlink-mode harness: the engram-owned root sync (792b29c5 Root ownership and 792b29c6 Root
+// synchronization) runs FIRST so real content exists under the root before any surface symlink is created against
+// it, then skill surfaces are materialized as symlinks (never copies) —
+// adopting any real pre-migration copy found there (792b29c8 Adopting earlier copies) — then, on
 // the first sync only, every surface dir is scanned for real strays outside
-// the intended set (task 5.2), and finally every run scans the harness's
-// surface dirs for dangling engram links and removes them (D5). Guidance is
-// the D1 exception: Claude Code's GuidanceTargetRel equals its EngramRootRel
+// the intended set (792b29c11 Unmanaged entries), and finally every run scans the harness's
+// surface dirs for dangling engram links and removes them (792b29c10 Dangling-link cleanup). Guidance is
+// the exception to 792b29c5 Root ownership: Claude Code's GuidanceTargetRel equals its EngramRootRel
 // by design, so it gets root-level compat symlinks instead of a separate
-// surface dir (task 5.3, applyGuidanceCompatLinks) — this RETIRES the old
+// surface dir (792b29c9 Guidance links, applyGuidanceCompatLinks) — this RETIRES the old
 // flat-copy path (applyGuidanceOps) for such a harness. Only a harness whose
 // GuidanceTargetRel is a genuinely separate surface (Pi today) gets
 // guidance-file symlinks via applyGuidanceLinks.
@@ -770,16 +769,16 @@ func (u *Updater) applyForHarnessSymlinkMode(
 // applyGuidanceCompatLinks materializes one COMPAT symlink per guidance file
 // at the TOP LEVEL of a symlink-mode harness's engram-owned root, for a
 // harness whose GuidanceTargetRel equals its EngramRootRel (Claude today —
-// D1's guidance caveat): <EngramRoot>/<f>.md -> <EngramRoot>/guidance/<f>.md.
-// User-authored @import lines reference the flat path verbatim (D1), so
+// the guidance caveat of 792b29c5 Root ownership): <EngramRoot>/<f>.md -> <EngramRoot>/guidance/<f>.md.
+// User-authored @import lines reference the flat path verbatim (792b29c5 Root ownership), so
 // this RETIRES the old flat-copy path (applyGuidanceOps) for such a
 // harness — canonical content now lives only under guidance/, already
 // synced by applyEngramRootSync before this call. A pre-existing REAL flat
-// guidance file (today's deployed state) is adopted (task 5.1): its content
+// guidance file (today's deployed state) is adopted (792b29c8 Adopting earlier copies): its content
 // is discarded in favor of the root's already-synced guidance/ copy, since
-// the repo is the source of truth (D6, no content comparison needed). The
+// the repo is the source of truth (792b29c8 Adopting earlier copies, no content comparison needed). The
 // compat links are part of the intended set going forward: repointed here
-// when wrong, and deleted by cleanupDanglingLinks (D5, extended to scan the
+// when wrong, and deleted by cleanupDanglingLinks (792b29c10 Dangling-link cleanup, extended to scan the
 // root itself for this harness shape) once their guidance file leaves the
 // intended set.
 func (u *Updater) applyGuidanceCompatLinks(rep *HarnessReport, name Harness, guidanceOps []CopyOp, dryRun bool) {
@@ -808,9 +807,9 @@ func (u *Updater) applyGuidanceCompatLinks(rep *HarnessReport, name Harness, gui
 
 // applyGuidanceLinks materializes one symlink per guidance file for a
 // symlink-mode harness whose GuidanceTargetRel is a surface distinct from
-// EngramRootRel (Pi today — see applyForHarnessSymlinkMode's D1 guard):
+// EngramRootRel (Pi today — see applyForHarnessSymlinkMode's guard on 792b29c5 Root ownership):
 // <home>/<GuidanceTargetRel>/<f>.md → <EngramRoot>/guidance/<f>.md. A real
-// pre-migration copy at the link path is adopted (task 5.1), never merely
+// pre-migration copy at the link path is adopted (792b29c8 Adopting earlier copies), never merely
 // reported — see materializeOrAdopt.
 func (u *Updater) applyGuidanceLinks(
 	rep *HarnessReport,
@@ -847,7 +846,7 @@ func (u *Updater) applyGuidanceLinks(
 // applyGuidanceOps flat-copies guidance files directly to their harness
 // surface path. Used by manifest-mode harnesses' fallthrough
 // (applyForHarnessManifestMode) — symlink-mode harnesses use
-// applyGuidanceLinks or applyGuidanceCompatLinks instead (D3/task 5.3).
+// applyGuidanceLinks or applyGuidanceCompatLinks instead (792b29c9 Guidance links).
 func (u *Updater) applyGuidanceOps(rep *HarnessReport, name Harness, guidanceOps []CopyOp, dryRun bool) {
 	for _, copyOp := range guidanceOps {
 		if copyOp.Harness != name {
@@ -947,15 +946,15 @@ func (u *Updater) applyOps(
 }
 
 // applySkillLinks materializes one symlink per skill directory for a
-// symlink-mode harness (D3): <SkillsRoot>/<skill> →
+// symlink-mode harness (792b29c7 Skill links): <SkillsRoot>/<skill> →
 // <EngramRoot>/skills/<skill>, replacing the per-file copy flow
 // (applySkillOps/clearSkillDirOnce). Real skill content lives only under
 // EngramRoot, already synced by applyEngramRootSync. rep.SkillDirs is still
-// populated with per-skill file counts (D3's report-coherence requirement:
+// populated with per-skill file counts (792b29c7 Skill links report-coherence requirement:
 // the listing's meaning shifts from "copied" to "linked", but the shape and
 // the file count stay meaningful) even though a single symlink op now
 // replaces the old per-file copy loop. A real pre-migration copy at the
-// link path is adopted (task 5.1), never merely reported — see
+// link path is adopted (792b29c8 Adopting earlier copies), never merely reported — see
 // materializeOrAdopt.
 func (u *Updater) applySkillLinks(rep *HarnessReport, spec HarnessSpec, skillOps []CopyOp, dryRun bool) {
 	skillCounts := map[string]int{}
@@ -1025,7 +1024,7 @@ func (u *Updater) applySkillOps(rep *HarnessReport, name Harness, skillOps []Cop
 }
 
 // checkLocalDowngrade gates a local-mode install against a provable
-// downgrade (update-local-install-safety, design decisions). It fails open
+// downgrade (792b28c7 Downgrade gate). It fails open
 // — returns nil, letting the install proceed — for every case where
 // provability can't be established: no prior binary at binaryPath, a
 // pre-VCS-embedding or unparseable installed revision, allowDowngrade set,
@@ -1066,11 +1065,11 @@ func (u *Updater) checkLocalDowngrade(
 	)
 }
 
-// cleanupDanglingLinks runs the D5 dangling-link scan over every one of a
+// cleanupDanglingLinks runs the dangling-link scan (792b29c10 Dangling-link cleanup) over every one of a
 // symlink-mode harness's surface dirs: the skills root, and either the
 // guidance dir (Pi today, a surface distinct from EngramRootRel) or the
 // engram root itself (Claude today, GuidanceTargetRel == EngramRootRel —
-// task 5.3's root-level compat links live at the root's top level, so
+// the root-level compat links (792b29c9 Guidance links) live at the root's top level, so
 // scanning the root here is what finds and removes a compat link whose
 // guidance file left the intended set; the root's real top-level content —
 // the marker, skills/, guidance/ — is never a symlink, so
@@ -1192,7 +1191,7 @@ func (u *Updater) installedBinaryRevision(ctx context.Context, binaryPath string
 	return ""
 }
 
-// planAndApply is Run's post-install phase (D7: everything AFTER the
+// planAndApply is Run's post-install phase (792b28c9 Hand-off: everything AFTER the
 // re-exec boundary, when this call didn't hand off to a re-execed child —
 // either it fell back, or the sentinel/dry-run skipped install in the first
 // place): plans skill/guidance copies and applies them per harness. Split
@@ -1217,7 +1216,7 @@ func (u *Updater) planAndApply(
 	// it. This makes --with-guidance a one-time opt-in: once imported, plain
 	// `engram update` keeps the guidance current on every run (like skills).
 	// guidanceManaged also gates the engram-root sync engine's guidance/
-	// subtree (D4): unmanaged means unmanaged, not deleted.
+	// subtree (792b29c6 Root synchronization): unmanaged means unmanaged, not deleted.
 	guidanceManaged := opts.WithGuidance || report.GuidanceImported
 
 	if guidanceManaged {
@@ -1246,7 +1245,7 @@ func (u *Updater) priorBinaryExists(binaryPath string) bool {
 }
 
 // reexecAfterInstall re-execs the freshly installed binary immediately
-// after a successful install (design D1/D4/D7/D8), returning the updated
+// after a successful install (792b28c9 Hand-off), returning the updated
 // report, true when the caller must return immediately (parent performs no
 // further planning/apply — the re-execed child completes the run), and a
 // non-nil error only when the run must abort outright.
@@ -1260,14 +1259,14 @@ func (u *Updater) priorBinaryExists(binaryPath string) bool {
 //
 // Before spawning, it calls Handoff.WriteHandoff (when Handoff is set) so
 // the parent's install-result header reaches stdout BEFORE the child's
-// inherited-stdio output begins (D6/spec Req 5 — install result once,
+// inherited-stdio output begins (792b28c9 Hand-off — install result once,
 // first; sync/check report once, from the child). A Handoff failure is a
 // HARD error — propagated to abort Run, not smoothed into the in-process
 // fallback: it is a stdout-write failure, not a re-exec failure (re-exec
 // was never attempted), and the same broken stdout would just resurface on
 // the fallback's own report write. On spawn success the child's exit code
 // is recorded on report.ReexecExitCode and handedOff is true. On spawn
-// failure the fallback note is recorded on report.ReexecFallbackErr (D5)
+// failure the fallback note is recorded on report.ReexecFallbackErr (792b29c10 Dangling-link cleanup)
 // and handedOff is false, so the caller continues the rest of Run
 // in-process.
 func (u *Updater) reexecAfterInstall(opts Options, report Report) (Report, bool, error) {
@@ -1297,12 +1296,12 @@ func (u *Updater) reexecAfterInstall(opts Options, report Report) (Report, bool,
 	return report, true, nil
 }
 
-// reportSurfaceStrays runs the D6/task-5.2 stray scan across every harness
+// reportSurfaceStrays runs the 792b29c11 Unmanaged entries stray scan across every harness
 // surface dir this harness materializes into — the skills root, and the
 // guidance dir ONLY when it is a surface distinct from EngramRootRel (Pi
 // today; Claude's compat-link root has no separate guidance surface to scan
 // here — a stray flat file there is caught by the root-level
-// unattributableRootFiles scan instead, D1's guidance caveat). Callers gate
+// unattributableRootFiles scan instead, the guidance caveat of 792b29c5 Root ownership). Callers gate
 // this to the first sync only (isFirstSync): once every intended-set path
 // is a symlink, repeating this ReadDir/Lstat scan every run would not
 // surface anything new.
@@ -1404,11 +1403,10 @@ func (u *Updater) resolveRemoteByClone(ctx context.Context, dryRun bool) (Source
 // `go install …@latest`, see resolveRemoteByClone). Both install legs are
 // skipped when skipInstall is true — true either for a plain --dry-run, or
 // because Run already determined this is a sentinel-bearing re-exec child
-// (report.ReexecChild, design D2/D7: only sync/checks run there — "skip
+// (report.ReexecChild, 792b28c9 Hand-off: only sync/checks run there — "skip
 // install" is the whole point). Local mode also resolves and reports the
-// module root's git revision unconditionally (update-local-install-safety
-// task 2.1) and, when actually installing, gates on checkLocalDowngrade
-// before running `go install` (task 4).
+// module root's git revision unconditionally (792b28c7 Downgrade gate) and, when actually installing, gates on
+// checkLocalDowngrade before running `go install` (792b28c4 Installing from a local source).
 func (u *Updater) resolveSource(
 	ctx context.Context, skipInstall bool, opts Options, binaryPath string,
 ) (SourceInfo, error) {
@@ -1473,18 +1471,18 @@ const (
 	// dirPerm is the mode used when creating any harness target dir.
 	dirPerm fs.FileMode = 0o755
 	// engramMarkerFile is the ownership marker written at the top level of
-	// every engram-owned root (D2): its presence is what allows sync-deletion.
+	// every engram-owned root (792b29c5 Root ownership): its presence is what allows sync-deletion.
 	engramMarkerFile = ".engram-owned"
 	// engramRootSkillsSubdir is the subtree of an engram-owned root that
 	// holds the canonical (real, non-symlink) copies of engram's shipped
-	// skills, which each harness's skills surface dir symlinks into (D1).
+	// skills, which each harness's skills surface dir symlinks into (792b29c5 Root ownership).
 	engramRootSkillsSubdir = "skills"
 	// filePerm is the mode used when writing any copied file.
 	filePerm fs.FileMode = 0o644
 	// lfsPointerPrefix is the first line of every Git-LFS pointer file.
 	lfsPointerPrefix = "version https://git-lfs"
 	// manifestFilename is the name of the manifest file inside the engram-owned
-	// root for manifest-mode harnesses (D7). Every path written to the harness's
+	// root for manifest-mode harnesses (792b29c13 Manifest mode). Every path written to the harness's
 	// surface directories is recorded here; on next run, recorded paths whose
 	// source artifacts no longer exist are deleted, and the manifest is updated.
 	// Manifest mode provides the fallback sync semantics for harnesses whose
@@ -1492,7 +1490,7 @@ const (
 	manifestFilename = ".engram-manifest.json"
 	// maxCleanupSurfaceDirs bounds the surface-dir slice cleanupDanglingLinks
 	// builds: skills root, and one of {guidance dir (Pi), the engram root
-	// itself (Claude's root-level compat links, task 5.3)}.
+	// itself (Claude's root-level compat links, 792b29c9 Guidance links)}.
 	maxCleanupSurfaceDirs = 2
 	maxSupportedHarnesses = 2
 	// modelMinBytes: the real MiniLM ONNX is ~90 MB; anything under a
@@ -1502,14 +1500,14 @@ const (
 )
 
 // engramRootOwnership is the marker-driven verdict for one sync run against
-// an engram-owned root (D2/D6): whether this run may sync-delete inside it,
-// whether this run must write the marker (root absent, OR root pre-existing
-// and marker-less — the D6 adoption pass, task 5.1), and — for a
+// an engram-owned root (792b29c5 Root ownership and 792b29c8 Adopting earlier copies): whether this run may
+// sync-delete inside it, whether this run must write the marker (root absent, OR root pre-existing
+// and marker-less — the 792b29c8 Adopting earlier copies pass), and — for a
 // pre-existing marker-less root — the top-level basenames that don't match
-// any intended-set basename (reported, never deleted; D2/D6's Claude
-// flat-guidance interplay excludes basename-matched files from this list).
+// any intended-set basename (reported, never deleted; 792b29c5 Root ownership and 792b29c8 Adopting earlier copies's
+// Claude flat-guidance interplay excludes basename-matched files from this list).
 // A pre-existing marker-less root ALWAYS gets writeMarker=true (adoption
-// runs) but allowDelete stays false for THIS run regardless — D2's "no
+// runs) but allowDelete stays false for THIS run regardless — 792b29c5 Root ownership: "no
 // sync-deletion occurs in that directory" is evaluated against whether the
 // root held the marker at the START of the run; a genuinely subsequent sync
 // (marker already present) is what enables normal drift-deletion.
@@ -1523,14 +1521,14 @@ type engramRootOwnership struct {
 // intendedRootFile pairs an engram-root-relative path with the absolute
 // source it should be synced from. Built from planSkillCopies /
 // planGuidanceCopies output, re-rooted under the engram-owned root's
-// skills/, guidance/ subtrees (D1/D4).
+// skills/, guidance/ subtrees (792b29c5 Root ownership and 792b29c6 Root synchronization).
 type intendedRootFile struct {
 	RelPath string // path relative to the engram-owned root
 	Src     string // absolute source path
 }
 
 // surfaceScan pairs one harness surface dir with the basename set that is
-// NOT a stray there — reportSurfaceStrays' (task 5.2) per-dir input.
+// NOT a stray there — reportSurfaceStrays' per-dir input.
 type surfaceScan struct {
 	dir      string
 	intended map[string]bool
@@ -1615,7 +1613,7 @@ func applyManifestDeletion(
 }
 
 // applyManifestModeDeletion implements manifest-driven deletion for
-// manifest-mode harnesses (D7, #6.1 task): load the prior manifest, delete
+// manifest-mode harnesses (792b29c13 Manifest mode): load the prior manifest, delete
 // recorded paths whose source artifacts are no longer in the intended set,
 // and update the manifest. Unrecorded files are never deleted. In dry-run
 // mode, deletion and manifest writes are previewed but not executed.
@@ -1717,7 +1715,7 @@ func classifyGoInstallErr(mode string, runErr error) error {
 	return fmt.Errorf("go install (%s): %w", mode, runErr)
 }
 
-// cleanupDanglingLinkEntry decides and (unless dryRun) enacts the D5 verdict
+// cleanupDanglingLinkEntry decides and (unless dryRun) enacts the verdict of 792b29c10 Dangling-link cleanup
 // for one surface-dir entry: real files/dirs and non-dangling symlinks
 // (healthy engram links, foreign symlinks) return false, false; a dangling
 // engram link is removed (RemoveAll on a path already confirmed via Lstat to
@@ -1757,7 +1755,7 @@ func cleanupDanglingLinkEntry(
 	return true, nil
 }
 
-// cleanupDanglingLinksInDir is the D5 dangling-link scan for one harness
+// cleanupDanglingLinksInDir is the dangling-link scan (792b29c10 Dangling-link cleanup) for one harness
 // surface dir: a ONE-LEVEL-DEEP ReadDir, then for each entry that Lstat
 // reports as a symlink, danglingLinkTarget decides whether it is an engram
 // link whose target is gone. Matching links are deleted (RemoveAll on a
@@ -1963,7 +1961,7 @@ func currentManagedSubtreeFiles(root string, guidanceManaged bool, fileSystem Fi
 }
 
 // danglingLinkTarget reads link's literal (unresolved) target, resolves it
-// LEXICALLY against parentDir (D5) — never via filepath.EvalSymlinks, per
+// LEXICALLY against parentDir (792b29c10 Dangling-link cleanup) — never via filepath.EvalSymlinks, per
 // vault note 475: resolution is for reaching bytes, never for naming them,
 // and on macOS EvalSymlinks silently rewrites /var to /private/var, which
 // would corrupt the prefix match below even for a tree with no user
@@ -2100,7 +2098,7 @@ func guidanceImportPrefixes(spec HarnessSpec, home string) (tildePrefix, expande
 
 // intendedGuidanceBasenames collects the GuidanceFile basenames one
 // harness's planned guidance CopyOps intend to deploy — reportSurfaceStrays'
-// (task 5.2) "not a stray" set for a harness's separate guidance dir (Pi).
+// (792b29c11 Unmanaged entries) "not a stray" set for a harness's separate guidance dir (Pi).
 func intendedGuidanceBasenames(name Harness, guidanceOps []CopyOp) map[string]bool {
 	out := map[string]bool{}
 
@@ -2114,8 +2112,8 @@ func intendedGuidanceBasenames(name Harness, guidanceOps []CopyOp) map[string]bo
 }
 
 // intendedRootFiles re-roots one harness's planned skill/guidance CopyOps
-// under its engram-owned root's skills/, guidance/ subtrees (D1/D4): the
-// sync engine's "intended set" input. Ops belonging to other harnesses are
+// under its engram-owned root's skills/, guidance/ subtrees (792b29c5 Root ownership and 792b29c6 Root
+// synchronization): the sync engine's "intended set" input. Ops belonging to other harnesses are
 // skipped. guidanceOps is already empty when guidance is not part of the
 // intended set this run (Run's opt-in gate), so no separate guidance filter
 // is needed here.
@@ -2145,7 +2143,7 @@ func intendedRootFiles(spec HarnessSpec, home string, skillOps, guidanceOps []Co
 }
 
 // intendedSkillDirNames collects the top-level skill-dir names one harness's
-// planned skill CopyOps intend to deploy — reportSurfaceStrays' (task 5.2)
+// planned skill CopyOps intend to deploy — reportSurfaceStrays'
 // "not a stray" set for a harness's skills root.
 func intendedSkillDirNames(name Harness, skillOps []CopyOp) map[string]bool {
 	out := map[string]bool{}
@@ -2169,7 +2167,7 @@ func isNotExist(err error) bool {
 // lexicallyResolveSymlinkTarget resolves a symlink's literal target string
 // against the link's parent directory using pure string operations only
 // (filepath.IsAbs, filepath.Join, filepath.Clean) — never
-// filepath.EvalSymlinks, per vault note 475 and design.md D5: resolution is
+// filepath.EvalSymlinks, per vault note 475 and 792b29c10 Dangling-link cleanup: resolution is
 // for reaching bytes, never for naming them. An absolute target is used
 // as-is (Cleaned); a relative target is joined against parentDir first.
 func lexicallyResolveSymlinkTarget(rawTarget, parentDir string) string {
@@ -2232,17 +2230,17 @@ func loadManifestPaths(fileSystem Filesystem, manifestPath string) ([]string, er
 	return recorded, nil
 }
 
-// materializeOrAdopt wraps materializeSymlink with the D6/task-5.1 adoption
+// materializeOrAdopt wraps materializeSymlink with the 792b29c8 Adopting earlier copies adoption
 // rule: a REAL file or directory already occupying an INTENDED-SET surface
 // path (a pre-sync copy-mode deploy) is replaced with a symlink into the
 // already-synced engram root, instead of being left blocked. RemoveAll is
 // permitted HERE ONLY because every call site passes an intended-set member
 // (a link path drawn from a planned CopyOp) — the corresponding content
 // under root was already written by applyEngramRootSync before any caller
-// of this function runs this same harness pass (D6: "the repo is the
+// of this function runs this same harness pass (792b29c8 Adopting earlier copies: "the repo is the
 // source of truth, so no content comparison is needed"). A real path
 // OUTSIDE the intended set must never reach this function — see
-// surfaceStrays for that case (task 5.2). Returns adopted=true when a real
+// surfaceStrays for that case (792b29c11 Unmanaged entries). Returns adopted=true when a real
 // path was (or, under dryRun, would be) converted; dryRun previews without
 // touching disk, matching materializeSymlink's own dryRun contract.
 func materializeOrAdopt(fileSystem Filesystem, link, target string, dryRun bool) (adopted bool, err error) {
@@ -2272,7 +2270,7 @@ func materializeOrAdopt(fileSystem Filesystem, link, target string, dryRun bool)
 	return true, nil
 }
 
-// materializeSymlink applies the D3 materialization rule at one
+// materializeSymlink applies the 792b29c7 Skill links materialization rule at one
 // harness-visible surface path: absent → create it (MkdirAll the parent,
 // then Symlink); already a symlink → verify its target via ReadLink and
 // repoint (RemoveAll the link, then Symlink again) only when it differs
@@ -2280,8 +2278,8 @@ func materializeOrAdopt(fileSystem Filesystem, link, target string, dryRun bool)
 // directory at link → left COMPLETELY untouched (never RemoveAll'd) and
 // reported back via the blockedByReal return so the caller can decide.
 // materializeOrAdopt wraps this to convert an intended-set block into an
-// adoption (task 5.1); a caller scanning for non-intended-set strays (task
-// 5.2, surfaceStrays) never calls this function at all. Under dryRun, the
+// adoption (792b29c8 Adopting earlier copies); a caller scanning for non-intended-set strays (792b29c11 Unmanaged
+// entries, surfaceStrays) never calls this function at all. Under dryRun, the
 // create/repoint branches report their intended action's target state but
 // perform no write.
 func materializeSymlink(fileSystem Filesystem, link, target string, dryRun bool) (blockedByReal bool, err error) {
@@ -2320,7 +2318,7 @@ func mdFilesIn(entries []DirEntry) []string {
 
 // pathWithinRoot reports whether path is root itself or lies inside it,
 // comparing the Cleaned strings only (no filesystem access, no symlink
-// resolution) — the lexical-identity check D5 requires.
+// resolution) — the lexical-identity check 792b29c10 Dangling-link cleanup requires.
 func pathWithinRoot(path, root string) bool {
 	cleanRoot := filepath.Clean(root)
 	if path == cleanRoot {
@@ -2333,11 +2331,11 @@ func pathWithinRoot(path, root string) bool {
 // The field names are PascalCase because that's the literal JSON `go list`
 // emits — not the Go-conventional camelCase a linter would prefer.
 
-// planEngramRootSync is the sync engine's pure diff step (D4): it compares
+// planEngramRootSync is the sync engine's pure diff step (792b29c6 Root synchronization): it compares
 // the intended set against root's current managed-subtree contents
-// (skills/, commands/, and guidance/ only when guidanceManaged — D4's
+// (skills/, commands/, and guidance/ only when guidanceManaged — 792b29c6 Root synchronization's
 // opt-in gate) and returns an ordered op plan. Deletes are omitted entirely
-// when allowDelete is false (D2's marker-less-root refusal). Every op stays
+// when allowDelete is false (the marker-less-root refusal of 792b29c5 Root ownership). Every op stays
 // inside root; nothing outside it is ever read or touched.
 func planEngramRootSync(
 	root string,
@@ -2482,7 +2480,7 @@ func protectedIntendedPaths(intended []intendedRootFile) map[string]bool {
 	return protected
 }
 
-// pruneEmptyDirs plans the D4-continued half of the sync: every directory
+// pruneEmptyDirs plans the second half of 792b29c6 Root synchronization: every directory
 // within root's managed subtrees (skills/, commands/, and guidance/ only
 // when guidanceManaged) that would hold no intended file once this sync's
 // deletions apply. A directory a sync deletion leaves with zero content is
@@ -2491,7 +2489,7 @@ func protectedIntendedPaths(intended []intendedRootFile) map[string]bool {
 // empty dir), so cleanupDanglingLinks never fires for it (the bug this
 // closes: a removed skill's dir survived deletion of its last file, leaving
 // the surface symlink pointing at a hollow shell). Gated on allowDelete the
-// same way EngramSyncDelete ops are (D2): a deletion-refused run prunes
+// same way EngramSyncDelete ops are (792b29c5 Root ownership): a deletion-refused run prunes
 // nothing. Pure planning — reads the filesystem, writes nothing; callers
 // apply via applyPrunedDirs. Returns paths relative to root, sorted, each
 // the OUTERMOST directory left empty (removing it removes any
@@ -2578,11 +2576,11 @@ func resolveBinaryPath(home string, env Env) string {
 
 // resolveEngramRootOwnership decides how this run may treat root: absent →
 // create root + marker, full sync; present with the `.engram-owned` marker →
-// full sync; present without it → the D6 adoption pass (task 5.1): compute
+// full sync; present without it → the 792b29c8 Adopting earlier copies pass: compute
 // and report the top-level basenames that don't match the intended set
-// (D2, "Ownership marker bounds sync deletion"), then write the marker —
+// (792b29c5 Root ownership, "Ownership marker bounds sync deletion"), then write the marker —
 // but sync-deletion of managed-subtree drift stays refused for THIS run
-// regardless (D2's invariant is evaluated against root's state at the START
+// regardless (the invariant of 792b29c5 Root ownership is evaluated against root's state at the START
 // of the run); a genuinely subsequent sync, with the marker already
 // present, is what enables normal drift-deletion.
 func resolveEngramRootOwnership(
@@ -2655,7 +2653,7 @@ func supportedHarnesses() []HarnessSpec {
 			ImportsFileRel:    filepath.Join(".claude", "CLAUDE.md"),
 			EngramRootRel:     ClaudeEngramRootRel,
 			// Verified symlink-capable (skill discovered through a
-			// symlinked skill dir) — verification-verdicts.md.
+			// symlinked skill dir) — 792b29a Orientation.
 			DeployMode: DeployModeSymlink,
 		},
 		{
@@ -2666,18 +2664,18 @@ func supportedHarnesses() []HarnessSpec {
 			ImportsFileRel:    filepath.Join(".pi", "agent", "AGENTS.md"),
 			EngramRootRel:     filepath.Join(".pi", "agent", "engram"),
 			// Verified symlink-capable (skill discovered, guidance readable
-			// through symlinked paths) — verification-verdicts.md.
+			// through symlinked paths) — 792b29a Orientation.
 			DeployMode: DeployModeSymlink,
 		},
 	}
 }
 
-// surfaceStrays scans dir ONE level deep (D6 item 3 / task 5.2) for REAL
+// surfaceStrays scans dir ONE level deep (792b29c11 Unmanaged entries) for REAL
 // (non-symlink, via Lstat) entries whose name matches no basename in
 // intended — engram cannot prove ownership of what it has no record of
 // writing, so these are reported for manual review and NEVER touched.
 // Symlinks are skipped entirely: a healthy, foreign, or dangling symlink is
-// D5's concern (cleanupDanglingLinksInDir), not this stray scan's — and an
+// the concern of 792b29c10 Dangling-link cleanup (cleanupDanglingLinksInDir), not this stray scan's — and an
 // intended-set path that has already been converted to a symlink is by
 // definition not a stray. A missing dir contributes no strays (a
 // not-yet-materialized surface is not an error).
@@ -2706,7 +2704,7 @@ func surfaceStrays(fileSystem Filesystem, dir string, intended map[string]bool) 
 		}
 
 		if info.Mode()&fs.ModeSymlink != 0 {
-			continue // a symlink here is D5's concern, not a stray
+			continue // a symlink here is the concern of 792b29c10 Dangling-link cleanup, not a stray
 		}
 
 		strays = append(strays, entryPath)

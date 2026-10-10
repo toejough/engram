@@ -21,7 +21,7 @@ const (
 // of the list rather than the start. basename is the note's real basename,
 // substituted into the omission marker so `engram show <basename>` (the
 // command the marker names) actually resolves and returns the full list —
-// engram show itself never truncates (D1/#772).
+// engram show itself never truncates (#772).
 //
 // Callers append new red_flags entries (engram learn runbook --red-flag /
 // engram amend --red-flag), so the newest entry is conventionally last —
@@ -35,7 +35,7 @@ const (
 // budget, is returned unchanged (byte-identical) — this function must never
 // touch a note that was never at truncation risk.
 func capRedFlagsForPreview(content, basename string) string {
-	content = string(toLF([]byte(content))) // a CRLF note is previewed as its LF form (#789 design D8)
+	content = string(toLF([]byte(content))) // a CRLF note is previewed as its LF form (792b6c8 CRLF reading)
 
 	blockStart := strings.Index(content, redFlagsBlockStart)
 	if blockStart < 0 {

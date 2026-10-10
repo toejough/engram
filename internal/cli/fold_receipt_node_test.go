@@ -1,7 +1,7 @@
 package cli_test
 
 // The fold (`amend --discard --into`) and the offer receipt edit aliases:
-// and parent: as YAML nodes (ruling V7, re-review N1): an anchor on an
+// and parent: as YAML nodes: an anchor on an
 // edited key refuses the write with both files untouched, and unknown keys
 // under parent: and its links survive.
 

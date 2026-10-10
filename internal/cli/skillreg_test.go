@@ -15,7 +15,7 @@ import (
 )
 
 // Test792b31c1a2_FindSkillNote covers the lookup identity rule (skill-runbook-
-// registration D3): none, one, duplicate, a non-runbook note with a
+// registration 792b30c17 Skill keys): none, one, duplicate, a non-runbook note with a
 // matching slug, and a runbook note with the matching slug but no
 // skill_hash.
 func Test792b31c1a2_FindSkillNote(t *testing.T) {
@@ -246,8 +246,8 @@ func Test792b31c2a1_CompareSkillOffers_EachKind(t *testing.T) {
 }
 
 // Test792b31c2a2_CompareSkillOffers_DeclineSuppression covers per-kind decline
-// suppression (skill-runbook-registration: "no offer SHALL be made ... when
-// the skill's current hash is recorded as declined") and re-offering once
+// suppression (792a12c Registration offers and remembers declines by hash: no offer is made when
+// the skill's current hash is recorded as declined) and re-offering once
 // the acting hash changes.
 func Test792b31c2a2_CompareSkillOffers_DeclineSuppression(t *testing.T) {
 	t.Parallel()
@@ -320,7 +320,7 @@ func Test792b31c2a2_CompareSkillOffers_DeclineSuppression(t *testing.T) {
 }
 
 // Test792b31c2a3_CompareSkillOffers_DeclineAllThenRecompute_YieldsNoOffers is the
-// property test tasks.md 1.4 asks for: after recording a decline for every
+// property test 792b31c4 Declines file calls for: after recording a decline for every
 // offer CompareSkillOffers produces, recomputing over the same fixture
 // yields zero offers.
 func Test792b31c2a3_CompareSkillOffers_DeclineAllThenRecompute_YieldsNoOffers(t *testing.T) {
@@ -350,7 +350,7 @@ func Test792b31c2a3_CompareSkillOffers_DeclineAllThenRecompute_YieldsNoOffers(t 
 }
 
 // Test792b31c2a4_CompareSkillOffers_ContentChangeAfterDecline_ReOffersExactlyOnce is
-// the second half of tasks.md 1.4's property test: changing a skill's
+// the second half of the 792b31c4 Declines file property test: changing a skill's
 // content re-yields exactly one offer for it (and none for any other
 // skill, whose declines still hold).
 func Test792b31c2a4_CompareSkillOffers_ContentChangeAfterDecline_ReOffersExactlyOnce(t *testing.T) {
@@ -401,7 +401,7 @@ func Test792b31c2a4_CompareSkillOffers_ContentChangeAfterDecline_ReOffersExactly
 	})
 }
 
-// Test792b31c4a1_ReadSkillRegistrations_AbsentFileIsEmptyState covers tasks.md 1.5's
+// Test792b31c4a1_ReadSkillRegistrations_AbsentFileIsEmptyState covers 792b31c4 Declines file:
 // "Read tolerates an absent file (empty state)" scenario.
 func Test792b31c4a1_ReadSkillRegistrations_AbsentFileIsEmptyState(t *testing.T) {
 	t.Parallel()
@@ -430,8 +430,8 @@ func Test792b31c4a2_ReadSkillRegistrations_PropagatesOtherReadErrors(t *testing.
 	g.Expect(err).To(HaveOccurred())
 }
 
-// Test792b31c4a3_ReadSkillRegistrations_RejectsUnknownFields documents the tasks.md
-// 1.5 "unknown JSON keys preserved or rejected" choice: this file has no
+// Test792b31c4a3_ReadSkillRegistrations_RejectsUnknownFields documents the 792b31c4 Declines file
+// "unknown JSON keys preserved or rejected" choice: this file has no
 // third-party writer to stay forward-compatible with, so an unrecognized
 // top-level field is rejected rather than silently dropped.
 func Test792b31c4a3_ReadSkillRegistrations_RejectsUnknownFields(t *testing.T) {
@@ -447,7 +447,7 @@ func Test792b31c4a3_ReadSkillRegistrations_RejectsUnknownFields(t *testing.T) {
 }
 
 // Test792b31c4a6_RecordSkillDeclined_SetsHashAndLeavesOtherEntriesIntact covers
-// tasks.md 1.5's "decline write leaves other entries intact" scenario.
+// 792b31c4 Declines file: "decline write leaves other entries intact" scenario.
 func Test792b31c4a6_RecordSkillDeclined_SetsHashAndLeavesOtherEntriesIntact(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -656,7 +656,7 @@ func genSkillregFixture(rt *rapid.T) ([]engramSkill, []string, *skillregFixtureV
 		suffix := rapid.StringMatching(`[a-z0-9]{1,8}`).Draw(rt, fmt.Sprintf("skillNameSuffix%d", i))
 		name := fmt.Sprintf("skill%d-%s", i, suffix)
 		// The name prefix keeps every skill's bytes distinct, so no skill is an
-		// alias of another (design D4) and each is offered on its own.
+		// alias of another (792b31c2 Offer comparison) and each is offered on its own.
 		content := append([]byte(name+":"), rapid.SliceOfN(rapid.Byte(), 1, 24).Draw(rt, fmt.Sprintf("content%d", i))...)
 		skills[i] = engramSkill{Name: name, Content: content}
 
@@ -683,7 +683,7 @@ func newSkillregFixtureVault() *skillregFixtureVault {
 }
 
 // runbookNote renders a minimal unkeyed runbook note carrying skill_hash
-// and no skill_key — no skill note (design D3).
+// and no skill_key — no skill note (792b30c17 Skill keys).
 func runbookNote(hash string) string {
 	return "---\ntype: runbook\nsituation: s\ndone_when: d\nskill_hash: \"" + hash + "\"\n---\n\nbody\n"
 }

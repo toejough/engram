@@ -8,7 +8,7 @@ package cli_test
 // rewrite that silently dropped skill_key would re-key the note (e.g. `a:b`
 // falling back to bare `a-b`) and let it capture an unrelated skill.
 //
-// One test per rewrite site (task 4.2); each compares the raw YAML block of
+// One test per rewrite site (792b31c7 Note actions); each compares the raw YAML block of
 // every identity field (key line plus any continuation lines) before and
 // after the rewrite.
 
@@ -448,7 +448,7 @@ func newSkillSurvivalFS(byName map[string]string) *skillSurvivalFS {
 	return fs
 }
 
-// skillKeyGen draws source-qualified keys shaped like design D3's forms
+// skillKeyGen draws source-qualified keys shaped like the forms of 792b30c17 Skill keys
 // (`<plugin>:<n>`, `project:<r>:cmd:<n>`, `pi-pkg:<id>:pi-prompt:<n>`, ...).
 func skillKeyGen() *rapid.Generator[string] {
 	return rapid.StringMatching(`[a-z][a-z0-9-]{0,12}(:[a-zA-Z0-9@._/-]{1,20}){1,3}`)

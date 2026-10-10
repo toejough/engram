@@ -17,7 +17,7 @@ const (
 	// --limit when fetching each source during a merge, so neither
 	// pre-truncates candidates the merge might need — the user's real
 	// requested values are applied exactly once, over the merged set
-	// (design.md Decision 7). content-budget has its own unlimited value
+	// (792b37c8 The budgets of the merged set). content-budget has its own unlimited value
 	// (<=0, via capChunkContent's existing guard) and doesn't need this.
 	mergeUnboundedBudget = 1_000_000
 )
@@ -52,20 +52,20 @@ func hasProvenance(item queryItem, role string) bool {
 }
 
 // mergeQueryPayloads combines a local and parent queryPayload into one
-// merged payload (792a21, design D9):
+// merged payload (792a21 Added: parent-sync, 792b37c4 The merged query):
 //  1. every parent chunk item is dropped, including the parent's recency
-//     channel (Q1);
+//     channel (792b37c5);
 //  2. parent notes that match a live local note are deduped, keeping the
-//     local note (D4; substituted per M4 when it did not rank locally);
+//     local note (792b37c6; substituted when it did not rank locally);
 //  3. trigger hits lead, local before parent, exempt from --limit;
 //  4. direct items then explore picks, each by score, are capped to
-//     --limit by position with the note floor (M3, #744);
+//     --limit by position with the note floor (792b37c7, #744);
 //  5. the local recency channel follows, capped to --recent-fill;
 //  6. --content-budget (or --lazy-chunks) is applied once, and the budget
 //     block reports the applied values (#743).
 //
 // Clusters stay the local node's own, and the pending-offer hint and the
-// refit flag reflect the local vault only (H4, ruling S20): a child can
+// refit flag reflect the local vault only (792b37c9): a child can
 // neither curate its parent's offers nor run its parent's refit.
 func mergeQueryPayloads(local, parent queryPayload, localNotes []exchangeNote, args QueryArgs) queryPayload {
 	localItems := tagItems(local.Items, local.ModelID, false)
@@ -125,13 +125,12 @@ func mergedContentPolicy(items []queryItem, args QueryArgs) ([]queryItem, int) {
 	return capChunkContent(items, resolveContentBudget(args.ContentBudget))
 }
 
-// prepareParentContact runs design D2's parent-contact bookkeeping for a
-// command about to contact the parent: a missing vault ID is stamped, and a
-// failed location check prints its one warning (read-only contacts still
-// run). Neither is fatal. It reports whether the vault ID is stamped: when
-// it is not, the caller skips the contact's own bookkeeping (backoff gate,
-// outcome record, drain), so nothing creates .engram/ without a stamp
-// (ruling S4). command prefixes the stamp warning.
+// prepareParentContact runs the parent-contact bookkeeping of 792b37c11 A pull-down is a gated parent contact
+// for a command about to contact the parent: a missing vault ID is stamped, and a failed location check
+// prints its one warning (read-only contacts still run). Neither is fatal. It reports whether the vault ID is
+// stamped: when it is not, the caller skips the contact's own bookkeeping (backoff gate, outcome record,
+// drain), so nothing creates .engram/ without a stamp (792b5c4 Vault ID stamping). command prefixes the stamp
+// warning.
 func prepareParentContact(deps Deps, command, vault string) bool {
 	state := exchangeStateFromDeps(deps)
 
@@ -147,10 +146,9 @@ func prepareParentContact(deps Deps, command, vault string) bool {
 	return true
 }
 
-// recordParentContact records a parent request's outcome for backoff: a
-// transport error, timeout or 5xx backs off; any answer, including a 4xx,
-// resets it (ruling S14) and caches the vault ID the parent reported, when
-// known. Failing to record either is not fatal.
+// recordParentContact records a parent request's outcome for backoff: a transport error, timeout or 5xx backs
+// off; any answer, including a 4xx, resets it (792b5c14 The parent cache and the contact backoff) and caches
+// the vault ID the parent reported, when known. Failing to record either is not fatal.
 func recordParentContact(store outboxStore, vault, parentURL, vaultID string, fetchErr error) {
 	if errors.Is(fetchErr, errParentUnreachable) {
 		_, _ = recordParentFailure(store, vault, parentURL)
@@ -195,7 +193,7 @@ func runLocalQueryPayload(ctx context.Context, deps Deps, args QueryArgs) (query
 }
 
 // runMergedQuery orchestrates ENGRAM_PARENT-gated local+parent query fusion
-// (792a21, design D9). It degrades to an ordinary local-only
+// (792a21 Added: parent-sync, 792b37c4 The merged query). It degrades to an ordinary local-only
 // RunQuery (no merge, no drain) when the parent is backed off, is this
 // vault itself (the self-parent guard, checked on the cached ID before the
 // request and on the reported ID after it), or fails — the last with a
@@ -243,8 +241,8 @@ func runMergedQuery(ctx context.Context, deps Deps, parentBaseURL string, args Q
 		return encodeErr
 	}
 
-	// The parent answered, so the outbox drains (design D6); the gate
-	// already passed for this command. An unstamped vault has no outbox.
+	// The parent answered, so the outbox drains (792a21r The outbox drains after the parent was reached); the
+	// gate already passed for this command. An unstamped vault has no outbox.
 	if stamped {
 		drainForCommand(ctx, deps, vault, parentBaseURL, true)
 	}
@@ -283,8 +281,8 @@ func splitRecencyChannel(items []queryItem) (main, recent []queryItem) {
 }
 
 // tagItems returns a copy of items with ModelID and FromParent set per the
-// node that produced them. queryItem.FromParent is *bool (design D9, ruling
-// S29) so a merged item's false value still marshals an explicit
+// node that produced them. queryItem.FromParent is *bool (792b23c9 The item tags of a merge)
+// so a merged item's false value still marshals an explicit
 // from_parent: false instead of being dropped by omitempty. Each item gets
 // its own pointer (not one shared across the call) so a future write
 // through one item's FromParent can never alias another's.
@@ -303,7 +301,7 @@ func tagItems(items []queryItem, modelID string, fromParent bool) []queryItem {
 // unboundedQueryArgs returns a copy of args with content-budget, recent-fill,
 // and limit overridden to effectively-unbounded values, so a source fetched
 // for merging doesn't pre-truncate candidates before the real requested
-// budgets are applied once over the merged set (design.md Decision 7).
+// budgets are applied once over the merged set (792b37c8 The budgets of the merged set).
 func unboundedQueryArgs(args QueryArgs) QueryArgs {
 	out := args
 	out.ContentBudget = -1

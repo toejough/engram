@@ -263,7 +263,7 @@ func Test792b24c1a1_RunQuery_NoPhrasesAndNoTextIsRejected(t *testing.T) {
 
 // Test792b24c3a6_RunQuery_RunbookCompetesInMainMatchedSet proves runbook notes receive no
 // exclusion treatment (unlike qa-question) and rank purely by situation
-// similarity, identical to fact/feedback — design.md Decision 2/3, 792a7v.
+// similarity, identical to fact/feedback — 792a7v Runbooks rank like other notes.
 func Test792b24c3a6_RunQuery_RunbookCompetesInMainMatchedSet(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

@@ -34,7 +34,7 @@ var (
 	// fetchConnectDialer dials parent connections with fetchConnectTimeout.
 	//nolint:gochecknoglobals // shared dialer, real net config
 	fetchConnectDialer = &net.Dialer{Timeout: fetchConnectTimeout}
-	// fetchConnectTimeout bounds connecting to the parent (design D6, M9):
+	// fetchConnectTimeout bounds connecting to the parent (792b35c17 The bounded fetch client):
 	// an unreachable host costs at most 3s, once per backoff window.
 	fetchConnectTimeout = 3 * time.Second //nolint:gochecknoglobals // real net/http config
 	// fetchHTTPClient is the client parent-sync requests fetch through; a
@@ -49,7 +49,7 @@ var (
 )
 
 // bodyReadErrIsTooLarge reports whether err is specifically
-// http.MaxBytesReader's over-the-cap error (S34 residual) — the one case
+// http.MaxBytesReader's over-the-cap error (792b35c3 Request bodies) — the one case
 // httpHandlerFor's caller (internal/cli's requireReadBody) answers 413
 // for. Any other body-read failure (a client disconnect, a reset
 // connection) is not this case, and answers 400 instead.
@@ -62,8 +62,8 @@ func bodyReadErrIsTooLarge(err error) bool {
 // httpHandlerFor adapts one cli.ServeHandler to a real net/http.HandlerFunc.
 // The body is read through http.MaxBytesReader (cli.MaxServeRequestBytes);
 // a read error rides on the request as BodyErr, classified via BodyTooLarge
-// (S34 residual) so the routes answer 413 only when the body itself
-// exceeded the cap, and 400 for any other read failure (final review F7).
+// so the routes answer 413 only when the body itself
+// exceeded the cap, and 400 for any other read failure (792b35c3 Request bodies).
 // Query/Header are assigned straight from the real request's own map-typed
 // fields (net/url.Values / net/http.Header both have underlying type
 // map[string][]string, so they're directly assignable to cli.ServeRequest's
@@ -122,8 +122,8 @@ func readFetchResponse(resp *http.Response) (cli.FetchResponse, error) {
 
 // readNonNilResponse reads and closes resp's body, reducing it to
 // cli.FetchResponse. It reads at most cli.FetchResponseReadLimit bytes;
-// internal/cli rejects a body over the accepted maximum (final review F7). No defer (targ check-thin-api forbids defer
-// statements in cmd/engram's declarations): body is closed unconditionally,
+// internal/cli rejects a body over the accepted maximum (792b35c17 The bounded fetch client). No defer (targ
+// check-thin-api forbids defer statements in cmd/engram's declarations): body is closed unconditionally,
 // right after the read, sequentially.
 func readNonNilResponse(resp *http.Response) (cli.FetchResponse, error) {
 	body := resp.Body

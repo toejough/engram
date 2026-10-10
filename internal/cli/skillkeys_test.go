@@ -17,7 +17,7 @@ import (
 // Test792b30c16a12_ResolveSkillSources_PiLinkThroughSymlinkedHome: `$HOME` is a symlink
 // and Pi's route resolves into engram's installed copy; the entry is
 // keyed by its folder (`pi:route`), and the resolved home is reported for
-// writing `~`-relative skill_source values (design D8).
+// writing `~`-relative skill_source values (792b31c7 Note actions).
 func Test792b30c16a12_ResolveSkillSources_PiLinkThroughSymlinkedHome(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -179,7 +179,7 @@ func Test792b30c17a2_AssignSkillKeys_DisabledCandidatesAreKeyed(t *testing.T) {
 	g.Expect(keyed[0].Disabled).To(BeTrue())
 }
 
-// Test792b30c17a3_AssignSkillKeys_KeyProperty checks D3's key rules over generated
+// Test792b30c17a3_AssignSkillKeys_KeyProperty checks the 792b30c17 Skill keys rules over generated
 // candidates: every key contains `:` and ends in `:<name>`; the key parser
 // recognizes it and maps it to exactly one removal form (a fixed or
 // source-rooted form, or a plugin) — the candidate's own — and to the
@@ -389,7 +389,7 @@ var (
 	noteSlugPattern = regexp.MustCompile(`^skill-[a-z0-9]+(-[a-z0-9]+)*$`)
 )
 
-// assertKeyShape checks one generated candidate's key against D3's shape:
+// assertKeyShape checks one generated candidate's key against the 792b30c17 Skill keys shape:
 // qualified, ending in the name, recognized by the key parser as exactly
 // the candidate's removal form and scope, with a note-slug-shaped slug.
 func assertKeyShape(rt *rapid.T, candidate cli.SkillCandidate, key string) {
@@ -418,7 +418,7 @@ func assertKeyShape(rt *rapid.T, candidate cli.SkillCandidate, key string) {
 	}
 }
 
-// drawKeyCandidate draws a candidate of any D3 source with a colon-free
+// drawKeyCandidate draws a candidate of any 792b30c17 Skill keys source with a colon-free
 // name (commands may have namespace segments), sometimes placed under
 // engram's installed skills folder, which never changes its key.
 func drawKeyCandidate(rt *rapid.T, index int) cli.SkillCandidate {
@@ -475,7 +475,7 @@ func drawKeyCandidate(rt *rapid.T, index int) cli.SkillCandidate {
 }
 
 // expectedRemovalForm is the test's own oracle for the removal form a
-// generated candidate's scope gives its key (design D3, D5).
+// generated candidate's scope gives its key (792b30c17 Skill keys and 792b31c3 Removal eligibility).
 func expectedRemovalForm(candidate cli.SkillCandidate) (cli.SkillRootForm, bool, string) {
 	fixed := map[string]cli.SkillRootForm{
 		cli.SkillScopeClaudeUser: cli.SkillRootFormClaudeUser, cli.SkillScopeClaudeCmd: cli.SkillRootFormClaudeCmd,

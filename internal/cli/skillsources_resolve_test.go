@@ -238,10 +238,10 @@ func Test792b30c16a4_ResolveSkillSources_OutsideARepoHasNoProjectSources(t *test
 	}
 }
 
-// Test792b30c16a6_ResolveSkillSources_PiOverridesDisableDefaultFolders (rulings R8/R10):
-// the global settings' `!` overrides switch off default-folder files and the
-// project settings' overrides switch off project default-folder files; the
-// Disabled candidates stay in the result.
+// Test792b30c16a6_ResolveSkillSources_PiOverridesDisableDefaultFolders (792b30c12 Pi settings reading and
+// overrides, 792b30c13 Pi configured sources): the global settings' `!` overrides switch off default-folder
+// files and the project settings' overrides switch off project default-folder files; the Disabled candidates
+// stay in the result.
 // Test792b30c16a5_ResolveSkillSources_OverridesSkipCandidateWithUnknownLevel: a
 // `.agents/skills` candidate whose ReadRoot matches no recorded level is left
 // unchanged (never matched against an empty base) and reported.
@@ -308,7 +308,7 @@ func Test792b30c16a7_ResolveSkillSources_PluginConflictPassesThrough(t *testing.
 }
 
 // Test792b30c16a8_ResolveSkillSources_PrecedenceProperty: whichever subset of sources
-// exists, the resolver's candidates appear in design D2 precedence order —
+// exists, the resolver's candidates appear in 792b30c16 Source composition and precedence order —
 // the rank of each candidate's source never decreases along the result.
 func Test792b30c16a8_ResolveSkillSources_PrecedenceProperty(t *testing.T) {
 	t.Parallel()
@@ -382,7 +382,7 @@ const (
 
 // unexported variables.
 var (
-	// resolverPrecedence is design D2's order over the fixture's sources.
+	// resolverPrecedence is 792b30c16 Source composition and precedence's order over the fixture's sources.
 	resolverPrecedence = []string{
 		"claude-user||skill|c4",
 		"claude-cmd||command|audit",
@@ -479,7 +479,7 @@ func resolverDeps(fsys cli.SkillSourceFS) cli.SkillSourceDeps {
 	}
 }
 
-// resolverFixture builds a home with one entry per design D2 source, both
+// resolverFixture builds a home with one entry per 792b30c16 source, both
 // harnesses installed, and a trusted project at projectTop.
 func resolverFixture(g Gomega) *fakeSkillFS {
 	fsys := newFakeSkillFS().

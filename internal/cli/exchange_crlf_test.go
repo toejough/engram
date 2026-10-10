@@ -1,6 +1,6 @@
 package cli_test
 
-// Exchange readers read notes as LF (#789 follow-up, design D4): a note
+// Exchange readers read notes as LF (792a21zb, 792b6c8 CRLF reading): a note
 // with CRLF line endings takes part in exchange as its LF form does — show
 // prints its exchange hash, the outbox finds it, a pending CRLF offer is
 // still a pending offer, and a CRLF envelope pulls down.

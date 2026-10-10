@@ -1,7 +1,7 @@
 package cli_test
 
-// Curation fold and the judged-version check (design D10; tasks 8.1, 8.2;
-// spec 792a22 "Bookkeeping on a served offer SHALL verify the
+// Curation fold and the judged-version check (792b34c6 Fold of an offer; 792b34c5
+// Judged-version check; spec 792a22 "Bookkeeping on a served offer SHALL verify the
 // judged version" and "Curation judges pending offers the same way recall
 // judges candidates"; link roles: 792a21zk and 792b34c7).
 
@@ -169,7 +169,7 @@ func Test792b34c5a3_RunAmend_UnparseableNoteNeedsNoHash(t *testing.T) {
 // pulled-down copy into a local note that already has a primary: O and its
 // sidecar are deleted; E gains O's basename and aliases; O's pulled primary
 // becomes a covered link on E and O's covered link rides along; nothing is
-// re-embedded, re-stamped (ruling S7), queued or declined; every other byte
+// re-embedded, re-stamped (792b34c6 Fold of an offer), queued or declined; every other byte
 // of E is unchanged.
 func Test792b34c6a1_RunAmend_DiscardIntoFoldsPulledCopy(t *testing.T) {
 	t.Parallel()
@@ -234,8 +234,8 @@ func Test792b34c6a2_RunAmend_DiscardIntoMakesOfferPrimaryWhenTargetHasNone(t *te
 	g.Expect(folded.XID).To(BeEmpty(), "a fold stamps no xid on E")
 }
 
-// Test792b34c6a3_RunAmend_DiscardIntoPropertyUnionsIdentity is 8.1's rule over random
-// alias and link sets (postcondition oracles derived from D10/D4, not from
+// Test792b34c6a3_RunAmend_DiscardIntoPropertyUnionsIdentity is the fold rule (792b34c6) over random
+// alias and link sets (postcondition oracles derived from 792b34c6/792b33c6, not from
 // the implementation): E ends with every alias it had plus O's basename and
 // aliases, without duplicates or its own basename; every link O held is on
 // E under O's parent vault; E keeps its own primary when it had one under
@@ -303,7 +303,7 @@ func Test792b34c6a4_RunAmend_DiscardIntoRejectsBadTargets(t *testing.T) {
 
 // Test792b34c7a3_RunAmend_DiscardIntoPromotesHeldCoveredLink: E has no primary but
 // already covers the parent note that O holds as its pulled primary. The
-// fold promotes E's held link to O's primary role and hash (D10: O's
+// fold promotes E's held link to O's primary role and hash (792b34c7: O's
 // primary stays primary when E has none).
 func Test792b34c7a3_RunAmend_DiscardIntoPromotesHeldCoveredLink(t *testing.T) {
 	t.Parallel()
@@ -594,7 +594,7 @@ func assertFoldLinksCarried(rt *rapid.T, existing, offer foldExchange, got foldP
 }
 
 // assertOfferPrimaryKept: when E has no primary under O's parent vault, O's
-// primary stays primary on E (D10), even when E already held a covered
+// primary stays primary on E (792b34c7 Merging parent links), even when E already held a covered
 // link to that same parent note.
 func assertOfferPrimaryKept(rt *rapid.T, existing, offer foldExchange, got foldParentYAML) {
 	offerPrimary := slices.IndexFunc(offer.links, func(link foldLink) bool { return isPrimaryVia(link.via) })

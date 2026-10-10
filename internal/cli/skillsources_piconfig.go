@@ -15,10 +15,10 @@ import (
 // Exported constants.
 const (
 	// SkillScopePiPkgPrefix prefixes a Pi package's scope ID and key segment:
-	// `pi-pkg:<pkg-id>` (design D3).
+	// `pi-pkg:<pkg-id>` (792b30c17 Skill keys).
 	SkillScopePiPkgPrefix = "pi-pkg:"
 	// SkillScopePiSettings is the scope ID (and key segment) of Pi's global
-	// settings.json `skills`/`prompts` entries (design D3 `pi-settings`).
+	// settings.json `skills`/`prompts` entries (792b30c17 Skill keys `pi-settings`).
 	SkillScopePiSettings = "pi-settings"
 )
 
@@ -52,7 +52,7 @@ type PiSettings struct {
 }
 
 // ApplyPiSettingsOverrides applies one settings file's `skills` or `prompts`
-// entries to candidates found in Pi's default folders (ruling R8; Pi's
+// entries to candidates found in Pi's default folders (792b30c12 Pi settings reading and overrides; Pi's
 // isEnabledByOverrides, dist/core/package-manager.js:515-539, applied in
 // addAutoDiscoveredResources :1904-1985). Only override entries act: a
 // `!pattern` excludes, then `+path` re-enables and `-path` force-excludes by
@@ -147,8 +147,8 @@ func ReadPiSettings(fsys SkillSourceFS, settingsPath string) (PiSettings, []stri
 	return settings, warnings
 }
 
-// ScanPiConfiguredSources scans Pi's configured sources (design D2 sources
-// 6, 6b, 7 and the settings/package part of 10): the global
+// ScanPiConfiguredSources scans Pi's configured sources (792b30c13 Pi configured
+// sources; the settings/package part of the Pi project sources): the global
 // <AgentDir>/settings.json `skills`/`prompts` entries and `packages`, plus —
 // only when scan.Trusted — the same keys of <Cwd>/.pi/settings.json.
 //
@@ -171,7 +171,7 @@ func ReadPiSettings(fsys SkillSourceFS, settingsPath string) (PiSettings, []stri
 // Global candidates carry ScopeID SkillScopePiSettings or
 // `pi-pkg:<pkg-id>`; project candidates carry scan.ScopeID. Every candidate
 // carries SourceSegment (`pi-settings` or `pi-pkg:<pkg-id>`) for key
-// construction (task 2.1). Keys are left empty.
+// construction (792b30c17 Skill keys). Keys are left empty.
 func ScanPiConfiguredSources(fsys SkillSourceFS, scan PiConfiguredScan) SkillScanResult {
 	var result SkillScanResult
 
@@ -683,7 +683,7 @@ func (s piSettingsScope) packageRef(entry piPackageEntry) piPackage {
 }
 
 // rootForm is the removal-eligibility form of this settings file's entry
-// roots (design D5): each entry is its own pi-settings root, or a project
+// roots (792b31c3 Removal eligibility): each entry is its own pi-settings root, or a project
 // root for the project settings.
 func (s piSettingsScope) rootForm() SkillRootForm {
 	if s.project {
@@ -695,7 +695,7 @@ func (s piSettingsScope) rootForm() SkillRootForm {
 
 // rootKeyPrefixes are the key prefixes one of this settings file's
 // entries of kind vouches for: `pi-settings:` (or `pi-settings:pi-prompt:`),
-// under `project:<r>:` for the project settings (design D5).
+// under `project:<r>:` for the project settings (792b31c3 Removal eligibility).
 func (s piSettingsScope) rootKeyPrefixes(kind SkillSourceKind) []string {
 	return []string{skillRootKeyPrefix(s.scopeID, SkillScopePiSettings, kind)}
 }
@@ -1288,7 +1288,7 @@ func resolvePiPath(input, baseDir, home string) string {
 }
 
 // scanPiPromptTree scans one prompt directory recursively (piPromptWalker),
-// named by stem, with R5 root semantics.
+// named by stem, with 792b30c2 Root read status semantics.
 func scanPiPromptTree(fsys SkillSourceFS, promptsRoot string) SkillScanResult {
 	var result SkillScanResult
 

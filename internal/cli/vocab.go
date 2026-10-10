@@ -343,7 +343,7 @@ func sortTermScores(candidates []termScore) {
 // leading frontmatter block. An empty block ("---\n---\n") yields "" —
 // rebuilt as "---\n\n---\n", which parses identically.
 func splitFrontmatterAndBody(content string) (string, string, bool) {
-	frontmatter, body, found := embed.SplitFrontmatter(toLF([]byte(content))) // CRLF reads as LF (#789 design D8)
+	frontmatter, body, found := embed.SplitFrontmatter(toLF([]byte(content))) // CRLF reads as LF (792b6c8 CRLF reading)
 	if !found {
 		return "", "", false
 	}
@@ -354,7 +354,7 @@ func splitFrontmatterAndBody(content string) (string, string, bool) {
 // vocabAssignmentUnchanged reports whether a vocab assignment changed
 // nothing worth writing: updated is content itself, or only its LF form —
 // a CRLF note is converted only by a write that changes its tags, never
-// written just to convert it (#789 design D8).
+// written just to convert it (792b6c8 CRLF reading).
 func vocabAssignmentUnchanged(content, updated string) bool {
 	return updated == content || updated == string(toLF([]byte(content)))
 }

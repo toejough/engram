@@ -14,7 +14,7 @@ import (
 )
 
 // Test792b12c2a1_RunLearnFromFactArgs_RequiresSituation asserts a fact write rejects an
-// empty or whitespace --situation (M5). Situation is rendered into the fact
+// empty or whitespace --situation (792b12c2 Required content). Situation is rendered into the fact
 // body formula and drives recall-mirror retrieval, so an absent situation
 // must fail loudly rather than silently produce an unretrievable note.
 func Test792b12c2a1_RunLearnFromFactArgs_RequiresSituation(t *testing.T) {
@@ -64,7 +64,7 @@ func Test792b12c2a1_RunLearnFromFactArgs_RequiresSituation(t *testing.T) {
 }
 
 // Test792b12c2a1_RunLearnFromFeedbackArgs_RequiresSituation asserts a feedback write
-// rejects an empty or whitespace --situation (M5), mirroring the fact case:
+// rejects an empty or whitespace --situation (792b12c2 Required content), mirroring the fact case:
 // situation feeds the feedback body formula and recall-mirror retrieval.
 func Test792b12c2a1_RunLearnFromFeedbackArgs_RequiresSituation(t *testing.T) {
 	t.Parallel()
@@ -437,7 +437,7 @@ func Test792b12c4a7_RunLearnFromRunbookArgs_TriggerRepeatableFlagWritesField(t *
 }
 
 // Test792b2c3a1_LearnFact_BootstrapsMissingVault: `engram learn fact` on a missing
-// vault creates it in dispatch (design D2's single ensureVault path) and
+// vault creates it in dispatch (792b5c1 First-use ensure's single ensureVault path) and
 // the note lands.
 func Test792b2c3a1_LearnFact_BootstrapsMissingVault(t *testing.T) {
 	t.Parallel()

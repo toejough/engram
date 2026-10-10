@@ -264,7 +264,7 @@ type ExportAllVaultNotesMeta = AllVaultNotesMeta
 // can construct hits slices via ExportNewCompatibleSidecars.
 type ExportCompatibleSidecar = compatibleSidecar
 
-// Exported derivation types (vocab-derivational-refit Task 1).
+// Exported derivation types (vocab derivation).
 // ExportDeclinedPull aliases declinedPull so cli_test can wire
 // AmendDeps.RecordDecline.
 type ExportDeclinedPull = declinedPull
@@ -325,15 +325,14 @@ type ExportVaultTermMember = VaultTermMember
 
 type ExportVocabCentroidEntry = vocabCentroidEntry
 
-// Exported vocab schema types (Task 1).
+// Exported vocab schema types (vocab schema).
 type ExportVocabCentroidsDoc = vocabCentroidsDoc
 
 type ExportVocabClusterName = vocabClusterName
 
 type ExportVocabDerivation = vocabDerivation
 
-// ExportVocabDerivationMeta aliases the centroids-file derivation metadata
-// (vocab-derivational-refit Task 2.3).
+// ExportVocabDerivationMeta aliases the centroids-file derivation metadata.
 type ExportVocabDerivationMeta = vocabDerivationMeta
 
 type ExportVocabLastRefitDoc = vocabLastRefitDoc
@@ -344,7 +343,7 @@ type ExportVocabNameMatch = vocabNameMatch
 
 type ExportVocabNamingExemplar = vocabNamingExemplar
 
-// Exported naming-request types (vocab-derivational-refit Task 2.2).
+// Exported naming-request types (vocab naming).
 type ExportVocabNamingRequest = vocabNamingRequest
 
 // OfferCommandForTest names the classification's command type.
@@ -413,7 +412,7 @@ func ExportApplyMatchEvidenceBonus(
 	return applyMatchEvidenceBonus(similarities, evidenced, bonus)
 }
 
-// ExportApplyReceiptToContent exposes the pure receipt rewrite (design D6).
+// ExportApplyReceiptToContent exposes the pure receipt rewrite (792b33c9 Recording an offer receipt).
 func ExportApplyReceiptToContent(raw []byte, receipt OfferReceiptForTest) (string, error) {
 	return applyReceiptToContent(raw, receipt)
 }
@@ -461,7 +460,7 @@ func ExportBuildChunkIDSet(
 	return buildChunkIDSet(chunksDir, listIndexes, readFile)
 }
 
-// ExportBuildOfferPayload builds a note's /learn payload (design D5) with
+// ExportBuildOfferPayload builds a note's /learn payload (792b36c2 The offer built from a note) with
 // fixed detection results and a supersedes-target table.
 func ExportBuildOfferPayload(
 	note OfferNoteForTest, localID, parentID, detectedRepo, detectedUser string, supersedes map[string]string,
@@ -516,7 +515,7 @@ func ExportCapItemsToLimit(paths []string, limit int) []string {
 	return out
 }
 
-// ExportClassifyOffer runs design D5's classification.
+// ExportClassifyOffer runs 792b36c1's classification of which writes are offered.
 func ExportClassifyOffer(command OfferCommandForTest, amend AmendArgs, raw []byte, parentVaultID string) bool {
 	return classifyOffer(offerWrite{command: command, amend: amend, raw: raw}, parentVaultID)
 }
@@ -546,7 +545,7 @@ func ExportCollectVaultStats(names []string, deps VocabStatsDeps, vault string) 
 }
 
 // ExportComputeExploreHalf exposes computeExploreHalf for query-path
-// integration tests (task 2.1): the glue between vocab.centroids.json,
+// integration tests: the glue between vocab.centroids.json,
 // vault term membership, and the pure sampling core.
 func ExportComputeExploreHalf(
 	vault string,
@@ -594,8 +593,7 @@ func ExportItemMatchesProject(content, project string) bool {
 // ExportLoadMemberNoteVectors drives loadMemberNoteVectors with
 // production-composed VocabDeps (newVocabDeps over real-OS test Deps), so
 // tests can exercise it against a real t.TempDir() vault fixture (see
-// writeNoteAndSidecar). The real function returns only a map (no error) —
-// adapted per the Task 2 brief's note.
+// writeNoteAndSidecar). The real function returns only a map (no error) —.
 func ExportLoadMemberNoteVectors(vault string) map[string][]float32 {
 	return loadMemberNoteVectors(newVocabDeps(ExportNewTestOsDeps()), vault)
 }
@@ -857,7 +855,7 @@ func ExportNewScoredCandidate(notePath string, score, baseScore float32) scoredC
 
 // ExportNewScoredCandidateWithContent builds a scoredCandidate with the content
 // field set so recallability tests can drive isQueryExcludedKind inside the
-// pipeline — including the inverted #678 Task 6 tests proving a bare-vocab-tagged
+// pipeline — including the inverted #678 tests proving a bare-vocab-tagged
 // definition note is no longer excluded.
 func ExportNewScoredCandidateWithContent(
 	notePath string,
@@ -935,8 +933,8 @@ func ExportNewUpdateDepsFromWithVocab(
 }
 
 // ExportNewUpdateDepsWithSpawn is ExportNewUpdateDepsFrom plus an explicit
-// Spawner and Exit, for tests driving runUpdate's re-exec handoff (design
-// D8): the parent-exits-early and fallback-continues control-flow branches.
+// Spawner and Exit, for tests driving runUpdate's re-exec handoff (792a11e The rest of
+// the update runs in the new binary): the parent-exits-early and fallback-continues control-flow branches.
 func ExportNewUpdateDepsWithSpawn(
 	fs update.Filesystem, cmd update.Commander, env update.Env, spawn update.Spawner, exit func(int),
 ) updateDeps {
@@ -994,8 +992,8 @@ func ExportOfferHooksStageWrite(hooks OfferHooksForTest, vault string, raw []byt
 // ExportParseAdoptFlags exposes parseAdoptFlags for property testing.
 func ExportParseAdoptFlags(raw []string) (map[string]string, error) { return parseAdoptFlags(raw) }
 
-// ExportParseSkillKey exposes the skill key parser (parseSkillKey, design
-// D3): whether key is recognized, and its removal form, source-rootedness,
+// ExportParseSkillKey exposes the skill key parser (parseSkillKey,
+// 792b30c17 Skill keys): whether key is recognized, and its removal form, source-rootedness,
 // plugin name and answer scope.
 func ExportParseSkillKey(key string) (recognized bool, form SkillRootForm, sourced bool, plugin, scopeID string) {
 	parsed := parseSkillKey(key)
@@ -1108,7 +1106,7 @@ func ExportResolveRecentFill(raw int) int {
 }
 
 // ExportResolvedItemBaseScore exposes the pre-decay baseScore field for
-// activation-cutoff and band assertions (populated by Task 2.3).
+// activation-cutoff and band assertions.
 func ExportResolvedItemBaseScore(item ExportResolvedItem) float32 { return item.baseScore }
 
 // ExportResolvedItemContent exposes the unexported content field for
@@ -1196,7 +1194,7 @@ func ExportSelectWithinCluster(
 // ExportSetXIDField exposes the lazy xid stamp.
 func ExportSetXIDField(content, xid string) (string, error) { return setXIDField(content, xid) }
 
-// ExportSkillKeyRemovalEligible reports design D5 removal eligibility of a
+// ExportSkillKeyRemovalEligible reports 792b31c3 Removal eligibility of a
 // note with key and recorded skill_source over input's roots and plugin
 // facts (skillRemovalEligibility.eligible).
 func ExportSkillKeyRemovalEligible(input SkillOfferInput, key, source string) bool {

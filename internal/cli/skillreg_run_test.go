@@ -18,7 +18,7 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
-// Test792b31c5a11_RunSkillRegistration_PromptEOF_RecordsNothing covers ruling R29: an
+// Test792b31c5a11_RunSkillRegistration_PromptEOF_RecordsNothing covers 792b31c5 Answers and prompts: an
 // exhausted stdin at an interactive per-offer prompt is no answer, so no
 // note and no decline is written.
 func Test792b31c5a11_RunSkillRegistration_PromptEOF_RecordsNothing(t *testing.T) {
@@ -403,11 +403,10 @@ func Test792b31c6a19_RunSkillRegistration_AdoptAmbiguousBareID_WritesNothing(t *
 	g.Expect(vault.files).To(Equal(before), "a refused adopt run must write nothing")
 }
 
-// Test792b31c6a1_RunSkillRegistration_ResolvesFromTheWorkingDirectory covers design D1:
-// the default set is resolved from the working directory Getwd supplies — a
-// project command in the cwd's repository is offered under its project key —
-// and a run with no working directory fails instead of silently dropping
-// the project sources.
+// Test792b31c6a1_RunSkillRegistration_ResolvesFromTheWorkingDirectory covers 792b30c16 Source composition and
+// precedence: the default set is resolved from the working directory Getwd supplies — a project command in
+// the cwd's repository is offered under its project key — and a run with no working directory fails instead
+// of silently dropping the project sources.
 func Test792b31c6a1_RunSkillRegistration_ResolvesFromTheWorkingDirectory(t *testing.T) {
 	t.Parallel()
 
@@ -839,8 +838,8 @@ func Test792b31c6a5_RunSkillRegistration_CompareSkillOffersError_Propagates(t *t
 // Test792b31c6a6_RunSkillRegistration_RealRunsPrintScanWarnings covers the scanner and
 // key-builder warnings on every path, not only --dry-run: a `:` skill name
 // is skipped with a warning on an interactive run and on a non-interactive
-// one alike (skill-runbook-registration: "An entry whose name contains `:`
-// SHALL be skipped with a warning").
+// one alike (792a12o Every scanned entry has a source-qualified key: an entry whose name contains `:`
+// is skipped with a warning).
 func Test792b31c6a6_RunSkillRegistration_RealRunsPrintScanWarnings(t *testing.T) {
 	t.Parallel()
 

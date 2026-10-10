@@ -16,7 +16,7 @@ import (
 	"github.com/toejough/engram/internal/update"
 )
 
-// Test792b11c1a1_DetectRepo covers the three cases from design.md: origin remote
+// Test792b11c1a1_DetectRepo covers the three cases of 792b11c1 Repository detection: origin remote
 // configured, no origin remote (dirname fallback), and not inside a git
 // repo at all (Getwd failing stands in for "no git" too, since detectRepo
 // treats every failure path the same way — resolve to "").

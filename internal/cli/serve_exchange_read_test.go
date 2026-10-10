@@ -1,8 +1,8 @@
 package cli_test
 
-// Served reads for exchange (design D7 H7, 792b35c6 "Served show
+// Served reads for exchange (792b35c6 "Served show
 // SHALL offer a raw JSON envelope" and "Served query SHALL return dedupe
-// keys on request"; tasks 4.4, 4.5).
+// keys on request"; 792a20k).
 
 import (
 	"bytes"
@@ -228,10 +228,10 @@ func Test792b35c6a5_ServeShow_RawEnvelope(t *testing.T) {
 			g.Expect(resp.Status).To(Equal(200))
 
 			var envelope struct {
-				VaultID      string `json:"vault_id"` //nolint:tagliatelle // design D7 envelope keys
+				VaultID      string `json:"vault_id"` //nolint:tagliatelle // 792b35c6 fixes the envelope keys
 				Basename     string `json:"basename"`
 				Content      string `json:"content"`
-				ExchangeHash string `json:"exchange_hash"` //nolint:tagliatelle // design D7 envelope keys
+				ExchangeHash string `json:"exchange_hash"` //nolint:tagliatelle // 792b35c6 fixes the envelope keys
 			}
 			g.Expect(json.Unmarshal(resp.Body, &envelope)).To(Succeed())
 			g.Expect(envelope.VaultID).To(Equal(serverVaultID))
@@ -242,7 +242,7 @@ func Test792b35c6a5_ServeShow_RawEnvelope(t *testing.T) {
 	}
 }
 
-// Test792b35c6a6_ServeShow_RawHidesPendingNotes (final review F8): the raw route
+// Test792b35c6a6_ServeShow_RawHidesPendingNotes (792b35c6 The show route): the raw route
 // never serves a pending note — by basename or by alias — so a child can't
 // pull another child's unvetted offer down as a parent note; a live note
 // is served as before.

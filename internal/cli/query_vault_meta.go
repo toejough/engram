@@ -53,7 +53,7 @@ type VaultTermMember struct {
 	// checks (isVocabDefinitionNote) and rendering.
 	Content string
 	// Vector is the note's BodyVector from its compatible sidecar, used for
-	// centroid-proximal within-cluster selection (design.md Decision 3).
+	// centroid-proximal within-cluster selection (792b24c9 Clusters).
 	Vector []float32
 }
 
@@ -214,7 +214,7 @@ func loadAllVaultNotesMeta(
 // namespace entries) and supersedes: fields from note content's YAML
 // frontmatter. Returns zero-value fields on any parse failure.
 func parseNoteQueryFrontmatter(content string) noteQueryFrontmatter {
-	frontmatter, _, ok := embed.SplitFrontmatter(toLF([]byte(content))) // CRLF reads as LF (#789 design D8)
+	frontmatter, _, ok := embed.SplitFrontmatter(toLF([]byte(content))) // CRLF reads as LF (792b6c8 CRLF reading)
 	if !ok {
 		return noteQueryFrontmatter{}
 	}

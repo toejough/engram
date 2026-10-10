@@ -1,6 +1,6 @@
 package cli_test
 
-// Identity backfill as a YAML-node edit (#789 defect 2, design D2; 792a10 identity
+// Identity backfill as a YAML-node edit (#789 defect 2, 792b11c7 Identity backfill; 792a10 identity
 // backfill, "Backfill for pre-existing notes missing identity
 // fields"): every key backfill does not set survives with its value, an
 // anchored key it would set refuses that note untouched, and the run
@@ -69,8 +69,8 @@ func Test792b11c7a11_BackfillIdentity_WriteAndRebuildFailuresSurface(t *testing.
 }
 
 // Test792b11c7a3_BackfillIdentity_FillsAnOmittedUser: a note first written where user
-// detection was empty carries repo: and vault: but no user: (#789 design
-// D6). Backfill flags it and fills in only user:, keeping its repo: and
+// detection was empty carries repo: and vault: but no user: (792b11c3
+// First-write stamp). Backfill flags it and fills in only user:, keeping its repo: and
 // vault:; where detection is still empty it writes nothing.
 func Test792b11c7a3_BackfillIdentity_FillsAnOmittedUser(t *testing.T) {
 	t.Parallel()
@@ -259,7 +259,7 @@ func Test792b11c7a8_BackfillIdentity_RefusesAnchoredIdentityKey(t *testing.T) {
 }
 
 // Test792b11c7a9_BackfillIdentity_ConvertsCRLFNote: backfill reads a CRLF note as LF
-// (#789 design D2): a flagged note in any CRLF layout is stamped and
+// (792b11c7 Identity backfill): a flagged note in any CRLF layout is stamped and
 // written as LF — byte-identical to the backfill of its LF form — with its
 // sidecar rebuilt; a note backfill does not write stays CRLF; a dry run
 // counts it and writes nothing.
@@ -428,7 +428,7 @@ func decodeBackfillFrontmatter(tester failer, content string) map[string]any {
 func drawBackfillExtraKeys(rt *rapid.T) string {
 	var lines strings.Builder
 
-	const maxUnknownKeys = 3 // design D11: 0–3 unknown keys
+	const maxUnknownKeys = 3 // 0–3 unknown keys
 
 	count := rapid.IntRange(0, maxUnknownKeys).Draw(rt, "unknown-count")
 

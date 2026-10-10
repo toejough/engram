@@ -14,23 +14,23 @@ import (
 // Exported constants.
 const (
 	// SkillScopeClaudeCmd is the scope ID of Claude Code user commands
-	// (~/.claude/commands; design D3 `claude-cmd`).
+	// (~/.claude/commands; 792b30c17 Skill keys `claude-cmd`).
 	SkillScopeClaudeCmd = "claude-cmd"
 	// SkillScopeClaudeUser is the scope ID of Claude Code user skills
-	// (~/.claude/skills; design D3 `claude-user`).
+	// (~/.claude/skills; 792b30c17 Skill keys `claude-user`).
 	SkillScopeClaudeUser = "claude-user"
 	// SkillScopeSynced is the scope ID of claude.ai-synced skills
-	// (~/.claude/skills/synced/<bucket>; design D3 `synced`).
+	// (~/.claude/skills/synced/<bucket>; 792b30c17 Skill keys `synced`).
 	SkillScopeSynced = "synced"
 	// SkillSourceKindCommand, SkillSourceKindPrompt and SkillSourceKindSkill
-	// are the three SkillSourceKind values (design D1).
+	// are the three SkillSourceKind values (792b30c16 Source composition and precedence).
 	SkillSourceKindCommand SkillSourceKind = "command"
 	SkillSourceKindPrompt  SkillSourceKind = "prompt"
 	SkillSourceKindSkill   SkillSourceKind = "skill"
 )
 
 // ScannedRoot records one source root a scanner tried to read, and whether
-// the read succeeded (design D5). Any read error, including not-exist, means
+// the read succeeded (792b31c3 Removal eligibility). Any read error, including not-exist, means
 // not scanned — never "scanned and empty" — so a removal is never offered
 // for a note whose source could not be read.
 type ScannedRoot struct {
@@ -42,7 +42,7 @@ type ScannedRoot struct {
 	// Scanned is true only when the root was read successfully.
 	Scanned bool
 	// Form is the removal-eligibility form of the notes this root can prove
-	// absent (design D5). Scanners leave it empty; ResolveSkillSources and
+	// absent (792b31c3 Removal eligibility). Scanners leave it empty; ResolveSkillSources and
 	// the Pi configured-source scanner stamp it. An empty Form (e.g. the
 	// synced directory itself, or a plugin root) never grants eligibility.
 	Form SkillRootForm
@@ -52,28 +52,28 @@ type ScannedRoot struct {
 	// `pi-settings:pi-prompt:`, `pi-pkg:<id>:` and `pi-pkg:<id>:pi-prompt:`,
 	// `project:<r>:` plus its segment (``, `cmd:`, `pi:`, `agents:`, …).
 	// A read root vouches for a note only when the note's key is one of its
-	// prefixes followed by a name (design D5).
+	// prefixes followed by a name (792b31c3 Removal eligibility).
 	KeyPrefixes []string
 }
 
 // SkillCandidate is one skill, command or prompt file found by a source
 // scanner — the shared record every scanner emits and the resolver
-// (ResolveSkillSources, task 1.10) composes (design D1).
+// (ResolveSkillSources) composes (792b30c16 Source composition and precedence).
 type SkillCandidate struct {
-	// Key is the source-qualified skill key (design D3). Scanners leave it
+	// Key is the source-qualified skill key (792b30c17 Skill keys). Scanners leave it
 	// empty; AssignSkillKeys builds it from ScopeID, SourceSegment, Kind and
 	// Name, and ResolveSkillSources stamps it on every candidate it returns.
 	Key string
-	// Name is the scope-local raw name: a skill's directory name, or a
-	// command's relative path with `/` replaced by `:` and `.md` stripped
-	// (`opsx/apply.md` → `opsx:apply`). Never a frontmatter field (D2).
+	// Name is the scope-local raw name: a skill's directory name, or a command's relative path with `/`
+	// replaced by `:` and `.md` stripped (`opsx/apply.md` → `opsx:apply`). Never a frontmatter field
+	// (792b30c16 Source composition and precedence).
 	Name string
 	// ScopeID is the source scope the scanner was run for (e.g.
 	// SkillScopeClaudeUser, SkillScopeSynced, `plugin:<plugin>`).
 	ScopeID string
 	// ReadRoot is the fully resolved root whose successful read produced
 	// this candidate (the skills dir, a synced bucket, a commands dir or a
-	// declared command path) — the root D5 removal eligibility checks.
+	// declared command path) — the root 792b31c3 Removal eligibility checks.
 	ReadRoot string
 	// SourcePath is the fully symlink-resolved path of the file whose bytes
 	// are Content.
@@ -92,20 +92,20 @@ type SkillCandidate struct {
 	//   - `pi-settings` or `pi-pkg:<pkg-id>` for Pi configured sources, global
 	//     or project (ScanPiConfiguredSources);
 	//   - within a `project:<r>` scope, the segment of the matching user
-	//     scope (ruling R11): SkillSegmentPi for `.pi/skills`,
+	//     scope (792b30c11 Pi project sources): SkillSegmentPi for `.pi/skills`,
 	//     SkillSegmentAgents for `.agents/skills`, SkillScopePiPrompt for
-	//     `.pi/prompts` — so key construction (task 2.1) builds
+	//     `.pi/prompts` — so key construction (792b30c17 Skill keys) builds
 	//     `project:<r>:pi:<n>`, `project:<r>:agents:<n>`,
 	//     `project:<r>:pi-prompt:<n>`, `project:<r>:pi-settings:<n>` and
-	//     `project:<r>:pi-pkg:<id>:<n>` (design D3).
+	//     `project:<r>:pi-pkg:<id>:<n>` (792b30c17 Skill keys).
 	// Empty for every other source, including Claude project skills and
 	// commands (`project:<r>:<n>` / `project:<r>:cmd:<n>`, told apart by
 	// Kind).
 	SourceSegment string
 	// Disabled marks a file Pi finds but has switched off: a settings
 	// `!pattern`/`-path` over a default folder (ApplyPiSettingsOverrides,
-	// ruling R8), a settings include glob or `!`/`-` filter over a settings
-	// entry, or an object-form package filter (including `[]`) (ruling R10).
+	// 792b30c12 Pi settings reading and overrides), a settings include glob or `!`/`-` filter over a settings
+	// entry, or an object-form package filter (including `[]`) (792b30c13 Pi configured sources).
 	// A Disabled candidate MUST NOT be offered for registration or refresh,
 	// but it counts as PRESENT for removal eligibility, exactly like a
 	// disabled plugin keeping its notes.
@@ -147,7 +147,7 @@ func ResolveSkillPath(fsys SkillSourceFS, path string) (string, error) {
 	return resolved, err
 }
 
-// ScanClaudeUserSkills scans ~/.claude/skills (design D2 source 1): its
+// ScanClaudeUserSkills scans ~/.claude/skills (792b30c3 Claude Code user skills): its
 // immediate children that are directories, or symlinks resolving to
 // directories, containing SKILL.md. `synced` (the claude.ai buckets, see
 // ScanSyncedSkills), root files, dangling symlinks and directories without
@@ -159,8 +159,8 @@ func ScanClaudeUserSkills(fsys SkillSourceFS, skillsRoot string) SkillScanResult
 // ScanCommandDir scans one commands directory for `**/*.md`, following
 // symlinked files and directories (cycle-guarded on resolved paths, depth
 // bounded). A command's Name is its path relative to commandsRoot with `/`
-// replaced by `:` and `.md` stripped (`opsx/apply.md` → `opsx:apply`, design
-// D2 source 2). It serves ~/.claude/commands, project `.claude/commands` and
+// replaced by `:` and `.md` stripped (`opsx/apply.md` → `opsx:apply`;
+// 792b30c4 Command directories). It serves ~/.claude/commands, project `.claude/commands` and
 // plugin `commands/` alike; scopeID is stamped on every candidate. A file or
 // namespace directory whose own name contains `:` is skipped with a warning
 // (the joined name would be ambiguous); that does not unscan the root.
@@ -197,8 +197,7 @@ func ScanCommandDir(fsys SkillSourceFS, commandsRoot, scopeID string) SkillScanR
 // pluginRoot) is a commands directory (ScanCommandDir rules) or a single
 // `.md` command file named by its stem. Any other form — notably the object
 // map — is unsupported: it is skipped with a warning and
-// `<pluginRoot>/commands` is recorded as not scanned (design D2 source 8,
-// Non-Goals).
+// `<pluginRoot>/commands` is recorded as not scanned (792b30c6 Plugin command paths).
 //
 // A declared path must stay inside the plugin (declaredPluginPath): an
 // absolute path, one escaping pluginRoot lexically or through a symlink, or
@@ -292,16 +291,16 @@ func ScanSkillChildren(fsys SkillSourceFS, skillsRoot, scopeID string, excluded 
 	return result
 }
 
-// ScanSyncedSkills scans ~/.claude/skills/synced (design D2 source 3): each
+// ScanSyncedSkills scans ~/.claude/skills/synced (792b30c5 Synced skill buckets): each
 // directory child ("bucket") whose manifest.json parses as JSON contributes
 // its skill children (ScanSkillChildren rules, scope SkillScopeSynced, the
 // resolved bucket as ReadRoot). Non-directory children such as the stray
 // `.bucket-*` file are ignored. Every bucket directory is recorded as its own
 // root — scanned only when its manifest parsed and it was read — so one
-// failing bucket never exposes its notes to removal (D5). The synced root
+// failing bucket never exposes its notes to removal (792b31c3 Removal eligibility). The synced root
 // itself is scanned iff at least one manifest parsed. The manifest's content
 // is not otherwise used; skills with one name in two buckets are both
-// emitted (collapse or conflict is decided by dedupe, task 2.3).
+// emitted (collapse or conflict is decided by dedupe, 792b31c2 Offer comparison).
 func ScanSyncedSkills(fsys SkillSourceFS, syncedRoot string) SkillScanResult {
 	var (
 		result  SkillScanResult
@@ -355,7 +354,7 @@ func ScanSyncedSkills(fsys SkillSourceFS, syncedRoot string) SkillScanResult {
 const (
 	// commandColonWarningFormat reports a command entry (file or namespace
 	// directory) skipped because its name contains `:`, which would make its
-	// `:`-joined command name ambiguous (design D2).
+	// `:`-joined command name ambiguous (792b30c16 Source composition and precedence).
 	commandColonWarningFormat = "engram: skipping command %s: its name contains `:`"
 	commandFileExt            = ".md"
 	// jsonNullLiteral is the JSON null token.
@@ -655,8 +654,8 @@ func readSkillSourceRoot(
 // resolveSkillPathBestEffort resolves path as far as it can: every symlink
 // up to the first component that fails is followed, and the unresolved rest
 // is joined on. It gives a root that could not be read (a dangling link, a
-// denied directory) the real location it points into, so D5 eligibility can
-// match a resolved skill_source against it (design D5).
+// denied directory) the real location it points into, so 792b31c3 Removal eligibility can
+// match a resolved skill_source against it (792b31c3 Removal eligibility).
 func resolveSkillPathBestEffort(fsys SkillSourceFS, path string) string {
 	resolved, rest, _, err := walkSkillPath(fsys, path)
 	if err != nil && resolved == "" {

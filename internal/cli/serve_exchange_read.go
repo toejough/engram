@@ -10,18 +10,18 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// rawShowResponse is GET /show?raw=1's JSON envelope (design D7 H7):
+// rawShowResponse is GET /show?raw=1's JSON envelope (792b35c6 The show route):
 // the served vault's ID, the note's current basename, the note file's
 // bytes verbatim, and its exchange hash. Being JSON with a vault_id, it
 // can't be confused with an old parent's rendered show output.
 type rawShowResponse struct {
-	VaultID      string `json:"vault_id"` //nolint:tagliatelle // design D7 fixes the envelope's snake_case keys
+	VaultID      string `json:"vault_id"` //nolint:tagliatelle // 792b35c6 fixes the envelope's snake_case keys
 	Basename     string `json:"basename"`
 	Content      string `json:"content"`
-	ExchangeHash string `json:"exchange_hash"` //nolint:tagliatelle // design D7 fixes the envelope's snake_case keys
+	ExchangeHash string `json:"exchange_hash"` //nolint:tagliatelle // 792b35c6 fixes the envelope's snake_case keys
 }
 
-// addDedupeKeys adds a query payload's dedupe keys (design D7): the vault
+// addDedupeKeys adds a query payload's dedupe keys (792b35c5 Dedupe keys): the vault
 // ID at top level and, on each note item, its exchange hash and non-empty
 // aliases. Chunk items get none, and a note whose keys can't be computed
 // is skipped with a warning. Only the dedupe-keys request pays for the
@@ -84,7 +84,7 @@ func addDedupeKeys(deps Deps, vault string, payloadYAML []byte) ([]byte, error) 
 // rawShowEnvelope resolves ref against the vault's note basenames, then
 // against notes' aliases, and returns its raw envelope. The ref is only ever
 // matched against listed names, never joined into a path, so it cannot reach
-// outside the vault. A pending note is never served (final review F8): it
+// outside the vault. A pending note is never served (792b35c6 The show route): it
 // is unvetted content, not this vault's note, so a child can't pull another
 // child's offer down. A miss wraps errShowNoteNotFound.
 func rawShowEnvelope(deps Deps, vault, ref string) (rawShowResponse, error) {

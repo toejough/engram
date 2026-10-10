@@ -37,7 +37,7 @@ type UpdateArgs struct {
 	// standalone one-shot command, not a step folded into a routine refresh.
 	ReparentLuhmann bool `targ:"flag,name=reparent-luhmann,desc=derive/apply batch re-parenting of top-level notes"`
 	// Answers names the --answers JSON file for --reparent-luhmann's apply
-	// phase (design.md Decision 2). Empty means derive-only.
+	// phase (792b27c4 Answers validation). Empty means derive-only.
 	Answers string `targ:"flag,name=answers,desc=JSON answer file for --reparent-luhmann (see the emitted payload)"`
 	// BackfillIdentity stamps repo:/user:/vault: provenance onto notes
 	// written before the note-origin-identity capability existed (detected
@@ -82,7 +82,7 @@ var (
 )
 
 // handoffReportWriter adapts writeReexecHandoffReport to
-// update.HandoffReporter — the production Updater.Handoff (design D6/D8).
+// update.HandoffReporter — the production Updater.Handoff (792b28c9 Hand-off).
 type handoffReportWriter struct {
 	stdout io.Writer
 }
@@ -102,23 +102,23 @@ type updateDeps struct {
 	FS    update.Filesystem
 	Cmd   update.Commander
 	Env   update.Env
-	Spawn update.Spawner // re-exec's post-install spawn (design D1); required — never nil in production
+	Spawn update.Spawner // re-exec's post-install spawn (792b28c9 Hand-off); required — never nil in production
 	// Exit terminates the process with a status code (production: os.Exit,
 	// via cli.Deps.Exit). runUpdate calls it with the re-execed child's
 	// exit code BEFORE the vault/vocab/chunk-check block, so the parent
-	// never runs those checks after handing off (design D8).
+	// never runs those checks after handing off (792b28c9 Hand-off).
 	Exit     func(int)
 	Vocab    VocabDeps    // used only when args.RegenVocab is set (#712)
 	Reparent ReparentDeps // used only when args.ReparentLuhmann is set
 	Identity IdentityDeps // used only when args.BackfillIdentity is set
-	// SkillReg backs the post-deploy skill-registration hook (skill-runbook-
-	// registration, update-deploy-sync). Optional: the zero value (older
+	// SkillReg backs the post-deploy skill-registration hook (792a12t Update runs registration
+	// after deploying the skills). Optional: the zero value (older
 	// updateDeps test fixtures built before this hook existed, e.g.
 	// ExportNewUpdateDepsFrom) is a safe no-op — runUpdateSkillRegistration
 	// skips entirely when its source filesystem is nil.
 	SkillReg SkillRegistrationDeps
 	// Exchange drains the parent outbox (outside --dry-run, ignoring the
-	// backoff window) and returns the outbox notice (design D6). Optional:
+	// backoff window) and returns the outbox notice (792b36c16 The update exchange and the outbox notice). Optional:
 	// nil (older updateDeps fixtures) skips it.
 	Exchange func(ctx context.Context, vault string, dryRun bool) string
 }
@@ -442,8 +442,8 @@ func pluralFile(n int) string {
 }
 
 // reexecArgsFrom reconstructs the flags to pass to a re-execed `engram
-// update` invocation from the parsed args of THIS invocation (design D2:
-// "preserve the original update args"). --dry-run is deliberately excluded:
+// update` invocation from the parsed args of THIS invocation (792b28c9 Hand-off:
+// the original update args are preserved). --dry-run is deliberately excluded:
 // Updater.Run never re-execs on a dry run in the first place (resolveSource
 // skips install), so the flag would never reach here regardless.
 func reexecArgsFrom(args UpdateArgs) []string {
@@ -469,7 +469,7 @@ func reexecArgsFrom(args UpdateArgs) []string {
 // opt-in --regen-vocab/--backfill-identity actions, and the post-deploy
 // skill-registration hook, mutating report in place. Split out of runUpdate
 // to keep the "belongs to whichever process actually ran the sync phase"
-// block (see runUpdate's D8 comment) within the house per-function
+// block (see runUpdate's hand-off comment, 792b28c9 Hand-off) within the house per-function
 // length/nesting budget. stdout is skill registration's own output
 // (prompts, dry-run offer previews, the non-interactive summary line) —
 // written directly and immediately, unlike every other field on report,
@@ -517,7 +517,7 @@ func runPostUpdateChecks(
 
 // runUpdate invokes Updater.Run over the injected dependency surface.
 func runUpdate(ctx context.Context, args UpdateArgs, deps updateDeps, stdout io.Writer) error {
-	// --reparent-luhmann is a standalone one-shot command (design.md): it
+	// --reparent-luhmann is a standalone one-shot command (792b28c10 The update run and its flags): it
 	// short-circuits the rest of `engram update` (binary install, harness
 	// sync, vocab/chunk checks) entirely rather than folding in as an extra
 	// step the way --regen-vocab does.
@@ -553,7 +553,7 @@ func runUpdate(ctx context.Context, args UpdateArgs, deps updateDeps, stdout io.
 		ReexecArgs:     reexecArgsFrom(args),
 	})
 
-	// D8: a non-nil ReexecExitCode means Run handed off to a re-execed
+	// 792b28c9 Hand-off: a non-nil ReexecExitCode means Run handed off to a re-execed
 	// child that already ran sync/checks — this parent process must exit
 	// with the child's code WITHOUT running the vault/vocab/chunk-check
 	// block below (that block belongs to whichever process actually ran
@@ -578,17 +578,16 @@ func runUpdate(ctx context.Context, args UpdateArgs, deps updateDeps, stdout io.
 
 // runUpdateSkillRegistration runs skill registration (skill-runbook-
 // registration) against the resolved vault, using update's own --dry-run
-// flag and no explicit --accept/--decline answers (update-deploy-sync:
-// "Update SHALL run skill registration ... after the engram-owned root sync
-// completes"). It calls the shared source resolver (ResolveSkillSources,
-// design D1) over home and the working directory — the same default set
+// flag and no explicit --accept/--decline answers (792a12t Update runs registration after
+// deploying the skills). It calls the shared source resolver (ResolveSkillSources,
+// 792b30c16 Source composition and precedence) over home and the working directory — the same default set
 // `engram register-skills` scans, never `<sourceRoot>/agent-instructions/
 // skills` — and runs after the sync, so it reads the freshly deployed
 // engram copies. A re-execed child inherits the parent's working
 // directory. A registration failure is returned to the caller, which
 // records it on the report rather than failing the update
-// (update-deploy-sync: "Registration failures SHALL be reported and SHALL
-// NOT roll back the deploy"). deps.SkillReg's zero value (older updateDeps
+// (792b28c16 The registration step: registration failures are reported and
+// do not roll back the deploy). deps.SkillReg's zero value (older updateDeps
 // test fixtures built before this hook existed) is a safe no-op: without a
 // source filesystem there's nothing to register against.
 func runUpdateSkillRegistration(
@@ -725,14 +724,14 @@ func writeEmptyChunkHint(buffer *bytes.Buffer, report update.Report) {
 }
 
 // writeEngramRootNotice renders one harness's engram-root sync findings
-// (D2/D4/D5/D6): every path the sync engine deleted (dry-run-prefixed, since
-// nothing was actually removed under --dry-run — an action line), a
+// (792b29c5 Root ownership, 792b29c6 Root synchronization, 792b29c10 Dangling-link cleanup): every path the sync
+// engine deleted (dry-run-prefixed, since nothing was actually removed under --dry-run — an action line), a
 // refusal notice when the root exists without its `.engram-owned` marker,
 // any unattributable root-level files found there, every surface path
-// adopted (task 5.1, dry-run-prefixed — a preview under --dry-run), every
-// surface stray found outside the intended set (task 5.2 — never deleted,
-// listed here for manual review per the spec), and every dangling engram
-// symlink cleaned up (task 4.2/D5, dry-run-prefixed — a preview under
+// adopted (792b29c8 Adopting earlier copies, dry-run-prefixed — a preview under --dry-run), every
+// surface stray found outside the intended set (792b29c11 Unmanaged entries — never deleted,
+// listed here for manual review), and every dangling engram
+// symlink cleaned up (792b29c10 Dangling-link cleanup, dry-run-prefixed — a preview under
 // --dry-run). Silent when the harness has nothing to report.
 func writeEngramRootNotice(buffer *bytes.Buffer, report update.Report, harness update.HarnessReport) {
 	prefix := dryRunPrefix(report.DryRun)
@@ -795,8 +794,8 @@ func writeGuidanceHints(buffer *bytes.Buffer, report update.Report) {
 // whose config cannot @import guidance (empty ImportsFileRel) render
 // nothing. Paths use forward slashes always: import syntax
 // is OS-independent. When the harness's guidance surface IS its engram root
-// (Claude today — D1's guidance caveat), each line also states the
-// canonical guidance/ path (task 5.3): the flat @import path is now a
+// (Claude today — the guidance caveat of 792b29c5 Root ownership), each line also states the
+// canonical guidance/ path (792b29c9 Guidance links): the flat @import path is now a
 // compat symlink, not where the real content lives, and the report must say
 // so.
 func writeHarnessGuidanceHints(buffer *bytes.Buffer, report update.Report, harness update.HarnessReport) bool {
@@ -921,7 +920,7 @@ func writePendingOfferHint(buffer *bytes.Buffer, report update.Report) {
 }
 
 // writeReexecHandoffReport renders the parent's contribution to the
-// combined report after a successful re-exec handoff (design D6): source
+// combined report after a successful re-exec handoff (792b28c9 Hand-off, 792b28c12 Report): source
 // and binary lines only — never the harness/guidance/vocab/chunk sections,
 // which belong to the re-execed child's own writeUpdateReport call. This
 // keeps "install output in the parent, one sync/check report in the child"
@@ -940,9 +939,9 @@ func writeReexecHandoffReport(out io.Writer, report update.Report) error {
 }
 
 // writeSkillRegistrationErrorHint prints a one-line notice when this run's
-// post-deploy skill-registration hook failed (update-deploy-sync:
-// "Registration failures SHALL be reported and SHALL NOT roll back the
-// deploy"). Silent when registration didn't fail (including when it never
+// post-deploy skill-registration hook failed (792b28c16 The registration step:
+// registration failures are reported and do not roll back the
+// deploy). Silent when registration didn't fail (including when it never
 // ran — deps.SkillReg unconfigured, or no resolved source).
 func writeSkillRegistrationErrorHint(buffer *bytes.Buffer, report update.Report) {
 	if report.SkillRegistrationErr != "" {
@@ -1020,8 +1019,8 @@ func writeUpdateReport(out io.Writer, report update.Report) error {
 
 // writeVaultIDUncommittedHint prints a one-line notice asking for the
 // deliberate one-time vault commit while a git-backed vault's
-// .engram-vault-id is untracked or uncommitted (design D2, migration step
-// 3). Notify-only: update never commits to the vault itself.
+// .engram-vault-id is untracked or uncommitted (792b5c13 Uncommitted ID detection). Notify-only: update never
+// commits to the vault itself.
 func writeVaultIDUncommittedHint(buffer *bytes.Buffer, report update.Report) {
 	if report.VaultIDUncommitted {
 		buffer.WriteString(vaultIDUncommittedNotice)

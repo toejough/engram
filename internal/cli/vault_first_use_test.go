@@ -314,7 +314,7 @@ func Test792a2p1c_RunServe_WarnsOnLocationMismatchAndStartsAnyway(t *testing.T) 
 	g.Expect(lines[0]).To(ContainSubstring("engram vault-id --claim"))
 }
 
-// Test792b2c3a1_Targets_EveryVaultCommandCreatesMissingVault pins design D2's
+// Test792b2c3a1_Targets_EveryVaultCommandCreatesMissingVault pins 792b5c1 First-use ensure's
 // first-use creation through dispatch: every vault-resolving command on a
 // missing path creates the starters, the vault ID and the self-ignoring
 // .engram/, printing exactly one creation line; a second run creates and

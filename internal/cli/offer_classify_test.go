@@ -11,8 +11,8 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// Test792b36c1a1_ClassifyOffer covers every row of design D5's table (792b36c1,
-// "Which writes are offered").
+// Test792b36c1a1_ClassifyOffer covers every row of the table in 792b36c1 Which
+// writes are offered.
 func Test792b36c1a1_ClassifyOffer(t *testing.T) {
 	t.Parallel()
 
@@ -117,7 +117,7 @@ func Test792b36c1a2_ClassifyOffer_ContentFlagsAreOffered(t *testing.T) {
 
 // Test792b36c1a3_ClassifyOffer_BookkeepingNeverOfferedProperty: an amend with no
 // content flag is never offered unless it clears the pending marker on a
-// served offer from a vault other than the parent (D5, D12).
+// served offer from a vault other than the parent (792b36c1 Which writes are offered).
 func Test792b36c1a3_ClassifyOffer_BookkeepingNeverOfferedProperty(t *testing.T) {
 	t.Parallel()
 
@@ -148,7 +148,7 @@ func Test792b36c1a3_ClassifyOffer_BookkeepingNeverOfferedProperty(t *testing.T) 
 }
 
 // Test792b36c1a4_ClassifyOffer_NeverOfferedProperty: a pending note or a note carrying
-// skill_hash is never offered, whatever the command and flags (D5).
+// skill_hash is never offered, whatever the command and flags (792b36c1 Which writes are offered).
 func Test792b36c1a4_ClassifyOffer_NeverOfferedProperty(t *testing.T) {
 	t.Parallel()
 

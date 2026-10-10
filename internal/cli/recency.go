@@ -246,7 +246,7 @@ func noteAgeDays(lastUsed, created string, now time.Time) float64 {
 // inside a block scalar does not end it), and only unindented lines match,
 // so body text or block-scalar lines starting with `created:` are ignored.
 func parseCreatedFromNote(note []byte) string {
-	frontmatter, _, ok := embed.SplitFrontmatter(toLF(note)) // CRLF reads as LF (#789 design D8)
+	frontmatter, _, ok := embed.SplitFrontmatter(toLF(note)) // CRLF reads as LF (792a7zg CRLF notes)
 	if !ok {
 		return ""
 	}
@@ -257,8 +257,7 @@ func parseCreatedFromNote(note []byte) string {
 			// created: ("2026-07-01", as marshalFrontmatter writes it) then
 			// fails time.Parse and the note reads as age 0. Unquoting it would
 			// switch on recency decay for ~972 existing notes — a ranking
-			// change deferred to a measured follow-up (controller ruling R33;
-			// see https://github.com/toejough/engram/issues/774).
+			// change deferred to a measured follow-up (see https://github.com/toejough/engram/issues/774).
 			return strings.TrimSpace(rest)
 		}
 	}

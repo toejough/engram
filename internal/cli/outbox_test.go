@@ -23,7 +23,7 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// Test792a2p1a_DrainOutbox_LocationCheckFailureSendsNothing (ruling S2): a vault that
+// Test792a2p1a_DrainOutbox_LocationCheckFailureSendsNothing (792b36c5 Before a drain sends): a vault that
 // fails its location check (here: a clone, with no home.json) queues but
 // never sends, and prints the location warning.
 func Test792a2p1a_DrainOutbox_LocationCheckFailureSendsNothing(t *testing.T) {
@@ -80,9 +80,8 @@ func Test792b36c10a1_DrainOutbox_TransportFailureStopsAndRecords(t *testing.T) {
 	g.Expect(result.RetryAfter).To(BeTemporally("==", env.now().Add(30*time.Second)))
 }
 
-// Test792b36c11a1_DrainOutbox_TooOldParentKeepsEntryAndErrors (H7): a receipt with no
-// vault ID stops exchange with a "parent too old" error and leaves the
-// entry queued.
+// Test792b36c11a1_DrainOutbox_TooOldParentKeepsEntryAndErrors (792b36c11 A parent that is too old): a receipt
+// with no vault ID stops exchange with a "parent too old" error and leaves the entry queued.
 func Test792b36c11a1_DrainOutbox_TooOldParentKeepsEntryAndErrors(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -106,11 +105,11 @@ func Test792b36c11a1_DrainOutbox_TooOldParentKeepsEntryAndErrors(t *testing.T) {
 	g.Expect(env.outbox().Entries[0].LastError).To(ContainSubstring("too old"))
 }
 
-// Test792b36c12a1_DrainOutbox_CycleRefusalRejectsAndContinues (ruling S13, D7): a 409
+// Test792b36c12a1_DrainOutbox_CycleRefusalRejectsAndContinues (792b36c12 A looping offer): a 409
 // loop refusal from a parent whose ID is NOT this vault's is a real cycle
 // (A→B→C→A): that entry is rejected, the drain continues, and one warning
 // names the refusing vault (not --regenerate). A refusal is an answer
-// (ruling S14), so it resets the failure count and never backs the parent off.
+// (792b36c9 A rejected offer), so it resets the failure count and never backs the parent off.
 func Test792b36c12a1_DrainOutbox_CycleRefusalRejectsAndContinues(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -144,7 +143,7 @@ func Test792b36c12a1_DrainOutbox_CycleRefusalRejectsAndContinues(t *testing.T) {
 	g.Expect(lines[0]).NotTo(ContainSubstring("--regenerate"))
 }
 
-// Test792b36c12a2_DrainOutbox_SelfParentRefusalThenRegenerateSends (ruling S12): a 409
+// Test792b36c12a2_DrainOutbox_SelfParentRefusalThenRegenerateSends (792b36c12 A looping offer): a 409
 // loop refusal naming this vault's own ID keeps the entries queued (not
 // rejected), caches the parent's ID, stops the drain and warns once naming
 // --regenerate; after `vault-id --regenerate` the queued entries send.
@@ -305,9 +304,9 @@ func Test792b36c13a2_NewOfferSender_PostsBuiltPayloadToLearn(t *testing.T) {
 	g.Expect(skipped.Err).To(MatchError(ContainSubstring("unrenderable")))
 }
 
-// Test792b36c14a1_DrainOutbox_ConcurrentEnqueueSurvives (M10): an entry another process
-// queues while the drain is sending survives the merge, because the merge
-// re-reads the outbox from disk.
+// Test792b36c14a1_DrainOutbox_ConcurrentEnqueueSurvives (792b36c14 Merging the outcomes): an entry another
+// process queues while the drain is sending survives the merge, because the merge re-reads the outbox from
+// disk.
 func Test792b36c14a1_DrainOutbox_ConcurrentEnqueueSurvives(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -324,7 +323,7 @@ func Test792b36c14a1_DrainOutbox_ConcurrentEnqueueSurvives(t *testing.T) {
 	g.Expect(entryXIDs(env.outbox())).To(Equal([]string{xidD}))
 }
 
-// Test792b36c14a2_Outbox_NoOfferLostAtMostOneEntryProperty (E52): across any sequence
+// Test792b36c14a2_Outbox_NoOfferLostAtMostOneEntryProperty: across any sequence
 // of writes, deletes, pending-marks and drains (with accepted, rejected and
 // failed sends, and concurrent writes mid-drain), (1) the outbox holds at
 // most one entry per note, and (2) every note that exists, is not pending,
@@ -366,7 +365,7 @@ func Test792b36c14a2_Outbox_NoOfferLostAtMostOneEntryProperty(t *testing.T) {
 	})
 }
 
-// Test792b36c3a2_DrainOutbox_WithdrawnEntryDroppedUnlessChanged (ruling S16): a
+// Test792b36c3a2_DrainOutbox_WithdrawnEntryDroppedUnlessChanged (792b36c3 An offer withdrawn at send time): a
 // withdrawn offer's entry is dropped, unless the note changed while the
 // offer was being built, in which case it stays for the next drain.
 func Test792b36c3a2_DrainOutbox_WithdrawnEntryDroppedUnlessChanged(t *testing.T) {
@@ -446,7 +445,7 @@ func Test792b36c4a2_EnqueueOutbox_SavesAtomically(t *testing.T) {
 	g.Expect(decoded).To(HaveKeyWithValue("version", BeNumerically("==", 1)))
 }
 
-// Test792b36c4a3_EnqueueOutbox_StampsVaultIDBeforeStateDir (ruling S4): the first
+// Test792b36c4a3_EnqueueOutbox_StampsVaultIDBeforeStateDir (792b5c4 Vault ID stamping): the first
 // enqueue in a vault with no ID stamps the ID (and its location record)
 // before .engram/ exists, so .engram/ keeps meaning created-by-engram.
 func Test792b36c4a3_EnqueueOutbox_StampsVaultIDBeforeStateDir(t *testing.T) {
@@ -542,7 +541,7 @@ func Test792b36c5a1_DrainOutbox_EmptyOutboxTouchesNothing(t *testing.T) {
 	g.Expect(env.stderr.String()).To(BeEmpty())
 }
 
-// Test792b36c5a3_DrainOutbox_CachedSelfParentSendsNothing (D2 self-parent guard): when
+// Test792b36c5a3_DrainOutbox_CachedSelfParentSendsNothing (792b5c12 Self-parent guard): when
 // the cached parent reports this vault's own ID, nothing is sent and one
 // warning names --regenerate.
 func Test792b36c5a3_DrainOutbox_CachedSelfParentSendsNothing(t *testing.T) {
@@ -711,7 +710,7 @@ func Test792b36c6a5_DrainOutbox_FindsRenamedNoteByXID(t *testing.T) {
 }
 
 // Test792b36c7a1_ClassifyOfferResponse maps a /learn response to the drain's outcome
-// (design D6): transport errors and 5xx fail (stop + back off), 4xx
+// (792b36c7 The parent's answer): transport errors and 5xx fail (stop + back off), 4xx
 // rejects, a 2xx with a full receipt is accepted, and a receipt without
 // vault_id or basename comes from a too-old parent.
 func Test792b36c7a1_ClassifyOfferResponse(t *testing.T) {
@@ -788,11 +787,10 @@ func Test792b36c7a2_ClassifyOfferResponse_StatusClassesProperty(t *testing.T) {
 	})
 }
 
-// Test792b36c7a3_ClassifyOfferResponse_MalformedParentIdentifiers (final review F6):
-// a 2xx receipt whose vault_id is not 32 lowercase hex, or whose basename
-// or for is not a Luhmann basename free of '/', '\\' and '|', is a
-// malformed reply — never accepted, handled like an undecodable one; a 409
-// loop refusal with a malformed vault_id carries no refusing vault ID.
+// Test792b36c7a3_ClassifyOfferResponse_MalformedParentIdentifiers (792a21v A reply that is not a valid
+// receipt is not recorded): a 2xx receipt whose vault_id is not 32 lowercase hex, or whose basename or for is
+// not a Luhmann basename free of '/', '\\' and '|', is a malformed reply — never accepted, handled like an
+// undecodable one; a 409 loop refusal with a malformed vault_id carries no refusing vault ID.
 func Test792b36c7a3_ClassifyOfferResponse_MalformedParentIdentifiers(t *testing.T) {
 	t.Parallel()
 
@@ -838,9 +836,9 @@ func Test792b36c7a3_ClassifyOfferResponse_MalformedParentIdentifiers(t *testing.
 	})
 }
 
-// Test792b36c7a4_ClassifyOfferResponse_ForbiddenBasenameCharsProperty (final review
-// F6): whatever else a 2xx receipt holds, a basename carrying '/', '\\'
-// or '|' is never accepted.
+// Test792b36c7a4_ClassifyOfferResponse_ForbiddenBasenameCharsProperty (792a21v A reply
+// that is not a valid receipt is not recorded): whatever else a 2xx receipt holds, a basename carrying '/',
+// '\\' or '|' is never accepted.
 func Test792b36c7a4_ClassifyOfferResponse_ForbiddenBasenameCharsProperty(t *testing.T) {
 	t.Parallel()
 
@@ -909,7 +907,7 @@ func Test792b36c8a2_DrainOutbox_ChangedDuringSendStaysQueued(t *testing.T) {
 	g.Expect(env.outbox().Entries[0].State).To(Equal("queued"))
 }
 
-// Test792b36c8a3_DrainOutbox_DeletedDuringSendDiscardsReceipt (M10): a receipt for a
+// Test792b36c8a3_DrainOutbox_DeletedDuringSendDiscardsReceipt (792b36c8 An accepted offer): a receipt for a
 // note deleted while its offer was in flight is discarded, and its entry is
 // dropped.
 func Test792b36c8a3_DrainOutbox_DeletedDuringSendDiscardsReceipt(t *testing.T) {
@@ -951,9 +949,9 @@ func Test792b36c8a4_DrainOutbox_ReceiptWriteFailureKeepsEntry(t *testing.T) {
 	g.Expect(box.Entries[0].LastError).To(ContainSubstring("disk full"))
 }
 
-// Test792b36c8a5_DrainOutbox_MalformedReceiptKeepsEntry (final review F6, F11): a
-// drain that receives a receipt with a malformed basename or vault ID
-// applies nothing, keeps the entry queued and records the failure on it.
+// Test792b36c8a5_DrainOutbox_MalformedReceiptKeepsEntry (792a21v A reply that is not a valid receipt is not
+// recorded): a drain that receives a receipt with a malformed basename or vault ID applies nothing, keeps the
+// entry queued and records the failure on it.
 func Test792b36c8a5_DrainOutbox_MalformedReceiptKeepsEntry(t *testing.T) {
 	t.Parallel()
 
@@ -1047,7 +1045,7 @@ func Test792b36c9a2_DrainOutbox_RejectionWithoutMessageRecordsEmptyError(t *test
 	g.Expect(box.Entries[0].LastError).To(BeEmpty())
 }
 
-// Test792b36c9a3_DrainOutbox_UnmarkedConflictRejectsAndContinues (ruling S13): a 409
+// Test792b36c9a3_DrainOutbox_UnmarkedConflictRejectsAndContinues (792b36c12 A looping offer): a 409
 // without the loop discriminator (another cause, or a parent predating it)
 // is an ordinary rejection; the drain continues.
 func Test792b36c9a3_DrainOutbox_UnmarkedConflictRejectsAndContinues(t *testing.T) {
@@ -1071,7 +1069,7 @@ func Test792b36c9a3_DrainOutbox_UnmarkedConflictRejectsAndContinues(t *testing.T
 	g.Expect(env.outbox().Entries[0].State).To(Equal("rejected"))
 }
 
-// Test792b36c9a4_DrainOutbox_AnyAnswerResetsBackoff (ruling S14): a rejection, a
+// Test792b36c9a4_DrainOutbox_AnyAnswerResetsBackoff (792b36c9 A rejected offer): a rejection, a
 // cycle refusal and a too-old receipt are all answers from a reachable
 // parent, so each resets the failure count and the backoff window.
 func Test792b36c9a4_DrainOutbox_AnyAnswerResetsBackoff(t *testing.T) {
@@ -1202,7 +1200,7 @@ func (p *fakeParent) send(_ context.Context, note cli.OfferNoteForTest) cli.Offe
 
 // memVaultFS is an in-memory filesystem fake for the exchange-state and
 // outbox adapters. It records atomic writes and whether .engram/ was ever
-// created while the vault had no ID (ruling S4).
+// created while the vault had no ID (792b5c4 Vault ID stamping).
 type memVaultFS struct {
 	mu          sync.Mutex
 	files       map[string][]byte
@@ -1579,7 +1577,7 @@ func runPropertyDrain(rt *rapid.T, env *outboxEnv, model *outboxModel, xids []st
 			outcomes[xid] = rejected("no")
 		case 2:
 			outcomes[xid] = cli.ExportClassifyOfferResponse(cli.FetchResponse{}, errors.New("down"))
-		case 3: // a cycle refusal from another vault (ruling S14)
+		case 3: // a cycle refusal from another vault (792b36c12)
 			outcomes[xid] = loopRefusal(seqID(33))
 		case 4: // a self-parent refusal naming this vault
 			outcomes[xid] = loopRefusal(env.localID)

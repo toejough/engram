@@ -31,7 +31,7 @@ const (
 // `Answered by:`, and `Answers:` body lines (replace-whole channels). It is
 // the body-vector source for every note type. Dropping channel content means
 // a channel-only edit (supersession write, contributor/answer linking) leaves
-// the body vector and ContentHash unchanged (D3).
+// the body vector and ContentHash unchanged (792b10c4 Content hash).
 //
 // Trailing blank lines are normalized to a single newline LAST: the learn
 // renderers end bodies with "\n\n" while the channel writers trim trailing
@@ -220,7 +220,7 @@ func stripMachineLines(body []byte) []byte {
 // toLF is raw with every CRLF line ending converted to LF (a lone CR is
 // kept). The embedding readers (ExtractBody, SituationText, and so BodyText
 // and ContentHash) read a note as its LF form, so a note with CRLF line
-// endings embeds and hashes exactly as its LF conversion (#789 design D8).
+// endings embeds and hashes exactly as its LF conversion (792b10c9 CRLF notes).
 // SplitFrontmatter itself stays LF-only: callers that splice its slices back
 // into a file decide for themselves whether to convert.
 func toLF(raw []byte) []byte {

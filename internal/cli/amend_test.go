@@ -938,7 +938,7 @@ func Test792b14c5a2_RunAmend_AddsIdentityFieldsToPreExistingNote(t *testing.T) {
 // Test792b14c5a3_RunAmend_RepoReStamp_IgnoresProjectField verifies amend's repo:
 // re-stamp always uses fresh detection from the current working directory,
 // never the note's project: field — unlike backfill, an amend is assumed to
-// run from the repo it's actually about (design.md).
+// run from the repo it's actually about (792b11c5 Repository for a backfill).
 func Test792b14c5a3_RunAmend_RepoReStamp_IgnoresProjectField(t *testing.T) {
 	t.Parallel()
 

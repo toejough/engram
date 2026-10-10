@@ -28,10 +28,10 @@ const (
 // stores against Skill when the offer is declined.
 type SkillOffer struct {
 	Kind SkillOfferKind
-	// Key is the skill key (design D3): the candidate's key for
+	// Key is the skill key (792b30c17 Skill keys): the candidate's key for
 	// Register/Refresh, or the note's key for Remove.
 	Key string
-	// ScopeID is the answer scope (design D6): the candidate's scope, or,
+	// ScopeID is the answer scope (792b31c5 Answers and prompts): the candidate's scope, or,
 	// for a removal, the scope the note's key form names.
 	ScopeID string
 	// SourcePath is the candidate's resolved source file, or, for a
@@ -46,13 +46,13 @@ type SkillOffer struct {
 // SkillOfferKind identifies what a SkillOffer proposes: creating a note for
 // a newly-shipped skill, refreshing a note whose skill_hash is stale, or
 // removing a note whose skill is no longer shipped (skill-runbook-
-// registration D4).
+// registration 792b31c2 Offer comparison).
 type SkillOfferKind string
 
 // FindSkillNote locates skill key key's runbook note among the vault's full
 // .md filenames (a ListMD-shaped listing), per groupSkillNoteCandidates'
 // identity rule: a runbook note carrying a non-empty skill_hash whose
-// recognized skill_key equals key (design D3). A slug never identifies a
+// recognized skill_key equals key (792b30c17 Skill keys). A slug never identifies a
 // note. found is false when no note matches; errDuplicateSkillNote names
 // every match when more than one does.
 func FindSkillNote(
@@ -75,7 +75,7 @@ func FindSkillNote(
 // rather than silently dropped, since this file has no third-party writer
 // whose forward-compatible fields it needs to tolerate.
 //
-// Only schema version 2 is read (design D7): any other schema_version —
+// Only schema version 2 is read (792b31c4 Declines file): any other schema_version —
 // missing, below 2 or above 2 — is errSkillRegistrationsVersion, never an
 // empty decline state, so the caller writes nothing.
 func ReadSkillRegistrations(vault string, readFile func(string) ([]byte, error)) (map[string]string, error) {
@@ -118,7 +118,7 @@ func ReadSkillRegistrations(vault string, readFile func(string) ([]byte, error))
 // untouched, and writes skill-registrations.json atomically via writeFile
 // (the existing atomic-write dep, composed by the caller). Every write
 // stamps schema version 2 in the unchanged {schema_version, declined} shape
-// (design D7). An unreadable file, or one whose schema_version is not 2, is
+// (792b31c4 Declines file). An unreadable file, or one whose schema_version is not 2, is
 // never written.
 func RecordSkillDeclined(
 	vault, key, hash string,
@@ -145,8 +145,8 @@ func RecordSkillDeclined(
 }
 
 // SkillContentHash returns the lowercase hex SHA-256 of a skill's SKILL.md
-// bytes — the skill_hash frontmatter value (792a12u,
-// skill-runbook-registration D3).
+// bytes — the skill_hash frontmatter value (792a12u Skill identity
+// fields belong to registration).
 func SkillContentHash(content []byte) string {
 	sum := sha256.Sum256(content)
 
@@ -160,12 +160,12 @@ const (
 	skillRegistrationsFilename = "skill-registrations.json"
 	// skillRegistrationsSchemaVersion versions skill-registrations.json,
 	// mirroring vocab.centroids.json's schema_version convention: version 2
-	// keys declines by skill key (design D7), and it is the only version
+	// keys declines by skill key (792b31c4 Declines file), and it is the only version
 	// read.
 	skillRegistrationsSchemaVersion = 2
 	// skillSlugPrefix is the slug prefix a skill's runbook note carries:
-	// basename `<luhmann>.<date>.skill-<name>.md` (skill-runbook-
-	// registration D3).
+	// basename `<luhmann>.<date>.skill-<name>.md` (792b31c1
+	// Skill note lookup).
 	skillSlugPrefix = "skill-"
 )
 
@@ -173,26 +173,26 @@ const (
 var (
 	// errDuplicateSkillNote reports more than one runbook note matching a
 	// skill's slug suffix and carrying a non-empty skill_hash
-	// (skill-runbook-registration: "duplicate matches are an error naming
-	// both").
+	// (792b31c1 Skill note lookup: duplicate matches are an error naming
+	// both).
 	errDuplicateSkillNote = errors.New("skill-runbook-registration: duplicate skill note")
 	// errSkillRegistrationsDecode reports a skill-registrations.json body
 	// that fails to decode (malformed JSON or an unrecognized field — see
 	// ReadSkillRegistrations).
 	errSkillRegistrationsDecode = errors.New("skill registrations: decoding")
 	// errSkillRegistrationsVersion reports a skill-registrations.json whose
-	// schema_version is not 2: missing, below 2 or above 2 (design D7).
+	// schema_version is not 2: missing, below 2 or above 2 (792b31c4 Declines file).
 	errSkillRegistrationsVersion = errors.New("skill registrations: unsupported schema version")
 )
 
 // skillNoteCandidate is one skill note in the vault: a runbook note with a
 // "skill-" slug carrying a non-empty skill_hash and a recognized skill_key
-// (design D3).
+// (792b30c17 Skill keys).
 type skillNoteCandidate struct {
 	Basename string
 	Hash     string
 	// Source is the note's recorded skill_source (`~`-relative resolved
-	// path); removal eligibility (design D5) reads it for source-rooted key
+	// path); removal eligibility (792b31c3 Removal eligibility) reads it for source-rooted key
 	// forms.
 	Source string
 }
@@ -218,10 +218,10 @@ type skillRegistrationsDoc struct {
 }
 
 // groupSkillNoteCandidates scans names for skill notes, grouped by their
-// skill_key (design D3): runbook notes with a "skill-" slug carrying a
+// skill_key (792b30c17 Skill keys): runbook notes with a "skill-" slug carrying a
 // non-empty skill_hash and a recognized skill_key (parseSkillKey). There is
 // no slug fallback: an unkeyed note (skill_hash but no skill_key, like the
-// six legacy notes D11 migrates) and a note whose skill_key is unrecognized
+// six legacy notes 792b31c7 Note actions migrates) and a note whose skill_key is unrecognized
 // are not skill notes — never matched to a key, never an alias source and
 // never a removal candidate. A note failing a check (wrong type, a runbook
 // with no skill_hash such as note 820, or an unreadable/unparseable file) is

@@ -18,8 +18,8 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-// Test792a2b1a_Targets_AmendDefaultVaultName is the evidence design D3 (#776) cites
-// for the already-fixed part of the issue: targets.go:144 already resolves
+// Test792a2b1a_Targets_AmendDefaultVaultName is the evidence (#776, 792b2c2 Vault name
+// resolution) for the already-fixed part of the issue: targets.go:144 already resolves
 // vault: through resolveVaultName (flag -> ENGRAM_VAULT_NAME -> "personal",
 // commit 98e85e09, 2026-08-20) before RunAmend ever sees it, so a
 // re-stamping amend driven through the real targ wiring, with neither
@@ -39,7 +39,7 @@ func Test792a2b1a_Targets_AmendDefaultVaultName(t *testing.T) {
 		"Information learned: when in ctx, A has old.\n\n"
 	g.Expect(os.WriteFile(notePath, []byte(note), 0o600)).To(gomega.Succeed())
 
-	// The DI seam pins the environment (ruling S34): a scratch home and
+	// The DI seam pins the environment: a scratch home and
 	// XDG_DATA_HOME, and no ENGRAM_VAULT_NAME or ENGRAM_PARENT — so the
 	// developer's shell can neither name the vault nor route an offer.
 	stderr := executeForTestWithDeps(t, []string{
@@ -180,8 +180,8 @@ func Test792b2c5a1_Targets_Amend_NoSkillHashFlag(t *testing.T) {
 
 // Test792b2c5a1_Targets_LearnRunbook_NoSkillHashFlag proves `engram learn runbook` has
 // no --skill-hash flag: skill_hash is set only by future registration code
-// constructing LearnArgs directly, never by a CLI surface (792a12u
-// spec; design.md D2/D3). An unrecognized flag makes targ's parser reject the
+// constructing LearnArgs directly, never by a CLI surface (792a12u Skill identity
+// fields belong to registration). An unrecognized flag makes targ's parser reject the
 // invocation before any target runs, surfacing as the generic "exit code 1"
 // (see executeForTest) rather than any of RunLearn's own descriptive errors —
 // so this exact, otherwise-never-produced message is the signal that the
@@ -532,7 +532,7 @@ func TestTargets_ActivateNoNotes(t *testing.T) {
 
 // TestTargets_EmbedApplyDryRun exercises the embed apply closure with
 // --dry-run against an empty vault. newTestDeps.Embed is nil by design
-// (R11), and RunEmbedApply dereferences Embedder.ModelID(), so the test
+// (unit tests must not load the bundled model), and RunEmbedApply dereferences Embedder.ModelID(), so the test
 // overrides Embed with the fail-loud stubEmbedderForTargets — only
 // ModelID() answers; any real Embed call fails the test loudly.
 func TestTargets_EmbedApplyDryRun(t *testing.T) {
@@ -552,7 +552,7 @@ func TestTargets_EmbedApplyDryRun(t *testing.T) {
 // TestTargets_EmbedStatus exercises the embed status closure end-to-end
 // through Targets() so the newEmbedDeps(deps) wiring is covered. Empty
 // vault; tallyStates dereferences Embedder.ModelID(), so the test wires
-// the fail-loud stubEmbedderForTargets (R11) — no model unpack, and any
+// the fail-loud stubEmbedderForTargets — no model unpack, and any
 // real Embed call fails loudly.
 func TestTargets_EmbedStatus(t *testing.T) {
 	t.Parallel()
@@ -603,11 +603,11 @@ func TestTargets_PruneEmpty(t *testing.T) {
 // vault. Unlike query-chunks, RunQuery has no notes/records short-circuit
 // ahead of the per-phrase embed call (buildMatchedSetFromPhrases always
 // calls deps.Embedder.Embed), so a nil Embed (newTestDeps.Embed stays nil
-// globally per R11) would panic here. This test overrides Embed with the
+// globally) would panic here. This test overrides Embed with the
 // deterministic stubEmbedder (embed_test.go) via executeForTestWithDeps —
-// the same pattern R11 sanctions for the embed-family targets tests'
+// the same pattern the embed-family targets tests use for their
 // ModelID()/Embed() dereferences (#700 T6 finding: the query cluster's
-// newQueryDeps(d) conversion surfaces this one task earlier than R11's
+// newQueryDeps(d) conversion surfaces this one task earlier than the
 // embed-cluster enumeration anticipated).
 //
 // Getenv is also stubbed to "" here: newTestDeps wires the real os.Getenv
@@ -627,7 +627,7 @@ func TestTargets_QueryEmptyVault(t *testing.T) {
 	g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
 
-	// UserHomeDir is also pinned to scratch (S34 residual): with Getenv
+	// UserHomeDir is also pinned to scratch: with Getenv
 	// stubbed to "" but UserHomeDir left real, ResolveChunksDir would still
 	// fall back to the developer's real ~/.local/share/engram/chunks since
 	// this test passes no --chunks-dir.
@@ -645,7 +645,7 @@ func TestTargets_QueryEmptyVault(t *testing.T) {
 
 // stubEmbedderForTargets satisfies embed.Embedder for targets-level tests that
 // only need ModelID/Dims. Embed fails loud: no targets-level test may silently
-// real-embed (R11). Named to avoid cli_test's existing stubEmbedder (embed_test.go).
+// real-embed. Named to avoid cli_test's existing stubEmbedder (embed_test.go).
 type stubEmbedderForTargets struct{}
 
 func (stubEmbedderForTargets) Dims() int { return 384 }
@@ -690,7 +690,7 @@ func executeForTestWithDeps(t *testing.T, args []string, customize func(*cli.Dep
 // newTestDeps builds a cli.Deps wired to real OS capabilities with captured
 // stdout/stderr — the test analog of the production cli.NewDeps composition,
 // built over realDepsForTest (T1-rework's primitives_integration_test.go
-// helper) with Stdout/Stderr swapped in and Embed forced nil (R11 — unit
+// helper) with Stdout/Stderr swapped in and Embed forced nil (unit
 // tests must not load the bundled model; the embed-on-write path stays
 // covered by cli_test.go's real-binary end-to-end test).
 func newTestDeps(stdout, stderr io.Writer) cli.Deps {

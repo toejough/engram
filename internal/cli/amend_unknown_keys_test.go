@@ -1,8 +1,8 @@
 package cli_test
 
 // Amend keeps frontmatter keys the typed note model does not define, and
-// anchors on keys it does not edit (ruling V6, final review F4;
-// note-revision 792a4j, 792a4k; note-document-format 792b6c7).
+// anchors on keys it does not edit (note-revision 792a4j, 792a4k;
+// note-document-format 792b6c7).
 
 import (
 	"context"
@@ -99,7 +99,7 @@ func Test792b6c7a1_RunAmend_KeepsUnmodeledKeys(t *testing.T) {
 }
 
 // Test792b6c7a4_RunAmend_RefusesAnchoredEditedKey: an anchor on the key a content
-// amend replaces refuses the amend unwritten (ruling V3).
+// amend replaces refuses the amend unwritten.
 func Test792b6c7a4_RunAmend_RefusesAnchoredEditedKey(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

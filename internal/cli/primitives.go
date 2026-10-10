@@ -126,7 +126,7 @@ type ProcPrims struct {
 	OpenDebugFile     func(path string, perm fs.FileMode) (WriteSyncer, error) // os.OpenFile O_APPEND|O_CREATE|O_WRONLY
 	StartSignalPulses func(pulses chan<- struct{}, buffer int)                 // SIG-1 closure
 	// IsTerminal reports whether os.Stdin is an interactive terminal
-	// (skill-runbook-registration: gates `engram register-skills`'/`engram
+	// (792a12g Registration never prompts or writes without a terminal: gates `engram register-skills`'/`engram
 	// update`'s interactive prompting). Composed in main.go from
 	// golang.org/x/term's term.IsTerminal(os.Stdin.Fd()) — not
 	// os.Stdin.Stat()'s ModeCharDevice bit, which /dev/null also satisfies
@@ -134,14 +134,14 @@ type ProcPrims struct {
 	// `</dev/null` redirection.
 	IsTerminal func() bool
 	// RandRead fills buf from the OS CSPRNG (crypto/rand.Read) — the
-	// first random source here, used for vault IDs and xids only (design
-	// D2, r3-4).
+	// first random source here, used for vault IDs and xids only (792b5c4 Vault ID
+	// stamping, 792b5c15 Exchange identifiers).
 	RandRead func(buf []byte) (int, error)
 }
 
 // SpawnPrims groups the raw process-spawn capability: run a binary with
 // args and extra environment variables, stdio inherited from the parent
-// process (design D1, update-reexec-fresh-binary). The raw closure itself
+// process (792b28c9 Hand-off). The raw closure itself
 // splits spawn failure (process never started) from a started child's exit
 // code via cmd.Process/cmd.ProcessState (doctrine survivor SP-1); raw error
 // out (nolint:wrapcheck contract), primSpawner wraps it once.
@@ -191,7 +191,7 @@ func NewDeps(prims Primitives, stdin io.Reader, stdout, stderr io.Writer, exit f
 	// The lazy embedder is constructed exactly once, here: NewDeps is the
 	// sole composition point for Deps.Embed, so the model unpacks at most
 	// once per process (guarded: minimal fake Primitives without Getenv
-	// skip it). R6/D-1:
+	// skip it; 792b9c4 Lazy construction):
 	// backend composed from the raw EmbedRuntime, cache FS from the raw
 	// filesystem primitives — no embed wiring in cmd. A nil EmbedRuntime
 	// surfaces as embed.ErrRuntimeMissing on first use (fail-loud lazy),
@@ -228,7 +228,7 @@ func envOrEmpty(getenv func(string) string, key string) string {
 }
 
 // limitFetchResponse wraps the raw fetch so a parent response longer than
-// maxFetchResponseBytes is an error (final review F7). The HTTP edge reads
+// maxFetchResponseBytes is an error (792b35c17 The bounded fetch client). The HTTP edge reads
 // at most FetchResponseReadLimit bytes, so a longer body arrives exactly
 // one byte over the limit rather than silently truncated. A nil fetch
 // stays nil.

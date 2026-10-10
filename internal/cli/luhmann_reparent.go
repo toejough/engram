@@ -71,7 +71,7 @@ func RebuildNoteSidecars(
 //
 // The full renameMap is applied in one pass over freshly-read content, so a note
 // that is itself being renamed AND references another note also being renamed in
-// this run (cascading renames, design.md Decision 4) resolves its outgoing
+// this run (cascading renames, 792b27c6 Rename and link rewrite) resolves its outgoing
 // reference to the OTHER note's new basename, never a stale intermediate old
 // basename.
 //
@@ -148,7 +148,7 @@ var (
 )
 
 // appendAliasField appends alias to content's frontmatter aliases: list
-// (design D4 H2: a renamed note answers to its old basename) and drops
+// (792a21zk Renames and folds record aliases: a renamed note answers to its old basename) and drops
 // current, the note's new basename, from it (a note renamed back to a
 // former name is not its own alias). It creates the list when absent and
 // leaves content unchanged when the list already holds exactly that or
@@ -383,7 +383,7 @@ func renameAndRewriteOneNote(
 	}
 
 	// A converted note is written only when renamed or rewritten; either
-	// way its embedded content changed (design D5).
+	// way its embedded content changed (792b27c8 Sidecars of rewritten notes).
 	if !refsChanged && (!converted || !renaming) {
 		return "", nil
 	}
@@ -393,7 +393,7 @@ func renameAndRewriteOneNote(
 
 // renameOneNote renames oldPath's note file and its .vec.json sidecar to
 // newBasename, updates the note's own luhmann: frontmatter field, appends
-// oldBasename to its aliases (design D4 H2), writes the (already
+// oldBasename to its aliases (792a21zk), writes the (already
 // reference-rewritten) updated content to the new path in one write, and
 // returns that new path.
 func renameOneNote(deps RenameRewriteDeps, oldPath, vault, oldBasename, newBasename, updated string) (string, error) {
@@ -483,7 +483,7 @@ func rewriteNoteReferences(content string, renameMap map[string]string) (string,
 // convention is to store the full filename, but both forms are tolerated) to
 // the corresponding new basename, preserving whichever suffix form was present.
 // Only lines inside the top-level supersedes: block are touched: other
-// note: values (a parent link's note, design D4) name notes in another vault,
+// note: values (a parent link's note, 792b33c6) name notes in another vault,
 // never a local reference, so a local rename must leave them alone.
 func rewriteSupersedesFrontmatterNotes(frontmatter string, renameMap map[string]string) (string, bool) {
 	lines := strings.Split(frontmatter, "\n")
@@ -551,7 +551,7 @@ func rewriteWikilinks(text string, renameMap map[string]string) (string, bool) {
 }
 
 // stampRenamedNote is a renamed note's own frontmatter edit: luhmann: set to
-// newBasename's id and oldBasename appended to its aliases (design D4 H2).
+// newBasename's id and oldBasename appended to its aliases (792a21zk).
 func stampRenamedNote(content, oldBasename, newBasename string) (string, error) {
 	newID, _ := luhmann.FromBasename(newBasename)
 
@@ -560,7 +560,7 @@ func stampRenamedNote(content, oldBasename, newBasename string) (string, error) 
 
 // toLF converts every CRLF line ending in raw to LF; a lone CR is left as
 // it is. A rename applies it to a note it writes before any rewrite, so a
-// CRLF note's frontmatter splits and is rewritten (design D5).
+// CRLF note's frontmatter splits and is rewritten (792b27c7 Rename safety).
 func toLF(raw []byte) []byte {
 	return bytes.ReplaceAll(raw, []byte("\r\n"), []byte("\n"))
 }

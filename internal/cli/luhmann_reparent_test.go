@@ -277,7 +277,7 @@ func Test792b27c6a3_RenameAndRewriteReferences_CascadingRenamesUseFinalMap(t *te
 // the scope of the frontmatter note: rewrite: a supersedes: entry is
 // rewritten whether its sequence is indented or at column 0, while a note:
 // key under any other top-level key (a parent link naming a note in another
-// vault, design D4) is left alone.
+// vault, 792b33c6) is left alone.
 func Test792b27c6a4_RenameAndRewriteReferences_OnlySupersedesNoteFieldsAreRewritten(t *testing.T) {
 	t.Parallel()
 
@@ -305,8 +305,8 @@ func Test792b27c6a4_RenameAndRewriteReferences_OnlySupersedesNoteFieldsAreRewrit
 }
 
 // Test792b27c6a7_RenameAndRewriteReferences_AppendsOldBasenameToAliases is the spec
-// scenario "A rename records the old name" (792a21zk1a, design D4
-// H2): the renamed note's aliases gain its old basename in the rename's one
+// scenario "A rename records the old name" (792a21zk1a, 792b27c6
+// Rename and link rewrite): the renamed note's aliases gain its old basename in the rename's one
 // write, after any aliases it already had and never twice; its new basename
 // is dropped from the list (a note renamed back is not its own alias); its
 // xid is kept.

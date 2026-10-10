@@ -70,9 +70,8 @@ func Test792b27c10a2_RunReparentLuhmann_DryRunWithoutAnswersRejected(t *testing.
 	g.Expect(stdout.String()).To(BeEmpty())
 }
 
-// Test792b27c10a4_RunReparentLuhmann_ApplyDryRunSkipsPipeline covers design.md's
-// Non-Goal that --dry-run never touches the chunk index, even with a
-// non-empty rename map.
+// Test792b27c10a4_RunReparentLuhmann_ApplyDryRunSkipsPipeline covers 792a10h's rule that --dry-run never
+// touches the chunk index, even with a non-empty rename map.
 func Test792b27c10a4_RunReparentLuhmann_ApplyDryRunSkipsPipeline(t *testing.T) {
 	t.Parallel()
 
@@ -164,7 +163,7 @@ func Test792b27c2a2_RunReparentLuhmann_DeriveNoCandidatesAboveFloor(t *testing.T
 	g.Expect(stdout.String()).To(ContainSubstring("no candidates found"))
 }
 
-// Test792b27c3a3_RunReparentLuhmann_DeriveInstructionNamesLearnBatchMode pins design D4
+// Test792b27c3a3_RunReparentLuhmann_DeriveInstructionNamesLearnBatchMode pins 792b27c3 Derive output
 // (#770): the derive payload's instruction defers to the learn skill's
 // batch mode instead of telling the answering pass to re-run apply itself.
 // It must name "learn" and "batch mode" as the disposition procedure, the

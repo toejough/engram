@@ -19,7 +19,7 @@ import (
 const (
 	// dryRunLuhmann is the placeholder ID validateServedLearn renders with.
 	dryRunLuhmann = "1"
-	// maxOfferPathEntries bounds offer.path (design D7 r4 L-C): a real
+	// maxOfferPathEntries bounds offer.path (792b35c9 Refusing an invalid offer): a real
 	// parent tree is a few levels deep, so a longer path is malformed.
 	maxOfferPathEntries = 16
 	// maxPriorOfferKeys bounds offer.prior_keys: a child re-sends at most a
@@ -48,7 +48,7 @@ type exchangeNote struct {
 	exchange exchangeFrontmatter
 }
 
-// offerReceipt is the JSON response body for a served learn (design D7):
+// offerReceipt is the JSON response body for a served learn (792b35c16 The stored hash):
 // the note the offer landed on, the vault, and the exchange hash as stored.
 // It never carries note content or any curation outcome. For names the
 // resolved live target, and is omitted when there is none.
@@ -57,8 +57,8 @@ type offerReceipt struct {
 	Luhmann    string `json:"luhmann"`
 	Basename   string `json:"basename"`
 	Pending    bool   `json:"pending"`
-	VaultID    string `json:"vault_id"`    //nolint:tagliatelle // design D7 fixes the receipt's snake_case keys
-	StoredHash string `json:"stored_hash"` //nolint:tagliatelle // design D7 fixes the receipt's snake_case keys
+	VaultID    string `json:"vault_id"`    //nolint:tagliatelle // 792b35c16 fixes the receipt's snake_case keys
+	StoredHash string `json:"stored_hash"` //nolint:tagliatelle // 792b35c16 fixes the receipt's snake_case keys
 	For        string `json:"for,omitempty"`
 }
 
@@ -72,8 +72,8 @@ type servedLearnDeps struct {
 }
 
 // applyServedOffer runs idempotency, origin matching and offer.for
-// resolution over the vault's notes (design D7). The caller holds the vault
-// lock. Idempotency comes first: a key already recorded on any note, live
+// resolution over the vault's notes (792b35c11 A same-origin pending offer is rewritten in
+// place). The caller holds the vault lock. Idempotency comes first: a key already recorded on any note, live
 // or pending, as its current or a superseded key, is a retry and writes
 // nothing — otherwise a late retry of an
 // accepted key could rewrite a newer same-origin pending amend back to old
@@ -154,7 +154,7 @@ func offerKeysMatch(recorded, incoming string) bool {
 // parseExchangeNote reads one listed note for the lookup; ok is false for a
 // note that is not a fact, feedback or runbook, or does not parse.
 func parseExchangeNote(vault, name string, raw []byte) (exchangeNote, bool) {
-	frontmatter, found := splitFrontmatter(toLF(raw)) // a CRLF note is parsed as LF (#789 design D4)
+	frontmatter, found := splitFrontmatter(toLF(raw)) // a CRLF note is parsed as LF (792b6c8 CRLF reading)
 	if !found {
 		return exchangeNote{}, false
 	}
@@ -212,7 +212,7 @@ func receiptForNote(note exchangeNote, notes []exchangeNote, vaultID string) (of
 }
 
 // resolveOfferFor resolves an offer.for basename against live basenames,
-// then live notes' aliases, then pending basenames (design D7 case 3). It
+// then live notes' aliases, then pending basenames (792b35c13 Resolving where an offer points). It
 // returns the resolved note's current basename and whether that note is
 // live; an unresolved name returns "".
 func resolveOfferFor(notes []exchangeNote, name string) (string, bool) {
@@ -236,8 +236,8 @@ func resolveOfferFor(notes []exchangeNote, name string) (string, bool) {
 	return "", false
 }
 
-// rewritePendingOffer rewrites a same-origin pending offer in place (design
-// D7 case 1, H3): new content, offer.key and offer.path under the same
+// rewritePendingOffer rewrites a same-origin pending offer in place (792b35c11 A
+// same-origin pending offer is rewritten in place): new content, offer.key and offer.path under the same
 // basename, still pending, keeping its xid, links, aliases, origin and
 // offer.for. It re-embeds when the exchange hash changed.
 func rewritePendingOffer(
@@ -291,7 +291,7 @@ func rewritePendingOffer(
 	return receiptForNote(rewritten, notes, deps.vaultID)
 }
 
-// runServedLearn performs a validated served learn (design D7): it refuses
+// runServedLearn performs a validated served learn (792b35c15 The locked section): it refuses
 // an offer whose path already holds this vault's ID, then does the lookup,
 // any rewrite, any re-embed and building the receipt in one locked section.
 func runServedLearn(ctx context.Context, args LearnArgs, deps servedLearnDeps) (offerReceipt, error) {
@@ -305,7 +305,7 @@ func runServedLearn(ctx context.Context, args LearnArgs, deps servedLearnDeps) (
 	args.Position = positionTop
 	args.Pending = true
 	// Offers carry no tags: tags are the child's vocab assignment, and this
-	// vault's own vocab assigns them on receipt (design D5, ruling S15).
+	// vault's own vocab assigns them on receipt (792b35c8 Decoding a served learn).
 	args.Tags = nil
 
 	release, lockErr := deps.learn.Lock(args.Vault)
@@ -374,7 +374,7 @@ func supersedeOfferKey(prior []string, superseded string) []string {
 }
 
 // validateOffer checks a served learn's offer before anything else runs
-// (design D7 r4 L-C): at most maxOfferPathEntries path entries, each an
+// (792b35c9 Refusing an invalid offer): at most maxOfferPathEntries path entries, each an
 // exchange ID, and an origin that is empty or "<vault id>:<xid>".
 func validateOffer(offer LearnOffer) error {
 	if len(offer.Path) > maxOfferPathEntries {

@@ -1,6 +1,6 @@
 package embed_test
 
-// Embedding readers read a CRLF note as its LF form (#789, design D8): the
+// Embedding readers read a CRLF note as its LF form (792b10c9 CRLF notes): the
 // situation and body a note is embedded from, and the content hash that
 // marks its sidecar stale, are the same for a note and its LF conversion.
 

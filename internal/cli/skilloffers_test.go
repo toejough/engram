@@ -349,7 +349,7 @@ func Test792b31c2a15_CompareSkillOffers_ResolvedProject(t *testing.T) {
 	})
 }
 
-// Test792b31c2a5_CompareSkillOffers_OffersCarryKeyScopeAndSource covers task 2.5:
+// Test792b31c2a5_CompareSkillOffers_OffersCarryKeyScopeAndSource covers 792b31c2 Offer comparison:
 // offers carry Key, ScopeID, SourcePath and Kind, sorted by (scope, key),
 // and a removal's scope follows its key form.
 func Test792b31c2a5_CompareSkillOffers_OffersCarryKeyScopeAndSource(t *testing.T) {
@@ -410,7 +410,7 @@ func Test792b31c2a5_CompareSkillOffers_OffersCarryKeyScopeAndSource(t *testing.T
 	}))
 }
 
-// Test792b31c2a6_CompareSkillOffers_Dedupe covers design D4: same-path collapse,
+// Test792b31c2a6_CompareSkillOffers_Dedupe covers 792b31c2 Offer comparison: same-path collapse,
 // same-key collapse and conflicts (no source is exempt), and aliases.
 func Test792b31c2a6_CompareSkillOffers_Dedupe(t *testing.T) {
 	t.Parallel()
@@ -598,7 +598,7 @@ func Test792b31c2a6_CompareSkillOffers_Dedupe(t *testing.T) {
 	})
 }
 
-// Test792b31c2a7_CompareSkillOffers_AliasNeverOffers (task 2.3 property, postcondition):
+// Test792b31c2a7_CompareSkillOffers_AliasNeverOffers (property, postcondition):
 // no register or refresh offer carries a hash some note already holds, and
 // no two such offers share a hash; every offer's hash is the content of an
 // enabled candidate with its key.
@@ -641,7 +641,7 @@ func Test792b31c2a7_CompareSkillOffers_AliasNeverOffers(t *testing.T) {
 	})
 }
 
-// Test792b31c2a8_CompareSkillOffers_OfferSetIndependentOfScanOrder (task 2.3 property,
+// Test792b31c2a8_CompareSkillOffers_OfferSetIndependentOfScanOrder (property,
 // metamorphic): permuting the candidates, roots, plugin facts and the vault
 // listing never changes the comparison.
 func Test792b31c2a8_CompareSkillOffers_OfferSetIndependentOfScanOrder(t *testing.T) {
@@ -786,7 +786,7 @@ func Test792b31c3a11_ResolveSkillPathBestEffort_FollowsLinkChainsToAMissingTarge
 	})
 }
 
-// Test792b31c3a1_CompareSkillOffers_RemovalEligibilityPlugins covers design D5 for
+// Test792b31c3a1_CompareSkillOffers_RemovalEligibilityPlugins covers 792b31c3 Removal eligibility for
 // plugin notes: the manifest rule.
 func Test792b31c3a1_CompareSkillOffers_RemovalEligibilityPlugins(t *testing.T) {
 	t.Parallel()
@@ -834,7 +834,7 @@ func Test792b31c3a1_CompareSkillOffers_RemovalEligibilityPlugins(t *testing.T) {
 	})
 }
 
-// Test792b31c3a2_CompareSkillOffers_RemovalEligibilityProject covers design D5 for
+// Test792b31c3a2_CompareSkillOffers_RemovalEligibilityProject covers 792b31c3 Removal eligibility for
 // project notes: the exact project directory must be read and vouch for the key.
 func Test792b31c3a2_CompareSkillOffers_RemovalEligibilityProject(t *testing.T) {
 	t.Parallel()
@@ -913,7 +913,7 @@ func Test792b31c3a2_CompareSkillOffers_RemovalEligibilityProject(t *testing.T) {
 	})
 }
 
-// Test792b31c3a3_CompareSkillOffers_RemovalEligibilitySourceRooted covers design D5 for
+// Test792b31c3a3_CompareSkillOffers_RemovalEligibilitySourceRooted covers 792b31c3 Removal eligibility for
 // synced, pi-settings and pi-pkg notes: the root holding skill_source must be read and vouch for the key.
 func Test792b31c3a3_CompareSkillOffers_RemovalEligibilitySourceRooted(t *testing.T) {
 	t.Parallel()
@@ -1035,7 +1035,7 @@ func Test792b31c3a3_CompareSkillOffers_RemovalEligibilitySourceRooted(t *testing
 	})
 }
 
-// Test792b31c3a4_CompareSkillOffers_RemovalEligibilityUserRoots covers design D5 for
+// Test792b31c3a4_CompareSkillOffers_RemovalEligibilityUserRoots covers 792b31c3 Removal eligibility for
 // single-root user forms, aliases, disabled candidates, --skills-dir and declines.
 func Test792b31c3a4_CompareSkillOffers_RemovalEligibilityUserRoots(t *testing.T) {
 	t.Parallel()
@@ -1130,8 +1130,8 @@ func Test792b31c3a4_CompareSkillOffers_RemovalEligibilityUserRoots(t *testing.T)
 	})
 }
 
-// Test792b31c3a5_CompareSkillOffers_RemovalOnlyWhenOwnRootReadAndKeyAbsent (task 2.4
-// property, model-based): each drawn note gets an intended root state and,
+// Test792b31c3a5_CompareSkillOffers_RemovalOnlyWhenOwnRootReadAndKeyAbsent (property,
+// model-based): each drawn note gets an intended root state and,
 // for source-rooted forms, maybe a read decoy root of the same form but
 // another scope or segment, around or inside its own root; a removal is
 // offered exactly when its own root was read, no decoy hides it, and no
@@ -1321,7 +1321,7 @@ type offerNote struct {
 	key, hash, source string
 }
 
-// removalCase is one design D5 removal scenario over hand-built sources.
+// removalCase is one 792b31c3 Removal eligibility scenario over hand-built sources.
 type removalCase struct {
 	name        string
 	setup       func(fixture *offerFixture)

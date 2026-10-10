@@ -13,7 +13,7 @@ import (
 // Exported constants.
 const (
 	// SkillRootFormAgentsUser .. SkillRootFormSynced name the removal-
-	// eligibility form of a ScannedRoot (design D5): which key form's notes
+	// eligibility form of a ScannedRoot (792b31c3 Removal eligibility): which key form's notes
 	// the root can prove absent. The five single-root user forms
 	// (claude-user, claude-cmd, pi-user, agents-user, pi-prompt) are fixed
 	// roots; synced (one per bucket), pi-settings (one per settings entry),
@@ -36,11 +36,11 @@ type SkillOfferComparison struct {
 	// Offers are sorted by (ScopeID, Key).
 	Offers []SkillOffer
 	// Conflicts are the loud lines for every key conflict and plugin name
-	// conflict (design D4). Any conflict makes the run fail after every other
+	// conflict (792b31c2 Offer comparison). Any conflict makes the run fail after every other
 	// offer is handled (ReportSkillOfferProblems).
 	Conflicts []string
 	// Warnings are non-failing lines. CompareSkillOffers adds none, since
-	// differing copies of one key always conflict (design D4); the
+	// differing copies of one key always conflict (792b31c2 Offer comparison); the
 	// registration run prepends the scan and key warnings.
 	Warnings []string
 }
@@ -59,18 +59,17 @@ type SkillOfferInput struct {
 	// Sources is ResolveSkillSources' output: keyed candidates, the roots
 	// read (with their removal-eligibility forms) and the plugin facts.
 	Sources ResolvedSkillSources
-	// NoRemovals suppresses every removal offer (`--skills-dir`, design D9).
+	// NoRemovals suppresses every removal offer (`--skills-dir`, 792b31c6 The registration run).
 	NoRemovals bool
 }
 
-// SkillRootForm is a ScannedRoot's removal-eligibility form (design D5).
+// SkillRootForm is a ScannedRoot's removal-eligibility form (792b31c3 Removal eligibility).
 type SkillRootForm string
 
-// CompareSkillOffers computes the registration offers over keyed candidates
-// (design D4, D5; skill-runbook-registration: "Registration SHALL offer,
-// not act, and remember declines by hash").
+// CompareSkillOffers computes the registration offers over keyed candidates (792b31c2 Offer comparison and
+// 792b31c3 Removal eligibility; 792a12c Registration offers and remembers declines by hash).
 //
-// Candidates are first put in precedence order — design D2's source order
+// Candidates are first put in precedence order — 792b30c16 Source composition and precedence's source order
 // (skillPrecedenceTier), then key, then source path — so the result never
 // depends on the order the scanners listed them. Then, over the enabled
 // candidates:
@@ -118,7 +117,7 @@ func CompareSkillOffers(input SkillOfferInput) (SkillOfferComparison, error) {
 
 // ReportSkillOfferProblems prints comparison's warnings, then its conflict
 // lines, and returns errSkillOfferConflict when there is any conflict
-// (design D4: a failure status once every other offer is handled). Callers
+// (792b31c2 Offer comparison: a failure status once every other offer is handled). Callers
 // run it last, so a conflict never blocks another offer.
 func ReportSkillOfferProblems(stdout io.Writer, comparison SkillOfferComparison) error {
 	for _, line := range comparison.Warnings {
@@ -141,9 +140,9 @@ const (
 	// homeRelPrefix prefixes a `~`-relative skill_source.
 	homeRelPrefix = "~" + string(filepath.Separator)
 	// pluginConflictLineFormat reports a plugin name installed from several
-	// marketplaces (design D4).
+	// marketplaces (792b31c2 Offer comparison).
 	pluginConflictLineFormat = "engram: plugin name conflict: %s in %s"
-	// skillKeyConflictLineFormat reports a key whose copies differ (design D4).
+	// skillKeyConflictLineFormat reports a key whose copies differ (792b31c2 Offer comparison).
 	skillKeyConflictLineFormat = "engram: skill key conflict: %s at %s"
 )
 
@@ -175,7 +174,7 @@ const (
 // unexported variables.
 var (
 	// errSkillOfferConflict is the failure status a key or plugin name
-	// conflict leaves after every other offer is handled (design D4).
+	// conflict leaves after every other offer is handled (792b31c2 Offer comparison).
 	errSkillOfferConflict = errors.New("register-skills: skill conflicts")
 )
 
@@ -210,7 +209,7 @@ type skillKeyGroup struct {
 	conflicted bool
 }
 
-// skillRemovalEligibility decides design D5 removal eligibility for one run.
+// skillRemovalEligibility decides 792b31c3 Removal eligibility for one run.
 type skillRemovalEligibility struct {
 	home          string
 	roots         []ScannedRoot
@@ -220,7 +219,7 @@ type skillRemovalEligibility struct {
 }
 
 // eligible reports whether the note with key and recorded skill_source may
-// be offered for removal (design D5). Each key form has exactly one rule,
+// be offered for removal (792b31c3 Removal eligibility). Each key form has exactly one rule,
 // which consults only that form's roots: a single-root user form needs its
 // fixed root read, a source-rooted form the root holding the note's
 // skill_source, and a plugin key the plugin manifests. An unrecognized key
@@ -263,7 +262,7 @@ func (e skillRemovalEligibility) fixedRootRead(form SkillRootForm) bool {
 }
 
 // sourceRootRead reports whether the deepest root of form containing the
-// note's skill_source was read and vouches for the note's key (design D5:
+// note's skill_source was read and vouches for the note's key (792b31c3 Removal eligibility:
 // the settings entry, the package root, the exact project directory). A
 // source under no root of that form (or no source at all) is never
 // eligible; a deeper root of another scope or segment hides a shallower
@@ -392,7 +391,7 @@ func joinPathList(paths []string) string {
 }
 
 // judgeSkillKeyGroup marks group conflicted when its members' bytes differ
-// (design D4: no source is exempt), recording one line naming every path.
+// (792b31c2 Offer comparison: no source is exempt), recording one line naming every path.
 func judgeSkillKeyGroup(group *skillKeyGroup, comparison *SkillOfferComparison) {
 	first := SkillContentHash(group.members[0].Content)
 	differs := false
@@ -546,7 +545,7 @@ func rootVouchesFor(root ScannedRoot, key string) bool {
 	return false
 }
 
-// skillCandidateLess orders candidates by design D2 precedence, then key,
+// skillCandidateLess orders candidates by 792b30c16 Source composition and precedence, then key,
 // then source path, enabled before disabled — a total order over distinct
 // candidates, so the comparison never depends on scan order.
 func skillCandidateLess(left, right SkillCandidate) bool {
@@ -564,7 +563,7 @@ func skillCandidateLess(left, right SkillCandidate) bool {
 	}
 }
 
-// skillPrecedenceTier ranks a candidate's source by design D2 precedence,
+// skillPrecedenceTier ranks a candidate's source by 792b30c16 Source composition and precedence,
 // mirroring ResolveSkillSources' order: Claude user skills, commands,
 // synced, Pi user, agents user, Pi settings skills, Pi prompt templates,
 // Pi settings prompts, Pi packages, plugins, then the project sources
@@ -594,8 +593,8 @@ func skillPrecedenceTier(candidate SkillCandidate) skillPrecedence {
 
 // skillProjectPrecedence ranks a project candidate's sub-source: Claude
 // project skills and commands, `.pi/skills`, `.agents/skills`, settings
-// skills, `.pi/prompts`, settings prompts, packages (design D2 sources 9
-// and 10).
+// skills, `.pi/prompts`, settings prompts, packages (792b30c16 Source composition
+// and precedence, sources 9 and 10).
 func skillProjectPrecedence(segment string, isPrompt bool) skillPrecedence {
 	switch {
 	case segment == "":
@@ -615,7 +614,7 @@ func skillProjectPrecedence(segment string, isPrompt bool) skillPrecedence {
 	}
 }
 
-// skillScopePrecedences ranks the fixed scope IDs (design D2); the Pi
+// skillScopePrecedences ranks the fixed scope IDs (792b30c16 Source composition and precedence); the Pi
 // settings scope ranks its skills here and its prompts separately.
 func skillScopePrecedences() map[string]skillPrecedence {
 	return map[string]skillPrecedence{

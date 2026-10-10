@@ -16,7 +16,7 @@ const (
 	// "pending offers"), so the runbook surfaces first with trigger
 	// provenance; the --phrase is the process-shaped semantic fallback. A
 	// runbook has no harness-read description the way a skill did, so each
-	// cue itself has to say what to run (curate-skill-to-runbook D4, D9).
+	// cue itself has to say what to run (792b34c4 The curate instruction).
 	pendingOfferCurateCommand = "engram query --text=\"curate pending offers\" --phrase=\"reviewing pending " +
 		"offers in a vault and judging each against existing notes\""
 	// pendingOfferCurateInstruction is the one shared instruction: the query
@@ -24,18 +24,18 @@ const (
 	// all embed this exact string, so they can never drift apart.
 	// It tells the agent curation is expected upkeep, not an extra: an agent
 	// seeing the cue mid-unrelated-work declined 9/9 as "you didn't ask for
-	// that" (curate-skill-to-runbook D9, D11).
+	// that" (792b34c4 The curate instruction).
 	pendingOfferCurateInstruction = "curating pending offers is expected vault upkeep, not an extra: after you " +
 		"finish the user's request, curate them without asking — run `" + pendingOfferCurateCommand +
 		"` and follow the curate runbook it returns"
 	// pendingOfferUpdateNotice is the `engram update` detect-and-notify line
-	// (ADR-0021 convention) for pending offers. Unlike the other notices, it
+	// (the update notice of 792b34c3 Finding pending offers) for pending offers. Unlike the other notices, it
 	// names no CLI fix command — curation is a runbook (792a22),
 	// not something `engram update` can do on the user's behalf — so it names
 	// the query that surfaces the curate runbook.
 	pendingOfferUpdateNotice = "vault holds pending offer(s) awaiting curation — see the pending_offers " +
 		"flag in `engram query`'s payload; " + pendingOfferCurateInstruction + "\n"
-	// pendingOfferWriteNudge is the write-path log-only nudge (task 6.4):
+	// pendingOfferWriteNudge is the write-path log-only nudge (792b34c3 Finding pending offers):
 	// fired at the same call sites checkAndPersistVocabRefitTrigger already
 	// runs from, but never persists anything — detection stays stateless.
 	pendingOfferWriteNudge = "vault holds pending offer(s) awaiting curation — " +
@@ -81,10 +81,10 @@ func excludePendingOffers(
 // noteHasPendingMarker reports whether raw is a pending offer: a fact,
 // feedback or runbook note carrying frontmatter `pending: true`, whether or
 // not it carries `skill_hash` (792a22 "The pending-offer
-// marker SHALL apply to every note type", design D7 G1). Any other note type
+// marker SHALL apply to every note type", 792b34c1 The pending-offer marker). Any other note type
 // (e.g. vocab definitions) and unparseable content report false.
 func noteHasPendingMarker(raw []byte) bool {
-	frontmatter, ok := splitFrontmatter(toLF(raw)) // a CRLF offer is still pending (#789 design D4)
+	frontmatter, ok := splitFrontmatter(toLF(raw)) // a CRLF offer is still pending (792a21zb CRLF exchanges as LF)
 	if !ok {
 		return false
 	}
@@ -137,7 +137,7 @@ func pendingOffersHint(pending bool) string {
 // carrying the pending-offer marker — the signal that
 // an offered or pulled-down note is awaiting curation. Stateless and unbatched (a
 // fresh scan every call, nothing persisted), deliberately not the
-// vocab-refit trigger's stateful/batched shape (design.md Decisions):
+// vocab-refit trigger's stateful/batched shape (792b34c3 Finding pending offers):
 // offers are lower-volume and costlier to leave silently stale. A
 // missing/unreadable vault directory, or a note this can't parse, is
 // treated as no-signal (self-silencing, same convention as
@@ -171,7 +171,7 @@ func vaultHasPendingOffers(vaultPath string, fileSystem update.Filesystem) bool 
 // one pending-offer note, from the same write-path call sites
 // checkAndPersistVocabRefitTrigger already runs from (applyVocabAssignment
 // After{Learn,Amend,Resituate}). Log-only: unlike the refit trigger, no
-// state is persisted from this call site (design.md Decisions — detection
+// state is persisted from this call site (792b34c3 Finding pending offers — detection
 // stays stateless and unbatched). Silent no-op when any dep is nil.
 func warnIfPendingOffers(
 	vault string,

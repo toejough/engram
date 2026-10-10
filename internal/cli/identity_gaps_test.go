@@ -1,6 +1,6 @@
 package cli_test
 
-// No offer without a user, and no empty vault: (#789, design D9, D10).
+// No offer without a user, and no empty vault: (#789; 792b11c3 First-write stamp, 792a4i).
 
 import (
 	"bytes"

@@ -8,7 +8,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// Test792b35c17a1_FetchHTTPClient_ConnectTimeoutAtMostThreeSeconds (design D6, M9): an
+// Test792b35c17a1_FetchHTTPClient_ConnectTimeoutAtMostThreeSeconds (792b35c17 The bounded fetch client): an
 // unreachable parent costs at most 3s to connect, on top of the 30s total.
 func Test792b35c17a1_FetchHTTPClient_ConnectTimeoutAtMostThreeSeconds(t *testing.T) {
 	t.Parallel()

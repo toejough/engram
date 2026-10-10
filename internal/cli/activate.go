@@ -21,7 +21,7 @@ type ActivateArgs struct {
 	Vault string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
 	Notes []string `targ:"flag,name=note,desc=note path to mark used (repeatable)"`
 	// Parent resolves every ref against ENGRAM_PARENT, pulling it down,
-	// even when a local file of that name exists (design D8).
+	// even when a local file of that name exists (792a21zc Activate resolves a ref locally first).
 	Parent bool `targ:"flag,name=parent,desc=resolve each ref against ENGRAM_PARENT (pulling it down) instead of the local vault"` //nolint:lll // single struct-tag string
 	// VaultName is the vault: identity stamped on a pulled-down copy.
 	VaultName string `targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault name stamped on a pulled-down note's vault: field (default \"personal\")"` //nolint:lll // single struct-tag string
@@ -43,32 +43,30 @@ type ActivateDeps struct {
 	Write      func(string, []byte) error
 	LogWarning func(string, ...any)
 	// NoteExists reports whether a note's .md file exists: that, not its
-	// sidecar, makes a ref a local hit (design D8, M8).
+	// sidecar, makes a ref a local hit (792a21zc Activate resolves a ref locally first).
 	NoteExists func(path string) bool
 	// Resolve, when set, replaces the path-based local lookup: it maps a
 	// ref to its note file and reports whether one exists. A served
 	// activate sets it to resolve only against the vault's listed note
-	// names (final review F2); the local CLI leaves it nil and keeps
+	// names (792a20l A served activate takes note names only); the local CLI leaves it nil and keeps
 	// resolving absolute and vault-relative paths.
 	Resolve func(ref string) (string, bool, error)
-	// Pull pulls a ref down from the configured parent (design D8); nil
-	// when no parent is configured, and for a served activate, which never
-	// reaches past its own vault. It runs with no vault lock held.
+	// Pull pulls a ref down from the configured parent (792a21zd A pulled-down note is an exact-content local
+	// pending offer); nil when no parent is configured, and for a served activate, which never reaches past
+	// its own vault. It runs with no vault lock held.
 	Pull func(ctx context.Context, ref string) error
-	// Finish runs once after every pull and recheck, with no lock held
-	// (the drain after a parent contact, design D6); nil when there is no
-	// parent.
+	// Finish runs once after every pull and recheck, with no lock held (the drain after a parent contact,
+	// 792a21r The outbox drains after the parent was reached); nil when there is no parent.
 	Finish func(ctx context.Context)
-	// Recheck re-checks one parent link of a local hit against the parent
-	// (ruling S31): the parent note's current exchange hash, fetched
-	// through the gated, backoff-aware contact, is pulled down as a pending
-	// offer when it is not the link's and was not declined. nil when no
-	// parent is configured, and for a served activate. It runs with no
-	// vault lock held; its failure never fails the local activate.
+	// Recheck re-checks one parent link of a local hit against the parent (792a21zf Activating a linked note
+	// re-checks its parent note): the parent note's current exchange hash, fetched through the gated,
+	// backoff-aware contact, is pulled down as a pending offer when it is not the link's and was not
+	// declined. nil when no parent is configured, and for a served activate. It runs with no vault lock held;
+	// its failure never fails the local activate.
 	Recheck func(ctx context.Context, link linkedParentNote) error
 }
 
-// RunActivate marks each ref used (design D8). A ref whose .md exists
+// RunActivate marks each ref used (792a21zc Activate resolves a ref locally first). A ref whose .md exists
 // locally is a hit: its sidecar's LastUsed is bumped (a note without a
 // sidecar still counts). A miss — or every ref with --parent — is pulled
 // down from the parent when the ref is a basename or <basename>.md; a bare
@@ -233,9 +231,9 @@ func activateRefs(ctx context.Context, args ActivateArgs, deps ActivateDeps) (ac
 		result.Activated = append(result.Activated, ref)
 	}
 
-	// Rechecks of linked local hits are best-effort (ruling S31): the local
-	// activate already succeeded, so a failed recheck — the parent
-	// unreachable, backed off, or the note gone there — changes nothing.
+	// Rechecks of linked local hits are best-effort (792a21zf Activating a linked note re-checks its parent
+	// note): the local activate already succeeded, so a failed recheck — the parent unreachable, backed off,
+	// or the note gone there — changes nothing.
 	for _, link := range rechecks {
 		_ = deps.Recheck(ctx, link)
 	}
@@ -258,7 +256,7 @@ func appendParentLinks(
 		return links
 	}
 
-	frontmatter, found := splitFrontmatter(toLF(raw)) // a CRLF note is read as LF (#789 design D4)
+	frontmatter, found := splitFrontmatter(toLF(raw)) // a CRLF note is read as LF (792a21zb CRLF exchanges as LF)
 	if !found {
 		return links
 	}
@@ -320,7 +318,7 @@ func bumpLastUsed(
 }
 
 // bumpLocalHit bumps a local hit's sidecar; a note without a sidecar is
-// still a hit (M8).
+// still a hit (792a21zc Activate resolves a ref locally first).
 func bumpLocalHit(deps ActivateDeps, full, date string) error {
 	bumpErr := bumpLastUsed(embed.SidecarPath(full), date, deps.Read, deps.Write)
 	if bumpErr != nil && !errors.Is(bumpErr, fs.ErrNotExist) {
@@ -332,7 +330,7 @@ func bumpLocalHit(deps ActivateDeps, full, date string) error {
 
 // isParentCandidate reports whether ref may be resolved against the
 // parent: a basename or <basename>.md — never a bare Luhmann ID, which is
-// minted per vault (M8), and never a path.
+// minted per vault (792a21zc Activate resolves a ref locally first), and never a path.
 func isParentCandidate(ref string) bool {
 	name := normalizeNoteRef(ref)
 	if strings.ContainsAny(name, `/\`) {
@@ -345,12 +343,11 @@ func isParentCandidate(ref string) bool {
 }
 
 // listedNoteResolver resolves a served ref only against the vault's listed
-// note names (final review F2), as the raw show route does: the ref is
+// note names (792a20l A served activate takes note names only), as the raw show route does: the ref is
 // matched, never joined into a path, so it cannot reach outside the vault.
 // The listing itself runs once, here, at resolver-creation time — once per
 // served request — rather than once per returned closure call, so an
-// N-ref request costs one ReadDir, not N (final re-review residual,
-// ruling S34).
+// N-ref request costs one ReadDir, not N.
 func listedNoteResolver(deps Deps, vault string) func(ref string) (string, bool, error) {
 	names, listErr := listMDFromFS(deps.FS)(vault)
 
@@ -421,7 +418,7 @@ func resolveLocalRef(args ActivateArgs, deps ActivateDeps, ref string) (string, 
 
 // validateServedActivateRefs rejects a served activate whose refs are not
 // plain note names: an absolute path, a path separator or ".." anywhere
-// fails the whole request before anything is touched (final review F2).
+// fails the whole request before anything is touched (792a20l A served activate takes note names only).
 func validateServedActivateRefs(refs []string) error {
 	for _, ref := range refs {
 		if filepath.IsAbs(ref) || strings.ContainsAny(ref, `/\`) || strings.Contains(ref, "..") {

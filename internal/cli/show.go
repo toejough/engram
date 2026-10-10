@@ -58,8 +58,8 @@ func RunShow(_ context.Context, args ShowArgs, deps ShowDeps, stdout io.Writer) 
 	}
 
 	// engram show is the full-fidelity source the guidance shim names: it
-	// never applies the query preview budget (D1/#772,
-	// 792a7x), so the
+	// never applies the query preview budget (#772,
+	// 792a7x Reading one note), so the
 	// raw body is printed verbatim.
 	renderShow(stdout, exchangeHashHeader(body)+string(body), note.Outgoing)
 
@@ -78,8 +78,8 @@ var (
 )
 
 // exchangeHashHeader is the `# exchange_hash: <hash>` line engram show
-// prints first for a note carrying xid (design D10 r4 M-B; spec
-// 792a22), so curation can pass the judged version as
+// prints first for a note carrying xid (792b34c8 The exchange-hash header of
+// show; spec 792a22), so curation can pass the judged version as
 // --expect-hash. A note without xid gets no header, so its output is
 // byte-identical to before exchange existed.
 func exchangeHashHeader(raw []byte) string {
