@@ -14,22 +14,9 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestCapItemsToLimit_FewerThanLimitReturnsAllUnchanged verifies no
-// truncation happens when the item count is already within the limit.
-func TestCapItemsToLimit_FewerThanLimitReturnsAllUnchanged(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	paths := []string{"a", "b"}
-	out := cli.ExportCapItemsToLimit(paths, 5)
-
-	g.Expect(out).To(Equal([]string{"a", "b"}))
-}
-
-// TestCapItemsToLimit_TruncatesToFirstN verifies the helper keeps only the
+// Test792b23c3a1_CapItemsToLimit_TruncatesToFirstN verifies the helper keeps only the
 // first `limit` items, assuming callers already provide final rank order.
-func TestCapItemsToLimit_TruncatesToFirstN(t *testing.T) {
+func Test792b23c3a1_CapItemsToLimit_TruncatesToFirstN(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -40,71 +27,22 @@ func TestCapItemsToLimit_TruncatesToFirstN(t *testing.T) {
 	g.Expect(out).To(Equal([]string{"a", "b", "c"}))
 }
 
-// TestRunQuery_BudgetLimitStillReportsResolvedValue verifies Budget.Limit
-// keeps reporting the resolved --limit value, unchanged metadata behavior,
-// even though items[] is now actually capped to it.
-func TestRunQuery_BudgetLimitStillReportsResolvedValue(t *testing.T) {
+// Test792b23c3a2_CapItemsToLimit_FewerThanLimitReturnsAllUnchanged verifies no
+// truncation happens when the item count is already within the limit.
+func Test792b23c3a2_CapItemsToLimit_FewerThanLimitReturnsAllUnchanged(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
+	paths := []string{"a", "b"}
+	out := cli.ExportCapItemsToLimit(paths, 5)
 
-	plantWithFixedVector(t, memFS, vault, "1.fact.md",
-		"---\ntype: fact\ntier: L2\nsituation: x\n---\n\nbody\n", []float32{1, 0, 0, 0})
-
-	deps := newQueryDeps(memFS)
-	deps.Embedder = fixedVectorEmbedder{modelID: "m@4", vector: []float32{1, 0, 0, 0}}
-
-	var out bytes.Buffer
-
-	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Phrases: []string{"x"}, VaultPath: vault, Limit: 7}, deps, &out)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var parsed queryParsed
-	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).To(Succeed())
-
-	g.Expect(parsed.Budget.Limit).To(Equal(7))
+	g.Expect(out).To(Equal([]string{"a", "b"}))
 }
 
-// TestRunQuery_DefaultLimitCapsLargeResultSet verifies the default --limit
-// (20) now truncates a result set that would otherwise exceed it — before
-// this fix, --limit was report-only metadata and never truncated items[].
-func TestRunQuery_DefaultLimitCapsLargeResultSet(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-
-	const noteCount = 25
-	for i := range noteCount {
-		relPath := fmt.Sprintf("%d.fact.md", i+1)
-		body := fmt.Sprintf("---\ntype: fact\ntier: L2\nsituation: x\n---\n\nbody %d\n", i)
-		plantWithFixedVector(t, memFS, vault, relPath, body, []float32{1, 0, 0, 0})
-	}
-
-	deps := newQueryDeps(memFS)
-	deps.Embedder = fixedVectorEmbedder{modelID: "m@4", vector: []float32{1, 0, 0, 0}}
-
-	var out bytes.Buffer
-
-	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Phrases: []string{"x"}, VaultPath: vault}, deps, &out)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var parsed queryParsed
-	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).To(Succeed())
-
-	g.Expect(parsed.Items).To(HaveLen(20))
-}
-
-// TestRunQuery_ExplicitLimitCapsItems verifies an explicit --limit N
+// Test792b23c3a3_RunQuery_ExplicitLimitCapsItems verifies an explicit --limit N
 // truncates items[] to N.
-func TestRunQuery_ExplicitLimitCapsItems(t *testing.T) {
+func Test792b23c3a3_RunQuery_ExplicitLimitCapsItems(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -134,9 +72,9 @@ func TestRunQuery_ExplicitLimitCapsItems(t *testing.T) {
 	g.Expect(parsed.Items).To(HaveLen(3))
 }
 
-// TestRunQuery_FewerItemsThanLimitReturnsAllUnchanged verifies a result set
+// Test792b23c3a4_RunQuery_FewerItemsThanLimitReturnsAllUnchanged verifies a result set
 // smaller than the limit is returned in full, unchanged by the new cap.
-func TestRunQuery_FewerItemsThanLimitReturnsAllUnchanged(t *testing.T) {
+func Test792b23c3a4_RunQuery_FewerItemsThanLimitReturnsAllUnchanged(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -162,14 +100,14 @@ func TestRunQuery_FewerItemsThanLimitReturnsAllUnchanged(t *testing.T) {
 	g.Expect(parsed.Items).To(HaveLen(1))
 }
 
-// TestRunQuery_LimitDoesNotStarveRecencyChannel verifies that --limit caps
+// Test792b23c3a5_RunQuery_LimitDoesNotStarveRecencyChannel verifies that --limit caps
 // the relevance-ranked (Channel 1) portion of items[] only — the recency
 // channel (Channel 2, provenance "recent") is independently governed by
 // --recent-fill and must not be entirely displaced just because Channel 1
 // alone already reaches --limit. Regression check: a crowded vault with
 // >= --limit matched notes previously wiped out the whole recency channel,
 // since the two channels shared one combined truncation.
-func TestRunQuery_LimitDoesNotStarveRecencyChannel(t *testing.T) {
+func Test792b23c3a5_RunQuery_LimitDoesNotStarveRecencyChannel(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -228,4 +166,66 @@ func TestRunQuery_LimitDoesNotStarveRecencyChannel(t *testing.T) {
 
 	g.Expect(foundRecent).To(BeTrue(),
 		"recency-channel item must survive --limit even when Channel 1 alone already reaches it")
+}
+
+// Test792b23c6a1_RunQuery_BudgetLimitStillReportsResolvedValue verifies Budget.Limit
+// keeps reporting the resolved --limit value, unchanged metadata behavior,
+// even though items[] is now actually capped to it.
+func Test792b23c6a1_RunQuery_BudgetLimitStillReportsResolvedValue(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	plantWithFixedVector(t, memFS, vault, "1.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: x\n---\n\nbody\n", []float32{1, 0, 0, 0})
+
+	deps := newQueryDeps(memFS)
+	deps.Embedder = fixedVectorEmbedder{modelID: "m@4", vector: []float32{1, 0, 0, 0}}
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"x"}, VaultPath: vault, Limit: 7}, deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var parsed queryParsed
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).To(Succeed())
+
+	g.Expect(parsed.Budget.Limit).To(Equal(7))
+}
+
+// TestRunQuery_DefaultLimitCapsLargeResultSet verifies the default --limit
+// (20) now truncates a result set that would otherwise exceed it — before
+// this fix, --limit was report-only metadata and never truncated items[].
+func TestRunQuery_DefaultLimitCapsLargeResultSet(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	const noteCount = 25
+	for i := range noteCount {
+		relPath := fmt.Sprintf("%d.fact.md", i+1)
+		body := fmt.Sprintf("---\ntype: fact\ntier: L2\nsituation: x\n---\n\nbody %d\n", i)
+		plantWithFixedVector(t, memFS, vault, relPath, body, []float32{1, 0, 0, 0})
+	}
+
+	deps := newQueryDeps(memFS)
+	deps.Embedder = fixedVectorEmbedder{modelID: "m@4", vector: []float32{1, 0, 0, 0}}
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"x"}, VaultPath: vault}, deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var parsed queryParsed
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).To(Succeed())
+
+	g.Expect(parsed.Items).To(HaveLen(20))
 }

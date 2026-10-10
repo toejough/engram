@@ -20,6 +20,152 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
+func Test792b23c1a1_QueryPayload_RefitPendingPresentWhenTrue(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	out, err := cli.ExportRenderQueryPayloadRefitPending(true)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out).To(ContainSubstring("refit_pending: true"))
+}
+
+func Test792b23c1a2_QueryPayload_RefitPendingOmittedWhenFalse(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	out, err := cli.ExportRenderQueryPayloadRefitPending(false)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out).NotTo(ContainSubstring("refit_pending"))
+}
+
+// Test792b23c1a3_Query_PayloadIncludesModelID covers 792a7zc for
+// the LOCAL query path (the served path is covered separately by
+// TestServeQuery_ExcludesPendingOffersAndSetsModelID): model_id always
+// matches deps.Embedder.ModelID(), even against an empty vault.
+func Test792b23c1a3_Query_PayloadIncludesModelID(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"anything"}, VaultPath: vault},
+		newQueryDeps(memFS), &out)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var parsed struct {
+		ModelID string `yaml:"model_id"`
+	}
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+	g.Expect(parsed.ModelID).To(Equal("m@4"))
+}
+
+func Test792b23c7a1_RunQuery_TimingsFlag(t *testing.T) {
+	t.Parallel()
+
+	// scriptedClock returns times[0], times[1], ... one per call. The final
+	// value repeats so a stray trailing call cannot panic. Exactly 6 reads
+	// occur under --timings (newPhaseTimer + 5 marks); recency reuses the scan
+	// boundary (Step 6) and adds no read.
+	newScriptedClock := func(times []time.Time) func() time.Time {
+		idx := 0
+
+		return func() time.Time {
+			now := times[idx]
+			if idx < len(times)-1 {
+				idx++
+			}
+
+			return now
+		}
+	}
+
+	base := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
+	times := []time.Time{
+		base,                              // [0] newPhaseTimer: last = now()
+		base.Add(500 * time.Millisecond),  // [1] mark(scan)     -> scan = 500ms
+		base.Add(1500 * time.Millisecond), // [2] mark(embed)    -> embed = 1000ms
+		base.Add(1600 * time.Millisecond), // [3] mark(cluster)  -> cluster = 100ms
+		base.Add(1700 * time.Millisecond), // [4] mark(nominate) -> nominate = 100ms
+		base.Add(1720 * time.Millisecond), // [5] mark(render)   -> render = 20ms
+	}
+
+	g := NewWithT(t)
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+	plantNoteWithSidecar(t, memFS, vault, "1.2026-07-13.alpha.md", "---\ntype: fact\n---\nalpha body")
+
+	deps := newQueryDeps(memFS)
+	deps.Now = newScriptedClock(times)
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(), cli.QueryArgs{
+		Phrases:   []string{"alpha"},
+		VaultPath: vault,
+		Timings:   true,
+	}, deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	got := out.String()
+	g.Expect(got).To(ContainSubstring("timings:"))
+	g.Expect(got).To(ContainSubstring("scan_ms: 500"))
+	g.Expect(got).To(ContainSubstring("embed_ms: 1000"))
+	g.Expect(got).To(ContainSubstring("cluster_ms: 100"))
+	g.Expect(got).To(ContainSubstring("nominate_ms: 100"))
+	g.Expect(got).To(ContainSubstring("render_ms: 20"))
+}
+
+func Test792b23c7a2_RunQuery_NoTimingsByDefault(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+	plantNoteWithSidecar(t, memFS, vault, "1.2026-07-13.alpha.md", "---\ntype: fact\n---\nalpha body")
+
+	deps := newQueryDeps(memFS)
+	deps.Now = func() time.Time { return time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC) }
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(), cli.QueryArgs{
+		Phrases:   []string{"alpha"},
+		VaultPath: vault,
+		Timings:   false,
+	}, deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Structural byte-stability guarantee is omitempty-on-nil; here we assert
+	// the block is simply absent. The rest of the payload is guarded by the
+	// existing query regression suite (Step 9).
+	g.Expect(out.String()).NotTo(ContainSubstring("timings:"))
+}
+
 func TestApplyProjectFilter_BodyProjectMentionDoesNotMatch(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -203,34 +349,6 @@ func TestQueryPayload_PendingOffersLeadPayload(t *testing.T) {
 	head := out[:previewSize]
 	g.Expect(head).To(ContainSubstring("pending_offers: true"))
 	g.Expect(head).To(ContainSubstring(`engram query --text="curate pending offers"`))
-}
-
-func TestQueryPayload_RefitPendingOmittedWhenFalse(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	out, err := cli.ExportRenderQueryPayloadRefitPending(false)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(out).NotTo(ContainSubstring("refit_pending"))
-}
-
-func TestQueryPayload_RefitPendingPresentWhenTrue(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	out, err := cli.ExportRenderQueryPayloadRefitPending(true)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(out).To(ContainSubstring("refit_pending: true"))
 }
 
 func TestQuery_EmbeddingFailureSurfacesError(t *testing.T) {
@@ -545,34 +663,6 @@ func TestQuery_OldSchemaSidecars_EmitSchemaAdvisory(t *testing.T) {
 
 	g.Expect(strings.Join(advisories, "\n")).To(ContainSubstring("schema"),
 		"old-schema sidecars must be counted and surfaced via the mismatch advisory, not silently dropped")
-}
-
-// TestQuery_PayloadIncludesModelID covers 792a7zc for
-// the LOCAL query path (the served path is covered separately by
-// TestServeQuery_ExcludesPendingOffersAndSetsModelID): model_id always
-// matches deps.Embedder.ModelID(), even against an empty vault.
-func TestQuery_PayloadIncludesModelID(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-
-	var out bytes.Buffer
-
-	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Phrases: []string{"anything"}, VaultPath: vault},
-		newQueryDeps(memFS), &out)
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var parsed struct {
-		ModelID string `yaml:"model_id"`
-	}
-
-	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
-	g.Expect(parsed.ModelID).To(Equal("m@4"))
 }
 
 func TestQuery_PhrasesFlag_AcceptsMultiplePhrases(t *testing.T) {
@@ -941,36 +1031,6 @@ func TestRunQuery_NoActivatedFlagInPayload(t *testing.T) {
 	g.Expect(sawHigh).To(BeTrue(), "high-cosine note must appear in payload")
 }
 
-func TestRunQuery_NoTimingsByDefault(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-	plantNoteWithSidecar(t, memFS, vault, "1.2026-07-13.alpha.md", "---\ntype: fact\n---\nalpha body")
-
-	deps := newQueryDeps(memFS)
-	deps.Now = func() time.Time { return time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC) }
-
-	var out bytes.Buffer
-
-	err := cli.RunQuery(context.Background(), cli.QueryArgs{
-		Phrases:   []string{"alpha"},
-		VaultPath: vault,
-		Timings:   false,
-	}, deps, &out)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Structural byte-stability guarantee is omitempty-on-nil; here we assert
-	// the block is simply absent. The rest of the payload is guarded by the
-	// existing query regression suite (Step 9).
-	g.Expect(out.String()).NotTo(ContainSubstring("timings:"))
-}
-
 // TestRunQuery_NoteRecencyDecayRanksFreshLastUsedFirst verifies that rankCandidates
 // applies a recency multiplier when deps.Now is set: two notes with identical base
 // cosine scores are re-ranked so the one with a recent LastUsed appears first (higher
@@ -1264,66 +1324,6 @@ func TestRunQuery_RefitPendingFromCentroids(t *testing.T) {
 	}
 
 	g.Expect(out.String()).To(ContainSubstring("refit_pending: true"))
-}
-
-func TestRunQuery_TimingsFlag(t *testing.T) {
-	t.Parallel()
-
-	// scriptedClock returns times[0], times[1], ... one per call. The final
-	// value repeats so a stray trailing call cannot panic. Exactly 6 reads
-	// occur under --timings (newPhaseTimer + 5 marks); recency reuses the scan
-	// boundary (Step 6) and adds no read.
-	newScriptedClock := func(times []time.Time) func() time.Time {
-		idx := 0
-
-		return func() time.Time {
-			now := times[idx]
-			if idx < len(times)-1 {
-				idx++
-			}
-
-			return now
-		}
-	}
-
-	base := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
-	times := []time.Time{
-		base,                              // [0] newPhaseTimer: last = now()
-		base.Add(500 * time.Millisecond),  // [1] mark(scan)     -> scan = 500ms
-		base.Add(1500 * time.Millisecond), // [2] mark(embed)    -> embed = 1000ms
-		base.Add(1600 * time.Millisecond), // [3] mark(cluster)  -> cluster = 100ms
-		base.Add(1700 * time.Millisecond), // [4] mark(nominate) -> nominate = 100ms
-		base.Add(1720 * time.Millisecond), // [5] mark(render)   -> render = 20ms
-	}
-
-	g := NewWithT(t)
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-	plantNoteWithSidecar(t, memFS, vault, "1.2026-07-13.alpha.md", "---\ntype: fact\n---\nalpha body")
-
-	deps := newQueryDeps(memFS)
-	deps.Now = newScriptedClock(times)
-
-	var out bytes.Buffer
-
-	err := cli.RunQuery(context.Background(), cli.QueryArgs{
-		Phrases:   []string{"alpha"},
-		VaultPath: vault,
-		Timings:   true,
-	}, deps, &out)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	got := out.String()
-	g.Expect(got).To(ContainSubstring("timings:"))
-	g.Expect(got).To(ContainSubstring("scan_ms: 500"))
-	g.Expect(got).To(ContainSubstring("embed_ms: 1000"))
-	g.Expect(got).To(ContainSubstring("cluster_ms: 100"))
-	g.Expect(got).To(ContainSubstring("nominate_ms: 100"))
-	g.Expect(got).To(ContainSubstring("render_ms: 20"))
 }
 
 type errorEmbedder struct{}

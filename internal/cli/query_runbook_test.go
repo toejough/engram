@@ -121,23 +121,37 @@ func Test792b22c7a1_RunQuery_NoTextPayloadUnchanged(t *testing.T) {
 	g.Expect(noText).NotTo(ContainSubstring("- trigger\n"), "no item carries provenance role trigger")
 }
 
-func TestRunQuery_NoPhrasesAndNoTextIsRejected(t *testing.T) {
+// Test792b23c3a6_RunQuery_TriggerHitDoesNotConsumeLimit: --limit 1 returns the hit plus
+// one similarity item.
+func Test792b23c3a6_RunQuery_TriggerHitDoesNotConsumeLimit(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	memFS, vault := plantTriggerVault(t)
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
 
-	var out bytes.Buffer
+	plantNoteWithSidecar(t, memFS, vault, triggerRunbookName, triggerRunbookNote)
+	plantNoteWithSidecar(t, memFS, vault, triggerFeedbackName, triggerFeedbackNote)
+	plantNoteWithSidecar(t, memFS, vault, "3.2026-09-20.other-feedback.md",
+		"---\ntype: feedback\nsituation: fixing a flaky login test quickly\n---\n\nBehavior: x. Impact: y. Action: z.\n")
 
-	err := cli.RunQuery(context.Background(), cli.QueryArgs{VaultPath: vault}, newQueryDeps(memFS), &out)
-	g.Expect(err).To(HaveOccurred())
+	parsed, _ := runTriggerQuery(t, memFS, vault, cli.QueryArgs{
+		Phrases: triggerPhrases, Text: "/please fix the flaky login test", Limit: 1,
+	})
+
+	g.Expect(parsed.Items).To(HaveLen(2))
+
+	if len(parsed.Items) == 2 {
+		g.Expect(parsed.Items[0].Path).To(Equal(triggerRunbookName))
+		g.Expect(parsed.Items[1].Path).NotTo(Equal(triggerRunbookName))
+	}
 }
 
-// TestRunQuery_OversizedRedFlagsListKeepsNewestEntry reproduces engram#763:
+// Test792b23c8a8_RunQuery_OversizedRedFlagsListKeepsNewestEntry reproduces engram#763:
 // a runbook whose red_flags list is long enough to exceed the preview
 // budget must still deliver its most-recently-appended entry through the
 // query payload, not silently drop it.
-func TestRunQuery_OversizedRedFlagsListKeepsNewestEntry(t *testing.T) {
+func Test792b23c8a8_RunQuery_OversizedRedFlagsListKeepsNewestEntry(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -187,6 +201,64 @@ func TestRunQuery_OversizedRedFlagsListKeepsNewestEntry(t *testing.T) {
 	// command it names must return every entry (792a7x).
 	g.Expect(runbookContent).To(ContainSubstring(
 		"run engram show 1.2026-09-18.oversized-red-flags for all 21"))
+}
+
+// Test792b23c8a9_RunQuery_RunbookItemContentIncludesRedFlags proves a runbook note's
+// red_flags entries reach the query payload's item content, so an agent
+// never has to fall back to `engram show` just to see them
+// (792a7w).
+func Test792b23c8a9_RunQuery_RunbookItemContentIncludesRedFlags(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	plantNoteWithSidecar(t, memFS, vault, "1.2026-08-24.history-rewrite.md",
+		"---\ntype: runbook\nsituation: rewriting git history\n"+
+			"done_when: the backup branch still has every original commit\n"+
+			"red_flags:\n    - filter-branch on all refs sweeps the backup branch\n"+
+			"    - force-push without --force-with-lease\n---\n\n"+
+			"1. Create a backup branch\n2. Rewrite history\n")
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"rewriting git history"}, VaultPath: vault, Limit: 20},
+		newQueryDeps(memFS), &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var parsed queryParsed
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+
+	var runbookContent string
+
+	for _, item := range parsed.Items {
+		if item.Kind == "runbook" {
+			runbookContent = item.Content
+		}
+	}
+
+	g.Expect(runbookContent).To(ContainSubstring("red_flags:"))
+	g.Expect(runbookContent).To(ContainSubstring("filter-branch on all refs sweeps the backup branch"))
+	g.Expect(runbookContent).To(ContainSubstring("force-push without --force-with-lease"))
+}
+
+func TestRunQuery_NoPhrasesAndNoTextIsRejected(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	memFS, vault := plantTriggerVault(t)
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(), cli.QueryArgs{VaultPath: vault}, newQueryDeps(memFS), &out)
+	g.Expect(err).To(HaveOccurred())
 }
 
 // TestRunQuery_RunbookCompetesInMainMatchedSet proves runbook notes receive no
@@ -254,78 +326,6 @@ func TestRunQuery_RunbookCompetesInMainMatchedSet(t *testing.T) {
 	}
 
 	g.Expect(foundInCandidates).To(BeTrue(), "runbook note must be nominated in candidate_l2s, like fact/feedback")
-}
-
-// TestRunQuery_RunbookItemContentIncludesRedFlags proves a runbook note's
-// red_flags entries reach the query payload's item content, so an agent
-// never has to fall back to `engram show` just to see them
-// (792a7w).
-func TestRunQuery_RunbookItemContentIncludesRedFlags(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-
-	plantNoteWithSidecar(t, memFS, vault, "1.2026-08-24.history-rewrite.md",
-		"---\ntype: runbook\nsituation: rewriting git history\n"+
-			"done_when: the backup branch still has every original commit\n"+
-			"red_flags:\n    - filter-branch on all refs sweeps the backup branch\n"+
-			"    - force-push without --force-with-lease\n---\n\n"+
-			"1. Create a backup branch\n2. Rewrite history\n")
-
-	var out bytes.Buffer
-
-	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Phrases: []string{"rewriting git history"}, VaultPath: vault, Limit: 20},
-		newQueryDeps(memFS), &out)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	var parsed queryParsed
-
-	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
-
-	var runbookContent string
-
-	for _, item := range parsed.Items {
-		if item.Kind == "runbook" {
-			runbookContent = item.Content
-		}
-	}
-
-	g.Expect(runbookContent).To(ContainSubstring("red_flags:"))
-	g.Expect(runbookContent).To(ContainSubstring("filter-branch on all refs sweeps the backup branch"))
-	g.Expect(runbookContent).To(ContainSubstring("force-push without --force-with-lease"))
-}
-
-// TestRunQuery_TriggerHitDoesNotConsumeLimit: --limit 1 returns the hit plus
-// one similarity item.
-func TestRunQuery_TriggerHitDoesNotConsumeLimit(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-
-	plantNoteWithSidecar(t, memFS, vault, triggerRunbookName, triggerRunbookNote)
-	plantNoteWithSidecar(t, memFS, vault, triggerFeedbackName, triggerFeedbackNote)
-	plantNoteWithSidecar(t, memFS, vault, "3.2026-09-20.other-feedback.md",
-		"---\ntype: feedback\nsituation: fixing a flaky login test quickly\n---\n\nBehavior: x. Impact: y. Action: z.\n")
-
-	parsed, _ := runTriggerQuery(t, memFS, vault, cli.QueryArgs{
-		Phrases: triggerPhrases, Text: "/please fix the flaky login test", Limit: 1,
-	})
-
-	g.Expect(parsed.Items).To(HaveLen(2))
-
-	if len(parsed.Items) == 2 {
-		g.Expect(parsed.Items[0].Path).To(Equal(triggerRunbookName))
-		g.Expect(parsed.Items[1].Path).NotTo(Equal(triggerRunbookName))
-	}
 }
 
 // unexported constants.

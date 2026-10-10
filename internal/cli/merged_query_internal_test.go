@@ -131,7 +131,7 @@ func TestMergeQueryPayloads_LimitCapsTotalMergedSet(t *testing.T) {
 // TestMergeQueryPayloads_LimitDoesNotStarveRecencyChannel verifies --limit
 // caps only the merged relevance-ranked (Channel 1) portion — a merged
 // recency-channel item must survive even when Channel 1 alone already
-// reaches --limit, mirroring TestRunQuery_LimitDoesNotStarveRecencyChannel
+// reaches --limit, mirroring Test792b23c3a5_RunQuery_LimitDoesNotStarveRecencyChannel
 // for the single-source path.
 func TestMergeQueryPayloads_LimitDoesNotStarveRecencyChannel(t *testing.T) {
 	t.Parallel()

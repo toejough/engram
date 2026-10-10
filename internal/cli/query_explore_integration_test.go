@@ -14,6 +14,23 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
+// Test792b23c2a3_RenderQueryPayload_ExploreItem_ProvenanceAndSourceTerm verifies the
+// spec's "Explore provenance is reported" requirement: an explore-half item
+// renders with provenance=explore and its source_term in the YAML payload.
+func Test792b23c2a3_RenderQueryPayload_ExploreItem_ProvenanceAndSourceTerm(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	item := cli.ExportNewExploreResolvedItem("2.fact.md", "explore content", "topic-a", 0.8)
+
+	out, err := cli.ExportRenderQueryPayloadFromResolvedItems([]cli.ExportResolvedItem{item})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(out).To(ContainSubstring("- explore"))
+	g.Expect(out).To(ContainSubstring("source_term: topic-a"))
+}
+
 // TestComputeExploreHalf_DeliversMemberNotInExploit verifies the query-path
 // glue (task 2.1): a vocab term read from vocab.centroids.json, with a
 // vault-tagged member note not present in the exploit half, is delivered as
@@ -149,23 +166,6 @@ func TestComputeExploreHalf_ZeroBudget_ReturnsEmptyAllocation(t *testing.T) {
 
 	g.Expect(picks).To(BeEmpty())
 	g.Expect(delivered).To(Equal(map[string]int{}))
-}
-
-// TestRenderQueryPayload_ExploreItem_ProvenanceAndSourceTerm verifies the
-// spec's "Explore provenance is reported" requirement: an explore-half item
-// renders with provenance=explore and its source_term in the YAML payload.
-func TestRenderQueryPayload_ExploreItem_ProvenanceAndSourceTerm(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	item := cli.ExportNewExploreResolvedItem("2.fact.md", "explore content", "topic-a", 0.8)
-
-	out, err := cli.ExportRenderQueryPayloadFromResolvedItems([]cli.ExportResolvedItem{item})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	g.Expect(out).To(ContainSubstring("- explore"))
-	g.Expect(out).To(ContainSubstring("source_term: topic-a"))
 }
 
 // TestRunQuery_ExploreHalf_FullPipeline_DeliversExploreItem drives the full

@@ -1292,3 +1292,28 @@ decisions as `792dN`, continuing the sequence.
     clause stays in `runbook-lexical-triggers` for vault-serving (792d90).
 - **Rationale:** 792c3c and 792d52.
 - **Alternatives:** none apply.
+
+## 792d95 query-payload-renderer scope and the tests it leaves
+
+- **Choice:**
+  - 792b23 specifies the document and its keys, item labels, the order and the limit, the chunk content
+    budget, lazy chunks, the budget block, the stage timings and the red-flag preview. The contents of
+    the clusters and of `candidate_l2s`, the default limit of 20 and the default recent-fill count are
+    the query-engine's (792c7f5): it decides what is in the payload and resolves the flags before the
+    renderer sees them. `TestRunQuery_DefaultLimitCapsLargeResultSet` and
+    `TestResolveRecentFill_DefaultsAndOverrides` go there, although they sit in the files this node
+    examined.
+  - The keys that lead a payload with pending offers, and `from_parent` in a merged payload, are
+    curate's and parent-sync's, so their tests wait for those nodes (792d51):
+    `TestQueryPayload_PendingOffersHintOmittedWhenFalse`, `TestQueryPayload_PendingOffersHintPresentWhenTrue`,
+    `TestQueryPayload_PendingOffersLeadPayload` and `TestPendingOfferCurateInstruction_IsExpectedUpkeep`
+    to curate (792c7u1), and `TestQueryPayload_NoFromParentKeyWithoutMerge` to parent-sync (792c7t1).
+  - Timings are split as the code splits them: the query-engine takes the readings that end the scan,
+    embed, cluster and nominate stages and 792b23c7 owns the block and the final reading, so
+    `TestRunQuery_TimingsFlag` is renamed here and exercises the whole run.
+  - Tests that run `RunQuery` and assert a renderer requirement take technical IDs (792d52), as in 792d94.
+  - The renderer takes `kindFromContent`, so `embed_selection_test`'s `TestKindFromContent` and the CRLF
+    kind test are renamed here (792d91, 792d93).
+- **Rationale:** 792c3c, 792d51 and 792d52.
+- **Alternatives:** keep the cluster content in the renderer. Rejected because the clustering and the
+  candidate ranking are the query-engine's choices, and the renderer only prints them.

@@ -9,9 +9,9 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestCapChunkContent_CapsChunksBeyondBudget verifies the budget keeps the
+// Test792b23c4a1_CapChunkContent_CapsChunksBeyondBudget verifies the budget keeps the
 // first N chunks full, snippets later chunks, and never touches notes.
-func TestCapChunkContent_CapsChunksBeyondBudget(t *testing.T) {
+func Test792b23c4a1_CapChunkContent_CapsChunksBeyondBudget(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -33,8 +33,8 @@ func TestCapChunkContent_CapsChunksBeyondBudget(t *testing.T) {
 	g.Expect(snipped).To(Equal(2))
 }
 
-// TestCapChunkContent_ZeroBudgetIsNoOp verifies budget<=0 leaves everything full.
-func TestCapChunkContent_ZeroBudgetIsNoOp(t *testing.T) {
+// Test792b23c4a2_CapChunkContent_ZeroBudgetIsNoOp verifies budget<=0 leaves everything full.
+func Test792b23c4a2_CapChunkContent_ZeroBudgetIsNoOp(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -49,9 +49,37 @@ func TestCapChunkContent_ZeroBudgetIsNoOp(t *testing.T) {
 	g.Expect(snipped).To(Equal(0))
 }
 
-// TestClearChunkContent_ClearsChunksKeepsNotes verifies lazy mode zeroes
+// Test792b23c4a3_ResolveContentBudget_DefaultsAndOverrides verifies the default-bake logic:
+// unset (0) → the baked default; negative → unlimited (0 = no-op); positive → itself.
+func Test792b23c4a3_ResolveContentBudget_DefaultsAndOverrides(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	g.Expect(cli.ExportResolveContentBudget(0)).To(Equal(cli.ExportDefaultContentBudget), "unset → default")
+	g.Expect(cli.ExportResolveContentBudget(8)).To(Equal(8), "positive → itself")
+	g.Expect(cli.ExportResolveContentBudget(-1)).To(BeNumerically("<=", 0), "negative → unlimited (no-op)")
+}
+
+// Test792b23c4a4_Snippet_CollapsesAndTruncates verifies the snippet algorithm.
+func Test792b23c4a4_Snippet_CollapsesAndTruncates(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// Short multiline: collapses whitespace, no ellipsis.
+	g.Expect(cli.ExportSnippet("  hello\n\n  world  ")).To(Equal("hello world"))
+
+	// Long: truncates to <=160 runes with a trailing ellipsis.
+	long := strings.Repeat("a", 500)
+	got := cli.ExportSnippet(long)
+	g.Expect(got).To(HaveSuffix("…"))
+	g.Expect(len([]rune(got))).To(BeNumerically("<=", capSnippetMaxRunes))
+}
+
+// Test792b23c5a1_ClearChunkContent_ClearsChunksKeepsNotes verifies lazy mode zeroes
 // chunk-item content while leaving note content intact.
-func TestClearChunkContent_ClearsChunksKeepsNotes(t *testing.T) {
+func Test792b23c5a1_ClearChunkContent_ClearsChunksKeepsNotes(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -66,9 +94,9 @@ func TestClearChunkContent_ClearsChunksKeepsNotes(t *testing.T) {
 	g.Expect(out[2]).To(Equal(""), "chunk #2 content must be cleared")
 }
 
-// TestRenderQueryPayload_LazyChunksSurfacedAndNotSnippeted verifies lazy mode
+// Test792b23c5a2_RenderQueryPayload_LazyChunksSurfacedAndNotSnippeted verifies lazy mode
 // surfaces lazy_chunks in the budget and skips capChunkContent (snipped stays 0).
-func TestRenderQueryPayload_LazyChunksSurfacedAndNotSnippeted(t *testing.T) {
+func Test792b23c5a2_RenderQueryPayload_LazyChunksSurfacedAndNotSnippeted(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -88,9 +116,9 @@ func TestRenderQueryPayload_LazyChunksSurfacedAndNotSnippeted(t *testing.T) {
 	g.Expect(out).To(ContainSubstring("chunks_snippeted: 0"), "lazy mode skips capChunkContent")
 }
 
-// TestRenderQueryPayload_NonLazyOmitsLazyAndStillCaps verifies non-lazy mode
+// Test792b23c5a3_RenderQueryPayload_NonLazyOmitsLazyAndStillCaps verifies non-lazy mode
 // omits lazy_chunks (omitempty) and still snippets chunks beyond the budget.
-func TestRenderQueryPayload_NonLazyOmitsLazyAndStillCaps(t *testing.T) {
+func Test792b23c5a3_RenderQueryPayload_NonLazyOmitsLazyAndStillCaps(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -110,18 +138,6 @@ func TestRenderQueryPayload_NonLazyOmitsLazyAndStillCaps(t *testing.T) {
 	g.Expect(out).To(ContainSubstring("chunks_snippeted: 1"), "non-lazy still caps the over-budget chunk")
 }
 
-// TestResolveContentBudget_DefaultsAndOverrides verifies the default-bake logic:
-// unset (0) → the baked default; negative → unlimited (0 = no-op); positive → itself.
-func TestResolveContentBudget_DefaultsAndOverrides(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	g.Expect(cli.ExportResolveContentBudget(0)).To(Equal(cli.ExportDefaultContentBudget), "unset → default")
-	g.Expect(cli.ExportResolveContentBudget(8)).To(Equal(8), "positive → itself")
-	g.Expect(cli.ExportResolveContentBudget(-1)).To(BeNumerically("<=", 0), "negative → unlimited (no-op)")
-}
-
 // TestResolveRecentFill_DefaultsAndOverrides verifies the recency-channel
 // fill-count resolution: unset (0) → the baked default (25); positive → itself;
 // negative → 0 (channel off).
@@ -133,22 +149,6 @@ func TestResolveRecentFill_DefaultsAndOverrides(t *testing.T) {
 	g.Expect(cli.ExportResolveRecentFill(0)).To(Equal(cli.ExportDefaultRecentFill), "unset → default")
 	g.Expect(cli.ExportResolveRecentFill(5)).To(Equal(5), "positive → itself")
 	g.Expect(cli.ExportResolveRecentFill(-1)).To(Equal(0), "negative → channel off")
-}
-
-// TestSnippet_CollapsesAndTruncates verifies the snippet algorithm.
-func TestSnippet_CollapsesAndTruncates(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	// Short multiline: collapses whitespace, no ellipsis.
-	g.Expect(cli.ExportSnippet("  hello\n\n  world  ")).To(Equal("hello world"))
-
-	// Long: truncates to <=160 runes with a trailing ellipsis.
-	long := strings.Repeat("a", 500)
-	got := cli.ExportSnippet(long)
-	g.Expect(got).To(HaveSuffix("…"))
-	g.Expect(len([]rune(got))).To(BeNumerically("<=", capSnippetMaxRunes))
 }
 
 // unexported constants.

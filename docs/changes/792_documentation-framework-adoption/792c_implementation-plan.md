@@ -225,8 +225,8 @@ flowchart TD
   N792c7f1["792c7f1 memory-query product spec<br/>Complete"]
   N792c7f2["792c7f2 recency-ranking tech spec<br/>Complete"]
   N792c7f3["792c7f3 runbook-trigger-matching tech spec<br/>Complete"]
-  N792c7f4["792c7f4 query-payload-renderer tech spec<br/>Ready"]
-  N792c7f5["792c7f5 query-engine tech spec<br/>Blocked by: 792c7f4"]
+  N792c7f4["792c7f4 query-payload-renderer tech spec<br/>Complete"]
+  N792c7f5["792c7f5 query-engine tech spec<br/>Ready"]
   N792c7g1["792c7g1 vault-counting product spec<br/>Blocked by: 792c7f5"]
   N792c7g2["792c7g2 vault-counter tech spec<br/>Blocked by: 792c7g1"]
   N792c7h1["792c7h1 vault-health product spec<br/>Blocked by: 792c7g2"]
@@ -2418,11 +2418,62 @@ Target: `792b23` (`docs/specs/technical/query-payload-renderer.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7f4a | Port the component contract to `792b23` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7f4b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7f4c | Repoint stale references to `792b23` | Non-test action | Keeps live links valid | Not started |
-| 792c7f4d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7f4e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7f4a | Port the component contract to `792b23` | Non-test action | Documents the component in the framework format | Done |
+| 792c7f4b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7f4c | Repoint stale references to `792b23` | Non-test action | Keeps live links valid | Done |
+| 792c7f4d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7f4e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+**Outcome:** 792b23 specifies eight requirements. Nothing remained in the legacy sources to remove
+(792d90), and no live reference named the component. Tests of the pending-offer keys and the merged
+payload wait for curate and parent-sync (792d95).
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b23c1a1 | `TestQueryPayload_RefitPendingPresentWhenTrue` → `Test792b23c1a1_QueryPayload_RefitPendingPresentWhenTrue` | Renderer over a summary | Flag present | Done |
+| 792b23c1a2 | `TestQueryPayload_RefitPendingOmittedWhenFalse` → `Test792b23c1a2_QueryPayload_RefitPendingOmittedWhenFalse` | Renderer over a summary | Flag absent | Done |
+| 792b23c1a3 | `TestQuery_PayloadIncludesModelID` → `Test792b23c1a3_Query_PayloadIncludesModelID` | `RunQuery` over an empty in-memory vault | Model named | Done |
+| 792b23c2a1 | `TestKindFromContent` → `Test792b23c2a1_KindFromContent` | Table-driven unit (`embed_selection_test`) | Kind from the type line | Done |
+| 792b23c2a2 | `TestKindFromContent_CRLFNote` → `Test792b23c2a2_KindFromContent_CRLFNote` | Pure unit (`crlf_readers_internal_test`) | CRLF kind | Done |
+| 792b23c2a3 | `TestRenderQueryPayload_ExploreItem_ProvenanceAndSourceTerm` → `Test792b23c2a3_RenderQueryPayload_ExploreItem_ProvenanceAndSourceTerm` | Renderer over a resolved-item list | Source term shown | Done |
+| 792b23c3a1 | `TestCapItemsToLimit_TruncatesToFirstN` → `Test792b23c3a1_CapItemsToLimit_TruncatesToFirstN` | Pure unit | First N kept | Done |
+| 792b23c3a2 | `TestCapItemsToLimit_FewerThanLimitReturnsAllUnchanged` → `Test792b23c3a2_CapItemsToLimit_FewerThanLimitReturnsAllUnchanged` | Pure unit | Within the limit | Done |
+| 792b23c3a3 | `TestRunQuery_ExplicitLimitCapsItems` → `Test792b23c3a3_RunQuery_ExplicitLimitCapsItems` | `RunQuery` over an in-memory vault | Explicit limit | Done |
+| 792b23c3a4 | `TestRunQuery_FewerItemsThanLimitReturnsAllUnchanged` → `Test792b23c3a4_RunQuery_FewerItemsThanLimitReturnsAllUnchanged` | `RunQuery` over an in-memory vault | Small result whole | Done |
+| 792b23c3a5 | `TestRunQuery_LimitDoesNotStarveRecencyChannel` → `Test792b23c3a5_RunQuery_LimitDoesNotStarveRecencyChannel` | `RunQuery` over an in-memory vault and chunk index | Recent chunks survive | Done |
+| 792b23c3a6 | `TestRunQuery_TriggerHitDoesNotConsumeLimit` → `Test792b23c3a6_RunQuery_TriggerHitDoesNotConsumeLimit` | `RunQuery` over an in-memory vault | Hit exempt from the limit | Done |
+| 792b23c4a1 | `TestCapChunkContent_CapsChunksBeyondBudget` → `Test792b23c4a1_CapChunkContent_CapsChunksBeyondBudget` | Pure unit | Chunks beyond the budget become snippets | Done |
+| 792b23c4a2 | `TestCapChunkContent_ZeroBudgetIsNoOp` → `Test792b23c4a2_CapChunkContent_ZeroBudgetIsNoOp` | Pure unit | Budget of zero cuts nothing | Done |
+| 792b23c4a3 | `TestResolveContentBudget_DefaultsAndOverrides` → `Test792b23c4a3_ResolveContentBudget_DefaultsAndOverrides` | Pure unit | Default, override and no limit | Done |
+| 792b23c4a4 | `TestSnippet_CollapsesAndTruncates` → `Test792b23c4a4_Snippet_CollapsesAndTruncates` | Pure unit | Collapse and truncate | Done |
+| 792b23c5a1 | `TestClearChunkContent_ClearsChunksKeepsNotes` → `Test792b23c5a1_ClearChunkContent_ClearsChunksKeepsNotes` | Pure unit | Lazy mode clears chunks | Done |
+| 792b23c5a2 | `TestRenderQueryPayload_LazyChunksSurfacedAndNotSnippeted` → `Test792b23c5a2_RenderQueryPayload_LazyChunksSurfacedAndNotSnippeted` | Renderer over a resolved-item list | Lazy flag reported | Done |
+| 792b23c5a3 | `TestRenderQueryPayload_NonLazyOmitsLazyAndStillCaps` → `Test792b23c5a3_RenderQueryPayload_NonLazyOmitsLazyAndStillCaps` | Renderer over a resolved-item list | Lazy flag absent | Done |
+| 792b23c6a1 | `TestRunQuery_BudgetLimitStillReportsResolvedValue` → `Test792b23c6a1_RunQuery_BudgetLimitStillReportsResolvedValue` | `RunQuery` over an in-memory vault | Limit reported | Done |
+| 792b23c7a1 | `TestRunQuery_TimingsFlag` → `Test792b23c7a1_RunQuery_TimingsFlag` | `RunQuery` with a scripted clock | Five stage gaps | Done |
+| 792b23c7a2 | `TestRunQuery_NoTimingsByDefault` → `Test792b23c7a2_RunQuery_NoTimingsByDefault` | `RunQuery` over an in-memory vault | No block | Done |
+| 792b23c8a1 | `TestCapRedFlagsForPreview_KeepsNewestEntryWhenOverBudget` → `Test792b23c8a1_CapRedFlagsForPreview_KeepsNewestEntryWhenOverBudget` | Pure unit | Newest entry kept | Done |
+| 792b23c8a2 | `TestCapRedFlagsForPreview_MarkerNamesCountTotalAndRealBasename` → `Test792b23c8a2_CapRedFlagsForPreview_MarkerNamesCountTotalAndRealBasename` | Pure unit with a hand-computed oracle | Marker text | Done |
+| 792b23c8a3 | `TestCapRedFlagsForPreview_MarkerCommandReturnsFullListViaShow` → `Test792b23c8a3_CapRedFlagsForPreview_MarkerCommandReturnsFullListViaShow` | `capRedFlagsForPreview` then `RunShow` over stubs | Marker command resolves | Done |
+| 792b23c8a4 | `TestCapRedFlagsForPreview_NoRedFlagsBlockUnchanged` → `Test792b23c8a4_CapRedFlagsForPreview_NoRedFlagsBlockUnchanged` | Pure unit | No block | Done |
+| 792b23c8a5 | `TestCapRedFlagsForPreview_UnderBudgetUnchanged` → `Test792b23c8a5_CapRedFlagsForPreview_UnderBudgetUnchanged` | Pure unit | Within budget | Done |
+| 792b23c8a6 | `TestProperty_CapRedFlagsForPreview_SizeAndContiguity` → `Test792b23c8a6_Property_CapRedFlagsForPreview_SizeAndContiguity` | Property (rapid) | Size and contiguity | Done |
+| 792b23c8a7 | `TestCapRedFlagsForPreview_CRLFNote` → `Test792b23c8a7_CapRedFlagsForPreview_CRLFNote` | Pure unit (`crlf_readers_internal_test`) | CRLF read as LF | Done |
+| 792b23c8a8 | `TestRunQuery_OversizedRedFlagsListKeepsNewestEntry` → `Test792b23c8a8_RunQuery_OversizedRedFlagsListKeepsNewestEntry` | `RunQuery` over an in-memory vault | Newest red flag survives (#763) | Done |
+| 792b23c8a9 | `TestRunQuery_RunbookItemContentIncludesRedFlags` → `Test792b23c8a9_RunQuery_RunbookItemContentIncludesRedFlags` | `RunQuery` over an in-memory vault | Red flags in the payload | Done |
+
+**Coverage gaps:** 792b23c1a4 (no test checks the whole key order outside the pending-offer test that
+belongs to curate), 792b23c6a2 and 792b23c6a3 (no test checks the counts or that `explore_allocated`
+is printed when empty; the explore tests check it through the engine). Every product scenario this
+component supports is covered only by these component tests and, for 792a7q1a and 792a7s1a to
+792a7s1d, by no `RunQuery` test of its own.
+
+**No-scenario tests:** none in the files examined. Deferred (792d95): `query_test` pending-offer tests (4,
+curate 792c7u1) and `TestQueryPayload_NoFromParentKeyWithoutMerge` (parent-sync 792c7t1);
+`query_limit_test` `TestRunQuery_DefaultLimitCapsLargeResultSet` and `query_cap_test`
+`TestResolveRecentFill_DefaultsAndOverrides` (query-engine 792c7f5).
 
 #### 792c7f5 query-engine tech spec
 
@@ -2445,7 +2496,7 @@ Target: `792b24` (`docs/specs/technical/query-engine.md`).
 - `docs/deprecated/architecture/memory-invariants.md` F (R1 recall mirror)
 - none remain from the openspec specs listed for 792c7f1 (792d90)
 
-**Tests to examine (from discovery; `internal/cli` unless prefixed):** query_test, query_vault_meta_test, query_synthesize_l2_helpers_test (stale name, tests current helpers), query_helpers_test, query_chunks_test, query_cluster_phase1_test, query_cluster_phase2_test, query_unified_test, query_note_floor_test, query_property_test, query_cluster_chunk_bound_property_test, invariants_r1, query_integration_test, query_explore_test, query_explore_integration_test; deferred here (792d91): `ingest_integration_test` `TestChunkQuery*` (4), `qa_test` `TestIsQueryExcludedKind`, `vocab_test` `TestVocabDefinitionNote_FloorPromoted` and `TestVocabDefinitionNote_ReturnedWhenOnlyItem`, `supersedes_test` `TestBuildSupersedesInverse`, `embed_selection_test` `TestKindFromContent`, `crlf_readers_internal_test` (the three query readers that remain after 792c7f2, 792c7f3 and 792c7f4 take theirs, 792d93), `invariants_c1_property_test` `TestInvariant_C1_ClusteringDeterminism` and `cluster_property_test` `TestProperty_Cluster_NearDuplicateL2CosineAtLeast095`
+**Tests to examine (from discovery; `internal/cli` unless prefixed):** query_test, query_vault_meta_test, query_synthesize_l2_helpers_test (stale name, tests current helpers), query_helpers_test, query_chunks_test, query_cluster_phase1_test, query_cluster_phase2_test, query_unified_test, query_note_floor_test, query_property_test, query_cluster_chunk_bound_property_test, invariants_r1, query_integration_test, query_explore_test, query_explore_integration_test; deferred here (792d91): `ingest_integration_test` `TestChunkQuery*` (4), `qa_test` `TestIsQueryExcludedKind`, `vocab_test` `TestVocabDefinitionNote_FloorPromoted` and `TestVocabDefinitionNote_ReturnedWhenOnlyItem`, `supersedes_test` `TestBuildSupersedesInverse`, `crlf_readers_internal_test` `TestItemMatchesProject_CRLFNote` and `TestParseNoteQueryFrontmatter_CRLFNote` (the two query readers that remain after 792c7f2, 792c7f3 and 792c7f4 take theirs, 792d93, 792d95), `query_limit_test` `TestRunQuery_DefaultLimitCapsLargeResultSet`, `query_cap_test` `TestResolveRecentFill_DefaultsAndOverrides`, `invariants_c1_property_test` `TestInvariant_C1_ClusteringDeterminism` and `cluster_property_test` `TestProperty_Cluster_NearDuplicateL2CosineAtLeast095`
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |

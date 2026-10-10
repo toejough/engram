@@ -59,7 +59,16 @@ func Test792b22c1a3_TriggerIndex_CRLFRunbook(t *testing.T) {
 	g.Expect(matchTriggers("please rotate the keys today", meta.TriggerIndex)).To(Equal([]string{"1.2026-01-01.rb"}))
 }
 
-func TestCapRedFlagsForPreview_CRLFNote(t *testing.T) {
+func Test792b23c2a2_KindFromContent_CRLFNote(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	g.Expect(kindFromContent(crlfReaderNote(""))).To(Equal("fact"), "the kind label carries no \\r")
+	g.Expect(isQueryExcludedKind(strings.Replace(crlfReaderNote(""), "type: fact", "type: qa-question", 1))).
+		To(BeTrue(), "a CRLF qa-question note is excluded from the main set")
+}
+
+func Test792b23c8a7_CapRedFlagsForPreview_CRLFNote(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -96,15 +105,6 @@ func TestCheckSituationPresence_CRLFNote(t *testing.T) {
 func TestItemMatchesProject_CRLFNote(t *testing.T) {
 	t.Parallel()
 	NewWithT(t).Expect(itemMatchesProject(resolvedItem{content: crlfReaderNote("")}, "widgets")).To(BeTrue())
-}
-
-func TestKindFromContent_CRLFNote(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	g.Expect(kindFromContent(crlfReaderNote(""))).To(Equal("fact"), "the kind label carries no \\r")
-	g.Expect(isQueryExcludedKind(strings.Replace(crlfReaderNote(""), "type: fact", "type: qa-question", 1))).
-		To(BeTrue(), "a CRLF qa-question note is excluded from the main set")
 }
 
 func TestParseNoteQueryFrontmatter_CRLFNote(t *testing.T) {

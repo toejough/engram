@@ -14,7 +14,7 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
-// TestCapRedFlagsForPreview_KeepsNewestEntryWhenOverBudget reproduces
+// Test792b23c8a1_CapRedFlagsForPreview_KeepsNewestEntryWhenOverBudget reproduces
 // engram#763: a red_flags list whose combined size exceeds the preview
 // budget silently dropped its most-recently-appended (last) entry under
 // Claude Code's own ~2KB Bash-tool-output truncation. Entries are appended
@@ -22,7 +22,7 @@ import (
 // is conventionally last — capRedFlagsForPreview must keep entries from the
 // END of the list, not the start, and must leave an explicit in-band marker
 // naming the omission rather than silently dropping the rest.
-func TestCapRedFlagsForPreview_KeepsNewestEntryWhenOverBudget(t *testing.T) {
+func Test792b23c8a1_CapRedFlagsForPreview_KeepsNewestEntryWhenOverBudget(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -54,13 +54,59 @@ func TestCapRedFlagsForPreview_KeepsNewestEntryWhenOverBudget(t *testing.T) {
 		"content before the red_flags block must be untouched")
 }
 
-// TestCapRedFlagsForPreview_MarkerCommandReturnsFullListViaShow is the guard
+// Test792b23c8a2_CapRedFlagsForPreview_MarkerNamesCountTotalAndRealBasename pins #772's
+// fix: the omission marker is no longer the fixed, countless, literal
+// "<basename>" placeholder — it names how many entries were dropped, the
+// list's true total, and the note's REAL basename, so the command it prints
+// actually resolves (D1, 792a7w).
+//
+// The fixture uses 15 entries of a fixed, known byte width so the expected
+// drop count is a hand-computed oracle, not a re-derivation of the function
+// under test: at 100 bytes/entry and the 1200-byte budget, the marker (81
+// bytes for this basename/total) leaves room for exactly 11 entries, so 4
+// are dropped.
+func Test792b23c8a2_CapRedFlagsForPreview_MarkerNamesCountTotalAndRealBasename(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const (
+		basename   = "1.test-note"
+		totalCount = 15
+		wantDrop   = 4
+		wantKeep   = totalCount - wantDrop
+	)
+
+	entries := fixedWidthRedFlagEntries(totalCount)
+	content := "---\ntype: runbook\nsituation: x\ndone_when: y\nred_flags:\n" +
+		strings.Join(entries, "") + "luhmann: \"1\"\n---\n\nbody\n"
+
+	got := capRedFlagsForPreview(content, basename)
+
+	wantMarker := fmt.Sprintf(
+		"    - \"[%d EARLIER RED_FLAGS OMITTED — run engram show %s for all %d]\"\n",
+		wantDrop, basename, totalCount,
+	)
+
+	g.Expect(got).To(ContainSubstring(wantMarker), "marker must name the drop count, basename and total exactly")
+	g.Expect(got).To(ContainSubstring(entries[totalCount-1]), "the newest entry must survive")
+
+	for _, dropped := range entries[:wantDrop] {
+		g.Expect(got).NotTo(ContainSubstring(dropped), "a dropped entry must not still appear in the preview")
+	}
+
+	for _, kept := range entries[totalCount-wantKeep:] {
+		g.Expect(got).To(ContainSubstring(kept), "every kept entry must survive")
+	}
+}
+
+// Test792b23c8a3_CapRedFlagsForPreview_MarkerCommandReturnsFullListViaShow is the guard
 // test D1 requires: an agent reading only the query preview's marker must be
 // able to parse out `engram show <basename>`, run it, and get back every
 // entry — including the ones the preview itself omitted. engram show never
 // truncates (#772), so the full original note (not the capped preview) is
 // what the vault actually holds and what RunShow must return in full.
-func TestCapRedFlagsForPreview_MarkerCommandReturnsFullListViaShow(t *testing.T) {
+func Test792b23c8a3_CapRedFlagsForPreview_MarkerCommandReturnsFullListViaShow(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -108,56 +154,10 @@ func TestCapRedFlagsForPreview_MarkerCommandReturnsFullListViaShow(t *testing.T)
 	}
 }
 
-// TestCapRedFlagsForPreview_MarkerNamesCountTotalAndRealBasename pins #772's
-// fix: the omission marker is no longer the fixed, countless, literal
-// "<basename>" placeholder — it names how many entries were dropped, the
-// list's true total, and the note's REAL basename, so the command it prints
-// actually resolves (D1, 792a7w).
-//
-// The fixture uses 15 entries of a fixed, known byte width so the expected
-// drop count is a hand-computed oracle, not a re-derivation of the function
-// under test: at 100 bytes/entry and the 1200-byte budget, the marker (81
-// bytes for this basename/total) leaves room for exactly 11 entries, so 4
-// are dropped.
-func TestCapRedFlagsForPreview_MarkerNamesCountTotalAndRealBasename(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const (
-		basename   = "1.test-note"
-		totalCount = 15
-		wantDrop   = 4
-		wantKeep   = totalCount - wantDrop
-	)
-
-	entries := fixedWidthRedFlagEntries(totalCount)
-	content := "---\ntype: runbook\nsituation: x\ndone_when: y\nred_flags:\n" +
-		strings.Join(entries, "") + "luhmann: \"1\"\n---\n\nbody\n"
-
-	got := capRedFlagsForPreview(content, basename)
-
-	wantMarker := fmt.Sprintf(
-		"    - \"[%d EARLIER RED_FLAGS OMITTED — run engram show %s for all %d]\"\n",
-		wantDrop, basename, totalCount,
-	)
-
-	g.Expect(got).To(ContainSubstring(wantMarker), "marker must name the drop count, basename and total exactly")
-	g.Expect(got).To(ContainSubstring(entries[totalCount-1]), "the newest entry must survive")
-
-	for _, dropped := range entries[:wantDrop] {
-		g.Expect(got).NotTo(ContainSubstring(dropped), "a dropped entry must not still appear in the preview")
-	}
-
-	for _, kept := range entries[totalCount-wantKeep:] {
-		g.Expect(got).To(ContainSubstring(kept), "every kept entry must survive")
-	}
-}
-
-// TestCapRedFlagsForPreview_NoRedFlagsBlockUnchanged proves a note without a
+// Test792b23c8a4_CapRedFlagsForPreview_NoRedFlagsBlockUnchanged proves a note without a
 // red_flags field at all (fact/feedback kinds, or a runbook with none set)
 // passes through unmodified.
-func TestCapRedFlagsForPreview_NoRedFlagsBlockUnchanged(t *testing.T) {
+func Test792b23c8a4_CapRedFlagsForPreview_NoRedFlagsBlockUnchanged(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -167,10 +167,10 @@ func TestCapRedFlagsForPreview_NoRedFlagsBlockUnchanged(t *testing.T) {
 	g.Expect(capRedFlagsForPreview(content, "1.no-red-flags")).To(Equal(content))
 }
 
-// TestCapRedFlagsForPreview_UnderBudgetUnchanged proves a red_flags block
+// Test792b23c8a5_CapRedFlagsForPreview_UnderBudgetUnchanged proves a red_flags block
 // already within the preview budget is returned byte-identical — this
 // function must not touch notes that were never at truncation risk.
-func TestCapRedFlagsForPreview_UnderBudgetUnchanged(t *testing.T) {
+func Test792b23c8a5_CapRedFlagsForPreview_UnderBudgetUnchanged(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -182,13 +182,13 @@ func TestCapRedFlagsForPreview_UnderBudgetUnchanged(t *testing.T) {
 	g.Expect(capRedFlagsForPreview(content, "1.under-budget")).To(Equal(content))
 }
 
-// TestProperty_CapRedFlagsForPreview_SizeAndContiguity: for any red_flags
+// Test792b23c8a6_Property_CapRedFlagsForPreview_SizeAndContiguity: for any red_flags
 // list, capRedFlagsForPreview either leaves content byte-identical (when the
 // list already fits the budget) or produces a red_flags block — marker plus
 // kept entries — that is at most redFlagsPreviewBudget bytes and is a
 // CONTIGUOUS run of original entries ending at the newest (last) one,
 // preceded by the exact marker naming that run's drop count.
-func TestProperty_CapRedFlagsForPreview_SizeAndContiguity(t *testing.T) {
+func Test792b23c8a6_Property_CapRedFlagsForPreview_SizeAndContiguity(t *testing.T) {
 	t.Parallel()
 
 	const (

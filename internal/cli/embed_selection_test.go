@@ -9,9 +9,9 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-// TestKindFromContent covers the frontmatter type-extraction's three
+// Test792b23c2a1_KindFromContent covers the frontmatter type-extraction's three
 // outcomes: too-short content, missing type line, and a parsed kind.
-func TestKindFromContent(t *testing.T) {
+func Test792b23c2a1_KindFromContent(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
