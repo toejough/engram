@@ -12,7 +12,7 @@ import (
 
 // Deps carries every impure capability the CLI needs, wired by cmd/engram.
 // internal/ code never calls os.*, exec, syscall, or time.Now directly —
-// production I/O enters exclusively through this struct (#700, ADR-0001).
+// production I/O enters exclusively through this struct (#700).
 type Deps struct {
 	// Stdin supplies interactive prompt input (production: os.Stdin) — read
 	// by skill-runbook-registration's `engram register-skills` prompt loop

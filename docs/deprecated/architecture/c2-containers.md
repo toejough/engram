@@ -40,30 +40,20 @@ flowchart TB
 ## Container catalog
 | ID | Container | Tech | Responsibility | ⚠ verified defects |
 |---|---|---|---|---|
-| C1 | Skills | markdown (loaded by harness) | The LLM-judgment layer, all six shipped as skills again: `/learn`, `/recall`, `/please` (7-step bracket), `/route` (dispatch doctrine), `/curate` (judges pending offers, whether served from children or pulled down from the parent), and `/write-memory` (invoked natively by recall/learn). Each may additionally have ONE mirrored vault runbook note (slug derived from its skill key, `skill_hash`/`skill_key`/`skill_source` frontmatter, `type: runbook`) that `engram update`/`engram register-skills` offer to register, refresh, or remove, surfaceable by `engram query` trigger (C2 → C4) — but the skill file is the primary artifact deployed to `~/.claude/skills`, `~/.pi/agent/skills` via `engram update`; `engram update`/`engram register-skills` also offer notes for every other skill, command and Pi prompt template in the default folders (user, synced, plugin, Pi-configured, project), keyed by source-qualified skill key. | — |
+| C1 | Skills | markdown (loaded by harness) | See [792b32](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b32-added-agent-instruction-bundle) for the constraints on shipped instructions, [792a12](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a12-added-skill-runbook-registration) for the registered runbook notes, and [792a13](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a13-added-write-memory) onward for each skill's procedure. | — |
 | C3 | Embedded model | MiniLM-L6-v2@384, `go:embed` | See [792b9](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b9-added-text-embedder). Single model id stamped into every sidecar. | M4: off-model sidecars dropped with only a non-fatal stderr advisory under partial migration (`warnModelMismatch` — results thin silently on stdout, no error); a full-vault mismatch errors (`errQueryNoEmbeddings`) |
 | C4 | Vault | filesystem | Notes at the flat vault root, named and laid out as in [792b6](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b6-added-note-document-format), each with a sibling `.vec.json`. Wikilinks in note bodies = the graph edges. The vault ID and `.engram/` state are in [792b5](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b5-added-vault-identity-registry). | G0: bare-id links unresolved by C2's basename resolver — census 151/183 links bare-id, 28 edges resolve, 138/171 orphaned (memory-invariants.md) |
 
 ## Relationships
 | From → To | Description |
 |---|---|
-| Agent → C1 | The agent executes the skills' steps (LLM judgment); the skills are the only entry to the system from the agent's side. |
+| Agent → C1 | See [792b32c4](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b32c4-skills-reach-the-vault-only-through-the-command-line). |
 | C2 → C4 | Reads notes+sidecars at query time; writes notes+sidecars atomically (temp-file + rename) under the vault lock ([792b8](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b8-added-vault-write-lock)). The wikilink graph is built from note bodies at query time. `engram learn qa` writes Q&A pairs — Q-notes excluded from the query pipeline, A-notes competing as synthesis notes, machine-written edge lines (see [GLOSSARY](../GLOSSARY.md): qa-question / qa-answer / contributors). |
 | C2 → S5 | `engram ingest` finds its sources as in [792b17](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b17-added-ingestion-source-discovery) (sweep roots, throwaway-workspace skips, `.engram/sweep.json`), reads and strips transcripts as in [792b15](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b15-added-transcript-reader), and re-chunks only changed sources ([792a5i](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a5i-incremental-re-indexing)). |
 | C2 → S6 | See [792b28](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b28-added-self-installer) and [792b29](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b29-added-harness-deploy-sync). |
 | C2 → S7 | With `ENGRAM_PARENT` set: `engram query` fetches the parent's `/query?dedupe-keys=1` and merges notes only (never chunks) into the local payload; `engram learn`/a content `amend`/`resituate` offer the note, queued in a local outbox and drained with backoff to the parent's `/learn`; `engram activate` on a local miss pulls the parent's note down via `GET /show?raw=1` as a new local pending offer, then best-effort bumps its use on the parent (ADR-0029). |
 
 **Cross-level note (L1↔L2 reclassification).** At [L1](c1-system-context.md) the vault is **S4 — an external system** (operator-configurable, on the operator's filesystem, possibly human-edited in Obsidian); on decomposition it reappears here as **C4**, an internal store, because from engram's runtime view it is the data store engram owns and writes. This is an intentional decomposition choice, noted so the L1→L2 mapping is explicit rather than silent. The chunk index's directory is part of C2's operational state rather than a separate container ([792b18](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b18-added-chunk-index-store)).
-
-## The skills↔binary split (the load-bearing boundary)
-- **C2 (binary) is deterministic and the thing the invariants gate:** marker math, noise-strip,
-  embed-on-write, Luhmann-id-under-lock, cosine, graph build/BFS, k-means+silhouette, matched-set
-  bounding (per-phrase top-30 union, dedup, relevance floor, cap at `matchSetCap`), recency-channel
-  fill + dedup. The skill (C1) supplies the 10 phrases; the binary applies the floor, cap, and clustering.
-- **C1 (skills) is LLM judgment, gated only by RT acceptance tests:** which candidates to capture,
-  recall-mirror framing, and the recall-time lazy-L2 coverage decision (covered/near/absent).
-- The two communicate **only** through C2's CLI surface + the vault on disk. This boundary is why
-  the invariant checker (Phase 8) lives in C2 and the skill-discipline checks stay RT-only.
 
 ## Key flows (L2 — the skills↔binary boundary)
 

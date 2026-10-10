@@ -11,7 +11,7 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-func TestSkillDescriptionsFitMetadataLimit(t *testing.T) {
+func Test792b32c1a1_SkillDescriptionsFitMetadataLimit(t *testing.T) {
 	t.Parallel()
 
 	g := gomega.NewWithT(t)

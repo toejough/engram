@@ -240,8 +240,8 @@ flowchart TD
   N792c7k2["792c7k2 skill-source-discovery tech spec<br/>Complete"]
   N792c7k3["792c7k3 skill-registration-ledger tech spec<br/>Complete"]
   N792c7l1["792c7l1 write-memory product spec<br/>Complete"]
-  N792c7l2["792c7l2 agent-instruction-bundle tech spec<br/>Ready"]
-  N792c7m1["792c7m1 recall product spec<br/>Blocked by: 792c7l2"]
+  N792c7l2["792c7l2 agent-instruction-bundle tech spec<br/>Complete"]
+  N792c7m1["792c7m1 recall product spec<br/>Ready"]
   N792c7n1["792c7n1 learn product spec<br/>Blocked by: 792c7m1"]
   N792c7o1["792c7o1 lessons-contract product spec<br/>Blocked by: 792c7n1"]
   N792c7p1["792c7p1 route product spec<br/>Blocked by: 792c7o1"]
@@ -4084,11 +4084,36 @@ Target: `792b32` (`docs/specs/technical/agent-instruction-bundle.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7l2a | Port the component contract to `792b32` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7l2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7l2c | Repoint stale references to `792b32` | Non-test action | Keeps live links valid | Not started |
-| 792c7l2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7l2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7l2a | Port the component contract to `792b32` | Non-test action | Documents the component in the framework format | Done |
+| 792c7l2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7l2c | Repoint stale references to `792b32` | Non-test action | Keeps live links valid | Done |
+| 792c7l2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7l2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+792b32 has four requirements (792b32c1 to 792b32c4): the metadata limit, the attached form of free-text flags, the
+statement of that rule in each skill, and the command-line-only path to the vault (792d110). It owns no sequence.
+792a13a1a and 792a13h1a are mapped to it. Legacy removal: ADR-0001, the `engram-command-template-safety` spec,
+the skills-and-binary split, the C1 catalog row and Agent-to-C1 relationship of the container view, the R2
+relationship of the context view and invariant S1 of the invariants file (its Phase-3 section is gone); the C1,
+R2 and Agent-to-C1 cells point at 792b32. The `deps.go` comment that cited ADR-0001 now cites #700 alone.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b32c1a1 | `TestSkillDescriptionsFitMetadataLimit` → `Test792b32c1a1_SkillDescriptionsFitMetadataLimit` | Integration over the shipped files (reads every `SKILL.md`) | Each skill has parsable frontmatter; also asserts the description is non-empty (792b32c1a2) and fewer than 1024 characters (792b32c1a3): split deferred | Done |
+
+**Coverage gaps:** 792b32c2a1 to 792b32c2a3, 792b32c3a1, 792b32c3a2 and 792b32c4a1 and 792b32c4a2 have no test:
+the attached form and the command-line-only path are properties of the markdown and of agent behavior, which
+only the skills' own baselines and headless runs observe. 792b32c2a3 is exercised incidentally by tests that
+other nodes rename: `offer_test` (792c7s3) and the pending-offer hint tests of `query_test` assert the emitted
+instruction contains `engram query --text="curate pending offers"`. 792b32c2a2 is a property of the
+command-line parser, which has no test for a dash-led attached value. 792a13a1a and 792a13h1a are verified
+by no test (792a13 Coverage gaps).
+
+**No-scenario tests:** none. The markdown baselines under `agent-instructions/skills/*/tests` (`learn`: seven
+`baseline-*.md` scenarios; `recall`: five; `route`: `memory-discount-microtest.json`; each with a `README.md`)
+are non-Go evidence for their skills' capabilities (792c7m1, 792c7n1, 792c7p1) and keep their names.
 
 ### 792c7m recall
 

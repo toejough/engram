@@ -15,28 +15,6 @@ Status legend: **Accepted** · **Accepted (known defect)** — sound decision, b
 
 ---
 
-## ADR-0001 — Skills + slim binary split
-
-**Status:** Accepted (INV-S1 seam resolved 2026-06 via `engram amend`, `internal/cli/amend.go`; #700 (2026-07): raw I/O primitives relocated to `cmd/engram` — wiring-only `package main` over grouped `cli.Primitives`, `targ check-thin-api`-enforced; ALL adapter composition + wiring live in `internal/cli` (`cli.NewDeps`); `internal/` is import-pure — lint-enforced, ADR-0020)
-
-**Context.** The work divides into LLM judgment (which lessons to capture, how to frame a
-`situation`, whether a cluster shares a binding principle) and deterministic compute (cosine,
-graph BFS, k-means, marker arithmetic). Mixing them makes the judgment untestable and couples
-model behavior to Go code.
-
-**Decision.** Behavior lives in **markdown skills** (C1, executed by the agent in the harness);
-deterministic compute lives in a **slim Go binary** (C2). They communicate **only** through C2's
-CLI surface (args in, stdout out) and the vault on disk. Each `engram <subcommand>` is a separate
-OS process; subcommands never call one another in-process.
-
-**Consequences.** The invariant checker gates C2 (everything in C2 is deterministic and testable);
-skills are gated only by RT acceptance tests. INV-S1 (resolved): the skill no longer touches the
-vault directly — recall reads via `engram show-chunk` / the query payload (notes carry content inline), and `engram amend`
-(`internal/cli/amend.go`) now provides the sync-preserving in-place edit path (rewrites both copies
-+ re-embeds), closing the INV-S1 write-half ("no `engram` edit subcommand").
-
----
-
 ## ADR-0002 — Pure-Go embedded model; no external embedding API
 
 Ported to

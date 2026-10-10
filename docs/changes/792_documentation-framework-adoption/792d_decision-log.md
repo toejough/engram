@@ -1726,3 +1726,30 @@ decisions as `792dN`, continuing the sequence.
     legacy documents and are left to the final sweeps.
 - **Rationale:** 792d3, 792d4, 792d32, 792d33, 792d57 and 792d90.
 - **Alternatives:** keep the three-kind wording of the old spec. Rejected because it contradicts the shipped skill.
+
+## 792d110 agent-instruction-bundle scope, and requirements with no product scenario
+
+- **Choice:**
+  - 792b32 specifies four requirements. The metadata limit (792b32c1) is checked against the shipped files by
+    `TestSkillDescriptionsFitMetadataLimit`. The attached-form rule is split in two (792b32c2 for every shipped
+    template and binary-emitted string, 792b32c3 for the skill statement of the rule), because the legacy spec states
+    them as two requirements. Invariant S1 and the ADR-0001 boundary (arguments in, standard output out, the vault on
+    disk) are one requirement (792b32c4), because both say the skill layer touches engram only through its command
+    line.
+  - The container view's per-process statement ("each subcommand is its own process") is command-line-surface's
+    rationale (792b2a) and is not repeated here.
+  - 792b32c1 carries `Supports: none`. The limit is the harness's, and no product capability states it. Every other
+    technical requirement in 792b supports a product scenario; this is the one exception, because a product scenario
+    for "a skill loads" would repeat in every skill capability (792d5).
+  - ADR-0001's status line, which records the thin `cmd/engram` entry point and the composition root (#700,
+    ADR-0020), is deleted with the ADR. Nothing in it is a skill-layer constraint; the root `AGENTS.md` carries the
+    live statement.
+- **Divergences noted (792d33):**
+  - The legacy spec lists `engram fact`/`feedback`/`runbook`/`qa` as commands whose free-text flags are covered; the
+    commands are `engram learn fact|feedback|runbook|qa`, and 792b32c2 names `learn`.
+  - Only the pending-offer curate cue is a binary-emitted instruction string that shows an `engram` command with
+    free-text flags; its tests belong to later nodes.
+  - Root `AGENTS.md` still cites `docs/architecture/adr.md` (ADR-0001..0020) as the authority; left to the final
+    sweeps.
+- **Rationale:** 792d3, 792d4, 792d5, 792d33 and 792d109.
+- **Alternatives:** a product requirement repeated in every skill capability. Rejected in 792d5.
