@@ -5955,8 +5955,8 @@ basename, rename it to the slug derived from `<key>` keeping its Luhmann ID and 
 old basename in `aliases`, rewrite every inbound wikilink and move its sidecar, replace its body with
 the preamble and the current source file, set `skill_hash`, `skill_key` and `skill_source`, remove any
 `pending` marker, and preserve its runbook fields and every other frontmatter key with its value,
-including keys the runbook note model does not define. `<key>` MUST name a scanned, unconflicted skill,
-command or prompt template. Adopting a note that already carries the key's slug MUST be a rename that
+including keys the runbook note model does not define. `<key>` MUST name a scanned, enabled, unconflicted
+skill, command or prompt template; a skill that Pi's settings switch off is not one. Adopting a note that already carries the key's slug MUST be a rename that
 changes nothing and still refresh the body and fields. It MUST refuse, writing nothing, when the
 reference names no note or more than one, when the note is not a runbook, when it is keyed to a
 different skill, when the key is registered to a different note, when two `--adopt` entries name one key
@@ -6011,6 +6011,11 @@ Scenario: 792a12i1i A dry run adopts nothing
   Given a valid --adopt entry
   When the user runs engram register-skills --dry-run --adopt claude:curate=1049
   Then the note is neither renamed nor rewritten
+
+Scenario: 792a12i1j Adopt refuses a skill that Pi disables
+  Given a Pi user skill ping that the global settings.json switches off with "!ping", and a runbook note 1
+  When the user runs engram register-skills --adopt pi:ping=1
+  Then it is refused as naming no scanned skill and nothing is written
 ```
 
 ### 792a12j Claude Code skills, commands and synced skills are found

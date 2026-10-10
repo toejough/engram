@@ -17709,11 +17709,14 @@ Scenario: 792b30c11a9 Agents and Pi project sources need a trusted project only
 
 Requirement: [792b30c12 Pi settings reading and overrides](#792b30c12-pi-settings-reading-and-overrides) The skill-source-discovery MUST read Pi's `settings.json` (resolving its path first, accepting the legacy object form of `skills`, and
 giving an error for an unreadable or invalid file), and apply a settings file's overrides to the
-candidates of a default folder: a plain pattern MUST include by name, `!pattern` MUST exclude by name,
-`+path` MUST force-include and `-path` force-exclude by exact absolute path, with the result enabled
-when not excluded, then forced in, then not forced out. It MUST match the path as walked (a linked skill
-by its link location), fall back to the source path, match a prompt by file name, and disable every
-candidate with one warning for a pattern it cannot evaluate (`**`).
+candidates of a default folder: `!pattern` MUST exclude by name (the walked path relative to the
+settings base directory, the file or skill-folder name, or the absolute path), and `+path` MUST
+force-include and `-path` force-exclude by exact path (absolute, or relative to the settings base
+directory), with the result enabled when not excluded, then forced in, then not forced out. A plain
+entry (one with no `!`, `+` or `-` prefix) MUST NOT filter a default folder: only the override entries
+act. It MUST match the path as walked (a linked skill by its link location), fall back to the source
+path, match a prompt by file name, and disable every candidate with one warning for a pattern it cannot
+evaluate (`**`).
 
 Supports: [792a12k1b A Pi settings skill path](./792a_product-spec.md#792a12k1-uat-scenarios), [792a12k1f An object-form empty skills filter](./792a_product-spec.md#792a12k1-uat-scenarios).
 
@@ -18868,22 +18871,24 @@ Scenario: 792b31c5a20 The remove prompt and a yes answer
 
 Requirement: [792b31c6 The registration run](#792b31c6-the-registration-run) The skill-registration-ledger MUST run registration as one operation for `engram register-skills` and for the update hook: resolve the
 default source set ([792b30c16 Source composition and precedence](#792b30c16-source-composition-and-precedence)) from the home and the working directory its dependency supplies (failing
-when there is none, or when resolution fails), reject `--accept` and `--decline` named in both, run each
-`--adopt` first, then compute the offers against the vault listing and the declines (a failure of any of
-these reads aborting the run before anything is written), answer them ([792b31c5 Answers and prompts](#792b31c5-answers-and-prompts)), and print the scan and
+when there is none, or when resolution fails), reject `--accept` and `--decline` named in both, read the
+declines and, when there is an `--adopt`, compute the offers once as a preflight (a failure of any of
+these reads aborting the run before anything is written), run each `--adopt`, then compute the offers
+again against the vault listing and the declines, answer them ([792b31c5 Answers and prompts](#792b31c5-answers-and-prompts)), and print the scan and
 key warnings on every path. With `--dry-run` it MUST only preview the offers and run no `--adopt`. With
 `--skills-dir` it MUST refuse `--accept`, `--decline` and `--adopt` before scanning, scan each directory
 as Claude Code user skills keyed `claude:<name>`, offer nothing for an entry without `SKILL.md`, make no
 removal offer and write nothing. It MUST NOT change a source file. `--adopt` entries MUST be parsed as
 `<key>=<note-ref>` with the key ending at the first `=` and both sides non-empty, a key named twice MUST
 be refused, entries MUST be validated all before the first one writes and run in key order, and an entry
-MUST be refused, writing nothing, when its key names no scanned skill, its key's copies conflict, its
+MUST be refused, writing nothing, when its key names no scanned skill (a skill that Pi's overrides disable
+is kept for removal but is not one), its key's copies conflict, its
 note reference is ambiguous, its note is keyed to another skill or claimed by another entry, its key is
 registered to another note, its basename has no Luhmann ID and date, or its note does not render;
 adopted notes MUST NOT also be offered, and linked notes MUST adopt in any order. An accepted offer
 whose source cannot be found, or whose kind is unknown, MUST be an error that writes nothing.
 
-Supports: [792a12h1a An agent relays the user's answer](./792a_product-spec.md#792a12h1-uat-scenarios), [792a12h1b A dry run](./792a_product-spec.md#792a12h1-uat-scenarios), [792a12h1d A skills-dir run is a preview](./792a_product-spec.md#792a12h1-uat-scenarios), [792a12h1e A skills-dir run refuses answers](./792a_product-spec.md#792a12h1-uat-scenarios), [792a12h1f One answer in both flags is refused](./792a_product-spec.md#792a12h1-uat-scenarios), [792a12a1a A deployed skill is byte-identical](./792a_product-spec.md#792a12a1-uat-scenarios), [792a12a1b Command and prompt files are untouched](./792a_product-spec.md#792a12a1-uat-scenarios), [792a12i1a Adopting a previously promoted note](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1b Adopt keeps an unmodeled key](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1c Adopt refuses an anchored key](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1e Adopt refuses a note that is not a runbook](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1f Adopt refuses a note keyed to another skill](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1g Adopt refuses an unscanned key](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1h Adopt refuses an ambiguous reference](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1i A dry run adopts nothing](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12t1c A dry run previews the offers too](./792a_product-spec.md#792a12t1-uat-scenarios).
+Supports: [792a12h1a An agent relays the user's answer](./792a_product-spec.md#792a12h1-uat-scenarios), [792a12h1b A dry run](./792a_product-spec.md#792a12h1-uat-scenarios), [792a12h1d A skills-dir run is a preview](./792a_product-spec.md#792a12h1-uat-scenarios), [792a12h1e A skills-dir run refuses answers](./792a_product-spec.md#792a12h1-uat-scenarios), [792a12h1f One answer in both flags is refused](./792a_product-spec.md#792a12h1-uat-scenarios), [792a12a1a A deployed skill is byte-identical](./792a_product-spec.md#792a12a1-uat-scenarios), [792a12a1b Command and prompt files are untouched](./792a_product-spec.md#792a12a1-uat-scenarios), [792a12i1a Adopting a previously promoted note](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1b Adopt keeps an unmodeled key](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1c Adopt refuses an anchored key](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1e Adopt refuses a note that is not a runbook](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1f Adopt refuses a note keyed to another skill](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1g Adopt refuses an unscanned key](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1h Adopt refuses an ambiguous reference](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1i A dry run adopts nothing](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1j Adopt refuses a skill that Pi disables](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12t1c A dry run previews the offers too](./792a_product-spec.md#792a12t1-uat-scenarios).
 
 ##### 792b31c6a Scenarios
 
@@ -19291,6 +19296,7 @@ Scenario: 792b31c8a4 A non-terminal never prompts or writes
 | [792a12i1g Adopt refuses an unscanned key](./792a_product-spec.md#792a12i1-uat-scenarios) | [792b31c6 The registration run](#792b31c6-the-registration-run), [792b31c7 Note actions](#792b31c7-note-actions) |
 | [792a12i1h Adopt refuses an ambiguous reference](./792a_product-spec.md#792a12i1-uat-scenarios) | [792b31c6 The registration run](#792b31c6-the-registration-run), [792b31c7 Note actions](#792b31c7-note-actions) |
 | [792a12i1i A dry run adopts nothing](./792a_product-spec.md#792a12i1-uat-scenarios) | [792b31c6 The registration run](#792b31c6-the-registration-run) |
+| [792a12i1j Adopt refuses a skill that Pi disables](./792a_product-spec.md#792a12i1-uat-scenarios) | [792b31c6 The registration run](#792b31c6-the-registration-run) |
 | [792a12o1e Engram-installed skills are keyed by their folder](./792a_product-spec.md#792a12o1-uat-scenarios) | [792b31c2 Offer comparison](#792b31c2-offer-comparison) |
 | [792a12p1a A Pi copy of an engram skill makes no offer](./792a_product-spec.md#792a12p1-uat-scenarios) | [792b31c2 Offer comparison](#792b31c2-offer-comparison) |
 | [792a12p1b Two Pi skills with one name and different content](./792a_product-spec.md#792a12p1-uat-scenarios) | [792b31c2 Offer comparison](#792b31c2-offer-comparison) |
@@ -19504,6 +19510,11 @@ Scenario: 792a12i1i A dry run adopts nothing
   Given a valid --adopt entry
   When the user runs engram register-skills --dry-run --adopt claude:curate=1049
   Then the note is neither renamed nor rewritten
+
+Scenario: 792a12i1j Adopt refuses a skill that Pi disables
+  Given a Pi user skill ping that the global settings.json switches off with "!ping", and a runbook note 1
+  When the user runs engram register-skills --adopt pi:ping=1
+  Then it is refused as naming no scanned skill and nothing is written
 
 Scenario: 792a12p1a A Pi copy of an engram skill makes no offer
   Given ~/.pi/agent/skills/route and ~/.claude/skills/route are byte-identical and a note keyed claude:route carries that hash
