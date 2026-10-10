@@ -134,8 +134,10 @@ Scenario: CAP-1434a1a1a Select the prior month during the year
 
 ```text
 Bad:  This reuses the parent-sync capability.
-Bad:  This reuses [792a21](./792a_product-spec.md#792a21-added-parent-sync).
-Good: This reuses [792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync).
+Good: This reuses [parent-sync](../../specs/product/parent-sync.md).
+Bad:  A refused variable fails as in the ENGRAM_SERVER requirement.
+Bad:  A refused variable fails as in [792a21a](../../specs/product/parent-sync.md#792a21a-engram_server-is-refused).
+Good: A refused variable fails as in [792a21a ENGRAM_SERVER is refused](../../specs/product/parent-sync.md#792a21a-engram_server-is-refused).
 ```
 
 ## Specification Lifecycle

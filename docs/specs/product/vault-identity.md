@@ -87,8 +87,6 @@ vault as a note, and MUST treat any other root `README.md` as a note.
 Rationale: a freshly created vault must report itself clean; the starter README is recognized by
 its exact content, so a user's own README, or an edited starter, stays a normal note.
 
-This behavior is being changed by [796a Controlled Vault README - Product Spec](../../changes/796_controlled-vault-readme/796a_product-spec.md) (#796).
-
 ### 792a2d1 UAT Scenarios
 
 ```gherkin
@@ -113,8 +111,6 @@ a `.gitignore`, a starter `README.md`, a vault ID ([792a2h Stable vault ID](#792
 
 Rationale: any command creates a missing vault, and the single stderr line makes a mistyped `--vault` or
 `ENGRAM_VAULT_PATH` visible. The `.obsidian/` starter lets Obsidian open the directory as a vault.
-
-This behavior is being changed by [795a Vault Init Command - Product Spec](../../changes/795_vault-init-command/795a_product-spec.md) (#795).
 
 ### 792a2e1 UAT Scenarios
 
