@@ -116,7 +116,7 @@ func buildHashedSources(
 // per group by reconcileGroupCanonicalFirst, and calls
 // duplicateRecordsCoveredBy directly. This function remains as the
 // single-call reference for the same two-condition semantics, pinned
-// directly by TestCanonicalCoversDuplicateRecords.
+// directly by Test792b18c7a4_CanonicalCoversDuplicateRecords.
 func canonicalCoversDuplicateRecords(chunksDir, canonicalPath, duplicatePath string, deps IngestDeps) bool {
 	if !indexFileExists(chunksDir, canonicalPath, deps) {
 		return false
@@ -307,7 +307,7 @@ func groupByHash(hashed []hashedSource) map[string][]hashedSource {
 // manifestBackfill then stamps a fresh epoch IngestedAt (time.Unix(0, 0),
 // since statOrZero yields a zero SourceStat with no Stat wired) onto a
 // legacy zero-IngestedAt record that never had one, changing the encoded
-// bytes on every such run and breaking TestIngestIsIdempotentByHash
+// bytes on every such run and breaking Test792b18c3a3_IngestIsIdempotentByHash
 // deterministically. Failing open here costs nothing a real production
 // caller ever pays — newIngestDeps always wires Stat (verified live, Gate
 // B) — while failing closed would cost every Stat-less test fixture a
@@ -570,7 +570,7 @@ func removeDuplicateIndex(chunksDir, source string, manifest ingestManifest, dep
 
 // selectCanonical picks the highest-precedence sourceRef among a group of
 // hash-identical candidates. Pure: same candidates in any order yield the
-// same winner (TestSelectCanonicalIsOrderIndependent). Precedence, first
+// same winner (Test792b18c6a2_SelectCanonicalIsOrderIndependent). Precedence, first
 // match wins:
 //  1. explicit sources (--transcript/--markdown/--pi-sessions)
 //  2. the repo-markdown root

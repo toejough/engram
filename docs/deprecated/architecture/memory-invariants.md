@@ -61,13 +61,6 @@ Test methods:
 |---|---|---|
 | **P1** | **[RETIRED — episode kind removed; chunk-source provenance is now frontmatter on fact/feedback notes and is not a path-validity concern (chunks are indexed separately).]** ~~Episode provenance valid: every episode names ≥1 session id whose transcript source path exists on disk.~~ | — | RETIRED |
 
-## E. Marker / forward-progress — `[PT]`
-| id | invariant | status |
-|---|---|---|
-| **M1** | Never skip: scanning [from, now] visits every learnable row exactly once across runs — no row skipped, none re-emitted forever. | FIXED (non-segments, 5c16c784); no property test yet |
-| **M2** | Never past unread: a source's marker never advances past the earliest row not actually read this run. | FIXED for `emitTranscripts`; **BROKEN for `emitSegments`** (M2-segments: no `Partial` on segments path → marker → file Mtime) |
-| **M3** | Multi-source independence: one source consuming the byte budget never advances another source's marker. | FIXED (5c16c784) |
-
 ## F. Recall / clustering determinism — `[PT]`
 | id | invariant | status |
 |---|---|---|

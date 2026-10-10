@@ -11,13 +11,101 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestIngestDedupsExactContentByPrecedence: two byte-identical sources
+// Test792b18c3a2_IngestDoesNotReReadUnchangedKnownSource pins Unit 3 step 1's
+// load-bearing seeding directly: a source already known to the manifest,
+// unchanged on disk, must NOT be re-read on a second ingest. This is
+// distinct from "must not re-embed" (Test792b18c3a1_SweepSkipsUnchangedWithoutEmbedding
+// in ingest_sweep_test.go) — canonicalUpToDate's hash short-circuit
+// guarantees that independently of whether cheapSkipEligible ever ran, so a
+// mutation that makes cheapSkipEligible always return false (forcing a
+// read+hash of every source on every run) would sail through the embed-only
+// assertion. Counting ReadFile calls catches it directly.
+func Test792b18c3a2_IngestDoesNotReReadUnchangedKnownSource(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	source := "/docs/stable.md"
+	content := "## Stable\nContent that never changes across two ingest runs, long enough for a chunk.\n"
+
+	fs := newSweepFS()
+	fs.put(source, content, 100)
+
+	readCalls := 0
+	deps := sweepDeps(fs, &countingEmbedder{}, source)
+	deps.Stat = realisticStat(fs)
+
+	realRead := deps.ReadFile
+	deps.ReadFile = func(path string) ([]byte, error) {
+		if path == source {
+			readCalls++
+		}
+
+		return realRead(path)
+	}
+
+	args := cli.IngestArgs{Sweep: []string{"/docs"}, ChunksDir: "/chunks"}
+
+	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
+	g.Expect(readCalls).To(gomega.Equal(1), "first ingest of a new source must read it exactly once")
+
+	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
+	g.Expect(readCalls).To(gomega.Equal(1),
+		"second ingest of an unchanged known source must NOT re-read it: cheapSkipEligible must reuse "+
+			"the manifest's cached hash rather than re-deriving it")
+}
+
+// Test792b18c3a4_IngestRebuildsWhenIndexFileMissing: a manifest entry is present and
+// the source is unchanged, but its .jsonl index file has vanished — the
+// crash window between removing an index file and its manifest entry
+// (cross-unit-coordination note). The cheap-skip must NOT trust the
+// manifest alone; the next ingest must rebuild the index from scratch
+// (re-embedding, since the old vectors were lost with the file).
+func Test792b18c3a4_IngestRebuildsWhenIndexFileMissing(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	stripped := "USER: content that must survive a crash window between removing the index file and its manifest entry"
+	source := "/sessions/crash.jsonl"
+
+	fs := newSweepFS()
+	fs.put(source, "{raw jsonl bytes}", 100)
+
+	emb := &countingEmbedder{}
+	deps := sweepDeps(fs, emb, source)
+	deps.Stat = realisticStat(fs)
+	deps.ReadTranscript = transcriptReader(stripped)
+
+	args := cli.IngestArgs{Sweep: []string{"/sessions"}, ChunksDir: "/chunks"}
+
+	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
+
+	indexKey := "/chunks/" + cli.ExportIndexFileName(source)
+	_, indexedBefore := fs.files[indexKey]
+	g.Expect(indexedBefore).To(gomega.BeTrue(), "sanity: index file exists after the first ingest")
+
+	// Simulate the crash window: the index file is gone, but the manifest
+	// entry (and the source's stat) are untouched.
+	delete(fs.files, indexKey)
+
+	before := emb.calls
+
+	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
+
+	_, indexedAfter := fs.files[indexKey]
+	g.Expect(indexedAfter).To(gomega.BeTrue(),
+		"index file missing despite an unchanged known source must self-heal: the next ingest rebuilds it")
+
+	g.Expect(emb.calls).To(gomega.BeNumerically(">", before),
+		"a rebuilt-from-scratch index must re-embed — the old vectors were lost with the index file")
+}
+
+// Test792b18c6a3_IngestDedupsExactContentByPrecedence: two byte-identical sources
 // discovered in the SAME --auto sweep — one under the repo-markdown root,
 // one under its own ancestor .claude dir — must produce exactly one index
 // build, and the canonical must be the repo-root copy (selectCanonical rule
 // 2 beats rule 3). The loser gets a manifest entry recording it as a
 // duplicate (so a later run never re-reads it) but no index file.
-func TestIngestDedupsExactContentByPrecedence(t *testing.T) {
+func Test792b18c6a3_IngestDedupsExactContentByPrecedence(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -66,7 +154,7 @@ func TestIngestDedupsExactContentByPrecedence(t *testing.T) {
 	g.Expect(hasDup).To(gomega.BeFalse(), "canonical entry must not carry duplicate_of")
 }
 
-// TestIngestDoesNotDedupAcrossChunkingClasses: a .md and a .jsonl source
+// Test792b18c6a4_IngestDoesNotDedupAcrossChunkingClasses: a .md and a .jsonl source
 // with IDENTICAL raw bytes (so an identical file_hash) must NEVER be
 // treated as duplicates of each other. chunkSource dispatches by extension
 // — .jsonl goes through ReadTranscript + chunk.Transcript, everything else
@@ -76,7 +164,7 @@ func TestIngestDedupsExactContentByPrecedence(t *testing.T) {
 // literal JSON vs transcript's "USER: ..." text). Grouping by file_hash
 // alone would suppress one as a "duplicate" of the other and permanently
 // delete its distinct chunking; both must be indexed independently.
-func TestIngestDoesNotDedupAcrossChunkingClasses(t *testing.T) {
+func Test792b18c6a4_IngestDoesNotDedupAcrossChunkingClasses(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -144,98 +232,67 @@ func TestIngestDoesNotDedupAcrossChunkingClasses(t *testing.T) {
 	g.Expect(jsonlHasDup).To(gomega.BeFalse(), "the jsonl entry must not be recorded as a duplicate")
 }
 
-// TestIngestDoesNotReReadUnchangedKnownSource pins Unit 3 step 1's
-// load-bearing seeding directly: a source already known to the manifest,
-// unchanged on disk, must NOT be re-read on a second ingest. This is
-// distinct from "must not re-embed" (TestSweepSkipsUnchangedWithoutEmbedding
-// in ingest_sweep_test.go) — canonicalUpToDate's hash short-circuit
-// guarantees that independently of whether cheapSkipEligible ever ran, so a
-// mutation that makes cheapSkipEligible always return false (forcing a
-// read+hash of every source on every run) would sail through the embed-only
-// assertion. Counting ReadFile calls catches it directly.
-func TestIngestDoesNotReReadUnchangedKnownSource(t *testing.T) {
+// Test792b18c6a5_IngestPrefersPhysicallyCloserAncestorAcrossTypes: a .pi dir sits AT
+// cwd (physical level 0) while the nearest .claude dir is one level
+// farther up (physical level 1) — the exact cross-type scenario where a
+// naive per-type ordinal AncestorDepth (each walk's own "0th hit") breaks
+// selectCanonical's rule 3 ("closest ancestor first"), since both would
+// then read depth 0 and fall through to the separator/lexicographic
+// tie-break instead. AncestorDepth must reflect real physical distance from
+// cwd so the .pi copy — genuinely closer — wins.
+func Test792b18c6a5_IngestPrefersPhysicallyCloserAncestorAcrossTypes(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	source := "/docs/stable.md"
-	content := "## Stable\nContent that never changes across two ingest runs, long enough for a chunk.\n"
+	content := "## Notes\nIdentical content reachable via both a .pi dir at cwd and a farther .claude dir.\n"
 
 	fs := newSweepFS()
-	fs.put(source, content, 100)
-
-	readCalls := 0
-	deps := sweepDeps(fs, &countingEmbedder{}, source)
-	deps.Stat = realisticStat(fs)
-
-	realRead := deps.ReadFile
-	deps.ReadFile = func(path string) ([]byte, error) {
-		if path == source {
-			readCalls++
-		}
-
-		return realRead(path)
-	}
-
-	args := cli.IngestArgs{Sweep: []string{"/docs"}, ChunksDir: "/chunks"}
-
-	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
-	g.Expect(readCalls).To(gomega.Equal(1), "first ingest of a new source must read it exactly once")
-
-	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
-	g.Expect(readCalls).To(gomega.Equal(1),
-		"second ingest of an unchanged known source must NOT re-read it: cheapSkipEligible must reuse "+
-			"the manifest's cached hash rather than re-deriving it")
-}
-
-// TestIngestEvictsLowerPrecedenceDuplicate: a lower-precedence copy (ancestor
-// .claude) is indexed first, alone. A later run discovers a byte-identical
-// higher-precedence twin (repo root) — the twin must become canonical AND
-// the stale .claude index/manifest entry must be evicted (structural change
-// 2), not left to accumulate alongside the new one.
-func TestIngestEvictsLowerPrecedenceDuplicate(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	content := "## Notes\nIdentical content migrating from a low-precedence copy to the repo root.\n"
-
-	fs := newSweepFS()
+	fs.put("/repo/sub/.pi/copy/a.md", content, 100)
 	fs.put("/repo/.claude/copy/a.md", content, 100)
 
 	listByRoot := map[string][]string{
 		"/repo":         nil,
+		"/repo/sub/.pi": {"/repo/sub/.pi/copy/a.md"},
 		"/repo/.claude": {"/repo/.claude/copy/a.md"},
 	}
-	deps := dedupAutoDeps(fs, &countingEmbedder{}, listByRoot)
-	args := cli.IngestArgs{Auto: true, ChunksDir: "/chunks"}
 
-	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
+	dirs := map[string]bool{"/repo/.git": true, "/repo/sub/.pi": true, "/repo/.claude": true}
 
+	deps := cli.IngestDeps{
+		ReadFile:  fs.read,
+		WriteFile: fs.write,
+		Stat:      realisticStat(fs),
+		Remove:    fs.remove,
+		ListSources: func(root cli.SweepRoot) ([]string, error) {
+			return listByRoot[root.Path], nil
+		},
+		ReadTranscript: transcriptReader(""),
+		Embedder:       &countingEmbedder{},
+		IsDir:          func(path string) bool { return dirs[path] },
+		Getwd:          func() (string, error) { return "/repo/sub", nil },
+		SessionDir:     func(string) string { return "" },
+	}
+
+	err := cli.RunIngest(context.Background(),
+		cli.IngestArgs{Auto: true, ChunksDir: "/chunks"}, deps, io.Discard)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	piIdx := "/chunks/" + cli.ExportIndexFileName("/repo/sub/.pi/copy/a.md")
 	claudeIdx := "/chunks/" + cli.ExportIndexFileName("/repo/.claude/copy/a.md")
-	_, indexedBefore := fs.files[claudeIdx]
-	g.Expect(indexedBefore).To(gomega.BeTrue(), "sole candidate must be indexed as canonical on the first run")
 
-	// The repo-root copy appears: same content, higher precedence.
-	fs.put("/repo/notes/a.md", content, 100)
+	_, piIndexed := fs.files[piIdx]
+	g.Expect(piIndexed).To(gomega.BeTrue(),
+		"the .pi dir AT cwd (physical level 0) must win over the farther .claude dir (level 1)")
 
-	listByRoot["/repo"] = []string{"/repo/notes/a.md"}
-
-	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
-
-	repoIdx := "/chunks/" + cli.ExportIndexFileName("/repo/notes/a.md")
-	_, repoIndexed := fs.files[repoIdx]
-	g.Expect(repoIndexed).To(gomega.BeTrue(), "repo-root copy must now be indexed as canonical")
-
-	_, claudeStillIndexed := fs.files[claudeIdx]
-	g.Expect(claudeStillIndexed).To(gomega.BeFalse(), "stale .claude index must be evicted, not left alongside")
-
-	manifest := decodeManifest(g, fs.files)
-
-	claudeEntry, present := manifest["/repo/.claude/copy/a.md"]
-	g.Expect(present).To(gomega.BeTrue())
-	g.Expect(claudeEntry["duplicate_of"]).To(gomega.Equal("/repo/notes/a.md"))
+	_, claudeIndexed := fs.files[claudeIdx]
+	g.Expect(claudeIndexed).To(gomega.BeFalse(), "the physically farther ancestor copy must be the duplicate")
 }
 
-// TestIngestEvictsWithinSameRunRegardlessOfDiscoveryOrder: gatherSources
+// Test792b18c6a6_IngestEvictsWithinSameRunRegardlessOfDiscoveryOrder: gatherSources
 // merges manual --sweep roots BEFORE --auto's roots (assembleSweepRoots),
 // so a lower-precedence duplicate discovered via manual --sweep can appear
 // EARLIER in the merged source list than its higher-precedence --auto
@@ -246,7 +303,7 @@ func TestIngestEvictsLowerPrecedenceDuplicate(t *testing.T) {
 // duplicate's eviction, so a duplicate processed before its newly-arriving
 // canonical must still see it built in THIS SAME RUN, not be refused for a
 // timing accident and left to converge only on a second run.
-func TestIngestEvictsWithinSameRunRegardlessOfDiscoveryOrder(t *testing.T) {
+func Test792b18c6a6_IngestEvictsWithinSameRunRegardlessOfDiscoveryOrder(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -310,84 +367,75 @@ func TestIngestEvictsWithinSameRunRegardlessOfDiscoveryOrder(t *testing.T) {
 			"covered by the canonical's freshly-built index, so there is no reason to defer to a second run")
 }
 
-// TestIngestPrefersPhysicallyCloserAncestorAcrossTypes: a .pi dir sits AT
-// cwd (physical level 0) while the nearest .claude dir is one level
-// farther up (physical level 1) — the exact cross-type scenario where a
-// naive per-type ordinal AncestorDepth (each walk's own "0th hit") breaks
-// selectCanonical's rule 3 ("closest ancestor first"), since both would
-// then read depth 0 and fall through to the separator/lexicographic
-// tie-break instead. AncestorDepth must reflect real physical distance from
-// cwd so the .pi copy — genuinely closer — wins.
-func TestIngestPrefersPhysicallyCloserAncestorAcrossTypes(t *testing.T) {
+// Test792b18c7a1_IngestEvictsLowerPrecedenceDuplicate: a lower-precedence copy (ancestor
+// .claude) is indexed first, alone. A later run discovers a byte-identical
+// higher-precedence twin (repo root) — the twin must become canonical AND
+// the stale .claude index/manifest entry must be evicted (structural change
+// 2), not left to accumulate alongside the new one.
+func Test792b18c7a1_IngestEvictsLowerPrecedenceDuplicate(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	content := "## Notes\nIdentical content reachable via both a .pi dir at cwd and a farther .claude dir.\n"
+	content := "## Notes\nIdentical content migrating from a low-precedence copy to the repo root.\n"
 
 	fs := newSweepFS()
-	fs.put("/repo/sub/.pi/copy/a.md", content, 100)
 	fs.put("/repo/.claude/copy/a.md", content, 100)
 
 	listByRoot := map[string][]string{
 		"/repo":         nil,
-		"/repo/sub/.pi": {"/repo/sub/.pi/copy/a.md"},
 		"/repo/.claude": {"/repo/.claude/copy/a.md"},
 	}
+	deps := dedupAutoDeps(fs, &countingEmbedder{}, listByRoot)
+	args := cli.IngestArgs{Auto: true, ChunksDir: "/chunks"}
 
-	dirs := map[string]bool{"/repo/.git": true, "/repo/sub/.pi": true, "/repo/.claude": true}
+	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
 
-	deps := cli.IngestDeps{
-		ReadFile:  fs.read,
-		WriteFile: fs.write,
-		Stat:      realisticStat(fs),
-		Remove:    fs.remove,
-		ListSources: func(root cli.SweepRoot) ([]string, error) {
-			return listByRoot[root.Path], nil
-		},
-		ReadTranscript: transcriptReader(""),
-		Embedder:       &countingEmbedder{},
-		IsDir:          func(path string) bool { return dirs[path] },
-		Getwd:          func() (string, error) { return "/repo/sub", nil },
-		SessionDir:     func(string) string { return "" },
-	}
-
-	err := cli.RunIngest(context.Background(),
-		cli.IngestArgs{Auto: true, ChunksDir: "/chunks"}, deps, io.Discard)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	piIdx := "/chunks/" + cli.ExportIndexFileName("/repo/sub/.pi/copy/a.md")
 	claudeIdx := "/chunks/" + cli.ExportIndexFileName("/repo/.claude/copy/a.md")
+	_, indexedBefore := fs.files[claudeIdx]
+	g.Expect(indexedBefore).To(gomega.BeTrue(), "sole candidate must be indexed as canonical on the first run")
 
-	_, piIndexed := fs.files[piIdx]
-	g.Expect(piIndexed).To(gomega.BeTrue(),
-		"the .pi dir AT cwd (physical level 0) must win over the farther .claude dir (level 1)")
+	// The repo-root copy appears: same content, higher precedence.
+	fs.put("/repo/notes/a.md", content, 100)
 
-	_, claudeIndexed := fs.files[claudeIdx]
-	g.Expect(claudeIndexed).To(gomega.BeFalse(), "the physically farther ancestor copy must be the duplicate")
+	listByRoot["/repo"] = []string{"/repo/notes/a.md"}
+
+	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
+
+	repoIdx := "/chunks/" + cli.ExportIndexFileName("/repo/notes/a.md")
+	_, repoIndexed := fs.files[repoIdx]
+	g.Expect(repoIndexed).To(gomega.BeTrue(), "repo-root copy must now be indexed as canonical")
+
+	_, claudeStillIndexed := fs.files[claudeIdx]
+	g.Expect(claudeStillIndexed).To(gomega.BeFalse(), "stale .claude index must be evicted, not left alongside")
+
+	manifest := decodeManifest(g, fs.files)
+
+	claudeEntry, present := manifest["/repo/.claude/copy/a.md"]
+	g.Expect(present).To(gomega.BeTrue())
+	g.Expect(claudeEntry["duplicate_of"]).To(gomega.Equal("/repo/notes/a.md"))
 }
 
-// TestIngestPromotesDuplicateWhenCanonicalVanishes: the canonical repo copy
-// is indexed first; a later run no longer sweeps it (deleted, moved, or
-// simply out of scope), leaving its former duplicate as the sole remaining
-// hash-group member. The duplicate must be promoted to canonical and
-// actually indexed — exercising the rare path where its bytes were never
-// read this run (cheap-skip reused its cached hash) and must be read fresh.
-func TestIngestPromotesDuplicateWhenCanonicalVanishes(t *testing.T) {
+// Test792b18c7a2_IngestRefusesEvictionWhenCanonicalYieldsZeroChunks: a newly-arriving
+// higher-precedence copy chunks to ZERO records (content below
+// chunk.Markdown's minChunkChars floor, so rebuildIndex's zero-chunk guard
+// means its index file is never written at all), while the
+// lower-precedence copy already holds a REAL indexed history from before
+// it was edited down to this tiny shared content. A canonical with no
+// index file can never verifiably cover anything — eviction must be
+// refused, not proceed just because there is technically "nothing to
+// build."
+func Test792b18c7a2_IngestRefusesEvictionWhenCanonicalYieldsZeroChunks(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	content := "## Notes\nContent whose sole canonical copy vanishes, promoting the duplicate.\n"
+	// Below chunk.Markdown's minChunkChars (40) floor: chunks to ZERO records.
+	tinyContent := "hi\n"
 
 	fs := newSweepFS()
-	fs.put("/repo/notes/a.md", content, 100)
-	fs.put("/repo/.claude/copy/a.md", content, 100)
+	fs.put("/repo/.claude/copy/a.md", tinyContent, 100)
 
 	listByRoot := map[string][]string{
-		"/repo":         {"/repo/notes/a.md"},
+		"/repo":         nil,
 		"/repo/.claude": {"/repo/.claude/copy/a.md"},
 	}
 	deps := dedupAutoDeps(fs, &countingEmbedder{}, listByRoot)
@@ -397,15 +445,30 @@ func TestIngestPromotesDuplicateWhenCanonicalVanishes(t *testing.T) {
 
 	claudeIdx := "/chunks/" + cli.ExportIndexFileName("/repo/.claude/copy/a.md")
 	_, claudeIndexedBefore := fs.files[claudeIdx]
-	g.Expect(claudeIndexedBefore).To(gomega.BeFalse(), "sanity: duplicate is not indexed on the first run")
+	g.Expect(claudeIndexedBefore).To(gomega.BeFalse(),
+		"sanity: tiny content chunks to zero records, so rebuildIndex never writes a file for it")
 
-	// The repo copy is no longer swept; only the duplicate remains.
-	listByRoot["/repo"] = nil
+	// Manually plant a real historical index file for the .claude copy, as
+	// if it held content from a PAST ingest before being edited down to the
+	// tiny shared content above.
+	fs.files[claudeIdx] = []byte(`{"source":"/repo/.claude/copy/a.md","anchor":"turn-0",` +
+		`"content_hash":"sha256:leftover-real-content","text":"old real content"}` + "\n")
+
+	// The repo-root copy appears with the SAME tiny content (so it groups
+	// with .claude by hash) and higher precedence.
+	fs.put("/repo/notes/a.md", tinyContent, 100)
+
+	listByRoot["/repo"] = []string{"/repo/notes/a.md"}
 
 	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
 
-	_, claudeIndexedAfter := fs.files[claudeIdx]
-	g.Expect(claudeIndexedAfter).To(gomega.BeTrue(), "former duplicate must be promoted and indexed")
+	repoIdx := "/chunks/" + cli.ExportIndexFileName("/repo/notes/a.md")
+	_, repoIndexed := fs.files[repoIdx]
+	g.Expect(repoIndexed).To(gomega.BeFalse(), "sanity: the fresh canonical ALSO chunks to zero records")
+
+	_, claudeStillPresent := fs.files[claudeIdx]
+	g.Expect(claudeStillPresent).To(gomega.BeTrue(),
+		"a zero-chunk canonical (no index file at all) can never verifiably cover a duplicate's records")
 
 	manifest := decodeManifest(g, fs.files)
 
@@ -413,10 +476,77 @@ func TestIngestPromotesDuplicateWhenCanonicalVanishes(t *testing.T) {
 	g.Expect(present).To(gomega.BeTrue())
 
 	_, hasDup := claudeEntry["duplicate_of"]
-	g.Expect(hasDup).To(gomega.BeFalse(), "promoted entry must no longer carry duplicate_of")
+	g.Expect(hasDup).To(gomega.BeFalse(), "a refused eviction must not mark the member as a duplicate")
 }
 
-// TestIngestReadsCanonicalIndexOnceAcrossDuplicateGroup pins the caching fix
+// Test792b18c7a3_IngestRefusesEvictionWhenDuplicateRecordsNotSubsetOfCanonical: a
+// ship-readiness review (2026-07-26) found the byte-hash eviction gate
+// insufficient — mergeChunkRecords is append-only WITHIN a source, so a
+// source's .jsonl index accumulates every chunk record from every past
+// ingest of that path. The .claude copy here holds a record from ITS OWN
+// past history that will never appear in a FRESH build of the CURRENT
+// (now shared) content — evicting it in favor of the freshly-built
+// canonical would permanently destroy that unique record. Eviction must
+// be refused, and the manifest entry must be left exactly as it was (NOT
+// marked duplicate_of), so the index file is never orphaned.
+func Test792b18c7a3_IngestRefusesEvictionWhenDuplicateRecordsNotSubsetOfCanonical(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	content := "## Notes\nContent that becomes identical to a higher-precedence copy, long enough for a chunk.\n"
+
+	fs := newSweepFS()
+	fs.put("/repo/.claude/copy/a.md", content, 100)
+
+	listByRoot := map[string][]string{
+		"/repo":         nil,
+		"/repo/.claude": {"/repo/.claude/copy/a.md"},
+	}
+	deps := dedupAutoDeps(fs, &countingEmbedder{}, listByRoot)
+	args := cli.IngestArgs{Auto: true, ChunksDir: "/chunks"}
+
+	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
+
+	claudeIdx := "/chunks/" + cli.ExportIndexFileName("/repo/.claude/copy/a.md")
+	_, indexedBefore := fs.files[claudeIdx]
+	g.Expect(indexedBefore).To(gomega.BeTrue(), "sanity: sole candidate is indexed as canonical on the first run")
+
+	// Simulate append-only history the .claude copy accumulated from a PAST
+	// ingest of content that has since been edited to match the repo copy
+	// below: a record whose content hash a fresh build of the CURRENT
+	// content will never produce.
+	staleRecord := []byte(`{"source":"/repo/.claude/copy/a.md","anchor":"turn-0",` +
+		`"content_hash":"sha256:historical-only-in-claude-copy","text":"stale historical text"}` + "\n")
+	fs.files[claudeIdx] = append(fs.files[claudeIdx], staleRecord...)
+
+	// The repo-root copy appears: same CURRENT content, higher precedence.
+	fs.put("/repo/notes/a.md", content, 100)
+
+	listByRoot["/repo"] = []string{"/repo/notes/a.md"}
+
+	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
+
+	repoIdx := "/chunks/" + cli.ExportIndexFileName("/repo/notes/a.md")
+	_, repoIndexed := fs.files[repoIdx]
+	g.Expect(repoIndexed).To(gomega.BeTrue(), "repo-root copy must still be indexed as canonical")
+
+	_, claudeStillPresent := fs.files[claudeIdx]
+	g.Expect(claudeStillPresent).To(gomega.BeTrue(),
+		"the .claude copy's index must survive: its own accumulated history is not covered by the "+
+			"freshly-built canonical index, so eviction must be refused")
+
+	manifest := decodeManifest(g, fs.files)
+
+	claudeEntry, present := manifest["/repo/.claude/copy/a.md"]
+	g.Expect(present).To(gomega.BeTrue())
+
+	_, hasDup := claudeEntry["duplicate_of"]
+	g.Expect(hasDup).To(gomega.BeFalse(),
+		"a refused eviction must not mark the member as a duplicate — that would strand an orphaned "+
+			"index file with no manifest entry expecting it")
+}
+
+// Test792b18c7a5_IngestReadsCanonicalIndexOnceAcrossDuplicateGroup pins the caching fix
 // for a Gate B finding (2026-07-26): reconcileDuplicate's record-level
 // subset gate (canonicalCoversDuplicateRecords/duplicateRecordsCoveredBy)
 // must load and decode the canonical's index file AT MOST ONCE per hash
@@ -428,7 +558,7 @@ func TestIngestPromotesDuplicateWhenCanonicalVanishes(t *testing.T) {
 // gate re-runs on every future `engram ingest` (including every automatic
 // learn-skill sweep), so this cost recurs indefinitely rather than paying
 // once.
-func TestIngestReadsCanonicalIndexOnceAcrossDuplicateGroup(t *testing.T) {
+func Test792b18c7a5_IngestReadsCanonicalIndexOnceAcrossDuplicateGroup(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -506,72 +636,24 @@ func TestIngestReadsCanonicalIndexOnceAcrossDuplicateGroup(t *testing.T) {
 	}
 }
 
-// TestIngestRebuildsWhenIndexFileMissing: a manifest entry is present and
-// the source is unchanged, but its .jsonl index file has vanished — the
-// crash window between removing an index file and its manifest entry
-// (cross-unit-coordination note). The cheap-skip must NOT trust the
-// manifest alone; the next ingest must rebuild the index from scratch
-// (re-embedding, since the old vectors were lost with the file).
-func TestIngestRebuildsWhenIndexFileMissing(t *testing.T) {
+// Test792b18c7a6_IngestPromotesDuplicateWhenCanonicalVanishes: the canonical repo copy
+// is indexed first; a later run no longer sweeps it (deleted, moved, or
+// simply out of scope), leaving its former duplicate as the sole remaining
+// hash-group member. The duplicate must be promoted to canonical and
+// actually indexed — exercising the rare path where its bytes were never
+// read this run (cheap-skip reused its cached hash) and must be read fresh.
+func Test792b18c7a6_IngestPromotesDuplicateWhenCanonicalVanishes(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	stripped := "USER: content that must survive a crash window between removing the index file and its manifest entry"
-	source := "/sessions/crash.jsonl"
+	content := "## Notes\nContent whose sole canonical copy vanishes, promoting the duplicate.\n"
 
 	fs := newSweepFS()
-	fs.put(source, "{raw jsonl bytes}", 100)
-
-	emb := &countingEmbedder{}
-	deps := sweepDeps(fs, emb, source)
-	deps.Stat = realisticStat(fs)
-	deps.ReadTranscript = transcriptReader(stripped)
-
-	args := cli.IngestArgs{Sweep: []string{"/sessions"}, ChunksDir: "/chunks"}
-
-	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
-
-	indexKey := "/chunks/" + cli.ExportIndexFileName(source)
-	_, indexedBefore := fs.files[indexKey]
-	g.Expect(indexedBefore).To(gomega.BeTrue(), "sanity: index file exists after the first ingest")
-
-	// Simulate the crash window: the index file is gone, but the manifest
-	// entry (and the source's stat) are untouched.
-	delete(fs.files, indexKey)
-
-	before := emb.calls
-
-	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
-
-	_, indexedAfter := fs.files[indexKey]
-	g.Expect(indexedAfter).To(gomega.BeTrue(),
-		"index file missing despite an unchanged known source must self-heal: the next ingest rebuilds it")
-
-	g.Expect(emb.calls).To(gomega.BeNumerically(">", before),
-		"a rebuilt-from-scratch index must re-embed — the old vectors were lost with the index file")
-}
-
-// TestIngestRefusesEvictionWhenCanonicalYieldsZeroChunks: a newly-arriving
-// higher-precedence copy chunks to ZERO records (content below
-// chunk.Markdown's minChunkChars floor, so rebuildIndex's zero-chunk guard
-// means its index file is never written at all), while the
-// lower-precedence copy already holds a REAL indexed history from before
-// it was edited down to this tiny shared content. A canonical with no
-// index file can never verifiably cover anything — eviction must be
-// refused, not proceed just because there is technically "nothing to
-// build."
-func TestIngestRefusesEvictionWhenCanonicalYieldsZeroChunks(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	// Below chunk.Markdown's minChunkChars (40) floor: chunks to ZERO records.
-	tinyContent := "hi\n"
-
-	fs := newSweepFS()
-	fs.put("/repo/.claude/copy/a.md", tinyContent, 100)
+	fs.put("/repo/notes/a.md", content, 100)
+	fs.put("/repo/.claude/copy/a.md", content, 100)
 
 	listByRoot := map[string][]string{
-		"/repo":         nil,
+		"/repo":         {"/repo/notes/a.md"},
 		"/repo/.claude": {"/repo/.claude/copy/a.md"},
 	}
 	deps := dedupAutoDeps(fs, &countingEmbedder{}, listByRoot)
@@ -581,30 +663,15 @@ func TestIngestRefusesEvictionWhenCanonicalYieldsZeroChunks(t *testing.T) {
 
 	claudeIdx := "/chunks/" + cli.ExportIndexFileName("/repo/.claude/copy/a.md")
 	_, claudeIndexedBefore := fs.files[claudeIdx]
-	g.Expect(claudeIndexedBefore).To(gomega.BeFalse(),
-		"sanity: tiny content chunks to zero records, so rebuildIndex never writes a file for it")
+	g.Expect(claudeIndexedBefore).To(gomega.BeFalse(), "sanity: duplicate is not indexed on the first run")
 
-	// Manually plant a real historical index file for the .claude copy, as
-	// if it held content from a PAST ingest before being edited down to the
-	// tiny shared content above.
-	fs.files[claudeIdx] = []byte(`{"source":"/repo/.claude/copy/a.md","anchor":"turn-0",` +
-		`"content_hash":"sha256:leftover-real-content","text":"old real content"}` + "\n")
-
-	// The repo-root copy appears with the SAME tiny content (so it groups
-	// with .claude by hash) and higher precedence.
-	fs.put("/repo/notes/a.md", tinyContent, 100)
-
-	listByRoot["/repo"] = []string{"/repo/notes/a.md"}
+	// The repo copy is no longer swept; only the duplicate remains.
+	listByRoot["/repo"] = nil
 
 	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
 
-	repoIdx := "/chunks/" + cli.ExportIndexFileName("/repo/notes/a.md")
-	_, repoIndexed := fs.files[repoIdx]
-	g.Expect(repoIndexed).To(gomega.BeFalse(), "sanity: the fresh canonical ALSO chunks to zero records")
-
-	_, claudeStillPresent := fs.files[claudeIdx]
-	g.Expect(claudeStillPresent).To(gomega.BeTrue(),
-		"a zero-chunk canonical (no index file at all) can never verifiably cover a duplicate's records")
+	_, claudeIndexedAfter := fs.files[claudeIdx]
+	g.Expect(claudeIndexedAfter).To(gomega.BeTrue(), "former duplicate must be promoted and indexed")
 
 	manifest := decodeManifest(g, fs.files)
 
@@ -612,83 +679,16 @@ func TestIngestRefusesEvictionWhenCanonicalYieldsZeroChunks(t *testing.T) {
 	g.Expect(present).To(gomega.BeTrue())
 
 	_, hasDup := claudeEntry["duplicate_of"]
-	g.Expect(hasDup).To(gomega.BeFalse(), "a refused eviction must not mark the member as a duplicate")
+	g.Expect(hasDup).To(gomega.BeFalse(), "promoted entry must no longer carry duplicate_of")
 }
 
-// TestIngestRefusesEvictionWhenDuplicateRecordsNotSubsetOfCanonical: a
-// ship-readiness review (2026-07-26) found the byte-hash eviction gate
-// insufficient — mergeChunkRecords is append-only WITHIN a source, so a
-// source's .jsonl index accumulates every chunk record from every past
-// ingest of that path. The .claude copy here holds a record from ITS OWN
-// past history that will never appear in a FRESH build of the CURRENT
-// (now shared) content — evicting it in favor of the freshly-built
-// canonical would permanently destroy that unique record. Eviction must
-// be refused, and the manifest entry must be left exactly as it was (NOT
-// marked duplicate_of), so the index file is never orphaned.
-func TestIngestRefusesEvictionWhenDuplicateRecordsNotSubsetOfCanonical(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	content := "## Notes\nContent that becomes identical to a higher-precedence copy, long enough for a chunk.\n"
-
-	fs := newSweepFS()
-	fs.put("/repo/.claude/copy/a.md", content, 100)
-
-	listByRoot := map[string][]string{
-		"/repo":         nil,
-		"/repo/.claude": {"/repo/.claude/copy/a.md"},
-	}
-	deps := dedupAutoDeps(fs, &countingEmbedder{}, listByRoot)
-	args := cli.IngestArgs{Auto: true, ChunksDir: "/chunks"}
-
-	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
-
-	claudeIdx := "/chunks/" + cli.ExportIndexFileName("/repo/.claude/copy/a.md")
-	_, indexedBefore := fs.files[claudeIdx]
-	g.Expect(indexedBefore).To(gomega.BeTrue(), "sanity: sole candidate is indexed as canonical on the first run")
-
-	// Simulate append-only history the .claude copy accumulated from a PAST
-	// ingest of content that has since been edited to match the repo copy
-	// below: a record whose content hash a fresh build of the CURRENT
-	// content will never produce.
-	staleRecord := []byte(`{"source":"/repo/.claude/copy/a.md","anchor":"turn-0",` +
-		`"content_hash":"sha256:historical-only-in-claude-copy","text":"stale historical text"}` + "\n")
-	fs.files[claudeIdx] = append(fs.files[claudeIdx], staleRecord...)
-
-	// The repo-root copy appears: same CURRENT content, higher precedence.
-	fs.put("/repo/notes/a.md", content, 100)
-
-	listByRoot["/repo"] = []string{"/repo/notes/a.md"}
-
-	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
-
-	repoIdx := "/chunks/" + cli.ExportIndexFileName("/repo/notes/a.md")
-	_, repoIndexed := fs.files[repoIdx]
-	g.Expect(repoIndexed).To(gomega.BeTrue(), "repo-root copy must still be indexed as canonical")
-
-	_, claudeStillPresent := fs.files[claudeIdx]
-	g.Expect(claudeStillPresent).To(gomega.BeTrue(),
-		"the .claude copy's index must survive: its own accumulated history is not covered by the "+
-			"freshly-built canonical index, so eviction must be refused")
-
-	manifest := decodeManifest(g, fs.files)
-
-	claudeEntry, present := manifest["/repo/.claude/copy/a.md"]
-	g.Expect(present).To(gomega.BeTrue())
-
-	_, hasDup := claudeEntry["duplicate_of"]
-	g.Expect(hasDup).To(gomega.BeFalse(),
-		"a refused eviction must not mark the member as a duplicate — that would strand an orphaned "+
-			"index file with no manifest entry expecting it")
-}
-
-// TestIngestSkipsVaultCopyOutsideCanonicalVault: a swept .md file with a
+// Test792b18c8a1_IngestSkipsVaultCopyOutsideCanonicalVault: a swept .md file with a
 // sibling .vec.json sidecar is structurally a vault-note copy (Rule B) —
 // content need not even match a live note (the drifted case exact-content
 // dedup misses); sitting outside the resolved vault path is enough to skip
 // it. A normal swept .md with no sidecar must still be ingested in the same
 // run, proving the rule doesn't over-trigger.
-func TestIngestSkipsVaultCopyOutsideCanonicalVault(t *testing.T) {
+func Test792b18c8a1_IngestSkipsVaultCopyOutsideCanonicalVault(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 

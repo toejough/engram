@@ -17,7 +17,7 @@ import (
 	"github.com/toejough/engram/internal/transcript"
 )
 
-func TestChunkIDSetContainsLoadedRecords(t *testing.T) {
+func Test792b18c13a1_ChunkIDSetContainsLoadedRecords(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -72,7 +72,7 @@ func TestChunkIDSetContainsLoadedRecords(t *testing.T) {
 	g.Expect(idSet["nonexistent#anchor"]).To(gomega.BeFalse(), "absent id must not be in set")
 }
 
-func TestChunkIDSetErrorsPropagate(t *testing.T) {
+func Test792b18c13a2_ChunkIDSetErrorsPropagate(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -95,147 +95,7 @@ func TestChunkIDSetErrorsPropagate(t *testing.T) {
 	g.Expect(decodeErr).To(gomega.HaveOccurred(), "decode error must propagate")
 }
 
-func TestIngestIsIdempotentByHash(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	stripped := "USER: same content as before, long enough to clear the noise floor easily"
-	fs := &memFS{files: map[string][]byte{"/sessions/s1.jsonl": []byte("{raw jsonl}")}}
-	deps := cli.IngestDeps{
-		ReadFile:       fs.read,
-		WriteFile:      fs.write,
-		ReadTranscript: transcriptReader(stripped),
-		Embedder:       fakeIngestEmbedder{},
-	}
-	args := cli.IngestArgs{Transcripts: []string{"/sessions/s1.jsonl"}, ChunksDir: "/chunks"}
-
-	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
-
-	first := fs.files["/chunks/"+cli.ExportIndexFileName("/sessions/s1.jsonl")]
-
-	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
-
-	second := fs.files["/chunks/"+cli.ExportIndexFileName("/sessions/s1.jsonl")]
-
-	g.Expect(second).To(gomega.Equal(first), "second ingest adds nothing")
-
-	records, err := chunk.DecodeRecords(second)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(records).To(gomega.HaveLen(1))
-}
-
-func TestIngestMarkdownFile(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	md := "## Conventions\nAlways name constants instead of magic numbers in this codebase.\n"
-	fs := &memFS{files: map[string][]byte{"/docs/conventions.md": []byte(md)}}
-	deps := cli.IngestDeps{
-		ReadFile:       fs.read,
-		WriteFile:      fs.write,
-		ReadTranscript: transcriptReader(""),
-		Embedder:       fakeIngestEmbedder{},
-	}
-
-	err := cli.RunIngest(context.Background(), cli.IngestArgs{
-		Markdowns: []string{"/docs/conventions.md"},
-		ChunksDir: "/chunks",
-	}, deps, io.Discard)
-
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	records, err := chunk.DecodeRecords(
-		fs.files["/chunks/"+cli.ExportIndexFileName("/docs/conventions.md")],
-	)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(records).To(gomega.HaveLen(1))
-
-	if len(records) != 1 {
-		return
-	}
-
-	g.Expect(records[0].Anchor).To(gomega.Equal("Conventions"))
-}
-
-func TestIngestMarkdownSetsIngestedAtFromNow(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	md := "## Section\nSome markdown content long enough to form a chunk in the index.\n"
-	now := time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)
-	fs := &memFS{files: map[string][]byte{"/docs/doc.md": []byte(md)}}
-	deps := cli.IngestDeps{
-		ReadFile:       fs.read,
-		WriteFile:      fs.write,
-		ReadTranscript: transcriptReader(""),
-		Embedder:       fakeIngestEmbedder{},
-		Now:            func() time.Time { return now },
-	}
-	args := cli.IngestArgs{Markdowns: []string{"/docs/doc.md"}, ChunksDir: "/chunks"}
-
-	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
-
-	indexKey := "/chunks/" + cli.ExportIndexFileName("/docs/doc.md")
-	records, err := chunk.DecodeRecords(fs.files[indexKey])
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(records).To(gomega.HaveLen(1))
-
-	if len(records) < 1 {
-		return
-	}
-
-	g.Expect(records[0].IngestedAt).To(gomega.Equal(now),
-		"markdown chunk IngestedAt must be the ingest wall-clock (deps.Now())")
-}
-
-func TestIngestTranscriptSetsIngestedAtFromPerRowTimestamp(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	stripped := "USER: long enough transcript content to form a chunk in the index"
-	sessionTS := time.Date(2026, 5, 10, 14, 0, 0, 0, time.UTC)
-
-	fs := &memFS{files: map[string][]byte{"/sessions/ts.jsonl": []byte(`{}`)}}
-	deps := cli.IngestDeps{
-		ReadFile:  fs.read,
-		WriteFile: fs.write,
-		ReadTranscript: func(string, time.Time, int) (transcript.ReadResult, error) {
-			return transcript.ReadResult{Content: stripped, LastTimestamp: sessionTS}, nil
-		},
-		Embedder: fakeIngestEmbedder{},
-		Now:      func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
-	}
-	args := cli.IngestArgs{Transcripts: []string{"/sessions/ts.jsonl"}, ChunksDir: "/chunks"}
-
-	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
-
-	indexKey := "/chunks/" + cli.ExportIndexFileName("/sessions/ts.jsonl")
-	records, err := chunk.DecodeRecords(fs.files[indexKey])
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(records).To(gomega.HaveLen(1))
-
-	if len(records) < 1 {
-		return
-	}
-
-	// Transcript chunks use the per-session LastTimestamp (a per-session approximation
-	// — all chunks of one transcript share IngestedAt; intra-session spread is negligible
-	// for recency; cross-session ordering is distinguished since each session is its own source).
-	g.Expect(records[0].IngestedAt).To(gomega.Equal(sessionTS),
-		"transcript chunk IngestedAt must be the LastTimestamp from ReadResult (per-session approximation)")
-}
-
-func TestIngestTranscriptWritesChunkIndex(t *testing.T) {
+func Test792b18c1a1_IngestTranscriptWritesChunkIndex(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -274,40 +134,91 @@ func TestIngestTranscriptWritesChunkIndex(t *testing.T) {
 	g.Expect(records[0].ContentHash).To(gomega.HavePrefix("sha256:"))
 }
 
-func TestLoadPriorRecordsPreservesIngestedAt(t *testing.T) {
+// Test792b18c2a1_RunIngest_LocksManifestAroundReadModifyWrite asserts that RunIngest
+// acquires the manifest lock BEFORE reading the manifest and releases it
+// AFTER writing it — preventing concurrent lost updates (#660).
+func Test792b18c2a1_RunIngest_LocksManifestAroundReadModifyWrite(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	ingestedAt := time.Date(2026, 2, 5, 9, 0, 0, 0, time.UTC)
-	rec := chunk.Record{
-		Source:      "/sessions/s.jsonl",
-		Anchor:      "turn-1",
-		ContentHash: "sha256:aabbcc",
-		Text:        "hello world",
-		Vector:      []float32{0.5, 0.5},
-		IngestedAt:  ingestedAt,
+	var order []string
+
+	const (
+		chunksDir    = "/chunks"
+		manifestPath = "/chunks/manifest.json"
+		sourcePath   = "/sessions/new.jsonl"
+	)
+
+	stripped := "USER: new unique content long enough to produce a chunk for ingestion"
+
+	files := map[string][]byte{
+		sourcePath:   []byte(`{"raw":"jsonl"}`),
+		manifestPath: []byte(`{}`), // empty manifest so source is treated as new
 	}
 
-	encoded, err := chunk.EncodeRecords([]chunk.Record{rec})
+	deps := cli.IngestDeps{
+		Lock: func(string) (func(), error) {
+			order = append(order, "lock")
+
+			return func() { order = append(order, "unlock") }, nil
+		},
+		ReadFile: func(path string) ([]byte, error) {
+			if path == manifestPath {
+				order = append(order, "read:"+path)
+			}
+
+			data, ok := files[path]
+			if !ok {
+				return nil, io.ErrUnexpectedEOF
+			}
+
+			return data, nil
+		},
+		WriteFile: func(path string, data []byte) error {
+			if path == manifestPath {
+				order = append(order, "write:"+path)
+			}
+
+			files[path] = data
+
+			return nil
+		},
+		ReadTranscript: transcriptReader(stripped),
+		Embedder:       fakeIngestEmbedder{},
+	}
+
+	args := cli.IngestArgs{
+		Transcripts: []string{sourcePath},
+		ChunksDir:   chunksDir,
+	}
+
+	err := cli.RunIngest(context.Background(), args, deps, io.Discard)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	if err != nil {
 		return
 	}
 
-	fs := &memFS{files: map[string][]byte{"/chunks/s.jsonl": encoded}}
-	deps := cli.IngestDeps{ReadFile: fs.read, WriteFile: fs.write, Embedder: fakeIngestEmbedder{}}
+	// Must have all four events.
+	g.Expect(order).
+		To(gomega.ContainElements("lock", "read:"+manifestPath, "write:"+manifestPath, "unlock"),
+			"all lock events must be recorded")
 
-	got := cli.ExportLoadPriorRecords("/chunks/s.jsonl", deps)
+	// lock must precede the manifest read.
+	lockIdx := sliceIndex(order, "lock")
+	readIdx := sliceIndex(order, "read:"+manifestPath)
+	writeIdx := sliceIndex(order, "write:"+manifestPath)
+	unlockIdx := sliceIndex(order, "unlock")
 
-	g.Expect(got).To(gomega.HaveLen(1))
-
-	loaded, ok := got["sha256:aabbcc"]
-	g.Expect(ok).To(gomega.BeTrue(), "record keyed by ContentHash")
-	g.Expect(loaded.IngestedAt).To(gomega.Equal(ingestedAt), "IngestedAt must survive the load")
+	g.Expect(lockIdx).To(gomega.BeNumerically("<", readIdx),
+		"lock must precede manifest read")
+	g.Expect(readIdx).To(gomega.BeNumerically("<", writeIdx),
+		"manifest read must precede manifest write")
+	g.Expect(writeIdx).To(gomega.BeNumerically("<", unlockIdx),
+		"manifest write must precede unlock")
 }
 
-// TestManifest_ConcurrentWritersDoNotLoseEntries exercises a real flock via
+// Test792b18c2a3_Manifest_ConcurrentWritersDoNotLoseEntries exercises a real flock via
 // the production FileLocker composed over real OS primitives on a t.TempDir():
 // one goroutine ingests a NEW source while another prunes a dead one, both
 // running concurrently on the SAME chunksDir and each sleeping ~5ms between
@@ -317,7 +228,7 @@ func TestLoadPriorRecordsPreservesIngestedAt(t *testing.T) {
 // The shared chunksDir is the deliberate test subject, not accidental state.
 // Without the flock the ingest entry would be silently dropped (the prune
 // writes the manifest it read before ingest, overwriting the ingest result).
-func TestManifest_ConcurrentWritersDoNotLoseEntries(t *testing.T) {
+func Test792b18c2a3_Manifest_ConcurrentWritersDoNotLoseEntries(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -454,6 +365,345 @@ func TestManifest_ConcurrentWritersDoNotLoseEntries(t *testing.T) {
 		"pruned dead source must not be present in final manifest")
 }
 
+func Test792b18c3a3_IngestIsIdempotentByHash(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	stripped := "USER: same content as before, long enough to clear the noise floor easily"
+	fs := &memFS{files: map[string][]byte{"/sessions/s1.jsonl": []byte("{raw jsonl}")}}
+	deps := cli.IngestDeps{
+		ReadFile:       fs.read,
+		WriteFile:      fs.write,
+		ReadTranscript: transcriptReader(stripped),
+		Embedder:       fakeIngestEmbedder{},
+	}
+	args := cli.IngestArgs{Transcripts: []string{"/sessions/s1.jsonl"}, ChunksDir: "/chunks"}
+
+	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
+
+	first := fs.files["/chunks/"+cli.ExportIndexFileName("/sessions/s1.jsonl")]
+
+	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
+
+	second := fs.files["/chunks/"+cli.ExportIndexFileName("/sessions/s1.jsonl")]
+
+	g.Expect(second).To(gomega.Equal(first), "second ingest adds nothing")
+
+	records, err := chunk.DecodeRecords(second)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(records).To(gomega.HaveLen(1))
+}
+
+func Test792b18c5a2_IngestMarkdownFile(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	md := "## Conventions\nAlways name constants instead of magic numbers in this codebase.\n"
+	fs := &memFS{files: map[string][]byte{"/docs/conventions.md": []byte(md)}}
+	deps := cli.IngestDeps{
+		ReadFile:       fs.read,
+		WriteFile:      fs.write,
+		ReadTranscript: transcriptReader(""),
+		Embedder:       fakeIngestEmbedder{},
+	}
+
+	err := cli.RunIngest(context.Background(), cli.IngestArgs{
+		Markdowns: []string{"/docs/conventions.md"},
+		ChunksDir: "/chunks",
+	}, deps, io.Discard)
+
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	records, err := chunk.DecodeRecords(
+		fs.files["/chunks/"+cli.ExportIndexFileName("/docs/conventions.md")],
+	)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(records).To(gomega.HaveLen(1))
+
+	if len(records) != 1 {
+		return
+	}
+
+	g.Expect(records[0].Anchor).To(gomega.Equal("Conventions"))
+}
+
+func Test792b18c5a4_MergeAppendKeepsPriorRecordsOnChange(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	// First ingest: one chunk.
+	first := "USER: first unique session content that is long enough"
+	fs := &memFS{files: map[string][]byte{"/sessions/s.jsonl": []byte(`{"type":"raw"}`)}}
+	deps := cli.IngestDeps{
+		ReadFile:       fs.read,
+		WriteFile:      fs.write,
+		ReadTranscript: transcriptReader(first),
+		Embedder:       fakeIngestEmbedder{},
+	}
+	args := cli.IngestArgs{Transcripts: []string{"/sessions/s.jsonl"}, ChunksDir: "/chunks"}
+
+	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
+
+	indexKey := "/chunks/" + cli.ExportIndexFileName("/sessions/s.jsonl")
+	firstData := make([]byte, len(fs.files[indexKey]))
+	copy(firstData, fs.files[indexKey])
+
+	firstRecords, err := chunk.DecodeRecords(firstData)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(firstRecords).To(gomega.HaveLen(1))
+
+	if len(firstRecords) < 1 {
+		return
+	}
+
+	firstHash := firstRecords[0].ContentHash
+
+	// Second ingest: source changed — contains BOTH original text AND new text.
+	// Merge-append must keep the first chunk and add the second.
+	both := first + "\nUSER: brand new second chunk content added later, also long enough"
+	deps2 := cli.IngestDeps{
+		ReadFile:       fs.read,
+		WriteFile:      fs.write,
+		ReadTranscript: transcriptReader(both),
+		Embedder:       fakeIngestEmbedder{},
+	}
+	// Touch the file so the mtime-skip doesn't short-circuit.
+	fs.files["/sessions/s.jsonl"] = []byte(`{"type":"raw2"}`)
+
+	g.Expect(cli.RunIngest(context.Background(), args, deps2, io.Discard)).To(gomega.Succeed())
+
+	secondData := fs.files[indexKey]
+	secondRecords, err := chunk.DecodeRecords(secondData)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Must contain the original chunk (preserved) plus at least one new one.
+	g.Expect(secondRecords).
+		To(gomega.HaveLen(2), "merge-append: prior chunk retained + new chunk added")
+
+	hashes := make(map[string]bool, len(secondRecords))
+	for _, r := range secondRecords {
+		hashes[r.ContentHash] = true
+	}
+
+	g.Expect(hashes[firstHash]).
+		To(gomega.BeTrue(), "original chunk must be retained by merge-append")
+}
+
+func Test792b18c5a4_MergeAppendNeverDeletesOnContentChange(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	// Ingest: content A.
+	contentA := "USER: original content A that is definitely long enough to make a chunk"
+	fs := &memFS{files: map[string][]byte{"/docs/note.md": []byte(contentA)}}
+	deps := cli.IngestDeps{
+		ReadFile:       fs.read,
+		WriteFile:      fs.write,
+		ReadTranscript: transcriptReader(""),
+		Embedder:       fakeIngestEmbedder{},
+	}
+	args := cli.IngestArgs{Markdowns: []string{"/docs/note.md"}, ChunksDir: "/chunks"}
+
+	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
+
+	indexKey := "/chunks/" + cli.ExportIndexFileName("/docs/note.md")
+	firstRecords, err := chunk.DecodeRecords(fs.files[indexKey])
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(firstRecords).To(gomega.HaveLen(1))
+
+	if len(firstRecords) < 1 {
+		return
+	}
+
+	oldHash := firstRecords[0].ContentHash
+
+	// Source file changed: content B replaces A.
+	contentB := "## New Heading\nCompletely different content that forms its own chunk, long enough."
+	fs.files["/docs/note.md"] = []byte(contentB)
+
+	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
+
+	secondRecords, err := chunk.DecodeRecords(fs.files[indexKey])
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Both old AND new chunk must be in the index — no deletion.
+	g.Expect(len(secondRecords)).To(gomega.BeNumerically(">=", 2),
+		"merge-append must never delete; old chunk from content A must survive")
+
+	hashes := make(map[string]bool, len(secondRecords))
+	for _, r := range secondRecords {
+		hashes[r.ContentHash] = true
+	}
+
+	g.Expect(hashes[oldHash]).To(gomega.BeTrue(), "old chunk must not be deleted on content change")
+}
+
+func Test792b18c5a5_RunIngestSkipsEmptyIndexFile(t *testing.T) {
+	t.Parallel()
+
+	g := gomega.NewWithT(t)
+
+	// A source that yields zero chunk records (empty/non-embeddable segment)
+	// must NOT leave a 0-byte .jsonl the read path opens every query. Manifest
+	// state is still recorded so the source is not re-ingested next sweep.
+	fs := &memFS{files: map[string][]byte{"/sessions/empty.jsonl": []byte("")}}
+	deps := cli.IngestDeps{
+		ReadFile:       fs.read,
+		WriteFile:      fs.write,
+		ReadTranscript: transcriptReader(""),
+		Embedder:       fakeIngestEmbedder{},
+	}
+
+	err := cli.RunIngest(context.Background(), cli.IngestArgs{
+		Transcripts: []string{"/sessions/empty.jsonl"},
+		ChunksDir:   "/chunks",
+	}, deps, io.Discard)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	indexPath := "/chunks/" + cli.ExportIndexFileName("/sessions/empty.jsonl")
+	_, indexWritten := fs.files[indexPath]
+	g.Expect(indexWritten).To(gomega.BeFalse(),
+		"a zero-record source must not write a 0-byte index file")
+
+	// Safety: the guard must not skip manifest persistence (dedup state).
+	_, manifestWritten := fs.files["/chunks/manifest.json"]
+	g.Expect(manifestWritten).To(gomega.BeTrue(),
+		"manifest must still be written for the ingested source")
+}
+
+func TestIngestMarkdownSetsIngestedAtFromNow(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	md := "## Section\nSome markdown content long enough to form a chunk in the index.\n"
+	now := time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)
+	fs := &memFS{files: map[string][]byte{"/docs/doc.md": []byte(md)}}
+	deps := cli.IngestDeps{
+		ReadFile:       fs.read,
+		WriteFile:      fs.write,
+		ReadTranscript: transcriptReader(""),
+		Embedder:       fakeIngestEmbedder{},
+		Now:            func() time.Time { return now },
+	}
+	args := cli.IngestArgs{Markdowns: []string{"/docs/doc.md"}, ChunksDir: "/chunks"}
+
+	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
+
+	indexKey := "/chunks/" + cli.ExportIndexFileName("/docs/doc.md")
+	records, err := chunk.DecodeRecords(fs.files[indexKey])
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(records).To(gomega.HaveLen(1))
+
+	if len(records) < 1 {
+		return
+	}
+
+	g.Expect(records[0].IngestedAt).To(gomega.Equal(now),
+		"markdown chunk IngestedAt must be the ingest wall-clock (deps.Now())")
+}
+
+func TestIngestTranscriptSetsIngestedAtFromPerRowTimestamp(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	stripped := "USER: long enough transcript content to form a chunk in the index"
+	sessionTS := time.Date(2026, 5, 10, 14, 0, 0, 0, time.UTC)
+
+	fs := &memFS{files: map[string][]byte{"/sessions/ts.jsonl": []byte(`{}`)}}
+	deps := cli.IngestDeps{
+		ReadFile:  fs.read,
+		WriteFile: fs.write,
+		ReadTranscript: func(string, time.Time, int) (transcript.ReadResult, error) {
+			return transcript.ReadResult{Content: stripped, LastTimestamp: sessionTS}, nil
+		},
+		Embedder: fakeIngestEmbedder{},
+		Now:      func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
+	}
+	args := cli.IngestArgs{Transcripts: []string{"/sessions/ts.jsonl"}, ChunksDir: "/chunks"}
+
+	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
+
+	indexKey := "/chunks/" + cli.ExportIndexFileName("/sessions/ts.jsonl")
+	records, err := chunk.DecodeRecords(fs.files[indexKey])
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(records).To(gomega.HaveLen(1))
+
+	if len(records) < 1 {
+		return
+	}
+
+	// Transcript chunks use the per-session LastTimestamp (a per-session approximation
+	// — all chunks of one transcript share IngestedAt; intra-session spread is negligible
+	// for recency; cross-session ordering is distinguished since each session is its own source).
+	g.Expect(records[0].IngestedAt).To(gomega.Equal(sessionTS),
+		"transcript chunk IngestedAt must be the LastTimestamp from ReadResult (per-session approximation)")
+}
+
+func TestLoadPriorRecordsPreservesIngestedAt(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	ingestedAt := time.Date(2026, 2, 5, 9, 0, 0, 0, time.UTC)
+	rec := chunk.Record{
+		Source:      "/sessions/s.jsonl",
+		Anchor:      "turn-1",
+		ContentHash: "sha256:aabbcc",
+		Text:        "hello world",
+		Vector:      []float32{0.5, 0.5},
+		IngestedAt:  ingestedAt,
+	}
+
+	encoded, err := chunk.EncodeRecords([]chunk.Record{rec})
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	fs := &memFS{files: map[string][]byte{"/chunks/s.jsonl": encoded}}
+	deps := cli.IngestDeps{ReadFile: fs.read, WriteFile: fs.write, Embedder: fakeIngestEmbedder{}}
+
+	got := cli.ExportLoadPriorRecords("/chunks/s.jsonl", deps)
+
+	g.Expect(got).To(gomega.HaveLen(1))
+
+	loaded, ok := got["sha256:aabbcc"]
+	g.Expect(ok).To(gomega.BeTrue(), "record keyed by ContentHash")
+	g.Expect(loaded.IngestedAt).To(gomega.Equal(ingestedAt), "IngestedAt must survive the load")
+}
+
 func TestMergeAppendBackfillsIngestedAtFromManifestMtime(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -535,135 +785,6 @@ func TestMergeAppendBackfillsIngestedAtFromManifestMtime(t *testing.T) {
 		"legacy zero-IngestedAt record must be backfilled from manifest mtime on first merge")
 }
 
-func TestMergeAppendKeepsPriorRecordsOnChange(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	// First ingest: one chunk.
-	first := "USER: first unique session content that is long enough"
-	fs := &memFS{files: map[string][]byte{"/sessions/s.jsonl": []byte(`{"type":"raw"}`)}}
-	deps := cli.IngestDeps{
-		ReadFile:       fs.read,
-		WriteFile:      fs.write,
-		ReadTranscript: transcriptReader(first),
-		Embedder:       fakeIngestEmbedder{},
-	}
-	args := cli.IngestArgs{Transcripts: []string{"/sessions/s.jsonl"}, ChunksDir: "/chunks"}
-
-	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
-
-	indexKey := "/chunks/" + cli.ExportIndexFileName("/sessions/s.jsonl")
-	firstData := make([]byte, len(fs.files[indexKey]))
-	copy(firstData, fs.files[indexKey])
-
-	firstRecords, err := chunk.DecodeRecords(firstData)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(firstRecords).To(gomega.HaveLen(1))
-
-	if len(firstRecords) < 1 {
-		return
-	}
-
-	firstHash := firstRecords[0].ContentHash
-
-	// Second ingest: source changed — contains BOTH original text AND new text.
-	// Merge-append must keep the first chunk and add the second.
-	both := first + "\nUSER: brand new second chunk content added later, also long enough"
-	deps2 := cli.IngestDeps{
-		ReadFile:       fs.read,
-		WriteFile:      fs.write,
-		ReadTranscript: transcriptReader(both),
-		Embedder:       fakeIngestEmbedder{},
-	}
-	// Touch the file so the mtime-skip doesn't short-circuit.
-	fs.files["/sessions/s.jsonl"] = []byte(`{"type":"raw2"}`)
-
-	g.Expect(cli.RunIngest(context.Background(), args, deps2, io.Discard)).To(gomega.Succeed())
-
-	secondData := fs.files[indexKey]
-	secondRecords, err := chunk.DecodeRecords(secondData)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Must contain the original chunk (preserved) plus at least one new one.
-	g.Expect(secondRecords).
-		To(gomega.HaveLen(2), "merge-append: prior chunk retained + new chunk added")
-
-	hashes := make(map[string]bool, len(secondRecords))
-	for _, r := range secondRecords {
-		hashes[r.ContentHash] = true
-	}
-
-	g.Expect(hashes[firstHash]).
-		To(gomega.BeTrue(), "original chunk must be retained by merge-append")
-}
-
-func TestMergeAppendNeverDeletesOnContentChange(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	// Ingest: content A.
-	contentA := "USER: original content A that is definitely long enough to make a chunk"
-	fs := &memFS{files: map[string][]byte{"/docs/note.md": []byte(contentA)}}
-	deps := cli.IngestDeps{
-		ReadFile:       fs.read,
-		WriteFile:      fs.write,
-		ReadTranscript: transcriptReader(""),
-		Embedder:       fakeIngestEmbedder{},
-	}
-	args := cli.IngestArgs{Markdowns: []string{"/docs/note.md"}, ChunksDir: "/chunks"}
-
-	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
-
-	indexKey := "/chunks/" + cli.ExportIndexFileName("/docs/note.md")
-	firstRecords, err := chunk.DecodeRecords(fs.files[indexKey])
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(firstRecords).To(gomega.HaveLen(1))
-
-	if len(firstRecords) < 1 {
-		return
-	}
-
-	oldHash := firstRecords[0].ContentHash
-
-	// Source file changed: content B replaces A.
-	contentB := "## New Heading\nCompletely different content that forms its own chunk, long enough."
-	fs.files["/docs/note.md"] = []byte(contentB)
-
-	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
-
-	secondRecords, err := chunk.DecodeRecords(fs.files[indexKey])
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Both old AND new chunk must be in the index — no deletion.
-	g.Expect(len(secondRecords)).To(gomega.BeNumerically(">=", 2),
-		"merge-append must never delete; old chunk from content A must survive")
-
-	hashes := make(map[string]bool, len(secondRecords))
-	for _, r := range secondRecords {
-		hashes[r.ContentHash] = true
-	}
-
-	g.Expect(hashes[oldHash]).To(gomega.BeTrue(), "old chunk must not be deleted on content change")
-}
-
 func TestMergeAppendPreservesIngestedAtOnReIngest(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -732,127 +853,6 @@ func TestMergeAppendPreservesIngestedAtOnReIngest(t *testing.T) {
 
 	g.Expect(secondRecords[0].IngestedAt).To(gomega.Equal(firstTime),
 		"IngestedAt must be preserved from first ingest, not overwritten on re-ingest of identical chunk")
-}
-
-func TestRunIngestSkipsEmptyIndexFile(t *testing.T) {
-	t.Parallel()
-
-	g := gomega.NewWithT(t)
-
-	// A source that yields zero chunk records (empty/non-embeddable segment)
-	// must NOT leave a 0-byte .jsonl the read path opens every query. Manifest
-	// state is still recorded so the source is not re-ingested next sweep.
-	fs := &memFS{files: map[string][]byte{"/sessions/empty.jsonl": []byte("")}}
-	deps := cli.IngestDeps{
-		ReadFile:       fs.read,
-		WriteFile:      fs.write,
-		ReadTranscript: transcriptReader(""),
-		Embedder:       fakeIngestEmbedder{},
-	}
-
-	err := cli.RunIngest(context.Background(), cli.IngestArgs{
-		Transcripts: []string{"/sessions/empty.jsonl"},
-		ChunksDir:   "/chunks",
-	}, deps, io.Discard)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	indexPath := "/chunks/" + cli.ExportIndexFileName("/sessions/empty.jsonl")
-	_, indexWritten := fs.files[indexPath]
-	g.Expect(indexWritten).To(gomega.BeFalse(),
-		"a zero-record source must not write a 0-byte index file")
-
-	// Safety: the guard must not skip manifest persistence (dedup state).
-	_, manifestWritten := fs.files["/chunks/manifest.json"]
-	g.Expect(manifestWritten).To(gomega.BeTrue(),
-		"manifest must still be written for the ingested source")
-}
-
-// TestRunIngest_LocksManifestAroundReadModifyWrite asserts that RunIngest
-// acquires the manifest lock BEFORE reading the manifest and releases it
-// AFTER writing it — preventing concurrent lost updates (#660).
-func TestRunIngest_LocksManifestAroundReadModifyWrite(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	var order []string
-
-	const (
-		chunksDir    = "/chunks"
-		manifestPath = "/chunks/manifest.json"
-		sourcePath   = "/sessions/new.jsonl"
-	)
-
-	stripped := "USER: new unique content long enough to produce a chunk for ingestion"
-
-	files := map[string][]byte{
-		sourcePath:   []byte(`{"raw":"jsonl"}`),
-		manifestPath: []byte(`{}`), // empty manifest so source is treated as new
-	}
-
-	deps := cli.IngestDeps{
-		Lock: func(string) (func(), error) {
-			order = append(order, "lock")
-
-			return func() { order = append(order, "unlock") }, nil
-		},
-		ReadFile: func(path string) ([]byte, error) {
-			if path == manifestPath {
-				order = append(order, "read:"+path)
-			}
-
-			data, ok := files[path]
-			if !ok {
-				return nil, io.ErrUnexpectedEOF
-			}
-
-			return data, nil
-		},
-		WriteFile: func(path string, data []byte) error {
-			if path == manifestPath {
-				order = append(order, "write:"+path)
-			}
-
-			files[path] = data
-
-			return nil
-		},
-		ReadTranscript: transcriptReader(stripped),
-		Embedder:       fakeIngestEmbedder{},
-	}
-
-	args := cli.IngestArgs{
-		Transcripts: []string{sourcePath},
-		ChunksDir:   chunksDir,
-	}
-
-	err := cli.RunIngest(context.Background(), args, deps, io.Discard)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Must have all four events.
-	g.Expect(order).
-		To(gomega.ContainElements("lock", "read:"+manifestPath, "write:"+manifestPath, "unlock"),
-			"all lock events must be recorded")
-
-	// lock must precede the manifest read.
-	lockIdx := sliceIndex(order, "lock")
-	readIdx := sliceIndex(order, "read:"+manifestPath)
-	writeIdx := sliceIndex(order, "write:"+manifestPath)
-	unlockIdx := sliceIndex(order, "unlock")
-
-	g.Expect(lockIdx).To(gomega.BeNumerically("<", readIdx),
-		"lock must precede manifest read")
-	g.Expect(readIdx).To(gomega.BeNumerically("<", writeIdx),
-		"manifest read must precede manifest write")
-	g.Expect(writeIdx).To(gomega.BeNumerically("<", unlockIdx),
-		"manifest write must precede unlock")
 }
 
 // fakeIngestEmbedder returns a fixed-dim vector derived from text length so

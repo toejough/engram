@@ -53,7 +53,137 @@ func Test792b17c7a2_ShouldSkipDir(t *testing.T) {
 		To(gomega.BeFalse(), "persistent dir kept")
 }
 
-func TestSweepHandlesTranscriptsViaSameMechanism(t *testing.T) {
+func Test792b18c3a1_SweepSkipsUnchangedWithoutEmbedding(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	fs := newSweepFS()
+	fs.put("/docs/conv.md", sweepDoc, 100)
+
+	emb := &countingEmbedder{}
+	deps := sweepDeps(fs, emb, "/docs/conv.md")
+	args := cli.IngestArgs{Sweep: []string{"/docs"}, ChunksDir: "/chunks"}
+
+	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
+
+	before := emb.calls
+
+	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
+	g.Expect(emb.calls).To(gomega.Equal(before), "unchanged file must not re-embed")
+}
+
+func Test792b18c4a1_SweepSkipsVanishedSourceButExplicitErrors(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	// /docs/gone.md is listed by the sweep but unreadable (vanished between
+	// walk and read). The sweep must skip it and still ingest the live file
+	// AND write the manifest. An explicitly-named missing source still errors.
+	fs := newSweepFS()
+	fs.put("/docs/conv.md", sweepDoc, 100)
+
+	emb := &countingEmbedder{}
+	deps := sweepDeps(fs, emb, "/docs/conv.md", "/docs/gone.md")
+	args := cli.IngestArgs{Sweep: []string{"/docs"}, ChunksDir: "/chunks"}
+
+	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
+
+	_, manifestWritten := fs.files["/chunks/manifest.json"]
+	g.Expect(manifestWritten).To(gomega.BeTrue(), "manifest lands despite the vanished source")
+
+	records, err := chunk.DecodeRecords(fs.files["/chunks/"+cli.ExportIndexFileName("/docs/conv.md")])
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(records).NotTo(gomega.BeEmpty(), "live file still ingested")
+
+	explicit := cli.IngestArgs{Markdowns: []string{"/docs/gone.md"}, ChunksDir: "/chunks"}
+	g.Expect(cli.RunIngest(context.Background(), explicit, deps, io.Discard)).NotTo(gomega.Succeed(),
+		"explicitly-named missing sources still error loudly")
+}
+
+func Test792b18c4a5_SweepManifestWriteErrorPropagates(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	fs := newSweepFS()
+	fs.put("/docs/conv.md", sweepDoc, 100)
+
+	deps := sweepDeps(fs, &countingEmbedder{}, "/docs/conv.md")
+	deps.WriteFile = func(path string, data []byte) error {
+		if strings.HasSuffix(path, "manifest.json") {
+			return errBoom
+		}
+
+		return fs.write(path, data)
+	}
+
+	err := cli.RunIngest(context.Background(),
+		cli.IngestArgs{Sweep: []string{"/docs"}, ChunksDir: "/chunks"}, deps, io.Discard)
+
+	g.Expect(err).To(gomega.MatchError(errBoom))
+}
+
+func Test792b18c5a1_SweepIngestsNewMarkdown(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	fs := newSweepFS()
+	fs.put("/docs/conv.md", sweepDoc, 100)
+
+	emb := &countingEmbedder{}
+
+	err := cli.RunIngest(context.Background(),
+		cli.IngestArgs{Sweep: []string{"/docs"}, ChunksDir: "/chunks"},
+		sweepDeps(fs, emb, "/docs/conv.md"), io.Discard)
+
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	records, err := chunk.DecodeRecords(fs.files["/chunks/"+cli.ExportIndexFileName("/docs/conv.md")])
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(records).To(gomega.HaveLen(2))
+	g.Expect(emb.calls).To(gomega.Equal(2))
+}
+
+func Test792b18c5a3_SweepMergeAppendKeepsStaleAndReusesEmbeddings(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	fs := newSweepFS()
+	fs.put("/docs/conv.md", sweepDoc, 100)
+
+	emb := &countingEmbedder{}
+	deps := sweepDeps(fs, emb, "/docs/conv.md")
+	args := cli.IngestArgs{Sweep: []string{"/docs"}, ChunksDir: "/chunks"}
+
+	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
+
+	// Section B is rewritten; Section A is untouched. Append-only (D5): the old
+	// Section B chunk is RETAINED, Section A is reused WITHOUT re-embedding, and
+	// only the new Section B text embeds.
+	edited := "## Section A\nAlways name constants instead of magic numbers in this codebase.\n\n" +
+		"## Section B\nUse sentinel errors and errors.Is for all not-found conditions.\n"
+	fs.put("/docs/conv.md", edited, 200)
+
+	before := emb.calls
+
+	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
+
+	records, err := chunk.DecodeRecords(fs.files["/chunks/"+cli.ExportIndexFileName("/docs/conv.md")])
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(records).To(gomega.HaveLen(3), "merge-append: prior 2 chunks retained + 1 new chunk added")
+
+	var all strings.Builder
+
+	for _, r := range records {
+		all.WriteString(r.Text)
+		all.WriteString("\n")
+	}
+
+	g.Expect(all.String()).To(gomega.ContainSubstring("sentinel errors"))
+	g.Expect(all.String()).To(gomega.ContainSubstring("Wrap errors with context"), "prior chunk retained (append-only)")
+	g.Expect(emb.calls-before).To(gomega.Equal(1), "only the edited section re-embeds")
+}
+
+func Test792b18c5a4_SweepHandlesTranscriptsViaSameMechanism(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -100,136 +230,6 @@ func TestSweepHandlesTranscriptsViaSameMechanism(t *testing.T) {
 
 	g.Expect(joined.String()).To(gomega.ContainSubstring("coverage thresholds"), "new content ingested")
 	g.Expect(joined.String()).To(gomega.ContainSubstring("wire the linter"), "prior chunk retained (append-only)")
-}
-
-func TestSweepIngestsNewMarkdown(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	fs := newSweepFS()
-	fs.put("/docs/conv.md", sweepDoc, 100)
-
-	emb := &countingEmbedder{}
-
-	err := cli.RunIngest(context.Background(),
-		cli.IngestArgs{Sweep: []string{"/docs"}, ChunksDir: "/chunks"},
-		sweepDeps(fs, emb, "/docs/conv.md"), io.Discard)
-
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	records, err := chunk.DecodeRecords(fs.files["/chunks/"+cli.ExportIndexFileName("/docs/conv.md")])
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(records).To(gomega.HaveLen(2))
-	g.Expect(emb.calls).To(gomega.Equal(2))
-}
-
-func TestSweepManifestWriteErrorPropagates(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	fs := newSweepFS()
-	fs.put("/docs/conv.md", sweepDoc, 100)
-
-	deps := sweepDeps(fs, &countingEmbedder{}, "/docs/conv.md")
-	deps.WriteFile = func(path string, data []byte) error {
-		if strings.HasSuffix(path, "manifest.json") {
-			return errBoom
-		}
-
-		return fs.write(path, data)
-	}
-
-	err := cli.RunIngest(context.Background(),
-		cli.IngestArgs{Sweep: []string{"/docs"}, ChunksDir: "/chunks"}, deps, io.Discard)
-
-	g.Expect(err).To(gomega.MatchError(errBoom))
-}
-
-func TestSweepMergeAppendKeepsStaleAndReusesEmbeddings(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	fs := newSweepFS()
-	fs.put("/docs/conv.md", sweepDoc, 100)
-
-	emb := &countingEmbedder{}
-	deps := sweepDeps(fs, emb, "/docs/conv.md")
-	args := cli.IngestArgs{Sweep: []string{"/docs"}, ChunksDir: "/chunks"}
-
-	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
-
-	// Section B is rewritten; Section A is untouched. Append-only (D5): the old
-	// Section B chunk is RETAINED, Section A is reused WITHOUT re-embedding, and
-	// only the new Section B text embeds.
-	edited := "## Section A\nAlways name constants instead of magic numbers in this codebase.\n\n" +
-		"## Section B\nUse sentinel errors and errors.Is for all not-found conditions.\n"
-	fs.put("/docs/conv.md", edited, 200)
-
-	before := emb.calls
-
-	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
-
-	records, err := chunk.DecodeRecords(fs.files["/chunks/"+cli.ExportIndexFileName("/docs/conv.md")])
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(records).To(gomega.HaveLen(3), "merge-append: prior 2 chunks retained + 1 new chunk added")
-
-	var all strings.Builder
-
-	for _, r := range records {
-		all.WriteString(r.Text)
-		all.WriteString("\n")
-	}
-
-	g.Expect(all.String()).To(gomega.ContainSubstring("sentinel errors"))
-	g.Expect(all.String()).To(gomega.ContainSubstring("Wrap errors with context"), "prior chunk retained (append-only)")
-	g.Expect(emb.calls-before).To(gomega.Equal(1), "only the edited section re-embeds")
-}
-
-func TestSweepSkipsUnchangedWithoutEmbedding(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	fs := newSweepFS()
-	fs.put("/docs/conv.md", sweepDoc, 100)
-
-	emb := &countingEmbedder{}
-	deps := sweepDeps(fs, emb, "/docs/conv.md")
-	args := cli.IngestArgs{Sweep: []string{"/docs"}, ChunksDir: "/chunks"}
-
-	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
-
-	before := emb.calls
-
-	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
-	g.Expect(emb.calls).To(gomega.Equal(before), "unchanged file must not re-embed")
-}
-
-func TestSweepSkipsVanishedSourceButExplicitErrors(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	// /docs/gone.md is listed by the sweep but unreadable (vanished between
-	// walk and read). The sweep must skip it and still ingest the live file
-	// AND write the manifest. An explicitly-named missing source still errors.
-	fs := newSweepFS()
-	fs.put("/docs/conv.md", sweepDoc, 100)
-
-	emb := &countingEmbedder{}
-	deps := sweepDeps(fs, emb, "/docs/conv.md", "/docs/gone.md")
-	args := cli.IngestArgs{Sweep: []string{"/docs"}, ChunksDir: "/chunks"}
-
-	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
-
-	_, manifestWritten := fs.files["/chunks/manifest.json"]
-	g.Expect(manifestWritten).To(gomega.BeTrue(), "manifest lands despite the vanished source")
-
-	records, err := chunk.DecodeRecords(fs.files["/chunks/"+cli.ExportIndexFileName("/docs/conv.md")])
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(records).NotTo(gomega.BeEmpty(), "live file still ingested")
-
-	explicit := cli.IngestArgs{Markdowns: []string{"/docs/gone.md"}, ChunksDir: "/chunks"}
-	g.Expect(cli.RunIngest(context.Background(), explicit, deps, io.Discard)).NotTo(gomega.Succeed(),
-		"explicitly-named missing sources still error loudly")
 }
 
 // unexported constants.

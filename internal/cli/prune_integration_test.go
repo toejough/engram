@@ -14,13 +14,13 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestOsPruneDetachesDeadSource drives the production os wiring (Stat/Read/
+// Test792b18c9a1_OsPruneDetachesDeadSource drives the production os wiring (Stat/Read/
 // Write) end-to-end through a temp dir: a manifest references one live
 // source (file present) and one dead source (file absent); prune drops the
 // dead source's manifest entry but leaves its index file on disk, since
 // chunk search discovers .jsonl files by directory scan and never consults
 // the manifest — detached chunks stay fully searchable.
-func TestOsPruneDetachesDeadSource(t *testing.T) {
+func Test792b18c9a1_OsPruneDetachesDeadSource(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 

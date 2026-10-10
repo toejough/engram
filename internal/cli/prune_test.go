@@ -14,124 +14,7 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestPruneDetachesDeadSources asserts that prune DETACHES rather than
-// deletes: the manifest entry for a dead source is dropped, but its
-// per-source .jsonl index file (the embedded chunk vectors) is left on disk
-// so chunk search — which discovers .jsonl files by directory scan, not the
-// manifest — can still find and search it. A live source is untouched.
-func TestPruneDetachesDeadSources(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	live := "/sessions/live.jsonl"
-	dead := "/sessions/-private-tmp-eval/dead.jsonl"
-	manifest := map[string]map[string]any{
-		live: {"mtime_unix_nano": 1, "size": 10, "file_hash": "sha256:a"},
-		dead: {"mtime_unix_nano": 2, "size": 20, "file_hash": "sha256:b"},
-	}
-	manBytes, err := json.Marshal(manifest)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	fs := newPruneFS()
-	fs.files["/chunks/manifest.json"] = manBytes
-	fs.files["/chunks/"+cli.ExportIndexFileName(live)] = []byte("[]")
-	fs.files["/chunks/"+cli.ExportIndexFileName(dead)] = []byte("[]")
-	fs.exists[live] = true // dead source file is absent
-
-	err = cli.RunPrune(context.Background(),
-		cli.PruneArgs{ChunksDir: "/chunks"}, fs.pruneDeps(), io.Discard)
-
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	_, deadIndexPresent := fs.files["/chunks/"+cli.ExportIndexFileName(dead)]
-	g.Expect(deadIndexPresent).To(gomega.BeTrue(), "dead source index preserved on disk (still searchable)")
-
-	_, liveIndexPresent := fs.files["/chunks/"+cli.ExportIndexFileName(live)]
-	g.Expect(liveIndexPresent).To(gomega.BeTrue(), "live source index untouched")
-
-	var rewritten map[string]any
-	g.Expect(json.Unmarshal(fs.files["/chunks/manifest.json"], &rewritten)).To(gomega.Succeed())
-	g.Expect(rewritten).To(gomega.HaveKey(live))
-	g.Expect(rewritten).NotTo(gomega.HaveKey(dead), "dead source dropped from manifest")
-}
-
-func TestPruneNoDeadSources(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	live := "/sessions/live.jsonl"
-	manifest := map[string]map[string]any{
-		live: {"mtime_unix_nano": 1, "size": 10, "file_hash": "sha256:a"},
-	}
-
-	manBytes, err := json.Marshal(manifest)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	fs := newPruneFS()
-	fs.files["/chunks/manifest.json"] = manBytes
-	fs.exists[live] = true // live source exists
-
-	err = cli.RunPrune(context.Background(),
-		cli.PruneArgs{ChunksDir: "/chunks"}, fs.pruneDeps(), io.Discard)
-
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	// Manifest should be unchanged (not rewritten since nothing pruned)
-	var rewritten map[string]any
-	g.Expect(json.Unmarshal(fs.files["/chunks/manifest.json"], &rewritten)).To(gomega.Succeed())
-	g.Expect(rewritten).To(gomega.HaveKey(live))
-}
-
-func TestPruneNoManifestIsNoOp(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	fs := newPruneFS() // empty — no manifest file
-
-	err := cli.RunPrune(context.Background(),
-		cli.PruneArgs{ChunksDir: "/chunks"}, fs.pruneDeps(), io.Discard)
-
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-}
-
-func TestRunPruneEmptyDryRunDeletesNothing(t *testing.T) {
-	t.Parallel()
-
-	g := gomega.NewWithT(t)
-
-	fs := newPruneFS()
-	fs.files["/chunks/empty.jsonl"] = []byte("")
-	fs.files["/chunks/full.jsonl"] = []byte("x\n")
-
-	out := &strings.Builder{}
-	err := cli.RunPrune(context.Background(),
-		cli.PruneArgs{ChunksDir: "/chunks", Empty: true, DryRun: true}, fs.pruneDeps(), out)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	_, emptyExists := fs.files["/chunks/empty.jsonl"]
-	g.Expect(emptyExists).To(gomega.BeTrue(), "dry-run must not delete")
-	g.Expect(out.String()).To(gomega.ContainSubstring("[dry-run]"))
-	g.Expect(out.String()).To(gomega.ContainSubstring("removed 1"))
-	g.Expect(out.String()).To(gomega.ContainSubstring("of 2 scanned"))
-}
-
-func TestRunPruneEmptyRemovesOnlyEmptyFiles(t *testing.T) {
+func Test792b18c10a1_RunPruneEmptyRemovesOnlyEmptyFiles(t *testing.T) {
 	t.Parallel()
 
 	g := gomega.NewWithT(t)
@@ -165,68 +48,35 @@ func TestRunPruneEmptyRemovesOnlyEmptyFiles(t *testing.T) {
 		"prune --empty must never touch manifest.json")
 }
 
-// TestRunPrune_DryRunDoesNotWriteManifest asserts that RunPrune's default
-// (non-empty) path honors --dry-run: with a dead source present, the
-// manifest must never be written, and stdout must carry the same
-// "[dry-run] " prefix pruneEmptyLocked uses.
-func TestRunPrune_DryRunDoesNotWriteManifest(t *testing.T) {
+func Test792b18c10a2_RunPruneEmptyDryRunDeletesNothing(t *testing.T) {
 	t.Parallel()
+
 	g := gomega.NewWithT(t)
 
-	const (
-		chunksDir    = "/c"
-		manifestPath = "/c/manifest.json"
-		liveSource   = "/sessions/live.jsonl"
-		deadSource   = "/sessions/dead.jsonl"
-	)
-
-	manifest := map[string]map[string]any{
-		liveSource: {"mtime_unix_nano": 1, "size": 10, "file_hash": "sha256:a"},
-		deadSource: {"mtime_unix_nano": 2, "size": 20, "file_hash": "sha256:b"},
-	}
-
-	manBytes, err := json.Marshal(manifest)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	deps := cli.PruneDeps{
-		ReadFile: func(path string) ([]byte, error) {
-			if path == manifestPath {
-				return manBytes, nil
-			}
-
-			return nil, io.ErrUnexpectedEOF
-		},
-		WriteFile: func(string, []byte) error {
-			t.Fatal("WriteFile must not be called in --dry-run")
-
-			return nil
-		},
-		Exists: func(path string) bool {
-			return path == liveSource // dead source's file does not exist
-		},
-	}
+	fs := newPruneFS()
+	fs.files["/chunks/empty.jsonl"] = []byte("")
+	fs.files["/chunks/full.jsonl"] = []byte("x\n")
 
 	out := &strings.Builder{}
-	err = cli.RunPrune(context.Background(),
-		cli.PruneArgs{ChunksDir: chunksDir, DryRun: true}, deps, out)
-
+	err := cli.RunPrune(context.Background(),
+		cli.PruneArgs{ChunksDir: "/chunks", Empty: true, DryRun: true}, fs.pruneDeps(), out)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	if err != nil {
 		return
 	}
 
-	g.Expect(out.String()).To(gomega.ContainSubstring("[dry-run] "))
+	_, emptyExists := fs.files["/chunks/empty.jsonl"]
+	g.Expect(emptyExists).To(gomega.BeTrue(), "dry-run must not delete")
+	g.Expect(out.String()).To(gomega.ContainSubstring("[dry-run]"))
+	g.Expect(out.String()).To(gomega.ContainSubstring("removed 1"))
+	g.Expect(out.String()).To(gomega.ContainSubstring("of 2 scanned"))
 }
 
-// TestRunPrune_LocksManifestAroundReadModifyWrite asserts that RunPrune
+// Test792b18c2a2_RunPrune_LocksManifestAroundReadModifyWrite asserts that RunPrune
 // acquires the manifest lock BEFORE reading the manifest and releases it
 // AFTER writing it, preventing concurrent lost updates alongside ingest (#660).
-func TestRunPrune_LocksManifestAroundReadModifyWrite(t *testing.T) {
+func Test792b18c2a2_RunPrune_LocksManifestAroundReadModifyWrite(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -308,10 +158,160 @@ func TestRunPrune_LocksManifestAroundReadModifyWrite(t *testing.T) {
 		"manifest write must precede unlock")
 }
 
-// TestRunPrune_WriteManifestErrorPropagates asserts that a WriteFile failure
+// Test792b18c9a1_PruneDetachesDeadSources asserts that prune DETACHES rather than
+// deletes: the manifest entry for a dead source is dropped, but its
+// per-source .jsonl index file (the embedded chunk vectors) is left on disk
+// so chunk search — which discovers .jsonl files by directory scan, not the
+// manifest — can still find and search it. A live source is untouched.
+func Test792b18c9a1_PruneDetachesDeadSources(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	live := "/sessions/live.jsonl"
+	dead := "/sessions/-private-tmp-eval/dead.jsonl"
+	manifest := map[string]map[string]any{
+		live: {"mtime_unix_nano": 1, "size": 10, "file_hash": "sha256:a"},
+		dead: {"mtime_unix_nano": 2, "size": 20, "file_hash": "sha256:b"},
+	}
+	manBytes, err := json.Marshal(manifest)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	fs := newPruneFS()
+	fs.files["/chunks/manifest.json"] = manBytes
+	fs.files["/chunks/"+cli.ExportIndexFileName(live)] = []byte("[]")
+	fs.files["/chunks/"+cli.ExportIndexFileName(dead)] = []byte("[]")
+	fs.exists[live] = true // dead source file is absent
+
+	err = cli.RunPrune(context.Background(),
+		cli.PruneArgs{ChunksDir: "/chunks"}, fs.pruneDeps(), io.Discard)
+
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	_, deadIndexPresent := fs.files["/chunks/"+cli.ExportIndexFileName(dead)]
+	g.Expect(deadIndexPresent).To(gomega.BeTrue(), "dead source index preserved on disk (still searchable)")
+
+	_, liveIndexPresent := fs.files["/chunks/"+cli.ExportIndexFileName(live)]
+	g.Expect(liveIndexPresent).To(gomega.BeTrue(), "live source index untouched")
+
+	var rewritten map[string]any
+	g.Expect(json.Unmarshal(fs.files["/chunks/manifest.json"], &rewritten)).To(gomega.Succeed())
+	g.Expect(rewritten).To(gomega.HaveKey(live))
+	g.Expect(rewritten).NotTo(gomega.HaveKey(dead), "dead source dropped from manifest")
+}
+
+func Test792b18c9a2_PruneNoDeadSources(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	live := "/sessions/live.jsonl"
+	manifest := map[string]map[string]any{
+		live: {"mtime_unix_nano": 1, "size": 10, "file_hash": "sha256:a"},
+	}
+
+	manBytes, err := json.Marshal(manifest)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	fs := newPruneFS()
+	fs.files["/chunks/manifest.json"] = manBytes
+	fs.exists[live] = true // live source exists
+
+	err = cli.RunPrune(context.Background(),
+		cli.PruneArgs{ChunksDir: "/chunks"}, fs.pruneDeps(), io.Discard)
+
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	// Manifest should be unchanged (not rewritten since nothing pruned)
+	var rewritten map[string]any
+	g.Expect(json.Unmarshal(fs.files["/chunks/manifest.json"], &rewritten)).To(gomega.Succeed())
+	g.Expect(rewritten).To(gomega.HaveKey(live))
+}
+
+func Test792b18c9a3_PruneNoManifestIsNoOp(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	fs := newPruneFS() // empty — no manifest file
+
+	err := cli.RunPrune(context.Background(),
+		cli.PruneArgs{ChunksDir: "/chunks"}, fs.pruneDeps(), io.Discard)
+
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+}
+
+// Test792b18c9a4_RunPrune_DryRunDoesNotWriteManifest asserts that RunPrune's default
+// (non-empty) path honors --dry-run: with a dead source present, the
+// manifest must never be written, and stdout must carry the same
+// "[dry-run] " prefix pruneEmptyLocked uses.
+func Test792b18c9a4_RunPrune_DryRunDoesNotWriteManifest(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	const (
+		chunksDir    = "/c"
+		manifestPath = "/c/manifest.json"
+		liveSource   = "/sessions/live.jsonl"
+		deadSource   = "/sessions/dead.jsonl"
+	)
+
+	manifest := map[string]map[string]any{
+		liveSource: {"mtime_unix_nano": 1, "size": 10, "file_hash": "sha256:a"},
+		deadSource: {"mtime_unix_nano": 2, "size": 20, "file_hash": "sha256:b"},
+	}
+
+	manBytes, err := json.Marshal(manifest)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	deps := cli.PruneDeps{
+		ReadFile: func(path string) ([]byte, error) {
+			if path == manifestPath {
+				return manBytes, nil
+			}
+
+			return nil, io.ErrUnexpectedEOF
+		},
+		WriteFile: func(string, []byte) error {
+			t.Fatal("WriteFile must not be called in --dry-run")
+
+			return nil
+		},
+		Exists: func(path string) bool {
+			return path == liveSource // dead source's file does not exist
+		},
+	}
+
+	out := &strings.Builder{}
+	err = cli.RunPrune(context.Background(),
+		cli.PruneArgs{ChunksDir: chunksDir, DryRun: true}, deps, out)
+
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out.String()).To(gomega.ContainSubstring("[dry-run] "))
+}
+
+// Test792b18c9a5_RunPrune_WriteManifestErrorPropagates asserts that a WriteFile failure
 // while persisting the detached manifest is wrapped and returned, not
 // swallowed.
-func TestRunPrune_WriteManifestErrorPropagates(t *testing.T) {
+func Test792b18c9a5_RunPrune_WriteManifestErrorPropagates(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 

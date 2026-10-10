@@ -53,34 +53,7 @@ flowchart TB
 | C2 → S6 | `engram update` runs `go install`, then re-execs the fresh binary for the sync phase (ENGRAM_UPDATE_REEXEC loop guard, ADR-0023), which syncs refreshed artifacts to engram-owned roots per harness (`~/.claude/engram/`, etc.; ADR-0022 D1) and materializes symlinks into each harness's surface dirs (`~/.claude/skills/`, etc.); removals from the source propagate on every update (sync-delete); first update performs dark migration of pre-existing copies; `--with-guidance` also syncs guidance docs to the root's `guidance/` subtree and materializes symlinks, plus compat symlinks at flat paths for existing `@import` lines (opt-in); manifest-mode fallback for harnesses whose discovery fails symlink verification. |
 | C2 → S7 | With `ENGRAM_PARENT` set: `engram query` fetches the parent's `/query?dedupe-keys=1` and merges notes only (never chunks) into the local payload; `engram learn`/a content `amend`/`resituate` offer the note, queued in a local outbox and drained with backoff to the parent's `/learn`; `engram activate` on a local miss pulls the parent's note down via `GET /show?raw=1` as a new local pending offer, then best-effort bumps its use on the parent (ADR-0029). |
 
-### Flowchart: ingest/chunking (C2→S5)
-
-```mermaid
-flowchart TD
-    A["engram ingest --auto"] --> B["resolve default roots: repo markdown + ancestor .claude and .pi dirs + session logs (.engram/sweep.json)"]
-    B --> C{"session source path starts with a non-persistent-workspace prefix? (-private-tmp-, -tmp-, -var-folders-, -private-var-folders-)"}
-    C -->|"yes, no explicit override"| SK["skip source (keeps eval/test runs out of the main chunk index)"]
-    C -->|"no, or explicit --sweep/--transcript/--markdown/--pi-sessions/isolated-env override"| D["stat source: mtime + size + hash vs manifest.json"]
-    D --> E{"changed vs the manifest entry?"}
-    E -->|no| SK2["skip: cheap mtime+size match, no read"]
-    E -->|yes| F["strip harness noise (context.Strip)"]
-    F --> G["chunk (792b16 source-chunking)"]
-    G --> H["embed each new-hash chunk (existing hashes reused, never re-embedded)"]
-    H --> I["merge-append chunk records + manifest entry under flock(.manifest.lock) — cross-source dedup groups gathered sources by (content hash, chunking class) first; only the canonical member (selectCanonical) is indexed, others recorded as manifestEntry.DuplicateOf (ADR-0021)"]
-    I --> J["chunk index: per-source record file + manifest.json (mtime/size/hash)"]
-
-    P["engram prune (separate operator-run GC)"] -.->|"acquires the same flock(.manifest.lock)"| I
-    P --> Q["default: drop the stale per-source manifest entry, keeping the .jsonl on disk (still searchable)"]
-    P --> Qe["--empty: remove 0-byte .jsonl index files left by zero-record sources (#694; ranking-neutral)"]
-    P --> Qd["--duplicates: collapse each (content-hash, chunking-class) group in the manifest to one canonical index file, removing the rest — gated on the canonical's index file existing now and verifiably covering each duplicate's own records; refuses rather than removes when that can't be confirmed (ADR-0021)"]
-```
-
-Source: `internal/cli/ingest.go` (`RunIngest`, the manifest staleness check, `Lock`),
-`internal/cli/ingest_dedup.go` (`selectCanonical`, `canonicalCoversDuplicateRecords`),
-`internal/cli/sweepspec.go` (`NonPersistentPrefixes` default list), `internal/cli/prune.go` (`RunPrune`),
-`internal/cli/prune_duplicates.go` (`pruneDuplicatesLocked`).
-
-**Cross-level note (L1↔L2 reclassification).** At [L1](c1-system-context.md) the vault is **S4 — an external system** (operator-configurable, on the operator's filesystem, possibly human-edited in Obsidian); on decomposition it reappears here as **C4**, an internal store, because from engram's runtime view it is the data store engram owns and writes. This is an intentional decomposition choice, noted so the L1→L2 mapping is explicit rather than silent. Staleness tracking (`manifest.json` — mtime/size/hash per source) lives in the chunk index directory (`$XDG_DATA_HOME/engram/chunks`), which is part of C2's operational state rather than a separate container.
+**Cross-level note (L1↔L2 reclassification).** At [L1](c1-system-context.md) the vault is **S4 — an external system** (operator-configurable, on the operator's filesystem, possibly human-edited in Obsidian); on decomposition it reappears here as **C4**, an internal store, because from engram's runtime view it is the data store engram owns and writes. This is an intentional decomposition choice, noted so the L1→L2 mapping is explicit rather than silent. The chunk index's directory is part of C2's operational state rather than a separate container ([792b18](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b18-added-chunk-index-store)).
 
 ## The skills↔binary split (the load-bearing boundary)
 - **C2 (binary) is deterministic and the thing the invariants gate:** marker math, noise-strip,

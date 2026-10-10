@@ -667,7 +667,7 @@ to cover every one of the duplicate's own chunk records — never on
 hash-match alone, since a source's index file can hold historical records
 from a previous ingest that its current byte-identical twin's index does
 not. A later, higher-precedence copy of an already-indexed group evicts the
-lower-precedence one it replaces (ADR-0021). See the `engram prune` entry
+lower-precedence one it replaces ([792b18](changes/792_documentation-framework-adoption/792b_technical-spec.md#792b18-added-chunk-index-store)). See the `engram prune` entry
 below for the retroactive `--duplicates` cleanup mode. `--auto` sweeps all known sources, skips
 session-log directories whose slugified project path starts with a
 **non-persistent-workspace prefix** (`-private-tmp-`, `-tmp-`,
@@ -713,7 +713,7 @@ collapses every exact-content-hash group in the manifest (grouped by
 `FileHash` + `chunkingClass`, the same partition `engram ingest`'s dedup
 uses) down to one canonical member, and DOES remove the other members' index
 files plus their manifest entries — cleanup for duplicates indexed before
-ingest-time dedup existed (ADR-0021). Safe by construction: a duplicate is
+ingest-time dedup existed ([792b18](changes/792_documentation-framework-adoption/792b_technical-spec.md#792b18-added-chunk-index-store)). Safe by construction: a duplicate is
 removed only when the retained canonical's index file exists right now AND
 verifiably covers every one of the duplicate's own chunk records; otherwise
 the removal is refused and reported (structural refusals — the canonical has

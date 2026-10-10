@@ -1083,6 +1083,65 @@ func Test792b14c9a4_RunAmend_Activate_PreservesLastUsedAcrossReEmbed(t *testing.
 		"activate must stamp today's LastUsed on the re-embedded sidecar")
 }
 
+func Test792b18c13a1_BuildChunkIDSet_ReturnsSourceAnchorKeys(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	sessionRecord := chunk.Record{
+		Source: "/sessions/a.jsonl", Anchor: "turn-1",
+		ContentHash: "sha256:aaa", Text: "hi", Vector: []float32{0.1},
+	}
+	docRecord := chunk.Record{
+		Source: "/docs/b.md", Anchor: "Heading",
+		ContentHash: "sha256:bbb", Text: "bye", Vector: []float32{0.2},
+	}
+
+	encoded1, err := chunk.EncodeRecords([]chunk.Record{sessionRecord})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	encoded2, err := chunk.EncodeRecords([]chunk.Record{docRecord})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	files := map[string][]byte{
+		"/chunks/a.jsonl": encoded1,
+		"/chunks/b.jsonl": encoded2,
+	}
+	readFile := func(path string) ([]byte, error) {
+		data, ok := files[path]
+		if !ok {
+			return nil, fmt.Errorf("not found: %s", path)
+		}
+
+		return data, nil
+	}
+	listIndexes := func(string) ([]string, error) {
+		return []string{"/chunks/a.jsonl", "/chunks/b.jsonl"}, nil
+	}
+
+	// Simulate the AmendDeps.LoadChunkIDs call pattern.
+	ids, loadErr := cli.ExportBuildChunkIDSet("/chunks", listIndexes, readFile)
+	g.Expect(loadErr).NotTo(HaveOccurred())
+
+	if loadErr != nil {
+		return
+	}
+
+	// Ids are source#anchor, NOT content hashes.
+	g.Expect(ids["/sessions/a.jsonl#turn-1"]).To(BeTrue(), "r1 source#anchor must be in set")
+	g.Expect(ids["/docs/b.md#Heading"]).To(BeTrue(), "r2 source#anchor must be in set")
+	g.Expect(ids["sha256:aaa"]).To(BeFalse(), "content hash must NOT be in set")
+	g.Expect(ids["nonexistent#anchor"]).To(BeFalse(), "absent id must not be in set")
+}
+
 // Test792b6c7a1_RunAmend_PreservesTagsFrontmatter (#674): amending a content field of a
 // tagged fact note must not drop tags: — factFrontmatterDoc.Tags carries the
 // list through amend's decode→override→render cycle. No --tag flag exists on
@@ -1219,65 +1278,6 @@ func TestApplyVocabAssignmentAfterAmend_TriggerFires(t *testing.T) {
 	}
 
 	g.Expect(got.RefitPending).To(BeTrue())
-}
-
-func TestBuildChunkIDSet_ReturnsSourceAnchorKeys(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	sessionRecord := chunk.Record{
-		Source: "/sessions/a.jsonl", Anchor: "turn-1",
-		ContentHash: "sha256:aaa", Text: "hi", Vector: []float32{0.1},
-	}
-	docRecord := chunk.Record{
-		Source: "/docs/b.md", Anchor: "Heading",
-		ContentHash: "sha256:bbb", Text: "bye", Vector: []float32{0.2},
-	}
-
-	encoded1, err := chunk.EncodeRecords([]chunk.Record{sessionRecord})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	encoded2, err := chunk.EncodeRecords([]chunk.Record{docRecord})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	files := map[string][]byte{
-		"/chunks/a.jsonl": encoded1,
-		"/chunks/b.jsonl": encoded2,
-	}
-	readFile := func(path string) ([]byte, error) {
-		data, ok := files[path]
-		if !ok {
-			return nil, fmt.Errorf("not found: %s", path)
-		}
-
-		return data, nil
-	}
-	listIndexes := func(string) ([]string, error) {
-		return []string{"/chunks/a.jsonl", "/chunks/b.jsonl"}, nil
-	}
-
-	// Simulate the AmendDeps.LoadChunkIDs call pattern.
-	ids, loadErr := cli.ExportBuildChunkIDSet("/chunks", listIndexes, readFile)
-	g.Expect(loadErr).NotTo(HaveOccurred())
-
-	if loadErr != nil {
-		return
-	}
-
-	// Ids are source#anchor, NOT content hashes.
-	g.Expect(ids["/sessions/a.jsonl#turn-1"]).To(BeTrue(), "r1 source#anchor must be in set")
-	g.Expect(ids["/docs/b.md#Heading"]).To(BeTrue(), "r2 source#anchor must be in set")
-	g.Expect(ids["sha256:aaa"]).To(BeFalse(), "content hash must NOT be in set")
-	g.Expect(ids["nonexistent#anchor"]).To(BeFalse(), "absent id must not be in set")
 }
 
 // TestDiscardNote_PropagatesNoteRemoveError asserts discardNote wraps and

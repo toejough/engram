@@ -228,9 +228,9 @@ func Test792b17c8a3_PiSessionsAutoSweepIngestsPISessionsFromAncestor(t *testing.
 	g.Expect(ok).To(gomega.BeTrue(), "auto-swept PI session must be indexed")
 }
 
-// TestPiSessionsReadErrorPropagates verifies that errors reading PI sessions are
+// Test792b18c4a3_PiSessionsReadErrorPropagates verifies that errors reading PI sessions are
 // properly propagated.
-func TestPiSessionsReadErrorPropagates(t *testing.T) {
+func Test792b18c4a3_PiSessionsReadErrorPropagates(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 

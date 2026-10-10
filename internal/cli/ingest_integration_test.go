@@ -17,6 +17,101 @@ import (
 	"github.com/toejough/engram/internal/transcript"
 )
 
+func Test792b18c4a2_IngestMarkdownReadErrorPropagates(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	deps := cli.IngestDeps{
+		ReadFile:       (&memFS{files: map[string][]byte{}}).read,
+		WriteFile:      func(string, []byte) error { return nil },
+		ReadTranscript: transcriptReader(""),
+		Embedder:       fakeIngestEmbedder{},
+	}
+
+	err := cli.RunIngest(context.Background(), cli.IngestArgs{
+		Markdowns: []string{"/missing.md"}, ChunksDir: "/chunks",
+	}, deps, io.Discard)
+
+	g.Expect(err).To(gomega.HaveOccurred())
+}
+
+func Test792b18c4a3_IngestTranscriptReadErrorPropagates(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	deps := cli.IngestDeps{
+		ReadFile:  (&memFS{files: map[string][]byte{"/sessions/x.jsonl": []byte("{raw}")}}).read,
+		WriteFile: func(string, []byte) error { return nil },
+		ReadTranscript: func(string, time.Time, int) (transcript.ReadResult, error) {
+			return transcript.ReadResult{}, errBoom
+		},
+		Embedder: fakeIngestEmbedder{},
+	}
+
+	err := cli.RunIngest(context.Background(), cli.IngestArgs{
+		Transcripts: []string{"/sessions/x.jsonl"}, ChunksDir: "/chunks",
+	}, deps, io.Discard)
+
+	g.Expect(err).To(gomega.MatchError(errBoom))
+}
+
+func Test792b18c4a4_IngestWriteIndexErrorPropagates(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	md := "## Conventions\nAlways name constants instead of magic numbers in this codebase.\n"
+	deps := cli.IngestDeps{
+		ReadFile:       (&memFS{files: map[string][]byte{"/docs/conv.md": []byte(md)}}).read,
+		WriteFile:      func(string, []byte) error { return errBoom },
+		ReadTranscript: transcriptReader(""),
+		Embedder:       fakeIngestEmbedder{},
+	}
+
+	err := cli.RunIngest(context.Background(), cli.IngestArgs{
+		Markdowns: []string{"/docs/conv.md"}, ChunksDir: "/chunks",
+	}, deps, io.Discard)
+
+	g.Expect(err).To(gomega.MatchError(errBoom), "rebuildIndex write-error must propagate")
+}
+
+// Test792b18c5a6_OsIngestThenChunkQuery drives the production wiring (with a fake
+// embedder) end-to-end through a temp dir: markdown ingest -> index on disk
+// -> chunk query payload. Integration test for the thin os adapters.
+func Test792b18c5a6_OsIngestThenChunkQuery(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	dir := t.TempDir()
+	mdPath := filepath.Join(dir, "doc.md")
+	g.Expect(os.WriteFile(mdPath, []byte("## Conventions\nName constants instead of magic numbers everywhere.\n"), 0o600)).
+		To(gomega.Succeed())
+
+	chunksDir := filepath.Join(dir, "chunks")
+	ingestDeps := cli.ExportNewIngestDeps(newTestDeps(io.Discard, io.Discard), fakeIngestEmbedder{})
+
+	// Sweep mode drives the production Stat + ListSources wiring too.
+	err := cli.RunIngest(context.Background(), cli.IngestArgs{
+		Sweep: []string{dir}, ChunksDir: chunksDir,
+	}, ingestDeps, io.Discard)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	// Second sweep: unchanged file short-circuits on the manifest stat check.
+	err = cli.RunIngest(context.Background(), cli.IngestArgs{
+		Sweep: []string{dir}, ChunksDir: chunksDir,
+	}, ingestDeps, io.Discard)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	var out strings.Builder
+
+	queryDeps := cli.ExportNewChunkQueryDeps(realFSForTest(), fakeIngestEmbedder{})
+	err = cli.RunChunkQuery(context.Background(), cli.ChunkQueryArgs{
+		Phrases: []string{"magic numbers"}, ChunksDir: chunksDir, Limit: 5,
+	}, queryDeps, &out)
+
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(out.String()).To(gomega.ContainSubstring("Name constants"))
+}
+
 func TestChunkQueryClustersManyChunks(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -113,101 +208,6 @@ func TestChunkQueryRequiresPhrase(t *testing.T) {
 	err := cli.RunChunkQuery(context.Background(), cli.ChunkQueryArgs{ChunksDir: "/x"}, cli.ChunkQueryDeps{}, io.Discard)
 
 	g.Expect(err).To(gomega.HaveOccurred())
-}
-
-func TestIngestMarkdownReadErrorPropagates(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	deps := cli.IngestDeps{
-		ReadFile:       (&memFS{files: map[string][]byte{}}).read,
-		WriteFile:      func(string, []byte) error { return nil },
-		ReadTranscript: transcriptReader(""),
-		Embedder:       fakeIngestEmbedder{},
-	}
-
-	err := cli.RunIngest(context.Background(), cli.IngestArgs{
-		Markdowns: []string{"/missing.md"}, ChunksDir: "/chunks",
-	}, deps, io.Discard)
-
-	g.Expect(err).To(gomega.HaveOccurred())
-}
-
-func TestIngestTranscriptReadErrorPropagates(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	deps := cli.IngestDeps{
-		ReadFile:  (&memFS{files: map[string][]byte{"/sessions/x.jsonl": []byte("{raw}")}}).read,
-		WriteFile: func(string, []byte) error { return nil },
-		ReadTranscript: func(string, time.Time, int) (transcript.ReadResult, error) {
-			return transcript.ReadResult{}, errBoom
-		},
-		Embedder: fakeIngestEmbedder{},
-	}
-
-	err := cli.RunIngest(context.Background(), cli.IngestArgs{
-		Transcripts: []string{"/sessions/x.jsonl"}, ChunksDir: "/chunks",
-	}, deps, io.Discard)
-
-	g.Expect(err).To(gomega.MatchError(errBoom))
-}
-
-func TestIngestWriteIndexErrorPropagates(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	md := "## Conventions\nAlways name constants instead of magic numbers in this codebase.\n"
-	deps := cli.IngestDeps{
-		ReadFile:       (&memFS{files: map[string][]byte{"/docs/conv.md": []byte(md)}}).read,
-		WriteFile:      func(string, []byte) error { return errBoom },
-		ReadTranscript: transcriptReader(""),
-		Embedder:       fakeIngestEmbedder{},
-	}
-
-	err := cli.RunIngest(context.Background(), cli.IngestArgs{
-		Markdowns: []string{"/docs/conv.md"}, ChunksDir: "/chunks",
-	}, deps, io.Discard)
-
-	g.Expect(err).To(gomega.MatchError(errBoom), "rebuildIndex write-error must propagate")
-}
-
-// TestOsIngestThenChunkQuery drives the production wiring (with a fake
-// embedder) end-to-end through a temp dir: markdown ingest -> index on disk
-// -> chunk query payload. Integration test for the thin os adapters.
-func TestOsIngestThenChunkQuery(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	dir := t.TempDir()
-	mdPath := filepath.Join(dir, "doc.md")
-	g.Expect(os.WriteFile(mdPath, []byte("## Conventions\nName constants instead of magic numbers everywhere.\n"), 0o600)).
-		To(gomega.Succeed())
-
-	chunksDir := filepath.Join(dir, "chunks")
-	ingestDeps := cli.ExportNewIngestDeps(newTestDeps(io.Discard, io.Discard), fakeIngestEmbedder{})
-
-	// Sweep mode drives the production Stat + ListSources wiring too.
-	err := cli.RunIngest(context.Background(), cli.IngestArgs{
-		Sweep: []string{dir}, ChunksDir: chunksDir,
-	}, ingestDeps, io.Discard)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	// Second sweep: unchanged file short-circuits on the manifest stat check.
-	err = cli.RunIngest(context.Background(), cli.IngestArgs{
-		Sweep: []string{dir}, ChunksDir: chunksDir,
-	}, ingestDeps, io.Discard)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	var out strings.Builder
-
-	queryDeps := cli.ExportNewChunkQueryDeps(realFSForTest(), fakeIngestEmbedder{})
-	err = cli.RunChunkQuery(context.Background(), cli.ChunkQueryArgs{
-		Phrases: []string{"magic numbers"}, ChunksDir: chunksDir, Limit: 5,
-	}, queryDeps, &out)
-
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(out.String()).To(gomega.ContainSubstring("Name constants"))
 }
 
 // unexported variables.

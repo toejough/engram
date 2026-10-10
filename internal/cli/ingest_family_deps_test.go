@@ -51,26 +51,109 @@ func Test792b17c6a2_IngestDepsSessionDirHonorsTranscriptDirEnv(t *testing.T) {
 	g.Expect(deps.SessionDir("/anywhere")).To(gomega.Equal("/custom/sessions"))
 }
 
-func TestIngestDepsLockMkdirErrorPropagates(t *testing.T) {
+func Test792b18c12a1_PruneDepsListIndexesColdStartAndFiltering(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	d := cli.Deps{
-		FS: fakeEdgeFS{
-			mkdirAll: func(string, fs.FileMode) error { return errBoom },
-		},
-		Lock: fakeLocker{lock: func(string) (func() error, error) {
-			t.Fatal("Lock must not be called when MkdirAll fails")
+	d := newTestDeps(io.Discard, io.Discard)
+	d.FS = fakeEdgeFS{readDir: func(string) ([]fs.DirEntry, error) {
+		return nil, fmt.Errorf("reading dir: %w", fs.ErrNotExist)
+	}}
 
-			return nil, errBoom
-		}},
-	}
+	deps := cli.ExportNewPruneDeps(d)
 
-	_, err := cli.ExportNewIngestDeps(d, fakeIngestEmbedder{}).Lock("/chunks")
+	paths, err := deps.ListIndexes("/absent")
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(paths).To(gomega.BeEmpty(), "missing chunks dir is a cold start, not an error")
+
+	d.FS = fakeEdgeFS{readDir: func(string) ([]fs.DirEntry, error) {
+		return []fs.DirEntry{
+			fakeDirEntry{name: "a.jsonl"},
+			fakeDirEntry{name: "notes.md"},
+			fakeDirEntry{name: "sub", dir: true},
+			fakeDirEntry{name: "b.jsonl"},
+		}, nil
+	}}
+	deps = cli.ExportNewPruneDeps(d)
+
+	paths, err = deps.ListIndexes("/chunks")
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(paths).To(gomega.Equal([]string{
+		filepath.Join("/chunks", "a.jsonl"),
+		filepath.Join("/chunks", "b.jsonl"),
+	}), "only non-dir .jsonl entries, joined under dir")
+
+	d.FS = fakeEdgeFS{readDir: func(string) ([]fs.DirEntry, error) { return nil, errBoom }}
+	deps = cli.ExportNewPruneDeps(d)
+
+	_, err = deps.ListIndexes("/chunks")
 	g.Expect(err).To(gomega.MatchError(errBoom))
 }
 
-func TestIngestDepsLockMkdirsChunksDirBeforeLocking(t *testing.T) {
+func Test792b18c1a2_IngestDepsWriteFileMkdirsParentThenWritesAtomically(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	var calls []string
+
+	d := newTestDeps(io.Discard, io.Discard)
+	d.FS = fakeEdgeFS{
+		mkdirAll: func(path string, perm fs.FileMode) error {
+			calls = append(calls, fmt.Sprintf("mkdirall %s %o", path, perm))
+
+			return nil
+		},
+		writeFileAtomic: func(path string, _ []byte, perm fs.FileMode) error {
+			calls = append(calls, fmt.Sprintf("writeatomic %s %o", path, perm))
+
+			return nil
+		},
+	}
+
+	deps := cli.ExportNewIngestDeps(d, fakeIngestEmbedder{})
+
+	g.Expect(deps.WriteFile("/chunks/idx.jsonl", []byte("x"))).To(gomega.Succeed())
+	g.Expect(calls).To(gomega.Equal([]string{
+		"mkdirall /chunks 700",
+		"writeatomic /chunks/idx.jsonl 600",
+	}), "parent dir created before atomic 0600 write")
+}
+
+func Test792b18c1a3_IngestDepsStatMapsFileInfoToSourceStat(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	mtime := time.Date(2026, 7, 19, 10, 0, 0, 0, time.UTC)
+
+	const wantSize = int64(42)
+
+	d := newTestDeps(io.Discard, io.Discard)
+	d.FS = fakeEdgeFS{stat: func(string) (fs.FileInfo, error) {
+		return fakeFileInfo{mtime: mtime, size: wantSize}, nil
+	}}
+
+	deps := cli.ExportNewIngestDeps(d, fakeIngestEmbedder{})
+
+	stat, err := deps.Stat("/src.md")
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stat).To(gomega.Equal(cli.SourceStat{
+		MtimeUnixNano: mtime.UnixNano(),
+		Size:          wantSize,
+	}))
+
+	d.FS = fakeEdgeFS{stat: func(string) (fs.FileInfo, error) { return nil, errBoom }}
+	deps = cli.ExportNewIngestDeps(d, fakeIngestEmbedder{})
+
+	_, err = deps.Stat("/src.md")
+	g.Expect(err).To(gomega.MatchError(errBoom))
+}
+
+func Test792b18c2a4_IngestDepsLockMkdirsChunksDirBeforeLocking(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -111,101 +194,26 @@ func TestIngestDepsLockMkdirsChunksDirBeforeLocking(t *testing.T) {
 	}), "MkdirAll must precede flock (fresh-dir regression), release must unlock")
 }
 
-// TestIngestDepsReadTranscriptReadsViaFS proves ReadTranscript's injected
-// transcript.JSONLReader routes its raw read through the composed EdgeFS
-// (fsFileReader), not a direct os call — the transcript-strip path exercised
-// end-to-end over the pure composition.
-func TestIngestDepsReadTranscriptReadsViaFS(t *testing.T) {
+func Test792b18c2a5_IngestDepsLockMkdirErrorPropagates(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	const transcriptPath = "/sessions/s.jsonl"
-
-	line := `{"type":"user","timestamp":"2026-01-01T00:00:00Z","message":{"role":"user","content":"hello there"}}`
-
-	var readPath string
-
-	d := cli.Deps{FS: fakeEdgeFS{
-		readFile: func(path string) ([]byte, error) {
-			readPath = path
-
-			return []byte(line + "\n"), nil
+	d := cli.Deps{
+		FS: fakeEdgeFS{
+			mkdirAll: func(string, fs.FileMode) error { return errBoom },
 		},
-	}}
+		Lock: fakeLocker{lock: func(string) (func() error, error) {
+			t.Fatal("Lock must not be called when MkdirAll fails")
 
-	deps := cli.ExportNewIngestDeps(d, fakeIngestEmbedder{})
-
-	result, err := deps.ReadTranscript(transcriptPath, time.Time{}, 0)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	g.Expect(readPath).To(gomega.Equal(transcriptPath), "fsFileReader must read via the injected EdgeFS")
-	g.Expect(result.Content).To(gomega.ContainSubstring("hello there"))
-}
-
-func TestIngestDepsStatMapsFileInfoToSourceStat(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	mtime := time.Date(2026, 7, 19, 10, 0, 0, 0, time.UTC)
-
-	const wantSize = int64(42)
-
-	d := newTestDeps(io.Discard, io.Discard)
-	d.FS = fakeEdgeFS{stat: func(string) (fs.FileInfo, error) {
-		return fakeFileInfo{mtime: mtime, size: wantSize}, nil
-	}}
-
-	deps := cli.ExportNewIngestDeps(d, fakeIngestEmbedder{})
-
-	stat, err := deps.Stat("/src.md")
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
+			return nil, errBoom
+		}},
 	}
 
-	g.Expect(stat).To(gomega.Equal(cli.SourceStat{
-		MtimeUnixNano: mtime.UnixNano(),
-		Size:          wantSize,
-	}))
-
-	d.FS = fakeEdgeFS{stat: func(string) (fs.FileInfo, error) { return nil, errBoom }}
-	deps = cli.ExportNewIngestDeps(d, fakeIngestEmbedder{})
-
-	_, err = deps.Stat("/src.md")
+	_, err := cli.ExportNewIngestDeps(d, fakeIngestEmbedder{}).Lock("/chunks")
 	g.Expect(err).To(gomega.MatchError(errBoom))
 }
 
-func TestIngestDepsWriteFileMkdirsParentThenWritesAtomically(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	var calls []string
-
-	d := newTestDeps(io.Discard, io.Discard)
-	d.FS = fakeEdgeFS{
-		mkdirAll: func(path string, perm fs.FileMode) error {
-			calls = append(calls, fmt.Sprintf("mkdirall %s %o", path, perm))
-
-			return nil
-		},
-		writeFileAtomic: func(path string, _ []byte, perm fs.FileMode) error {
-			calls = append(calls, fmt.Sprintf("writeatomic %s %o", path, perm))
-
-			return nil
-		},
-	}
-
-	deps := cli.ExportNewIngestDeps(d, fakeIngestEmbedder{})
-
-	g.Expect(deps.WriteFile("/chunks/idx.jsonl", []byte("x"))).To(gomega.Succeed())
-	g.Expect(calls).To(gomega.Equal([]string{
-		"mkdirall /chunks 700",
-		"writeatomic /chunks/idx.jsonl 600",
-	}), "parent dir created before atomic 0600 write")
-}
-
-func TestPruneDepsExistsAndRemoveGoThroughFS(t *testing.T) {
+func Test792b18c9a6_PruneDepsExistsAndRemoveGoThroughFS(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -235,43 +243,35 @@ func TestPruneDepsExistsAndRemoveGoThroughFS(t *testing.T) {
 	g.Expect(removed).To(gomega.Equal([]string{"/chunks/empty.jsonl"}))
 }
 
-func TestPruneDepsListIndexesColdStartAndFiltering(t *testing.T) {
+// TestIngestDepsReadTranscriptReadsViaFS proves ReadTranscript's injected
+// transcript.JSONLReader routes its raw read through the composed EdgeFS
+// (fsFileReader), not a direct os call — the transcript-strip path exercised
+// end-to-end over the pure composition.
+func TestIngestDepsReadTranscriptReadsViaFS(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	d := newTestDeps(io.Discard, io.Discard)
-	d.FS = fakeEdgeFS{readDir: func(string) ([]fs.DirEntry, error) {
-		return nil, fmt.Errorf("reading dir: %w", fs.ErrNotExist)
+	const transcriptPath = "/sessions/s.jsonl"
+
+	line := `{"type":"user","timestamp":"2026-01-01T00:00:00Z","message":{"role":"user","content":"hello there"}}`
+
+	var readPath string
+
+	d := cli.Deps{FS: fakeEdgeFS{
+		readFile: func(path string) ([]byte, error) {
+			readPath = path
+
+			return []byte(line + "\n"), nil
+		},
 	}}
 
-	deps := cli.ExportNewPruneDeps(d)
+	deps := cli.ExportNewIngestDeps(d, fakeIngestEmbedder{})
 
-	paths, err := deps.ListIndexes("/absent")
+	result, err := deps.ReadTranscript(transcriptPath, time.Time{}, 0)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(paths).To(gomega.BeEmpty(), "missing chunks dir is a cold start, not an error")
 
-	d.FS = fakeEdgeFS{readDir: func(string) ([]fs.DirEntry, error) {
-		return []fs.DirEntry{
-			fakeDirEntry{name: "a.jsonl"},
-			fakeDirEntry{name: "notes.md"},
-			fakeDirEntry{name: "sub", dir: true},
-			fakeDirEntry{name: "b.jsonl"},
-		}, nil
-	}}
-	deps = cli.ExportNewPruneDeps(d)
-
-	paths, err = deps.ListIndexes("/chunks")
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(paths).To(gomega.Equal([]string{
-		filepath.Join("/chunks", "a.jsonl"),
-		filepath.Join("/chunks", "b.jsonl"),
-	}), "only non-dir .jsonl entries, joined under dir")
-
-	d.FS = fakeEdgeFS{readDir: func(string) ([]fs.DirEntry, error) { return nil, errBoom }}
-	deps = cli.ExportNewPruneDeps(d)
-
-	_, err = deps.ListIndexes("/chunks")
-	g.Expect(err).To(gomega.MatchError(errBoom))
+	g.Expect(readPath).To(gomega.Equal(transcriptPath), "fsFileReader must read via the injected EdgeFS")
+	g.Expect(result.Content).To(gomega.ContainSubstring("hello there"))
 }
 
 // fakeDirEntry satisfies fs.DirEntry for index-lister tests.

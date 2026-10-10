@@ -1011,3 +1011,35 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792d30, and one owner per requirement.
 - **Alternatives:** put the read-failure policy here, since it depends on whether a source was
   named. Rejected because the read and its failure happen in the index's reconciliation.
+
+## 792d84 chunk-index-store scope, legacy removal and the tests it leaves
+
+- **Choice:**
+  - 792b18 specifies the index layout, the locked reconciliation, change detection, read and write
+    failures, the append-only rebuild, grouping and precedence, copy eviction and its coverage gate,
+    Rule B, the three prune modes, index listing and the chunk-ID set that `amend --chunk-source`
+    checks (792a4e1a, 792a4f1a). The time a chunk was first indexed and its backfill wait for
+    memory-query (792d78), and so does `show-chunk`'s lookup, which only memory-query's scenarios
+    use; their tests (`TestIngestMarkdownSetsIngestedAtFromNow`,
+    `TestIngestTranscriptSetsIngestedAtFromPerRowTimestamp`, `TestLoadPriorRecordsPreservesIngestedAt`,
+    `TestMergeAppendBackfillsIngestedAtFromManifestMtime`, `TestMergeAppendPreservesIngestedAtOnReIngest`,
+    `chunk/ingestedat_test`, `show_chunk_test` and the four `TestChunkQuery*` tests in
+    `ingest_integration_test`) stay unrenamed.
+  - Legacy removal: ADR-0021 keeps only decision 9 for 792c7j1, behind a pointer; the c2 ingest
+    flowchart and its source list are deleted; c1 R4, c3 K1, K12 and their diagram nodes point at
+    792b15–792b18; the c3 ingest data contract keeps its skill half and points at 792a5i for the
+    binary half; the staleness sentence of c2's cross-level note points at 792b18.
+    `ingest-auto-sweep` and `ingest-prune-detach` are deleted; `ingest-chunk-dedup` keeps the
+    `update` notice for 792c7j1; `vault-concurrency-safe-writes` keeps only the vocabulary lock
+    requirement for 792c7e3. GLOSSARY and ROADMAP citations of the dedup parts of ADR-0021 point at
+    792b18.
+  - Invariants M1–M3 (section E) are deleted, not ported: no marker exists, and no byte budget
+    applies to ingestion (792d82), so M3's "one source cannot starve another" has nothing to enforce.
+  - `TestRawForRebuild` covers reuse, a fresh read, a tolerated vanished swept source and a failing
+    named one, so it takes 792b18c4a1 with 792b18c7a6 `split deferred`;
+    `TestIngestPrefersPhysicallyCloserAncestorAcrossTypes` takes 792b18c6a5 with 792b17c3a6 `split
+    deferred` (792d83). `TestIngestDepsReadTranscriptReadsViaFS` checks only that the composed reader
+    reads through the injected filesystem, so it verifies no scenario.
+- **Rationale:** 792d30, 792d51 and 792d6.
+- **Alternatives:** specify the first-indexed time here as a **MAY**. Rejected because memory-query's
+  recency channel makes it a contract there.

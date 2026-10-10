@@ -57,7 +57,7 @@ flowchart LR
 |---|---|---|---|
 | <a id="r1"></a>R1 | S1 Engram operator | S3 LLM coding harness | Directs work via prompts in the harness; configures engram via environment variables |
 | <a id="r2"></a>R2 | S3 LLM coding harness | S2 Engram | Invokes the `/recall`, `/learn`, `/please`, `/route`, `/curate`, and `/write-memory` skills; subprocess-executes the engram CLI for each invocation. |
-| <a id="r4"></a>R4 | S2 Engram | S5 Harness session stores | `engram ingest` re-chunks only sources whose mtime/size/hash changed vs the `manifest.json` in `$XDG_DATA_HOME/engram/chunks`; reads JSONL transcripts (Claude Code `~/.claude/projects/<slug>/*.jsonl`; Pi session JSONL under ancestor `.pi` dirs or `--pi-sessions` dirs) for changed sources only |
+| <a id="r4"></a>R4 | S2 Engram | S5 Harness session stores | See [792b18](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b18-added-chunk-index-store) and [792b15](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b15-added-transcript-reader) |
 | <a id="r5"></a>R5 | S2 Engram | S6 Go toolchain | During `engram update`, invokes `go install` (local clone) or clones the repo and builds from the clone (remote mode, never `go install …@latest`; #645) to self-update, then re-execs the freshly installed binary to run the sync phase (ADR-0023) |
 | <a id="r6"></a>R6 | S2 Engram | S3 LLM coding harness | During `engram update`, syncs refreshed `agent-instructions/skills/` to engram-owned roots (`~/.claude/engram/skills/`, `~/.pi/agent/engram/skills/`, etc.; ADR-0022 D1) and materializes them as symlinks in each harness's surface dirs (`~/.claude/skills/`, `~/.pi/agent/skills/`); removals from the source propagate (sync-delete); first update performs dark migration of pre-existing copies to symlinks; dangling symlinks are cleaned up. `--with-guidance` additionally syncs guidance docs to the root's `guidance/` subtree (`~/.claude/engram/guidance/`, `~/.pi/agent/engram/guidance/`; canonical paths) and materializes symlinks; compat symlinks at flat paths (`~/.claude/engram/*.md`) resolve existing `@import` lines (opt-in). Manifest-mode fallback for harnesses whose discovery fails symlink verification (ADR-0022 D7) |
 | <a id="r7"></a>R7 | S2 Engram | S7 Parent engram vault | With `ENGRAM_PARENT` set: `engram query` fetches the parent's `/query?dedupe-keys=1` and merges notes only (never chunks) into the local payload; `engram learn`/a content `amend`/`resituate` offer the note, queued in a local outbox and drained with backoff to the parent's `/learn`; `engram activate` on a local miss pulls the parent's note down via `GET /show?raw=1` as a new local pending offer, then best-effort bumps its use on the parent (ADR-0029) |
@@ -200,7 +200,7 @@ and re-embedding only changed content. Within one source this is still append-on
 narrower: byte-identical content is deduplicated by content hash, keeping one
 canonical copy per hash group; a duplicate's index is removed only once its
 retained twin's index file is verified to cover every one of the duplicate's own
-records (ADR-0021), never on hash-match alone. It then writes any EXPLICIT lessons (corrections, explicit save-requests,
+records ([792b18](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b18-added-chunk-index-store)), never on hash-match alone. It then writes any EXPLICIT lessons (corrections, explicit save-requests,
 self-discovered reversals, and confirmed approaches) into the vault via
 `engram learn {feedback|fact}`. Each write acquires a `flock`
 on the vault root before computing the Luhmann ID and emitting the new file.
@@ -228,7 +228,7 @@ sequenceDiagram
 
     H->>E: engram ingest --auto
     E->>V: stat known sources (session transcripts, markdown); re-chunk + re-embed changed content only
-    Note over E: merge-append new chunks by ContentHash (D5, within-source append-only); across sources, dedup by content hash keeps one canonical copy per group, evicting a duplicate only when its retained twin verifiably covers its records (ADR-0021)
+    Note over E: merge-append new chunks by ContentHash (D5, within-source append-only); across sources, dedup by content hash keeps one canonical copy per group, evicting a duplicate only when its retained twin verifiably covers its records (792b18c7)
     V-->>E: written chunk count
     E-->>H: per-source chunk tally (or "memory index up to date")
 

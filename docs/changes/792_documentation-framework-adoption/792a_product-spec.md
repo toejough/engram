@@ -1803,7 +1803,7 @@ Requirement: 792a5m When an already-indexed source becomes a copy of a newly fou
 precedence over it (792a5l), `engram ingest` MUST index the preferred source and remove the other
 source's chunks, but only when every chunk the other source holds is also among the preferred
 source's chunks. Otherwise it MUST keep the other source's chunks and print
-`ingest: refusing to evict <path>: canonical <path> does not verifiably cover its records (needs review — run ``engram prune --duplicates`` once resolved)`.
+``ingest: refusing to evict <path>: canonical <path> does not verifiably cover its records (needs review — run `engram prune --duplicates` once resolved)``.
 When the preferred copy stops being found, the remaining copy MUST be indexed again.
 
 Rationale: byte-identical content today does not mean identical chunks, because a source keeps every

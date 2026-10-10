@@ -218,8 +218,8 @@ flowchart TD
   N792c7d2["792c7d2 transcript-reader tech spec<br/>Complete"]
   N792c7d3["792c7d3 source-chunking tech spec<br/>Complete"]
   N792c7d4["792c7d4 ingestion-source-discovery tech spec<br/>Complete"]
-  N792c7d5["792c7d5 chunk-index-store tech spec<br/>Ready"]
-  N792c7e1["792c7e1 controlled-vocabulary product spec<br/>Blocked by: 792c7d5"]
+  N792c7d5["792c7d5 chunk-index-store tech spec<br/>Complete"]
+  N792c7e1["792c7e1 controlled-vocabulary product spec<br/>Ready"]
   N792c7e2["792c7e2 similarity-clustering tech spec<br/>Blocked by: 792c7e1"]
   N792c7e3["792c7e3 vocabulary-engine tech spec<br/>Blocked by: 792c7e2"]
   N792c7f1["792c7f1 memory-query product spec<br/>Blocked by: 792c7e3"]
@@ -1726,11 +1726,102 @@ Target: `792b18` (`docs/specs/technical/chunk-index-store.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7d5a | Port the component contract to `792b18` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7d5b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7d5c | Repoint stale references to `792b18` | Non-test action | Keeps live links valid | Not started |
-| 792c7d5d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7d5e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7d5a | Port the component contract to `792b18` | Non-test action | Documents the component in the framework format | Done |
+| 792c7d5b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7d5c | Repoint stale references to `792b18` | Non-test action | Keeps live links valid | Done |
+| 792c7d5d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7d5e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+**Outcome:** ADR-0021 keeps only decision 9; the c2 ingest flowchart is deleted; c1 R4, c3 K1 and
+K12 point at 792b15–792b18; invariants M1–M3 are deleted; `ingest-auto-sweep` and
+`ingest-prune-detach` are deleted, and `ingest-chunk-dedup` and `vault-concurrency-safe-writes`
+keep only their 792c7j1 and 792c7e3 parts (792d84). This completes group 792c7d.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b18c1a1 | `TestIngestTranscriptWritesChunkIndex` → `Test792b18c1a1_IngestTranscriptWritesChunkIndex` | `RunIngest` over an in-memory filesystem | Record fields | Done |
+| 792b18c1a2 | `TestIngestDepsWriteFileMkdirsParentThenWritesAtomically` → `Test792b18c1a2_IngestDepsWriteFileMkdirsParentThenWritesAtomically` | Production ingest deps over a fake filesystem | Directory, then atomic write | Done |
+| 792b18c1a3 | `TestIngestDepsStatMapsFileInfoToSourceStat` → `Test792b18c1a3_IngestDepsStatMapsFileInfoToSourceStat` | Production ingest deps over a fake filesystem | Signature and stat failure | Done |
+| 792b18c2a1 | `TestRunIngest_LocksManifestAroundReadModifyWrite` → `Test792b18c2a1_RunIngest_LocksManifestAroundReadModifyWrite` | `RunIngest` with a recording lock | Lock order | Done |
+| 792b18c2a2 | `TestRunPrune_LocksManifestAroundReadModifyWrite` → `Test792b18c2a2_RunPrune_LocksManifestAroundReadModifyWrite` | `RunPrune` with a recording lock | Lock order | Done |
+| 792b18c2a3 | `TestManifest_ConcurrentWritersDoNotLoseEntries` → `Test792b18c2a3_Manifest_ConcurrentWritersDoNotLoseEntries` | Real file lock over a temp dir, two goroutines | No lost update | Done |
+| 792b18c2a4 | `TestIngestDepsLockMkdirsChunksDirBeforeLocking` → `Test792b18c2a4_IngestDepsLockMkdirsChunksDirBeforeLocking` | Production ingest deps, fake filesystem and locker | Directory before lock | Done |
+| 792b18c2a5 | `TestIngestDepsLockMkdirErrorPropagates` → `Test792b18c2a5_IngestDepsLockMkdirErrorPropagates` | Production ingest deps, fake filesystem and locker | No lock on failure | Done |
+| 792b18c3a1 | `TestSweepSkipsUnchangedWithoutEmbedding` → `Test792b18c3a1_SweepSkipsUnchangedWithoutEmbedding` | `RunIngest` over a stat-aware in-memory filesystem | No re-embed | Done |
+| 792b18c3a2 | `TestIngestDoesNotReReadUnchangedKnownSource` → `Test792b18c3a2_IngestDoesNotReReadUnchangedKnownSource` | `RunIngest` counting reads | No read | Done |
+| 792b18c3a3 | `TestIngestIsIdempotentByHash` → `Test792b18c3a3_IngestIsIdempotentByHash` | `RunIngest` over an in-memory filesystem | Second ingest adds nothing | Done |
+| 792b18c3a4 | `TestIngestRebuildsWhenIndexFileMissing` → `Test792b18c3a4_IngestRebuildsWhenIndexFileMissing` | `RunIngest` over a stat-aware in-memory filesystem | Self-heal | Done |
+| 792b18c4a1 | `TestSweepSkipsVanishedSourceButExplicitErrors` → `Test792b18c4a1_SweepSkipsVanishedSourceButExplicitErrors` | `RunIngest` over a stat-aware in-memory filesystem | Swept skipped, named fails | Done |
+| 792b18c4a1 | `TestRawForRebuild` → `Test792b18c4a1_RawForRebuild` (split deferred: 792b18c7a6) | Internal unit, subtests | Reuse, fresh read, skip, fail | Done |
+| 792b18c4a2 | `TestIngestMarkdownReadErrorPropagates` → `Test792b18c4a2_IngestMarkdownReadErrorPropagates` | `RunIngest` over an empty filesystem | Named document missing | Done |
+| 792b18c4a3 | `TestIngestTranscriptReadErrorPropagates` → `Test792b18c4a3_IngestTranscriptReadErrorPropagates` | `RunIngest` with a failing reader | Reader failure | Done |
+| 792b18c4a3 | `TestPiSessionsReadErrorPropagates` → `Test792b18c4a3_PiSessionsReadErrorPropagates` | `RunIngest` with a failing reader | Pi reader failure | Done |
+| 792b18c4a4 | `TestIngestWriteIndexErrorPropagates` → `Test792b18c4a4_IngestWriteIndexErrorPropagates` | `RunIngest` with failing writes | Index write failure | Done |
+| 792b18c4a5 | `TestSweepManifestWriteErrorPropagates` → `Test792b18c4a5_SweepManifestWriteErrorPropagates` | `RunIngest` with a failing manifest write | Manifest write failure | Done |
+| 792b18c5a1 | `TestSweepIngestsNewMarkdown` → `Test792b18c5a1_SweepIngestsNewMarkdown` | `RunIngest` with a counting embedder | Two records, two embeds | Done |
+| 792b18c5a2 | `TestIngestMarkdownFile` → `Test792b18c5a2_IngestMarkdownFile` | `RunIngest` over an in-memory filesystem | Heading anchor | Done |
+| 792b18c5a3 | `TestSweepMergeAppendKeepsStaleAndReusesEmbeddings` → `Test792b18c5a3_SweepMergeAppendKeepsStaleAndReusesEmbeddings` | `RunIngest` with a counting embedder | Old text kept, one embed | Done |
+| 792b18c5a4 | `TestMergeAppendKeepsPriorRecordsOnChange` → `Test792b18c5a4_MergeAppendKeepsPriorRecordsOnChange` | `RunIngest` over an in-memory filesystem | Appended turn | Done |
+| 792b18c5a4 | `TestMergeAppendNeverDeletesOnContentChange` → `Test792b18c5a4_MergeAppendNeverDeletesOnContentChange` | `RunIngest` over an in-memory filesystem | Replaced content | Done |
+| 792b18c5a4 | `TestSweepHandlesTranscriptsViaSameMechanism` → `Test792b18c5a4_SweepHandlesTranscriptsViaSameMechanism` | `RunIngest` over a stat-aware in-memory filesystem | Swept transcript | Done |
+| 792b18c5a5 | `TestRunIngestSkipsEmptyIndexFile` → `Test792b18c5a5_RunIngestSkipsEmptyIndexFile` | `RunIngest` over an in-memory filesystem | No empty file | Done |
+| 792b18c5a6 | `TestOsIngestThenChunkQuery` → `Test792b18c5a6_OsIngestThenChunkQuery` | Production ingest deps over a temp dir, fake embedder | Sweep twice, then search | Done |
+| 792b18c6a1 | `TestSelectCanonicalPrecedenceRules` → `Test792b18c6a1_SelectCanonicalPrecedenceRules` | Internal unit, table | Each rule | Done |
+| 792b18c6a2 | `TestSelectCanonicalIsOrderIndependent` → `Test792b18c6a2_SelectCanonicalIsOrderIndependent` | Property test (rapid) | Order-independent | Done |
+| 792b18c6a3 | `TestIngestDedupsExactContentByPrecedence` → `Test792b18c6a3_IngestDedupsExactContentByPrecedence` | `RunIngest` over injected deps | Repository copy indexed | Done |
+| 792b18c6a4 | `TestIngestDoesNotDedupAcrossChunkingClasses` → `Test792b18c6a4_IngestDoesNotDedupAcrossChunkingClasses` | `RunIngest` over injected deps | Kinds kept apart | Done |
+| 792b18c6a5 | `TestIngestPrefersPhysicallyCloserAncestorAcrossTypes` → `Test792b18c6a5_IngestPrefersPhysicallyCloserAncestorAcrossTypes` (split deferred: 792b17c3a6) | `RunIngest` over injected deps | Nearer .pi wins | Done |
+| 792b18c6a6 | `TestIngestEvictsWithinSameRunRegardlessOfDiscoveryOrder` → `Test792b18c6a6_IngestEvictsWithinSameRunRegardlessOfDiscoveryOrder` | `RunIngest` over injected deps | Preferred copy first | Done |
+| 792b18c7a1 | `TestIngestEvictsLowerPrecedenceDuplicate` → `Test792b18c7a1_IngestEvictsLowerPrecedenceDuplicate` | `RunIngest` over injected deps | Eviction | Done |
+| 792b18c7a2 | `TestIngestRefusesEvictionWhenCanonicalYieldsZeroChunks` → `Test792b18c7a2_IngestRefusesEvictionWhenCanonicalYieldsZeroChunks` | `RunIngest` over injected deps | No-chunk preferred copy | Done |
+| 792b18c7a3 | `TestIngestRefusesEvictionWhenDuplicateRecordsNotSubsetOfCanonical` → `Test792b18c7a3_IngestRefusesEvictionWhenDuplicateRecordsNotSubsetOfCanonical` | `RunIngest` over injected deps | History kept | Done |
+| 792b18c7a4 | `TestCanonicalCoversDuplicateRecords` → `Test792b18c7a4_CanonicalCoversDuplicateRecords` | Internal unit, table | Coverage verdicts | Done |
+| 792b18c7a5 | `TestIngestReadsCanonicalIndexOnceAcrossDuplicateGroup` → `Test792b18c7a5_IngestReadsCanonicalIndexOnceAcrossDuplicateGroup` | `RunIngest` counting reads | One read per group | Done |
+| 792b18c7a6 | `TestIngestPromotesDuplicateWhenCanonicalVanishes` → `Test792b18c7a6_IngestPromotesDuplicateWhenCanonicalVanishes` | `RunIngest` over injected deps | Promotion | Done |
+| 792b18c8a1 | `TestIngestSkipsVaultCopyOutsideCanonicalVault` → `Test792b18c8a1_IngestSkipsVaultCopyOutsideCanonicalVault` | `RunIngest` over injected deps | Copy dropped | Done |
+| 792b18c8a2 | `TestIsVaultCopyOutsideVault` → `Test792b18c8a2_IsVaultCopyOutsideVault` | Internal unit, table | Each early-out | Done |
+| 792b18c9a1 | `TestPruneDetachesDeadSources` → `Test792b18c9a1_PruneDetachesDeadSources` | `RunPrune` over an in-memory filesystem | Detach | Done |
+| 792b18c9a1 | `TestOsPruneDetachesDeadSource` → `Test792b18c9a1_OsPruneDetachesDeadSource` | Production prune deps over a temp dir | Detach on disk | Done |
+| 792b18c9a2 | `TestPruneNoDeadSources` → `Test792b18c9a2_PruneNoDeadSources` | `RunPrune` over an in-memory filesystem | Nothing dead | Done |
+| 792b18c9a3 | `TestPruneNoManifestIsNoOp` → `Test792b18c9a3_PruneNoManifestIsNoOp` | `RunPrune` over an empty filesystem | No manifest | Done |
+| 792b18c9a4 | `TestRunPrune_DryRunDoesNotWriteManifest` → `Test792b18c9a4_RunPrune_DryRunDoesNotWriteManifest` | `RunPrune` over injected deps | Dry run | Done |
+| 792b18c9a5 | `TestRunPrune_WriteManifestErrorPropagates` → `Test792b18c9a5_RunPrune_WriteManifestErrorPropagates` | `RunPrune` with a failing write | Write failure | Done |
+| 792b18c9a6 | `TestPruneDepsExistsAndRemoveGoThroughFS` → `Test792b18c9a6_PruneDepsExistsAndRemoveGoThroughFS` | Production prune deps over a fake filesystem | Existence and removal | Done |
+| 792b18c10a1 | `TestRunPruneEmptyRemovesOnlyEmptyFiles` → `Test792b18c10a1_RunPruneEmptyRemovesOnlyEmptyFiles` | `RunPrune` over an in-memory filesystem | Empty files removed | Done |
+| 792b18c10a2 | `TestRunPruneEmptyDryRunDeletesNothing` → `Test792b18c10a2_RunPruneEmptyDryRunDeletesNothing` | `RunPrune` over an in-memory filesystem | Dry run | Done |
+| 792b18c11a1 | `TestPruneDuplicatesCollapsesGroupToCanonical` → `Test792b18c11a1_PruneDuplicatesCollapsesGroupToCanonical` | `RunPrune` over an in-memory filesystem | Collapse | Done |
+| 792b18c11a2 | `TestPruneDuplicatesRemovesWhenDuplicateRecordsAreSubsetOfCanonical` → `Test792b18c11a2_PruneDuplicatesRemovesWhenDuplicateRecordsAreSubsetOfCanonical` | `RunPrune` over an in-memory filesystem | Covered superset | Done |
+| 792b18c11a3 | `TestPruneDuplicatesDropsManifestEntryWhenIndexAlreadyGone` → `Test792b18c11a3_PruneDuplicatesDropsManifestEntryWhenIndexAlreadyGone` | `RunPrune` over an in-memory filesystem | Index already gone | Done |
+| 792b18c11a4 | `TestPruneDuplicatesCollapsesStructuralRefusalsIntoSummary` → `Test792b18c11a4_PruneDuplicatesCollapsesStructuralRefusalsIntoSummary` | `RunPrune` over an in-memory filesystem | Summary line | Done |
+| 792b18c11a5 | `TestPruneDuplicatesRefusesWhenCanonicalIndexMissing` → `Test792b18c11a5_PruneDuplicatesRefusesWhenCanonicalIndexMissing` | `RunPrune` over an in-memory filesystem | Kept entry has no index | Done |
+| 792b18c11a5 | `TestPruneDuplicatesRefusesWhenDuplicateRecordsNotSubsetOfCanonical` → `Test792b18c11a5_PruneDuplicatesRefusesWhenDuplicateRecordsNotSubsetOfCanonical` | `RunPrune` over an in-memory filesystem | Record not covered | Done |
+| 792b18c11a6 | `TestPruneDuplicatesNeverGroupsAcrossChunkingClasses` → `Test792b18c11a6_PruneDuplicatesNeverGroupsAcrossChunkingClasses` | `RunPrune` over an in-memory filesystem | Kinds kept apart | Done |
+| 792b18c11a7 | `TestPruneDuplicatesSkipsAlreadyMarkedDuplicates` → `Test792b18c11a7_PruneDuplicatesSkipsAlreadyMarkedDuplicates` | `RunPrune` over an in-memory filesystem | Recorded copies skipped | Done |
+| 792b18c11a8 | `TestPruneDuplicatesDryRunRemovesNothing` → `Test792b18c11a8_PruneDuplicatesDryRunRemovesNothing` | `RunPrune` over an in-memory filesystem | Dry run | Done |
+| 792b18c11a9 | `TestPruneDuplicatesSecondRunIsNoOp` → `Test792b18c11a9_PruneDuplicatesSecondRunIsNoOp` | `RunPrune` over an in-memory filesystem | Convergence | Done |
+| 792b18c11a10 | `TestPruneDuplicatesReportsFailureAndContinues` → `Test792b18c11a10_PruneDuplicatesReportsFailureAndContinues` | `RunPrune` with a failing removal | [FAIL] and exit | Done |
+| 792b18c11a11 | `TestPruneDuplicatesNoManifestIsNoOp` → `Test792b18c11a11_PruneDuplicatesNoManifestIsNoOp` | `RunPrune` over an empty filesystem | No manifest | Done |
+| 792b18c11a11 | `TestPruneDuplicatesManifestUnmarshalErrorPropagates` → `Test792b18c11a11_PruneDuplicatesManifestUnmarshalErrorPropagates` | `RunPrune` over a malformed manifest | Undecodable manifest | Done |
+| 792b18c11a12 | `TestPruneDuplicatesWriteManifestErrorPropagates` → `Test792b18c11a12_PruneDuplicatesWriteManifestErrorPropagates` | `RunPrune` with a failing write | Write failure | Done |
+| 792b18c12a1 | `TestPruneDepsListIndexesColdStartAndFiltering` → `Test792b18c12a1_PruneDepsListIndexesColdStartAndFiltering` | Production prune deps over a fake filesystem | Listing | Done |
+| 792b18c13a1 | `TestChunkIDSetContainsLoadedRecords` → `Test792b18c13a1_ChunkIDSetContainsLoadedRecords` | Internal unit over an in-memory filesystem | IDs in the set | Done |
+| 792b18c13a1 | `TestBuildChunkIDSet_ReturnsSourceAnchorKeys` → `Test792b18c13a1_BuildChunkIDSet_ReturnsSourceAnchorKeys` | Internal unit over fake listing and reads | IDs in the set | Done |
+| 792b18c13a2 | `TestChunkIDSetErrorsPropagate` → `Test792b18c13a2_ChunkIDSetErrorsPropagate` | Internal unit with failing listing, read and decode | Failures | Done |
+
+**Coverage gaps:** 792b18 has none. No 792a5 scenario has an end-to-end test through dispatch; each
+is covered only by the component tests above and in 792c7d1–792c7d4. 792a5o1a's only concurrency
+test is `Test792b18c2a3_Manifest_ConcurrentWritersDoNotLoseEntries`, which runs `RunIngest` and
+`RunPrune` rather than the commands.
+
+**No-scenario tests:** `ingest_family_deps_test` `TestIngestDepsReadTranscriptReadsViaFS` (composition
+wiring, 792d84). Deferred to memory-query (792c7f1, 792d84): `ingest_test`
+`TestIngestMarkdownSetsIngestedAtFromNow`, `TestIngestTranscriptSetsIngestedAtFromPerRowTimestamp`,
+`TestLoadPriorRecordsPreservesIngestedAt`, `TestMergeAppendBackfillsIngestedAtFromManifestMtime`,
+`TestMergeAppendPreservesIngestedAtOnReIngest`; `chunk/ingestedat_test` (3); `show_chunk_test` (3);
+and `ingest_integration_test` `TestChunkQueryClustersManyChunks`, `TestChunkQueryIndexErrorsPropagate`,
+`TestChunkQueryMissingChunksDirIsEmpty`, `TestChunkQueryRequiresPhrase`.
 
 ### 792c7e controlled-vocabulary
 
