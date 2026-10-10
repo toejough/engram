@@ -20,6 +20,55 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
+// Test792a20b1a_ServeTarget_RequiresAddr covers tasks.md 3.1/10.2: `engram serve`
+// with no explicit bind address refuses to start rather than silently
+// binding a default (targ's own required-flag validation enforces this —
+// ServeArgs.Addr carries no env fallback either, so there is no path to a
+// default address at all). targ.Execute's returned error is a generic
+// "exit code 1" here (targ.Main, the real binary's entry point, is what
+// prints the detailed "missing required flag: --addr" — confirmed via a
+// real `engram serve` invocation), so this only guards against the
+// specific regression already caught once: a stray comma inside Addr's
+// desc= struct-tag text broke targ's tag parser entirely, producing an
+// "invalid tag" error instead of the required-flag one.
+func Test792a20b1a_ServeTarget_RequiresAddr(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	stderr := executeForTest(t, []string{"engram", "serve"})
+	g.Expect(stderr).NotTo(BeEmpty())
+	g.Expect(stderr).NotTo(ContainSubstring("invalid tag"))
+}
+
+// Test792a20b1b_ServeTarget_ResolvesArgsAndCallsRunServe covers the serveTargets
+// success path (task 3.1's other half — a valid --addr, not just the
+// missing-flag refusal): Vault/VaultName/ChunksDir get resolved the same
+// way every other target resolves them, then RunServe is reached. A fake
+// ListenAndServe returns immediately so the test doesn't block on a real
+// listener.
+func Test792a20b1b_ServeTarget_ResolvesArgsAndCallsRunServe(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+
+	var gotAddr string
+
+	stderr := executeForTestWithDeps(t, []string{"engram", "serve", "--addr", "127.0.0.1:0", "--vault", vault},
+		func(d *cli.Deps) {
+			d.NewServeMux = func() cli.RawServeMux { return "mux" }
+			d.RegisterRoute = func(cli.RawServeMux, string, string, cli.ServeHandler) {}
+			d.ListenAndServe = func(_ context.Context, _ cli.RawServeMux, addr string) error {
+				gotAddr = addr
+
+				return nil
+			}
+		})
+
+	g.Expect(stderr).To(BeEmpty())
+	g.Expect(gotAddr).To(Equal("127.0.0.1:0"))
+}
+
 // TestFetchQueryPayload_AllParamsSet exercises every setBoolParam/
 // setIntParam/setStringParam "value present" branch of the parent /query
 // request in one call (the absent branches are covered by the other
@@ -292,55 +341,6 @@ func TestParentBase_ReadsEngramParentEnv(t *testing.T) {
 	}}
 
 	g.Expect(cli.ExportParentBase(deps)).To(Equal("http://parent-host:8420"))
-}
-
-// TestServeTarget_RequiresAddr covers tasks.md 3.1/10.2: `engram serve`
-// with no explicit bind address refuses to start rather than silently
-// binding a default (targ's own required-flag validation enforces this —
-// ServeArgs.Addr carries no env fallback either, so there is no path to a
-// default address at all). targ.Execute's returned error is a generic
-// "exit code 1" here (targ.Main, the real binary's entry point, is what
-// prints the detailed "missing required flag: --addr" — confirmed via a
-// real `engram serve` invocation), so this only guards against the
-// specific regression already caught once: a stray comma inside Addr's
-// desc= struct-tag text broke targ's tag parser entirely, producing an
-// "invalid tag" error instead of the required-flag one.
-func TestServeTarget_RequiresAddr(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	stderr := executeForTest(t, []string{"engram", "serve"})
-	g.Expect(stderr).NotTo(BeEmpty())
-	g.Expect(stderr).NotTo(ContainSubstring("invalid tag"))
-}
-
-// TestServeTarget_ResolvesArgsAndCallsRunServe covers the serveTargets
-// success path (task 3.1's other half — a valid --addr, not just the
-// missing-flag refusal): Vault/VaultName/ChunksDir get resolved the same
-// way every other target resolves them, then RunServe is reached. A fake
-// ListenAndServe returns immediately so the test doesn't block on a real
-// listener.
-func TestServeTarget_ResolvesArgsAndCallsRunServe(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-
-	var gotAddr string
-
-	stderr := executeForTestWithDeps(t, []string{"engram", "serve", "--addr", "127.0.0.1:0", "--vault", vault},
-		func(d *cli.Deps) {
-			d.NewServeMux = func() cli.RawServeMux { return "mux" }
-			d.RegisterRoute = func(cli.RawServeMux, string, string, cli.ServeHandler) {}
-			d.ListenAndServe = func(_ context.Context, _ cli.RawServeMux, addr string) error {
-				gotAddr = addr
-
-				return nil
-			}
-		})
-
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(gotAddr).To(Equal("127.0.0.1:0"))
 }
 
 // TestShowChunkTarget_LocalDispatch covers show-chunk's local (non-served)

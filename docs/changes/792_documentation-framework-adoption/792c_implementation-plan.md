@@ -247,8 +247,8 @@ flowchart TD
   N792c7p1["792c7p1 route product spec<br/>Complete"]
   N792c7q1["792c7q1 please product spec<br/>Complete"]
   N792c7r1["792c7r1 ambient-guidance product spec<br/>Complete"]
-  N792c7s1["792c7s1 vault-serving product spec<br/>Ready"]
-  N792c7s2["792c7s2 exchange-versioning tech spec<br/>Blocked by: 792c7s1"]
+  N792c7s1["792c7s1 vault-serving product spec<br/>Complete"]
+  N792c7s2["792c7s2 exchange-versioning tech spec<br/>Ready"]
   N792c7s3["792c7s3 pending-offer-bookkeeping tech spec<br/>Blocked by: 792c7s2"]
   N792c7s4["792c7s4 vault-http-server tech spec<br/>Blocked by: 792c7s3"]
   N792c7t1["792c7t1 parent-sync product spec<br/>Blocked by: 792c7s4"]
@@ -4597,11 +4597,39 @@ Target: `792a20` (`docs/specs/product/vault-serving.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7s1a | Port product requirements and UAT to `792a20` | Non-test action | Moves current behavior into the framework format | Not started |
-| 792c7s1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7s1c | Repoint stale references to `792a20` | Non-test action | Keeps live links valid | Not started |
-| 792c7s1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Not started |
-| 792c7s1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Not started |
+| 792c7s1a | Port product requirements and UAT to `792a20` | Non-test action | Moves current behavior into the framework format | Done |
+| 792c7s1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7s1c | Repoint stale references to `792a20` | Non-test action | Keeps live links valid | Done |
+| 792c7s1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Done |
+| 792c7s1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
+
+792a20 has fifteen requirements (792a20a to 792a20o): the fixed served command set, the required bind address and
+the help, served commands that behave as the local ones, the pending offer and its receipt, the declared identity,
+the repo, vault name and first-write stamp, the lookup order of a served learn, the refusals, placement and tags, the
+fields a caller cannot set, the served show and its raw envelope, the served activate, the served query's text and
+dedupe keys, the size caps, and the receiving vault's own tagging (792d117). command-line-surface gains mapping rows
+for 792b2c2 and 792b2c5, note-provenance (added to the list, 792d117) for 792b11c3, and note-authoring for 792b12c3
+and 792b12c6; query-engine gains nothing, because the served query is the route's (792b35). Legacy removal: the
+`runbook-lexical-triggers` spec is deleted (its last requirement), the served-learn clause leaves
+`vault-note-identity`, and ADR-0029 D7 becomes a pointer. `vault-serve-api` stays for 792c7s4, whose technical contract
+reads the same requirements (792d117). Repointed: the three "belongs to vault-serving" statements in 792a and the
+`--text` comment in `internal/cli/serve.go`.
+
+**Test Traceability**
+
+Only the command-level tests are renamed here. The handler-level served tests verify the technical scenarios of
+792b35 and are renamed by 792c7s4 (792d117).
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792a20b1a | `TestServeTarget_RequiresAddr` → `Test792a20b1a_ServeTarget_RequiresAddr` | Dispatch-level unit (end-to-end through the command) | `engram serve` with no `--addr` refuses to start | Done |
+| 792a20b1b | `TestServeTarget_ResolvesArgsAndCallsRunServe` → `Test792a20b1b_ServeTarget_ResolvesArgsAndCallsRunServe` | Dispatch-level unit (end-to-end through the command) | A given address is passed to the listener | Done |
+
+**Coverage gaps:** completed by 792c7s4e, which lists the scenarios of 792a20 that no handler-level or command-level
+test verifies.
+
+**No-scenario tests:** none among the command-level tests.
+
 
 #### 792c7s2 exchange-versioning tech spec
 

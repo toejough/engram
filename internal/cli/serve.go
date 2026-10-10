@@ -272,7 +272,7 @@ func boolQueryParam(query map[string][]string, key string) bool {
 
 // capQueryText truncates text to maxQueryTextBytes on a UTF-8 rune boundary,
 // bounding the served query string; trigger cues occur early in a message, so
-// truncation is silent (runbook-lexical-triggers spec).
+// truncation is silent (792a20m).
 func capQueryText(text string) string {
 	if len(text) <= maxQueryTextBytes {
 		return text

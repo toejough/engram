@@ -1962,3 +1962,34 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792d3, 792d19, 792d33, 792d40, 792d52, 792d90, 792d103, 792d105 and 792d113.
 - **Alternatives:** one capability per guidance document. Rejected by 792d19. Run the writing-skills cycle for the
   citation repoint. Rejected because no instruction changes.
+
+## 792d117 vault-serving scope, what stays for the technical node, and where the sources differ from the server
+
+- **Choice:**
+  - 792a20 describes `engram serve` as the code, a built binary run against a scratch vault, and `engram serve --help`
+    show it: fifteen requirements (792a20a to 792a20o). Each requirement of the `vault-serve-api` spec has its product
+    side here. The spec's served-`--text` requirement came from `runbook-lexical-triggers` (792a20m), and the
+    `learn` identity and offer cases from `vault-note-identity` and ADR-0029 D7.
+  - `vault-serve-api` is not trimmed by this node. Each of its requirements states a contract of the server as well as a
+    behavior of the product, and 792c7s4 reads the same requirements to write 792b35, so a half-trimmed file would
+    lose the server's side. It is deleted by 792c7s4, with the spec's other content.
+  - The last requirement of `vault-note-identity` ("Exchange fields SHALL NOT be settable over the served API") says
+    what 792a20j says. It stays with that spec for parent-sync (792c7t1), which owns its other exchange-field
+    requirements, and is deleted there as a duplicate of 792a20j.
+  - Per 792d67 the served first-write stamp is 792a20f, and its technical side is note-provenance's 792b11c3.
+    note-provenance is therefore added to the components this node extends with mapping rows. query-engine is on the
+    catalog's list and gains nothing: the served query is the route's contract and not a property of the query
+    pipeline (792b35).
+  - The receipt's `for` field, the 409 body's `reason` and `vault_id`, the per-ref result of a served activate and its
+    four statuses, the 400 for an empty `note` and the vocabulary tagging after a served write are in the code and not
+    in the spec; 792a20 states them.
+  - The child's 16 MiB cap on a parent response is in the `vault-serve-api` spec and has no other owner, so 792a20n
+    states it, with the exchange itself left to parent-sync (792a21).
+  - Two command-level tests are renamed to product scenarios (792d52); the handler-level tests belong to 792c7s4.
+  - No change to `engram serve --help` and no shipped artifact other than a code comment was edited.
+- **Divergences noted (792d33):**
+  - `engram serve` also writes the vault ID file and warns on a location mismatch at startup. Those are vault-identity's
+    (792a2h, 792a2j, 792a2p).
+- **Rationale:** 792d3, 792d30, 792d33, 792d52, 792d67 and 792d103.
+- **Alternatives:** trim `vault-serve-api` per requirement now. Rejected because each requirement is both product and
+  server contract.

@@ -415,16 +415,13 @@ pulled note bouncing back up once is intended (B1).
   `user:` and no detected user also waits in `attention` (never sent, one warning) and returns to
   queued once its payload builds (fix-frontmatter-remainder, #789).
   `offer.key = sha256(offer.origin + exchange hash)` makes retries idempotent.
-- **D7 — `/learn` is the only write route; pending offers update in place.** The served set shrinks
-  to `query`, `show`, `activate`, `learn` — `/amend`, `/query-chunks` and `/show-chunk` are deleted.
-  A served learn checks, in one locked section: idempotency first (an already-recorded
-  `offer.key`, current or in `offer.prior_keys`, is a no-op returning the existing receipt — this
-  runs before every other case, so a late retry can never revert accepted content); then a pending
-  note from the same origin is rewritten in place (superseded key moved to `prior_keys`, capped at
-  8); then a live note from the same origin gets a new pending note; otherwise `offer.for` resolves
-  against live basenames/aliases/pending notes, never overwriting a different origin's pending
-  note. `offer.path` bounds propagation depth (16 entries max) and a server whose own ID is already
-  on the path refuses with 409, catching misconfigured cycles.
+- **D7 — `/learn` is the only write route; pending offers update in place.** The served set, the idempotency
+  check, the in-place update, the same-origin case, the `offer.for` resolution and the `offer.path` bound and its 409
+  are in
+  [792a20a](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a20a-the-served-command-set-is-fixed),
+  [792a20g](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a20g-a-served-learn-finds-the-note-an-offer-belongs-to)
+  and
+  [792a20h](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a20h-an-invalid-offer-is-refused-with-nothing-written).
 - **D8 — Pull-down on activate.** `engram activate` resolves locally first; on a miss, a
   basename-shaped ref (never a bare Luhmann ID — IDs are per-vault) is fetched from the parent's
   `GET /show?raw=1` and written as a **new local pending offer**, never live — curation judges it

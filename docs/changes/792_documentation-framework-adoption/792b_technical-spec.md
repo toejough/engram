@@ -428,6 +428,8 @@ Scenario: 792b2c8a3 A blank reference fails
 | 792a10d1b | 792b2c4 |
 | 792a10d1c | 792b2c4 |
 | 792a10d1d | 792b2c4 |
+| 792a20b1a | 792b2c5 |
+| 792a20f1b | 792b2c2 |
 
 ```gherkin
 Scenario: 792a2a1a The flag wins over the environment
@@ -509,6 +511,16 @@ Scenario: 792a2o1a Both flags are refused
   Given a vault with a vault ID
   When the user runs engram vault-id --regenerate --claim
   Then it fails naming --regenerate, and the vault ID is unchanged
+
+Scenario: 792a20b1a No address, no server
+  Given the user runs engram serve with no --addr
+  When the command starts
+  Then it refuses with "missing required flag: --addr" and no server is listening
+
+Scenario: 792a20f1b vault falls back to the server's name
+  Given a served learn that sends no vault name and a server started with --vault-name personal
+  When the offer is written
+  Then the note's vault: is personal
 ```
 
 ```gherkin
@@ -4709,6 +4721,9 @@ Scenario: 792b11c7a12 The report records the run
 | 792a10l1c | 792b11c7 |
 | 792a10l1d | 792b11c7 |
 | 792a10l1e | 792b11c7 |
+| 792a20e1a | 792b11c3 |
+| 792a20f1a | 792b11c3 |
+| 792a20f1b | 792b11c3 |
 
 ```gherkin
 Scenario: 792a4h1a Amend from another environment re-stamps
@@ -4740,6 +4755,16 @@ Scenario: 792a4h1g Recording a use keeps the declared identity
   Given a note whose repo:, user: and vault: differ from the current environment's
   When the user runs engram amend --target <note> --activate
   Then the note's repo:, user: and vault: are unchanged
+
+Scenario: 792a20e1a The declared identity is stamped as given
+  Given a served learn whose body declares user alice@example.com
+  When the offer is written
+  Then the pending note's user: is alice@example.com
+
+Scenario: 792a20f1a repo reflects the caller's detection
+  Given a served learn that declares repo "r"
+  When the offer is written
+  Then the note's repo: is "r", unchanged by the server
 ```
 
 ```gherkin
@@ -5251,6 +5276,8 @@ Scenario: 792b12c7a2 A captured runbook has no skill key or source
 | 792a15k1a | 792b12c5 |
 | 792a17k1a | 792b12c4 |
 | 792a17k1c | 792b12c1, 792b12c4 |
+| 792a20c1c | 792b12c3 |
+| 792a20o1a | 792b12c6 |
 
 ```gherkin
 Scenario: 792a3r1b Certainty defaults to medium
@@ -5352,6 +5379,16 @@ Scenario: 792a17k1c The tag format is validated
   Given a dispatch record
   When its tags are written
   Then each is work-kind/<k>, tier/<t> or outcome/<o> with only lowercase letters, digits and hyphens, and an invalid tag is rejected before the write
+
+Scenario: 792a20c1c Concurrent local and served writers lose nothing
+  Given a local engram learn and a served learn racing against one vault
+  When both complete
+  Then both notes are written, neither is lost and the vault is not corrupted
+
+Scenario: 792a20o1a A served offer is tagged by the receiving vault
+  Given a vault with a vocabulary and a served learn that sends no tags
+  When the pending offer is written
+  Then it carries the vocab/ tags that the vault's vocabulary assigns to it
 ```
 
 ## 792b13 Added: wikilink-graph
