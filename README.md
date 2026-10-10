@@ -33,7 +33,7 @@ Requires Go 1.25+ on `PATH`.
 
    ```bash
    engram update                 # install / refresh
-   engram update --with-guidance # also sync guidance docs (recall.md, delegate.md, learn.md) to engram-owned roots; --with-guidance is one-time opt-in per file
+   engram update --with-guidance # also sync guidance docs (recall.md, delegate.md, learn.md, shim.md) to engram-owned roots; --with-guidance is a one-time opt-in: once any guidance file is imported, plain `engram update` keeps all of them current
    engram update --dry-run       # show what would change, without writing
    engram update --allow-downgrade # override the local-mode refusal to install an older revision than what's installed
    ```

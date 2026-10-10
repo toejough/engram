@@ -9096,7 +9096,7 @@ Scenario: 792a19g1c A look at the files is a unit of work
 Scenario: 792a19g1d The first tool call is a plan or a dispatch
   Given any request that is work
   When the agent makes its first tool call on it
-  Then the call is a route or a subagent dispatch, and not a read, edit, write or shell command on the work
+  Then the call is a plan, a route or a subagent dispatch, or the engram query that [792a19j The first action on every request is an engram query](#792a19j-the-first-action-on-every-request-is-an-engram-query) puts ahead of them when the shim is imported, and not a read, edit, write or shell command on the work
 
 Scenario: 792a19g1e A dispatch is routed
   Given a unit about to be dispatched
@@ -9217,8 +9217,11 @@ illustrate the shape with at least two examples of different kinds of work, and 
 MUST NOT name a specific runbook, skill or evaluation task.
 
 Rationale: casual task wording alone does not reliably surface a process runbook, whereas situation-shaped wording
-does, and a second phrase that restates the ticket reliably fails to. The re-check is generic so that it neither
-overfits to one runbook nor regresses another's retrieval (`dev/eval/LEDGER.md#734-runbook-retrieval-probe`).
+does, and a second phrase that restates the ticket reliably fails to: retrieval of the please runbook was 0 of 3
+before the phrase-two fix and 2 of 3 after it (`dev/eval/LEDGER.md#please-semantic-retrieval-unreliable`). The
+re-check is generic so that it neither overfits to one runbook nor regresses another's retrieval; the 27-runbook
+retrieval probe (`dev/eval/LEDGER.md#734-runbook-retrieval-probe`, 2026-08-29) predates the re-check, so it does not
+measure it.
 
 #### 792a19k1 UAT Scenarios
 
@@ -9350,13 +9353,14 @@ Scenario: 792a19o1b An unmet condition blocks the report
 
 ### 792a19p The agent stops and asks when a step is genuinely uncertain
 
-Requirement: [792a19p The agent stops and asks when a step is genuinely uncertain](#792a19p-the-agent-stops-and-asks-when-a-step-is-genuinely-uncertain) When a step of a matched runbook cannot be executed as written, is genuinely ambiguous in this
-context, names a target that plainly is not present (no remote, no ticket queue, no CI), or would be deviated from,
-or when two things the runbook requires are in tension, the agent MUST name the step and the specific gap and end
-its turn with a question, and MUST NOT substitute its own action for the step or proceed anyway. It MUST NOT stop
-to ask merely because an earlier step, even the one that produced the most visible deliverable, is complete, nor for
-a rough edge in the wording: a step's specific instruction wins over its own incidental example, and a later step its
-own plan already names as required is done without asking whether to.
+Requirement: [792a19p The agent stops and asks when a step is genuinely uncertain](#792a19p-the-agent-stops-and-asks-when-a-step-is-genuinely-uncertain) When the outcome of a step of a matched runbook is genuinely uncertain, when the step names a target
+that plainly is not present (no remote, no ticket queue, no CI), or when two things the runbook requires are
+genuinely in tension so that the agent cannot tell which one the person needs preserved, the agent MUST name the step
+and the specific gap and end its turn with a question, and MUST NOT substitute its own action for the step, including
+a local equivalent of the missing target, or proceed anyway. It MUST NOT stop to ask merely because an earlier step,
+even the one that produced the most visible deliverable, is complete, nor for a rough edge in the wording: a step's
+specific instruction wins over its own incidental example, and a later step its own plan already names as required
+is done without asking whether to.
 
 Rationale: a question stop is a clarity signal for the person who gave the task, who owns supplying the missing
 context now and for next time, and never a failure or a reason to invent the local equivalent. The weight is
@@ -9512,11 +9516,14 @@ Scenario: 792a19t1c A weighty decision escalates to deep
 
 Requirement: [792a19u The shim joins the other guidance additively](#792a19u-the-shim-joins-the-other-guidance-additively) The set of guidance documents that engram expects a harness's own config file to import MUST be
 `recall.md`, `delegate.md`, `learn.md` and `shim.md`, with `shim.md` added to the other three and not substituted
-for them, until the recall, learn and write-memory skills are promoted to production runbooks.
+for them, because the recall, learn and write-memory skills ship as skills and are not replaced by runbooks.
 
 Rationale: `shim.md` finds and follows runbook notes and does not reproduce the content of the other three, which
-cover work that is not yet in a runbook (#760, separately scoped). Activating the shim is a policy about which deployed
-documents a session's own config imports, and is distinct from getting the files onto disk ([792a11l Guidance is managed only after opt-in](#792a11l-guidance-is-managed-only-after-opt-in)).
+cover work that is not in a runbook. The plan to replace the three with the shim, once the recall, learn and
+write-memory skills were promoted to production runbooks (#760), was reversed on 2026-09-25 and #760 is closed, so
+the additive set is the standing one. Activating the shim is a policy about which deployed documents a session's own
+config imports, and is distinct from getting the files onto disk ([792a11l Guidance is managed only after opt-in](#792a11l-guidance-is-managed-only-after-opt-in)). The overlap between the shim's
+re-entry cues and the recall guidance's is #773, open.
 
 #### 792a19u1 UAT Scenarios
 
@@ -9527,7 +9534,7 @@ Scenario: 792a19u1a A config with three imports gains the shim
   Then the report names shim.md as deployed and not yet imported, with the line to add, and the three existing imports are untouched
 
 Scenario: 792a19u1b The shim does not replace the other documents
-  Given the recall, learn and write-memory skills are not promoted to production runbooks
+  Given the recall, learn and write-memory skills ship as skills and are not replaced by runbooks
   When the user activates the shim
   Then recall.md, delegate.md and learn.md remain imported
 ```
@@ -9581,9 +9588,9 @@ Scenario: 792a19v1f A user who has not opted in is nudged
   Then the report says engram ships recall- and delegation-firing guidance and names engram update --with-guidance
 
 Scenario: 792a19v1g A user who already imports is not nudged
-  Given no --with-guidance flag and a config that imports guidance
+  Given no --with-guidance flag and a config that imports at least one guidance document
   When the user runs engram update
-  Then the report prints neither the nudge nor a line to activate
+  Then the report prints no nudge, and each guidance document is reported refreshed or deployed on its own as in [792a19v1e Each document is judged on its own](#792a19v1-uat-scenarios)
 
 Scenario: 792a19v1h The flag suppresses the nudge
   Given --with-guidance and no guidance deployed for any harness

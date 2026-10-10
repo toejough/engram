@@ -842,7 +842,7 @@ rather than the old process's stale in-memory code; a spawn failure falls
 back to completing in-process and reports why ([792a11e](changes/792_documentation-framework-adoption/792a_product-spec.md#792a11e-the-rest-of-the-update-runs-in-the-new-binary)). `--dry-run` shows
 the diff without writing (and never installs or re-execs). `--with-guidance`
 additionally deploys the guidance docs
-(`recall.md`, `delegate.md`, `learn.md`) to `~/.claude/engram/` (Claude Code) and
+(`recall.md`, `delegate.md`, `learn.md`, `shim.md`) to `~/.claude/engram/` (Claude Code) and
 `~/.pi/agent/guidance/` (Pi; for `~/.pi/agent/AGENTS.md` `@import`;
 opt-in). Plain `engram update` hints about `--with-guidance` until a
 guidance file is imported, then keeps it refreshed on every run. It also
@@ -930,9 +930,9 @@ guidance). First-sync migration creates compat symlinks at old flat paths (`~/.c
 Each is activated independently by adding its own
 `@~/.claude/engram/<name>.md` line to `~/.claude/CLAUDE.md` (resolves via compat symlink to canonical path), or
 `@~/.pi/agent/guidance/<name>.md` to `~/.pi/agent/AGENTS.md` (symlink surface path; detection matches this prefix; harness
-`@import`; always loaded). `--with-guidance` is a one-time opt-in per file —
-once the harness config imports a guidance file, plain `engram update` keeps it
-current (like skills). Claude Code + Pi.
+`@import`; always loaded). `--with-guidance` is a one-time opt-in —
+once any harness config imports a guidance file, plain `engram update` deploys and keeps
+all four current (like skills), and reports each file as refreshed or deployed with its line to add. Claude Code + Pi.
 
 ### XDG paths
 Engram follows XDG basedir conventions:
