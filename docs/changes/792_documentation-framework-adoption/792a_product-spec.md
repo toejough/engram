@@ -2596,11 +2596,11 @@ Scenario: 792a6u1b Backfill is idempotent
 
 ### 792a6v Update notices
 
-Requirement: [792a6v Update notices](#792a6v-update-notices) `engram update` MUST print
-`old-format vocab files found — run `engram update --regen-vocab`to migrate them (preview with`engram update --regen-vocab --dry-run`)` when the vault holds a file named `vocab.<name>.md`, and
-`vocab definition notes missing their vocab/<term> self-tag found — run `engram vocab
-tag-definitions` to backfill them` when a definition note lacks its self-tag. It MUST NOT change the
-vault to resolve either.
+Requirement: [792a6v Update notices](#792a6v-update-notices) `engram update` MUST print the line
+``old-format vocab files found — run `engram update --regen-vocab` to migrate them (preview with `engram update --regen-vocab --dry-run`)``
+when the vault holds a file named `vocab.<name>.md`, and the line
+``vocab definition notes missing their vocab/<term> self-tag found — run `engram vocab tag-definitions` to backfill them``
+when a definition note lacks its self-tag. It MUST NOT change the vault to resolve either.
 
 Rationale: update detects and notifies, and leaves rewriting the vault to an explicit command.
 
