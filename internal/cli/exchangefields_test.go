@@ -20,10 +20,21 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestExchangeFields_AbsentFieldsSerializeAsToday pins every frontmatter
+// Test792b33c6a1_ExchangeFields_DeclaredOnEveryFrontmatterStruct: the fact, feedback and
+// runbook frontmatter structs all carry xid, parent, aliases and offer.
+func Test792b33c6a1_ExchangeFields_DeclaredOnEveryFrontmatterStruct(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	for _, docType := range cli.ExportFrontmatterDocTypes() {
+		g.Expect(yamlKeysOf(docType)).To(ContainElements(exchangeFieldKeys), docType.Name())
+	}
+}
+
+// Test792b33c6a2_ExchangeFields_AbsentFieldsSerializeAsToday pins every frontmatter
 // renderer's output for a note with every pre-exchange field set and no
 // exchange field: the omitempty exchange fields add nothing.
-func TestExchangeFields_AbsentFieldsSerializeAsToday(t *testing.T) {
+func Test792b33c6a2_ExchangeFields_AbsentFieldsSerializeAsToday(t *testing.T) {
 	t.Parallel()
 
 	when := time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)
@@ -76,10 +87,45 @@ func TestExchangeFields_AbsentFieldsSerializeAsToday(t *testing.T) {
 	}
 }
 
-// TestExchangeFields_BackfillStampsNoXID is "No backfill": identity backfill
+// Test792b33c6a3_ExchangeFields_JSONNeverPopulatesThem: decoding JSON into a
+// frontmatter struct, under any key spelling, never sets an exchange field
+// (they are tagged json:"-"; the served-learn wire itself is task 3.7).
+func Test792b33c6a3_ExchangeFields_JSONNeverPopulatesThem(t *testing.T) {
+	t.Parallel()
+
+	payload := []byte(`{
+		"xid": "x", "XID": "x", "Xid": "x",
+		"parent": {"vault": "v", "links": [{"note": "n", "via": "offered", "hash": "h"}]},
+		"Parent": {"Vault": "v"},
+		"aliases": ["a"], "Aliases": ["a"],
+		"offer": {"origin": "o", "key": "k", "for": "f", "path": ["p"]},
+		"Offer": {"Origin": "o"},
+		"ExchangeFrontmatter": {"xid": "x"}, "exchangeFrontmatter": {"xid": "x"}
+	}`)
+
+	for _, docType := range cli.ExportFrontmatterDocTypes() {
+		t.Run(docType.Name(), func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			doc := reflect.New(docType)
+			g.Expect(json.Unmarshal(payload, doc.Interface())).To(Succeed())
+
+			rendered, err := yaml.Marshal(doc.Elem().Interface())
+			g.Expect(err).NotTo(HaveOccurred())
+
+			for _, key := range exchangeFieldKeys {
+				g.Expect(strings.Contains(string(rendered), "\n"+key+":")).To(BeFalse(),
+					key+" must not be decodable from JSON:\n"+string(rendered))
+			}
+		})
+	}
+}
+
+// Test792b33c6a4_ExchangeFields_BackfillStampsNoXID is "No backfill": identity backfill
 // (the only `engram update` step that rewrites note frontmatter) stamps its
 // identity fields and adds no exchange field to any note.
-func TestExchangeFields_BackfillStampsNoXID(t *testing.T) {
+func Test792b33c6a4_ExchangeFields_BackfillStampsNoXID(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -110,51 +156,5 @@ func TestExchangeFields_BackfillStampsNoXID(t *testing.T) {
 		for _, key := range exchangeFieldKeys {
 			g.Expect(yamlKeyBlock(fs.content(name), key)).To(BeEmpty(), name+" must not gain "+key)
 		}
-	}
-}
-
-// TestExchangeFields_DeclaredOnEveryFrontmatterStruct: the fact, feedback and
-// runbook frontmatter structs all carry xid, parent, aliases and offer.
-func TestExchangeFields_DeclaredOnEveryFrontmatterStruct(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	for _, docType := range cli.ExportFrontmatterDocTypes() {
-		g.Expect(yamlKeysOf(docType)).To(ContainElements(exchangeFieldKeys), docType.Name())
-	}
-}
-
-// TestExchangeFields_JSONNeverPopulatesThem: decoding JSON into a
-// frontmatter struct, under any key spelling, never sets an exchange field
-// (they are tagged json:"-"; the served-learn wire itself is task 3.7).
-func TestExchangeFields_JSONNeverPopulatesThem(t *testing.T) {
-	t.Parallel()
-
-	payload := []byte(`{
-		"xid": "x", "XID": "x", "Xid": "x",
-		"parent": {"vault": "v", "links": [{"note": "n", "via": "offered", "hash": "h"}]},
-		"Parent": {"Vault": "v"},
-		"aliases": ["a"], "Aliases": ["a"],
-		"offer": {"origin": "o", "key": "k", "for": "f", "path": ["p"]},
-		"Offer": {"Origin": "o"},
-		"ExchangeFrontmatter": {"xid": "x"}, "exchangeFrontmatter": {"xid": "x"}
-	}`)
-
-	for _, docType := range cli.ExportFrontmatterDocTypes() {
-		t.Run(docType.Name(), func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			doc := reflect.New(docType)
-			g.Expect(json.Unmarshal(payload, doc.Interface())).To(Succeed())
-
-			rendered, err := yaml.Marshal(doc.Elem().Interface())
-			g.Expect(err).NotTo(HaveOccurred())
-
-			for _, key := range exchangeFieldKeys {
-				g.Expect(strings.Contains(string(rendered), "\n"+key+":")).To(BeFalse(),
-					key+" must not be decodable from JSON:\n"+string(rendered))
-			}
-		})
 	}
 }

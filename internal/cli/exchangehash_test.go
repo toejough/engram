@@ -21,133 +21,12 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestExchangeHash_BodyLineEndingsDoNotMoveTheHashProperty (ruling S6): the
-// canonical body normalizes CRLF to LF and ends in exactly one newline, so the
-// LF, CRLF, and missing-final-newline spellings of the same body — a CRLF
-// body's blank separator line included — hash equally on both sides of an
-// exchange.
-func TestExchangeHash_BodyLineEndingsDoNotMoveTheHashProperty(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		note := exchangeHashNoteGen().Draw(rt, "note")
-		lines := rapid.SliceOfN(exchangeBodyGen(), 1, 4).Draw(rt, "lines")
-		frontmatter, _ := yaml.Marshal(note.fields)
-		head := "---\n" + string(frontmatter) + "---\n"
-		// The blank separator line after the closing delimiter is part of
-		// the body, so a CRLF body may carry it as CRLF too (ruling V2).
-		separator := rapid.SampledFrom([]string{"\n", "\r\n"}).Draw(rt, "separator")
-
-		lf := strings.Join(lines, "\n")
-		crlf := strings.Join(lines, "\r\n")
-		want := mustExchangeHash(rt, head+"\n"+lf+"\n")
-
-		for name, body := range map[string]string{
-			"LF, no final newline":   "\n" + lf,
-			"CRLF":                   separator + crlf + "\r\n",
-			"CRLF, no final newline": separator + crlf,
-		} {
-			if got := mustExchangeHash(rt, head+body); got != want {
-				rt.Fatalf("%s body hashed %s, LF body hashed %s", name, got, want)
-			}
-		}
-	})
-}
-
-// TestExchangeHash_ClassificationCoversEveryFrontmatterKey is the r3-5
-// reflection test: every YAML key of the fact, feedback and runbook
-// frontmatter structs is classified as offered or not offered, and the table
-// names no key that no struct has.
-func TestExchangeHash_ClassificationCoversEveryFrontmatterKey(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	classification := cli.ExportExchangeKeyClassification()
-	structKeys := map[string]bool{}
-
-	for _, docType := range cli.ExportFrontmatterDocTypes() {
-		for _, key := range yamlKeysOf(docType) {
-			structKeys[key] = true
-			_, classified := classification[key]
-			g.Expect(classified).To(BeTrue(),
-				"%s key %q is not classified as offered or not offered (exchangehash.go)", docType.Name(), key)
-		}
-	}
-
-	for key := range classification {
-		g.Expect(structKeys).To(HaveKey(key), "classified key %q is on no frontmatter struct", key)
-	}
-}
-
-// TestExchangeHash_ClassifiesTheDesignFields pins design D3's split: the
-// offered keys are exactly the hashed content fields, and the exchange's own
-// bookkeeping keys are not offered.
-func TestExchangeHash_ClassifiesTheDesignFields(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	classification := cli.ExportExchangeKeyClassification()
-
-	offered := make([]string, 0, len(classification))
-
-	for key, isOffered := range classification {
-		if isOffered {
-			offered = append(offered, key)
-		}
-	}
-
-	g.Expect(offered).To(ConsistOf(exchangeOfferedKeys))
-
-	for _, key := range []string{
-		"repo", "user", "vault", "pending", "tags", "sources", "supersedes",
-		"xid", "parent", "aliases", "offer", "skill_hash", "skill_key", "skill_source",
-	} {
-		g.Expect(classification).To(HaveKeyWithValue(key, false), key+" must be classified not offered")
-	}
-}
-
-// TestExchangeHash_CompareIsThreeWay covers the versioned three-way
-// comparison: equal and changed only when both sides carry the current
-// version prefix; unknown whenever either side's prefix is different or
-// missing.
-func TestExchangeHash_CompareIsThreeWay(t *testing.T) {
-	t.Parallel()
-
-	current := cli.ExportExchangeHashPrefix + strings.Repeat("ab", 32)
-	other := cli.ExportExchangeHashPrefix + strings.Repeat("cd", 32)
-
-	cases := map[string]struct {
-		a, b string
-		want cli.ExportHashComparison
-	}{
-		"equal":                {current, current, cli.ExportHashEqual},
-		"changed":              {current, other, cli.ExportHashChanged},
-		"older version":        {"xh0:" + strings.Repeat("ab", 32), current, cli.ExportHashUnknown},
-		"newer version":        {current, "xh2:" + strings.Repeat("ab", 32), cli.ExportHashUnknown},
-		"missing prefix":       {strings.Repeat("ab", 32), current, cli.ExportHashUnknown},
-		"sidecar content hash": {"sha256:" + strings.Repeat("ab", 32), current, cli.ExportHashUnknown},
-		"empty side":           {"", current, cli.ExportHashUnknown},
-		"both empty":           {"", "", cli.ExportHashUnknown},
-		"same old version":     {"xh0:aa", "xh0:aa", cli.ExportHashUnknown},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			g.Expect(cli.ExportCompareExchangeHashes(tc.a, tc.b)).To(Equal(tc.want))
-			g.Expect(cli.ExportCompareExchangeHashes(tc.b, tc.a)).To(Equal(tc.want), "comparison is symmetric")
-		})
-	}
-}
-
-// TestExchangeHash_GoldenMatchesCanonicalJSON is the golden test: the hash
+// Test792b33c1a1_ExchangeHash_GoldenMatchesCanonicalJSON is the golden test: the hash
 // of a fixed note file is "xh1:" + sha256 of the canonical (sorted-key) JSON
 // of every offered field plus the body text, with absent fields as empty
 // strings or lists. The server and the child both call this one function, so
 // pinning its output pins what both sides compute for the same file.
-func TestExchangeHash_GoldenMatchesCanonicalJSON(t *testing.T) {
+func Test792b33c1a1_ExchangeHash_GoldenMatchesCanonicalJSON(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -178,31 +57,9 @@ func TestExchangeHash_GoldenMatchesCanonicalJSON(t *testing.T) {
 	g.Expect(got).To(Equal("xh1:" + hex.EncodeToString(sum[:])))
 }
 
-// TestExchangeHash_NonOfferedFieldsDoNotMoveTheHashProperty: changing any
-// one non-offered frontmatter key, on any note type, leaves the hash
-// unchanged.
-func TestExchangeHash_NonOfferedFieldsDoNotMoveTheHashProperty(t *testing.T) {
-	t.Parallel()
-
-	notOffered := exchangeClassifiedKeys(false)
-
-	rapid.Check(t, func(rt *rapid.T) {
-		note := exchangeHashNoteGen().Draw(rt, "note")
-		key := rapid.SampledFrom(notOffered).Draw(rt, "key")
-		mutated := note.with(key, exchangeKeyValueGen(key).Filter(func(value any) bool {
-			return !sameFrontmatterValue(value, note.fields[key])
-		}).Draw(rt, "value"))
-
-		before := mustExchangeHash(rt, note.render())
-		if after := mustExchangeHash(rt, mutated.render()); after != before {
-			rt.Fatalf("changing non-offered %q moved the hash", key)
-		}
-	})
-}
-
-// TestExchangeHash_OfferedFieldsMoveTheHashProperty: changing any one
+// Test792b33c2a1_ExchangeHash_OfferedFieldsMoveTheHashProperty: changing any one
 // offered field (frontmatter or body), on any note type, changes the hash.
-func TestExchangeHash_OfferedFieldsMoveTheHashProperty(t *testing.T) {
+func Test792b33c2a1_ExchangeHash_OfferedFieldsMoveTheHashProperty(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -227,10 +84,10 @@ func TestExchangeHash_OfferedFieldsMoveTheHashProperty(t *testing.T) {
 	})
 }
 
-// TestExchangeHash_OfferedFieldsOfEachTypeMoveTheHash is the scenario
+// Test792b33c2a2_ExchangeHash_OfferedFieldsOfEachTypeMoveTheHash is the scenario
 // "Every offered field moves the hash": feedback impact, and runbook
 // done_when, red_flags and triggers.
-func TestExchangeHash_OfferedFieldsOfEachTypeMoveTheHash(t *testing.T) {
+func Test792b33c2a2_ExchangeHash_OfferedFieldsOfEachTypeMoveTheHash(t *testing.T) {
 	t.Parallel()
 
 	base := map[string]exchangeHashNote{
@@ -270,9 +127,141 @@ func TestExchangeHash_OfferedFieldsOfEachTypeMoveTheHash(t *testing.T) {
 	}
 }
 
-// TestExchangeHash_RejectsUnparseableFrontmatter: a note whose frontmatter is
+// Test792b33c2a3_ExchangeHash_NonOfferedFieldsDoNotMoveTheHashProperty: changing any
+// one non-offered frontmatter key, on any note type, leaves the hash
+// unchanged.
+func Test792b33c2a3_ExchangeHash_NonOfferedFieldsDoNotMoveTheHashProperty(t *testing.T) {
+	t.Parallel()
+
+	notOffered := exchangeClassifiedKeys(false)
+
+	rapid.Check(t, func(rt *rapid.T) {
+		note := exchangeHashNoteGen().Draw(rt, "note")
+		key := rapid.SampledFrom(notOffered).Draw(rt, "key")
+		mutated := note.with(key, exchangeKeyValueGen(key).Filter(func(value any) bool {
+			return !sameFrontmatterValue(value, note.fields[key])
+		}).Draw(rt, "value"))
+
+		before := mustExchangeHash(rt, note.render())
+		if after := mustExchangeHash(rt, mutated.render()); after != before {
+			rt.Fatalf("changing non-offered %q moved the hash", key)
+		}
+	})
+}
+
+// Test792b33c2a4_ExchangeHash_ClassificationCoversEveryFrontmatterKey is the r3-5
+// reflection test: every YAML key of the fact, feedback and runbook
+// frontmatter structs is classified as offered or not offered, and the table
+// names no key that no struct has.
+func Test792b33c2a4_ExchangeHash_ClassificationCoversEveryFrontmatterKey(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	classification := cli.ExportExchangeKeyClassification()
+	structKeys := map[string]bool{}
+
+	for _, docType := range cli.ExportFrontmatterDocTypes() {
+		for _, key := range yamlKeysOf(docType) {
+			structKeys[key] = true
+			_, classified := classification[key]
+			g.Expect(classified).To(BeTrue(),
+				"%s key %q is not classified as offered or not offered (exchangehash.go)", docType.Name(), key)
+		}
+	}
+
+	for key := range classification {
+		g.Expect(structKeys).To(HaveKey(key), "classified key %q is on no frontmatter struct", key)
+	}
+}
+
+// Test792b33c2a5_ExchangeHash_ClassifiesTheDesignFields pins design D3's split: the
+// offered keys are exactly the hashed content fields, and the exchange's own
+// bookkeeping keys are not offered.
+func Test792b33c2a5_ExchangeHash_ClassifiesTheDesignFields(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	classification := cli.ExportExchangeKeyClassification()
+
+	offered := make([]string, 0, len(classification))
+
+	for key, isOffered := range classification {
+		if isOffered {
+			offered = append(offered, key)
+		}
+	}
+
+	g.Expect(offered).To(ConsistOf(exchangeOfferedKeys))
+
+	for _, key := range []string{
+		"repo", "user", "vault", "pending", "tags", "sources", "supersedes",
+		"xid", "parent", "aliases", "offer", "skill_hash", "skill_key", "skill_source",
+	} {
+		g.Expect(classification).To(HaveKeyWithValue(key, false), key+" must be classified not offered")
+	}
+}
+
+// Test792b33c3a1_ExchangeHash_BodyLineEndingsDoNotMoveTheHashProperty (ruling S6): the
+// canonical body normalizes CRLF to LF and ends in exactly one newline, so the
+// LF, CRLF, and missing-final-newline spellings of the same body — a CRLF
+// body's blank separator line included — hash equally on both sides of an
+// exchange.
+func Test792b33c3a1_ExchangeHash_BodyLineEndingsDoNotMoveTheHashProperty(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		note := exchangeHashNoteGen().Draw(rt, "note")
+		lines := rapid.SliceOfN(exchangeBodyGen(), 1, 4).Draw(rt, "lines")
+		frontmatter, _ := yaml.Marshal(note.fields)
+		head := "---\n" + string(frontmatter) + "---\n"
+		// The blank separator line after the closing delimiter is part of
+		// the body, so a CRLF body may carry it as CRLF too (ruling V2).
+		separator := rapid.SampledFrom([]string{"\n", "\r\n"}).Draw(rt, "separator")
+
+		lf := strings.Join(lines, "\n")
+		crlf := strings.Join(lines, "\r\n")
+		want := mustExchangeHash(rt, head+"\n"+lf+"\n")
+
+		for name, body := range map[string]string{
+			"LF, no final newline":   "\n" + lf,
+			"CRLF":                   separator + crlf + "\r\n",
+			"CRLF, no final newline": separator + crlf,
+		} {
+			if got := mustExchangeHash(rt, head+body); got != want {
+				rt.Fatalf("%s body hashed %s, LF body hashed %s", name, got, want)
+			}
+		}
+	})
+}
+
+// Test792b33c3a5_ExchangeHash_UnterminatedFrontmatterIsWholeTextBody pins the hash of a
+// note whose leading "---" block never closes: it is not an error, and the
+// whole text is the body with every offered frontmatter field empty. This is
+// the reading every other engram path already takes (embed.SplitFrontmatter
+// finds no frontmatter, so ExtractBody, ContentHash and show all treat the
+// text as body), and an error would let one malformed note stall an outbox
+// drain or a dedupe pass. Two such notes still hash differently whenever
+// their text differs.
+func Test792b33c3a5_ExchangeHash_UnterminatedFrontmatterIsWholeTextBody(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	note := "---\ntype: fact\nsituation: never closed\n\nbody text\n"
+
+	canonical := `{"action":"","behavior":"",` +
+		`"body":"---\ntype: fact\nsituation: never closed\n\nbody text\n",` +
+		`"done_when":"","impact":"","object":"","predicate":"","red_flags":[],` +
+		`"situation":"","subject":"","triggers":[],"type":""}`
+	sum := sha256.Sum256([]byte(canonical))
+
+	got, err := cli.ExportExchangeHash([]byte(note))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(got).To(Equal("xh1:" + hex.EncodeToString(sum[:])))
+}
+
+// Test792b33c4a1_ExchangeHash_RejectsUnparseableFrontmatter: a note whose frontmatter is
 // not YAML has no exchange hash.
-func TestExchangeHash_RejectsUnparseableFrontmatter(t *testing.T) {
+func Test792b33c4a1_ExchangeHash_RejectsUnparseableFrontmatter(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -280,11 +269,47 @@ func TestExchangeHash_RejectsUnparseableFrontmatter(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
-// TestExchangeHash_UnknownPerConsumer covers what each exchange consumer does
+// Test792b33c5a1_ExchangeHash_CompareIsThreeWay covers the versioned three-way
+// comparison: equal and changed only when both sides carry the current
+// version prefix; unknown whenever either side's prefix is different or
+// missing.
+func Test792b33c5a1_ExchangeHash_CompareIsThreeWay(t *testing.T) {
+	t.Parallel()
+
+	current := cli.ExportExchangeHashPrefix + strings.Repeat("ab", 32)
+	other := cli.ExportExchangeHashPrefix + strings.Repeat("cd", 32)
+
+	cases := map[string]struct {
+		a, b string
+		want cli.ExportHashComparison
+	}{
+		"equal":                {current, current, cli.ExportHashEqual},
+		"changed":              {current, other, cli.ExportHashChanged},
+		"older version":        {"xh0:" + strings.Repeat("ab", 32), current, cli.ExportHashUnknown},
+		"newer version":        {current, "xh2:" + strings.Repeat("ab", 32), cli.ExportHashUnknown},
+		"missing prefix":       {strings.Repeat("ab", 32), current, cli.ExportHashUnknown},
+		"sidecar content hash": {"sha256:" + strings.Repeat("ab", 32), current, cli.ExportHashUnknown},
+		"empty side":           {"", current, cli.ExportHashUnknown},
+		"both empty":           {"", "", cli.ExportHashUnknown},
+		"same old version":     {"xh0:aa", "xh0:aa", cli.ExportHashUnknown},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			g.Expect(cli.ExportCompareExchangeHashes(tc.a, tc.b)).To(Equal(tc.want))
+			g.Expect(cli.ExportCompareExchangeHashes(tc.b, tc.a)).To(Equal(tc.want), "comparison is symmetric")
+		})
+	}
+}
+
+// Test792b33c5a2_ExchangeHash_UnknownPerConsumer covers what each exchange consumer does
 // with an unknown comparison (design D3): loop suppression and dedupe rule 2
 // fire only on equal; the pull-down skip, decline match, rejected-entry
 // re-arm and send/apply change check treat unknown as not changed.
-func TestExchangeHash_UnknownPerConsumer(t *testing.T) {
+func Test792b33c5a2_ExchangeHash_UnknownPerConsumer(t *testing.T) {
 	t.Parallel()
 
 	current := cli.ExportExchangeHashPrefix + strings.Repeat("ab", 32)
@@ -317,31 +342,6 @@ func TestExchangeHash_UnknownPerConsumer(t *testing.T) {
 			g.Expect(consumer.decide("", "")).To(Equal(consumer.want.unknown), "on unknown (missing)")
 		})
 	}
-}
-
-// TestExchangeHash_UnterminatedFrontmatterIsWholeTextBody pins the hash of a
-// note whose leading "---" block never closes: it is not an error, and the
-// whole text is the body with every offered frontmatter field empty. This is
-// the reading every other engram path already takes (embed.SplitFrontmatter
-// finds no frontmatter, so ExtractBody, ContentHash and show all treat the
-// text as body), and an error would let one malformed note stall an outbox
-// drain or a dedupe pass. Two such notes still hash differently whenever
-// their text differs.
-func TestExchangeHash_UnterminatedFrontmatterIsWholeTextBody(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	note := "---\ntype: fact\nsituation: never closed\n\nbody text\n"
-
-	canonical := `{"action":"","behavior":"",` +
-		`"body":"---\ntype: fact\nsituation: never closed\n\nbody text\n",` +
-		`"done_when":"","impact":"","object":"","predicate":"","red_flags":[],` +
-		`"situation":"","subject":"","triggers":[],"type":""}`
-	sum := sha256.Sum256([]byte(canonical))
-
-	got, err := cli.ExportExchangeHash([]byte(note))
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(got).To(Equal("xh1:" + hex.EncodeToString(sum[:])))
 }
 
 // unexported variables.

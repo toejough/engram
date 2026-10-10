@@ -12,39 +12,13 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// Test792b6c8a1_ToLF converts every CRLF pair to LF and leaves a lone CR alone.
-func Test792b6c8a1_ToLF(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	g.Expect(string(toLF([]byte("a\r\nb\rc\r\n\r\n")))).To(Equal("a\nb\rc\n\n"))
-	g.Expect(toLF([]byte("plain\n"))).To(Equal([]byte("plain\n")))
-}
-
-// TestDecodeExchangeFrontmatter_CRLFFrontmatterReadsAsLF pins that a note
-// whose frontmatter is CRLF has its exchange fields read from its LF form
-// (#789 design D4), replacing fix-show-amend-reparent-frontmatter's pin
-// that such a note had no readable xid.
-func TestDecodeExchangeFrontmatter_CRLFFrontmatterReadsAsLF(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	crlf, err := decodeExchangeFrontmatter([]byte(crlfExchangeNoteLF(true, true)))
-	g.Expect(err).NotTo(HaveOccurred())
-
-	lf, lfErr := decodeExchangeFrontmatter(toLF([]byte(crlfExchangeNoteLF(true, true))))
-	g.Expect(lfErr).NotTo(HaveOccurred())
-	g.Expect(crlf).To(Equal(lf))
-	g.Expect(crlf.XID).NotTo(BeEmpty())
-}
-
-// TestExchangeHash_CRLFBodyUnchangedByConversion pins that converting a note
+// Test792b33c3a3_ExchangeHash_CRLFBodyUnchangedByConversion pins that converting a note
 // with LF frontmatter and a CRLF body to LF leaves its exchange hash
 // unchanged. With an LF blank line after the closing delimiter this held
 // already (canonicalExchangeBody normalizes the body); with that blank line
 // itself CRLF — the whole body CRLF — the hash used to keep a leading blank
 // line, so conversion moved it.
-func TestExchangeHash_CRLFBodyUnchangedByConversion(t *testing.T) {
+func Test792b33c3a3_ExchangeHash_CRLFBodyUnchangedByConversion(t *testing.T) {
 	t.Parallel()
 
 	for name, pre := range map[string]string{
@@ -66,11 +40,11 @@ func TestExchangeHash_CRLFBodyUnchangedByConversion(t *testing.T) {
 	}
 }
 
-// TestExchangeHash_ConvertedCRLFFrontmatterMatchesLFAuthored pins that a
+// Test792b33c3a4_ExchangeHash_ConvertedCRLFFrontmatterMatchesLFAuthored pins that a
 // note converted from CRLF frontmatter hashes the same as the same note
 // authored with LF line endings, so a hash recorded before the file became
 // CRLF matches again.
-func TestExchangeHash_ConvertedCRLFFrontmatterMatchesLFAuthored(t *testing.T) {
+func Test792b33c3a4_ExchangeHash_ConvertedCRLFFrontmatterMatchesLFAuthored(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -81,6 +55,32 @@ func TestExchangeHash_ConvertedCRLFFrontmatterMatchesLFAuthored(t *testing.T) {
 	g.Expect(authoredErr).NotTo(HaveOccurred())
 
 	g.Expect(converted).To(Equal(authored))
+}
+
+// Test792b33c6a5_DecodeExchangeFrontmatter_CRLFFrontmatterReadsAsLF pins that a note
+// whose frontmatter is CRLF has its exchange fields read from its LF form
+// (#789 design D4), replacing fix-show-amend-reparent-frontmatter's pin
+// that such a note had no readable xid.
+func Test792b33c6a5_DecodeExchangeFrontmatter_CRLFFrontmatterReadsAsLF(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	crlf, err := decodeExchangeFrontmatter([]byte(crlfExchangeNoteLF(true, true)))
+	g.Expect(err).NotTo(HaveOccurred())
+
+	lf, lfErr := decodeExchangeFrontmatter(toLF([]byte(crlfExchangeNoteLF(true, true))))
+	g.Expect(lfErr).NotTo(HaveOccurred())
+	g.Expect(crlf).To(Equal(lf))
+	g.Expect(crlf.XID).NotTo(BeEmpty())
+}
+
+// Test792b6c8a1_ToLF converts every CRLF pair to LF and leaves a lone CR alone.
+func Test792b6c8a1_ToLF(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	g.Expect(string(toLF([]byte("a\r\nb\rc\r\n\r\n")))).To(Equal("a\nb\rc\n\n"))
+	g.Expect(toLF([]byte("plain\n"))).To(Equal([]byte("plain\n")))
 }
 
 // crlfExchangeNoteLF renders a fact note carrying exchange fields, with its

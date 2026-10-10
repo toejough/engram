@@ -19,10 +19,10 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestFoldAndReceipt_ParityWithPreChangeRewrite: every fold and receipt
+// Test792b33c8a6_FoldAndReceipt_ParityWithPreChangeRewrite: every fold and receipt
 // case writes exactly the pre-change bytes and exchange hash; a fold also
 // still deletes the offer and never re-stamps identity (ruling S7).
-func TestFoldAndReceipt_ParityWithPreChangeRewrite(t *testing.T) {
+func Test792b33c8a6_FoldAndReceipt_ParityWithPreChangeRewrite(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range foldParityCases() {

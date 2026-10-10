@@ -6,9 +6,9 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// TestHeldLinkNodes: the parent's link entries are reused only when they
+// Test792b33c8a7_HeldLinkNodes: the parent's link entries are reused only when they
 // line up one-to-one with the decoded links as mappings.
-func TestHeldLinkNodes(t *testing.T) {
+func Test792b33c8a7_HeldLinkNodes(t *testing.T) {
 	t.Parallel()
 
 	twoLinks := parentLinks{Links: []parentLink{{Note: "a"}, {Note: "b"}}}

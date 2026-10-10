@@ -365,35 +365,21 @@ pulled note bouncing back up once is intended (B1).
   `ENGRAM_PARENT` as the replacement. No compat shim, no exemption.
 - **D2 — Every environment always has a local vault, and a stable vault ID.** Ported to
   [792b5](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b5-added-vault-identity-registry).
-- **D3 — A new exchange hash covers exactly the offered content fields.** `xh1:` + SHA-256 over a
-  canonical JSON of `type`, `situation`, the fact/feedback/runbook fields, `done_when`,
-  `red_flags`, `triggers`, and the body — never identity, `pending`, `tags`, `sources`,
-  `supersedes`, or exchange bookkeeping. It replaces `embed.ContentHash` in every exchange
-  comparison (loop suppression, `offer.key`, pull-down skip/decline, rejected-offer re-arm, dedupe
-  rule 2, `--expect-hash`); `embed.ContentHash` keeps its own job (sidecar staleness). A reflection
-  test fails when a struct field is missing from the offered/not-offered classification table.
-  Version-prefix mismatches compare as *unknown*: loop suppression, dedupe rule 2, and
-  `--expect-hash` all require an *equal* hash and never pass on *unknown*; only the pull-down skip,
-  decline matching, the rejected-offer re-arm, and the send/apply change check treat *unknown* as
-  *not changed*.
-  The canonical body of one layout, LF frontmatter followed by a CRLF blank separator line, changed
-  in place under `xh1:` (fix-show-amend-reparent-frontmatter, ruling V2): it now hashes the same as
-  its LF conversion. Across a binary-version skew, only notes in that layout get a spurious offer,
-  a missed dedupe-rule-2 merge, a refused pull-down (hash mismatch), and a one-time re-arm of hashes
-  recorded under the old binary. These effects stop once both sides upgrade and the next receipt,
-  pull or decline re-records the hash. The prefix was not bumped to `xh2:` because a bump turns
-  *every* note's comparison into *unknown* across versions, which is far more disruptive than one
-  rare layout.
-- **D4 — Multi-valued parent links, aliases, and a rename-stable exchange ID.** New optional
-  frontmatter: `xid` (this note's own exchange ID, stamped lazily, never backfilled); `parent`
-  (`vault`, `links: [{note, via: offered|pulled|covered, hash}]`, `author`) — at most one primary
-  link (`offered`/`pulled`), any number of `covered` links; `aliases` (basenames this note answers
-  to in its own vault); `offer` (a served offer's origin/key/prior_keys/for/path, kept after
-  acceptance). Only the exchange paths set these; every other rewrite site preserves them
-  byte-for-byte, each with its own survival test. Renames append the old basename to `aliases`, so
-  a parent's or a child's reference to the renamed note keeps resolving. Dedupe treats a parent
-  item and a local note as the same note when a link names the parent's basename/alias, or when
-  both have equal, non-empty exchange hashes.
+- **D3 — A new exchange hash covers exactly the offered content fields.** Ported to
+  [792b33c1](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b33c1-the-exchange-hash)
+  to
+  [792b33c5](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b33c5-comparing-two-hashes).
+  The consumers named there (loop suppression, `offer.key`, pull-down skip and decline, the rejected-offer re-arm,
+  dedupe rule 2, `--expect-hash`) stay here for parent-sync and curate.
+- **D4 — Multi-valued parent links, aliases, and a rename-stable exchange ID.** The fields `xid`, `parent`, `aliases`
+  and `offer`, and the lazy `xid`, are in
+  [792b33c6](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b33c6-the-exchange-fields)
+  and
+  [792b33c7](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b33c7-the-lazy-exchange-id).
+  Only the exchange paths set these; every other rewrite site preserves them byte-for-byte, each with its own survival
+  test. Renames append the old basename to `aliases`, so a parent's or a child's reference to the renamed note keeps
+  resolving. Dedupe treats a parent item and a local note as the same note when a link names the parent's
+  basename/alias, or when both have equal, non-empty exchange hashes.
 - **D5 — What's offered vs. bookkeeping.** `learn` (not `learn qa`), a content `amend`, and
   `resituate` are offered; `--activate`, most `--clear-pending`, `--discard`,
   `--supersedes`/`--chunk-source`-only amends, identity backfill, and anything whose exchange hash
@@ -531,11 +517,7 @@ pulled note bouncing back up once is intended (B1).
   options); putting the outbox in the vault root and appending the tracked `.gitignore` (dirties
   the vault repo on every host); keying state under `$XDG_DATA_HOME` by vault path (orphaned on a
   move, doesn't travel with the vault); keying links by URL (breaks on a hostname/IP change, M11).
-- **D3.** Extending `embed.ContentHash` (would stale every existing sidecar and force a full
-  re-embed); hashing the whole file (identity/link fields would change the hash, and loop
-  suppression would never fire).
-- **D4.** A single link per note (can't record that a note covers a second parent note once it
-  already has a counterpart, H5); keying the outbox/idempotency by basename (a rename loses the
+- **D4.** Keying the outbox/idempotency by basename (a rename loses the
   entry, H2); rewriting outbox keys on rename (works, but `xid` makes it unnecessary); recording
   the child's basename on the parent (remote-set, and the child can rename).
 - **D6.** A per-offer snapshot directory (sends stale content and duplicates); JSONL (coalescing

@@ -11,11 +11,79 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestApplyReceiptToContent_FrontmatterOnlyProperty: for any note and any
+// Test792b33c9a1_ApplyReceiptToContent_LinksTheNote (spec "Receipt links the note"):
+// the note records the parent's vault ID and a primary link
+// {basename, offered, stored_hash}; nothing outside parent: changes.
+func Test792b33c9a1_ApplyReceiptToContent_LinksTheNote(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	raw := offerTestNote{}.render(t)
+
+	updated, err := cli.ExportApplyReceiptToContent(raw, testReceipt("1100.2026-09-27.x", ""))
+	g.Expect(err).NotTo(HaveOccurred())
+
+	parent := parsedParent(t, updated)
+	g.Expect(parent.Vault).To(Equal(parentVaultID))
+	g.Expect(parent.Links).To(Equal([]receiptLink{{Note: "1100.2026-09-27.x", Via: "offered", Hash: "xh1:stored"}}))
+	g.Expect(withoutParentBlock(updated)).To(Equal(string(raw)))
+	g.Expect(mustHash(t, []byte(updated))).To(Equal(mustHash(t, raw)))
+}
+
+// Test792b33c9a2_ApplyReceiptToContent_OtherParentVaultStartsOver: links recorded
+// under another parent's vault ID are meaningless to this one.
+func Test792b33c9a2_ApplyReceiptToContent_OtherParentVaultStartsOver(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	raw := offerTestNote{parentVault: seqID(77), linkVia: "offered", linkHash: "xh1:old", coveredNote: "3.x"}.render(t)
+
+	updated, err := cli.ExportApplyReceiptToContent(raw, testReceipt("1100.2026-09-27.x", ""))
+	g.Expect(err).NotTo(HaveOccurred())
+
+	parent := parsedParent(t, updated)
+	g.Expect(parent.Vault).To(Equal(parentVaultID))
+	g.Expect(parent.Links).To(HaveLen(1))
+}
+
+// Test792b33c9a3_ApplyReceiptToContent_ReceiptForRelinks (H3, spec "Re-link to the
+// resolved target"): a receipt naming a resolved target makes it primary.
+func Test792b33c9a3_ApplyReceiptToContent_ReceiptForRelinks(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	raw := offerTestNote{parentVault: parentVaultID, linkVia: "offered", linkHash: "xh1:old"}.render(t)
+
+	updated, err := cli.ExportApplyReceiptToContent(raw, testReceipt("1101.2026-09-27.pending", "900.2026-09-01.e"))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(parsedParent(t, updated).Links).To(Equal([]receiptLink{
+		{Note: "900.2026-09-01.e", Via: "offered", Hash: "xh1:stored"},
+	}))
+}
+
+// Test792b33c9a4_ApplyReceiptToContent_ReplacesPrimaryKeepsCovered: the previous
+// primary (offered or pulled) is replaced, covered links are kept.
+func Test792b33c9a4_ApplyReceiptToContent_ReplacesPrimaryKeepsCovered(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	raw := offerTestNote{
+		parentVault: parentVaultID, linkVia: "pulled", linkHash: "xh1:old", coveredNote: "3.2026-09-27.c",
+	}.render(t)
+
+	updated, err := cli.ExportApplyReceiptToContent(raw, testReceipt("1100.2026-09-27.x", ""))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(parsedParent(t, updated).Links).To(ConsistOf(
+		receiptLink{Note: "1100.2026-09-27.x", Via: "offered", Hash: "xh1:stored"},
+		receiptLink{Note: "3.2026-09-27.c", Via: "covered", Hash: "xh1:c"},
+	))
+}
+
+// Test792b33c9a5_ApplyReceiptToContent_FrontmatterOnlyProperty: for any note and any
 // receipt, the rewrite (1) leaves the exchange hash, identity, pending,
 // xid, aliases and offer untouched, (2) makes the receipt's target the
 // one primary link with the stored hash, and (3) is idempotent.
-func TestApplyReceiptToContent_FrontmatterOnlyProperty(t *testing.T) {
+func Test792b33c9a5_ApplyReceiptToContent_FrontmatterOnlyProperty(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -62,74 +130,6 @@ func TestApplyReceiptToContent_FrontmatterOnlyProperty(t *testing.T) {
 			rt.Fatalf("not idempotent:\n%s\n->\n%s", updated, again)
 		}
 	})
-}
-
-// TestApplyReceiptToContent_LinksTheNote (spec "Receipt links the note"):
-// the note records the parent's vault ID and a primary link
-// {basename, offered, stored_hash}; nothing outside parent: changes.
-func TestApplyReceiptToContent_LinksTheNote(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	raw := offerTestNote{}.render(t)
-
-	updated, err := cli.ExportApplyReceiptToContent(raw, testReceipt("1100.2026-09-27.x", ""))
-	g.Expect(err).NotTo(HaveOccurred())
-
-	parent := parsedParent(t, updated)
-	g.Expect(parent.Vault).To(Equal(parentVaultID))
-	g.Expect(parent.Links).To(Equal([]receiptLink{{Note: "1100.2026-09-27.x", Via: "offered", Hash: "xh1:stored"}}))
-	g.Expect(withoutParentBlock(updated)).To(Equal(string(raw)))
-	g.Expect(mustHash(t, []byte(updated))).To(Equal(mustHash(t, raw)))
-}
-
-// TestApplyReceiptToContent_OtherParentVaultStartsOver: links recorded
-// under another parent's vault ID are meaningless to this one.
-func TestApplyReceiptToContent_OtherParentVaultStartsOver(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	raw := offerTestNote{parentVault: seqID(77), linkVia: "offered", linkHash: "xh1:old", coveredNote: "3.x"}.render(t)
-
-	updated, err := cli.ExportApplyReceiptToContent(raw, testReceipt("1100.2026-09-27.x", ""))
-	g.Expect(err).NotTo(HaveOccurred())
-
-	parent := parsedParent(t, updated)
-	g.Expect(parent.Vault).To(Equal(parentVaultID))
-	g.Expect(parent.Links).To(HaveLen(1))
-}
-
-// TestApplyReceiptToContent_ReceiptForRelinks (H3, spec "Re-link to the
-// resolved target"): a receipt naming a resolved target makes it primary.
-func TestApplyReceiptToContent_ReceiptForRelinks(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	raw := offerTestNote{parentVault: parentVaultID, linkVia: "offered", linkHash: "xh1:old"}.render(t)
-
-	updated, err := cli.ExportApplyReceiptToContent(raw, testReceipt("1101.2026-09-27.pending", "900.2026-09-01.e"))
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(parsedParent(t, updated).Links).To(Equal([]receiptLink{
-		{Note: "900.2026-09-01.e", Via: "offered", Hash: "xh1:stored"},
-	}))
-}
-
-// TestApplyReceiptToContent_ReplacesPrimaryKeepsCovered: the previous
-// primary (offered or pulled) is replaced, covered links are kept.
-func TestApplyReceiptToContent_ReplacesPrimaryKeepsCovered(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	raw := offerTestNote{
-		parentVault: parentVaultID, linkVia: "pulled", linkHash: "xh1:old", coveredNote: "3.2026-09-27.c",
-	}.render(t)
-
-	updated, err := cli.ExportApplyReceiptToContent(raw, testReceipt("1100.2026-09-27.x", ""))
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(parsedParent(t, updated).Links).To(ConsistOf(
-		receiptLink{Note: "1100.2026-09-27.x", Via: "offered", Hash: "xh1:stored"},
-		receiptLink{Note: "3.2026-09-27.c", Via: "covered", Hash: "xh1:c"},
-	))
 }
 
 // receiptLink mirrors one parent link in frontmatter.

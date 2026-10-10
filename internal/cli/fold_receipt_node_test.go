@@ -19,9 +19,9 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestApplyReceiptToContent_KeepsUnknownParentKeys: unknown keys under
+// Test792b33c8a1_ApplyReceiptToContent_KeepsUnknownParentKeys: unknown keys under
 // parent: and inside a kept link survive a receipt.
-func TestApplyReceiptToContent_KeepsUnknownParentKeys(t *testing.T) {
+func Test792b33c8a1_ApplyReceiptToContent_KeepsUnknownParentKeys(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -36,9 +36,9 @@ func TestApplyReceiptToContent_KeepsUnknownParentKeys(t *testing.T) {
 	g.Expect(parsedParent(t, updated).Links).To(HaveLen(2))
 }
 
-// TestApplyReceiptToContent_RefusesAnchoredParent: a receipt on a note whose
+// Test792b33c8a2_ApplyReceiptToContent_RefusesAnchoredParent: a receipt on a note whose
 // parent: carries an anchor another key aliases is refused unwritten.
-func TestApplyReceiptToContent_RefusesAnchoredParent(t *testing.T) {
+func Test792b33c8a2_ApplyReceiptToContent_RefusesAnchoredParent(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -51,12 +51,47 @@ func TestApplyReceiptToContent_RefusesAnchoredParent(t *testing.T) {
 	g.Expect(updated).To(BeEmpty())
 }
 
-// TestFoldAndReceipt_NodeEditProperty: over drawn exchange notes, with
+// Test792b33c8a3_RunAmend_DiscardIntoRefusesAnchoredEditedKey: a fold whose into note
+// carries an anchor on parent: (or aliases:) that another key aliases is
+// refused, and neither into nor the offer is touched.
+func Test792b33c8a3_RunAmend_DiscardIntoRefusesAnchoredEditedKey(t *testing.T) {
+	t.Parallel()
+
+	for name, anchor := range map[string]func(string) string{
+		"parent":  func(note string) string { return anchorBlock(note, "parent") },
+		"aliases": func(note string) string { return anchorBlock(note, "aliases") },
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			vault := newFoldVault()
+			existing := anchor(foldNote(foldExchange{
+				xid: foldXIDE, vault: foldParentVault, aliases: []string{"2.2026-01-01.old-name"},
+				links: []foldLink{{"9.2026-09-01.other", "offered", "xh1:other"}},
+			}, false))
+			offer := foldNote(foldExchange{
+				xid: foldXIDO, vault: foldParentVault, aliases: []string{"5.2026-01-01.prev-name"},
+				links: []foldLink{{"7.2026-09-01.parent", "pulled", "xh1:parent"}},
+			}, true)
+			vault.put(foldExistingName, existing)
+			vault.put(foldOfferName, offer)
+
+			err := vault.amend(t.Context(), cli.AmendArgs{Target: foldOfferBase, Discard: true, Into: foldExistingBase})
+			g.Expect(err).To(MatchError(cli.ErrFrontmatterAnchoredKeyForTest))
+			g.Expect(err).To(MatchError(ContainSubstring(name)))
+			g.Expect(string(vault.files[foldExistingName])).To(Equal(existing), "into must be untouched")
+			g.Expect(string(vault.files[foldOfferName])).To(Equal(offer), "the offer must not be deleted")
+		})
+	}
+}
+
+// Test792b33c8a4_FoldAndReceipt_NodeEditProperty: over drawn exchange notes, with
 // optional unknown keys under parent: and its first link and an optional
 // aliased anchor on parent:, the fold and the receipt either refuse the
 // anchored edit with every file untouched, or write frontmatter that decodes
 // and keeps every unknown key and the anchored value.
-func TestFoldAndReceipt_NodeEditProperty(t *testing.T) {
+func Test792b33c8a4_FoldAndReceipt_NodeEditProperty(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		existing := drawFoldExchange(rt, "existing")
@@ -96,9 +131,9 @@ func TestFoldAndReceipt_NodeEditProperty(t *testing.T) {
 	})
 }
 
-// TestRunAmend_DiscardIntoKeepsUnknownParentKeys: unknown keys under
+// Test792b33c8a5_RunAmend_DiscardIntoKeepsUnknownParentKeys: unknown keys under
 // into's parent: and inside its links survive the fold.
-func TestRunAmend_DiscardIntoKeepsUnknownParentKeys(t *testing.T) {
+func Test792b33c8a5_RunAmend_DiscardIntoKeepsUnknownParentKeys(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -115,41 +150,6 @@ func TestRunAmend_DiscardIntoKeepsUnknownParentKeys(t *testing.T) {
 
 	expectUnknownParentKeysKept(g, string(vault.files[foldExistingName]))
 	g.Expect(decodeFoldExchange(t, vault.files[foldExistingName]).Parent.Links).To(HaveLen(2))
-}
-
-// TestRunAmend_DiscardIntoRefusesAnchoredEditedKey: a fold whose into note
-// carries an anchor on parent: (or aliases:) that another key aliases is
-// refused, and neither into nor the offer is touched.
-func TestRunAmend_DiscardIntoRefusesAnchoredEditedKey(t *testing.T) {
-	t.Parallel()
-
-	for name, anchor := range map[string]func(string) string{
-		"parent":  func(note string) string { return anchorBlock(note, "parent") },
-		"aliases": func(note string) string { return anchorBlock(note, "aliases") },
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			vault := newFoldVault()
-			existing := anchor(foldNote(foldExchange{
-				xid: foldXIDE, vault: foldParentVault, aliases: []string{"2.2026-01-01.old-name"},
-				links: []foldLink{{"9.2026-09-01.other", "offered", "xh1:other"}},
-			}, false))
-			offer := foldNote(foldExchange{
-				xid: foldXIDO, vault: foldParentVault, aliases: []string{"5.2026-01-01.prev-name"},
-				links: []foldLink{{"7.2026-09-01.parent", "pulled", "xh1:parent"}},
-			}, true)
-			vault.put(foldExistingName, existing)
-			vault.put(foldOfferName, offer)
-
-			err := vault.amend(t.Context(), cli.AmendArgs{Target: foldOfferBase, Discard: true, Into: foldExistingBase})
-			g.Expect(err).To(MatchError(cli.ErrFrontmatterAnchoredKeyForTest))
-			g.Expect(err).To(MatchError(ContainSubstring(name)))
-			g.Expect(string(vault.files[foldExistingName])).To(Equal(existing), "into must be untouched")
-			g.Expect(string(vault.files[foldOfferName])).To(Equal(offer), "the offer must not be deleted")
-		})
-	}
 }
 
 // anchorBlock anchors key's block in note (`key: &x`) and adds a key

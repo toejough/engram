@@ -1993,3 +1993,36 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792d3, 792d30, 792d33, 792d52, 792d67 and 792d103.
 - **Alternatives:** trim `vault-serve-api` per requirement now. Rejected because each requirement is both product and
   server contract.
+
+## 792d118 exchange-versioning scope, requirements with no product scenario yet, and the tests it keeps apart
+
+- **Choice:**
+  - 792b33 specifies nine requirements (792b33c1 to 792b33c9). It owns what an exchange hash covers and how two
+    compare, the optional exchange fields of a note, the lazy `xid`, the edit of the `aliases:` and `parent:` blocks
+    as YAML nodes, and the recording of an offer receipt. When to hash, send, pull or fold is each exchange path's
+    (792b35, parent-sync, curate), and the YAML-node machinery it reuses is note-document-format's (792b6c7).
+  - Only 792b33c1, 792b33c6 and 792b33c7 support a scenario of vault-serving (a receipt's `stored_hash`, the raw
+    envelope and header, the dedupe keys, and the fields a caller cannot set). The other requirements are consumed by
+    parent-sync and curate, which are not yet migrated, so they say `Supports: none` and name the capability that will
+    map them (792d110 for a requirement with no product scenario).
+  - The fold's refusal and unknown-key scenarios (792b33c8a3, 792b33c8a4, 792b33c8a5, 792b33c8a6) are the edit's
+    contract as seen through the fold; the fold itself (the union of aliases and links, the judged-version check) is
+    pending-offer-bookkeeping's (792b34) and curate's.
+  - `TestSetXIDField` also asserts that a receipt on a note with no frontmatter fails; it takes 792b33c7a1 and lists
+    792b33c7a2, 792b33c7a3 and 792b33c9a6 as `split deferred`. `TestExchangeHash_UnknownPerConsumer` takes 792b33c5a2
+    and lists 792b33c5a3. `Test792b6c7a7_RunAmend_ExchangeHashParityWithPreChangeAmend` and `Test792b6c8a1_ToLF` were
+    named by note-document-format's node and are not renamed again.
+  - Four CRLF tests in `exchange_crlf_test` verify other components' scenarios (the outbox drain, the pull-down, the
+    pending marker, the header of `show`) and keep their names. `exchangefields_survival_test` stays with parent-sync
+    (792d61).
+  - ADR-0029 keeps the consumers of the hash (loop suppression, `offer.key`, pull-down skip, decline matching, re-arm,
+    dedupe rule 2, `--expect-hash`) and the survival, rename and dedupe sentences of D4; its D3 and D4 headings now
+    point at 792b33.
+- **Divergences noted (792d33):**
+  - ADR-0029 D3 says the canonical body of "one layout" changed in place under `xh1:`. 792b33c3 states the current
+    rule only, and keeps the version-skew effects as rationale.
+  - ADR-0029 D3 lists the offered fields as "`type`, `situation`, the fact/feedback/runbook fields, `done_when`,
+    `red_flags`, `triggers`, and the body"; the code hashes exactly eleven frontmatter keys plus the body, and 792b33c1
+    names them.
+- **Rationale:** 792d3, 792d10, 792d30, 792d33, 792d52, 792d61 and 792d110.
+- **Alternatives:** map the hash to parent-sync scenarios now. Rejected because those scenarios do not exist yet.

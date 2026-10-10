@@ -248,8 +248,8 @@ flowchart TD
   N792c7q1["792c7q1 please product spec<br/>Complete"]
   N792c7r1["792c7r1 ambient-guidance product spec<br/>Complete"]
   N792c7s1["792c7s1 vault-serving product spec<br/>Complete"]
-  N792c7s2["792c7s2 exchange-versioning tech spec<br/>Ready"]
-  N792c7s3["792c7s3 pending-offer-bookkeeping tech spec<br/>Blocked by: 792c7s2"]
+  N792c7s2["792c7s2 exchange-versioning tech spec<br/>Complete"]
+  N792c7s3["792c7s3 pending-offer-bookkeeping tech spec<br/>Ready"]
   N792c7s4["792c7s4 vault-http-server tech spec<br/>Blocked by: 792c7s3"]
   N792c7t1["792c7t1 parent-sync product spec<br/>Blocked by: 792c7s4"]
   N792c7t2["792c7t2 offer-outbox tech spec<br/>Blocked by: 792c7t1"]
@@ -4647,11 +4647,67 @@ Target: `792b33` (`docs/specs/technical/exchange-versioning.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7s2a | Port the component contract to `792b33` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7s2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7s2c | Repoint stale references to `792b33` | Non-test action | Keeps live links valid | Not started |
-| 792c7s2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7s2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7s2a | Port the component contract to `792b33` | Non-test action | Documents the component in the framework format | Done |
+| 792c7s2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7s2c | Repoint stale references to `792b33` | Non-test action | Keeps live links valid | Done |
+| 792c7s2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7s2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+792b33 has nine requirements (792b33c1 to 792b33c9): the exchange hash, what it covers, the canonical body, the
+hash of an unreadable frontmatter, the three-way comparison, the exchange fields, the lazy exchange ID, the edit of
+the exchange blocks and the recording of an offer receipt (792d118). It owns no sequence. Legacy removal: ADR-0029 D3
+and D4 become pointers (the consumers of the hash and the dedupe and survival sentences stay for parent-sync and
+curate), and their rejected alternatives for the hash and the single link leave with them.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b33c1a1 | `TestExchangeHash_GoldenMatchesCanonicalJSON` → `Test792b33c1a1_ExchangeHash_GoldenMatchesCanonicalJSON` | Golden unit | A fixed note hashes to the canonical JSON | Done |
+| 792b33c2a1 | `TestExchangeHash_OfferedFieldsMoveTheHashProperty` → `Test792b33c2a1_ExchangeHash_OfferedFieldsMoveTheHashProperty` | Property (rapid) | Moving any offered field or the body moves the hash | Done |
+| 792b33c2a2 | `TestExchangeHash_OfferedFieldsOfEachTypeMoveTheHash` → `Test792b33c2a2_ExchangeHash_OfferedFieldsOfEachTypeMoveTheHash` | Table unit | Impact, done_when, red_flags and triggers each move the hash | Done |
+| 792b33c2a3 | `TestExchangeHash_NonOfferedFieldsDoNotMoveTheHashProperty` → `Test792b33c2a3_ExchangeHash_NonOfferedFieldsDoNotMoveTheHashProperty` | Property (rapid) | No non-offered key moves the hash | Done |
+| 792b33c2a4 | `TestExchangeHash_ClassificationCoversEveryFrontmatterKey` → `Test792b33c2a4_ExchangeHash_ClassificationCoversEveryFrontmatterKey` | Reflection unit | Every frontmatter key is classified | Done |
+| 792b33c2a5 | `TestExchangeHash_ClassifiesTheDesignFields` → `Test792b33c2a5_ExchangeHash_ClassifiesTheDesignFields` | Unit | The offered keys are exactly the design set | Done |
+| 792b33c3a1 | `TestExchangeHash_BodyLineEndingsDoNotMoveTheHashProperty` → `Test792b33c3a1_ExchangeHash_BodyLineEndingsDoNotMoveTheHashProperty` | Property (rapid) | LF, CRLF and no-final-newline bodies hash alike | Done |
+| 792b33c3a2 | `TestExchangeHash_CRLFFrontmatterHashesAsLF` → `Test792b33c3a2_ExchangeHash_CRLFFrontmatterHashesAsLF` | Unit | CRLF frontmatter hashes as LF | Done |
+| 792b33c3a3 | `TestExchangeHash_CRLFBodyUnchangedByConversion` → `Test792b33c3a3_ExchangeHash_CRLFBodyUnchangedByConversion` | Table unit | Converting a CRLF body leaves the hash | Done |
+| 792b33c3a4 | `TestExchangeHash_ConvertedCRLFFrontmatterMatchesLFAuthored` → `Test792b33c3a4_ExchangeHash_ConvertedCRLFFrontmatterMatchesLFAuthored` | Unit | A converted note matches the LF-authored one | Done |
+| 792b33c3a5 | `TestExchangeHash_UnterminatedFrontmatterIsWholeTextBody` → `Test792b33c3a5_ExchangeHash_UnterminatedFrontmatterIsWholeTextBody` | Golden unit | An unterminated block is the whole text as body | Done |
+| 792b33c4a1 | `TestExchangeHash_RejectsUnparseableFrontmatter` → `Test792b33c4a1_ExchangeHash_RejectsUnparseableFrontmatter` | Unit | Invalid YAML has no hash | Done |
+| 792b33c5a1 | `TestExchangeHash_CompareIsThreeWay` → `Test792b33c5a1_ExchangeHash_CompareIsThreeWay` | Table unit | The three-way comparison with every unknown case, both orders | Done |
+| 792b33c5a2 | `TestExchangeHash_UnknownPerConsumer` → `Test792b33c5a2_ExchangeHash_UnknownPerConsumer` | Table unit | Seven consumers act on equal or changed only (c5a3 split deferred) | Done |
+| 792b33c6a1 | `TestExchangeFields_DeclaredOnEveryFrontmatterStruct` → `Test792b33c6a1_ExchangeFields_DeclaredOnEveryFrontmatterStruct` | Unit | Every frontmatter structure declares the four keys | Done |
+| 792b33c6a2 | `TestExchangeFields_AbsentFieldsSerializeAsToday` → `Test792b33c6a2_ExchangeFields_AbsentFieldsSerializeAsToday` | Golden unit | A note without exchange fields renders as before | Done |
+| 792b33c6a3 | `TestExchangeFields_JSONNeverPopulatesThem` → `Test792b33c6a3_ExchangeFields_JSONNeverPopulatesThem` | Unit | JSON never populates an exchange field | Done |
+| 792b33c6a4 | `TestExchangeFields_BackfillStampsNoXID` → `Test792b33c6a4_ExchangeFields_BackfillStampsNoXID` | Unit | Identity backfill adds no exchange field | Done |
+| 792b33c6a5 | `TestDecodeExchangeFrontmatter_CRLFFrontmatterReadsAsLF` → `Test792b33c6a5_DecodeExchangeFrontmatter_CRLFFrontmatterReadsAsLF` | Unit | CRLF frontmatter exchange fields read as LF | Done |
+| 792b33c7a1 | `TestSetXIDField` → `Test792b33c7a1_SetXIDField` | Unit | The stamp precedes the exchange blocks (c7a2, c7a3 and c9a6 split deferred) | Done |
+| 792b33c8a1 | `TestApplyReceiptToContent_KeepsUnknownParentKeys` → `Test792b33c8a1_ApplyReceiptToContent_KeepsUnknownParentKeys` | Unit | Unknown keys under parent survive a receipt | Done |
+| 792b33c8a2 | `TestApplyReceiptToContent_RefusesAnchoredParent` → `Test792b33c8a2_ApplyReceiptToContent_RefusesAnchoredParent` | Unit | An anchored parent refuses a receipt | Done |
+| 792b33c8a3 | `TestRunAmend_DiscardIntoRefusesAnchoredEditedKey` → `Test792b33c8a3_RunAmend_DiscardIntoRefusesAnchoredEditedKey` | Table unit | A fold refuses an anchored parent or aliases and leaves both files | Done |
+| 792b33c8a4 | `TestFoldAndReceipt_NodeEditProperty` → `Test792b33c8a4_FoldAndReceipt_NodeEditProperty` | Property (rapid) | A node edit refuses or keeps every unknown key | Done |
+| 792b33c8a5 | `TestRunAmend_DiscardIntoKeepsUnknownParentKeys` → `Test792b33c8a5_RunAmend_DiscardIntoKeepsUnknownParentKeys` | Unit | Unknown keys under into: parent survive a fold | Done |
+| 792b33c8a6 | `TestFoldAndReceipt_ParityWithPreChangeRewrite` → `Test792b33c8a6_FoldAndReceipt_ParityWithPreChangeRewrite` | Golden parity | A note without unknown keys is written as the pre-change rewrite did | Done |
+| 792b33c8a7 | `TestHeldLinkNodes` → `Test792b33c8a7_HeldLinkNodes` | Table unit (internal) | Held link nodes are reused only when aligned | Done |
+| 792b33c9a1 | `TestApplyReceiptToContent_LinksTheNote` → `Test792b33c9a1_ApplyReceiptToContent_LinksTheNote` | Unit | The receipt links the note | Done |
+| 792b33c9a2 | `TestApplyReceiptToContent_OtherParentVaultStartsOver` → `Test792b33c9a2_ApplyReceiptToContent_OtherParentVaultStartsOver` | Unit | Another vault's links start over | Done |
+| 792b33c9a3 | `TestApplyReceiptToContent_ReceiptForRelinks` → `Test792b33c9a3_ApplyReceiptToContent_ReceiptForRelinks` | Unit | A receipt target re-links | Done |
+| 792b33c9a4 | `TestApplyReceiptToContent_ReplacesPrimaryKeepsCovered` → `Test792b33c9a4_ApplyReceiptToContent_ReplacesPrimaryKeepsCovered` | Unit | The primary is replaced and covered links kept | Done |
+| 792b33c9a5 | `TestApplyReceiptToContent_FrontmatterOnlyProperty` → `Test792b33c9a5_ApplyReceiptToContent_FrontmatterOnlyProperty` | Property (rapid) | A receipt touches only parent and is idempotent | Done |
+| 792b6c7a7 | `Test792b6c7a7_RunAmend_ExchangeHashParityWithPreChangeAmend` (already named) | Golden parity | Amend keeps every exchange hash as the pre-change amend wrote it; owned by 792b6 | Done |
+
+**Coverage gaps:** 792b33c9a7 only (no direct test: the CRLF receipt is asserted only through the outbox drain, which
+is parent-sync's). 792b33c7a2, 792b33c7a3 and 792b33c9a6 are verified by `TestSetXIDField` with 792b33c7a1, and are
+`split deferred`. The mapped product scenarios
+792a20d1a, 792a20j1a, 792a20j1b, 792a20k1a, 792a20k1b and 792a20m1c are verified by the served handler tests that
+792c7s4 renames.
+
+**No-scenario tests:** `Test792b6c8a1_ToLF` is note-document-format's (already named). These verify a scenario of another
+component and keep their names: `TestActivate_PullsCRLFParentNote` and `TestDrainOutbox_FindsCRLFNote` (parent-sync,
+792c7t1), `TestNoteHasPendingMarker_CRLF` (the pending marker, 792c7s3) and `TestShow_ExchangeHashHeaderForCRLFNote`
+(the exchange-hash header of `engram show` and the `--expect-hash` check, curate, 792c7u1).
+
 
 #### 792c7s3 pending-offer-bookkeeping tech spec
 

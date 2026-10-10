@@ -13,6 +13,27 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+// Test792b33c7a1_SetXIDField: the stamp goes before parent/aliases/offer, an existing
+// xid is kept, and a note without frontmatter is an error.
+func Test792b33c7a1_SetXIDField(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	stamped, err := cli.ExportSetXIDField("---\ntype: fact\naliases:\n  - 0.old\n---\n\nbody\n", xidB)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(stamped).To(Equal("---\ntype: fact\nxid: " + xidB + "\naliases:\n  - 0.old\n---\n\nbody\n"))
+
+	kept, keptErr := cli.ExportSetXIDField(stamped, xidC)
+	g.Expect(keptErr).NotTo(HaveOccurred())
+	g.Expect(kept).To(Equal(stamped))
+
+	_, noFrontmatterErr := cli.ExportSetXIDField("body only\n", xidB)
+	g.Expect(noFrontmatterErr).To(HaveOccurred())
+
+	_, receiptErr := cli.ExportApplyReceiptToContent([]byte("body only\n"), testReceipt("1.x", ""))
+	g.Expect(receiptErr).To(HaveOccurred())
+}
+
 // TestBuildOfferPayload_UnbuildableNotes: a note whose basename has no
 // slug, or whose frontmatter is missing or corrupt, is not built (the
 // drain skips it without contacting the parent).
@@ -133,25 +154,4 @@ func TestOfferHooks_FailuresNeverFailTheWrite(t *testing.T) {
 	g.Expect(string(disabledContent)).To(Equal("raw"))
 	g.Expect(disabledXID).To(BeEmpty())
 	g.Expect(cli.ExportOfferHooksQueue(disabled, "/vault", xidA)).To(BeFalse())
-}
-
-// TestSetXIDField: the stamp goes before parent/aliases/offer, an existing
-// xid is kept, and a note without frontmatter is an error.
-func TestSetXIDField(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	stamped, err := cli.ExportSetXIDField("---\ntype: fact\naliases:\n  - 0.old\n---\n\nbody\n", xidB)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(stamped).To(Equal("---\ntype: fact\nxid: " + xidB + "\naliases:\n  - 0.old\n---\n\nbody\n"))
-
-	kept, keptErr := cli.ExportSetXIDField(stamped, xidC)
-	g.Expect(keptErr).NotTo(HaveOccurred())
-	g.Expect(kept).To(Equal(stamped))
-
-	_, noFrontmatterErr := cli.ExportSetXIDField("body only\n", xidB)
-	g.Expect(noFrontmatterErr).To(HaveOccurred())
-
-	_, receiptErr := cli.ExportApplyReceiptToContent([]byte("body only\n"), testReceipt("1.x", ""))
-	g.Expect(receiptErr).To(HaveOccurred())
 }

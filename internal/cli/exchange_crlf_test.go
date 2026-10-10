@@ -16,6 +16,22 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+// Test792b33c3a2_ExchangeHash_CRLFFrontmatterHashesAsLF: a note whose frontmatter is
+// CRLF hashes exactly as its LF form.
+func Test792b33c3a2_ExchangeHash_CRLFFrontmatterHashesAsLF(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	lfNote := foldNote(foldExchange{xid: foldXIDO, origin: true}, true)
+
+	lfHash, lfErr := cli.ExportExchangeHash([]byte(lfNote))
+	g.Expect(lfErr).NotTo(HaveOccurred())
+
+	crlfHash, crlfErr := cli.ExportExchangeHash([]byte(toCRLF(lfNote)))
+	g.Expect(crlfErr).NotTo(HaveOccurred())
+	g.Expect(crlfHash).To(Equal(lfHash))
+}
+
 // TestActivate_PullsCRLFParentNote: a parent note served with CRLF line
 // endings pulls down as an LF pending copy linked at the parent's hash.
 func TestActivate_PullsCRLFParentNote(t *testing.T) {
@@ -67,22 +83,6 @@ func TestDrainOutbox_FindsCRLFNote(t *testing.T) {
 	written := string(env.noteRaw(attentionNoteName))
 	g.Expect(written).To(ContainSubstring("note: 9.2026-09-27.parent-copy"))
 	g.Expect(written).NotTo(ContainSubstring("\r\n"), "the receipt write converts the note")
-}
-
-// TestExchangeHash_CRLFFrontmatterHashesAsLF: a note whose frontmatter is
-// CRLF hashes exactly as its LF form.
-func TestExchangeHash_CRLFFrontmatterHashesAsLF(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	lfNote := foldNote(foldExchange{xid: foldXIDO, origin: true}, true)
-
-	lfHash, lfErr := cli.ExportExchangeHash([]byte(lfNote))
-	g.Expect(lfErr).NotTo(HaveOccurred())
-
-	crlfHash, crlfErr := cli.ExportExchangeHash([]byte(toCRLF(lfNote)))
-	g.Expect(crlfErr).NotTo(HaveOccurred())
-	g.Expect(crlfHash).To(Equal(lfHash))
 }
 
 // TestNoteHasPendingMarker_CRLF: a pending offer with CRLF line endings is
