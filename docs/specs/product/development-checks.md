@@ -1,27 +1,12 @@
-# 794a NilAway Resource Configuration - Product Spec
+# Development Checks - Product Spec
 
-## 794a1 Problem Statement
-
-Developers running Engram's checks experience excessive analyzer memory use that interferes with
-other applications. They need analysis focused on their project, conservative resource defaults,
-and control over those defaults. This change covers the existing check and fix commands; it does
-not promise a hard memory ceiling or any particular runtime.
-
-Scope is confirmed by the request to implement recommendations 1 and 3 on issue
-[#794](https://github.com/toejough/engram/issues/794), and the subsequent request to apply the
-documentation workflow.
-
-## 794a2 Added: development-checks
-
-Canonical destination at integration: `docs/specs/product/development-checks.md`.
-
-### 794a2a Project analysis
+## 794a2a Project analysis
 
 Requirement: 794a2a Engram's nil check and fix commands MUST limit substantive nil analysis to
 Engram's first-party packages while retaining their existing command names and aggregate-check
 entry points.
 
-#### 794a2a1 UAT Scenarios
+### 794a2a1 UAT Scenarios
 
 ```gherkin
 Scenario Outline: 794a2a1a Existing entry points use project analysis
@@ -39,14 +24,14 @@ Scenario Outline: 794a2a1a Existing entry points use project analysis
     | check-full          |
 ```
 
-### 794a2b Resource defaults
+## 794a2b Resource defaults
 
 Requirement: 794a2b Each NilAway invocation MUST supply a 2 GiB soft Go memory limit, garbage
 collection target of 50, and maximum Go execution parallelism of 2 when those settings are absent
 from the developer's environment. These defaults MUST apply to the NilAway subprocess without
 changing the settings of other checks.
 
-#### 794a2b1 UAT Scenarios
+### 794a2b1 UAT Scenarios
 
 ```gherkin
 Scenario Outline: 794a2b1a Absent settings use subprocess defaults
@@ -60,12 +45,12 @@ Scenario Outline: 794a2b1a Absent settings use subprocess defaults
     | check-nils-fix       |
 ```
 
-### 794a2c Developer overrides
+## 794a2c Developer overrides
 
 Requirement: 794a2c Each NilAway invocation MUST preserve explicitly supplied resource settings,
 including empty values, and default only absent settings.
 
-#### 794a2c1 UAT Scenarios
+### 794a2c1 UAT Scenarios
 
 ```gherkin
 Scenario Outline: 794a2c1a Supplied settings take precedence
