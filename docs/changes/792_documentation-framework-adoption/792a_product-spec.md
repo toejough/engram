@@ -24,7 +24,7 @@ Every engram command that reads or writes notes works against one vault: a direc
 notes on the local filesystem. This capability covers where that vault is, how it comes into
 existence, and the stable identity that keeps a copied, cloned or self-parented vault from
 exchanging notes under another vault's name. The chunk-only commands `prune`, `query-chunks` and
-`show-chunk` resolve no vault. Exchange with a parent vault itself is the parent-sync capability.
+`show-chunk` resolve no vault. Exchange with a parent vault itself is the parent-sync capability ([792a21 parent-sync](#792a21-added-parent-sync)).
 
 ### 792a2a Vault location
 
@@ -105,6 +105,11 @@ vault as a note, and MUST treat any other root `README.md` as a note.
 
 Rationale: a freshly created vault must report itself clean; the starter README is recognized by
 its exact content, so a user's own README, or an edited starter, stays a normal note.
+
+[joe] you can literally only ever have one root README.md - the file system itself enforces that. The user shouldn't be
+allowed to edit the README - it should be a stable, engram-controlled artifact. If the user wants to remember something,
+or adjust the way engram handles something, 
+it goes in a regular note.
 
 #### 792a2d1 UAT Scenarios
 
@@ -455,8 +460,8 @@ Canonical target: `docs/specs/product/note-writing.md` (title `Note Writing - Pr
 `engram learn` writes new notes into the vault: `fact`, `feedback` and `runbook` notes, each placed
 in the vault's Luhmann hierarchy, and `qa` pairs of a question note and an answer note. Each note's
 `vault:` field takes the vault name of [792a2b](#792a2b-vault-name). Changing an existing note is the note-revision
-capability; deciding which lessons to capture, and how to phrase them, belongs to the learn and
-write-memory skills.
+capability ([792a4 note-revision](#792a4-added-note-revision)); deciding which lessons to capture, and how to phrase them, belongs to the learn ([792a15 learn](#792a15-added-learn)) and
+write-memory ([792a13 write-memory](#792a13-added-write-memory)) skills.
 
 ### 792a3a Fact notes
 
@@ -536,7 +541,7 @@ write neither field when its flag is absent.
 
 Rationale: a red flag names a failure mode specific to this procedure that a general "follow the
 steps" rule would not catch; the general floor is not restated on each runbook. How triggers
-surface a runbook belongs to the memory-query capability.
+surface a runbook belongs to the memory-query capability ([792a7 memory-query](#792a7-added-memory-query)).
 `red_flags` is a structured field and not a body heading, because the follow frame treats it as a standing
 condition to recheck and so it carries weight that template wording does not. Rewording or bolding body text
 was tried and rejected: six rounds of the eval had already exercised that lever.
@@ -982,11 +987,11 @@ Canonical target: `docs/specs/product/note-revision.md` (title `Note Revision - 
 
 `engram amend`, `engram resituate` and `engram activate` change notes that already exist: amend
 replaces a note's fields, supersessions and chunk sources, resituate rewrites its situation, and
-activate records that it was used. Writing new notes is the note-writing capability. The curation
-flags of `amend` (`--clear-pending`, `--discard`, `--into`, `--expect-hash`) belong to curate, and
+activate records that it was used. Writing new notes is the note-writing capability ([792a3 note-writing](#792a3-added-note-writing)). The curation
+flags of `amend` (`--clear-pending`, `--discard`, `--into`, `--expect-hash`) belong to curate ([792a22 curate](#792a22-added-curate)), and
 `activate --parent`, a pull-down on a local miss, and the offers a revision queues for a parent
-belong to parent-sync. The vocabulary tagging that follows a revision belongs to
-controlled-vocabulary.
+belong to parent-sync ([792a21 parent-sync](#792a21-added-parent-sync)). The vocabulary tagging that follows a revision belongs to
+controlled-vocabulary ([792a6 controlled-vocabulary](#792a6-added-controlled-vocabulary)).
 
 ### 792a4a Note references
 
@@ -1421,8 +1426,8 @@ Canonical target: `docs/specs/product/chunk-indexing.md` (title `Chunk Indexing 
 each source is cut into chunks, each chunk is embedded, and the chunks are stored outside the vault
 so that `engram query` can search them as evidence. `engram prune` maintains that index. No LLM is
 involved. Searching chunks and fetching one chunk's text (`engram query`, `query-chunks`,
-`show-chunk`) is the memory-query capability, and the backlog notice that `engram update` prints for
-duplicate index files belongs to install-and-update. A chunk is named by its chunk ID,
+`show-chunk`) is the memory-query capability ([792a7 memory-query](#792a7-added-memory-query)), and the backlog notice that `engram update` prints for
+duplicate index files belongs to install-and-update ([792a11 install-and-update](#792a11-added-install-and-update)). A chunk is named by its chunk ID,
 `<source path>#<anchor>`.
 
 ### 792a5a Chunk index location
@@ -1993,8 +1998,8 @@ Every note that engram writes is tagged `vocab/<term>` with the terms closest to
 also seeds, extends, reports on and repairs the vocabulary, and `engram update` flags vaults that
 need a vocabulary migration. Which kinds of note are tagged (every kind but questions) is
 note-writing's [792a3u](#792a3u-vocabulary-tagging-by-kind). Using the vocabulary at query time, including the query payload's
-`refit_pending` field, is the memory-query capability; acting on a pending refit is the learn
-skill's. Tagging the notes that a pull-down or a served learn writes belongs to parent-sync and
+`refit_pending` field, is the memory-query capability ([792a7 memory-query](#792a7-added-memory-query)); acting on a pending refit is the learn
+skill's ([792a15 learn](#792a15-added-learn)). Tagging the notes that a pull-down or a served learn writes belongs to parent-sync ([792a21 parent-sync](#792a21-added-parent-sync)) and
 vault-serving ([792a20o](#792a20o-the-receiving-vault-tags-a-served-offer)).
 
 ### 792a6a Definition notes
@@ -2660,8 +2665,8 @@ newest chunks, and a budget of counts. `engram show` prints one note in full, `e
 prints one chunk's text, and `engram query-chunks` searches the chunk index alone. All four only
 read. The `recall` skill is the main caller and decides what to do with the payload. A query on a
 vault that does not exist creates it first and returns an empty payload ([792a2e](#792a2e-first-use-vault-creation)). The payload's
-`pending_offers` flag and the exclusion of pending offers from results belong to curate, results
-merged in from a parent vault belong to parent-sync, and the served form of a query belongs to
+`pending_offers` flag and the exclusion of pending offers from results belong to curate ([792a22 curate](#792a22-added-curate)), results
+merged in from a parent vault belong to parent-sync ([792a21 parent-sync](#792a21-added-parent-sync)), and the served form of a query belongs to
 vault-serving ([792a20m](#792a20m-a-served-query-takes-the-message-and-can-return-dedupe-keys)). Which kinds of note a query returns, and that it never returns a question note, is
 note-writing's [792a3t](#792a3t-question-and-answer-retrieval).
 
@@ -4582,12 +4587,12 @@ notes has never branched its Luhmann IDs, and a note written before notes carrie
 runs only when asked: `engram update --reparent-luhmann` re-parents top-level notes and
 `engram update --backfill-identity` stamps the missing origin. Both act on the vault located by [792a2a](#792a2a-vault-location).
 The notices and the two flags belong to `engram update`, whose binary refresh and harness sync are
-install-and-update's.
+install-and-update's ([792a11 install-and-update](#792a11-added-install-and-update)).
 
 ### 792a10a The flat-vault notice
 
 Requirement: [792a10a](#792a10a-the-flat-vault-notice) `engram update` MUST print a one-line notice naming `engram update
---reparent-luhmann` and the learn skill's batch mode when the vault holds at least one note and the
+--reparent-luhmann` and the learn skill's batch mode ([792a15l The re-parent batch mode](#792a15l-the-re-parent-batch-mode)) when the vault holds at least one note and the
 Luhmann ID of every note at its root is top-level, one run of digits with no letter or digit branch.
 It MUST NOT print the notice when any note has a deeper ID, when the vault has no note, or when the
 vault cannot be read, and MUST NOT modify any note on account of it.
@@ -4619,7 +4624,7 @@ Scenario: 792a10a1c An empty vault has no notice
 Scenario: 792a10a1d The notice names the answering procedure
   Given a vault whose every note has a depth-1 Luhmann ID
   When the user runs engram update
-  Then the notice names both engram update --reparent-luhmann and the learn skill's batch mode
+  Then the notice names both engram update --reparent-luhmann and the learn skill's batch mode ([792a15l The re-parent batch mode](#792a15l-the-re-parent-batch-mode))
 ```
 
 ### 792a10b Re-parenting only on request
@@ -4655,7 +4660,7 @@ top-level notes with a sidecar whose body vector has cosine similarity of at lea
 nearest first, as a candidate of the note, its target, a body excerpt of each of at most 200 bytes, and
 the similarity. It MUST also carry a `fingerprint` of the notes it considered, a `next_command` field
 naming the literal follow-up command `engram update --reparent-luhmann --answers <path-to-answers-file>`,
-and an `instruction`. The instruction MUST name the learn skill's batch mode as the procedure that
+and an `instruction`. The instruction MUST name the learn skill's batch mode ([792a15l The re-parent batch mode](#792a15l-the-re-parent-batch-mode)) as the procedure that
 holds the continuation, sibling and top disposition test, state the answers-file shape, require exactly
 one entry per distinct candidate note, say that the finished answers file goes back to the user or the
 orchestrating agent to preview with `--dry-run` and then apply, and not tell the answering pass to run
@@ -4665,7 +4670,7 @@ instead.
 Rationale: whether one note is a sub-point of another is a judgment of content that an embedding cannot
 make, so the binary proposes pairs and an agent decides. This is the boundary drawn for per-capture
 disposition, and the flow follows `vocab refit`'s derive, names, apply.
-The answering payload defers to the learn skill's batch mode, and the apply step stays with the user or
+The answering payload defers to the learn skill's batch mode ([792a15l The re-parent batch mode](#792a15l-the-re-parent-batch-mode)), and the apply step stays with the user or
 orchestrator after a `--dry-run`. Editing the skill to drop its stop-before-apply red flag was rejected,
 because it would lose the human checkpoint before bulk renames.
 
@@ -4685,7 +4690,7 @@ Scenario: 792a10c1b No pair is similar enough
 Scenario: 792a10c1c The instruction routes to the learn skill
   Given a vault with candidates
   When the user runs engram update --reparent-luhmann
-  Then the instruction names the learn skill's batch mode, requires one entry per distinct candidate note, names --dry-run as the preview before applying, and does not tell the answering pass to run apply
+  Then the instruction names the learn skill's batch mode ([792a15l The re-parent batch mode](#792a15l-the-re-parent-batch-mode)), requires one entry per distinct candidate note, names --dry-run as the preview before applying, and does not tell the answering pass to run apply
 
 Scenario: 792a10c1d Only top-level notes with sidecars are considered
   Given a branched note and a top-level note without a sidecar, each similar to a top-level note with a sidecar
@@ -5054,7 +5059,7 @@ removed from the source disappears from every harness on the next update, and a 
 own is never deleted. The notices that `engram update` prints about the vault (the vocabulary, the
 Luhmann branching, the missing note origin, the uncommitted vault ID, pending offers and the parent
 outbox) belong to the capabilities whose state they report, and registering skills as runbook notes
-after the deploy belongs to skill-runbook-registration. This capability is the install, the deploy and
+after the deploy belongs to skill-runbook-registration ([792a12 skill-runbook-registration](#792a12-added-skill-runbook-registration)). This capability is the install, the deploy and
 the report around them.
 
 ### 792a11a Installing from a local clone or a fresh clone
@@ -9382,7 +9387,7 @@ a runbook that the query returned from a parent vault (`from_parent`) and the ru
 ([792a12](#792a12-added-skill-runbook-registration)), whose installation as a skill is no reason to skip the frame.
 
 Rationale: the frame is stated for the kind and not for a source, so the agent does not need to know where a note came
-from. That a bare `engram show <basename>` resolves a note held only in the parent vault is parent-sync's.
+from. That a bare `engram show <basename>` resolves a note held only in the parent vault is parent-sync's ([792a21 parent-sync](#792a21-added-parent-sync)).
 
 #### 792a19q1 UAT Scenarios
 
@@ -9530,7 +9535,7 @@ Under `--dry-run` each guidance line MUST carry the dry-run prefix.
 
 Rationale: an import is a line in a file the user owns, which engram does not edit, so the report tells the user
 exactly what to add. The nudge is shown only to a user who has neither opted in nor wired an import, and so has not
-yet been told guidance exists. The canonical-path suffix on Claude Code lines is install-and-update's ([792a11m1d](#792a11m1-uat-scenarios)).
+yet been told guidance exists. The canonical-path suffix on Claude Code lines is install-and-update's ([792a11 install-and-update](#792a11-added-install-and-update); [792a11m1d](#792a11m1-uat-scenarios)).
 
 #### 792a19v1 UAT Scenarios
 
@@ -10284,7 +10289,7 @@ minimum is kept or no kept direct chunk remains, and then put the direct group b
 
 Rationale: explore picks scoring higher than direct matches crowded the direct matches out of a merged answer before
 this order existed (#744). The note floor keeps the minimum of qualifying notes that a local query keeps under a tight
-`--limit` (the matched-note floor of memory-query), now over both sources.
+`--limit` (the matched-note floor of memory-query, [792a7e Matched-note floor](#792a7e-matched-note-floor)), now over both sources.
 
 #### 792a21d1 UAT Scenarios
 
