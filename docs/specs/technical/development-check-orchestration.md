@@ -32,7 +32,7 @@ adapter MUST run NilAway with the inherited environment unchanged: it MUST NOT a
 remove `GOMEMLIMIT`, `GOGC` or `GOMAXPROCS`, and MUST NOT modify the parent environment.
 
 Supports
-[794a2a1a Existing check entry points analyze only Engram's module packages](../product/development-checks.md#794a2a1-uat-scenarios),
+[794a2a1a Existing check entry points report only on Engram's module packages](../product/development-checks.md#794a2a1-uat-scenarios),
 [794a2a1c The fix command acts only on Engram's module packages](../product/development-checks.md#794a2a1-uat-scenarios),
 [794a2c1a Supplied settings are passed through](../product/development-checks.md#794a2c1-uat-scenarios), and
 [794a2c1b Absent settings stay absent](../product/development-checks.md#794a2c1-uat-scenarios).

@@ -2,19 +2,21 @@
 
 ## 794a2a Project analysis
 
-Requirement: 794a2a The nil check and fix commands MUST analyze only packages whose import path is
-Engram's module path, or that path followed by `/` (Engram's module packages). They MUST NOT
-analyze any other package, such as a package of `github.com/toejough/engram-eval`, or a nested
-module that has its own `go.mod`. They MUST retain their existing command names and
-aggregate-check entry points.
+Requirement: 794a2a The nil check and fix commands MUST report findings only in Engram's module
+packages: packages whose import path is Engram's module path or that path followed by `/`. They
+MUST NOT analyze third-party or standard-library packages, and MUST NOT report findings in any other
+package, such as a package of `github.com/toejough/engram-eval` or of a nested module that has its
+own `go.mod`. A dependency whose module path begins with Engram's module path MAY be analyzed. The
+commands MUST retain their existing command names and aggregate-check entry points.
 
 Rationale: Dependency package bodies are most of the analysis cost and nothing in them is Engram's
-to fix. A module whose path only begins with Engram's is still not Engram's.
+to fix. Dependencies whose path begins with Engram's are not expected, so analyzing one is an
+accepted cost of a simple scope.
 
 ### 794a2a1 UAT Scenarios
 
 ```gherkin
-Scenario Outline: 794a2a1a Existing check entry points analyze only Engram's module packages
+Scenario Outline: 794a2a1a Existing check entry points report only on Engram's module packages
   Given an Engram checkout with NilAway installed
   And an Engram package contains a known nil dereference
   And a third-party dependency contains a known nil dereference
@@ -29,7 +31,7 @@ Scenario Outline: 794a2a1a Existing check entry points analyze only Engram's mod
     | check-for-fail      |
     | check-full          |
 
-Scenario: 794a2a1b Modules sharing only the path prefix are not analyzed
+Scenario: 794a2a1b Modules sharing only the path prefix are not reported on
   Given an Engram checkout with NilAway installed
   And an Engram package contains a known nil dereference
   And Engram depends on a module "github.com/toejough/engram-eval" that contains a known nil dereference
@@ -45,7 +47,7 @@ Scenario: 794a2a1c The fix command acts only on Engram's module packages
   Then the nil dereference in the Engram package is reported
   And the third-party dependency is neither modified nor reported on
 
-Scenario: 794a2a1d A nested module is not analyzed
+Scenario: 794a2a1d A nested module is not reported on
   Given an Engram checkout with NilAway installed
   And an Engram package contains a known nil dereference
   And a nested module with its own go.mod contains a known nil dereference
