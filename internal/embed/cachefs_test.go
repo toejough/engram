@@ -11,6 +11,128 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
+// Test792b9c6a1_CacheFS_RenameExistContract pins the load-bearing contract: every
+// destination-exists flavor the raw primitive can produce must surface as
+// errors.Is(err, fs.ErrExist); everything else wraps without the sentinel.
+func Test792b9c6a1_CacheFS_RenameExistContract(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]struct {
+		raw       error
+		wantExist bool
+	}{
+		"raw fs.ErrExist": {raw: fs.ErrExist, wantExist: true},
+		"LinkError wrapping ErrExist": {
+			raw:       &os.LinkError{Op: "rename", Old: "a", New: "b", Err: os.ErrExist},
+			wantExist: true,
+		},
+		"LinkError directory not empty": {
+			raw:       &os.LinkError{Op: "rename", Old: "a", New: "b", Err: errors.New("directory not empty")},
+			wantExist: true,
+		},
+		"bare directory-not-empty message": {
+			raw:       errors.New("rename a b: directory not empty"),
+			wantExist: true,
+		},
+		"unrelated error": {raw: os.ErrPermission, wantExist: false},
+	}
+
+	for name, testCase := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			recorder := &cachePrimRecorder{renameErr: testCase.raw}
+
+			err := embed.NewCacheFS(recorder.prims()).Rename("/tmp/src", "/cache/dst")
+			g.Expect(err).To(HaveOccurred())
+			g.Expect(errors.Is(err, fs.ErrExist)).To(Equal(testCase.wantExist))
+
+			if !testCase.wantExist {
+				g.Expect(err).To(MatchError(ContainSubstring("rename")))
+			}
+		})
+	}
+
+	t.Run("success is nil", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		recorder := &cachePrimRecorder{}
+
+		g.Expect(embed.NewCacheFS(recorder.prims()).Rename("/tmp/src", "/cache/dst")).To(Succeed())
+	})
+}
+
+// Test792b9c6a2_CacheFS_StatSentinel covers the sentinel-probe branches and proves
+// the ".complete" sentinel name is internal policy (the raw Stat sees the
+// joined path).
+func Test792b9c6a2_CacheFS_StatSentinel(t *testing.T) {
+	t.Parallel()
+
+	t.Run("missing sentinel is false, nil", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		recorder := &cachePrimRecorder{statErr: fs.ErrNotExist}
+
+		present, err := embed.NewCacheFS(recorder.prims()).StatSentinel("/cache/m1")
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(present).To(BeFalse())
+		g.Expect(recorder.statPath).To(Equal("/cache/m1/.complete"))
+	})
+
+	t.Run("stat failure wraps", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		recorder := &cachePrimRecorder{statErr: errors.New("disk gone")}
+
+		_, err := embed.NewCacheFS(recorder.prims()).StatSentinel("/cache/m1")
+		g.Expect(err).To(MatchError(ContainSubstring("stat sentinel")))
+		g.Expect(err).To(MatchError(ContainSubstring("disk gone")))
+	})
+
+	t.Run("present sentinel is true, nil", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		recorder := &cachePrimRecorder{}
+
+		present, err := embed.NewCacheFS(recorder.prims()).StatSentinel("/cache/m1")
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(present).To(BeTrue())
+	})
+}
+
+// Test792b9c6a2_CacheFS_WriteSentinel proves the sentinel write is an empty
+// ".complete" file under the internal perm policy.
+func Test792b9c6a2_CacheFS_WriteSentinel(t *testing.T) {
+	t.Parallel()
+
+	t.Run("writes empty .complete", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		recorder := &cachePrimRecorder{}
+
+		g.Expect(embed.NewCacheFS(recorder.prims()).WriteSentinel("/tmp/extract")).To(Succeed())
+		g.Expect(recorder.writePath).To(Equal("/tmp/extract/.complete"))
+		g.Expect(recorder.writeData).To(BeEmpty())
+		g.Expect(recorder.writePerm).To(Equal(fs.FileMode(0o600)))
+	})
+
+	t.Run("failure wraps", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		recorder := &cachePrimRecorder{writeErr: errors.New("denied")}
+
+		err := embed.NewCacheFS(recorder.prims()).WriteSentinel("/tmp/extract")
+		g.Expect(err).To(MatchError(ContainSubstring("write sentinel")))
+	})
+}
+
 // TestCacheFS_MkdirAll asserts the internal dir-perm policy (0o755) and
 // the error wrap.
 func TestCacheFS_MkdirAll(t *testing.T) {
@@ -80,100 +202,6 @@ func TestCacheFS_RemoveAllPassesThroughRaw(t *testing.T) {
 	g.Expect(err).To(MatchError(rawErr))
 }
 
-// TestCacheFS_RenameExistContract pins the load-bearing contract: every
-// destination-exists flavor the raw primitive can produce must surface as
-// errors.Is(err, fs.ErrExist); everything else wraps without the sentinel.
-func TestCacheFS_RenameExistContract(t *testing.T) {
-	t.Parallel()
-
-	cases := map[string]struct {
-		raw       error
-		wantExist bool
-	}{
-		"raw fs.ErrExist": {raw: fs.ErrExist, wantExist: true},
-		"LinkError wrapping ErrExist": {
-			raw:       &os.LinkError{Op: "rename", Old: "a", New: "b", Err: os.ErrExist},
-			wantExist: true,
-		},
-		"LinkError directory not empty": {
-			raw:       &os.LinkError{Op: "rename", Old: "a", New: "b", Err: errors.New("directory not empty")},
-			wantExist: true,
-		},
-		"bare directory-not-empty message": {
-			raw:       errors.New("rename a b: directory not empty"),
-			wantExist: true,
-		},
-		"unrelated error": {raw: os.ErrPermission, wantExist: false},
-	}
-
-	for name, testCase := range cases {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			recorder := &cachePrimRecorder{renameErr: testCase.raw}
-
-			err := embed.NewCacheFS(recorder.prims()).Rename("/tmp/src", "/cache/dst")
-			g.Expect(err).To(HaveOccurred())
-			g.Expect(errors.Is(err, fs.ErrExist)).To(Equal(testCase.wantExist))
-
-			if !testCase.wantExist {
-				g.Expect(err).To(MatchError(ContainSubstring("rename")))
-			}
-		})
-	}
-
-	t.Run("success is nil", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		recorder := &cachePrimRecorder{}
-
-		g.Expect(embed.NewCacheFS(recorder.prims()).Rename("/tmp/src", "/cache/dst")).To(Succeed())
-	})
-}
-
-// TestCacheFS_StatSentinel covers the sentinel-probe branches and proves
-// the ".complete" sentinel name is internal policy (the raw Stat sees the
-// joined path).
-func TestCacheFS_StatSentinel(t *testing.T) {
-	t.Parallel()
-
-	t.Run("missing sentinel is false, nil", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		recorder := &cachePrimRecorder{statErr: fs.ErrNotExist}
-
-		present, err := embed.NewCacheFS(recorder.prims()).StatSentinel("/cache/m1")
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(present).To(BeFalse())
-		g.Expect(recorder.statPath).To(Equal("/cache/m1/.complete"))
-	})
-
-	t.Run("stat failure wraps", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		recorder := &cachePrimRecorder{statErr: errors.New("disk gone")}
-
-		_, err := embed.NewCacheFS(recorder.prims()).StatSentinel("/cache/m1")
-		g.Expect(err).To(MatchError(ContainSubstring("stat sentinel")))
-		g.Expect(err).To(MatchError(ContainSubstring("disk gone")))
-	})
-
-	t.Run("present sentinel is true, nil", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		recorder := &cachePrimRecorder{}
-
-		present, err := embed.NewCacheFS(recorder.prims()).StatSentinel("/cache/m1")
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(present).To(BeTrue())
-	})
-}
-
 // TestCacheFS_WriteFile asserts the internal file-perm policy (0o600) and
 // the error wrap.
 func TestCacheFS_WriteFile(t *testing.T) {
@@ -199,34 +227,6 @@ func TestCacheFS_WriteFile(t *testing.T) {
 
 		err := embed.NewCacheFS(recorder.prims()).WriteFile("/tmp/x/model.onnx", []byte("m"))
 		g.Expect(err).To(MatchError(ContainSubstring("write file")))
-	})
-}
-
-// TestCacheFS_WriteSentinel proves the sentinel write is an empty
-// ".complete" file under the internal perm policy.
-func TestCacheFS_WriteSentinel(t *testing.T) {
-	t.Parallel()
-
-	t.Run("writes empty .complete", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		recorder := &cachePrimRecorder{}
-
-		g.Expect(embed.NewCacheFS(recorder.prims()).WriteSentinel("/tmp/extract")).To(Succeed())
-		g.Expect(recorder.writePath).To(Equal("/tmp/extract/.complete"))
-		g.Expect(recorder.writeData).To(BeEmpty())
-		g.Expect(recorder.writePerm).To(Equal(fs.FileMode(0o600)))
-	})
-
-	t.Run("failure wraps", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		recorder := &cachePrimRecorder{writeErr: errors.New("denied")}
-
-		err := embed.NewCacheFS(recorder.prims()).WriteSentinel("/tmp/extract")
-		g.Expect(err).To(MatchError(ContainSubstring("write sentinel")))
 	})
 }
 

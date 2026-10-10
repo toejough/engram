@@ -11,11 +11,11 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-// TestBundledEmbedder_Smoke exercises the full production wiring
+// Test792b9c1a1_BundledEmbedder_Smoke exercises the full production wiring
 // end-to-end: real hugot runtime (cmd's thin hugotRuntime), internally
 // composed backend + cache FS, bundled model assets. Skipped under -short
 // because it unpacks the ~90MB ONNX.
-func TestBundledEmbedder_Smoke(t *testing.T) {
+func Test792b9c1a1_BundledEmbedder_Smoke(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping bundled-embedder smoke test under -short")
 	}
@@ -58,11 +58,11 @@ func TestBundledEmbedder_Smoke(t *testing.T) {
 	g.Expect(vec2).To(HaveLen(expectedDims))
 }
 
-// TestHugotRejectsInvalidModelDir exercises the embedder-construction
+// Test792b9c3a5_HugotRejectsInvalidModelDir exercises the embedder-construction
 // error branch through the real runtime: extraction succeeds (files
 // exist) but hugot rejects the directory because it has no valid
 // model.onnx.
-func TestHugotRejectsInvalidModelDir(t *testing.T) {
+func Test792b9c3a5_HugotRejectsInvalidModelDir(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 

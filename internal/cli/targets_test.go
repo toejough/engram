@@ -182,7 +182,7 @@ func Test792b2c5a1_Targets_NoSkillKeyOrSourceFlags(t *testing.T) {
 	}
 }
 
-func TestCacheDirFromHome(t *testing.T) {
+func Test792b9c5a8_CacheDirFromHome(t *testing.T) {
 	t.Parallel()
 
 	const modelID = "minilm-l6-v2@384"

@@ -10,21 +10,7 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-func TestBuildEmbedder_EmptyProbeDestroysAndReportsSentinel(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	handle := &fakePipelineHandle{runResult: embed.FeatureOutput{Embeddings: [][]float32{}}}
-	_, err := embed.NewHugotEmbedderFromDir(
-		context.Background(),
-		&fakeBackend{handle: handle},
-		"/tmp/x", "fake@1",
-	)
-	g.Expect(err).To(MatchError(embed.ErrHugotProbeEmpty))
-	g.Expect(handle.destroyHits).To(Equal(1))
-}
-
-func TestBuildEmbedder_HappyPathBindsRunnerAndCloser(t *testing.T) {
+func Test792b9c3a1_BuildEmbedder_HappyPathBindsRunnerAndCloser(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -49,7 +35,7 @@ func TestBuildEmbedder_HappyPathBindsRunnerAndCloser(t *testing.T) {
 	g.Expect(handle.destroyHits).To(Equal(1))
 }
 
-func TestBuildEmbedder_OpenFailurePropagates(t *testing.T) {
+func Test792b9c3a2_BuildEmbedder_OpenFailurePropagates(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -62,7 +48,7 @@ func TestBuildEmbedder_OpenFailurePropagates(t *testing.T) {
 	g.Expect(err).To(MatchError(bootErr))
 }
 
-func TestBuildEmbedder_ProbeFailureDestroysAndPropagates(t *testing.T) {
+func Test792b9c3a3_BuildEmbedder_ProbeFailureDestroysAndPropagates(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -77,7 +63,21 @@ func TestBuildEmbedder_ProbeFailureDestroysAndPropagates(t *testing.T) {
 	g.Expect(handle.destroyHits).To(Equal(1), "destroy must fire on probe failure")
 }
 
-func TestBuildEmbedder_ZeroLengthVectorIsEmpty(t *testing.T) {
+func Test792b9c3a4_BuildEmbedder_EmptyProbeDestroysAndReportsSentinel(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	handle := &fakePipelineHandle{runResult: embed.FeatureOutput{Embeddings: [][]float32{}}}
+	_, err := embed.NewHugotEmbedderFromDir(
+		context.Background(),
+		&fakeBackend{handle: handle},
+		"/tmp/x", "fake@1",
+	)
+	g.Expect(err).To(MatchError(embed.ErrHugotProbeEmpty))
+	g.Expect(handle.destroyHits).To(Equal(1))
+}
+
+func Test792b9c3a4_BuildEmbedder_ZeroLengthVectorIsEmpty(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 

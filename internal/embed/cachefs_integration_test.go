@@ -13,57 +13,13 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-// TestCacheFS_RealOS_RenameOntoPopulatedDir keeps the exist-classification
-// honest on the actual OS: on macOS the raw rename error is ENOTEMPTY, and
-// the composed Rename must still satisfy the fs.ErrExist contract.
-func TestCacheFS_RealOS_RenameOntoPopulatedDir(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	parent := t.TempDir()
-	src := filepath.Join(parent, "src")
-	dst := filepath.Join(parent, "dst")
-
-	g.Expect(os.Mkdir(src, 0o755)).To(Succeed())
-	g.Expect(os.Mkdir(dst, 0o755)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(dst, "f.txt"), []byte("hi"), 0o600)).To(Succeed())
-
-	err := realCacheFSForTest().Rename(src, dst)
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(errors.Is(err, fs.ErrExist)).To(BeTrue(),
-		"CacheFS.Rename contract: destination-exists must satisfy errors.Is(err, fs.ErrExist)")
-}
-
-// TestCacheFS_RealOS_SentinelRoundTrip proves sentinel write + probe
-// against a real tempdir.
-func TestCacheFS_RealOS_SentinelRoundTrip(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	cfs := realCacheFSForTest()
-	dir := t.TempDir()
-
-	present, err := cfs.StatSentinel(dir)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(present).To(BeFalse())
-
-	g.Expect(cfs.WriteSentinel(dir)).To(Succeed())
-
-	_, statErr := os.Stat(filepath.Join(dir, ".complete"))
-	g.Expect(statErr).NotTo(HaveOccurred())
-
-	present, err = cfs.StatSentinel(dir)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(present).To(BeTrue())
-}
-
-// TestExtractToCache_RealOS drives the internal extraction through the
+// Test792b9c5a1_ExtractToCache_RealOS drives the internal extraction through the
 // composed CacheFS on real disk: first call extracts and stamps the
 // sentinel; second call reuses without re-extracting. The injected backend
 // fails so no hugot runtime is needed (extraction happens before the
 // backend opens). nonEmptyTestFS is declared in cache_test.go (same
 // embed_test package; its move from unpack_test.go happens in step 8).
-func TestExtractToCache_RealOS(t *testing.T) {
+func Test792b9c5a1_ExtractToCache_RealOS(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -93,6 +49,50 @@ func TestExtractToCache_RealOS(t *testing.T) {
 	g.Expect(readErr2).NotTo(HaveOccurred())
 	g.Expect(entries2).To(HaveLen(fileCount1),
 		"second call must not add/modify files — cache reused as-is")
+}
+
+// Test792b9c6a1_CacheFS_RealOS_RenameOntoPopulatedDir keeps the exist-classification
+// honest on the actual OS: on macOS the raw rename error is ENOTEMPTY, and
+// the composed Rename must still satisfy the fs.ErrExist contract.
+func Test792b9c6a1_CacheFS_RealOS_RenameOntoPopulatedDir(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	parent := t.TempDir()
+	src := filepath.Join(parent, "src")
+	dst := filepath.Join(parent, "dst")
+
+	g.Expect(os.Mkdir(src, 0o755)).To(Succeed())
+	g.Expect(os.Mkdir(dst, 0o755)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(dst, "f.txt"), []byte("hi"), 0o600)).To(Succeed())
+
+	err := realCacheFSForTest().Rename(src, dst)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(errors.Is(err, fs.ErrExist)).To(BeTrue(),
+		"CacheFS.Rename contract: destination-exists must satisfy errors.Is(err, fs.ErrExist)")
+}
+
+// Test792b9c6a2_CacheFS_RealOS_SentinelRoundTrip proves sentinel write + probe
+// against a real tempdir.
+func Test792b9c6a2_CacheFS_RealOS_SentinelRoundTrip(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	cfs := realCacheFSForTest()
+	dir := t.TempDir()
+
+	present, err := cfs.StatSentinel(dir)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(present).To(BeFalse())
+
+	g.Expect(cfs.WriteSentinel(dir)).To(Succeed())
+
+	_, statErr := os.Stat(filepath.Join(dir, ".complete"))
+	g.Expect(statErr).NotTo(HaveOccurred())
+
+	present, err = cfs.StatSentinel(dir)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(present).To(BeTrue())
 }
 
 // unexported variables.

@@ -10,31 +10,7 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-func TestHugotEmbedder_Close_ErrorPropagates(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	emb := embed.NewHugotEmbedderWithPipelineForTest("fake@4", 4,
-		func(string) ([][]float32, error) { return [][]float32{{0}}, nil },
-		func() error { return errors.New("destroy failed") },
-	)
-	g.Expect(emb.Close()).To(MatchError(ContainSubstring("destroy failed")))
-}
-
-func TestHugotEmbedder_Embed_EmptyResultReportsErr(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	emb := embed.NewHugotEmbedderWithPipelineForTest("fake@4", 4,
-		func(string) ([][]float32, error) { return [][]float32{}, nil },
-		func() error { return nil },
-	)
-
-	_, err := emb.Embed(context.Background(), "x")
-	g.Expect(err).To(MatchError(embed.ErrHugotEmbedEmpty))
-}
-
-func TestHugotEmbedder_Embed_HappyPath(t *testing.T) {
+func Test792b9c1a4_HugotEmbedder_Embed_HappyPath(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -59,7 +35,7 @@ func TestHugotEmbedder_Embed_HappyPath(t *testing.T) {
 	g.Expect(closeCalls).To(Equal(1))
 }
 
-func TestHugotEmbedder_Embed_RunErrorPropagates(t *testing.T) {
+func Test792b9c2a2_HugotEmbedder_Embed_RunErrorPropagates(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -72,9 +48,33 @@ func TestHugotEmbedder_Embed_RunErrorPropagates(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("backend down")))
 }
 
-// TestLazyEmbedder_DimsAndModelIDBeforeInit asserts the pre-init shortcut
+func Test792b9c2a3_HugotEmbedder_Embed_EmptyResultReportsErr(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	emb := embed.NewHugotEmbedderWithPipelineForTest("fake@4", 4,
+		func(string) ([][]float32, error) { return [][]float32{}, nil },
+		func() error { return nil },
+	)
+
+	_, err := emb.Embed(context.Background(), "x")
+	g.Expect(err).To(MatchError(embed.ErrHugotEmbedEmpty))
+}
+
+func Test792b9c3a6_HugotEmbedder_Close_ErrorPropagates(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	emb := embed.NewHugotEmbedderWithPipelineForTest("fake@4", 4,
+		func(string) ([][]float32, error) { return [][]float32{{0}}, nil },
+		func() error { return errors.New("destroy failed") },
+	)
+	g.Expect(emb.Close()).To(MatchError(ContainSubstring("destroy failed")))
+}
+
+// Test792b9c4a1_LazyEmbedder_DimsAndModelIDBeforeInit asserts the pre-init shortcut
 // paths that return BundledModelID / Dims without unpacking the model.
-func TestLazyEmbedder_DimsAndModelIDBeforeInit(t *testing.T) {
+func Test792b9c4a1_LazyEmbedder_DimsAndModelIDBeforeInit(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -86,7 +86,7 @@ func TestLazyEmbedder_DimsAndModelIDBeforeInit(t *testing.T) {
 // TestLazyEmbedder_InitFailurePathsAllUnreachable drives every init-
 // failure branch via an injected factory: Embed wraps the error, Dims
 // returns 0, ModelID returns the bundled constant fallback.
-func TestLazyEmbedder_InitFailurePaths(t *testing.T) {
+func Test792b9c4a2_LazyEmbedder_InitFailurePaths(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -102,10 +102,10 @@ func TestLazyEmbedder_InitFailurePaths(t *testing.T) {
 	g.Expect(lazy.ModelID()).To(Equal(embed.BundledModelID))
 }
 
-// TestLazyEmbedder_InitSuccessPaths drives the happy paths via an
+// Test792b9c4a3_LazyEmbedder_InitSuccessPaths drives the happy paths via an
 // injected factory returning a HugotEmbedder built from the fake
 // pipeline constructor.
-func TestLazyEmbedder_InitSuccessPaths(t *testing.T) {
+func Test792b9c4a3_LazyEmbedder_InitSuccessPaths(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 

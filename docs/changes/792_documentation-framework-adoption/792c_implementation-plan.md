@@ -207,8 +207,8 @@ flowchart TD
   N792c7b2["792c7b2 note-document-format tech spec<br/>Complete"]
   N792c7b3["792c7b3 luhmann-addressing tech spec<br/>Complete"]
   N792c7b4["792c7b4 vault-write-lock tech spec<br/>Complete"]
-  N792c7b5["792c7b5 text-embedder tech spec<br/>Ready"]
-  N792c7b6["792c7b6 embedding-sidecar tech spec<br/>Blocked by: 792c7b5"]
+  N792c7b5["792c7b5 text-embedder tech spec<br/>Complete"]
+  N792c7b6["792c7b6 embedding-sidecar tech spec<br/>Ready"]
   N792c7b7["792c7b7 note-provenance tech spec<br/>Blocked by: 792c7b6"]
   N792c7b8["792c7b8 note-authoring tech spec<br/>Blocked by: 792c7b7"]
   N792c7c1["792c7c1 note-revision product spec<br/>Blocked by: 792c7b8"]
@@ -908,11 +908,64 @@ Target: `792b9` (`docs/specs/technical/text-embedder.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7b5a | Port the component contract to `792b9` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7b5b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7b5c | Repoint stale references to `792b9` | Non-test action | Keeps live links valid | Not started |
-| 792c7b5d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7b5e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7b5a | Port the component contract to `792b9` | Non-test action | Documents the component in the framework format | Done |
+| 792c7b5b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7b5c | Repoint stale references to `792b9` | Non-test action | Keeps live links valid | Done |
+| 792c7b5d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7b5e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+**Outcome:** the two `TestT<N>_` renames drop the old prefix and `TARG_BASELINE_PATTERN` now matches both forms (792d64). The missing-model error's `ENGRAM_MODEL_PATH` advice is recorded as a divergence (792d65). ADR-0002 keeps its M4 consequence for embedding-sidecar (792c7b6).
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b9c1a1 | `TestBundledEmbedder_Smoke` → `Test792b9c1a1_BundledEmbedder_Smoke` | Real bundled model and Hugot runtime (`cmd/engram`), skipped under `-short` | Model ID, dimension, long text | Done |
+| 792b9c1a2 | `TestBundledModelFS_ExposesModelDir` → `Test792b9c1a2_BundledModelFS_ExposesModelDir` | Pure unit (embedded assets) | Bundled model present | Done |
+| 792b9c1a3 | `TestT13_ParityWithPythonReference` → `Test792b9c1a3_ParityWithPythonReference` | Real model, `parity` build tag | Reference cosines | Done |
+| 792b9c1a4 | `TestHugotEmbedder_Embed_HappyPath` → `Test792b9c1a4_HugotEmbedder_Embed_HappyPath` | Pure unit (fake backend) | Vector returned, single release | Done |
+| 792b9c2a1 | `TestEmbedRetriesShorterOnOverLengthFailure` → `Test792b9c2a1_EmbedRetriesShorterOnOverLengthFailure` | Pure unit (fake backend) | Halving retry | Done |
+| 792b9c2a2 | `TestEmbedStillFailsOnPersistentError` → `Test792b9c2a2_EmbedStillFailsOnPersistentError` | Pure unit (fake backend) | Persistent failure | Done |
+| 792b9c2a2 | `TestHugotEmbedder_Embed_RunErrorPropagates` → `Test792b9c2a2_HugotEmbedder_Embed_RunErrorPropagates` | Pure unit (fake backend) | Run error returned | Done |
+| 792b9c2a3 | `TestHugotEmbedder_Embed_EmptyResultReportsErr` → `Test792b9c2a3_HugotEmbedder_Embed_EmptyResultReportsErr` | Pure unit (fake backend) | Empty result | Done |
+| 792b9c3a1 | `TestBuildEmbedder_HappyPathBindsRunnerAndCloser` → `Test792b9c3a1_BuildEmbedder_HappyPathBindsRunnerAndCloser` | Pure unit (fake backend) | Probe sets dimension | Done |
+| 792b9c3a2 | `TestBuildEmbedder_OpenFailurePropagates` → `Test792b9c3a2_BuildEmbedder_OpenFailurePropagates` | Pure unit (fake backend) | Open failure | Done |
+| 792b9c3a3 | `TestBuildEmbedder_ProbeFailureDestroysAndPropagates` → `Test792b9c3a3_BuildEmbedder_ProbeFailureDestroysAndPropagates` | Pure unit (fake backend) | Probe failure releases | Done |
+| 792b9c3a4 | `TestBuildEmbedder_EmptyProbeDestroysAndReportsSentinel` → `Test792b9c3a4_BuildEmbedder_EmptyProbeDestroysAndReportsSentinel` | Pure unit (fake backend) | Empty probe | Done |
+| 792b9c3a4 | `TestBuildEmbedder_ZeroLengthVectorIsEmpty` → `Test792b9c3a4_BuildEmbedder_ZeroLengthVectorIsEmpty` | Pure unit (fake backend) | Zero-length probe | Done |
+| 792b9c3a5 | `TestHugotRejectsInvalidModelDir` → `Test792b9c3a5_HugotRejectsInvalidModelDir` | Real Hugot runtime over a fake model directory (`cmd/engram`) | Invalid model refused | Done |
+| 792b9c3a6 | `TestHugotEmbedder_Close_ErrorPropagates` → `Test792b9c3a6_HugotEmbedder_Close_ErrorPropagates` | Pure unit (fake backend) | Release error on close | Done |
+| 792b9c4a1 | `TestLazyEmbedder_DimsAndModelIDBeforeInit` → `Test792b9c4a1_LazyEmbedder_DimsAndModelIDBeforeInit` | Pure unit (fake factory) | Model ID without build | Done |
+| 792b9c4a2 | `TestLazyEmbedder_InitFailurePaths` → `Test792b9c4a2_LazyEmbedder_InitFailurePaths` | Pure unit (fake factory) | Build failure | Done |
+| 792b9c4a3 | `TestLazyEmbedder_InitSuccessPaths` → `Test792b9c4a3_LazyEmbedder_InitSuccessPaths` | Pure unit (fake factory) | Build success | Done |
+| 792b9c5a1 | `TestExtractToCache_FirstInitExtractsToCache` → `Test792b9c5a1_ExtractToCache_FirstInitExtractsToCache` | Pure unit (fake cache filesystem) | First unpack | Done |
+| 792b9c5a1 | `TestExtractToCache_RealOS` → `Test792b9c5a1_ExtractToCache_RealOS` | Real filesystem, temp dir | First unpack over the OS | Done |
+| 792b9c5a2 | `TestExtractToCache_SecondInitReusesExistingCache` → `Test792b9c5a2_ExtractToCache_SecondInitReusesExistingCache` | Pure unit (fake cache filesystem) | Reuse | Done |
+| 792b9c5a3 | `TestExtractToCache_AtomicRenameRace` → `Test792b9c5a3_ExtractToCache_AtomicRenameRace` | Pure unit (fake cache filesystem) | Lost race | Done |
+| 792b9c5a4 | `TestExtractToCache_RaceWithoutSentinelFails` → `Test792b9c5a4_ExtractToCache_RaceWithoutSentinelFails` | Pure unit (fake cache filesystem) | Race without marker | Done |
+| 792b9c5a5 | `TestExtractToCache_MkdirTempFailurePropagates` → `Test792b9c5a5_ExtractToCache_MkdirTempFailurePropagates` | Pure unit (fake cache filesystem) | Temp directory failure | Done |
+| 792b9c5a5 | `TestExtractToCache_WriteFileFailureCleansUpTemp` → `Test792b9c5a5_ExtractToCache_WriteFileFailureCleansUpTemp` | Pure unit (fake cache filesystem) | Model file write failure | Done |
+| 792b9c5a5 | `TestExtractToCache_SentinelWriteFailureCleansUpTemp` → `Test792b9c5a5_ExtractToCache_SentinelWriteFailureCleansUpTemp` | Pure unit (fake cache filesystem) | Marker write failure | Done |
+| 792b9c5a5 | `TestExtractToCache_TrueRenameFailurePropagates` → `Test792b9c5a5_ExtractToCache_TrueRenameFailurePropagates` | Pure unit (fake cache filesystem) | Rename failure | Done |
+| 792b9c5a6 | `TestT10_MissingBundledModel_ClearError` → `Test792b9c5a6_MissingBundledModel_ClearError` | Pure unit (fake backend) | Missing model error | Done |
+| 792b9c5a7 | `TestClose_DoesNotDeleteCacheDir` → `Test792b9c5a7_Close_DoesNotDeleteCacheDir` | Real filesystem, temp dir | Cache kept on close | Done |
+| 792b9c5a8 | `TestCacheDirFromHome` → `Test792b9c5a8_CacheDirFromHome` | Pure unit (injected getenv, `internal/cli`), subtests | XDG and home cache paths | Done |
+| 792b9c6a1 | `TestCacheFS_RenameExistContract` → `Test792b9c6a1_CacheFS_RenameExistContract` | Pure unit (fake primitives), table | Both platform errors | Done |
+| 792b9c6a1 | `TestCacheFS_RealOS_RenameOntoPopulatedDir` → `Test792b9c6a1_CacheFS_RealOS_RenameOntoPopulatedDir` | Real filesystem, temp dir | Populated destination | Done |
+| 792b9c6a2 | `TestCacheFS_StatSentinel` → `Test792b9c6a2_CacheFS_StatSentinel` | Pure unit (fake primitives) | Marker detection | Done |
+| 792b9c6a2 | `TestCacheFS_WriteSentinel` → `Test792b9c6a2_CacheFS_WriteSentinel` | Pure unit (fake primitives) | Marker write | Done |
+| 792b9c6a2 | `TestCacheFS_RealOS_SentinelRoundTrip` → `Test792b9c6a2_CacheFS_RealOS_SentinelRoundTrip` | Real filesystem, temp dir | Marker round trip | Done |
+| 792b9c7a1 | `TestRuntimeBackend_ConfigPolicyIsInternal` → `Test792b9c7a1_RuntimeBackend_ConfigPolicyIsInternal` | Pure unit (fake runtime) | Pipeline configuration | Done |
+| 792b9c7a2 | `TestRuntimeBackend_PipelineFailDestroysSession` → `Test792b9c7a2_RuntimeBackend_PipelineFailDestroysSession` | Pure unit (fake runtime) | Pipeline failure releases | Done |
+| 792b9c7a3 | `TestRuntimeBackend_SessionFailPropagates` → `Test792b9c7a3_RuntimeBackend_SessionFailPropagates` | Pure unit (fake runtime) | Session failure | Done |
+| 792b9c7a3 | `TestRuntimeBackend_RunErrorPropagates` → `Test792b9c7a3_RuntimeBackend_RunErrorPropagates` | Pure unit (fake runtime) | Run failure | Done |
+| 792b9c7a3 | `TestRuntimeBackend_DestroyErrorPropagates` → `Test792b9c7a3_RuntimeBackend_DestroyErrorPropagates` | Pure unit (fake runtime) | Release failure | Done |
+| 792b9c7a4 | `TestRuntimeBackend_RunMapsOutput` → `Test792b9c7a4_RuntimeBackend_RunMapsOutput` | Pure unit (fake runtime) | Vectors mapped | Done |
+| 792b9c7a5 | `TestRuntimeBackend_NilRuntimeFailsLoud` → `Test792b9c7a5_RuntimeBackend_NilRuntimeFailsLoud` | Pure unit (fake runtime) | Missing runtime | Done |
+
+**Coverage gaps:** none for 792b9. 792a3n1b has no end-to-end test of a failed embedding; note-authoring (792c7b8) renames the `autoEmbedNote` tests that cover the warning.
+
+**No-scenario tests:** `cachefs_test` `TestCacheFS_MkdirAll`, `TestCacheFS_MkdirTemp`, `TestCacheFS_WriteFile`, `TestCacheFS_RemoveAllPassesThroughRaw` (pass-through operations with no stated contract); `embedder_test` `TestState_String` (embedding-sidecar 792c7b6).
 
 #### 792c7b6 embedding-sidecar tech spec
 

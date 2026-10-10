@@ -7,7 +7,7 @@
 // Build-tag-gated because it loads a ~90MB ONNX model from disk and
 // would slow targ test substantially. Run with:
 //
-//	CGO_ENABLED=0 go test -tags=parity -run=TestT13_ParityWithPythonReference ./internal/embed/...
+//	CGO_ENABLED=0 go test -tags=parity -run=Test792b9c1a3_ParityWithPythonReference ./internal/embed/...
 package embed_test
 
 import (
@@ -22,7 +22,7 @@ import (
 	"github.com/knights-analytics/hugot"
 )
 
-func TestT13_ParityWithPythonReference(t *testing.T) {
+func Test792b9c1a3_ParityWithPythonReference(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)

@@ -680,3 +680,24 @@ decisions as `792dN`, continuing the sequence.
   ID allocation and the write is note-authoring's ordering, not the lock's behavior.
 - **Alternatives:** port every lock clause into 792b8 now. Rejected because most would support no
   existing product scenario and would describe callers' ordering.
+
+## 792d64 `TARG_BASELINE_PATTERN` now matches both test-name forms
+
+- **Choice:** node 792c7b5 renamed the first two `TestT<N>_` tests (`TestT10_…` and `TestT13_…`),
+  dropping the old prefix as 792d38 says. `dev/targs.go` now defaults the pattern to
+  `Test(T[0-9]+|[0-9]+[a-z][a-z0-9]*)_`, which matches the remaining `TestT138`–`TestT143` tests
+  until transcript-reader (792c7d2) renames them, and every scenario-ID test name.
+- **Rationale:** 792d38 asks the first such rename to keep the renamed tests in baseline selection.
+  The scenario-ID form is the new spec-trace naming, so the pattern follows it. The final value is
+  still 792e7's question.
+- **Alternatives:** match only the eight original tests by their new names. Rejected because new
+  spec-traced tests would never be selected.
+
+## 792d65 The missing-model error names an unimplemented `ENGRAM_MODEL_PATH`
+
+- **Choice:** 792b9c5 states only that a binary without the bundled model fails with an error saying
+  the model is missing. That error also tells the user to set `ENGRAM_MODEL_PATH` to a directory
+  holding `model.onnx`, but no code reads `ENGRAM_MODEL_PATH`. The divergence is recorded here, not
+  specified.
+- **Rationale:** 792d33 and 792d42. The advice is not current behavior.
+- **Alternatives:** specify the variable. Rejected because setting it changes nothing.

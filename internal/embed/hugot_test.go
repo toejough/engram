@@ -11,11 +11,11 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-// TestBundledModelFS_ExposesModelDir proves the exported accessor returns
+// Test792b9c1a2_BundledModelFS_ExposesModelDir proves the exported accessor returns
 // the go:embed-ed assets rooted at BundledModelDir, so cmd/engram (and its
 // integration tests) can hand the bundled assets to the injectable
 // constructors without touching the unexported bundledModel var.
-func TestBundledModelFS_ExposesModelDir(t *testing.T) {
+func Test792b9c1a2_BundledModelFS_ExposesModelDir(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -25,7 +25,7 @@ func TestBundledModelFS_ExposesModelDir(t *testing.T) {
 	g.Expect(entries).NotTo(BeEmpty(), "bundled model dir must contain the model files")
 }
 
-func TestT10_MissingBundledModel_ClearError(t *testing.T) {
+func Test792b9c5a6_MissingBundledModel_ClearError(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)

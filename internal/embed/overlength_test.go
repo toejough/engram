@@ -11,7 +11,7 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-func TestEmbedRetriesShorterOnOverLengthFailure(t *testing.T) {
+func Test792b9c2a1_EmbedRetriesShorterOnOverLengthFailure(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -32,7 +32,7 @@ func TestEmbedRetriesShorterOnOverLengthFailure(t *testing.T) {
 	g.Expect(handle.calls).To(gomega.BeNumerically(">", 1), "must have retried shorter")
 }
 
-func TestEmbedStillFailsOnPersistentError(t *testing.T) {
+func Test792b9c2a2_EmbedStillFailsOnPersistentError(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 

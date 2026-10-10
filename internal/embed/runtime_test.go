@@ -10,10 +10,10 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-// TestRuntimeBackend_ConfigPolicyIsInternal proves the pipeline config
+// Test792b9c7a1_RuntimeBackend_ConfigPolicyIsInternal proves the pipeline config
 // policy (name, onnx filename) lives internal: the raw runtime receives
 // the values without cmd declaring them.
-func TestRuntimeBackend_ConfigPolicyIsInternal(t *testing.T) {
+func Test792b9c7a1_RuntimeBackend_ConfigPolicyIsInternal(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -30,9 +30,25 @@ func TestRuntimeBackend_ConfigPolicyIsInternal(t *testing.T) {
 	g.Expect(runtime.gotOnnxFile).To(Equal("model.onnx"))
 }
 
-// TestRuntimeBackend_DestroyErrorPropagates exercises the error branch of
+// Test792b9c7a2_RuntimeBackend_PipelineFailDestroysSession exercises the second error
+// branch: NewPipeline fails and the session's Destroy is called.
+func Test792b9c7a2_RuntimeBackend_PipelineFailDestroysSession(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	pipeErr := errors.New("pipeline blocked")
+	runtime := &fakeRuntime{pipelineErr: pipeErr}
+
+	_, err := embed.NewRuntimeBackend(runtime).OpenPipeline(t.Context(), "/tmp/x")
+	g.Expect(err).To(MatchError(ContainSubstring("hugot pipeline")))
+	g.Expect(err).To(MatchError(ContainSubstring("pipeline blocked")))
+	g.Expect(runtime.destroyCalls).
+		To(Equal(1), "session.Destroy must be called on pipeline failure")
+}
+
+// Test792b9c7a3_RuntimeBackend_DestroyErrorPropagates exercises the error branch of
 // the composed handle's Destroy.
-func TestRuntimeBackend_DestroyErrorPropagates(t *testing.T) {
+func Test792b9c7a3_RuntimeBackend_DestroyErrorPropagates(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -56,35 +72,9 @@ func TestRuntimeBackend_DestroyErrorPropagates(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("destroy blocked")))
 }
 
-// TestRuntimeBackend_NilRuntimeFailsLoud asserts a Deps carrier built from
-// Primitives without EmbedRuntime surfaces a clear error, never a panic.
-func TestRuntimeBackend_NilRuntimeFailsLoud(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	_, err := embed.NewRuntimeBackend(nil).OpenPipeline(t.Context(), "/tmp/x")
-	g.Expect(err).To(MatchError(embed.ErrRuntimeMissing))
-}
-
-// TestRuntimeBackend_PipelineFailDestroysSession exercises the second error
-// branch: NewPipeline fails and the session's Destroy is called.
-func TestRuntimeBackend_PipelineFailDestroysSession(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	pipeErr := errors.New("pipeline blocked")
-	runtime := &fakeRuntime{pipelineErr: pipeErr}
-
-	_, err := embed.NewRuntimeBackend(runtime).OpenPipeline(t.Context(), "/tmp/x")
-	g.Expect(err).To(MatchError(ContainSubstring("hugot pipeline")))
-	g.Expect(err).To(MatchError(ContainSubstring("pipeline blocked")))
-	g.Expect(runtime.destroyCalls).
-		To(Equal(1), "session.Destroy must be called on pipeline failure")
-}
-
-// TestRuntimeBackend_RunErrorPropagates exercises the run error branch of
+// Test792b9c7a3_RuntimeBackend_RunErrorPropagates exercises the run error branch of
 // the composed handle.
-func TestRuntimeBackend_RunErrorPropagates(t *testing.T) {
+func Test792b9c7a3_RuntimeBackend_RunErrorPropagates(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -107,9 +97,25 @@ func TestRuntimeBackend_RunErrorPropagates(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("run blocked")))
 }
 
-// TestRuntimeBackend_RunMapsOutput drives the happy path through the
+// Test792b9c7a3_RuntimeBackend_SessionFailPropagates exercises the first error branch
+// of the composed OpenPipeline: NewSession returns an error.
+func Test792b9c7a3_RuntimeBackend_SessionFailPropagates(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	sessionErr := errors.New("session blocked")
+	runtime := &fakeRuntime{sessionErr: sessionErr}
+
+	_, err := embed.NewRuntimeBackend(runtime).OpenPipeline(t.Context(), "/tmp/x")
+	g.Expect(err).To(MatchError(ContainSubstring("hugot session")))
+	g.Expect(err).To(MatchError(ContainSubstring("session blocked")))
+	g.Expect(runtime.pipelineCalled).To(BeFalse(),
+		"NewPipeline must not be called when NewSession fails")
+}
+
+// Test792b9c7a4_RuntimeBackend_RunMapsOutput drives the happy path through the
 // returned handle: raw [][]float32 maps into embed.FeatureOutput.
-func TestRuntimeBackend_RunMapsOutput(t *testing.T) {
+func Test792b9c7a4_RuntimeBackend_RunMapsOutput(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -131,20 +137,14 @@ func TestRuntimeBackend_RunMapsOutput(t *testing.T) {
 	g.Expect(out.Embeddings).To(Equal([][]float32{{1, 2}}))
 }
 
-// TestRuntimeBackend_SessionFailPropagates exercises the first error branch
-// of the composed OpenPipeline: NewSession returns an error.
-func TestRuntimeBackend_SessionFailPropagates(t *testing.T) {
+// Test792b9c7a5_RuntimeBackend_NilRuntimeFailsLoud asserts a Deps carrier built from
+// Primitives without EmbedRuntime surfaces a clear error, never a panic.
+func Test792b9c7a5_RuntimeBackend_NilRuntimeFailsLoud(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	sessionErr := errors.New("session blocked")
-	runtime := &fakeRuntime{sessionErr: sessionErr}
-
-	_, err := embed.NewRuntimeBackend(runtime).OpenPipeline(t.Context(), "/tmp/x")
-	g.Expect(err).To(MatchError(ContainSubstring("hugot session")))
-	g.Expect(err).To(MatchError(ContainSubstring("session blocked")))
-	g.Expect(runtime.pipelineCalled).To(BeFalse(),
-		"NewPipeline must not be called when NewSession fails")
+	_, err := embed.NewRuntimeBackend(nil).OpenPipeline(t.Context(), "/tmp/x")
+	g.Expect(err).To(MatchError(embed.ErrRuntimeMissing))
 }
 
 // fakeRuntime scripts the raw runtime seam so every branch of the

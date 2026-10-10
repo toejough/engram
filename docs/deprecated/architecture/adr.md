@@ -42,15 +42,10 @@ vault directly — recall reads via `engram show-chunk` / the query payload (not
 
 **Status:** Accepted (known defect: M4) · supersedes the 2026-05-14 external-Voyage design
 
-**Context.** An early design embedded via an external Voyage API — network dependency, per-call
-cost, latency, and sending vault content off-box.
+The context and decision (a bundled MiniLM model run in pure Go, no external embedding API) are in
+[792b9](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b9-added-text-embedder).
 
-**Decision.** Bundle `all-MiniLM-L6-v2` (384-d) into the binary via `go:embed`; run inference in
-**pure Go** through Hugot + GoMLX's `simplego` backend (no CGO). The only external API in the
-system is the LLM that runs the agent itself — never embeddings.
-
-**Consequences.** Deterministic, offline, zero per-embed cost; the embedder is a *container of S2*,
-not an L1 external. A single `embedding_model_id` is stamped into every sidecar. ⚠ KNOWN (M4):
+**Consequences.** A single `embedding_model_id` is stamped into every sidecar. ⚠ KNOWN (M4):
 `loadCompatibleSidecars` (`query.go`) silently drops sidecars whose `model_id ≠` the active
 model — a model swap silently empties recall unless `engram embed apply --force` re-embeds first.
 No guard except the all-empty error path.

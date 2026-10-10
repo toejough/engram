@@ -16,9 +16,10 @@ import (
 )
 
 func init() {
-	// Engram's spec-traced tests use TestT<N>_ naming (not TestProperty_).
+	// Engram's spec-traced tests are named Test<scenario ID>_ (#792, e.g.
+	// Test792b9c5a6_) or, until renamed, the older TestT<N>_ (not TestProperty_).
 	if os.Getenv("TARG_BASELINE_PATTERN") == "" {
-		os.Setenv("TARG_BASELINE_PATTERN", `TestT[0-9]+_`)
+		os.Setenv("TARG_BASELINE_PATTERN", `Test(T[0-9]+|[0-9]+[a-z][a-z0-9]*)_`)
 	}
 
 	// Sentinel target so targ discovers this package and loads targdev.
