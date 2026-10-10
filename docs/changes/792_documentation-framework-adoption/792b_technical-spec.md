@@ -12203,10 +12203,10 @@ Scenario: 792b24c11a3 A provenance is added once
 Requirement: [792b24c12 Project filter](#792b24c12-project-filter) When a project is requested the query-engine MUST drop each matched note whose
 content, read as LF, has no frontmatter or has no `project:` line equal to it, the line being at the
 start of a line inside the frontmatter and its slug made of lowercase letters, digits and hyphens, and
-MUST NOT drop anything when no project is requested. The filter MUST apply only to the matched notes
-before the superseding, explore, chunk and recent items are added.
+MUST NOT drop anything when no project is requested. The filter MUST apply to every note item, including the superseding,
+explore and ride-along notes, so that a dropped note appears nowhere in the output, clusters included, and MUST NOT apply to chunk and recent-chunk items, which carry no project.
 
-Supports: [792a7u1a Notes of other projects are dropped](./792a_product-spec.md#792a7u1-uat-scenarios), [792a7u1b A body mention does not match](./792a_product-spec.md#792a7u1-uat-scenarios), [792a7u1c No filter drops nothing](./792a_product-spec.md#792a7u1-uat-scenarios).
+Supports: [792a7u1a Notes of other projects are dropped](./792a_product-spec.md#792a7u1-uat-scenarios), [792a7u1b A body mention does not match](./792a_product-spec.md#792a7u1-uat-scenarios), [792a7u1c No filter drops nothing](./792a_product-spec.md#792a7u1-uat-scenarios), [792a7u1d Explore and ride-along notes of other projects are dropped](./792a_product-spec.md#792a7u1-uat-scenarios).
 
 ##### 792b24c12a Scenarios
 
@@ -12234,12 +12234,17 @@ Scenario: 792b24c12a4 Only the frontmatter is read
 Scenario: 792b24c12a5 A full query is restricted
   Given notes of two projects
   When the user runs engram query --project alpha
-  Then the items hold only the alpha notes among the matched notes
+  Then the items hold only the alpha notes
 
 Scenario: 792b24c12a6 A CRLF note's project is read
   Given a note whose lines end in \r\n and whose project is widgets
   When the project widgets is tested
   Then the note matches
+
+Scenario: 792b24c12a7 Explore and ride-along notes are filtered too
+  Given an explore-half note and a ride-along note of project beta, and matched notes of project alpha
+  When the user runs engram query --project alpha
+  Then the items and clusters hold no beta note, and chunks are unchanged
 ```
 
 #### 792b24c13 Explore budget and allocation
@@ -12724,6 +12729,7 @@ Scenario: 792b24c24a1 Each stage ends with a reading
 | [792a7u1a Notes of other projects are dropped](./792a_product-spec.md#792a7u1-uat-scenarios) | [792b24c12 Project filter](#792b24c12-project-filter) |
 | [792a7u1b A body mention does not match](./792a_product-spec.md#792a7u1-uat-scenarios) | [792b24c12 Project filter](#792b24c12-project-filter) |
 | [792a7u1c No filter drops nothing](./792a_product-spec.md#792a7u1-uat-scenarios) | [792b24c12 Project filter](#792b24c12-project-filter) |
+| [792a7u1d Explore and ride-along notes of other projects are dropped](./792a_product-spec.md#792a7u1-uat-scenarios) | [792b24c12 Project filter](#792b24c12-project-filter) |
 | [792a7v1a A runbook is returned like a fact](./792a_product-spec.md#792a7v1-uat-scenarios) | [792b24c3 Scoring notes](#792b24c3-scoring-notes) |
 | [792a7v1b Surfacing does not need a candidate slot](./792a_product-spec.md#792a7v1-uat-scenarios) | [792b24c3 Scoring notes](#792b24c3-scoring-notes), [792b24c10 Candidate notes](#792b24c10-candidate-notes) |
 | [792a7v1c A runbook has no kind boost](./792a_product-spec.md#792a7v1-uat-scenarios) | [792b24c3 Scoring notes](#792b24c3-scoring-notes) |
@@ -12944,6 +12950,11 @@ Scenario: 792a7u1c No filter drops nothing
   Given matched notes of several projects
   When the user runs engram query with no --project
   Then all of them are returned
+
+Scenario: 792a7u1d Explore and ride-along notes of other projects are dropped
+  Given an explore-half note and a ride-along note with project: beta, and matched notes with project: alpha
+  When the user runs engram query --project alpha
+  Then the output holds no note whose project is not alpha, in the items or in the clusters
 
 Scenario: 792a7v1a A runbook is returned like a fact
   Given a runbook whose situation is close to the phrase
@@ -14711,12 +14722,13 @@ sequenceDiagram
 
 #### 792b28c1 Install location
 
-Requirement: [792b28c1 Install location](#792b28c1-install-location) The self-installer MUST name the install location `$GOBIN/engram` when `GOBIN` is
-non-empty, else `$GOPATH/bin/engram` when `GOPATH` is non-empty, else `<home>/go/bin/engram`.
+Requirement: [792b28c1 Install location](#792b28c1-install-location) The self-installer MUST name the install location `go install` uses, reading `GOBIN` and `GOPATH` as the Go toolchain
+does (`go env GOBIN GOPATH`, which includes values set with `go env -w`): `$GOBIN/engram` when `GOBIN` is
+non-empty, else `<first GOPATH entry>/bin/engram` when `GOPATH` is non-empty, else `<home>/go/bin/engram`.
 
-Supports: [792a11a1c The install location follows the Go toolchain](./792a_product-spec.md#792a11a1-uat-scenarios), [792a11d1b A real install reports where the binary went](./792a_product-spec.md#792a11d1-uat-scenarios).
+Supports: [792a11a1c The install location follows the Go toolchain](./792a_product-spec.md#792a11a1-uat-scenarios), [792a11a1f A go env setting decides the install location](./792a_product-spec.md#792a11a1-uat-scenarios), [792a11a1g The first GOPATH entry is used](./792a_product-spec.md#792a11a1-uat-scenarios), [792a11d1b A real install reports where the binary went](./792a_product-spec.md#792a11d1-uat-scenarios).
 
-Rationale: this is where `go install` puts the binary, in the toolchain's own order, so the hand-off
+Rationale: this is where `go install` puts the binary, in the toolchain's own order and from the toolchain's own settings, so the hand-off
 starts the binary that was just installed.
 
 ##### 792b28c1a Scenarios
@@ -14736,6 +14748,16 @@ Scenario: 792b28c1a3 The home directory is the fallback
   Given neither is set and the home directory is /home/joe
   When the install location is resolved
   Then it is /home/joe/go/bin/engram
+
+Scenario: 792b28c1a4 A go env setting is honored
+  Given GOBIN is unset in the environment and go env -w GOBIN=/custom/gobin was run
+  When the install location is resolved
+  Then it is /custom/gobin/engram
+
+Scenario: 792b28c1a5 The first GOPATH entry is used
+  Given GOBIN is unset and GOPATH is /gp1:/gp2
+  When the install location is resolved
+  Then it is /gp1/bin/engram
 ```
 
 #### 792b28c2 Source choice
@@ -15477,6 +15499,8 @@ Scenario: 792b28c16a6 The report line appears only on failure
 | [792a11a1a A local clone is installed in place](./792a_product-spec.md#792a11a1-uat-scenarios) | [792b28c2 Source choice](#792b28c2-source-choice), [792b28c4 Installing from a local source](#792b28c4-installing-from-a-local-source) |
 | [792a11a1b Outside a checkout the repository is cloned](./792a_product-spec.md#792a11a1-uat-scenarios) | [792b28c2 Source choice](#792b28c2-source-choice), [792b28c5 Installing from a fresh clone](#792b28c5-installing-from-a-fresh-clone) |
 | [792a11a1c The install location follows the Go toolchain](./792a_product-spec.md#792a11a1-uat-scenarios) | [792b28c1 Install location](#792b28c1-install-location) |
+| [792a11a1f A go env setting decides the install location](./792a_product-spec.md#792a11a1-uat-scenarios) | [792b28c1 Install location](#792b28c1-install-location) |
+| [792a11a1g The first GOPATH entry is used](./792a_product-spec.md#792a11a1-uat-scenarios) | [792b28c1 Install location](#792b28c1-install-location) |
 | [792a11a1d The first go.mod ends the walk](./792a_product-spec.md#792a11a1-uat-scenarios) | [792b28c2 Source choice](#792b28c2-source-choice) |
 | [792a11a1e Go is missing](./792a_product-spec.md#792a11a1-uat-scenarios) | [792b28c4 Installing from a local source](#792b28c4-installing-from-a-local-source), [792b28c15 Exit status and errors](#792b28c15-exit-status-and-errors) |
 | [792a11a1f Git is missing](./792a_product-spec.md#792a11a1-uat-scenarios) | [792b28c5 Installing from a fresh clone](#792b28c5-installing-from-a-fresh-clone) |
@@ -15558,6 +15582,16 @@ Scenario: 792a11a1e Go is missing
   Given go is not installed
   When the user runs engram update from a local clone
   Then it fails with an error that the go binary is not on PATH
+
+Scenario: 792a11a1f A go env setting decides the install location
+  Given GOBIN is unset in the environment but go env -w GOBIN=/gb was run
+  When the user runs engram update
+  Then the report names /gb/engram as the install location, the directory go install uses
+
+Scenario: 792a11a1g The first GOPATH entry is used
+  Given GOBIN is unset and GOPATH is /gp1:/gp2
+  When the user runs engram update
+  Then the report names /gp1/bin/engram as the install location
 
 Scenario: 792a11a1f Git is missing
   Given git is not installed and the working directory is outside a checkout
@@ -22188,6 +22222,8 @@ It MUST save the outbox atomically, after the vault ID is stamped and before `.e
 queue MUST be warned and MUST NOT fail the write, which then proceeds unstaged and unqueued, and a note for which no
 `xid` can be minted MUST be written and not queued. A corrupt outbox, a failed atomic write or a vault ID that cannot be
 stamped MUST fail the enqueue. With no parent configured it MUST offer nothing, stamp nothing and write no exchange state.
+When the cached parent vault ID is this vault's own, the vault MUST NOT act as its own parent ([792b5c12 Self-parent guard](#792b5c12-self-parent-guard)):
+it MUST stage and queue nothing, the write proceeds unstaged and unqueued, and one warning MUST name `engram vault-id --regenerate`.
 
 Supports: [792a21m1b A write with no parent exchanges nothing](./792a_product-spec.md#792a21m1-uat-scenarios), [792a21q1a The parent is unreachable during learn](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21q1b Offline learn then amend coalesce](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21q1e A queued note is stamped with an exchange ID](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21q1g The first offer creates the exchange state in the right order](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21q1h A note is written even when no exchange ID can be made](./792a_product-spec.md#792a21q1-uat-scenarios), [792a2k1a State does not dirty the vault's git](./792a_product-spec.md#792a2k1-uat-scenarios), [792a2k1b The root .gitignore is untouched](./792a_product-spec.md#792a2k1-uat-scenarios), [792a2q1b A write in a vault that is its own parent queues nothing](./792a_product-spec.md#792a2q1-uat-scenarios).
 
@@ -22222,8 +22258,6 @@ Scenario: 792b36c4a5 The xid is lazy and stable
   When each is queued
   Then the first gains an xid and the second keeps its own
 
-When the cached parent vault ID is this vault's own, the vault MUST NOT act as its own parent ([792b5c12 Self-parent guard](#792b5c12-self-parent-guard)):
-it MUST stage and queue nothing, the write proceeds unstaged and unqueued, and one warning MUST name `engram vault-id --regenerate`.
 Scenario: 792b36c4a6 A hook failure never fails the write
   Given a staging failure, and a queueing failure
   When a write runs with a parent configured
@@ -22238,6 +22272,11 @@ Scenario: 792b36c4a8 Queueing leaves the vault's tracked files alone
   Given a git-backed vault with a root .gitignore
   When an offer is queued
   Then git status in the vault shows no change caused by the queue, and the root .gitignore is unchanged
+
+Scenario: 792b36c4a9 A self-parent vault queues nothing
+  Given the cached parent vault ID equals this vault's own
+  When a learn, amend or resituate runs
+  Then the note is written, no entry is queued, and one warning names engram vault-id --regenerate
 ```
 
 #### 792b36c5 Before a drain sends
@@ -22272,11 +22311,6 @@ Scenario: 792b36c5a2 A failed location check sends nothing
   Then nothing is sent and the location warning is printed
 
 Scenario: 792b36c5a3 A cached self-parent sends nothing
-
-Scenario: 792b36c4a9 A self-parent vault queues nothing
-  Given the cached parent vault ID equals this vault's own
-  When a learn, amend or resituate runs
-  Then the note is written, no entry is queued, and one warning names engram vault-id --regenerate
   Given the cached parent vault ID equals this vault's own
   When a drain runs
   Then nothing is sent, an entry queued earlier is neither sent nor rejected, and one warning names engram vault-id --regenerate
@@ -23830,11 +23864,11 @@ Scenario: 792b37c14a7 No sequence duplicates
 
 #### 792b37c15 Telling the parent the note was used
 
-Requirement: [792b37c15 Telling the parent the note was used](#792b37c15-telling-the-parent-the-note-was-used) After a pull-down or a skip, once the vault lock is released, the parent-vault-client MUST send `POST /activate` for the
-parent note's name, and a failure of that request MUST NOT fail the command, MUST NOT be queued and MUST NOT back the
+Requirement: [792b37c15 Telling the parent the note was used](#792b37c15-telling-the-parent-the-note-was-used) After a pull-down that wrote the note or a skip, once the vault lock is released, the parent-vault-client MUST send `POST /activate` for the
+parent note's name, MUST NOT send it when the local write failed, and a failure of that request MUST NOT fail the command, MUST NOT be queued and MUST NOT back the
 parent off. The re-check of a linked note ([792b37c16 Re-checking a linked note's parent copy](#792b37c16-re-checking-a-linked-notes-parent-copy)) MUST NOT send it.
 
-Supports: [792a21zg1a Parent recency is bumped](./792a_product-spec.md#792a21zg1-uat-scenarios), [792a21zg1b A failed signal is not fatal](./792a_product-spec.md#792a21zg1-uat-scenarios), [792a21zg1f The fetch holds no lock](./792a_product-spec.md#792a21zg1-uat-scenarios).
+Supports: [792a21zg1a Parent recency is bumped](./792a_product-spec.md#792a21zg1-uat-scenarios), [792a21zg1b A failed signal is not fatal](./792a_product-spec.md#792a21zg1-uat-scenarios), [792a21zg1f The fetch holds no lock](./792a_product-spec.md#792a21zg1-uat-scenarios), [792a21zg1g A failed local write sends no signal](./792a_product-spec.md#792a21zg1-uat-scenarios).
 
 Rationale: the parent ranks what its children use, and a lost hint costs nothing.
 
@@ -23850,6 +23884,11 @@ Scenario: 792b37c15a2 A failed signal is harmless
   Given the parent's activate request fails
   When the pull-down completes
   Then the command succeeds, nothing is queued and the parent is not backed off
+
+Scenario: 792b37c15a3 A failed local write sends no signal
+  Given a pulled note whose local write fails
+  When the pull-down runs
+  Then the command fails and the parent received no POST /activate for the note
 ```
 
 #### 792b37c16 Re-checking a linked note's parent copy
@@ -23955,6 +23994,7 @@ Scenario: 792b37c16a4 An unreachable parent does not fail the activate
 | [792a21zg1d An outage pauses the later refs](./792a_product-spec.md#792a21zg1-uat-scenarios) | [792b37c11 A pull-down is a gated parent contact](#792b37c11-a-pull-down-is-a-gated-parent-contact) |
 | [792a21zg1e A pull-down drains the outbox](./792a_product-spec.md#792a21zg1-uat-scenarios) | [792b37c11 A pull-down is a gated parent contact](#792b37c11-a-pull-down-is-a-gated-parent-contact) |
 | [792a21zg1f The fetch holds no lock](./792a_product-spec.md#792a21zg1-uat-scenarios) | [792b37c12 The raw envelope](#792b37c12-the-raw-envelope), [792b37c15 Telling the parent the note was used](#792b37c15-telling-the-parent-the-note-was-used) |
+| [792a21zg1g A failed local write sends no signal](./792a_product-spec.md#792a21zg1-uat-scenarios) | [792b37c15 Telling the parent the note was used](#792b37c15-telling-the-parent-the-note-was-used) |
 | [792a21zh1a No user detectable on a pull-down](./792a_product-spec.md#792a21zh1-uat-scenarios) | [792b37c13 The pulled copy](#792b37c13-the-pulled-copy) |
 | [792a21zj1b A changed parent address keeps links valid](./792a_product-spec.md#792a21zj1-uat-scenarios) | [792b37c6 Deduping against the local notes](#792b37c6-deduping-against-the-local-notes) |
 | [792a21zj1c A different parent vault ignores old links](./792a_product-spec.md#792a21zj1-uat-scenarios) | [792b37c6 Deduping against the local notes](#792b37c6-deduping-against-the-local-notes) |
@@ -24214,6 +24254,11 @@ Scenario: 792a21zg1f The fetch holds no lock
   Given a pull-down in progress
   When the raw fetch and the activate request are made
   Then the vault lock is not held, and the write happens under it
+
+Scenario: 792a21zg1g A failed local write sends no signal
+  Given a parent-only note whose local write fails
+  When the user activates it
+  Then the command fails, and the parent receives no activate request for the note
 
 Scenario: 792a21zh1a No user detectable on a pull-down
   Given a host where neither git config user.email nor the operating-system username lookup resolves

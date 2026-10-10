@@ -3420,12 +3420,13 @@ Scenario: 792a7t1c An empty ID is an error
 
 ### 792a7u Project filter
 
-Requirement: [792a7u Project filter](#792a7u-project-filter) `engram query --project <slug>` MUST drop each matched note whose frontmatter
-`project:` line is not the slug, and each matched note without a readable frontmatter, and MUST NOT
-take a mention of the slug in a note's body as a match. It MUST leave every other item, and the
-clusters, unchanged, and without `--project` it MUST drop nothing.
+Requirement: [792a7u Project filter](#792a7u-project-filter) `engram query --project <slug>` MUST restrict the result to notes of that project: it MUST drop every note
+item, whether matched, superseding, explore or ride-along, whose frontmatter `project:` line is not the slug or
+that has no readable frontmatter, and MUST NOT take a mention of the slug in a note's body as a match. A
+dropped note MUST appear nowhere in the output, clusters included. Chunks, which carry no project, are not filtered,
+and without `--project` it MUST drop nothing.
 
-Rationale: the filter was written for the matched notes before the explore half and the superseding notes existed, and it was never extended to them. Whether it should be is open (#804).
+Rationale: the flag restricts items to notes with a matching `project:` field. The filter was written for the matched notes before the explore half and the superseding notes existed and was never extended to them; that is a bug (#804), and the requirement states the intent.
 
 #### 792a7u1 UAT Scenarios
 
@@ -3444,6 +3445,11 @@ Scenario: 792a7u1c No filter drops nothing
   Given matched notes of several projects
   When the user runs engram query with no --project
   Then all of them are returned
+
+Scenario: 792a7u1d Explore and ride-along notes of other projects are dropped
+  Given an explore-half note and a ride-along note with project: beta, and matched notes with project: alpha
+  When the user runs engram query --project alpha
+  Then the output holds no note whose project is not alpha, in the items or in the clusters
 ```
 
 ### 792a7v Runbooks rank like other notes
@@ -5083,7 +5089,7 @@ the report around them.
 Requirement: [792a11a Installing from a local clone or a fresh clone](#792a11a-installing-from-a-local-clone-or-a-fresh-clone) `engram update` MUST install the engram binary from the nearest enclosing
 directory of the working directory whose `go.mod` names the module `github.com/toejough/engram`, and
 MUST install it from a fresh shallow clone of the engram repository when no enclosing directory has a
-`go.mod`. It MUST install into `$GOBIN`, else `$GOPATH/bin`, else `~/go/bin`, and MUST fail naming the
+`go.mod`. It MUST install into the directory `go install` uses, as the Go toolchain resolves it (including values set with `go env -w`): `GOBIN`, else the first `GOPATH` entry plus `/bin`, else `~/go/bin`, and MUST fail naming the
 missing program when `go` (or, for a clone, `git`) is not installed. It MUST stop at the first `go.mod`
 it meets, so a working directory inside another Go module installs from a fresh clone.
 
@@ -5119,6 +5125,16 @@ Scenario: 792a11a1e Go is missing
   Given go is not installed
   When the user runs engram update from a local clone
   Then it fails with an error that the go binary is not on PATH
+
+Scenario: 792a11a1f A go env setting decides the install location
+  Given GOBIN is unset in the environment but go env -w GOBIN=/gb was run
+  When the user runs engram update
+  Then the report names /gb/engram as the install location, the directory go install uses
+
+Scenario: 792a11a1g The first GOPATH entry is used
+  Given GOBIN is unset and GOPATH is /gp1:/gp2
+  When the user runs engram update
+  Then the report names /gp1/bin/engram as the install location
 
 Scenario: 792a11a1f Git is missing
   Given git is not installed and the working directory is outside a checkout
@@ -11511,15 +11527,15 @@ Scenario: 792a21zf1f A served parent works end to end
 
 ### 792a21zg A pull-down tells the parent the note was used
 
-Requirement: [792a21zg A pull-down tells the parent the note was used](#792a21zg-a-pull-down-tells-the-parent-the-note-was-used) After a pull-down or a skip, once the vault lock is released, `activate` MUST send a best-effort
-`activate` request for the parent note to the parent. A failure of that request MUST NOT fail the command and MUST NOT be
+Requirement: [792a21zg A pull-down tells the parent the note was used](#792a21zg-a-pull-down-tells-the-parent-the-note-was-used) After a pull-down that wrote the note or a skip, once the vault lock is released, `activate` MUST send a best-effort
+`activate` request for the parent note to the parent, and MUST NOT send it when the local write failed. A failure of that request MUST NOT fail the command and MUST NOT be
 queued. A pull-down MUST be a parent contact: it MUST be refused with one warning, writing nothing, when the vault's
 location check fails, the backoff window is active, the parent reports this vault's own ID, or the exchange state cannot be
 read or stamped, and an outage on the first fetch MUST record one failure, print the one backoff warning with the queued
 count, and make no further request for the later refs of the same command, all of which fail. A successful pull-down MUST
 drain the outbox.
 
-Rationale: the parent's recency ranks what its children use, and a signal that failed is only a lost hint, so it neither
+Rationale: the parent's recency ranks what its children use, so a note that was not written locally was not used and sends no signal. A signal that failed is only a lost hint, so it neither
 fails the command nor waits in a queue.
 
 #### 792a21zg1 UAT Scenarios
@@ -11554,6 +11570,11 @@ Scenario: 792a21zg1f The fetch holds no lock
   Given a pull-down in progress
   When the raw fetch and the activate request are made
   Then the vault lock is not held, and the write happens under it
+
+Scenario: 792a21zg1g A failed local write sends no signal
+  Given a parent-only note whose local write fails
+  When the user activates it
+  Then the command fails, and the parent receives no activate request for the note
 ```
 
 ### 792a21zh A pull-down stamps the first-write identity

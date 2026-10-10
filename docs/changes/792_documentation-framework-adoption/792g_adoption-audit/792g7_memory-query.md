@@ -2,11 +2,11 @@
 
 Audit of [792a7 memory-query](../792a_product-spec.md#792a7-added-memory-query) and the 792b requirements that support it, against the code at dd2bd9e2 and a binary built from it, run on temporary vaults (never the real vault). Method: read each implementing function, then exercised the binary for query input, payload shape, warnings, recency scaling (chunk age, `last_used`, quoted and bare `created`, late turns), clusters, explore half, ride-along, recent fill, content budget, lazy chunks, `--project`, `--limit`, trigger matching, red-flag preview, `show`, `show-chunk`, `query-chunks`, CRLF notes and read-only behavior.
 
-Result: 1 code bug #774, 2 doc fixed, 209 match, 1 unclear (rows).
+Result: 4 code bug (#774, and #804 for 792a7u, 792a7u1d and 792b24c12), 2 doc fixed, 208 match, 0 unclear (rows).
 
 - Doc fixes: [792a7r1b A long chunk is cut with an ellipsis](../792a_product-spec.md#792a7r1-uat-scenarios) described a budget that cannot be set; [792a7x Reading one note](../792a_product-spec.md#792a7x-reading-one-note) now states that `.md` is kept when a `|display` part is present.
 - Code bug: #774 (never-used `engram learn` notes are not recency-scaled because `created` is quoted). Commented on #774: its title overstates the problem, since chunk and `last_used` decay are live.
-- Unclear: [792a7u Project filter](../792a_product-spec.md#792a7u-project-filter). Best judgment is that explore and ride-along notes escaping `--project` was never decided; filed #804 and left the text describing the code.
+- Code bug: #804 ([792a7u Project filter](../792a_product-spec.md#792a7u-project-filter) and [792b24c12 Project filter](../792b_technical-spec.md#792b24c12-project-filter)): explore and ride-along notes escape `--project`. It was `unclear`; Joe ruled it a bug (2026-10-10) and the spec now states the intent (every note item is filtered).
 - Covered by #795/#796: the 792a7 intro sentence that a query on a missing vault creates it is vault-creation behavior owned by those changes (it works today); it is not a scenario of 792a7.
 - Noted, not filed: the comment on `provenanceTrigger` in `internal/cli/query.go` still says a trigger is a substring of `--text`; matching is whole-word.
 
@@ -109,10 +109,11 @@ Result: 1 code bug #774, 2 doc fixed, 209 match, 1 unclear (rows).
 | [792a7t1a A chunk's text is printed](../792a_product-spec.md#792a7t1-uat-scenarios) | match | show_chunk.go:32 RunShowChunk; verified on binary |
 | [792a7t1b An unknown chunk is an error](../792a_product-spec.md#792a7t1-uat-scenarios) | match | show_chunk.go:32 RunShowChunk; verified on binary |
 | [792a7t1c An empty ID is an error](../792a_product-spec.md#792a7t1-uat-scenarios) | match | show_chunk.go:32 RunShowChunk; verified on binary |
-| [792a7u Project filter](../792a_product-spec.md#792a7u-project-filter) | unclear | Code matches the text (query.go:669 filters matched notes only), but #636 and the flag help say `restrict items`, and the filter predates the explore half (3b740212 2026-05-26 vs 2bf8f2d6 2026-07-29), which leaks other-project notes. Best judgment: unconsidered interaction. Filed #804 to decide; Rationale line added citing it |
+| [792a7u Project filter](../792a_product-spec.md#792a7u-project-filter) | code bug #804 | Code matches the text (query.go:669 filters matched notes only), but #636 and the flag help say `restrict items`, and the filter predates the explore half (3b740212 2026-05-26 vs 2bf8f2d6 2026-07-29), which leaks other-project notes. Best judgment: unconsidered interaction. Filed #804 to decide; Rationale line added citing it Joe ruled it a bug (2026-10-10); intent is that `--project` restricts every note item (#636, flag help); spec rewritten to say so, and Joe's ruling is commented on #804. |
 | [792a7u1a Notes of other projects are dropped](../792a_product-spec.md#792a7u1-uat-scenarios) | match | query.go:1172 itemMatchesProject, :669 applyProjectFilter(resolved); verified on binary: explore notes of other projects and unfiltered clusters returned |
 | [792a7u1b A body mention does not match](../792a_product-spec.md#792a7u1-uat-scenarios) | match | query.go:1172 itemMatchesProject, :669 applyProjectFilter(resolved); verified on binary: explore notes of other projects and unfiltered clusters returned |
 | [792a7u1c No filter drops nothing](../792a_product-spec.md#792a7u1-uat-scenarios) | match | query.go:1172 itemMatchesProject, :669 applyProjectFilter(resolved); verified on binary: explore notes of other projects and unfiltered clusters returned |
+| [792a7u1d Explore and ride-along notes of other projects are dropped](../792a_product-spec.md#792a7u1-uat-scenarios) | code bug #804 | new scenario for the ruling; the code filters matched notes only (`query.go:669`). |
 | [792a7v Runbooks rank like other notes](../792a_product-spec.md#792a7v-runbooks-rank-like-other-notes) | match | no kind-specific code in rankCandidates (query.go:1615); runbook ranked as a fact |
 | [792a7v1a A runbook is returned like a fact](../792a_product-spec.md#792a7v1-uat-scenarios) | match | no kind-specific code in rankCandidates (query.go:1615); runbook ranked as a fact |
 | [792a7v1b Surfacing does not need a candidate slot](../792a_product-spec.md#792a7v1-uat-scenarios) | match | no kind-specific code in rankCandidates (query.go:1615); runbook ranked as a fact |
@@ -206,7 +207,7 @@ Result: 1 code bug #774, 2 doc fixed, 209 match, 1 unclear (rows).
 | [792b24c9 Clusters](../792b_technical-spec.md#792b24c9-clusters) | match | query.go:968 clusterMatchedSet, seedFromQuery (FNV-1a) |
 | [792b24c10 Candidate notes](../792b_technical-spec.md#792b24c10-candidate-notes) | match | query.go:2027 topKCandidateNotes |
 | [792b24c11 Item order](../792b_technical-spec.md#792b24c11-item-order) | match | query.go:1843 resolvedItemLess, provenanceRankFor; assembly order in assembleResolvedItems |
-| [792b24c12 Project filter](../792b_technical-spec.md#792b24c12-project-filter) | match | query.go:1172 itemMatchesProject, :669; see 792a7u and #804 |
+| [792b24c12 Project filter](../792b_technical-spec.md#792b24c12-project-filter) | code bug #804 | query.go:1172 itemMatchesProject, :669; see 792a7u and #804 Joe ruled it a bug (2026-10-10): requirement now filters every note item; the code applies it before the explore half and ride-along are added. |
 | [792b24c13 Explore budget and allocation](../792b_technical-spec.md#792b24c13-explore-budget-and-allocation) | match | query_explore.go:119, :311 |
 | [792b24c14 Picking a term's core](../792b_technical-spec.md#792b24c14-picking-a-terms-core) | match | query_explore.go:270 |
 | [792b24c15 Dedupe and backfill](../792b_technical-spec.md#792b24c15-dedupe-and-backfill) | match | query_explore.go:176 |

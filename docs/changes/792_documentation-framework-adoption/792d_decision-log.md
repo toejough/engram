@@ -2490,3 +2490,23 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** a vault that is its own parent has nothing to exchange with; queueing offers for it contradicts the "behave as if no parent were configured" rule that the same requirement states.
 - **Alternatives:** keep the queueing so exchange resumes after `--regenerate`. Rejected by Joe's ruling.
 
+## 792d135 Unclear audit items are bugs (Joe), and stale test tags are filed
+
+- **Choice:**
+  - **Ruling.** Joe, 2026-10-10: "file the unclear items as bugs". Each `unclear` verdict in [792g adoption audit](./792g_adoption-audit/792g19_ambient-guidance.md) became `code bug #N`. Where the spec was the stale side, it now states the intent the issue will deliver; where the code or skill misses the spec, the spec is unchanged.
+  - **Table.**
+
+    | Item | Issue | Stale side | Spec change |
+    | --- | --- | --- | --- |
+    | [792b28c1 Install location](./792b_technical-spec.md#792b28c1-install-location) | [#831](https://github.com/toejough/engram/issues/831) | code | the location is what `go install` uses (`go env`, first GOPATH entry); scenarios [792b28c1a4](./792b_technical-spec.md#792b28c1a-scenarios), [792b28c1a5](./792b_technical-spec.md#792b28c1a-scenarios), [792a11a1f](./792a_product-spec.md#792a11a1-uat-scenarios), [792a11a1g](./792a_product-spec.md#792a11a1-uat-scenarios) |
+    | [792a17f Cold-start priors carry only evidence-backed escalations](./792a_product-spec.md#792a17f-cold-start-priors-carry-only-evidence-backed-escalations) | [#832](https://github.com/toejough/engram/issues/832) | skill (needs writing-skills; with #822) | none |
+    | [792a19k1b The re-check wording is runbook-agnostic](./792a_product-spec.md#792a19k1-uat-scenarios) | [#833](https://github.com/toejough/engram/issues/833) | guidance (needs writing-skills) | none |
+    | [792a19k1c The re-check does not regress another runbook's retrieval](./792a_product-spec.md#792a19k1-uat-scenarios) | [#834](https://github.com/toejough/engram/issues/834) | missing measurement | none |
+    | [792a23k1c The miss rate is agreed before the real run](./792a_product-spec.md#792a23k1-uat-scenarios) | [#835](https://github.com/toejough/engram/issues/835) | tooling | none |
+    | [792a21zg A pull-down tells the parent the note was used](./792a_product-spec.md#792a21zg-a-pull-down-tells-the-parent-the-note-was-used) and [792b37c15 Telling the parent the note was used](./792b_technical-spec.md#792b37c15-telling-the-parent-the-note-was-used) | [#836](https://github.com/toejough/engram/issues/836) | code | a failed local write sends no signal; scenarios [792a21zg1g](./792a_product-spec.md#792a21zg1-uat-scenarios), [792b37c15a3](./792b_technical-spec.md#792b37c15a-scenarios) |
+    | [792a7u Project filter](./792a_product-spec.md#792a7u-project-filter) and [792b24c12 Project filter](./792b_technical-spec.md#792b24c12-project-filter) | [#804](https://github.com/toejough/engram/issues/804) (existing; ruling commented) | code | every note item is filtered; scenarios [792a7u1d](./792a_product-spec.md#792a7u1-uat-scenarios), [792b24c12a7](./792b_technical-spec.md#792b24c12a-scenarios) |
+
+  - **No test yet.** The new scenarios [792a11a1f](./792a_product-spec.md#792a11a1-uat-scenarios), [792a11a1g](./792a_product-spec.md#792a11a1-uat-scenarios), [792a21zg1g](./792a_product-spec.md#792a21zg1-uat-scenarios), [792a7u1d](./792a_product-spec.md#792a7u1-uat-scenarios), [792b24c12a7](./792b_technical-spec.md#792b24c12a-scenarios), [792b28c1a4](./792b_technical-spec.md#792b28c1a-scenarios), [792b28c1a5](./792b_technical-spec.md#792b28c1a-scenarios), [792b37c15a3](./792b_technical-spec.md#792b37c15a-scenarios) and [792b36c4a9](./792b_technical-spec.md#792b36c4a-scenarios) have no test until their issues land.
+  - **Stale design tags in Go strings.** [#830](https://github.com/toejough/engram/issues/830) lists the Go string literals, help text and comments that still cite deleted OpenSpec design tags (`design D8`, `ruling S29`) and the `openspec-propose` fixture names; the code is not edited here.
+- **Rationale:** [792d134 A vault must not act as its own parent (792a2q is a bug)](#792d134-a-vault-must-not-act-as-its-own-parent-792a2q-is-a-bug) applies the same rule: the spec states the intent, and a gap between intent and code is a bug, not a spec footnote.
+- **Alternatives:** leave the items `unclear` with best-judgment notes. Rejected by Joe's ruling.
