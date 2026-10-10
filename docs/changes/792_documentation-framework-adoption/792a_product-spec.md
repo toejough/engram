@@ -1679,8 +1679,9 @@ Requirement: [792a5h Chunk boundaries and IDs](#792a5h-chunk-boundaries-and-ids)
 ignoring headings inside fenced code, with the heading's text as the anchor and `preamble` for text
 before the first heading. It MUST cut a transcript into chunks of consecutive turns of about 500
 characters, anchored `turn-<N>` by the first user turn they hold, or `preamble` for text before the
-first user turn. It MUST split any section or turn group longer than 1500 characters on paragraph,
-then line, boundaries into pieces that share its anchor, and MUST NOT index a chunk shorter than 40
+first user turn. It MUST split any section or turn group longer than 1500 characters into pieces that share its anchor, packing whole non-blank lines
+in order and starting a new piece when the next line would take the piece past 1500 characters (a
+single line longer than 1500 characters stays whole), and MUST NOT index a chunk shorter than 40
 characters.
 
 #### 792a5h1 UAT Scenarios
