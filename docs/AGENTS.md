@@ -6,6 +6,30 @@ This file defines the documentation conventions for files under `docs/`. Apply t
 prospectively. Do not reorganize or renumber existing documentation unless the user explicitly
 requests a migration.
 
+## Required Implementation Workflow
+
+These instructions govern every repository behavior change, including code, tooling,
+configuration, and agent instructions, even when no documentation files were initially planned.
+The root [AGENTS.md](../AGENTS.md#core-principles) requires this workflow repository-wide.
+
+Before editing implementation files:
+
+1. Read [SPECIFICATION-LIFECYCLE-GUIDE.md](./SPECIFICATION-LIFECYCLE-GUIDE.md).
+2. Read the [product](./PRODUCT-SPEC-GUIDE.md),
+   [technical](./TECHNICAL-SPEC-GUIDE.md), and
+   [implementation-plan](./IMPLEMENTATION-PLAN-GUIDE.md) authoring guides applicable to the change.
+3. Create or update the required issue-rooted artifacts under `docs/changes/`, following the
+   lifecycle guide.
+4. Identify the requirements, acceptance scenarios, and implementation-plan nodes the change
+   addresses.
+
+Before reporting completion, reconcile those artifacts with the implementation and record
+validation results. Code and passing tests alone do not establish completion. Follow the
+lifecycle guide's atomic promotion and change-directory removal requirements at integration.
+
+Do not infer an exemption from the change's size or type. Any exemption must be explicitly
+provided by the lifecycle guide or the user.
+
 The following repository-governance files are unnumbered exceptions. They do not participate in the Luhmann hierarchy that they define:
 
 - `docs/AGENTS.md`.
