@@ -438,13 +438,15 @@ Scenario: 792a2p1e A hostname change is not a false positive
 
 ### 792a2q A vault does not exchange with itself
 
-Requirement: [792a2q A vault does not exchange with itself](#792a2q-a-vault-does-not-exchange-with-itself) When a parent reports the same vault ID as the local vault, a command MUST NOT
-merge, offer or pull down, and MUST behave as if no parent were configured, apart from printing
-exactly one warning naming `engram vault-id --regenerate` and from still queueing offers for local
-writes, which stay unsent until the ID is regenerated, as in [792a2p Copied and cloned vaults pause exchange](#792a2p-copied-and-cloned-vaults-pause-exchange).
+Requirement: [792a2q A vault does not exchange with itself](#792a2q-a-vault-does-not-exchange-with-itself) A vault MUST NOT act as its own parent. When a parent reports the same vault ID as
+the local vault, a command MUST NOT merge, pull down, send or queue any offer, and MUST otherwise behave as if no parent
+were configured, so a read command still works, apart from printing exactly one warning naming
+`engram vault-id --regenerate`.
 
 Rationale: a child cloned from its parent whose location record was copied too, at a matching path,
-passes the location check ([792a2p Copied and cloned vaults pause exchange](#792a2p-copied-and-cloned-vaults-pause-exchange)); this guard catches it instead.
+passes the location check ([792a2p Copied and cloned vaults pause exchange](#792a2p-copied-and-cloned-vaults-pause-exchange)); this guard catches it instead. A vault that is its own parent has nothing to
+exchange with, so a write made in it queues no offer; an offer queued before the mistake was detected is left unsent and
+not rejected ([792a21y A looping offer is refused](#792a21y-a-looping-offer-is-refused)).
 
 #### 792a2q1 UAT Scenarios
 
@@ -452,7 +454,12 @@ passes the location check ([792a2p Copied and cloned vaults pause exchange](#792
 Scenario: 792a2q1a A copied vault served back to itself
   Given a copy of vault V is served and V's environment points ENGRAM_PARENT at it
   When the user runs engram query in V
-  Then it returns local-only results with a warning naming engram vault-id --regenerate, and no offer is sent
+  Then it returns local-only results with a warning naming engram vault-id --regenerate, and no offer is sent or queued
+
+Scenario: 792a2q1b A write in a vault that is its own parent queues nothing
+  Given a vault whose parent reports the vault's own ID
+  When the user runs engram learn
+  Then the note is written, no offer is queued, nothing is sent, and one warning names engram vault-id --regenerate
 ```
 
 ## 792a3 Added: note-writing
@@ -11135,13 +11142,13 @@ the offer's `offer.path`, and the refusing vault is not this vault, the entry MU
 continue, one warning MUST name the refusing vault, and the refusal MUST NOT back the parent off: it is an answer, so it
 resets the failure count ([792a21s An unreachable parent is backed off](#792a21s-an-unreachable-parent-is-backed-off)). A 409 without that mark
 MUST be an ordinary rejection. When the refusing vault is this vault itself, or a receipt reports this vault's own ID,
-the entries MUST stay queued and not be marked rejected, the parent's vault ID MUST be cached, the drain MUST stop, and one
-warning MUST name `engram vault-id --regenerate`, after which the queued entries send. A cached parent vault ID equal to
+no entry MUST be sent or marked rejected, the parent's vault ID MUST be cached, the drain MUST stop, and one
+warning MUST name `engram vault-id --regenerate`. A cached parent vault ID equal to
 this vault's own MUST make the drain send nothing.
 
 Rationale: a cycle in a misconfigured tree (A to B to C to A) is caught by the path an offer carries, and it is a real
 fault that rejecting every retry would only repeat. A vault that is its own parent is a copy mistake that the user can
-repair, so its offers wait ([792a2q A vault does not exchange with itself](#792a2q-a-vault-does-not-exchange-with-itself)).
+repair, and it must not act as its own parent, so nothing is sent or rejected ([792a2q A vault does not exchange with itself](#792a2q-a-vault-does-not-exchange-with-itself)).
 
 #### 792a21y1 UAT Scenarios
 
@@ -11159,12 +11166,12 @@ Scenario: 792a21y1b An unmarked conflict is an ordinary rejection
 Scenario: 792a21y1c A self-parent refusal waits
   Given a parent that refuses an offer as a loop and reports this vault's own ID
   When the outbox drains
-  Then the entries stay queued and not rejected, the parent's ID is cached, the drain stops and one warning names engram vault-id --regenerate; after the user runs it, the queued entries send
+  Then no entry is sent or rejected, the parent's ID is cached, the drain stops and one warning names engram vault-id --regenerate
 
 Scenario: 792a21y1d A self-parent receipt is not recorded
   Given a receipt that reports this vault's own ID
   When the outbox drains
-  Then nothing is recorded, the drain stops, the entry stays and one warning names engram vault-id --regenerate
+  Then nothing is recorded, the drain stops, the entry is neither sent nor rejected and one warning names engram vault-id --regenerate
 
 Scenario: 792a21y1e A cached self-parent sends nothing
   Given the cached parent vault ID equals this vault's own

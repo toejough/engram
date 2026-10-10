@@ -2117,7 +2117,7 @@ vault-identity-registry MUST report a self-parent, and print exactly one warning
 `engram vault-id --regenerate`, exactly when the local ID is non-empty and equal to the parent's,
 and MUST print nothing otherwise.
 
-Supports: [792a2q1a A copied vault served back to itself](./792a_product-spec.md#792a2q1-uat-scenarios).
+Supports: [792a2q1a A copied vault served back to itself](./792a_product-spec.md#792a2q1-uat-scenarios), [792a2q1b A write in a vault that is its own parent queues nothing](./792a_product-spec.md#792a2q1-uat-scenarios).
 
 ##### 792b5c12a Scenarios
 
@@ -2322,6 +2322,7 @@ Scenario: 792b5c16a4 A missing record is empty and a corrupt one is an error
 | [792a2p1d A symlinked path is not a false positive](./792a_product-spec.md#792a2p1-uat-scenarios) | [792b5c7 Location record and check](#792b5c7-location-record-and-check) |
 | [792a2p1e A hostname change is not a false positive](./792a_product-spec.md#792a2p1-uat-scenarios) | [792b5c7 Location record and check](#792b5c7-location-record-and-check) |
 | [792a2q1a A copied vault served back to itself](./792a_product-spec.md#792a2q1-uat-scenarios) | [792b5c12 Self-parent guard](#792b5c12-self-parent-guard) |
+| [792a2q1b A write in a vault that is its own parent queues nothing](./792a_product-spec.md#792a2q1-uat-scenarios) | [792b36c4 Queueing an offer](#792b36c4-queueing-an-offer), [792b5c12 Self-parent guard](#792b5c12-self-parent-guard) |
 | [792a21k1b A query inside the backoff window skips the parent](./792a_product-spec.md#792a21k1-uat-scenarios) | [792b5c14 The parent cache and the contact backoff](#792b5c14-the-parent-cache-and-the-contact-backoff) |
 | [792a21s1a Commands inside the backoff window make no request](./792a_product-spec.md#792a21s1-uat-scenarios) | [792b5c14 The parent cache and the contact backoff](#792b5c14-the-parent-cache-and-the-contact-backoff) |
 | [792a21s1b update always tries](./792a_product-spec.md#792a21s1-uat-scenarios) | [792b5c14 The parent cache and the contact backoff](#792b5c14-the-parent-cache-and-the-contact-backoff) |
@@ -2404,7 +2405,12 @@ Scenario: 792a2p1e A hostname change is not a false positive
 Scenario: 792a2q1a A copied vault served back to itself
   Given a copy of vault V is served and V's environment points ENGRAM_PARENT at it
   When the user runs engram query in V
-  Then it returns local-only results with a warning naming engram vault-id --regenerate, and no offer is sent
+  Then it returns local-only results with a warning naming engram vault-id --regenerate, and no offer is sent or queued
+
+Scenario: 792a2q1b A write in a vault that is its own parent queues nothing
+  Given a vault whose parent reports the vault's own ID
+  When the user runs engram learn
+  Then the note is written, no offer is queued, nothing is sent, and one warning names engram vault-id --regenerate
 ```
 
 ```gherkin
@@ -22183,7 +22189,7 @@ queue MUST be warned and MUST NOT fail the write, which then proceeds unstaged a
 `xid` can be minted MUST be written and not queued. A corrupt outbox, a failed atomic write or a vault ID that cannot be
 stamped MUST fail the enqueue. With no parent configured it MUST offer nothing, stamp nothing and write no exchange state.
 
-Supports: [792a21m1b A write with no parent exchanges nothing](./792a_product-spec.md#792a21m1-uat-scenarios), [792a21q1a The parent is unreachable during learn](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21q1b Offline learn then amend coalesce](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21q1e A queued note is stamped with an exchange ID](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21q1g The first offer creates the exchange state in the right order](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21q1h A note is written even when no exchange ID can be made](./792a_product-spec.md#792a21q1-uat-scenarios), [792a2k1a State does not dirty the vault's git](./792a_product-spec.md#792a2k1-uat-scenarios), [792a2k1b The root .gitignore is untouched](./792a_product-spec.md#792a2k1-uat-scenarios).
+Supports: [792a21m1b A write with no parent exchanges nothing](./792a_product-spec.md#792a21m1-uat-scenarios), [792a21q1a The parent is unreachable during learn](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21q1b Offline learn then amend coalesce](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21q1e A queued note is stamped with an exchange ID](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21q1g The first offer creates the exchange state in the right order](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21q1h A note is written even when no exchange ID can be made](./792a_product-spec.md#792a21q1-uat-scenarios), [792a2k1a State does not dirty the vault's git](./792a_product-spec.md#792a2k1-uat-scenarios), [792a2k1b The root .gitignore is untouched](./792a_product-spec.md#792a2k1-uat-scenarios), [792a2q1b A write in a vault that is its own parent queues nothing](./792a_product-spec.md#792a2q1-uat-scenarios).
 
 Rationale: the write completes locally whether or not the parent is up, so the outbox lives next to the note and is
 written in the write's own lock. Stamping the vault ID first keeps `.engram/` meaning created-by-engram.
@@ -22216,6 +22222,8 @@ Scenario: 792b36c4a5 The xid is lazy and stable
   When each is queued
   Then the first gains an xid and the second keeps its own
 
+When the cached parent vault ID is this vault's own, the vault MUST NOT act as its own parent ([792b5c12 Self-parent guard](#792b5c12-self-parent-guard)):
+it MUST stage and queue nothing, the write proceeds unstaged and unqueued, and one warning MUST name `engram vault-id --regenerate`.
 Scenario: 792b36c4a6 A hook failure never fails the write
   Given a staging failure, and a queueing failure
   When a write runs with a parent configured
@@ -22248,7 +22256,7 @@ Supports: [792a21r1h An empty outbox touches nothing](./792a_product-spec.md#792
 
 Rationale: a clone or a copy must not offer under another vault's name ([792a2p Copied and cloned vaults pause exchange](./792a_product-spec.md#792a2p-copied-and-cloned-vaults-pause-exchange)), and an offer is built against the
 parent's vault ID, so it is learned first, by the cheapest request the parent offers, or the offer would be built
-wrongly. A failed gate leaves the offers queued for the next command.
+wrongly. A failed location or backoff gate leaves the offers queued for the next command; a self-parent sends nothing and queues nothing new.
 
 ##### 792b36c5a Scenarios
 
@@ -22264,9 +22272,14 @@ Scenario: 792b36c5a2 A failed location check sends nothing
   Then nothing is sent and the location warning is printed
 
 Scenario: 792b36c5a3 A cached self-parent sends nothing
+
+Scenario: 792b36c4a9 A self-parent vault queues nothing
+  Given the cached parent vault ID equals this vault's own
+  When a learn, amend or resituate runs
+  Then the note is written, no entry is queued, and one warning names engram vault-id --regenerate
   Given the cached parent vault ID equals this vault's own
   When a drain runs
-  Then nothing is sent and one warning names engram vault-id --regenerate
+  Then nothing is sent, an entry queued earlier is neither sent nor rejected, and one warning names engram vault-id --regenerate
 
 Scenario: 792b36c5a4 Unreadable local state fails the drain
   Given a corrupt outbox, a corrupt parent cache, or an unreadable note
@@ -22504,14 +22517,14 @@ Scenario: 792b36c11a1 A too-old parent keeps the entry and errors
 
 Requirement: [792b36c12 A looping offer](#792b36c12-a-looping-offer) When the parent refuses an offer as a loop, the drain MUST, for a refusing vault other than this one,
 mark the entry `rejected`, continue, print one warning per drain naming the refusing vault, and not back the
-parent off, the refusal being an answer that resets the failure count ([792b36c9 A rejected offer](#792b36c9-a-rejected-offer)). When the refusing vault is this vault, or an accepted receipt reports this vault's own ID, it MUST keep
-the entries queued and not rejected, cache the parent's vault ID, record nothing on any note, stop the drain, and print
+parent off, the refusal being an answer that resets the failure count ([792b36c9 A rejected offer](#792b36c9-a-rejected-offer)). When the refusing vault is this vault, or an accepted receipt reports this vault's own ID, it MUST send
+and reject no entry, cache the parent's vault ID, record nothing on any note, stop the drain, and print
 the one self-parent warning naming `engram vault-id --regenerate`.
 
 Supports: [792a21y1a A cycle rejects the entry and continues](./792a_product-spec.md#792a21y1-uat-scenarios), [792a21y1c A self-parent refusal waits](./792a_product-spec.md#792a21y1-uat-scenarios), [792a21y1d A self-parent receipt is not recorded](./792a_product-spec.md#792a21y1-uat-scenarios).
 
 Rationale: a real cycle (A to B to C to A) is a fault that retrying cannot mend, while a vault that is its own parent is a
-copy mistake whose offers are valid once it is fixed ([792a2q A vault does not exchange with itself](./792a_product-spec.md#792a2q-a-vault-does-not-exchange-with-itself)).
+copy mistake that the user repairs, and it must not act as its own parent, so nothing is sent or rejected ([792a2q A vault does not exchange with itself](./792a_product-spec.md#792a2q-a-vault-does-not-exchange-with-itself)).
 
 ##### 792b36c12a Scenarios
 
@@ -22523,13 +22536,13 @@ Scenario: 792b36c12a1 A cycle rejects the entry and continues
 
 Scenario: 792b36c12a2 A self-parent refusal waits for a regenerate
   Given a loop refusal that names this vault's own ID
-  When the drain runs, and again after engram vault-id --regenerate
-  Then the entries stay queued, the parent's ID is cached, the drain stops with one warning naming --regenerate, and the second drain sends them
+  When the drain runs
+  Then no entry is sent or rejected, the parent's ID is cached, and the drain stops with one warning naming --regenerate
 
 Scenario: 792b36c12a3 A self-parent receipt records nothing
   Given a receipt that reports this vault's own ID
   When the drain handles it
-  Then nothing is recorded, the drain stops, the entry stays and one warning names --regenerate
+  Then nothing is recorded, the drain stops, the entry is neither sent nor rejected and one warning names --regenerate
 ```
 
 #### 792b36c13 An offer that cannot be built
@@ -23051,12 +23064,12 @@ Scenario: 792a21y1b An unmarked conflict is an ordinary rejection
 Scenario: 792a21y1c A self-parent refusal waits
   Given a parent that refuses an offer as a loop and reports this vault's own ID
   When the outbox drains
-  Then the entries stay queued and not rejected, the parent's ID is cached, the drain stops and one warning names engram vault-id --regenerate; after the user runs it, the queued entries send
+  Then no entry is sent or rejected, the parent's ID is cached, the drain stops and one warning names engram vault-id --regenerate
 
 Scenario: 792a21y1d A self-parent receipt is not recorded
   Given a receipt that reports this vault's own ID
   When the outbox drains
-  Then nothing is recorded, the drain stops, the entry stays and one warning names engram vault-id --regenerate
+  Then nothing is recorded, the drain stops, the entry is neither sent nor rejected and one warning names engram vault-id --regenerate
 
 Scenario: 792a21y1e A cached self-parent sends nothing
   Given the cached parent vault ID equals this vault's own

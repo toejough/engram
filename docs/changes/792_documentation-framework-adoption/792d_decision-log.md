@@ -2480,3 +2480,13 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** [Guide: removed IDs are never reused](../../SPECIFICATION-LIFECYCLE-GUIDE.md#change-scoped-deltas) and the rule that a spec states only confirmed scope ([docs/AGENTS.md](../../AGENTS.md#general-documentation-rules)): a requirement no shipped text states is not current behavior.
 - **Alternatives:** keep it as intent and file a guidance bug. Rejected by Joe's ruling.
 
+## 792d134 A vault must not act as its own parent (792a2q is a bug)
+
+- **Choice:**
+  - **Ruling.** Joe, 2026-10-10: "a vault should not be allowed to be its own parent". The vault-identity audit had edited [792a2q A vault does not exchange with itself](./792a_product-spec.md#792a2q-a-vault-does-not-exchange-with-itself) to describe today's behavior, in which offers for local writes are still queued while the parent is the vault itself. Joe rules the queueing a bug: [#829](https://github.com/toejough/engram/issues/829).
+  - **Spec.** [792a2q](./792a_product-spec.md#792a2q-a-vault-does-not-exchange-with-itself) now states the intent (nothing is merged, pulled down, sent or queued, one warning, otherwise as if no parent were configured), with new scenario [792a2q1b A write in a vault that is its own parent queues nothing](./792a_product-spec.md#792a2q1-uat-scenarios). Its ID and title are unchanged. [792a21y A looping offer is refused](./792a_product-spec.md#792a21y-a-looping-offer-is-refused), [792b36c12 A looping offer](./792b_technical-spec.md#792b36c12-a-looping-offer) and [792b36c5 Before a drain sends](./792b_technical-spec.md#792b36c5-before-a-drain-sends) no longer promise that entries wait for a regenerate and then send; an entry queued before the mistake was detected is neither sent nor rejected. [792b36c4 Queueing an offer](./792b_technical-spec.md#792b36c4-queueing-an-offer) queues nothing when the cached parent vault ID is the vault's own (new scenario [792b36c4a9](./792b_technical-spec.md#792b36c4a-scenarios)).
+  - **Tests.** `Test792b36c12a2_DrainOutbox_SelfParentRefusalThenRegenerateSends` and `Test792b36c5a3_DrainOutbox_CachedSelfParentSendsNothing` (`internal/cli/outbox_test.go`) pin the queueing and must change with #829. The new scenarios have no test until #829 lands.
+  - **Open in #829.** On the first write in a freshly copied vault no parent ID is cached yet, so detecting the self-parent before queueing needs the vault-ID probe or a deferred enqueue.
+- **Rationale:** a vault that is its own parent has nothing to exchange with; queueing offers for it contradicts the "behave as if no parent were configured" rule that the same requirement states.
+- **Alternatives:** keep the queueing so exchange resumes after `--regenerate`. Rejected by Joe's ruling.
+
