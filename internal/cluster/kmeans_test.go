@@ -8,7 +8,7 @@ import (
 	"github.com/toejough/engram/internal/cluster"
 )
 
-func TestKMeans_DeterministicAcrossRuns(t *testing.T) {
+func Test792b19c2a1_KMeans_DeterministicAcrossRuns(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -42,38 +42,7 @@ func TestKMeans_DeterministicAcrossRuns(t *testing.T) {
 	g.Expect(second.Centroids).To(Equal(first.Centroids))
 }
 
-func TestKMeans_EmptyInputReturnsError(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	_, err := cluster.KMeans(nil, 2, 1)
-	g.Expect(err).To(HaveOccurred())
-}
-
-func TestKMeans_KGreaterThanNReturnsError(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	vectors := [][]float32{{1, 0}, {0, 1}}
-
-	_, err := cluster.KMeans(vectors, 5, 1)
-	g.Expect(err).To(HaveOccurred())
-}
-
-func TestKMeans_KOneReturnsError(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	vectors := [][]float32{{1, 0}, {0, 1}}
-
-	_, err := cluster.KMeans(vectors, 1, 1)
-	g.Expect(err).To(HaveOccurred())
-}
-
-func TestKMeans_TwoWellSeparatedClusters(t *testing.T) {
+func Test792b19c2a2_KMeans_TwoWellSeparatedClusters(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -104,4 +73,35 @@ func TestKMeans_TwoWellSeparatedClusters(t *testing.T) {
 	g.Expect(result.Assignments[3]).To(Equal(result.Assignments[4]))
 	g.Expect(result.Assignments[3]).To(Equal(result.Assignments[5]))
 	g.Expect(result.Assignments[0]).NotTo(Equal(result.Assignments[3]))
+}
+
+func Test792b19c2a3_KMeans_EmptyInputReturnsError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	_, err := cluster.KMeans(nil, 2, 1)
+	g.Expect(err).To(HaveOccurred())
+}
+
+func Test792b19c2a3_KMeans_KGreaterThanNReturnsError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vectors := [][]float32{{1, 0}, {0, 1}}
+
+	_, err := cluster.KMeans(vectors, 5, 1)
+	g.Expect(err).To(HaveOccurred())
+}
+
+func Test792b19c2a3_KMeans_KOneReturnsError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vectors := [][]float32{{1, 0}, {0, 1}}
+
+	_, err := cluster.KMeans(vectors, 1, 1)
+	g.Expect(err).To(HaveOccurred())
 }

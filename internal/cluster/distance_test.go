@@ -8,7 +8,7 @@ import (
 	"github.com/toejough/engram/internal/cluster"
 )
 
-func TestCosineDistance_IdenticalVectorsIsZero(t *testing.T) {
+func Test792b19c1a1_CosineDistance_IdenticalVectorsIsZero(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -19,7 +19,7 @@ func TestCosineDistance_IdenticalVectorsIsZero(t *testing.T) {
 	g.Expect(cluster.CosineDistance(a, b)).To(BeNumerically("~", 0, 1e-6))
 }
 
-func TestCosineDistance_OppositeVectorsIsTwo(t *testing.T) {
+func Test792b19c1a1_CosineDistance_OppositeVectorsIsTwo(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -30,7 +30,7 @@ func TestCosineDistance_OppositeVectorsIsTwo(t *testing.T) {
 	g.Expect(cluster.CosineDistance(a, b)).To(BeNumerically("~", 2, 1e-6))
 }
 
-func TestCosineDistance_OrthogonalVectorsIsOne(t *testing.T) {
+func Test792b19c1a1_CosineDistance_OrthogonalVectorsIsOne(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -41,7 +41,7 @@ func TestCosineDistance_OrthogonalVectorsIsOne(t *testing.T) {
 	g.Expect(cluster.CosineDistance(a, b)).To(BeNumerically("~", 1, 1e-6))
 }
 
-func TestCosineDistance_ZeroVectorReturnsOne(t *testing.T) {
+func Test792b19c1a1_CosineDistance_ZeroVectorReturnsOne(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)

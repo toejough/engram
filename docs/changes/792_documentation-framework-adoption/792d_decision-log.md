@@ -1108,3 +1108,18 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** a divergence becomes a later change proposal (vault note 645).
 - **Alternatives:** specify the intended behavior with coverage gaps. Rejected because the code does
   not do it.
+
+## 792d88 similarity-clustering scope and the tests it leaves
+
+- **Choice:** 792b19 specifies cosine distance, the seeded k-means partition, the silhouette score
+  and the choice of the number of clusters, which refit's scenarios need. The per-point silhouette
+  (`PointSilhouette`), used only by the query to pick cluster representatives, waits for memory-query
+  (792c7f1) with its four tests. `TestInvariant_C1_ClusteringDeterminism` checks determinism through
+  `RunQuery` with a phrase-derived seed, and `TestProperty_Cluster_NearDuplicateL2CosineAtLeast095`
+  checks a query payload's cosine, so both wait for memory-query too. Invariant C1 is ported as
+  792b19c2's determinism clause and rationale; the query's own seeding from the phrase is the query
+  engine's (792c7f5). c3 K8 points at 792b19 and keeps the query's bound on clustering inputs as a
+  residue for memory-query, whose K6 row states the same caps.
+- **Rationale:** 792d51: requirements arrive with the product scenarios they support.
+- **Alternatives:** specify the per-point silhouette now as a **MAY**. Rejected because the query
+  makes it a contract there.

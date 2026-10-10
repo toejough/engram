@@ -220,8 +220,8 @@ flowchart TD
   N792c7d4["792c7d4 ingestion-source-discovery tech spec<br/>Complete"]
   N792c7d5["792c7d5 chunk-index-store tech spec<br/>Complete"]
   N792c7e1["792c7e1 controlled-vocabulary product spec<br/>Complete"]
-  N792c7e2["792c7e2 similarity-clustering tech spec<br/>Ready"]
-  N792c7e3["792c7e3 vocabulary-engine tech spec<br/>Blocked by: 792c7e2"]
+  N792c7e2["792c7e2 similarity-clustering tech spec<br/>Complete"]
+  N792c7e3["792c7e3 vocabulary-engine tech spec<br/>Ready"]
   N792c7f1["792c7f1 memory-query product spec<br/>Blocked by: 792c7e3"]
   N792c7f2["792c7f2 recency-ranking tech spec<br/>Blocked by: 792c7f1"]
   N792c7f3["792c7f3 runbook-trigger-matching tech spec<br/>Blocked by: 792c7f2"]
@@ -1917,11 +1917,44 @@ Target: `792b19` (`docs/specs/technical/similarity-clustering.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7e2a | Port the component contract to `792b19` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7e2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7e2c | Repoint stale references to `792b19` | Non-test action | Keeps live links valid | Not started |
-| 792c7e2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7e2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7e2a | Port the component contract to `792b19` | Non-test action | Documents the component in the framework format | Done |
+| 792c7e2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7e2c | Repoint stale references to `792b19` | Non-test action | Keeps live links valid | Done |
+| 792c7e2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7e2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+**Outcome:** invariant C1 is removed from section F and becomes 792b19c2; c3 K8 points at 792b19 and
+keeps the query's input bound for memory-query (792d88).
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b19c1a1 | `TestCosineDistance_IdenticalVectorsIsZero` → `Test792b19c1a1_CosineDistance_IdenticalVectorsIsZero` | Pure unit | Distance 0 | Done |
+| 792b19c1a1 | `TestCosineDistance_OrthogonalVectorsIsOne` → `Test792b19c1a1_CosineDistance_OrthogonalVectorsIsOne` | Pure unit | Distance 1 | Done |
+| 792b19c1a1 | `TestCosineDistance_OppositeVectorsIsTwo` → `Test792b19c1a1_CosineDistance_OppositeVectorsIsTwo` | Pure unit | Distance 2 | Done |
+| 792b19c1a1 | `TestCosineDistance_ZeroVectorReturnsOne` → `Test792b19c1a1_CosineDistance_ZeroVectorReturnsOne` | Pure unit | Zero vector | Done |
+| 792b19c2a1 | `TestKMeans_DeterministicAcrossRuns` → `Test792b19c2a1_KMeans_DeterministicAcrossRuns` | Pure unit | Same result twice | Done |
+| 792b19c2a2 | `TestKMeans_TwoWellSeparatedClusters` → `Test792b19c2a2_KMeans_TwoWellSeparatedClusters` | Pure unit | Groups found | Done |
+| 792b19c2a3 | `TestKMeans_EmptyInputReturnsError` → `Test792b19c2a3_KMeans_EmptyInputReturnsError` | Pure unit | No vectors | Done |
+| 792b19c2a3 | `TestKMeans_KGreaterThanNReturnsError` → `Test792b19c2a3_KMeans_KGreaterThanNReturnsError` | Pure unit | k above n | Done |
+| 792b19c2a3 | `TestKMeans_KOneReturnsError` → `Test792b19c2a3_KMeans_KOneReturnsError` | Pure unit | k of 1 | Done |
+| 792b19c3a1 | `TestSilhouette_WellSeparatedClustersIsHigh` → `Test792b19c3a1_Silhouette_WellSeparatedClustersIsHigh` | Pure unit | Above 0.5 | Done |
+| 792b19c3a2 | `TestSilhouette_RandomAssignmentIsLow` → `Test792b19c3a2_Silhouette_RandomAssignmentIsLow` | Pure unit | Below 0.1 | Done |
+| 792b19c3a3 | `TestSilhouette_SinglePointPerClusterIsZero` → `Test792b19c3a3_Silhouette_SinglePointPerClusterIsZero` | Pure unit | Singletons score 0 | Done |
+| 792b19c4a1 | `TestAutoK_PicksThreeForKnownThreeClusters` → `Test792b19c4a1_AutoK_PicksThreeForKnownThreeClusters` | Pure unit | K of 3 | Done |
+| 792b19c4a2 | `TestAutoK_LowSilhouetteReturnsZeroClusters` → `Test792b19c4a2_AutoK_LowSilhouetteReturnsZeroClusters` | Pure unit | K of 0 | Done |
+| 792b19c4a3 | `TestAutoK_KRangeBounded` → `Test792b19c4a3_AutoK_KRangeBounded` | Pure unit | Range capped | Done |
+| 792b19c4a4 | `TestAutoK_AbsorbsSingletons` → `Test792b19c4a4_AutoK_AbsorbsSingletons` | Pure unit | No singleton cluster | Done |
+
+**Coverage gaps:** 792b19 has none. The 792a6 refit scenarios it maps are covered end to end only
+through vocabulary-engine's tests (792c7e3).
+
+**No-scenario tests:** deferred to memory-query (792c7f1, 792d88): `silhouette_test`
+`TestPointSilhouette_OutOfRangeOwnClusterReturnsZero`, `TestPointSilhouette_SingletonOwnClusterReturnsZero`,
+`TestPointSilhouette_TwoMemberCluster`, `TestPointSilhouette_ZeroDenominator`; `invariants_c1_property_test`
+`TestInvariant_C1_ClusteringDeterminism`; `cluster_property_test`
+`TestProperty_Cluster_NearDuplicateL2CosineAtLeast095`.
 
 #### 792c7e3 vocabulary-engine tech spec
 

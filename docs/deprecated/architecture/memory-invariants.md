@@ -62,9 +62,10 @@ Test methods:
 | **P1** | **[RETIRED — episode kind removed; chunk-source provenance is now frontmatter on fact/feedback notes and is not a path-validity concern (chunks are indexed separately).]** ~~Episode provenance valid: every episode names ≥1 session id whose transcript source path exists on disk.~~ | — | RETIRED |
 
 ## F. Recall / clustering determinism — `[PT]`
+C1 (clustering determinism) is [792b19c2](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b19c2-k-means-partition).
+
 | id | invariant | status |
 |---|---|---|
-| **C1** | Clustering determinism: `AutoK(k-means + silhouette)` returns the same result for a fixed vault + phrase. | unchecked |
 | **L3-1** | **[RETIRED — L3 note kind removed; candidate synthesis now uses `candidate_l2s` within-cluster nomination, not a centroid-cosine L3 match-stability gate.]** | — | RETIRED |
 | **R1** | Recall-mirror: a note written with `situation` S is retrievable by a query phrased as S (learn and recall are inverse over the situation field). | untested — **SURVIVOR** |
 | **R2** | **[RETIRED — recall no longer does subgraph/hub expansion; `vaultgraph` is used only by `check`/`amend`, not in the query path.]** ~~Graph expansion really traverses links: recall's subgraph/cluster/hub computation uses the wikilink graph.~~ | — | RETIRED |
