@@ -188,7 +188,7 @@ command succeeds.
 Supports: 792a2e1b, 792a2j1c, 792a2n1b, 792a2o1a, 792a3f1b, 792a3g1a, 792a3k1a, 792a3k1b, 792a3k1c,
 792a3k1d, 792a3r1a, 792a3s1a, 792a4a1b, 792a4c1a, 792a4f1a, 792a4k1a, 792a4k1b, 792a4l1b, 792a4l1c,
 792a4n1c, 792a6h1a, 792a6i1c, 792a6r1a, 792a6t1a, 792a8c1f, 792a8e1j, 792a8f1a, 792a8f1b, 792a8f1c,
-792a9a1b, 792a9a1e, 792a9g1c, 792a9i1f.
+792a9a1b, 792a9a1e, 792a9g1c, 792a9i1f, 792a10d1a, 792a10d1b, 792a10d1c, 792a10d1d.
 
 ##### 792b2c4a Scenarios
 
@@ -424,6 +424,10 @@ Scenario: 792b2c8a3 A blank reference fails
 | 792a9a1e | 792b2c4 |
 | 792a9g1c | 792b2c4 |
 | 792a9i1f | 792b2c4 |
+| 792a10d1a | 792b2c4 |
+| 792a10d1b | 792b2c4 |
+| 792a10d1c | 792b2c4 |
+| 792a10d1d | 792b2c4 |
 
 ```gherkin
 Scenario: 792a2a1a The flag wins over the environment
@@ -817,6 +821,28 @@ Scenario: 792a9i1f An unreadable note stops the run
   Given a vault with a note the user cannot read
   When the user runs engram embed apply
   Then it fails with an error beginning "embed apply: scan:" and nothing is embedded
+```
+
+```gherkin
+Scenario: 792a10d1a A missing answers file
+  Given no file at the --answers path
+  When the user runs engram update --reparent-luhmann --answers <path>
+  Then it fails with an error that the answers file cannot be read, and the vault is unchanged
+
+Scenario: 792a10d1b Malformed answers
+  Given an answers file that is not valid JSON
+  When the user applies it
+  Then it fails with "cannot parse --answers JSON" and the vault is unchanged
+
+Scenario: 792a10d1c Stale answers
+  Given answers derived before the vault changed
+  When the user applies them
+  Then they are refused with a stale-answers error telling the user to re-run engram update --reparent-luhmann, and no file is written and the chunk index is unchanged
+
+Scenario: 792a10d1d An unknown note
+  Given an answers file naming a note ID that no top-level note has
+  When the user applies it
+  Then it fails with "--answers references an unknown note" and the vault is unchanged
 ```
 
 ## 792b3 Added: durable-file-store
@@ -2589,7 +2615,7 @@ the letter after its largest letter child in Luhmann order, or `a`, and after an
 letter, the number after its largest numeric child, or `1`; and for `sibling`, the next child of
 the target's parent.
 
-Supports: 792a3j1a, 792a3j1b, 792a3j1c, 792a3j1d, 792a3j1e.
+Supports: 792a3j1a, 792a3j1b, 792a3j1c, 792a3j1d, 792a3j1e, 792a10e1a, 792a10e1b.
 
 ##### 792b7c4a Scenarios
 
@@ -2652,6 +2678,36 @@ Scenario: 792b7c5a4 A sibling of a top-level ID is refused
   Then an error is returned
 ```
 
+#### 792b7c6 ID and date from a filename
+
+Requirement: 792b7c6 The luhmann-addressing MUST read from a note filename of the form `<id>.<date>.<slug>.md`
+its ID, as in 792b7c2, and its date, the second dot-separated segment, and MUST refuse a filename that has no
+valid leading ID or fewer than three dot-separated segments.
+
+Supports: 792a10e1a.
+
+Rationale: a re-parented note keeps its date and slug and takes a new ID, so the new basename is built from
+these parts.
+
+##### 792b7c6a Scenarios
+
+```gherkin
+Scenario: 792b7c6a1 A note filename yields its ID and date
+  Given the filename 211.2026-07-10.vocab-retrieval-design-definition.md
+  When its ID and date are read
+  Then they are 211 and 2026-07-10
+
+Scenario: 792b7c6a2 A filename without a leading ID is refused
+  Given the filename not-an-id.2026-07-10.vocab-x-definition.md
+  When its ID and date are read
+  Then it is refused
+
+Scenario: 792b7c6a3 A filename with too few segments is refused
+  Given the filename 211.md
+  When its ID and date are read
+  Then it is refused
+```
+
 ### 792b7d Product-Scenario Mapping
 
 | Product scenario | Technical requirements |
@@ -2665,6 +2721,8 @@ Scenario: 792b7c5a4 A sibling of a top-level ID is refused
 | 792a3k1b | 792b7c5 |
 | 792a3k1c | 792b7c5 |
 | 792a3k1d | 792b7c1, 792b7c5 |
+| 792a10e1a | 792b7c6, 792b7c4 |
+| 792a10e1b | 792b7c4 |
 
 ```gherkin
 Scenario: 792a3j1a Top takes the next top-level number
@@ -2691,6 +2749,18 @@ Scenario: 792a3j1e Letters roll over from z to aa
   Given a vault whose notes have IDs 1 and 1a through 1z
   When the user runs engram learn fact --position continuation --target 1
   Then the new note's ID is 1aa
+```
+
+```gherkin
+Scenario: 792a10e1a A continuation answer renames the note and rewrites links
+  Given note 12 answered continuation of note 7, and note 20 containing a [[12.2026-05-01.old-slug]] link
+  When the user applies the answers
+  Then note 12's file and sidecar take the new child ID under 7, its luhmann: field is updated, its old basename is in its aliases, and note 20's link names the new basename
+
+Scenario: 792a10e1b Renames are ordered by original ID
+  Given notes 2 and 3 both answered continuation of note 1
+  When the user applies the answers
+  Then note 2 becomes 1a and note 3 becomes 1b
 ```
 
 ## 792b8 Added: vault-write-lock
@@ -3347,7 +3417,7 @@ only when set. Decoding MUST refuse malformed JSON, MUST refuse any other schema
 old single-vector sidecar, before checking lengths, MUST refuse a sidecar whose either vector's
 length differs from `dims`, and MUST read an absent `last_used` as empty.
 
-Supports: 792a3n1a, 792a3u1a, 792a3u1b, 792a4n1a, 792a4n1d.
+Supports: 792a3n1a, 792a3u1a, 792a3u1b, 792a4n1a, 792a4n1d, 792a10c1a.
 
 Rationale: `last_used` is added metadata. It does not bump the schema version, and it is kept out of
 the content hash, so recording a use never makes a note look stale.
@@ -3451,7 +3521,7 @@ Requirement: 792b10c4 The embedding-sidecar MUST hash a note as `sha256:` follow
 SHA-256 of its situation text, a zero byte, and its body text, so the hash changes when either
 changes, does not change for any other frontmatter edit, and is the same for the same note.
 
-Supports: 792a3n1a, 792a4g1a, 792a4g1b, 792a6u1a.
+Supports: 792a3n1a, 792a4g1a, 792a4g1b, 792a6u1a, 792a10i1c.
 
 ##### 792b10c4a Scenarios
 
@@ -3484,7 +3554,8 @@ or the body text when the note has no situation, and the body text, and stamping
 the embedder's model ID and dimension, and the note's content hash; an embedding failure MUST be
 returned.
 
-Supports: 792a3n1a, 792a3n1b, 792a4g1a, 792a4g1c, 792a4l1a, 792a4l1c, 792a4o1b, 792a6a1a.
+Supports: 792a3n1a, 792a3n1b, 792a4g1a, 792a4g1c, 792a4l1a, 792a4l1c, 792a4o1b, 792a6a1a, 792a10e1f,
+792a10i1c, 792a10l1d.
 
 ##### 792b10c5a Scenarios
 
@@ -3592,7 +3663,7 @@ Scenario: 792b10c7a6 States have labels
 Requirement: 792b10c8 The embedding-sidecar MUST measure two vectors' cosine similarity, and MUST
 return 0 when their lengths differ, when they are empty, or when either has zero magnitude.
 
-Supports: 792a3t1a, 792a3u1a, 792a3u1b, 792a6d1a, 792a6d1c.
+Supports: 792a3t1a, 792a3u1a, 792a3u1b, 792a6d1a, 792a6d1c, 792a10c1a, 792a10c1b.
 
 ##### 792b10c8a Scenarios
 
@@ -3833,6 +3904,11 @@ Scenario: 792b10c12a10 Only sidecars are written
 | 792a9i1f | 792b10c12 |
 | 792a9j1a | 792b10c10, 792b10c9 |
 | 792a9j1b | 792b10c12, 792b10c9 |
+| 792a10c1a | 792b10c1, 792b10c8 |
+| 792a10c1b | 792b10c8 |
+| 792a10e1f | 792b10c5 |
+| 792a10i1c | 792b10c5, 792b10c4 |
+| 792a10l1d | 792b10c5 |
 
 ```gherkin
 Scenario: 792a3t1a The answer is found and the question is not
@@ -3994,6 +4070,33 @@ Scenario: 792a9j1b A CRLF note gets its LF form's sidecar
   Then the two sidecars are byte-identical
 ```
 
+```gherkin
+Scenario: 792a10c1a Candidates are emitted for review
+  Given a vault of top-level notes with sidecars, some pairs of which are similar
+  When the user runs engram update --reparent-luhmann with no --answers
+  Then it prints a JSON payload of candidate pairs, a fingerprint and a next_command field, and renames and rewrites nothing
+
+Scenario: 792a10c1b No pair is similar enough
+  Given top-level notes none of whose pairs has a similarity of 0.75
+  When the user runs engram update --reparent-luhmann
+  Then it prints "update --reparent-luhmann: no candidates found" and writes nothing
+
+Scenario: 792a10e1f Rewritten notes are not left stale
+  Given a note that links a renamed note
+  When the user applies the answers
+  Then engram embed status reports it with-embeddings
+
+Scenario: 792a10i1c A CRLF note that is renamed becomes LF
+  Given a renamed note whose lines end in \r\n
+  When the user applies the answers
+  Then the written note has no \r\n, its luhmann: is its new ID, its alias is recorded, every other key decodes to its prior value, and its sidecar is fresh
+
+Scenario: 792a10l1d A CRLF note is converted
+  Given a fact or feedback note missing identity whose lines end in \r\n
+  When the user runs engram update --backfill-identity
+  Then the note is stamped and written with no \r\n, byte-identical to the backfill of its LF form, and its sidecar is fresh
+```
+
 ## 792b11 Added: note-provenance
 
 Canonical target: `docs/specs/technical/note-provenance.md` (title `Note Provenance - Technical Spec`).
@@ -4009,14 +4112,14 @@ Canonical target: `docs/specs/technical/note-provenance.md` (title `Note Provena
 - Current realization (informational): `detectRepo`, `detectUser`, `firstWriteIdentity` and
   `identityStamp` in `internal/cli/identity.go`; `newLearnDeps` wires them for `learn`. The amend
   re-stamp is `identityStamp.stampPreservingUser`; identity backfill
-  (`internal/cli/identity_backfill.go`) is specified by vault-migration (792d67).
+  (`internal/cli/identity_backfill.go`) is 792b11c5 to 792b11c7 (792d67).
 - Qualification: responsibility, provenance detection is stated without naming any command;
   ownership, writers decide when to stamp, while this component decides what the values are;
   independent verification, detection and stamping are tested directly over a fake `git` and user
   lookup; stability, the fields and their sources survive any change to the writers; necessity,
   every note's `repo:`, `user:` and `vault:` come from it.
-- Supported capabilities: 792a2 vault-identity, 792a3 note-writing, 792a4 note-revision. Vault-migration,
-  vault-serving and parent-sync add their requirements (792d30, 792d67).
+- Supported capabilities: 792a2 vault-identity, 792a3 note-writing, 792a4 note-revision, 792a10
+  vault-migration. Vault-serving and parent-sync add their requirements (792d30, 792d67).
 
 Rationale: detection shells out to `git` rather than reading `.git/config`, because reproducing
 git's own configuration precedence (worktrees, `includeIf` and so on) would bring no benefit.
@@ -4200,6 +4303,164 @@ Scenario: 792b11c4a4 No re-stamp changes nothing
   Then its repo, user and vault are still r, u and v
 ```
 
+#### 792b11c5 Repository for a backfill
+
+Requirement: 792b11c5 The note-provenance MUST, when backfilling a note's identity, resolve the note's
+repository as the note's `project:` when it is non-empty, and otherwise as the repository detection of the
+backfill's working directory (792b11c1), which may itself be empty.
+
+Supports: 792a10k1b, 792a10k1c.
+
+Rationale: one backfill run has one working directory but may stamp notes from several repositories, so the
+note's own `project:` is the better per-note signal. An amend always uses fresh detection.
+
+##### 792b11c5a Scenarios
+
+```gherkin
+Scenario: 792b11c5a1 The project field is preferred
+  Given a note whose project: is non-empty and a detected repository
+  When the repository is resolved for a backfill
+  Then it is the project: value
+
+Scenario: 792b11c5a2 Without a project the detection is used
+  Given a note with no project: and a detected repository
+  When the repository is resolved for a backfill
+  Then it is the detected repository
+
+Scenario: 792b11c5a3 Neither resolves
+  Given a note with no project: and no detected repository
+  When the repository is resolved for a backfill
+  Then it is empty
+```
+
+#### 792b11c6 Notes a backfill could stamp
+
+Requirement: 792b11c6 The note-provenance MUST judge a note stampable when it is a `fact` or `feedback` note
+whose frontmatter parses, read as its LF form, that has no `user:` and either has no `vault:` or a user
+resolves now (792b11c2). It MUST judge a vault to hold such a note when any file at its root is stampable, and
+MUST judge it not to when its directory or a file cannot be read.
+
+Supports: 792a10j1a, 792a10j1b, 792a10j1c, 792a10j1d.
+
+##### 792b11c6a Scenarios
+
+```gherkin
+Scenario: 792b11c6a1 A note missing identity is found
+  Given a fact note with no repo:, user: or vault:
+  When the vault is tested
+  Then it holds a note a backfill could stamp
+
+Scenario: 792b11c6a2 A CRLF note is found
+  Given a fact note missing identity whose lines end in \r\n
+  When the vault is tested
+  Then it holds a note a backfill could stamp
+
+Scenario: 792b11c6a3 A stamped note is not found
+  Given a note that has user:
+  When the vault is tested
+  Then it does not
+
+Scenario: 792b11c6a4 Other note types are not found
+  Given a note that is neither fact nor feedback and has no user:
+  When the vault is tested
+  Then it does not
+
+Scenario: 792b11c6a5 An unreadable vault is not found
+  Given a vault directory that cannot be read
+  When the vault is tested
+  Then it does not
+
+Scenario: 792b11c6a6 A note with vault: and no resolvable user is not found
+  Given a note with vault: but no user:, and no user resolves
+  When the vault is tested
+  Then it does not
+```
+
+#### 792b11c7 Identity backfill
+
+Requirement: 792b11c7 The note-provenance MUST, under the vault write lock, stamp each stampable note
+(792b11c6) as YAML-node edits of its parsed frontmatter in one atomic write: a note with no `vault:` gets
+`repo:` (792b11c5), `user:` and `vault:` from the current environment, and a note with `vault:` and no `user:`
+gets only `user:`. It MUST re-emit `created:` in its quoted form, keep every other key and every anchor on a
+key it does not edit, leave a note neither fact nor feedback and a note with unparseable frontmatter unchanged,
+and leave a note it would not write unconverted. It MUST refuse a note when a key it would set or its value or
+anything beneath it carries a YAML anchor, or the rewritten frontmatter does not decode, leave that note
+untouched, stamp the others, and then return one error joining each refusal that names the note. It MUST write
+nothing under dry run, and return the number of notes stamped or that would be. It MUST write a stamped CRLF
+note as LF and rebuild its sidecar (792b10c5); and MUST return a failure to lock, list, read, write or
+rebuild.
+
+Supports: 792a10k1a, 792a10k1d, 792a10k1e, 792a10k1f, 792a10k1g, 792a10l1a, 792a10l1b, 792a10l1c, 792a10l1d,
+792a10l1e.
+
+Rationale: re-rendering the whole frontmatter from the typed model dropped every key the model does not
+define (#780, #789). Editing the parsed mapping keeps them, and keeps the bytes of an ordinary note as they
+were. The lock stops a backfill racing a concurrent `learn` or `amend`.
+
+##### 792b11c7a Scenarios
+
+```gherkin
+Scenario: 792b11c7a1 A note with project is stamped from it
+  Given a note with project: set and a note with none, both missing identity, and a stamped note
+  When the vault is backfilled
+  Then both gain repo:, user: and vault:, the first with repo: from its project:, and the stamped note is unchanged
+
+Scenario: 792b11c7a2 A second backfill writes nothing
+  Given a vault that has been backfilled
+  When it is backfilled again
+  Then no note is written and the count is 0
+
+Scenario: 792b11c7a3 An omitted user is filled in
+  Given a note with repo: and vault: work and no user:, and a user that resolves
+  When the vault is backfilled
+  Then the note gains user:, and repo: and vault: are unchanged; and where no user resolves it is not written
+
+Scenario: 792b11c7a4 A dry run writes nothing
+  Given notes missing identity
+  When the vault is backfilled with dry run
+  Then nothing is written and the count is the number that would be stamped
+
+Scenario: 792b11c7a5 Unrelated content is skipped
+  Given a note without frontmatter and a vocab definition note
+  When the vault is backfilled
+  Then neither fails nor changes, and a read error is returned
+
+Scenario: 792b11c7a6 An unmodeled key is kept
+  Given a note with a key the typed model does not define, or a nested map
+  When the vault is backfilled
+  Then the note is stamped and the key keeps its value
+
+Scenario: 792b11c7a7 An anchor on an unedited key is kept
+  Given a note whose source: &src test is aliased by another key
+  When the vault is backfilled
+  Then both decode to test
+
+Scenario: 792b11c7a8 An anchored identity key is refused
+  Given a flagged note whose user: carries an anchor that another key aliases, and a second flagged note
+  When the vault is backfilled
+  Then the second is stamped, the first is byte-identical, and the error names the first and user
+
+Scenario: 792b11c7a9 A CRLF note is written as LF
+  Given a flagged CRLF note
+  When the vault is backfilled
+  Then it is written without \r\n, byte-identical to the backfill of its LF form, and its sidecar is rebuilt
+
+Scenario: 792b11c7a10 An ordinary note is written as before
+  Given a note holding only keys the typed model defines and no anchors
+  When the vault is backfilled
+  Then the bytes are what the earlier typed re-render wrote
+
+Scenario: 792b11c7a11 A write or rebuild failure is returned
+  Given a write or a sidecar rebuild that fails
+  When the vault is backfilled
+  Then the error is returned
+
+Scenario: 792b11c7a12 The report records the run
+  Given a backfill that stamped notes
+  When it finishes
+  Then the report records the count and the missing-identity flag is re-checked, and under dry run it is left as it was
+```
+
 ### 792b11d Product-Scenario Mapping
 
 | Product scenario | Technical requirements |
@@ -4220,6 +4481,22 @@ Scenario: 792b11c4a4 No re-stamp changes nothing
 | 792a4h1e | 792b11c2, 792b11c4 |
 | 792a4h1f | 792b11c4 |
 | 792a4h1g | 792b11c4 |
+| 792a10j1a | 792b11c6 |
+| 792a10j1b | 792b11c6 |
+| 792a10j1c | 792b11c6 |
+| 792a10j1d | 792b11c6 |
+| 792a10k1a | 792b11c7, 792b11c5 |
+| 792a10k1b | 792b11c5 |
+| 792a10k1c | 792b11c5 |
+| 792a10k1d | 792b11c7 |
+| 792a10k1e | 792b11c7 |
+| 792a10k1f | 792b11c7 |
+| 792a10k1g | 792b11c7 |
+| 792a10l1a | 792b11c7 |
+| 792a10l1b | 792b11c7 |
+| 792a10l1c | 792b11c7 |
+| 792a10l1d | 792b11c7 |
+| 792a10l1e | 792b11c7 |
 
 ```gherkin
 Scenario: 792a4h1a Amend from another environment re-stamps
@@ -4251,6 +4528,83 @@ Scenario: 792a4h1g Recording a use keeps the declared identity
   Given a note whose repo:, user: and vault: differ from the current environment's
   When the user runs engram amend --target <note> --activate
   Then the note's repo:, user: and vault: are unchanged
+```
+
+```gherkin
+Scenario: 792a10j1a Notes missing identity are noticed
+  Given a vault with a fact note that has no repo:, user: or vault:
+  When the user runs engram update
+  Then the report includes a notice naming engram update --backfill-identity
+
+Scenario: 792a10j1b No notice when nothing is missing
+  Given a vault in which every fact and feedback note has user:
+  When the user runs engram update
+  Then no identity-backfill notice appears
+
+Scenario: 792a10j1c No notice for a note that cannot be stamped
+  Given user detection resolves empty and the only note without user: has vault:
+  When the user runs engram update
+  Then no identity-backfill notice appears
+
+Scenario: 792a10j1d A CRLF note is noticed
+  Given a fact note missing identity whose lines end in \r\n
+  When the user runs engram update
+  Then the notice appears
+
+Scenario: 792a10k1a The current environment is stamped
+  Given fact and feedback notes missing repo:, user: and vault:
+  When the user runs engram update --backfill-identity
+  Then each gains the three fields, user: and vault: from the current environment's detection and repo: as described
+
+Scenario: 792a10k1b The project field is preferred
+  Given a note whose project: is non-empty and no repo:
+  When the user runs engram update --backfill-identity
+  Then the note's repo: is the project: value, not the working directory's git remote
+
+Scenario: 792a10k1c Without a project field the repo is detected
+  Given a note whose project: is empty or absent
+  When the user runs engram update --backfill-identity
+  Then the note's repo: is freshly detected from the working directory, as learn does
+
+Scenario: 792a10k1d A backfill twice stamps once
+  Given a vault that has just been backfilled
+  When the user runs engram update --backfill-identity again
+  Then no note is modified, and the output says "nothing to backfill"
+
+Scenario: 792a10k1e An omitted user is filled in
+  Given a note with repo: and vault: work but no user:, and user detection resolves
+  When the user runs engram update --backfill-identity
+  Then the note gains the detected user:, and its repo: and vault: work are unchanged; where detection still resolves empty the note is not written
+
+Scenario: 792a10k1f A dry run writes nothing
+  Given notes missing identity
+  When the user runs engram update --backfill-identity --dry-run
+  Then the output has "[dry-run]" and "would stamp" with the note count, and no file is modified
+
+Scenario: 792a10k1g Other note types are left alone
+  Given a vocab definition note and a runbook note without user:
+  When the user runs engram update --backfill-identity
+  Then neither is modified
+
+Scenario: 792a10l1a An unmodeled key is kept
+  Given a fact or feedback note missing identity whose frontmatter has a key the typed note model does not define, such as luhmann_old: "12", or a nested map
+  When the user runs engram update --backfill-identity
+  Then the written note carries repo:, user: and vault: and still carries that key with the same value
+
+Scenario: 792a10l1b An anchor on an unedited key is kept
+  Given a note missing identity whose source: &src test is aliased by another key
+  When the user runs engram update --backfill-identity
+  Then the note is stamped, and source and the aliasing key both still decode to test
+
+Scenario: 792a10l1c An anchored identity key is refused
+  Given one flagged note whose user: key carries a YAML anchor that another key aliases, and a second flagged note without one
+  When the user runs engram update --backfill-identity
+  Then the second note is stamped, the first is byte-identical, and the command fails naming the first note and user
+
+Scenario: 792a10l1e An ordinary note is written as before
+  Given a note whose frontmatter holds only keys the typed note model defines and no anchors
+  When the user runs engram update --backfill-identity
+  Then the written note is byte-identical to what backfill wrote before node edits were used
 ```
 
 ## 792b12 Added: note-authoring
@@ -9895,7 +10249,6 @@ Scenario: 792b23c8a9 A query shows a runbook's red flags
 | 792a7zd1b | 792b23c1 |
 | 792a7zg1e | 792b23c8 |
 | 792a7zg1f | 792b23c2 |
-
 
 ```gherkin
 Scenario: 792a7b1b A note item is labelled by its type

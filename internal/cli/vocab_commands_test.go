@@ -3193,19 +3193,19 @@ func Test792b20c9a5_WriteVocabVersionToFamilyNote_MissingFamilyNote_ReturnsSenti
 	g.Expect(writeErr).To(MatchError(cli.ErrVocabFamilyNoteMissing))
 }
 
-// TestIdAndDateFromNoteFilename table-tests the "<id>.<date>" prefix parser:
+// Test792b7c6a1_IdAndDateFromNoteFilename table-tests the "<id>.<date>" prefix parser:
 // a filename with no valid leading Luhmann id, and one with fewer than three
 // dot-separated segments, both return ok=false — direct unit coverage since
 // renameDefinitionNote's production call path only reaches this helper after
 // termFromDefinitionSlug has already confirmed a well-formed definition-note
 // filename, making these guards unreachable through that path.
-// TestIdAndDateFromNoteFilename table-tests the "<id>.<date>" prefix parser:
+// Test792b7c6a1_IdAndDateFromNoteFilename table-tests the "<id>.<date>" prefix parser:
 // a filename with no valid leading Luhmann id, and one with fewer than three
 // dot-separated segments, both return ok=false — direct unit coverage since
 // renameDefinitionNote's production call path only reaches this helper after
 // termFromDefinitionSlug has already confirmed a well-formed definition-note
 // filename, making these guards unreachable through that path.
-func TestIdAndDateFromNoteFilename(t *testing.T) {
+func Test792b7c6a1_IdAndDateFromNoteFilename(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {

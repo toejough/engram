@@ -22,12 +22,248 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-// TestBackfillIdentity_ConvertsCRLFNote: backfill reads a CRLF note as LF
+// Test792b11c7a11_BackfillIdentity_WriteAndRebuildFailuresSurface: a failed note write,
+// a failed re-embed of a converted note, and a failed sidecar write each
+// fail the run, naming the note.
+func Test792b11c7a11_BackfillIdentity_WriteAndRebuildFailuresSurface(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name     string
+		embedder embed.Embedder
+		failPath string
+		want     string
+	}{
+		{"note write", stubEmbedder{modelID: "stub@4", dims: 4}, ".md", "write"},
+		{"re-embed", failingEmbedder{}, "", "re-embedding"},
+		{"sidecar write", stubEmbedder{modelID: "stub@4", dims: 4}, ".vec.json", "writing sidecar"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			deps := cli.IdentityDeps{
+				Lock:     func(string) (func(), error) { return func() {}, nil },
+				ListMD:   func(string) ([]string, error) { return []string{"1.2026-01-01.a.md"}, nil },
+				ReadFile: func(string) ([]byte, error) { return []byte(toCRLF(backfillNodeNote("fact", "source: agent\n"))), nil },
+				WriteFile: func(path string, _ []byte) error {
+					if tc.failPath != "" && strings.HasSuffix(path, tc.failPath) {
+						return errBackfillDiskFull
+					}
+
+					return nil
+				},
+				DetectRepo: func(context.Context) string { return "" },
+				DetectUser: func(context.Context) string { return "bob@example.com" },
+				Getenv:     func(string) string { return "" },
+				Embedder:   tc.embedder,
+			}
+
+			_, err := cli.ExportBackfillIdentity(t.Context(), "/vault", deps, false)
+			g.Expect(err).To(MatchError(ContainSubstring(tc.want)))
+			g.Expect(err).To(MatchError(ContainSubstring("1.2026-01-01.a")))
+		})
+	}
+}
+
+// Test792b11c7a3_BackfillIdentity_FillsAnOmittedUser: a note first written where user
+// detection was empty carries repo: and vault: but no user: (#789 design
+// D6). Backfill flags it and fills in only user:, keeping its repo: and
+// vault:; where detection is still empty it writes nothing.
+func Test792b11c7a3_BackfillIdentity_FillsAnOmittedUser(t *testing.T) {
+	t.Parallel()
+
+	userless := backfillNodeNote("fact", "source: agent\nrepo: github.com/acme/widgets\nvault: work\n")
+
+	t.Run("detected", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		vault := newBackfillVault(map[string]string{"1.2026-01-01.a.md": userless})
+
+		stamped, err := vault.backfill(t.Context(), false)
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(stamped).To(Equal(1))
+
+		decoded := decodeBackfillFrontmatter(t, vault.files["/vault/1.2026-01-01.a.md"])
+		g.Expect(decoded).To(HaveKeyWithValue("user", "bob@example.com"))
+		g.Expect(decoded).To(HaveKeyWithValue("vault", "work"))
+		g.Expect(decoded).To(HaveKeyWithValue("repo", "github.com/acme/widgets"))
+	})
+
+	t.Run("still undetectable", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		vault := newBackfillVault(map[string]string{"1.2026-01-01.a.md": userless})
+		vault.user = ""
+
+		stamped, err := vault.backfill(t.Context(), false)
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(stamped).To(BeZero())
+		g.Expect(vault.writes).To(BeZero())
+	})
+
+	t.Run("flagged by update only when backfill can stamp it", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fileSystem := newU1FS()
+		fileSystem.files["/vault/1.2026-01-01.a.md"] = []byte(userless)
+		g.Expect(cli.ExportNotesMissingIdentityFields("/vault", fileSystem, true)).To(BeTrue())
+		g.Expect(cli.ExportNotesMissingIdentityFields("/vault", fileSystem, false)).
+			To(BeFalse(), "with no user detected, backfill cannot stamp a note that has vault:, so no notice")
+
+		legacy := newU1FS()
+		legacy.files["/vault/2.2026-01-01.b.md"] = []byte(backfillNodeNote("fact", "source: agent\n"))
+		g.Expect(cli.ExportNotesMissingIdentityFields("/vault", legacy, false)).
+			To(BeTrue(), "a note with no vault: is stampable even without a user")
+	})
+}
+
+// Test792b11c7a6_BackfillIdentity_KeepsUnmodeledKeys: a scalar and a nested map the
+// typed note model does not define survive a backfill of fact and
+// feedback notes.
+func Test792b11c7a6_BackfillIdentity_KeepsUnmodeledKeys(t *testing.T) {
+	t.Parallel()
+
+	for _, noteType := range []string{"fact", "feedback"} {
+		t.Run(noteType, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			vault := newBackfillVault(map[string]string{
+				"1.2026-01-01.a.md": backfillNodeNote(noteType,
+					"source: agent\nluhmann_old: \"12\"\nprovenance:\n    origin: import\n    steps:\n        - a\n        - b\n"),
+			})
+
+			stamped, err := vault.backfill(t.Context(), false)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(stamped).To(Equal(1))
+
+			decoded := decodeBackfillFrontmatter(t, vault.files["/vault/1.2026-01-01.a.md"])
+			g.Expect(decoded).To(HaveKeyWithValue("luhmann_old", "12"))
+			g.Expect(decoded).To(HaveKeyWithValue("provenance", map[string]any{
+				"origin": "import", "steps": []any{"a", "b"},
+			}))
+			g.Expect(decoded).To(HaveKeyWithValue("repo", "git@github.com:example/vault.git"))
+			g.Expect(decoded).To(HaveKeyWithValue("user", "bob@example.com"))
+			g.Expect(decoded).To(HaveKeyWithValue("vault", "personal"))
+		})
+	}
+}
+
+// Test792b11c7a6_BackfillIdentity_PreservesUnknownKeysAndAnchorsProperty: for any
+// fact or feedback note missing identity, with unknown keys, optionally an
+// anchor on an unedited key, and any CRLF layout, backfill stamps it, writes
+// it as LF, and every other key decodes to its input value.
+func Test792b11c7a6_BackfillIdentity_PreservesUnknownKeysAndAnchorsProperty(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		noteType := rapid.SampledFrom([]string{"fact", "feedback"}).Draw(rt, "type")
+		extra := drawBackfillExtraKeys(rt)
+
+		source := "source: agent\n"
+		if rapid.Bool().Draw(rt, "anchor") {
+			source = "source: &src agent\nx_src: *src\n"
+		}
+
+		lfInput := backfillNodeNote(noteType, source+extra)
+		before := decodeBackfillFrontmatter(rt, lfInput)
+
+		layout := rapid.SampledFrom([]string{"none", "all", "frontmatter", "body"}).Draw(rt, "crlf")
+
+		input := lfInput
+		if layout != "none" {
+			input = crlfLayout(lfInput, layout)
+		}
+
+		vault := newBackfillVault(map[string]string{"1.2026-01-01.a.md": input})
+
+		stamped, err := vault.backfill(context.Background(), false)
+		if err != nil || stamped != 1 {
+			rt.Fatalf("backfill: stamped %d, err %v", stamped, err)
+		}
+
+		written := vault.files["/vault/1.2026-01-01.a.md"]
+		if strings.Contains(written, "\r\n") {
+			rt.Fatalf("CRLF (%s) left in the written note: %q", layout, written)
+		}
+
+		assertBackfillKeptKeys(rt, before, written)
+	})
+}
+
+// Test792b11c7a7_BackfillIdentity_KeepsAnchorOnUneditedKey: an anchor on a key
+// backfill does not edit, and the key aliasing it, both survive.
+func Test792b11c7a7_BackfillIdentity_KeepsAnchorOnUneditedKey(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newBackfillVault(map[string]string{
+		"1.2026-01-01.a.md": backfillNodeNote("fact", "source: &src agent\nx_src: *src\n"),
+	})
+
+	stamped, err := vault.backfill(t.Context(), false)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(stamped).To(Equal(1))
+
+	written := vault.files["/vault/1.2026-01-01.a.md"]
+	g.Expect(written).To(ContainSubstring("source: &src agent\n"))
+	g.Expect(written).To(ContainSubstring("x_src: *src\n"))
+
+	decoded := decodeBackfillFrontmatter(t, written)
+	g.Expect(decoded).To(HaveKeyWithValue("source", "agent"))
+	g.Expect(decoded).To(HaveKeyWithValue("x_src", "agent"))
+	g.Expect(decoded).To(HaveKeyWithValue("user", "bob@example.com"))
+}
+
+// Test792b11c7a8_BackfillIdentity_RefusesAnchoredIdentityKey: a flagged note whose
+// user: carries an anchor another key aliases is left untouched, the other
+// flagged note is still stamped, and the run fails naming the refused
+// note and key — on a dry run too, which writes nothing.
+func Test792b11c7a8_BackfillIdentity_RefusesAnchoredIdentityKey(t *testing.T) {
+	t.Parallel()
+
+	anchored := backfillNodeNote("fact", "source: agent\nuser: &u \"\"\nx_user: *u\n")
+	plain := backfillNodeNote("feedback", "source: agent\n")
+
+	t.Run("apply", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		vault := newBackfillVault(map[string]string{"1.2026-01-01.anchored.md": anchored, "2.2026-01-01.plain.md": plain})
+
+		stamped, err := vault.backfill(t.Context(), false)
+		g.Expect(err).To(MatchError(ContainSubstring("1.2026-01-01.anchored")))
+		g.Expect(err).To(MatchError(ContainSubstring("YAML anchor: user")))
+		g.Expect(stamped).To(Equal(1))
+		g.Expect(vault.files["/vault/1.2026-01-01.anchored.md"]).To(Equal(anchored), "the refused note is untouched")
+		g.Expect(vault.files["/vault/2.2026-01-01.plain.md"]).To(ContainSubstring("user: bob@example.com"))
+	})
+
+	t.Run("dry run", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		vault := newBackfillVault(map[string]string{"1.2026-01-01.anchored.md": anchored, "2.2026-01-01.plain.md": plain})
+
+		stamped, err := vault.backfill(t.Context(), true)
+		g.Expect(err).To(MatchError(ContainSubstring("YAML anchor: user")))
+		g.Expect(stamped).To(Equal(1), "the dry run counts the note it would stamp")
+		g.Expect(vault.writes).To(BeZero())
+	})
+}
+
+// Test792b11c7a9_BackfillIdentity_ConvertsCRLFNote: backfill reads a CRLF note as LF
 // (#789 design D2): a flagged note in any CRLF layout is stamped and
 // written as LF — byte-identical to the backfill of its LF form — with its
 // sidecar rebuilt; a note backfill does not write stays CRLF; a dry run
 // counts it and writes nothing.
-func TestBackfillIdentity_ConvertsCRLFNote(t *testing.T) {
+func Test792b11c7a9_BackfillIdentity_ConvertsCRLFNote(t *testing.T) {
 	t.Parallel()
 
 	lfNote := backfillNodeNote("fact", "source: agent\nluhmann_old: \"12\"\n")
@@ -88,242 +324,6 @@ func TestBackfillIdentity_ConvertsCRLFNote(t *testing.T) {
 		g.Expect(stamped).To(Equal(1))
 		g.Expect(vault.writes).To(BeZero())
 	})
-}
-
-// TestBackfillIdentity_FillsAnOmittedUser: a note first written where user
-// detection was empty carries repo: and vault: but no user: (#789 design
-// D6). Backfill flags it and fills in only user:, keeping its repo: and
-// vault:; where detection is still empty it writes nothing.
-func TestBackfillIdentity_FillsAnOmittedUser(t *testing.T) {
-	t.Parallel()
-
-	userless := backfillNodeNote("fact", "source: agent\nrepo: github.com/acme/widgets\nvault: work\n")
-
-	t.Run("detected", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		vault := newBackfillVault(map[string]string{"1.2026-01-01.a.md": userless})
-
-		stamped, err := vault.backfill(t.Context(), false)
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(stamped).To(Equal(1))
-
-		decoded := decodeBackfillFrontmatter(t, vault.files["/vault/1.2026-01-01.a.md"])
-		g.Expect(decoded).To(HaveKeyWithValue("user", "bob@example.com"))
-		g.Expect(decoded).To(HaveKeyWithValue("vault", "work"))
-		g.Expect(decoded).To(HaveKeyWithValue("repo", "github.com/acme/widgets"))
-	})
-
-	t.Run("still undetectable", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		vault := newBackfillVault(map[string]string{"1.2026-01-01.a.md": userless})
-		vault.user = ""
-
-		stamped, err := vault.backfill(t.Context(), false)
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(stamped).To(BeZero())
-		g.Expect(vault.writes).To(BeZero())
-	})
-
-	t.Run("flagged by update only when backfill can stamp it", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fileSystem := newU1FS()
-		fileSystem.files["/vault/1.2026-01-01.a.md"] = []byte(userless)
-		g.Expect(cli.ExportNotesMissingIdentityFields("/vault", fileSystem, true)).To(BeTrue())
-		g.Expect(cli.ExportNotesMissingIdentityFields("/vault", fileSystem, false)).
-			To(BeFalse(), "with no user detected, backfill cannot stamp a note that has vault:, so no notice")
-
-		legacy := newU1FS()
-		legacy.files["/vault/2.2026-01-01.b.md"] = []byte(backfillNodeNote("fact", "source: agent\n"))
-		g.Expect(cli.ExportNotesMissingIdentityFields("/vault", legacy, false)).
-			To(BeTrue(), "a note with no vault: is stampable even without a user")
-	})
-}
-
-// TestBackfillIdentity_KeepsAnchorOnUneditedKey: an anchor on a key
-// backfill does not edit, and the key aliasing it, both survive.
-func TestBackfillIdentity_KeepsAnchorOnUneditedKey(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := newBackfillVault(map[string]string{
-		"1.2026-01-01.a.md": backfillNodeNote("fact", "source: &src agent\nx_src: *src\n"),
-	})
-
-	stamped, err := vault.backfill(t.Context(), false)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(stamped).To(Equal(1))
-
-	written := vault.files["/vault/1.2026-01-01.a.md"]
-	g.Expect(written).To(ContainSubstring("source: &src agent\n"))
-	g.Expect(written).To(ContainSubstring("x_src: *src\n"))
-
-	decoded := decodeBackfillFrontmatter(t, written)
-	g.Expect(decoded).To(HaveKeyWithValue("source", "agent"))
-	g.Expect(decoded).To(HaveKeyWithValue("x_src", "agent"))
-	g.Expect(decoded).To(HaveKeyWithValue("user", "bob@example.com"))
-}
-
-// TestBackfillIdentity_KeepsUnmodeledKeys: a scalar and a nested map the
-// typed note model does not define survive a backfill of fact and
-// feedback notes.
-func TestBackfillIdentity_KeepsUnmodeledKeys(t *testing.T) {
-	t.Parallel()
-
-	for _, noteType := range []string{"fact", "feedback"} {
-		t.Run(noteType, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			vault := newBackfillVault(map[string]string{
-				"1.2026-01-01.a.md": backfillNodeNote(noteType,
-					"source: agent\nluhmann_old: \"12\"\nprovenance:\n    origin: import\n    steps:\n        - a\n        - b\n"),
-			})
-
-			stamped, err := vault.backfill(t.Context(), false)
-			g.Expect(err).NotTo(HaveOccurred())
-			g.Expect(stamped).To(Equal(1))
-
-			decoded := decodeBackfillFrontmatter(t, vault.files["/vault/1.2026-01-01.a.md"])
-			g.Expect(decoded).To(HaveKeyWithValue("luhmann_old", "12"))
-			g.Expect(decoded).To(HaveKeyWithValue("provenance", map[string]any{
-				"origin": "import", "steps": []any{"a", "b"},
-			}))
-			g.Expect(decoded).To(HaveKeyWithValue("repo", "git@github.com:example/vault.git"))
-			g.Expect(decoded).To(HaveKeyWithValue("user", "bob@example.com"))
-			g.Expect(decoded).To(HaveKeyWithValue("vault", "personal"))
-		})
-	}
-}
-
-// TestBackfillIdentity_PreservesUnknownKeysAndAnchorsProperty: for any
-// fact or feedback note missing identity, with unknown keys, optionally an
-// anchor on an unedited key, and any CRLF layout, backfill stamps it, writes
-// it as LF, and every other key decodes to its input value.
-func TestBackfillIdentity_PreservesUnknownKeysAndAnchorsProperty(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		noteType := rapid.SampledFrom([]string{"fact", "feedback"}).Draw(rt, "type")
-		extra := drawBackfillExtraKeys(rt)
-
-		source := "source: agent\n"
-		if rapid.Bool().Draw(rt, "anchor") {
-			source = "source: &src agent\nx_src: *src\n"
-		}
-
-		lfInput := backfillNodeNote(noteType, source+extra)
-		before := decodeBackfillFrontmatter(rt, lfInput)
-
-		layout := rapid.SampledFrom([]string{"none", "all", "frontmatter", "body"}).Draw(rt, "crlf")
-
-		input := lfInput
-		if layout != "none" {
-			input = crlfLayout(lfInput, layout)
-		}
-
-		vault := newBackfillVault(map[string]string{"1.2026-01-01.a.md": input})
-
-		stamped, err := vault.backfill(context.Background(), false)
-		if err != nil || stamped != 1 {
-			rt.Fatalf("backfill: stamped %d, err %v", stamped, err)
-		}
-
-		written := vault.files["/vault/1.2026-01-01.a.md"]
-		if strings.Contains(written, "\r\n") {
-			rt.Fatalf("CRLF (%s) left in the written note: %q", layout, written)
-		}
-
-		assertBackfillKeptKeys(rt, before, written)
-	})
-}
-
-// TestBackfillIdentity_RefusesAnchoredIdentityKey: a flagged note whose
-// user: carries an anchor another key aliases is left untouched, the other
-// flagged note is still stamped, and the run fails naming the refused
-// note and key — on a dry run too, which writes nothing.
-func TestBackfillIdentity_RefusesAnchoredIdentityKey(t *testing.T) {
-	t.Parallel()
-
-	anchored := backfillNodeNote("fact", "source: agent\nuser: &u \"\"\nx_user: *u\n")
-	plain := backfillNodeNote("feedback", "source: agent\n")
-
-	t.Run("apply", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		vault := newBackfillVault(map[string]string{"1.2026-01-01.anchored.md": anchored, "2.2026-01-01.plain.md": plain})
-
-		stamped, err := vault.backfill(t.Context(), false)
-		g.Expect(err).To(MatchError(ContainSubstring("1.2026-01-01.anchored")))
-		g.Expect(err).To(MatchError(ContainSubstring("YAML anchor: user")))
-		g.Expect(stamped).To(Equal(1))
-		g.Expect(vault.files["/vault/1.2026-01-01.anchored.md"]).To(Equal(anchored), "the refused note is untouched")
-		g.Expect(vault.files["/vault/2.2026-01-01.plain.md"]).To(ContainSubstring("user: bob@example.com"))
-	})
-
-	t.Run("dry run", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		vault := newBackfillVault(map[string]string{"1.2026-01-01.anchored.md": anchored, "2.2026-01-01.plain.md": plain})
-
-		stamped, err := vault.backfill(t.Context(), true)
-		g.Expect(err).To(MatchError(ContainSubstring("YAML anchor: user")))
-		g.Expect(stamped).To(Equal(1), "the dry run counts the note it would stamp")
-		g.Expect(vault.writes).To(BeZero())
-	})
-}
-
-// TestBackfillIdentity_WriteAndRebuildFailuresSurface: a failed note write,
-// a failed re-embed of a converted note, and a failed sidecar write each
-// fail the run, naming the note.
-func TestBackfillIdentity_WriteAndRebuildFailuresSurface(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		name     string
-		embedder embed.Embedder
-		failPath string
-		want     string
-	}{
-		{"note write", stubEmbedder{modelID: "stub@4", dims: 4}, ".md", "write"},
-		{"re-embed", failingEmbedder{}, "", "re-embedding"},
-		{"sidecar write", stubEmbedder{modelID: "stub@4", dims: 4}, ".vec.json", "writing sidecar"},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			deps := cli.IdentityDeps{
-				Lock:     func(string) (func(), error) { return func() {}, nil },
-				ListMD:   func(string) ([]string, error) { return []string{"1.2026-01-01.a.md"}, nil },
-				ReadFile: func(string) ([]byte, error) { return []byte(toCRLF(backfillNodeNote("fact", "source: agent\n"))), nil },
-				WriteFile: func(path string, _ []byte) error {
-					if tc.failPath != "" && strings.HasSuffix(path, tc.failPath) {
-						return errBackfillDiskFull
-					}
-
-					return nil
-				},
-				DetectRepo: func(context.Context) string { return "" },
-				DetectUser: func(context.Context) string { return "bob@example.com" },
-				Getenv:     func(string) string { return "" },
-				Embedder:   tc.embedder,
-			}
-
-			_, err := cli.ExportBackfillIdentity(t.Context(), "/vault", deps, false)
-			g.Expect(err).To(MatchError(ContainSubstring(tc.want)))
-			g.Expect(err).To(MatchError(ContainSubstring("1.2026-01-01.a")))
-		})
-	}
 }
 
 // unexported variables.

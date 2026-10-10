@@ -231,8 +231,8 @@ flowchart TD
   N792c7g2["792c7g2 vault-counter tech spec<br/>Complete"]
   N792c7h1["792c7h1 vault-health product spec<br/>Complete"]
   N792c7h2["792c7h2 vault-invariant-checker tech spec<br/>Complete"]
-  N792c7i1["792c7i1 vault-migration product spec<br/>Ready"]
-  N792c7i2["792c7i2 note-reparenting tech spec<br/>Blocked by: 792c7i1"]
+  N792c7i1["792c7i1 vault-migration product spec<br/>Complete"]
+  N792c7i2["792c7i2 note-reparenting tech spec<br/>Ready"]
   N792c7j1["792c7j1 install-and-update product spec<br/>Blocked by: 792c7i2"]
   N792c7j2["792c7j2 self-installer tech spec<br/>Blocked by: 792c7j1"]
   N792c7j3["792c7j3 harness-deploy-sync tech spec<br/>Blocked by: 792c7j2"]
@@ -2935,11 +2935,49 @@ Target: `792a10` (`docs/specs/product/vault-migration.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7i1a | Port product requirements and UAT to `792a10` | Non-test action | Moves current behavior into the framework format | Not started |
-| 792c7i1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7i1c | Repoint stale references to `792a10` | Non-test action | Keeps live links valid | Not started |
-| 792c7i1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Not started |
-| 792c7i1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Not started |
+| 792c7i1a | Port product requirements and UAT to `792a10` | Non-test action | Moves current behavior into the framework format | Done |
+| 792c7i1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7i1c | Repoint stale references to `792a10` | Non-test action | Keeps live links valid | Done |
+| 792c7i1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Done |
+| 792c7i1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
+
+**Outcome:** the supporting component `note-reparenting` is confirmed, and similarity-clustering and
+wikilink-graph gain nothing: re-parenting uses the sidecar cosine (792b10c8) and its own link rewrite, not
+the clustering or the link parser (792d101). luhmann-addressing gains 792b7c6 (ID and date from a filename);
+embedding-sidecar gains mappings only (792b10c1, 792b10c4, 792b10c5, 792b10c8); note-provenance gains
+792b11c5 to 792b11c7 (the backfill, 792d67); command-line-surface gains mappings (792b2c4). The two notice
+scenarios 792a10a1a to 792a10a1c have their detection in 792c7i2, and 792a10a1d, 792a10b1a and 792a10b1b
+wait for self-installer (792c7j2), which owns `engram update`'s report and flag routing (792d101).
+`update-flat-vault-luhmann-notice` keeps only its detection requirement and `update-reparent-luhmann-batch`
+only its derive and apply parameters, both for 792c7i2; `vault-note-identity` loses its two backfill
+requirements. Known divergences are in 792d101.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b7c6a1 | `TestIdAndDateFromNoteFilename` → `Test792b7c6a1_IdAndDateFromNoteFilename` | Pure unit, subtests (`internal/cli`) | Valid name; the other subtests verify 792b7c6a2 and 792b7c6a3 (`split deferred`) | Done |
+| 792b11c5a1 | `TestRepoWithProjectFallback` → `Test792b11c5a1_RepoWithProjectFallback` | Pure unit, subtests (`internal/cli`) | Project preferred; the other subtests verify 792b11c5a2 and 792b11c5a3 (`split deferred`) | Done |
+| 792b11c6a1 | `TestNotesMissingIdentityFields` → `Test792b11c6a1_NotesMissingIdentityFields` | Pure unit, subtests over an in-memory vault | Note missing identity; the other subtests verify 792b11c6a2 to 792b11c6a5 (`split deferred`) | Done |
+| 792b11c7a1 | `TestBackfillIdentity` → `Test792b11c7a1_BackfillIdentity` | Pure unit over an in-memory vault | Project and detected repo stamped, stamped note unchanged; also verifies 792b11c7a2 (`split deferred`) | Done |
+| 792b11c7a3 | `TestBackfillIdentity_FillsAnOmittedUser` → `Test792b11c7a3_BackfillIdentity_FillsAnOmittedUser` | Pure unit over an in-memory vault | Omitted user filled in | Done |
+| 792b11c7a4 | `TestApplyIdentityBackfill` → `Test792b11c7a4_ApplyIdentityBackfill` | Pure unit over an in-memory vault | Dry run reports the count and writes nothing; also verifies 792b11c7a12 (`split deferred`) | Done |
+| 792b11c7a5 | `TestBackfillIdentity_SkipsUnrelatedContentAndPropagatesReadErrors` → `Test792b11c7a5_BackfillIdentity_SkipsUnrelatedContentAndPropagatesReadErrors` | Pure unit, subtests | Unrelated content skipped | Done |
+| 792b11c7a6 | `TestBackfillIdentity_KeepsUnmodeledKeys` → `Test792b11c7a6_BackfillIdentity_KeepsUnmodeledKeys` | Pure unit over an in-memory vault | Unmodeled key kept | Done |
+| 792b11c7a6 | `TestBackfillIdentity_PreservesUnknownKeysAndAnchorsProperty` → `Test792b11c7a6_BackfillIdentity_PreservesUnknownKeysAndAnchorsProperty` | Property (rapid) | Unknown keys and anchors kept | Done |
+| 792b11c7a7 | `TestBackfillIdentity_KeepsAnchorOnUneditedKey` → `Test792b11c7a7_BackfillIdentity_KeepsAnchorOnUneditedKey` | Pure unit over an in-memory vault | Anchor on an unedited key kept | Done |
+| 792b11c7a8 | `TestBackfillIdentity_RefusesAnchoredIdentityKey` → `Test792b11c7a8_BackfillIdentity_RefusesAnchoredIdentityKey` | Pure unit over an in-memory vault | Anchored identity key refused | Done |
+| 792b11c7a9 | `TestBackfillIdentity_ConvertsCRLFNote` → `Test792b11c7a9_BackfillIdentity_ConvertsCRLFNote` | Pure unit over an in-memory vault | CRLF note written as LF | Done |
+| 792b11c7a10 | `TestBackfillIdentity_ParityWithPreChangeBackfill` → `Test792b11c7a10_BackfillIdentity_ParityWithPreChangeBackfill` | Property (rapid) against the earlier implementation | Ordinary notes byte-identical | Done |
+| 792b11c7a11 | `TestBackfillIdentity_WriteAndRebuildFailuresSurface` → `Test792b11c7a11_BackfillIdentity_WriteAndRebuildFailuresSurface` | Pure unit over failing writes | Failures returned | Done |
+
+**Coverage gaps:** 792b11c6a6 (a note with `vault:` and no resolvable user). No 792a10 scenario has an
+end-to-end test: `engram update` runs the install and sync first, which needs the network and a model, so
+neither the notices nor `--backfill-identity` could be run against the built binary (792d101).
+
+**No-scenario tests:** `TestNewIdentityDeps` (wiring of the production dependencies) stays unrenamed. The
+exchange-field and skill-field survival tests that run the backfill belong to parent-sync (792c7t1) and
+skill-runbook-registration (792c7k1).
 
 #### 792c7i2 note-reparenting tech spec
 

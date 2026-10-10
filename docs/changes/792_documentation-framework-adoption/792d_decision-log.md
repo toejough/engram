@@ -1450,3 +1450,34 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792d10, 792d30, 792d52, 792d99.
 - **Alternatives:** specify G2 as a requirement. Rejected because no code or test supports it (792d33).
 
+## 792d101 vault-migration scope, and the behaviors the code shows
+
+- **Choice:**
+  - 792a10 has twelve requirements (792a10a to 792a10l): the flat-vault notice, opt-in re-parenting, the
+    derive payload, refused answers, renaming and rewriting, the chunk-index step, what is left to judge, the
+    preview, the notes a rename will not touch, the identity-backfill notice, the stamping and what the
+    backfill keeps.
+  - The three notice and routing scenarios 792a10a1d, 792a10b1a and 792a10b1b, and the notice output of
+    792a10a1a to 792a10a1c, concern `engram update`'s report writer and its flag dispatch. They are left
+    unmapped to wait for self-installer (792c7j2), as 792d51 and 792d61 did for other later owners. The
+    flat-vault detection is note-reparenting's (792b27c1), and the missing-identity detection is
+    note-provenance's (792b11c6).
+  - The backfill is specified in note-provenance (792b11c5 to 792b11c7), as 792d67 said, and the ID and date
+    of a filename in luhmann-addressing (792b7c6). similarity-clustering is not extended: the derive step
+    takes sidecar vectors and measures them with 792b10c8, and uses no clustering. The link rewrite is its own
+    pattern over note text and is not wikilink-graph's parser, so wikilink-graph gains no mapping.
+  - `update-flat-vault-luhmann-notice` keeps its detection requirement, `update-reparent-luhmann-batch` its
+    derive and apply parameters, for 792c7i2. `vault-note-identity` loses its two backfill requirements.
+- **Divergences noted (792d33):**
+  - `engram update` cannot run without network access and a model in this environment (it clones the
+    repository and builds, and the model is a git-lfs pointer in the clone), so the notices and the
+    backfill flag were not run against the built binary. `--reparent-luhmann` was, on a temporary vault with
+    a temporary HOME: derive, dry-run, apply, the stale refusal, malformed answers and a missing file.
+  - `--reparent-luhmann` runs without a harness or a Go toolchain, because it returns before the install.
+  - The derive payload's `next_command` is HTML-escaped by the JSON encoder (`\u003c`) in the output.
+  - A note with no sidecar, or a vector it cannot read, is silently left out of the candidates.
+- **Rationale:** 792d30, 792d51, 792d61, 792d67 and 792d69.
+- **Alternatives:** map the notice scenarios to the detection requirements and leave the report writer
+  unspecified. Rejected because the notice is what the user sees, and its owner is the next node of
+  install-and-update.
+

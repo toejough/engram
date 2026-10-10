@@ -126,20 +126,29 @@ func Test792b11c2a1_DetectUser(t *testing.T) {
 	}
 }
 
-// Test792b2c2a1_ResolveVaultName covers the flag -> env -> default("personal") order,
-// mirroring resolveVault's flag/env/default shape for the vault path.
-func Test792b2c2a1_ResolveVaultName(t *testing.T) {
+// Test792b11c5a1_RepoWithProjectFallback covers the backfill-only repo fallback: a
+// non-empty project: field wins over a freshly detected repo; an empty
+// project: field falls back to the detected value.
+func Test792b11c5a1_RepoWithProjectFallback(t *testing.T) {
 	t.Parallel()
 
 	table := []struct {
-		name string
-		flag string
-		env  string
-		want string
+		name      string
+		project   string
+		freshRepo string
+		want      string
 	}{
-		{name: "flag set wins", flag: "work", env: "personal-env", want: "work"},
-		{name: "env used when flag empty", flag: "", env: "team", want: "team"},
-		{name: "defaults to personal when neither set", flag: "", env: "", want: "personal"},
+		{
+			name:    "project present is preferred",
+			project: "my-project", freshRepo: "git@github.com:x/y.git",
+			want: "my-project",
+		},
+		{
+			name:    "project absent falls back to fresh repo",
+			project: "", freshRepo: "git@github.com:x/y.git",
+			want: "git@github.com:x/y.git",
+		},
+		{name: "both empty resolves to empty", project: "", freshRepo: "", want: ""},
 	}
 
 	for _, tc := range table {
@@ -147,83 +156,82 @@ func Test792b2c2a1_ResolveVaultName(t *testing.T) {
 			t.Parallel()
 			g := NewWithT(t)
 
-			getenv := func(key string) string {
-				if key == "ENGRAM_VAULT_NAME" {
-					return tc.env
-				}
-
-				return ""
-			}
-
-			got := cli.ExportResolveVaultName(tc.flag, getenv)
+			got := cli.ExportRepoWithProjectFallback(tc.project, tc.freshRepo)
 			g.Expect(got).To(Equal(tc.want))
 		})
 	}
 }
 
-// TestApplyIdentityBackfill covers the update.Report-copying wrapper around
-// backfillIdentity: a non-dry-run backfill sets IdentityBackfillRan/
-// NotesStamped and re-checks VaultHasNotesMissingIdentity (false once
-// everything is stamped, so a follow-up plain `engram update` prints no
-// notice); a dry run leaves VaultHasNotesMissingIdentity untouched (it
-// never got a chance to write, so the caller's own pre-existing scan value
-// stands).
-func TestApplyIdentityBackfill(t *testing.T) {
+// Test792b11c6a1_NotesMissingIdentityFields covers the notesMissingIdentityFields
+// detector: a fact/feedback note missing both user:/vault: flags the vault;
+// one that already has them does not; a non-fact/feedback note (e.g. a
+// vocab definition note) is never flagged even without them; a missing
+// vault directory self-silences to false.
+func Test792b11c6a1_NotesMissingIdentityFields(t *testing.T) {
 	t.Parallel()
-	g := NewWithT(t)
 
 	const missingIdentityNote = "---\ntype: fact\nsituation: s\nsubject: a\npredicate: b\nobject: c\n" +
 		"luhmann: \"1\"\ncreated: 2026-01-01\nsource: agent\n---\n\nbody\n"
 
-	fileSystem := newU1FS()
-	fileSystem.files["/vault/1.2026-01-01.a.md"] = []byte(missingIdentityNote)
+	const stampedNote = "---\ntype: fact\nsituation: s\nsubject: a\npredicate: b\nobject: c\n" +
+		"luhmann: \"1\"\ncreated: 2026-01-01\nsource: agent\nuser: agent@example.com\nvault: personal\n---\n\nbody\n"
 
-	// deps reads/writes through the SAME map notesMissingIdentityFields'
-	// re-check scans (fileSystem.files) — a write must be visible to the
-	// re-check, or the assertion below would pass for the wrong reason
-	// (two independently-populated but never-reconciled maps).
-	deps := cli.IdentityDeps{
-		Lock:       func(string) (func(), error) { return func() {}, nil },
-		ListMD:     func(string) ([]string, error) { return []string{"1.2026-01-01.a.md"}, nil },
-		ReadFile:   func(path string) ([]byte, error) { return fileSystem.files[path], nil },
-		WriteFile:  func(path string, data []byte) error { fileSystem.files[path] = data; return nil },
-		DetectRepo: func(context.Context) string { return "git@github.com:example/vault.git" },
-		DetectUser: func(context.Context) string { return "agent@example.com" },
-		Getenv:     func(string) string { return "" },
+	const vocabNote = "---\ntype: term\nterm: recall\ndescription: recall the vault\n---\n\nbody\n"
+
+	table := []struct {
+		name  string
+		files map[string][]byte
+		want  bool
+	}{
+		{
+			name:  "note missing identity flags the vault",
+			files: map[string][]byte{"/vault/1.2026-01-01.a.md": []byte(missingIdentityNote)},
+			want:  true,
+		},
+		{
+			name: "CRLF note missing identity flags the vault",
+			files: map[string][]byte{
+				"/vault/1.2026-01-01.a.md": []byte(strings.ReplaceAll(missingIdentityNote, "\n", "\r\n")),
+			},
+			want: true,
+		},
+		{
+			name:  "already-stamped note does not flag",
+			files: map[string][]byte{"/vault/1.2026-01-01.a.md": []byte(stampedNote)},
+			want:  false,
+		},
+		{
+			name:  "non-fact/feedback note is never flagged",
+			files: map[string][]byte{"/vault/vocab.recall.md": []byte(vocabNote)},
+			want:  false,
+		},
+		{
+			name:  "missing vault dir self-silences",
+			files: map[string][]byte{},
+			want:  false,
+		},
 	}
 
-	report := &update.Report{}
+	for _, tc := range table {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
 
-	err := cli.ExportApplyIdentityBackfill(t.Context(), "/vault", deps, false, fileSystem, report)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(report.IdentityBackfillRan).To(BeTrue())
-	g.Expect(report.IdentityBackfillNotesStamped).To(Equal(1))
-	g.Expect(report.VaultHasNotesMissingIdentity).To(BeFalse(), "re-checked after a real (non-dry-run) backfill")
+			fileSystem := newU1FS()
+			maps.Copy(fileSystem.files, tc.files)
 
-	// Dry run: report.VaultHasNotesMissingIdentity is left as whatever it
-	// already was — applyIdentityBackfill only re-checks on a real run.
-	dryFiles := map[string][]byte{"/vault/1.2026-01-01.a.md": []byte(missingIdentityNote)}
-	dryDeps := deps
-	dryDeps.ReadFile = func(path string) ([]byte, error) { return dryFiles[path], nil }
-	dryDeps.WriteFile = func(string, []byte) error {
-		t.Fatal("dry run must not write")
-
-		return nil
+			got := cli.ExportNotesMissingIdentityFields("/vault", fileSystem, true)
+			g.Expect(got).To(Equal(tc.want))
+		})
 	}
-	dryReport := &update.Report{VaultHasNotesMissingIdentity: true}
-
-	dryErr := cli.ExportApplyIdentityBackfill(t.Context(), "/vault", dryDeps, true, fileSystem, dryReport)
-	g.Expect(dryErr).NotTo(HaveOccurred())
-	g.Expect(dryReport.IdentityBackfillNotesStamped).To(Equal(1), "dry run still reports the would-stamp count")
-	g.Expect(dryReport.VaultHasNotesMissingIdentity).To(BeTrue(), "left untouched under --dry-run")
 }
 
-// TestBackfillIdentity covers the backfill mechanism end to end: a note
+// Test792b11c7a1_BackfillIdentity covers the backfill mechanism end to end: a note
 // missing identity with a project: field gets repo: from project: (not
 // fresh detection), a note missing identity with no project: gets repo:
 // from fresh detection, an already-stamped note is left untouched, and a
 // second run over the same vault stamps nothing further (idempotent).
-func TestBackfillIdentity(t *testing.T) {
+func Test792b11c7a1_BackfillIdentity(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -295,14 +303,71 @@ func TestBackfillIdentity(t *testing.T) {
 	g.Expect(writeCalls).To(Equal(2), "no additional writes on the idempotent second run")
 }
 
-// TestBackfillIdentity_SkipsUnrelatedContentAndPropagatesReadErrors covers
+// Test792b11c7a4_ApplyIdentityBackfill covers the update.Report-copying wrapper around
+// backfillIdentity: a non-dry-run backfill sets IdentityBackfillRan/
+// NotesStamped and re-checks VaultHasNotesMissingIdentity (false once
+// everything is stamped, so a follow-up plain `engram update` prints no
+// notice); a dry run leaves VaultHasNotesMissingIdentity untouched (it
+// never got a chance to write, so the caller's own pre-existing scan value
+// stands).
+func Test792b11c7a4_ApplyIdentityBackfill(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const missingIdentityNote = "---\ntype: fact\nsituation: s\nsubject: a\npredicate: b\nobject: c\n" +
+		"luhmann: \"1\"\ncreated: 2026-01-01\nsource: agent\n---\n\nbody\n"
+
+	fileSystem := newU1FS()
+	fileSystem.files["/vault/1.2026-01-01.a.md"] = []byte(missingIdentityNote)
+
+	// deps reads/writes through the SAME map notesMissingIdentityFields'
+	// re-check scans (fileSystem.files) — a write must be visible to the
+	// re-check, or the assertion below would pass for the wrong reason
+	// (two independently-populated but never-reconciled maps).
+	deps := cli.IdentityDeps{
+		Lock:       func(string) (func(), error) { return func() {}, nil },
+		ListMD:     func(string) ([]string, error) { return []string{"1.2026-01-01.a.md"}, nil },
+		ReadFile:   func(path string) ([]byte, error) { return fileSystem.files[path], nil },
+		WriteFile:  func(path string, data []byte) error { fileSystem.files[path] = data; return nil },
+		DetectRepo: func(context.Context) string { return "git@github.com:example/vault.git" },
+		DetectUser: func(context.Context) string { return "agent@example.com" },
+		Getenv:     func(string) string { return "" },
+	}
+
+	report := &update.Report{}
+
+	err := cli.ExportApplyIdentityBackfill(t.Context(), "/vault", deps, false, fileSystem, report)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.IdentityBackfillRan).To(BeTrue())
+	g.Expect(report.IdentityBackfillNotesStamped).To(Equal(1))
+	g.Expect(report.VaultHasNotesMissingIdentity).To(BeFalse(), "re-checked after a real (non-dry-run) backfill")
+
+	// Dry run: report.VaultHasNotesMissingIdentity is left as whatever it
+	// already was — applyIdentityBackfill only re-checks on a real run.
+	dryFiles := map[string][]byte{"/vault/1.2026-01-01.a.md": []byte(missingIdentityNote)}
+	dryDeps := deps
+	dryDeps.ReadFile = func(path string) ([]byte, error) { return dryFiles[path], nil }
+	dryDeps.WriteFile = func(string, []byte) error {
+		t.Fatal("dry run must not write")
+
+		return nil
+	}
+	dryReport := &update.Report{VaultHasNotesMissingIdentity: true}
+
+	dryErr := cli.ExportApplyIdentityBackfill(t.Context(), "/vault", dryDeps, true, fileSystem, dryReport)
+	g.Expect(dryErr).NotTo(HaveOccurred())
+	g.Expect(dryReport.IdentityBackfillNotesStamped).To(Equal(1), "dry run still reports the would-stamp count")
+	g.Expect(dryReport.VaultHasNotesMissingIdentity).To(BeTrue(), "left untouched under --dry-run")
+}
+
+// Test792b11c7a5_BackfillIdentity_SkipsUnrelatedContentAndPropagatesReadErrors covers
 // backfillOneNote's other branches: a note with no parseable frontmatter
 // and a non-fact/feedback note (e.g. a vocab definition) both self-silence
 // (stamped=false, err=nil) rather than failing the whole run; a genuine
 // read failure on ANY note propagates as a real error and aborts the run
 // (backfillIdentity must never silently skip an I/O failure the way it
 // silently skips unrelated content).
-func TestBackfillIdentity_SkipsUnrelatedContentAndPropagatesReadErrors(t *testing.T) {
+func Test792b11c7a5_BackfillIdentity_SkipsUnrelatedContentAndPropagatesReadErrors(t *testing.T) {
 	t.Parallel()
 
 	const vocabNote = "---\ntype: term\nterm: recall\ndescription: recall the vault\n---\n\nbody\n"
@@ -351,10 +416,45 @@ func TestBackfillIdentity_SkipsUnrelatedContentAndPropagatesReadErrors(t *testin
 	})
 }
 
+// Test792b2c2a1_ResolveVaultName covers the flag -> env -> default("personal") order,
+// mirroring resolveVault's flag/env/default shape for the vault path.
+func Test792b2c2a1_ResolveVaultName(t *testing.T) {
+	t.Parallel()
+
+	table := []struct {
+		name string
+		flag string
+		env  string
+		want string
+	}{
+		{name: "flag set wins", flag: "work", env: "personal-env", want: "work"},
+		{name: "env used when flag empty", flag: "", env: "team", want: "team"},
+		{name: "defaults to personal when neither set", flag: "", env: "", want: "personal"},
+	}
+
+	for _, tc := range table {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			getenv := func(key string) string {
+				if key == "ENGRAM_VAULT_NAME" {
+					return tc.env
+				}
+
+				return ""
+			}
+
+			got := cli.ExportResolveVaultName(tc.flag, getenv)
+			g.Expect(got).To(Equal(tc.want))
+		})
+	}
+}
+
 // TestNewIdentityDeps covers the production Deps->IdentityDeps composition
 // end to end: a real temp vault, a note missing identity, backfillIdentity
 // driven through newIdentityDeps(deps) rather than a hand-built IdentityDeps
-// (TestBackfillIdentity's fixture) — proves the wiring itself works, not
+// (Test792b11c7a1_BackfillIdentity's fixture) — proves the wiring itself works, not
 // just the backfill algorithm.
 func TestNewIdentityDeps(t *testing.T) {
 	t.Parallel()
@@ -377,106 +477,6 @@ func TestNewIdentityDeps(t *testing.T) {
 	raw, readErr := os.ReadFile(notePath)
 	g.Expect(readErr).NotTo(HaveOccurred())
 	g.Expect(string(raw)).To(ContainSubstring("vault: personal"))
-}
-
-// TestNotesMissingIdentityFields covers the notesMissingIdentityFields
-// detector: a fact/feedback note missing both user:/vault: flags the vault;
-// one that already has them does not; a non-fact/feedback note (e.g. a
-// vocab definition note) is never flagged even without them; a missing
-// vault directory self-silences to false.
-func TestNotesMissingIdentityFields(t *testing.T) {
-	t.Parallel()
-
-	const missingIdentityNote = "---\ntype: fact\nsituation: s\nsubject: a\npredicate: b\nobject: c\n" +
-		"luhmann: \"1\"\ncreated: 2026-01-01\nsource: agent\n---\n\nbody\n"
-
-	const stampedNote = "---\ntype: fact\nsituation: s\nsubject: a\npredicate: b\nobject: c\n" +
-		"luhmann: \"1\"\ncreated: 2026-01-01\nsource: agent\nuser: agent@example.com\nvault: personal\n---\n\nbody\n"
-
-	const vocabNote = "---\ntype: term\nterm: recall\ndescription: recall the vault\n---\n\nbody\n"
-
-	table := []struct {
-		name  string
-		files map[string][]byte
-		want  bool
-	}{
-		{
-			name:  "note missing identity flags the vault",
-			files: map[string][]byte{"/vault/1.2026-01-01.a.md": []byte(missingIdentityNote)},
-			want:  true,
-		},
-		{
-			name: "CRLF note missing identity flags the vault",
-			files: map[string][]byte{
-				"/vault/1.2026-01-01.a.md": []byte(strings.ReplaceAll(missingIdentityNote, "\n", "\r\n")),
-			},
-			want: true,
-		},
-		{
-			name:  "already-stamped note does not flag",
-			files: map[string][]byte{"/vault/1.2026-01-01.a.md": []byte(stampedNote)},
-			want:  false,
-		},
-		{
-			name:  "non-fact/feedback note is never flagged",
-			files: map[string][]byte{"/vault/vocab.recall.md": []byte(vocabNote)},
-			want:  false,
-		},
-		{
-			name:  "missing vault dir self-silences",
-			files: map[string][]byte{},
-			want:  false,
-		},
-	}
-
-	for _, tc := range table {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			fileSystem := newU1FS()
-			maps.Copy(fileSystem.files, tc.files)
-
-			got := cli.ExportNotesMissingIdentityFields("/vault", fileSystem, true)
-			g.Expect(got).To(Equal(tc.want))
-		})
-	}
-}
-
-// TestRepoWithProjectFallback covers the backfill-only repo fallback: a
-// non-empty project: field wins over a freshly detected repo; an empty
-// project: field falls back to the detected value.
-func TestRepoWithProjectFallback(t *testing.T) {
-	t.Parallel()
-
-	table := []struct {
-		name      string
-		project   string
-		freshRepo string
-		want      string
-	}{
-		{
-			name:    "project present is preferred",
-			project: "my-project", freshRepo: "git@github.com:x/y.git",
-			want: "my-project",
-		},
-		{
-			name:    "project absent falls back to fresh repo",
-			project: "", freshRepo: "git@github.com:x/y.git",
-			want: "git@github.com:x/y.git",
-		},
-		{name: "both empty resolves to empty", project: "", freshRepo: "", want: ""},
-	}
-
-	for _, tc := range table {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			got := cli.ExportRepoWithProjectFallback(tc.project, tc.freshRepo)
-			g.Expect(got).To(Equal(tc.want))
-		})
-	}
 }
 
 // unexported variables.

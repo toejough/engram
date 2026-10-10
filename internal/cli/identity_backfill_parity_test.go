@@ -20,10 +20,10 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestBackfillIdentity_ParityWithPreChangeBackfill: every input note is
+// Test792b11c7a10_BackfillIdentity_ParityWithPreChangeBackfill: every input note is
 // stamped byte-for-byte as the pre-change backfill stamped it, so its
 // exchange hash is unchanged too.
-func TestBackfillIdentity_ParityWithPreChangeBackfill(t *testing.T) {
+func Test792b11c7a10_BackfillIdentity_ParityWithPreChangeBackfill(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range backfillParityCases() {

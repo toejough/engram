@@ -1,5 +1,8 @@
 ## Purpose
 
+The notice `engram update` prints is in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a10a-the-flat-vault-notice` (792a10a). The detection below waits for note-reparenting (792c7i2).
+
+
 `engram update` detects when a vault holds only top-level Luhmann IDs — no
 `continuation`/`sibling` (child) note anywhere — and surfaces a notice naming the remedy
 command, `engram update --reparent-luhmann` (see `update-reparent-luhmann-batch`). A notice
@@ -24,22 +27,3 @@ vault.
 - **WHEN** the vault contains no notes
 - **THEN** the update Report does NOT record the vault as all-top-level (nothing to
   re-evaluate)
-
-### Requirement: Update surfaces a one-line notice offering a fresh Luhmann re-eval
-When `engram update` detects an all-top-level vault, it SHALL print a one-line notice pointing
-the user at a fresh Luhmann disposition pass. The notice SHALL name the learn skill's batch mode as the way the candidate
-payload's answers are produced. It SHALL NOT modify any note's ID.
-
-#### Scenario: Notice printed on detection
-- **WHEN** the update Report records the vault as all-top-level
-- **THEN** `engram update`'s output includes a notice naming `engram update --reparent-luhmann`
-  as the remedy command, and no note file is modified by plain `engram update` as a result
-
-#### Scenario: Silent when not all-top-level
-- **WHEN** the update Report does NOT record the vault as all-top-level
-- **THEN** `engram update`'s output includes no Luhmann-branching notice
-
-#### Scenario: Notice names the answering procedure
-- **WHEN** the update Report records the vault as all-top-level
-- **THEN** the notice names both `engram update --reparent-luhmann` and the learn skill's batch mode
-
