@@ -1456,3 +1456,346 @@ Scenario: 792a2q1a A copied vault served back to itself
   When the user runs engram query in V
   Then it returns local-only results with a warning naming engram vault-id --regenerate, and no offer is sent
 ```
+
+## 792b6 Added: note-document-format
+
+Canonical target: `docs/specs/technical/note-document-format.md` (title `Note Document Format - Technical Spec`).
+
+### 792b6a Orientation
+
+- Ownership: Repository component, crossing the YAML library boundary.
+- Responsibility: the on-disk shape of a vault note. It names the note's file, renders its
+  frontmatter block with each kind's keys in a fixed order, quotes the scalars that must stay
+  strings, renders the body formulas and the machine-written link lines, and splits a note's text
+  into frontmatter and body.
+- Current realization (informational): in `internal/cli/learn.go`, `learnPath`,
+  `marshalFrontmatter`, `quotedString`, the `factFrontmatterDoc`, `feedbackFrontmatterDoc` and
+  `runbookFrontmatterDoc` types and their `render*` functions; in `internal/cli/qa.go`,
+  `qaQuestionPath`, `qaAnswerPath`, `renderQAQuestionNote` and `renderQAAnswerNote`;
+  `renderSupersedes` in `internal/cli/supersedes.go`; the exchange fields in
+  `internal/cli/exchangefields.go`; `SplitFrontmatter` in `internal/embed/hash.go`. The YAML-node
+  edits in `internal/cli/frontmatter_node.go` are specified by the capabilities that edit existing
+  notes (792d61).
+- Qualification: responsibility, the file and document shape is stated without naming any writer or
+  reader; ownership, writers decide what a note says and when it is written, while this component
+  decides how it is laid out; independent verification, rendering, naming and splitting are tested
+  directly on strings; stability, the shape survives any change to the commands that write it, and
+  hand-edited and Obsidian-edited notes depend on it; necessity, every note engram writes or reads
+  passes through it.
+- Supported capabilities: 792a3 note-writing. Note-revision, vault-counting,
+  skill-runbook-registration and parent-sync add their requirements here (792d30, 792d61).
+
+Rationale: the vault is flat. Notes sit at the vault root, and a note's place in the hierarchy is
+carried by the Luhmann ID that leads its filename, not by a folder (792a2c). A fact or feedback note
+states its situation twice: in the `situation:` field, which recall's situation vector is built
+from, and again in the body formula. A legacy invariant asked for a single representation of any
+datum that affects retrieval; the two copies are instead kept in step by the writers that change a
+situation (792d62).
+
+### 792b6b Sequences
+
+The note-document-format owns no flow. Note-authoring calls it to name and render a new note, and
+every reader of a note calls it to split the note's text.
+
+### 792b6c Behavior Requirements
+
+#### 792b6c1 Note filenames
+
+Requirement: 792b6c1 The note-document-format MUST name a fact, feedback or runbook note
+`<luhmann>.<YYYY-MM-DD>.<slug>.md` in the vault root, using its creation date, and MUST name a
+question-and-answer pair `qa.<YYYY-MM-DD>.<slug>.q.md` and `qa.<YYYY-MM-DD>.<slug>.a.md`.
+
+Supports: 792a3a1a, 792a3b1a, 792a3c1a, 792a3q1a.
+
+##### 792b6c1a Scenarios
+
+```gherkin
+Scenario: 792b6c1a1 A Luhmann note's filename
+  Given vault /vault, Luhmann ID 1a3, creation date 2026-05-09 and slug subagent-driven-recovery
+  When the note's path is formed
+  Then it is /vault/1a3.2026-05-09.subagent-driven-recovery.md
+
+Scenario: 792b6c1a2 A pair's filenames
+  Given vault /vault, creation date 2026-07-03 and slug my-slug
+  When the pair's paths are formed
+  Then they are /vault/qa.2026-07-03.my-slug.q.md and /vault/qa.2026-07-03.my-slug.a.md
+```
+
+#### 792b6c2 Frontmatter block
+
+Requirement: 792b6c2 The note-document-format MUST render a note's frontmatter as a line `---`, the
+fields as YAML, a line `---` and one blank line, and MUST encode every value so that it reads back
+unchanged, whatever newlines, colons, leading dashes or other YAML-significant characters it holds.
+
+Supports: 792a3a1a, 792a3b1a, 792a3c1a, 792a3q1a.
+
+Rationale: frontmatter was once built by concatenating strings, and a multi-line value ended the
+block early. Encoding through the YAML library fixed that for every value.
+
+##### 792b6c2a Scenarios
+
+```gherkin
+Scenario: 792b6c2a1 The block is delimited
+  Given the fields k: v
+  When they are rendered as frontmatter
+  Then the result is "---", "k: v", "---" and a blank line
+
+Scenario: 792b6c2a2 Tricky values read back unchanged
+  Given field values holding a newline, a colon, a leading dash and a leading asterisk, or any printable text
+  When a fact or feedback frontmatter is rendered and parsed again
+  Then every field reads back exactly as given
+```
+
+#### 792b6c3 Kind schemas
+
+Requirement: 792b6c3 The note-document-format MUST render each kind's keys in this order, leaving
+out any optional key whose value is empty:
+
+- fact: `type`, `tier`, `situation`, `subject`, `predicate`, `object`, `luhmann`, `created`,
+  `source`, `project`, `repo`, `user`, `vault`, `pending`, `issue`, `sources`, `vocab_version`,
+  `tags`, `supersedes`, then the exchange fields;
+- feedback: `type`, `tier`, `situation`, `behavior`, `impact`, `action`, `luhmann`, `created`,
+  `source`, `project`, `repo`, `user`, `vault`, `pending`, `issue`, `sources`, `tags`,
+  `supersedes`, then the exchange fields;
+- runbook: `type`, `tier`, `situation`, `done_when`, `red_flags`, `triggers`, `luhmann`, `created`,
+  `source`, `project`, `repo`, `user`, `vault`, `skill_hash`, `skill_key`, `skill_source`,
+  `pending`, `issue`, `sources`, `tags`, `supersedes`, then the exchange fields.
+
+`type`, `luhmann`, `created` and `source` are always written, and so are a fact's or feedback note's
+`situation` and content fields. `luhmann` and `issue` MUST be double-quoted, `created` MUST be the
+date as `YYYY-MM-DD`, and list values MUST keep their order.
+
+Supports: 792a3a1a, 792a3b1a, 792a3c1a, 792a3d1a, 792a3d1b, 792a3d1c, 792a3h1a, 792a3h1b, 792a3i1a,
+792a3i1b, 792a3o1c, 792a3p1c.
+
+Rationale: a Luhmann ID is quoted so that an ID such as `1e1` is not read back as the number 10, and
+so that notes written by engram, migrated and written by hand all read the same way. A fact or
+feedback note always carries `situation:`, because recall finds a note by its situation.
+
+##### 792b6c3a Scenarios
+
+```gherkin
+Scenario: 792b6c3a1 A fact's frontmatter
+  Given a fact with situation, subject, predicate, object, Luhmann ID 11, creation date 2026-05-09 and a source
+  When its frontmatter is rendered
+  Then it has type fact, the given fields, luhmann 11 and created 2026-05-09
+
+Scenario: 792b6c3a2 A feedback note's frontmatter holds exactly its keys
+  Given a feedback note with situation, behavior, impact, action, Luhmann ID 9z, creation date 2026-05-09, a source and nothing else
+  When its frontmatter is rendered and parsed
+  Then it holds exactly type, situation, behavior, impact, action, luhmann, created and source
+
+Scenario: 792b6c3a3 A runbook's frontmatter holds exactly its keys
+  Given a runbook with situation, done_when, Luhmann ID 7a, creation date 2026-05-09, a source and nothing else
+  When its frontmatter is rendered and parsed
+  Then it holds exactly type, situation, done_when, luhmann, created and source
+
+Scenario: 792b6c3a4 The Luhmann ID is double-quoted
+  Given a feedback note with Luhmann ID 9aa
+  When its frontmatter is rendered
+  Then it contains luhmann: "9aa"
+
+Scenario: 792b6c3a5 Project and issue follow the source
+  Given a fact or feedback note with project engram and issue 636
+  When its frontmatter is rendered
+  Then project: engram and issue: "636" follow source:, in that order
+
+Scenario: 792b6c3a6 Empty optional keys are left out
+  Given a fact, feedback or runbook note with no project, issue or red flags
+  When its frontmatter is rendered
+  Then it has no project:, issue: or red_flags: key
+
+Scenario: 792b6c3a7 Lists keep their order
+  Given a runbook with red flags A then B, or a fact with any list of valid tags
+  When its frontmatter is rendered and parsed
+  Then the list reads back with the same entries in the same order
+```
+
+#### 792b6c4 Body formulas
+
+Requirement: 792b6c4 The note-document-format MUST render a fact's body as
+`Information learned: when in <situation>, <subject> <predicate> <object>.`, a feedback note's as
+`Lesson learned: when <situation>, <action>.`, dropping one case-insensitive leading `when ` from the
+situation, and a runbook's as its steps with trailing newlines reduced to one, each followed by a
+blank line and then one line `Supersedes: [[<note>]] — <type>: <claim>` per supersession, with any
+`.md` dropped from the linked note.
+
+Supports: 792a3a1a, 792a3a1b, 792a3b1a, 792a3b1b, 792a3c1a, 792a3h1a.
+
+Rationale: situations are usually phrased "When …", while the formulas already say "when"; without
+the strip, a body would read "when When". A supersession link drops `.md` because links resolve by
+extension-less basename.
+
+##### 792b6c4a Scenarios
+
+```gherkin
+Scenario: 792b6c4a1 A fact's body
+  Given a fact whose situation is "reasoning about agent coordination", subject "subagent dispatch", predicate "is fundamentally" and object "a verification problem dressed as coordination"
+  When its body is rendered
+  Then it is "Information learned: when in reasoning about agent coordination, subagent dispatch is fundamentally a verification problem dressed as coordination." and a blank line
+
+Scenario: 792b6c4a2 A feedback note's body
+  Given a feedback note whose situation is "orchestrating multi-step work" and action "shrink the task"
+  When its body is rendered
+  Then it is "Lesson learned: when orchestrating multi-step work, shrink the task." and a blank line
+
+Scenario: 792b6c4a3 A runbook's body is its steps
+  Given a runbook whose steps are three numbered lines
+  When its body is rendered
+  Then it begins with those three lines unchanged
+
+Scenario: 792b6c4a4 A leading When is dropped
+  Given a fact or feedback situation beginning "When "
+  When its body is rendered
+  Then the body reads "when <rest of situation>" and never "when When"
+
+Scenario: 792b6c4a5 A supersession line drops .md
+  Given a supersession of 9e.2026-01-01.old-note.md of type updates with claim "old note superseded"
+  When its body line is rendered
+  Then it is "Supersedes: [[9e.2026-01-01.old-note]] — updates: old note superseded"
+```
+
+#### 792b6c5 Question-and-answer documents
+
+Requirement: 792b6c5 The note-document-format MUST render a question note with frontmatter `type:
+qa-question`, `date`, `answered_by` (the answer's basename) and `source`, and a body of the question
+followed by a blank line and `Answered by: [[<answer basename>]]`; and an answer note with
+frontmatter `type: qa-answer`, `date`, `answers` (the question's basename), `certainty`,
+`contributors` when there are any, and `source`, and a body of the answer followed by a blank line,
+`Answers: [[<question basename>]]` and, when there are contributors, `Contributors:` and a
+comma-separated link to each.
+
+Supports: 792a3q1a, 792a3q1b, 792a3q1c.
+
+##### 792b6c5a Scenarios
+
+```gherkin
+Scenario: 792b6c5a1 A question note
+  Given the question "What is the question?", slug my-slug and date 2026-07-03
+  When the question note is rendered
+  Then its frontmatter has type: qa-question and answered_by: qa.2026-07-03.my-slug.a, and its body holds the question and "Answered by: [[qa.2026-07-03.my-slug.a]]"
+
+Scenario: 792b6c5a2 An answer note with contributors
+  Given an answer, slug my-slug, date 2026-07-03, certainty medium and two contributors
+  When the answer note is rendered
+  Then its frontmatter has type: qa-answer, answers: qa.2026-07-03.my-slug.q and certainty: medium, and its body holds the answer, "Answers: [[qa.2026-07-03.my-slug.q]]" and "Contributors: [[<first>]], [[<second>]]"
+
+Scenario: 792b6c5a3 An answer note without contributors
+  Given an answer with no contributors
+  When the answer note is rendered
+  Then it has no Contributors: line
+```
+
+#### 792b6c6 Frontmatter splitting
+
+Requirement: 792b6c6 The note-document-format MUST split a note's text into the frontmatter between
+a leading `---` line and the next line that is exactly `---`, and the text after that line. A value
+that ends in `---`, or an indented `---` inside a block value, MUST NOT close the frontmatter, an
+empty frontmatter MUST split cleanly, and a text that has no leading `---` line or no closing line
+MUST be treated as having no frontmatter.
+
+Supports: 792a3n1a, 792a3u1a, 792a3u1b.
+
+Rationale: a skill key, for example, can end in `---`; matching only a whole line keeps such a value
+from cutting the frontmatter short.
+
+##### 792b6c6a Scenarios
+
+```gherkin
+Scenario: 792b6c6a1 Only a whole --- line closes the frontmatter
+  Given frontmatter holding a value that ends in ---, or a block value with an indented --- line, followed by a body that may itself start with ---
+  When the note is split
+  Then the frontmatter runs to the first line that is exactly ---, and the body is everything after it
+
+Scenario: 792b6c6a2 An empty frontmatter splits cleanly
+  Given a note whose --- line is immediately followed by the closing --- line
+  When the note is split
+  Then the frontmatter is empty and the body follows
+
+Scenario: 792b6c6a3 A note without frontmatter
+  Given a note with no leading --- line, or with no closing --- line
+  When the note is split
+  Then it has no frontmatter, and its whole text is the body
+```
+
+### 792b6d Product-Scenario Mapping
+
+| Product scenario | Technical requirements |
+| --- | --- |
+| 792a3a1a | 792b6c1, 792b6c2, 792b6c3, 792b6c4 |
+| 792a3a1b | 792b6c4 |
+| 792a3b1a | 792b6c1, 792b6c2, 792b6c3, 792b6c4 |
+| 792a3b1b | 792b6c4 |
+| 792a3c1a | 792b6c1, 792b6c2, 792b6c3, 792b6c4 |
+| 792a3d1a | 792b6c3 |
+| 792a3d1b | 792b6c3 |
+| 792a3d1c | 792b6c3 |
+| 792a3h1a | 792b6c3, 792b6c4 |
+| 792a3h1b | 792b6c3 |
+| 792a3i1a | 792b6c3 |
+| 792a3i1b | 792b6c3 |
+| 792a3n1a | 792b6c6 |
+| 792a3o1c | 792b6c3 |
+| 792a3p1c | 792b6c3 |
+| 792a3q1a | 792b6c1, 792b6c2, 792b6c5 |
+| 792a3q1b | 792b6c5 |
+| 792a3q1c | 792b6c5 |
+| 792a3u1a | 792b6c6 |
+| 792a3u1b | 792b6c6 |
+
+```gherkin
+Scenario: 792a3a1b A leading When is not doubled
+  Given an empty vault
+  When the user runs engram learn fact with --situation "When testing" --subject s --predicate p --object o
+  Then the note's body reads "Information learned: when in testing, s p o."
+
+Scenario: 792a3b1b A leading When is not doubled
+  Given an empty vault
+  When the user runs engram learn feedback with --situation "When x" --action a
+  Then the note's body reads "Lesson learned: when x, a."
+
+Scenario: 792a3d1a Red flags are kept in order
+  Given an empty vault
+  When the user runs engram learn runbook with --red-flag "A" --red-flag "B"
+  Then the note's red_flags: lists A then B
+
+Scenario: 792a3d1b Triggers follow the red flags in order
+  Given an empty vault
+  When the user runs engram learn runbook with --red-flag "A" --trigger "cue one" --trigger "cue two"
+  Then the note's triggers: lists "cue one" then "cue two", after red_flags:
+
+Scenario: 792a3d1c Neither flag means neither field
+  Given an empty vault
+  When the user runs engram learn runbook with no --red-flag and no --trigger
+  Then the note is written with no red_flags: and no triggers: field
+
+Scenario: 792a3h1a Optional metadata is written
+  Given an empty vault
+  When the user runs engram learn runbook with --project proj --issue 12 --tag fam/val --chunk-source "a#b" --supersedes "1.x|updates|claim"
+  Then the note carries project: proj, issue: "12", tags: [fam/val], sources: [a#b], a supersedes: entry for 1.x of type updates, and the body line "Supersedes: [[1.x]] — updates: claim"
+
+Scenario: 792a3h1b Absent metadata writes no field
+  Given an empty vault
+  When the user runs engram learn fact with none of those flags
+  Then the note has no project:, issue:, tags:, sources: or supersedes: field
+
+Scenario: 792a3i1a The tier defaults to L2
+  Given an empty vault
+  When the user runs engram learn fact or feedback without --tier
+  Then the note carries tier: L2
+
+Scenario: 792a3i1b A legacy tier is written as given
+  Given an empty vault
+  When the user runs engram learn fact with --tier L3
+  Then the note carries tier: L3
+
+Scenario: 792a3q1b A pair without contributors
+  Given an existing vault
+  When the user runs engram learn qa without --contributors
+  Then the answer note has no contributors: field and no Contributors: line
+
+Scenario: 792a3q1c The answer can come from a file
+  Given a file holding the answer text
+  When the user runs engram learn qa with --answer-file naming it
+  Then the answer note's body is that file's text
+```

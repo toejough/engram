@@ -98,7 +98,7 @@ M7 marker-monotonicity, M8 luhmann-uniqueness.)
 | id | invariant | sev | status |
 |---|---|---|---|
 | **M4 (embed model homogeneity)** | all sidecars share one `embedding_model_id`; `loadCompatibleSidecars` drops off-model sidecars with only a **non-fatal stderr advisory** (`warnModelMismatch` fires on any mismatch) → under PARTIAL migration the query succeeds with a silently-thinner stdout result set; a full-vault mismatch errors (`errQueryNoEmbeddings` when notes exist but no sidecar loads). | **FAIL** | clean now (171× `minilm-l6-v2@384`); partial-mismatch case unguarded |
-| **M5 (situation on facts/feedback)** | every fact/feedback has non-empty `situation` (R1 depends on it). **[Note: the claim "CLI marks it required only for episodes" is RETIRED — no episode kind; but the `situation` optionality for fact/feedback remains an unguarded gap.]** | **FAIL** | clean now, unguarded |
+| **M5 (situation on facts/feedback)** | every fact/feedback has non-empty `situation` (R1 depends on it; the key is always written, 792b6c3, and capture refuses a blank one, 792a3f). **[Note: the claim "CLI marks it required only for episodes" is RETIRED — no episode kind; but the `situation` optionality for fact/feedback remains an unguarded gap.]** | **FAIL** | clean now, unguarded |
 | **M6 (learn idempotency)** | re-running `/learn` over the same window does not spawn duplicate/near-duplicate notes (marker is the only dedup; arcs may overlap). | WARN | untested |
 | **M7 (marker monotonicity)** | per source, `marker_after ≥ marker_before` across runs (never regress → never silently re-emit history). | **FAIL** | untested (companion to the M1–M3 transcript invariants) |
 | **M8 (Luhmann-id uniqueness/well-formed)** | leading ids unique across the vault and match `[0-9]+[a-z0-9]*` (K1's outcome). | WARN | clean now (171 distinct), unguarded |
@@ -113,13 +113,12 @@ M7 marker-monotonicity, M8 luhmann-uniqueness.)
 
 ## Phase-3 additions (surfaced by sequence-diagram grounding; agreed)
 
-Skill↔binary boundary + representation invariants the flow diagrams exposed. Both are code-verified
-and currently BROKEN. (The skill layer is RT-gated, so S1 is an RT/structural check, not a VC gate.)
+Skill↔binary boundary invariant the flow diagrams exposed. (S2, single representation, is in
+[792b6](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b6-added-note-document-format) and 792d62.) (The skill layer is RT-gated, so S1 is an RT/structural check, not a VC gate.)
 
 | id | invariant (testable property) | sev | status |
 |---|---|---|---|
 | **S1 (no unmediated vault WRITES)** | the skill layer must not *edit/write* vault note files outside a sync-preserving `engram` path. Reading member files directly in recall §3a is **intended** — the agent decides per-cluster whether the abstract signal is worth investigating; that lazy, judgment-based read stays. | WARN | §3a member read: **OK by design** (operator 2026-06-04 — keep paths-only payload). §6b situation-edit: **FIX via `engram resituate`** (D4) — today a manual file poke that can desync the two `situation` copies (INV-S2). |
-| **S2 (single embedded representation)** | a datum that affects retrieval has ONE source representation; no shadow copy that is expected to change retrieval but isn't the embedded text. | WARN | **BROKEN for facts** — `situation` is stored in BOTH frontmatter (`renderFactFrontmatter`) and the body formula (`renderFactBody`, `learn.go:568`); only the body is embedded (`embed.Text`, non-episode→body) and hashed (`ContentHash`). A §6b frontmatter-only situation edit is a retrieval no-op and invisible to `embed apply --stale`. Same write≠read family as E4/G0. **Fix (D4):** `engram resituate` rewrites BOTH copies + re-embeds; `engram check` asserts frontmatter `situation` == the body-formula situation. |
 
 ## What the checker (`engram check`, Phase 8) must implement
 VC-class invariants (A, B[graph-only], D) over the real vault — G0 (link-form normalization), G2/G3 (orphans/dangling), S1/S2 (single-representation, no unmediated writes) — exit non-zero on violation, wired as a `targ` gate. PT-class (E-marker, F, G) become rapid tests in the relevant packages. **[RETIRED: `applyTierFilter` / `nearest_l3` / `hubs` — those fields and the tier-filter code no longer exist in the query path.]**

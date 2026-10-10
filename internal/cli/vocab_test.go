@@ -414,7 +414,7 @@ func TestWriteVocabAssignment_InlineTagsListParsed(t *testing.T) {
 // TestWriteVocabAssignment_LearnRendererRoundtripFidelity decodes the
 // writer's output — applied on top of a note actually produced by the #674
 // learn renderer (ExportRenderFactFrontmatter) — with the same tags-only
-// struct shape TestRenderFactFrontmatter_TagsRoundtripFidelity decodes with,
+// struct shape Test792b6c3a7_RenderFactFrontmatter_TagsRoundtripFidelity decodes with,
 // pinning byte-compatibility between the learn renderer's tags: block style
 // and the one WriteVocabAssignment merges into it.
 func TestWriteVocabAssignment_LearnRendererRoundtripFidelity(t *testing.T) {

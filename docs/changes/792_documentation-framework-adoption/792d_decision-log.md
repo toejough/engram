@@ -631,3 +631,34 @@ decisions as `792dN`, continuing the sequence.
   parsing, which this component owns (792b2a), before any `learn` code runs. Those two tests are the
   existing direct tests of that refusal.
 - **Alternatives:** leave the tests for 792c7k1. Rejected because 792b2c5a1 would then have no test.
+
+## 792d61 note-document-format's edit, CRLF and field-survival contracts arrive with their scenarios
+
+- **Choice:** 792b6 specifies only what note-writing's scenarios need: filenames, the frontmatter
+  block, each kind's keys, the body formulas, the QA documents and frontmatter splitting. These wait
+  for the capabilities whose product scenarios they support, as 792d51 does for command-line-surface:
+  - YAML-node edits that keep unknown keys and anchors, refuse an anchored or undecodable rewrite,
+    and read CRLF notes as LF go to note-revision (792c7c1), whose sources now list the
+    `vault-note-identity` note-reader requirement and the amend and resituate paragraphs of its
+    field-survival requirement.
+  - Survival of the exchange fields goes to parent-sync (792c7t1), which already owns them.
+  - The `skill_hash`, `skill_key` and `skill_source` fields go to skill-runbook-registration
+    (792c7k1), whose sources now list those `vault-note-identity` requirements.
+  - The "CRLF-safe reading requirement" this node listed from `update-reparent-luhmann-batch` is the
+    rename-and-rewrite step's, which vault-migration (792c7i1, 792c7i2) already owns.
+  Their tests stay unrenamed until then and are listed as deferred no-scenario tests.
+- **Rationale:** the technical guide requires every requirement to name the product scenarios it
+  supports, and none of these has a scenario yet.
+- **Alternatives:** specify them now with no supported scenarios. Rejected as untraceable.
+
+## 792d62 A fact or feedback situation is stored twice
+
+- **Choice:** 792b6a describes the current form: a fact or feedback note holds its situation both in
+  `situation:` and in its body formula. The legacy invariant S2 called this a defect and asked for
+  one representation, and it said only the body was embedded and hashed, with `engram check` to
+  compare the two copies. Today the situation vector is built from `situation:`, the content hash
+  covers both the situation and the body, and `engram check` does not compare the copies.
+- **Rationale:** 792d33. The S2 text is stale on the embedding and was never implemented on the
+  check; the double copy is current behavior.
+- **Alternatives:** a **MUST** that the copies match, enforced by `check`. Rejected because nothing
+  enforces it.

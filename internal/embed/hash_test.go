@@ -10,6 +10,63 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
+// Test792b6c6a1_ExtractBody_BlockScalarFenceLine guards that an indented "    ---"
+// line inside a |- block scalar (yaml.v3's rendering of a value holding a
+// standalone --- line) does not close the frontmatter.
+func Test792b6c6a1_ExtractBody_BlockScalarFenceLine(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	in := []byte("---\ntype: runbook\nsituation: |-\n    first\n    ---\n    second\nluhmann: \"1\"\n---\n\nBody.\n")
+	g.Expect(string(embed.ExtractBody(in))).To(Equal("Body.\n"))
+}
+
+// Test792b6c6a1_ExtractBody_BodyStartingWithFence guards that only the first whole
+// "---" line closes the frontmatter: a body that itself starts with a "---"
+// line keeps it.
+func Test792b6c6a1_ExtractBody_BodyStartingWithFence(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	g.Expect(string(embed.ExtractBody([]byte("---\ntype: fact\n---\n---\nBody.\n")))).To(Equal("---\nBody.\n"))
+}
+
+// Test792b6c6a1_ExtractBody_FrontmatterValueEndingInDashes guards the closing
+// delimiter match: it must be a whole "---" line, so a frontmatter value
+// that merely ends in "---" (e.g. a skill_key) does not end the block early.
+func Test792b6c6a1_ExtractBody_FrontmatterValueEndingInDashes(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	in := []byte("---\ntype: runbook\nskill_key: a:foo---\n---\n\nThis is the body.\n")
+	g.Expect(string(embed.ExtractBody(in))).To(Equal("This is the body.\n"))
+}
+
+// Test792b6c6a2_ExtractBody_EmptyFrontmatter guards the empty-block case: an opening
+// "---" line immediately followed by the closing one still strips cleanly.
+func Test792b6c6a2_ExtractBody_EmptyFrontmatter(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	g.Expect(string(embed.ExtractBody([]byte("---\n---\n\nBody.\n")))).To(Equal("Body.\n"))
+}
+
+func Test792b6c6a3_ExtractBody_NoFrontmatter(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	in := []byte("Just a body, no frontmatter.\n")
+	g.Expect(string(embed.ExtractBody(in))).To(Equal("Just a body, no frontmatter.\n"))
+}
+
+func Test792b6c6a3_ExtractBody_UnterminatedFrontmatterReturnedUnchanged(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	in := []byte("---\ntype: fact\n(no closing delimiter)\n")
+	g.Expect(string(embed.ExtractBody(in))).To(Equal(string(in)))
+}
+
 func TestBodyText_ExcludesSupersedesLines(t *testing.T) {
 	t.Parallel()
 
@@ -184,69 +241,12 @@ func TestContributorsBodyMarker_IsExported(t *testing.T) {
 	g.Expect(embed.AnswersBodyMarker).To(Equal("Answers:"))
 }
 
-// TestExtractBody_BlockScalarFenceLine guards that an indented "    ---"
-// line inside a |- block scalar (yaml.v3's rendering of a value holding a
-// standalone --- line) does not close the frontmatter.
-func TestExtractBody_BlockScalarFenceLine(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	in := []byte("---\ntype: runbook\nsituation: |-\n    first\n    ---\n    second\nluhmann: \"1\"\n---\n\nBody.\n")
-	g.Expect(string(embed.ExtractBody(in))).To(Equal("Body.\n"))
-}
-
-// TestExtractBody_BodyStartingWithFence guards that only the first whole
-// "---" line closes the frontmatter: a body that itself starts with a "---"
-// line keeps it.
-func TestExtractBody_BodyStartingWithFence(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	g.Expect(string(embed.ExtractBody([]byte("---\ntype: fact\n---\n---\nBody.\n")))).To(Equal("---\nBody.\n"))
-}
-
-// TestExtractBody_EmptyFrontmatter guards the empty-block case: an opening
-// "---" line immediately followed by the closing one still strips cleanly.
-func TestExtractBody_EmptyFrontmatter(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	g.Expect(string(embed.ExtractBody([]byte("---\n---\n\nBody.\n")))).To(Equal("Body.\n"))
-}
-
-// TestExtractBody_FrontmatterValueEndingInDashes guards the closing
-// delimiter match: it must be a whole "---" line, so a frontmatter value
-// that merely ends in "---" (e.g. a skill_key) does not end the block early.
-func TestExtractBody_FrontmatterValueEndingInDashes(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	in := []byte("---\ntype: runbook\nskill_key: a:foo---\n---\n\nThis is the body.\n")
-	g.Expect(string(embed.ExtractBody(in))).To(Equal("This is the body.\n"))
-}
-
-func TestExtractBody_NoFrontmatter(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	in := []byte("Just a body, no frontmatter.\n")
-	g.Expect(string(embed.ExtractBody(in))).To(Equal("Just a body, no frontmatter.\n"))
-}
-
 func TestExtractBody_StripsFrontmatter(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 	in := []byte("---\ntype: fact\nluhmann: \"5\"\n---\n\nThis is the body.\n")
 	g.Expect(string(embed.ExtractBody(in))).To(Equal("This is the body.\n"))
-}
-
-func TestExtractBody_UnterminatedFrontmatterReturnedUnchanged(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	in := []byte("---\ntype: fact\n(no closing delimiter)\n")
-	g.Expect(string(embed.ExtractBody(in))).To(Equal(string(in)))
 }
 
 func TestSituationText_ExtractsFieldForAnyType(t *testing.T) {

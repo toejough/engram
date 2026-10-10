@@ -13,6 +13,53 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+func Test792b6c5a1_RenderQAQuestionNote_ContainsExpectedParts(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	when := time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC)
+	got := cli.ExportRenderQAQuestionNote("What is the question?", "my-slug", "session 2026-07-03", when)
+
+	g.Expect(got).To(ContainSubstring("type: qa-question"))
+	g.Expect(got).To(ContainSubstring("answered_by: qa.2026-07-03.my-slug.a"))
+	g.Expect(got).To(ContainSubstring("What is the question?"))
+	g.Expect(got).To(ContainSubstring("Answered by: [[qa.2026-07-03.my-slug.a]]"))
+	// Answered by: line must be in the BODY, not frontmatter
+	body := strings.SplitN(got, "---\n\n", 2)
+	g.Expect(body).To(HaveLen(2))
+
+	if len(body) < 2 {
+		return
+	}
+
+	g.Expect(body[1]).To(ContainSubstring("Answered by:"))
+}
+
+func Test792b6c5a2_RenderQAAnswerNote_ContainsMachineLines(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	when := time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC)
+	contributors := []string{"100.2026-06-01.note", "101.2026-06-02.other-note"}
+	got := cli.ExportRenderQAAnswerNote("The answer.", "my-slug", "session 2026-07-03", "medium", contributors, when)
+
+	g.Expect(got).To(ContainSubstring("type: qa-answer"))
+	g.Expect(got).To(ContainSubstring("answers: qa.2026-07-03.my-slug.q"))
+	g.Expect(got).To(ContainSubstring("certainty: medium"))
+	g.Expect(got).To(ContainSubstring("The answer."))
+	g.Expect(got).To(ContainSubstring("Answers: [[qa.2026-07-03.my-slug.q]]"))
+	g.Expect(got).To(ContainSubstring("Contributors: [[100.2026-06-01.note]], [[101.2026-06-02.other-note]]"))
+}
+
+func Test792b6c5a3_RenderQAAnswerNote_NoContributors_NoContributorsLine(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	when := time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC)
+	got := cli.ExportRenderQAAnswerNote("Answer.", "slug", "source", "high", nil, when)
+	g.Expect(got).NotTo(ContainSubstring("Contributors:"))
+}
+
 func TestCollectVaultStats_QAQuestionExcluded_QAAnswerCounted(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -114,53 +161,6 @@ func TestIsQueryExcludedKind(t *testing.T) {
 			g.Expect(cli.ExportIsQueryExcludedKind(tc.content)).To(Equal(tc.want))
 		})
 	}
-}
-
-func TestRenderQAAnswerNote_ContainsMachineLines(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	when := time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC)
-	contributors := []string{"100.2026-06-01.note", "101.2026-06-02.other-note"}
-	got := cli.ExportRenderQAAnswerNote("The answer.", "my-slug", "session 2026-07-03", "medium", contributors, when)
-
-	g.Expect(got).To(ContainSubstring("type: qa-answer"))
-	g.Expect(got).To(ContainSubstring("answers: qa.2026-07-03.my-slug.q"))
-	g.Expect(got).To(ContainSubstring("certainty: medium"))
-	g.Expect(got).To(ContainSubstring("The answer."))
-	g.Expect(got).To(ContainSubstring("Answers: [[qa.2026-07-03.my-slug.q]]"))
-	g.Expect(got).To(ContainSubstring("Contributors: [[100.2026-06-01.note]], [[101.2026-06-02.other-note]]"))
-}
-
-func TestRenderQAAnswerNote_NoContributors_NoContributorsLine(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	when := time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC)
-	got := cli.ExportRenderQAAnswerNote("Answer.", "slug", "source", "high", nil, when)
-	g.Expect(got).NotTo(ContainSubstring("Contributors:"))
-}
-
-func TestRenderQAQuestionNote_ContainsExpectedParts(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	when := time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC)
-	got := cli.ExportRenderQAQuestionNote("What is the question?", "my-slug", "session 2026-07-03", when)
-
-	g.Expect(got).To(ContainSubstring("type: qa-question"))
-	g.Expect(got).To(ContainSubstring("answered_by: qa.2026-07-03.my-slug.a"))
-	g.Expect(got).To(ContainSubstring("What is the question?"))
-	g.Expect(got).To(ContainSubstring("Answered by: [[qa.2026-07-03.my-slug.a]]"))
-	// Answered by: line must be in the BODY, not frontmatter
-	body := strings.SplitN(got, "---\n\n", 2)
-	g.Expect(body).To(HaveLen(2))
-
-	if len(body) < 2 {
-		return
-	}
-
-	g.Expect(body[1]).To(ContainSubstring("Answered by:"))
 }
 
 func TestRunLearnQA_AWriteAndRemoveFailure_OrphanWarning(t *testing.T) {

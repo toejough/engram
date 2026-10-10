@@ -12,6 +12,22 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
+// Test792b6c4a5_RenderSupersedes_StripsMdFromWikilink verifies the machine-written body
+// line targets the canonical extension-less basename even when the entry's
+// note field carries the full .md filename (which frontmatter keeps).
+func Test792b6c4a5_RenderSupersedes_StripsMdFromWikilink(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	rendered := cli.ExportRenderSupersedes([]cli.ExportSupersedesEntry{
+		{Note: "9e.2026-01-01.old-note.md", Type: "updates", Claim: "old note superseded"},
+	})
+
+	g.Expect(rendered).To(Equal("Supersedes: [[9e.2026-01-01.old-note]] — updates: old note superseded\n"),
+		"wikilink target must drop the .md extension — the graph resolves extension-less basenames")
+}
+
 // ── Unit 5: --supersedes flag ─────────────────────────────────────────────────
 
 // TestAmendFactNote_Supersedes_WrittenToFrontmatterAndBody proves that --supersedes
@@ -298,20 +314,4 @@ func TestParseSupersedesFlag_ValidUpdates(t *testing.T) {
 	g.Expect(entry.Note).To(Equal("105.2026-01-01.old-note"))
 	g.Expect(entry.Type).To(Equal("updates"))
 	g.Expect(entry.Claim).To(Equal("the original claim here"))
-}
-
-// TestRenderSupersedes_StripsMdFromWikilink verifies the machine-written body
-// line targets the canonical extension-less basename even when the entry's
-// note field carries the full .md filename (which frontmatter keeps).
-func TestRenderSupersedes_StripsMdFromWikilink(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	rendered := cli.ExportRenderSupersedes([]cli.ExportSupersedesEntry{
-		{Note: "9e.2026-01-01.old-note.md", Type: "updates", Claim: "old note superseded"},
-	})
-
-	g.Expect(rendered).To(Equal("Supersedes: [[9e.2026-01-01.old-note]] — updates: old note superseded\n"),
-		"wikilink target must drop the .md extension — the graph resolves extension-less basenames")
 }

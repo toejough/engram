@@ -204,8 +204,8 @@ flowchart TD
   N792c7a4["792c7a4 subprocess-runner tech spec<br/>Complete"]
   N792c7a5["792c7a5 vault-identity-registry tech spec<br/>Complete"]
   N792c7b1["792c7b1 note-writing product spec<br/>Complete"]
-  N792c7b2["792c7b2 note-document-format tech spec<br/>Ready"]
-  N792c7b3["792c7b3 luhmann-addressing tech spec<br/>Blocked by: 792c7b2"]
+  N792c7b2["792c7b2 note-document-format tech spec<br/>Complete"]
+  N792c7b3["792c7b3 luhmann-addressing tech spec<br/>Ready"]
   N792c7b4["792c7b4 vault-write-lock tech spec<br/>Blocked by: 792c7b3"]
   N792c7b5["792c7b5 text-embedder tech spec<br/>Blocked by: 792c7b4"]
   N792c7b6["792c7b6 embedding-sidecar tech spec<br/>Blocked by: 792c7b5"]
@@ -721,11 +721,68 @@ Target: `792b6` (`docs/specs/technical/note-document-format.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7b2a | Port the component contract to `792b6` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7b2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7b2c | Repoint stale references to `792b6` | Non-test action | Keeps live links valid | Not started |
-| 792c7b2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7b2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7b2a | Port the component contract to `792b6` | Non-test action | Documents the component in the framework format | Done |
+| 792c7b2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7b2c | Repoint stale references to `792b6` | Non-test action | Keeps live links valid | Done |
+| 792c7b2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7b2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+**Outcome:** the CRLF and YAML-node-edit sources this node listed are deferred to the capabilities
+whose scenarios need them (792d61). S2 is ported as rationale with its divergence recorded (792d62).
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b6c1a1 | `TestLearnPath_Permanent` → `Test792b6c1a1_LearnPath_Permanent` | Pure unit | Luhmann filename | Done |
+| 792b6c2a1 | `TestMarshalFrontmatter_WrapsValidValue` → `Test792b6c2a1_MarshalFrontmatter_WrapsValidValue` | Pure unit | Block delimiters | Done |
+| 792b6c2a2 | `TestRenderFeedbackFrontmatter_SafelyEncodesTrickyValues` → `Test792b6c2a2_RenderFeedbackFrontmatter_SafelyEncodesTrickyValues` | Pure unit | YAML-significant values | Done |
+| 792b6c2a2 | `TestRenderFactFrontmatter_SafelyEncodesTrickyValues` → `Test792b6c2a2_RenderFactFrontmatter_SafelyEncodesTrickyValues` | Pure unit | YAML-significant values | Done |
+| 792b6c2a2 | `TestRenderFeedbackFrontmatter_RoundtripFidelity` → `Test792b6c2a2_RenderFeedbackFrontmatter_RoundtripFidelity` | Property test (rapid) | Any printable value reads back | Done |
+| 792b6c3a1 | `TestRenderFrontmatter_Fact` → `Test792b6c3a1_RenderFrontmatter_Fact` | Pure unit | Fact keys | Done |
+| 792b6c3a2 | `TestRenderFrontmatter_Feedback` → `Test792b6c3a2_RenderFrontmatter_Feedback` | Pure unit | Exact feedback key set | Done |
+| 792b6c3a3 | `TestRenderFrontmatter_Runbook` → `Test792b6c3a3_RenderFrontmatter_Runbook` | Pure unit | Exact runbook key set | Done |
+| 792b6c3a4 | `TestRenderFeedbackFrontmatter_LuhmannIsQuoted` → `Test792b6c3a4_RenderFeedbackFrontmatter_LuhmannIsQuoted` | Pure unit | Quoted Luhmann ID | Done |
+| 792b6c3a5 | `TestRenderFactFrontmatter_EmitsProjectAndIssueBelowSource` → `Test792b6c3a5_RenderFactFrontmatter_EmitsProjectAndIssueBelowSource` | Pure unit | Order and issue quoting | Done |
+| 792b6c3a5 | `TestRenderFeedbackFrontmatter_EmitsProjectAndIssueBelowSource` → `Test792b6c3a5_RenderFeedbackFrontmatter_EmitsProjectAndIssueBelowSource` | Pure unit | Order and issue quoting | Done |
+| 792b6c3a6 | `TestRenderFactFrontmatter_OmitsProjectAndIssueWhenEmpty` → `Test792b6c3a6_RenderFactFrontmatter_OmitsProjectAndIssueWhenEmpty` | Pure unit | Empty keys omitted | Done |
+| 792b6c3a6 | `TestRenderFeedbackFrontmatter_OmitsProjectAndIssueWhenEmpty` → `Test792b6c3a6_RenderFeedbackFrontmatter_OmitsProjectAndIssueWhenEmpty` | Pure unit | Empty keys omitted | Done |
+| 792b6c3a6 | `TestRenderRunbookFrontmatter_OmitsRedFlagsWhenAbsent` → `Test792b6c3a6_RenderRunbookFrontmatter_OmitsRedFlagsWhenAbsent` | Pure unit | No red_flags key | Done |
+| 792b6c3a7 | `TestRenderRunbookFrontmatter_IncludesRedFlagsInOrder` → `Test792b6c3a7_RenderRunbookFrontmatter_IncludesRedFlagsInOrder` | Pure unit | Red-flag order | Done |
+| 792b6c3a7 | `TestRenderRunbookFrontmatter_RedFlagsRoundtripFidelity` → `Test792b6c3a7_RenderRunbookFrontmatter_RedFlagsRoundtripFidelity` | Property test (rapid) | Any red-flag list reads back | Done |
+| 792b6c3a7 | `TestRenderFactFrontmatter_TagsRoundtripFidelity` → `Test792b6c3a7_RenderFactFrontmatter_TagsRoundtripFidelity` | Property test (rapid) | Any valid tag list reads back | Done |
+| 792b6c4a1 | `TestRenderBody_Fact` → `Test792b6c4a1_RenderBody_Fact` | Pure unit | Fact formula | Done |
+| 792b6c4a2 | `TestRenderBody_Feedback` → `Test792b6c4a2_RenderBody_Feedback` | Pure unit | Feedback formula | Done |
+| 792b6c4a3 | `TestRenderBody_Runbook` → `Test792b6c4a3_RenderBody_Runbook` | Pure unit | Runbook steps verbatim | Done |
+| 792b6c4a4 | `TestRenderFactBody_StripsLeadingWhenFromSituation` → `Test792b6c4a4_RenderFactBody_StripsLeadingWhenFromSituation` | Pure unit | No "when When" | Done |
+| 792b6c4a4 | `TestRenderFeedbackBody_StripsLeadingWhenFromSituation` → `Test792b6c4a4_RenderFeedbackBody_StripsLeadingWhenFromSituation` | Pure unit | No "when When" | Done |
+| 792b6c4a5 | `TestRenderSupersedes_StripsMdFromWikilink` → `Test792b6c4a5_RenderSupersedes_StripsMdFromWikilink` | Pure unit | Supersession line | Done |
+| 792b6c5a1 | `TestRenderQAQuestionNote_ContainsExpectedParts` → `Test792b6c5a1_RenderQAQuestionNote_ContainsExpectedParts` | Pure unit | Question document | Done |
+| 792b6c5a2 | `TestRenderQAAnswerNote_ContainsMachineLines` → `Test792b6c5a2_RenderQAAnswerNote_ContainsMachineLines` | Pure unit | Answer document with contributors | Done |
+| 792b6c5a3 | `TestRenderQAAnswerNote_NoContributors_NoContributorsLine` → `Test792b6c5a3_RenderQAAnswerNote_NoContributors_NoContributorsLine` | Pure unit | No contributors line | Done |
+| 792b6c6a1 | `TestExtractBody_FrontmatterValueEndingInDashes` → `Test792b6c6a1_ExtractBody_FrontmatterValueEndingInDashes` | Pure unit (`internal/embed`) | Value ending in --- | Done |
+| 792b6c6a1 | `TestExtractBody_BlockScalarFenceLine` → `Test792b6c6a1_ExtractBody_BlockScalarFenceLine` | Pure unit (`internal/embed`) | Indented --- in a block value | Done |
+| 792b6c6a1 | `TestExtractBody_BodyStartingWithFence` → `Test792b6c6a1_ExtractBody_BodyStartingWithFence` | Pure unit (`internal/embed`) | Body starting with --- | Done |
+| 792b6c6a1 | `TestExtractBody_ClosingDelimiterIsAWholeLineProperty` → `Test792b6c6a1_ExtractBody_ClosingDelimiterIsAWholeLineProperty` | Property test (rapid, `internal/embed`) | Any value ending in dashes | Done |
+| 792b6c6a2 | `TestExtractBody_EmptyFrontmatter` → `Test792b6c6a2_ExtractBody_EmptyFrontmatter` | Pure unit (`internal/embed`) | Empty frontmatter | Done |
+| 792b6c6a3 | `TestExtractBody_NoFrontmatter` → `Test792b6c6a3_ExtractBody_NoFrontmatter` | Pure unit (`internal/embed`) | No frontmatter | Done |
+| 792b6c6a3 | `TestExtractBody_UnterminatedFrontmatterReturnedUnchanged` → `Test792b6c6a3_ExtractBody_UnterminatedFrontmatterReturnedUnchanged` | Pure unit (`internal/embed`) | No closing line | Done |
+
+**Coverage gaps:** 792b6c1a2 (no direct test forms the pair's paths; `RunLearnQA` tests cover it
+for note-authoring, 792c7b8). Of the mapped product scenarios, 792a3a1b, 792a3b1b, 792a3d1a–792a3d1c,
+792a3h1a, 792a3h1b, 792a3i1a, 792a3i1b and 792a3q1a–792a3q1c have no end-to-end test; note-authoring
+(792c7b8) renames the `RunLearn` and `RunLearnQA` tests that cover them.
+
+**No-scenario tests:** deferred to the capability that adds their requirement here (792d61):
+`exchangefields_survival_test` (16, parent-sync 792c7t1), `skillfields_survival_test` (15) and the
+`learn_test` skill-field rendering tests `TestRenderRunbookFrontmatter_IncludesSkillHashWhenSet`,
+`_IncludesSkillKeyAndSourceWhenSet`, `_OmitsSkillHashWhenAbsent`, `_OmitsSkillKeyAndSourceWhenAbsent`,
+`_SkillHashRoundtripFidelity`, `_SkillKeySourceRoundtripProperty` (skill-runbook-registration
+792c7k1), and `crlf_readers_internal_test` (9), `amend_unknown_keys_test` (4),
+`frontmatter_anchor_test` (3), `crlf_node_edits_test` (2), `frontmatter_node_internal_test` (2),
+`frontmatter_node_guard_internal_test` (1) and `internal/embed` `TestEmbedReaders_CRLFNoteReadsAsLF`
+(note-revision 792c7c1). The other `internal/embed/hash_test` tests verify embedding-sidecar
+(792c7b6).
 
 #### 792c7b3 luhmann-addressing tech spec
 
@@ -884,6 +941,7 @@ Target: `792a4` (`docs/specs/product/note-revision.md`).
 
 **Legacy sources (port, then remove):**
 
+- `openspec/specs/vault-note-identity/spec.md` (the note-reader CRLF requirement, and the amend and resituate key-preservation, anchor and CRLF paragraphs of "Exchange fields SHALL survive every frontmatter rewrite"; their format side extends `792b6`, 792d61)
 - `openspec/specs/vault-embed-on-write/spec.md` (the `amend` and `resituate` re-embedding requirement, 792d57)
 - `openspec/specs/vault-wikilink-resolution/spec.md` (product requirements; the G3 dangling-link scenario goes to 792c7h1)
 - `docs/deprecated/architecture/c3-components.md` Component catalog K4w (product behavior of amend, resituate, activate)
@@ -1664,6 +1722,7 @@ Target: `792a12` (`docs/specs/product/skill-runbook-registration.md`).
 
 **Legacy sources (port, then remove):**
 
+- `openspec/specs/vault-note-identity/spec.md` (the `skill_hash`, `skill_key` and `skill_source` requirements; their format side extends `792b6`, 792d61)
 - `openspec/specs/learn-runbook-capture/spec.md` (skill runbook note requirement, 792d57)
 - `docs/deprecated/architecture/adr.md` ADR-0026 Amendments of 2026-09-26 (registration, 792d57)
 - `openspec/specs/skill-runbook-registration/spec.md` (product requirements)

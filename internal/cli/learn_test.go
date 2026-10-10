@@ -20,6 +20,475 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+func Test792b6c1a1_LearnPath_Permanent(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
+	got := cli.ExportLearnPath("/vault", "1a3", "subagent-driven-recovery", when)
+	g.Expect(got).To(Equal("/vault/1a3.2026-05-09.subagent-driven-recovery.md"))
+}
+
+// Test792b6c2a1_MarshalFrontmatter_WrapsValidValue verifies the helper produces the
+// expected "---"-delimited block. Error returns are unreachable for the
+// typed-string struct callers used in production, so only the happy path is
+// covered here.
+func Test792b6c2a1_MarshalFrontmatter_WrapsValidValue(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	got := cli.ExportMarshalFrontmatter(map[string]string{"k": "v"})
+	g.Expect(got).To(Equal("---\nk: v\n---\n\n"))
+}
+
+// Test792b6c2a2_RenderFactFrontmatter_SafelyEncodesTrickyValues mirrors the feedback
+// safety check for the fact frontmatter.
+func Test792b6c2a2_RenderFactFrontmatter_SafelyEncodesTrickyValues(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
+	fields := cli.ExportFactFields{
+		Situation: "context: tricky",
+		Subject:   "- subj",
+		Predicate: "is\nmultiline",
+		Object:    "* obj",
+		Luhmann:   "11",
+		Source:    "src",
+	}
+	got := cli.ExportRenderFactFrontmatter(fields, when)
+	parsed := parseFrontmatter(t, got)
+	g.Expect(parsed["situation"]).To(Equal(fields.Situation))
+	g.Expect(parsed["subject"]).To(Equal(fields.Subject))
+	g.Expect(parsed["predicate"]).To(Equal(fields.Predicate))
+	g.Expect(parsed["object"]).To(Equal(fields.Object))
+}
+
+// Test792b6c2a2_RenderFeedbackFrontmatter_RoundtripFidelity is a property test: for any
+// printable string values, the rendered frontmatter parses back to the same
+// values. This is the invariant the YAML library buys us — verify it holds
+// across the input space, not just hand-picked examples.
+func Test792b6c2a2_RenderFeedbackFrontmatter_RoundtripFidelity(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		// Restricted to printable ASCII plus newline. Tab is excluded because
+		// yaml.v3's block-scalar emitter and parser disagree about indented
+		// tabs; CLI flag values don't carry tabs in practice, so this is not
+		// a meaningful gap for engram learn.
+		gen := rapid.StringMatching(`[ -~\n]{0,40}`)
+		fields := cli.ExportFeedbackFields{
+			Situation: gen.Draw(rt, "situation"),
+			Behavior:  gen.Draw(rt, "behavior"),
+			Impact:    gen.Draw(rt, "impact"),
+			Action:    gen.Draw(rt, "action"),
+			Luhmann:   rapid.StringMatching(`[0-9][0-9a-z]{0,3}`).Draw(rt, "luhmann"),
+			Source:    gen.Draw(rt, "source"),
+		}
+		when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
+		got := cli.ExportRenderFeedbackFrontmatter(fields, when)
+
+		// Use Unmarshal directly to surface decode errors as property failures.
+		const delim = "---\n"
+
+		body := strings.TrimPrefix(got, delim)
+		end := strings.Index(body, "\n"+delim)
+
+		if end < 0 {
+			rt.Fatalf("no closing delimiter in %q", got)
+		}
+
+		parsed := map[string]string{}
+
+		if err := yaml.Unmarshal([]byte(body[:end+1]), &parsed); err != nil {
+			rt.Fatalf("unmarshal %q: %v", body[:end+1], err)
+		}
+
+		for key, want := range map[string]string{
+			"situation": fields.Situation, "behavior": fields.Behavior,
+			"impact": fields.Impact, "action": fields.Action,
+			"luhmann": fields.Luhmann, "source": fields.Source,
+		} {
+			if parsed[key] != want {
+				rt.Fatalf("%s: got %q want %q\nfull:\n%s", key, parsed[key], want, got)
+			}
+		}
+	})
+}
+
+// Test792b6c2a2_RenderFeedbackFrontmatter_SafelyEncodesTrickyValues verifies that values
+// containing YAML-significant characters (newlines, colons, leading dashes,
+// asterisks) survive a roundtrip — the original bug was that raw string
+// concatenation let a multi-line Behavior end the frontmatter mid-document.
+func Test792b6c2a2_RenderFeedbackFrontmatter_SafelyEncodesTrickyValues(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
+	fields := cli.ExportFeedbackFields{
+		Situation: "writing tests: a guide",
+		Behavior:  "first line\nsecond line",
+		Impact:    "- leading dash list marker",
+		Action:    "* alias-looking marker",
+		Luhmann:   "11",
+		Source:    "src: with colon",
+	}
+	got := cli.ExportRenderFeedbackFrontmatter(fields, when)
+	parsed := parseFrontmatter(t, got)
+	g.Expect(parsed["situation"]).To(Equal(fields.Situation))
+	g.Expect(parsed["behavior"]).To(Equal(fields.Behavior))
+	g.Expect(parsed["impact"]).To(Equal(fields.Impact))
+	g.Expect(parsed["action"]).To(Equal(fields.Action))
+	g.Expect(parsed["luhmann"]).To(Equal(fields.Luhmann))
+	g.Expect(parsed["source"]).To(Equal(fields.Source))
+}
+
+func Test792b6c3a1_RenderFrontmatter_Fact(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
+	got := cli.ExportRenderFactFrontmatter(cli.ExportFactFields{
+		Situation: "reasoning about agent coordination",
+		Subject:   "subagent dispatch",
+		Predicate: "is fundamentally",
+		Object:    "a verification problem dressed as coordination",
+		Luhmann:   "11",
+		Source:    "session log bar, 2026-05-09 13:00 UTC",
+	}, when)
+	parsed := parseFrontmatter(t, got)
+	g.Expect(parsed["type"]).To(Equal("fact"))
+	g.Expect(parsed["subject"]).To(Equal("subagent dispatch"))
+	g.Expect(parsed["luhmann"]).To(Equal("11"))
+	g.Expect(parsed["created"]).To(Equal("2026-05-09"))
+}
+
+func Test792b6c3a2_RenderFrontmatter_Feedback(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
+	got := cli.ExportRenderFeedbackFrontmatter(cli.ExportFeedbackFields{
+		Situation: "writing concurrent Go code with context",
+		Behavior:  "ignoring context cancellation",
+		Impact:    "leaks goroutines on shutdown",
+		Action:    "always check ctx.Done() in select loops",
+		Luhmann:   "9z",
+		Source:    "session log foo, 2026-05-09 12:00 UTC",
+	}, when)
+	parsed := parseFrontmatter(t, got)
+	g.Expect(parsed).To(Equal(map[string]string{
+		"type":      "feedback",
+		"situation": "writing concurrent Go code with context",
+		"behavior":  "ignoring context cancellation",
+		"impact":    "leaks goroutines on shutdown",
+		"action":    "always check ctx.Done() in select loops",
+		"luhmann":   "9z",
+		"created":   "2026-05-09",
+		"source":    "session log foo, 2026-05-09 12:00 UTC",
+	}))
+}
+
+func Test792b6c3a3_RenderFrontmatter_Runbook(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
+	got := cli.ExportRenderRunbookFrontmatter(cli.ExportRunbookFields{
+		Situation: "releasing a new Go module version",
+		DoneWhen:  "the tag is pushed and the changelog is updated",
+		Luhmann:   "7a",
+		Source:    "session log foo, 2026-05-09 12:00 UTC",
+	}, when)
+	parsed := parseFrontmatter(t, got)
+	g.Expect(parsed).To(Equal(map[string]string{
+		"type":      "runbook",
+		"situation": "releasing a new Go module version",
+		"done_when": "the tag is pushed and the changelog is updated",
+		"luhmann":   "7a",
+		"created":   "2026-05-09",
+		"source":    "session log foo, 2026-05-09 12:00 UTC",
+	}))
+}
+
+// Test792b6c3a4_RenderFeedbackFrontmatter_LuhmannIsQuoted guards against yaml.v3's
+// default behavior of emitting alphanumeric scalars unquoted. The vault
+// convention is luhmann: "<id>" (double-quoted) so reads stay consistent
+// across hand-written, migrated, and engram-learn-written notes; the existing
+// pre-migration vault and the 218 migrated notes all quote this field.
+func Test792b6c3a4_RenderFeedbackFrontmatter_LuhmannIsQuoted(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
+	got := cli.ExportRenderFeedbackFrontmatter(cli.ExportFeedbackFields{
+		Situation: "x", Behavior: "x", Impact: "x", Action: "x",
+		Luhmann: "9aa", Source: "src",
+	}, when)
+	g.Expect(got).To(ContainSubstring(`luhmann: "9aa"`))
+}
+
+func Test792b6c3a5_RenderFactFrontmatter_EmitsProjectAndIssueBelowSource(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 26, 0, 0, 0, 0, time.UTC)
+	fields := cli.ExportFactFields{
+		Situation: "s", Subject: "subj", Predicate: "pred", Object: "obj",
+		Luhmann: "1", Source: "src",
+		Project: "engram", Issue: "636",
+	}
+	got := cli.ExportRenderFactFrontmatter(fields, when)
+	g.Expect(got).To(ContainSubstring("source: src\n"))
+	g.Expect(got).To(ContainSubstring("project: engram\n"))
+	g.Expect(got).To(ContainSubstring("issue: \"636\"\n"))
+
+	srcIdx := strings.Index(got, "source:")
+	projIdx := strings.Index(got, "project:")
+	issueIdx := strings.Index(got, "issue:")
+
+	g.Expect(srcIdx).To(BeNumerically("<", projIdx))
+	g.Expect(projIdx).To(BeNumerically("<", issueIdx))
+}
+
+func Test792b6c3a5_RenderFeedbackFrontmatter_EmitsProjectAndIssueBelowSource(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 26, 0, 0, 0, 0, time.UTC)
+	fields := cli.ExportFeedbackFields{
+		Situation: "s", Behavior: "b", Impact: "i", Action: "a",
+		Luhmann: "1", Source: "src",
+		Project: "engram", Issue: "636",
+	}
+	got := cli.ExportRenderFeedbackFrontmatter(fields, when)
+	g.Expect(got).To(ContainSubstring("project: engram\n"))
+	g.Expect(got).To(ContainSubstring("issue: \"636\"\n"))
+
+	srcIdx := strings.Index(got, "source:")
+	projIdx := strings.Index(got, "project:")
+	g.Expect(srcIdx).To(BeNumerically("<", projIdx))
+}
+
+func Test792b6c3a6_RenderFactFrontmatter_OmitsProjectAndIssueWhenEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 26, 0, 0, 0, 0, time.UTC)
+	fields := cli.ExportFactFields{
+		Situation: "s", Subject: "subj", Predicate: "pred", Object: "obj",
+		Luhmann: "1", Source: "src",
+	}
+	got := cli.ExportRenderFactFrontmatter(fields, when)
+	g.Expect(got).NotTo(ContainSubstring("project:"))
+	g.Expect(got).NotTo(ContainSubstring("issue:"))
+}
+
+func Test792b6c3a6_RenderFeedbackFrontmatter_OmitsProjectAndIssueWhenEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 26, 0, 0, 0, 0, time.UTC)
+	fields := cli.ExportFeedbackFields{
+		Situation: "s", Behavior: "b", Impact: "i", Action: "a",
+		Luhmann: "1", Source: "src",
+	}
+	got := cli.ExportRenderFeedbackFrontmatter(fields, when)
+	g.Expect(got).NotTo(ContainSubstring("project:"))
+	g.Expect(got).NotTo(ContainSubstring("issue:"))
+}
+
+// Test792b6c3a6_RenderRunbookFrontmatter_OmitsRedFlagsWhenAbsent guards the no-flag
+// case: red_flags must not appear at all when the caller supplies none
+// (note-writing 792a3d1c, "Neither flag means neither field").
+func Test792b6c3a6_RenderRunbookFrontmatter_OmitsRedFlagsWhenAbsent(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
+	got := cli.ExportRenderRunbookFrontmatter(cli.ExportRunbookFields{
+		Situation: "releasing a new Go module version",
+		DoneWhen:  "the tag is pushed and the changelog is updated",
+		Luhmann:   "7a",
+		Source:    "session log foo, 2026-05-09 12:00 UTC",
+	}, when)
+	g.Expect(got).NotTo(ContainSubstring("red_flags"))
+}
+
+// Test792b6c3a7_RenderFactFrontmatter_TagsRoundtripFidelity is a property test: any tag
+// list drawn from the valid grammar passes validateTags AND survives the
+// render→parse YAML roundtrip identically (order and values). Mirrors
+// Test792b6c2a2_RenderFeedbackFrontmatter_RoundtripFidelity.
+func Test792b6c3a7_RenderFactFrontmatter_TagsRoundtripFidelity(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		tagGen := rapid.StringMatching(`[a-z0-9-]{1,12}(/[a-z0-9-]{1,12})?`)
+		tags := rapid.SliceOfN(tagGen, 1, 4).Draw(rt, "tags")
+
+		if err := cli.ExportValidateTags(tags); err != nil {
+			rt.Fatalf("grammar-valid tags rejected: %v", err)
+		}
+
+		fields := cli.ExportFactFields{
+			Situation: "s", Subject: "a", Predicate: "b", Object: "c",
+			Luhmann: "1", Source: "src", Tags: tags,
+		}
+		when := time.Date(2026, time.July, 10, 0, 0, 0, 0, time.UTC)
+		got := cli.ExportRenderFactFrontmatter(fields, when)
+
+		const delim = "---\n"
+
+		body := strings.TrimPrefix(got, delim)
+		end := strings.Index(body, "\n"+delim)
+
+		if end < 0 {
+			rt.Fatalf("no closing delimiter in %q", got)
+		}
+
+		var doc struct {
+			Tags []string `yaml:"tags"`
+		}
+
+		if err := yaml.Unmarshal([]byte(body[:end+1]), &doc); err != nil {
+			rt.Fatalf("unmarshal %q: %v", body[:end+1], err)
+		}
+
+		if !slices.Equal(doc.Tags, tags) {
+			rt.Fatalf("tags: got %v want %v\nfull:\n%s", doc.Tags, tags, got)
+		}
+	})
+}
+
+// Test792b6c3a7_RenderRunbookFrontmatter_IncludesRedFlagsInOrder guards the populated
+// case: red_flags must render as a YAML list preserving entry order
+// (note-writing 792a3d1a, "Red flags are kept in order").
+func Test792b6c3a7_RenderRunbookFrontmatter_IncludesRedFlagsInOrder(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
+	got := cli.ExportRenderRunbookFrontmatter(cli.ExportRunbookFields{
+		Situation: "rewriting git history",
+		DoneWhen:  "the backup branch still has every original commit",
+		Luhmann:   "7a",
+		Source:    "session log foo, 2026-05-09 12:00 UTC",
+		RedFlags:  []string{"filter-branch on all refs sweeps the backup branch", "force-push without --force-with-lease"},
+	}, when)
+
+	const delim = "---\n"
+
+	body := strings.TrimPrefix(got, delim)
+	end := strings.Index(body, "\n"+delim)
+	g.Expect(end).To(BeNumerically(">=", 0), "missing closing ---")
+
+	var doc struct {
+		RedFlags []string `yaml:"red_flags"`
+	}
+
+	g.Expect(yaml.Unmarshal([]byte(body[:end+1]), &doc)).To(Succeed())
+	g.Expect(doc.RedFlags).To(Equal([]string{
+		"filter-branch on all refs sweeps the backup branch",
+		"force-push without --force-with-lease",
+	}))
+}
+
+// Test792b6c3a7_RenderRunbookFrontmatter_RedFlagsRoundtripFidelity is a property test:
+// any non-empty red_flags list survives the render->parse YAML roundtrip
+// identically (order and values) — mirrors
+// Test792b6c3a7_RenderFactFrontmatter_TagsRoundtripFidelity.
+func Test792b6c3a7_RenderRunbookFrontmatter_RedFlagsRoundtripFidelity(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		flagGen := rapid.StringMatching(`[a-zA-Z0-9 _.'-]{1,40}`)
+		redFlags := rapid.SliceOfN(flagGen, 1, 4).Draw(rt, "redFlags")
+
+		fields := cli.ExportRunbookFields{
+			Situation: "s", DoneWhen: "d",
+			Luhmann: "1", Source: "src", RedFlags: redFlags,
+		}
+		when := time.Date(2026, time.July, 10, 0, 0, 0, 0, time.UTC)
+		got := cli.ExportRenderRunbookFrontmatter(fields, when)
+
+		const delim = "---\n"
+
+		body := strings.TrimPrefix(got, delim)
+		end := strings.Index(body, "\n"+delim)
+
+		if end < 0 {
+			rt.Fatalf("no closing delimiter in %q", got)
+		}
+
+		var doc struct {
+			RedFlags []string `yaml:"red_flags"`
+		}
+
+		if err := yaml.Unmarshal([]byte(body[:end+1]), &doc); err != nil {
+			rt.Fatalf("unmarshal %q: %v", body[:end+1], err)
+		}
+
+		if !slices.Equal(doc.RedFlags, redFlags) {
+			rt.Fatalf("red_flags: got %v want %v\nfull:\n%s", doc.RedFlags, redFlags, got)
+		}
+	})
+}
+
+func Test792b6c4a1_RenderBody_Fact(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	got := cli.ExportRenderFactBody(cli.ExportFactFields{
+		Situation: "reasoning about agent coordination",
+		Subject:   "subagent dispatch",
+		Predicate: "is fundamentally",
+		Object:    "a verification problem dressed as coordination",
+	})
+	g.Expect(got).To(Equal(
+		"Information learned: when in reasoning about agent coordination, " +
+			"subagent dispatch is fundamentally a verification problem dressed as coordination.\n" +
+			"\n"))
+}
+
+func Test792b6c4a2_RenderBody_Feedback(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	action := "set up a task list with self-contained briefs and dispatch; " +
+		"if a small model cannot finish a subtask, shrink the task"
+	got := cli.ExportRenderFeedbackBody(cli.ExportFeedbackFields{
+		Situation: "orchestrating multi-step work as the main LLM under context pressure",
+		Action:    action,
+	})
+	g.Expect(got).To(Equal(
+		"Lesson learned: when orchestrating multi-step work as the main LLM under context pressure, " +
+			action + ".\n" +
+			"\n",
+	))
+}
+
+func Test792b6c4a3_RenderBody_Runbook(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	got := cli.ExportRenderRunbookBody(cli.ExportRunbookFields{
+		Body: "1. Run the tests\n2. Tag the release\n3. Push the tag",
+	})
+	g.Expect(got).To(HavePrefix("1. Run the tests\n2. Tag the release\n3. Push the tag\n"))
+}
+
+// Test792b6c4a4_RenderFactBody_StripsLeadingWhenFromSituation is the fact-type variant of
+// the double-"when" bug guard.
+func Test792b6c4a4_RenderFactBody_StripsLeadingWhenFromSituation(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	got := cli.ExportRenderFactBody(cli.ExportFactFields{
+		Situation: "When reasoning about agent coordination",
+		Subject:   "subagent dispatch",
+		Predicate: "is fundamentally",
+		Object:    "a verification problem",
+	})
+	g.Expect(got).
+		To(HavePrefix("Information learned: when in reasoning about agent coordination, " +
+			"subagent dispatch is fundamentally a verification problem."))
+	g.Expect(got).NotTo(ContainSubstring("when in When"))
+}
+
+// Test792b6c4a4_RenderFeedbackBody_StripsLeadingWhenFromSituation guards against the
+// double-"when" bug where the body template prepended "when " to a situation
+// that already started with "When" — producing "Lesson learned: when When ...".
+func Test792b6c4a4_RenderFeedbackBody_StripsLeadingWhenFromSituation(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	got := cli.ExportRenderFeedbackBody(cli.ExportFeedbackFields{
+		Situation: "When writing concurrent Go code",
+		Action:    "check ctx.Done()",
+	})
+	g.Expect(got).
+		To(HavePrefix("Lesson learned: when writing concurrent Go code, check ctx.Done()."))
+	g.Expect(got).NotTo(ContainSubstring("when When"))
+}
+
 // TestApplyVocabAssignmentAfterLearn_TriggerFires drives applyVocabAssignmentAfterLearn
 // with a vault at the growth threshold and asserts the trigger flag is persisted.
 // ListMD is set but LoadTermVectors is nil — the trigger check must still run.
@@ -395,419 +864,6 @@ func TestLearnFeedback_Tags_WrittenToFrontmatter(t *testing.T) {
 	g.Expect(string(written)).To(ContainSubstring("outcome/fail"))
 }
 
-func TestLearnPath_Permanent(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
-	got := cli.ExportLearnPath("/vault", "1a3", "subagent-driven-recovery", when)
-	g.Expect(got).To(Equal("/vault/1a3.2026-05-09.subagent-driven-recovery.md"))
-}
-
-// TestMarshalFrontmatter_WrapsValidValue verifies the helper produces the
-// expected "---"-delimited block. Error returns are unreachable for the
-// typed-string struct callers used in production, so only the happy path is
-// covered here.
-func TestMarshalFrontmatter_WrapsValidValue(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	got := cli.ExportMarshalFrontmatter(map[string]string{"k": "v"})
-	g.Expect(got).To(Equal("---\nk: v\n---\n\n"))
-}
-
-func TestRenderBody_Fact(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	got := cli.ExportRenderFactBody(cli.ExportFactFields{
-		Situation: "reasoning about agent coordination",
-		Subject:   "subagent dispatch",
-		Predicate: "is fundamentally",
-		Object:    "a verification problem dressed as coordination",
-	})
-	g.Expect(got).To(Equal(
-		"Information learned: when in reasoning about agent coordination, " +
-			"subagent dispatch is fundamentally a verification problem dressed as coordination.\n" +
-			"\n"))
-}
-
-func TestRenderBody_Feedback(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	action := "set up a task list with self-contained briefs and dispatch; " +
-		"if a small model cannot finish a subtask, shrink the task"
-	got := cli.ExportRenderFeedbackBody(cli.ExportFeedbackFields{
-		Situation: "orchestrating multi-step work as the main LLM under context pressure",
-		Action:    action,
-	})
-	g.Expect(got).To(Equal(
-		"Lesson learned: when orchestrating multi-step work as the main LLM under context pressure, " +
-			action + ".\n" +
-			"\n",
-	))
-}
-
-func TestRenderBody_Runbook(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	got := cli.ExportRenderRunbookBody(cli.ExportRunbookFields{
-		Body: "1. Run the tests\n2. Tag the release\n3. Push the tag",
-	})
-	g.Expect(got).To(HavePrefix("1. Run the tests\n2. Tag the release\n3. Push the tag\n"))
-}
-
-// TestRenderFactBody_StripsLeadingWhenFromSituation is the fact-type variant of
-// the double-"when" bug guard.
-func TestRenderFactBody_StripsLeadingWhenFromSituation(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	got := cli.ExportRenderFactBody(cli.ExportFactFields{
-		Situation: "When reasoning about agent coordination",
-		Subject:   "subagent dispatch",
-		Predicate: "is fundamentally",
-		Object:    "a verification problem",
-	})
-	g.Expect(got).
-		To(HavePrefix("Information learned: when in reasoning about agent coordination, " +
-			"subagent dispatch is fundamentally a verification problem."))
-	g.Expect(got).NotTo(ContainSubstring("when in When"))
-}
-
-func TestRenderFactFrontmatter_EmitsProjectAndIssueBelowSource(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	when := time.Date(2026, time.May, 26, 0, 0, 0, 0, time.UTC)
-	fields := cli.ExportFactFields{
-		Situation: "s", Subject: "subj", Predicate: "pred", Object: "obj",
-		Luhmann: "1", Source: "src",
-		Project: "engram", Issue: "636",
-	}
-	got := cli.ExportRenderFactFrontmatter(fields, when)
-	g.Expect(got).To(ContainSubstring("source: src\n"))
-	g.Expect(got).To(ContainSubstring("project: engram\n"))
-	g.Expect(got).To(ContainSubstring("issue: \"636\"\n"))
-
-	srcIdx := strings.Index(got, "source:")
-	projIdx := strings.Index(got, "project:")
-	issueIdx := strings.Index(got, "issue:")
-
-	g.Expect(srcIdx).To(BeNumerically("<", projIdx))
-	g.Expect(projIdx).To(BeNumerically("<", issueIdx))
-}
-
-func TestRenderFactFrontmatter_OmitsProjectAndIssueWhenEmpty(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	when := time.Date(2026, time.May, 26, 0, 0, 0, 0, time.UTC)
-	fields := cli.ExportFactFields{
-		Situation: "s", Subject: "subj", Predicate: "pred", Object: "obj",
-		Luhmann: "1", Source: "src",
-	}
-	got := cli.ExportRenderFactFrontmatter(fields, when)
-	g.Expect(got).NotTo(ContainSubstring("project:"))
-	g.Expect(got).NotTo(ContainSubstring("issue:"))
-}
-
-// TestRenderFactFrontmatter_SafelyEncodesTrickyValues mirrors the feedback
-// safety check for the fact frontmatter.
-func TestRenderFactFrontmatter_SafelyEncodesTrickyValues(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
-	fields := cli.ExportFactFields{
-		Situation: "context: tricky",
-		Subject:   "- subj",
-		Predicate: "is\nmultiline",
-		Object:    "* obj",
-		Luhmann:   "11",
-		Source:    "src",
-	}
-	got := cli.ExportRenderFactFrontmatter(fields, when)
-	parsed := parseFrontmatter(t, got)
-	g.Expect(parsed["situation"]).To(Equal(fields.Situation))
-	g.Expect(parsed["subject"]).To(Equal(fields.Subject))
-	g.Expect(parsed["predicate"]).To(Equal(fields.Predicate))
-	g.Expect(parsed["object"]).To(Equal(fields.Object))
-}
-
-// TestRenderFactFrontmatter_TagsRoundtripFidelity is a property test: any tag
-// list drawn from the valid grammar passes validateTags AND survives the
-// render→parse YAML roundtrip identically (order and values). Mirrors
-// TestRenderFeedbackFrontmatter_RoundtripFidelity.
-func TestRenderFactFrontmatter_TagsRoundtripFidelity(t *testing.T) {
-	t.Parallel()
-	rapid.Check(t, func(rt *rapid.T) {
-		tagGen := rapid.StringMatching(`[a-z0-9-]{1,12}(/[a-z0-9-]{1,12})?`)
-		tags := rapid.SliceOfN(tagGen, 1, 4).Draw(rt, "tags")
-
-		if err := cli.ExportValidateTags(tags); err != nil {
-			rt.Fatalf("grammar-valid tags rejected: %v", err)
-		}
-
-		fields := cli.ExportFactFields{
-			Situation: "s", Subject: "a", Predicate: "b", Object: "c",
-			Luhmann: "1", Source: "src", Tags: tags,
-		}
-		when := time.Date(2026, time.July, 10, 0, 0, 0, 0, time.UTC)
-		got := cli.ExportRenderFactFrontmatter(fields, when)
-
-		const delim = "---\n"
-
-		body := strings.TrimPrefix(got, delim)
-		end := strings.Index(body, "\n"+delim)
-
-		if end < 0 {
-			rt.Fatalf("no closing delimiter in %q", got)
-		}
-
-		var doc struct {
-			Tags []string `yaml:"tags"`
-		}
-
-		if err := yaml.Unmarshal([]byte(body[:end+1]), &doc); err != nil {
-			rt.Fatalf("unmarshal %q: %v", body[:end+1], err)
-		}
-
-		if !slices.Equal(doc.Tags, tags) {
-			rt.Fatalf("tags: got %v want %v\nfull:\n%s", doc.Tags, tags, got)
-		}
-	})
-}
-
-// TestRenderFeedbackBody_StripsLeadingWhenFromSituation guards against the
-// double-"when" bug where the body template prepended "when " to a situation
-// that already started with "When" — producing "Lesson learned: when When ...".
-func TestRenderFeedbackBody_StripsLeadingWhenFromSituation(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	got := cli.ExportRenderFeedbackBody(cli.ExportFeedbackFields{
-		Situation: "When writing concurrent Go code",
-		Action:    "check ctx.Done()",
-	})
-	g.Expect(got).
-		To(HavePrefix("Lesson learned: when writing concurrent Go code, check ctx.Done()."))
-	g.Expect(got).NotTo(ContainSubstring("when When"))
-}
-
-func TestRenderFeedbackFrontmatter_EmitsProjectAndIssueBelowSource(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	when := time.Date(2026, time.May, 26, 0, 0, 0, 0, time.UTC)
-	fields := cli.ExportFeedbackFields{
-		Situation: "s", Behavior: "b", Impact: "i", Action: "a",
-		Luhmann: "1", Source: "src",
-		Project: "engram", Issue: "636",
-	}
-	got := cli.ExportRenderFeedbackFrontmatter(fields, when)
-	g.Expect(got).To(ContainSubstring("project: engram\n"))
-	g.Expect(got).To(ContainSubstring("issue: \"636\"\n"))
-
-	srcIdx := strings.Index(got, "source:")
-	projIdx := strings.Index(got, "project:")
-	g.Expect(srcIdx).To(BeNumerically("<", projIdx))
-}
-
-// TestRenderFeedbackFrontmatter_LuhmannIsQuoted guards against yaml.v3's
-// default behavior of emitting alphanumeric scalars unquoted. The vault
-// convention is luhmann: "<id>" (double-quoted) so reads stay consistent
-// across hand-written, migrated, and engram-learn-written notes; the existing
-// pre-migration vault and the 218 migrated notes all quote this field.
-func TestRenderFeedbackFrontmatter_LuhmannIsQuoted(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
-	got := cli.ExportRenderFeedbackFrontmatter(cli.ExportFeedbackFields{
-		Situation: "x", Behavior: "x", Impact: "x", Action: "x",
-		Luhmann: "9aa", Source: "src",
-	}, when)
-	g.Expect(got).To(ContainSubstring(`luhmann: "9aa"`))
-}
-
-func TestRenderFeedbackFrontmatter_OmitsProjectAndIssueWhenEmpty(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	when := time.Date(2026, time.May, 26, 0, 0, 0, 0, time.UTC)
-	fields := cli.ExportFeedbackFields{
-		Situation: "s", Behavior: "b", Impact: "i", Action: "a",
-		Luhmann: "1", Source: "src",
-	}
-	got := cli.ExportRenderFeedbackFrontmatter(fields, when)
-	g.Expect(got).NotTo(ContainSubstring("project:"))
-	g.Expect(got).NotTo(ContainSubstring("issue:"))
-}
-
-// TestRenderFeedbackFrontmatter_RoundtripFidelity is a property test: for any
-// printable string values, the rendered frontmatter parses back to the same
-// values. This is the invariant the YAML library buys us — verify it holds
-// across the input space, not just hand-picked examples.
-func TestRenderFeedbackFrontmatter_RoundtripFidelity(t *testing.T) {
-	t.Parallel()
-	rapid.Check(t, func(rt *rapid.T) {
-		// Restricted to printable ASCII plus newline. Tab is excluded because
-		// yaml.v3's block-scalar emitter and parser disagree about indented
-		// tabs; CLI flag values don't carry tabs in practice, so this is not
-		// a meaningful gap for engram learn.
-		gen := rapid.StringMatching(`[ -~\n]{0,40}`)
-		fields := cli.ExportFeedbackFields{
-			Situation: gen.Draw(rt, "situation"),
-			Behavior:  gen.Draw(rt, "behavior"),
-			Impact:    gen.Draw(rt, "impact"),
-			Action:    gen.Draw(rt, "action"),
-			Luhmann:   rapid.StringMatching(`[0-9][0-9a-z]{0,3}`).Draw(rt, "luhmann"),
-			Source:    gen.Draw(rt, "source"),
-		}
-		when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
-		got := cli.ExportRenderFeedbackFrontmatter(fields, when)
-
-		// Use Unmarshal directly to surface decode errors as property failures.
-		const delim = "---\n"
-
-		body := strings.TrimPrefix(got, delim)
-		end := strings.Index(body, "\n"+delim)
-
-		if end < 0 {
-			rt.Fatalf("no closing delimiter in %q", got)
-		}
-
-		parsed := map[string]string{}
-
-		if err := yaml.Unmarshal([]byte(body[:end+1]), &parsed); err != nil {
-			rt.Fatalf("unmarshal %q: %v", body[:end+1], err)
-		}
-
-		for key, want := range map[string]string{
-			"situation": fields.Situation, "behavior": fields.Behavior,
-			"impact": fields.Impact, "action": fields.Action,
-			"luhmann": fields.Luhmann, "source": fields.Source,
-		} {
-			if parsed[key] != want {
-				rt.Fatalf("%s: got %q want %q\nfull:\n%s", key, parsed[key], want, got)
-			}
-		}
-	})
-}
-
-// TestRenderFeedbackFrontmatter_SafelyEncodesTrickyValues verifies that values
-// containing YAML-significant characters (newlines, colons, leading dashes,
-// asterisks) survive a roundtrip — the original bug was that raw string
-// concatenation let a multi-line Behavior end the frontmatter mid-document.
-func TestRenderFeedbackFrontmatter_SafelyEncodesTrickyValues(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
-	fields := cli.ExportFeedbackFields{
-		Situation: "writing tests: a guide",
-		Behavior:  "first line\nsecond line",
-		Impact:    "- leading dash list marker",
-		Action:    "* alias-looking marker",
-		Luhmann:   "11",
-		Source:    "src: with colon",
-	}
-	got := cli.ExportRenderFeedbackFrontmatter(fields, when)
-	parsed := parseFrontmatter(t, got)
-	g.Expect(parsed["situation"]).To(Equal(fields.Situation))
-	g.Expect(parsed["behavior"]).To(Equal(fields.Behavior))
-	g.Expect(parsed["impact"]).To(Equal(fields.Impact))
-	g.Expect(parsed["action"]).To(Equal(fields.Action))
-	g.Expect(parsed["luhmann"]).To(Equal(fields.Luhmann))
-	g.Expect(parsed["source"]).To(Equal(fields.Source))
-}
-
-func TestRenderFrontmatter_Fact(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
-	got := cli.ExportRenderFactFrontmatter(cli.ExportFactFields{
-		Situation: "reasoning about agent coordination",
-		Subject:   "subagent dispatch",
-		Predicate: "is fundamentally",
-		Object:    "a verification problem dressed as coordination",
-		Luhmann:   "11",
-		Source:    "session log bar, 2026-05-09 13:00 UTC",
-	}, when)
-	parsed := parseFrontmatter(t, got)
-	g.Expect(parsed["type"]).To(Equal("fact"))
-	g.Expect(parsed["subject"]).To(Equal("subagent dispatch"))
-	g.Expect(parsed["luhmann"]).To(Equal("11"))
-	g.Expect(parsed["created"]).To(Equal("2026-05-09"))
-}
-
-func TestRenderFrontmatter_Feedback(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
-	got := cli.ExportRenderFeedbackFrontmatter(cli.ExportFeedbackFields{
-		Situation: "writing concurrent Go code with context",
-		Behavior:  "ignoring context cancellation",
-		Impact:    "leaks goroutines on shutdown",
-		Action:    "always check ctx.Done() in select loops",
-		Luhmann:   "9z",
-		Source:    "session log foo, 2026-05-09 12:00 UTC",
-	}, when)
-	parsed := parseFrontmatter(t, got)
-	g.Expect(parsed).To(Equal(map[string]string{
-		"type":      "feedback",
-		"situation": "writing concurrent Go code with context",
-		"behavior":  "ignoring context cancellation",
-		"impact":    "leaks goroutines on shutdown",
-		"action":    "always check ctx.Done() in select loops",
-		"luhmann":   "9z",
-		"created":   "2026-05-09",
-		"source":    "session log foo, 2026-05-09 12:00 UTC",
-	}))
-}
-
-func TestRenderFrontmatter_Runbook(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
-	got := cli.ExportRenderRunbookFrontmatter(cli.ExportRunbookFields{
-		Situation: "releasing a new Go module version",
-		DoneWhen:  "the tag is pushed and the changelog is updated",
-		Luhmann:   "7a",
-		Source:    "session log foo, 2026-05-09 12:00 UTC",
-	}, when)
-	parsed := parseFrontmatter(t, got)
-	g.Expect(parsed).To(Equal(map[string]string{
-		"type":      "runbook",
-		"situation": "releasing a new Go module version",
-		"done_when": "the tag is pushed and the changelog is updated",
-		"luhmann":   "7a",
-		"created":   "2026-05-09",
-		"source":    "session log foo, 2026-05-09 12:00 UTC",
-	}))
-}
-
-// TestRenderRunbookFrontmatter_IncludesRedFlagsInOrder guards the populated
-// case: red_flags must render as a YAML list preserving entry order
-// (note-writing 792a3d1a, "Red flags are kept in order").
-func TestRenderRunbookFrontmatter_IncludesRedFlagsInOrder(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
-	got := cli.ExportRenderRunbookFrontmatter(cli.ExportRunbookFields{
-		Situation: "rewriting git history",
-		DoneWhen:  "the backup branch still has every original commit",
-		Luhmann:   "7a",
-		Source:    "session log foo, 2026-05-09 12:00 UTC",
-		RedFlags:  []string{"filter-branch on all refs sweeps the backup branch", "force-push without --force-with-lease"},
-	}, when)
-
-	const delim = "---\n"
-
-	body := strings.TrimPrefix(got, delim)
-	end := strings.Index(body, "\n"+delim)
-	g.Expect(end).To(BeNumerically(">=", 0), "missing closing ---")
-
-	var doc struct {
-		RedFlags []string `yaml:"red_flags"`
-	}
-
-	g.Expect(yaml.Unmarshal([]byte(body[:end+1]), &doc)).To(Succeed())
-	g.Expect(doc.RedFlags).To(Equal([]string{
-		"filter-branch on all refs sweeps the backup branch",
-		"force-push without --force-with-lease",
-	}))
-}
-
 // TestRenderRunbookFrontmatter_IncludesSkillHashWhenSet guards the populated
 // case: skill_hash renders as a plain scalar when a caller sets it on
 // runbookFields — only future registration code ever does this, never
@@ -850,22 +906,6 @@ func TestRenderRunbookFrontmatter_IncludesSkillKeyAndSourceWhenSet(t *testing.T)
 	g.Expect(got).To(ContainSubstring("skill_hash: deadbeef\nskill_key: superpowers:brainstorming\nskill_source: "))
 }
 
-// TestRenderRunbookFrontmatter_OmitsRedFlagsWhenAbsent guards the no-flag
-// case: red_flags must not appear at all when the caller supplies none
-// (note-writing 792a3d1c, "Neither flag means neither field").
-func TestRenderRunbookFrontmatter_OmitsRedFlagsWhenAbsent(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
-	got := cli.ExportRenderRunbookFrontmatter(cli.ExportRunbookFields{
-		Situation: "releasing a new Go module version",
-		DoneWhen:  "the tag is pushed and the changelog is updated",
-		Luhmann:   "7a",
-		Source:    "session log foo, 2026-05-09 12:00 UTC",
-	}, when)
-	g.Expect(got).NotTo(ContainSubstring("red_flags"))
-}
-
 // TestRenderRunbookFrontmatter_OmitsSkillHashWhenAbsent guards the no-hash
 // case: skill_hash must not appear at all when the caller supplies none — a
 // normal `engram learn runbook` capture never writes it.
@@ -897,46 +937,6 @@ func TestRenderRunbookFrontmatter_OmitsSkillKeyAndSourceWhenAbsent(t *testing.T)
 	}, when)
 	g.Expect(got).NotTo(ContainSubstring("skill_key"))
 	g.Expect(got).NotTo(ContainSubstring("skill_source"))
-}
-
-// TestRenderRunbookFrontmatter_RedFlagsRoundtripFidelity is a property test:
-// any non-empty red_flags list survives the render->parse YAML roundtrip
-// identically (order and values) — mirrors
-// TestRenderFactFrontmatter_TagsRoundtripFidelity.
-func TestRenderRunbookFrontmatter_RedFlagsRoundtripFidelity(t *testing.T) {
-	t.Parallel()
-	rapid.Check(t, func(rt *rapid.T) {
-		flagGen := rapid.StringMatching(`[a-zA-Z0-9 _.'-]{1,40}`)
-		redFlags := rapid.SliceOfN(flagGen, 1, 4).Draw(rt, "redFlags")
-
-		fields := cli.ExportRunbookFields{
-			Situation: "s", DoneWhen: "d",
-			Luhmann: "1", Source: "src", RedFlags: redFlags,
-		}
-		when := time.Date(2026, time.July, 10, 0, 0, 0, 0, time.UTC)
-		got := cli.ExportRenderRunbookFrontmatter(fields, when)
-
-		const delim = "---\n"
-
-		body := strings.TrimPrefix(got, delim)
-		end := strings.Index(body, "\n"+delim)
-
-		if end < 0 {
-			rt.Fatalf("no closing delimiter in %q", got)
-		}
-
-		var doc struct {
-			RedFlags []string `yaml:"red_flags"`
-		}
-
-		if err := yaml.Unmarshal([]byte(body[:end+1]), &doc); err != nil {
-			rt.Fatalf("unmarshal %q: %v", body[:end+1], err)
-		}
-
-		if !slices.Equal(doc.RedFlags, redFlags) {
-			rt.Fatalf("red_flags: got %v want %v\nfull:\n%s", doc.RedFlags, redFlags, got)
-		}
-	})
 }
 
 // TestRenderRunbookFrontmatter_SkillHashRoundtripFidelity is a property test:
