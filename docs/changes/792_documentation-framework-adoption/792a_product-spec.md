@@ -3333,9 +3333,9 @@ Scenario: 792a7r1a Later chunks become snippets
   Then the first chunk keeps its content, the other two carry snippets, and chunks_snippeted is 2
 
 Scenario: 792a7r1b A long chunk is cut with an ellipsis
-  Given a chunk item of 300 characters beyond the budget
-  When the user runs engram query with a content budget of 0 chunks kept in full
-  Then its content is 160 characters ending in …
+  Given a payload whose second chunk item is 300 characters long
+  When the user runs engram query with a content budget of 1
+  Then the second chunk's content is 160 characters ending in …
 
 Scenario: 792a7r1c Notes are never reduced
   Given a payload with a note and chunks beyond the budget
@@ -3417,6 +3417,8 @@ Requirement: [792a7u Project filter](#792a7u-project-filter) `engram query --pro
 `project:` line is not the slug, and each matched note without a readable frontmatter, and MUST NOT
 take a mention of the slug in a note's body as a match. It MUST leave every other item, and the
 clusters, unchanged, and without `--project` it MUST drop nothing.
+
+Rationale: the filter was written for the matched notes before the explore half and the superseding notes existed, and it was never extended to them. Whether it should be is open (#804).
 
 #### 792a7u1 UAT Scenarios
 
@@ -3518,8 +3520,8 @@ Scenario: 792a7w1d A trigger hit is truncated the same way
 Requirement: [792a7x Reading one note](#792a7x-reading-one-note) `engram show <ref>` MUST print the content of the note the ref names,
 frontmatter and body exactly as the file holds them, with every `red_flags` entry and no omission marker, then a line
 `# outbound links (fetch with: engram show <basename>)` followed by the target of each wikilink in
-the note's text, each once in the order it first appears, with a trailing `.md` dropped and a
-`|display` part kept, one per line, or `(none)`. A link inside a fenced code block MUST NOT be
+the note's text, each once in the order it first appears, with a trailing `.md` dropped (unless the link has a
+`|display` part, which is kept as written, so `[[2.alpha.md|disp]]` is listed as `2.alpha.md|disp`), one per line, or `(none)`. A link inside a fenced code block MUST NOT be
 listed. The ref
 MUST be a full basename, a basename in `[[ ]]` with or without `|display`, a basename with a
 trailing `.md`, or a bare Luhmann ID, and MUST fail with `show: note not found: "<ref>"` when no

@@ -11640,9 +11640,9 @@ Scenario: 792a7r1a Later chunks become snippets
   Then the first chunk keeps its content, the other two carry snippets, and chunks_snippeted is 2
 
 Scenario: 792a7r1b A long chunk is cut with an ellipsis
-  Given a chunk item of 300 characters beyond the budget
-  When the user runs engram query with a content budget of 0 chunks kept in full
-  Then its content is 160 characters ending in …
+  Given a payload whose second chunk item is 300 characters long
+  When the user runs engram query with a content budget of 1
+  Then the second chunk's content is 160 characters ending in …
 
 Scenario: 792a7r1c Notes are never reduced
   Given a payload with a note and chunks beyond the budget
