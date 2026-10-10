@@ -16,14 +16,13 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-func TestRunReparentLuhmann_ApplyContinuationRenamesAndRewritesBacklinks(t *testing.T) {
+func Test792b27c10a1_RunReparentLuhmann_DryRunPreviewsWithoutWriting(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
 	files, names := twoRelatedTopLevelNotesFixture()
 
-	// Note 20 links to note 12 — the rename must chase this reference.
 	referencer := "20.2026-01-03.unrelated-note.md"
 	files["/vault/"+referencer] = []byte(
 		"---\ntype: fact\nluhmann: \"20\"\ncreated: 2026-01-03\n---\n\nsee [[12.2026-01-02.second-note]] also.\n",
@@ -36,29 +35,45 @@ func TestRunReparentLuhmann_ApplyContinuationRenamesAndRewritesBacklinks(t *test
 		fingerprint + `"}`
 	files["/answers.json"] = []byte(answers)
 
+	before := make(map[string][]byte, len(files))
+	maps.Copy(before, files)
+
 	var stdout bytes.Buffer
 
-	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
+	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", true, deps, &stdout)
 	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(renames).To(BeEmpty())
 
-	g.Expect(renames).To(HaveKey("/vault/12.2026-01-02.second-note.md"))
-	newPath := renames["/vault/12.2026-01-02.second-note.md"]
-	g.Expect(newPath).To(Equal("/vault/7a.2026-01-02.second-note.md"))
+	for k, v := range before {
+		g.Expect(files[k]).To(Equal(v), "dry-run must not modify any file: %s", k)
+	}
 
-	updatedReferencer, ok := files["/vault/"+referencer]
-	g.Expect(ok).To(BeTrue())
-	g.Expect(string(updatedReferencer)).To(ContainSubstring("[[7a.2026-01-02.second-note]]"))
-	g.Expect(string(updatedReferencer)).NotTo(ContainSubstring("[[12.2026-01-02.second-note]]"))
-
-	renamedContent, ok := files[newPath]
-	g.Expect(ok).To(BeTrue())
-	g.Expect(string(renamedContent)).To(ContainSubstring(`luhmann: "7a"`))
+	out := stdout.String()
+	g.Expect(out).To(ContainSubstring("12.2026-01-02.second-note"))
+	g.Expect(out).To(ContainSubstring("7a.2026-01-02.second-note"))
+	g.Expect(out).To(ContainSubstring(referencer))
 }
 
-// TestRunReparentLuhmann_ApplyDryRunSkipsPipeline covers design.md's
+func Test792b27c10a2_RunReparentLuhmann_DryRunWithoutAnswersRejected(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	files, names := twoRelatedTopLevelNotesFixture()
+	deps, renames := newReparentDeps(files, names)
+
+	var stdout bytes.Buffer
+
+	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "", true, deps, &stdout)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(renames).To(BeEmpty())
+	g.Expect(stdout.String()).To(BeEmpty())
+}
+
+// Test792b27c10a4_RunReparentLuhmann_ApplyDryRunSkipsPipeline covers design.md's
 // Non-Goal that --dry-run never touches the chunk index, even with a
 // non-empty rename map.
-func TestRunReparentLuhmann_ApplyDryRunSkipsPipeline(t *testing.T) {
+func Test792b27c10a4_RunReparentLuhmann_ApplyDryRunSkipsPipeline(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -82,289 +97,7 @@ func TestRunReparentLuhmann_ApplyDryRunSkipsPipeline(t *testing.T) {
 	}
 }
 
-// TestRunReparentLuhmann_ApplyPipelineFailureDoesNotRollbackRename covers
-// spec "Chunk-index pipeline failure does not roll back the rename": when
-// the rename+rewrite step succeeds but RunIngest subsequently fails (here,
-// the embedder errors), apply reports which stage failed, that the vault
-// rename is intact, and the manual-fallback commands — WITHOUT undoing the
-// already-applied rename.
-func TestRunReparentLuhmann_ApplyPipelineFailureDoesNotRollbackRename(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	files, names := twoRelatedTopLevelNotesFixture()
-	deps, renames := newReparentDeps(files, names)
-	fingerprint := reparentDeriveFingerprint(t, deps)
-
-	// Force the ingest stage to fail.
-	deps.Ingest.Embedder = reparentFailingEmbedder{}
-
-	answers := `{"reparenting":[{"note":"12","position":"continuation","target":"7"}],"fingerprint":"` +
-		fingerprint + `"}`
-	files["/answers.json"] = []byte(answers)
-
-	var stdout bytes.Buffer
-
-	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
-	g.Expect(err).To(HaveOccurred())
-
-	g.Expect(renames).To(HaveKey("/vault/12.2026-01-02.second-note.md"), "the rename must still have happened")
-	g.Expect(files).NotTo(HaveKey("/vault/12.2026-01-02.second-note.md"), "old path must be gone (renamed, not reverted)")
-
-	out := stdout.String()
-	g.Expect(out).To(ContainSubstring("re-indexing renamed notes failed"))
-	g.Expect(out).To(ContainSubstring("vault rename above is intact and authoritative"))
-	g.Expect(out).To(ContainSubstring("engram ingest --auto"))
-	g.Expect(out).To(ContainSubstring("engram prune"))
-}
-
-// TestRunReparentLuhmann_ApplyPipelineReindexesAndDetachesStaleEntry covers
-// spec "Apply phase consumes agent-authored disposition answers" scenario
-// "Continuation answer renames, rewrites, and reconciles the chunk index":
-// a successful apply, on its own, re-indexes the renamed note's new path
-// AND detaches the old path's now-stale chunk-manifest entry — no separate
-// `engram ingest --auto` / `engram prune` call from the test.
-func TestRunReparentLuhmann_ApplyPipelineReindexesAndDetachesStaleEntry(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	files, names := twoRelatedTopLevelNotesFixture()
-	oldPath := "/vault/12.2026-01-02.second-note.md"
-
-	// Simulate the vault having already been ingested at the old path
-	// before this reparent run.
-	files["/chunks/manifest.json"] = []byte(
-		`{"` + oldPath + `":{"mtime_unix_nano":1,"size":10,"file_hash":"sha256:old"}}`,
-	)
-
-	deps, renames := newReparentDeps(files, names)
-	fingerprint := reparentDeriveFingerprint(t, deps)
-
-	answers := `{"reparenting":[{"note":"12","position":"continuation","target":"7"}],"fingerprint":"` +
-		fingerprint + `"}`
-	files["/answers.json"] = []byte(answers)
-
-	var stdout bytes.Buffer
-
-	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	newPath, renamed := renames[oldPath]
-	g.Expect(renamed).To(BeTrue())
-
-	var manifest map[string]map[string]any
-
-	decodeErr := json.Unmarshal(files["/chunks/manifest.json"], &manifest)
-	g.Expect(decodeErr).NotTo(HaveOccurred())
-
-	g.Expect(manifest).NotTo(HaveKey(oldPath), "old path's stale manifest entry must be detached by RunPrune")
-	g.Expect(manifest).To(HaveKey(newPath), "new path must be indexed by RunIngest")
-}
-
-// TestRunReparentLuhmann_ApplyRebuildsReferrerSidecars covers the reparent
-// half of "embed status clean after a rename": a referrer whose
-// [[old-basename]] link apply rewrote must have its .vec.json sidecar rebuilt
-// so its content_hash matches the rewritten body.
-func TestRunReparentLuhmann_ApplyRebuildsReferrerSidecars(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	files, names := twoRelatedTopLevelNotesFixture()
-
-	referencer := "/vault/20.2026-01-03.unrelated-note.md"
-	files[referencer] = []byte(
-		"---\ntype: fact\nluhmann: \"20\"\ncreated: 2026-01-03\n---\n\nsee [[12.2026-01-02.second-note]] also.\n",
-	)
-
-	deps, _ := newReparentDeps(files, names)
-	fingerprint := reparentDeriveFingerprint(t, deps)
-
-	answers := `{"reparenting":[{"note":"12","position":"continuation","target":"7"}],"fingerprint":"` +
-		fingerprint + `"}`
-	files["/answers.json"] = []byte(answers)
-
-	var stdout bytes.Buffer
-
-	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	sidecarData, ok := files[embed.SidecarPath(referencer)]
-	g.Expect(ok).To(BeTrue(), "the rewritten referrer's sidecar must be rebuilt")
-
-	sidecar, unmarshalErr := embed.UnmarshalSidecar(sidecarData)
-	g.Expect(unmarshalErr).NotTo(HaveOccurred())
-	g.Expect(sidecar.ContentHash).To(Equal(embed.ContentHash(files[referencer])))
-}
-
-// TestRunReparentLuhmann_ApplyReferrerSidecarRebuildFailurePropagates covers
-// a referrer sidecar rebuild failing after the rename: the error surfaces
-// (wrapping the embedder's) and the chunk pipeline is not run.
-func TestRunReparentLuhmann_ApplyReferrerSidecarRebuildFailurePropagates(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	files, names := twoRelatedTopLevelNotesFixture()
-	files["/vault/20.2026-01-03.unrelated-note.md"] = []byte(
-		"---\ntype: fact\nluhmann: \"20\"\ncreated: 2026-01-03\n---\n\nsee [[12.2026-01-02.second-note]] also.\n",
-	)
-
-	deps, _ := newReparentDeps(files, names)
-	deps.Embedder = reparentFailingEmbedder{}
-	fingerprint := reparentDeriveFingerprint(t, deps)
-
-	files["/answers.json"] = []byte(`{"reparenting":[{"note":"12","position":"continuation","target":"7"}],` +
-		`"fingerprint":"` + fingerprint + `"}`)
-
-	var stdout bytes.Buffer
-
-	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
-	g.Expect(err).To(MatchError(errReparentEmbedFailed))
-	g.Expect(stdout.String()).NotTo(ContainSubstring("renamed"))
-}
-
-// TestRunReparentLuhmann_ApplyReportsFurtherCandidatesRemain covers spec
-// "Apply reports whether further candidates remain": after a successful
-// pipeline-complete apply, when the vault's now-current state still has an
-// above-floor candidate pair, apply's output reports the count and the
-// literal next command to loop — WITHOUT printing the full candidate
-// payload (that only happens on an actual derive run).
-func TestRunReparentLuhmann_ApplyReportsFurtherCandidatesRemain(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	// Three top-level notes: 7 and 12 are near-identical (an above-floor
-	// pair), 20 is unrelated. Answering only 20 as top leaves 7/12 as a
-	// still-unresolved candidate pair after this apply.
-	files, names := twoRelatedTopLevelNotesFixture()
-	deps, _ := newReparentDeps(files, names)
-	fingerprint := reparentDeriveFingerprint(t, deps)
-
-	answers := `{"reparenting":[{"note":"20","position":"top","target":"7"}],"fingerprint":"` + fingerprint + `"}`
-	files["/answers.json"] = []byte(answers)
-
-	var stdout bytes.Buffer
-
-	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	out := stdout.String()
-	g.Expect(out).To(ContainSubstring("further candidate"))
-	g.Expect(out).To(ContainSubstring("run `engram update --reparent-luhmann` again"))
-
-	var payload map[string]any
-	g.Expect(json.Unmarshal([]byte(out), &payload)).To(HaveOccurred(),
-		"the further-candidates report must not print the full candidate JSON payload")
-}
-
-// TestRunReparentLuhmann_ApplyReportsNoFurtherCandidates covers spec
-// scenario "No further candidates": once every above-floor pair has been
-// answered, apply reports the vault as fully evaluated.
-func TestRunReparentLuhmann_ApplyReportsNoFurtherCandidates(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	files, names := twoRelatedTopLevelNotesFixture()
-	deps, _ := newReparentDeps(files, names)
-	fingerprint := reparentDeriveFingerprint(t, deps)
-
-	answers := `{"reparenting":[` +
-		`{"note":"12","position":"continuation","target":"7"},` +
-		`{"note":"20","position":"top","target":"7"}` +
-		`],"fingerprint":"` + fingerprint + `"}`
-	files["/answers.json"] = []byte(answers)
-
-	var stdout bytes.Buffer
-
-	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(stdout.String()).To(ContainSubstring("no further candidates — vault fully evaluated"))
-}
-
-func TestRunReparentLuhmann_ApplyStaleAnswersRejected(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	files, names := twoRelatedTopLevelNotesFixture()
-	deps, renames := newReparentDeps(files, names)
-
-	before := make(map[string][]byte, len(files))
-	maps.Copy(before, files)
-
-	answers := `{"reparenting":[{"note":"12","position":"continuation","target":"7"}],"fingerprint":"stale-value"}`
-	files["/answers.json"] = []byte(answers)
-
-	var stdout bytes.Buffer
-
-	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
-	g.Expect(err).To(MatchError(ContainSubstring("stale")))
-	g.Expect(renames).To(BeEmpty())
-
-	for k, v := range before {
-		g.Expect(files[k]).To(Equal(v), "no file may be modified on a stale-answers rejection: %s", k)
-	}
-}
-
-func TestRunReparentLuhmann_ApplyTopAnswerIsNoop(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	files, names := twoRelatedTopLevelNotesFixture()
-	deps, renames := newReparentDeps(files, names)
-	fingerprint := reparentDeriveFingerprint(t, deps)
-
-	answers := `{"reparenting":[{"note":"12","position":"top","target":"7"}],"fingerprint":"` + fingerprint + `"}`
-	files["/answers.json"] = []byte(answers)
-
-	var stdout bytes.Buffer
-
-	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(renames).To(BeEmpty())
-	g.Expect(files).To(HaveKey("/vault/12.2026-01-02.second-note.md"), "the top-answered note keeps its filename")
-}
-
-// TestRunReparentLuhmann_ApplyZeroRenamesSkipsPipeline covers spec's
-// "Top answer is a no-op" scenario extended to the pipeline: an all-`top`
-// answers file renames nothing, so apply must not touch the chunk index at
-// all (no ingest, no prune) — nothing changed, nothing to reconcile.
-func TestRunReparentLuhmann_ApplyZeroRenamesSkipsPipeline(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	files, names := twoRelatedTopLevelNotesFixture()
-	deps, renames := newReparentDeps(files, names)
-	fingerprint := reparentDeriveFingerprint(t, deps)
-
-	answers := `{"reparenting":[{"note":"12","position":"top","target":"7"}],"fingerprint":"` + fingerprint + `"}`
-	files["/answers.json"] = []byte(answers)
-
-	before := make(map[string][]byte, len(files))
-	maps.Copy(before, files)
-
-	var stdout bytes.Buffer
-
-	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(renames).To(BeEmpty())
-
-	for k := range before {
-		if strings.HasPrefix(k, "/chunks/") {
-			_, stillPresent := files[k]
-			g.Expect(stillPresent).To(BeFalse(), "no chunk-index file may be created for a zero-rename apply: %s", k)
-		}
-	}
-}
-
-func TestRunReparentLuhmann_DeriveEmitsCandidates(t *testing.T) {
+func Test792b27c2a1_RunReparentLuhmann_DeriveEmitsCandidates(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -407,7 +140,31 @@ func TestRunReparentLuhmann_DeriveEmitsCandidates(t *testing.T) {
 	g.Expect(found).To(BeTrue(), "expected a 7→12 candidate pair, got %v", candidates)
 }
 
-// TestRunReparentLuhmann_DeriveInstructionNamesLearnBatchMode pins design D4
+func Test792b27c2a2_RunReparentLuhmann_DeriveNoCandidatesAboveFloor(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	noteA := "1.2026-01-01.alpha.md"
+	noteB := "2.2026-01-02.beta.md"
+
+	files := map[string][]byte{
+		"/vault/" + noteA: []byte("---\ntype: fact\nluhmann: \"1\"\ncreated: 2026-01-01\n---\n\nalpha body.\n"),
+		"/vault/" + noteB: []byte("---\ntype: fact\nluhmann: \"2\"\ncreated: 2026-01-02\n---\n\nbeta body.\n"),
+	}
+	files["/vault/1.2026-01-01.alpha.vec.json"] = reparentSidecar([]float32{1, 0, 0})
+	files["/vault/2.2026-01-02.beta.vec.json"] = reparentSidecar([]float32{0, 1, 0})
+
+	deps, _ := newReparentDeps(files, []string{noteA, noteB})
+
+	var stdout bytes.Buffer
+
+	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "", false, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(stdout.String()).To(ContainSubstring("no candidates found"))
+}
+
+// Test792b27c3a3_RunReparentLuhmann_DeriveInstructionNamesLearnBatchMode pins design D4
 // (#770): the derive payload's instruction defers to the learn skill's
 // batch mode instead of telling the answering pass to re-run apply itself.
 // It must name "learn" and "batch mode" as the disposition procedure, the
@@ -415,7 +172,7 @@ func TestRunReparentLuhmann_DeriveEmitsCandidates(t *testing.T) {
 // --dry-run-then-apply hand-back — and it must NOT say "then re-run", which
 // told the answering pass to invoke apply directly (update-reparent-luhmann-
 // batch spec, "Derive instruction routes to learn's batch mode").
-func TestRunReparentLuhmann_DeriveInstructionNamesLearnBatchMode(t *testing.T) {
+func Test792b27c3a3_RunReparentLuhmann_DeriveInstructionNamesLearnBatchMode(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -447,55 +204,12 @@ func TestRunReparentLuhmann_DeriveInstructionNamesLearnBatchMode(t *testing.T) {
 		"the answering pass must not be told to invoke apply itself")
 }
 
-func TestRunReparentLuhmann_DeriveNeverWrites(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	files, names := twoRelatedTopLevelNotesFixture()
-	before := make(map[string][]byte, len(files))
-	maps.Copy(before, files)
-
-	deps, renames := newReparentDeps(files, names)
-
-	var stdout bytes.Buffer
-
-	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "", false, deps, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(renames).To(BeEmpty())
-	g.Expect(files).To(HaveLen(len(before)), "derive must never write any file")
-}
-
-func TestRunReparentLuhmann_DeriveNoCandidatesAboveFloor(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	noteA := "1.2026-01-01.alpha.md"
-	noteB := "2.2026-01-02.beta.md"
-
-	files := map[string][]byte{
-		"/vault/" + noteA: []byte("---\ntype: fact\nluhmann: \"1\"\ncreated: 2026-01-01\n---\n\nalpha body.\n"),
-		"/vault/" + noteB: []byte("---\ntype: fact\nluhmann: \"2\"\ncreated: 2026-01-02\n---\n\nbeta body.\n"),
-	}
-	files["/vault/1.2026-01-01.alpha.vec.json"] = reparentSidecar([]float32{1, 0, 0})
-	files["/vault/2.2026-01-02.beta.vec.json"] = reparentSidecar([]float32{0, 1, 0})
-
-	deps, _ := newReparentDeps(files, []string{noteA, noteB})
-
-	var stdout bytes.Buffer
-
-	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "", false, deps, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(stdout.String()).To(ContainSubstring("no candidates found"))
-}
-
-// TestRunReparentLuhmann_DeriveOutputNamesNextCommand covers spec
+// Test792b27c3a4_RunReparentLuhmann_DeriveOutputNamesNextCommand covers spec
 // "Derive phase proposes candidates from existing embeddings": the derive
 // payload includes a literal, fillable `engram update --reparent-luhmann
 // --answers <path>` next-command line alongside the machine-parseable
 // candidate payload.
-func TestRunReparentLuhmann_DeriveOutputNamesNextCommand(t *testing.T) {
+func Test792b27c3a4_RunReparentLuhmann_DeriveOutputNamesNextCommand(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -517,13 +231,58 @@ func TestRunReparentLuhmann_DeriveOutputNamesNextCommand(t *testing.T) {
 	g.Expect(payload.NextCommand).To(ContainSubstring("engram update --reparent-luhmann --answers"))
 }
 
-func TestRunReparentLuhmann_DryRunPreviewsWithoutWriting(t *testing.T) {
+func Test792b27c3a5_RunReparentLuhmann_DeriveNeverWrites(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	files, names := twoRelatedTopLevelNotesFixture()
+	before := make(map[string][]byte, len(files))
+	maps.Copy(before, files)
+
+	deps, renames := newReparentDeps(files, names)
+
+	var stdout bytes.Buffer
+
+	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "", false, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(renames).To(BeEmpty())
+	g.Expect(files).To(HaveLen(len(before)), "derive must never write any file")
+}
+
+func Test792b27c4a3_RunReparentLuhmann_ApplyStaleAnswersRejected(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	files, names := twoRelatedTopLevelNotesFixture()
+	deps, renames := newReparentDeps(files, names)
+
+	before := make(map[string][]byte, len(files))
+	maps.Copy(before, files)
+
+	answers := `{"reparenting":[{"note":"12","position":"continuation","target":"7"}],"fingerprint":"stale-value"}`
+	files["/answers.json"] = []byte(answers)
+
+	var stdout bytes.Buffer
+
+	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
+	g.Expect(err).To(MatchError(ContainSubstring("stale")))
+	g.Expect(renames).To(BeEmpty())
+
+	for k, v := range before {
+		g.Expect(files[k]).To(Equal(v), "no file may be modified on a stale-answers rejection: %s", k)
+	}
+}
+
+func Test792b27c5a2_RunReparentLuhmann_ApplyContinuationRenamesAndRewritesBacklinks(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
 	files, names := twoRelatedTopLevelNotesFixture()
 
+	// Note 20 links to note 12 — the rename must chase this reference.
 	referencer := "20.2026-01-03.unrelated-note.md"
 	files["/vault/"+referencer] = []byte(
 		"---\ntype: fact\nluhmann: \"20\"\ncreated: 2026-01-03\n---\n\nsee [[12.2026-01-02.second-note]] also.\n",
@@ -536,39 +295,280 @@ func TestRunReparentLuhmann_DryRunPreviewsWithoutWriting(t *testing.T) {
 		fingerprint + `"}`
 	files["/answers.json"] = []byte(answers)
 
-	before := make(map[string][]byte, len(files))
-	maps.Copy(before, files)
-
 	var stdout bytes.Buffer
 
-	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", true, deps, &stdout)
+	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(renames).To(BeEmpty())
 
-	for k, v := range before {
-		g.Expect(files[k]).To(Equal(v), "dry-run must not modify any file: %s", k)
-	}
+	g.Expect(renames).To(HaveKey("/vault/12.2026-01-02.second-note.md"))
+	newPath := renames["/vault/12.2026-01-02.second-note.md"]
+	g.Expect(newPath).To(Equal("/vault/7a.2026-01-02.second-note.md"))
 
-	out := stdout.String()
-	g.Expect(out).To(ContainSubstring("12.2026-01-02.second-note"))
-	g.Expect(out).To(ContainSubstring("7a.2026-01-02.second-note"))
-	g.Expect(out).To(ContainSubstring(referencer))
+	updatedReferencer, ok := files["/vault/"+referencer]
+	g.Expect(ok).To(BeTrue())
+	g.Expect(string(updatedReferencer)).To(ContainSubstring("[[7a.2026-01-02.second-note]]"))
+	g.Expect(string(updatedReferencer)).NotTo(ContainSubstring("[[12.2026-01-02.second-note]]"))
+
+	renamedContent, ok := files[newPath]
+	g.Expect(ok).To(BeTrue())
+	g.Expect(string(renamedContent)).To(ContainSubstring(`luhmann: "7a"`))
 }
 
-func TestRunReparentLuhmann_DryRunWithoutAnswersRejected(t *testing.T) {
+func Test792b27c5a4_RunReparentLuhmann_ApplyTopAnswerIsNoop(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
 	files, names := twoRelatedTopLevelNotesFixture()
 	deps, renames := newReparentDeps(files, names)
+	fingerprint := reparentDeriveFingerprint(t, deps)
+
+	answers := `{"reparenting":[{"note":"12","position":"top","target":"7"}],"fingerprint":"` + fingerprint + `"}`
+	files["/answers.json"] = []byte(answers)
 
 	var stdout bytes.Buffer
 
-	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "", true, deps, &stdout)
-	g.Expect(err).To(HaveOccurred())
+	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(renames).To(BeEmpty())
-	g.Expect(stdout.String()).To(BeEmpty())
+	g.Expect(files).To(HaveKey("/vault/12.2026-01-02.second-note.md"), "the top-answered note keeps its filename")
+}
+
+// Test792b27c8a1_RunReparentLuhmann_ApplyRebuildsReferrerSidecars covers the reparent
+// half of "embed status clean after a rename": a referrer whose
+// [[old-basename]] link apply rewrote must have its .vec.json sidecar rebuilt
+// so its content_hash matches the rewritten body.
+func Test792b27c8a1_RunReparentLuhmann_ApplyRebuildsReferrerSidecars(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	files, names := twoRelatedTopLevelNotesFixture()
+
+	referencer := "/vault/20.2026-01-03.unrelated-note.md"
+	files[referencer] = []byte(
+		"---\ntype: fact\nluhmann: \"20\"\ncreated: 2026-01-03\n---\n\nsee [[12.2026-01-02.second-note]] also.\n",
+	)
+
+	deps, _ := newReparentDeps(files, names)
+	fingerprint := reparentDeriveFingerprint(t, deps)
+
+	answers := `{"reparenting":[{"note":"12","position":"continuation","target":"7"}],"fingerprint":"` +
+		fingerprint + `"}`
+	files["/answers.json"] = []byte(answers)
+
+	var stdout bytes.Buffer
+
+	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	sidecarData, ok := files[embed.SidecarPath(referencer)]
+	g.Expect(ok).To(BeTrue(), "the rewritten referrer's sidecar must be rebuilt")
+
+	sidecar, unmarshalErr := embed.UnmarshalSidecar(sidecarData)
+	g.Expect(unmarshalErr).NotTo(HaveOccurred())
+	g.Expect(sidecar.ContentHash).To(Equal(embed.ContentHash(files[referencer])))
+}
+
+// Test792b27c8a3_RunReparentLuhmann_ApplyReferrerSidecarRebuildFailurePropagates covers
+// a referrer sidecar rebuild failing after the rename: the error surfaces
+// (wrapping the embedder's) and the chunk pipeline is not run.
+func Test792b27c8a3_RunReparentLuhmann_ApplyReferrerSidecarRebuildFailurePropagates(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	files, names := twoRelatedTopLevelNotesFixture()
+	files["/vault/20.2026-01-03.unrelated-note.md"] = []byte(
+		"---\ntype: fact\nluhmann: \"20\"\ncreated: 2026-01-03\n---\n\nsee [[12.2026-01-02.second-note]] also.\n",
+	)
+
+	deps, _ := newReparentDeps(files, names)
+	deps.Embedder = reparentFailingEmbedder{}
+	fingerprint := reparentDeriveFingerprint(t, deps)
+
+	files["/answers.json"] = []byte(`{"reparenting":[{"note":"12","position":"continuation","target":"7"}],` +
+		`"fingerprint":"` + fingerprint + `"}`)
+
+	var stdout bytes.Buffer
+
+	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
+	g.Expect(err).To(MatchError(errReparentEmbedFailed))
+	g.Expect(stdout.String()).NotTo(ContainSubstring("renamed"))
+}
+
+// Test792b27c9a1_RunReparentLuhmann_ApplyPipelineReindexesAndDetachesStaleEntry covers
+// spec "Apply phase consumes agent-authored disposition answers" scenario
+// "Continuation answer renames, rewrites, and reconciles the chunk index":
+// a successful apply, on its own, re-indexes the renamed note's new path
+// AND detaches the old path's now-stale chunk-manifest entry — no separate
+// `engram ingest --auto` / `engram prune` call from the test.
+func Test792b27c9a1_RunReparentLuhmann_ApplyPipelineReindexesAndDetachesStaleEntry(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	files, names := twoRelatedTopLevelNotesFixture()
+	oldPath := "/vault/12.2026-01-02.second-note.md"
+
+	// Simulate the vault having already been ingested at the old path
+	// before this reparent run.
+	files["/chunks/manifest.json"] = []byte(
+		`{"` + oldPath + `":{"mtime_unix_nano":1,"size":10,"file_hash":"sha256:old"}}`,
+	)
+
+	deps, renames := newReparentDeps(files, names)
+	fingerprint := reparentDeriveFingerprint(t, deps)
+
+	answers := `{"reparenting":[{"note":"12","position":"continuation","target":"7"}],"fingerprint":"` +
+		fingerprint + `"}`
+	files["/answers.json"] = []byte(answers)
+
+	var stdout bytes.Buffer
+
+	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	newPath, renamed := renames[oldPath]
+	g.Expect(renamed).To(BeTrue())
+
+	var manifest map[string]map[string]any
+
+	decodeErr := json.Unmarshal(files["/chunks/manifest.json"], &manifest)
+	g.Expect(decodeErr).NotTo(HaveOccurred())
+
+	g.Expect(manifest).NotTo(HaveKey(oldPath), "old path's stale manifest entry must be detached by RunPrune")
+	g.Expect(manifest).To(HaveKey(newPath), "new path must be indexed by RunIngest")
+}
+
+// Test792b27c9a2_RunReparentLuhmann_ApplyPipelineFailureDoesNotRollbackRename covers
+// spec "Chunk-index pipeline failure does not roll back the rename": when
+// the rename+rewrite step succeeds but RunIngest subsequently fails (here,
+// the embedder errors), apply reports which stage failed, that the vault
+// rename is intact, and the manual-fallback commands — WITHOUT undoing the
+// already-applied rename.
+func Test792b27c9a2_RunReparentLuhmann_ApplyPipelineFailureDoesNotRollbackRename(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	files, names := twoRelatedTopLevelNotesFixture()
+	deps, renames := newReparentDeps(files, names)
+	fingerprint := reparentDeriveFingerprint(t, deps)
+
+	// Force the ingest stage to fail.
+	deps.Ingest.Embedder = reparentFailingEmbedder{}
+
+	answers := `{"reparenting":[{"note":"12","position":"continuation","target":"7"}],"fingerprint":"` +
+		fingerprint + `"}`
+	files["/answers.json"] = []byte(answers)
+
+	var stdout bytes.Buffer
+
+	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
+	g.Expect(err).To(HaveOccurred())
+
+	g.Expect(renames).To(HaveKey("/vault/12.2026-01-02.second-note.md"), "the rename must still have happened")
+	g.Expect(files).NotTo(HaveKey("/vault/12.2026-01-02.second-note.md"), "old path must be gone (renamed, not reverted)")
+
+	out := stdout.String()
+	g.Expect(out).To(ContainSubstring("re-indexing renamed notes failed"))
+	g.Expect(out).To(ContainSubstring("vault rename above is intact and authoritative"))
+	g.Expect(out).To(ContainSubstring("engram ingest --auto"))
+	g.Expect(out).To(ContainSubstring("engram prune"))
+}
+
+// Test792b27c9a4_RunReparentLuhmann_ApplyZeroRenamesSkipsPipeline covers spec's
+// "Top answer is a no-op" scenario extended to the pipeline: an all-`top`
+// answers file renames nothing, so apply must not touch the chunk index at
+// all (no ingest, no prune) — nothing changed, nothing to reconcile.
+func Test792b27c9a4_RunReparentLuhmann_ApplyZeroRenamesSkipsPipeline(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	files, names := twoRelatedTopLevelNotesFixture()
+	deps, renames := newReparentDeps(files, names)
+	fingerprint := reparentDeriveFingerprint(t, deps)
+
+	answers := `{"reparenting":[{"note":"12","position":"top","target":"7"}],"fingerprint":"` + fingerprint + `"}`
+	files["/answers.json"] = []byte(answers)
+
+	before := make(map[string][]byte, len(files))
+	maps.Copy(before, files)
+
+	var stdout bytes.Buffer
+
+	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(renames).To(BeEmpty())
+
+	for k := range before {
+		if strings.HasPrefix(k, "/chunks/") {
+			_, stillPresent := files[k]
+			g.Expect(stillPresent).To(BeFalse(), "no chunk-index file may be created for a zero-rename apply: %s", k)
+		}
+	}
+}
+
+// Test792b27c9a5_RunReparentLuhmann_ApplyReportsFurtherCandidatesRemain covers spec
+// "Apply reports whether further candidates remain": after a successful
+// pipeline-complete apply, when the vault's now-current state still has an
+// above-floor candidate pair, apply's output reports the count and the
+// literal next command to loop — WITHOUT printing the full candidate
+// payload (that only happens on an actual derive run).
+func Test792b27c9a5_RunReparentLuhmann_ApplyReportsFurtherCandidatesRemain(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// Three top-level notes: 7 and 12 are near-identical (an above-floor
+	// pair), 20 is unrelated. Answering only 20 as top leaves 7/12 as a
+	// still-unresolved candidate pair after this apply.
+	files, names := twoRelatedTopLevelNotesFixture()
+	deps, _ := newReparentDeps(files, names)
+	fingerprint := reparentDeriveFingerprint(t, deps)
+
+	answers := `{"reparenting":[{"note":"20","position":"top","target":"7"}],"fingerprint":"` + fingerprint + `"}`
+	files["/answers.json"] = []byte(answers)
+
+	var stdout bytes.Buffer
+
+	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	out := stdout.String()
+	g.Expect(out).To(ContainSubstring("further candidate"))
+	g.Expect(out).To(ContainSubstring("run `engram update --reparent-luhmann` again"))
+
+	var payload map[string]any
+	g.Expect(json.Unmarshal([]byte(out), &payload)).To(HaveOccurred(),
+		"the further-candidates report must not print the full candidate JSON payload")
+}
+
+// Test792b27c9a6_RunReparentLuhmann_ApplyReportsNoFurtherCandidates covers spec
+// scenario "No further candidates": once every above-floor pair has been
+// answered, apply reports the vault as fully evaluated.
+func Test792b27c9a6_RunReparentLuhmann_ApplyReportsNoFurtherCandidates(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	files, names := twoRelatedTopLevelNotesFixture()
+	deps, _ := newReparentDeps(files, names)
+	fingerprint := reparentDeriveFingerprint(t, deps)
+
+	answers := `{"reparenting":[` +
+		`{"note":"12","position":"continuation","target":"7"},` +
+		`{"note":"20","position":"top","target":"7"}` +
+		`],"fingerprint":"` + fingerprint + `"}`
+	files["/answers.json"] = []byte(answers)
+
+	var stdout bytes.Buffer
+
+	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(stdout.String()).To(ContainSubstring("no further candidates — vault fully evaluated"))
 }
 
 // unexported variables.

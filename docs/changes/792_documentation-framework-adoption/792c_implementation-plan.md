@@ -232,8 +232,8 @@ flowchart TD
   N792c7h1["792c7h1 vault-health product spec<br/>Complete"]
   N792c7h2["792c7h2 vault-invariant-checker tech spec<br/>Complete"]
   N792c7i1["792c7i1 vault-migration product spec<br/>Complete"]
-  N792c7i2["792c7i2 note-reparenting tech spec<br/>Ready"]
-  N792c7j1["792c7j1 install-and-update product spec<br/>Blocked by: 792c7i2"]
+  N792c7i2["792c7i2 note-reparenting tech spec<br/>Complete"]
+  N792c7j1["792c7j1 install-and-update product spec<br/>Ready"]
   N792c7j2["792c7j2 self-installer tech spec<br/>Blocked by: 792c7j1"]
   N792c7j3["792c7j3 harness-deploy-sync tech spec<br/>Blocked by: 792c7j2"]
   N792c7k1["792c7k1 skill-runbook-registration product spec<br/>Blocked by: 792c7j3"]
@@ -2995,11 +2995,82 @@ Target: `792b27` (`docs/specs/technical/note-reparenting.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7i2a | Port the component contract to `792b27` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7i2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7i2c | Repoint stale references to `792b27` | Non-test action | Keeps live links valid | Not started |
-| 792c7i2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7i2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7i2a | Port the component contract to `792b27` | Non-test action | Documents the component in the framework format | Done |
+| 792c7i2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7i2c | Repoint stale references to `792b27` | Non-test action | Keeps live links valid | Done |
+| 792c7i2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7i2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+**Outcome:** the component is specified in ten requirements, 792b27c1 to 792b27c10 (792d102). The two
+remaining OpenSpec files, `update-flat-vault-luhmann-notice` and `update-reparent-luhmann-batch`, are
+deleted, as nothing remains in them. The rename and rewrite step is shared with `register-skills
+--adopt`, so install-and-update and skill-runbook-registration extend 792b27c6 and 792b27c7.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b27c1a1 | `TestVaultHasOnlyTopLevelNotes` → `Test792b27c1a1_VaultHasOnlyTopLevelNotes` | Pure unit, subtests (`internal/cli`, in-memory filesystem) | All top-level; the subtests for a branched note, an empty vault, sidecars and an unreadable directory verify 792b27c1a2 to 792b27c1a4 (`split deferred`) | Done |
+| 792b27c2a1 | `TestRunReparentLuhmann_DeriveEmitsCandidates` → `Test792b27c2a1_RunReparentLuhmann_DeriveEmitsCandidates` | `RunReparentLuhmann` over an in-memory vault | Candidates emitted with their fields | Done |
+| 792b27c2a2 | `TestRunReparentLuhmann_DeriveNoCandidatesAboveFloor` → `Test792b27c2a2_RunReparentLuhmann_DeriveNoCandidatesAboveFloor` | `RunReparentLuhmann` over an in-memory vault | Below the floor; also verifies 792b27c3a2 (`split deferred`) | Done |
+| 792b27c2a3 | `TestRunReparentLuhmann_DeriveExcerptUnreadableNoteIsEmpty` → `Test792b27c2a3_RunReparentLuhmann_DeriveExcerptUnreadableNoteIsEmpty` | `RunReparentLuhmann` over an in-memory vault | Empty excerpt | Done |
+| 792b27c3a3 | `TestRunReparentLuhmann_DeriveInstructionNamesLearnBatchMode` → `Test792b27c3a3_RunReparentLuhmann_DeriveInstructionNamesLearnBatchMode` | `RunReparentLuhmann` over an in-memory vault | Instruction routes to the learn skill | Done |
+| 792b27c3a4 | `TestRunReparentLuhmann_DeriveOutputNamesNextCommand` → `Test792b27c3a4_RunReparentLuhmann_DeriveOutputNamesNextCommand` | `RunReparentLuhmann` over an in-memory vault | Literal next command | Done |
+| 792b27c3a5 | `TestRunReparentLuhmann_DeriveNeverWrites` → `Test792b27c3a5_RunReparentLuhmann_DeriveNeverWrites` | `RunReparentLuhmann` over an in-memory vault | No write | Done |
+| 792b27c4a1 | `TestRunReparentLuhmann_ApplyAnswersFileUnreadable` → `Test792b27c4a1_RunReparentLuhmann_ApplyAnswersFileUnreadable` | `RunReparentLuhmann` over an in-memory vault | Unreadable answers | Done |
+| 792b27c4a2 | `TestRunReparentLuhmann_ApplyBadAnswersJSONRejected` → `Test792b27c4a2_RunReparentLuhmann_ApplyBadAnswersJSONRejected` | `RunReparentLuhmann` over an in-memory vault | Malformed answers | Done |
+| 792b27c4a3 | `TestRunReparentLuhmann_ApplyStaleAnswersRejected` → `Test792b27c4a3_RunReparentLuhmann_ApplyStaleAnswersRejected` | `RunReparentLuhmann` over an in-memory vault | Stale answers | Done |
+| 792b27c4a4 | `TestRunReparentLuhmann_ApplyUnknownNoteRejected` → `Test792b27c4a4_RunReparentLuhmann_ApplyUnknownNoteRejected` | `RunReparentLuhmann` over an in-memory vault | Unknown note | Done |
+| 792b27c5a1 | `TestReparentIDLess_NumericAndNonNumericFallback` → `Test792b27c5a1_ReparentIDLess_NumericAndNonNumericFallback` | Pure unit (`internal/cli`) | Numeric order | Done |
+| 792b27c5a2 | `TestRunReparentLuhmann_ApplyContinuationRenamesAndRewritesBacklinks` → `Test792b27c5a2_RunReparentLuhmann_ApplyContinuationRenamesAndRewritesBacklinks` | `RunReparentLuhmann` over an in-memory vault | Continuation renamed and rewritten; also verifies 792b27c6a1 and 792b27c9a1 (`split deferred`) | Done |
+| 792b27c5a4 | `TestRunReparentLuhmann_ApplyTopAnswerIsNoop` → `Test792b27c5a4_RunReparentLuhmann_ApplyTopAnswerIsNoop` | `RunReparentLuhmann` over an in-memory vault | Top answer skipped | Done |
+| 792b27c6a1 | `TestRenameAndRewriteReferences_SingleReferenceRewritten` → `Test792b27c6a1_RenameAndRewriteReferences_SingleReferenceRewritten` | `RenameAndRewriteReferences` over an in-memory vault | One reference | Done |
+| 792b27c6a2 | `TestRenameAndRewriteReferences_MultipleReferencesAcrossNotes` → `Test792b27c6a2_RenameAndRewriteReferences_MultipleReferencesAcrossNotes` | `RenameAndRewriteReferences` over an in-memory vault | References across notes | Done |
+| 792b27c6a3 | `TestRenameAndRewriteReferences_CascadingRenamesUseFinalMap` → `Test792b27c6a3_RenameAndRewriteReferences_CascadingRenamesUseFinalMap` | `RenameAndRewriteReferences` over an in-memory vault | Cascade | Done |
+| 792b27c6a4 | `TestRenameAndRewriteReferences_OnlySupersedesNoteFieldsAreRewritten` → `Test792b27c6a4_RenameAndRewriteReferences_OnlySupersedesNoteFieldsAreRewritten` | `RenameAndRewriteReferences` over an in-memory vault | Only supersedes entries | Done |
+| 792b27c6a5 | `TestRenameAndRewriteReferences_FrontmatterWikilinksRewritten` → `Test792b27c6a5_RenameAndRewriteReferences_FrontmatterWikilinksRewritten` | `RenameAndRewriteReferences` over an in-memory vault | Frontmatter links | Done |
+| 792b27c6a6 | `TestRenameAndRewriteReferences_LuhmannValueAnyShapeRewritten` → `Test792b27c6a6_RenameAndRewriteReferences_LuhmannValueAnyShapeRewritten` | `RenameAndRewriteReferences` over an in-memory vault | Any luhmann shape | Done |
+| 792b27c6a7 | `TestRenameAndRewriteReferences_AppendsOldBasenameToAliases` → `Test792b27c6a7_RenameAndRewriteReferences_AppendsOldBasenameToAliases` | `RenameAndRewriteReferences` over an in-memory vault | Alias recorded | Done |
+| 792b27c6a7 | `TestRenameAndRewriteReferences_AppendsOldBasenameToAliasesProperty` → `Test792b27c6a7_RenameAndRewriteReferences_AppendsOldBasenameToAliasesProperty` | Property (rapid) | Alias recorded in any list style | Done |
+| 792b27c6a8 | `TestRenameAndRewriteReferences_UnrelatedNoteUntouched` → `Test792b27c6a8_RenameAndRewriteReferences_UnrelatedNoteUntouched` | `RenameAndRewriteReferences` over an in-memory vault | Unrelated note not written | Done |
+| 792b27c6a9 | `TestRenameAndRewriteReferences_EmptyMapIsNoOp` → `Test792b27c6a9_RenameAndRewriteReferences_EmptyMapIsNoOp` | `RenameAndRewriteReferences` over an in-memory vault | Empty map | Done |
+| 792b27c6a10 | `TestRenameAndRewriteReferences_RenamedNoteWithoutFrontmatterKeepsBody` → `Test792b27c6a10_RenameAndRewriteReferences_RenamedNoteWithoutFrontmatterKeepsBody` | `RenameAndRewriteReferences` over an in-memory vault | No frontmatter | Done |
+| 792b27c6a11 | `TestRenameAndRewriteReferences_RenamedNoteWithoutLuhmannKeyUnchanged` → `Test792b27c6a11_RenameAndRewriteReferences_RenamedNoteWithoutLuhmannKeyUnchanged` | `RenameAndRewriteReferences` over an in-memory vault | No luhmann key | Done |
+| 792b27c6a12 | `TestRenameAndRewriteReferences_ListMDErrorPropagates` → `Test792b27c6a12_RenameAndRewriteReferences_ListMDErrorPropagates` | `RenameAndRewriteReferences` over a failing listing | Listing failure | Done |
+| 792b27c6a13 | `TestRenameAndRewriteReferences_ReadFileErrorPropagates` → `Test792b27c6a13_RenameAndRewriteReferences_ReadFileErrorPropagates` | `RenameAndRewriteReferences` over a failing read | Read failure | Done |
+| 792b27c6a14 | `TestRenameAndRewriteReferences_RenameErrorPropagates` → `Test792b27c6a14_RenameAndRewriteReferences_RenameErrorPropagates` | `RenameAndRewriteReferences` over a failing rename | Rename failure | Done |
+| 792b27c6a15 | `TestRenameAndRewriteReferences_WriteFileErrorPropagates` → `Test792b27c6a15_RenameAndRewriteReferences_WriteFileErrorPropagates` | `RenameAndRewriteReferences` over a failing write | Write failure | Done |
+| 792b27c7a1 | `TestRenameAndRewriteReferences_AnchoredLuhmannRefusedUntouched` → `Test792b27c7a1_RenameAndRewriteReferences_AnchoredLuhmannRefusedUntouched` | `RenameAndRewriteReferences` over an in-memory vault | Anchored luhmann refused | Done |
+| 792b27c7a1 | `TestRenameAndRewriteReferences_CRLFProperty` → `Test792b27c7a1_RenameAndRewriteReferences_CRLFProperty` | Property (rapid) | Refusal or LF-equal result over CRLF shapes; also verifies 792b27c7a3 to 792b27c7a5 (`split deferred`) | Done |
+| 792b27c7a2 | `TestRenameAndRewriteReferences_RefusalsJoinedNamingEachNote` → `Test792b27c7a2_RenameAndRewriteReferences_RefusalsJoinedNamingEachNote` | `RenameAndRewriteReferences` over an in-memory vault | Joined refusals | Done |
+| 792b27c7a3 | `TestRenameAndRewriteReferences_CRLFRenamedNoteConverted` → `Test792b27c7a3_RenameAndRewriteReferences_CRLFRenamedNoteConverted` | `RenameAndRewriteReferences` over an in-memory vault | CRLF renamed note | Done |
+| 792b27c7a4 | `TestRenameAndRewriteReferences_CRLFReferrerSupersedesRewritten` → `Test792b27c7a4_RenameAndRewriteReferences_CRLFReferrerSupersedesRewritten` | `RenameAndRewriteReferences` over an in-memory vault | CRLF referrer | Done |
+| 792b27c7a5 | `TestRenameAndRewriteReferences_UntouchedCRLFNoteNeverWritten` → `Test792b27c7a5_RenameAndRewriteReferences_UntouchedCRLFNoteNeverWritten` | `RenameAndRewriteReferences` over an in-memory vault | Untouched CRLF note | Done |
+| 792b27c7a6 | `TestPreflightRenames_EmptyMapListsNothing` → `Test792b27c7a6_PreflightRenames_EmptyMapListsNothing` | Internal unit (`internal/cli`) | Empty map preflights nothing | Done |
+| 792b27c7a6 | `TestPreflightRenames_ListErrorPropagates` → `Test792b27c7a6_PreflightRenames_ListErrorPropagates` | Internal unit (`internal/cli`) | Listing failure | Done |
+| 792b27c8a1 | `TestRunReparentLuhmann_ApplyRebuildsReferrerSidecars` → `Test792b27c8a1_RunReparentLuhmann_ApplyRebuildsReferrerSidecars` | `RunReparentLuhmann` over an in-memory vault | Referrer sidecars | Done |
+| 792b27c8a2 | `TestRunReparentLuhmann_ApplyRebuildsConvertedNoteSidecars` → `Test792b27c8a2_RunReparentLuhmann_ApplyRebuildsConvertedNoteSidecars` | `RunReparentLuhmann` over an in-memory vault | Converted note sidecar | Done |
+| 792b27c8a3 | `TestRunReparentLuhmann_ApplyReferrerSidecarRebuildFailurePropagates` → `Test792b27c8a3_RunReparentLuhmann_ApplyReferrerSidecarRebuildFailurePropagates` | `RunReparentLuhmann` over a failing sidecar write | Rebuild failure | Done |
+| 792b27c9a1 | `TestRunReparentLuhmann_ApplyPipelineReindexesAndDetachesStaleEntry` → `Test792b27c9a1_RunReparentLuhmann_ApplyPipelineReindexesAndDetachesStaleEntry` | `RunReparentLuhmann` over an in-memory vault and chunk index | Re-index and detach | Done |
+| 792b27c9a2 | `TestRunReparentLuhmann_ApplyPipelineFailureDoesNotRollbackRename` → `Test792b27c9a2_RunReparentLuhmann_ApplyPipelineFailureDoesNotRollbackRename` | `RunReparentLuhmann` over a failing chunk step | Failure keeps the rename | Done |
+| 792b27c9a4 | `TestRunReparentLuhmann_ApplyZeroRenamesSkipsPipeline` → `Test792b27c9a4_RunReparentLuhmann_ApplyZeroRenamesSkipsPipeline` | `RunReparentLuhmann` over an in-memory vault | No rename, no index | Done |
+| 792b27c9a5 | `TestRunReparentLuhmann_ApplyReportsFurtherCandidatesRemain` → `Test792b27c9a5_RunReparentLuhmann_ApplyReportsFurtherCandidatesRemain` | `RunReparentLuhmann` over an in-memory vault | Further candidates | Done |
+| 792b27c9a6 | `TestRunReparentLuhmann_ApplyReportsNoFurtherCandidates` → `Test792b27c9a6_RunReparentLuhmann_ApplyReportsNoFurtherCandidates` | `RunReparentLuhmann` over an in-memory vault | Fully evaluated | Done |
+| 792b27c10a1 | `TestRunReparentLuhmann_DryRunPreviewsWithoutWriting` → `Test792b27c10a1_RunReparentLuhmann_DryRunPreviewsWithoutWriting` | `RunReparentLuhmann` over an in-memory vault | Preview | Done |
+| 792b27c10a2 | `TestRunReparentLuhmann_DryRunWithoutAnswersRejected` → `Test792b27c10a2_RunReparentLuhmann_DryRunWithoutAnswersRejected` | `RunReparentLuhmann` over an in-memory vault | Usage error | Done |
+| 792b27c10a3 | `TestRunReparentLuhmann_DryRunReportsAnchoredRefusal` → `Test792b27c10a3_RunReparentLuhmann_DryRunReportsAnchoredRefusal` | `RunReparentLuhmann` over an in-memory vault | Preview refusal | Done |
+| 792b27c10a4 | `TestRunReparentLuhmann_ApplyDryRunSkipsPipeline` → `Test792b27c10a4_RunReparentLuhmann_ApplyDryRunSkipsPipeline` | `RunReparentLuhmann` over an in-memory vault | No pipeline on a preview | Done |
+
+**Coverage gaps:** 792b27c1a5 (an ID that does not parse), 792b27c2a4 and 792b27c2a5 (notes without a sidecar
+or branched, the excerpt cap), 792b27c3a1 (the payload fields as a whole), 792b27c5a3 (two children in
+order), and every 792a10 scenario of 792a10a to 792a10l: none has an end-to-end test.
+
+**No-scenario tests:** `TestAdoptSkillNote_ConvertsCRLFNote` (skill adoption, left to
+skill-runbook-registration, 792c7k1), `TestRunUpdate_ReparentLuhmannFlag_ShortCircuitsToDeriveOnly` and
+`TestWriteUpdateReport_LuhmannBranchingHint` (the command's routing and its notice, left to self-installer,
+792c7j2), `TestNewUpdateDeps_ReparentDepsWireThrough` (wiring) and the reparent survival tests
+`TestExchangeFieldsSurvive_ReparentRenamesNote` and `TestSkillIdentityFieldsSurvive_ReparentRenamesSkillNote`
+(parent-sync and skill-runbook-registration).
 
 ### 792c7j install-and-update
 

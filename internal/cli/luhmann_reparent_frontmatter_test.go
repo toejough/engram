@@ -12,13 +12,13 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestRenameAndRewriteReferences_FrontmatterWikilinksRewritten asserts a
+// Test792b27c6a5_RenameAndRewriteReferences_FrontmatterWikilinksRewritten asserts a
 // [[old-basename]] wikilink inside ANY frontmatter string field — a scalar
 // (action:, situation:, object:, ...) or a list item (red_flags:, done_when:)
 // in any YAML quoting style — is rewritten to the new basename, the frontmatter
 // stays valid YAML with only the link changed, and the referrer is reported
 // for a sidecar rebuild.
-func TestRenameAndRewriteReferences_FrontmatterWikilinksRewritten(t *testing.T) {
+func Test792b27c6a5_RenameAndRewriteReferences_FrontmatterWikilinksRewritten(t *testing.T) {
 	t.Parallel()
 
 	const (
@@ -71,13 +71,13 @@ func TestRenameAndRewriteReferences_FrontmatterWikilinksRewritten(t *testing.T) 
 	})
 }
 
-// TestRenameAndRewriteReferences_LuhmannValueAnyShapeRewritten asserts the
+// Test792b27c6a6_RenameAndRewriteReferences_LuhmannValueAnyShapeRewritten asserts the
 // renamed note's own luhmann: field is rewritten whatever shape its value
 // takes — plain, quoted, a trailing comment, a plain value on a continuation
 // line, a block scalar, or a multi-line quoted scalar: the key's entire value
 // (continuation lines included) becomes one `luhmann: "<new id>"` line, the
 // frontmatter still decodes, and every neighboring key keeps its value.
-func TestRenameAndRewriteReferences_LuhmannValueAnyShapeRewritten(t *testing.T) {
+func Test792b27c6a6_RenameAndRewriteReferences_LuhmannValueAnyShapeRewritten(t *testing.T) {
 	t.Parallel()
 
 	const (

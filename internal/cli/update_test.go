@@ -152,6 +152,76 @@ func Test792b20c22a2_VocabDefinitionsMissingSelfTags(t *testing.T) {
 	}
 }
 
+// Test792b27c1a1_VaultHasOnlyTopLevelNotes pins vaultHasOnlyTopLevelNotes (task 1.1):
+// true only when the vault holds at least one note and every note's Luhmann
+// ID is depth 1 (top-level, no letter/digit branch segments); false for an
+// empty or unreadable vault (self-silencing, same convention as
+// oldVocabFilesPresent).
+func Test792b27c1a1_VaultHasOnlyTopLevelNotes(t *testing.T) {
+	t.Parallel()
+
+	table := []struct {
+		name  string
+		files map[string][]byte
+		want  bool
+	}{
+		{
+			name: "all-top-level",
+			files: map[string][]byte{
+				"/vault/1.2026-07-01.first-note.md":  []byte("note one"),
+				"/vault/2.2026-07-02.second-note.md": []byte("note two"),
+			},
+			want: true,
+		},
+		{
+			name: "mixed-one-branched-note",
+			files: map[string][]byte{
+				"/vault/1.2026-07-01.first-note.md":   []byte("note one"),
+				"/vault/1a.2026-07-02.branch-note.md": []byte("branched note"),
+			},
+			want: false,
+		},
+		{
+			name:  "empty-vault",
+			files: map[string][]byte{},
+			want:  false,
+		},
+		{
+			name: "non-note-files-skipped",
+			files: map[string][]byte{
+				"/vault/1.2026-07-01.first-note.md":       []byte("note one"),
+				"/vault/1.2026-07-01.first-note.vec.json": []byte(`{}`),
+			},
+			want: true,
+		},
+	}
+
+	for _, tc := range table {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			fileSystem := newU1FS()
+			maps.Copy(fileSystem.files, tc.files)
+
+			got := cli.ExportVaultHasOnlyTopLevelNotes("/vault", fileSystem)
+			g.Expect(got).To(Equal(tc.want))
+		})
+	}
+
+	t.Run("unreadable-vault-dir", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+
+		fileSystem := newU1FS()
+
+		got := cli.ExportVaultHasOnlyTopLevelNotes("/missing-vault", fileSystem)
+		g.Expect(got).To(BeFalse())
+	})
+}
+
 func TestAnyHarnessFailed(t *testing.T) {
 	t.Parallel()
 
@@ -672,76 +742,6 @@ func TestTildify(t *testing.T) {
 	g.Expect(cli.ExportTildify("/home/joe/x", "/home/joe")).To(Equal("~/x"))
 	g.Expect(cli.ExportTildify("/other/x", "/home/joe")).To(Equal("/other/x"))
 	g.Expect(cli.ExportTildify("/home/joe/x", "")).To(Equal("/home/joe/x"))
-}
-
-// TestVaultHasOnlyTopLevelNotes pins vaultHasOnlyTopLevelNotes (task 1.1):
-// true only when the vault holds at least one note and every note's Luhmann
-// ID is depth 1 (top-level, no letter/digit branch segments); false for an
-// empty or unreadable vault (self-silencing, same convention as
-// oldVocabFilesPresent).
-func TestVaultHasOnlyTopLevelNotes(t *testing.T) {
-	t.Parallel()
-
-	table := []struct {
-		name  string
-		files map[string][]byte
-		want  bool
-	}{
-		{
-			name: "all-top-level",
-			files: map[string][]byte{
-				"/vault/1.2026-07-01.first-note.md":  []byte("note one"),
-				"/vault/2.2026-07-02.second-note.md": []byte("note two"),
-			},
-			want: true,
-		},
-		{
-			name: "mixed-one-branched-note",
-			files: map[string][]byte{
-				"/vault/1.2026-07-01.first-note.md":   []byte("note one"),
-				"/vault/1a.2026-07-02.branch-note.md": []byte("branched note"),
-			},
-			want: false,
-		},
-		{
-			name:  "empty-vault",
-			files: map[string][]byte{},
-			want:  false,
-		},
-		{
-			name: "non-note-files-skipped",
-			files: map[string][]byte{
-				"/vault/1.2026-07-01.first-note.md":       []byte("note one"),
-				"/vault/1.2026-07-01.first-note.vec.json": []byte(`{}`),
-			},
-			want: true,
-		},
-	}
-
-	for _, tc := range table {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			g := NewWithT(t)
-
-			fileSystem := newU1FS()
-			maps.Copy(fileSystem.files, tc.files)
-
-			got := cli.ExportVaultHasOnlyTopLevelNotes("/vault", fileSystem)
-			g.Expect(got).To(Equal(tc.want))
-		})
-	}
-
-	t.Run("unreadable-vault-dir", func(t *testing.T) {
-		t.Parallel()
-
-		g := NewWithT(t)
-
-		fileSystem := newU1FS()
-
-		got := cli.ExportVaultHasOnlyTopLevelNotes("/missing-vault", fileSystem)
-		g.Expect(got).To(BeFalse())
-	})
 }
 
 // TestWriteUpdateReport_DryRunContractSweep pins the unified D9 dry-run

@@ -25,54 +25,41 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
-// TestAdoptSkillNote_ConvertsCRLFNote: adopt converts a CRLF runbook note to
-// LF instead of refusing it (design D5) — both when the adopt renames it and
-// when it already carries the key's slug — keeping its fields and luhmann:.
-func TestAdoptSkillNote_ConvertsCRLFNote(t *testing.T) {
+// Test792b27c10a3_RunReparentLuhmann_DryRunReportsAnchoredRefusal: --dry-run runs the
+// same pre-flight as apply, so an anchored note is reported without any
+// write.
+func Test792b27c10a3_RunReparentLuhmann_DryRunReportsAnchoredRefusal(t *testing.T) {
 	t.Parallel()
+	g := NewWithT(t)
 
-	for name, tc := range map[string]struct{ basename, content string }{
-		"renamed":         {"1049.2026-09-21.curate-review-pending-offers", curatePromotedNoteFixture()},
-		"already slugged": {"1049.2026-09-21.skill-claude-curate", curateSkillNoteFixture(cli.SkillContentHash([]byte("x")))},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
+	files, names := twoRelatedTopLevelNotesFixture()
 
-			vault := newSkillAcceptFixtureVault()
-			vault.put(tc.basename+".md", crlf(tc.content))
+	const renamed = "/vault/12.2026-01-02.second-note.md"
 
-			deps := cli.SkillAdoptDeps{
-				Lock:     noLock,
-				Scan:     func(v string) ([]vaultgraph.Note, error) { return vaultgraph.ScanVault(vault, v) },
-				Rename:   skillAcceptRenameDeps(vault),
-				Embedder: skillAcceptFakeEmbedder{},
-			}
+	files[renamed] = []byte("---\ntype: fact\nluhmann: &a \"12\"\nissue: *a\ncreated: 2026-01-02\n---\n\nsecond.\n")
 
-			var stdout bytes.Buffer
+	deps, renames := newReparentDeps(files, names)
+	fingerprint := reparentDeriveFingerprint(t, deps)
+	files["/answers.json"] = []byte(`{"reparenting":[{"note":"12","position":"continuation","target":"7"}],` +
+		`"fingerprint":"` + fingerprint + `"}`)
 
-			err := cli.AdoptSkillNote(t.Context(), "/vault", installedEngramSkill("curate", []byte("# Curate\n")), "1049",
-				deps, &stdout)
-			g.Expect(err).NotTo(HaveOccurred())
+	before := maps.Clone(files)
 
-			adopted, ok := vault.get("1049.2026-09-21.skill-claude-curate.md")
-			g.Expect(ok).To(BeTrue())
-			g.Expect(adopted).NotTo(ContainSubstring("\r"))
+	var stdout bytes.Buffer
 
-			doc := parseSkillAcceptFrontmatter(g, adopted)
-			g.Expect(doc.SkillKey).To(Equal("claude:curate"))
-			g.Expect(frontmatterOf(adopted)["luhmann"]).To(Equal("1049"))
-			g.Expect(frontmatterOf(adopted)["situation"]).To(Equal(frontmatterOf(tc.content)["situation"]))
-		})
-	}
+	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", true, deps, &stdout)
+	g.Expect(err).To(MatchError(cli.ErrRenameUndecodableForTest))
+	g.Expect(err).To(MatchError(ContainSubstring("12.2026-01-02.second-note")))
+	g.Expect(renames).To(BeEmpty())
+	g.Expect(files).To(Equal(before))
 }
 
-// TestRenameAndRewriteReferences_AnchoredLuhmannRefusedUntouched is the
+// Test792b27c7a1_RenameAndRewriteReferences_AnchoredLuhmannRefusedUntouched is the
 // scenario "Anchored luhmann value is refused, not corrupted": rewriting
 // `luhmann: &a "1050"` would leave `issue: *a` dangling, so the invocation
 // fails naming the note and renames or writes nothing — even when another
 // note in the same map is safe and listed first.
-func TestRenameAndRewriteReferences_AnchoredLuhmannRefusedUntouched(t *testing.T) {
+func Test792b27c7a1_RenameAndRewriteReferences_AnchoredLuhmannRefusedUntouched(t *testing.T) {
 	t.Parallel()
 
 	const (
@@ -113,7 +100,7 @@ func TestRenameAndRewriteReferences_AnchoredLuhmannRefusedUntouched(t *testing.T
 	}
 }
 
-// TestRenameAndRewriteReferences_CRLFProperty is P1 and P1-CRLF (design D7):
+// Test792b27c7a1_RenameAndRewriteReferences_CRLFProperty is P1 and P1-CRLF (design D7):
 // over notes with unknown keys, an optionally anchored luhmann: value, a
 // pre-existing aliases: list (block, flow, or anchored and aliased),
 // optional comments, and every CRLF shape, either the rename refuses (always when anchored) and
@@ -122,7 +109,7 @@ func TestRenameAndRewriteReferences_AnchoredLuhmannRefusedUntouched(t *testing.T
 // are byte-identical, converted notes are listed for a sidecar rebuild, and
 // each written note is byte-identical to — and hashes the same as — the
 // note the same rename writes for an LF-authored vault.
-func TestRenameAndRewriteReferences_CRLFProperty(t *testing.T) {
+func Test792b27c7a1_RenameAndRewriteReferences_CRLFProperty(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		vault := reparentVaultGen().Draw(rt, "vault")
@@ -173,41 +160,40 @@ func TestRenameAndRewriteReferences_CRLFProperty(t *testing.T) {
 	})
 }
 
-// TestRenameAndRewriteReferences_CRLFReferrerSupersedesRewritten is the
-// scenario "CRLF referrer gets its supersedes rewritten": the referrer is
-// converted to LF and its frontmatter supersedes: note is rewritten.
-func TestRenameAndRewriteReferences_CRLFReferrerSupersedesRewritten(t *testing.T) {
+// Test792b27c7a2_RenameAndRewriteReferences_RefusalsJoinedNamingEachNote: a luhmann:
+// the line rewrite cannot reach (a quoted key) would stay stale, and is
+// refused alongside an anchored note in one joined error naming both.
+func Test792b27c7a2_RenameAndRewriteReferences_RefusalsJoinedNamingEachNote(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	const (
-		oldBasename = "12.2026-01-02.target"
-		newBasename = "7a.2026-01-02.target"
-		referrer    = "20.2026-01-03.referrer.md"
+		staleOld    = "12.2026-01-01.stale"
+		anchoredOld = "13.2026-01-01.anchored"
 	)
 
-	referrerLF := "---\ntype: fact\nluhmann: \"20\"\nsupersedes:\n    - note: " + oldBasename +
-		".md\n      type: narrows\n      claim: old\n---\n\nBody text.\n"
 	fixture := newReparentFixture(map[string]string{
-		oldBasename + ".md": "---\ntype: fact\nluhmann: \"12\"\n---\n\nTarget.\n",
-		referrer:            crlf(referrerLF),
+		staleOld + ".md":    "---\ntype: fact\n\"luhmann\": \"12\"\n---\n\nStale.\n",
+		anchoredOld + ".md": "---\ntype: fact\nluhmann: &a \"13\"\nissue: *a\n---\n\nAnchored.\n",
 	})
 
-	rewritten, err := cli.RenameAndRewriteReferences(fixture.deps(), "/vault",
-		map[string]string{oldBasename: newBasename})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	written, ok := fixture.written["/vault/"+referrer]
-	g.Expect(ok).To(BeTrue(), "the CRLF referrer must be written")
-	g.Expect(string(written)).To(Equal(strings.Replace(referrerLF, oldBasename+".md", newBasename+".md", 1)))
-	g.Expect(rewritten).To(ContainElement("/vault/" + referrer))
+	_, err := cli.RenameAndRewriteReferences(fixture.deps(), "/vault", map[string]string{
+		staleOld:    "7a.2026-01-01.stale",
+		anchoredOld: "7b.2026-01-01.anchored",
+	})
+	g.Expect(err).To(MatchError(cli.ErrRenameStaleLuhmannForTest))
+	g.Expect(err).To(MatchError(cli.ErrRenameUndecodableForTest))
+	g.Expect(err).To(MatchError(ContainSubstring(staleOld)))
+	g.Expect(err).To(MatchError(ContainSubstring(anchoredOld)))
+	g.Expect(fixture.renamed).To(BeEmpty())
+	g.Expect(fixture.written).To(BeEmpty())
 }
 
-// TestRenameAndRewriteReferences_CRLFRenamedNoteConverted is the scenario
+// Test792b27c7a3_RenameAndRewriteReferences_CRLFRenamedNoteConverted is the scenario
 // "CRLF renamed note is converted and rewritten": one rename, one write,
 // no CRLF left, luhmann: is the new id, the alias is recorded, every other
 // key decodes unchanged, and the note is listed for a sidecar rebuild.
-func TestRenameAndRewriteReferences_CRLFRenamedNoteConverted(t *testing.T) {
+func Test792b27c7a3_RenameAndRewriteReferences_CRLFRenamedNoteConverted(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -247,38 +233,39 @@ func TestRenameAndRewriteReferences_CRLFRenamedNoteConverted(t *testing.T) {
 	g.Expect(rewritten).To(ContainElement(newPath), "a converted note's sidecar must be rebuilt")
 }
 
-// TestRenameAndRewriteReferences_RefusalsJoinedNamingEachNote: a luhmann:
-// the line rewrite cannot reach (a quoted key) would stay stale, and is
-// refused alongside an anchored note in one joined error naming both.
-func TestRenameAndRewriteReferences_RefusalsJoinedNamingEachNote(t *testing.T) {
+// Test792b27c7a4_RenameAndRewriteReferences_CRLFReferrerSupersedesRewritten is the
+// scenario "CRLF referrer gets its supersedes rewritten": the referrer is
+// converted to LF and its frontmatter supersedes: note is rewritten.
+func Test792b27c7a4_RenameAndRewriteReferences_CRLFReferrerSupersedesRewritten(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	const (
-		staleOld    = "12.2026-01-01.stale"
-		anchoredOld = "13.2026-01-01.anchored"
+		oldBasename = "12.2026-01-02.target"
+		newBasename = "7a.2026-01-02.target"
+		referrer    = "20.2026-01-03.referrer.md"
 	)
 
+	referrerLF := "---\ntype: fact\nluhmann: \"20\"\nsupersedes:\n    - note: " + oldBasename +
+		".md\n      type: narrows\n      claim: old\n---\n\nBody text.\n"
 	fixture := newReparentFixture(map[string]string{
-		staleOld + ".md":    "---\ntype: fact\n\"luhmann\": \"12\"\n---\n\nStale.\n",
-		anchoredOld + ".md": "---\ntype: fact\nluhmann: &a \"13\"\nissue: *a\n---\n\nAnchored.\n",
+		oldBasename + ".md": "---\ntype: fact\nluhmann: \"12\"\n---\n\nTarget.\n",
+		referrer:            crlf(referrerLF),
 	})
 
-	_, err := cli.RenameAndRewriteReferences(fixture.deps(), "/vault", map[string]string{
-		staleOld:    "7a.2026-01-01.stale",
-		anchoredOld: "7b.2026-01-01.anchored",
-	})
-	g.Expect(err).To(MatchError(cli.ErrRenameStaleLuhmannForTest))
-	g.Expect(err).To(MatchError(cli.ErrRenameUndecodableForTest))
-	g.Expect(err).To(MatchError(ContainSubstring(staleOld)))
-	g.Expect(err).To(MatchError(ContainSubstring(anchoredOld)))
-	g.Expect(fixture.renamed).To(BeEmpty())
-	g.Expect(fixture.written).To(BeEmpty())
+	rewritten, err := cli.RenameAndRewriteReferences(fixture.deps(), "/vault",
+		map[string]string{oldBasename: newBasename})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	written, ok := fixture.written["/vault/"+referrer]
+	g.Expect(ok).To(BeTrue(), "the CRLF referrer must be written")
+	g.Expect(string(written)).To(Equal(strings.Replace(referrerLF, oldBasename+".md", newBasename+".md", 1)))
+	g.Expect(rewritten).To(ContainElement("/vault/" + referrer))
 }
 
-// TestRenameAndRewriteReferences_UntouchedCRLFNoteNeverWritten is the
+// Test792b27c7a5_RenameAndRewriteReferences_UntouchedCRLFNoteNeverWritten is the
 // scenario "Untouched CRLF notes stay byte-identical".
-func TestRenameAndRewriteReferences_UntouchedCRLFNoteNeverWritten(t *testing.T) {
+func Test792b27c7a5_RenameAndRewriteReferences_UntouchedCRLFNoteNeverWritten(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -299,10 +286,10 @@ func TestRenameAndRewriteReferences_UntouchedCRLFNoteNeverWritten(t *testing.T) 
 	g.Expect(rewritten).NotTo(ContainElement("/vault/" + untouched))
 }
 
-// TestRunReparentLuhmann_ApplyRebuildsConvertedNoteSidecars pins the
+// Test792b27c8a2_RunReparentLuhmann_ApplyRebuildsConvertedNoteSidecars pins the
 // freshness half of design D5: after apply, every note the rename converted
 // from CRLF — the renamed note and a CRLF referrer — has a fresh sidecar.
-func TestRunReparentLuhmann_ApplyRebuildsConvertedNoteSidecars(t *testing.T) {
+func Test792b27c8a2_RunReparentLuhmann_ApplyRebuildsConvertedNoteSidecars(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -336,33 +323,46 @@ func TestRunReparentLuhmann_ApplyRebuildsConvertedNoteSidecars(t *testing.T) {
 	}
 }
 
-// TestRunReparentLuhmann_DryRunReportsAnchoredRefusal: --dry-run runs the
-// same pre-flight as apply, so an anchored note is reported without any
-// write.
-func TestRunReparentLuhmann_DryRunReportsAnchoredRefusal(t *testing.T) {
+// TestAdoptSkillNote_ConvertsCRLFNote: adopt converts a CRLF runbook note to
+// LF instead of refusing it (design D5) — both when the adopt renames it and
+// when it already carries the key's slug — keeping its fields and luhmann:.
+func TestAdoptSkillNote_ConvertsCRLFNote(t *testing.T) {
 	t.Parallel()
-	g := NewWithT(t)
 
-	files, names := twoRelatedTopLevelNotesFixture()
+	for name, tc := range map[string]struct{ basename, content string }{
+		"renamed":         {"1049.2026-09-21.curate-review-pending-offers", curatePromotedNoteFixture()},
+		"already slugged": {"1049.2026-09-21.skill-claude-curate", curateSkillNoteFixture(cli.SkillContentHash([]byte("x")))},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
 
-	const renamed = "/vault/12.2026-01-02.second-note.md"
+			vault := newSkillAcceptFixtureVault()
+			vault.put(tc.basename+".md", crlf(tc.content))
 
-	files[renamed] = []byte("---\ntype: fact\nluhmann: &a \"12\"\nissue: *a\ncreated: 2026-01-02\n---\n\nsecond.\n")
+			deps := cli.SkillAdoptDeps{
+				Lock:     noLock,
+				Scan:     func(v string) ([]vaultgraph.Note, error) { return vaultgraph.ScanVault(vault, v) },
+				Rename:   skillAcceptRenameDeps(vault),
+				Embedder: skillAcceptFakeEmbedder{},
+			}
 
-	deps, renames := newReparentDeps(files, names)
-	fingerprint := reparentDeriveFingerprint(t, deps)
-	files["/answers.json"] = []byte(`{"reparenting":[{"note":"12","position":"continuation","target":"7"}],` +
-		`"fingerprint":"` + fingerprint + `"}`)
+			var stdout bytes.Buffer
 
-	before := maps.Clone(files)
+			err := cli.AdoptSkillNote(t.Context(), "/vault", installedEngramSkill("curate", []byte("# Curate\n")), "1049",
+				deps, &stdout)
+			g.Expect(err).NotTo(HaveOccurred())
 
-	var stdout bytes.Buffer
+			adopted, ok := vault.get("1049.2026-09-21.skill-claude-curate.md")
+			g.Expect(ok).To(BeTrue())
+			g.Expect(adopted).NotTo(ContainSubstring("\r"))
 
-	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", true, deps, &stdout)
-	g.Expect(err).To(MatchError(cli.ErrRenameUndecodableForTest))
-	g.Expect(err).To(MatchError(ContainSubstring("12.2026-01-02.second-note")))
-	g.Expect(renames).To(BeEmpty())
-	g.Expect(files).To(Equal(before))
+			doc := parseSkillAcceptFrontmatter(g, adopted)
+			g.Expect(doc.SkillKey).To(Equal("claude:curate"))
+			g.Expect(frontmatterOf(adopted)["luhmann"]).To(Equal("1049"))
+			g.Expect(frontmatterOf(adopted)["situation"]).To(Equal(frontmatterOf(tc.content)["situation"]))
+		})
+	}
 }
 
 // unexported constants.

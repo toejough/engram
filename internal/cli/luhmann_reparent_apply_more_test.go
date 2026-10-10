@@ -10,23 +10,30 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestReparentIDLess_NumericAndNonNumericFallback covers both ordering
-// branches: numeric IDs compare by value; non-numeric IDs (defensive —
-// should not occur among derive's top-level candidates) fall back to string
-// comparison.
-func TestReparentIDLess_NumericAndNonNumericFallback(t *testing.T) {
+// Test792b27c2a3_RunReparentLuhmann_DeriveExcerptUnreadableNoteIsEmpty covers
+// reparentExcerpt's unreadable-note branch: a note has an embedding sidecar
+// but its own .md file is missing, so its excerpt is empty rather than
+// erroring the whole derive pass.
+func Test792b27c2a3_RunReparentLuhmann_DeriveExcerptUnreadableNoteIsEmpty(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	g.Expect(cli.ExportReparentIDLess("2", "10")).To(BeTrue(), "numeric: 2 < 10")
-	g.Expect(cli.ExportReparentIDLess("10", "2")).To(BeFalse())
-	g.Expect(cli.ExportReparentIDLess("1a", "2b")).To(BeTrue(), "non-numeric falls back to string comparison")
+	files, names := twoRelatedTopLevelNotesFixture()
+	delete(files, "/vault/7.2026-01-01.first-note.md")
+
+	deps, _ := newReparentDeps(files, names)
+
+	var stdout bytes.Buffer
+
+	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "", false, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(stdout.String()).NotTo(BeEmpty())
 }
 
-// TestRunReparentLuhmann_ApplyAnswersFileUnreadable covers the --answers
+// Test792b27c4a1_RunReparentLuhmann_ApplyAnswersFileUnreadable covers the --answers
 // ReadFile-error branch.
-func TestRunReparentLuhmann_ApplyAnswersFileUnreadable(t *testing.T) {
+func Test792b27c4a1_RunReparentLuhmann_ApplyAnswersFileUnreadable(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -41,9 +48,9 @@ func TestRunReparentLuhmann_ApplyAnswersFileUnreadable(t *testing.T) {
 	g.Expect(renames).To(BeEmpty())
 }
 
-// TestRunReparentLuhmann_ApplyBadAnswersJSONRejected covers the malformed
+// Test792b27c4a2_RunReparentLuhmann_ApplyBadAnswersJSONRejected covers the malformed
 // --answers JSON branch.
-func TestRunReparentLuhmann_ApplyBadAnswersJSONRejected(t *testing.T) {
+func Test792b27c4a2_RunReparentLuhmann_ApplyBadAnswersJSONRejected(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -59,10 +66,10 @@ func TestRunReparentLuhmann_ApplyBadAnswersJSONRejected(t *testing.T) {
 	g.Expect(renames).To(BeEmpty())
 }
 
-// TestRunReparentLuhmann_ApplyUnknownNoteRejected covers
+// Test792b27c4a4_RunReparentLuhmann_ApplyUnknownNoteRejected covers
 // buildReparentRenameMap's unknown-note branch: an --answers entry naming a
 // note ID that does not exist in the vault.
-func TestRunReparentLuhmann_ApplyUnknownNoteRejected(t *testing.T) {
+func Test792b27c4a4_RunReparentLuhmann_ApplyUnknownNoteRejected(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -82,23 +89,16 @@ func TestRunReparentLuhmann_ApplyUnknownNoteRejected(t *testing.T) {
 	g.Expect(renames).To(BeEmpty())
 }
 
-// TestRunReparentLuhmann_DeriveExcerptUnreadableNoteIsEmpty covers
-// reparentExcerpt's unreadable-note branch: a note has an embedding sidecar
-// but its own .md file is missing, so its excerpt is empty rather than
-// erroring the whole derive pass.
-func TestRunReparentLuhmann_DeriveExcerptUnreadableNoteIsEmpty(t *testing.T) {
+// Test792b27c5a1_ReparentIDLess_NumericAndNonNumericFallback covers both ordering
+// branches: numeric IDs compare by value; non-numeric IDs (defensive —
+// should not occur among derive's top-level candidates) fall back to string
+// comparison.
+func Test792b27c5a1_ReparentIDLess_NumericAndNonNumericFallback(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	files, names := twoRelatedTopLevelNotesFixture()
-	delete(files, "/vault/7.2026-01-01.first-note.md")
-
-	deps, _ := newReparentDeps(files, names)
-
-	var stdout bytes.Buffer
-
-	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "", false, deps, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(stdout.String()).NotTo(BeEmpty())
+	g.Expect(cli.ExportReparentIDLess("2", "10")).To(BeTrue(), "numeric: 2 < 10")
+	g.Expect(cli.ExportReparentIDLess("10", "2")).To(BeFalse())
+	g.Expect(cli.ExportReparentIDLess("1a", "2b")).To(BeTrue(), "non-numeric falls back to string comparison")
 }

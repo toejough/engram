@@ -1481,3 +1481,19 @@ decisions as `792dN`, continuing the sequence.
   unspecified. Rejected because the notice is what the user sees, and its owner is the next node of
   install-and-update.
 
+## 792d102 note-reparenting scope and the tests it leaves
+
+- **Choice:**
+  - 792b27 specifies ten requirements: flat-vault detection, candidate selection, the derive output,
+    answers validation, the rename map, the rename and link rewrite, rename safety, the sidecars of rewritten
+    notes, the apply flow and the preview. Its derive and apply parameters (top 3, floor 0.75, ingest then
+    prune) are in 792b27c2 and 792b27c9, so the OpenSpec file that kept them is deleted.
+  - `TestVaultHasOnlyTopLevelNotes` verifies the detection and takes 792b27c1a1. The notice itself,
+    `TestWriteUpdateReport_LuhmannBranchingHint`, and the command's routing are install-and-update's.
+  - Tests of the rename and rewrite step that run it for skill adoption (`TestAdoptSkillNote_ConvertsCRLFNote`)
+    belong to skill-runbook-registration, which extends 792b27c6 and 792b27c7.
+  - `TestRenameAndRewriteReferences_CRLFProperty` checks several rename-safety scenarios in one property and
+    takes the first, 792b27c7a1.
+- **Rationale:** 792d10, 792d30, 792d52 and 792d101.
+- **Alternatives:** none beyond 792d101.
+

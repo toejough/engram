@@ -7,9 +7,9 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// TestPreflightRenames_EmptyMapListsNothing: an empty rename map needs no
+// Test792b27c7a6_PreflightRenames_EmptyMapListsNothing: an empty rename map needs no
 // pre-flight, so the vault is not even listed.
-func TestPreflightRenames_EmptyMapListsNothing(t *testing.T) {
+func Test792b27c7a6_PreflightRenames_EmptyMapListsNothing(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -22,9 +22,9 @@ func TestPreflightRenames_EmptyMapListsNothing(t *testing.T) {
 	g.Expect(preflightRenames(deps, "/vault", nil)).To(Succeed())
 }
 
-// TestPreflightRenames_ListErrorPropagates: a listing failure is wrapped and
+// Test792b27c7a6_PreflightRenames_ListErrorPropagates: a listing failure is wrapped and
 // returned.
-func TestPreflightRenames_ListErrorPropagates(t *testing.T) {
+func Test792b27c7a6_PreflightRenames_ListErrorPropagates(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
