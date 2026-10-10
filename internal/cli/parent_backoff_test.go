@@ -15,157 +15,10 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestBackoffDelay_ExponentialFrom30sCappedAt15m (design D6, M9).
-func TestBackoffDelay_ExponentialFrom30sCappedAt15m(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	g.Expect(cli.ExportBackoffDelay(1)).To(Equal(30 * time.Second))
-	g.Expect(cli.ExportBackoffDelay(2)).To(Equal(time.Minute))
-	g.Expect(cli.ExportBackoffDelay(3)).To(Equal(2 * time.Minute))
-	g.Expect(cli.ExportBackoffDelay(4)).To(Equal(4 * time.Minute))
-	g.Expect(cli.ExportBackoffDelay(5)).To(Equal(8 * time.Minute))
-	g.Expect(cli.ExportBackoffDelay(6)).To(Equal(15 * time.Minute))
-	g.Expect(cli.ExportBackoffDelay(1000)).To(Equal(15 * time.Minute))
-}
-
-// TestBackoffDelay_Property: for any failure count ≥ 1 the delay is within
-// [30s, 15m], never shrinks as failures grow, and doubles until the cap.
-func TestBackoffDelay_Property(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		failures := rapid.IntRange(1, 1<<20).Draw(rt, "failures")
-		delay := cli.ExportBackoffDelay(failures)
-		next := cli.ExportBackoffDelay(failures + 1)
-
-		if delay < 30*time.Second || delay > 15*time.Minute {
-			rt.Fatalf("delay(%d) = %v outside [30s, 15m]", failures, delay)
-		}
-
-		if next < delay {
-			rt.Fatalf("delay shrank: %v then %v", delay, next)
-		}
-
-		if next != 15*time.Minute && next != 2*delay {
-			rt.Fatalf("below the cap the delay doubles: %v then %v", delay, next)
-		}
-	})
-}
-
-// TestGateParentContact_AllowsAfterWindow: once backoff_until passes, the
-// parent is contacted again, silently.
-func TestGateParentContact_AllowsAfterWindow(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newOutboxEnv(t)
-	_, err := cli.ExportRecordParentFailure(env.store, env.vault, parentURL)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	env.advance(31 * time.Second)
-	g.Expect(cli.ExportGateParentContact(env.store, env.vault, parentURL, false)).To(BeTrue())
-	g.Expect(env.stderr.String()).To(BeEmpty())
-}
-
-// TestGateParentContact_BlocksInsideWindowWithOneWarning: inside the window
-// the command skips the parent and prints exactly one warning naming the
-// retry time and the queued-offer count.
-func TestGateParentContact_BlocksInsideWindowWithOneWarning(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newOutboxEnv(t)
-	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
-	env.writeNote("2.2026-09-27.b.md", xidB, "b", false)
-	env.enqueue(xidA)
-	env.enqueue(xidB)
-
-	retry, err := cli.ExportRecordParentFailure(env.store, env.vault, parentURL)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	env.advance(10 * time.Second)
-	g.Expect(cli.ExportGateParentContact(env.store, env.vault, parentURL, false)).To(BeFalse())
-
-	lines := nonEmptyLines(env.stderr.String())
-	g.Expect(lines).To(HaveLen(1))
-	g.Expect(lines[0]).To(Equal(
-		"engram: parent unreachable (retry after " + retry.Format(time.RFC3339) + "); 2 offer(s) queued"))
-}
-
-// TestGateParentContact_OtherParentURLIsNotBackedOff: the backoff belongs
-// to the URL that failed; a reconfigured parent is tried.
-func TestGateParentContact_OtherParentURLIsNotBackedOff(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newOutboxEnv(t)
-	_, err := cli.ExportRecordParentFailure(env.store, env.vault, parentURL)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	g.Expect(cli.ExportGateParentContact(env.store, env.vault, "http://other:8093", false)).To(BeTrue())
-}
-
-// TestGateParentContact_UpdateIgnoresWindow: `engram update` always tries.
-func TestGateParentContact_UpdateIgnoresWindow(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newOutboxEnv(t)
-	_, err := cli.ExportRecordParentFailure(env.store, env.vault, parentURL)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	g.Expect(cli.ExportGateParentContact(env.store, env.vault, parentURL, true)).To(BeTrue())
-	g.Expect(env.stderr.String()).To(BeEmpty())
-}
-
-// TestRecordParentFailure_GrowsThenSuccessResets: consecutive failures grow
-// the window; a success resets the count so the next failure is 30s again.
-func TestRecordParentFailure_GrowsThenSuccessResets(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newOutboxEnv(t)
-
-	first, err := cli.ExportRecordParentFailure(env.store, env.vault, parentURL)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(first).To(BeTemporally("==", env.now().Add(30*time.Second)))
-
-	second, err := cli.ExportRecordParentFailure(env.store, env.vault, parentURL)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(second).To(BeTemporally("==", env.now().Add(time.Minute)))
-
-	g.Expect(cli.ExportRecordParentSuccess(env.store, env.vault, parentURL, parentVaultID)).To(Succeed())
-
-	cache, cacheErr := cli.ExportLoadParentCache(env.state, env.vault)
-	g.Expect(cacheErr).NotTo(HaveOccurred())
-	g.Expect(cache.Failures).To(BeZero())
-	g.Expect(cache.VaultID).To(Equal(parentVaultID))
-	g.Expect(cli.ExportGateParentContact(env.store, env.vault, parentURL, false)).To(BeTrue())
-
-	third, err := cli.ExportRecordParentFailure(env.store, env.vault, parentURL)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(third).To(BeTemporally("==", env.now().Add(30*time.Second)))
-}
-
-// TestRecordParentSuccess_IdleWritesNothing: a success with nothing to
-// reset or learn does not rewrite parent.json (no churn per query).
-func TestRecordParentSuccess_IdleWritesNothing(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newOutboxEnv(t)
-	g.Expect(cli.ExportRecordParentSuccess(env.store, env.vault, parentURL, parentVaultID)).To(Succeed())
-
-	writes := len(env.fsys.atomicWrites())
-	g.Expect(cli.ExportRecordParentSuccess(env.store, env.vault, parentURL, parentVaultID)).To(Succeed())
-	g.Expect(env.fsys.atomicWrites()).To(HaveLen(writes))
-}
-
-// TestTargets_Query_BackoffSkipsParentInsideWindow (E51, M9): a query that
+// Test792a21k1b_Targets_Query_BackoffSkipsParentInsideWindow (E51, M9): a query that
 // fails to reach the parent backs off; a second query 10s later makes no
 // parent request, returns local results, and prints exactly one warning.
-func TestTargets_Query_BackoffSkipsParentInsideWindow(t *testing.T) {
+func Test792a21k1b_Targets_Query_BackoffSkipsParentInsideWindow(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -209,9 +62,9 @@ func TestTargets_Query_BackoffSkipsParentInsideWindow(t *testing.T) {
 	g.Expect(parsed.Items[0].Path).To(Equal("1.fact.md"))
 }
 
-// TestTargets_Query_ParentClientErrorDoesNotBackOff: a 4xx is an answer,
+// Test792a21k1c_Targets_Query_ParentClientErrorDoesNotBackOff: a 4xx is an answer,
 // not an unreachable parent — the next query tries again.
-func TestTargets_Query_ParentClientErrorDoesNotBackOff(t *testing.T) {
+func Test792a21k1c_Targets_Query_ParentClientErrorDoesNotBackOff(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -245,4 +98,151 @@ func TestTargets_Query_ParentClientErrorDoesNotBackOff(t *testing.T) {
 	g.Expect(cacheErr).NotTo(HaveOccurred())
 	g.Expect(cache.Failures).To(BeZero())
 	g.Expect(cache.BackoffUntil.IsZero()).To(BeTrue())
+}
+
+// Test792b5c14a1_BackoffDelay_ExponentialFrom30sCappedAt15m (design D6, M9).
+func Test792b5c14a1_BackoffDelay_ExponentialFrom30sCappedAt15m(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	g.Expect(cli.ExportBackoffDelay(1)).To(Equal(30 * time.Second))
+	g.Expect(cli.ExportBackoffDelay(2)).To(Equal(time.Minute))
+	g.Expect(cli.ExportBackoffDelay(3)).To(Equal(2 * time.Minute))
+	g.Expect(cli.ExportBackoffDelay(4)).To(Equal(4 * time.Minute))
+	g.Expect(cli.ExportBackoffDelay(5)).To(Equal(8 * time.Minute))
+	g.Expect(cli.ExportBackoffDelay(6)).To(Equal(15 * time.Minute))
+	g.Expect(cli.ExportBackoffDelay(1000)).To(Equal(15 * time.Minute))
+}
+
+// Test792b5c14a1_BackoffDelay_Property: for any failure count ≥ 1 the delay is within
+// [30s, 15m], never shrinks as failures grow, and doubles until the cap.
+func Test792b5c14a1_BackoffDelay_Property(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		failures := rapid.IntRange(1, 1<<20).Draw(rt, "failures")
+		delay := cli.ExportBackoffDelay(failures)
+		next := cli.ExportBackoffDelay(failures + 1)
+
+		if delay < 30*time.Second || delay > 15*time.Minute {
+			rt.Fatalf("delay(%d) = %v outside [30s, 15m]", failures, delay)
+		}
+
+		if next < delay {
+			rt.Fatalf("delay shrank: %v then %v", delay, next)
+		}
+
+		if next != 15*time.Minute && next != 2*delay {
+			rt.Fatalf("below the cap the delay doubles: %v then %v", delay, next)
+		}
+	})
+}
+
+// Test792b5c14a2_RecordParentFailure_GrowsThenSuccessResets: consecutive failures grow
+// the window; a success resets the count so the next failure is 30s again.
+func Test792b5c14a2_RecordParentFailure_GrowsThenSuccessResets(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+
+	first, err := cli.ExportRecordParentFailure(env.store, env.vault, parentURL)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(first).To(BeTemporally("==", env.now().Add(30*time.Second)))
+
+	second, err := cli.ExportRecordParentFailure(env.store, env.vault, parentURL)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(second).To(BeTemporally("==", env.now().Add(time.Minute)))
+
+	g.Expect(cli.ExportRecordParentSuccess(env.store, env.vault, parentURL, parentVaultID)).To(Succeed())
+
+	cache, cacheErr := cli.ExportLoadParentCache(env.state, env.vault)
+	g.Expect(cacheErr).NotTo(HaveOccurred())
+	g.Expect(cache.Failures).To(BeZero())
+	g.Expect(cache.VaultID).To(Equal(parentVaultID))
+	g.Expect(cli.ExportGateParentContact(env.store, env.vault, parentURL, false)).To(BeTrue())
+
+	third, err := cli.ExportRecordParentFailure(env.store, env.vault, parentURL)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(third).To(BeTemporally("==", env.now().Add(30*time.Second)))
+}
+
+// Test792b5c14a3_RecordParentSuccess_IdleWritesNothing: a success with nothing to
+// reset or learn does not rewrite parent.json (no churn per query).
+func Test792b5c14a3_RecordParentSuccess_IdleWritesNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	g.Expect(cli.ExportRecordParentSuccess(env.store, env.vault, parentURL, parentVaultID)).To(Succeed())
+
+	writes := len(env.fsys.atomicWrites())
+	g.Expect(cli.ExportRecordParentSuccess(env.store, env.vault, parentURL, parentVaultID)).To(Succeed())
+	g.Expect(env.fsys.atomicWrites()).To(HaveLen(writes))
+}
+
+// Test792b5c14a4_GateParentContact_BlocksInsideWindowWithOneWarning: inside the window
+// the command skips the parent and prints exactly one warning naming the
+// retry time and the queued-offer count.
+func Test792b5c14a4_GateParentContact_BlocksInsideWindowWithOneWarning(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
+	env.writeNote("2.2026-09-27.b.md", xidB, "b", false)
+	env.enqueue(xidA)
+	env.enqueue(xidB)
+
+	retry, err := cli.ExportRecordParentFailure(env.store, env.vault, parentURL)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	env.advance(10 * time.Second)
+	g.Expect(cli.ExportGateParentContact(env.store, env.vault, parentURL, false)).To(BeFalse())
+
+	lines := nonEmptyLines(env.stderr.String())
+	g.Expect(lines).To(HaveLen(1))
+	g.Expect(lines[0]).To(Equal(
+		"engram: parent unreachable (retry after " + retry.Format(time.RFC3339) + "); 2 offer(s) queued"))
+}
+
+// Test792b5c14a5_GateParentContact_AllowsAfterWindow: once backoff_until passes, the
+// parent is contacted again, silently.
+func Test792b5c14a5_GateParentContact_AllowsAfterWindow(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	_, err := cli.ExportRecordParentFailure(env.store, env.vault, parentURL)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	env.advance(31 * time.Second)
+	g.Expect(cli.ExportGateParentContact(env.store, env.vault, parentURL, false)).To(BeTrue())
+	g.Expect(env.stderr.String()).To(BeEmpty())
+}
+
+// Test792b5c14a6_GateParentContact_UpdateIgnoresWindow: `engram update` always tries.
+func Test792b5c14a6_GateParentContact_UpdateIgnoresWindow(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	_, err := cli.ExportRecordParentFailure(env.store, env.vault, parentURL)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(cli.ExportGateParentContact(env.store, env.vault, parentURL, true)).To(BeTrue())
+	g.Expect(env.stderr.String()).To(BeEmpty())
+}
+
+// Test792b5c14a7_GateParentContact_OtherParentURLIsNotBackedOff: the backoff belongs
+// to the URL that failed; a reconfigured parent is tried.
+func Test792b5c14a7_GateParentContact_OtherParentURLIsNotBackedOff(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	_, err := cli.ExportRecordParentFailure(env.store, env.vault, parentURL)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(cli.ExportGateParentContact(env.store, env.vault, "http://other:8093", false)).To(BeTrue())
 }

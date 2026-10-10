@@ -19,11 +19,72 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestActivate_LinkedLocalNoteRecheck covers the recheck's outcomes: an
+// Test792a21zf1a_Activate_ParentChangeRoundTrip (final review F1, F11): pull a
+// parent note, accept it, change it on the parent; the merged query still
+// returns the local copy, and activating that local copy pulls the
+// changed parent note down as a new pending offer.
+func Test792a21zf1a_Activate_ParentChangeRoundTrip(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	env.parent.queryNotes = true
+	parentNote := env.parent.addNote(pulledFact("7.2026-09-01.round-trip", "c", ""))
+	local := acceptedPulledCopy(t, env, parentNote)
+
+	env.parent.replace(pulledFact(parentNote, "changed upstream", ""))
+
+	stdout, _ := env.run("query", "--phrase", "when pulling", "--chunks-dir", t.TempDir())
+	g.Expect(env.exitCodes()).To(BeEmpty())
+
+	var payload struct {
+		Items []struct {
+			Path       string `yaml:"path"`
+			FromParent *bool  `yaml:"from_parent"`
+		} `yaml:"items"`
+	}
+	g.Expect(yaml.Unmarshal([]byte(stdout), &payload)).To(Succeed())
+
+	paths := make([]string, 0, len(payload.Items))
+	for _, item := range payload.Items {
+		paths = append(paths, item.Path)
+		g.Expect(item.FromParent).NotTo(BeNil())
+
+		if item.FromParent != nil {
+			g.Expect(*item.FromParent).To(BeFalse(), "the linked local copy stands in for the parent note")
+		}
+	}
+
+	g.Expect(paths).To(ContainElement(local))
+	g.Expect(paths).NotTo(ContainElement(parentNote + ".md"))
+
+	pulled, stderr := env.run("activate", "--note", local)
+	g.Expect(env.exitCodes()).To(BeEmpty(), stderr)
+
+	update := slices.DeleteFunc(env.linkedCopies(parentNote), func(name string) bool { return name == local })
+	g.Expect(update).To(HaveLen(1))
+
+	if len(update) != 1 {
+		return
+	}
+
+	g.Expect(pulled).To(ContainSubstring(update[0]))
+
+	copied := decodePulledCopy(t, []byte(readFileString(t, env.vault+"/"+update[0])))
+	g.Expect(copied.Pending).To(BeTrue())
+	g.Expect(copied.Parent.Links).To(Equal([]pulledLink{
+		{Note: parentNote, Via: "pulled", Hash: env.parent.hashOf(t, parentNote)},
+	}))
+
+	env.run("activate", "--note", local)
+	g.Expect(env.linkedCopies(parentNote)).To(HaveLen(2), "re-activating pulls the update only once")
+}
+
+// Test792a21zf1b_Activate_LinkedLocalNoteRecheck covers the recheck's outcomes: an
 // unchanged parent note writes nothing, a declined changed version writes
 // nothing, a link under another parent vault is never checked, and an
 // unreachable parent leaves the local activate a success.
-func TestActivate_LinkedLocalNoteRecheck(t *testing.T) {
+func Test792a21zf1b_Activate_LinkedLocalNoteRecheck(t *testing.T) {
 	t.Parallel()
 
 	t.Run("equal hash writes nothing", func(t *testing.T) {
@@ -157,73 +218,12 @@ func TestActivate_LinkedLocalNoteRecheck(t *testing.T) {
 	})
 }
 
-// TestActivate_ParentChangeRoundTrip (final review F1, F11): pull a
-// parent note, accept it, change it on the parent; the merged query still
-// returns the local copy, and activating that local copy pulls the
-// changed parent note down as a new pending offer.
-func TestActivate_ParentChangeRoundTrip(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newWiringEnv(t)
-	env.parent.queryNotes = true
-	parentNote := env.parent.addNote(pulledFact("7.2026-09-01.round-trip", "c", ""))
-	local := acceptedPulledCopy(t, env, parentNote)
-
-	env.parent.replace(pulledFact(parentNote, "changed upstream", ""))
-
-	stdout, _ := env.run("query", "--phrase", "when pulling", "--chunks-dir", t.TempDir())
-	g.Expect(env.exitCodes()).To(BeEmpty())
-
-	var payload struct {
-		Items []struct {
-			Path       string `yaml:"path"`
-			FromParent *bool  `yaml:"from_parent"`
-		} `yaml:"items"`
-	}
-	g.Expect(yaml.Unmarshal([]byte(stdout), &payload)).To(Succeed())
-
-	paths := make([]string, 0, len(payload.Items))
-	for _, item := range payload.Items {
-		paths = append(paths, item.Path)
-		g.Expect(item.FromParent).NotTo(BeNil())
-
-		if item.FromParent != nil {
-			g.Expect(*item.FromParent).To(BeFalse(), "the linked local copy stands in for the parent note")
-		}
-	}
-
-	g.Expect(paths).To(ContainElement(local))
-	g.Expect(paths).NotTo(ContainElement(parentNote + ".md"))
-
-	pulled, stderr := env.run("activate", "--note", local)
-	g.Expect(env.exitCodes()).To(BeEmpty(), stderr)
-
-	update := slices.DeleteFunc(env.linkedCopies(parentNote), func(name string) bool { return name == local })
-	g.Expect(update).To(HaveLen(1))
-
-	if len(update) != 1 {
-		return
-	}
-
-	g.Expect(pulled).To(ContainSubstring(update[0]))
-
-	copied := decodePulledCopy(t, []byte(readFileString(t, env.vault+"/"+update[0])))
-	g.Expect(copied.Pending).To(BeTrue())
-	g.Expect(copied.Parent.Links).To(Equal([]pulledLink{
-		{Note: parentNote, Via: "pulled", Hash: env.parent.hashOf(t, parentNote)},
-	}))
-
-	env.run("activate", "--note", local)
-	g.Expect(env.linkedCopies(parentNote)).To(HaveLen(2), "re-activating pulls the update only once")
-}
-
-// TestActivate_ServedParentPendingAndRecheck (final review F8, F1): against
+// Test792a21zf1f_Activate_ServedParentPendingAndRecheck (final review F8, F1): against
 // a real served parent (cli.ServeRoutes over a vault), a pending parent
 // note is never pulled down, a live one is, and after the child accepts
 // its copy and the parent's note changes, activating the local copy
 // pulls the change down through the raw route.
-func TestActivate_ServedParentPendingAndRecheck(t *testing.T) {
+func Test792a21zf1f_Activate_ServedParentPendingAndRecheck(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 

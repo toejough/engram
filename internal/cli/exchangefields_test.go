@@ -1,7 +1,7 @@
 package cli_test
 
 // Tests for the exchange frontmatter fields themselves (design D4,
-// vault-note-identity "Exchanged notes SHALL carry a stable exchange ID";
+// 792a21zi, "An exchanged note carries a stable exchange ID";
 // task 3.3): every frontmatter struct declares them, a note without them
 // serializes exactly as before, nothing stamps them by backfill, and JSON
 // decoding can never populate them.

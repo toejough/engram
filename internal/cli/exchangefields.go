@@ -1,7 +1,7 @@
 package cli
 
 // exchangeFrontmatter is the exchange frontmatter every fact, feedback and
-// runbook note may carry (design D4, vault-note-identity). Every field is
+// runbook note may carry (design D4, 792a21zi to 792a21zl). Every field is
 // omitempty, so a note that never takes part in exchange serializes exactly
 // as it did before exchange existed. Only the exchange paths (offer receipt,
 // pull-down, `amend --discard --into`, a rename's alias, served learn) set or

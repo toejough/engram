@@ -69,6 +69,158 @@ func Test792a20b1b_ServeTarget_ResolvesArgsAndCallsRunServe(t *testing.T) {
 	g.Expect(gotAddr).To(Equal("127.0.0.1:0"))
 }
 
+// Test792a21l1a_ShowParent_RoutesThroughFetch covers `engram show <ref> --parent`
+// routing to the parent (ENGRAM_PARENT) via fetchShow.
+func Test792a21l1a_ShowParent_RoutesThroughFetch(t *testing.T) {
+	g := NewWithT(t)
+	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
+
+	var got fakeFetchCall
+
+	stdout, stderr := executeCapturingBoth(t,
+		[]string{"engram", "show", "1.hub", "--parent", "--vault", t.TempDir()}, func(d *cli.Deps) {
+			d.Fetch = func(_ context.Context, method, url string, _ []byte) (cli.FetchResponse, error) {
+				got = fakeFetchCall{method: method, url: url}
+
+				return cli.FetchResponse{Status: 200, Body: []byte("parent note content\n")}, nil
+			}
+		})
+
+	g.Expect(stderr).To(BeEmpty())
+	g.Expect(stdout).To(Equal("parent note content\n"))
+	g.Expect(got.url).To(Equal("http://parent-host:8420/show?note=1.hub"))
+}
+
+// Test792a21l1c_ShowFallback_LocalHitDoesNotContactParent covers "Without --parent,
+// behavior is unchanged": with ENGRAM_PARENT configured but the ref found
+// locally, `engram show` (no --parent) returns the local note and never
+// contacts the parent — vault-merged-recall D8's fallback fires only on a
+// local miss.
+func Test792a21l1c_ShowFallback_LocalHitDoesNotContactParent(t *testing.T) {
+	g := NewWithT(t)
+	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
+
+	vault := t.TempDir()
+	writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
+
+	fetchCalled := false
+
+	stdout, stderr := executeCapturingBoth(t, []string{"engram", "show", "1", "--vault", vault}, func(d *cli.Deps) {
+		d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
+			fetchCalled = true
+
+			return cli.FetchResponse{}, nil
+		}
+	})
+
+	g.Expect(stderr).To(BeEmpty())
+	g.Expect(fetchCalled).To(BeFalse())
+	g.Expect(stdout).NotTo(ContainSubstring("from_parent"))
+}
+
+// Test792a21l1d_ShowFallback_LocalMissRoutesToParentLabeled covers "Local miss falls
+// back to the parent": with ENGRAM_PARENT configured and
+// no local match, bare `engram show <ref>` resolves the ref against the
+// parent and labels the output as parent-sourced (vault-merged-recall D8).
+func Test792a21l1d_ShowFallback_LocalMissRoutesToParentLabeled(t *testing.T) {
+	g := NewWithT(t)
+	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
+
+	vault := t.TempDir()
+
+	var got fakeFetchCall
+
+	stdout, stderr := executeCapturingBoth(t, []string{"engram", "show", "1.missing", "--vault", vault},
+		func(d *cli.Deps) {
+			d.Fetch = func(_ context.Context, method, url string, _ []byte) (cli.FetchResponse, error) {
+				got = fakeFetchCall{method: method, url: url}
+
+				return cli.FetchResponse{Status: 200, Body: []byte("parent note content\n")}, nil
+			}
+		})
+
+	g.Expect(stderr).To(BeEmpty())
+	g.Expect(got.url).To(Equal("http://parent-host:8420/show?note=1.missing"))
+	g.Expect(stdout).To(Equal("# from_parent: true\nparent note content\n"))
+}
+
+// Test792a21l1e_ShowFallback_LocalMissNoParentConfiguredErrorsUnchanged covers "Local
+// miss with no parent configured is still an error": the same not-found
+// error as before this capability existed, and the parent is never
+// contacted. Getenv is stubbed to "" (t.Parallel() forbids t.Setenv) so this
+// doesn't depend on ENGRAM_PARENT actually being unset in the ambient
+// environment running the test.
+func Test792a21l1e_ShowFallback_LocalMissNoParentConfiguredErrorsUnchanged(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	fetchCalled := false
+
+	_, stderr := executeCapturingBoth(t, []string{"engram", "show", "1.missing", "--vault", vault},
+		func(d *cli.Deps) {
+			d.Getenv = func(string) string { return "" }
+			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
+				fetchCalled = true
+
+				return cli.FetchResponse{}, nil
+			}
+		})
+
+	g.Expect(stderr).To(ContainSubstring("not found"))
+	g.Expect(fetchCalled).To(BeFalse())
+}
+
+// Test792a21l1f_ShowParent_WithoutEngramParentErrors covers --parent passed with
+// ENGRAM_PARENT unset: an error, no fetch attempted, no local fallback.
+// Getenv is stubbed to "" (rather than t.Setenv, which panics after
+// t.Parallel()) so this doesn't depend on ENGRAM_PARENT actually being
+// unset in the ambient environment running the test.
+func Test792a21l1f_ShowParent_WithoutEngramParentErrors(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fetchCalled := false
+
+	_, stderr := executeCapturingBoth(t,
+		[]string{"engram", "show", "1.hub", "--parent", "--vault", t.TempDir()}, func(d *cli.Deps) {
+			d.Getenv = func(string) string { return "" }
+			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
+				fetchCalled = true
+
+				return cli.FetchResponse{}, nil
+			}
+		})
+
+	g.Expect(stderr).NotTo(BeEmpty())
+	g.Expect(fetchCalled).To(BeFalse())
+}
+
+// Test792b2c10a5_Show_NoParent_RunsLocally covers the negative case: with no
+// ENGRAM_PARENT, deps.Fetch is never invoked and the command runs against
+// local files as usual.
+func Test792b2c10a5_Show_NoParent_RunsLocally(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
+
+	fetchCalled := false
+
+	_, stderr := executeCapturingBoth(t, []string{"engram", "show", "1", "--vault", vault}, func(d *cli.Deps) {
+		d.Getenv = func(string) string { return "" }
+		d.Fetch = func(_ context.Context, _, _ string, _ []byte) (cli.FetchResponse, error) {
+			fetchCalled = true
+
+			return cli.FetchResponse{}, nil
+		}
+	})
+
+	g.Expect(stderr).To(BeEmpty())
+	g.Expect(fetchCalled).To(BeFalse())
+}
+
 // TestFetchQueryPayload_AllParamsSet exercises every setBoolParam/
 // setIntParam/setStringParam "value present" branch of the parent /query
 // request in one call (the absent branches are covered by the other
@@ -358,86 +510,6 @@ func TestShowChunkTarget_LocalDispatch(t *testing.T) {
 	g.Expect(stderr).To(ContainSubstring("chunk not found"))
 }
 
-// TestShowFallback_LocalHitDoesNotContactParent covers "Without --parent,
-// behavior is unchanged": with ENGRAM_PARENT configured but the ref found
-// locally, `engram show` (no --parent) returns the local note and never
-// contacts the parent — vault-merged-recall D8's fallback fires only on a
-// local miss.
-func TestShowFallback_LocalHitDoesNotContactParent(t *testing.T) {
-	g := NewWithT(t)
-	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
-
-	vault := t.TempDir()
-	writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
-
-	fetchCalled := false
-
-	stdout, stderr := executeCapturingBoth(t, []string{"engram", "show", "1", "--vault", vault}, func(d *cli.Deps) {
-		d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
-			fetchCalled = true
-
-			return cli.FetchResponse{}, nil
-		}
-	})
-
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(fetchCalled).To(BeFalse())
-	g.Expect(stdout).NotTo(ContainSubstring("from_parent"))
-}
-
-// TestShowFallback_LocalMissNoParentConfiguredErrorsUnchanged covers "Local
-// miss with no parent configured is still an error": the same not-found
-// error as before this capability existed, and the parent is never
-// contacted. Getenv is stubbed to "" (t.Parallel() forbids t.Setenv) so this
-// doesn't depend on ENGRAM_PARENT actually being unset in the ambient
-// environment running the test.
-func TestShowFallback_LocalMissNoParentConfiguredErrorsUnchanged(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	fetchCalled := false
-
-	_, stderr := executeCapturingBoth(t, []string{"engram", "show", "1.missing", "--vault", vault},
-		func(d *cli.Deps) {
-			d.Getenv = func(string) string { return "" }
-			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
-				fetchCalled = true
-
-				return cli.FetchResponse{}, nil
-			}
-		})
-
-	g.Expect(stderr).To(ContainSubstring("not found"))
-	g.Expect(fetchCalled).To(BeFalse())
-}
-
-// TestShowFallback_LocalMissRoutesToParentLabeled covers "Local miss falls
-// back to the parent": with ENGRAM_PARENT configured and
-// no local match, bare `engram show <ref>` resolves the ref against the
-// parent and labels the output as parent-sourced (vault-merged-recall D8).
-func TestShowFallback_LocalMissRoutesToParentLabeled(t *testing.T) {
-	g := NewWithT(t)
-	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
-
-	vault := t.TempDir()
-
-	var got fakeFetchCall
-
-	stdout, stderr := executeCapturingBoth(t, []string{"engram", "show", "1.missing", "--vault", vault},
-		func(d *cli.Deps) {
-			d.Fetch = func(_ context.Context, method, url string, _ []byte) (cli.FetchResponse, error) {
-				got = fakeFetchCall{method: method, url: url}
-
-				return cli.FetchResponse{Status: 200, Body: []byte("parent note content\n")}, nil
-			}
-		})
-
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(got.url).To(Equal("http://parent-host:8420/show?note=1.missing"))
-	g.Expect(stdout).To(Equal("# from_parent: true\nparent note content\n"))
-}
-
 // TestShowParent_NonOKResponse_MalformedBody_FallsBackToRawText covers
 // describeErrorBody's non-JSON fallback branch: a non-2xx parent response
 // whose body isn't {"error": "..."} JSON still surfaces its raw text.
@@ -499,78 +571,6 @@ func TestShowParent_PercentEncodesQueryValues(t *testing.T) {
 	g.Expect(stderr).To(BeEmpty())
 	g.Expect(stdout).To(Equal("note content\n"))
 	g.Expect(got.url).To(Equal("http://parent-host:8420/show?note=1.2026-01-01.a%20note"))
-}
-
-// TestShowParent_RoutesThroughFetch covers `engram show <ref> --parent`
-// routing to the parent (ENGRAM_PARENT) via fetchShow.
-func TestShowParent_RoutesThroughFetch(t *testing.T) {
-	g := NewWithT(t)
-	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
-
-	var got fakeFetchCall
-
-	stdout, stderr := executeCapturingBoth(t,
-		[]string{"engram", "show", "1.hub", "--parent", "--vault", t.TempDir()}, func(d *cli.Deps) {
-			d.Fetch = func(_ context.Context, method, url string, _ []byte) (cli.FetchResponse, error) {
-				got = fakeFetchCall{method: method, url: url}
-
-				return cli.FetchResponse{Status: 200, Body: []byte("parent note content\n")}, nil
-			}
-		})
-
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(stdout).To(Equal("parent note content\n"))
-	g.Expect(got.url).To(Equal("http://parent-host:8420/show?note=1.hub"))
-}
-
-// TestShowParent_WithoutEngramParentErrors covers --parent passed with
-// ENGRAM_PARENT unset: an error, no fetch attempted, no local fallback.
-// Getenv is stubbed to "" (rather than t.Setenv, which panics after
-// t.Parallel()) so this doesn't depend on ENGRAM_PARENT actually being
-// unset in the ambient environment running the test.
-func TestShowParent_WithoutEngramParentErrors(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fetchCalled := false
-
-	_, stderr := executeCapturingBoth(t,
-		[]string{"engram", "show", "1.hub", "--parent", "--vault", t.TempDir()}, func(d *cli.Deps) {
-			d.Getenv = func(string) string { return "" }
-			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
-				fetchCalled = true
-
-				return cli.FetchResponse{}, nil
-			}
-		})
-
-	g.Expect(stderr).NotTo(BeEmpty())
-	g.Expect(fetchCalled).To(BeFalse())
-}
-
-// TestShow_NoParent_RunsLocally covers the negative case: with no
-// ENGRAM_PARENT, deps.Fetch is never invoked and the command runs against
-// local files as usual.
-func TestShow_NoParent_RunsLocally(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
-
-	fetchCalled := false
-
-	_, stderr := executeCapturingBoth(t, []string{"engram", "show", "1", "--vault", vault}, func(d *cli.Deps) {
-		d.Getenv = func(string) string { return "" }
-		d.Fetch = func(_ context.Context, _, _ string, _ []byte) (cli.FetchResponse, error) {
-			fetchCalled = true
-
-			return cli.FetchResponse{}, nil
-		}
-	})
-
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(fetchCalled).To(BeFalse())
 }
 
 // TestWriteParentSourced_BodyWriteErrorWraps covers writeParentSourced's

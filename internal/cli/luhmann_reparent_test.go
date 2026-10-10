@@ -305,7 +305,7 @@ func Test792b27c6a4_RenameAndRewriteReferences_OnlySupersedesNoteFieldsAreRewrit
 }
 
 // Test792b27c6a7_RenameAndRewriteReferences_AppendsOldBasenameToAliases is the spec
-// scenario "A rename records the old name" (vault-note-identity, design D4
+// scenario "A rename records the old name" (792a21zk1a, design D4
 // H2): the renamed note's aliases gain its old basename in the rename's one
 // write, after any aliases it already had and never twice; its new basename
 // is dropped from the list (a note renamed back is not its own alias); its

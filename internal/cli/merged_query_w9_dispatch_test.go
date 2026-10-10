@@ -21,10 +21,48 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestShowChunk_NeverContactsParent: with ENGRAM_PARENT set, a local
+// Test792a21j1a_Targets_Query_Merged_DedupesLinkedLocalNote wires the dedupe end to
+// end: a local note linked to the parent's note appears once, as the
+// local copy, with no parent chunk in the payload.
+func Test792a21j1a_Targets_Query_Merged_DedupesLinkedLocalNote(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	plantRealVaultNote(t, vault, "1.2026-09-01.local.md",
+		"---\ntype: fact\ntier: L2\nsituation: x\nparent:\n    vault: "+w9ParentVaultID+
+			"\n    links:\n        - note: 900.2026-09-01.parent\n          via: pulled\n---\n\nlocal body\n",
+		[]float32{1, 0, 0, 0})
+
+	stdout, stderr := executeCapturingBoth(t,
+		[]string{"engram", "query", "--phrase", "x", "--vault", vault, "--chunks-dir", t.TempDir()},
+		func(d *cli.Deps) {
+			d.Getenv = parentOnlyGetenv(parentURL)
+			d.Embed = fixedVectorEmbedder{modelID: "m@4", vector: []float32{1, 0, 0, 0}}
+			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
+				return cli.FetchResponse{Status: 200, Body: []byte(
+					"version: 1\nvault_id: " + w9ParentVaultID + "\nmodel_id: m@4\nitems:\n" +
+						"  - path: 900.2026-09-01.parent.md\n    kind: fact\n    score: 0.9\n" +
+						"    provenances: [direct]\n    exchange_hash: xh1:unrelated\n" +
+						"  - path: /s/p.jsonl#turn-1\n    kind: chunk\n    score: 0.95\n    provenances: [direct]\n",
+				)}, nil
+			}
+		})
+
+	g.Expect(stderr).To(BeEmpty())
+	g.Expect(stdout).NotTo(ContainSubstring("exchange_hash"))
+	g.Expect(stdout).NotTo(ContainSubstring("vault_id"))
+
+	var parsed queryParsed
+	g.Expect(yaml.Unmarshal([]byte(stdout), &parsed)).To(Succeed())
+	g.Expect(parsed.Items).To(HaveLen(1))
+	g.Expect(parsed.Items[0].Path).To(Equal("1.2026-09-01.local.md"))
+}
+
+// Test792a21l1b_ShowChunk_NeverContactsParent: with ENGRAM_PARENT set, a local
 // show-chunk miss is the local not-found error, and the parent is never
 // contacted — chunks never cross vaults (Q1, E56).
-func TestShowChunk_NeverContactsParent(t *testing.T) {
+func Test792a21l1b_ShowChunk_NeverContactsParent(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -66,9 +104,9 @@ func TestShowChunk_NeverContactsParent(t *testing.T) {
 	g.Expect(fetches.Load()).To(BeZero())
 }
 
-// TestShowChunk_ParentFlagIsUnknown: `show-chunk --parent` is rejected as
+// Test792a21l1b_ShowChunk_ParentFlagIsUnknown: `show-chunk --parent` is rejected as
 // an unknown flag, with no request made.
-func TestShowChunk_ParentFlagIsUnknown(t *testing.T) {
+func Test792a21l1b_ShowChunk_ParentFlagIsUnknown(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -96,10 +134,74 @@ func TestShowChunk_ParentFlagIsUnknown(t *testing.T) {
 	g.Expect(fetches.Load()).To(BeZero())
 }
 
-// TestShowFallback_BackoffSkipsParent: a local miss inside the backoff
+// Test792a2q1a_Targets_Query_Merged_SelfParentReturnsLocalOnly: a parent reporting
+// this vault's own ID is not merged; the query returns local results with
+// the self-parent warning.
+func Test792a2q1a_Targets_Query_Merged_SelfParentReturnsLocalOnly(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	plantRealVaultNote(t, vault, "1.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: x\n---\n\nlocal body\n", []float32{1, 0, 0, 0})
+
+	stdout, stderr := executeCapturingBoth(t,
+		[]string{"engram", "query", "--phrase", "x", "--vault", vault, "--chunks-dir", t.TempDir()},
+		func(d *cli.Deps) {
+			d.Getenv = parentOnlyGetenv(parentURL)
+			d.Embed = fixedVectorEmbedder{modelID: "m@4", vector: []float32{1, 0, 0, 0}}
+			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
+				ownID, readErr := os.ReadFile(filepath.Join(vault, ".engram-vault-id"))
+				if readErr != nil {
+					return cli.FetchResponse{}, readErr
+				}
+
+				return cli.FetchResponse{Status: 200, Body: []byte(
+					"version: 1\nvault_id: " + strings.TrimSpace(string(ownID)) + "\nmodel_id: m@4\nitems:\n" +
+						"  - path: parent-note.md\n    kind: fact\n    score: 0.5\n    provenances: [direct]\n",
+				)}, nil
+			}
+		})
+
+	g.Expect(stderr).To(ContainSubstring("the parent reports this vault's own ID"))
+
+	var parsed queryParsed
+	g.Expect(yaml.Unmarshal([]byte(stdout), &parsed)).To(Succeed())
+	g.Expect(parsed.Items).To(HaveLen(1))
+	g.Expect(parsed.Items[0].Path).To(Equal("1.fact.md"))
+}
+
+// Test792b2c10a10_ShowParent_FailedStampSkipsContactBookkeeping: when the vault ID
+// can't be stamped, the contact still runs but its bookkeeping is skipped,
+// so no later write creates .engram/ without a stamp (ruling S4).
+func Test792b2c10a10_ShowParent_FailedStampSkipsContactBookkeeping(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+
+	var fetches atomic.Int32
+
+	_, _ = executeCapturingBoth(t, []string{"engram", "show", "1.hub", "--parent", "--vault", vault},
+		func(d *cli.Deps) {
+			d.FS = &failFirstIDWriteFS{EdgeFS: d.FS}
+			d.Getenv = parentOnlyGetenv(parentURL)
+			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
+				fetches.Add(1)
+
+				return cli.FetchResponse{}, errors.New("dial tcp: connection refused")
+			}
+		})
+
+	g.Expect(fetches.Load()).To(Equal(int32(1)))
+	g.Expect(filepath.Join(vault, ".engram")).NotTo(BeAnExistingFile())
+	g.Expect(filepath.Join(vault, ".engram-vault-id")).NotTo(BeAnExistingFile())
+}
+
+// Test792b2c10a7_ShowFallback_BackoffSkipsParent: a local miss inside the backoff
 // window returns the local not-found error after the one warning, with no
 // request.
-func TestShowFallback_BackoffSkipsParent(t *testing.T) {
+func Test792b2c10a7_ShowFallback_BackoffSkipsParent(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -131,29 +233,9 @@ func TestShowFallback_BackoffSkipsParent(t *testing.T) {
 	g.Expect(stderr).To(ContainSubstring("not found"))
 }
 
-// TestShowFallback_StampsVaultIDOnParentContact: the local-miss fallback is
-// a parent contact, so it stamps a missing vault ID (ruling S3).
-func TestShowFallback_StampsVaultIDOnParentContact(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-
-	_, stderr := executeCapturingBoth(t, []string{"engram", "show", "1.missing", "--vault", vault},
-		func(d *cli.Deps) {
-			d.Getenv = parentOnlyGetenv(parentURL)
-			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
-				return cli.FetchResponse{Status: 200, Body: []byte("parent note\n")}, nil
-			}
-		})
-
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(filepath.Join(vault, ".engram-vault-id")).To(BeARegularFile())
-}
-
-// TestShowParent_BackoffMakesNoRequest: inside the backoff window,
+// Test792b2c10a8_ShowParent_BackoffMakesNoRequest: inside the backoff window,
 // `show --parent` makes no request and errors after the one warning.
-func TestShowParent_BackoffMakesNoRequest(t *testing.T) {
+func Test792b2c10a8_ShowParent_BackoffMakesNoRequest(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -186,36 +268,29 @@ func TestShowParent_BackoffMakesNoRequest(t *testing.T) {
 	g.Expect(stderr).To(ContainSubstring("engram: parent unreachable (retry after "))
 }
 
-// TestShowParent_FailedStampSkipsContactBookkeeping: when the vault ID
-// can't be stamped, the contact still runs but its bookkeeping is skipped,
-// so no later write creates .engram/ without a stamp (ruling S4).
-func TestShowParent_FailedStampSkipsContactBookkeeping(t *testing.T) {
+// Test792b2c10a9_ShowFallback_StampsVaultIDOnParentContact: the local-miss fallback is
+// a parent contact, so it stamps a missing vault ID (ruling S3).
+func Test792b2c10a9_ShowFallback_StampsVaultIDOnParentContact(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	vault := t.TempDir()
 
-	var fetches atomic.Int32
-
-	_, _ = executeCapturingBoth(t, []string{"engram", "show", "1.hub", "--parent", "--vault", vault},
+	_, stderr := executeCapturingBoth(t, []string{"engram", "show", "1.missing", "--vault", vault},
 		func(d *cli.Deps) {
-			d.FS = &failFirstIDWriteFS{EdgeFS: d.FS}
 			d.Getenv = parentOnlyGetenv(parentURL)
 			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
-				fetches.Add(1)
-
-				return cli.FetchResponse{}, errors.New("dial tcp: connection refused")
+				return cli.FetchResponse{Status: 200, Body: []byte("parent note\n")}, nil
 			}
 		})
 
-	g.Expect(fetches.Load()).To(Equal(int32(1)))
-	g.Expect(filepath.Join(vault, ".engram")).NotTo(BeAnExistingFile())
-	g.Expect(filepath.Join(vault, ".engram-vault-id")).NotTo(BeAnExistingFile())
+	g.Expect(stderr).To(BeEmpty())
+	g.Expect(filepath.Join(vault, ".engram-vault-id")).To(BeARegularFile())
 }
 
-// TestShowParent_StampsVaultIDOnParentContact: `show --parent` is a parent
+// Test792b2c10a9_ShowParent_StampsVaultIDOnParentContact: `show --parent` is a parent
 // contact, so it stamps a missing vault ID (ruling S3).
-func TestShowParent_StampsVaultIDOnParentContact(t *testing.T) {
+func Test792b2c10a9_ShowParent_StampsVaultIDOnParentContact(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -232,44 +307,6 @@ func TestShowParent_StampsVaultIDOnParentContact(t *testing.T) {
 	g.Expect(stderr).To(BeEmpty())
 	g.Expect(stdout).To(Equal("parent note content\n"))
 	g.Expect(filepath.Join(vault, ".engram-vault-id")).To(BeARegularFile())
-}
-
-// TestTargets_Query_Merged_DedupesLinkedLocalNote wires the dedupe end to
-// end: a local note linked to the parent's note appears once, as the
-// local copy, with no parent chunk in the payload.
-func TestTargets_Query_Merged_DedupesLinkedLocalNote(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	plantRealVaultNote(t, vault, "1.2026-09-01.local.md",
-		"---\ntype: fact\ntier: L2\nsituation: x\nparent:\n    vault: "+w9ParentVaultID+
-			"\n    links:\n        - note: 900.2026-09-01.parent\n          via: pulled\n---\n\nlocal body\n",
-		[]float32{1, 0, 0, 0})
-
-	stdout, stderr := executeCapturingBoth(t,
-		[]string{"engram", "query", "--phrase", "x", "--vault", vault, "--chunks-dir", t.TempDir()},
-		func(d *cli.Deps) {
-			d.Getenv = parentOnlyGetenv(parentURL)
-			d.Embed = fixedVectorEmbedder{modelID: "m@4", vector: []float32{1, 0, 0, 0}}
-			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
-				return cli.FetchResponse{Status: 200, Body: []byte(
-					"version: 1\nvault_id: " + w9ParentVaultID + "\nmodel_id: m@4\nitems:\n" +
-						"  - path: 900.2026-09-01.parent.md\n    kind: fact\n    score: 0.9\n" +
-						"    provenances: [direct]\n    exchange_hash: xh1:unrelated\n" +
-						"  - path: /s/p.jsonl#turn-1\n    kind: chunk\n    score: 0.95\n    provenances: [direct]\n",
-				)}, nil
-			}
-		})
-
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(stdout).NotTo(ContainSubstring("exchange_hash"))
-	g.Expect(stdout).NotTo(ContainSubstring("vault_id"))
-
-	var parsed queryParsed
-	g.Expect(yaml.Unmarshal([]byte(stdout), &parsed)).To(Succeed())
-	g.Expect(parsed.Items).To(HaveLen(1))
-	g.Expect(parsed.Items[0].Path).To(Equal("1.2026-09-01.local.md"))
 }
 
 // TestTargets_Query_Merged_FailedStampSkipsContactBookkeeping is the merged
@@ -343,43 +380,6 @@ func TestTargets_Query_Merged_RequestsDedupeKeysAndCachesVaultID(t *testing.T) {
 		cli.ExportExchangeStateFromDeps(newTestDeps(io.Discard, io.Discard)), vault)
 	g.Expect(cacheErr).NotTo(HaveOccurred())
 	g.Expect(cache.VaultID).To(Equal(w9ParentVaultID))
-}
-
-// TestTargets_Query_Merged_SelfParentReturnsLocalOnly: a parent reporting
-// this vault's own ID is not merged; the query returns local results with
-// the self-parent warning.
-func TestTargets_Query_Merged_SelfParentReturnsLocalOnly(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	plantRealVaultNote(t, vault, "1.fact.md",
-		"---\ntype: fact\ntier: L2\nsituation: x\n---\n\nlocal body\n", []float32{1, 0, 0, 0})
-
-	stdout, stderr := executeCapturingBoth(t,
-		[]string{"engram", "query", "--phrase", "x", "--vault", vault, "--chunks-dir", t.TempDir()},
-		func(d *cli.Deps) {
-			d.Getenv = parentOnlyGetenv(parentURL)
-			d.Embed = fixedVectorEmbedder{modelID: "m@4", vector: []float32{1, 0, 0, 0}}
-			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
-				ownID, readErr := os.ReadFile(filepath.Join(vault, ".engram-vault-id"))
-				if readErr != nil {
-					return cli.FetchResponse{}, readErr
-				}
-
-				return cli.FetchResponse{Status: 200, Body: []byte(
-					"version: 1\nvault_id: " + strings.TrimSpace(string(ownID)) + "\nmodel_id: m@4\nitems:\n" +
-						"  - path: parent-note.md\n    kind: fact\n    score: 0.5\n    provenances: [direct]\n",
-				)}, nil
-			}
-		})
-
-	g.Expect(stderr).To(ContainSubstring("the parent reports this vault's own ID"))
-
-	var parsed queryParsed
-	g.Expect(yaml.Unmarshal([]byte(stdout), &parsed)).To(Succeed())
-	g.Expect(parsed.Items).To(HaveLen(1))
-	g.Expect(parsed.Items[0].Path).To(Equal("1.fact.md"))
 }
 
 // unexported constants.

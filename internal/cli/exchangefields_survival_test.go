@@ -1,7 +1,7 @@
 package cli_test
 
-// Field-survival tests for the exchange fields (vault-note-identity ADDED
-// requirement "Exchange fields SHALL survive every frontmatter rewrite"):
+// Field-survival tests for the exchange fields (792a21zl and 792b33c10,
+// "Exchange fields survive every other frontmatter rewrite"):
 // xid, parent, aliases and offer must come out of every non-exchange
 // frontmatter rewrite byte-unchanged, on every note type that carries them.
 // Siblings of skillfields_survival_test.go (task 3.2), reusing its in-memory
@@ -28,10 +28,10 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
-// TestExchangeFieldsSurvive_Amend covers every amend flag family on every
+// Test792b33c10a1_ExchangeFieldsSurvive_Amend covers every amend flag family on every
 // note type (amend.go applyTypedAmend / applyRunbookAmend, both of which
 // re-marshal the typed frontmatter doc).
-func TestExchangeFieldsSurvive_Amend(t *testing.T) {
+func Test792b33c10a1_ExchangeFieldsSurvive_Amend(t *testing.T) {
 	t.Parallel()
 
 	for _, noteType := range exchangeSurvivalTypes {
@@ -70,11 +70,11 @@ func TestExchangeFieldsSurvive_Amend(t *testing.T) {
 	}
 }
 
-// TestExchangeFieldsSurvive_AmendProperty is the property form over random
+// Test792b33c10a1_ExchangeFieldsSurvive_AmendProperty is the property form over random
 // notes: any exchange-field values, on any note type, survive the amend
 // re-marshal followed by the line-based rewrites (vocab assignment, wikilink
 // rewrite, reference scrub) byte-unchanged.
-func TestExchangeFieldsSurvive_AmendProperty(t *testing.T) {
+func Test792b33c10a1_ExchangeFieldsSurvive_AmendProperty(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		noteType := rapid.SampledFrom(exchangeSurvivalTypes).Draw(rt, "type")
@@ -115,10 +115,10 @@ func TestExchangeFieldsSurvive_AmendProperty(t *testing.T) {
 	})
 }
 
-// TestExchangeFieldsSurvive_AmendResituateProperty is the property form for
+// Test792b33c10a2_ExchangeFieldsSurvive_AmendResituateProperty is the property form for
 // resituate, which round-trips the fact/feedback frontmatter doc with only
 // situation replaced.
-func TestExchangeFieldsSurvive_AmendResituateProperty(t *testing.T) {
+func Test792b33c10a2_ExchangeFieldsSurvive_AmendResituateProperty(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		noteType := rapid.SampledFrom([]string{"fact", "feedback"}).Draw(rt, "type")
@@ -137,10 +137,32 @@ func TestExchangeFieldsSurvive_AmendResituateProperty(t *testing.T) {
 	})
 }
 
-// TestExchangeFieldsSurvive_BackfillIdentity covers `engram update
+// Test792b33c10a2_ExchangeFieldsSurvive_Resituate covers `engram resituate`
+// (resituate.go rerenderFact / rerenderFeedback), which round-trips the
+// frontmatter doc with only situation replaced.
+func Test792b33c10a2_ExchangeFieldsSurvive_Resituate(t *testing.T) {
+	t.Parallel()
+
+	for _, noteType := range []string{"fact", "feedback"} {
+		t.Run(noteType, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			before := exchangeSurvivalNote(noteType, exchangeSurvivalFixture())
+
+			after, writes, err := runExchangeSurvivalResituate(t.Context(), before)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(writes).To(Equal(1))
+			g.Expect(after).To(ContainSubstring("situation: resituated context"))
+			expectExchangeFieldsUnchanged(g, before, after)
+		})
+	}
+}
+
+// Test792b33c10a3_ExchangeFieldsSurvive_BackfillIdentity covers `engram update
 // --backfill-identity` (identity_backfill.go), which re-marshals fact and
 // feedback notes missing user:/vault:.
-func TestExchangeFieldsSurvive_BackfillIdentity(t *testing.T) {
+func Test792b33c10a3_ExchangeFieldsSurvive_BackfillIdentity(t *testing.T) {
 	t.Parallel()
 
 	for _, noteType := range []string{"fact", "feedback"} {
@@ -160,9 +182,84 @@ func TestExchangeFieldsSurvive_BackfillIdentity(t *testing.T) {
 	}
 }
 
-// TestExchangeFieldsSurvive_ClearRemovedVocabTerms covers vocab refit's term
+// Test792b33c10a4_ExchangeFieldsSurvive_ReparentRenamesNote covers Luhmann reparenting
+// renaming the note itself (luhmann_reparent.go renameOneNote ->
+// rewriteLuhmannIDField).
+func Test792b33c10a4_ExchangeFieldsSurvive_ReparentRenamesNote(t *testing.T) {
+	t.Parallel()
+
+	for _, noteType := range exchangeSurvivalTypes {
+		t.Run(noteType, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			before := exchangeSurvivalNote(noteType, exchangeSurvivalFixture())
+			fixture := newReparentFixture(map[string]string{exchangeSurvivalNoteName: before})
+			oldBasename := strings.TrimSuffix(exchangeSurvivalNoteName, ".md")
+			newBasename := "3.2026-01-01.exchanged"
+
+			_, err := cli.RenameAndRewriteReferences(fixture.deps(), "/vault",
+				map[string]string{oldBasename: newBasename})
+			g.Expect(err).NotTo(HaveOccurred())
+
+			after := string(fixture.written["/vault/"+newBasename+".md"])
+			g.Expect(after).To(ContainSubstring(`luhmann: "3"`), "the rename must actually have rewritten the note")
+			expectExchangeFieldsSurviveRename(g, before, after, oldBasename)
+		})
+	}
+}
+
+// Test792b33c10a4_ExchangeFieldsSurvive_WikilinkRewrite covers rename-and-rewrite of the
+// references inside a note that is not itself renamed
+// (luhmann_reparent.go rewriteNoteReferences). The rename map also renames
+// local notes that happen to share basenames with the note's parent link,
+// alias and offer.for values: those name notes in other vaults (or this
+// note's own former names), never local references, so a local rename must
+// leave them untouched.
+func Test792b33c10a4_ExchangeFieldsSurvive_WikilinkRewrite(t *testing.T) {
+	t.Parallel()
+
+	for _, noteType := range exchangeSurvivalTypes {
+		t.Run(noteType, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			exchange := exchangeSurvivalFixture()
+			before := exchangeSurvivalNote(noteType, exchange)
+			target := "---\ntype: fact\nluhmann: \"2\"\n---\n\nTarget.\n"
+			fixture := newReparentFixture(map[string]string{
+				exchangeSurvivalNoteName:              before,
+				exchangeSurvivalLinkTarget + ".md":    target,
+				exchange.Parent.Links[0].Note + ".md": target,
+				exchange.Parent.Links[1].Note + ".md": target,
+				exchange.Aliases[0] + ".md":           target,
+			})
+
+			_, err := cli.RenameAndRewriteReferences(fixture.deps(), "/vault", map[string]string{
+				exchangeSurvivalLinkTarget:    "4.2026-01-01.old-target",
+				exchange.Parent.Links[0].Note: "40.2026-01-01.renamed-a",
+				exchange.Parent.Links[1].Note: "41.2026-01-01.renamed-b",
+				exchange.Aliases[0]:           "42.2026-01-01.renamed-c",
+			})
+			g.Expect(err).NotTo(HaveOccurred())
+
+			after := string(fixture.written["/vault/"+exchangeSurvivalNoteName])
+			linkKey := "situation"
+			if noteType == "runbook" {
+				linkKey = "red_flags"
+			}
+
+			g.Expect(yamlKeyBlock(after, linkKey)).To(ContainSubstring("[[4.2026-01-01.old-target]]"),
+				"the frontmatter wikilink must actually have been rewritten")
+			g.Expect(yamlKeyBlock(after, linkKey)).NotTo(ContainSubstring(exchangeSurvivalLinkTarget))
+			expectExchangeFieldsUnchanged(g, before, after)
+		})
+	}
+}
+
+// Test792b33c10a5_ExchangeFieldsSurvive_ClearRemovedVocabTerms covers vocab refit's term
 // removal (vocab_commands.go clearRemovedTermsFromNote).
-func TestExchangeFieldsSurvive_ClearRemovedVocabTerms(t *testing.T) {
+func Test792b33c10a5_ExchangeFieldsSurvive_ClearRemovedVocabTerms(t *testing.T) {
 	t.Parallel()
 
 	for _, noteType := range exchangeSurvivalTypes {
@@ -187,10 +284,145 @@ func TestExchangeFieldsSurvive_ClearRemovedVocabTerms(t *testing.T) {
 	}
 }
 
-// TestExchangeFieldsSurvive_RegisterSkillsAdopt covers register-skills adopt
+// Test792b33c10a5_ExchangeFieldsSurvive_StripLegacyVocabChannel covers `engram update
+// --regen-vocab`'s legacy cleanup (vocab_regen.go stripLegacyVocabChannel).
+func Test792b33c10a5_ExchangeFieldsSurvive_StripLegacyVocabChannel(t *testing.T) {
+	t.Parallel()
+
+	for _, noteType := range exchangeSurvivalTypes {
+		t.Run(noteType, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			before := strings.Replace(exchangeSurvivalNote(noteType, exchangeSurvivalFixture()),
+				"tier: L2\n", "tier: L2\nvocab: old-term\n", 1)
+
+			after, changed := cli.ExportStripLegacyVocabChannel(before)
+			g.Expect(changed).To(BeTrue(), "the strip must actually have run")
+			expectExchangeFieldsUnchanged(g, before, after)
+		})
+	}
+}
+
+// Test792b33c10a5_ExchangeFieldsSurvive_VocabAssignment covers vocab term assignment
+// (vocab.go WriteVocabAssignment -> rewriteTagsFrontmatterSplit).
+func Test792b33c10a5_ExchangeFieldsSurvive_VocabAssignment(t *testing.T) {
+	t.Parallel()
+
+	for _, noteType := range exchangeSurvivalTypes {
+		t.Run(noteType, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			before := exchangeSurvivalNote(noteType, exchangeSurvivalFixture())
+
+			after := cli.ExportWriteVocabAssignment(before, []string{"new-term", "other-term"})
+			g.Expect(after).To(ContainSubstring("vocab/new-term"), "the assignment must actually have run")
+			expectExchangeFieldsUnchanged(g, before, after)
+		})
+	}
+}
+
+// Test792b33c10a5_ExchangeFieldsSurvive_VocabSelfTag covers `engram vocab
+// tag-definitions` (vocab_commands.go runVocabTagDefinitions) adding the
+// missing vocab/<term> self-tag to a definition note that carries exchange
+// fields.
+func Test792b33c10a5_ExchangeFieldsSurvive_VocabSelfTag(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const name = "5a.2026-01-01.vocab-widget-definition.md"
+
+	before := strings.Replace(exchangeSurvivalNote("fact", exchangeSurvivalFixture()),
+		"tags:\n    - vocab/old-term\n", "tags:\n    - vocab\n", 1)
+	fs := newSkillSurvivalFS(map[string]string{name: before})
+
+	deps := cli.VocabDeps{
+		Lock:   func(string) (func(), error) { return func() {}, nil },
+		ListMD: fs.listMD, ReadFile: fs.readFile, WriteFile: fs.writeFile,
+		LogWarning: func(string, ...any) {},
+	}
+
+	var buf bytes.Buffer
+
+	g.Expect(cli.ExportRunVocabTagDefinitions(t.Context(), "/vault", deps, &buf)).To(Succeed())
+
+	after := fs.content(name)
+	g.Expect(after).To(ContainSubstring("vocab/widget"), "the self-tag must actually have been added")
+	expectExchangeFieldsUnchanged(g, before, after)
+}
+
+// Test792b33c10a5_ExchangeFieldsSurvive_VocabVersionStamp covers the vocab_version
+// rewrite on the family note (vocab_commands.go
+// writeVocabVersionToFamilyNote -> rewriteVocabVersionKey).
+func Test792b33c10a5_ExchangeFieldsSurvive_VocabVersionStamp(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const name = "5.2026-01-01.vocab-definition.md"
+
+	before := strings.Replace(exchangeSurvivalNote("fact", exchangeSurvivalFixture()),
+		"tags:\n    - vocab/old-term\n", "vocab_version: \"1.0\"\ntags:\n    - vocab\n", 1)
+	fs := newSkillSurvivalFS(map[string]string{name: before})
+
+	g.Expect(cli.ExportWriteVocabVersionToFamilyNote("/vault", "1.1", fs.listMD, fs.readFile, fs.writeFile)).
+		To(Succeed())
+
+	after := fs.content(name)
+	g.Expect(after).To(ContainSubstring(`vocab_version: "1.1"`), "the stamp must actually have run")
+	expectExchangeFieldsUnchanged(g, before, after)
+}
+
+// Test792b33c10a6_ExchangeFieldsSurvive_RemoveDeletedNoteReferences covers the per-note
+// reference scrub (vocab_apply.go removeNoteReferences).
+func Test792b33c10a6_ExchangeFieldsSurvive_RemoveDeletedNoteReferences(t *testing.T) {
+	t.Parallel()
+
+	for _, noteType := range exchangeSurvivalTypes {
+		t.Run(noteType, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			before := exchangeSurvivalNote(noteType, exchangeSurvivalFixture())
+
+			after, changed := cli.ExportRemoveNoteReferences(before,
+				map[string]bool{exchangeSurvivalSupersededBase + ".md": true})
+			g.Expect(changed).To(BeTrue(), "the scrub must actually have run")
+			expectExchangeFieldsUnchanged(g, before, after)
+		})
+	}
+}
+
+// Test792b33c10a6_ExchangeFieldsSurvive_ScrubDeletedNoteReferences covers the vault-wide
+// scrub driver (vocab_apply.go scrubDeletedNoteReferences).
+func Test792b33c10a6_ExchangeFieldsSurvive_ScrubDeletedNoteReferences(t *testing.T) {
+	t.Parallel()
+
+	for _, noteType := range exchangeSurvivalTypes {
+		t.Run(noteType, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			before := exchangeSurvivalNote(noteType, exchangeSurvivalFixture())
+			fs := newSkillSurvivalFS(map[string]string{exchangeSurvivalNoteName: before})
+
+			deps := cli.VocabDeps{
+				ListMD: fs.listMD, ReadFile: fs.readFile, WriteFile: fs.writeFile,
+				LogWarning: func(string, ...any) {},
+			}
+
+			cli.ExportScrubDeletedNoteReferences(deps, "/vault", fs.names, []string{exchangeSurvivalSupersededBase + ".md"})
+
+			g.Expect(fs.writes).To(HaveLen(1), "the scrub must actually have rewritten the note")
+			expectExchangeFieldsUnchanged(g, before, fs.content(exchangeSurvivalNoteName))
+		})
+	}
+}
+
+// Test792b33c10a7_ExchangeFieldsSurvive_RegisterSkillsAdopt covers register-skills adopt
 // (skillreg_accept.go AdoptSkillNote -> applySkillNoteBody), both when the
 // note already carries the key's slug (no rename) and when adopt renames it.
-func TestExchangeFieldsSurvive_RegisterSkillsAdopt(t *testing.T) {
+func Test792b33c10a7_ExchangeFieldsSurvive_RegisterSkillsAdopt(t *testing.T) {
 	t.Parallel()
 
 	for name, basename := range map[string]string{
@@ -232,9 +464,9 @@ func TestExchangeFieldsSurvive_RegisterSkillsAdopt(t *testing.T) {
 	}
 }
 
-// TestExchangeFieldsSurvive_RegisterSkillsRefresh covers register-skills
+// Test792b33c10a7_ExchangeFieldsSurvive_RegisterSkillsRefresh covers register-skills
 // refresh (skillreg_accept.go RefreshSkill -> applySkillNoteBody).
-func TestExchangeFieldsSurvive_RegisterSkillsRefresh(t *testing.T) {
+func Test792b33c10a7_ExchangeFieldsSurvive_RegisterSkillsRefresh(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -251,238 +483,6 @@ func TestExchangeFieldsSurvive_RegisterSkillsRefresh(t *testing.T) {
 	after, _ := vault.get(basename + ".md")
 	g.Expect(after).To(ContainSubstring("Revised."), "refresh must actually have re-rendered the note")
 	expectExchangeFieldsUnchanged(g, before, after)
-}
-
-// TestExchangeFieldsSurvive_RemoveDeletedNoteReferences covers the per-note
-// reference scrub (vocab_apply.go removeNoteReferences).
-func TestExchangeFieldsSurvive_RemoveDeletedNoteReferences(t *testing.T) {
-	t.Parallel()
-
-	for _, noteType := range exchangeSurvivalTypes {
-		t.Run(noteType, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			before := exchangeSurvivalNote(noteType, exchangeSurvivalFixture())
-
-			after, changed := cli.ExportRemoveNoteReferences(before,
-				map[string]bool{exchangeSurvivalSupersededBase + ".md": true})
-			g.Expect(changed).To(BeTrue(), "the scrub must actually have run")
-			expectExchangeFieldsUnchanged(g, before, after)
-		})
-	}
-}
-
-// TestExchangeFieldsSurvive_ReparentRenamesNote covers Luhmann reparenting
-// renaming the note itself (luhmann_reparent.go renameOneNote ->
-// rewriteLuhmannIDField).
-func TestExchangeFieldsSurvive_ReparentRenamesNote(t *testing.T) {
-	t.Parallel()
-
-	for _, noteType := range exchangeSurvivalTypes {
-		t.Run(noteType, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			before := exchangeSurvivalNote(noteType, exchangeSurvivalFixture())
-			fixture := newReparentFixture(map[string]string{exchangeSurvivalNoteName: before})
-			oldBasename := strings.TrimSuffix(exchangeSurvivalNoteName, ".md")
-			newBasename := "3.2026-01-01.exchanged"
-
-			_, err := cli.RenameAndRewriteReferences(fixture.deps(), "/vault",
-				map[string]string{oldBasename: newBasename})
-			g.Expect(err).NotTo(HaveOccurred())
-
-			after := string(fixture.written["/vault/"+newBasename+".md"])
-			g.Expect(after).To(ContainSubstring(`luhmann: "3"`), "the rename must actually have rewritten the note")
-			expectExchangeFieldsSurviveRename(g, before, after, oldBasename)
-		})
-	}
-}
-
-// TestExchangeFieldsSurvive_Resituate covers `engram resituate`
-// (resituate.go rerenderFact / rerenderFeedback), which round-trips the
-// frontmatter doc with only situation replaced.
-func TestExchangeFieldsSurvive_Resituate(t *testing.T) {
-	t.Parallel()
-
-	for _, noteType := range []string{"fact", "feedback"} {
-		t.Run(noteType, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			before := exchangeSurvivalNote(noteType, exchangeSurvivalFixture())
-
-			after, writes, err := runExchangeSurvivalResituate(t.Context(), before)
-			g.Expect(err).NotTo(HaveOccurred())
-			g.Expect(writes).To(Equal(1))
-			g.Expect(after).To(ContainSubstring("situation: resituated context"))
-			expectExchangeFieldsUnchanged(g, before, after)
-		})
-	}
-}
-
-// TestExchangeFieldsSurvive_ScrubDeletedNoteReferences covers the vault-wide
-// scrub driver (vocab_apply.go scrubDeletedNoteReferences).
-func TestExchangeFieldsSurvive_ScrubDeletedNoteReferences(t *testing.T) {
-	t.Parallel()
-
-	for _, noteType := range exchangeSurvivalTypes {
-		t.Run(noteType, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			before := exchangeSurvivalNote(noteType, exchangeSurvivalFixture())
-			fs := newSkillSurvivalFS(map[string]string{exchangeSurvivalNoteName: before})
-
-			deps := cli.VocabDeps{
-				ListMD: fs.listMD, ReadFile: fs.readFile, WriteFile: fs.writeFile,
-				LogWarning: func(string, ...any) {},
-			}
-
-			cli.ExportScrubDeletedNoteReferences(deps, "/vault", fs.names, []string{exchangeSurvivalSupersededBase + ".md"})
-
-			g.Expect(fs.writes).To(HaveLen(1), "the scrub must actually have rewritten the note")
-			expectExchangeFieldsUnchanged(g, before, fs.content(exchangeSurvivalNoteName))
-		})
-	}
-}
-
-// TestExchangeFieldsSurvive_StripLegacyVocabChannel covers `engram update
-// --regen-vocab`'s legacy cleanup (vocab_regen.go stripLegacyVocabChannel).
-func TestExchangeFieldsSurvive_StripLegacyVocabChannel(t *testing.T) {
-	t.Parallel()
-
-	for _, noteType := range exchangeSurvivalTypes {
-		t.Run(noteType, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			before := strings.Replace(exchangeSurvivalNote(noteType, exchangeSurvivalFixture()),
-				"tier: L2\n", "tier: L2\nvocab: old-term\n", 1)
-
-			after, changed := cli.ExportStripLegacyVocabChannel(before)
-			g.Expect(changed).To(BeTrue(), "the strip must actually have run")
-			expectExchangeFieldsUnchanged(g, before, after)
-		})
-	}
-}
-
-// TestExchangeFieldsSurvive_VocabAssignment covers vocab term assignment
-// (vocab.go WriteVocabAssignment -> rewriteTagsFrontmatterSplit).
-func TestExchangeFieldsSurvive_VocabAssignment(t *testing.T) {
-	t.Parallel()
-
-	for _, noteType := range exchangeSurvivalTypes {
-		t.Run(noteType, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			before := exchangeSurvivalNote(noteType, exchangeSurvivalFixture())
-
-			after := cli.ExportWriteVocabAssignment(before, []string{"new-term", "other-term"})
-			g.Expect(after).To(ContainSubstring("vocab/new-term"), "the assignment must actually have run")
-			expectExchangeFieldsUnchanged(g, before, after)
-		})
-	}
-}
-
-// TestExchangeFieldsSurvive_VocabSelfTag covers `engram vocab
-// tag-definitions` (vocab_commands.go runVocabTagDefinitions) adding the
-// missing vocab/<term> self-tag to a definition note that carries exchange
-// fields.
-func TestExchangeFieldsSurvive_VocabSelfTag(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	const name = "5a.2026-01-01.vocab-widget-definition.md"
-
-	before := strings.Replace(exchangeSurvivalNote("fact", exchangeSurvivalFixture()),
-		"tags:\n    - vocab/old-term\n", "tags:\n    - vocab\n", 1)
-	fs := newSkillSurvivalFS(map[string]string{name: before})
-
-	deps := cli.VocabDeps{
-		Lock:   func(string) (func(), error) { return func() {}, nil },
-		ListMD: fs.listMD, ReadFile: fs.readFile, WriteFile: fs.writeFile,
-		LogWarning: func(string, ...any) {},
-	}
-
-	var buf bytes.Buffer
-
-	g.Expect(cli.ExportRunVocabTagDefinitions(t.Context(), "/vault", deps, &buf)).To(Succeed())
-
-	after := fs.content(name)
-	g.Expect(after).To(ContainSubstring("vocab/widget"), "the self-tag must actually have been added")
-	expectExchangeFieldsUnchanged(g, before, after)
-}
-
-// TestExchangeFieldsSurvive_VocabVersionStamp covers the vocab_version
-// rewrite on the family note (vocab_commands.go
-// writeVocabVersionToFamilyNote -> rewriteVocabVersionKey).
-func TestExchangeFieldsSurvive_VocabVersionStamp(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	const name = "5.2026-01-01.vocab-definition.md"
-
-	before := strings.Replace(exchangeSurvivalNote("fact", exchangeSurvivalFixture()),
-		"tags:\n    - vocab/old-term\n", "vocab_version: \"1.0\"\ntags:\n    - vocab\n", 1)
-	fs := newSkillSurvivalFS(map[string]string{name: before})
-
-	g.Expect(cli.ExportWriteVocabVersionToFamilyNote("/vault", "1.1", fs.listMD, fs.readFile, fs.writeFile)).
-		To(Succeed())
-
-	after := fs.content(name)
-	g.Expect(after).To(ContainSubstring(`vocab_version: "1.1"`), "the stamp must actually have run")
-	expectExchangeFieldsUnchanged(g, before, after)
-}
-
-// TestExchangeFieldsSurvive_WikilinkRewrite covers rename-and-rewrite of the
-// references inside a note that is not itself renamed
-// (luhmann_reparent.go rewriteNoteReferences). The rename map also renames
-// local notes that happen to share basenames with the note's parent link,
-// alias and offer.for values: those name notes in other vaults (or this
-// note's own former names), never local references, so a local rename must
-// leave them untouched.
-func TestExchangeFieldsSurvive_WikilinkRewrite(t *testing.T) {
-	t.Parallel()
-
-	for _, noteType := range exchangeSurvivalTypes {
-		t.Run(noteType, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			exchange := exchangeSurvivalFixture()
-			before := exchangeSurvivalNote(noteType, exchange)
-			target := "---\ntype: fact\nluhmann: \"2\"\n---\n\nTarget.\n"
-			fixture := newReparentFixture(map[string]string{
-				exchangeSurvivalNoteName:              before,
-				exchangeSurvivalLinkTarget + ".md":    target,
-				exchange.Parent.Links[0].Note + ".md": target,
-				exchange.Parent.Links[1].Note + ".md": target,
-				exchange.Aliases[0] + ".md":           target,
-			})
-
-			_, err := cli.RenameAndRewriteReferences(fixture.deps(), "/vault", map[string]string{
-				exchangeSurvivalLinkTarget:    "4.2026-01-01.old-target",
-				exchange.Parent.Links[0].Note: "40.2026-01-01.renamed-a",
-				exchange.Parent.Links[1].Note: "41.2026-01-01.renamed-b",
-				exchange.Aliases[0]:           "42.2026-01-01.renamed-c",
-			})
-			g.Expect(err).NotTo(HaveOccurred())
-
-			after := string(fixture.written["/vault/"+exchangeSurvivalNoteName])
-			linkKey := "situation"
-			if noteType == "runbook" {
-				linkKey = "red_flags"
-			}
-
-			g.Expect(yamlKeyBlock(after, linkKey)).To(ContainSubstring("[[4.2026-01-01.old-target]]"),
-				"the frontmatter wikilink must actually have been rewritten")
-			g.Expect(yamlKeyBlock(after, linkKey)).NotTo(ContainSubstring(exchangeSurvivalLinkTarget))
-			expectExchangeFieldsUnchanged(g, before, after)
-		})
-	}
 }
 
 // unexported constants.

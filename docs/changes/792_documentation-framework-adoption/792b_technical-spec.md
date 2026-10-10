@@ -53,8 +53,8 @@ Canonical target: `docs/specs/technical/command-line-surface.md` (title `Command
   through dispatch with injected environment and filesystem; stability, the surface survives any
   refactoring of command internals; necessity, every product capability is reached through it.
 - Supported capabilities: 792a2 vault-identity, 792a3 note-writing, 792a4 note-revision, 792a5
-  chunk-indexing, 792a6 controlled-vocabulary, 792a7 memory-query. Later capabilities add their own
-  routing requirements here (792d30, 792d51).
+  chunk-indexing, 792a6 controlled-vocabulary, 792a7 memory-query, 792a21 parent-sync (792b2c9, 792b2c10).
+  Later capabilities add their own routing requirements here (792d30, 792d51).
 
 Rationale: each `engram <subcommand>` is its own process. Commands never call each other in
 process; a skill reads one command's stdout and runs the next. (An earlier C3 draft drew an
@@ -72,7 +72,9 @@ sequenceDiagram
   participant Registry as vault-identity-registry
   participant Command as Selected command
   Caller->>CLI: engram subcommand with flags and environment
-  alt undefined flag or missing required flag
+  alt ENGRAM_SERVER is set
+    CLI-->>Caller: error naming ENGRAM_PARENT on stderr, non-zero exit, nothing else touched (792b2c9)
+  else undefined flag or missing required flag
     CLI-->>Caller: error naming the flag on stderr, non-zero exit, command not run (792b2c5)
   else arguments parsed
     CLI->>CLI: resolve vault path (792b2c1), vault name (792b2c2) and chunk index directory (792b2c6)
@@ -275,8 +277,7 @@ Supports: 792a7x1a, 792a7x1b, 792a7x1c, 792a7x1d, 792a7x1e, 792a7x1f, 792a7x1g, 
 
 Rationale: `engram show` is the full-fidelity source that the guidance shim names, so the preview
 budget that bounds a query payload (792a7w) is not applied here. Resolving a note that is on the
-parent vault, by `--parent` or by a miss with a parent configured, belongs to parent-sync, which adds
-that routing (792d51).
+parent vault, by `--parent` or by a miss with a parent configured, is 792b2c10.
 
 ##### 792b2c7a Scenarios
 
@@ -351,6 +352,117 @@ Scenario: 792b2c8a3 A blank reference fails
   Given any chunk index
   When `engram show-chunk` runs with the reference "   "
   Then it fails
+```
+
+#### 792b2c9 A removed environment variable is refused
+
+Requirement: 792b2c9 Before it builds any command, the command-line-surface MUST refuse every invocation, `serve` included,
+when the environment variable `ENGRAM_SERVER` is set to a non-empty value. The refusal MUST be an error that says
+`ENGRAM_SERVER is no longer supported`, tells the user to set `ENGRAM_PARENT` to the same value, and is reported through
+the usual error mapping (792b2c4). It MUST happen before any vault, chunk index, lock, network or bind capability is
+used, and `ENGRAM_SERVER` MUST NOT be read for any other purpose: its value is only echoed in the message.
+
+Supports: 792a21a1a, 792a21a1b, 792a21a1c, 792a21a1d.
+
+Rationale: the thin-client mode that read this variable sent ten commands to a remote server and touched no local file.
+Joe ruled out an alias shim and an exemption for `serve` (ADR-0029 D1), so the check sits ahead of every target and
+nothing can reach a vault, a lock, a fetch or a bind first. A fleet host that still sets it fails on its first command
+and is told the replacement.
+
+##### 792b2c9a Scenarios
+
+```gherkin
+Scenario: 792b2c9a1 Every command is refused before anything is touched
+  Given ENGRAM_SERVER is set to a URL
+  When any subcommand, serve included, is run
+  Then it exits non-zero with a message naming ENGRAM_PARENT and the same URL, and no filesystem, lock, fetch or bind capability is used
+
+Scenario: 792b2c9a2 The value is only echoed
+  Given ENGRAM_SERVER is set and ENGRAM_PARENT is not
+  When any subcommand is run
+  Then no fetch is issued, and the message names ENGRAM_PARENT with exactly the value ENGRAM_SERVER held
+```
+
+#### 792b2c10 Parent routing of note lookup
+
+Requirement: 792b2c10 For `show`, the command-line-surface MUST, when `--parent` is set, resolve the reference against
+`ENGRAM_PARENT` alone and print the parent's answer unlabeled, and MUST fail with `--parent requires ENGRAM_PARENT to be
+configured`, making no lookup, when `ENGRAM_PARENT` is unset. Without `--parent` it MUST look the reference up locally
+first (792b2c7) and return a local hit without contacting the parent. Only when the local lookup fails because the note
+was not found and `ENGRAM_PARENT` is configured MUST it ask the parent, and then it MUST print the line `# from_parent:
+true` followed by the parent's answer, printing the label only when the parent answered. Any other local error, and a
+miss with no parent configured, MUST be returned as the local error. Each request to the parent MUST be a parent contact:
+it MUST stamp a missing vault ID and check the vault's location first (792b5c4, 792b5c7), and a failed stamp MUST still
+let the request run with its bookkeeping skipped so that no later write creates `.engram/` without a stamp; it MUST be
+skipped inside a backoff window after the one warning (792b5c14), the fallback then returning the local not-found error
+and `--parent` returning an error; and its outcome MUST be recorded for backoff. `show-chunk` MUST NOT accept `--parent`
+and MUST NOT contact the parent.
+
+Supports: 792a21l1a, 792a21l1b, 792a21l1c, 792a21l1d, 792a21l1e, 792a21l1f, 792a21l1g.
+
+Rationale: a bare Luhmann ID is minted per vault, so a lookup that guessed local-first without being told could return the
+wrong note with no error; the explicit flag and the origin tag of a merged item (792a21g) remove the guess, and a
+fallback that fires only after a local miss cannot return a wrong local note. Chunks never cross vaults, so there is no
+parent chunk lookup (ADR-0029 D9). The explicit `--parent` route is byte-identical to the parent's own answer, and only
+the fallback is labeled, because only the fallback leaves the reader unsure where the text came from.
+
+##### 792b2c10a Scenarios
+
+```gherkin
+Scenario: 792b2c10a1 --parent asks the parent only
+  Given ENGRAM_PARENT is set
+  When `engram show <ref> --parent` runs
+  Then the ref is requested from the parent, whatever the local vault holds, and the output is the parent's answer without a label
+
+Scenario: 792b2c10a2 --parent with no parent is an error
+  Given ENGRAM_PARENT is unset
+  When `engram show <ref> --parent` runs
+  Then it fails and no request is made and no local fallback runs
+
+Scenario: 792b2c10a3 A local hit does not contact the parent
+  Given ENGRAM_PARENT is set and the note exists locally
+  When `engram show <ref>` runs
+  Then the local note is printed and no request is made
+
+Scenario: 792b2c10a4 A local miss falls back, labeled
+  Given ENGRAM_PARENT is set and the note is not local
+  When `engram show <ref>` runs
+  Then the parent's answer is printed after the line "# from_parent: true", and the label precedes the parent note's exchange-hash header
+
+Scenario: 792b2c10a5 Without a parent a miss is the local error
+  Given ENGRAM_PARENT is unset and the note is not local
+  When `engram show <ref>` runs
+  Then it fails with the local not-found error and the fetch capability is never invoked
+
+Scenario: 792b2c10a6 Another local error does not reach the parent
+  Given ENGRAM_PARENT is set
+  When `engram show` runs with a blank reference
+  Then it fails with the local error and no request is made
+
+Scenario: 792b2c10a7 A backoff window skips the fallback
+  Given ENGRAM_PARENT is set, the parent is backed off, and the note is not local
+  When `engram show <ref>` runs
+  Then no request is made and the local not-found error is returned after one warning
+
+Scenario: 792b2c10a8 A backoff window skips --parent
+  Given the parent is backed off
+  When `engram show <ref> --parent` runs
+  Then no request is made and the command fails after one warning
+
+Scenario: 792b2c10a9 A parent contact stamps the vault ID
+  Given a vault with no vault ID
+  When `engram show <ref> --parent` runs, or a local miss falls back to the parent
+  Then the vault ID is stamped before the request
+
+Scenario: 792b2c10a10 A failed stamp skips only the bookkeeping
+  Given a vault whose ID cannot be stamped
+  When `engram show <ref> --parent` runs
+  Then the request still runs, no backoff is recorded, and .engram is not created
+
+Scenario: 792b2c10a11 show-chunk never reaches the parent
+  Given ENGRAM_PARENT is set
+  When `engram show-chunk <id> --parent` runs, and when `engram show-chunk <id>` runs for a missing chunk
+  Then the first is rejected as an unknown flag with no request, and the second returns the local not-found error with no request
 ```
 
 ### 792b2d Product-Scenario Mapping
@@ -430,6 +542,17 @@ Scenario: 792b2c8a3 A blank reference fails
 | 792a10d1d | 792b2c4 |
 | 792a20b1a | 792b2c5 |
 | 792a20f1b | 792b2c2 |
+| 792a21a1a | 792b2c9 |
+| 792a21a1b | 792b2c9 |
+| 792a21a1c | 792b2c9 |
+| 792a21a1d | 792b2c9 |
+| 792a21l1a | 792b2c10 |
+| 792a21l1b | 792b2c10 |
+| 792a21l1c | 792b2c10 |
+| 792a21l1d | 792b2c10 |
+| 792a21l1e | 792b2c10 |
+| 792a21l1f | 792b2c10 |
+| 792a21l1g | 792b2c10 |
 
 ```gherkin
 Scenario: 792a2a1a The flag wins over the environment
@@ -855,6 +978,63 @@ Scenario: 792a10d1d An unknown note
   Given an answers file naming a note ID that no top-level note has
   When the user applies it
   Then it fails with "--answers references an unknown note" and the vault is unchanged
+```
+
+```gherkin
+Scenario: 792a21a1a A command run with ENGRAM_SERVER set fails fast
+  Given ENGRAM_SERVER is set to http://host:8093
+  When the user runs engram query --phrase x
+  Then it exits non-zero, its error says to set ENGRAM_PARENT=http://host:8093 instead, and no vault file, chunk file or HTTP request is touched
+
+Scenario: 792a21a1b Writes are refused too
+  Given ENGRAM_SERVER is set
+  When the user runs engram learn fact with its arguments
+  Then it exits non-zero with the same error, and no note is written locally or remotely
+
+Scenario: 792a21a1c serve is not exempt
+  Given ENGRAM_SERVER is set
+  When the user runs engram serve --addr 127.0.0.1:8093
+  Then it exits non-zero with the same error, and it binds no port
+
+Scenario: 792a21a1d ENGRAM_SERVER is not honored as an alias
+  Given ENGRAM_SERVER is set and ENGRAM_PARENT is not
+  When the user runs any engram command
+  Then no command contacts the ENGRAM_SERVER URL
+
+Scenario: 792a21l1a --parent routes to the configured parent
+  Given ENGRAM_PARENT is set
+  When the user runs engram show <ref> --parent
+  Then the ref is resolved against the parent vault and not the local vault
+
+Scenario: 792a21l1b show-chunk has no parent route
+  Given ENGRAM_PARENT is set
+  When the user runs engram show-chunk <id> --parent
+  Then the command is rejected as an unknown flag, and a plain show-chunk of a missing chunk returns the local not-found error without contacting the parent
+
+Scenario: 792a21l1c Without --parent a local note is returned as before
+  Given ENGRAM_PARENT is set and the ref exists locally
+  When the user runs engram show <ref>
+  Then the local note is returned without contacting the parent
+
+Scenario: 792a21l1d A local miss falls back to the parent
+  Given ENGRAM_PARENT is set and the ref is not found locally
+  When the user runs engram show <ref>
+  Then the ref is resolved against the parent and the output is labeled as parent-sourced
+
+Scenario: 792a21l1e A local miss with no parent is still an error
+  Given ENGRAM_PARENT is not set and the ref is not found locally
+  When the user runs engram show <ref>
+  Then the command returns the same not-found error as before
+
+Scenario: 792a21l1f --parent without ENGRAM_PARENT is an error
+  Given ENGRAM_PARENT is not set
+  When the user runs engram show <ref> --parent
+  Then the command returns an error and performs no lookup
+
+Scenario: 792a21l1g The parent-sourced label comes before the parent's header
+  Given ENGRAM_PARENT is set and the parent holds a note that carries an xid, which the child does not
+  When the user runs engram show <basename>
+  Then the first line is the parent-sourced label and the second is the parent note's exchange-hash header
 ```
 
 ## 792b3 Added: durable-file-store
@@ -1508,15 +1688,16 @@ Canonical target: `docs/specs/technical/vault-identity-registry.md` (title `Vaul
   `repairVaultID`, `stampVaultID`, `checkVaultLocation`, `warnVaultLocation`,
   `regenerateVaultID`, `claimVaultLocation`, `selfParentGuard`, `vaultIDUncommitted`),
   `internal/cli/vaultid.go` (`RunVaultID`), `internal/cli/vault_init.go` (`initializeVault`). The
-  parent cache, declined pulls and exchange-identifier checks in `exchangestate.go` are added by
-  parent-sync (792c7t1).
+  parent cache and backoff (`gateParentContact`, `recordParentFailure`, `recordParentSuccess`), the exchange-identifier
+  checks (`isExchangeID`, `isExchangeBasename`) and the declined-pull record (`loadDeclined`, `recordDeclinedPull`,
+  `declineMatches`) are 792b5c14 to 792b5c16.
 - Qualification: responsibility, the identity contract is stated without naming any command;
   ownership, commands decide when to exchange, while this component decides whether the vault's
   identity allows it; independent verification, every requirement is tested directly over a
   temp-dir or scripted filesystem and an injected random source; stability, the ID file, state
   directory and location record are on-disk contracts that survive refactoring; necessity,
   vault-identity's creation, ID and refusal requirements all depend on it.
-- Supported capabilities: 792a2 vault-identity.
+- Supported capabilities: 792a2 vault-identity, 792a21 parent-sync (792b5c14 to 792b5c16).
 
 Rationale (ADR-0029 D2): every environment has its own local vault, created by the first command
 that resolves its path, and a stable random vault ID in the tracked `.engram-vault-id`. Exchange
@@ -1932,6 +2113,129 @@ Scenario: 792b5c13a2 The update report carries the notice only when flagged
   Then it names .engram-vault-id and asks for a commit only when the flag is set
 ```
 
+#### 792b5c14 The parent cache and the contact backoff
+
+Requirement: 792b5c14 The vault-identity-registry MUST keep, per vault, a record of the configured parent in
+`<vault>/.engram/parent.json`: the parent's URL, the vault ID it last reported, the count of consecutive failures and the
+time before which it is not to be contacted. It MUST ignore a record that names another URL. Recording a failure (a
+transport error, a timeout or a 5xx) MUST add one to the count and set that time to now plus 30 seconds doubled for each
+earlier failure and never more than 15 minutes. Recording any answer, a 4xx included, MUST set the count to zero, clear
+the time and remember the vault ID the parent reported when it is well formed (792b5c15), and MUST write nothing when there
+is nothing to reset or learn. Asked whether a command may contact the parent, it MUST allow the contact without a message
+when `update` asks, when the record names another URL, when no time is set or when that time has passed, and MUST
+otherwise refuse it with exactly one warning that names the retry time and the number of queued offers. A record that
+cannot be read or written MUST be reported to its caller as an error.
+
+Supports: 792a21k1b, 792a21s1a, 792a21s1b, 792a21s1c, 792a21s1d, 792a21s1e, 792a21s1f.
+
+Rationale: without a backoff every command would wait out the connect timeout while a parent is down, and one offline
+host would slow every command the user runs (ADR-0029 D6). The record keys on the URL that failed, so reconfiguring the
+parent tries the new one at once, and `update` always tries so that the end of an outage is noticed. The remembered vault
+ID is what lets a link count only under the parent it was made for (792a21zj).
+
+##### 792b5c14a Scenarios
+
+```gherkin
+Scenario: 792b5c14a1 The delay doubles from thirty seconds and is capped
+  Given consecutive failure counts
+  When the delay is computed for each
+  Then it is 30 seconds for the first, doubles with each, never shrinks as the count grows, and never exceeds 15 minutes
+
+Scenario: 792b5c14a2 Failures grow the window and a success resets it
+  Given the parent fails twice and then answers
+  When each outcome is recorded
+  Then the window grows with the failures, and after the answer the next failure is 30 seconds again
+
+Scenario: 792b5c14a3 An idle success writes nothing
+  Given no failures recorded and a vault ID already remembered
+  When a success is recorded
+  Then parent.json is not rewritten
+
+Scenario: 792b5c14a4 Inside the window the contact is refused once
+  Given a backoff whose time has not passed
+  When a command asks to contact the parent
+  Then it is refused with exactly one warning naming the retry time and the queued-offer count
+
+Scenario: 792b5c14a5 After the window the contact is allowed silently
+  Given a backoff whose time has passed
+  When a command asks to contact the parent
+  Then it is allowed and prints nothing
+
+Scenario: 792b5c14a6 update ignores the window
+  Given a backoff whose time has not passed
+  When update asks to contact the parent
+  Then it is allowed
+
+Scenario: 792b5c14a7 Another URL is not backed off
+  Given a backoff recorded for one parent URL
+  When a command asks to contact a different URL
+  Then it is allowed
+```
+
+#### 792b5c15 Exchange identifiers
+
+Requirement: 792b5c15 The vault-identity-registry MUST accept a vault ID or a note's `xid` as an exchange identifier only
+when it is exactly 32 lowercase hexadecimal characters, and MUST accept a basename another vault hands this one only
+when it is a Luhmann basename that contains none of `/`, `\` and `|`.
+
+Supports: 792a21v1b, 792a21zd1e.
+
+Rationale: the parent is another machine's input. An accepted basename is stored in frontmatter, in the declined-pull
+record and in offers, so a separator would become a path and a `|` would corrupt the `note|type|claim` encoding of a
+supersession (ADR-0029 D6, D8).
+
+##### 792b5c15a Scenarios
+
+```gherkin
+Scenario: 792b5c15a1 Only a 32-character lowercase hexadecimal string is an identifier
+  Given strings of the wrong length, with uppercase letters or with other characters
+  When each is checked as an exchange identifier
+  Then only a 32-character lowercase hexadecimal string is accepted
+
+Scenario: 792b5c15a2 A basename with a separator is refused
+  Given a Luhmann basename and the same basename containing /, \ or |
+  When each is checked as an exchange basename
+  Then only the one without a separator is accepted
+```
+#### 792b5c16 The declined-pull record
+
+Requirement: 792b5c16 The vault-identity-registry MUST keep, in `<vault>/.engram/declined.json`, the parent notes whose
+pulled copies were discarded outright, each entry holding the parent's vault ID, the basename and the exchange hash that
+was declined. Recording a decline MUST create the state directory first (stamping the vault ID before it exists), MUST add
+the entry only when an identical entry is not already there, and MUST write the file atomically. A decline MUST match a
+parent note when its vault ID equals the note's vault ID, its basename is one of the names the note answers to (its
+basename or an alias) and its hash is not changed from the note's hash, so that an unknown comparison counts as not
+changed. A missing file MUST read as empty, and an unreadable or undecodable one MUST be an error.
+
+Supports: 792a21ze1c, 792a21ze1d, 792a21ze1g.
+
+Rationale: a decline keyed by the parent's vault ID never suppresses a note of another parent, naming the aliases keeps a
+declined note declined after the parent renames it, and a changed hash is new information, so it pulls again (ADR-0029 D8).
+
+##### 792b5c16a Scenarios
+
+```gherkin
+Scenario: 792b5c16a1 A decline is recorded once
+  Given a declined-pull record
+  When the same vault, basename and hash are recorded twice
+  Then the file holds one entry, and it is written atomically
+
+Scenario: 792b5c16a2 A decline matches by vault, name and hash
+  Given a record of a decline under one parent vault
+  When a note with the same vault ID, a listed name and the same hash is looked up, and when the vault ID, the name or the hash differs
+  Then only the first matches
+
+Scenario: 792b5c16a3 An unknown hash comparison still matches
+  Given a decline whose recorded hash has an older version prefix
+  When the note's current hash is looked up
+  Then the decline matches, because unknown counts as not changed
+
+Scenario: 792b5c16a4 A missing record is empty and a corrupt one is an error
+  Given no declined.json, and a declined.json that is not JSON
+  When each is read
+  Then the first reads as empty and the second fails
+```
+
 ### 792b5d Product-Scenario Mapping
 
 | Product scenario | Technical requirements |
@@ -1968,6 +2272,18 @@ Scenario: 792b5c13a2 The update report carries the notice only when flagged
 | 792a2p1d | 792b5c7 |
 | 792a2p1e | 792b5c7 |
 | 792a2q1a | 792b5c12 |
+| 792a21k1b | 792b5c14 |
+| 792a21s1a | 792b5c14 |
+| 792a21s1b | 792b5c14 |
+| 792a21s1c | 792b5c14 |
+| 792a21s1d | 792b5c14 |
+| 792a21s1e | 792b5c14 |
+| 792a21s1f | 792b5c14 |
+| 792a21v1b | 792b5c15 |
+| 792a21zd1e | 792b5c15 |
+| 792a21ze1c | 792b5c16 |
+| 792a21ze1d | 792b5c16 |
+| 792a21ze1g | 792b5c16 |
 
 ```gherkin
 Scenario: 792a2h1b The first parent contact stamps an existing vault
@@ -2039,6 +2355,68 @@ Scenario: 792a2q1a A copied vault served back to itself
   Given a copy of vault V is served and V's environment points ENGRAM_PARENT at it
   When the user runs engram query in V
   Then it returns local-only results with a warning naming engram vault-id --regenerate, and no offer is sent
+```
+
+```gherkin
+Scenario: 792a21k1b A query inside the backoff window skips the parent
+  Given a query failed to reach the parent a moment ago
+  When the user runs engram query again inside the backoff window
+  Then no parent request is made, the local results are returned, and one warning is printed
+
+Scenario: 792a21s1a Commands inside the backoff window make no request
+  Given a query that failed to reach the parent
+  When a second query runs 10 seconds later
+  Then it makes no parent request, returns local results, and prints one warning
+
+Scenario: 792a21s1b update always tries
+  Given a backoff window is active
+  When the user runs engram update
+  Then it attempts the parent and drains on success
+
+Scenario: 792a21s1c The delay grows and is capped
+  Given consecutive failures against the parent
+  When each retry time is recorded
+  Then the delay is 30 seconds after the first failure, doubles with each, and never exceeds 15 minutes
+
+Scenario: 792a21s1d A success resets the count
+  Given a parent that has failed twice
+  When a contact succeeds
+  Then the failure count is zero and the next failure backs off for 30 seconds
+
+Scenario: 792a21s1e A different parent URL is not backed off
+  Given a backoff recorded for one parent URL
+  When a command contacts a different parent URL
+  Then it is not skipped
+
+Scenario: 792a21s1f The window ends
+  Given a backoff whose retry time has passed
+  When a command contacts the parent
+  Then the contact is allowed
+
+Scenario: 792a21v1b A malformed receipt is not recorded
+  Given a receipt whose basename contains | or /, or whose vault_id is not 32 lowercase hexadecimal characters
+  When the receipt is classified
+  Then the local note gains no parent link and the entry stays queued with the failure recorded
+
+Scenario: 792a21zd1e A malformed envelope is refused
+  Given an envelope whose vault_id is not 32 lowercase hexadecimal characters or whose basename holds a separator or |
+  When the user activates a parent note
+  Then nothing is written and the bad vault ID is never cached
+
+Scenario: 792a21ze1c A declined pull is remembered
+  Given a pulled copy of P discarded outright
+  When P is activated again unchanged
+  Then nothing is written
+
+Scenario: 792a21ze1d A decline survives a parent rename
+  Given a declined parent note renamed on the parent, with its old basename now in its aliases
+  When it is activated again unchanged
+  Then nothing is written
+
+Scenario: 792a21ze1g A decline under another parent does not apply
+  Given a decline recorded under another parent vault for the same basename and hash
+  When the note is activated under the current parent
+  Then it is pulled down
 ```
 
 ## 792b6 Added: note-document-format
@@ -5851,8 +6229,8 @@ Canonical target: `docs/specs/technical/note-amendment.md` (title `Note Amendmen
 - Current realization (informational): `internal/cli/amend.go` (`RunAmend`), `resituate.go`
   (`RunResituate`), `supersedes.go` (`replaceSupersedes`, `parseAllSupersedes`), `activate.go`
   (`RunActivate`, `bumpLastUsed`); the amend and resituate targets in `internal/cli/targets.go`.
-  The curation flags in `amend_fold.go`, the offer hooks and the pull-down are added by curate and
-  parent-sync.
+  The curation flags in `amend_fold.go` are curate's, the offer hooks are offer-outbox's (792b36) and
+  the pull-down is parent-vault-client's (792b37).
 - Qualification: responsibility, revising a stored note is stated without naming any function;
   ownership, it owns the ordering of lookup, validation, edit, write and re-embed, while the format,
   provenance, sidecar and lock contracts belong to the components it calls; independent
@@ -5860,8 +6238,8 @@ Canonical target: `docs/specs/technical/note-amendment.md` (title `Note Amendmen
   lookup, read, write, lock and embedder fakes; stability, the read-modify-write contract survives any
   change to the flags that drive it; necessity, every change an agent makes to an existing note
   goes through it.
-- Supported capabilities: 792a4 note-revision, 792a6 controlled-vocabulary. Write-memory, recall,
-  parent-sync and curate add their requirements (792d30).
+- Supported capabilities: 792a4 note-revision, 792a6 controlled-vocabulary, 792a21 parent-sync (792b14c12,
+  792b14c13). Write-memory, recall and curate add their requirements (792d30).
 
 Rationale: a revision is a read-modify-write of a note and its sidecar, so two revisions, or a
 revision and a learn, that interleave could each overwrite the other's change. Every revision takes
@@ -6346,6 +6724,107 @@ Scenario: 792b14c11a4 The refit check runs after a resituate
   Then the vault's refit is marked pending
 ```
 
+#### 792b14c12 Activation against the parent
+
+Requirement: 792b14c12 With a parent configured, or with `--parent`, the note-amendment MUST extend 792b14c10 as follows.
+A ref whose note file exists MUST be a local hit and be bumped, except that with `--parent` no ref is looked up locally.
+A ref that is not a local hit MUST be handed to the pull-down, with no vault lock held, only when it is a basename or
+`<basename>.md`; a bare Luhmann ID, and with `--parent` a path, MUST fail as not sent to the parent (a miss also saying
+the note was not found), and a miss with no pull-down configured MUST fail as not found. `--parent` with no parent
+configured MUST fail with `--parent requires ENGRAM_PARENT to be configured` before any lookup, read or write. After the
+local pass it MUST re-check, with no lock held, each parent note that a local hit links to under its parent vault ID, and
+a failed re-check MUST NOT fail the activate. When any pull or re-check was attempted it MUST run the finish step, which
+drains the outbox, once after all of them. It MUST warn for and count every failed ref and fail with how many of the refs
+failed.
+
+Supports: 792a21zc1a, 792a21zc1b, 792a21zc1c, 792a21zc1d, 792a21zc1e, 792a21zc1f, 792a21zc1g, 792a21zc1h, 792a21zf1d.
+
+Rationale: a bare Luhmann ID names an unrelated note in another vault, so only a basename may leave this vault. The local
+pass holds the vault lock and each pull takes it only for its own write, because a fetch under the lock would stall every
+other writer for as long as the parent took to answer (ADR-0029 D8).
+
+##### 792b14c12a Scenarios
+
+```gherkin
+Scenario: 792b14c12a1 A local hit is bumped and the parent is not contacted
+  Given a ref whose note file exists, with or without a sidecar
+  When it is activated with a parent configured
+  Then its use is recorded and no pull is requested
+
+Scenario: 792b14c12a2 A basename that misses is pulled down
+  Given a parent is configured and a basename that has no local note
+  When it is activated
+  Then the pull-down receives the ref with no vault lock held
+
+Scenario: 792b14c12a3 An ID or a path is not sent
+  Given a bare Luhmann ID that has no local note, and, with --parent, a path ref
+  When each is activated
+  Then each fails as not sent to the parent and nothing is requested
+
+Scenario: 792b14c12a4 --parent resolves every ref against the parent
+  Given a local file of the ref's name exists
+  When it is activated with --parent
+  Then the pull-down receives it and the local file is not bumped
+
+Scenario: 792b14c12a5 --parent with no parent fails before any lookup
+  Given no pull-down is configured
+  When it is activated with --parent
+  Then it fails with the not-configured error and nothing is read or written
+
+Scenario: 792b14c12a6 A linked hit is re-checked and a failure is not fatal
+  Given a local hit linked to a parent note under its parent vault, and a re-check that fails
+  When it is activated
+  Then the re-check is attempted after the local pass and the activate succeeds
+
+Scenario: 792b14c12a7 The finish step runs once
+  Given several pulls and re-checks
+  When they have all run
+  Then the finish step runs exactly once, and not at all when none was attempted
+
+Scenario: 792b14c12a8 Failed refs are counted
+  Given two refs of which one fails
+  When they are activated
+  Then a warning names the failed ref and the command fails saying 1 of 2 failed
+```
+
+#### 792b14c13 A discard of a pulled note records its decline
+
+Requirement: 792b14c13 A bare `--discard` of a note whose primary link is `via: pulled` MUST record the link's parent
+basename and hash, keyed by the link's parent vault ID, in the vault's declined-pull record before it deletes the note, and
+MUST fail without deleting the note when the decline cannot be recorded. It MUST record a repeated decline once, and MUST
+record nothing for a note that is not pulled. In a vault with no parent configured and no vault ID it MUST record nothing
+and create neither a vault ID nor `.engram/`. `--discard --into` MUST NOT record a decline.
+
+Supports: 792a21ze1c, 792a21ze1h, 792a21ze1i.
+
+Rationale: the decline is what stops an unchanged parent note that curation rejected from coming back on the next
+activate. A decline that failed to record must not delete the note, or the note could return unrecorded. Recording a
+decline in a vault with no parent would stamp a vault ID for no purpose (ADR-0029 D8).
+
+##### 792b14c13a Scenarios
+
+```gherkin
+Scenario: 792b14c13a1 A decline that cannot be recorded keeps the note
+  Given a pulled note and a declined-pull record that cannot be written
+  When the note is discarded
+  Then the discard fails and the note and its sidecar remain
+
+Scenario: 792b14c13a2 A repeated decline is recorded once
+  Given a pulled note whose decline is already recorded
+  When another pulled note with the same basename and hash is discarded
+  Then the record holds the entry once
+
+Scenario: 792b14c13a3 A note that is not pulled records nothing
+  Given a note whose primary link is offered, or that has no link
+  When it is discarded
+  Then it is deleted and nothing is recorded
+
+Scenario: 792b14c13a4 An unconfigured vault records nothing
+  Given a vault with no parent configured and no vault ID
+  When a pulled note is discarded
+  Then it is deleted, no decline is recorded, and no vault ID or .engram directory is created
+```
+
 ### 792b14d Product-Scenario Mapping
 
 | Product scenario | Technical requirements |
@@ -6395,6 +6874,18 @@ Scenario: 792b14c11a4 The refit check runs after a resituate
 | 792a14j1d | 792b14c4 |
 | 792a14l1a | 792b14c10 |
 | 792a17l1b | 792b14c3 |
+| 792a21zc1a | 792b14c12 |
+| 792a21zc1b | 792b14c12 |
+| 792a21zc1c | 792b14c12 |
+| 792a21zc1d | 792b14c12 |
+| 792a21zc1e | 792b14c12 |
+| 792a21zc1f | 792b14c12 |
+| 792a21zc1g | 792b14c12 |
+| 792a21zc1h | 792b14c12 |
+| 792a21zf1d | 792b14c12 |
+| 792a21ze1c | 792b14c13 |
+| 792a21ze1h | 792b14c13 |
+| 792a21ze1i | 792b14c13 |
 
 ```gherkin
 Scenario: 792a4e1a Chunk sources are merged without duplicates
@@ -6446,6 +6937,63 @@ Scenario: 792a17l1b A later dispatch amends it
   Given an aggregate for the work-kind
   When a subsequent dispatch is recorded
   Then the orchestrator amends the aggregate, recomputes the tier tally and appends the new evidence wikilink while keeping the old ones
+```
+
+```gherkin
+Scenario: 792a21zc1a A parent-only ref pulls down
+  Given ENGRAM_PARENT is set and the note exists only in the parent
+  When the user runs engram activate --note <basename>.md
+  Then the parent note is pulled down as a local pending offer
+
+Scenario: 792a21zc1b A local hit never contacts the parent
+  Given the ref's note file exists locally and has no parent link
+  When the user runs engram activate --note <ref>
+  Then the local sidecar's LastUsed is bumped, a note without a sidecar still counts, and no parent request is made
+
+Scenario: 792a21zc1c Bare Luhmann IDs stay local
+  Given no local note has the ID 1100
+  When the user runs engram activate --note 1100, with or without .md, with or without --parent
+  Then no parent request is made and the ref is reported as failed
+
+Scenario: 792a21zc1d Partial failure is visible
+  Given two refs, one of which cannot be resolved locally or on the parent
+  When the user runs engram activate with both
+  Then stderr names the failed ref and the command exits non-zero
+
+Scenario: 792a21zc1e --parent without a parent configured
+  Given ENGRAM_PARENT is unset
+  When the user runs engram activate --parent --note x
+  Then the command errors and no note is read or written
+
+Scenario: 792a21zc1f --parent pulls even on a local hit
+  Given ENGRAM_PARENT is set and a local file of the ref's name exists
+  When the user runs engram activate --parent --note <ref>
+  Then the ref is resolved against the parent
+
+Scenario: 792a21zc1g --parent refuses a path ref
+  Given ENGRAM_PARENT is set
+  When the user runs engram activate --parent --note with a ref that is a path
+  Then the ref is reported as not sent and nothing is fetched
+
+Scenario: 792a21zc1h A miss with no parent fails the ref
+  Given ENGRAM_PARENT is unset and the ref is not local
+  When the user runs engram activate --note <ref>
+  Then the ref is reported as failed and nothing is fetched
+
+Scenario: 792a21zf1d An unreachable parent does not fail the local activate
+  Given a linked local note and an unreachable parent
+  When the user activates the note
+  Then the command succeeds, the local LastUsed is bumped, and the failure is recorded for backoff
+
+Scenario: 792a21ze1h A decline that cannot be recorded keeps the note
+  Given a bare discard of a pulled note whose decline cannot be written
+  When the discard runs
+  Then it fails and the note is kept
+
+Scenario: 792a21ze1i Discarding a pulled note with no vault ID records nothing
+  Given a vault with no parent and no vault ID
+  When a pulled note is discarded
+  Then it is deleted, no decline is recorded, and no vault ID or .engram directory is created
 ```
 
 ## 792b15 Added: transcript-reader
@@ -10423,14 +10971,14 @@ Canonical target: `docs/specs/technical/query-payload-renderer.md` (title `Query
   `snippet`, `resolveContentBudget`, `renderTimings` and the types `queryPayload`, `queryItem`,
   `queryBudget` and `queryTimings` in `internal/cli/query.go`, `query_triggers.go` and
   `merged_query.go`; `capRedFlagsForPreview` in `internal/cli/redflags_truncation.go`. The keys that
-  lead a payload with pending offers (curate) and those of a merged payload (parent-sync) are added by
-  those capabilities (792d51).
+  lead a payload with pending offers (curate) are added by that capability (792d51), and the tags of a
+  merged payload are 792b23c9.
 - Qualification: responsibility, shaping and cutting a payload is stated without naming any
   function; ownership, the query-engine decides what is in it, while this component owns its order,
   its cuts and its labels; independent verification, it is tested directly on item lists and notes,
   with a property test for the red-flag preview; stability, the contract survives any change to how
   matches are found; necessity, every query payload is made by it.
-- Supported capabilities: 792a7 memory-query. Recall extends it (792d30).
+- Supported capabilities: 792a7 memory-query, 792a21 parent-sync (792b23c9). Recall extends it (792d30).
 
 Rationale: a recall pass should carry less to read without losing reach, so the payload is cut where
 the reader gains least: chunk text is shortened or fetched on demand, the newest chunks have a count of
@@ -10767,6 +11315,32 @@ Scenario: 792b23c8a9 A query shows a runbook's red flags
   Then its content holds done_when, red_flags and both entries
 ```
 
+#### 792b23c9 The item tags of a merge
+
+Requirement: 792b23c9 The query-payload-renderer MUST write an item's `from_parent` and `model_id` only when a merge tagged
+the item, writing `from_parent: false` explicitly for a local item of a merged payload, so that a payload that no merge
+produced holds no `from_parent` key at all.
+
+Supports: 792a21g1a, 792a21g1b.
+
+Rationale: a boolean that is omitted when false would drop the local items' explicit `false`, and the merged payload could
+not tell a local item from an item with no origin. The tag is a pointer for that reason, and each item gets its own, so
+that a later write through one never aliases another (ruling S29).
+
+##### 792b23c9a Scenarios
+
+```gherkin
+Scenario: 792b23c9a1 No merge, no from_parent
+  Given resolved items and no merge step
+  When the payload is rendered
+  Then it contains no from_parent
+
+Scenario: 792b23c9a2 A local item of a merged payload says false
+  Given a merged payload with a local item and a parent item
+  When it is marshaled to YAML
+  Then the local item has from_parent: false and the parent item has from_parent: true
+```
+
 ### 792b23d Product-Scenario Mapping
 
 | Product scenario | Technical requirements |
@@ -10802,6 +11376,8 @@ Scenario: 792b23c8a9 A query shows a runbook's red flags
 | 792a14g1b | 792b23c5 |
 | 792a14h1a | 792b23c5 |
 | 792a14h1c | 792b23c5 |
+| 792a21g1a | 792b23c9 |
+| 792a21g1b | 792b23c9 |
 
 ```gherkin
 Scenario: 792a7b1b A note item is labelled by its type
@@ -10933,6 +11509,18 @@ Scenario: 792a14h1c A load-bearing chunk beside a distractor
   Given a cluster of two chunks and no note, one carrying a hard-requirement convention topically distant from the task
   When the agent processes the cluster
   Then it reads both chunks' content before judging either relevant or irrelevant
+```
+
+```gherkin
+Scenario: 792a21g1a Parent-origin and local-origin items are distinguishable
+  Given a merged payload
+  When it is read
+  Then each parent item has from_parent true and each local item has from_parent false
+
+Scenario: 792a21g1b A payload with no merge has no from_parent
+  Given ENGRAM_PARENT is not set
+  When the user runs engram query
+  Then no item in the payload carries a from_parent key
 ```
 
 ## 792b24 Added: query-engine
@@ -13113,8 +13701,8 @@ Canonical target: `docs/specs/technical/note-reparenting.md` (title `Note Repare
   directly over fake listing, reading, writing and renaming; stability, a vault whose IDs must change
   without breaking its links is a lasting need; necessity, `engram update --reparent-luhmann` is this
   contract.
-- Supported capabilities: 792a10 vault-migration. Install-and-update extends it with the command's
-  routing and notices (792d30).
+- Supported capabilities: 792a10 vault-migration, 792a21 parent-sync (the alias, 792b27c6). Install-and-update
+  extends it with the command's routing and notices (792d30).
 
 Rationale: whether one note is a sub-point of another is a judgment of content that embeddings cannot
 make, so the binary proposes candidates by similarity, an agent judges them, and the binary applies the
@@ -13656,6 +14244,7 @@ Scenario: 792b27c10a4 The apply skips the chunk pipeline on a preview
 | 792a10i1g | 792b27c7 |
 | 792a12i1a | 792b27c6, 792b27c7 |
 | 792a12i1d | 792b27c7 |
+| 792a21zk1a | 792b27c6 |
 
 ```gherkin
 Scenario: 792a10a1a Only top-level notes
@@ -13784,6 +14373,13 @@ Scenario: 792a12i1d Adopt converts a CRLF note
   Given a runbook note whose lines end in \r\n
   When --adopt runs on it
   Then the note is converted to LF and renamed, and its links are rewritten
+```
+
+```gherkin
+Scenario: 792a21zk1a A rename records the old name
+  Given note 1100.2026-09-27.x
+  When reparenting renames it to 12a.2026-09-27.x
+  Then the renamed note's aliases includes 1100.2026-09-27.x
 ```
 
 ## 792b28 Added: self-installer
@@ -14439,7 +15035,7 @@ notice, the vault-ID notice (792b5c13), the outbox notice and the skill-registra
 their capabilities specify. The vocabulary and identity notices MUST be replaced by their summaries
 (792b28c14) on a run that applied the matching flag. Notices MUST NOT mention a README section.
 
-Supports: 792a6v1a, 792a6v1b, 792a6v1c, 792a10a1a, 792a10a1b, 792a10a1c, 792a10a1d, 792a10j1a, 792a10j1b, 792a11n1a, 792a11n1b, 792a11n1c, 792a11n1d, 792a11n1e.
+Supports: 792a6v1a, 792a6v1b, 792a6v1c, 792a10a1a, 792a10a1b, 792a10a1c, 792a10a1d, 792a10j1a, 792a10j1b, 792a11n1a, 792a11n1b, 792a11n1c, 792a11n1d, 792a11n1e, 792a21za1a, 792a21za1b.
 
 ##### 792b28c13a Scenarios
 
@@ -14483,6 +15079,11 @@ Scenario: 792b28c13a8 The notices follow a fixed order
   Given a report with every notice flagged
   When it is written
   Then the notices appear in the order vocabulary, self-tag, Luhmann, empty files, duplicates, identity, pending offers, vault ID, outbox, registration error
+
+Scenario: 792b28c13a9 The outbox notice is written
+  Given a report that carries an outbox notice
+  When it is written
+  Then the output contains the notice text
 ```
 
 #### 792b28c14 Summaries of the opt-in flags
@@ -14685,6 +15286,8 @@ Scenario: 792b28c16a6 The report line appears only on failure
 | 792a12t1c | 792b28c16 |
 | 792a12t1d | 792b28c16 |
 | 792a12t1e | 792b28c16 |
+| 792a21za1a | 792b28c13 |
+| 792a21za1b | 792b28c13 |
 
 ```gherkin
 Scenario: 792a11a1a A local clone is installed in place
@@ -14863,6 +15466,18 @@ Scenario: 792a12t1e A registration failure does not roll back the deploy
   Given registration fails after the skills are deployed
   When the user runs engram update
   Then the report holds a skill registration error line and the deployed skills remain
+```
+
+```gherkin
+Scenario: 792a21za1a Update reports a stuck outbox
+  Given the outbox holds two queued entries and one rejected entry
+  When the user runs engram update
+  Then its report includes one notice with the count, the oldest age and the rejected entry's error
+
+Scenario: 792a21za1b Update reports an entry that needs attention
+  Given the outbox holds one queued entry and one attention entry for note L
+  When the user runs engram update
+  Then its notice counts one queued offer and one that needs attention, and names L with the reason
 ```
 
 ## 792b29 Added: harness-deploy-sync
@@ -19014,7 +19629,7 @@ Canonical target: `docs/specs/technical/exchange-versioning.md` (title `Exchange
   field in turn; stability, the contract survives a new frontmatter key, because a reflection test refuses an
   unclassified one; necessity, two vaults cannot tell whether a note changed, nor link it to its counterpart,
   without it.
-- Supported capabilities: 792a20 vault-serving. Later capabilities that extend it: parent-sync and curate.
+- Supported capabilities: 792a20 vault-serving, 792a21 parent-sync. Curate extends it later.
 
 Rationale: a vault that exchanges notes needs a hash that changes when and only when an offered note's content
 changes. The sidecar's content hash (`embed.ContentHash`) covers other fields and exists to detect a stale
@@ -19378,6 +19993,60 @@ Scenario: 792b33c9a7 A CRLF note takes the receipt as LF
   Then the note is written with no CRLF and the outbox entry is removed
 ```
 
+#### 792b33c10 The exchange fields survive every other rewrite
+
+Requirement: 792b33c10 Every path that rewrites a note's frontmatter and is not an exchange path MUST leave `xid`,
+`parent`, `aliases` and `offer` unchanged, byte for byte: `amend` with every flag family on every note type, `resituate`,
+identity backfill, Luhmann reparenting (both the rename of the note itself and the rewrite of the references inside
+another note), the vocabulary rewrites (term assignment, removal of a term, legacy cleanup, the self-tag of a definition
+note and the version stamp), the scrubbing of references to deleted notes, and skill registration refresh and adopt. The
+exchange paths are the offer receipt, the pull-down, the curation fold and the rename's append to `aliases`.
+
+Supports: 792a21zi1b, 792a21zl1a, 792a21zl1b, 792a21zl1g.
+
+Rationale: a link or an exchange ID lost to an unrelated rewrite would silently disconnect a note from its counterpart,
+and the next exchange would treat the note as new. Each rewrite site has its own survival test because each rewrites
+the frontmatter in its own way, some by re-marshalling the typed document and some line by line (ADR-0029 D4).
+
+##### 792b33c10a Scenarios
+
+```gherkin
+Scenario: 792b33c10a1 Amend keeps the exchange fields
+  Given notes of every type carrying xid, parent, aliases and offer, including randomly drawn values
+  When engram amend runs with each flag family
+  Then all four fields are byte-for-byte unchanged
+
+Scenario: 792b33c10a2 Resituate keeps the exchange fields
+  Given a note carrying all four fields, including randomly drawn values
+  When engram resituate replaces its situation
+  Then all four fields are byte-for-byte unchanged
+
+Scenario: 792b33c10a3 Identity backfill keeps the exchange fields
+  Given a note carrying all four fields and missing user: or vault:
+  When engram update --backfill-identity rewrites it
+  Then all four fields are unchanged
+
+Scenario: 792b33c10a4 Reparenting keeps the exchange fields
+  Given a note carrying all four fields
+  When Luhmann reparenting renames it, and when it only rewrites the references inside another note
+  Then xid, parent and offer are unchanged and the renamed note's aliases only gained its old basename
+
+Scenario: 792b33c10a5 Vocabulary rewrites keep the exchange fields
+  Given a note carrying all four fields
+  When a term is assigned, removed, cleaned up as legacy, self-tagged or version-stamped
+  Then all four fields are unchanged
+
+Scenario: 792b33c10a6 Reference scrubs keep the exchange fields
+  Given a note carrying all four fields and references to a deleted note
+  When the references are scrubbed, for one note or for the whole vault
+  Then all four fields are unchanged
+
+Scenario: 792b33c10a7 Skill registration keeps the exchange fields
+  Given a skill note carrying all four fields
+  When registration refreshes it, or adopts it with or without a rename
+  Then all four fields are unchanged
+```
+
 ### 792b33d Product-Scenario Mapping
 
 | Product scenario | Technical requirements |
@@ -19388,6 +20057,25 @@ Scenario: 792b33c9a7 A CRLF note takes the receipt as LF
 | 792a20k1a | 792b33c1 |
 | 792a20k1b | 792b33c1 |
 | 792a20m1c | 792b33c1 |
+| 792a21o1a | 792b33c2 |
+| 792a21o1b | 792b33c2 |
+| 792a21o1c | 792b33c5 |
+| 792a21u1a | 792b33c9 |
+| 792a21u1b | 792b33c9 |
+| 792a21u1c | 792b33c9 |
+| 792a21u1d | 792b33c9 |
+| 792a21w1a | 792b33c8, 792b33c9 |
+| 792a21zb1a | 792b33c3 |
+| 792a21zi1a | 792b33c6 |
+| 792a21zi1b | 792b33c10 |
+| 792a21zj1a | 792b33c9 |
+| 792a21zl1a | 792b33c10 |
+| 792a21zl1b | 792b33c10 |
+| 792a21zl1c | 792b33c8 |
+| 792a21zl1d | 792b33c8 |
+| 792a21zl1e | 792b33c8 |
+| 792a21zl1f | 792b33c8 |
+| 792a21zl1g | 792b33c10 |
 
 ```gherkin
 Scenario: 792a20d1a The receipt names the pending note
@@ -19421,6 +20109,103 @@ Scenario: 792a20m1c Keys are present only on request
   Then only the first carries vault_id and a per-note exchange_hash, and the second is byte-identical to the local payload
 ```
 
+```gherkin
+Scenario: 792a21o1a Only offered fields move the hash
+  Given a fact, feedback or runbook note
+  When only a feedback note's impact, or only a runbook note's done_when, red_flags or triggers, is changed
+  Then the note's exchange hash changes
+
+Scenario: 792a21o1b Non-content fields do not move the hash
+  Given a note
+  When only its repo, user, pending, tags or parent link changes
+  Then its exchange hash is unchanged
+
+Scenario: 792a21o1c A hash version change is unknown, not changed
+  Given a link that records a hash with an older version prefix
+  When the parent note is activated again
+  Then the pull-down treats it as not changed and writes nothing, and a later exchange of that link records the current-version hash
+
+Scenario: 792a21u1a Receipt links the note
+  Given the parent answers a learn-offer for local note L with basename 1100.2026-09-27.x
+  When the receipt is recorded
+  Then L's primary link is {note: 1100.2026-09-27.x, via: offered, hash: <stored_hash>} under the parent's vault ID, and L's sidecar vector is unchanged
+
+Scenario: 792a21u1b Re-link to the resolved target
+  Given an amend-offer's receipt names a resolved target E different from L's current primary
+  When the receipt is recorded
+  Then L's primary link becomes E
+
+Scenario: 792a21u1c A receipt keeps the note's author
+  Given a note whose user: is alice and a command run as bob
+  When the receipt is recorded on the note
+  Then its repo:, user: and vault: are unchanged
+
+Scenario: 792a21u1d A receipt under another parent starts over
+  Given a note linked under a parent vault other than the one that answered
+  When the receipt is recorded
+  Then the note's links are those of the answering parent only
+
+Scenario: 792a21w1a A refused receipt needs attention
+  Given the parent accepts the offer of local note L, and L's parent: carries an anchor that another key aliases
+  When the receipt is applied
+  Then L is byte-identical, the entry is in the attention state with the reason and the receipt recorded, and stderr carries one warning naming L and parent
+
+Scenario: 792a21zb1a A CRLF note hashes as its LF form
+  Given a note whose frontmatter and body end in \r\n
+  When its exchange hash is computed
+  Then it equals the exchange hash of its LF form
+
+Scenario: 792a21zi1a No backfill
+  Given a vault whose notes have never taken part in exchange
+  When the user runs engram update
+  Then no note gains an xid and no note file changes
+
+Scenario: 792a21zi1b The xid survives a rename
+  Given a note carrying xid
+  When Luhmann reparenting renames it
+  Then the renamed note carries the same xid
+
+Scenario: 792a21zj1a Offered note is linked
+  Given a learned note whose offer receipt names parent basename B from vault 9a1e
+  When the receipt is recorded
+  Then the note carries parent.vault 9a1e and a primary link {note: B, via: offered, hash: <offered hash>}
+
+Scenario: 792a21zl1a Amend preserves the exchange fields
+  Given a note carrying xid, parent, aliases and offer
+  When engram amend --target L --clear-pending, or any content amend, rewrites it
+  Then all four are unchanged in the written note
+
+Scenario: 792a21zl1b Identity backfill preserves the link
+  Given a note carrying parent
+  When engram update --backfill-identity rewrites it
+  Then parent is unchanged
+
+Scenario: 792a21zl1c Fold refuses an anchored parent
+  Given a note E whose parent: carries an anchor that another key aliases, and a fold that would change E's parent links
+  When the user runs engram amend --discard --into E
+  Then the command fails naming parent, E is byte-identical, and the offer is not deleted
+
+Scenario: 792a21zl1d Fold keeps unknown keys under parent
+  Given E's parent: and one of its links carry keys the exchange model does not define
+  When the fold rewrites E's parent:
+  Then the written E still carries both keys with their values, alongside the folded links
+
+Scenario: 792a21zl1e Receipt refuses an anchored parent
+  Given a note whose parent: carries an anchor that another key aliases
+  When an offer receipt would rewrite it
+  Then the receipt is refused naming parent and the note is not written
+
+Scenario: 792a21zl1f Receipt keeps unknown keys under parent
+  Given a note whose parent: and one of its kept links carry keys the exchange model does not define
+  When an offer receipt rewrites it
+  Then the written note still carries both keys with their values
+
+Scenario: 792a21zl1g Every other rewrite path preserves the fields
+  Given a note carrying xid, parent, aliases and offer
+  When resituate, reparenting, a vocabulary rewrite, a reference scrub or a skill registration refresh or adopt rewrites it
+  Then all four are unchanged
+```
+
 ## 792b34 Added: pending-offer-bookkeeping
 
 Canonical target: `docs/specs/technical/pending-offer-bookkeeping.md` (title `Pending Offer Bookkeeping - Technical Spec`).
@@ -19442,7 +20227,7 @@ Canonical target: `docs/specs/technical/pending-offer-bookkeeping.md` (title `Pe
   independent verification, each runs over in-memory notes and a fake vault; stability, the contract survives a new
   note type or a new surfacing point; necessity, without it a pending offer would be served as a live note and an
   offer changed after it was judged could be accepted unseen.
-- Supported capabilities: 792a20 vault-serving. Later capabilities that extend it: parent-sync and curate.
+- Supported capabilities: 792a20 vault-serving, 792a21 parent-sync. Curate extends it later.
 
 Rationale: an offered note, whether sent by a child or pulled down from a parent, must be judged before it counts as
 knowledge, so everything that reads the vault must tell it apart from a live note, and what settles it must not act on
@@ -19755,12 +20540,38 @@ Scenario: 792b34c8a3 A CRLF note shows its LF hash
 | --- | --- |
 | 792a20d1b | 792b34c1, 792b34c2 |
 | 792a20k1a | 792b34c8 |
+| 792a21zd1a | 792b34c1, 792b34c2 |
+| 792a21zb1c | 792b34c1 |
+| 792a21zk1b | 792b34c6 |
+| 792a21zk1c | 792b34c6, 792b34c7 |
 
 ```gherkin
 Scenario: 792a20d1b The offered note is pending, not live
   Given a served learn that succeeded
   When the note is read
   Then it carries the pending marker and engram query does not return it
+```
+
+```gherkin
+Scenario: 792a21zd1a Pulled note is pending and linked
+  Given parent note P
+  When P is pulled down
+  Then a new local note exists carrying pending true, a via pulled primary link to P with P's exchange hash, and parent.author equal to P's authorship; it is excluded from local query results, and the next query payload has pending_offers true
+
+Scenario: 792a21zb1c A CRLF pending offer stays pending
+  Given a note that carries pending: true and has CRLF line endings
+  When engram query runs and the note is requested over the served raw show
+  Then query excludes it and the served raw show refuses it as a pending offer
+
+Scenario: 792a21zk1b A fold unions aliases
+  Given offer O whose aliases lists A
+  When the user runs engram amend --target O --discard --into E
+  Then O and its sidecar are gone and E's aliases includes both O's basename and A
+
+Scenario: 792a21zk1c A fold keeps E's primary link
+  Given E has a primary link to P1 and O has a primary link via pulled to P2
+  When O is folded into E
+  Then E keeps P1 as its primary link and gains {note: P2, via: covered}
 ```
 
 ## 792b35 Added: vault-http-server

@@ -15,11 +15,11 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-// TestTargets_Query_MergedMode_CombinesLocalAndParent exercises
+// Test792a21c1a_Targets_Query_MergedMode_CombinesLocalAndParent exercises
 // vault-merged-recall end-to-end through Targets(): ENGRAM_PARENT set,
 // a real local vault with one note, a mocked parent response with one
 // item — the merged payload includes both, tagged with their origin.
-func TestTargets_Query_MergedMode_CombinesLocalAndParent(t *testing.T) {
+func Test792a21c1a_Targets_Query_MergedMode_CombinesLocalAndParent(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
@@ -65,68 +65,7 @@ func TestTargets_Query_MergedMode_CombinesLocalAndParent(t *testing.T) {
 		"the parent item must be tagged from_parent: true per vault-merged-recall")
 }
 
-// TestTargets_Query_MergedMode_LocalErrorSurfacesWhenParentSucceeds
-// verifies that when the parent fetch succeeds but the local query itself
-// fails (e.g. a note with no matching sidecar), the error surfaces rather
-// than being silently absorbed — merging can't proceed without a local
-// side, so this is a hard failure, unlike parent-unavailable's fallback.
-func TestTargets_Query_MergedMode_LocalErrorSurfacesWhenParentSucceeds(t *testing.T) {
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	g.Expect(os.MkdirAll(vault, 0o750)).To(Succeed())
-	// A note with no matching sidecar triggers RunQuery's errQueryNoEmbeddings.
-	g.Expect(os.WriteFile(filepath.Join(vault, "1.fact.md"),
-		[]byte("---\ntype: fact\ntier: L2\nsituation: x\n---\n\nbody\n"), 0o600)).To(Succeed())
-
-	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
-
-	_, stderr := executeCapturingBoth(t,
-		[]string{"engram", "query", "--phrase", "x", "--vault", vault, "--chunks-dir", t.TempDir()},
-		func(d *cli.Deps) {
-			d.Embed = fixedVectorEmbedder{modelID: "m@4", vector: []float32{1, 0, 0, 0}}
-			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
-				return cli.FetchResponse{Status: 200, Body: []byte("version: 1\nitems: []\n")}, nil
-			}
-		})
-
-	g.Expect(stderr).NotTo(BeEmpty())
-}
-
-// TestTargets_Query_MergedMode_ParentUnavailableFallsBackToLocal verifies
-// that when the parent is unreachable, `engram query` still returns the
-// local vault's results and emits a non-fatal warning, rather than failing
-// the whole command (spec: "Parent unavailability degrades to local-only
-// results").
-func TestTargets_Query_MergedMode_ParentUnavailableFallsBackToLocal(t *testing.T) {
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	g.Expect(os.MkdirAll(vault, 0o750)).To(Succeed())
-	plantRealVaultNote(t, vault, "1.fact.md",
-		"---\ntype: fact\ntier: L2\nsituation: x\n---\n\nlocal body\n", []float32{1, 0, 0, 0})
-
-	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
-
-	stdout, stderr := executeCapturingBoth(t,
-		[]string{"engram", "query", "--phrase", "x", "--vault", vault, "--chunks-dir", t.TempDir()},
-		func(d *cli.Deps) {
-			d.Embed = fixedVectorEmbedder{modelID: "m@4", vector: []float32{1, 0, 0, 0}}
-			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
-				return cli.FetchResponse{}, errors.New("connection refused")
-			}
-		})
-
-	g.Expect(stderr).To(ContainSubstring("warning"))
-	g.Expect(stderr).To(ContainSubstring("parent"))
-
-	var parsed queryParsed
-	g.Expect(yaml.Unmarshal([]byte(stdout), &parsed)).To(Succeed())
-	g.Expect(parsed.Items).To(HaveLen(1))
-	g.Expect(parsed.Items[0].Path).To(Equal("1.fact.md"))
-}
-
-// TestTargets_ShowFallback_SurfacesParentRunbookAfterMergedQuery is the
+// Test792a21g1a_Targets_ShowFallback_SurfacesParentRunbookAfterMergedQuery is the
 // register-skills-as-runbooks D8 merged-vault smoke (tasks.md 6.2): a
 // runbook note that exists only in the parent vault is surfaced by a
 // client's `engram query` (merged mode, tagged from_parent: true) and then
@@ -134,7 +73,7 @@ func TestTargets_Query_MergedMode_ParentUnavailableFallsBackToLocal(t *testing.T
 // local-miss fallback, labeled as parent-sourced. No network — both the
 // query and show hits against the parent are served by the same deps.Fetch
 // fake, reusing this file's fake-parent dispatch pattern.
-func TestTargets_ShowFallback_SurfacesParentRunbookAfterMergedQuery(t *testing.T) {
+func Test792a21g1a_Targets_ShowFallback_SurfacesParentRunbookAfterMergedQuery(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
@@ -184,6 +123,67 @@ func TestTargets_ShowFallback_SurfacesParentRunbookAfterMergedQuery(t *testing.T
 
 	g.Expect(showStderr).To(BeEmpty())
 	g.Expect(showStdout).To(Equal("# from_parent: true\n" + parentShowOutput))
+}
+
+// Test792a21k1a_Targets_Query_MergedMode_ParentUnavailableFallsBackToLocal verifies
+// that when the parent is unreachable, `engram query` still returns the
+// local vault's results and emits a non-fatal warning, rather than failing
+// the whole command (spec: "Parent unavailability degrades to local-only
+// results").
+func Test792a21k1a_Targets_Query_MergedMode_ParentUnavailableFallsBackToLocal(t *testing.T) {
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	g.Expect(os.MkdirAll(vault, 0o750)).To(Succeed())
+	plantRealVaultNote(t, vault, "1.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: x\n---\n\nlocal body\n", []float32{1, 0, 0, 0})
+
+	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
+
+	stdout, stderr := executeCapturingBoth(t,
+		[]string{"engram", "query", "--phrase", "x", "--vault", vault, "--chunks-dir", t.TempDir()},
+		func(d *cli.Deps) {
+			d.Embed = fixedVectorEmbedder{modelID: "m@4", vector: []float32{1, 0, 0, 0}}
+			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
+				return cli.FetchResponse{}, errors.New("connection refused")
+			}
+		})
+
+	g.Expect(stderr).To(ContainSubstring("warning"))
+	g.Expect(stderr).To(ContainSubstring("parent"))
+
+	var parsed queryParsed
+	g.Expect(yaml.Unmarshal([]byte(stdout), &parsed)).To(Succeed())
+	g.Expect(parsed.Items).To(HaveLen(1))
+	g.Expect(parsed.Items[0].Path).To(Equal("1.fact.md"))
+}
+
+// TestTargets_Query_MergedMode_LocalErrorSurfacesWhenParentSucceeds
+// verifies that when the parent fetch succeeds but the local query itself
+// fails (e.g. a note with no matching sidecar), the error surfaces rather
+// than being silently absorbed — merging can't proceed without a local
+// side, so this is a hard failure, unlike parent-unavailable's fallback.
+func TestTargets_Query_MergedMode_LocalErrorSurfacesWhenParentSucceeds(t *testing.T) {
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	g.Expect(os.MkdirAll(vault, 0o750)).To(Succeed())
+	// A note with no matching sidecar triggers RunQuery's errQueryNoEmbeddings.
+	g.Expect(os.WriteFile(filepath.Join(vault, "1.fact.md"),
+		[]byte("---\ntype: fact\ntier: L2\nsituation: x\n---\n\nbody\n"), 0o600)).To(Succeed())
+
+	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
+
+	_, stderr := executeCapturingBoth(t,
+		[]string{"engram", "query", "--phrase", "x", "--vault", vault, "--chunks-dir", t.TempDir()},
+		func(d *cli.Deps) {
+			d.Embed = fixedVectorEmbedder{modelID: "m@4", vector: []float32{1, 0, 0, 0}}
+			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
+				return cli.FetchResponse{Status: 200, Body: []byte("version: 1\nitems: []\n")}, nil
+			}
+		})
+
+	g.Expect(stderr).NotTo(BeEmpty())
 }
 
 // unexported constants.

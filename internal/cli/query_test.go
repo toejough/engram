@@ -166,6 +166,28 @@ func Test792b23c7a2_RunQuery_NoTimingsByDefault(t *testing.T) {
 	g.Expect(out.String()).NotTo(ContainSubstring("timings:"))
 }
 
+// Test792b23c9a1_QueryPayload_NoFromParentKeyWithoutMerge verifies a non-merged payload
+// (no ENGRAM_PARENT / no merge step involved) carries no from_parent key at
+// all, matching today's output byte-for-byte (hard constraint, ruling S29):
+// the merged-only field must never leak into an ordinary local query.
+func Test792b23c9a1_QueryPayload_NoFromParentKeyWithoutMerge(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	items := []cli.ExportResolvedItem{
+		cli.ExportNewResolvedItem("1.a.md", "---\ntype: fact\n---\nbody"),
+	}
+
+	out, err := cli.ExportRenderQueryPayloadPendingOffersWithItems(false, items)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out).NotTo(ContainSubstring("from_parent"))
+}
+
 func Test792b24c12a1_ApplyProjectFilter_BodyProjectMentionDoesNotMatch(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -1224,28 +1246,6 @@ func Test792b34c4a2_QueryPayload_PendingOffersHintPresentWhenTrue(t *testing.T) 
 	g.Expect(yaml.Unmarshal([]byte(out), &decoded)).To(Succeed())
 	g.Expect(decoded.Hint).To(Equal(cli.ExportPendingOfferCurateInstruction))
 	g.Expect(decoded.Hint).To(ContainSubstring(`engram query --text="curate pending offers"`))
-}
-
-// TestQueryPayload_NoFromParentKeyWithoutMerge verifies a non-merged payload
-// (no ENGRAM_PARENT / no merge step involved) carries no from_parent key at
-// all, matching today's output byte-for-byte (hard constraint, ruling S29):
-// the merged-only field must never leak into an ordinary local query.
-func TestQueryPayload_NoFromParentKeyWithoutMerge(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	items := []cli.ExportResolvedItem{
-		cli.ExportNewResolvedItem("1.a.md", "---\ntype: fact\n---\nbody"),
-	}
-
-	out, err := cli.ExportRenderQueryPayloadPendingOffersWithItems(false, items)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(out).NotTo(ContainSubstring("from_parent"))
 }
 
 // TestQueryPayload_PendingOffersLeadPayload: pending_offers and its hint

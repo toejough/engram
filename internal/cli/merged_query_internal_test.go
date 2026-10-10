@@ -9,6 +9,28 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
+// Test792b23c9a2_MergeQueryPayloads_LocalItemMarshalsExplicitFromParentFalse verifies a
+// merged payload's local item carries an explicit from_parent: false in the
+// marshaled YAML (design D9, ruling S29) — not merely a false Go field value
+// that an omitempty tag would silently drop from the output.
+func Test792b23c9a2_MergeQueryPayloads_LocalItemMarshalsExplicitFromParentFalse(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	local := queryPayload{
+		ModelID: "local-model",
+		Items:   []queryItem{{Path: "local-item.md", Score: 0.9}},
+	}
+	parent := queryPayload{ModelID: "parent-model"}
+
+	merged := mergeQueryPayloads(local, parent, nil, QueryArgs{})
+
+	out, marshalErr := yaml.Marshal(merged)
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+	g.Expect(string(out)).To(ContainSubstring("from_parent: false"))
+}
+
 // TestMergeQueryPayloads_AdvisoryFlagsAreLocalOnly verifies RefitPending and
 // PendingOffers follow the local vault only: a child can neither run its
 // parent's refit nor curate its parent's offers (H4, ruling S20).
@@ -162,28 +184,6 @@ func TestMergeQueryPayloads_LimitDoesNotStarveRecencyChannel(t *testing.T) {
 
 	g.Expect(found).To(BeTrue(),
 		"recency-channel item must survive --limit even when Channel 1 alone already reaches it")
-}
-
-// TestMergeQueryPayloads_LocalItemMarshalsExplicitFromParentFalse verifies a
-// merged payload's local item carries an explicit from_parent: false in the
-// marshaled YAML (design D9, ruling S29) — not merely a false Go field value
-// that an omitempty tag would silently drop from the output.
-func TestMergeQueryPayloads_LocalItemMarshalsExplicitFromParentFalse(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	local := queryPayload{
-		ModelID: "local-model",
-		Items:   []queryItem{{Path: "local-item.md", Score: 0.9}},
-	}
-	parent := queryPayload{ModelID: "parent-model"}
-
-	merged := mergeQueryPayloads(local, parent, nil, QueryArgs{})
-
-	out, marshalErr := yaml.Marshal(merged)
-	g.Expect(marshalErr).NotTo(HaveOccurred())
-	g.Expect(string(out)).To(ContainSubstring("from_parent: false"))
 }
 
 // TestMergeQueryPayloads_MismatchedModelIDStillMerges verifies the merge

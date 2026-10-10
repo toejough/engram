@@ -35,7 +35,7 @@ Exchange SHALL use the exchange hash, not the sidecar content hash, for every on
 - **THEN** the pull-down treats it as not changed and writes nothing, and a later exchange of that link records the current-version hash
 
 ### Requirement: Local writes SHALL be offered to the parent
-When `ENGRAM_PARENT` is set (and the self-parent guard of capability `vault-local-first` does not apply), the writes listed below SHALL first complete locally, exactly as they do without a parent, and SHALL then be queued as offers:
+When `ENGRAM_PARENT` is set (and the self-parent guard of `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a2q-a-vault-does-not-exchange-with-itself` (792a2q) does not apply), the writes listed below SHALL first complete locally, exactly as they do without a parent, and SHALL then be queued as offers:
 - `engram learn fact`, `engram learn feedback`, and `engram learn runbook`;
 - `engram amend` with any content flag (`--situation`, `--subject`, `--predicate`, `--object`, `--behavior`, `--impact`, `--action`, `--done-when`, `--body`, `--red-flag`, `--trigger`);
 - `engram resituate`;

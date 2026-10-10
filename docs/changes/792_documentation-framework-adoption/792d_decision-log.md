@@ -2100,3 +2100,50 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792d3, 792d30, 792d33, 792d52, 792d117 and 792d118.
 - **Alternatives:** leave the fetch client to parent-sync. Rejected because `cmd/engram/serve.go` realizes both and its
   connect-timeout test is listed for this node.
+
+## 792d121 parent-sync scope, what stays whole, the components extended, and where the sources differ from the code
+
+- **Choice:**
+  - 792a21 states thirty-seven requirements (792a21a to 792a21zl) and 178 scenarios. The legacy specs give most of
+    their wording; the rest comes from their tests and from the code: a looping offer and a vault
+    that is its own parent (792a21y), the vault-ID probe before a drain (792a21r), an offer withdrawn at send time
+    (792a21r), an offer with no author (792a21x), the `attention` state (792a21w), the parent contact pauses of a
+    pull-down and the hash check on an envelope (792a21zd, 792a21zg), the use signal (792a21zg) and the order of the
+    label and the header of a fallback `show` (792a21l). `ENGRAM_SERVER` is a **MUST NOT**-style refusal (792d6).
+  - `vault-merged-recall`, `vault-parent-offers` and `vault-parent-pulldown` stay whole. Each requirement of them is
+    both a behavior of the product and a contract of the outbox or of the client, so they are deleted by the technical
+    nodes that read them: `vault-parent-offers` by 792c7t2 and the other two by 792c7t3. Their hash requirement is
+    already 792b33c1 to 792b33c5 and is deleted with the spec. `vault-local-first` is deleted whole, since its only
+    requirement is 792a21a. `vault-note-identity` keeps the two clauses that wait for curate: the bookkeeping rule for
+    `--clear-pending` and `--discard --into`, and the fold's LF read and the judged-version check on the LF form. Its
+    last requirement, that exchange fields cannot be set over the served API, is deleted as the duplicate of 792a20j that
+    792d117 said it was.
+  - ADR-0029 keeps D3's `--expect-hash` consumer, D10 and the consequence and risks that concern curation, for 792c7u1.
+    D11, which records how the original change was tested (hermetic headless arms, a recording proxy, a sandbox
+    allowlist), is not ported, since it describes a past verification effort and not a behavior; git keeps it. The S7 row
+    of the system context is a pointer, and R7 and K14 wait for 792c7t2 and 792c7t3.
+  - The catalog lists `query-engine` for extension. It gains nothing: the merged query is a step that wraps the local
+    pipeline, and its ordering, budgets and dedupe are the client's (792b37, 792c7t3), so query-engine's contract is
+    unchanged. `query-payload-renderer` (792b23c9, the `from_parent` tag), `note-reparenting` (a mapping row for
+    792b27c6a7) and `self-installer` (792b28c13a9, the outbox notice) are extended instead, as the notes of 792c7f4 and
+    792c7j2 asked.
+  - The parent cache and its backoff, the exchange-identifier checks and the declined-pull record are three
+    requirements of vault-identity-registry (792b5c14 to 792b5c16), as its orientation said. The record's code is in
+    `pulldown.go`; the component is named for what it keeps in `.engram/` and not for the file.
+  - Renames: 105 tests. Every test that runs a command through `Targets` and asserts a product scenario takes the
+    scenario's ID (792d52), which is why the activate, outbox-wiring and merged-query dispatch tests are renamed here and
+    not by 792c7t2 and 792c7t3. `parent_backoff_test` is renamed here, to 792b5c14, though the catalog lists it for
+    792c7t3. `TestDrainOutbox_LocationCheckFailureSendsNothing` takes 792a2p1a and
+    `TestTargets_Query_Merged_SelfParentReturnsLocalOnly` takes 792a2q1a, the two scenarios that 792c7a5 left for
+    this node. A test that covers several scenarios takes the first and lists the others as `split deferred`.
+- **Divergences noted (792d33):**
+  - The legacy spec says the fallback labels its output as parent-sourced and does not say what the explicit `--parent`
+    route prints; it prints the parent's answer unlabeled (792a21l, 792b2c10).
+  - `--pending=false` clears a pending marker as `--clear-pending` does, so it is offered like one when the note has
+    `offer.origin`; the spec names only `--clear-pending`.
+  - The merged query does not check the version of the parent: an old parent's answer merges without dedupe keys and a
+    note can show twice (#785). `scanDedupeNotes` reads each local note twice (#782), and the self-parent guard can miss
+    on a transient vault-ID read failure (#786). These are known gaps and are not in the specs.
+- **Rationale:** 792d3, 792d6, 792d10, 792d30, 792d33, 792d51, 792d52, 792d61, 792d67, 792d117, 792d118 and 792d119.
+- **Alternatives:** trim the three parent specs requirement by requirement now. Rejected because each requirement is
+  both product and contract, as 792d117 found for `vault-serve-api`.

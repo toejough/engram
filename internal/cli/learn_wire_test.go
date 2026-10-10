@@ -1,8 +1,8 @@
 package cli_test
 
 // Wire-safety tests for served learn (design D7 "Wire safety",
-// vault-note-identity "Exchange fields SHALL NOT be settable over the served
-// API"; task 3.7).
+// 792a20j, "A caller cannot set link, identity or registration fields"; task
+// 3.7).
 
 import (
 	"encoding/json"

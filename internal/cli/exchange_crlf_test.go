@@ -16,6 +16,59 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+// Test792a21zb1b_DrainOutbox_FindsCRLFNote: a queued note with CRLF line endings is
+// sent, and its receipt is recorded (writing it as LF), instead of the
+// entry being dropped as if the note were gone.
+func Test792a21zb1b_DrainOutbox_FindsCRLFNote(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	env.fsys.put(attentionNotePath(env), []byte(toCRLF(plainParentNote("body one"))))
+	env.enqueue(xidA)
+
+	parent := &fakeParent{script: map[string]cli.OfferSendResultForTest{xidA: accepted("9.2026-09-27.parent-copy")}}
+	err := env.drainApplying(parent)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(sentXIDs(parent)).To(Equal([]string{xidA}))
+	g.Expect(env.outbox().Entries).To(BeEmpty())
+
+	written := string(env.noteRaw(attentionNoteName))
+	g.Expect(written).To(ContainSubstring("note: 9.2026-09-27.parent-copy"))
+	g.Expect(written).NotTo(ContainSubstring("\r\n"), "the receipt write converts the note")
+}
+
+// Test792a21zb1d_Activate_PullsCRLFParentNote: a parent note served with CRLF line
+// endings pulls down as an LF pending copy linked at the parent's hash.
+func Test792a21zb1d_Activate_PullsCRLFParentNote(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	note := pulledFact("7.2026-09-01.pulled", "c", "")
+	note.content = toCRLF(note.content)
+
+	env := newWiringEnv(t)
+	env.parent.addNote(note)
+	hash := env.parent.hashOf(t, note.basename)
+
+	_, stderr := env.run("activate", "--note", note.basename+".md")
+	g.Expect(env.exitCodes()).To(BeEmpty(), stderr)
+
+	files := env.noteFiles()
+	g.Expect(files).To(HaveLen(1), stderr)
+
+	if len(files) != 1 {
+		return
+	}
+
+	raw := []byte(readFileString(t, filepath.Join(env.vault, files[0])))
+	g.Expect(string(raw)).NotTo(ContainSubstring("\r\n"))
+
+	copied := decodePulledCopy(t, raw)
+	g.Expect(copied.Pending).To(BeTrue())
+	g.Expect(copied.Parent.Links).To(Equal([]pulledLink{{Note: note.basename, Via: "pulled", Hash: hash}}))
+}
+
 // Test792b33c3a2_ExchangeHash_CRLFFrontmatterHashesAsLF: a note whose frontmatter is
 // CRLF hashes exactly as its LF form.
 func Test792b33c3a2_ExchangeHash_CRLFFrontmatterHashesAsLF(t *testing.T) {
@@ -70,57 +123,4 @@ func Test792b34c8a3_Show_ExchangeHashHeaderForCRLFNote(t *testing.T) {
 		Pending: &notPending, ExpectHash: strings.TrimPrefix(header, "# exchange_hash: "),
 	})
 	g.Expect(err).NotTo(HaveOccurred())
-}
-
-// TestActivate_PullsCRLFParentNote: a parent note served with CRLF line
-// endings pulls down as an LF pending copy linked at the parent's hash.
-func TestActivate_PullsCRLFParentNote(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	note := pulledFact("7.2026-09-01.pulled", "c", "")
-	note.content = toCRLF(note.content)
-
-	env := newWiringEnv(t)
-	env.parent.addNote(note)
-	hash := env.parent.hashOf(t, note.basename)
-
-	_, stderr := env.run("activate", "--note", note.basename+".md")
-	g.Expect(env.exitCodes()).To(BeEmpty(), stderr)
-
-	files := env.noteFiles()
-	g.Expect(files).To(HaveLen(1), stderr)
-
-	if len(files) != 1 {
-		return
-	}
-
-	raw := []byte(readFileString(t, filepath.Join(env.vault, files[0])))
-	g.Expect(string(raw)).NotTo(ContainSubstring("\r\n"))
-
-	copied := decodePulledCopy(t, raw)
-	g.Expect(copied.Pending).To(BeTrue())
-	g.Expect(copied.Parent.Links).To(Equal([]pulledLink{{Note: note.basename, Via: "pulled", Hash: hash}}))
-}
-
-// TestDrainOutbox_FindsCRLFNote: a queued note with CRLF line endings is
-// sent, and its receipt is recorded (writing it as LF), instead of the
-// entry being dropped as if the note were gone.
-func TestDrainOutbox_FindsCRLFNote(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newOutboxEnv(t)
-	env.fsys.put(attentionNotePath(env), []byte(toCRLF(plainParentNote("body one"))))
-	env.enqueue(xidA)
-
-	parent := &fakeParent{script: map[string]cli.OfferSendResultForTest{xidA: accepted("9.2026-09-27.parent-copy")}}
-	err := env.drainApplying(parent)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(sentXIDs(parent)).To(Equal([]string{xidA}))
-	g.Expect(env.outbox().Entries).To(BeEmpty())
-
-	written := string(env.noteRaw(attentionNoteName))
-	g.Expect(written).To(ContainSubstring("note: 9.2026-09-27.parent-copy"))
-	g.Expect(written).NotTo(ContainSubstring("\r\n"), "the receipt write converts the note")
 }

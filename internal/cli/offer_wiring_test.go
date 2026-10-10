@@ -20,139 +20,9 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestTargets_Amend_BookkeepingQueuesNothing (spec "Bookkeeping amends
-// stay local"): --activate and a --supersedes-only amend neither queue
-// nor send an offer.
-func TestTargets_Amend_BookkeepingQueuesNothing(t *testing.T) {
-	t.Parallel()
-
-	for name, flags := range map[string][]string{
-		"activate":        {"--activate"},
-		"supersedes only": {"--supersedes", "2.2026-09-27.old|updates|c"},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			env := newWiringEnv(t)
-			env.plant("1.2026-09-27.note.md", offerTestNote{}.render(t))
-
-			_, stderr := env.run(append([]string{"amend", "--target", "1.2026-09-27.note"}, flags...)...)
-			g.Expect(stderr).NotTo(ContainSubstring("error"))
-			g.Expect(env.parent.requests()).To(BeEmpty())
-			g.Expect(filepath.Join(env.vault, ".engram", "outbox.json")).NotTo(BeAnExistingFile())
-		})
-	}
-}
-
-// TestTargets_Amend_ClearPendingOfParentsOfferNeverReturns (D12, spec "An
-// accepted offer never returns to its origin vault").
-func TestTargets_Amend_ClearPendingOfParentsOfferNeverReturns(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newWiringEnv(t)
-	env.run("learn", "fact", "--slug", "first", "--situation", "s", "--subject", "a", "--predicate", "b",
-		"--object", "c", "--source", "t", "--position", "top") // caches the parent's vault ID
-	env.plant("5.2026-09-27.served.md", offerTestNote{
-		pending: true, origin: parentVaultID + ":" + xidB, path: []string{parentVaultID},
-	}.render(t))
-
-	env.run("amend", "--target", "5.2026-09-27.served", "--clear-pending",
-		"--expect-hash", env.exchangeHashOf("5.2026-09-27.served.md"))
-	g.Expect(env.parent.offers()).To(HaveLen(1), "only the first learn was offered")
-}
-
-// TestTargets_Amend_ClearPendingOfServedOfferPropagates (M14, spec
-// "Accepting a served offer propagates upward"): clearing the pending
-// marker of a child's served offer sends a learn-offer carrying the
-// offer's path plus this vault's ID.
-func TestTargets_Amend_ClearPendingOfServedOfferPropagates(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newWiringEnv(t)
-	child := seqID(40)
-	env.plant("1.2026-09-27.note.md",
-		offerTestNote{pending: true, origin: child + ":" + xidB, path: []string{child}}.render(t))
-
-	_, stderr := env.run("amend", "--target", "1.2026-09-27.note", "--clear-pending",
-		"--expect-hash", env.exchangeHashOf("1.2026-09-27.note.md"))
-	g.Expect(stderr).To(BeEmpty())
-
-	offers := env.parent.offers()
-	g.Expect(offers).To(HaveLen(1))
-	g.Expect(offers[0].Offer.Path).To(Equal([]string{child, env.localID()}))
-	g.Expect(offers[0].Offer.Origin).To(Equal(env.localID() + ":" + xidA))
-}
-
-// TestTargets_Amend_ContentOfLinkedNoteIsAmendOffer (spec "A content amend
-// of a linked note is an amend-offer"): after a receipt links the note, a
-// content amend's offer names the parent note in offer.for.
-func TestTargets_Amend_ContentOfLinkedNoteIsAmendOffer(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newWiringEnv(t)
-	notePath := env.learnFact("linked")
-
-	env.run("amend", "--target", noteBasename(notePath), "--object", "changed")
-
-	offers := env.parent.offers()
-	g.Expect(offers).To(HaveLen(2))
-	g.Expect(offers[0].Offer.For).To(BeEmpty())
-	g.Expect(offers[1].Offer.For).To(Equal("1100.2026-09-28.linked"))
-	g.Expect(offers[1].Object).To(Equal("changed"))
-}
-
-// TestTargets_Amend_StampsXIDOnFirstOffer (design D4): a note without an
-// xid gets one, in the same write, the first time it is offered; the
-// offer's origin names it.
-func TestTargets_Amend_StampsXIDOnFirstOffer(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newWiringEnv(t)
-	raw := strings.Replace(string(offerTestNote{}.render(t)), "xid: "+xidA+"\n", "", 1)
-	env.plant("1.2026-09-27.note.md", []byte(raw))
-
-	env.run("amend", "--target", "1.2026-09-27.note", "--object", "changed")
-
-	content := readFileString(t, filepath.Join(env.vault, "1.2026-09-27.note.md"))
-	g.Expect(content).To(MatchRegexp(`(?m)^xid: [0-9a-f]{32}$`))
-
-	offers := env.parent.offers()
-	g.Expect(offers).To(HaveLen(1))
-
-	xidLine := regexp.MustCompile(`(?m)^xid: ([0-9a-f]{32})$`).FindStringSubmatch(content)
-	g.Expect(xidLine).To(HaveLen(2))
-
-	if len(xidLine) == 2 {
-		g.Expect(offers[0].Offer.Origin).To(Equal(env.localID() + ":" + xidLine[1]))
-	}
-}
-
-// TestTargets_Learn_MalformedReceiptKeepsEntry (final review F6): a
-// receipt naming a basename that carries a '|' leaves the note unlinked
-// and the entry queued with the failure recorded (handled as an
-// undecodable receipt is, ruling S11).
-func TestTargets_Learn_MalformedReceiptKeepsEntry(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newWiringEnv(t)
-	env.parent.setReceipt(`{"status":"offer received","luhmann":"7","basename":"7.2026-09-28.x|evil",` +
-		`"pending":true,"vault_id":"` + parentVaultID + `","stored_hash":"xh1:ab"}`)
-
-	notePath := env.learnFact("malformed")
-	g.Expect(env.outboxEntries()).To(HaveLen(1))
-	g.Expect(env.outboxEntries()).To(ContainElement(HaveKeyWithValue("last_error", ContainSubstring("malformed"))))
-	g.Expect(readFileString(t, notePath)).NotTo(ContainSubstring("parent:"))
-}
-
-// TestTargets_Learn_NoParentWritesNoExchangeState (spec "No parent
+// Test792a21m1b_Targets_Learn_NoParentWritesNoExchangeState (spec "No parent
 // configured"): nothing is queued, stamped or sent.
-func TestTargets_Learn_NoParentWritesNoExchangeState(t *testing.T) {
+func Test792a21m1b_Targets_Learn_NoParentWritesNoExchangeState(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -166,10 +36,10 @@ func TestTargets_Learn_NoParentWritesNoExchangeState(t *testing.T) {
 	g.Expect(readFileString(t, notePath)).NotTo(ContainSubstring("xid:"))
 }
 
-// TestTargets_Learn_OffersAndLinksReceipt (spec "learn is written locally
+// Test792a21n1a_Targets_Learn_OffersAndLinksReceipt (spec "learn is written locally
 // and offered", "Receipt links the note"): one learn-offer carrying this
 // vault's origin; the receipt links the note without re-embedding it.
-func TestTargets_Learn_OffersAndLinksReceipt(t *testing.T) {
+func Test792a21n1a_Targets_Learn_OffersAndLinksReceipt(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -194,10 +64,111 @@ func TestTargets_Learn_OffersAndLinksReceipt(t *testing.T) {
 	g.Expect(env.embeds.Load()).To(Equal(unlinked.embeds.Load()), "the receipt write never re-embeds")
 }
 
-// TestTargets_Learn_ParentUnreachableQueues (spec "Parent unreachable
+// Test792a21n1b_Targets_Amend_ContentOfLinkedNoteIsAmendOffer (spec "A content amend
+// of a linked note is an amend-offer"): after a receipt links the note, a
+// content amend's offer names the parent note in offer.for.
+func Test792a21n1b_Targets_Amend_ContentOfLinkedNoteIsAmendOffer(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	notePath := env.learnFact("linked")
+
+	env.run("amend", "--target", noteBasename(notePath), "--object", "changed")
+
+	offers := env.parent.offers()
+	g.Expect(offers).To(HaveLen(2))
+	g.Expect(offers[0].Offer.For).To(BeEmpty())
+	g.Expect(offers[1].Offer.For).To(Equal("1100.2026-09-28.linked"))
+	g.Expect(offers[1].Object).To(Equal("changed"))
+}
+
+// Test792a21n1e_Targets_Resituate_Offers (E41): resituate is offered like a content
+// amend.
+func Test792a21n1e_Targets_Resituate_Offers(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	env.plant("1.2026-09-27.note.md", offerTestNote{}.render(t))
+
+	env.run("resituate", "--note", "1.2026-09-27.note", "--situation", "when resituated")
+
+	offers := env.parent.offers()
+	g.Expect(offers).To(HaveLen(1))
+	g.Expect(offers[0].Situation).To(Equal("when resituated"))
+}
+
+// Test792a21n1f_Targets_Amend_BookkeepingQueuesNothing (spec "Bookkeeping amends
+// stay local"): --activate and a --supersedes-only amend neither queue
+// nor send an offer.
+func Test792a21n1f_Targets_Amend_BookkeepingQueuesNothing(t *testing.T) {
+	t.Parallel()
+
+	for name, flags := range map[string][]string{
+		"activate":        {"--activate"},
+		"supersedes only": {"--supersedes", "2.2026-09-27.old|updates|c"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			env := newWiringEnv(t)
+			env.plant("1.2026-09-27.note.md", offerTestNote{}.render(t))
+
+			_, stderr := env.run(append([]string{"amend", "--target", "1.2026-09-27.note"}, flags...)...)
+			g.Expect(stderr).NotTo(ContainSubstring("error"))
+			g.Expect(env.parent.requests()).To(BeEmpty())
+			g.Expect(filepath.Join(env.vault, ".engram", "outbox.json")).NotTo(BeAnExistingFile())
+		})
+	}
+}
+
+// Test792a21n1g_Targets_Amend_ClearPendingOfServedOfferPropagates (M14, spec
+// "Accepting a served offer propagates upward"): clearing the pending
+// marker of a child's served offer sends a learn-offer carrying the
+// offer's path plus this vault's ID.
+func Test792a21n1g_Targets_Amend_ClearPendingOfServedOfferPropagates(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	child := seqID(40)
+	env.plant("1.2026-09-27.note.md",
+		offerTestNote{pending: true, origin: child + ":" + xidB, path: []string{child}}.render(t))
+
+	_, stderr := env.run("amend", "--target", "1.2026-09-27.note", "--clear-pending",
+		"--expect-hash", env.exchangeHashOf("1.2026-09-27.note.md"))
+	g.Expect(stderr).To(BeEmpty())
+
+	offers := env.parent.offers()
+	g.Expect(offers).To(HaveLen(1))
+	g.Expect(offers[0].Offer.Path).To(Equal([]string{child, env.localID()}))
+	g.Expect(offers[0].Offer.Origin).To(Equal(env.localID() + ":" + xidA))
+}
+
+// Test792a21n1h_Targets_Amend_ClearPendingOfParentsOfferNeverReturns (D12, spec "An
+// accepted offer never returns to its origin vault").
+func Test792a21n1h_Targets_Amend_ClearPendingOfParentsOfferNeverReturns(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	env.run("learn", "fact", "--slug", "first", "--situation", "s", "--subject", "a", "--predicate", "b",
+		"--object", "c", "--source", "t", "--position", "top") // caches the parent's vault ID
+	env.plant("5.2026-09-27.served.md", offerTestNote{
+		pending: true, origin: parentVaultID + ":" + xidB, path: []string{parentVaultID},
+	}.render(t))
+
+	env.run("amend", "--target", "5.2026-09-27.served", "--clear-pending",
+		"--expect-hash", env.exchangeHashOf("5.2026-09-27.served.md"))
+	g.Expect(env.parent.offers()).To(HaveLen(1), "only the first learn was offered")
+}
+
+// Test792a21q1a_Targets_Learn_ParentUnreachableQueues (spec "Parent unreachable
 // during learn"): the command succeeds, the note is live, one entry is
 // queued and one warning names the count.
-func TestTargets_Learn_ParentUnreachableQueues(t *testing.T) {
+func Test792a21q1a_Targets_Learn_ParentUnreachableQueues(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -215,26 +186,10 @@ func TestTargets_Learn_ParentUnreachableQueues(t *testing.T) {
 	g.Expect(env.outboxEntries()).To(HaveLen(1))
 }
 
-// TestTargets_Learn_TooOldParentKeepsEntry (spec "A pre-change parent is
-// detected"): a receipt without vault_id reports a too-old parent and
-// leaves the entry queued and the note unlinked.
-func TestTargets_Learn_TooOldParentKeepsEntry(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newWiringEnv(t)
-	env.parent.setReceipt(`{"status":"offer received","luhmann":"7"}`)
-
-	notePath := env.learnFact("old")
-	g.Expect(env.lastStderr).To(ContainSubstring("too old"))
-	g.Expect(env.outboxEntries()).To(HaveLen(1))
-	g.Expect(readFileString(t, notePath)).NotTo(ContainSubstring("parent:"))
-}
-
-// TestTargets_OfflineWritesCoalesceThenQueryDrains (spec "Offline learn
+// Test792a21q1b_Targets_OfflineWritesCoalesceThenQueryDrains (spec "Offline learn
 // then amend coalesce", "Commands inside the backoff window make no
 // request", "Query drains a backlog").
-func TestTargets_OfflineWritesCoalesceThenQueryDrains(t *testing.T) {
+func Test792a21q1b_Targets_OfflineWritesCoalesceThenQueryDrains(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -262,26 +217,37 @@ func TestTargets_OfflineWritesCoalesceThenQueryDrains(t *testing.T) {
 	g.Expect(readFileString(t, notePath)).To(ContainSubstring("note: 1100.2026-09-28.coalesce"))
 }
 
-// TestTargets_Resituate_Offers (E41): resituate is offered like a content
-// amend.
-func TestTargets_Resituate_Offers(t *testing.T) {
+// Test792a21q1e_Targets_Amend_StampsXIDOnFirstOffer (design D4): a note without an
+// xid gets one, in the same write, the first time it is offered; the
+// offer's origin names it.
+func Test792a21q1e_Targets_Amend_StampsXIDOnFirstOffer(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	env := newWiringEnv(t)
-	env.plant("1.2026-09-27.note.md", offerTestNote{}.render(t))
+	raw := strings.Replace(string(offerTestNote{}.render(t)), "xid: "+xidA+"\n", "", 1)
+	env.plant("1.2026-09-27.note.md", []byte(raw))
 
-	env.run("resituate", "--note", "1.2026-09-27.note", "--situation", "when resituated")
+	env.run("amend", "--target", "1.2026-09-27.note", "--object", "changed")
+
+	content := readFileString(t, filepath.Join(env.vault, "1.2026-09-27.note.md"))
+	g.Expect(content).To(MatchRegexp(`(?m)^xid: [0-9a-f]{32}$`))
 
 	offers := env.parent.offers()
 	g.Expect(offers).To(HaveLen(1))
-	g.Expect(offers[0].Situation).To(Equal("when resituated"))
+
+	xidLine := regexp.MustCompile(`(?m)^xid: ([0-9a-f]{32})$`).FindStringSubmatch(content)
+	g.Expect(xidLine).To(HaveLen(2))
+
+	if len(xidLine) == 2 {
+		g.Expect(offers[0].Offer.Origin).To(Equal(env.localID() + ":" + xidLine[1]))
+	}
 }
 
-// TestUpdateExchange_DrainsIgnoringBackoffThenGoesIdle (spec "update always
+// Test792a21s1b_UpdateExchange_DrainsIgnoringBackoffThenGoesIdle (spec "update always
 // tries", "Update reports a stuck outbox"): a dry run only reports; a real
 // run drains inside the backoff window, after which the notice is empty.
-func TestUpdateExchange_DrainsIgnoringBackoffThenGoesIdle(t *testing.T) {
+func Test792a21s1b_UpdateExchange_DrainsIgnoringBackoffThenGoesIdle(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -302,19 +268,43 @@ func TestUpdateExchange_DrainsIgnoringBackoffThenGoesIdle(t *testing.T) {
 	g.Expect(env.parent.offers()).To(HaveLen(1))
 }
 
-// TestUpdateExchange_IdleVaultHasNoNotice: nothing queued and no backoff —
-// no notice.
-func TestUpdateExchange_IdleVaultHasNoNotice(t *testing.T) {
+// Test792a21v1a_Targets_Learn_TooOldParentKeepsEntry (spec "A pre-change parent is
+// detected"): a receipt without vault_id reports a too-old parent and
+// leaves the entry queued and the note unlinked.
+func Test792a21v1a_Targets_Learn_TooOldParentKeepsEntry(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	env := newWiringEnv(t)
-	g.Expect(cli.ExportUpdateExchange(env.deps())(context.Background(), env.vault, false)).To(BeEmpty())
+	env.parent.setReceipt(`{"status":"offer received","luhmann":"7"}`)
+
+	notePath := env.learnFact("old")
+	g.Expect(env.lastStderr).To(ContainSubstring("too old"))
+	g.Expect(env.outboxEntries()).To(HaveLen(1))
+	g.Expect(readFileString(t, notePath)).NotTo(ContainSubstring("parent:"))
 }
 
-// TestUpdateExchange_ReportsRejectedEntry: a rejected entry is listed with
+// Test792a21v1b_Targets_Learn_MalformedReceiptKeepsEntry (final review F6): a
+// receipt naming a basename that carries a '|' leaves the note unlinked
+// and the entry queued with the failure recorded (handled as an
+// undecodable receipt is, ruling S11).
+func Test792a21v1b_Targets_Learn_MalformedReceiptKeepsEntry(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	env.parent.setReceipt(`{"status":"offer received","luhmann":"7","basename":"7.2026-09-28.x|evil",` +
+		`"pending":true,"vault_id":"` + parentVaultID + `","stored_hash":"xh1:ab"}`)
+
+	notePath := env.learnFact("malformed")
+	g.Expect(env.outboxEntries()).To(HaveLen(1))
+	g.Expect(env.outboxEntries()).To(ContainElement(HaveKeyWithValue("last_error", ContainSubstring("malformed"))))
+	g.Expect(readFileString(t, notePath)).NotTo(ContainSubstring("parent:"))
+}
+
+// Test792a21za1a_UpdateExchange_ReportsRejectedEntry: a rejected entry is listed with
 // its note and error.
-func TestUpdateExchange_ReportsRejectedEntry(t *testing.T) {
+func Test792a21za1a_UpdateExchange_ReportsRejectedEntry(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -326,6 +316,28 @@ func TestUpdateExchange_ReportsRejectedEntry(t *testing.T) {
 	g.Expect(notice).To(ContainSubstring("0 offer(s) queued"))
 	g.Expect(notice).To(ContainSubstring("1 rejected"))
 	g.Expect(notice).To(MatchRegexp(`rejected: \S+\.refused: .*no thanks`))
+}
+
+// Test792a21za1c_UpdateExchange_IdleVaultHasNoNotice: nothing queued and no backoff —
+// no notice.
+func Test792a21za1c_UpdateExchange_IdleVaultHasNoNotice(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	g.Expect(cli.ExportUpdateExchange(env.deps())(context.Background(), env.vault, false)).To(BeEmpty())
+}
+
+// Test792b28c13a9_WriteUpdateReport_OutboxNotice: the report carries the notice.
+func Test792b28c13a9_WriteUpdateReport_OutboxNotice(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var out strings.Builder
+
+	report := cli.UpdateReportWithOutboxNotice("parent outbox: 2 offer(s) queued\n")
+	g.Expect(cli.ExportWriteUpdateReport(&out, report)).To(Succeed())
+	g.Expect(out.String()).To(ContainSubstring("parent outbox: 2 offer(s) queued\n"))
 }
 
 // TestWiringEnv_DepsIsolateRealUserHome guards the wiring test helper
@@ -357,18 +369,6 @@ func TestWiringEnv_DepsIsolateRealUserHome(t *testing.T) {
 	realChunksDir := cli.ResolveChunksDir("", realHome, os.Getenv)
 	g.Expect(chunksDir).To(HavePrefix(home))
 	g.Expect(chunksDir).NotTo(Equal(realChunksDir))
-}
-
-// TestWriteUpdateReport_OutboxNotice: the report carries the notice.
-func TestWriteUpdateReport_OutboxNotice(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var out strings.Builder
-
-	report := cli.UpdateReportWithOutboxNotice("parent outbox: 2 offer(s) queued\n")
-	g.Expect(cli.ExportWriteUpdateReport(&out, report)).To(Succeed())
-	g.Expect(out.String()).To(ContainSubstring("parent outbox: 2 offer(s) queued\n"))
 }
 
 // embedCounter counts Embed calls (safe across goroutines).

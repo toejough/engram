@@ -24,602 +24,11 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-// Test792a4n1c_Activate_MissWithoutParentFails: with no parent configured a miss
-// is a failed ref and nothing is fetched.
-func Test792a4n1c_Activate_MissWithoutParentFails(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newWiringEnv(t)
-	env.parentURL = ""
-
-	_, stderr := env.run("activate", "--note", "7.2026-09-01.gone.md")
-	g.Expect(stderr).To(ContainSubstring("7.2026-09-01.gone.md"))
-	g.Expect(stderr).To(ContainSubstring("not found"))
-	g.Expect(env.exitCodes()).To(Equal([]int{1}))
-	g.Expect(env.parent.requests()).To(BeEmpty())
-}
-
-// Test792b35c7a5_ServeActivate_StatusByOutcome (ruling S18): a served activate
-// answers 5xx only for a server-side failure — none found is 404 and a
-// partial result 200, each with the per-ref result.
-func Test792b35c7a5_ServeActivate_StatusByOutcome(t *testing.T) {
-	t.Parallel()
-
-	cases := map[string]struct {
-		notes     []string
-		corrupt   bool
-		status    int
-		activated []string
-		failed    []string
-	}{
-		"none found": {notes: []string{"9.2026-01-01.gone.md"}, status: 404, failed: []string{"9.2026-01-01.gone.md"}},
-		"partial": {
-			notes: []string{"1.2026-01-01.a-note.md", "9.2026-01-01.gone.md"}, status: 200,
-			activated: []string{"1.2026-01-01.a-note.md"}, failed: []string{"9.2026-01-01.gone.md"},
-		},
-		"unreadable sidecar": {notes: []string{"1.2026-01-01.a-note.md"}, corrupt: true, status: 500},
-	}
-
-	for name, testCase := range cases {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			vault := t.TempDir()
-			notePath := writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
-
-			sidecar := embed.MarshalSidecar(embed.Sidecar{SchemaVersion: embed.SidecarSchemaVersion})
-			if testCase.corrupt {
-				sidecar = []byte("{not json")
-			}
-
-			g.Expect(os.WriteFile(embed.SidecarPath(notePath), sidecar, 0o600)).To(Succeed())
-
-			routes := cli.ServeRoutes(newTestDeps(&strings.Builder{}, &strings.Builder{}), vault, "personal", t.TempDir())
-
-			body, marshalErr := json.Marshal(map[string][]string{"notes": testCase.notes})
-			g.Expect(marshalErr).NotTo(HaveOccurred())
-
-			resp := routeFor(t, routes, "/activate").Serve(t.Context(), cli.ServeRequest{Body: body})
-			g.Expect(resp.Status).To(Equal(testCase.status))
-
-			if testCase.failed == nil {
-				return
-			}
-
-			var result struct {
-				Activated []string `json:"activated"`
-				Failed    []struct {
-					Ref string `json:"ref"`
-				} `json:"failed"`
-			}
-
-			g.Expect(json.Unmarshal(resp.Body, &result)).To(Succeed())
-			g.Expect(result.Activated).To(Equal(testCase.activated))
-
-			failedRefs := make([]string, 0, len(result.Failed))
-			for _, failure := range result.Failed {
-				failedRefs = append(failedRefs, failure.Ref)
-			}
-
-			g.Expect(failedRefs).To(Equal(testCase.failed))
-		})
-	}
-}
-
-// TestActivate_BareLuhmannIDStaysLocal (spec "Bare Luhmann IDs stay
-// local", M8): a bare ID — with or without .md, with or without --parent —
-// is never sent to the parent, and the ref is reported as failed.
-func TestActivate_BareLuhmannIDStaysLocal(t *testing.T) {
-	t.Parallel()
-
-	for name, args := range map[string][]string{
-		"bare id":          {"activate", "--note", "1100"},
-		"bare id with .md": {"activate", "--note", "1100.md"},
-		"with --parent":    {"activate", "--parent", "--note", "1100"},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			env := newWiringEnv(t)
-
-			_, stderr := env.run(args...)
-			g.Expect(env.parent.requests()).To(BeEmpty())
-			g.Expect(stderr).To(ContainSubstring("1100"))
-			g.Expect(env.exitCodes()).To(Equal([]int{1}))
-		})
-	}
-}
-
-// TestActivate_ConcurrentActivatesWriteOneCopy (review H5, M8): two
-// activates of the same parent note racing on one vault write one copy —
-// the skip rule is re-checked under the write lock.
-func TestActivate_ConcurrentActivatesWriteOneCopy(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newWiringEnv(t)
-	parentNote := env.parent.addNote(pulledFact("7.2026-09-01.shared", "c", ""))
-
-	var wait sync.WaitGroup
-
-	for range 2 {
-		wait.Go(func() {
-			_, _ = executeCapturingBoth(t,
-				[]string{"engram", "activate", "--note", parentNote + ".md", "--vault", env.vault}, env.customize)
-		})
-	}
-
-	wait.Wait()
-	g.Expect(env.linkedCopies(parentNote)).To(HaveLen(1))
-}
-
-// TestActivate_CoveredLinkSkipsAndBumpsLiveNote (spec "A covered parent
-// note is not pulled again"): a live local note whose covered link names
-// the parent note with its current hash is bumped instead of a new copy
-// being written.
-func TestActivate_CoveredLinkSkipsAndBumpsLiveNote(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newWiringEnv(t)
-	parentNote := env.parent.addNote(pulledFact("7.2026-09-01.covered", "c", ""))
-	hash := env.parent.hashOf(t, parentNote)
-
-	env.plant("3.2026-09-20.local.md", []byte(localNoteWithLinks(
-		parentVaultID, "    - note: 9.2026-09-01.other\n      via: offered\n      hash: xh1:other\n"+
-			"    - note: "+parentNote+"\n      via: covered\n      hash: "+hash+"\n")))
-	env.plantSidecar("3.2026-09-20.local.md", "2026-01-01")
-
-	_, stderr := env.run("activate", "--note", parentNote+".md")
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(env.exitCodes()).To(BeEmpty())
-	g.Expect(env.noteFiles()).To(Equal([]string{"3.2026-09-20.local.md"}))
-	g.Expect(env.lastUsed("3.2026-09-20.local.md")).To(Equal("2026-09-28"))
-	g.Expect(env.parent.activated()).To(Equal([]string{parentNote + ".md"}))
-}
-
-// TestActivate_DeclineIsKeyedByParentVault (ruling S18, S16): a decline
-// recorded under another parent vault does not suppress the same
-// basename and hash under the current parent.
-func TestActivate_DeclineIsKeyedByParentVault(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newWiringEnv(t)
-	parentNote := env.parent.addNote(pulledFact("7.2026-09-01.elsewhere", "c", ""))
-	env.stampVault("")
-	env.writeState("declined.json", fmt.Sprintf(`{"version":1,"entries":[{"vault":%q,"basename":%q,"hash":%q}]}`,
-		seqID(77), parentNote, env.parent.hashOf(t, parentNote)))
-
-	env.run("activate", "--note", parentNote+".md")
-	g.Expect(env.linkedCopies(parentNote)).To(HaveLen(1))
-}
-
-// TestActivate_DeclinedPullIsRemembered (spec "A declined pull is
-// remembered", "A decline survives a parent rename", H5, r3-8): a bare
-// --discard of a pulled copy records a decline; an unchanged re-pull —
-// also after the parent renamed the note — writes nothing.
-func TestActivate_DeclinedPullIsRemembered(t *testing.T) {
-	t.Parallel()
-
-	for name, rename := range map[string]bool{"same name": false, "renamed on the parent": true} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			env := newWiringEnv(t)
-			parentNote := env.parent.addNote(pulledFact("7.2026-09-01.declined", "c", ""))
-			hash := env.parent.hashOf(t, parentNote)
-
-			env.run("activate", "--note", parentNote+".md")
-
-			copies := env.linkedCopies(parentNote)
-			g.Expect(copies).To(HaveLen(1))
-
-			if len(copies) != 1 {
-				return
-			}
-
-			_, discardErr := env.run("amend", "--target", strings.TrimSuffix(copies[0], ".md"), "--discard")
-			g.Expect(env.exitCodes()).To(BeEmpty(), discardErr)
-			g.Expect(env.declined()).To(ConsistOf(declinedEntry{Vault: parentVaultID, Basename: parentNote, Hash: hash}))
-
-			if rename {
-				env.parent.rename(parentNote, "12.2026-09-25.declined-renamed")
-			}
-
-			env.run("activate", "--note", parentNote+".md")
-			g.Expect(env.noteFiles()).To(BeEmpty(), "a declined, unchanged parent note is not pulled again")
-			g.Expect(env.exitCodes()).To(BeEmpty())
-		})
-	}
-}
-
-// TestActivate_HashMismatchWritesNothing: an envelope whose exchange hash
-// does not match its content is refused; nothing is written.
-func TestActivate_HashMismatchWritesNothing(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newWiringEnv(t)
-	parentNote := env.parent.addNote(pulledFact("7.2026-09-01.mismatch", "c", ""))
-	env.parent.showMode = "wrong-hash"
-
-	_, stderr := env.run("activate", "--note", parentNote+".md")
-	g.Expect(stderr).To(ContainSubstring("exchange hash differs"))
-	g.Expect(env.exitCodes()).To(Equal([]int{1}))
-	g.Expect(env.noteFiles()).To(BeEmpty())
-}
-
-// TestActivate_LocalContentEditOffersToOrigin (decision 3, B1): after an
-// accepted pull, a real local edit is an amend-offer naming the parent
-// note; clearing the pending marker alone queues nothing.
-func TestActivate_LocalContentEditOffersToOrigin(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newWiringEnv(t)
-	parentNote := env.parent.addNote(pulledFact("7.2026-09-01.edited", "c", ""))
-	env.run("activate", "--note", parentNote+".md")
-
-	copies := env.linkedCopies(parentNote)
-	g.Expect(copies).To(HaveLen(1))
-
-	if len(copies) != 1 {
-		return
-	}
-
-	target := strings.TrimSuffix(copies[0], ".md")
-
-	env.run("amend", "--target", target, "--clear-pending")
-	g.Expect(env.outboxEntries()).To(BeEmpty(), "accepting a pulled note queues nothing")
-	g.Expect(env.parent.offers()).To(BeEmpty())
-
-	env.run("amend", "--target", target, "--object", "locally changed")
-
-	offers := env.parent.offers()
-	g.Expect(offers).To(HaveLen(1))
-
-	if len(offers) == 1 {
-		g.Expect(offers[0].Offer.For).To(Equal(parentNote))
-		g.Expect(offers[0].Object).To(Equal("locally changed"))
-	}
-}
-
-// TestActivate_LocalHitNeverContactsParent (spec "A local hit never
-// contacts the parent", M8): a note whose .md exists is a hit — its
-// sidecar is bumped, and a note without a sidecar still counts.
-func TestActivate_LocalHitNeverContactsParent(t *testing.T) {
-	t.Parallel()
-
-	for name, withSidecar := range map[string]bool{"with sidecar": true, "without sidecar": false} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			env := newWiringEnv(t)
-			env.plant("3.2026-09-20.local.md", offerTestNote{}.render(t))
-
-			if withSidecar {
-				env.plantSidecar("3.2026-09-20.local.md", "2026-01-01")
-			}
-
-			_, stderr := env.run("activate", "--note", "3.2026-09-20.local.md")
-			g.Expect(stderr).To(BeEmpty())
-			g.Expect(env.exitCodes()).To(BeEmpty())
-			g.Expect(env.parent.requests()).To(BeEmpty())
-
-			if withSidecar {
-				g.Expect(env.lastUsed("3.2026-09-20.local.md")).To(Equal("2026-09-28"))
-			}
-		})
-	}
-}
-
-// TestActivate_MalformedEnvelopeWritesNothing (final review F6): an
-// envelope whose vault_id is not 32 lowercase hex, or whose basename is
-// not a Luhmann basename free of '/', '\\' and '|', is a malformed reply:
-// nothing is written and the bad vault ID is never cached.
-func TestActivate_MalformedEnvelopeWritesNothing(t *testing.T) {
-	t.Parallel()
-
-	for name, setup := range map[string]func(*recordingParent){
-		"vault_id not hex":   func(p *recordingParent) { p.vaultID = "../../not-a-vault" },
-		"basename with pipe": func(p *recordingParent) { p.showMode = "bad-basename" },
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			env := newWiringEnv(t)
-			parentNote := env.parent.addNote(pulledFact("7.2026-09-01.malformed", "c", ""))
-			setup(env.parent)
-
-			_, stderr := env.run("activate", "--note", parentNote+".md")
-			g.Expect(stderr).To(ContainSubstring("malformed"))
-			g.Expect(env.exitCodes()).To(Equal([]int{1}))
-			g.Expect(env.noteFiles()).To(BeEmpty())
-			g.Expect(env.parentCache().VaultID).To(BeEmpty())
-		})
-	}
-}
-
-// TestActivate_NonExchangeTypeRefused: a fetched note that is not a fact,
-// feedback or runbook is refused and nothing is written.
-func TestActivate_NonExchangeTypeRefused(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newWiringEnv(t)
-	parentNote := env.parent.addNote(fakeParentNote{
-		basename: "7.2026-09-01.moc",
-		content:  "---\ntype: moc\nluhmann: \"7\"\ncreated: \"2026-09-01\"\nuser: bob\nvault: team\n---\n\n# Map\n",
-	})
-
-	_, stderr := env.run("activate", "--note", parentNote+".md")
-	g.Expect(stderr).To(ContainSubstring(parentNote))
-	g.Expect(stderr).To(ContainSubstring("moc"))
-	g.Expect(env.exitCodes()).To(Equal([]int{1}))
-	g.Expect(env.noteFiles()).To(BeEmpty())
-}
-
-// TestActivate_ParentActivateFailureIsNotFatal (Q2): the best-effort
-// parent bump failing neither fails the command nor queues anything.
-func TestActivate_ParentActivateFailureIsNotFatal(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newWiringEnv(t)
-	parentNote := env.parent.addNote(pulledFact("7.2026-09-01.bumpfail", "c", ""))
-	env.parent.activateDown = true
-
-	env.run("activate", "--note", parentNote+".md")
-	g.Expect(env.exitCodes()).To(BeEmpty())
-	g.Expect(env.linkedCopies(parentNote)).To(HaveLen(1))
-	g.Expect(env.outboxEntries()).To(BeEmpty())
-	g.Expect(env.parentCache().Failures).To(BeZero(), "a failed best-effort bump never backs the parent off")
-}
-
-// TestActivate_ParentFlagPathRefIsNotSent (ruling S18): with --parent a
-// path ref is refused as "not sent", never as "not found" (it was never
-// looked up locally).
-func TestActivate_ParentFlagPathRefIsNotSent(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newWiringEnv(t)
-
-	_, stderr := env.run("activate", "--parent", "--note", "/elsewhere/7.2026-09-01.x.md")
-	g.Expect(stderr).To(ContainSubstring("not sent to the parent"))
-	g.Expect(stderr).NotTo(ContainSubstring("not found"))
-	g.Expect(env.parent.requests()).To(BeEmpty())
-	g.Expect(env.exitCodes()).To(Equal([]int{1}))
-}
-
-// TestActivate_ParentFlagPullsEvenOnLocalHit (D8 step 2): with --parent a
-// ref resolves against the parent even when a local file of that name
-// exists.
-func TestActivate_ParentFlagPullsEvenOnLocalHit(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newWiringEnv(t)
-	parentNote := env.parent.addNote(pulledFact("7.2026-09-01.both", "c", ""))
-	env.plant(parentNote+".md", offerTestNote{}.render(t))
-
-	env.run("activate", "--parent", "--note", parentNote+".md")
-	g.Expect(env.parent.shown()).To(Equal([]string{parentNote + ".md"}))
-	g.Expect(env.linkedCopies(parentNote)).To(HaveLen(1))
-}
-
-// TestActivate_ParentFlagWithoutParentErrors (spec "--parent without a
-// parent configured"): an error, and nothing is read or written.
-func TestActivate_ParentFlagWithoutParentErrors(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newWiringEnv(t)
-	env.parentURL = ""
-	env.plant("3.2026-09-20.local.md", offerTestNote{}.render(t))
-	env.plantSidecar("3.2026-09-20.local.md", "2026-01-01")
-
-	_, stderr := env.run("activate", "--parent", "--note", "3.2026-09-20.local.md")
-	g.Expect(stderr).To(ContainSubstring("ENGRAM_PARENT"))
-	g.Expect(env.exitCodes()).To(Equal([]int{1}))
-	g.Expect(env.lastUsed("3.2026-09-20.local.md")).To(Equal("2026-01-01"))
-	g.Expect(filepath.Join(env.vault, ".engram")).NotTo(BeADirectory())
-}
-
-// TestActivate_ParentTooOld (spec "A pre-change parent is detected", H7):
-// a rendered answer, or JSON without vault_id, is "parent too old", and
-// nothing is written.
-func TestActivate_ParentTooOld(t *testing.T) {
-	t.Parallel()
-
-	for _, mode := range []string{"rendered", "no-vault-id"} {
-		t.Run(mode, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			env := newWiringEnv(t)
-			parentNote := env.parent.addNote(pulledFact("7.2026-09-01.old", "c", ""))
-			env.parent.showMode = mode
-
-			_, stderr := env.run("activate", "--note", parentNote+".md")
-			g.Expect(stderr).To(ContainSubstring("too old"))
-			g.Expect(env.exitCodes()).To(Equal([]int{1}))
-			g.Expect(env.noteFiles()).To(BeEmpty())
-		})
-	}
-}
-
-// TestActivate_ParentUnreachablePausesPulls (design D6, M9): an outage on
-// the first fetch records one failure, prints the one backoff warning
-// with the queued count, and later refs in the same command make no
-// request; every ref fails.
-func TestActivate_ParentUnreachablePausesPulls(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newWiringEnv(t)
-	env.parent.setDown(true)
-
-	_, stderr := env.run("activate", "--note", "7.2026-09-01.first.md", "--note", "8.2026-09-01.second.md")
-	g.Expect(env.parent.requests()).To(HaveLen(1))
-	g.Expect(strings.Count(stderr, "engram: parent unreachable (retry after ")).To(Equal(1))
-	g.Expect(stderr).To(ContainSubstring("0 offer(s) queued"))
-	g.Expect(stderr).To(ContainSubstring("7.2026-09-01.first.md"))
-	g.Expect(stderr).To(ContainSubstring("8.2026-09-01.second.md"))
-	g.Expect(env.exitCodes()).To(Equal([]int{1}))
-	g.Expect(env.parentCache().Failures).To(Equal(1))
-}
-
-// TestActivate_PartialFailureIsVisible (spec "Partial failure is
-// visible", #746): one good ref and one the parent lacks — stderr names
-// the failed ref and the command exits non-zero.
-func TestActivate_PartialFailureIsVisible(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newWiringEnv(t)
-	env.plant("3.2026-09-20.local.md", offerTestNote{}.render(t))
-
-	_, stderr := env.run("activate", "--note", "3.2026-09-20.local.md", "--note", "8.2026-09-01.nowhere.md")
-	g.Expect(stderr).To(ContainSubstring("8.2026-09-01.nowhere.md"))
-	g.Expect(stderr).NotTo(ContainSubstring("3.2026-09-20.local"))
-	g.Expect(env.exitCodes()).To(Equal([]int{1}))
-}
-
-// TestActivate_PauseChecks (design D2, rulings S2, S4): a failed location
-// check, the backoff window, and the self-parent guard each stop the
-// pull-down with its one warning; nothing is written.
-func TestActivate_PauseChecks(t *testing.T) {
-	t.Parallel()
-
-	cases := map[string]struct {
-		setup   func(env *wiringEnv, parentNote string)
-		warning string
-		fetches int
-	}{
-		"location check fails": {
-			setup: func(env *wiringEnv, _ string) {
-				env.stampVault("/somewhere/else")
-			},
-			warning: "location check",
-		},
-		"backoff window": {
-			setup: func(env *wiringEnv, _ string) {
-				env.stampVault("")
-				env.writeState("parent.json", fmt.Sprintf(`{"url":%q,"backoff_until":%q,"failures":2}`,
-					env.parentURL, env.now().Add(time.Minute).Format(time.RFC3339)))
-			},
-			warning: "parent unreachable (retry after",
-		},
-		"self-parent": {
-			setup: func(env *wiringEnv, _ string) {
-				env.stampVault("")
-				env.parent.vaultID = env.localID()
-			},
-			warning: "vault-id --regenerate",
-			fetches: 1,
-		},
-	}
-
-	for name, testCase := range cases {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			env := newWiringEnv(t)
-			parentNote := env.parent.addNote(pulledFact("7.2026-09-01.paused", "c", ""))
-			testCase.setup(env, parentNote)
-
-			before := len(env.parent.shown())
-
-			_, stderr := env.run("activate", "--note", parentNote+".md")
-			g.Expect(stderr).To(ContainSubstring(testCase.warning))
-			g.Expect(env.exitCodes()).NotTo(BeEmpty())
-			g.Expect(env.parent.shown()).To(HaveLen(before + testCase.fetches))
-			g.Expect(env.noteFiles()).To(BeEmpty())
-		})
-	}
-}
-
-// TestActivate_PullDownDrainsTheOutbox (design D6, W7 carry): a
-// successful pull-down is a parent contact, after which queued offers
-// drain.
-func TestActivate_PullDownDrainsTheOutbox(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newWiringEnv(t)
-	parentNote := env.parent.addNote(pulledFact("7.2026-09-01.drain", "c", ""))
-
-	env.parent.setDown(true)
-	env.learnFact("queued")
-	env.parent.setDown(false)
-	env.advance(time.Minute)
-
-	env.run("activate", "--note", parentNote+".md")
-	g.Expect(env.parent.offers()).To(HaveLen(1))
-	g.Expect(env.outboxEntries()).To(BeEmpty())
-}
-
-// TestActivate_PullDownFetchesWithNoLockHeld (D8 steps 3 and 5): the raw
-// fetch and the parent /activate happen with no vault lock held; the
-// write happens under it.
-func TestActivate_PullDownFetchesWithNoLockHeld(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newWiringEnv(t)
-	parentNote := env.parent.addNote(pulledFact("7.2026-09-01.nolock", "c", ""))
-
-	probe := &lockProbe{}
-	env.wrap = probe.wrap
-
-	env.run("activate", "--note", parentNote+".md")
-	g.Expect(env.linkedCopies(parentNote)).To(HaveLen(1))
-	g.Expect(probe.fetchesUnderLock()).To(BeEmpty())
-	g.Expect(probe.fetched()).To(ContainElements(
-		ContainSubstring("/show?"), ContainSubstring("/activate")))
-}
-
-// TestActivate_PullSequencesNeverDuplicate is 6.2's rapid property (H5,
-// M8): any sequence of activate, clear-pending, discard and fold (the real
-// `amend --discard --into`, design D10; ruling S17) on an unchanged parent
-// note never leaves more than one local note linked to it.
-func TestActivate_PullSequencesNeverDuplicate(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		env := newWiringEnvIn(rt, t.TempDir())
-		parentNote := env.parent.addNote(pulledFact("7.2026-09-01.sequence", "c", ""))
-		env.plant(foldTargetFile, []byte(localNoteWithLinks(parentVaultID,
-			"    - note: 9.2026-09-01.other\n      via: offered\n      hash: xh1:other\n")))
-
-		steps := rapid.SliceOfN(rapid.SampledFrom([]string{"activate", "clear-pending", "discard", "fold"}), 1, 8).
-			Draw(rt, "steps")
-
-		for _, step := range steps {
-			applyPullStep(rt, env, parentNote, step)
-
-			linked := env.linkedCopies(parentNote)
-			if len(linked) > 1 {
-				rt.Fatalf("after %v: %d local notes linked to %s: %v", steps, len(linked), parentNote, linked)
-			}
-		}
-	})
-}
-
-// TestActivate_PullsParentNoteAsPendingCopy (spec "A parent-only ref
+// Test792a21zc1a_Activate_PullsParentNoteAsPendingCopy (spec "A parent-only ref
 // pulls down", "Pulled note is pending and linked", "Remote identity and
 // registration fields are stripped", "Chunk provenance does not travel",
 // "Parent recency is bumped"; D8 step 4).
-func TestActivate_PullsParentNoteAsPendingCopy(t *testing.T) {
+func Test792a21zc1a_Activate_PullsParentNoteAsPendingCopy(t *testing.T) {
 	t.Parallel()
 
 	for name, parentNote := range map[string]fakeParentNote{
@@ -686,10 +95,217 @@ func TestActivate_PullsParentNoteAsPendingCopy(t *testing.T) {
 	}
 }
 
-// TestActivate_ReActivationSkipsUnlessChanged (spec "Re-activating an
+// Test792a21zc1b_Activate_LocalHitNeverContactsParent (spec "A local hit never
+// contacts the parent", M8): a note whose .md exists is a hit — its
+// sidecar is bumped, and a note without a sidecar still counts.
+func Test792a21zc1b_Activate_LocalHitNeverContactsParent(t *testing.T) {
+	t.Parallel()
+
+	for name, withSidecar := range map[string]bool{"with sidecar": true, "without sidecar": false} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			env := newWiringEnv(t)
+			env.plant("3.2026-09-20.local.md", offerTestNote{}.render(t))
+
+			if withSidecar {
+				env.plantSidecar("3.2026-09-20.local.md", "2026-01-01")
+			}
+
+			_, stderr := env.run("activate", "--note", "3.2026-09-20.local.md")
+			g.Expect(stderr).To(BeEmpty())
+			g.Expect(env.exitCodes()).To(BeEmpty())
+			g.Expect(env.parent.requests()).To(BeEmpty())
+
+			if withSidecar {
+				g.Expect(env.lastUsed("3.2026-09-20.local.md")).To(Equal("2026-09-28"))
+			}
+		})
+	}
+}
+
+// Test792a21zc1c_Activate_BareLuhmannIDStaysLocal (spec "Bare Luhmann IDs stay
+// local", M8): a bare ID — with or without .md, with or without --parent —
+// is never sent to the parent, and the ref is reported as failed.
+func Test792a21zc1c_Activate_BareLuhmannIDStaysLocal(t *testing.T) {
+	t.Parallel()
+
+	for name, args := range map[string][]string{
+		"bare id":          {"activate", "--note", "1100"},
+		"bare id with .md": {"activate", "--note", "1100.md"},
+		"with --parent":    {"activate", "--parent", "--note", "1100"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			env := newWiringEnv(t)
+
+			_, stderr := env.run(args...)
+			g.Expect(env.parent.requests()).To(BeEmpty())
+			g.Expect(stderr).To(ContainSubstring("1100"))
+			g.Expect(env.exitCodes()).To(Equal([]int{1}))
+		})
+	}
+}
+
+// Test792a21zc1d_Activate_PartialFailureIsVisible (spec "Partial failure is
+// visible", #746): one good ref and one the parent lacks — stderr names
+// the failed ref and the command exits non-zero.
+func Test792a21zc1d_Activate_PartialFailureIsVisible(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	env.plant("3.2026-09-20.local.md", offerTestNote{}.render(t))
+
+	_, stderr := env.run("activate", "--note", "3.2026-09-20.local.md", "--note", "8.2026-09-01.nowhere.md")
+	g.Expect(stderr).To(ContainSubstring("8.2026-09-01.nowhere.md"))
+	g.Expect(stderr).NotTo(ContainSubstring("3.2026-09-20.local"))
+	g.Expect(env.exitCodes()).To(Equal([]int{1}))
+}
+
+// Test792a21zc1e_Activate_ParentFlagWithoutParentErrors (spec "--parent without a
+// parent configured"): an error, and nothing is read or written.
+func Test792a21zc1e_Activate_ParentFlagWithoutParentErrors(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	env.parentURL = ""
+	env.plant("3.2026-09-20.local.md", offerTestNote{}.render(t))
+	env.plantSidecar("3.2026-09-20.local.md", "2026-01-01")
+
+	_, stderr := env.run("activate", "--parent", "--note", "3.2026-09-20.local.md")
+	g.Expect(stderr).To(ContainSubstring("ENGRAM_PARENT"))
+	g.Expect(env.exitCodes()).To(Equal([]int{1}))
+	g.Expect(env.lastUsed("3.2026-09-20.local.md")).To(Equal("2026-01-01"))
+	g.Expect(filepath.Join(env.vault, ".engram")).NotTo(BeADirectory())
+}
+
+// Test792a21zc1f_Activate_ParentFlagPullsEvenOnLocalHit (D8 step 2): with --parent a
+// ref resolves against the parent even when a local file of that name
+// exists.
+func Test792a21zc1f_Activate_ParentFlagPullsEvenOnLocalHit(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	parentNote := env.parent.addNote(pulledFact("7.2026-09-01.both", "c", ""))
+	env.plant(parentNote+".md", offerTestNote{}.render(t))
+
+	env.run("activate", "--parent", "--note", parentNote+".md")
+	g.Expect(env.parent.shown()).To(Equal([]string{parentNote + ".md"}))
+	g.Expect(env.linkedCopies(parentNote)).To(HaveLen(1))
+}
+
+// Test792a21zc1g_Activate_ParentFlagPathRefIsNotSent (ruling S18): with --parent a
+// path ref is refused as "not sent", never as "not found" (it was never
+// looked up locally).
+func Test792a21zc1g_Activate_ParentFlagPathRefIsNotSent(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+
+	_, stderr := env.run("activate", "--parent", "--note", "/elsewhere/7.2026-09-01.x.md")
+	g.Expect(stderr).To(ContainSubstring("not sent to the parent"))
+	g.Expect(stderr).NotTo(ContainSubstring("not found"))
+	g.Expect(env.parent.requests()).To(BeEmpty())
+	g.Expect(env.exitCodes()).To(Equal([]int{1}))
+}
+
+// Test792a21zd1d_Activate_ParentTooOld (spec "A pre-change parent is detected", H7):
+// a rendered answer, or JSON without vault_id, is "parent too old", and
+// nothing is written.
+func Test792a21zd1d_Activate_ParentTooOld(t *testing.T) {
+	t.Parallel()
+
+	for _, mode := range []string{"rendered", "no-vault-id"} {
+		t.Run(mode, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			env := newWiringEnv(t)
+			parentNote := env.parent.addNote(pulledFact("7.2026-09-01.old", "c", ""))
+			env.parent.showMode = mode
+
+			_, stderr := env.run("activate", "--note", parentNote+".md")
+			g.Expect(stderr).To(ContainSubstring("too old"))
+			g.Expect(env.exitCodes()).To(Equal([]int{1}))
+			g.Expect(env.noteFiles()).To(BeEmpty())
+		})
+	}
+}
+
+// Test792a21zd1e_Activate_MalformedEnvelopeWritesNothing (final review F6): an
+// envelope whose vault_id is not 32 lowercase hex, or whose basename is
+// not a Luhmann basename free of '/', '\\' and '|', is a malformed reply:
+// nothing is written and the bad vault ID is never cached.
+func Test792a21zd1e_Activate_MalformedEnvelopeWritesNothing(t *testing.T) {
+	t.Parallel()
+
+	for name, setup := range map[string]func(*recordingParent){
+		"vault_id not hex":   func(p *recordingParent) { p.vaultID = "../../not-a-vault" },
+		"basename with pipe": func(p *recordingParent) { p.showMode = "bad-basename" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			env := newWiringEnv(t)
+			parentNote := env.parent.addNote(pulledFact("7.2026-09-01.malformed", "c", ""))
+			setup(env.parent)
+
+			_, stderr := env.run("activate", "--note", parentNote+".md")
+			g.Expect(stderr).To(ContainSubstring("malformed"))
+			g.Expect(env.exitCodes()).To(Equal([]int{1}))
+			g.Expect(env.noteFiles()).To(BeEmpty())
+			g.Expect(env.parentCache().VaultID).To(BeEmpty())
+		})
+	}
+}
+
+// Test792a21zd1f_Activate_HashMismatchWritesNothing: an envelope whose exchange hash
+// does not match its content is refused; nothing is written.
+func Test792a21zd1f_Activate_HashMismatchWritesNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	parentNote := env.parent.addNote(pulledFact("7.2026-09-01.mismatch", "c", ""))
+	env.parent.showMode = "wrong-hash"
+
+	_, stderr := env.run("activate", "--note", parentNote+".md")
+	g.Expect(stderr).To(ContainSubstring("exchange hash differs"))
+	g.Expect(env.exitCodes()).To(Equal([]int{1}))
+	g.Expect(env.noteFiles()).To(BeEmpty())
+}
+
+// Test792a21zd1g_Activate_NonExchangeTypeRefused: a fetched note that is not a fact,
+// feedback or runbook is refused and nothing is written.
+func Test792a21zd1g_Activate_NonExchangeTypeRefused(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	parentNote := env.parent.addNote(fakeParentNote{
+		basename: "7.2026-09-01.moc",
+		content:  "---\ntype: moc\nluhmann: \"7\"\ncreated: \"2026-09-01\"\nuser: bob\nvault: team\n---\n\n# Map\n",
+	})
+
+	_, stderr := env.run("activate", "--note", parentNote+".md")
+	g.Expect(stderr).To(ContainSubstring(parentNote))
+	g.Expect(stderr).To(ContainSubstring("moc"))
+	g.Expect(env.exitCodes()).To(Equal([]int{1}))
+	g.Expect(env.noteFiles()).To(BeEmpty())
+}
+
+// Test792a21ze1a_Activate_ReActivationSkipsUnlessChanged (spec "Re-activating an
 // unchanged parent note", "A changed parent note arrives as a new offer";
 // D3 unknown-is-not-changed).
-func TestActivate_ReActivationSkipsUnlessChanged(t *testing.T) {
+func Test792a21ze1a_Activate_ReActivationSkipsUnlessChanged(t *testing.T) {
 	t.Parallel()
 
 	t.Run("pending copy, unchanged", func(t *testing.T) {
@@ -778,96 +394,93 @@ func TestActivate_ReActivationSkipsUnlessChanged(t *testing.T) {
 	})
 }
 
-// TestActivate_RecheckUnderTheWriteLock (review H5): a copy that lands
-// between the fetch and the write lock is seen by the re-check — no second
-// copy.
-func TestActivate_RecheckUnderTheWriteLock(t *testing.T) {
+// Test792a21ze1b_Activate_CoveredLinkSkipsAndBumpsLiveNote (spec "A covered parent
+// note is not pulled again"): a live local note whose covered link names
+// the parent note with its current hash is bumped instead of a new copy
+// being written.
+func Test792a21ze1b_Activate_CoveredLinkSkipsAndBumpsLiveNote(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	env := newWiringEnv(t)
-	parentNote := env.parent.addNote(pulledFact("7.2026-09-01.raced", "c", ""))
+	parentNote := env.parent.addNote(pulledFact("7.2026-09-01.covered", "c", ""))
 	hash := env.parent.hashOf(t, parentNote)
 
-	var planted sync.Once
+	env.plant("3.2026-09-20.local.md", []byte(localNoteWithLinks(
+		parentVaultID, "    - note: 9.2026-09-01.other\n      via: offered\n      hash: xh1:other\n"+
+			"    - note: "+parentNote+"\n      via: covered\n      hash: "+hash+"\n")))
+	env.plantSidecar("3.2026-09-20.local.md", "2026-01-01")
 
-	env.wrap = func(deps *cli.Deps) {
-		fetch := deps.Fetch
-		deps.Fetch = func(ctx context.Context, method, target string, body []byte) (cli.FetchResponse, error) {
-			resp, err := fetch(ctx, method, target, body)
-			if strings.Contains(target, "/show?") {
-				planted.Do(func() {
-					env.plant("5.2026-09-28.winner.md", []byte(localNoteWithLinks(parentVaultID,
-						"    - note: "+parentNote+"\n      via: pulled\n      hash: "+hash+"\n")))
-				})
-			}
-
-			return resp, err
-		}
-	}
-
-	env.run("activate", "--note", parentNote+".md")
-	g.Expect(env.noteFiles()).To(Equal([]string{"5.2026-09-28.winner.md"}))
+	_, stderr := env.run("activate", "--note", parentNote+".md")
+	g.Expect(stderr).To(BeEmpty())
 	g.Expect(env.exitCodes()).To(BeEmpty())
+	g.Expect(env.noteFiles()).To(Equal([]string{"3.2026-09-20.local.md"}))
+	g.Expect(env.lastUsed("3.2026-09-20.local.md")).To(Equal("2026-09-28"))
+	g.Expect(env.parent.activated()).To(Equal([]string{parentNote + ".md"}))
 }
 
-// TestActivate_UnrecordableBackoffIsReported (ruling S18): when the
-// failed contact cannot be recorded, the warning names that error instead
-// of a zero retry time.
-func TestActivate_UnrecordableBackoffIsReported(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newWiringEnv(t)
-	env.stampVault("")
-	env.parent.setDown(true)
-	env.wrap = func(deps *cli.Deps) { deps.FS = parentCacheWriteFailsFS{EdgeFS: deps.FS} }
-
-	_, stderr := env.run("activate", "--note", "7.2026-09-01.gone.md")
-	g.Expect(stderr).To(ContainSubstring("the backoff could not be recorded"))
-	g.Expect(stderr).NotTo(ContainSubstring("retry after 0001"))
-	g.Expect(env.exitCodes()).To(Equal([]int{1}))
-}
-
-// TestActivate_UnusableExchangeStatePauses: exchange state that cannot be
-// read or stamped pauses the pull-down with a warning; nothing is fetched
-// or written.
-func TestActivate_UnusableExchangeStatePauses(t *testing.T) {
+// Test792a21ze1c_Activate_DeclinedPullIsRemembered (spec "A declined pull is
+// remembered", "A decline survives a parent rename", H5, r3-8): a bare
+// --discard of a pulled copy records a decline; an unchanged re-pull —
+// also after the parent renamed the note — writes nothing.
+func Test792a21ze1c_Activate_DeclinedPullIsRemembered(t *testing.T) {
 	t.Parallel()
 
-	cases := map[string]func(env *wiringEnv){
-		"unreadable parent cache": func(env *wiringEnv) {
-			env.stampVault("")
-			env.writeState("parent.json", "{not json")
-		},
-		"vault ID cannot be minted": func(env *wiringEnv) {
-			env.randFails = true
-		},
-	}
-
-	for name, setup := range cases {
+	for name, rename := range map[string]bool{"same name": false, "renamed on the parent": true} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			g := NewWithT(t)
 
 			env := newWiringEnv(t)
-			parentNote := env.parent.addNote(pulledFact("7.2026-09-01.unusable", "c", ""))
-			setup(env)
+			parentNote := env.parent.addNote(pulledFact("7.2026-09-01.declined", "c", ""))
+			hash := env.parent.hashOf(t, parentNote)
 
-			_, stderr := env.run("activate", "--note", parentNote+".md")
-			g.Expect(stderr).To(ContainSubstring("warning: activate: "))
-			g.Expect(env.exitCodes()).To(Equal([]int{1}))
-			g.Expect(env.parent.requests()).To(BeEmpty())
-			g.Expect(env.noteFiles()).To(BeEmpty())
+			env.run("activate", "--note", parentNote+".md")
+
+			copies := env.linkedCopies(parentNote)
+			g.Expect(copies).To(HaveLen(1))
+
+			if len(copies) != 1 {
+				return
+			}
+
+			_, discardErr := env.run("amend", "--target", strings.TrimSuffix(copies[0], ".md"), "--discard")
+			g.Expect(env.exitCodes()).To(BeEmpty(), discardErr)
+			g.Expect(env.declined()).To(ConsistOf(declinedEntry{Vault: parentVaultID, Basename: parentNote, Hash: hash}))
+
+			if rename {
+				env.parent.rename(parentNote, "12.2026-09-25.declined-renamed")
+			}
+
+			env.run("activate", "--note", parentNote+".md")
+			g.Expect(env.noteFiles()).To(BeEmpty(), "a declined, unchanged parent note is not pulled again")
+			g.Expect(env.exitCodes()).To(BeEmpty())
 		})
 	}
 }
 
-// TestAmend_DiscardDeclineRecording (design D8, H5): a decline that
+// Test792a21ze1g_Activate_DeclineIsKeyedByParentVault (ruling S18, S16): a decline
+// recorded under another parent vault does not suppress the same
+// basename and hash under the current parent.
+func Test792a21ze1g_Activate_DeclineIsKeyedByParentVault(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	parentNote := env.parent.addNote(pulledFact("7.2026-09-01.elsewhere", "c", ""))
+	env.stampVault("")
+	env.writeState("declined.json", fmt.Sprintf(`{"version":1,"entries":[{"vault":%q,"basename":%q,"hash":%q}]}`,
+		seqID(77), parentNote, env.parent.hashOf(t, parentNote)))
+
+	env.run("activate", "--note", parentNote+".md")
+	g.Expect(env.linkedCopies(parentNote)).To(HaveLen(1))
+}
+
+// Test792a21ze1h_Amend_DiscardDeclineRecording (design D8, H5): a decline that
 // cannot be recorded fails the discard and keeps the note (so it cannot
 // come back unrecorded); a repeated decline is recorded once; discarding
 // a note that is not pulled records nothing.
-func TestAmend_DiscardDeclineRecording(t *testing.T) {
+func Test792a21ze1h_Amend_DiscardDeclineRecording(t *testing.T) {
 	t.Parallel()
 
 	pulledLinks := "    - note: 7.2026-09-01.p\n      via: pulled\n      hash: xh1:p\n"
@@ -925,11 +538,11 @@ func TestAmend_DiscardDeclineRecording(t *testing.T) {
 	})
 }
 
-// TestAmend_DiscardOfPulledNoteStampsNothingUnconfigured (ruling S18,
+// Test792a21ze1i_Amend_DiscardOfPulledNoteStampsNothingUnconfigured (ruling S18,
 // 792a2h): with no parent configured and no vault ID, a bare
 // discard of a pulled note deletes it and records no decline — no vault ID
 // and no .engram/ are created.
-func TestAmend_DiscardOfPulledNoteStampsNothingUnconfigured(t *testing.T) {
+func Test792a21ze1i_Amend_DiscardOfPulledNoteStampsNothingUnconfigured(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -943,6 +556,393 @@ func TestAmend_DiscardOfPulledNoteStampsNothingUnconfigured(t *testing.T) {
 	g.Expect(env.noteFiles()).To(BeEmpty())
 	g.Expect(filepath.Join(env.vault, ".engram-vault-id")).NotTo(BeAnExistingFile())
 	g.Expect(filepath.Join(env.vault, ".engram")).NotTo(BeADirectory())
+}
+
+// Test792a21ze1j_Activate_LocalContentEditOffersToOrigin (decision 3, B1): after an
+// accepted pull, a real local edit is an amend-offer naming the parent
+// note; clearing the pending marker alone queues nothing.
+func Test792a21ze1j_Activate_LocalContentEditOffersToOrigin(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	parentNote := env.parent.addNote(pulledFact("7.2026-09-01.edited", "c", ""))
+	env.run("activate", "--note", parentNote+".md")
+
+	copies := env.linkedCopies(parentNote)
+	g.Expect(copies).To(HaveLen(1))
+
+	if len(copies) != 1 {
+		return
+	}
+
+	target := strings.TrimSuffix(copies[0], ".md")
+
+	env.run("amend", "--target", target, "--clear-pending")
+	g.Expect(env.outboxEntries()).To(BeEmpty(), "accepting a pulled note queues nothing")
+	g.Expect(env.parent.offers()).To(BeEmpty())
+
+	env.run("amend", "--target", target, "--object", "locally changed")
+
+	offers := env.parent.offers()
+	g.Expect(offers).To(HaveLen(1))
+
+	if len(offers) == 1 {
+		g.Expect(offers[0].Offer.For).To(Equal(parentNote))
+		g.Expect(offers[0].Object).To(Equal("locally changed"))
+	}
+}
+
+// Test792a21ze1k_Activate_ConcurrentActivatesWriteOneCopy (review H5, M8): two
+// activates of the same parent note racing on one vault write one copy —
+// the skip rule is re-checked under the write lock.
+func Test792a21ze1k_Activate_ConcurrentActivatesWriteOneCopy(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	parentNote := env.parent.addNote(pulledFact("7.2026-09-01.shared", "c", ""))
+
+	var wait sync.WaitGroup
+
+	for range 2 {
+		wait.Go(func() {
+			_, _ = executeCapturingBoth(t,
+				[]string{"engram", "activate", "--note", parentNote + ".md", "--vault", env.vault}, env.customize)
+		})
+	}
+
+	wait.Wait()
+	g.Expect(env.linkedCopies(parentNote)).To(HaveLen(1))
+}
+
+// Test792a21ze1k_Activate_RecheckUnderTheWriteLock (review H5): a copy that lands
+// between the fetch and the write lock is seen by the re-check — no second
+// copy.
+func Test792a21ze1k_Activate_RecheckUnderTheWriteLock(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	parentNote := env.parent.addNote(pulledFact("7.2026-09-01.raced", "c", ""))
+	hash := env.parent.hashOf(t, parentNote)
+
+	var planted sync.Once
+
+	env.wrap = func(deps *cli.Deps) {
+		fetch := deps.Fetch
+		deps.Fetch = func(ctx context.Context, method, target string, body []byte) (cli.FetchResponse, error) {
+			resp, err := fetch(ctx, method, target, body)
+			if strings.Contains(target, "/show?") {
+				planted.Do(func() {
+					env.plant("5.2026-09-28.winner.md", []byte(localNoteWithLinks(parentVaultID,
+						"    - note: "+parentNote+"\n      via: pulled\n      hash: "+hash+"\n")))
+				})
+			}
+
+			return resp, err
+		}
+	}
+
+	env.run("activate", "--note", parentNote+".md")
+	g.Expect(env.noteFiles()).To(Equal([]string{"5.2026-09-28.winner.md"}))
+	g.Expect(env.exitCodes()).To(BeEmpty())
+}
+
+// Test792a21ze1l_Activate_PullSequencesNeverDuplicate is 6.2's rapid property (H5,
+// M8): any sequence of activate, clear-pending, discard and fold (the real
+// `amend --discard --into`, design D10; ruling S17) on an unchanged parent
+// note never leaves more than one local note linked to it.
+func Test792a21ze1l_Activate_PullSequencesNeverDuplicate(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		env := newWiringEnvIn(rt, t.TempDir())
+		parentNote := env.parent.addNote(pulledFact("7.2026-09-01.sequence", "c", ""))
+		env.plant(foldTargetFile, []byte(localNoteWithLinks(parentVaultID,
+			"    - note: 9.2026-09-01.other\n      via: offered\n      hash: xh1:other\n")))
+
+		steps := rapid.SliceOfN(rapid.SampledFrom([]string{"activate", "clear-pending", "discard", "fold"}), 1, 8).
+			Draw(rt, "steps")
+
+		for _, step := range steps {
+			applyPullStep(rt, env, parentNote, step)
+
+			linked := env.linkedCopies(parentNote)
+			if len(linked) > 1 {
+				rt.Fatalf("after %v: %d local notes linked to %s: %v", steps, len(linked), parentNote, linked)
+			}
+		}
+	})
+}
+
+// Test792a21zg1b_Activate_ParentActivateFailureIsNotFatal (Q2): the best-effort
+// parent bump failing neither fails the command nor queues anything.
+func Test792a21zg1b_Activate_ParentActivateFailureIsNotFatal(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	parentNote := env.parent.addNote(pulledFact("7.2026-09-01.bumpfail", "c", ""))
+	env.parent.activateDown = true
+
+	env.run("activate", "--note", parentNote+".md")
+	g.Expect(env.exitCodes()).To(BeEmpty())
+	g.Expect(env.linkedCopies(parentNote)).To(HaveLen(1))
+	g.Expect(env.outboxEntries()).To(BeEmpty())
+	g.Expect(env.parentCache().Failures).To(BeZero(), "a failed best-effort bump never backs the parent off")
+}
+
+// Test792a21zg1c_Activate_PauseChecks (design D2, rulings S2, S4): a failed location
+// check, the backoff window, and the self-parent guard each stop the
+// pull-down with its one warning; nothing is written.
+func Test792a21zg1c_Activate_PauseChecks(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]struct {
+		setup   func(env *wiringEnv, parentNote string)
+		warning string
+		fetches int
+	}{
+		"location check fails": {
+			setup: func(env *wiringEnv, _ string) {
+				env.stampVault("/somewhere/else")
+			},
+			warning: "location check",
+		},
+		"backoff window": {
+			setup: func(env *wiringEnv, _ string) {
+				env.stampVault("")
+				env.writeState("parent.json", fmt.Sprintf(`{"url":%q,"backoff_until":%q,"failures":2}`,
+					env.parentURL, env.now().Add(time.Minute).Format(time.RFC3339)))
+			},
+			warning: "parent unreachable (retry after",
+		},
+		"self-parent": {
+			setup: func(env *wiringEnv, _ string) {
+				env.stampVault("")
+				env.parent.vaultID = env.localID()
+			},
+			warning: "vault-id --regenerate",
+			fetches: 1,
+		},
+	}
+
+	for name, testCase := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			env := newWiringEnv(t)
+			parentNote := env.parent.addNote(pulledFact("7.2026-09-01.paused", "c", ""))
+			testCase.setup(env, parentNote)
+
+			before := len(env.parent.shown())
+
+			_, stderr := env.run("activate", "--note", parentNote+".md")
+			g.Expect(stderr).To(ContainSubstring(testCase.warning))
+			g.Expect(env.exitCodes()).NotTo(BeEmpty())
+			g.Expect(env.parent.shown()).To(HaveLen(before + testCase.fetches))
+			g.Expect(env.noteFiles()).To(BeEmpty())
+		})
+	}
+}
+
+// Test792a21zg1c_Activate_UnusableExchangeStatePauses: exchange state that cannot be
+// read or stamped pauses the pull-down with a warning; nothing is fetched
+// or written.
+func Test792a21zg1c_Activate_UnusableExchangeStatePauses(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]func(env *wiringEnv){
+		"unreadable parent cache": func(env *wiringEnv) {
+			env.stampVault("")
+			env.writeState("parent.json", "{not json")
+		},
+		"vault ID cannot be minted": func(env *wiringEnv) {
+			env.randFails = true
+		},
+	}
+
+	for name, setup := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			env := newWiringEnv(t)
+			parentNote := env.parent.addNote(pulledFact("7.2026-09-01.unusable", "c", ""))
+			setup(env)
+
+			_, stderr := env.run("activate", "--note", parentNote+".md")
+			g.Expect(stderr).To(ContainSubstring("warning: activate: "))
+			g.Expect(env.exitCodes()).To(Equal([]int{1}))
+			g.Expect(env.parent.requests()).To(BeEmpty())
+			g.Expect(env.noteFiles()).To(BeEmpty())
+		})
+	}
+}
+
+// Test792a21zg1d_Activate_ParentUnreachablePausesPulls (design D6, M9): an outage on
+// the first fetch records one failure, prints the one backoff warning
+// with the queued count, and later refs in the same command make no
+// request; every ref fails.
+func Test792a21zg1d_Activate_ParentUnreachablePausesPulls(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	env.parent.setDown(true)
+
+	_, stderr := env.run("activate", "--note", "7.2026-09-01.first.md", "--note", "8.2026-09-01.second.md")
+	g.Expect(env.parent.requests()).To(HaveLen(1))
+	g.Expect(strings.Count(stderr, "engram: parent unreachable (retry after ")).To(Equal(1))
+	g.Expect(stderr).To(ContainSubstring("0 offer(s) queued"))
+	g.Expect(stderr).To(ContainSubstring("7.2026-09-01.first.md"))
+	g.Expect(stderr).To(ContainSubstring("8.2026-09-01.second.md"))
+	g.Expect(env.exitCodes()).To(Equal([]int{1}))
+	g.Expect(env.parentCache().Failures).To(Equal(1))
+}
+
+// Test792a21zg1d_Activate_UnrecordableBackoffIsReported (ruling S18): when the
+// failed contact cannot be recorded, the warning names that error instead
+// of a zero retry time.
+func Test792a21zg1d_Activate_UnrecordableBackoffIsReported(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	env.stampVault("")
+	env.parent.setDown(true)
+	env.wrap = func(deps *cli.Deps) { deps.FS = parentCacheWriteFailsFS{EdgeFS: deps.FS} }
+
+	_, stderr := env.run("activate", "--note", "7.2026-09-01.gone.md")
+	g.Expect(stderr).To(ContainSubstring("the backoff could not be recorded"))
+	g.Expect(stderr).NotTo(ContainSubstring("retry after 0001"))
+	g.Expect(env.exitCodes()).To(Equal([]int{1}))
+}
+
+// Test792a21zg1e_Activate_PullDownDrainsTheOutbox (design D6, W7 carry): a
+// successful pull-down is a parent contact, after which queued offers
+// drain.
+func Test792a21zg1e_Activate_PullDownDrainsTheOutbox(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	parentNote := env.parent.addNote(pulledFact("7.2026-09-01.drain", "c", ""))
+
+	env.parent.setDown(true)
+	env.learnFact("queued")
+	env.parent.setDown(false)
+	env.advance(time.Minute)
+
+	env.run("activate", "--note", parentNote+".md")
+	g.Expect(env.parent.offers()).To(HaveLen(1))
+	g.Expect(env.outboxEntries()).To(BeEmpty())
+}
+
+// Test792a21zg1f_Activate_PullDownFetchesWithNoLockHeld (D8 steps 3 and 5): the raw
+// fetch and the parent /activate happen with no vault lock held; the
+// write happens under it.
+func Test792a21zg1f_Activate_PullDownFetchesWithNoLockHeld(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	parentNote := env.parent.addNote(pulledFact("7.2026-09-01.nolock", "c", ""))
+
+	probe := &lockProbe{}
+	env.wrap = probe.wrap
+
+	env.run("activate", "--note", parentNote+".md")
+	g.Expect(env.linkedCopies(parentNote)).To(HaveLen(1))
+	g.Expect(probe.fetchesUnderLock()).To(BeEmpty())
+	g.Expect(probe.fetched()).To(ContainElements(
+		ContainSubstring("/show?"), ContainSubstring("/activate")))
+}
+
+// Test792a4n1c_Activate_MissWithoutParentFails: with no parent configured a miss
+// is a failed ref and nothing is fetched.
+func Test792a4n1c_Activate_MissWithoutParentFails(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	env.parentURL = ""
+
+	_, stderr := env.run("activate", "--note", "7.2026-09-01.gone.md")
+	g.Expect(stderr).To(ContainSubstring("7.2026-09-01.gone.md"))
+	g.Expect(stderr).To(ContainSubstring("not found"))
+	g.Expect(env.exitCodes()).To(Equal([]int{1}))
+	g.Expect(env.parent.requests()).To(BeEmpty())
+}
+
+// Test792b35c7a5_ServeActivate_StatusByOutcome (ruling S18): a served activate
+// answers 5xx only for a server-side failure — none found is 404 and a
+// partial result 200, each with the per-ref result.
+func Test792b35c7a5_ServeActivate_StatusByOutcome(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]struct {
+		notes     []string
+		corrupt   bool
+		status    int
+		activated []string
+		failed    []string
+	}{
+		"none found": {notes: []string{"9.2026-01-01.gone.md"}, status: 404, failed: []string{"9.2026-01-01.gone.md"}},
+		"partial": {
+			notes: []string{"1.2026-01-01.a-note.md", "9.2026-01-01.gone.md"}, status: 200,
+			activated: []string{"1.2026-01-01.a-note.md"}, failed: []string{"9.2026-01-01.gone.md"},
+		},
+		"unreadable sidecar": {notes: []string{"1.2026-01-01.a-note.md"}, corrupt: true, status: 500},
+	}
+
+	for name, testCase := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			vault := t.TempDir()
+			notePath := writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
+
+			sidecar := embed.MarshalSidecar(embed.Sidecar{SchemaVersion: embed.SidecarSchemaVersion})
+			if testCase.corrupt {
+				sidecar = []byte("{not json")
+			}
+
+			g.Expect(os.WriteFile(embed.SidecarPath(notePath), sidecar, 0o600)).To(Succeed())
+
+			routes := cli.ServeRoutes(newTestDeps(&strings.Builder{}, &strings.Builder{}), vault, "personal", t.TempDir())
+
+			body, marshalErr := json.Marshal(map[string][]string{"notes": testCase.notes})
+			g.Expect(marshalErr).NotTo(HaveOccurred())
+
+			resp := routeFor(t, routes, "/activate").Serve(t.Context(), cli.ServeRequest{Body: body})
+			g.Expect(resp.Status).To(Equal(testCase.status))
+
+			if testCase.failed == nil {
+				return
+			}
+
+			var result struct {
+				Activated []string `json:"activated"`
+				Failed    []struct {
+					Ref string `json:"ref"`
+				} `json:"failed"`
+			}
+
+			g.Expect(json.Unmarshal(resp.Body, &result)).To(Succeed())
+			g.Expect(result.Activated).To(Equal(testCase.activated))
+
+			failedRefs := make([]string, 0, len(result.Failed))
+			for _, failure := range result.Failed {
+				failedRefs = append(failedRefs, failure.Ref)
+			}
+
+			g.Expect(failedRefs).To(Equal(testCase.failed))
+		})
+	}
 }
 
 // unexported constants.

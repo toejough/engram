@@ -3,7 +3,7 @@ package cli_test
 // Curation fold and the judged-version check (design D10; tasks 8.1, 8.2;
 // spec vault-offer-curation "Bookkeeping on a served offer SHALL verify the
 // judged version" and "Curation judges pending offers the same way recall
-// judges candidates"; spec vault-note-identity D4 link roles).
+// judges candidates"; link roles: 792a21zk and 792b34c7).
 
 import (
 	"bytes"
@@ -27,6 +27,41 @@ import (
 	"github.com/toejough/engram/internal/embed"
 	"github.com/toejough/engram/internal/vaultgraph"
 )
+
+// Test792a21l1g_ShowFallback_LabelPrecedesParentExchangeHash is the spec scenario
+// "Label order on the parent fallback", end to end: the child's local miss
+// reaches a real served /show over the parent's vault.
+func Test792a21l1g_ShowFallback_LabelPrecedesParentExchangeHash(t *testing.T) {
+	g := NewWithT(t)
+	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
+
+	parentVault := t.TempDir()
+	writeFoldFile(t, filepath.Join(parentVault, foldOfferName), foldNote(foldExchange{xid: foldXIDO}, false))
+
+	parentDeps := newTestDeps(&strings.Builder{}, &strings.Builder{})
+	show := routeFor(t, cli.ServeRoutes(parentDeps, parentVault, "personal", t.TempDir()), "/show")
+
+	stdout, stderr := executeCapturingBoth(t, []string{"engram", "show", foldOfferBase, "--vault", t.TempDir()},
+		func(d *cli.Deps) {
+			d.Fetch = func(ctx context.Context, _, _ string, _ []byte) (cli.FetchResponse, error) {
+				resp := show.Serve(ctx, cli.ServeRequest{Query: map[string][]string{"note": {foldOfferBase}}})
+
+				return cli.FetchResponse(resp), nil
+			}
+		})
+
+	g.Expect(stderr).To(BeEmpty())
+
+	lines := strings.SplitN(stdout, "\n", 3)
+	g.Expect(lines).To(HaveLen(3))
+
+	if len(lines) < 3 {
+		return
+	}
+
+	g.Expect(lines[0]).To(Equal("# from_parent: true"))
+	g.Expect(lines[1]).To(HavePrefix("# exchange_hash: xh1:"))
+}
 
 // Test792b34c5a1_RunAmend_ExpectHashTruthTable is 8.2's rule checked over its whole
 // input domain (every bookkeeping mode × origin × pending × expected-hash
@@ -351,41 +386,6 @@ func Test792b35c6a2_ServeShow_ExchangeHashHeaderMatchesLocal(t *testing.T) {
 	g.Expect(resp.Status).To(Equal(200))
 	g.Expect(string(resp.Body)).To(Equal(local.String()))
 	g.Expect(local.String()).To(HavePrefix("# exchange_hash: xh1:"))
-}
-
-// TestShowFallback_LabelPrecedesParentExchangeHash is the spec scenario
-// "Label order on the parent fallback", end to end: the child's local miss
-// reaches a real served /show over the parent's vault.
-func TestShowFallback_LabelPrecedesParentExchangeHash(t *testing.T) {
-	g := NewWithT(t)
-	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
-
-	parentVault := t.TempDir()
-	writeFoldFile(t, filepath.Join(parentVault, foldOfferName), foldNote(foldExchange{xid: foldXIDO}, false))
-
-	parentDeps := newTestDeps(&strings.Builder{}, &strings.Builder{})
-	show := routeFor(t, cli.ServeRoutes(parentDeps, parentVault, "personal", t.TempDir()), "/show")
-
-	stdout, stderr := executeCapturingBoth(t, []string{"engram", "show", foldOfferBase, "--vault", t.TempDir()},
-		func(d *cli.Deps) {
-			d.Fetch = func(ctx context.Context, _, _ string, _ []byte) (cli.FetchResponse, error) {
-				resp := show.Serve(ctx, cli.ServeRequest{Query: map[string][]string{"note": {foldOfferBase}}})
-
-				return cli.FetchResponse(resp), nil
-			}
-		})
-
-	g.Expect(stderr).To(BeEmpty())
-
-	lines := strings.SplitN(stdout, "\n", 3)
-	g.Expect(lines).To(HaveLen(3))
-
-	if len(lines) < 3 {
-		return
-	}
-
-	g.Expect(lines[0]).To(Equal("# from_parent: true"))
-	g.Expect(lines[1]).To(HavePrefix("# exchange_hash: xh1:"))
 }
 
 // unexported constants.

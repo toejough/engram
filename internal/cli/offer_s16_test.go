@@ -14,78 +14,9 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestTargets_B1NearFoldBouncesUpOnce (D12 B1): a near fold of a pulled
-// note into L is offered once; after its receipt, a bookkeeping write and
-// an equal-hash rewrite of L queue nothing.
-func TestTargets_B1NearFoldBouncesUpOnce(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newWiringEnv(t)
-	env.plant("3.2026-09-27.pulled.md", offerTestNote{
-		pending: true, parentVault: parentVaultID, linkVia: "pulled", linkHash: "xh1:p",
-	}.render(t))
-	env.plant("4.2026-09-27.local.md",
-		[]byte(strings.Replace(string(offerTestNote{}.render(t)), xidA, xidC, 1)))
-
-	env.parent.setDown(true)
-	env.run("amend", "--target", "4.2026-09-27.local", "--object", "folded claim")
-	env.run("amend", "--target", "3.2026-09-27.pulled", "--discard")
-
-	folded := filepath.Join(env.vault, "4.2026-09-27.local.md")
-	env.parent.setStoredHash(mustHash(t, []byte(readFileString(t, folded))))
-	env.parent.setDown(false)
-	env.advance(time.Minute)
-	env.run("query", "--phrase", "x", "--chunks-dir", t.TempDir())
-	g.Expect(env.outboxEntries()).To(BeEmpty())
-
-	env.run("amend", "--target", "4.2026-09-27.local", "--activate")
-	env.run("amend", "--target", "4.2026-09-27.local", "--object", "folded claim")
-	env.run("query", "--phrase", "x", "--chunks-dir", t.TempDir())
-
-	offers := env.parent.offers()
-	g.Expect(offers).To(HaveLen(1))
-	g.Expect(offers[0].Object).To(Equal("folded claim"))
-	g.Expect(env.outboxEntries()).To(BeEmpty())
-}
-
-// TestTargets_Learn_UnmintableXIDQueuesNothing (S16 item 3): when no xid
-// can be minted the note is still written, and nothing is queued.
-func TestTargets_Learn_UnmintableXIDQueuesNothing(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newWiringEnv(t)
-	env.randFails = true
-
-	notePath := env.learnFact("no-xid")
-	g.Expect(readFileString(t, notePath)).NotTo(ContainSubstring("xid:"))
-	g.Expect(env.lastStderr).To(ContainSubstring("could not mint an xid"))
-	g.Expect(env.outboxEntries()).To(BeEmpty())
-	g.Expect(env.parent.requests()).To(BeEmpty())
-}
-
-// TestTargets_M14OriginIsParentWithdrawnAtSendTime (S16 item 2, D12): a
-// served offer accepted while the parent's ID is unknown is queued, and
-// withdrawn at send time once the drain learns its origin is the parent.
-func TestTargets_M14OriginIsParentWithdrawnAtSendTime(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newWiringEnv(t)
-	env.plant("5.2026-09-27.served.md", offerTestNote{
-		pending: true, origin: parentVaultID + ":" + xidB, path: []string{parentVaultID},
-	}.render(t))
-
-	env.run("amend", "--target", "5.2026-09-27.served", "--clear-pending",
-		"--expect-hash", env.exchangeHashOf("5.2026-09-27.served.md"))
-	g.Expect(env.parent.offers()).To(BeEmpty())
-	g.Expect(env.outboxEntries()).To(BeEmpty())
-}
-
-// TestTargets_NotOfferedPathsQueueNothing (S16 item 6): every CLI write
+// Test792a21n1f_Targets_NotOfferedPathsQueueNothing (S16 item 6): every CLI write
 // path design D5 keeps local queues no offer and sends nothing.
-func TestTargets_NotOfferedPathsQueueNothing(t *testing.T) {
+func Test792a21n1f_Targets_NotOfferedPathsQueueNothing(t *testing.T) {
 	t.Parallel()
 
 	chunkLine := `{"source":"s","anchor":"a","content_hash":"sha256:x","text":"t","vector":[1,0,0,0]}` + "\n"
@@ -160,43 +91,46 @@ func TestTargets_NotOfferedPathsQueueNothing(t *testing.T) {
 	}
 }
 
-// TestTargets_ParentIDProbeFailures: the drain's vault-ID probe keeps the
-// offer queued and warns once when the parent answers 4xx, reports no ID
-// (too old), or accepts the probe but is unreachable for the offer.
-func TestTargets_ParentIDProbeFailures(t *testing.T) {
+// Test792a21n1m_Targets_B1NearFoldBouncesUpOnce (D12 B1): a near fold of a pulled
+// note into L is offered once; after its receipt, a bookkeeping write and
+// an equal-hash rewrite of L queue nothing.
+func Test792a21n1m_Targets_B1NearFoldBouncesUpOnce(t *testing.T) {
 	t.Parallel()
+	g := NewWithT(t)
 
-	cases := map[string]struct {
-		configure func(*recordingParent)
-		warning   string
-	}{
-		"4xx":               {func(p *recordingParent) { p.queryStatus = 400 }, "bad probe"},
-		"no vault id":       {func(p *recordingParent) { p.queryNoID = true }, "too old"},
-		"offer unreachable": {func(p *recordingParent) { p.learnDown = true }, "parent unreachable"},
-	}
+	env := newWiringEnv(t)
+	env.plant("3.2026-09-27.pulled.md", offerTestNote{
+		pending: true, parentVault: parentVaultID, linkVia: "pulled", linkHash: "xh1:p",
+	}.render(t))
+	env.plant("4.2026-09-27.local.md",
+		[]byte(strings.Replace(string(offerTestNote{}.render(t)), xidA, xidC, 1)))
 
-	for name, testCase := range cases {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
+	env.parent.setDown(true)
+	env.run("amend", "--target", "4.2026-09-27.local", "--object", "folded claim")
+	env.run("amend", "--target", "3.2026-09-27.pulled", "--discard")
 
-			env := newWiringEnv(t)
-			testCase.configure(env.parent)
+	folded := filepath.Join(env.vault, "4.2026-09-27.local.md")
+	env.parent.setStoredHash(mustHash(t, []byte(readFileString(t, folded))))
+	env.parent.setDown(false)
+	env.advance(time.Minute)
+	env.run("query", "--phrase", "x", "--chunks-dir", t.TempDir())
+	g.Expect(env.outboxEntries()).To(BeEmpty())
 
-			env.learnFact("probe")
-			g.Expect(env.parent.offers()).To(BeEmpty())
-			g.Expect(env.outboxEntries()).To(HaveLen(1))
-			g.Expect(nonEmptyLines(env.lastStderr)).To(HaveLen(1))
-			g.Expect(env.lastStderr).To(ContainSubstring(testCase.warning))
-		})
-	}
+	env.run("amend", "--target", "4.2026-09-27.local", "--activate")
+	env.run("amend", "--target", "4.2026-09-27.local", "--object", "folded claim")
+	env.run("query", "--phrase", "x", "--chunks-dir", t.TempDir())
+
+	offers := env.parent.offers()
+	g.Expect(offers).To(HaveLen(1))
+	g.Expect(offers[0].Object).To(Equal("folded claim"))
+	g.Expect(env.outboxEntries()).To(BeEmpty())
 }
 
-// TestTargets_ParentSwitchIgnoresOldLinks (S16 item 1): after ENGRAM_PARENT
+// Test792a21n1n_Targets_ParentSwitchIgnoresOldLinks (S16 item 1): after ENGRAM_PARENT
 // changes, the drain learns the new parent's ID first; a write whose
 // content equals the OLD parent's link hash is still offered, with no
 // offer.for and no supersedes translated through old links.
-func TestTargets_ParentSwitchIgnoresOldLinks(t *testing.T) {
+func Test792a21n1n_Targets_ParentSwitchIgnoresOldLinks(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -229,6 +163,72 @@ func TestTargets_ParentSwitchIgnoresOldLinks(t *testing.T) {
 	g.Expect(offers[0].Supersedes).To(BeEmpty())
 	g.Expect(readFileString(t, filepath.Join(env.vault, "7.2026-09-27.linked.md"))).
 		To(ContainSubstring("vault: " + seqID(72)))
+}
+
+// Test792a21q1h_Targets_Learn_UnmintableXIDQueuesNothing (S16 item 3): when no xid
+// can be minted the note is still written, and nothing is queued.
+func Test792a21q1h_Targets_Learn_UnmintableXIDQueuesNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	env.randFails = true
+
+	notePath := env.learnFact("no-xid")
+	g.Expect(readFileString(t, notePath)).NotTo(ContainSubstring("xid:"))
+	g.Expect(env.lastStderr).To(ContainSubstring("could not mint an xid"))
+	g.Expect(env.outboxEntries()).To(BeEmpty())
+	g.Expect(env.parent.requests()).To(BeEmpty())
+}
+
+// Test792a21r1j_Targets_M14OriginIsParentWithdrawnAtSendTime (S16 item 2, D12): a
+// served offer accepted while the parent's ID is unknown is queued, and
+// withdrawn at send time once the drain learns its origin is the parent.
+func Test792a21r1j_Targets_M14OriginIsParentWithdrawnAtSendTime(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	env.plant("5.2026-09-27.served.md", offerTestNote{
+		pending: true, origin: parentVaultID + ":" + xidB, path: []string{parentVaultID},
+	}.render(t))
+
+	env.run("amend", "--target", "5.2026-09-27.served", "--clear-pending",
+		"--expect-hash", env.exchangeHashOf("5.2026-09-27.served.md"))
+	g.Expect(env.parent.offers()).To(BeEmpty())
+	g.Expect(env.outboxEntries()).To(BeEmpty())
+}
+
+// Test792a21r1l_Targets_ParentIDProbeFailures: the drain's vault-ID probe keeps the
+// offer queued and warns once when the parent answers 4xx, reports no ID
+// (too old), or accepts the probe but is unreachable for the offer.
+func Test792a21r1l_Targets_ParentIDProbeFailures(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]struct {
+		configure func(*recordingParent)
+		warning   string
+	}{
+		"4xx":               {func(p *recordingParent) { p.queryStatus = 400 }, "bad probe"},
+		"no vault id":       {func(p *recordingParent) { p.queryNoID = true }, "too old"},
+		"offer unreachable": {func(p *recordingParent) { p.learnDown = true }, "parent unreachable"},
+	}
+
+	for name, testCase := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			env := newWiringEnv(t)
+			testCase.configure(env.parent)
+
+			env.learnFact("probe")
+			g.Expect(env.parent.offers()).To(BeEmpty())
+			g.Expect(env.outboxEntries()).To(HaveLen(1))
+			g.Expect(nonEmptyLines(env.lastStderr)).To(HaveLen(1))
+			g.Expect(env.lastStderr).To(ContainSubstring(testCase.warning))
+		})
+	}
 }
 
 func (p *recordingParent) reset() {

@@ -23,6 +23,26 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+// Test792a2p1a_DrainOutbox_LocationCheckFailureSendsNothing (ruling S2): a vault that
+// fails its location check (here: a clone, with no home.json) queues but
+// never sends, and prints the location warning.
+func Test792a2p1a_DrainOutbox_LocationCheckFailureSendsNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
+	env.enqueue(xidA)
+	env.fsys.remove(filepath.Join(env.vault, ".engram", "home.json"))
+
+	parent := &fakeParent{}
+	_, err := env.drain(parent)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(parent.sent).To(BeEmpty())
+	g.Expect(entryXIDs(env.outbox())).To(Equal([]string{xidA}))
+	g.Expect(env.stderr.String()).To(ContainSubstring("vault-id --claim"))
+}
+
 // TestClassifyOfferResponse maps a /learn response to the drain's outcome
 // (design D6): transport errors and 5xx fail (stop + back off), 4xx
 // rejects, a 2xx with a full receipt is accepted, and a receipt without
@@ -448,26 +468,6 @@ func TestDrainOutbox_LocalReadFailuresSurface(t *testing.T) {
 			g.Expect(parent.sent).To(BeEmpty())
 		})
 	}
-}
-
-// TestDrainOutbox_LocationCheckFailureSendsNothing (ruling S2): a vault that
-// fails its location check (here: a clone, with no home.json) queues but
-// never sends, and prints the location warning.
-func TestDrainOutbox_LocationCheckFailureSendsNothing(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newOutboxEnv(t)
-	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
-	env.enqueue(xidA)
-	env.fsys.remove(filepath.Join(env.vault, ".engram", "home.json"))
-
-	parent := &fakeParent{}
-	_, err := env.drain(parent)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(parent.sent).To(BeEmpty())
-	g.Expect(entryXIDs(env.outbox())).To(Equal([]string{xidA}))
-	g.Expect(env.stderr.String()).To(ContainSubstring("vault-id --claim"))
 }
 
 // TestDrainOutbox_MalformedReceiptKeepsEntry (final review F6, F11): a

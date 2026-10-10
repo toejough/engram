@@ -18,12 +18,12 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestEngramServerSet_HardErrorsEveryCommand covers vault-local-first's
-// "ENGRAM_SERVER SHALL be a hard error" (design D1): with ENGRAM_SERVER set,
+// Test792a21a1a_EngramServerSet_HardErrorsEveryCommand covers 792a21a
+// "ENGRAM_SERVER is refused" (design D1): with ENGRAM_SERVER set,
 // every subcommand — serve included — exits non-zero with a message naming
 // ENGRAM_PARENT and the same URL, before any filesystem, lock, fetch or
 // bind capability is touched.
-func TestEngramServerSet_HardErrorsEveryCommand(t *testing.T) {
+func Test792a21a1a_EngramServerSet_HardErrorsEveryCommand(t *testing.T) {
 	t.Parallel()
 
 	const serverURL = "http://host:8093"
@@ -49,11 +49,11 @@ func TestEngramServerSet_HardErrorsEveryCommand(t *testing.T) {
 	}
 }
 
-// TestEngramServerSet_NeverFetchesAsAlias covers "ENGRAM_SERVER is not
+// Test792a21a1d_EngramServerSet_NeverFetchesAsAlias covers "ENGRAM_SERVER is not
 // honored as an alias": for any non-empty ENGRAM_SERVER value (and no
 // ENGRAM_PARENT), no subcommand ever issues a fetch, and the refusal always
 // names ENGRAM_PARENT with that exact value.
-func TestEngramServerSet_NeverFetchesAsAlias(t *testing.T) {
+func Test792a21a1d_EngramServerSet_NeverFetchesAsAlias(t *testing.T) {
 	t.Parallel()
 
 	commands := everySubcommandArgs()

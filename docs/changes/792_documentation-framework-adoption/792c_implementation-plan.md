@@ -251,8 +251,8 @@ flowchart TD
   N792c7s2["792c7s2 exchange-versioning tech spec<br/>Complete"]
   N792c7s3["792c7s3 pending-offer-bookkeeping tech spec<br/>Complete"]
   N792c7s4["792c7s4 vault-http-server tech spec<br/>Complete"]
-  N792c7t1["792c7t1 parent-sync product spec<br/>Ready"]
-  N792c7t2["792c7t2 offer-outbox tech spec<br/>Blocked by: 792c7t1"]
+  N792c7t1["792c7t1 parent-sync product spec<br/>Complete"]
+  N792c7t2["792c7t2 offer-outbox tech spec<br/>Ready"]
   N792c7t3["792c7t3 parent-vault-client tech spec<br/>Blocked by: 792c7t2"]
   N792c7u1["792c7u1 curate product spec<br/>Blocked by: 792c7t3"]
   N792c7v1["792c7v1 memory-effectiveness-evaluation product spec<br/>Blocked by: 792c7u1"]
@@ -4915,13 +4915,155 @@ Target: `792a21` (`docs/specs/product/parent-sync.md`).
 - `exchange-versioning` (`792b33`)
 - `pending-offer-bookkeeping` (`792b34`)
 
+(Changes made by 792c7t1d, recorded in 792d121: `query-engine` gains no requirement, and `query-payload-renderer`
+(`792b23`), `note-reparenting` (`792b27`) and `self-installer` (`792b28`) are extended.)
+
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7t1a | Port product requirements and UAT to `792a21` | Non-test action | Moves current behavior into the framework format | Not started |
-| 792c7t1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7t1c | Repoint stale references to `792a21` | Non-test action | Keeps live links valid | Not started |
-| 792c7t1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Not started |
-| 792c7t1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Not started |
+| 792c7t1a | Port product requirements and UAT to `792a21` | Non-test action | Moves current behavior into the framework format | Done |
+| 792c7t1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7t1c | Repoint stale references to `792a21` | Non-test action | Keeps live links valid | Done |
+| 792c7t1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Done |
+| 792c7t1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
+
+792a21 has thirty-seven requirements (792a21a to 792a21zl) and 178 scenarios: the refusal of `ENGRAM_SERVER`, the one
+parent, the merged query (its list, order, budgets, model, origin, clusters, budget block, dedupe and degradation), the
+parent route of `show`, the offer (what is offered, how it is built, the outbox, the drain, the backoff, idempotence, the
+receipt and the states of an entry that wait), the update notice, CRLF notes, the pull-down (the local-first activate,
+the pending copy, idempotence and declines, the re-check, the use signal and the first-write identity) and the exchange
+fields (`xid`, links, aliases and survival). It adds 792b2c9 to 792b2c10, 792b5c14 to 792b5c16, 792b14c12 to 792b14c13,
+792b23c9 and 792b33c10, a scenario to 792b28c13, and mapping rows to 792b27 and 792b34 (792d121). Legacy removal: the
+`vault-local-first` spec is deleted, `vault-note-identity` keeps only the two clauses that wait for curate, the S7 row of
+the system context shows a pointer, and ADR-0029 keeps only D3's `--expect-hash` consumer, D10 and the curation
+consequences and risks. The three other parent specs stay whole until the technical nodes that read them (792d121).
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792a21a1a | `TestEngramServerSet_HardErrorsEveryCommand` → `Test792a21a1a_EngramServerSet_HardErrorsEveryCommand` (split deferred: 792a21a1b, 792a21a1c, 792b2c9a1) | Dispatch through every subcommand with a recording capability set | Every command, serve included, is refused before any capability is touched | Done |
+| 792a21a1d | `TestEngramServerSet_NeverFetchesAsAlias` → `Test792a21a1d_EngramServerSet_NeverFetchesAsAlias` (split deferred: 792b2c9a2) | Property over server URLs, dispatch through every subcommand | No fetch is ever issued and the message echoes the value | Done |
+| 792a21n1f | `TestTargets_Amend_BookkeepingQueuesNothing` → `Test792a21n1f_Targets_Amend_BookkeepingQueuesNothing` | Dispatch through `Targets` with a scripted parent | --activate and a --supersedes-only amend queue nothing | Done |
+| 792a21n1h | `TestTargets_Amend_ClearPendingOfParentsOfferNeverReturns` → `Test792a21n1h_Targets_Amend_ClearPendingOfParentsOfferNeverReturns` | Dispatch through `Targets` with a scripted parent | An offer accepted from the parent's own vault is not offered back | Done |
+| 792a21n1g | `TestTargets_Amend_ClearPendingOfServedOfferPropagates` → `Test792a21n1g_Targets_Amend_ClearPendingOfServedOfferPropagates` | Dispatch through `Targets` with a scripted parent | Accepting a child's served offer queues it upward with the path extended | Done |
+| 792a21n1b | `TestTargets_Amend_ContentOfLinkedNoteIsAmendOffer` → `Test792a21n1b_Targets_Amend_ContentOfLinkedNoteIsAmendOffer` | Dispatch through `Targets` with a scripted parent | A content amend of a linked note names the parent note in offer.for | Done |
+| 792a21q1e | `TestTargets_Amend_StampsXIDOnFirstOffer` → `Test792a21q1e_Targets_Amend_StampsXIDOnFirstOffer` | Dispatch through `Targets` with a scripted parent | The first offer stamps an xid in the same write | Done |
+| 792a21v1b | `TestTargets_Learn_MalformedReceiptKeepsEntry` → `Test792a21v1b_Targets_Learn_MalformedReceiptKeepsEntry` | Dispatch through `Targets` with a scripted parent | A receipt naming a basename with | is not recorded | Done |
+| 792a21m1b | `TestTargets_Learn_NoParentWritesNoExchangeState` → `Test792a21m1b_Targets_Learn_NoParentWritesNoExchangeState` | Dispatch through `Targets` | With no parent nothing is queued, stamped or sent | Done |
+| 792a21n1a | `TestTargets_Learn_OffersAndLinksReceipt` → `Test792a21n1a_Targets_Learn_OffersAndLinksReceipt` (split deferred: 792a21u1a) | Dispatch through `Targets` with a scripted parent | A learn is offered once and its receipt links the note without re-embedding it | Done |
+| 792a21q1a | `TestTargets_Learn_ParentUnreachableQueues` → `Test792a21q1a_Targets_Learn_ParentUnreachableQueues` | Dispatch through `Targets` with a scripted parent | An unreachable parent leaves the note live, one entry and one warning | Done |
+| 792a21v1a | `TestTargets_Learn_TooOldParentKeepsEntry` → `Test792a21v1a_Targets_Learn_TooOldParentKeepsEntry` | Dispatch through `Targets` with a scripted parent | A receipt without a vault ID reports a too-old parent and keeps the entry | Done |
+| 792a21q1b | `TestTargets_OfflineWritesCoalesceThenQueryDrains` → `Test792a21q1b_Targets_OfflineWritesCoalesceThenQueryDrains` (split deferred: 792a21r1a, 792a21s1a) | Dispatch through `Targets` with a scripted parent | Offline writes coalesce, a backoff skips the parent, and a query drains the backlog | Done |
+| 792a21n1e | `TestTargets_Resituate_Offers` → `Test792a21n1e_Targets_Resituate_Offers` | Dispatch through `Targets` with a scripted parent | resituate is offered like a content amend | Done |
+| 792a21s1b | `TestUpdateExchange_DrainsIgnoringBackoffThenGoesIdle` → `Test792a21s1b_UpdateExchange_DrainsIgnoringBackoffThenGoesIdle` (split deferred: 792a21za1d) | Dispatch through `Targets` (update) with a scripted parent | A dry run only reports; a real run drains inside the window and then reports nothing | Done |
+| 792a21za1c | `TestUpdateExchange_IdleVaultHasNoNotice` → `Test792a21za1c_UpdateExchange_IdleVaultHasNoNotice` | Dispatch through `Targets` (update) | An idle vault has no outbox notice | Done |
+| 792a21za1a | `TestUpdateExchange_ReportsRejectedEntry` → `Test792a21za1a_UpdateExchange_ReportsRejectedEntry` | Dispatch through `Targets` (update) with a scripted parent | A rejected entry is listed with its note and error | Done |
+| 792a21n1m | `TestTargets_B1NearFoldBouncesUpOnce` → `Test792a21n1m_Targets_B1NearFoldBouncesUpOnce` | Dispatch through `Targets` with a scripted parent | A near fold of a pulled note is offered once and later equal rewrites queue nothing | Done |
+| 792a21q1h | `TestTargets_Learn_UnmintableXIDQueuesNothing` → `Test792a21q1h_Targets_Learn_UnmintableXIDQueuesNothing` | Dispatch through `Targets` with a failing random source | The note is written and nothing is queued | Done |
+| 792a21r1j | `TestTargets_M14OriginIsParentWithdrawnAtSendTime` → `Test792a21r1j_Targets_M14OriginIsParentWithdrawnAtSendTime` | Dispatch through `Targets` with a scripted parent | An offer whose origin is the parent is withdrawn once the drain learns the parent's ID | Done |
+| 792a21n1f | `TestTargets_NotOfferedPathsQueueNothing` → `Test792a21n1f_Targets_NotOfferedPathsQueueNothing` (split deferred: 792a21n1i, 792a21n1j, 792a21n1k, 792a21n1l) | Table of write paths through `Targets` with a scripted parent | Every write path that is bookkeeping queues no offer | Done |
+| 792a21r1l | `TestTargets_ParentIDProbeFailures` → `Test792a21r1l_Targets_ParentIDProbeFailures` | Dispatch through `Targets` with a scripted parent | A failed vault-ID probe keeps the offers queued and warns once | Done |
+| 792a21n1n | `TestTargets_ParentSwitchIgnoresOldLinks` → `Test792a21n1n_Targets_ParentSwitchIgnoresOldLinks` (split deferred: 792a21zj1c) | Dispatch through `Targets` with a scripted parent | After the parent changes, old links are ignored and the write is still offered | Done |
+| 792a21zc1c | `TestActivate_BareLuhmannIDStaysLocal` → `Test792a21zc1c_Activate_BareLuhmannIDStaysLocal` (split deferred: 792b14c12a3) | Dispatch through `Targets` with a scripted parent | A bare Luhmann ID is never sent to the parent | Done |
+| 792a21ze1k | `TestActivate_ConcurrentActivatesWriteOneCopy` → `Test792a21ze1k_Activate_ConcurrentActivatesWriteOneCopy` | Concurrent dispatch through `Targets` | Two racing activates write one copy | Done |
+| 792a21ze1b | `TestActivate_CoveredLinkSkipsAndBumpsLiveNote` → `Test792a21ze1b_Activate_CoveredLinkSkipsAndBumpsLiveNote` | Dispatch through `Targets` with a scripted parent | A covered link skips the pull and bumps the live note | Done |
+| 792a21ze1g | `TestActivate_DeclineIsKeyedByParentVault` → `Test792a21ze1g_Activate_DeclineIsKeyedByParentVault` (split deferred: 792b5c16a2) | Dispatch through `Targets` with a scripted parent | A decline under another parent does not suppress the pull | Done |
+| 792a21ze1c | `TestActivate_DeclinedPullIsRemembered` → `Test792a21ze1c_Activate_DeclinedPullIsRemembered` (split deferred: 792a21ze1d) | Dispatch through `Targets` with a scripted parent | A discarded pulled copy is not pulled again, also after a rename | Done |
+| 792a21zd1f | `TestActivate_HashMismatchWritesNothing` → `Test792a21zd1f_Activate_HashMismatchWritesNothing` | Dispatch through `Targets` with a scripted parent | An envelope whose hash does not match its content is refused | Done |
+| 792a21ze1j | `TestActivate_LocalContentEditOffersToOrigin` → `Test792a21ze1j_Activate_LocalContentEditOffersToOrigin` (split deferred: 792a21ze1f) | Dispatch through `Targets` with a scripted parent | Accepting a pulled note queues nothing; a later edit is an amend-offer | Done |
+| 792a21zc1b | `TestActivate_LocalHitNeverContactsParent` → `Test792a21zc1b_Activate_LocalHitNeverContactsParent` (split deferred: 792b14c12a1) | Dispatch through `Targets` with a scripted parent | A local hit bumps the sidecar and sends no request | Done |
+| 792a21zd1e | `TestActivate_MalformedEnvelopeWritesNothing` → `Test792a21zd1e_Activate_MalformedEnvelopeWritesNothing` | Dispatch through `Targets` with a scripted parent | A malformed envelope is refused and its vault ID never cached | Done |
+| 792a21zd1g | `TestActivate_NonExchangeTypeRefused` → `Test792a21zd1g_Activate_NonExchangeTypeRefused` | Dispatch through `Targets` with a scripted parent | A note of another type is refused | Done |
+| 792a21zg1b | `TestActivate_ParentActivateFailureIsNotFatal` → `Test792a21zg1b_Activate_ParentActivateFailureIsNotFatal` | Dispatch through `Targets` with a scripted parent | The use signal failing neither fails the command nor queues anything | Done |
+| 792a21zc1g | `TestActivate_ParentFlagPathRefIsNotSent` → `Test792a21zc1g_Activate_ParentFlagPathRefIsNotSent` | Dispatch through `Targets` with a scripted parent | A path ref with --parent is reported as not sent | Done |
+| 792a21zc1f | `TestActivate_ParentFlagPullsEvenOnLocalHit` → `Test792a21zc1f_Activate_ParentFlagPullsEvenOnLocalHit` (split deferred: 792b14c12a4) | Dispatch through `Targets` with a scripted parent | --parent resolves against the parent even with a local file | Done |
+| 792a21zc1e | `TestActivate_ParentFlagWithoutParentErrors` → `Test792a21zc1e_Activate_ParentFlagWithoutParentErrors` (split deferred: 792b14c12a5) | Dispatch through `Targets` | --parent with no parent errors and reads or writes nothing | Done |
+| 792a21zd1d | `TestActivate_ParentTooOld` → `Test792a21zd1d_Activate_ParentTooOld` | Dispatch through `Targets` with a scripted parent | A rendered or id-less answer is a too-old parent | Done |
+| 792a21zg1d | `TestActivate_ParentUnreachablePausesPulls` → `Test792a21zg1d_Activate_ParentUnreachablePausesPulls` | Dispatch through `Targets` with a failing parent | An outage records one failure and the later refs make no request | Done |
+| 792a21zc1d | `TestActivate_PartialFailureIsVisible` → `Test792a21zc1d_Activate_PartialFailureIsVisible` (split deferred: 792b14c12a8) | Dispatch through `Targets` with a scripted parent | A ref the parent lacks is named and the command fails | Done |
+| 792a21zg1c | `TestActivate_PauseChecks` → `Test792a21zg1c_Activate_PauseChecks` | Table through `Targets` with a scripted parent | A failed location check, a backoff window and a self-parent each pause the pull-down | Done |
+| 792a21zg1e | `TestActivate_PullDownDrainsTheOutbox` → `Test792a21zg1e_Activate_PullDownDrainsTheOutbox` (split deferred: 792b14c12a7) | Dispatch through `Targets` with a scripted parent | A successful pull-down drains queued offers | Done |
+| 792a21zg1f | `TestActivate_PullDownFetchesWithNoLockHeld` → `Test792a21zg1f_Activate_PullDownFetchesWithNoLockHeld` (split deferred: 792b14c12a2) | Dispatch through `Targets` with a lock probe | The fetch and the use signal hold no vault lock | Done |
+| 792a21ze1l | `TestActivate_PullSequencesNeverDuplicate` → `Test792a21ze1l_Activate_PullSequencesNeverDuplicate` | Property (rapid) over command sequences | No sequence leaves two local notes linked to one parent note | Done |
+| 792a21zc1a | `TestActivate_PullsParentNoteAsPendingCopy` → `Test792a21zc1a_Activate_PullsParentNoteAsPendingCopy` (split deferred: 792a21zd1a, 792a21zd1b, 792a21zd1c, 792a21zd1i, 792a21zg1a) | Dispatch through `Targets` with a scripted parent | A parent-only note is pulled as a stripped, linked, embedded pending copy and the parent is signalled | Done |
+| 792a21ze1a | `TestActivate_ReActivationSkipsUnlessChanged` → `Test792a21ze1a_Activate_ReActivationSkipsUnlessChanged` (split deferred: 792a21ze1e, 792b5c16a3) | Dispatch through `Targets` with a scripted parent | An unchanged note is skipped and a changed one arrives again | Done |
+| 792a21ze1k | `TestActivate_RecheckUnderTheWriteLock` → `Test792a21ze1k_Activate_RecheckUnderTheWriteLock` | Dispatch through `Targets` with a copy landing mid-pull | A copy written between the fetch and the lock is seen by the re-check | Done |
+| 792a21zg1d | `TestActivate_UnrecordableBackoffIsReported` → `Test792a21zg1d_Activate_UnrecordableBackoffIsReported` | Dispatch through `Targets` with a failing state write | The warning names a backoff record that could not be written | Done |
+| 792a21zg1c | `TestActivate_UnusableExchangeStatePauses` → `Test792a21zg1c_Activate_UnusableExchangeStatePauses` | Dispatch through `Targets` with scripted failing state | Unreadable or unstampable exchange state pauses the pull-down | Done |
+| 792a21ze1h | `TestAmend_DiscardDeclineRecording` → `Test792a21ze1h_Amend_DiscardDeclineRecording` (split deferred: 792b14c13a1, 792b14c13a2, 792b14c13a3, 792b5c16a1) | Dispatch through `Targets` with a failing state write | A decline that cannot be recorded keeps the note; a repeat is recorded once | Done |
+| 792a21ze1i | `TestAmend_DiscardOfPulledNoteStampsNothingUnconfigured` → `Test792a21ze1i_Amend_DiscardOfPulledNoteStampsNothingUnconfigured` (split deferred: 792b14c13a4) | Dispatch through `Targets` | With no parent and no vault ID a discard records no decline and stamps nothing | Done |
+| 792a21zf1b | `TestActivate_LinkedLocalNoteRecheck` → `Test792a21zf1b_Activate_LinkedLocalNoteRecheck` (split deferred: 792a21zf1c, 792a21zf1d, 792a21zf1e, 792b14c12a6) | Dispatch through `Targets` with a scripted parent | The re-check writes nothing when unchanged or declined, skips another parent's link, and an outage is not fatal | Done |
+| 792a21zf1a | `TestActivate_ParentChangeRoundTrip` → `Test792a21zf1a_Activate_ParentChangeRoundTrip` | Dispatch through `Targets` with a scripted parent | A change on the parent arrives through the accepted local copy | Done |
+| 792a21zf1f | `TestActivate_ServedParentPendingAndRecheck` → `Test792a21zf1f_Activate_ServedParentPendingAndRecheck` (split deferred: 792a21zd1h) | Dispatch through `Targets` over a real served parent | End to end against `ServeRoutes`: a pending note is never pulled and a change arrives through the raw route | Done |
+| 792a21l1b | `TestShowChunk_NeverContactsParent` → `Test792a21l1b_ShowChunk_NeverContactsParent` | Dispatch through `Targets` with a scripted parent | show-chunk never contacts the parent | Done |
+| 792a21l1b | `TestShowChunk_ParentFlagIsUnknown` → `Test792a21l1b_ShowChunk_ParentFlagIsUnknown` (split deferred: 792b2c10a11) | Dispatch through `Targets` | show-chunk has no --parent flag | Done |
+| 792b2c10a7 | `TestShowFallback_BackoffSkipsParent` → `Test792b2c10a7_ShowFallback_BackoffSkipsParent` | Dispatch through `Targets` with a backed-off parent | The fallback makes no request and returns the local error after one warning | Done |
+| 792b2c10a9 | `TestShowFallback_StampsVaultIDOnParentContact` → `Test792b2c10a9_ShowFallback_StampsVaultIDOnParentContact` | Dispatch through `Targets` with a scripted parent | The fallback stamps a missing vault ID | Done |
+| 792b2c10a8 | `TestShowParent_BackoffMakesNoRequest` → `Test792b2c10a8_ShowParent_BackoffMakesNoRequest` | Dispatch through `Targets` with a backed-off parent | --parent makes no request and errors after one warning | Done |
+| 792b2c10a10 | `TestShowParent_FailedStampSkipsContactBookkeeping` → `Test792b2c10a10_ShowParent_FailedStampSkipsContactBookkeeping` | Dispatch through `Targets` with a failing stamp | A failed stamp skips only the contact's bookkeeping | Done |
+| 792b2c10a9 | `TestShowParent_StampsVaultIDOnParentContact` → `Test792b2c10a9_ShowParent_StampsVaultIDOnParentContact` | Dispatch through `Targets` with a scripted parent | --parent stamps a missing vault ID | Done |
+| 792a21j1a | `TestTargets_Query_Merged_DedupesLinkedLocalNote` → `Test792a21j1a_Targets_Query_Merged_DedupesLinkedLocalNote` | Dispatch through `Targets` with a scripted parent | A linked note appears once as the local copy, with no parent chunk | Done |
+| 792a2q1a | `TestTargets_Query_Merged_SelfParentReturnsLocalOnly` → `Test792a2q1a_Targets_Query_Merged_SelfParentReturnsLocalOnly` | Dispatch through `Targets` with a scripted parent | A parent that reports this vault's own ID is not merged | Done |
+| 792a21c1a | `TestTargets_Query_MergedMode_CombinesLocalAndParent` → `Test792a21c1a_Targets_Query_MergedMode_CombinesLocalAndParent` | Dispatch through `Targets` with a scripted parent | The merged payload holds both sources, tagged with their origin | Done |
+| 792a21k1a | `TestTargets_Query_MergedMode_ParentUnavailableFallsBackToLocal` → `Test792a21k1a_Targets_Query_MergedMode_ParentUnavailableFallsBackToLocal` | Dispatch through `Targets` with a failing parent | An unreachable parent leaves the local results and a warning | Done |
+| 792a21g1a | `TestTargets_ShowFallback_SurfacesParentRunbookAfterMergedQuery` → `Test792a21g1a_Targets_ShowFallback_SurfacesParentRunbookAfterMergedQuery` (split deferred: 792a21l1d) | Dispatch through `Targets` with a scripted parent | A runbook only the parent holds is returned tagged from_parent and found by show | Done |
+| 792b5c14a1 | `TestBackoffDelay_ExponentialFrom30sCappedAt15m` → `Test792b5c14a1_BackoffDelay_ExponentialFrom30sCappedAt15m` | Pure unit | The delay is 30 seconds doubling to a 15 minute cap | Done |
+| 792b5c14a1 | `TestBackoffDelay_Property` → `Test792b5c14a1_BackoffDelay_Property` | Property (rapid) | The delay stays within bounds, never shrinks and doubles until the cap | Done |
+| 792b5c14a5 | `TestGateParentContact_AllowsAfterWindow` → `Test792b5c14a5_GateParentContact_AllowsAfterWindow` | Unit over a scripted state | After the window the contact is allowed silently | Done |
+| 792b5c14a4 | `TestGateParentContact_BlocksInsideWindowWithOneWarning` → `Test792b5c14a4_GateParentContact_BlocksInsideWindowWithOneWarning` | Unit over a scripted state | Inside the window the contact is refused with one warning | Done |
+| 792b5c14a7 | `TestGateParentContact_OtherParentURLIsNotBackedOff` → `Test792b5c14a7_GateParentContact_OtherParentURLIsNotBackedOff` | Unit over a scripted state | A reconfigured parent is tried | Done |
+| 792b5c14a6 | `TestGateParentContact_UpdateIgnoresWindow` → `Test792b5c14a6_GateParentContact_UpdateIgnoresWindow` | Unit over a scripted state | update always tries | Done |
+| 792b5c14a2 | `TestRecordParentFailure_GrowsThenSuccessResets` → `Test792b5c14a2_RecordParentFailure_GrowsThenSuccessResets` | Unit over a scripted state | Failures grow the window and a success resets it | Done |
+| 792b5c14a3 | `TestRecordParentSuccess_IdleWritesNothing` → `Test792b5c14a3_RecordParentSuccess_IdleWritesNothing` | Unit over a scripted state | An idle success does not rewrite parent.json | Done |
+| 792a21k1b | `TestTargets_Query_BackoffSkipsParentInsideWindow` → `Test792a21k1b_Targets_Query_BackoffSkipsParentInsideWindow` (split deferred: 792a21s1a) | Dispatch through `Targets` with a failing parent | A second query inside the window makes no request and warns once | Done |
+| 792a21k1c | `TestTargets_Query_ParentClientErrorDoesNotBackOff` → `Test792a21k1c_Targets_Query_ParentClientErrorDoesNotBackOff` | Dispatch through `Targets` with a 4xx parent | A 4xx is an answer, not an outage | Done |
+| 792a21l1c | `TestShowFallback_LocalHitDoesNotContactParent` → `Test792a21l1c_ShowFallback_LocalHitDoesNotContactParent` (split deferred: 792b2c10a3) | Dispatch through `Targets` with a scripted parent | A local hit is returned without contacting the parent | Done |
+| 792a21l1e | `TestShowFallback_LocalMissNoParentConfiguredErrorsUnchanged` → `Test792a21l1e_ShowFallback_LocalMissNoParentConfiguredErrorsUnchanged` | Dispatch through `Targets` | A miss with no parent is the same not-found error | Done |
+| 792a21l1d | `TestShowFallback_LocalMissRoutesToParentLabeled` → `Test792a21l1d_ShowFallback_LocalMissRoutesToParentLabeled` | Dispatch through `Targets` with a scripted parent | A local miss falls back to the parent, labeled | Done |
+| 792a21l1a | `TestShowParent_RoutesThroughFetch` → `Test792a21l1a_ShowParent_RoutesThroughFetch` (split deferred: 792b2c10a1) | Dispatch through `Targets` with a scripted parent | --parent asks the parent | Done |
+| 792a21l1f | `TestShowParent_WithoutEngramParentErrors` → `Test792a21l1f_ShowParent_WithoutEngramParentErrors` (split deferred: 792b2c10a2) | Dispatch through `Targets` | --parent with no parent errors and makes no request | Done |
+| 792b2c10a5 | `TestShow_NoParent_RunsLocally` → `Test792b2c10a5_Show_NoParent_RunsLocally` | Dispatch through `Targets` | With no parent the fetch capability is never invoked | Done |
+| 792a21l1g | `TestShowFallback_LabelPrecedesParentExchangeHash` → `Test792a21l1g_ShowFallback_LabelPrecedesParentExchangeHash` (split deferred: 792b2c10a4) | Dispatch through `Targets` over a real served `/show` | The label comes before the parent's exchange-hash header | Done |
+| 792a21zb1d | `TestActivate_PullsCRLFParentNote` → `Test792a21zb1d_Activate_PullsCRLFParentNote` | Dispatch through `Targets` with a scripted parent | A CRLF parent note pulls down as LF | Done |
+| 792a21zb1b | `TestDrainOutbox_FindsCRLFNote` → `Test792a21zb1b_DrainOutbox_FindsCRLFNote` | Unit over a scripted vault and parent | A CRLF note is sent and its receipt written as LF | Done |
+| 792a2p1a | `TestDrainOutbox_LocationCheckFailureSendsNothing` → `Test792a2p1a_DrainOutbox_LocationCheckFailureSendsNothing` (split deferred: 792a21r1k) | Unit over a scripted vault and parent | A cloned vault queues but never sends and warns | Done |
+| 792b33c10a1 | `TestExchangeFieldsSurvive_Amend` → `Test792b33c10a1_ExchangeFieldsSurvive_Amend` | Table over every flag family and note type | Amend keeps the four fields | Done |
+| 792b33c10a1 | `TestExchangeFieldsSurvive_AmendProperty` → `Test792b33c10a1_ExchangeFieldsSurvive_AmendProperty` | Property (rapid) | Amend and the line rewrites keep random exchange fields | Done |
+| 792b33c10a2 | `TestExchangeFieldsSurvive_AmendResituateProperty` → `Test792b33c10a2_ExchangeFieldsSurvive_AmendResituateProperty` | Property (rapid) | Resituate keeps random exchange fields | Done |
+| 792b33c10a3 | `TestExchangeFieldsSurvive_BackfillIdentity` → `Test792b33c10a3_ExchangeFieldsSurvive_BackfillIdentity` | Unit over a temp-dir vault | Identity backfill keeps the four fields | Done |
+| 792b33c10a5 | `TestExchangeFieldsSurvive_ClearRemovedVocabTerms` → `Test792b33c10a5_ExchangeFieldsSurvive_ClearRemovedVocabTerms` | Unit over a temp-dir vault | Removing a vocabulary term keeps the four fields | Done |
+| 792b33c10a7 | `TestExchangeFieldsSurvive_RegisterSkillsAdopt` → `Test792b33c10a7_ExchangeFieldsSurvive_RegisterSkillsAdopt` | Unit over a temp-dir vault | Adopt, with and without a rename, keeps the four fields | Done |
+| 792b33c10a7 | `TestExchangeFieldsSurvive_RegisterSkillsRefresh` → `Test792b33c10a7_ExchangeFieldsSurvive_RegisterSkillsRefresh` | Unit over a temp-dir vault | Refresh keeps the four fields | Done |
+| 792b33c10a6 | `TestExchangeFieldsSurvive_RemoveDeletedNoteReferences` → `Test792b33c10a6_ExchangeFieldsSurvive_RemoveDeletedNoteReferences` | Unit over a temp-dir vault | The per-note scrub keeps the four fields | Done |
+| 792b33c10a4 | `TestExchangeFieldsSurvive_ReparentRenamesNote` → `Test792b33c10a4_ExchangeFieldsSurvive_ReparentRenamesNote` | Unit over a temp-dir vault | Renaming a note keeps its fields and appends its alias | Done |
+| 792b33c10a2 | `TestExchangeFieldsSurvive_Resituate` → `Test792b33c10a2_ExchangeFieldsSurvive_Resituate` | Unit over a temp-dir vault | Resituate keeps the four fields | Done |
+| 792b33c10a6 | `TestExchangeFieldsSurvive_ScrubDeletedNoteReferences` → `Test792b33c10a6_ExchangeFieldsSurvive_ScrubDeletedNoteReferences` | Unit over a temp-dir vault | The vault-wide scrub keeps the four fields | Done |
+| 792b33c10a5 | `TestExchangeFieldsSurvive_StripLegacyVocabChannel` → `Test792b33c10a5_ExchangeFieldsSurvive_StripLegacyVocabChannel` | Unit over a temp-dir vault | Legacy cleanup keeps the four fields | Done |
+| 792b33c10a5 | `TestExchangeFieldsSurvive_VocabAssignment` → `Test792b33c10a5_ExchangeFieldsSurvive_VocabAssignment` | Unit over a temp-dir vault | Term assignment keeps the four fields | Done |
+| 792b33c10a5 | `TestExchangeFieldsSurvive_VocabSelfTag` → `Test792b33c10a5_ExchangeFieldsSurvive_VocabSelfTag` | Unit over a temp-dir vault | The self-tag keeps the four fields | Done |
+| 792b33c10a5 | `TestExchangeFieldsSurvive_VocabVersionStamp` → `Test792b33c10a5_ExchangeFieldsSurvive_VocabVersionStamp` | Unit over a temp-dir vault | The version stamp keeps the four fields | Done |
+| 792b33c10a4 | `TestExchangeFieldsSurvive_WikilinkRewrite` → `Test792b33c10a4_ExchangeFieldsSurvive_WikilinkRewrite` | Unit over a temp-dir vault | Rewriting references in another note keeps its fields | Done |
+| 792b28c13a9 | `TestWriteUpdateReport_OutboxNotice` → `Test792b28c13a9_WriteUpdateReport_OutboxNotice` | Unit over a report | The report carries the outbox notice | Done |
+| 792b23c9a1 | `TestQueryPayload_NoFromParentKeyWithoutMerge` → `Test792b23c9a1_QueryPayload_NoFromParentKeyWithoutMerge` | Renderer over resolved items | A non-merged payload has no from_parent key | Done |
+| 792b23c9a2 | `TestMergeQueryPayloads_LocalItemMarshalsExplicitFromParentFalse` → `Test792b23c9a2_MergeQueryPayloads_LocalItemMarshalsExplicitFromParentFalse` | Merge then marshal | A local item of a merged payload says from_parent: false | Done |
+
+**Coverage gaps (technical scenarios):** 792b2c10a6 (no test dispatches `show` with a blank reference and a parent
+configured), 792b5c15a1 and 792b5c15a2 (the identifier checks have no direct test; the malformed receipt and envelope
+tests reach them), 792b5c16a4 (no test reads a missing or corrupt `declined.json`) and 792b14c12a-scenarios are verified
+only end to end, through the `Test792a21zc1x` and `Test792a21zg1x` tests listed above. 792b33c10a-scenarios are verified
+by the survival tests.
+
+**Coverage gaps (792a21, completed by 792c7t3e):** the scenarios that no command-level test renamed here verifies are
+listed by 792c7t3e, after the offer-outbox and parent-vault-client tests are renamed.
+
+**No-scenario tests:** `offer_wiring_test` `TestWiringEnv_DepsIsolateRealUserHome` (a guard on the test helper itself);
+`pulldown_recheck_test` `TestCurateNearOrder_PulledOffer` (curate, 792c7u1); `serve_client_test`
+`TestShowChunkTarget_LocalDispatch` (show-chunk's local branch), `TestLocalAmend_*` and `TestLocalLearn_NeverSetsPendingMarker`
+(curate, 792c7u1), and the client internals `TestParentBase_*`, `TestFetchQueryPayload_*`,
+`TestShowParent_NonOKResponse_*`, `TestShowParent_PercentEncodesQueryValues` and `TestWriteParentSourced_*` (792c7t3);
+the rest of `outbox_test`, `outbox_attention_test`, `offer_payload_test`, `offer_classify_test`, `offer_errors_test` and
+`offer_receipt_test` (792c7t2); and the rest of `merged_query_*_test` (792c7t3).
+
 
 #### 792c7t2 offer-outbox tech spec
 
