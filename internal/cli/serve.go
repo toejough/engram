@@ -399,7 +399,7 @@ func serveActivate(deps Deps, vault string) ServeHandler {
 // VaultName falls back to it when the client didn't supply one. The offer
 // is validated first (400, or 409 for a cycle, with nothing written), then
 // lands as a pending offer — new, or the same origin's updated in place —
-// never as an immediately-live note (vault-offer-curation). The response is
+// never as an immediately-live note (792a22). The response is
 // the offer receipt, never note content.
 func serveLearn(deps Deps, vault, vaultName string) ServeHandler {
 	return serveHandlerFunc(func(ctx context.Context, req ServeRequest) ServeResponse {

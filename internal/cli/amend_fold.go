@@ -27,7 +27,7 @@ var (
 )
 
 // checkJudgedVersion is the judged-version check (design D10 r3-2; spec
-// vault-offer-curation "Bookkeeping on a served offer SHALL verify the
+// 792a22 "Bookkeeping on a served offer SHALL verify the
 // judged version"). A given --expect-hash is verified on any note; it is
 // required for --clear-pending and --discard (bare or --into) on a note
 // carrying offer.origin, pending or live. Only an equal hash passes: a

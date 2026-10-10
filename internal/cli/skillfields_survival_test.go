@@ -1,6 +1,6 @@
 package cli_test
 
-// Field-survival tests for the skill-note identity fields (vault-note-identity
+// Field-survival tests for the skill-note identity fields (792a12u
 // ADDED requirement "Skill-note identity fields SHALL survive every
 // frontmatter rewrite"): skill_hash, skill_key and skill_source must come out
 // of every non-registration frontmatter rewrite byte-unchanged. Note

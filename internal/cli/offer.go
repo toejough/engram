@@ -30,7 +30,7 @@ const (
 		"` and follow the curate runbook it returns"
 	// pendingOfferUpdateNotice is the `engram update` detect-and-notify line
 	// (ADR-0021 convention) for pending offers. Unlike the other notices, it
-	// names no CLI fix command — curation is a runbook (vault-offer-curation),
+	// names no CLI fix command — curation is a runbook (792a22),
 	// not something `engram update` can do on the user's behalf — so it names
 	// the query that surfaces the curate runbook.
 	pendingOfferUpdateNotice = "vault holds pending offer(s) awaiting curation — see the pending_offers " +
@@ -43,7 +43,7 @@ const (
 )
 
 // excludePendingOffers filters notes down to those NOT carrying the
-// pending-offer marker (vault-offer-curation), so offered notes awaiting
+// pending-offer marker (792a22), so offered notes awaiting
 // curation never surface in normal query results. Returns the filtered
 // slice and whether at least one pending offer was found — computed in one
 // pass (single read per note) so query pays no extra I/O for the
@@ -80,7 +80,7 @@ func excludePendingOffers(
 
 // noteHasPendingMarker reports whether raw is a pending offer: a fact,
 // feedback or runbook note carrying frontmatter `pending: true`, whether or
-// not it carries `skill_hash` (vault-offer-curation "The pending-offer
+// not it carries `skill_hash` (792a22 "The pending-offer
 // marker SHALL apply to every note type", design D7 G1). Any other note type
 // (e.g. vocab definitions) and unparseable content report false.
 func noteHasPendingMarker(raw []byte) bool {

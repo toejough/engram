@@ -1,7 +1,7 @@
 package cli_test
 
 // Curation fold and the judged-version check (design D10; tasks 8.1, 8.2;
-// spec vault-offer-curation "Bookkeeping on a served offer SHALL verify the
+// spec 792a22 "Bookkeeping on a served offer SHALL verify the
 // judged version" and "Curation judges pending offers the same way recall
 // judges candidates"; link roles: 792a21zk and 792b34c7).
 

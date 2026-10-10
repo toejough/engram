@@ -5246,8 +5246,8 @@ Canonical target: `docs/specs/technical/note-authoring.md` (title `Note Authorin
   calls own the format, the IDs, the lock, the sidecar and provenance; independent verification,
   it is tested directly over injected dependencies; stability, the capture flow survives any
   refactoring of the components it calls; necessity, every new note is written through it.
-- Supported capabilities: 792a3 note-writing, 792a6 controlled-vocabulary. Skill-runbook-registration,
-  write-memory, learn, vault-serving and parent-sync add their requirements (792d30).
+- Supported capabilities: 792a3 note-writing, 792a6 controlled-vocabulary, 792a22 curate (792b12c8).
+  Skill-runbook-registration, write-memory, learn, vault-serving and parent-sync add their requirements (792d30).
 
 Rationale: the vault lock spans everything from listing the existing IDs to creating the note, so
 two concurrent writers never allocate the same ID; creating the note exclusively is a backstop that
@@ -5592,6 +5592,26 @@ Scenario: 792b12c7a2 A captured runbook has no skill key or source
   Then the note carries neither skill_key nor skill_source
 ```
 
+#### 792b12c8 The pending marker is not set by a local learn
+
+Requirement: 792b12c8 The note-authoring MUST write `pending: true` only when the arguments it is given carry the pending marker, which
+a served learn and a pull-down build, and the command line MUST NOT expose a flag that sets it, so that a local `engram learn`
+never writes a pending note.
+
+Supports: 792a22b1a.
+
+Rationale: the marker means that the note came from another vault and has not been judged, so a note the user writes in their own
+vault is never held back from recall.
+
+##### 792b12c8a Scenarios
+
+```gherkin
+Scenario: 792b12c8a1 A local learn writes no marker
+  Given the user runs engram learn fact on the host
+  When the note is written
+  Then it carries no pending line
+```
+
 ### 792b12d Product-Scenario Mapping
 
 | Product scenario | Technical requirements |
@@ -5656,6 +5676,7 @@ Scenario: 792b12c7a2 A captured runbook has no skill key or source
 | 792a17k1c | 792b12c1, 792b12c4 |
 | 792a20c1c | 792b12c3 |
 | 792a20o1a | 792b12c6 |
+| 792a22b1a | 792b12c8 |
 
 ```gherkin
 Scenario: 792a3r1b Certainty defaults to medium
@@ -5767,6 +5788,13 @@ Scenario: 792a20o1a A served offer is tagged by the receiving vault
   Given a vault with a vocabulary and a served learn that sends no tags
   When the pending offer is written
   Then it carries the vocab/ tags that the vault's vocabulary assigns to it
+```
+
+```gherkin
+Scenario: 792a22b1a A local learn is never pending
+  Given the user runs engram learn on the host
+  When the note is written
+  Then it carries no pending marker and engram query can return it
 ```
 
 ## 792b13 Added: wikilink-graph
@@ -6239,7 +6267,7 @@ Canonical target: `docs/specs/technical/note-amendment.md` (title `Note Amendmen
   change to the flags that drive it; necessity, every change an agent makes to an existing note
   goes through it.
 - Supported capabilities: 792a4 note-revision, 792a6 controlled-vocabulary, 792a21 parent-sync (792b14c12,
-  792b14c13). Write-memory, recall and curate add their requirements (792d30).
+  792b14c13), 792a22 curate (792b14c14). Write-memory and recall add their requirements (792d30).
 
 Rationale: a revision is a read-modify-write of a note and its sidecar, so two revisions, or a
 revision and a learn, that interleave could each overwrite the other's change. Every revision takes
@@ -6823,6 +6851,70 @@ Scenario: 792b14c13a4 An unconfigured vault records nothing
   Given a vault with no parent configured and no vault ID
   When a pulled note is discarded
   Then it is deleted, no decline is recorded, and no vault ID or .engram directory is created
+
+Scenario: 792b14c13a5 A CRLF pulled note's decline is recorded
+  Given a pulled note whose lines end in CRLF
+  When it is discarded outright
+  Then its decline is recorded from the LF form and the note is deleted
+```
+
+#### 792b14c14 Settling a pending offer
+
+Requirement: 792b14c14 The note-amendment MUST clear the pending marker of its target for `--clear-pending` and for `--pending=false`, on a
+fact, feedback or runbook note, a runbook note that carries `skill_hash` included, changing no other field of the note and not
+re-stamping its identity (792b14c5), and MUST NOT set the marker in any local amend. It MUST, for `--discard`, delete the note
+and then its sidecar under the vault lock the amend holds, print the note's path only when both were deleted, treat a missing
+sidecar as success, and fail with the cause when either removal fails, a failed removal of the note never attempting the
+sidecar. The judged-version check (792b34c5) MUST run before either.
+
+Supports: 792a22b1b, 792a22h1a, 792a22h1b, 792a22k1d.
+
+Rationale: `--clear-pending` is the only way a curator accepts an offer, and the offer keeps its declared author because the
+bookkeeping amends do not re-stamp it (ADR-0029 D10). A pending note is a real file, so discarding it is a deletion, not a
+revision.
+
+##### 792b14c14a Scenarios
+
+```gherkin
+Scenario: 792b14c14a1 Clearing the marker makes the note live
+  Given a pending fact note
+  When engram amend --target <note> --clear-pending runs
+  Then the note no longer carries pending: true
+
+Scenario: 792b14c14a2 A skill note keeps its skill_hash when cleared
+  Given a pending runbook note that carries skill_hash
+  When engram amend --target <note> --clear-pending runs
+  Then the marker is gone, skill_hash is unchanged and the note is no longer a pending offer
+
+Scenario: 792b14c14a3 A local amend never sets the marker
+  Given a live note
+  When engram amend --target <note> --object="amended" runs
+  Then the amended note carries no pending line
+
+Scenario: 792b14c14a4 A discard deletes the note and its sidecar
+  Given a note with a sidecar
+  When engram amend --target <note> --discard runs
+  Then both files are gone and the note's path is printed
+
+Scenario: 792b14c14a5 A note removal error is returned and nothing is printed
+  Given a note whose removal fails
+  When it is discarded
+  Then the discard fails with that cause, no path is printed and the sidecar was not attempted
+
+Scenario: 792b14c14a6 A sidecar removal error is returned
+  Given a sidecar whose removal fails for a reason other than being absent
+  When the note is discarded
+  Then the discard fails with that cause and no path is printed
+
+Scenario: 792b14c14a7 A missing sidecar is not an error
+  Given a note whose sidecar is already gone
+  When it is discarded
+  Then the discard succeeds and the note's path is printed
+
+Scenario: 792b14c14a8 An accepted offer keeps its author
+  Given a pending offer whose user: is alice and a detected user bob
+  When the marker is cleared
+  Then user: is still alice and the pending line is gone
 ```
 
 ### 792b14d Product-Scenario Mapping
@@ -6886,6 +6978,12 @@ Scenario: 792b14c13a4 An unconfigured vault records nothing
 | 792a21ze1c | 792b14c13 |
 | 792a21ze1h | 792b14c13 |
 | 792a21ze1i | 792b14c13 |
+| 792a22b1b | 792b14c14 |
+| 792a22c1b | 792b14c9 |
+| 792a22h1a | 792b14c14 |
+| 792a22h1b | 792b14c14 |
+| 792a22k1d | 792b14c14 |
+| 792a22i1a | 792b14c13 |
 
 ```gherkin
 Scenario: 792a4e1a Chunk sources are merged without duplicates
@@ -6994,6 +7092,38 @@ Scenario: 792a21ze1i Discarding a pulled note with no vault ID records nothing
   Given a vault with no parent and no vault ID
   When a pulled note is discarded
   Then it is deleted, no decline is recorded, and no vault ID or .engram directory is created
+```
+
+```gherkin
+Scenario: 792a22b1b A local amend never sets the marker
+  Given a live note
+  When the user runs engram amend on it
+  Then the note carries no pending marker afterwards
+
+Scenario: 792a22c1b A local activate commits immediately
+  Given a note in the local vault
+  When the user runs engram activate on it
+  Then the note's sidecar LastUsed is updated and the note carries no pending marker
+
+Scenario: 792a22h1a An absent offer is accepted
+  Given curation judges a pending offer as absent from the vault
+  When it settles the offer
+  Then the marker is cleared and the offer is a normal, live note whose user: is still the offer's declared author
+
+Scenario: 792a22h1b Accepting an offer keeps its author
+  Given a pending offer whose user: is alice, and a curator whose detected user is bob
+  When the curator runs engram amend --target O --clear-pending
+  Then O's user: is still alice
+
+Scenario: 792a22k1d Clearing a skill note's marker makes it live
+  Given a pending skill runbook note
+  When engram amend --target <note> --clear-pending runs
+  Then the note is live and engram query can return it
+
+Scenario: 792a22i1a A rejected pulled-down offer is remembered
+  Given curation discards a pulled-down offer outright
+  When the discard completes
+  Then the parent note is recorded as declined at that exchange hash
 ```
 
 ## 792b15 Added: transcript-reader
@@ -10846,6 +10976,7 @@ Scenario: 792b22c7a1 A query without a hit is unchanged
 | 792a19j1a | 792b22c3 |
 | 792a19j1b | 792b22c7 |
 | 792a19j1c | 792b22c2 |
+| 792a22o1i | 792b22c3, 792b22c6 |
 
 ```gherkin
 Scenario: 792a7y1a Text alone is a trigger lookup
@@ -10954,6 +11085,13 @@ Scenario: 792a19j1c The message is passed unchanged
   Then the --text value holds that string verbatim up to whitespace differences, and the paraphrase appears only in a --phrase
 ```
 
+```gherkin
+Scenario: 792a22o1i The notice's command surfaces the runbook
+  Given a vault that contains the curate runbook
+  When an agent runs the command a notice prints
+  Then the curate runbook appears in the result with trigger provenance
+```
+
 ## 792b23 Added: query-payload-renderer
 
 Canonical target: `docs/specs/technical/query-payload-renderer.md` (title `Query Payload Renderer - Technical Spec`).
@@ -10978,7 +11116,7 @@ Canonical target: `docs/specs/technical/query-payload-renderer.md` (title `Query
   its cuts and its labels; independent verification, it is tested directly on item lists and notes,
   with a property test for the red-flag preview; stability, the contract survives any change to how
   matches are found; necessity, every query payload is made by it.
-- Supported capabilities: 792a7 memory-query, 792a21 parent-sync (792b23c9). Recall extends it (792d30).
+- Supported capabilities: 792a7 memory-query, 792a21 parent-sync (792b23c9), 792a22 curate (792b23c10). Recall extends it (792d30).
 
 Rationale: a recall pass should carry less to read without losing reach, so the payload is cut where
 the reader gains least: chunk text is shortened or fetched on demand, the newest chunks have a count of
@@ -11341,6 +11479,25 @@ Scenario: 792b23c9a2 A local item of a merged payload says false
   Then the local item has from_parent: false and the parent item has from_parent: true
 ```
 
+#### 792b23c10 The lead of a payload with pending offers
+
+Requirement: 792b23c10 The query-payload-renderer MUST write `pending_offers` and `pending_offers_hint` immediately after `version`, before
+`items` and every other large field, so that a truncated preview of a large payload still shows them, and MUST write neither when
+no offer is pending (792b34c4).
+
+Supports: 792a22o1c, 792a22o1e.
+
+Rationale: an agent that reads only the first part of a large payload must still see that offers wait.
+
+##### 792b23c10a Scenarios
+
+```gherkin
+Scenario: 792b23c10a1 The flag and hint lead a large payload
+  Given a payload of 60 items of 2000 bytes each and pending offers
+  When it is rendered
+  Then pending_offers and pending_offers_hint precede items, and the first 1500 bytes contain the hint
+```
+
 ### 792b23d Product-Scenario Mapping
 
 | Product scenario | Technical requirements |
@@ -11378,6 +11535,8 @@ Scenario: 792b23c9a2 A local item of a merged payload says false
 | 792a14h1c | 792b23c5 |
 | 792a21g1a | 792b23c9 |
 | 792a21g1b | 792b23c9 |
+| 792a22o1c | 792b23c10 |
+| 792a22o1e | 792b23c10 |
 
 ```gherkin
 Scenario: 792a7b1b A note item is labelled by its type
@@ -11521,6 +11680,18 @@ Scenario: 792a21g1b A payload with no merge has no from_parent
   Given ENGRAM_PARENT is not set
   When the user runs engram query
   Then no item in the payload carries a from_parent key
+```
+
+```gherkin
+Scenario: 792a22o1c The flag and hint lead the payload
+  Given a payload larger than 100 KB and pending offers
+  When engram query renders it
+  Then pending_offers true and pending_offers_hint appear before items, and the first 1500 bytes of the payload contain the hint
+
+Scenario: 792a22o1e The payload has no hint without offers
+  Given a vault with no pending offer
+  When engram query runs
+  Then the payload contains neither pending_offers nor pending_offers_hint and is byte-identical to a payload produced before the hint existed
 ```
 
 ## 792b24 Added: query-engine
@@ -15035,7 +15206,7 @@ notice, the vault-ID notice (792b5c13), the outbox notice and the skill-registra
 their capabilities specify. The vocabulary and identity notices MUST be replaced by their summaries
 (792b28c14) on a run that applied the matching flag. Notices MUST NOT mention a README section.
 
-Supports: 792a6v1a, 792a6v1b, 792a6v1c, 792a10a1a, 792a10a1b, 792a10a1c, 792a10a1d, 792a10j1a, 792a10j1b, 792a11n1a, 792a11n1b, 792a11n1c, 792a11n1d, 792a11n1e, 792a21za1a, 792a21za1b.
+Supports: 792a6v1a, 792a6v1b, 792a6v1c, 792a10a1a, 792a10a1b, 792a10a1c, 792a10a1d, 792a10j1a, 792a10j1b, 792a11n1a, 792a11n1b, 792a11n1c, 792a11n1d, 792a11n1e, 792a21za1a, 792a21za1b, 792a22o1g.
 
 ##### 792b28c13a Scenarios
 
@@ -15084,6 +15255,11 @@ Scenario: 792b28c13a9 The outbox notice is written
   Given a report that carries an outbox notice
   When it is written
   Then the output contains the notice text
+
+Scenario: 792b28c13a10 The pending-offer notice is written
+  Given a report flagged for pending offers, then one that is not
+  When each is written
+  Then the first names the pending_offers flag and carries the shared curate instruction and its engram query command, without naming a skill, and the second prints no pending-offer line
 ```
 
 #### 792b28c14 Summaries of the opt-in flags
@@ -15288,6 +15464,7 @@ Scenario: 792b28c16a6 The report line appears only on failure
 | 792a12t1e | 792b28c16 |
 | 792a21za1a | 792b28c13 |
 | 792a21za1b | 792b28c13 |
+| 792a22o1g | 792b28c13 |
 
 ```gherkin
 Scenario: 792a11a1a A local clone is installed in place
@@ -15478,6 +15655,13 @@ Scenario: 792a21za1b Update reports an entry that needs attention
   Given the outbox holds one queued entry and one attention entry for note L
   When the user runs engram update
   Then its notice counts one queued offer and one that needs attention, and names L with the reason
+```
+
+```gherkin
+Scenario: 792a22o1g Update surfaces a notice
+  Given a vault that holds pending offers
+  When the user runs engram update
+  Then its report includes a notify-only notice naming the pending offers and the engram query --text="curate pending offers" command
 ```
 
 ## 792b29 Added: harness-deploy-sync
@@ -19584,6 +19768,7 @@ Scenario: 792b32c4a2 An existing note is edited by amend or resituate
 | 792a13h1a | 792b32c2, 792b32c3 |
 | 792a14f1c | 792b32c2, 792b32c3 |
 | 792a19j1d | 792b32c2, 792b32c3 |
+| 792a22j1b | 792b32c3 |
 
 ```gherkin
 Scenario: 792a13a1a A complete handoff is executed
@@ -19605,6 +19790,13 @@ Scenario: 792a19j1d A message that begins with a dash survives
   Given the user's message begins with "-", such as "- fix the login bug"
   When the agent runs its first query
   Then --text is written --text="- fix the login bug" and the command runs instead of exiting with a flag needing an argument
+```
+
+```gherkin
+Scenario: 792a22j1b A free-text value is attached to its flag
+  Given curation composing an amend with a free-text value that begins with a dash
+  When it runs the command
+  Then the value is attached as --flag="value" and the command succeeds
 ```
 
 ## 792b33 Added: exchange-versioning
@@ -20227,7 +20419,7 @@ Canonical target: `docs/specs/technical/pending-offer-bookkeeping.md` (title `Pe
   independent verification, each runs over in-memory notes and a fake vault; stability, the contract survives a new
   note type or a new surfacing point; necessity, without it a pending offer would be served as a live note and an
   offer changed after it was judged could be accepted unseen.
-- Supported capabilities: 792a20 vault-serving, 792a21 parent-sync. Curate extends it later.
+- Supported capabilities: 792a20 vault-serving, 792a21 parent-sync, 792a22 curate.
 
 Rationale: an offered note, whether sent by a child or pulled down from a parent, must be judged before it counts as
 knowledge, so everything that reads the vault must tell it apart from a live note, and what settles it must not act on
@@ -20249,7 +20441,7 @@ feedback or runbook note, with or without `skill_hash`, whose frontmatter carrie
 CRLF line endings as its LF form. It MUST NOT report a note of any other type (a vocabulary definition, for example),
 a note without that marker, or content that has no frontmatter.
 
-Supports: 792a20d1b.
+Supports: 792a20d1b, 792a22a1b, 792a21zb1c.
 
 Rationale: a pending skill runbook note is treated exactly as a pending fact is, so a newly registered skill is not
 served before curation authors its fields (792a12). A CRLF offer is still pending, so query excludes it and the server
@@ -20286,7 +20478,7 @@ offers and whether at least one pending offer was found, reading each note's fil
 note's basename and `.md` once. It MUST keep a note whose file cannot be read or parsed, and MUST drop a pending skill
 runbook note exactly as it drops a pending fact.
 
-Supports: 792a20d1b.
+Supports: 792a20d1b, 792a22a1a, 792a22a1b.
 
 Rationale: a read failure must not silently drop a note that query would otherwise return, so the filter fails open.
 The one pass gives the query payload its `pending_offers` flag without a second scan.
@@ -20319,7 +20511,7 @@ without an error, for a vault directory it cannot read or a note it cannot parse
 and the vault holds a pending offer, log one warning that carries the curate instruction (792b34c4), and MUST log
 nothing when the vault holds none or when any dependency of the check is missing.
 
-Supports: none. The surfacing points belong to curate (792c7u1), which maps them (792d119).
+Supports: 792a22o1a, 792a22o1h.
 
 Rationale: pending offers are lower-volume and costlier to leave stale than the refit trigger's backlog, so detection is
 stateless and unbatched. A detection failure must never fail `engram update`'s primary job, so an unreadable vault is
@@ -20369,7 +20561,7 @@ in the attached flag form, and names no skill. The update notice, the write-path
 `pending_offers_hint` MUST each embed this one instruction, and the hint MUST be derived from the pending flag, so it is
 the instruction when offers are pending and empty otherwise.
 
-Supports: none. See 792b34c3.
+Supports: 792a22o1b, 792a22o1d, 792a22o1e.
 
 Rationale: an agent that met the cue in the middle of unrelated work declined it every time as "you didn't ask for that",
 so the instruction says that curation is expected. The hint is derived from the flag and never transported, so a merged
@@ -20399,7 +20591,7 @@ is equal to the expected one, and MUST otherwise fail, changing nothing and reco
 when the comparison is unknown, and when the note's current hash cannot be computed. A note whose frontmatter does not
 parse has no readable `offer.origin` and MUST need no hash for a bare discard.
 
-Supports: none. See 792b34c3.
+Supports: 792a22l1a, 792a22l1b, 792a22l1c, 792a22l1d.
 
 Rationale: an offer can be updated in place after a curator judged it, so acting on the old judgment would accept or
 discard content nobody reviewed. A hash of another version is not the version that was judged, so unknown fails as
@@ -20439,7 +20631,7 @@ E (except to refresh the sidecar of an E whose CRLF line endings the write conve
 `xid`, queue an offer or record a decline, and MUST keep E's own `xid` and author. It MUST fail, changing nothing, for
 `--into` without `--discard`, for an `--into` that names no note, and for an `--into` that names O itself.
 
-Supports: none. See 792b34c3.
+Supports: 792a22f1a, 792a22f1b, 792a22g1a, 792a22g1b, 792a22m1a, 792a22m1b, 792a22m1c, 792a22m1d, 792a22m1e.
 
 Rationale: the fold is for an offer that curation judged covered or near, where E already holds the content, so only
 its names and links grow; recording O's names keeps a later reference to O resolving, and the links keep the parent note
@@ -20468,6 +20660,11 @@ Scenario: 792b34c6a4 A bad target is refused
   Given --into without --discard, an --into naming no note, and an --into naming the offer itself
   When each amend runs
   Then each fails and no file changes and no decline is recorded
+
+Scenario: 792b34c6a5 A CRLF existing note is converted by the fold
+  Given an existing note E whose lines end in CRLF and a fold that changes E's aliases or parent links
+  When the offer is folded into E
+  Then E is written with no CRLF, its sidecar is rebuilt, and the offer and its sidecar are gone
 ```
 
 #### 792b34c7 Merging parent links
@@ -20479,7 +20676,7 @@ vault, with O's primary (`offered` or `pulled`) link staying primary only when E
 dropped, E's `parent.vault` MUST become O's, and only O's links MUST carry forward. When E has no primary link and holds
 a `covered` link to the note that is O's primary, that link MUST be promoted to O's primary role with O's hash.
 
-Supports: none. See 792b34c3.
+Supports: 792a22f1b, 792a22m1a.
 
 Rationale: links count only under the current parent's vault, as a receipt's own replacement rule has it (792b33c9). Taking
 O's hash records the version curation judged, so the pull-down skip and the dedupe see the pair as already related.
@@ -20510,7 +20707,7 @@ output line, before the note, for a note that carries `xid`, reading a note with
 the header and printing the note itself verbatim, and MUST print a note without `xid` exactly as before. The hash printed
 for a CRLF note MUST be the one that `--expect-hash` accepts.
 
-Supports: 792a20k1a.
+Supports: 792a20k1a, 792a22l1c.
 
 Rationale: the header is how a curator learns the version to name in `--expect-hash` (792b34c5), and a note that never
 took part in exchange has no version to name, so its output does not change.
@@ -20544,6 +20741,25 @@ Scenario: 792b34c8a3 A CRLF note shows its LF hash
 | 792a21zb1c | 792b34c1 |
 | 792a21zk1b | 792b34c6 |
 | 792a21zk1c | 792b34c6, 792b34c7 |
+| 792a22a1a | 792b34c2 |
+| 792a22a1b | 792b34c1, 792b34c2 |
+| 792a22f1a | 792b34c6, 792b34c7 |
+| 792a22f1b | 792b34c6, 792b34c7 |
+| 792a22g1a | 792b34c6 |
+| 792a22g1b | 792b34c6 |
+| 792a22l1a | 792b34c5 |
+| 792a22l1b | 792b34c5 |
+| 792a22l1c | 792b34c5, 792b34c8 |
+| 792a22l1d | 792b34c5 |
+| 792a22m1a | 792b34c6, 792b34c7 |
+| 792a22m1b | 792b34c6 |
+| 792a22m1c | 792b34c6 |
+| 792a22m1d | 792b34c6 |
+| 792a22m1e | 792b34c6 |
+| 792a22o1a | 792b34c3 |
+| 792a22o1b | 792b34c4 |
+| 792a22o1d | 792b34c4 |
+| 792a22o1h | 792b34c3 |
 
 ```gherkin
 Scenario: 792a20d1b The offered note is pending, not live
@@ -20572,6 +20788,103 @@ Scenario: 792a21zk1c A fold keeps E's primary link
   Given E has a primary link to P1 and O has a primary link via pulled to P2
   When O is folded into E
   Then E keeps P1 as its primary link and gains {note: P2, via: covered}
+```
+
+```gherkin
+Scenario: 792a22a1a A pending offer does not surface in recall
+  Given a vault that holds a pending offer
+  When the user runs engram query
+  Then the offer is absent from the returned results
+
+Scenario: 792a22a1b A pending skill runbook note does not surface either
+  Given a vault that holds a pending skill runbook note
+  When the user runs engram query
+  Then the note is absent from the returned results
+
+Scenario: 792a22f1a A covered offer is discarded
+  Given curation judges a pending offer as covered by an existing note
+  When it settles the offer
+  Then the existing note is reinforced, the offer is discarded with --into naming the existing note, which gains the offer's basename and aliases, and no new or modified note content results
+
+Scenario: 792a22f1b A pulled-down offer covered by a local note
+  Given curation judges a pulled-down offer as covered by local note L
+  When it settles the offer
+  Then the offer is discarded with --into L, L gains a link to the parent note, and later merged queries dedupe it and it is not pulled again unchanged
+
+Scenario: 792a22g1a A near offer is folded into an existing note
+  Given curation judges a pending offer as near an existing note
+  When it settles the offer
+  Then the offer is discarded with --into naming the existing note, the existing note is amended to incorporate the offer's additional claim, and no second live note remains
+
+Scenario: 792a22g1b The fold comes before the amend
+  Given a pulled offer O judged near a live local note E that has no primary link
+  When curation folds O into E and then amends E, and when it instead amends E first
+  Then in the first order E carries O's pulled link when the amend is offered, so the amend goes up as an amend-offer, and in the second E is still unlinked, so the amend goes up as a new note
+
+Scenario: 792a22l1a A step on a served offer without the hash is refused
+  Given a pending offer that carries offer.origin
+  When engram amend --target N --clear-pending runs without --expect-hash
+  Then it fails telling the curator to pass the exchange hash that was judged, and N is unchanged
+
+Scenario: 792a22l1b An offer updated after judgment is not accepted
+  Given a curator judged pending offer N at hash H1 and the child then updated N in place to H2
+  When engram amend --target N --clear-pending --expect-hash H1 runs
+  Then it fails and N stays pending with the H2 content
+
+Scenario: 792a22l1c A changed offer is judged again
+  Given a failed --expect-hash because the offer changed
+  When the curator proceeds
+  Then it re-reads the whole offer, judges it again, redoes the actions of the row it lands on and passes the new hash
+
+Scenario: 792a22l1d A note with no exchange header needs no hash
+  Given a pending skill runbook note, which has no xid
+  When engram amend --target <note> --clear-pending runs without --expect-hash
+  Then it succeeds
+
+Scenario: 792a22m1a A fold unions aliases and links
+  Given offer O with an alias and parent links, and an existing note E
+  When engram amend --target O --discard --into E runs
+  Then O and its sidecar are gone, and E's aliases include O's basename and O's alias and E holds O's links, keeping its own primary link when it had one
+
+Scenario: 792a22m1b A bad --into is refused
+  Given --into without --discard, an --into that names no note, and an --into that names the offer itself
+  When each amend runs
+  Then each fails and nothing changes
+
+Scenario: 792a22m1c A fold does not re-stamp identity
+  Given an offer folded into E
+  When the fold completes
+  Then E's repo, user and vault, xid and content are unchanged and no offer is queued
+
+Scenario: 792a22m1d A fold converts a CRLF existing note
+  Given an existing note E whose lines end in \r\n and a fold that changes E's aliases or parent links
+  When engram amend --target O --discard --into E runs
+  Then the fold succeeds, E is written with no \r\n, and O and its sidecar are gone
+
+Scenario: 792a22m1e A fold that changes nothing leaves E alone
+  Given an offer whose names and links E already holds
+  When the offer is folded into E
+  Then E is not written and O is deleted
+
+Scenario: 792a22o1a The query payload reflects current state
+  Given a vault with and without a pending offer
+  When engram query runs on each
+  Then the payload's pending-offer flag matches whether a pending offer exists
+
+Scenario: 792a22o1b The payload carries the hint when offers are pending
+  Given a vault that holds pending offers
+  When engram query runs
+  Then the payload has pending_offers true and a pending_offers_hint whose text is the same instruction the update notice and the write-path nudge carry
+
+Scenario: 792a22o1d The instruction says curation is expected upkeep
+  Given the curate instruction on any of the three surfaces
+  When it is read
+  Then it says reviewing pending offers is expected vault upkeep and not an extra, says to curate them after finishing the user's request without asking, and gives the engram query --text="curate pending offers" command
+
+Scenario: 792a22o1h The write-path nudge fires
+  Given a vault that holds pending offers
+  When engram learn, engram amend or engram resituate completes
+  Then a warning-level log line notes their presence and carries the same query
 ```
 
 ## 792b35 Added: vault-http-server
@@ -21261,6 +21574,9 @@ Scenario: 792b35c17a2 The read limit is one byte over the accepted maximum
 | 792a20n1c | 792b35c17 |
 | 792a20o1a | 792b35c8, 792b35c14 |
 | 792a20o1b | 792b35c11 |
+| 792a22c1a | 792b35c7 |
+| 792a22o1f | 792b35c4 |
+| 792a22n1a | 792b35c14 |
 
 ```gherkin
 Scenario: 792a20a1a A served command is reachable
@@ -21492,6 +21808,25 @@ Scenario: 792a20o1b A rewrite is re-tagged
   Given a pending offer rewritten in place by a same-origin served learn with changed content
   When the rewrite is written
   Then its vocab/ tags are the ones the vault's vocabulary assigns to the new content
+```
+
+```gherkin
+Scenario: 792a22c1a A served activate commits immediately
+  Given an activate request handled over the served API
+  When it completes
+  Then the named note's sidecar LastUsed is updated, no pending-offer marker is created and no curation step is involved
+
+Scenario: 792a22o1f A served query carries the hint
+  Given a served query while pending offers exist on the host
+  When it is answered
+  Then the response body is the same YAML a local query would print, with pending_offers true and the hint
+```
+
+```gherkin
+Scenario: 792a22n1a The server responds before curation happens
+  Given a served learn that creates a pending offer
+  When the server responds
+  Then the response is returned before curation has run, and no subsequent message reports the offer's disposition
 ```
 
 ## 792b36 Added: offer-outbox

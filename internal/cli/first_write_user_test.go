@@ -1,7 +1,7 @@
 package cli_test
 
-// First writes omit an undetectable user (#789 follow-up, design D6; spec
-// vault-note-identity "User field auto-detected at note creation"): when
+// First writes omit an undetectable user (#789 follow-up, design D6; 792a3p,
+// "User provenance"): when
 // user detection comes back empty, learn and pull-down write the note with
 // no user: key and print one warning — never user: "".
 

@@ -274,14 +274,14 @@ func Test792a21zf1f_Activate_ServedParentPendingAndRecheck(t *testing.T) {
 	}))
 }
 
-// TestCurateNearOrder_PulledOffer (final review F10) traces the curate
+// Test792a22g1b_CurateNearOrder_PulledOffer (final review F10) traces the curate
 // skill's near row for a pulled offer O folded into a live local note E
 // that has no primary link. Amending E first drains at once with E still
 // unlinked, so the bounce goes up as a learn-offer and E's primary becomes
 // the parent's new pending note; folding first gives E O's pulled link as
 // its primary, so the amend goes up as an amend-offer for the pulled
 // note's parent counterpart (design D12 B1).
-func TestCurateNearOrder_PulledOffer(t *testing.T) {
+func Test792a22g1b_CurateNearOrder_PulledOffer(t *testing.T) {
 	t.Parallel()
 
 	for name, testCase := range map[string]struct {

@@ -2212,3 +2212,41 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792d3, 792d10, 792d30, 792d33, 792d52, 792d121 and 792d122.
 - **Alternatives:** two components, a merged-query client and a pull-down client. Rejected because both are one boundary
   with one gated contact and one vault-ID cache, and the catalog lists them as one.
+
+## 792d124 curate scope, the scenarios only the skill text verifies, and where the sources differ from the skill and the code
+
+- **Choice:**
+  - 792a22 states fifteen requirements (792a22a to 792a22o) and 45 scenarios. The legacy `vault-offer-curation` spec gives
+    the judgment, the outcome, the surfacing and the exclusion their wording; the skill text gives the order of the near
+    outcome, the rejected outcome, the pending skill note and the re-judging after a failed hash; the code gives the rule
+    that a local learn or amend never sets the marker (792a22b) and the order of the three outcomes. The judgment itself
+    is the agent's, so 792a22d, 792a22e, 792a22i, 792a22j and 792a22k are procedure scenarios with no test, as the skill groups
+    before it (792d114, 792d115).
+  - `vault-offer-curation`, `vault-note-identity` and ADR-0029 are deleted. The two clauses of `vault-note-identity` that waited
+    for curate are 792a22h1b and 792a22m1d; ADR-0029's remaining decisions were D3's `--expect-hash` consumer (792a22l), D10
+    (792a22h, 792a22m) and the consequence and risks about curating (792a22o). D11, which records how the original change was
+    verified, was dropped in 792d121. Nothing else cites ADR-0029 except the rationale of 792a and 792b, which name it as a
+    source and are left as the earlier nodes left their deleted ADRs.
+  - 792c7u1d adds components to the catalog's list: 792b12 (a local learn never sets the marker, 792b12c8), 792b14 (settling a
+    pending offer, 792b14c14, and a CRLF decline, 792b14c13a5), 792b23 (the lead of a payload with pending offers, 792b23c10),
+    792b28 (the pending-offer notice, 792b28c13a10), 792b22 and 792b35 (mapping rows) and 792b32 (one mapping row). The
+    amend flags `--clear-pending` and `--discard` had no requirement in note-amendment, which 792b14c14 now holds.
+  - The `Supports:` lines of 792b34c1 to 792b34c8 now name the curate scenarios they realize; 792c7s3 had left them `none`
+    for this node (792d119).
+  - `SKILL.md` is not edited: it cites no removed document.
+  - Renames: 15 tests. `TestRunAmend_ClearPendingKeepsOfferAuthor` takes the technical ID 792b14c14a8 and lists the product
+    scenario, since it calls `RunAmend` and not a command. The tests that 792c7s3 renamed for the marker, the exclusion, the
+    scan, the instruction, the judged-version check, the fold and the header verify the mapped curate scenarios and are
+    listed in the traceability prose and not repeated.
+- **Divergences noted (792d33):**
+  - The skill's scan, `grep -l '^pending: true$' <vault>/*.md`, does not match a note with CRLF line endings, which the
+    binary treats as pending (792b34c1a4, 792a21zb1c). A CRLF offer is therefore excluded from query and flagged, and the skill's
+    own scan misses it.
+  - The legacy spec says a bookkeeping step passes `--expect-hash` "on a served offer"; the binary requires it for any note
+    that carries `offer.origin`, pending or live (792b34c5), and 792a22l states that.
+  - The skill does not say what to do when the content amend of a near outcome fails after the fold has deleted the offer;
+    the offer is gone and the claim is not folded in (#784, a known gap and not in the spec).
+- **Rationale:** 792d3, 792d5, 792d30, 792d33, 792d52, 792d114, 792d119 and 792d121.
+- **Alternatives:** one requirement per outcome of the legacy spec's single large judgment requirement, with the scenarios
+  attached to it. Rejected because the guide asks for separate requirements for materially different behaviors, and the five
+  outcomes differ in their actions.

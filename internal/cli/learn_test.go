@@ -1077,7 +1077,7 @@ func Test792b12c6a2_ApplyVocabAssignmentAfterLearn_TriggerFires(t *testing.T) {
 // Test792b12c7a1_RunLearn_Runbook_NeverWritesSkillHash proves the local capture path
 // (LearnArgs built the way `engram learn runbook` builds it, with SkillHash
 // left at its zero value) never emits skill_hash — only future registration
-// code constructing LearnArgs directly can set it (vault-note-identity spec,
+// code constructing LearnArgs directly can set it (792a12u,
 // "Non-skill notes have no such field").
 func Test792b12c7a1_RunLearn_Runbook_NeverWritesSkillHash(t *testing.T) {
 	t.Parallel()
@@ -1108,7 +1108,7 @@ func Test792b12c7a1_RunLearn_Runbook_NeverWritesSkillHash(t *testing.T) {
 
 // Test792b12c7a2_RunLearn_Runbook_NeverWritesSkillKeyOrSource proves an ordinary
 // capture (LearnArgs built the way `engram learn runbook` builds them) carries
-// neither skill_key nor skill_source (vault-note-identity spec, "Ordinary
+// neither skill_key nor skill_source (792a12u, "Ordinary
 // capture carries neither").
 func Test792b12c7a2_RunLearn_Runbook_NeverWritesSkillKeyOrSource(t *testing.T) {
 	t.Parallel()
@@ -1662,7 +1662,7 @@ func Test792b6c7a1_FactAmend_VocabVersionRoundTrip(t *testing.T) {
 // Test792b6c9a1_RenderRunbookFrontmatter_IncludesSkillHashWhenSet guards the populated
 // case: skill_hash renders as a plain scalar when a caller sets it on
 // runbookFields — only future registration code ever does this, never
-// `engram learn`'s CLI surface (vault-note-identity spec, "Skill notes SHALL
+// `engram learn`'s CLI surface (792a12u, "Skill notes SHALL
 // carry a skill_hash field").
 func Test792b6c9a1_RenderRunbookFrontmatter_IncludesSkillHashWhenSet(t *testing.T) {
 	t.Parallel()
@@ -1682,7 +1682,7 @@ func Test792b6c9a1_RenderRunbookFrontmatter_IncludesSkillHashWhenSet(t *testing.
 // Test792b6c9a2_RenderRunbookFrontmatter_IncludesSkillKeyAndSourceWhenSet guards the
 // populated case: skill_key and skill_source render right after skill_hash
 // when a caller (registration only) sets them on runbookFields
-// (vault-note-identity spec, "Skill-note identity fields SHALL survive every
+// (792a12u, "Skill-note identity fields SHALL survive every
 // frontmatter rewrite").
 func Test792b6c9a2_RenderRunbookFrontmatter_IncludesSkillKeyAndSourceWhenSet(t *testing.T) {
 	t.Parallel()
@@ -1736,7 +1736,7 @@ func Test792b6c9a4_RenderRunbookFrontmatter_OmitsSkillKeyAndSourceWhenAbsent(t *
 
 // Test792b6c9a5_RenderRunbookFrontmatter_SkillHashRoundtripFidelity is a property test:
 // any non-empty skill_hash survives the render->parse YAML roundtrip
-// identically (vault-note-identity spec scenario "Amend preserves the hash"
+// identically (792a12u scenario "Amend preserves the hash"
 // depends on the same round-trip amend relies on).
 func Test792b6c9a5_RenderRunbookFrontmatter_SkillHashRoundtripFidelity(t *testing.T) {
 	t.Parallel()

@@ -855,6 +855,33 @@ func Test792b28c12a9_WriteUpdateReport_DryRunContractSweep(t *testing.T) {
 	}
 }
 
+// Test792b28c13a10_WriteUpdateReport_PendingOfferHint covers 792a22's
+// engram-update notice: VaultHasPendingOffers=true names the pending_offers
+// query flag; false prints nothing. Unlike backfill-identity, there is no
+// CLI fix command to name — curation is a runbook, not an update flag; the
+// notice carries the trigger query that surfaces it.
+func Test792b28c13a10_WriteUpdateReport_PendingOfferHint(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buffer bytes.Buffer
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{VaultHasPendingOffers: true})
+	g.Expect(writeErr).NotTo(HaveOccurred())
+	g.Expect(buffer.String()).To(ContainSubstring("pending_offers"))
+	g.Expect(buffer.String()).To(ContainSubstring(`engram query --text="curate pending offers"`))
+	g.Expect(buffer.String()).To(ContainSubstring("--phrase"))
+	g.Expect(buffer.String()).NotTo(ContainSubstring("skill"))
+	g.Expect(buffer.String()).To(ContainSubstring(cli.ExportPendingOfferCurateInstruction))
+
+	var clean bytes.Buffer
+
+	cleanErr := cli.ExportWriteUpdateReport(&clean, update.Report{VaultHasPendingOffers: false})
+	g.Expect(cleanErr).NotTo(HaveOccurred())
+	g.Expect(clean.String()).NotTo(ContainSubstring("pending offer"))
+}
+
 func Test792b28c13a1_WriteUpdateReport_VocabMigrationHint(t *testing.T) {
 	t.Parallel()
 
@@ -1652,33 +1679,6 @@ func Test792b29c18a1_WriteUpdateReport_GuidanceActivationHint(t *testing.T) {
 			}
 		})
 	}
-}
-
-// TestWriteUpdateReport_PendingOfferHint covers vault-offer-curation's
-// engram-update notice: VaultHasPendingOffers=true names the pending_offers
-// query flag; false prints nothing. Unlike backfill-identity, there is no
-// CLI fix command to name — curation is a runbook, not an update flag; the
-// notice carries the trigger query that surfaces it.
-func TestWriteUpdateReport_PendingOfferHint(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	var buffer bytes.Buffer
-
-	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{VaultHasPendingOffers: true})
-	g.Expect(writeErr).NotTo(HaveOccurred())
-	g.Expect(buffer.String()).To(ContainSubstring("pending_offers"))
-	g.Expect(buffer.String()).To(ContainSubstring(`engram query --text="curate pending offers"`))
-	g.Expect(buffer.String()).To(ContainSubstring("--phrase"))
-	g.Expect(buffer.String()).NotTo(ContainSubstring("skill"))
-	g.Expect(buffer.String()).To(ContainSubstring(cli.ExportPendingOfferCurateInstruction))
-
-	var clean bytes.Buffer
-
-	cleanErr := cli.ExportWriteUpdateReport(&clean, update.Report{VaultHasPendingOffers: false})
-	g.Expect(cleanErr).NotTo(HaveOccurred())
-	g.Expect(clean.String()).NotTo(ContainSubstring("pending offer"))
 }
 
 // fixedHomeUpdateEnv is a fake update.Env with a fixed home dir and

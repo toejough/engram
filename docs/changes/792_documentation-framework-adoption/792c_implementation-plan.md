@@ -254,8 +254,8 @@ flowchart TD
   N792c7t1["792c7t1 parent-sync product spec<br/>Complete"]
   N792c7t2["792c7t2 offer-outbox tech spec<br/>Complete"]
   N792c7t3["792c7t3 parent-vault-client tech spec<br/>Complete"]
-  N792c7u1["792c7u1 curate product spec<br/>Ready"]
-  N792c7v1["792c7v1 memory-effectiveness-evaluation product spec<br/>Blocked by: 792c7u1"]
+  N792c7u1["792c7u1 curate product spec<br/>Complete"]
+  N792c7v1["792c7v1 memory-effectiveness-evaluation product spec<br/>Ready"]
   N792c7v2["792c7v2 eval-trial-harness tech spec<br/>Blocked by: 792c7v1"]
   N792c7v3["792c7v3 memory-loop-auditor tech spec<br/>Blocked by: 792c7v2"]
   N792c8a["792c8a Residual legacy sweep<br/>Blocked by: 792c7v3"]
@@ -5357,13 +5357,58 @@ Target: `792a22` (`docs/specs/product/curate.md`).
 - `note-amendment` (`792b14`)
 - `pending-offer-bookkeeping` (`792b34`)
 
+(Changes made by 792c7u1d, recorded in 792d124: `note-authoring` (`792b12`), `query-payload-renderer` (`792b23`),
+`self-installer` (`792b28`), `runbook-trigger-matching` (`792b22`) and `vault-http-server` (`792b35`) gain mapping rows
+or requirements, and `agent-instruction-bundle` gains one mapping row.)
+
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7u1a | Port product requirements and UAT to `792a22` | Non-test action | Moves current behavior into the framework format | Not started |
-| 792c7u1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7u1c | Repoint stale references to `792a22` | Non-test action | Keeps live links valid | Not started |
-| 792c7u1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Not started |
-| 792c7u1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Not started |
+| 792c7u1a | Port product requirements and UAT to `792a22` | Non-test action | Moves current behavior into the framework format | Done |
+| 792c7u1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7u1c | Repoint stale references to `792a22` | Non-test action | Keeps live links valid | Done |
+| 792c7u1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Done |
+| 792c7u1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
+
+792a22 has fifteen requirements (792a22a to 792a22o) and 45 scenarios: pending offers left out of query, the marker set
+only by an exchange, activate, the judgment by content, an amend-offer against its target, the covered, near, absent and
+rejected outcomes, curation never composing a learn, the pending skill runbook note, the judged version, the fold's
+identity and CRLF reading, the outcome not reported, and the three places pending offers are surfaced (792d124). It adds
+792b12c8, 792b14c14, 792b23c10, a scenario each to 792b14c13, 792b28c13 and 792b34c6, and mapping rows to 792b22, 792b32,
+792b34 and 792b35. Legacy removal: the `vault-offer-curation` and `vault-note-identity` specs are deleted, ADR-0029 is
+deleted, and the comments that cited the two specs cite 792a22, 792a12u, 792a4h, 792a3p and 792a10.
+
+**Test Traceability**
+
+The tests that the legacy `vault-offer-curation` spec named as its validation and that 792c7s3 renamed (the marker, the
+exclusion, the surfacing points, the judged-version check, the fold and the header) verify the mapped scenarios here;
+the rows below are the tests this node renames.
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792a22a1b | `TestRunQuery_ExcludesPendingSkillRunbookNote` → `Test792a22a1b_RunQuery_ExcludesPendingSkillRunbookNote` | Pure unit (`RunQuery` over an in-memory vault) | A pending skill runbook note is excluded and the payload flags pending offers | Done |
+| 792a22b1a | `TestLocalLearn_NeverSetsPendingMarker` → `Test792a22b1a_LocalLearn_NeverSetsPendingMarker` (split deferred: 792b12c8a1) | Dispatch through `Targets` with a temp-dir vault | A local learn writes no pending marker | Done |
+| 792a22b1b | `TestLocalAmend_NeverSetsPendingMarker` → `Test792a22b1b_LocalAmend_NeverSetsPendingMarker` (split deferred: 792b14c14a3) | Dispatch through `Targets` with a temp-dir vault | A local amend never sets the marker | Done |
+| 792a22g1b | `TestCurateNearOrder_PulledOffer` → `Test792a22g1b_CurateNearOrder_PulledOffer` | Dispatch through `Targets` with a scripted parent | Folding a pulled offer before the content amend sends an amend-offer | Done |
+| 792a22h1a | `TestLocalAmend_ClearPendingClearsTheMarker` → `Test792a22h1a_LocalAmend_ClearPendingClearsTheMarker` (split deferred: 792b14c14a1) | Dispatch through `Targets` with a temp-dir vault | Clearing the marker makes the offer a live note | Done |
+| 792b14c14a8 | `TestRunAmend_ClearPendingKeepsOfferAuthor` → `Test792b14c14a8_RunAmend_ClearPendingKeepsOfferAuthor` (split deferred: 792a22h1b) | Unit over `RunAmend` with a scripted identity | An accepted offer keeps its author | Done |
+| 792a22k1d | `TestLocalAmend_ClearPendingOnSkillRunbookNote_MakesItLive` → `Test792a22k1d_LocalAmend_ClearPendingOnSkillRunbookNote_MakesItLive` (split deferred: 792b14c14a2) | Dispatch through `Targets` with a temp-dir vault | A skill note keeps its skill_hash and becomes live | Done |
+| 792b34c6a5 | `TestRunAmend_DiscardIntoConvertsCRLFExisting` → `Test792b34c6a5_RunAmend_DiscardIntoConvertsCRLFExisting` (split deferred: 792a22m1d) | Unit over `RunAmend` with an in-memory vault | A fold converts a CRLF existing note and rebuilds its sidecar | Done |
+| 792b14c13a5 | `TestRunAmend_DiscardRecordsDeclineOfCRLFPulledNote` → `Test792b14c13a5_RunAmend_DiscardRecordsDeclineOfCRLFPulledNote` | Unit over `RunAmend` with an in-memory vault | A CRLF pulled note's decline is recorded | Done |
+| 792b14c14a4 | `TestLocalAmend_DiscardDeletesNoteAndSidecar` → `Test792b14c14a4_LocalAmend_DiscardDeletesNoteAndSidecar` | Dispatch through `Targets` with a temp-dir vault | A discard deletes the note and its sidecar | Done |
+| 792b14c14a5 | `TestDiscardNote_PropagatesNoteRemoveError` → `Test792b14c14a5_DiscardNote_PropagatesNoteRemoveError` | Unit over a failing remove | A note removal error is returned and nothing is printed | Done |
+| 792b14c14a6 | `TestDiscardNote_PropagatesSidecarRemoveError` → `Test792b14c14a6_DiscardNote_PropagatesSidecarRemoveError` | Unit over a failing remove | A sidecar removal error is returned | Done |
+| 792b14c14a7 | `TestDiscardNote_TreatsMissingSidecarAsSuccess` → `Test792b14c14a7_DiscardNote_TreatsMissingSidecarAsSuccess` | Unit over a failing remove | A missing sidecar is not an error | Done |
+| 792b23c10a1 | `TestQueryPayload_PendingOffersLeadPayload` → `Test792b23c10a1_QueryPayload_PendingOffersLeadPayload` (split deferred: 792a22o1c) | Renderer over a large summary | The flag and hint lead a large payload | Done |
+| 792b28c13a10 | `TestWriteUpdateReport_PendingOfferHint` → `Test792b28c13a10_WriteUpdateReport_PendingOfferHint` (split deferred: 792a22o1g) | Unit over a report | The update report names the flag and carries the instruction | Done |
+
+**Coverage gaps:** the scenarios of 792a22d, 792a22e, 792a22i, 792a22j and 792a22k are behaviors of the curate skill text and of
+the agent that follows it, and no test or baseline covers them: 792a22d1a to 792a22d1e (the judgment), 792a22e1a, 792a22i1b,
+792a22j1a, 792a22k1a to 792a22k1c, and 792a22j1b (the attached form, which 792b32c3a1 and 792b32c3a2 share and no test
+reads). The skill was validated by the headless arms of the `curate-skill-to-runbook` change, whose records are
+historical (`dev/eval/cumulative`). 792a22n1a is mapped to the served learn (792b35c14), whose tests verify the receipt.
+
+**No-scenario tests:** none among `serve_client_test`, `amend_test`, `amend_identity_test`, `amend_crlf_test`, `query_test`
+and `update_test`. `TestShowChunkTarget_LocalDispatch` stays unrenamed (show-chunk's local branch; no scenario states it).
 
 ### 792c7v memory-effectiveness-evaluation
 

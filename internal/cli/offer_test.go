@@ -29,7 +29,7 @@ func Test792b34c1a1_NoteHasPendingMarker(t *testing.T) {
 }
 
 // Test792b34c1a2_NoteHasPendingMarker_EveryNoteType covers the pending-offer marker on
-// every note type (vault-offer-curation "The pending-offer marker SHALL
+// every note type (792a22 "The pending-offer marker SHALL
 // apply to every note type", design D7 G1): a runbook with `pending: true`
 // is a pending offer with or without `skill_hash`, and a `skill_hash`
 // runbook that isn't pending is not one.

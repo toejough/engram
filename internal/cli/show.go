@@ -79,7 +79,7 @@ var (
 
 // exchangeHashHeader is the `# exchange_hash: <hash>` line engram show
 // prints first for a note carrying xid (design D10 r4 M-B; spec
-// vault-offer-curation), so curation can pass the judged version as
+// 792a22), so curation can pass the judged version as
 // --expect-hash. A note without xid gets no header, so its output is
 // byte-identical to before exchange existed.
 func exchangeHashHeader(raw []byte) string {

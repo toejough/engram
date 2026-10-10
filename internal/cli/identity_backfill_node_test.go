@@ -1,7 +1,7 @@
 package cli_test
 
-// Identity backfill as a YAML-node edit (#789 defect 2, design D2; spec
-// vault-note-identity "Backfill for pre-existing notes missing identity
+// Identity backfill as a YAML-node edit (#789 defect 2, design D2; 792a10 identity
+// backfill, "Backfill for pre-existing notes missing identity
 // fields"): every key backfill does not set survives with its value, an
 // anchored key it would set refuses that note untouched, and the run
 // stamps every other note first.

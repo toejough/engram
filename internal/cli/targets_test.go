@@ -180,7 +180,7 @@ func Test792b2c5a1_Targets_Amend_NoSkillHashFlag(t *testing.T) {
 
 // Test792b2c5a1_Targets_LearnRunbook_NoSkillHashFlag proves `engram learn runbook` has
 // no --skill-hash flag: skill_hash is set only by future registration code
-// constructing LearnArgs directly, never by a CLI surface (vault-note-identity
+// constructing LearnArgs directly, never by a CLI surface (792a12u
 // spec; design.md D2/D3). An unrecognized flag makes targ's parser reject the
 // invocation before any target runs, surfacing as the generic "exit code 1"
 // (see executeForTest) rather than any of RunLearn's own descriptive errors —

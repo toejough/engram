@@ -196,6 +196,124 @@ func Test792a21l1f_ShowParent_WithoutEngramParentErrors(t *testing.T) {
 	g.Expect(fetchCalled).To(BeFalse())
 }
 
+// Test792a22b1a_LocalLearn_NeverSetsPendingMarker and Test792a22b1b_LocalAmend_NeverSetsPendingMarker
+// cover tasks.md 10.6's negative case: a local (non-served) learn/amend
+// never carries the pending-offer marker.
+func Test792a22b1a_LocalLearn_NeverSetsPendingMarker(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+
+	stderr := executeForTest(t, []string{
+		"engram", "learn", "fact", "--vault", vault,
+		"--slug", "local-fact", "--source", "test", "--position", "top",
+		"--situation", "a local write", "--subject", "engram", "--predicate", "writes", "--object", "locally",
+	})
+	g.Expect(stderr).To(BeEmpty())
+
+	matches, globErr := filepath.Glob(filepath.Join(vault, "*.md"))
+	g.Expect(globErr).NotTo(HaveOccurred())
+	g.Expect(matches).To(HaveLen(1))
+
+	if len(matches) == 0 {
+		return
+	}
+
+	raw, readErr := os.ReadFile(matches[0])
+	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(string(raw)).NotTo(ContainSubstring("pending:"))
+}
+
+func Test792a22b1b_LocalAmend_NeverSetsPendingMarker(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	writeServeVaultFile(t, vault, "1.2026-01-01.existing.md")
+
+	stderr := executeForTest(t, []string{"engram", "amend", "--vault", vault, "--target", "1", "--object", "amended"})
+	g.Expect(stderr).To(BeEmpty())
+
+	raw, readErr := os.ReadFile(filepath.Join(vault, "1.2026-01-01.existing.md"))
+	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(string(raw)).NotTo(ContainSubstring("pending:"))
+}
+
+// Test792a22h1a_LocalAmend_ClearPendingClearsTheMarker covers the curate runbook's
+// core mechanism: `engram amend --clear-pending` is the only CLI-facing way
+// to clear a pending-offer note's marker (local amend never sets it —
+// Test792a22b1b_LocalAmend_NeverSetsPendingMarker — but must be able to clear one a
+// served write left behind).
+func Test792a22h1a_LocalAmend_ClearPendingClearsTheMarker(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	notePath := filepath.Join(vault, "1.2026-01-01.offer.md")
+	g.Expect(os.WriteFile(notePath, []byte(pendingFactNote), 0o600)).To(Succeed())
+
+	stderr := executeForTest(t, []string{"engram", "amend", "--vault", vault, "--target", "1", "--clear-pending"})
+	g.Expect(stderr).To(BeEmpty())
+
+	raw, readErr := os.ReadFile(notePath)
+	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(string(raw)).NotTo(ContainSubstring("pending: true"))
+}
+
+// Test792a22k1d_LocalAmend_ClearPendingOnSkillRunbookNote_MakesItLive covers the
+// skill-runbook-registration extension of the curate runbook's core
+// mechanism (792a22 ADDED requirement): `engram amend
+// --clear-pending` clears the marker on a runbook note carrying skill_hash
+// (not just fact/feedback), skill_hash survives untouched, and the note
+// then surfaces in `engram query` like any ordinary runbook.
+func Test792a22k1d_LocalAmend_ClearPendingOnSkillRunbookNote_MakesItLive(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	notePath := filepath.Join(vault, "4.2026-01-04.skill-demo.md")
+	g.Expect(os.WriteFile(notePath, []byte(pendingSkillRunbookNote), 0o600)).To(Succeed())
+
+	stderr := executeForTest(t, []string{"engram", "amend", "--vault", vault, "--target", "4", "--clear-pending"})
+	g.Expect(stderr).To(BeEmpty())
+
+	raw, readErr := os.ReadFile(notePath)
+	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(string(raw)).NotTo(ContainSubstring("pending: true"))
+	g.Expect(string(raw)).To(ContainSubstring("skill_hash: abc123"))
+
+	// The cleared note now surfaces like any ordinary runbook: it is no
+	// longer a pending offer.
+	g.Expect(cli.ExportNoteHasPendingMarker(raw)).To(BeFalse())
+}
+
+// Test792b14c14a4_LocalAmend_DiscardDeletesNoteAndSidecar covers the curate runbook's
+// "covered" outcome (792a22): `engram amend --discard` removes
+// both the note and its sidecar rather than amending content.
+func Test792b14c14a4_LocalAmend_DiscardDeletesNoteAndSidecar(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	notePath := writeServeVaultFile(t, vault, "1.2026-01-01.offer.md")
+	sidecarPath := embed.SidecarPath(notePath)
+	g.Expect(os.WriteFile(
+		sidecarPath, embed.MarshalSidecar(embed.Sidecar{SchemaVersion: embed.SidecarSchemaVersion}), 0o600,
+	)).To(Succeed())
+
+	stdout, stderr := executeCapturingBoth(t,
+		[]string{"engram", "amend", "--vault", vault, "--target", "1", "--discard"}, func(*cli.Deps) {})
+	g.Expect(stderr).To(BeEmpty())
+	g.Expect(stdout).To(Equal(notePath + "\n"))
+
+	_, noteErr := os.Stat(notePath)
+	g.Expect(os.IsNotExist(noteErr)).To(BeTrue())
+
+	_, sidecarErr := os.Stat(sidecarPath)
+	g.Expect(os.IsNotExist(sidecarErr)).To(BeTrue())
+}
+
 // Test792b2c10a5_Show_NoParent_RunsLocally covers the negative case: with no
 // ENGRAM_PARENT, deps.Fetch is never invoked and the command runs against
 // local files as usual.
@@ -459,124 +577,6 @@ func Test792b37c3a4_FetchQueryPayload_TransportErrorPropagates(t *testing.T) {
 		context.Background(), deps, "http://parent-host:8420", cli.QueryArgs{})
 
 	g.Expect(err).To(MatchError(ContainSubstring("connection refused")))
-}
-
-// TestLocalAmend_ClearPendingClearsTheMarker covers the curate runbook's
-// core mechanism: `engram amend --clear-pending` is the only CLI-facing way
-// to clear a pending-offer note's marker (local amend never sets it —
-// TestLocalAmend_NeverSetsPendingMarker — but must be able to clear one a
-// served write left behind).
-func TestLocalAmend_ClearPendingClearsTheMarker(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	notePath := filepath.Join(vault, "1.2026-01-01.offer.md")
-	g.Expect(os.WriteFile(notePath, []byte(pendingFactNote), 0o600)).To(Succeed())
-
-	stderr := executeForTest(t, []string{"engram", "amend", "--vault", vault, "--target", "1", "--clear-pending"})
-	g.Expect(stderr).To(BeEmpty())
-
-	raw, readErr := os.ReadFile(notePath)
-	g.Expect(readErr).NotTo(HaveOccurred())
-	g.Expect(string(raw)).NotTo(ContainSubstring("pending: true"))
-}
-
-// TestLocalAmend_ClearPendingOnSkillRunbookNote_MakesItLive covers the
-// skill-runbook-registration extension of the curate runbook's core
-// mechanism (vault-offer-curation ADDED requirement): `engram amend
-// --clear-pending` clears the marker on a runbook note carrying skill_hash
-// (not just fact/feedback), skill_hash survives untouched, and the note
-// then surfaces in `engram query` like any ordinary runbook.
-func TestLocalAmend_ClearPendingOnSkillRunbookNote_MakesItLive(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	notePath := filepath.Join(vault, "4.2026-01-04.skill-demo.md")
-	g.Expect(os.WriteFile(notePath, []byte(pendingSkillRunbookNote), 0o600)).To(Succeed())
-
-	stderr := executeForTest(t, []string{"engram", "amend", "--vault", vault, "--target", "4", "--clear-pending"})
-	g.Expect(stderr).To(BeEmpty())
-
-	raw, readErr := os.ReadFile(notePath)
-	g.Expect(readErr).NotTo(HaveOccurred())
-	g.Expect(string(raw)).NotTo(ContainSubstring("pending: true"))
-	g.Expect(string(raw)).To(ContainSubstring("skill_hash: abc123"))
-
-	// The cleared note now surfaces like any ordinary runbook: it is no
-	// longer a pending offer.
-	g.Expect(cli.ExportNoteHasPendingMarker(raw)).To(BeFalse())
-}
-
-// TestLocalAmend_DiscardDeletesNoteAndSidecar covers the curate runbook's
-// "covered" outcome (vault-offer-curation): `engram amend --discard` removes
-// both the note and its sidecar rather than amending content.
-func TestLocalAmend_DiscardDeletesNoteAndSidecar(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	notePath := writeServeVaultFile(t, vault, "1.2026-01-01.offer.md")
-	sidecarPath := embed.SidecarPath(notePath)
-	g.Expect(os.WriteFile(
-		sidecarPath, embed.MarshalSidecar(embed.Sidecar{SchemaVersion: embed.SidecarSchemaVersion}), 0o600,
-	)).To(Succeed())
-
-	stdout, stderr := executeCapturingBoth(t,
-		[]string{"engram", "amend", "--vault", vault, "--target", "1", "--discard"}, func(*cli.Deps) {})
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(stdout).To(Equal(notePath + "\n"))
-
-	_, noteErr := os.Stat(notePath)
-	g.Expect(os.IsNotExist(noteErr)).To(BeTrue())
-
-	_, sidecarErr := os.Stat(sidecarPath)
-	g.Expect(os.IsNotExist(sidecarErr)).To(BeTrue())
-}
-
-func TestLocalAmend_NeverSetsPendingMarker(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	writeServeVaultFile(t, vault, "1.2026-01-01.existing.md")
-
-	stderr := executeForTest(t, []string{"engram", "amend", "--vault", vault, "--target", "1", "--object", "amended"})
-	g.Expect(stderr).To(BeEmpty())
-
-	raw, readErr := os.ReadFile(filepath.Join(vault, "1.2026-01-01.existing.md"))
-	g.Expect(readErr).NotTo(HaveOccurred())
-	g.Expect(string(raw)).NotTo(ContainSubstring("pending:"))
-}
-
-// TestLocalLearn_NeverSetsPendingMarker and TestLocalAmend_NeverSetsPendingMarker
-// cover tasks.md 10.6's negative case: a local (non-served) learn/amend
-// never carries the pending-offer marker.
-func TestLocalLearn_NeverSetsPendingMarker(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-
-	stderr := executeForTest(t, []string{
-		"engram", "learn", "fact", "--vault", vault,
-		"--slug", "local-fact", "--source", "test", "--position", "top",
-		"--situation", "a local write", "--subject", "engram", "--predicate", "writes", "--object", "locally",
-	})
-	g.Expect(stderr).To(BeEmpty())
-
-	matches, globErr := filepath.Glob(filepath.Join(vault, "*.md"))
-	g.Expect(globErr).NotTo(HaveOccurred())
-	g.Expect(matches).To(HaveLen(1))
-
-	if len(matches) == 0 {
-		return
-	}
-
-	raw, readErr := os.ReadFile(matches[0])
-	g.Expect(readErr).NotTo(HaveOccurred())
-	g.Expect(string(raw)).NotTo(ContainSubstring("pending:"))
 }
 
 // TestShowChunkTarget_LocalDispatch covers show-chunk's local (non-served)

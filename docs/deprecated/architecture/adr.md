@@ -284,7 +284,7 @@ and [792a7za](../../changes/792_documentation-framework-adoption/792a_product-sp
   - *Promotion/demotion (loading-tier migration)* ↔ #728's adapter probe (vault-ward direction); the hot-runbook→always-loaded direction is future work contingent on #737.
 - **Deferred, with rationale (revisit conditions named, not silently dropped):**
   - *Background consolidation (replay over never-queried episodes):* complementary-learning-systems theory calls it mandatory; the engineering evidence (sleep-time compute) is first-party and thin. Engram's consolidation stays pull/moment-triggered. Revisit when third-party replications land or a measured gap (valuable episodes provably never consolidating) appears.
-  - *Memory poisoning / write-provenance trust tiers:* `ingest --auto` persists transcripts unjudged and `serve` accepts external offers; unaddressed by design for today's single-operator vault. Revisit as the vault graph (ADR-topology, note 784) grows beyond one trusted operator. Known unowned gap, deliberately not an issue yet (Joe, 2026-08-30). Forward pointer: ADR-0029's local-first parent sync (2026-09-27) does not close this gap — a served offer and a pulled-down parent note both land as an unjudged pending note, and it is local curation, not any edge trust check, that gates them into the live vault.
+  - *Memory poisoning / write-provenance trust tiers:* `ingest --auto` persists transcripts unjudged and `serve` accepts external offers; unaddressed by design for today's single-operator vault. Revisit as the vault graph (ADR-topology, note 784) grows beyond one trusted operator. Known unowned gap, deliberately not an issue yet (Joe, 2026-08-30). Forward pointer: the local-first parent sync of [792a21](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a21-added-parent-sync) (2026-09-27) does not close this gap — a served offer and a pulled-down parent note both land as an unjudged pending note, and it is local curation, not any edge trust check, that gates them into the live vault.
 
 **Consequences.**
 
@@ -336,49 +336,3 @@ Link: `docs/research/2026-08-30-memory-taxonomy-synthesis.md` (+ 5 sibling brief
 Link: ADR-0027; review thread `5974d361…` (Joe's rubric comment, 2026-08-30); `dev/eval/LEDGER.md` anchors `harder-regime-op-cost-unmeasurable`, `failure-mining-mid-task-gap`, `recall-moments-headless-flip`, `687-surprise-harvest`, `c1-c2-warm-op-negatives`; vault notes 98, 112, 288, 495, 505, 803, 819, 824, 853, 855; #739 #718 #742 #737 #736 #735.
 
 ---
-
-## ADR-0029 — Local-first parent sync: every vault local, exchange by offer, never chunks
-
-**Status:** Accepted (2026-09-27).
-
-Ported to [792a21](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a21-added-parent-sync) (parent-sync) and the components it extends: D1 to
-[792a21a](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a21a-engram_server-is-refused) and [792b2c9](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b2c9-a-removed-environment-variable-is-refused),
-D4 to [792a21zi](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a21zi-an-exchanged-note-carries-a-stable-exchange-id) to
-[792a21zl](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a21zl-exchange-fields-survive-every-other-frontmatter-rewrite), D5 and D12 to
-[792a21n](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a21n-a-local-write-is-offered-to-the-parent), D6 to 792a21p to 792a21za, D8 to 792a21zc to 792a21zh,
-D9 to 792a21c to 792a21m, and the consequences and risks to the rationale of those requirements. What remains here
-is the curation side, for curate (792c7u1).
-
-**Remaining decisions.**
-
-- **D3 (the `--expect-hash` consumer).** The exchange hash itself is
-  [792b33c1](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b33c1-the-exchange-hash) to [792b33c5](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b33c5-comparing-two-hashes), and every other consumer
-  of it is in parent-sync. The judged-version check that `--expect-hash` runs is
-  [792b34c5](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b34c5-the-judged-version-check).
-- **D10 — Curation gains a fold, and stops re-stamping identity on bookkeeping.** The fold, its merge of parent links
-  and the judged-version check are in
-  [792b34c5](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b34c5-the-judged-version-check)
-  to
-  [792b34c7](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b34c7-merging-parent-links).
-  The bookkeeping amends that no longer re-stamp `repo`/`user`/`vault`, and `resituate` preserving every field it does
-  not change, are in
-  [792a4h](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a4h-identity-re-stamp)
-  and
-  [792a4i](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a4i-vault-name-on-every-amend).
-
-**Consequences.**
-
-- Every host that already sets `ENGRAM_PARENT` starts offering its writes on upgrade, so the
-  parent's `pending_offers` queue grows by the fleet's write rate — curating it becomes expected
-  upkeep, surfaced by the hint and by `engram update`'s notice.
-
-**Risks / Trade-offs:**
-
-- [Fleet curation-queue growth] → surfaced by `pending_offers` and `engram update`'s notice; the
-  proposal's Impact section calls this out as expected upkeep, not a defect.
-- [A covered fold loses the offer's own author attribution] → documented (D10); the basename
-  survives in `aliases`, and the losing side is deliberate (the note's content is now
-  `<existing>`'s).
-
-Link: `openspec/changes/local-first-parent-sync/{proposal.md,design.md}`; vault notes 784, 784a;
-`internal/cli/{amend_fold.go}`; #766 #743 #744 #745 #746.

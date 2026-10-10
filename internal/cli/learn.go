@@ -75,7 +75,7 @@ type LearnArgs struct {
 	// any write; absent flag → no field, no error.
 	Triggers []string `json:"triggers"`
 
-	// Pending marks the note a pending offer (vault-offer-curation): set
+	// Pending marks the note a pending offer (792a22): set
 	// only by a served `learn` handler, never by a CLI flag — a note
 	// written with Pending true is excluded from normal query results
 	// until curation clears it. json tag present for musttag; the server
@@ -85,7 +85,7 @@ type LearnArgs struct {
 
 	// SkillHash marks a runbook note as a mirror of a registered skill: the
 	// SHA-256 of the source file bytes its body was last copied from
-	// (vault-note-identity spec, skill-runbook-registration capability).
+	// (792a12u, skill-runbook-registration capability).
 	// SkillKey is the skill's source-qualified key and SkillSource the
 	// `~`-relative resolved path the body was copied from. All three are set
 	// only by registration (RegisterSkill) constructing LearnArgs directly:
@@ -427,13 +427,13 @@ type runbookFrontmatterDoc struct {
 	User      string       `yaml:"user,omitempty"`
 	Vault     string       `yaml:"vault,omitempty"`
 	// SkillHash marks this note as a registered skill's runbook mirror
-	// (vault-note-identity spec). Never set by `engram learn`'s CLI surface;
+	// (792a12u). Never set by `engram learn`'s CLI surface;
 	// `engram amend` never overrides it (no --skill-hash flag exists), so a
 	// value present on read is always re-emitted unchanged.
 	SkillHash string `yaml:"skill_hash,omitempty"`
 	// SkillKey is the note's source-qualified skill key and SkillSource the
 	// `~`-relative resolved path its body was last copied from
-	// (vault-note-identity spec, skill-runbook-registration). Like
+	// (792a12u, skill-runbook-registration). Like
 	// SkillHash, only registration sets them; every other rewrite of this
 	// doc re-emits the parsed values unchanged.
 	SkillKey    string            `yaml:"skill_key,omitempty"`

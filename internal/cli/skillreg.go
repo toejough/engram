@@ -145,7 +145,7 @@ func RecordSkillDeclined(
 }
 
 // SkillContentHash returns the lowercase hex SHA-256 of a skill's SKILL.md
-// bytes — the skill_hash frontmatter value (vault-note-identity spec,
+// bytes — the skill_hash frontmatter value (792a12u,
 // skill-runbook-registration D3).
 func SkillContentHash(content []byte) string {
 	sum := sha256.Sum256(content)

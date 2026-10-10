@@ -128,6 +128,75 @@ func Test792b14c11a2_ApplyVocabAssignmentAfterAmend_TriggerFires(t *testing.T) {
 	g.Expect(got.RefitPending).To(BeTrue())
 }
 
+// Test792b14c14a5_DiscardNote_PropagatesNoteRemoveError asserts discardNote wraps and
+// returns an error when removing the note file itself fails — the sidecar is
+// never attempted in this case.
+func Test792b14c14a5_DiscardNote_PropagatesNoteRemoveError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	removeErr := errors.New("permission denied")
+	deps := cli.AmendDeps{
+		Remove: func(string) error { return removeErr },
+	}
+
+	var buf strings.Builder
+
+	err := cli.ExportDiscardNote(deps, "/vault/1.note.md", &buf)
+	g.Expect(err).To(MatchError(removeErr))
+	g.Expect(buf.String()).To(BeEmpty(), "no path is printed when the discard fails")
+}
+
+// Test792b14c14a6_DiscardNote_PropagatesSidecarRemoveError asserts discardNote returns an
+// error when removing the sidecar fails with something other than
+// fs.ErrNotExist (a missing sidecar is tolerated; a real removal failure is
+// not).
+func Test792b14c14a6_DiscardNote_PropagatesSidecarRemoveError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	sidecarErr := errors.New("disk full")
+	deps := cli.AmendDeps{
+		Remove: func(path string) error {
+			if strings.HasSuffix(path, ".vec.json") {
+				return sidecarErr
+			}
+
+			return nil
+		},
+	}
+
+	var buf strings.Builder
+
+	err := cli.ExportDiscardNote(deps, "/vault/1.note.md", &buf)
+	g.Expect(err).To(MatchError(sidecarErr))
+	g.Expect(buf.String()).To(BeEmpty(), "no path is printed when the discard fails")
+}
+
+// Test792b14c14a7_DiscardNote_TreatsMissingSidecarAsSuccess asserts discardNote succeeds
+// when the note itself is removed but its sidecar is already gone
+// (fs.ErrNotExist) — a missing sidecar is not a discard failure.
+func Test792b14c14a7_DiscardNote_TreatsMissingSidecarAsSuccess(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.AmendDeps{
+		Remove: func(path string) error {
+			if strings.HasSuffix(path, ".vec.json") {
+				return fs.ErrNotExist
+			}
+
+			return nil
+		},
+	}
+
+	var buf strings.Builder
+
+	err := cli.ExportDiscardNote(deps, "/vault/1.note.md", &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(buf.String()).To(Equal("/vault/1.note.md\n"))
+}
+
 // Test792b14c1a1_RunAmend_LocksVaultAroundReadModifyWrite asserts that RunAmend acquires
 // the vault lock BEFORE reading the note and releases it AFTER writing, so
 // concurrent amend/resituate/learn runs cannot produce lost updates.
@@ -1208,7 +1277,7 @@ func Test792b18c13a1_BuildChunkIDSet_ReturnsSourceAnchorKeys(t *testing.T) {
 // Test792b6c10a1_RunAmend_Runbook_PreservesSkillHash_ContentChanged proves amend never
 // drops or alters skill_hash when rewriting a runbook note that carries it,
 // even along the content-changed render path that rebuilds the body
-// (vault-note-identity spec: "amend re-stamps repo/user/vault but SHALL NOT
+// (792a4h and 792b6c10: "amend re-stamps repo/user/vault but SHALL NOT
 // drop or alter skill_hash" — only registration ever changes it).
 func Test792b6c10a1_RunAmend_Runbook_PreservesSkillHash_ContentChanged(t *testing.T) {
 	t.Parallel()
@@ -1341,75 +1410,6 @@ func Test792b6c7a1_RunAmend_Runbook_ToleratesUnknownFrontmatterKey(t *testing.T)
 	err := cli.ExportRunAmend(t.Context(), args, runbookAmendDeps(noteContent, &written, &writes), &buf)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(string(written)).To(ContainSubstring("done_when: new done"))
-}
-
-// TestDiscardNote_PropagatesNoteRemoveError asserts discardNote wraps and
-// returns an error when removing the note file itself fails — the sidecar is
-// never attempted in this case.
-func TestDiscardNote_PropagatesNoteRemoveError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	removeErr := errors.New("permission denied")
-	deps := cli.AmendDeps{
-		Remove: func(string) error { return removeErr },
-	}
-
-	var buf strings.Builder
-
-	err := cli.ExportDiscardNote(deps, "/vault/1.note.md", &buf)
-	g.Expect(err).To(MatchError(removeErr))
-	g.Expect(buf.String()).To(BeEmpty(), "no path is printed when the discard fails")
-}
-
-// TestDiscardNote_PropagatesSidecarRemoveError asserts discardNote returns an
-// error when removing the sidecar fails with something other than
-// fs.ErrNotExist (a missing sidecar is tolerated; a real removal failure is
-// not).
-func TestDiscardNote_PropagatesSidecarRemoveError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	sidecarErr := errors.New("disk full")
-	deps := cli.AmendDeps{
-		Remove: func(path string) error {
-			if strings.HasSuffix(path, ".vec.json") {
-				return sidecarErr
-			}
-
-			return nil
-		},
-	}
-
-	var buf strings.Builder
-
-	err := cli.ExportDiscardNote(deps, "/vault/1.note.md", &buf)
-	g.Expect(err).To(MatchError(sidecarErr))
-	g.Expect(buf.String()).To(BeEmpty(), "no path is printed when the discard fails")
-}
-
-// TestDiscardNote_TreatsMissingSidecarAsSuccess asserts discardNote succeeds
-// when the note itself is removed but its sidecar is already gone
-// (fs.ErrNotExist) — a missing sidecar is not a discard failure.
-func TestDiscardNote_TreatsMissingSidecarAsSuccess(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	deps := cli.AmendDeps{
-		Remove: func(path string) error {
-			if strings.HasSuffix(path, ".vec.json") {
-				return fs.ErrNotExist
-			}
-
-			return nil
-		},
-	}
-
-	var buf strings.Builder
-
-	err := cli.ExportDiscardNote(deps, "/vault/1.note.md", &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(buf.String()).To(Equal("/vault/1.note.md\n"))
 }
 
 // spyEmbedder is an embed.Embedder that records whether Embed was called.

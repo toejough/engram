@@ -47,12 +47,12 @@ type AmendArgs struct {
 	Triggers []string `json:"triggers" targ:"flag,name=trigger,desc=replace triggers (runbook; repeatable; optional)"` //nolint:lll // single unbreakable struct-tag string
 	Activate bool     `json:"activate" targ:"flag,name=activate,desc=bump LastUsed on the sidecar (optional)"`
 	// ClearPending is the CLI-facing surface for clearing the pending-offer
-	// marker (vault-offer-curation) — the curate runbook's only real use of
+	// marker (792a22) — the curate runbook's only real use of
 	// it. Local `engram amend` never needs to SET pending (only served
 	// writes do that), so a one-way clear flag is all the CLI exposes;
 	// targets.go translates ClearPending=true into Pending=&false before
 	// calling RunAmend.
-	ClearPending bool `json:"clearPending" targ:"flag,name=clear-pending,desc=clear the pending-offer marker set by a served write (vault-offer-curation)"` //nolint:lll // single unbreakable struct-tag string
+	ClearPending bool `json:"clearPending" targ:"flag,name=clear-pending,desc=clear the pending-offer marker set by a served write (792a22)"` //nolint:lll // single unbreakable struct-tag string
 	// Pending sets/clears the pending-offer marker directly. nil (the CLI
 	// default — no targ tag, never a flag) leaves the note's existing
 	// marker unchanged; a served amend handler sets &true to keep an offer
@@ -61,15 +61,15 @@ type AmendArgs struct {
 	Pending *bool `json:"pending"`
 	// Discard deletes the target note and its sidecar under the vault lock,
 	// instead of amending content — the curate runbook's "covered" outcome
-	// (vault-offer-curation): the pending offer's content is already covered
+	// (792a22): the pending offer's content is already covered
 	// by an existing note, so the offer is removed rather than folded in.
 	// RunAmend short-circuits to delete-and-return as soon as the target is
 	// resolved; every content-amend flag is ignored when this is set.
-	Discard bool `json:"discard" targ:"flag,name=discard,desc=delete the note and its sidecar instead of amending (vault-offer-curation)"` //nolint:lll // single unbreakable struct-tag string
+	Discard bool `json:"discard" targ:"flag,name=discard,desc=delete the note and its sidecar instead of amending (792a22)"` //nolint:lll // single unbreakable struct-tag string
 	// Into names the existing note a --discard folds the target into
 	// (design D10): the target's basename and aliases join Into's aliases,
 	// and its parent links join Into's. Only valid with --discard.
-	Into string `json:"into" targ:"flag,name=into,desc=with --discard: fold the note's basename and aliases and parent links into this existing note (vault-offer-curation)"` //nolint:lll // single unbreakable struct-tag string
+	Into string `json:"into" targ:"flag,name=into,desc=with --discard: fold the note's basename and aliases and parent links into this existing note (792a22)"` //nolint:lll // single unbreakable struct-tag string
 	// ExpectHash is the exchange hash curation judged (design D10 r3-2).
 	// When given, the amend fails without writing unless the target's
 	// current exchange hash equals it. It is required for --clear-pending
@@ -107,7 +107,7 @@ type AmendDeps struct {
 	Embedder embed.Embedder
 	Now      func() time.Time
 	// Remove deletes a file at path — used only by --discard to remove the
-	// note and its sidecar (vault-offer-curation's "covered" outcome). Never
+	// note and its sidecar (792a22's "covered" outcome). Never
 	// called by the content-amend path.
 	Remove func(path string) error
 	// DetectRepo and DetectUser resolve the repo:/user: identity fields
@@ -533,7 +533,7 @@ func declinePulledNote(deps AmendDeps, vault, full string) error {
 
 // discardNote deletes the note and its sidecar under the vault lock RunAmend
 // already holds — the curate runbook's "covered" outcome
-// (vault-offer-curation): the pending offer's content is already covered by
+// (792a22): the pending offer's content is already covered by
 // an existing note, so the offer is removed rather than folded in. A missing
 // sidecar (a note that predates embed-on-write, or already lacks one) is not
 // an error.

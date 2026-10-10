@@ -20,6 +20,26 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
+// Test792b14c13a5_RunAmend_DiscardRecordsDeclineOfCRLFPulledNote: a bare discard reads
+// a CRLF pulled note as LF, so its decline is still recorded.
+func Test792b14c13a5_RunAmend_DiscardRecordsDeclineOfCRLFPulledNote(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newFoldVault()
+	vault.put(foldOfferName, toCRLF(foldNote(foldExchange{
+		xid: foldXIDO, vault: foldParentVault,
+		links: []foldLink{{"7.2026-09-01.parent", "pulled", "xh1:parent"}},
+	}, true)))
+
+	err := vault.amend(t.Context(), cli.AmendArgs{Target: foldOfferBase, Discard: true})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(vault.files).NotTo(HaveKey(foldOfferName))
+	g.Expect(vault.declines).To(Equal([]cli.ExportDeclinedPull{
+		{Vault: foldParentVault, Basename: "7.2026-09-01.parent", Hash: "xh1:parent"},
+	}))
+}
+
 // Test792b14c7a1_RunAmend_ConvertsCRLFNote: every amend kind that writes the target
 // succeeds on an all-CRLF note, writes it as LF — byte-identical to the
 // same amend of the LF note — and leaves a fresh sidecar, even for kinds
@@ -106,44 +126,10 @@ func Test792b14c7a2_RunAmend_CRLFOutputEqualsLFOutputProperty(t *testing.T) {
 	})
 }
 
-// TestRunAmend_CRLFJudgedVersionUsesTheLFForm: a CRLF served offer's
-// offer.origin is read from its LF form, so --clear-pending needs the
-// judged hash, and that hash is the LF form's.
-func TestRunAmend_CRLFJudgedVersionUsesTheLFForm(t *testing.T) {
-	t.Parallel()
-
-	lfNote := foldNote(foldExchange{xid: foldXIDO, origin: true}, true)
-	notPending := false
-
-	t.Run("required", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		vault := newCRLFAmendVault(toCRLF(lfNote))
-		err := vault.amend(t.Context(), cli.AmendArgs{Pending: &notPending})
-		g.Expect(err).To(MatchError(ContainSubstring("--expect-hash")))
-		g.Expect(vault.files[crlfAmendNoteName]).To(Equal([]byte(toCRLF(lfNote))), "a refused amend writes nothing")
-	})
-
-	t.Run("matches the LF form", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		judged, hashErr := cli.ExportExchangeHash([]byte(lfNote))
-		g.Expect(hashErr).NotTo(HaveOccurred())
-
-		vault := newCRLFAmendVault(toCRLF(lfNote))
-		err := vault.amend(t.Context(), cli.AmendArgs{Pending: &notPending, ExpectHash: judged})
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(string(vault.files[crlfAmendNoteName])).NotTo(ContainSubstring("\r"))
-		g.Expect(string(vault.files[crlfAmendNoteName])).NotTo(ContainSubstring("pending: true"))
-	})
-}
-
-// TestRunAmend_DiscardIntoConvertsCRLFExisting: a fold that changes a CRLF
+// Test792b34c6a5_RunAmend_DiscardIntoConvertsCRLFExisting: a fold that changes a CRLF
 // E writes E as LF and re-embeds it; a fold that changes nothing leaves a
 // CRLF E byte-identical.
-func TestRunAmend_DiscardIntoConvertsCRLFExisting(t *testing.T) {
+func Test792b34c6a5_RunAmend_DiscardIntoConvertsCRLFExisting(t *testing.T) {
 	t.Parallel()
 
 	t.Run("changed", func(t *testing.T) {
@@ -199,24 +185,38 @@ func TestRunAmend_DiscardIntoConvertsCRLFExisting(t *testing.T) {
 	})
 }
 
-// TestRunAmend_DiscardRecordsDeclineOfCRLFPulledNote: a bare discard reads
-// a CRLF pulled note as LF, so its decline is still recorded.
-func TestRunAmend_DiscardRecordsDeclineOfCRLFPulledNote(t *testing.T) {
+// TestRunAmend_CRLFJudgedVersionUsesTheLFForm: a CRLF served offer's
+// offer.origin is read from its LF form, so --clear-pending needs the
+// judged hash, and that hash is the LF form's.
+func TestRunAmend_CRLFJudgedVersionUsesTheLFForm(t *testing.T) {
 	t.Parallel()
-	g := NewWithT(t)
 
-	vault := newFoldVault()
-	vault.put(foldOfferName, toCRLF(foldNote(foldExchange{
-		xid: foldXIDO, vault: foldParentVault,
-		links: []foldLink{{"7.2026-09-01.parent", "pulled", "xh1:parent"}},
-	}, true)))
+	lfNote := foldNote(foldExchange{xid: foldXIDO, origin: true}, true)
+	notPending := false
 
-	err := vault.amend(t.Context(), cli.AmendArgs{Target: foldOfferBase, Discard: true})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(vault.files).NotTo(HaveKey(foldOfferName))
-	g.Expect(vault.declines).To(Equal([]cli.ExportDeclinedPull{
-		{Vault: foldParentVault, Basename: "7.2026-09-01.parent", Hash: "xh1:parent"},
-	}))
+	t.Run("required", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		vault := newCRLFAmendVault(toCRLF(lfNote))
+		err := vault.amend(t.Context(), cli.AmendArgs{Pending: &notPending})
+		g.Expect(err).To(MatchError(ContainSubstring("--expect-hash")))
+		g.Expect(vault.files[crlfAmendNoteName]).To(Equal([]byte(toCRLF(lfNote))), "a refused amend writes nothing")
+	})
+
+	t.Run("matches the LF form", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		judged, hashErr := cli.ExportExchangeHash([]byte(lfNote))
+		g.Expect(hashErr).NotTo(HaveOccurred())
+
+		vault := newCRLFAmendVault(toCRLF(lfNote))
+		err := vault.amend(t.Context(), cli.AmendArgs{Pending: &notPending, ExpectHash: judged})
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(string(vault.files[crlfAmendNoteName])).NotTo(ContainSubstring("\r"))
+		g.Expect(string(vault.files[crlfAmendNoteName])).NotTo(ContainSubstring("pending: true"))
+	})
 }
 
 // unexported constants.

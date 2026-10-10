@@ -75,6 +75,21 @@ func Test792b11c4a3_RunAmend_EmptyUserDetectionNoPriorUserOmitsUser(t *testing.T
 	}
 }
 
+// Test792b14c14a8_RunAmend_ClearPendingKeepsOfferAuthor is the spec scenario "Accepting
+// an offer keeps its author": clearing a pending offer written by alice,
+// from an environment whose detected user is bob, keeps user: alice.
+func Test792b14c14a8_RunAmend_ClearPendingKeepsOfferAuthor(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	cleared := false
+
+	written, err := runIdentityAmend(t.Context(), "fact", cli.AmendArgs{Pending: &cleared})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(written).To(ContainSubstring("user: alice@example.com"))
+	g.Expect(written).NotTo(ContainSubstring("pending: true"))
+}
+
 // Test792b14c5a4_RunAmend_IdentityRestampProperty: over any combination of amend flags,
 // on any note type, identity is re-stamped exactly when one of that type's
 // content flags, --supersedes or --chunk-source is present; otherwise the
@@ -137,21 +152,6 @@ func Test792b14c5a5_RunAmend_BookkeepingAmendsKeepIdentity(t *testing.T) {
 			})
 		}
 	}
-}
-
-// TestRunAmend_ClearPendingKeepsOfferAuthor is the spec scenario "Accepting
-// an offer keeps its author": clearing a pending offer written by alice,
-// from an environment whose detected user is bob, keeps user: alice.
-func TestRunAmend_ClearPendingKeepsOfferAuthor(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	cleared := false
-
-	written, err := runIdentityAmend(t.Context(), "fact", cli.AmendArgs{Pending: &cleared})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(written).To(ContainSubstring("user: alice@example.com"))
-	g.Expect(written).NotTo(ContainSubstring("pending: true"))
 }
 
 // unexported constants.

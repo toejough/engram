@@ -212,7 +212,7 @@ type aggregatedSummary struct {
 	exploreAllocated map[string]int
 	refitPending     bool
 	// pendingOffers is true when the vault holds at least one fact/feedback
-	// note carrying the pending-offer marker (vault-offer-curation).
+	// note carrying the pending-offer marker (792a22).
 	// Computed fresh every call (stateless/unbatched — design.md Decisions),
 	// unlike refitPending's persisted-flag read.
 	pendingOffers bool
@@ -450,7 +450,7 @@ type queryPayload struct {
 	// query asked for dedupe-keys=1, omitted everywhere else.
 	VaultID string `yaml:"vault_id,omitempty"`
 	// PendingOffers is true when the vault holds at least one pending-offer
-	// note awaiting curation (vault-offer-curation) — computed fresh on
+	// note awaiting curation (792a22) — computed fresh on
 	// every call, local and served alike. It and its hint are declared before
 	// Phrases/Items so they lead the payload: a truncated preview of a large
 	// payload still shows them (curate-skill-to-runbook D10).

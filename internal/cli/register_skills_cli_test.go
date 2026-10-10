@@ -197,7 +197,7 @@ func Test792b31c8a1_RegisterSkillsCLI_AcceptRegistersRealNote(t *testing.T) {
 	})
 
 	// A pending-offer nudge on the freshly-created note is expected
-	// (vault-offer-curation) — only an actual command error would be a
+	// (792a22) — only an actual command error would be a
 	// problem here.
 	g.Expect(stderr).NotTo(ContainSubstring("register-skills:"))
 

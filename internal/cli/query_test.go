@@ -20,6 +20,84 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
+// Test792a22a1b_RunQuery_ExcludesPendingSkillRunbookNote proves the full query-time
+// consequence chain for a pending skill runbook note (792a22
+// ADDED requirement + skill-runbook-registration): it is excluded from
+// results and the payload carries pending_offers: true, while an ordinary
+// runbook note surfaces normally.
+func Test792a22a1b_RunQuery_ExcludesPendingSkillRunbookNote(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	plantNoteWithSidecar(t, memFS, vault, "1.2026-01-01.normal-runbook.md",
+		"---\ntype: runbook\nsituation: releasing a module\ndone_when: tag pushed\n"+
+			"luhmann: \"1\"\ncreated: 2026-01-01\nsource: test\nuser: u\nvault: personal\n---\n\n1. step\n")
+
+	plantNoteWithSidecar(t, memFS, vault, "2.2026-01-02.skill-demo.md",
+		"---\ntype: runbook\nsituation: n/a\ndone_when: n/a\n"+
+			"luhmann: \"2\"\ncreated: 2026-01-02\nsource: test\nuser: u\nvault: personal\n"+
+			"skill_hash: abc123\npending: true\n---\n\nSKILL body\n")
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"releasing a module"}, VaultPath: vault},
+		newQueryDeps(memFS), &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	payload := out.String()
+	g.Expect(payload).To(ContainSubstring("pending_offers: true"))
+	g.Expect(payload).To(ContainSubstring("normal-runbook"))
+	g.Expect(payload).NotTo(ContainSubstring("skill-demo"))
+}
+
+// Test792b23c10a1_QueryPayload_PendingOffersLeadPayload: pending_offers and its hint
+// serialize before items, so a truncated preview of a large payload still
+// shows them (curate-skill-to-runbook D10).
+func Test792b23c10a1_QueryPayload_PendingOffersLeadPayload(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const (
+		itemCount   = 60
+		itemBytes   = 2000
+		previewSize = 1500
+	)
+
+	items := make([]cli.ExportResolvedItem, 0, itemCount)
+	body := strings.Repeat("x", itemBytes)
+
+	for index := range itemCount {
+		items = append(items, cli.ExportNewResolvedItem(fmt.Sprintf("%d.a.md", index),
+			"---\ntype: fact\n---\n"+body))
+	}
+
+	out, err := cli.ExportRenderQueryPayloadPendingOffersWithItems(true, items)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(len(out)).To(BeNumerically(">", 100_000))
+
+	itemsAt := strings.Index(out, "\nitems:")
+	g.Expect(itemsAt).To(BeNumerically(">", 0))
+	g.Expect(strings.Index(out, "pending_offers: true")).To(BeNumerically("<", itemsAt))
+	g.Expect(strings.Index(out, "pending_offers_hint:")).To(BeNumerically("<", itemsAt))
+
+	head := out[:previewSize]
+	g.Expect(head).To(ContainSubstring("pending_offers: true"))
+	g.Expect(head).To(ContainSubstring(`engram query --text="curate pending offers"`))
+}
+
 func Test792b23c1a1_QueryPayload_RefitPendingPresentWhenTrue(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -1246,84 +1324,6 @@ func Test792b34c4a2_QueryPayload_PendingOffersHintPresentWhenTrue(t *testing.T) 
 	g.Expect(yaml.Unmarshal([]byte(out), &decoded)).To(Succeed())
 	g.Expect(decoded.Hint).To(Equal(cli.ExportPendingOfferCurateInstruction))
 	g.Expect(decoded.Hint).To(ContainSubstring(`engram query --text="curate pending offers"`))
-}
-
-// TestQueryPayload_PendingOffersLeadPayload: pending_offers and its hint
-// serialize before items, so a truncated preview of a large payload still
-// shows them (curate-skill-to-runbook D10).
-func TestQueryPayload_PendingOffersLeadPayload(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	const (
-		itemCount   = 60
-		itemBytes   = 2000
-		previewSize = 1500
-	)
-
-	items := make([]cli.ExportResolvedItem, 0, itemCount)
-	body := strings.Repeat("x", itemBytes)
-
-	for index := range itemCount {
-		items = append(items, cli.ExportNewResolvedItem(fmt.Sprintf("%d.a.md", index),
-			"---\ntype: fact\n---\n"+body))
-	}
-
-	out, err := cli.ExportRenderQueryPayloadPendingOffersWithItems(true, items)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(len(out)).To(BeNumerically(">", 100_000))
-
-	itemsAt := strings.Index(out, "\nitems:")
-	g.Expect(itemsAt).To(BeNumerically(">", 0))
-	g.Expect(strings.Index(out, "pending_offers: true")).To(BeNumerically("<", itemsAt))
-	g.Expect(strings.Index(out, "pending_offers_hint:")).To(BeNumerically("<", itemsAt))
-
-	head := out[:previewSize]
-	g.Expect(head).To(ContainSubstring("pending_offers: true"))
-	g.Expect(head).To(ContainSubstring(`engram query --text="curate pending offers"`))
-}
-
-// TestRunQuery_ExcludesPendingSkillRunbookNote proves the full query-time
-// consequence chain for a pending skill runbook note (vault-offer-curation
-// ADDED requirement + skill-runbook-registration): it is excluded from
-// results and the payload carries pending_offers: true, while an ordinary
-// runbook note surfaces normally.
-func TestRunQuery_ExcludesPendingSkillRunbookNote(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-
-	plantNoteWithSidecar(t, memFS, vault, "1.2026-01-01.normal-runbook.md",
-		"---\ntype: runbook\nsituation: releasing a module\ndone_when: tag pushed\n"+
-			"luhmann: \"1\"\ncreated: 2026-01-01\nsource: test\nuser: u\nvault: personal\n---\n\n1. step\n")
-
-	plantNoteWithSidecar(t, memFS, vault, "2.2026-01-02.skill-demo.md",
-		"---\ntype: runbook\nsituation: n/a\ndone_when: n/a\n"+
-			"luhmann: \"2\"\ncreated: 2026-01-02\nsource: test\nuser: u\nvault: personal\n"+
-			"skill_hash: abc123\npending: true\n---\n\nSKILL body\n")
-
-	var out bytes.Buffer
-
-	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Phrases: []string{"releasing a module"}, VaultPath: vault},
-		newQueryDeps(memFS), &out)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	payload := out.String()
-	g.Expect(payload).To(ContainSubstring("pending_offers: true"))
-	g.Expect(payload).To(ContainSubstring("normal-runbook"))
-	g.Expect(payload).NotTo(ContainSubstring("skill-demo"))
 }
 
 type errorEmbedder struct{}
