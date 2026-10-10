@@ -52,7 +52,7 @@ The skill-decomposition concept from the roadmap's guiding framing: one behavior
 (read-memory, write-memory, route-a-task, orchestrate-a-workflow). Only `write-memory`
 was extracted — as a worker invoked at the write seams, not a mid-procedure reference
 fetch. The full design history (the superseded reference-card form, the decision to stop
-at the write seam) is recorded in [792a13](changes/792_documentation-framework-adoption/792a_product-spec.md#792a13-added-write-memory), with its validation
+at the write seam) is recorded in [792a13 write-memory](changes/792_documentation-framework-adoption/792a_product-spec.md#792a13-added-write-memory), with its validation
 in `dev/eval/LEDGER.md`.
 
 ### write-memory (skill)
@@ -64,8 +64,9 @@ Amends stay in recall (single-site).
 ### handoff contract
 The field set a parent skill passes when invoking write-memory: **kind**
 (`fact|feedback|qa|runbook`), the kind's content fields, **source** (provenance string),
-optional **chunk-sources**, optional **supersedes** (`basename|type|claim`).
-The worker asks for missing required fields rather than inventing content.
+optional **chunk-sources**, optional **tags**, optional **supersedes** (`basename|type|claim`),
+optional **position**/**target** placement, and for a runbook optional **red flags** and
+**triggers**. The worker asks for missing required fields rather than inventing content.
 
 ### non-triggering description
 A skill `description:` that names only parent-instructed invocation ("requires a
@@ -458,9 +459,9 @@ The skill at `agent-instructions/skills/learn/SKILL.md`, invoked as `/learn` or 
 recall-flow work. Writes new notes to the vault.
 
 ### `engram learn` (subcommand)
-The binary subcommand. Three forms: `engram learn feedback`, `engram learn
-fact` (both require `--source` and take body content via flags; stdin is
-ignored), and `engram learn qa` (see below). The `moc` subcommand was retired
+The binary subcommand. Four forms: `engram learn feedback`, `engram learn
+fact` and `engram learn runbook` (all require `--source` and take body content via
+flags; stdin is ignored), and `engram learn qa` (see below). The `moc` subcommand was retired
 after the F4 migration (the 25 historical MOCs are archived for audit in
 `<vault>/_legacy/MOCs/`); the `episode` form was retired with the lazy-L2
 work (issue 649) — chunks in the chunk index are the episodic layer now.
@@ -483,7 +484,7 @@ for exactly four capture kinds — **corrections** (the user corrected an
 approach or behavior), **explicit save-requests** ("remember this/that X"),
 **reversals** (see above), and **confirmed approaches** (see above — positive
 reinforcement, user-praised or self-validated) — each handed to **write-memory**
-(kind=`feedback` or `fact` per the kind). No qualifying moment → learn writes nothing (a
+(kind=`feedback`, `fact` or `runbook` per the kind; `qa` is Step 2.5's). No qualifying moment → learn writes nothing (a
 two-command sweep-only run). Replaces the retired recall-mirror-test /
 injection-locus / scratch-list / Path-A-B-C apparatus, which was never
 implemented in the shipped skill.
@@ -496,7 +497,7 @@ actual ID under lock.
 
 ### `--supersedes`
 Typed supersession flag on `engram learn` and `engram amend`. Format:
-`--supersedes "<basename>|<type>|<claim>"` where `<type>` ∈ `updates|narrows|refutes`.
+`--supersedes="<basename>|<type>|<claim>"` where `<type>` ∈ `updates|narrows|refutes`.
 Writes a `supersedes:` frontmatter list on the noting note; the binary maintains the derived inverse
 for O(1) ride-along at query; also renders a `Supersedes: [[<note>]] — <type>: <claim>` body line for
 Obsidian visibility. Repeatable. The `--relation` flag (which added `Related to:` bullets) was

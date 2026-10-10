@@ -6823,7 +6823,7 @@ Scenario: 792a13h1a A value beginning with a dash survives
 
 ### 792a13i Provenance, tags, supersession and contributors
 
-Requirement: [792a13i Provenance, tags, supersession and contributors](#792a13i-provenance-tags-supersession-and-contributors) The worker MUST append one `--chunk-source <source#anchor>` per handed-off chunk ID, one `--tag <family>/<value>` per handed-off tag for fact, feedback and runbook handoffs, exactly as provided, and `--supersedes="<basename>|<type>|<claim>"` for each handed-off supersession (type `updates`, `narrows` or `refutes`). It MUST NOT invent tags and MUST NOT write the `vocab/` namespace.
+Requirement: [792a13i Provenance, tags, supersession and contributors](#792a13i-provenance-tags-supersession-and-contributors) The worker MUST append one `--chunk-source <source#anchor>` per handed-off chunk ID, one `--tag <family>/<value>` (or a bare `--tag <family>`) per handed-off tag for fact, feedback and runbook handoffs, exactly as provided, and `--supersedes="<basename>|<type>|<claim>"` for each handed-off supersession (type `updates`, `narrows` or `refutes`). It MUST NOT invent tags and MUST NOT write the `vocab/` namespace.
 
 Rationale: the binary assigns `vocab/` terms itself and writes the `Supersedes:` body line when `--supersedes` is passed. Handed-off categorical tags travel in the same `tags` list as vocabulary terms but are not vocabulary.
 
@@ -7453,7 +7453,7 @@ Scenario: 792a15a1b No episode or summary is written
 
 ### 792a15b The sweep comes first
 
-Requirement: [792a15b The sweep comes first](#792a15b-the-sweep-comes-first) Learn MUST begin with `engram ingest --auto` and report the one-line tally it prints (or "memory index up to date"), and MUST continue to the lessons when the sweep fails, surfacing the error. It MUST skip the sweep when one already ran earlier in the same session, unless this is the closing learn of a work cycle, which MUST always sweep.
+Requirement: [792a15b The sweep comes first](#792a15b-the-sweep-comes-first) Learn MUST begin with `engram ingest --auto` and report what it prints (one `ingest <path>: ...` line for each source it re-chunked) or, when it prints nothing because the corpus is unchanged, "memory index up to date", and MUST continue to the lessons when the sweep fails, surfacing the error. It MUST skip the sweep when one already ran earlier in the same session, unless this is the closing learn of a work cycle, which MUST always sweep.
 
 Rationale: an unchanged corpus returns in seconds. The closing learn captures the session's tail for future sessions. A worry that something changed in another terminal is picked up by the next sweep, not by sweeping now on suspicion. Explicit lessons must not be lost to an ingest hiccup.
 
@@ -7463,7 +7463,7 @@ Rationale: an unchanged corpus returns in seconds. The closing learn captures th
 Scenario: 792a15b1a The sweep runs and is reported
   Given no sweep has run in this session
   When the agent runs learn
-  Then it runs engram ingest --auto and reports the tally or "memory index up to date"
+  Then it runs engram ingest --auto and reports the per-source lines it prints, or "memory index up to date" when it prints nothing
 
 Scenario: 792a15b1b A failed sweep does not block the lessons
   Given engram ingest --auto fails
