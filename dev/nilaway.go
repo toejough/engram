@@ -47,12 +47,13 @@ func runNilaway(ctx context.Context, fix bool) error {
 }
 
 func runConfiguredNilaway(ctx context.Context, fix bool, lookup func(string) (string, bool), execute func(context.Context, []string, map[string]string) error) error {
-	_ = lookup
-	_ = execute(ctx, nilawayArgs(fix), nil)
-	return nil
+	return execute(ctx, nilawayArgs(fix), nilawayEnvironment(lookup))
 }
 
 func executeNilaway(ctx context.Context, args []string, settings map[string]string) error {
-	_ = settings
-	return targ.Cmd("nilaway", args...).Run(ctx)
+	command := targ.Cmd("nilaway", args...)
+	for key, value := range settings {
+		command.Env(key, value)
+	}
+	return command.Run(ctx)
 }

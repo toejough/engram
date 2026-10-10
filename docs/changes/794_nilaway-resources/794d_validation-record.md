@@ -26,8 +26,8 @@ was taken. Remediation validation must be recorded separately when it is perform
 The documentation and root instruction edits are committed. The original tests now have
 scenario-prefixed names, and the additional command-boundary/acceptance tests in
 [794c8 Implementation-Ordered Test Catalog](./794c_implementation-plan.md#794c8-implementation-ordered-test-catalog)
-have not been implemented. Policy/routing entries have reached Green-single; other entries remain
-Not started. No canonical promotion, merge, or push is claimed.
+are implemented. Policy/routing entries are Done; command-boundary entries reached
+Green-single after observed regression failures. No canonical promotion, merge, or push is claimed.
 
 Local checkpoint commits are explicitly authorized. The updated sandbox excludes the original
 sibling worktree, so validation and local commits continue in a local shared clone at
@@ -78,3 +78,10 @@ the include flag, and removes only that diagnostic with the include flag. This i
 Green-single characterization of existing policy, not claimed historical TDD.
 
 Policy work is Done. Boundary implementation and final validation remain incomplete.
+## 794d8 Command-boundary GREEN checkpoint
+
+`targ test-dev` and `targ test-dev-integration` both pass with race detection.
+The configured invocation forwards resolved settings and the executor's exact error.
+The adapter applies settings only to its child command. The real-analyzer fixture
+verifies first-party diagnostics remain while selected dependency diagnostics vanish.
+The integration target explicitly includes the targ and integration build tags.
