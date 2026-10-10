@@ -27,11 +27,8 @@
 - Supported capabilities: [controlled-vocabulary](../product/controlled-vocabulary.md), note-writing's [792a3u Vocabulary tagging by kind](../product/note-writing.md#792a3u-vocabulary-tagging-by-kind) and [memory-query](../product/memory-query.md).
 
 Rationale: tags are assigned at write time by cosine alone, so the write path needs no LLM and the
-vocabulary's cost stays off retrieval. Controlled-vocabulary ([controlled-vocabulary](../product/controlled-vocabulary.md)) tags were adopted after graph traversal
-over wikilinks was measured and rejected for retrieval; each write once assigned terms through two
-channels, and since the vocabulary moved onto tags ([792a6c Categorical tags share one list](../product/controlled-vocabulary.md#792a6c-categorical-tags-share-one-list)) the `tags:` list is the only one. The
-term set used to be edited from an LLM-authored plan, which only ever grew; it is now derived from
-the vault's geometry ([792a6j Deriving the vocabulary](../product/controlled-vocabulary.md#792a6j-deriving-the-vocabulary)). The centroids live in a separate `vocab.centroids.json` rather than in
+vocabulary's cost stays off retrieval. The `tags:` list is the only channel for terms ([792a6c Categorical tags share one list](../product/controlled-vocabulary.md#792a6c-categorical-tags-share-one-list)), and the
+term set is derived from the vault's geometry ([792a6j Deriving the vocabulary](../product/controlled-vocabulary.md#792a6j-deriving-the-vocabulary)). The centroids live in a separate `vocab.centroids.json` rather than in
 the definitions' sidecars, because a sidecar must stay a pure function of its note's content:
 `engram embed apply` rebuilds sidecars from content and would overwrite a centroid stored there,
 while a separate file survives it. The file carries the embedding model's ID so that centroids from
@@ -113,7 +110,7 @@ descending and then by term name, and none when the vector or the term list is e
 
 Supports: [792a3u1a A runbook is tagged](../product/note-writing.md#792a3u1-uat-scenarios), [792a3u1b The answer is tagged and the question is not](../product/note-writing.md#792a3u1-uat-scenarios), [792a6d1a A learned note is tagged with its closest terms](../product/controlled-vocabulary.md#792a6d1-uat-scenarios), [792a6d1b A note close to no term gets no tag](../product/controlled-vocabulary.md#792a6d1-uat-scenarios), [792a6d1c At most three terms are kept](../product/controlled-vocabulary.md#792a6d1-uat-scenarios).
 
-Rationale: the cap of three and the 0.35 floor are [792a6d Write-time vocabulary tagging](../product/controlled-vocabulary.md#792a6d-write-time-vocabulary-tagging)'s measured setting.
+Rationale: the cap of three and the 0.35 floor are set by [792a6d Write-time vocabulary tagging](../product/controlled-vocabulary.md#792a6d-write-time-vocabulary-tagging).
 
 #### 792b20c3a Scenarios
 

@@ -67,8 +67,8 @@ Scenario: 792a2b1c The flag wins over the environment
 Requirement: [792a2c Flat vault layout](#792a2c-flat-vault-layout) Engram MUST NOT treat a file inside a vault subdirectory as a note; notes live
 at the vault root.
 
-Rationale: the 2026-06-12 flat-vault migration retired the `Permanent/` and `MOCs/` tiers, so a
-note's place in the vault is carried by its Luhmann ID, not by a folder.
+Rationale: the vault is flat, with no `Permanent/` or `MOCs/` tiers, so a note's place in the vault is carried by its
+Luhmann ID, not by a folder.
 
 ### 792a2c1 UAT Scenarios
 
@@ -111,9 +111,8 @@ one stderr line, `engram: created new vault at <path>`. The new vault contains `
 a `.gitignore`, a starter `README.md`, a vault ID ([792a2h Stable vault ID](#792a2h-stable-vault-id)) and the `.engram/` state directory
 ([792a2k Exchange state outside tracked files](#792a2k-exchange-state-outside-tracked-files)).
 
-Rationale: Joe chose creation by any command (#766) over creating only on `update` or warning
-without creating. The single stderr line makes a mistyped `--vault` or `ENGRAM_VAULT_PATH` visible.
-The `.obsidian/` starter lets Obsidian open the directory as a vault.
+Rationale: any command creates a missing vault, and the single stderr line makes a mistyped `--vault` or
+`ENGRAM_VAULT_PATH` visible. The `.obsidian/` starter lets Obsidian open the directory as a vault.
 
 This behavior is being changed by [795a Vault Init Command - Product Spec](../../changes/795_vault-init-command/795a_product-spec.md) (#795).
 
@@ -275,9 +274,8 @@ Requirement: [792a2k Exchange state outside tracked files](#792a2k-exchange-stat
 `.gitignore` holds only the pattern `*`, and MUST NOT write exchange state to the vault root or
 modify the vault's root `.gitignore`.
 
-Rationale: putting the outbox in the vault root and appending it to the tracked `.gitignore` would
-dirty the vault's repository on every host. Keeping state under `$XDG_DATA_HOME`, keyed by vault
-path, would orphan it when the vault moves, and it would not travel with the vault.
+Rationale: the outbox lives under `<vault>/.engram/`, which is untracked, so it never dirties the vault's repository
+on any host, and it travels with the vault when the vault moves.
 
 ### 792a2k1 UAT Scenarios
 

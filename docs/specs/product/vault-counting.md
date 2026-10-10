@@ -259,13 +259,11 @@ number of linking notes that do not carry the value, provided every note that ca
 links to the note. A note that carries the value without linking to it counts toward `--group-by`
 and not toward `--backlinks-of`.
 
-Rationale: each mode can be checked by hand against its own Obsidian view (`--group-by` against a
-property or tag filter, `--backlinks-of` against the backlinks panel), and the two are not equal to
-each other. An index or map-of-content page links every note on a topic without carrying the topic
-in its own frontmatter, so it counts toward `--backlinks-of` and not toward `--group-by`. Reporting
-the two as "the same count" would make the modes look redundant when they are complementary. The relationship was checked on the live vault in July 2026: 33
-members of `retrieval-design` and an in-degree of 34, the extra linker being a generated index page
-that was retired later.
+Rationale: each mode can be checked by hand against its own Obsidian view (`--group-by` against a property or tag
+filter, `--backlinks-of` against the backlinks panel), and the two are not equal to each other. An index or
+map-of-content page links every note on a topic without carrying the topic in its own frontmatter, so it counts toward
+`--backlinks-of` and not toward `--group-by`. Reporting the two as "the same count" would make the modes look
+redundant when they are complementary.
 
 ### 792a8g1 UAT Scenarios
 

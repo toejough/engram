@@ -22,15 +22,13 @@
   necessity, every source the index holds is one it found.
 - Supported capabilities: [chunk-indexing](../product/chunk-indexing.md).
 
-Rationale: the sweep is declarative and inspectable: what `--auto` covers is data, compiled in as
-defaults and overridable per repository, so a developer tunes it without changing code. Two
-throwaway-workspace rules exist because each reaches what the other cannot. Directory names catch
-session-log project directories, which Claude Code names after the slugified working directory
-(`-private-tmp-...`). Root paths catch a root that is itself throwaway, such as a repository root
-that resolves to `/tmp/eval-pool/warm0` because it has no repository marker; the walk never checks
-a root's own path against the exclusions, so such a root was once swept whole and permanently
-indexed. Named files, `--sweep` and `extra_roots` are deliberate choices, so neither rule applies
-to them.
+Rationale: the sweep is declarative and inspectable: what `--auto` covers is data, compiled in as defaults and
+overridable per repository, so a developer tunes it without changing code. Two throwaway-workspace rules exist because
+each reaches what the other cannot. Directory names catch session-log project directories, which Claude Code names
+after the slugified working directory (`-private-tmp-...`). Root paths catch a root that is itself throwaway, such as
+a repository root that resolves to `/tmp/eval-pool/warm0` because it has no repository marker; the walk never checks a
+root's own path against the exclusions. Named files, `--sweep` and `extra_roots` are deliberate choices, so neither
+rule applies to them.
 
 ## 792b17c Behavior Requirements
 

@@ -8,11 +8,12 @@ Rationale: LLM-generated artifacts do not self-certify. Catching one's own plan'
 
 Requirement: [792a18a The skill fires on a handed-over multi-step ask](#792a18a-the-skill-fires-on-a-handed-over-multi-step-ask) Please MUST fire on the explicit form `/please <ask>` however trivial the ask looks, because the user chose the workflow deliberately, and on natural-language phrasings of the same intent ("please do X", "please work through X", "please take care of X", "work through X end-to-end", "take this end-to-end", "drive X to completion", "see this through"). It MUST NOT fire on a casual "please" attached to a single trivial action ("please read this file", "please rename this var"). For a natural-language ask, it MUST fire when the ask plausibly entails any of planning, more than one file, testing, documentation, a commit or closing an issue, MUST NOT fire when the ask plausibly resolves to a single file edit or tool call with no follow-up, and MUST fire when the boundary is genuinely unclear.
 
-Rationale: the workflow tolerates small asks, and the reverse mistake is more expensive. The bare word "please" is a deliberately over-firing trigger of the runbook note; a trigger hit only makes the runbook a candidate, and the agent judges it against the skill's own conditions ([792a13m Trigger cues are specific, author-chosen strings](./write-memory.md#792a13m-trigger-cues-are-specific-author-chosen-strings)).
-A runbook's `situation` is the only discriminator retrieval sees, so it is positive-only and process-shaped.
-Embeddings do not encode negation, so a trailing never-for-a-casual-please clause attracted the excluded
-phrases, and ceremony wording was never retrieved because agents phrase the query as the concrete work. A
-situation carrying the eval task's own example would be test-fitting.
+Rationale: the workflow tolerates small asks, and the reverse mistake is more expensive. The bare word "please" is a
+deliberately over-firing trigger of the runbook note; a trigger hit only makes the runbook a candidate, and the agent
+judges it against the skill's own conditions ([792a13m Trigger cues are specific, author-chosen
+strings](./write-memory.md#792a13m-trigger-cues-are-specific-author-chosen-strings)). A runbook's `situation` is the
+only discriminator retrieval sees, so it is positive-only and process-shaped: embeddings do not encode negation, so a
+never-for-a-casual-please clause would attract the excluded phrases.
 
 ### 792a18a1 UAT Scenarios
 
@@ -186,7 +187,9 @@ Scenario: 792a18g1b The plan is committed before code
 
 Requirement: [792a18h A change to a repeated invariant gets an enumeration grep](#792a18h-a-change-to-a-repeated-invariant-gets-an-enumeration-grep) When a planned change alters a repeated invariant (a payload shape, a sweep cadence, a command set, a count or a naming convention echoed across docs, diagrams or skills), please MUST run, before writing the documentation-scrub task, a search of the repository for the term itself, its synonyms, its hyphenated or compound forms and the old text's echoes in diagram labels and comments, and MUST paste the resulting per-file disposition list into the plan. Each entry MUST name the file, a disposition (keep, update, rewrite or N/A) and a one-line reason. The grep MUST run however large the surface looks or however small the change appears.
 
-Rationale: the failure it targets is salience under load, not a capability gap (issue #685). In a clean probe where documentation scrub was the salient task, the model enumerated the whole surface without the rule, 6 of 6 times; the failure showed up only when the scrub was an incidental consequence of a larger feature ask (`dev/eval/LEDGER.md#685-doc-enumeration-grep`, harness `dev/eval/cumulative/please_step3_probe/`). The rule's cost scales with the surface, so a small surface is a cheap grep and never an exemption.
+Rationale: the failure it targets is salience under load, not a capability gap: a model enumerates the whole surface
+when the scrub is the salient task, and misses it when the scrub is an incidental consequence of a larger feature ask.
+The rule's cost scales with the surface, so a small surface is a cheap grep and never an exemption.
 
 ### 792a18h1 UAT Scenarios
 
@@ -411,7 +414,8 @@ Scenario: 792a18p1d The list is in the closing report
 
 Requirement: [792a18q A lesson about to be captured asks what should have surfaced it](#792a18q-a-lesson-about-to-be-captured-asks-what-should-have-surfaced-it) For each lesson the cycle is about to capture, please MUST ask which artifact that already existed should have surfaced it first, MUST search the vault for a note that already covers the situation before writing a new one, and MUST, when a note existed but did not surface at the moment it was needed, check whether its `situation:` line matches how the moment actually presented and reword the note when it does not, in preference to writing a second note on the same lesson. It MUST propose a change that ships from the repository (code, skills, guidance) only as a last resort, and MUST NOT file it automatically.
 
-Rationale: a vault note is the user's own and takes effect on their next recall, while anything that ships from the repository makes the user wait on a release. This decision-support addition was committed in 662e50ba and is unvalidated: the larger "surprise harvest" it was proposed with, a seven-marker second pass, rested on a premise that a probe refuted (`dev/eval/LEDGER.md#687-surprise-harvest`), and was not built.
+Rationale: a vault note is the user's own and takes effect on their next recall, while anything that ships from the
+repository makes the user wait on a release.
 
 ### 792a18q1 UAT Scenarios
 

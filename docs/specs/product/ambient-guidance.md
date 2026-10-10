@@ -7,9 +7,7 @@ harness, so that every session carries it without anyone invoking a skill. Four 
 to act and points at the skill or note that says how, without restating it. How the documents reach a harness is
 install-and-update's ([792a11l Guidance is managed only after opt-in](./install-and-update.md#792a11l-guidance-is-managed-only-after-opt-in), [792a11m Claude import paths keep working](./install-and-update.md#792a11m-claude-import-paths-keep-working)); this capability is what they require of the agent and what the update
 report tells the user about activating them. The skills they point at are [recall](./recall.md) (recall), [learn](./learn.md) (learn), [route](./route.md)
-(route) and [please](./please.md) (please). The issue about duplicated cues (#773) and the issue about the shim being refused as a
-prompt injection (#790) are open, and nothing here claims either is resolved. A blanket hook that recalls before
-every tool call was tried and is a dead end (`dev/eval/LEDGER.md#recall-overfire-hook-rejected`).
+(route) and [please](./please.md) (please).
 
 ## 792a19a Recall fires at four decision moments
 
@@ -18,11 +16,8 @@ four moments: before it endorses or ranks a proposed approach, even when only di
 work done; once, before it starts guessing, after a failure it cannot immediately explain, and not on every retry;
 and before it starts building a new approach.
 
-Rationale: recall at the start of a task cannot surface what only matters later. A lesson the vault already holds
-is most valuable right before a wrong call locks in, and shipping past one costs far more than a quick glance. The
-conversational cue was added after a measurement showed the agent discussing an approach without recalling
-(`dev/eval/LEDGER.md#underload-firing-wording-fix`), and the wording was re-measured on the current model
-(`dev/eval/LEDGER.md#recall-moments-opus48-remeasure`).
+Rationale: recall at the start of a task cannot surface what only matters later. A lesson the vault already holds is
+most valuable right before a wrong call locks in, and shipping past one costs far more than a quick glance.
 
 ### 792a19a1 UAT Scenarios
 
@@ -151,9 +146,9 @@ subagent or ends its turn. The cue MUST apply to every dispatch, whether or not 
 mediated it.
 
 Rationale: at the closing learn a lesson is one line in a long list, if that learn runs at all, so the moment the
-report is read is when the confirmed lesson is cheapest to keep (`dev/eval/LEDGER.md#learn-at-return-guidance`).
-The cue lives in ambient guidance so that an ad hoc dispatch, which no skill mediates, carries it too. The line's
-format and hand-over are the lessons contract ([lessons-contract](./lessons-contract.md)).
+report is read is when the confirmed lesson is cheapest to keep. The cue lives in ambient guidance so that an ad hoc
+dispatch, which no skill mediates, carries it too. The line's format and hand-over are the lessons contract
+([lessons-contract](./lessons-contract.md)).
 
 ### 792a19e1 UAT Scenarios
 
@@ -219,10 +214,9 @@ two-file rename, a one-liner or a "quick look", and MUST decompose a multi-step 
 dispatched separately. Its first tool call on a unit MUST NOT be a read, edit, write or shell command on the work
 itself. It MUST route a dispatch with the `route` skill, which sets the tier, the handoff and the evidence.
 
-Rationale: an agent that does the object-level work itself spends its own context on it and has no fresh
-reviewer. Opening a file to orient is starting the work, and building it because the repository is empty is the
-same. Headless runs flipped the solo behavior to dispatch, including for a trivial rename
-(`dev/eval/LEDGER.md#delegate-guidance-flip`). The routing is [route](./route.md).
+Rationale: an agent that does the object-level work itself spends its own context on it and has no fresh reviewer.
+Opening a file to orient is starting the work, and building it because the repository is empty is the same. The
+routing is [route](./route.md).
 
 ### 792a19g1 UAT Scenarios
 
@@ -319,13 +313,13 @@ summarize the message in `--text`, whose paraphrase belongs only in `--phrase`.
 
 Rationale: whether the task is one a runbook covers is what the query answers, so the judgment cannot be a gate in
 front of it. A one-line request still gets a query, and the agent proceeds without a runbook when none matches. The
-over-fire on one-shot requests is accepted: it was measured at 3.4 times at the task-initiation fire-unit, and
-each fire costs one query with no crystallization. The command is named literally so it is executable when no
-engram skill is installed. A user's message can begin with `-` (a markdown bullet) with no control over its shape,
-and the space-separated form reads it as a flag and exits; the attached form survives it ([792b32c2 Free-text flag values use the attached form](../technical/agent-instruction-bundle.md#792b32c2-free-text-flag-values-use-the-attached-form)). The raw text,
-not a paraphrase, is what matches a literal trigger ([792a7y Trigger text](./memory-query.md#792a7y-trigger-text), [792a7za A trigger hit comes first](./memory-query.md#792a7za-a-trigger-hit-comes-first)). A shim-only configuration reached parity with
-the skill row on two of three real procedures (`dev/eval/LEDGER.md#shim-follow-frame-d8-bar`). #790, about the shim being
-refused as a suspected prompt injection, is open.
+over-fire on one-shot requests is accepted: each fire costs one query with no crystallization. The command is named
+literally so it is executable when no engram skill is installed. A user's message can begin with `-` (a markdown
+bullet) with no control over its shape, and the space-separated form reads it as a flag and exits; the attached form
+survives it ([792b32c2 Free-text flag values use the attached
+form](../technical/agent-instruction-bundle.md#792b32c2-free-text-flag-values-use-the-attached-form)). The raw text,
+not a paraphrase, is what matches a literal trigger ([792a7y Trigger text](./memory-query.md#792a7y-trigger-text),
+[792a7za A trigger hit comes first](./memory-query.md#792a7za-a-trigger-hit-comes-first)).
 
 ### 792a19j1 UAT Scenarios
 
@@ -366,11 +360,8 @@ illustrate the shape with at least two examples of different kinds of work, and 
 MUST NOT name a specific runbook, skill or evaluation task.
 
 Rationale: casual task wording alone does not reliably surface a process runbook, whereas situation-shaped wording
-does, and a second phrase that restates the ticket reliably fails to: retrieval of the please runbook was 0 of 3
-before the phrase-two fix and 2 of 3 after it (`dev/eval/LEDGER.md#please-semantic-retrieval-unreliable`). The
-re-check is generic so that it neither overfits to one runbook nor regresses another's retrieval; the 27-runbook
-retrieval probe (`dev/eval/LEDGER.md#734-runbook-retrieval-probe`, 2026-08-29) predates the re-check, so it does not
-measure it.
+does, and a second phrase that restates the ticket reliably fails to. The re-check is generic so that it neither
+overfits to one runbook nor regresses another's retrieval.
 
 ### 792a19k1 UAT Scenarios
 
@@ -401,13 +392,11 @@ re-derived. A `runbook` is executed under the frame. A `chunk` is raw evidence, 
 only when the notes leave a gap, and its presence alone is not an instruction.
 
 Rationale: the query is not filtered by kind, so the agent must read each item's `kind`. Four content kinds exist,
-`fact`, `feedback`, `qa` and `runbook`, and `qa` is excluded from retrieval ([792a7v Runbooks rank like other notes](./memory-query.md#792a7v-runbooks-rank-like-other-notes)). A runbook is structurally the
-same as a fact or feedback note in storage and ranking, so no validation gate guarded it. Migrating
-existing kind-4 feedback into runbook notes is out of scope and is #730, still untriaged.
-The frame lives in the shim and not in the recall skill because it must exist before any runbook is loaded;
-were it in recall, recall would itself become a runbook. The shim's first action fires on every request: the
-measured over-fire at task initiation was 3.4x, against 147x to 380x per tool call, which is why a hook was
-rejected.
+`fact`, `feedback`, `qa` and `runbook`, and `qa` is excluded from retrieval ([792a7v Runbooks rank like other
+notes](./memory-query.md#792a7v-runbooks-rank-like-other-notes)). A runbook is structurally the same as a fact or
+feedback note in storage and ranking. The frame lives in the shim and not in the recall skill because it must exist
+before any runbook is loaded; were it in recall, recall would itself become a runbook. The shim's first action fires
+on every request, which is affordable once per task and not once per tool call, so it is guidance and not a hook.
 
 ### 792a19l1 UAT Scenarios
 
@@ -435,12 +424,10 @@ merely a related one, the agent MUST state in a text block which runbook it is e
 restate the runbook's steps as its plan, with one todo per step where the harness offers a todo list, before its
 first mutating action, and MUST then do the steps in the runbook's order.
 
-Rationale: the runbook-versus-skill evaluation found runbooks 3 times in 3 but restated as a plan 0 times in 6, and
-reached the end state 0 times in 6, against a skill row of 3, 3 and 2 (checkpoint 2026-09-13), which is the gap the
-frame closes. The shim-only measurement is `dev/eval/LEDGER.md#shim-follow-frame-d8-bar`.
-A fact with the same body gets no frame, which keeps the original question (does a vanilla fact match?) and
-gives the runbook kind a reason to exist beyond schema. The shim is a fresh file and not an extension of the
-recall guidance, because that guidance names `/recall glance`, which a shim-only session does not have.
+Rationale: without the frame, an agent that finds a runbook tends not to restate its steps as a plan or to reach its
+end state, and the frame closes that gap. A fact with the same body gets no frame. The shim is a fresh file and not an
+extension of the recall guidance, because that guidance names `/recall glance`, which a shim-only session does not
+have.
 
 ### 792a19m1 UAT Scenarios
 
@@ -512,9 +499,9 @@ specific instruction wins over its own incidental example, and a later step its 
 is done without asking whether to.
 
 Rationale: a question stop is a clarity signal for the person who gave the task, who owns supplying the missing
-context now and for next time, and never a failure or a reason to invent the local equivalent. The weight is
-greatest before an action that cannot be undone, where an honest "I'm guessing" means ask. Stopping at a phase
-boundary of an agreed workflow is a failure of the opposite kind, and a later narrowing of this rule fixed it. The shim contains no "proceed anyway" language.
+context now and for next time, and never a failure or a reason to invent the local equivalent. The weight is greatest
+before an action that cannot be undone, where an honest "I'm guessing" means ask. Stopping at a phase boundary of an
+agreed workflow is a failure of the opposite kind. The shim contains no "proceed anyway" language.
 
 ### 792a19p1 UAT Scenarios
 
@@ -667,11 +654,9 @@ Requirement: [792a19u The shim joins the other guidance additively](#792a19u-the
 for them, because the recall, learn and write-memory skills ship as skills and are not replaced by runbooks.
 
 Rationale: `shim.md` finds and follows runbook notes and does not reproduce the content of the other three, which
-cover work that is not in a runbook. The plan to replace the three with the shim, once the recall, learn and
-write-memory skills were promoted to production runbooks (#760), was reversed on 2026-09-25 and #760 is closed, so
-the additive set is the standing one. Activating the shim is a policy about which deployed documents a session's own
-config imports, and is distinct from getting the files onto disk ([792a11l Guidance is managed only after opt-in](./install-and-update.md#792a11l-guidance-is-managed-only-after-opt-in)). The overlap between the shim's
-re-entry cues and the recall guidance's is #773, open.
+cover work that is not in a runbook, so the four are an additive set. Activating the shim is a policy about which
+deployed documents a session's own config imports, and is distinct from getting the files onto disk ([792a11l Guidance
+is managed only after opt-in](./install-and-update.md#792a11l-guidance-is-managed-only-after-opt-in)).
 
 ### 792a19u1 UAT Scenarios
 

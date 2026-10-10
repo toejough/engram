@@ -18,8 +18,6 @@
   provenance depend on running `git`.
 - Supported capabilities: [vault-identity](../product/vault-identity.md), [note-writing](../product/note-writing.md), [install-and-update](../product/install-and-update.md).
 
-No legacy document describes this component. It is derived from its realization and tests.
-
 ## 792b4c Behavior Requirements
 
 ### 792b4c1 Run and collect output

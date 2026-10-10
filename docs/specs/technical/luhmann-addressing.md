@@ -16,7 +16,7 @@
   verification, parsing, ordering and allocation are pure functions tested directly; stability, the
   scheme is the vault's addressing convention and outlives any refactoring; necessity, every fact,
   feedback and runbook note is placed by it.
-- Supported capabilities: [note-writing](../product/note-writing.md). Vault-migration ([vault-migration](../product/vault-migration.md)) adds reparenting's needs.
+- Supported capabilities: [note-writing](../product/note-writing.md). [vault-migration](../product/vault-migration.md) (reparenting).
 
 Rationale: Luhmann IDs must be unique across the vault and well formed, a digit-led run of digits
 and letters. The allocator only ever returns an ID that no existing note holds; two concurrent
@@ -89,8 +89,8 @@ alphabetically, so that `z` comes before `aa`, `az` before `ba`, and `zz` before
 
 Supports: [792a3j1e Letters roll over from z to aa](../product/note-writing.md#792a3j1-uat-scenarios).
 
-Rationale: an allocator once compared letter segments lexically, so with children `a` to `z`, `aa`
-and `ab`, it took `z` as the largest and allocated `aa` again.
+Rationale: comparing letter segments lexically would take `z` as the largest of the children `a` to `z`, `aa` and
+`ab`, and allocate `aa` again.
 
 #### 792b7c3a Scenarios
 

@@ -18,10 +18,8 @@
 - Supported capabilities: [vault-identity](../product/vault-identity.md), [note-writing](../product/note-writing.md), [note-revision](../product/note-revision.md), [chunk-indexing](../product/chunk-indexing.md)
   chunk-indexing.
 
-Rationale: `os.WriteFile` is not atomic. Before the atomic-write rule, unlocked non-atomic writes let two
-concurrent `engram ingest` or `engram amend` runs corrupt state in production. A same-directory
-rename is atomic on POSIX, so a reader sees either the old file or the new one, never a partial
-write.
+Rationale: `os.WriteFile` is not atomic, so unlocked concurrent writers could corrupt state. A same-directory rename
+is atomic on POSIX, so a reader sees either the old file or the new one, never a partial write.
 
 ## 792b3c Behavior Requirements
 

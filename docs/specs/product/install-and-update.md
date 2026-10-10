@@ -20,10 +20,10 @@ MUST install it from a fresh shallow clone of the engram repository when no encl
 missing program when `go` (or, for a clone, `git`) is not installed. It MUST stop at the first `go.mod`
 it meets, so a working directory inside another Go module installs from a fresh clone.
 
-Rationale: a clone is built rather than fetched with `go install …@latest`, because the Go module proxy
-serves repository blobs raw and the embedded model is a git-lfs object, so a proxy build embeds a
-133-byte pointer and every embedding call then fails (#645). Running `engram update` from inside a clone
-installs what that clone holds, which lets a contributor test a branch.
+Rationale: a clone is built rather than fetched with `go install …@latest`, because the Go module proxy serves
+repository blobs raw and the embedded model is a git-lfs object, so a proxy build embeds a 133-byte pointer and every
+embedding call then fails. Running `engram update` from inside a clone installs what that clone holds, which lets a
+contributor test a branch.
 
 ### 792a11a1 UAT Scenarios
 
@@ -107,14 +107,11 @@ install anyway when given `--allow-downgrade`. It MUST install without refusing 
 installed, when the installed binary carries no readable revision, or when git cannot tell either way
 (the installed revision is unknown to the clone, as in a shallow or unrelated repository).
 
-Rationale: running `engram update` from a stale clone or an old worktree silently replaced a newer
-installed binary with older code (#715). Only a provable regression blocks, because an unprovable case
-must never stop an update.
-Rejected alternatives: a warning alone, because visibility already existed and was the weaker option; and
-comparing commit timestamps, because clock skew and rebases make wall-clock time a noisy proxy for worse code,
-while ancestry answers whether the new build contains everything the old one did. A feature-branch worktree
-that has not merged the main tip is also blocked, an accepted trade-off with `--allow-downgrade` as the
-intended escape.
+Rationale: running `engram update` from a stale clone or an old worktree would silently replace a newer installed
+binary with older code. Only a provable regression blocks, because an unprovable case must never stop an update.
+Ancestry answers whether the new build contains everything the old one did, where wall-clock time is a noisy proxy
+under clock skew and rebases. A feature-branch worktree that has not merged the main tip is also blocked, with
+`--allow-downgrade` as the escape.
 
 ### 792a11c1 UAT Scenarios
 
@@ -185,14 +182,14 @@ the rest of the update itself and MUST say in its report that the re-exec failed
 that pre-update logic completed the run. It MUST NOT hand off when `--dry-run` is given, because nothing
 was installed.
 
-Rationale: an update that installed a new release and then deployed with the old release's logic made
-users one update behind on update behavior itself, so a new deployment rule took effect a run late. The bootstrap run, the first update after this behavior shipped, is the last one to run
-stale. Local mode installs from the clone it runs in, not from a fresh pull, so a stale checkout still
-downgrades on hand-off; the downgrade check covers it ([792a11c A provable downgrade is refused](#792a11c-a-provable-downgrade-is-refused)).
-The old process hands off to a child rather than replacing itself with `syscall.Exec`, because the captured-output
-commander cannot inherit stdio or pass an environment and the parent must relay the child's exit code.
-The loop guard is an environment variable, not a flag, so it stays off the public command line. A successful
-install always hands off with no version comparison: an unchanged binary costs one local spawn.
+Rationale: an update that installed a new release and then deployed with the old release's logic would leave users one
+update behind on update behavior itself, so a new deployment rule would take effect a run late. Local mode installs
+from the clone it runs in, not from a fresh pull, so a stale checkout still downgrades on hand-off; the downgrade
+check covers it ([792a11c A provable downgrade is refused](#792a11c-a-provable-downgrade-is-refused)). The old process
+hands off to a child rather than replacing itself with `syscall.Exec`, because the captured-output commander cannot
+inherit stdio or pass an environment and the parent must relay the child's exit code. The loop guard is an environment
+variable, not a flag, so it stays off the public command line. A successful install always hands off with no version
+comparison: an unchanged binary costs one local spawn.
 
 ### 792a11e1 UAT Scenarios
 
@@ -232,10 +229,9 @@ describes something that was or would be done (the title, the `installed:` line,
 adoptions, the dangling-link cleanups and the guidance deploy lines) and leaving notice lines (a refused
 deletion, an unattributable file, an unmanaged entry, a skill-row mapping) unprefixed.
 
-Rationale: the same prefix discipline applies to every action line, so a reader can tell what happened
-from what would happen without knowing which operation produced the line (#709). A dry run from outside a
-checkout still clones the repository into its scratch directory, because the plan is read from the clone;
-it builds nothing.
+Rationale: the same prefix discipline applies to every action line, so a reader can tell what happened from what would
+happen without knowing which operation produced the line. A dry run from outside a checkout still clones the
+repository into its scratch directory, because the plan is read from the clone; it builds nothing.
 
 ### 792a11f1 UAT Scenarios
 
@@ -264,12 +260,6 @@ MUST fail with an error saying no supported harness was found at `~/.claude/` or
 exists, before installing anything. It MUST NOT deploy to any other harness. A failure in one harness MUST
 NOT stop the other from being updated, MUST be reported under that harness as `error: <reason>`, MUST be
 left out of the `installed:` line, and MUST make the command exit non-zero.
-
-Rationale: OpenCode and Shelley support was removed (#721), so the harness list is Claude Code and Pi.
-The dated addendum to the harness decision, rather than a rewrite, keeps the record of why per-file and per-directory
-symlink granularity were chosen when three harnesses were in scope. The unused commands-deploy
-mechanism was deleted rather than kept dormant, because git history is the fallback and a future harness would
-reintroduce it from scratch.
 
 ### 792a11g1 UAT Scenarios
 
@@ -347,9 +337,9 @@ deploy set it computes from the source (engram deploys no commands, so it delete
 the deploy set keeps, and MUST list each deletion in the report as `engram root: deleted <path>`. The
 harness link for a skill whose directory was deleted MUST be gone by the end of the same run.
 
-Rationale: an earlier update copied additively, so an artifact deleted from the source was never removed
-from a harness, and a stray file in the source persisted until deleted by hand. Removing a
-skill is now a source change followed by an update.
+Rationale: the deployment mirrors the source, so an artifact deleted from the source is removed from a harness and a
+stray file in the source does not persist once it is deleted there. Removing a skill is a source change followed by an
+update.
 
 ### 792a11i1 UAT Scenarios
 
@@ -419,9 +409,8 @@ marker) it MUST also create the root and its marker, and MUST list every other r
 the harness's skills or guidance directory as `unmanaged (left alone): <path>` without deleting or
 changing it. Later runs MUST NOT list unmanaged entries again.
 
-Rationale: the repository is the source of truth, so an earlier copy is replaced without comparing its
-content. Engram cannot prove it wrote an entry it never recorded, so it does not call one engram's
-debris (#716).
+Rationale: the repository is the source of truth, so an earlier copy is replaced without comparing its content. Engram
+cannot prove it wrote an entry it never recorded, so it does not call one engram's debris.
 
 ### 792a11k1 UAT Scenarios
 
@@ -508,8 +497,8 @@ leave for each managed guidance document a symbolic link at `~/.claude/engram/<n
 such a link when its document leaves the deploy set, and its report MUST give the canonical `guidance/`
 path of each deployed Claude Code document.
 
-Rationale: user-authored import lines name the flat path verbatim, so the canonical move into
-`guidance/` could not break them. A later change can retire the links once imports are migrated.
+Rationale: user-authored import lines name the flat path verbatim, so the canonical move into `guidance/` must not
+break them.
 
 ### 792a11m1 UAT Scenarios
 
@@ -545,13 +534,12 @@ index holds a zero-byte index file. It MUST print neither when the index is clea
 directory is missing or unreadable, or, for the duplicates notice, when every duplicate group would be
 refused by prune's coverage check. It MUST NOT remove anything itself.
 
-Rationale: removing index files is a destructive one-shot migration over a user's memory store. Unlike an
-empty file, which holds no records, a duplicate's removal is safe only while the record-subset check holds
-at the moment it runs, so it runs when the user asks for it and not as a side effect of a routine
-refresh. Detection keeps no sentinel: it reports the live backlog every run and
-goes quiet once it is cleared. It runs prune's own dry-run check so the notice fires only when a removal
-would happen, and a backlog whose every group would be refused stays silent because no command resolves
-it (#713).
+Rationale: removing index files is a destructive one-shot migration over a user's memory store. Unlike an empty file,
+which holds no records, a duplicate's removal is safe only while the record-subset check holds at the moment it runs,
+so it runs when the user asks for it and not as a side effect of a routine refresh. Detection keeps no sentinel: it
+reports the live backlog every run and goes quiet once it is cleared. It runs prune's own dry-run check so the notice
+fires only when a removal would happen, and a backlog whose every group would be refused stays silent because no
+command resolves it.
 
 ### 792a11n1 UAT Scenarios
 

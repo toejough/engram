@@ -2,11 +2,12 @@
 
 When an agent hands work to a subagent, a lesson that the subagent learned but never reported cannot be captured. The lessons contract is the agreement between the orchestrating agent and every subagent it dispatches. Each subagent's completion report ends with a `LESSONS:` line. The orchestrator re-asks once if the line is missing, records every line as it returns, judges each lesson right then, and gives the whole collection to the closing learn as a backstop. The line is a deliberately low-bar offer and not a vault note, so a subagent never decides on its own what enters the vault. The skills that carry the contract are route (the handoff, [route](./route.md)), please (the collection and the hand-over at its close, [please](./please.md)) and learn (the judgment, [learn](./learn.md)); the ambient cue that fires learn at a return is ambient-guidance's ([ambient-guidance](./ambient-guidance.md)). This capability states the contract once so that no skill repeats it.
 
-Rationale: the memory-loop audit (`dev/eval/audit/REPORT-2026-09-02.md`) measured the writing side as the loop's dominant loss. Learn fired for only 5.6% (4 of 71, 95% interval 1.4 to 11.3) of the worth-learning moments, and 67 lessons were lost, of which 40 (59.7%) were judged realistically reachable by a completion-report lessons step; the largest bucket was 39 missed success-reinforcements. Most failures that memory would have helped with traced to lessons never captured, so write loss showed up later as failures. The first version (`learn-rate-skill-only`, the #739 D7 direction) was constrained to skill and guidance markdown, with no hooks and no new code, and to a capture-then-curate posture: a low bar at capture and quality control at a separate curation step. A prior effort (#655) measured about 93% adherence to a mandated completion-report output contract, so prose-only enforcement was in reach. A mandatory-line mechanism in prose stays below about 95% per-trial adherence (vault note 198), so the contract raises the rate and guarantees nothing; the mechanical layers that would guarantee it (a validator, a watcher, hooks) were considered and left out. The first version's re-measure found no detectable rise in the learn rate (3 of 66, 4.5%, against 5.6%; `dev/eval/LEDGER.md#learn-rate-remeasure-w2`), and the return-time judgment that followed was validated with confined headless arms (`dev/eval/LEDGER.md#learn-at-return-guidance`).
-33 of the 40 fixable lost lessons (82.5%) sit in dispatched work, but a subagent running learn itself was
-rejected: route already tells subagents to run recall first and the audit measured that failing, a subagent's
-judgment of its own work confabulates, and several dispatch targets have no Skill tool at all. So the subagent
-supplies raw content and the orchestrator judges it.
+Rationale: most failures that memory would have helped with trace to lessons never captured, and most of the lost
+lessons sit in dispatched work. A subagent running learn itself does not work: route already tells subagents to run
+recall first and that is not reliably followed, a subagent's judgment of its own work confabulates, and several
+dispatch targets have no Skill tool at all. So the subagent supplies raw content and the orchestrator judges it. The
+mechanism is skill and guidance markdown only, with a low bar at capture and quality control at a separate judgment
+step; a mandatory line in prose raises the capture rate and guarantees nothing.
 
 ## 792a16a A completion report ends with a LESSONS line
 
@@ -106,7 +107,10 @@ Scenario: 792a16d1c A gate does not filter the list
 
 Requirement: [792a16e Each lesson is judged when it returns](#792a16e-each-lesson-is-judged-when-it-returns) When a returned report's `LESSONS:` line is not `none`, the orchestrator MUST judge each lesson in it at that moment, and MUST capture each lesson that clears learn's bar with a fast-path learn (one note per lesson, no sweep, handed to write-memory) before the next dispatch, or before ending its turn when no dispatch is left. A lesson clears the bar when it is one of learn's four kinds of lesson ([792a15e The four kinds of explicit lesson](./learn.md#792a15e-the-four-kinds-of-explicit-lesson)), is confirmed and not hypothesized, and states a general reusable principle and not a session-specific narrative. The orchestrator MUST NOT capture `none`, a routine "done, tests pass" or an unconfirmed lesson.
 
-Rationale: waiting for the closing learn does not work in practice. In the parent-side capture check (`dev/eval/audit/REPORT-parent-capture-2026-09-29.md`) neither of the two parent sessions that received a non-`none` LESSONS block ran a learn after its last receipt, and the capture that did happen came from writes the parent made in the middle of the session (38 of 53 captured items). The first version's text told parents not to judge in-flight, which ran against that tendency. Judging at the return, while the lesson is in hand, uses the tendency, and the closing learn stays as a backstop. The rule lives in always-loaded guidance because it must hold at every delegation whichever skill mediated it (vault note 855).
+Rationale: waiting for the closing learn does not work in practice: the capture that does happen comes from writes the
+parent makes in the middle of the session. Judging at the return, while the lesson is in hand, uses that tendency, and
+the closing learn stays as a backstop. The rule lives in always-loaded guidance because it must hold at every
+delegation whichever skill mediated it.
 
 ### 792a16e1 UAT Scenarios
 
@@ -136,7 +140,8 @@ Scenario: 792a16e1d The last return is captured before the turn ends
 
 Requirement: [792a16f The closing learn gets the whole list](#792a16f-the-closing-learn-gets-the-whole-list) At workflow step 7, please MUST hand the full list of `LESSONS:` lines collected across its dispatches, `none` entries included, to the closing learn, alongside the lessons-audit map ([please](./please.md)), and MUST drop no line. Please MUST run the closing learn when the session had no dispatches, handing it an empty collection. The closing learn MUST skip a line that a vault note written earlier this session already covers, MUST judge every other line against the bar of [792a16e Each lesson is judged when it returns](#792a16e-each-lesson-is-judged-when-it-returns), and MUST discard a line that does not clear it silently, with no note and no log. It MUST NOT write a second time a line captured at its return.
 
-Rationale: a line is a low-bar offer and not a pre-judged lesson, so discarding it is not a loss. Skipping is by vault coverage and not by a mark, because the list stays verbatim and unmarked (Joe, 2026-10-01; the captured marks first proposed were dropped).
+Rationale: a line is a low-bar offer and not a pre-judged lesson, so discarding it is not a loss. Skipping is by vault
+coverage and not by a mark, because the list stays verbatim and unmarked.
 
 ### 792a16f1 UAT Scenarios
 
@@ -171,7 +176,10 @@ Scenario: 792a16f1e A mixed batch
 
 Requirement: [792a16g A confirmed approach is looked for at the moment of confirmation](#792a16g-a-confirmed-approach-is-looked-for-at-the-moment-of-confirmation) Learn MUST scan for a confirmed approach (kind 4) at the moment a unit of work's outcome is confirmed: a review or gate verdict lands, a check or test passes, or the user explicitly confirms something. That includes the moment the agent reads a dispatched subagent's completion report and its `LESSONS:` line once its outcome is known, and, at the closing learn, the session's completion reports and collected lines. The bar MUST NOT move: a resolved uncertainty or an explicit specific confirmation, never bare success.
 
-Rationale: the kind-4 scan is the one that under-fires most, and the audit's largest lost bucket was missed success-reinforcements. Anchoring on the concrete event and calibrating with exemplars from the audit's real missed moments (a design assumption checked by a targeted search, a defect confirmed by a reproduction test, a vendor claim verified against evidence) improves how recognizable the pattern is, not how low the bar is.
+Rationale: the kind-4 scan is the one that under-fires most, and missed success-reinforcements are the largest lost
+bucket. Anchoring on the concrete event and calibrating with exemplars (a design assumption checked by a targeted
+search, a defect confirmed by a reproduction test, a vendor claim verified against evidence) improves how recognizable
+the pattern is, not how low the bar is.
 
 ### 792a16g1 UAT Scenarios
 

@@ -86,12 +86,11 @@ orchestrating agent to preview with `--dry-run` and then apply, and not tell the
 apply. When there are no candidates it MUST print `update --reparent-luhmann: no candidates found`
 instead.
 
-Rationale: whether one note is a sub-point of another is a judgment of content that an embedding cannot
-make, so the binary proposes pairs and an agent decides. This is the boundary drawn for per-capture
-disposition, and the flow follows `vocab refit`'s derive, names, apply.
-The answering payload defers to the learn skill's batch mode ([792a15l The re-parent batch mode](./learn.md#792a15l-the-re-parent-batch-mode)), and the apply step stays with the user or
-orchestrator after a `--dry-run`. Editing the skill to drop its stop-before-apply red flag was rejected,
-because it would lose the human checkpoint before bulk renames.
+Rationale: whether one note is a sub-point of another is a judgment of content that an embedding cannot make, so the
+binary proposes pairs and an agent decides. This is the boundary drawn for per-capture disposition, and the flow
+follows `vocab refit`'s derive, names, apply. The answering payload defers to the learn skill's batch mode ([792a15l
+The re-parent batch mode](./learn.md#792a15l-the-re-parent-batch-mode)), and the apply step stays with the user or
+orchestrator after a `--dry-run`, which keeps the human checkpoint before bulk renames.
 
 ### 792a10c1 UAT Scenarios
 

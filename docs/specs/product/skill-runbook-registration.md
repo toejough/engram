@@ -1,6 +1,6 @@
 # Skill Runbook Registration - Product Spec
 
-Skills remain the shipping form of every procedure, and their files stay exactly as the harnesses that load them expect. Engram's own skills ship from `agent-instructions/skills/` through `engram update`. Registration lets memory surface a procedure by situation and trigger: each skill, command and Pi prompt template in the folders a harness loads may have one runbook note in the vault that mirrors its text and carries the runbook fields authored on the note, so the runbook shim's follow-frame can drive it and it can flow across vault-graph edges. Engram offers to create, refresh and remove these notes, the user decides, and a declined offer is not repeated. `engram update` runs the offers after deploying ([792a12t Update runs registration after deploying the skills](#792a12t-update-runs-registration-after-deploying-the-skills)), and `engram register-skills` runs them on their own. A note mirrors a skill and does not replace it: the direction that retired skills to runbook-only form was reversed. Curating the pending notes belongs to the curate capability, and the skills' own procedures to recall, learn, route, please, curate and write-memory.
+Skills remain the shipping form of every procedure, and their files stay exactly as the harnesses that load them expect. Engram's own skills ship from `agent-instructions/skills/` through `engram update`. Registration lets memory surface a procedure by situation and trigger: each skill, command and Pi prompt template in the folders a harness loads may have one runbook note in the vault that mirrors its text and carries the runbook fields authored on the note, so the runbook shim's follow-frame can drive it and it can flow across vault-graph edges. Engram offers to create, refresh and remove these notes, the user decides, and a declined offer is not repeated. `engram update` runs the offers after deploying ([792a12t Update runs registration after deploying the skills](#792a12t-update-runs-registration-after-deploying-the-skills)), and `engram register-skills` runs them on their own. A note mirrors a skill and does not replace it. Curating the pending notes belongs to the curate capability, and the skills' own procedures to recall, learn, route, please, curate and write-memory.
 
 ## 792a12a Skill files are never changed
 
@@ -37,11 +37,9 @@ reserved source prefix (`claude`, `pi`, `agents`, `project`, `anthropic-skills`,
 `pi-pkg`, `pi-prompt`) whose remainder lacks that source's shape; any other `<x>:<name>` is plugin
 `<x>`'s key. More than one note for a key MUST be an error naming them.
 
-Rationale: One skill is one procedure, so it gets one note. Several notes per skill were rejected because a
-sub-note has no body source except a second file in the skill directory, and a rule for which skills get
-several notes caused confusion in the first draft. The slug identifies the note, so no frontmatter key is
-scanned across the vault, and runbook fields live on the note and not in `SKILL.md` because the harness owns
-that schema.
+Rationale: One skill is one procedure, so it gets one note; a sub-note would have no body source except a second file
+in the skill directory. The slug identifies the note, so no frontmatter key is scanned across the vault, and runbook
+fields live on the note and not in `SKILL.md` because the harness owns that schema.
 
 ### 792a12b1 UAT Scenarios
 
@@ -131,11 +129,9 @@ body MUST be the one-line preamble ``> Mirrors skill `<skill_source>`.``, a blan
 file's bytes verbatim. The preamble MUST use the same wording for every source and MUST NOT say where to
 edit the procedure.
 
-Rationale: the runbook fields are authored on the note afterward, by curation, because only the skill's text is
-known at registration.
-Creating the note pending and letting curation author the fields was chosen over drafting them through the LLM
-API, which would skip the review those fields needed in every conversion. A separate create command was
-rejected because it asks the user twice for one decision. Pending keeps the incomplete note out of retrieval
+Rationale: the runbook fields are authored on the note afterward, by curation, because only the skill's text is known
+at registration. Creating the note pending and letting curation author the fields keeps the review those fields need
+in every conversion, and the user is asked once for one decision. Pending keeps the incomplete note out of retrieval
 until it has a situation.
 
 ### 792a12d1 UAT Scenarios
@@ -699,10 +695,8 @@ MUST NOT be eligible. Registration MUST offer to remove a skill note only when i
 scanned entry, alias or disabled or not, has its key, and MUST make no removal offer when `--skills-dir`
 is given.
 
-Rationale: An existence-based scan was rejected because an unreadable directory would look empty and flood the
-user with removals; a per-scope scanned flag was rejected because it cannot tell which entry, bucket or
-project a note came from; and a `last_seen` counter was rejected as hidden state that misfires when a project
-is not checked out. The accepted cost is that a note whose source root left the source set is never offered
+Rationale: an unreadable directory must not look empty and flood the user with removals, so removals are limited to
+sources that were read successfully. The cost is that a note whose source root left the source set is never offered
 for removal, so the user deletes it by hand.
 
 ### 792a12q1 UAT Scenarios
@@ -801,9 +795,9 @@ only by an exact key or an individual prompt, never by accept-all, a pattern or 
 MUST list each offer as `would offer: <kind> <key> (<source>)` under its `@<scope-id> (<count>)` header,
 naming the note instead of a source for a removal with no recorded source.
 
-Rationale: Offers are grouped by scope because dozens of per-skill prompts are unworkable. Removals are never
-covered by accept-all, a pattern or a selector; each needs its exact key or its own prompt. Scopes are not
-opt-in, because Joe directed that all default folders be scanned.
+Rationale: Offers are grouped by scope because dozens of per-skill prompts are unworkable. Removals are never covered
+by accept-all, a pattern or a selector; each needs its exact key or its own prompt. Scopes are not opt-in: all default
+folders are scanned.
 
 ### 792a12r1 UAT Scenarios
 
@@ -856,9 +850,8 @@ Requirement: [792a12s Declines are keyed by skill key under schema version 2](#7
 or that cannot be decoded MUST be an error, not an empty decline state, and registration MUST write
 nothing. A missing file MUST mean no declines.
 
-Rationale: Version 1 files are a loud error and are not mapped to `claude:<name>`, because v1 never left the
-unmerged branch and a compatibility mapping for it was rejected. An older binary still reads a v2 file, since
-it ignores the extra keys.
+Rationale: Version 1 files are a loud error and are not mapped to `claude:<name>`, because v1 never shipped. An older
+binary still reads a v2 file, since it ignores the extra keys.
 
 ### 792a12s1 UAT Scenarios
 

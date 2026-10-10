@@ -15,14 +15,14 @@ Requirement: [792a20a The served command set is fixed](#792a20a-the-served-comma
 POST) over HTTP, and MUST NOT expose `amend`, `query-chunks`, `show-chunk`, `ingest`, `vocab refit`, `prune`, `check`,
 `update` or `resituate`: a request for any of them MUST be answered with an error and perform no vault operation.
 
-Rationale: `amend` left the served set along with the `ENGRAM_SERVER` thin client, its only caller, and children offer
-amendments through `learn` with an offer target. `query-chunks` and `show-chunk` left because chunks never cross
-vaults. One write route keeps one path for offers.
-The route split is by mutation: the two read-only commands are GET and the two writes are POST. `learn` is a
-POST because its repeatable flags and free text do not fit in a URL, and `activate` follows the split because it
-is a write. The server verifies no field of a served `learn`: the `user:` that carries the attribution weight is
-the one the caller declares ([792a20e A served learn is attributed to the identity the caller declares](#792a20e-a-served-learn-is-attributed-to-the-identity-the-caller-declares)). Offer and
-curation judgment run off the request path, in a skill and not in server code.
+Rationale: children offer amendments through `learn` with an offer target, so `amend` is not served, and
+`query-chunks` and `show-chunk` are not served because chunks never cross vaults. One write route keeps one path for
+offers. The route split is by mutation: the two read-only commands are GET and the two writes are POST. `learn` is a
+POST because its repeatable flags and free text do not fit in a URL, and `activate` follows the split because it is a
+write. The server verifies no field of a served `learn`: the `user:` that carries the attribution weight is the one
+the caller declares ([792a20e A served learn is attributed to the identity the caller
+declares](#792a20e-a-served-learn-is-attributed-to-the-identity-the-caller-declares)). Offer and curation judgment run
+off the request path, in a skill and not in server code.
 
 ### 792a20a1 UAT Scenarios
 
@@ -146,14 +146,13 @@ consult any edge-authentication header to resolve it. It MUST reject a request w
 an error and write nothing. The declared identity MUST survive the offer's acceptance, because the bookkeeping amends
 that accept it do not re-stamp it ([curate](./curate.md)).
 
-Rationale: the server trusts what a caller declares, since the caller and the server share a network trust boundary and
-no more. An empty declaration would write an offer nobody can be asked about, so it is refused outright. Requiring an
-edge header would tie the server to a particular front door.
-A credential map and a trusted-header adapter were both rejected: attribution needs a stable caller-chosen
-name and not an unforgeable one, and the trust boundary is network reachability. Only the empty string is
-refused, since it is the one value that cannot be a real identity. Two `engram serve` instances on one vault
-are allowed, because the flock-covered writes and stateless pending-offer detection make that safe and the
-remaining cost is redundant resource use.
+Rationale: the server trusts what a caller declares, since the caller and the server share a network trust boundary
+and no more. An empty declaration would write an offer nobody can be asked about, so it is refused outright. The
+server requires no edge header, so it stays independent of any particular front door. Attribution needs a stable
+caller-chosen name and not an unforgeable one, and the trust boundary is network reachability. Only the empty string
+is refused, since it is the one value that cannot be a real identity. Two `engram serve` instances on one vault are
+allowed, because the flock-covered writes and stateless pending-offer detection make that safe and the remaining cost
+is redundant resource use.
 
 ### 792a20e1 UAT Scenarios
 

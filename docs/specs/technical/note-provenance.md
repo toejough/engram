@@ -17,8 +17,7 @@
   independent verification, detection and stamping are tested directly over a fake `git` and user
   lookup; stability, the fields and their sources survive any change to the writers; necessity,
   every note's `repo:`, `user:` and `vault:` come from it.
-- Supported capabilities: [vault-identity](../product/vault-identity.md), [note-writing](../product/note-writing.md), [note-revision](../product/note-revision.md), [vault-migration](../product/vault-migration.md)
-  [vault-migration](../product/vault-migration.md). Vault-serving ([vault-serving](../product/vault-serving.md)) and [parent-sync](../product/parent-sync.md) add their requirements.
+- Supported capabilities: [vault-identity](../product/vault-identity.md), [note-writing](../product/note-writing.md), [note-revision](../product/note-revision.md), [vault-migration](../product/vault-migration.md), [vault-serving](../product/vault-serving.md), [parent-sync](../product/parent-sync.md).
 
 Rationale: detection shells out to `git` rather than reading `.git/config`, because reproducing
 git's own configuration precedence (worktrees, `includeIf` and so on) would bring no benefit.
@@ -131,9 +130,8 @@ none. With no re-stamp to apply, it MUST change nothing.
 
 Supports: [792a4h1a Amend from another environment re-stamps](../product/note-revision.md#792a4h1-uat-scenarios), [792a4h1b Amend backfills missing identity](../product/note-revision.md#792a4h1-uat-scenarios), [792a4h1c The project field does not stand in for the repo](../product/note-revision.md#792a4h1-uat-scenarios), [792a4h1d Empty user detection keeps the prior user](../product/note-revision.md#792a4h1-uat-scenarios), [792a4h1e Empty user detection never writes an empty user](../product/note-revision.md#792a4h1-uat-scenarios), [792a4h1f Without a vault name the default is stamped](../product/note-revision.md#792a4h1-uat-scenarios), [792a4h1g Recording a use keeps the declared identity](../product/note-revision.md#792a4h1-uat-scenarios).
 
-Rationale: the alternatives for an empty user were to refuse the revision, which blocks content
-edits on a machine with broken identity, or to keep the old value silently, which hides the broken
-environment (#776). The repository keeps fresh detection even when empty, because a working
+Rationale: refusing the revision for an empty user would block content edits on a machine with
+broken identity, and keeping the old value silently would hide the broken environment. The repository keeps fresh detection even when empty, because a working
 directory outside git is legitimate.
 
 #### 792b11c4a Scenarios
@@ -250,8 +248,8 @@ rebuild.
 Supports: [792a10k1a The current environment is stamped](../product/vault-migration.md#792a10k1-uat-scenarios), [792a10k1d A backfill twice stamps once](../product/vault-migration.md#792a10k1-uat-scenarios), [792a10k1e An omitted user is filled in](../product/vault-migration.md#792a10k1-uat-scenarios), [792a10k1f A dry run writes nothing](../product/vault-migration.md#792a10k1-uat-scenarios), [792a10k1g Other note types are left alone](../product/vault-migration.md#792a10k1-uat-scenarios), [792a10l1a An unmodeled key is kept](../product/vault-migration.md#792a10l1-uat-scenarios), [792a10l1b An anchor on an unedited key is kept](../product/vault-migration.md#792a10l1-uat-scenarios), [792a10l1c An anchored identity key is refused](../product/vault-migration.md#792a10l1-uat-scenarios), [792a10l1d A CRLF note is converted](../product/vault-migration.md#792a10l1-uat-scenarios),
 [792a10l1e An ordinary note is written as before](../product/vault-migration.md#792a10l1-uat-scenarios).
 
-Rationale: re-rendering the whole frontmatter from the typed model dropped every key the model does not
-define (#780, #789). Editing the parsed mapping keeps them, and keeps the bytes of an ordinary note as they
+Rationale: re-rendering the whole frontmatter from the typed model would drop every key the model does not
+define. Editing the parsed mapping keeps them, and keeps the bytes of an ordinary note as they
 were. The lock stops a backfill racing a concurrent `learn` or `amend`.
 
 #### 792b11c7a Scenarios

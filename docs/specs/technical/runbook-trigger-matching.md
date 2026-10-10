@@ -17,23 +17,17 @@
   tested directly on texts and trigger lists, with a property test against a regular-expression
   oracle; stability, the contract survives any change to how notes are scanned or the payload is
   rendered; necessity, a cue-triggered runbook can be surfaced reliably only through it.
-- Supported capabilities: [memory-query](../product/memory-query.md). Ambient-guidance ([ambient-guidance](../product/ambient-guidance.md)) extends it (the shim passes the
+- Supported capabilities: [memory-query](../product/memory-query.md), [ambient-guidance](../product/ambient-guidance.md) (the shim passes the
   message).
 
 Rationale: a runbook is normally found by the similarity of its situation to the agent's phrases, but
-the agent paraphrases the user's request into those phrases and the paraphrase drops the cue. On a real
-`/please` ask "please" and "end-to-end" vanished and the deliverable was named instead, so the runbook
-did not surface when only the shim was loaded (0 of 3 trials), still missed in one of three after the
-shim was fixed, and missed whenever the paraphrase named the deliverable. Adding the user's words as a
-third semantic phrase changed the runbook's rank or score in none of 95 scratch-vault cells, because
-embedding a paraphrase cannot reproduce a literal cue. So the author declares literal cues
+the agent paraphrases the user's request into those phrases and the paraphrase drops the cue. Embedding a paraphrase cannot reproduce a literal cue. So the author declares literal cues
 (`triggers:`, written by `engram learn runbook --trigger` and replaced by `engram amend --trigger`),
 and the message is matched against them lexically and never embedded. `triggers:` is not part of the
 content hash, so declaring one re-embeds nothing, and a runbook without a hit, and a query without a
 message, rank as they always did. A hit is only a candidate: the agent still judges it against the
-runbook's own applicability text. Matching first used a plain substring and deferred word boundaries
-until a false positive was measured; with bare-word triggers such as `curate` and `please` the false
-hits (`accurate`, `pleased`) were certain, so the match became whole-word on 2026-09-21.
+runbook's own applicability text. The match is whole-word, because bare-word triggers such as `curate` and `please` would
+otherwise hit `accurate` and `pleased`.
 
 ## 792b22c Behavior Requirements
 
@@ -84,8 +78,7 @@ Supports: [792a7zb1a Case and whitespace are ignored](../product/memory-query.md
 Rationale: the boundary is enforced only where the trigger itself ends in a letter or a digit, because
 an author who wrote punctuation at the edge supplied the delimiter: `/please` hits in `do/please` and
 not in `/pleased`. The scan is two rune lookups over `strings.Index`, not a regular expression built
-from author text, which needs escaping and could be abused; the property test uses a regular
-expression as an independent oracle, so each implementation cross-checks the other.
+from author text, which needs escaping and could be abused.
 
 #### 792b22c2a Scenarios
 

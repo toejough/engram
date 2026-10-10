@@ -7,8 +7,8 @@ notes in both directions. A node offers what it writes upward, through an outbox
 its parent's notes back in one merged answer to `engram query`, and pulls a parent's note down when it uses it, as an
 offer for local curation to judge ([curate](./curate.md)). Notes are exchanged and transcript chunks never are. How a vault tells a
 clone or a copy of itself from its parent, and what an exchange is allowed to touch, are [vault-identity](./vault-identity.md), and the
-served side of the exchange is [vault-serving](./vault-serving.md). The `ENGRAM_SERVER` thin-client mode that the exchange replaced
-is gone, and [792a21a ENGRAM_SERVER is refused](#792a21a-engram_server-is-refused) makes setting it an error.
+served side of the exchange is [vault-serving](./vault-serving.md). Setting `ENGRAM_SERVER` is an error
+([792a21a ENGRAM_SERVER is refused](#792a21a-engram_server-is-refused)).
 
 ## 792a21a ENGRAM_SERVER is refused
 
@@ -18,10 +18,8 @@ network endpoint, with an error that names `ENGRAM_SERVER` as no longer supporte
 `ENGRAM_PARENT` to the same URL. No subcommand MUST treat `ENGRAM_SERVER` as an alias for `ENGRAM_PARENT`, and no
 thin-client mode MUST remain.
 
-Rationale: `ENGRAM_SERVER` made the CLI a thin HTTP client with no local vault, so every write landed only on the remote
-and a server outage failed every command. Joe replaced it with the local-first model on 2026-09-27 and ruled out an
-alias shim and an exemption for `serve`. A host that still sets it fails loudly instead of quietly
-behaving as something else.
+Rationale: a host that still sets `ENGRAM_SERVER` fails loudly instead of quietly behaving as something else. The
+thin-client model it selected landed every write only on the remote and failed every command on a server outage.
 
 ### 792a21a1 UAT Scenarios
 
@@ -71,11 +69,11 @@ and MUST return one payload ranked across both sources in the order of [792a21d 
 reconcile. This merged path is the only query path for a node that has a parent: it MUST NOT offer another remote query
 mode, and no parent chunk MUST appear in a merged payload.
 
-Rationale: a node with a parent wants one coherent view of local and inherited memory. Chunks are
-transcript text that belongs to the machine that recorded it, so they never cross vaults, and the merge, its recency
-channel and its chunk budgets are local-only. The merge fuses two complete payloads rather than
-fusing before clustering, because the second would need the parent to expose its candidates, and it sorts by raw score
-without normalizing it, because a within-batch rescale makes a weak match look as strong as a good one.
+Rationale: a node with a parent wants one coherent view of local and inherited memory. Chunks are transcript text that
+belongs to the machine that recorded it, so they never cross vaults, and the merge, its recency channel and its chunk
+budgets are local-only. The merge fuses two complete payloads, so the parent need not expose its candidates, and it
+sorts by raw score without normalizing it, because a within-batch rescale makes a weak match look as strong as a good
+one.
 
 ### 792a21c1 UAT Scenarios
 
@@ -102,9 +100,10 @@ the direct items of a note kind (any kind other than `chunk`) that score at leas
 lowest-positioned kept direct chunk items one for one with the highest-scoring excluded members of Q until that
 minimum is kept or no kept direct chunk remains, and then put the direct group back in score order.
 
-Rationale: explore picks scoring higher than direct matches crowded the direct matches out of a merged answer before
-this order existed (#744). The note floor keeps the minimum of qualifying notes that a local query keeps under a tight
-`--limit` (the matched-note floor of memory-query, [792a7e Matched-note floor](./memory-query.md#792a7e-matched-note-floor)), now over both sources.
+Rationale: explore picks scoring higher than direct matches would crowd the direct matches out of a merged answer. The
+note floor keeps the minimum of qualifying notes that a local query keeps under a tight `--limit` (the matched-note
+floor of memory-query, [792a7e Matched-note floor](./memory-query.md#792a7e-matched-note-floor)), now over both
+sources.
 
 ### 792a21d1 UAT Scenarios
 
@@ -213,9 +212,8 @@ Requirement: [792a21h A merged answer does not re-cluster](#792a21h-a-merged-ans
 query found, and MUST NOT compute a new grouping that mixes local-origin and parent-origin items in one cluster. The
 payload's `pending_offers` flag and its hint, and its refit flag, MUST reflect the local vault only.
 
-Rationale: re-clustering across two nodes' items is a different experiment (#731) that waits on a baseline of this
-one. A child cannot curate its parent's offers or refit its parent's vocabulary, so a parent-side flag would tell the
-child to do something it cannot.
+Rationale: items of the two nodes are not re-clustered together. A child cannot curate its parent's offers or refit
+its parent's vocabulary, so a parent-side flag would tell the child to do something it cannot.
 
 ### 792a21h1 UAT Scenarios
 
@@ -242,7 +240,7 @@ Requirement: [792a21i The merged payload reports the budget it applied](#792a21i
 `limit`, `content_budget` and `lazy_chunks` it used, the `chunks_snippeted` its content pass counted, and
 `explore_allocated` summed per term over both sources.
 
-Rationale: the first merge dropped the block to all zeros (#743), which hid whether a cap had applied.
+Rationale: the block reports real values so that it shows whether a cap applied; all zeros would hide it.
 
 ### 792a21i1 UAT Scenarios
 
@@ -436,13 +434,12 @@ The following MUST NOT be offered: the bookkeeping amends (`--activate`, `--clea
 backfill, `engram learn qa` notes, notes that carry `skill_hash`, pending notes, and any write whose resulting
 exchange hash equals the note's primary link hash. Offers MUST carry notes only and never transcript chunks.
 
-Rationale: the write completes locally first, so it never fails because of the parent. Accepting a served offer counts as
-a local learn at that level and is offered upward, which is what lets knowledge reach every level of the tree, and it is
-skipped when the offer's own origin is the parent so that the single-parent tree has no loop. A pulled note that local
-curation folds into a note of its own goes up once more, as an amend of that note, because the local addition is the
-point of the fold, and the parent's curated result comes back down only on the next use. Stopping propagation at the first
-level would defeat the personal, team and organization tree, and a fold marker that suppressed the bounce would lose the
-local addition upstream.
+Rationale: the write completes locally first, so it never fails because of the parent. Accepting a served offer counts
+as a local learn at that level and is offered upward, which is what lets knowledge reach every level of the personal,
+team and organization tree, and it is skipped when the offer's own origin is the parent so that the single-parent tree
+has no loop. A pulled note that local curation folds into a note of its own goes up once more, as an amend of that
+note, because the local addition is the point of the fold, and the parent's curated result comes back down only on the
+next use.
 
 ### 792a21n1 UAT Scenarios
 
@@ -608,10 +605,10 @@ outbox holds at most one entry per note. The local write MUST succeed whether or
 whose note no longer exists, or now carries the pending-offer marker, MUST be dropped when it is sent, and renaming a
 note MUST NOT orphan its entry.
 
-Rationale: the outbox is `<vault>/.engram/outbox.json` ([792a2k Exchange state outside tracked files](./vault-identity.md#792a2k-exchange-state-outside-tracked-files)). Keying it by `xid` makes a rename harmless, where a
-basename key would lose the entry. An offer is built when it is sent, so offline learn and amend coalesce into one offer.
-A snapshot directory per offer would send stale content and duplicates, a line-per-offer file could not coalesce without
-rewriting, and failing the local write when the parent is down would contradict "local writes always succeed".
+Rationale: the outbox is `<vault>/.engram/outbox.json` ([792a2k Exchange state outside tracked
+files](./vault-identity.md#792a2k-exchange-state-outside-tracked-files)). Keying it by `xid` makes a rename harmless,
+where a basename key would lose the entry. An offer is built when it is sent, so offline learn and amend coalesce into
+one offer, and a local write always succeeds even when the parent is down.
 
 ### 792a21q1 UAT Scenarios
 

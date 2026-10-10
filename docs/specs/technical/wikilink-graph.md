@@ -19,7 +19,8 @@
   basename key is the link form notes and Obsidian share, and it survives any refactoring;
   necessity, every command that reads or revises a named note finds it here.
 - Supported capabilities: [vault-identity](../product/vault-identity.md), [note-revision](../product/note-revision.md), [memory-query](../product/memory-query.md), [vault-counting](../product/vault-counting.md)
-  [vault-counting](../product/vault-counting.md), [vault-health](../product/vault-health.md). Vault-migration ([vault-migration](../product/vault-migration.md)) adds its mappings.
+  [vault-counting](../product/vault-counting.md), [vault-health](../product/vault-health.md),
+  [vault-migration](../product/vault-migration.md).
 
 Rationale: navigation lives in authored relations, the wikilinks in note text, rather than in a
 separate graph store that could drift from the notes, so the graph is derived from the notes each
@@ -115,7 +116,7 @@ treat brackets inside a target as nesting.
 Supports: [792a7x1a A note is printed with its links](../product/memory-query.md#792a7x1-uat-scenarios), [792a7x1e A fenced link is not listed](../product/memory-query.md#792a7x1-uat-scenarios), [792a7x1h Each link is listed once](../product/memory-query.md#792a7x1-uat-scenarios), [792a8e1f A link inside a fenced code block does not count](../product/vault-counting.md#792a8e1-uat-scenarios), [792a8e1g A link ending in .md counts as the bare link](../product/vault-counting.md#792a8e1-uat-scenarios), [792a9b1c A legacy suffixed link resolves](../product/vault-health.md#792a9b1-uat-scenarios), [792a9c1b A missing note is reported once however it is spelled](../product/vault-health.md#792a9c1-uat-scenarios), [792a9c1d A link inside a fenced code block is not reported](../product/vault-health.md#792a9c1-uat-scenarios).
 
 Rationale: Obsidian does not resolve a link inside a fenced code block, so verbatim transcript text
-pasted into a note must not make graph edges. The legacy `.md`-suffixed form that engram once wrote
+pasted into a note must not make graph edges. The legacy `.md`-suffixed form
 resolves to the same note as the bare basename, so both are one target. A bare link that ends in the
 three characters `.md` is always read as the suffixed form, because the text cannot say which was
 meant.

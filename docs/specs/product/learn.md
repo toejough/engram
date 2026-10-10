@@ -6,7 +6,8 @@
 
 Requirement: [792a15a Learn writes only explicit lessons](#792a15a-learn-writes-only-explicit-lessons) Learn MUST NOT write an episode, a session summary or a note for a fact that nobody asked to remember and that is not one of the four kinds of lesson ([792a15e The four kinds of explicit lesson](#792a15e-the-four-kinds-of-explicit-lesson)), and MUST NOT run `engram transcript` or `engram learn episode`, or write a tier or a decision-record note. A session with no correction, save-request, reversal or confirmed approach MUST end with the sweep and its report alone.
 
-Rationale: raw event memory is automatic: `engram ingest` chunks and embeds session transcripts and markdown without summaries, episode notes or arc detection, so the agent's only writing job is crystallizing explicit lessons. The episode workflow was retired when the chunk layer replaced it.
+Rationale: raw event memory is automatic: `engram ingest` chunks and embeds session transcripts and markdown without
+summaries, episode notes or arc detection, so the agent's only writing job is crystallizing explicit lessons.
 
 ### 792a15a1 UAT Scenarios
 
@@ -174,7 +175,11 @@ Scenario: 792a15f1b A repo-doc correction does not count
 
 Requirement: [792a15g A confirmed approach needs a bet or specific praise, and takes the kind its shape calls for](#792a15g-a-confirmed-approach-needs-a-bet-or-specific-praise-and-takes-the-kind-its-shape-calls-for) Learn MUST capture a confirmed approach only when either the user explicitly praised or thanked a specific behavior that can be restated as a reusable tactic, or the agent made a genuine guess or was uncertain about a plan, acted on it, and a session-recorded outcome (a test passed, the user confirmed it, an artifact functioned, a blocker cleared) then confirmed it. It MUST NOT capture a bare pleasantry that names no behavior, a routine success with no bet behind it, or an unconfirmed guess. It MUST hand off a reusable, ordered, multi-step procedure for a recurring task as a runbook note (with `done_when` and a body of numbered steps, which may link fact or feedback notes) and a single behavioral tweak with no step structure as a feedback note. When it writes a runbook and the user also says to do that going forward, it MUST NOT additionally write a fact note for a save-request on the same content.
 
-Rationale: a routing by shape was added when the runbook kind was introduced: a runbook capture is itself the "remember to do it this way" note. The confirmed-approach kind is the positive mirror of a reversal and, in practice, the kind that fires least often, so the skill carries exemplars (a design assumption checked by a targeted code search, a suspected defect confirmed by a reproduction test, a vendor claim verified against evidence), but the bar does not move: a resolved uncertainty or an explicit specific confirmation, never "it worked".
+Rationale: a runbook capture is itself the "remember to do it this way" note. The confirmed-approach kind is the
+positive mirror of a reversal and, in practice, the kind that fires least often, so the skill carries exemplars (a
+design assumption checked by a targeted code search, a suspected defect confirmed by a reproduction test, a vendor
+claim verified against evidence), but the bar does not move: a resolved uncertainty or an explicit specific
+confirmation, never "it worked".
 
 ### 792a15g1 UAT Scenarios
 
@@ -219,7 +224,10 @@ Scenario: 792a15g1g A runbook is not duplicated as a save-request
 
 Requirement: [792a15h Each note is placed by an ordered test](#792a15h-each-note-is-placed-by-an-ordered-test) Before each hand-off, learn MUST decide the note's Luhmann placement, considering only notes written or recalled earlier in the same session, and MUST pass the resulting position and target to write-memory. It MUST apply these tests in order: when the note develops one specific sub-point raised inside an in-session note, the placement is `continuation` with that note's ID as the target; otherwise, when it continues or extends the same overall thought at the same level, the placement is `sibling` with that note's ID as the target; otherwise the placement is `top` with no target. When no in-session candidate exists, it MUST choose `top` and MUST NOT search the rest of the vault for a target.
 
-Rationale: an ID's position encodes where a note sits in the thought tree, which follows Niklas Luhmann's own practice and Sönke Ahrens, _How to Take Smart Notes_. The disposition step had been removed from the skill on 2026-06-12, so for months every capture was `top` and all 447 notes in the vault carried flat integer IDs, leaving the branching the ID scheme was named for unused. Placement is a judgment of content, which the skill makes and the binary does not.
+Rationale: an ID's position encodes where a note sits in the thought tree, which follows Niklas Luhmann's own practice
+and Sönke Ahrens, _How to Take Smart Notes_. Without a placement step every capture would be `top` and the branching
+the ID scheme is named for would go unused. Placement is a judgment of content, which the skill makes and the binary
+does not.
 
 ### 792a15h1 UAT Scenarios
 
@@ -274,7 +282,8 @@ Scenario: 792a15i1b One note per principle
 
 Requirement: [792a15j A write to a parent is reported as done](#792a15j-a-write-to-a-parent-is-reported-as-done) With `ENGRAM_PARENT` set, learn MUST treat the write as complete once the note is written locally, because the binary offers it upward without anything for the agent to run. When a write prints `engram: parent unreachable (retry after …); N offer(s) queued`, learn MUST report the note as saved and its offer as queued for the parent, MUST NOT re-run the write, MUST NOT call it failed, and MUST NOT set `ENGRAM_SERVER`.
 
-Rationale: the note is in the local vault and the offer waits in the queue until a later engram command reaches the parent. `ENGRAM_SERVER`'s mode is gone and setting it is a hard error ([parent-sync](./parent-sync.md)).
+Rationale: the note is in the local vault and the offer waits in the queue until a later engram command reaches the
+parent. Setting `ENGRAM_SERVER` is a hard error ([parent-sync](./parent-sync.md)).
 
 ### 792a15j1 UAT Scenarios
 
@@ -294,7 +303,9 @@ Scenario: 792a15j1b ENGRAM_SERVER is never set
 
 Requirement: [792a15k An answered question is captured once](#792a15k-an-answered-question-is-captured-once) Learn MUST scan the session for a substantive answered question, one whose answer body contains at least one `[[full-basename]]` wikilink or whose answer is a new vault note it crystallized, and for each such question not yet captured MUST hand off to write-memory a note of kind qa with a slug, the verbatim question, the answer body copied, contributor basenames, a certainty and the source "ad-hoc capture, learn session <date>". Contributors MUST come only from the `[[full-basename]]` wikilinks in the written answer, extracted verbatim and never free-listed, and learn MUST NOT pre-validate that they exist; when write-memory reports a contributor rejection, learn MUST surface it. Learn MUST skip a question answered by generic advice or without a wikilink and without a new note. It MUST NOT write a pair that was already written this session (for example by recall's Step 4), and MUST NOT write a pair for a question answered by a Step 2 note written this turn, because that note is the capture. It MUST still write a pair for a question answered by citing an existing earlier note when no new note was written for it. It MUST write one pair per distinct answered question.
 
-Rationale: the traceability bar (a wikilink or a new note) is the observable test of a substantive answer. The self-answered exclusion fixes a production bug found by the write-memory eval (task 3.4b, trial R-0): the old wording treated the agent's own just-written note as a trigger for a second write, producing an unrequested duplicate `engram learn qa` write whenever the agent posed and answered a diagnostic question through its own note in the same turn (`dev/eval/cumulative/runbook_vs_skill/phase2/results/3.4b_write_memory_shim_only_retry2_sonnet5.md`).
+Rationale: the traceability bar (a wikilink or a new note) is the observable test of a substantive answer. The
+self-answered exclusion prevents an unrequested duplicate `engram learn qa` write when the agent poses and answers a
+diagnostic question through its own just-written note in the same turn.
 
 ### 792a15k1 UAT Scenarios
 

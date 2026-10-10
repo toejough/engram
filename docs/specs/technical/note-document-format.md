@@ -22,15 +22,13 @@
   hand-edited and Obsidian-edited notes depend on it; necessity, every note engram writes or reads
   passes through it.
 - Supported capabilities: [note-writing](../product/note-writing.md), [note-revision](../product/note-revision.md), [controlled-vocabulary](../product/controlled-vocabulary.md).
-  Skill-runbook-registration ([skill-runbook-registration](../product/skill-runbook-registration.md)) adds [792b6c9 Skill identity fields](#792b6c9-skill-identity-fields) and [792b6c10 Rewrites by other writers keep the skill identity fields](#792b6c10-rewrites-by-other-writers-keep-the-skill-identity-fields). Vault-counting ([vault-counting](../product/vault-counting.md)) and [parent-sync](../product/parent-sync.md) add
-  their requirements here.
+  Also [skill-runbook-registration](../product/skill-runbook-registration.md) ([792b6c9 Skill identity fields](#792b6c9-skill-identity-fields), [792b6c10 Rewrites by other writers keep the skill identity fields](#792b6c10-rewrites-by-other-writers-keep-the-skill-identity-fields)), [vault-counting](../product/vault-counting.md) and [parent-sync](../product/parent-sync.md).
 
 Rationale: the vault is flat. Notes sit at the vault root, and a note's place in the hierarchy is
 carried by the Luhmann ID that leads its filename, not by a folder ([792a2c Flat vault layout](../product/vault-identity.md#792a2c-flat-vault-layout)). A fact or feedback note
 states its situation twice: in the `situation:` field, which recall's situation vector is built
-from, and again in the body formula. A legacy invariant asked for a single representation of any
-datum that affects retrieval; the two copies are instead kept in step by the writers that change a
-situation.
+from, and again in the body formula. The writers that change a
+situation keep the two copies in step.
 
 ## 792b6c Behavior Requirements
 
@@ -64,8 +62,8 @@ unchanged, whatever newlines, colons, leading dashes or other YAML-significant c
 
 Supports: [792a3a1a A fact note is written](../product/note-writing.md#792a3a1-uat-scenarios), [792a3b1a A feedback note is written](../product/note-writing.md#792a3b1-uat-scenarios), [792a3c1a A runbook note is written](../product/note-writing.md#792a3c1-uat-scenarios), [792a3q1a A pair is captured](../product/note-writing.md#792a3q1-uat-scenarios).
 
-Rationale: frontmatter was once built by concatenating strings, and a multi-line value ended the
-block early. Encoding through the YAML library fixed that for every value.
+Rationale: frontmatter is encoded through the YAML library, not built by concatenating strings,
+so a multi-line value cannot end the block early.
 
 #### 792b6c2a Scenarios
 
@@ -271,12 +269,11 @@ be byte-identical to the note rendered afresh with the edit.
 
 Supports: [792a4j1a Amend keeps an unmodeled key](../product/note-revision.md#792a4j1-uat-scenarios), [792a4j1b Amend keeps an anchor on a key it does not edit](../product/note-revision.md#792a4j1-uat-scenarios), [792a4j1c Amend keeps the extra keys of a kept supersession](../product/note-revision.md#792a4j1-uat-scenarios), [792a4j1d Resituate keeps every untouched field](../product/note-revision.md#792a4j1-uat-scenarios), [792a4k1a Amend refuses an anchored edited key](../product/note-revision.md#792a4k1-uat-scenarios), [792a4k1b Resituate refuses an anchored situation](../product/note-revision.md#792a4k1-uat-scenarios).
 
-Rationale: re-rendering the whole frontmatter from the typed note model dropped every key the model
-does not define (#780); editing the parsed mapping keeps them. An anchored value cannot be replaced
+Rationale: re-rendering the whole frontmatter from the typed note model would drop every key the model
+does not define; editing the parsed mapping keeps them. An anchored value cannot be replaced
 without leaving its aliases dangling, and decoding the result again before it is written keeps a
 note that no reader could parse from ever reaching the disk. Byte-identical output for ordinary
-notes keeps their exchange hash unchanged, so the offer paths that compare these bytes behave as
-they did before the node edits.
+notes keeps their exchange hash unchanged, so the offer paths that compare these bytes are unaffected.
 
 #### 792b6c7a Scenarios
 

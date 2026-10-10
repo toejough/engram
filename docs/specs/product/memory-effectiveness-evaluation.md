@@ -18,9 +18,8 @@ MUST confirm that `SKILL.md` exists at the destination after the copy. It MUST N
 from a wrong source path is indistinguishable from a successful copy of an empty directory unless the source and the
 destination are checked independently.
 
-Rationale: the second warm-config builder silently skipped its copy for a month after the skills moved (#749), so warm
-trials ran with no skills and were read as warm results. The check is shared (`isolation.install_skill`) so that there is one
-place left to get it wrong.
+Rationale: a warm-config builder that silently skips its copy leaves warm trials running with no skills, to be read as
+warm results. The check is shared (`isolation.install_skill`) so that there is one place left to get it wrong.
 
 ### 792a23a1 UAT Scenarios
 
@@ -76,8 +75,8 @@ Requirement: [792a23c Skill sources are found from the harness's own location](#
 file location, and MUST NOT hard-code a machine- or session-specific absolute path for it. The skill sources are
 `agent-instructions/skills/<skill>` relative to that root.
 
-Rationale: a hard-coded absolute path is the fragility that let the previous failure go unnoticed for a month, in two
-independent functions that shared one contract.
+Rationale: a hard-coded absolute path is the fragility that lets a silent skip go unnoticed, in two independent
+functions that share one contract.
 
 ### 792a23c1 UAT Scenarios
 
@@ -102,8 +101,8 @@ automatically by the same primitive that builds a trial's isolated environment, 
 never has to collect, return or pass along each trial's environment itself, even when the trial is built deep inside a
 worker function whose result the harness's top level never sees.
 
-Rationale: a whole-vault diff cannot tell a trial's leak from the orchestrating session's own legitimate writes to the real
-vault while a run is in progress (route evidence notes, recall-glance sidecars), and it false-alarmed on them (#750).
+Rationale: a whole-vault diff cannot tell a trial's leak from the orchestrating session's own legitimate writes to the
+real vault while a run is in progress (route evidence notes, recall-glance sidecars), so it false-alarms on them.
 
 ### 792a23d1 UAT Scenarios
 
@@ -132,9 +131,9 @@ marker. It MUST also raise when the content names only the trial marker's basena
 random suffix such as `tempfile.mkdtemp` makes, and not when it is a short deterministic name that a note could mention
 in passing.
 
-Rationale: replacing whole-vault diffing with trial-side detection must not weaken the guard against an actual leak, and a
-note that quotes a trial's full path is the dominant real shape of one. A short basename such as `plumbing-0` false-matched
-an orchestrator note that mentioned the fixture by name.
+Rationale: replacing whole-vault diffing with trial-side detection must not weaken the guard against an actual leak,
+and a note that quotes a trial's full path is the dominant real shape of one. A short basename such as `plumbing-0`
+could false-match an orchestrator note that mentioned the fixture by name.
 
 ### 792a23e1 UAT Scenarios
 
@@ -163,9 +162,9 @@ through a path that never builds its environment with the standard primitive, a 
 registered trial directory or session identifier, a leak that names only a non-distinctive basename, and an in-place content
 mutation of an existing note that leaves the set of note basenames unchanged are not detected.
 
-Rationale: stating the limits keeps a green guard from being read as a proof. Dropping the former mtime-based fingerprint
-lost the in-place mutation case, which is reachable only through the unmediated path already named; the short-basename
-case is accepted in exchange for not false-matching an orchestrator note.
+Rationale: stating the limits keeps a green guard from being read as a proof. The in-place mutation case is reachable
+only through the unmediated path already named; the short-basename case is accepted in exchange for not false-matching
+an orchestrator note.
 
 ### 792a23f1 UAT Scenarios
 
@@ -232,8 +231,8 @@ precedes the trial's task completion, and not merely when no mutating tool call 
 follow-up question that the trial asks after it has completed and verified its task, as its own end-state check shows, MUST
 NOT be scored as a trial that stopped before finishing.
 
-Rationale: a trial that finished the work and then asked a question was scored as a stop, which mixed a clean success with a
-stop to ask.
+Rationale: otherwise a trial that finished the work and then asked a question is scored as a stop, which mixes a clean
+success with a stop to ask.
 
 ### 792a23h1 UAT Scenarios
 
@@ -299,8 +298,8 @@ by reading the transcript in context and MUST NOT match keywords or fixed phrase
 non-matches afterwards. Its quality bar MUST be a miss rate, how many real moments it fails to catch, measured against
 hand-labeled examples and agreed before any full-corpus run, and never how often it over-flags.
 
-Rationale: about 68% of corrections are subtle enough that word-matching alone misses roughly two thirds of them (vault note
-112), and the successes are the reinforcement half of the loop.
+Rationale: most corrections are subtle enough that word-matching alone misses most of them, and the successes are the
+reinforcement half of the loop.
 
 ### 792a23k1 UAT Scenarios
 
@@ -401,8 +400,8 @@ a value that itself begins with `--` included. When the invocation exits non-zer
 contain the tool's actual error output, on whichever stream it was written, so that a failed check is diagnosable from its own
 recorded error field.
 
-Rationale: `engram`'s own errors print to standard output, and a phrase beginning with `--` was once parsed as a flag, so the
-check recorded a failure with an empty error (#787).
+Rationale: `engram`'s own errors print to standard output, and a phrase beginning with `--` is parsed as a flag, which
+records a failure with an empty error.
 
 ### 792a23n1 UAT Scenarios
 
@@ -426,8 +425,8 @@ count as found. The gap on the finding side, memories the orchestrator surfaced 
 orchestrator's side at the moment of dispatch with a structural check across the corpus, validated against a smaller
 sample judged by a model that tells genuinely missing content from content paraphrased into the prompt.
 
-Rationale: Joe's rule of 2026-08-30. What matters for the subagent is whether it followed a memory it had, and what matters for the
-orchestrator is what it left out.
+Rationale: what matters for the subagent is whether it followed a memory it had, and what matters for the orchestrator
+is what it left out.
 
 ### 792a23o1 UAT Scenarios
 

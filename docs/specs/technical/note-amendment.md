@@ -22,7 +22,7 @@
   change to the flags that drive it; necessity, every change an agent makes to an existing note
   goes through it.
 - Supported capabilities: [note-revision](../product/note-revision.md), [controlled-vocabulary](../product/controlled-vocabulary.md), [parent-sync](../product/parent-sync.md) ([792b14c12 Activation against the parent](#792b14c12-activation-against-the-parent),
-  [792b14c13 A discard of a pulled note records its decline](#792b14c13-a-discard-of-a-pulled-note-records-its-decline)), [curate](../product/curate.md) ([792b14c14 Settling a pending offer](#792b14c14-settling-a-pending-offer)). Write-memory ([write-memory](../product/write-memory.md)) and [recall](../product/recall.md) add their requirements.
+  [792b14c13 A discard of a pulled note records its decline](#792b14c13-a-discard-of-a-pulled-note-records-its-decline)), [curate](../product/curate.md) ([792b14c14 Settling a pending offer](#792b14c14-settling-a-pending-offer)), [write-memory](../product/write-memory.md), [recall](../product/recall.md).
 
 Rationale: a revision is a read-modify-write of a note and its sidecar, so two revisions, or a
 revision and a learn, that interleave could each overwrite the other's change. Every revision takes

@@ -21,16 +21,14 @@
   memory loop loses what it should have kept.
 - Supported capabilities: [memory-effectiveness-evaluation](../product/memory-effectiveness-evaluation.md).
 
-Rationale: engram is meant to close the loop that lets a fixed-weight model learn from experience, and the
-audit is the step that looks back and labels what happened a win or a loss. It is a standing instrument, built Python-first under
-`dev/eval`, with one run mode built (observe, over real transcripts), and replay and mine, which re-score a candidate change
-against recorded moments, still planned (#748). Its questions are the loss stages of the loop, asked for failures and
-successes alike and for dispatches as a moment of their own: whether a memory existed, whether a search fired and targeted
-the right thing, whether the memory surfaced and was applied, and, on the write side, whether a learn fired and wrote a good
-note. Credit is judged-only: the audit emits records and nothing in the vault changes unjudged, so there is no automatic
-decay, promotion or prune; the risk that a queue of records rots unprocessed is to be met when the judged consumer exists
-(#747) by surfacing it as pending offers are, and by riding the judged moments that already exist. The decision to add memory to dispatch prompts (#739 Phase 2) was hard-gated on the audit's
-result and made by a joint critical review, with no formula fixed in advance.
+Rationale: engram is meant to close the loop that lets a fixed-weight model learn from experience, and the audit is
+the step that looks back and labels what happened a win or a loss. It is a standing instrument, built Python-first
+under `dev/eval`, with one run mode built (observe, over real transcripts); replay and mine, which re-score a
+candidate change against recorded moments, are planned. Its questions are the loss stages of the loop, asked for
+failures and successes alike and for dispatches as a moment of their own: whether a memory existed, whether a search
+fired and targeted the right thing, whether the memory surfaced and was applied, and, on the write side, whether a
+learn fired and wrote a good note. Credit is judged-only: the audit emits records and nothing in the vault changes
+unjudged, so there is no automatic decay, promotion or prune.
 
 ## 792b39c Behavior Requirements
 
@@ -44,9 +42,9 @@ window that holds it.
 
 Supports: [792a23k1a A subtle correction is detected](../product/memory-effectiveness-evaluation.md#792a23k1-uat-scenarios), [792a23k1b A success moment is detected](../product/memory-effectiveness-evaluation.md#792a23k1-uat-scenarios).
 
-Rationale: a 431.8 KB transcript once qualified for the old 500 KB single-window threshold, produced one prompt of about 441,000
-characters and was rejected instantly and deterministically by `claude -p` (`prompt_too_long`); pinning the threshold to the cap
-closes the gap between "too big to read whole" and "not big enough to split".
+Rationale: a transcript that qualifies for a single window but exceeds the cap produces a prompt that `claude -p`
+rejects instantly and deterministically (`prompt_too_long`); pinning the threshold to the cap closes the gap between
+"too big to read whole" and "not big enough to split".
 
 #### 792b39c1a Scenarios
 
@@ -95,9 +93,11 @@ answers `prompt_too_long`, and MUST still retry a genuine transient error. A stu
 
 Supports: [792a23k1a A subtle correction is detected](../product/memory-effectiveness-evaluation.md#792a23k1-uat-scenarios), [792a23k1b A success moment is detected](../product/memory-effectiveness-evaluation.md#792a23k1-uat-scenarios).
 
-Rationale: detection that matched keywords would miss most subtle corrections ([792a23k The audit detects moments by reading them](../product/memory-effectiveness-evaluation.md#792a23k-the-audit-detects-moments-by-reading-them)). A sustained auth or API outage once
-produced 40 windows of clean-looking zero-moment results (the 2026-09-02 incident), and a 431.8 KB prompt burned a three-minute
-backoff twice before being diagnosed as deterministic, so each failure has its own exception.
+Rationale: detection that matched keywords would miss most subtle corrections ([792a23k The audit detects moments by
+reading them](../product/memory-effectiveness-evaluation.md#792a23k-the-audit-detects-moments-by-reading-them)). A
+sustained auth or API outage would otherwise produce many windows of clean-looking zero-moment results, and a
+deterministic failure such as an oversized prompt would burn a backoff for nothing, so each failure has its own
+exception.
 
 #### 792b39c2a Scenarios
 
@@ -163,8 +163,9 @@ of `prompt_too_long` MUST raise `PromptTooLongError`, and the whole pipeline MUS
 
 Supports: [792a23l1a A complete moment record](../product/memory-effectiveness-evaluation.md#792a23l1-uat-scenarios), [792a23k1b A success moment is detected](../product/memory-effectiveness-evaluation.md#792a23k1-uat-scenarios).
 
-Rationale: a bare null is ambiguous between "not asked" and "not applicable", so the conditional answers are stated, with a reason, and
-the record says which instrument produced it so that before-and-after comparisons declare their sides (vault note 282).
+Rationale: a bare null is ambiguous between "not asked" and "not applicable", so the conditional answers are stated,
+with a reason, and the record says which instrument produced it so that before-and-after comparisons declare their
+sides.
 
 #### 792b39c3a Scenarios
 
@@ -242,9 +243,9 @@ no item came back and leaving the grade null for a reply that is not one of the 
 
 Supports: [792a23m1a An exact answer via git checkout](../product/memory-effectiveness-evaluation.md#792a23m1-uat-scenarios), [792a23m1b An approximate answer without history](../product/memory-effectiveness-evaluation.md#792a23m1-uat-scenarios), [792a23m1c The live vault is untouched](../product/memory-effectiveness-evaluation.md#792a23m1-uat-scenarios), [792a23m1d Chunks are always judged by ingestion date](../product/memory-effectiveness-evaluation.md#792a23m1-uat-scenarios).
 
-Rationale: a memory written after a moment cannot have been missed at it. A worktree is a read-only operation on the vault's git
-registry, so the live working tree is never touched. A relevance grade, where the first version used a thresholdless "any item
-came back", is what makes a returned-but-irrelevant item count as a miss.
+Rationale: a memory written after a moment cannot have been missed at it. A worktree is a read-only operation on the
+vault's git registry, so the live working tree is never touched. A relevance grade, rather than counting any returned
+item, is what makes a returned-but-irrelevant item count as a miss.
 
 #### 792b39c4a Scenarios
 
@@ -301,8 +302,8 @@ distinctly.
 
 Supports: [792a23n1a A phrase starting with -- does not break the invocation](../product/memory-effectiveness-evaluation.md#792a23n1-uat-scenarios), [792a23n1b A real query failure's error text is preserved](../product/memory-effectiveness-evaluation.md#792a23n1-uat-scenarios).
 
-Rationale: `engram`'s own errors print to standard output and a phrase beginning with `--` was once parsed as a flag, so the check recorded
-a failure with an empty error (#787); two copies of the builder had drifted apart, so there is one.
+Rationale: `engram`'s own errors print to standard output and a phrase beginning with `--` is parsed as a flag, so the
+check would record a failure with an empty error; there is one builder so the copies cannot drift apart.
 
 #### 792b39c5a Scenarios
 
@@ -400,8 +401,8 @@ measured outside the per-moment record.
 
 Supports: [792a23o1a An injected memory counts as found for the subagent](../product/memory-effectiveness-evaluation.md#792a23o1-uat-scenarios), [792a23o1b A dispatch moment measures the handoff on the orchestrator's side](../product/memory-effectiveness-evaluation.md#792a23o1-uat-scenarios).
 
-Rationale: a memory in the prompt counts as found for the subagent (Joe's rule, 2026-08-30), and what the orchestrator left out is
-measured from its side, at the dispatch, so the per-transcript runner, which cannot see the parent, leaves the field to the
+Rationale: a memory in the prompt counts as found for the subagent, and what the orchestrator left out is measured
+from its side, at the dispatch, so the per-transcript runner, which cannot see the parent, leaves the field to the
 full-corpus work.
 
 #### 792b39c7a Scenarios

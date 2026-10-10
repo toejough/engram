@@ -21,8 +21,7 @@
   without it.
 - Supported capabilities: [skill-runbook-registration](../product/skill-runbook-registration.md).
 
-Rationale: registration used to cover only engram's own six skills (vault note 1066a widened it to every
-folder a harness loads), so discovery follows each harness's own rules: Claude Code's folders and plugin
+Rationale: registration covers every folder a harness loads, so discovery follows each harness's own rules: Claude Code's folders and plugin
 manifests, and Pi's settings, packages and project trust (matched to Pi's own package manager). A read that
 fails is never treated as an empty folder, because a removal offer built on a misread folder would delete a
 note whose skill still exists.

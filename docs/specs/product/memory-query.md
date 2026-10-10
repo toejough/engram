@@ -111,11 +111,10 @@ first, MUST follow the notes and the other note items ([792a7m Explore picks are
 Only question notes ([792a3t Question-and-answer retrieval](./note-writing.md#792a3t-question-and-answer-retrieval)) MUST be left out of the matched set: a vocabulary definition note
 ([792a6a Definition notes](./controlled-vocabulary.md#792a6a-definition-notes)) MUST be matched like any other note.
 
-Rationale: the floor is applied to the unscaled cosine, so a topically perfect but old item still
-qualifies (vault note 53). The cap bounds the cost of clustering the set, whose silhouette scoring
-is quadratic in its size, at a few hundred items however large the vault and the chunk index grow.
-Notes and chunks are ranked together so that a transcript fragment and the lesson distilled from it
-compete on one scale.
+Rationale: the floor is applied to the unscaled cosine, so a topically perfect but old item still qualifies. The cap
+bounds the cost of clustering the set, whose silhouette scoring is quadratic in its size, at a few hundred items
+however large the vault and the chunk index grow. Notes and chunks are ranked together so that a transcript fragment
+and the lesson distilled from it compete on one scale.
 
 ### 792a7d1 UAT Scenarios
 
@@ -168,12 +167,9 @@ slots for notes whose unscaled cosine is at least 0.25, promoting the best such 
 the cut and evicting the lowest-scoring chunks to make room. A note whose unscaled cosine is below
 0.25 MUST NOT be promoted.
 
-Rationale: without the reservation, a flood of transcript chunks with higher cosine pushed a
-crystallized lesson out of the matched set entirely: a note the embedder ranks in its top five when
-notes are searched alone reached the top five of the combined ranking only 22% of the time, against
-83% once the reservation existed (measured 2026-06-28, `dev/eval/LEDGER.md#matched-note-floor`). The
-floor means a promoted note is relevant in its own right, so the reservation never surfaces an
-irrelevant one.
+Rationale: without the reservation, a flood of transcript chunks with higher cosine pushes a crystallized lesson out
+of the matched set entirely. The floor means a promoted note is relevant in its own right, so the reservation never
+surfaces an irrelevant one.
 
 ### 792a7e1 UAT Scenarios
 
@@ -209,12 +205,11 @@ falls. A note's age MUST be the time since the date in its sidecar's `last_used`
 none, since its `created` date when that is written as a bare date; a note with neither MUST NOT be
 scaled. An item with an age of zero, or with an unreadable date, MUST NOT be scaled.
 
-Rationale: operators work in monthly cycles, so the decay is a soft tilt that favours recent
-content without drowning relevance (2 weeks 0.85, 1 month 0.71, 2 months 0.50). The newest chunks
-are guaranteed a place separately by the recency channel ([792a7o The newest chunks](#792a7o-the-newest-chunks)), so the scaling need not carry
-that guarantee. A recency-weighted cluster centroid was tried and did not ship ([792a7h Candidate notes](#792a7h-candidate-notes)). Notes that
-`engram learn` writes quote their `created` date, which cannot be read as a bare date, so such a
-note is not scaled until it has been used (#774).
+Rationale: operators work in monthly cycles, so the decay is a soft tilt that favours recent content without drowning
+relevance (2 weeks 0.85, 1 month 0.71, 2 months 0.50). The newest chunks are guaranteed a place separately by the
+recency channel ([792a7o The newest chunks](#792a7o-the-newest-chunks)), so the scaling need not carry that guarantee.
+Notes that `engram learn` writes quote their `created` date, which cannot be read as a bare date, so such a note is
+not scaled until it has been used.
 
 ### 792a7f1 UAT Scenarios
 
@@ -294,14 +289,9 @@ to the cluster's centroid, highest first with ties by path, each with its `path`
 but the cluster's own notes: not notes sampled for other topics ([792a7i Half of the notes are explored](#792a7i-half-of-the-notes-are-explored)) and not superseding notes
 ([792a7n Superseding notes ride along](#792a7n-superseding-notes-ride-along)), which travel in `items`.
 
-Rationale: the cosine only nominates; whether a candidate covers the situation is the reader's
-judgement. The centroid is the unweighted mean of the cluster's vectors: a centroid weighted by each
-member's recency was measured on the production vault, on the 16 same-cluster pairs where one note
-supersedes another and the cluster has more than five notes, and it changed nothing, with 8 of 16
-(50.0%) superseded notes over-surfaced either way and a mean top-5 relevance of 0.6480 for both
-(`dev/eval/LEDGER.md#652-recency-weighted-centroid-null`), so it did not ship.
-Recency weighting was eval-gated because it is a third recency lever on the same axis and over-rotating toward
-recency is a real risk; a null result closes the question and ships no production change.
+Rationale: the cosine only nominates; whether a candidate covers the situation is the reader's judgement. The centroid
+is the unweighted mean of the cluster's vectors: weighting it by each member's recency would add a third recency lever
+on the same axis, and over-rotating toward recency is a real risk.
 
 ### 792a7h1 UAT Scenarios
 
@@ -333,11 +323,9 @@ filled, because the vault has too few distinct notes or `vocab.centroids.json` i
 unreadable, it MUST be smaller, and the budget's `explore_allocated` MUST show the shortfall, as `{}`
 when it is empty.
 
-Rationale: matches alone only find what resembles the query, so global reach comes from sampling
-near concepts. Tag nomination did this by joining any note that shared a term with the top three
-notes of a cluster, whatever its cosine, which tied candidates to an accident of rank, gave every
-term-sharing note equal footing, and needed a per-cluster cap; it was replaced on 2026-07-29.
-The missing-centroids case fails loudly, as an empty allocation, rather than silently.
+Rationale: matches alone only find what resembles the query, so global reach comes from sampling near concepts by
+cosine to each term's centroid, which does not tie candidates to an accident of rank or give every term-sharing note
+equal footing. The missing-centroids case fails loudly, as an empty allocation, rather than silently.
 
 ### 792a7i1 UAT Scenarios
 
@@ -372,12 +360,9 @@ terms are allocated at least as much as farther ones, and the allocations total 
 that has at least one member in the exploit half MUST have 0.05 added to that cosine first, once, no
 matter how many members it has.
 
-Rationale: a hard radius is brittle in cosine space, whereas a softmax needs one temperature and
-degrades continuously, so far terms approach an allocation of zero without a cutoff. The temperature
-was calibrated on ten queries against the production vault (best centroid cosine 0.550 and median
-0.307, giving (0.550 - 0.307) / ln 10 = 0.106; `dev/eval/LEDGER.md#recall-explore-tau-calibration`).
-The bonus keeps the one thing tag nomination did well, reach to a term whose notes already matched,
-and is a constant so it cannot compound.
+Rationale: a hard radius is brittle in cosine space, whereas a softmax needs one temperature and degrades
+continuously, so far terms approach an allocation of zero without a cutoff. The bonus gives reach to a term whose
+notes already matched, and is a constant so it cannot compound.
 
 ### 792a7j1 UAT Scenarios
 
@@ -524,12 +509,10 @@ the provenance `recent` and a score of 0, MUST NOT be a member of any cluster, a
 towards `--limit` ([792a7q Limit](#792a7q-limit)). Fewer chunks than the count MUST give all of them. A chunk with no
 first-indexed time MUST sort after every chunk that has one.
 
-Rationale: the agent that has lost its context re-encounters its own recent narration and recovers
-what it was doing from recency, with no separate provenance mechanism. The channel is
-non-load-bearing for recall, so a small count shrinks the payload: a count of 25 cut a real-vault
-payload by 28% (230 to 165 KB, `dev/eval/LEDGER.md#payload-cut-recent-fill`). A zero value stands for
-the default, because an unset flag and an unset environment variable both read as zero; to turn the
-channel off the value must be negative.
+Rationale: the agent that has lost its context re-encounters its own recent narration and recovers what it was doing
+from recency, with no separate provenance mechanism. The channel is non-load-bearing for recall, so a small count
+shrinks the payload. A zero value stands for the default, because an unset flag and an unset environment variable both
+read as zero; to turn the channel off the value must be negative.
 
 ### 792a7o1 UAT Scenarios
 
@@ -573,10 +556,9 @@ the reader returned. Ingesting a source again MUST keep the recorded time of eve
 holds. A chunk in an index written before times were recorded MUST be given its source's recorded
 modification time the next time the source is indexed again, or no time when the manifest has none.
 
-Rationale: recency used to be approximated from the source file's modification time, so one edit
-made every chunk in a source look new. A per-chunk time orders chunks across and within sessions;
-all chunks of one transcript share the session's last timestamp, which is a sufficient
-approximation because each session is its own source.
+Rationale: a per-chunk time orders chunks across and within sessions, where the source file's modification time would
+make every chunk in a source look new after one edit. All chunks of one transcript share the session's last timestamp,
+which is a sufficient approximation because each session is its own source.
 
 ### 792a7p1 UAT Scenarios
 
@@ -612,10 +594,8 @@ hits MUST NOT be counted against it, so `items` can hold more than `--limit` ite
 kind by the number of hits, and recent chunks MUST NOT be counted against it, so a full set of
 matches never displaces them. It MUST apply in the same way to a query merged with a parent vault.
 
-Rationale: before this limit `--limit` only reported a number, and the item count was whatever
-clustering and nomination produced, with no ceiling. Counting the recent chunks under the same limit
-would displace the whole channel whenever the matches alone reached it, which in a vault of any size
-is routine, and so defeat `--recent-fill`.
+Rationale: counting the recent chunks under the same limit would displace the whole channel whenever the matches alone
+reached it, which in a vault of any size is routine, and so defeat `--recent-fill`.
 
 ### 792a7q1 UAT Scenarios
 
@@ -657,8 +637,7 @@ reduced.
 The budget MUST report the budget used as `content_budget`, the number of items still carrying full
 content as `items_with_full_content`, and the number reduced as `chunks_snippeted`.
 
-Rationale: the budget sits at the knee of the cost and quality curve with headroom for long-chunk
-recalls that the eval harnesses do not probe (2026-06-24).
+Rationale: the budget sits at the knee of the cost and quality curve, with headroom for long-chunk recalls.
 
 ### 792a7r1 UAT Scenarios
 
@@ -691,11 +670,9 @@ MUST print each chunk item with its `path` and `score` but no content, MUST leav
 with their full content, and MUST report `lazy_chunks: true` in the budget. A payload without the
 flag MUST NOT contain `lazy_chunks`.
 
-Rationale: a recall pass should carry less to read without losing reach, so the evidence is fetched
-on demand with `engram show-chunk` ([792a7t Reading one chunk](#792a7t-reading-one-chunk)) and not delivered up front. On the real vault the
-payload shrank 33.7% (146 to 97 KB), and across 13 realistic recalls that were not told to fetch,
-none fetched a chunk, while a chunk that was the only source of a needed fact was fetched when it
-mattered (`dev/eval/LEDGER.md#payload-cut-lazy-chunks`).
+Rationale: a recall pass should carry less to read without losing reach, so the evidence is fetched on demand with
+`engram show-chunk` ([792a7t Reading one chunk](#792a7t-reading-one-chunk)) and not delivered up front. An agent
+fetches a chunk when it is the only source of a needed fact, and otherwise does not need it.
 
 ### 792a7s1 UAT Scenarios
 
@@ -755,7 +732,8 @@ that has no readable frontmatter, and MUST NOT take a mention of the slug in a n
 dropped note MUST appear nowhere in the output, clusters included. Chunks, which carry no project, are not filtered,
 and without `--project` it MUST drop nothing.
 
-Rationale: the flag restricts items to notes with a matching `project:` field. The filter was written for the matched notes before the explore half and the superseding notes existed and was never extended to them; that is a bug (#804), and the requirement states the intent.
+Rationale: the flag restricts items to notes with a matching `project:` field, so it applies to every note the payload
+carries, including the explore half and the superseding notes.
 
 ### 792a7u1 UAT Scenarios
 
@@ -790,13 +768,9 @@ no query flag, pre-filter or boost for its kind; a trigger hit ([792a7za A trigg
 Its presence in `items` MUST be what counts as surfacing: a runbook missing from its cluster's
 `candidate_l2s` has still surfaced.
 
-Rationale: a `task_type` classification field with a pre-filter was considered and rejected: the
-benchmark evidence for it measured a whole bundled system, not type classification on its own, which
-was too little to justify a new ranking mechanism and its risk to existing retrieval. Only
-`qa-question` notes are withheld from retrieval, so a runbook needs no exclusion. A literal cue the author declares is the one exception, because the agent
-paraphrases the user's request into its phrases and the paraphrase drops the cue: on a real `/please`
-ask "please" and "end-to-end" vanished and the deliverable was named instead, and adding the user's
-words as a third phrase changed the runbook's rank or score in none of 95 scratch-vault cells.
+Rationale: only `qa-question` notes are withheld from retrieval, so a runbook needs no exclusion. A literal cue the
+author declares is the one exception, because the agent paraphrases the user's request into its phrases and the
+paraphrase drops the cue, such as "please" and "end-to-end" in a `/please` ask.
 
 ### 792a7v1 UAT Scenarios
 
@@ -827,11 +801,10 @@ earlier ones with one marker entry
 omitted, the list's total and the note's own basename. A list
 within 1200 bytes MUST be rendered unchanged, and a note without red flags MUST be unchanged.
 
-Rationale: `engram learn runbook --red-flag` and `engram amend --red-flag` append, so the newest entry
-is last. In #763 a runbook's fifteenth and newest entry, added after fourteen, sat past a truncation
-boundary of about 2 KB applied outside engram and never reached the agent. Dropping from the front
-keeps the entry most likely to matter now, and the marker tells the reader that it has not seen the
-whole list and how to get it.
+Rationale: `engram learn runbook --red-flag` and `engram amend --red-flag` append, so the newest entry is last. A
+truncation boundary applied outside engram would hide the newest entry from the agent. Dropping from the front keeps
+the entry most likely to matter now, and the marker tells the reader that it has not seen the whole list and how to
+get it.
 
 ### 792a7w1 UAT Scenarios
 
@@ -870,13 +843,11 @@ trailing `.md`, or a bare Luhmann ID, and MUST fail with `show: note not found: 
 note matches and with `show: empty note reference` when blank. It MUST NOT change any note. A note that
 has been exchanged is preceded by one `# exchange_hash:` line, which belongs to curate.
 
-Rationale: `engram show` is the full-fidelity source that the guidance shim names, so an agent can
-restate every step and check every red flag when the query payload truncated them ([792a7w Red flags in the query preview](#792a7w-red-flags-in-the-query-preview)). It
-therefore never applies the preview budget.
-`show` never truncates red flags and `query`'s marker names the basename. A bounded `show` with a `--full`
-flag was rejected because one skill's red flags alone render to about 4 KB, which recreates the truncation
-loop. Truncating inside engram is the only reliable fix, because a harness that persists large output keeps
-the full text.
+Rationale: `engram show` is the full-fidelity source that the guidance shim names, so an agent can restate every step
+and check every red flag when the query payload truncated them ([792a7w Red flags in the query
+preview](#792a7w-red-flags-in-the-query-preview)). It therefore never applies the preview budget. `show` never
+truncates red flags and `query`'s marker names the basename. Truncating inside engram is the only reliable fix,
+because a harness that persists large output keeps the full text.
 
 ### 792a7x1 UAT Scenarios
 
@@ -1009,12 +980,11 @@ start and end of the text. On a side where the trigger's edge character is not a
 there MUST be no boundary requirement. Every occurrence MUST be tried, so a later one can match when
 an earlier one does not.
 
-Rationale: a plain substring let a bare-word trigger such as `curate` fire inside `accurate`. The
-bare words `curate` and `please` make such false hits certain, so the boundary is enforced on the
-sides that need it. A trigger written with punctuation at its edge, such as `/please`, already
-carries its own delimiter, so `do/please` still hits while `/pleased` does not. The rule is two rune
-lookups and a hand-written scan, with no pattern compiled from author text. Inflected forms no
-longer hit, because the author lists the forms that should: `curate` does not match `curated`.
+Rationale: a plain substring would let a bare-word trigger such as `curate` fire inside `accurate`. The bare words
+`curate` and `please` make such false hits certain, so the boundary is enforced on the sides that need it. A trigger
+written with punctuation at its edge, such as `/please`, already carries its own delimiter, so `do/please` still hits
+while `/pleased` does not. The rule is two rune lookups and a hand-written scan, with no pattern compiled from author
+text. Inflected forms do not hit, because the author lists the forms that should: `curate` does not match `curated`.
 
 ### 792a7zb1 UAT Scenarios
 
@@ -1111,11 +1081,8 @@ cluster, assemble the explore half, ride-alongs and recent chunks, and prepare t
 printing. Without the flag the payload MUST NOT contain `timings`, and the flag MUST NOT change
 anything else in it.
 
-Rationale: a measurement-only diagnostic (#691), so that query speed can be decomposed before it is
-optimized. On a vault with 41,367 chunk-index files (364 MB) the scan dominated at about 67% of the
-binary's wall time (4,787 ms median against embed 2,009, cluster 212, nominate 60 and render 0
-ms; `dev/eval/LEDGER.md#query-inflight-split`). The stage key `nominate` remains from the era of tag
-nomination and now measures explore sampling and ride-along assembly.
+Rationale: a measurement-only diagnostic, so that query speed can be decomposed before it is optimized. The stage key
+`nominate` measures explore sampling and ride-along assembly.
 
 ### 792a7ze1 UAT Scenarios
 

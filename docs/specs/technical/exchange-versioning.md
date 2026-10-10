@@ -21,12 +21,11 @@
 - Supported capabilities: [vault-serving](../product/vault-serving.md), [parent-sync](../product/parent-sync.md). Curate ([curate](../product/curate.md)) extends it later.
 
 Rationale: a vault that exchanges notes needs a hash that changes when and only when an offered note's content
-changes. The sidecar's content hash (`embed.ContentHash`) covers other fields and exists to detect a stale
-embedding, and extending it would have marked every sidecar stale and forced a full re-embed, so exchange has its
-own. Hashing the whole file would make identity and link fields move the hash, and loop suppression would never
-fire. The hash is versioned (`xh1:`) so a later change to what is hashed makes old and new hashes compare as
-unknown instead of different. Both sides of an exchange call the same function, so the same file hashes the same
-on a child and on its parent.
+changes. The sidecar's content hash (`embed.ContentHash`) covers other fields and exists to detect a stale embedding,
+so exchange has its own. Hashing the whole file would make identity and link fields move the hash, and loop
+suppression would never fire. The hash is versioned (`xh1:`) so a later change to what is hashed makes old and new
+hashes compare as unknown instead of different. Both sides of an exchange call the same function, so the same file
+hashes the same on a child and on its parent.
 
 ## 792b33c Behavior Requirements
 
@@ -106,13 +105,10 @@ frontmatter field empty, and MUST NOT be an error.
 
 Supports: none. See [792b33c2 What the hash covers](#792b33c2-what-the-hash-covers).
 
-Rationale: one body in two spellings must not look like two edits. A note with LF frontmatter and a CRLF body hashes as
-its LF conversion, and a note converted from CRLF frontmatter matches the same note authored in LF, so a hash recorded
-before a file became CRLF matches again. An unterminated block reads as body everywhere else in engram, and an error
-would let one malformed note stall an outbox drain or a dedupe pass. The prefix was not bumped to `xh2:` when this
-changed, because a bump turns every note's comparison into unknown across versions; across a version skew, only a note
-whose LF frontmatter is followed by a CRLF blank line gets a spurious offer, a missed dedupe, a refused pull-down and
-a one-time re-arm, and these stop once both sides upgrade.
+Rationale: one body in two spellings must not look like two edits. A note with LF frontmatter and a CRLF body hashes
+as its LF conversion, and a note converted from CRLF frontmatter matches the same note authored in LF. An unterminated
+block reads as body everywhere else in engram, and an error would let one malformed note stall an outbox drain or a
+dedupe pass. The prefix stays `xh1:` because a bump would turn every note's comparison into unknown across versions.
 
 #### 792b33c3a Scenarios
 

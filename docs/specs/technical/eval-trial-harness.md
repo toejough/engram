@@ -22,11 +22,11 @@
   wrong without any sign of it.
 - Supported capabilities: [memory-effectiveness-evaluation](../product/memory-effectiveness-evaluation.md).
 
-Rationale: every harness here spawns `claude -p --permission-mode bypassPermissions` with the engram binary reachable, so unless
-engram's state variables point at a per-trial directory a trial's `engram learn` writes to the real vault (#708) and its
-`engram query` reads the real chunk index (#642). The environment is therefore built by one primitive that proves
-the isolation before it returns and records the trial's marker as it does. The skill installation is likewise one
-function, because three hand-mirrored copies let one of them silently skip its copy for a month (#749).
+Rationale: every harness here spawns `claude -p --permission-mode bypassPermissions` with the engram binary reachable,
+so unless engram's state variables point at a per-trial directory a trial's `engram learn` writes to the real vault
+and its `engram query` reads the real chunk index. The environment is therefore built by one primitive that proves the
+isolation before it returns and records the trial's marker as it does. The skill installation is likewise one
+function, because hand-mirrored copies can drift and silently skip a copy.
 
 ## 792b38c Behavior Requirements
 
@@ -73,8 +73,8 @@ choice to every configuration it copies. The cumulative and probe builders MUST 
 
 Supports: [792a23a1c Every warm-configuration builder verifies the same way](../product/memory-effectiveness-evaluation.md#792a23a1-uat-scenarios), [792a23b1c Every builder raises on a missing source](../product/memory-effectiveness-evaluation.md#792a23b1-uat-scenarios), [792a23c1a The path resolves independent of the working directory](../product/memory-effectiveness-evaluation.md#792a23c1-uat-scenarios), [792a23c1b The cumulative harness resolves its path the same way](../product/memory-effectiveness-evaluation.md#792a23c1-uat-scenarios).
 
-Rationale: shared installation is the fix for the drift of #749, and the repository root derived from `__file__` is what keeps the
-source path right when the skills move again.
+Rationale: shared installation keeps the copies from drifting apart, and the repository root derived from `__file__`
+is what keeps the source path right when the skills move.
 
 #### 792b38c2a Scenarios
 
@@ -155,10 +155,10 @@ vault, as a trial marker as it is built, safely when several are built at once.
 
 Supports: [792a23d1a The orchestrating session's own writes do not trigger a leak report](../product/memory-effectiveness-evaluation.md#792a23d1-uat-scenarios), [792a23d1b A harness captures no trial evidence itself and still gets a correct guard](../product/memory-effectiveness-evaluation.md#792a23d1-uat-scenarios).
 
-Rationale: a vault-only environment is the half-fix of #642: `engram query` keeps ranking against the maintainer's global chunk
-index, so a probe measures his real memory competing with its own fixture. Walking the working directory's ancestors would
-sweep operator-global sources into a per-trial index (vault note 296). The marker is recorded by the primitive that proves the
-isolation, so no caller has to collect it (#750).
+Rationale: a vault-only environment leaves `engram query` ranking against the maintainer's global chunk index, so a
+probe would measure his real memory competing with its own fixture. Walking the working directory's ancestors would
+sweep operator-global sources into a per-trial index. The marker is recorded by the primitive that proves the
+isolation, so no caller has to collect it.
 
 #### 792b38c3a Scenarios
 
@@ -270,9 +270,12 @@ characters, the length of the random suffix of `tempfile.mkdtemp`, whatever its 
 
 Supports: [792a23d1a The orchestrating session's own writes do not trigger a leak report](../product/memory-effectiveness-evaluation.md#792a23d1-uat-scenarios), [792a23e1a A new real-vault note naming a trial is flagged](../product/memory-effectiveness-evaluation.md#792a23e1-uat-scenarios), [792a23e1b A note naming only a distinctive basename is still flagged](../product/memory-effectiveness-evaluation.md#792a23e1-uat-scenarios), [792a23e1c A note naming only a short deterministic basename is not flagged](../product/memory-effectiveness-evaluation.md#792a23e1-uat-scenarios), [792a23f1a A leak through an unmediated path is not caught](../product/memory-effectiveness-evaluation.md#792a23f1-uat-scenarios), [792a23f1b A leak whose content does not self-identify is not caught](../product/memory-effectiveness-evaluation.md#792a23f1-uat-scenarios), [792a23f1c A same-filename in-place mutation is not caught](../product/memory-effectiveness-evaluation.md#792a23f1-uat-scenarios), [792a23f1d A leak naming only a non-distinctive basename is not caught](../product/memory-effectiveness-evaluation.md#792a23f1-uat-scenarios).
 
-Rationale: a whole-vault diff false-alarmed on the orchestrating session's legitimate writes (#750). The guard is single-layered
-and stated as such: it misses a path that never builds its environment with the primitive, a leaked note that names no marker, a
-non-distinctive basename and an in-place mutation, which the product scenarios of [792a23f The leak guard's limits are stated](../product/memory-effectiveness-evaluation.md#792a23f-the-leak-guards-limits-are-stated) state as accepted limits.
+Rationale: a whole-vault diff would false-alarm on the orchestrating session's legitimate writes. The guard is
+single-layered and stated as such: it misses a path that never builds its environment with the primitive, a leaked
+note that names no marker, a non-distinctive basename and an in-place mutation, which the product scenarios of
+[792a23f The leak guard's limits are
+stated](../product/memory-effectiveness-evaluation.md#792a23f-the-leak-guards-limits-are-stated) state as accepted
+limits.
 
 #### 792b38c5a Scenarios
 
@@ -536,9 +539,9 @@ primitive of [792b38c3 The isolated environment of a trial](#792b38c3-the-isolat
 
 Supports: [792a23d1b A harness captures no trial evidence itself and still gets a correct guard](../product/memory-effectiveness-evaluation.md#792a23d1-uat-scenarios).
 
-Rationale: a site that sets only `CLAUDE_CONFIG_DIR` wrote seven real notes into the maintainer's vault during #687's measurement,
-and a site that sets the vault alone leaves the chunk index at the maintainer's global one (#642). The sites share no entry point
-to instrument, so the assertion is on the source text: a weak test of behavior and a strong one of the property that regressed.
+Rationale: a site that sets only `CLAUDE_CONFIG_DIR` can write notes into the maintainer's vault, and a site that sets
+the vault alone leaves the chunk index at the maintainer's global one. The sites share no entry point to instrument,
+so the assertion is on the source text: a weak test of behavior and a strong one of the property that regressed.
 
 #### 792b38c11a Scenarios
 

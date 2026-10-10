@@ -18,8 +18,7 @@
   directly over fake listing, reading, writing and renaming; stability, a vault whose IDs must change
   without breaking its links is a lasting need; necessity, `engram update --reparent-luhmann` is this
   contract.
-- Supported capabilities: [vault-migration](../product/vault-migration.md), [parent-sync](../product/parent-sync.md) (the alias, [792b27c6 Rename and link rewrite](#792b27c6-rename-and-link-rewrite)). Install-and-update ([install-and-update](../product/install-and-update.md))
-  extends it with the command's routing and notices.
+- Supported capabilities: [vault-migration](../product/vault-migration.md), [parent-sync](../product/parent-sync.md) (the alias, [792b27c6 Rename and link rewrite](#792b27c6-rename-and-link-rewrite)), [install-and-update](../product/install-and-update.md) (the command's routing and notices).
 
 Rationale: whether one note is a sub-point of another is a judgment of content that embeddings cannot
 make, so the binary proposes candidates by similarity, an agent judges them, and the binary applies the

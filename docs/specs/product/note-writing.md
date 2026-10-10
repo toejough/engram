@@ -56,16 +56,13 @@ frontmatter carries `type: runbook`, the situation, `done_when`, the Luhmann ID,
 and the source, and whose body is the `--body` steps verbatim, and MUST print the note's path on
 stdout.
 
-Rationale: confirmed approaches used to live in a feedback note's single `action` sentence, with no
-way to represent an ordered procedure or an ending condition. A runbook answers exactly three
-questions: when to use it (`situation`, the retrieval handle), what the steps are (the body, which
-may link the fact and feedback notes to consider), and what should be true when done (`done_when`,
-which also makes runbooks scorable for later efficacy tracking). Joe chose the name `runbook` over
-`procedure`, `function` and `strategy` (vault note 789). Runbooks use the fact and feedback filename
-and Luhmann placement rather than the `qa` scheme: a top-level position needs no target, so "no
-related note yet" never required a separate scheme, and `qa` is the one kind built to skip the
-hierarchy and be partly excluded from retrieval.
-A kind-prefixed flat filename was an earlier draft, corrected in design review.
+Rationale: a runbook answers exactly three questions: when to use it (`situation`, the retrieval handle), what the
+steps are (the body, which may link the fact and feedback notes to consider), and what should be true when done
+(`done_when`, which also makes runbooks scorable for later efficacy tracking). A feedback note's single `action`
+sentence has no way to represent an ordered procedure or an ending condition. Runbooks use the fact and feedback
+filename and Luhmann placement rather than the `qa` scheme: a top-level position needs no target, so "no related note
+yet" never requires a separate scheme, and `qa` is the one kind built to skip the hierarchy and be partly excluded
+from retrieval.
 
 ### 792a3c1 UAT Scenarios
 
@@ -82,12 +79,10 @@ Requirement: [792a3d Runbook red flags and triggers](#792a3d-runbook-red-flags-a
 `red_flags:` list and each `--trigger` value, in order, to a `triggers:` list after it, and MUST
 write neither field when its flag is absent.
 
-Rationale: a red flag names a failure mode specific to this procedure that a general "follow the
-steps" rule would not catch; the general floor is not restated on each runbook. How triggers
-surface a runbook belongs to the memory-query capability ([memory-query](./memory-query.md)).
-`red_flags` is a structured field and not a body heading, because the follow frame treats it as a standing
-condition to recheck and so it carries weight that template wording does not. Rewording or bolding body text
-was tried and rejected: six rounds of the eval had already exercised that lever.
+Rationale: a red flag names a failure mode specific to this procedure that a general "follow the steps" rule would not
+catch; the general floor is not restated on each runbook. How triggers surface a runbook belongs to the memory-query
+capability ([memory-query](./memory-query.md)). `red_flags` is a structured field and not a body heading, because the
+follow frame treats it as a standing condition to recheck and so it carries weight that template wording does not.
 
 ### 792a3d1 UAT Scenarios
 
@@ -111,11 +106,6 @@ Scenario: 792a3d1c Neither flag means neither field
 ## 792a3e No task-type or input fields
 
 Requirement: [792a3e No task-type or input fields](#792a3e-no-task-type-or-input-fields) `engram learn runbook` MUST NOT accept a task-type or input-signature field.
-
-Rationale: a `task_type` field with a query pre-filter was planned on the strength of benchmark gains
-for a whole bundled system, none of which isolated the classification step, so it could not justify a
-new ranking mechanism and its regression risk; the field was dropped with the filter. An input
-signature was considered during the #728 adapter experiment and rejected.
 
 ### 792a3e1 UAT Scenarios
 
@@ -215,8 +205,7 @@ Scenario: 792a3h1b Absent metadata writes no field
 Requirement: [792a3i Tier field](#792a3i-tier-field) `engram learn fact`, `feedback` and `runbook` MUST write `tier: L2` when `--tier`
 is absent, and the given value when `--tier` is `L1`, `L2` or `L3`.
 
-Rationale: the three-tier model is retired; `L1` and `L3` are still accepted so that hand-edited notes
-carrying them stay valid.
+Rationale: `L1` and `L3` are still accepted so that hand-edited notes carrying them stay valid.
 
 ### 792a3i1 UAT Scenarios
 
@@ -314,9 +303,8 @@ Requirement: [792a3l Placement under an absent target](#792a3l-placement-under-a
 Requirement: [792a3m Concurrent writes never collide](#792a3m-concurrent-writes-never-collide) Two `engram learn` runs against one vault at the same time MUST give their notes
 distinct Luhmann IDs and MUST NOT overwrite each other's note.
 
-Rationale: before every vault writer took the vault lock, two concurrent writers corrupted vault and
-index state in production. The guarantee matters most when many sub-recalls write the vault in
-parallel.
+Rationale: without the vault lock, two concurrent writers can corrupt vault and index state. The guarantee matters
+most when many sub-recalls write the vault in parallel.
 
 ### 792a3m1 UAT Scenarios
 
@@ -419,11 +407,10 @@ first. The question note's frontmatter carries `type: qa-question`, `date`,
 by the line `Answers: [[<question basename>]]` and, when contributors are given, the line
 `Contributors: [[<first>]], [[<second>]]`.
 
-Rationale: an answer is a reasoned conclusion with provenance, while a question is situational
-wording that measurably loses retrieval against notes with content: re-anchoring notes to their
-questions gave no delivery benefit and lost retrieval in 10 of 10 cases. So the pair is linked both
-ways, the answer competes for retrieval, and the question is reachable only through its answer
-([792a3t Question-and-answer retrieval](#792a3t-question-and-answer-retrieval)). An earlier design excluded both halves.
+Rationale: an answer is a reasoned conclusion with provenance, while a question is situational wording that loses
+retrieval against notes with content. So the pair is linked both ways, the answer competes for retrieval, and the
+question is reachable only through its answer ([792a3t Question-and-answer
+retrieval](#792a3t-question-and-answer-retrieval)).
 
 ### 792a3q1 UAT Scenarios
 

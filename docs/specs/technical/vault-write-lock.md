@@ -18,13 +18,12 @@
   owns acquiring, waiting and releasing; independent verification, it is tested directly over fake
   primitives and over a real lock file; stability, the contract survives any change to the
   injection seam; necessity, concurrent note writes depend on it.
-- Supported capabilities: [note-writing](../product/note-writing.md), [note-revision](../product/note-revision.md), [chunk-indexing](../product/chunk-indexing.md).
-  Controlled-vocabulary ([controlled-vocabulary](../product/controlled-vocabulary.md)) adds its callers' requirements.
+- Supported capabilities: [note-writing](../product/note-writing.md), [note-revision](../product/note-revision.md), [chunk-indexing](../product/chunk-indexing.md),
+  [controlled-vocabulary](../product/controlled-vocabulary.md).
 
-Rationale: before every read-modify-write writer took a lock, only `learn`'s Luhmann-ID allocation
-was locked, and two concurrent `ingest`, `amend`, `resituate` or `activate` runs corrupted the vault
-or the chunk index in production; many parallel sub-recalls make that common. Every such writer
-now takes the lock at its command's entry point: `.luhmann.lock` for notes and sidecars, and
+Rationale: two concurrent `ingest`, `amend`, `resituate` or `activate` runs would corrupt the vault
+or the chunk index, and many parallel sub-recalls make that common. Every read-modify-write writer
+therefore takes the lock at its command's entry point: `.luhmann.lock` for notes and sidecars, and
 `.manifest.lock` for the chunk index. The helpers they share never take a lock themselves, so a
 command never waits on a lock it already holds. That rule is a convention, not a checked
 invariant. The lock works on a raw file descriptor rather than a Go file object, because a dropped

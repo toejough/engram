@@ -156,7 +156,7 @@ the instruction when offers are pending and empty otherwise.
 
 Supports: [792a22o1b The payload carries the hint when offers are pending](../product/curate.md#792a22o1-uat-scenarios), [792a22o1d The instruction says curation is expected upkeep](../product/curate.md#792a22o1-uat-scenarios), [792a22o1e The payload has no hint without offers](../product/curate.md#792a22o1-uat-scenarios).
 
-Rationale: an agent that met the cue in the middle of unrelated work declined it every time as "you didn't ask for that",
+Rationale: an agent in the middle of unrelated work would decline the cue as "you didn't ask for that",
 so the instruction says that curation is expected. The hint is derived from the flag and never transported, so a merged
 or served payload cannot carry a stale or drifted copy. A runbook has no description the harness reads, so each cue
 carries the query that surfaces the curate runbook.

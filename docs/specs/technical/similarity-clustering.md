@@ -15,11 +15,11 @@
   cluster means, while this component owns the partition and its score; independent verification,
   it is tested directly on vectors; stability, the contract survives any change to its callers or to
   how vectors are stored; necessity, the vocabulary's terms are its clusters.
-- Supported capabilities: [controlled-vocabulary](../product/controlled-vocabulary.md), [memory-query](../product/memory-query.md). Vault-migration ([vault-migration](../product/vault-migration.md)) adds its
-  mappings and requirements.
+- Supported capabilities: [controlled-vocabulary](../product/controlled-vocabulary.md), [memory-query](../product/memory-query.md),
+  [vault-migration](../product/vault-migration.md).
 
 Rationale: the vocabulary is derived from the vault's own geometry, so it reuses the clustering that
-recall already relied on rather than a second algorithm. A fixed seed makes clustering
+recall relies on rather than a second algorithm. A fixed seed makes clustering
 deterministic, so the same vault always yields the same vocabulary and naming requests stay valid
 between two runs.
 
@@ -60,9 +60,8 @@ fail when there are no vectors, when k is less than 2, or when k exceeds the num
 
 Supports: [792a6j1a The term count follows the vault's clusters](../product/controlled-vocabulary.md#792a6j1-uat-scenarios).
 
-Rationale: the earlier invariant C1 asked that clustering return the same result for a fixed vault
-and phrase; the query path meets it by seeding from the phrase, and refit by a fixed seed, both
-relying on this determinism.
+Rationale: clustering returns the same result for a fixed vault and phrase; the query path meets
+this by seeding from the phrase, and refit by a fixed seed, both relying on this determinism.
 
 #### 792b19c2a Scenarios
 

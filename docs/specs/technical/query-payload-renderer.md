@@ -24,10 +24,8 @@
 
 Rationale: a recall pass should carry less to read without losing reach, so the payload is cut where
 the reader gains least: chunk text is shortened or fetched on demand, the newest chunks have a count of
-their own, and the matched items have a limit. The cuts are measured on the real vault ([792a7o The newest chunks](../product/memory-query.md#792a7o-the-newest-chunks), [792a7s Lazy chunks](../product/memory-query.md#792a7s-lazy-chunks)).
-A reader that opens the payload through a tool that truncates its output must still see the most
-recent red flag: in #763 a runbook's fifteenth and newest entry sat past a truncation boundary of about
-2 KB applied outside engram and never reached the agent.
+their own, and the matched items have a limit. A reader that opens the payload through a tool that truncates its output must still see the most
+recent red flag, which a long runbook would otherwise leave past the truncation boundary.
 
 ## 792b23c Behavior Requirements
 
@@ -253,7 +251,7 @@ timing and MUST NOT add the block.
 
 Supports: [792a7ze1a Timings are reported on request](../product/memory-query.md#792a7ze1-uat-scenarios), [792a7ze1b Timings are absent by default](../product/memory-query.md#792a7ze1-uat-scenarios).
 
-Rationale: a measurement-only diagnostic (#691): the clock is injected so that tests can script it, and
+Rationale: a measurement-only diagnostic: the clock is injected so that tests can script it, and
 the default payload stays unchanged so that consumers that ignore the block are unaffected.
 
 #### 792b23c7a Scenarios
@@ -348,7 +346,7 @@ Supports: [792a21g1a Parent-origin and local-origin items are distinguishable](.
 
 Rationale: a boolean that is omitted when false would drop the local items' explicit `false`, and the merged payload could
 not tell a local item from an item with no origin. The tag is a pointer for that reason, and each item gets its own, so
-that a later write through one never aliases another (ruling S29).
+that a later write through one never aliases another.
 
 #### 792b23c9a Scenarios
 

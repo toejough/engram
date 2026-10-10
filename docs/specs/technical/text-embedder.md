@@ -19,10 +19,10 @@
   backends and cache filesystems and over the real bundled model; stability, the contract survives
   a change of runtime library; necessity, every sidecar and every query phrase depends on it.
 - Supported capabilities: [note-writing](../product/note-writing.md), [chunk-indexing](../product/chunk-indexing.md), [controlled-vocabulary](../product/controlled-vocabulary.md),
-  [memory-query](../product/memory-query.md). Vault-health ([vault-health](../product/vault-health.md)) adds its mappings.
+  [memory-query](../product/memory-query.md), [vault-health](../product/vault-health.md).
 
-Rationale: an early design embedded through an external API, which brought a network dependency,
-per-call cost and latency, and sent vault content off the machine. Instead the
+Rationale: an external embedding API would bring a network dependency, per-call cost and latency,
+and send vault content off the machine. Instead the
 `sentence-transformers/all-MiniLM-L6-v2` model (384 dimensions) is bundled into the binary with
 `go:embed` and run in pure Go through Hugot and GoMLX's `simplego` backend, with no CGO, no daemon
 and no network. The only external API in the system is the LLM that runs the agent. Embeddings are

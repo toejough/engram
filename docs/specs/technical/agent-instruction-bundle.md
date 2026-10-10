@@ -14,7 +14,7 @@
   against the shipped files; stability, the constraints survive a new skill or a new harness; necessity, a
   harness loads a skill only when its metadata fits, and a command template that breaks on a dash-led value fails
   silently at the agent.
-- Supported capabilities: [write-memory](../product/write-memory.md). Later capabilities that extend it: [recall](../product/recall.md), [learn](../product/learn.md),
+- Supported capabilities: [write-memory](../product/write-memory.md). Also supported: [recall](../product/recall.md), [learn](../product/learn.md),
   [lessons-contract](../product/lessons-contract.md), [route](../product/route.md), [please](../product/please.md), [ambient-guidance](../product/ambient-guidance.md) and curate.
 
 Rationale: behavior lives in markdown skills that the agent executes, and deterministic compute lives in the
@@ -125,8 +125,7 @@ Supports: [792a13a1a A complete handoff is executed](../product/write-memory.md#
 
 Rationale: a hand edit can desync a note from its sidecar and from the two copies of its `situation`, which the
 invariant checker cannot see in the skill layer. Reading member files directly stays allowed because the agent
-decides, per cluster, whether the abstract signal is worth investigating (operator ruling, 2026-06-04); that lazy,
-judgment-based read is intended. A situation edit was a manual file poke until `engram resituate` replaced it.
+decides, per cluster, whether the abstract signal is worth investigating; that lazy, judgment-based read is intended.
 
 #### 792b32c4a Scenarios
 

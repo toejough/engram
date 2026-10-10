@@ -25,14 +25,11 @@
   refactoring of command internals; necessity, every product capability is reached through it.
 - Supported capabilities: [vault-identity](../product/vault-identity.md), [note-writing](../product/note-writing.md), [note-revision](../product/note-revision.md), [chunk-indexing](../product/chunk-indexing.md)
   chunk-indexing, [controlled-vocabulary](../product/controlled-vocabulary.md), [memory-query](../product/memory-query.md), [parent-sync](../product/parent-sync.md) ([792b2c9 A removed environment variable is refused](#792b2c9-a-removed-environment-variable-is-refused), [792b2c10 Parent routing of note lookup](#792b2c10-parent-routing-of-note-lookup)).
-  Later capabilities add their own routing requirements here.
 
-Rationale: each `engram <subcommand>` is its own process. Commands never call each other in
-process; a skill reads one command's stdout and runs the next. (An earlier C3 draft drew an
-in-process `query`→`learn` edge that does not exist.) Each skill step runs the CLI as a fresh
-subprocess, and the skill layer reaches the vault only through it: it reads notes through
-`engram show`, `engram show-chunk` and the query payload, and writes through `engram amend` and
-`engram learn`, never by editing vault files directly.
+Rationale: each `engram <subcommand>` is its own process. Commands never call each other in process; a skill reads one
+command's stdout and runs the next. Each skill step runs the CLI as a fresh subprocess, and the skill layer reaches
+the vault only through it: it reads notes through `engram show`, `engram show-chunk` and the query payload, and writes
+through `engram amend` and `engram learn`, never by editing vault files directly.
 
 ## 792b2c Behavior Requirements
 
@@ -104,8 +101,8 @@ MUST NOT run the command when that step fails.
 
 Supports: [792a2e1a A read command creates the vault](../product/vault-identity.md#792a2e1-uat-scenarios), [792a2e1b amend and activate fail only on their own merits](../product/vault-identity.md#792a2e1-uat-scenarios), [792a2e1c A child host gets its own vault](../product/vault-identity.md#792a2e1-uat-scenarios), [792a2e1d A second run creates nothing](../product/vault-identity.md#792a2e1-uat-scenarios), [792a2f1a An existing vault is untouched by read-only use](../product/vault-identity.md#792a2f1-uat-scenarios), [792a2g1a A half-created vault gets its ID](../product/vault-identity.md#792a2g1-uat-scenarios), [792a6t1a Stats on an empty vault](../product/controlled-vocabulary.md#792a6t1-uat-scenarios).
 
-Rationale: one shared first-use step in dispatch, rather than one per command, makes every command
-create a missing vault the same way (#766).
+Rationale: one shared first-use step in dispatch, rather than one per command, makes every command create a missing
+vault the same way.
 
 #### 792b2c3a Scenarios
 
@@ -304,10 +301,9 @@ used, and `ENGRAM_SERVER` MUST NOT be read for any other purpose: its value is o
 
 Supports: [792a21a1a A command run with ENGRAM_SERVER set fails fast](../product/parent-sync.md#792a21a1-uat-scenarios), [792a21a1b Writes are refused too](../product/parent-sync.md#792a21a1-uat-scenarios), [792a21a1c serve is not exempt](../product/parent-sync.md#792a21a1-uat-scenarios), [792a21a1d ENGRAM_SERVER is not honored as an alias](../product/parent-sync.md#792a21a1-uat-scenarios).
 
-Rationale: the thin-client mode that read this variable sent ten commands to a remote server and touched no local file.
-Joe ruled out an alias shim and an exemption for `serve`, so the check sits ahead of every target and
-nothing can reach a vault, a lock, a fetch or a bind first. A fleet host that still sets it fails on its first command
-and is told the replacement.
+Rationale: the variable once selected a thin-client mode that no longer exists, so the check sits ahead of every
+target, with no alias shim and no exemption for `serve`, and nothing can reach a vault, a lock, a fetch or a bind
+first. A fleet host that still sets it fails on its first command and is told the replacement.
 
 #### 792b2c9a Scenarios
 

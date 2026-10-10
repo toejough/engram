@@ -21,15 +21,14 @@
   the on-disk format is versioned and outlives any refactoring; necessity, every retrieval over notes
   reads it.
 - Supported capabilities: [vault-identity](../product/vault-identity.md), [note-writing](../product/note-writing.md), [note-revision](../product/note-revision.md), [chunk-indexing](../product/chunk-indexing.md)
-  chunk-indexing, [controlled-vocabulary](../product/controlled-vocabulary.md), [memory-query](../product/memory-query.md), [vault-health](../product/vault-health.md).
-  Vault-migration ([vault-migration](../product/vault-migration.md)) adds its mappings.
+  [controlled-vocabulary](../product/controlled-vocabulary.md), [memory-query](../product/memory-query.md), [vault-health](../product/vault-health.md).
+  [vault-migration](../product/vault-migration.md).
 
-Rationale: semantic search needs vectors, but a vector database or a separate rebuild step is a
-moving part that can drift from the notes. Instead every note carries its own sidecar, written as
-part of the same command: there is no index to maintain or invalidate, and a copied vault is
-self-contained. Each sidecar holds two vectors, one for the note's situation and one for its body,
-so retrieval can match a query against whichever fits better. Notes of every kind embed this way;
-the retired episode kind once embedded only its situation.
+Rationale: semantic search needs vectors, but a vector database or a separate rebuild step is a moving part that can
+drift from the notes. Instead every note carries its own sidecar, written as part of the same command: there is no
+index to maintain or invalidate, and a copied vault is self-contained. Each sidecar holds two vectors, one for the
+note's situation and one for its body, so retrieval can match a query against whichever fits better. Notes of every
+kind embed this way.
 
 ## 792b10c Behavior Requirements
 
@@ -316,9 +315,8 @@ for the note's LF form.
 
 Supports: [792a4m1a Amend converts a CRLF note](../product/note-revision.md#792a4m1-uat-scenarios), [792a9j1a A CRLF note is not stale](../product/vault-health.md#792a9j1-uat-scenarios), [792a9j1b A CRLF note gets its LF form's sidecar](../product/vault-health.md#792a9j1-uat-scenarios).
 
-Rationale: a CRLF note used to be embedded from the wrong text, and a conversion to LF then changed
-its hash. Reading the LF form makes the conversion that a revision makes leave the hash as it
-would be for the LF note.
+Rationale: reading the LF form means a CRLF note is embedded from the same text as its LF equivalent, so a conversion
+to LF leaves the hash as it would be for the LF note.
 
 #### 792b10c9a Scenarios
 

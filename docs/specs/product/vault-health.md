@@ -18,10 +18,9 @@ exit non-zero, with `check: FAIL-class invariant violations found` on stderr, wh
 and a non-zero exit, printing no report, when a note at the vault root cannot be read. It MUST check
 a note whose text is not valid UTF-8 like any other.
 
-Rationale: a vault check is only useful if a violation cannot go unnoticed, so a correctness
-violation is a `FAIL` and a non-zero exit, while a corpus-health finding is a `WARN` that reports
-without blocking. The checker is Go code over bytes, not a `grep`: a `grep` that stops at an invalid
-multibyte sequence silently skipped notes in an early census and produced a false count.
+Rationale: a vault check is only useful if a violation cannot go unnoticed, so a correctness violation is a `FAIL` and
+a non-zero exit, while a corpus-health finding is a `WARN` that reports without blocking. The checker is Go code over
+bytes, not a `grep`, because a `grep` that stops at an invalid multibyte sequence silently skips notes.
 
 ### 792a9a1 UAT Scenarios
 
@@ -70,14 +69,12 @@ Luhmann ID, digits followed by letters or digits, that is the leading ID of an e
 MUST otherwise report `PASS  G0 graph-resolution: every authored link resolves by form`. A link to a
 note's full basename, with or without a trailing `.md`, MUST count as resolving.
 
-Rationale: a link is written in one form and resolved in another when `[[105]]` is written for a
-note `105.2026-05-30.foo`. Neither engram nor Obsidian resolves a prefix: both resolve only a full
-basename (or alias). Such a link is a lost edge, and in an early census of a live vault it dropped
-155 of 183 links, leaving 138 of 171 notes without a link in or out. The invariant behind it is that
-for every write and read of the same datum the read key must be a function of, or equal to, the write
-key, and a mismatch must be loud, not silent. A machine-written supersession link used to carry a
-`.md` suffix and so never resolved (#717). Machine writers now write the extension-less form, and the
-reader accepts the suffixed form already in the vault ([792b13c3 Link targets](../technical/wikilink-graph.md#792b13c3-link-targets)).
+Rationale: a link is written in one form and resolved in another when `[[105]]` is written for a note
+`105.2026-05-30.foo`. Neither engram nor Obsidian resolves a prefix: both resolve only a full basename (or alias).
+Such a link is a lost edge. The invariant behind it is that for every write and read of the same datum the read key
+must be a function of, or equal to, the write key, and a mismatch must be loud, not silent. Machine writers write the
+extension-less form, and the reader accepts the suffixed form already in the vault ([792b13c3 Link
+targets](../technical/wikilink-graph.md#792b13c3-link-targets)).
 
 ### 792a9b1 UAT Scenarios
 

@@ -199,7 +199,7 @@ Supports: [792a21c1a Local and parent results appear in one ranked list](../prod
 
 Rationale: chunks never cross vaults. A refusal on a model mismatch would break merged recall across a fleet
 that upgrades its embedding model one environment at a time. Each item gets its own pointer so that a later write
-through one never aliases another (ruling S29).
+through one never aliases another.
 
 #### 792b37c5a Scenarios
 
@@ -320,7 +320,7 @@ excluded members of Q, then restore score order.
 
 Supports: [792a21c1a Local and parent results appear in one ranked list](../product/parent-sync.md#792a21c1-uat-scenarios), [792a21d1a Trigger hits lead, local before parent](../product/parent-sync.md#792a21d1-uat-scenarios), [792a21d1b Explore picks do not crowd out direct matches](../product/parent-sync.md#792a21d1-uat-scenarios), [792a21d1c The note floor survives the merged cap](../product/parent-sync.md#792a21d1-uat-scenarios).
 
-Rationale: the first merge sorted every item by raw score, so explore picks crowded out direct matches (#744); and a cap by
+Rationale: sorting every item by raw score would let explore picks crowd out direct matches, and a cap by
 position must still keep the notes the matched-note floor keeps in a local query.
 
 #### 792b37c7a Scenarios
@@ -411,7 +411,7 @@ absent.
 Supports: [792a21h1a No cross-node cluster grouping](../product/parent-sync.md#792a21h1-uat-scenarios), [792a21h1b The pending-offer flag is the local vault's](../product/parent-sync.md#792a21h1-uat-scenarios), [792a21h1c A local pending offer shows in a merged payload](../product/parent-sync.md#792a21h1-uat-scenarios), [792a21i1a The budget block is populated](../product/parent-sync.md#792a21i1-uat-scenarios).
 
 Rationale: a child cannot curate its parent's offers or refit its parent's vocabulary, so a parent-side flag would tell the
-child to do something it cannot; and the first merge reported an all-zero budget block (#743).
+child to do something it cannot.
 
 #### 792b37c9a Scenarios
 

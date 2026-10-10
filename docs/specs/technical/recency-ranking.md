@@ -10,9 +10,7 @@
   no clock.
 - Current realization (informational): `recencyMultiplier`, `defaultRecencyParams`, `noteAgeDays`,
   `parseCreatedFromNote`, `parseTurnN`, `maxTurnBySource` and `newestChunkItems` in
-  `internal/cli/recency.go`; the query engine applies the factor to note and chunk scores. The band
-  helpers `fillRecencyBand`, `spliceRecent` and `mostRecentlyUsedNoteItems` have no production caller
-  and are not specified.
+  `internal/cli/recency.go`; the query engine applies the factor to note and chunk scores.
 - Qualification: responsibility, mapping ages and positions to a factor and ordering chunks is stated
   without naming any function; ownership, the query engine decides which scores to scale and where the
   clock comes from, while this component owns the curve, the age rules and the ordering; independent
@@ -23,9 +21,7 @@
 
 Rationale: operators work in monthly cycles, so a short half-life would suppress legitimate older
 content. A 60-day half-life is a soft tilt (2 weeks 0.85, 1 month 0.71, 2 months 0.50, 4 months 0.25)
-that slightly favours recent content without drowning relevance; the in-suite experiment
-`recency_eval_test` swept half-lives of 1, 7, 30 and 60 days over a pool of chunks of every age and
-chose 60. The re-rank is only a tilt: the guarantee that fresh content reaches the reader comes from
+that slightly favours recent content without drowning relevance; The re-rank is only a tilt: the guarantee that fresh content reaches the reader comes from
 the newest chunks ([792b21c5 Newest chunks](#792b21c5-newest-chunks)), picked by age whatever their cosine. A note's age counts from when it
 last proved useful, not from when it was written, so a note that keeps being used stays fresh and one
 that is never used fades.
@@ -104,9 +100,8 @@ frontmatter.
 Supports: [792a7f1d A note that was never used is not scaled](../product/memory-query.md#792a7f1-uat-scenarios), [792a7zg1d The creation date of a CRLF note is read](../product/memory-query.md#792a7zg1-uat-scenarios).
 
 Rationale: `engram learn` writes `created` quoted, and the quoted value cannot be read as a date, so
-such a note reads as age 0 until it is used. Reading it without its quotes would put about 972 of the
-1,006 notes of the real vault under decay at once, a ranking change that needs the measured check of
-vault note 655 first (#774, controller ruling R33).
+such a note reads as age 0 until it is used. Reading it without its quotes would put most of a real vault's
+notes under decay at once, a ranking change that needs its own check first.
 
 #### 792b21c3a Scenarios
 

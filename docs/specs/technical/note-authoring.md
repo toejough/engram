@@ -21,7 +21,7 @@
   it is tested directly over injected dependencies; stability, the capture flow survives any
   refactoring of the components it calls; necessity, every new note is written through it.
 - Supported capabilities: [note-writing](../product/note-writing.md), [controlled-vocabulary](../product/controlled-vocabulary.md), [curate](../product/curate.md) ([792b12c8 The pending marker is not set by a local learn](#792b12c8-the-pending-marker-is-not-set-by-a-local-learn)).
-  Skill-runbook-registration ([skill-runbook-registration](../product/skill-runbook-registration.md)), [write-memory](../product/write-memory.md), [learn](../product/learn.md), [vault-serving](../product/vault-serving.md) and [parent-sync](../product/parent-sync.md) add their requirements.
+  Also [skill-runbook-registration](../product/skill-runbook-registration.md), [write-memory](../product/write-memory.md), [learn](../product/learn.md), [vault-serving](../product/vault-serving.md) and [parent-sync](../product/parent-sync.md).
 
 Rationale: the vault lock spans everything from listing the existing IDs to creating the note, so
 two concurrent writers never allocate the same ID; creating the note exclusively is a backstop that

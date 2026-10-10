@@ -10,9 +10,8 @@ checks that make a curator's judgment safe; the judgment itself is the agent's. 
 offer, after the request that created it, and never inside it. How an offer is written, offered and answered is vault-serving
 ([vault-serving](./vault-serving.md)) and [parent-sync](./parent-sync.md).
 
-Rationale: The curate skill's behavior overrode the older spec: a covered offer is discarded, and a near offer
-is folded into the existing note and then discarded, because leaving it live creates a second redundant note.
-The marker is cleared only on an offer that is kept (Joe, 2026-09-21).
+Rationale: a covered offer is discarded, and a near offer is folded into the existing note and then discarded, because
+leaving it live creates a second redundant note. The marker is cleared only on an offer that is kept.
 
 ## 792a22a Pending offers are left out of normal query results
 
@@ -410,14 +409,12 @@ copy-pasteable command `engram query --text="curate pending offers" --phrase="..
 against a vault that holds the curate runbook MUST return it with `trigger` provenance. A merged or served query MUST report the
 local vault's flag only.
 
-Rationale: pending offers are lower-volume and costlier to leave stale than a vocabulary refit backlog, so there are three
-signals, one on each place an agent already looks. An agent that met the cue in the middle of unrelated work declined it every
-time as "you didn't ask for that", so the instruction says that curation is expected. A runbook has no description the
-harness reads, so each cue carries the query that surfaces it.
-`pending_offers` and its hint are the first keys of the payload because an unrequested-work cue at the tail of
-a 94 to 112 KB first payload was never seen: the shell preview saved the rest to a file, and 0 of 3 agents saw
-the hint. Shrinking the payload was rejected as a separate lever, and so was a general `notices:` list, which
-would be a new shape for every consumer.
+Rationale: pending offers are lower-volume and costlier to leave stale than a vocabulary refit backlog, so there are
+three signals, one on each place an agent already looks. The instruction says that curation is expected, because an
+agent that meets the cue in the middle of unrelated work tends to decline it as unrequested. A runbook has no
+description the harness reads, so each cue carries the query that surfaces it. `pending_offers` and its hint are the
+first keys of the payload because a cue at the tail of a large payload goes unseen: the shell preview saves the rest
+to a file.
 
 ### 792a22o1 UAT Scenarios
 

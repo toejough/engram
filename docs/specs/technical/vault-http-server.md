@@ -567,7 +567,7 @@ connect step is bounded to at most 3 seconds and whose total time is bounded to 
 proxy, TLS-handshake and idle-connection settings, and MUST read at most one byte more than the largest response a child
 accepts (16 MiB), so that an oversized response is detected and not truncated.
 
-Supports: none. The exchange that uses the client is parent-sync's ([parent-sync](../product/parent-sync.md)), which maps its scenarios.
+Supports: none. The exchange that uses the client is parent-sync's ([parent-sync](../product/parent-sync.md)).
 
 Rationale: an unreachable parent costs at most 3 seconds once per backoff window, and a malicious parent cannot exhaust a
 child's memory.

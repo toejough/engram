@@ -17,14 +17,10 @@
   check` is this contract.
 - Supported capabilities: [vault-health](../product/vault-health.md).
 
-Rationale: the memory system once shipped structural breaks that went uncaught for a long time, and
-its testing validated downstream results, never its own internals. A link written in one form and
-resolved in another dropped most of the vault's edges, and nothing reported it. The cause was
-trusting `grep` and a report of success over reading the frontmatter and running the binary, with no
-invariant defined to trip over. So the invariants are executable: a check over the real vault that
-parses it, rather than searching its text, and reports a violation where an agent or a person will
-see it. The original plan wired the check as a `targ` gate so that a violation fails CI; no such gate
-exists today. Severity separates a break in correctness from corpus health: only a `FAIL`
+Rationale: testing downstream results never checks the vault's own structure, and a link written in
+one form and resolved in another can silently drop most of the vault's edges. So the invariants are
+executable: a check over the real vault that parses it, rather than searching its text, and reports
+a violation where an agent or a person will see it. Severity separates a break in correctness from corpus health: only a `FAIL`
 breaks correctness and fails the run, while a `WARN` reports without blocking, because a
 legitimately standalone note or a deleted note's name is not an error.
 
@@ -41,8 +37,8 @@ parsing its bytes, so that a note whose text is not valid UTF-8 is checked like 
 
 Supports: [792a9a1a A clean vault passes](../product/vault-health.md#792a9a1-uat-scenarios), [792a9a1b A FAIL line fails the command](../product/vault-health.md#792a9a1-uat-scenarios), [792a9a1c A WARN line does not fail the command](../product/vault-health.md#792a9a1-uat-scenarios), [792a9a1e An unreadable note stops the check](../product/vault-health.md#792a9a1-uat-scenarios), [792a9a1f An empty vault passes](../product/vault-health.md#792a9a1-uat-scenarios), [792a9a1g A note that is not valid UTF-8 is still checked](../product/vault-health.md#792a9a1-uat-scenarios).
 
-Rationale: a text search that stops at an invalid multibyte sequence silently skipped notes in an early
-census and gave a false count of untagged notes, so a checker must not be built on one.
+Rationale: a text search that stops at an invalid multibyte sequence silently skips notes and gives a
+false count, so a checker must not be built on one.
 
 #### 792b26c1a Scenarios
 

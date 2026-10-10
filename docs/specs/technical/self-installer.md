@@ -22,15 +22,14 @@
   necessity, `engram update` is the only way a machine receives a new release.
 - Supported capabilities: [install-and-update](../product/install-and-update.md), [vault-migration](../product/vault-migration.md) (the notices and the flag
   routing), [controlled-vocabulary](../product/controlled-vocabulary.md) (the notices and the `--regen-vocab` summary).
-  Skill-runbook-registration ([skill-runbook-registration](../product/skill-runbook-registration.md)), [parent-sync](../product/parent-sync.md) and [curate](../product/curate.md) add the registration, outbox and pending-offer
-  steps and notices of the update run.
+  Also [skill-runbook-registration](../product/skill-runbook-registration.md), [parent-sync](../product/parent-sync.md) and [curate](../product/curate.md) (the registration, outbox and pending-offer
+  steps and notices of the update run).
 
 Rationale: the installed binary, not the running one, must carry out the deploy, because a release that
 changes how an update works would otherwise take effect one update late. Because the child
 inherits the parent's streams and starts after the parent has printed, the output is one report in the
 order install result, then deploy and checks. A downgrade gate that fails open is the only safe shape: an
-update whose safety cannot be proved must still be possible, and only a provable regression blocks
-(#715). The checks run in the process that deployed so that they and their notices come from the same
+update whose safety cannot be proved must still be possible, and only a provable regression blocks. The checks run in the process that deployed so that they and their notices come from the same
 release as the deploy.
 
 ## 792b28c Behavior Requirements
@@ -221,7 +220,7 @@ clone failure an error that wraps it and names `git clone`.
 Supports: [792a11a1b Outside a checkout the repository is cloned](../product/install-and-update.md#792a11a1-uat-scenarios), [792a11a1f Git is missing](../product/install-and-update.md#792a11a1-uat-scenarios), [792a11d1c A remote source reports its revision](../product/install-and-update.md#792a11d1-uat-scenarios).
 
 Rationale: the module proxy serves repository blobs raw, so the git-lfs model arrives as a 133-byte
-pointer and a proxy build embeds it (#645); a clone runs git's smudge filter.
+pointer and a proxy build embeds it; a clone runs git's smudge filter.
 
 #### 792b28c5a Scenarios
 

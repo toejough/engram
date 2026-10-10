@@ -2,7 +2,9 @@
 
 `write-memory` is the skill that turns a decision to remember something into a vault note. A parent skill (recall or learn) decides what to capture and why, then hands the worker a structured request; the worker composes the matching `engram learn` command, runs it, checks the result and reports the written note path. The judgment stays with the parent and the mechanics stay with the worker. The shipped procedure is `agent-instructions/skills/write-memory/SKILL.md`; the vault runbook note that mirrors it is registered by the skill-runbook-registration capability ([skill-runbook-registration](./skill-runbook-registration.md)). What each note kind contains and how the binary writes it are note-writing's ([note-writing](./note-writing.md)); amending a note is note-revision's ([note-revision](./note-revision.md)); what makes a good capture belongs to learn and recall.
 
-Rationale: the atomic-skills exploration (2026-07-04) evaluated splitting the skills into shared behavioral atoms. It extracted exactly one, the write seam, as a worker invoked as the parent's next whole action, never a mid-procedure reference fetch. It did not extract a read-memory atom, because recall's read, judge and write pipeline is sequentially cohesive. An earlier reference-card form of the same atom was dropped, and its "0/27 mid-procedure dereference" measurement binds nothing, because the instrument was invalid. The worker form's fire rates were measured with a fixed, marker-gated harness: the handoff fired at its seams, no boundary was violated and no spurious fire occurred in six non-handoff trials (`dev/eval/LEDGER.md#write-memory-worker-fire-rates`, 2026-07-04). The skills-to-runbooks conversion of this worker was proposed and then reversed; the skill file is the shipped form.
+Rationale: write-memory is the one shared behavioral atom, the write seam, invoked as the parent's next whole action
+and never as a mid-procedure reference fetch. Reading is not extracted into a shared atom, because recall's read,
+judge and write pipeline is sequentially cohesive. The skill file is the shipped form.
 
 ## 792a13a The worker runs only on a handoff and never re-judges it
 
@@ -232,7 +234,8 @@ Scenario: 792a13l1b No triggers, no flag
 
 Requirement: [792a13m Trigger cues are specific, author-chosen strings](#792a13m-trigger-cues-are-specific-author-chosen-strings) The worker MUST treat a trigger as a cue word or phrase that the user, or an engram notice, would literally write (a slash form, a multi-word phrase, or a single distinctive word of at least three characters), matched case-insensitively, with whitespace collapsed, and as a whole word at letter and digit edges. When a handed-off single word is common in ordinary prose, the worker MUST ask the parent for a distinctive cue instead of passing it through, unless the handoff states that over-firing is a deliberate, accepted choice, in which case the worker MUST pass it through.
 
-Rationale: a trigger hit only makes the runbook a candidate, and the agent still judges it against the runbook's own `situation`, so over-firing is tolerable and triggers never replace a well-written situation. A text-only skill test (12 fresh runs per arm) found the old skill dropped triggers silently and never questioned a lone common word, while the revised skill passed the trigger scenarios 12 of 12 (`dev/eval/LEDGER.md#write-memory-triggers-contract`, 2026-09-20).
+Rationale: a trigger hit only makes the runbook a candidate, and the agent still judges it against the runbook's own
+`situation`, so over-firing is tolerable and triggers never replace a well-written situation.
 
 ### 792a13m1 UAT Scenarios
 

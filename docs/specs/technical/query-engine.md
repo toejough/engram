@@ -24,7 +24,7 @@
   property tests; stability, the contract survives any change to the embedder, the index layout or
   the payload's shape; necessity, every recall passes through it.
 - Supported capabilities: [memory-query](../product/memory-query.md) and note-writing's [792a3t Question-and-answer retrieval](../product/note-writing.md#792a3t-question-and-answer-retrieval). Recall ([recall](../product/recall.md)), [ambient-guidance](../product/ambient-guidance.md),
-  [vault-serving](../product/vault-serving.md) and [parent-sync](../product/parent-sync.md) extend it.
+  [vault-serving](../product/vault-serving.md) and [parent-sync](../product/parent-sync.md) also rely on it.
 
 Rationale: the engine is one deterministic pass with no LLM, so the same vault and phrases give the
 same payload, and the judgment about coverage stays with the reader. A single query process loads the
@@ -32,10 +32,9 @@ vault once and computes everything from it; every command is its own process, so
 between queries. The matched set is bounded before it is clustered because the cost of scoring a
 silhouette grows with the square of its size: the cap of 300 is the 10 phrases a deep recall uses times
 the 30 kept for each, and the chunks the recency channel adds never enter the clustering. The explore
-half exists because matching only finds what resembles the query: tag nomination reached further by
-joining any note that shared a term with the top three notes of a cluster, which tied the reach to an
-accident of rank, treated every term-sharing note alike and needed a per-cluster cap, so it was
-replaced on 2026-07-29 with direct sampling by closeness of the query to each term's centroid.
+half exists because matching only finds what resembles the query, so it samples directly by
+closeness of the query to each term's centroid, which reaches further without tying the reach to
+an accident of rank.
 Superseding notes ride along in `items`, not in a cluster's candidates, so the candidates stay the
 cluster's own nearest notes.
 
@@ -326,7 +325,7 @@ path. An empty matched set MUST give no clusters.
 Supports: [792a7g1a Matches form clusters with a representative](../product/memory-query.md#792a7g1-uat-scenarios), [792a7g1b Matches with no structure form one cluster](../product/memory-query.md#792a7g1-uat-scenarios), [792a7g1c Nothing matched means no clusters](../product/memory-query.md#792a7g1-uat-scenarios), [792a7g1d The same query gives the same clusters](../product/memory-query.md#792a7g1-uat-scenarios).
 
 Rationale: clustering the union once, not per phrase, keeps the number of clusters small, and the seed
-from the phrases removes run-to-run variation (the former invariant C1).
+from the phrases removes run-to-run variation.
 
 #### 792b24c9a Scenarios
 
@@ -791,7 +790,7 @@ a cosine of 1.
 Supports: [792a7d1h A note is found by its own situation](../product/memory-query.md#792a7d1-uat-scenarios).
 
 Rationale: learn and recall are inverse over the situation field, so what was written for a situation
-is found by asking for it (the former invariant R1).
+is found by asking for it.
 
 #### 792b24c22a Scenarios
 

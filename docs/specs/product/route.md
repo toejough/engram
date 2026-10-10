@@ -2,7 +2,13 @@
 
 `route` is the skill an orchestrating agent follows when it is about to dispatch a subagent and must choose the agent type, the model and the effort. It makes the choice from evidence and not from a fixed table: every unit of work starts at the cheapest tier, and only recalled evidence, or a failed review, raises it. Every dispatch is recorded as a note, and the records become memory that the next routing decision recalls, so the effective rubric improves without anyone editing the skill. Route is skill-level guidance for the orchestrator. It adds no system boundary and no interaction of its own: it is a sibling of please, applied over the existing relationship between the harness and engram. The shipped procedure is `agent-instructions/skills/route/SKILL.md`, with the rates in `price-table.md`. The completion-report contract it hands to every subagent is lessons-contract's ([lessons-contract](./lessons-contract.md)).
 
-Rationale: route encodes the delegate-everything doctrine. Two measured results shaped it. Sonnet with memory fully matched opus with memory across applying conventions (15 of 15), recency supersession (3 of 3) and abduction (6 of 6), while sonnet cold failed the same axes, so memory lets a cheaper model do work that needs a stronger one without it (vault note 135). That was measured at the deep-to-mid boundary only; other boundaries are inferred, and the retry rule is the safety net for a wrong discount (`dev/eval/LEDGER.md#tier-routing-parity`). The discount is the largest whole-task cost lever found, larger than any payload-byte-level cut. Second, the earlier fixed table (mechanical to cheap, moderate to mid, complex to deep) was asserted and never measured. A baseline showed an agent reading it over-provisioned 5 of 6 generic units to mid or deep by surface look, and a control with no guidance did the same, because the table encoded the model's untested "this looks hard, so use a strong model" instinct. A first draft that only said "don't upgrade on a looks-hard hunch" still routed perceived difficulty to the deep tier; adding an explicit "genuinely hard is not evidence" test closed the loophole and flipped 5 of 6 over-provisioned units to 0 of 6. Cold-start cost rises for genuinely hard work, which can fail twice before it reaches the tier it needs; that is an accepted bootstrap, recovered by the evidence loop.
+Rationale: route encodes the delegate-everything doctrine. Sonnet with memory matches opus with memory on applying
+conventions, recency supersession and abduction, while sonnet cold fails them, so memory lets a cheaper model do work
+that would otherwise need a stronger one; the retry rule is the safety net for a wrong discount. There is no fixed
+difficulty-to-tier table, because a model's "this looks hard, so use a strong model" instinct over-provisions:
+perceived difficulty is not evidence, and an explicit "genuinely hard is not evidence" test is what holds the line.
+Cold-start cost rises for genuinely hard work, which can fail twice before it reaches the tier it needs; that is an
+accepted bootstrap, recovered by the evidence loop.
 
 ## 792a17a The orchestrator routes and delegates
 
@@ -111,7 +117,8 @@ Scenario: 792a17d1b The discount stops at cheap
 
 Requirement: [792a17e The cheap tier is the cheapest agent in the current environment](#792a17e-the-cheap-tier-is-the-cheapest-agent-in-the-current-environment) The orchestrator MUST resolve the cheap tier against the current environment: a free local model that is available (for example an LMStudio provider) MUST be tried first for cheap-tier work, and a paid model MUST enter the roster only above the free local options. When no free local model is available, the cheap tier MUST resolve to the cheapest paid model. The example roster (cheap haiku, mid sonnet, deep opus) is an example, not a prescription, and a model name MUST NOT be hard-coded as a rule.
 
-Rationale: a roster table that named models read as a prescription, and a real cost incident followed: five or more paid dispatches while a free local model sat idle (#702).
+Rationale: a roster table that named models would read as a prescription and send paid dispatches while a free local
+model sat idle.
 
 ### 792a17e1 UAT Scenarios
 
@@ -136,7 +143,9 @@ Scenario: 792a17e1c A paid dispatch with a free option available is a red flag
 
 Requirement: [792a17f Cold-start priors carry only evidence-backed escalations](#792a17f-cold-start-priors-carry-only-evidence-backed-escalations) The cold-start priors table MUST list the cheapest tier as the posture for everything by default, MUST list the one-tier discount of a memory-backed unit, and MUST carry a row for a work-kind that starts above cheap only when recorded dispatch evidence for it clears the escalation thresholds (a cheap-tier pass rate below 70% and a mid-tier pass rate above 85%, both past the five-dispatch evidence floor), citing the tally that justified it. Recalled evidence MUST override a prior, and the table MUST NOT be treated as a prescription.
 
-Rationale: priors are hypotheses that the dispatch record confirms or overturns. When strong repeated evidence accrues for a work-kind, it is folded into the table at periodic consolidation, so a cold session starts warm; until then recall does the improving. Leaving `go-package-implementation` at the default cost every new session a doomed cheap-tier attempt and a spec-retry before recall taught it what the evidence already showed (#722).
+Rationale: priors are hypotheses that the dispatch record confirms or overturns. When strong repeated evidence accrues
+for a work-kind, it is folded into the table at periodic consolidation, so a cold session starts warm; until then
+recall does the improving.
 
 ### 792a17f1 UAT Scenarios
 
@@ -224,12 +233,11 @@ Scenario: 792a17i1c An escalated dispatch records where it passed
 
 Requirement: [792a17j Cost and duration are real or stated as unavailable](#792a17j-cost-and-duration-are-real-or-stated-as-unavailable) The orchestrator MUST take a dispatch's duration and cost from the harness's usage signal when it exposes one (on Claude Code, the `duration_ms` and `subagent_tokens` of the subagent's Task-completion `<usage>` block), MUST record the unit explicitly, and MUST convert tokens to a dollar estimate only when the maintained price table (`price-table.md`, keyed by the concrete model) has an exact-match row for the dispatch's model, showing for example `45,231 tok (~$0.68 @ opus)`; priced by split input, output and cache columns when the usage block splits them, and otherwise as a blended estimate at the input rate labelled as such. When the model has no row, or its platform (Bedrock, Vertex or Foundry) prices it differently, it MUST show the raw unit-labeled token count with its reason (for example `45,231 tok (no rate on hand)`). On a harness with no per-subagent usage signal and no documented alternate source (Pi, as of the skill's writing), it MUST show `n/a` with the stated reason, and MUST NOT fabricate a cost, a duration or a dollar figure.
 
-Rationale: tokens to dollars is a blended estimate from a maintained table, not a bill. A harness that exposes the signals under other names changes nothing in the record.
-The rates live in a maintained table rather than a live pricing lookup, because a lookup adds an I/O
-dependency and a failure mode; a stale row degrades to the raw token count, which is safer than a flaky lookup
-silently defaulting to a wrong number, and updating a rate is a one-line data diff. Each non-Claude-Code
-harness gets its own documented cost and duration source, or an explicit `n/a` with a reason, because
-harnesses expose different signals and a forced common interface would lose information or invite fabrication.
+Rationale: tokens to dollars is a blended estimate from a maintained table, not a bill. A harness that exposes the
+signals under other names changes nothing in the record. The rates live in a maintained table, so a stale row degrades
+to the raw token count rather than a wrong number, and updating a rate is a one-line data diff. Each non-Claude-Code
+harness gets its own documented cost and duration source, or an explicit `n/a` with a reason, because harnesses expose
+different signals and a forced common interface would lose information or invite fabrication.
 
 ### 792a17j1 UAT Scenarios
 
@@ -359,7 +367,8 @@ Scenario: 792a17m1c The footgun is avoided
 
 Requirement: [792a17n Drowning is reported, not patched](#792a17n-drowning-is-reported-not-patched) At the same moments as the count audit, the orchestrator MUST run the aggregate lookup for a work-kind with many evidence notes and confirm that the aggregate's path still surfaces in the items or in any cluster's candidates; when it does not, it MUST report the pre-registered drowning case and MUST NOT patch the skill ad hoc.
 
-Rationale: many near-identical evidence notes could outrank their aggregate on the read query. A scratch-vault gauge (20 evidence notes and one aggregate) passed, so no remedy was built, and the two remedies on record are in [792a6c Categorical tags share one list](./controlled-vocabulary.md#792a6c-categorical-tags-share-one-list).
+Rationale: many near-identical evidence notes could outrank their aggregate on the read query; the remedies are in
+[792a6c Categorical tags share one list](./controlled-vocabulary.md#792a6c-categorical-tags-share-one-list).
 
 ### 792a17n1 UAT Scenarios
 

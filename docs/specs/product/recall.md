@@ -51,7 +51,9 @@ Scenario: 792a14b1c A failed sweep does not stop recall
 
 Requirement: [792a14c Recall has two depths](#792a14c-recall-has-two-depths) Recall MUST run in one of two modes chosen by the caller: `deep`, which MUST be the mode when the caller names none, and `glance`, which MUST be used when the caller names it. Deep MUST run the whole procedure, applying memory to the decision and growing the vault. Glance MUST apply memory to the decision without writing vault knowledge: it MUST use about three query phrases instead of ten, MUST keep the reading of candidates (Step 2.5A), the recency weighting (Step 2.5B), the activation (Step 2.7), the closing synthesis (Step 3) and the re-entry query (Step 3.5), and MUST skip the coverage writes (Step 2.5C) and the persisting of a conclusion (Step 4).
 
-Rationale: glance exists so that recall can fire often at everyday decision points, and deep for weighty or irreversible ones, or when recall should also learn. A real-scale vault (400+ notes) showed glance 2.23 times faster and 46% cheaper per fire than deep, while a tiny vault had shown only 1.2 times, which was an artifact of vault size (`dev/eval/LEDGER.md#glance-cost-realvault`). Glance delivered the convention, recency-supersession and abduction wins at their verified bars (`dev/eval/LEDGER.md#glance-delivers-c3-c4i-c6`). Its activation still bumps the used notes' recency metadata and pulls a used parent note down as a pending copy, which are kept; neither is a knowledge write.
+Rationale: glance exists so that recall can fire often at everyday decision points, and deep for weighty or
+irreversible ones, or when recall should also learn. Glance's activation still bumps the used notes' recency metadata
+and pulls a used parent note down as a pending copy, which are kept; neither is a knowledge write.
 
 ### 792a14c1 UAT Scenarios
 
@@ -81,7 +83,8 @@ Scenario: 792a14c1d Glance still reads, weights, activates and synthesizes
 
 Requirement: [792a14d Glance escalates to deep for a recent standard](#792a14d-glance-escalates-to-deep-for-a-recent-standard) Recall in glance mode MUST switch to deep when its decision turns on honoring a standard that surfaced in the recent-activity channel (an item such as "use X going forward" or "the new convention is Y"), and MUST NOT escalate for applying conventions, for recency supersession within the matched set, or for abduction and synthesis.
 
-Rationale: glance reliably surfaces a recent-channel item but does not elevate it to a requirement: it honored such a standard 0 of 5 times where deep honored it 4 of 5 (`dev/eval/LEDGER.md#glance-fails-c5-delivery`, 2026-06-29). Glance is validated as deep-equivalent only for the other three.
+Rationale: glance reliably surfaces a recent-channel item but does not elevate it to a requirement, so deep is the
+rung that honors such a standard.
 
 ### 792a14d1 UAT Scenarios
 
@@ -101,7 +104,10 @@ Scenario: 792a14d1b Ordinary conventions do not escalate
 
 Requirement: [792a14e Ten phrases from ten angles](#792a14e-ten-phrases-from-ten-angles) Recall in deep mode MUST generate exactly ten short, specific query phrases, one from each of these angles: the situation or setting, the user's intent or goal, the current concrete action, the problem or blocker, a candidate solution or approach, the tooling or technology in play, prior related work, an adjacent technique, a failure mode to avoid and the domain or concept. It MUST NOT pre-filter them beyond dropping obvious dross such as a bare noun, and MUST phrase them by the task and not by fear.
 
-Rationale: the agent cannot know what memory holds before it queries, so breadth is for finding crystallization candidates. "Implementing Claude Code hooks" retrieves the lessons for the task, while "common mistakes when writing hooks" retrieves only warnings. The binary caps each phrase to its top 30 matches. Glance's three phrases are the measured retrieval floor (#661).
+Rationale: the agent cannot know what memory holds before it queries, so breadth is for finding crystallization
+candidates. "Implementing Claude Code hooks" retrieves the lessons for the task, while "common mistakes when writing
+hooks" retrieves only warnings. The binary caps each phrase to its top 30 matches. Glance's three phrases are the
+retrieval floor.
 
 ### 792a14e1 UAT Scenarios
 
@@ -121,7 +127,8 @@ Scenario: 792a14e1b Phrases name the task, not the fear
 
 Requirement: [792a14f One unified query](#792a14f-one-unified-query) Recall MUST run ONE `engram query --lazy-chunks` that carries every phrase as a repeatable `--phrase="<phrase>"`, MUST NOT run one query per phrase, and MUST NOT pass `--vault` or `--chunks-dir`, because the binary resolves the vault and the chunk index itself. It MUST NOT dispatch subagents to synthesize clusters.
 
-Rationale: the query clusters the matched notes and chunks together in one pass, which phrase-by-phrase calls would split. Cluster synthesis runs inline in the recall skill, and a per-cluster subagent was removed.
+Rationale: the query clusters the matched notes and chunks together in one pass, which phrase-by-phrase calls would
+split. Cluster synthesis runs inline in the recall skill.
 
 ### 792a14f1 UAT Scenarios
 
@@ -174,11 +181,9 @@ Scenario: 792a14g1d An empty matched set is reported
 
 Requirement: [792a14h Chunk content is read before a cluster is judged](#792a14h-chunk-content-is-read-before-a-cluster-is-judged) Recall MUST read the content of every chunk member of a cluster with `engram show-chunk <source#anchor>` before stating any relevance or coverage judgment about that cluster, including a cluster whose candidate list is empty. It MUST read a note candidate's content directly from the payload, MUST NOT run `engram show` for it, and MUST NOT judge a chunk from its path, title or anchor alone.
 
-Rationale: under `--lazy-chunks` a chunk item carries no content, so a judgment from its path is a judgment without evidence. A measured miss (#733, the recency-standard axis at about 80% against an original 100%) traced to one trial that made no `show-chunk` call and called a load-bearing chunk unrelated seed content from its title, in a cluster with no note candidates. All four passing trials had read the chunk. A vault note could not fix this, because recall's coverage step consults only notes that match the current task's phrases and no step asks whether the step itself is being run correctly, so the fix belongs in the procedure's own text. Wording in skill text is expected to plateau below about 95% per-trial adherence, so a rare repeat of the miss is not evidence of a regression (vault notes 794 and 198).
-The fix is in the skill's own text and not in a vault note, because a note about correctly running that step
-has no trigger surface during the step's own execution. Prose mechanisms plateau below about 95% adherence; at
-95% per trial an all-green 5-trial gate passes only about 77% of the time, so an occasional RED with no real
-regression is expected, and the gate threshold is decided from the measured post-fix rate.
+Rationale: under `--lazy-chunks` a chunk item carries no content, so a judgment from its path is a judgment without
+evidence. The rule is in the skill's own text and not in a vault note, because a note about correctly running that
+step has no trigger surface during the step's own execution.
 
 ### 792a14h1 UAT Scenarios
 
@@ -231,7 +236,10 @@ Scenario: 792a14i1c A candidate that only matches the superseded claim is near
 
 Requirement: [792a14j Coverage is judged by the agent and written once per cluster](#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster) In deep mode, recall MUST judge, for each cluster and then for the explore items, whether a candidate note covers the cluster's principle, from the content read and not from cosine alone, and MUST act on the outcome. When a candidate states the principle with no material omission against the recency-weighted view, the outcome is covered and recall MUST run `engram amend --target <candidate> --activate --chunk-source <ids>` and MUST NOT rewrite its content. When a candidate addresses the same situation but omits at least one substantive claim the members evidence, the outcome is near and recall MUST run `engram amend` with the chunk sources and re-synthesized content flags from all members, recency-weighted. When no candidate addresses the situation, the outcome is absent and recall MUST hand off to the write-memory skill one note of kind fact or feedback with the cluster's chunk-source IDs and a descriptive source. When the write corrects, narrows or refutes a surfaced note, recall MUST also pass `--supersedes="<basename>|<type>|<claim>"` with type `updates`, `narrows` or `refutes`. Recall MUST write at most one note per cluster, the representative being a note and never a chunk, MUST wait for each write before the next cluster, and MUST NOT hand-author vocabulary tags.
 
-Rationale: coverage is judged by the agent, not by a cosine threshold, because cosine only nominates the within-cluster top-five candidates. This reversed an earlier rule (D7, reversed by recall-v2 DECISION-2). An empty or absent candidate list is a reason to create, not to skip the cluster. A write is blocking because the note created or updated for one cluster may be a candidate for another. Updates use `engram amend` and `engram learn` creates only, so the amend path is the one that keeps both copies of a note in step.
+Rationale: coverage is judged by the agent, not by a cosine threshold, because cosine only nominates the
+within-cluster top-five candidates. An empty or absent candidate list is a reason to create, not to skip the cluster.
+A write is blocking because the note created or updated for one cluster may be a candidate for another. Updates use
+`engram amend` and `engram learn` creates only, so the amend path is the one that keeps both copies of a note in step.
 
 ### 792a14j1 UAT Scenarios
 
@@ -299,7 +307,10 @@ Scenario: 792a14k1b A pending copy is not amended
 
 Requirement: [792a14l Only the notes that were used are activated](#792a14l-only-the-notes-that-were-used-are-activated) After processing the clusters, recall MUST run one `engram activate` with a `--note` for each note it actually drew on (a candidate judged covered or near, and any note cited in the closing synthesis), and MUST skip the call when it drew on no notes. It MUST NOT activate every returned note, MUST NOT activate a chunk or a recent-channel item, and MUST activate a used `from_parent` note the same way, by its path. Activation applies in both modes. Recall MUST NOT curate the pulled copies as part of the recall in either mode: it MUST leave them pending, finish the user's request, run the curate skill as a separate step afterward, and say in its reply that it did or that the copies await curation.
 
-Rationale: activation is agent-driven (recall-v2): the binary no longer pre-judges use. A returned but unused note's last-used time goes stale and it fades by recency rank, which is the supersede-by-competition mechanism, so bumping every returned note would defeat it. Regularly useful memory stays fresh and never-retrieved memory decays and loses rank. The "vault holds pending offer(s) awaiting curation" warning that activation may print is expected, not an error.
+Rationale: activation is agent-driven: the binary does not pre-judge use. A returned but unused note's last-used time
+goes stale and it fades by recency rank, which is the supersede-by-competition mechanism, so bumping every returned
+note would defeat it. Regularly useful memory stays fresh and never-retrieved memory decays and loses rank. The "vault
+holds pending offer(s) awaiting curation" warning that activation may print is expected, not an error.
 
 ### 792a14l1 UAT Scenarios
 

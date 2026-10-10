@@ -13,8 +13,7 @@
   independent verification, it is tested directly over a fake vault listing and fake note contents;
   stability, an exact count over the whole vault is a lasting need that a change to recall does not
   touch; necessity, `engram count` is this contract.
-- Supported capabilities: [vault-counting](../product/vault-counting.md). The [route](../product/route.md) capability extends it by using it as its
-  audit surface.
+- Supported capabilities: [vault-counting](../product/vault-counting.md). [route](../product/route.md) uses it as its audit surface.
 
 Rationale: a count and a recall answer different questions. Recall returns a similarity-ranked,
 truncated sample of the vault, so it cannot say how many notes carry a tag or link to a note.

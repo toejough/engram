@@ -21,12 +21,11 @@ its body MUST end with an `Exemplars:` list holding each one. Every definition n
 sidecar, or a warning naming it when embedding fails, and a definition note MUST NOT itself be
 tagged with any term by assignment or refit.
 
-Rationale: the definition's body is the term's embedding text, so exemplars from member notes pull
-the term's vector toward its members; a description alone embeds far from them (recall at 5 of
-45.5%, against 64.6% for the member centroid). The bare `vocab` tag marks a definition, so every
-counting and tagging path can leave definitions out and a term's own description never skews its
-centroid. The `vocab/<term>` self-tag was added so that a term's definition appears with its members
-in Obsidian's tag pane and graph; it has no other effect.
+Rationale: the definition's body is the term's embedding text, so exemplars from member notes pull the term's vector
+toward its members; a description alone embeds far from them. The bare `vocab` tag marks a definition, so every
+counting and tagging path can leave definitions out and a term's own description never skews its centroid. The
+`vocab/<term>` self-tag lets a term's definition appear with its members in Obsidian's tag pane and graph; it has no
+other effect.
 
 ### 792a6a1 UAT Scenarios
 
@@ -75,22 +74,16 @@ Requirement: [792a6c Categorical tags share one list](#792a6c-categorical-tags-s
 vocabulary tagging, refit and `engram update --regen-vocab` MUST change only the `vocab/<term>`
 entries, keeping every other tag and its order.
 
-Rationale: route's dispatch records needed low-cardinality categories (work kind, tier, outcome) that
-recall, `engram count` and Obsidian can all read, without a separate store. Frontmatter `tags:`, a
-plain list written by `engram learn --tag <family>[/<value>]`, is the only categorical mechanism: no
-attribute nodes, no categorical wikilinks, no tables. Three kinds of note ride on it: route's
-evidence notes (one per dispatch, tagged `work-kind/<k>`, `tier/<t>` and `outcome/<o>`, recallable
-like any fact), its aggregate notes (one per work kind, slug `route-evidence-<work-kind>`, untagged,
-holding the tallies and a link to each evidence note), and family definition notes (a bare family
-tag defines the family, a `family/value` tag is a member). Route reads the aggregates through plain
-recall; `engram count --group-by tags --filter tags=...` recomputes the true tallies as an audit,
-because tallies an LLM maintains will drift, and it is never on the read path. Many near-identical
-evidence notes could outrank their aggregate on the read query; a scratch-vault gauge (20 evidence
-notes and one aggregate) passed, so no remedy was built. If drowning is measured on a real vault,
-the remedies on record are a "summarizes" ride-along that inserts the aggregate when its evidence
-surfaces, or demoting evidence notes to the chunk ranking tier, chosen with the measured case in
-hand, because a new edge type must first show retrieval value. The vocabulary moved onto the same
-convention: definitions became bare-`vocab`-tagged fact notes and members `vocab/<term>` tags.
+Rationale: route's dispatch records need low-cardinality categories (work kind, tier, outcome) that recall, `engram
+count` and Obsidian can all read, without a separate store. Frontmatter `tags:`, a plain list written by `engram learn
+--tag <family>[/<value>]`, is the only categorical mechanism: no attribute nodes, no categorical wikilinks, no tables.
+Three kinds of note ride on it: route's evidence notes (one per dispatch, tagged `work-kind/<k>`, `tier/<t>` and
+`outcome/<o>`, recallable like any fact), its aggregate notes (one per work kind, slug `route-evidence-<work-kind>`,
+untagged, holding the tallies and a link to each evidence note), and family definition notes (a bare family tag
+defines the family, a `family/value` tag is a member). Route reads the aggregates through plain recall; `engram count
+--group-by tags --filter tags=...` recomputes the true tallies as an audit, because tallies an LLM maintains will
+drift, and it is never on the read path. The vocabulary uses the same convention: definitions are bare-`vocab`-tagged
+fact notes and members carry `vocab/<term>` tags.
 
 ### 792a6c1 UAT Scenarios
 
@@ -116,11 +109,8 @@ and its `tags:` field MUST be removed when nothing else is left in it. A term's 
 centroid stored by the last bootstrap or refit when one exists for the vault's embedding model, and
 its definition note's embedding otherwise.
 
-Rationale: tagging is pure cosine, so it costs no LLM call on the write path. The 0.35 floor and the
-cap of three were chosen by a sweep over 48 known retrieval misses: two passes at 0.35 with three
-terms recovered 56.2% of them at a median candidate pool of 31, passing the gate of at least 54.2%
-within a pool of 40. Tags replace rather than accumulate, so a revised note carries only the terms it
-is close to now.
+Rationale: tagging is pure cosine, so it costs no LLM call on the write path. Tags replace rather than accumulate, so
+a revised note carries only the terms it is close to now.
 
 ### 792a6d1 UAT Scenarios
 
@@ -201,9 +191,9 @@ refit baseline, MUST clear any pending refit, and MUST print
 the number of term assignments the second pass made. `--floor` MAY replace the 0.35 similarity floor
 of [792a6d Write-time vocabulary tagging](#792a6d-write-time-vocabulary-tagging) for this run.
 
-Rationale: the second pass replaces each description embedding with the centroid of its members, so
-terms are placed where their notes actually are; centroid assignment is what the 0.35, three-term
-setting of [792a6d Write-time vocabulary tagging](#792a6d-write-time-vocabulary-tagging) was measured with.
+Rationale: the second pass replaces each description embedding with the centroid of its members, so terms are placed
+where their notes actually are; the 0.35, three-term setting of [792a6d Write-time vocabulary
+tagging](#792a6d-write-time-vocabulary-tagging) is tuned for centroid assignment.
 
 ### 792a6g1 UAT Scenarios
 
@@ -280,14 +270,10 @@ score, and keeping the previous derivation's K when its score is within 0.02 of 
 clustering scores at least 0.02, or there are too few notes to cluster, it MUST print
 `vocab refit: no structure found; vocabulary unchanged` and write nothing.
 
-Rationale: the earlier refit edited the existing term list from an LLM-written plan, and could only
-add terms: an untagged-rate trigger fired whenever new notes missed the 0.35 floor, and minting was
-the only way to satisfy it, so one vault drifted to about 150 terms for 400 notes. Tagging is already
-pure cosine geometry, so the vocabulary is now derived from that geometry directly, and the number of
-terms is the number the vault's clusters support. The 0.02 floor only rejects input with no
-structure: whole-vault MiniLM embeddings score between 0.05 and 0.15 at every K (the production vault
-of 597 notes peaked at 0.0987 at K=9), so recall's 0.10 floor would have made every refit a no-op.
-Keeping the previous K within 0.02 stops term names churning on near ties.
+Rationale: tagging is already pure cosine geometry, so the vocabulary is derived from that geometry directly, and the
+number of terms is the number the vault's clusters support. The 0.02 floor only rejects input with no structure:
+whole-vault MiniLM embeddings score low silhouette values at every K, so recall's 0.10 floor would make every refit a
+no-op. Keeping the previous K within 0.02 stops term names churning on near ties.
 
 ### 792a6j1 UAT Scenarios
 
@@ -333,8 +319,8 @@ Requirement: [792a6l Dry run](#792a6l-dry-run) `engram vocab refit --dry-run` MU
 silhouette=<s>`, one `matched:` line per kept term, one `new:` line per new cluster and one
 `retired:` line per retired term, and MUST write nothing.
 
-Rationale: the first derivation on a vault can retire most of its terms (K=9 against 29 existing
-terms on the production vault), so reviewing the diff before applying it matters.
+Rationale: the first derivation on a vault can retire most of its terms, so reviewing the diff before applying it
+matters.
 
 ### 792a6l1 UAT Scenarios
 
@@ -429,11 +415,9 @@ notes' bodies and `supersedes:` lists: a `supersedes:` entry naming it is droppe
 other link to it becomes its plain basename. Retirement MUST NOT keep the definition in any form or
 record a supersession for it.
 
-Rationale: a dormant term keeps attracting members at tagging time and stops the vocabulary from
-converging, so retirement is active. A definition note is the term's identity, not a fact worth
-preserving, so it has no supersession story; an earlier refit that demoted retired definitions and
-recorded them as superseded on the family note left ten demoted notes and their dangling links in the
-vault.
+Rationale: a dormant term keeps attracting members at tagging time and stops the vocabulary from converging, so
+retirement is active. A definition note is the term's identity, not a fact worth preserving, so it has no supersession
+story and leaves no demoted notes or dangling links in the vault.
 
 ### 792a6p1 UAT Scenarios
 
@@ -472,8 +456,8 @@ Scenario: 792a6q1a An unmatched proposed term is kept
 Requirement: [792a6r Refit takes no term plan](#792a6r-refit-takes-no-term-plan) `engram vocab refit` MUST NOT accept an externally authored term plan: the
 `--plan` and `--emit-request` flags MUST be refused as undefined.
 
-Rationale: an authored term list cannot coexist with derivation; keeping the plan flow would keep the
-additive path that [792a6j Deriving the vocabulary](#792a6j-deriving-the-vocabulary) removed.
+Rationale: an authored term list cannot coexist with [792a6j Deriving the
+vocabulary](#792a6j-deriving-the-vocabulary), which derives the term set from the vault's geometry.
 
 ### 792a6r1 UAT Scenarios
 
@@ -499,10 +483,9 @@ days have passed, it MUST mark a refit pending with the reason `growth: <N> note
 pending refit MUST stay pending until a bootstrap or an applied refit records a new baseline. The
 untagged rate and term concentration MUST NOT mark a refit pending.
 
-Rationale: the check is token-free and runs in the write path, so the vault notices its own drift and
-the learn skill acts on the verdict. Growth is the only trigger because, under derivation, a high
-untagged rate or a hub term no longer means terms should be minted; keeping them as triggers would
-keep the old ratchet's cadence without its mechanism.
+Rationale: the check is token-free and runs in the write path, so the vault notices its own drift and the learn skill
+acts on the verdict. Growth is the only trigger because, under derivation, a high untagged rate or a hub term no
+longer means terms should be minted.
 
 ### 792a6s1 UAT Scenarios
 
@@ -540,10 +523,10 @@ of question notes whose answer note exists; and `qa round-2 gate: READY (<P>>=20
 least 20, else `qa round-2 gate: accumulating (<P>/20)`. Member notes MUST exclude definition notes,
 question notes and files without frontmatter; answer notes MUST count like any other note.
 
-Rationale: the counts describe the notes that tagging applies to, so definitions (whose self-tag is
-display-only) and questions (which carry no vocabulary, [792a3u Vocabulary tagging by kind](./note-writing.md#792a3u-vocabulary-tagging-by-kind)) are left out. The untagged rate and
-hubs are diagnostics for a person reading the report. The QA lines track the question-and-answer
-kind's second round, which waits for 20 real captured pairs.
+Rationale: the counts describe the notes that tagging applies to, so definitions (whose self-tag is display-only) and
+questions (which carry no vocabulary, [792a3u Vocabulary tagging by
+kind](./note-writing.md#792a3u-vocabulary-tagging-by-kind)) are left out. The untagged rate and hubs are diagnostics
+for a person reading the report.
 
 ### 792a6t1 UAT Scenarios
 
@@ -639,9 +622,9 @@ and no legacy lines. With `--dry-run` it MUST change nothing and print the same 
 `[dry-run] ` with `would remove` in place of `removed`. After a migration, the old-format notice of
 [792a6v Update notices](#792a6v-update-notices) MUST NOT be printed.
 
-Rationale: before the vocabulary moved onto tags, terms were `vocab.<term>.md` notes, a generated
-`vocab.index.md` listed them, and members carried a `Vocab:` line and a `vocab:` key. The migration
-re-scores members from the regenerated centroids rather than copying the old assignment.
+Rationale: vaults from the earlier layout hold terms as `vocab.<term>.md` notes, a generated `vocab.index.md` listing
+them, and members with a `Vocab:` line and a `vocab:` key. The migration re-scores members from the regenerated
+centroids rather than copying the old assignment.
 
 ### 792a6w1 UAT Scenarios
 

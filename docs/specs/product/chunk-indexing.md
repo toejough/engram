@@ -124,13 +124,11 @@ directory it MUST also skip the subdirectories `projects`, `jobs`, `plugins`, `c
 `shell-snapshots`, `file-history`, `history`, `ide`, `statsig`, `session-env`, `debug` and
 `worktrees`, and inside a `.pi` directory the subdirectories `jobs` and `projects`.
 
-Rationale: the automatic sweep covers what an agent's memory can learn from: the project's own
-documents, project and user harness configuration, and every recorded conversation of every
-project. Inside `.claude`, harness state and third-party plugin content are not user memory, and
-`projects/` holds every project's transcripts, which arrive through the session-log root instead.
-`jobs/` is agent-harness scratch that can hold whole snapshot copies of the vault. The `.pi` sweep
-always excluded it; the `.claude` sweep did not, and on one real index 1,397 of the 1,960 duplicate
-index files that `engram prune --duplicates` removed (71%) came from `~/.claude/jobs`.
+Rationale: the automatic sweep covers what an agent's memory can learn from: the project's own documents, project and
+user harness configuration, and every recorded conversation of every project. Inside `.claude`, harness state and
+third-party plugin content are not user memory, and `projects/` holds every project's transcripts, which arrive
+through the session-log root instead. `jobs/` is agent-harness scratch that can hold whole snapshot copies of the
+vault, and indexing it would fill the index with duplicates.
 
 ### 792a5d1 UAT Scenarios
 
@@ -351,15 +349,12 @@ an ancestor `.claude` or `.pi` directory, nearest the working directory first; t
 among equals the path with the fewest separators, then the lexicographically first path. It MUST
 index a transcript and a Markdown document separately even when their bytes are identical.
 
-Rationale: the same content is often reachable from several swept paths, such as a project file
-copied into an ancestor `.claude` directory, a session copied into a worktree, or a vault note
-snapshotted into a scratch directory. On a real index of about 62,000 sources, 79% were exact copies
-of another source, and duplicated content made up 9.6% of a query's returned items on average and
-28.6% at worst. A list of excluded paths could not reach most of it, because the copies sit in
-legitimately swept roots. The precedence is a fixed function of the copies found, so the same
-content always resolves to the same copy whatever order the sweep finds them in. A transcript is
-chunked differently from a Markdown document with the same bytes, so treating them as copies would
-lose one of the two chunkings.
+Rationale: the same content is often reachable from several swept paths, such as a project file copied into an
+ancestor `.claude` directory, a session copied into a worktree, or a vault note snapshotted into a scratch directory.
+A list of excluded paths could not reach most of it, because the copies sit in legitimately swept roots. The
+precedence is a fixed function of the copies found, so the same content always resolves to the same copy whatever
+order the sweep finds them in. A transcript is chunked differently from a Markdown document with the same bytes, so
+treating them as copies would lose one of the two chunkings.
 
 ### 792a5l1 UAT Scenarios
 
@@ -394,11 +389,10 @@ source's chunks. Otherwise it MUST keep the other source's chunks and print
 ``ingest: refusing to evict <path>: canonical <path> does not verifiably cover its records (needs review — run `engram prune --duplicates` once resolved)``.
 When the preferred copy stops being found, the remaining copy MUST be indexed again.
 
-Rationale: byte-identical content today does not mean identical chunks, because a source keeps every
-chunk of its earlier versions ([792a5j A source's chunks are never dropped](#792a5j-a-sources-chunks-are-never-dropped)). Two files equal now can hold different histories, and
-removing one on the strength of the other would destroy chunks that exist nowhere else. On a real
-index, 124 of 6,612 index files held chunks from more than one ingest day, which is exactly that
-shape.
+Rationale: byte-identical content today does not mean identical chunks, because a source keeps every chunk of its
+earlier versions ([792a5j A source's chunks are never dropped](#792a5j-a-sources-chunks-are-never-dropped)). Two files
+equal now can hold different histories, and removing one on the strength of the other would destroy chunks that exist
+nowhere else.
 
 ### 792a5m1 UAT Scenarios
 
@@ -425,10 +419,9 @@ Requirement: [792a5n Stray vault-note copies are not indexed](#792a5n-stray-vaul
 file and lies outside the vault ([792a2a Vault location](./vault-identity.md#792a2a-vault-location)), and MUST index such a file when it lies inside the vault or
 is named by `--markdown`.
 
-Rationale: a vault note always has a `.vec.json` sidecar beside it, so such a file outside the vault
-is a copy of a vault note, for example in a snapshot or a backup. A copy of a note amended since it
-was taken no longer has the same bytes as the live note, so identical-content deduplication cannot
-catch it; on one machine, 50 of 256 stray vault-note copies had drifted from their original.
+Rationale: a vault note always has a `.vec.json` sidecar beside it, so such a file outside the vault is a copy of a
+vault note, for example in a snapshot or a backup. A copy of a note amended since it was taken no longer has the same
+bytes as the live note, so identical-content deduplication cannot catch it.
 
 ### 792a5n1 UAT Scenarios
 
@@ -444,8 +437,8 @@ Scenario: 792a5n1a A vault-note copy outside the vault is skipped
 Requirement: [792a5o Concurrent index writers never lose an update](#792a5o-concurrent-index-writers-never-lose-an-update) `engram ingest` and `engram prune` runs against one chunk index at the same time
 MUST NOT lose either one's change to the index's record of sources.
 
-Rationale: concurrent ingest and prune runs once lost manifest entries in production (#660): each
-read the record of sources, and the later write overwrote the earlier one's change.
+Rationale: concurrent ingest and prune runs each read the record of sources, and the later write would overwrite the
+earlier one's change.
 
 ### 792a5o1 UAT Scenarios
 
@@ -531,12 +524,12 @@ refusal whose group does have chunks elsewhere. A removal that fails MUST print
 how many of how many removals failed. With `--dry-run` it MUST report the same counts, each line
 prefixed `[dry-run] `, and change nothing.
 
-Rationale: ingest-time deduplication ([792a5l Identical content is indexed once](#792a5l-identical-content-is-indexed-once)) prevents new copies but does nothing for copies
-indexed before it existed, so this mode cleans up that backlog. It runs only when asked, because it
-removes index files from the user's memory store. It knows only the paths in the index's record, not
-how each was found, so it cannot apply ingest's precedence; a later `engram ingest --auto` may then
-replace the copy it kept with a preferred one ([792a5m A later, preferred copy replaces an indexed one](#792a5m-a-later-preferred-copy-replaces-an-indexed-one)), once per group. On one real index it removed
-1,960 of 8,572 index files (−23%).
+Rationale: ingest-time deduplication ([792a5l Identical content is indexed
+once](#792a5l-identical-content-is-indexed-once)) prevents new copies but does nothing for copies indexed before it
+existed, so this mode cleans up that backlog. It runs only when asked, because it removes index files from the user's
+memory store. It knows only the paths in the index's record, not how each was found, so it cannot apply ingest's
+precedence; a later `engram ingest --auto` may then replace the copy it kept with a preferred one ([792a5m A later,
+preferred copy replaces an indexed one](#792a5m-a-later-preferred-copy-replaces-an-indexed-one)), once per group.
 
 ### 792a5r1 UAT Scenarios
 

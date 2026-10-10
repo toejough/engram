@@ -91,10 +91,10 @@ note's whole `supersedes:` list and all of its `Supersedes:` body lines with the
 <claim>`, where `<target>` drops any trailing `.md` from the given note, while the entry's `note:`
 field keeps the note exactly as given.
 
-Rationale: the vault's link graph names each note by its basename without `.md`, as Obsidian does.
-Supersession lines were once written with the `.md` kept, so they never resolved to the note they
-named (#717). The frontmatter `note:` is a file reference rather than a graph link, so it keeps the
-filename. Replacing the whole list, rather than appending to it, makes repeating an amend harmless.
+Rationale: the vault's link graph names each note by its basename without `.md`, as Obsidian does, so a supersession
+line keeps no `.md` or it would not resolve to the note it names. The frontmatter `note:` is a file reference rather
+than a graph link, so it keeps the filename. Replacing the whole list, rather than appending to it, makes repeating an
+amend harmless.
 
 ### 792a4d1 UAT Scenarios
 
@@ -193,11 +193,11 @@ absent when the note has none, never writing `user: ""`. An `engram amend --acti
 those flags MUST keep `repo:`, `user:` and `vault:` as the note declares them. `source:`,
 `project:`, `issue:` and `tier:` MUST be kept by every amend.
 
-Rationale: a note's identity fields say which repository, person and vault last changed what the
-note says, so a content or relation change re-stamps them. Bookkeeping is not authorship, so an
-amend that only records a use keeps the declared author. When user detection fails, refusing the
-amend would block content edits on a machine with broken identity, and keeping the old value
-silently would hide the broken environment; keeping it with a warning does neither (#776).
+Rationale: a note's identity fields say which repository, person and vault last changed what the note says, so a
+content or relation change re-stamps them. Bookkeeping is not authorship, so an amend that only records a use keeps
+the declared author. When user detection fails, refusing the amend would block content edits on a machine with broken
+identity, and keeping the old value silently would hide the broken environment; keeping it with a warning does
+neither.
 
 ### 792a4h1 UAT Scenarios
 
@@ -264,9 +264,8 @@ not edit. When an amend replaces `supersedes:`, an entry that names the same not
 entry, compared without a trailing `.md`, MUST keep the existing entry's keys that engram does not
 define.
 
-Rationale: hand-edited, imported and Obsidian-edited notes carry keys that engram's note model does
-not know. Revisions used to re-render the frontmatter from that model and silently dropped them
-(#780).
+Rationale: hand-edited, imported and Obsidian-edited notes carry keys that engram's note model does not know, so a
+revision must not drop them by re-rendering the frontmatter from that model.
 
 ### 792a4j1 UAT Scenarios
 
@@ -323,10 +322,10 @@ rest of the body, rebuild the note's sidecar, and print the note's path on stdou
 writing nothing, a note of any other kind. When rebuilding the sidecar fails, the command MUST fail
 with an error naming the note, with the note already rewritten.
 
-Rationale: a fact or feedback note states its situation twice, in `situation:` and in its body
-formula, and `engram learn` only creates notes. Before resituate, the two copies could be kept in
-step only by hand. Unlike an amend's warning, a failed sidecar rebuild fails the command, because a
-resituate is an explicit request to change what the note is found by.
+Rationale: a fact or feedback note states its situation twice, in `situation:` and in its body formula, and `engram
+learn` only creates notes, so without resituate the two copies could be kept in step only by hand. Unlike an amend's
+warning, a failed sidecar rebuild fails the command, because a resituate is an explicit request to change what the
+note is found by.
 
 ### 792a4l1 UAT Scenarios
 
@@ -354,10 +353,10 @@ Requirement: [792a4m CRLF notes](#792a4m-crlf-notes) `engram amend` and `engram 
 write they make, byte-identical to what the same command writes for the note's LF form, and MUST
 rebuild its sidecar.
 
-Rationale: notes edited on Windows or by other tools can carry CRLF line endings, and amend used to
-refuse them as having no frontmatter (#789). A note is converted only inside a write the command
-makes anyway, so no command writes a note just to convert it. Conversion changes the note's text,
-so its sidecar is rebuilt even when the amend itself would not re-embed.
+Rationale: notes edited on Windows or by other tools can carry CRLF line endings, which must not make a note look as
+if it has no frontmatter. A note is converted only inside a write the command makes anyway, so no command writes a
+note just to convert it. Conversion changes the note's text, so its sidecar is rebuilt even when the amend itself
+would not re-embed.
 
 ### 792a4m1 UAT Scenarios
 
@@ -417,8 +416,8 @@ Requirement: [792a4o Concurrent revisions never lose an update](#792a4o-concurre
 running against one vault at the same time MUST NOT lose either one's change to a note, and MUST
 NOT leave a note's sidecar holding the vectors of the note's earlier text.
 
-Rationale: before every vault writer took the vault lock, two concurrent writers corrupted vault and
-index state in production. Many sub-recalls can amend and activate the same vault in parallel.
+Rationale: without the vault lock, two concurrent writers can corrupt vault and index state. Many sub-recalls can
+amend and activate the same vault in parallel.
 
 ### 792a4o1 UAT Scenarios
 

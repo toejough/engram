@@ -25,16 +25,12 @@
   extend it (the registration sources read the deployed skills, and the activation hints name the
   guidance it deploys).
 
-Rationale: an earlier update copied artifacts additively into the harness directories, so an artifact
-deleted from the source was never removed and a stray file persisted until deleted by hand.
-Real files now live only in one root per harness that engram alone writes, and every discovery path is a
-link into it or a file the user owns. Because the only deletions are inside a root engram proved is its
-own and of links that provably point into it, the sync can propagate removals without risking user files.
-Discovery through a link was verified for Claude Code (a skill found through a linked directory) and Pi
-(a skill found and guidance read through linked paths) before each shipped in link mode; a harness that
-failed that check would run in manifest mode, which keeps the same removal semantics by recording the
-paths it wrote. Claude Code's guidance directory is its engram root, so its guidance is linked at the
-root's top level rather than into a separate directory.
+Rationale: real files live only in one root per harness that engram alone writes, and every discovery path is a link
+into it or a file the user owns. Because the only deletions are inside a root engram proved is its own and of links
+that provably point into it, the sync can propagate removals without risking user files. A harness whose discovery
+through links fails runs in manifest mode, which keeps the same removal semantics by recording the paths it wrote.
+Claude Code's guidance directory is its engram root, so its guidance is linked at the root's top level rather than
+into a separate directory.
 
 ## 792b29c Behavior Requirements
 
@@ -50,8 +46,8 @@ when a probe fails for a reason other than not existing.
 
 Supports: [792a11g1a Only the harnesses present are updated](../product/install-and-update.md#792a11g1-uat-scenarios), [792a11g1b Both harnesses are updated in a stable order](../product/install-and-update.md#792a11g1-uat-scenarios), [792a11g1c No harness is an error before any install](../product/install-and-update.md#792a11g1-uat-scenarios).
 
-Rationale: OpenCode support was removed (#721), so the list holds two harnesses; the same detection is
-used by [skill-source-discovery](./skill-source-discovery.md) so the two never disagree on which harnesses exist.
+Rationale: the same detection is used by [skill-source-discovery](./skill-source-discovery.md) so the two never
+disagree on which harnesses exist.
 
 #### 792b29c1a Scenarios
 
@@ -324,10 +320,9 @@ the failure MUST NOT touch any other harness.
 
 Supports: [792a11h1a A skill deploys as a directory link](../product/install-and-update.md#792a11h1-uat-scenarios), [792a11h1b Added and changed sources deploy](../product/install-and-update.md#792a11h1-uat-scenarios), [792a11i1a A removed skill disappears](../product/install-and-update.md#792a11i1-uat-scenarios), [792a11i1b A removed file inside a kept skill disappears](../product/install-and-update.md#792a11i1-uat-scenarios).
 
-Rationale: a directory holding no intended file is as unintended as a file, and leaving it as a hollow
-shell would let a stale link still resolve through it, so the link would look healthy while the skill was
-gone. `commands/` is still a managed subtree because commands used to be deployed; engram deploys none now,
-so anything found there is deleted.
+Rationale: a directory holding no intended file is as unintended as a file, and leaving it as a hollow shell would let
+a stale link still resolve through it, so the link would look healthy while the skill was gone. `commands/` remains a
+managed subtree though engram deploys no commands, so anything found there is deleted.
 
 #### 792b29c6a Scenarios
 
@@ -738,8 +733,8 @@ directory, and fail the harness when listing or inspecting fails. It MUST NOT sc
 
 Supports: [792a11k1b An unmanaged entry is reported, not deleted](../product/install-and-update.md#792a11k1-uat-scenarios), [792a11k1c The unmanaged list is not repeated](../product/install-and-update.md#792a11k1-uat-scenarios).
 
-Rationale: a link is the cleanup's concern, and an entry the sync has no record of writing may be the
-user's own, so it is listed neutrally ("unmanaged, left alone") and never as debris (#716).
+Rationale: a link is the cleanup's concern, and an entry the sync has no record of writing may be the user's own, so
+it is listed neutrally ("unmanaged, left alone") and never as debris.
 
 #### 792b29c11a Scenarios
 

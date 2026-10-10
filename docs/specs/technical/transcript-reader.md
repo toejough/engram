@@ -17,7 +17,7 @@
   `internal/context/strip.go`, `stripconfig.go` and `toolsummary.go`; chunk ingestion wires it in
   `newIngestDeps` (`internal/cli/ingest.go`). `ReadFrom` also takes a start time and a byte budget,
   which ingestion leaves unset; `SegmentsFrom`, `Strip` and the `KeepToolCalls` mode have no
-  production caller. None of these is specified.
+  production caller.
 - Qualification: responsibility, turning a transcript into conversation text is stated without
   naming any function; ownership, the caller decides which files to read and what to do with the
   text, while this component owns the file format and what is kept; independent verification, it is
@@ -26,11 +26,8 @@
   chunk is made from its output.
 - Supported capabilities: [chunk-indexing](../product/chunk-indexing.md), and memory-query's [792a7p When a chunk was first indexed](../product/memory-query.md#792a7p-when-a-chunk-was-first-indexed) (the last timestamp).
 
-Rationale: sessions were once read through finder and reader interfaces with two backends, Claude
-Code JSONL and OpenCode SQLite, and a composite that tried each in turn, so that marker
-forward-progress, stripping and emitting did not depend on the backend. The OpenCode backend was
-never wired into production ingestion and was removed, and markers were subsumed into the chunk
-index's manifest. What survives is one reader for JSONL, which both Claude Code and Pi write.
+Rationale: Claude Code and Pi both write JSONL, so one reader serves both and stripping and
+emitting do not depend on the harness.
 
 ## 792b15c Behavior Requirements
 

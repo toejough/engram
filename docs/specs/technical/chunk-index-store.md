@@ -28,14 +28,14 @@
   embedders and recording locks, and over the real filesystem; stability, the contract survives any
   change to how sources are found or chunked; necessity, every chunk a query returns comes from it.
 - Supported capabilities: [chunk-indexing](../product/chunk-indexing.md), [note-revision](../product/note-revision.md) (chunk IDs), [memory-query](../product/memory-query.md)
-  (the first-indexed time), [install-and-update](../product/install-and-update.md) (the backlog check). Learn ([learn](../product/learn.md)) adds its requirements.
+  (the first-indexed time), [install-and-update](../product/install-and-update.md) (the backlog check), [learn](../product/learn.md) (the chunk index written at learn time).
 
-Rationale: the index is rebuilt incrementally and offline, with no LLM. A source's index file is
-append-only: an embedded chunk is the memory and its source only provenance, so editing or deleting
-a source never loses what was learned from it (#659). Across sources that guarantee is narrowed, not
-reversed: a copy's index file may be removed, but only when every one of its chunks is provably in a
-retained twin's index, so no chunk ever becomes unsearchable. Separate locks protect the chunk index
-(`.manifest.lock`) and the vault (`.luhmann.lock`), because ingest and prune never touch notes.
+Rationale: the index is rebuilt incrementally and offline, with no LLM. A source's index file is append-only: an
+embedded chunk is the memory and its source only provenance, so editing or deleting a source never loses what was
+learned from it. Across sources that guarantee is narrowed, not reversed: a copy's index file may be removed, but only
+when every one of its chunks is provably in a retained twin's index, so no chunk ever becomes unsearchable. Separate
+locks protect the chunk index (`.manifest.lock`) and the vault (`.luhmann.lock`), because ingest and prune never touch
+notes.
 
 ## 792b18c Behavior Requirements
 
@@ -86,9 +86,9 @@ A missing manifest MUST be read as empty, and a manifest that is not valid JSON 
 
 Supports: [792a5o1a An ingest and a prune at the same time both take effect](../product/chunk-indexing.md#792a5o1-uat-scenarios).
 
-Rationale: two concurrent runs once lost manifest updates in production: each read the manifest,
-and the later write overwrote the earlier one's change (#660). Creating the directory first lets a
-prune of a fresh index take its lock.
+Rationale: two concurrent runs that each read the manifest would let the later write overwrite the earlier one's
+change, so a lock serializes manifest updates. Creating the directory first lets a prune of a fresh index take its
+lock.
 
 #### 792b18c2a Scenarios
 
@@ -320,12 +320,11 @@ preferred copy is no longer gathered MUST become its group's preferred copy and 
 
 Supports: [792a5m1a A copy indexed first gives way to the preferred one](../product/chunk-indexing.md#792a5m1-uat-scenarios), [792a5m1b A copy with a history of its own is kept](../product/chunk-indexing.md#792a5m1-uat-scenarios), [792a5m1c The remaining copy is indexed when the preferred one goes away](../product/chunk-indexing.md#792a5m1-uat-scenarios).
 
-Rationale: byte identity of current content is necessary but not sufficient. A source's index
-holds every chunk of its earlier versions, so two files equal today can hold disjoint histories. A
-weaker gate that checked only that the preferred copy's index existed ran once against a real index
-and removed 1,960 files, two of which held content found nowhere else. Removing the index file before
-the manifest entry means an interrupted eviction leaves an entry without a file, which change
-detection repairs ([792b18c3 Change detection](#792b18c3-change-detection)), never a file nothing points to.
+Rationale: byte identity of current content is necessary but not sufficient. A source's index holds every chunk of its
+earlier versions, so two files equal today can hold disjoint histories, and a gate that checked only that the
+preferred copy's index existed could remove a file holding content found nowhere else. Removing the index file before
+the manifest entry means an interrupted eviction leaves an entry without a file, which change detection repairs
+([792b18c3 Change detection](#792b18c3-change-detection)), never a file nothing points to.
 
 #### 792b18c7a Scenarios
 
@@ -491,11 +490,11 @@ error.
 
 Supports: [792a5r1a A duplicate group is collapsed](../product/chunk-indexing.md#792a5r1-uat-scenarios), [792a5r1b A duplicate with chunks of its own is refused](../product/chunk-indexing.md#792a5r1-uat-scenarios), [792a5r1c A dry run removes nothing](../product/chunk-indexing.md#792a5r1-uat-scenarios), [792a5r1d A second run removes nothing more](../product/chunk-indexing.md#792a5r1-uat-scenarios), [792a5r1e A failed removal is reported and fails the run](../product/chunk-indexing.md#792a5r1-uat-scenarios).
 
-Rationale: this mode exists for groups indexed before ingest-time grouping, so it knows only the
-paths in the manifest, not how each was found; the kept copy is chosen by path alone, and a later
-`--auto` ingest may replace it once with a preferred copy ([792b18c7 Recording and evicting copies](#792b18c7-recording-and-evicting-copies)). Recorded copies are skipped
-because they were never indexed. One real run printed 47,396 near-identical refusal lines for groups
-whose sources yield no chunks, burying the real removals, so those are counted rather than listed.
+Rationale: this mode exists for groups indexed before ingest-time grouping, so it knows only the paths in the
+manifest, not how each was found; the kept copy is chosen by path alone, and a later `--auto` ingest may replace it
+once with a preferred copy ([792b18c7 Recording and evicting copies](#792b18c7-recording-and-evicting-copies)).
+Recorded copies are skipped because they were never indexed. Groups whose sources yield no chunks are counted rather
+than listed, so they do not bury the real removals.
 
 #### 792b18c11a Scenarios
 
@@ -569,8 +568,8 @@ the directory does not exist, and MUST return any other listing failure.
 
 Supports: [792a5p1a A deleted source is detached and stays searchable](../product/chunk-indexing.md#792a5p1-uat-scenarios), [792a5q1a Empty index files are removed](../product/chunk-indexing.md#792a5q1-uat-scenarios).
 
-Rationale: a detached source has no manifest entry, so its chunks stay searchable only because
-readers find index files by listing the directory (#659).
+Rationale: a detached source has no manifest entry, so its chunks stay searchable only because readers find index
+files by listing the directory.
 
 #### 792b18c12a Scenarios
 
@@ -615,11 +614,10 @@ encoded with, and with none when the field is absent.
 
 Supports: [792a7p1a A Markdown chunk takes the ingest time](../product/memory-query.md#792a7p1-uat-scenarios), [792a7p1b A transcript chunk takes the session's last timestamp](../product/memory-query.md#792a7p1-uat-scenarios), [792a7p1c Ingesting again keeps the first time](../product/memory-query.md#792a7p1-uat-scenarios), [792a7p1d An old chunk gets its source's modification time](../product/memory-query.md#792a7p1-uat-scenarios).
 
-Rationale: recency was once approximated from each source file's modification time, so one edit made
-every chunk of a source look new. Stamping each chunk when it is first indexed orders chunks within and
-across sessions; every chunk of one transcript shares the session's last timestamp, a sufficient
-approximation because each session is its own source. A record that predates the field is stamped from
-the manifest in place, because that is the only time the store has for it.
+Rationale: stamping each chunk when it is first indexed orders chunks within and across sessions, where a source
+file's modification time would make one edit mark every chunk of the source as new. Every chunk of one transcript
+shares the session's last timestamp, a sufficient approximation because each session is its own source. A record that
+predates the field is stamped from the manifest in place, because that is the only time the store has for it.
 
 #### 792b18c14a Scenarios
 
@@ -668,9 +666,9 @@ detection failure must never fail the caller.
 
 Supports: [792a11n1a Update reports the prune command when duplicates exist](../product/install-and-update.md#792a11n1-uat-scenarios), [792a11n1b A refusal-only backlog is silent](../product/install-and-update.md#792a11n1-uat-scenarios), [792a11n1c Empty index files are reported](../product/install-and-update.md#792a11n1-uat-scenarios), [792a11n1d A clean or missing index is silent](../product/install-and-update.md#792a11n1-uat-scenarios).
 
-Rationale: `engram update` only notifies, so the notice must fire exactly when the command it names would
-work (#713). Re-running prune's own check is cheaper to keep correct than a second copy of it, and costs
-one manifest read, with per-source reads only for groups of two or more.
+Rationale: `engram update` only notifies, so the notice must fire exactly when the command it names would work.
+Re-running prune's own check is cheaper to keep correct than a second copy of it, and costs one manifest read, with
+per-source reads only for groups of two or more.
 
 #### 792b18c15a Scenarios
 
