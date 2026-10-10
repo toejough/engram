@@ -96,6 +96,8 @@ docs/specs/technical/reporting-period-policy.md
 
 A component file MAY contain requirements and scenarios introduced by multiple changes.
 Interaction requirements MUST be placed in the file for the component that owns the interaction.
+Each requirement has exactly one owning component, and components that qualify separately MUST have
+separate canonical files.
 
 Every canonical technical requirement MUST identify the stable product scenario IDs it supports
 and MUST NOT duplicate canonical product scenario text.

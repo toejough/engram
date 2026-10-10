@@ -156,6 +156,10 @@ delta, stable-identity, canonical-specification, and promotion rules.
   with ` - Technical Spec`.
 - A component file MAY contain requirements and scenarios introduced by multiple changes.
 - Interaction requirements belong in the file for the component that owns the interaction.
+- Every requirement belongs in the file of the one component that owns it. A requirement that binds
+  two components MUST be split into one requirement per owner. Components that each qualify under
+  Component Qualification MUST have separate canonical files; one file MUST NOT hold requirements
+  owned by different components.
 - Do not promote option analysis, diagrams, impact analysis, reviews, or other change context.
 - Canonical technical requirements MUST list the stable product scenario IDs they support and MUST
   NOT duplicate canonical product scenario text.
@@ -203,6 +207,8 @@ Verify:
 - The default structure is present or every omission is justified by non-applicability.
 - Every product UAT scenario is preserved and mapped.
 - Every canonical technical requirement is located in its owning component file.
+- No requirement binds more than one component, and no file holds requirements owned by different
+  components.
 - Every canonical technical requirement links to its supported canonical product scenario IDs.
 - The specification lifecycle checklist passes.
 - Every mandatory branch has an interaction requirement and scenario.
