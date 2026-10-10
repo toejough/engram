@@ -205,8 +205,8 @@ flowchart TD
   N792c7a5["792c7a5 vault-identity-registry tech spec<br/>Complete"]
   N792c7b1["792c7b1 note-writing product spec<br/>Complete"]
   N792c7b2["792c7b2 note-document-format tech spec<br/>Complete"]
-  N792c7b3["792c7b3 luhmann-addressing tech spec<br/>Ready"]
-  N792c7b4["792c7b4 vault-write-lock tech spec<br/>Blocked by: 792c7b3"]
+  N792c7b3["792c7b3 luhmann-addressing tech spec<br/>Complete"]
+  N792c7b4["792c7b4 vault-write-lock tech spec<br/>Ready"]
   N792c7b5["792c7b5 text-embedder tech spec<br/>Blocked by: 792c7b4"]
   N792c7b6["792c7b6 embedding-sidecar tech spec<br/>Blocked by: 792c7b5"]
   N792c7b7["792c7b7 note-provenance tech spec<br/>Blocked by: 792c7b6"]
@@ -801,11 +801,51 @@ Target: `792b7` (`docs/specs/technical/luhmann-addressing.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7b3a | Port the component contract to `792b7` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7b3b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7b3c | Repoint stale references to `792b7` | Non-test action | Keeps live links valid | Not started |
-| 792c7b3d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7b3e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7b3a | Port the component contract to `792b7` | Non-test action | Documents the component in the framework format | Done |
+| 792c7b3b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7b3c | Repoint stale references to `792b7` | Non-test action | Keeps live links valid | Done |
+| 792c7b3d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7b3e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+**Outcome:** note-writing gains scenario 792a3k1d, a malformed `--target`, which `luhmann-addressing` refuses; command-line-surface maps it under 792b2c4.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b7c1a1 | `TestParseID_AlternatingSegments` → `Test792b7c1a1_ParseID_AlternatingSegments` | Pure unit (`internal/luhmann`) | Alternating segments | Done |
+| 792b7c1a1 | `TestParseID_MultiCharSegments` → `Test792b7c1a1_ParseID_MultiCharSegments` | Pure unit (`internal/luhmann`) | Multi-character segments | Done |
+| 792b7c1a2 | `TestParseID_TopLevelDigit` → `Test792b7c1a2_ParseID_TopLevelDigit` | Pure unit (`internal/luhmann`) | Single segment | Done |
+| 792b7c1a3 | `TestParseID_RejectsEmpty` → `Test792b7c1a3_ParseID_RejectsEmpty` | Pure unit (`internal/luhmann`) | Empty ID | Done |
+| 792b7c1a4 | `TestParseID_RejectsLeadingLetter` → `Test792b7c1a4_ParseID_RejectsLeadingLetter` | Pure unit (`internal/luhmann`) | Leading letter | Done |
+| 792b7c2a1 | `TestFromBasename_ExtractsLeadingID` → `Test792b7c2a1_FromBasename_ExtractsLeadingID` | Pure unit (`internal/luhmann`) | Leading ID read | Done |
+| 792b7c2a1 | `TestExtractLuhmannFromFilename` → `Test792b7c2a1_ExtractLuhmannFromFilename` | Pure unit | Leading ID of a .md file | Done |
+| 792b7c2a2 | `TestFromBasename_RejectsLeadingDot` → `Test792b7c2a2_FromBasename_RejectsLeadingDot` | Pure unit (`internal/luhmann`) | Hidden name | Done |
+| 792b7c2a2 | `TestFromBasename_RejectsNoDot` → `Test792b7c2a2_FromBasename_RejectsNoDot` | Pure unit (`internal/luhmann`) | No dot | Done |
+| 792b7c2a2 | `TestFromBasename_RejectsNoLeadingDigit` → `Test792b7c2a2_FromBasename_RejectsNoLeadingDigit` | Pure unit (`internal/luhmann`) | No leading digit | Done |
+| 792b7c2a2 | `TestExtractLuhmannFromFilename_RejectsBadFormat` → `Test792b7c2a2_ExtractLuhmannFromFilename_RejectsBadFormat` | Pure unit | README.md | Done |
+| 792b7c2a3 | `TestExtractLuhmannFromFilename_RejectsNonMd` → `Test792b7c2a3_ExtractLuhmannFromFilename_RejectsNonMd` | Pure unit | Not Markdown | Done |
+| 792b7c3a1 | `TestLetterLess_LuhmannOrder` → `Test792b7c3a1_LetterLess_LuhmannOrder` | Pure unit (`internal/luhmann`) | Length-first order | Done |
+| 792b7c4a1 | `TestNextLuhmannID_NewTopLevel` → `Test792b7c4a1_NextLuhmannID_NewTopLevel` | Pure unit | Next top-level number | Done |
+| 792b7c4a1 | `TestNextLuhmannID_NewTopLevel_Empty` → `Test792b7c4a1_NextLuhmannID_NewTopLevel_Empty` | Pure unit | First top-level ID | Done |
+| 792b7c4a2 | `TestNextLuhmannID_FirstChild` → `Test792b7c4a2_NextLuhmannID_FirstChild` | Pure unit | First letter child | Done |
+| 792b7c4a2 | `TestNextLuhmannID_NextChild` → `Test792b7c4a2_NextLuhmannID_NextChild` | Pure unit | Next letter child | Done |
+| 792b7c4a2 | `TestNextLuhmannID_NextChildIgnoresUnrelated` → `Test792b7c4a2_NextLuhmannID_NextChildIgnoresUnrelated` | Pure unit | Only direct children count | Done |
+| 792b7c4a3 | `TestNextLuhmannID_FirstGrandchild` → `Test792b7c4a3_NextLuhmannID_FirstGrandchild` | Pure unit | First number child | Done |
+| 792b7c4a3 | `TestNextLuhmannID_FirstChildOfDeepGrandchild` → `Test792b7c4a3_NextLuhmannID_FirstChildOfDeepGrandchild` | Pure unit | Next number child | Done |
+| 792b7c4a4 | `TestNextLuhmannID_LetterRollover` → `Test792b7c4a4_NextLuhmannID_LetterRollover` | Pure unit | z to aa | Done |
+| 792b7c4a4 | `TestNextLuhmannID_DoubleLetterRollover` → `Test792b7c4a4_NextLuhmannID_DoubleLetterRollover` | Pure unit | ab to ac | Done |
+| 792b7c4a5 | `TestNextLuhmannID_Sibling` → `Test792b7c4a5_NextLuhmannID_Sibling` | Pure unit | Sibling | Done |
+| 792b7c5a1 | `TestNextLuhmannID_RejectsUnknownRelation` → `Test792b7c5a1_NextLuhmannID_RejectsUnknownRelation` | Pure unit | Unknown position | Done |
+| 792b7c5a2 | `TestNextLuhmannID_ContinuationRequiresTarget` → `Test792b7c5a2_NextLuhmannID_ContinuationRequiresTarget` | Pure unit | Continuation without target | Done |
+| 792b7c5a2 | `TestNextLuhmannID_SiblingRequiresTarget` → `Test792b7c5a2_NextLuhmannID_SiblingRequiresTarget` | Pure unit | Sibling without target | Done |
+| 792b7c5a3 | `TestNextLuhmannID_ContinuationRejectsInvalidTarget` → `Test792b7c5a3_NextLuhmannID_ContinuationRejectsInvalidTarget` | Pure unit | Malformed continuation target | Done |
+| 792b7c5a3 | `TestNextLuhmannID_SiblingRejectsInvalidTarget` → `Test792b7c5a3_NextLuhmannID_SiblingRejectsInvalidTarget` | Pure unit | Malformed sibling target | Done |
+| 792b7c5a4 | `TestNextLuhmannID_SiblingOfTopLevel_RejectsTopLevelSibling` → `Test792b7c5a4_NextLuhmannID_SiblingOfTopLevel_RejectsTopLevelSibling` | Pure unit | Sibling of top-level | Done |
+
+**Coverage gaps:** none for 792b7. The product scenarios 792a3j1a–792a3j1e and 792a3k1a–792a3k1d have no end-to-end test; note-authoring (792c7b8) renames the `RunLearn` tests that exercise placement through the command.
+
+**No-scenario tests:** none in `internal/luhmann/luhmann_test` or `internal/cli/luhmann_test`. `TestNewLearnDeps_ListIDs_ReturnsRootNotesOnly` (`adapters_test`) lists IDs through the vault listing and is left to note-authoring (792c7b8).
 
 #### 792c7b4 vault-write-lock tech spec
 

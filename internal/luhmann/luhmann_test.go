@@ -8,9 +8,72 @@ import (
 	"github.com/toejough/engram/internal/luhmann"
 )
 
-// TestFromBasename_ExtractsLeadingID covers the happy path: a basename of
+func Test792b7c1a1_ParseID_AlternatingSegments(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	got, err := luhmann.ParseID("1a3b")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(got).To(Equal([]string{"1", "a", "3", "b"}))
+}
+
+func Test792b7c1a1_ParseID_MultiCharSegments(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	got, err := luhmann.ParseID("12ab3")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(got).To(Equal([]string{"12", "ab", "3"}))
+}
+
+func Test792b7c1a2_ParseID_TopLevelDigit(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	got, err := luhmann.ParseID("1")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(got).To(Equal([]string{"1"}))
+}
+
+func Test792b7c1a3_ParseID_RejectsEmpty(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	_, err := luhmann.ParseID("")
+	g.Expect(err).To(MatchError(luhmann.ErrEmpty))
+}
+
+func Test792b7c1a4_ParseID_RejectsLeadingLetter(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	_, err := luhmann.ParseID("a1")
+	g.Expect(err).To(MatchError(luhmann.ErrLeadingLetter))
+}
+
+// Test792b7c2a1_FromBasename_ExtractsLeadingID covers the happy path: a basename of
 // the form `<luhmann-id>.<date>.<slug>` yields the leading ID.
-func TestFromBasename_ExtractsLeadingID(t *testing.T) {
+func Test792b7c2a1_FromBasename_ExtractsLeadingID(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -29,8 +92,8 @@ func TestFromBasename_ExtractsLeadingID(t *testing.T) {
 	}
 }
 
-// TestFromBasename_RejectsLeadingDot guards against accepting hidden files.
-func TestFromBasename_RejectsLeadingDot(t *testing.T) {
+// Test792b7c2a2_FromBasename_RejectsLeadingDot guards against accepting hidden files.
+func Test792b7c2a2_FromBasename_RejectsLeadingDot(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -39,8 +102,8 @@ func TestFromBasename_RejectsLeadingDot(t *testing.T) {
 	g.Expect(ok).To(BeFalse())
 }
 
-// TestFromBasename_RejectsNoDot guards against the no-separator case.
-func TestFromBasename_RejectsNoDot(t *testing.T) {
+// Test792b7c2a2_FromBasename_RejectsNoDot guards against the no-separator case.
+func Test792b7c2a2_FromBasename_RejectsNoDot(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -49,8 +112,8 @@ func TestFromBasename_RejectsNoDot(t *testing.T) {
 	g.Expect(ok).To(BeFalse())
 }
 
-// TestFromBasename_RejectsNoLeadingDigit guards against the no-digit-prefix case.
-func TestFromBasename_RejectsNoLeadingDigit(t *testing.T) {
+// Test792b7c2a2_FromBasename_RejectsNoLeadingDigit guards against the no-digit-prefix case.
+func Test792b7c2a2_FromBasename_RejectsNoLeadingDigit(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -59,10 +122,10 @@ func TestFromBasename_RejectsNoLeadingDigit(t *testing.T) {
 	g.Expect(ok).To(BeFalse())
 }
 
-// TestLetterLess_LuhmannOrder pins the contract of the shared comparator
+// Test792b7c3a1_LetterLess_LuhmannOrder pins the contract of the shared comparator
 // used by Less and (in internal/cli) maxLetterSeg. Length-first, then lex
 // within equal length. The cardinal cases match nextLetter's rollover.
-func TestLetterLess_LuhmannOrder(t *testing.T) {
+func Test792b7c3a1_LetterLess_LuhmannOrder(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -73,67 +136,4 @@ func TestLetterLess_LuhmannOrder(t *testing.T) {
 	g.Expect(luhmann.LetterLess("zz", "aaa")).To(BeTrue())
 	g.Expect(luhmann.LetterLess("aa", "aa")).To(BeFalse())
 	g.Expect(luhmann.LetterLess("aa", "z")).To(BeFalse())
-}
-
-func TestParseID_AlternatingSegments(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	got, err := luhmann.ParseID("1a3b")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(got).To(Equal([]string{"1", "a", "3", "b"}))
-}
-
-func TestParseID_MultiCharSegments(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	got, err := luhmann.ParseID("12ab3")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(got).To(Equal([]string{"12", "ab", "3"}))
-}
-
-func TestParseID_RejectsEmpty(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	_, err := luhmann.ParseID("")
-	g.Expect(err).To(MatchError(luhmann.ErrEmpty))
-}
-
-func TestParseID_RejectsLeadingLetter(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	_, err := luhmann.ParseID("a1")
-	g.Expect(err).To(MatchError(luhmann.ErrLeadingLetter))
-}
-
-func TestParseID_TopLevelDigit(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	got, err := luhmann.ParseID("1")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(got).To(Equal([]string{"1"}))
 }

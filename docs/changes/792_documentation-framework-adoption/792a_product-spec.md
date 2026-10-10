@@ -723,8 +723,9 @@ Scenario: 792a3j1e Letters roll over from z to aa
 ### 792a3k Placement refusals
 
 Requirement: 792a3k `engram learn fact`, `feedback` and `runbook` MUST refuse, with no note written,
-a missing or unknown `--position`, a `continuation` or `sibling` without `--target`, and a `sibling`
-of a top-level ID, which must use `--position top` instead.
+a missing or unknown `--position`, a `continuation` or `sibling` without `--target`, a `--target`
+that is not a Luhmann ID, and a `sibling` of a top-level ID, which must use `--position top`
+instead.
 
 #### 792a3k1 UAT Scenarios
 
@@ -743,6 +744,11 @@ Scenario: 792a3k1c A sibling of a top-level note is refused
   Given a vault whose note has ID 1
   When the user runs engram learn fact --position sibling --target 1
   Then it fails saying a sibling of a top-level note requires --position top, and no note is written
+
+Scenario: 792a3k1d A malformed target is refused
+  Given an existing vault
+  When the user runs engram learn fact --position continuation --target abc
+  Then it fails saying the ID must start with a digit, and no note is written
 ```
 
 ### 792a3l Placement under an absent target

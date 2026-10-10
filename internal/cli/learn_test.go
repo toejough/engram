@@ -489,6 +489,28 @@ func Test792b6c4a4_RenderFeedbackBody_StripsLeadingWhenFromSituation(t *testing.
 	g.Expect(got).NotTo(ContainSubstring("when When"))
 }
 
+func Test792b7c2a1_ExtractLuhmannFromFilename(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	got, ok := cli.ExportExtractLuhmannFromFilename("1a3.2026-05-09.subagent-recovery.md")
+	g.Expect(ok).To(BeTrue())
+	g.Expect(got).To(Equal("1a3"))
+}
+
+func Test792b7c2a2_ExtractLuhmannFromFilename_RejectsBadFormat(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	_, ok := cli.ExportExtractLuhmannFromFilename("README.md")
+	g.Expect(ok).To(BeFalse())
+}
+
+func Test792b7c2a3_ExtractLuhmannFromFilename_RejectsNonMd(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	_, ok := cli.ExportExtractLuhmannFromFilename("1a3.2026-05-09.subagent-recovery.txt")
+	g.Expect(ok).To(BeFalse())
+}
+
 // TestApplyVocabAssignmentAfterLearn_TriggerFires drives applyVocabAssignmentAfterLearn
 // with a vault at the growth threshold and asserts the trigger flag is persisted.
 // ListMD is set but LoadTermVectors is nil — the trigger check must still run.
@@ -552,28 +574,6 @@ func TestApplyVocabAssignmentAfterLearn_TriggerFires(t *testing.T) {
 	}
 
 	g.Expect(got.RefitPending).To(BeTrue())
-}
-
-func TestExtractLuhmannFromFilename(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	got, ok := cli.ExportExtractLuhmannFromFilename("1a3.2026-05-09.subagent-recovery.md")
-	g.Expect(ok).To(BeTrue())
-	g.Expect(got).To(Equal("1a3"))
-}
-
-func TestExtractLuhmannFromFilename_RejectsBadFormat(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	_, ok := cli.ExportExtractLuhmannFromFilename("README.md")
-	g.Expect(ok).To(BeFalse())
-}
-
-func TestExtractLuhmannFromFilename_RejectsNonMd(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	_, ok := cli.ExportExtractLuhmannFromFilename("1a3.2026-05-09.subagent-recovery.txt")
-	g.Expect(ok).To(BeFalse())
 }
 
 // TestFactAmend_VocabVersionRoundTrip verifies that a fact note's

@@ -101,7 +101,7 @@ M7 marker-monotonicity, M8 luhmann-uniqueness.)
 | **M5 (situation on facts/feedback)** | every fact/feedback has non-empty `situation` (R1 depends on it; the key is always written, 792b6c3, and capture refuses a blank one, 792a3f). **[Note: the claim "CLI marks it required only for episodes" is RETIRED — no episode kind; but the `situation` optionality for fact/feedback remains an unguarded gap.]** | **FAIL** | clean now, unguarded |
 | **M6 (learn idempotency)** | re-running `/learn` over the same window does not spawn duplicate/near-duplicate notes (marker is the only dedup; arcs may overlap). | WARN | untested |
 | **M7 (marker monotonicity)** | per source, `marker_after ≥ marker_before` across runs (never regress → never silently re-emit history). | **FAIL** | untested (companion to the M1–M3 transcript invariants) |
-| **M8 (Luhmann-id uniqueness/well-formed)** | leading ids unique across the vault and match `[0-9]+[a-z0-9]*` (K1's outcome). | WARN | clean now (171 distinct), unguarded |
+| **M8** | Ported to [792b7](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b7-added-luhmann-addressing). | — | — |
 
 **Dispositions:**
 - **R1 (recall-mirror) and C1 (clustering determinism) are DETERMINISTIC `[PT]`, not "untested-as-judgment".** R1 = embed `situation` S, query S, assert top-k by cosine contains the note (no LLM). C1 seed is `FNV-1a(query)` (`query.go:1364`) → run twice, assert identical.
