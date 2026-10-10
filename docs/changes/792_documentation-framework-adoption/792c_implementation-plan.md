@@ -212,8 +212,8 @@ flowchart TD
   N792c7b7["792c7b7 note-provenance tech spec<br/>Complete"]
   N792c7b8["792c7b8 note-authoring tech spec<br/>Complete"]
   N792c7c1["792c7c1 note-revision product spec<br/>Complete"]
-  N792c7c2["792c7c2 wikilink-graph tech spec<br/>Ready"]
-  N792c7c3["792c7c3 note-amendment tech spec<br/>Blocked by: 792c7c2"]
+  N792c7c2["792c7c2 wikilink-graph tech spec<br/>Complete"]
+  N792c7c3["792c7c3 note-amendment tech spec<br/>Ready"]
   N792c7d1["792c7d1 chunk-indexing product spec<br/>Blocked by: 792c7c3"]
   N792c7d2["792c7d2 transcript-reader tech spec<br/>Blocked by: 792c7d1"]
   N792c7d3["792c7d3 source-chunking tech spec<br/>Blocked by: 792c7d2"]
@@ -1328,11 +1328,42 @@ Target: `792b13` (`docs/specs/technical/wikilink-graph.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7c2a | Port the component contract to `792b13` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7c2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7c2c | Repoint stale references to `792b13` | Non-test action | Keeps live links valid | Not started |
-| 792c7c2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7c2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7c2a | Port the component contract to `792b13` | Non-test action | Documents the component in the framework format | Done |
+| 792c7c2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7c2c | Repoint stale references to `792b13` | Non-test action | Keeps live links valid | Done |
+| 792c7c2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7c2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+**Outcome:** only the vault scan and note references have product scenarios yet, so link parsing,
+the graph and in-degree wait for vault-counting (792c7g1), and unresolved links, G0 and the
+`vault-wikilink-resolution` parser requirement for vault-health (792c7h1), whose sources now list
+them (792d75). ADR-0007 and c3 K7 keep those parts as residues.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b13c1a1 | `TestScanVault_ParsesLuhmannAndWikilinks` → `Test792b13c1a1_ScanVault_ParsesLuhmannAndWikilinks` | Pure unit (`internal/vaultgraph`, mocked vault listing) | Keys, IDs and links | Done |
+| 792b13c1a1 | `TestScanVault_NoteWithoutLuhmannID` → `Test792b13c1a1_ScanVault_NoteWithoutLuhmannID` | Pure unit (`internal/vaultgraph`, mocked vault listing) | No Luhmann ID | Done |
+| 792b13c1a1 | `TestScanVaultReadsRootLevelNotes` → `Test792b13c1a1_ScanVaultReadsRootLevelNotes` | Pure unit (`internal/vaultgraph`, fake listing) | Root notes only | Done |
+| 792b13c1a1 | `TestParseBasename_StripsMdExt` → `Test792b13c1a1_ParseBasename_StripsMdExt` | Pure unit (`internal/vaultgraph`) | Key drops .md | Done |
+| 792b13c1a2 | `TestScanVault_EmptyVault` → `Test792b13c1a2_ScanVault_EmptyVault` | Pure unit (`internal/vaultgraph`, mocked vault listing) | No notes | Done |
+| 792b13c1a3 | `TestScanVault_SkipsNonMD` → `Test792b13c1a3_ScanVault_SkipsNonMD` | Pure unit (`internal/vaultgraph`, mocked vault listing) | Non-Markdown skipped | Done |
+| 792b13c1a3 | `TestParseBasename_RejectsNonMd` → `Test792b13c1a3_ParseBasename_RejectsNonMd` | Pure unit (`internal/vaultgraph`) | Not a note name | Done |
+| 792b13c1a4 | `TestScanVault_PropagatesListError` → `Test792b13c1a4_ScanVault_PropagatesListError` | Pure unit (`internal/vaultgraph`, mocked vault listing) | Listing failure | Done |
+| 792b13c1a5 | `TestScanVault_PropagatesReadError` → `Test792b13c1a5_ScanVault_PropagatesReadError` | Pure unit (`internal/vaultgraph`, mocked vault listing) | Read failure | Done |
+| 792b13c2a1 | `TestFindNote_ResolvesMdAndWikilinkRefs` → `Test792b13c2a1_FindNote_ResolvesMdAndWikilinkRefs` | Internal unit, subtests | Four reference forms | Done |
+| 792b13c2a2 | `TestFindNote_NotFoundError_QuotesOriginalRef` → `Test792b13c2a2_FindNote_NotFoundError_QuotesOriginalRef` | Internal unit | Error quotes the given ref | Done |
+
+**Coverage gaps:** 792b13c2a1's `|display` form (no test resolves `[[x|display]]`). 792a4a1a has no
+end-to-end test; 792a4a1b is covered by `Test792a4a1b_Targets_Resituate` (792c7c1). 792a2c1a,
+792a2d1a and 792a2d1b are covered as listed under 792c7b6.
+
+**No-scenario tests:** `bfs_test` (9), `indegree_in_test` (2) and `graph_test`
+`TestBuildGraph_UndirectedNeighbors` (no production caller, 792d75). Deferred to the node that adds
+their requirement (792d75): `parser_test` `TestParseWikilinks_*` (16) and `fence_property_test` (1)
+and the other `graph_test` tests (6) (vault-counting 792c7g1); `resolution_test` (3) (vault-health
+792c7h1).
 
 #### 792c7c3 note-amendment tech spec
 
@@ -1768,6 +1799,8 @@ Target: `792a8` (`docs/specs/product/vault-counting.md`).
 
 - `openspec/specs/cli-count/spec.md` (product requirements)
 - `openspec/specs/vault-note-identity/spec.md` (the note-reader CRLF clause for `engram count`, 792d69)
+- `docs/deprecated/architecture/adr.md` ADR-0007 (the graph build keyed by basename, dangling targets dropped; its link parsing, graph and in-degree extend `792b13`, 792d75)
+- `docs/deprecated/architecture/c3-components.md` Component catalog K7 (the graph build)
 - `docs/deprecated/architecture/adr.md` ADR-0018
 - `docs/deprecated/architecture/c1-system-context.md` Element catalog S2 (count details)
 
@@ -1824,7 +1857,10 @@ Target: `792a9` (`docs/specs/product/vault-health.md`).
 **Legacy sources (port, then remove):**
 
 - `openspec/specs/vault-embed-on-write/spec.md` (the `embed apply` requirements; their selection extends `792b10`, 792d66)
-- `openspec/specs/vault-wikilink-resolution/spec.md` (G3 dangling-link scenario)
+- `openspec/specs/vault-wikilink-resolution/spec.md` (the parser normalization requirement and all three scenarios, including G3 dangling; its unresolved-link report extends `792b13`, 792d75)
+- `docs/deprecated/architecture/adr.md` ADR-0007 Consequences (G0; delete the ADR here)
+- `docs/deprecated/architecture/c3-components.md` Component catalog K7 (unresolved links for `engram check`) and Recurring defect shape (G0 link form)
+- `docs/deprecated/architecture/memory-invariants.md` A (G0 link form)
 - `openspec/specs/vault-note-identity/spec.md` (the note-reader CRLF clause for `engram check`, and the "A CRLF note embeds and hashes as its LF form" scenario; this node deletes the requirement, the last of its readers, 792d69)
 - `docs/deprecated/architecture/c3-components.md` Component catalog K5b (`engram embed` behavior)
 - `docs/deprecated/architecture/memory-invariants.md` What the checker (`engram check`) must implement (what the user sees)

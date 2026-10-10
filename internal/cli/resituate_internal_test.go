@@ -8,24 +8,10 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
-// TestFindNote_NotFoundError_QuotesOriginalRef verifies the not-found error
-// quotes the caller's original ref (e.g. the ".md" form), not the normalized
-// one, so resituate surfaces what the user actually typed.
-func TestFindNote_NotFoundError_QuotesOriginalRef(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	notes := []vaultgraph.Note{{Basename: "1.linting", LuhmannID: "1"}}
-
-	_, err := findNote(notes, "99.missing.md")
-	g.Expect(err).To(MatchError(ContainSubstring("\"99.missing.md\"")))
-}
-
-// TestFindNote_ResolvesMdAndWikilinkRefs verifies that findNote normalizes
+// Test792b13c2a1_FindNote_ResolvesMdAndWikilinkRefs verifies that findNote normalizes
 // the target ref before matching, accepting all accepted forms:
 // bare Luhmann id, full basename (no .md), .md-suffixed basename, and [[wikilink]].
-func TestFindNote_ResolvesMdAndWikilinkRefs(t *testing.T) {
+func Test792b13c2a1_FindNote_ResolvesMdAndWikilinkRefs(t *testing.T) {
 	t.Parallel()
 
 	notes := []vaultgraph.Note{{Basename: "1.linting", LuhmannID: "1"}}
@@ -59,4 +45,18 @@ func TestFindNote_ResolvesMdAndWikilinkRefs(t *testing.T) {
 			g.Expect(got).To(Equal(wantPath))
 		})
 	}
+}
+
+// Test792b13c2a2_FindNote_NotFoundError_QuotesOriginalRef verifies the not-found error
+// quotes the caller's original ref (e.g. the ".md" form), not the normalized
+// one, so resituate surfaces what the user actually typed.
+func Test792b13c2a2_FindNote_NotFoundError_QuotesOriginalRef(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	notes := []vaultgraph.Note{{Basename: "1.linting", LuhmannID: "1"}}
+
+	_, err := findNote(notes, "99.missing.md")
+	g.Expect(err).To(MatchError(ContainSubstring("\"99.missing.md\"")))
 }

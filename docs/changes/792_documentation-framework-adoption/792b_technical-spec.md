@@ -3805,3 +3805,158 @@ Scenario: 792a3r1b Certainty defaults to medium
   When the user runs engram learn qa without --certainty
   Then the answer note carries certainty: medium
 ```
+
+## 792b13 Added: wikilink-graph
+
+Canonical target: `docs/specs/technical/wikilink-graph.md` (title `Wikilink Graph - Technical Spec`).
+
+### 792b13a Orientation
+
+- Ownership: Repository component.
+- Responsibility: the vault seen as a set of linked notes. It scans the notes at the vault root,
+  keying each by its basename without `.md` and recording its leading Luhmann ID and the link
+  targets in its text, and it resolves a reference a user gives for a note to the note it names.
+  Building the directed link graph, counting a note's incoming links and reporting links that do
+  not resolve are added by the capabilities that use them (792d75).
+- Current realization (informational): `internal/vaultgraph` (`ScanVault`, `ParseBasename`,
+  `ParseWikilinks`, `BuildGraph`, `UnresolvedTargets`); `normalizeNoteRef` in
+  `internal/cli/note_ref.go`; `findNote` in `internal/cli/resituate.go`. `BFSWithCap`,
+  `InDegreeIn` and `UndirectedNeighbors` have no production caller.
+- Qualification: responsibility, scanning and reference resolution are stated without naming any
+  command; ownership, callers decide what to do with a note once found, while this component
+  decides what a note's key is and which note a reference names; independent verification, the
+  scan and the lookup are tested directly over a fake vault listing and a note list; stability, the
+  basename key is the link form notes and Obsidian share, and it survives any refactoring;
+  necessity, every command that reads or revises a named note finds it here.
+- Supported capabilities: 792a2 vault-identity, 792a4 note-revision. Memory-query, vault-counting,
+  vault-health and vault-migration add their requirements (792d30, 792d75).
+
+Rationale: navigation lives in authored relations, the wikilinks in note text, rather than in a
+separate graph store that could drift from the notes, so the graph is derived from the notes each
+time and is always current. A note is keyed by its basename because that is what a wikilink names
+and what Obsidian resolves.
+
+### 792b13b Sequences
+
+```mermaid
+sequenceDiagram
+  participant Reviser as Note reviser
+  participant Graph as wikilink-graph
+  participant Store as durable-file-store
+  Reviser->>Graph: scan the vault (792b13c1)
+  Graph->>Store: list the Markdown files at the vault root, then read each
+  alt listing and reads succeed
+    Store-->>Graph: file names and contents
+    Graph-->>Reviser: one note per file, keyed by basename, with its Luhmann ID and link targets
+  else a listing or read fails
+    Store-->>Graph: error
+    Graph-->>Reviser: error naming the path (792b13c1)
+  end
+  Reviser->>Graph: resolve the reference the user gave (792b13c2)
+  alt a note's basename or Luhmann ID matches the normalized reference
+    Graph-->>Reviser: the note's vault-relative path
+  else no note matches
+    Graph-->>Reviser: not found, naming the reference as given (792b13c2)
+  end
+```
+
+### 792b13c Behavior Requirements
+
+#### 792b13c1 Vault scan
+
+Requirement: 792b13c1 The wikilink-graph MUST scan a vault by listing the `.md` files at its root,
+ignoring subdirectories and other files, and MUST return one note per file, keyed by its filename
+without `.md`, with the Luhmann ID that leads the filename (empty when there is none) and the
+targets of the links in its text. A failure to list the vault or to read a file MUST be returned,
+naming the path.
+
+Supports: 792a2c1a, 792a2d1a, 792a2d1b, 792a4a1a, 792a4a1b.
+
+##### 792b13c1a Scenarios
+
+```gherkin
+Scenario: 792b13c1a1 Root notes are scanned with their keys and links
+  Given a vault whose root holds 1a.2026-05-09.note.md, linking [[2.other]], and notes.md
+  When the vault is scanned
+  Then 1a.2026-05-09.note has Luhmann ID 1a and the link target 2.other, and notes has no Luhmann ID
+
+Scenario: 792b13c1a2 An empty vault has no notes
+  Given a vault whose root holds no Markdown file
+  When the vault is scanned
+  Then no note is returned and no error
+
+Scenario: 792b13c1a3 Only Markdown files are notes
+  Given a vault whose listing holds a file that does not end in .md
+  When the vault is scanned
+  Then that file is not a note
+
+Scenario: 792b13c1a4 A listing failure is returned
+  Given a vault whose listing fails
+  When the vault is scanned
+  Then the error is returned, naming the vault path
+
+Scenario: 792b13c1a5 A read failure is returned
+  Given a vault one of whose notes cannot be read
+  When the vault is scanned
+  Then the error is returned, naming that note's path
+```
+
+#### 792b13c2 Note references
+
+Requirement: 792b13c2 The wikilink-graph MUST resolve a note reference by trimming surrounding
+whitespace, removing enclosing `[[` and `]]` and any `|display` part, and dropping a trailing
+`.md`, and then returning the vault-relative path of the first scanned note whose basename or
+Luhmann ID equals the result. When no note matches, it MUST fail with a not-found error quoting the
+reference as given.
+
+Supports: 792a4a1a, 792a4a1b.
+
+Rationale: an agent copies a note's name from wherever it saw it, as a wikilink from a note's text,
+a filename from a listing, or a Luhmann ID, so each form names the same note. The error quotes what
+the user typed, not its normalized form, so the user can see which reference failed.
+
+##### 792b13c2a Scenarios
+
+```gherkin
+Scenario Outline: 792b13c2a1 Every reference form names the note
+  Given a scanned note 1.linting with Luhmann ID 1
+  When the reference <ref> is resolved
+  Then the result is 1.linting.md
+
+  Examples:
+    | ref             |
+    | 1.linting       |
+    | 1               |
+    | 1.linting.md    |
+    | [[1.linting]]   |
+
+Scenario: 792b13c2a2 An unknown reference quotes what was given
+  Given a scanned note 1.linting
+  When the reference 99.missing.md is resolved
+  Then it fails as not found, quoting "99.missing.md"
+```
+
+### 792b13d Product-Scenario Mapping
+
+| Product scenario | Technical requirements |
+| --- | --- |
+| 792a2c1a | 792b13c1 |
+| 792a2d1a | 792b13c1 |
+| 792a2d1b | 792b13c1 |
+| 792a4a1a | 792b13c1, 792b13c2 |
+| 792a4a1b | 792b13c1, 792b13c2 |
+
+```gherkin
+Scenario Outline: 792a4a1a Every reference form finds the note
+  Given a vault holding note 1.2026-10-09.a
+  When the user runs engram amend --target <ref> --object new
+  Then note 1.2026-10-09.a is amended and its path is printed on stdout
+
+  Examples:
+    | ref                     |
+    | 1.2026-10-09.a          |
+    | 1.2026-10-09.a.md       |
+    | "[[1.2026-10-09.a]]"    |
+    | "[[1.2026-10-09.a\|x]]" |
+    | 1                       |
+```

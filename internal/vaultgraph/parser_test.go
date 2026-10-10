@@ -10,7 +10,17 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
-func TestParseBasename_RejectsNonMd(t *testing.T) {
+func Test792b13c1a1_ParseBasename_StripsMdExt(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	got, ok := vaultgraph.ParseBasename("9o1.2026-05-10.slug.md")
+	g.Expect(ok).To(BeTrue())
+	g.Expect(got).To(Equal("9o1.2026-05-10.slug"))
+}
+
+func Test792b13c1a3_ParseBasename_RejectsNonMd(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -20,16 +30,6 @@ func TestParseBasename_RejectsNonMd(t *testing.T) {
 
 	_, ok = vaultgraph.ParseBasename("notes.txt")
 	g.Expect(ok).To(BeFalse())
-}
-
-func TestParseBasename_StripsMdExt(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	got, ok := vaultgraph.ParseBasename("9o1.2026-05-10.slug.md")
-	g.Expect(ok).To(BeTrue())
-	g.Expect(got).To(Equal("9o1.2026-05-10.slug"))
 }
 
 func TestParseWikilinks_AcrossLines(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
-func TestScanVaultReadsRootLevelNotes(t *testing.T) {
+func Test792b13c1a1_ScanVaultReadsRootLevelNotes(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 

@@ -837,3 +837,27 @@ decisions as `792dN`, continuing the sequence.
   capability's scenarios need.
 - **Alternatives:** a separate sidecar-rebuild requirement in 792b10. Rejected because building and
   writing are already specified.
+
+## 792d75 wikilink-graph's link, graph and resolution contracts arrive with their scenarios
+
+- **Choice:** 792b13 specifies only what existing product scenarios need: the vault scan (used by
+  `amend`, `resituate`, `embed status` and `check`) and note-reference resolution. These wait, as in
+  792d51 and 792d61:
+  - link parsing (`.md` normalization, fences, dedupe), the graph build and in-degree for
+    vault-counting (792c7g1), because `engram count` prints a note's in-degree, with ADR-0007's
+    decision and c3 K7's graph clause;
+  - the unresolved-link report, the G0 invariant, the recurring-defect shape and the whole
+    `vault-wikilink-resolution` parser requirement with its three scenarios for vault-health
+    (792c7h1), because `engram check` reports them.
+  The parser, fence, graph and resolution tests stay unrenamed until then. `BFSWithCap`,
+  `InDegreeIn` and `UndirectedNeighbors` have no production caller; their tests verify no scenario.
+  ADR-0007's context, that navigation lives in authored links and the graph is derived fresh, is
+  ported as 792b13a's rationale.
+- **Rationale:** the technical guide requires every requirement to name the product scenarios it
+  supports, and no 792a2–792a4 scenario depends on how links are parsed or counted.
+- **Alternatives:** specify parsing and the graph now with no supported scenarios. Rejected as
+  untraceable.
+- **Divergence noted:** a link's target is the whole text between `[[` and `]]`, so
+  `[[note|display]]` and `[[note#heading]]` do not resolve to `note` in the graph, although note
+  references (792b13c2) strip a `|display` part. Recorded for vault-counting and vault-health to
+  describe, not resolved here (792d33).

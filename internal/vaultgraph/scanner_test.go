@@ -10,32 +10,7 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
-//go:generate impgen vaultgraph.VaultFS --dependency --import-path github.com/toejough/engram/internal/vaultgraph
-
-func TestScanVault_EmptyVault(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	mock, imp := MockVaultFS(t)
-
-	done := make(chan struct{})
-
-	go func() {
-		defer close(done)
-
-		notes, err := vaultgraph.ScanVault(mock, "/vault")
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(notes).To(BeEmpty())
-	}()
-
-	// Flat vault: one list of the root.
-	imp.ListMD.ArgsEqual("/vault").Return([]string{}, nil)
-
-	<-done
-}
-
-func TestScanVault_NoteWithoutLuhmannID(t *testing.T) {
+func Test792b13c1a1_ScanVault_NoteWithoutLuhmannID(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -61,7 +36,7 @@ func TestScanVault_NoteWithoutLuhmannID(t *testing.T) {
 	<-done
 }
 
-func TestScanVault_ParsesLuhmannAndWikilinks(t *testing.T) {
+func Test792b13c1a1_ScanVault_ParsesLuhmannAndWikilinks(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -89,7 +64,55 @@ func TestScanVault_ParsesLuhmannAndWikilinks(t *testing.T) {
 	<-done
 }
 
-func TestScanVault_PropagatesListError(t *testing.T) {
+//go:generate impgen vaultgraph.VaultFS --dependency --import-path github.com/toejough/engram/internal/vaultgraph
+
+func Test792b13c1a2_ScanVault_EmptyVault(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	mock, imp := MockVaultFS(t)
+
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+
+		notes, err := vaultgraph.ScanVault(mock, "/vault")
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(notes).To(BeEmpty())
+	}()
+
+	// Flat vault: one list of the root.
+	imp.ListMD.ArgsEqual("/vault").Return([]string{}, nil)
+
+	<-done
+}
+
+func Test792b13c1a3_ScanVault_SkipsNonMD(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	mock, imp := MockVaultFS(t)
+
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+
+		notes, err := vaultgraph.ScanVault(mock, "/vault")
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(notes).To(BeEmpty())
+	}()
+
+	// `notes.txt` returned by ListMD but ParseBasename rejects it → no ReadFile call.
+	imp.ListMD.ArgsEqual("/vault").Return([]string{"notes.txt"}, nil)
+
+	<-done
+}
+
+func Test792b13c1a4_ScanVault_PropagatesListError(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -112,7 +135,7 @@ func TestScanVault_PropagatesListError(t *testing.T) {
 	<-done
 }
 
-func TestScanVault_PropagatesReadError(t *testing.T) {
+func Test792b13c1a5_ScanVault_PropagatesReadError(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -134,29 +157,6 @@ func TestScanVault_PropagatesReadError(t *testing.T) {
 		Return([]string{"7.2026-05-09.zk.md"}, nil)
 	imp.ReadFile.ArgsEqual(filepath.Join("/vault", "7.2026-05-09.zk.md")).Return(
 		[]byte(nil), wantErr)
-
-	<-done
-}
-
-func TestScanVault_SkipsNonMD(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	mock, imp := MockVaultFS(t)
-
-	done := make(chan struct{})
-
-	go func() {
-		defer close(done)
-
-		notes, err := vaultgraph.ScanVault(mock, "/vault")
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(notes).To(BeEmpty())
-	}()
-
-	// `notes.txt` returned by ListMD but ParseBasename rejects it → no ReadFile call.
-	imp.ListMD.ArgsEqual("/vault").Return([]string{"notes.txt"}, nil)
 
 	<-done
 }

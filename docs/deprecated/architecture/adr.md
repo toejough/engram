@@ -101,23 +101,21 @@ frontmatter/body desync is resolved by `engram amend` (which rewrites both copie
 
 ## ADR-0007 — The wikilink graph is authored and walked by the binary; dangling links dropped
 
+Partly ported: the vault scan and its rationale (authored relations, a graph derived fresh from the
+notes, keyed by basename) to
+[792b13](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b13-added-wikilink-graph).
+The rest waits for vault-counting (792c7g1: the graph build and in-degree) and vault-health
+(792c7h1: the G0 consequence).
+
 **Status:** Accepted (known defect: G0; G5 RETIRED — episode kind removed, `[[x]]` in chunk bodies no longer parsed as vault edges, per memory-invariants.md)
 
-**Context.** Navigation should live in **authored relations** (wikilinks in note bodies), not a
-separate graph store that can drift. Recall expands a subgraph from direct hits to find clusters
-and hubs.
+**Decision.** `BuildGraph` builds a directed graph **keyed by basename**. Dangling targets are
+silently dropped at build. The subgraph/hub path was removed in recall-v2 / the 2026-06-20 deep
+clean; `vaultgraph` is not in the query path.
 
-**Decision.** `vaultgraph.ScanVault` parses wikilinks at scan time; `BuildGraph` builds a directed
-graph **keyed by basename**; recall does a 3-hop BFS (cap 200) + in-degree top-5 hubs. Dangling
-targets are silently dropped at build.
-
-**Superseded by recall-v2 / the 2026-06-20 deep clean:** the subgraph/hub path was removed; `vaultgraph` is now used only by `check`/`amend`, not in the query path.
-
-**Consequences.** The graph is derived and always fresh. ⚠ KNOWN (G0): `learn` writes relations as
+**Consequences.** ⚠ KNOWN (G0): `learn` writes relations as
 **bare Luhmann ids** (`[[105]]`) but `BuildGraph` resolves by **basename** — 155/183 link-instances
-unresolved (151 of them bare-id), 138/171 notes orphaned, mean out-degree 0.16, so recall's graph expansion runs on a
-near-empty graph. (G5 — verbatim `[[x]]` strings inside chunk bodies becoming false edges — is **RETIRED**:
-the episode kind was removed and chunk bodies are no longer parsed as vault edges.)
+unresolved (151 of them bare-id), 138/171 notes orphaned, mean out-degree 0.16.
 
 ---
 
