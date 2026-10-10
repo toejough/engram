@@ -41,13 +41,13 @@ decisions as `792dN`, continuing the sequence.
 
 ## 792d4 Skill procedures are not technical components
 
-- **Choice:** recall, learn, write-memory, please, route and curate get product capabilities but no
+- **Choice:** [792a14 recall](./792a_product-spec.md#792a14-added-recall), [792a15 learn](./792a_product-spec.md#792a15-added-learn), [792a13 write-memory](./792a_product-spec.md#792a13-added-write-memory), [792a18 please](./792a_product-spec.md#792a18-added-please), [792a17 route](./792a_product-spec.md#792a17-added-route) and [792a22 curate](./792a_product-spec.md#792a22-added-curate) get product capabilities but no
   technical component sections.
 - **Rationale:** they meet the responsibility, ownership, stability and necessity criteria, but not
   independent verification. The technical guide requires a direct, deterministic contract test for
   every canonical technical requirement. Skill behavior is checked only by markdown baselines and
   headless evals, which aren't contract tests. The technical constraints they share live in
-  `agent-instruction-bundle` ([792d5](#792d5-agent-instruction-bundle-qualifies-as-a-component)).
+  [792b32 agent-instruction-bundle](./792b_technical-spec.md#792b32-added-agent-instruction-bundle) ([792d5](#792d5-agent-instruction-bundle-qualifies-as-a-component)).
 - **Alternatives:** one component per skill, as in the legacy report's C25–C30. Rejected because
   every requirement would lack a contract test. A single procedure component was rejected for the
   same reason.
@@ -68,7 +68,7 @@ decisions as `792dN`, continuing the sequence.
 - **Choice:** removed and parked features stay out of the specs. These include episodes, tiers,
   L3 synthesis, MOCs, the `Permanent/` folder, tag nomination, graph-expanded retrieval, the
   clusters-first payload, the OpenCode and Shelley harnesses, the recall subprocess, and hooks.
-  `ENGRAM_SERVER`, which the legacy docs explicitly reject, becomes a **MUST NOT** in parent-sync.
+  `ENGRAM_SERVER`, which the legacy docs explicitly reject, becomes a **MUST NOT** in [792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync).
 - **Rationale:** the lifecycle guide keeps only current behavior in canonical specs, and keeps
   absences only when they are enduring contracts. ROADMAP Provenance already records the dead ends.
 - **Alternatives:** keep a "retired" section in each spec. Rejected because git is the fallback.
@@ -159,11 +159,11 @@ decisions as `792dN`, continuing the sequence.
 - **Choice:**
   - Capabilities are grouped by what a user does or gets: one per shipped skill, and one per
     distinct CLI goal.
-  - In plan order, the 22 are: vault-identity, note-writing, note-revision, chunk-indexing,
-    controlled-vocabulary, memory-query, vault-counting, vault-health, vault-migration,
-    install-and-update, skill-runbook-registration, write-memory, recall, learn, lessons-contract,
-    route, please, ambient-guidance, vault-serving, parent-sync, curate, and
-    memory-effectiveness-evaluation.
+  - In plan order, the 22 are: [792a2 vault-identity](./792a_product-spec.md#792a2-added-vault-identity), [792a3 note-writing](./792a_product-spec.md#792a3-added-note-writing), [792a4 note-revision](./792a_product-spec.md#792a4-added-note-revision), [792a5 chunk-indexing](./792a_product-spec.md#792a5-added-chunk-indexing),
+    [792a6 controlled-vocabulary](./792a_product-spec.md#792a6-added-controlled-vocabulary), [792a7 memory-query](./792a_product-spec.md#792a7-added-memory-query), [792a8 vault-counting](./792a_product-spec.md#792a8-added-vault-counting), [792a9 vault-health](./792a_product-spec.md#792a9-added-vault-health), [792a10 vault-migration](./792a_product-spec.md#792a10-added-vault-migration),
+    [792a11 install-and-update](./792a_product-spec.md#792a11-added-install-and-update), [792a12 skill-runbook-registration](./792a_product-spec.md#792a12-added-skill-runbook-registration), [792a13 write-memory](./792a_product-spec.md#792a13-added-write-memory), [792a14 recall](./792a_product-spec.md#792a14-added-recall), [792a15 learn](./792a_product-spec.md#792a15-added-learn), [792a16 lessons-contract](./792a_product-spec.md#792a16-added-lessons-contract),
+    [792a17 route](./792a_product-spec.md#792a17-added-route), [792a18 please](./792a_product-spec.md#792a18-added-please), [792a19 ambient-guidance](./792a_product-spec.md#792a19-added-ambient-guidance), [792a20 vault-serving](./792a_product-spec.md#792a20-added-vault-serving), [792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync), [792a22 curate](./792a_product-spec.md#792a22-added-curate), and
+    [792a23 memory-effectiveness-evaluation](./792a_product-spec.md#792a23-added-memory-effectiveness-evaluation).
 - **Rationale:** the three discovery reports proposed 27, 12 and about 11 capabilities.
   - The 27-capability list split single surfaces apart, for example note provenance and QA from
     note writing.
@@ -175,9 +175,9 @@ decisions as `792dN`, continuing the sequence.
 ## 792d16 Capability names
 
 - **Choice:** names use Joe's vocabulary from the GLOSSARY and commit scopes. Each skill capability
-  is named after its skill. `memory-query` is the CLI retrieval surface and `recall` is the skill.
-  `chunk-indexing` is used over `transcript-ingest`, because ingest also covers markdown.
-  `parent-sync` follows "local-first parent sync". `install-and-update` is used over `engram-update`.
+  is named after its skill. [792a7 memory-query](./792a_product-spec.md#792a7-added-memory-query) is the CLI retrieval surface and [792a14 recall](./792a_product-spec.md#792a14-added-recall) is the skill.
+  [792a5 chunk-indexing](./792a_product-spec.md#792a5-added-chunk-indexing) is used over `transcript-ingest`, because ingest also covers markdown.
+  [792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync) follows "local-first parent sync". [792a11 install-and-update](./792a_product-spec.md#792a11-added-install-and-update) is used over `engram-update`.
 - **Rationale:** avoid coined jargon (vault note 291) and the retired names (episode, MOC, nomination,
   promote, `ENGRAM_SERVER`).
 - **Alternatives:** `memory-recall` for the query surface. Rejected because it collides with the
@@ -185,8 +185,8 @@ decisions as `792dN`, continuing the sequence.
 
 ## 792d17 Runbooks are spread across their surfaces
 
-- **Choice:** there is no `runbook-memory` capability. Runbook capture is in note-writing, trigger
-  surfacing is in memory-query, and the follow-frame is in ambient-guidance.
+- **Choice:** there is no `runbook-memory` capability. Runbook capture is in [792a3 note-writing](./792a_product-spec.md#792a3-added-note-writing), trigger
+  surfacing is in [792a7 memory-query](./792a_product-spec.md#792a7-added-memory-query), and the follow-frame is in [792a19 ambient-guidance](./792a_product-spec.md#792a19-added-ambient-guidance).
 - **Rationale:** a runbook is a note kind. Each of these behaviors already belongs to a surface that
   owns the same behavior for the other kinds.
 - **Alternatives:** a runbook-memory capability, as legacy P6. Rejected because it would cut across
@@ -194,7 +194,7 @@ decisions as `792dN`, continuing the sequence.
 
 ## 792d18 The QA kind is documented as current
 
-- **Choice:** `engram learn qa` capture belongs to note-writing, and ad hoc QA capture to learn. Both
+- **Choice:** `engram learn qa` capture belongs to [792a3 note-writing](./792a_product-spec.md#792a3-added-note-writing), and ad hoc QA capture to [792a15 learn](./792a_product-spec.md#792a15-added-learn). Both
   are documented as current, even though #727 and #765 are reconsidering the kind.
 - **Rationale:** the kind ships today. A reconsideration is a future change, not current behavior.
 - **Alternatives:** a separate `question-answer-memory` capability. Rejected as one surface split in
@@ -203,7 +203,7 @@ decisions as `792dN`, continuing the sequence.
 ## 792d19 One ambient-guidance capability
 
 - **Choice:** recall.md, learn.md, delegate.md and shim.md, together with their activation, form one
-  `ambient-guidance` capability.
+  [792a19 ambient-guidance](./792a_product-spec.md#792a19-added-ambient-guidance) capability.
 - **Rationale:** they share one opt-in deployment (`--with-guidance`) and one activation mechanism.
   #773 is reconciling their overlapping cues, and separate files would freeze that duplication.
 - **Alternatives:** four capabilities named after the AGENTS.md labels.
@@ -212,38 +212,38 @@ decisions as `792dN`, continuing the sequence.
 
 - **Choice:** the LESSONS line contract has one capability. The OpenSpec `learn`, `please` and
   `route` specs map to it, because their content is entirely the LESSONS slice.
-- **Rationale:** a single owner prevents duplicating the rule across learn, please, route and the
+- **Rationale:** a single owner prevents duplicating the rule across [792a15 learn](./792a_product-spec.md#792a15-added-learn), [792a18 please](./792a_product-spec.md#792a18-added-please), [792a17 route](./792a_product-spec.md#792a17-added-route) and the
   guidance capability.
 - **Alternatives:** put the requirements in each skill's capability.
 
 ## 792d21 Vault identity comes first; `ENGRAM_SERVER` belongs to parent-sync
 
-- **Choice:** `vault-identity` is the first capability. It covers path resolution, first-use
+- **Choice:** [792a2 vault-identity](./792a_product-spec.md#792a2-added-vault-identity) is the first capability. It covers path resolution, first-use
   creation, the vault ID, and the copy/clone and self-parent refusals. The `ENGRAM_SERVER` **MUST
-  NOT** sits in parent-sync.
+  NOT** sits in [792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync).
 - **Rationale:** every command depends on resolving the vault. `ENGRAM_SERVER`'s replacement is
   `ENGRAM_PARENT`.
-- **Alternatives:** fold vault identity into parent-sync, as code-tests discovery proposed. Rejected
+- **Alternatives:** fold vault identity into [792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync), as code-tests discovery proposed. Rejected
   because first-use creation affects every user, not only users of the exchange.
 
 ## 792d22 Counting is separate from health
 
-- **Choice:** `vault-counting` (`count`) is separate from `vault-health` (`check`, `embed`).
+- **Choice:** [792a8 vault-counting](./792a_product-spec.md#792a8-added-vault-counting) (`count`) is separate from [792a9 vault-health](./792a_product-spec.md#792a9-added-vault-health) (`check`, `embed`).
 - **Rationale:** ADR-0018 makes counting a distinct surface, and route depends on it as an evidence
   audit.
-- **Alternatives:** a merged `vault-health`.
+- **Alternatives:** a merged [792a9 vault-health](./792a_product-spec.md#792a9-added-vault-health).
 
 ## 792d23 A vault-migration capability
 
 - **Choice:** `update --reparent-luhmann/--answers`, `--backfill-identity`, and the flat-vault notice
-  form `vault-migration`.
+  form [792a10 vault-migration](./792a_product-spec.md#792a10-added-vault-migration).
 - **Rationale:** they are one-shot structural maintenance of an existing vault, and share neither
   trigger nor contract with installation.
-- **Alternatives:** fold them into install-and-update.
+- **Alternatives:** fold them into [792a11 install-and-update](./792a_product-spec.md#792a11-added-install-and-update).
 
 ## 792d24 The vault exchange is split three ways
 
-- **Choice:** vault-serving (`engram serve`), parent-sync (child side), and curate (the pending-offer
+- **Choice:** [792a20 vault-serving](./792a_product-spec.md#792a20-added-vault-serving) (`engram serve`), [792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync) (child side), and [792a22 curate](./792a_product-spec.md#792a22-added-curate) (the pending-offer
   review skill).
 - **Rationale:** each has a different user and entry point: the host operator, the child vault user,
   and the curating agent.
@@ -251,8 +251,8 @@ decisions as `792dN`, continuing the sequence.
 
 ## 792d25 Eval tooling is a provisional last capability
 
-- **Choice:** `memory-effectiveness-evaluation` and its components `eval-trial-harness` and
-  `memory-loop-auditor` come last, pending [792e1](./792e_open-questions.md#792e1-is-eval-and-audit-tooling-a-product-capability).
+- **Choice:** [792a23 memory-effectiveness-evaluation](./792a_product-spec.md#792a23-added-memory-effectiveness-evaluation) and its components [792b38 eval-trial-harness](./792b_technical-spec.md#792b38-added-eval-trial-harness) and
+  [792b39 memory-loop-auditor](./792b_technical-spec.md#792b39-added-memory-loop-auditor) come last, pending [792e1](./792e_open-questions.md#792e1-is-eval-and-audit-tooling-a-product-capability).
 - **Rationale:** five OpenSpec specs and ADR-0028 must go somewhere for the deprecated docs to empty.
   Placing these last means a "no" from Joe removes the group without reordering anything.
 - **Alternatives:** delete them as dev tooling. Vault note 293 says not to spec dev tooling as
@@ -262,12 +262,12 @@ decisions as `792dN`, continuing the sequence.
 
 - **Choice:** the code-tests discovery list of 34 components is the base, because it is grounded in
   code and tests. It is adjusted as follows:
-  - `installer` is split into `self-installer` (ADR-0023) and `harness-deploy-sync` (ADR-0022).
-  - `vault-bootstrap` is folded into `vault-identity-registry`.
-  - `recall-usage-tracking` (activate) is folded into `note-amendment`.
-  - Note lookup (`show`) becomes caller routing in `command-line-surface`.
-  - `vault-statistics` is kept as `vault-counter`.
-  - `agent-instruction-bundle` is added ([792d5](#792d5-agent-instruction-bundle-qualifies-as-a-component)), and so are the two eval components ([792d25](#792d25-eval-tooling-is-a-provisional-last-capability)).
+  - `installer` is split into [792b28 self-installer](./792b_technical-spec.md#792b28-added-self-installer) (ADR-0023) and [792b29 harness-deploy-sync](./792b_technical-spec.md#792b29-added-harness-deploy-sync) (ADR-0022).
+  - `vault-bootstrap` is folded into [792b5 vault-identity-registry](./792b_technical-spec.md#792b5-added-vault-identity-registry).
+  - `recall-usage-tracking` (activate) is folded into [792b14 note-amendment](./792b_technical-spec.md#792b14-added-note-amendment).
+  - Note lookup (`show`) becomes caller routing in [792b2 command-line-surface](./792b_technical-spec.md#792b2-added-command-line-surface).
+  - `vault-statistics` is kept as [792b25 vault-counter](./792b_technical-spec.md#792b25-added-vault-counter).
+  - [792b32 agent-instruction-bundle](./792b_technical-spec.md#792b32-added-agent-instruction-bundle) is added ([792d5](#792d5-agent-instruction-bundle-qualifies-as-a-component)), and so are the two eval components ([792d25](#792d25-eval-tooling-is-a-provisional-last-capability)).
 - **Rationale:** each kept component meets all five qualification criteria. Each split follows an
   ADR boundary, and each fold removes a contract too thin to stand alone.
 - **Alternatives:** the legacy report's 32 components, which include the skill procedures ([792d4](#792d4-skill-procedures-are-not-technical-components)),
@@ -280,7 +280,7 @@ decisions as `792dN`, continuing the sequence.
   - `interrupt-handling` fails necessity: no product requirement mentions interruption.
   - The composition root (`cli.Primitives`, `cli.NewDeps`, `cmd/engram`) is a dependency-injection
     seam, which the guide says can't qualify on that basis alone.
-  - Their tests are listed as no-scenario tests in the `command-line-surface` node. `debug-log`'s
+  - Their tests are listed as no-scenario tests in the [792b2 command-line-surface](./792b_technical-spec.md#792b2-added-command-line-surface) node. `debug-log`'s
     legacy text (c3 K11) is deleted in node [792c8a](./792c_implementation-plan.md#792c8a-residual-legacy-sweep).
 - **Rationale:** the guide's necessity rule, and its rule that a mockable seam does not qualify
   solely because it can be injected.
@@ -289,9 +289,9 @@ decisions as `792dN`, continuing the sequence.
 ## 792d28 Component names
 
 - **Choice:** names describe each contract, with no package or function names. For example,
-  `query-engine`, not `semantic-retrieval-engine`; `query-payload-renderer`, not
-  `recall-payload-renderer`, because recall is the skill; `vocabulary-engine`; `embedding-sidecar`;
-  `note-provenance`; `pending-offer-bookkeeping`.
+  [792b24 query-engine](./792b_technical-spec.md#792b24-added-query-engine), not `semantic-retrieval-engine`; [792b23 query-payload-renderer](./792b_technical-spec.md#792b23-added-query-payload-renderer), not
+  `recall-payload-renderer`, because recall is the skill; [792b20 vocabulary-engine](./792b_technical-spec.md#792b20-added-vocabulary-engine); [792b10 embedding-sidecar](./792b_technical-spec.md#792b10-added-embedding-sidecar);
+  [792b11 note-provenance](./792b_technical-spec.md#792b11-added-note-provenance); [792b34 pending-offer-bookkeeping](./792b_technical-spec.md#792b34-added-pending-offer-bookkeeping).
 - **Rationale:** the guide's stability criterion, plus Joe's vocabulary ([792d16](#792d16-capability-names)).
 - **Alternatives:** the discovery reports' names.
 
@@ -334,7 +334,7 @@ decisions as `792dN`, continuing the sequence.
 
 - **Choice:** where a legacy source doesn't fully describe a skill or guidance behavior, the product
   spec describes the shipped SKILL.md or guidance file.
-- **Rationale:** most of the recall, learn, please, route and curate behavior exists only in SKILL.md.
+- **Rationale:** most of the [792a14 recall](./792a_product-spec.md#792a14-added-recall), [792a15 learn](./792a_product-spec.md#792a15-added-learn), [792a18 please](./792a_product-spec.md#792a18-added-please), [792a17 route](./792a_product-spec.md#792a17-added-route) and [792a22 curate](./792a_product-spec.md#792a22-added-curate) behavior exists only in SKILL.md.
   The OpenSpec skill specs are delta-shaped slices (legacy report, Overlaps).
 - **Alternatives:** document only what the legacy specs state. Rejected because it would leave the
   capabilities mostly empty.
@@ -474,18 +474,18 @@ decisions as `792dN`, continuing the sequence.
 - **Choice:** the OpenSpec requirement "Exchange state SHALL live outside the vault's tracked files"
   is ported to [792a2k](./792a_product-spec.md#792a2k-exchange-state-outside-tracked-files), not left for parent-sync ([792c7t1](./792c_implementation-plan.md#792c7t1-parent-sync-product-spec)).
 - **Rationale:** `.engram/` is created with the vault and its ID, before any parent is configured,
-  and `vault-identity-registry` owns it. Parent-sync keeps what is written there (outbox, declines,
+  and [792b5 vault-identity-registry](./792b_technical-spec.md#792b5-added-vault-identity-registry) owns it. [792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync) keeps what is written there (outbox, declines,
   parent cache).
 - **Alternatives:** leave it with the exchange requirements for [792c7t1](./792c_implementation-plan.md#792c7t1-parent-sync-product-spec).
 
 ## 792d48 The vault name is specified in vault-identity
 
 - **Choice:** `--vault-name`/`ENGRAM_VAULT_NAME` and its default `personal` are requirement [792a2b](./792a_product-spec.md#792a2b-vault-name),
-  as the [792c7a1](./792c_implementation-plan.md#792c7a1-vault-identity-product-spec) catalog lists. Note-writing and note-provenance ([792c7b1](./792c_implementation-plan.md#792c7b1-note-writing-product-spec), [792c7b7](./792c_implementation-plan.md#792c7b7-note-provenance-tech-spec)) map their
+  as the [792c7a1](./792c_implementation-plan.md#792c7a1-vault-identity-product-spec) catalog lists. [792a3 note-writing](./792a_product-spec.md#792a3-added-note-writing) and note-provenance ([792c7b1](./792c_implementation-plan.md#792c7b1-note-writing-product-spec), [792c7b7](./792c_implementation-plan.md#792c7b7-note-provenance-tech-spec)) map their
   `vault:` stamping to [792a2b](./792a_product-spec.md#792a2b-vault-name) rather than restating it.
 - **Rationale:** the precedence mirrors the vault path's ([792a2a](./792a_product-spec.md#792a2a-vault-location)), and one owner avoids duplicating
   the rule.
-- **Alternatives:** specify it only under note-writing.
+- **Alternatives:** specify it only under [792a3 note-writing](./792a_product-spec.md#792a3-added-note-writing).
 
 ## 792d49 Product requirements beyond the OpenSpec text
 
@@ -510,9 +510,9 @@ decisions as `792dN`, continuing the sequence.
 
 ## 792d51 command-line-surface routing requirements arrive with their scenarios
 
-- **Choice:** [792b2](./792b_technical-spec.md#792b2-added-command-line-surface) specifies only the routing that vault-identity's scenarios need: vault path and
+- **Choice:** [792b2](./792b_technical-spec.md#792b2-added-command-line-surface) specifies only the routing that [792a2 vault-identity](./792a_product-spec.md#792a2-added-vault-identity)'s scenarios need: vault path and
   vault name resolution, first-use gating and result reporting. The `ENGRAM_SERVER` pre-dispatch
-  guard, chunks-dir resolution and `show` local/parent routing are added to [792b2](./792b_technical-spec.md#792b2-added-command-line-surface) by parent-sync
+  guard, chunks-dir resolution and `show` local/parent routing are added to [792b2](./792b_technical-spec.md#792b2-added-command-line-surface) by [792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync)
   ([792c7t1](./792c_implementation-plan.md#792c7t1-parent-sync-product-spec)), chunk-indexing ([792c7d1](./792c_implementation-plan.md#792c7d1-chunk-indexing-product-spec)) and memory-query ([792c7f1](./792c_implementation-plan.md#792c7f1-memory-query-product-spec)), which introduce the product
   scenarios those requirements support. Their tests stay unrenamed until then and are listed as
   deferred no-scenario tests. The C2 container row's per-command detail is deleted rather than
@@ -579,10 +579,10 @@ decisions as `792dN`, continuing the sequence.
 
 ## 792d57 Mixed sources of note-writing are split by owner
 
-- **Choice:** node [792c7b1](./792c_implementation-plan.md#792c7b1-note-writing-product-spec) ports only the note-writing parts of its mixed sources, and leaves the
+- **Choice:** node [792c7b1](./792c_implementation-plan.md#792c7b1-note-writing-product-spec) ports only the [792a3 note-writing](./792a_product-spec.md#792a3-added-note-writing) parts of its mixed sources, and leaves the
   rest in place for the node that owns it ([792d31](#792d31-each-legacy-item-has-one-owning-node), [792d50](#792d50-technical-clauses-of-a-mixed-openspec-spec-stay-in-place-for-their-component-node)):
   - `learn-qa-capture` is ported whole and deleted.
-  - `learn-runbook-capture` keeps the write-memory requirement for [792c7l1](./792c_implementation-plan.md#792c7l1-write-memory-product-spec) and the skill runbook note
+  - `learn-runbook-capture` keeps the [792a13 write-memory](./792a_product-spec.md#792a13-added-write-memory) requirement for [792c7l1](./792c_implementation-plan.md#792c7l1-write-memory-product-spec) and the skill runbook note
     requirement for [792c7k1](./792c_implementation-plan.md#792c7k1-skill-runbook-registration-product-spec).
   - `vault-embed-on-write` keeps everything but the `learn` guarantee. The `amend` and `resituate`
     re-embedding requirement is added to the sources of note-revision ([792c7c1](./792c_implementation-plan.md#792c7c1-note-revision-product-spec)).
@@ -613,20 +613,20 @@ decisions as `792dN`, continuing the sequence.
 ## 792d59 QA retrieval and per-kind vocabulary tagging belong to note-writing
 
 - **Choice:** [792a3t](./792a_product-spec.md#792a3t-question-and-answer-retrieval) (query returns answers but never questions) and [792a3u](./792a_product-spec.md#792a3u-vocabulary-tagging-by-kind) (vocabulary tagging
-  applies to every kind but questions) are note-writing requirements, although `engram query` and
+  applies to every kind but questions) are [792a3 note-writing](./792a_product-spec.md#792a3-added-note-writing) requirements, although `engram query` and
   the vocabulary engine carry them out. The query-engine ([792c7f5](./792c_implementation-plan.md#792c7f5-query-engine-tech-spec)) and vocabulary-engine ([792c7e3](./792c_implementation-plan.md#792c7e3-vocabulary-engine-tech-spec))
   nodes map these scenarios to their requirements.
 - **Rationale:** both are the defining contract of the QA kind (ADR-0012), which `learn-qa-capture`
-  states and this node owns. Restating them in memory-query and controlled-vocabulary would duplicate
+  states and this node owns. Restating them in [792a7 memory-query](./792a_product-spec.md#792a7-added-memory-query) and [792a6 controlled-vocabulary](./792a_product-spec.md#792a6-added-controlled-vocabulary) would duplicate
   the rule.
-- **Alternatives:** move [792a3t](./792a_product-spec.md#792a3t-question-and-answer-retrieval) to memory-query and [792a3u](./792a_product-spec.md#792a3u-vocabulary-tagging-by-kind) to controlled-vocabulary.
+- **Alternatives:** move [792a3t](./792a_product-spec.md#792a3t-question-and-answer-retrieval) to [792a7 memory-query](./792a_product-spec.md#792a7-added-memory-query) and [792a3u](./792a_product-spec.md#792a3u-vocabulary-tagging-by-kind) to [792a6 controlled-vocabulary](./792a_product-spec.md#792a6-added-controlled-vocabulary).
 
 ## 792d60 command-line-surface refuses undefined and missing required flags
 
-- **Choice:** note-writing adds requirement [792b2c5](./792b_technical-spec.md#792b2c5-argument-refusal) to command-line-surface: an undefined flag or a
+- **Choice:** [792a3 note-writing](./792a_product-spec.md#792a3-added-note-writing) adds requirement [792b2c5](./792b_technical-spec.md#792b2c5-argument-refusal) to [792b2 command-line-surface](./792b_technical-spec.md#792b2-added-command-line-surface): an undefined flag or a
   missing required flag is refused before the command runs. `TestTargets_LearnRunbook_NoSkillHashFlag`
   and `TestTargets_NoSkillKeyOrSourceFlags` are renamed to its first scenario, [792b2c5a1](./792b_technical-spec.md#792b2c5a-scenarios); the
-  skill-runbook-registration node ([792c7k1](./792c_implementation-plan.md#792c7k1-skill-runbook-registration-product-spec)) lists its own scenario for them as `split deferred`.
+  [792a12 skill-runbook-registration](./792a_product-spec.md#792a12-added-skill-runbook-registration) node ([792c7k1](./792c_implementation-plan.md#792c7k1-skill-runbook-registration-product-spec)) lists its own scenario for them as `split deferred`.
 - **Rationale:** [792a3e1a](./792a_product-spec.md#792a3e1-uat-scenarios), [792a3f1a](./792a_product-spec.md#792a3f1-uat-scenarios) and parts of [792a3g1a](./792a_product-spec.md#792a3g1-uat-scenarios) and [792a3r1a](./792a_product-spec.md#792a3r1-uat-scenarios) are refused by argument
   parsing, which this component owns ([792b2a](./792b_technical-spec.md#792b2a-orientation)), before any `learn` code runs. Those two tests are the
   existing direct tests of that refusal.
@@ -634,15 +634,15 @@ decisions as `792dN`, continuing the sequence.
 
 ## 792d61 note-document-format's edit, CRLF and field-survival contracts arrive with their scenarios
 
-- **Choice:** [792b6](./792b_technical-spec.md#792b6-added-note-document-format) specifies only what note-writing's scenarios need: filenames, the frontmatter
+- **Choice:** [792b6](./792b_technical-spec.md#792b6-added-note-document-format) specifies only what [792a3 note-writing](./792a_product-spec.md#792a3-added-note-writing)'s scenarios need: filenames, the frontmatter
   block, each kind's keys, the body formulas, the QA documents and frontmatter splitting. These wait
-  for the capabilities whose product scenarios they support, as [792d51](#792d51-command-line-surface-routing-requirements-arrive-with-their-scenarios) does for command-line-surface:
+  for the capabilities whose product scenarios they support, as [792d51](#792d51-command-line-surface-routing-requirements-arrive-with-their-scenarios) does for [792b2 command-line-surface](./792b_technical-spec.md#792b2-added-command-line-surface):
   - YAML-node edits that keep unknown keys and anchors, refuse an anchored or undecodable rewrite,
     and read CRLF notes as LF go to note-revision ([792c7c1](./792c_implementation-plan.md#792c7c1-note-revision-product-spec)), whose sources now list the
     `vault-note-identity` note-reader requirement and the amend and resituate paragraphs of its
     field-survival requirement.
   - Survival of the exchange fields goes to parent-sync ([792c7t1](./792c_implementation-plan.md#792c7t1-parent-sync-product-spec)), which already owns them.
-  - The `skill_hash`, `skill_key` and `skill_source` fields go to skill-runbook-registration
+  - The `skill_hash`, `skill_key` and `skill_source` fields go to [792a12 skill-runbook-registration](./792a_product-spec.md#792a12-added-skill-runbook-registration)
     ([792c7k1](./792c_implementation-plan.md#792c7k1-skill-runbook-registration-product-spec)), whose sources now list those `vault-note-identity` requirements.
   - The "CRLF-safe reading requirement" this node listed from `update-reparent-luhmann-batch` is the
     rename-and-rewrite step's, which vault-migration ([792c7i1](./792c_implementation-plan.md#792c7i1-vault-migration-product-spec), [792c7i2](./792c_implementation-plan.md#792c7i2-note-reparenting-tech-spec)) already owns.
@@ -669,7 +669,7 @@ decisions as `792dN`, continuing the sequence.
   release and failure reporting, and the vault's lock file `.luhmann.lock`. The per-command clauses
   of `vault-concurrency-safe-writes` stay in that spec for the callers that own them:
   `learn` and `learn qa` for note-authoring ([792c7b8](./792c_implementation-plan.md#792c7b8-note-authoring-tech-spec)); `amend`, `resituate`, `activate` and the
-  lock-free shared helpers for note-amendment ([792c7c3](./792c_implementation-plan.md#792c7c3-note-amendment-tech-spec)); the manifest lock for chunk-index-store
+  lock-free shared helpers for note-amendment ([792c7c3](./792c_implementation-plan.md#792c7c3-note-amendment-tech-spec)); the manifest lock for [792b18 chunk-index-store](./792b_technical-spec.md#792b18-added-chunk-index-store)
   ([792c7d5](./792c_implementation-plan.md#792c7d5-chunk-index-store-tech-spec)); and `vocab bootstrap` and `refit` for vocabulary-engine ([792c7e3](./792c_implementation-plan.md#792c7e3-vocabulary-engine-tech-spec)). Those nodes' sources
   now list them. ADR-0013 is reduced to a pointer to [792b3](./792b_technical-spec.md#792b3-added-durable-file-store) and [792b8](./792b_technical-spec.md#792b8-added-vault-write-lock), and code comments citing it
   for the lock now cite [792b8](./792b_technical-spec.md#792b8-added-vault-write-lock).
@@ -677,7 +677,7 @@ decisions as `792dN`, continuing the sequence.
   the real locked write path and asserts the product outcome.
 - **Rationale:** the technical guide puts an interaction requirement (what a caller does, and in
   what order, while holding a dependency) in the caller's component. Holding the lock across
-  ID allocation and the write is note-authoring's ordering, not the lock's behavior.
+  ID allocation and the write is [792b12 note-authoring](./792b_technical-spec.md#792b12-added-note-authoring)'s ordering, not the lock's behavior.
 - **Alternatives:** port every lock clause into [792b8](./792b_technical-spec.md#792b8-added-vault-write-lock) now. Rejected because most would support no
   existing product scenario and would describe callers' ordering.
 
@@ -725,7 +725,7 @@ decisions as `792dN`, continuing the sequence.
 ## 792d67 note-provenance covers detection and the first-write stamp
 
 - **Choice:** [792b11](./792b_technical-spec.md#792b11-added-note-provenance) specifies repository and user detection and the first-write stamp, which
-  note-writing's scenarios need. The amend re-stamp, which keeps a prior user when detection comes
+  [792a3 note-writing](./792a_product-spec.md#792a3-added-note-writing)'s scenarios need. The amend re-stamp, which keeps a prior user when detection comes
   back empty, goes to note-revision ([792c7c1](./792c_implementation-plan.md#792c7c1-note-revision-product-spec)); identity backfill and its `project:` preference go to
   vault-migration ([792c7i1](./792c_implementation-plan.md#792c7i1-vault-migration-product-spec)), which already owns them; and first-write stamping by a served learn and
   by a pull-down go to vault-serving ([792c7s1](./792c_implementation-plan.md#792c7s1-vault-serving-product-spec)) and parent-sync ([792c7t1](./792c_implementation-plan.md#792c7t1-parent-sync-product-spec)). `vault-note-identity`
@@ -744,17 +744,17 @@ decisions as `792dN`, continuing the sequence.
   controlled-vocabulary ([792c7e1](./792c_implementation-plan.md#792c7e1-controlled-vocabulary-product-spec)) and note-revision ([792c7c1](./792c_implementation-plan.md#792c7c1-note-revision-product-spec)); the rule that `learn` never writes the
   skill fields (`TestRunLearn_Runbook_NeverWritesSkillHash`,
   `TestRunLearn_Runbook_NeverWritesSkillKeyOrSource`) for skill-runbook-registration ([792c7k1](./792c_implementation-plan.md#792c7k1-skill-runbook-registration-product-spec)); and
-  the question-note exclusions in query and `vocab stats` for memory-query ([792c7f1](./792c_implementation-plan.md#792c7f1-memory-query-product-spec), query-engine
-  [792c7f5](./792c_implementation-plan.md#792c7f5-query-engine-tech-spec)) and controlled-vocabulary. The c3 QA flow's notes on those exclusions stay in
+  the question-note exclusions in query and `vocab stats` for memory-query ([792c7f1](./792c_implementation-plan.md#792c7f1-memory-query-product-spec), [792b24 query-engine](./792b_technical-spec.md#792b24-added-query-engine)
+  [792c7f5](./792c_implementation-plan.md#792c7f5-query-engine-tech-spec)) and [792a6 controlled-vocabulary](./792a_product-spec.md#792a6-added-controlled-vocabulary). The c3 QA flow's notes on those exclusions stay in
   `c3-components.md` as a residue, and those nodes' sources list it. The c2 learn flow keeps its
   skill side for learn ([792c7n1](./792c_implementation-plan.md#792c7n1-learn-product-spec)). `TestLearnFact_BootstrapsMissingVault`, a dispatch test that
-  `learn` creates a missing vault first, takes command-line-surface's [792b2c3a1](./792b_technical-spec.md#792b2c3a-scenarios) ([792c4a](./792c_implementation-plan.md#792c4a-capability-node-workflow) step 6).
+  `learn` creates a missing vault first, takes [792b2 command-line-surface](./792b_technical-spec.md#792b2-added-command-line-surface)'s [792b2c3a1](./792b_technical-spec.md#792b2c3a-scenarios) ([792c4a](./792c_implementation-plan.md#792c4a-capability-node-workflow) step 6).
 - **Rationale:** [792d51](#792d51-command-line-surface-routing-requirements-arrive-with-their-scenarios), and [792d52](#792d52-test-ids-product-scenario-for-end-to-end-checks-technical-scenario-otherwise) for the bootstrap test.
 - **Alternatives:** none considered.
 
 ## 792d69 Mixed sources of note-revision are split by owner
 
-- **Choice:** node [792c7c1](./792c_implementation-plan.md#792c7c1-note-revision-product-spec) ports only the note-revision parts of its sources ([792d31](#792d31-each-legacy-item-has-one-owning-node), [792d57](#792d57-mixed-sources-of-note-writing-are-split-by-owner)):
+- **Choice:** node [792c7c1](./792c_implementation-plan.md#792c7c1-note-revision-product-spec) ports only the [792a4 note-revision](./792a_product-spec.md#792a4-added-note-revision) parts of its sources ([792d31](#792d31-each-legacy-item-has-one-owning-node), [792d57](#792d57-mixed-sources-of-note-writing-are-split-by-owner)):
   - `vault-note-identity`: the amend re-stamp, its `project:` exclusion, the vault fill and the
     amend and resituate key-preservation, anchor and CRLF paragraphs are ported. The bookkeeping
     rule for `--clear-pending`, `--discard --into` and the offer receipt stays as a residue
@@ -816,21 +816,21 @@ decisions as `792dN`, continuing the sequence.
   `engram amend`, as the `vault-wikilink-resolution` requirement does. [792a3h](./792a_product-spec.md#792a3h-optional-metadata) already shows the
   learn line for a target given without `.md`.
 - **Rationale:** both commands write the line through one renderer, and a single owner keeps the rule
-  from being restated in note-writing.
+  from being restated in [792a3 note-writing](./792a_product-spec.md#792a3-added-note-writing).
 - **Alternatives:** add a learn-only requirement to [792a3](./792a_product-spec.md#792a3-added-note-writing). Rejected as duplicating the rule.
 
 ## 792d74 Where note-revision's technical contracts land
 
 - **Choice:**
-  - The YAML-node edits and the CRLF read are note-document-format's [792b6c7](./792b_technical-spec.md#792b6c7-frontmatter-node-edits) and [792b6c8](./792b_technical-spec.md#792b6c8-crlf-reading) ([792d61](#792d61-note-document-formats-edit-crlf-and-field-survival-contracts-arrive-with-their-scenarios)),
-    the re-stamp is note-provenance's [792b11c4](./792b_technical-spec.md#792b11c4-re-stamp) ([792d67](#792d67-note-provenance-covers-detection-and-the-first-write-stamp)), and the CRLF embedding read is
-    embedding-sidecar's [792b10c9](./792b_technical-spec.md#792b10c9-crlf-notes).
-  - The sidecar rebuild after a revision adds no embedding-sidecar requirement: it builds through
+  - The YAML-node edits and the CRLF read are [792b6 note-document-format](./792b_technical-spec.md#792b6-added-note-document-format)'s [792b6c7](./792b_technical-spec.md#792b6c7-frontmatter-node-edits) and [792b6c8](./792b_technical-spec.md#792b6c8-crlf-reading) ([792d61](#792d61-note-document-formats-edit-crlf-and-field-survival-contracts-arrive-with-their-scenarios)),
+    the re-stamp is [792b11 note-provenance](./792b_technical-spec.md#792b11-added-note-provenance)'s [792b11c4](./792b_technical-spec.md#792b11c4-re-stamp) ([792d67](#792d67-note-provenance-covers-detection-and-the-first-write-stamp)), and the CRLF embedding read is
+    [792b10 embedding-sidecar](./792b_technical-spec.md#792b10-added-embedding-sidecar)'s [792b10c9](./792b_technical-spec.md#792b10c9-crlf-notes).
+  - The sidecar rebuild after a revision adds no [792b10 embedding-sidecar](./792b_technical-spec.md#792b10-added-embedding-sidecar) requirement: it builds through
     [792b10c5](./792b_technical-spec.md#792b10c5-building-a-sidecar) and writes through [792b3c1](./792b_technical-spec.md#792b3c1-atomic-replace), and warning or failing is the reviser's choice, specified by
-    note-amendment ([792c7c3](./792c_implementation-plan.md#792c7c3-note-amendment-tech-spec)). The last-used bump lives in `activate.go` and is note-amendment's too.
+    note-amendment ([792c7c3](./792c_implementation-plan.md#792c7c3-note-amendment-tech-spec)). The last-used bump lives in `activate.go` and is [792b14 note-amendment](./792b_technical-spec.md#792b14-added-note-amendment)'s too.
   - `TestIdentityStamp_Stamp_OverwritesAllThree` verifies the raw stamp that blanks an empty user,
     which no revision uses, so it is a no-scenario test. [792b11c4a1](./792b_technical-spec.md#792b11c4a-scenarios) is left to the re-stamp property
-    test that note-amendment examines.
+    test that [792b14 note-amendment](./792b_technical-spec.md#792b14-added-note-amendment) examines.
   - `TestTargets_Resituate` and `TestActivate_MissWithoutParentFails` dispatch whole commands and take
     the product IDs [792a4a1b](./792a_product-spec.md#792a4a1-uat-scenarios) and [792a4n1c](./792a_product-spec.md#792a4n1-uat-scenarios) ([792d52](#792d52-test-ids-product-scenario-for-end-to-end-checks-technical-scenario-otherwise)).
 - **Rationale:** [792d30](#792d30-components-are-migrated-once-and-extended-later) and [792d51](#792d51-command-line-surface-routing-requirements-arrive-with-their-scenarios): a migrated component gains the requirements that a later
@@ -847,7 +847,7 @@ decisions as `792dN`, continuing the sequence.
     vault-counting ([792c7g1](./792c_implementation-plan.md#792c7g1-vault-counting-product-spec)), because `engram count` prints a note's in-degree, with ADR-0007's
     decision and c3 K7's graph clause;
   - the unresolved-link report, the G0 invariant, the recurring-defect shape and the whole
-    `vault-wikilink-resolution` parser requirement with its three scenarios for vault-health
+    `vault-wikilink-resolution` parser requirement with its three scenarios for [792a9 vault-health](./792a_product-spec.md#792a9-added-vault-health)
     ([792c7h1](./792c_implementation-plan.md#792c7h1-vault-health-product-spec)), because `engram check` reports them.
   The parser, fence, graph and resolution tests stay unrenamed until then. `BFSWithCap`,
   `InDegreeIn` and `UndirectedNeighbors` have no production caller; their tests verify no scenario.
@@ -859,7 +859,7 @@ decisions as `792dN`, continuing the sequence.
   untraceable.
 - **Divergence noted:** a link's target is the whole text between `[[` and `]]`, so
   `[[note|display]]` and `[[note#heading]]` do not resolve to `note` in the graph, although note
-  references ([792b13c2](./792b_technical-spec.md#792b13c2-note-references)) strip a `|display` part. Recorded for vault-counting and vault-health to
+  references ([792b13c2](./792b_technical-spec.md#792b13c2-note-references)) strip a `|display` part. Recorded for [792a8 vault-counting](./792a_product-spec.md#792a8-added-vault-counting) and [792a9 vault-health](./792a_product-spec.md#792a9-added-vault-health) to
   describe, not resolved here ([792d33](#792d33-behavior-is-described-not-validated)).
 
 ## 792d76 note-amendment scope and the tests it leaves
@@ -874,12 +874,12 @@ decisions as `792dN`, continuing the sequence.
   for parent-sync ([792c7t1](./792c_implementation-plan.md#792c7t1-parent-sync-product-spec)); the vocabulary assignment after a revision
   (`TestApplyVocabAssignmentAfterAmend_TriggerFires`, `TestApplyVocabAssignmentAfterResituate_*`,
   `TestRunResituate_CallsVocabAssignment`) for controlled-vocabulary ([792c7e1](./792c_implementation-plan.md#792c7e1-controlled-vocabulary-product-spec)); the skill-hash
-  survival tests (`TestRunAmend_Runbook_PreservesSkillHash_*`) for skill-runbook-registration
-  ([792c7k1](./792c_implementation-plan.md#792c7k1-skill-runbook-registration-product-spec)); the supersession inverse used by query (`TestBuildSupersedesInverse`) for memory-query
+  survival tests (`TestRunAmend_Runbook_PreservesSkillHash_*`) for [792a12 skill-runbook-registration](./792a_product-spec.md#792a12-added-skill-runbook-registration)
+  ([792c7k1](./792c_implementation-plan.md#792c7k1-skill-runbook-registration-product-spec)); the supersession inverse used by query (`TestBuildSupersedesInverse`) for [792a7 memory-query](./792a_product-spec.md#792a7-added-memory-query)
   ([792c7f1](./792c_implementation-plan.md#792c7f1-memory-query-product-spec)); and the chunk-ID set read from the index (`TestBuildChunkIDSet_ReturnsSourceAnchorKeys`)
   for chunk-index-store ([792c7d5](./792c_implementation-plan.md#792c7d5-chunk-index-store-tech-spec)). The `amend` and `resituate` lock clauses of
   `vault-concurrency-safe-writes` and the vault-lock helpers of its lock-free helper requirement are
-  ported; `writeManifestFile` stays for chunk-index-store.
+  ported; `writeManifestFile` stays for [792b18 chunk-index-store](./792b_technical-spec.md#792b18-added-chunk-index-store).
 - **Rationale:** [792d51](#792d51-command-line-surface-routing-requirements-arrive-with-their-scenarios) and [792d63](#792d63-which-writer-takes-which-lock-is-the-writers-requirement): a caller's ordering under the lock is the caller's requirement.
 - **Alternatives:** none considered.
 
@@ -889,7 +889,7 @@ decisions as `792dN`, continuing the sequence.
   and `ingest-prune-detach` into [792a5](./792a_product-spec.md#792a5-added-chunk-indexing) and leaves each file a residue for the node that owns the
   rest ([792d31](#792d31-each-legacy-item-has-one-owning-node), [792d50](#792d50-technical-clauses-of-a-mixed-openspec-spec-stay-in-place-for-their-component-node)):
   - `ingest-auto-sweep` keeps the sweep-root mechanics (name prefixes on the session-log root,
-    path prefixes at root derivation, the `.claude` exclude list) for ingestion-source-discovery
+    path prefixes at root derivation, the `.claude` exclude list) for [792b17 ingestion-source-discovery](./792b_technical-spec.md#792b17-added-ingestion-source-discovery)
     ([792c7d4](./792c_implementation-plan.md#792c7d4-ingestion-source-discovery-tech-spec)), and the zero-record index-file clause for chunk-index-store ([792c7d5](./792c_implementation-plan.md#792c7d5-chunk-index-store-tech-spec)).
   - `ingest-chunk-dedup` keeps the dedup mechanics for [792c7d5](./792c_implementation-plan.md#792c7d5-chunk-index-store-tech-spec) and the `engram update` backlog
     notice for install-and-update ([792c7j1](./792c_implementation-plan.md#792c7j1-install-and-update-product-spec)).
@@ -943,13 +943,13 @@ decisions as `792dN`, continuing the sequence.
 
 ## 792d80 command-line-surface gains chunk index resolution
 
-- **Choice:** chunk-indexing adds [792b2c6](./792b_technical-spec.md#792b2c6-chunk-index-directory-resolution), the chunk index directory's precedence, as [792d51](#792d51-command-line-surface-routing-requirements-arrive-with-their-scenarios)
+- **Choice:** [792a5 chunk-indexing](./792a_product-spec.md#792a5-added-chunk-indexing) adds [792b2c6](./792b_technical-spec.md#792b2c6-chunk-index-directory-resolution), the chunk index directory's precedence, as [792d51](#792d51-command-line-surface-routing-requirements-arrive-with-their-scenarios)
   planned. `TestResolveChunksDirPrecedence` covers the flag, the environment and the home fallback,
   so it takes [792b2c6a1](./792b_technical-spec.md#792b2c6a-scenarios) with the others `split deferred`; no test resolves the directory with
   `XDG_DATA_HOME` set, so [792b2c6a3](./792b_technical-spec.md#792b2c6a-scenarios) is a coverage gap. `TestTargets_IngestAndQueryChunksEmpty` and
   `TestTargets_PruneEmpty` check only that a command with nothing to do is wired and writes no
-  stderr, so they verify no scenario. durable-file-store, vault-write-lock, text-embedder and
-  embedding-sidecar gain mappings only; their tests that touch the chunk index are chunk-index-store's
+  stderr, so they verify no scenario. [792b3 durable-file-store](./792b_technical-spec.md#792b3-added-durable-file-store), [792b8 vault-write-lock](./792b_technical-spec.md#792b8-added-vault-write-lock), [792b9 text-embedder](./792b_technical-spec.md#792b9-added-text-embedder) and
+  [792b10 embedding-sidecar](./792b_technical-spec.md#792b10-added-embedding-sidecar) gain mappings only; their tests that touch the chunk index are [792b18 chunk-index-store](./792b_technical-spec.md#792b18-added-chunk-index-store)'s
   and are examined in [792c7d5](./792c_implementation-plan.md#792c7d5-chunk-index-store-tech-spec).
 - **Rationale:** [792d30](#792d30-components-are-migrated-once-and-extended-later) and [792d51](#792d51-command-line-surface-routing-requirements-arrive-with-their-scenarios).
 - **Alternatives:** none considered.
@@ -966,7 +966,7 @@ decisions as `792dN`, continuing the sequence.
     `T[0-9]+` alternative of `TARG_BASELINE_PATTERN` ([792d64](#792d64-targ_baseline_pattern-now-matches-both-test-name-forms)) still matches them, and [792e7](./792e_open-questions.md#792e7-what-should-targ_baseline_pattern-become) is
     unchanged.
   - The last kept entry's timestamp only feeds the time a chunk was first indexed, which is left to
-    memory-query ([792d78](#792d78-chunk-indexing-requirements-beyond-the-legacy-text)), so its two tests wait for [792c7f1](./792c_implementation-plan.md#792c7f1-memory-query-product-spec).
+    [792a7 memory-query](./792a_product-spec.md#792a7-added-memory-query) ([792d78](#792d78-chunk-indexing-requirements-beyond-the-legacy-text)), so its two tests wait for [792c7f1](./792c_implementation-plan.md#792c7f1-memory-query-product-spec).
   - ADR-0010 is deleted: its surviving JSONL reader is [792b15a](./792b_technical-spec.md#792b15a-orientation)'s rationale, and its OpenCode backend
     and composite dispatch are retired ([792d6](#792d6-removed-features-are-not-documented-enduring-absences-become-must-not)). The c1 S5 row and the reader part of c3 K1 point at
     [792b15](./792b_technical-spec.md#792b15-added-transcript-reader).
@@ -998,14 +998,14 @@ decisions as `792dN`, continuing the sequence.
   - [792b17](./792b_technical-spec.md#792b17-added-ingestion-source-discovery) specifies how sources are found: named files, Pi directories, `--sweep` roots, the
     `--auto` roots with their exclusions and depths, the throwaway-path drop, the sweep
     configuration, the session-log directory, the walk and the source filter. How a source's read
-    failure is handled, Rule B, deduplication and everything after are chunk-index-store's
+    failure is handled, Rule B, deduplication and everything after are [792b18 chunk-index-store](./792b_technical-spec.md#792b18-added-chunk-index-store)'s
     ([792c7d5](./792c_implementation-plan.md#792c7d5-chunk-index-store-tech-spec)), so the tests of those (the `TestSweep*` tests, the `TestIngest*` dedup tests and
     `TestPiSessionsReadErrorPropagates`) wait for [792c7d5](./792c_implementation-plan.md#792c7d5-chunk-index-store-tech-spec).
   - The c2 C2→S5 row is ported whole and points at [792b17](./792b_technical-spec.md#792b17-added-ingestion-source-discovery), [792b15](./792b_technical-spec.md#792b15-added-transcript-reader) and [792a5i](./792a_product-spec.md#792a5i-incremental-re-indexing). Its "byte-capped with
     continuation signalling" clause is stale ([792d82](#792d82-source-chunking-and-the-stale-byte-budget)) and is dropped. `ingest-auto-sweep` keeps only
     its zero-record residue for [792c7d5](./792c_implementation-plan.md#792c7d5-chunk-index-store-tech-spec).
   - `TestIngestPrefersPhysicallyCloserAncestorAcrossTypes` checks the ancestor depth through
-    deduplication, so [792c7d5](./792c_implementation-plan.md#792c7d5-chunk-index-store-tech-spec) gives it a chunk-index-store scenario with [792b17c3a6](./792b_technical-spec.md#792b17c3a-scenarios) `split
+    deduplication, so [792c7d5](./792c_implementation-plan.md#792c7d5-chunk-index-store-tech-spec) gives it a [792b18 chunk-index-store](./792b_technical-spec.md#792b18-added-chunk-index-store) scenario with [792b17c3a6](./792b_technical-spec.md#792b17c3a-scenarios) `split
     deferred`. `TestPiSessionsRespectsBudget` tests no budget: it checks that one Pi session is
     indexed, which is [792b17c1a2](./792b_technical-spec.md#792b17c1a-scenarios).
 - **Rationale:** [792d30](#792d30-components-are-migrated-once-and-extended-later), and one owner per requirement.
@@ -1019,7 +1019,7 @@ decisions as `792dN`, continuing the sequence.
     failures, the append-only rebuild, grouping and precedence, copy eviction and its coverage gate,
     Rule B, the three prune modes, index listing and the chunk-ID set that `amend --chunk-source`
     checks ([792a4e1a](./792a_product-spec.md#792a4e1-uat-scenarios), [792a4f1a](./792a_product-spec.md#792a4f1-uat-scenarios)). The time a chunk was first indexed and its backfill wait for
-    memory-query ([792d78](#792d78-chunk-indexing-requirements-beyond-the-legacy-text)), and so does `show-chunk`'s lookup, which only memory-query's scenarios
+    [792a7 memory-query](./792a_product-spec.md#792a7-added-memory-query) ([792d78](#792d78-chunk-indexing-requirements-beyond-the-legacy-text)), and so does `show-chunk`'s lookup, which only [792a7 memory-query](./792a_product-spec.md#792a7-added-memory-query)'s scenarios
     use; their tests (`TestIngestMarkdownSetsIngestedAtFromNow`,
     `TestIngestTranscriptSetsIngestedAtFromPerRowTimestamp`, `TestLoadPriorRecordsPreservesIngestedAt`,
     `TestMergeAppendBackfillsIngestedAtFromManifestMtime`, `TestMergeAppendPreservesIngestedAtOnReIngest`,
@@ -1041,7 +1041,7 @@ decisions as `792dN`, continuing the sequence.
     deferred` ([792d83](#792d83-ingestion-source-discovery-scope-and-the-tests-it-leaves)). `TestIngestDepsReadTranscriptReadsViaFS` checks only that the composed reader
     reads through the injected filesystem, so it verifies no scenario.
 - **Rationale:** [792d30](#792d30-components-are-migrated-once-and-extended-later), [792d51](#792d51-command-line-surface-routing-requirements-arrive-with-their-scenarios) and [792d6](#792d6-removed-features-are-not-documented-enduring-absences-become-must-not).
-- **Alternatives:** specify the first-indexed time here as a **MAY**. Rejected because memory-query's
+- **Alternatives:** specify the first-indexed time here as a **MAY**. Rejected because [792a7 memory-query](./792a_product-spec.md#792a7-added-memory-query)'s
   recency channel makes it a contract there.
 
 ## 792d85 Mixed sources of controlled-vocabulary are split by owner
@@ -1060,7 +1060,7 @@ decisions as `792dN`, continuing the sequence.
     and the drowning remedies, and deleted. Its citations in GLOSSARY, ROADMAP, ADR-0011 and the
     `route-dispatch-evidence` spec point at [792a6c](./792a_product-spec.md#792a6c-categorical-tags-share-one-list); route SKILL.md's three citations wait for
     [792c7p1](./792c_implementation-plan.md#792c7p1-route-product-spec), as its catalog says ([792d40](#792d40-skillmd-reference-edits-follow-the-root-rule)).
-  - The query payload's `refit_pending` field stays with memory-query, and acting on a pending
+  - The query payload's `refit_pending` field stays with [792a7 memory-query](./792a_product-spec.md#792a7-added-memory-query), and acting on a pending
     refit with the learn skill ([792d32](#792d32-skill-product-specs-are-derived-from-the-shipped-skillmd)).
 - **Rationale:** each part has one owner, and a node removes only what it ports.
 - **Alternatives:** port the ride-along into [792a6](./792a_product-spec.md#792a6-added-controlled-vocabulary). Rejected because it describes how `engram query`
@@ -1079,9 +1079,9 @@ decisions as `792dN`, continuing the sequence.
     lines ([792a6u](./792a_product-spec.md#792a6u-self-tag-backfill)), and `engram update`'s two vocabulary notices and `--regen-vocab` ([792a6v](./792a_product-spec.md#792a6v-update-notices),
     [792a6w](./792a_product-spec.md#792a6w-migrating-an-old-format-vocabulary)).
   - note-amendment ([792b14](./792b_technical-spec.md#792b14-added-note-amendment)) is added to the node's extended components: `amend` and `resituate`
-    tag the note they write. note-authoring gains [792b12c6](./792b_technical-spec.md#792b12c6-vocabulary-tagging-after-a-write) and note-amendment [792b14c11](./792b_technical-spec.md#792b14c11-vocabulary-tagging-after-a-revision), the
-    caller's ordering of tagging and the refit check after a write ([792d63](#792d63-which-writer-takes-which-lock-is-the-writers-requirement)). command-line-surface,
-    note-document-format, text-embedder and embedding-sidecar gain mappings only.
+    tag the note they write. [792b12 note-authoring](./792b_technical-spec.md#792b12-added-note-authoring) gains [792b12c6](./792b_technical-spec.md#792b12c6-vocabulary-tagging-after-a-write) and [792b14 note-amendment](./792b_technical-spec.md#792b14-added-note-amendment) [792b14c11](./792b_technical-spec.md#792b14c11-vocabulary-tagging-after-a-revision), the
+    caller's ordering of tagging and the refit check after a write ([792d63](#792d63-which-writer-takes-which-lock-is-the-writers-requirement)). [792b2 command-line-surface](./792b_technical-spec.md#792b2-added-command-line-surface),
+    [792b6 note-document-format](./792b_technical-spec.md#792b6-added-note-document-format), [792b9 text-embedder](./792b_technical-spec.md#792b9-added-text-embedder) and [792b10 embedding-sidecar](./792b_technical-spec.md#792b10-added-embedding-sidecar) gain mappings only.
   - The dispatch tests in `vocab_commands_test` that assert a [792a6](./792a_product-spec.md#792a6-added-controlled-vocabulary) scenario end to end
     (`TestTargets_Vocab*`) are renamed by vocabulary-engine ([792c7e3](./792c_implementation-plan.md#792c7e3-vocabulary-engine-tech-spec)), which examines that file; the
     learn and amend tests that check the skip cases (`TestRunLearn_VocabAssignment_Skips*`,
@@ -1113,13 +1113,13 @@ decisions as `792dN`, continuing the sequence.
 
 - **Choice:** [792b19](./792b_technical-spec.md#792b19-added-similarity-clustering) specifies cosine distance, the seeded k-means partition, the silhouette score
   and the choice of the number of clusters, which refit's scenarios need. The per-point silhouette
-  (`PointSilhouette`), used only by the query to pick cluster representatives, waits for memory-query
+  (`PointSilhouette`), used only by the query to pick cluster representatives, waits for [792a7 memory-query](./792a_product-spec.md#792a7-added-memory-query)
   ([792c7f1](./792c_implementation-plan.md#792c7f1-memory-query-product-spec)) with its four tests. `TestInvariant_C1_ClusteringDeterminism` checks determinism through
   `RunQuery` with a phrase-derived seed, and `TestProperty_Cluster_NearDuplicateL2CosineAtLeast095`
-  checks a query payload's cosine, so both wait for memory-query too. Invariant C1 is ported as
+  checks a query payload's cosine, so both wait for [792a7 memory-query](./792a_product-spec.md#792a7-added-memory-query) too. Invariant C1 is ported as
   [792b19c2](./792b_technical-spec.md#792b19c2-k-means-partition)'s determinism clause and rationale; the query's own seeding from the phrase is the query
   engine's ([792c7f5](./792c_implementation-plan.md#792c7f5-query-engine-tech-spec)). c3 K8 points at [792b19](./792b_technical-spec.md#792b19-added-similarity-clustering) and keeps the query's bound on clustering inputs as a
-  residue for memory-query, whose K6 row states the same caps.
+  residue for [792a7 memory-query](./792a_product-spec.md#792a7-added-memory-query), whose K6 row states the same caps.
 - **Rationale:** [792d51](#792d51-command-line-surface-routing-requirements-arrive-with-their-scenarios): requirements arrive with the product scenarios they support.
 - **Alternatives:** specify the per-point silhouette now as a **MAY**. Rejected because the query
   makes it a contract there.
@@ -1134,7 +1134,7 @@ decisions as `792dN`, continuing the sequence.
     the two vault-state checks behind `engram update`'s notices. The question-note helpers in
     `qa.go` and the two detectors in `update.go` are its realization because they answer
     vocabulary questions; how `engram update` runs them and renders their result is
-    install-and-update's ([792c7j1](./792c_implementation-plan.md#792c7j1-install-and-update-product-spec)), so `update_test`'s `TestWriteUpdateReport_VocabMigrationHint`,
+    [792a11 install-and-update](./792a_product-spec.md#792a11-added-install-and-update)'s ([792c7j1](./792c_implementation-plan.md#792c7j1-install-and-update-product-spec)), so `update_test`'s `TestWriteUpdateReport_VocabMigrationHint`,
     `TestWriteUpdateReport_VocabRegenReport`, `TestWriteUpdateReport_VocabSelfTagHint` and
     `TestRunUpdate_RegenVocabFlag_RunsRegenAndUpdatesReport` wait for it.
   - The dispatch tests `TestTargets_Vocab*` take the product IDs of the scenarios they assert
@@ -1143,17 +1143,17 @@ decisions as `792dN`, continuing the sequence.
     "retirement semantics" consequence (demote and record a supersession) is stale since retirement
     deletes ([792a6p](./792a_product-spec.md#792a6p-retiring-a-term)) and is dropped. ADR-0011 keeps its history, with its assignment clause pointing
     at [792b20](./792b_technical-spec.md#792b20-added-vocabulary-engine). The c2 vocab lifecycle flowchart becomes [792b20b](./792b_technical-spec.md#792b20b-sequences); its query-payload step is
-    memory-query's (`refit_pending`, now in that node's shipped artifacts) and its learn-skill step
+    [792a7 memory-query](./792a_product-spec.md#792a7-added-memory-query)'s (`refit_pending`, now in that node's shipped artifacts) and its learn-skill step
     is learn's ([792d32](#792d32-skill-product-specs-are-derived-from-the-shipped-skillmd)). `vault-concurrency-safe-writes` loses its last requirement (bootstrap and
     refit hold the lock: [792b20c10](./792b_technical-spec.md#792b20c10-bootstrap), [792b20c15](./792b_technical-spec.md#792b20c15-refit-routing)) and is deleted; `vault-vocab-lifecycle` keeps only the
     ride-along residue for [792c7f1](./792c_implementation-plan.md#792c7f1-memory-query-product-spec) ([792d85](#792d85-mixed-sources-of-controlled-vocabulary-are-split-by-owner)).
   - Remaining tests in its files verify no [792b20](./792b_technical-spec.md#792b20-added-vocabulary-engine) scenario: `TestNewVocabDeps_ClosuresCalled`
     (composition wiring), `TestIdAndDateFromNoteFilename` (a filename helper used by reparenting,
-    registration and update, left to vault-migration [792c7i1](./792c_implementation-plan.md#792c7i1-vault-migration-product-spec)), and
+    registration and update, left to [792a10 vault-migration](./792a_product-spec.md#792a10-added-vault-migration) [792c7i1](./792c_implementation-plan.md#792c7i1-vault-migration-product-spec)), and
     `TestVocabDefinitionNote_FloorPromoted` and `TestVocabDefinitionNote_ReturnedWhenOnlyItem` (query
-    behavior, left to memory-query [792c7f1](./792c_implementation-plan.md#792c7f1-memory-query-product-spec)). The vocabulary tests in `query_vault_meta_test`,
-    `skillfields_survival_test` and `exchangefields_survival_test` belong to memory-query,
-    skill-runbook-registration and parent-sync.
+    behavior, left to [792a7 memory-query](./792a_product-spec.md#792a7-added-memory-query) [792c7f1](./792c_implementation-plan.md#792c7f1-memory-query-product-spec)). The vocabulary tests in `query_vault_meta_test`,
+    `skillfields_survival_test` and `exchangefields_survival_test` belong to [792a7 memory-query](./792a_product-spec.md#792a7-added-memory-query),
+    [792a12 skill-runbook-registration](./792a_product-spec.md#792a12-added-skill-runbook-registration) and [792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync).
 - **Divergences noted ([792d33](#792d33-behavior-is-described-not-validated)):** `engram update --regen-vocab` rewrites and deletes vault files
   without taking the vault lock, unlike every other vocabulary writer; `engram vocab
   tag-definitions` lists the vault before taking the lock.
@@ -1176,11 +1176,11 @@ decisions as `792dN`, continuing the sequence.
     [792a7o](./792a_product-spec.md#792a7o-the-newest-chunks) and [792a7q](./792a_product-spec.md#792a7q-limit).
   - `runbook-lexical-triggers` keeps three residue requirements: the served `--text` round trip and
     its 2 KB truncation for vault-serving ([792c7s1](./792c_implementation-plan.md#792c7s1-vault-serving-product-spec)), the shim's verbatim `--text` instruction for
-    ambient-guidance ([792c7r1](./792c_implementation-plan.md#792c7r1-ambient-guidance-product-spec)), and the authoring guidance for trigger cues for write-memory
-    ([792c7l1](./792c_implementation-plan.md#792c7l1-write-memory-product-spec)). Their sources now list them. The `triggers` field and its flags were already note-writing's
-    ([792a3d](./792a_product-spec.md#792a3d-runbook-red-flags-and-triggers), [792a3g](./792a_product-spec.md#792a3g-argument-validation)) and note-revision's ([792a4b](./792a_product-spec.md#792a4b-field-replacement)).
+    ambient-guidance ([792c7r1](./792c_implementation-plan.md#792c7r1-ambient-guidance-product-spec)), and the authoring guidance for trigger cues for [792a13 write-memory](./792a_product-spec.md#792a13-added-write-memory)
+    ([792c7l1](./792c_implementation-plan.md#792c7l1-write-memory-product-spec)). Their sources now list them. The `triggers` field and its flags were already [792a3 note-writing](./792a_product-spec.md#792a3-added-note-writing)'s
+    ([792a3d](./792a_product-spec.md#792a3d-runbook-red-flags-and-triggers), [792a3g](./792a_product-spec.md#792a3g-argument-validation)) and [792a4 note-revision](./792a_product-spec.md#792a4-added-note-revision)'s ([792a4b](./792a_product-spec.md#792a4b-field-replacement)).
   - `vault-note-identity` loses the query clauses of its CRLF reader requirement ([792a7zg](./792a_product-spec.md#792a7zg-crlf-notes)); the
-    check and count clauses remain, as a residue, for vault-health ([792c7h1](./792c_implementation-plan.md#792c7h1-vault-health-product-spec)) and vault-counting
+    check and count clauses remain, as a residue, for vault-health ([792c7h1](./792c_implementation-plan.md#792c7h1-vault-health-product-spec)) and [792a8 vault-counting](./792a_product-spec.md#792a8-added-vault-counting)
     ([792c7g1](./792c_implementation-plan.md#792c7g1-vault-counting-product-spec)).
   - `vault-vocab-lifecycle` is deleted: its supersession ride-along was its last requirement ([792a7n](./792a_product-spec.md#792a7n-superseding-notes-ride-along)).
   - ADR-0026's retrieval decision is [792a7v](./792a_product-spec.md#792a7v-runbooks-rank-like-other-notes). Its lexical-trigger amendment stays for
@@ -1201,12 +1201,12 @@ decisions as `792dN`, continuing the sequence.
     candidate notes ([792a7g](./792a_product-spec.md#792a7g-clusters), [792a7h](./792a_product-spec.md#792a7h-candidate-notes)), the content budget ([792a7r](./792a_product-spec.md#792a7r-chunk-content-budget)), `engram show-chunk` ([792a7t](./792a_product-spec.md#792a7t-reading-one-chunk)), the
     project filter ([792a7u](./792a_product-spec.md#792a7u-project-filter)), `engram show` ([792a7x](./792a_product-spec.md#792a7x-reading-one-note)), `query-chunks` ([792a7zf](./792a_product-spec.md#792a7zf-searching-chunks-alone)), the read-only rule
     ([792a7zh](./792a_product-spec.md#792a7zh-a-query-changes-nothing)), and the first-indexed time of a chunk ([792a7p](./792a_product-spec.md#792a7p-when-a-chunk-was-first-indexed)).
-  - Component sections extended by this node: command-line-surface gains [792b2c7](./792b_technical-spec.md#792b2c7-note-lookup) (note lookup) and
-    [792b2c8](./792b_technical-spec.md#792b2c8-chunk-lookup) (chunk lookup), the routing requirements [792d51](#792d51-command-line-surface-routing-requirements-arrive-with-their-scenarios) deferred to it; wikilink-graph gains [792b13c3](./792b_technical-spec.md#792b13c3-link-targets)
-    (link targets), the parsing contract [792d75](#792d75-wikilink-graphs-link-graph-and-resolution-contracts-arrive-with-their-scenarios) deferred to it; chunk-index-store gains [792b18c14](./792b_technical-spec.md#792b18c14-first-indexed-time)
-    (first-indexed time); transcript-reader gains [792b15c6](./792b_technical-spec.md#792b15c6-last-timestamp) (last timestamp), which was not on this
-    node's list but is the other half of the first-indexed time; similarity-clustering gains [792b19c5](./792b_technical-spec.md#792b19c5-per-point-silhouette)
-    (per-point silhouette, [792d88](#792d88-similarity-clustering-scope-and-the-tests-it-leaves)). text-embedder, embedding-sidecar and vocabulary-engine gain
+  - Component sections extended by this node: [792b2 command-line-surface](./792b_technical-spec.md#792b2-added-command-line-surface) gains [792b2c7](./792b_technical-spec.md#792b2c7-note-lookup) (note lookup) and
+    [792b2c8](./792b_technical-spec.md#792b2c8-chunk-lookup) (chunk lookup), the routing requirements [792d51](#792d51-command-line-surface-routing-requirements-arrive-with-their-scenarios) deferred to it; [792b13 wikilink-graph](./792b_technical-spec.md#792b13-added-wikilink-graph) gains [792b13c3](./792b_technical-spec.md#792b13c3-link-targets)
+    (link targets), the parsing contract [792d75](#792d75-wikilink-graphs-link-graph-and-resolution-contracts-arrive-with-their-scenarios) deferred to it; [792b18 chunk-index-store](./792b_technical-spec.md#792b18-added-chunk-index-store) gains [792b18c14](./792b_technical-spec.md#792b18c14-first-indexed-time)
+    (first-indexed time); [792b15 transcript-reader](./792b_technical-spec.md#792b15-added-transcript-reader) gains [792b15c6](./792b_technical-spec.md#792b15c6-last-timestamp) (last timestamp), which was not on this
+    node's list but is the other half of the first-indexed time; [792b19 similarity-clustering](./792b_technical-spec.md#792b19-added-similarity-clustering) gains [792b19c5](./792b_technical-spec.md#792b19c5-per-point-silhouette)
+    (per-point silhouette, [792d88](#792d88-similarity-clustering-scope-and-the-tests-it-leaves)). [792b9 text-embedder](./792b_technical-spec.md#792b9-added-text-embedder), [792b10 embedding-sidecar](./792b_technical-spec.md#792b10-added-embedding-sidecar) and [792b20 vocabulary-engine](./792b_technical-spec.md#792b20-added-vocabulary-engine) gain
     mappings only.
   - Tests renamed here: the `RunShow` and `RunShowChunk` tests, the `ParseWikilinks` tests, the
     first-indexed-time tests of `ingest_test` and `chunk/ingestedat_test`, the transcript timestamp
@@ -1251,7 +1251,7 @@ decisions as `792dN`, continuing the sequence.
 - **Choice:**
   - [792b21](./792b_technical-spec.md#792b21-added-recency-ranking) specifies the recency factor, a note's age, the creation date read from a note, turn
     positions and the newest chunks. How the factor is applied to note and chunk scores, and the age of
-    a chunk, are the query-engine's ([792c7f5](./792c_implementation-plan.md#792c7f5-query-engine-tech-spec)), so `RunQuery`'s three recency tests wait there:
+    a chunk, are the [792b24 query-engine](./792b_technical-spec.md#792b24-added-query-engine)'s ([792c7f5](./792c_implementation-plan.md#792c7f5-query-engine-tech-spec)), so `RunQuery`'s three recency tests wait there:
     `TestRunQuery_NoteRecencyDecayRanksFreshLastUsedFirst`,
     `TestRunQuery_RecencyLiftsRecentChunkOverStaleHighCosine` and
     `TestCluster_NewerChunkRanksAboveOlderWithSameVector`.
@@ -1262,7 +1262,7 @@ decisions as `792dN`, continuing the sequence.
     value that only those helpers read, and `TestRecencyEvalDiscriminatingHalfLife`, an in-suite
     experiment that sweeps half-lives and logs the ranks.
   - The six query reader tests of `crlf_readers_internal_test` ([792d91](#792d91-memory-query-requirements-beyond-the-legacy-text-and-the-components-extended)) go to the component each tests,
-    not all to query-engine: `TestParseCreatedFromNote_CRLFNote` is [792b21c3a6](./792b_technical-spec.md#792b21c3a-scenarios);
+    not all to [792b24 query-engine](./792b_technical-spec.md#792b24-added-query-engine): `TestParseCreatedFromNote_CRLFNote` is [792b21c3a6](./792b_technical-spec.md#792b21c3a-scenarios);
     `TestTriggerIndex_CRLFRunbook` goes to runbook-trigger-matching ([792c7f3](./792c_implementation-plan.md#792c7f3-runbook-trigger-matching-tech-spec)) and
     `TestCapRedFlagsForPreview_CRLFNote` to query-payload-renderer ([792c7f4](./792c_implementation-plan.md#792c7f4-query-payload-renderer-tech-spec)).
   - [792a7](./792a_product-spec.md#792a7-added-memory-query) gains the scenarios [792a7f1e](./792a_product-spec.md#792a7f1-uat-scenarios) (a late turn is lifted) and [792a7zg1d](./792a_product-spec.md#792a7zg1-uat-scenarios) to [792a7zg1g](./792a_product-spec.md#792a7zg1-uat-scenarios) (the
@@ -1289,7 +1289,7 @@ decisions as `792dN`, continuing the sequence.
     `TestRunQuery_NoPhrasesAndNoTextIsRejected` and `TestRunQuery_RunbookCompetesInMainMatchedSet` to
     query-engine ([792c7f5](./792c_implementation-plan.md#792c7f5-query-engine-tech-spec)).
   - ADR-0026's 2026-09-20 amendment is replaced by a pointer to [792b22](./792b_technical-spec.md#792b22-added-runbook-trigger-matching) and [792a7za](./792a_product-spec.md#792a7za-a-trigger-hit-comes-first). The served `--text`
-    clause stays in `runbook-lexical-triggers` for vault-serving ([792d90](#792d90-mixed-sources-of-memory-query-are-split-by-owner)).
+    clause stays in `runbook-lexical-triggers` for [792a20 vault-serving](./792a_product-spec.md#792a20-added-vault-serving) ([792d90](#792d90-mixed-sources-of-memory-query-are-split-by-owner)).
 - **Rationale:** [792c3c](./792c_implementation-plan.md#792c3c-id-rules) and [792d52](#792d52-test-ids-product-scenario-for-end-to-end-checks-technical-scenario-otherwise).
 - **Alternatives:** none apply.
 
@@ -1299,16 +1299,16 @@ decisions as `792dN`, continuing the sequence.
   - [792b23](./792b_technical-spec.md#792b23-added-query-payload-renderer) specifies the document and its keys, item labels, the order and the limit, the chunk content
     budget, lazy chunks, the budget block, the stage timings and the red-flag preview. The contents of
     the clusters and of `candidate_l2s`, the default limit of 20 and the default recent-fill count are
-    the query-engine's ([792c7f5](./792c_implementation-plan.md#792c7f5-query-engine-tech-spec)): it decides what is in the payload and resolves the flags before the
+    the [792b24 query-engine](./792b_technical-spec.md#792b24-added-query-engine)'s ([792c7f5](./792c_implementation-plan.md#792c7f5-query-engine-tech-spec)): it decides what is in the payload and resolves the flags before the
     renderer sees them. `TestRunQuery_DefaultLimitCapsLargeResultSet` and
     `TestResolveRecentFill_DefaultsAndOverrides` go there, although they sit in the files this node
     examined.
   - The keys that lead a payload with pending offers, and `from_parent` in a merged payload, are
-    curate's and parent-sync's, so their tests wait for those nodes ([792d51](#792d51-command-line-surface-routing-requirements-arrive-with-their-scenarios)):
+    [792a22 curate](./792a_product-spec.md#792a22-added-curate)'s and [792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync)'s, so their tests wait for those nodes ([792d51](#792d51-command-line-surface-routing-requirements-arrive-with-their-scenarios)):
     `TestQueryPayload_PendingOffersHintOmittedWhenFalse`, `TestQueryPayload_PendingOffersHintPresentWhenTrue`,
     `TestQueryPayload_PendingOffersLeadPayload` and `TestPendingOfferCurateInstruction_IsExpectedUpkeep`
     to curate ([792c7u1](./792c_implementation-plan.md#792c7u1-curate-product-spec)), and `TestQueryPayload_NoFromParentKeyWithoutMerge` to parent-sync ([792c7t1](./792c_implementation-plan.md#792c7t1-parent-sync-product-spec)).
-  - Timings are split as the code splits them: the query-engine takes the readings that end the scan,
+  - Timings are split as the code splits them: the [792b24 query-engine](./792b_technical-spec.md#792b24-added-query-engine) takes the readings that end the scan,
     embed, cluster and nominate stages and [792b23c7](./792b_technical-spec.md#792b23c7-stage-timings) owns the block and the final reading, so
     `TestRunQuery_TimingsFlag` is renamed here and exercises the whole run.
   - Tests that run `RunQuery` and assert a renderer requirement take technical IDs ([792d52](#792d52-test-ids-product-scenario-for-end-to-end-checks-technical-scenario-otherwise)), as in [792d94](#792d94-runbook-trigger-matching-scope-and-the-tests-it-leaves).
@@ -1316,7 +1316,7 @@ decisions as `792dN`, continuing the sequence.
     kind test are renamed here ([792d91](#792d91-memory-query-requirements-beyond-the-legacy-text-and-the-components-extended), [792d93](#792d93-recency-ranking-scope-and-the-tests-it-leaves)).
 - **Rationale:** [792c3c](./792c_implementation-plan.md#792c3c-id-rules), [792d51](#792d51-command-line-surface-routing-requirements-arrive-with-their-scenarios) and [792d52](#792d52-test-ids-product-scenario-for-end-to-end-checks-technical-scenario-otherwise).
 - **Alternatives:** keep the cluster content in the renderer. Rejected because the clustering and the
-  candidate ranking are the query-engine's choices, and the renderer only prints them.
+  candidate ranking are the [792b24 query-engine](./792b_technical-spec.md#792b24-added-query-engine)'s choices, and the renderer only prints them.
 
 ## 792d96 query-engine scope, legacy removal and the tests it leaves
 
@@ -1326,13 +1326,13 @@ decisions as `792dN`, continuing the sequence.
     filter, the explore half in four requirements, superseding notes, the metadata pass, the newest
     chunks, the read-only rule, the refit flag, the recall mirror, the chunk-only search and the stage
     readings. The pending-offer exclusion and its payload flag are curate's, and the merge with a parent
-    vault is parent-sync's, so their tests wait for those nodes ([792d51](#792d51-command-line-surface-routing-requirements-arrive-with-their-scenarios), [792d95](#792d95-query-payload-renderer-scope-and-the-tests-it-leaves)):
+    vault is [792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync)'s, so their tests wait for those nodes ([792d51](#792d51-command-line-surface-routing-requirements-arrive-with-their-scenarios), [792d95](#792d95-query-payload-renderer-scope-and-the-tests-it-leaves)):
     `TestRunQuery_ExcludesPendingSkillRunbookNote` joins the four pending-offer renderer tests in
     curate ([792c7u1](./792c_implementation-plan.md#792c7u1-curate-product-spec)).
   - The `RunQuery` tests take technical IDs ([792d52](#792d52-test-ids-product-scenario-for-end-to-end-checks-technical-scenario-otherwise)) except `TestEngramQuery_F6F91_EndToEnd`, which
     builds the production binary, runs `engram embed apply` and `engram query` as subprocesses and
     asserts the observable payload, so it takes the product scenario [792a7g1a](./792a_product-spec.md#792a7g1-uat-scenarios). The two
-    `ListIndexes` tests of `query_chunks_test` verify the chunk-index-store's listing contract and take
+    `ListIndexes` tests of `query_chunks_test` verify the [792b18 chunk-index-store](./792b_technical-spec.md#792b18-added-chunk-index-store)'s listing contract and take
     [792b18c12a1](./792b_technical-spec.md#792b18c12a-scenarios).
   - Four tests are listed as no-scenario tests: `TestMergeClusterReps_*` in
     `query_synthesize_l2_helpers_test`. `mergeClusterReps` is called with an empty matched set, by
@@ -1361,8 +1361,8 @@ decisions as `792dN`, continuing the sequence.
     fenced-link and `.md` scenarios. The unresolved-link report stays with vault-health ([792c7h1](./792c_implementation-plan.md#792c7h1-vault-health-product-spec)).
   - ADR-0018 is deleted. ADR-0007 keeps its status line and its G0 consequence for [792c7h1](./792c_implementation-plan.md#792c7h1-vault-health-product-spec); its
     decision is [792b13c4](./792b_technical-spec.md#792b13c4-link-graph). The note-reader CRLF clause for `engram count` is out of `vault-note-identity`
-    ([792a8d](./792a_product-spec.md#792a8d-notes-that-cannot-be-counted)), which keeps the `engram check` reader and its scenario for vault-health.
-  - [792b3c4](./792b_technical-spec.md#792b3c4-vault-markdown-listing) gains `Supports: 792a8a1e, 792a8b1c` (the vault root listing), and [792b25d](./792b_technical-spec.md#792b25d-product-scenario-mapping) maps those scenarios
+    ([792a8d](./792a_product-spec.md#792a8d-notes-that-cannot-be-counted)), which keeps the `engram check` reader and its scenario for [792a9 vault-health](./792a_product-spec.md#792a9-added-vault-health).
+  - [792b3c4](./792b_technical-spec.md#792b3c4-vault-markdown-listing) gains `Supports:` [792a8a1e](./792a_product-spec.md#792a8a1-uat-scenarios), [792a8b1c](./792a_product-spec.md#792a8b1-uat-scenarios) (the vault root listing), and [792b25d](./792b_technical-spec.md#792b25d-product-scenario-mapping) maps those scenarios
     to it. The `RunCount` tests take technical IDs ([792d52](#792d52-test-ids-product-scenario-for-end-to-end-checks-technical-scenario-otherwise)); `TestTargets_CountEmptyVault`, which runs the
     command through dispatch, takes [792a8b1c](./792a_product-spec.md#792a8b1-uat-scenarios). `TestRunCount_OsDepsReadRealVault` checks only the wiring of
     the production dependencies and is a no-scenario test.
@@ -1390,7 +1390,7 @@ decisions as `792dN`, continuing the sequence.
   - [792b25](./792b_technical-spec.md#792b25-added-vault-counter) specifies eight requirements: mode selection, attribute membership counting, filters,
     uncountable notes, the attribute report, the incoming-link report, the independence of the two
     measures, and the absence of writes. The link graph, in-degree and link parsing are
-    wikilink-graph's ([792d97](#792d97-vault-counting-scope-and-the-behaviors-the-code-shows)). The five requirements of the OpenSpec `cli-count` spec map
+    [792b13 wikilink-graph](./792b_technical-spec.md#792b13-added-wikilink-graph)'s ([792d97](#792d97-vault-counting-scope-and-the-behaviors-the-code-shows)). The five requirements of the OpenSpec `cli-count` spec map
     to these, and the spec is deleted.
   - `TestRunCount_AbsentAttrBucket` takes [792b25c2a5](./792b_technical-spec.md#792b25c2a-scenarios), the first scenario it verifies, and lists
     [792b25c5a2](./792b_technical-spec.md#792b25c5a-scenarios) as `split deferred` ([792d10](#792d10-test-renaming)). `TestRunCount_OsDepsReadRealVault` checks only the
@@ -1404,8 +1404,8 @@ decisions as `792dN`, continuing the sequence.
 - **Choice:**
   - [792a9](./792a_product-spec.md#792a9-added-vault-health) has ten requirements ([792a9a](./792a_product-spec.md#792a9a-the-check-report) to [792a9j](./792a_product-spec.md#792a9j-crlf-notes-embed-as-lf)). The checks are the ones `engram check` runs: G0, G3,
     M5 and the sidecar schema check, which the code calls S1. `engram embed status` and `engram embed apply`
-    are specified in embedding-sidecar as [792b10c10](./792b_technical-spec.md#792b10c10-embedding-census) to [792b10c12](./792b_technical-spec.md#792b10c12-embedding-run) ([792d66](#792d66-embedding-sidecar-scope-and-the-partial-model-mismatch-gap)), with their classification by
-    [792b10c7](./792b_technical-spec.md#792b10c7-state-classification), and the unresolved-link list in wikilink-graph as [792b13c6](./792b_technical-spec.md#792b13c6-unresolved-links) ([792d75](#792d75-wikilink-graphs-link-graph-and-resolution-contracts-arrive-with-their-scenarios)). The checker's own
+    are specified in [792b10 embedding-sidecar](./792b_technical-spec.md#792b10-added-embedding-sidecar) as [792b10c10](./792b_technical-spec.md#792b10c10-embedding-census) to [792b10c12](./792b_technical-spec.md#792b10c12-embedding-run) ([792d66](#792d66-embedding-sidecar-scope-and-the-partial-model-mismatch-gap)), with their classification by
+    [792b10c7](./792b_technical-spec.md#792b10c7-state-classification), and the unresolved-link list in [792b13 wikilink-graph](./792b_technical-spec.md#792b13-added-wikilink-graph) as [792b13c6](./792b_technical-spec.md#792b13c6-unresolved-links) ([792d75](#792d75-wikilink-graphs-link-graph-and-resolution-contracts-arrive-with-their-scenarios)). The checker's own
     contract is [792b26](./792b_technical-spec.md#792b26-added-vault-invariant-checker) ([792c7h2](./792c_implementation-plan.md#792c7h2-vault-invariant-checker-tech-spec)).
   - ADR-0007 is deleted; its decision was [792b13c4](./792b_technical-spec.md#792b13c4-link-graph) ([792d97](#792d97-vault-counting-scope-and-the-behaviors-the-code-shows)) and its consequence is the rationale of [792a9b](./792a_product-spec.md#792a9b-links-that-should-resolve).
     The KEYSTONE note and the G0 row of `memory-invariants` and c3's recurring defect shape are ported to
@@ -1460,12 +1460,12 @@ decisions as `792dN`, continuing the sequence.
   - The three notice and routing scenarios [792a10a1d](./792a_product-spec.md#792a10a1-uat-scenarios), [792a10b1a](./792a_product-spec.md#792a10b1-uat-scenarios) and [792a10b1b](./792a_product-spec.md#792a10b1-uat-scenarios), and the notice output of
     [792a10a1a](./792a_product-spec.md#792a10a1-uat-scenarios) to [792a10a1c](./792a_product-spec.md#792a10a1-uat-scenarios), concern `engram update`'s report writer and its flag dispatch. They are left
     unmapped to wait for self-installer ([792c7j2](./792c_implementation-plan.md#792c7j2-self-installer-tech-spec)), as [792d51](#792d51-command-line-surface-routing-requirements-arrive-with-their-scenarios) and [792d61](#792d61-note-document-formats-edit-crlf-and-field-survival-contracts-arrive-with-their-scenarios) did for other later owners. The
-    flat-vault detection is note-reparenting's ([792b27c1](./792b_technical-spec.md#792b27c1-flat-vault-detection)), and the missing-identity detection is
-    note-provenance's ([792b11c6](./792b_technical-spec.md#792b11c6-notes-a-backfill-could-stamp)).
+    flat-vault detection is [792b27 note-reparenting](./792b_technical-spec.md#792b27-added-note-reparenting)'s ([792b27c1](./792b_technical-spec.md#792b27c1-flat-vault-detection)), and the missing-identity detection is
+    [792b11 note-provenance](./792b_technical-spec.md#792b11-added-note-provenance)'s ([792b11c6](./792b_technical-spec.md#792b11c6-notes-a-backfill-could-stamp)).
   - The backfill is specified in note-provenance ([792b11c5](./792b_technical-spec.md#792b11c5-repository-for-a-backfill) to [792b11c7](./792b_technical-spec.md#792b11c7-identity-backfill)), as [792d67](#792d67-note-provenance-covers-detection-and-the-first-write-stamp) said, and the ID and date
-    of a filename in luhmann-addressing ([792b7c6](./792b_technical-spec.md#792b7c6-id-and-date-from-a-filename)). similarity-clustering is not extended: the derive step
+    of a filename in luhmann-addressing ([792b7c6](./792b_technical-spec.md#792b7c6-id-and-date-from-a-filename)). [792b19 similarity-clustering](./792b_technical-spec.md#792b19-added-similarity-clustering) is not extended: the derive step
     takes sidecar vectors and measures them with [792b10c8](./792b_technical-spec.md#792b10c8-cosine-similarity), and uses no clustering. The link rewrite is its own
-    pattern over note text and is not wikilink-graph's parser, so wikilink-graph gains no mapping.
+    pattern over note text and is not [792b13 wikilink-graph](./792b_technical-spec.md#792b13-added-wikilink-graph)'s parser, so [792b13 wikilink-graph](./792b_technical-spec.md#792b13-added-wikilink-graph) gains no mapping.
   - `update-flat-vault-luhmann-notice` keeps its detection requirement, `update-reparent-luhmann-batch` its
     derive and apply parameters, for [792c7i2](./792c_implementation-plan.md#792c7i2-note-reparenting-tech-spec). `vault-note-identity` loses its two backfill requirements.
 - **Divergences noted ([792d33](#792d33-behavior-is-described-not-validated)):**
@@ -1479,7 +1479,7 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** [792d30](#792d30-components-are-migrated-once-and-extended-later), [792d51](#792d51-command-line-surface-routing-requirements-arrive-with-their-scenarios), [792d61](#792d61-note-document-formats-edit-crlf-and-field-survival-contracts-arrive-with-their-scenarios), [792d67](#792d67-note-provenance-covers-detection-and-the-first-write-stamp) and [792d69](#792d69-mixed-sources-of-note-revision-are-split-by-owner).
 - **Alternatives:** map the notice scenarios to the detection requirements and leave the report writer
   unspecified. Rejected because the notice is what the user sees, and its owner is the next node of
-  install-and-update.
+  [792a11 install-and-update](./792a_product-spec.md#792a11-added-install-and-update).
 
 ## 792d102 note-reparenting scope and the tests it leaves
 
@@ -1489,9 +1489,9 @@ decisions as `792dN`, continuing the sequence.
     notes, the apply flow and the preview. Its derive and apply parameters (top 3, floor 0.75, ingest then
     prune) are in [792b27c2](./792b_technical-spec.md#792b27c2-candidate-selection) and [792b27c9](./792b_technical-spec.md#792b27c9-apply-flow), so the OpenSpec file that kept them is deleted.
   - `TestVaultHasOnlyTopLevelNotes` verifies the detection and takes [792b27c1a1](./792b_technical-spec.md#792b27c1a-scenarios). The notice itself,
-    `TestWriteUpdateReport_LuhmannBranchingHint`, and the command's routing are install-and-update's.
+    `TestWriteUpdateReport_LuhmannBranchingHint`, and the command's routing are [792a11 install-and-update](./792a_product-spec.md#792a11-added-install-and-update)'s.
   - Tests of the rename and rewrite step that run it for skill adoption (`TestAdoptSkillNote_ConvertsCRLFNote`)
-    belong to skill-runbook-registration, which extends [792b27c6](./792b_technical-spec.md#792b27c6-rename-and-link-rewrite) and [792b27c7](./792b_technical-spec.md#792b27c7-rename-safety).
+    belong to [792a12 skill-runbook-registration](./792a_product-spec.md#792a12-added-skill-runbook-registration), which extends [792b27c6](./792b_technical-spec.md#792b27c6-rename-and-link-rewrite) and [792b27c7](./792b_technical-spec.md#792b27c7-rename-safety).
   - `TestRenameAndRewriteReferences_CRLFProperty` checks several rename-safety scenarios in one property and
     takes the first, [792b27c7a1](./792b_technical-spec.md#792b27c7a-scenarios).
 - **Rationale:** [792d10](#792d10-test-renaming), [792d30](#792d30-components-are-migrated-once-and-extended-later), [792d52](#792d52-test-ids-product-scenario-for-end-to-end-checks-technical-scenario-otherwise) and [792d101](#792d101-vault-migration-scope-and-the-behaviors-the-code-shows).
@@ -1512,8 +1512,8 @@ decisions as `792dN`, continuing the sequence.
     gate, the hand-off, flag routing, the post-sync checks and the report's header, notices and exit status.
     harness-deploy-sync ([792b29](./792b_technical-spec.md#792b29-added-harness-deploy-sync)) owns harness detection, the deploy set, the engram-owned root, the links,
     the cleanup, the adoption, the guidance gating and the lines the report shows for each harness.
-  - subprocess-runner gains [792b4c4](./792b_technical-spec.md#792b4c4-run-with-the-callers-streams) (the spawn that shares the caller's streams) and chunk-index-store
-    gains [792b18c15](./792b_technical-spec.md#792b18c15-reporting-a-prune-backlog) (the backlog check the two chunk-index notices use). command-line-surface gains
+  - [792b4 subprocess-runner](./792b_technical-spec.md#792b4-added-subprocess-runner) gains [792b4c4](./792b_technical-spec.md#792b4c4-run-with-the-callers-streams) (the spawn that shares the caller's streams) and [792b18 chunk-index-store](./792b_technical-spec.md#792b18-added-chunk-index-store)
+    gains [792b18c15](./792b_technical-spec.md#792b18c15-reporting-a-prune-backlog) (the backlog check the two chunk-index notices use). [792b2 command-line-surface](./792b_technical-spec.md#792b2-added-command-line-surface) gains
     nothing: the `update` command's flags and routing are the update run's, and the generic result
     mapping it already specifies needs no new requirement.
   - A product scenario about the report's text maps to the component that renders it, and a test that
@@ -1536,7 +1536,7 @@ decisions as `792dN`, continuing the sequence.
   - The registration offers are printed before the report when the stdin is not a terminal or on a dry
     run, because registration writes to the output directly.
   - Manifest deploy mode is implemented and tested, but no shipped harness uses it: both Claude Code and Pi
-    run in symlink mode. It is specified by harness-deploy-sync as an alternative route to [792a11i1a](./792a_product-spec.md#792a11i1-uat-scenarios).
+    run in symlink mode. It is specified by [792b29 harness-deploy-sync](./792b_technical-spec.md#792b29-added-harness-deploy-sync) as an alternative route to [792a11i1a](./792a_product-spec.md#792a11i1-uat-scenarios).
 - **Rationale:** [792d30](#792d30-components-are-migrated-once-and-extended-later), [792d51](#792d51-command-line-surface-routing-requirements-arrive-with-their-scenarios), [792d52](#792d52-test-ids-product-scenario-for-end-to-end-checks-technical-scenario-otherwise), [792d101](#792d101-vault-migration-scope-and-the-behaviors-the-code-shows) and [792d102](#792d102-note-reparenting-scope-and-the-tests-it-leaves).
 - **Alternatives:** put the report's notices in the capabilities that detect them. Rejected because the
   report's order and silence rules are one contract, and the notice scenarios of [792a10](./792a_product-spec.md#792a10-added-vault-migration) already wait for
@@ -1548,14 +1548,14 @@ decisions as `792dN`, continuing the sequence.
   - [792b28](./792b_technical-spec.md#792b28-added-self-installer) specifies fifteen requirements. It owns the report and its notices ([792d101](#792d101-vault-migration-scope-and-the-behaviors-the-code-shows), [792d103](#792d103-install-and-update-scope-ownership-of-the-update-run-and-the-behaviors-the-code-shows)): the text
     and detection of each notice stay with the capability that owns the state, while [792b28c13](./792b_technical-spec.md#792b28c13-notices) owns that
     each is printed exactly when its flag is set, in a fixed order. The vault-ID notice keeps its scenario in
-    [792b5c13a2](./792b_technical-spec.md#792b5c13a-scenarios), and the pending-offer, outbox and registration-error lines keep theirs for curate, parent-sync
-    and skill-runbook-registration.
+    [792b5c13a2](./792b_technical-spec.md#792b5c13a-scenarios), and the pending-offer, outbox and registration-error lines keep theirs for [792a22 curate](./792a_product-spec.md#792a22-added-curate), [792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync)
+    and [792a12 skill-runbook-registration](./792a_product-spec.md#792a12-added-skill-runbook-registration).
   - The tests of the vocabulary, Luhmann, identity and chunk-index notices that [792d89](#792d89-vocabulary-engine-scope-legacy-removal-and-the-tests-it-leaves) and [792d101](#792d101-vault-migration-scope-and-the-behaviors-the-code-shows) deferred
     take the [792b28](./792b_technical-spec.md#792b28-added-self-installer) IDs: they exercise the report writer. The product scenarios [792a6v1a](./792a_product-spec.md#792a6v1-uat-scenarios) to [792a6w1c](./792a_product-spec.md#792a6w1-uat-scenarios),
     [792a10a1a](./792a_product-spec.md#792a10a1-uat-scenarios) to [792a10b1b](./792a_product-spec.md#792a10b1-uat-scenarios), [792a10j1a](./792a_product-spec.md#792a10j1-uat-scenarios), [792a10j1b](./792a_product-spec.md#792a10j1-uat-scenarios), [792a10k1a](./792a_product-spec.md#792a10k1-uat-scenarios) and [792a10k1f](./792a_product-spec.md#792a10k1-uat-scenarios) are mapped here as well as to the
     detecting component.
   - `TestInvariant_U1_SkillsSrcMissingSentinel` takes [792b28c15a6](./792b_technical-spec.md#792b28c15a-scenarios) (the typed error survives the report tail);
-    the same sentinel's source, the deploy-set planning, is harness-deploy-sync's. `update_test`'s fixtures
+    the same sentinel's source, the deploy-set planning, is [792b29 harness-deploy-sync](./792b_technical-spec.md#792b29-added-harness-deploy-sync)'s. `update_test`'s fixtures
     (`stubCommander`, `liveUpdateFS`) and the generated mock stay unrenamed helpers.
 - **Divergences noted ([792d33](#792d33-behavior-is-described-not-validated)):**
   - The handed-off run resolves its source again. In remote mode it clones the repository a second time and
@@ -1582,7 +1582,7 @@ decisions as `792dN`, continuing the sequence.
 - **Choice:**
   - [792b29](./792b_technical-spec.md#792b29-added-harness-deploy-sync) specifies seventeen requirements. It owns harness detection, the deploy set, the roots, the links,
     the cleanup, the first-sync findings, manifest mode and the harness sections of the report; the update
-    run, the install and the report header and notices are self-installer's ([792d104](#792d104-self-installer-scope-and-the-behaviors-the-code-shows)). The import detection
+    run, the install and the report header and notices are [792b28 self-installer](./792b_technical-spec.md#792b28-added-self-installer)'s ([792d104](#792d104-self-installer-scope-and-the-behaviors-the-code-shows)). The import detection
     that decides whether guidance is managed is here ([792b29c4](./792b_technical-spec.md#792b29c4-import-detection)); the hints that tell a user which `@import`
     line to add stay with ambient-guidance ([792c7r1](./792c_implementation-plan.md#792c7r1-ambient-guidance-product-spec)), which also owns the ADR-0022 citations in
     `agent-instructions/guidance/*.md` and the root `AGENTS.md`.
@@ -1622,13 +1622,13 @@ decisions as `792dN`, continuing the sequence.
 - **Choice:**
   - [792a12](./792a_product-spec.md#792a12-added-skill-runbook-registration) has twenty-two requirements ([792a12a](./792a_product-spec.md#792a12a-skill-files-are-never-changed) to [792a12v](./792a_product-spec.md#792a12v-skill-notes-behave-like-captured-runbooks)). The source scans keep their user-visible
     scenarios in the product spec ([792a12j](./792a_product-spec.md#792a12j-claude-code-skills-commands-and-synced-skills-are-found) to [792a12n](./792a_product-spec.md#792a12n-sources-are-read-only-for-detected-harnesses-and-names-come-from-the-file-system)), as the OpenSpec file did; their mechanics, such as
-    the package filters and the trust gate, are skill-source-discovery's ([792c7k2](./792c_implementation-plan.md#792c7k2-skill-source-discovery-tech-spec)). The accept actions, the
-    offer comparison, the answers and the declines file are skill-registration-ledger's ([792c7k3](./792c_implementation-plan.md#792c7k3-skill-registration-ledger-tech-spec)), so the
+    the package filters and the trust gate, are [792b30 skill-source-discovery](./792b_technical-spec.md#792b30-added-skill-source-discovery)'s ([792c7k2](./792c_implementation-plan.md#792c7k2-skill-source-discovery-tech-spec)). The accept actions, the
+    offer comparison, the answers and the declines file are [792b31 skill-registration-ledger](./792b_technical-spec.md#792b31-added-skill-registration-ledger)'s ([792c7k3](./792c_implementation-plan.md#792c7k3-skill-registration-ledger-tech-spec)), so the
     accept-action tests the catalog deferred to this node are renamed there.
   - The pending-offer warning that a write prints after an accepted registration (``warning: vault holds
     pending offer(s) awaiting curation …``) belongs to curate ([792c7u1](./792c_implementation-plan.md#792c7u1-curate-product-spec)) and is not specified here.
-  - The registration step of `engram update` takes [792b28c16](./792b_technical-spec.md#792b28c16-the-registration-step) in self-installer, with its six tests.
-  - The tests of the three skill fields that the catalog deferred to this node take note-document-format
+  - The registration step of `engram update` takes [792b28c16](./792b_technical-spec.md#792b28c16-the-registration-step) in [792b28 self-installer](./792b_technical-spec.md#792b28-added-self-installer), with its six tests.
+  - The tests of the three skill fields that the catalog deferred to this node take [792b6 note-document-format](./792b_technical-spec.md#792b6-added-note-document-format)
     scenarios ([792b6c9](./792b_technical-spec.md#792b6c9-skill-identity-fields), [792b6c10](./792b_technical-spec.md#792b6c10-rewrites-by-other-writers-keep-the-skill-identity-fields)): the render tests and the 15 survival tests of the other writers; the
     amend tests take the amend scenario and the two learn tests take [792b12c7](./792b_technical-spec.md#792b12c7-skill-identity-fields-are-not-written-by-learn).
 - **Divergences noted ([792d33](#792d33-behavior-is-described-not-validated)):**
@@ -1688,7 +1688,7 @@ decisions as `792dN`, continuing the sequence.
     `skilloffers_test` that resolve real sources) take ledger scenarios, as do the accept-action tests that
     [792c7k1](./792c_implementation-plan.md#792c7k1-skill-runbook-registration-product-spec) deferred (`TestRefreshSkill_ConvertsCRLFNote`, the two anchored-key tests and
     `TestAdoptSkillNote_ConvertsCRLFNote`).
-  - `TestResolveSkillPathBestEffort*` test a function of skill-source-discovery's file, but its only purpose
+  - `TestResolveSkillPathBestEffort*` test a function of [792b30 skill-source-discovery](./792b_technical-spec.md#792b30-added-skill-source-discovery)'s file, but its only purpose
     is the eligibility rule that a failed root hides the notes under it, so they take [792b31c3](./792b_technical-spec.md#792b31c3-removal-eligibility).
 - **Divergences noted ([792d33](#792d33-behavior-is-described-not-validated)):**
   - A missing or unrenderable target of `--adopt` is detected for every entry before the first one writes, but
@@ -1705,16 +1705,16 @@ decisions as `792dN`, continuing the sequence.
 - **Choice:**
   - [792a13](./792a_product-spec.md#792a13-added-write-memory) describes the shipped `SKILL.md`: fourteen requirements ([792a13a](./792a_product-spec.md#792a13a-the-worker-runs-only-on-a-handoff-and-never-re-judges-it) to [792a13n](./792a_product-spec.md#792a13n-the-write-is-verified-and-reported)). The `write-memory-worker`
     requirements, the trigger-cue authoring guidance [792d90](#792d90-mixed-sources-of-memory-query-are-split-by-owner) deferred to this node, the `learn-runbook-capture`
-    write-memory requirement and ADR-0015 are its sources. The "four kinds of lessons" requirement is learn's
+    [792a13 write-memory](./792a_product-spec.md#792a13-added-write-memory) requirement and ADR-0015 are its sources. The "four kinds of lessons" requirement is learn's
     ([792c7n1](./792c_implementation-plan.md#792c7n1-learn-product-spec)) and the Step 7 audit is please's ([792c7q1](./792c_implementation-plan.md#792c7q1-please-product-spec)), so both stay in `write-memory-worker`.
   - The runbook compose block is specified once, from the shipped skill (`--done-when`, `--body`, `--red-flag`,
     `--trigger`). The old requirement's list of handoff fields (slug, situation, done_when, body/steps, source,
     position, optional contributors and red flags) is the handoff of [792a13c](./792a_product-spec.md#792a13c-the-handoff-and-its-missing-fields) and [792a13e](./792a_product-spec.md#792a13e-runbook-notes-and-their-red-flags).
   - Scenarios whose outcome is the worker composing text stay product scenarios without a technical mapping. Nine
-    scenarios whose outcome is a flag the binary accepts and writes are mapped to note-authoring. Others, such as
+    scenarios whose outcome is a flag the binary accepts and writes are mapped to [792b12 note-authoring](./792b_technical-spec.md#792b12-added-note-authoring). Others, such as
     the default placement, the qa tag drop and the retry bound, have no deterministic realization: the worker is a
     markdown procedure ([792d4](#792d4-skill-procedures-are-not-technical-components)), and this skill has no baseline tests.
-  - No Go or Python test is renamed. note-amendment gains no mapping, because the skill never hands off an amend.
+  - No Go or Python test is renamed. [792b14 note-amendment](./792b_technical-spec.md#792b14-added-note-amendment) gains no mapping, because the skill never hands off an amend.
   - SKILL.md is not edited.
 - **Divergences noted ([792d33](#792d33-behavior-is-described-not-validated)):**
   - The old spec's runbook-capture requirement lists `contributors` among runbook handoff fields. The shipped
@@ -1736,7 +1736,7 @@ decisions as `792dN`, continuing the sequence.
     them as two requirements. Invariant S1 and the ADR-0001 boundary (arguments in, standard output out, the vault on
     disk) are one requirement ([792b32c4](./792b_technical-spec.md#792b32c4-skills-reach-the-vault-only-through-the-command-line)), because both say the skill layer touches engram only through its command
     line.
-  - The container view's per-process statement ("each subcommand is its own process") is command-line-surface's
+  - The container view's per-process statement ("each subcommand is its own process") is [792b2 command-line-surface](./792b_technical-spec.md#792b2-added-command-line-surface)'s
     rationale ([792b2a](./792b_technical-spec.md#792b2a-orientation)) and is not repeated here.
   - [792b32c1](./792b_technical-spec.md#792b32c1-skill-metadata-fits-the-harness-limit) carries `Supports: none`. The limit is the harness's, and no product capability states it. Every other
     technical requirement in [792b](./792b_technical-spec.md#documentation-framework-adoption---technical-spec) supports a product scenario; this is the one exception, because a product scenario
@@ -1762,7 +1762,7 @@ decisions as `792dN`, continuing the sequence.
     specs supply the dial ([792a14c](./792a_product-spec.md#792a14c-recall-has-two-depths), [792a14d](./792a_product-spec.md#792a14d-glance-escalates-to-deep-for-a-recent-standard)), the read-before-judge gate ([792a14h](./792a_product-spec.md#792a14h-chunk-content-is-read-before-a-cluster-is-judged)) and, with the context and
     container views, the agent-judged coverage decision ([792a14j](./792a_product-spec.md#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster)) and agent-driven activation ([792a14l](./792a_product-spec.md#792a14l-only-the-notes-that-were-used-are-activated)).
   - What the binary returns (the matched set, clusters, explore half, superseding notes, newest chunks) is
-    memory-query's ([792a7](./792a_product-spec.md#792a7-added-memory-query)). Recall's requirements say what the agent does with the payload.
+    [792a7 memory-query](./792a_product-spec.md#792a7-added-memory-query)'s ([792a7](./792a_product-spec.md#792a7-added-memory-query)). Recall's requirements say what the agent does with the payload.
   - The recall-time "lazy-L2 synthesis" the container view names is the coverage decision of [792a14j](./792a_product-spec.md#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster). The
     view's remark that there is no `engram synthesize` is not specified, because it describes an absence of an
     old surface ([792d6](#792d6-removed-features-are-not-documented-enduring-absences-become-must-not)).
@@ -1789,15 +1789,15 @@ decisions as `792dN`, continuing the sequence.
     check (Step 1.5) and the re-parent batch mode, which are in the skill and which the catalog's sources did not
     name. The binary half of both is described elsewhere ([792a6](./792a_product-spec.md#792a6-added-controlled-vocabulary), [792a10c](./792a_product-spec.md#792a10c-candidates-to-judge)); the agent's half is here.
   - The `LESSONS:` handling (judging a returned line on the fast path, the closing backstop, the kind-4 completion
-    anchor and the audit-derived exemplars) is lessons-contract's ([792c7o1](./792c_implementation-plan.md#792c7o1-lessons-contract-product-spec)). [792a15c](./792a_product-spec.md#792a15c-a-correction-moment-gets-a-single-note-capture) states only the correction
+    anchor and the audit-derived exemplars) is [792a16 lessons-contract](./792a_product-spec.md#792a16-added-lessons-contract)'s ([792c7o1](./792c_implementation-plan.md#792c7o1-lessons-contract-product-spec)). [792a15c](./792a_product-spec.md#792a15c-a-correction-moment-gets-a-single-note-capture) states only the correction
     fast path and points at [792a16](./792a_product-spec.md#792a16-added-lessons-contract) for the subagent return. [792a15g](./792a_product-spec.md#792a15g-a-confirmed-approach-needs-a-bet-or-specific-praise-and-takes-the-kind-its-shape-calls-for) carries the kind-4 bar and the exemplars as
     the skill states them in Step 2, and [792c7o1](./792c_implementation-plan.md#792c7o1-lessons-contract-product-spec) states the completion-moment anchor.
-  - The third requirement of `learn-branching-disposition` (the write-memory handoff carries placement fields) is
+  - The third requirement of `learn-branching-disposition` (the [792a13 write-memory](./792a_product-spec.md#792a13-added-write-memory) handoff carries placement fields) is
     [792a13g](./792a_product-spec.md#792a13g-placement). It was not on this node's list but sits in a file this node deletes; it is not ported twice.
   - The B2 capture-phrasing convention ("capture abstraction = generic-actionable") is the rationale of [792a15i](./792a_product-spec.md#792a15i-a-lesson-states-the-general-principle).
     The other bullet of "Decisions deliberately NOT made into ADRs" (B10, a reversed operational decision) is
     deleted with the section; ROADMAP Provenance records dead ends ([792d6](#792d6-removed-features-are-not-documented-enduring-absences-become-must-not)).
-  - vocabulary-engine is added to the components this node extends with mappings, because the refit procedure's
+  - [792b20 vocabulary-engine](./792b_technical-spec.md#792b20-added-vocabulary-engine) is added to the components this node extends with mappings, because the refit procedure's
     scenarios ([792a15d](./792a_product-spec.md#792a15d-the-vocabulary-check-and-its-autonomous-refit)) have their binary half in [792b20c7](./792b_technical-spec.md#792b20c7-statistics) and [792b20c15](./792b_technical-spec.md#792b20c15-refit-routing) to [792b20c18](./792b_technical-spec.md#792b20c18-applying-a-derivation).
   - No test is renamed. The learn baselines are markdown evidence ([792d10](#792d10-test-renaming)).
 - **Divergences noted ([792d33](#792d33-behavior-is-described-not-validated)):**
@@ -1808,7 +1808,7 @@ decisions as `792dN`, continuing the sequence.
     learn guidance carries the firing cue ([792c7r1](./792c_implementation-plan.md#792c7r1-ambient-guidance-product-spec)).
   - Step 2 never sets `--tier`; `learn --tier` remains a flag in the binary ([792d55](#792d55-learn---tier-is-documented-as-a-frontmatter-field)).
 - **Rationale:** [792d3](#792d3-skills-and-guidance-are-product-behavior), [792d12](#792d12-research-eval-process-notes-and-plans-are-non-normative), [792d32](#792d32-skill-product-specs-are-derived-from-the-shipped-skillmd), [792d33](#792d33-behavior-is-described-not-validated), [792d57](#792d57-mixed-sources-of-note-writing-are-split-by-owner) and [792d111](#792d111-recall-scope-the-tests-it-leaves-and-known-divergences).
-- **Alternatives:** leave the vocabulary check and batch mode out of the learn capability. Rejected because the
+- **Alternatives:** leave the vocabulary check and batch mode out of the [792a15 learn](./792a_product-spec.md#792a15-added-learn) capability. Rejected because the
   shipped skill carries them and no other node describes the agent's side.
 
 ## 792d113 lessons-contract scope, and where the sources differ from the skills
@@ -1816,7 +1816,7 @@ decisions as `792dN`, continuing the sequence.
 - **Choice:**
   - [792a16](./792a_product-spec.md#792a16-added-lessons-contract) states the contract once, from the LESSONS sections of the shipped route, please and learn skills
     and the subagent-return cue of the learn guidance. Its seven requirements are in the order a line travels.
-    The cue's firing (what makes the orchestrator judge at the return) is ambient-guidance's ([792c7r1](./792c_implementation-plan.md#792c7r1-ambient-guidance-product-spec)); [792a16e](./792a_product-spec.md#792a16e-each-lesson-is-judged-when-it-returns)
+    The cue's firing (what makes the orchestrator judge at the return) is [792a19 ambient-guidance](./792a_product-spec.md#792a19-added-ambient-guidance)'s ([792c7r1](./792c_implementation-plan.md#792c7r1-ambient-guidance-product-spec)); [792a16e](./792a_product-spec.md#792a16e-each-lesson-is-judged-when-it-returns)
     states what the orchestrator does.
   - The completion-moment anchor and exemplars of kind 4, which the `learn` OpenSpec spec held, are [792a16g](./792a_product-spec.md#792a16g-a-confirmed-approach-is-looked-for-at-the-moment-of-confirmation).
     The kind-4 bar itself is in [792a15g](./792a_product-spec.md#792a15g-a-confirmed-approach-needs-a-bet-or-specific-praise-and-takes-the-kind-its-shape-calls-for).
@@ -1825,14 +1825,14 @@ decisions as `792dN`, continuing the sequence.
   - No test is renamed: the contract has no Go or Python test. The ledger rows and the confined harness are
     evidence for the eval node ([792c7v](./792c_implementation-plan.md#792c7v-memory-effectiveness-evaluation)).
 - **Divergences noted ([792d33](#792d33-behavior-is-described-not-validated)):**
-  - The `route` spec says an unanswered re-ask leaves "an empty slot for that subagent" and the `lessons-contract`
+  - The `route` spec says an unanswered re-ask leaves "an empty slot for that subagent" and the [792a16 lessons-contract](./792a_product-spec.md#792a16-added-lessons-contract)
     spec gives the same; the shipped route skill says to record `LESSONS: none` and move on. [792a16c](./792a_product-spec.md#792a16c-a-missing-line-is-asked-for-once) follows
     the skill.
   - The `please` spec's scenario "Re-executed work after gate rejection" says lines of a rejected attempt are
     not carried forward (collect once per final dispatch). The shipped please skill says to record each unit's
     line as its result comes back, and says nothing of a rejected attempt. The scenario is not ported; [792a16d](./792a_product-spec.md#792a16d-every-line-is-recorded-as-it-returns)
     states only the unconditional recording.
-  - The `lessons-contract` spec says a `LESSONS` line may carry "a single lesson" or "up to three lessons,
+  - The [792a16 lessons-contract](./792a_product-spec.md#792a16-added-lessons-contract) spec says a `LESSONS` line may carry "a single lesson" or "up to three lessons,
     comma-separated". The skill says "1 to 3 comma-separated one-line lessons". Both are [792a16a](./792a_product-spec.md#792a16a-a-completion-report-ends-with-a-lessons-line).
   - The `please` spec says please hands the list to learn as an entry such as `lessons_from_session: [...]`; the
     skill says only that the list is handed over. [792a16f](./792a_product-spec.md#792a16f-the-closing-learn-gets-the-whole-list) does not name a field.
@@ -1860,8 +1860,8 @@ decisions as `792dN`, continuing the sequence.
     behavioral edits was not run. The skill's `skill_hash` changes, so registration will offer a refresh of its
     runbook note. The cited sections are in a change directory that is promoted later ([792d34](#792d34-references-are-repointed-to-the-change-sections)), so the repoint
     follows the promotion grep.
-  - Tests that verify the mapped scenarios were renamed by earlier nodes. The extension of note-authoring and
-    note-amendment is for the tag and amend scenarios that the legacy spec named; vault-counter is on the
+  - Tests that verify the mapped scenarios were renamed by earlier nodes. The extension of [792b12 note-authoring](./792b_technical-spec.md#792b12-added-note-authoring) and
+    [792b14 note-amendment](./792b_technical-spec.md#792b14-added-note-amendment) is for the tag and amend scenarios that the legacy spec named; [792b25 vault-counter](./792b_technical-spec.md#792b25-added-vault-counter) is on the
     catalog's list.
 - **Divergences noted ([792d33](#792d33-behavior-is-described-not-validated)):**
   - The 70% and 85% escalation thresholds and the five-dispatch evidence floor are in the OpenSpec text only. The
@@ -1926,7 +1926,7 @@ decisions as `792dN`, continuing the sequence.
   - ADR-0026, whose capture, retrieval and lexical decisions were ported earlier, held no follow-frame text. Its
     remainder (four kinds, no validation gate, #730 out of scope) is rationale for [792a19l](./792a_product-spec.md#792a19l-each-returned-kind-is-treated-for-what-it-is), and the ADR becomes a
     pointer like the other ported ADRs.
-  - The activation hints of `engram update` get a harness-deploy-sync requirement ([792b29c18](./792b_technical-spec.md#792b29c18-guidance-activation-hints)), with the product
+  - The activation hints of `engram update` get a [792b29 harness-deploy-sync](./792b_technical-spec.md#792b29-added-harness-deploy-sync) requirement ([792b29c18](./792b_technical-spec.md#792b29c18-guidance-activation-hints)), with the product
     behavior in [792a19v](./792a_product-spec.md#792a19v-the-update-report-says-how-to-activate-guidance), per [792d103](#792d103-install-and-update-scope-ownership-of-the-update-run-and-the-behaviors-the-code-shows) and [792d105](#792d105-harness-deploy-sync-scope-and-the-behaviors-the-code-shows). `TestWriteUpdateReport_GuidanceActivationHint` is one table test
     over eight cases, so it takes [792b29c18a1](./792b_technical-spec.md#792b29c18a-scenarios) and lists [792b29c18a2](./792b_technical-spec.md#792b29c18a-scenarios) to [792b29c18a8](./792b_technical-spec.md#792b29c18a-scenarios) as split deferred.
   - Two Python static guards in `dev/eval/test_no_space_form_free_text_flags.py` verify [792b32c2a1](./792b_technical-spec.md#792b32c2a-scenarios) and [792b32c3a1](./792b_technical-spec.md#792b32c3a-scenarios)
@@ -1953,8 +1953,8 @@ decisions as `792dN`, continuing the sequence.
     ([792a17](./792a_product-spec.md#792a17-added-route)), and [792a19g](./792a_product-spec.md#792a19g-every-unit-of-work-is-planned-and-routed-first) and [792a19i](./792a_product-spec.md#792a19i-returned-work-is-reviewed-fresh-and-reported-with-its-evidence) follow the document.
   - The follow-frame spec has a requirement that a runbook named by a skill's own instructions gets the same frame,
     for a skill that says to "fetch and follow `[[<basename>]]` with this handoff" at a write site. The shipped
-    shim has no such text, and recall and learn now invoke write-memory natively as a skill, not by basename
-    (AGENTS.md). It is not ported, and the scenario 792a19q1b is retired with it. The shim states the frame for the
+    shim has no such text, and recall and learn now invoke [792a13 write-memory](./792a_product-spec.md#792a13-added-write-memory) natively as a skill, not by basename
+    (AGENTS.md). It is not ported, and the scenario 792a19q1b (retired; no longer defined) is retired with it. The shim states the frame for the
     kind, so a runbook from a parent vault or of a registered skill is covered by [792a19q](./792a_product-spec.md#792a19q-linked-and-truncated-runbooks-get-the-same-frame) as a consequence.
   - The `production-guidance-activation` spec treats the full replacement of the other three documents as pending
     on #760. The ROADMAP records #760 as shipped for all six skills, yet the activation policy is unchanged, so
@@ -1976,8 +1976,8 @@ decisions as `792dN`, continuing the sequence.
   - The last requirement of `vault-note-identity` ("Exchange fields SHALL NOT be settable over the served API") says
     what [792a20j](./792a_product-spec.md#792a20j-a-caller-cannot-set-link-identity-or-registration-fields) says. It stays with that spec for parent-sync ([792c7t1](./792c_implementation-plan.md#792c7t1-parent-sync-product-spec)), which owns its other exchange-field
     requirements, and is deleted there as a duplicate of [792a20j](./792a_product-spec.md#792a20j-a-caller-cannot-set-link-identity-or-registration-fields).
-  - Per [792d67](#792d67-note-provenance-covers-detection-and-the-first-write-stamp) the served first-write stamp is [792a20f](./792a_product-spec.md#792a20f-a-served-learn-stamps-the-callers-repo-the-served-vaults-name-and-the-first-write-identity), and its technical side is note-provenance's [792b11c3](./792b_technical-spec.md#792b11c3-first-write-stamp).
-    note-provenance is therefore added to the components this node extends with mapping rows. query-engine is on the
+  - Per [792d67](#792d67-note-provenance-covers-detection-and-the-first-write-stamp) the served first-write stamp is [792a20f](./792a_product-spec.md#792a20f-a-served-learn-stamps-the-callers-repo-the-served-vaults-name-and-the-first-write-identity), and its technical side is [792b11 note-provenance](./792b_technical-spec.md#792b11-added-note-provenance)'s [792b11c3](./792b_technical-spec.md#792b11c3-first-write-stamp).
+    [792b11 note-provenance](./792b_technical-spec.md#792b11-added-note-provenance) is therefore added to the components this node extends with mapping rows. [792b24 query-engine](./792b_technical-spec.md#792b24-added-query-engine) is on the
     catalog's list and gains nothing: the served query is the route's contract and not a property of the query
     pipeline ([792b35](./792b_technical-spec.md#792b35-added-vault-http-server)).
   - The receipt's `for` field, the 409 body's `reason` and `vault_id`, the per-ref result of a served activate and its
@@ -1988,7 +1988,7 @@ decisions as `792dN`, continuing the sequence.
   - Two command-level tests are renamed to product scenarios ([792d52](#792d52-test-ids-product-scenario-for-end-to-end-checks-technical-scenario-otherwise)); the handler-level tests belong to [792c7s4](./792c_implementation-plan.md#792c7s4-vault-http-server-tech-spec).
   - No change to `engram serve --help` and no shipped artifact other than a code comment was edited.
 - **Divergences noted ([792d33](#792d33-behavior-is-described-not-validated)):**
-  - `engram serve` also writes the vault ID file and warns on a location mismatch at startup. Those are vault-identity's
+  - `engram serve` also writes the vault ID file and warns on a location mismatch at startup. Those are [792a2 vault-identity](./792a_product-spec.md#792a2-added-vault-identity)'s
     ([792a2h](./792a_product-spec.md#792a2h-stable-vault-id), [792a2j](./792a_product-spec.md#792a2j-corrupt-vault-id), [792a2p](./792a_product-spec.md#792a2p-copied-and-cloned-vaults-pause-exchange)).
 - **Rationale:** [792d3](#792d3-skills-and-guidance-are-product-behavior), [792d30](#792d30-components-are-migrated-once-and-extended-later), [792d33](#792d33-behavior-is-described-not-validated), [792d52](#792d52-test-ids-product-scenario-for-end-to-end-checks-technical-scenario-otherwise), [792d67](#792d67-note-provenance-covers-detection-and-the-first-write-stamp) and [792d103](#792d103-install-and-update-scope-ownership-of-the-update-run-and-the-behaviors-the-code-shows).
 - **Alternatives:** trim `vault-serve-api` per requirement now. Rejected because each requirement is both product and
@@ -2000,20 +2000,20 @@ decisions as `792dN`, continuing the sequence.
   - [792b33](./792b_technical-spec.md#792b33-added-exchange-versioning) specifies nine requirements ([792b33c1](./792b_technical-spec.md#792b33c1-the-exchange-hash) to [792b33c9](./792b_technical-spec.md#792b33c9-recording-an-offer-receipt)). It owns what an exchange hash covers and how two
     compare, the optional exchange fields of a note, the lazy `xid`, the edit of the `aliases:` and `parent:` blocks
     as YAML nodes, and the recording of an offer receipt. When to hash, send, pull or fold is each exchange path's
-    ([792b35](./792b_technical-spec.md#792b35-added-vault-http-server), parent-sync, curate), and the YAML-node machinery it reuses is note-document-format's ([792b6c7](./792b_technical-spec.md#792b6c7-frontmatter-node-edits)).
-  - Only [792b33c1](./792b_technical-spec.md#792b33c1-the-exchange-hash), [792b33c6](./792b_technical-spec.md#792b33c6-the-exchange-fields) and [792b33c7](./792b_technical-spec.md#792b33c7-the-lazy-exchange-id) support a scenario of vault-serving (a receipt's `stored_hash`, the raw
+    ([792b35](./792b_technical-spec.md#792b35-added-vault-http-server), [792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync), [792a22 curate](./792a_product-spec.md#792a22-added-curate)), and the YAML-node machinery it reuses is [792b6 note-document-format](./792b_technical-spec.md#792b6-added-note-document-format)'s ([792b6c7](./792b_technical-spec.md#792b6c7-frontmatter-node-edits)).
+  - Only [792b33c1](./792b_technical-spec.md#792b33c1-the-exchange-hash), [792b33c6](./792b_technical-spec.md#792b33c6-the-exchange-fields) and [792b33c7](./792b_technical-spec.md#792b33c7-the-lazy-exchange-id) support a scenario of [792a20 vault-serving](./792a_product-spec.md#792a20-added-vault-serving) (a receipt's `stored_hash`, the raw
     envelope and header, the dedupe keys, and the fields a caller cannot set). The other requirements are consumed by
-    parent-sync and curate, which are not yet migrated, so they say `Supports: none` and name the capability that will
+    [792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync) and [792a22 curate](./792a_product-spec.md#792a22-added-curate), which are not yet migrated, so they say `Supports: none` and name the capability that will
     map them ([792d110](#792d110-agent-instruction-bundle-scope-and-requirements-with-no-product-scenario) for a requirement with no product scenario).
   - The fold's refusal and unknown-key scenarios ([792b33c8a3](./792b_technical-spec.md#792b33c8a-scenarios), [792b33c8a4](./792b_technical-spec.md#792b33c8a-scenarios), [792b33c8a5](./792b_technical-spec.md#792b33c8a-scenarios), [792b33c8a6](./792b_technical-spec.md#792b33c8a-scenarios)) are the edit's
     contract as seen through the fold; the fold itself (the union of aliases and links, the judged-version check) is
-    pending-offer-bookkeeping's ([792b34](./792b_technical-spec.md#792b34-added-pending-offer-bookkeeping)) and curate's.
+    [792b34 pending-offer-bookkeeping](./792b_technical-spec.md#792b34-added-pending-offer-bookkeeping)'s ([792b34](./792b_technical-spec.md#792b34-added-pending-offer-bookkeeping)) and [792a22 curate](./792a_product-spec.md#792a22-added-curate)'s.
   - `TestSetXIDField` also asserts that a receipt on a note with no frontmatter fails; it takes [792b33c7a1](./792b_technical-spec.md#792b33c7a-scenarios) and lists
     [792b33c7a2](./792b_technical-spec.md#792b33c7a-scenarios), [792b33c7a3](./792b_technical-spec.md#792b33c7a-scenarios) and [792b33c9a6](./792b_technical-spec.md#792b33c9a-scenarios) as `split deferred`. `TestExchangeHash_UnknownPerConsumer` takes [792b33c5a2](./792b_technical-spec.md#792b33c5a-scenarios)
     and lists [792b33c5a3](./792b_technical-spec.md#792b33c5a-scenarios). `Test792b6c7a7_RunAmend_ExchangeHashParityWithPreChangeAmend` and `Test792b6c8a1_ToLF` were
-    named by note-document-format's node and are not renamed again.
+    named by [792b6 note-document-format](./792b_technical-spec.md#792b6-added-note-document-format)'s node and are not renamed again.
   - Four CRLF tests in `exchange_crlf_test` verify other components' scenarios (the outbox drain, the pull-down, the
-    pending marker, the header of `show`) and keep their names. `exchangefields_survival_test` stays with parent-sync
+    pending marker, the header of `show`) and keep their names. `exchangefields_survival_test` stays with [792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync)
     ([792d61](#792d61-note-document-formats-edit-crlf-and-field-survival-contracts-arrive-with-their-scenarios)).
   - ADR-0029 keeps the consumers of the hash (loop suppression, `offer.key`, pull-down skip, decline matching, re-arm,
     dedupe rule 2, `--expect-hash`) and the survival, rename and dedupe sentences of D4; its D3 and D4 headings now
@@ -2025,7 +2025,7 @@ decisions as `792dN`, continuing the sequence.
     `red_flags`, `triggers`, and the body"; the code hashes exactly eleven frontmatter keys plus the body, and [792b33c1](./792b_technical-spec.md#792b33c1-the-exchange-hash)
     names them.
 - **Rationale:** [792d3](#792d3-skills-and-guidance-are-product-behavior), [792d10](#792d10-test-renaming), [792d30](#792d30-components-are-migrated-once-and-extended-later), [792d33](#792d33-behavior-is-described-not-validated), [792d52](#792d52-test-ids-product-scenario-for-end-to-end-checks-technical-scenario-otherwise), [792d61](#792d61-note-document-formats-edit-crlf-and-field-survival-contracts-arrive-with-their-scenarios) and [792d110](#792d110-agent-instruction-bundle-scope-and-requirements-with-no-product-scenario).
-- **Alternatives:** map the hash to parent-sync scenarios now. Rejected because those scenarios do not exist yet.
+- **Alternatives:** map the hash to [792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync) scenarios now. Rejected because those scenarios do not exist yet.
 
 ## 792d119 pending-offer-bookkeeping scope, the requirements taken out of vault-offer-curation, and the tests it takes
 
@@ -2042,12 +2042,12 @@ decisions as `792dN`, continuing the sequence.
     to the header (the CRLF note), and move with them.
   - The `engram show` header has no component of its own in the inventory, and
     it exists so that a curator can name the judged version, so it is a requirement of this component. Its served form
-    ([792b35](./792b_technical-spec.md#792b35-added-vault-http-server)) and its parent-fallback label order (parent-sync) are theirs.
-  - The query payload's flag and hint are rendered by query-payload-renderer; the two tests of the rendered hint are
+    ([792b35](./792b_technical-spec.md#792b35-added-vault-http-server)) and its parent-fallback label order ([792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync)) are theirs.
+  - The query payload's flag and hint are rendered by [792b23 query-payload-renderer](./792b_technical-spec.md#792b23-added-query-payload-renderer); the two tests of the rendered hint are
     renamed to [792b34c4a2](./792b_technical-spec.md#792b34c4a-scenarios) here, because the scenario is about the instruction following the flag. The tests of the
     update notice and of the lead position of the flag in the payload (`TestQueryPayload_PendingOffersLeadPayload`) are
     curate's and keep their names.
-  - A bare `--discard` also records a decline of the parent note; that is pull-down's (parent-sync), not specified here.
+  - A bare `--discard` also records a decline of the parent note; that is pull-down's ([792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync)), not specified here.
   - `TestVaultHasPendingOffers` and `TestWarnIfPendingOffers` are tables or sequences over several scenarios; each
     takes the first and lists the rest as `split deferred`. So does the property test of the fold, which also
     verifies [792b34c7a1](./792b_technical-spec.md#792b34c7a-scenarios) and [792b34c7a2](./792b_technical-spec.md#792b34c7a-scenarios).
@@ -2070,13 +2070,13 @@ decisions as `792dN`, continuing the sequence.
   - The bounded client a child fetches through is in `cmd/engram/serve.go` beside the server, and
     `serve_config_test` is listed for this node, so [792b35c17](./792b_technical-spec.md#792b35c17-the-bounded-fetch-client) specifies its timeouts and read limit. The exchange that
     uses it (the outbox, the merged query, the pull-down, and the check that a response over 16 MiB is an error) is
-    parent-sync's, which maps [792a20n1c](./792a_product-spec.md#792a20n1-uat-scenarios); [792b35c17](./792b_technical-spec.md#792b35c17-the-bounded-fetch-client) says `Supports: none` for that reason.
+    [792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync)'s, which maps [792a20n1c](./792a_product-spec.md#792a20n1-uat-scenarios); [792b35c17](./792b_technical-spec.md#792b35c17-the-bounded-fetch-client) says `Supports: none` for that reason.
   - `vault-serve-api` is deleted with this node, as [792d117](#792d117-vault-serving-scope-what-stays-for-the-technical-node-and-where-the-sources-differ-from-the-server) said. The component view's serve node is shortened to a
-    pointer and the serve-side sentence of its K14 row is replaced by one, since the row's remaining text is parent-sync's.
+    pointer and the serve-side sentence of its K14 row is replaced by one, since the row's remaining text is [792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync)'s.
     The comments in the code and the three OpenSpec specs that cited `vault-serve-api` now cite [792a20](./792a_product-spec.md#792a20-added-vault-serving) or [792b35](./792b_technical-spec.md#792b35-added-vault-http-server).
   - Two scenarios have no technical owner: [792a20b1c](./792a_product-spec.md#792a20b1-uat-scenarios) (the help text of `serve`) and [792a20l1f](./792a_product-spec.md#792a20l1-uat-scenarios) (the local `activate` keeps
     absolute and vault-relative paths). The first is a string of the command definition, the second a behavior of
-    `activate` that no component of the inventory specifies (note-amendment's [792b14c9](./792b_technical-spec.md#792b14c9-recording-a-use) is the use bump only). Both are
+    `activate` that no component of the inventory specifies ([792b14 note-amendment](./792b_technical-spec.md#792b14-added-note-amendment)'s [792b14c9](./792b_technical-spec.md#792b14c9-recording-a-use) is the use bump only). Both are
     listed as coverage gaps.
   - Two real-mux tests that drive a whole route over TCP are named for the product scenario they assert ([792d52](#792d52-test-ids-product-scenario-for-end-to-end-checks-technical-scenario-otherwise)):
     `Test792a20e1c_ServeAndFetch_LearnRoundTrip` and `Test792a20c1b_ServeAndFetch_ShowRoundTrip`. The tests that call a
@@ -2084,7 +2084,7 @@ decisions as `792dN`, continuing the sequence.
   - `TestServeBodyCaps` asserts three constants; it takes [792b35c3a3](./792b_technical-spec.md#792b35c3a-scenarios) and lists [792b35c17a2](./792b_technical-spec.md#792b35c17a-scenarios) as `split deferred`. Likewise
     `TestServeLearn_InvalidOfferIsRejected` ([792b35c9a4](./792b_technical-spec.md#792b35c9a-scenarios)), `TestServeLearn_AcceptedOfferRetry` ([792b35c12a1](./792b_technical-spec.md#792b35c12a-scenarios)),
     `TestServeLearn_ForResolution` ([792b35c13a2](./792b_technical-spec.md#792b35c13a-scenarios) to [792b35c13a4](./792b_technical-spec.md#792b35c13a-scenarios)) and the RunServe registration test ([792b35c2a2](./792b_technical-spec.md#792b35c2a-scenarios)).
-  - [792b35c2a3](./792b_technical-spec.md#792b35c2a-scenarios) maps to the serve-startup tests that vault-identity already named (`Test792a2h1a`, `Test792a2j1a`,
+  - [792b35c2a3](./792b_technical-spec.md#792b35c2a-scenarios) maps to the serve-startup tests that [792a2 vault-identity](./792a_product-spec.md#792a2-added-vault-identity) already named (`Test792a2h1a`, `Test792a2j1a`,
     `Test792a2p1c`).
 - **Divergences noted ([792d33](#792d33-behavior-is-described-not-validated)):**
   - The `vault-serve-api` spec says a served activate with a ref that is "an absolute path, contains a path separator
@@ -2098,7 +2098,7 @@ decisions as `792dN`, continuing the sequence.
   - The `Cf-Access-Authenticated-User-Email` header field in the request type's doc comment is the remnant of the
     dropped edge authentication; no code reads it ([792a20e](./792a_product-spec.md#792a20e-a-served-learn-is-attributed-to-the-identity-the-caller-declares)).
 - **Rationale:** [792d3](#792d3-skills-and-guidance-are-product-behavior), [792d30](#792d30-components-are-migrated-once-and-extended-later), [792d33](#792d33-behavior-is-described-not-validated), [792d52](#792d52-test-ids-product-scenario-for-end-to-end-checks-technical-scenario-otherwise), [792d117](#792d117-vault-serving-scope-what-stays-for-the-technical-node-and-where-the-sources-differ-from-the-server) and [792d118](#792d118-exchange-versioning-scope-requirements-with-no-product-scenario-yet-and-the-tests-it-keeps-apart).
-- **Alternatives:** leave the fetch client to parent-sync. Rejected because `cmd/engram/serve.go` realizes both and its
+- **Alternatives:** leave the fetch client to [792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync). Rejected because `cmd/engram/serve.go` realizes both and its
   connect-timeout test is listed for this node.
 
 ## 792d121 parent-sync scope, what stays whole, the components extended, and where the sources differ from the code
@@ -2114,7 +2114,7 @@ decisions as `792dN`, continuing the sequence.
     both a behavior of the product and a contract of the outbox or of the client, so they are deleted by the technical
     nodes that read them: `vault-parent-offers` by [792c7t2](./792c_implementation-plan.md#792c7t2-offer-outbox-tech-spec) and the other two by [792c7t3](./792c_implementation-plan.md#792c7t3-parent-vault-client-tech-spec). Their hash requirement is
     already [792b33c1](./792b_technical-spec.md#792b33c1-the-exchange-hash) to [792b33c5](./792b_technical-spec.md#792b33c5-comparing-two-hashes) and is deleted with the spec. `vault-local-first` is deleted whole, since its only
-    requirement is [792a21a](./792a_product-spec.md#792a21a-engram_server-is-refused). `vault-note-identity` keeps the two clauses that wait for curate: the bookkeeping rule for
+    requirement is [792a21a](./792a_product-spec.md#792a21a-engram_server-is-refused). `vault-note-identity` keeps the two clauses that wait for [792a22 curate](./792a_product-spec.md#792a22-added-curate): the bookkeeping rule for
     `--clear-pending` and `--discard --into`, and the fold's LF read and the judged-version check on the LF form. Its
     last requirement, that exchange fields cannot be set over the served API, is deleted as the duplicate of [792a20j](./792a_product-spec.md#792a20j-a-caller-cannot-set-link-identity-or-registration-fields) that
     [792d117](#792d117-vault-serving-scope-what-stays-for-the-technical-node-and-where-the-sources-differ-from-the-server) said it was.
@@ -2122,9 +2122,9 @@ decisions as `792dN`, continuing the sequence.
     D11, which records how the original change was tested (hermetic headless arms, a recording proxy, a sandbox
     allowlist), is not ported, since it describes a past verification effort and not a behavior; git keeps it. The S7 row
     of the system context is a pointer, and R7 and K14 wait for [792c7t2](./792c_implementation-plan.md#792c7t2-offer-outbox-tech-spec) and [792c7t3](./792c_implementation-plan.md#792c7t3-parent-vault-client-tech-spec).
-  - The catalog lists `query-engine` for extension. It gains nothing: the merged query is a step that wraps the local
-    pipeline, and its ordering, budgets and dedupe are the client's ([792b37](./792b_technical-spec.md#792b37-added-parent-vault-client), [792c7t3](./792c_implementation-plan.md#792c7t3-parent-vault-client-tech-spec)), so query-engine's contract is
-    unchanged. `query-payload-renderer` ([792b23c9](./792b_technical-spec.md#792b23c9-the-item-tags-of-a-merge), the `from_parent` tag), `note-reparenting` (a mapping row for
+  - The catalog lists [792b24 query-engine](./792b_technical-spec.md#792b24-added-query-engine) for extension. It gains nothing: the merged query is a step that wraps the local
+    pipeline, and its ordering, budgets and dedupe are the client's ([792b37](./792b_technical-spec.md#792b37-added-parent-vault-client), [792c7t3](./792c_implementation-plan.md#792c7t3-parent-vault-client-tech-spec)), so [792b24 query-engine](./792b_technical-spec.md#792b24-added-query-engine)'s contract is
+    unchanged. `query-payload-renderer` ([792b23c9](./792b_technical-spec.md#792b23c9-the-item-tags-of-a-merge), the `from_parent` tag), [792b27 note-reparenting](./792b_technical-spec.md#792b27-added-note-reparenting) (a mapping row for
     [792b27c6a7](./792b_technical-spec.md#792b27c6a-scenarios)) and `self-installer` ([792b28c13a9](./792b_technical-spec.md#792b28c13a-scenarios), the outbox notice) are extended instead, as the notes of [792c7f4](./792c_implementation-plan.md#792c7f4-query-payload-renderer-tech-spec) and
     [792c7j2](./792c_implementation-plan.md#792c7j2-self-installer-tech-spec) asked.
   - The parent cache and its backoff, the exchange-identifier checks and the declined-pull record are three
@@ -2157,9 +2157,9 @@ decisions as `792dN`, continuing the sequence.
     share the state, the single warning at the transition and the silent retry on later drains.
   - The `vault-parent-offers` spec is deleted whole. Its hash requirement is [792b33c1](./792b_technical-spec.md#792b33c1-the-exchange-hash) to [792b33c5](./792b_technical-spec.md#792b33c5-comparing-two-hashes) ([792d118](#792d118-exchange-versioning-scope-requirements-with-no-product-scenario-yet-and-the-tests-it-keeps-apart)), the product side
     of it is [792a21o](./792a_product-spec.md#792a21o-only-a-change-to-offered-content-is-a-change), and the rest is [792a21n](./792a_product-spec.md#792a21n-a-local-write-is-offered-to-the-parent) to [792a21zb](./792a_product-spec.md#792a21zb-a-note-with-crlf-line-endings-exchanges-as-its-lf-form) and [792b36](./792b_technical-spec.md#792b36-added-offer-outbox). Its connect timeout of 3 seconds is the fetch
-    client's ([792b35c17](./792b_technical-spec.md#792b35c17-the-bounded-fetch-client)) and its backoff is vault-identity-registry's ([792b5c14](./792b_technical-spec.md#792b5c14-the-parent-cache-and-the-contact-backoff)). The backoff gate sits in front of the
+    client's ([792b35c17](./792b_technical-spec.md#792b35c17-the-bounded-fetch-client)) and its backoff is [792b5 vault-identity-registry](./792b_technical-spec.md#792b5-added-vault-identity-registry)'s ([792b5c14](./792b_technical-spec.md#792b5c14-the-parent-cache-and-the-contact-backoff)). The backoff gate sits in front of the
     drain, so the drain's own requirement ([792b36c5](./792b_technical-spec.md#792b36c5-before-a-drain-sends)) names it and does not restate it.
-  - The receipt edit that the drain calls is exchange-versioning's ([792b33c9](./792b_technical-spec.md#792b33c9-recording-an-offer-receipt)); the outbox owns when it is applied, what
+  - The receipt edit that the drain calls is [792b33 exchange-versioning](./792b_technical-spec.md#792b33-added-exchange-versioning)'s ([792b33c9](./792b_technical-spec.md#792b33c9-recording-an-offer-receipt)); the outbox owns when it is applied, what
     finishes the entry afterwards and the `attention` state when the note refuses it.
   - The vault-ID probe before a drain (`GET /query?dedupe-keys=1` with one item) is in the code and in no spec: it is
     [792b36c5](./792b_technical-spec.md#792b36c5-before-a-drain-sends), with a scenario for each way it fails.
@@ -2230,7 +2230,7 @@ decisions as `792dN`, continuing the sequence.
   - [792c7u1d](./792c_implementation-plan.md#792c7u1-curate-product-spec) adds components to the catalog's list: [792b12](./792b_technical-spec.md#792b12-added-note-authoring) (a local learn never sets the marker, [792b12c8](./792b_technical-spec.md#792b12c8-the-pending-marker-is-not-set-by-a-local-learn)), [792b14](./792b_technical-spec.md#792b14-added-note-amendment) (settling a
     pending offer, [792b14c14](./792b_technical-spec.md#792b14c14-settling-a-pending-offer), and a CRLF decline, [792b14c13a5](./792b_technical-spec.md#792b14c13a-scenarios)), [792b23](./792b_technical-spec.md#792b23-added-query-payload-renderer) (the lead of a payload with pending offers, [792b23c10](./792b_technical-spec.md#792b23c10-the-lead-of-a-payload-with-pending-offers)),
     [792b28](./792b_technical-spec.md#792b28-added-self-installer) (the pending-offer notice, [792b28c13a10](./792b_technical-spec.md#792b28c13a-scenarios)), [792b22](./792b_technical-spec.md#792b22-added-runbook-trigger-matching) and [792b35](./792b_technical-spec.md#792b35-added-vault-http-server) (mapping rows) and [792b32](./792b_technical-spec.md#792b32-added-agent-instruction-bundle) (one mapping row). The
-    amend flags `--clear-pending` and `--discard` had no requirement in note-amendment, which [792b14c14](./792b_technical-spec.md#792b14c14-settling-a-pending-offer) now holds.
+    amend flags `--clear-pending` and `--discard` had no requirement in [792b14 note-amendment](./792b_technical-spec.md#792b14-added-note-amendment), which [792b14c14](./792b_technical-spec.md#792b14c14-settling-a-pending-offer) now holds.
   - The `Supports:` lines of [792b34c1](./792b_technical-spec.md#792b34c1-the-pending-offer-marker) to [792b34c8](./792b_technical-spec.md#792b34c8-the-exchange-hash-header-of-show) now name the curate scenarios they realize; [792c7s3](./792c_implementation-plan.md#792c7s3-pending-offer-bookkeeping-tech-spec) had left them `none`
     for this node ([792d119](#792d119-pending-offer-bookkeeping-scope-the-requirements-taken-out-of-vault-offer-curation-and-the-tests-it-takes)).
   - `SKILL.md` is not edited: it cites no removed document.
@@ -2368,7 +2368,7 @@ decisions as `792dN`, continuing the sequence.
   - `memory-invariants.md`: the header, legend, retired items, B, D and RT-1 are deleted. M6 (learn idempotency) was never built and nothing
     in the ROADMAP or the issues asks for it, so it is deleted with the file rather than parked; M7 (marker monotonicity) is retired with the markers.
   - `docs/GLOSSARY.md`: the OpenSpec entry is dropped (retired, [792d39](#792d39-glossary)), the ADR-0012 reference points at [792a3q](./792a_product-spec.md#792a3q-question-and-answer-pairs), and the stale
-    `fact|feedback|qa` wording of `write-memory` and `handoff contract` now includes `runbook`, matching `write-memory/SKILL.md`.
+    `fact|feedback|qa` wording of [792a13 write-memory](./792a_product-spec.md#792a13-added-write-memory) and `handoff contract` now includes `runbook`, matching `write-memory/SKILL.md`.
   - Root `AGENTS.md`: the `openspec/` line is gone, `docs/` is described per `docs/AGENTS.md`, Key Files name `docs/AGENTS.md`, the glossary,
     the roadmap and the behavior record, and the Design Principles authority line names the [792b](./792b_technical-spec.md#documentation-framework-adoption---technical-spec) sections and their rationale.
 - **Rationale:** [792d31](#792d31-each-legacy-item-has-one-owning-node) (a legacy file is deleted once empty) and the standing rule that git is the fallback. The ROADMAP is the one
@@ -2396,7 +2396,7 @@ decisions as `792dN`, continuing the sequence.
     `.claude/commands/opsx/` (six commands) are deleted. All were tracked in this repository. Test fixtures that use `openspec-propose` or
     `opsx:apply` as skill names are data about foreign skills and stay.
   - **Repoints (11 edits outside the ROADMAP).** Root `README.md` (the archived-changes sentence, ADR-0013 and ADR-0002/0003 citations, the c2 pointer, the
-    design-principles and documentation sections, six edits in all; the image link is repointed in the next node),
+    design-principles and documentation sections, six edits in all; the image link is repointed in the next node, [792c8d Deprecated-directory removal and final stale-reference sweep](./792c_implementation-plan.md#792c8d-deprecated-directory-removal-and-final-stale-reference-sweep)),
     `internal/cli/update_test.go` (a comment now cites [792b28c12](./792b_technical-spec.md#792b28c12-report)), `internal/cli/skillkeys_qualified_test.go` and
     `internal/cli/skilloffers_namespace_test.go` (comments cite [792b30](./792b_technical-spec.md#792b30-added-skill-source-discovery) and [792b31](./792b_technical-spec.md#792b31-added-skill-registration-ledger)), `.review/README.md` (the design document it cited,
     `add-annotation-feedback`, had never been in the archive; the sentence now says the rationale is in git history), and
@@ -2456,7 +2456,7 @@ decisions as `792dN`, continuing the sequence.
   - **Open decisions.** The six Open Decisions became [793c1](../793_parallel-memory-agent/793c_open-questions.md#793c1-what-are-the-capture-precision-bar-and-capture-rate-target)–[793c6](../793_parallel-memory-agent/793c_open-questions.md#793c6-does-capture-also-run-inside-subagent-sessions). Values the draft marked [proposed] stay marked.
 - **Rationale:** [792d14](#792d14-the-in-flight-design-becomes-its-own-change) (the in-flight design becomes its own change), the product spec guide, and the lifecycle guide (change context is not
   canonical).
-- **Alternatives:** split the requirements across the existing recall, learn and ambient-guidance capabilities. Rejected in [793b1](../793_parallel-memory-agent/793b_decision-log.md#793b1-one-new-capability-automatic-memory). Promote the
+- **Alternatives:** split the requirements across the existing [792a14 recall](./792a_product-spec.md#792a14-added-recall), [792a15 learn](./792a_product-spec.md#792a15-added-learn) and [792a19 ambient-guidance](./792a_product-spec.md#792a19-added-ambient-guidance) capabilities. Rejected in [793b1](../793_parallel-memory-agent/793b_decision-log.md#793b1-one-new-capability-automatic-memory). Promote the
   requirements to `docs/specs/` now. Rejected: the feature is unbuilt and [792d44](#792d44-promotion-is-excluded-from-this-plan) excludes promotion.
 
 ## 792d132 `docs/deprecated/` is gone; the last sweep found no live reference

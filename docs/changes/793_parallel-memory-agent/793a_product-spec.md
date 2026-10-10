@@ -30,7 +30,7 @@ Terms used below:
 - **Moment:** a point where memory should be consulted (a prompt, a tool result, a subagent dispatch)
   or where a lesson may have occurred (a completed turn).
 - **Lesson:** a confirmed correction, explicit save-request, overturned conclusion, or confirmed
-  approach, per the learn skill's definition.
+  approach, per the definition in [792a15 learn](../792_documentation-framework-adoption/792a_product-spec.md#792a15-added-learn).
 - **Injection:** placing note content in front of the working agent without the agent requesting it.
 - **Operator:** the human who configures and audits the System.
 
@@ -386,7 +386,7 @@ Scenario: 793a5a1a Bare configuration
 
 ### 793a5b Coexistence without double-firing
 
-Requirement: [793a5b](#793a5b-coexistence-without-double-firing) (formerly IND-2) Where the existing instruction-based path is also active, the
+Requirement: [793a5b](#793a5b-coexistence-without-double-firing) (formerly IND-2) Where the existing instruction-based path ([792a19 ambient-guidance](../792_documentation-framework-adoption/792a_product-spec.md#792a19-added-ambient-guidance)) is also active, the
 System MUST NOT cause the same note to be delivered twice for the same moment, and the working agent
 SHOULD NOT perform redundant lookups or saves for a moment the System already handled.
 
@@ -403,7 +403,7 @@ Scenario: 793a5b1a Both paths active
 ### 793a5c Environments without the capability
 
 Requirement: [793a5c](#793a5c-environments-without-the-capability) (formerly IND-3) In harnesses where the System cannot run, the existing
-instruction-based path MUST continue to work unchanged.
+instruction-based path ([792a19 ambient-guidance](../792_documentation-framework-adoption/792a_product-spec.md#792a19-added-ambient-guidance)) MUST continue to work unchanged.
 
 #### 793a5c1 UAT Scenarios
 

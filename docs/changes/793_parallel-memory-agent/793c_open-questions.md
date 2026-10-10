@@ -40,10 +40,10 @@ in [`793b_decision-log.md`](./793b_decision-log.md).
 ## 793c4 Are captured lessons written directly, or held for `curate` review?
 
 - **Context:** [793a3](./793a_product-spec.md#793a3-added-automatic-memory-automatic-capture) describes capture as writing notes. The draft left open whether those writes go
-  straight into the vault or land as pending offers that the `curate` skill reviews first.
+  straight into the vault or land as pending offers that the [792a22 curate](../792_documentation-framework-adoption/792a_product-spec.md#792a22-added-curate) skill reviews first.
 - **Options:**
   1. Write notes directly to the vault.
-  2. Land them as pending offers for `curate` review.
+  2. Land them as pending offers for [792a22 curate](../792_documentation-framework-adoption/792a_product-spec.md#792a22-added-curate) review.
 - **Recommendation:** none in the draft.
 - **Blocks:** [793a3a1a](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1b](./793a_product-spec.md#793a3a1-uat-scenarios) and [793a3d1a](./793a_product-spec.md#793a3d1-uat-scenarios), which assert where a captured note appears. Default:
   none. The wording of those scenarios waits.

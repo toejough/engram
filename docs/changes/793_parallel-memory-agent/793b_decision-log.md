@@ -11,7 +11,7 @@ These are choices made while relocating the draft requirements into this change 
 - **Rationale:** the feature is one user-facing capability, automatic recall and capture independent
   of the working agent. It reuses behavior of `recall`, `learn` and `ambient-guidance` ([792a14](../792_documentation-framework-adoption/792a_product-spec.md#792a14-added-recall),
   [792a15](../792_documentation-framework-adoption/792a_product-spec.md#792a15-added-learn), [792a19](../792_documentation-framework-adoption/792a_product-spec.md#792a19-added-ambient-guidance)) but replaces the agent's own initiative, so it fits none of them.
-- **Alternatives:** split across `recall`, `learn` and `ambient-guidance`. Rejected: each requirement
+- **Alternatives:** split across [792a14 recall](../792_documentation-framework-adoption/792a_product-spec.md#792a14-added-recall), [792a15 learn](../792_documentation-framework-adoption/792a_product-spec.md#792a15-added-learn) and [792a19 ambient-guidance](../792_documentation-framework-adoption/792a_product-spec.md#792a19-added-ambient-guidance). Rejected: each requirement
   would then depend on the agent-initiated behavior those capabilities describe.
 
 ## 793b2 ID mapping

@@ -11,8 +11,8 @@ by it can continue. Choices that need only validation, not input, are in
   `eval-phase2-fixture-scoring-fidelity`, `retrieval-probe-signal-fidelity`, and `memory-loop-audit`.
   ADR-0028 D5 calls the audit "product". Vault note 293 says not to spec dev tooling as product.
 - **Options:**
-  1. Product capability `memory-effectiveness-evaluation`, with components `eval-trial-harness` and
-     `memory-loop-auditor`.
+  1. Product capability [792a23 memory-effectiveness-evaluation](./792a_product-spec.md#792a23-added-memory-effectiveness-evaluation), with components [792b38 eval-trial-harness](./792b_technical-spec.md#792b38-added-eval-trial-harness) and
+     [792b39 memory-loop-auditor](./792b_technical-spec.md#792b39-added-memory-loop-auditor).
   2. Technical components only, under a dev-tooling capability that stays out of `docs/specs/product/`.
   3. Out of scope for `docs/specs/`. The knowledge goes to `dev/eval/` docs and the LEDGER, and the
      specs are deleted.
@@ -98,7 +98,7 @@ by it can continue. Choices that need only validation, not input, are in
   tooling that the four eval specs cover and leave this harness out.
 - **Options:**
   1. Leave it unspecified and keep its tests as no-scenario tests.
-  2. Specify it as another requirement set of eval-trial-harness, with scenarios derived from its tests.
+  2. Specify it as another requirement set of [792b38 eval-trial-harness](./792b_technical-spec.md#792b38-added-eval-trial-harness), with scenarios derived from its tests.
   3. Retire it.
 - **Recommendation:** 1, until Joe says whether `targ eval` is still used.
 - **Blocks:** nothing. Default: option 1.
