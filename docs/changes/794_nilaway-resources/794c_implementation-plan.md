@@ -54,7 +54,7 @@ Local commits were authorized by the user; publishing and integration remain rev
 graph TD
     N794c8a["794c8a Policy and target contracts — Complete"]
     N794c8b["794c8b Command boundary contracts — Complete"]
-    N794c8c["794c8c Validation and integration — In progress: 0/2 entries complete"]
+    N794c8c["794c8c Validation and integration — In progress: 1/2 entries complete"]
     N794c8a --> N794c8b
     N794c8b --> N794c8c
 ```
@@ -102,7 +102,7 @@ multiple tests, but each scenario keeps an independently named and tracked test.
 
 | Entry | Work | Classification | Why | Status |
 |---|---|---|---|---|
-| 794c8c1 Review and checks | Reconcile scenario links and ownership; run dev and tagged integration tests, configured NilAway, and full checks | Validation | Verify implementation and documentation agree | In progress |
+| 794c8c1 Review and checks | Reconcile scenario links and ownership; run dev and tagged integration tests, configured NilAway, and full checks | Validation | Verify implementation and documentation agree | Done |
 | 794c8c2 Canonical promotion | Promote product and technical deltas, remove this change directory, and integrate atomically after review | Delivery | Canonical truth changes with implementation/tests | Not started |
 
 ## 794c9 Completion Gates
