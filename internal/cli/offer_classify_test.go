@@ -11,9 +11,9 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestClassifyOffer covers every row of design D5's table (spec
-// vault-parent-offers, "Local writes SHALL be offered to the parent").
-func TestClassifyOffer(t *testing.T) {
+// Test792b36c1a1_ClassifyOffer covers every row of design D5's table (792b36c1,
+// "Which writes are offered").
+func Test792b36c1a1_ClassifyOffer(t *testing.T) {
 	t.Parallel()
 
 	childID := seqID(40)
@@ -92,10 +92,33 @@ func TestClassifyOffer(t *testing.T) {
 	}
 }
 
-// TestClassifyOffer_BookkeepingNeverOfferedProperty: an amend with no
+// Test792b36c1a2_ClassifyOffer_ContentFlagsAreOffered: each content flag on its own
+// makes an amend an offer (spec: "any content flag").
+func Test792b36c1a2_ClassifyOffer_ContentFlagsAreOffered(t *testing.T) {
+	t.Parallel()
+
+	flags := map[string]cli.AmendArgs{
+		"situation": {Situation: "x"}, "subject": {Subject: "x"}, "predicate": {Predicate: "x"},
+		"object": {Object: "x"}, "behavior": {Behavior: "x"}, "impact": {Impact: "x"},
+		"action": {Action: "x"}, "done-when": {DoneWhen: "x"}, "body": {Body: "x"},
+		"red-flag": {RedFlags: []string{"x"}}, "trigger": {Triggers: []string{"xyz"}},
+	}
+
+	for name, amend := range flags {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			g.Expect(cli.ExportClassifyOffer(cli.ExportOfferCmdAmend, amend, offerTestNote{}.render(t), "")).
+				To(BeTrue())
+		})
+	}
+}
+
+// Test792b36c1a3_ClassifyOffer_BookkeepingNeverOfferedProperty: an amend with no
 // content flag is never offered unless it clears the pending marker on a
 // served offer from a vault other than the parent (D5, D12).
-func TestClassifyOffer_BookkeepingNeverOfferedProperty(t *testing.T) {
+func Test792b36c1a3_ClassifyOffer_BookkeepingNeverOfferedProperty(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -124,34 +147,33 @@ func TestClassifyOffer_BookkeepingNeverOfferedProperty(t *testing.T) {
 	})
 }
 
-// TestClassifyOffer_ContentFlagsAreOffered: each content flag on its own
-// makes an amend an offer (spec: "any content flag").
-func TestClassifyOffer_ContentFlagsAreOffered(t *testing.T) {
+// Test792b36c1a4_ClassifyOffer_NeverOfferedProperty: a pending note or a note carrying
+// skill_hash is never offered, whatever the command and flags (D5).
+func Test792b36c1a4_ClassifyOffer_NeverOfferedProperty(t *testing.T) {
 	t.Parallel()
 
-	flags := map[string]cli.AmendArgs{
-		"situation": {Situation: "x"}, "subject": {Subject: "x"}, "predicate": {Predicate: "x"},
-		"object": {Object: "x"}, "behavior": {Behavior: "x"}, "impact": {Impact: "x"},
-		"action": {Action: "x"}, "done-when": {DoneWhen: "x"}, "body": {Body: "x"},
-		"red-flag": {RedFlags: []string{"x"}}, "trigger": {Triggers: []string{"xyz"}},
-	}
+	rapid.Check(t, func(rt *rapid.T) {
+		note := drawOfferTestNote(rt)
+		if rapid.Bool().Draw(rt, "pending-not-skill") {
+			note.pending = true
+		} else {
+			note.noteType, note.skillHash = "runbook", "h"
+		}
 
-	for name, amend := range flags {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
+		command := drawOfferCommand(rt)
+		amend := drawAmendFlags(rt)
 
-			g.Expect(cli.ExportClassifyOffer(cli.ExportOfferCmdAmend, amend, offerTestNote{}.render(t), "")).
-				To(BeTrue())
-		})
-	}
+		if cli.ExportClassifyOffer(command, amend, note.render(rt), parentVaultID) {
+			rt.Fatalf("offered a never-offered note: %+v, command %v, amend %+v", note, command, amend)
+		}
+	})
 }
 
-// TestClassifyOffer_LoopSuppressionProperty (metamorphic): for any offered
+// Test792b36c1a6_ClassifyOffer_LoopSuppressionProperty (metamorphic): for any offered
 // write, a primary link (under the parent) whose hash equals the note's
 // exchange hash suppresses it, and a different current-version hash does
 // not.
-func TestClassifyOffer_LoopSuppressionProperty(t *testing.T) {
+func Test792b36c1a6_ClassifyOffer_LoopSuppressionProperty(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -173,28 +195,6 @@ func TestClassifyOffer_LoopSuppressionProperty(t *testing.T) {
 
 		if !cli.ExportClassifyOffer(command, amend, note.render(rt), parentVaultID) {
 			rt.Fatalf("changed primary-link hash was not offered: %+v", note)
-		}
-	})
-}
-
-// TestClassifyOffer_NeverOfferedProperty: a pending note or a note carrying
-// skill_hash is never offered, whatever the command and flags (D5).
-func TestClassifyOffer_NeverOfferedProperty(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		note := drawOfferTestNote(rt)
-		if rapid.Bool().Draw(rt, "pending-not-skill") {
-			note.pending = true
-		} else {
-			note.noteType, note.skillHash = "runbook", "h"
-		}
-
-		command := drawOfferCommand(rt)
-		amend := drawAmendFlags(rt)
-
-		if cli.ExportClassifyOffer(command, amend, note.render(rt), parentVaultID) {
-			rt.Fatalf("offered a never-offered note: %+v, command %v, amend %+v", note, command, amend)
 		}
 	})
 }

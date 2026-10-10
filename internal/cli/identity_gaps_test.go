@@ -16,6 +16,30 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
+// Test792a21x1a_UpdateExchange_NoUserIdentityWaitsThenOffers: through the production
+// wiring, a note learned where no user is detectable is not offered (no
+// request reaches the parent's /learn); update reports it as needing
+// attention; once detection works, the next exchange offers it.
+func Test792a21x1a_UpdateExchange_NoUserIdentityWaitsThenOffers(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	env.wrap = withoutUserDetection
+	env.learnFact("userless")
+	g.Expect(env.lastStderr).To(ContainSubstring("cannot offer"))
+	g.Expect(env.parent.offers()).To(BeEmpty(), "no offer is sent without a user")
+
+	notice := cli.ExportUpdateExchange(env.deps())(context.Background(), env.vault, false)
+	g.Expect(notice).To(ContainSubstring("1 need attention"))
+	g.Expect(notice).To(ContainSubstring("no user identity detected; set git user.email"))
+	g.Expect(env.parent.offers()).To(BeEmpty())
+
+	env.wrap = nil
+	g.Expect(cli.ExportUpdateExchange(env.deps())(context.Background(), env.vault, false)).To(BeEmpty())
+	g.Expect(env.parent.offers()).To(HaveLen(1), "offered once a user is detected")
+}
+
 // Test792b11c3a3_Learn_OmitsEmptyVault: a first write with no resolved vault name
 // omits vault: and warns.
 func Test792b11c3a3_Learn_OmitsEmptyVault(t *testing.T) {
@@ -71,27 +95,11 @@ func Test792b14c5a6_RunAmend_BookkeepingNeverWritesEmptyVault(t *testing.T) {
 	}
 }
 
-// TestBuildOfferPayload_NoUserIdentityRefuses: a note with no user: on a
-// host whose user detection is empty builds no payload, rather than
-// sending user: "" for the parent to reject.
-func TestBuildOfferPayload_NoUserIdentityRefuses(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	raw := strings.Replace(string(offerTestNote{}.render(t)), "user: alice\n", "", 1)
-	note := cli.OfferNoteForTest{
-		XID: xidA, Basename: "1.2026-09-27.note", Raw: []byte(raw), Hash: mustHash(t, []byte(raw)),
-	}
-
-	_, err := cli.ExportBuildOfferPayload(note, seqID(60), parentVaultID, "detected-repo", "", nil)
-	g.Expect(err).To(MatchError(cli.ErrOfferNoUserIdentityForTest))
-}
-
-// TestDrainOutbox_NoUserIdentityNeedsAttention: an offer that cannot be
+// Test792b36c15a9_DrainOutbox_NoUserIdentityNeedsAttention: an offer that cannot be
 // built for want of a user identity puts its entry in attention with one
 // warning, sends nothing, stays silent on later drains, and is sent once
 // a payload can be built.
-func TestDrainOutbox_NoUserIdentityNeedsAttention(t *testing.T) {
+func Test792b36c15a9_DrainOutbox_NoUserIdentityNeedsAttention(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -125,28 +133,20 @@ func TestDrainOutbox_NoUserIdentityNeedsAttention(t *testing.T) {
 	g.Expect(env.outbox().Entries).To(BeEmpty())
 }
 
-// TestUpdateExchange_NoUserIdentityWaitsThenOffers: through the production
-// wiring, a note learned where no user is detectable is not offered (no
-// request reaches the parent's /learn); update reports it as needing
-// attention; once detection works, the next exchange offers it.
-func TestUpdateExchange_NoUserIdentityWaitsThenOffers(t *testing.T) {
+// Test792b36c2a12_BuildOfferPayload_NoUserIdentityRefuses: a note with no user: on a
+// host whose user detection is empty builds no payload, rather than
+// sending user: "" for the parent to reject.
+func Test792b36c2a12_BuildOfferPayload_NoUserIdentityRefuses(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	env := newWiringEnv(t)
-	env.wrap = withoutUserDetection
-	env.learnFact("userless")
-	g.Expect(env.lastStderr).To(ContainSubstring("cannot offer"))
-	g.Expect(env.parent.offers()).To(BeEmpty(), "no offer is sent without a user")
+	raw := strings.Replace(string(offerTestNote{}.render(t)), "user: alice\n", "", 1)
+	note := cli.OfferNoteForTest{
+		XID: xidA, Basename: "1.2026-09-27.note", Raw: []byte(raw), Hash: mustHash(t, []byte(raw)),
+	}
 
-	notice := cli.ExportUpdateExchange(env.deps())(context.Background(), env.vault, false)
-	g.Expect(notice).To(ContainSubstring("1 need attention"))
-	g.Expect(notice).To(ContainSubstring("no user identity detected; set git user.email"))
-	g.Expect(env.parent.offers()).To(BeEmpty())
-
-	env.wrap = nil
-	g.Expect(cli.ExportUpdateExchange(env.deps())(context.Background(), env.vault, false)).To(BeEmpty())
-	g.Expect(env.parent.offers()).To(HaveLen(1), "offered once a user is detected")
+	_, err := cli.ExportBuildOfferPayload(note, seqID(60), parentVaultID, "detected-repo", "", nil)
+	g.Expect(err).To(MatchError(cli.ErrOfferNoUserIdentityForTest))
 }
 
 // runVaultlessClearPending clears the pending marker on a note with no

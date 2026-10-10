@@ -134,7 +134,7 @@ When the parent is unreachable or returns an error, `engram query` SHALL
 still return the local vault's results (unchanged from local-only mode)
 rather than failing the whole command, and SHALL emit a non-fatal warning
 noting the parent was unavailable. After a failure, parent contact SHALL be
-backed off (capability `vault-parent-offers`): a query inside the backoff
+backed off (`docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a21s-an-unreachable-parent-is-backed-off`, 792a21s): a query inside the backoff
 window SHALL make no parent request and SHALL return local results with
 one warning.
 

@@ -43,11 +43,678 @@ func Test792a2p1a_DrainOutbox_LocationCheckFailureSendsNothing(t *testing.T) {
 	g.Expect(env.stderr.String()).To(ContainSubstring("vault-id --claim"))
 }
 
-// TestClassifyOfferResponse maps a /learn response to the drain's outcome
+// Test792b36c10a1_DrainOutbox_TransportFailureStopsAndRecords: a connection error stops
+// the drain; the sent entry is removed, the failed and later ones remain in
+// order, the failed one records attempts and last_error, and the parent
+// cache backs off for 30s.
+func Test792b36c10a1_DrainOutbox_TransportFailureStopsAndRecords(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
+	env.writeNote("2.2026-09-27.b.md", xidB, "b", false)
+	env.writeNote("3.2026-09-27.c.md", xidC, "c", false)
+	env.enqueue(xidA)
+	env.enqueue(xidB)
+	env.enqueue(xidC)
+
+	failure := cli.ExportClassifyOfferResponse(cli.FetchResponse{}, errors.New("connection refused"))
+	parent := &fakeParent{script: map[string]cli.OfferSendResultForTest{xidB: failure}}
+
+	result, err := env.drain(parent)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(result.Unreachable).To(BeTrue())
+	g.Expect(sentXIDs(parent)).To(Equal([]string{xidA, xidB}))
+
+	box := env.outbox()
+	g.Expect(entryXIDs(box)).To(Equal([]string{xidB, xidC}))
+	g.Expect(box.Entries[0].Attempts).To(Equal(1))
+	g.Expect(box.Entries[0].LastError).To(ContainSubstring("connection refused"))
+	g.Expect(box.Entries[1].Attempts).To(BeZero())
+
+	cache, cacheErr := cli.ExportLoadParentCache(env.state, env.vault)
+	g.Expect(cacheErr).NotTo(HaveOccurred())
+	g.Expect(cache.Failures).To(Equal(1))
+	g.Expect(cache.BackoffUntil).To(BeTemporally("==", env.now().Add(30*time.Second)))
+	g.Expect(result.RetryAfter).To(BeTemporally("==", env.now().Add(30*time.Second)))
+}
+
+// Test792b36c11a1_DrainOutbox_TooOldParentKeepsEntryAndErrors (H7): a receipt with no
+// vault ID stops exchange with a "parent too old" error and leaves the
+// entry queued.
+func Test792b36c11a1_DrainOutbox_TooOldParentKeepsEntryAndErrors(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
+	env.writeNote("2.2026-09-27.b.md", xidB, "b", false)
+	env.enqueue(xidA)
+	env.enqueue(xidB)
+
+	tooOld := cli.ExportClassifyOfferResponse(
+		cli.FetchResponse{Status: 200, Body: []byte(`{"status":"ok","basename":"1.x"}`)}, nil)
+
+	parent := &fakeParent{script: map[string]cli.OfferSendResultForTest{xidA: tooOld}}
+	_, err := env.drain(parent)
+	g.Expect(err).To(MatchError(cli.ErrParentTooOldForTest))
+	g.Expect(sentXIDs(parent)).To(Equal([]string{xidA}))
+	g.Expect(parent.applied).To(BeEmpty())
+	g.Expect(entryXIDs(env.outbox())).To(Equal([]string{xidA, xidB}))
+	g.Expect(env.outbox().Entries[0].State).To(Equal("queued"))
+	g.Expect(env.outbox().Entries[0].LastError).To(ContainSubstring("too old"))
+}
+
+// Test792b36c12a1_DrainOutbox_CycleRefusalRejectsAndContinues (ruling S13, D7): a 409
+// loop refusal from a parent whose ID is NOT this vault's is a real cycle
+// (A→B→C→A): that entry is rejected, the drain continues, and one warning
+// names the refusing vault (not --regenerate). A refusal leaves the backoff
+// counters alone.
+func Test792b36c12a1_DrainOutbox_CycleRefusalRejectsAndContinues(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
+	env.writeNote("2.2026-09-27.b.md", xidB, "b", false)
+	env.writeNote("3.2026-09-27.c.md", xidC, "c", false)
+	env.enqueue(xidA)
+	env.enqueue(xidB)
+	env.enqueue(xidC)
+
+	refusal := loopRefusal(parentVaultID)
+	parent := &fakeParent{script: map[string]cli.OfferSendResultForTest{xidA: refusal, xidB: refusal}}
+
+	result, err := env.drain(parent)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(sentXIDs(parent)).To(Equal([]string{xidA, xidB, xidC}))
+	g.Expect(result.Rejected).To(Equal(2))
+
+	box := env.outbox()
+	g.Expect(entryXIDs(box)).To(Equal([]string{xidA, xidB}))
+	g.Expect(box.Entries[0].State).To(Equal("rejected"))
+	g.Expect(box.Entries[0].RejectedHash).To(Equal(mustHash(t, env.noteRaw("1.2026-09-27.a.md"))))
+	g.Expect(box.Entries[1].State).To(Equal("rejected"))
+
+	lines := nonEmptyLines(env.stderr.String())
+	g.Expect(lines).To(HaveLen(1))
+	g.Expect(lines[0]).To(ContainSubstring(parentVaultID))
+	g.Expect(lines[0]).To(ContainSubstring("cycle"))
+	g.Expect(lines[0]).NotTo(ContainSubstring("--regenerate"))
+}
+
+// Test792b36c12a2_DrainOutbox_SelfParentRefusalThenRegenerateSends (ruling S12): a 409
+// loop refusal naming this vault's own ID keeps the entries queued (not
+// rejected), caches the parent's ID, stops the drain and warns once naming
+// --regenerate; after `vault-id --regenerate` the queued entries send.
+func Test792b36c12a2_DrainOutbox_SelfParentRefusalThenRegenerateSends(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
+	env.writeNote("2.2026-09-27.b.md", xidB, "b", false)
+	env.enqueue(xidA)
+	env.enqueue(xidB)
+
+	refusal := loopRefusal(env.localID)
+	refusing := &fakeParent{script: map[string]cli.OfferSendResultForTest{xidA: refusal, xidB: refusal}}
+
+	_, failErr := cli.ExportRecordParentFailure(env.store, env.vault, parentURL)
+	g.Expect(failErr).NotTo(HaveOccurred())
+
+	result, err := env.drain(refusing)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(result.Rejected).To(BeZero())
+	g.Expect(sentXIDs(refusing)).To(Equal([]string{xidA}))
+
+	box := env.outbox()
+	g.Expect(entryXIDs(box)).To(Equal([]string{xidA, xidB}))
+	g.Expect(box.Entries[0].State).To(Equal("queued"))
+	g.Expect(box.Entries[0].RejectedHash).To(BeEmpty())
+	g.Expect(box.Entries[1].State).To(Equal("queued"))
+
+	lines := nonEmptyLines(env.stderr.String())
+	g.Expect(lines).To(HaveLen(1))
+	g.Expect(lines[0]).To(ContainSubstring("vault-id --regenerate"))
+
+	cache, cacheErr := cli.ExportLoadParentCache(env.state, env.vault)
+	g.Expect(cacheErr).NotTo(HaveOccurred())
+	g.Expect(cache.VaultID).To(Equal(env.localID))
+	g.Expect(cache.Failures).To(BeZero(), "a refusal is an answer: the backoff resets (ruling S14)")
+
+	regenState := cli.ExportNewExchangeState(env.fsys, seqRand(60), identityPath,
+		func() (string, error) { return "/", nil })
+	newID, regenErr := cli.ExportRegenerateVaultID(regenState, env.vault)
+	g.Expect(regenErr).NotTo(HaveOccurred())
+	g.Expect(newID).NotTo(Equal(env.localID))
+
+	healed := &fakeParent{}
+	_, err = env.drain(healed)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(sentXIDs(healed)).To(Equal([]string{xidA, xidB}))
+	g.Expect(env.outbox().Entries).To(BeEmpty())
+}
+
+// Test792b36c12a3_DrainOutbox_SelfParentReceiptStops: a receipt reporting this vault's
+// own ID is the self-parent case — nothing is recorded, the drain stops,
+// the entry stays and one warning names --regenerate.
+func Test792b36c12a3_DrainOutbox_SelfParentReceiptStops(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
+	env.enqueue(xidA)
+
+	receipt := accepted("1.2026-09-27.a")
+	receipt.Receipt.VaultID = env.localID
+
+	parent := &fakeParent{script: map[string]cli.OfferSendResultForTest{xidA: receipt}}
+	_, err := env.drain(parent)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(parent.applied).To(BeEmpty())
+	g.Expect(entryXIDs(env.outbox())).To(Equal([]string{xidA}))
+	g.Expect(env.outbox().Entries[0].State).To(Equal("queued"))
+	g.Expect(env.stderr.String()).To(ContainSubstring("vault-id --regenerate"))
+
+	// The parent's ID is cached under the lock, so the pre-exchange guard
+	// engages from now on: the next drain sends nothing.
+	cache, cacheErr := cli.ExportLoadParentCache(env.state, env.vault)
+	g.Expect(cacheErr).NotTo(HaveOccurred())
+	g.Expect(cache.VaultID).To(Equal(env.localID))
+
+	again := &fakeParent{}
+	_, err = env.drain(again)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(again.sent).To(BeEmpty())
+}
+
+// Test792b36c13a1_DrainOutbox_SkippedSendKeepsEntryAndContinues: a local payload
+// failure records the error on its entry, keeps it queued, and does not
+// stop the drain or back off (the parent was never contacted).
+func Test792b36c13a1_DrainOutbox_SkippedSendKeepsEntryAndContinues(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
+	env.writeNote("2.2026-09-27.b.md", xidB, "b", false)
+	env.enqueue(xidA)
+	env.enqueue(xidB)
+
+	skip := cli.OfferSendResultForTest{Outcome: cli.ExportOfferSkipped, Err: errors.New("unrenderable")}
+	parent := &fakeParent{script: map[string]cli.OfferSendResultForTest{xidA: skip}}
+
+	result, err := env.drain(parent)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(result.Unreachable).To(BeFalse())
+	g.Expect(sentXIDs(parent)).To(Equal([]string{xidA, xidB}))
+
+	box := env.outbox()
+	g.Expect(entryXIDs(box)).To(Equal([]string{xidA}))
+	g.Expect(box.Entries[0].State).To(Equal("queued"))
+	g.Expect(box.Entries[0].LastError).To(ContainSubstring("unrenderable"))
+
+	cache, cacheErr := cli.ExportLoadParentCache(env.state, env.vault)
+	g.Expect(cacheErr).NotTo(HaveOccurred())
+	g.Expect(cache.Failures).To(BeZero())
+}
+
+// Test792b36c13a2_NewOfferSender_PostsBuiltPayloadToLearn: the production sender builds
+// the payload from the note at send time and POSTs it to the parent's
+// /learn route; a payload build failure is skipped without contacting the
+// parent.
+func Test792b36c13a2_NewOfferSender_PostsBuiltPayloadToLearn(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var method, url string
+
+	var body []byte
+
+	fetch := func(_ context.Context, gotMethod, gotURL string, gotBody []byte) (cli.FetchResponse, error) {
+		method, url, body = gotMethod, gotURL, gotBody
+
+		return cli.FetchResponse{Status: 200, Body: []byte(`{"status":"offer received","luhmann":"7",` +
+			`"basename":"7.2026-09-27.x","pending":true,"vault_id":"` + parentVaultID + `","stored_hash":"xh1:ab"}`)}, nil
+	}
+	build := func(note cli.OfferNoteForTest) ([]byte, error) { return []byte("payload for " + note.XID), nil }
+
+	send := cli.ExportNewOfferSender(fetch, parentURL+"/", build)
+	result := send(context.Background(), cli.OfferNoteForTest{XID: xidA})
+
+	g.Expect(result.Outcome).To(Equal(cli.ExportOfferAccepted))
+	g.Expect(result.Receipt.Basename).To(Equal("7.2026-09-27.x"))
+	g.Expect(method).To(Equal("POST"))
+	g.Expect(url).To(Equal(parentURL + "/learn"))
+	g.Expect(string(body)).To(Equal("payload for " + xidA))
+
+	failing := cli.ExportNewOfferSender(
+		func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
+			t.Error("fetch must not run when the payload cannot be built")
+
+			return cli.FetchResponse{}, nil
+		},
+		parentURL,
+		func(cli.OfferNoteForTest) ([]byte, error) { return nil, errors.New("unrenderable") },
+	)
+	skipped := failing(context.Background(), cli.OfferNoteForTest{XID: xidA})
+	g.Expect(skipped.Outcome).To(Equal(cli.ExportOfferSkipped))
+	g.Expect(skipped.Err).To(MatchError(ContainSubstring("unrenderable")))
+}
+
+// Test792b36c14a1_DrainOutbox_ConcurrentEnqueueSurvives (M10): an entry another process
+// queues while the drain is sending survives the merge, because the merge
+// re-reads the outbox from disk.
+func Test792b36c14a1_DrainOutbox_ConcurrentEnqueueSurvives(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
+	env.writeNote("2.2026-09-27.d.md", xidD, "d", false)
+	env.enqueue(xidA)
+
+	parent := &fakeParent{during: func(cli.OfferNoteForTest) { env.enqueue(xidD) }}
+
+	_, err := env.drain(parent)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(entryXIDs(env.outbox())).To(Equal([]string{xidD}))
+}
+
+// Test792b36c14a2_Outbox_NoOfferLostAtMostOneEntryProperty (E52): across any sequence
+// of writes, deletes, pending-marks and drains (with accepted, rejected and
+// failed sends, and concurrent writes mid-drain), (1) the outbox holds at
+// most one entry per note, and (2) every note that exists, is not pending,
+// and whose current content the parent has not accepted keeps an entry.
+func Test792b36c14a2_Outbox_NoOfferLostAtMostOneEntryProperty(t *testing.T) {
+	t.Parallel()
+
+	xids := []string{xidA, xidB, xidC}
+
+	rapid.Check(t, func(rt *rapid.T) {
+		env := newOutboxEnvFor(rt)
+		model := newOutboxModel()
+
+		steps := rapid.IntRange(1, 25).Draw(rt, "steps")
+		for step := range steps {
+			xid := rapid.SampledFrom(xids).Draw(rt, "xid")
+			name := noteNameFor(xid)
+
+			switch rapid.IntRange(0, 3).Draw(rt, "op") {
+			case 0: // an offerable write: note written live and enqueued
+				body := fmt.Sprintf("content %d", rapid.IntRange(0, 3).Draw(rt, "body"))
+				env.writeNote(name, xid, body, false)
+				env.enqueue(xid)
+				model.exists[xid], model.pending[xid] = true, false
+			case 1:
+				env.fsys.remove(filepath.Join(env.vault, name))
+				model.exists[xid] = false
+			case 2:
+				if model.exists[xid] {
+					env.writeNote(name, xid, "pending "+xid, true)
+					model.pending[xid] = true
+				}
+			default:
+				runPropertyDrain(rt, env, model, xids, step)
+			}
+
+			checkOutboxInvariants(rt, env, model, xids)
+		}
+	})
+}
+
+// Test792b36c3a2_DrainOutbox_WithdrawnEntryDroppedUnlessChanged (ruling S16): a
+// withdrawn offer's entry is dropped, unless the note changed while the
+// offer was being built, in which case it stays for the next drain.
+func Test792b36c3a2_DrainOutbox_WithdrawnEntryDroppedUnlessChanged(t *testing.T) {
+	t.Parallel()
+
+	withdrawn := cli.OfferSendResultForTest{Outcome: cli.ExportOfferWithdrawn, Err: cli.ErrOfferWithdrawnForTest}
+
+	t.Run("unchanged", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		env := newOutboxEnv(t)
+		env.writeNote("1.2026-09-27.a.md", xidA, "first", false)
+		env.enqueue(xidA)
+
+		_, err := env.drain(&fakeParent{script: map[string]cli.OfferSendResultForTest{xidA: withdrawn}})
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(env.outbox().Entries).To(BeEmpty())
+	})
+
+	t.Run("changed meanwhile", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		env := newOutboxEnv(t)
+		env.writeNote("1.2026-09-27.a.md", xidA, "first", false)
+		env.enqueue(xidA)
+
+		parent := &fakeParent{
+			script: map[string]cli.OfferSendResultForTest{xidA: withdrawn},
+			during: func(cli.OfferNoteForTest) {
+				env.writeNote("1.2026-09-27.a.md", xidA, "amended mid-flight", false)
+			},
+		}
+
+		_, err := env.drain(parent)
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(entryXIDs(env.outbox())).To(Equal([]string{xidA}))
+	})
+}
+
+// Test792b36c4a1_EnqueueOutbox_CoalescesByXID: at most one entry per note; a repeat
+// enqueue keeps the entry's first-queued time (and its FIFO slot).
+func Test792b36c4a1_EnqueueOutbox_CoalescesByXID(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	first := env.now()
+
+	env.enqueue(xidA)
+	env.advance(time.Minute)
+	env.enqueue(xidB)
+	env.advance(time.Minute)
+	env.enqueue(xidA)
+
+	box := env.outbox()
+	g.Expect(box.Version).To(Equal(1))
+	g.Expect(entryXIDs(box)).To(Equal([]string{xidA, xidB}))
+	g.Expect(box.Entries[0].Queued).To(BeTemporally("==", first))
+	g.Expect(box.Entries[0].State).To(Equal("queued"))
+}
+
+// Test792b36c4a2_EnqueueOutbox_SavesAtomically: the outbox is only ever written with
+// the atomic temp+rename primitive, as outbox.json under .engram/.
+func Test792b36c4a2_EnqueueOutbox_SavesAtomically(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	env.enqueue(xidA)
+
+	g.Expect(env.fsys.atomicWrites()).To(ContainElement(filepath.Join(env.vault, ".engram", "outbox.json")))
+
+	var decoded map[string]any
+	g.Expect(json.Unmarshal(env.fsys.read(filepath.Join(env.vault, ".engram", "outbox.json")), &decoded)).To(Succeed())
+	g.Expect(decoded).To(HaveKeyWithValue("version", BeNumerically("==", 1)))
+}
+
+// Test792b36c4a3_EnqueueOutbox_StampsVaultIDBeforeStateDir (ruling S4): the first
+// enqueue in a vault with no ID stamps the ID (and its location record)
+// before .engram/ exists, so .engram/ keeps meaning created-by-engram.
+func Test792b36c4a3_EnqueueOutbox_StampsVaultIDBeforeStateDir(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fsys := newMemVaultFS()
+	vault := "/vault"
+	fsys.mkdir(vault)
+
+	store, state := newTestOutboxStore(fsys, newDrainEventLog(), func() time.Time { return testNow }, io.Discard)
+
+	g.Expect(cli.ExportEnqueueOutbox(store, vault, xidA)).To(Succeed())
+	g.Expect(fsys.stateDirBeforeID()).To(BeFalse())
+
+	status, checkErr := cli.ExportCheckVaultLocation(state, vault)
+	g.Expect(checkErr).NotTo(HaveOccurred())
+	g.Expect(status).To(Equal(cli.ExportLocationOK))
+}
+
+// Test792b36c4a4_EnqueueOutbox_FailuresSurface: a corrupt outbox, a failed atomic
+// write, or a vault ID that cannot be stamped fails the enqueue.
+func Test792b36c4a4_EnqueueOutbox_FailuresSurface(t *testing.T) {
+	t.Parallel()
+
+	t.Run("corrupt outbox", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		env := newOutboxEnv(t)
+		env.fsys.put(filepath.Join(env.vault, ".engram", "outbox.json"), []byte("[]"))
+		g.Expect(cli.ExportEnqueueOutbox(env.store, env.vault, xidA)).NotTo(Succeed())
+	})
+
+	t.Run("write fails", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		env := newOutboxEnv(t)
+		env.fsys.failAtomicWrite(filepath.Join(env.vault, ".engram", "outbox.json"), errors.New("disk full"))
+		g.Expect(cli.ExportEnqueueOutbox(env.store, env.vault, xidA)).To(MatchError(ContainSubstring("disk full")))
+	})
+
+	t.Run("stamp fails", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := newMemVaultFS()
+		fsys.mkdir("/fresh")
+		fsys.failAtomicWrite("/fresh/.engram/home.json", errors.New("read-only"))
+
+		store, _ := newTestOutboxStore(fsys, newDrainEventLog(), func() time.Time { return testNow }, io.Discard)
+		g.Expect(cli.ExportEnqueueOutbox(store, "/fresh", xidA)).To(MatchError(ContainSubstring("read-only")))
+		g.Expect(fsys.read("/fresh/.engram/outbox.json")).To(BeEmpty())
+	})
+}
+
+// Test792b36c4a5_StampNoteXID_LazyAndStable: a note without an xid gets a fresh one
+// the first time it enters the outbox; one that has an xid keeps it.
+func Test792b36c4a5_StampNoteXID_LazyAndStable(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	minted, stamped, err := cli.ExportStampNoteXID("", seqRand(7))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(stamped).To(BeTrue())
+	g.Expect(minted).To(Equal(seqID(7)))
+
+	kept, restamped, keepErr := cli.ExportStampNoteXID(xidA, func([]byte) (int, error) {
+		t.Error("an existing xid must not draw randomness")
+
+		return 0, nil
+	})
+	g.Expect(keepErr).NotTo(HaveOccurred())
+	g.Expect(restamped).To(BeFalse())
+	g.Expect(kept).To(Equal(xidA))
+}
+
+// Test792b36c5a1_DrainOutbox_EmptyOutboxTouchesNothing: nothing queued means no
+// location check, no send and no write.
+func Test792b36c5a1_DrainOutbox_EmptyOutboxTouchesNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	writesBefore := len(env.fsys.atomicWrites())
+
+	parent := &fakeParent{}
+	_, err := env.drain(parent)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(parent.sent).To(BeEmpty())
+	g.Expect(env.fsys.atomicWrites()).To(HaveLen(writesBefore))
+	g.Expect(env.stderr.String()).To(BeEmpty())
+}
+
+// Test792b36c5a3_DrainOutbox_CachedSelfParentSendsNothing (D2 self-parent guard): when
+// the cached parent reports this vault's own ID, nothing is sent and one
+// warning names --regenerate.
+func Test792b36c5a3_DrainOutbox_CachedSelfParentSendsNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
+	env.enqueue(xidA)
+	g.Expect(cli.ExportRecordParentSuccess(env.store, env.vault, parentURL, env.localID)).To(Succeed())
+
+	parent := &fakeParent{}
+	_, err := env.drain(parent)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(parent.sent).To(BeEmpty())
+	g.Expect(entryXIDs(env.outbox())).To(Equal([]string{xidA}))
+	g.Expect(nonEmptyLines(env.stderr.String())).To(HaveLen(1))
+	g.Expect(env.stderr.String()).To(ContainSubstring("vault-id --regenerate"))
+}
+
+// Test792b36c5a4_DrainOutbox_LocalReadFailuresSurface: a corrupt outbox, a corrupt
+// parent cache, or an unreadable note fails the drain (nothing is sent)
+// rather than silently dropping queued offers.
+func Test792b36c5a4_DrainOutbox_LocalReadFailuresSurface(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]func(env *outboxEnv){
+		"corrupt outbox": func(env *outboxEnv) {
+			env.fsys.put(filepath.Join(env.vault, ".engram", "outbox.json"), []byte("{not json"))
+		},
+		"corrupt parent cache": func(env *outboxEnv) {
+			env.fsys.put(filepath.Join(env.vault, ".engram", "parent.json"), []byte("{not json"))
+		},
+		"unreadable note": func(env *outboxEnv) {
+			env.fsys.failReadOf(filepath.Join(env.vault, "1.2026-09-27.a.md"), errors.New("EIO"))
+		},
+	}
+
+	for name, breakVault := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			env := newOutboxEnv(t)
+			env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
+			env.enqueue(xidA)
+			breakVault(env)
+
+			parent := &fakeParent{}
+			_, err := env.drain(parent)
+			g.Expect(err).To(HaveOccurred())
+			g.Expect(parent.sent).To(BeEmpty())
+		})
+	}
+}
+
+// Test792b36c6a1_DrainOutbox_SendsInFirstQueuedOrder: oldest queued first, whatever
+// the file order.
+func Test792b36c6a1_DrainOutbox_SendsInFirstQueuedOrder(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
+	env.writeNote("2.2026-09-27.b.md", xidB, "b", false)
+	env.writeNote("3.2026-09-27.c.md", xidC, "c", false)
+
+	base := time.Date(2026, 9, 27, 10, 0, 0, 0, time.UTC)
+	env.writeOutbox(map[string]any{"version": 1, "entries": []map[string]any{
+		{"xid": xidC, "queued": base.Add(2 * time.Minute), "state": "queued"},
+		{"xid": xidA, "queued": base, "state": "queued"},
+		{"xid": xidB, "queued": base.Add(time.Minute), "state": "queued"},
+	}})
+
+	parent := &fakeParent{}
+	result, err := env.drain(parent)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(result.Sent).To(Equal(3))
+	g.Expect(sentXIDs(parent)).To(Equal([]string{xidA, xidB, xidC}))
+	g.Expect(env.outbox().Entries).To(BeEmpty())
+}
+
+// Test792b36c6a2_DrainOutbox_SendsWithNoLockHeld: the snapshot and the merge run under
+// the vault lock, but every send happens with the lock released.
+func Test792b36c6a2_DrainOutbox_SendsWithNoLockHeld(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
+	env.writeNote("2.2026-09-27.b.md", xidB, "b", false)
+	env.enqueue(xidA)
+	env.enqueue(xidB)
+	env.resetEvents()
+
+	parent := &fakeParent{events: env.events}
+	_, err := env.drain(parent)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(env.events.list()).To(Equal([]string{
+		"lock", "unlock", "send " + xidA, "send " + xidB, "lock", "apply", "apply", "unlock",
+	}))
+}
+
+// Test792b36c6a3_DrainOutbox_DropsDeletedAndPendingNotes: an entry whose note is gone
+// or now pending is dropped without being sent.
+func Test792b36c6a3_DrainOutbox_DropsDeletedAndPendingNotes(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
+	env.writeNote("2.2026-09-27.b.md", xidB, "b", false)
+	env.enqueue(xidA)
+	env.enqueue(xidB)
+	env.fsys.remove(filepath.Join(env.vault, "1.2026-09-27.a.md"))
+	env.writeNote("2.2026-09-27.b.md", xidB, "b", true)
+
+	parent := &fakeParent{}
+	result, err := env.drain(parent)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(parent.sent).To(BeEmpty())
+	g.Expect(result.Dropped).To(Equal(2))
+	g.Expect(env.outbox().Entries).To(BeEmpty())
+}
+
+// Test792b36c6a4_DrainOutbox_BuildsPayloadAtSendTime: an offline learn followed by an
+// amend goes up as one offer carrying the latest content.
+func Test792b36c6a4_DrainOutbox_BuildsPayloadAtSendTime(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	env.writeNote("1.2026-09-27.a.md", xidA, "first", false)
+	env.enqueue(xidA)
+	env.writeNote("1.2026-09-27.a.md", xidA, "second", false)
+
+	parent := &fakeParent{}
+	result, err := env.drain(parent)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(result.Sent).To(Equal(1))
+
+	g.Expect(parent.sent).To(HaveLen(1))
+	g.Expect(string(parent.sent[0].Raw)).To(ContainSubstring("second"))
+	g.Expect(parent.sent[0].Hash).To(Equal(mustHash(t, env.noteRaw("1.2026-09-27.a.md"))))
+	g.Expect(env.outbox().Entries).To(BeEmpty())
+}
+
+// Test792b36c6a5_DrainOutbox_FindsRenamedNoteByXID: a Luhmann rename between enqueue
+// and drain does not orphan the entry; the receipt lands on the new name.
+func Test792b36c6a5_DrainOutbox_FindsRenamedNoteByXID(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
+	env.enqueue(xidA)
+	env.fsys.rename(filepath.Join(env.vault, "1.2026-09-27.a.md"), filepath.Join(env.vault, "1a.2026-09-27.a.md"))
+
+	parent := &fakeParent{}
+	_, err := env.drain(parent)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(parent.sent).To(HaveLen(1))
+	g.Expect(parent.sent[0].Basename).To(Equal("1a.2026-09-27.a"))
+	g.Expect(parent.applied).To(Equal([]string{"1a.2026-09-27.a"}))
+	g.Expect(env.outbox().Entries).To(BeEmpty())
+}
+
+// Test792b36c7a1_ClassifyOfferResponse maps a /learn response to the drain's outcome
 // (design D6): transport errors and 5xx fail (stop + back off), 4xx
 // rejects, a 2xx with a full receipt is accepted, and a receipt without
 // vault_id or basename comes from a too-old parent.
-func TestClassifyOfferResponse(t *testing.T) {
+func Test792b36c7a1_ClassifyOfferResponse(t *testing.T) {
 	t.Parallel()
 
 	receipt := `{"status":"offer received","luhmann":"7","basename":"7.2026-09-27.x",` +
@@ -101,38 +768,32 @@ func TestClassifyOfferResponse(t *testing.T) {
 	}
 }
 
-// TestClassifyOfferResponse_ForbiddenBasenameCharsProperty (final review
-// F6): whatever else a 2xx receipt holds, a basename carrying '/', '\\'
-// or '|' is never accepted.
-func TestClassifyOfferResponse_ForbiddenBasenameCharsProperty(t *testing.T) {
+// Test792b36c7a2_ClassifyOfferResponse_StatusClassesProperty: every status class maps
+// to one outcome — 5xx always fails, 4xx always rejects.
+func Test792b36c7a2_ClassifyOfferResponse_StatusClassesProperty(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
-		prefix := rapid.StringMatching(`[0-9][0-9a-z]{0,3}\.2026-09-2[0-9]\.[a-z-]{0,8}`).Draw(rt, "prefix")
-		bad := rapid.SampledFrom([]string{"/", `\`, "|"}).Draw(rt, "bad")
-		suffix := rapid.StringMatching(`[a-z./|-]{0,6}`).Draw(rt, "suffix")
+		status := rapid.IntRange(400, 599).Draw(rt, "status")
+		result := cli.ExportClassifyOfferResponse(cli.FetchResponse{Status: status}, nil)
 
-		body, err := json.Marshal(map[string]any{
-			"status": "offer received", "luhmann": "7", "basename": prefix + bad + suffix,
-			"pending": true, "vault_id": seqID(90), "stored_hash": "xh1:ab",
-		})
-		if err != nil {
-			rt.Fatal(err)
+		want := cli.ExportOfferRejected
+		if status >= 500 {
+			want = cli.ExportOfferFailed
 		}
 
-		result := cli.ExportClassifyOfferResponse(cli.FetchResponse{Status: 200, Body: body}, nil)
-		if result.Outcome == cli.ExportOfferAccepted {
-			rt.Fatalf("accepted a receipt with basename %q", prefix+bad+suffix)
+		if result.Outcome != want {
+			rt.Fatalf("status %d: outcome %v, want %v", status, result.Outcome, want)
 		}
 	})
 }
 
-// TestClassifyOfferResponse_MalformedParentIdentifiers (final review F6):
+// Test792b36c7a3_ClassifyOfferResponse_MalformedParentIdentifiers (final review F6):
 // a 2xx receipt whose vault_id is not 32 lowercase hex, or whose basename
 // or for is not a Luhmann basename free of '/', '\\' and '|', is a
 // malformed reply — never accepted, handled like an undecodable one; a 409
 // loop refusal with a malformed vault_id carries no refusing vault ID.
-func TestClassifyOfferResponse_MalformedParentIdentifiers(t *testing.T) {
+func Test792b36c7a3_ClassifyOfferResponse_MalformedParentIdentifiers(t *testing.T) {
 	t.Parallel()
 
 	receipt := func(vaultID, basename, forTarget string) []byte {
@@ -177,107 +838,59 @@ func TestClassifyOfferResponse_MalformedParentIdentifiers(t *testing.T) {
 	})
 }
 
-// TestClassifyOfferResponse_StatusClassesProperty: every status class maps
-// to one outcome — 5xx always fails, 4xx always rejects.
-func TestClassifyOfferResponse_StatusClassesProperty(t *testing.T) {
+// Test792b36c7a4_ClassifyOfferResponse_ForbiddenBasenameCharsProperty (final review
+// F6): whatever else a 2xx receipt holds, a basename carrying '/', '\\'
+// or '|' is never accepted.
+func Test792b36c7a4_ClassifyOfferResponse_ForbiddenBasenameCharsProperty(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
-		status := rapid.IntRange(400, 599).Draw(rt, "status")
-		result := cli.ExportClassifyOfferResponse(cli.FetchResponse{Status: status}, nil)
+		prefix := rapid.StringMatching(`[0-9][0-9a-z]{0,3}\.2026-09-2[0-9]\.[a-z-]{0,8}`).Draw(rt, "prefix")
+		bad := rapid.SampledFrom([]string{"/", `\`, "|"}).Draw(rt, "bad")
+		suffix := rapid.StringMatching(`[a-z./|-]{0,6}`).Draw(rt, "suffix")
 
-		want := cli.ExportOfferRejected
-		if status >= 500 {
-			want = cli.ExportOfferFailed
+		body, err := json.Marshal(map[string]any{
+			"status": "offer received", "luhmann": "7", "basename": prefix + bad + suffix,
+			"pending": true, "vault_id": seqID(90), "stored_hash": "xh1:ab",
+		})
+		if err != nil {
+			rt.Fatal(err)
 		}
 
-		if result.Outcome != want {
-			rt.Fatalf("status %d: outcome %v, want %v", status, result.Outcome, want)
+		result := cli.ExportClassifyOfferResponse(cli.FetchResponse{Status: 200, Body: body}, nil)
+		if result.Outcome == cli.ExportOfferAccepted {
+			rt.Fatalf("accepted a receipt with basename %q", prefix+bad+suffix)
 		}
 	})
 }
 
-// TestDrainOutbox_AnyAnswerResetsBackoff (ruling S14): a rejection, a
-// cycle refusal and a too-old receipt are all answers from a reachable
-// parent, so each resets the failure count and the backoff window.
-func TestDrainOutbox_AnyAnswerResetsBackoff(t *testing.T) {
-	t.Parallel()
-
-	tooOld := cli.ExportClassifyOfferResponse(cli.FetchResponse{Status: 200, Body: []byte(`{"status":"ok"}`)}, nil)
-	answers := map[string]cli.OfferSendResultForTest{
-		"rejection":     rejected("no"),
-		"cycle refusal": loopRefusal(seqID(33)),
-		"too old":       tooOld,
-	}
-
-	for name, answer := range answers {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			env := newOutboxEnv(t)
-			env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
-			env.enqueue(xidA)
-
-			_, failErr := cli.ExportRecordParentFailure(env.store, env.vault, parentURL)
-			g.Expect(failErr).NotTo(HaveOccurred())
-
-			_, _ = env.drain(&fakeParent{script: map[string]cli.OfferSendResultForTest{xidA: answer}})
-
-			cache, cacheErr := cli.ExportLoadParentCache(env.state, env.vault)
-			g.Expect(cacheErr).NotTo(HaveOccurred())
-			g.Expect(cache.Failures).To(BeZero())
-			g.Expect(cache.BackoffUntil.IsZero()).To(BeTrue())
-		})
-	}
-}
-
-// TestDrainOutbox_BuildsPayloadAtSendTime: an offline learn followed by an
-// amend goes up as one offer carrying the latest content.
-func TestDrainOutbox_BuildsPayloadAtSendTime(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newOutboxEnv(t)
-	env.writeNote("1.2026-09-27.a.md", xidA, "first", false)
-	env.enqueue(xidA)
-	env.writeNote("1.2026-09-27.a.md", xidA, "second", false)
-
-	parent := &fakeParent{}
-	result, err := env.drain(parent)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(result.Sent).To(Equal(1))
-
-	g.Expect(parent.sent).To(HaveLen(1))
-	g.Expect(string(parent.sent[0].Raw)).To(ContainSubstring("second"))
-	g.Expect(parent.sent[0].Hash).To(Equal(mustHash(t, env.noteRaw("1.2026-09-27.a.md"))))
-	g.Expect(env.outbox().Entries).To(BeEmpty())
-}
-
-// TestDrainOutbox_CachedSelfParentSendsNothing (D2 self-parent guard): when
-// the cached parent reports this vault's own ID, nothing is sent and one
-// warning names --regenerate.
-func TestDrainOutbox_CachedSelfParentSendsNothing(t *testing.T) {
+// Test792b36c8a1_DrainOutbox_RecordsParentVaultIDAndResetsFailures: an answered offer
+// is a successful contact: the failure count resets and the parent's
+// reported vault ID is cached.
+func Test792b36c8a1_DrainOutbox_RecordsParentVaultIDAndResetsFailures(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	env := newOutboxEnv(t)
 	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
 	env.enqueue(xidA)
-	g.Expect(cli.ExportRecordParentSuccess(env.store, env.vault, parentURL, env.localID)).To(Succeed())
 
-	parent := &fakeParent{}
-	_, err := env.drain(parent)
+	_, failErr := cli.ExportRecordParentFailure(env.store, env.vault, parentURL)
+	g.Expect(failErr).NotTo(HaveOccurred())
+
+	_, err := env.drain(&fakeParent{})
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(parent.sent).To(BeEmpty())
-	g.Expect(entryXIDs(env.outbox())).To(Equal([]string{xidA}))
-	g.Expect(nonEmptyLines(env.stderr.String())).To(HaveLen(1))
-	g.Expect(env.stderr.String()).To(ContainSubstring("vault-id --regenerate"))
+
+	cache, cacheErr := cli.ExportLoadParentCache(env.state, env.vault)
+	g.Expect(cacheErr).NotTo(HaveOccurred())
+	g.Expect(cache.Failures).To(BeZero())
+	g.Expect(cache.VaultID).To(Equal(parentVaultID))
+	g.Expect(cache.URL).To(Equal(parentURL))
 }
 
-// TestDrainOutbox_ChangedDuringSendStaysQueued: the receipt is recorded,
+// Test792b36c8a2_DrainOutbox_ChangedDuringSendStaysQueued: the receipt is recorded,
 // but a note amended while its offer was in flight stays queued.
-func TestDrainOutbox_ChangedDuringSendStaysQueued(t *testing.T) {
+func Test792b36c8a2_DrainOutbox_ChangedDuringSendStaysQueued(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -296,67 +909,10 @@ func TestDrainOutbox_ChangedDuringSendStaysQueued(t *testing.T) {
 	g.Expect(env.outbox().Entries[0].State).To(Equal("queued"))
 }
 
-// TestDrainOutbox_ConcurrentEnqueueSurvives (M10): an entry another process
-// queues while the drain is sending survives the merge, because the merge
-// re-reads the outbox from disk.
-func TestDrainOutbox_ConcurrentEnqueueSurvives(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newOutboxEnv(t)
-	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
-	env.writeNote("2.2026-09-27.d.md", xidD, "d", false)
-	env.enqueue(xidA)
-
-	parent := &fakeParent{during: func(cli.OfferNoteForTest) { env.enqueue(xidD) }}
-
-	_, err := env.drain(parent)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(entryXIDs(env.outbox())).To(Equal([]string{xidD}))
-}
-
-// TestDrainOutbox_CycleRefusalRejectsAndContinues (ruling S13, D7): a 409
-// loop refusal from a parent whose ID is NOT this vault's is a real cycle
-// (A→B→C→A): that entry is rejected, the drain continues, and one warning
-// names the refusing vault (not --regenerate). A refusal leaves the backoff
-// counters alone.
-func TestDrainOutbox_CycleRefusalRejectsAndContinues(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newOutboxEnv(t)
-	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
-	env.writeNote("2.2026-09-27.b.md", xidB, "b", false)
-	env.writeNote("3.2026-09-27.c.md", xidC, "c", false)
-	env.enqueue(xidA)
-	env.enqueue(xidB)
-	env.enqueue(xidC)
-
-	refusal := loopRefusal(parentVaultID)
-	parent := &fakeParent{script: map[string]cli.OfferSendResultForTest{xidA: refusal, xidB: refusal}}
-
-	result, err := env.drain(parent)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(sentXIDs(parent)).To(Equal([]string{xidA, xidB, xidC}))
-	g.Expect(result.Rejected).To(Equal(2))
-
-	box := env.outbox()
-	g.Expect(entryXIDs(box)).To(Equal([]string{xidA, xidB}))
-	g.Expect(box.Entries[0].State).To(Equal("rejected"))
-	g.Expect(box.Entries[0].RejectedHash).To(Equal(mustHash(t, env.noteRaw("1.2026-09-27.a.md"))))
-	g.Expect(box.Entries[1].State).To(Equal("rejected"))
-
-	lines := nonEmptyLines(env.stderr.String())
-	g.Expect(lines).To(HaveLen(1))
-	g.Expect(lines[0]).To(ContainSubstring(parentVaultID))
-	g.Expect(lines[0]).To(ContainSubstring("cycle"))
-	g.Expect(lines[0]).NotTo(ContainSubstring("--regenerate"))
-}
-
-// TestDrainOutbox_DeletedDuringSendDiscardsReceipt (M10): a receipt for a
+// Test792b36c8a3_DrainOutbox_DeletedDuringSendDiscardsReceipt (M10): a receipt for a
 // note deleted while its offer was in flight is discarded, and its entry is
 // dropped.
-func TestDrainOutbox_DeletedDuringSendDiscardsReceipt(t *testing.T) {
+func Test792b36c8a3_DrainOutbox_DeletedDuringSendDiscardsReceipt(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -375,105 +931,30 @@ func TestDrainOutbox_DeletedDuringSendDiscardsReceipt(t *testing.T) {
 	g.Expect(env.outbox().Entries).To(BeEmpty())
 }
 
-// TestDrainOutbox_DropsDeletedAndPendingNotes: an entry whose note is gone
-// or now pending is dropped without being sent.
-func TestDrainOutbox_DropsDeletedAndPendingNotes(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newOutboxEnv(t)
-	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
-	env.writeNote("2.2026-09-27.b.md", xidB, "b", false)
-	env.enqueue(xidA)
-	env.enqueue(xidB)
-	env.fsys.remove(filepath.Join(env.vault, "1.2026-09-27.a.md"))
-	env.writeNote("2.2026-09-27.b.md", xidB, "b", true)
-
-	parent := &fakeParent{}
-	result, err := env.drain(parent)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(parent.sent).To(BeEmpty())
-	g.Expect(result.Dropped).To(Equal(2))
-	g.Expect(env.outbox().Entries).To(BeEmpty())
-}
-
-// TestDrainOutbox_EmptyOutboxTouchesNothing: nothing queued means no
-// location check, no send and no write.
-func TestDrainOutbox_EmptyOutboxTouchesNothing(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newOutboxEnv(t)
-	writesBefore := len(env.fsys.atomicWrites())
-
-	parent := &fakeParent{}
-	_, err := env.drain(parent)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(parent.sent).To(BeEmpty())
-	g.Expect(env.fsys.atomicWrites()).To(HaveLen(writesBefore))
-	g.Expect(env.stderr.String()).To(BeEmpty())
-}
-
-// TestDrainOutbox_FindsRenamedNoteByXID: a Luhmann rename between enqueue
-// and drain does not orphan the entry; the receipt lands on the new name.
-func TestDrainOutbox_FindsRenamedNoteByXID(t *testing.T) {
+// Test792b36c8a4_DrainOutbox_ReceiptWriteFailureKeepsEntry: when recording an accepted
+// receipt on the note fails, the drain reports it and the entry stays
+// queued with the error, to be resent (idempotently) later.
+func Test792b36c8a4_DrainOutbox_ReceiptWriteFailureKeepsEntry(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	env := newOutboxEnv(t)
 	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
 	env.enqueue(xidA)
-	env.fsys.rename(filepath.Join(env.vault, "1.2026-09-27.a.md"), filepath.Join(env.vault, "1a.2026-09-27.a.md"))
 
-	parent := &fakeParent{}
-	_, err := env.drain(parent)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(parent.sent).To(HaveLen(1))
-	g.Expect(parent.sent[0].Basename).To(Equal("1a.2026-09-27.a"))
-	g.Expect(parent.applied).To(Equal([]string{"1a.2026-09-27.a"}))
-	g.Expect(env.outbox().Entries).To(BeEmpty())
+	_, err := env.drain(&fakeParent{applyErr: errors.New("disk full")})
+	g.Expect(err).To(MatchError(ContainSubstring("disk full")))
+
+	box := env.outbox()
+	g.Expect(entryXIDs(box)).To(Equal([]string{xidA}))
+	g.Expect(box.Entries[0].Attempts).To(Equal(1))
+	g.Expect(box.Entries[0].LastError).To(ContainSubstring("disk full"))
 }
 
-// TestDrainOutbox_LocalReadFailuresSurface: a corrupt outbox, a corrupt
-// parent cache, or an unreadable note fails the drain (nothing is sent)
-// rather than silently dropping queued offers.
-func TestDrainOutbox_LocalReadFailuresSurface(t *testing.T) {
-	t.Parallel()
-
-	cases := map[string]func(env *outboxEnv){
-		"corrupt outbox": func(env *outboxEnv) {
-			env.fsys.put(filepath.Join(env.vault, ".engram", "outbox.json"), []byte("{not json"))
-		},
-		"corrupt parent cache": func(env *outboxEnv) {
-			env.fsys.put(filepath.Join(env.vault, ".engram", "parent.json"), []byte("{not json"))
-		},
-		"unreadable note": func(env *outboxEnv) {
-			env.fsys.failReadOf(filepath.Join(env.vault, "1.2026-09-27.a.md"), errors.New("EIO"))
-		},
-	}
-
-	for name, breakVault := range cases {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			env := newOutboxEnv(t)
-			env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
-			env.enqueue(xidA)
-			breakVault(env)
-
-			parent := &fakeParent{}
-			_, err := env.drain(parent)
-			g.Expect(err).To(HaveOccurred())
-			g.Expect(parent.sent).To(BeEmpty())
-		})
-	}
-}
-
-// TestDrainOutbox_MalformedReceiptKeepsEntry (final review F6, F11): a
+// Test792b36c8a5_DrainOutbox_MalformedReceiptKeepsEntry (final review F6, F11): a
 // drain that receives a receipt with a malformed basename or vault ID
 // applies nothing, keeps the entry queued and records the failure on it.
-func TestDrainOutbox_MalformedReceiptKeepsEntry(t *testing.T) {
+func Test792b36c8a5_DrainOutbox_MalformedReceiptKeepsEntry(t *testing.T) {
 	t.Parallel()
 
 	for name, body := range map[string]string{
@@ -505,54 +986,10 @@ func TestDrainOutbox_MalformedReceiptKeepsEntry(t *testing.T) {
 	}
 }
 
-// TestDrainOutbox_ReceiptWriteFailureKeepsEntry: when recording an accepted
-// receipt on the note fails, the drain reports it and the entry stays
-// queued with the error, to be resent (idempotently) later.
-func TestDrainOutbox_ReceiptWriteFailureKeepsEntry(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newOutboxEnv(t)
-	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
-	env.enqueue(xidA)
-
-	_, err := env.drain(&fakeParent{applyErr: errors.New("disk full")})
-	g.Expect(err).To(MatchError(ContainSubstring("disk full")))
-
-	box := env.outbox()
-	g.Expect(entryXIDs(box)).To(Equal([]string{xidA}))
-	g.Expect(box.Entries[0].Attempts).To(Equal(1))
-	g.Expect(box.Entries[0].LastError).To(ContainSubstring("disk full"))
-}
-
-// TestDrainOutbox_RecordsParentVaultIDAndResetsFailures: an answered offer
-// is a successful contact: the failure count resets and the parent's
-// reported vault ID is cached.
-func TestDrainOutbox_RecordsParentVaultIDAndResetsFailures(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newOutboxEnv(t)
-	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
-	env.enqueue(xidA)
-
-	_, failErr := cli.ExportRecordParentFailure(env.store, env.vault, parentURL)
-	g.Expect(failErr).NotTo(HaveOccurred())
-
-	_, err := env.drain(&fakeParent{})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	cache, cacheErr := cli.ExportLoadParentCache(env.state, env.vault)
-	g.Expect(cacheErr).NotTo(HaveOccurred())
-	g.Expect(cache.Failures).To(BeZero())
-	g.Expect(cache.VaultID).To(Equal(parentVaultID))
-	g.Expect(cache.URL).To(Equal(parentURL))
-}
-
-// TestDrainOutbox_RejectedEntryReArmsOnlyOnHashChange: a 4xx marks the
+// Test792b36c9a1_DrainOutbox_RejectedEntryReArmsOnlyOnHashChange: a 4xx marks the
 // entry rejected with its hash and the drain continues; the entry is not
 // resent until the note's exchange hash changes.
-func TestDrainOutbox_RejectedEntryReArmsOnlyOnHashChange(t *testing.T) {
+func Test792b36c9a1_DrainOutbox_RejectedEntryReArmsOnlyOnHashChange(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -590,9 +1027,9 @@ func TestDrainOutbox_RejectedEntryReArmsOnlyOnHashChange(t *testing.T) {
 	g.Expect(env.outbox().Entries).To(BeEmpty())
 }
 
-// TestDrainOutbox_RejectionWithoutMessageRecordsEmptyError: a rejection a
+// Test792b36c9a2_DrainOutbox_RejectionWithoutMessageRecordsEmptyError: a rejection a
 // sender reports without a cause still marks the entry rejected.
-func TestDrainOutbox_RejectionWithoutMessageRecordsEmptyError(t *testing.T) {
+func Test792b36c9a2_DrainOutbox_RejectionWithoutMessageRecordsEmptyError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -610,238 +1047,10 @@ func TestDrainOutbox_RejectionWithoutMessageRecordsEmptyError(t *testing.T) {
 	g.Expect(box.Entries[0].LastError).To(BeEmpty())
 }
 
-// TestDrainOutbox_SelfParentReceiptStops: a receipt reporting this vault's
-// own ID is the self-parent case — nothing is recorded, the drain stops,
-// the entry stays and one warning names --regenerate.
-func TestDrainOutbox_SelfParentReceiptStops(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newOutboxEnv(t)
-	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
-	env.enqueue(xidA)
-
-	receipt := accepted("1.2026-09-27.a")
-	receipt.Receipt.VaultID = env.localID
-
-	parent := &fakeParent{script: map[string]cli.OfferSendResultForTest{xidA: receipt}}
-	_, err := env.drain(parent)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(parent.applied).To(BeEmpty())
-	g.Expect(entryXIDs(env.outbox())).To(Equal([]string{xidA}))
-	g.Expect(env.outbox().Entries[0].State).To(Equal("queued"))
-	g.Expect(env.stderr.String()).To(ContainSubstring("vault-id --regenerate"))
-
-	// The parent's ID is cached under the lock, so the pre-exchange guard
-	// engages from now on: the next drain sends nothing.
-	cache, cacheErr := cli.ExportLoadParentCache(env.state, env.vault)
-	g.Expect(cacheErr).NotTo(HaveOccurred())
-	g.Expect(cache.VaultID).To(Equal(env.localID))
-
-	again := &fakeParent{}
-	_, err = env.drain(again)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(again.sent).To(BeEmpty())
-}
-
-// TestDrainOutbox_SelfParentRefusalThenRegenerateSends (ruling S12): a 409
-// loop refusal naming this vault's own ID keeps the entries queued (not
-// rejected), caches the parent's ID, stops the drain and warns once naming
-// --regenerate; after `vault-id --regenerate` the queued entries send.
-func TestDrainOutbox_SelfParentRefusalThenRegenerateSends(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newOutboxEnv(t)
-	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
-	env.writeNote("2.2026-09-27.b.md", xidB, "b", false)
-	env.enqueue(xidA)
-	env.enqueue(xidB)
-
-	refusal := loopRefusal(env.localID)
-	refusing := &fakeParent{script: map[string]cli.OfferSendResultForTest{xidA: refusal, xidB: refusal}}
-
-	_, failErr := cli.ExportRecordParentFailure(env.store, env.vault, parentURL)
-	g.Expect(failErr).NotTo(HaveOccurred())
-
-	result, err := env.drain(refusing)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(result.Rejected).To(BeZero())
-	g.Expect(sentXIDs(refusing)).To(Equal([]string{xidA}))
-
-	box := env.outbox()
-	g.Expect(entryXIDs(box)).To(Equal([]string{xidA, xidB}))
-	g.Expect(box.Entries[0].State).To(Equal("queued"))
-	g.Expect(box.Entries[0].RejectedHash).To(BeEmpty())
-	g.Expect(box.Entries[1].State).To(Equal("queued"))
-
-	lines := nonEmptyLines(env.stderr.String())
-	g.Expect(lines).To(HaveLen(1))
-	g.Expect(lines[0]).To(ContainSubstring("vault-id --regenerate"))
-
-	cache, cacheErr := cli.ExportLoadParentCache(env.state, env.vault)
-	g.Expect(cacheErr).NotTo(HaveOccurred())
-	g.Expect(cache.VaultID).To(Equal(env.localID))
-	g.Expect(cache.Failures).To(BeZero(), "a refusal is an answer: the backoff resets (ruling S14)")
-
-	regenState := cli.ExportNewExchangeState(env.fsys, seqRand(60), identityPath,
-		func() (string, error) { return "/", nil })
-	newID, regenErr := cli.ExportRegenerateVaultID(regenState, env.vault)
-	g.Expect(regenErr).NotTo(HaveOccurred())
-	g.Expect(newID).NotTo(Equal(env.localID))
-
-	healed := &fakeParent{}
-	_, err = env.drain(healed)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(sentXIDs(healed)).To(Equal([]string{xidA, xidB}))
-	g.Expect(env.outbox().Entries).To(BeEmpty())
-}
-
-// TestDrainOutbox_SendsInFirstQueuedOrder: oldest queued first, whatever
-// the file order.
-func TestDrainOutbox_SendsInFirstQueuedOrder(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newOutboxEnv(t)
-	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
-	env.writeNote("2.2026-09-27.b.md", xidB, "b", false)
-	env.writeNote("3.2026-09-27.c.md", xidC, "c", false)
-
-	base := time.Date(2026, 9, 27, 10, 0, 0, 0, time.UTC)
-	env.writeOutbox(map[string]any{"version": 1, "entries": []map[string]any{
-		{"xid": xidC, "queued": base.Add(2 * time.Minute), "state": "queued"},
-		{"xid": xidA, "queued": base, "state": "queued"},
-		{"xid": xidB, "queued": base.Add(time.Minute), "state": "queued"},
-	}})
-
-	parent := &fakeParent{}
-	result, err := env.drain(parent)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(result.Sent).To(Equal(3))
-	g.Expect(sentXIDs(parent)).To(Equal([]string{xidA, xidB, xidC}))
-	g.Expect(env.outbox().Entries).To(BeEmpty())
-}
-
-// TestDrainOutbox_SendsWithNoLockHeld: the snapshot and the merge run under
-// the vault lock, but every send happens with the lock released.
-func TestDrainOutbox_SendsWithNoLockHeld(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newOutboxEnv(t)
-	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
-	env.writeNote("2.2026-09-27.b.md", xidB, "b", false)
-	env.enqueue(xidA)
-	env.enqueue(xidB)
-	env.resetEvents()
-
-	parent := &fakeParent{events: env.events}
-	_, err := env.drain(parent)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(env.events.list()).To(Equal([]string{
-		"lock", "unlock", "send " + xidA, "send " + xidB, "lock", "apply", "apply", "unlock",
-	}))
-}
-
-// TestDrainOutbox_SkippedSendKeepsEntryAndContinues: a local payload
-// failure records the error on its entry, keeps it queued, and does not
-// stop the drain or back off (the parent was never contacted).
-func TestDrainOutbox_SkippedSendKeepsEntryAndContinues(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newOutboxEnv(t)
-	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
-	env.writeNote("2.2026-09-27.b.md", xidB, "b", false)
-	env.enqueue(xidA)
-	env.enqueue(xidB)
-
-	skip := cli.OfferSendResultForTest{Outcome: cli.ExportOfferSkipped, Err: errors.New("unrenderable")}
-	parent := &fakeParent{script: map[string]cli.OfferSendResultForTest{xidA: skip}}
-
-	result, err := env.drain(parent)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(result.Unreachable).To(BeFalse())
-	g.Expect(sentXIDs(parent)).To(Equal([]string{xidA, xidB}))
-
-	box := env.outbox()
-	g.Expect(entryXIDs(box)).To(Equal([]string{xidA}))
-	g.Expect(box.Entries[0].State).To(Equal("queued"))
-	g.Expect(box.Entries[0].LastError).To(ContainSubstring("unrenderable"))
-
-	cache, cacheErr := cli.ExportLoadParentCache(env.state, env.vault)
-	g.Expect(cacheErr).NotTo(HaveOccurred())
-	g.Expect(cache.Failures).To(BeZero())
-}
-
-// TestDrainOutbox_TooOldParentKeepsEntryAndErrors (H7): a receipt with no
-// vault ID stops exchange with a "parent too old" error and leaves the
-// entry queued.
-func TestDrainOutbox_TooOldParentKeepsEntryAndErrors(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newOutboxEnv(t)
-	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
-	env.writeNote("2.2026-09-27.b.md", xidB, "b", false)
-	env.enqueue(xidA)
-	env.enqueue(xidB)
-
-	tooOld := cli.ExportClassifyOfferResponse(
-		cli.FetchResponse{Status: 200, Body: []byte(`{"status":"ok","basename":"1.x"}`)}, nil)
-
-	parent := &fakeParent{script: map[string]cli.OfferSendResultForTest{xidA: tooOld}}
-	_, err := env.drain(parent)
-	g.Expect(err).To(MatchError(cli.ErrParentTooOldForTest))
-	g.Expect(sentXIDs(parent)).To(Equal([]string{xidA}))
-	g.Expect(parent.applied).To(BeEmpty())
-	g.Expect(entryXIDs(env.outbox())).To(Equal([]string{xidA, xidB}))
-	g.Expect(env.outbox().Entries[0].State).To(Equal("queued"))
-	g.Expect(env.outbox().Entries[0].LastError).To(ContainSubstring("too old"))
-}
-
-// TestDrainOutbox_TransportFailureStopsAndRecords: a connection error stops
-// the drain; the sent entry is removed, the failed and later ones remain in
-// order, the failed one records attempts and last_error, and the parent
-// cache backs off for 30s.
-func TestDrainOutbox_TransportFailureStopsAndRecords(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newOutboxEnv(t)
-	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
-	env.writeNote("2.2026-09-27.b.md", xidB, "b", false)
-	env.writeNote("3.2026-09-27.c.md", xidC, "c", false)
-	env.enqueue(xidA)
-	env.enqueue(xidB)
-	env.enqueue(xidC)
-
-	failure := cli.ExportClassifyOfferResponse(cli.FetchResponse{}, errors.New("connection refused"))
-	parent := &fakeParent{script: map[string]cli.OfferSendResultForTest{xidB: failure}}
-
-	result, err := env.drain(parent)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(result.Unreachable).To(BeTrue())
-	g.Expect(sentXIDs(parent)).To(Equal([]string{xidA, xidB}))
-
-	box := env.outbox()
-	g.Expect(entryXIDs(box)).To(Equal([]string{xidB, xidC}))
-	g.Expect(box.Entries[0].Attempts).To(Equal(1))
-	g.Expect(box.Entries[0].LastError).To(ContainSubstring("connection refused"))
-	g.Expect(box.Entries[1].Attempts).To(BeZero())
-
-	cache, cacheErr := cli.ExportLoadParentCache(env.state, env.vault)
-	g.Expect(cacheErr).NotTo(HaveOccurred())
-	g.Expect(cache.Failures).To(Equal(1))
-	g.Expect(cache.BackoffUntil).To(BeTemporally("==", env.now().Add(30*time.Second)))
-	g.Expect(result.RetryAfter).To(BeTemporally("==", env.now().Add(30*time.Second)))
-}
-
-// TestDrainOutbox_UnmarkedConflictRejectsAndContinues (ruling S13): a 409
+// Test792b36c9a3_DrainOutbox_UnmarkedConflictRejectsAndContinues (ruling S13): a 409
 // without the loop discriminator (another cause, or a parent predating it)
 // is an ordinary rejection; the drain continues.
-func TestDrainOutbox_UnmarkedConflictRejectsAndContinues(t *testing.T) {
+func Test792b36c9a3_DrainOutbox_UnmarkedConflictRejectsAndContinues(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -862,248 +1071,39 @@ func TestDrainOutbox_UnmarkedConflictRejectsAndContinues(t *testing.T) {
 	g.Expect(env.outbox().Entries[0].State).To(Equal("rejected"))
 }
 
-// TestDrainOutbox_WithdrawnEntryDroppedUnlessChanged (ruling S16): a
-// withdrawn offer's entry is dropped, unless the note changed while the
-// offer was being built, in which case it stays for the next drain.
-func TestDrainOutbox_WithdrawnEntryDroppedUnlessChanged(t *testing.T) {
+// Test792b36c9a4_DrainOutbox_AnyAnswerResetsBackoff (ruling S14): a rejection, a
+// cycle refusal and a too-old receipt are all answers from a reachable
+// parent, so each resets the failure count and the backoff window.
+func Test792b36c9a4_DrainOutbox_AnyAnswerResetsBackoff(t *testing.T) {
 	t.Parallel()
 
-	withdrawn := cli.OfferSendResultForTest{Outcome: cli.ExportOfferWithdrawn, Err: cli.ErrOfferWithdrawnForTest}
-
-	t.Run("unchanged", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		env := newOutboxEnv(t)
-		env.writeNote("1.2026-09-27.a.md", xidA, "first", false)
-		env.enqueue(xidA)
-
-		_, err := env.drain(&fakeParent{script: map[string]cli.OfferSendResultForTest{xidA: withdrawn}})
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(env.outbox().Entries).To(BeEmpty())
-	})
-
-	t.Run("changed meanwhile", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		env := newOutboxEnv(t)
-		env.writeNote("1.2026-09-27.a.md", xidA, "first", false)
-		env.enqueue(xidA)
-
-		parent := &fakeParent{
-			script: map[string]cli.OfferSendResultForTest{xidA: withdrawn},
-			during: func(cli.OfferNoteForTest) {
-				env.writeNote("1.2026-09-27.a.md", xidA, "amended mid-flight", false)
-			},
-		}
-
-		_, err := env.drain(parent)
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(entryXIDs(env.outbox())).To(Equal([]string{xidA}))
-	})
-}
-
-// TestEnqueueOutbox_CoalescesByXID: at most one entry per note; a repeat
-// enqueue keeps the entry's first-queued time (and its FIFO slot).
-func TestEnqueueOutbox_CoalescesByXID(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newOutboxEnv(t)
-	first := env.now()
-
-	env.enqueue(xidA)
-	env.advance(time.Minute)
-	env.enqueue(xidB)
-	env.advance(time.Minute)
-	env.enqueue(xidA)
-
-	box := env.outbox()
-	g.Expect(box.Version).To(Equal(1))
-	g.Expect(entryXIDs(box)).To(Equal([]string{xidA, xidB}))
-	g.Expect(box.Entries[0].Queued).To(BeTemporally("==", first))
-	g.Expect(box.Entries[0].State).To(Equal("queued"))
-}
-
-// TestEnqueueOutbox_FailuresSurface: a corrupt outbox, a failed atomic
-// write, or a vault ID that cannot be stamped fails the enqueue.
-func TestEnqueueOutbox_FailuresSurface(t *testing.T) {
-	t.Parallel()
-
-	t.Run("corrupt outbox", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		env := newOutboxEnv(t)
-		env.fsys.put(filepath.Join(env.vault, ".engram", "outbox.json"), []byte("[]"))
-		g.Expect(cli.ExportEnqueueOutbox(env.store, env.vault, xidA)).NotTo(Succeed())
-	})
-
-	t.Run("write fails", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		env := newOutboxEnv(t)
-		env.fsys.failAtomicWrite(filepath.Join(env.vault, ".engram", "outbox.json"), errors.New("disk full"))
-		g.Expect(cli.ExportEnqueueOutbox(env.store, env.vault, xidA)).To(MatchError(ContainSubstring("disk full")))
-	})
-
-	t.Run("stamp fails", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := newMemVaultFS()
-		fsys.mkdir("/fresh")
-		fsys.failAtomicWrite("/fresh/.engram/home.json", errors.New("read-only"))
-
-		store, _ := newTestOutboxStore(fsys, newDrainEventLog(), func() time.Time { return testNow }, io.Discard)
-		g.Expect(cli.ExportEnqueueOutbox(store, "/fresh", xidA)).To(MatchError(ContainSubstring("read-only")))
-		g.Expect(fsys.read("/fresh/.engram/outbox.json")).To(BeEmpty())
-	})
-}
-
-// TestEnqueueOutbox_SavesAtomically: the outbox is only ever written with
-// the atomic temp+rename primitive, as outbox.json under .engram/.
-func TestEnqueueOutbox_SavesAtomically(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newOutboxEnv(t)
-	env.enqueue(xidA)
-
-	g.Expect(env.fsys.atomicWrites()).To(ContainElement(filepath.Join(env.vault, ".engram", "outbox.json")))
-
-	var decoded map[string]any
-	g.Expect(json.Unmarshal(env.fsys.read(filepath.Join(env.vault, ".engram", "outbox.json")), &decoded)).To(Succeed())
-	g.Expect(decoded).To(HaveKeyWithValue("version", BeNumerically("==", 1)))
-}
-
-// TestEnqueueOutbox_StampsVaultIDBeforeStateDir (ruling S4): the first
-// enqueue in a vault with no ID stamps the ID (and its location record)
-// before .engram/ exists, so .engram/ keeps meaning created-by-engram.
-func TestEnqueueOutbox_StampsVaultIDBeforeStateDir(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fsys := newMemVaultFS()
-	vault := "/vault"
-	fsys.mkdir(vault)
-
-	store, state := newTestOutboxStore(fsys, newDrainEventLog(), func() time.Time { return testNow }, io.Discard)
-
-	g.Expect(cli.ExportEnqueueOutbox(store, vault, xidA)).To(Succeed())
-	g.Expect(fsys.stateDirBeforeID()).To(BeFalse())
-
-	status, checkErr := cli.ExportCheckVaultLocation(state, vault)
-	g.Expect(checkErr).NotTo(HaveOccurred())
-	g.Expect(status).To(Equal(cli.ExportLocationOK))
-}
-
-// TestNewOfferSender_PostsBuiltPayloadToLearn: the production sender builds
-// the payload from the note at send time and POSTs it to the parent's
-// /learn route; a payload build failure is skipped without contacting the
-// parent.
-func TestNewOfferSender_PostsBuiltPayloadToLearn(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var method, url string
-
-	var body []byte
-
-	fetch := func(_ context.Context, gotMethod, gotURL string, gotBody []byte) (cli.FetchResponse, error) {
-		method, url, body = gotMethod, gotURL, gotBody
-
-		return cli.FetchResponse{Status: 200, Body: []byte(`{"status":"offer received","luhmann":"7",` +
-			`"basename":"7.2026-09-27.x","pending":true,"vault_id":"` + parentVaultID + `","stored_hash":"xh1:ab"}`)}, nil
+	tooOld := cli.ExportClassifyOfferResponse(cli.FetchResponse{Status: 200, Body: []byte(`{"status":"ok"}`)}, nil)
+	answers := map[string]cli.OfferSendResultForTest{
+		"rejection":     rejected("no"),
+		"cycle refusal": loopRefusal(seqID(33)),
+		"too old":       tooOld,
 	}
-	build := func(note cli.OfferNoteForTest) ([]byte, error) { return []byte("payload for " + note.XID), nil }
 
-	send := cli.ExportNewOfferSender(fetch, parentURL+"/", build)
-	result := send(context.Background(), cli.OfferNoteForTest{XID: xidA})
+	for name, answer := range answers {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
 
-	g.Expect(result.Outcome).To(Equal(cli.ExportOfferAccepted))
-	g.Expect(result.Receipt.Basename).To(Equal("7.2026-09-27.x"))
-	g.Expect(method).To(Equal("POST"))
-	g.Expect(url).To(Equal(parentURL + "/learn"))
-	g.Expect(string(body)).To(Equal("payload for " + xidA))
+			env := newOutboxEnv(t)
+			env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
+			env.enqueue(xidA)
 
-	failing := cli.ExportNewOfferSender(
-		func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
-			t.Error("fetch must not run when the payload cannot be built")
+			_, failErr := cli.ExportRecordParentFailure(env.store, env.vault, parentURL)
+			g.Expect(failErr).NotTo(HaveOccurred())
 
-			return cli.FetchResponse{}, nil
-		},
-		parentURL,
-		func(cli.OfferNoteForTest) ([]byte, error) { return nil, errors.New("unrenderable") },
-	)
-	skipped := failing(context.Background(), cli.OfferNoteForTest{XID: xidA})
-	g.Expect(skipped.Outcome).To(Equal(cli.ExportOfferSkipped))
-	g.Expect(skipped.Err).To(MatchError(ContainSubstring("unrenderable")))
-}
+			_, _ = env.drain(&fakeParent{script: map[string]cli.OfferSendResultForTest{xidA: answer}})
 
-// TestOutbox_NoOfferLostAtMostOneEntryProperty (E52): across any sequence
-// of writes, deletes, pending-marks and drains (with accepted, rejected and
-// failed sends, and concurrent writes mid-drain), (1) the outbox holds at
-// most one entry per note, and (2) every note that exists, is not pending,
-// and whose current content the parent has not accepted keeps an entry.
-func TestOutbox_NoOfferLostAtMostOneEntryProperty(t *testing.T) {
-	t.Parallel()
-
-	xids := []string{xidA, xidB, xidC}
-
-	rapid.Check(t, func(rt *rapid.T) {
-		env := newOutboxEnvFor(rt)
-		model := newOutboxModel()
-
-		steps := rapid.IntRange(1, 25).Draw(rt, "steps")
-		for step := range steps {
-			xid := rapid.SampledFrom(xids).Draw(rt, "xid")
-			name := noteNameFor(xid)
-
-			switch rapid.IntRange(0, 3).Draw(rt, "op") {
-			case 0: // an offerable write: note written live and enqueued
-				body := fmt.Sprintf("content %d", rapid.IntRange(0, 3).Draw(rt, "body"))
-				env.writeNote(name, xid, body, false)
-				env.enqueue(xid)
-				model.exists[xid], model.pending[xid] = true, false
-			case 1:
-				env.fsys.remove(filepath.Join(env.vault, name))
-				model.exists[xid] = false
-			case 2:
-				if model.exists[xid] {
-					env.writeNote(name, xid, "pending "+xid, true)
-					model.pending[xid] = true
-				}
-			default:
-				runPropertyDrain(rt, env, model, xids, step)
-			}
-
-			checkOutboxInvariants(rt, env, model, xids)
-		}
-	})
-}
-
-// TestStampNoteXID_LazyAndStable: a note without an xid gets a fresh one
-// the first time it enters the outbox; one that has an xid keeps it.
-func TestStampNoteXID_LazyAndStable(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	minted, stamped, err := cli.ExportStampNoteXID("", seqRand(7))
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(stamped).To(BeTrue())
-	g.Expect(minted).To(Equal(seqID(7)))
-
-	kept, restamped, keepErr := cli.ExportStampNoteXID(xidA, func([]byte) (int, error) {
-		t.Error("an existing xid must not draw randomness")
-
-		return 0, nil
-	})
-	g.Expect(keepErr).NotTo(HaveOccurred())
-	g.Expect(restamped).To(BeFalse())
-	g.Expect(kept).To(Equal(xidA))
+			cache, cacheErr := cli.ExportLoadParentCache(env.state, env.vault)
+			g.Expect(cacheErr).NotTo(HaveOccurred())
+			g.Expect(cache.Failures).To(BeZero())
+			g.Expect(cache.BackoffUntil.IsZero()).To(BeTrue())
+		})
+	}
 }
 
 // unexported constants.

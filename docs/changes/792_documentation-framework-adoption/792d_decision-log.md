@@ -2147,3 +2147,37 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792d3, 792d6, 792d10, 792d30, 792d33, 792d51, 792d52, 792d61, 792d67, 792d117, 792d118 and 792d119.
 - **Alternatives:** trim the three parent specs requirement by requirement now. Rejected because each requirement is
   both product and contract, as 792d117 found for `vault-serve-api`.
+
+## 792d122 offer-outbox scope, what the spec leaves to other components, and where the sources differ from the code
+
+- **Choice:**
+  - 792b36 specifies sixteen requirements (792b36c1 to 792b36c16) and two sequences, a write that is offered and a drain.
+    Every `alt` branch of the drain has its own requirement (792b36c3, c6, c8 to c13), as the guide asks. The outbox
+    state that waits (`attention`) is one requirement (792b36c15), because a refused receipt and a missing user identity
+    share the state, the single warning at the transition and the silent retry on later drains.
+  - The `vault-parent-offers` spec is deleted whole. Its hash requirement is 792b33c1 to 792b33c5 (792d118), the product side
+    of it is 792a21o, and the rest is 792a21n to 792a21zb and 792b36. Its connect timeout of 3 seconds is the fetch
+    client's (792b35c17) and its backoff is vault-identity-registry's (792b5c14). The backoff gate sits in front of the
+    drain, so the drain's own requirement (792b36c5) names it and does not restate it.
+  - The receipt edit that the drain calls is exchange-versioning's (792b33c9); the outbox owns when it is applied, what
+    finishes the entry afterwards and the `attention` state when the note refuses it.
+  - The vault-ID probe before a drain (`GET /query?dedupe-keys=1` with one item) is in the code and in no spec: it is
+    792b36c5, with a scenario for each way it fails.
+  - `offer_wiring_test` and `identity_gaps_test` hold two tests of `update`'s exchange step through the production wiring.
+    Each asserts a product scenario (792a21x1a, 792a21za1b) and so takes the product ID (792d52); the other
+    `TestUpdateExchange_*` tests were renamed by 792c7t1. The three `TestDrainForCommand_*` and `TestRecordKeptReceipts_*`
+    tests call internal drain steps and take technical IDs, listing the product scenario as split deferred.
+  - Renames: 69 tests, of which two take product IDs. The scenarios that the tests renamed by 792c7t1 verify are listed in
+    the traceability table as references.
+- **Divergences noted (792d33):**
+  - The spec says a malformed receipt is handled as an undecodable reply, leaving the note unlinked and the entry queued. The
+    code classes an undecodable or malformed 2xx body as an outage (`failed`), so the parent is also backed off for the
+    next commands, though it answered.
+  - The spec's reader list for a CRLF note does not name the vault-ID probe, which reads no note.
+  - The spec does not say what `update --dry-run` does with the outbox; the code drains nothing and still prints the
+    notice (792b36c16).
+  - A rejected entry's error is the parent's message; the spec says only that it is shown. The code also stores an empty
+    error for a rejection that carries no cause (792b36c9).
+- **Rationale:** 792d3, 792d10, 792d30, 792d33, 792d52, 792d118, 792d119 and 792d121.
+- **Alternatives:** one requirement per outcome of `drainOutbox` with no gate requirement. Rejected because the gate has
+  its own failure paths (the probe, the location check, the cached self-parent) that no outcome covers.

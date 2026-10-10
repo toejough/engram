@@ -1,7 +1,6 @@
 package cli_test
 
-// Tests for the exchange hash (design D3, vault-parent-offers "The exchange
-// hash SHALL cover every offered content field"; task 3.1).
+// Tests for the exchange hash (design D3, 792a21o and 792b33c1 to 792b33c5, "The exchange hash"; task 3.1).
 
 import (
 	"crypto/sha256"

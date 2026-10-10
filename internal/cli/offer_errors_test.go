@@ -34,10 +34,29 @@ func Test792b33c7a1_SetXIDField(t *testing.T) {
 	g.Expect(receiptErr).To(HaveOccurred())
 }
 
-// TestBuildOfferPayload_UnbuildableNotes: a note whose basename has no
+// Test792b36c1a5_ClassifyOffer_NonExchangeNotesAreNotOffered: a note without
+// frontmatter, of another type, or with corrupt frontmatter is not offered.
+func Test792b36c1a5_ClassifyOffer_NonExchangeNotesAreNotOffered(t *testing.T) {
+	t.Parallel()
+
+	for name, raw := range map[string]string{
+		"no frontmatter": "plain text\n",
+		"qa note":        "---\ntype: question\nsituation: s\n---\n\nQ?\n",
+		"corrupt yaml":   "---\ntype: [\n---\n\nbody\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			g.Expect(cli.ExportClassifyOffer(cli.ExportOfferCmdLearn, cli.AmendArgs{}, []byte(raw), "")).To(BeFalse())
+		})
+	}
+}
+
+// Test792b36c2a10_BuildOfferPayload_UnbuildableNotes: a note whose basename has no
 // slug, or whose frontmatter is missing or corrupt, is not built (the
 // drain skips it without contacting the parent).
-func TestBuildOfferPayload_UnbuildableNotes(t *testing.T) {
+func Test792b36c2a10_BuildOfferPayload_UnbuildableNotes(t *testing.T) {
 	t.Parallel()
 
 	good := offerTestNote{}.render(t)
@@ -58,28 +77,9 @@ func TestBuildOfferPayload_UnbuildableNotes(t *testing.T) {
 	}
 }
 
-// TestClassifyOffer_NonExchangeNotesAreNotOffered: a note without
-// frontmatter, of another type, or with corrupt frontmatter is not offered.
-func TestClassifyOffer_NonExchangeNotesAreNotOffered(t *testing.T) {
-	t.Parallel()
-
-	for name, raw := range map[string]string{
-		"no frontmatter": "plain text\n",
-		"qa note":        "---\ntype: question\nsituation: s\n---\n\nQ?\n",
-		"corrupt yaml":   "---\ntype: [\n---\n\nbody\n",
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			g.Expect(cli.ExportClassifyOffer(cli.ExportOfferCmdLearn, cli.AmendArgs{}, []byte(raw), "")).To(BeFalse())
-		})
-	}
-}
-
-// TestNewPayloadBuilder_LocalReadFailures: an unreadable vault ID or an
+// Test792b36c2a11_NewPayloadBuilder_LocalReadFailures: an unreadable vault ID or an
 // unreadable note in the supersedes scan fails the build.
-func TestNewPayloadBuilder_LocalReadFailures(t *testing.T) {
+func Test792b36c2a11_NewPayloadBuilder_LocalReadFailures(t *testing.T) {
 	t.Parallel()
 
 	note := payloadNote(t, offerTestNote{})
@@ -125,9 +125,9 @@ func TestNewPayloadBuilder_LocalReadFailures(t *testing.T) {
 	})
 }
 
-// TestOfferHooks_FailuresNeverFailTheWrite: a staging or queueing failure
+// Test792b36c4a6_OfferHooks_FailuresNeverFailTheWrite: a staging or queueing failure
 // is warned; the write proceeds unstaged and unqueued.
-func TestOfferHooks_FailuresNeverFailTheWrite(t *testing.T) {
+func Test792b36c4a6_OfferHooks_FailuresNeverFailTheWrite(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 

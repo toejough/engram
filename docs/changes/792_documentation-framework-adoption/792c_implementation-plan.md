@@ -252,8 +252,8 @@ flowchart TD
   N792c7s3["792c7s3 pending-offer-bookkeeping tech spec<br/>Complete"]
   N792c7s4["792c7s4 vault-http-server tech spec<br/>Complete"]
   N792c7t1["792c7t1 parent-sync product spec<br/>Complete"]
-  N792c7t2["792c7t2 offer-outbox tech spec<br/>Ready"]
-  N792c7t3["792c7t3 parent-vault-client tech spec<br/>Blocked by: 792c7t2"]
+  N792c7t2["792c7t2 offer-outbox tech spec<br/>Complete"]
+  N792c7t3["792c7t3 parent-vault-client tech spec<br/>Ready"]
   N792c7u1["792c7u1 curate product spec<br/>Blocked by: 792c7t3"]
   N792c7v1["792c7v1 memory-effectiveness-evaluation product spec<br/>Blocked by: 792c7u1"]
   N792c7v2["792c7v2 eval-trial-harness tech spec<br/>Blocked by: 792c7v1"]
@@ -5083,11 +5083,111 @@ Target: `792b36` (`docs/specs/technical/offer-outbox.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7t2a | Port the component contract to `792b36` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7t2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7t2c | Repoint stale references to `792b36` | Non-test action | Keeps live links valid | Not started |
-| 792c7t2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7t2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7t2a | Port the component contract to `792b36` | Non-test action | Documents the component in the framework format | Done |
+| 792c7t2b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7t2c | Repoint stale references to `792b36` | Non-test action | Keeps live links valid | Done |
+| 792c7t2d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7t2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+792b36 has sixteen requirements (792b36c1 to 792b36c16) and two sequences, a write that is offered and a drain, whose
+`alt` branches each have their own requirement: the offer table, the offer built from a note, the offer withdrawn at send
+time, queueing, the gate before a drain, which entries are sent, the classification of the parent's answer, an accepted
+offer, a rejected one, an unreachable parent, a parent that is too old, a looping offer, an offer that cannot be built,
+the merge, the entries that wait for attention and `update`'s exchange and notice (792d122). It maps 73 scenarios of
+792a21, 792a2k and 792a2p. Legacy removal: the `vault-parent-offers` spec is deleted with its hash requirement, which was
+792b33c1 to 792b33c5 already, the offer clauses of R7 and K14 are pointers, and the comments and specs that cited it
+cite 792a21 and 792b36.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b36c1a1 | `TestClassifyOffer` → `Test792b36c1a1_ClassifyOffer` | Table unit | Every row of the offer table | Done |
+| 792b36c1a2 | `TestClassifyOffer_ContentFlagsAreOffered` → `Test792b36c1a2_ClassifyOffer_ContentFlagsAreOffered` | Table unit | Each content flag alone makes an amend an offer | Done |
+| 792b36c1a3 | `TestClassifyOffer_BookkeepingNeverOfferedProperty` → `Test792b36c1a3_ClassifyOffer_BookkeepingNeverOfferedProperty` | Property (rapid) | A bookkeeping amend is offered only when it clears a served offer's marker | Done |
+| 792b36c1a4 | `TestClassifyOffer_NeverOfferedProperty` → `Test792b36c1a4_ClassifyOffer_NeverOfferedProperty` | Property (rapid) | A pending note or a skill note is never offered | Done |
+| 792b36c1a5 | `TestClassifyOffer_NonExchangeNotesAreNotOffered` → `Test792b36c1a5_ClassifyOffer_NonExchangeNotesAreNotOffered` | Table unit | Notes of another type or with no or corrupt frontmatter are not offered | Done |
+| 792b36c1a6 | `TestClassifyOffer_LoopSuppressionProperty` → `Test792b36c1a6_ClassifyOffer_LoopSuppressionProperty` | Property (rapid, metamorphic) | An equal link hash suppresses the offer and a different one does not | Done |
+| 792b36c2a1 | `TestBuildOfferPayload_PlacementIsNotSent` → `Test792b36c2a1_BuildOfferPayload_PlacementIsNotSent` | Unit | No target, position, chunkSources or vault key is sent | Done |
+| 792b36c2a2 | `TestBuildOfferPayload_SupersedesTranslatedOrDropped` → `Test792b36c2a2_BuildOfferPayload_SupersedesTranslatedOrDropped` | Unit | Supersedes names the parent note or is dropped | Done |
+| 792b36c2a3 | `TestBuildOfferPayload_DeclaresNotesOwnIdentity` → `Test792b36c2a3_BuildOfferPayload_DeclaresNotesOwnIdentity` | Unit | The note's own user and repo are declared | Done |
+| 792b36c2a4 | `TestBuildOfferPayload_OriginKeyAndPath` → `Test792b36c2a4_BuildOfferPayload_OriginKeyAndPath` | Unit | Origin, key and path of a direct offer | Done |
+| 792b36c2a5 | `TestBuildOfferPayload_PropagatedOfferAppendsPath` → `Test792b36c2a5_BuildOfferPayload_PropagatedOfferAppendsPath` | Unit | A propagated offer extends its path | Done |
+| 792b36c2a5 | `TestBuildOfferPayload_EmptyPathSeedsFromOrigin` → `Test792b36c2a5_BuildOfferPayload_EmptyPathSeedsFromOrigin` | Unit | An empty recorded path starts from the origin vault | Done |
+| 792b36c2a6 | `TestBuildOfferPayload_AmendOfferTargetsPrimaryLink` → `Test792b36c2a6_BuildOfferPayload_AmendOfferTargetsPrimaryLink` | Unit | A primary link makes an amend-offer | Done |
+| 792b36c2a7 | `TestBuildOfferPayload_CoveredOrForeignLinkIsLearnOffer` → `Test792b36c2a7_BuildOfferPayload_CoveredOrForeignLinkIsLearnOffer` | Unit | A covered or foreign link makes a learn-offer | Done |
+| 792b36c2a8 | `TestBuildOfferPayload_RunbookFields` → `Test792b36c2a8_BuildOfferPayload_RunbookFields` | Unit | A runbook sends its steps and fields | Done |
+| 792b36c2a9 | `TestBuildOfferPayload_RoundTripsThroughServedLearnProperty` → `Test792b36c2a9_BuildOfferPayload_RoundTripsThroughServedLearnProperty` | Property (rapid) | Every offered field survives the wire | Done |
+| 792b36c2a10 | `TestBuildOfferPayload_UnbuildableNotes` → `Test792b36c2a10_BuildOfferPayload_UnbuildableNotes` | Table unit | A note with no slug or no valid frontmatter is not built | Done |
+| 792b36c2a11 | `TestNewPayloadBuilder_LocalReadFailures` → `Test792b36c2a11_NewPayloadBuilder_LocalReadFailures` | Unit over failing capabilities | An unreadable vault ID or note fails the build | Done |
+| 792b36c2a12 | `TestBuildOfferPayload_NoUserIdentityRefuses` → `Test792b36c2a12_BuildOfferPayload_NoUserIdentityRefuses` | Unit | A note with no user and no detection builds no offer | Done |
+| 792b36c3a1 | `TestBuildOfferPayload_WithdrawnAtSendTime` → `Test792b36c3a1_BuildOfferPayload_WithdrawnAtSendTime` | Unit | An origin that is the parent, or an equal hash, is withdrawn | Done |
+| 792b36c3a2 | `TestDrainOutbox_WithdrawnEntryDroppedUnlessChanged` → `Test792b36c3a2_DrainOutbox_WithdrawnEntryDroppedUnlessChanged` | Unit over a scripted vault and parent | A withdrawn entry is dropped unless its note changed | Done |
+| 792b36c4a1 | `TestEnqueueOutbox_CoalescesByXID` → `Test792b36c4a1_EnqueueOutbox_CoalescesByXID` | Unit over a scripted filesystem | One entry per note, in its first slot | Done |
+| 792b36c4a2 | `TestEnqueueOutbox_SavesAtomically` → `Test792b36c4a2_EnqueueOutbox_SavesAtomically` | Unit over a scripted filesystem | The outbox is saved with the atomic write | Done |
+| 792b36c4a3 | `TestEnqueueOutbox_StampsVaultIDBeforeStateDir` → `Test792b36c4a3_EnqueueOutbox_StampsVaultIDBeforeStateDir` | Unit over a scripted filesystem | The vault ID is stamped before .engram exists | Done |
+| 792b36c4a4 | `TestEnqueueOutbox_FailuresSurface` → `Test792b36c4a4_EnqueueOutbox_FailuresSurface` | Unit over failing capabilities | Outbox failures fail the enqueue | Done |
+| 792b36c4a5 | `TestStampNoteXID_LazyAndStable` → `Test792b36c4a5_StampNoteXID_LazyAndStable` | Unit | The xid is minted once and kept | Done |
+| 792b36c4a6 | `TestOfferHooks_FailuresNeverFailTheWrite` → `Test792b36c4a6_OfferHooks_FailuresNeverFailTheWrite` | Unit over failing hooks | A hook failure is warned and never fails the write | Done |
+| 792b36c5a1 | `TestDrainOutbox_EmptyOutboxTouchesNothing` → `Test792b36c5a1_DrainOutbox_EmptyOutboxTouchesNothing` | Unit over a scripted vault and parent | An empty outbox does nothing | Done |
+| 792b36c5a3 | `TestDrainOutbox_CachedSelfParentSendsNothing` → `Test792b36c5a3_DrainOutbox_CachedSelfParentSendsNothing` | Unit over a scripted vault and parent | A cached self-parent sends nothing | Done |
+| 792b36c5a4 | `TestDrainOutbox_LocalReadFailuresSurface` → `Test792b36c5a4_DrainOutbox_LocalReadFailuresSurface` | Unit over failing capabilities | Unreadable local state fails the drain | Done |
+| 792b36c6a1 | `TestDrainOutbox_SendsInFirstQueuedOrder` → `Test792b36c6a1_DrainOutbox_SendsInFirstQueuedOrder` | Unit over a scripted vault and parent | Oldest first whatever the file order | Done |
+| 792b36c6a2 | `TestDrainOutbox_SendsWithNoLockHeld` → `Test792b36c6a2_DrainOutbox_SendsWithNoLockHeld` | Unit over a lock probe | Sends hold no vault lock | Done |
+| 792b36c6a3 | `TestDrainOutbox_DropsDeletedAndPendingNotes` → `Test792b36c6a3_DrainOutbox_DropsDeletedAndPendingNotes` | Unit over a scripted vault and parent | Gone and pending notes are dropped unsent | Done |
+| 792b36c6a4 | `TestDrainOutbox_BuildsPayloadAtSendTime` → `Test792b36c6a4_DrainOutbox_BuildsPayloadAtSendTime` | Unit over a scripted vault and parent | An offline learn then amend goes up as one offer with the latest content | Done |
+| 792b36c6a5 | `TestDrainOutbox_FindsRenamedNoteByXID` → `Test792b36c6a5_DrainOutbox_FindsRenamedNoteByXID` | Unit over a scripted vault and parent | A rename does not orphan the entry | Done |
+| 792b36c7a1 | `TestClassifyOfferResponse` → `Test792b36c7a1_ClassifyOfferResponse` | Table unit | Each answer maps to one outcome | Done |
+| 792b36c7a2 | `TestClassifyOfferResponse_StatusClassesProperty` → `Test792b36c7a2_ClassifyOfferResponse_StatusClassesProperty` | Property (rapid) | 5xx always fails and 4xx always rejects | Done |
+| 792b36c7a3 | `TestClassifyOfferResponse_MalformedParentIdentifiers` → `Test792b36c7a3_ClassifyOfferResponse_MalformedParentIdentifiers` | Table unit | A malformed identifier is never accepted | Done |
+| 792b36c7a4 | `TestClassifyOfferResponse_ForbiddenBasenameCharsProperty` → `Test792b36c7a4_ClassifyOfferResponse_ForbiddenBasenameCharsProperty` | Property (rapid) | A basename with /, \ or | is never accepted | Done |
+| 792b36c8a1 | `TestDrainOutbox_RecordsParentVaultIDAndResetsFailures` → `Test792b36c8a1_DrainOutbox_RecordsParentVaultIDAndResetsFailures` | Unit over a scripted vault and parent | An accepted offer caches the vault ID and resets the failures | Done |
+| 792b36c8a2 | `TestDrainOutbox_ChangedDuringSendStaysQueued` → `Test792b36c8a2_DrainOutbox_ChangedDuringSendStaysQueued` | Unit over a scripted vault and parent | A note amended in flight stays queued | Done |
+| 792b36c8a3 | `TestDrainOutbox_DeletedDuringSendDiscardsReceipt` → `Test792b36c8a3_DrainOutbox_DeletedDuringSendDiscardsReceipt` | Unit over a scripted vault and parent | A deleted note drops its receipt | Done |
+| 792b36c8a4 | `TestDrainOutbox_ReceiptWriteFailureKeepsEntry` → `Test792b36c8a4_DrainOutbox_ReceiptWriteFailureKeepsEntry` | Unit over a failing receipt write | A receipt write failure keeps the entry queued | Done |
+| 792b36c8a5 | `TestDrainOutbox_MalformedReceiptKeepsEntry` → `Test792b36c8a5_DrainOutbox_MalformedReceiptKeepsEntry` | Unit over a scripted vault and parent | A malformed receipt keeps the entry queued | Done |
+| 792b36c9a1 | `TestDrainOutbox_RejectedEntryReArmsOnlyOnHashChange` → `Test792b36c9a1_DrainOutbox_RejectedEntryReArmsOnlyOnHashChange` | Unit over a scripted vault and parent | A rejected entry re-arms on a hash change only | Done |
+| 792b36c9a2 | `TestDrainOutbox_RejectionWithoutMessageRecordsEmptyError` → `Test792b36c9a2_DrainOutbox_RejectionWithoutMessageRecordsEmptyError` | Unit over a scripted vault and parent | A rejection with no cause is still a rejection | Done |
+| 792b36c9a3 | `TestDrainOutbox_UnmarkedConflictRejectsAndContinues` → `Test792b36c9a3_DrainOutbox_UnmarkedConflictRejectsAndContinues` | Unit over a scripted vault and parent | An unmarked 409 is an ordinary rejection | Done |
+| 792b36c9a4 | `TestDrainOutbox_AnyAnswerResetsBackoff` → `Test792b36c9a4_DrainOutbox_AnyAnswerResetsBackoff` | Unit over a scripted vault and parent | A rejection, a refusal and a too-old receipt reset the backoff | Done |
+| 792b36c10a1 | `TestDrainOutbox_TransportFailureStopsAndRecords` → `Test792b36c10a1_DrainOutbox_TransportFailureStopsAndRecords` | Unit over a scripted vault and parent | A connection error stops the drain and backs off | Done |
+| 792b36c11a1 | `TestDrainOutbox_TooOldParentKeepsEntryAndErrors` → `Test792b36c11a1_DrainOutbox_TooOldParentKeepsEntryAndErrors` | Unit over a scripted vault and parent | A too-old parent keeps the entry and errors | Done |
+| 792b36c12a1 | `TestDrainOutbox_CycleRefusalRejectsAndContinues` → `Test792b36c12a1_DrainOutbox_CycleRefusalRejectsAndContinues` | Unit over a scripted vault and parent | A cycle rejects the entry and continues | Done |
+| 792b36c12a2 | `TestDrainOutbox_SelfParentRefusalThenRegenerateSends` → `Test792b36c12a2_DrainOutbox_SelfParentRefusalThenRegenerateSends` | Unit over a scripted vault and parent | A self-parent refusal waits for a regenerate | Done |
+| 792b36c12a3 | `TestDrainOutbox_SelfParentReceiptStops` → `Test792b36c12a3_DrainOutbox_SelfParentReceiptStops` | Unit over a scripted vault and parent | A self-parent receipt records nothing | Done |
+| 792b36c13a1 | `TestDrainOutbox_SkippedSendKeepsEntryAndContinues` → `Test792b36c13a1_DrainOutbox_SkippedSendKeepsEntryAndContinues` | Unit over a scripted vault and parent | An unbuildable offer keeps its entry and goes on | Done |
+| 792b36c13a2 | `TestNewOfferSender_PostsBuiltPayloadToLearn` → `Test792b36c13a2_NewOfferSender_PostsBuiltPayloadToLearn` | Unit over a scripted fetch | The sender posts the built body to /learn and skips an unbuildable note | Done |
+| 792b36c14a1 | `TestDrainOutbox_ConcurrentEnqueueSurvives` → `Test792b36c14a1_DrainOutbox_ConcurrentEnqueueSurvives` | Unit over a scripted vault and parent | An entry queued mid-drain survives | Done |
+| 792b36c14a2 | `TestOutbox_NoOfferLostAtMostOneEntryProperty` → `Test792b36c14a2_Outbox_NoOfferLostAtMostOneEntryProperty` | Property (rapid, stateful) | No offer is lost and a note has at most one entry | Done |
+| 792b36c15a1 | `TestDrainOutbox_RefusedReceiptNeedsAttention` → `Test792b36c15a1_DrainOutbox_RefusedReceiptNeedsAttention` | Unit over a scripted vault and parent | A refused receipt moves the entry to attention | Done |
+| 792b36c15a2 | `TestDrainForCommand_KeptReceiptRecordedInsideBackoff` → `Test792b36c15a2_DrainForCommand_KeptReceiptRecordedInsideBackoff` (split deferred: 792a21w1c) | Unit over the production drain step | A kept receipt is recorded inside the backoff window | Done |
+| 792b36c15a3 | `TestDrainForCommand_KeptReceiptFromAnotherParentDiscarded` → `Test792b36c15a3_DrainForCommand_KeptReceiptFromAnotherParentDiscarded` (split deferred: 792a21w1d) | Unit over the production drain step | A receipt from another parent is discarded | Done |
+| 792b36c15a4 | `TestDrainOutbox_AttentionResumesAndRequeuesAChangedNote` → `Test792b36c15a4_DrainOutbox_AttentionResumesAndRequeuesAChangedNote` (split deferred: 792a21w1e) | Unit over a scripted vault and parent | A fixed note that also changed is queued again | Done |
+| 792b36c15a5 | `TestDrainOutbox_AttentionEntryWithoutReceiptIsSent` → `Test792b36c15a5_DrainOutbox_AttentionEntryWithoutReceiptIsSent` (split deferred: 792a21w1f) | Unit over a scripted vault and parent | An attention entry with no receipt is sent | Done |
+| 792b36c15a6 | `TestDrainOutbox_AttentionRetryFailureIsReported` → `Test792b36c15a6_DrainOutbox_AttentionRetryFailureIsReported` (split deferred: 792a21w1g) | Unit over a failing receipt write | A retry failure is reported and the entry waits | Done |
+| 792b36c15a7 | `TestRecordKeptReceipts_DropsEntryOfDeletedNote` → `Test792b36c15a7_RecordKeptReceipts_DropsEntryOfDeletedNote` (split deferred: 792a21w1h) | Unit over a scripted vault | A deleted note's kept receipt is dropped | Done |
+| 792b36c15a8 | `TestRecordKeptReceipts_ScanFailureSurfaces` → `Test792b36c15a8_RecordKeptReceipts_ScanFailureSurfaces` | Unit over a failing listing | A vault that cannot be listed fails the pass | Done |
+| 792b36c15a9 | `TestDrainOutbox_NoUserIdentityNeedsAttention` → `Test792b36c15a9_DrainOutbox_NoUserIdentityNeedsAttention` | Unit over a scripted vault and parent | No user identity holds the offer and then releases it | Done |
+| 792b36c15a10 | `TestDrainOutbox_NoUserEntryRequeuedOnceBuilt` → `Test792b36c15a10_DrainOutbox_NoUserEntryRequeuedOnceBuilt` | Unit over a scripted vault and parent | A built no-user entry that fails is queued and counted | Done |
+| 792a21x1a | `TestUpdateExchange_NoUserIdentityWaitsThenOffers` → `Test792a21x1a_UpdateExchange_NoUserIdentityWaitsThenOffers` | Update exchange through the production wiring | A note with no author waits, is reported and is offered once detection works | Done |
+| 792a21za1b | `TestUpdateExchange_ReportsEntryNeedingAttention` → `Test792a21za1b_UpdateExchange_ReportsEntryNeedingAttention` (split deferred: 792a21w1e, 792b36c16a4) | Update exchange through the production wiring | update counts and lists an attention entry and records the receipt once the note is fixed | Done |
+| 792b36c4a7 | `Test792a21m1b_Targets_Learn_NoParentWritesNoExchangeState` (renamed by 792c7t1) | Dispatch or update exchange through the production wiring | With no parent nothing is staged, queued or written | Done |
+| 792b36c5a2 | `Test792a2p1a_DrainOutbox_LocationCheckFailureSendsNothing` (renamed by 792c7t1) | Dispatch or update exchange through the production wiring | A failed location check sends nothing | Done |
+| 792b36c5a5 | `Test792a21r1l_Targets_ParentIDProbeFailures` (renamed by 792c7t1) | Dispatch or update exchange through the production wiring | A failed vault-ID probe keeps the offers queued | Done |
+| 792b36c5a7 | `Test792a21q1b_Targets_OfflineWritesCoalesceThenQueryDrains` (renamed by 792c7t1) | Dispatch or update exchange through the production wiring | A backed-off parent is not drained until the window ends | Done |
+| 792b36c6a6 | `Test792a21zb1b_DrainOutbox_FindsCRLFNote` (renamed by 792c7t1) | Dispatch or update exchange through the production wiring | A CRLF note is found and sent | Done |
+| 792b36c8a6 | `Test792a21zb1b_DrainOutbox_FindsCRLFNote` (renamed by 792c7t1) | Dispatch or update exchange through the production wiring | A CRLF note takes its receipt as LF | Done |
+| 792b36c16a1 | `Test792a21s1b_UpdateExchange_DrainsIgnoringBackoffThenGoesIdle` (renamed by 792c7t1) | Dispatch or update exchange through the production wiring | A dry run only reports and a real run drains through the window | Done |
+| 792b36c16a2 | `Test792a21za1c_UpdateExchange_IdleVaultHasNoNotice` (renamed by 792c7t1) | Dispatch or update exchange through the production wiring | An idle outbox has no notice | Done |
+| 792b36c16a3 | `Test792a21za1a_UpdateExchange_ReportsRejectedEntry` (renamed by 792c7t1) | Dispatch or update exchange through the production wiring | A rejected entry is listed | Done |
+
+**Coverage gaps:** 792b36c4a8 (no test shows that queueing leaves a git-backed vault's tracked files alone) and 792b36c5a6
+(no test checks that the probe caches the vault ID by itself; every wiring test passes through it). The scenarios of
+792a21 that no command-level or unit test verifies are listed by 792c7t3e.
+
+**No-scenario tests:** none among `outbox_test`, `outbox_attention_test`, `offer_payload_test`, `offer_classify_test`,
+`offer_errors_test` and `identity_gaps_test` (`Test792b33c7a1_SetXIDField` was renamed by 792c7s2, and the two
+`identity_gaps_test` tests that stamp a vault name belong to note-amendment and are already named).
 
 #### 792c7t3 parent-vault-client tech spec
 

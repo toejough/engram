@@ -14,11 +14,126 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestBuildOfferPayload_AmendOfferTargetsPrimaryLink: a note whose primary
+// Test792b36c2a1_BuildOfferPayload_PlacementIsNotSent: the request carries no target,
+// position, chunkSources or vault key at all (spec "Placement is not
+// sent"), even for a note with chunk provenance.
+func Test792b36c2a1_BuildOfferPayload_PlacementIsNotSent(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	raw := strings.Replace(string(offerTestNote{}.render(t)), "vault: personal\n",
+		"vault: personal\nsources:\n  - s#a\n", 1)
+	note := cli.OfferNoteForTest{
+		XID: xidA, Basename: "12a.2026-09-27.note", Raw: []byte(raw), Hash: mustHash(t, []byte(raw)),
+	}
+
+	body, err := cli.ExportBuildOfferPayload(note, seqID(60), parentVaultID, "", "bob", nil)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var keys map[string]any
+	g.Expect(json.Unmarshal(body, &keys)).To(Succeed())
+
+	for _, forbidden := range []string{"target", "position", "chunkSources", "vault", "pending"} {
+		g.Expect(keys).NotTo(HaveKey(forbidden))
+	}
+
+	g.Expect(keys).To(HaveKeyWithValue("slug", "note"))
+}
+
+// Test792b36c2a2_BuildOfferPayload_SupersedesTranslatedOrDropped (spec "Supersedes is
+// translated or dropped"): A → PA, B (unlinked) dropped.
+func Test792b36c2a2_BuildOfferPayload_SupersedesTranslatedOrDropped(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	raw := strings.Replace(string(offerTestNote{}.render(t)), "xid: ",
+		"supersedes:\n  - note: 2.2026-09-27.a.md\n    type: updates\n    claim: claim a\n"+
+			"  - note: 3.2026-09-27.b\n    type: refutes\n    claim: claim b\nxid: ", 1)
+	note := cli.OfferNoteForTest{
+		XID: xidA, Basename: "1.2026-09-27.note", Raw: []byte(raw), Hash: mustHash(t, []byte(raw)),
+	}
+
+	body, err := cli.ExportBuildOfferPayload(note, seqID(60), parentVaultID, "", "bob",
+		map[string]string{"2.2026-09-27.a": "70.2026-09-01.pa"})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var wire cli.LearnArgs
+	g.Expect(json.Unmarshal(body, &wire)).To(Succeed())
+	g.Expect(wire.Supersedes).To(Equal([]string{"70.2026-09-01.pa|updates|claim a"}))
+}
+
+// Test792b36c2a3_BuildOfferPayload_DeclaresNotesOwnIdentity (M5): the note's own
+// user/repo are declared; detection fills in only when they are empty.
+func Test792b36c2a3_BuildOfferPayload_DeclaresNotesOwnIdentity(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	own := decodePayload(t, payloadNote(t, offerTestNote{}), parentVaultID)
+	g.Expect(own.User).To(Equal("alice"))
+
+	raw := strings.Replace(string(offerTestNote{}.render(t)), "user: alice\n", "user: \"\"\n", 1)
+	note := cli.OfferNoteForTest{
+		XID: xidA, Basename: "1.2026-09-27.note", Raw: []byte(raw), Hash: mustHash(t, []byte(raw)),
+	}
+
+	body, err := cli.ExportBuildOfferPayload(note, seqID(60), parentVaultID, "detected-repo", "bob", nil)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var fallback cli.LearnArgs
+	g.Expect(json.Unmarshal(body, &fallback)).To(Succeed())
+	g.Expect(fallback.User).To(Equal("bob"))
+	g.Expect(fallback.Repo).To(Equal("detected-repo"))
+}
+
+// Test792b36c2a4_BuildOfferPayload_OriginKeyAndPath: offer.origin is <local id>:<xid>,
+// offer.key is sha256(origin + exchange hash), and offer.path is the local
+// ID for a direct offer.
+func Test792b36c2a4_BuildOfferPayload_OriginKeyAndPath(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	note := payloadNote(t, offerTestNote{})
+	payload := decodePayload(t, note, parentVaultID)
+
+	origin := seqID(60) + ":" + xidA
+	sum := sha256.Sum256([]byte(origin + note.Hash))
+
+	g.Expect(payload.Offer.Origin).To(Equal(origin))
+	g.Expect(payload.Offer.Key).To(Equal(hex.EncodeToString(sum[:])))
+	g.Expect(payload.Offer.Path).To(Equal([]string{seqID(60)}))
+}
+
+// Test792b36c2a5_BuildOfferPayload_EmptyPathSeedsFromOrigin (S16): an accepted served
+// offer that recorded no offer.path starts its path from its origin vault.
+func Test792b36c2a5_BuildOfferPayload_EmptyPathSeedsFromOrigin(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	child := seqID(40)
+	payload := decodePayload(t, payloadNote(t, offerTestNote{origin: child + ":" + xidB}), parentVaultID)
+	g.Expect(payload.Offer.Path).To(Equal([]string{child, seqID(60)}))
+}
+
+// Test792b36c2a5_BuildOfferPayload_PropagatedOfferAppendsPath (M14, D12): an accepted
+// served offer goes onward with its offer.path plus this vault's ID, and
+// its own origin.
+func Test792b36c2a5_BuildOfferPayload_PropagatedOfferAppendsPath(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	child := seqID(40)
+	note := payloadNote(t, offerTestNote{origin: child + ":" + xidB, path: []string{child}})
+
+	payload := decodePayload(t, note, parentVaultID)
+	g.Expect(payload.Offer.Path).To(Equal([]string{child, seqID(60)}))
+	g.Expect(payload.Offer.Origin).To(Equal(seqID(60) + ":" + xidA))
+}
+
+// Test792b36c2a6_BuildOfferPayload_AmendOfferTargetsPrimaryLink: a note whose primary
 // link is under the configured parent's vault ID is an amend-offer whose
 // offer.for is that parent note (spec: "A content amend of a linked note is
 // an amend-offer").
-func TestBuildOfferPayload_AmendOfferTargetsPrimaryLink(t *testing.T) {
+func Test792b36c2a6_BuildOfferPayload_AmendOfferTargetsPrimaryLink(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -28,9 +143,9 @@ func TestBuildOfferPayload_AmendOfferTargetsPrimaryLink(t *testing.T) {
 	g.Expect(payload.Offer.For).To(Equal("5.2026-09-27.p"))
 }
 
-// TestBuildOfferPayload_CoveredOrForeignLinkIsLearnOffer: only a primary
+// Test792b36c2a7_BuildOfferPayload_CoveredOrForeignLinkIsLearnOffer: only a primary
 // link under the current parent's vault ID makes an amend-offer.
-func TestBuildOfferPayload_CoveredOrForeignLinkIsLearnOffer(t *testing.T) {
+func Test792b36c2a7_BuildOfferPayload_CoveredOrForeignLinkIsLearnOffer(t *testing.T) {
 	t.Parallel()
 
 	cases := map[string]offerTestNote{
@@ -58,104 +173,38 @@ func TestBuildOfferPayload_CoveredOrForeignLinkIsLearnOffer(t *testing.T) {
 	}
 }
 
-// TestBuildOfferPayload_DeclaresNotesOwnIdentity (M5): the note's own
-// user/repo are declared; detection fills in only when they are empty.
-func TestBuildOfferPayload_DeclaresNotesOwnIdentity(t *testing.T) {
+// Test792b36c2a8_BuildOfferPayload_RunbookFields: a runbook's steps, done_when, red
+// flags and triggers are sent; the body carries no Supersedes lines.
+func Test792b36c2a8_BuildOfferPayload_RunbookFields(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	own := decodePayload(t, payloadNote(t, offerTestNote{}), parentVaultID)
-	g.Expect(own.User).To(Equal("alice"))
-
-	raw := strings.Replace(string(offerTestNote{}.render(t)), "user: alice\n", "user: \"\"\n", 1)
+	raw := "---\ntype: runbook\ntier: L2\nsituation: when x\ndone_when: done\nred_flags:\n  - rf\n" +
+		"triggers:\n  - trig\nluhmann: \"4\"\ncreated: \"2026-09-27\"\nsource: s\nuser: alice\nvault: personal\n" +
+		"supersedes:\n  - note: 2.2026-09-27.old\n    type: updates\n    claim: c\nxid: " + xidA + "\n---\n\n" +
+		"1. step one\n2. step two\n\nSupersedes: [[2.2026-09-27.old]] — updates: c\n"
 	note := cli.OfferNoteForTest{
-		XID: xidA, Basename: "1.2026-09-27.note", Raw: []byte(raw), Hash: mustHash(t, []byte(raw)),
+		XID: xidA, Basename: "4.2026-09-27.rb", Raw: []byte(raw), Hash: mustHash(t, []byte(raw)),
 	}
 
-	body, err := cli.ExportBuildOfferPayload(note, seqID(60), parentVaultID, "detected-repo", "bob", nil)
+	body, err := cli.ExportBuildOfferPayload(note, seqID(60), parentVaultID, "", "", nil)
 	g.Expect(err).NotTo(HaveOccurred())
 
-	var fallback cli.LearnArgs
-	g.Expect(json.Unmarshal(body, &fallback)).To(Succeed())
-	g.Expect(fallback.User).To(Equal("bob"))
-	g.Expect(fallback.Repo).To(Equal("detected-repo"))
+	var wire cli.LearnArgs
+	g.Expect(json.Unmarshal(body, &wire)).To(Succeed())
+	g.Expect(wire.Type).To(Equal("runbook"))
+	g.Expect(wire.DoneWhen).To(Equal("done"))
+	g.Expect(wire.RedFlags).To(Equal([]string{"rf"}))
+	g.Expect(wire.Triggers).To(Equal([]string{"trig"}))
+	g.Expect(wire.Body).To(Equal("1. step one\n2. step two\n"))
+	g.Expect(wire.Supersedes).To(BeEmpty(), "unlinked supersedes target is dropped")
 }
 
-// TestBuildOfferPayload_EmptyPathSeedsFromOrigin (S16): an accepted served
-// offer that recorded no offer.path starts its path from its origin vault.
-func TestBuildOfferPayload_EmptyPathSeedsFromOrigin(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	child := seqID(40)
-	payload := decodePayload(t, payloadNote(t, offerTestNote{origin: child + ":" + xidB}), parentVaultID)
-	g.Expect(payload.Offer.Path).To(Equal([]string{child, seqID(60)}))
-}
-
-// TestBuildOfferPayload_OriginKeyAndPath: offer.origin is <local id>:<xid>,
-// offer.key is sha256(origin + exchange hash), and offer.path is the local
-// ID for a direct offer.
-func TestBuildOfferPayload_OriginKeyAndPath(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	note := payloadNote(t, offerTestNote{})
-	payload := decodePayload(t, note, parentVaultID)
-
-	origin := seqID(60) + ":" + xidA
-	sum := sha256.Sum256([]byte(origin + note.Hash))
-
-	g.Expect(payload.Offer.Origin).To(Equal(origin))
-	g.Expect(payload.Offer.Key).To(Equal(hex.EncodeToString(sum[:])))
-	g.Expect(payload.Offer.Path).To(Equal([]string{seqID(60)}))
-}
-
-// TestBuildOfferPayload_PlacementIsNotSent: the request carries no target,
-// position, chunkSources or vault key at all (spec "Placement is not
-// sent"), even for a note with chunk provenance.
-func TestBuildOfferPayload_PlacementIsNotSent(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	raw := strings.Replace(string(offerTestNote{}.render(t)), "vault: personal\n",
-		"vault: personal\nsources:\n  - s#a\n", 1)
-	note := cli.OfferNoteForTest{
-		XID: xidA, Basename: "12a.2026-09-27.note", Raw: []byte(raw), Hash: mustHash(t, []byte(raw)),
-	}
-
-	body, err := cli.ExportBuildOfferPayload(note, seqID(60), parentVaultID, "", "bob", nil)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var keys map[string]any
-	g.Expect(json.Unmarshal(body, &keys)).To(Succeed())
-
-	for _, forbidden := range []string{"target", "position", "chunkSources", "vault", "pending"} {
-		g.Expect(keys).NotTo(HaveKey(forbidden))
-	}
-
-	g.Expect(keys).To(HaveKeyWithValue("slug", "note"))
-}
-
-// TestBuildOfferPayload_PropagatedOfferAppendsPath (M14, D12): an accepted
-// served offer goes onward with its offer.path plus this vault's ID, and
-// its own origin.
-func TestBuildOfferPayload_PropagatedOfferAppendsPath(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	child := seqID(40)
-	note := payloadNote(t, offerTestNote{origin: child + ":" + xidB, path: []string{child}})
-
-	payload := decodePayload(t, note, parentVaultID)
-	g.Expect(payload.Offer.Path).To(Equal([]string{child, seqID(60)}))
-	g.Expect(payload.Offer.Origin).To(Equal(seqID(60) + ":" + xidA))
-}
-
-// TestBuildOfferPayload_RoundTripsThroughServedLearnProperty: rendering
+// Test792b36c2a9_BuildOfferPayload_RoundTripsThroughServedLearnProperty: rendering
 // the payload the way a served learn does reproduces the note's exchange
 // hash — every offered field survives the wire (a learn with no
 // supersedes), and offer.key moves exactly when the hash does.
-func TestBuildOfferPayload_RoundTripsThroughServedLearnProperty(t *testing.T) {
+func Test792b36c2a9_BuildOfferPayload_RoundTripsThroughServedLearnProperty(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -204,59 +253,10 @@ func TestBuildOfferPayload_RoundTripsThroughServedLearnProperty(t *testing.T) {
 	})
 }
 
-// TestBuildOfferPayload_RunbookFields: a runbook's steps, done_when, red
-// flags and triggers are sent; the body carries no Supersedes lines.
-func TestBuildOfferPayload_RunbookFields(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	raw := "---\ntype: runbook\ntier: L2\nsituation: when x\ndone_when: done\nred_flags:\n  - rf\n" +
-		"triggers:\n  - trig\nluhmann: \"4\"\ncreated: \"2026-09-27\"\nsource: s\nuser: alice\nvault: personal\n" +
-		"supersedes:\n  - note: 2.2026-09-27.old\n    type: updates\n    claim: c\nxid: " + xidA + "\n---\n\n" +
-		"1. step one\n2. step two\n\nSupersedes: [[2.2026-09-27.old]] — updates: c\n"
-	note := cli.OfferNoteForTest{
-		XID: xidA, Basename: "4.2026-09-27.rb", Raw: []byte(raw), Hash: mustHash(t, []byte(raw)),
-	}
-
-	body, err := cli.ExportBuildOfferPayload(note, seqID(60), parentVaultID, "", "", nil)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var wire cli.LearnArgs
-	g.Expect(json.Unmarshal(body, &wire)).To(Succeed())
-	g.Expect(wire.Type).To(Equal("runbook"))
-	g.Expect(wire.DoneWhen).To(Equal("done"))
-	g.Expect(wire.RedFlags).To(Equal([]string{"rf"}))
-	g.Expect(wire.Triggers).To(Equal([]string{"trig"}))
-	g.Expect(wire.Body).To(Equal("1. step one\n2. step two\n"))
-	g.Expect(wire.Supersedes).To(BeEmpty(), "unlinked supersedes target is dropped")
-}
-
-// TestBuildOfferPayload_SupersedesTranslatedOrDropped (spec "Supersedes is
-// translated or dropped"): A → PA, B (unlinked) dropped.
-func TestBuildOfferPayload_SupersedesTranslatedOrDropped(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	raw := strings.Replace(string(offerTestNote{}.render(t)), "xid: ",
-		"supersedes:\n  - note: 2.2026-09-27.a.md\n    type: updates\n    claim: claim a\n"+
-			"  - note: 3.2026-09-27.b\n    type: refutes\n    claim: claim b\nxid: ", 1)
-	note := cli.OfferNoteForTest{
-		XID: xidA, Basename: "1.2026-09-27.note", Raw: []byte(raw), Hash: mustHash(t, []byte(raw)),
-	}
-
-	body, err := cli.ExportBuildOfferPayload(note, seqID(60), parentVaultID, "", "bob",
-		map[string]string{"2.2026-09-27.a": "70.2026-09-01.pa"})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var wire cli.LearnArgs
-	g.Expect(json.Unmarshal(body, &wire)).To(Succeed())
-	g.Expect(wire.Supersedes).To(Equal([]string{"70.2026-09-01.pa|updates|claim a"}))
-}
-
-// TestBuildOfferPayload_WithdrawnAtSendTime (S16, D12): with the parent's ID
+// Test792b36c3a1_BuildOfferPayload_WithdrawnAtSendTime (S16, D12): with the parent's ID
 // known at send time, an offer whose origin vault is the parent, or whose
 // content equals its primary link's hash, is withdrawn, not sent.
-func TestBuildOfferPayload_WithdrawnAtSendTime(t *testing.T) {
+func Test792b36c3a1_BuildOfferPayload_WithdrawnAtSendTime(t *testing.T) {
 	t.Parallel()
 
 	cases := map[string]offerTestNote{
