@@ -26,7 +26,7 @@ was taken. Remediation validation must be recorded separately when it is perform
 The documentation and root instruction edits are committed. The original tests now have
 scenario-prefixed names, and the additional command-boundary/acceptance tests in
 [794c8 Implementation-Ordered Test Catalog](./794c_implementation-plan.md#794c8-implementation-ordered-test-catalog)
-have not been implemented. Policy/routing entries have reached Red; other entries remain
+have not been implemented. Policy/routing entries have reached Green-single; other entries remain
 Not started. No canonical promotion, merge, or push is claimed.
 
 Local checkpoint commits are explicitly authorized. The updated sandbox excludes the original
@@ -45,3 +45,10 @@ implementation was test-first. Other dev-package tests pass.
 
 Commands in the temporary clone use `XDG_CACHE_HOME=/tmp/engram-794-cache` and
 `GOCACHE=/tmp/engram-794-go-build` to keep build/cache writes inside the sandbox.
+
+## 794d5 Policy Green Checkpoint
+
+Restoring the Engram include prefix, resource defaults, and in-place target replacement makes
+all three policy/routing scenario tests pass. `targ test-dev` passes the entire dev suite with
+the race detector. The check retains both shared target objects and the existing aggregate
+entry points; explicit values, including empty values, are preserved by the policy.

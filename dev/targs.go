@@ -10,12 +10,14 @@ import (
 	"path/filepath"
 
 	"github.com/toejough/targ"
-	_ "github.com/toejough/targ/dev"
+	targdev "github.com/toejough/targ/dev"
 
 	"github.com/toejough/engram/dev/eval"
 )
 
 func init() {
+	*targdev.CheckNilsFix = *targ.Targ(checkNilsFix).Name("check-nils-fix").Description("Fix nil issues in Engram packages")
+	*targdev.CheckNilsForFail = *targ.Targ(checkNilsForFail).Name("check-nils-for-fail").Description("Check nil issues in Engram packages")
 
 	// Engram's spec-traced tests are named Test<scenario ID>_ (#792, e.g.
 	// Test792b9c5a6_) or, until renamed, the older TestT<N>_ (not TestProperty_).
