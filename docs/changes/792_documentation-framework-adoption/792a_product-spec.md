@@ -5202,7 +5202,9 @@ Requirement: [792a11d The report names the source and the install](#792a11d-the-
 line naming `local clone at <path> (rev <short SHA>)` or `remote module github.com/toejough/engram <short
 SHA>`, then a binary line naming the install command, and after a real install `... ok (engram <short SHA>
 → <install location>)`. It MUST show a path under the home directory as `~/…`, and MUST show the revision
-as `unknown` when git cannot resolve one.
+as `unknown` when git cannot resolve one. The offer lines of skill registration ([792a12t Update runs registration after deploying the skills](#792a12t-update-runs-registration-after-deploying-the-skills))
+are written as they arise, not as part of the report, so on a dry run, or when this process deploys without a terminal, they precede the
+`engram update` line, and in a handed-off run ([792a11e The rest of the update runs in the new binary](#792a11e-the-rest-of-the-update-runs-in-the-new-binary)) they follow the three header lines.
 
 #### 792a11d1 UAT Scenarios
 
@@ -5293,7 +5295,7 @@ it builds nothing.
 Scenario: 792a11f1a A dry run on a never-synced harness leaves no trace
   Given a machine whose ~/.claude holds no engram root
   When the user runs engram update --dry-run
-  Then the report lists the planned sync and link operations with the [dry-run] prefix, and afterwards no engram root, marker, link or file exists
+  Then the report lists each skill mapping (unprefixed) under the "[dry-run] engram update" title and above the "[dry-run] installed:" line, and afterwards no engram root, marker, link or file exists
 
 Scenario: 792a11f1b Action lines carry the prefix, notices do not
   Given a dry run that would delete a root file, adopt a copied skill, remove a dangling link and refresh guidance, and that finds an unmanaged entry
@@ -5419,7 +5421,7 @@ Scenario: 792a11i1b A removed file inside a kept skill disappears
 
 Requirement: [792a11j Only what engram owns is deleted](#792a11j-only-what-engram-owns-is-deleted) `engram update` MUST NOT delete a file in an engram-owned root that lacks the
 ownership marker `.engram-owned` at the start of the run, and MUST NOT delete a real (non-link) file or
-directory in a harness's skills or guidance directory. A root that exists without the marker MUST get the
+directory in a harness's skills or guidance directory, other than by replacing a deploy-set copy with a link ([792a11k The first update adopts earlier copies](#792a11k-the-first-update-adopts-earlier-copies)). A root that exists without the marker MUST get the
 marker and its deploy set written, MUST NOT have anything deleted in it that run, and MUST be reported
 with `engram root <path> exists without the .engram-owned marker — sync-deletion refused there` and one
 `unattributable: <name>` line for each file at its top level that matches no deploy-set name. On every

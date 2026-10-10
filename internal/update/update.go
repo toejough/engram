@@ -309,7 +309,7 @@ type Report struct {
 	Source           SourceInfo
 	GoInstall        string                      // command line invoked (or planned)
 	BinaryPath       string                      // resolved install location, e.g. /Users/joe/go/bin/engram
-	BinaryVersion    string                      // resolved engram version, empty when unknown
+	BinaryVersion    string                      // source revision (short SHA, or "unknown"), both modes
 	GuidanceImported bool                        // true when any harness's config file imports ANY engram guidance file
 	GuidanceImports  map[Harness]map[string]bool // imported engram-guidance basenames per harness (for per-file hints)
 	// VaultHasOldVocabFiles is true when the vault still holds pre-tags
@@ -461,7 +461,7 @@ type SkillDirCount struct {
 // skill files are read from.
 type SourceInfo struct {
 	Mode    SourceMode
-	Root    string // repo root (local) or modcache dir (remote)
+	Root    string // repo root (local) or the scratch clone dir (remote)
 	Version string // resolved short git SHA (both local and remote modes; "unknown" if unresolvable)
 }
 
@@ -525,7 +525,7 @@ func (u *Updater) Run(ctx context.Context, opts Options) (Report, error) {
 
 	report.Source = source
 	report.GoInstall = describeGoInstall(source)
-	report.BinaryVersion = source.Version // local mode leaves this empty
+	report.BinaryVersion = source.Version // the source revision in both modes
 
 	report, handedOff, reexecErr := u.reexecAfterInstall(opts, report)
 	if reexecErr != nil {

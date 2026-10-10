@@ -835,7 +835,8 @@ separate executables.
 
 ### `engram update`
 Installs/refreshes skills into every detected harness, and
-reinstalls the binary via `go install`. After a successful install it
+reinstalls the binary via `go install` (from the enclosing engram checkout, or
+from a fresh shallow clone when there is none). After a successful install it
 writes a handoff report (the install result — source and binary lines) and
 re-execs the freshly installed binary (loop-guarded via
 `ENGRAM_UPDATE_REEXEC`) so the sync/check phase runs with the new logic
@@ -843,9 +844,11 @@ rather than the old process's stale in-memory code; a spawn failure falls
 back to completing in-process and reports why ([792a11e](changes/792_documentation-framework-adoption/792a_product-spec.md#792a11e-the-rest-of-the-update-runs-in-the-new-binary)). `--dry-run` shows
 the diff without writing (and never installs or re-execs). `--with-guidance`
 additionally deploys the guidance docs
-(`recall.md`, `delegate.md`, `learn.md`, `shim.md`) to `~/.claude/engram/` (Claude Code) and
-`~/.pi/agent/guidance/` (Pi; for `~/.pi/agent/AGENTS.md` `@import`;
-opt-in). Plain `engram update` hints about `--with-guidance` until a
+(`recall.md`, `delegate.md`, `learn.md`, `shim.md`) to the `guidance/` subtree of each
+harness's engram-owned root (`~/.claude/engram/guidance/`,
+`~/.pi/agent/engram/guidance/`), linked from `~/.claude/engram/<name>.md`
+(Claude Code) and `~/.pi/agent/guidance/` (Pi; for `~/.pi/agent/AGENTS.md`
+`@import`; opt-in). Plain `engram update` hints about `--with-guidance` until a
 guidance file is imported, then keeps it refreshed on every run. It also
 prints a one-line notice naming the exact command when it detects
 old-format vocab files (#678 — `engram update --regen-vocab`), leftover

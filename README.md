@@ -19,7 +19,7 @@ After a few months of use, the vault's wikilink graph looks like this in Obsidia
 
 ## Installing
 
-Requires Go 1.25+ on `PATH`.
+Requires Go 1.25+, `git` and `git-lfs` on `PATH`: `engram update` builds the binary from the engram checkout it runs in, or from a fresh clone when there is none, and refuses a clone whose embedded model is a git-lfs pointer.
 
 1. Install the binary:
 
@@ -27,9 +27,9 @@ Requires Go 1.25+ on `PATH`.
    go install github.com/toejough/engram/cmd/engram@latest
    ```
 
-   Make sure `$GOBIN` (or `$GOPATH/bin`, default `~/go/bin`) is on your `PATH`.
+   Make sure `$GOBIN` (or `$GOPATH/bin`, default `~/go/bin`) is on your `PATH`. This proxy-built binary is only a bootstrap: its embedded model is a git-lfs pointer (#645), and step 2 replaces it with a build from a clone.
 
-2. Copy the skills into every detected harness's user directory:
+2. Deploy the skills to every detected harness (Claude Code, Pi):
 
    ```bash
    engram update                 # install / refresh

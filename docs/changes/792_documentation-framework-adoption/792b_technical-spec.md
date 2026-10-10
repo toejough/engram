@@ -16488,8 +16488,8 @@ Scenario: 792b29c10a24 A tree with no links records only exact logical paths
 
 Requirement: [792b29c11 Unmanaged entries](#792b29c11-unmanaged-entries) On the first sync of a harness, the harness-deploy-sync MUST scan, one level deep,
 its skills directory and, for a harness whose guidance directory is separate from its root, its guidance
-directory, and MUST report in sorted order each real (non-link) entry whose name is not in the harness's
-deploy set as unmanaged, never changing it. It MUST skip every link, report nothing for a missing
+directory, and MUST report each real (non-link) entry whose name is not in the harness's
+deploy set as unmanaged, never changing it, sorted by path within each directory (the skills directory first). It MUST skip every link, report nothing for a missing
 directory, and fail the harness when listing or inspecting fails. It MUST NOT scan on a later run.
 
 Supports: [792a11k1b An unmanaged entry is reported, not deleted](./792a_product-spec.md#792a11k1-uat-scenarios), [792a11k1c The unmanaged list is not repeated](./792a_product-spec.md#792a11k1-uat-scenarios).
