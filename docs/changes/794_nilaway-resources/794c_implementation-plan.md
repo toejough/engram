@@ -17,7 +17,8 @@ behavior, and restores or refactors the implementation under the shared test cyc
 One worktree, branch `fix/794-nilaway-resources`, based on `a8d926d6`. Keep shared Targ target
 identities, pure argument/environment policy, and a thin Targ command adapter. The command boundary
 must be injectable for direct orchestration tests. Use existing dependencies only. Add a `test-dev-integration` Targ target for the local subprocess
-suite, using `-tags=targ,integration` and `./dev/...`; this target is planned and does not yet exist.
+suite, using `-tags=targ,integration` and `./dev`; this target is implemented. The root dev
+package contains the local boundary fixtures; unrelated eval integration suites are excluded.
 
 The governance edit makes the documentation workflow mandatory from the root instructions;
 it is an instruction change, not a new runtime feature or automated enforcement mechanism.
@@ -87,12 +88,12 @@ result is committed. Merged additionally requires delivery and branch/worktree c
 
 | Entry | Gherkin | Classification | Why | Status |
 |---|---|---|---|---|
-| 794c8b1 Successful request | [794b4b1a Successful configured invocation](./794b_technical-spec.md#794b4b1-contract-scenarios) | Injected imptest interaction | One call, context, mode, resolved environment, and success propagation | Green-all |
-| 794c8b2 Failed request | [794b4b1b Failed configured invocation](./794b_technical-spec.md#794b4b1-contract-scenarios) | Injected imptest interaction | Exact failure propagation without retry | Green-all |
-| 794c8b3 Environment isolation | [794b4b1c Child environment isolation](./794b_technical-spec.md#794b4b1-contract-scenarios) | Local integration dependency contract | Real Targ subprocess environment and unchanged parent | Green-all |
-| 794c8b4 Acceptance scope | [794a2a1a Existing entry points use project analysis](./794a_product-spec.md#794a2a1-uat-scenarios) | Local integration acceptance example | Local integration with the installed NilAway: a fixture has first-party and replaced third-party modules, each with a known nil dereference; include both filesystem roots in diagnostic reporting, verify the first-party diagnostic, and verify absence of the dependency diagnostic | Green-all |
-| 794c8b5 Acceptance defaults | [794a2b1a Absent settings use subprocess defaults](./794a_product-spec.md#794a2b1-uat-scenarios) | Local integration acceptance example | Check/fix child defaults and parent preservation | Green-all |
-| 794c8b6 Acceptance overrides | [794a2c1a Supplied settings take precedence](./794a_product-spec.md#794a2c1-uat-scenarios) | Local integration acceptance example | Developer-controlled effective settings | Green-all |
+| 794c8b1 Successful request | [794b4b1a Successful configured invocation](./794b_technical-spec.md#794b4b1-contract-scenarios) | Injected imptest interaction | One call, context, mode, resolved environment, and success propagation | Refactor-complexity |
+| 794c8b2 Failed request | [794b4b1b Failed configured invocation](./794b_technical-spec.md#794b4b1-contract-scenarios) | Injected imptest interaction | Exact failure propagation without retry | Refactor-complexity |
+| 794c8b3 Environment isolation | [794b4b1c Child environment isolation](./794b_technical-spec.md#794b4b1-contract-scenarios) | Local integration dependency contract | Real Targ subprocess environment and unchanged parent | Refactor-complexity |
+| 794c8b4 Acceptance scope | [794a2a1a Existing entry points use project analysis](./794a_product-spec.md#794a2a1-uat-scenarios) | Local integration acceptance example | Local integration with the installed NilAway: a fixture has first-party and replaced third-party modules, each with a known nil dereference; include both filesystem roots in diagnostic reporting, verify the first-party diagnostic, and verify absence of the dependency diagnostic | Refactor-complexity |
+| 794c8b5 Acceptance defaults | [794a2b1a Absent settings use subprocess defaults](./794a_product-spec.md#794a2b1-uat-scenarios) | Local integration acceptance example | Check/fix child defaults and parent preservation | Refactor-complexity |
+| 794c8b6 Acceptance overrides | [794a2c1a Supplied settings take precedence](./794a_product-spec.md#794a2c1-uat-scenarios) | Local integration acceptance example | Developer-controlled effective settings | Refactor-complexity |
 
 Each corresponding executable test name begins with its Gherkin ID. A shared fixture may support
 multiple tests, but each scenario keeps an independently named and tracked test.

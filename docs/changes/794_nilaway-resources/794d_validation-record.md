@@ -67,6 +67,7 @@ Boundary review: process environment access and command execution remain at the 
 policy inputs are injected for pure tests. Command orchestration tests are the next work package.
 Performance review: no production changes follow the successful scoped real-analyzer run;
 no new performance guarantee is inferred. These review checkpoints do not require code changes.
+
 ## 794d7 Command-boundary RED checkpoint
 
 `targ test-dev` and `targ test-dev-integration` fail as expected when the injected
@@ -78,6 +79,7 @@ the include flag, and removes only that diagnostic with the include flag. This i
 Green-single characterization of existing policy, not claimed historical TDD.
 
 Policy work is Done. Boundary implementation and final validation remain incomplete.
+
 ## 794d8 Command-boundary GREEN checkpoint
 
 `targ test-dev` and `targ test-dev-integration` both pass with race detection.
@@ -85,3 +87,17 @@ The configured invocation forwards resolved settings and the executor's exact er
 The adapter applies settings only to its child command. The real-analyzer fixture
 verifies first-party diagnostics remain while selected dependency diagnostics vanish.
 The integration target explicitly includes the targ and integration build tags.
+
+## 794d9 Boundary Refactor Review
+
+Complexity: the added seam injects only lookup and one executor; no configuration framework.
+Consistency: declarations follow repository ordering; check/fix retain one shared policy.
+Boundaries: fixtures now require all child resource variables to be present, even when empty,
+and verify both absent and present parent variables remain unchanged. Interaction tests use
+imptest; real subprocess and analyzer contracts stay integration-tagged.
+Performance: no additional analyzer invocation in production, no retry, and no process-wide
+environment mutation. The fixture analyzes only two tiny packages. No hard RSS guarantee.
+
+After these refinements, `targ reorder-decls-check`, `targ test-dev`, and
+`targ test-dev-integration` pass. The prior full check passed seven gates, failed declaration
+ordering (now fixed) and the existing sandbox-denied loopback test. Final validation stays open.
