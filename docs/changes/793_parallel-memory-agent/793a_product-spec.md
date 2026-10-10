@@ -37,7 +37,7 @@ Terms used below:
 Numeric thresholds marked **[proposed]** are suggested starting values that await a decision in
 [`793c_open-questions.md`](./793c_open-questions.md). Requirement keywords follow RFC 2119.
 
-Sections `793a2` through `793a5` add requirements to one new capability. Each requirement keeps its
+Sections [793a2](#793a2-added-automatic-memory-automatic-recall) through [793a5](#793a5-added-automatic-memory-independence-coexistence-and-measurement) add requirements to one new capability. Each requirement keeps its
 draft identifier in a "formerly" note so that review comments on the draft still map.
 
 ## 793a2 Added: automatic-memory (automatic recall)
@@ -46,7 +46,7 @@ Canonical target: `docs/specs/product/automatic-memory.md` (title `Automatic Mem
 
 ### 793a2a Recall at a human prompt
 
-Requirement: 793a2a (formerly REC-1) When a human submits a prompt, the System MUST make relevant
+Requirement: [793a2a](#793a2a-recall-at-a-human-prompt) (formerly REC-1) When a human submits a prompt, the System MUST make relevant
 vault notes available to the working agent before it begins acting on that prompt, without the agent
 requesting them.
 
@@ -68,7 +68,7 @@ Scenario: 793a2a1b No relevant note exists
 
 ### 793a2b Recall after each tool result
 
-Requirement: 793a2b (formerly REC-2) After a tool result is returned to the working agent, and before
+Requirement: [793a2b](#793a2b-recall-after-each-tool-result) (formerly REC-2) After a tool result is returned to the working agent, and before
 the agent's next model call, the System MUST make relevant notes available based on the current
 situation (the tool, its arguments, and its outcome).
 
@@ -88,7 +88,7 @@ Scenario: 793a2b1b Every post-tool model call is covered
 
 ### 793a2c Recall at subagent dispatch
 
-Requirement: 793a2c (formerly REC-3) When the working agent dispatches a subagent, the System MUST
+Requirement: [793a2c](#793a2c-recall-at-subagent-dispatch) (formerly REC-3) When the working agent dispatches a subagent, the System MUST
 make notes relevant to the subagent's task available to that subagent.
 
 #### 793a2c1 UAT Scenarios
@@ -103,7 +103,7 @@ Scenario: 793a2c1a Subagent receives relevant notes
 
 ### 793a2d Informational, attributable presentation
 
-Requirement: 793a2d (formerly REC-4) Injected notes MUST identify their source note and MUST be
+Requirement: [793a2d](#793a2d-informational-attributable-presentation) (formerly REC-4) Injected notes MUST identify their source note and MUST be
 presented as reference information. They MUST NOT require the working agent to run commands, and MUST
 NOT be phrased as instructions the agent must obey.
 
@@ -120,7 +120,7 @@ Scenario: 793a2d1a Injected content is attributable and non-imperative
 
 ### 793a2e Relevance and non-repetition
 
-Requirement: 793a2e (formerly REC-5) The System MUST NOT inject a note below the relevance threshold.
+Requirement: [793a2e](#793a2e-relevance-and-non-repetition) (formerly REC-5) The System MUST NOT inject a note below the relevance threshold.
 The System SHOULD NOT inject the same note again in the same session unless the situation has
 materially changed.
 
@@ -140,7 +140,7 @@ Scenario: 793a2e1b Irrelevant note suppressed
 
 ### 793a2f Bounded volume
 
-Requirement: 793a2f (formerly REC-6) Injections MUST be bounded per injection, per turn, and per
+Requirement: [793a2f](#793a2f-bounded-volume) (formerly REC-6) Injections MUST be bounded per injection, per turn, and per
 session, so that recall cannot materially crowd out the task. Initial bounds **[proposed]**: at a
 prompt, at most 3 notes / 6 KB; at a tool result, at most 2 notes / 3 KB; per turn, at most 4
 tool-result injections and 12 KB.
@@ -167,7 +167,7 @@ Scenario: 793a2f1c Tool-result bound holds
 
 ### 793a2g Human-originated moments only
 
-Requirement: 793a2g (formerly REC-7) The System SHOULD NOT inject recall for prompts that did not
+Requirement: [793a2g](#793a2g-human-originated-moments-only) (formerly REC-7) The System SHOULD NOT inject recall for prompts that did not
 originate from the human (automated notifications, scheduled triggers, messages from other sessions)
 unless the operator configures otherwise.
 
@@ -187,7 +187,7 @@ Canonical target: `docs/specs/product/automatic-memory.md` (title `Automatic Mem
 
 ### 793a3a Evaluate every completed turn
 
-Requirement: 793a3a (formerly CAP-1) After each completed turn, the System MUST evaluate the turn for
+Requirement: [793a3a](#793a3a-evaluate-every-completed-turn) (formerly CAP-1) After each completed turn, the System MUST evaluate the turn for
 lessons (correction, explicit save-request, reversal, confirmed approach) without the working agent
 requesting it.
 
@@ -209,7 +209,7 @@ Scenario: 793a3a1b Explicit save-request
 
 ### 793a3b Confirmed lessons only
 
-Requirement: 793a3b (formerly CAP-2) The System MUST NOT capture a hypothesis, a routine success with
+Requirement: [793a3b](#793a3b-confirmed-lessons-only) (formerly CAP-2) The System MUST NOT capture a hypothesis, a routine success with
 no resolved uncertainty, or a bare pleasantry as a lesson.
 
 #### 793a3b1 UAT Scenarios
@@ -229,7 +229,7 @@ Scenario: 793a3b1b Unconfirmed guess ignored
 
 ### 793a3c No duplicates
 
-Requirement: 793a3c (formerly CAP-3) Before writing, the System MUST check for an existing note
+Requirement: [793a3c](#793a3c-no-duplicates) (formerly CAP-3) Before writing, the System MUST check for an existing note
 stating the same lesson and MUST NOT write a duplicate. When an equivalent note exists, the System
 SHOULD reinforce it instead.
 
@@ -245,7 +245,7 @@ Scenario: 793a3c1a Existing note already covers the lesson
 
 ### 793a3d Provenance
 
-Requirement: 793a3d (formerly CAP-4) Every automatically captured note MUST record that it was
+Requirement: [793a3d](#793a3d-provenance) (formerly CAP-4) Every automatically captured note MUST record that it was
 captured automatically, and the session and turn it came from.
 
 #### 793a3d1 UAT Scenarios
@@ -259,7 +259,7 @@ Scenario: 793a3d1a Provenance present
 
 ### 793a3e Capture quality
 
-Requirement: 793a3e (formerly CAP-5) Of automatically captured notes, at least **[proposed] 70%**
+Requirement: [793a3e](#793a3e-capture-quality) (formerly CAP-5) Of automatically captured notes, at least **[proposed] 70%**
 MUST be judged valid lessons by the operator on review. The System SHOULD capture materially more of
 the lesson-worthy moments than the current baseline of about 5%; target **[proposed] at least 50%**.
 
@@ -279,8 +279,8 @@ Scenario: 793a3e1b Recall rate measured against labeled moments
 
 ### 793a3f Non-blocking capture
 
-Requirement: 793a3f (formerly CAP-6) Capture MUST NOT delay the working agent's response or the
-user's next prompt beyond the latency budget in 793a5d (formerly NFR-1).
+Requirement: [793a3f](#793a3f-non-blocking-capture) (formerly CAP-6) Capture MUST NOT delay the working agent's response or the
+user's next prompt beyond the latency budget in [793a5d](#793a5d-latency) (formerly NFR-1).
 
 #### 793a3f1 UAT Scenarios
 
@@ -297,7 +297,7 @@ Canonical target: `docs/specs/product/automatic-memory.md` (title `Automatic Mem
 
 ### 793a4a Operating modes
 
-Requirement: 793a4a (formerly CTL-1) The operator MUST be able to select among: off (no recall, no
+Requirement: [793a4a](#793a4a-operating-modes) (formerly CTL-1) The operator MUST be able to select among: off (no recall, no
 capture), observe (decisions are logged, nothing is injected or written), and active (injection and
 writes occur). The initial default for a new install SHOULD be observe.
 
@@ -319,7 +319,7 @@ Scenario: 793a4a1b Off mode is inert
 
 ### 793a4b Failure isolation
 
-Requirement: 793a4b (formerly CTL-2) If the System fails, times out, or is unavailable, the working
+Requirement: [793a4b](#793a4b-failure-isolation) (formerly CTL-2) If the System fails, times out, or is unavailable, the working
 session MUST continue unaffected, with no error surfaced to the working agent and no lost user input.
 
 #### 793a4b1 UAT Scenarios
@@ -339,7 +339,7 @@ Scenario: 793a4b1b Evaluation crashes
 
 ### 793a4c Memory purview only
 
-Requirement: 793a4c (formerly CTL-3) The System MUST NOT alter task decisions, tool permissions, tool
+Requirement: [793a4c](#793a4c-memory-purview-only) (formerly CTL-3) The System MUST NOT alter task decisions, tool permissions, tool
 arguments, model choice, or the user's prompt text. Its only effects are injecting reference notes and
 writing vault notes.
 
@@ -354,7 +354,7 @@ Scenario: 793a4c1a Task behavior unchanged
 
 ### 793a4d Sensitive content
 
-Requirement: 793a4d (formerly CTL-4) The System SHOULD NOT write credentials, tokens, or secrets
+Requirement: [793a4d](#793a4d-sensitive-content) (formerly CTL-4) The System SHOULD NOT write credentials, tokens, or secrets
 present in a transcript into a note.
 
 #### 793a4d1 UAT Scenarios
@@ -372,7 +372,7 @@ Canonical target: `docs/specs/product/automatic-memory.md` (title `Automatic Mem
 
 ### 793a5a Independence from agent compliance
 
-Requirement: 793a5a (formerly IND-1) The System's recall and capture MUST function with no
+Requirement: [793a5a](#793a5a-independence-from-agent-compliance) (formerly IND-1) The System's recall and capture MUST function with no
 memory-related instructions present in the working agent's configuration.
 
 #### 793a5a1 UAT Scenarios
@@ -386,7 +386,7 @@ Scenario: 793a5a1a Bare configuration
 
 ### 793a5b Coexistence without double-firing
 
-Requirement: 793a5b (formerly IND-2) Where the existing instruction-based path is also active, the
+Requirement: [793a5b](#793a5b-coexistence-without-double-firing) (formerly IND-2) Where the existing instruction-based path is also active, the
 System MUST NOT cause the same note to be delivered twice for the same moment, and the working agent
 SHOULD NOT perform redundant lookups or saves for a moment the System already handled.
 
@@ -402,7 +402,7 @@ Scenario: 793a5b1a Both paths active
 
 ### 793a5c Environments without the capability
 
-Requirement: 793a5c (formerly IND-3) In harnesses where the System cannot run, the existing
+Requirement: [793a5c](#793a5c-environments-without-the-capability) (formerly IND-3) In harnesses where the System cannot run, the existing
 instruction-based path MUST continue to work unchanged.
 
 #### 793a5c1 UAT Scenarios
@@ -416,8 +416,8 @@ Scenario: 793a5c1a Unsupported harness
 
 ### 793a5d Latency
 
-Requirement: 793a5d (formerly NFR-1) The System MUST add at most **[proposed] 1.5 s** median added
-latency per human prompt, and MUST NOT add blocking latency for capture (793a3f, formerly CAP-6).
+Requirement: [793a5d](#793a5d-latency) (formerly NFR-1) The System MUST add at most **[proposed] 1.5 s** median added
+latency per human prompt, and MUST NOT add blocking latency for capture ([793a3f](#793a3f-non-blocking-capture), formerly CAP-6).
 
 #### 793a5d1 UAT Scenarios
 
@@ -430,7 +430,7 @@ Scenario: 793a5d1a Latency measured
 
 ### 793a5e Auditability and measurability
 
-Requirement: 793a5e (formerly NFR-2) Every recall decision (injected or none, with the notes and
+Requirement: [793a5e](#793a5e-auditability-and-measurability) (formerly NFR-2) Every recall decision (injected or none, with the notes and
 scores) and every capture decision (written, reinforced, or discarded, with reason) MUST be logged
 with session and turn identifiers, so effect on behavior can be measured and the operator can audit
 it.
@@ -447,7 +447,7 @@ Scenario: 793a5e1a Decision log joins to outcomes
 
 ### 793a5f Effect on outcomes
 
-Requirement: 793a5f (formerly NFR-3) In a controlled comparison on lesson-bearing tasks, runs with
+Requirement: [793a5f](#793a5f-effect-on-outcomes) (formerly NFR-3) In a controlled comparison on lesson-bearing tasks, runs with
 the System active SHOULD apply a relevant existing lesson more often than runs without it.
 
 #### 793a5f1 UAT Scenarios

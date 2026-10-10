@@ -22,7 +22,7 @@ retained and documented as Added. Each component section instead uses the per-co
 behavior requirements with Gherkin, and product-scenario mapping. Rationale appears under the
 requirement or orientation it justifies.
 
-Component sections `792b2` through `792b39` are added by the nodes of
+Component sections [792b2](#792b2-added-command-line-surface) through [792b39](#792b39-added-memory-loop-auditor) are added by the nodes of
 [`792c_implementation-plan.md`](./792c_implementation-plan.md).
 
 ### 792b1a System context
@@ -60,15 +60,15 @@ flowchart TB
 
 | Edge | Specified in |
 | --- | --- |
-| Harness to skills, skills to command line | 792b32 agent-instruction-bundle, 792b2 command-line-surface |
-| Command line to vault | 792b6 note-document-format, 792b8 vault-write-lock, 792b5 vault-identity-registry |
-| Command line to model | 792b9 text-embedder |
-| Command line to session stores | 792b15 transcript-reader, 792b17 ingestion-source-discovery, 792b18 chunk-index-store |
-| Command line to Go toolchain, harness | 792b28 self-installer, 792b29 harness-deploy-sync |
-| Command line to parent vault | 792b35 vault-http-server, 792b36 offer-outbox, 792b37 parent-vault-client |
+| Harness to skills, skills to command line | [792b32](#792b32-added-agent-instruction-bundle) agent-instruction-bundle, [792b2](#792b2-added-command-line-surface) command-line-surface |
+| Command line to vault | [792b6](#792b6-added-note-document-format) note-document-format, [792b8](#792b8-added-vault-write-lock) vault-write-lock, [792b5](#792b5-added-vault-identity-registry) vault-identity-registry |
+| Command line to model | [792b9](#792b9-added-text-embedder) text-embedder |
+| Command line to session stores | [792b15](#792b15-added-transcript-reader) transcript-reader, [792b17](#792b17-added-ingestion-source-discovery) ingestion-source-discovery, [792b18](#792b18-added-chunk-index-store) chunk-index-store |
+| Command line to Go toolchain, harness | [792b28](#792b28-added-self-installer) self-installer, [792b29](#792b29-added-harness-deploy-sync) harness-deploy-sync |
+| Command line to parent vault | [792b35](#792b35-added-vault-http-server) vault-http-server, [792b36](#792b36-added-offer-outbox) offer-outbox, [792b37](#792b37-added-parent-vault-client) parent-vault-client |
 
 Rationale: this overview replaces the legacy C4 context, container and component views (deleted by
-792c8a; git history keeps them). The component catalogs those views carried are now the per-component
+[792c8a](./792c_implementation-plan.md#792c8a-residual-legacy-sweep); git history keeps them). The component catalogs those views carried are now the per-component
 sections, which cite the owning package. The command line's own wiring convention (a single-statement
 `main()` supplying raw primitives to `internal/cli`) is in the root `AGENTS.md`.
 
@@ -99,9 +99,9 @@ Canonical target: `docs/specs/technical/command-line-surface.md` (title `Command
   from each command's own behavior; independent verification, its precedence and gating are tested
   through dispatch with injected environment and filesystem; stability, the surface survives any
   refactoring of command internals; necessity, every product capability is reached through it.
-- Supported capabilities: 792a2 vault-identity, 792a3 note-writing, 792a4 note-revision, 792a5
-  chunk-indexing, 792a6 controlled-vocabulary, 792a7 memory-query, 792a21 parent-sync (792b2c9, 792b2c10).
-  Later capabilities add their own routing requirements here (792d30, 792d51).
+- Supported capabilities: [792a2](./792a_product-spec.md#792a2-added-vault-identity) vault-identity, [792a3](./792a_product-spec.md#792a3-added-note-writing) note-writing, [792a4](./792a_product-spec.md#792a4-added-note-revision) note-revision, [792a5](./792a_product-spec.md#792a5-added-chunk-indexing)
+  chunk-indexing, [792a6](./792a_product-spec.md#792a6-added-controlled-vocabulary) controlled-vocabulary, [792a7](./792a_product-spec.md#792a7-added-memory-query) memory-query, [792a21](./792a_product-spec.md#792a21-added-parent-sync) parent-sync ([792b2c9](#792b2c9-a-removed-environment-variable-is-refused), [792b2c10](#792b2c10-parent-routing-of-note-lookup)).
+  Later capabilities add their own routing requirements here ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later), [792d51](./792d_decision-log.md#792d51-command-line-surface-routing-requirements-arrive-with-their-scenarios)).
 
 Rationale: each `engram <subcommand>` is its own process. Commands never call each other in
 process; a skill reads one command's stdout and runs the next. (An earlier C3 draft drew an
@@ -146,12 +146,12 @@ sequenceDiagram
 
 #### 792b2c1 Vault path resolution
 
-Requirement: 792b2c1 The command-line-surface MUST resolve the vault path to the `--vault` flag
+Requirement: [792b2c1](#792b2c1-vault-path-resolution) The command-line-surface MUST resolve the vault path to the `--vault` flag
 when it is non-empty, else to `ENGRAM_VAULT_PATH` when it is non-empty, else to
 `$XDG_DATA_HOME/engram/vault` when `XDG_DATA_HOME` is non-empty, else to
 `$HOME/.local/share/engram/vault`, and MUST return that path without checking that it exists.
 
-Supports: 792a2a1a, 792a2a1b, 792a2a1c, 792a2a1d, 792a6t1a.
+Supports: [792a2a1a](./792a_product-spec.md#792a2a1-uat-scenarios), [792a2a1b](./792a_product-spec.md#792a2a1-uat-scenarios), [792a2a1c](./792a_product-spec.md#792a2a1-uat-scenarios), [792a2a1d](./792a_product-spec.md#792a2a1-uat-scenarios), [792a6t1a](./792a_product-spec.md#792a6t1-uat-scenarios).
 
 ##### 792b2c1a Scenarios
 
@@ -179,10 +179,10 @@ Scenario: 792b2c1a4 The home directory is the last fallback
 
 #### 792b2c2 Vault name resolution
 
-Requirement: 792b2c2 The command-line-surface MUST resolve the vault name to the `--vault-name`
+Requirement: [792b2c2](#792b2c2-vault-name-resolution) The command-line-surface MUST resolve the vault name to the `--vault-name`
 flag when it is non-empty, else to `ENGRAM_VAULT_NAME` when it is non-empty, else to `personal`.
 
-Supports: 792a2b1a, 792a2b1b, 792a2b1c, 792a4h1f.
+Supports: [792a2b1a](./792a_product-spec.md#792a2b1-uat-scenarios), [792a2b1b](./792a_product-spec.md#792a2b1-uat-scenarios), [792a2b1c](./792a_product-spec.md#792a2b1-uat-scenarios), [792a4h1f](./792a_product-spec.md#792a4h1-uat-scenarios).
 
 ##### 792b2c2a Scenarios
 
@@ -205,11 +205,11 @@ Scenario: 792b2c2a3 The flag wins
 
 #### 792b2c3 First-use gating
 
-Requirement: 792b2c3 For every vault-resolving command, the command-line-surface MUST ask the
+Requirement: [792b2c3](#792b2c3-first-use-gating) For every vault-resolving command, the command-line-surface MUST ask the
 vault-identity-registry to ensure the vault at the resolved path before running the command, and
 MUST NOT run the command when that step fails.
 
-Supports: 792a2e1a, 792a2e1b, 792a2e1c, 792a2e1d, 792a2f1a, 792a2g1a, 792a6t1a.
+Supports: [792a2e1a](./792a_product-spec.md#792a2e1-uat-scenarios), [792a2e1b](./792a_product-spec.md#792a2e1-uat-scenarios), [792a2e1c](./792a_product-spec.md#792a2e1-uat-scenarios), [792a2e1d](./792a_product-spec.md#792a2e1-uat-scenarios), [792a2f1a](./792a_product-spec.md#792a2f1-uat-scenarios), [792a2g1a](./792a_product-spec.md#792a2g1-uat-scenarios), [792a6t1a](./792a_product-spec.md#792a6t1-uat-scenarios).
 
 Rationale: one shared first-use step in dispatch, rather than one per command, makes every command
 create a missing vault the same way (#766).
@@ -230,14 +230,14 @@ Scenario: 792b2c3a2 A failed first-use step stops the command
 
 #### 792b2c4 Result reporting
 
-Requirement: 792b2c4 The command-line-surface MUST write a failed command's error to stderr and exit
+Requirement: [792b2c4](#792b2c4-result-reporting) The command-line-surface MUST write a failed command's error to stderr and exit
 with a non-zero status, and MUST neither exit nor write to stderr on the command's behalf when the
 command succeeds.
 
-Supports: 792a2e1b, 792a2j1c, 792a2n1b, 792a2o1a, 792a3f1b, 792a3g1a, 792a3k1a, 792a3k1b, 792a3k1c,
-792a3k1d, 792a3r1a, 792a3s1a, 792a4a1b, 792a4c1a, 792a4f1a, 792a4k1a, 792a4k1b, 792a4l1b, 792a4l1c,
-792a4n1c, 792a6h1a, 792a6i1c, 792a6r1a, 792a6t1a, 792a8c1f, 792a8e1j, 792a8f1a, 792a8f1b, 792a8f1c,
-792a9a1b, 792a9a1e, 792a9g1c, 792a9i1f, 792a10d1a, 792a10d1b, 792a10d1c, 792a10d1d.
+Supports: [792a2e1b](./792a_product-spec.md#792a2e1-uat-scenarios), [792a2j1c](./792a_product-spec.md#792a2j1-uat-scenarios), [792a2n1b](./792a_product-spec.md#792a2n1-uat-scenarios), [792a2o1a](./792a_product-spec.md#792a2o1-uat-scenarios), [792a3f1b](./792a_product-spec.md#792a3f1-uat-scenarios), [792a3g1a](./792a_product-spec.md#792a3g1-uat-scenarios), [792a3k1a](./792a_product-spec.md#792a3k1-uat-scenarios), [792a3k1b](./792a_product-spec.md#792a3k1-uat-scenarios), [792a3k1c](./792a_product-spec.md#792a3k1-uat-scenarios),
+[792a3k1d](./792a_product-spec.md#792a3k1-uat-scenarios), [792a3r1a](./792a_product-spec.md#792a3r1-uat-scenarios), [792a3s1a](./792a_product-spec.md#792a3s1-uat-scenarios), [792a4a1b](./792a_product-spec.md#792a4a1-uat-scenarios), [792a4c1a](./792a_product-spec.md#792a4c1-uat-scenarios), [792a4f1a](./792a_product-spec.md#792a4f1-uat-scenarios), [792a4k1a](./792a_product-spec.md#792a4k1-uat-scenarios), [792a4k1b](./792a_product-spec.md#792a4k1-uat-scenarios), [792a4l1b](./792a_product-spec.md#792a4l1-uat-scenarios), [792a4l1c](./792a_product-spec.md#792a4l1-uat-scenarios),
+[792a4n1c](./792a_product-spec.md#792a4n1-uat-scenarios), [792a6h1a](./792a_product-spec.md#792a6h1-uat-scenarios), [792a6i1c](./792a_product-spec.md#792a6i1-uat-scenarios), [792a6r1a](./792a_product-spec.md#792a6r1-uat-scenarios), [792a6t1a](./792a_product-spec.md#792a6t1-uat-scenarios), [792a8c1f](./792a_product-spec.md#792a8c1-uat-scenarios), [792a8e1j](./792a_product-spec.md#792a8e1-uat-scenarios), [792a8f1a](./792a_product-spec.md#792a8f1-uat-scenarios), [792a8f1b](./792a_product-spec.md#792a8f1-uat-scenarios), [792a8f1c](./792a_product-spec.md#792a8f1-uat-scenarios),
+[792a9a1b](./792a_product-spec.md#792a9a1-uat-scenarios), [792a9a1e](./792a_product-spec.md#792a9a1-uat-scenarios), [792a9g1c](./792a_product-spec.md#792a9g1-uat-scenarios), [792a9i1f](./792a_product-spec.md#792a9i1-uat-scenarios), [792a10d1a](./792a_product-spec.md#792a10d1-uat-scenarios), [792a10d1b](./792a_product-spec.md#792a10d1-uat-scenarios), [792a10d1c](./792a_product-spec.md#792a10d1-uat-scenarios), [792a10d1d](./792a_product-spec.md#792a10d1-uat-scenarios).
 
 ##### 792b2c4a Scenarios
 
@@ -255,11 +255,11 @@ Scenario: 792b2c4a2 A success neither exits nor writes stderr
 
 #### 792b2c5 Argument refusal
 
-Requirement: 792b2c5 The command-line-surface MUST refuse an invocation that passes a flag the
+Requirement: [792b2c5](#792b2c5-argument-refusal) The command-line-surface MUST refuse an invocation that passes a flag the
 command does not define, or omits a flag the command marks required, by writing an error naming the
 flag to stderr and exiting non-zero without running the command.
 
-Supports: 792a3e1a, 792a3f1a, 792a3f1c, 792a3g1a, 792a3r1a, 792a6h1a, 792a6i1c, 792a6r1a.
+Supports: [792a3e1a](./792a_product-spec.md#792a3e1-uat-scenarios), [792a3f1a](./792a_product-spec.md#792a3f1-uat-scenarios), [792a3f1c](./792a_product-spec.md#792a3f1-uat-scenarios), [792a3g1a](./792a_product-spec.md#792a3g1-uat-scenarios), [792a3r1a](./792a_product-spec.md#792a3r1-uat-scenarios), [792a6h1a](./792a_product-spec.md#792a6h1-uat-scenarios), [792a6i1c](./792a_product-spec.md#792a6i1-uat-scenarios), [792a6r1a](./792a_product-spec.md#792a6r1-uat-scenarios).
 
 ##### 792b2c5a Scenarios
 
@@ -277,13 +277,13 @@ Scenario: 792b2c5a2 A missing required flag is refused
 
 #### 792b2c6 Chunk index directory resolution
 
-Requirement: 792b2c6 For `ingest`, `prune`, `query`, `query-chunks`, `show-chunk`, `amend` and
+Requirement: [792b2c6](#792b2c6-chunk-index-directory-resolution) For `ingest`, `prune`, `query`, `query-chunks`, `show-chunk`, `amend` and
 `serve`, the command-line-surface MUST resolve the chunk index directory to the `--chunks-dir` flag
 when it is non-empty, else to `ENGRAM_CHUNKS_DIR` when it is non-empty, else to
 `$XDG_DATA_HOME/engram/chunks` when `XDG_DATA_HOME` is non-empty, else to
 `$HOME/.local/share/engram/chunks`, and MUST return that path without checking that it exists.
 
-Supports: 792a5a1a, 792a5a1b, 792a5a1c, 792a5a1d.
+Supports: [792a5a1a](./792a_product-spec.md#792a5a1-uat-scenarios), [792a5a1b](./792a_product-spec.md#792a5a1-uat-scenarios), [792a5a1c](./792a_product-spec.md#792a5a1-uat-scenarios), [792a5a1d](./792a_product-spec.md#792a5a1-uat-scenarios).
 
 ##### 792b2c6a Scenarios
 
@@ -311,20 +311,20 @@ Scenario: 792b2c6a4 The home directory is the last fallback
 
 #### 792b2c7 Note lookup
 
-Requirement: 792b2c7 For `show`, the command-line-surface MUST read the note that the reference names,
+Requirement: [792b2c7](#792b2c7-note-lookup) For `show`, the command-line-surface MUST read the note that the reference names,
 a full basename, a Luhmann ID, or either of them in `[[ ]]` with an optional `|display` or with a
 trailing `.md`, and MUST print its content exactly as stored, a newline after it when it lacks one,
 a blank line, the line `# outbound links (fetch with: engram show <basename>)`, and then the target
-of each link in the note's text (792b13c3), one per line, or `(none)`. It MUST fail with
+of each link in the note's text ([792b13c3](#792b13c3-link-targets)), one per line, or `(none)`. It MUST fail with
 `show: empty note reference` when the reference is blank, and with `show: note not found: "<ref>"`,
 quoting the reference as given, when no note matches. It MUST NOT shorten a runbook's `red_flags`,
 and MUST NOT change any note.
 
-Supports: 792a7x1a, 792a7x1b, 792a7x1c, 792a7x1d, 792a7x1e, 792a7x1f, 792a7x1g, 792a7x1h.
+Supports: [792a7x1a](./792a_product-spec.md#792a7x1-uat-scenarios), [792a7x1b](./792a_product-spec.md#792a7x1-uat-scenarios), [792a7x1c](./792a_product-spec.md#792a7x1-uat-scenarios), [792a7x1d](./792a_product-spec.md#792a7x1-uat-scenarios), [792a7x1e](./792a_product-spec.md#792a7x1-uat-scenarios), [792a7x1f](./792a_product-spec.md#792a7x1-uat-scenarios), [792a7x1g](./792a_product-spec.md#792a7x1-uat-scenarios), [792a7x1h](./792a_product-spec.md#792a7x1-uat-scenarios).
 
 Rationale: `engram show` is the full-fidelity source that the guidance shim names, so the preview
-budget that bounds a query payload (792a7w) is not applied here. Resolving a note that is on the
-parent vault, by `--parent` or by a miss with a parent configured, is 792b2c10.
+budget that bounds a query payload ([792a7w](./792a_product-spec.md#792a7w-red-flags-in-the-query-preview)) is not applied here. Resolving a note that is on the
+parent vault, by `--parent` or by a miss with a parent configured, is [792b2c10](#792b2c10-parent-routing-of-note-lookup).
 
 ##### 792b2c7a Scenarios
 
@@ -370,16 +370,16 @@ Scenario: 792b2c7a6 The production filesystem is read
 
 #### 792b2c8 Chunk lookup
 
-Requirement: 792b2c8 For `show-chunk`, the command-line-surface MUST read every index file in the
-resolved chunk index directory (792b2c6, 792b18c12) and print the text of the record whose
+Requirement: [792b2c8](#792b2c8-chunk-lookup) For `show-chunk`, the command-line-surface MUST read every index file in the
+resolved chunk index directory ([792b2c6](#792b2c6-chunk-index-directory-resolution), [792b18c12](#792b18c12-listing-index-files)) and print the text of the record whose
 `<source>#<anchor>` equals the reference with surrounding whitespace trimmed, a newline after it when
 it lacks one. It MUST fail with `show-chunk: empty chunk ref` when the reference is blank, and with
 `chunk not found: <ref>` when no record has that ID. It MUST NOT embed anything and MUST NOT change
 any file.
 
-Supports: 792a7t1a, 792a7t1b, 792a7t1c.
+Supports: [792a7t1a](./792a_product-spec.md#792a7t1-uat-scenarios), [792a7t1b](./792a_product-spec.md#792a7t1-uat-scenarios), [792a7t1c](./792a_product-spec.md#792a7t1-uat-scenarios).
 
-Rationale: with `engram query --lazy-chunks` (792a7s) a payload omits chunk text, and the agent
+Rationale: with `engram query --lazy-chunks` ([792a7s](./792a_product-spec.md#792a7s-lazy-chunks)) a payload omits chunk text, and the agent
 fetches one chunk's evidence on demand; the lookup is by ID and needs no model.
 
 ##### 792b2c8a Scenarios
@@ -403,13 +403,13 @@ Scenario: 792b2c8a3 A blank reference fails
 
 #### 792b2c9 A removed environment variable is refused
 
-Requirement: 792b2c9 Before it builds any command, the command-line-surface MUST refuse every invocation, `serve` included,
+Requirement: [792b2c9](#792b2c9-a-removed-environment-variable-is-refused) Before it builds any command, the command-line-surface MUST refuse every invocation, `serve` included,
 when the environment variable `ENGRAM_SERVER` is set to a non-empty value. The refusal MUST be an error that says
 `ENGRAM_SERVER is no longer supported`, tells the user to set `ENGRAM_PARENT` to the same value, and is reported through
-the usual error mapping (792b2c4). It MUST happen before any vault, chunk index, lock, network or bind capability is
+the usual error mapping ([792b2c4](#792b2c4-result-reporting)). It MUST happen before any vault, chunk index, lock, network or bind capability is
 used, and `ENGRAM_SERVER` MUST NOT be read for any other purpose: its value is only echoed in the message.
 
-Supports: 792a21a1a, 792a21a1b, 792a21a1c, 792a21a1d.
+Supports: [792a21a1a](./792a_product-spec.md#792a21a1-uat-scenarios), [792a21a1b](./792a_product-spec.md#792a21a1-uat-scenarios), [792a21a1c](./792a_product-spec.md#792a21a1-uat-scenarios), [792a21a1d](./792a_product-spec.md#792a21a1-uat-scenarios).
 
 Rationale: the thin-client mode that read this variable sent ten commands to a remote server and touched no local file.
 Joe ruled out an alias shim and an exemption for `serve` (ADR-0029 D1), so the check sits ahead of every target and
@@ -432,23 +432,23 @@ Scenario: 792b2c9a2 The value is only echoed
 
 #### 792b2c10 Parent routing of note lookup
 
-Requirement: 792b2c10 For `show`, the command-line-surface MUST, when `--parent` is set, resolve the reference against
+Requirement: [792b2c10](#792b2c10-parent-routing-of-note-lookup) For `show`, the command-line-surface MUST, when `--parent` is set, resolve the reference against
 `ENGRAM_PARENT` alone and print the parent's answer unlabeled, and MUST fail with `--parent requires ENGRAM_PARENT to be
 configured`, making no lookup, when `ENGRAM_PARENT` is unset. Without `--parent` it MUST look the reference up locally
-first (792b2c7) and return a local hit without contacting the parent. Only when the local lookup fails because the note
+first ([792b2c7](#792b2c7-note-lookup)) and return a local hit without contacting the parent. Only when the local lookup fails because the note
 was not found and `ENGRAM_PARENT` is configured MUST it ask the parent, and then it MUST print the line `# from_parent:
 true` followed by the parent's answer, printing the label only when the parent answered. Any other local error, and a
 miss with no parent configured, MUST be returned as the local error. Each request to the parent MUST be a parent contact:
-it MUST stamp a missing vault ID and check the vault's location first (792b5c4, 792b5c7), and a failed stamp MUST still
+it MUST stamp a missing vault ID and check the vault's location first ([792b5c4](#792b5c4-vault-id-stamping), [792b5c7](#792b5c7-location-record-and-check)), and a failed stamp MUST still
 let the request run with its bookkeeping skipped so that no later write creates `.engram/` without a stamp; it MUST be
-skipped inside a backoff window after the one warning (792b5c14), the fallback then returning the local not-found error
+skipped inside a backoff window after the one warning ([792b5c14](#792b5c14-the-parent-cache-and-the-contact-backoff)), the fallback then returning the local not-found error
 and `--parent` returning an error; and its outcome MUST be recorded for backoff. `show-chunk` MUST NOT accept `--parent`
 and MUST NOT contact the parent.
 
-Supports: 792a21l1a, 792a21l1b, 792a21l1c, 792a21l1d, 792a21l1e, 792a21l1f, 792a21l1g.
+Supports: [792a21l1a](./792a_product-spec.md#792a21l1-uat-scenarios), [792a21l1b](./792a_product-spec.md#792a21l1-uat-scenarios), [792a21l1c](./792a_product-spec.md#792a21l1-uat-scenarios), [792a21l1d](./792a_product-spec.md#792a21l1-uat-scenarios), [792a21l1e](./792a_product-spec.md#792a21l1-uat-scenarios), [792a21l1f](./792a_product-spec.md#792a21l1-uat-scenarios), [792a21l1g](./792a_product-spec.md#792a21l1-uat-scenarios).
 
 Rationale: a bare Luhmann ID is minted per vault, so a lookup that guessed local-first without being told could return the
-wrong note with no error; the explicit flag and the origin tag of a merged item (792a21g) remove the guess, and a
+wrong note with no error; the explicit flag and the origin tag of a merged item ([792a21g](./792a_product-spec.md#792a21g-merged-items-say-where-they-came-from)) remove the guess, and a
 fallback that fires only after a local miss cannot return a wrong local note. Chunks never cross vaults, so there is no
 parent chunk lookup (ADR-0029 D9). The explicit `--parent` route is byte-identical to the parent's own answer, and only
 the fallback is labeled, because only the fallback leaves the reader unsure where the text came from.
@@ -516,90 +516,90 @@ Scenario: 792b2c10a11 show-chunk never reaches the parent
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a2a1a | 792b2c1 |
-| 792a2a1b | 792b2c1 |
-| 792a2a1c | 792b2c1 |
-| 792a2a1d | 792b2c1 |
-| 792a2b1a | 792b2c2 |
-| 792a2b1b | 792b2c2 |
-| 792a2b1c | 792b2c2 |
-| 792a2e1a | 792b2c3 |
-| 792a2e1b | 792b2c3, 792b2c4 |
-| 792a2e1c | 792b2c3 |
-| 792a2e1d | 792b2c3 |
-| 792a2f1a | 792b2c3 |
-| 792a2g1a | 792b2c3 |
-| 792a2j1c | 792b2c4 |
-| 792a2n1b | 792b2c4 |
-| 792a2o1a | 792b2c4 |
-| 792a3e1a | 792b2c5 |
-| 792a3f1a | 792b2c5 |
-| 792a3f1b | 792b2c4 |
-| 792a3f1c | 792b2c5 |
-| 792a3g1a | 792b2c4, 792b2c5 |
-| 792a3k1a | 792b2c4 |
-| 792a3k1b | 792b2c4 |
-| 792a3k1c | 792b2c4 |
-| 792a3k1d | 792b2c4 |
-| 792a3r1a | 792b2c4, 792b2c5 |
-| 792a3s1a | 792b2c4 |
-| 792a4a1b | 792b2c4 |
-| 792a4c1a | 792b2c4 |
-| 792a4f1a | 792b2c4 |
-| 792a4h1f | 792b2c2 |
-| 792a4k1a | 792b2c4 |
-| 792a4k1b | 792b2c4 |
-| 792a4l1b | 792b2c4 |
-| 792a4l1c | 792b2c4 |
-| 792a4n1c | 792b2c4 |
-| 792a5a1a | 792b2c6 |
-| 792a5a1b | 792b2c6 |
-| 792a5a1c | 792b2c6 |
-| 792a5a1d | 792b2c6 |
-| 792a5b1d | 792b2c4 |
-| 792a5e1b | 792b2c4 |
-| 792a5r1e | 792b2c4 |
-| 792a6h1a | 792b2c4, 792b2c5 |
-| 792a6i1c | 792b2c4, 792b2c5 |
-| 792a6r1a | 792b2c4, 792b2c5 |
-| 792a6t1a | 792b2c1, 792b2c3, 792b2c4 |
-| 792a7t1a | 792b2c6, 792b2c8 |
-| 792a7t1b | 792b2c8 |
-| 792a7t1c | 792b2c8 |
-| 792a7x1a | 792b2c7 |
-| 792a7x1b | 792b2c7 |
-| 792a7x1c | 792b2c7 |
-| 792a7x1d | 792b2c7 |
-| 792a7x1e | 792b2c7 |
-| 792a7x1f | 792b2c7 |
-| 792a7x1g | 792b2c7 |
-| 792a7x1h | 792b2c7 |
-| 792a8c1f | 792b2c4 |
-| 792a8e1j | 792b2c4 |
-| 792a8f1a | 792b2c4 |
-| 792a8f1b | 792b2c4 |
-| 792a8f1c | 792b2c4 |
-| 792a9a1b | 792b2c4 |
-| 792a9a1e | 792b2c4 |
-| 792a9g1c | 792b2c4 |
-| 792a9i1f | 792b2c4 |
-| 792a10d1a | 792b2c4 |
-| 792a10d1b | 792b2c4 |
-| 792a10d1c | 792b2c4 |
-| 792a10d1d | 792b2c4 |
-| 792a20b1a | 792b2c5 |
-| 792a20f1b | 792b2c2 |
-| 792a21a1a | 792b2c9 |
-| 792a21a1b | 792b2c9 |
-| 792a21a1c | 792b2c9 |
-| 792a21a1d | 792b2c9 |
-| 792a21l1a | 792b2c10 |
-| 792a21l1b | 792b2c10 |
-| 792a21l1c | 792b2c10 |
-| 792a21l1d | 792b2c10 |
-| 792a21l1e | 792b2c10 |
-| 792a21l1f | 792b2c10 |
-| 792a21l1g | 792b2c10 |
+| [792a2a1a](./792a_product-spec.md#792a2a1-uat-scenarios) | [792b2c1](#792b2c1-vault-path-resolution) |
+| [792a2a1b](./792a_product-spec.md#792a2a1-uat-scenarios) | [792b2c1](#792b2c1-vault-path-resolution) |
+| [792a2a1c](./792a_product-spec.md#792a2a1-uat-scenarios) | [792b2c1](#792b2c1-vault-path-resolution) |
+| [792a2a1d](./792a_product-spec.md#792a2a1-uat-scenarios) | [792b2c1](#792b2c1-vault-path-resolution) |
+| [792a2b1a](./792a_product-spec.md#792a2b1-uat-scenarios) | [792b2c2](#792b2c2-vault-name-resolution) |
+| [792a2b1b](./792a_product-spec.md#792a2b1-uat-scenarios) | [792b2c2](#792b2c2-vault-name-resolution) |
+| [792a2b1c](./792a_product-spec.md#792a2b1-uat-scenarios) | [792b2c2](#792b2c2-vault-name-resolution) |
+| [792a2e1a](./792a_product-spec.md#792a2e1-uat-scenarios) | [792b2c3](#792b2c3-first-use-gating) |
+| [792a2e1b](./792a_product-spec.md#792a2e1-uat-scenarios) | [792b2c3](#792b2c3-first-use-gating), [792b2c4](#792b2c4-result-reporting) |
+| [792a2e1c](./792a_product-spec.md#792a2e1-uat-scenarios) | [792b2c3](#792b2c3-first-use-gating) |
+| [792a2e1d](./792a_product-spec.md#792a2e1-uat-scenarios) | [792b2c3](#792b2c3-first-use-gating) |
+| [792a2f1a](./792a_product-spec.md#792a2f1-uat-scenarios) | [792b2c3](#792b2c3-first-use-gating) |
+| [792a2g1a](./792a_product-spec.md#792a2g1-uat-scenarios) | [792b2c3](#792b2c3-first-use-gating) |
+| [792a2j1c](./792a_product-spec.md#792a2j1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a2n1b](./792a_product-spec.md#792a2n1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a2o1a](./792a_product-spec.md#792a2o1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a3e1a](./792a_product-spec.md#792a3e1-uat-scenarios) | [792b2c5](#792b2c5-argument-refusal) |
+| [792a3f1a](./792a_product-spec.md#792a3f1-uat-scenarios) | [792b2c5](#792b2c5-argument-refusal) |
+| [792a3f1b](./792a_product-spec.md#792a3f1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a3f1c](./792a_product-spec.md#792a3f1-uat-scenarios) | [792b2c5](#792b2c5-argument-refusal) |
+| [792a3g1a](./792a_product-spec.md#792a3g1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting), [792b2c5](#792b2c5-argument-refusal) |
+| [792a3k1a](./792a_product-spec.md#792a3k1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a3k1b](./792a_product-spec.md#792a3k1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a3k1c](./792a_product-spec.md#792a3k1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a3k1d](./792a_product-spec.md#792a3k1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a3r1a](./792a_product-spec.md#792a3r1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting), [792b2c5](#792b2c5-argument-refusal) |
+| [792a3s1a](./792a_product-spec.md#792a3s1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a4a1b](./792a_product-spec.md#792a4a1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a4c1a](./792a_product-spec.md#792a4c1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a4f1a](./792a_product-spec.md#792a4f1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a4h1f](./792a_product-spec.md#792a4h1-uat-scenarios) | [792b2c2](#792b2c2-vault-name-resolution) |
+| [792a4k1a](./792a_product-spec.md#792a4k1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a4k1b](./792a_product-spec.md#792a4k1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a4l1b](./792a_product-spec.md#792a4l1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a4l1c](./792a_product-spec.md#792a4l1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a4n1c](./792a_product-spec.md#792a4n1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a5a1a](./792a_product-spec.md#792a5a1-uat-scenarios) | [792b2c6](#792b2c6-chunk-index-directory-resolution) |
+| [792a5a1b](./792a_product-spec.md#792a5a1-uat-scenarios) | [792b2c6](#792b2c6-chunk-index-directory-resolution) |
+| [792a5a1c](./792a_product-spec.md#792a5a1-uat-scenarios) | [792b2c6](#792b2c6-chunk-index-directory-resolution) |
+| [792a5a1d](./792a_product-spec.md#792a5a1-uat-scenarios) | [792b2c6](#792b2c6-chunk-index-directory-resolution) |
+| [792a5b1d](./792a_product-spec.md#792a5b1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a5e1b](./792a_product-spec.md#792a5e1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a5r1e](./792a_product-spec.md#792a5r1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a6h1a](./792a_product-spec.md#792a6h1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting), [792b2c5](#792b2c5-argument-refusal) |
+| [792a6i1c](./792a_product-spec.md#792a6i1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting), [792b2c5](#792b2c5-argument-refusal) |
+| [792a6r1a](./792a_product-spec.md#792a6r1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting), [792b2c5](#792b2c5-argument-refusal) |
+| [792a6t1a](./792a_product-spec.md#792a6t1-uat-scenarios) | [792b2c1](#792b2c1-vault-path-resolution), [792b2c3](#792b2c3-first-use-gating), [792b2c4](#792b2c4-result-reporting) |
+| [792a7t1a](./792a_product-spec.md#792a7t1-uat-scenarios) | [792b2c6](#792b2c6-chunk-index-directory-resolution), [792b2c8](#792b2c8-chunk-lookup) |
+| [792a7t1b](./792a_product-spec.md#792a7t1-uat-scenarios) | [792b2c8](#792b2c8-chunk-lookup) |
+| [792a7t1c](./792a_product-spec.md#792a7t1-uat-scenarios) | [792b2c8](#792b2c8-chunk-lookup) |
+| [792a7x1a](./792a_product-spec.md#792a7x1-uat-scenarios) | [792b2c7](#792b2c7-note-lookup) |
+| [792a7x1b](./792a_product-spec.md#792a7x1-uat-scenarios) | [792b2c7](#792b2c7-note-lookup) |
+| [792a7x1c](./792a_product-spec.md#792a7x1-uat-scenarios) | [792b2c7](#792b2c7-note-lookup) |
+| [792a7x1d](./792a_product-spec.md#792a7x1-uat-scenarios) | [792b2c7](#792b2c7-note-lookup) |
+| [792a7x1e](./792a_product-spec.md#792a7x1-uat-scenarios) | [792b2c7](#792b2c7-note-lookup) |
+| [792a7x1f](./792a_product-spec.md#792a7x1-uat-scenarios) | [792b2c7](#792b2c7-note-lookup) |
+| [792a7x1g](./792a_product-spec.md#792a7x1-uat-scenarios) | [792b2c7](#792b2c7-note-lookup) |
+| [792a7x1h](./792a_product-spec.md#792a7x1-uat-scenarios) | [792b2c7](#792b2c7-note-lookup) |
+| [792a8c1f](./792a_product-spec.md#792a8c1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a8e1j](./792a_product-spec.md#792a8e1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a8f1a](./792a_product-spec.md#792a8f1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a8f1b](./792a_product-spec.md#792a8f1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a8f1c](./792a_product-spec.md#792a8f1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a9a1b](./792a_product-spec.md#792a9a1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a9a1e](./792a_product-spec.md#792a9a1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a9g1c](./792a_product-spec.md#792a9g1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a9i1f](./792a_product-spec.md#792a9i1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a10d1a](./792a_product-spec.md#792a10d1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a10d1b](./792a_product-spec.md#792a10d1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a10d1c](./792a_product-spec.md#792a10d1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a10d1d](./792a_product-spec.md#792a10d1-uat-scenarios) | [792b2c4](#792b2c4-result-reporting) |
+| [792a20b1a](./792a_product-spec.md#792a20b1-uat-scenarios) | [792b2c5](#792b2c5-argument-refusal) |
+| [792a20f1b](./792a_product-spec.md#792a20f1-uat-scenarios) | [792b2c2](#792b2c2-vault-name-resolution) |
+| [792a21a1a](./792a_product-spec.md#792a21a1-uat-scenarios) | [792b2c9](#792b2c9-a-removed-environment-variable-is-refused) |
+| [792a21a1b](./792a_product-spec.md#792a21a1-uat-scenarios) | [792b2c9](#792b2c9-a-removed-environment-variable-is-refused) |
+| [792a21a1c](./792a_product-spec.md#792a21a1-uat-scenarios) | [792b2c9](#792b2c9-a-removed-environment-variable-is-refused) |
+| [792a21a1d](./792a_product-spec.md#792a21a1-uat-scenarios) | [792b2c9](#792b2c9-a-removed-environment-variable-is-refused) |
+| [792a21l1a](./792a_product-spec.md#792a21l1-uat-scenarios) | [792b2c10](#792b2c10-parent-routing-of-note-lookup) |
+| [792a21l1b](./792a_product-spec.md#792a21l1-uat-scenarios) | [792b2c10](#792b2c10-parent-routing-of-note-lookup) |
+| [792a21l1c](./792a_product-spec.md#792a21l1-uat-scenarios) | [792b2c10](#792b2c10-parent-routing-of-note-lookup) |
+| [792a21l1d](./792a_product-spec.md#792a21l1-uat-scenarios) | [792b2c10](#792b2c10-parent-routing-of-note-lookup) |
+| [792a21l1e](./792a_product-spec.md#792a21l1-uat-scenarios) | [792b2c10](#792b2c10-parent-routing-of-note-lookup) |
+| [792a21l1f](./792a_product-spec.md#792a21l1-uat-scenarios) | [792b2c10](#792b2c10-parent-routing-of-note-lookup) |
+| [792a21l1g](./792a_product-spec.md#792a21l1-uat-scenarios) | [792b2c10](#792b2c10-parent-routing-of-note-lookup) |
 
 ```gherkin
 Scenario: 792a2a1a The flag wins over the environment
@@ -1103,7 +1103,7 @@ Canonical target: `docs/specs/technical/durable-file-store.md` (title `Durable F
   component decides how a write reaches the disk; independent verification, it is tested directly
   over fake primitives and over the real filesystem; stability, the contract survives any change to
   the injection seam; necessity, every vault-identity, note and index write depends on it.
-- Supported capabilities: 792a2 vault-identity, 792a3 note-writing, 792a4 note-revision, 792a5
+- Supported capabilities: [792a2](./792a_product-spec.md#792a2-added-vault-identity) vault-identity, [792a3](./792a_product-spec.md#792a3-added-note-writing) note-writing, [792a4](./792a_product-spec.md#792a4-added-note-revision) note-revision, [792a5](./792a_product-spec.md#792a5-added-chunk-indexing)
   chunk-indexing.
 
 Rationale: `os.WriteFile` is not atomic. Before ADR-0013, unlocked non-atomic writes let two
@@ -1148,14 +1148,14 @@ sequenceDiagram
 
 #### 792b3c1 Atomic replace
 
-Requirement: 792b3c1 The durable-file-store MUST replace a file's content by writing the new data
+Requirement: [792b3c1](#792b3c1-atomic-replace) The durable-file-store MUST replace a file's content by writing the new data
 to a uniquely named temp file in the target's directory, setting the temp's permissions to exactly
 the requested mode regardless of umask, and renaming the temp onto the target, so that a concurrent
 reader sees either the old or the new content. On any failure after the temp is created it MUST
 remove the temp, leave the original unchanged, and return an error naming the target path.
 
-Supports: 792a2h1a, 792a2m1a, 792a2n1a, 792a3n1a, 792a3u1a, 792a3u1b, 792a4b1a, 792a4l1a, 792a4m1a,
-792a4n1a.
+Supports: [792a2h1a](./792a_product-spec.md#792a2h1-uat-scenarios), [792a2m1a](./792a_product-spec.md#792a2m1-uat-scenarios), [792a2n1a](./792a_product-spec.md#792a2n1-uat-scenarios), [792a3n1a](./792a_product-spec.md#792a3n1-uat-scenarios), [792a3u1a](./792a_product-spec.md#792a3u1-uat-scenarios), [792a3u1b](./792a_product-spec.md#792a3u1-uat-scenarios), [792a4b1a](./792a_product-spec.md#792a4b1-uat-scenarios), [792a4l1a](./792a_product-spec.md#792a4l1-uat-scenarios), [792a4m1a](./792a_product-spec.md#792a4m1-uat-scenarios),
+[792a4n1a](./792a_product-spec.md#792a4n1-uat-scenarios).
 
 Rationale: the unique temp name (target base, clock nanoseconds, attempt counter) is retried a
 bounded number of times on a name collision, so two writers of the same file never share a temp.
@@ -1206,13 +1206,13 @@ Scenario: 792b3c1a8 Exhausted temp names give a bounded error
 
 #### 792b3c2 Exclusive create
 
-Requirement: 792b3c2 The durable-file-store MUST create a file only when no file exists at the path,
+Requirement: [792b3c2](#792b3c2-exclusive-create) The durable-file-store MUST create a file only when no file exists at the path,
 writing the data at the requested mode, and MUST fail with an error that names the path and
 satisfies `errors.Is(err, fs.ErrExist)` when one does. When writing the data fails, that error
 takes precedence over a close error; when the write succeeds and the close fails, the close error
 is returned.
 
-Supports: 792a2h1c, 792a3a1a, 792a3b1a, 792a3c1a, 792a3m1a, 792a3q1a, 792a3s1a.
+Supports: [792a2h1c](./792a_product-spec.md#792a2h1-uat-scenarios), [792a3a1a](./792a_product-spec.md#792a3a1-uat-scenarios), [792a3b1a](./792a_product-spec.md#792a3b1-uat-scenarios), [792a3c1a](./792a_product-spec.md#792a3c1-uat-scenarios), [792a3m1a](./792a_product-spec.md#792a3m1-uat-scenarios), [792a3q1a](./792a_product-spec.md#792a3q1-uat-scenarios), [792a3s1a](./792a_product-spec.md#792a3s1-uat-scenarios).
 
 Rationale: exclusive create is the collision backstop for concurrent creators, such as two
 processes stamping the same vault ID or racing for the same Luhmann ID.
@@ -1243,11 +1243,11 @@ Scenario: 792b3c2a4 A close error surfaces after a good write
 
 #### 792b3c3 Error identity
 
-Requirement: 792b3c3 The durable-file-store MUST wrap every failed filesystem operation in an error
+Requirement: [792b3c3](#792b3c3-error-identity) The durable-file-store MUST wrap every failed filesystem operation in an error
 that names the operation and path and still satisfies `errors.Is` for the underlying error, such as
 `fs.ErrNotExist`.
 
-Supports: 792a2e1a, 792a2f1a.
+Supports: [792a2e1a](./792a_product-spec.md#792a2e1-uat-scenarios), [792a2f1a](./792a_product-spec.md#792a2f1-uat-scenarios).
 
 Rationale: callers decide "missing" versus "failed" by `errors.Is`. First-use creation, for
 example, creates a vault only when the path is missing.
@@ -1268,12 +1268,12 @@ Scenario: 792b3c3a2 Every operation adds its context
 
 #### 792b3c4 Vault Markdown listing
 
-Requirement: 792b3c4 The durable-file-store MUST list a vault directory as the names of the `.md`
+Requirement: [792b3c4](#792b3c4-vault-markdown-listing) The durable-file-store MUST list a vault directory as the names of the `.md`
 files directly inside it, leaving out subdirectories, other files and the untouched starter
 `README.md`, MUST return an empty list when the directory does not exist, and MUST return any other
 read error.
 
-Supports: 792a2c1a, 792a2d1a, 792a2d1b, 792a3r1a, 792a8a1e, 792a8b1c.
+Supports: [792a2c1a](./792a_product-spec.md#792a2c1-uat-scenarios), [792a2d1a](./792a_product-spec.md#792a2d1-uat-scenarios), [792a2d1b](./792a_product-spec.md#792a2d1-uat-scenarios), [792a3r1a](./792a_product-spec.md#792a3r1-uat-scenarios), [792a8a1e](./792a_product-spec.md#792a8a1-uat-scenarios), [792a8b1c](./792a_product-spec.md#792a8b1-uat-scenarios).
 
 Rationale: this listing is the one shared point where every vault scanner (query, check, embed,
 count) stops seeing subdirectories and the starter README.
@@ -1306,36 +1306,36 @@ Scenario: 792b3c4a4 The starter README is left out
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a2c1a | 792b3c4 |
-| 792a2d1a | 792b3c4 |
-| 792a2d1b | 792b3c4 |
-| 792a2e1a | 792b3c3 |
-| 792a2f1a | 792b3c3 |
-| 792a2h1a | 792b3c1 |
-| 792a2h1c | 792b3c2 |
-| 792a2m1a | 792b3c1 |
-| 792a2n1a | 792b3c1 |
-| 792a3a1a | 792b3c2 |
-| 792a3b1a | 792b3c2 |
-| 792a3c1a | 792b3c2 |
-| 792a3m1a | 792b3c2 |
-| 792a3n1a | 792b3c1 |
-| 792a3q1a | 792b3c2 |
-| 792a3r1a | 792b3c4 |
-| 792a3s1a | 792b3c2 |
-| 792a3u1a | 792b3c1 |
-| 792a3u1b | 792b3c1 |
-| 792a4b1a | 792b3c1 |
-| 792a4l1a | 792b3c1 |
-| 792a4m1a | 792b3c1 |
-| 792a4n1a | 792b3c1 |
-| 792a5b1a | 792b3c1 |
-| 792a5b1d | 792b3c3 |
-| 792a5i1b | 792b3c1 |
-| 792a5j1a | 792b3c1 |
-| 792a5m1a | 792b3c1 |
-| 792a5p1a | 792b3c1 |
-| 792a5r1a | 792b3c1 |
+| [792a2c1a](./792a_product-spec.md#792a2c1-uat-scenarios) | [792b3c4](#792b3c4-vault-markdown-listing) |
+| [792a2d1a](./792a_product-spec.md#792a2d1-uat-scenarios) | [792b3c4](#792b3c4-vault-markdown-listing) |
+| [792a2d1b](./792a_product-spec.md#792a2d1-uat-scenarios) | [792b3c4](#792b3c4-vault-markdown-listing) |
+| [792a2e1a](./792a_product-spec.md#792a2e1-uat-scenarios) | [792b3c3](#792b3c3-error-identity) |
+| [792a2f1a](./792a_product-spec.md#792a2f1-uat-scenarios) | [792b3c3](#792b3c3-error-identity) |
+| [792a2h1a](./792a_product-spec.md#792a2h1-uat-scenarios) | [792b3c1](#792b3c1-atomic-replace) |
+| [792a2h1c](./792a_product-spec.md#792a2h1-uat-scenarios) | [792b3c2](#792b3c2-exclusive-create) |
+| [792a2m1a](./792a_product-spec.md#792a2m1-uat-scenarios) | [792b3c1](#792b3c1-atomic-replace) |
+| [792a2n1a](./792a_product-spec.md#792a2n1-uat-scenarios) | [792b3c1](#792b3c1-atomic-replace) |
+| [792a3a1a](./792a_product-spec.md#792a3a1-uat-scenarios) | [792b3c2](#792b3c2-exclusive-create) |
+| [792a3b1a](./792a_product-spec.md#792a3b1-uat-scenarios) | [792b3c2](#792b3c2-exclusive-create) |
+| [792a3c1a](./792a_product-spec.md#792a3c1-uat-scenarios) | [792b3c2](#792b3c2-exclusive-create) |
+| [792a3m1a](./792a_product-spec.md#792a3m1-uat-scenarios) | [792b3c2](#792b3c2-exclusive-create) |
+| [792a3n1a](./792a_product-spec.md#792a3n1-uat-scenarios) | [792b3c1](#792b3c1-atomic-replace) |
+| [792a3q1a](./792a_product-spec.md#792a3q1-uat-scenarios) | [792b3c2](#792b3c2-exclusive-create) |
+| [792a3r1a](./792a_product-spec.md#792a3r1-uat-scenarios) | [792b3c4](#792b3c4-vault-markdown-listing) |
+| [792a3s1a](./792a_product-spec.md#792a3s1-uat-scenarios) | [792b3c2](#792b3c2-exclusive-create) |
+| [792a3u1a](./792a_product-spec.md#792a3u1-uat-scenarios) | [792b3c1](#792b3c1-atomic-replace) |
+| [792a3u1b](./792a_product-spec.md#792a3u1-uat-scenarios) | [792b3c1](#792b3c1-atomic-replace) |
+| [792a4b1a](./792a_product-spec.md#792a4b1-uat-scenarios) | [792b3c1](#792b3c1-atomic-replace) |
+| [792a4l1a](./792a_product-spec.md#792a4l1-uat-scenarios) | [792b3c1](#792b3c1-atomic-replace) |
+| [792a4m1a](./792a_product-spec.md#792a4m1-uat-scenarios) | [792b3c1](#792b3c1-atomic-replace) |
+| [792a4n1a](./792a_product-spec.md#792a4n1-uat-scenarios) | [792b3c1](#792b3c1-atomic-replace) |
+| [792a5b1a](./792a_product-spec.md#792a5b1-uat-scenarios) | [792b3c1](#792b3c1-atomic-replace) |
+| [792a5b1d](./792a_product-spec.md#792a5b1-uat-scenarios) | [792b3c3](#792b3c3-error-identity) |
+| [792a5i1b](./792a_product-spec.md#792a5i1-uat-scenarios) | [792b3c1](#792b3c1-atomic-replace) |
+| [792a5j1a](./792a_product-spec.md#792a5j1-uat-scenarios) | [792b3c1](#792b3c1-atomic-replace) |
+| [792a5m1a](./792a_product-spec.md#792a5m1-uat-scenarios) | [792b3c1](#792b3c1-atomic-replace) |
+| [792a5p1a](./792a_product-spec.md#792a5p1-uat-scenarios) | [792b3c1](#792b3c1-atomic-replace) |
+| [792a5r1a](./792a_product-spec.md#792a5r1-uat-scenarios) | [792b3c1](#792b3c1-atomic-replace) |
 
 ```gherkin
 Scenario: 792a2c1a A Markdown file in a subdirectory is not a note
@@ -1482,7 +1482,7 @@ Canonical target: `docs/specs/technical/subprocess-runner.md` (title `Subprocess
   failures.
 - Current realization (informational): `primCommander` in `internal/cli/commander.go` (the
   `update.Commander` interface), over the raw `ExecPrims` that `cmd/engram/main.go` supplies.
-  `primSpawner` in `internal/cli/spawner.go` runs a child with inherited stdio (792b4c4), over the
+  `primSpawner` in `internal/cli/spawner.go` runs a child with inherited stdio ([792b4c4](#792b4c4-run-with-the-callers-streams)), over the
   `spawnPrimitives` that `cmd/engram/main.go` supplies.
 - Qualification: responsibility, running a program and collecting its output is stated without
   naming any caller; ownership, callers choose the program and interpret its output, while this
@@ -1490,7 +1490,7 @@ Canonical target: `docs/specs/technical/subprocess-runner.md` (title `Subprocess
   is tested directly over a fake run primitive and over real processes; stability, the contract
   survives any change to the injection seam; necessity, the uncommitted vault-ID notice and note
   provenance depend on running `git`.
-- Supported capabilities: 792a2 vault-identity, 792a3 note-writing, 792a11 install-and-update.
+- Supported capabilities: [792a2](./792a_product-spec.md#792a2-added-vault-identity) vault-identity, [792a3](./792a_product-spec.md#792a3-added-note-writing) note-writing, [792a11](./792a_product-spec.md#792a11-added-install-and-update) install-and-update.
 
 No legacy document describes this component. It is derived from its realization and tests.
 
@@ -1519,11 +1519,11 @@ sequenceDiagram
 
 #### 792b4c1 Run and collect output
 
-Requirement: 792b4c1 The subprocess-runner MUST run the named program with the given arguments in
+Requirement: [792b4c1](#792b4c1-run-and-collect-output) The subprocess-runner MUST run the named program with the given arguments in
 the given directory, or in the process's working directory when none is given, and MUST return
 everything the program wrote to stdout and stderr with no error when it exits successfully.
 
-Supports: 792a2i1a, 792a2i1b, 792a2i1c, 792a3o1a, 792a3o1b, 792a3o1c, 792a3p1a, 792a3p1b.
+Supports: [792a2i1a](./792a_product-spec.md#792a2i1-uat-scenarios), [792a2i1b](./792a_product-spec.md#792a2i1-uat-scenarios), [792a2i1c](./792a_product-spec.md#792a2i1-uat-scenarios), [792a3o1a](./792a_product-spec.md#792a3o1-uat-scenarios), [792a3o1b](./792a_product-spec.md#792a3o1-uat-scenarios), [792a3o1c](./792a_product-spec.md#792a3o1-uat-scenarios), [792a3p1a](./792a_product-spec.md#792a3p1-uat-scenarios), [792a3p1b](./792a_product-spec.md#792a3p1-uat-scenarios).
 
 ##### 792b4c1a Scenarios
 
@@ -1541,11 +1541,11 @@ Scenario: 792b4c1a2 The program runs in the given directory
 
 #### 792b4c2 Failure reporting
 
-Requirement: 792b4c2 When the program cannot run or exits unsuccessfully, the subprocess-runner MUST
+Requirement: [792b4c2](#792b4c2-failure-reporting) When the program cannot run or exits unsuccessfully, the subprocess-runner MUST
 return an error that names the program and its arguments and wraps the underlying failure, along
 with whatever output was captured.
 
-Supports: 792a2i1d, 792a3o1c, 792a3p1b, 792a3p1c.
+Supports: [792a2i1d](./792a_product-spec.md#792a2i1-uat-scenarios), [792a3o1c](./792a_product-spec.md#792a3o1-uat-scenarios), [792a3p1b](./792a_product-spec.md#792a3p1-uat-scenarios), [792a3p1c](./792a_product-spec.md#792a3p1-uat-scenarios).
 
 ##### 792b4c2a Scenarios
 
@@ -1558,11 +1558,11 @@ Scenario: 792b4c2a1 A failing program is reported with its output
 
 #### 792b4c3 Not-found translation
 
-Requirement: 792b4c3 When the failure is the platform's "program not found" error, the
+Requirement: [792b4c3](#792b4c3-not-found-translation) When the failure is the platform's "program not found" error, the
 subprocess-runner MUST also make the error satisfy `errors.Is(err, update.ErrCommandNotFound)`, and
 it MUST NOT do so for any other failure, including when no platform not-found error is configured.
 
-Supports: 792a2i1d.
+Supports: [792a2i1d](./792a_product-spec.md#792a2i1-uat-scenarios).
 
 Rationale: callers such as the self-installer report a missing `git` or `go` differently from a
 failed one, without knowing the platform's error value.
@@ -1583,18 +1583,18 @@ Scenario: 792b4c3a2 Without a configured not-found error nothing is translated
 
 #### 792b4c4 Run with the caller's streams
 
-Requirement: 792b4c4 The subprocess-runner MUST run the named program with the given arguments, with the
+Requirement: [792b4c4](#792b4c4-run-with-the-callers-streams) The subprocess-runner MUST run the named program with the given arguments, with the
 caller's standard input, output and error as the program's, and with the given extra environment entries
 added to the process environment. It MUST return the program's exit status and no error whenever the
 program started, including a non-zero status, and MUST return an error that wraps the failure and names
 the program, and the status -1, when the program could not be started (missing or not executable).
 
-Supports: 792a11e1a, 792a11e1c, 792a11o1b.
+Supports: [792a11e1a](./792a_product-spec.md#792a11e1-uat-scenarios), [792a11e1c](./792a_product-spec.md#792a11e1-uat-scenarios), [792a11o1b](./792a_product-spec.md#792a11o1-uat-scenarios).
 
 Rationale: the caller needs to tell a child that ran and failed from a child that never started, because
 only the second justifies completing the work itself. A handed-off `engram update` writes its report
 straight to the terminal, so the child shares the caller's streams rather than having its output
-collected (792b4c1).
+collected ([792b4c1](#792b4c1-run-and-collect-output)).
 
 ##### 792b4c4a Scenarios
 
@@ -1634,19 +1634,19 @@ Scenario: 792b4c4a6 The program shares the caller's streams
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a2i1a | 792b4c1 |
-| 792a2i1b | 792b4c1 |
-| 792a2i1c | 792b4c1 |
-| 792a2i1d | 792b4c2, 792b4c3 |
-| 792a3o1a | 792b4c1 |
-| 792a3o1b | 792b4c1 |
-| 792a3o1c | 792b4c1, 792b4c2 |
-| 792a3p1a | 792b4c1 |
-| 792a3p1b | 792b4c1, 792b4c2 |
-| 792a3p1c | 792b4c2 |
-| 792a11e1a | 792b4c4 |
-| 792a11e1c | 792b4c4 |
-| 792a11o1b | 792b4c4 |
+| [792a2i1a](./792a_product-spec.md#792a2i1-uat-scenarios) | [792b4c1](#792b4c1-run-and-collect-output) |
+| [792a2i1b](./792a_product-spec.md#792a2i1-uat-scenarios) | [792b4c1](#792b4c1-run-and-collect-output) |
+| [792a2i1c](./792a_product-spec.md#792a2i1-uat-scenarios) | [792b4c1](#792b4c1-run-and-collect-output) |
+| [792a2i1d](./792a_product-spec.md#792a2i1-uat-scenarios) | [792b4c2](#792b4c2-failure-reporting), [792b4c3](#792b4c3-not-found-translation) |
+| [792a3o1a](./792a_product-spec.md#792a3o1-uat-scenarios) | [792b4c1](#792b4c1-run-and-collect-output) |
+| [792a3o1b](./792a_product-spec.md#792a3o1-uat-scenarios) | [792b4c1](#792b4c1-run-and-collect-output) |
+| [792a3o1c](./792a_product-spec.md#792a3o1-uat-scenarios) | [792b4c1](#792b4c1-run-and-collect-output), [792b4c2](#792b4c2-failure-reporting) |
+| [792a3p1a](./792a_product-spec.md#792a3p1-uat-scenarios) | [792b4c1](#792b4c1-run-and-collect-output) |
+| [792a3p1b](./792a_product-spec.md#792a3p1-uat-scenarios) | [792b4c1](#792b4c1-run-and-collect-output), [792b4c2](#792b4c2-failure-reporting) |
+| [792a3p1c](./792a_product-spec.md#792a3p1-uat-scenarios) | [792b4c2](#792b4c2-failure-reporting) |
+| [792a11e1a](./792a_product-spec.md#792a11e1-uat-scenarios) | [792b4c4](#792b4c4-run-with-the-callers-streams) |
+| [792a11e1c](./792a_product-spec.md#792a11e1-uat-scenarios) | [792b4c4](#792b4c4-run-with-the-callers-streams) |
+| [792a11o1b](./792a_product-spec.md#792a11o1-uat-scenarios) | [792b4c4](#792b4c4-run-with-the-callers-streams) |
 
 ```gherkin
 Scenario: 792a2i1a Uncommitted ID is flagged
@@ -1737,14 +1737,14 @@ Canonical target: `docs/specs/technical/vault-identity-registry.md` (title `Vaul
   `internal/cli/vaultid.go` (`RunVaultID`), `internal/cli/vault_init.go` (`initializeVault`). The
   parent cache and backoff (`gateParentContact`, `recordParentFailure`, `recordParentSuccess`), the exchange-identifier
   checks (`isExchangeID`, `isExchangeBasename`) and the declined-pull record (`loadDeclined`, `recordDeclinedPull`,
-  `declineMatches`) are 792b5c14 to 792b5c16.
+  `declineMatches`) are [792b5c14](#792b5c14-the-parent-cache-and-the-contact-backoff) to [792b5c16](#792b5c16-the-declined-pull-record).
 - Qualification: responsibility, the identity contract is stated without naming any command;
   ownership, commands decide when to exchange, while this component decides whether the vault's
   identity allows it; independent verification, every requirement is tested directly over a
   temp-dir or scripted filesystem and an injected random source; stability, the ID file, state
   directory and location record are on-disk contracts that survive refactoring; necessity,
   vault-identity's creation, ID and refusal requirements all depend on it.
-- Supported capabilities: 792a2 vault-identity, 792a21 parent-sync (792b5c14 to 792b5c16).
+- Supported capabilities: [792a2](./792a_product-spec.md#792a2-added-vault-identity) vault-identity, [792a21](./792a_product-spec.md#792a21-added-parent-sync) parent-sync ([792b5c14](#792b5c14-the-parent-cache-and-the-contact-backoff) to [792b5c16](#792b5c16-the-declined-pull-record)).
 
 Rationale (ADR-0029 D2): every environment has its own local vault, created by the first command
 that resolves its path, and a stable random vault ID in the tracked `.engram-vault-id`. Exchange
@@ -1809,13 +1809,13 @@ sequenceDiagram
 
 #### 792b5c1 First-use ensure
 
-Requirement: 792b5c1 Given a vault path, the vault-identity-registry MUST, when nothing exists at
+Requirement: [792b5c1](#792b5c1-first-use-ensure) Given a vault path, the vault-identity-registry MUST, when nothing exists at
 the path, write the starter files, create `.engram/`, stamp a vault ID with its location record,
 and print exactly one stderr line `engram: created new vault at <path>`. It MUST leave an existing
-directory untouched (except the repair in 792b5c2), MUST fail when the path exists but is not a
+directory untouched (except the repair in [792b5c2](#792b5c2-half-created-vault-repair)), MUST fail when the path exists but is not a
 directory, and MUST fail when the path can't be inspected or the random source fails.
 
-Supports: 792a2e1a, 792a2e1b, 792a2e1c, 792a2e1d, 792a2f1a.
+Supports: [792a2e1a](./792a_product-spec.md#792a2e1-uat-scenarios), [792a2e1b](./792a_product-spec.md#792a2e1-uat-scenarios), [792a2e1c](./792a_product-spec.md#792a2e1-uat-scenarios), [792a2e1d](./792a_product-spec.md#792a2e1-uat-scenarios), [792a2f1a](./792a_product-spec.md#792a2f1-uat-scenarios).
 
 ##### 792b5c1a Scenarios
 
@@ -1853,11 +1853,11 @@ Scenario: 792b5c1a6 A random-source failure is an error
 
 #### 792b5c2 Half-created vault repair
 
-Requirement: 792b5c2 When an existing vault has `.engram/` but no `.engram-vault-id`, the
+Requirement: [792b5c2](#792b5c2-half-created-vault-repair) When an existing vault has `.engram/` but no `.engram-vault-id`, the
 vault-identity-registry MUST stamp the vault ID and print exactly one stderr line
 `engram: stamped the missing vault ID of <path>`.
 
-Supports: 792a2g1a.
+Supports: [792a2g1a](./792a_product-spec.md#792a2g1-uat-scenarios).
 
 Rationale: first-use creation writes `.engram/` before the ID, so `.engram/` marks a vault engram
 created, and a stamp that failed part-way is finished by the next run.
@@ -1873,12 +1873,12 @@ Scenario: 792b5c2a1 A half-created vault is repaired
 
 #### 792b5c3 Starter files
 
-Requirement: 792b5c3 The vault-identity-registry MUST initialize a vault by creating `.obsidian/`
+Requirement: [792b5c3](#792b5c3-starter-files) The vault-identity-registry MUST initialize a vault by creating `.obsidian/`
 and writing `.obsidian/app.json` (`{}`), a `.gitignore` listing `.luhmann.lock`,
 `.obsidian/workspace*` and `.obsidian/cache`, and the starter `README.md`, writing each only when it
 is missing, and MUST return any directory or write failure.
 
-Supports: 792a2d1a, 792a2e1a.
+Supports: [792a2d1a](./792a_product-spec.md#792a2d1-uat-scenarios), [792a2e1a](./792a_product-spec.md#792a2e1-uat-scenarios).
 
 Rationale: the minimal `.obsidian/app.json` lets Obsidian open the directory as a vault without
 engram shipping an Obsidian configuration. The `.gitignore` keeps lock and workspace files out of
@@ -1905,13 +1905,13 @@ Scenario: 792b5c3a3 Directory and write failures are returned
 
 #### 792b5c4 Vault ID stamping
 
-Requirement: 792b5c4 The vault-identity-registry MUST return the vault's existing ID when
+Requirement: [792b5c4](#792b5c4-vault-id-stamping) The vault-identity-registry MUST return the vault's existing ID when
 `.engram-vault-id` exists, and otherwise MUST mint 16 bytes from the injected random source as 32
 lowercase hex characters, create the file exclusively, re-read it, and use whatever ID the file
 holds. Only the process whose exclusive create succeeded writes the location record. An existing
 vault is stamped only by `engram serve` at startup and by a command's first parent contact.
 
-Supports: 792a2h1a, 792a2h1b, 792a2h1c.
+Supports: [792a2h1a](./792a_product-spec.md#792a2h1-uat-scenarios), [792a2h1b](./792a_product-spec.md#792a2h1-uat-scenarios), [792a2h1c](./792a_product-spec.md#792a2h1-uat-scenarios).
 
 Rationale: exclusive create followed by a re-read makes concurrent creators converge on one ID. The
 random source is injected so tests are deterministic.
@@ -1942,12 +1942,12 @@ Scenario: 792b5c4a4 An existing ID is reused
 
 #### 792b5c5 Vault ID validation
 
-Requirement: 792b5c5 The vault-identity-registry MUST accept the ID file's content, ignoring
+Requirement: [792b5c5](#792b5c5-vault-id-validation) The vault-identity-registry MUST accept the ID file's content, ignoring
 trailing whitespace, only when it is 32 lowercase hex characters, and MUST otherwise fail with an
 error saying the vault ID is invalid and naming `engram vault-id --regenerate`. A re-read after a
 lost race retries an invalid read a bounded number of times before failing.
 
-Supports: 792a2j1a, 792a2j1b, 792a2j1c.
+Supports: [792a2j1a](./792a_product-spec.md#792a2j1-uat-scenarios), [792a2j1b](./792a_product-spec.md#792a2j1-uat-scenarios), [792a2j1c](./792a_product-spec.md#792a2j1-uat-scenarios).
 
 ##### 792b5c5a Scenarios
 
@@ -1965,11 +1965,11 @@ Scenario: 792b5c5a2 A read failure is returned
 
 #### 792b5c6 State directory
 
-Requirement: 792b5c6 The vault-identity-registry MUST create `<vault>/.engram/` with a `.gitignore`
+Requirement: [792b5c6](#792b5c6-state-directory) The vault-identity-registry MUST create `<vault>/.engram/` with a `.gitignore`
 holding only `*`, writing that `.gitignore` only when it is missing, and MUST NOT write the vault's
 root `.gitignore`.
 
-Supports: 792a2k1a, 792a2k1b.
+Supports: [792a2k1a](./792a_product-spec.md#792a2k1-uat-scenarios), [792a2k1b](./792a_product-spec.md#792a2k1-uat-scenarios).
 
 ##### 792b5c6a Scenarios
 
@@ -1987,13 +1987,13 @@ Scenario: 792b5c6a2 State-directory failures are returned
 
 #### 792b5c7 Location record and check
 
-Requirement: 792b5c7 The vault-identity-registry MUST record a vault's location in
+Requirement: [792b5c7](#792b5c7-location-record-and-check) The vault-identity-registry MUST record a vault's location in
 `.engram/home.json` as exactly its vault ID and its canonical path (symlinks evaluated, made
 absolute against the working directory, cleaned), with no hostname. Checking the location MUST
 report `no vault id` when there is no ID, `missing` when there is no record, `mismatch` when the
 record is unparseable or names another ID or path, and `ok` otherwise.
 
-Supports: 792a2l1a, 792a2l1b, 792a2l1c, 792a2p1a, 792a2p1b, 792a2p1c, 792a2p1d, 792a2p1e.
+Supports: [792a2l1a](./792a_product-spec.md#792a2l1-uat-scenarios), [792a2l1b](./792a_product-spec.md#792a2l1-uat-scenarios), [792a2l1c](./792a_product-spec.md#792a2l1-uat-scenarios), [792a2p1a](./792a_product-spec.md#792a2p1-uat-scenarios), [792a2p1b](./792a_product-spec.md#792a2p1-uat-scenarios), [792a2p1c](./792a_product-spec.md#792a2p1-uat-scenarios), [792a2p1d](./792a_product-spec.md#792a2p1-uat-scenarios), [792a2p1e](./792a_product-spec.md#792a2p1-uat-scenarios).
 
 Rationale: a hostname would give false positives, because DHCP, `.local` renames and containers
 change it without the vault moving. Canonicalizing the path keeps a symlinked route to the same
@@ -2030,12 +2030,12 @@ Scenario: 792b5c7a5 A symlinked path passes
 
 #### 792b5c8 Location warning
 
-Requirement: 792b5c8 When the location check does not pass, or cannot run, the
+Requirement: [792b5c8](#792b5c8-location-warning) When the location check does not pass, or cannot run, the
 vault-identity-registry MUST print exactly one warning naming the vault, the check result, and both
 `engram vault-id --regenerate` and `engram vault-id --claim`, and report the failure to the caller;
 a passing check prints nothing.
 
-Supports: 792a2p1a, 792a2p1b, 792a2p1c.
+Supports: [792a2p1a](./792a_product-spec.md#792a2p1-uat-scenarios), [792a2p1b](./792a_product-spec.md#792a2p1-uat-scenarios), [792a2p1c](./792a_product-spec.md#792a2p1-uat-scenarios).
 
 ##### 792b5c8a Scenarios
 
@@ -2048,10 +2048,10 @@ Scenario: 792b5c8a1 A failed check warns once with both remedies
 
 #### 792b5c9 Regenerate
 
-Requirement: 792b5c9 Regenerating MUST mint a new vault ID, atomically rewrite `.engram-vault-id`
+Requirement: [792b5c9](#792b5c9-regenerate) Regenerating MUST mint a new vault ID, atomically rewrite `.engram-vault-id`
 and the location record with it, and touch no note.
 
-Supports: 792a2m1a.
+Supports: [792a2m1a](./792a_product-spec.md#792a2m1-uat-scenarios).
 
 ##### 792b5c9a Scenarios
 
@@ -2064,10 +2064,10 @@ Scenario: 792b5c9a1 A copy gets its own identity
 
 #### 792b5c10 Claim
 
-Requirement: 792b5c10 Claiming MUST rewrite only the location record for the vault's current ID and
+Requirement: [792b5c10](#792b5c10-claim) Claiming MUST rewrite only the location record for the vault's current ID and
 path, and MUST fail with an error saying the vault has no vault ID when the ID file is absent.
 
-Supports: 792a2n1a, 792a2n1b.
+Supports: [792a2n1a](./792a_product-spec.md#792a2n1-uat-scenarios), [792a2n1b](./792a_product-spec.md#792a2n1-uat-scenarios).
 
 ##### 792b5c10a Scenarios
 
@@ -2085,13 +2085,13 @@ Scenario: 792b5c10a2 Claim without an ID fails
 
 #### 792b5c11 vault-id report
 
-Requirement: 792b5c11 The `vault-id` command MUST refuse `--regenerate` and `--claim` together,
+Requirement: [792b5c11](#792b5c11-vault-id-report) The `vault-id` command MUST refuse `--regenerate` and `--claim` together,
 print `vault_id: <id> (regenerated)` or `vault_id: <id> (location claimed)` after those actions, and
 with no flag print `vault_id:` (the ID or `none`) and `location:` (the check result), adding one
 remedy line naming both commands when the result is `missing` or `mismatch`, without writing
 anything.
 
-Supports: 792a2l1a, 792a2l1b, 792a2l1c, 792a2o1a.
+Supports: [792a2l1a](./792a_product-spec.md#792a2l1-uat-scenarios), [792a2l1b](./792a_product-spec.md#792a2l1-uat-scenarios), [792a2l1c](./792a_product-spec.md#792a2l1-uat-scenarios), [792a2o1a](./792a_product-spec.md#792a2o1-uat-scenarios).
 
 ##### 792b5c11a Scenarios
 
@@ -2109,12 +2109,12 @@ Scenario: 792b5c11a2 Both flags are refused
 
 #### 792b5c12 Self-parent guard
 
-Requirement: 792b5c12 Given the local vault ID and a parent's reported vault ID, the
+Requirement: [792b5c12](#792b5c12-self-parent-guard) Given the local vault ID and a parent's reported vault ID, the
 vault-identity-registry MUST report a self-parent, and print exactly one warning naming
 `engram vault-id --regenerate`, exactly when the local ID is non-empty and equal to the parent's,
 and MUST print nothing otherwise.
 
-Supports: 792a2q1a.
+Supports: [792a2q1a](./792a_product-spec.md#792a2q1-uat-scenarios).
 
 ##### 792b5c12a Scenarios
 
@@ -2127,12 +2127,12 @@ Scenario: 792b5c12a1 Only an equal, non-empty ID is a self-parent
 
 #### 792b5c13 Uncommitted ID detection
 
-Requirement: 792b5c13 The vault-identity-registry MUST report the vault ID as uncommitted when
+Requirement: [792b5c13](#792b5c13-uncommitted-id-detection) The vault-identity-registry MUST report the vault ID as uncommitted when
 `.engram-vault-id` exists in a git work tree and is either not in the index (untracked or ignored)
 or staged or modified relative to the last commit, and MUST report it as committed when the file is
 absent, the vault is not a git work tree, the file is committed and unchanged, or git status fails.
 
-Supports: 792a2i1a, 792a2i1b, 792a2i1c, 792a2i1d.
+Supports: [792a2i1a](./792a_product-spec.md#792a2i1-uat-scenarios), [792a2i1b](./792a_product-spec.md#792a2i1-uat-scenarios), [792a2i1c](./792a_product-spec.md#792a2i1-uat-scenarios), [792a2i1d](./792a_product-spec.md#792a2i1-uat-scenarios).
 
 Rationale: `git status` alone hides an ignored file, so index membership is checked first.
 
@@ -2162,23 +2162,23 @@ Scenario: 792b5c13a2 The update report carries the notice only when flagged
 
 #### 792b5c14 The parent cache and the contact backoff
 
-Requirement: 792b5c14 The vault-identity-registry MUST keep, per vault, a record of the configured parent in
+Requirement: [792b5c14](#792b5c14-the-parent-cache-and-the-contact-backoff) The vault-identity-registry MUST keep, per vault, a record of the configured parent in
 `<vault>/.engram/parent.json`: the parent's URL, the vault ID it last reported, the count of consecutive failures and the
 time before which it is not to be contacted. It MUST ignore a record that names another URL. Recording a failure (a
 transport error, a timeout or a 5xx) MUST add one to the count and set that time to now plus 30 seconds doubled for each
 earlier failure and never more than 15 minutes. Recording any answer, a 4xx included, MUST set the count to zero, clear
-the time and remember the vault ID the parent reported when it is well formed (792b5c15), and MUST write nothing when there
+the time and remember the vault ID the parent reported when it is well formed ([792b5c15](#792b5c15-exchange-identifiers)), and MUST write nothing when there
 is nothing to reset or learn. Asked whether a command may contact the parent, it MUST allow the contact without a message
 when `update` asks, when the record names another URL, when no time is set or when that time has passed, and MUST
 otherwise refuse it with exactly one warning that names the retry time and the number of queued offers. A record that
 cannot be read or written MUST be reported to its caller as an error.
 
-Supports: 792a21k1b, 792a21s1a, 792a21s1b, 792a21s1c, 792a21s1d, 792a21s1e, 792a21s1f.
+Supports: [792a21k1b](./792a_product-spec.md#792a21k1-uat-scenarios), [792a21s1a](./792a_product-spec.md#792a21s1-uat-scenarios), [792a21s1b](./792a_product-spec.md#792a21s1-uat-scenarios), [792a21s1c](./792a_product-spec.md#792a21s1-uat-scenarios), [792a21s1d](./792a_product-spec.md#792a21s1-uat-scenarios), [792a21s1e](./792a_product-spec.md#792a21s1-uat-scenarios), [792a21s1f](./792a_product-spec.md#792a21s1-uat-scenarios).
 
 Rationale: without a backoff every command would wait out the connect timeout while a parent is down, and one offline
 host would slow every command the user runs (ADR-0029 D6). The record keys on the URL that failed, so reconfiguring the
 parent tries the new one at once, and `update` always tries so that the end of an outage is noticed. The remembered vault
-ID is what lets a link count only under the parent it was made for (792a21zj).
+ID is what lets a link count only under the parent it was made for ([792a21zj](./792a_product-spec.md#792a21zj-an-exchanged-note-carries-vault-qualified-parent-links)).
 
 ##### 792b5c14a Scenarios
 
@@ -2221,11 +2221,11 @@ Scenario: 792b5c14a7 Another URL is not backed off
 
 #### 792b5c15 Exchange identifiers
 
-Requirement: 792b5c15 The vault-identity-registry MUST accept a vault ID or a note's `xid` as an exchange identifier only
+Requirement: [792b5c15](#792b5c15-exchange-identifiers) The vault-identity-registry MUST accept a vault ID or a note's `xid` as an exchange identifier only
 when it is exactly 32 lowercase hexadecimal characters, and MUST accept a basename another vault hands this one only
 when it is a Luhmann basename that contains none of `/`, `\` and `|`.
 
-Supports: 792a21v1b, 792a21zd1e.
+Supports: [792a21v1b](./792a_product-spec.md#792a21v1-uat-scenarios), [792a21zd1e](./792a_product-spec.md#792a21zd1-uat-scenarios).
 
 Rationale: the parent is another machine's input. An accepted basename is stored in frontmatter, in the declined-pull
 record and in offers, so a separator would become a path and a `|` would corrupt the `note|type|claim` encoding of a
@@ -2246,7 +2246,7 @@ Scenario: 792b5c15a2 A basename with a separator is refused
 ```
 #### 792b5c16 The declined-pull record
 
-Requirement: 792b5c16 The vault-identity-registry MUST keep, in `<vault>/.engram/declined.json`, the parent notes whose
+Requirement: [792b5c16](#792b5c16-the-declined-pull-record) The vault-identity-registry MUST keep, in `<vault>/.engram/declined.json`, the parent notes whose
 pulled copies were discarded outright, each entry holding the parent's vault ID, the basename and the exchange hash that
 was declined. Recording a decline MUST create the state directory first (stamping the vault ID before it exists), MUST add
 the entry only when an identical entry is not already there, and MUST write the file atomically. A decline MUST match a
@@ -2254,7 +2254,7 @@ parent note when its vault ID equals the note's vault ID, its basename is one of
 basename or an alias) and its hash is not changed from the note's hash, so that an unknown comparison counts as not
 changed. A missing file MUST read as empty, and an unreadable or undecodable one MUST be an error.
 
-Supports: 792a21ze1c, 792a21ze1d, 792a21ze1g.
+Supports: [792a21ze1c](./792a_product-spec.md#792a21ze1-uat-scenarios), [792a21ze1d](./792a_product-spec.md#792a21ze1-uat-scenarios), [792a21ze1g](./792a_product-spec.md#792a21ze1-uat-scenarios).
 
 Rationale: a decline keyed by the parent's vault ID never suppresses a note of another parent, naming the aliases keeps a
 declined note declined after the parent renames it, and a changed hash is new information, so it pulls again (ADR-0029 D8).
@@ -2287,50 +2287,50 @@ Scenario: 792b5c16a4 A missing record is empty and a corrupt one is an error
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a2d1a | 792b5c3 |
-| 792a2e1a | 792b5c1, 792b5c3 |
-| 792a2e1b | 792b5c1 |
-| 792a2e1c | 792b5c1 |
-| 792a2e1d | 792b5c1 |
-| 792a2f1a | 792b5c1 |
-| 792a2g1a | 792b5c2 |
-| 792a2h1a | 792b5c4 |
-| 792a2h1b | 792b5c4 |
-| 792a2h1c | 792b5c4 |
-| 792a2i1a | 792b5c13 |
-| 792a2i1b | 792b5c13 |
-| 792a2i1c | 792b5c13 |
-| 792a2i1d | 792b5c13 |
-| 792a2j1a | 792b5c5 |
-| 792a2j1b | 792b5c5 |
-| 792a2j1c | 792b5c5 |
-| 792a2k1a | 792b5c6 |
-| 792a2k1b | 792b5c6 |
-| 792a2l1a | 792b5c7, 792b5c11 |
-| 792a2l1b | 792b5c7, 792b5c11 |
-| 792a2l1c | 792b5c7, 792b5c11 |
-| 792a2m1a | 792b5c9 |
-| 792a2n1a | 792b5c10 |
-| 792a2n1b | 792b5c10 |
-| 792a2o1a | 792b5c11 |
-| 792a2p1a | 792b5c7, 792b5c8 |
-| 792a2p1b | 792b5c7, 792b5c8 |
-| 792a2p1c | 792b5c7, 792b5c8 |
-| 792a2p1d | 792b5c7 |
-| 792a2p1e | 792b5c7 |
-| 792a2q1a | 792b5c12 |
-| 792a21k1b | 792b5c14 |
-| 792a21s1a | 792b5c14 |
-| 792a21s1b | 792b5c14 |
-| 792a21s1c | 792b5c14 |
-| 792a21s1d | 792b5c14 |
-| 792a21s1e | 792b5c14 |
-| 792a21s1f | 792b5c14 |
-| 792a21v1b | 792b5c15 |
-| 792a21zd1e | 792b5c15 |
-| 792a21ze1c | 792b5c16 |
-| 792a21ze1d | 792b5c16 |
-| 792a21ze1g | 792b5c16 |
+| [792a2d1a](./792a_product-spec.md#792a2d1-uat-scenarios) | [792b5c3](#792b5c3-starter-files) |
+| [792a2e1a](./792a_product-spec.md#792a2e1-uat-scenarios) | [792b5c1](#792b5c1-first-use-ensure), [792b5c3](#792b5c3-starter-files) |
+| [792a2e1b](./792a_product-spec.md#792a2e1-uat-scenarios) | [792b5c1](#792b5c1-first-use-ensure) |
+| [792a2e1c](./792a_product-spec.md#792a2e1-uat-scenarios) | [792b5c1](#792b5c1-first-use-ensure) |
+| [792a2e1d](./792a_product-spec.md#792a2e1-uat-scenarios) | [792b5c1](#792b5c1-first-use-ensure) |
+| [792a2f1a](./792a_product-spec.md#792a2f1-uat-scenarios) | [792b5c1](#792b5c1-first-use-ensure) |
+| [792a2g1a](./792a_product-spec.md#792a2g1-uat-scenarios) | [792b5c2](#792b5c2-half-created-vault-repair) |
+| [792a2h1a](./792a_product-spec.md#792a2h1-uat-scenarios) | [792b5c4](#792b5c4-vault-id-stamping) |
+| [792a2h1b](./792a_product-spec.md#792a2h1-uat-scenarios) | [792b5c4](#792b5c4-vault-id-stamping) |
+| [792a2h1c](./792a_product-spec.md#792a2h1-uat-scenarios) | [792b5c4](#792b5c4-vault-id-stamping) |
+| [792a2i1a](./792a_product-spec.md#792a2i1-uat-scenarios) | [792b5c13](#792b5c13-uncommitted-id-detection) |
+| [792a2i1b](./792a_product-spec.md#792a2i1-uat-scenarios) | [792b5c13](#792b5c13-uncommitted-id-detection) |
+| [792a2i1c](./792a_product-spec.md#792a2i1-uat-scenarios) | [792b5c13](#792b5c13-uncommitted-id-detection) |
+| [792a2i1d](./792a_product-spec.md#792a2i1-uat-scenarios) | [792b5c13](#792b5c13-uncommitted-id-detection) |
+| [792a2j1a](./792a_product-spec.md#792a2j1-uat-scenarios) | [792b5c5](#792b5c5-vault-id-validation) |
+| [792a2j1b](./792a_product-spec.md#792a2j1-uat-scenarios) | [792b5c5](#792b5c5-vault-id-validation) |
+| [792a2j1c](./792a_product-spec.md#792a2j1-uat-scenarios) | [792b5c5](#792b5c5-vault-id-validation) |
+| [792a2k1a](./792a_product-spec.md#792a2k1-uat-scenarios) | [792b5c6](#792b5c6-state-directory) |
+| [792a2k1b](./792a_product-spec.md#792a2k1-uat-scenarios) | [792b5c6](#792b5c6-state-directory) |
+| [792a2l1a](./792a_product-spec.md#792a2l1-uat-scenarios) | [792b5c7](#792b5c7-location-record-and-check), [792b5c11](#792b5c11-vault-id-report) |
+| [792a2l1b](./792a_product-spec.md#792a2l1-uat-scenarios) | [792b5c7](#792b5c7-location-record-and-check), [792b5c11](#792b5c11-vault-id-report) |
+| [792a2l1c](./792a_product-spec.md#792a2l1-uat-scenarios) | [792b5c7](#792b5c7-location-record-and-check), [792b5c11](#792b5c11-vault-id-report) |
+| [792a2m1a](./792a_product-spec.md#792a2m1-uat-scenarios) | [792b5c9](#792b5c9-regenerate) |
+| [792a2n1a](./792a_product-spec.md#792a2n1-uat-scenarios) | [792b5c10](#792b5c10-claim) |
+| [792a2n1b](./792a_product-spec.md#792a2n1-uat-scenarios) | [792b5c10](#792b5c10-claim) |
+| [792a2o1a](./792a_product-spec.md#792a2o1-uat-scenarios) | [792b5c11](#792b5c11-vault-id-report) |
+| [792a2p1a](./792a_product-spec.md#792a2p1-uat-scenarios) | [792b5c7](#792b5c7-location-record-and-check), [792b5c8](#792b5c8-location-warning) |
+| [792a2p1b](./792a_product-spec.md#792a2p1-uat-scenarios) | [792b5c7](#792b5c7-location-record-and-check), [792b5c8](#792b5c8-location-warning) |
+| [792a2p1c](./792a_product-spec.md#792a2p1-uat-scenarios) | [792b5c7](#792b5c7-location-record-and-check), [792b5c8](#792b5c8-location-warning) |
+| [792a2p1d](./792a_product-spec.md#792a2p1-uat-scenarios) | [792b5c7](#792b5c7-location-record-and-check) |
+| [792a2p1e](./792a_product-spec.md#792a2p1-uat-scenarios) | [792b5c7](#792b5c7-location-record-and-check) |
+| [792a2q1a](./792a_product-spec.md#792a2q1-uat-scenarios) | [792b5c12](#792b5c12-self-parent-guard) |
+| [792a21k1b](./792a_product-spec.md#792a21k1-uat-scenarios) | [792b5c14](#792b5c14-the-parent-cache-and-the-contact-backoff) |
+| [792a21s1a](./792a_product-spec.md#792a21s1-uat-scenarios) | [792b5c14](#792b5c14-the-parent-cache-and-the-contact-backoff) |
+| [792a21s1b](./792a_product-spec.md#792a21s1-uat-scenarios) | [792b5c14](#792b5c14-the-parent-cache-and-the-contact-backoff) |
+| [792a21s1c](./792a_product-spec.md#792a21s1-uat-scenarios) | [792b5c14](#792b5c14-the-parent-cache-and-the-contact-backoff) |
+| [792a21s1d](./792a_product-spec.md#792a21s1-uat-scenarios) | [792b5c14](#792b5c14-the-parent-cache-and-the-contact-backoff) |
+| [792a21s1e](./792a_product-spec.md#792a21s1-uat-scenarios) | [792b5c14](#792b5c14-the-parent-cache-and-the-contact-backoff) |
+| [792a21s1f](./792a_product-spec.md#792a21s1-uat-scenarios) | [792b5c14](#792b5c14-the-parent-cache-and-the-contact-backoff) |
+| [792a21v1b](./792a_product-spec.md#792a21v1-uat-scenarios) | [792b5c15](#792b5c15-exchange-identifiers) |
+| [792a21zd1e](./792a_product-spec.md#792a21zd1-uat-scenarios) | [792b5c15](#792b5c15-exchange-identifiers) |
+| [792a21ze1c](./792a_product-spec.md#792a21ze1-uat-scenarios) | [792b5c16](#792b5c16-the-declined-pull-record) |
+| [792a21ze1d](./792a_product-spec.md#792a21ze1-uat-scenarios) | [792b5c16](#792b5c16-the-declined-pull-record) |
+| [792a21ze1g](./792a_product-spec.md#792a21ze1-uat-scenarios) | [792b5c16](#792b5c16-the-declined-pull-record) |
 
 ```gherkin
 Scenario: 792a2h1b The first parent contact stamps an existing vault
@@ -2491,16 +2491,16 @@ Canonical target: `docs/specs/technical/note-document-format.md` (title `Note Do
   directly on strings; stability, the shape survives any change to the commands that write it, and
   hand-edited and Obsidian-edited notes depend on it; necessity, every note engram writes or reads
   passes through it.
-- Supported capabilities: 792a3 note-writing, 792a4 note-revision, 792a6 controlled-vocabulary.
-  Skill-runbook-registration (792a12) adds 792b6c9 and 792b6c10. Vault-counting and parent-sync add
-  their requirements here (792d30, 792d61).
+- Supported capabilities: [792a3](./792a_product-spec.md#792a3-added-note-writing) note-writing, [792a4](./792a_product-spec.md#792a4-added-note-revision) note-revision, [792a6](./792a_product-spec.md#792a6-added-controlled-vocabulary) controlled-vocabulary.
+  Skill-runbook-registration ([792a12](./792a_product-spec.md#792a12-added-skill-runbook-registration)) adds [792b6c9](#792b6c9-skill-identity-fields) and [792b6c10](#792b6c10-rewrites-by-other-writers-keep-the-skill-identity-fields). Vault-counting and parent-sync add
+  their requirements here ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later), [792d61](./792d_decision-log.md#792d61-note-document-formats-edit-crlf-and-field-survival-contracts-arrive-with-their-scenarios)).
 
 Rationale: the vault is flat. Notes sit at the vault root, and a note's place in the hierarchy is
-carried by the Luhmann ID that leads its filename, not by a folder (792a2c). A fact or feedback note
+carried by the Luhmann ID that leads its filename, not by a folder ([792a2c](./792a_product-spec.md#792a2c-flat-vault-layout)). A fact or feedback note
 states its situation twice: in the `situation:` field, which recall's situation vector is built
 from, and again in the body formula. A legacy invariant asked for a single representation of any
 datum that affects retrieval; the two copies are instead kept in step by the writers that change a
-situation (792d62).
+situation ([792d62](./792d_decision-log.md#792d62-a-fact-or-feedback-situation-is-stored-twice)).
 
 ### 792b6b Sequences
 
@@ -2511,11 +2511,11 @@ every reader of a note calls it to split the note's text.
 
 #### 792b6c1 Note filenames
 
-Requirement: 792b6c1 The note-document-format MUST name a fact, feedback or runbook note
+Requirement: [792b6c1](#792b6c1-note-filenames) The note-document-format MUST name a fact, feedback or runbook note
 `<luhmann>.<YYYY-MM-DD>.<slug>.md` in the vault root, using its creation date, and MUST name a
 question-and-answer pair `qa.<YYYY-MM-DD>.<slug>.q.md` and `qa.<YYYY-MM-DD>.<slug>.a.md`.
 
-Supports: 792a3a1a, 792a3b1a, 792a3c1a, 792a3q1a, 792a6a1a, 792a6b1a.
+Supports: [792a3a1a](./792a_product-spec.md#792a3a1-uat-scenarios), [792a3b1a](./792a_product-spec.md#792a3b1-uat-scenarios), [792a3c1a](./792a_product-spec.md#792a3c1-uat-scenarios), [792a3q1a](./792a_product-spec.md#792a3q1-uat-scenarios), [792a6a1a](./792a_product-spec.md#792a6a1-uat-scenarios), [792a6b1a](./792a_product-spec.md#792a6b1-uat-scenarios).
 
 ##### 792b6c1a Scenarios
 
@@ -2533,11 +2533,11 @@ Scenario: 792b6c1a2 A pair's filenames
 
 #### 792b6c2 Frontmatter block
 
-Requirement: 792b6c2 The note-document-format MUST render a note's frontmatter as a line `---`, the
+Requirement: [792b6c2](#792b6c2-frontmatter-block) The note-document-format MUST render a note's frontmatter as a line `---`, the
 fields as YAML, a line `---` and one blank line, and MUST encode every value so that it reads back
 unchanged, whatever newlines, colons, leading dashes or other YAML-significant characters it holds.
 
-Supports: 792a3a1a, 792a3b1a, 792a3c1a, 792a3q1a.
+Supports: [792a3a1a](./792a_product-spec.md#792a3a1-uat-scenarios), [792a3b1a](./792a_product-spec.md#792a3b1-uat-scenarios), [792a3c1a](./792a_product-spec.md#792a3c1-uat-scenarios), [792a3q1a](./792a_product-spec.md#792a3q1-uat-scenarios).
 
 Rationale: frontmatter was once built by concatenating strings, and a multi-line value ended the
 block early. Encoding through the YAML library fixed that for every value.
@@ -2558,7 +2558,7 @@ Scenario: 792b6c2a2 Tricky values read back unchanged
 
 #### 792b6c3 Kind schemas
 
-Requirement: 792b6c3 The note-document-format MUST render each kind's keys in this order, leaving
+Requirement: [792b6c3](#792b6c3-kind-schemas) The note-document-format MUST render each kind's keys in this order, leaving
 out any optional key whose value is empty:
 
 - fact: `type`, `tier`, `situation`, `subject`, `predicate`, `object`, `luhmann`, `created`,
@@ -2575,8 +2575,8 @@ out any optional key whose value is empty:
 `situation` and content fields. `luhmann` and `issue` MUST be double-quoted, `created` MUST be the
 date as `YYYY-MM-DD`, and list values MUST keep their order.
 
-Supports: 792a3a1a, 792a3b1a, 792a3c1a, 792a3d1a, 792a3d1b, 792a3d1c, 792a3h1a, 792a3h1b, 792a3i1a,
-792a3i1b, 792a3o1c, 792a3p1c, 792a4b1c, 792a6a1a, 792a6b1a.
+Supports: [792a3a1a](./792a_product-spec.md#792a3a1-uat-scenarios), [792a3b1a](./792a_product-spec.md#792a3b1-uat-scenarios), [792a3c1a](./792a_product-spec.md#792a3c1-uat-scenarios), [792a3d1a](./792a_product-spec.md#792a3d1-uat-scenarios), [792a3d1b](./792a_product-spec.md#792a3d1-uat-scenarios), [792a3d1c](./792a_product-spec.md#792a3d1-uat-scenarios), [792a3h1a](./792a_product-spec.md#792a3h1-uat-scenarios), [792a3h1b](./792a_product-spec.md#792a3h1-uat-scenarios), [792a3i1a](./792a_product-spec.md#792a3i1-uat-scenarios),
+[792a3i1b](./792a_product-spec.md#792a3i1-uat-scenarios), [792a3o1c](./792a_product-spec.md#792a3o1-uat-scenarios), [792a3p1c](./792a_product-spec.md#792a3p1-uat-scenarios), [792a4b1c](./792a_product-spec.md#792a4b1-uat-scenarios), [792a6a1a](./792a_product-spec.md#792a6a1-uat-scenarios), [792a6b1a](./792a_product-spec.md#792a6b1-uat-scenarios).
 
 Rationale: a Luhmann ID is quoted so that an ID such as `1e1` is not read back as the number 10, and
 so that notes written by engram, migrated and written by hand all read the same way. A fact or
@@ -2623,15 +2623,15 @@ Scenario: 792b6c3a7 Lists keep their order
 
 #### 792b6c4 Body formulas
 
-Requirement: 792b6c4 The note-document-format MUST render a fact's body as
+Requirement: [792b6c4](#792b6c4-body-formulas) The note-document-format MUST render a fact's body as
 `Information learned: when in <situation>, <subject> <predicate> <object>.`, a feedback note's as
 `Lesson learned: when <situation>, <action>.`, dropping one case-insensitive leading `when ` from the
 situation, and a runbook's as its steps with trailing newlines reduced to one, each followed by a
 blank line and then one line `Supersedes: [[<note>]] — <type>: <claim>` per supersession, with any
 `.md` dropped from the linked note.
 
-Supports: 792a3a1a, 792a3a1b, 792a3b1a, 792a3b1b, 792a3c1a, 792a3h1a, 792a4b1a, 792a4b1b, 792a4d1a,
-792a4d1b, 792a4l1a, 792a6a1a.
+Supports: [792a3a1a](./792a_product-spec.md#792a3a1-uat-scenarios), [792a3a1b](./792a_product-spec.md#792a3a1-uat-scenarios), [792a3b1a](./792a_product-spec.md#792a3b1-uat-scenarios), [792a3b1b](./792a_product-spec.md#792a3b1-uat-scenarios), [792a3c1a](./792a_product-spec.md#792a3c1-uat-scenarios), [792a3h1a](./792a_product-spec.md#792a3h1-uat-scenarios), [792a4b1a](./792a_product-spec.md#792a4b1-uat-scenarios), [792a4b1b](./792a_product-spec.md#792a4b1-uat-scenarios), [792a4d1a](./792a_product-spec.md#792a4d1-uat-scenarios),
+[792a4d1b](./792a_product-spec.md#792a4d1-uat-scenarios), [792a4l1a](./792a_product-spec.md#792a4l1-uat-scenarios), [792a6a1a](./792a_product-spec.md#792a6a1-uat-scenarios).
 
 Rationale: situations are usually phrased "When …", while the formulas already say "when"; without
 the strip, a body would read "when When". A supersession link drops `.md` because links resolve by
@@ -2668,7 +2668,7 @@ Scenario: 792b6c4a5 A supersession line drops .md
 
 #### 792b6c5 Question-and-answer documents
 
-Requirement: 792b6c5 The note-document-format MUST render a question note with frontmatter `type:
+Requirement: [792b6c5](#792b6c5-question-and-answer-documents) The note-document-format MUST render a question note with frontmatter `type:
 qa-question`, `date`, `answered_by` (the answer's basename) and `source`, and a body of the question
 followed by a blank line and `Answered by: [[<answer basename>]]`; and an answer note with
 frontmatter `type: qa-answer`, `date`, `answers` (the question's basename), `certainty`,
@@ -2676,7 +2676,7 @@ frontmatter `type: qa-answer`, `date`, `answers` (the question's basename), `cer
 `Answers: [[<question basename>]]` and, when there are contributors, `Contributors:` and a
 comma-separated link to each.
 
-Supports: 792a3q1a, 792a3q1b, 792a3q1c.
+Supports: [792a3q1a](./792a_product-spec.md#792a3q1-uat-scenarios), [792a3q1b](./792a_product-spec.md#792a3q1-uat-scenarios), [792a3q1c](./792a_product-spec.md#792a3q1-uat-scenarios).
 
 ##### 792b6c5a Scenarios
 
@@ -2699,13 +2699,13 @@ Scenario: 792b6c5a3 An answer note without contributors
 
 #### 792b6c6 Frontmatter splitting
 
-Requirement: 792b6c6 The note-document-format MUST split a note's text into the frontmatter between
+Requirement: [792b6c6](#792b6c6-frontmatter-splitting) The note-document-format MUST split a note's text into the frontmatter between
 a leading `---` line and the next line that is exactly `---`, and the text after that line. A value
 that ends in `---`, or an indented `---` inside a block value, MUST NOT close the frontmatter, an
 empty frontmatter MUST split cleanly, and a text that has no leading `---` line or no closing line
 MUST be treated as having no frontmatter.
 
-Supports: 792a3n1a, 792a3u1a, 792a3u1b, 792a8d1a, 792a8d1c, 792a9d1e.
+Supports: [792a3n1a](./792a_product-spec.md#792a3n1-uat-scenarios), [792a3u1a](./792a_product-spec.md#792a3u1-uat-scenarios), [792a3u1b](./792a_product-spec.md#792a3u1-uat-scenarios), [792a8d1a](./792a_product-spec.md#792a8d1-uat-scenarios), [792a8d1c](./792a_product-spec.md#792a8d1-uat-scenarios), [792a9d1e](./792a_product-spec.md#792a9d1-uat-scenarios).
 
 Rationale: a skill key, for example, can end in `---`; matching only a whole line keeps such a value
 from cutting the frontmatter short.
@@ -2731,7 +2731,7 @@ Scenario: 792b6c6a3 A note without frontmatter
 
 #### 792b6c7 Frontmatter node edits
 
-Requirement: 792b6c7 The note-document-format MUST write an edit to an existing note's frontmatter
+Requirement: [792b6c7](#792b6c7-frontmatter-node-edits) The note-document-format MUST write an edit to an existing note's frontmatter
 as edits to its parsed YAML mapping: a key whose value the edit changes MUST be replaced in place, a
 key the edit adds MUST be inserted after the nearest key that precedes it in its kind's order
 (before the nearest following one when none precedes, at the end when neither is present), a key
@@ -2744,7 +2744,7 @@ frontmatter block that is not a mapping; and MUST refuse a result whose frontmat
 For a note whose frontmatter holds only keys its kind defines and no anchors, the edited text MUST
 be byte-identical to the note rendered afresh with the edit.
 
-Supports: 792a4j1a, 792a4j1b, 792a4j1c, 792a4j1d, 792a4k1a, 792a4k1b.
+Supports: [792a4j1a](./792a_product-spec.md#792a4j1-uat-scenarios), [792a4j1b](./792a_product-spec.md#792a4j1-uat-scenarios), [792a4j1c](./792a_product-spec.md#792a4j1-uat-scenarios), [792a4j1d](./792a_product-spec.md#792a4j1-uat-scenarios), [792a4k1a](./792a_product-spec.md#792a4k1-uat-scenarios), [792a4k1b](./792a_product-spec.md#792a4k1-uat-scenarios).
 
 Rationale: re-rendering the whole frontmatter from the typed note model dropped every key the model
 does not define (#780); editing the parsed mapping keeps them. An anchored value cannot be replaced
@@ -2794,11 +2794,11 @@ Scenario: 792b6c7a7 An ordinary note is written as a fresh render
 
 #### 792b6c8 CRLF reading
 
-Requirement: 792b6c8 The note-document-format MUST read a note for splitting and editing as its LF
+Requirement: [792b6c8](#792b6c8-crlf-reading) The note-document-format MUST read a note for splitting and editing as its LF
 form, converting each `\r\n` to `\n` and keeping a lone `\r`, while frontmatter splitting itself
-stays LF-only (792b6c6).
+stays LF-only ([792b6c6](#792b6c6-frontmatter-splitting)).
 
-Supports: 792a4m1a, 792a4m1b, 792a6f1a, 792a8d1c, 792a9d1f.
+Supports: [792a4m1a](./792a_product-spec.md#792a4m1-uat-scenarios), [792a4m1b](./792a_product-spec.md#792a4m1-uat-scenarios), [792a6f1a](./792a_product-spec.md#792a6f1-uat-scenarios), [792a8d1c](./792a_product-spec.md#792a8d1-uat-scenarios), [792a9d1f](./792a_product-spec.md#792a9d1-uat-scenarios).
 
 Rationale: a CRLF-aware split would hand the writers that splice its slices back into a note CRLF
 lines, and they would write mixed line endings; converting at the reader leaves every writer working
@@ -2815,13 +2815,13 @@ Scenario: 792b6c8a1 CRLF pairs become LF
 
 #### 792b6c9 Skill identity fields
 
-Requirement: 792b6c9 The note-document-format MUST write a runbook's `skill_hash`, `skill_key` and
-`skill_source`, at the place 792b6c3 gives them, only when each is non-empty, and MUST read back exactly
+Requirement: [792b6c9](#792b6c9-skill-identity-fields) The note-document-format MUST write a runbook's `skill_hash`, `skill_key` and
+`skill_source`, at the place [792b6c3](#792b6c3-kind-schemas) gives them, only when each is non-empty, and MUST read back exactly
 what it wrote for any hash, key and source.
 
-Supports: 792a12d1a, 792a12u1g.
+Supports: [792a12d1a](./792a_product-spec.md#792a12d1-uat-scenarios), [792a12u1g](./792a_product-spec.md#792a12u1-uat-scenarios).
 
-Rationale: a runbook note that mirrors a skill is identified by these three fields (792a12b), so a value
+Rationale: a runbook note that mirrors a skill is identified by these three fields ([792a12b](./792a_product-spec.md#792a12b-one-runbook-note-per-skill-identified-by-its-key)), so a value
 that does not survive a render and parse would make the note unfindable or its offer unstable.
 
 ##### 792b6c9a Scenarios
@@ -2860,14 +2860,14 @@ Scenario: 792b6c9a6 Any key and source read back unchanged
 
 #### 792b6c10 Rewrites by other writers keep the skill identity fields
 
-Requirement: 792b6c10 Every writer other than registration that rewrites a note's frontmatter MUST leave
+Requirement: [792b6c10](#792b6c10-rewrites-by-other-writers-keep-the-skill-identity-fields) Every writer other than registration that rewrites a note's frontmatter MUST leave
 `skill_hash`, `skill_key` and `skill_source` as they were: `engram amend` (a content change, an
 identity-only re-stamp, `--clear-pending` and a key that ends in dashes), `engram resituate`, the rename
 of Luhmann re-parenting, the rewrite of wikilinks and the removal of references to deleted notes, the
 identity backfill, and the vocabulary rewrites (assignment, clearing removed terms, definition tagging,
 the version key and the strip of the legacy channel).
 
-Supports: 792a12u1a, 792a12u1b, 792a12u1c, 792a12u1d, 792a12u1e, 792a12u1f.
+Supports: [792a12u1a](./792a_product-spec.md#792a12u1-uat-scenarios), [792a12u1b](./792a_product-spec.md#792a12u1-uat-scenarios), [792a12u1c](./792a_product-spec.md#792a12u1-uat-scenarios), [792a12u1d](./792a_product-spec.md#792a12u1-uat-scenarios), [792a12u1e](./792a_product-spec.md#792a12u1-uat-scenarios), [792a12u1f](./792a_product-spec.md#792a12u1-uat-scenarios).
 
 Rationale: only registration may change them, because registration compares a note's hash with the
 source's to decide whether a skill changed.
@@ -2910,55 +2910,55 @@ Scenario: 792b6c10a6 Vocabulary rewrites keep the fields
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a3a1a | 792b6c1, 792b6c2, 792b6c3, 792b6c4 |
-| 792a3a1b | 792b6c4 |
-| 792a3b1a | 792b6c1, 792b6c2, 792b6c3, 792b6c4 |
-| 792a3b1b | 792b6c4 |
-| 792a3c1a | 792b6c1, 792b6c2, 792b6c3, 792b6c4 |
-| 792a3d1a | 792b6c3 |
-| 792a3d1b | 792b6c3 |
-| 792a3d1c | 792b6c3 |
-| 792a3h1a | 792b6c3, 792b6c4 |
-| 792a3h1b | 792b6c3 |
-| 792a3i1a | 792b6c3 |
-| 792a3i1b | 792b6c3 |
-| 792a3n1a | 792b6c6 |
-| 792a3o1c | 792b6c3 |
-| 792a3p1c | 792b6c3 |
-| 792a3q1a | 792b6c1, 792b6c2, 792b6c5 |
-| 792a3q1b | 792b6c5 |
-| 792a3q1c | 792b6c5 |
-| 792a3u1a | 792b6c6 |
-| 792a3u1b | 792b6c6 |
-| 792a4b1a | 792b6c4 |
-| 792a4b1b | 792b6c4 |
-| 792a4b1c | 792b6c3 |
-| 792a4d1a | 792b6c4 |
-| 792a4d1b | 792b6c4 |
-| 792a4j1a | 792b6c7 |
-| 792a4j1b | 792b6c7 |
-| 792a4j1c | 792b6c7 |
-| 792a4j1d | 792b6c7 |
-| 792a4k1a | 792b6c7 |
-| 792a4k1b | 792b6c7 |
-| 792a4l1a | 792b6c4 |
-| 792a4m1a | 792b6c8 |
-| 792a4m1b | 792b6c8 |
-| 792a6a1a | 792b6c1, 792b6c3, 792b6c4 |
-| 792a6b1a | 792b6c1, 792b6c3 |
-| 792a6f1a | 792b6c8 |
-| 792a8d1a | 792b6c6 |
-| 792a8d1c | 792b6c6, 792b6c8 |
-| 792a9d1e | 792b6c6 |
-| 792a9d1f | 792b6c8 |
-| 792a12d1a | 792b6c9 |
-| 792a12u1a | 792b6c10 |
-| 792a12u1b | 792b6c10 |
-| 792a12u1c | 792b6c10 |
-| 792a12u1d | 792b6c10 |
-| 792a12u1e | 792b6c10 |
-| 792a12u1f | 792b6c10 |
-| 792a12u1g | 792b6c9 |
+| [792a3a1a](./792a_product-spec.md#792a3a1-uat-scenarios) | [792b6c1](#792b6c1-note-filenames), [792b6c2](#792b6c2-frontmatter-block), [792b6c3](#792b6c3-kind-schemas), [792b6c4](#792b6c4-body-formulas) |
+| [792a3a1b](./792a_product-spec.md#792a3a1-uat-scenarios) | [792b6c4](#792b6c4-body-formulas) |
+| [792a3b1a](./792a_product-spec.md#792a3b1-uat-scenarios) | [792b6c1](#792b6c1-note-filenames), [792b6c2](#792b6c2-frontmatter-block), [792b6c3](#792b6c3-kind-schemas), [792b6c4](#792b6c4-body-formulas) |
+| [792a3b1b](./792a_product-spec.md#792a3b1-uat-scenarios) | [792b6c4](#792b6c4-body-formulas) |
+| [792a3c1a](./792a_product-spec.md#792a3c1-uat-scenarios) | [792b6c1](#792b6c1-note-filenames), [792b6c2](#792b6c2-frontmatter-block), [792b6c3](#792b6c3-kind-schemas), [792b6c4](#792b6c4-body-formulas) |
+| [792a3d1a](./792a_product-spec.md#792a3d1-uat-scenarios) | [792b6c3](#792b6c3-kind-schemas) |
+| [792a3d1b](./792a_product-spec.md#792a3d1-uat-scenarios) | [792b6c3](#792b6c3-kind-schemas) |
+| [792a3d1c](./792a_product-spec.md#792a3d1-uat-scenarios) | [792b6c3](#792b6c3-kind-schemas) |
+| [792a3h1a](./792a_product-spec.md#792a3h1-uat-scenarios) | [792b6c3](#792b6c3-kind-schemas), [792b6c4](#792b6c4-body-formulas) |
+| [792a3h1b](./792a_product-spec.md#792a3h1-uat-scenarios) | [792b6c3](#792b6c3-kind-schemas) |
+| [792a3i1a](./792a_product-spec.md#792a3i1-uat-scenarios) | [792b6c3](#792b6c3-kind-schemas) |
+| [792a3i1b](./792a_product-spec.md#792a3i1-uat-scenarios) | [792b6c3](#792b6c3-kind-schemas) |
+| [792a3n1a](./792a_product-spec.md#792a3n1-uat-scenarios) | [792b6c6](#792b6c6-frontmatter-splitting) |
+| [792a3o1c](./792a_product-spec.md#792a3o1-uat-scenarios) | [792b6c3](#792b6c3-kind-schemas) |
+| [792a3p1c](./792a_product-spec.md#792a3p1-uat-scenarios) | [792b6c3](#792b6c3-kind-schemas) |
+| [792a3q1a](./792a_product-spec.md#792a3q1-uat-scenarios) | [792b6c1](#792b6c1-note-filenames), [792b6c2](#792b6c2-frontmatter-block), [792b6c5](#792b6c5-question-and-answer-documents) |
+| [792a3q1b](./792a_product-spec.md#792a3q1-uat-scenarios) | [792b6c5](#792b6c5-question-and-answer-documents) |
+| [792a3q1c](./792a_product-spec.md#792a3q1-uat-scenarios) | [792b6c5](#792b6c5-question-and-answer-documents) |
+| [792a3u1a](./792a_product-spec.md#792a3u1-uat-scenarios) | [792b6c6](#792b6c6-frontmatter-splitting) |
+| [792a3u1b](./792a_product-spec.md#792a3u1-uat-scenarios) | [792b6c6](#792b6c6-frontmatter-splitting) |
+| [792a4b1a](./792a_product-spec.md#792a4b1-uat-scenarios) | [792b6c4](#792b6c4-body-formulas) |
+| [792a4b1b](./792a_product-spec.md#792a4b1-uat-scenarios) | [792b6c4](#792b6c4-body-formulas) |
+| [792a4b1c](./792a_product-spec.md#792a4b1-uat-scenarios) | [792b6c3](#792b6c3-kind-schemas) |
+| [792a4d1a](./792a_product-spec.md#792a4d1-uat-scenarios) | [792b6c4](#792b6c4-body-formulas) |
+| [792a4d1b](./792a_product-spec.md#792a4d1-uat-scenarios) | [792b6c4](#792b6c4-body-formulas) |
+| [792a4j1a](./792a_product-spec.md#792a4j1-uat-scenarios) | [792b6c7](#792b6c7-frontmatter-node-edits) |
+| [792a4j1b](./792a_product-spec.md#792a4j1-uat-scenarios) | [792b6c7](#792b6c7-frontmatter-node-edits) |
+| [792a4j1c](./792a_product-spec.md#792a4j1-uat-scenarios) | [792b6c7](#792b6c7-frontmatter-node-edits) |
+| [792a4j1d](./792a_product-spec.md#792a4j1-uat-scenarios) | [792b6c7](#792b6c7-frontmatter-node-edits) |
+| [792a4k1a](./792a_product-spec.md#792a4k1-uat-scenarios) | [792b6c7](#792b6c7-frontmatter-node-edits) |
+| [792a4k1b](./792a_product-spec.md#792a4k1-uat-scenarios) | [792b6c7](#792b6c7-frontmatter-node-edits) |
+| [792a4l1a](./792a_product-spec.md#792a4l1-uat-scenarios) | [792b6c4](#792b6c4-body-formulas) |
+| [792a4m1a](./792a_product-spec.md#792a4m1-uat-scenarios) | [792b6c8](#792b6c8-crlf-reading) |
+| [792a4m1b](./792a_product-spec.md#792a4m1-uat-scenarios) | [792b6c8](#792b6c8-crlf-reading) |
+| [792a6a1a](./792a_product-spec.md#792a6a1-uat-scenarios) | [792b6c1](#792b6c1-note-filenames), [792b6c3](#792b6c3-kind-schemas), [792b6c4](#792b6c4-body-formulas) |
+| [792a6b1a](./792a_product-spec.md#792a6b1-uat-scenarios) | [792b6c1](#792b6c1-note-filenames), [792b6c3](#792b6c3-kind-schemas) |
+| [792a6f1a](./792a_product-spec.md#792a6f1-uat-scenarios) | [792b6c8](#792b6c8-crlf-reading) |
+| [792a8d1a](./792a_product-spec.md#792a8d1-uat-scenarios) | [792b6c6](#792b6c6-frontmatter-splitting) |
+| [792a8d1c](./792a_product-spec.md#792a8d1-uat-scenarios) | [792b6c6](#792b6c6-frontmatter-splitting), [792b6c8](#792b6c8-crlf-reading) |
+| [792a9d1e](./792a_product-spec.md#792a9d1-uat-scenarios) | [792b6c6](#792b6c6-frontmatter-splitting) |
+| [792a9d1f](./792a_product-spec.md#792a9d1-uat-scenarios) | [792b6c8](#792b6c8-crlf-reading) |
+| [792a12d1a](./792a_product-spec.md#792a12d1-uat-scenarios) | [792b6c9](#792b6c9-skill-identity-fields) |
+| [792a12u1a](./792a_product-spec.md#792a12u1-uat-scenarios) | [792b6c10](#792b6c10-rewrites-by-other-writers-keep-the-skill-identity-fields) |
+| [792a12u1b](./792a_product-spec.md#792a12u1-uat-scenarios) | [792b6c10](#792b6c10-rewrites-by-other-writers-keep-the-skill-identity-fields) |
+| [792a12u1c](./792a_product-spec.md#792a12u1-uat-scenarios) | [792b6c10](#792b6c10-rewrites-by-other-writers-keep-the-skill-identity-fields) |
+| [792a12u1d](./792a_product-spec.md#792a12u1-uat-scenarios) | [792b6c10](#792b6c10-rewrites-by-other-writers-keep-the-skill-identity-fields) |
+| [792a12u1e](./792a_product-spec.md#792a12u1-uat-scenarios) | [792b6c10](#792b6c10-rewrites-by-other-writers-keep-the-skill-identity-fields) |
+| [792a12u1f](./792a_product-spec.md#792a12u1-uat-scenarios) | [792b6c10](#792b6c10-rewrites-by-other-writers-keep-the-skill-identity-fields) |
+| [792a12u1g](./792a_product-spec.md#792a12u1-uat-scenarios) | [792b6c9](#792b6c9-skill-identity-fields) |
 
 ```gherkin
 Scenario: 792a3a1b A leading When is not doubled
@@ -3165,7 +3165,7 @@ Canonical target: `docs/specs/technical/luhmann-addressing.md` (title `Luhmann A
   verification, parsing, ordering and allocation are pure functions tested directly; stability, the
   scheme is the vault's addressing convention and outlives any refactoring; necessity, every fact,
   feedback and runbook note is placed by it.
-- Supported capabilities: 792a3 note-writing. Vault-migration adds reparenting's needs (792d30).
+- Supported capabilities: [792a3](./792a_product-spec.md#792a3-added-note-writing) note-writing. Vault-migration adds reparenting's needs ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
 
 Rationale: Luhmann IDs must be unique across the vault and well formed, a digit-led run of digits
 and letters. The allocator only ever returns an ID that no existing note holds; two concurrent
@@ -3180,10 +3180,10 @@ vault's existing IDs.
 
 #### 792b7c1 ID parsing
 
-Requirement: 792b7c1 The luhmann-addressing MUST split an ID into its alternating runs of digits and
+Requirement: [792b7c1](#792b7c1-id-parsing) The luhmann-addressing MUST split an ID into its alternating runs of digits and
 letters, MUST refuse an empty ID, and MUST refuse an ID that does not start with a digit.
 
-Supports: 792a3j1a, 792a3j1b, 792a3j1c, 792a3j1d, 792a3j1e, 792a3k1d.
+Supports: [792a3j1a](./792a_product-spec.md#792a3j1-uat-scenarios), [792a3j1b](./792a_product-spec.md#792a3j1-uat-scenarios), [792a3j1c](./792a_product-spec.md#792a3j1-uat-scenarios), [792a3j1d](./792a_product-spec.md#792a3j1-uat-scenarios), [792a3j1e](./792a_product-spec.md#792a3j1-uat-scenarios), [792a3k1d](./792a_product-spec.md#792a3k1-uat-scenarios).
 
 ##### 792b7c1a Scenarios
 
@@ -3211,11 +3211,11 @@ Scenario: 792b7c1a4 A leading letter is refused
 
 #### 792b7c2 ID from a filename
 
-Requirement: 792b7c2 The luhmann-addressing MUST read a note's ID as the part of its `.md`
+Requirement: [792b7c2](#792b7c2-id-from-a-filename) The luhmann-addressing MUST read a note's ID as the part of its `.md`
 filename before the first dot, when that part starts with a digit and holds only digits and
 letters, and MUST report no ID for any other filename.
 
-Supports: 792a3j1a, 792a3j1b, 792a3j1c, 792a3j1d, 792a3j1e.
+Supports: [792a3j1a](./792a_product-spec.md#792a3j1-uat-scenarios), [792a3j1b](./792a_product-spec.md#792a3j1-uat-scenarios), [792a3j1c](./792a_product-spec.md#792a3j1-uat-scenarios), [792a3j1d](./792a_product-spec.md#792a3j1-uat-scenarios), [792a3j1e](./792a_product-spec.md#792a3j1-uat-scenarios).
 
 ##### 792b7c2a Scenarios
 
@@ -3238,10 +3238,10 @@ Scenario: 792b7c2a3 A file that is not Markdown has no ID
 
 #### 792b7c3 Letter order
 
-Requirement: 792b7c3 The luhmann-addressing MUST order letter segments shorter first, then
+Requirement: [792b7c3](#792b7c3-letter-order) The luhmann-addressing MUST order letter segments shorter first, then
 alphabetically, so that `z` comes before `aa`, `az` before `ba`, and `zz` before `aaa`.
 
-Supports: 792a3j1e.
+Supports: [792a3j1e](./792a_product-spec.md#792a3j1-uat-scenarios).
 
 Rationale: an allocator once compared letter segments lexically, so with children `a` to `z`, `aa`
 and `ab`, it took `z` as the largest and allocated `aa` again.
@@ -3257,14 +3257,14 @@ Scenario: 792b7c3a1 Shorter letter segments come first
 
 #### 792b7c4 Next-ID allocation
 
-Requirement: 792b7c4 Given the existing IDs, the luhmann-addressing MUST allocate, for `top`, one
+Requirement: [792b7c4](#792b7c4-next-id-allocation) Given the existing IDs, the luhmann-addressing MUST allocate, for `top`, one
 more than the largest top-level number, or `1` when there is none; for `continuation`, the next
 child of the target, counting only the target's direct children: after an ID ending in a number,
 the letter after its largest letter child in Luhmann order, or `a`, and after an ID ending in a
 letter, the number after its largest numeric child, or `1`; and for `sibling`, the next child of
 the target's parent.
 
-Supports: 792a3j1a, 792a3j1b, 792a3j1c, 792a3j1d, 792a3j1e, 792a10e1a, 792a10e1b.
+Supports: [792a3j1a](./792a_product-spec.md#792a3j1-uat-scenarios), [792a3j1b](./792a_product-spec.md#792a3j1-uat-scenarios), [792a3j1c](./792a_product-spec.md#792a3j1-uat-scenarios), [792a3j1d](./792a_product-spec.md#792a3j1-uat-scenarios), [792a3j1e](./792a_product-spec.md#792a3j1-uat-scenarios), [792a10e1a](./792a_product-spec.md#792a10e1-uat-scenarios), [792a10e1b](./792a_product-spec.md#792a10e1-uat-scenarios).
 
 ##### 792b7c4a Scenarios
 
@@ -3297,11 +3297,11 @@ Scenario: 792b7c4a5 A sibling takes the next child of the parent
 
 #### 792b7c5 Allocation refusals
 
-Requirement: 792b7c5 The luhmann-addressing MUST refuse to allocate for a position other than `top`,
+Requirement: [792b7c5](#792b7c5-allocation-refusals) The luhmann-addressing MUST refuse to allocate for a position other than `top`,
 `continuation` or `sibling`, for a `continuation` or `sibling` with no target or with a target that
 is not a valid ID, and for a `sibling` of a top-level ID.
 
-Supports: 792a3k1a, 792a3k1b, 792a3k1c, 792a3k1d.
+Supports: [792a3k1a](./792a_product-spec.md#792a3k1-uat-scenarios), [792a3k1b](./792a_product-spec.md#792a3k1-uat-scenarios), [792a3k1c](./792a_product-spec.md#792a3k1-uat-scenarios), [792a3k1d](./792a_product-spec.md#792a3k1-uat-scenarios).
 
 ##### 792b7c5a Scenarios
 
@@ -3329,11 +3329,11 @@ Scenario: 792b7c5a4 A sibling of a top-level ID is refused
 
 #### 792b7c6 ID and date from a filename
 
-Requirement: 792b7c6 The luhmann-addressing MUST read from a note filename of the form `<id>.<date>.<slug>.md`
-its ID, as in 792b7c2, and its date, the second dot-separated segment, and MUST refuse a filename that has no
+Requirement: [792b7c6](#792b7c6-id-and-date-from-a-filename) The luhmann-addressing MUST read from a note filename of the form `<id>.<date>.<slug>.md`
+its ID, as in [792b7c2](#792b7c2-id-from-a-filename), and its date, the second dot-separated segment, and MUST refuse a filename that has no
 valid leading ID or fewer than three dot-separated segments.
 
-Supports: 792a10e1a.
+Supports: [792a10e1a](./792a_product-spec.md#792a10e1-uat-scenarios).
 
 Rationale: a re-parented note keeps its date and slug and takes a new ID, so the new basename is built from
 these parts.
@@ -3361,17 +3361,17 @@ Scenario: 792b7c6a3 A filename with too few segments is refused
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a3j1a | 792b7c1, 792b7c2, 792b7c4 |
-| 792a3j1b | 792b7c1, 792b7c2, 792b7c4 |
-| 792a3j1c | 792b7c1, 792b7c2, 792b7c4 |
-| 792a3j1d | 792b7c1, 792b7c2, 792b7c4 |
-| 792a3j1e | 792b7c1, 792b7c2, 792b7c3, 792b7c4 |
-| 792a3k1a | 792b7c5 |
-| 792a3k1b | 792b7c5 |
-| 792a3k1c | 792b7c5 |
-| 792a3k1d | 792b7c1, 792b7c5 |
-| 792a10e1a | 792b7c6, 792b7c4 |
-| 792a10e1b | 792b7c4 |
+| [792a3j1a](./792a_product-spec.md#792a3j1-uat-scenarios) | [792b7c1](#792b7c1-id-parsing), [792b7c2](#792b7c2-id-from-a-filename), [792b7c4](#792b7c4-next-id-allocation) |
+| [792a3j1b](./792a_product-spec.md#792a3j1-uat-scenarios) | [792b7c1](#792b7c1-id-parsing), [792b7c2](#792b7c2-id-from-a-filename), [792b7c4](#792b7c4-next-id-allocation) |
+| [792a3j1c](./792a_product-spec.md#792a3j1-uat-scenarios) | [792b7c1](#792b7c1-id-parsing), [792b7c2](#792b7c2-id-from-a-filename), [792b7c4](#792b7c4-next-id-allocation) |
+| [792a3j1d](./792a_product-spec.md#792a3j1-uat-scenarios) | [792b7c1](#792b7c1-id-parsing), [792b7c2](#792b7c2-id-from-a-filename), [792b7c4](#792b7c4-next-id-allocation) |
+| [792a3j1e](./792a_product-spec.md#792a3j1-uat-scenarios) | [792b7c1](#792b7c1-id-parsing), [792b7c2](#792b7c2-id-from-a-filename), [792b7c3](#792b7c3-letter-order), [792b7c4](#792b7c4-next-id-allocation) |
+| [792a3k1a](./792a_product-spec.md#792a3k1-uat-scenarios) | [792b7c5](#792b7c5-allocation-refusals) |
+| [792a3k1b](./792a_product-spec.md#792a3k1-uat-scenarios) | [792b7c5](#792b7c5-allocation-refusals) |
+| [792a3k1c](./792a_product-spec.md#792a3k1-uat-scenarios) | [792b7c5](#792b7c5-allocation-refusals) |
+| [792a3k1d](./792a_product-spec.md#792a3k1-uat-scenarios) | [792b7c1](#792b7c1-id-parsing), [792b7c5](#792b7c5-allocation-refusals) |
+| [792a10e1a](./792a_product-spec.md#792a10e1-uat-scenarios) | [792b7c6](#792b7c6-id-and-date-from-a-filename), [792b7c4](#792b7c4-next-id-allocation) |
+| [792a10e1b](./792a_product-spec.md#792a10e1-uat-scenarios) | [792b7c4](#792b7c4-next-id-allocation) |
 
 ```gherkin
 Scenario: 792a3j1a Top takes the next top-level number
@@ -3428,14 +3428,14 @@ Canonical target: `docs/specs/technical/vault-write-lock.md` (title `Vault Write
   interface), over the raw `LockPrims` that `cmd/engram/main.go` supplies; `vaultLockFromLocker`
   in `internal/cli/deps_compose.go`. Callers also lock `.manifest.lock` in the chunk index
   directory; which writer takes which lock, and what it does while holding it, is each caller's
-  requirement (792d63).
+  requirement ([792d63](./792d_decision-log.md#792d63-which-writer-takes-which-lock-is-the-writers-requirement)).
 - Qualification: responsibility, exclusive hold of a lock file is stated without naming any writer;
   ownership, callers decide what to do under the lock and when to take it, while this component
   owns acquiring, waiting and releasing; independent verification, it is tested directly over fake
   primitives and over a real lock file; stability, the contract survives any change to the
   injection seam; necessity, concurrent note writes depend on it.
-- Supported capabilities: 792a3 note-writing, 792a4 note-revision, 792a5 chunk-indexing.
-  Controlled-vocabulary adds its callers' requirements (792d30, 792d63).
+- Supported capabilities: [792a3](./792a_product-spec.md#792a3-added-note-writing) note-writing, [792a4](./792a_product-spec.md#792a4-added-note-revision) note-revision, [792a5](./792a_product-spec.md#792a5-added-chunk-indexing) chunk-indexing.
+  Controlled-vocabulary adds its callers' requirements ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later), [792d63](./792d_decision-log.md#792d63-which-writer-takes-which-lock-is-the-writers-requirement)).
 
 Rationale: before every read-modify-write writer took a lock, only `learn`'s Luhmann-ID allocation
 was locked, and two concurrent `ingest`, `amend`, `resituate` or `activate` runs corrupted the vault
@@ -3477,11 +3477,11 @@ sequenceDiagram
 
 #### 792b8c1 Exclusive hold
 
-Requirement: 792b8c1 The vault-write-lock MUST open the lock file at the given path, creating it
+Requirement: [792b8c1](#792b8c1-exclusive-hold) The vault-write-lock MUST open the lock file at the given path, creating it
 with mode `0600` when absent, MUST take an exclusive advisory lock on it, waiting while another
 holder has it, and MUST then return a release function.
 
-Supports: 792a3m1a, 792a3q1a, 792a4o1a, 792a4o1b.
+Supports: [792a3m1a](./792a_product-spec.md#792a3m1-uat-scenarios), [792a3q1a](./792a_product-spec.md#792a3q1-uat-scenarios), [792a4o1a](./792a_product-spec.md#792a4o1-uat-scenarios), [792a4o1b](./792a_product-spec.md#792a4o1-uat-scenarios).
 
 ##### 792b8c1a Scenarios
 
@@ -3499,11 +3499,11 @@ Scenario: 792b8c1a2 An absent lock file is created
 
 #### 792b8c2 Release
 
-Requirement: 792b8c2 The vault-write-lock's release MUST unlock and then close the lock file, MUST
+Requirement: [792b8c2](#792b8c2-release) The vault-write-lock's release MUST unlock and then close the lock file, MUST
 close the file even when unlocking fails, and MUST return the unlock error when unlocking fails,
 else the close error when closing fails, each naming the lock path, else nothing.
 
-Supports: 792a3m1a.
+Supports: [792a3m1a](./792a_product-spec.md#792a3m1-uat-scenarios).
 
 ##### 792b8c2a Scenarios
 
@@ -3526,11 +3526,11 @@ Scenario: 792b8c2a3 A close failure is reported
 
 #### 792b8c3 Acquire failures
 
-Requirement: 792b8c3 When the lock file cannot be opened, the vault-write-lock MUST return an error
+Requirement: [792b8c3](#792b8c3-acquire-failures) When the lock file cannot be opened, the vault-write-lock MUST return an error
 naming the lock path without trying to lock it; when the lock cannot be taken, it MUST close the
 file and return an error naming the lock path.
 
-Supports: 792a3m1a.
+Supports: [792a3m1a](./792a_product-spec.md#792a3m1-uat-scenarios).
 
 ##### 792b8c3a Scenarios
 
@@ -3548,10 +3548,10 @@ Scenario: 792b8c3a2 A lock failure closes the file
 
 #### 792b8c4 The vault's lock
 
-Requirement: 792b8c4 The vault-write-lock MUST lock a vault by locking the file `.luhmann.lock` at
+Requirement: [792b8c4](#792b8c4-the-vaults-lock) The vault-write-lock MUST lock a vault by locking the file `.luhmann.lock` at
 the vault root, and releasing that lock MUST release the file's lock.
 
-Supports: 792a3m1a, 792a3q1a, 792a4o1a, 792a4o1b.
+Supports: [792a3m1a](./792a_product-spec.md#792a3m1-uat-scenarios), [792a3q1a](./792a_product-spec.md#792a3q1-uat-scenarios), [792a4o1a](./792a_product-spec.md#792a4o1-uat-scenarios), [792a4o1b](./792a_product-spec.md#792a4o1-uat-scenarios).
 
 ##### 792b8c4a Scenarios
 
@@ -3566,11 +3566,11 @@ Scenario: 792b8c4a1 A vault is locked through .luhmann.lock
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a3m1a | 792b8c1, 792b8c2, 792b8c4 |
-| 792a3q1a | 792b8c1, 792b8c4 |
-| 792a4o1a | 792b8c1, 792b8c4 |
-| 792a4o1b | 792b8c1, 792b8c4 |
-| 792a5o1a | 792b8c1 |
+| [792a3m1a](./792a_product-spec.md#792a3m1-uat-scenarios) | [792b8c1](#792b8c1-exclusive-hold), [792b8c2](#792b8c2-release), [792b8c4](#792b8c4-the-vaults-lock) |
+| [792a3q1a](./792a_product-spec.md#792a3q1-uat-scenarios) | [792b8c1](#792b8c1-exclusive-hold), [792b8c4](#792b8c4-the-vaults-lock) |
+| [792a4o1a](./792a_product-spec.md#792a4o1-uat-scenarios) | [792b8c1](#792b8c1-exclusive-hold), [792b8c4](#792b8c4-the-vaults-lock) |
+| [792a4o1b](./792a_product-spec.md#792a4o1-uat-scenarios) | [792b8c1](#792b8c1-exclusive-hold), [792b8c4](#792b8c4-the-vaults-lock) |
+| [792a5o1a](./792a_product-spec.md#792a5o1-uat-scenarios) | [792b8c1](#792b8c1-exclusive-hold) |
 
 ```gherkin
 Scenario: 792a4o1a Concurrent amends both take effect
@@ -3613,8 +3613,8 @@ Canonical target: `docs/specs/technical/text-embedder.md` (title `Text Embedder 
   model, its cache and its window; independent verification, it is tested directly over fake
   backends and cache filesystems and over the real bundled model; stability, the contract survives
   a change of runtime library; necessity, every sidecar and every query phrase depends on it.
-- Supported capabilities: 792a3 note-writing, 792a5 chunk-indexing, 792a6 controlled-vocabulary,
-  792a7 memory-query. Vault-health adds its mappings (792d30).
+- Supported capabilities: [792a3](./792a_product-spec.md#792a3-added-note-writing) note-writing, [792a5](./792a_product-spec.md#792a5-added-chunk-indexing) chunk-indexing, [792a6](./792a_product-spec.md#792a6-added-controlled-vocabulary) controlled-vocabulary,
+  [792a7](./792a_product-spec.md#792a7-added-memory-query) memory-query. Vault-health adds its mappings ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
 
 Rationale: an early design embedded through an external API, which brought a network dependency,
 per-call cost and latency, and sent vault content off the machine. Instead the
@@ -3653,11 +3653,11 @@ sequenceDiagram
 
 #### 792b9c1 Bundled-model embedding
 
-Requirement: 792b9c1 The text-embedder MUST embed text with the bundled model, model ID
+Requirement: [792b9c1](#792b9c1-bundled-model-embedding) The text-embedder MUST embed text with the bundled model, model ID
 `minilm-l6-v2@384`, returning one 384-value vector per text, and MUST match the reference
 implementation's similarities for that model.
 
-Supports: 792a3n1a, 792a6a1a, 792a9i1a.
+Supports: [792a3n1a](./792a_product-spec.md#792a3n1-uat-scenarios), [792a6a1a](./792a_product-spec.md#792a6a1-uat-scenarios), [792a9i1a](./792a_product-spec.md#792a9i1-uat-scenarios).
 
 ##### 792b9c1a Scenarios
 
@@ -3685,11 +3685,11 @@ Scenario: 792b9c1a4 A run returns the pipeline's vector
 
 #### 792b9c2 Input window
 
-Requirement: 792b9c2 The text-embedder MUST cut text longer than 1500 characters to its first 1500,
+Requirement: [792b9c2](#792b9c2-input-window) The text-embedder MUST cut text longer than 1500 characters to its first 1500,
 and when the model run fails MUST halve the text and retry until a run succeeds or the text is
 shorter than 100 characters, then return the error; a run that yields no vector MUST be an error.
 
-Supports: 792a3n1a.
+Supports: [792a3n1a](./792a_product-spec.md#792a3n1-uat-scenarios).
 
 Rationale: 1500 characters fit the model's 512-token window for prose, but dense text such as code
 can tokenize past it. Halving degrades a long chunk to a shorter prefix instead of failing a whole
@@ -3716,13 +3716,13 @@ Scenario: 792b9c2a3 An empty result is an error
 
 #### 792b9c3 Construction
 
-Requirement: 792b9c3 The text-embedder MUST build itself by opening the model's pipeline and
+Requirement: [792b9c3](#792b9c3-construction) The text-embedder MUST build itself by opening the model's pipeline and
 embedding one probe text to learn the dimension. It MUST return the open error when the pipeline
 cannot open, and when the probe fails or yields an empty vector it MUST release the pipeline and
 return the error, or the empty-probe error. It MUST refuse a model directory the runtime cannot
 load, and closing it MUST release the pipeline and return any release error.
 
-Supports: 792a3n1a, 792a3n1b.
+Supports: [792a3n1a](./792a_product-spec.md#792a3n1-uat-scenarios), [792a3n1b](./792a_product-spec.md#792a3n1-uat-scenarios).
 
 ##### 792b9c3a Scenarios
 
@@ -3760,12 +3760,12 @@ Scenario: 792b9c3a6 A release error on close is returned
 
 #### 792b9c4 Lazy construction
 
-Requirement: 792b9c4 The text-embedder MUST build the model at most once per process, on the first
+Requirement: [792b9c4](#792b9c4-lazy-construction) The text-embedder MUST build the model at most once per process, on the first
 embedding or dimension request, MUST report the bundled model ID without building it, and when
 building fails MUST return an embedder-unavailable error from every embedding request and a
 dimension of 0.
 
-Supports: 792a3n1a, 792a3n1b.
+Supports: [792a3n1a](./792a_product-spec.md#792a3n1-uat-scenarios), [792a3n1b](./792a_product-spec.md#792a3n1-uat-scenarios).
 
 Rationale: commands that never embed, such as `--help` or `update`, neither pay to unpack the model
 nor fail when it cannot load.
@@ -3791,7 +3791,7 @@ Scenario: 792b9c4a3 A successful build is reused
 
 #### 792b9c5 Model cache
 
-Requirement: 792b9c5 The text-embedder MUST unpack the bundled model into the cache directory
+Requirement: [792b9c5](#792b9c5-model-cache) The text-embedder MUST unpack the bundled model into the cache directory
 `$XDG_CACHE_HOME/engram/models/<model ID>`, or `~/.cache/engram/models/<model ID>` without
 `XDG_CACHE_HOME`, at most once: it MUST reuse a cache that carries its `.complete` marker, and
 otherwise MUST unpack into a new sibling directory, write the marker, and rename that directory into
@@ -3799,7 +3799,7 @@ place. When the rename finds the cache already complete, it MUST discard its own
 cache; any other failure MUST remove its copy and be returned. A binary without the bundled model
 MUST fail with an error saying the model is missing. Closing the embedder MUST NOT remove the cache.
 
-Supports: 792a3n1a, 792a3n1b.
+Supports: [792a3n1a](./792a_product-spec.md#792a3n1-uat-scenarios), [792a3n1b](./792a_product-spec.md#792a3n1-uat-scenarios).
 
 Rationale: the model is about 90 MB, so it is unpacked once and shared by every later run. The
 rename makes the unpacked cache appear all at once, so a concurrent process never sees a half-written
@@ -3851,14 +3851,14 @@ Scenario: 792b9c5a8 The cache directory follows XDG
 
 #### 792b9c6 Cache filesystem
 
-Requirement: 792b9c6 The text-embedder's cache filesystem MUST report a rename onto an existing,
+Requirement: [792b9c6](#792b9c6-cache-filesystem) The text-embedder's cache filesystem MUST report a rename onto an existing,
 populated directory as an "already exists" error, whatever error the platform gives, and MUST
 report whether a directory carries the `.complete` marker it writes.
 
-Supports: 792a3n1a.
+Supports: [792a3n1a](./792a_product-spec.md#792a3n1-uat-scenarios).
 
 Rationale: macOS reports a directory renamed over a non-empty one as "directory not empty", not
-"exists"; translating it lets the race in 792b9c5 be recognized on every platform.
+"exists"; translating it lets the race in [792b9c5](#792b9c5-model-cache) be recognized on every platform.
 
 ##### 792b9c6a Scenarios
 
@@ -3876,12 +3876,12 @@ Scenario: 792b9c6a2 The marker round-trips
 
 #### 792b9c7 Runtime lifecycle
 
-Requirement: 792b9c7 The text-embedder's runtime backend MUST open a session and then a pipeline
+Requirement: [792b9c7](#792b9c7-runtime-lifecycle) The text-embedder's runtime backend MUST open a session and then a pipeline
 named `engram-embed` over the model's `model.onnx`, MUST release the session when the pipeline
 cannot open, and MUST return session, pipeline, run and release failures with their context. A
 backend with no runtime wired MUST fail with the runtime-missing error rather than crash.
 
-Supports: 792a3n1a.
+Supports: [792a3n1a](./792a_product-spec.md#792a3n1-uat-scenarios).
 
 ##### 792b9c7a Scenarios
 
@@ -3916,14 +3916,14 @@ Scenario: 792b9c7a5 A missing runtime fails loudly
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a3n1a | 792b9c1, 792b9c2, 792b9c3, 792b9c4, 792b9c5, 792b9c6, 792b9c7 |
-| 792a3n1b | 792b9c3, 792b9c4, 792b9c5 |
-| 792a5b1a | 792b9c1, 792b9c2 |
-| 792a5i1b | 792b9c1 |
-| 792a6a1a | 792b9c1 |
-| 792a7d1a | 792b9c1 |
-| 792a7zc1a | 792b9c1 |
-| 792a9i1a | 792b9c1 |
+| [792a3n1a](./792a_product-spec.md#792a3n1-uat-scenarios) | [792b9c1](#792b9c1-bundled-model-embedding), [792b9c2](#792b9c2-input-window), [792b9c3](#792b9c3-construction), [792b9c4](#792b9c4-lazy-construction), [792b9c5](#792b9c5-model-cache), [792b9c6](#792b9c6-cache-filesystem), [792b9c7](#792b9c7-runtime-lifecycle) |
+| [792a3n1b](./792a_product-spec.md#792a3n1-uat-scenarios) | [792b9c3](#792b9c3-construction), [792b9c4](#792b9c4-lazy-construction), [792b9c5](#792b9c5-model-cache) |
+| [792a5b1a](./792a_product-spec.md#792a5b1-uat-scenarios) | [792b9c1](#792b9c1-bundled-model-embedding), [792b9c2](#792b9c2-input-window) |
+| [792a5i1b](./792a_product-spec.md#792a5i1-uat-scenarios) | [792b9c1](#792b9c1-bundled-model-embedding) |
+| [792a6a1a](./792a_product-spec.md#792a6a1-uat-scenarios) | [792b9c1](#792b9c1-bundled-model-embedding) |
+| [792a7d1a](./792a_product-spec.md#792a7d1-uat-scenarios) | [792b9c1](#792b9c1-bundled-model-embedding) |
+| [792a7zc1a](./792a_product-spec.md#792a7zc1-uat-scenarios) | [792b9c1](#792b9c1-bundled-model-embedding) |
+| [792a9i1a](./792a_product-spec.md#792a9i1-uat-scenarios) | [792b9c1](#792b9c1-bundled-model-embedding) |
 
 ```gherkin
 Scenario: 792a3n1b A failed embedding keeps the note
@@ -3968,16 +3968,16 @@ Canonical target: `docs/specs/technical/embedding-sidecar.md` (title `Embedding 
   (`BuildSidecar`, `State`), `internal/embed/hash.go` (`SituationText`, `BodyText`, `ContentHash`),
   `internal/embed/state.go` (`ComputeState`), `internal/embed/cosine.go` (`Cosine`), and
   `autoEmbedNote` in `internal/cli/learn.go`, and `RunEmbedApply`, `RunEmbedStatus` and
-  `selectStates` in `internal/cli/embed.go` (the operator's census and re-embed, 792d99).
+  `selectStates` in `internal/cli/embed.go` (the operator's census and re-embed, [792d99](./792d_decision-log.md#792d99-vault-health-scope-and-the-behaviors-the-code-shows)).
 - Qualification: responsibility, the sidecar contract is stated without naming any writer or
   reader; ownership, callers decide when to build, read or classify a sidecar, while this component
   decides its content and what makes it current; independent verification, building, decoding,
   hashing and classification are tested directly over fake embedders and filesystems; stability,
   the on-disk format is versioned and outlives any refactoring; necessity, every retrieval over notes
   reads it.
-- Supported capabilities: 792a2 vault-identity, 792a3 note-writing, 792a4 note-revision, 792a5
-  chunk-indexing, 792a6 controlled-vocabulary, 792a7 memory-query, 792a9 vault-health.
-  Vault-migration adds its mappings (792d30).
+- Supported capabilities: [792a2](./792a_product-spec.md#792a2-added-vault-identity) vault-identity, [792a3](./792a_product-spec.md#792a3-added-note-writing) note-writing, [792a4](./792a_product-spec.md#792a4-added-note-revision) note-revision, [792a5](./792a_product-spec.md#792a5-added-chunk-indexing)
+  chunk-indexing, [792a6](./792a_product-spec.md#792a6-added-controlled-vocabulary) controlled-vocabulary, [792a7](./792a_product-spec.md#792a7-added-memory-query) memory-query, [792a9](./792a_product-spec.md#792a9-added-vault-health) vault-health.
+  Vault-migration adds its mappings ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
 
 Rationale: semantic search needs vectors, but a vector database or a separate rebuild step is a
 moving part that can drift from the notes. Instead every note carries its own sidecar, written as
@@ -4060,13 +4060,13 @@ sequenceDiagram
 
 #### 792b10c1 Sidecar format
 
-Requirement: 792b10c1 The embedding-sidecar MUST store a sidecar as JSON with `schema_version` 1,
+Requirement: [792b10c1](#792b10c1-sidecar-format) The embedding-sidecar MUST store a sidecar as JSON with `schema_version` 1,
 `embedding_model_id`, `dims`, `situation_vector`, `body_vector`, `content_hash`, and `last_used`
 only when set. Decoding MUST refuse malformed JSON, MUST refuse any other schema version, such as an
 old single-vector sidecar, before checking lengths, MUST refuse a sidecar whose either vector's
 length differs from `dims`, and MUST read an absent `last_used` as empty.
 
-Supports: 792a3n1a, 792a3u1a, 792a3u1b, 792a4n1a, 792a4n1d, 792a10c1a.
+Supports: [792a3n1a](./792a_product-spec.md#792a3n1-uat-scenarios), [792a3u1a](./792a_product-spec.md#792a3u1-uat-scenarios), [792a3u1b](./792a_product-spec.md#792a3u1-uat-scenarios), [792a4n1a](./792a_product-spec.md#792a4n1-uat-scenarios), [792a4n1d](./792a_product-spec.md#792a4n1-uat-scenarios), [792a10c1a](./792a_product-spec.md#792a10c1-uat-scenarios).
 
 Rationale: `last_used` is added metadata. It does not bump the schema version, and it is kept out of
 the content hash, so recording a use never makes a note look stale.
@@ -4102,10 +4102,10 @@ Scenario: 792b10c1a5 An old single-vector sidecar is a schema error
 
 #### 792b10c2 Sidecar path
 
-Requirement: 792b10c2 The embedding-sidecar MUST place a note's sidecar beside it, named after the
+Requirement: [792b10c2](#792b10c2-sidecar-path) The embedding-sidecar MUST place a note's sidecar beside it, named after the
 note with `.md` replaced by `.vec.json`, and MUST append `.vec.json` to any other path.
 
-Supports: 792a3n1a, 792a6a1a.
+Supports: [792a3n1a](./792a_product-spec.md#792a3n1-uat-scenarios), [792a6a1a](./792a_product-spec.md#792a6a1-uat-scenarios).
 
 ##### 792b10c2a Scenarios
 
@@ -4123,13 +4123,13 @@ Scenario: 792b10c2a2 A non-Markdown path gets the suffix appended
 
 #### 792b10c3 Embedding sources
 
-Requirement: 792b10c3 The embedding-sidecar MUST take a note's situation text from its
+Requirement: [792b10c3](#792b10c3-embedding-sources) The embedding-sidecar MUST take a note's situation text from its
 `situation:` frontmatter value, trimmed, for any kind of note, and its body text from the text after
 the frontmatter, less one leading blank line, with every machine-written line removed (lines
 starting `Supersedes:`, `Contributors:`, `Answered by:` or `Answers:`) and trailing blank lines
 reduced to one newline. Other body lines MUST be kept. A note with no frontmatter is all body.
 
-Supports: 792a3n1a, 792a3q1a, 792a4g1a, 792a4g1b, 792a6d1a, 792a6j1a.
+Supports: [792a3n1a](./792a_product-spec.md#792a3n1-uat-scenarios), [792a3q1a](./792a_product-spec.md#792a3q1-uat-scenarios), [792a4g1a](./792a_product-spec.md#792a4g1-uat-scenarios), [792a4g1b](./792a_product-spec.md#792a4g1-uat-scenarios), [792a6d1a](./792a_product-spec.md#792a6d1-uat-scenarios), [792a6j1a](./792a_product-spec.md#792a6j1-uat-scenarios).
 
 Rationale: the machine-written lines are link channels rewritten in place by learn, amend and
 curation. Leaving them out means a link-only change neither moves the body vector nor makes the
@@ -4166,11 +4166,11 @@ Scenario: 792b10c3a5 Trailing blank lines are normalized
 
 #### 792b10c4 Content hash
 
-Requirement: 792b10c4 The embedding-sidecar MUST hash a note as `sha256:` followed by the hex
+Requirement: [792b10c4](#792b10c4-content-hash) The embedding-sidecar MUST hash a note as `sha256:` followed by the hex
 SHA-256 of its situation text, a zero byte, and its body text, so the hash changes when either
 changes, does not change for any other frontmatter edit, and is the same for the same note.
 
-Supports: 792a3n1a, 792a4g1a, 792a4g1b, 792a6u1a, 792a10i1c.
+Supports: [792a3n1a](./792a_product-spec.md#792a3n1-uat-scenarios), [792a4g1a](./792a_product-spec.md#792a4g1-uat-scenarios), [792a4g1b](./792a_product-spec.md#792a4g1-uat-scenarios), [792a6u1a](./792a_product-spec.md#792a6u1-uat-scenarios), [792a10i1c](./792a_product-spec.md#792a10i1-uat-scenarios).
 
 ##### 792b10c4a Scenarios
 
@@ -4198,13 +4198,13 @@ Scenario: 792b10c4a4 Hashing is repeatable
 
 #### 792b10c5 Building a sidecar
 
-Requirement: 792b10c5 The embedding-sidecar MUST build a sidecar by embedding the situation text,
+Requirement: [792b10c5](#792b10c5-building-a-sidecar) The embedding-sidecar MUST build a sidecar by embedding the situation text,
 or the body text when the note has no situation, and the body text, and stamping schema version 1,
 the embedder's model ID and dimension, and the note's content hash; an embedding failure MUST be
 returned.
 
-Supports: 792a3n1a, 792a3n1b, 792a4g1a, 792a4g1c, 792a4l1a, 792a4l1c, 792a4o1b, 792a6a1a, 792a10e1f,
-792a10i1c, 792a10l1d.
+Supports: [792a3n1a](./792a_product-spec.md#792a3n1-uat-scenarios), [792a3n1b](./792a_product-spec.md#792a3n1-uat-scenarios), [792a4g1a](./792a_product-spec.md#792a4g1-uat-scenarios), [792a4g1c](./792a_product-spec.md#792a4g1-uat-scenarios), [792a4l1a](./792a_product-spec.md#792a4l1-uat-scenarios), [792a4l1c](./792a_product-spec.md#792a4l1-uat-scenarios), [792a4o1b](./792a_product-spec.md#792a4o1-uat-scenarios), [792a6a1a](./792a_product-spec.md#792a6a1-uat-scenarios), [792a10e1f](./792a_product-spec.md#792a10e1-uat-scenarios),
+[792a10i1c](./792a_product-spec.md#792a10i1-uat-scenarios), [792a10l1d](./792a_product-spec.md#792a10l1-uat-scenarios).
 
 ##### 792b10c5a Scenarios
 
@@ -4222,12 +4222,12 @@ Scenario: 792b10c5a2 A note without a situation embeds its body twice
 
 #### 792b10c6 Writing a learned note's sidecar
 
-Requirement: 792b10c6 After `engram learn` writes a note, the embedding-sidecar MUST build its
+Requirement: [792b10c6](#792b10c6-writing-a-learned-notes-sidecar) After `engram learn` writes a note, the embedding-sidecar MUST build its
 sidecar and atomically write it to the note's sidecar path. When building or writing fails, it MUST
 log a warning naming the note and return without failing the command. With no embedder or no
 sidecar writer wired, it MUST do nothing.
 
-Supports: 792a3n1a, 792a3n1b, 792a6e1b.
+Supports: [792a3n1a](./792a_product-spec.md#792a3n1-uat-scenarios), [792a3n1b](./792a_product-spec.md#792a3n1-uat-scenarios), [792a6e1b](./792a_product-spec.md#792a6e1-uat-scenarios).
 
 Rationale: the note itself is already written in one atomic step, so a missing sidecar is
 recoverable later by `engram embed apply --missing`.
@@ -4258,20 +4258,20 @@ Scenario: 792b10c6a4 Nothing is done without an embedder or writer
 
 #### 792b10c7 State classification
 
-Requirement: 792b10c7 The embedding-sidecar MUST classify a note against the current model as
+Requirement: [792b10c7](#792b10c7-state-classification) The embedding-sidecar MUST classify a note against the current model as
 `broken` when the note cannot be read; `missing` when its sidecar does not exist; `broken` when the
 sidecar cannot be read, is malformed or has a dims mismatch; `incompatible` when it has another
 schema version or another model ID; `stale` when its content hash differs from the note's; and `ok`
 otherwise, checking the model before the hash.
 
-Supports: 792a2c1a, 792a2d1a, 792a2d1b, 792a6u1a, 792a9g1a, 792a9g1b, 792a9h1a, 792a9h1b, 792a9h1c,
-792a9h1f.
+Supports: [792a2c1a](./792a_product-spec.md#792a2c1-uat-scenarios), [792a2d1a](./792a_product-spec.md#792a2d1-uat-scenarios), [792a2d1b](./792a_product-spec.md#792a2d1-uat-scenarios), [792a6u1a](./792a_product-spec.md#792a6u1-uat-scenarios), [792a9g1a](./792a_product-spec.md#792a9g1-uat-scenarios), [792a9g1b](./792a_product-spec.md#792a9g1-uat-scenarios), [792a9h1a](./792a_product-spec.md#792a9h1-uat-scenarios), [792a9h1b](./792a_product-spec.md#792a9h1-uat-scenarios), [792a9h1c](./792a_product-spec.md#792a9h1-uat-scenarios),
+[792a9h1f](./792a_product-spec.md#792a9h1-uat-scenarios).
 
 Rationale: a re-embed under a new model also picks up any content change, so a model mismatch takes
 precedence. Every failure is a state rather than an error, so a pass over the whole vault never
 stops early. All sidecars are expected to share one model ID. A query skips sidecars made by another
 model with only an advisory, and fails only when none remains, so after a partial model change its
-results can be silently thinner (792d66).
+results can be silently thinner ([792d66](./792d_decision-log.md#792d66-embedding-sidecar-scope-and-the-partial-model-mismatch-gap)).
 
 ##### 792b10c7a Scenarios
 
@@ -4309,10 +4309,10 @@ Scenario: 792b10c7a6 States have labels
 
 #### 792b10c8 Cosine similarity
 
-Requirement: 792b10c8 The embedding-sidecar MUST measure two vectors' cosine similarity, and MUST
+Requirement: [792b10c8](#792b10c8-cosine-similarity) The embedding-sidecar MUST measure two vectors' cosine similarity, and MUST
 return 0 when their lengths differ, when they are empty, or when either has zero magnitude.
 
-Supports: 792a3t1a, 792a3u1a, 792a3u1b, 792a6d1a, 792a6d1c, 792a10c1a, 792a10c1b.
+Supports: [792a3t1a](./792a_product-spec.md#792a3t1-uat-scenarios), [792a3u1a](./792a_product-spec.md#792a3u1-uat-scenarios), [792a3u1b](./792a_product-spec.md#792a3u1-uat-scenarios), [792a6d1a](./792a_product-spec.md#792a6d1-uat-scenarios), [792a6d1c](./792a_product-spec.md#792a6d1-uat-scenarios), [792a10c1a](./792a_product-spec.md#792a10c1-uat-scenarios), [792a10c1b](./792a_product-spec.md#792a10c1-uat-scenarios).
 
 ##### 792b10c8a Scenarios
 
@@ -4335,11 +4335,11 @@ Scenario: 792b10c8a3 Vectors without signal score 0
 
 #### 792b10c9 CRLF notes
 
-Requirement: 792b10c9 The embedding-sidecar MUST take the situation text, the body text and the
+Requirement: [792b10c9](#792b10c9-crlf-notes) The embedding-sidecar MUST take the situation text, the body text and the
 content hash of a note whose lines end in `\r\n` from its LF form, so that each equals the value
 for the note's LF form.
 
-Supports: 792a4m1a, 792a9j1a, 792a9j1b.
+Supports: [792a4m1a](./792a_product-spec.md#792a4m1-uat-scenarios), [792a9j1a](./792a_product-spec.md#792a9j1-uat-scenarios), [792a9j1b](./792a_product-spec.md#792a9j1-uat-scenarios).
 
 Rationale: a CRLF note used to be embedded from the wrong text, and a conversion to LF then changed
 its hash. Reading the LF form makes the conversion that a revision makes leave the hash as it
@@ -4356,12 +4356,12 @@ Scenario: 792b10c9a1 A CRLF note embeds and hashes as its LF form
 
 #### 792b10c10 Embedding census
 
-Requirement: 792b10c10 The embedding-sidecar MUST, for a census, scan the vault, classify each scanned
-note (792b10c7) and print six lines: `total:` and the number of notes, then `with-embeddings:` (ok),
+Requirement: [792b10c10](#792b10c10-embedding-census) The embedding-sidecar MUST, for a census, scan the vault, classify each scanned
+note ([792b10c7](#792b10c7-state-classification)) and print six lines: `total:` and the number of notes, then `with-embeddings:` (ok),
 `without:` (missing), `stale:`, `incompatible:` and `broken:` with their numbers, each label padded
 so the numbers align. It MUST return a scan failure as `embed status: scan: <error>`.
 
-Supports: 792a9g1a, 792a9g1b, 792a9g1c, 792a9j1a.
+Supports: [792a9g1a](./792a_product-spec.md#792a9g1-uat-scenarios), [792a9g1b](./792a_product-spec.md#792a9g1-uat-scenarios), [792a9g1c](./792a_product-spec.md#792a9g1-uat-scenarios), [792a9j1a](./792a_product-spec.md#792a9j1-uat-scenarios).
 
 ##### 792b10c10a Scenarios
 
@@ -4384,16 +4384,16 @@ Scenario: 792b10c10a3 A scan failure is returned
 
 #### 792b10c11 Embedding selection
 
-Requirement: 792b10c11 The embedding-sidecar MUST select, with no mode flag or with the missing flag,
+Requirement: [792b10c11](#792b10c11-embedding-selection) The embedding-sidecar MUST select, with no mode flag or with the missing flag,
 the notes whose state is missing; with the stale flag, the stale notes; with the force flag, the
 incompatible notes; and with the all flag, every note. Mode flags other than all MUST combine, and all
 MUST select every state. It MUST select a note whose state is broken under every selection.
 
-Supports: 792a9h1a, 792a9h1b, 792a9h1c, 792a9h1d, 792a9h1e, 792a9h1f.
+Supports: [792a9h1a](./792a_product-spec.md#792a9h1-uat-scenarios), [792a9h1b](./792a_product-spec.md#792a9h1-uat-scenarios), [792a9h1c](./792a_product-spec.md#792a9h1-uat-scenarios), [792a9h1d](./792a_product-spec.md#792a9h1-uat-scenarios), [792a9h1e](./792a_product-spec.md#792a9h1-uat-scenarios), [792a9h1f](./792a_product-spec.md#792a9h1-uat-scenarios).
 
 Rationale: a broken sidecar cannot be classified against the content, and no selection should leave
 it, so every selection takes it. The force flag is separate from the stale flag because replacing
-another model's sidecars changes the model a vault runs under (792b10c7).
+another model's sidecars changes the model a vault runs under ([792b10c7](#792b10c7-state-classification)).
 
 ##### 792b10c11a Scenarios
 
@@ -4431,8 +4431,8 @@ Scenario: 792b10c11a6 Mode flags combine
 
 #### 792b10c12 Embedding run
 
-Requirement: 792b10c12 The embedding-sidecar MUST, for each selected note in ascending basename order,
-read the note, build its sidecar (792b10c5), write it atomically beside the note and print
+Requirement: [792b10c12](#792b10c12-embedding-run) The embedding-sidecar MUST, for each selected note in ascending basename order,
+read the note, build its sidecar ([792b10c5](#792b10c5-building-a-sidecar)), write it atomically beside the note and print
 `embedded  <note>.md (<state>)`. With the dry-run flag it MUST print `would-embed <note>.md (<state>)`
 and write nothing. It MUST print `skip      <note>.md: read error: <error>` for a note it
 cannot read, and `fail      <note>.md: embed: <error>` or `fail      <note>.md: write: <error>` for an
@@ -4440,8 +4440,8 @@ embedding or a write that fails, and MUST continue with the remaining notes and 
 for them. It MUST write nothing but sidecars, and MUST return a scan failure as `embed apply: scan:
 <error>`.
 
-Supports: 792a9h1a, 792a9h1b, 792a9h1c, 792a9h1d, 792a9h1f, 792a9i1a, 792a9i1b, 792a9i1c, 792a9i1d,
-792a9i1e, 792a9i1f, 792a9j1b.
+Supports: [792a9h1a](./792a_product-spec.md#792a9h1-uat-scenarios), [792a9h1b](./792a_product-spec.md#792a9h1-uat-scenarios), [792a9h1c](./792a_product-spec.md#792a9h1-uat-scenarios), [792a9h1d](./792a_product-spec.md#792a9h1-uat-scenarios), [792a9h1f](./792a_product-spec.md#792a9h1-uat-scenarios), [792a9i1a](./792a_product-spec.md#792a9i1-uat-scenarios), [792a9i1b](./792a_product-spec.md#792a9i1-uat-scenarios), [792a9i1c](./792a_product-spec.md#792a9i1-uat-scenarios), [792a9i1d](./792a_product-spec.md#792a9i1-uat-scenarios),
+[792a9i1e](./792a_product-spec.md#792a9i1-uat-scenarios), [792a9i1f](./792a_product-spec.md#792a9i1-uat-scenarios), [792a9j1b](./792a_product-spec.md#792a9j1-uat-scenarios).
 
 Rationale: a sidecar is a derived file, not part of the note's git-tracked content. It is recomputed
 from the current note, so its content hash stays honest, and it is never stored in or versioned with
@@ -4505,59 +4505,59 @@ Scenario: 792b10c12a10 Only sidecars are written
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a2c1a | 792b10c7 |
-| 792a2d1a | 792b10c7 |
-| 792a2d1b | 792b10c7 |
-| 792a3n1a | 792b10c1, 792b10c2, 792b10c3, 792b10c4, 792b10c5, 792b10c6 |
-| 792a3n1b | 792b10c5, 792b10c6 |
-| 792a3q1a | 792b10c3 |
-| 792a3t1a | 792b10c8 |
-| 792a3u1a | 792b10c1, 792b10c8 |
-| 792a3u1b | 792b10c1, 792b10c8 |
-| 792a4g1a | 792b10c3, 792b10c4, 792b10c5 |
-| 792a4g1b | 792b10c3, 792b10c4 |
-| 792a4g1c | 792b10c5 |
-| 792a4l1a | 792b10c5 |
-| 792a4l1c | 792b10c5 |
-| 792a4m1a | 792b10c9 |
-| 792a4n1a | 792b10c1 |
-| 792a4n1d | 792b10c1 |
-| 792a4o1b | 792b10c5 |
-| 792a5n1a | 792b10c2 |
-| 792a6a1a | 792b10c2, 792b10c5 |
-| 792a6d1a | 792b10c3, 792b10c8 |
-| 792a6d1c | 792b10c8 |
-| 792a6e1b | 792b10c6 |
-| 792a6j1a | 792b10c3 |
-| 792a6u1a | 792b10c4, 792b10c7 |
-| 792a7c1a | 792b10c1 |
-| 792a7c1b | 792b10c1 |
-| 792a7c1c | 792b10c1 |
-| 792a7d1a | 792b10c1, 792b10c8 |
-| 792a7f1b | 792b10c1 |
-| 792a7zh1a | 792b10c1 |
-| 792a9g1a | 792b10c10, 792b10c7 |
-| 792a9g1b | 792b10c10, 792b10c7 |
-| 792a9g1c | 792b10c10 |
-| 792a9h1a | 792b10c11, 792b10c12, 792b10c7 |
-| 792a9h1b | 792b10c11, 792b10c12, 792b10c7 |
-| 792a9h1c | 792b10c11, 792b10c12, 792b10c7 |
-| 792a9h1d | 792b10c11, 792b10c12 |
-| 792a9h1e | 792b10c11 |
-| 792a9h1f | 792b10c11, 792b10c12, 792b10c7 |
-| 792a9i1a | 792b10c12 |
-| 792a9i1b | 792b10c12 |
-| 792a9i1c | 792b10c12 |
-| 792a9i1d | 792b10c12 |
-| 792a9i1e | 792b10c12 |
-| 792a9i1f | 792b10c12 |
-| 792a9j1a | 792b10c10, 792b10c9 |
-| 792a9j1b | 792b10c12, 792b10c9 |
-| 792a10c1a | 792b10c1, 792b10c8 |
-| 792a10c1b | 792b10c8 |
-| 792a10e1f | 792b10c5 |
-| 792a10i1c | 792b10c5, 792b10c4 |
-| 792a10l1d | 792b10c5 |
+| [792a2c1a](./792a_product-spec.md#792a2c1-uat-scenarios) | [792b10c7](#792b10c7-state-classification) |
+| [792a2d1a](./792a_product-spec.md#792a2d1-uat-scenarios) | [792b10c7](#792b10c7-state-classification) |
+| [792a2d1b](./792a_product-spec.md#792a2d1-uat-scenarios) | [792b10c7](#792b10c7-state-classification) |
+| [792a3n1a](./792a_product-spec.md#792a3n1-uat-scenarios) | [792b10c1](#792b10c1-sidecar-format), [792b10c2](#792b10c2-sidecar-path), [792b10c3](#792b10c3-embedding-sources), [792b10c4](#792b10c4-content-hash), [792b10c5](#792b10c5-building-a-sidecar), [792b10c6](#792b10c6-writing-a-learned-notes-sidecar) |
+| [792a3n1b](./792a_product-spec.md#792a3n1-uat-scenarios) | [792b10c5](#792b10c5-building-a-sidecar), [792b10c6](#792b10c6-writing-a-learned-notes-sidecar) |
+| [792a3q1a](./792a_product-spec.md#792a3q1-uat-scenarios) | [792b10c3](#792b10c3-embedding-sources) |
+| [792a3t1a](./792a_product-spec.md#792a3t1-uat-scenarios) | [792b10c8](#792b10c8-cosine-similarity) |
+| [792a3u1a](./792a_product-spec.md#792a3u1-uat-scenarios) | [792b10c1](#792b10c1-sidecar-format), [792b10c8](#792b10c8-cosine-similarity) |
+| [792a3u1b](./792a_product-spec.md#792a3u1-uat-scenarios) | [792b10c1](#792b10c1-sidecar-format), [792b10c8](#792b10c8-cosine-similarity) |
+| [792a4g1a](./792a_product-spec.md#792a4g1-uat-scenarios) | [792b10c3](#792b10c3-embedding-sources), [792b10c4](#792b10c4-content-hash), [792b10c5](#792b10c5-building-a-sidecar) |
+| [792a4g1b](./792a_product-spec.md#792a4g1-uat-scenarios) | [792b10c3](#792b10c3-embedding-sources), [792b10c4](#792b10c4-content-hash) |
+| [792a4g1c](./792a_product-spec.md#792a4g1-uat-scenarios) | [792b10c5](#792b10c5-building-a-sidecar) |
+| [792a4l1a](./792a_product-spec.md#792a4l1-uat-scenarios) | [792b10c5](#792b10c5-building-a-sidecar) |
+| [792a4l1c](./792a_product-spec.md#792a4l1-uat-scenarios) | [792b10c5](#792b10c5-building-a-sidecar) |
+| [792a4m1a](./792a_product-spec.md#792a4m1-uat-scenarios) | [792b10c9](#792b10c9-crlf-notes) |
+| [792a4n1a](./792a_product-spec.md#792a4n1-uat-scenarios) | [792b10c1](#792b10c1-sidecar-format) |
+| [792a4n1d](./792a_product-spec.md#792a4n1-uat-scenarios) | [792b10c1](#792b10c1-sidecar-format) |
+| [792a4o1b](./792a_product-spec.md#792a4o1-uat-scenarios) | [792b10c5](#792b10c5-building-a-sidecar) |
+| [792a5n1a](./792a_product-spec.md#792a5n1-uat-scenarios) | [792b10c2](#792b10c2-sidecar-path) |
+| [792a6a1a](./792a_product-spec.md#792a6a1-uat-scenarios) | [792b10c2](#792b10c2-sidecar-path), [792b10c5](#792b10c5-building-a-sidecar) |
+| [792a6d1a](./792a_product-spec.md#792a6d1-uat-scenarios) | [792b10c3](#792b10c3-embedding-sources), [792b10c8](#792b10c8-cosine-similarity) |
+| [792a6d1c](./792a_product-spec.md#792a6d1-uat-scenarios) | [792b10c8](#792b10c8-cosine-similarity) |
+| [792a6e1b](./792a_product-spec.md#792a6e1-uat-scenarios) | [792b10c6](#792b10c6-writing-a-learned-notes-sidecar) |
+| [792a6j1a](./792a_product-spec.md#792a6j1-uat-scenarios) | [792b10c3](#792b10c3-embedding-sources) |
+| [792a6u1a](./792a_product-spec.md#792a6u1-uat-scenarios) | [792b10c4](#792b10c4-content-hash), [792b10c7](#792b10c7-state-classification) |
+| [792a7c1a](./792a_product-spec.md#792a7c1-uat-scenarios) | [792b10c1](#792b10c1-sidecar-format) |
+| [792a7c1b](./792a_product-spec.md#792a7c1-uat-scenarios) | [792b10c1](#792b10c1-sidecar-format) |
+| [792a7c1c](./792a_product-spec.md#792a7c1-uat-scenarios) | [792b10c1](#792b10c1-sidecar-format) |
+| [792a7d1a](./792a_product-spec.md#792a7d1-uat-scenarios) | [792b10c1](#792b10c1-sidecar-format), [792b10c8](#792b10c8-cosine-similarity) |
+| [792a7f1b](./792a_product-spec.md#792a7f1-uat-scenarios) | [792b10c1](#792b10c1-sidecar-format) |
+| [792a7zh1a](./792a_product-spec.md#792a7zh1-uat-scenarios) | [792b10c1](#792b10c1-sidecar-format) |
+| [792a9g1a](./792a_product-spec.md#792a9g1-uat-scenarios) | [792b10c10](#792b10c10-embedding-census), [792b10c7](#792b10c7-state-classification) |
+| [792a9g1b](./792a_product-spec.md#792a9g1-uat-scenarios) | [792b10c10](#792b10c10-embedding-census), [792b10c7](#792b10c7-state-classification) |
+| [792a9g1c](./792a_product-spec.md#792a9g1-uat-scenarios) | [792b10c10](#792b10c10-embedding-census) |
+| [792a9h1a](./792a_product-spec.md#792a9h1-uat-scenarios) | [792b10c11](#792b10c11-embedding-selection), [792b10c12](#792b10c12-embedding-run), [792b10c7](#792b10c7-state-classification) |
+| [792a9h1b](./792a_product-spec.md#792a9h1-uat-scenarios) | [792b10c11](#792b10c11-embedding-selection), [792b10c12](#792b10c12-embedding-run), [792b10c7](#792b10c7-state-classification) |
+| [792a9h1c](./792a_product-spec.md#792a9h1-uat-scenarios) | [792b10c11](#792b10c11-embedding-selection), [792b10c12](#792b10c12-embedding-run), [792b10c7](#792b10c7-state-classification) |
+| [792a9h1d](./792a_product-spec.md#792a9h1-uat-scenarios) | [792b10c11](#792b10c11-embedding-selection), [792b10c12](#792b10c12-embedding-run) |
+| [792a9h1e](./792a_product-spec.md#792a9h1-uat-scenarios) | [792b10c11](#792b10c11-embedding-selection) |
+| [792a9h1f](./792a_product-spec.md#792a9h1-uat-scenarios) | [792b10c11](#792b10c11-embedding-selection), [792b10c12](#792b10c12-embedding-run), [792b10c7](#792b10c7-state-classification) |
+| [792a9i1a](./792a_product-spec.md#792a9i1-uat-scenarios) | [792b10c12](#792b10c12-embedding-run) |
+| [792a9i1b](./792a_product-spec.md#792a9i1-uat-scenarios) | [792b10c12](#792b10c12-embedding-run) |
+| [792a9i1c](./792a_product-spec.md#792a9i1-uat-scenarios) | [792b10c12](#792b10c12-embedding-run) |
+| [792a9i1d](./792a_product-spec.md#792a9i1-uat-scenarios) | [792b10c12](#792b10c12-embedding-run) |
+| [792a9i1e](./792a_product-spec.md#792a9i1-uat-scenarios) | [792b10c12](#792b10c12-embedding-run) |
+| [792a9i1f](./792a_product-spec.md#792a9i1-uat-scenarios) | [792b10c12](#792b10c12-embedding-run) |
+| [792a9j1a](./792a_product-spec.md#792a9j1-uat-scenarios) | [792b10c10](#792b10c10-embedding-census), [792b10c9](#792b10c9-crlf-notes) |
+| [792a9j1b](./792a_product-spec.md#792a9j1-uat-scenarios) | [792b10c12](#792b10c12-embedding-run), [792b10c9](#792b10c9-crlf-notes) |
+| [792a10c1a](./792a_product-spec.md#792a10c1-uat-scenarios) | [792b10c1](#792b10c1-sidecar-format), [792b10c8](#792b10c8-cosine-similarity) |
+| [792a10c1b](./792a_product-spec.md#792a10c1-uat-scenarios) | [792b10c8](#792b10c8-cosine-similarity) |
+| [792a10e1f](./792a_product-spec.md#792a10e1-uat-scenarios) | [792b10c5](#792b10c5-building-a-sidecar) |
+| [792a10i1c](./792a_product-spec.md#792a10i1-uat-scenarios) | [792b10c5](#792b10c5-building-a-sidecar), [792b10c4](#792b10c4-content-hash) |
+| [792a10l1d](./792a_product-spec.md#792a10l1-uat-scenarios) | [792b10c5](#792b10c5-building-a-sidecar) |
 
 ```gherkin
 Scenario: 792a3t1a The answer is found and the question is not
@@ -4761,14 +4761,14 @@ Canonical target: `docs/specs/technical/note-provenance.md` (title `Note Provena
 - Current realization (informational): `detectRepo`, `detectUser`, `firstWriteIdentity` and
   `identityStamp` in `internal/cli/identity.go`; `newLearnDeps` wires them for `learn`. The amend
   re-stamp is `identityStamp.stampPreservingUser`; identity backfill
-  (`internal/cli/identity_backfill.go`) is 792b11c5 to 792b11c7 (792d67).
+  (`internal/cli/identity_backfill.go`) is [792b11c5](#792b11c5-repository-for-a-backfill) to [792b11c7](#792b11c7-identity-backfill) ([792d67](./792d_decision-log.md#792d67-note-provenance-covers-detection-and-the-first-write-stamp)).
 - Qualification: responsibility, provenance detection is stated without naming any command;
   ownership, writers decide when to stamp, while this component decides what the values are;
   independent verification, detection and stamping are tested directly over a fake `git` and user
   lookup; stability, the fields and their sources survive any change to the writers; necessity,
   every note's `repo:`, `user:` and `vault:` come from it.
-- Supported capabilities: 792a2 vault-identity, 792a3 note-writing, 792a4 note-revision, 792a10
-  vault-migration. Vault-serving and parent-sync add their requirements (792d30, 792d67).
+- Supported capabilities: [792a2](./792a_product-spec.md#792a2-added-vault-identity) vault-identity, [792a3](./792a_product-spec.md#792a3-added-note-writing) note-writing, [792a4](./792a_product-spec.md#792a4-added-note-revision) note-revision, [792a10](./792a_product-spec.md#792a10-added-vault-migration)
+  vault-migration. Vault-serving and parent-sync add their requirements ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later), [792d67](./792d_decision-log.md#792d67-note-provenance-covers-detection-and-the-first-write-stamp)).
 
 Rationale: detection shells out to `git` rather than reading `.git/config`, because reproducing
 git's own configuration precedence (worktrees, `includeIf` and so on) would bring no benefit.
@@ -4823,12 +4823,12 @@ sequenceDiagram
 
 #### 792b11c1 Repository detection
 
-Requirement: 792b11c1 The note-provenance MUST resolve the repository as the output of
+Requirement: [792b11c1](#792b11c1-repository-detection) The note-provenance MUST resolve the repository as the output of
 `git remote get-url origin` in the working directory, trimmed; when that fails or prints nothing,
 as the basename of the path printed by `git rev-parse --show-toplevel`; and otherwise, including
 when the working directory cannot be resolved, as empty, without failing.
 
-Supports: 792a3o1a, 792a3o1b, 792a3o1c, 792a4h1a, 792a4h1b, 792a4h1c.
+Supports: [792a3o1a](./792a_product-spec.md#792a3o1-uat-scenarios), [792a3o1b](./792a_product-spec.md#792a3o1-uat-scenarios), [792a3o1c](./792a_product-spec.md#792a3o1-uat-scenarios), [792a4h1a](./792a_product-spec.md#792a4h1-uat-scenarios), [792a4h1b](./792a_product-spec.md#792a4h1-uat-scenarios), [792a4h1c](./792a_product-spec.md#792a4h1-uat-scenarios).
 
 ##### 792b11c1a Scenarios
 
@@ -4856,11 +4856,11 @@ Scenario: 792b11c1a4 An unresolvable working directory has no repository
 
 #### 792b11c2 User detection
 
-Requirement: 792b11c2 The note-provenance MUST resolve the user as the output of
+Requirement: [792b11c2](#792b11c2-user-detection) The note-provenance MUST resolve the user as the output of
 `git config user.email`, trimmed; when that fails or prints nothing, as the OS username; and when
 that also fails or is unavailable, as empty, without failing.
 
-Supports: 792a3p1a, 792a3p1b, 792a3p1c, 792a4h1a, 792a4h1b, 792a4h1d, 792a4h1e.
+Supports: [792a3p1a](./792a_product-spec.md#792a3p1-uat-scenarios), [792a3p1b](./792a_product-spec.md#792a3p1-uat-scenarios), [792a3p1c](./792a_product-spec.md#792a3p1-uat-scenarios), [792a4h1a](./792a_product-spec.md#792a4h1-uat-scenarios), [792a4h1b](./792a_product-spec.md#792a4h1-uat-scenarios), [792a4h1d](./792a_product-spec.md#792a4h1-uat-scenarios), [792a4h1e](./792a_product-spec.md#792a4h1-uat-scenarios).
 
 ##### 792b11c2a Scenarios
 
@@ -4883,13 +4883,13 @@ Scenario: 792b11c2a3 No source resolves
 
 #### 792b11c3 First-write stamp
 
-Requirement: 792b11c3 On a note's first write, the note-provenance MUST stamp the resolved
+Requirement: [792b11c3](#792b11c3-first-write-stamp) On a note's first write, the note-provenance MUST stamp the resolved
 repository, user and vault name; a stamp whose user is empty MUST leave `user:` out and log one
 warning that user detection resolved empty, naming the command, and a stamp whose vault name is
 empty MUST leave `vault:` out and log one warning.
 
-Supports: 792a2b1a, 792a2b1b, 792a2b1c, 792a3o1a, 792a3o1b, 792a3o1c, 792a3p1a, 792a3p1b,
-792a3p1c.
+Supports: [792a2b1a](./792a_product-spec.md#792a2b1-uat-scenarios), [792a2b1b](./792a_product-spec.md#792a2b1-uat-scenarios), [792a2b1c](./792a_product-spec.md#792a2b1-uat-scenarios), [792a3o1a](./792a_product-spec.md#792a3o1-uat-scenarios), [792a3o1b](./792a_product-spec.md#792a3o1-uat-scenarios), [792a3o1c](./792a_product-spec.md#792a3o1-uat-scenarios), [792a3p1a](./792a_product-spec.md#792a3p1-uat-scenarios), [792a3p1b](./792a_product-spec.md#792a3p1-uat-scenarios),
+[792a3p1c](./792a_product-spec.md#792a3p1-uat-scenarios).
 
 Rationale: an empty `user: ""` or `vault: ""` would look like a real value to every later reader.
 Identity backfill, or a later amend that re-stamps, fills a missing user in.
@@ -4915,13 +4915,13 @@ Scenario: 792b11c3a3 An empty vault name is left out
 
 #### 792b11c4 Re-stamp
 
-Requirement: 792b11c4 When a revision re-stamps a note, the note-provenance MUST overwrite the
+Requirement: [792b11c4](#792b11c4-re-stamp) When a revision re-stamps a note, the note-provenance MUST overwrite the
 note's repository, user and vault with the resolved repository, user and vault name; when the
 resolved user is empty it MUST keep a non-empty user the note already has, logging one warning that
 names the note and says user detection resolved empty, and MUST leave the user out when the note has
 none. With no re-stamp to apply, it MUST change nothing.
 
-Supports: 792a4h1a, 792a4h1b, 792a4h1c, 792a4h1d, 792a4h1e, 792a4h1f, 792a4h1g.
+Supports: [792a4h1a](./792a_product-spec.md#792a4h1-uat-scenarios), [792a4h1b](./792a_product-spec.md#792a4h1-uat-scenarios), [792a4h1c](./792a_product-spec.md#792a4h1-uat-scenarios), [792a4h1d](./792a_product-spec.md#792a4h1-uat-scenarios), [792a4h1e](./792a_product-spec.md#792a4h1-uat-scenarios), [792a4h1f](./792a_product-spec.md#792a4h1-uat-scenarios), [792a4h1g](./792a_product-spec.md#792a4h1-uat-scenarios).
 
 Rationale: the alternatives for an empty user were to refuse the revision, which blocks content
 edits on a machine with broken identity, or to keep the old value silently, which hides the broken
@@ -4954,11 +4954,11 @@ Scenario: 792b11c4a4 No re-stamp changes nothing
 
 #### 792b11c5 Repository for a backfill
 
-Requirement: 792b11c5 The note-provenance MUST, when backfilling a note's identity, resolve the note's
+Requirement: [792b11c5](#792b11c5-repository-for-a-backfill) The note-provenance MUST, when backfilling a note's identity, resolve the note's
 repository as the note's `project:` when it is non-empty, and otherwise as the repository detection of the
-backfill's working directory (792b11c1), which may itself be empty.
+backfill's working directory ([792b11c1](#792b11c1-repository-detection)), which may itself be empty.
 
-Supports: 792a10k1b, 792a10k1c.
+Supports: [792a10k1b](./792a_product-spec.md#792a10k1-uat-scenarios), [792a10k1c](./792a_product-spec.md#792a10k1-uat-scenarios).
 
 Rationale: one backfill run has one working directory but may stamp notes from several repositories, so the
 note's own `project:` is the better per-note signal. An amend always uses fresh detection.
@@ -4984,12 +4984,12 @@ Scenario: 792b11c5a3 Neither resolves
 
 #### 792b11c6 Notes a backfill could stamp
 
-Requirement: 792b11c6 The note-provenance MUST judge a note stampable when it is a `fact` or `feedback` note
+Requirement: [792b11c6](#792b11c6-notes-a-backfill-could-stamp) The note-provenance MUST judge a note stampable when it is a `fact` or `feedback` note
 whose frontmatter parses, read as its LF form, that has no `user:` and either has no `vault:` or a user
-resolves now (792b11c2). It MUST judge a vault to hold such a note when any file at its root is stampable, and
+resolves now ([792b11c2](#792b11c2-user-detection)). It MUST judge a vault to hold such a note when any file at its root is stampable, and
 MUST judge it not to when its directory or a file cannot be read.
 
-Supports: 792a10j1a, 792a10j1b, 792a10j1c, 792a10j1d.
+Supports: [792a10j1a](./792a_product-spec.md#792a10j1-uat-scenarios), [792a10j1b](./792a_product-spec.md#792a10j1-uat-scenarios), [792a10j1c](./792a_product-spec.md#792a10j1-uat-scenarios), [792a10j1d](./792a_product-spec.md#792a10j1-uat-scenarios).
 
 ##### 792b11c6a Scenarios
 
@@ -5027,20 +5027,20 @@ Scenario: 792b11c6a6 A note with vault: and no resolvable user is not found
 
 #### 792b11c7 Identity backfill
 
-Requirement: 792b11c7 The note-provenance MUST, under the vault write lock, stamp each stampable note
-(792b11c6) as YAML-node edits of its parsed frontmatter in one atomic write: a note with no `vault:` gets
-`repo:` (792b11c5), `user:` and `vault:` from the current environment, and a note with `vault:` and no `user:`
+Requirement: [792b11c7](#792b11c7-identity-backfill) The note-provenance MUST, under the vault write lock, stamp each stampable note
+([792b11c6](#792b11c6-notes-a-backfill-could-stamp)) as YAML-node edits of its parsed frontmatter in one atomic write: a note with no `vault:` gets
+`repo:` ([792b11c5](#792b11c5-repository-for-a-backfill)), `user:` and `vault:` from the current environment, and a note with `vault:` and no `user:`
 gets only `user:`. It MUST re-emit `created:` in its quoted form, keep every other key and every anchor on a
 key it does not edit, leave a note neither fact nor feedback and a note with unparseable frontmatter unchanged,
 and leave a note it would not write unconverted. It MUST refuse a note when a key it would set or its value or
 anything beneath it carries a YAML anchor, or the rewritten frontmatter does not decode, leave that note
 untouched, stamp the others, and then return one error joining each refusal that names the note. It MUST write
 nothing under dry run, and return the number of notes stamped or that would be. It MUST write a stamped CRLF
-note as LF and rebuild its sidecar (792b10c5); and MUST return a failure to lock, list, read, write or
+note as LF and rebuild its sidecar ([792b10c5](#792b10c5-building-a-sidecar)); and MUST return a failure to lock, list, read, write or
 rebuild.
 
-Supports: 792a10k1a, 792a10k1d, 792a10k1e, 792a10k1f, 792a10k1g, 792a10l1a, 792a10l1b, 792a10l1c, 792a10l1d,
-792a10l1e.
+Supports: [792a10k1a](./792a_product-spec.md#792a10k1-uat-scenarios), [792a10k1d](./792a_product-spec.md#792a10k1-uat-scenarios), [792a10k1e](./792a_product-spec.md#792a10k1-uat-scenarios), [792a10k1f](./792a_product-spec.md#792a10k1-uat-scenarios), [792a10k1g](./792a_product-spec.md#792a10k1-uat-scenarios), [792a10l1a](./792a_product-spec.md#792a10l1-uat-scenarios), [792a10l1b](./792a_product-spec.md#792a10l1-uat-scenarios), [792a10l1c](./792a_product-spec.md#792a10l1-uat-scenarios), [792a10l1d](./792a_product-spec.md#792a10l1-uat-scenarios),
+[792a10l1e](./792a_product-spec.md#792a10l1-uat-scenarios).
 
 Rationale: re-rendering the whole frontmatter from the typed model dropped every key the model does not
 define (#780, #789). Editing the parsed mapping keeps them, and keeps the bytes of an ordinary note as they
@@ -5114,41 +5114,41 @@ Scenario: 792b11c7a12 The report records the run
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a2b1a | 792b11c3 |
-| 792a2b1b | 792b11c3 |
-| 792a2b1c | 792b11c3 |
-| 792a3o1a | 792b11c1, 792b11c3 |
-| 792a3o1b | 792b11c1, 792b11c3 |
-| 792a3o1c | 792b11c1, 792b11c3 |
-| 792a3p1a | 792b11c2, 792b11c3 |
-| 792a3p1b | 792b11c2, 792b11c3 |
-| 792a3p1c | 792b11c2, 792b11c3 |
-| 792a4h1a | 792b11c1, 792b11c2, 792b11c4 |
-| 792a4h1b | 792b11c1, 792b11c2, 792b11c4 |
-| 792a4h1c | 792b11c1, 792b11c4 |
-| 792a4h1d | 792b11c2, 792b11c4 |
-| 792a4h1e | 792b11c2, 792b11c4 |
-| 792a4h1f | 792b11c4 |
-| 792a4h1g | 792b11c4 |
-| 792a10j1a | 792b11c6 |
-| 792a10j1b | 792b11c6 |
-| 792a10j1c | 792b11c6 |
-| 792a10j1d | 792b11c6 |
-| 792a10k1a | 792b11c7, 792b11c5 |
-| 792a10k1b | 792b11c5 |
-| 792a10k1c | 792b11c5 |
-| 792a10k1d | 792b11c7 |
-| 792a10k1e | 792b11c7 |
-| 792a10k1f | 792b11c7 |
-| 792a10k1g | 792b11c7 |
-| 792a10l1a | 792b11c7 |
-| 792a10l1b | 792b11c7 |
-| 792a10l1c | 792b11c7 |
-| 792a10l1d | 792b11c7 |
-| 792a10l1e | 792b11c7 |
-| 792a20e1a | 792b11c3 |
-| 792a20f1a | 792b11c3 |
-| 792a20f1b | 792b11c3 |
+| [792a2b1a](./792a_product-spec.md#792a2b1-uat-scenarios) | [792b11c3](#792b11c3-first-write-stamp) |
+| [792a2b1b](./792a_product-spec.md#792a2b1-uat-scenarios) | [792b11c3](#792b11c3-first-write-stamp) |
+| [792a2b1c](./792a_product-spec.md#792a2b1-uat-scenarios) | [792b11c3](#792b11c3-first-write-stamp) |
+| [792a3o1a](./792a_product-spec.md#792a3o1-uat-scenarios) | [792b11c1](#792b11c1-repository-detection), [792b11c3](#792b11c3-first-write-stamp) |
+| [792a3o1b](./792a_product-spec.md#792a3o1-uat-scenarios) | [792b11c1](#792b11c1-repository-detection), [792b11c3](#792b11c3-first-write-stamp) |
+| [792a3o1c](./792a_product-spec.md#792a3o1-uat-scenarios) | [792b11c1](#792b11c1-repository-detection), [792b11c3](#792b11c3-first-write-stamp) |
+| [792a3p1a](./792a_product-spec.md#792a3p1-uat-scenarios) | [792b11c2](#792b11c2-user-detection), [792b11c3](#792b11c3-first-write-stamp) |
+| [792a3p1b](./792a_product-spec.md#792a3p1-uat-scenarios) | [792b11c2](#792b11c2-user-detection), [792b11c3](#792b11c3-first-write-stamp) |
+| [792a3p1c](./792a_product-spec.md#792a3p1-uat-scenarios) | [792b11c2](#792b11c2-user-detection), [792b11c3](#792b11c3-first-write-stamp) |
+| [792a4h1a](./792a_product-spec.md#792a4h1-uat-scenarios) | [792b11c1](#792b11c1-repository-detection), [792b11c2](#792b11c2-user-detection), [792b11c4](#792b11c4-re-stamp) |
+| [792a4h1b](./792a_product-spec.md#792a4h1-uat-scenarios) | [792b11c1](#792b11c1-repository-detection), [792b11c2](#792b11c2-user-detection), [792b11c4](#792b11c4-re-stamp) |
+| [792a4h1c](./792a_product-spec.md#792a4h1-uat-scenarios) | [792b11c1](#792b11c1-repository-detection), [792b11c4](#792b11c4-re-stamp) |
+| [792a4h1d](./792a_product-spec.md#792a4h1-uat-scenarios) | [792b11c2](#792b11c2-user-detection), [792b11c4](#792b11c4-re-stamp) |
+| [792a4h1e](./792a_product-spec.md#792a4h1-uat-scenarios) | [792b11c2](#792b11c2-user-detection), [792b11c4](#792b11c4-re-stamp) |
+| [792a4h1f](./792a_product-spec.md#792a4h1-uat-scenarios) | [792b11c4](#792b11c4-re-stamp) |
+| [792a4h1g](./792a_product-spec.md#792a4h1-uat-scenarios) | [792b11c4](#792b11c4-re-stamp) |
+| [792a10j1a](./792a_product-spec.md#792a10j1-uat-scenarios) | [792b11c6](#792b11c6-notes-a-backfill-could-stamp) |
+| [792a10j1b](./792a_product-spec.md#792a10j1-uat-scenarios) | [792b11c6](#792b11c6-notes-a-backfill-could-stamp) |
+| [792a10j1c](./792a_product-spec.md#792a10j1-uat-scenarios) | [792b11c6](#792b11c6-notes-a-backfill-could-stamp) |
+| [792a10j1d](./792a_product-spec.md#792a10j1-uat-scenarios) | [792b11c6](#792b11c6-notes-a-backfill-could-stamp) |
+| [792a10k1a](./792a_product-spec.md#792a10k1-uat-scenarios) | [792b11c7](#792b11c7-identity-backfill), [792b11c5](#792b11c5-repository-for-a-backfill) |
+| [792a10k1b](./792a_product-spec.md#792a10k1-uat-scenarios) | [792b11c5](#792b11c5-repository-for-a-backfill) |
+| [792a10k1c](./792a_product-spec.md#792a10k1-uat-scenarios) | [792b11c5](#792b11c5-repository-for-a-backfill) |
+| [792a10k1d](./792a_product-spec.md#792a10k1-uat-scenarios) | [792b11c7](#792b11c7-identity-backfill) |
+| [792a10k1e](./792a_product-spec.md#792a10k1-uat-scenarios) | [792b11c7](#792b11c7-identity-backfill) |
+| [792a10k1f](./792a_product-spec.md#792a10k1-uat-scenarios) | [792b11c7](#792b11c7-identity-backfill) |
+| [792a10k1g](./792a_product-spec.md#792a10k1-uat-scenarios) | [792b11c7](#792b11c7-identity-backfill) |
+| [792a10l1a](./792a_product-spec.md#792a10l1-uat-scenarios) | [792b11c7](#792b11c7-identity-backfill) |
+| [792a10l1b](./792a_product-spec.md#792a10l1-uat-scenarios) | [792b11c7](#792b11c7-identity-backfill) |
+| [792a10l1c](./792a_product-spec.md#792a10l1-uat-scenarios) | [792b11c7](#792b11c7-identity-backfill) |
+| [792a10l1d](./792a_product-spec.md#792a10l1-uat-scenarios) | [792b11c7](#792b11c7-identity-backfill) |
+| [792a10l1e](./792a_product-spec.md#792a10l1-uat-scenarios) | [792b11c7](#792b11c7-identity-backfill) |
+| [792a20e1a](./792a_product-spec.md#792a20e1-uat-scenarios) | [792b11c3](#792b11c3-first-write-stamp) |
+| [792a20f1a](./792a_product-spec.md#792a20f1-uat-scenarios) | [792b11c3](#792b11c3-first-write-stamp) |
+| [792a20f1b](./792a_product-spec.md#792a20f1-uat-scenarios) | [792b11c3](#792b11c3-first-write-stamp) |
 
 ```gherkin
 Scenario: 792a4h1a Amend from another environment re-stamps
@@ -5293,8 +5293,8 @@ Canonical target: `docs/specs/technical/note-authoring.md` (title `Note Authorin
   calls own the format, the IDs, the lock, the sidecar and provenance; independent verification,
   it is tested directly over injected dependencies; stability, the capture flow survives any
   refactoring of the components it calls; necessity, every new note is written through it.
-- Supported capabilities: 792a3 note-writing, 792a6 controlled-vocabulary, 792a22 curate (792b12c8).
-  Skill-runbook-registration, write-memory, learn, vault-serving and parent-sync add their requirements (792d30).
+- Supported capabilities: [792a3](./792a_product-spec.md#792a3-added-note-writing) note-writing, [792a6](./792a_product-spec.md#792a6-added-controlled-vocabulary) controlled-vocabulary, [792a22](./792a_product-spec.md#792a22-added-curate) curate ([792b12c8](#792b12c8-the-pending-marker-is-not-set-by-a-local-learn)).
+  Skill-runbook-registration, write-memory, learn, vault-serving and parent-sync add their requirements ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
 
 Rationale: the vault lock spans everything from listing the existing IDs to creating the note, so
 two concurrent writers never allocate the same ID; creating the note exclusively is a backstop that
@@ -5378,14 +5378,14 @@ sequenceDiagram
 
 #### 792b12c1 Argument validation
 
-Requirement: 792b12c1 The note-authoring MUST refuse, before writing anything, a slug that is empty
+Requirement: [792b12c1](#792b12c1-argument-validation) The note-authoring MUST refuse, before writing anything, a slug that is empty
 or does not match `[a-z0-9-]+`, a project that is not kebab-case, an issue containing whitespace, a
 tag that is not `<family>` or `<family>/<value>` with kebab-case segments, a trigger shorter than
 three characters after trimming, a tier other than `L1`, `L2` or `L3`, a supersession that is not
 `<note>|<type>|<claim>` with a non-empty note and claim and a type of `updates`, `narrows` or
 `refutes`, and a note type other than fact, feedback or runbook. A claim MAY itself contain `|`.
 
-Supports: 792a3g1a.
+Supports: [792a3g1a](./792a_product-spec.md#792a3g1-uat-scenarios).
 
 ##### 792b12c1a Scenarios
 
@@ -5428,11 +5428,11 @@ Scenario: 792b12c1a7 An unknown note type is refused
 
 #### 792b12c2 Required content
 
-Requirement: 792b12c2 The note-authoring MUST refuse a fact, feedback or runbook whose situation is
+Requirement: [792b12c2](#792b12c2-required-content) The note-authoring MUST refuse a fact, feedback or runbook whose situation is
 empty or whitespace, and a runbook whose done-when is empty or whitespace, with an error naming the
 missing flag and nothing written.
 
-Supports: 792a3f1a, 792a3f1b, 792a3f1c.
+Supports: [792a3f1a](./792a_product-spec.md#792a3f1-uat-scenarios), [792a3f1b](./792a_product-spec.md#792a3f1-uat-scenarios), [792a3f1c](./792a_product-spec.md#792a3f1-uat-scenarios).
 
 ##### 792b12c2a Scenarios
 
@@ -5455,15 +5455,15 @@ Scenario: 792b12c2a3 A runbook without done-when is refused
 
 #### 792b12c3 Locked write
 
-Requirement: 792b12c3 The note-authoring MUST, for a fact, feedback or runbook, take the vault lock;
+Requirement: [792b12c3](#792b12c3-locked-write) The note-authoring MUST, for a fact, feedback or runbook, take the vault lock;
 list the vault's note IDs, which are the IDs of the Markdown files at its root; allocate the next ID
 for the target and position; stamp provenance; render and exclusively create the note; write its
 sidecar and apply vocabulary tagging; release the lock; and print the note's path. A lock failure,
 a listing failure, a refused placement or refused content MUST return an error with nothing
 written.
 
-Supports: 792a3a1a, 792a3b1a, 792a3c1a, 792a3j1a, 792a3j1b, 792a3j1c, 792a3j1d, 792a3j1e,
-792a3k1a, 792a3k1b, 792a3k1c, 792a3k1d, 792a3m1a, 792a3n1a, 792a3n1b, 792a3o1a, 792a3p1a, 792a3u1a.
+Supports: [792a3a1a](./792a_product-spec.md#792a3a1-uat-scenarios), [792a3b1a](./792a_product-spec.md#792a3b1-uat-scenarios), [792a3c1a](./792a_product-spec.md#792a3c1-uat-scenarios), [792a3j1a](./792a_product-spec.md#792a3j1-uat-scenarios), [792a3j1b](./792a_product-spec.md#792a3j1-uat-scenarios), [792a3j1c](./792a_product-spec.md#792a3j1-uat-scenarios), [792a3j1d](./792a_product-spec.md#792a3j1-uat-scenarios), [792a3j1e](./792a_product-spec.md#792a3j1-uat-scenarios),
+[792a3k1a](./792a_product-spec.md#792a3k1-uat-scenarios), [792a3k1b](./792a_product-spec.md#792a3k1-uat-scenarios), [792a3k1c](./792a_product-spec.md#792a3k1-uat-scenarios), [792a3k1d](./792a_product-spec.md#792a3k1-uat-scenarios), [792a3m1a](./792a_product-spec.md#792a3m1-uat-scenarios), [792a3n1a](./792a_product-spec.md#792a3n1-uat-scenarios), [792a3n1b](./792a_product-spec.md#792a3n1-uat-scenarios), [792a3o1a](./792a_product-spec.md#792a3o1-uat-scenarios), [792a3p1a](./792a_product-spec.md#792a3p1-uat-scenarios), [792a3u1a](./792a_product-spec.md#792a3u1-uat-scenarios).
 
 ##### 792b12c3a Scenarios
 
@@ -5491,12 +5491,12 @@ Scenario: 792b12c3a4 Only root notes count as IDs
 
 #### 792b12c4 Arguments to fields
 
-Requirement: 792b12c4 The note-authoring MUST give a note `tier: L2` when no tier is given and the
+Requirement: [792b12c4](#792b12c4-arguments-to-fields) The note-authoring MUST give a note `tier: L2` when no tier is given and the
 given tier otherwise, and MUST carry the project, issue, tags, chunk sources, supersessions, and a
 runbook's red flags and triggers in order, into the note's fields, with none written when none is
 given.
 
-Supports: 792a3d1a, 792a3d1b, 792a3d1c, 792a3h1a, 792a3h1b, 792a3i1a, 792a3i1b.
+Supports: [792a3d1a](./792a_product-spec.md#792a3d1-uat-scenarios), [792a3d1b](./792a_product-spec.md#792a3d1-uat-scenarios), [792a3d1c](./792a_product-spec.md#792a3d1-uat-scenarios), [792a3h1a](./792a_product-spec.md#792a3h1-uat-scenarios), [792a3h1b](./792a_product-spec.md#792a3h1-uat-scenarios), [792a3i1a](./792a_product-spec.md#792a3i1-uat-scenarios), [792a3i1b](./792a_product-spec.md#792a3i1-uat-scenarios).
 
 ##### 792b12c4a Scenarios
 
@@ -5539,7 +5539,7 @@ Scenario: 792b12c4a7 Triggers are carried
 
 #### 792b12c5 Question-and-answer write
 
-Requirement: 792b12c5 The note-authoring MUST, for a question-and-answer pair, validate the
+Requirement: [792b12c5](#792b12c5-question-and-answer-write) The note-authoring MUST, for a question-and-answer pair, validate the
 arguments, defaulting certainty to `medium`; read the answer from `--answer-file` when given; check
 every contributor against the vault's Markdown files; and only then take the vault lock, create the
 question note and then the answer note, both exclusively, and release the lock. When the answer note
@@ -5548,7 +5548,7 @@ failure when the question cannot be removed. After a successful write it MUST wr
 apply vocabulary tagging to the answer only, and print the question's path and then the answer's.
 A lock failure MUST return an error with nothing written.
 
-Supports: 792a3n1a, 792a3q1a, 792a3q1b, 792a3q1c, 792a3r1a, 792a3r1b, 792a3s1a, 792a3u1b.
+Supports: [792a3n1a](./792a_product-spec.md#792a3n1-uat-scenarios), [792a3q1a](./792a_product-spec.md#792a3q1-uat-scenarios), [792a3q1b](./792a_product-spec.md#792a3q1-uat-scenarios), [792a3q1c](./792a_product-spec.md#792a3q1-uat-scenarios), [792a3r1a](./792a_product-spec.md#792a3r1-uat-scenarios), [792a3r1b](./792a_product-spec.md#792a3r1-uat-scenarios), [792a3s1a](./792a_product-spec.md#792a3s1-uat-scenarios), [792a3u1b](./792a_product-spec.md#792a3u1-uat-scenarios).
 
 ##### 792b12c5a Scenarios
 
@@ -5591,12 +5591,12 @@ Scenario: 792b12c5a7 A failed removal is reported too
 
 #### 792b12c6 Vocabulary tagging after a write
 
-Requirement: 792b12c6 After creating a fact, feedback or runbook note and writing its sidecar, and
+Requirement: [792b12c6](#792b12c6-vocabulary-tagging-after-a-write) After creating a fact, feedback or runbook note and writing its sidecar, and
 after writing both sidecars of a question-and-answer pair, the note-authoring MUST have the
 vocabulary-engine tag the written note (the answer only, never the question) and then check whether
 a refit is due, and MUST still succeed when tagging or the check does nothing.
 
-Supports: 792a3u1a, 792a3u1b, 792a6c1a, 792a6d1a, 792a6e1a, 792a6e1b, 792a6s1a, 792a6s1c.
+Supports: [792a3u1a](./792a_product-spec.md#792a3u1-uat-scenarios), [792a3u1b](./792a_product-spec.md#792a3u1-uat-scenarios), [792a6c1a](./792a_product-spec.md#792a6c1-uat-scenarios), [792a6d1a](./792a_product-spec.md#792a6d1-uat-scenarios), [792a6e1a](./792a_product-spec.md#792a6e1-uat-scenarios), [792a6e1b](./792a_product-spec.md#792a6e1-uat-scenarios), [792a6s1a](./792a_product-spec.md#792a6s1-uat-scenarios), [792a6s1c](./792a_product-spec.md#792a6s1-uat-scenarios).
 
 ##### 792b12c6a Scenarios
 
@@ -5619,11 +5619,11 @@ Scenario: 792b12c6a3 The question of a pair is not tagged
 
 #### 792b12c7 Skill identity fields are not written by learn
 
-Requirement: 792b12c7 The note-authoring MUST NOT write `skill_hash`, `skill_key` or `skill_source` for a
+Requirement: [792b12c7](#792b12c7-skill-identity-fields-are-not-written-by-learn) The note-authoring MUST NOT write `skill_hash`, `skill_key` or `skill_source` for a
 note captured through `engram learn`, and the learn commands MUST NOT offer a flag for them. Only the
 registration path, which calls the authoring code directly, supplies them.
 
-Supports: 792a12u1g.
+Supports: [792a12u1g](./792a_product-spec.md#792a12u1-uat-scenarios).
 
 ##### 792b12c7a Scenarios
 
@@ -5641,11 +5641,11 @@ Scenario: 792b12c7a2 A captured runbook has no skill key or source
 
 #### 792b12c8 The pending marker is not set by a local learn
 
-Requirement: 792b12c8 The note-authoring MUST write `pending: true` only when the arguments it is given carry the pending marker, which
+Requirement: [792b12c8](#792b12c8-the-pending-marker-is-not-set-by-a-local-learn) The note-authoring MUST write `pending: true` only when the arguments it is given carry the pending marker, which
 a served learn and a pull-down build, and the command line MUST NOT expose a flag that sets it, so that a local `engram learn`
 never writes a pending note.
 
-Supports: 792a22b1a.
+Supports: [792a22b1a](./792a_product-spec.md#792a22b1-uat-scenarios).
 
 Rationale: the marker means that the note came from another vault and has not been judged, so a note the user writes in their own
 vault is never held back from recall.
@@ -5663,67 +5663,67 @@ Scenario: 792b12c8a1 A local learn writes no marker
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a3a1a | 792b12c3 |
-| 792a3b1a | 792b12c3 |
-| 792a3c1a | 792b12c3 |
-| 792a3d1a | 792b12c4 |
-| 792a3d1b | 792b12c4 |
-| 792a3d1c | 792b12c4 |
-| 792a3f1a | 792b12c2 |
-| 792a3f1b | 792b12c2 |
-| 792a3f1c | 792b12c2 |
-| 792a3g1a | 792b12c1 |
-| 792a3h1a | 792b12c4 |
-| 792a3h1b | 792b12c4 |
-| 792a3i1a | 792b12c4 |
-| 792a3i1b | 792b12c4 |
-| 792a3j1a | 792b12c3 |
-| 792a3j1b | 792b12c3 |
-| 792a3j1c | 792b12c3 |
-| 792a3j1d | 792b12c3 |
-| 792a3j1e | 792b12c3 |
-| 792a3k1a | 792b12c3 |
-| 792a3k1b | 792b12c3 |
-| 792a3k1c | 792b12c3 |
-| 792a3k1d | 792b12c3 |
-| 792a3m1a | 792b12c3 |
-| 792a3n1a | 792b12c3, 792b12c5 |
-| 792a3n1b | 792b12c3 |
-| 792a3o1a | 792b12c3 |
-| 792a3p1a | 792b12c3 |
-| 792a3q1a | 792b12c5 |
-| 792a3q1b | 792b12c5 |
-| 792a3q1c | 792b12c5 |
-| 792a3r1a | 792b12c5 |
-| 792a3r1b | 792b12c5 |
-| 792a3s1a | 792b12c5 |
-| 792a3u1a | 792b12c3, 792b12c6 |
-| 792a3u1b | 792b12c5, 792b12c6 |
-| 792a6c1a | 792b12c4, 792b12c6 |
-| 792a6d1a | 792b12c6 |
-| 792a6e1a | 792b12c6 |
-| 792a6e1b | 792b12c6 |
-| 792a6s1a | 792b12c6 |
-| 792a6s1c | 792b12c6 |
-| 792a12u1g | 792b12c7 |
-| 792a13e1a | 792b12c4 |
-| 792a13f1a | 792b12c5 |
-| 792a13g1b | 792b12c3 |
-| 792a13i1a | 792b12c4 |
-| 792a13i1b | 792b12c4 |
-| 792a13i1c | 792b12c1, 792b12c4 |
-| 792a13l1a | 792b12c4 |
-| 792a13m1a | 792b12c4 |
-| 792a13m1c | 792b12c4 |
-| 792a15h1a | 792b12c3 |
-| 792a15h1b | 792b12c3 |
-| 792a15h1c | 792b12c3 |
-| 792a15k1a | 792b12c5 |
-| 792a17k1a | 792b12c4 |
-| 792a17k1c | 792b12c1, 792b12c4 |
-| 792a20c1c | 792b12c3 |
-| 792a20o1a | 792b12c6 |
-| 792a22b1a | 792b12c8 |
+| [792a3a1a](./792a_product-spec.md#792a3a1-uat-scenarios) | [792b12c3](#792b12c3-locked-write) |
+| [792a3b1a](./792a_product-spec.md#792a3b1-uat-scenarios) | [792b12c3](#792b12c3-locked-write) |
+| [792a3c1a](./792a_product-spec.md#792a3c1-uat-scenarios) | [792b12c3](#792b12c3-locked-write) |
+| [792a3d1a](./792a_product-spec.md#792a3d1-uat-scenarios) | [792b12c4](#792b12c4-arguments-to-fields) |
+| [792a3d1b](./792a_product-spec.md#792a3d1-uat-scenarios) | [792b12c4](#792b12c4-arguments-to-fields) |
+| [792a3d1c](./792a_product-spec.md#792a3d1-uat-scenarios) | [792b12c4](#792b12c4-arguments-to-fields) |
+| [792a3f1a](./792a_product-spec.md#792a3f1-uat-scenarios) | [792b12c2](#792b12c2-required-content) |
+| [792a3f1b](./792a_product-spec.md#792a3f1-uat-scenarios) | [792b12c2](#792b12c2-required-content) |
+| [792a3f1c](./792a_product-spec.md#792a3f1-uat-scenarios) | [792b12c2](#792b12c2-required-content) |
+| [792a3g1a](./792a_product-spec.md#792a3g1-uat-scenarios) | [792b12c1](#792b12c1-argument-validation) |
+| [792a3h1a](./792a_product-spec.md#792a3h1-uat-scenarios) | [792b12c4](#792b12c4-arguments-to-fields) |
+| [792a3h1b](./792a_product-spec.md#792a3h1-uat-scenarios) | [792b12c4](#792b12c4-arguments-to-fields) |
+| [792a3i1a](./792a_product-spec.md#792a3i1-uat-scenarios) | [792b12c4](#792b12c4-arguments-to-fields) |
+| [792a3i1b](./792a_product-spec.md#792a3i1-uat-scenarios) | [792b12c4](#792b12c4-arguments-to-fields) |
+| [792a3j1a](./792a_product-spec.md#792a3j1-uat-scenarios) | [792b12c3](#792b12c3-locked-write) |
+| [792a3j1b](./792a_product-spec.md#792a3j1-uat-scenarios) | [792b12c3](#792b12c3-locked-write) |
+| [792a3j1c](./792a_product-spec.md#792a3j1-uat-scenarios) | [792b12c3](#792b12c3-locked-write) |
+| [792a3j1d](./792a_product-spec.md#792a3j1-uat-scenarios) | [792b12c3](#792b12c3-locked-write) |
+| [792a3j1e](./792a_product-spec.md#792a3j1-uat-scenarios) | [792b12c3](#792b12c3-locked-write) |
+| [792a3k1a](./792a_product-spec.md#792a3k1-uat-scenarios) | [792b12c3](#792b12c3-locked-write) |
+| [792a3k1b](./792a_product-spec.md#792a3k1-uat-scenarios) | [792b12c3](#792b12c3-locked-write) |
+| [792a3k1c](./792a_product-spec.md#792a3k1-uat-scenarios) | [792b12c3](#792b12c3-locked-write) |
+| [792a3k1d](./792a_product-spec.md#792a3k1-uat-scenarios) | [792b12c3](#792b12c3-locked-write) |
+| [792a3m1a](./792a_product-spec.md#792a3m1-uat-scenarios) | [792b12c3](#792b12c3-locked-write) |
+| [792a3n1a](./792a_product-spec.md#792a3n1-uat-scenarios) | [792b12c3](#792b12c3-locked-write), [792b12c5](#792b12c5-question-and-answer-write) |
+| [792a3n1b](./792a_product-spec.md#792a3n1-uat-scenarios) | [792b12c3](#792b12c3-locked-write) |
+| [792a3o1a](./792a_product-spec.md#792a3o1-uat-scenarios) | [792b12c3](#792b12c3-locked-write) |
+| [792a3p1a](./792a_product-spec.md#792a3p1-uat-scenarios) | [792b12c3](#792b12c3-locked-write) |
+| [792a3q1a](./792a_product-spec.md#792a3q1-uat-scenarios) | [792b12c5](#792b12c5-question-and-answer-write) |
+| [792a3q1b](./792a_product-spec.md#792a3q1-uat-scenarios) | [792b12c5](#792b12c5-question-and-answer-write) |
+| [792a3q1c](./792a_product-spec.md#792a3q1-uat-scenarios) | [792b12c5](#792b12c5-question-and-answer-write) |
+| [792a3r1a](./792a_product-spec.md#792a3r1-uat-scenarios) | [792b12c5](#792b12c5-question-and-answer-write) |
+| [792a3r1b](./792a_product-spec.md#792a3r1-uat-scenarios) | [792b12c5](#792b12c5-question-and-answer-write) |
+| [792a3s1a](./792a_product-spec.md#792a3s1-uat-scenarios) | [792b12c5](#792b12c5-question-and-answer-write) |
+| [792a3u1a](./792a_product-spec.md#792a3u1-uat-scenarios) | [792b12c3](#792b12c3-locked-write), [792b12c6](#792b12c6-vocabulary-tagging-after-a-write) |
+| [792a3u1b](./792a_product-spec.md#792a3u1-uat-scenarios) | [792b12c5](#792b12c5-question-and-answer-write), [792b12c6](#792b12c6-vocabulary-tagging-after-a-write) |
+| [792a6c1a](./792a_product-spec.md#792a6c1-uat-scenarios) | [792b12c4](#792b12c4-arguments-to-fields), [792b12c6](#792b12c6-vocabulary-tagging-after-a-write) |
+| [792a6d1a](./792a_product-spec.md#792a6d1-uat-scenarios) | [792b12c6](#792b12c6-vocabulary-tagging-after-a-write) |
+| [792a6e1a](./792a_product-spec.md#792a6e1-uat-scenarios) | [792b12c6](#792b12c6-vocabulary-tagging-after-a-write) |
+| [792a6e1b](./792a_product-spec.md#792a6e1-uat-scenarios) | [792b12c6](#792b12c6-vocabulary-tagging-after-a-write) |
+| [792a6s1a](./792a_product-spec.md#792a6s1-uat-scenarios) | [792b12c6](#792b12c6-vocabulary-tagging-after-a-write) |
+| [792a6s1c](./792a_product-spec.md#792a6s1-uat-scenarios) | [792b12c6](#792b12c6-vocabulary-tagging-after-a-write) |
+| [792a12u1g](./792a_product-spec.md#792a12u1-uat-scenarios) | [792b12c7](#792b12c7-skill-identity-fields-are-not-written-by-learn) |
+| [792a13e1a](./792a_product-spec.md#792a13e1-uat-scenarios) | [792b12c4](#792b12c4-arguments-to-fields) |
+| [792a13f1a](./792a_product-spec.md#792a13f1-uat-scenarios) | [792b12c5](#792b12c5-question-and-answer-write) |
+| [792a13g1b](./792a_product-spec.md#792a13g1-uat-scenarios) | [792b12c3](#792b12c3-locked-write) |
+| [792a13i1a](./792a_product-spec.md#792a13i1-uat-scenarios) | [792b12c4](#792b12c4-arguments-to-fields) |
+| [792a13i1b](./792a_product-spec.md#792a13i1-uat-scenarios) | [792b12c4](#792b12c4-arguments-to-fields) |
+| [792a13i1c](./792a_product-spec.md#792a13i1-uat-scenarios) | [792b12c1](#792b12c1-argument-validation), [792b12c4](#792b12c4-arguments-to-fields) |
+| [792a13l1a](./792a_product-spec.md#792a13l1-uat-scenarios) | [792b12c4](#792b12c4-arguments-to-fields) |
+| [792a13m1a](./792a_product-spec.md#792a13m1-uat-scenarios) | [792b12c4](#792b12c4-arguments-to-fields) |
+| [792a13m1c](./792a_product-spec.md#792a13m1-uat-scenarios) | [792b12c4](#792b12c4-arguments-to-fields) |
+| [792a15h1a](./792a_product-spec.md#792a15h1-uat-scenarios) | [792b12c3](#792b12c3-locked-write) |
+| [792a15h1b](./792a_product-spec.md#792a15h1-uat-scenarios) | [792b12c3](#792b12c3-locked-write) |
+| [792a15h1c](./792a_product-spec.md#792a15h1-uat-scenarios) | [792b12c3](#792b12c3-locked-write) |
+| [792a15k1a](./792a_product-spec.md#792a15k1-uat-scenarios) | [792b12c5](#792b12c5-question-and-answer-write) |
+| [792a17k1a](./792a_product-spec.md#792a17k1-uat-scenarios) | [792b12c4](#792b12c4-arguments-to-fields) |
+| [792a17k1c](./792a_product-spec.md#792a17k1-uat-scenarios) | [792b12c1](#792b12c1-argument-validation), [792b12c4](#792b12c4-arguments-to-fields) |
+| [792a20c1c](./792a_product-spec.md#792a20c1-uat-scenarios) | [792b12c3](#792b12c3-locked-write) |
+| [792a20o1a](./792a_product-spec.md#792a20o1-uat-scenarios) | [792b12c6](#792b12c6-vocabulary-tagging-after-a-write) |
+| [792a22b1a](./792a_product-spec.md#792a22b1-uat-scenarios) | [792b12c8](#792b12c8-the-pending-marker-is-not-set-by-a-local-learn) |
 
 ```gherkin
 Scenario: 792a3r1b Certainty defaults to medium
@@ -5866,8 +5866,8 @@ Canonical target: `docs/specs/technical/wikilink-graph.md` (title `Wikilink Grap
   scan and the lookup are tested directly over a fake vault listing and a note list; stability, the
   basename key is the link form notes and Obsidian share, and it survives any refactoring;
   necessity, every command that reads or revises a named note finds it here.
-- Supported capabilities: 792a2 vault-identity, 792a4 note-revision, 792a7 memory-query, 792a8
-  vault-counting, 792a9 vault-health. Vault-migration adds its mappings (792d30, 792d75).
+- Supported capabilities: [792a2](./792a_product-spec.md#792a2-added-vault-identity) vault-identity, [792a4](./792a_product-spec.md#792a4-added-note-revision) note-revision, [792a7](./792a_product-spec.md#792a7-added-memory-query) memory-query, [792a8](./792a_product-spec.md#792a8-added-vault-counting)
+  vault-counting, [792a9](./792a_product-spec.md#792a9-added-vault-health) vault-health. Vault-migration adds its mappings ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later), [792d75](./792d_decision-log.md#792d75-wikilink-graphs-link-graph-and-resolution-contracts-arrive-with-their-scenarios)).
 
 Rationale: navigation lives in authored relations, the wikilinks in note text, rather than in a
 separate graph store that could drift from the notes, so the graph is derived from the notes each
@@ -5902,13 +5902,13 @@ sequenceDiagram
 
 #### 792b13c1 Vault scan
 
-Requirement: 792b13c1 The wikilink-graph MUST scan a vault by listing the `.md` files at its root,
+Requirement: [792b13c1](#792b13c1-vault-scan) The wikilink-graph MUST scan a vault by listing the `.md` files at its root,
 ignoring subdirectories and other files, and MUST return one note per file, keyed by its filename
 without `.md`, with the Luhmann ID that leads the filename (empty when there is none) and the
 targets of the links in its text. A failure to list the vault or to read a file MUST be returned,
 naming the path.
 
-Supports: 792a2c1a, 792a2d1a, 792a2d1b, 792a4a1a, 792a4a1b, 792a8e1i, 792a8e1j, 792a9a1e.
+Supports: [792a2c1a](./792a_product-spec.md#792a2c1-uat-scenarios), [792a2d1a](./792a_product-spec.md#792a2d1-uat-scenarios), [792a2d1b](./792a_product-spec.md#792a2d1-uat-scenarios), [792a4a1a](./792a_product-spec.md#792a4a1-uat-scenarios), [792a4a1b](./792a_product-spec.md#792a4a1-uat-scenarios), [792a8e1i](./792a_product-spec.md#792a8e1-uat-scenarios), [792a8e1j](./792a_product-spec.md#792a8e1-uat-scenarios), [792a9a1e](./792a_product-spec.md#792a9a1-uat-scenarios).
 
 ##### 792b13c1a Scenarios
 
@@ -5941,13 +5941,13 @@ Scenario: 792b13c1a5 A read failure is returned
 
 #### 792b13c2 Note references
 
-Requirement: 792b13c2 The wikilink-graph MUST resolve a note reference by trimming surrounding
+Requirement: [792b13c2](#792b13c2-note-references) The wikilink-graph MUST resolve a note reference by trimming surrounding
 whitespace, removing enclosing `[[` and `]]` and any `|display` part, and dropping a trailing
 `.md`, and then returning the vault-relative path of the first scanned note whose basename or
 Luhmann ID equals the result. When no note matches, it MUST fail with a not-found error quoting the
 reference as given.
 
-Supports: 792a4a1a, 792a4a1b.
+Supports: [792a4a1a](./792a_product-spec.md#792a4a1-uat-scenarios), [792a4a1b](./792a_product-spec.md#792a4a1-uat-scenarios).
 
 Rationale: an agent copies a note's name from wherever it saw it, as a wikilink from a note's text,
 a filename from a listing, or a Luhmann ID, so each form names the same note. The error quotes what
@@ -5976,7 +5976,7 @@ Scenario: 792b13c2a2 An unknown reference quotes what was given
 
 #### 792b13c3 Link targets
 
-Requirement: 792b13c3 The wikilink-graph MUST list the targets of the links in a text: the text between
+Requirement: [792b13c3](#792b13c3-link-targets) The wikilink-graph MUST list the targets of the links in a text: the text between
 `[[` and the next `]]` on one line, each target once, in order of first appearance, after a trailing
 `.md` is dropped. It MUST leave out a link whose target is empty, a link that would span a line break,
 and every link inside a fenced code block, whose fence is a run of three or more backticks or tildes
@@ -5984,7 +5984,7 @@ and ends at a line of the same character, at least as long, followed only by whi
 of the text when none follows. It MUST keep a `|display` part as part of the target, and MUST NOT
 treat brackets inside a target as nesting.
 
-Supports: 792a7x1a, 792a7x1e, 792a7x1h, 792a8e1f, 792a8e1g, 792a9b1c, 792a9c1b, 792a9c1d.
+Supports: [792a7x1a](./792a_product-spec.md#792a7x1-uat-scenarios), [792a7x1e](./792a_product-spec.md#792a7x1-uat-scenarios), [792a7x1h](./792a_product-spec.md#792a7x1-uat-scenarios), [792a8e1f](./792a_product-spec.md#792a8e1-uat-scenarios), [792a8e1g](./792a_product-spec.md#792a8e1-uat-scenarios), [792a9b1c](./792a_product-spec.md#792a9b1-uat-scenarios), [792a9c1b](./792a_product-spec.md#792a9c1-uat-scenarios), [792a9c1d](./792a_product-spec.md#792a9c1-uat-scenarios).
 
 Rationale: Obsidian does not resolve a link inside a fenced code block, so verbatim transcript text
 pasted into a note must not make graph edges. The legacy `.md`-suffixed form that engram once wrote
@@ -6048,13 +6048,13 @@ Scenario: 792b13c3a10 A display part stays in the target
 
 #### 792b13c4 Link graph
 
-Requirement: 792b13c4 The wikilink-graph MUST build, from scanned notes, a directed graph with one
+Requirement: [792b13c4](#792b13c4-link-graph) The wikilink-graph MUST build, from scanned notes, a directed graph with one
 node per note, keyed by its basename, and one edge from a note to each distinct target among its
 link targets that is the basename of a scanned note. It MUST leave out a link whose target is not a
 scanned note and a link from a note to itself, and MUST collapse repeated links to the same target
 into one edge.
 
-Supports: 792a8e1d, 792a8e1e, 792a8e1h.
+Supports: [792a8e1d](./792a_product-spec.md#792a8e1-uat-scenarios), [792a8e1e](./792a_product-spec.md#792a8e1-uat-scenarios), [792a8e1h](./792a_product-spec.md#792a8e1-uat-scenarios).
 
 Rationale: a wikilink names a note by its basename, and Obsidian resolves it the same way. A link
 to no note is not a backlink of any note, and a note linking to itself is not evidence that anything
@@ -6091,10 +6091,10 @@ Scenario: 792b13c4a5 No node has an edge to itself
 
 #### 792b13c5 In-degree
 
-Requirement: 792b13c5 The wikilink-graph MUST report a note's in-degree as the number of distinct
-notes with an edge to it (792b13c4), and 0 for a basename that is not a node.
+Requirement: [792b13c5](#792b13c5-in-degree) The wikilink-graph MUST report a note's in-degree as the number of distinct
+notes with an edge to it ([792b13c4](#792b13c4-link-graph)), and 0 for a basename that is not a node.
 
-Supports: 792a8e1a, 792a8e1b, 792a8e1c.
+Supports: [792a8e1a](./792a_product-spec.md#792a8e1-uat-scenarios), [792a8e1b](./792a_product-spec.md#792a8e1-uat-scenarios), [792a8e1c](./792a_product-spec.md#792a8e1-uat-scenarios).
 
 ##### 792b13c5a Scenarios
 
@@ -6112,13 +6112,13 @@ Scenario: 792b13c5a2 An unknown basename has in-degree 0
 
 #### 792b13c6 Unresolved links
 
-Requirement: 792b13c6 The wikilink-graph MUST list, for scanned notes, each link target of a note that
+Requirement: [792b13c6](#792b13c6-unresolved-links) The wikilink-graph MUST list, for scanned notes, each link target of a note that
 is neither that note's own basename nor the basename of a scanned note, as the linking note's
 basename and the target, in note order and then in link order.
 
-Supports: 792a9b1a, 792a9b1c, 792a9c1a, 792a9c1b, 792a9c1c, 792a9c1e.
+Supports: [792a9b1a](./792a_product-spec.md#792a9b1-uat-scenarios), [792a9b1c](./792a_product-spec.md#792a9b1-uat-scenarios), [792a9c1a](./792a_product-spec.md#792a9c1-uat-scenarios), [792a9c1b](./792a_product-spec.md#792a9c1-uat-scenarios), [792a9c1c](./792a_product-spec.md#792a9c1-uat-scenarios), [792a9c1e](./792a_product-spec.md#792a9c1-uat-scenarios).
 
-Rationale: the graph drops a link to no note without a sound (792b13c4), so this is the list of the
+Rationale: the graph drops a link to no note without a sound ([792b13c4](#792b13c4-link-graph)), so this is the list of the
 edges it dropped. A vault that writes links in a form the graph does not resolve, such as a bare
 Luhmann ID against a basename key, loses most of its edges without it.
 
@@ -6145,35 +6145,35 @@ Scenario: 792b13c6a3 A legacy suffixed link resolves
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a2c1a | 792b13c1 |
-| 792a2d1a | 792b13c1 |
-| 792a2d1b | 792b13c1 |
-| 792a4a1a | 792b13c1, 792b13c2 |
-| 792a4a1b | 792b13c1, 792b13c2 |
-| 792a7b1a | 792b13c1 |
-| 792a7x1a | 792b13c3 |
-| 792a7x1c | 792b13c2 |
-| 792a7x1e | 792b13c3 |
-| 792a7x1h | 792b13c3 |
-| 792a8e1a | 792b13c5 |
-| 792a8e1b | 792b13c5 |
-| 792a8e1c | 792b13c5 |
-| 792a8e1d | 792b13c4 |
-| 792a8e1e | 792b13c4 |
-| 792a8e1f | 792b13c3 |
-| 792a8e1g | 792b13c3 |
-| 792a8e1h | 792b13c4 |
-| 792a8e1i | 792b13c1 |
-| 792a8e1j | 792b13c1 |
-| 792a9a1e | 792b13c1 |
-| 792a9b1a | 792b13c6 |
-| 792a9b1b | 792b13c6 |
-| 792a9b1c | 792b13c3, 792b13c6 |
-| 792a9c1a | 792b13c6 |
-| 792a9c1b | 792b13c3, 792b13c6 |
-| 792a9c1c | 792b13c6 |
-| 792a9c1d | 792b13c3 |
-| 792a9c1e | 792b13c6 |
+| [792a2c1a](./792a_product-spec.md#792a2c1-uat-scenarios) | [792b13c1](#792b13c1-vault-scan) |
+| [792a2d1a](./792a_product-spec.md#792a2d1-uat-scenarios) | [792b13c1](#792b13c1-vault-scan) |
+| [792a2d1b](./792a_product-spec.md#792a2d1-uat-scenarios) | [792b13c1](#792b13c1-vault-scan) |
+| [792a4a1a](./792a_product-spec.md#792a4a1-uat-scenarios) | [792b13c1](#792b13c1-vault-scan), [792b13c2](#792b13c2-note-references) |
+| [792a4a1b](./792a_product-spec.md#792a4a1-uat-scenarios) | [792b13c1](#792b13c1-vault-scan), [792b13c2](#792b13c2-note-references) |
+| [792a7b1a](./792a_product-spec.md#792a7b1-uat-scenarios) | [792b13c1](#792b13c1-vault-scan) |
+| [792a7x1a](./792a_product-spec.md#792a7x1-uat-scenarios) | [792b13c3](#792b13c3-link-targets) |
+| [792a7x1c](./792a_product-spec.md#792a7x1-uat-scenarios) | [792b13c2](#792b13c2-note-references) |
+| [792a7x1e](./792a_product-spec.md#792a7x1-uat-scenarios) | [792b13c3](#792b13c3-link-targets) |
+| [792a7x1h](./792a_product-spec.md#792a7x1-uat-scenarios) | [792b13c3](#792b13c3-link-targets) |
+| [792a8e1a](./792a_product-spec.md#792a8e1-uat-scenarios) | [792b13c5](#792b13c5-in-degree) |
+| [792a8e1b](./792a_product-spec.md#792a8e1-uat-scenarios) | [792b13c5](#792b13c5-in-degree) |
+| [792a8e1c](./792a_product-spec.md#792a8e1-uat-scenarios) | [792b13c5](#792b13c5-in-degree) |
+| [792a8e1d](./792a_product-spec.md#792a8e1-uat-scenarios) | [792b13c4](#792b13c4-link-graph) |
+| [792a8e1e](./792a_product-spec.md#792a8e1-uat-scenarios) | [792b13c4](#792b13c4-link-graph) |
+| [792a8e1f](./792a_product-spec.md#792a8e1-uat-scenarios) | [792b13c3](#792b13c3-link-targets) |
+| [792a8e1g](./792a_product-spec.md#792a8e1-uat-scenarios) | [792b13c3](#792b13c3-link-targets) |
+| [792a8e1h](./792a_product-spec.md#792a8e1-uat-scenarios) | [792b13c4](#792b13c4-link-graph) |
+| [792a8e1i](./792a_product-spec.md#792a8e1-uat-scenarios) | [792b13c1](#792b13c1-vault-scan) |
+| [792a8e1j](./792a_product-spec.md#792a8e1-uat-scenarios) | [792b13c1](#792b13c1-vault-scan) |
+| [792a9a1e](./792a_product-spec.md#792a9a1-uat-scenarios) | [792b13c1](#792b13c1-vault-scan) |
+| [792a9b1a](./792a_product-spec.md#792a9b1-uat-scenarios) | [792b13c6](#792b13c6-unresolved-links) |
+| [792a9b1b](./792a_product-spec.md#792a9b1-uat-scenarios) | [792b13c6](#792b13c6-unresolved-links) |
+| [792a9b1c](./792a_product-spec.md#792a9b1-uat-scenarios) | [792b13c3](#792b13c3-link-targets), [792b13c6](#792b13c6-unresolved-links) |
+| [792a9c1a](./792a_product-spec.md#792a9c1-uat-scenarios) | [792b13c6](#792b13c6-unresolved-links) |
+| [792a9c1b](./792a_product-spec.md#792a9c1-uat-scenarios) | [792b13c3](#792b13c3-link-targets), [792b13c6](#792b13c6-unresolved-links) |
+| [792a9c1c](./792a_product-spec.md#792a9c1-uat-scenarios) | [792b13c6](#792b13c6-unresolved-links) |
+| [792a9c1d](./792a_product-spec.md#792a9c1-uat-scenarios) | [792b13c3](#792b13c3-link-targets) |
+| [792a9c1e](./792a_product-spec.md#792a9c1-uat-scenarios) | [792b13c6](#792b13c6-unresolved-links) |
 
 ```gherkin
 Scenario Outline: 792a4a1a Every reference form finds the note
@@ -6304,8 +6304,8 @@ Canonical target: `docs/specs/technical/note-amendment.md` (title `Note Amendmen
 - Current realization (informational): `internal/cli/amend.go` (`RunAmend`), `resituate.go`
   (`RunResituate`), `supersedes.go` (`replaceSupersedes`, `parseAllSupersedes`), `activate.go`
   (`RunActivate`, `bumpLastUsed`); the amend and resituate targets in `internal/cli/targets.go`.
-  The curation flags in `amend_fold.go` are curate's, the offer hooks are offer-outbox's (792b36) and
-  the pull-down is parent-vault-client's (792b37).
+  The curation flags in `amend_fold.go` are curate's, the offer hooks are offer-outbox's ([792b36](#792b36-added-offer-outbox)) and
+  the pull-down is parent-vault-client's ([792b37](#792b37-added-parent-vault-client)).
 - Qualification: responsibility, revising a stored note is stated without naming any function;
   ownership, it owns the ordering of lookup, validation, edit, write and re-embed, while the format,
   provenance, sidecar and lock contracts belong to the components it calls; independent
@@ -6313,8 +6313,8 @@ Canonical target: `docs/specs/technical/note-amendment.md` (title `Note Amendmen
   lookup, read, write, lock and embedder fakes; stability, the read-modify-write contract survives any
   change to the flags that drive it; necessity, every change an agent makes to an existing note
   goes through it.
-- Supported capabilities: 792a4 note-revision, 792a6 controlled-vocabulary, 792a21 parent-sync (792b14c12,
-  792b14c13), 792a22 curate (792b14c14). Write-memory and recall add their requirements (792d30).
+- Supported capabilities: [792a4](./792a_product-spec.md#792a4-added-note-revision) note-revision, [792a6](./792a_product-spec.md#792a6-added-controlled-vocabulary) controlled-vocabulary, [792a21](./792a_product-spec.md#792a21-added-parent-sync) parent-sync ([792b14c12](#792b14c12-activation-against-the-parent),
+  [792b14c13](#792b14c13-a-discard-of-a-pulled-note-records-its-decline)), [792a22](./792a_product-spec.md#792a22-added-curate) curate ([792b14c14](#792b14c14-settling-a-pending-offer)). Write-memory and recall add their requirements ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
 
 Rationale: a revision is a read-modify-write of a note and its sidecar, so two revisions, or a
 revision and a learn, that interleave could each overwrite the other's change. Every revision takes
@@ -6416,13 +6416,13 @@ sequenceDiagram
 
 #### 792b14c1 Locked revision
 
-Requirement: 792b14c1 The note-amendment MUST take the vault lock (792b8c4) before amend, resituate
+Requirement: [792b14c1](#792b14c1-locked-revision) The note-amendment MUST take the vault lock ([792b8c4](#792b8c4-the-vaults-lock)) before amend, resituate
 or activate reads any note or sidecar, MUST hold it through every read and write of the note and
 its sidecar, including the sidecar rebuild and the last-used bump, MUST release it before
 returning, and MUST NOT take it again in the helpers it calls while holding it. A failure to take the
 lock MUST be returned with nothing read or written.
 
-Supports: 792a4o1a, 792a4o1b.
+Supports: [792a4o1a](./792a_product-spec.md#792a4o1-uat-scenarios), [792a4o1b](./792a_product-spec.md#792a4o1-uat-scenarios).
 
 ##### 792b14c1a Scenarios
 
@@ -6445,13 +6445,13 @@ Scenario: 792b14c1a3 An activate holds the lock around its bumps
 
 #### 792b14c2 Amend refusals
 
-Requirement: 792b14c2 The note-amendment MUST refuse an amend, writing nothing, when no note
+Requirement: [792b14c2](#792b14c2-amend-refusals) The note-amendment MUST refuse an amend, writing nothing, when no note
 matches the reference, when the note has no frontmatter, is not a fact, feedback or runbook note, or
 has a `created:` that is not a `YYYY-MM-DD` date, when a `--chunk-source` ID is not in the chunk
-index, when a `--supersedes` value does not parse (792b12c1), or when a `--trigger` is shorter than
+index, when a `--supersedes` value does not parse ([792b12c1](#792b12c1-argument-validation)), or when a `--trigger` is shorter than
 three characters after trimming.
 
-Supports: 792a4a1b, 792a4c1a, 792a4f1a.
+Supports: [792a4a1b](./792a_product-spec.md#792a4a1-uat-scenarios), [792a4c1a](./792a_product-spec.md#792a4c1-uat-scenarios), [792a4f1a](./792a_product-spec.md#792a4f1-uat-scenarios).
 
 ##### 792b14c2a Scenarios
 
@@ -6489,15 +6489,15 @@ Scenario: 792b14c2a6 A trigger that is too short
 
 #### 792b14c3 Field replacement
 
-Requirement: 792b14c3 The note-amendment MUST overwrite each content field of the note's kind that
+Requirement: [792b14c3](#792b14c3-field-replacement) The note-amendment MUST overwrite each content field of the note's kind that
 the amend supplies with a value different from the note's, MUST replace a runbook's whole
 `red_flags:` or `triggers:` list when one is supplied and differs, and MUST treat the amend as
 changing content exactly when one of these values changed. When content changed it MUST rebuild a
-fact or feedback body from its formula (792b6c4) and a runbook body from the supplied steps, or the
+fact or feedback body from its formula ([792b6c4](#792b6c4-body-formulas)) and a runbook body from the supplied steps, or the
 note's own steps when none are supplied, followed by the supersession lines; otherwise it MUST keep
 the body and only replace its supersession lines. It MUST write the note once and print its path.
 
-Supports: 792a4b1a, 792a4b1b, 792a4b1c, 792a4g1a, 792a4g1b.
+Supports: [792a4b1a](./792a_product-spec.md#792a4b1-uat-scenarios), [792a4b1b](./792a_product-spec.md#792a4b1-uat-scenarios), [792a4b1c](./792a_product-spec.md#792a4b1-uat-scenarios), [792a4g1a](./792a_product-spec.md#792a4g1-uat-scenarios), [792a4g1b](./792a_product-spec.md#792a4g1-uat-scenarios).
 
 ##### 792b14c3a Scenarios
 
@@ -6535,11 +6535,11 @@ Scenario: 792b14c3a6 An unchanged value is not a content change
 
 #### 792b14c4 Supersessions and chunk sources
 
-Requirement: 792b14c4 The note-amendment MUST replace a note's whole `supersedes:` list with the
-entries an amend supplies, rewriting the body's `Supersedes:` lines to match (792b6c4), and MUST
+Requirement: [792b14c4](#792b14c4-supersessions-and-chunk-sources) The note-amendment MUST replace a note's whole `supersedes:` list with the
+entries an amend supplies, rewriting the body's `Supersedes:` lines to match ([792b6c4](#792b6c4-body-formulas)), and MUST
 merge each supplied `--chunk-source` ID into `sources:` after the IDs already there, once.
 
-Supports: 792a4d1a, 792a4d1b, 792a4e1a.
+Supports: [792a4d1a](./792a_product-spec.md#792a4d1-uat-scenarios), [792a4d1b](./792a_product-spec.md#792a4d1-uat-scenarios), [792a4e1a](./792a_product-spec.md#792a4e1-uat-scenarios).
 
 ##### 792b14c4a Scenarios
 
@@ -6557,14 +6557,14 @@ Scenario: 792b14c4a2 Chunk sources are merged
 
 #### 792b14c5 Identity re-stamp gating
 
-Requirement: 792b14c5 The note-amendment MUST have note-provenance re-stamp a note (792b11c4) exactly
+Requirement: [792b14c5](#792b14c5-identity-re-stamp-gating) The note-amendment MUST have note-provenance re-stamp a note ([792b11c4](#792b11c4-re-stamp)) exactly
 when the amend supplies a content flag of any kind, a `--red-flag`, a `--trigger`, a `--supersedes`
 or a `--chunk-source`, detecting the repository from the working directory whatever the note's
 `project:`, and MUST NOT re-stamp it otherwise. On every amend it writes, it MUST fill an absent or
 empty `vault:` with the resolved vault name, keep a declared one, and, when no vault name was
 resolved, leave `vault:` out and log a warning.
 
-Supports: 792a4h1a, 792a4h1b, 792a4h1c, 792a4h1f, 792a4h1g, 792a4i1a.
+Supports: [792a4h1a](./792a_product-spec.md#792a4h1-uat-scenarios), [792a4h1b](./792a_product-spec.md#792a4h1-uat-scenarios), [792a4h1c](./792a_product-spec.md#792a4h1-uat-scenarios), [792a4h1f](./792a_product-spec.md#792a4h1-uat-scenarios), [792a4h1g](./792a_product-spec.md#792a4h1-uat-scenarios), [792a4i1a](./792a_product-spec.md#792a4i1-uat-scenarios).
 
 ##### 792b14c5a Scenarios
 
@@ -6602,12 +6602,12 @@ Scenario: 792b14c5a6 An empty vault is filled, never written empty
 
 #### 792b14c6 Sidecar rebuild after an amend
 
-Requirement: 792b14c6 After writing the note, the note-amendment MUST build the note's sidecar from
-the written text (792b10c5) and write it to the sidecar path (792b3c1) when the amend changed content
+Requirement: [792b14c6](#792b14c6-sidecar-rebuild-after-an-amend) After writing the note, the note-amendment MUST build the note's sidecar from
+the written text ([792b10c5](#792b10c5-building-a-sidecar)) and write it to the sidecar path ([792b3c1](#792b3c1-atomic-replace)) when the amend changed content
 or converted the note from CRLF, and MUST NOT rebuild it otherwise. When building or writing fails,
 it MUST log a warning naming the note and complete the amend.
 
-Supports: 792a4g1a, 792a4g1b, 792a4g1c, 792a4m1a.
+Supports: [792a4g1a](./792a_product-spec.md#792a4g1-uat-scenarios), [792a4g1b](./792a_product-spec.md#792a4g1-uat-scenarios), [792a4g1c](./792a_product-spec.md#792a4g1-uat-scenarios), [792a4m1a](./792a_product-spec.md#792a4m1-uat-scenarios).
 
 ##### 792b14c6a Scenarios
 
@@ -6625,11 +6625,11 @@ Scenario: 792b14c6a2 A failed re-embed only warns
 
 #### 792b14c7 CRLF revision
 
-Requirement: 792b14c7 The note-amendment MUST read the note an amend or resituate edits as its LF
-form (792b6c8), MUST write it as LF in the single write it makes, byte-identical to the same
+Requirement: [792b14c7](#792b14c7-crlf-revision) The note-amendment MUST read the note an amend or resituate edits as its LF
+form ([792b6c8](#792b6c8-crlf-reading)), MUST write it as LF in the single write it makes, byte-identical to the same
 revision of the note's LF form, and MUST count the conversion as a reason to rebuild the sidecar.
 
-Supports: 792a4m1a, 792a4m1b.
+Supports: [792a4m1a](./792a_product-spec.md#792a4m1-uat-scenarios), [792a4m1b](./792a_product-spec.md#792a4m1-uat-scenarios).
 
 ##### 792b14c7a Scenarios
 
@@ -6652,14 +6652,14 @@ Scenario: 792b14c7a3 A resituate converts a CRLF note
 
 #### 792b14c8 Resituation
 
-Requirement: 792b14c8 The note-amendment MUST resituate only a fact or feedback note with a
+Requirement: [792b14c8](#792b14c8-resituation) The note-amendment MUST resituate only a fact or feedback note with a
 `created:` that is a `YYYY-MM-DD` date, by setting `situation:` and re-emitting `created:` as the
-note's own string (792b6c7), replacing the body's first line with the formula's first line for the
+note's own string ([792b6c7](#792b6c7-frontmatter-node-edits)), replacing the body's first line with the formula's first line for the
 new situation and keeping the rest of the body, writing the note once and printing its path. It
 MUST then build and write the note's sidecar, and MUST return a failure to scan, read, write, embed
 or write the sidecar.
 
-Supports: 792a4j1d, 792a4l1a, 792a4l1b, 792a4l1c.
+Supports: [792a4j1d](./792a_product-spec.md#792a4j1-uat-scenarios), [792a4l1a](./792a_product-spec.md#792a4l1-uat-scenarios), [792a4l1b](./792a_product-spec.md#792a4l1-uat-scenarios), [792a4l1c](./792a_product-spec.md#792a4l1-uat-scenarios).
 
 ##### 792b14c8a Scenarios
 
@@ -6692,14 +6692,14 @@ Scenario: 792b14c8a5 Every failure is returned
 
 #### 792b14c9 Recording a use
 
-Requirement: 792b14c9 The note-amendment MUST record a use by reading the note's sidecar, setting
+Requirement: [792b14c9](#792b14c9-recording-a-use) The note-amendment MUST record a use by reading the note's sidecar, setting
 its last-used date to today and writing it back atomically with every other field unchanged, and
 MUST skip the write when the date is already today. A sidecar that cannot be read or decoded MUST
 fail the bump with an error naming the sidecar. An amend with `--activate` MUST bump after any
 rebuild, so the rebuilt sidecar carries today's date, and MUST warn and complete the amend when the
 bump fails.
 
-Supports: 792a4n1a, 792a4n1d.
+Supports: [792a4n1a](./792a_product-spec.md#792a4n1-uat-scenarios), [792a4n1d](./792a_product-spec.md#792a4n1-uat-scenarios).
 
 Rationale: the last-used date is metadata outside the content hash, so the bump never makes the
 sidecar stale and never triggers a re-embed.
@@ -6735,13 +6735,13 @@ Scenario: 792b14c9a5 The production wiring writes the real sidecar
 
 #### 792b14c10 Activation refs
 
-Requirement: 792b14c10 With no parent configured, the note-amendment MUST resolve each activate ref
+Requirement: [792b14c10](#792b14c10-activation-refs) With no parent configured, the note-amendment MUST resolve each activate ref
 to a note file, as given when absolute and otherwise under the vault, adding `.md` when missing; MUST
 record a use for each ref whose note file exists, counting one without a sidecar as activated; and
 MUST log a warning naming each ref whose note does not exist, continue with the others, and fail
 with an error saying how many refs failed.
 
-Supports: 792a4n1a, 792a4n1b, 792a4n1c.
+Supports: [792a4n1a](./792a_product-spec.md#792a4n1-uat-scenarios), [792a4n1b](./792a_product-spec.md#792a4n1-uat-scenarios), [792a4n1c](./792a_product-spec.md#792a4n1-uat-scenarios).
 
 ##### 792b14c10a Scenarios
 
@@ -6769,11 +6769,11 @@ Scenario: 792b14c10a4 All refs failing fails the command
 
 #### 792b14c11 Vocabulary tagging after a revision
 
-Requirement: 792b14c11 After an amend or a resituate writes the note (and, for a resituate, after its
+Requirement: [792b14c11](#792b14c11-vocabulary-tagging-after-a-revision) After an amend or a resituate writes the note (and, for a resituate, after its
 sidecar is rewritten), the note-amendment MUST have the vocabulary-engine tag the note's written
 content and then check whether a refit is due.
 
-Supports: 792a6d1d, 792a6d1e.
+Supports: [792a6d1d](./792a_product-spec.md#792a6d1-uat-scenarios), [792a6d1e](./792a_product-spec.md#792a6d1-uat-scenarios).
 
 ##### 792b14c11a Scenarios
 
@@ -6801,7 +6801,7 @@ Scenario: 792b14c11a4 The refit check runs after a resituate
 
 #### 792b14c12 Activation against the parent
 
-Requirement: 792b14c12 With a parent configured, or with `--parent`, the note-amendment MUST extend 792b14c10 as follows.
+Requirement: [792b14c12](#792b14c12-activation-against-the-parent) With a parent configured, or with `--parent`, the note-amendment MUST extend [792b14c10](#792b14c10-activation-refs) as follows.
 A ref whose note file exists MUST be a local hit and be bumped, except that with `--parent` no ref is looked up locally.
 A ref that is not a local hit MUST be handed to the pull-down, with no vault lock held, only when it is a basename or
 `<basename>.md`; a bare Luhmann ID, and with `--parent` a path, MUST fail as not sent to the parent (a miss also saying
@@ -6812,7 +6812,7 @@ a failed re-check MUST NOT fail the activate. When any pull or re-check was atte
 drains the outbox, once after all of them. It MUST warn for and count every failed ref and fail with how many of the refs
 failed.
 
-Supports: 792a21zc1a, 792a21zc1b, 792a21zc1c, 792a21zc1d, 792a21zc1e, 792a21zc1f, 792a21zc1g, 792a21zc1h, 792a21zf1d.
+Supports: [792a21zc1a](./792a_product-spec.md#792a21zc1-uat-scenarios), [792a21zc1b](./792a_product-spec.md#792a21zc1-uat-scenarios), [792a21zc1c](./792a_product-spec.md#792a21zc1-uat-scenarios), [792a21zc1d](./792a_product-spec.md#792a21zc1-uat-scenarios), [792a21zc1e](./792a_product-spec.md#792a21zc1-uat-scenarios), [792a21zc1f](./792a_product-spec.md#792a21zc1-uat-scenarios), [792a21zc1g](./792a_product-spec.md#792a21zc1-uat-scenarios), [792a21zc1h](./792a_product-spec.md#792a21zc1-uat-scenarios), [792a21zf1d](./792a_product-spec.md#792a21zf1-uat-scenarios).
 
 Rationale: a bare Luhmann ID names an unrelated note in another vault, so only a basename may leave this vault. The local
 pass holds the vault lock and each pull takes it only for its own write, because a fetch under the lock would stall every
@@ -6864,13 +6864,13 @@ Scenario: 792b14c12a8 Failed refs are counted
 
 #### 792b14c13 A discard of a pulled note records its decline
 
-Requirement: 792b14c13 A bare `--discard` of a note whose primary link is `via: pulled` MUST record the link's parent
+Requirement: [792b14c13](#792b14c13-a-discard-of-a-pulled-note-records-its-decline) A bare `--discard` of a note whose primary link is `via: pulled` MUST record the link's parent
 basename and hash, keyed by the link's parent vault ID, in the vault's declined-pull record before it deletes the note, and
 MUST fail without deleting the note when the decline cannot be recorded. It MUST record a repeated decline once, and MUST
 record nothing for a note that is not pulled. In a vault with no parent configured and no vault ID it MUST record nothing
 and create neither a vault ID nor `.engram/`. `--discard --into` MUST NOT record a decline.
 
-Supports: 792a21ze1c, 792a21ze1h, 792a21ze1i.
+Supports: [792a21ze1c](./792a_product-spec.md#792a21ze1-uat-scenarios), [792a21ze1h](./792a_product-spec.md#792a21ze1-uat-scenarios), [792a21ze1i](./792a_product-spec.md#792a21ze1-uat-scenarios).
 
 Rationale: the decline is what stops an unchanged parent note that curation rejected from coming back on the next
 activate. A decline that failed to record must not delete the note, or the note could return unrecorded. Recording a
@@ -6907,14 +6907,14 @@ Scenario: 792b14c13a5 A CRLF pulled note's decline is recorded
 
 #### 792b14c14 Settling a pending offer
 
-Requirement: 792b14c14 The note-amendment MUST clear the pending marker of its target for `--clear-pending` and for `--pending=false`, on a
+Requirement: [792b14c14](#792b14c14-settling-a-pending-offer) The note-amendment MUST clear the pending marker of its target for `--clear-pending` and for `--pending=false`, on a
 fact, feedback or runbook note, a runbook note that carries `skill_hash` included, changing no other field of the note and not
-re-stamping its identity (792b14c5), and MUST NOT set the marker in any local amend. It MUST, for `--discard`, delete the note
+re-stamping its identity ([792b14c5](#792b14c5-identity-re-stamp-gating)), and MUST NOT set the marker in any local amend. It MUST, for `--discard`, delete the note
 and then its sidecar under the vault lock the amend holds, print the note's path only when both were deleted, treat a missing
 sidecar as success, and fail with the cause when either removal fails, a failed removal of the note never attempting the
-sidecar. The judged-version check (792b34c5) MUST run before either.
+sidecar. The judged-version check ([792b34c5](#792b34c5-the-judged-version-check)) MUST run before either.
 
-Supports: 792a22b1b, 792a22h1a, 792a22h1b, 792a22k1d.
+Supports: [792a22b1b](./792a_product-spec.md#792a22b1-uat-scenarios), [792a22h1a](./792a_product-spec.md#792a22h1-uat-scenarios), [792a22h1b](./792a_product-spec.md#792a22h1-uat-scenarios), [792a22k1d](./792a_product-spec.md#792a22k1-uat-scenarios).
 
 Rationale: `--clear-pending` is the only way a curator accepts an offer, and the offer keeps its declared author because the
 bookkeeping amends do not re-stamp it (ADR-0029 D10). A pending note is a real file, so discarding it is a deletion, not a
@@ -6968,69 +6968,69 @@ Scenario: 792b14c14a8 An accepted offer keeps its author
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a4a1a | 792b14c3 |
-| 792a4a1b | 792b14c2 |
-| 792a4b1a | 792b14c3 |
-| 792a4b1b | 792b14c3 |
-| 792a4b1c | 792b14c3 |
-| 792a4c1a | 792b14c2 |
-| 792a4d1a | 792b14c4 |
-| 792a4d1b | 792b14c4 |
-| 792a4e1a | 792b14c4 |
-| 792a4f1a | 792b14c2 |
-| 792a4g1a | 792b14c3, 792b14c6 |
-| 792a4g1b | 792b14c3, 792b14c6 |
-| 792a4g1c | 792b14c6 |
-| 792a4h1a | 792b14c5 |
-| 792a4h1b | 792b14c5 |
-| 792a4h1c | 792b14c5 |
-| 792a4h1d | 792b14c5 |
-| 792a4h1e | 792b14c5 |
-| 792a4h1f | 792b14c5 |
-| 792a4h1g | 792b14c5 |
-| 792a4i1a | 792b14c5 |
-| 792a4j1a | 792b14c3 |
-| 792a4j1b | 792b14c3 |
-| 792a4j1c | 792b14c4 |
-| 792a4j1d | 792b14c8 |
-| 792a4k1a | 792b14c3 |
-| 792a4k1b | 792b14c8 |
-| 792a4l1a | 792b14c8 |
-| 792a4l1b | 792b14c8 |
-| 792a4l1c | 792b14c8 |
-| 792a4m1a | 792b14c6, 792b14c7 |
-| 792a4m1b | 792b14c7 |
-| 792a4n1a | 792b14c9, 792b14c10 |
-| 792a4n1b | 792b14c10 |
-| 792a4n1c | 792b14c10 |
-| 792a4n1d | 792b14c9 |
-| 792a4o1a | 792b14c1 |
-| 792a4o1b | 792b14c1 |
-| 792a6d1d | 792b14c11 |
-| 792a6d1e | 792b14c11 |
-| 792a14j1a | 792b14c4, 792b14c9 |
-| 792a14j1b | 792b14c3, 792b14c4 |
-| 792a14j1d | 792b14c4 |
-| 792a14l1a | 792b14c10 |
-| 792a17l1b | 792b14c3 |
-| 792a21zc1a | 792b14c12 |
-| 792a21zc1b | 792b14c12 |
-| 792a21zc1c | 792b14c12 |
-| 792a21zc1d | 792b14c12 |
-| 792a21zc1e | 792b14c12 |
-| 792a21zc1f | 792b14c12 |
-| 792a21zc1g | 792b14c12 |
-| 792a21zc1h | 792b14c12 |
-| 792a21zf1d | 792b14c12 |
-| 792a21ze1c | 792b14c13 |
-| 792a21ze1h | 792b14c13 |
-| 792a21ze1i | 792b14c13 |
-| 792a22b1b | 792b14c14 |
-| 792a22c1b | 792b14c9 |
-| 792a22h1a | 792b14c14 |
-| 792a22h1b | 792b14c14 |
-| 792a22k1d | 792b14c14 |
-| 792a22i1a | 792b14c13 |
+| [792a4a1a](./792a_product-spec.md#792a4a1-uat-scenarios) | [792b14c3](#792b14c3-field-replacement) |
+| [792a4a1b](./792a_product-spec.md#792a4a1-uat-scenarios) | [792b14c2](#792b14c2-amend-refusals) |
+| [792a4b1a](./792a_product-spec.md#792a4b1-uat-scenarios) | [792b14c3](#792b14c3-field-replacement) |
+| [792a4b1b](./792a_product-spec.md#792a4b1-uat-scenarios) | [792b14c3](#792b14c3-field-replacement) |
+| [792a4b1c](./792a_product-spec.md#792a4b1-uat-scenarios) | [792b14c3](#792b14c3-field-replacement) |
+| [792a4c1a](./792a_product-spec.md#792a4c1-uat-scenarios) | [792b14c2](#792b14c2-amend-refusals) |
+| [792a4d1a](./792a_product-spec.md#792a4d1-uat-scenarios) | [792b14c4](#792b14c4-supersessions-and-chunk-sources) |
+| [792a4d1b](./792a_product-spec.md#792a4d1-uat-scenarios) | [792b14c4](#792b14c4-supersessions-and-chunk-sources) |
+| [792a4e1a](./792a_product-spec.md#792a4e1-uat-scenarios) | [792b14c4](#792b14c4-supersessions-and-chunk-sources) |
+| [792a4f1a](./792a_product-spec.md#792a4f1-uat-scenarios) | [792b14c2](#792b14c2-amend-refusals) |
+| [792a4g1a](./792a_product-spec.md#792a4g1-uat-scenarios) | [792b14c3](#792b14c3-field-replacement), [792b14c6](#792b14c6-sidecar-rebuild-after-an-amend) |
+| [792a4g1b](./792a_product-spec.md#792a4g1-uat-scenarios) | [792b14c3](#792b14c3-field-replacement), [792b14c6](#792b14c6-sidecar-rebuild-after-an-amend) |
+| [792a4g1c](./792a_product-spec.md#792a4g1-uat-scenarios) | [792b14c6](#792b14c6-sidecar-rebuild-after-an-amend) |
+| [792a4h1a](./792a_product-spec.md#792a4h1-uat-scenarios) | [792b14c5](#792b14c5-identity-re-stamp-gating) |
+| [792a4h1b](./792a_product-spec.md#792a4h1-uat-scenarios) | [792b14c5](#792b14c5-identity-re-stamp-gating) |
+| [792a4h1c](./792a_product-spec.md#792a4h1-uat-scenarios) | [792b14c5](#792b14c5-identity-re-stamp-gating) |
+| [792a4h1d](./792a_product-spec.md#792a4h1-uat-scenarios) | [792b14c5](#792b14c5-identity-re-stamp-gating) |
+| [792a4h1e](./792a_product-spec.md#792a4h1-uat-scenarios) | [792b14c5](#792b14c5-identity-re-stamp-gating) |
+| [792a4h1f](./792a_product-spec.md#792a4h1-uat-scenarios) | [792b14c5](#792b14c5-identity-re-stamp-gating) |
+| [792a4h1g](./792a_product-spec.md#792a4h1-uat-scenarios) | [792b14c5](#792b14c5-identity-re-stamp-gating) |
+| [792a4i1a](./792a_product-spec.md#792a4i1-uat-scenarios) | [792b14c5](#792b14c5-identity-re-stamp-gating) |
+| [792a4j1a](./792a_product-spec.md#792a4j1-uat-scenarios) | [792b14c3](#792b14c3-field-replacement) |
+| [792a4j1b](./792a_product-spec.md#792a4j1-uat-scenarios) | [792b14c3](#792b14c3-field-replacement) |
+| [792a4j1c](./792a_product-spec.md#792a4j1-uat-scenarios) | [792b14c4](#792b14c4-supersessions-and-chunk-sources) |
+| [792a4j1d](./792a_product-spec.md#792a4j1-uat-scenarios) | [792b14c8](#792b14c8-resituation) |
+| [792a4k1a](./792a_product-spec.md#792a4k1-uat-scenarios) | [792b14c3](#792b14c3-field-replacement) |
+| [792a4k1b](./792a_product-spec.md#792a4k1-uat-scenarios) | [792b14c8](#792b14c8-resituation) |
+| [792a4l1a](./792a_product-spec.md#792a4l1-uat-scenarios) | [792b14c8](#792b14c8-resituation) |
+| [792a4l1b](./792a_product-spec.md#792a4l1-uat-scenarios) | [792b14c8](#792b14c8-resituation) |
+| [792a4l1c](./792a_product-spec.md#792a4l1-uat-scenarios) | [792b14c8](#792b14c8-resituation) |
+| [792a4m1a](./792a_product-spec.md#792a4m1-uat-scenarios) | [792b14c6](#792b14c6-sidecar-rebuild-after-an-amend), [792b14c7](#792b14c7-crlf-revision) |
+| [792a4m1b](./792a_product-spec.md#792a4m1-uat-scenarios) | [792b14c7](#792b14c7-crlf-revision) |
+| [792a4n1a](./792a_product-spec.md#792a4n1-uat-scenarios) | [792b14c9](#792b14c9-recording-a-use), [792b14c10](#792b14c10-activation-refs) |
+| [792a4n1b](./792a_product-spec.md#792a4n1-uat-scenarios) | [792b14c10](#792b14c10-activation-refs) |
+| [792a4n1c](./792a_product-spec.md#792a4n1-uat-scenarios) | [792b14c10](#792b14c10-activation-refs) |
+| [792a4n1d](./792a_product-spec.md#792a4n1-uat-scenarios) | [792b14c9](#792b14c9-recording-a-use) |
+| [792a4o1a](./792a_product-spec.md#792a4o1-uat-scenarios) | [792b14c1](#792b14c1-locked-revision) |
+| [792a4o1b](./792a_product-spec.md#792a4o1-uat-scenarios) | [792b14c1](#792b14c1-locked-revision) |
+| [792a6d1d](./792a_product-spec.md#792a6d1-uat-scenarios) | [792b14c11](#792b14c11-vocabulary-tagging-after-a-revision) |
+| [792a6d1e](./792a_product-spec.md#792a6d1-uat-scenarios) | [792b14c11](#792b14c11-vocabulary-tagging-after-a-revision) |
+| [792a14j1a](./792a_product-spec.md#792a14j1-uat-scenarios) | [792b14c4](#792b14c4-supersessions-and-chunk-sources), [792b14c9](#792b14c9-recording-a-use) |
+| [792a14j1b](./792a_product-spec.md#792a14j1-uat-scenarios) | [792b14c3](#792b14c3-field-replacement), [792b14c4](#792b14c4-supersessions-and-chunk-sources) |
+| [792a14j1d](./792a_product-spec.md#792a14j1-uat-scenarios) | [792b14c4](#792b14c4-supersessions-and-chunk-sources) |
+| [792a14l1a](./792a_product-spec.md#792a14l1-uat-scenarios) | [792b14c10](#792b14c10-activation-refs) |
+| [792a17l1b](./792a_product-spec.md#792a17l1-uat-scenarios) | [792b14c3](#792b14c3-field-replacement) |
+| [792a21zc1a](./792a_product-spec.md#792a21zc1-uat-scenarios) | [792b14c12](#792b14c12-activation-against-the-parent) |
+| [792a21zc1b](./792a_product-spec.md#792a21zc1-uat-scenarios) | [792b14c12](#792b14c12-activation-against-the-parent) |
+| [792a21zc1c](./792a_product-spec.md#792a21zc1-uat-scenarios) | [792b14c12](#792b14c12-activation-against-the-parent) |
+| [792a21zc1d](./792a_product-spec.md#792a21zc1-uat-scenarios) | [792b14c12](#792b14c12-activation-against-the-parent) |
+| [792a21zc1e](./792a_product-spec.md#792a21zc1-uat-scenarios) | [792b14c12](#792b14c12-activation-against-the-parent) |
+| [792a21zc1f](./792a_product-spec.md#792a21zc1-uat-scenarios) | [792b14c12](#792b14c12-activation-against-the-parent) |
+| [792a21zc1g](./792a_product-spec.md#792a21zc1-uat-scenarios) | [792b14c12](#792b14c12-activation-against-the-parent) |
+| [792a21zc1h](./792a_product-spec.md#792a21zc1-uat-scenarios) | [792b14c12](#792b14c12-activation-against-the-parent) |
+| [792a21zf1d](./792a_product-spec.md#792a21zf1-uat-scenarios) | [792b14c12](#792b14c12-activation-against-the-parent) |
+| [792a21ze1c](./792a_product-spec.md#792a21ze1-uat-scenarios) | [792b14c13](#792b14c13-a-discard-of-a-pulled-note-records-its-decline) |
+| [792a21ze1h](./792a_product-spec.md#792a21ze1-uat-scenarios) | [792b14c13](#792b14c13-a-discard-of-a-pulled-note-records-its-decline) |
+| [792a21ze1i](./792a_product-spec.md#792a21ze1-uat-scenarios) | [792b14c13](#792b14c13-a-discard-of-a-pulled-note-records-its-decline) |
+| [792a22b1b](./792a_product-spec.md#792a22b1-uat-scenarios) | [792b14c14](#792b14c14-settling-a-pending-offer) |
+| [792a22c1b](./792a_product-spec.md#792a22c1-uat-scenarios) | [792b14c9](#792b14c9-recording-a-use) |
+| [792a22h1a](./792a_product-spec.md#792a22h1-uat-scenarios) | [792b14c14](#792b14c14-settling-a-pending-offer) |
+| [792a22h1b](./792a_product-spec.md#792a22h1-uat-scenarios) | [792b14c14](#792b14c14-settling-a-pending-offer) |
+| [792a22k1d](./792a_product-spec.md#792a22k1-uat-scenarios) | [792b14c14](#792b14c14-settling-a-pending-offer) |
+| [792a22i1a](./792a_product-spec.md#792a22i1-uat-scenarios) | [792b14c13](#792b14c13-a-discard-of-a-pulled-note-records-its-decline) |
 
 ```gherkin
 Scenario: 792a4e1a Chunk sources are merged without duplicates
@@ -7187,21 +7187,21 @@ Canonical target: `docs/specs/technical/transcript-reader.md` (title `Transcript
   the last entry it kept.
 - Session stores: engram reads the harnesses' transcripts as files, not through a harness API.
   Claude Code writes `~/.claude/projects/<slug>/*.jsonl`; Pi writes session JSONL under `.pi`
-  directories, which chunk-indexing sweeps (792a5d) or names with `--pi-sessions` (792a5b). Only
+  directories, which chunk-indexing sweeps ([792a5d](./792a_product-spec.md#792a5d-automatic-sweep-roots)) or names with `--pi-sessions` ([792a5b](./792a_product-spec.md#792a5b-explicitly-named-sources)). Only
   JSONL is read.
 - Current realization (informational): `JSONLReader.ReadFrom` in `internal/transcript/transcript.go`,
   over `StripWithConfigIndexed` with `ToolSummaryMode` and the shared cleaning helpers in
   `internal/context/strip.go`, `stripconfig.go` and `toolsummary.go`; chunk ingestion wires it in
   `newIngestDeps` (`internal/cli/ingest.go`). `ReadFrom` also takes a start time and a byte budget,
   which ingestion leaves unset; `SegmentsFrom`, `Strip` and the `KeepToolCalls` mode have no
-  production caller. None of these is specified (792d81).
+  production caller. None of these is specified ([792d81](./792d_decision-log.md#792d81-transcript-reader-scope-and-the-tests-it-leaves)).
 - Qualification: responsibility, turning a transcript into conversation text is stated without
   naming any function; ownership, the caller decides which files to read and what to do with the
   text, while this component owns the file format and what is kept; independent verification, it is
   tested directly over a fake file reader and on raw transcript lines; stability, the contract
   survives any change to how the cleaning is split across packages; necessity, every transcript
   chunk is made from its output.
-- Supported capabilities: 792a5 chunk-indexing, and memory-query's 792a7p (the last timestamp).
+- Supported capabilities: [792a5](./792a_product-spec.md#792a5-added-chunk-indexing) chunk-indexing, and memory-query's [792a7p](./792a_product-spec.md#792a7p-when-a-chunk-was-first-indexed) (the last timestamp).
 
 Rationale: sessions were once read through finder and reader interfaces with two backends, Claude
 Code JSONL and OpenCode SQLite, and a composite that tried each in turn, so that marker
@@ -7231,11 +7231,11 @@ sequenceDiagram
 
 #### 792b15c1 Reading a transcript
 
-Requirement: 792b15c1 The transcript-reader MUST read the whole transcript file at the given path
+Requirement: [792b15c1](#792b15c1-reading-a-transcript) The transcript-reader MUST read the whole transcript file at the given path
 and return its conversation text, and MUST return an error wrapping the read failure as
 `reading transcript` when the file cannot be read.
 
-Supports: 792a5b1d, 792a5g1a.
+Supports: [792a5b1d](./792a_product-spec.md#792a5b1-uat-scenarios), [792a5g1a](./792a_product-spec.md#792a5g1-uat-scenarios).
 
 ##### 792b15c1a Scenarios
 
@@ -7248,12 +7248,12 @@ Scenario: 792b15c1a1 An unreadable transcript is an error
 
 #### 792b15c2 Conversation entries
 
-Requirement: 792b15c2 The transcript-reader MUST keep only entries whose top-level `type`, or else
+Requirement: [792b15c2](#792b15c2-conversation-entries) The transcript-reader MUST keep only entries whose top-level `type`, or else
 whose `message.role`, is `user` or `assistant`, MUST render each kept entry's text, given as a string
 or as text content blocks joined by spaces, as one line prefixed `USER: ` or `ASSISTANT: `, and MUST
 drop entries that are not JSON, have another type, or have no text.
 
-Supports: 792a5g1a, 792a5h1b.
+Supports: [792a5g1a](./792a_product-spec.md#792a5g1-uat-scenarios), [792a5h1b](./792a_product-spec.md#792a5h1-uat-scenarios).
 
 ##### 792b15c2a Scenarios
 
@@ -7276,7 +7276,7 @@ Scenario: 792b15c2a3 An entry with another role is dropped
 
 #### 792b15c3 Harness noise
 
-Requirement: 792b15c3 The transcript-reader MUST drop text that starts with `<system-reminder`,
+Requirement: [792b15c3](#792b15c3-harness-noise) The transcript-reader MUST drop text that starts with `<system-reminder`,
 `Base directory for this skill:`, `<local-command-stdout>`, `<local-command-caveat>` or
 `<task-notification>`, MUST replace text holding a `<command-name>` slash-command block with the
 trimmed text of its `<command-args>` block, and MUST drop that text when the block has no
@@ -7286,7 +7286,7 @@ Rationale: the harness writes these into the user's turns. They are not what the
 an injected skill body would otherwise repeat the whole skill in every chunk of every session that
 used it.
 
-Supports: 792a5g1a.
+Supports: [792a5g1a](./792a_product-spec.md#792a5g1-uat-scenarios).
 
 ##### 792b15c3a Scenarios
 
@@ -7309,11 +7309,11 @@ Scenario: 792b15c3a3 A slash command keeps only its arguments
 
 #### 792b15c4 Oversized content
 
-Requirement: 792b15c4 The transcript-reader MUST replace every run of 100 or more base64 characters
+Requirement: [792b15c4](#792b15c4-oversized-content) The transcript-reader MUST replace every run of 100 or more base64 characters
 (letters, digits, `+`, `/`, `=`) in an entry with `[base64 removed]`, and MUST cut any text line
 longer than 2000 characters to its first 2000 followed by `[truncated]`.
 
-Supports: 792a5g1a.
+Supports: [792a5g1a](./792a_product-spec.md#792a5g1-uat-scenarios).
 
 ##### 792b15c4a Scenarios
 
@@ -7331,7 +7331,7 @@ Scenario: 792b15c4a2 An oversized line is cut
 
 #### 792b15c5 Tool-call summaries
 
-Requirement: 792b15c5 The transcript-reader MUST render each `tool_use` block that a later
+Requirement: [792b15c5](#792b15c5-tool-call-summaries) The transcript-reader MUST render each `tool_use` block that a later
 `tool_result` block with string content answers by ID as one line,
 `[tool] <name>(<key>=<value>, ...) → exit <0|1> | <first non-empty result line>`, at the position of
 the result, with the arguments sorted by key and string values quoted, exit 1 when the result is an
@@ -7339,12 +7339,12 @@ error, the argument list and the result line each cut to 120 characters followed
 and the ` | ...` part left out when the result is empty. It MUST drop a `tool_use` that no such
 result answers, and every other `tool_result`.
 
-Supports: 792a5g1a.
+Supports: [792a5g1a](./792a_product-spec.md#792a5g1-uat-scenarios).
 
 Rationale: a tool call's full input and output are usually the bulk of a session. One line keeps
 what was done and whether it worked, which is what an agent reading the chunk back needs. A
 `tool_result` whose content is a list of blocks matches no summary, so its call is dropped
-(792d81).
+([792d81](./792d_decision-log.md#792d81-transcript-reader-scope-and-the-tests-it-leaves)).
 
 ##### 792b15c5a Scenarios
 
@@ -7382,15 +7382,15 @@ Scenario: 792b15c5a6 Long arguments and output are cut
 
 #### 792b15c6 Last timestamp
 
-Requirement: 792b15c6 The transcript-reader MUST return, with the conversation text, the timestamp of the
+Requirement: [792b15c6](#792b15c6-last-timestamp) The transcript-reader MUST return, with the conversation text, the timestamp of the
 last entry it kept, treating an entry whose timestamp is absent, null or unreadable, or that is not
 JSON, as carrying the timestamp of the entry before it, and MUST return no timestamp when no entry
 carries a readable one.
 
-Supports: 792a7p1b.
+Supports: [792a7p1b](./792a_product-spec.md#792a7p1-uat-scenarios).
 
-Rationale: the timestamp becomes every chunk's first-indexed time (792b18c14), which orders the
-newest chunks of a query (792a7o), so a session with a few rows that lack a time must still report
+Rationale: the timestamp becomes every chunk's first-indexed time ([792b18c14](#792b18c14-first-indexed-time)), which orders the
+newest chunks of a query ([792a7o](./792a_product-spec.md#792a7o-the-newest-chunks)), so a session with a few rows that lack a time must still report
 when it ended.
 
 ##### 792b15c6a Scenarios
@@ -7411,10 +7411,10 @@ Scenario: 792b15c6a2 A null timestamp inherits the previous one
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a5b1d | 792b15c1 |
-| 792a5g1a | 792b15c1, 792b15c2, 792b15c3, 792b15c4, 792b15c5 |
-| 792a5h1b | 792b15c2 |
-| 792a7p1b | 792b15c6 |
+| [792a5b1d](./792a_product-spec.md#792a5b1-uat-scenarios) | [792b15c1](#792b15c1-reading-a-transcript) |
+| [792a5g1a](./792a_product-spec.md#792a5g1-uat-scenarios) | [792b15c1](#792b15c1-reading-a-transcript), [792b15c2](#792b15c2-conversation-entries), [792b15c3](#792b15c3-harness-noise), [792b15c4](#792b15c4-oversized-content), [792b15c5](#792b15c5-tool-call-summaries) |
+| [792a5h1b](./792a_product-spec.md#792a5h1-uat-scenarios) | [792b15c2](#792b15c2-conversation-entries) |
+| [792a7p1b](./792a_product-spec.md#792a7p1-uat-scenarios) | [792b15c6](#792b15c6-last-timestamp) |
 
 ```gherkin
 Scenario: 792a5g1a A conversation is indexed as text with tool summaries
@@ -7454,29 +7454,29 @@ Canonical target: `docs/specs/technical/source-chunking.md` (title `Source Chunk
   this component owns the boundaries and anchors; independent verification, it is tested directly on
   strings; stability, the contract survives any change to the index format; necessity, every chunk
   in the index is one of its pieces.
-- Supported capabilities: 792a5 chunk-indexing.
+- Supported capabilities: [792a5](./792a_product-spec.md#792a5-added-chunk-indexing) chunk-indexing.
 
 Rationale: a chunk is the unit that is embedded and retrieved, so it must fit the embedder's
-window (792b9c2) and still read as a coherent piece of evidence. Heading sections are the natural
+window ([792b9c2](#792b9c2-input-window)) and still read as a coherent piece of evidence. Heading sections are the natural
 units of a document. Single transcript turns are often a few words, so consecutive turns are merged
 until the chunk is worth embedding on its own.
 
 ### 792b16b Sequences
 
 The source-chunking owns no flow: it is a pure function from text to chunks, called by
-chunk-index-store (792b18).
+chunk-index-store ([792b18](#792b18-added-chunk-index-store)).
 
 ### 792b16c Behavior Requirements
 
 #### 792b16c1 Markdown sections
 
-Requirement: 792b16c1 The source-chunking MUST cut Markdown into one piece per section, where a
+Requirement: [792b16c1](#792b16c1-markdown-sections) The source-chunking MUST cut Markdown into one piece per section, where a
 section starts at each ATX heading line (one to six `#` followed by a space) outside fenced code and
 includes that heading line, a line whose trimmed text starts with three backticks opens or closes a
 fence, the anchor is the heading's text without its `#` marks and surrounding spaces, and text
 before the first heading is anchored `preamble`.
 
-Supports: 792a5h1a, 792a5h1d.
+Supports: [792a5h1a](./792a_product-spec.md#792a5h1-uat-scenarios), [792a5h1d](./792a_product-spec.md#792a5h1-uat-scenarios).
 
 ##### 792b16c1a Scenarios
 
@@ -7499,13 +7499,13 @@ Scenario: 792b16c1a3 Text before the first heading is the preamble
 
 #### 792b16c2 Transcript turns
 
-Requirement: 792b16c2 The source-chunking MUST group a transcript's lines into turns, each starting
+Requirement: [792b16c2](#792b16c2-transcript-turns) The source-chunking MUST group a transcript's lines into turns, each starting
 at a line that begins `USER: ` and running to the next, with any lines before the first such line
 as one leading unit, MUST append whole turns to a chunk until its text reaches the 500-character
 target and then start the next chunk, and MUST anchor each chunk `turn-<N>`, where `<N>` counts the
 first turn it holds among the user turns from 1, or `preamble` when it starts with the leading unit.
 
-Supports: 792a5h1b.
+Supports: [792a5h1b](./792a_product-spec.md#792a5h1-uat-scenarios).
 
 ##### 792b16c2a Scenarios
 
@@ -7528,15 +7528,15 @@ Scenario: 792b16c2a3 Text before the first user turn is the preamble
 
 #### 792b16c3 Oversized pieces
 
-Requirement: 792b16c3 The source-chunking MUST split a section or chunk whose trimmed text is longer
+Requirement: [792b16c3](#792b16c3-oversized-pieces) The source-chunking MUST split a section or chunk whose trimmed text is longer
 than 1500 characters by packing its non-blank lines, in order, into pieces, starting a new piece
 whenever adding the next line would take the piece past 1500 characters, and MUST give every piece
 the anchor of the text it came from.
 
-Supports: 792a5h1d.
+Supports: [792a5h1d](./792a_product-spec.md#792a5h1-uat-scenarios).
 
 Rationale: 1500 characters fits the embedder's window. A single line longer than that is not cut
-here; it stays one piece, and the embedder embeds its first 1500 characters (792b9c2).
+here; it stays one piece, and the embedder embeds its first 1500 characters ([792b9c2](#792b9c2-input-window)).
 
 ##### 792b16c3a Scenarios
 
@@ -7554,10 +7554,10 @@ Scenario: 792b16c3a2 An oversized turn is split
 
 #### 792b16c4 Noise floor
 
-Requirement: 792b16c4 The source-chunking MUST drop every section, chunk and split piece whose
+Requirement: [792b16c4](#792b16c4-noise-floor) The source-chunking MUST drop every section, chunk and split piece whose
 trimmed text is shorter than 40 characters.
 
-Supports: 792a5h1c.
+Supports: [792a5h1c](./792a_product-spec.md#792a5h1-uat-scenarios).
 
 ##### 792b16c4a Scenarios
 
@@ -7577,10 +7577,10 @@ Scenario: 792b16c4a2 A tiny section yields nothing
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a5h1a | 792b16c1 |
-| 792a5h1b | 792b16c2 |
-| 792a5h1c | 792b16c4 |
-| 792a5h1d | 792b16c1, 792b16c3 |
+| [792a5h1a](./792a_product-spec.md#792a5h1-uat-scenarios) | [792b16c1](#792b16c1-markdown-sections) |
+| [792a5h1b](./792a_product-spec.md#792a5h1-uat-scenarios) | [792b16c2](#792b16c2-transcript-turns) |
+| [792a5h1c](./792a_product-spec.md#792a5h1-uat-scenarios) | [792b16c4](#792b16c4-noise-floor) |
+| [792a5h1d](./792a_product-spec.md#792a5h1-uat-scenarios) | [792b16c1](#792b16c1-markdown-sections), [792b16c3](#792b16c3-oversized-pieces) |
 
 ```gherkin
 Scenario: 792a5h1a Markdown is chunked by heading
@@ -7623,7 +7623,7 @@ Canonical target: `docs/specs/technical/ingestion-source-discovery.md` (title `I
   resolution is tested as a pure function of the spec and an injected directory check, and
   gathering over fake listings; stability, the contract survives any change to the index;
   necessity, every source the index holds is one it found.
-- Supported capabilities: 792a5 chunk-indexing.
+- Supported capabilities: [792a5](./792a_product-spec.md#792a5-added-chunk-indexing) chunk-indexing.
 
 Rationale: the sweep is declarative and inspectable: what `--auto` covers is data, compiled in as
 defaults and overridable per repository, so a developer tunes it without changing code. Two
@@ -7673,13 +7673,13 @@ sequenceDiagram
 
 #### 792b17c1 Named sources
 
-Requirement: 792b17c1 The ingestion-source-discovery MUST make each `--transcript` and `--markdown`
+Requirement: [792b17c1](#792b17c1-named-sources) The ingestion-source-discovery MUST make each `--transcript` and `--markdown`
 path a source with the explicit origin, without checking that it exists, and for each `--pi-sessions`
 value that is a directory MUST make each `.md` and `.jsonl` file under it, outside its `jobs`,
 `projects` and hidden subdirectories, a source with the explicit origin. It MUST skip a
 `--pi-sessions` value that is not a directory.
 
-Supports: 792a5b1a, 792a5b1b, 792a5b1c, 792a5b1d, 792a5f1d, 792a5l1b.
+Supports: [792a5b1a](./792a_product-spec.md#792a5b1-uat-scenarios), [792a5b1b](./792a_product-spec.md#792a5b1-uat-scenarios), [792a5b1c](./792a_product-spec.md#792a5b1-uat-scenarios), [792a5b1d](./792a_product-spec.md#792a5b1-uat-scenarios), [792a5f1d](./792a_product-spec.md#792a5f1-uat-scenarios), [792a5l1b](./792a_product-spec.md#792a5l1-uat-scenarios).
 
 ##### 792b17c1a Scenarios
 
@@ -7702,11 +7702,11 @@ Scenario: 792b17c1a3 A Pi value that is not a directory is skipped
 
 #### 792b17c2 Swept directories
 
-Requirement: 792b17c2 The ingestion-source-discovery MUST make each `--sweep` directory a root with
-the manual-sweep origin, the default excluded directory names (792b17c5) and hidden directories
+Requirement: [792b17c2](#792b17c2-swept-directories) The ingestion-source-discovery MUST make each `--sweep` directory a root with
+the manual-sweep origin, the default excluded directory names ([792b17c5](#792b17c5-sweep-configuration)) and hidden directories
 pruned, and no throwaway-name or throwaway-path rule.
 
-Supports: 792a5c1a, 792a5f1d.
+Supports: [792a5c1a](./792a_product-spec.md#792a5c1-uat-scenarios), [792a5f1d](./792a_product-spec.md#792a5f1-uat-scenarios).
 
 ##### 792b17c2a Scenarios
 
@@ -7719,19 +7719,19 @@ Scenario: 792b17c2a1 A swept directory under a throwaway path is still swept
 
 #### 792b17c3 Automatic roots
 
-Requirement: 792b17c3 For `--auto`, the ingestion-source-discovery MUST resolve, in this order and
+Requirement: [792b17c3](#792b17c3-automatic-roots) For `--auto`, the ingestion-source-discovery MUST resolve, in this order and
 each only when its setting is on: the repository root (the nearest of the working directory and its
 ancestors holding a `.git`, `.hg` or `.jj` directory, else the working directory) with the
 repository origin; each `.claude` directory from the working directory up to the filesystem root,
 nearest first, with the claude-ancestor origin; each `.pi` directory on the same chain with the
-pi-ancestor origin; the session-log directory (792b17c6), when it is a directory, with the
+pi-ancestor origin; the session-log directory ([792b17c6](#792b17c6-session-log-directory)), when it is a directory, with the
 session-log origin; and each `extra_roots` entry with the manual-sweep origin. Every root MUST carry
 `exclude_dirs` and prune hidden directories unless `include_hidden_dirs` is set; a `.claude` root
 MUST also carry `claude_exclude_dirs`, a `.pi` root only `jobs` and `projects`, and only the
 session-log root `non_persistent_prefixes`. Each ancestor root MUST record its depth: the number of
 directory levels climbed from the working directory to reach the directory holding it.
 
-Supports: 792a5d1a, 792a5d1b, 792a5d1c, 792a5d1d, 792a5e1a, 792a5f1a, 792a5l1a, 792a5l1c.
+Supports: [792a5d1a](./792a_product-spec.md#792a5d1-uat-scenarios), [792a5d1b](./792a_product-spec.md#792a5d1-uat-scenarios), [792a5d1c](./792a_product-spec.md#792a5d1-uat-scenarios), [792a5d1d](./792a_product-spec.md#792a5d1-uat-scenarios), [792a5e1a](./792a_product-spec.md#792a5e1-uat-scenarios), [792a5f1a](./792a_product-spec.md#792a5f1-uat-scenarios), [792a5l1a](./792a_product-spec.md#792a5l1-uat-scenarios), [792a5l1c](./792a_product-spec.md#792a5l1-uat-scenarios).
 
 ##### 792b17c3a Scenarios
 
@@ -7769,11 +7769,11 @@ Scenario: 792b17c3a6 Ancestor depth is the physical distance
 
 #### 792b17c4 Throwaway roots
 
-Requirement: 792b17c4 The ingestion-source-discovery MUST drop every `--auto` root, before
+Requirement: [792b17c4](#792b17c4-throwaway-roots) The ingestion-source-discovery MUST drop every `--auto` root, before
 `extra_roots` are added, whose own path equals or lies under a `non_persistent_path_prefixes` entry,
 comparing whole path segments, so that `/tmpfoo` is not under `/tmp`.
 
-Supports: 792a5f1b, 792a5f1c.
+Supports: [792a5f1b](./792a_product-spec.md#792a5f1-uat-scenarios), [792a5f1c](./792a_product-spec.md#792a5f1-uat-scenarios).
 
 ##### 792b17c4a Scenarios
 
@@ -7791,7 +7791,7 @@ Scenario: 792b17c4a2 Extra roots are kept under a throwaway path
 
 #### 792b17c5 Sweep configuration
 
-Requirement: 792b17c5 The ingestion-source-discovery MUST default every root setting on,
+Requirement: [792b17c5](#792b17c5-sweep-configuration) The ingestion-source-discovery MUST default every root setting on,
 `exclude_dirs` to `node_modules`, `vendor`, `.git`, `.hg`, `.jj`, `dist`, `build`, `target`,
 `.venv`, `venv`, `__pycache__`, `.next`, `.cache` and `.idea`, `claude_exclude_dirs` to `projects`,
 `jobs`, `plugins`, `cache`, `todos`, `shell-snapshots`, `file-history`, `history`, `ide`,
@@ -7802,7 +7802,7 @@ it MUST read `.engram/sweep.json` at the repository root, overlay each key the f
 defaults, and return an error naming the file when it is not valid JSON; it MUST return an error
 when the working directory cannot be found.
 
-Supports: 792a5c1a, 792a5d1c, 792a5e1a, 792a5e1b, 792a5f1a, 792a5f1b.
+Supports: [792a5c1a](./792a_product-spec.md#792a5c1-uat-scenarios), [792a5d1c](./792a_product-spec.md#792a5d1-uat-scenarios), [792a5e1a](./792a_product-spec.md#792a5e1-uat-scenarios), [792a5e1b](./792a_product-spec.md#792a5e1-uat-scenarios), [792a5f1a](./792a_product-spec.md#792a5f1-uat-scenarios), [792a5f1b](./792a_product-spec.md#792a5f1-uat-scenarios).
 
 ##### 792b17c5a Scenarios
 
@@ -7830,11 +7830,11 @@ Scenario: 792b17c5a4 An invalid configuration file is an error
 
 #### 792b17c6 Session-log directory
 
-Requirement: 792b17c6 The ingestion-source-discovery MUST take the session-log directory from
+Requirement: [792b17c6](#792b17c6-session-log-directory) The ingestion-source-discovery MUST take the session-log directory from
 `ENGRAM_TRANSCRIPT_DIR` when it is non-empty, else `<home>/.claude/projects`, and MUST use no
 session-log directory when the home directory cannot be found.
 
-Supports: 792a5d1a, 792a5d1d.
+Supports: [792a5d1a](./792a_product-spec.md#792a5d1-uat-scenarios), [792a5d1d](./792a_product-spec.md#792a5d1-uat-scenarios).
 
 Rationale: memory learns from every recorded conversation of every project, not only the current
 one's. A headless or eval run sets `ENGRAM_TRANSCRIPT_DIR` so it sweeps only its own sessions.
@@ -7855,12 +7855,12 @@ Scenario: 792b17c6a2 The environment names the directory
 
 #### 792b17c7 Walking a root
 
-Requirement: 792b17c7 The ingestion-source-discovery MUST walk each root and return its files,
+Requirement: [792b17c7](#792b17c7-walking-a-root) The ingestion-source-discovery MUST walk each root and return its files,
 pruning every directory below the root whose name is in the root's excluded names, starts with one
 of its name prefixes, or, when the root prunes hidden directories, starts with `.`, and MUST return
 an error naming the root when the walk fails.
 
-Supports: 792a5b1b, 792a5c1a, 792a5d1c, 792a5f1a.
+Supports: [792a5b1b](./792a_product-spec.md#792a5b1-uat-scenarios), [792a5c1a](./792a_product-spec.md#792a5c1-uat-scenarios), [792a5d1c](./792a_product-spec.md#792a5d1-uat-scenarios), [792a5f1a](./792a_product-spec.md#792a5f1-uat-scenarios).
 
 ##### 792b17c7a Scenarios
 
@@ -7883,12 +7883,12 @@ Scenario: 792b17c7a3 A failed walk is an error
 
 #### 792b17c8 Source files
 
-Requirement: 792b17c8 The ingestion-source-discovery MUST keep only `.md` and `.jsonl` files of a
+Requirement: [792b17c8](#792b17c8-source-files) The ingestion-source-discovery MUST keep only `.md` and `.jsonl` files of a
 walked root, MUST drop, for every root but a `--pi-sessions` directory, each file under the chunk
 index directory, and MUST tag each source with its root's origin and depth, as explicit only when
 the origin is explicit.
 
-Supports: 792a5c1a, 792a5c1c, 792a5l1a.
+Supports: [792a5c1a](./792a_product-spec.md#792a5c1-uat-scenarios), [792a5c1c](./792a_product-spec.md#792a5c1-uat-scenarios), [792a5l1a](./792a_product-spec.md#792a5l1-uat-scenarios).
 
 ##### 792b17c8a Scenarios
 
@@ -7913,25 +7913,25 @@ Scenario: 792b17c8a3 A swept root's files are found
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a5b1a | 792b17c1 |
-| 792a5b1b | 792b17c1, 792b17c7 |
-| 792a5b1c | 792b17c1 |
-| 792a5b1d | 792b17c1 |
-| 792a5c1a | 792b17c2, 792b17c5, 792b17c7, 792b17c8 |
-| 792a5c1c | 792b17c8 |
-| 792a5d1a | 792b17c3, 792b17c6 |
-| 792a5d1b | 792b17c3 |
-| 792a5d1c | 792b17c3, 792b17c5, 792b17c7 |
-| 792a5d1d | 792b17c3, 792b17c6 |
-| 792a5e1a | 792b17c3, 792b17c5 |
-| 792a5e1b | 792b17c5 |
-| 792a5f1a | 792b17c3, 792b17c5, 792b17c7 |
-| 792a5f1b | 792b17c4, 792b17c5 |
-| 792a5f1c | 792b17c4 |
-| 792a5f1d | 792b17c1, 792b17c2 |
-| 792a5l1a | 792b17c3, 792b17c8 |
-| 792a5l1b | 792b17c1 |
-| 792a5l1c | 792b17c3 |
+| [792a5b1a](./792a_product-spec.md#792a5b1-uat-scenarios) | [792b17c1](#792b17c1-named-sources) |
+| [792a5b1b](./792a_product-spec.md#792a5b1-uat-scenarios) | [792b17c1](#792b17c1-named-sources), [792b17c7](#792b17c7-walking-a-root) |
+| [792a5b1c](./792a_product-spec.md#792a5b1-uat-scenarios) | [792b17c1](#792b17c1-named-sources) |
+| [792a5b1d](./792a_product-spec.md#792a5b1-uat-scenarios) | [792b17c1](#792b17c1-named-sources) |
+| [792a5c1a](./792a_product-spec.md#792a5c1-uat-scenarios) | [792b17c2](#792b17c2-swept-directories), [792b17c5](#792b17c5-sweep-configuration), [792b17c7](#792b17c7-walking-a-root), [792b17c8](#792b17c8-source-files) |
+| [792a5c1c](./792a_product-spec.md#792a5c1-uat-scenarios) | [792b17c8](#792b17c8-source-files) |
+| [792a5d1a](./792a_product-spec.md#792a5d1-uat-scenarios) | [792b17c3](#792b17c3-automatic-roots), [792b17c6](#792b17c6-session-log-directory) |
+| [792a5d1b](./792a_product-spec.md#792a5d1-uat-scenarios) | [792b17c3](#792b17c3-automatic-roots) |
+| [792a5d1c](./792a_product-spec.md#792a5d1-uat-scenarios) | [792b17c3](#792b17c3-automatic-roots), [792b17c5](#792b17c5-sweep-configuration), [792b17c7](#792b17c7-walking-a-root) |
+| [792a5d1d](./792a_product-spec.md#792a5d1-uat-scenarios) | [792b17c3](#792b17c3-automatic-roots), [792b17c6](#792b17c6-session-log-directory) |
+| [792a5e1a](./792a_product-spec.md#792a5e1-uat-scenarios) | [792b17c3](#792b17c3-automatic-roots), [792b17c5](#792b17c5-sweep-configuration) |
+| [792a5e1b](./792a_product-spec.md#792a5e1-uat-scenarios) | [792b17c5](#792b17c5-sweep-configuration) |
+| [792a5f1a](./792a_product-spec.md#792a5f1-uat-scenarios) | [792b17c3](#792b17c3-automatic-roots), [792b17c5](#792b17c5-sweep-configuration), [792b17c7](#792b17c7-walking-a-root) |
+| [792a5f1b](./792a_product-spec.md#792a5f1-uat-scenarios) | [792b17c4](#792b17c4-throwaway-roots), [792b17c5](#792b17c5-sweep-configuration) |
+| [792a5f1c](./792a_product-spec.md#792a5f1-uat-scenarios) | [792b17c4](#792b17c4-throwaway-roots) |
+| [792a5f1d](./792a_product-spec.md#792a5f1-uat-scenarios) | [792b17c1](#792b17c1-named-sources), [792b17c2](#792b17c2-swept-directories) |
+| [792a5l1a](./792a_product-spec.md#792a5l1-uat-scenarios) | [792b17c3](#792b17c3-automatic-roots), [792b17c8](#792b17c8-source-files) |
+| [792a5l1b](./792a_product-spec.md#792a5l1-uat-scenarios) | [792b17c1](#792b17c1-named-sources) |
+| [792a5l1c](./792a_product-spec.md#792a5l1-uat-scenarios) | [792b17c3](#792b17c3-automatic-roots) |
 
 ```gherkin
 Scenario: 792a5b1b A Pi sessions directory is indexed without its scratch
@@ -8039,16 +8039,16 @@ Canonical target: `docs/specs/technical/chunk-index-store.md` (title `Chunk Inde
   `RunPrune` in `internal/cli/prune.go`; `pruneDuplicatesLocked` in
   `internal/cli/prune_duplicates.go`; `listJSONLIndexes` in `internal/cli/query_chunks.go`; the
   record format in `internal/chunk/index.go`. The chunk index lives in the chunks directory
-  (792b2c6), part of the binary's operational state rather than a store of its own.
+  ([792b2c6](#792b2c6-chunk-index-directory-resolution)), part of the binary's operational state rather than a store of its own.
 - Qualification: responsibility, maintaining an index of embedded chunks is stated without naming
   any function; ownership, it owns the index's files and their consistency, while discovery, reading,
   chunking, embedding, writing and locking belong to the components it calls; independent
   verification, `RunIngest` and `RunPrune` are tested directly over in-memory filesystems, fake
   embedders and recording locks, and over the real filesystem; stability, the contract survives any
   change to how sources are found or chunked; necessity, every chunk a query returns comes from it.
-- Supported capabilities: 792a5 chunk-indexing, 792a4 note-revision (chunk IDs), 792a7 memory-query
-  (the first-indexed time), 792a11 install-and-update (the backlog check). Learn adds its requirements
-  (792d30).
+- Supported capabilities: [792a5](./792a_product-spec.md#792a5-added-chunk-indexing) chunk-indexing, [792a4](./792a_product-spec.md#792a4-added-note-revision) note-revision (chunk IDs), [792a7](./792a_product-spec.md#792a7-added-memory-query) memory-query
+  (the first-indexed time), [792a11](./792a_product-spec.md#792a11-added-install-and-update) install-and-update (the backlog check). Learn adds its requirements
+  ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
 
 Rationale: the index is rebuilt incrementally and offline, with no LLM. A source's index file is
 append-only: an embedded chunk is the memory and its source only provenance, so editing or deleting
@@ -8141,17 +8141,17 @@ sequenceDiagram
 
 #### 792b18c1 Index layout
 
-Requirement: 792b18c1 The chunk-index-store MUST keep each indexed source's chunks in the file
+Requirement: [792b18c1](#792b18c1-index-layout) The chunk-index-store MUST keep each indexed source's chunks in the file
 `<source base name without extension>-<first 8 hex digits of the SHA-256 of the source path>.jsonl`
 in the chunks directory, one JSON record per line holding `source`, `anchor`, `content_hash`
 (`sha256:` and the hex SHA-256 of the text), `text`, `vector`, and `ingested_at` when set, and MUST
 keep `manifest.json` there mapping each known source path to its `mtime_unix_nano`, `size`,
 `file_hash` (`sha256:` and the hex SHA-256 of its bytes) and, for a recorded copy, `duplicate_of`.
-It MUST write both through the durable-file-store's atomic replace (792b3c1) with mode `0600`,
+It MUST write both through the durable-file-store's atomic replace ([792b3c1](#792b3c1-atomic-replace)) with mode `0600`,
 creating the chunks directory with mode `0700` when absent. Reading an index file MUST skip blank
 lines and fail on a line that is not a record.
 
-Supports: 792a5b1a, 792a5i1b, 792a5p1a.
+Supports: [792a5b1a](./792a_product-spec.md#792a5b1-uat-scenarios), [792a5i1b](./792a_product-spec.md#792a5i1-uat-scenarios), [792a5p1a](./792a_product-spec.md#792a5p1-uat-scenarios).
 
 Rationale: the path hash keeps two `README.md` files in different directories from sharing an
 index file, and the base name keeps the directory readable.
@@ -8177,14 +8177,14 @@ Scenario: 792b18c1a3 A source's staleness signature is its modification time and
 
 #### 792b18c2 Locked reconciliation
 
-Requirement: 792b18c2 The chunk-index-store MUST create the chunks directory and take the
-vault-write-lock on `<chunks>/.manifest.lock` (792b8c1) before `engram ingest` or `engram prune`
+Requirement: [792b18c2](#792b18c2-locked-reconciliation) The chunk-index-store MUST create the chunks directory and take the
+vault-write-lock on `<chunks>/.manifest.lock` ([792b8c1](#792b8c1-exclusive-hold)) before `engram ingest` or `engram prune`
 reads the manifest, MUST hold it through every index-file and manifest write of the run, and MUST
 release it before returning. Its helpers, the manifest write among them, MUST NOT take the lock
 themselves. A failure to create the directory or take the lock MUST be returned with nothing read.
 A missing manifest MUST be read as empty, and a manifest that is not valid JSON MUST be an error.
 
-Supports: 792a5o1a.
+Supports: [792a5o1a](./792a_product-spec.md#792a5o1-uat-scenarios).
 
 Rationale: two concurrent runs once lost manifest updates in production: each read the manifest,
 and the later write overwrote the earlier one's change (#660). Creating the directory first lets a
@@ -8221,14 +8221,14 @@ Scenario: 792b18c2a5 A directory failure takes no lock
 
 #### 792b18c3 Change detection
 
-Requirement: 792b18c3 The chunk-index-store MUST NOT read a known source whose modification time
+Requirement: [792b18c3](#792b18c3-change-detection) The chunk-index-store MUST NOT read a known source whose modification time
 and size equal its manifest entry's and which is a recorded copy or has its index file, and MUST use
 the recorded content hash for it. It MUST read and hash every other source. A source that is the
 preferred copy of its group, whose recorded hash equals its current hash and whose index file exists,
 MUST NOT be rebuilt: when it was read, only its recorded signature is refreshed, and otherwise
 nothing about it is written. A recorded source whose index file is missing MUST be rebuilt.
 
-Supports: 792a5i1a.
+Supports: [792a5i1a](./792a_product-spec.md#792a5i1-uat-scenarios).
 
 Rationale: an automatic sweep runs before every learn over every known source, so an unchanged
 source must cost one stat. The index-file check closes the window between removing a copy's index
@@ -8261,12 +8261,12 @@ Scenario: 792b18c3a4 A missing index file is rebuilt
 
 #### 792b18c4 Read and write failures
 
-Requirement: 792b18c4 When a source cannot be read, the chunk-index-store MUST return an error
-naming it if the source was named (792b17c1), and otherwise MUST print `skip <path>: <error>` on
+Requirement: [792b18c4](#792b18c4-read-and-write-failures) When a source cannot be read, the chunk-index-store MUST return an error
+naming it if the source was named ([792b17c1](#792b17c1-named-sources)), and otherwise MUST print `skip <path>: <error>` on
 stdout and go on without it. Every other failure, of the transcript-reader, the embedder, or an
 index-file or manifest write, MUST be returned as an error.
 
-Supports: 792a5b1d, 792a5c1b.
+Supports: [792a5b1d](./792a_product-spec.md#792a5b1-uat-scenarios), [792a5c1b](./792a_product-spec.md#792a5c1-uat-scenarios).
 
 ##### 792b18c4a Scenarios
 
@@ -8299,18 +8299,18 @@ Scenario: 792b18c4a5 A manifest write failure fails the ingest
 
 #### 792b18c5 Rebuilding a source's index
 
-Requirement: 792b18c5 To rebuild a source, the chunk-index-store MUST chunk it (792b16), a `.jsonl`
-source as transcript text from the transcript-reader (792b15) and any other as Markdown, MUST keep
+Requirement: [792b18c5](#792b18c5-rebuilding-a-sources-index) To rebuild a source, the chunk-index-store MUST chunk it ([792b16](#792b16-added-source-chunking)), a `.jsonl`
+source as transcript text from the transcript-reader ([792b15](#792b15-added-transcript-reader)) and any other as Markdown, MUST keep
 every record already in its index file, an absent or undecodable file counting as none, MUST embed
-(792b9c1) and append each chunk whose content hash is not among them, and MUST write the merged
+([792b9c1](#792b9c1-bundled-model-embedding)) and append each chunk whose content hash is not among them, and MUST write the merged
 records, or write nothing when there are none. It MUST record the source's signature and content
 hash in the manifest and print `ingest <path>: <records> chunks (<reused> reused, <embedded> embedded)`.
 
-Supports: 792a5b1a, 792a5h1a, 792a5i1b, 792a5j1a, 792a5k1a.
+Supports: [792a5b1a](./792a_product-spec.md#792a5b1-uat-scenarios), [792a5h1a](./792a_product-spec.md#792a5h1-uat-scenarios), [792a5i1b](./792a_product-spec.md#792a5i1-uat-scenarios), [792a5j1a](./792a_product-spec.md#792a5j1-uat-scenarios), [792a5k1a](./792a_product-spec.md#792a5k1-uat-scenarios).
 
 Rationale: reusing a chunk's vector by its text's hash means editing one section re-embeds only
-that section. Keeping every earlier record makes the index append-only within a source (792a5j),
-which is also why two byte-identical sources can hold different records (792b18c7).
+that section. Keeping every earlier record makes the index append-only within a source ([792a5j](./792a_product-spec.md#792a5j-a-sources-chunks-are-never-dropped)),
+which is also why two byte-identical sources can hold different records ([792b18c7](#792b18c7-recording-and-evicting-copies)).
 
 ##### 792b18c5a Scenarios
 
@@ -8348,14 +8348,14 @@ Scenario: 792b18c5a6 The production wiring indexes a swept document
 
 #### 792b18c6 Grouping identical content
 
-Requirement: 792b18c6 The chunk-index-store MUST group the gathered sources by content hash and
+Requirement: [792b18c6](#792b18c6-grouping-identical-content) The chunk-index-store MUST group the gathered sources by content hash and
 kind, `.jsonl` sources being transcripts and all others Markdown, and MUST pick each group's
 preferred copy, the same whatever order the sources were found in, by origin (explicit, then
 repository, then claude-ancestor or pi-ancestor, then session-log or manual-sweep), then the smaller
 ancestor depth, then the fewer path separators, then the lexicographically smaller path. It MUST
 reconcile the preferred copy before any other member of its group.
 
-Supports: 792a5l1a, 792a5l1b, 792a5l1c, 792a5l1d.
+Supports: [792a5l1a](./792a_product-spec.md#792a5l1-uat-scenarios), [792a5l1b](./792a_product-spec.md#792a5l1-uat-scenarios), [792a5l1c](./792a_product-spec.md#792a5l1-uat-scenarios), [792a5l1d](./792a_product-spec.md#792a5l1-uat-scenarios).
 
 Rationale: the precedence is a pure function of the candidates, so the same content always resolves
 to the same copy. Grouping by kind as well as hash keeps a transcript and a Markdown document with
@@ -8408,7 +8408,7 @@ Scenario: 792b18c6a6 A preferred copy found later is still reconciled first
 
 #### 792b18c7 Recording and evicting copies
 
-Requirement: 792b18c7 The chunk-index-store MUST record each other member of a group as a copy of
+Requirement: [792b18c7](#792b18c7-recording-and-evicting-copies) The chunk-index-store MUST record each other member of a group as a copy of
 the preferred copy, with its signature and hash and no index file, writing nothing when it is
 already so recorded. A member indexed by an earlier run MUST be evicted, its index file removed and
 then its manifest entry, before it is recorded as a copy, but only when the preferred copy's index
@@ -8418,14 +8418,14 @@ covered, and one whose index cannot be decoded is not. Otherwise its entry MUST 
 printed. The preferred copy's records MUST be read at most once per group. A recorded copy whose
 preferred copy is no longer gathered MUST become its group's preferred copy and be read and indexed.
 
-Supports: 792a5m1a, 792a5m1b, 792a5m1c.
+Supports: [792a5m1a](./792a_product-spec.md#792a5m1-uat-scenarios), [792a5m1b](./792a_product-spec.md#792a5m1-uat-scenarios), [792a5m1c](./792a_product-spec.md#792a5m1-uat-scenarios).
 
 Rationale: byte identity of current content is necessary but not sufficient. A source's index
 holds every chunk of its earlier versions, so two files equal today can hold disjoint histories. A
 weaker gate that checked only that the preferred copy's index existed ran once against a real index
 and removed 1,960 files, two of which held content found nowhere else. Removing the index file before
 the manifest entry means an interrupted eviction leaves an entry without a file, which change
-detection repairs (792b18c3), never a file nothing points to.
+detection repairs ([792b18c3](#792b18c3-change-detection)), never a file nothing points to.
 
 ##### 792b18c7a Scenarios
 
@@ -8471,11 +8471,11 @@ Scenario: 792b18c7a6 A copy is promoted when its preferred twin goes away
 
 #### 792b18c8 Stray vault-note copies
 
-Requirement: 792b18c8 Before reconciling, the chunk-index-store MUST drop every gathered source that
-is not explicit, ends in `.md`, lies outside the resolved vault path, and has a sidecar (792b10c2)
+Requirement: [792b18c8](#792b18c8-stray-vault-note-copies) Before reconciling, the chunk-index-store MUST drop every gathered source that
+is not explicit, ends in `.md`, lies outside the resolved vault path, and has a sidecar ([792b10c2](#792b10c2-sidecar-path))
 beside it. It MUST keep every source when the vault path is empty.
 
-Supports: 792a5n1a.
+Supports: [792a5n1a](./792a_product-spec.md#792a5n1-uat-scenarios).
 
 Rationale: a sidecar marks a vault note, so such a file outside the vault is a copy, often a drifted
 one that identical-content grouping cannot match to its original. The rule is specific to vault
@@ -8505,7 +8505,7 @@ Scenario Outline: 792b18c8a2 Which sources are vault-note copies
 
 #### 792b18c9 Detaching vanished sources
 
-Requirement: 792b18c9 With neither `--empty` nor `--duplicates`, the chunk-index-store MUST remove
+Requirement: [792b18c9](#792b18c9-detaching-vanished-sources) With neither `--empty` nor `--duplicates`, the chunk-index-store MUST remove
 from the manifest every source whose path no longer exists, leaving every index file in place, MUST
 write the manifest unless `--dry-run` is given, and MUST print
 `prune: detached <N> source(s) — embedded chunks preserved (still searchable)`, prefixed
@@ -8513,7 +8513,7 @@ write the manifest unless `--dry-run` is given, and MUST print
 nothing; with no manifest it MUST print `prune: no manifest, nothing to prune` and succeed. A
 manifest write failure MUST be returned.
 
-Supports: 792a5p1a, 792a5p1b, 792a5p1c, 792a5p1d.
+Supports: [792a5p1a](./792a_product-spec.md#792a5p1-uat-scenarios), [792a5p1b](./792a_product-spec.md#792a5p1-uat-scenarios), [792a5p1c](./792a_product-spec.md#792a5p1-uat-scenarios), [792a5p1d](./792a_product-spec.md#792a5p1-uat-scenarios).
 
 ##### 792b18c9a Scenarios
 
@@ -8551,12 +8551,12 @@ Scenario: 792b18c9a6 Existence and removal go through the filesystem
 
 #### 792b18c10 Removing empty index files
 
-Requirement: 792b18c10 With `--empty`, the chunk-index-store MUST read every index file (792b18c12),
+Requirement: [792b18c10](#792b18c10-removing-empty-index-files) With `--empty`, the chunk-index-store MUST read every index file ([792b18c12](#792b18c12-listing-index-files)),
 remove each that is empty unless `--dry-run` is given, leave the manifest and every other file alone,
 and print `prune: removed <N> empty chunk-index file(s) of <M> scanned`, prefixed `[dry-run] ` for a
 dry run. A read or removal failure MUST be returned.
 
-Supports: 792a5q1a, 792a5q1b.
+Supports: [792a5q1a](./792a_product-spec.md#792a5q1-uat-scenarios), [792a5q1b](./792a_product-spec.md#792a5q1-uat-scenarios).
 
 ##### 792b18c10a Scenarios
 
@@ -8574,10 +8574,10 @@ Scenario: 792b18c10a2 A dry run removes nothing
 
 #### 792b18c11 Collapsing duplicate groups
 
-Requirement: 792b18c11 With `--duplicates`, the chunk-index-store MUST group the manifest's entries
+Requirement: [792b18c11](#792b18c11-collapsing-duplicate-groups) With `--duplicates`, the chunk-index-store MUST group the manifest's entries
 that are not recorded copies by content hash and kind, and in each group of two or more MUST keep the
 entry with the fewest path separators, then the lexicographically smallest path, and remove each
-other entry whose records the kept entry's index file covers (792b18c7): its index file when present,
+other entry whose records the kept entry's index file covers ([792b18c7](#792b18c7-recording-and-evicting-copies)): its index file when present,
 then its entry. It MUST count a refusal in a group where no member has an index file in one
 `prune: refused <K> removal(s): canonical has no index file (zero-chunk sources; nothing to lose)`
 line, and print every other refusal as
@@ -8589,11 +8589,11 @@ a dry run, print `prune: removed <N> duplicate(s), retained <M> canonical(s)`, p
 failed. No manifest MUST print `prune: no manifest, nothing to prune`; an undecodable one MUST be an
 error.
 
-Supports: 792a5r1a, 792a5r1b, 792a5r1c, 792a5r1d, 792a5r1e.
+Supports: [792a5r1a](./792a_product-spec.md#792a5r1-uat-scenarios), [792a5r1b](./792a_product-spec.md#792a5r1-uat-scenarios), [792a5r1c](./792a_product-spec.md#792a5r1-uat-scenarios), [792a5r1d](./792a_product-spec.md#792a5r1-uat-scenarios), [792a5r1e](./792a_product-spec.md#792a5r1-uat-scenarios).
 
 Rationale: this mode exists for groups indexed before ingest-time grouping, so it knows only the
 paths in the manifest, not how each was found; the kept copy is chosen by path alone, and a later
-`--auto` ingest may replace it once with a preferred copy (792b18c7). Recorded copies are skipped
+`--auto` ingest may replace it once with a preferred copy ([792b18c7](#792b18c7-recording-and-evicting-copies)). Recorded copies are skipped
 because they were never indexed. One real run printed 47,396 near-identical refusal lines for groups
 whose sources yield no chunks, burying the real removals, so those are counted rather than listed.
 
@@ -8663,11 +8663,11 @@ Scenario: 792b18c11a12 A manifest write failure is returned
 
 #### 792b18c12 Listing index files
 
-Requirement: 792b18c12 The chunk-index-store MUST list its index files as the entries of the chunks
+Requirement: [792b18c12](#792b18c12-listing-index-files) The chunk-index-store MUST list its index files as the entries of the chunks
 directory that are not directories and end in `.jsonl`, never from the manifest, MUST list none when
 the directory does not exist, and MUST return any other listing failure.
 
-Supports: 792a5p1a, 792a5q1a.
+Supports: [792a5p1a](./792a_product-spec.md#792a5p1-uat-scenarios), [792a5q1a](./792a_product-spec.md#792a5q1-uat-scenarios).
 
 Rationale: a detached source has no manifest entry, so its chunks stay searchable only because
 readers find index files by listing the directory (#659).
@@ -8683,11 +8683,11 @@ Scenario: 792b18c12a1 Index files are found by listing the directory
 
 #### 792b18c13 Chunk IDs
 
-Requirement: 792b18c13 The chunk-index-store MUST give the set of chunk IDs in the index, each
+Requirement: [792b18c13](#792b18c13-chunk-ids) The chunk-index-store MUST give the set of chunk IDs in the index, each
 record's `<source>#<anchor>`, read from every index file it lists, and MUST return an error when
 listing, reading or decoding an index file fails.
 
-Supports: 792a4e1a, 792a4f1a.
+Supports: [792a4e1a](./792a_product-spec.md#792a4e1-uat-scenarios), [792a4f1a](./792a_product-spec.md#792a4f1-uat-scenarios).
 
 ##### 792b18c13a Scenarios
 
@@ -8705,15 +8705,15 @@ Scenario: 792b18c13a2 A failure is an error
 
 #### 792b18c14 First-indexed time
 
-Requirement: 792b18c14 When rebuilding a source (792b18c5), the chunk-index-store MUST stamp each chunk
+Requirement: [792b18c14](#792b18c14-first-indexed-time) When rebuilding a source ([792b18c5](#792b18c5-rebuilding-a-sources-index)), the chunk-index-store MUST stamp each chunk
 it embeds with `ingested_at`: for a transcript the last timestamp the transcript-reader returned
-(792b15c6) when there is one, and otherwise, and for any other source, the current time. It MUST keep
+([792b15c6](#792b15c6-last-timestamp)) when there is one, and otherwise, and for any other source, the current time. It MUST keep
 the `ingested_at` of every record it already holds, including one whose chunk is unchanged on a later
 rebuild. It MUST give a held record that has none the modification time that the manifest records for
 its source, and none when the manifest has no entry. A record MUST decode with the `ingested_at` it was
 encoded with, and with none when the field is absent.
 
-Supports: 792a7p1a, 792a7p1b, 792a7p1c, 792a7p1d.
+Supports: [792a7p1a](./792a_product-spec.md#792a7p1-uat-scenarios), [792a7p1b](./792a_product-spec.md#792a7p1-uat-scenarios), [792a7p1c](./792a_product-spec.md#792a7p1-uat-scenarios), [792a7p1d](./792a_product-spec.md#792a7p1-uat-scenarios).
 
 Rationale: recency was once approximated from each source file's modification time, so one edit made
 every chunk of a source look new. Stamping each chunk when it is first indexed orders chunks within and
@@ -8757,16 +8757,16 @@ Scenario: 792b18c14a6 A record without the field has no time
 
 #### 792b18c15 Reporting a prune backlog
 
-Requirement: 792b18c15 The chunk-index-store MUST report, without changing anything, whether the chunks
+Requirement: [792b18c15](#792b18c15-reporting-a-prune-backlog) The chunk-index-store MUST report, without changing anything, whether the chunks
 directory holds at least one zero-byte file whose name ends in `.jsonl` (skipping directories), and
-whether `--duplicates` (792b18c11) would remove at least one entry. For the second it MUST read the
+whether `--duplicates` ([792b18c11](#792b18c11-collapsing-duplicate-groups)) would remove at least one entry. For the second it MUST read the
 manifest and run the same grouping, kept-entry choice and coverage check in dry-run mode, discarding the
 refusal lines, so an entry already recorded as a copy, a group whose members differ in kind or hash, and
 a group whose every removal would be refused count as nothing to remove. It MUST report nothing to prune
 when the directory cannot be listed or the manifest is missing, unreadable or undecodable, because a
 detection failure must never fail the caller.
 
-Supports: 792a11n1a, 792a11n1b, 792a11n1c, 792a11n1d.
+Supports: [792a11n1a](./792a_product-spec.md#792a11n1-uat-scenarios), [792a11n1b](./792a_product-spec.md#792a11n1-uat-scenarios), [792a11n1c](./792a_product-spec.md#792a11n1-uat-scenarios), [792a11n1d](./792a_product-spec.md#792a11n1-uat-scenarios).
 
 Rationale: `engram update` only notifies, so the notice must fire exactly when the command it names would
 work (#713). Re-running prune's own check is cheaper to keep correct than a second copy of it, and costs
@@ -8830,46 +8830,46 @@ Scenario: 792b18c15a10 A malformed manifest is no backlog
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a4e1a | 792b18c13 |
-| 792a4f1a | 792b18c13 |
-| 792a5b1a | 792b18c1, 792b18c5 |
-| 792a5b1d | 792b18c4 |
-| 792a5c1b | 792b18c4 |
-| 792a5h1a | 792b18c5 |
-| 792a5i1a | 792b18c3 |
-| 792a5i1b | 792b18c1, 792b18c5 |
-| 792a5j1a | 792b18c5 |
-| 792a5k1a | 792b18c5 |
-| 792a5l1a | 792b18c6 |
-| 792a5l1b | 792b18c6 |
-| 792a5l1c | 792b18c6 |
-| 792a5l1d | 792b18c6 |
-| 792a5m1a | 792b18c7 |
-| 792a5m1b | 792b18c7 |
-| 792a5m1c | 792b18c7 |
-| 792a5n1a | 792b18c8 |
-| 792a5o1a | 792b18c2 |
-| 792a5p1a | 792b18c1, 792b18c9, 792b18c12 |
-| 792a5p1b | 792b18c9 |
-| 792a5p1c | 792b18c9 |
-| 792a5p1d | 792b18c9 |
-| 792a5q1a | 792b18c10, 792b18c12 |
-| 792a5q1b | 792b18c10 |
-| 792a5r1a | 792b18c11 |
-| 792a5r1b | 792b18c11 |
-| 792a5r1c | 792b18c11 |
-| 792a5r1d | 792b18c11 |
-| 792a5r1e | 792b18c11 |
-| 792a7p1a | 792b18c14 |
-| 792a7p1b | 792b18c14 |
-| 792a7p1c | 792b18c14 |
-| 792a7p1d | 792b18c14 |
-| 792a7zf1e | 792b18c12 |
-| 792a11n1a | 792b18c11, 792b18c15 |
-| 792a11n1b | 792b18c11, 792b18c15 |
-| 792a11n1c | 792b18c15 |
-| 792a11n1d | 792b18c15 |
-| 792a15b1a | 792b18c3 |
+| [792a4e1a](./792a_product-spec.md#792a4e1-uat-scenarios) | [792b18c13](#792b18c13-chunk-ids) |
+| [792a4f1a](./792a_product-spec.md#792a4f1-uat-scenarios) | [792b18c13](#792b18c13-chunk-ids) |
+| [792a5b1a](./792a_product-spec.md#792a5b1-uat-scenarios) | [792b18c1](#792b18c1-index-layout), [792b18c5](#792b18c5-rebuilding-a-sources-index) |
+| [792a5b1d](./792a_product-spec.md#792a5b1-uat-scenarios) | [792b18c4](#792b18c4-read-and-write-failures) |
+| [792a5c1b](./792a_product-spec.md#792a5c1-uat-scenarios) | [792b18c4](#792b18c4-read-and-write-failures) |
+| [792a5h1a](./792a_product-spec.md#792a5h1-uat-scenarios) | [792b18c5](#792b18c5-rebuilding-a-sources-index) |
+| [792a5i1a](./792a_product-spec.md#792a5i1-uat-scenarios) | [792b18c3](#792b18c3-change-detection) |
+| [792a5i1b](./792a_product-spec.md#792a5i1-uat-scenarios) | [792b18c1](#792b18c1-index-layout), [792b18c5](#792b18c5-rebuilding-a-sources-index) |
+| [792a5j1a](./792a_product-spec.md#792a5j1-uat-scenarios) | [792b18c5](#792b18c5-rebuilding-a-sources-index) |
+| [792a5k1a](./792a_product-spec.md#792a5k1-uat-scenarios) | [792b18c5](#792b18c5-rebuilding-a-sources-index) |
+| [792a5l1a](./792a_product-spec.md#792a5l1-uat-scenarios) | [792b18c6](#792b18c6-grouping-identical-content) |
+| [792a5l1b](./792a_product-spec.md#792a5l1-uat-scenarios) | [792b18c6](#792b18c6-grouping-identical-content) |
+| [792a5l1c](./792a_product-spec.md#792a5l1-uat-scenarios) | [792b18c6](#792b18c6-grouping-identical-content) |
+| [792a5l1d](./792a_product-spec.md#792a5l1-uat-scenarios) | [792b18c6](#792b18c6-grouping-identical-content) |
+| [792a5m1a](./792a_product-spec.md#792a5m1-uat-scenarios) | [792b18c7](#792b18c7-recording-and-evicting-copies) |
+| [792a5m1b](./792a_product-spec.md#792a5m1-uat-scenarios) | [792b18c7](#792b18c7-recording-and-evicting-copies) |
+| [792a5m1c](./792a_product-spec.md#792a5m1-uat-scenarios) | [792b18c7](#792b18c7-recording-and-evicting-copies) |
+| [792a5n1a](./792a_product-spec.md#792a5n1-uat-scenarios) | [792b18c8](#792b18c8-stray-vault-note-copies) |
+| [792a5o1a](./792a_product-spec.md#792a5o1-uat-scenarios) | [792b18c2](#792b18c2-locked-reconciliation) |
+| [792a5p1a](./792a_product-spec.md#792a5p1-uat-scenarios) | [792b18c1](#792b18c1-index-layout), [792b18c9](#792b18c9-detaching-vanished-sources), [792b18c12](#792b18c12-listing-index-files) |
+| [792a5p1b](./792a_product-spec.md#792a5p1-uat-scenarios) | [792b18c9](#792b18c9-detaching-vanished-sources) |
+| [792a5p1c](./792a_product-spec.md#792a5p1-uat-scenarios) | [792b18c9](#792b18c9-detaching-vanished-sources) |
+| [792a5p1d](./792a_product-spec.md#792a5p1-uat-scenarios) | [792b18c9](#792b18c9-detaching-vanished-sources) |
+| [792a5q1a](./792a_product-spec.md#792a5q1-uat-scenarios) | [792b18c10](#792b18c10-removing-empty-index-files), [792b18c12](#792b18c12-listing-index-files) |
+| [792a5q1b](./792a_product-spec.md#792a5q1-uat-scenarios) | [792b18c10](#792b18c10-removing-empty-index-files) |
+| [792a5r1a](./792a_product-spec.md#792a5r1-uat-scenarios) | [792b18c11](#792b18c11-collapsing-duplicate-groups) |
+| [792a5r1b](./792a_product-spec.md#792a5r1-uat-scenarios) | [792b18c11](#792b18c11-collapsing-duplicate-groups) |
+| [792a5r1c](./792a_product-spec.md#792a5r1-uat-scenarios) | [792b18c11](#792b18c11-collapsing-duplicate-groups) |
+| [792a5r1d](./792a_product-spec.md#792a5r1-uat-scenarios) | [792b18c11](#792b18c11-collapsing-duplicate-groups) |
+| [792a5r1e](./792a_product-spec.md#792a5r1-uat-scenarios) | [792b18c11](#792b18c11-collapsing-duplicate-groups) |
+| [792a7p1a](./792a_product-spec.md#792a7p1-uat-scenarios) | [792b18c14](#792b18c14-first-indexed-time) |
+| [792a7p1b](./792a_product-spec.md#792a7p1-uat-scenarios) | [792b18c14](#792b18c14-first-indexed-time) |
+| [792a7p1c](./792a_product-spec.md#792a7p1-uat-scenarios) | [792b18c14](#792b18c14-first-indexed-time) |
+| [792a7p1d](./792a_product-spec.md#792a7p1-uat-scenarios) | [792b18c14](#792b18c14-first-indexed-time) |
+| [792a7zf1e](./792a_product-spec.md#792a7zf1-uat-scenarios) | [792b18c12](#792b18c12-listing-index-files) |
+| [792a11n1a](./792a_product-spec.md#792a11n1-uat-scenarios) | [792b18c11](#792b18c11-collapsing-duplicate-groups), [792b18c15](#792b18c15-reporting-a-prune-backlog) |
+| [792a11n1b](./792a_product-spec.md#792a11n1-uat-scenarios) | [792b18c11](#792b18c11-collapsing-duplicate-groups), [792b18c15](#792b18c15-reporting-a-prune-backlog) |
+| [792a11n1c](./792a_product-spec.md#792a11n1-uat-scenarios) | [792b18c15](#792b18c15-reporting-a-prune-backlog) |
+| [792a11n1d](./792a_product-spec.md#792a11n1-uat-scenarios) | [792b18c15](#792b18c15-reporting-a-prune-backlog) |
+| [792a15b1a](./792a_product-spec.md#792a15b1-uat-scenarios) | [792b18c3](#792b18c3-change-detection) |
 
 ```gherkin
 Scenario: 792a5c1b A swept file that vanishes is skipped
@@ -9011,8 +9011,8 @@ Canonical target: `docs/specs/technical/similarity-clustering.md` (title `Simila
   cluster means, while this component owns the partition and its score; independent verification,
   it is tested directly on vectors; stability, the contract survives any change to its callers or to
   how vectors are stored; necessity, the vocabulary's terms are its clusters.
-- Supported capabilities: 792a6 controlled-vocabulary, 792a7 memory-query. Vault-migration adds its
-  mappings and requirements (792d30).
+- Supported capabilities: [792a6](./792a_product-spec.md#792a6-added-controlled-vocabulary) controlled-vocabulary, [792a7](./792a_product-spec.md#792a7-added-memory-query) memory-query. Vault-migration adds its
+  mappings and requirements ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
 
 Rationale: the vocabulary is derived from the vault's own geometry, so it reuses the clustering that
 recall already relied on rather than a second algorithm. A fixed seed makes clustering
@@ -9022,17 +9022,17 @@ between two runs.
 ### 792b19b Sequences
 
 The similarity-clustering owns no flow: it is a pure function from vectors to a partition, called by
-vocabulary-engine (792b20).
+vocabulary-engine ([792b20](#792b20-added-vocabulary-engine)).
 
 ### 792b19c Behavior Requirements
 
 #### 792b19c1 Cosine distance
 
-Requirement: 792b19c1 The similarity-clustering MUST measure the distance between two vectors as one
+Requirement: [792b19c1](#792b19c1-cosine-distance) The similarity-clustering MUST measure the distance between two vectors as one
 minus their cosine similarity, and MUST return 1 for vectors of different lengths, empty vectors or a
 zero vector.
 
-Supports: 792a6j1a.
+Supports: [792a6j1a](./792a_product-spec.md#792a6j1-uat-scenarios).
 
 ##### 792b19c1a Scenarios
 
@@ -9052,14 +9052,14 @@ Scenario Outline: 792b19c1a1 Distances between vectors
 
 #### 792b19c2 K-means partition
 
-Requirement: 792b19c2 The similarity-clustering MUST, given vectors, a cluster count k and a seed,
+Requirement: [792b19c2](#792b19c2-k-means-partition) The similarity-clustering MUST, given vectors, a cluster count k and a seed,
 pick k starting centroids by distance-weighted random draws from a generator seeded by the seed,
-then repeatedly assign each vector to its nearest centroid (792b19c1) and move each centroid to the
+then repeatedly assign each vector to its nearest centroid ([792b19c1](#792b19c1-cosine-distance)) and move each centroid to the
 mean of its vectors, stopping when no assignment changes or after 100 rounds, and return every
 vector's cluster and every centroid. The same vectors, k and seed MUST give the same result. It MUST
 fail when there are no vectors, when k is less than 2, or when k exceeds the number of vectors.
 
-Supports: 792a6j1a.
+Supports: [792a6j1a](./792a_product-spec.md#792a6j1-uat-scenarios).
 
 Rationale: the earlier invariant C1 asked that clustering return the same result for a fixed vault
 and phrase; the query path meets it by seeding from the phrase, and refit by a fixed seed, both
@@ -9092,12 +9092,12 @@ Scenario Outline: 792b19c2a3 Impossible counts are refused
 
 #### 792b19c3 Silhouette score
 
-Requirement: 792b19c3 The similarity-clustering MUST score a partition as the mean, over every
+Requirement: [792b19c3](#792b19c3-silhouette-score) The similarity-clustering MUST score a partition as the mean, over every
 vector, of (b − a) / max(a, b), where a is the vector's mean distance to the other members of its
 cluster and b its smallest mean distance to another cluster's members, counting 0 for a vector that
 is alone in its cluster or whose a and b are both 0, and MUST score an empty set 0.
 
-Supports: 792a6j1a, 792a6l1a.
+Supports: [792a6j1a](./792a_product-spec.md#792a6j1-uat-scenarios), [792a6l1a](./792a_product-spec.md#792a6l1-uat-scenarios).
 
 ##### 792b19c3a Scenarios
 
@@ -9120,16 +9120,16 @@ Scenario: 792b19c3a3 Singleton clusters score zero
 
 #### 792b19c4 Choosing the number of clusters
 
-Requirement: 792b19c4 The similarity-clustering MUST, given vectors, a range of cluster counts, a
-floor and a seed, partition the vectors (792b19c2) at every count from the range's minimum to the
+Requirement: [792b19c4](#792b19c4-choosing-the-number-of-clusters) The similarity-clustering MUST, given vectors, a range of cluster counts, a
+floor and a seed, partition the vectors ([792b19c2](#792b19c2-k-means-partition)) at every count from the range's minimum to the
 smaller of its maximum and the number of vectors; move each vector left alone in its cluster to the
 nearest cluster with more than one member; skip a count that leaves fewer than two clusters; renumber
-the clusters from 0; and keep the partition with the highest silhouette score (792b19c3) above 0,
+the clusters from 0; and keep the partition with the highest silhouette score ([792b19c3](#792b19c3-silhouette-score)) above 0,
 the earliest count on a tie. It MUST return that partition's cluster count, score, assignments and
 member means, and MUST return no clusters (K of 0) when there are fewer vectors than the range's
 minimum, when the range is empty, or when the best score is below the floor.
 
-Supports: 792a6j1a, 792a6j1b, 792a6k1a, 792a6l1a.
+Supports: [792a6j1a](./792a_product-spec.md#792a6j1-uat-scenarios), [792a6j1b](./792a_product-spec.md#792a6j1-uat-scenarios), [792a6k1a](./792a_product-spec.md#792a6k1-uat-scenarios), [792a6l1a](./792a_product-spec.md#792a6l1-uat-scenarios).
 
 Rationale: a cluster of one vector would make a term of one note, so singletons are folded into
 their nearest real cluster before the partition is scored. The floor lets each caller reject input
@@ -9161,15 +9161,15 @@ Scenario: 792b19c4a4 Singletons are folded into a cluster
 
 #### 792b19c5 Per-point silhouette
 
-Requirement: 792b19c5 The similarity-clustering MUST score one point, given every vector, the members of
-each cluster, the point's cluster and its own index, as (b - a) / max(a, b) with a and b as in 792b19c3,
+Requirement: [792b19c5](#792b19c5-per-point-silhouette) The similarity-clustering MUST score one point, given every vector, the members of
+each cluster, the point's cluster and its own index, as (b - a) / max(a, b) with a and b as in [792b19c3](#792b19c3-silhouette-score),
 and MUST score 0 when the point's cluster is out of range or holds only that point, when no other
 non-empty cluster exists, and when a and b are both 0.
 
-Supports: 792a7g1a.
+Supports: [792a7g1a](./792a_product-spec.md#792a7g1-uat-scenarios).
 
 Rationale: the query reports each cluster's silhouette as the mean of its members' scores, which the
-whole-partition mean of 792b19c3 cannot give.
+whole-partition mean of [792b19c3](#792b19c3-silhouette-score) cannot give.
 
 ##### 792b19c5a Scenarios
 
@@ -9199,14 +9199,14 @@ Scenario: 792b19c5a4 Identical vectors score zero
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a6j1a | 792b19c1, 792b19c2, 792b19c3, 792b19c4 |
-| 792a6j1b | 792b19c4 |
-| 792a6k1a | 792b19c4 |
-| 792a6l1a | 792b19c3, 792b19c4 |
-| 792a7g1a | 792b19c4, 792b19c5 |
-| 792a7g1b | 792b19c4 |
-| 792a7g1d | 792b19c2 |
-| 792a7zf1c | 792b19c4 |
+| [792a6j1a](./792a_product-spec.md#792a6j1-uat-scenarios) | [792b19c1](#792b19c1-cosine-distance), [792b19c2](#792b19c2-k-means-partition), [792b19c3](#792b19c3-silhouette-score), [792b19c4](#792b19c4-choosing-the-number-of-clusters) |
+| [792a6j1b](./792a_product-spec.md#792a6j1-uat-scenarios) | [792b19c4](#792b19c4-choosing-the-number-of-clusters) |
+| [792a6k1a](./792a_product-spec.md#792a6k1-uat-scenarios) | [792b19c4](#792b19c4-choosing-the-number-of-clusters) |
+| [792a6l1a](./792a_product-spec.md#792a6l1-uat-scenarios) | [792b19c3](#792b19c3-silhouette-score), [792b19c4](#792b19c4-choosing-the-number-of-clusters) |
+| [792a7g1a](./792a_product-spec.md#792a7g1-uat-scenarios) | [792b19c4](#792b19c4-choosing-the-number-of-clusters), [792b19c5](#792b19c5-per-point-silhouette) |
+| [792a7g1b](./792a_product-spec.md#792a7g1-uat-scenarios) | [792b19c4](#792b19c4-choosing-the-number-of-clusters) |
+| [792a7g1d](./792a_product-spec.md#792a7g1-uat-scenarios) | [792b19c2](#792b19c2-k-means-partition) |
+| [792a7zf1c](./792a_product-spec.md#792a7zf1-uat-scenarios) | [792b19c4](#792b19c4-choosing-the-number-of-clusters) |
 
 ```gherkin
 Scenario: 792a6j1b A vault without structure keeps its vocabulary
@@ -9275,14 +9275,14 @@ Canonical target: `docs/specs/technical/vocabulary-engine.md` (title `Vocabulary
   derived; independent verification, it is tested directly over injected dependencies; stability, the
   contract survives any refactoring of the commands that call it; necessity, every `vocab/` tag and
   definition note is written through it.
-- Supported capabilities: 792a6 controlled-vocabulary, note-writing's 792a3u and 792a7 memory-query.
+- Supported capabilities: [792a6](./792a_product-spec.md#792a6-added-controlled-vocabulary) controlled-vocabulary, note-writing's [792a3u](./792a_product-spec.md#792a3u-vocabulary-tagging-by-kind) and [792a7](./792a_product-spec.md#792a7-added-memory-query) memory-query.
 
 Rationale: tags are assigned at write time by cosine alone, so the write path needs no LLM and the
 vocabulary's cost stays off retrieval. Controlled-vocabulary tags were adopted after graph traversal
 over wikilinks was measured and rejected for retrieval; each write once assigned terms through two
-channels, and since the vocabulary moved onto tags (792a6c) the `tags:` list is the only one. The
+channels, and since the vocabulary moved onto tags ([792a6c](./792a_product-spec.md#792a6c-categorical-tags-share-one-list)) the `tags:` list is the only one. The
 term set used to be edited from an LLM-authored plan, which only ever grew; it is now derived from
-the vault's geometry (792a6j). The centroids live in a separate `vocab.centroids.json` rather than in
+the vault's geometry ([792a6j](./792a_product-spec.md#792a6j-deriving-the-vocabulary)). The centroids live in a separate `vocab.centroids.json` rather than in
 the definitions' sidecars, because a sidecar must stay a pure function of its note's content:
 `engram embed apply` rebuilds sidecars from content and would overwrite a centroid stored there,
 while a separate file survives it. The file carries the embedding model's ID so that centroids from
@@ -9392,13 +9392,13 @@ sequenceDiagram
 ```
 
 The propose, statistics, self-tag backfill and migration commands are single straight-line flows,
-specified by 792b20c12, 792b20c7, 792b20c20 and 792b20c21.
+specified by [792b20c12](#792b20c12-propose), [792b20c7](#792b20c7-statistics), [792b20c20](#792b20c20-self-tag-backfill) and [792b20c21](#792b20c21-migrating-an-old-format-vocabulary).
 
 ### 792b20c Behavior Requirements
 
 #### 792b20c1 Definition recognition
 
-Requirement: 792b20c1 The vocabulary-engine MUST treat a note as a definition exactly when its
+Requirement: [792b20c1](#792b20c1-definition-recognition) The vocabulary-engine MUST treat a note as a definition exactly when its
 frontmatter `tags:` list, read as its LF form, contains the bare entry `vocab`, whatever the note's
 filename or `type:`; MUST take a definition's term from its slug `vocab-<term>-definition` (the slug
 being everything after the second `.` of `<id>.<date>.<slug>.md`), and none from the family slug
@@ -9406,7 +9406,7 @@ being everything after the second `.` of `<id>.<date>.<slug>.md`), and none from
 terms from its `vocab/<term>` entries in order, block or inline, ignoring the bare entry and every
 other tag.
 
-Supports: 792a6a1b, 792a6t1c, 792a6u1a.
+Supports: [792a6a1b](./792a_product-spec.md#792a6a1-uat-scenarios), [792a6t1c](./792a_product-spec.md#792a6t1-uat-scenarios), [792a6u1a](./792a_product-spec.md#792a6u1-uat-scenarios).
 
 Rationale: The bare `vocab` tag stays the single definition discriminator rather than a per-term slug. The
 `vocab/<term>` self-tag is an Obsidian-graph affordance only. Tag nominations exclude definitions on both the
@@ -9434,14 +9434,14 @@ Scenario: 792b20c1a3 A note's terms are its vocab/ entries
 
 #### 792b20c2 Term vectors
 
-Requirement: 792b20c2 The vocabulary-engine MUST take the vocabulary to be the terms of the
+Requirement: [792b20c2](#792b20c2-term-vectors) The vocabulary-engine MUST take the vocabulary to be the terms of the
 definition notes whose sidecar has a body vector, keeping the first definition of a term in the
 vault's listing order, with that body vector as the term's vector; and, for tagging, MUST replace a
 term's vector with its centroid from `vocab.centroids.json` when the file parses, its embedding model
 ID is empty or matches the definitions' sidecars, and it holds a non-empty vector for the term. It
 MUST fail when the vault cannot be listed.
 
-Supports: 792a6d1a, 792a6q1a.
+Supports: [792a6d1a](./792a_product-spec.md#792a6d1-uat-scenarios), [792a6q1a](./792a_product-spec.md#792a6q1-uat-scenarios).
 
 ##### 792b20c2a Scenarios
 
@@ -9464,13 +9464,13 @@ Scenario: 792b20c2a3 A stored centroid replaces the description vector
 
 #### 792b20c3 Term selection
 
-Requirement: 792b20c3 The vocabulary-engine MUST select, for a note's body vector, the terms whose
+Requirement: [792b20c3](#792b20c3-term-selection) The vocabulary-engine MUST select, for a note's body vector, the terms whose
 vector has a cosine similarity at or above the floor, at most three, ordered by similarity
 descending and then by term name, and none when the vector or the term list is empty.
 
-Supports: 792a3u1a, 792a3u1b, 792a6d1a, 792a6d1b, 792a6d1c.
+Supports: [792a3u1a](./792a_product-spec.md#792a3u1-uat-scenarios), [792a3u1b](./792a_product-spec.md#792a3u1-uat-scenarios), [792a6d1a](./792a_product-spec.md#792a6d1-uat-scenarios), [792a6d1b](./792a_product-spec.md#792a6d1-uat-scenarios), [792a6d1c](./792a_product-spec.md#792a6d1-uat-scenarios).
 
-Rationale: the cap of three and the 0.35 floor are 792a6d's measured setting.
+Rationale: the cap of three and the 0.35 floor are [792a6d](./792a_product-spec.md#792a6d-write-time-vocabulary-tagging)'s measured setting.
 
 ##### 792b20c3a Scenarios
 
@@ -9493,7 +9493,7 @@ Scenario: 792b20c3a3 No vector or no terms gives no terms
 
 #### 792b20c4 Rewriting a note's vocabulary tags
 
-Requirement: 792b20c4 The vocabulary-engine MUST rewrite a note's `tags:` list so that its
+Requirement: [792b20c4](#792b20c4-rewriting-a-notes-vocabulary-tags) The vocabulary-engine MUST rewrite a note's `tags:` list so that its
 `vocab/<term>` entries are exactly the given terms, after every other tag in its original order and
 without any bare `vocab` entry; MUST keep the `tags:` key where it was, rendered as a block list with
 four-space items, and remove the key when the list ends up empty; MUST leave every other frontmatter
@@ -9501,7 +9501,7 @@ line and the body unchanged, writing the note's LF form; and MUST return a note 
 unchanged. Rewriting the same terms again MUST change nothing, and the rewrite MUST NOT make the
 note's sidecar stale.
 
-Supports: 792a6c1a, 792a6c1b, 792a6d1a, 792a6d1b, 792a6d1d, 792a6u1a.
+Supports: [792a6c1a](./792a_product-spec.md#792a6c1-uat-scenarios), [792a6c1b](./792a_product-spec.md#792a6c1-uat-scenarios), [792a6d1a](./792a_product-spec.md#792a6d1-uat-scenarios), [792a6d1b](./792a_product-spec.md#792a6d1-uat-scenarios), [792a6d1d](./792a_product-spec.md#792a6d1-uat-scenarios), [792a6u1a](./792a_product-spec.md#792a6u1-uat-scenarios).
 
 ##### 792b20c4a Scenarios
 
@@ -9534,14 +9534,14 @@ Scenario: 792b20c4a5 A tags-only rewrite keeps the sidecar current
 
 #### 792b20c5 Tagging a written note
 
-Requirement: 792b20c5 When a writer asks it to tag a written note, the vocabulary-engine MUST load the
-tagging vectors (792b20c2) and the note's sidecar body vector, select terms with the 0.35 floor
-(792b20c3), rewrite the tags (792b20c4) and write the note; it MUST write nothing when it is given no
+Requirement: [792b20c5](#792b20c5-tagging-a-written-note) When a writer asks it to tag a written note, the vocabulary-engine MUST load the
+tagging vectors ([792b20c2](#792b20c2-term-vectors)) and the note's sidecar body vector, select terms with the 0.35 floor
+([792b20c3](#792b20c3-term-selection)), rewrite the tags ([792b20c4](#792b20c4-rewriting-a-notes-vocabulary-tags)) and write the note; it MUST write nothing when it is given no
 way to read or write, the vault has no terms, the sidecar is unreadable or has no body vector, the
 note is a definition, or the rewrite changes nothing or only the note's line endings; and a failed
 write MUST be logged as a warning, not returned.
 
-Supports: 792a3u1a, 792a3u1b, 792a6d1a, 792a6d1d, 792a6d1e, 792a6e1a, 792a6e1b, 792a6f1a.
+Supports: [792a3u1a](./792a_product-spec.md#792a3u1-uat-scenarios), [792a3u1b](./792a_product-spec.md#792a3u1-uat-scenarios), [792a6d1a](./792a_product-spec.md#792a6d1-uat-scenarios), [792a6d1d](./792a_product-spec.md#792a6d1-uat-scenarios), [792a6d1e](./792a_product-spec.md#792a6d1-uat-scenarios), [792a6e1a](./792a_product-spec.md#792a6e1-uat-scenarios), [792a6e1b](./792a_product-spec.md#792a6e1-uat-scenarios), [792a6f1a](./792a_product-spec.md#792a6f1-uat-scenarios).
 
 ##### 792b20c5a Scenarios
 
@@ -9574,7 +9574,7 @@ Scenario: 792b20c5a5 A CRLF note is tagged as LF and only when its tags change
 
 #### 792b20c6 Refit check
 
-Requirement: 792b20c6 When a writer asks whether a refit is due, the vocabulary-engine MUST do
+Requirement: [792b20c6](#792b20c6-refit-check) When a writer asks whether a refit is due, the vocabulary-engine MUST do
 nothing when it is given no way to list, read or write, or when `vocab.centroids.json` already marks a
 refit pending; MUST otherwise count the vault's Markdown files that are not question notes and not
 definitions (counting a file it cannot read); when no baseline is recorded (including when the file is
@@ -9584,7 +9584,7 @@ the baseline's by at least 40 and at least 14 days have passed since its date MU
 whose date does not parse MUST never trigger, and neither the untagged rate nor a term's share of
 notes MUST affect the check. A failed write MUST be logged as a warning.
 
-Supports: 792a6s1a, 792a6s1b, 792a6s1c, 792a6s1d.
+Supports: [792a6s1a](./792a_product-spec.md#792a6s1-uat-scenarios), [792a6s1b](./792a_product-spec.md#792a6s1-uat-scenarios), [792a6s1c](./792a_product-spec.md#792a6s1-uat-scenarios), [792a6s1d](./792a_product-spec.md#792a6s1-uat-scenarios).
 
 ##### 792b20c6a Scenarios
 
@@ -9632,15 +9632,15 @@ Scenario: 792b20c6a8 Nothing wired does nothing
 
 #### 792b20c7 Statistics
 
-Requirement: 792b20c7 For `engram vocab stats`, the vocabulary-engine MUST list the vault, take its
-terms from the definition notes (792b20c1), count as member notes the readable files with
+Requirement: [792b20c7](#792b20c7-statistics) For `engram vocab stats`, the vocabulary-engine MUST list the vault, take its
+terms from the definition notes ([792b20c1](#792b20c1-definition-recognition)), count as member notes the readable files with
 frontmatter that are neither definitions nor question notes, count a member without `vocab/` tags as
 untagged and every `vocab/<term>` entry toward its term, read the version from the family note
-(792b20c9) and the pending refit from `vocab.centroids.json` (none when it is absent), count the
-question notes whose answer note exists, and print the report of 792a6t. It MUST write nothing.
+([792b20c9](#792b20c9-the-family-note-and-the-version)) and the pending refit from `vocab.centroids.json` (none when it is absent), count the
+question notes whose answer note exists, and print the report of [792a6t](./792a_product-spec.md#792a6t-vocabulary-statistics). It MUST write nothing.
 
-Supports: 792a6b1b, 792a6s1a, 792a6s1b, 792a6s1c, 792a6s1d, 792a6t1a, 792a6t1b, 792a6t1c, 792a6t1d,
-792a6q1a.
+Supports: [792a6b1b](./792a_product-spec.md#792a6b1-uat-scenarios), [792a6s1a](./792a_product-spec.md#792a6s1-uat-scenarios), [792a6s1b](./792a_product-spec.md#792a6s1-uat-scenarios), [792a6s1c](./792a_product-spec.md#792a6s1-uat-scenarios), [792a6s1d](./792a_product-spec.md#792a6s1-uat-scenarios), [792a6t1a](./792a_product-spec.md#792a6t1-uat-scenarios), [792a6t1b](./792a_product-spec.md#792a6t1-uat-scenarios), [792a6t1c](./792a_product-spec.md#792a6t1-uat-scenarios), [792a6t1d](./792a_product-spec.md#792a6t1-uat-scenarios),
+[792a6q1a](./792a_product-spec.md#792a6q1-uat-scenarios).
 
 Rationale: question notes are recognized by their filename, `qa.<…>.q.md`, and their answer by the
 same name ending `.a.md`.
@@ -9676,15 +9676,15 @@ Scenario: 792b20c7a5 Question-and-answer pairs are counted
 
 #### 792b20c8 Writing a definition note
 
-Requirement: 792b20c8 The vocabulary-engine MUST write a definition note at the next free top-level
+Requirement: [792b20c8](#792b20c8-writing-a-definition-note) The vocabulary-engine MUST write a definition note at the next free top-level
 Luhmann ID of the vault (counting the notes it has written in the same run), with today's date and
-the fields of 792a6a, rendered as a fact note whose body formula drops one trailing period from the
+the fields of [792a6a](./792a_product-spec.md#792a6a-definition-notes), rendered as a fact note whose body formula drops one trailing period from the
 description so it ends in a single period, followed by an `Exemplars:` list when there are exemplars,
 and MUST then build and write its sidecar. A failure to embed or to write the sidecar MUST be logged
 as a warning, leaving the note; a failure to write the note MUST be logged as a warning and the
 command MUST continue.
 
-Supports: 792a6a1a, 792a6g1a, 792a6i1a, 792a6o1a.
+Supports: [792a6a1a](./792a_product-spec.md#792a6a1-uat-scenarios), [792a6g1a](./792a_product-spec.md#792a6g1-uat-scenarios), [792a6i1a](./792a_product-spec.md#792a6i1-uat-scenarios), [792a6o1a](./792a_product-spec.md#792a6o1-uat-scenarios).
 
 ##### 792b20c8a Scenarios
 
@@ -9712,16 +9712,16 @@ Scenario: 792b20c8a4 A failed note write is a warning
 
 #### 792b20c9 The family note and the version
 
-Requirement: 792b20c9 The vocabulary-engine MUST find the family note as the definition whose slug
+Requirement: [792b20c9](#792b20c9-the-family-note-and-the-version) The vocabulary-engine MUST find the family note as the definition whose slug
 is `vocab-definition`; when it is absent and the command creates the vocabulary, MUST write it
-(792b20c8) with `tags: [vocab]`, `vocab_version: "1.0"` and an object that names no term, reporting
+([792b20c8](#792b20c8-writing-a-definition-note)) with `tags: [vocab]`, `vocab_version: "1.0"` and an object that names no term, reporting
 whether it was written; MUST read the version from it, `1.0` when the vault cannot be listed, the
-note is absent or the key is empty; MUST raise the minor or major part as 792a6b says, leaving a
+note is absent or the key is empty; MUST raise the minor or major part as [792a6b](./792a_product-spec.md#792a6b-the-family-note) says, leaving a
 version that is not `<major>.<minor>` unchanged; and MUST rewrite only that note's `vocab_version`
 line, in place. When there is no family note, writing the version MUST fail, and the command MUST
 log that as a warning and continue.
 
-Supports: 792a6b1a, 792a6b1b, 792a6i1a, 792a6i1b, 792a6o1a.
+Supports: [792a6b1a](./792a_product-spec.md#792a6b1-uat-scenarios), [792a6b1b](./792a_product-spec.md#792a6b1-uat-scenarios), [792a6i1a](./792a_product-spec.md#792a6i1-uat-scenarios), [792a6i1b](./792a_product-spec.md#792a6i1-uat-scenarios), [792a6o1a](./792a_product-spec.md#792a6o1-uat-scenarios).
 
 ##### 792b20c9a Scenarios
 
@@ -9754,15 +9754,15 @@ Scenario: 792b20c9a5 Writing a version without a family note fails
 
 #### 792b20c10 Bootstrap
 
-Requirement: 792b20c10 For `engram vocab bootstrap`, the vocabulary-engine MUST read and parse the
+Requirement: [792b20c10](#792b20c10-bootstrap) For `engram vocab bootstrap`, the vocabulary-engine MUST read and parse the
 seed file before taking the lock, failing with an error naming the read or parse failure; MUST then
-hold the vault lock while it ensures the family note (792b20c9), writes a definition (792b20c8) for
-each seed term the vault has no definition for, loads the term vectors (792b20c2) and, when there is
-at least one, re-tags the vault (792b20c11); MUST NOT write a `vocab.index.md`; and MUST print
+hold the vault lock while it ensures the family note ([792b20c9](#792b20c9-the-family-note-and-the-version)), writes a definition ([792b20c8](#792b20c8-writing-a-definition-note)) for
+each seed term the vault has no definition for, loads the term vectors ([792b20c2](#792b20c2-term-vectors)) and, when there is
+at least one, re-tags the vault ([792b20c11](#792b20c11-two-pass-re-tagging)); MUST NOT write a `vocab.index.md`; and MUST print
 `vocab bootstrap: <N> terms, <M> notes assigned`. A note it cannot read, or whose sidecar is missing,
 MUST be skipped. `--floor` 0 MUST mean 0.35.
 
-Supports: 792a6g1a, 792a6g1b, 792a6h1a.
+Supports: [792a6g1a](./792a_product-spec.md#792a6g1-uat-scenarios), [792a6g1b](./792a_product-spec.md#792a6g1-uat-scenarios), [792a6h1a](./792a_product-spec.md#792a6h1-uat-scenarios).
 
 ##### 792b20c10a Scenarios
 
@@ -9795,16 +9795,16 @@ Scenario: 792b20c10a5 A bad seed fails before the lock
 
 #### 792b20c11 Two-pass re-tagging
 
-Requirement: 792b20c11 To re-tag a vault from description vectors, the vocabulary-engine MUST read the
+Requirement: [792b20c11](#792b20c11-two-pass-re-tagging) To re-tag a vault from description vectors, the vocabulary-engine MUST read the
 body vector of every note that is not a definition and has a readable sidecar, select each one's
-terms against the description vectors (792b20c3), set each term with members to the mean of its
+terms against the description vectors ([792b20c3](#792b20c3-term-selection)), set each term with members to the mean of its
 members' vectors (keeping the description vector for a term with none), tag every note that is not a
-question against those vectors (792b20c4), and write `vocab.centroids.json` with the means, their
+question against those vectors ([792b20c4](#792b20c4-rewriting-a-notes-vocabulary-tags)), and write `vocab.centroids.json` with the means, their
 member counts, the definitions' embedding model ID and dimensions, and the given baseline, with no
 refit pending. Definitions MUST NOT contribute to any mean or be rewritten. A failure to list the
 vault MUST be logged as a warning.
 
-Supports: 792a6a1b, 792a6g1a, 792a6w1a.
+Supports: [792a6a1b](./792a_product-spec.md#792a6a1-uat-scenarios), [792a6g1a](./792a_product-spec.md#792a6g1-uat-scenarios), [792a6w1a](./792a_product-spec.md#792a6w1-uat-scenarios).
 
 ##### 792b20c11a Scenarios
 
@@ -9832,8 +9832,8 @@ Scenario: 792b20c11a4 A listing failure is a warning
 
 #### 792b20c12 Propose
 
-Requirement: 792b20c12 For `engram vocab propose`, the vocabulary-engine MUST, holding the vault lock,
-raise the minor version (792b20c9), write the term's definition (792b20c8) with the source
+Requirement: [792b20c12](#792b20c12-propose) For `engram vocab propose`, the vocabulary-engine MUST, holding the vault lock,
+raise the minor version ([792b20c9](#792b20c9-the-family-note-and-the-version)), write the term's definition ([792b20c8](#792b20c8-writing-a-definition-note)) with the source
 `vocab lifecycle (propose v<version>)`, and record the term in `vocab.centroids.json` with
 `origin: proposed`, keeping every other entry and field, keeping the term's existing vector and
 member count or else taking its definition's sidecar vector (none when it is not embedded), and
@@ -9841,7 +9841,7 @@ creating the file with the definitions' model ID and dimensions when it is absen
 `vocab propose: created <term> (version → <v>)`. The origin MUST be recorded even when writing the
 definition fails.
 
-Supports: 792a6i1a, 792a6i1b, 792a6q1a.
+Supports: [792a6i1a](./792a_product-spec.md#792a6i1-uat-scenarios), [792a6i1b](./792a_product-spec.md#792a6i1-uat-scenarios), [792a6q1a](./792a_product-spec.md#792a6q1-uat-scenarios).
 
 ##### 792b20c12a Scenarios
 
@@ -9864,16 +9864,16 @@ Scenario: 792b20c12a3 The origin survives a failed definition write
 
 #### 792b20c13 Deriving clusters
 
-Requirement: 792b20c13 For a refit, the vocabulary-engine MUST cluster the body vectors of every note
+Requirement: [792b20c13](#792b20c13-deriving-clusters) For a refit, the vocabulary-engine MUST cluster the body vectors of every note
 that is not a definition and has a readable sidecar, in name order, with the similarity-clustering
-(792b19c4) over K from 2 to 40 with floor 0.02 and seed 1; when the previous derivation's K (the
+([792b19c4](#792b19c4-choosing-the-number-of-clusters)) over K from 2 to 40 with floor 0.02 and seed 1; when the previous derivation's K (the
 number of existing terms not marked proposed, an absent origin counting as derived) is at least 2
 and differs from the result, it MUST also cluster at exactly that K and keep that result when it has
 clusters and its silhouette is within 0.02 of the first. Each cluster MUST carry its members' names
 and their mean vector. It MUST also fingerprint the input as `n<count>-<SHA-256 over each name and its
 vector's bits>`.
 
-Supports: 792a6j1a, 792a6j1b, 792a6m1a, 792a6n1a.
+Supports: [792a6j1a](./792a_product-spec.md#792a6j1-uat-scenarios), [792a6j1b](./792a_product-spec.md#792a6j1-uat-scenarios), [792a6m1a](./792a_product-spec.md#792a6m1-uat-scenarios), [792a6n1a](./792a_product-spec.md#792a6n1-uat-scenarios).
 
 ##### 792b20c13a Scenarios
 
@@ -9901,12 +9901,12 @@ Scenario: 792b20c13a4 A clearly better K replaces the previous one
 
 #### 792b20c14 Matching clusters to terms
 
-Requirement: 792b20c14 The vocabulary-engine MUST pair clusters with existing terms by the cosine
+Requirement: [792b20c14](#792b20c14-matching-clusters-to-terms) The vocabulary-engine MUST pair clusters with existing terms by the cosine
 similarity of a cluster's mean and a term's tagging vector, taking pairs at or above 0.80 from the
 highest down (ties by term name, then cluster), each cluster and each term at most once; a cluster
 left unpaired MUST be new, and an unpaired term MUST be retired unless its origin is proposed.
 
-Supports: 792a6k1a, 792a6k1b, 792a6q1a.
+Supports: [792a6k1a](./792a_product-spec.md#792a6k1-uat-scenarios), [792a6k1b](./792a_product-spec.md#792a6k1-uat-scenarios), [792a6q1a](./792a_product-spec.md#792a6q1-uat-scenarios).
 
 ##### 792b20c14a Scenarios
 
@@ -9934,14 +9934,14 @@ Scenario: 792b20c14a4 A proposed term is never retired
 
 #### 792b20c15 Refit routing
 
-Requirement: 792b20c15 For `engram vocab refit`, the vocabulary-engine MUST hold the vault lock for the
-whole run; after deriving (792b20c13) and matching (792b20c14), it MUST print the no-structure line
-when K is 0, print the dry-run diff of 792a6l when `--dry-run` is given, print the naming requests
-(792b20c16) when there are new clusters and no `--names`, fail when the `--names` file cannot be
-read or its answer is refused (792b20c17), and otherwise apply the derivation (792b20c18), writing
+Requirement: [792b20c15](#792b20c15-refit-routing) For `engram vocab refit`, the vocabulary-engine MUST hold the vault lock for the
+whole run; after deriving ([792b20c13](#792b20c13-deriving-clusters)) and matching ([792b20c14](#792b20c14-matching-clusters-to-terms)), it MUST print the no-structure line
+when K is 0, print the dry-run diff of [792a6l](./792a_product-spec.md#792a6l-dry-run) when `--dry-run` is given, print the naming requests
+([792b20c16](#792b20c16-naming-requests)) when there are new clusters and no `--names`, fail when the `--names` file cannot be
+read or its answer is refused ([792b20c17](#792b20c17-naming-answers)), and otherwise apply the derivation ([792b20c18](#792b20c18-applying-a-derivation)), writing
 nothing on every path but the last.
 
-Supports: 792a6j1a, 792a6j1b, 792a6k1a, 792a6k1b, 792a6l1a, 792a6m1a, 792a6n1a, 792a6o1a, 792a6o1b.
+Supports: [792a6j1a](./792a_product-spec.md#792a6j1-uat-scenarios), [792a6j1b](./792a_product-spec.md#792a6j1-uat-scenarios), [792a6k1a](./792a_product-spec.md#792a6k1-uat-scenarios), [792a6k1b](./792a_product-spec.md#792a6k1-uat-scenarios), [792a6l1a](./792a_product-spec.md#792a6l1-uat-scenarios), [792a6m1a](./792a_product-spec.md#792a6m1-uat-scenarios), [792a6n1a](./792a_product-spec.md#792a6n1-uat-scenarios), [792a6o1a](./792a_product-spec.md#792a6o1-uat-scenarios), [792a6o1b](./792a_product-spec.md#792a6o1-uat-scenarios).
 
 Rationale: refit rewrites tags across the whole vault, so no other writer may interleave with it.
 The two-run naming protocol is sound only while the vault is unchanged between the runs, which the
@@ -9978,13 +9978,13 @@ Scenario: 792b20c15a5 An accepted answer applies the derivation
 
 #### 792b20c16 Naming requests
 
-Requirement: 792b20c16 The vocabulary-engine MUST build one naming request per new cluster with its
+Requirement: [792b20c16](#792b20c16-naming-requests) The vocabulary-engine MUST build one naming request per new cluster with its
 index, member count and, as exemplars, its three members nearest the cluster's mean, nearest first,
 each with its basename, its slug as title (the basename when it has none) and the first 200 bytes of
 its trimmed body as snippet, and MUST print them as indented JSON with the instruction and the
-fingerprint (792b20c13).
+fingerprint ([792b20c13](#792b20c13-deriving-clusters)).
 
-Supports: 792a6m1a.
+Supports: [792a6m1a](./792a_product-spec.md#792a6m1-uat-scenarios).
 
 ##### 792b20c16a Scenarios
 
@@ -9997,13 +9997,13 @@ Scenario: 792b20c16a1 Exemplars are the members nearest the centroid
 
 #### 792b20c17 Naming answers
 
-Requirement: 792b20c17 The vocabulary-engine MUST accept a naming answer only when it is JSON whose
+Requirement: [792b20c17](#792b20c17-naming-answers) The vocabulary-engine MUST accept a naming answer only when it is JSON whose
 fingerprint equals the current derivation's and whose entries each name a new cluster, none twice,
 with a non-empty term and description, covering every new cluster, refusing it otherwise with the
-error of 792a6n; and each named cluster MUST become a term whose exemplars are its request's
+error of [792a6n](./792a_product-spec.md#792a6n-naming-answers); and each named cluster MUST become a term whose exemplars are its request's
 snippets.
 
-Supports: 792a6n1a, 792a6o1a.
+Supports: [792a6n1a](./792a_product-spec.md#792a6n1-uat-scenarios), [792a6o1a](./792a_product-spec.md#792a6o1-uat-scenarios).
 
 ##### 792b20c17a Scenarios
 
@@ -10026,16 +10026,16 @@ Scenario: 792b20c17a3 A named cluster becomes a term with its snippets
 
 #### 792b20c18 Applying a derivation
 
-Requirement: 792b20c18 To apply a derivation, the vocabulary-engine MUST raise the major version
-(792b20c9), retire the retired terms (792b20c19), write a definition for each named cluster
-(792b20c8) with the source `vocab lifecycle (refit v<version>)`, re-tag every note that is not a
-question (792b20c4) against the paired and named clusters' means and the unpaired proposed terms'
+Requirement: [792b20c18](#792b20c18-applying-a-derivation) To apply a derivation, the vocabulary-engine MUST raise the major version
+([792b20c9](#792b20c9-the-family-note-and-the-version)), retire the retired terms ([792b20c19](#792b20c19-retiring-terms)), write a definition for each named cluster
+([792b20c8](#792b20c8-writing-a-definition-note)) with the source `vocab lifecycle (refit v<version>)`, re-tag every note that is not a
+question ([792b20c4](#792b20c4-rewriting-a-notes-vocabulary-tags)) against the paired and named clusters' means and the unpaired proposed terms'
 vectors with the 0.35 floor, and write `vocab.centroids.json` with each paired or named term's mean,
 member count and `origin: derived`, each unpaired proposed term's vector with `origin: proposed`, the
 derivation's K, silhouette and date, a new baseline, and no refit pending; and MUST print the applied
-line of 792a6o. A field left unset MUST be omitted from the file.
+line of [792a6o](./792a_product-spec.md#792a6o-applying-a-refit). A field left unset MUST be omitted from the file.
 
-Supports: 792a6c1b, 792a6o1a, 792a6o1b, 792a6p1a, 792a6q1a.
+Supports: [792a6c1b](./792a_product-spec.md#792a6c1-uat-scenarios), [792a6o1a](./792a_product-spec.md#792a6o1-uat-scenarios), [792a6o1b](./792a_product-spec.md#792a6o1-uat-scenarios), [792a6p1a](./792a_product-spec.md#792a6p1-uat-scenarios), [792a6q1a](./792a_product-spec.md#792a6q1-uat-scenarios).
 
 ##### 792b20c18a Scenarios
 
@@ -10048,7 +10048,7 @@ Scenario: 792b20c18a1 The centroid record carries origins and the derivation
 
 #### 792b20c19 Retiring terms
 
-Requirement: 792b20c19 To retire terms, the vocabulary-engine MUST delete each retired term's
+Requirement: [792b20c19](#792b20c19-retiring-terms) To retire terms, the vocabulary-engine MUST delete each retired term's
 definition note and sidecar; then, in every other note, MUST drop `supersedes:` entries whose `note:`
 names a deleted file (and the key with its last entry), drop body lines starting `Supersedes: ` that
 link a deleted note, and replace every other `[[<deleted>]]` or `[[<deleted>.md]]` with the plain
@@ -10056,7 +10056,7 @@ basename, leaving unchanged notes byte-identical; and MUST remove the retired `v
 every note but definitions and questions. It MUST record no supersession, and a failure to list,
 delete or write MUST be logged as a warning without stopping the rest.
 
-Supports: 792a6p1a, 792a6p1b.
+Supports: [792a6p1a](./792a_product-spec.md#792a6p1-uat-scenarios), [792a6p1b](./792a_product-spec.md#792a6p1-uat-scenarios).
 
 ##### 792b20c19a Scenarios
 
@@ -10084,14 +10084,14 @@ Scenario: 792b20c19a4 Failures are warnings
 
 #### 792b20c20 Self-tag backfill
 
-Requirement: 792b20c20 For `engram vocab tag-definitions`, the vocabulary-engine MUST list the vault,
-then hold the vault lock while, for every definition note (792b20c1), it appends the missing
+Requirement: [792b20c20](#792b20c20-self-tag-backfill) For `engram vocab tag-definitions`, the vocabulary-engine MUST list the vault,
+then hold the vault lock while, for every definition note ([792b20c1](#792b20c1-definition-recognition)), it appends the missing
 `vocab/<term>` tag to the note's tags, keeping the rest of the note, and prints the per-note lines of
-792a6u; a definition whose frontmatter cannot be split MUST print `<basename>: unparseable frontmatter
+[792a6u](./792a_product-spec.md#792a6u-self-tag-backfill); a definition whose frontmatter cannot be split MUST print `<basename>: unparseable frontmatter
 (skipped)`, and one that cannot be written MUST print `<basename>: write failed (<error>)` and
 continue. It MUST NOT touch any sidecar.
 
-Supports: 792a6u1a, 792a6u1b.
+Supports: [792a6u1a](./792a_product-spec.md#792a6u1-uat-scenarios), [792a6u1b](./792a_product-spec.md#792a6u1-uat-scenarios).
 
 ##### 792b20c20a Scenarios
 
@@ -10109,18 +10109,18 @@ Scenario: 792b20c20a2 A failed write is reported
 
 #### 792b20c21 Migrating an old-format vocabulary
 
-Requirement: 792b20c21 For `engram update --regen-vocab`, the vocabulary-engine MUST list the vault;
+Requirement: [792b20c21](#792b20c21-migrating-an-old-format-vocabulary) For `engram update --regen-vocab`, the vocabulary-engine MUST list the vault;
 harvest each `vocab.<term>.md` file other than `vocab.index.md` whose frontmatter has a `term:` as a
 seed term with its `description:` and the bullets of its `Exemplars:` section, skipping files it
 cannot read or parse; count the `vocab.<name>.md` files and the notes holding a `vocab:` frontmatter
 line or a `Vocab:` body line; and report those counts and the number of seeds. When there is nothing
 to migrate, or on a dry run, it MUST write nothing. Otherwise it MUST ensure the family note
-(792b20c9), write the seed terms' definitions (792b20c8), remove the first `vocab:` and `Vocab:` lines
+([792b20c9](#792b20c9-the-family-note-and-the-version)), write the seed terms' definitions ([792b20c8](#792b20c8-writing-a-definition-note)), remove the first `vocab:` and `Vocab:` lines
 from those notes, delete the old files and, best effort, their sidecars (counting only the files
-deleted and warning about the others), and re-tag the vault (792b20c11), reporting the number of
+deleted and warning about the others), and re-tag the vault ([792b20c11](#792b20c11-two-pass-re-tagging)), reporting the number of
 assignments. A listing failure MUST be returned as an error.
 
-Supports: 792a6w1a, 792a6w1b, 792a6w1c.
+Supports: [792a6w1a](./792a_product-spec.md#792a6w1-uat-scenarios), [792a6w1b](./792a_product-spec.md#792a6w1-uat-scenarios), [792a6w1c](./792a_product-spec.md#792a6w1-uat-scenarios).
 
 ##### 792b20c21a Scenarios
 
@@ -10158,13 +10158,13 @@ Scenario: 792b20c21a6 A file that cannot be deleted is warned about and not coun
 
 #### 792b20c22 Repairs a vault needs
 
-Requirement: 792b20c22 For `engram update`'s notices, the vocabulary-engine MUST report that a vault
+Requirement: [792b20c22](#792b20c22-repairs-a-vault-needs) For `engram update`'s notices, the vocabulary-engine MUST report that a vault
 holds old-format files when its directory holds a regular file named `vocab.<name>.md` (never
 `vocab.centroids.json`), and that a definition lacks its self-tag when a file whose slug names a term
-(792b20c1) is a definition whose tags lack `vocab/<term>`; and MUST report neither, without failing,
+([792b20c1](#792b20c1-definition-recognition)) is a definition whose tags lack `vocab/<term>`; and MUST report neither, without failing,
 when the vault cannot be read.
 
-Supports: 792a6v1a, 792a6v1b, 792a6v1c, 792a6w1a.
+Supports: [792a6v1a](./792a_product-spec.md#792a6v1-uat-scenarios), [792a6v1b](./792a_product-spec.md#792a6v1-uat-scenarios), [792a6v1c](./792a_product-spec.md#792a6v1-uat-scenarios), [792a6w1a](./792a_product-spec.md#792a6w1-uat-scenarios).
 
 ##### 792b20c22a Scenarios
 
@@ -10184,66 +10184,66 @@ Scenario: 792b20c22a2 A missing self-tag is detected
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a3u1a | 792b20c3, 792b20c5 |
-| 792a3u1b | 792b20c3, 792b20c5 |
-| 792a6a1a | 792b20c8 |
-| 792a6a1b | 792b20c1, 792b20c11 |
-| 792a6b1a | 792b20c9 |
-| 792a6b1b | 792b20c7, 792b20c9 |
-| 792a6c1a | 792b20c4 |
-| 792a6c1b | 792b20c4, 792b20c18 |
-| 792a6d1a | 792b20c2, 792b20c3, 792b20c4, 792b20c5 |
-| 792a6d1b | 792b20c3, 792b20c4 |
-| 792a6d1c | 792b20c3 |
-| 792a6d1d | 792b20c4, 792b20c5 |
-| 792a6d1e | 792b20c5 |
-| 792a6e1a | 792b20c5 |
-| 792a6e1b | 792b20c5 |
-| 792a6f1a | 792b20c5 |
-| 792a6g1a | 792b20c8, 792b20c10, 792b20c11 |
-| 792a6g1b | 792b20c10 |
-| 792a6h1a | 792b20c10 |
-| 792a6i1a | 792b20c8, 792b20c9, 792b20c12 |
-| 792a6i1b | 792b20c9, 792b20c12 |
-| 792a6j1a | 792b20c13, 792b20c15 |
-| 792a6j1b | 792b20c13, 792b20c15 |
-| 792a6k1a | 792b20c14, 792b20c15 |
-| 792a6k1b | 792b20c14, 792b20c15 |
-| 792a6l1a | 792b20c15 |
-| 792a6m1a | 792b20c13, 792b20c15, 792b20c16 |
-| 792a6n1a | 792b20c13, 792b20c15, 792b20c17 |
-| 792a6o1a | 792b20c8, 792b20c9, 792b20c15, 792b20c17, 792b20c18 |
-| 792a6o1b | 792b20c15, 792b20c18 |
-| 792a6p1a | 792b20c18, 792b20c19 |
-| 792a6p1b | 792b20c19 |
-| 792a6q1a | 792b20c2, 792b20c7, 792b20c12, 792b20c14, 792b20c18 |
-| 792a6s1a | 792b20c6, 792b20c7 |
-| 792a6s1b | 792b20c6, 792b20c7 |
-| 792a6s1c | 792b20c6, 792b20c7 |
-| 792a6s1d | 792b20c6, 792b20c7 |
-| 792a6t1a | 792b20c7 |
-| 792a6t1b | 792b20c7 |
-| 792a6t1c | 792b20c1, 792b20c7 |
-| 792a6t1d | 792b20c7 |
-| 792a6u1a | 792b20c1, 792b20c4, 792b20c20 |
-| 792a6u1b | 792b20c20 |
-| 792a6v1a | 792b20c22 |
-| 792a6v1b | 792b20c22 |
-| 792a6v1c | 792b20c22 |
-| 792a6w1a | 792b20c11, 792b20c21, 792b20c22 |
-| 792a6w1b | 792b20c21 |
-| 792a6w1c | 792b20c21 |
-| 792a7d1g | 792b20c1 |
-| 792a7e1d | 792b20c1 |
-| 792a7k1b | 792b20c1 |
-| 792a7zd1a | 792b20c6 |
-| 792a7zd1b | 792b20c6 |
-| 792a15d1b | 792b20c7 |
-| 792a15d1c | 792b20c15 |
-| 792a15d1d | 792b20c15, 792b20c16, 792b20c17 |
-| 792a15d1e | 792b20c17 |
-| 792a15d1f | 792b20c18 |
-| 792a15d1g | 792b20c7 |
+| [792a3u1a](./792a_product-spec.md#792a3u1-uat-scenarios) | [792b20c3](#792b20c3-term-selection), [792b20c5](#792b20c5-tagging-a-written-note) |
+| [792a3u1b](./792a_product-spec.md#792a3u1-uat-scenarios) | [792b20c3](#792b20c3-term-selection), [792b20c5](#792b20c5-tagging-a-written-note) |
+| [792a6a1a](./792a_product-spec.md#792a6a1-uat-scenarios) | [792b20c8](#792b20c8-writing-a-definition-note) |
+| [792a6a1b](./792a_product-spec.md#792a6a1-uat-scenarios) | [792b20c1](#792b20c1-definition-recognition), [792b20c11](#792b20c11-two-pass-re-tagging) |
+| [792a6b1a](./792a_product-spec.md#792a6b1-uat-scenarios) | [792b20c9](#792b20c9-the-family-note-and-the-version) |
+| [792a6b1b](./792a_product-spec.md#792a6b1-uat-scenarios) | [792b20c7](#792b20c7-statistics), [792b20c9](#792b20c9-the-family-note-and-the-version) |
+| [792a6c1a](./792a_product-spec.md#792a6c1-uat-scenarios) | [792b20c4](#792b20c4-rewriting-a-notes-vocabulary-tags) |
+| [792a6c1b](./792a_product-spec.md#792a6c1-uat-scenarios) | [792b20c4](#792b20c4-rewriting-a-notes-vocabulary-tags), [792b20c18](#792b20c18-applying-a-derivation) |
+| [792a6d1a](./792a_product-spec.md#792a6d1-uat-scenarios) | [792b20c2](#792b20c2-term-vectors), [792b20c3](#792b20c3-term-selection), [792b20c4](#792b20c4-rewriting-a-notes-vocabulary-tags), [792b20c5](#792b20c5-tagging-a-written-note) |
+| [792a6d1b](./792a_product-spec.md#792a6d1-uat-scenarios) | [792b20c3](#792b20c3-term-selection), [792b20c4](#792b20c4-rewriting-a-notes-vocabulary-tags) |
+| [792a6d1c](./792a_product-spec.md#792a6d1-uat-scenarios) | [792b20c3](#792b20c3-term-selection) |
+| [792a6d1d](./792a_product-spec.md#792a6d1-uat-scenarios) | [792b20c4](#792b20c4-rewriting-a-notes-vocabulary-tags), [792b20c5](#792b20c5-tagging-a-written-note) |
+| [792a6d1e](./792a_product-spec.md#792a6d1-uat-scenarios) | [792b20c5](#792b20c5-tagging-a-written-note) |
+| [792a6e1a](./792a_product-spec.md#792a6e1-uat-scenarios) | [792b20c5](#792b20c5-tagging-a-written-note) |
+| [792a6e1b](./792a_product-spec.md#792a6e1-uat-scenarios) | [792b20c5](#792b20c5-tagging-a-written-note) |
+| [792a6f1a](./792a_product-spec.md#792a6f1-uat-scenarios) | [792b20c5](#792b20c5-tagging-a-written-note) |
+| [792a6g1a](./792a_product-spec.md#792a6g1-uat-scenarios) | [792b20c8](#792b20c8-writing-a-definition-note), [792b20c10](#792b20c10-bootstrap), [792b20c11](#792b20c11-two-pass-re-tagging) |
+| [792a6g1b](./792a_product-spec.md#792a6g1-uat-scenarios) | [792b20c10](#792b20c10-bootstrap) |
+| [792a6h1a](./792a_product-spec.md#792a6h1-uat-scenarios) | [792b20c10](#792b20c10-bootstrap) |
+| [792a6i1a](./792a_product-spec.md#792a6i1-uat-scenarios) | [792b20c8](#792b20c8-writing-a-definition-note), [792b20c9](#792b20c9-the-family-note-and-the-version), [792b20c12](#792b20c12-propose) |
+| [792a6i1b](./792a_product-spec.md#792a6i1-uat-scenarios) | [792b20c9](#792b20c9-the-family-note-and-the-version), [792b20c12](#792b20c12-propose) |
+| [792a6j1a](./792a_product-spec.md#792a6j1-uat-scenarios) | [792b20c13](#792b20c13-deriving-clusters), [792b20c15](#792b20c15-refit-routing) |
+| [792a6j1b](./792a_product-spec.md#792a6j1-uat-scenarios) | [792b20c13](#792b20c13-deriving-clusters), [792b20c15](#792b20c15-refit-routing) |
+| [792a6k1a](./792a_product-spec.md#792a6k1-uat-scenarios) | [792b20c14](#792b20c14-matching-clusters-to-terms), [792b20c15](#792b20c15-refit-routing) |
+| [792a6k1b](./792a_product-spec.md#792a6k1-uat-scenarios) | [792b20c14](#792b20c14-matching-clusters-to-terms), [792b20c15](#792b20c15-refit-routing) |
+| [792a6l1a](./792a_product-spec.md#792a6l1-uat-scenarios) | [792b20c15](#792b20c15-refit-routing) |
+| [792a6m1a](./792a_product-spec.md#792a6m1-uat-scenarios) | [792b20c13](#792b20c13-deriving-clusters), [792b20c15](#792b20c15-refit-routing), [792b20c16](#792b20c16-naming-requests) |
+| [792a6n1a](./792a_product-spec.md#792a6n1-uat-scenarios) | [792b20c13](#792b20c13-deriving-clusters), [792b20c15](#792b20c15-refit-routing), [792b20c17](#792b20c17-naming-answers) |
+| [792a6o1a](./792a_product-spec.md#792a6o1-uat-scenarios) | [792b20c8](#792b20c8-writing-a-definition-note), [792b20c9](#792b20c9-the-family-note-and-the-version), [792b20c15](#792b20c15-refit-routing), [792b20c17](#792b20c17-naming-answers), [792b20c18](#792b20c18-applying-a-derivation) |
+| [792a6o1b](./792a_product-spec.md#792a6o1-uat-scenarios) | [792b20c15](#792b20c15-refit-routing), [792b20c18](#792b20c18-applying-a-derivation) |
+| [792a6p1a](./792a_product-spec.md#792a6p1-uat-scenarios) | [792b20c18](#792b20c18-applying-a-derivation), [792b20c19](#792b20c19-retiring-terms) |
+| [792a6p1b](./792a_product-spec.md#792a6p1-uat-scenarios) | [792b20c19](#792b20c19-retiring-terms) |
+| [792a6q1a](./792a_product-spec.md#792a6q1-uat-scenarios) | [792b20c2](#792b20c2-term-vectors), [792b20c7](#792b20c7-statistics), [792b20c12](#792b20c12-propose), [792b20c14](#792b20c14-matching-clusters-to-terms), [792b20c18](#792b20c18-applying-a-derivation) |
+| [792a6s1a](./792a_product-spec.md#792a6s1-uat-scenarios) | [792b20c6](#792b20c6-refit-check), [792b20c7](#792b20c7-statistics) |
+| [792a6s1b](./792a_product-spec.md#792a6s1-uat-scenarios) | [792b20c6](#792b20c6-refit-check), [792b20c7](#792b20c7-statistics) |
+| [792a6s1c](./792a_product-spec.md#792a6s1-uat-scenarios) | [792b20c6](#792b20c6-refit-check), [792b20c7](#792b20c7-statistics) |
+| [792a6s1d](./792a_product-spec.md#792a6s1-uat-scenarios) | [792b20c6](#792b20c6-refit-check), [792b20c7](#792b20c7-statistics) |
+| [792a6t1a](./792a_product-spec.md#792a6t1-uat-scenarios) | [792b20c7](#792b20c7-statistics) |
+| [792a6t1b](./792a_product-spec.md#792a6t1-uat-scenarios) | [792b20c7](#792b20c7-statistics) |
+| [792a6t1c](./792a_product-spec.md#792a6t1-uat-scenarios) | [792b20c1](#792b20c1-definition-recognition), [792b20c7](#792b20c7-statistics) |
+| [792a6t1d](./792a_product-spec.md#792a6t1-uat-scenarios) | [792b20c7](#792b20c7-statistics) |
+| [792a6u1a](./792a_product-spec.md#792a6u1-uat-scenarios) | [792b20c1](#792b20c1-definition-recognition), [792b20c4](#792b20c4-rewriting-a-notes-vocabulary-tags), [792b20c20](#792b20c20-self-tag-backfill) |
+| [792a6u1b](./792a_product-spec.md#792a6u1-uat-scenarios) | [792b20c20](#792b20c20-self-tag-backfill) |
+| [792a6v1a](./792a_product-spec.md#792a6v1-uat-scenarios) | [792b20c22](#792b20c22-repairs-a-vault-needs) |
+| [792a6v1b](./792a_product-spec.md#792a6v1-uat-scenarios) | [792b20c22](#792b20c22-repairs-a-vault-needs) |
+| [792a6v1c](./792a_product-spec.md#792a6v1-uat-scenarios) | [792b20c22](#792b20c22-repairs-a-vault-needs) |
+| [792a6w1a](./792a_product-spec.md#792a6w1-uat-scenarios) | [792b20c11](#792b20c11-two-pass-re-tagging), [792b20c21](#792b20c21-migrating-an-old-format-vocabulary), [792b20c22](#792b20c22-repairs-a-vault-needs) |
+| [792a6w1b](./792a_product-spec.md#792a6w1-uat-scenarios) | [792b20c21](#792b20c21-migrating-an-old-format-vocabulary) |
+| [792a6w1c](./792a_product-spec.md#792a6w1-uat-scenarios) | [792b20c21](#792b20c21-migrating-an-old-format-vocabulary) |
+| [792a7d1g](./792a_product-spec.md#792a7d1-uat-scenarios) | [792b20c1](#792b20c1-definition-recognition) |
+| [792a7e1d](./792a_product-spec.md#792a7e1-uat-scenarios) | [792b20c1](#792b20c1-definition-recognition) |
+| [792a7k1b](./792a_product-spec.md#792a7k1-uat-scenarios) | [792b20c1](#792b20c1-definition-recognition) |
+| [792a7zd1a](./792a_product-spec.md#792a7zd1-uat-scenarios) | [792b20c6](#792b20c6-refit-check) |
+| [792a7zd1b](./792a_product-spec.md#792a7zd1-uat-scenarios) | [792b20c6](#792b20c6-refit-check) |
+| [792a15d1b](./792a_product-spec.md#792a15d1-uat-scenarios) | [792b20c7](#792b20c7-statistics) |
+| [792a15d1c](./792a_product-spec.md#792a15d1-uat-scenarios) | [792b20c15](#792b20c15-refit-routing) |
+| [792a15d1d](./792a_product-spec.md#792a15d1-uat-scenarios) | [792b20c15](#792b20c15-refit-routing), [792b20c16](#792b20c16-naming-requests), [792b20c17](#792b20c17-naming-answers) |
+| [792a15d1e](./792a_product-spec.md#792a15d1-uat-scenarios) | [792b20c17](#792b20c17-naming-answers) |
+| [792a15d1f](./792a_product-spec.md#792a15d1-uat-scenarios) | [792b20c18](#792b20c18-applying-a-derivation) |
+| [792a15d1g](./792a_product-spec.md#792a15d1-uat-scenarios) | [792b20c7](#792b20c7-statistics) |
 
 ```gherkin
 Scenario: 792a6a1b A definition is never assigned a term
@@ -10469,40 +10469,40 @@ Canonical target: `docs/specs/technical/recency-ranking.md` (title `Recency Rank
   `parseCreatedFromNote`, `parseTurnN`, `maxTurnBySource` and `newestChunkItems` in
   `internal/cli/recency.go`; the query engine applies the factor to note and chunk scores. The band
   helpers `fillRecencyBand`, `spliceRecent` and `mostRecentlyUsedNoteItems` have no production caller
-  and are not specified (792d93).
+  and are not specified ([792d93](./792d_decision-log.md#792d93-recency-ranking-scope-and-the-tests-it-leaves)).
 - Qualification: responsibility, mapping ages and positions to a factor and ordering chunks is stated
   without naming any function; ownership, the query engine decides which scores to scale and where the
   clock comes from, while this component owns the curve, the age rules and the ordering; independent
   verification, it is tested directly on numbers, note texts and chunk lists; stability, the contract
-  survives any change to what is scored; necessity, recency scaling (792a7f) and the newest chunks
-  (792a7o) both rest on it.
-- Supported capabilities: 792a7 memory-query.
+  survives any change to what is scored; necessity, recency scaling ([792a7f](./792a_product-spec.md#792a7f-recency-scaling)) and the newest chunks
+  ([792a7o](./792a_product-spec.md#792a7o-the-newest-chunks)) both rest on it.
+- Supported capabilities: [792a7](./792a_product-spec.md#792a7-added-memory-query) memory-query.
 
 Rationale: operators work in monthly cycles, so a short half-life would suppress legitimate older
 content. A 60-day half-life is a soft tilt (2 weeks 0.85, 1 month 0.71, 2 months 0.50, 4 months 0.25)
 that slightly favours recent content without drowning relevance; the in-suite experiment
 `recency_eval_test` swept half-lives of 1, 7, 30 and 60 days over a pool of chunks of every age and
 chose 60. The re-rank is only a tilt: the guarantee that fresh content reaches the reader comes from
-the newest chunks (792b21c5), picked by age whatever their cosine. A note's age counts from when it
+the newest chunks ([792b21c5](#792b21c5-newest-chunks)), picked by age whatever their cosine. A note's age counts from when it
 last proved useful, not from when it was written, so a note that keeps being used stays fresh and one
 that is never used fades.
 
 ### 792b21b Sequences
 
-The recency-ranking owns no flow: it is a set of pure functions called by the query-engine (792b24)
+The recency-ranking owns no flow: it is a set of pure functions called by the query-engine ([792b24](#792b24-added-query-engine))
 when it scores notes and chunks and when it picks the newest chunks.
 
 ### 792b21c Behavior Requirements
 
 #### 792b21c1 Recency factor
 
-Requirement: 792b21c1 The recency-ranking MUST return, for an age in days of zero or more, a half-life
+Requirement: [792b21c1](#792b21c1-recency-factor) The recency-ranking MUST return, for an age in days of zero or more, a half-life
 in days, a tail weight and a position in a session from 0 to 1, the factor
 2^(-age / half-life) × (1 + tail weight × position), so that the factor is 1 at age 0 and position 0,
 halves with each half-life of age and gains the tail weight at position 1. The weights used to rank
 MUST be a half-life of 60 days and a tail weight of 0.2.
 
-Supports: 792a7f1a, 792a7f1b, 792a7f1e.
+Supports: [792a7f1a](./792a_product-spec.md#792a7f1-uat-scenarios), [792a7f1b](./792a_product-spec.md#792a7f1-uat-scenarios), [792a7f1e](./792a_product-spec.md#792a7f1-uat-scenarios).
 
 ##### 792b21c1a Scenarios
 
@@ -10527,12 +10527,12 @@ Scenario: 792b21c1a2 Production ranking uses a 60-day half-life
 
 #### 792b21c2 Note age
 
-Requirement: 792b21c2 The recency-ranking MUST give a note's age in days at a given time as the time
+Requirement: [792b21c2](#792b21c2-note-age) The recency-ranking MUST give a note's age in days at a given time as the time
 since the date in its sidecar's `last_used`, or, when that is empty, since the date in its `created`
 field, reading a `YYYY-MM-DD` date as midnight UTC, and MUST give an age of 0 when both are empty, when
 the date does not read, and when it is in the future.
 
-Supports: 792a7f1b, 792a7f1d.
+Supports: [792a7f1b](./792a_product-spec.md#792a7f1-uat-scenarios), [792a7f1d](./792a_product-spec.md#792a7f1-uat-scenarios).
 
 ##### 792b21c2a Scenarios
 
@@ -10556,14 +10556,14 @@ Scenario: 792b21c2a2 An unreadable or future date is no age
 
 #### 792b21c3 Creation date of a note
 
-Requirement: 792b21c3 The recency-ranking MUST read a note's creation date as the value of the
+Requirement: [792b21c3](#792b21c3-creation-date-of-a-note) The recency-ranking MUST read a note's creation date as the value of the
 `created:` key at the start of a line in the note's frontmatter, trimmed and otherwise exactly as
 written, quotes included, from the note read as its LF form, and MUST read none when the note has no
 frontmatter. It MUST NOT take a `created:` line that follows the closing fence, that is indented, or
 that falls inside a block scalar, and an indented `---` inside a block scalar MUST NOT close the
 frontmatter.
 
-Supports: 792a7f1d, 792a7zg1d.
+Supports: [792a7f1d](./792a_product-spec.md#792a7f1-uat-scenarios), [792a7zg1d](./792a_product-spec.md#792a7zg1-uat-scenarios).
 
 Rationale: `engram learn` writes `created` quoted, and the quoted value cannot be read as a date, so
 such a note reads as age 0 until it is used. Reading it without its quotes would put about 972 of the
@@ -10606,11 +10606,11 @@ Scenario: 792b21c3a6 A CRLF note is read as its LF form
 
 #### 792b21c4 Turn positions
 
-Requirement: 792b21c4 The recency-ranking MUST read the turn number of an anchor of the form `turn-N`, with
+Requirement: [792b21c4](#792b21c4-turn-positions) The recency-ranking MUST read the turn number of an anchor of the form `turn-N`, with
 N a non-negative whole number, and MUST read none from any other anchor. It MUST give for a list of
 chunk records the highest turn number of each source, leaving out a source that has none.
 
-Supports: 792a7f1e.
+Supports: [792a7f1e](./792a_product-spec.md#792a7f1-uat-scenarios).
 
 ##### 792b21c4a Scenarios
 
@@ -10637,14 +10637,14 @@ Scenario: 792b21c4a2 The highest turn of each source
 
 #### 792b21c5 Newest chunks
 
-Requirement: 792b21c5 The recency-ranking MUST pick, from a list of scored chunks and a count, the chunks
+Requirement: [792b21c5](#792b21c5-newest-chunks) The recency-ranking MUST pick, from a list of scored chunks and a count, the chunks
 with the latest `ingested_at`, newest first, ignoring their scores, with ties going to the later turn
 number, a chunk without a time after every chunk that has one, and ties among those too going to the
 later turn number. It MUST return nothing when the count is zero or less, and MUST give each chunk
 picked as an item with its chunk ID as path, its text as content, its score, the given provenance and
 the kind `chunk`.
 
-Supports: 792a7o1a, 792a7o1c, 792a7o1f.
+Supports: [792a7o1a](./792a_product-spec.md#792a7o1-uat-scenarios), [792a7o1c](./792a_product-spec.md#792a7o1-uat-scenarios), [792a7o1f](./792a_product-spec.md#792a7o1-uat-scenarios).
 
 ##### 792b21c5a Scenarios
 
@@ -10674,14 +10674,14 @@ Scenario: 792b21c5a4 A chunk without a time comes last
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a7f1a | 792b21c1 |
-| 792a7f1b | 792b21c1, 792b21c2 |
-| 792a7f1d | 792b21c2, 792b21c3 |
-| 792a7f1e | 792b21c1, 792b21c4 |
-| 792a7o1a | 792b21c5 |
-| 792a7o1c | 792b21c5 |
-| 792a7o1f | 792b21c5 |
-| 792a7zg1d | 792b21c3 |
+| [792a7f1a](./792a_product-spec.md#792a7f1-uat-scenarios) | [792b21c1](#792b21c1-recency-factor) |
+| [792a7f1b](./792a_product-spec.md#792a7f1-uat-scenarios) | [792b21c1](#792b21c1-recency-factor), [792b21c2](#792b21c2-note-age) |
+| [792a7f1d](./792a_product-spec.md#792a7f1-uat-scenarios) | [792b21c2](#792b21c2-note-age), [792b21c3](#792b21c3-creation-date-of-a-note) |
+| [792a7f1e](./792a_product-spec.md#792a7f1-uat-scenarios) | [792b21c1](#792b21c1-recency-factor), [792b21c4](#792b21c4-turn-positions) |
+| [792a7o1a](./792a_product-spec.md#792a7o1-uat-scenarios) | [792b21c5](#792b21c5-newest-chunks) |
+| [792a7o1c](./792a_product-spec.md#792a7o1-uat-scenarios) | [792b21c5](#792b21c5-newest-chunks) |
+| [792a7o1f](./792a_product-spec.md#792a7o1-uat-scenarios) | [792b21c5](#792b21c5-newest-chunks) |
+| [792a7zg1d](./792a_product-spec.md#792a7zg1-uat-scenarios) | [792b21c3](#792b21c3-creation-date-of-a-note) |
 
 ```gherkin
 Scenario: 792a7f1a An old chunk is scaled down
@@ -10741,8 +10741,8 @@ Canonical target: `docs/specs/technical/runbook-trigger-matching.md` (title `Run
   tested directly on texts and trigger lists, with a property test against a regular-expression
   oracle; stability, the contract survives any change to how notes are scanned or the payload is
   rendered; necessity, a cue-triggered runbook can be surfaced reliably only through it.
-- Supported capabilities: 792a7 memory-query. Ambient-guidance extends it (the shim passes the
-  message, 792d30).
+- Supported capabilities: [792a7](./792a_product-spec.md#792a7-added-memory-query) memory-query. Ambient-guidance extends it (the shim passes the
+  message, [792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
 
 Rationale: a runbook is normally found by the similarity of its situation to the agent's phrases, but
 the agent paraphrases the user's request into those phrases and the paraphrase drops the cue. On a real
@@ -10784,12 +10784,12 @@ sequenceDiagram
 
 #### 792b22c1 Trigger index
 
-Requirement: 792b22c1 The runbook-trigger-matching MUST index, from each note read as its LF form, the
+Requirement: [792b22c1](#792b22c1-trigger-index) The runbook-trigger-matching MUST index, from each note read as its LF form, the
 non-empty entries of the `triggers:` list of every note whose `type` is `runbook`, under the note's
 basename and in the order written, and MUST NOT index a runbook that has none or a `triggers:` list on a
 note of any other kind. Only a note with a current sidecar MUST be indexed.
 
-Supports: 792a7za1c, 792a7zg1b.
+Supports: [792a7za1c](./792a_product-spec.md#792a7za1-uat-scenarios), [792a7zg1b](./792a_product-spec.md#792a7zg1-uat-scenarios).
 
 Rationale: triggers are read in the same pass over the vault that finds vocabulary tags and
 supersessions, so a query needs no second scan, and only `runbook` notes carry a contract for them.
@@ -10815,7 +10815,7 @@ Scenario: 792b22c1a3 A CRLF runbook is indexed and matched
 
 #### 792b22c2 Whole-word occurrence
 
-Requirement: 792b22c2 The runbook-trigger-matching MUST treat a trigger as occurring in a message when,
+Requirement: [792b22c2](#792b22c2-whole-word-occurrence) The runbook-trigger-matching MUST treat a trigger as occurring in a message when,
 after the message and the trigger are lowercased and each run of whitespace in them is collapsed to one
 space, the trigger is found in the message with, on each side where the trigger's own edge character is
 a letter or a digit, no letter or digit next to it, letters and digits being those of Unicode, so
@@ -10823,8 +10823,8 @@ punctuation, an underscore and a hyphen are boundaries, as are the start and end
 where the trigger's edge character is neither, there MUST be no boundary requirement. Every occurrence
 MUST be tried. A trigger that is empty after normalization MUST never occur.
 
-Supports: 792a7zb1a, 792a7zb1b, 792a7zb1c, 792a7zb1d, 792a7zb1e, 792a7zb1f, 792a7zb1g, 792a7zb1h,
-792a7zb1i.
+Supports: [792a7zb1a](./792a_product-spec.md#792a7zb1-uat-scenarios), [792a7zb1b](./792a_product-spec.md#792a7zb1-uat-scenarios), [792a7zb1c](./792a_product-spec.md#792a7zb1-uat-scenarios), [792a7zb1d](./792a_product-spec.md#792a7zb1-uat-scenarios), [792a7zb1e](./792a_product-spec.md#792a7zb1-uat-scenarios), [792a7zb1f](./792a_product-spec.md#792a7zb1-uat-scenarios), [792a7zb1g](./792a_product-spec.md#792a7zb1-uat-scenarios), [792a7zb1h](./792a_product-spec.md#792a7zb1-uat-scenarios),
+[792a7zb1i](./792a_product-spec.md#792a7zb1-uat-scenarios).
 
 Rationale: the boundary is enforced only where the trigger itself ends in a letter or a digit, because
 an author who wrote punctuation at the edge supplied the delimiter: `/please` hits in `do/please` and
@@ -10888,11 +10888,11 @@ Scenario: 792b22c2a3 Case and whitespace are ignored in a full query
 
 #### 792b22c3 The hits
 
-Requirement: 792b22c3 The runbook-trigger-matching MUST return the basenames of the runbooks with at
+Requirement: [792b22c3](#792b22c3-the-hits) The runbook-trigger-matching MUST return the basenames of the runbooks with at
 least one occurring trigger, each once, in ascending order, and MUST return none for a message that is
 empty after normalization.
 
-Supports: 792a7y1a, 792a7za1a.
+Supports: [792a7y1a](./792a_product-spec.md#792a7y1-uat-scenarios), [792a7za1a](./792a_product-spec.md#792a7za1-uat-scenarios).
 
 ##### 792b22c3a Scenarios
 
@@ -10910,7 +10910,7 @@ Scenario: 792b22c3a2 An empty message has no hits
 
 #### 792b22c4 Placing the hits
 
-Requirement: 792b22c4 The runbook-trigger-matching MUST, given the ranked items and the hits, put every
+Requirement: [792b22c4](#792b22c4-placing-the-hits) The runbook-trigger-matching MUST, given the ranked items and the hits, put every
 hit ahead of all other items with `trigger` added to its provenances. A hit that is already ranked MUST
 keep its score, content and other provenances. A hit that is not ranked MUST be added with a score of 0,
 the provenance `trigger`, and its note's content, and MUST NOT be added when a project is requested and
@@ -10918,7 +10918,7 @@ the note's frontmatter does not name it. A chunk MUST NOT be turned into a hit. 
 among themselves by the ordinary rule, more provenances first, then the higher provenance rank, then the
 higher score. With no hits the items MUST be returned unchanged.
 
-Supports: 792a7za1a, 792a7za1b, 792a7za1d, 792a7za1e.
+Supports: [792a7za1a](./792a_product-spec.md#792a7za1-uat-scenarios), [792a7za1b](./792a_product-spec.md#792a7za1-uat-scenarios), [792a7za1d](./792a_product-spec.md#792a7za1-uat-scenarios), [792a7za1e](./792a_product-spec.md#792a7za1-uat-scenarios).
 
 ##### 792b22c4a Scenarios
 
@@ -10951,11 +10951,11 @@ Scenario: 792b22c4a5 No hits changes nothing
 
 #### 792b22c5 Trigger rank
 
-Requirement: 792b22c5 The runbook-trigger-matching MUST order any item whose provenances include
+Requirement: [792b22c5](#792b22c5-trigger-rank) The runbook-trigger-matching MUST order any item whose provenances include
 `trigger` before every item whose provenances do not, whatever their numbers of provenances, their
 ranks and their scores.
 
-Supports: 792a7za1b.
+Supports: [792a7za1b](./792a_product-spec.md#792a7za1-uat-scenarios).
 
 Rationale: a hit may have only the one role, and it must still beat an item that matched by similarity
 under two.
@@ -10971,12 +10971,12 @@ Scenario: 792b22c5a1 A trigger always sorts first
 
 #### 792b22c6 Lookup by message alone
 
-Requirement: 792b22c6 When a query has a message and no phrase, the runbook-trigger-matching MUST answer
+Requirement: [792b22c6](#792b22c6-lookup-by-message-alone) When a query has a message and no phrase, the runbook-trigger-matching MUST answer
 from the hits alone: it MUST embed nothing, match no notes by similarity, cluster nothing, sample no
 explore notes and add no recent chunks, and MUST return the hits as the items with no clusters and an
 empty `explore_allocated`.
 
-Supports: 792a7y1a.
+Supports: [792a7y1a](./792a_product-spec.md#792a7y1-uat-scenarios).
 
 ##### 792b22c6a Scenarios
 
@@ -10989,10 +10989,10 @@ Scenario: 792b22c6a1 The message alone returns the hit
 
 #### 792b22c7 No message, no matching
 
-Requirement: 792b22c7 When a query has no message, the runbook-trigger-matching MUST NOT match any
+Requirement: [792b22c7](#792b22c7-no-message-no-matching) When a query has no message, the runbook-trigger-matching MUST NOT match any
 trigger, and a message that hits nothing MUST leave the payload equal to the payload without a message.
 
-Supports: 792a7y1b.
+Supports: [792a7y1b](./792a_product-spec.md#792a7y1-uat-scenarios).
 
 ##### 792b22c7a Scenarios
 
@@ -11007,28 +11007,28 @@ Scenario: 792b22c7a1 A query without a hit is unchanged
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a7y1a | 792b22c3, 792b22c6 |
-| 792a7y1b | 792b22c7 |
-| 792a7y1c | 792b22c6 |
-| 792a7za1a | 792b22c3, 792b22c4 |
-| 792a7za1b | 792b22c4, 792b22c5 |
-| 792a7za1c | 792b22c1 |
-| 792a7za1d | 792b22c4 |
-| 792a7za1e | 792b22c4 |
-| 792a7zb1a | 792b22c2 |
-| 792a7zb1b | 792b22c2 |
-| 792a7zb1c | 792b22c2 |
-| 792a7zb1d | 792b22c2 |
-| 792a7zb1e | 792b22c2 |
-| 792a7zb1f | 792b22c2 |
-| 792a7zb1g | 792b22c2 |
-| 792a7zb1h | 792b22c2 |
-| 792a7zb1i | 792b22c2 |
-| 792a7zg1b | 792b22c1 |
-| 792a19j1a | 792b22c3 |
-| 792a19j1b | 792b22c7 |
-| 792a19j1c | 792b22c2 |
-| 792a22o1i | 792b22c3, 792b22c6 |
+| [792a7y1a](./792a_product-spec.md#792a7y1-uat-scenarios) | [792b22c3](#792b22c3-the-hits), [792b22c6](#792b22c6-lookup-by-message-alone) |
+| [792a7y1b](./792a_product-spec.md#792a7y1-uat-scenarios) | [792b22c7](#792b22c7-no-message-no-matching) |
+| [792a7y1c](./792a_product-spec.md#792a7y1-uat-scenarios) | [792b22c6](#792b22c6-lookup-by-message-alone) |
+| [792a7za1a](./792a_product-spec.md#792a7za1-uat-scenarios) | [792b22c3](#792b22c3-the-hits), [792b22c4](#792b22c4-placing-the-hits) |
+| [792a7za1b](./792a_product-spec.md#792a7za1-uat-scenarios) | [792b22c4](#792b22c4-placing-the-hits), [792b22c5](#792b22c5-trigger-rank) |
+| [792a7za1c](./792a_product-spec.md#792a7za1-uat-scenarios) | [792b22c1](#792b22c1-trigger-index) |
+| [792a7za1d](./792a_product-spec.md#792a7za1-uat-scenarios) | [792b22c4](#792b22c4-placing-the-hits) |
+| [792a7za1e](./792a_product-spec.md#792a7za1-uat-scenarios) | [792b22c4](#792b22c4-placing-the-hits) |
+| [792a7zb1a](./792a_product-spec.md#792a7zb1-uat-scenarios) | [792b22c2](#792b22c2-whole-word-occurrence) |
+| [792a7zb1b](./792a_product-spec.md#792a7zb1-uat-scenarios) | [792b22c2](#792b22c2-whole-word-occurrence) |
+| [792a7zb1c](./792a_product-spec.md#792a7zb1-uat-scenarios) | [792b22c2](#792b22c2-whole-word-occurrence) |
+| [792a7zb1d](./792a_product-spec.md#792a7zb1-uat-scenarios) | [792b22c2](#792b22c2-whole-word-occurrence) |
+| [792a7zb1e](./792a_product-spec.md#792a7zb1-uat-scenarios) | [792b22c2](#792b22c2-whole-word-occurrence) |
+| [792a7zb1f](./792a_product-spec.md#792a7zb1-uat-scenarios) | [792b22c2](#792b22c2-whole-word-occurrence) |
+| [792a7zb1g](./792a_product-spec.md#792a7zb1-uat-scenarios) | [792b22c2](#792b22c2-whole-word-occurrence) |
+| [792a7zb1h](./792a_product-spec.md#792a7zb1-uat-scenarios) | [792b22c2](#792b22c2-whole-word-occurrence) |
+| [792a7zb1i](./792a_product-spec.md#792a7zb1-uat-scenarios) | [792b22c2](#792b22c2-whole-word-occurrence) |
+| [792a7zg1b](./792a_product-spec.md#792a7zg1-uat-scenarios) | [792b22c1](#792b22c1-trigger-index) |
+| [792a19j1a](./792a_product-spec.md#792a19j1-uat-scenarios) | [792b22c3](#792b22c3-the-hits) |
+| [792a19j1b](./792a_product-spec.md#792a19j1-uat-scenarios) | [792b22c7](#792b22c7-no-message-no-matching) |
+| [792a19j1c](./792a_product-spec.md#792a19j1-uat-scenarios) | [792b22c2](#792b22c2-whole-word-occurrence) |
+| [792a22o1i](./792a_product-spec.md#792a22o1-uat-scenarios) | [792b22c3](#792b22c3-the-hits), [792b22c6](#792b22c6-lookup-by-message-alone) |
 
 ```gherkin
 Scenario: 792a7y1a Text alone is a trigger lookup
@@ -11161,18 +11161,18 @@ Canonical target: `docs/specs/technical/query-payload-renderer.md` (title `Query
   `snippet`, `resolveContentBudget`, `renderTimings` and the types `queryPayload`, `queryItem`,
   `queryBudget` and `queryTimings` in `internal/cli/query.go`, `query_triggers.go` and
   `merged_query.go`; `capRedFlagsForPreview` in `internal/cli/redflags_truncation.go`. The keys that
-  lead a payload with pending offers (curate) are added by that capability (792d51), and the tags of a
-  merged payload are 792b23c9.
+  lead a payload with pending offers (curate) are added by that capability ([792d51](./792d_decision-log.md#792d51-command-line-surface-routing-requirements-arrive-with-their-scenarios)), and the tags of a
+  merged payload are [792b23c9](#792b23c9-the-item-tags-of-a-merge).
 - Qualification: responsibility, shaping and cutting a payload is stated without naming any
   function; ownership, the query-engine decides what is in it, while this component owns its order,
   its cuts and its labels; independent verification, it is tested directly on item lists and notes,
   with a property test for the red-flag preview; stability, the contract survives any change to how
   matches are found; necessity, every query payload is made by it.
-- Supported capabilities: 792a7 memory-query, 792a21 parent-sync (792b23c9), 792a22 curate (792b23c10). Recall extends it (792d30).
+- Supported capabilities: [792a7](./792a_product-spec.md#792a7-added-memory-query) memory-query, [792a21](./792a_product-spec.md#792a21-added-parent-sync) parent-sync ([792b23c9](#792b23c9-the-item-tags-of-a-merge)), [792a22](./792a_product-spec.md#792a22-added-curate) curate ([792b23c10](#792b23c10-the-lead-of-a-payload-with-pending-offers)). Recall extends it ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
 
 Rationale: a recall pass should carry less to read without losing reach, so the payload is cut where
 the reader gains least: chunk text is shortened or fetched on demand, the newest chunks have a count of
-their own, and the matched items have a limit. The cuts are measured on the real vault (792a7o, 792a7s).
+their own, and the matched items have a limit. The cuts are measured on the real vault ([792a7o](./792a_product-spec.md#792a7o-the-newest-chunks), [792a7s](./792a_product-spec.md#792a7s-lazy-chunks)).
 A reader that opens the payload through a tool that truncates its output must still see the most
 recent red flag: in #763 a runbook's fifteenth and newest entry sat past a truncation boundary of about
 2 KB applied outside engram and never reached the agent.
@@ -11200,13 +11200,13 @@ sequenceDiagram
 
 #### 792b23c1 The document
 
-Requirement: 792b23c1 The query-payload-renderer MUST encode one YAML document with the keys `version`
+Requirement: [792b23c1](#792b23c1-the-document) The query-payload-renderer MUST encode one YAML document with the keys `version`
 (always 1), `phrases`, `items`, `clusters`, `budget`, `refit_pending`, `model_id` and `timings`, in that
 order, indented by two spaces. It MUST omit `refit_pending` unless the vault has a refit pending and
 `timings` unless timing is on, MUST give `model_id` the embedding model of the run even when the vault
 is empty, and MUST give `items` and `clusters` as empty lists, not omit them, when there are none.
 
-Supports: 792a7b1a, 792a7zc1a, 792a7zd1a, 792a7zd1b.
+Supports: [792a7b1a](./792a_product-spec.md#792a7b1-uat-scenarios), [792a7zc1a](./792a_product-spec.md#792a7zc1-uat-scenarios), [792a7zd1a](./792a_product-spec.md#792a7zd1-uat-scenarios), [792a7zd1b](./792a_product-spec.md#792a7zd1-uat-scenarios).
 
 ##### 792b23c1a Scenarios
 
@@ -11234,13 +11234,13 @@ Scenario: 792b23c1a4 The keys come in order
 
 #### 792b23c2 Item labels
 
-Requirement: 792b23c2 The query-payload-renderer MUST give each item its `path`, `kind`, `score` and
+Requirement: [792b23c2](#792b23c2-item-labels) The query-payload-renderer MUST give each item its `path`, `kind`, `score` and
 `provenances`, its `content` unless that is empty, and its `source_term` when it has one. The kind of a
 chunk MUST be `chunk`; the kind of a note MUST be the value of the `type:` line found within the first
 256 bytes of its content read as LF, and `unknown` when the content is shorter than the shortest
 frontmatter that has a type, has no such line there, or has the line later.
 
-Supports: 792a7b1b, 792a7m1a, 792a7zg1f.
+Supports: [792a7b1b](./792a_product-spec.md#792a7b1-uat-scenarios), [792a7m1a](./792a_product-spec.md#792a7m1-uat-scenarios), [792a7zg1f](./792a_product-spec.md#792a7zg1-uat-scenarios).
 
 ##### 792b23c2a Scenarios
 
@@ -11272,16 +11272,16 @@ Scenario: 792b23c2a3 An explore item shows its term
 
 #### 792b23c3 Order and limit
 
-Requirement: 792b23c3 The query-payload-renderer MUST place the items that are trigger hits first, then the
+Requirement: [792b23c3](#792b23c3-order-and-limit) The query-payload-renderer MUST place the items that are trigger hits first, then the
 other items that are not recent chunks, cut to the first `limit` of them in the order given, then the
 recent chunks, which it MUST NOT cut. A limit of zero or less MUST cut nothing. It MUST NOT count a
 trigger hit or a recent chunk against the limit.
 
-Supports: 792a7q1a, 792a7q1b, 792a7q1c, 792a7q1d, 792a7q1e.
+Supports: [792a7q1a](./792a_product-spec.md#792a7q1-uat-scenarios), [792a7q1b](./792a_product-spec.md#792a7q1-uat-scenarios), [792a7q1c](./792a_product-spec.md#792a7q1-uat-scenarios), [792a7q1d](./792a_product-spec.md#792a7q1-uat-scenarios), [792a7q1e](./792a_product-spec.md#792a7q1-uat-scenarios).
 
 Rationale: the recency channel has its own count, so cutting both under one limit would displace the
 whole channel in any vault whose matches reach the limit, which is routine; trigger hits are exempt so
-that a cue the author declared is never cut by an unrelated limit (792b22).
+that a cue the author declared is never cut by an unrelated limit ([792b22](#792b22-added-runbook-trigger-matching)).
 
 ##### 792b23c3a Scenarios
 
@@ -11319,14 +11319,14 @@ Scenario: 792b23c3a6 A trigger hit does not use the limit
 
 #### 792b23c4 Chunk content budget
 
-Requirement: 792b23c4 The query-payload-renderer MUST keep the first `budget` chunk items of the payload,
+Requirement: [792b23c4](#792b23c4-chunk-content-budget) The query-payload-renderer MUST keep the first `budget` chunk items of the payload,
 in the order printed, with their full content and MUST replace the content of every later chunk item
 with a snippet, counting the replaced items. The budget MUST be the default of 15 when given as zero, no
 limit when negative, and otherwise as given. A snippet MUST be the content with each run of whitespace
 collapsed to one space and the ends trimmed, and when it is longer than 160 characters it MUST be cut to
 159 and end in `…`. Note items MUST NOT be changed.
 
-Supports: 792a7r1a, 792a7r1b, 792a7r1c, 792a7r1d.
+Supports: [792a7r1a](./792a_product-spec.md#792a7r1-uat-scenarios), [792a7r1b](./792a_product-spec.md#792a7r1-uat-scenarios), [792a7r1c](./792a_product-spec.md#792a7r1-uat-scenarios), [792a7r1d](./792a_product-spec.md#792a7r1-uat-scenarios).
 
 ##### 792b23c4a Scenarios
 
@@ -11354,11 +11354,11 @@ Scenario: 792b23c4a4 A snippet collapses and truncates
 
 #### 792b23c5 Lazy chunks
 
-Requirement: 792b23c5 When lazy chunks are on, the query-payload-renderer MUST clear the content of every
+Requirement: [792b23c5](#792b23c5-lazy-chunks) When lazy chunks are on, the query-payload-renderer MUST clear the content of every
 chunk item, MUST leave every note item's content, MUST NOT snippet anything, and MUST put
 `lazy_chunks: true` in the budget. Otherwise it MUST NOT put `lazy_chunks` in the budget.
 
-Supports: 792a7s1a, 792a7s1b, 792a7s1c, 792a7s1d.
+Supports: [792a7s1a](./792a_product-spec.md#792a7s1-uat-scenarios), [792a7s1b](./792a_product-spec.md#792a7s1-uat-scenarios), [792a7s1c](./792a_product-spec.md#792a7s1-uat-scenarios), [792a7s1d](./792a_product-spec.md#792a7s1-uat-scenarios).
 
 ##### 792b23c5a Scenarios
 
@@ -11381,14 +11381,14 @@ Scenario: 792b23c5a3 Without lazy mode the key is absent
 
 #### 792b23c6 Budget block
 
-Requirement: 792b23c6 The query-payload-renderer MUST fill the budget with the phrases queried, the notes
+Requirement: [792b23c6](#792b23c6-budget-block) The query-payload-renderer MUST fill the budget with the phrases queried, the notes
 in the vault, the notes with embeddings, the clusters found, the limit and the explore allocation as
 the query-engine gives them, `direct_hits_returned` as the number of items printed whose provenances include `direct`,
 `items_with_full_content` as the number of items printed with content, less those reduced to snippets,
-`content_budget` as the budget resolved by 792b23c4 and `chunks_snippeted` as the number reduced, and
+`content_budget` as the budget resolved by [792b23c4](#792b23c4-chunk-content-budget) and `chunks_snippeted` as the number reduced, and
 MUST print `explore_allocated` in every payload, `{}` when empty.
 
-Supports: 792a7b1a, 792a7m1c, 792a7q1a.
+Supports: [792a7b1a](./792a_product-spec.md#792a7b1-uat-scenarios), [792a7m1c](./792a_product-spec.md#792a7m1-uat-scenarios), [792a7q1a](./792a_product-spec.md#792a7q1-uat-scenarios).
 
 ##### 792b23c6a Scenarios
 
@@ -11411,14 +11411,14 @@ Scenario: 792b23c6a3 The allocation is always present
 
 #### 792b23c7 Stage timings
 
-Requirement: 792b23c7 When timing is on, the query-payload-renderer MUST read the injected clock to end the
+Requirement: [792b23c7](#792b23c7-stage-timings) When timing is on, the query-payload-renderer MUST read the injected clock to end the
 render stage and MUST add the `timings` block with `scan_ms`, `embed_ms`, `cluster_ms`, `nominate_ms`
 and `render_ms`, each the whole milliseconds between the readings that the query-engine took at the
 start of the query and at the end of each stage, the stages following one another. A run MUST read the
 clock six times in all. When timing is off, or there is no clock, it MUST NOT read the clock for
 timing and MUST NOT add the block.
 
-Supports: 792a7ze1a, 792a7ze1b.
+Supports: [792a7ze1a](./792a_product-spec.md#792a7ze1-uat-scenarios), [792a7ze1b](./792a_product-spec.md#792a7ze1-uat-scenarios).
 
 Rationale: a measurement-only diagnostic (#691): the clock is injected so that tests can script it, and
 the default payload stays unchanged so that consumers that ignore the block are unaffected.
@@ -11439,7 +11439,7 @@ Scenario: 792b23c7a2 No timing, no block
 
 #### 792b23c8 Red-flag preview
 
-Requirement: 792b23c8 The query-payload-renderer MUST preview the content of a note read as its LF form
+Requirement: [792b23c8](#792b23c8-red-flag-preview) The query-payload-renderer MUST preview the content of a note read as its LF form
 so that a `red_flags:` list taking more than 1200 bytes of rendered YAML keeps its newest entries,
 those listed last, in a run that ends at the last entry and, with the marker, takes at most 1200
 bytes, and replaces the earlier ones with the entry
@@ -11448,7 +11448,7 @@ omitted, the list's total and the note's real basename. Everything before and af
 unchanged, and a note without a red-flag list, or whose list fits the budget, MUST be returned unchanged.
 `engram show` MUST NOT be subject to the preview.
 
-Supports: 792a7w1a, 792a7w1b, 792a7w1c, 792a7w1d, 792a7zg1e.
+Supports: [792a7w1a](./792a_product-spec.md#792a7w1-uat-scenarios), [792a7w1b](./792a_product-spec.md#792a7w1-uat-scenarios), [792a7w1c](./792a_product-spec.md#792a7w1-uat-scenarios), [792a7w1d](./792a_product-spec.md#792a7w1-uat-scenarios), [792a7zg1e](./792a_product-spec.md#792a7zg1-uat-scenarios).
 
 Rationale: callers append new entries, so the newest is last; dropping from the front keeps the entry
 most likely to matter now. The marker names the real basename and counts so that the command it prints
@@ -11507,11 +11507,11 @@ Scenario: 792b23c8a9 A query shows a runbook's red flags
 
 #### 792b23c9 The item tags of a merge
 
-Requirement: 792b23c9 The query-payload-renderer MUST write an item's `from_parent` and `model_id` only when a merge tagged
+Requirement: [792b23c9](#792b23c9-the-item-tags-of-a-merge) The query-payload-renderer MUST write an item's `from_parent` and `model_id` only when a merge tagged
 the item, writing `from_parent: false` explicitly for a local item of a merged payload, so that a payload that no merge
 produced holds no `from_parent` key at all.
 
-Supports: 792a21g1a, 792a21g1b.
+Supports: [792a21g1a](./792a_product-spec.md#792a21g1-uat-scenarios), [792a21g1b](./792a_product-spec.md#792a21g1-uat-scenarios).
 
 Rationale: a boolean that is omitted when false would drop the local items' explicit `false`, and the merged payload could
 not tell a local item from an item with no origin. The tag is a pointer for that reason, and each item gets its own, so
@@ -11533,11 +11533,11 @@ Scenario: 792b23c9a2 A local item of a merged payload says false
 
 #### 792b23c10 The lead of a payload with pending offers
 
-Requirement: 792b23c10 The query-payload-renderer MUST write `pending_offers` and `pending_offers_hint` immediately after `version`, before
+Requirement: [792b23c10](#792b23c10-the-lead-of-a-payload-with-pending-offers) The query-payload-renderer MUST write `pending_offers` and `pending_offers_hint` immediately after `version`, before
 `items` and every other large field, so that a truncated preview of a large payload still shows them, and MUST write neither when
-no offer is pending (792b34c4).
+no offer is pending ([792b34c4](#792b34c4-the-curate-instruction)).
 
-Supports: 792a22o1c, 792a22o1e.
+Supports: [792a22o1c](./792a_product-spec.md#792a22o1-uat-scenarios), [792a22o1e](./792a_product-spec.md#792a22o1-uat-scenarios).
 
 Rationale: an agent that reads only the first part of a large payload must still see that offers wait.
 
@@ -11554,41 +11554,41 @@ Scenario: 792b23c10a1 The flag and hint lead a large payload
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a7b1a | 792b23c1, 792b23c6 |
-| 792a7b1b | 792b23c2 |
-| 792a7m1a | 792b23c2 |
-| 792a7m1c | 792b23c6 |
-| 792a7q1a | 792b23c3, 792b23c6 |
-| 792a7q1b | 792b23c3 |
-| 792a7q1c | 792b23c3 |
-| 792a7q1d | 792b23c3 |
-| 792a7q1e | 792b23c3 |
-| 792a7r1a | 792b23c4 |
-| 792a7r1b | 792b23c4 |
-| 792a7r1c | 792b23c4 |
-| 792a7r1d | 792b23c4 |
-| 792a7s1a | 792b23c5 |
-| 792a7s1b | 792b23c5 |
-| 792a7s1c | 792b23c5 |
-| 792a7s1d | 792b23c5 |
-| 792a7w1a | 792b23c8 |
-| 792a7w1b | 792b23c8 |
-| 792a7w1c | 792b23c8 |
-| 792a7w1d | 792b23c8 |
-| 792a7ze1a | 792b23c7 |
-| 792a7ze1b | 792b23c7 |
-| 792a7zc1a | 792b23c1 |
-| 792a7zd1a | 792b23c1 |
-| 792a7zd1b | 792b23c1 |
-| 792a7zg1e | 792b23c8 |
-| 792a7zg1f | 792b23c2 |
-| 792a14g1b | 792b23c5 |
-| 792a14h1a | 792b23c5 |
-| 792a14h1c | 792b23c5 |
-| 792a21g1a | 792b23c9 |
-| 792a21g1b | 792b23c9 |
-| 792a22o1c | 792b23c10 |
-| 792a22o1e | 792b23c10 |
+| [792a7b1a](./792a_product-spec.md#792a7b1-uat-scenarios) | [792b23c1](#792b23c1-the-document), [792b23c6](#792b23c6-budget-block) |
+| [792a7b1b](./792a_product-spec.md#792a7b1-uat-scenarios) | [792b23c2](#792b23c2-item-labels) |
+| [792a7m1a](./792a_product-spec.md#792a7m1-uat-scenarios) | [792b23c2](#792b23c2-item-labels) |
+| [792a7m1c](./792a_product-spec.md#792a7m1-uat-scenarios) | [792b23c6](#792b23c6-budget-block) |
+| [792a7q1a](./792a_product-spec.md#792a7q1-uat-scenarios) | [792b23c3](#792b23c3-order-and-limit), [792b23c6](#792b23c6-budget-block) |
+| [792a7q1b](./792a_product-spec.md#792a7q1-uat-scenarios) | [792b23c3](#792b23c3-order-and-limit) |
+| [792a7q1c](./792a_product-spec.md#792a7q1-uat-scenarios) | [792b23c3](#792b23c3-order-and-limit) |
+| [792a7q1d](./792a_product-spec.md#792a7q1-uat-scenarios) | [792b23c3](#792b23c3-order-and-limit) |
+| [792a7q1e](./792a_product-spec.md#792a7q1-uat-scenarios) | [792b23c3](#792b23c3-order-and-limit) |
+| [792a7r1a](./792a_product-spec.md#792a7r1-uat-scenarios) | [792b23c4](#792b23c4-chunk-content-budget) |
+| [792a7r1b](./792a_product-spec.md#792a7r1-uat-scenarios) | [792b23c4](#792b23c4-chunk-content-budget) |
+| [792a7r1c](./792a_product-spec.md#792a7r1-uat-scenarios) | [792b23c4](#792b23c4-chunk-content-budget) |
+| [792a7r1d](./792a_product-spec.md#792a7r1-uat-scenarios) | [792b23c4](#792b23c4-chunk-content-budget) |
+| [792a7s1a](./792a_product-spec.md#792a7s1-uat-scenarios) | [792b23c5](#792b23c5-lazy-chunks) |
+| [792a7s1b](./792a_product-spec.md#792a7s1-uat-scenarios) | [792b23c5](#792b23c5-lazy-chunks) |
+| [792a7s1c](./792a_product-spec.md#792a7s1-uat-scenarios) | [792b23c5](#792b23c5-lazy-chunks) |
+| [792a7s1d](./792a_product-spec.md#792a7s1-uat-scenarios) | [792b23c5](#792b23c5-lazy-chunks) |
+| [792a7w1a](./792a_product-spec.md#792a7w1-uat-scenarios) | [792b23c8](#792b23c8-red-flag-preview) |
+| [792a7w1b](./792a_product-spec.md#792a7w1-uat-scenarios) | [792b23c8](#792b23c8-red-flag-preview) |
+| [792a7w1c](./792a_product-spec.md#792a7w1-uat-scenarios) | [792b23c8](#792b23c8-red-flag-preview) |
+| [792a7w1d](./792a_product-spec.md#792a7w1-uat-scenarios) | [792b23c8](#792b23c8-red-flag-preview) |
+| [792a7ze1a](./792a_product-spec.md#792a7ze1-uat-scenarios) | [792b23c7](#792b23c7-stage-timings) |
+| [792a7ze1b](./792a_product-spec.md#792a7ze1-uat-scenarios) | [792b23c7](#792b23c7-stage-timings) |
+| [792a7zc1a](./792a_product-spec.md#792a7zc1-uat-scenarios) | [792b23c1](#792b23c1-the-document) |
+| [792a7zd1a](./792a_product-spec.md#792a7zd1-uat-scenarios) | [792b23c1](#792b23c1-the-document) |
+| [792a7zd1b](./792a_product-spec.md#792a7zd1-uat-scenarios) | [792b23c1](#792b23c1-the-document) |
+| [792a7zg1e](./792a_product-spec.md#792a7zg1-uat-scenarios) | [792b23c8](#792b23c8-red-flag-preview) |
+| [792a7zg1f](./792a_product-spec.md#792a7zg1-uat-scenarios) | [792b23c2](#792b23c2-item-labels) |
+| [792a14g1b](./792a_product-spec.md#792a14g1-uat-scenarios) | [792b23c5](#792b23c5-lazy-chunks) |
+| [792a14h1a](./792a_product-spec.md#792a14h1-uat-scenarios) | [792b23c5](#792b23c5-lazy-chunks) |
+| [792a14h1c](./792a_product-spec.md#792a14h1-uat-scenarios) | [792b23c5](#792b23c5-lazy-chunks) |
+| [792a21g1a](./792a_product-spec.md#792a21g1-uat-scenarios) | [792b23c9](#792b23c9-the-item-tags-of-a-merge) |
+| [792a21g1b](./792a_product-spec.md#792a21g1-uat-scenarios) | [792b23c9](#792b23c9-the-item-tags-of-a-merge) |
+| [792a22o1c](./792a_product-spec.md#792a22o1-uat-scenarios) | [792b23c10](#792b23c10-the-lead-of-a-payload-with-pending-offers) |
+| [792a22o1e](./792a_product-spec.md#792a22o1-uat-scenarios) | [792b23c10](#792b23c10-the-lead-of-a-payload-with-pending-offers) |
 
 ```gherkin
 Scenario: 792a7b1b A note item is labelled by its type
@@ -11773,8 +11773,8 @@ Canonical target: `docs/specs/technical/query-engine.md` (title `Query Engine - 
   it is tested through `RunQuery` and its helpers over an in-memory vault and a fixed embedder, and by
   property tests; stability, the contract survives any change to the embedder, the index layout or
   the payload's shape; necessity, every recall passes through it.
-- Supported capabilities: 792a7 memory-query and note-writing's 792a3t. Recall, ambient-guidance,
-  vault-serving and parent-sync extend it (792d30).
+- Supported capabilities: [792a7](./792a_product-spec.md#792a7-added-memory-query) memory-query and note-writing's [792a3t](./792a_product-spec.md#792a3t-question-and-answer-retrieval). Recall, ambient-guidance,
+  vault-serving and parent-sync extend it ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
 
 Rationale: the engine is one deterministic pass with no LLM, so the same vault and phrases give the
 same payload, and the judgment about coverage stays with the reader. A single query process loads the
@@ -11825,13 +11825,13 @@ sequenceDiagram
 
 #### 792b24c1 Input and defaults
 
-Requirement: 792b24c1 The query-engine MUST fail with `query: empty query string` when given no phrase and
+Requirement: [792b24c1](#792b24c1-input-and-defaults) The query-engine MUST fail with `query: empty query string` when given no phrase and
 a message that is empty after trimming, MUST accept any number of phrases, and MUST use a limit of 20
 when the limit is zero. It MUST fail, wrapping the cause as `query: embed`, when the embedder fails on a
 phrase. It MUST give an empty list of items for a vault with no notes, and MUST report the number of
 phrases it was given.
 
-Supports: 792a7a1a, 792a7a1b, 792a7b1a, 792a7q1a.
+Supports: [792a7a1a](./792a_product-spec.md#792a7a1-uat-scenarios), [792a7a1b](./792a_product-spec.md#792a7a1-uat-scenarios), [792a7b1a](./792a_product-spec.md#792a7b1-uat-scenarios), [792a7q1a](./792a_product-spec.md#792a7q1-uat-scenarios).
 
 ##### 792b24c1a Scenarios
 
@@ -11864,14 +11864,14 @@ Scenario: 792b24c1a5 An empty vault has no items
 
 #### 792b24c2 Usable embeddings
 
-Requirement: 792b24c2 The query-engine MUST use only the notes whose sidecar reads, is of the current
+Requirement: [792b24c2](#792b24c2-usable-embeddings) The query-engine MUST use only the notes whose sidecar reads, is of the current
 schema and was made by the embedding model of the run. It MUST warn once for the sidecars of another
 model, naming how many, their model IDs, the active one and `engram embed apply --all`, and once for
 sidecars of an old schema, naming `engram embed apply --force`. It MUST fail with
 `query: vault has notes but no current-model embeddings; run `engram embed apply --all`` when the vault
 has notes and none is usable. A note with a missing or unparseable sidecar MUST be left out silently.
 
-Supports: 792a7c1a, 792a7c1b, 792a7c1c.
+Supports: [792a7c1a](./792a_product-spec.md#792a7c1-uat-scenarios), [792a7c1b](./792a_product-spec.md#792a7c1-uat-scenarios), [792a7c1c](./792a_product-spec.md#792a7c1-uat-scenarios).
 
 Rationale: a silent model swap would empty the results with no explanation, so the warning names the
 cause and the remedy; the all-mismatch case fails because an empty payload would read as "nothing is
@@ -11903,15 +11903,15 @@ Scenario: 792b24c2a4 Another model's sidecars are warned about
 
 #### 792b24c3 Scoring notes
 
-Requirement: 792b24c3 For each phrase the query-engine MUST score each usable note whose file reads by the
+Requirement: [792b24c3](#792b24c3-scoring-notes) For each phrase the query-engine MUST score each usable note whose file reads by the
 higher of the cosines between the phrase's vector and the note's situation and body vectors, keep the
 vector of the higher as the note's coordinate, multiply the score by the recency factor of its age
-(792b21c1, 792b21c2) using the time at the end of the scan stage when timing is on and otherwise the
+([792b21c1](#792b21c1-recency-factor), [792b21c2](#792b21c2-note-age)) using the time at the end of the scan stage when timing is on and otherwise the
 clock, and not multiply it when no clock was supplied. The unscaled cosine MUST be kept for the floor.
 A note's content MUST show each wikilink as its display text or target, and be previewed for red flags
-(792b23c8). Notes MUST be ordered by score, highest first.
+([792b23c8](#792b23c8-red-flag-preview)). Notes MUST be ordered by score, highest first.
 
-Supports: 792a7b1c, 792a7d1a, 792a7f1b, 792a7v1c.
+Supports: [792a7b1c](./792a_product-spec.md#792a7b1-uat-scenarios), [792a7d1a](./792a_product-spec.md#792a7d1-uat-scenarios), [792a7f1b](./792a_product-spec.md#792a7f1-uat-scenarios), [792a7v1c](./792a_product-spec.md#792a7v1-uat-scenarios).
 
 ##### 792b24c3a Scenarios
 
@@ -11949,13 +11949,13 @@ Scenario: 792b24c3a6 A runbook competes like a fact
 
 #### 792b24c4 Scoring chunks
 
-Requirement: 792b24c4 For each phrase the query-engine MUST score each chunk by the cosine between the
-phrase's vector and the chunk's vector, multiplied by the recency factor (792b21c1) of the days since
+Requirement: [792b24c4](#792b24c4-scoring-chunks) For each phrase the query-engine MUST score each chunk by the cosine between the
+phrase's vector and the chunk's vector, multiplied by the recency factor ([792b21c1](#792b21c1-recency-factor)) of the days since
 the chunk's `ingested_at`, counting zero when it has none or the clock is absent, and of the chunk's
-turn number over the highest turn number of its source (792b21c4), counting zero when its anchor has no
+turn number over the highest turn number of its source ([792b21c4](#792b21c4-turn-positions)), counting zero when its anchor has no
 turn or its source has none above zero. The unscaled cosine MUST be kept for the floor.
 
-Supports: 792a7f1a, 792a7f1c, 792a7f1e.
+Supports: [792a7f1a](./792a_product-spec.md#792a7f1-uat-scenarios), [792a7f1c](./792a_product-spec.md#792a7f1-uat-scenarios), [792a7f1e](./792a_product-spec.md#792a7f1-uat-scenarios).
 
 ##### 792b24c4a Scenarios
 
@@ -11978,13 +11978,13 @@ Scenario: 792b24c4a3 The floor uses the unscaled cosine
 
 #### 792b24c5 The matched set
 
-Requirement: 792b24c5 For each phrase the query-engine MUST rank the notes and chunks together by score,
-ties by key, and keep the first 30 after the reservation of 792b24c6. It MUST then merge the phrases
+Requirement: [792b24c5](#792b24c5-the-matched-set) For each phrase the query-engine MUST rank the notes and chunks together by score,
+ties by key, and keep the first 30 after the reservation of [792b24c6](#792b24c6-the-matched-note-floor). It MUST then merge the phrases
 keeping, for each key, the item with the highest score, drop each item whose unscaled cosine is below
 0.25, and keep at most the 300 highest-scored, in key order. It MUST give each kept item the provenance
 `direct`.
 
-Supports: 792a7d1b, 792a7d1c, 792a7d1d, 792a7d1e.
+Supports: [792a7d1b](./792a_product-spec.md#792a7d1-uat-scenarios), [792a7d1c](./792a_product-spec.md#792a7d1-uat-scenarios), [792a7d1d](./792a_product-spec.md#792a7d1-uat-scenarios), [792a7d1e](./792a_product-spec.md#792a7d1-uat-scenarios).
 
 ##### 792b24c5a Scenarios
 
@@ -12017,13 +12017,13 @@ Scenario: 792b24c5a5 An item appears once
 
 #### 792b24c6 The matched-note floor
 
-Requirement: 792b24c6 When a phrase's ranked list is longer than 30, the query-engine MUST reserve up to
+Requirement: [792b24c6](#792b24c6-the-matched-note-floor) When a phrase's ranked list is longer than 30, the query-engine MUST reserve up to
 5 of the 30 kept for notes whose unscaled cosine is at least 0.25, promoting the best such notes from
 below the cut and evicting the lowest-scoring chunks to make room, and MUST keep the result ordered by
 score. It MUST NOT promote a note below the floor or a question note, and MUST treat a vocabulary
 definition note as any other note.
 
-Supports: 792a7e1a, 792a7e1b, 792a7e1c, 792a7e1d, 792a7d1g.
+Supports: [792a7e1a](./792a_product-spec.md#792a7e1-uat-scenarios), [792a7e1b](./792a_product-spec.md#792a7e1-uat-scenarios), [792a7e1c](./792a_product-spec.md#792a7e1-uat-scenarios), [792a7e1d](./792a_product-spec.md#792a7e1-uat-scenarios), [792a7d1g](./792a_product-spec.md#792a7d1-uat-scenarios).
 
 ##### 792b24c6a Scenarios
 
@@ -12046,12 +12046,12 @@ Scenario: 792b24c6a3 A definition note alone is returned
 
 #### 792b24c7 Question notes
 
-Requirement: 792b24c7 The query-engine MUST leave a question note out of the matched set at each of the
+Requirement: [792b24c7](#792b24c7-question-notes) The query-engine MUST leave a question note out of the matched set at each of the
 four places that build it: when promoting under the matched-note floor, when merging a phrase into the
 union, when dropping below the floor, and when indexing vocabulary members for the explore half. An
 answer note MUST compete as any other note.
 
-Supports: 792a3t1a, 792a7k1a.
+Supports: [792a3t1a](./792a_product-spec.md#792a3t1-uat-scenarios), [792a7k1a](./792a_product-spec.md#792a7k1-uat-scenarios).
 
 ##### 792b24c7a Scenarios
 
@@ -12074,11 +12074,11 @@ Scenario Outline: 792b24c7a1 Which kinds are left out
 
 #### 792b24c8 Chunks and notes together
 
-Requirement: 792b24c8 The query-engine MUST rank the chunks of the chunk index with the notes when a chunk
-index directory and a lister are supplied, cluster them together (792b24c9), and MUST behave as a
+Requirement: [792b24c8](#792b24c8-chunks-and-notes-together) The query-engine MUST rank the chunks of the chunk index with the notes when a chunk
+index directory and a lister are supplied, cluster them together ([792b24c9](#792b24c9-clusters)), and MUST behave as a
 query over the vault alone when none is. A missing chunk index directory MUST be an empty index.
 
-Supports: 792a7d1f.
+Supports: [792a7d1f](./792a_product-spec.md#792a7d1-uat-scenarios).
 
 ##### 792b24c8a Scenarios
 
@@ -12096,16 +12096,16 @@ Scenario: 792b24c8a2 Without a chunk index only notes are returned
 
 #### 792b24c9 Clusters
 
-Requirement: 792b24c9 The query-engine MUST cluster the matched set once with the similarity-clustering
-(792b19c4) for 2 to 7 clusters and a floor of 0.10, seeded from the FNV-1a hash of the phrases joined
+Requirement: [792b24c9](#792b24c9-clusters) The query-engine MUST cluster the matched set once with the similarity-clustering
+([792b19c4](#792b19c4-choosing-the-number-of-clusters)) for 2 to 7 clusters and a floor of 0.10, seeded from the FNV-1a hash of the phrases joined
 by line breaks, so that the same vault and phrases give the same clusters. When no clustering is found,
 or it fails, the whole set MUST be one cluster, its centroid the mean of the members' vectors and its
-silhouette 0. It MUST report for each cluster the mean per-point silhouette (792b19c5) of its members,
+silhouette 0. It MUST report for each cluster the mean per-point silhouette ([792b19c5](#792b19c5-per-point-silhouette)) of its members,
 list its members by score, highest first, with ties kept in order, and mark as representative the
 member whose vector is closest to the centroid, ties going to the higher score and then to the lower
 path. An empty matched set MUST give no clusters.
 
-Supports: 792a7g1a, 792a7g1b, 792a7g1c, 792a7g1d.
+Supports: [792a7g1a](./792a_product-spec.md#792a7g1-uat-scenarios), [792a7g1b](./792a_product-spec.md#792a7g1-uat-scenarios), [792a7g1c](./792a_product-spec.md#792a7g1-uat-scenarios), [792a7g1d](./792a_product-spec.md#792a7g1-uat-scenarios).
 
 Rationale: clustering the union once, not per phrase, keeps the number of clusters small, and the seed
 from the phrases removes run-to-run variation (the former invariant C1).
@@ -12131,13 +12131,13 @@ Scenario: 792b24c9a3 Ties for the representative are broken
 
 #### 792b24c10 Candidate notes
 
-Requirement: 792b24c10 The query-engine MUST give each cluster that has note members a `candidate_l2s`
+Requirement: [792b24c10](#792b24c10-candidate-notes) The query-engine MUST give each cluster that has note members a `candidate_l2s`
 list of at most five of those notes, ordered by the higher of the cosines between the cluster's
 centroid and each note's situation and body vectors, highest first, ties by path, each with its
 `path`, `cosine` and `content`. It MUST list no chunk, no note from another cluster and no explore or
 superseding note, and a cluster with no note has none.
 
-Supports: 792a7h1a, 792a7h1b, 792a7h1c.
+Supports: [792a7h1a](./792a_product-spec.md#792a7h1-uat-scenarios), [792a7h1b](./792a_product-spec.md#792a7h1-uat-scenarios), [792a7h1c](./792a_product-spec.md#792a7h1-uat-scenarios).
 
 ##### 792b24c10a Scenarios
 
@@ -12155,13 +12155,13 @@ Scenario: 792b24c10a2 A near-duplicate of the centroid has a high cosine
 
 #### 792b24c11 Item order
 
-Requirement: 792b24c11 The query-engine MUST order the direct matches that are notes by the number of
+Requirement: [792b24c11](#792b24c11-item-order) The query-engine MUST order the direct matches that are notes by the number of
 their provenances, then by the highest rank among them, `trigger` 4, `direct` 3, `cluster_rep` 2 and any
-other 0 (no path of a query gives an item `cluster_rep`, 792d96), then by score, and MUST add a provenance to an item at most once. In `items` the matched notes
-MUST be followed by the notes that ride along (792b24c17), the explore notes (792b24c16), the matched
-chunks by score, the recent chunks (792b24c19), with the trigger hits moved to the front (792b22c4).
+other 0 (no path of a query gives an item `cluster_rep`, [792d96](./792d_decision-log.md#792d96-query-engine-scope-legacy-removal-and-the-tests-it-leaves)), then by score, and MUST add a provenance to an item at most once. In `items` the matched notes
+MUST be followed by the notes that ride along ([792b24c17](#792b24c17-superseding-notes)), the explore notes ([792b24c16](#792b24c16-delivering-the-explore-half)), the matched
+chunks by score, the recent chunks ([792b24c19](#792b24c19-the-newest-chunks)), with the trigger hits moved to the front ([792b22c4](#792b22c4-placing-the-hits)).
 
-Supports: 792a7d1f, 792a7m1a, 792a7n1a, 792a7o1a.
+Supports: [792a7d1f](./792a_product-spec.md#792a7d1-uat-scenarios), [792a7m1a](./792a_product-spec.md#792a7m1-uat-scenarios), [792a7n1a](./792a_product-spec.md#792a7n1-uat-scenarios), [792a7o1a](./792a_product-spec.md#792a7o1-uat-scenarios).
 
 ##### 792b24c11a Scenarios
 
@@ -12191,13 +12191,13 @@ Scenario: 792b24c11a3 A provenance is added once
 
 #### 792b24c12 Project filter
 
-Requirement: 792b24c12 When a project is requested the query-engine MUST drop each matched note whose
+Requirement: [792b24c12](#792b24c12-project-filter) When a project is requested the query-engine MUST drop each matched note whose
 content, read as LF, has no frontmatter or has no `project:` line equal to it, the line being at the
 start of a line inside the frontmatter and its slug made of lowercase letters, digits and hyphens, and
 MUST NOT drop anything when no project is requested. The filter MUST apply only to the matched notes
 before the superseding, explore, chunk and recent items are added.
 
-Supports: 792a7u1a, 792a7u1b, 792a7u1c.
+Supports: [792a7u1a](./792a_product-spec.md#792a7u1-uat-scenarios), [792a7u1b](./792a_product-spec.md#792a7u1-uat-scenarios), [792a7u1c](./792a_product-spec.md#792a7u1-uat-scenarios).
 
 ##### 792b24c12a Scenarios
 
@@ -12235,7 +12235,7 @@ Scenario: 792b24c12a6 A CRLF note's project is read
 
 #### 792b24c13 Explore budget and allocation
 
-Requirement: 792b24c13 The query-engine MUST size the explore half as the number of distinct notes among
+Requirement: [792b24c13](#792b24c13-explore-budget-and-allocation) The query-engine MUST size the explore half as the number of distinct notes among
 the matched notes after the project filter, and MUST skip it when that is zero or when
 `vocab.centroids.json` is absent, unreadable or has no terms, returning an empty allocation. Otherwise it
 MUST divide the budget among the file's terms by the softmax of the cosine between the mean of the
@@ -12244,7 +12244,7 @@ each term that has a member among the matched notes, giving each term the floor 
 remainder, one each, to the terms with the largest fractional parts, ties by higher cosine and then by
 name, so that the allocation always sums to the budget.
 
-Supports: 792a7i1a, 792a7i1b, 792a7i1c, 792a7j1a, 792a7j1b, 792a7j1c.
+Supports: [792a7i1a](./792a_product-spec.md#792a7i1-uat-scenarios), [792a7i1b](./792a_product-spec.md#792a7i1-uat-scenarios), [792a7i1c](./792a_product-spec.md#792a7i1-uat-scenarios), [792a7j1a](./792a_product-spec.md#792a7j1-uat-scenarios), [792a7j1b](./792a_product-spec.md#792a7j1-uat-scenarios), [792a7j1c](./792a_product-spec.md#792a7j1-uat-scenarios).
 
 ##### 792b24c13a Scenarios
 
@@ -12292,13 +12292,13 @@ Scenario: 792b24c13a8 Members among the matches are found
 
 #### 792b24c14 Picking a term's core
 
-Requirement: 792b24c14 The query-engine MUST rank a term's member notes by the cosine between each
+Requirement: [792b24c14](#792b24c14-picking-a-terms-core) The query-engine MUST rank a term's member notes by the cosine between each
 note's body vector and the term's centroid, highest first, ties by path, and pick the first as many as
 the term was allocated, all of them when there are fewer, none for an allocation of zero or no members.
 A member MUST be a note tagged `vocab/<term>` that is not a definition note or a question note and
 has a vector, and a note with several terms MUST be a member of each.
 
-Supports: 792a7k1a, 792a7k1b.
+Supports: [792a7k1a](./792a_product-spec.md#792a7k1-uat-scenarios), [792a7k1b](./792a_product-spec.md#792a7k1-uat-scenarios).
 
 ##### 792b24c14a Scenarios
 
@@ -12326,12 +12326,12 @@ Scenario: 792b24c14a4 Definitions and vectorless members are left out
 
 #### 792b24c15 Dedupe and backfill
 
-Requirement: 792b24c15 The query-engine MUST fill each term's allocation from its own ranked members in
+Requirement: [792b24c15](#792b24c15-dedupe-and-backfill) The query-engine MUST fill each term's allocation from its own ranked members in
 order of the cosines, skipping a note that is among the matched notes or that another term already
 picked, and MUST then sweep the terms again in that order, taking one note at a time from whichever
 still has candidates, until the budget is met or none remain.
 
-Supports: 792a7l1a, 792a7l1b, 792a7l1c.
+Supports: [792a7l1a](./792a_product-spec.md#792a7l1-uat-scenarios), [792a7l1b](./792a_product-spec.md#792a7l1-uat-scenarios), [792a7l1c](./792a_product-spec.md#792a7l1-uat-scenarios).
 
 ##### 792b24c15a Scenarios
 
@@ -12354,12 +12354,12 @@ Scenario: 792b24c15a3 Too few candidates leave the budget unmet
 
 #### 792b24c16 Delivering the explore half
 
-Requirement: 792b24c16 The query-engine MUST deliver each explore pick as an item with provenance
+Requirement: [792b24c16](#792b24c16-delivering-the-explore-half) The query-engine MUST deliver each explore pick as an item with provenance
 `explore`, its term as `source_term`, its cosine to the term's centroid as score and content, after the
 matched notes and the notes that ride along and before the matched chunks, and MUST report the
 allocation as the number delivered for each term.
 
-Supports: 792a7i1a, 792a7i1b, 792a7m1a, 792a7m1b, 792a7m1c.
+Supports: [792a7i1a](./792a_product-spec.md#792a7i1-uat-scenarios), [792a7i1b](./792a_product-spec.md#792a7i1-uat-scenarios), [792a7m1a](./792a_product-spec.md#792a7m1-uat-scenarios), [792a7m1b](./792a_product-spec.md#792a7m1-uat-scenarios), [792a7m1c](./792a_product-spec.md#792a7m1-uat-scenarios).
 
 ##### 792b24c16a Scenarios
 
@@ -12387,14 +12387,14 @@ Scenario: 792b24c16a4 Missing centroids leave only the matches
 
 #### 792b24c17 Superseding notes
 
-Requirement: 792b24c17 The query-engine MUST read, in one pass over every usable note, the notes that
+Requirement: [792b24c17](#792b24c17-superseding-notes) The query-engine MUST read, in one pass over every usable note, the notes that
 supersede each other from the `supersedes:` lists of their frontmatter, and MUST insert each note that
 supersedes a matched note directly after it with provenance `ride_along` and score 0 and its content, in
 the order listed, unless it is already among the items or is not a usable note. It MUST examine only
 the matched notes, not chunks, recent chunks or notes it inserted, and MUST change nothing when no note
 supersedes another.
 
-Supports: 792a7n1a, 792a7n1b, 792a7n1c, 792a7n1d.
+Supports: [792a7n1a](./792a_product-spec.md#792a7n1-uat-scenarios), [792a7n1b](./792a_product-spec.md#792a7n1-uat-scenarios), [792a7n1c](./792a_product-spec.md#792a7n1-uat-scenarios), [792a7n1d](./792a_product-spec.md#792a7n1-uat-scenarios).
 
 ##### 792b24c17a Scenarios
 
@@ -12432,13 +12432,13 @@ Scenario: 792b24c17a6 The inverse of the supersedes lists is built
 
 #### 792b24c18 The metadata pass
 
-Requirement: 792b24c18 The query-engine MUST read, from each usable note's frontmatter read as its LF
+Requirement: [792b24c18](#792b24c18-the-metadata-pass) The query-engine MUST read, from each usable note's frontmatter read as its LF
 form, the `vocab/<term>` entries of `tags:`, in block or inline form, ignoring the bare `vocab` entry and
-every other tag, the `supersedes:` entries, and the `triggers:` (792b22c1), and MUST index the notes by
+every other tag, the `supersedes:` entries, and the `triggers:` ([792b22c1](#792b22c1-trigger-index)), and MUST index the notes by
 term for the explore half, leaving out question notes. A frontmatter that is absent or does not parse
 MUST give nothing. A vault with no terms and no supersedes lists MUST give empty indexes.
 
-Supports: 792a7zg1g, 792a7k1a.
+Supports: [792a7zg1g](./792a_product-spec.md#792a7zg1-uat-scenarios), [792a7k1a](./792a_product-spec.md#792a7k1-uat-scenarios).
 
 ##### 792b24c18a Scenarios
 
@@ -12486,12 +12486,12 @@ Scenario: 792b24c18a8 A CRLF note is parsed as LF
 
 #### 792b24c19 The newest chunks
 
-Requirement: 792b24c19 The query-engine MUST append the newest chunks (792b21c5) up to the recent-fill
+Requirement: [792b24c19](#792b24c19-the-newest-chunks) The query-engine MUST append the newest chunks ([792b21c5](#792b21c5-newest-chunks)) up to the recent-fill
 count, skipping chunks that are matched, with provenance `recent` and score 0, outside every cluster.
 The count MUST be 25 when the flag is zero, the flag's value when positive and none when negative. All
 chunks MUST be returned when there are fewer than the count.
 
-Supports: 792a7o1a, 792a7o1b, 792a7o1c, 792a7o1d, 792a7o1e.
+Supports: [792a7o1a](./792a_product-spec.md#792a7o1-uat-scenarios), [792a7o1b](./792a_product-spec.md#792a7o1-uat-scenarios), [792a7o1c](./792a_product-spec.md#792a7o1-uat-scenarios), [792a7o1d](./792a_product-spec.md#792a7o1-uat-scenarios), [792a7o1e](./792a_product-spec.md#792a7o1-uat-scenarios).
 
 ##### 792b24c19a Scenarios
 
@@ -12530,10 +12530,10 @@ Scenario Outline: 792b24c19a5 The count resolves
 
 #### 792b24c20 A query writes nothing
 
-Requirement: 792b24c20 The query-engine MUST NOT write or change any file and MUST NOT put an `activated`
+Requirement: [792b24c20](#792b24c20-a-query-writes-nothing) The query-engine MUST NOT write or change any file and MUST NOT put an `activated`
 field on any item.
 
-Supports: 792a7zh1a.
+Supports: [792a7zh1a](./792a_product-spec.md#792a7zh1-uat-scenarios).
 
 ##### 792b24c20a Scenarios
 
@@ -12546,10 +12546,10 @@ Scenario: 792b24c20a1 No item is activated and no sidecar changes
 
 #### 792b24c21 The refit flag
 
-Requirement: 792b24c21 The query-engine MUST report a pending refit when `vocab.centroids.json` records one
+Requirement: [792b24c21](#792b24c21-the-refit-flag) The query-engine MUST report a pending refit when `vocab.centroids.json` records one
 and MUST report none when the file is absent or does not parse.
 
-Supports: 792a7zd1a, 792a7zd1b.
+Supports: [792a7zd1a](./792a_product-spec.md#792a7zd1-uat-scenarios), [792a7zd1b](./792a_product-spec.md#792a7zd1-uat-scenarios).
 
 ##### 792b24c21a Scenarios
 
@@ -12562,10 +12562,10 @@ Scenario: 792b24c21a1 A pending refit is read from the centroids file
 
 #### 792b24c22 A note is found by its situation
 
-Requirement: 792b24c22 A note whose embedded text is S MUST be returned by a query for the phrase S, with
+Requirement: [792b24c22](#792b24c22-a-note-is-found-by-its-situation) A note whose embedded text is S MUST be returned by a query for the phrase S, with
 a cosine of 1.
 
-Supports: 792a7d1h.
+Supports: [792a7d1h](./792a_product-spec.md#792a7d1-uat-scenarios).
 
 Rationale: learn and recall are inverse over the situation field, so what was written for a situation
 is found by asking for it (the former invariant R1).
@@ -12581,16 +12581,16 @@ Scenario: 792b24c22a1 A note is returned for its own situation
 
 #### 792b24c23 Searching chunks alone
 
-Requirement: 792b24c23 For `query-chunks` the query-engine MUST fail with
+Requirement: [792b24c23](#792b24c23-searching-chunks-alone) For `query-chunks` the query-engine MUST fail with
 `query chunks: at least one --phrase is required` when given no phrase, MUST read every index file
-(792b18c12) and fail, wrapping the cause, when one cannot be listed, read or decoded, and MUST return an
+([792b18c12](#792b18c12-listing-index-files)) and fail, wrapping the cause, when one cannot be listed, read or decoded, and MUST return an
 empty payload with `total_chunks: 0` and without embedding when the index holds no chunk. Otherwise it
 MUST score each chunk by its highest cosine over the phrases, rank by score, keep the first `limit`
 (20 when zero), and print `version: 1`, `space: chunks`, the phrases, the items, the clusters of the
 returned chunks, found by the similarity-clustering for 2 to 7 clusters, a floor of 0.10 and the seed 1,
 when there are at least six, and the budget `total_chunks` and `returned`.
 
-Supports: 792a7zf1a, 792a7zf1b, 792a7zf1c, 792a7zf1d, 792a7zf1e.
+Supports: [792a7zf1a](./792a_product-spec.md#792a7zf1-uat-scenarios), [792a7zf1b](./792a_product-spec.md#792a7zf1-uat-scenarios), [792a7zf1c](./792a_product-spec.md#792a7zf1-uat-scenarios), [792a7zf1d](./792a_product-spec.md#792a7zf1-uat-scenarios), [792a7zf1e](./792a_product-spec.md#792a7zf1-uat-scenarios).
 
 ##### 792b24c23a Scenarios
 
@@ -12633,7 +12633,7 @@ Scenario: 792b24c23a7 A malformed index is an error
 
 #### 792b24c24 Stage readings
 
-Requirement: 792b24c24 When timing is on, the query-engine MUST read the injected clock at the start of the
+Requirement: [792b24c24](#792b24c24-stage-readings) When timing is on, the query-engine MUST read the injected clock at the start of the
 query and at the end of its scan, embed, cluster and nominate stages, the scan stage ending when the
 notes, sidecars and chunk index have been read, the embed stage when the phrases are embedded and the
 matches found, the cluster stage when the matched set is clustered, and the nominate stage when the
@@ -12641,7 +12641,7 @@ explore half, the ride-alongs, the chunks and the recent chunks have been assemb
 reading that ends the scan stage as the time for recency. It MUST NOT read the clock for timing
 otherwise.
 
-Supports: 792a7ze1a.
+Supports: [792a7ze1a](./792a_product-spec.md#792a7ze1-uat-scenarios).
 
 ##### 792b24c24a Scenarios
 
@@ -12656,89 +12656,89 @@ Scenario: 792b24c24a1 Each stage ends with a reading
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a3t1a | 792b24c7 |
-| 792a7a1a | 792b24c1 |
-| 792a7a1b | 792b24c1 |
-| 792a7b1a | 792b24c1 |
-| 792a7b1c | 792b24c3 |
-| 792a7c1a | 792b24c2 |
-| 792a7c1b | 792b24c2 |
-| 792a7c1c | 792b24c2 |
-| 792a7d1a | 792b24c3 |
-| 792a7d1b | 792b24c5 |
-| 792a7d1c | 792b24c5 |
-| 792a7d1d | 792b24c5 |
-| 792a7d1e | 792b24c5 |
-| 792a7d1f | 792b24c8, 792b24c11 |
-| 792a7d1g | 792b24c6 |
-| 792a7d1h | 792b24c22 |
-| 792a7e1a | 792b24c6 |
-| 792a7e1b | 792b24c6 |
-| 792a7e1c | 792b24c6 |
-| 792a7e1d | 792b24c6 |
-| 792a7f1a | 792b24c4 |
-| 792a7f1b | 792b24c3 |
-| 792a7f1c | 792b24c4 |
-| 792a7f1e | 792b24c4 |
-| 792a7g1a | 792b24c9 |
-| 792a7g1b | 792b24c9 |
-| 792a7g1c | 792b24c9 |
-| 792a7g1d | 792b24c9 |
-| 792a7h1a | 792b24c10 |
-| 792a7h1b | 792b24c10 |
-| 792a7h1c | 792b24c10 |
-| 792a7i1a | 792b24c13, 792b24c16 |
-| 792a7i1b | 792b24c13, 792b24c16 |
-| 792a7i1c | 792b24c13 |
-| 792a7i1d | 792b24c15 |
-| 792a7j1a | 792b24c13 |
-| 792a7j1b | 792b24c13 |
-| 792a7j1c | 792b24c13 |
-| 792a7k1a | 792b24c7, 792b24c14, 792b24c18 |
-| 792a7k1b | 792b24c14 |
-| 792a7l1a | 792b24c15 |
-| 792a7l1b | 792b24c15 |
-| 792a7l1c | 792b24c15 |
-| 792a7m1a | 792b24c11, 792b24c16 |
-| 792a7m1b | 792b24c16 |
-| 792a7m1c | 792b24c16 |
-| 792a7n1a | 792b24c11, 792b24c17 |
-| 792a7n1b | 792b24c17 |
-| 792a7n1c | 792b24c17 |
-| 792a7n1d | 792b24c17 |
-| 792a7o1a | 792b24c11, 792b24c19 |
-| 792a7o1b | 792b24c19 |
-| 792a7o1c | 792b24c19 |
-| 792a7o1d | 792b24c19 |
-| 792a7o1e | 792b24c19 |
-| 792a7q1a | 792b24c1 |
-| 792a7u1a | 792b24c12 |
-| 792a7u1b | 792b24c12 |
-| 792a7u1c | 792b24c12 |
-| 792a7v1a | 792b24c3 |
-| 792a7v1b | 792b24c3, 792b24c10 |
-| 792a7v1c | 792b24c3 |
-| 792a7zd1a | 792b24c21 |
-| 792a7zd1b | 792b24c21 |
-| 792a7ze1a | 792b24c24 |
-| 792a7zf1a | 792b24c23 |
-| 792a7zf1b | 792b24c23 |
-| 792a7zf1c | 792b24c23 |
-| 792a7zf1d | 792b24c23 |
-| 792a7zf1e | 792b24c23 |
-| 792a7zg1a | 792b24c12 |
-| 792a7zg1c | 792b24c20 |
-| 792a7zg1g | 792b24c18 |
-| 792a7zh1a | 792b24c20 |
-| 792a14c1b | 792b24c1 |
-| 792a14f1a | 792b24c1 |
-| 792a14g1b | 792b24c10 |
-| 792a14g1c | 792b24c19 |
-| 792a14h1d | 792b24c10 |
-| 792a14o1a | 792b24c1 |
-| 792a19j1a | 792b24c1 |
-| 792a19t1a | 792b24c1 |
-| 792a19t1b | 792b24c1 |
+| [792a3t1a](./792a_product-spec.md#792a3t1-uat-scenarios) | [792b24c7](#792b24c7-question-notes) |
+| [792a7a1a](./792a_product-spec.md#792a7a1-uat-scenarios) | [792b24c1](#792b24c1-input-and-defaults) |
+| [792a7a1b](./792a_product-spec.md#792a7a1-uat-scenarios) | [792b24c1](#792b24c1-input-and-defaults) |
+| [792a7b1a](./792a_product-spec.md#792a7b1-uat-scenarios) | [792b24c1](#792b24c1-input-and-defaults) |
+| [792a7b1c](./792a_product-spec.md#792a7b1-uat-scenarios) | [792b24c3](#792b24c3-scoring-notes) |
+| [792a7c1a](./792a_product-spec.md#792a7c1-uat-scenarios) | [792b24c2](#792b24c2-usable-embeddings) |
+| [792a7c1b](./792a_product-spec.md#792a7c1-uat-scenarios) | [792b24c2](#792b24c2-usable-embeddings) |
+| [792a7c1c](./792a_product-spec.md#792a7c1-uat-scenarios) | [792b24c2](#792b24c2-usable-embeddings) |
+| [792a7d1a](./792a_product-spec.md#792a7d1-uat-scenarios) | [792b24c3](#792b24c3-scoring-notes) |
+| [792a7d1b](./792a_product-spec.md#792a7d1-uat-scenarios) | [792b24c5](#792b24c5-the-matched-set) |
+| [792a7d1c](./792a_product-spec.md#792a7d1-uat-scenarios) | [792b24c5](#792b24c5-the-matched-set) |
+| [792a7d1d](./792a_product-spec.md#792a7d1-uat-scenarios) | [792b24c5](#792b24c5-the-matched-set) |
+| [792a7d1e](./792a_product-spec.md#792a7d1-uat-scenarios) | [792b24c5](#792b24c5-the-matched-set) |
+| [792a7d1f](./792a_product-spec.md#792a7d1-uat-scenarios) | [792b24c8](#792b24c8-chunks-and-notes-together), [792b24c11](#792b24c11-item-order) |
+| [792a7d1g](./792a_product-spec.md#792a7d1-uat-scenarios) | [792b24c6](#792b24c6-the-matched-note-floor) |
+| [792a7d1h](./792a_product-spec.md#792a7d1-uat-scenarios) | [792b24c22](#792b24c22-a-note-is-found-by-its-situation) |
+| [792a7e1a](./792a_product-spec.md#792a7e1-uat-scenarios) | [792b24c6](#792b24c6-the-matched-note-floor) |
+| [792a7e1b](./792a_product-spec.md#792a7e1-uat-scenarios) | [792b24c6](#792b24c6-the-matched-note-floor) |
+| [792a7e1c](./792a_product-spec.md#792a7e1-uat-scenarios) | [792b24c6](#792b24c6-the-matched-note-floor) |
+| [792a7e1d](./792a_product-spec.md#792a7e1-uat-scenarios) | [792b24c6](#792b24c6-the-matched-note-floor) |
+| [792a7f1a](./792a_product-spec.md#792a7f1-uat-scenarios) | [792b24c4](#792b24c4-scoring-chunks) |
+| [792a7f1b](./792a_product-spec.md#792a7f1-uat-scenarios) | [792b24c3](#792b24c3-scoring-notes) |
+| [792a7f1c](./792a_product-spec.md#792a7f1-uat-scenarios) | [792b24c4](#792b24c4-scoring-chunks) |
+| [792a7f1e](./792a_product-spec.md#792a7f1-uat-scenarios) | [792b24c4](#792b24c4-scoring-chunks) |
+| [792a7g1a](./792a_product-spec.md#792a7g1-uat-scenarios) | [792b24c9](#792b24c9-clusters) |
+| [792a7g1b](./792a_product-spec.md#792a7g1-uat-scenarios) | [792b24c9](#792b24c9-clusters) |
+| [792a7g1c](./792a_product-spec.md#792a7g1-uat-scenarios) | [792b24c9](#792b24c9-clusters) |
+| [792a7g1d](./792a_product-spec.md#792a7g1-uat-scenarios) | [792b24c9](#792b24c9-clusters) |
+| [792a7h1a](./792a_product-spec.md#792a7h1-uat-scenarios) | [792b24c10](#792b24c10-candidate-notes) |
+| [792a7h1b](./792a_product-spec.md#792a7h1-uat-scenarios) | [792b24c10](#792b24c10-candidate-notes) |
+| [792a7h1c](./792a_product-spec.md#792a7h1-uat-scenarios) | [792b24c10](#792b24c10-candidate-notes) |
+| [792a7i1a](./792a_product-spec.md#792a7i1-uat-scenarios) | [792b24c13](#792b24c13-explore-budget-and-allocation), [792b24c16](#792b24c16-delivering-the-explore-half) |
+| [792a7i1b](./792a_product-spec.md#792a7i1-uat-scenarios) | [792b24c13](#792b24c13-explore-budget-and-allocation), [792b24c16](#792b24c16-delivering-the-explore-half) |
+| [792a7i1c](./792a_product-spec.md#792a7i1-uat-scenarios) | [792b24c13](#792b24c13-explore-budget-and-allocation) |
+| [792a7i1d](./792a_product-spec.md#792a7i1-uat-scenarios) | [792b24c15](#792b24c15-dedupe-and-backfill) |
+| [792a7j1a](./792a_product-spec.md#792a7j1-uat-scenarios) | [792b24c13](#792b24c13-explore-budget-and-allocation) |
+| [792a7j1b](./792a_product-spec.md#792a7j1-uat-scenarios) | [792b24c13](#792b24c13-explore-budget-and-allocation) |
+| [792a7j1c](./792a_product-spec.md#792a7j1-uat-scenarios) | [792b24c13](#792b24c13-explore-budget-and-allocation) |
+| [792a7k1a](./792a_product-spec.md#792a7k1-uat-scenarios) | [792b24c7](#792b24c7-question-notes), [792b24c14](#792b24c14-picking-a-terms-core), [792b24c18](#792b24c18-the-metadata-pass) |
+| [792a7k1b](./792a_product-spec.md#792a7k1-uat-scenarios) | [792b24c14](#792b24c14-picking-a-terms-core) |
+| [792a7l1a](./792a_product-spec.md#792a7l1-uat-scenarios) | [792b24c15](#792b24c15-dedupe-and-backfill) |
+| [792a7l1b](./792a_product-spec.md#792a7l1-uat-scenarios) | [792b24c15](#792b24c15-dedupe-and-backfill) |
+| [792a7l1c](./792a_product-spec.md#792a7l1-uat-scenarios) | [792b24c15](#792b24c15-dedupe-and-backfill) |
+| [792a7m1a](./792a_product-spec.md#792a7m1-uat-scenarios) | [792b24c11](#792b24c11-item-order), [792b24c16](#792b24c16-delivering-the-explore-half) |
+| [792a7m1b](./792a_product-spec.md#792a7m1-uat-scenarios) | [792b24c16](#792b24c16-delivering-the-explore-half) |
+| [792a7m1c](./792a_product-spec.md#792a7m1-uat-scenarios) | [792b24c16](#792b24c16-delivering-the-explore-half) |
+| [792a7n1a](./792a_product-spec.md#792a7n1-uat-scenarios) | [792b24c11](#792b24c11-item-order), [792b24c17](#792b24c17-superseding-notes) |
+| [792a7n1b](./792a_product-spec.md#792a7n1-uat-scenarios) | [792b24c17](#792b24c17-superseding-notes) |
+| [792a7n1c](./792a_product-spec.md#792a7n1-uat-scenarios) | [792b24c17](#792b24c17-superseding-notes) |
+| [792a7n1d](./792a_product-spec.md#792a7n1-uat-scenarios) | [792b24c17](#792b24c17-superseding-notes) |
+| [792a7o1a](./792a_product-spec.md#792a7o1-uat-scenarios) | [792b24c11](#792b24c11-item-order), [792b24c19](#792b24c19-the-newest-chunks) |
+| [792a7o1b](./792a_product-spec.md#792a7o1-uat-scenarios) | [792b24c19](#792b24c19-the-newest-chunks) |
+| [792a7o1c](./792a_product-spec.md#792a7o1-uat-scenarios) | [792b24c19](#792b24c19-the-newest-chunks) |
+| [792a7o1d](./792a_product-spec.md#792a7o1-uat-scenarios) | [792b24c19](#792b24c19-the-newest-chunks) |
+| [792a7o1e](./792a_product-spec.md#792a7o1-uat-scenarios) | [792b24c19](#792b24c19-the-newest-chunks) |
+| [792a7q1a](./792a_product-spec.md#792a7q1-uat-scenarios) | [792b24c1](#792b24c1-input-and-defaults) |
+| [792a7u1a](./792a_product-spec.md#792a7u1-uat-scenarios) | [792b24c12](#792b24c12-project-filter) |
+| [792a7u1b](./792a_product-spec.md#792a7u1-uat-scenarios) | [792b24c12](#792b24c12-project-filter) |
+| [792a7u1c](./792a_product-spec.md#792a7u1-uat-scenarios) | [792b24c12](#792b24c12-project-filter) |
+| [792a7v1a](./792a_product-spec.md#792a7v1-uat-scenarios) | [792b24c3](#792b24c3-scoring-notes) |
+| [792a7v1b](./792a_product-spec.md#792a7v1-uat-scenarios) | [792b24c3](#792b24c3-scoring-notes), [792b24c10](#792b24c10-candidate-notes) |
+| [792a7v1c](./792a_product-spec.md#792a7v1-uat-scenarios) | [792b24c3](#792b24c3-scoring-notes) |
+| [792a7zd1a](./792a_product-spec.md#792a7zd1-uat-scenarios) | [792b24c21](#792b24c21-the-refit-flag) |
+| [792a7zd1b](./792a_product-spec.md#792a7zd1-uat-scenarios) | [792b24c21](#792b24c21-the-refit-flag) |
+| [792a7ze1a](./792a_product-spec.md#792a7ze1-uat-scenarios) | [792b24c24](#792b24c24-stage-readings) |
+| [792a7zf1a](./792a_product-spec.md#792a7zf1-uat-scenarios) | [792b24c23](#792b24c23-searching-chunks-alone) |
+| [792a7zf1b](./792a_product-spec.md#792a7zf1-uat-scenarios) | [792b24c23](#792b24c23-searching-chunks-alone) |
+| [792a7zf1c](./792a_product-spec.md#792a7zf1-uat-scenarios) | [792b24c23](#792b24c23-searching-chunks-alone) |
+| [792a7zf1d](./792a_product-spec.md#792a7zf1-uat-scenarios) | [792b24c23](#792b24c23-searching-chunks-alone) |
+| [792a7zf1e](./792a_product-spec.md#792a7zf1-uat-scenarios) | [792b24c23](#792b24c23-searching-chunks-alone) |
+| [792a7zg1a](./792a_product-spec.md#792a7zg1-uat-scenarios) | [792b24c12](#792b24c12-project-filter) |
+| [792a7zg1c](./792a_product-spec.md#792a7zg1-uat-scenarios) | [792b24c20](#792b24c20-a-query-writes-nothing) |
+| [792a7zg1g](./792a_product-spec.md#792a7zg1-uat-scenarios) | [792b24c18](#792b24c18-the-metadata-pass) |
+| [792a7zh1a](./792a_product-spec.md#792a7zh1-uat-scenarios) | [792b24c20](#792b24c20-a-query-writes-nothing) |
+| [792a14c1b](./792a_product-spec.md#792a14c1-uat-scenarios) | [792b24c1](#792b24c1-input-and-defaults) |
+| [792a14f1a](./792a_product-spec.md#792a14f1-uat-scenarios) | [792b24c1](#792b24c1-input-and-defaults) |
+| [792a14g1b](./792a_product-spec.md#792a14g1-uat-scenarios) | [792b24c10](#792b24c10-candidate-notes) |
+| [792a14g1c](./792a_product-spec.md#792a14g1-uat-scenarios) | [792b24c19](#792b24c19-the-newest-chunks) |
+| [792a14h1d](./792a_product-spec.md#792a14h1-uat-scenarios) | [792b24c10](#792b24c10-candidate-notes) |
+| [792a14o1a](./792a_product-spec.md#792a14o1-uat-scenarios) | [792b24c1](#792b24c1-input-and-defaults) |
+| [792a19j1a](./792a_product-spec.md#792a19j1-uat-scenarios) | [792b24c1](#792b24c1-input-and-defaults) |
+| [792a19t1a](./792a_product-spec.md#792a19t1-uat-scenarios) | [792b24c1](#792b24c1-input-and-defaults) |
+| [792a19t1b](./792a_product-spec.md#792a19t1-uat-scenarios) | [792b24c1](#792b24c1-input-and-defaults) |
 
 ```gherkin
 Scenario: 792a7a1a A query with nothing to search for fails
@@ -13039,8 +13039,8 @@ Canonical target: `docs/specs/technical/vault-counter.md` (title `Vault Counter 
   independent verification, it is tested directly over a fake vault listing and fake note contents;
   stability, an exact count over the whole vault is a lasting need that a change to recall does not
   touch; necessity, `engram count` is this contract.
-- Supported capabilities: 792a8 vault-counting. The route capability extends it by using it as its
-  audit surface (792d30).
+- Supported capabilities: [792a8](./792a_product-spec.md#792a8-added-vault-counting) vault-counting. The route capability extends it by using it as its
+  audit surface ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
 
 Rationale: a count and a recall answer different questions. Recall returns a similarity-ranked,
 truncated sample of the vault, so it cannot say how many notes carry a tag or link to a note.
@@ -13096,15 +13096,15 @@ sequenceDiagram
 
 #### 792b25c1 Mode selection
 
-Requirement: 792b25c1 The vault-counter MUST fail with `count: --group-by and --backlinks-of are
+Requirement: [792b25c1](#792b25c1-mode-selection) The vault-counter MUST fail with `count: --group-by and --backlinks-of are
 mutually exclusive` when both an attribute and a basename are given, and MUST fail with `count:
 specify --group-by <attr> or --backlinks-of <basename>` when neither is given, whatever filters
-accompany it. Otherwise it MUST run the incoming-link report (792b25c6) when a basename is given
-and the attribute count (792b25c2) when an attribute is given.
+accompany it. Otherwise it MUST run the incoming-link report ([792b25c6](#792b25c6-incoming-link-report)) when a basename is given
+and the attribute count ([792b25c2](#792b25c2-attribute-membership-counting)) when an attribute is given.
 
-Supports: 792a8f1a, 792a8f1b, 792a8f1c.
+Supports: [792a8f1a](./792a_product-spec.md#792a8f1-uat-scenarios), [792a8f1b](./792a_product-spec.md#792a8f1-uat-scenarios), [792a8f1c](./792a_product-spec.md#792a8f1-uat-scenarios).
 
-Rationale: the two modes measure different quantities (792b25c7), so one run does not mix them.
+Rationale: the two modes measure different quantities ([792b25c7](#792b25c7-the-two-measures-are-independent)), so one run does not mix them.
 
 ##### 792b25c1a Scenarios
 
@@ -13132,14 +13132,14 @@ Scenario: 792b25c1a4 An attribute alone selects the attribute count
 
 #### 792b25c2 Attribute membership counting
 
-Requirement: 792b25c2 The vault-counter MUST, given an attribute, count each note that is readable
-(792b25c4) and satisfies every filter (792b25c3) once in the total. A scalar value MUST contribute
+Requirement: [792b25c2](#792b25c2-attribute-membership-counting) The vault-counter MUST, given an attribute, count each note that is readable
+([792b25c4](#792b25c4-uncountable-notes)) and satisfies every filter ([792b25c3](#792b25c3-filters)) once in the total. A scalar value MUST contribute
 its text as the note's one value, a list MUST contribute each distinct element once, and a null or
 empty value MUST contribute none. It MUST count a note that has no such key as absent, and MUST
 count the notes per value. It MUST return a failure to list the vault wrapped as `count: listing
 vault: <error>`.
 
-Supports: 792a8a1a, 792a8a1b, 792a8a1c, 792a8a1e, 792a8b1a, 792a8b1b, 792a8b1d.
+Supports: [792a8a1a](./792a_product-spec.md#792a8a1-uat-scenarios), [792a8a1b](./792a_product-spec.md#792a8a1-uat-scenarios), [792a8a1c](./792a_product-spec.md#792a8a1-uat-scenarios), [792a8a1e](./792a_product-spec.md#792a8a1-uat-scenarios), [792a8b1a](./792a_product-spec.md#792a8b1-uat-scenarios), [792a8b1b](./792a_product-spec.md#792a8b1-uat-scenarios), [792a8b1d](./792a_product-spec.md#792a8b1-uat-scenarios).
 
 ##### 792b25c2a Scenarios
 
@@ -13177,13 +13177,13 @@ Scenario: 792b25c2a6 A listing failure is returned
 
 #### 792b25c3 Filters
 
-Requirement: 792b25c3 The vault-counter MUST read each filter as an attribute and a value split at
+Requirement: [792b25c3](#792b25c3-filters) The vault-counter MUST read each filter as an attribute and a value split at
 the first `=`, MUST count a note only when it satisfies every filter, and MUST treat a note as
 satisfying a filter when the attribute's distinct values include the value. A note without the
 attribute MUST NOT satisfy it. It MUST fail with `count: --filter must be attr=value: "<filter>"`
 for a filter that has no `=`, before it lists the vault.
 
-Supports: 792a8c1a, 792a8c1b, 792a8c1c, 792a8c1d, 792a8c1f.
+Supports: [792a8c1a](./792a_product-spec.md#792a8c1-uat-scenarios), [792a8c1b](./792a_product-spec.md#792a8c1-uat-scenarios), [792a8c1c](./792a_product-spec.md#792a8c1-uat-scenarios), [792a8c1d](./792a_product-spec.md#792a8c1-uat-scenarios), [792a8c1f](./792a_product-spec.md#792a8c1-uat-scenarios).
 
 ##### 792b25c3a Scenarios
 
@@ -13216,14 +13216,14 @@ Scenario: 792b25c3a5 A filter without = fails
 
 #### 792b25c4 Uncountable notes
 
-Requirement: 792b25c4 The vault-counter MUST skip a note whose file cannot be read, a note with no
+Requirement: [792b25c4](#792b25c4-uncountable-notes) The vault-counter MUST skip a note whose file cannot be read, a note with no
 frontmatter, and a note whose frontmatter is not a valid YAML mapping, without counting it as a
 value, as absent or in the total. It MUST read a note with CRLF line endings as its LF form.
 
-Supports: 792a8d1a, 792a8d1b, 792a8d1c.
+Supports: [792a8d1a](./792a_product-spec.md#792a8d1-uat-scenarios), [792a8d1b](./792a_product-spec.md#792a8d1-uat-scenarios), [792a8d1c](./792a_product-spec.md#792a8d1-uat-scenarios).
 
 Rationale: one stray file must not stop a count of the rest. A frontmatter split that is CRLF-aware
-would hand writers mixed line endings, so notes are read as LF (792b6c8).
+would hand writers mixed line endings, so notes are read as LF ([792b6c8](#792b6c8-crlf-reading)).
 
 ##### 792b25c4a Scenarios
 
@@ -13246,12 +13246,12 @@ Scenario: 792b25c4a3 A CRLF note is read as LF
 
 #### 792b25c5 Attribute count report
 
-Requirement: 792b25c5 The vault-counter MUST report an attribute count as one line per value, the
+Requirement: [792b25c5](#792b25c5-attribute-count-report) The vault-counter MUST report an attribute count as one line per value, the
 value, a tab and its count, ordered by count descending and then value ascending, then the line
 `(<attr> absent): <N>` when `<N>` is above zero, then the line `total: <T>`. It MUST report nothing
 when no note was counted.
 
-Supports: 792a8a1a, 792a8a1b, 792a8a1d, 792a8b1a, 792a8b1b, 792a8b1c, 792a8c1e.
+Supports: [792a8a1a](./792a_product-spec.md#792a8a1-uat-scenarios), [792a8a1b](./792a_product-spec.md#792a8a1-uat-scenarios), [792a8a1d](./792a_product-spec.md#792a8a1-uat-scenarios), [792a8b1a](./792a_product-spec.md#792a8b1-uat-scenarios), [792a8b1b](./792a_product-spec.md#792a8b1-uat-scenarios), [792a8b1c](./792a_product-spec.md#792a8b1-uat-scenarios), [792a8c1e](./792a_product-spec.md#792a8c1-uat-scenarios).
 
 ##### 792b25c5a Scenarios
 
@@ -13284,14 +13284,14 @@ Scenario: 792b25c5a5 The total counts notes, not values
 
 #### 792b25c6 Incoming-link report
 
-Requirement: 792b25c6 The vault-counter MUST scan the vault (792b13c1), build the link graph
-(792b13c4) and print `in-degree: <N>` with the named note's in-degree (792b13c5), then the basenames
+Requirement: [792b25c6](#792b25c6-incoming-link-report) The vault-counter MUST scan the vault ([792b13c1](#792b13c1-vault-scan)), build the link graph
+([792b13c4](#792b13c4-link-graph)) and print `in-degree: <N>` with the named note's in-degree ([792b13c5](#792b13c5-in-degree)), then the basenames
 of the notes that link to it, one per line, in ascending order. It MUST print an in-degree of 0 and
 no linkers for a basename that no note links to or that is not a scanned note. It MUST return a
 scan failure wrapped as `count: scan: <error>`, printing nothing.
 
-Supports: 792a8e1a, 792a8e1b, 792a8e1c, 792a8e1d, 792a8e1e, 792a8e1f, 792a8e1g, 792a8e1h, 792a8e1i,
-792a8e1j.
+Supports: [792a8e1a](./792a_product-spec.md#792a8e1-uat-scenarios), [792a8e1b](./792a_product-spec.md#792a8e1-uat-scenarios), [792a8e1c](./792a_product-spec.md#792a8e1-uat-scenarios), [792a8e1d](./792a_product-spec.md#792a8e1-uat-scenarios), [792a8e1e](./792a_product-spec.md#792a8e1-uat-scenarios), [792a8e1f](./792a_product-spec.md#792a8e1-uat-scenarios), [792a8e1g](./792a_product-spec.md#792a8e1-uat-scenarios), [792a8e1h](./792a_product-spec.md#792a8e1-uat-scenarios), [792a8e1i](./792a_product-spec.md#792a8e1-uat-scenarios),
+[792a8e1j](./792a_product-spec.md#792a8e1-uat-scenarios).
 
 ##### 792b25c6a Scenarios
 
@@ -13319,11 +13319,11 @@ Scenario: 792b25c6a4 A scan failure is returned
 
 #### 792b25c7 The two measures are independent
 
-Requirement: 792b25c7 The vault-counter MUST count by attribute only the notes that carry the value
-(792b25c2) and MUST count by incoming link every note that links (792b25c6), so that a node's
+Requirement: [792b25c7](#792b25c7-the-two-measures-are-independent) The vault-counter MUST count by attribute only the notes that carry the value
+([792b25c2](#792b25c2-attribute-membership-counting)) and MUST count by incoming link every note that links ([792b25c6](#792b25c6-incoming-link-report)), so that a node's
 in-degree equals the attribute count of its value plus the number of linkers that do not carry it.
 
-Supports: 792a8g1a, 792a8g1b.
+Supports: [792a8g1a](./792a_product-spec.md#792a8g1-uat-scenarios), [792a8g1b](./792a_product-spec.md#792a8g1-uat-scenarios).
 
 ##### 792b25c7a Scenarios
 
@@ -13341,10 +13341,10 @@ Scenario: 792b25c7a2 The in-degree exceeds the count by the non-member linkers
 
 #### 792b25c8 No writes
 
-Requirement: 792b25c8 The vault-counter MUST NOT create, modify or delete any file, and MUST count
+Requirement: [792b25c8](#792b25c8-no-writes) The vault-counter MUST NOT create, modify or delete any file, and MUST count
 from the notes alone, without a sidecar or an embedding.
 
-Supports: 792a8h1a, 792a8h1b.
+Supports: [792a8h1a](./792a_product-spec.md#792a8h1-uat-scenarios), [792a8h1b](./792a_product-spec.md#792a8h1-uat-scenarios).
 
 Rationale: counting is read-only and off the recall path (ADR-0018). The component is given only
 listing and reading capabilities, so it cannot write.
@@ -13367,43 +13367,43 @@ Scenario: 792b25c8a2 Notes are counted without sidecars
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a8a1a | 792b25c2, 792b25c5 |
-| 792a8a1b | 792b25c2, 792b25c5 |
-| 792a8a1c | 792b25c2 |
-| 792a8a1d | 792b25c5 |
-| 792a8a1e | 792b25c2, 792b3c4 |
-| 792a8b1a | 792b25c2, 792b25c5 |
-| 792a8b1b | 792b25c2, 792b25c5 |
-| 792a8b1c | 792b25c5, 792b3c4 |
-| 792a8b1d | 792b25c2 |
-| 792a8c1a | 792b25c3 |
-| 792a8c1b | 792b25c3 |
-| 792a8c1c | 792b25c3 |
-| 792a8c1d | 792b25c3 |
-| 792a8c1e | 792b25c5 |
-| 792a8c1f | 792b25c3, 792b2c4 |
-| 792a8d1a | 792b25c4, 792b6c6 |
-| 792a8d1b | 792b25c4 |
-| 792a8d1c | 792b25c4, 792b6c6, 792b6c8 |
-| 792a8e1a | 792b25c6 |
-| 792a8e1b | 792b25c6 |
-| 792a8e1c | 792b25c6 |
-| 792a8e1d | 792b25c6, 792b13c4 |
-| 792a8e1e | 792b25c6, 792b13c4 |
-| 792a8e1f | 792b25c6, 792b13c3 |
-| 792a8e1g | 792b25c6, 792b13c3 |
-| 792a8e1h | 792b25c6, 792b13c4 |
-| 792a8e1i | 792b25c6, 792b13c1 |
-| 792a8e1j | 792b25c6, 792b13c1, 792b2c4 |
-| 792a8f1a | 792b25c1, 792b2c4 |
-| 792a8f1b | 792b25c1, 792b2c4 |
-| 792a8f1c | 792b25c1, 792b2c4 |
-| 792a8g1a | 792b25c7 |
-| 792a8g1b | 792b25c7 |
-| 792a8h1a | 792b25c8 |
-| 792a8h1b | 792b25c8 |
-| 792a17m1a | 792b25c2, 792b25c3 |
-| 792a17m1c | 792b25c2 |
+| [792a8a1a](./792a_product-spec.md#792a8a1-uat-scenarios) | [792b25c2](#792b25c2-attribute-membership-counting), [792b25c5](#792b25c5-attribute-count-report) |
+| [792a8a1b](./792a_product-spec.md#792a8a1-uat-scenarios) | [792b25c2](#792b25c2-attribute-membership-counting), [792b25c5](#792b25c5-attribute-count-report) |
+| [792a8a1c](./792a_product-spec.md#792a8a1-uat-scenarios) | [792b25c2](#792b25c2-attribute-membership-counting) |
+| [792a8a1d](./792a_product-spec.md#792a8a1-uat-scenarios) | [792b25c5](#792b25c5-attribute-count-report) |
+| [792a8a1e](./792a_product-spec.md#792a8a1-uat-scenarios) | [792b25c2](#792b25c2-attribute-membership-counting), [792b3c4](#792b3c4-vault-markdown-listing) |
+| [792a8b1a](./792a_product-spec.md#792a8b1-uat-scenarios) | [792b25c2](#792b25c2-attribute-membership-counting), [792b25c5](#792b25c5-attribute-count-report) |
+| [792a8b1b](./792a_product-spec.md#792a8b1-uat-scenarios) | [792b25c2](#792b25c2-attribute-membership-counting), [792b25c5](#792b25c5-attribute-count-report) |
+| [792a8b1c](./792a_product-spec.md#792a8b1-uat-scenarios) | [792b25c5](#792b25c5-attribute-count-report), [792b3c4](#792b3c4-vault-markdown-listing) |
+| [792a8b1d](./792a_product-spec.md#792a8b1-uat-scenarios) | [792b25c2](#792b25c2-attribute-membership-counting) |
+| [792a8c1a](./792a_product-spec.md#792a8c1-uat-scenarios) | [792b25c3](#792b25c3-filters) |
+| [792a8c1b](./792a_product-spec.md#792a8c1-uat-scenarios) | [792b25c3](#792b25c3-filters) |
+| [792a8c1c](./792a_product-spec.md#792a8c1-uat-scenarios) | [792b25c3](#792b25c3-filters) |
+| [792a8c1d](./792a_product-spec.md#792a8c1-uat-scenarios) | [792b25c3](#792b25c3-filters) |
+| [792a8c1e](./792a_product-spec.md#792a8c1-uat-scenarios) | [792b25c5](#792b25c5-attribute-count-report) |
+| [792a8c1f](./792a_product-spec.md#792a8c1-uat-scenarios) | [792b25c3](#792b25c3-filters), [792b2c4](#792b2c4-result-reporting) |
+| [792a8d1a](./792a_product-spec.md#792a8d1-uat-scenarios) | [792b25c4](#792b25c4-uncountable-notes), [792b6c6](#792b6c6-frontmatter-splitting) |
+| [792a8d1b](./792a_product-spec.md#792a8d1-uat-scenarios) | [792b25c4](#792b25c4-uncountable-notes) |
+| [792a8d1c](./792a_product-spec.md#792a8d1-uat-scenarios) | [792b25c4](#792b25c4-uncountable-notes), [792b6c6](#792b6c6-frontmatter-splitting), [792b6c8](#792b6c8-crlf-reading) |
+| [792a8e1a](./792a_product-spec.md#792a8e1-uat-scenarios) | [792b25c6](#792b25c6-incoming-link-report) |
+| [792a8e1b](./792a_product-spec.md#792a8e1-uat-scenarios) | [792b25c6](#792b25c6-incoming-link-report) |
+| [792a8e1c](./792a_product-spec.md#792a8e1-uat-scenarios) | [792b25c6](#792b25c6-incoming-link-report) |
+| [792a8e1d](./792a_product-spec.md#792a8e1-uat-scenarios) | [792b25c6](#792b25c6-incoming-link-report), [792b13c4](#792b13c4-link-graph) |
+| [792a8e1e](./792a_product-spec.md#792a8e1-uat-scenarios) | [792b25c6](#792b25c6-incoming-link-report), [792b13c4](#792b13c4-link-graph) |
+| [792a8e1f](./792a_product-spec.md#792a8e1-uat-scenarios) | [792b25c6](#792b25c6-incoming-link-report), [792b13c3](#792b13c3-link-targets) |
+| [792a8e1g](./792a_product-spec.md#792a8e1-uat-scenarios) | [792b25c6](#792b25c6-incoming-link-report), [792b13c3](#792b13c3-link-targets) |
+| [792a8e1h](./792a_product-spec.md#792a8e1-uat-scenarios) | [792b25c6](#792b25c6-incoming-link-report), [792b13c4](#792b13c4-link-graph) |
+| [792a8e1i](./792a_product-spec.md#792a8e1-uat-scenarios) | [792b25c6](#792b25c6-incoming-link-report), [792b13c1](#792b13c1-vault-scan) |
+| [792a8e1j](./792a_product-spec.md#792a8e1-uat-scenarios) | [792b25c6](#792b25c6-incoming-link-report), [792b13c1](#792b13c1-vault-scan), [792b2c4](#792b2c4-result-reporting) |
+| [792a8f1a](./792a_product-spec.md#792a8f1-uat-scenarios) | [792b25c1](#792b25c1-mode-selection), [792b2c4](#792b2c4-result-reporting) |
+| [792a8f1b](./792a_product-spec.md#792a8f1-uat-scenarios) | [792b25c1](#792b25c1-mode-selection), [792b2c4](#792b2c4-result-reporting) |
+| [792a8f1c](./792a_product-spec.md#792a8f1-uat-scenarios) | [792b25c1](#792b25c1-mode-selection), [792b2c4](#792b2c4-result-reporting) |
+| [792a8g1a](./792a_product-spec.md#792a8g1-uat-scenarios) | [792b25c7](#792b25c7-the-two-measures-are-independent) |
+| [792a8g1b](./792a_product-spec.md#792a8g1-uat-scenarios) | [792b25c7](#792b25c7-the-two-measures-are-independent) |
+| [792a8h1a](./792a_product-spec.md#792a8h1-uat-scenarios) | [792b25c8](#792b25c8-no-writes) |
+| [792a8h1b](./792a_product-spec.md#792a8h1-uat-scenarios) | [792b25c8](#792b25c8-no-writes) |
+| [792a17m1a](./792a_product-spec.md#792a17m1-uat-scenarios) | [792b25c2](#792b25c2-attribute-membership-counting), [792b25c3](#792b25c3-filters) |
+| [792a17m1c](./792a_product-spec.md#792a17m1-uat-scenarios) | [792b25c2](#792b25c2-attribute-membership-counting) |
 
 ```gherkin
 Scenario: 792a8a1a A scalar attribute is counted per value
@@ -13533,7 +13533,7 @@ Canonical target: `docs/specs/technical/vault-invariant-checker.md` (title `Vaul
   tested directly over a fake scan, note reader and sidecar reader and over a real directory;
   stability, a vault with invariants that something checks is a lasting need; necessity, `engram
   check` is this contract.
-- Supported capabilities: 792a9 vault-health.
+- Supported capabilities: [792a9](./792a_product-spec.md#792a9-added-vault-health) vault-health.
 
 Rationale: the memory system once shipped structural breaks that went uncaught for a long time, and
 its testing validated downstream results, never its own internals. A link written in one form and
@@ -13542,7 +13542,7 @@ trusting `grep` and a report of success over reading the frontmatter and running
 invariant defined to trip over. So the invariants are executable: a check over the real vault that
 parses it, rather than searching its text, and reports a violation where an agent or a person will
 see it. The original plan wired the check as a `targ` gate so that a violation fails CI; no such gate
-exists today (792d99). Severity separates a break in correctness from corpus health: only a `FAIL`
+exists today ([792d99](./792d_decision-log.md#792d99-vault-health-scope-and-the-behaviors-the-code-shows)). Severity separates a break in correctness from corpus health: only a `FAIL`
 breaks correctness and fails the run, while a `WARN` reports without blocking, because a
 legitimately standalone note or a deleted note's name is not an error.
 
@@ -13580,14 +13580,14 @@ sequenceDiagram
 
 #### 792b26c1 Running the checks
 
-Requirement: 792b26c1 The vault-invariant-checker MUST scan the vault (792b13c1), run the link check
-(792b26c2), then the situation check (792b26c3), then the sidecar check (792b26c4), and print each
+Requirement: [792b26c1](#792b26c1-running-the-checks) The vault-invariant-checker MUST scan the vault ([792b13c1](#792b13c1-vault-scan)), run the link check
+([792b26c2](#792b26c2-link-resolution)), then the situation check ([792b26c3](#792b26c3-situation-presence)), then the sidecar check ([792b26c4](#792b26c4-sidecar-schema)), and print each
 check's lines in that order. It MUST return the error `check: FAIL-class invariant violations found`
 when any check reported a failure, and MUST return no error when its worst line is a `WARN`. It MUST
 return a scan failure as `check: scan: <error>` before printing any line. It MUST judge a note by
 parsing its bytes, so that a note whose text is not valid UTF-8 is checked like any other.
 
-Supports: 792a9a1a, 792a9a1b, 792a9a1c, 792a9a1e, 792a9a1f, 792a9a1g.
+Supports: [792a9a1a](./792a_product-spec.md#792a9a1-uat-scenarios), [792a9a1b](./792a_product-spec.md#792a9a1-uat-scenarios), [792a9a1c](./792a_product-spec.md#792a9a1-uat-scenarios), [792a9a1e](./792a_product-spec.md#792a9a1-uat-scenarios), [792a9a1f](./792a_product-spec.md#792a9a1-uat-scenarios), [792a9a1g](./792a_product-spec.md#792a9a1-uat-scenarios).
 
 Rationale: a text search that stops at an invalid multibyte sequence silently skipped notes in an early
 census and gave a false count of untagged notes, so a checker must not be built on one.
@@ -13623,8 +13623,8 @@ Scenario: 792b26c1a5 A note that is not valid UTF-8 is checked
 
 #### 792b26c2 Link resolution
 
-Requirement: 792b26c2 The vault-invariant-checker MUST take the links that resolve to no note
-(792b13c6) and treat a link as a G0 violation when its target is a bare Luhmann ID, one or more digits
+Requirement: [792b26c2](#792b26c2-link-resolution) The vault-invariant-checker MUST take the links that resolve to no note
+([792b13c6](#792b13c6-unresolved-links)) and treat a link as a G0 violation when its target is a bare Luhmann ID, one or more digits
 followed by letters or digits, equal to the part of a scanned note's basename before its first `.`; every
 other unresolved link MUST be a G3 finding. It MUST print `FAIL  G0 graph-resolution: <N> bare-id links
 that should resolve` and list the G0 links, or `PASS  G0 graph-resolution: every authored link resolves
@@ -13632,8 +13632,8 @@ by form` when there are none, and MUST report a failure for G0. It MUST print `W
 authored links target no note` and list the G3 links when there are any, and MUST NOT report a failure
 for them.
 
-Supports: 792a9a1a, 792a9a1b, 792a9a1c, 792a9b1a, 792a9b1b, 792a9b1c, 792a9c1a, 792a9c1b, 792a9c1c,
-792a9c1d, 792a9c1e.
+Supports: [792a9a1a](./792a_product-spec.md#792a9a1-uat-scenarios), [792a9a1b](./792a_product-spec.md#792a9a1-uat-scenarios), [792a9a1c](./792a_product-spec.md#792a9a1-uat-scenarios), [792a9b1a](./792a_product-spec.md#792a9b1-uat-scenarios), [792a9b1b](./792a_product-spec.md#792a9b1-uat-scenarios), [792a9b1c](./792a_product-spec.md#792a9b1-uat-scenarios), [792a9c1a](./792a_product-spec.md#792a9c1-uat-scenarios), [792a9c1b](./792a_product-spec.md#792a9c1-uat-scenarios), [792a9c1c](./792a_product-spec.md#792a9c1-uat-scenarios),
+[792a9c1d](./792a_product-spec.md#792a9c1-uat-scenarios), [792a9c1e](./792a_product-spec.md#792a9c1-uat-scenarios).
 
 Rationale: a link `[[105]]` for a note `105.2026-05-30.foo` could resolve if written in the form the
 graph keys on, so it is a defect to fix and fails the run. A link to a name that is no note at all
@@ -13670,18 +13670,18 @@ Scenario: 792b26c2a5 No G3 line without a dangling link
 
 #### 792b26c3 Situation presence
 
-Requirement: 792b26c3 The vault-invariant-checker MUST read each scanned note, as its LF form, and
-split its frontmatter (792b6c6), and MUST count a note of type `fact` or `feedback` whose `situation`
+Requirement: [792b26c3](#792b26c3-situation-presence) The vault-invariant-checker MUST read each scanned note, as its LF form, and
+split its frontmatter ([792b6c6](#792b6c6-frontmatter-splitting)), and MUST count a note of type `fact` or `feedback` whose `situation`
 is absent, empty or only whitespace. It MUST print `FAIL  M5 situation-presence: <N> note(s) missing
 a situation` and list those notes, or `PASS  M5 situation-presence: every fact/feedback names a
 situation` when there are none, and MUST report a failure for M5. It MUST skip a note it cannot read,
 a note with no frontmatter, a note whose frontmatter does not parse, and a note of any other type.
 
-Supports: 792a9a1a, 792a9d1a, 792a9d1b, 792a9d1c, 792a9d1d, 792a9d1e, 792a9d1f.
+Supports: [792a9a1a](./792a_product-spec.md#792a9a1-uat-scenarios), [792a9d1a](./792a_product-spec.md#792a9d1-uat-scenarios), [792a9d1b](./792a_product-spec.md#792a9d1-uat-scenarios), [792a9d1c](./792a_product-spec.md#792a9d1-uat-scenarios), [792a9d1d](./792a_product-spec.md#792a9d1-uat-scenarios), [792a9d1e](./792a_product-spec.md#792a9d1-uat-scenarios), [792a9d1f](./792a_product-spec.md#792a9d1-uat-scenarios).
 
-Rationale: recall matches a query against each note's situation (792a7d1h), so a fact or feedback note
+Rationale: recall matches a query against each note's situation ([792a7d1h](./792a_product-spec.md#792a7d1-uat-scenarios)), so a fact or feedback note
 without one cannot be found by the situation it was written for. The write paths refuse a blank one
-(792a3f), so this finds a note that reached the vault another way. A note that cannot be read or
+([792a3f](./792a_product-spec.md#792a3f-required-content)), so this finds a note that reached the vault another way. A note that cannot be read or
 parsed is left for the checks that report it.
 
 ##### 792b26c3a Scenarios
@@ -13725,8 +13725,8 @@ Scenario: 792b26c3a7 An unreadable note is skipped
 
 #### 792b26c4 Sidecar schema
 
-Requirement: 792b26c4 The vault-invariant-checker MUST read the sidecar of each scanned note and
-decode it under the current schema (792b10c1). It MUST count a note with no readable sidecar file as
+Requirement: [792b26c4](#792b26c4-sidecar-schema) The vault-invariant-checker MUST read the sidecar of each scanned note and
+decode it under the current schema ([792b10c1](#792b10c1-sidecar-format)). It MUST count a note with no readable sidecar file as
 missing, and a sidecar that does not decode as invalid. It MUST print `WARN  S1 sidecar-schema: <N>
 note(s) missing a sidecar (run `engram embed apply`)` when notes are missing a sidecar and MUST NOT
 report a failure for them. It MUST print `FAIL  S1 sidecar-schema: <N> sidecar(s) on an old/invalid
@@ -13734,7 +13734,7 @@ schema (run `engram embed apply --force`)` and list the notes when a sidecar is 
 report a failure. It MUST print `PASS  S1 sidecar-schema: every sidecar parses under the current
 schema` when no sidecar is invalid, after any missing-sidecar line.
 
-Supports: 792a9a1a, 792a9e1a, 792a9e1b, 792a9e1c, 792a9e1d.
+Supports: [792a9a1a](./792a_product-spec.md#792a9a1-uat-scenarios), [792a9e1a](./792a_product-spec.md#792a9e1-uat-scenarios), [792a9e1b](./792a_product-spec.md#792a9e1-uat-scenarios), [792a9e1c](./792a_product-spec.md#792a9e1-uat-scenarios), [792a9e1d](./792a_product-spec.md#792a9e1-uat-scenarios).
 
 ##### 792b26c4a Scenarios
 
@@ -13762,11 +13762,11 @@ Scenario: 792b26c4a4 A malformed sidecar fails
 
 #### 792b26c5 Example lists
 
-Requirement: 792b26c5 The vault-invariant-checker MUST list at most ten offending items under a
+Requirement: [792b26c5](#792b26c5-example-lists) The vault-invariant-checker MUST list at most ten offending items under a
 violated invariant, one per line, a link as `<source> → [[<target>]]` and a note by its basename, and
 MUST follow ten with the line `… and <N> more` when more were found.
 
-Supports: 792a9a1d.
+Supports: [792a9a1d](./792a_product-spec.md#792a9a1-uat-scenarios).
 
 ##### 792b26c5a Scenarios
 
@@ -13784,9 +13784,9 @@ Scenario: 792b26c5a2 Notes are capped
 
 #### 792b26c6 No writes
 
-Requirement: 792b26c6 The vault-invariant-checker MUST NOT create, modify or delete any file.
+Requirement: [792b26c6](#792b26c6-no-writes) The vault-invariant-checker MUST NOT create, modify or delete any file.
 
-Supports: 792a9f1a.
+Supports: [792a9f1a](./792a_product-spec.md#792a9f1-uat-scenarios).
 
 Rationale: the checker is given listing and reading capabilities only, so it cannot write.
 
@@ -13803,32 +13803,32 @@ Scenario: 792b26c6a1 A check writes nothing
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a9a1a | 792b26c1, 792b26c2, 792b26c3, 792b26c4 |
-| 792a9a1b | 792b26c1, 792b26c2 |
-| 792a9a1c | 792b26c1, 792b26c2 |
-| 792a9a1d | 792b26c5 |
-| 792a9a1e | 792b26c1 |
-| 792a9a1f | 792b26c1 |
-| 792a9a1g | 792b26c1 |
-| 792a9b1a | 792b26c2 |
-| 792a9b1b | 792b26c2 |
-| 792a9b1c | 792b26c2 |
-| 792a9c1a | 792b26c2 |
-| 792a9c1b | 792b26c2 |
-| 792a9c1c | 792b26c2 |
-| 792a9c1d | 792b26c2 |
-| 792a9c1e | 792b26c2 |
-| 792a9d1a | 792b26c3 |
-| 792a9d1b | 792b26c3 |
-| 792a9d1c | 792b26c3 |
-| 792a9d1d | 792b26c3 |
-| 792a9d1e | 792b26c3, 792b6c6 |
-| 792a9d1f | 792b26c3, 792b6c8 |
-| 792a9e1a | 792b26c4 |
-| 792a9e1b | 792b26c4 |
-| 792a9e1c | 792b26c4 |
-| 792a9e1d | 792b26c4 |
-| 792a9f1a | 792b26c6 |
+| [792a9a1a](./792a_product-spec.md#792a9a1-uat-scenarios) | [792b26c1](#792b26c1-running-the-checks), [792b26c2](#792b26c2-link-resolution), [792b26c3](#792b26c3-situation-presence), [792b26c4](#792b26c4-sidecar-schema) |
+| [792a9a1b](./792a_product-spec.md#792a9a1-uat-scenarios) | [792b26c1](#792b26c1-running-the-checks), [792b26c2](#792b26c2-link-resolution) |
+| [792a9a1c](./792a_product-spec.md#792a9a1-uat-scenarios) | [792b26c1](#792b26c1-running-the-checks), [792b26c2](#792b26c2-link-resolution) |
+| [792a9a1d](./792a_product-spec.md#792a9a1-uat-scenarios) | [792b26c5](#792b26c5-example-lists) |
+| [792a9a1e](./792a_product-spec.md#792a9a1-uat-scenarios) | [792b26c1](#792b26c1-running-the-checks) |
+| [792a9a1f](./792a_product-spec.md#792a9a1-uat-scenarios) | [792b26c1](#792b26c1-running-the-checks) |
+| [792a9a1g](./792a_product-spec.md#792a9a1-uat-scenarios) | [792b26c1](#792b26c1-running-the-checks) |
+| [792a9b1a](./792a_product-spec.md#792a9b1-uat-scenarios) | [792b26c2](#792b26c2-link-resolution) |
+| [792a9b1b](./792a_product-spec.md#792a9b1-uat-scenarios) | [792b26c2](#792b26c2-link-resolution) |
+| [792a9b1c](./792a_product-spec.md#792a9b1-uat-scenarios) | [792b26c2](#792b26c2-link-resolution) |
+| [792a9c1a](./792a_product-spec.md#792a9c1-uat-scenarios) | [792b26c2](#792b26c2-link-resolution) |
+| [792a9c1b](./792a_product-spec.md#792a9c1-uat-scenarios) | [792b26c2](#792b26c2-link-resolution) |
+| [792a9c1c](./792a_product-spec.md#792a9c1-uat-scenarios) | [792b26c2](#792b26c2-link-resolution) |
+| [792a9c1d](./792a_product-spec.md#792a9c1-uat-scenarios) | [792b26c2](#792b26c2-link-resolution) |
+| [792a9c1e](./792a_product-spec.md#792a9c1-uat-scenarios) | [792b26c2](#792b26c2-link-resolution) |
+| [792a9d1a](./792a_product-spec.md#792a9d1-uat-scenarios) | [792b26c3](#792b26c3-situation-presence) |
+| [792a9d1b](./792a_product-spec.md#792a9d1-uat-scenarios) | [792b26c3](#792b26c3-situation-presence) |
+| [792a9d1c](./792a_product-spec.md#792a9d1-uat-scenarios) | [792b26c3](#792b26c3-situation-presence) |
+| [792a9d1d](./792a_product-spec.md#792a9d1-uat-scenarios) | [792b26c3](#792b26c3-situation-presence) |
+| [792a9d1e](./792a_product-spec.md#792a9d1-uat-scenarios) | [792b26c3](#792b26c3-situation-presence), [792b6c6](#792b6c6-frontmatter-splitting) |
+| [792a9d1f](./792a_product-spec.md#792a9d1-uat-scenarios) | [792b26c3](#792b26c3-situation-presence), [792b6c8](#792b6c8-crlf-reading) |
+| [792a9e1a](./792a_product-spec.md#792a9e1-uat-scenarios) | [792b26c4](#792b26c4-sidecar-schema) |
+| [792a9e1b](./792a_product-spec.md#792a9e1-uat-scenarios) | [792b26c4](#792b26c4-sidecar-schema) |
+| [792a9e1c](./792a_product-spec.md#792a9e1-uat-scenarios) | [792b26c4](#792b26c4-sidecar-schema) |
+| [792a9e1d](./792a_product-spec.md#792a9e1-uat-scenarios) | [792b26c4](#792b26c4-sidecar-schema) |
+| [792a9f1a](./792a_product-spec.md#792a9f1-uat-scenarios) | [792b26c6](#792b26c6-no-writes) |
 
 ```gherkin
 Scenario: 792a9a1a A clean vault passes
@@ -13924,8 +13924,8 @@ Canonical target: `docs/specs/technical/note-reparenting.md` (title `Note Repare
   directly over fake listing, reading, writing and renaming; stability, a vault whose IDs must change
   without breaking its links is a lasting need; necessity, `engram update --reparent-luhmann` is this
   contract.
-- Supported capabilities: 792a10 vault-migration, 792a21 parent-sync (the alias, 792b27c6). Install-and-update
-  extends it with the command's routing and notices (792d30).
+- Supported capabilities: [792a10](./792a_product-spec.md#792a10-added-vault-migration) vault-migration, [792a21](./792a_product-spec.md#792a21-added-parent-sync) parent-sync (the alias, [792b27c6](#792b27c6-rename-and-link-rewrite)). Install-and-update
+  extends it with the command's routing and notices ([792d30](./792d_decision-log.md#792d30-components-are-migrated-once-and-extended-later)).
 
 Rationale: whether one note is a sub-point of another is a judgment of content that embeddings cannot
 make, so the binary proposes candidates by similarity, an agent judges them, and the binary applies the
@@ -13981,13 +13981,13 @@ sequenceDiagram
 
 #### 792b27c1 Flat-vault detection
 
-Requirement: 792b27c1 The note-reparenting MUST report that a vault holds only top-level notes when it holds
+Requirement: [792b27c1](#792b27c1-flat-vault-detection) The note-reparenting MUST report that a vault holds only top-level notes when it holds
 at least one note file at its root and the Luhmann ID that leads every note file's name has one segment.
 It MUST report false for a vault with no note file, a vault with a note whose ID has more than one segment
 or does not parse, and a vault directory it cannot read, and MUST skip a file whose name is not a note
 name, such as a sidecar.
 
-Supports: 792a10a1a, 792a10a1b, 792a10a1c.
+Supports: [792a10a1a](./792a_product-spec.md#792a10a1-uat-scenarios), [792a10a1b](./792a_product-spec.md#792a10a1-uat-scenarios), [792a10a1c](./792a_product-spec.md#792a10a1-uat-scenarios).
 
 Rationale: a detection failure must never fail `engram update`'s main job, so every uncertain case reads as
 "not flat", and an ID that does not parse counts as branched so a malformed vault is never called flat.
@@ -14023,13 +14023,13 @@ Scenario: 792b27c1a5 An ID that does not parse is not top-level
 
 #### 792b27c2 Candidate selection
 
-Requirement: 792b27c2 The note-reparenting MUST consider each note at the vault root whose Luhmann ID has one
+Requirement: [792b27c2](#792b27c2-candidate-selection) The note-reparenting MUST consider each note at the vault root whose Luhmann ID has one
 segment and whose sidecar yields a non-empty body vector, in ascending filename order. For each, it MUST keep
-as candidates the up to three other considered notes whose body vectors have cosine similarity (792b10c8) of at
+as candidates the up to three other considered notes whose body vectors have cosine similarity ([792b10c8](#792b10c8-cosine-similarity)) of at
 least 0.75 with its own, nearest first, each carrying its ID, an excerpt of its body of at most 200 bytes
 (empty when the note cannot be read), the target's ID and excerpt, and the similarity.
 
-Supports: 792a10c1a, 792a10c1b, 792a10c1d.
+Supports: [792a10c1a](./792a_product-spec.md#792a10c1-uat-scenarios), [792a10c1b](./792a_product-spec.md#792a10c1-uat-scenarios), [792a10c1d](./792a_product-spec.md#792a10c1-uat-scenarios).
 
 ##### 792b27c2a Scenarios
 
@@ -14062,16 +14062,16 @@ Scenario: 792b27c2a5 An excerpt is capped
 
 #### 792b27c3 Derive output
 
-Requirement: 792b27c3 The note-reparenting MUST, with no answers file, write nothing to the vault and print
+Requirement: [792b27c3](#792b27c3-derive-output) The note-reparenting MUST, with no answers file, write nothing to the vault and print
 either `update --reparent-luhmann: no candidates found` or a JSON document with the candidates, a
-`fingerprint` that is the vocabulary derivation fingerprint (792b20c13) over the considered notes' names and
+`fingerprint` that is the vocabulary derivation fingerprint ([792b20c13](#792b20c13-deriving-clusters)) over the considered notes' names and
 vectors, a `next_command` of `engram update --reparent-luhmann --answers <path-to-answers-file>`, and an
 `instruction` that names the learn skill's batch mode, states the answers-file shape
 `{"reparenting":[{"note","position","target"}],"fingerprint"}`, requires one entry per distinct candidate
 note, sends the finished file back to the user or orchestrating agent to preview with `next_command` and
 `--dry-run` and then apply, and does not tell the answering pass to run apply.
 
-Supports: 792a10c1a, 792a10c1b, 792a10c1c.
+Supports: [792a10c1a](./792a_product-spec.md#792a10c1-uat-scenarios), [792a10c1b](./792a_product-spec.md#792a10c1-uat-scenarios), [792a10c1c](./792a_product-spec.md#792a10c1-uat-scenarios).
 
 ##### 792b27c3a Scenarios
 
@@ -14104,13 +14104,13 @@ Scenario: 792b27c3a5 Deriving writes nothing
 
 #### 792b27c4 Answers validation
 
-Requirement: 792b27c4 The note-reparenting MUST read the answers file and return, writing nothing, an error
+Requirement: [792b27c4](#792b27c4-answers-validation) The note-reparenting MUST read the answers file and return, writing nothing, an error
 when it cannot be read (`reading --answers`), when it is not valid JSON (`cannot parse --answers JSON`), when
 its `fingerprint` differs from the fingerprint of the vault's current top-level notes (the stale error, which
 says to re-run `engram update --reparent-luhmann`), and when an answer names a note ID that no note holds
 (`--answers references an unknown note`).
 
-Supports: 792a10d1a, 792a10d1b, 792a10d1c, 792a10d1d.
+Supports: [792a10d1a](./792a_product-spec.md#792a10d1-uat-scenarios), [792a10d1b](./792a_product-spec.md#792a10d1-uat-scenarios), [792a10d1c](./792a_product-spec.md#792a10d1-uat-scenarios), [792a10d1d](./792a_product-spec.md#792a10d1-uat-scenarios).
 
 ##### 792b27c4a Scenarios
 
@@ -14138,13 +14138,13 @@ Scenario: 792b27c4a4 An unknown note
 
 #### 792b27c5 Rename map
 
-Requirement: 792b27c5 The note-reparenting MUST build the old-to-new basename map from the answers, taking
+Requirement: [792b27c5](#792b27c5-rename-map) The note-reparenting MUST build the old-to-new basename map from the answers, taking
 them in ascending numeric order of the answered note IDs, with an ID that is not numeric after the numeric
 ones in string order. It MUST skip an answer whose position is `top`, give every other answer the ID that the
-Luhmann allocator (792b7c4) allocates for its position and target against the existing IDs and the IDs
+Luhmann allocator ([792b7c4](#792b7c4-next-id-allocation)) allocates for its position and target against the existing IDs and the IDs
 allocated earlier in the run, and keep the note's date and slug in the new basename.
 
-Supports: 792a10e1a, 792a10e1b, 792a10e1d.
+Supports: [792a10e1a](./792a_product-spec.md#792a10e1-uat-scenarios), [792a10e1b](./792a_product-spec.md#792a10e1-uat-scenarios), [792a10e1d](./792a_product-spec.md#792a10e1-uat-scenarios).
 
 ##### 792b27c5a Scenarios
 
@@ -14172,7 +14172,7 @@ Scenario: 792b27c5a4 A top answer is skipped
 
 #### 792b27c6 Rename and link rewrite
 
-Requirement: 792b27c6 The note-reparenting MUST, given a rename map, do nothing when it is empty, and otherwise
+Requirement: [792b27c6](#792b27c6-rename-and-link-rewrite) The note-reparenting MUST, given a rename map, do nothing when it is empty, and otherwise
 rename each noted note's file and its sidecar (when it has one), write its content with `luhmann:` set to the
 new ID and the old basename appended to its `aliases:` (and the new basename removed from them), and rewrite,
 in every note's text, every `[[old]]` and `[[old.md]]` to `[[new]]` in the body and in every frontmatter
@@ -14184,7 +14184,7 @@ leave a renamed note with no `luhmann:` key without one. It MUST return the path
 references it rewrote and of the renamed notes it converted, and MUST return a failure to list, read, rename
 or write a note naming it.
 
-Supports: 792a10e1a, 792a10e1c, 792a10e1e, 792a10e1g.
+Supports: [792a10e1a](./792a_product-spec.md#792a10e1-uat-scenarios), [792a10e1c](./792a_product-spec.md#792a10e1-uat-scenarios), [792a10e1e](./792a_product-spec.md#792a10e1-uat-scenarios), [792a10e1g](./792a_product-spec.md#792a10e1-uat-scenarios).
 
 Rationale: a `parent:` link's `note:` names a note in another vault, never a local reference, so a local
 rename must leave it alone. A basename uses only `[a-z0-9.-]`, so swapping one for another inside a plain,
@@ -14271,7 +14271,7 @@ Scenario: 792b27c6a15 A write failure is returned
 
 #### 792b27c7 Rename safety
 
-Requirement: 792b27c7 The note-reparenting MUST, before it renames or writes any file, render the new content
+Requirement: [792b27c7](#792b27c7-rename-safety) The note-reparenting MUST, before it renames or writes any file, render the new content
 of every note it would rename, with CRLF converted, references rewritten, `luhmann:` set and the alias
 appended, and refuse the whole invocation with one joined error naming each refused note and its reason when
 that content's frontmatter does not decode as a mapping or its `luhmann:` is not the new ID. It MUST then
@@ -14280,7 +14280,7 @@ that same write, and a CRLF note it does not write MUST stay byte-identical. A c
 hash MUST equal that of the same note authored with LF, and a note with LF frontmatter MUST keep its hash.
 A preview MUST run the same pre-flight, and an empty map MUST preflight nothing.
 
-Supports: 792a10h1c, 792a10i1a, 792a10i1b, 792a10i1c, 792a10i1d, 792a10i1e, 792a10i1f, 792a10i1g.
+Supports: [792a10h1c](./792a_product-spec.md#792a10h1-uat-scenarios), [792a10i1a](./792a_product-spec.md#792a10i1-uat-scenarios), [792a10i1b](./792a_product-spec.md#792a10i1-uat-scenarios), [792a10i1c](./792a_product-spec.md#792a10i1-uat-scenarios), [792a10i1d](./792a_product-spec.md#792a10i1-uat-scenarios), [792a10i1e](./792a_product-spec.md#792a10i1-uat-scenarios), [792a10i1f](./792a_product-spec.md#792a10i1-uat-scenarios), [792a10i1g](./792a_product-spec.md#792a10i1-uat-scenarios).
 
 Rationale: re-rendering would lose a key the note model does not define, and an anchored `luhmann:` that
 another key aliases cannot be replaced without leaving that alias dangling. Converting a CRLF note only
@@ -14322,11 +14322,11 @@ Scenario: 792b27c7a6 A preview preflights the same notes
 
 #### 792b27c8 Sidecars of rewritten notes
 
-Requirement: 792b27c8 The note-reparenting MUST, after a rename, rebuild the sidecar (792b10c5) of each note it
+Requirement: [792b27c8](#792b27c8-sidecars-of-rewritten-notes) The note-reparenting MUST, after a rename, rebuild the sidecar ([792b10c5](#792b10c5-building-a-sidecar)) of each note it
 reports as rewritten or converted, from the note's current content, and MUST return a failure to read, embed or
 write.
 
-Supports: 792a10e1f, 792a10i1c.
+Supports: [792a10e1f](./792a_product-spec.md#792a10e1-uat-scenarios), [792a10i1c](./792a_product-spec.md#792a10i1-uat-scenarios).
 
 ##### 792b27c8a Scenarios
 
@@ -14349,15 +14349,15 @@ Scenario: 792b27c8a3 A rebuild failure is returned
 
 #### 792b27c9 Apply flow
 
-Requirement: 792b27c9 The note-reparenting MUST, once the answers are valid, apply the rename map (792b27c6,
-792b27c8) and print `update --reparent-luhmann: renamed <N> note(s)`, and, only when the map is not empty,
+Requirement: [792b27c9](#792b27c9-apply-flow) The note-reparenting MUST, once the answers are valid, apply the rename map ([792b27c6](#792b27c6-rename-and-link-rewrite),
+[792b27c8](#792b27c8-sidecars-of-rewritten-notes)) and print `update --reparent-luhmann: renamed <N> note(s)`, and, only when the map is not empty,
 re-index the vault's notes with ingest and then prune the old paths from the chunk manifest. When either stage
 fails it MUST print which stage failed, that the vault rename above is intact and authoritative, and which
 manual commands finish the reconciliation, and return the failure without undoing the rename. It MUST finish by
 deriving candidates against the resulting vault and printing either `<N> further candidate(s) found — run
 `engram update --reparent-luhmann` again` or `no further candidates — vault fully evaluated`.
 
-Supports: 792a10e1d, 792a10f1a, 792a10f1b, 792a10f1c, 792a10g1a, 792a10g1b.
+Supports: [792a10e1d](./792a_product-spec.md#792a10e1-uat-scenarios), [792a10f1a](./792a_product-spec.md#792a10f1-uat-scenarios), [792a10f1b](./792a_product-spec.md#792a10f1-uat-scenarios), [792a10f1c](./792a_product-spec.md#792a10f1-uat-scenarios), [792a10g1a](./792a_product-spec.md#792a10g1-uat-scenarios), [792a10g1b](./792a_product-spec.md#792a10g1-uat-scenarios).
 
 Rationale: Apply runs the rename and rewrite, then ingest, then prune, so the new paths are indexed before the
 old ones are detached and no renamed note is ever unindexed. A failure in ingest or prune does not roll back
@@ -14400,14 +14400,14 @@ Scenario: 792b27c9a6 A fully evaluated vault is reported
 
 #### 792b27c10 Preview
 
-Requirement: 792b27c10 The note-reparenting MUST, with the dry-run flag and an answers file, validate the
-answers (792b27c4), run the pre-flight (792b27c7), and print `update --reparent-luhmann (dry-run): would
+Requirement: [792b27c10](#792b27c10-preview) The note-reparenting MUST, with the dry-run flag and an answers file, validate the
+answers ([792b27c4](#792b27c4-answers-validation)), run the pre-flight ([792b27c7](#792b27c7-rename-safety)), and print `update --reparent-luhmann (dry-run): would
 rename`, each `<old> -> <new>` in ascending order of old basename, and `references rewritten in: <note>` for
 each other note whose references would change, or `update --reparent-luhmann (dry-run): no renames`, without
 renaming, rewriting, re-indexing or pruning. It MUST return a usage error, `update --reparent-luhmann
 --dry-run requires --answers`, when the dry-run flag is given without an answers file.
 
-Supports: 792a10h1a, 792a10h1b, 792a10h1c.
+Supports: [792a10h1a](./792a_product-spec.md#792a10h1-uat-scenarios), [792a10h1b](./792a_product-spec.md#792a10h1-uat-scenarios), [792a10h1c](./792a_product-spec.md#792a10h1-uat-scenarios).
 
 ##### 792b27c10a Scenarios
 
@@ -14437,42 +14437,42 @@ Scenario: 792b27c10a4 The apply skips the chunk pipeline on a preview
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a10a1a | 792b27c1 |
-| 792a10a1b | 792b27c1 |
-| 792a10a1c | 792b27c1 |
-| 792a10c1a | 792b27c2, 792b27c3 |
-| 792a10c1b | 792b27c2, 792b27c3 |
-| 792a10c1c | 792b27c3 |
-| 792a10c1d | 792b27c2 |
-| 792a10d1a | 792b27c4, 792b2c4 |
-| 792a10d1b | 792b27c4, 792b2c4 |
-| 792a10d1c | 792b27c4, 792b2c4 |
-| 792a10d1d | 792b27c4, 792b2c4 |
-| 792a10e1a | 792b27c5, 792b27c6, 792b27c9 |
-| 792a10e1b | 792b27c5 |
-| 792a10e1c | 792b27c6 |
-| 792a10e1d | 792b27c5, 792b27c9 |
-| 792a10e1e | 792b27c6 |
-| 792a10e1f | 792b27c8 |
-| 792a10e1g | 792b27c6 |
-| 792a10f1a | 792b27c9 |
-| 792a10f1b | 792b27c9 |
-| 792a10f1c | 792b27c9 |
-| 792a10g1a | 792b27c9 |
-| 792a10g1b | 792b27c9 |
-| 792a10h1a | 792b27c10 |
-| 792a10h1b | 792b27c10 |
-| 792a10h1c | 792b27c7, 792b27c10 |
-| 792a10i1a | 792b27c7 |
-| 792a10i1b | 792b27c7 |
-| 792a10i1c | 792b27c7, 792b27c8 |
-| 792a10i1d | 792b27c7 |
-| 792a10i1e | 792b27c7 |
-| 792a10i1f | 792b27c7 |
-| 792a10i1g | 792b27c7 |
-| 792a12i1a | 792b27c6, 792b27c7 |
-| 792a12i1d | 792b27c7 |
-| 792a21zk1a | 792b27c6 |
+| [792a10a1a](./792a_product-spec.md#792a10a1-uat-scenarios) | [792b27c1](#792b27c1-flat-vault-detection) |
+| [792a10a1b](./792a_product-spec.md#792a10a1-uat-scenarios) | [792b27c1](#792b27c1-flat-vault-detection) |
+| [792a10a1c](./792a_product-spec.md#792a10a1-uat-scenarios) | [792b27c1](#792b27c1-flat-vault-detection) |
+| [792a10c1a](./792a_product-spec.md#792a10c1-uat-scenarios) | [792b27c2](#792b27c2-candidate-selection), [792b27c3](#792b27c3-derive-output) |
+| [792a10c1b](./792a_product-spec.md#792a10c1-uat-scenarios) | [792b27c2](#792b27c2-candidate-selection), [792b27c3](#792b27c3-derive-output) |
+| [792a10c1c](./792a_product-spec.md#792a10c1-uat-scenarios) | [792b27c3](#792b27c3-derive-output) |
+| [792a10c1d](./792a_product-spec.md#792a10c1-uat-scenarios) | [792b27c2](#792b27c2-candidate-selection) |
+| [792a10d1a](./792a_product-spec.md#792a10d1-uat-scenarios) | [792b27c4](#792b27c4-answers-validation), [792b2c4](#792b2c4-result-reporting) |
+| [792a10d1b](./792a_product-spec.md#792a10d1-uat-scenarios) | [792b27c4](#792b27c4-answers-validation), [792b2c4](#792b2c4-result-reporting) |
+| [792a10d1c](./792a_product-spec.md#792a10d1-uat-scenarios) | [792b27c4](#792b27c4-answers-validation), [792b2c4](#792b2c4-result-reporting) |
+| [792a10d1d](./792a_product-spec.md#792a10d1-uat-scenarios) | [792b27c4](#792b27c4-answers-validation), [792b2c4](#792b2c4-result-reporting) |
+| [792a10e1a](./792a_product-spec.md#792a10e1-uat-scenarios) | [792b27c5](#792b27c5-rename-map), [792b27c6](#792b27c6-rename-and-link-rewrite), [792b27c9](#792b27c9-apply-flow) |
+| [792a10e1b](./792a_product-spec.md#792a10e1-uat-scenarios) | [792b27c5](#792b27c5-rename-map) |
+| [792a10e1c](./792a_product-spec.md#792a10e1-uat-scenarios) | [792b27c6](#792b27c6-rename-and-link-rewrite) |
+| [792a10e1d](./792a_product-spec.md#792a10e1-uat-scenarios) | [792b27c5](#792b27c5-rename-map), [792b27c9](#792b27c9-apply-flow) |
+| [792a10e1e](./792a_product-spec.md#792a10e1-uat-scenarios) | [792b27c6](#792b27c6-rename-and-link-rewrite) |
+| [792a10e1f](./792a_product-spec.md#792a10e1-uat-scenarios) | [792b27c8](#792b27c8-sidecars-of-rewritten-notes) |
+| [792a10e1g](./792a_product-spec.md#792a10e1-uat-scenarios) | [792b27c6](#792b27c6-rename-and-link-rewrite) |
+| [792a10f1a](./792a_product-spec.md#792a10f1-uat-scenarios) | [792b27c9](#792b27c9-apply-flow) |
+| [792a10f1b](./792a_product-spec.md#792a10f1-uat-scenarios) | [792b27c9](#792b27c9-apply-flow) |
+| [792a10f1c](./792a_product-spec.md#792a10f1-uat-scenarios) | [792b27c9](#792b27c9-apply-flow) |
+| [792a10g1a](./792a_product-spec.md#792a10g1-uat-scenarios) | [792b27c9](#792b27c9-apply-flow) |
+| [792a10g1b](./792a_product-spec.md#792a10g1-uat-scenarios) | [792b27c9](#792b27c9-apply-flow) |
+| [792a10h1a](./792a_product-spec.md#792a10h1-uat-scenarios) | [792b27c10](#792b27c10-preview) |
+| [792a10h1b](./792a_product-spec.md#792a10h1-uat-scenarios) | [792b27c10](#792b27c10-preview) |
+| [792a10h1c](./792a_product-spec.md#792a10h1-uat-scenarios) | [792b27c7](#792b27c7-rename-safety), [792b27c10](#792b27c10-preview) |
+| [792a10i1a](./792a_product-spec.md#792a10i1-uat-scenarios) | [792b27c7](#792b27c7-rename-safety) |
+| [792a10i1b](./792a_product-spec.md#792a10i1-uat-scenarios) | [792b27c7](#792b27c7-rename-safety) |
+| [792a10i1c](./792a_product-spec.md#792a10i1-uat-scenarios) | [792b27c7](#792b27c7-rename-safety), [792b27c8](#792b27c8-sidecars-of-rewritten-notes) |
+| [792a10i1d](./792a_product-spec.md#792a10i1-uat-scenarios) | [792b27c7](#792b27c7-rename-safety) |
+| [792a10i1e](./792a_product-spec.md#792a10i1-uat-scenarios) | [792b27c7](#792b27c7-rename-safety) |
+| [792a10i1f](./792a_product-spec.md#792a10i1-uat-scenarios) | [792b27c7](#792b27c7-rename-safety) |
+| [792a10i1g](./792a_product-spec.md#792a10i1-uat-scenarios) | [792b27c7](#792b27c7-rename-safety) |
+| [792a12i1a](./792a_product-spec.md#792a12i1-uat-scenarios) | [792b27c6](#792b27c6-rename-and-link-rewrite), [792b27c7](#792b27c7-rename-safety) |
+| [792a12i1d](./792a_product-spec.md#792a12i1-uat-scenarios) | [792b27c7](#792b27c7-rename-safety) |
+| [792a21zk1a](./792a_product-spec.md#792a21zk1-uat-scenarios) | [792b27c6](#792b27c6-rename-and-link-rewrite) |
 
 ```gherkin
 Scenario: 792a10a1a Only top-level notes
@@ -14634,10 +14634,10 @@ Canonical target: `docs/specs/technical/self-installer.md` (title `Self Installe
   steps run over a fake commander, filesystem and spawner, and the update run over fakes of those and a
   recording exit function; stability, the contract survives any change to how the deploy works;
   necessity, `engram update` is the only way a machine receives a new release.
-- Supported capabilities: 792a11 install-and-update, 792a10 vault-migration (the notices and the flag
-  routing), 792a6 controlled-vocabulary (the notices and the `--regen-vocab` summary).
+- Supported capabilities: [792a11](./792a_product-spec.md#792a11-added-install-and-update) install-and-update, [792a10](./792a_product-spec.md#792a10-added-vault-migration) vault-migration (the notices and the flag
+  routing), [792a6](./792a_product-spec.md#792a6-added-controlled-vocabulary) controlled-vocabulary (the notices and the `--regen-vocab` summary).
   Skill-runbook-registration, parent-sync and curate add the registration, outbox and pending-offer
-  steps and notices of the update run (792d103).
+  steps and notices of the update run ([792d103](./792d_decision-log.md#792d103-install-and-update-scope-ownership-of-the-update-run-and-the-behaviors-the-code-shows)).
 
 Rationale: the installed binary, not the running one, must carry out the deploy, because a release that
 changes how an update works would otherwise take effect one update late (ADR-0023). Because the child
@@ -14701,10 +14701,10 @@ sequenceDiagram
 
 #### 792b28c1 Install location
 
-Requirement: 792b28c1 The self-installer MUST name the install location `$GOBIN/engram` when `GOBIN` is
+Requirement: [792b28c1](#792b28c1-install-location) The self-installer MUST name the install location `$GOBIN/engram` when `GOBIN` is
 non-empty, else `$GOPATH/bin/engram` when `GOPATH` is non-empty, else `<home>/go/bin/engram`.
 
-Supports: 792a11a1c, 792a11d1b.
+Supports: [792a11a1c](./792a_product-spec.md#792a11a1-uat-scenarios), [792a11d1b](./792a_product-spec.md#792a11d1-uat-scenarios).
 
 Rationale: this is where `go install` puts the binary, in the toolchain's own order, so the hand-off
 starts the binary that was just installed.
@@ -14730,7 +14730,7 @@ Scenario: 792b28c1a3 The home directory is the fallback
 
 #### 792b28c2 Source choice
 
-Requirement: 792b28c2 The self-installer MUST look for a `go.mod` in the working directory and then in each
+Requirement: [792b28c2](#792b28c2-source-choice) The self-installer MUST look for a `go.mod` in the working directory and then in each
 parent up to the filesystem root, MUST decide on the first one it finds, and MUST take its directory as a
 local source only when the first line of the file that is neither blank nor a `//` comment is a `module`
 directive naming `github.com/toejough/engram` (a trailing `//` comment after the name is ignored). It MUST
@@ -14738,7 +14738,7 @@ use a fresh clone when it finds no `go.mod`, or finds one for another module, or
 is not `module`. It MUST fail naming the path when a `go.mod` exists but cannot be read, and the walk MUST
 end for every path.
 
-Supports: 792a11a1a, 792a11a1b, 792a11a1d.
+Supports: [792a11a1a](./792a_product-spec.md#792a11a1-uat-scenarios), [792a11a1b](./792a_product-spec.md#792a11a1-uat-scenarios), [792a11a1d](./792a_product-spec.md#792a11a1-uat-scenarios).
 
 Rationale: stopping at the nearest `go.mod` means a checkout of another Go module, such as an engram
 vendored inside a larger project, is not mistaken for the engram source.
@@ -14794,13 +14794,13 @@ Scenario: 792b28c2a9 The walk ends for every path
 
 #### 792b28c3 Preconditions
 
-Requirement: 792b28c3 The self-installer MUST fail with an error saying it could not resolve the home
-directory when the home directory cannot be resolved, MUST then detect the harnesses (792b29c1) and fail
+Requirement: [792b28c3](#792b28c3-preconditions) The self-installer MUST fail with an error saying it could not resolve the home
+directory when the home directory cannot be resolved, MUST then detect the harnesses ([792b29c1](#792b29c1-harness-detection)) and fail
 with an error that satisfies `update.ErrNoHarness` and names `~/.claude/` and `~/.pi/` when none is found,
 and MUST then fail with an error naming `getwd` when the working directory cannot be resolved. It MUST
 run no command and write nothing before these checks pass.
 
-Supports: 792a11g1c.
+Supports: [792a11g1c](./792a_product-spec.md#792a11g1-uat-scenarios).
 
 ##### 792b28c3a Scenarios
 
@@ -14823,14 +14823,14 @@ Scenario: 792b28c3a3 An unresolvable working directory is an error
 
 #### 792b28c4 Installing from a local source
 
-Requirement: 792b28c4 When the source is local (792b28c2), the self-installer MUST resolve the module root's
+Requirement: [792b28c4](#792b28c4-installing-from-a-local-source) When the source is local ([792b28c2](#792b28c2-source-choice)), the self-installer MUST resolve the module root's
 revision with `git rev-parse --short HEAD` run in the module root, and MUST use `unknown` when git fails or
-prints nothing. After the downgrade gate (792b28c7) it MUST run `go install ./cmd/engram/` in the module
-root, not the working directory, unless the run is a dry run or the handed-off run (792b28c8). A missing
+prints nothing. After the downgrade gate ([792b28c7](#792b28c7-downgrade-gate)) it MUST run `go install ./cmd/engram/` in the module
+root, not the working directory, unless the run is a dry run or the handed-off run ([792b28c8](#792b28c8-installs-that-are-skipped)). A missing
 `go` MUST be an error satisfying `update.ErrGoNotFound`, and any other install failure an error that
 wraps the failure and names `go install (local)`.
 
-Supports: 792a11a1a, 792a11a1e, 792a11d1a.
+Supports: [792a11a1a](./792a_product-spec.md#792a11a1-uat-scenarios), [792a11a1e](./792a_product-spec.md#792a11a1-uat-scenarios), [792a11d1a](./792a_product-spec.md#792a11d1-uat-scenarios).
 
 ##### 792b28c4a Scenarios
 
@@ -14863,15 +14863,15 @@ Scenario: 792b28c4a5 Another install failure surfaces
 
 #### 792b28c5 Installing from a fresh clone
 
-Requirement: 792b28c5 When there is no local source, the self-installer MUST remove any earlier scratch
+Requirement: [792b28c5](#792b28c5-installing-from-a-fresh-clone) When there is no local source, the self-installer MUST remove any earlier scratch
 clone at `$TMPDIR/engram-update-clone` (`/tmp/engram-update-clone` when `TMPDIR` is empty), run `git clone
---depth 1 https://github.com/toejough/engram.git` into it, check the model (792b28c6), run `go install
+--depth 1 https://github.com/toejough/engram.git` into it, check the model ([792b28c6](#792b28c6-model-check)), run `go install
 ./cmd/engram/` in the clone unless the run is a dry run or the handed-off run, and resolve the clone's
-revision as in 792b28c4. It MUST NOT use `go install …@latest`. A missing `git` MUST be an error
+revision as in [792b28c4](#792b28c4-installing-from-a-local-source). It MUST NOT use `go install …@latest`. A missing `git` MUST be an error
 satisfying `update.ErrGitNotFound`, a failed removal an error naming the clone directory, and any other
 clone failure an error that wraps it and names `git clone`.
 
-Supports: 792a11a1b, 792a11a1f, 792a11d1c.
+Supports: [792a11a1b](./792a_product-spec.md#792a11a1-uat-scenarios), [792a11a1f](./792a_product-spec.md#792a11a1-uat-scenarios), [792a11d1c](./792a_product-spec.md#792a11d1-uat-scenarios).
 
 Rationale: the module proxy serves repository blobs raw, so the git-lfs model arrives as a 133-byte
 pointer and a proxy build embeds it (#645); a clone runs git's smudge filter.
@@ -14907,14 +14907,14 @@ Scenario: 792b28c5a5 Both harnesses are deployed from the clone
 
 #### 792b28c6 Model check
 
-Requirement: 792b28c6 After cloning, the self-installer MUST read `internal/embed/assets/model/model.onnx`
+Requirement: [792b28c6](#792b28c6-model-check) After cloning, the self-installer MUST read `internal/embed/assets/model/model.onnx`
 in the clone, and MUST fail with an error satisfying `update.ErrModelLFSStub` that names the file, its
 size, git-lfs and the install command (``brew install git-lfs && git lfs install``) and says to rerun
 `engram update`, without running `go install`, when the file begins with `version https://git-lfs` or
 holds less than one mebibyte. It MUST fail with an error saying `reading cloned model` when the file cannot
 be read, and MUST continue otherwise.
 
-Supports: 792a11b1a, 792a11b1b, 792a11b1c.
+Supports: [792a11b1a](./792a_product-spec.md#792a11b1-uat-scenarios), [792a11b1b](./792a_product-spec.md#792a11b1-uat-scenarios), [792a11b1c](./792a_product-spec.md#792a11b1-uat-scenarios).
 
 ##### 792b28c6a Scenarios
 
@@ -14942,7 +14942,7 @@ Scenario: 792b28c6a4 A real model passes
 
 #### 792b28c7 Downgrade gate
 
-Requirement: 792b28c7 For a local install that is neither a dry run nor the handed-off run, when a file
+Requirement: [792b28c7](#792b28c7-downgrade-gate) For a local install that is neither a dry run nor the handed-off run, when a file
 exists at the install location, the self-installer MUST read the installed binary's revision as the value
 of the `vcs.revision=` line of `go version -m <install location>`, and MUST install without any ancestry
 check when no line is found or the value is empty, or when `--allow-downgrade` is given. Otherwise it MUST
@@ -14952,7 +14952,7 @@ refuse with an error that satisfies `update.ErrLocalDowngrade` and names the ins
 revisions, the module root and `--allow-downgrade`, without running `go install`. It MUST NOT run `go
 version -m` when no file exists at the install location.
 
-Supports: 792a11c1a, 792a11c1b, 792a11c1c, 792a11c1d, 792a11c1e.
+Supports: [792a11c1a](./792a_product-spec.md#792a11c1-uat-scenarios), [792a11c1b](./792a_product-spec.md#792a11c1-uat-scenarios), [792a11c1c](./792a_product-spec.md#792a11c1-uat-scenarios), [792a11c1d](./792a_product-spec.md#792a11c1-uat-scenarios), [792a11c1e](./792a_product-spec.md#792a11c1-uat-scenarios).
 
 Rationale: `git merge-base --is-ancestor` exits non-zero both for "not an ancestor" and, with `fatal:`, for
 "cannot tell"; only the first is proof. The remote route is exempt, because a fresh clone always builds
@@ -14994,13 +14994,13 @@ Scenario: 792b28c7a6 A descendant installs
 
 #### 792b28c8 Installs that are skipped
 
-Requirement: 792b28c8 The self-installer MUST run no `go install`, and MUST NOT hand off (792b28c9), when
+Requirement: [792b28c8](#792b28c8-installs-that-are-skipped) The self-installer MUST run no `go install`, and MUST NOT hand off ([792b28c9](#792b28c9-hand-off)), when
 the run is a dry run or when the environment variable `ENGRAM_UPDATE_REEXEC` is non-empty (the
 handed-off run), and MUST still resolve the local revision, or clone and check the model for a remote
 source, so that the report names the source. It MUST then plan and deploy in this process. It MUST mark
 the report of a handed-off run as such, and MUST NOT mark the report of an installing run.
 
-Supports: 792a11e1d, 792a11e1e, 792a11f1c.
+Supports: [792a11e1d](./792a_product-spec.md#792a11e1-uat-scenarios), [792a11e1e](./792a_product-spec.md#792a11e1-uat-scenarios), [792a11f1c](./792a_product-spec.md#792a11f1-uat-scenarios).
 
 Rationale: the sentinel is what ends the loop: a handed-off run that installed again would hand off
 again.
@@ -15031,7 +15031,7 @@ Scenario: 792b28c8a4 A remote dry run still clones
 
 #### 792b28c9 Hand-off
 
-Requirement: 792b28c9 After an install that succeeded, unless 792b28c8 applies, the self-installer MUST
+Requirement: [792b28c9](#792b28c9-hand-off) After an install that succeeded, unless [792b28c8](#792b28c8-installs-that-are-skipped) applies, the self-installer MUST
 first have the install result written through the injected hand-off reporter, MUST then start the
 installed binary at the install location (never the running process's own path) with the arguments
 `update` followed by the forwarded flags and with `ENGRAM_UPDATE_REEXEC=1` added to the environment, MUST
@@ -15041,7 +15041,7 @@ completed with pre-update logic: <error>` on the report and complete the deploy 
 install result cannot be written it MUST fail with an error saying `writing re-exec handoff report` and
 MUST NOT start the binary or fall back.
 
-Supports: 792a11e1a, 792a11e1b, 792a11e1c.
+Supports: [792a11e1a](./792a_product-spec.md#792a11e1-uat-scenarios), [792a11e1b](./792a_product-spec.md#792a11e1-uat-scenarios), [792a11e1c](./792a_product-spec.md#792a11e1-uat-scenarios).
 
 Rationale: a failed write to the output means the same broken output would fail the fallback's report, so
 smoothing it into the fallback only hides it.
@@ -15077,18 +15077,18 @@ Scenario: 792b28c9a5 A report that cannot be written aborts
 
 #### 792b28c10 The update run and its flags
 
-Requirement: 792b28c10 The self-installer MUST, when `--reparent-luhmann` is given, run only the
-re-parenting of note-reparenting (792b27c3, 792b27c9, 792b27c10) against the vault and chunk index resolved from the home
+Requirement: [792b28c10](#792b28c10-the-update-run-and-its-flags) The self-installer MUST, when `--reparent-luhmann` is given, run only the
+re-parenting of note-reparenting ([792b27c3](#792b27c3-derive-output), [792b27c9](#792b27c9-apply-flow), [792b27c10](#792b27c10-preview)) against the vault and chunk index resolved from the home
 directory and environment, writing its output to the command's output, with no harness detection, install
 or deploy, and MUST fail with an error naming `update --reparent-luhmann: resolving home` when the home
 cannot be resolved. Otherwise it MUST run the update with `--with-guidance` and `--allow-downgrade`
 carried into its options, MUST forward `--with-guidance`, `--regen-vocab` and `--backfill-identity`, and
 no other flag, to the handed-off run, and MUST NOT call the re-parenting. After a hand-off it MUST call the
-injected exit function once with the child's exit code, run none of the checks of 792b28c11 and write no
+injected exit function once with the child's exit code, run none of the checks of [792b28c11](#792b28c11-checks-after-the-deploy) and write no
 second report; after a fallback it MUST NOT call the exit function. Its help MUST describe the command and
 list its seven flags.
 
-Supports: 792a11o1a, 792a11o1b, 792a11o1c, 792a11e1a, 792a11e1b, 792a11e1c, 792a11e1d, 792a10b1a, 792a10b1b.
+Supports: [792a11o1a](./792a_product-spec.md#792a11o1-uat-scenarios), [792a11o1b](./792a_product-spec.md#792a11o1-uat-scenarios), [792a11o1c](./792a_product-spec.md#792a11o1-uat-scenarios), [792a11e1a](./792a_product-spec.md#792a11e1-uat-scenarios), [792a11e1b](./792a_product-spec.md#792a11e1-uat-scenarios), [792a11e1c](./792a_product-spec.md#792a11e1-uat-scenarios), [792a11e1d](./792a_product-spec.md#792a11e1-uat-scenarios), [792a10b1a](./792a_product-spec.md#792a10b1-uat-scenarios), [792a10b1b](./792a_product-spec.md#792a10b1-uat-scenarios).
 
 Rationale: the re-parenting is a one-shot batch whose answers come from an agent, so it stays apart from
 the routine refresh instead of running as one more step of it.
@@ -15144,7 +15144,7 @@ Scenario: 792b28c10a9 The help lists every flag
 
 #### 792b28c11 Checks after the deploy
 
-Requirement: 792b28c11 When the deploy ran in this process and `Updater.Run` returned no error, the
+Requirement: [792b28c11](#792b28c11-checks-after-the-deploy) When the deploy ran in this process and `Updater.Run` returned no error, the
 self-installer MUST resolve the vault path and the chunk-index directory from the home directory and the
 environment, record on the report whether the vault holds old-format vocabulary files, untagged
 definition self-tags, only top-level notes, notes missing identity, pending offers and an uncommitted
@@ -15155,7 +15155,7 @@ the registration step, and MUST fail with `update: <error>` when a requested reg
 fails. It MUST run none of this when the run failed, and a failing detection MUST leave its flag clear
 rather than fail the update.
 
-Supports: 792a11n1a, 792a11n1b, 792a11n1c, 792a11n1d, 792a6w1a, 792a6w1b, 792a6w1c, 792a10k1a, 792a10k1f.
+Supports: [792a11n1a](./792a_product-spec.md#792a11n1-uat-scenarios), [792a11n1b](./792a_product-spec.md#792a11n1-uat-scenarios), [792a11n1c](./792a_product-spec.md#792a11n1-uat-scenarios), [792a11n1d](./792a_product-spec.md#792a11n1-uat-scenarios), [792a6w1a](./792a_product-spec.md#792a6w1-uat-scenarios), [792a6w1b](./792a_product-spec.md#792a6w1-uat-scenarios), [792a6w1c](./792a_product-spec.md#792a6w1-uat-scenarios), [792a10k1a](./792a_product-spec.md#792a10k1-uat-scenarios), [792a10k1f](./792a_product-spec.md#792a10k1-uat-scenarios).
 
 Rationale: every check reads the machine and the vault as they stand after the deploy, in the release that
 deployed, and an unreadable path means no signal, since a detection failure must never fail `engram update`'s
@@ -15187,10 +15187,10 @@ Scenario: 792b28c11a4 A failed run runs no checks
 
 #### 792b28c12 Report
 
-Requirement: 792b28c12 The self-installer MUST write the report as the lines `engram update`,
+Requirement: [792b28c12](#792b28c12-report) The self-installer MUST write the report as the lines `engram update`,
 `  source: <source>`, `  binary: <binary>`, then (when set) the re-exec failure note, then each harness
 section, which opens with `  <harness> (~/<probe dir>/):`, then `installed: <names>` listing the harnesses without an error, then the guidance hints and the
-notices (792b28c13). The source MUST be `local clone at <root>` with ` (rev <revision>)` when a revision
+notices ([792b28c13](#792b28c13-notices)). The source MUST be `local clone at <root>` with ` (rev <revision>)` when a revision
 is known, `remote module github.com/toejough/engram <revision>`, or `unknown`. The binary MUST be the
 install command for a dry run, else the install command followed by ` ... ok (engram <revision> →
 <install location>)` or `(engram → …)` when the revision is empty. It MUST show a path under the home
@@ -15201,7 +15201,7 @@ installed line when no harness succeeded. In a dry run it MUST prefix `[dry-run]
 installed line and to each other line that describes something done or that would be done, and MUST NOT
 prefix a notice line.
 
-Supports: 792a11d1a, 792a11d1b, 792a11d1c, 792a11e1b, 792a11e1d, 792a11f1b, 792a11g1d.
+Supports: [792a11d1a](./792a_product-spec.md#792a11d1-uat-scenarios), [792a11d1b](./792a_product-spec.md#792a11d1-uat-scenarios), [792a11d1c](./792a_product-spec.md#792a11d1-uat-scenarios), [792a11e1b](./792a_product-spec.md#792a11e1-uat-scenarios), [792a11e1d](./792a_product-spec.md#792a11e1-uat-scenarios), [792a11f1b](./792a_product-spec.md#792a11f1-uat-scenarios), [792a11g1d](./792a_product-spec.md#792a11g1-uat-scenarios).
 
 ##### 792b28c12a Scenarios
 
@@ -15254,16 +15254,16 @@ Scenario: 792b28c12a9 Action lines carry the dry-run prefix and notices do not
 
 #### 792b28c13 Notices
 
-Requirement: 792b28c13 The self-installer MUST print each notice below, in this order and after the
+Requirement: [792b28c13](#792b28c13-notices) The self-installer MUST print each notice below, in this order and after the
 `installed:` line and the guidance hints, exactly when the report's flag for it is set, and MUST print
 nothing for a clear flag: the old-format vocabulary notice, the missing self-tag notice, the Luhmann
 branching notice, the empty chunk-index notice, the duplicates notice and the identity-backfill notice
-(each with the text its capability specifies: 792a6v, 792a10a, 792a10j and 792a11n), then the pending-offer
-notice, the vault-ID notice (792b5c13), the outbox notice and the skill-registration error line, which
+(each with the text its capability specifies: [792a6v](./792a_product-spec.md#792a6v-update-notices), [792a10a](./792a_product-spec.md#792a10a-the-flat-vault-notice), [792a10j](./792a_product-spec.md#792a10j-the-identity-backfill-notice) and [792a11n](./792a_product-spec.md#792a11n-backlog-notices-for-the-chunk-index)), then the pending-offer
+notice, the vault-ID notice ([792b5c13](#792b5c13-uncommitted-id-detection)), the outbox notice and the skill-registration error line, which
 their capabilities specify. The vocabulary and identity notices MUST be replaced by their summaries
-(792b28c14) on a run that applied the matching flag. Notices MUST NOT mention a README section.
+([792b28c14](#792b28c14-summaries-of-the-opt-in-flags)) on a run that applied the matching flag. Notices MUST NOT mention a README section.
 
-Supports: 792a6v1a, 792a6v1b, 792a6v1c, 792a10a1a, 792a10a1b, 792a10a1c, 792a10a1d, 792a10j1a, 792a10j1b, 792a11n1a, 792a11n1b, 792a11n1c, 792a11n1d, 792a11n1e, 792a21za1a, 792a21za1b, 792a22o1g.
+Supports: [792a6v1a](./792a_product-spec.md#792a6v1-uat-scenarios), [792a6v1b](./792a_product-spec.md#792a6v1-uat-scenarios), [792a6v1c](./792a_product-spec.md#792a6v1-uat-scenarios), [792a10a1a](./792a_product-spec.md#792a10a1-uat-scenarios), [792a10a1b](./792a_product-spec.md#792a10a1-uat-scenarios), [792a10a1c](./792a_product-spec.md#792a10a1-uat-scenarios), [792a10a1d](./792a_product-spec.md#792a10a1-uat-scenarios), [792a10j1a](./792a_product-spec.md#792a10j1-uat-scenarios), [792a10j1b](./792a_product-spec.md#792a10j1-uat-scenarios), [792a11n1a](./792a_product-spec.md#792a11n1-uat-scenarios), [792a11n1b](./792a_product-spec.md#792a11n1-uat-scenarios), [792a11n1c](./792a_product-spec.md#792a11n1-uat-scenarios), [792a11n1d](./792a_product-spec.md#792a11n1-uat-scenarios), [792a11n1e](./792a_product-spec.md#792a11n1-uat-scenarios), [792a21za1a](./792a_product-spec.md#792a21za1-uat-scenarios), [792a21za1b](./792a_product-spec.md#792a21za1-uat-scenarios), [792a22o1g](./792a_product-spec.md#792a22o1-uat-scenarios).
 
 ##### 792b28c13a Scenarios
 
@@ -15321,7 +15321,7 @@ Scenario: 792b28c13a10 The pending-offer notice is written
 
 #### 792b28c14 Summaries of the opt-in flags
 
-Requirement: 792b28c14 When `--regen-vocab` ran, the self-installer MUST print its summary in place of the
+Requirement: [792b28c14](#792b28c14-summaries-of-the-opt-in-flags) When `--regen-vocab` ran, the self-installer MUST print its summary in place of the
 old-format notice: `update --regen-vocab: nothing to regenerate` when it removed no file and cleaned no
 member note, else `update --regen-vocab: removed <F> old-format file(s), cleaned <C> member note(s), seeded
 <S> term(s), reassigned <A> note(s)`, saying `would remove` for a dry run and prefixing `[dry-run] `. When
@@ -15329,7 +15329,7 @@ member note, else `update --regen-vocab: removed <F> old-format file(s), cleaned
 no note, else `update --backfill-identity: stamped <N> note(s) with repo:/user:/vault: provenance`, with
 `would stamp` and the prefix for a dry run, in place of the identity notice.
 
-Supports: 792a6w1a, 792a6w1b, 792a6w1c, 792a10k1a, 792a10k1f.
+Supports: [792a6w1a](./792a_product-spec.md#792a6w1-uat-scenarios), [792a6w1b](./792a_product-spec.md#792a6w1-uat-scenarios), [792a6w1c](./792a_product-spec.md#792a6w1-uat-scenarios), [792a10k1a](./792a_product-spec.md#792a10k1-uat-scenarios), [792a10k1f](./792a_product-spec.md#792a10k1-uat-scenarios).
 
 ##### 792b28c14a Scenarios
 
@@ -15367,12 +15367,12 @@ Scenario: 792b28c14a6 A backfill with nothing to do
 
 #### 792b28c15 Exit status and errors
 
-Requirement: 792b28c15 The self-installer MUST return an error `update: <error>` that preserves the error
+Requirement: [792b28c15](#792b28c15-exit-status-and-errors) The self-installer MUST return an error `update: <error>` that preserves the error
 chain, without writing the report, when the run failed, MUST return `update: writing report: <error>` when
 the report cannot be written, MUST return the error "update: one or more detected harnesses failed" after
 writing the report when any harness failed, and MUST otherwise return no error.
 
-Supports: 792a11g1d, 792a11a1e, 792a11g1c.
+Supports: [792a11g1d](./792a_product-spec.md#792a11g1-uat-scenarios), [792a11a1e](./792a_product-spec.md#792a11a1-uat-scenarios), [792a11g1c](./792a_product-spec.md#792a11g1-uat-scenarios).
 
 ##### 792b28c15a Scenarios
 
@@ -15415,13 +15415,13 @@ Scenario: 792b28c15a7 A report that cannot be written is an error
 
 #### 792b28c16 The registration step
 
-Requirement: 792b28c16 After the checks and the opt-in summaries, the self-installer MUST run skill
+Requirement: [792b28c16](#792b28c16-the-registration-step) After the checks and the opt-in summaries, the self-installer MUST run skill
 registration over the resolved vault and vault name, with the home directory, the update's `--dry-run`
 flag and no explicit answers, and with its output going straight to the command's output. It MUST do
 nothing when no skill-source filesystem is configured. It MUST record a registration failure on the report
-as `skill registration error: <message>` (792b28c13) and MUST NOT let it fail the checks or the update.
+as `skill registration error: <message>` ([792b28c13](#792b28c13-notices)) and MUST NOT let it fail the checks or the update.
 
-Supports: 792a12t1a, 792a12t1b, 792a12t1c, 792a12t1d, 792a12t1e.
+Supports: [792a12t1a](./792a_product-spec.md#792a12t1-uat-scenarios), [792a12t1b](./792a_product-spec.md#792a12t1-uat-scenarios), [792a12t1c](./792a_product-spec.md#792a12t1-uat-scenarios), [792a12t1d](./792a_product-spec.md#792a12t1-uat-scenarios), [792a12t1e](./792a_product-spec.md#792a12t1-uat-scenarios).
 
 Rationale: the step reads the freshly deployed copies and the user's own folders, and a failure there must
 never undo a deploy that already succeeded.
@@ -15464,64 +15464,64 @@ Scenario: 792b28c16a6 The report line appears only on failure
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a11a1a | 792b28c2, 792b28c4 |
-| 792a11a1b | 792b28c2, 792b28c5 |
-| 792a11a1c | 792b28c1 |
-| 792a11a1d | 792b28c2 |
-| 792a11a1e | 792b28c4, 792b28c15 |
-| 792a11a1f | 792b28c5 |
-| 792a11b1a | 792b28c6 |
-| 792a11b1b | 792b28c6 |
-| 792a11b1c | 792b28c6 |
-| 792a11c1a | 792b28c7 |
-| 792a11c1b | 792b28c7 |
-| 792a11c1c | 792b28c7 |
-| 792a11c1d | 792b28c7 |
-| 792a11c1e | 792b28c7 |
-| 792a11d1a | 792b28c4, 792b28c12 |
-| 792a11d1b | 792b28c1, 792b28c12 |
-| 792a11d1c | 792b28c5, 792b28c12 |
-| 792a11e1a | 792b28c9, 792b28c10 |
-| 792a11e1b | 792b28c9, 792b28c10, 792b28c12 |
-| 792a11e1c | 792b28c9, 792b28c10 |
-| 792a11e1d | 792b28c8, 792b28c10, 792b28c12 |
-| 792a11e1e | 792b28c8 |
-| 792a11f1b | 792b28c12 |
-| 792a11f1c | 792b28c8 |
-| 792a11g1c | 792b28c3, 792b28c15 |
-| 792a11g1d | 792b28c12, 792b28c15 |
-| 792a11n1a | 792b28c11, 792b28c13 |
-| 792a11n1b | 792b28c11, 792b28c13 |
-| 792a11n1c | 792b28c11, 792b28c13 |
-| 792a11n1d | 792b28c11, 792b28c13 |
-| 792a11n1e | 792b28c13 |
-| 792a11o1a | 792b28c10 |
-| 792a11o1b | 792b28c10 |
-| 792a11o1c | 792b28c10 |
-| 792a6v1a | 792b28c13 |
-| 792a6v1b | 792b28c13 |
-| 792a6v1c | 792b28c13 |
-| 792a6w1a | 792b28c11, 792b28c14 |
-| 792a6w1b | 792b28c11, 792b28c14 |
-| 792a6w1c | 792b28c11, 792b28c14 |
-| 792a10a1a | 792b28c13 |
-| 792a10a1b | 792b28c13 |
-| 792a10a1c | 792b28c13 |
-| 792a10a1d | 792b28c13 |
-| 792a10b1a | 792b28c10 |
-| 792a10b1b | 792b28c10 |
-| 792a10j1a | 792b28c13 |
-| 792a10j1b | 792b28c13 |
-| 792a10k1a | 792b28c11, 792b28c14 |
-| 792a10k1f | 792b28c11, 792b28c14 |
-| 792a12t1a | 792b28c16 |
-| 792a12t1b | 792b28c16 |
-| 792a12t1c | 792b28c16 |
-| 792a12t1d | 792b28c16 |
-| 792a12t1e | 792b28c16 |
-| 792a21za1a | 792b28c13 |
-| 792a21za1b | 792b28c13 |
-| 792a22o1g | 792b28c13 |
+| [792a11a1a](./792a_product-spec.md#792a11a1-uat-scenarios) | [792b28c2](#792b28c2-source-choice), [792b28c4](#792b28c4-installing-from-a-local-source) |
+| [792a11a1b](./792a_product-spec.md#792a11a1-uat-scenarios) | [792b28c2](#792b28c2-source-choice), [792b28c5](#792b28c5-installing-from-a-fresh-clone) |
+| [792a11a1c](./792a_product-spec.md#792a11a1-uat-scenarios) | [792b28c1](#792b28c1-install-location) |
+| [792a11a1d](./792a_product-spec.md#792a11a1-uat-scenarios) | [792b28c2](#792b28c2-source-choice) |
+| [792a11a1e](./792a_product-spec.md#792a11a1-uat-scenarios) | [792b28c4](#792b28c4-installing-from-a-local-source), [792b28c15](#792b28c15-exit-status-and-errors) |
+| [792a11a1f](./792a_product-spec.md#792a11a1-uat-scenarios) | [792b28c5](#792b28c5-installing-from-a-fresh-clone) |
+| [792a11b1a](./792a_product-spec.md#792a11b1-uat-scenarios) | [792b28c6](#792b28c6-model-check) |
+| [792a11b1b](./792a_product-spec.md#792a11b1-uat-scenarios) | [792b28c6](#792b28c6-model-check) |
+| [792a11b1c](./792a_product-spec.md#792a11b1-uat-scenarios) | [792b28c6](#792b28c6-model-check) |
+| [792a11c1a](./792a_product-spec.md#792a11c1-uat-scenarios) | [792b28c7](#792b28c7-downgrade-gate) |
+| [792a11c1b](./792a_product-spec.md#792a11c1-uat-scenarios) | [792b28c7](#792b28c7-downgrade-gate) |
+| [792a11c1c](./792a_product-spec.md#792a11c1-uat-scenarios) | [792b28c7](#792b28c7-downgrade-gate) |
+| [792a11c1d](./792a_product-spec.md#792a11c1-uat-scenarios) | [792b28c7](#792b28c7-downgrade-gate) |
+| [792a11c1e](./792a_product-spec.md#792a11c1-uat-scenarios) | [792b28c7](#792b28c7-downgrade-gate) |
+| [792a11d1a](./792a_product-spec.md#792a11d1-uat-scenarios) | [792b28c4](#792b28c4-installing-from-a-local-source), [792b28c12](#792b28c12-report) |
+| [792a11d1b](./792a_product-spec.md#792a11d1-uat-scenarios) | [792b28c1](#792b28c1-install-location), [792b28c12](#792b28c12-report) |
+| [792a11d1c](./792a_product-spec.md#792a11d1-uat-scenarios) | [792b28c5](#792b28c5-installing-from-a-fresh-clone), [792b28c12](#792b28c12-report) |
+| [792a11e1a](./792a_product-spec.md#792a11e1-uat-scenarios) | [792b28c9](#792b28c9-hand-off), [792b28c10](#792b28c10-the-update-run-and-its-flags) |
+| [792a11e1b](./792a_product-spec.md#792a11e1-uat-scenarios) | [792b28c9](#792b28c9-hand-off), [792b28c10](#792b28c10-the-update-run-and-its-flags), [792b28c12](#792b28c12-report) |
+| [792a11e1c](./792a_product-spec.md#792a11e1-uat-scenarios) | [792b28c9](#792b28c9-hand-off), [792b28c10](#792b28c10-the-update-run-and-its-flags) |
+| [792a11e1d](./792a_product-spec.md#792a11e1-uat-scenarios) | [792b28c8](#792b28c8-installs-that-are-skipped), [792b28c10](#792b28c10-the-update-run-and-its-flags), [792b28c12](#792b28c12-report) |
+| [792a11e1e](./792a_product-spec.md#792a11e1-uat-scenarios) | [792b28c8](#792b28c8-installs-that-are-skipped) |
+| [792a11f1b](./792a_product-spec.md#792a11f1-uat-scenarios) | [792b28c12](#792b28c12-report) |
+| [792a11f1c](./792a_product-spec.md#792a11f1-uat-scenarios) | [792b28c8](#792b28c8-installs-that-are-skipped) |
+| [792a11g1c](./792a_product-spec.md#792a11g1-uat-scenarios) | [792b28c3](#792b28c3-preconditions), [792b28c15](#792b28c15-exit-status-and-errors) |
+| [792a11g1d](./792a_product-spec.md#792a11g1-uat-scenarios) | [792b28c12](#792b28c12-report), [792b28c15](#792b28c15-exit-status-and-errors) |
+| [792a11n1a](./792a_product-spec.md#792a11n1-uat-scenarios) | [792b28c11](#792b28c11-checks-after-the-deploy), [792b28c13](#792b28c13-notices) |
+| [792a11n1b](./792a_product-spec.md#792a11n1-uat-scenarios) | [792b28c11](#792b28c11-checks-after-the-deploy), [792b28c13](#792b28c13-notices) |
+| [792a11n1c](./792a_product-spec.md#792a11n1-uat-scenarios) | [792b28c11](#792b28c11-checks-after-the-deploy), [792b28c13](#792b28c13-notices) |
+| [792a11n1d](./792a_product-spec.md#792a11n1-uat-scenarios) | [792b28c11](#792b28c11-checks-after-the-deploy), [792b28c13](#792b28c13-notices) |
+| [792a11n1e](./792a_product-spec.md#792a11n1-uat-scenarios) | [792b28c13](#792b28c13-notices) |
+| [792a11o1a](./792a_product-spec.md#792a11o1-uat-scenarios) | [792b28c10](#792b28c10-the-update-run-and-its-flags) |
+| [792a11o1b](./792a_product-spec.md#792a11o1-uat-scenarios) | [792b28c10](#792b28c10-the-update-run-and-its-flags) |
+| [792a11o1c](./792a_product-spec.md#792a11o1-uat-scenarios) | [792b28c10](#792b28c10-the-update-run-and-its-flags) |
+| [792a6v1a](./792a_product-spec.md#792a6v1-uat-scenarios) | [792b28c13](#792b28c13-notices) |
+| [792a6v1b](./792a_product-spec.md#792a6v1-uat-scenarios) | [792b28c13](#792b28c13-notices) |
+| [792a6v1c](./792a_product-spec.md#792a6v1-uat-scenarios) | [792b28c13](#792b28c13-notices) |
+| [792a6w1a](./792a_product-spec.md#792a6w1-uat-scenarios) | [792b28c11](#792b28c11-checks-after-the-deploy), [792b28c14](#792b28c14-summaries-of-the-opt-in-flags) |
+| [792a6w1b](./792a_product-spec.md#792a6w1-uat-scenarios) | [792b28c11](#792b28c11-checks-after-the-deploy), [792b28c14](#792b28c14-summaries-of-the-opt-in-flags) |
+| [792a6w1c](./792a_product-spec.md#792a6w1-uat-scenarios) | [792b28c11](#792b28c11-checks-after-the-deploy), [792b28c14](#792b28c14-summaries-of-the-opt-in-flags) |
+| [792a10a1a](./792a_product-spec.md#792a10a1-uat-scenarios) | [792b28c13](#792b28c13-notices) |
+| [792a10a1b](./792a_product-spec.md#792a10a1-uat-scenarios) | [792b28c13](#792b28c13-notices) |
+| [792a10a1c](./792a_product-spec.md#792a10a1-uat-scenarios) | [792b28c13](#792b28c13-notices) |
+| [792a10a1d](./792a_product-spec.md#792a10a1-uat-scenarios) | [792b28c13](#792b28c13-notices) |
+| [792a10b1a](./792a_product-spec.md#792a10b1-uat-scenarios) | [792b28c10](#792b28c10-the-update-run-and-its-flags) |
+| [792a10b1b](./792a_product-spec.md#792a10b1-uat-scenarios) | [792b28c10](#792b28c10-the-update-run-and-its-flags) |
+| [792a10j1a](./792a_product-spec.md#792a10j1-uat-scenarios) | [792b28c13](#792b28c13-notices) |
+| [792a10j1b](./792a_product-spec.md#792a10j1-uat-scenarios) | [792b28c13](#792b28c13-notices) |
+| [792a10k1a](./792a_product-spec.md#792a10k1-uat-scenarios) | [792b28c11](#792b28c11-checks-after-the-deploy), [792b28c14](#792b28c14-summaries-of-the-opt-in-flags) |
+| [792a10k1f](./792a_product-spec.md#792a10k1-uat-scenarios) | [792b28c11](#792b28c11-checks-after-the-deploy), [792b28c14](#792b28c14-summaries-of-the-opt-in-flags) |
+| [792a12t1a](./792a_product-spec.md#792a12t1-uat-scenarios) | [792b28c16](#792b28c16-the-registration-step) |
+| [792a12t1b](./792a_product-spec.md#792a12t1-uat-scenarios) | [792b28c16](#792b28c16-the-registration-step) |
+| [792a12t1c](./792a_product-spec.md#792a12t1-uat-scenarios) | [792b28c16](#792b28c16-the-registration-step) |
+| [792a12t1d](./792a_product-spec.md#792a12t1-uat-scenarios) | [792b28c16](#792b28c16-the-registration-step) |
+| [792a12t1e](./792a_product-spec.md#792a12t1-uat-scenarios) | [792b28c16](#792b28c16-the-registration-step) |
+| [792a21za1a](./792a_product-spec.md#792a21za1-uat-scenarios) | [792b28c13](#792b28c13-notices) |
+| [792a21za1b](./792a_product-spec.md#792a21za1-uat-scenarios) | [792b28c13](#792b28c13-notices) |
+| [792a22o1g](./792a_product-spec.md#792a22o1-uat-scenarios) | [792b28c13](#792b28c13-notices) |
 
 ```gherkin
 Scenario: 792a11a1a A local clone is installed in place
@@ -15746,7 +15746,7 @@ Canonical target: `docs/specs/technical/harness-deploy-sync.md` (title `Harness 
   that activate them to ambient-guidance; independent verification, every step runs over an in-memory
   filesystem with injected faults; stability, the contract survives any change to the harness list or the
   deploy mode; necessity, a skill reaches a harness only through it.
-- Supported capabilities: 792a11 install-and-update. Skill-runbook-registration and ambient-guidance
+- Supported capabilities: [792a11](./792a_product-spec.md#792a11-added-install-and-update) install-and-update. Skill-runbook-registration and ambient-guidance
   extend it (the registration sources read the deployed skills, and the activation hints name the
   guidance it deploys).
 
@@ -15785,14 +15785,14 @@ sequenceDiagram
 ```
 
 In manifest mode a harness's skills and guidance are copied to its directories, the paths written are
-recorded, and recorded paths no longer in the deploy set are deleted (792b29c13); the root sync still runs
+recorded, and recorded paths no longer in the deploy set are deleted ([792b29c13](#792b29c13-manifest-mode)); the root sync still runs
 last.
 
 ### 792b29c Behavior Requirements
 
 #### 792b29c1 Harness detection
 
-Requirement: 792b29c1 The harness-deploy-sync MUST detect Claude Code when `~/.claude` is a directory and Pi
+Requirement: [792b29c1](#792b29c1-harness-detection) The harness-deploy-sync MUST detect Claude Code when `~/.claude` is a directory and Pi
 when `~/.pi` is a directory, MUST return the detected harnesses in the order Claude Code then Pi, and MUST
 return none when neither exists. Claude Code's skills directory is `~/.claude/skills`, its guidance
 directory and engram root `~/.claude/engram`, its imports file `~/.claude/CLAUDE.md`; Pi's are
@@ -15800,7 +15800,7 @@ directory and engram root `~/.claude/engram`, its imports file `~/.claude/CLAUDE
 link mode. It MUST need only a stat capability to detect, and MUST fail with an error naming the probe
 when a probe fails for a reason other than not existing.
 
-Supports: 792a11g1a, 792a11g1b, 792a11g1c.
+Supports: [792a11g1a](./792a_product-spec.md#792a11g1-uat-scenarios), [792a11g1b](./792a_product-spec.md#792a11g1-uat-scenarios), [792a11g1c](./792a_product-spec.md#792a11g1-uat-scenarios).
 
 Rationale: OpenCode support was removed (#721), so the list holds two harnesses; the same detection is
 used by skill-source-discovery so the two never disagree on which harnesses exist.
@@ -15846,14 +15846,14 @@ Scenario: 792b29c1a7 An unreadable probe is an error
 
 #### 792b29c2 The deploy set
 
-Requirement: 792b29c2 The harness-deploy-sync MUST plan one copy for every file under
+Requirement: [792b29c2](#792b29c2-the-deploy-set) The harness-deploy-sync MUST plan one copy for every file under
 `agent-instructions/skills/` of the source, for every harness, keeping its path relative to the skills
 directory and naming its top-level skill directory, and MUST fail with an error satisfying
 `update.ErrSkillsSrcMissing` and naming the directory when that source directory does not exist. It MUST
 plan one copy for every `.md` file directly in `agent-instructions/guidance/` for every harness that has a
 guidance directory, and none, without an error, when that source directory does not exist.
 
-Supports: 792a11g1e, 792a11h1a, 792a11l1a.
+Supports: [792a11g1e](./792a_product-spec.md#792a11g1-uat-scenarios), [792a11h1a](./792a_product-spec.md#792a11h1-uat-scenarios), [792a11l1a](./792a_product-spec.md#792a11l1-uat-scenarios).
 
 ##### 792b29c2a Scenarios
 
@@ -15881,15 +15881,15 @@ Scenario: 792b29c2a4 A missing guidance source plans nothing
 
 #### 792b29c3 Guidance management
 
-Requirement: 792b29c3 The harness-deploy-sync MUST manage guidance, so that the guidance copies are in the
+Requirement: [792b29c3](#792b29c3-guidance-management) The harness-deploy-sync MUST manage guidance, so that the guidance copies are in the
 deploy set and the root's `guidance/` subtree is synced including deletions, only when `--with-guidance`
-was given or at least one harness imports at least one guidance file (792b29c4), and MUST otherwise plan no
+was given or at least one harness imports at least one guidance file ([792b29c4](#792b29c4-import-detection)), and MUST otherwise plan no
 guidance and leave the `guidance/` subtree and its links untouched and unreported. When it manages
 guidance, it MUST deploy every guidance file for every harness, including those not imported, and MUST add a
 guidance file that joins the source after the first sync on the next sync. A failure to deploy a guidance
 file MUST be an error of that harness.
 
-Supports: 792a11l1a, 792a11l1b, 792a11l1c, 792a11l1e, 792a11l1g.
+Supports: [792a11l1a](./792a_product-spec.md#792a11l1-uat-scenarios), [792a11l1b](./792a_product-spec.md#792a11l1-uat-scenarios), [792a11l1c](./792a_product-spec.md#792a11l1-uat-scenarios), [792a11l1e](./792a_product-spec.md#792a11l1-uat-scenarios), [792a11l1g](./792a_product-spec.md#792a11l1-uat-scenarios).
 
 Rationale: opting in once is enough because the import in the user's config file is the standing record of
 it, so a plain update keeps the guidance current as it does skills. A harness that is not opted in keeps
@@ -15941,7 +15941,7 @@ Scenario: 792b29c3a8 One harness's import manages guidance for every harness
 
 #### 792b29c4 Import detection
 
-Requirement: 792b29c4 For each detected harness that has an imports file, the harness-deploy-sync MUST read
+Requirement: [792b29c4](#792b29c4-import-detection) For each detected harness that has an imports file, the harness-deploy-sync MUST read
 that file and MUST record as imported each line, outside a fenced code block (a line beginning with three
 backticks toggles the fence, and an unclosed fence hides the rest), that after trimming is exactly the
 prefix `@~/<guidance dir>/` or `@<home>/<guidance dir>/` followed by a single name that ends in `.md` and
@@ -15949,7 +15949,7 @@ has no `/`. The guidance directory of Claude Code is `.claude/engram` and of Pi 
 It MUST attribute an import only to the harness whose prefix it carries, MUST find none when the file is
 missing, and MUST derive both prefixes from the harness specification.
 
-Supports: 792a11l1b, 792a11l1d.
+Supports: [792a11l1b](./792a_product-spec.md#792a11l1-uat-scenarios), [792a11l1d](./792a_product-spec.md#792a11l1-uat-scenarios).
 
 ##### 792b29c4a Scenarios
 
@@ -15997,7 +15997,7 @@ Scenario: 792b29c4a8 Prefixes come from the specification
 
 #### 792b29c5 Root ownership
 
-Requirement: 792b29c5 The harness-deploy-sync MUST give each detected harness its own engram-owned root
+Requirement: [792b29c5](#792b29c5-root-ownership) The harness-deploy-sync MUST give each detected harness its own engram-owned root
 (`~/.claude/engram`, `~/.pi/agent/engram`). When the root does not exist it MUST create the root and the
 empty marker file `.engram-owned` and sync with deletion allowed. When the root holds the marker it MUST
 sync with deletion allowed. When the root exists without the marker it MUST write the marker and the
@@ -16008,7 +16008,7 @@ whose name is in the deploy set is adoptable, not unattributable). It MUST fail 
 root, the marker or the top-level listing cannot be read. On the next run it MUST treat an adopted root as
 owned.
 
-Supports: 792a11j1a, 792a11j1b, 792a11j1e, 792a11k1a.
+Supports: [792a11j1a](./792a_product-spec.md#792a11j1-uat-scenarios), [792a11j1b](./792a_product-spec.md#792a11j1-uat-scenarios), [792a11j1e](./792a_product-spec.md#792a11j1-uat-scenarios), [792a11k1a](./792a_product-spec.md#792a11k1-uat-scenarios).
 
 Rationale: the marker, not the path, proves a directory named `engram/` is engram's. A user who deletes the
 marker degrades to refused deletion, which is a fail-safe and not a failure.
@@ -16064,7 +16064,7 @@ Scenario: 792b29c5a9 The marker is stamped after the adoption pass and then enab
 
 #### 792b29c6 Root synchronization
 
-Requirement: 792b29c6 The harness-deploy-sync MUST sync a root to the deploy set with deletion allowed by
+Requirement: [792b29c6](#792b29c6-root-synchronization) The harness-deploy-sync MUST sync a root to the deploy set with deletion allowed by
 creating each deploy-set file that is missing, overwriting each that exists, and deleting each file in the
 managed subtrees (`skills/`, `commands/`, and `guidance/` while guidance is managed) that is not in the
 deploy set, in path order, and MUST then delete each directory in those subtrees that holds nothing the
@@ -16074,7 +16074,7 @@ written or removed. It MUST fail the harness with the underlying error when crea
 creating a directory, reading a source file, writing a file, removing a path or listing a subtree fails, and
 the failure MUST NOT touch any other harness.
 
-Supports: 792a11h1a, 792a11h1b, 792a11i1a, 792a11i1b.
+Supports: [792a11h1a](./792a_product-spec.md#792a11h1-uat-scenarios), [792a11h1b](./792a_product-spec.md#792a11h1-uat-scenarios), [792a11i1a](./792a_product-spec.md#792a11i1-uat-scenarios), [792a11i1b](./792a_product-spec.md#792a11i1-uat-scenarios).
 
 Rationale: a directory holding no intended file is as unintended as a file, and leaving it as a hollow
 shell would let a stale link still resolve through it, so the link would look healthy while the skill was
@@ -16142,14 +16142,14 @@ Scenario: 792b29c6a11 A subtree that cannot be listed fails the harness
 
 #### 792b29c7 Skill links
 
-Requirement: 792b29c7 For each skill directory of the deploy set, the harness-deploy-sync MUST make
+Requirement: [792b29c7](#792b29c7-skill-links) For each skill directory of the deploy set, the harness-deploy-sync MUST make
 `<skills dir>/<skill>` a symbolic link to `<engram root>/skills/<skill>`: creating it, with its parent
 directory, when absent; leaving it when it already points there; repointing it, by removing and re-creating
 it, when it points elsewhere; and leaving a real file or directory there untouched and reporting that it is
-blocked (792b29c8 decides what follows). In a dry run it MUST write nothing in any of these cases. It MUST
+blocked ([792b29c8](#792b29c8-adopting-earlier-copies) decides what follows). In a dry run it MUST write nothing in any of these cases. It MUST
 fail the harness with the underlying error when it cannot inspect, create, read, remove or link the path.
 
-Supports: 792a11h1a, 792a11h1c, 792a11j1d.
+Supports: [792a11h1a](./792a_product-spec.md#792a11h1-uat-scenarios), [792a11h1c](./792a_product-spec.md#792a11h1-uat-scenarios), [792a11j1d](./792a_product-spec.md#792a11j1-uat-scenarios).
 
 ##### 792b29c7a Scenarios
 
@@ -16232,16 +16232,16 @@ Scenario: 792b29c7a15 A repoint failure fails that harness
 
 #### 792b29c8 Adopting earlier copies
 
-Requirement: 792b29c8 Where a deploy-set skill directory, Pi guidance file or Claude Code flat guidance
+Requirement: [792b29c8](#792b29c8-adopting-earlier-copies) Where a deploy-set skill directory, Pi guidance file or Claude Code flat guidance
 file is a real file or directory at its link path, the harness-deploy-sync MUST replace it, by removing it
 and creating the link, and MUST report the path as adopted, without comparing its content; where the link
 is absent or already correct it MUST report nothing adopted. In a dry run it MUST report the path as adopted
 and change nothing. It MUST fail the harness when removing the real copy or creating the link fails.
 
-Supports: 792a11k1a, 792a11j1d, 792a11m1b.
+Supports: [792a11k1a](./792a_product-spec.md#792a11k1-uat-scenarios), [792a11j1d](./792a_product-spec.md#792a11j1-uat-scenarios), [792a11m1b](./792a_product-spec.md#792a11m1-uat-scenarios).
 
 Rationale: the repository is the source of truth, so no comparison is needed, and the deploy set is the
-only thing that can be replaced: a real entry outside it is never adopted (792b29c11).
+only thing that can be replaced: a real entry outside it is never adopted ([792b29c11](#792b29c11-unmanaged-entries)).
 
 ##### 792b29c8a Scenarios
 
@@ -16304,15 +16304,15 @@ Scenario: 792b29c8a11 A real flat Claude guidance file is adopted
 
 #### 792b29c9 Guidance links
 
-Requirement: 792b29c9 For a harness whose guidance directory is its engram root (Claude Code), the
+Requirement: [792b29c9](#792b29c9-guidance-links) For a harness whose guidance directory is its engram root (Claude Code), the
 harness-deploy-sync MUST link `<root>/<name>.md` to `<root>/guidance/<name>.md` for each managed guidance
-file, repointing or adopting as in 792b29c7 and 792b29c8, and MUST delete such a link, by the cleanup of
-792b29c10, when its file leaves the deploy set. For a harness with a separate guidance directory (Pi) it
+file, repointing or adopting as in [792b29c7](#792b29c7-skill-links) and [792b29c8](#792b29c8-adopting-earlier-copies), and MUST delete such a link, by the cleanup of
+[792b29c10](#792b29c10-dangling-link-cleanup), when its file leaves the deploy set. For a harness with a separate guidance directory (Pi) it
 MUST link `<guidance dir>/<name>.md` to `<root>/guidance/<name>.md` for each of that harness's own
 guidance files only, and MUST fail the harness when linking fails. It MUST record each linked file as a
 guidance file of the harness.
 
-Supports: 792a11l1f, 792a11m1a, 792a11m1b, 792a11m1c.
+Supports: [792a11l1f](./792a_product-spec.md#792a11l1-uat-scenarios), [792a11m1a](./792a_product-spec.md#792a11m1-uat-scenarios), [792a11m1b](./792a_product-spec.md#792a11m1-uat-scenarios), [792a11m1c](./792a_product-spec.md#792a11m1-uat-scenarios).
 
 ##### 792b29c9a Scenarios
 
@@ -16340,7 +16340,7 @@ Scenario: 792b29c9a4 A compat link is deleted when its file leaves the source
 
 #### 792b29c10 Dangling-link cleanup
 
-Requirement: 792b29c10 On every run, the harness-deploy-sync MUST scan, one level deep, the skills
+Requirement: [792b29c10](#792b29c10-dangling-link-cleanup) On every run, the harness-deploy-sync MUST scan, one level deep, the skills
 directory and, for a harness with guidance, either its guidance directory (Pi) or its engram root (Claude
 Code), and MUST delete exactly the symbolic links whose literal target, resolved lexically against the
 link's own directory (never by following links), lies within the harness's engram root and does not exist,
@@ -16350,7 +16350,7 @@ lies beneath it by whole path segments (a sibling that merely shares the prefix 
 it MUST record without removing. It MUST scan nothing when given no directory or a missing one, and MUST
 fail the harness with the underlying error when listing, inspecting, reading or removing fails.
 
-Supports: 792a11j1c, 792a11j1d.
+Supports: [792a11j1c](./792a_product-spec.md#792a11j1-uat-scenarios), [792a11j1d](./792a_product-spec.md#792a11j1-uat-scenarios).
 
 Rationale: lexical resolution is essential: `filepath.EvalSymlinks` on macOS rewrites `/var` to
 `/private/var`, which would corrupt the prefix match even for a tree with no links, so every recorded path
@@ -16482,13 +16482,13 @@ Scenario: 792b29c10a24 A tree with no links records only exact logical paths
 
 #### 792b29c11 Unmanaged entries
 
-Requirement: 792b29c11 On the first sync of a harness, the harness-deploy-sync MUST scan, one level deep,
+Requirement: [792b29c11](#792b29c11-unmanaged-entries) On the first sync of a harness, the harness-deploy-sync MUST scan, one level deep,
 its skills directory and, for a harness whose guidance directory is separate from its root, its guidance
 directory, and MUST report in sorted order each real (non-link) entry whose name is not in the harness's
 deploy set as unmanaged, never changing it. It MUST skip every link, report nothing for a missing
 directory, and fail the harness when listing or inspecting fails. It MUST NOT scan on a later run.
 
-Supports: 792a11k1b, 792a11k1c.
+Supports: [792a11k1b](./792a_product-spec.md#792a11k1-uat-scenarios), [792a11k1c](./792a_product-spec.md#792a11k1-uat-scenarios).
 
 Rationale: a link is the cleanup's concern, and an entry the sync has no record of writing may be the
 user's own, so it is listed neutrally ("unmanaged, left alone") and never as debris (#716).
@@ -16534,11 +16534,11 @@ Scenario: 792b29c11a7 An unmanaged entry is reported and never deleted
 
 #### 792b29c12 First sync without a trace
 
-Requirement: 792b29c12 In a dry run the harness-deploy-sync MUST plan every first-sync step (the root, the
+Requirement: [792b29c12](#792b29c12-first-sync-without-a-trace) In a dry run the harness-deploy-sync MUST plan every first-sync step (the root, the
 marker, the sync, the adoptions and the links) without creating the root, the marker, a link or a file, both
 for a harness never synced and for one whose root exists without the marker.
 
-Supports: 792a11f1a.
+Supports: [792a11f1a](./792a_product-spec.md#792a11f1-uat-scenarios).
 
 ##### 792b29c12a Scenarios
 
@@ -16556,16 +16556,16 @@ Scenario: 792b29c12a2 A pre-existing unmarked root leaves no trace
 
 #### 792b29c13 Manifest mode
 
-Requirement: 792b29c13 For a harness in manifest mode, the harness-deploy-sync MUST copy each skill file
+Requirement: [792b29c13](#792b29c13-manifest-mode) For a harness in manifest mode, the harness-deploy-sync MUST copy each skill file
 and each guidance file to its harness path, clearing a skill directory once before writing its files,
 MUST record every path it wrote in `.engram-manifest.json` in the harness's root, and on a later run MUST
 delete exactly the recorded paths that are no longer in the deploy set, drop them from the manifest, and
 leave every unrecorded file alone. A missing manifest MUST be empty and an undecodable one MUST be an error.
 A dry run MUST preview the deletions and write nothing. A failure to clear, read, create a directory,
-write or delete MUST fail that harness. The root sync (792b29c6) still runs last. No supported harness
+write or delete MUST fail that harness. The root sync ([792b29c6](#792b29c6-root-synchronization)) still runs last. No supported harness
 uses this mode.
 
-Supports: 792a11i1a.
+Supports: [792a11i1a](./792a_product-spec.md#792a11i1-uat-scenarios).
 
 Rationale: a harness whose discovery fails the link check must still get removals that propagate; recording
 what was written replaces link identity as the proof of ownership.
@@ -16631,11 +16631,11 @@ Scenario: 792b29c13a11 A clear, copy, create or write failure is a harness error
 
 #### 792b29c14 Dry run
 
-Requirement: 792b29c14 In a dry run the harness-deploy-sync MUST create, write, link, repoint, adopt and
+Requirement: [792b29c14](#792b29c14-dry-run) In a dry run the harness-deploy-sync MUST create, write, link, repoint, adopt and
 delete nothing, in the root, the marker and the harness directories, while still reporting what it would
 do (the root deletions, the adoptions and the dangling-link removals).
 
-Supports: 792a11f1a, 792a11f1b.
+Supports: [792a11f1a](./792a_product-spec.md#792a11f1-uat-scenarios), [792a11f1b](./792a_product-spec.md#792a11f1-uat-scenarios).
 
 ##### 792b29c14a Scenarios
 
@@ -16658,11 +16658,11 @@ Scenario: 792b29c14a3 A dry-run deploy plans the skills
 
 #### 792b29c15 Harness isolation
 
-Requirement: 792b29c15 The harness-deploy-sync MUST record a failure of one harness's deploy on that
+Requirement: [792b29c15](#792b29c15-harness-isolation) The harness-deploy-sync MUST record a failure of one harness's deploy on that
 harness's report, MUST still deploy every other harness, and MUST NOT turn the failure into an error of
 the whole run.
 
-Supports: 792a11g1d.
+Supports: [792a11g1d](./792a_product-spec.md#792a11g1-uat-scenarios).
 
 ##### 792b29c15a Scenarios
 
@@ -16680,10 +16680,10 @@ Scenario: 792b29c15a2 The failure does not stop the other harness
 
 #### 792b29c16 Idempotence
 
-Requirement: 792b29c16 Running the harness-deploy-sync twice over the same source MUST leave the same files
+Requirement: [792b29c16](#792b29c16-idempotence) Running the harness-deploy-sync twice over the same source MUST leave the same files
 and links after the second run as after the first, whether or not the harness held earlier content.
 
-Supports: 792a11h1e.
+Supports: [792a11h1e](./792a_product-spec.md#792a11h1-uat-scenarios).
 
 ##### 792b29c16a Scenarios
 
@@ -16701,7 +16701,7 @@ Scenario: 792b29c16a2 A second run through the report tail succeeds and changes 
 
 #### 792b29c17 Harness sections of the report
 
-Requirement: 792b29c17 For each harness the harness-deploy-sync MUST give the report: one line per skill,
+Requirement: [792b29c17](#792b29c17-harness-sections-of-the-report) For each harness the harness-deploy-sync MUST give the report: one line per skill,
 `agent-instructions/skills/<skill>/ → <skills dir>/<skill>/  (<N> file[s])`, with `file` for 1 and `files`
 otherwise, paths under the home shown as `~/…`; then one line `engram root: deleted <path>` for each sync
 deletion; the line `engram root <root> exists without the .engram-owned marker — sync-deletion refused
@@ -16712,7 +16712,7 @@ deletion, adoption and cleanup lines of a dry run, and MUST NOT prefix the refus
 unmanaged and skill lines. For Claude Code, whose guidance directory is its root, each guidance line MUST
 end with `(canonical: ~/.claude/engram/guidance/<name>)`, and Pi's MUST NOT.
 
-Supports: 792a11f1b, 792a11g1d, 792a11h1d, 792a11i1a, 792a11j1a, 792a11j1c, 792a11k1a, 792a11k1b, 792a11m1d.
+Supports: [792a11f1b](./792a_product-spec.md#792a11f1-uat-scenarios), [792a11g1d](./792a_product-spec.md#792a11g1-uat-scenarios), [792a11h1d](./792a_product-spec.md#792a11h1-uat-scenarios), [792a11i1a](./792a_product-spec.md#792a11i1-uat-scenarios), [792a11j1a](./792a_product-spec.md#792a11j1-uat-scenarios), [792a11j1c](./792a_product-spec.md#792a11j1-uat-scenarios), [792a11k1a](./792a_product-spec.md#792a11k1-uat-scenarios), [792a11k1b](./792a_product-spec.md#792a11k1-uat-scenarios), [792a11m1d](./792a_product-spec.md#792a11m1-uat-scenarios).
 
 ##### 792b29c17a Scenarios
 
@@ -16765,7 +16765,7 @@ Scenario: 792b29c17a9 The skill rows map source to skills directory
 
 #### 792b29c18 Guidance activation hints
 
-Requirement: 792b29c18 For each harness that has an imports file, and for each guidance file in its deploy set,
+Requirement: [792b29c18](#792b29c18-guidance-activation-hints) For each harness that has an imports file, and for each guidance file in its deploy set,
 the harness-deploy-sync MUST give the report one line: `guidance refreshed: ~/<guidance dir>/<name>` when that
 harness's imports include the file, and otherwise `guidance deployed to ~/<guidance dir>/<name> — add
 '@~/<guidance dir>/<name>' to ~/<imports file> to activate it (<Harness> will ask you to approve the import once)`,
@@ -16775,11 +16775,11 @@ given `--with-guidance` and no config file imports guidance, it MUST give the on
 delegation-firing guidance; run 'engram update --with-guidance' to deploy it`, and otherwise MUST NOT. It MUST
 prefix `[dry-run] ` to the refreshed and deployed lines of a dry run, and MUST NOT prefix the nudge.
 
-Supports: 792a19u1a, 792a19u1b, 792a19v1a, 792a19v1b, 792a19v1c, 792a19v1d, 792a19v1e, 792a19v1f, 792a19v1g,
-792a19v1h, 792a19v1i.
+Supports: [792a19u1a](./792a_product-spec.md#792a19u1-uat-scenarios), [792a19u1b](./792a_product-spec.md#792a19u1-uat-scenarios), [792a19v1a](./792a_product-spec.md#792a19v1-uat-scenarios), [792a19v1b](./792a_product-spec.md#792a19v1-uat-scenarios), [792a19v1c](./792a_product-spec.md#792a19v1-uat-scenarios), [792a19v1d](./792a_product-spec.md#792a19v1-uat-scenarios), [792a19v1e](./792a_product-spec.md#792a19v1-uat-scenarios), [792a19v1f](./792a_product-spec.md#792a19v1-uat-scenarios), [792a19v1g](./792a_product-spec.md#792a19v1-uat-scenarios),
+[792a19v1h](./792a_product-spec.md#792a19v1-uat-scenarios), [792a19v1i](./792a_product-spec.md#792a19v1-uat-scenarios).
 
 Rationale: an import is a line in a file that the user owns, so the report names the exact line to add. The
-canonical-path suffix of Claude Code's lines is 792b29c17.
+canonical-path suffix of Claude Code's lines is [792b29c17](#792b29c17-harness-sections-of-the-report).
 
 ##### 792b29c18a Scenarios
 
@@ -17113,7 +17113,7 @@ Canonical target: `docs/specs/technical/skill-source-discovery.md` (title `Skill
   scanner runs over an in-memory filesystem with injected read faults; stability, the contract survives the
   addition of a source or a change in how a harness stores its settings; necessity, no offer can be made
   without it.
-- Supported capabilities: 792a12 skill-runbook-registration.
+- Supported capabilities: [792a12](./792a_product-spec.md#792a12-added-skill-runbook-registration) skill-runbook-registration.
 
 Rationale: registration used to cover only engram's own six skills (vault note 1066a widened it to every
 folder a harness loads), so discovery follows each harness's own rules: Claude Code's folders and plugin
@@ -17143,13 +17143,13 @@ sequenceDiagram
 
 #### 792b30c1 Symlink-resolving path reads
 
-Requirement: 792b30c1 The skill-source-discovery MUST resolve a path with every symbolic link in it followed, using only link inspection and link reading so
+Requirement: [792b30c1](#792b30c1-symlink-resolving-path-reads) The skill-source-discovery MUST resolve a path with every symbolic link in it followed, using only link inspection and link reading so
 that it stays pure over the injected filesystem: a chain of absolute and relative links ending at a real
 directory MUST resolve to that directory, resolving MUST be idempotent, `..` MUST step to the parent of
 the resolved path so far, a dangling link MUST give an error that satisfies `fs.ErrNotExist`, and a link
 loop MUST give `errSkillPathLinkLoop`.
 
-Supports: 792a12j1a.
+Supports: [792a12j1a](./792a_product-spec.md#792a12j1-uat-scenarios).
 
 ##### 792b30c1a Scenarios
 
@@ -17182,13 +17182,13 @@ Scenario: 792b30c1a5 A relative target and a symlinked parent resolve
 
 #### 792b30c2 Root read status
 
-Requirement: 792b30c2 The skill-source-discovery MUST record every source root a scanner tries to read, with its resolved path and whether the read succeeded,
+Requirement: [792b30c2](#792b30c2-root-read-status) The skill-source-discovery MUST record every source root a scanner tries to read, with its resolved path and whether the read succeeded,
 MUST count a root as scanned only when its resolution, its listing and the read of every child
 succeeded, and MUST treat every error, including not-exist, as not scanned and never as empty. It MUST
 add a warning for a failure other than not-exist, and MUST NOT warn about a root that simply does not
 exist.
 
-Supports: 792a12j1a, 792a12q1f.
+Supports: [792a12j1a](./792a_product-spec.md#792a12j1-uat-scenarios), [792a12q1f](./792a_product-spec.md#792a12q1-uat-scenarios).
 
 ##### 792b30c2a Scenarios
 
@@ -17221,12 +17221,12 @@ Scenario: 792b30c2a5 A child that cannot be inspected marks the root not scanned
 
 #### 792b30c3 Claude Code user skills
 
-Requirement: 792b30c3 The skill-source-discovery MUST find the skills of a Claude Code skills root as its immediate children that are directories, or symbolic
+Requirement: [792b30c3](#792b30c3-claude-code-user-skills) The skill-source-discovery MUST find the skills of a Claude Code skills root as its immediate children that are directories, or symbolic
 links resolving to directories, containing `SKILL.md`, each with its own bytes and resolved path and the
 scope `claude-user`, MUST resolve a root that is itself a link, and MUST ignore root files, `synced`,
 dangling links and directories without `SKILL.md`.
 
-Supports: 792a12j1a, 792a12j1b.
+Supports: [792a12j1a](./792a_product-spec.md#792a12j1-uat-scenarios), [792a12j1b](./792a_product-spec.md#792a12j1-uat-scenarios).
 
 ##### 792b30c3a Scenarios
 
@@ -17259,13 +17259,13 @@ Scenario: 792b30c3a5 A dangling link is skipped
 
 #### 792b30c4 Command directories
 
-Requirement: 792b30c4 The skill-source-discovery MUST find the commands of a commands root as the `.md` files beneath it, recursively, named by their path
+Requirement: [792b30c4](#792b30c4-command-directories) The skill-source-discovery MUST find the commands of a commands root as the `.md` files beneath it, recursively, named by their path
 relative to the root with `/` replaced by `:` and `.md` removed, MUST follow symbolic links, MUST skip
 non-markdown files, MUST end on a link cycle and give up past a depth limit, MUST skip with a warning
 any entry whose name already contains `:`, and MUST mark the root not scanned when a subdirectory cannot
 be read.
 
-Supports: 792a12j1c.
+Supports: [792a12j1c](./792a_product-spec.md#792a12j1-uat-scenarios).
 
 ##### 792b30c4a Scenarios
 
@@ -17303,12 +17303,12 @@ Scenario: 792b30c4a6 A name with a colon is skipped
 
 #### 792b30c5 Synced skill buckets
 
-Requirement: 792b30c5 The skill-source-discovery MUST find the claude.ai-synced skills as the skill children of each directory child ("bucket") of the synced
+Requirement: [792b30c5](#792b30c5-synced-skill-buckets) The skill-source-discovery MUST find the claude.ai-synced skills as the skill children of each directory child ("bucket") of the synced
 root whose `manifest.json` parses as JSON, MUST record every bucket as its own root, scanned only when
 its manifest parsed and it was read, MUST ignore non-directory children, MUST emit a skill held by two
 buckets once for each, and MUST count the synced root as scanned only when at least one manifest parsed.
 
-Supports: 792a12j1d.
+Supports: [792a12j1d](./792a_product-spec.md#792a12j1-uat-scenarios).
 
 ##### 792b30c5a Scenarios
 
@@ -17346,13 +17346,13 @@ Scenario: 792b30c5a6 Candidates come only from parseable buckets
 
 #### 792b30c6 Plugin command paths
 
-Requirement: 792b30c6 The skill-source-discovery MUST find a plugin's commands from its `commands/` directory when `plugin.json` declares no `commands` field,
+Requirement: [792b30c6](#792b30c6-plugin-command-paths) The skill-source-discovery MUST find a plugin's commands from its `commands/` directory when `plugin.json` declares no `commands` field,
 from a declared string path (a directory, or one `.md` file named by its stem) or an array of such paths
 in place of that directory, MUST skip with a warning a declared object map, MUST refuse a declared path
 that is missing, unreadable or a file that is not `.md`, recording a root that was not scanned, and MUST
 skip a declared file whose name contains `:`.
 
-Supports: 792a12l1a.
+Supports: [792a12l1a](./792a_product-spec.md#792a12l1-uat-scenarios).
 
 ##### 792b30c6a Scenarios
 
@@ -17395,14 +17395,14 @@ Scenario: 792b30c6a7 A declared file with a colon is skipped
 
 #### 792b30c7 Claude Code plugins
 
-Requirement: 792b30c7 The skill-source-discovery MUST read `installed_plugins.json` (a missing file silently unread, any other failure a warning) and the
+Requirement: [792b30c7](#792b30c7-claude-code-plugins) The skill-source-discovery MUST read `installed_plugins.json` (a missing file silently unread, any other failure a warning) and the
 `enabledPlugins` map of `settings.json` (a missing file meaning every plugin falls back to its
 manifest's `defaultEnabled`, an unreadable or unparseable one making enablement unknown), and for each
 plugin name choose the most specific install that applies, the scope `user` or a `project` or `local`
 scope whose `projectPath` equals the repository top-level (both symlink-resolved). It MUST scan an
 enabled plugin's `skills/` directory plus any `plugin.json` `skills` paths (a folder holding `SKILL.md`
 being one skill named by the folder, any other directory scanned for skill folders) and its commands
-(792b30c6), record whether each plugin was scanned, and read nothing beyond the manifests of a disabled
+([792b30c6](#792b30c6-plugin-command-paths)), record whether each plugin was scanned, and read nothing beyond the manifests of a disabled
 plugin. It MUST refuse a declared path that is absolute, leaves the plugin lexically or through a
 symlink, or does not exist, with a warning and the plugin not scanned. It MUST treat a non-boolean
 `enabled` value as not scanned, MUST report a plugin name installed from more than one marketplace as a
@@ -17410,7 +17410,7 @@ conflict and emit none of its candidates, and MUST skip with a warning an enable
 reserved (`claude`, `pi`, `agents`, `project`, `anthropic-skills`, `pi-settings`, `pi-pkg`, `pi-prompt`)
 or contains `:`, saying nothing for a disabled one and treating `cmd` as an ordinary name.
 
-Supports: 792a12l1a, 792a12l1b, 792a12l1c, 792a12l1d, 792a12o1g, 792a12o1h, 792a12o1i, 792a12p1d.
+Supports: [792a12l1a](./792a_product-spec.md#792a12l1-uat-scenarios), [792a12l1b](./792a_product-spec.md#792a12l1-uat-scenarios), [792a12l1c](./792a_product-spec.md#792a12l1-uat-scenarios), [792a12l1d](./792a_product-spec.md#792a12l1-uat-scenarios), [792a12o1g](./792a_product-spec.md#792a12o1-uat-scenarios), [792a12o1h](./792a_product-spec.md#792a12o1-uat-scenarios), [792a12o1i](./792a_product-spec.md#792a12o1-uat-scenarios), [792a12p1d](./792a_product-spec.md#792a12p1-uat-scenarios).
 
 ##### 792b30c7a Scenarios
 
@@ -17488,7 +17488,7 @@ Scenario: 792b30c7a14 The reserved-name check follows enablement
 
 #### 792b30c8 Pi skill directories
 
-Requirement: 792b30c8 The skill-source-discovery MUST discover Pi skills in a skills directory recursively: a directory that holds `SKILL.md` and has no
+Requirement: [792b30c8](#792b30c8-pi-skill-directories) The skill-source-discovery MUST discover Pi skills in a skills directory recursively: a directory that holds `SKILL.md` and has no
 `SKILL.md`-holding ancestor below the root MUST be one skill named by the directory, root `.md` files
 MUST be skills where the source takes them (the Pi user and settings roots, and a package root) and
 ignored where it does not (`~/.agents/skills`), hidden directories and `node_modules` MUST be skipped,
@@ -17496,7 +17496,7 @@ links MUST be followed, a link cycle MUST end, and going past the depth limit or
 directory, a child or a skill file MUST mark the root not scanned. A root that itself holds `SKILL.md`
 MUST be one skill.
 
-Supports: 792a12k1g.
+Supports: [792a12k1g](./792a_product-spec.md#792a12k1-uat-scenarios).
 
 ##### 792b30c8a Scenarios
 
@@ -17564,11 +17564,11 @@ Scenario: 792b30c8a12 The agents root ignores root markdown
 
 #### 792b30c9 Pi prompt directories
 
-Requirement: 792b30c9 The skill-source-discovery MUST find Pi prompt templates as the non-hidden `.md` files directly in the prompts directory, regular or
+Requirement: [792b30c9](#792b30c9-pi-prompt-directories) The skill-source-discovery MUST find Pi prompt templates as the non-hidden `.md` files directly in the prompts directory, regular or
 linked, named by their stem, MUST NOT descend into subdirectories, MUST record a missing directory as
 not scanned, and MUST mark the root not scanned when a prompt cannot be read.
 
-Supports: 792a12k1a.
+Supports: [792a12k1a](./792a_product-spec.md#792a12k1-uat-scenarios).
 
 ##### 792b30c9a Scenarios
 
@@ -17596,13 +17596,13 @@ Scenario: 792b30c9a4 Only flat markdown files are prompts
 
 #### 792b30c10 Pi project trust
 
-Requirement: 792b30c10 The skill-source-discovery MUST decide that a Pi project is trusted when the nearest non-null saved decision, for the canonical working
+Requirement: [792b30c10](#792b30c10-pi-project-trust) The skill-source-discovery MUST decide that a Pi project is trusted when the nearest non-null saved decision, for the canonical working
 directory or an ancestor, in `~/.pi/agent/trust.json` is true, or, when there is none, when
 `defaultProjectTrust` in Pi's global `settings.json` is `always`; MUST treat any other fallback as
 untrusted; MUST canonicalize a working directory reached through a symlink; and MUST treat an unreadable
 or invalid file as untrusted with a warning.
 
-Supports: 792a12m1b, 792a12m1c.
+Supports: [792a12m1b](./792a_product-spec.md#792a12m1-uat-scenarios), [792a12m1c](./792a_product-spec.md#792a12m1-uat-scenarios).
 
 ##### 792b30c10a Scenarios
 
@@ -17640,7 +17640,7 @@ Scenario: 792b30c10a6 A symlinked working directory is canonicalized
 
 #### 792b30c11 Pi project sources
 
-Requirement: 792b30c11 The skill-source-discovery MUST scan, only for a trusted project, `.pi/skills` and `.pi/prompts` of the working directory, and the
+Requirement: [792b30c11](#792b30c11-pi-project-sources) The skill-source-discovery MUST scan, only for a trusted project, `.pi/skills` and `.pi/prompts` of the working directory, and the
 `.agents/skills` directory of the working directory and each ancestor up to the repository top-level,
 each existing level recorded as its own root, and MUST read nothing and record no root for an untrusted
 project. It MUST skip the user's `~/.agents/skills` as a project level when the chain reaches the home
@@ -17649,7 +17649,7 @@ never passes the top-level, MUST emit the same name at two levels once for each,
 source segment `pi`, `agents` or `pi-prompt` on each candidate to tell them apart inside one project
 scope.
 
-Supports: 792a12m1a, 792a12m1c.
+Supports: [792a12m1a](./792a_product-spec.md#792a12m1-uat-scenarios), [792a12m1c](./792a_product-spec.md#792a12m1-uat-scenarios).
 
 ##### 792b30c11a Scenarios
 
@@ -17702,7 +17702,7 @@ Scenario: 792b30c11a9 Agents and Pi project sources need a trusted project only
 
 #### 792b30c12 Pi settings reading and overrides
 
-Requirement: 792b30c12 The skill-source-discovery MUST read Pi's `settings.json` (resolving its path first, accepting the legacy object form of `skills`, and
+Requirement: [792b30c12](#792b30c12-pi-settings-reading-and-overrides) The skill-source-discovery MUST read Pi's `settings.json` (resolving its path first, accepting the legacy object form of `skills`, and
 giving an error for an unreadable or invalid file), and apply a settings file's overrides to the
 candidates of a default folder: a plain pattern MUST include by name, `!pattern` MUST exclude by name,
 `+path` MUST force-include and `-path` force-exclude by exact absolute path, with the result enabled
@@ -17710,7 +17710,7 @@ when not excluded, then forced in, then not forced out. It MUST match the path a
 by its link location), fall back to the source path, match a prompt by file name, and disable every
 candidate with one warning for a pattern it cannot evaluate (`**`).
 
-Supports: 792a12k1b, 792a12k1f.
+Supports: [792a12k1b](./792a_product-spec.md#792a12k1-uat-scenarios), [792a12k1f](./792a_product-spec.md#792a12k1-uat-scenarios).
 
 ##### 792b30c12a Scenarios
 
@@ -17758,7 +17758,7 @@ Scenario: 792b30c12a8 Prompts are matched by file name
 
 #### 792b30c13 Pi configured sources
 
-Requirement: 792b30c13 The skill-source-discovery MUST scan the `skills` and `prompts` entries and the `packages` of Pi's global settings, and, for a trusted
+Requirement: [792b30c13](#792b30c13-pi-configured-sources) The skill-source-discovery MUST scan the `skills` and `prompts` entries and the `packages` of Pi's global settings, and, for a trusted
 project, of the project's, resolving each against the right base: a directory entry MUST be searched
 recursively with its own root `.md` files, a file entry MUST be one skill, an entry that does not exist
 MUST be recorded not scanned without a warning, an entry with a pattern that cannot be evaluated or
@@ -17772,7 +17772,7 @@ for that type only, and a package's disabled files MUST be kept disabled. A proj
 override a global one of the same identity, so that exactly one root per identity is scanned, and
 project settings MUST need a trusted project.
 
-Supports: 792a12k1b, 792a12k1c, 792a12k1d, 792a12k1e, 792a12k1f, 792a12k1h.
+Supports: [792a12k1b](./792a_product-spec.md#792a12k1-uat-scenarios), [792a12k1c](./792a_product-spec.md#792a12k1-uat-scenarios), [792a12k1d](./792a_product-spec.md#792a12k1-uat-scenarios), [792a12k1e](./792a_product-spec.md#792a12k1-uat-scenarios), [792a12k1f](./792a_product-spec.md#792a12k1-uat-scenarios), [792a12k1h](./792a_product-spec.md#792a12k1-uat-scenarios).
 
 ##### 792b30c13a Scenarios
 
@@ -17890,7 +17890,7 @@ Scenario: 792b30c13a22 An unreadable manifest is not scanned
 
 #### 792b30c14 Project identity
 
-Requirement: 792b30c14 The skill-source-discovery MUST identify the project of a working directory with `git`: inside a git work tree its identity MUST be the
+Requirement: [792b30c14](#792b30c14-project-identity) The skill-source-discovery MUST identify the project of a working directory with `git`: inside a git work tree its identity MUST be the
 origin remote normalized to `<host>/<path>`, which is the host and path lowercased, with the scheme,
 userinfo, port, a trailing `.git` and a trailing `/` removed (every variant of one remote giving the
 same value, distinct forges staying distinct, and normalization idempotent), or, without an origin,
@@ -17898,7 +17898,7 @@ same value, distinct forges staying distinct, and normalization idempotent), or,
 outside a work tree there MUST be no project. A linked worktree MUST take its origin from the
 repository. A fallback that cannot be used MUST give no project.
 
-Supports: 792a12o1c, 792a12o1d, 792a12m1f.
+Supports: [792a12o1c](./792a_product-spec.md#792a12o1-uat-scenarios), [792a12o1d](./792a_product-spec.md#792a12o1-uat-scenarios), [792a12m1f](./792a_product-spec.md#792a12m1-uat-scenarios).
 
 ##### 792b30c14a Scenarios
 
@@ -17941,14 +17941,14 @@ Scenario: 792b30c14a7 Unusable fallbacks give no project
 
 #### 792b30c15 Claude Code project sources
 
-Requirement: 792b30c15 The skill-source-discovery MUST scan `.claude/skills` and `.claude/commands` in the working directory and each ancestor up to the
+Requirement: [792b30c15](#792b30c15-claude-code-project-sources) The skill-source-discovery MUST scan `.claude/skills` and `.claude/commands` in the working directory and each ancestor up to the
 repository top-level, each existing level recorded as its own root and unreadable levels marked not
 scanned, MUST emit the same name at two levels once for each, MUST scan nothing when the working
 directory is outside the top-level, MUST skip the user's own roots when the top-level is the home
 directory, MUST resolve a working directory reached through a symlink, and MUST ignore root `.md` files
 in `.claude/skills`.
 
-Supports: 792a12m1d, 792a12m1e.
+Supports: [792a12m1d](./792a_product-spec.md#792a12m1-uat-scenarios), [792a12m1e](./792a_product-spec.md#792a12m1-uat-scenarios).
 
 ##### 792b30c15a Scenarios
 
@@ -17991,19 +17991,19 @@ Scenario: 792b30c15a7 An unreadable level is not scanned
 
 #### 792b30c16 Source composition and precedence
 
-Requirement: 792b30c16 The skill-source-discovery MUST compose the default source set from the harnesses that exist: the Claude Code sources only when
+Requirement: [792b30c16](#792b30c16-source-composition-and-precedence) The skill-source-discovery MUST compose the default source set from the harnesses that exist: the Claude Code sources only when
 `~/.claude` is detected, the Pi and `~/.agents` sources only when `~/.pi` is detected, using the
-detection of harness-deploy-sync (792b29c1) through links, and the project sources only inside a git
+detection of harness-deploy-sync ([792b29c1](#792b29c1-harness-detection)) through links, and the project sources only inside a git
 repository, and MUST return the candidates in this precedence: Claude user skills, Claude user commands,
 synced, Pi user, agents user, Pi settings skills, Pi prompt templates (default folder, then settings),
 Pi packages, Claude plugins, Claude project, then the Pi project sources in the same order as the global
 ones. It MUST apply Pi's overrides to default-folder files and keep the disabled candidates, MUST pass a
 plugin conflict through, MUST report the resolved home so that a `~`-relative `skill_source` can be
-written when the home is a symlink, MUST give every candidate the key of 792b30c17 and drop one that
+written when the home is a symlink, MUST give every candidate the key of [792b30c17](#792b30c17-skill-keys) and drop one that
 cannot be keyed with a warning, and MUST fail only when a harness probe fails for a reason other than
 not-exist.
 
-Supports: 792a12n1a, 792a12o1e, 792a12m1f, 792a12m1c.
+Supports: [792a12n1a](./792a_product-spec.md#792a12n1-uat-scenarios), [792a12o1e](./792a_product-spec.md#792a12o1-uat-scenarios), [792a12m1f](./792a_product-spec.md#792a12m1-uat-scenarios), [792a12m1c](./792a_product-spec.md#792a12m1-uat-scenarios).
 
 ##### 792b30c16a Scenarios
 
@@ -18091,7 +18091,7 @@ Scenario: 792b30c16a16 A symlinked home round-trips skill_source
 
 #### 792b30c17 Skill keys
 
-Requirement: 792b30c17 The skill-source-discovery MUST give each candidate the source-qualified key of 792a12o from its scope, source segment, kind and name,
+Requirement: [792b30c17](#792b30c17-skill-keys) The skill-source-discovery MUST give each candidate the source-qualified key of [792a12o](./792a_product-spec.md#792a12o-every-scanned-entry-has-a-source-qualified-key) from its scope, source segment, kind and name,
 joined by `:`, MUST key a disabled candidate like any other, MUST skip with a warning a candidate whose
 name contains `:` (a command's own namespace separators excepted), whose scope is unknown or reserved,
 or whose key is not recognized, and MUST derive a note slug from a key as `skill-` followed by the key
@@ -18100,7 +18100,7 @@ trimmed, so that any key holding a letter or digit gives `skill-[a-z0-9]+(-[a-z0
 key MUST contain `:`, have no empty segment and, when it begins with a reserved source prefix, have that
 source's shape; any other first segment MUST be a plugin's.
 
-Supports: 792a12o1a, 792a12o1b, 792a12o1e, 792a12o1f, 792a12o1j, 792a12n1b.
+Supports: [792a12o1a](./792a_product-spec.md#792a12o1-uat-scenarios), [792a12o1b](./792a_product-spec.md#792a12o1-uat-scenarios), [792a12o1e](./792a_product-spec.md#792a12o1-uat-scenarios), [792a12o1f](./792a_product-spec.md#792a12o1-uat-scenarios), [792a12o1j](./792a_product-spec.md#792a12o1-uat-scenarios), [792a12n1b](./792a_product-spec.md#792a12n1-uat-scenarios).
 
 ##### 792b30c17a Scenarios
 
@@ -18145,42 +18145,42 @@ Scenario: 792b30c17a7 Slugging holds for any key
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a12j1a | 792b30c1, 792b30c2, 792b30c3 |
-| 792a12j1b | 792b30c3 |
-| 792a12j1c | 792b30c4 |
-| 792a12j1d | 792b30c5 |
-| 792a12k1a | 792b30c9 |
-| 792a12k1b | 792b30c12, 792b30c13 |
-| 792a12k1c | 792b30c13 |
-| 792a12k1d | 792b30c13 |
-| 792a12k1e | 792b30c13 |
-| 792a12k1f | 792b30c12, 792b30c13 |
-| 792a12k1g | 792b30c8 |
-| 792a12k1h | 792b30c13 |
-| 792a12l1a | 792b30c6, 792b30c7 |
-| 792a12l1b | 792b30c7 |
-| 792a12l1c | 792b30c7 |
-| 792a12l1d | 792b30c7 |
-| 792a12m1a | 792b30c11 |
-| 792a12m1b | 792b30c10 |
-| 792a12m1c | 792b30c10, 792b30c11, 792b30c16 |
-| 792a12m1d | 792b30c15 |
-| 792a12m1e | 792b30c15 |
-| 792a12m1f | 792b30c14, 792b30c16 |
-| 792a12n1a | 792b30c16 |
-| 792a12n1b | 792b30c17 |
-| 792a12o1a | 792b30c17 |
-| 792a12o1b | 792b30c17 |
-| 792a12o1c | 792b30c14 |
-| 792a12o1d | 792b30c14 |
-| 792a12o1e | 792b30c16, 792b30c17 |
-| 792a12o1f | 792b30c17 |
-| 792a12o1g | 792b30c7 |
-| 792a12o1h | 792b30c7 |
-| 792a12o1i | 792b30c7 |
-| 792a12o1j | 792b30c17 |
-| 792a12p1d | 792b30c7 |
-| 792a12q1f | 792b30c2 |
+| [792a12j1a](./792a_product-spec.md#792a12j1-uat-scenarios) | [792b30c1](#792b30c1-symlink-resolving-path-reads), [792b30c2](#792b30c2-root-read-status), [792b30c3](#792b30c3-claude-code-user-skills) |
+| [792a12j1b](./792a_product-spec.md#792a12j1-uat-scenarios) | [792b30c3](#792b30c3-claude-code-user-skills) |
+| [792a12j1c](./792a_product-spec.md#792a12j1-uat-scenarios) | [792b30c4](#792b30c4-command-directories) |
+| [792a12j1d](./792a_product-spec.md#792a12j1-uat-scenarios) | [792b30c5](#792b30c5-synced-skill-buckets) |
+| [792a12k1a](./792a_product-spec.md#792a12k1-uat-scenarios) | [792b30c9](#792b30c9-pi-prompt-directories) |
+| [792a12k1b](./792a_product-spec.md#792a12k1-uat-scenarios) | [792b30c12](#792b30c12-pi-settings-reading-and-overrides), [792b30c13](#792b30c13-pi-configured-sources) |
+| [792a12k1c](./792a_product-spec.md#792a12k1-uat-scenarios) | [792b30c13](#792b30c13-pi-configured-sources) |
+| [792a12k1d](./792a_product-spec.md#792a12k1-uat-scenarios) | [792b30c13](#792b30c13-pi-configured-sources) |
+| [792a12k1e](./792a_product-spec.md#792a12k1-uat-scenarios) | [792b30c13](#792b30c13-pi-configured-sources) |
+| [792a12k1f](./792a_product-spec.md#792a12k1-uat-scenarios) | [792b30c12](#792b30c12-pi-settings-reading-and-overrides), [792b30c13](#792b30c13-pi-configured-sources) |
+| [792a12k1g](./792a_product-spec.md#792a12k1-uat-scenarios) | [792b30c8](#792b30c8-pi-skill-directories) |
+| [792a12k1h](./792a_product-spec.md#792a12k1-uat-scenarios) | [792b30c13](#792b30c13-pi-configured-sources) |
+| [792a12l1a](./792a_product-spec.md#792a12l1-uat-scenarios) | [792b30c6](#792b30c6-plugin-command-paths), [792b30c7](#792b30c7-claude-code-plugins) |
+| [792a12l1b](./792a_product-spec.md#792a12l1-uat-scenarios) | [792b30c7](#792b30c7-claude-code-plugins) |
+| [792a12l1c](./792a_product-spec.md#792a12l1-uat-scenarios) | [792b30c7](#792b30c7-claude-code-plugins) |
+| [792a12l1d](./792a_product-spec.md#792a12l1-uat-scenarios) | [792b30c7](#792b30c7-claude-code-plugins) |
+| [792a12m1a](./792a_product-spec.md#792a12m1-uat-scenarios) | [792b30c11](#792b30c11-pi-project-sources) |
+| [792a12m1b](./792a_product-spec.md#792a12m1-uat-scenarios) | [792b30c10](#792b30c10-pi-project-trust) |
+| [792a12m1c](./792a_product-spec.md#792a12m1-uat-scenarios) | [792b30c10](#792b30c10-pi-project-trust), [792b30c11](#792b30c11-pi-project-sources), [792b30c16](#792b30c16-source-composition-and-precedence) |
+| [792a12m1d](./792a_product-spec.md#792a12m1-uat-scenarios) | [792b30c15](#792b30c15-claude-code-project-sources) |
+| [792a12m1e](./792a_product-spec.md#792a12m1-uat-scenarios) | [792b30c15](#792b30c15-claude-code-project-sources) |
+| [792a12m1f](./792a_product-spec.md#792a12m1-uat-scenarios) | [792b30c14](#792b30c14-project-identity), [792b30c16](#792b30c16-source-composition-and-precedence) |
+| [792a12n1a](./792a_product-spec.md#792a12n1-uat-scenarios) | [792b30c16](#792b30c16-source-composition-and-precedence) |
+| [792a12n1b](./792a_product-spec.md#792a12n1-uat-scenarios) | [792b30c17](#792b30c17-skill-keys) |
+| [792a12o1a](./792a_product-spec.md#792a12o1-uat-scenarios) | [792b30c17](#792b30c17-skill-keys) |
+| [792a12o1b](./792a_product-spec.md#792a12o1-uat-scenarios) | [792b30c17](#792b30c17-skill-keys) |
+| [792a12o1c](./792a_product-spec.md#792a12o1-uat-scenarios) | [792b30c14](#792b30c14-project-identity) |
+| [792a12o1d](./792a_product-spec.md#792a12o1-uat-scenarios) | [792b30c14](#792b30c14-project-identity) |
+| [792a12o1e](./792a_product-spec.md#792a12o1-uat-scenarios) | [792b30c16](#792b30c16-source-composition-and-precedence), [792b30c17](#792b30c17-skill-keys) |
+| [792a12o1f](./792a_product-spec.md#792a12o1-uat-scenarios) | [792b30c17](#792b30c17-skill-keys) |
+| [792a12o1g](./792a_product-spec.md#792a12o1-uat-scenarios) | [792b30c7](#792b30c7-claude-code-plugins) |
+| [792a12o1h](./792a_product-spec.md#792a12o1-uat-scenarios) | [792b30c7](#792b30c7-claude-code-plugins) |
+| [792a12o1i](./792a_product-spec.md#792a12o1-uat-scenarios) | [792b30c7](#792b30c7-claude-code-plugins) |
+| [792a12o1j](./792a_product-spec.md#792a12o1-uat-scenarios) | [792b30c17](#792b30c17-skill-keys) |
+| [792a12p1d](./792a_product-spec.md#792a12p1-uat-scenarios) | [792b30c7](#792b30c7-claude-code-plugins) |
+| [792a12q1f](./792a_product-spec.md#792a12q1-uat-scenarios) | [792b30c2](#792b30c2-root-read-status) |
 
 ```gherkin
 Scenario: 792a12j1a A symlinked user skill is found
@@ -18386,7 +18386,7 @@ Canonical target: `docs/specs/technical/skill-registration-ledger.md` (title `Sk
   the comparison, the answers and each action run over an in-memory vault with injected faults and a fake
   terminal; stability, the contract survives a new source or a new prompt style; necessity, it is the only
   writer of skill notes.
-- Supported capabilities: 792a12 skill-runbook-registration.
+- Supported capabilities: [792a12](./792a_product-spec.md#792a12-added-skill-runbook-registration) skill-runbook-registration.
 
 Rationale: registration offers and never acts alone, because a skill note mirrors a file the user owns and a
 write the user did not choose would be a silent change to their memory. Declines are remembered by hash so
@@ -18427,13 +18427,13 @@ sequenceDiagram
 
 #### 792b31c1 Skill note lookup
 
-Requirement: 792b31c1 The skill-registration-ledger MUST find the note of a key as the note of type runbook whose basename slug begins `skill-`, that carries a
-non-empty `skill_hash` and a recognized `skill_key` equal to the key (792b30c17), reading only `skill-`
+Requirement: [792b31c1](#792b31c1-skill-note-lookup) The skill-registration-ledger MUST find the note of a key as the note of type runbook whose basename slug begins `skill-`, that carries a
+non-empty `skill_hash` and a recognized `skill_key` equal to the key ([792b30c17](#792b30c17-skill-keys)), reading only `skill-`
 slugs, and MUST give no note for zero matches and an error naming every match (`errDuplicateSkillNote`)
 for more than one. A slug alone, a runbook without `skill_hash`, a note of another type, an unreadable
 or unparseable file, and a note with an unrecognized key MUST NOT be a skill note.
 
-Supports: 792a12b1a, 792a12b1b, 792a12b1c, 792a12b1d, 792a12b1e, 792a12b1f, 792a12b1g.
+Supports: [792a12b1a](./792a_product-spec.md#792a12b1-uat-scenarios), [792a12b1b](./792a_product-spec.md#792a12b1-uat-scenarios), [792a12b1c](./792a_product-spec.md#792a12b1-uat-scenarios), [792a12b1d](./792a_product-spec.md#792a12b1-uat-scenarios), [792a12b1e](./792a_product-spec.md#792a12b1-uat-scenarios), [792a12b1f](./792a_product-spec.md#792a12b1-uat-scenarios), [792a12b1g](./792a_product-spec.md#792a12b1-uat-scenarios).
 
 ##### 792b31c1a Scenarios
 
@@ -18471,8 +18471,8 @@ Scenario: 792b31c1a6 A duplicate qualified key is an error
 
 #### 792b31c2 Offer comparison
 
-Requirement: 792b31c2 The skill-registration-ledger MUST compare the keyed candidates with the vault's skill notes and the declined hashes and produce the
-offers: candidates in precedence order (792b30c16), entries resolving to one file collapsed, entries
+Requirement: [792b31c2](#792b31c2-offer-comparison) The skill-registration-ledger MUST compare the keyed candidates with the vault's skill notes and the declined hashes and produce the
+offers: candidates in precedence order ([792b30c16](#792b30c16-source-composition-and-precedence)), entries resolving to one file collapsed, entries
 sharing a key collapsed when byte-identical and reported as a key conflict naming every path (`engram:
 skill key conflict: <key> at <paths>`) otherwise, a plugin conflict reported (`engram: plugin name
 conflict: <plugin> in <marketplaces>`), a winner whose hash equals that of an earlier candidate or of
@@ -18483,7 +18483,7 @@ depend on the order the candidates, roots or vault listing arrive in. A duplicat
 the comparison. It MUST print the warnings and then the conflict lines after every other offer is
 handled and return a failure when there is any conflict, and MUST print nothing and succeed otherwise.
 
-Supports: 792a12b1d, 792a12b1e, 792a12b1f, 792a12b1g, 792a12c1a, 792a12c1b, 792a12c1c, 792a12p1a, 792a12p1b, 792a12p1c, 792a12p1d, 792a12p1e, 792a12p1f, 792a12p1g, 792a12o1e.
+Supports: [792a12b1d](./792a_product-spec.md#792a12b1-uat-scenarios), [792a12b1e](./792a_product-spec.md#792a12b1-uat-scenarios), [792a12b1f](./792a_product-spec.md#792a12b1-uat-scenarios), [792a12b1g](./792a_product-spec.md#792a12b1-uat-scenarios), [792a12c1a](./792a_product-spec.md#792a12c1-uat-scenarios), [792a12c1b](./792a_product-spec.md#792a12c1-uat-scenarios), [792a12c1c](./792a_product-spec.md#792a12c1-uat-scenarios), [792a12p1a](./792a_product-spec.md#792a12p1-uat-scenarios), [792a12p1b](./792a_product-spec.md#792a12p1-uat-scenarios), [792a12p1c](./792a_product-spec.md#792a12p1-uat-scenarios), [792a12p1d](./792a_product-spec.md#792a12p1-uat-scenarios), [792a12p1e](./792a_product-spec.md#792a12p1-uat-scenarios), [792a12p1f](./792a_product-spec.md#792a12p1-uat-scenarios), [792a12p1g](./792a_product-spec.md#792a12p1-uat-scenarios), [792a12o1e](./792a_product-spec.md#792a12o1-uat-scenarios).
 
 ##### 792b31c2a Scenarios
 
@@ -18581,7 +18581,7 @@ Scenario: 792b31c2a18 An unrecognized key is never eligible for any state
 
 #### 792b31c3 Removal eligibility
 
-Requirement: 792b31c3 The skill-registration-ledger MUST offer to remove a skill note only when no candidate at all holds its key (disabled, collapsed,
+Requirement: [792b31c3](#792b31c3-removal-eligibility) The skill-registration-ledger MUST offer to remove a skill note only when no candidate at all holds its key (disabled, collapsed,
 conflicted or alias ones included), its key form's own roots were read, and its `skill_hash` is not
 declined, and MUST make no removal offer when removals are suppressed (`--skills-dir`). For `claude:`,
 `claude:cmd:`, `pi:`, `agents:` and `pi-prompt:` keys the one fixed user root of the form must have been
@@ -18595,7 +18595,7 @@ A note with no `skill_source`, one under no read root, and one whose key is unre
 eligible. A root that could not be read MUST be given the real location it points into, as far as it
 resolves, so that it hides the notes under that location from an outer read root.
 
-Supports: 792a12q1a, 792a12q1b, 792a12q1c, 792a12q1d, 792a12q1e, 792a12q1f, 792a12q1g, 792a12q1h, 792a12q1i, 792a12q1j, 792a12q1k, 792a12q1l, 792a12q1m, 792a12q1n, 792a12q1o.
+Supports: [792a12q1a](./792a_product-spec.md#792a12q1-uat-scenarios), [792a12q1b](./792a_product-spec.md#792a12q1-uat-scenarios), [792a12q1c](./792a_product-spec.md#792a12q1-uat-scenarios), [792a12q1d](./792a_product-spec.md#792a12q1-uat-scenarios), [792a12q1e](./792a_product-spec.md#792a12q1-uat-scenarios), [792a12q1f](./792a_product-spec.md#792a12q1-uat-scenarios), [792a12q1g](./792a_product-spec.md#792a12q1-uat-scenarios), [792a12q1h](./792a_product-spec.md#792a12q1-uat-scenarios), [792a12q1i](./792a_product-spec.md#792a12q1-uat-scenarios), [792a12q1j](./792a_product-spec.md#792a12q1-uat-scenarios), [792a12q1k](./792a_product-spec.md#792a12q1-uat-scenarios), [792a12q1l](./792a_product-spec.md#792a12q1-uat-scenarios), [792a12q1m](./792a_product-spec.md#792a12q1-uat-scenarios), [792a12q1n](./792a_product-spec.md#792a12q1-uat-scenarios), [792a12q1o](./792a_product-spec.md#792a12q1-uat-scenarios).
 
 ##### 792b31c3a Scenarios
 
@@ -18658,7 +18658,7 @@ Scenario: 792b31c3a11 A failed root keeps its real location
 
 #### 792b31c4 Declines file
 
-Requirement: 792b31c4 The skill-registration-ledger MUST read the vault-root `skill-registrations.json`: a missing file MUST be an empty state, any other read
+Requirement: [792b31c4](#792b31c4-declines-file) The skill-registration-ledger MUST read the vault-root `skill-registrations.json`: a missing file MUST be an empty state, any other read
 failure MUST be an error (a decline is intent, so an unreadable present file must not mean "nothing
 declined"), an unrecognized field or undecodable body MUST be an error, and any `schema_version` other
 than 2 (missing, below or above) MUST be the error `skill registrations: unsupported schema version`
@@ -18668,7 +18668,7 @@ unchanged `{schema_version, declined}` shape, writing atomically, and never writ
 file is unreadable or of another version. A registration run MUST write nothing when the file is not
 version 2.
 
-Supports: 792a12s1a, 792a12s1b, 792a12s1c, 792a12c1a, 792a12c1b.
+Supports: [792a12s1a](./792a_product-spec.md#792a12s1-uat-scenarios), [792a12s1b](./792a_product-spec.md#792a12s1-uat-scenarios), [792a12s1c](./792a_product-spec.md#792a12s1-uat-scenarios), [792a12c1a](./792a_product-spec.md#792a12c1-uat-scenarios), [792a12c1b](./792a_product-spec.md#792a12c1-uat-scenarios).
 
 ##### 792b31c4a Scenarios
 
@@ -18736,7 +18736,7 @@ Scenario: 792b31c4a12 A run on a non-version-2 file writes nothing
 
 #### 792b31c5 Answers and prompts
 
-Requirement: 792b31c5 The skill-registration-ledger MUST parse `--accept` and `--decline` tokens, refusing a token named in both before anything is acted on
+Requirement: [792b31c5](#792b31c5-answers-and-prompts) The skill-registration-ledger MUST parse `--accept` and `--decline` tokens, refusing a token named in both before anything is acted on
 (`register-skills: answer named in both --accept and --decline`), and answer each offer by an exact key
 first, then the longest matching `*` pattern, then a matching `@<scope-id>` selector, where a removal is
 matched only by its exact key. It MUST answer scope by scope: explicit answers first; then, when
@@ -18749,11 +18749,11 @@ changed since its note was last synced. Update the note? [y/N]``, ``Skill `<key>
 longer found in its source. Remove its runbook note? [y/N]``) where `y` or `yes`, case-insensitively,
 accepts, another line declines and end of input records nothing; otherwise the offer stays outstanding.
 It MUST then note each token that matched no offer, print the one-line summary of outstanding offers,
-and report the problems (792b31c2). An accept or decline action that fails MUST stop the run with its
+and report the problems ([792b31c2](#792b31c2-offer-comparison)). An accept or decline action that fails MUST stop the run with its
 error. `--dry-run` MUST print each scope as ``@<scope> (<n>)`` and each offer as `` would offer: <kind>
 <key> (<source>)`` (``note <basename>`` for a removal with no source), then the problems.
 
-Supports: 792a12r1a, 792a12r1b, 792a12r1c, 792a12r1d, 792a12r1e, 792a12r1f, 792a12r1g, 792a12r1h, 792a12g1a, 792a12h1a, 792a12h1b, 792a12h1c, 792a12h1f.
+Supports: [792a12r1a](./792a_product-spec.md#792a12r1-uat-scenarios), [792a12r1b](./792a_product-spec.md#792a12r1-uat-scenarios), [792a12r1c](./792a_product-spec.md#792a12r1-uat-scenarios), [792a12r1d](./792a_product-spec.md#792a12r1-uat-scenarios), [792a12r1e](./792a_product-spec.md#792a12r1-uat-scenarios), [792a12r1f](./792a_product-spec.md#792a12r1-uat-scenarios), [792a12r1g](./792a_product-spec.md#792a12r1-uat-scenarios), [792a12r1h](./792a_product-spec.md#792a12r1-uat-scenarios), [792a12g1a](./792a_product-spec.md#792a12g1-uat-scenarios), [792a12h1a](./792a_product-spec.md#792a12h1-uat-scenarios), [792a12h1b](./792a_product-spec.md#792a12h1-uat-scenarios), [792a12h1c](./792a_product-spec.md#792a12h1-uat-scenarios), [792a12h1f](./792a_product-spec.md#792a12h1-uat-scenarios).
 
 ##### 792b31c5a Scenarios
 
@@ -18861,11 +18861,11 @@ Scenario: 792b31c5a20 The remove prompt and a yes answer
 
 #### 792b31c6 The registration run
 
-Requirement: 792b31c6 The skill-registration-ledger MUST run registration as one operation for `engram register-skills` and for the update hook: resolve the
-default source set (792b30c16) from the home and the working directory its dependency supplies (failing
+Requirement: [792b31c6](#792b31c6-the-registration-run) The skill-registration-ledger MUST run registration as one operation for `engram register-skills` and for the update hook: resolve the
+default source set ([792b30c16](#792b30c16-source-composition-and-precedence)) from the home and the working directory its dependency supplies (failing
 when there is none, or when resolution fails), reject `--accept` and `--decline` named in both, run each
 `--adopt` first, then compute the offers against the vault listing and the declines (a failure of any of
-these reads aborting the run before anything is written), answer them (792b31c5), and print the scan and
+these reads aborting the run before anything is written), answer them ([792b31c5](#792b31c5-answers-and-prompts)), and print the scan and
 key warnings on every path. With `--dry-run` it MUST only preview the offers and run no `--adopt`. With
 `--skills-dir` it MUST refuse `--accept`, `--decline` and `--adopt` before scanning, scan each directory
 as Claude Code user skills keyed `claude:<name>`, offer nothing for an entry without `SKILL.md`, make no
@@ -18878,7 +18878,7 @@ registered to another note, its basename has no Luhmann ID and date, or its note
 adopted notes MUST NOT also be offered, and linked notes MUST adopt in any order. An accepted offer
 whose source cannot be found, or whose kind is unknown, MUST be an error that writes nothing.
 
-Supports: 792a12h1a, 792a12h1b, 792a12h1d, 792a12h1e, 792a12h1f, 792a12a1a, 792a12a1b, 792a12i1a, 792a12i1b, 792a12i1c, 792a12i1e, 792a12i1f, 792a12i1g, 792a12i1h, 792a12i1i, 792a12t1c.
+Supports: [792a12h1a](./792a_product-spec.md#792a12h1-uat-scenarios), [792a12h1b](./792a_product-spec.md#792a12h1-uat-scenarios), [792a12h1d](./792a_product-spec.md#792a12h1-uat-scenarios), [792a12h1e](./792a_product-spec.md#792a12h1-uat-scenarios), [792a12h1f](./792a_product-spec.md#792a12h1-uat-scenarios), [792a12a1a](./792a_product-spec.md#792a12a1-uat-scenarios), [792a12a1b](./792a_product-spec.md#792a12a1-uat-scenarios), [792a12i1a](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1b](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1c](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1e](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1f](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1g](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1h](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1i](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12t1c](./792a_product-spec.md#792a12t1-uat-scenarios).
 
 ##### 792b31c6a Scenarios
 
@@ -19036,7 +19036,7 @@ Scenario: 792b31c6a30 Adopting takes a conflict-free qualified key
 
 #### 792b31c7 Note actions
 
-Requirement: 792b31c7 The skill-registration-ledger MUST carry an accepted offer out on the vault under the vault lock. Registering MUST create a runbook note
+Requirement: [792b31c7](#792b31c7-note-actions) The skill-registration-ledger MUST carry an accepted offer out on the vault under the vault lock. Registering MUST create a runbook note
 through `engram learn`'s write path (a fresh top-level Luhmann ID, the slug derived from the key,
 `skill_hash`, `skill_key`, `skill_source`, `pending: true`, the `source:` line, an embedded sidecar and
 no `situation`, `done_when`, `triggers` or `red_flags`), whose body is the preamble naming the
@@ -19053,7 +19053,7 @@ the body, set the three fields, clear any `pending` marker, keep every other key
 before any rename so that a note that would not render is refused unrenamed. A failure to lock, read,
 scan, list, write or embed MUST be returned.
 
-Supports: 792a12d1a, 792a12d1b, 792a12d1c, 792a12e1a, 792a12e1b, 792a12e1c, 792a12e1d, 792a12e1e, 792a12e1f, 792a12f1a, 792a12i1a, 792a12i1b, 792a12i1c, 792a12i1d, 792a12i1e, 792a12i1f, 792a12i1g, 792a12i1h, 792a12v1c, 792a12v1d.
+Supports: [792a12d1a](./792a_product-spec.md#792a12d1-uat-scenarios), [792a12d1b](./792a_product-spec.md#792a12d1-uat-scenarios), [792a12d1c](./792a_product-spec.md#792a12d1-uat-scenarios), [792a12e1a](./792a_product-spec.md#792a12e1-uat-scenarios), [792a12e1b](./792a_product-spec.md#792a12e1-uat-scenarios), [792a12e1c](./792a_product-spec.md#792a12e1-uat-scenarios), [792a12e1d](./792a_product-spec.md#792a12e1-uat-scenarios), [792a12e1e](./792a_product-spec.md#792a12e1-uat-scenarios), [792a12e1f](./792a_product-spec.md#792a12e1-uat-scenarios), [792a12f1a](./792a_product-spec.md#792a12f1-uat-scenarios), [792a12i1a](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1b](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1c](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1d](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1e](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1f](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1g](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12i1h](./792a_product-spec.md#792a12i1-uat-scenarios), [792a12v1c](./792a_product-spec.md#792a12v1-uat-scenarios), [792a12v1d](./792a_product-spec.md#792a12v1-uat-scenarios).
 
 ##### 792b31c7a Scenarios
 
@@ -19211,14 +19211,14 @@ Scenario: 792b31c7a30 Adopt failures are returned
 
 #### 792b31c8 The command wiring
 
-Requirement: 792b31c8 The skill-registration-ledger MUST wire `engram register-skills` to the registration run over the real filesystem: `--accept` MUST register
+Requirement: [792b31c8](#792b31c8-the-command-wiring) The skill-registration-ledger MUST wire `engram register-skills` to the registration run over the real filesystem: `--accept` MUST register
 a real note, `--adopt` MUST adopt a real note, `--dry-run` MUST list a register offer, and a run whose
 standard input is not a terminal MUST never prompt or write. The command MUST accept `--vault`,
 `--vault-name`, `--skills-dir`, `--dry-run`, `--accept`, `--decline` and `--adopt` and describe itself
 as offering to register, refresh or remove vault runbook notes mirroring the skills, commands and prompt
 templates in the default folders.
 
-Supports: 792a12g1a, 792a12h1a, 792a12h1b, 792a12h1d, 792a12i1a.
+Supports: [792a12g1a](./792a_product-spec.md#792a12g1-uat-scenarios), [792a12h1a](./792a_product-spec.md#792a12h1-uat-scenarios), [792a12h1b](./792a_product-spec.md#792a12h1-uat-scenarios), [792a12h1d](./792a_product-spec.md#792a12h1-uat-scenarios), [792a12i1a](./792a_product-spec.md#792a12i1-uat-scenarios).
 
 ##### 792b31c8a Scenarios
 
@@ -19248,81 +19248,81 @@ Scenario: 792b31c8a4 A non-terminal never prompts or writes
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a12a1a | 792b31c6 |
-| 792a12a1b | 792b31c6 |
-| 792a12b1a | 792b31c1 |
-| 792a12b1b | 792b31c1 |
-| 792a12b1c | 792b31c1 |
-| 792a12b1d | 792b31c1, 792b31c2 |
-| 792a12b1e | 792b31c1, 792b31c2 |
-| 792a12b1f | 792b31c1, 792b31c2 |
-| 792a12b1g | 792b31c1, 792b31c2 |
-| 792a12c1a | 792b31c2, 792b31c4 |
-| 792a12c1b | 792b31c2, 792b31c4 |
-| 792a12c1c | 792b31c2 |
-| 792a12d1a | 792b31c7 |
-| 792a12d1b | 792b31c7 |
-| 792a12d1c | 792b31c7 |
-| 792a12e1a | 792b31c7 |
-| 792a12e1b | 792b31c7 |
-| 792a12e1c | 792b31c7 |
-| 792a12e1d | 792b31c7 |
-| 792a12e1e | 792b31c7 |
-| 792a12e1f | 792b31c7 |
-| 792a12f1a | 792b31c7 |
-| 792a12g1a | 792b31c5, 792b31c8 |
-| 792a12h1a | 792b31c5, 792b31c6, 792b31c8 |
-| 792a12h1b | 792b31c5, 792b31c6, 792b31c8 |
-| 792a12h1c | 792b31c5 |
-| 792a12h1d | 792b31c6, 792b31c8 |
-| 792a12h1e | 792b31c6 |
-| 792a12h1f | 792b31c5, 792b31c6 |
-| 792a12i1a | 792b31c6, 792b31c7, 792b31c8 |
-| 792a12i1b | 792b31c6, 792b31c7 |
-| 792a12i1c | 792b31c6, 792b31c7 |
-| 792a12i1d | 792b31c7 |
-| 792a12i1e | 792b31c6, 792b31c7 |
-| 792a12i1f | 792b31c6, 792b31c7 |
-| 792a12i1g | 792b31c6, 792b31c7 |
-| 792a12i1h | 792b31c6, 792b31c7 |
-| 792a12i1i | 792b31c6 |
-| 792a12o1e | 792b31c2 |
-| 792a12p1a | 792b31c2 |
-| 792a12p1b | 792b31c2 |
-| 792a12p1c | 792b31c2 |
-| 792a12p1d | 792b31c2 |
-| 792a12p1e | 792b31c2 |
-| 792a12p1f | 792b31c2 |
-| 792a12p1g | 792b31c2 |
-| 792a12q1a | 792b31c3 |
-| 792a12q1b | 792b31c3 |
-| 792a12q1c | 792b31c3 |
-| 792a12q1d | 792b31c3 |
-| 792a12q1e | 792b31c3 |
-| 792a12q1f | 792b31c3 |
-| 792a12q1g | 792b31c3 |
-| 792a12q1h | 792b31c3 |
-| 792a12q1i | 792b31c3 |
-| 792a12q1j | 792b31c3 |
-| 792a12q1k | 792b31c3 |
-| 792a12q1l | 792b31c3 |
-| 792a12q1m | 792b31c3 |
-| 792a12q1n | 792b31c3 |
-| 792a12q1o | 792b31c3 |
-| 792a12r1a | 792b31c5 |
-| 792a12r1b | 792b31c5 |
-| 792a12r1c | 792b31c5 |
-| 792a12r1d | 792b31c5 |
-| 792a12r1e | 792b31c5 |
-| 792a12r1f | 792b31c5 |
-| 792a12r1g | 792b31c5 |
-| 792a12r1h | 792b31c5 |
-| 792a12s1a | 792b31c4 |
-| 792a12s1b | 792b31c4 |
-| 792a12s1c | 792b31c4 |
-| 792a12t1c | 792b31c6 |
-| 792a12v1c | 792b31c7 |
-| 792a12v1d | 792b31c7 |
+| [792a12a1a](./792a_product-spec.md#792a12a1-uat-scenarios) | [792b31c6](#792b31c6-the-registration-run) |
+| [792a12a1b](./792a_product-spec.md#792a12a1-uat-scenarios) | [792b31c6](#792b31c6-the-registration-run) |
+| [792a12b1a](./792a_product-spec.md#792a12b1-uat-scenarios) | [792b31c1](#792b31c1-skill-note-lookup) |
+| [792a12b1b](./792a_product-spec.md#792a12b1-uat-scenarios) | [792b31c1](#792b31c1-skill-note-lookup) |
+| [792a12b1c](./792a_product-spec.md#792a12b1-uat-scenarios) | [792b31c1](#792b31c1-skill-note-lookup) |
+| [792a12b1d](./792a_product-spec.md#792a12b1-uat-scenarios) | [792b31c1](#792b31c1-skill-note-lookup), [792b31c2](#792b31c2-offer-comparison) |
+| [792a12b1e](./792a_product-spec.md#792a12b1-uat-scenarios) | [792b31c1](#792b31c1-skill-note-lookup), [792b31c2](#792b31c2-offer-comparison) |
+| [792a12b1f](./792a_product-spec.md#792a12b1-uat-scenarios) | [792b31c1](#792b31c1-skill-note-lookup), [792b31c2](#792b31c2-offer-comparison) |
+| [792a12b1g](./792a_product-spec.md#792a12b1-uat-scenarios) | [792b31c1](#792b31c1-skill-note-lookup), [792b31c2](#792b31c2-offer-comparison) |
+| [792a12c1a](./792a_product-spec.md#792a12c1-uat-scenarios) | [792b31c2](#792b31c2-offer-comparison), [792b31c4](#792b31c4-declines-file) |
+| [792a12c1b](./792a_product-spec.md#792a12c1-uat-scenarios) | [792b31c2](#792b31c2-offer-comparison), [792b31c4](#792b31c4-declines-file) |
+| [792a12c1c](./792a_product-spec.md#792a12c1-uat-scenarios) | [792b31c2](#792b31c2-offer-comparison) |
+| [792a12d1a](./792a_product-spec.md#792a12d1-uat-scenarios) | [792b31c7](#792b31c7-note-actions) |
+| [792a12d1b](./792a_product-spec.md#792a12d1-uat-scenarios) | [792b31c7](#792b31c7-note-actions) |
+| [792a12d1c](./792a_product-spec.md#792a12d1-uat-scenarios) | [792b31c7](#792b31c7-note-actions) |
+| [792a12e1a](./792a_product-spec.md#792a12e1-uat-scenarios) | [792b31c7](#792b31c7-note-actions) |
+| [792a12e1b](./792a_product-spec.md#792a12e1-uat-scenarios) | [792b31c7](#792b31c7-note-actions) |
+| [792a12e1c](./792a_product-spec.md#792a12e1-uat-scenarios) | [792b31c7](#792b31c7-note-actions) |
+| [792a12e1d](./792a_product-spec.md#792a12e1-uat-scenarios) | [792b31c7](#792b31c7-note-actions) |
+| [792a12e1e](./792a_product-spec.md#792a12e1-uat-scenarios) | [792b31c7](#792b31c7-note-actions) |
+| [792a12e1f](./792a_product-spec.md#792a12e1-uat-scenarios) | [792b31c7](#792b31c7-note-actions) |
+| [792a12f1a](./792a_product-spec.md#792a12f1-uat-scenarios) | [792b31c7](#792b31c7-note-actions) |
+| [792a12g1a](./792a_product-spec.md#792a12g1-uat-scenarios) | [792b31c5](#792b31c5-answers-and-prompts), [792b31c8](#792b31c8-the-command-wiring) |
+| [792a12h1a](./792a_product-spec.md#792a12h1-uat-scenarios) | [792b31c5](#792b31c5-answers-and-prompts), [792b31c6](#792b31c6-the-registration-run), [792b31c8](#792b31c8-the-command-wiring) |
+| [792a12h1b](./792a_product-spec.md#792a12h1-uat-scenarios) | [792b31c5](#792b31c5-answers-and-prompts), [792b31c6](#792b31c6-the-registration-run), [792b31c8](#792b31c8-the-command-wiring) |
+| [792a12h1c](./792a_product-spec.md#792a12h1-uat-scenarios) | [792b31c5](#792b31c5-answers-and-prompts) |
+| [792a12h1d](./792a_product-spec.md#792a12h1-uat-scenarios) | [792b31c6](#792b31c6-the-registration-run), [792b31c8](#792b31c8-the-command-wiring) |
+| [792a12h1e](./792a_product-spec.md#792a12h1-uat-scenarios) | [792b31c6](#792b31c6-the-registration-run) |
+| [792a12h1f](./792a_product-spec.md#792a12h1-uat-scenarios) | [792b31c5](#792b31c5-answers-and-prompts), [792b31c6](#792b31c6-the-registration-run) |
+| [792a12i1a](./792a_product-spec.md#792a12i1-uat-scenarios) | [792b31c6](#792b31c6-the-registration-run), [792b31c7](#792b31c7-note-actions), [792b31c8](#792b31c8-the-command-wiring) |
+| [792a12i1b](./792a_product-spec.md#792a12i1-uat-scenarios) | [792b31c6](#792b31c6-the-registration-run), [792b31c7](#792b31c7-note-actions) |
+| [792a12i1c](./792a_product-spec.md#792a12i1-uat-scenarios) | [792b31c6](#792b31c6-the-registration-run), [792b31c7](#792b31c7-note-actions) |
+| [792a12i1d](./792a_product-spec.md#792a12i1-uat-scenarios) | [792b31c7](#792b31c7-note-actions) |
+| [792a12i1e](./792a_product-spec.md#792a12i1-uat-scenarios) | [792b31c6](#792b31c6-the-registration-run), [792b31c7](#792b31c7-note-actions) |
+| [792a12i1f](./792a_product-spec.md#792a12i1-uat-scenarios) | [792b31c6](#792b31c6-the-registration-run), [792b31c7](#792b31c7-note-actions) |
+| [792a12i1g](./792a_product-spec.md#792a12i1-uat-scenarios) | [792b31c6](#792b31c6-the-registration-run), [792b31c7](#792b31c7-note-actions) |
+| [792a12i1h](./792a_product-spec.md#792a12i1-uat-scenarios) | [792b31c6](#792b31c6-the-registration-run), [792b31c7](#792b31c7-note-actions) |
+| [792a12i1i](./792a_product-spec.md#792a12i1-uat-scenarios) | [792b31c6](#792b31c6-the-registration-run) |
+| [792a12o1e](./792a_product-spec.md#792a12o1-uat-scenarios) | [792b31c2](#792b31c2-offer-comparison) |
+| [792a12p1a](./792a_product-spec.md#792a12p1-uat-scenarios) | [792b31c2](#792b31c2-offer-comparison) |
+| [792a12p1b](./792a_product-spec.md#792a12p1-uat-scenarios) | [792b31c2](#792b31c2-offer-comparison) |
+| [792a12p1c](./792a_product-spec.md#792a12p1-uat-scenarios) | [792b31c2](#792b31c2-offer-comparison) |
+| [792a12p1d](./792a_product-spec.md#792a12p1-uat-scenarios) | [792b31c2](#792b31c2-offer-comparison) |
+| [792a12p1e](./792a_product-spec.md#792a12p1-uat-scenarios) | [792b31c2](#792b31c2-offer-comparison) |
+| [792a12p1f](./792a_product-spec.md#792a12p1-uat-scenarios) | [792b31c2](#792b31c2-offer-comparison) |
+| [792a12p1g](./792a_product-spec.md#792a12p1-uat-scenarios) | [792b31c2](#792b31c2-offer-comparison) |
+| [792a12q1a](./792a_product-spec.md#792a12q1-uat-scenarios) | [792b31c3](#792b31c3-removal-eligibility) |
+| [792a12q1b](./792a_product-spec.md#792a12q1-uat-scenarios) | [792b31c3](#792b31c3-removal-eligibility) |
+| [792a12q1c](./792a_product-spec.md#792a12q1-uat-scenarios) | [792b31c3](#792b31c3-removal-eligibility) |
+| [792a12q1d](./792a_product-spec.md#792a12q1-uat-scenarios) | [792b31c3](#792b31c3-removal-eligibility) |
+| [792a12q1e](./792a_product-spec.md#792a12q1-uat-scenarios) | [792b31c3](#792b31c3-removal-eligibility) |
+| [792a12q1f](./792a_product-spec.md#792a12q1-uat-scenarios) | [792b31c3](#792b31c3-removal-eligibility) |
+| [792a12q1g](./792a_product-spec.md#792a12q1-uat-scenarios) | [792b31c3](#792b31c3-removal-eligibility) |
+| [792a12q1h](./792a_product-spec.md#792a12q1-uat-scenarios) | [792b31c3](#792b31c3-removal-eligibility) |
+| [792a12q1i](./792a_product-spec.md#792a12q1-uat-scenarios) | [792b31c3](#792b31c3-removal-eligibility) |
+| [792a12q1j](./792a_product-spec.md#792a12q1-uat-scenarios) | [792b31c3](#792b31c3-removal-eligibility) |
+| [792a12q1k](./792a_product-spec.md#792a12q1-uat-scenarios) | [792b31c3](#792b31c3-removal-eligibility) |
+| [792a12q1l](./792a_product-spec.md#792a12q1-uat-scenarios) | [792b31c3](#792b31c3-removal-eligibility) |
+| [792a12q1m](./792a_product-spec.md#792a12q1-uat-scenarios) | [792b31c3](#792b31c3-removal-eligibility) |
+| [792a12q1n](./792a_product-spec.md#792a12q1-uat-scenarios) | [792b31c3](#792b31c3-removal-eligibility) |
+| [792a12q1o](./792a_product-spec.md#792a12q1-uat-scenarios) | [792b31c3](#792b31c3-removal-eligibility) |
+| [792a12r1a](./792a_product-spec.md#792a12r1-uat-scenarios) | [792b31c5](#792b31c5-answers-and-prompts) |
+| [792a12r1b](./792a_product-spec.md#792a12r1-uat-scenarios) | [792b31c5](#792b31c5-answers-and-prompts) |
+| [792a12r1c](./792a_product-spec.md#792a12r1-uat-scenarios) | [792b31c5](#792b31c5-answers-and-prompts) |
+| [792a12r1d](./792a_product-spec.md#792a12r1-uat-scenarios) | [792b31c5](#792b31c5-answers-and-prompts) |
+| [792a12r1e](./792a_product-spec.md#792a12r1-uat-scenarios) | [792b31c5](#792b31c5-answers-and-prompts) |
+| [792a12r1f](./792a_product-spec.md#792a12r1-uat-scenarios) | [792b31c5](#792b31c5-answers-and-prompts) |
+| [792a12r1g](./792a_product-spec.md#792a12r1-uat-scenarios) | [792b31c5](#792b31c5-answers-and-prompts) |
+| [792a12r1h](./792a_product-spec.md#792a12r1-uat-scenarios) | [792b31c5](#792b31c5-answers-and-prompts) |
+| [792a12s1a](./792a_product-spec.md#792a12s1-uat-scenarios) | [792b31c4](#792b31c4-declines-file) |
+| [792a12s1b](./792a_product-spec.md#792a12s1-uat-scenarios) | [792b31c4](#792b31c4-declines-file) |
+| [792a12s1c](./792a_product-spec.md#792a12s1-uat-scenarios) | [792b31c4](#792b31c4-declines-file) |
+| [792a12t1c](./792a_product-spec.md#792a12t1-uat-scenarios) | [792b31c6](#792b31c6-the-registration-run) |
+| [792a12v1c](./792a_product-spec.md#792a12v1-uat-scenarios) | [792b31c7](#792b31c7-note-actions) |
+| [792a12v1d](./792a_product-spec.md#792a12v1-uat-scenarios) | [792b31c7](#792b31c7-note-actions) |
 
 ```gherkin
 Scenario: 792a12a1a A deployed skill is byte-identical
@@ -19684,30 +19684,30 @@ Canonical target: `docs/specs/technical/agent-instruction-bundle.md` (title `Age
   against the shipped files; stability, the constraints survive a new skill or a new harness; necessity, a
   harness loads a skill only when its metadata fits, and a command template that breaks on a dash-led value fails
   silently at the agent.
-- Supported capabilities: 792a13 write-memory. Later capabilities that extend it: recall, learn,
-  lessons-contract, route, please, ambient-guidance and curate (792d5).
+- Supported capabilities: [792a13](./792a_product-spec.md#792a13-added-write-memory) write-memory. Later capabilities that extend it: recall, learn,
+  lessons-contract, route, please, ambient-guidance and curate ([792d5](./792d_decision-log.md#792d5-agent-instruction-bundle-qualifies-as-a-component)).
 
 Rationale: behavior lives in markdown skills that the agent executes, and deterministic compute lives in the
 binary. The two communicate only through the command line (arguments in, standard output out) and the vault on
-disk, and each subcommand is its own process (792b2a). That split keeps the judgment layer out of Go code and
+disk, and each subcommand is its own process ([792b2a](#792b2a-orientation)). That split keeps the judgment layer out of Go code and
 leaves the invariant checker, which gates the binary, with only deterministic code to gate. The skills are gated by
 acceptance tests and measured baselines instead of contract tests, so the constraints they share are written here
-once and not repeated in every skill capability (792d4, 792d5).
+once and not repeated in every skill capability ([792d4](./792d_decision-log.md#792d4-skill-procedures-are-not-technical-components), [792d5](./792d_decision-log.md#792d5-agent-instruction-bundle-qualifies-as-a-component)).
 
 ### 792b32b Sequences
 
 The bundle owns no flow: each skill's procedure is its capability's, and the flows between a skill and the
-binary are the command-line surface's (792b2b).
+binary are the command-line surface's ([792b2b](#792b2b-sequences)).
 
 ### 792b32c Behavior Requirements
 
 #### 792b32c1 Skill metadata fits the harness limit
 
-Requirement: 792b32c1 The agent-instruction-bundle MUST ship every skill as a `SKILL.md` that begins with YAML
+Requirement: [792b32c1](#792b32c1-skill-metadata-fits-the-harness-limit) The agent-instruction-bundle MUST ship every skill as a `SKILL.md` that begins with YAML
 frontmatter, whose parsed `description` is non-empty and shorter than 1024 characters (counted as characters, not
 bytes).
 
-Supports: none. The limit belongs to the harness that loads the skill, not to a product behavior (792d110).
+Supports: none. The limit belongs to the harness that loads the skill, not to a product behavior ([792d110](./792d_decision-log.md#792d110-agent-instruction-bundle-scope-and-requirements-with-no-product-scenario)).
 
 Rationale: a harness loads a skill from its metadata, and a description past the limit is not loaded.
 
@@ -19732,14 +19732,14 @@ Scenario: 792b32c1a3 A description stays under the limit
 
 #### 792b32c2 Free-text flag values use the attached form
 
-Requirement: 792b32c2 The agent-instruction-bundle MUST write every free-text `engram` flag value in a shipped
+Requirement: [792b32c2](#792b32c2-free-text-flag-values-use-the-attached-form) The agent-instruction-bundle MUST write every free-text `engram` flag value in a shipped
 instruction, whether in a skill, a guidance document or a string the binary emits to an agent, as `--flag="value"`
 with the quote touching the `=`, and MUST NOT write it as `--flag "value"`. The rule covers every free-text flag of
 `query` (`--phrase`, `--text`), `learn`, `amend` and `resituate` (`--situation`, `--subject`, `--predicate`,
 `--object`, `--behavior`, `--impact`, `--action`, `--done-when`, `--body`, `--question`, `--answer`, `--source`,
 `--supersedes`, `--trigger`, `--red-flag`).
 
-Supports: 792a13h1a.
+Supports: [792a13h1a](./792a_product-spec.md#792a13h1-uat-scenarios).
 
 Rationale: the command-line parser reads a value that begins with `-` as a new flag and exits with
 `flag needs an argument`. A free-text value, such as a user's message or an agent's phrasing of a situation, can
@@ -19766,12 +19766,12 @@ Scenario: 792b32c2a3 A binary-emitted instruction uses the attached form
 
 #### 792b32c3 A skill states the attached form once
 
-Requirement: 792b32c3 The agent-instruction-bundle MUST have every skill whose body shows an `engram` command with a
+Requirement: [792b32c3](#792b32c3-a-skill-states-the-attached-form-once) The agent-instruction-bundle MUST have every skill whose body shows an `engram` command with a
 free-text flag state, at least once and in its own words, that the value must be passed as `--flag="value"` because a
 value that begins with `-` otherwise breaks the command. A guidance document read on every turn MAY state the rule
 more tersely.
 
-Supports: 792a13h1a.
+Supports: [792a13h1a](./792a_product-spec.md#792a13h1-uat-scenarios).
 
 Rationale: an agent that improvises its own command, instead of copying an example, still uses the attached form.
 
@@ -19791,12 +19791,12 @@ Scenario: 792b32c3a2 An improvised command uses the attached form
 
 #### 792b32c4 Skills reach the vault only through the command line
 
-Requirement: 792b32c4 The agent-instruction-bundle MUST have every shipped skill reach engram's deterministic
+Requirement: [792b32c4](#792b32c4-skills-reach-the-vault-only-through-the-command-line) The agent-instruction-bundle MUST have every shipped skill reach engram's deterministic
 compute only by running the `engram` command line and reading its standard output and the vault on disk, and MUST
 NOT have a skill create, edit or delete a vault note file except through a sync-preserving command (`engram learn`,
 `engram amend` or `engram resituate`). Reading a note's file to judge it MAY be done directly.
 
-Supports: 792a13a1a.
+Supports: [792a13a1a](./792a_product-spec.md#792a13a1-uat-scenarios).
 
 Rationale: a hand edit can desync a note from its sidecar and from the two copies of its `situation`, which the
 invariant checker cannot see in the skill layer. Reading member files directly stays allowed because the agent
@@ -19821,11 +19821,11 @@ Scenario: 792b32c4a2 An existing note is edited by amend or resituate
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a13a1a | 792b32c4 |
-| 792a13h1a | 792b32c2, 792b32c3 |
-| 792a14f1c | 792b32c2, 792b32c3 |
-| 792a19j1d | 792b32c2, 792b32c3 |
-| 792a22j1b | 792b32c3 |
+| [792a13a1a](./792a_product-spec.md#792a13a1-uat-scenarios) | [792b32c4](#792b32c4-skills-reach-the-vault-only-through-the-command-line) |
+| [792a13h1a](./792a_product-spec.md#792a13h1-uat-scenarios) | [792b32c2](#792b32c2-free-text-flag-values-use-the-attached-form), [792b32c3](#792b32c3-a-skill-states-the-attached-form-once) |
+| [792a14f1c](./792a_product-spec.md#792a14f1-uat-scenarios) | [792b32c2](#792b32c2-free-text-flag-values-use-the-attached-form), [792b32c3](#792b32c3-a-skill-states-the-attached-form-once) |
+| [792a19j1d](./792a_product-spec.md#792a19j1-uat-scenarios) | [792b32c2](#792b32c2-free-text-flag-values-use-the-attached-form), [792b32c3](#792b32c3-a-skill-states-the-attached-form-once) |
+| [792a22j1b](./792a_product-spec.md#792a22j1-uat-scenarios) | [792b32c3](#792b32c3-a-skill-states-the-attached-form-once) |
 
 ```gherkin
 Scenario: 792a13a1a A complete handoff is executed
@@ -19878,7 +19878,7 @@ Canonical target: `docs/specs/technical/exchange-versioning.md` (title `Exchange
   field in turn; stability, the contract survives a new frontmatter key, because a reflection test refuses an
   unclassified one; necessity, two vaults cannot tell whether a note changed, nor link it to its counterpart,
   without it.
-- Supported capabilities: 792a20 vault-serving, 792a21 parent-sync. Curate extends it later.
+- Supported capabilities: [792a20](./792a_product-spec.md#792a20-added-vault-serving) vault-serving, [792a21](./792a_product-spec.md#792a21-added-parent-sync) parent-sync. Curate extends it later.
 
 Rationale: a vault that exchanges notes needs a hash that changes when and only when an offered note's content
 changes. The sidecar's content hash (`embed.ContentHash`) covers other fields and exists to detect a stale
@@ -19890,19 +19890,19 @@ on a child and on its parent.
 
 ### 792b33b Sequences
 
-The exchange-versioning owns no flow: the exchange paths that call it (792b35 for a served learn, parent-sync for the
+The exchange-versioning owns no flow: the exchange paths that call it ([792b35](#792b35-added-vault-http-server) for a served learn, parent-sync for the
 outbox and pull-down, curate for the fold) own their sequences.
 
 ### 792b33c Behavior Requirements
 
 #### 792b33c1 The exchange hash
 
-Requirement: 792b33c1 The exchange-versioning MUST give a note the hash `xh1:` followed by the lowercase hex SHA-256
+Requirement: [792b33c1](#792b33c1-the-exchange-hash) The exchange-versioning MUST give a note the hash `xh1:` followed by the lowercase hex SHA-256
 of the sorted-key JSON object of `type`, `situation`, `subject`, `predicate`, `object`, `behavior`, `impact`,
 `action`, `done_when`, `red_flags`, `triggers` and `body`, in which an absent text field is the empty string, an
-absent list is the empty list and `body` is the note's canonical body (792b33c3).
+absent list is the empty list and `body` is the note's canonical body ([792b33c3](#792b33c3-the-canonical-body)).
 
-Supports: 792a20d1a, 792a20k1a, 792a20k1b, 792a20m1c.
+Supports: [792a20d1a](./792a_product-spec.md#792a20d1-uat-scenarios), [792a20k1a](./792a_product-spec.md#792a20k1-uat-scenarios), [792a20k1b](./792a_product-spec.md#792a20k1-uat-scenarios), [792a20m1c](./792a_product-spec.md#792a20m1-uat-scenarios).
 
 Rationale: the one function is used by the server for a receipt's `stored_hash`, for the raw envelope, for the
 exchange-hash header of `engram show` and for the query payload's dedupe keys, and by the child for what it
@@ -19919,13 +19919,13 @@ Scenario: 792b33c1a1 A feedback note hashes to the canonical JSON
 
 #### 792b33c2 What the hash covers
 
-Requirement: 792b33c2 The exchange hash MUST change when any offered field or the body of a note changes, on a fact,
+Requirement: [792b33c2](#792b33c2-what-the-hash-covers) The exchange hash MUST change when any offered field or the body of a note changes, on a fact,
 feedback or runbook note, and MUST NOT change when any other frontmatter key changes: `tier`, `luhmann`, `created`,
 `source`, `project`, `repo`, `user`, `vault`, `pending`, `issue`, `sources`, `vocab_version`, `tags`, `supersedes`,
 `skill_hash`, `skill_key`, `skill_source`, `xid`, `parent`, `aliases` and `offer`. Every key of the fact, feedback and
 runbook frontmatter MUST be classified as offered or not offered, and a key on no frontmatter MUST NOT be classified.
 
-Supports: none. The hash is consumed by parent-sync and curate, whose scenarios map it (792d118).
+Supports: none. The hash is consumed by parent-sync and curate, whose scenarios map it ([792d118](./792d_decision-log.md#792d118-exchange-versioning-scope-requirements-with-no-product-scenario-yet-and-the-tests-it-keeps-apart)).
 
 Rationale: placement, provenance, identity, bookkeeping and the exchange's own fields differ between a note and its
 counterpart in another vault without the content having changed, so hashing them would report a change that is none.
@@ -19963,13 +19963,13 @@ Scenario: 792b33c2a5 The classification is the design's split
 
 #### 792b33c3 The canonical body
 
-Requirement: 792b33c3 The exchange-versioning MUST hash a note as its LF form, with the body being the text after the
+Requirement: [792b33c3](#792b33c3-the-canonical-body) The exchange-versioning MUST hash a note as its LF form, with the body being the text after the
 frontmatter with CRLF line endings turned into LF and ending in exactly one newline (none for an empty body), so that
 the LF, CRLF and missing-final-newline spellings of one body, and a CRLF blank separator line, hash alike. A note
 whose leading `---` block never closes MUST have no frontmatter, with its whole text as the body and every offered
 frontmatter field empty, and MUST NOT be an error.
 
-Supports: none. See 792b33c2.
+Supports: none. See [792b33c2](#792b33c2-what-the-hash-covers).
 
 Rationale: one body in two spellings must not look like two edits. A note with LF frontmatter and a CRLF body hashes as
 its LF conversion, and a note converted from CRLF frontmatter matches the same note authored in LF, so a hash recorded
@@ -20010,10 +20010,10 @@ Scenario: 792b33c3a5 An unterminated frontmatter is the whole text as body
 
 #### 792b33c4 An unreadable frontmatter has no hash
 
-Requirement: 792b33c4 The exchange-versioning MUST fail with an error wrapping `exchange hash: parsing frontmatter`
+Requirement: [792b33c4](#792b33c4-an-unreadable-frontmatter-has-no-hash) The exchange-versioning MUST fail with an error wrapping `exchange hash: parsing frontmatter`
 when a note's closed frontmatter is not YAML, and MUST NOT give such a note a hash.
 
-Supports: none. See 792b33c2.
+Supports: none. See [792b33c2](#792b33c2-what-the-hash-covers).
 
 ##### 792b33c4a Scenarios
 
@@ -20026,13 +20026,13 @@ Scenario: 792b33c4a1 Invalid YAML has no hash
 
 #### 792b33c5 Comparing two hashes
 
-Requirement: 792b33c5 The exchange-versioning MUST compare two hashes three ways: unknown when either lacks the
+Requirement: [792b33c5](#792b33c5-comparing-two-hashes) The exchange-versioning MUST compare two hashes three ways: unknown when either lacks the
 current `xh1:` prefix, whatever the other is, otherwise equal when the strings are equal and changed when they
 differ, and the comparison MUST be symmetric. A check for equality, which loop suppression and deduplication use,
 MUST be true only for equal. A check for change, which the pull-down skip, the decline match, the re-arm of a rejected
 offer and the send-and-apply check use, MUST be true only for changed, so unknown counts as not changed.
 
-Supports: none. See 792b33c2.
+Supports: none. See [792b33c2](#792b33c2-what-the-hash-covers).
 
 Rationale: a hash from an older or newer version, a sidecar's content hash, a missing hash and an empty one say
 nothing about whether the content changed, so a consumer that acts only on equal never acts on a guess, and a
@@ -20059,21 +20059,21 @@ Scenario: 792b33c5a3 Equal matches and changed changes
 
 #### 792b33c6 The exchange fields
 
-Requirement: 792b33c6 The exchange-versioning MUST give the fact, feedback and runbook frontmatter the optional keys
+Requirement: [792b33c6](#792b33c6-the-exchange-fields) The exchange-versioning MUST give the fact, feedback and runbook frontmatter the optional keys
 `xid` (the note's own exchange ID), `parent` (`vault`, `links` of `note`, `via` and `hash`, and `author` of `repo`,
 `user` and `vault`), `aliases` (the basenames the note answers to in its own vault) and `offer` (`origin`, `key`,
 `prior_keys`, `for` and `path`), each omitted when empty, so that a note that never takes part in exchange renders
 exactly as it did before exchange existed. JSON decoding into a frontmatter MUST NOT populate any of them, under any
 spelling of its key. It MUST read the exchange fields of a note with CRLF frontmatter from its LF form. No identity backfill MUST stamp an `xid` or any other exchange field on a note.
 
-Supports: 792a20j1a, 792a20j1b.
+Supports: [792a20j1a](./792a_product-spec.md#792a20j1-uat-scenarios), [792a20j1b](./792a_product-spec.md#792a20j1-uat-scenarios).
 
 Rationale: `xid` is stamped the first time a note takes part in exchange (queued as an offer, pulled, or received as
 a served offer) and never changed, so a note that never exchanges carries none. `parent` holds at most one primary
 link (`offered` or `pulled`) and any number of `covered` links, because one link per note could not record that the
 note covers a second parent note once it has a counterpart. `aliases` lets a parent's or a child's
 reference to a renamed note keep resolving. The keys are not settable from the wire, which is what stops a remote
-client forging a link (792a20j).
+client forging a link ([792a20j](./792a_product-spec.md#792a20j-a-caller-cannot-set-link-identity-or-registration-fields)).
 
 ##### 792b33c6a Scenarios
 
@@ -20106,11 +20106,11 @@ Scenario: 792b33c6a5 A CRLF frontmatter reads as LF
 
 #### 792b33c7 The lazy exchange ID
 
-Requirement: 792b33c7 The exchange-versioning MUST stamp `xid` into a note's frontmatter, before `parent`, `aliases`
+Requirement: [792b33c7](#792b33c7-the-lazy-exchange-id) The exchange-versioning MUST stamp `xid` into a note's frontmatter, before `parent`, `aliases`
 and `offer` where they are present, only when the note has none, MUST return a note that already has an `xid`
 unchanged, and MUST fail for a note with no frontmatter.
 
-Supports: 792a20j1b.
+Supports: [792a20j1b](./792a_product-spec.md#792a20j1-uat-scenarios).
 
 ##### 792b33c7a Scenarios
 
@@ -20133,7 +20133,7 @@ Scenario: 792b33c7a3 A note with no frontmatter cannot be stamped
 
 #### 792b33c8 Editing the exchange blocks
 
-Requirement: 792b33c8 The exchange-versioning MUST edit a note's `aliases:` list and `parent:` block as YAML nodes: the
+Requirement: [792b33c8](#792b33c8-editing-the-exchange-blocks) The exchange-versioning MUST edit a note's `aliases:` list and `parent:` block as YAML nodes: the
 `aliases:` list replaced whole, `parent:` edited in place with its `vault` and `author` set and each link's node
 reused when the edit keeps a link to the same note, so that unknown keys under `parent:` and inside its links, and every
 other key, survive. It MUST refuse with `errFrontmatterAnchoredKey` and write nothing when a key it edits carries a
@@ -20142,7 +20142,7 @@ not decode, MUST return a note it leaves unchanged byte for byte, and MUST place
 writer does (`parent`, `aliases`, `offer`). A note without unknown keys or anchors MUST be written with the same
 bytes, and the same exchange hash, as the line-based rewrite it replaced.
 
-Supports: none. The edit is used by curate's fold and by the offer receipt (792d118).
+Supports: none. The edit is used by curate's fold and by the offer receipt ([792d118](./792d_decision-log.md#792d118-exchange-versioning-scope-requirements-with-no-product-scenario-yet-and-the-tests-it-keeps-apart)).
 
 Rationale: an anchored value cannot be replaced without leaving its aliases dangling, and a rewrite that does not
 decode would corrupt a note an agent depends on, so the edit refuses before it writes. The fold refuses before it
@@ -20189,7 +20189,7 @@ Scenario: 792b33c8a7 Held link nodes are reused only when they line up
 
 #### 792b33c9 Recording an offer receipt
 
-Requirement: 792b33c9 The exchange-versioning MUST record an offer receipt on a note by setting `parent.vault` to the
+Requirement: [792b33c9](#792b33c9-recording-an-offer-receipt) The exchange-versioning MUST record an offer receipt on a note by setting `parent.vault` to the
 receipt's vault ID and making the primary link `{note, via: offered, hash: stored_hash}`, where `note` is the receipt's
 resolved target when it names one and otherwise its basename. It MUST replace the previous primary link (`offered` or
 `pulled`) and any link to the same note, MUST keep `covered` links under the same vault, and MUST start over with only
@@ -20198,7 +20198,7 @@ identity fields, `pending`, `xid`, `aliases` and `offer` are untouched and nothi
 and write it as LF in that write, MUST be idempotent, and MUST fail, writing nothing, for a note with no frontmatter or
 whose `parent:` does not decode.
 
-Supports: none. The receipt is parent-sync's (792d118).
+Supports: none. The receipt is parent-sync's ([792d118](./792d_decision-log.md#792d118-exchange-versioning-scope-requirements-with-no-product-scenario-yet-and-the-tests-it-keeps-apart)).
 
 Rationale: the receipt is the parent's answer to an offer, and linking the child's note to the note it became (or to the
 live note it was folded onto) is what lets a later query dedupe the pair and a retry find it.
@@ -20244,14 +20244,14 @@ Scenario: 792b33c9a7 A CRLF note takes the receipt as LF
 
 #### 792b33c10 The exchange fields survive every other rewrite
 
-Requirement: 792b33c10 Every path that rewrites a note's frontmatter and is not an exchange path MUST leave `xid`,
+Requirement: [792b33c10](#792b33c10-the-exchange-fields-survive-every-other-rewrite) Every path that rewrites a note's frontmatter and is not an exchange path MUST leave `xid`,
 `parent`, `aliases` and `offer` unchanged, byte for byte: `amend` with every flag family on every note type, `resituate`,
 identity backfill, Luhmann reparenting (both the rename of the note itself and the rewrite of the references inside
 another note), the vocabulary rewrites (term assignment, removal of a term, legacy cleanup, the self-tag of a definition
 note and the version stamp), the scrubbing of references to deleted notes, and skill registration refresh and adopt. The
 exchange paths are the offer receipt, the pull-down, the curation fold and the rename's append to `aliases`.
 
-Supports: 792a21zi1b, 792a21zl1a, 792a21zl1b, 792a21zl1g.
+Supports: [792a21zi1b](./792a_product-spec.md#792a21zi1-uat-scenarios), [792a21zl1a](./792a_product-spec.md#792a21zl1-uat-scenarios), [792a21zl1b](./792a_product-spec.md#792a21zl1-uat-scenarios), [792a21zl1g](./792a_product-spec.md#792a21zl1-uat-scenarios).
 
 Rationale: a link or an exchange ID lost to an unrelated rewrite would silently disconnect a note from its counterpart,
 and the next exchange would treat the note as new. Each rewrite site has its own survival test because each rewrites
@@ -20300,31 +20300,31 @@ Scenario: 792b33c10a7 Skill registration keeps the exchange fields
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a20d1a | 792b33c1 |
-| 792a20j1a | 792b33c6 |
-| 792a20j1b | 792b33c6, 792b33c7 |
-| 792a20k1a | 792b33c1 |
-| 792a20k1b | 792b33c1 |
-| 792a20m1c | 792b33c1 |
-| 792a21o1a | 792b33c2 |
-| 792a21o1b | 792b33c2 |
-| 792a21o1c | 792b33c5 |
-| 792a21u1a | 792b33c9 |
-| 792a21u1b | 792b33c9 |
-| 792a21u1c | 792b33c9 |
-| 792a21u1d | 792b33c9 |
-| 792a21w1a | 792b33c8, 792b33c9 |
-| 792a21zb1a | 792b33c3 |
-| 792a21zi1a | 792b33c6 |
-| 792a21zi1b | 792b33c10 |
-| 792a21zj1a | 792b33c9 |
-| 792a21zl1a | 792b33c10 |
-| 792a21zl1b | 792b33c10 |
-| 792a21zl1c | 792b33c8 |
-| 792a21zl1d | 792b33c8 |
-| 792a21zl1e | 792b33c8 |
-| 792a21zl1f | 792b33c8 |
-| 792a21zl1g | 792b33c10 |
+| [792a20d1a](./792a_product-spec.md#792a20d1-uat-scenarios) | [792b33c1](#792b33c1-the-exchange-hash) |
+| [792a20j1a](./792a_product-spec.md#792a20j1-uat-scenarios) | [792b33c6](#792b33c6-the-exchange-fields) |
+| [792a20j1b](./792a_product-spec.md#792a20j1-uat-scenarios) | [792b33c6](#792b33c6-the-exchange-fields), [792b33c7](#792b33c7-the-lazy-exchange-id) |
+| [792a20k1a](./792a_product-spec.md#792a20k1-uat-scenarios) | [792b33c1](#792b33c1-the-exchange-hash) |
+| [792a20k1b](./792a_product-spec.md#792a20k1-uat-scenarios) | [792b33c1](#792b33c1-the-exchange-hash) |
+| [792a20m1c](./792a_product-spec.md#792a20m1-uat-scenarios) | [792b33c1](#792b33c1-the-exchange-hash) |
+| [792a21o1a](./792a_product-spec.md#792a21o1-uat-scenarios) | [792b33c2](#792b33c2-what-the-hash-covers) |
+| [792a21o1b](./792a_product-spec.md#792a21o1-uat-scenarios) | [792b33c2](#792b33c2-what-the-hash-covers) |
+| [792a21o1c](./792a_product-spec.md#792a21o1-uat-scenarios) | [792b33c5](#792b33c5-comparing-two-hashes) |
+| [792a21u1a](./792a_product-spec.md#792a21u1-uat-scenarios) | [792b33c9](#792b33c9-recording-an-offer-receipt) |
+| [792a21u1b](./792a_product-spec.md#792a21u1-uat-scenarios) | [792b33c9](#792b33c9-recording-an-offer-receipt) |
+| [792a21u1c](./792a_product-spec.md#792a21u1-uat-scenarios) | [792b33c9](#792b33c9-recording-an-offer-receipt) |
+| [792a21u1d](./792a_product-spec.md#792a21u1-uat-scenarios) | [792b33c9](#792b33c9-recording-an-offer-receipt) |
+| [792a21w1a](./792a_product-spec.md#792a21w1-uat-scenarios) | [792b33c8](#792b33c8-editing-the-exchange-blocks), [792b33c9](#792b33c9-recording-an-offer-receipt) |
+| [792a21zb1a](./792a_product-spec.md#792a21zb1-uat-scenarios) | [792b33c3](#792b33c3-the-canonical-body) |
+| [792a21zi1a](./792a_product-spec.md#792a21zi1-uat-scenarios) | [792b33c6](#792b33c6-the-exchange-fields) |
+| [792a21zi1b](./792a_product-spec.md#792a21zi1-uat-scenarios) | [792b33c10](#792b33c10-the-exchange-fields-survive-every-other-rewrite) |
+| [792a21zj1a](./792a_product-spec.md#792a21zj1-uat-scenarios) | [792b33c9](#792b33c9-recording-an-offer-receipt) |
+| [792a21zl1a](./792a_product-spec.md#792a21zl1-uat-scenarios) | [792b33c10](#792b33c10-the-exchange-fields-survive-every-other-rewrite) |
+| [792a21zl1b](./792a_product-spec.md#792a21zl1-uat-scenarios) | [792b33c10](#792b33c10-the-exchange-fields-survive-every-other-rewrite) |
+| [792a21zl1c](./792a_product-spec.md#792a21zl1-uat-scenarios) | [792b33c8](#792b33c8-editing-the-exchange-blocks) |
+| [792a21zl1d](./792a_product-spec.md#792a21zl1-uat-scenarios) | [792b33c8](#792b33c8-editing-the-exchange-blocks) |
+| [792a21zl1e](./792a_product-spec.md#792a21zl1-uat-scenarios) | [792b33c8](#792b33c8-editing-the-exchange-blocks) |
+| [792a21zl1f](./792a_product-spec.md#792a21zl1-uat-scenarios) | [792b33c8](#792b33c8-editing-the-exchange-blocks) |
+| [792a21zl1g](./792a_product-spec.md#792a21zl1-uat-scenarios) | [792b33c10](#792b33c10-the-exchange-fields-survive-every-other-rewrite) |
 
 ```gherkin
 Scenario: 792a20d1a The receipt names the pending note
@@ -20476,7 +20476,7 @@ Canonical target: `docs/specs/technical/pending-offer-bookkeeping.md` (title `Pe
   independent verification, each runs over in-memory notes and a fake vault; stability, the contract survives a new
   note type or a new surfacing point; necessity, without it a pending offer would be served as a live note and an
   offer changed after it was judged could be accepted unseen.
-- Supported capabilities: 792a20 vault-serving, 792a21 parent-sync, 792a22 curate.
+- Supported capabilities: [792a20](./792a_product-spec.md#792a20-added-vault-serving) vault-serving, [792a21](./792a_product-spec.md#792a21-added-parent-sync) parent-sync, [792a22](./792a_product-spec.md#792a22-added-curate) curate.
 
 Rationale: an offered note, whether sent by a child or pulled down from a parent, must be judged before it counts as
 knowledge, so everything that reads the vault must tell it apart from a live note, and what settles it must not act on
@@ -20487,21 +20487,21 @@ the existing note's content is unchanged and only its links and names grow (ADR-
 ### 792b34b Sequences
 
 The pending-offer-bookkeeping owns no flow: the curation sequence is curate's, and the served write that creates a
-pending offer is 792b35's.
+pending offer is [792b35](#792b35-added-vault-http-server)'s.
 
 ### 792b34c Behavior Requirements
 
 #### 792b34c1 The pending-offer marker
 
-Requirement: 792b34c1 The pending-offer-bookkeeping MUST report a note as a pending offer exactly when it is a fact,
+Requirement: [792b34c1](#792b34c1-the-pending-offer-marker) The pending-offer-bookkeeping MUST report a note as a pending offer exactly when it is a fact,
 feedback or runbook note, with or without `skill_hash`, whose frontmatter carries `pending: true`, reading a note with
 CRLF line endings as its LF form. It MUST NOT report a note of any other type (a vocabulary definition, for example),
 a note without that marker, or content that has no frontmatter.
 
-Supports: 792a20d1b, 792a22a1b, 792a21zb1c.
+Supports: [792a20d1b](./792a_product-spec.md#792a20d1-uat-scenarios), [792a22a1b](./792a_product-spec.md#792a22a1-uat-scenarios), [792a21zb1c](./792a_product-spec.md#792a21zb1-uat-scenarios).
 
 Rationale: a pending skill runbook note is treated exactly as a pending fact is, so a newly registered skill is not
-served before curation authors its fields (792a12). A CRLF offer is still pending, so query excludes it and the server
+served before curation authors its fields ([792a12](./792a_product-spec.md#792a12-added-skill-runbook-registration)). A CRLF offer is still pending, so query excludes it and the server
 never hands it out as live.
 
 ##### 792b34c1a Scenarios
@@ -20530,12 +20530,12 @@ Scenario: 792b34c1a4 A CRLF offer is still pending
 
 #### 792b34c2 Leaving pending offers out of a list of notes
 
-Requirement: 792b34c2 The pending-offer-bookkeeping MUST, given a list of notes, return the notes that are not pending
+Requirement: [792b34c2](#792b34c2-leaving-pending-offers-out-of-a-list-of-notes) The pending-offer-bookkeeping MUST, given a list of notes, return the notes that are not pending
 offers and whether at least one pending offer was found, reading each note's file at the vault path joined with the
 note's basename and `.md` once. It MUST keep a note whose file cannot be read or parsed, and MUST drop a pending skill
 runbook note exactly as it drops a pending fact.
 
-Supports: 792a20d1b, 792a22a1a, 792a22a1b.
+Supports: [792a20d1b](./792a_product-spec.md#792a20d1-uat-scenarios), [792a22a1a](./792a_product-spec.md#792a22a1-uat-scenarios), [792a22a1b](./792a_product-spec.md#792a22a1-uat-scenarios).
 
 Rationale: a read failure must not silently drop a note that query would otherwise return, so the filter fails open.
 The one pass gives the query payload its `pending_offers` flag without a second scan.
@@ -20561,14 +20561,14 @@ Scenario: 792b34c2a3 A pending skill runbook is dropped and an ordinary runbook 
 
 #### 792b34c3 Finding pending offers
 
-Requirement: 792b34c3 The pending-offer-bookkeeping MUST decide whether a vault holds a pending offer by scanning the
+Requirement: [792b34c3](#792b34c3-finding-pending-offers) The pending-offer-bookkeeping MUST decide whether a vault holds a pending offer by scanning the
 vault's current notes every time it is asked, and MUST NOT persist a flag or withhold the answer until a growth or time
 threshold is met. It MUST report true for a vault that holds one pending note, false for one that holds none, and false,
 without an error, for a vault directory it cannot read or a note it cannot parse. It MUST, when a write has completed
-and the vault holds a pending offer, log one warning that carries the curate instruction (792b34c4), and MUST log
+and the vault holds a pending offer, log one warning that carries the curate instruction ([792b34c4](#792b34c4-the-curate-instruction)), and MUST log
 nothing when the vault holds none or when any dependency of the check is missing.
 
-Supports: 792a22o1a, 792a22o1h.
+Supports: [792a22o1a](./792a_product-spec.md#792a22o1-uat-scenarios), [792a22o1h](./792a_product-spec.md#792a22o1-uat-scenarios).
 
 Rationale: pending offers are lower-volume and costlier to leave stale than the refit trigger's backlog, so detection is
 stateless and unbatched. A detection failure must never fail `engram update`'s primary job, so an unreadable vault is
@@ -20610,7 +20610,7 @@ Scenario: 792b34c3a6 A missing dependency makes the check a no-op
 
 #### 792b34c4 The curate instruction
 
-Requirement: 792b34c4 The pending-offer-bookkeeping MUST define one curate instruction on a single line that says
+Requirement: [792b34c4](#792b34c4-the-curate-instruction) The pending-offer-bookkeeping MUST define one curate instruction on a single line that says
 reviewing pending offers is expected vault upkeep and not an extra, says to curate them after finishing the user's
 request without asking, and carries the command
 `engram query --text="curate pending offers" --phrase="reviewing pending offers in a vault and judging each against existing notes"`
@@ -20618,7 +20618,7 @@ in the attached flag form, and names no skill. The update notice, the write-path
 `pending_offers_hint` MUST each embed this one instruction, and the hint MUST be derived from the pending flag, so it is
 the instruction when offers are pending and empty otherwise.
 
-Supports: 792a22o1b, 792a22o1d, 792a22o1e.
+Supports: [792a22o1b](./792a_product-spec.md#792a22o1-uat-scenarios), [792a22o1d](./792a_product-spec.md#792a22o1-uat-scenarios), [792a22o1e](./792a_product-spec.md#792a22o1-uat-scenarios).
 
 Rationale: an agent that met the cue in the middle of unrelated work declined it every time as "you didn't ask for that",
 so the instruction says that curation is expected. The hint is derived from the flag and never transported, so a merged
@@ -20641,14 +20641,14 @@ Scenario: 792b34c4a2 The hint follows the flag
 
 #### 792b34c5 The judged-version check
 
-Requirement: 792b34c5 The pending-offer-bookkeeping MUST require `--expect-hash` for `engram amend` with
+Requirement: [792b34c5](#792b34c5-the-judged-version-check) The pending-offer-bookkeeping MUST require `--expect-hash` for `engram amend` with
 `--clear-pending`, `--discard` or `--discard --into` on a note that carries `offer.origin`, whether the note is pending
 or live, and MUST verify a given `--expect-hash` on any note. It MUST proceed only when the note's current exchange hash
 is equal to the expected one, and MUST otherwise fail, changing nothing and recording no decline: when the hashes differ,
 when the comparison is unknown, and when the note's current hash cannot be computed. A note whose frontmatter does not
 parse has no readable `offer.origin` and MUST need no hash for a bare discard.
 
-Supports: 792a22l1a, 792a22l1b, 792a22l1c, 792a22l1d.
+Supports: [792a22l1a](./792a_product-spec.md#792a22l1-uat-scenarios), [792a22l1b](./792a_product-spec.md#792a22l1-uat-scenarios), [792a22l1c](./792a_product-spec.md#792a22l1-uat-scenarios), [792a22l1d](./792a_product-spec.md#792a22l1-uat-scenarios).
 
 Rationale: an offer can be updated in place after a curator judged it, so acting on the old judgment would accept or
 discard content nobody reviewed. A hash of another version is not the version that was judged, so unknown fails as
@@ -20681,14 +20681,14 @@ Scenario: 792b34c5a4 A hash that cannot be computed fails
 
 #### 792b34c6 The fold of an offer into an existing note
 
-Requirement: 792b34c6 The pending-offer-bookkeeping MUST, for `engram amend --target O --discard --into E`, record on E
+Requirement: [792b34c6](#792b34c6-the-fold-of-an-offer-into-an-existing-note) The pending-offer-bookkeeping MUST, for `engram amend --target O --discard --into E`, record on E
 the basename of O and every alias O answered to (each once, never E's own basename), merge O's parent links into E's
-(792b34c7), and then delete O and its sidecar. It MUST change only E's `aliases:` and `parent:` keys, MUST NOT re-embed
+([792b34c7](#792b34c7-merging-parent-links)), and then delete O and its sidecar. It MUST change only E's `aliases:` and `parent:` keys, MUST NOT re-embed
 E (except to refresh the sidecar of an E whose CRLF line endings the write converted), MUST NOT re-stamp identity, stamp an
 `xid`, queue an offer or record a decline, and MUST keep E's own `xid` and author. It MUST fail, changing nothing, for
 `--into` without `--discard`, for an `--into` that names no note, and for an `--into` that names O itself.
 
-Supports: 792a22f1a, 792a22f1b, 792a22g1a, 792a22g1b, 792a22m1a, 792a22m1b, 792a22m1c, 792a22m1d, 792a22m1e.
+Supports: [792a22f1a](./792a_product-spec.md#792a22f1-uat-scenarios), [792a22f1b](./792a_product-spec.md#792a22f1-uat-scenarios), [792a22g1a](./792a_product-spec.md#792a22g1-uat-scenarios), [792a22g1b](./792a_product-spec.md#792a22g1-uat-scenarios), [792a22m1a](./792a_product-spec.md#792a22m1-uat-scenarios), [792a22m1b](./792a_product-spec.md#792a22m1-uat-scenarios), [792a22m1c](./792a_product-spec.md#792a22m1-uat-scenarios), [792a22m1d](./792a_product-spec.md#792a22m1-uat-scenarios), [792a22m1e](./792a_product-spec.md#792a22m1-uat-scenarios).
 
 Rationale: the fold is for an offer that curation judged covered or near, where E already holds the content, so only
 its names and links grow; recording O's names keeps a later reference to O resolving, and the links keep the parent note
@@ -20726,16 +20726,16 @@ Scenario: 792b34c6a5 A CRLF existing note is converted by the fold
 
 #### 792b34c7 Merging parent links
 
-Requirement: 792b34c7 When the pending-offer-bookkeeping folds O into E it MUST give E the links O held under O's parent
+Requirement: [792b34c7](#792b34c7-merging-parent-links) When the pending-offer-bookkeeping folds O into E it MUST give E the links O held under O's parent
 vault, with O's primary (`offered` or `pulled`) link staying primary only when E has none of its own and becoming
 `covered` otherwise. A link E already holds for the same parent note MUST keep E's `via` role and take O's link's
 `hash`, the version just judged. When O's `parent.vault` differs from E's, E's links under its previous vault MUST be
 dropped, E's `parent.vault` MUST become O's, and only O's links MUST carry forward. When E has no primary link and holds
 a `covered` link to the note that is O's primary, that link MUST be promoted to O's primary role with O's hash.
 
-Supports: 792a22f1b, 792a22m1a.
+Supports: [792a22f1b](./792a_product-spec.md#792a22f1-uat-scenarios), [792a22m1a](./792a_product-spec.md#792a22m1-uat-scenarios).
 
-Rationale: links count only under the current parent's vault, as a receipt's own replacement rule has it (792b33c9). Taking
+Rationale: links count only under the current parent's vault, as a receipt's own replacement rule has it ([792b33c9](#792b33c9-recording-an-offer-receipt)). Taking
 O's hash records the version curation judged, so the pull-down skip and the dedupe see the pair as already related.
 
 ##### 792b34c7a Scenarios
@@ -20759,14 +20759,14 @@ Scenario: 792b34c7a3 A held covered link is promoted to primary
 
 #### 792b34c8 The exchange-hash header of show
 
-Requirement: 792b34c8 The pending-offer-bookkeeping MUST make `engram show` print `# exchange_hash: <hash>` as its first
+Requirement: [792b34c8](#792b34c8-the-exchange-hash-header-of-show) The pending-offer-bookkeeping MUST make `engram show` print `# exchange_hash: <hash>` as its first
 output line, before the note, for a note that carries `xid`, reading a note with CRLF line endings as its LF form for
 the header and printing the note itself verbatim, and MUST print a note without `xid` exactly as before. The hash printed
 for a CRLF note MUST be the one that `--expect-hash` accepts.
 
-Supports: 792a20k1a, 792a22l1c.
+Supports: [792a20k1a](./792a_product-spec.md#792a20k1-uat-scenarios), [792a22l1c](./792a_product-spec.md#792a22l1-uat-scenarios).
 
-Rationale: the header is how a curator learns the version to name in `--expect-hash` (792b34c5), and a note that never
+Rationale: the header is how a curator learns the version to name in `--expect-hash` ([792b34c5](#792b34c5-the-judged-version-check)), and a note that never
 took part in exchange has no version to name, so its output does not change.
 
 ##### 792b34c8a Scenarios
@@ -20792,31 +20792,31 @@ Scenario: 792b34c8a3 A CRLF note shows its LF hash
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a20d1b | 792b34c1, 792b34c2 |
-| 792a20k1a | 792b34c8 |
-| 792a21zd1a | 792b34c1, 792b34c2 |
-| 792a21zb1c | 792b34c1 |
-| 792a21zk1b | 792b34c6 |
-| 792a21zk1c | 792b34c6, 792b34c7 |
-| 792a22a1a | 792b34c2 |
-| 792a22a1b | 792b34c1, 792b34c2 |
-| 792a22f1a | 792b34c6, 792b34c7 |
-| 792a22f1b | 792b34c6, 792b34c7 |
-| 792a22g1a | 792b34c6 |
-| 792a22g1b | 792b34c6 |
-| 792a22l1a | 792b34c5 |
-| 792a22l1b | 792b34c5 |
-| 792a22l1c | 792b34c5, 792b34c8 |
-| 792a22l1d | 792b34c5 |
-| 792a22m1a | 792b34c6, 792b34c7 |
-| 792a22m1b | 792b34c6 |
-| 792a22m1c | 792b34c6 |
-| 792a22m1d | 792b34c6 |
-| 792a22m1e | 792b34c6 |
-| 792a22o1a | 792b34c3 |
-| 792a22o1b | 792b34c4 |
-| 792a22o1d | 792b34c4 |
-| 792a22o1h | 792b34c3 |
+| [792a20d1b](./792a_product-spec.md#792a20d1-uat-scenarios) | [792b34c1](#792b34c1-the-pending-offer-marker), [792b34c2](#792b34c2-leaving-pending-offers-out-of-a-list-of-notes) |
+| [792a20k1a](./792a_product-spec.md#792a20k1-uat-scenarios) | [792b34c8](#792b34c8-the-exchange-hash-header-of-show) |
+| [792a21zd1a](./792a_product-spec.md#792a21zd1-uat-scenarios) | [792b34c1](#792b34c1-the-pending-offer-marker), [792b34c2](#792b34c2-leaving-pending-offers-out-of-a-list-of-notes) |
+| [792a21zb1c](./792a_product-spec.md#792a21zb1-uat-scenarios) | [792b34c1](#792b34c1-the-pending-offer-marker) |
+| [792a21zk1b](./792a_product-spec.md#792a21zk1-uat-scenarios) | [792b34c6](#792b34c6-the-fold-of-an-offer-into-an-existing-note) |
+| [792a21zk1c](./792a_product-spec.md#792a21zk1-uat-scenarios) | [792b34c6](#792b34c6-the-fold-of-an-offer-into-an-existing-note), [792b34c7](#792b34c7-merging-parent-links) |
+| [792a22a1a](./792a_product-spec.md#792a22a1-uat-scenarios) | [792b34c2](#792b34c2-leaving-pending-offers-out-of-a-list-of-notes) |
+| [792a22a1b](./792a_product-spec.md#792a22a1-uat-scenarios) | [792b34c1](#792b34c1-the-pending-offer-marker), [792b34c2](#792b34c2-leaving-pending-offers-out-of-a-list-of-notes) |
+| [792a22f1a](./792a_product-spec.md#792a22f1-uat-scenarios) | [792b34c6](#792b34c6-the-fold-of-an-offer-into-an-existing-note), [792b34c7](#792b34c7-merging-parent-links) |
+| [792a22f1b](./792a_product-spec.md#792a22f1-uat-scenarios) | [792b34c6](#792b34c6-the-fold-of-an-offer-into-an-existing-note), [792b34c7](#792b34c7-merging-parent-links) |
+| [792a22g1a](./792a_product-spec.md#792a22g1-uat-scenarios) | [792b34c6](#792b34c6-the-fold-of-an-offer-into-an-existing-note) |
+| [792a22g1b](./792a_product-spec.md#792a22g1-uat-scenarios) | [792b34c6](#792b34c6-the-fold-of-an-offer-into-an-existing-note) |
+| [792a22l1a](./792a_product-spec.md#792a22l1-uat-scenarios) | [792b34c5](#792b34c5-the-judged-version-check) |
+| [792a22l1b](./792a_product-spec.md#792a22l1-uat-scenarios) | [792b34c5](#792b34c5-the-judged-version-check) |
+| [792a22l1c](./792a_product-spec.md#792a22l1-uat-scenarios) | [792b34c5](#792b34c5-the-judged-version-check), [792b34c8](#792b34c8-the-exchange-hash-header-of-show) |
+| [792a22l1d](./792a_product-spec.md#792a22l1-uat-scenarios) | [792b34c5](#792b34c5-the-judged-version-check) |
+| [792a22m1a](./792a_product-spec.md#792a22m1-uat-scenarios) | [792b34c6](#792b34c6-the-fold-of-an-offer-into-an-existing-note), [792b34c7](#792b34c7-merging-parent-links) |
+| [792a22m1b](./792a_product-spec.md#792a22m1-uat-scenarios) | [792b34c6](#792b34c6-the-fold-of-an-offer-into-an-existing-note) |
+| [792a22m1c](./792a_product-spec.md#792a22m1-uat-scenarios) | [792b34c6](#792b34c6-the-fold-of-an-offer-into-an-existing-note) |
+| [792a22m1d](./792a_product-spec.md#792a22m1-uat-scenarios) | [792b34c6](#792b34c6-the-fold-of-an-offer-into-an-existing-note) |
+| [792a22m1e](./792a_product-spec.md#792a22m1-uat-scenarios) | [792b34c6](#792b34c6-the-fold-of-an-offer-into-an-existing-note) |
+| [792a22o1a](./792a_product-spec.md#792a22o1-uat-scenarios) | [792b34c3](#792b34c3-finding-pending-offers) |
+| [792a22o1b](./792a_product-spec.md#792a22o1-uat-scenarios) | [792b34c4](#792b34c4-the-curate-instruction) |
+| [792a22o1d](./792a_product-spec.md#792a22o1-uat-scenarios) | [792b34c4](#792b34c4-the-curate-instruction) |
+| [792a22o1h](./792a_product-spec.md#792a22o1-uat-scenarios) | [792b34c3](#792b34c3-finding-pending-offers) |
 
 ```gherkin
 Scenario: 792a20d1b The offered note is pending, not live
@@ -20965,7 +20965,7 @@ Canonical target: `docs/specs/technical/vault-http-server.md` (title `Vault HTTP
   every handler runs over an in-memory request and a temporary vault, and a real mux serves two round trips over TCP;
   stability, the route table and receipt are the contract children depend on; necessity, a child cannot offer or pull
   without it.
-- Supported capabilities: 792a20 vault-serving.
+- Supported capabilities: [792a20](./792a_product-spec.md#792a20-added-vault-serving) vault-serving.
 
 Rationale: a child needs to reach its parent without a second implementation of any command, so each handler calls the
 command's own code, sharing its locks. The server takes its vault, vault name and chunk index once at startup, so no
@@ -20976,7 +20976,7 @@ types stay in `cmd/engram`, so every other part of the server runs over primitiv
 ### 792b35b Sequences
 
 A served `learn` is the one flow the server owns. The branches are in the order the server checks them; each has its own
-requirement below (792b35c9 to 792b35c14).
+requirement below ([792b35c9](#792b35c9-refusing-an-invalid-offer) to [792b35c14](#792b35c14-a-new-pending-offer)).
 
 ```mermaid
 sequenceDiagram
@@ -21012,12 +21012,12 @@ sequenceDiagram
 
 #### 792b35c1 The route table
 
-Requirement: 792b35c1 The vault-http-server MUST serve exactly `GET /query`, `GET /show`, `POST /activate` and `POST /learn`,
+Requirement: [792b35c1](#792b35c1-the-route-table) The vault-http-server MUST serve exactly `GET /query`, `GET /show`, `POST /activate` and `POST /learn`,
 and MUST answer a request for any other path with 404 and a request for a served path with another method with 405,
 performing no vault operation for either. It MUST NOT route `amend`, `query-chunks`, `show-chunk`, `ingest`, `vocab
 refit`, `prune`, `check`, `update` or `resituate`.
 
-Supports: 792a20a1a, 792a20a1b, 792a20a1c.
+Supports: [792a20a1a](./792a_product-spec.md#792a20a1-uat-scenarios), [792a20a1b](./792a_product-spec.md#792a20a1-uat-scenarios), [792a20a1c](./792a_product-spec.md#792a20a1-uat-scenarios).
 
 ##### 792b35c1a Scenarios
 
@@ -21035,12 +21035,12 @@ Scenario: 792b35c1a2 An unrouted path or method is refused
 
 #### 792b35c2 Starting and stopping
 
-Requirement: 792b35c2 The vault-http-server MUST register every route once on a new mux and then listen on the given
+Requirement: [792b35c2](#792b35c2-starting-and-stopping) The vault-http-server MUST register every route once on a new mux and then listen on the given
 address, MUST wrap a listening error as `serve: <cause>` when the context was not canceled, and MUST return no error
 when the context was canceled, because that error is the expected close at shutdown. It MUST stamp a missing vault ID
-and check the vault's location before it serves, warning and serving anyway when either fails (792b5).
+and check the vault's location before it serves, warning and serving anyway when either fails ([792b5](#792b5-added-vault-identity-registry)).
 
-Supports: 792a20b1b.
+Supports: [792a20b1b](./792a_product-spec.md#792a20b1-uat-scenarios).
 
 Rationale: a corrupt or empty ID file would crash-loop under a service manager if serving were refused, and a location
 false positive would turn into a host outage.
@@ -21066,12 +21066,12 @@ Scenario: 792b35c2a3 A corrupt ID or a mismatched location warns and serves
 
 #### 792b35c3 Request bodies
 
-Requirement: 792b35c3 The vault-http-server MUST read at most 4 MiB of a request body, MUST answer 413 on every route,
+Requirement: [792b35c3](#792b35c3-request-bodies) The vault-http-server MUST read at most 4 MiB of a request body, MUST answer 413 on every route,
 writing nothing, when the body itself is over that cap, and MUST answer 400 on every route, writing nothing, for any other
 failure to read the body in full. No route MUST act on a body it did not read in full. The edge MUST bound the time it
 waits to read a request's headers to 10 seconds.
 
-Supports: 792a20n1a, 792a20n1b.
+Supports: [792a20n1a](./792a_product-spec.md#792a20n1-uat-scenarios), [792a20n1b](./792a_product-spec.md#792a20n1-uat-scenarios).
 
 Rationale: the server is unauthenticated, so what a caller can make it buffer is bounded. An offer or an activate body is a
 few KB, so the cap leaves ample room, and a client disconnect is not an oversized body.
@@ -21102,14 +21102,14 @@ Scenario: 792b35c3a4 A slow header read is cut off
 
 #### 792b35c4 The query route
 
-Requirement: 792b35c4 The vault-http-server MUST answer `GET /query` with the payload the local `engram query` prints
+Requirement: [792b35c4](#792b35c4-the-query-route) The vault-http-server MUST answer `GET /query` with the payload the local `engram query` prints
 for the same arguments, built from the `phrase` (repeatable), `limit`, `project`, `text`, `content-budget`, `recent-fill`,
 `lazy-chunks` and `timings` parameters against the server's own vault and chunk index, MUST cut `text` to at most 2048
 bytes on a UTF-8 rune boundary without an error or a warning, and MUST answer a failing query with 500 and an error body.
 A pending offer MUST NOT appear in the items, while the payload's `pending_offers` flag and hint MUST reflect the
 vault.
 
-Supports: 792a20c1a, 792a20c1d, 792a20d1b, 792a20m1a, 792a20m1b.
+Supports: [792a20c1a](./792a_product-spec.md#792a20c1-uat-scenarios), [792a20c1d](./792a_product-spec.md#792a20c1-uat-scenarios), [792a20d1b](./792a_product-spec.md#792a20d1-uat-scenarios), [792a20m1a](./792a_product-spec.md#792a20m1-uat-scenarios), [792a20m1b](./792a_product-spec.md#792a20m1-uat-scenarios).
 
 ##### 792b35c4a Scenarios
 
@@ -21137,12 +21137,12 @@ Scenario: 792b35c4a4 A failing query is a 500
 
 #### 792b35c5 Dedupe keys
 
-Requirement: 792b35c5 The vault-http-server MUST, only when `dedupe-keys=1` is given, add the served vault's ID as a
+Requirement: [792b35c5](#792b35c5-dedupe-keys) The vault-http-server MUST, only when `dedupe-keys=1` is given, add the served vault's ID as a
 top-level `vault_id` and, to each note item, its `exchange_hash` and its non-empty `aliases`, adding nothing to chunk
 items, and MUST leave a note whose keys cannot be computed without them and log a warning naming it, so that the query
 still succeeds. Without the parameter the payload MUST be byte-identical to the local payload.
 
-Supports: 792a20m1c, 792a20m1d.
+Supports: [792a20m1c](./792a_product-spec.md#792a20m1-uat-scenarios), [792a20m1d](./792a_product-spec.md#792a20m1-uat-scenarios).
 
 ##### 792b35c5a Scenarios
 
@@ -21160,7 +21160,7 @@ Scenario: 792b35c5a2 A note whose hash cannot be computed is skipped
 
 #### 792b35c6 The show route
 
-Requirement: 792b35c6 The vault-http-server MUST answer `GET /show` without `raw` with exactly the local `engram show`
+Requirement: [792b35c6](#792b35c6-the-show-route) The vault-http-server MUST answer `GET /show` without `raw` with exactly the local `engram show`
 output, exchange-hash header included. With `raw=1` it MUST resolve `note` against basenames, with or without `.md`,
 and then against the `aliases` of live notes, and answer 200 with `vault_id`, `basename` (current), `content` (the file's
 bytes verbatim, with no preview cap and no links section) and `exchange_hash`. It MUST answer 404 with an error body for
@@ -21168,7 +21168,7 @@ a note that is not found, raw or not, and for a pending note named by basename o
 500, never 404 or a partial envelope, for a listed note that cannot be read or whose frontmatter cannot be parsed for its
 hash.
 
-Supports: 792a20c1b, 792a20k1a, 792a20k1b, 792a20k1c, 792a20k1d, 792a20k1e, 792a20k1f.
+Supports: [792a20c1b](./792a_product-spec.md#792a20c1-uat-scenarios), [792a20k1a](./792a_product-spec.md#792a20k1-uat-scenarios), [792a20k1b](./792a_product-spec.md#792a20k1-uat-scenarios), [792a20k1c](./792a_product-spec.md#792a20k1-uat-scenarios), [792a20k1d](./792a_product-spec.md#792a20k1-uat-scenarios), [792a20k1e](./792a_product-spec.md#792a20k1-uat-scenarios), [792a20k1f](./792a_product-spec.md#792a20k1-uat-scenarios).
 
 Rationale: the envelope is JSON with a `vault_id` and so cannot be mistaken for an old parent's rendered output. A ref is
 only matched against listed names and never joined into a path, so it cannot reach outside the vault. A pending note is an
@@ -21210,7 +21210,7 @@ Scenario: 792b35c6a6 A pending note is not served raw
 
 #### 792b35c7 The activate route
 
-Requirement: 792b35c7 The vault-http-server MUST answer `POST /activate` by resolving each ref in `notes` only against
+Requirement: [792b35c7](#792b35c7-the-activate-route) The vault-http-server MUST answer `POST /activate` by resolving each ref in `notes` only against
 the vault's listed note names, with or without `.md` and case-sensitively, never joining a ref into a path, MUST list the
 vault directory once per request, and MUST answer 400, reading and writing nothing, when any ref is an absolute path,
 contains `/` or `\` or contains `..`. It MUST bump the `LastUsed` of each activated note's sidecar in the same request
@@ -21218,7 +21218,7 @@ with no pending marker and no curation. It MUST answer 200 `{"status":"ok"}` whe
 per-ref result when none was found, 200 with the per-ref result when some were, and 500 only when a ref failed while
 being activated.
 
-Supports: 792a20l1a, 792a20l1b, 792a20l1c, 792a20l1d, 792a20l1e.
+Supports: [792a20l1a](./792a_product-spec.md#792a20l1-uat-scenarios), [792a20l1b](./792a_product-spec.md#792a20l1-uat-scenarios), [792a20l1c](./792a_product-spec.md#792a20l1-uat-scenarios), [792a20l1d](./792a_product-spec.md#792a20l1-uat-scenarios), [792a20l1e](./792a_product-spec.md#792a20l1-uat-scenarios).
 
 Rationale: the one listing keeps a request with many short refs from costing a directory read per ref while the vault
 lock is held, and a 5xx therefore only ever means a server-side failure.
@@ -21254,18 +21254,18 @@ Scenario: 792b35c7a5 The status follows the outcome
 
 #### 792b35c8 Decoding a served learn
 
-Requirement: 792b35c8 The vault-http-server MUST decode a `POST /learn` body as a learn request whose only JSON keys are
+Requirement: [792b35c8](#792b35c8-decoding-a-served-learn) The vault-http-server MUST decode a `POST /learn` body as a learn request whose only JSON keys are
 `action`, `behavior`, `body`, `chunkSources`, `doneWhen`, `impact`, `issue`, `object`, `offer`, `pending`, `position`,
 `predicate`, `project`, `redFlags`, `repo`, `situation`, `slug`, `source`, `subject`, `supersedes`, `tags`, `target`,
 `tier`, `triggers`, `type`, `user`, `vault` and `vaultName`, and MUST NOT populate `xid`, `parent`, `aliases`,
 `offer.prior_keys`, `skill_hash`, `skill_key` or `skill_source` from the body under any spelling. It MUST answer 400 when
 the declared `user` is empty, MUST use the server's own vault whatever the body says, MUST take `vaultName` from the body
 and otherwise from the server, MUST take `user` and `repo` from the body and not detect them itself, MUST drop `tags`,
-MUST write the note as pending with the offer's own placement ignored (792b35c14), and MUST answer with the receipt and
+MUST write the note as pending with the offer's own placement ignored ([792b35c14](#792b35c14-a-new-pending-offer)), and MUST answer with the receipt and
 never with note content.
 
-Supports: 792a20c1d, 792a20d1a, 792a20d1c, 792a20e1a, 792a20e1b, 792a20e1c, 792a20f1a, 792a20f1b, 792a20i1b, 792a20j1a,
-792a20j1b.
+Supports: [792a20c1d](./792a_product-spec.md#792a20c1-uat-scenarios), [792a20d1a](./792a_product-spec.md#792a20d1-uat-scenarios), [792a20d1c](./792a_product-spec.md#792a20d1-uat-scenarios), [792a20e1a](./792a_product-spec.md#792a20e1-uat-scenarios), [792a20e1b](./792a_product-spec.md#792a20e1-uat-scenarios), [792a20e1c](./792a_product-spec.md#792a20e1-uat-scenarios), [792a20f1a](./792a_product-spec.md#792a20f1-uat-scenarios), [792a20f1b](./792a_product-spec.md#792a20f1-uat-scenarios), [792a20i1b](./792a_product-spec.md#792a20i1-uat-scenarios), [792a20j1a](./792a_product-spec.md#792a20j1-uat-scenarios),
+[792a20j1b](./792a_product-spec.md#792a20j1-uat-scenarios).
 
 Rationale: the body is a remote client's, so every field a caller must not control is not decodable at all, and a new
 field on the learn request that is not marked non-decodable fails the key-set test. A served learn must claim some
@@ -21317,13 +21317,13 @@ Scenario: 792b35c8a8 A served offer is tagged by the vault's vocabulary
 
 #### 792b35c9 Refusing an invalid offer
 
-Requirement: 792b35c9 The vault-http-server MUST, before taking the vault lock, answer 400 and write nothing when
+Requirement: [792b35c9](#792b35c9-refusing-an-invalid-offer) The vault-http-server MUST, before taking the vault lock, answer 400 and write nothing when
 `offer.path` has more than 16 entries or an entry that is not exactly 32 lowercase hexadecimal characters, when
 `offer.origin` is not two such identifiers joined by `:`, when `offer.key` or `offer.path` is present without
 `offer.origin`, or when the note content fails validation, and MUST answer 409 and write nothing when `offer.path`
 already holds its own vault ID, with a body of `error`, `reason` `loop` and `vault_id`.
 
-Supports: 792a20h1a, 792a20h1b, 792a20h1c, 792a20h1d, 792a20h1e.
+Supports: [792a20h1a](./792a_product-spec.md#792a20h1-uat-scenarios), [792a20h1b](./792a_product-spec.md#792a20h1-uat-scenarios), [792a20h1c](./792a_product-spec.md#792a20h1-uat-scenarios), [792a20h1d](./792a_product-spec.md#792a20h1-uat-scenarios), [792a20h1e](./792a_product-spec.md#792a20h1-uat-scenarios).
 
 ##### 792b35c9a Scenarios
 
@@ -21356,12 +21356,12 @@ Scenario: 792b35c9a5 Invalid note content is a 400
 
 #### 792b35c10 A recorded key is a retry
 
-Requirement: 792b35c10 The vault-http-server MUST, when any note, live or pending, records a non-empty `offer.key` as its
+Requirement: [792b35c10](#792b35c10-a-recorded-key-is-a-retry) The vault-http-server MUST, when any note, live or pending, records a non-empty `offer.key` as its
 current key or among its `offer.prior_keys`, write nothing and return that note's current receipt, and MUST check this
 before every other case, so that a late retry of an accepted or superseded key never rewrites a newer same-origin
 pending offer back to older content.
 
-Supports: 792a20g1b, 792a20g1c, 792a20g1d, 792a20g1e.
+Supports: [792a20g1b](./792a_product-spec.md#792a20g1-uat-scenarios), [792a20g1c](./792a_product-spec.md#792a20g1-uat-scenarios), [792a20g1d](./792a_product-spec.md#792a20g1-uat-scenarios), [792a20g1e](./792a_product-spec.md#792a20g1-uat-scenarios).
 
 ##### 792b35c10a Scenarios
 
@@ -21389,13 +21389,13 @@ Scenario: 792b35c10a4 A late retry of a superseded key never reverts the note
 
 #### 792b35c11 A same-origin pending offer is rewritten in place
 
-Requirement: 792b35c11 The vault-http-server MUST, when no note records the key and a pending note carries the same
+Requirement: [792b35c11](#792b35c11-a-same-origin-pending-offer-is-rewritten-in-place) The vault-http-server MUST, when no note records the key and a pending note carries the same
 `offer.origin`, rewrite that note in place under its basename, still pending and keeping its `xid`, links, aliases, origin
 and `offer.for`, with the new content, key and path, the superseded key appended to `offer.prior_keys` (the most recent
 8 kept, oldest dropped), the identity stamped from the new request, vocabulary tags assigned, and its sidecar re-embedded
 unless the exchange hash is provably unchanged. Same-origin offers racing each other MUST leave exactly one pending note.
 
-Supports: 792a20f1c, 792a20g1a, 792a20g1k, 792a20o1b.
+Supports: [792a20f1c](./792a_product-spec.md#792a20f1-uat-scenarios), [792a20g1a](./792a_product-spec.md#792a20g1-uat-scenarios), [792a20g1k](./792a_product-spec.md#792a20g1-uat-scenarios), [792a20o1b](./792a_product-spec.md#792a20o1-uat-scenarios).
 
 ##### 792b35c11a Scenarios
 
@@ -21418,11 +21418,11 @@ Scenario: 792b35c11a3 Racing same-origin offers leave one pending note
 
 #### 792b35c12 A same-origin live offer makes a new pending note
 
-Requirement: 792b35c12 The vault-http-server MUST, when no note records the key, no pending note carries the origin and a
+Requirement: [792b35c12](#792b35c12-a-same-origin-live-offer-makes-a-new-pending-note) The vault-http-server MUST, when no note records the key, no pending note carries the origin and a
 live note carries the same `offer.origin`, write a new pending note whose `offer.for` names that live note, and report
 `for` in the receipt.
 
-Supports: 792a20g1f.
+Supports: [792a20g1f](./792a_product-spec.md#792a20g1-uat-scenarios).
 
 ##### 792b35c12a Scenarios
 
@@ -21440,14 +21440,14 @@ Scenario: 792b35c12a2 The live note is untouched
 
 #### 792b35c13 Resolving where an offer points
 
-Requirement: 792b35c13 The vault-http-server MUST, when no earlier case applies, resolve `offer.for` against live notes'
+Requirement: [792b35c13](#792b35c13-resolving-where-an-offer-points) The vault-http-server MUST, when no earlier case applies, resolve `offer.for` against live notes'
 basenames, then live notes' `aliases`, then pending notes' basenames, among fact, feedback and runbook notes that parse
 only. A resolved live note MUST be left unchanged and live, with a new pending note written naming it and the receipt
 carrying `for`. A resolved pending note of another origin MUST be left unmodified, with a new pending note written naming
 it and no `for` in the receipt. A target that does not resolve, including a vocabulary note, a file with no frontmatter
 or a note whose frontmatter does not parse, MUST be dropped, with the offer written as a new pending note.
 
-Supports: 792a20g1g, 792a20g1h, 792a20g1i, 792a20g1j.
+Supports: [792a20g1g](./792a_product-spec.md#792a20g1-uat-scenarios), [792a20g1h](./792a_product-spec.md#792a20g1-uat-scenarios), [792a20g1i](./792a_product-spec.md#792a20g1-uat-scenarios), [792a20g1j](./792a_product-spec.md#792a20g1-uat-scenarios).
 
 ##### 792b35c13a Scenarios
 
@@ -21480,13 +21480,13 @@ Scenario: 792b35c13a5 Only exchange notes resolve
 
 #### 792b35c14 A new pending offer
 
-Requirement: 792b35c14 The vault-http-server MUST write a new pending note at top level, whatever `target` or `position` the
+Requirement: [792b35c14](#792b35c14-a-new-pending-offer) The vault-http-server MUST write a new pending note at top level, whatever `target` or `position` the
 caller sent, with `pending: true`, a fresh `xid` it mints, an `offer` record of the offer's `origin`, `key`, `for` and
 `path`, the identity declared by the caller, vocabulary tags assigned by the vault, and an embedded sidecar, and MUST
 return a receipt with the note's Luhmann ID and basename, `pending` true, its vault's ID, the stored exchange hash and
 `for` only when the target is live.
 
-Supports: 792a20d1a, 792a20i1a, 792a20j1b, 792a20o1a.
+Supports: [792a20d1a](./792a_product-spec.md#792a20d1-uat-scenarios), [792a20i1a](./792a_product-spec.md#792a20i1-uat-scenarios), [792a20j1b](./792a_product-spec.md#792a20j1-uat-scenarios), [792a20o1a](./792a_product-spec.md#792a20o1-uat-scenarios).
 
 ##### 792b35c14a Scenarios
 
@@ -21499,12 +21499,12 @@ Scenario: 792b35c14a1 A new offer records its offer and xid
 
 #### 792b35c15 The locked section
 
-Requirement: 792b35c15 The vault-http-server MUST do a served learn's lookup of every note, its write, its re-embed and the
+Requirement: [792b35c15](#792b35c15-the-locked-section) The vault-http-server MUST do a served learn's lookup of every note, its write, its re-embed and the
 building of its receipt in one locked section of the vault lock that the local commands use, and MUST fail the request
 with a server error, writing nothing, when a listed note cannot be read for any reason other than having been removed since
 it was listed, so that the child retries.
 
-Supports: 792a20c1c, 792a20g1l.
+Supports: [792a20c1c](./792a_product-spec.md#792a20c1-uat-scenarios), [792a20g1l](./792a_product-spec.md#792a20g1-uat-scenarios).
 
 Rationale: skipping an unreadable note could miss a same-origin pending offer and write a second one.
 
@@ -21529,10 +21529,10 @@ Scenario: 792b35c15a3 Local and served writers do not lose an update
 
 #### 792b35c16 The stored hash
 
-Requirement: 792b35c16 The vault-http-server MUST return as `stored_hash` the exchange hash of the note as stored (792b33c1),
+Requirement: [792b35c16](#792b35c16-the-stored-hash) The vault-http-server MUST return as `stored_hash` the exchange hash of the note as stored ([792b33c1](#792b33c1-the-exchange-hash)),
 so that for any offered content it equals the hash a child computes over its own note with the same content.
 
-Supports: 792a20d1a.
+Supports: [792a20d1a](./792a_product-spec.md#792a20d1-uat-scenarios).
 
 ##### 792b35c16a Scenarios
 
@@ -21545,12 +21545,12 @@ Scenario: 792b35c16a1 The stored hash equals the child's hash
 
 #### 792b35c17 The bounded fetch client
 
-Requirement: 792b35c17 The vault-http-server's net/http edge MUST make the requests of a child to its parent with a client whose
+Requirement: [792b35c17](#792b35c17-the-bounded-fetch-client) The vault-http-server's net/http edge MUST make the requests of a child to its parent with a client whose
 connect step is bounded to at most 3 seconds and whose total time is bounded to 30 seconds, built on the default transport's
 proxy, TLS-handshake and idle-connection settings, and MUST read at most one byte more than the largest response a child
 accepts (16 MiB), so that an oversized response is detected and not truncated.
 
-Supports: none. The exchange that uses the client is parent-sync's, which maps its scenarios (792d120).
+Supports: none. The exchange that uses the client is parent-sync's, which maps its scenarios ([792d120](./792d_decision-log.md#792d120-vault-http-server-scope-the-fetch-boundary-and-what-the-built-server-showed)).
 
 Rationale: an unreachable parent costs at most 3 seconds once per backoff window, and a malicious parent cannot exhaust a
 child's memory.
@@ -21573,67 +21573,67 @@ Scenario: 792b35c17a2 The read limit is one byte over the accepted maximum
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a20a1a | 792b35c1 |
-| 792a20a1b | 792b35c1 |
-| 792a20a1c | 792b35c1 |
-| 792a20b1b | 792b35c2 |
-| 792a20c1a | 792b35c4 |
-| 792a20c1b | 792b35c6 |
-| 792a20c1c | 792b35c15 |
-| 792a20c1d | 792b35c4, 792b35c8 |
-| 792a20d1a | 792b35c8, 792b35c14, 792b35c16 |
-| 792a20d1b | 792b35c4, 792b35c8 |
-| 792a20d1c | 792b35c8 |
-| 792a20e1a | 792b35c8 |
-| 792a20e1b | 792b35c8 |
-| 792a20e1c | 792b35c8 |
-| 792a20f1a | 792b35c8 |
-| 792a20f1b | 792b35c8 |
-| 792a20f1c | 792b35c11 |
-| 792a20g1a | 792b35c11 |
-| 792a20g1b | 792b35c10 |
-| 792a20g1c | 792b35c10 |
-| 792a20g1d | 792b35c10 |
-| 792a20g1e | 792b35c10 |
-| 792a20g1f | 792b35c12 |
-| 792a20g1g | 792b35c13 |
-| 792a20g1h | 792b35c13 |
-| 792a20g1i | 792b35c13 |
-| 792a20g1j | 792b35c13 |
-| 792a20g1k | 792b35c11 |
-| 792a20g1l | 792b35c15 |
-| 792a20h1a | 792b35c9 |
-| 792a20h1b | 792b35c9 |
-| 792a20h1c | 792b35c9 |
-| 792a20h1d | 792b35c9 |
-| 792a20h1e | 792b35c9 |
-| 792a20i1a | 792b35c14 |
-| 792a20i1b | 792b35c8 |
-| 792a20j1a | 792b35c8 |
-| 792a20j1b | 792b35c8, 792b35c14 |
-| 792a20k1a | 792b35c6 |
-| 792a20k1b | 792b35c6 |
-| 792a20k1c | 792b35c6 |
-| 792a20k1d | 792b35c6 |
-| 792a20k1e | 792b35c6 |
-| 792a20k1f | 792b35c6 |
-| 792a20l1a | 792b35c7 |
-| 792a20l1b | 792b35c7 |
-| 792a20l1c | 792b35c7 |
-| 792a20l1d | 792b35c7 |
-| 792a20l1e | 792b35c7 |
-| 792a20m1a | 792b35c4 |
-| 792a20m1b | 792b35c4 |
-| 792a20m1c | 792b35c5 |
-| 792a20m1d | 792b35c5 |
-| 792a20n1a | 792b35c3 |
-| 792a20n1b | 792b35c3 |
-| 792a20n1c | 792b35c17 |
-| 792a20o1a | 792b35c8, 792b35c14 |
-| 792a20o1b | 792b35c11 |
-| 792a22c1a | 792b35c7 |
-| 792a22o1f | 792b35c4 |
-| 792a22n1a | 792b35c14 |
+| [792a20a1a](./792a_product-spec.md#792a20a1-uat-scenarios) | [792b35c1](#792b35c1-the-route-table) |
+| [792a20a1b](./792a_product-spec.md#792a20a1-uat-scenarios) | [792b35c1](#792b35c1-the-route-table) |
+| [792a20a1c](./792a_product-spec.md#792a20a1-uat-scenarios) | [792b35c1](#792b35c1-the-route-table) |
+| [792a20b1b](./792a_product-spec.md#792a20b1-uat-scenarios) | [792b35c2](#792b35c2-starting-and-stopping) |
+| [792a20c1a](./792a_product-spec.md#792a20c1-uat-scenarios) | [792b35c4](#792b35c4-the-query-route) |
+| [792a20c1b](./792a_product-spec.md#792a20c1-uat-scenarios) | [792b35c6](#792b35c6-the-show-route) |
+| [792a20c1c](./792a_product-spec.md#792a20c1-uat-scenarios) | [792b35c15](#792b35c15-the-locked-section) |
+| [792a20c1d](./792a_product-spec.md#792a20c1-uat-scenarios) | [792b35c4](#792b35c4-the-query-route), [792b35c8](#792b35c8-decoding-a-served-learn) |
+| [792a20d1a](./792a_product-spec.md#792a20d1-uat-scenarios) | [792b35c8](#792b35c8-decoding-a-served-learn), [792b35c14](#792b35c14-a-new-pending-offer), [792b35c16](#792b35c16-the-stored-hash) |
+| [792a20d1b](./792a_product-spec.md#792a20d1-uat-scenarios) | [792b35c4](#792b35c4-the-query-route), [792b35c8](#792b35c8-decoding-a-served-learn) |
+| [792a20d1c](./792a_product-spec.md#792a20d1-uat-scenarios) | [792b35c8](#792b35c8-decoding-a-served-learn) |
+| [792a20e1a](./792a_product-spec.md#792a20e1-uat-scenarios) | [792b35c8](#792b35c8-decoding-a-served-learn) |
+| [792a20e1b](./792a_product-spec.md#792a20e1-uat-scenarios) | [792b35c8](#792b35c8-decoding-a-served-learn) |
+| [792a20e1c](./792a_product-spec.md#792a20e1-uat-scenarios) | [792b35c8](#792b35c8-decoding-a-served-learn) |
+| [792a20f1a](./792a_product-spec.md#792a20f1-uat-scenarios) | [792b35c8](#792b35c8-decoding-a-served-learn) |
+| [792a20f1b](./792a_product-spec.md#792a20f1-uat-scenarios) | [792b35c8](#792b35c8-decoding-a-served-learn) |
+| [792a20f1c](./792a_product-spec.md#792a20f1-uat-scenarios) | [792b35c11](#792b35c11-a-same-origin-pending-offer-is-rewritten-in-place) |
+| [792a20g1a](./792a_product-spec.md#792a20g1-uat-scenarios) | [792b35c11](#792b35c11-a-same-origin-pending-offer-is-rewritten-in-place) |
+| [792a20g1b](./792a_product-spec.md#792a20g1-uat-scenarios) | [792b35c10](#792b35c10-a-recorded-key-is-a-retry) |
+| [792a20g1c](./792a_product-spec.md#792a20g1-uat-scenarios) | [792b35c10](#792b35c10-a-recorded-key-is-a-retry) |
+| [792a20g1d](./792a_product-spec.md#792a20g1-uat-scenarios) | [792b35c10](#792b35c10-a-recorded-key-is-a-retry) |
+| [792a20g1e](./792a_product-spec.md#792a20g1-uat-scenarios) | [792b35c10](#792b35c10-a-recorded-key-is-a-retry) |
+| [792a20g1f](./792a_product-spec.md#792a20g1-uat-scenarios) | [792b35c12](#792b35c12-a-same-origin-live-offer-makes-a-new-pending-note) |
+| [792a20g1g](./792a_product-spec.md#792a20g1-uat-scenarios) | [792b35c13](#792b35c13-resolving-where-an-offer-points) |
+| [792a20g1h](./792a_product-spec.md#792a20g1-uat-scenarios) | [792b35c13](#792b35c13-resolving-where-an-offer-points) |
+| [792a20g1i](./792a_product-spec.md#792a20g1-uat-scenarios) | [792b35c13](#792b35c13-resolving-where-an-offer-points) |
+| [792a20g1j](./792a_product-spec.md#792a20g1-uat-scenarios) | [792b35c13](#792b35c13-resolving-where-an-offer-points) |
+| [792a20g1k](./792a_product-spec.md#792a20g1-uat-scenarios) | [792b35c11](#792b35c11-a-same-origin-pending-offer-is-rewritten-in-place) |
+| [792a20g1l](./792a_product-spec.md#792a20g1-uat-scenarios) | [792b35c15](#792b35c15-the-locked-section) |
+| [792a20h1a](./792a_product-spec.md#792a20h1-uat-scenarios) | [792b35c9](#792b35c9-refusing-an-invalid-offer) |
+| [792a20h1b](./792a_product-spec.md#792a20h1-uat-scenarios) | [792b35c9](#792b35c9-refusing-an-invalid-offer) |
+| [792a20h1c](./792a_product-spec.md#792a20h1-uat-scenarios) | [792b35c9](#792b35c9-refusing-an-invalid-offer) |
+| [792a20h1d](./792a_product-spec.md#792a20h1-uat-scenarios) | [792b35c9](#792b35c9-refusing-an-invalid-offer) |
+| [792a20h1e](./792a_product-spec.md#792a20h1-uat-scenarios) | [792b35c9](#792b35c9-refusing-an-invalid-offer) |
+| [792a20i1a](./792a_product-spec.md#792a20i1-uat-scenarios) | [792b35c14](#792b35c14-a-new-pending-offer) |
+| [792a20i1b](./792a_product-spec.md#792a20i1-uat-scenarios) | [792b35c8](#792b35c8-decoding-a-served-learn) |
+| [792a20j1a](./792a_product-spec.md#792a20j1-uat-scenarios) | [792b35c8](#792b35c8-decoding-a-served-learn) |
+| [792a20j1b](./792a_product-spec.md#792a20j1-uat-scenarios) | [792b35c8](#792b35c8-decoding-a-served-learn), [792b35c14](#792b35c14-a-new-pending-offer) |
+| [792a20k1a](./792a_product-spec.md#792a20k1-uat-scenarios) | [792b35c6](#792b35c6-the-show-route) |
+| [792a20k1b](./792a_product-spec.md#792a20k1-uat-scenarios) | [792b35c6](#792b35c6-the-show-route) |
+| [792a20k1c](./792a_product-spec.md#792a20k1-uat-scenarios) | [792b35c6](#792b35c6-the-show-route) |
+| [792a20k1d](./792a_product-spec.md#792a20k1-uat-scenarios) | [792b35c6](#792b35c6-the-show-route) |
+| [792a20k1e](./792a_product-spec.md#792a20k1-uat-scenarios) | [792b35c6](#792b35c6-the-show-route) |
+| [792a20k1f](./792a_product-spec.md#792a20k1-uat-scenarios) | [792b35c6](#792b35c6-the-show-route) |
+| [792a20l1a](./792a_product-spec.md#792a20l1-uat-scenarios) | [792b35c7](#792b35c7-the-activate-route) |
+| [792a20l1b](./792a_product-spec.md#792a20l1-uat-scenarios) | [792b35c7](#792b35c7-the-activate-route) |
+| [792a20l1c](./792a_product-spec.md#792a20l1-uat-scenarios) | [792b35c7](#792b35c7-the-activate-route) |
+| [792a20l1d](./792a_product-spec.md#792a20l1-uat-scenarios) | [792b35c7](#792b35c7-the-activate-route) |
+| [792a20l1e](./792a_product-spec.md#792a20l1-uat-scenarios) | [792b35c7](#792b35c7-the-activate-route) |
+| [792a20m1a](./792a_product-spec.md#792a20m1-uat-scenarios) | [792b35c4](#792b35c4-the-query-route) |
+| [792a20m1b](./792a_product-spec.md#792a20m1-uat-scenarios) | [792b35c4](#792b35c4-the-query-route) |
+| [792a20m1c](./792a_product-spec.md#792a20m1-uat-scenarios) | [792b35c5](#792b35c5-dedupe-keys) |
+| [792a20m1d](./792a_product-spec.md#792a20m1-uat-scenarios) | [792b35c5](#792b35c5-dedupe-keys) |
+| [792a20n1a](./792a_product-spec.md#792a20n1-uat-scenarios) | [792b35c3](#792b35c3-request-bodies) |
+| [792a20n1b](./792a_product-spec.md#792a20n1-uat-scenarios) | [792b35c3](#792b35c3-request-bodies) |
+| [792a20n1c](./792a_product-spec.md#792a20n1-uat-scenarios) | [792b35c17](#792b35c17-the-bounded-fetch-client) |
+| [792a20o1a](./792a_product-spec.md#792a20o1-uat-scenarios) | [792b35c8](#792b35c8-decoding-a-served-learn), [792b35c14](#792b35c14-a-new-pending-offer) |
+| [792a20o1b](./792a_product-spec.md#792a20o1-uat-scenarios) | [792b35c11](#792b35c11-a-same-origin-pending-offer-is-rewritten-in-place) |
+| [792a22c1a](./792a_product-spec.md#792a22c1-uat-scenarios) | [792b35c7](#792b35c7-the-activate-route) |
+| [792a22o1f](./792a_product-spec.md#792a22o1-uat-scenarios) | [792b35c4](#792b35c4-the-query-route) |
+| [792a22n1a](./792a_product-spec.md#792a22n1-uat-scenarios) | [792b35c14](#792b35c14-a-new-pending-offer) |
 
 ```gherkin
 Scenario: 792a20a1a A served command is reachable
@@ -21901,7 +21901,7 @@ Canonical target: `docs/specs/technical/offer-outbox.md` (title `Offer Outbox - 
 - Current realization (informational): `internal/cli/offer_classify.go` (`classifyOffer`), `offer_payload.go`
   (`buildOfferPayload`), `outbox.go` (`enqueueOutbox`, `drainOutbox`, `recordKeptReceipts`, `classifyOfferResponse`) and
   `offer_wiring.go` (`offerHooks`, `drainForCommand`, `ensureParentVaultID`, `newUpdateExchange`, `outboxNotice`). The
-  receipt edit it calls is exchange-versioning's `applyReceiptToContent` (792b33c9).
+  receipt edit it calls is exchange-versioning's `applyReceiptToContent` ([792b33c9](#792b33c9-recording-an-offer-receipt)).
 - Qualification: responsibility, the offered writes, the outbox and the drain are stated without naming a function;
   ownership, it owns what is offered, queued and sent, while exchange-versioning owns the hash and the receipt edit,
   vault-identity-registry owns the parent cache, the backoff gate and the location and self-parent checks, the
@@ -21909,7 +21909,7 @@ Canonical target: `docs/specs/technical/offer-outbox.md` (title `Offer Outbox - 
   every requirement is tested over an in-memory filesystem, lock, clock and fetch capability; stability, the contract
   survives a new offered command or a new outcome of a send; necessity, without it a child could not share what it
   learns and a local write would depend on its parent being up.
-- Supported capabilities: 792a21 parent-sync.
+- Supported capabilities: [792a21](./792a_product-spec.md#792a21-added-parent-sync) parent-sync.
 
 Rationale (ADR-0029 D5, D6): a local write must never fail because of the parent, so the outbox is written under the
 vault lock in the write's own critical section, and the offer is built from the note when it is sent, so offline learn and
@@ -21989,7 +21989,7 @@ sequenceDiagram
 
 #### 792b36c1 Which writes are offered
 
-Requirement: 792b36c1 The offer-outbox MUST classify a write as offered exactly when the note is a fact, feedback or
+Requirement: [792b36c1](#792b36c1-which-writes-are-offered) The offer-outbox MUST classify a write as offered exactly when the note is a fact, feedback or
 runbook note whose frontmatter parses and carries neither the pending marker nor `skill_hash`, the command is `learn`
 (not `learn qa`), `resituate`, or an `amend` that is not a discard and carries a content flag (`--situation`,
 `--subject`, `--predicate`, `--object`, `--behavior`, `--impact`, `--action`, `--done-when`, `--body`, `--red-flag` or
@@ -21999,8 +21999,8 @@ link under the configured parent's vault ID. An amend whose only flags are `--su
 backfill and skill registration MUST NOT be offered. A link under any other vault ID, or any link while the parent's ID
 is unknown, MUST NOT count as the primary link.
 
-Supports: 792a21n1a, 792a21n1b, 792a21n1c, 792a21n1d, 792a21n1e, 792a21n1f, 792a21n1g, 792a21n1h, 792a21n1i, 792a21n1j,
-792a21n1k, 792a21n1l, 792a21n1m, 792a21n1n.
+Supports: [792a21n1a](./792a_product-spec.md#792a21n1-uat-scenarios), [792a21n1b](./792a_product-spec.md#792a21n1-uat-scenarios), [792a21n1c](./792a_product-spec.md#792a21n1-uat-scenarios), [792a21n1d](./792a_product-spec.md#792a21n1-uat-scenarios), [792a21n1e](./792a_product-spec.md#792a21n1-uat-scenarios), [792a21n1f](./792a_product-spec.md#792a21n1-uat-scenarios), [792a21n1g](./792a_product-spec.md#792a21n1-uat-scenarios), [792a21n1h](./792a_product-spec.md#792a21n1-uat-scenarios), [792a21n1i](./792a_product-spec.md#792a21n1-uat-scenarios), [792a21n1j](./792a_product-spec.md#792a21n1-uat-scenarios),
+[792a21n1k](./792a_product-spec.md#792a21n1-uat-scenarios), [792a21n1l](./792a_product-spec.md#792a21n1-uat-scenarios), [792a21n1m](./792a_product-spec.md#792a21n1-uat-scenarios), [792a21n1n](./792a_product-spec.md#792a21n1-uat-scenarios).
 
 Rationale: a content change is what a parent can use, and bookkeeping (a use, a discard, a relation) is local. Accepting
 a served offer is itself a local learn at that level, so it is offered onward unless it came from the parent, which
@@ -22043,7 +22043,7 @@ Scenario: 792b36c1a6 An equal hash suppresses the offer
 
 #### 792b36c2 The offer built from a note
 
-Requirement: 792b36c2 The offer-outbox MUST build an offer's `/learn` body from the note as it is when sent, read as its
+Requirement: [792b36c2](#792b36c2-the-offer-built-from-a-note) The offer-outbox MUST build an offer's `/learn` body from the note as it is when sent, read as its
 LF form: the `type`, the `slug` of the basename, the vault name, `source`, `project`, `issue`, `tier`, the
 situation, behavior, impact, action, subject, predicate, object, `done_when`, `red_flags` and `triggers`, the note's own
 `repo` and `user` (the sending process's detection filling in only an empty one), the `supersedes` entries rewritten to
@@ -22055,10 +22055,10 @@ for a direct offer, and for a note that carries `offer.origin` the path it alrea
 vault when it recorded none, with the local vault ID appended) and, when the note has a primary link under the
 configured parent's vault ID, `offer.for` set to that link's basename. It MUST fail to build, without contacting the
 parent, for a note whose basename has no slug or whose frontmatter is missing or does not parse, and for an unreadable
-vault ID or vault, and for a note with no `user` when none is detected (792b36c15).
+vault ID or vault, and for a note with no `user` when none is detected ([792b36c15](#792b36c15-an-entry-that-waits)).
 
-Supports: 792a21n1b, 792a21n1d, 792a21n1g, 792a21n1m, 792a21n1n, 792a21p1a, 792a21p1b, 792a21p1c, 792a21p1d, 792a21p1e,
-792a21p1f, 792a21t1a.
+Supports: [792a21n1b](./792a_product-spec.md#792a21n1-uat-scenarios), [792a21n1d](./792a_product-spec.md#792a21n1-uat-scenarios), [792a21n1g](./792a_product-spec.md#792a21n1-uat-scenarios), [792a21n1m](./792a_product-spec.md#792a21n1-uat-scenarios), [792a21n1n](./792a_product-spec.md#792a21n1-uat-scenarios), [792a21p1a](./792a_product-spec.md#792a21p1-uat-scenarios), [792a21p1b](./792a_product-spec.md#792a21p1-uat-scenarios), [792a21p1c](./792a_product-spec.md#792a21p1-uat-scenarios), [792a21p1d](./792a_product-spec.md#792a21p1-uat-scenarios), [792a21p1e](./792a_product-spec.md#792a21p1-uat-scenarios),
+[792a21p1f](./792a_product-spec.md#792a21p1-uat-scenarios), [792a21t1a](./792a_product-spec.md#792a21t1-uat-scenarios).
 
 Rationale: placement is each vault's own and chunks never travel; tags are the sending vault's vocabulary, which the
 parent's own vocabulary reassigns. Declaring the note's author lets it survive the trip, since the drainer may be a
@@ -22131,12 +22131,12 @@ Scenario: 792b36c2a12 No user, no offer
 
 #### 792b36c3 An offer withdrawn at send time
 
-Requirement: 792b36c3 When the parent's vault ID is known at send time, the offer-outbox MUST NOT build an offer, and the
+Requirement: [792b36c3](#792b36c3-an-offer-withdrawn-at-send-time) When the parent's vault ID is known at send time, the offer-outbox MUST NOT build an offer, and the
 drain MUST NOT send it, when the note's `offer.origin` vault is the parent or the note's exchange hash equals the hash of
 its primary link under the parent, and MUST drop such an entry unless the note changed since the snapshot was taken, in
 which case it keeps the entry for the next drain.
 
-Supports: 792a21n1h, 792a21r1j.
+Supports: [792a21n1h](./792a_product-spec.md#792a21n1-uat-scenarios), [792a21r1j](./792a_product-spec.md#792a21r1-uat-scenarios).
 
 Rationale: the classification at write time may have run before the parent's vault ID was known, so the check is repeated
 once the drain has learned it. An offer to its own origin would loop, and one equal to its link repeats what the parent
@@ -22158,8 +22158,8 @@ Scenario: 792b36c3a2 A withdrawn entry is dropped unless its note changed
 
 #### 792b36c4 Queueing an offer
 
-Requirement: 792b36c4 With a parent configured, the offer-outbox MUST, under the vault lock and before the note is written,
-classify the write (792b36c1) and, when it is offered, stamp a freshly minted `xid` on a note that has none (792b33c7),
+Requirement: [792b36c4](#792b36c4-queueing-an-offer) With a parent configured, the offer-outbox MUST, under the vault lock and before the note is written,
+classify the write ([792b36c1](#792b36c1-which-writes-are-offered)) and, when it is offered, stamp a freshly minted `xid` on a note that has none ([792b33c7](#792b33c7-the-lazy-exchange-id)),
 and after the write MUST add the note's entry to `<vault>/.engram/outbox.json` in the same critical section: keyed by
 `xid`, `queued`, with the current time, and leaving an existing entry as it is, with its first-queued time and state.
 It MUST save the outbox atomically, after the vault ID is stamped and before `.engram/` exists. A failure to stage or to
@@ -22167,7 +22167,7 @@ queue MUST be warned and MUST NOT fail the write, which then proceeds unstaged a
 `xid` can be minted MUST be written and not queued. A corrupt outbox, a failed atomic write or a vault ID that cannot be
 stamped MUST fail the enqueue. With no parent configured it MUST offer nothing, stamp nothing and write no exchange state.
 
-Supports: 792a21m1b, 792a21q1a, 792a21q1b, 792a21q1e, 792a21q1g, 792a21q1h, 792a2k1a, 792a2k1b.
+Supports: [792a21m1b](./792a_product-spec.md#792a21m1-uat-scenarios), [792a21q1a](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21q1b](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21q1e](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21q1g](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21q1h](./792a_product-spec.md#792a21q1-uat-scenarios), [792a2k1a](./792a_product-spec.md#792a2k1-uat-scenarios), [792a2k1b](./792a_product-spec.md#792a2k1-uat-scenarios).
 
 Rationale: the write completes locally whether or not the parent is up, so the outbox lives next to the note and is
 written in the write's own lock. Stamping the vault ID first keeps `.engram/` meaning created-by-engram (ADR-0029 D2).
@@ -22218,8 +22218,8 @@ Scenario: 792b36c4a8 Queueing leaves the vault's tracked files alone
 
 #### 792b36c5 Before a drain sends
 
-Requirement: 792b36c5 After a command has reached the parent (or in `update`), the offer-outbox MUST first record every
-kept receipt (792b36c15), and then, unless the backoff gate refuses the contact (792b5c14), MUST do nothing when the
+Requirement: [792b36c5](#792b36c5-before-a-drain-sends) After a command has reached the parent (or in `update`), the offer-outbox MUST first record every
+kept receipt ([792b36c15](#792b36c15-an-entry-that-waits)), and then, unless the backoff gate refuses the contact ([792b5c14](#792b5c14-the-parent-cache-and-the-contact-backoff)), MUST do nothing when the
 outbox is empty. When the outbox holds entries and the parent's vault ID is not cached, it MUST learn it with a one-item
 `GET /query?dedupe-keys=1` before it builds any offer, and MUST send nothing and print one warning when that probe is
 answered with a 4xx (recording the answer), reports no vault ID (the parent is too old, recording the answer), or cannot
@@ -22228,9 +22228,9 @@ the vault fails its location check (printing that check's warning), nor when the
 (printing the self-parent warning), and a corrupt outbox, a corrupt parent cache or an unreadable note MUST fail the drain
 before anything is sent.
 
-Supports: 792a21r1h, 792a21r1k, 792a21r1l, 792a21s1a, 792a21y1e, 792a2p1a.
+Supports: [792a21r1h](./792a_product-spec.md#792a21r1-uat-scenarios), [792a21r1k](./792a_product-spec.md#792a21r1-uat-scenarios), [792a21r1l](./792a_product-spec.md#792a21r1-uat-scenarios), [792a21s1a](./792a_product-spec.md#792a21s1-uat-scenarios), [792a21y1e](./792a_product-spec.md#792a21y1-uat-scenarios), [792a2p1a](./792a_product-spec.md#792a2p1-uat-scenarios).
 
-Rationale: a clone or a copy must not offer under another vault's name (792a2p), and an offer is built against the
+Rationale: a clone or a copy must not offer under another vault's name ([792a2p](./792a_product-spec.md#792a2p-copied-and-cloned-vaults-pause-exchange)), and an offer is built against the
 parent's vault ID, so it is learned first, by the cheapest request the parent offers, or the offer would be built
 wrongly. A failed gate leaves the offers queued for the next command.
 
@@ -22275,14 +22275,14 @@ Scenario: 792b36c5a7 A backed-off parent is not drained
 
 #### 792b36c6 Which entries are sent
 
-Requirement: 792b36c6 The send phase MUST visit the entries oldest first (stable for ties, whatever the file order),
+Requirement: [792b36c6](#792b36c6-which-entries-are-sent) The send phase MUST visit the entries oldest first (stable for ties, whatever the file order),
 holding no vault lock while it sends, and MUST build each payload from the note found by `xid` at that moment, so a
 rename between enqueue and drain is followed. It MUST drop, without sending, the entry of a note that is gone or now
 pending, MUST skip a `rejected` entry whose note's exchange hash is not changed from the hash recorded as rejected, MUST
 NOT send an `attention` entry that keeps a receipt, and MUST send an `attention` entry that keeps none as it sends a
 queued one.
 
-Supports: 792a21q1b, 792a21q1c, 792a21q1d, 792a21q1f, 792a21r1a, 792a21r1c, 792a21r1i, 792a21zb1b.
+Supports: [792a21q1b](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21q1c](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21q1d](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21q1f](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21r1a](./792a_product-spec.md#792a21r1-uat-scenarios), [792a21r1c](./792a_product-spec.md#792a21r1-uat-scenarios), [792a21r1i](./792a_product-spec.md#792a21r1-uat-scenarios), [792a21zb1b](./792a_product-spec.md#792a21zb1-uat-scenarios).
 
 Rationale: FIFO order is what a user expects of a queue, and sending without the lock keeps local writers moving while
 the network answers. A note read by `xid` is the note as it is now, so an offer carries the latest content.
@@ -22323,14 +22323,14 @@ Scenario: 792b36c6a6 A CRLF note is found and sent
 
 #### 792b36c7 The parent's answer
 
-Requirement: 792b36c7 The offer-outbox MUST classify the parent's answer to a send as failed for a transport error, a
+Requirement: [792b36c7](#792b36c7-the-parents-answer) The offer-outbox MUST classify the parent's answer to a send as failed for a transport error, a
 timeout, a 5xx, a status outside 200 to 299 that is not a 4xx, and a 2xx body that does not decode; as refused for a 409
 whose body carries the loop discriminator (with the refusing vault's ID when it is well formed, else none); as rejected
 for any other 4xx, with the parent's error as its cause; as too old for a 2xx receipt that lacks `vault_id` or `basename`;
 as failed for a 2xx receipt whose `vault_id` is not an exchange identifier or whose `basename` or `for` is not an
-exchange basename (792b5c15), however the rest of the receipt reads; and otherwise as accepted.
+exchange basename ([792b5c15](#792b5c15-exchange-identifiers)), however the rest of the receipt reads; and otherwise as accepted.
 
-Supports: 792a21v1a, 792a21v1b.
+Supports: [792a21v1a](./792a_product-spec.md#792a21v1-uat-scenarios), [792a21v1b](./792a_product-spec.md#792a21v1-uat-scenarios).
 
 Rationale: the parent is another machine's input, so what it returns is checked before it is written into frontmatter.
 Only a 2xx with a whole, well formed receipt is a success, and a 5xx or a silent parent is an outage (ADR-0029 D6).
@@ -22361,18 +22361,18 @@ Scenario: 792b36c7a4 A forbidden basename character is never accepted
 
 #### 792b36c8 An accepted offer
 
-Requirement: 792b36c8 For an accepted offer, the drain MUST, under the lock, cache the vault ID the receipt reports and reset
-the failure count, record the receipt on the note with exchange-versioning's receipt edit (792b33c9), and finish the
+Requirement: [792b36c8](#792b36c8-an-accepted-offer) For an accepted offer, the drain MUST, under the lock, cache the vault ID the receipt reports and reset
+the failure count, record the receipt on the note with exchange-versioning's receipt edit ([792b33c9](#792b33c9-recording-an-offer-receipt)), and finish the
 entry: removed when the note's exchange hash equals the hash that was sent, and queued again when it changed since. A
 receipt for a note that has been deleted since the snapshot MUST be discarded and its entry dropped. A receipt that
-fails to record for a reason other than the note refusing it (792b36c15) MUST keep the entry queued, with the attempt
+fails to record for a reason other than the note refusing it ([792b36c15](#792b36c15-an-entry-that-waits)) MUST keep the entry queued, with the attempt
 counted and the error recorded, so it is sent again idempotently, and a malformed receipt MUST keep the entry queued
 with the failure recorded.
 
-Supports: 792a21q1b, 792a21r1e, 792a21r1f, 792a21u1a, 792a21u1b, 792a21u1c, 792a21u1d, 792a21v1b, 792a21v1c, 792a21zb1b.
+Supports: [792a21q1b](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21r1e](./792a_product-spec.md#792a21r1-uat-scenarios), [792a21r1f](./792a_product-spec.md#792a21r1-uat-scenarios), [792a21u1a](./792a_product-spec.md#792a21u1-uat-scenarios), [792a21u1b](./792a_product-spec.md#792a21u1-uat-scenarios), [792a21u1c](./792a_product-spec.md#792a21u1-uat-scenarios), [792a21u1d](./792a_product-spec.md#792a21u1-uat-scenarios), [792a21v1b](./792a_product-spec.md#792a21v1-uat-scenarios), [792a21v1c](./792a_product-spec.md#792a21v1-uat-scenarios), [792a21zb1b](./792a_product-spec.md#792a21zb1-uat-scenarios).
 
 Rationale: the receipt is what links the child's note to its counterpart, and it is the parent's stored hash that is
-recorded, not the child's (792b33c9). A note amended while its offer was in flight carries content the parent has not
+recorded, not the child's ([792b33c9](#792b33c9-recording-an-offer-receipt)). A note amended while its offer was in flight carries content the parent has not
 seen, so it keeps an entry.
 
 ##### 792b36c8a Scenarios
@@ -22411,12 +22411,12 @@ Scenario: 792b36c8a6 A CRLF note takes its receipt as LF
 
 #### 792b36c9 A rejected offer
 
-Requirement: 792b36c9 For a rejected offer (a 4xx, or a 409 without the loop mark), the drain MUST mark the entry `rejected`
+Requirement: [792b36c9](#792b36c9-a-rejected-offer) For a rejected offer (a 4xx, or a 409 without the loop mark), the drain MUST mark the entry `rejected`
 with the exchange hash that was sent and the parent's error (empty when the parent gave none), count the attempt,
 continue with the later entries, and reset the failure count and the backoff, because the parent answered. A rejected
 entry MUST be sent again only when its note's exchange hash changes.
 
-Supports: 792a21r1c, 792a21za1a.
+Supports: [792a21r1c](./792a_product-spec.md#792a21r1-uat-scenarios), [792a21za1a](./792a_product-spec.md#792a21za1-uat-scenarios).
 
 Rationale: a 4xx says the offer, not the parent, is the problem, so retrying it unchanged would only repeat the refusal.
 The next edit of the note, which moves its hash, re-arms it.
@@ -22447,12 +22447,12 @@ Scenario: 792b36c9a4 Any answer resets the backoff
 
 #### 792b36c10 An unreachable parent
 
-Requirement: 792b36c10 When a send fails (792b36c7), the drain MUST stop, MUST keep the failed entry and every later one in
+Requirement: [792b36c10](#792b36c10-an-unreachable-parent) When a send fails ([792b36c7](#792b36c7-the-parents-answer)), the drain MUST stop, MUST keep the failed entry and every later one in
 their order, MUST record the attempt and the error on the failed entry, and MUST record a failure in the parent cache so
-that the parent is backed off (792b5c14). The command MUST print the one backoff warning with the number of queued
+that the parent is backed off ([792b5c14](#792b5c14-the-parent-cache-and-the-contact-backoff)). The command MUST print the one backoff warning with the number of queued
 offers, and the entries sent before the failure MUST finish as their outcomes say.
 
-Supports: 792a21q1a, 792a21r1b, 792a21s1a.
+Supports: [792a21q1a](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21r1b](./792a_product-spec.md#792a21r1-uat-scenarios), [792a21s1a](./792a_product-spec.md#792a21s1-uat-scenarios).
 
 Rationale: after one failure the rest would fail too, and each would wait out the connect timeout.
 
@@ -22467,11 +22467,11 @@ Scenario: 792b36c10a1 A transport failure stops the drain
 
 #### 792b36c11 A parent that is too old
 
-Requirement: 792b36c11 When a receipt lacks a vault ID or a basename, the drain MUST stop with an error saying the parent
+Requirement: [792b36c11](#792b36c11-a-parent-that-is-too-old) When a receipt lacks a vault ID or a basename, the drain MUST stop with an error saying the parent
 is too old, MUST keep the entry queued, MUST record the attempt, and MUST reset the failure count, because the parent
 answered.
 
-Supports: 792a21v1a.
+Supports: [792a21v1a](./792a_product-spec.md#792a21v1-uat-scenarios).
 
 Rationale: an old parent cannot link the note, but it is up, so it is not backed off, and upgrading it needs no change here.
 
@@ -22486,16 +22486,16 @@ Scenario: 792b36c11a1 A too-old parent keeps the entry and errors
 
 #### 792b36c12 A looping offer
 
-Requirement: 792b36c12 When the parent refuses an offer as a loop, the drain MUST, for a refusing vault other than this one,
+Requirement: [792b36c12](#792b36c12-a-looping-offer) When the parent refuses an offer as a loop, the drain MUST, for a refusing vault other than this one,
 mark the entry `rejected`, continue, print one warning per drain naming the refusing vault, and leave the failure
 counters alone. When the refusing vault is this vault, or an accepted receipt reports this vault's own ID, it MUST keep
 the entries queued and not rejected, cache the parent's vault ID, record nothing on any note, stop the drain, and print
 the one self-parent warning naming `engram vault-id --regenerate`.
 
-Supports: 792a21y1a, 792a21y1c, 792a21y1d.
+Supports: [792a21y1a](./792a_product-spec.md#792a21y1-uat-scenarios), [792a21y1c](./792a_product-spec.md#792a21y1-uat-scenarios), [792a21y1d](./792a_product-spec.md#792a21y1-uat-scenarios).
 
 Rationale: a real cycle (A to B to C to A) is a fault that retrying cannot mend, while a vault that is its own parent is a
-copy mistake whose offers are valid once it is fixed (792a2q).
+copy mistake whose offers are valid once it is fixed ([792a2q](./792a_product-spec.md#792a2q-a-vault-does-not-exchange-with-itself)).
 
 ##### 792b36c12a Scenarios
 
@@ -22518,11 +22518,11 @@ Scenario: 792b36c12a3 A self-parent receipt records nothing
 
 #### 792b36c13 An offer that cannot be built
 
-Requirement: 792b36c13 When an offer cannot be built from its note, for a reason other than a withdrawal (792b36c3) or the lack
-of a user identity (792b36c15), the drain MUST record the error on the entry, keep it queued, contact the parent not at
+Requirement: [792b36c13](#792b36c13-an-offer-that-cannot-be-built) When an offer cannot be built from its note, for a reason other than a withdrawal ([792b36c3](#792b36c3-an-offer-withdrawn-at-send-time)) or the lack
+of a user identity ([792b36c15](#792b36c15-an-entry-that-waits)), the drain MUST record the error on the entry, keep it queued, contact the parent not at
 all, leave the parent cache alone and continue with the later entries.
 
-Supports: 792a21r1g.
+Supports: [792a21r1g](./792a_product-spec.md#792a21r1-uat-scenarios).
 
 Rationale: a local fault in one note must not stop the others, and it says nothing about the parent.
 
@@ -22542,13 +22542,13 @@ Scenario: 792b36c13a2 The production sender skips without contacting the parent
 
 #### 792b36c14 Merging the outcomes
 
-Requirement: 792b36c14 After the sends, the drain MUST take the vault lock, re-read the outbox, the parent cache and the notes
+Requirement: [792b36c14](#792b36c14-merging-the-outcomes) After the sends, the drain MUST take the vault lock, re-read the outbox, the parent cache and the notes
 from disk, fold in every outcome, and save the outbox and the cache, so that an entry queued while the sends ran
 survives. The outbox MUST hold at most one entry per note, and every note that exists, is not pending and whose current
 content the parent has not accepted MUST keep an entry, across any sequence of writes, deletions, pending marks and drains.
 A step for an entry that another drain already cleared MUST NOT revive it.
 
-Supports: 792a21q1b, 792a21r1d.
+Supports: [792a21q1b](./792a_product-spec.md#792a21q1-uat-scenarios), [792a21r1d](./792a_product-spec.md#792a21r1-uat-scenarios).
 
 Rationale: the sends ran without the lock, so the state they began from may be stale, and merging into a fresh read is
 what keeps both a concurrent enqueue and a concurrent clear (ADR-0029 D6).
@@ -22569,20 +22569,20 @@ Scenario: 792b36c14a2 No offer is lost
 
 #### 792b36c15 An entry that waits
 
-Requirement: 792b36c15 When the note refuses an accepted receipt because its `parent:` carries a YAML anchor or its frontmatter
+Requirement: [792b36c15](#792b36c15-an-entry-that-waits) When the note refuses an accepted receipt because its `parent:` carries a YAML anchor or its frontmatter
 does not decode, the offer-outbox MUST leave the note untouched, move the entry to `attention` keeping the receipt, the
 exchange hash that was sent and the reason, and print one warning naming the note and the reason, at that transition only.
 When an offer cannot be built for want of a user identity, it MUST move the entry to `attention` with the reason `cannot
 offer: no user identity detected; set git user.email` and warn once, MUST try to build the offer again on every drain
 without contacting the parent and without a warning while it still cannot, and MUST return the entry to `queued` as
 soon as the offer builds. Before the backoff gate, a drain MUST retry recording each kept receipt on its note, under the
-vault lock and without contacting the parent: a receipt that records finishes the entry as an accepted offer does (792b36c8),
+vault lock and without contacting the parent: a receipt that records finishes the entry as an accepted offer does ([792b36c8](#792b36c8-an-accepted-offer)),
 a receipt that is still refused leaves the entry as it is and silent, a receipt whose vault ID is not the configured
 parent's cached ID is discarded with one warning and the entry queued for the current parent, an entry whose note is gone
 or pending is dropped, any other failure is recorded on the entry and reported, and a vault that cannot be listed fails
 the pass.
 
-Supports: 792a21w1a, 792a21w1b, 792a21w1c, 792a21w1d, 792a21w1e, 792a21w1f, 792a21w1g, 792a21w1h, 792a21x1a, 792a21za1b.
+Supports: [792a21w1a](./792a_product-spec.md#792a21w1-uat-scenarios), [792a21w1b](./792a_product-spec.md#792a21w1-uat-scenarios), [792a21w1c](./792a_product-spec.md#792a21w1-uat-scenarios), [792a21w1d](./792a_product-spec.md#792a21w1-uat-scenarios), [792a21w1e](./792a_product-spec.md#792a21w1-uat-scenarios), [792a21w1f](./792a_product-spec.md#792a21w1-uat-scenarios), [792a21w1g](./792a_product-spec.md#792a21w1-uat-scenarios), [792a21w1h](./792a_product-spec.md#792a21w1-uat-scenarios), [792a21x1a](./792a_product-spec.md#792a21x1-uat-scenarios), [792a21za1b](./792a_product-spec.md#792a21za1-uat-scenarios).
 
 Rationale: the parent accepted the offer, so resending it would be wrong, and the note cannot take its link until its
 owner repairs it. Keeping the receipt rather than the offer makes the repair automatic, and recording it before the
@@ -22644,7 +22644,7 @@ Scenario: 792b36c15a10 A built no-user entry that then fails is still counted
 
 #### 792b36c16 The update exchange and the outbox notice
 
-Requirement: 792b36c16 With a parent configured and outside `--dry-run`, the offer-outbox MUST drain in `engram update` ignoring
+Requirement: [792b36c16](#792b36c16-the-update-exchange-and-the-outbox-notice) With a parent configured and outside `--dry-run`, the offer-outbox MUST drain in `engram update` ignoring
 the backoff window. It MUST then return a notice that is empty when the outbox holds no entry and no backoff is active, and
 otherwise gives a line with the queued count (not counting `rejected` or `attention` entries), the rejected count, the
 count that need attention when it is not zero, and the age of the oldest entry; then each rejected entry and each entry
@@ -22652,7 +22652,7 @@ that needs attention with its note's current basename (its `xid` when the note i
 backoff is active, the retry time and the number of consecutive failures. An outbox that cannot be read MUST give a
 notice that says it is unreadable.
 
-Supports: 792a21s1b, 792a21za1a, 792a21za1b, 792a21za1c, 792a21za1d.
+Supports: [792a21s1b](./792a_product-spec.md#792a21s1-uat-scenarios), [792a21za1a](./792a_product-spec.md#792a21za1-uat-scenarios), [792a21za1b](./792a_product-spec.md#792a21za1-uat-scenarios), [792a21za1c](./792a_product-spec.md#792a21za1-uat-scenarios), [792a21za1d](./792a_product-spec.md#792a21za1-uat-scenarios).
 
 Rationale: a stuck outbox is silent otherwise, and `update` is where the user already looks for notices. A dry run must
 change nothing, and the end of an outage must be noticed, so `update` drains through the window.
@@ -22685,81 +22685,81 @@ Scenario: 792b36c16a4 An attention entry is counted and listed through the produ
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a2k1a | 792b36c4 |
-| 792a2k1b | 792b36c4 |
-| 792a2p1a | 792b36c5 |
-| 792a21m1b | 792b36c4 |
-| 792a21n1a | 792b36c1, 792b36c4 |
-| 792a21n1b | 792b36c1, 792b36c2 |
-| 792a21n1c | 792b36c1 |
-| 792a21n1d | 792b36c1, 792b36c2 |
-| 792a21n1e | 792b36c1 |
-| 792a21n1f | 792b36c1 |
-| 792a21n1g | 792b36c1, 792b36c2 |
-| 792a21n1h | 792b36c1, 792b36c3 |
-| 792a21n1i | 792b36c1 |
-| 792a21n1j | 792b36c1 |
-| 792a21n1k | 792b36c1 |
-| 792a21n1l | 792b36c1 |
-| 792a21n1m | 792b36c1, 792b36c2 |
-| 792a21n1n | 792b36c1, 792b36c2 |
-| 792a21p1a | 792b36c2 |
-| 792a21p1b | 792b36c2 |
-| 792a21p1c | 792b36c2 |
-| 792a21p1d | 792b36c2 |
-| 792a21p1e | 792b36c2 |
-| 792a21p1f | 792b36c2 |
-| 792a21q1a | 792b36c4, 792b36c10 |
-| 792a21q1b | 792b36c4, 792b36c6, 792b36c8, 792b36c14 |
-| 792a21q1c | 792b36c6 |
-| 792a21q1d | 792b36c6 |
-| 792a21q1e | 792b36c4 |
-| 792a21q1f | 792b36c6 |
-| 792a21q1g | 792b36c4 |
-| 792a21q1h | 792b36c4 |
-| 792a21r1a | 792b36c6 |
-| 792a21r1b | 792b36c10 |
-| 792a21r1c | 792b36c6, 792b36c9 |
-| 792a21r1d | 792b36c14 |
-| 792a21r1e | 792b36c8 |
-| 792a21r1f | 792b36c8 |
-| 792a21r1g | 792b36c13 |
-| 792a21r1h | 792b36c5 |
-| 792a21r1i | 792b36c6 |
-| 792a21r1j | 792b36c3 |
-| 792a21r1k | 792b36c5 |
-| 792a21r1l | 792b36c5 |
-| 792a21s1a | 792b36c5, 792b36c10 |
-| 792a21s1b | 792b36c16 |
-| 792a21t1a | 792b36c2 |
-| 792a21u1a | 792b36c8 |
-| 792a21u1b | 792b36c8 |
-| 792a21u1c | 792b36c8 |
-| 792a21u1d | 792b36c8 |
-| 792a21v1a | 792b36c7, 792b36c11 |
-| 792a21v1b | 792b36c7, 792b36c8 |
-| 792a21v1c | 792b36c8 |
-| 792a21w1a | 792b36c15 |
-| 792a21w1b | 792b36c15 |
-| 792a21w1c | 792b36c15 |
-| 792a21w1d | 792b36c15 |
-| 792a21w1e | 792b36c15 |
-| 792a21w1f | 792b36c15 |
-| 792a21w1g | 792b36c15 |
-| 792a21w1h | 792b36c15 |
-| 792a21x1a | 792b36c15 |
-| 792a21y1a | 792b36c12 |
-| 792a21y1b | 792b36c9 |
-| 792a21y1c | 792b36c12 |
-| 792a21y1d | 792b36c12 |
-| 792a21y1e | 792b36c5 |
-| 792a21za1a | 792b36c9, 792b36c16 |
-| 792a21za1b | 792b36c15, 792b36c16 |
-| 792a21za1c | 792b36c16 |
-| 792a21za1d | 792b36c16 |
-| 792a21zb1b | 792b36c6, 792b36c8 |
-| 792a21zj1b | 792b36c1, 792b36c2 |
-| 792a21zj1c | 792b36c1, 792b36c2 |
+| [792a2k1a](./792a_product-spec.md#792a2k1-uat-scenarios) | [792b36c4](#792b36c4-queueing-an-offer) |
+| [792a2k1b](./792a_product-spec.md#792a2k1-uat-scenarios) | [792b36c4](#792b36c4-queueing-an-offer) |
+| [792a2p1a](./792a_product-spec.md#792a2p1-uat-scenarios) | [792b36c5](#792b36c5-before-a-drain-sends) |
+| [792a21m1b](./792a_product-spec.md#792a21m1-uat-scenarios) | [792b36c4](#792b36c4-queueing-an-offer) |
+| [792a21n1a](./792a_product-spec.md#792a21n1-uat-scenarios) | [792b36c1](#792b36c1-which-writes-are-offered), [792b36c4](#792b36c4-queueing-an-offer) |
+| [792a21n1b](./792a_product-spec.md#792a21n1-uat-scenarios) | [792b36c1](#792b36c1-which-writes-are-offered), [792b36c2](#792b36c2-the-offer-built-from-a-note) |
+| [792a21n1c](./792a_product-spec.md#792a21n1-uat-scenarios) | [792b36c1](#792b36c1-which-writes-are-offered) |
+| [792a21n1d](./792a_product-spec.md#792a21n1-uat-scenarios) | [792b36c1](#792b36c1-which-writes-are-offered), [792b36c2](#792b36c2-the-offer-built-from-a-note) |
+| [792a21n1e](./792a_product-spec.md#792a21n1-uat-scenarios) | [792b36c1](#792b36c1-which-writes-are-offered) |
+| [792a21n1f](./792a_product-spec.md#792a21n1-uat-scenarios) | [792b36c1](#792b36c1-which-writes-are-offered) |
+| [792a21n1g](./792a_product-spec.md#792a21n1-uat-scenarios) | [792b36c1](#792b36c1-which-writes-are-offered), [792b36c2](#792b36c2-the-offer-built-from-a-note) |
+| [792a21n1h](./792a_product-spec.md#792a21n1-uat-scenarios) | [792b36c1](#792b36c1-which-writes-are-offered), [792b36c3](#792b36c3-an-offer-withdrawn-at-send-time) |
+| [792a21n1i](./792a_product-spec.md#792a21n1-uat-scenarios) | [792b36c1](#792b36c1-which-writes-are-offered) |
+| [792a21n1j](./792a_product-spec.md#792a21n1-uat-scenarios) | [792b36c1](#792b36c1-which-writes-are-offered) |
+| [792a21n1k](./792a_product-spec.md#792a21n1-uat-scenarios) | [792b36c1](#792b36c1-which-writes-are-offered) |
+| [792a21n1l](./792a_product-spec.md#792a21n1-uat-scenarios) | [792b36c1](#792b36c1-which-writes-are-offered) |
+| [792a21n1m](./792a_product-spec.md#792a21n1-uat-scenarios) | [792b36c1](#792b36c1-which-writes-are-offered), [792b36c2](#792b36c2-the-offer-built-from-a-note) |
+| [792a21n1n](./792a_product-spec.md#792a21n1-uat-scenarios) | [792b36c1](#792b36c1-which-writes-are-offered), [792b36c2](#792b36c2-the-offer-built-from-a-note) |
+| [792a21p1a](./792a_product-spec.md#792a21p1-uat-scenarios) | [792b36c2](#792b36c2-the-offer-built-from-a-note) |
+| [792a21p1b](./792a_product-spec.md#792a21p1-uat-scenarios) | [792b36c2](#792b36c2-the-offer-built-from-a-note) |
+| [792a21p1c](./792a_product-spec.md#792a21p1-uat-scenarios) | [792b36c2](#792b36c2-the-offer-built-from-a-note) |
+| [792a21p1d](./792a_product-spec.md#792a21p1-uat-scenarios) | [792b36c2](#792b36c2-the-offer-built-from-a-note) |
+| [792a21p1e](./792a_product-spec.md#792a21p1-uat-scenarios) | [792b36c2](#792b36c2-the-offer-built-from-a-note) |
+| [792a21p1f](./792a_product-spec.md#792a21p1-uat-scenarios) | [792b36c2](#792b36c2-the-offer-built-from-a-note) |
+| [792a21q1a](./792a_product-spec.md#792a21q1-uat-scenarios) | [792b36c4](#792b36c4-queueing-an-offer), [792b36c10](#792b36c10-an-unreachable-parent) |
+| [792a21q1b](./792a_product-spec.md#792a21q1-uat-scenarios) | [792b36c4](#792b36c4-queueing-an-offer), [792b36c6](#792b36c6-which-entries-are-sent), [792b36c8](#792b36c8-an-accepted-offer), [792b36c14](#792b36c14-merging-the-outcomes) |
+| [792a21q1c](./792a_product-spec.md#792a21q1-uat-scenarios) | [792b36c6](#792b36c6-which-entries-are-sent) |
+| [792a21q1d](./792a_product-spec.md#792a21q1-uat-scenarios) | [792b36c6](#792b36c6-which-entries-are-sent) |
+| [792a21q1e](./792a_product-spec.md#792a21q1-uat-scenarios) | [792b36c4](#792b36c4-queueing-an-offer) |
+| [792a21q1f](./792a_product-spec.md#792a21q1-uat-scenarios) | [792b36c6](#792b36c6-which-entries-are-sent) |
+| [792a21q1g](./792a_product-spec.md#792a21q1-uat-scenarios) | [792b36c4](#792b36c4-queueing-an-offer) |
+| [792a21q1h](./792a_product-spec.md#792a21q1-uat-scenarios) | [792b36c4](#792b36c4-queueing-an-offer) |
+| [792a21r1a](./792a_product-spec.md#792a21r1-uat-scenarios) | [792b36c6](#792b36c6-which-entries-are-sent) |
+| [792a21r1b](./792a_product-spec.md#792a21r1-uat-scenarios) | [792b36c10](#792b36c10-an-unreachable-parent) |
+| [792a21r1c](./792a_product-spec.md#792a21r1-uat-scenarios) | [792b36c6](#792b36c6-which-entries-are-sent), [792b36c9](#792b36c9-a-rejected-offer) |
+| [792a21r1d](./792a_product-spec.md#792a21r1-uat-scenarios) | [792b36c14](#792b36c14-merging-the-outcomes) |
+| [792a21r1e](./792a_product-spec.md#792a21r1-uat-scenarios) | [792b36c8](#792b36c8-an-accepted-offer) |
+| [792a21r1f](./792a_product-spec.md#792a21r1-uat-scenarios) | [792b36c8](#792b36c8-an-accepted-offer) |
+| [792a21r1g](./792a_product-spec.md#792a21r1-uat-scenarios) | [792b36c13](#792b36c13-an-offer-that-cannot-be-built) |
+| [792a21r1h](./792a_product-spec.md#792a21r1-uat-scenarios) | [792b36c5](#792b36c5-before-a-drain-sends) |
+| [792a21r1i](./792a_product-spec.md#792a21r1-uat-scenarios) | [792b36c6](#792b36c6-which-entries-are-sent) |
+| [792a21r1j](./792a_product-spec.md#792a21r1-uat-scenarios) | [792b36c3](#792b36c3-an-offer-withdrawn-at-send-time) |
+| [792a21r1k](./792a_product-spec.md#792a21r1-uat-scenarios) | [792b36c5](#792b36c5-before-a-drain-sends) |
+| [792a21r1l](./792a_product-spec.md#792a21r1-uat-scenarios) | [792b36c5](#792b36c5-before-a-drain-sends) |
+| [792a21s1a](./792a_product-spec.md#792a21s1-uat-scenarios) | [792b36c5](#792b36c5-before-a-drain-sends), [792b36c10](#792b36c10-an-unreachable-parent) |
+| [792a21s1b](./792a_product-spec.md#792a21s1-uat-scenarios) | [792b36c16](#792b36c16-the-update-exchange-and-the-outbox-notice) |
+| [792a21t1a](./792a_product-spec.md#792a21t1-uat-scenarios) | [792b36c2](#792b36c2-the-offer-built-from-a-note) |
+| [792a21u1a](./792a_product-spec.md#792a21u1-uat-scenarios) | [792b36c8](#792b36c8-an-accepted-offer) |
+| [792a21u1b](./792a_product-spec.md#792a21u1-uat-scenarios) | [792b36c8](#792b36c8-an-accepted-offer) |
+| [792a21u1c](./792a_product-spec.md#792a21u1-uat-scenarios) | [792b36c8](#792b36c8-an-accepted-offer) |
+| [792a21u1d](./792a_product-spec.md#792a21u1-uat-scenarios) | [792b36c8](#792b36c8-an-accepted-offer) |
+| [792a21v1a](./792a_product-spec.md#792a21v1-uat-scenarios) | [792b36c7](#792b36c7-the-parents-answer), [792b36c11](#792b36c11-a-parent-that-is-too-old) |
+| [792a21v1b](./792a_product-spec.md#792a21v1-uat-scenarios) | [792b36c7](#792b36c7-the-parents-answer), [792b36c8](#792b36c8-an-accepted-offer) |
+| [792a21v1c](./792a_product-spec.md#792a21v1-uat-scenarios) | [792b36c8](#792b36c8-an-accepted-offer) |
+| [792a21w1a](./792a_product-spec.md#792a21w1-uat-scenarios) | [792b36c15](#792b36c15-an-entry-that-waits) |
+| [792a21w1b](./792a_product-spec.md#792a21w1-uat-scenarios) | [792b36c15](#792b36c15-an-entry-that-waits) |
+| [792a21w1c](./792a_product-spec.md#792a21w1-uat-scenarios) | [792b36c15](#792b36c15-an-entry-that-waits) |
+| [792a21w1d](./792a_product-spec.md#792a21w1-uat-scenarios) | [792b36c15](#792b36c15-an-entry-that-waits) |
+| [792a21w1e](./792a_product-spec.md#792a21w1-uat-scenarios) | [792b36c15](#792b36c15-an-entry-that-waits) |
+| [792a21w1f](./792a_product-spec.md#792a21w1-uat-scenarios) | [792b36c15](#792b36c15-an-entry-that-waits) |
+| [792a21w1g](./792a_product-spec.md#792a21w1-uat-scenarios) | [792b36c15](#792b36c15-an-entry-that-waits) |
+| [792a21w1h](./792a_product-spec.md#792a21w1-uat-scenarios) | [792b36c15](#792b36c15-an-entry-that-waits) |
+| [792a21x1a](./792a_product-spec.md#792a21x1-uat-scenarios) | [792b36c15](#792b36c15-an-entry-that-waits) |
+| [792a21y1a](./792a_product-spec.md#792a21y1-uat-scenarios) | [792b36c12](#792b36c12-a-looping-offer) |
+| [792a21y1b](./792a_product-spec.md#792a21y1-uat-scenarios) | [792b36c9](#792b36c9-a-rejected-offer) |
+| [792a21y1c](./792a_product-spec.md#792a21y1-uat-scenarios) | [792b36c12](#792b36c12-a-looping-offer) |
+| [792a21y1d](./792a_product-spec.md#792a21y1-uat-scenarios) | [792b36c12](#792b36c12-a-looping-offer) |
+| [792a21y1e](./792a_product-spec.md#792a21y1-uat-scenarios) | [792b36c5](#792b36c5-before-a-drain-sends) |
+| [792a21za1a](./792a_product-spec.md#792a21za1-uat-scenarios) | [792b36c9](#792b36c9-a-rejected-offer), [792b36c16](#792b36c16-the-update-exchange-and-the-outbox-notice) |
+| [792a21za1b](./792a_product-spec.md#792a21za1-uat-scenarios) | [792b36c15](#792b36c15-an-entry-that-waits), [792b36c16](#792b36c16-the-update-exchange-and-the-outbox-notice) |
+| [792a21za1c](./792a_product-spec.md#792a21za1-uat-scenarios) | [792b36c16](#792b36c16-the-update-exchange-and-the-outbox-notice) |
+| [792a21za1d](./792a_product-spec.md#792a21za1-uat-scenarios) | [792b36c16](#792b36c16-the-update-exchange-and-the-outbox-notice) |
+| [792a21zb1b](./792a_product-spec.md#792a21zb1-uat-scenarios) | [792b36c6](#792b36c6-which-entries-are-sent), [792b36c8](#792b36c8-an-accepted-offer) |
+| [792a21zj1b](./792a_product-spec.md#792a21zj1-uat-scenarios) | [792b36c1](#792b36c1-which-writes-are-offered), [792b36c2](#792b36c2-the-offer-built-from-a-note) |
+| [792a21zj1c](./792a_product-spec.md#792a21zj1-uat-scenarios) | [792b36c1](#792b36c1-which-writes-are-offered), [792b36c2](#792b36c2-the-offer-built-from-a-note) |
 
 ```gherkin
 Scenario: 792a21m1b A write with no parent exchanges nothing
@@ -23093,13 +23093,13 @@ Canonical target: `docs/specs/technical/parent-vault-client.md` (title `Parent V
   `buildPulledNote`, `parsePulledSource`).
 - Qualification: responsibility, the parent requests, the merge and the pull-down are stated without naming a function;
   ownership, it owns what is asked of the parent and how the answer enters the vault, while the parent's side of each route
-  is vault-http-server's (792b35), the cache, the backoff gate and the declined-pull record are
-  vault-identity-registry's (792b5c14 to 792b5c16), the routing of `show` and `activate` is the command-line-surface's and
-  note-amendment's (792b2c10, 792b14c12), and the outbox drain it triggers is offer-outbox's (792b36); independent
+  is vault-http-server's ([792b35](#792b35-added-vault-http-server)), the cache, the backoff gate and the declined-pull record are
+  vault-identity-registry's ([792b5c14](#792b5c14-the-parent-cache-and-the-contact-backoff) to [792b5c16](#792b5c16-the-declined-pull-record)), the routing of `show` and `activate` is the command-line-surface's and
+  note-amendment's ([792b2c10](#792b2c10-parent-routing-of-note-lookup), [792b14c12](#792b14c12-activation-against-the-parent)), and the outbox drain it triggers is offer-outbox's ([792b36](#792b36-added-offer-outbox)); independent
   verification, the merge is tested as pure functions over payloads and notes, and the requests through an injected fetch
   capability over scripted answers; stability, the contract survives a new parent route or a change to the merge's
   ordering; necessity, without it a child could neither read its parent's notes nor use them.
-- Supported capabilities: 792a21 parent-sync.
+- Supported capabilities: [792a21](./792a_product-spec.md#792a21-added-parent-sync) parent-sync.
 
 Rationale (ADR-0029 D8, D9): a node with a parent wants one coherent answer, so the merge fuses two complete payloads and
 leaves the clusters to the local node, and it fuses notes only, because chunks are the machine's own transcript text. A
@@ -23163,10 +23163,10 @@ sequenceDiagram
 
 #### 792b37c1 The parent address
 
-Requirement: 792b37c1 The parent-vault-client MUST take the parent's base URL from the `ENGRAM_PARENT` environment value
+Requirement: [792b37c1](#792b37c1-the-parent-address) The parent-vault-client MUST take the parent's base URL from the `ENGRAM_PARENT` environment value
 and MUST have no parent when the value is empty or the environment is not available.
 
-Supports: 792a21b1a.
+Supports: [792a21b1a](./792a_product-spec.md#792a21b1-uat-scenarios).
 
 Rationale: the parent is an additive setting: a set `ENGRAM_PARENT` adds a step to local behavior and never replaces it.
 
@@ -23186,16 +23186,16 @@ Scenario: 792b37c1a2 No environment, no parent
 
 #### 792b37c2 A request to the parent
 
-Requirement: 792b37c2 The parent-vault-client MUST send each request to the base URL joined with the route and a query
+Requirement: [792b37c2](#792b37c2-a-request-to-the-parent) The parent-vault-client MUST send each request to the base URL joined with the route and a query
 string of percent-encoded keys and values in sorted key order, repeating a key once per value, so that any text, quotes,
 newlines and non-ASCII characters included, survives the encoding unchanged. It MUST report a transport error, a timeout
 or a 5xx as the parent being unreachable, and any other status outside 200 to 299 as an error that carries the message
 of the answer's `{"error": "..."}` body, or the raw body text when it is not that. It MUST return a 2xx answer as it is.
 
-Supports: 792a21k1a, 792a21k1c.
+Supports: [792a21k1a](./792a_product-spec.md#792a21k1-uat-scenarios), [792a21k1c](./792a_product-spec.md#792a21k1-uat-scenarios).
 
 Rationale: `internal/` may not import `net/url`, so the encoder is hand-written and held to a round-trip test. An outage backs
-the parent off and a 4xx does not, which is why the two errors differ (792b5c14).
+the parent off and a 4xx does not, which is why the two errors differ ([792b5c14](#792b5c14-the-parent-cache-and-the-contact-backoff)).
 
 ##### 792b37c2a Scenarios
 
@@ -23223,12 +23223,12 @@ Scenario: 792b37c2a4 A non-2xx answer carries the server's message
 
 #### 792b37c3 The parent's query answer
 
-Requirement: 792b37c3 To fetch the parent's answer to a query, the parent-vault-client MUST send a `GET /query` carrying
+Requirement: [792b37c3](#792b37c3-the-parents-query-answer) To fetch the parent's answer to a query, the parent-vault-client MUST send a `GET /query` carrying
 each query input that is set (every phrase, `limit`, `project`, `text`, `content-budget`, `recent-fill`, `lazy-chunks` and
 `timings`) and `dedupe-keys=1`, and MUST decode a 2xx YAML body into the payload type a local query renders. It MUST
 fail for a transport error, a non-2xx answer or a body that is not valid YAML.
 
-Supports: 792a21c1a.
+Supports: [792a21c1a](./792a_product-spec.md#792a21c1-uat-scenarios).
 
 Rationale: a payload decoded into the type the local query renders can be merged with it before a single render, where
 copying the parent's bytes to the output could not.
@@ -23259,17 +23259,17 @@ Scenario: 792b37c3a4 A non-2xx or a transport failure fails
 
 #### 792b37c4 The merged query
 
-Requirement: 792b37c4 With `ENGRAM_PARENT` set, `engram query` MUST run the merged path and with it unset MUST run the local
+Requirement: [792b37c4](#792b37c4-the-merged-query) With `ENGRAM_PARENT` set, `engram query` MUST run the merged path and with it unset MUST run the local
 query with no request. The merged path MUST first make the parent contact: stamp a missing vault ID and check the vault's
-location (a failed stamp skipping the contact's bookkeeping but not the request), and ask the backoff gate (792b5c14); it
+location (a failed stamp skipping the contact's bookkeeping but not the request), and ask the backoff gate ([792b5c14](#792b5c14-the-parent-cache-and-the-contact-backoff)); it
 MUST return the local answer alone, as an ordinary local query, when the gate refuses, when the cached parent vault ID is
 this vault's own, or after the request when the parent reports this vault's own ID. It MUST fetch the parent's answer and
 run the local query, each with the content budget off and `--recent-fill` and `--limit` unbounded, so that the real values
 are applied once, to the merged set. It MUST record the request's outcome for backoff and cache the vault ID the parent
 reports; when the parent fails it MUST print one warning and return the local answer; when the local query fails it MUST
-return that error. After a merged answer it MUST drain the outbox (792b36c5), unless the vault ID could not be stamped.
+return that error. After a merged answer it MUST drain the outbox ([792b36c5](#792b36c5-before-a-drain-sends)), unless the vault ID could not be stamped.
 
-Supports: 792a21c1a, 792a21k1a, 792a21k1b, 792a21m1a, 792a2q1a.
+Supports: [792a21c1a](./792a_product-spec.md#792a21c1-uat-scenarios), [792a21k1a](./792a_product-spec.md#792a21k1-uat-scenarios), [792a21k1b](./792a_product-spec.md#792a21k1-uat-scenarios), [792a21m1a](./792a_product-spec.md#792a21m1-uat-scenarios), [792a2q1a](./792a_product-spec.md#792a2q1-uat-scenarios).
 
 Rationale: a node's recall must not depend on its parent's availability, so every failure falls back to the local
 answer. Fetching unbounded and capping once is what keeps the merged size at the requested budget and not at twice it.
@@ -23320,12 +23320,12 @@ Scenario: 792b37c4a8 A merged answer drains the outbox
 
 #### 792b37c5 Dropping and tagging the parent's items
 
-Requirement: 792b37c5 The parent-vault-client MUST drop every item of the parent's answer whose kind is `chunk` or whose
+Requirement: [792b37c5](#792b37c5-dropping-and-tagging-the-parents-items) The parent-vault-client MUST drop every item of the parent's answer whose kind is `chunk` or whose
 provenances include `recent`, before any other step of the merge. It MUST tag every item with the `model_id` of the node
 that produced it and a `from_parent` of its own, true for a parent item and false for a local one, and MUST merge whether or
 not the two `model_id` values match.
 
-Supports: 792a21c1a, 792a21c1b, 792a21f1a, 792a21f1b, 792a21g1a.
+Supports: [792a21c1a](./792a_product-spec.md#792a21c1-uat-scenarios), [792a21c1b](./792a_product-spec.md#792a21c1-uat-scenarios), [792a21f1a](./792a_product-spec.md#792a21f1-uat-scenarios), [792a21f1b](./792a_product-spec.md#792a21f1-uat-scenarios), [792a21g1a](./792a_product-spec.md#792a21g1-uat-scenarios).
 
 Rationale: chunks never cross vaults (ADR-0029 D9). A refusal on a model mismatch would break merged recall across a fleet
 that upgrades its embedding model one environment at a time. Each item gets its own pointer so that a later write
@@ -23357,7 +23357,7 @@ Scenario: 792b37c5a4 Each tagged item has its own tag
 
 #### 792b37c6 Deduping against the local notes
 
-Requirement: 792b37c6 The parent-vault-client MUST treat a parent item P as the same note as a live local note L when L's
+Requirement: [792b37c6](#792b37c6-deduping-against-the-local-notes) The parent-vault-client MUST treat a parent item P as the same note as a live local note L when L's
 `parent.vault` is the vault ID the parent reported in this query and any of L's links names P's basename or one of its
 aliases, or when L's exchange hash equals P's `exchange_hash` and both are known. It MUST then drop P when L is already
 among the local items or was already substituted, and otherwise replace P at its position with an item for L: L's
@@ -23368,7 +23368,7 @@ link under another vault ID or while the parent's ID is unknown MUST NOT match, 
 merged, and the dedupe keys MUST NOT remain on any item. A local note whose hash cannot be computed MUST match by link
 only, and a failed scan of the local notes MUST be warned and merge without dedupe and not fail the query.
 
-Supports: 792a21j1a, 792a21j1b, 792a21j1c, 792a21j1d, 792a21j1e, 792a21j1f, 792a21j1g, 792a21j1h, 792a21j1i.
+Supports: [792a21j1a](./792a_product-spec.md#792a21j1-uat-scenarios), [792a21j1b](./792a_product-spec.md#792a21j1-uat-scenarios), [792a21j1c](./792a_product-spec.md#792a21j1-uat-scenarios), [792a21j1d](./792a_product-spec.md#792a21j1-uat-scenarios), [792a21j1e](./792a_product-spec.md#792a21j1-uat-scenarios), [792a21j1f](./792a_product-spec.md#792a21j1-uat-scenarios), [792a21j1g](./792a_product-spec.md#792a21j1-uat-scenarios), [792a21j1h](./792a_product-spec.md#792a21j1-uat-scenarios), [792a21j1i](./792a_product-spec.md#792a21j1-uat-scenarios).
 
 Rationale: an exchanged note must not show twice, and the local copy is the one the child can curate. Matching also by
 alias covers a parent that renamed or folded the note. An unlinked near-duplicate is left to curation and heals through
@@ -23440,7 +23440,7 @@ Scenario: 792b37c6a12 A failed scan merges without dedupe
 
 #### 792b37c7 The order of the merged relevance items
 
-Requirement: 792b37c7 The parent-vault-client MUST put the trigger hits first, the local ones before the parent's, each in the
+Requirement: [792b37c7](#792b37c7-the-order-of-the-merged-relevance-items) The parent-vault-client MUST put the trigger hits first, the local ones before the parent's, each in the
 order its source gave them, and exempt from `--limit`. It MUST then order the other non-recency items in two groups, the
 direct items (those whose provenances do not include `explore`) and then the explore items, each by descending score and
 stably, and cap them to `--limit` by position, with `--limit` of zero or less unbounded. When the direct items alone reach
@@ -23448,7 +23448,7 @@ the limit, it MUST keep the first `limit` of them and, when they hold fewer than
 of a note kind scoring at least 0.25), replace the lowest-positioned kept chunks one for one with the highest-scoring
 excluded members of Q, then restore score order.
 
-Supports: 792a21c1a, 792a21d1a, 792a21d1b, 792a21d1c.
+Supports: [792a21c1a](./792a_product-spec.md#792a21c1-uat-scenarios), [792a21d1a](./792a_product-spec.md#792a21d1-uat-scenarios), [792a21d1b](./792a_product-spec.md#792a21d1-uat-scenarios), [792a21d1c](./792a_product-spec.md#792a21d1-uat-scenarios).
 
 Rationale: the first merge sorted every item by raw score, so explore picks crowded out direct matches (#744); and a cap by
 position must still keep the notes the matched-note floor keeps in a local query.
@@ -23494,12 +23494,12 @@ Scenario: 792b37c7a7 The reported crowding shape keeps its notes
 
 #### 792b37c8 The budgets of the merged set
 
-Requirement: 792b37c8 The parent-vault-client MUST append the local recency items after the relevance items, cap them to
+Requirement: [792b37c8](#792b37c8-the-budgets-of-the-merged-set) The parent-vault-client MUST append the local recency items after the relevance items, cap them to
 `--recent-fill` as a group, and not count them against `--limit`. It MUST apply `--content-budget`, or `--lazy-chunks` when
 that is set (clearing every chunk's content and snippeting none), once over the merged items, so that at most the budgeted
 number of chunk items, all local, render full content by rank.
 
-Supports: 792a21e1a, 792a21e1b, 792a21e1c.
+Supports: [792a21e1a](./792a_product-spec.md#792a21e1-uat-scenarios), [792a21e1b](./792a_product-spec.md#792a21e1-uat-scenarios), [792a21e1c](./792a_product-spec.md#792a21e1-uat-scenarios).
 
 Rationale: letting each source apply its own budget would let the merged answer run to twice the requested size. The
 recency channel's newest-first order cannot be merged into one chronology, since an item carries no timestamp, so it is
@@ -23531,14 +23531,14 @@ Scenario: 792b37c8a4 Recency items follow the relevance items
 
 #### 792b37c9 The merged payload's own fields
 
-Requirement: 792b37c9 The merged payload MUST be version 1 with the local query's phrases and clusters, so that no cluster mixes
+Requirement: [792b37c9](#792b37c9-the-merged-payloads-own-fields) The merged payload MUST be version 1 with the local query's phrases and clusters, so that no cluster mixes
 the two sources; its `pending_offers` flag and hint and its refit flag MUST be the local query's, the hint present exactly
 when the flag is, and the parent's flags ignored; and its `model_id` MUST be the querying node's own. Its `budget` block MUST
 report the local totals, the number of direct hits and of items with full content, the `limit`, `content_budget` and
 `lazy_chunks` applied, the number of chunks snippeted, and `explore_allocated` summed per term over both sources, never
 absent.
 
-Supports: 792a21h1a, 792a21h1b, 792a21h1c, 792a21i1a.
+Supports: [792a21h1a](./792a_product-spec.md#792a21h1-uat-scenarios), [792a21h1b](./792a_product-spec.md#792a21h1-uat-scenarios), [792a21h1c](./792a_product-spec.md#792a21h1-uat-scenarios), [792a21i1a](./792a_product-spec.md#792a21i1-uat-scenarios).
 
 Rationale: a child cannot curate its parent's offers or refit its parent's vocabulary, so a parent-side flag would tell the
 child to do something it cannot; and the first merge reported an all-zero budget block (#743).
@@ -23584,11 +23584,11 @@ Scenario: 792b37c9a7 Lazy chunks are reported
 
 #### 792b37c10 The parent-sourced label
 
-Requirement: 792b37c10 When the parent-vault-client prints a note it fetched as the fallback of `show`, it MUST write the line `#
+Requirement: [792b37c10](#792b37c10-the-parent-sourced-label) When the parent-vault-client prints a note it fetched as the fallback of `show`, it MUST write the line `#
 from_parent: true` and then the body verbatim, and MUST fail with an error that wraps the cause when either write fails,
 so that no label is left ahead of an error.
 
-Supports: 792a21l1d.
+Supports: [792a21l1d](./792a_product-spec.md#792a21l1-uat-scenarios).
 
 Rationale: the fallback leaves the reader unsure where the text came from, so only it is labeled; the answer is buffered
 first so that a failed fetch never leaves a stray label.
@@ -23609,18 +23609,18 @@ Scenario: 792b37c10a2 A failed body write is reported
 
 #### 792b37c11 A pull-down is a gated parent contact
 
-Requirement: 792b37c11 Before its first fetch in a command, the parent-vault-client MUST stamp a missing vault ID, check the
+Requirement: [792b37c11](#792b37c11-a-pull-down-is-a-gated-parent-contact) Before its first fetch in a command, the parent-vault-client MUST stamp a missing vault ID, check the
 vault's location, apply the cached self-parent guard and ask the backoff gate, and MUST refuse every pull and re-check of
 the command, fetching and writing nothing, with the one warning of whichever check failed, when a stamp fails, the
 location check fails, the cached parent is this vault's own, the gate refuses, or the exchange state cannot be read. An
 outage on a fetch MUST record one failure, print the one backoff warning with the queued count (naming the error instead
 when the failure cannot be recorded) and refuse the later refs without a request. A successful contact MUST drain the
-outbox once after the last ref (792b36c5), behind the same gate.
+outbox once after the last ref ([792b36c5](#792b36c5-before-a-drain-sends)), behind the same gate.
 
-Supports: 792a21zg1c, 792a21zg1d, 792a21zg1e.
+Supports: [792a21zg1c](./792a_product-spec.md#792a21zg1-uat-scenarios), [792a21zg1d](./792a_product-spec.md#792a21zg1-uat-scenarios), [792a21zg1e](./792a_product-spec.md#792a21zg1-uat-scenarios).
 
 Rationale: a pull-down writes to the vault and contacts a remote vault, so it pauses for the same reasons an offer does
-(792a2p, 792a2q). A parent that is down would otherwise be tried again for every ref.
+([792a2p](./792a_product-spec.md#792a2p-copied-and-cloned-vaults-pause-exchange), [792a2q](./792a_product-spec.md#792a2q-a-vault-does-not-exchange-with-itself)). A parent that is down would otherwise be tried again for every ref.
 
 ##### 792b37c11a Scenarios
 
@@ -23648,18 +23648,18 @@ Scenario: 792b37c11a4 A pull-down drains the outbox
 
 #### 792b37c12 The raw envelope
 
-Requirement: 792b37c12 The parent-vault-client MUST fetch a note with `GET /show?note=<name>&raw=1`, holding no vault lock, and
+Requirement: [792b37c12](#792b37c12-the-raw-envelope) The parent-vault-client MUST fetch a note with `GET /show?note=<name>&raw=1`, holding no vault lock, and
 MUST accept the answer only as a JSON object with a `vault_id`, a `basename`, an `exchange_hash` and `content`. It MUST
 fail as the parent being too old for an answer that is not such an object, and write nothing for an envelope whose
-`vault_id` is not an exchange identifier or whose `basename` is not an exchange basename (792b5c15), whose content has no
+`vault_id` is not an exchange identifier or whose `basename` is not an exchange basename ([792b5c15](#792b5c15-exchange-identifiers)), whose content has no
 frontmatter, whose type is not `fact`, `feedback` or `runbook`, or whose built copy's exchange hash differs from the
 envelope's. It MUST fail as not found for a non-2xx answer. Any answer from the parent MUST reset the backoff and cache a
 well formed reported vault ID, a malformed one never being cached, and a CRLF envelope MUST be read as its LF form.
 
-Supports: 792a21zb1d, 792a21zd1d, 792a21zd1e, 792a21zd1f, 792a21zd1g, 792a21zd1h.
+Supports: [792a21zb1d](./792a_product-spec.md#792a21zb1-uat-scenarios), [792a21zd1d](./792a_product-spec.md#792a21zd1-uat-scenarios), [792a21zd1e](./792a_product-spec.md#792a21zd1-uat-scenarios), [792a21zd1f](./792a_product-spec.md#792a21zd1-uat-scenarios), [792a21zd1g](./792a_product-spec.md#792a21zd1-uat-scenarios), [792a21zd1h](./792a_product-spec.md#792a21zd1-uat-scenarios).
 
 Rationale: the envelope is JSON with a `vault_id`, so it cannot be mistaken for the rendered output of an older parent, and
-a parent is another machine's input (792b5c15).
+a parent is another machine's input ([792b5c15](#792b5c15-exchange-identifiers)).
 
 ##### 792b37c12a Scenarios
 
@@ -23702,7 +23702,7 @@ Scenario: 792b37c12a7 A pending parent note is not pulled
 
 #### 792b37c13 The pulled copy
 
-Requirement: 792b37c13 Under the vault lock, the parent-vault-client MUST write the pulled note as a new top-level note, named
+Requirement: [792b37c13](#792b37c13-the-pulled-copy) Under the vault lock, the parent-vault-client MUST write the pulled note as a new top-level note, named
 from the parent's slug, with a fresh Luhmann ID and `xid`, the creation date of the pull, `pending: true`, the parent's
 frontmatter without `parent`, `aliases`, `offer`, `xid`, `skill_hash`, `skill_key`, `skill_source`, `sources`,
 `supersedes`, `tags`, `vocab_version` or `pending`, `repo`, `user` and `vault` stamped by the first-write identity (an
@@ -23711,7 +23711,7 @@ vault ID, one `via: pulled` link `{note, hash}` to the envelope's basename and h
 `repo`, `user` and `vault`, and the parent's body verbatim. Its exchange hash MUST equal the envelope's. It MUST be
 embedded on write and tagged with the local vocabulary, and its path MUST be printed.
 
-Supports: 792a21zd1a, 792a21zd1b, 792a21zd1c, 792a21zd1i, 792a21zh1a.
+Supports: [792a21zd1a](./792a_product-spec.md#792a21zd1-uat-scenarios), [792a21zd1b](./792a_product-spec.md#792a21zd1-uat-scenarios), [792a21zd1c](./792a_product-spec.md#792a21zd1-uat-scenarios), [792a21zd1i](./792a_product-spec.md#792a21zd1-uat-scenarios), [792a21zh1a](./792a_product-spec.md#792a21zh1-uat-scenarios).
 
 Rationale: the parent's identity fields, tags and chunk provenance mean nothing in this vault, and a pulled note is never
 live, so curation judges it before it counts as knowledge. Keeping the exact content is what keeps the hashes equal.
@@ -23747,15 +23747,15 @@ Scenario: 792b37c13a5 The parent's tags are not kept
 
 #### 792b37c14 What a pull-down skips
 
-Requirement: 792b37c14 Under the vault lock the parent-vault-client MUST apply the skip rule again and write nothing when a local note,
+Requirement: [792b37c14](#792b37c14-what-a-pull-down-skips) Under the vault lock the parent-vault-client MUST apply the skip rule again and write nothing when a local note,
 live or pending, has any link to the envelope's basename or one of its aliases under the envelope's vault ID whose hash is
 not changed from the envelope's, bumping the sidecar of each live such note instead, or when the declined-pull record
-holds a decline for that vault ID, one of those names and a hash not changed from the envelope's (792b5c16). A parent
+holds a decline for that vault ID, one of those names and a hash not changed from the envelope's ([792b5c16](#792b5c16-the-declined-pull-record)). A parent
 note whose hash changed MUST be written as another pending copy. Two pulls of one note racing on a vault MUST write one
 copy, and any sequence of pull, clear-pending, discard and fold on an unchanged parent note MUST leave at most one local
 note linked to it.
 
-Supports: 792a21ze1a, 792a21ze1b, 792a21ze1c, 792a21ze1d, 792a21ze1e, 792a21ze1g, 792a21ze1k, 792a21ze1l.
+Supports: [792a21ze1a](./792a_product-spec.md#792a21ze1-uat-scenarios), [792a21ze1b](./792a_product-spec.md#792a21ze1-uat-scenarios), [792a21ze1c](./792a_product-spec.md#792a21ze1-uat-scenarios), [792a21ze1d](./792a_product-spec.md#792a21ze1-uat-scenarios), [792a21ze1e](./792a_product-spec.md#792a21ze1-uat-scenarios), [792a21ze1g](./792a_product-spec.md#792a21ze1-uat-scenarios), [792a21ze1k](./792a_product-spec.md#792a21ze1-uat-scenarios), [792a21ze1l](./792a_product-spec.md#792a21ze1-uat-scenarios).
 
 Rationale: re-pulling an unchanged note on every use would fill the vault with copies; the check under the lock is what
 makes two racing activates safe, since the first check ran before the fetch (ADR-0029 D8).
@@ -23801,11 +23801,11 @@ Scenario: 792b37c14a7 No sequence duplicates
 
 #### 792b37c15 Telling the parent the note was used
 
-Requirement: 792b37c15 After a pull-down or a skip, once the vault lock is released, the parent-vault-client MUST send `POST /activate` for the
+Requirement: [792b37c15](#792b37c15-telling-the-parent-the-note-was-used) After a pull-down or a skip, once the vault lock is released, the parent-vault-client MUST send `POST /activate` for the
 parent note's name, and a failure of that request MUST NOT fail the command, MUST NOT be queued and MUST NOT back the
-parent off. The re-check of a linked note (792b37c16) MUST NOT send it.
+parent off. The re-check of a linked note ([792b37c16](#792b37c16-re-checking-a-linked-notes-parent-copy)) MUST NOT send it.
 
-Supports: 792a21zg1a, 792a21zg1b, 792a21zg1f.
+Supports: [792a21zg1a](./792a_product-spec.md#792a21zg1-uat-scenarios), [792a21zg1b](./792a_product-spec.md#792a21zg1-uat-scenarios), [792a21zg1f](./792a_product-spec.md#792a21zg1-uat-scenarios).
 
 Rationale: the parent ranks what its children use, and a lost hint costs nothing (ADR-0029 D8, Q2).
 
@@ -23825,14 +23825,14 @@ Scenario: 792b37c15a2 A failed signal is harmless
 
 #### 792b37c16 Re-checking a linked note's parent copy
 
-Requirement: 792b37c16 For a linked local note that has been activated, the parent-vault-client MUST skip a link under another
+Requirement: [792b37c16](#792b37c16-re-checking-a-linked-notes-parent-copy) For a linked local note that has been activated, the parent-vault-client MUST skip a link under another
 parent vault, without contacting the parent when the configured parent's vault ID is cached and differs, then fetch the link's
-raw envelope through the same gated contact as a pull (792b37c11) and write under the lock exactly as a pull does
-(792b37c14): nothing when the parent note's hash equals the link's or is declined, and otherwise a new pending copy. When the
+raw envelope through the same gated contact as a pull ([792b37c11](#792b37c11-a-pull-down-is-a-gated-parent-contact)) and write under the lock exactly as a pull does
+([792b37c14](#792b37c14-what-a-pull-down-skips)): nothing when the parent note's hash equals the link's or is declined, and otherwise a new pending copy. When the
 envelope's vault ID differs from the link's it MUST discard the answer. It MUST NOT signal use to the parent, and its failure MUST NOT
 fail the local activate.
 
-Supports: 792a21zf1a, 792a21zf1b, 792a21zf1c, 792a21zf1d, 792a21zf1e, 792a21zf1f.
+Supports: [792a21zf1a](./792a_product-spec.md#792a21zf1-uat-scenarios), [792a21zf1b](./792a_product-spec.md#792a21zf1-uat-scenarios), [792a21zf1c](./792a_product-spec.md#792a21zf1-uat-scenarios), [792a21zf1d](./792a_product-spec.md#792a21zf1-uat-scenarios), [792a21zf1e](./792a_product-spec.md#792a21zf1-uat-scenarios), [792a21zf1f](./792a_product-spec.md#792a21zf1-uat-scenarios).
 
 Rationale: the merged query shows a linked local note in place of its parent note, so a parent-side change reaches the child
 only through a use of the local copy.
@@ -23865,70 +23865,70 @@ Scenario: 792b37c16a4 An unreachable parent does not fail the activate
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a21b1a | 792b37c1 |
-| 792a21c1a | 792b37c3, 792b37c4, 792b37c5, 792b37c7 |
-| 792a21c1b | 792b37c5 |
-| 792a21d1a | 792b37c7 |
-| 792a21d1b | 792b37c7 |
-| 792a21d1c | 792b37c7 |
-| 792a21e1a | 792b37c8 |
-| 792a21e1b | 792b37c8 |
-| 792a21e1c | 792b37c7, 792b37c8 |
-| 792a21f1a | 792b37c5 |
-| 792a21f1b | 792b37c5 |
-| 792a21g1a | 792b37c5 |
-| 792a21h1a | 792b37c9 |
-| 792a21h1b | 792b37c9 |
-| 792a21h1c | 792b37c9 |
-| 792a21i1a | 792b37c9 |
-| 792a21j1a | 792b37c6 |
-| 792a21j1b | 792b37c6 |
-| 792a21j1c | 792b37c6 |
-| 792a21j1d | 792b37c6 |
-| 792a21j1e | 792b37c6 |
-| 792a21j1f | 792b37c6 |
-| 792a21j1g | 792b37c6 |
-| 792a21j1h | 792b37c6 |
-| 792a21j1i | 792b37c6 |
-| 792a21k1a | 792b37c2, 792b37c4 |
-| 792a21k1b | 792b37c4 |
-| 792a21k1c | 792b37c2, 792b37c4 |
-| 792a21l1d | 792b37c10 |
-| 792a21m1a | 792b37c4 |
-| 792a21zb1d | 792b37c12 |
-| 792a21zc1a | 792b37c12, 792b37c13 |
-| 792a21zd1a | 792b37c13 |
-| 792a21zd1b | 792b37c13 |
-| 792a21zd1c | 792b37c13 |
-| 792a21zd1d | 792b37c12 |
-| 792a21zd1e | 792b37c12 |
-| 792a21zd1f | 792b37c12 |
-| 792a21zd1g | 792b37c12 |
-| 792a21zd1h | 792b37c12 |
-| 792a21zd1i | 792b37c13 |
-| 792a21ze1a | 792b37c14 |
-| 792a21ze1b | 792b37c14 |
-| 792a21ze1c | 792b37c14 |
-| 792a21ze1d | 792b37c14 |
-| 792a21ze1e | 792b37c14 |
-| 792a21ze1g | 792b37c14 |
-| 792a21ze1k | 792b37c14 |
-| 792a21ze1l | 792b37c14 |
-| 792a21zf1a | 792b37c16 |
-| 792a21zf1b | 792b37c16 |
-| 792a21zf1c | 792b37c16 |
-| 792a21zf1d | 792b37c16 |
-| 792a21zf1e | 792b37c16 |
-| 792a21zf1f | 792b37c16 |
-| 792a21zg1a | 792b37c15 |
-| 792a21zg1b | 792b37c15 |
-| 792a21zg1c | 792b37c11 |
-| 792a21zg1d | 792b37c11 |
-| 792a21zg1e | 792b37c11 |
-| 792a21zg1f | 792b37c12, 792b37c15 |
-| 792a21zh1a | 792b37c13 |
-| 792a21zj1b | 792b37c6 |
-| 792a21zj1c | 792b37c6 |
+| [792a21b1a](./792a_product-spec.md#792a21b1-uat-scenarios) | [792b37c1](#792b37c1-the-parent-address) |
+| [792a21c1a](./792a_product-spec.md#792a21c1-uat-scenarios) | [792b37c3](#792b37c3-the-parents-query-answer), [792b37c4](#792b37c4-the-merged-query), [792b37c5](#792b37c5-dropping-and-tagging-the-parents-items), [792b37c7](#792b37c7-the-order-of-the-merged-relevance-items) |
+| [792a21c1b](./792a_product-spec.md#792a21c1-uat-scenarios) | [792b37c5](#792b37c5-dropping-and-tagging-the-parents-items) |
+| [792a21d1a](./792a_product-spec.md#792a21d1-uat-scenarios) | [792b37c7](#792b37c7-the-order-of-the-merged-relevance-items) |
+| [792a21d1b](./792a_product-spec.md#792a21d1-uat-scenarios) | [792b37c7](#792b37c7-the-order-of-the-merged-relevance-items) |
+| [792a21d1c](./792a_product-spec.md#792a21d1-uat-scenarios) | [792b37c7](#792b37c7-the-order-of-the-merged-relevance-items) |
+| [792a21e1a](./792a_product-spec.md#792a21e1-uat-scenarios) | [792b37c8](#792b37c8-the-budgets-of-the-merged-set) |
+| [792a21e1b](./792a_product-spec.md#792a21e1-uat-scenarios) | [792b37c8](#792b37c8-the-budgets-of-the-merged-set) |
+| [792a21e1c](./792a_product-spec.md#792a21e1-uat-scenarios) | [792b37c7](#792b37c7-the-order-of-the-merged-relevance-items), [792b37c8](#792b37c8-the-budgets-of-the-merged-set) |
+| [792a21f1a](./792a_product-spec.md#792a21f1-uat-scenarios) | [792b37c5](#792b37c5-dropping-and-tagging-the-parents-items) |
+| [792a21f1b](./792a_product-spec.md#792a21f1-uat-scenarios) | [792b37c5](#792b37c5-dropping-and-tagging-the-parents-items) |
+| [792a21g1a](./792a_product-spec.md#792a21g1-uat-scenarios) | [792b37c5](#792b37c5-dropping-and-tagging-the-parents-items) |
+| [792a21h1a](./792a_product-spec.md#792a21h1-uat-scenarios) | [792b37c9](#792b37c9-the-merged-payloads-own-fields) |
+| [792a21h1b](./792a_product-spec.md#792a21h1-uat-scenarios) | [792b37c9](#792b37c9-the-merged-payloads-own-fields) |
+| [792a21h1c](./792a_product-spec.md#792a21h1-uat-scenarios) | [792b37c9](#792b37c9-the-merged-payloads-own-fields) |
+| [792a21i1a](./792a_product-spec.md#792a21i1-uat-scenarios) | [792b37c9](#792b37c9-the-merged-payloads-own-fields) |
+| [792a21j1a](./792a_product-spec.md#792a21j1-uat-scenarios) | [792b37c6](#792b37c6-deduping-against-the-local-notes) |
+| [792a21j1b](./792a_product-spec.md#792a21j1-uat-scenarios) | [792b37c6](#792b37c6-deduping-against-the-local-notes) |
+| [792a21j1c](./792a_product-spec.md#792a21j1-uat-scenarios) | [792b37c6](#792b37c6-deduping-against-the-local-notes) |
+| [792a21j1d](./792a_product-spec.md#792a21j1-uat-scenarios) | [792b37c6](#792b37c6-deduping-against-the-local-notes) |
+| [792a21j1e](./792a_product-spec.md#792a21j1-uat-scenarios) | [792b37c6](#792b37c6-deduping-against-the-local-notes) |
+| [792a21j1f](./792a_product-spec.md#792a21j1-uat-scenarios) | [792b37c6](#792b37c6-deduping-against-the-local-notes) |
+| [792a21j1g](./792a_product-spec.md#792a21j1-uat-scenarios) | [792b37c6](#792b37c6-deduping-against-the-local-notes) |
+| [792a21j1h](./792a_product-spec.md#792a21j1-uat-scenarios) | [792b37c6](#792b37c6-deduping-against-the-local-notes) |
+| [792a21j1i](./792a_product-spec.md#792a21j1-uat-scenarios) | [792b37c6](#792b37c6-deduping-against-the-local-notes) |
+| [792a21k1a](./792a_product-spec.md#792a21k1-uat-scenarios) | [792b37c2](#792b37c2-a-request-to-the-parent), [792b37c4](#792b37c4-the-merged-query) |
+| [792a21k1b](./792a_product-spec.md#792a21k1-uat-scenarios) | [792b37c4](#792b37c4-the-merged-query) |
+| [792a21k1c](./792a_product-spec.md#792a21k1-uat-scenarios) | [792b37c2](#792b37c2-a-request-to-the-parent), [792b37c4](#792b37c4-the-merged-query) |
+| [792a21l1d](./792a_product-spec.md#792a21l1-uat-scenarios) | [792b37c10](#792b37c10-the-parent-sourced-label) |
+| [792a21m1a](./792a_product-spec.md#792a21m1-uat-scenarios) | [792b37c4](#792b37c4-the-merged-query) |
+| [792a21zb1d](./792a_product-spec.md#792a21zb1-uat-scenarios) | [792b37c12](#792b37c12-the-raw-envelope) |
+| [792a21zc1a](./792a_product-spec.md#792a21zc1-uat-scenarios) | [792b37c12](#792b37c12-the-raw-envelope), [792b37c13](#792b37c13-the-pulled-copy) |
+| [792a21zd1a](./792a_product-spec.md#792a21zd1-uat-scenarios) | [792b37c13](#792b37c13-the-pulled-copy) |
+| [792a21zd1b](./792a_product-spec.md#792a21zd1-uat-scenarios) | [792b37c13](#792b37c13-the-pulled-copy) |
+| [792a21zd1c](./792a_product-spec.md#792a21zd1-uat-scenarios) | [792b37c13](#792b37c13-the-pulled-copy) |
+| [792a21zd1d](./792a_product-spec.md#792a21zd1-uat-scenarios) | [792b37c12](#792b37c12-the-raw-envelope) |
+| [792a21zd1e](./792a_product-spec.md#792a21zd1-uat-scenarios) | [792b37c12](#792b37c12-the-raw-envelope) |
+| [792a21zd1f](./792a_product-spec.md#792a21zd1-uat-scenarios) | [792b37c12](#792b37c12-the-raw-envelope) |
+| [792a21zd1g](./792a_product-spec.md#792a21zd1-uat-scenarios) | [792b37c12](#792b37c12-the-raw-envelope) |
+| [792a21zd1h](./792a_product-spec.md#792a21zd1-uat-scenarios) | [792b37c12](#792b37c12-the-raw-envelope) |
+| [792a21zd1i](./792a_product-spec.md#792a21zd1-uat-scenarios) | [792b37c13](#792b37c13-the-pulled-copy) |
+| [792a21ze1a](./792a_product-spec.md#792a21ze1-uat-scenarios) | [792b37c14](#792b37c14-what-a-pull-down-skips) |
+| [792a21ze1b](./792a_product-spec.md#792a21ze1-uat-scenarios) | [792b37c14](#792b37c14-what-a-pull-down-skips) |
+| [792a21ze1c](./792a_product-spec.md#792a21ze1-uat-scenarios) | [792b37c14](#792b37c14-what-a-pull-down-skips) |
+| [792a21ze1d](./792a_product-spec.md#792a21ze1-uat-scenarios) | [792b37c14](#792b37c14-what-a-pull-down-skips) |
+| [792a21ze1e](./792a_product-spec.md#792a21ze1-uat-scenarios) | [792b37c14](#792b37c14-what-a-pull-down-skips) |
+| [792a21ze1g](./792a_product-spec.md#792a21ze1-uat-scenarios) | [792b37c14](#792b37c14-what-a-pull-down-skips) |
+| [792a21ze1k](./792a_product-spec.md#792a21ze1-uat-scenarios) | [792b37c14](#792b37c14-what-a-pull-down-skips) |
+| [792a21ze1l](./792a_product-spec.md#792a21ze1-uat-scenarios) | [792b37c14](#792b37c14-what-a-pull-down-skips) |
+| [792a21zf1a](./792a_product-spec.md#792a21zf1-uat-scenarios) | [792b37c16](#792b37c16-re-checking-a-linked-notes-parent-copy) |
+| [792a21zf1b](./792a_product-spec.md#792a21zf1-uat-scenarios) | [792b37c16](#792b37c16-re-checking-a-linked-notes-parent-copy) |
+| [792a21zf1c](./792a_product-spec.md#792a21zf1-uat-scenarios) | [792b37c16](#792b37c16-re-checking-a-linked-notes-parent-copy) |
+| [792a21zf1d](./792a_product-spec.md#792a21zf1-uat-scenarios) | [792b37c16](#792b37c16-re-checking-a-linked-notes-parent-copy) |
+| [792a21zf1e](./792a_product-spec.md#792a21zf1-uat-scenarios) | [792b37c16](#792b37c16-re-checking-a-linked-notes-parent-copy) |
+| [792a21zf1f](./792a_product-spec.md#792a21zf1-uat-scenarios) | [792b37c16](#792b37c16-re-checking-a-linked-notes-parent-copy) |
+| [792a21zg1a](./792a_product-spec.md#792a21zg1-uat-scenarios) | [792b37c15](#792b37c15-telling-the-parent-the-note-was-used) |
+| [792a21zg1b](./792a_product-spec.md#792a21zg1-uat-scenarios) | [792b37c15](#792b37c15-telling-the-parent-the-note-was-used) |
+| [792a21zg1c](./792a_product-spec.md#792a21zg1-uat-scenarios) | [792b37c11](#792b37c11-a-pull-down-is-a-gated-parent-contact) |
+| [792a21zg1d](./792a_product-spec.md#792a21zg1-uat-scenarios) | [792b37c11](#792b37c11-a-pull-down-is-a-gated-parent-contact) |
+| [792a21zg1e](./792a_product-spec.md#792a21zg1-uat-scenarios) | [792b37c11](#792b37c11-a-pull-down-is-a-gated-parent-contact) |
+| [792a21zg1f](./792a_product-spec.md#792a21zg1-uat-scenarios) | [792b37c12](#792b37c12-the-raw-envelope), [792b37c15](#792b37c15-telling-the-parent-the-note-was-used) |
+| [792a21zh1a](./792a_product-spec.md#792a21zh1-uat-scenarios) | [792b37c13](#792b37c13-the-pulled-copy) |
+| [792a21zj1b](./792a_product-spec.md#792a21zj1-uat-scenarios) | [792b37c6](#792b37c6-deduping-against-the-local-notes) |
+| [792a21zj1c](./792a_product-spec.md#792a21zj1-uat-scenarios) | [792b37c6](#792b37c6-deduping-against-the-local-notes) |
 
 ```gherkin
 Scenario: 792a21b1a ENGRAM_PARENT names the one parent
@@ -24208,7 +24208,7 @@ Canonical target: `docs/specs/technical/eval-trial-harness.md` (title `Eval Tria
   builders `dev/eval/traps/wrun.py` (`build_warm_cfg`), `dev/eval/cumulative/matrix.py` and
   `dev/eval/cumulative/runbook_vs_skill/probe.py` (`build_cfg_template`), the phase 2 probe
   `dev/eval/cumulative/runbook_vs_skill/phase2/probe_phase2.py` with its fixtures, and `dev/eval/traps/retrieval_probe.py`
-  (`rank_in_payload`). The Go harness behind `targ eval` (`dev/eval/*.go`) is not specified here (792d126, 792e8).
+  (`rank_in_payload`). The Go harness behind `targ eval` (`dev/eval/*.go`) is not specified here ([792d126](./792d_decision-log.md#792d126-eval-trial-harness-scope-the-go-harness-left-unspecified-and-where-the-sources-differ-from-the-code), [792e8](./792e_open-questions.md#792e8-should-the-go-eval-harness-behind-targ-eval-be-specified)).
 - Qualification: responsibility, the installed skills, the isolated environment, the leak guard and the scoring are stated
   without naming a function; ownership, it owns what an eval trial is given and how its transcript is read, while the
   engram binary the trial runs, the vault and the query payload it reads are other components'; independent verification,
@@ -24216,7 +24216,7 @@ Canonical target: `docs/specs/technical/eval-trial-harness.md` (title `Eval Tria
   call; stability, the contract survives a new harness, because each one builds its environment through one primitive;
   necessity, a trial that reached the real vault or ran without its skills would make every number the maintainer reads
   wrong without any sign of it.
-- Supported capabilities: 792a23 memory-effectiveness-evaluation.
+- Supported capabilities: [792a23](./792a_product-spec.md#792a23-added-memory-effectiveness-evaluation) memory-effectiveness-evaluation.
 
 Rationale: every harness here spawns `claude -p --permission-mode bypassPermissions` with the engram binary reachable, so unless
 engram's state variables point at a per-trial directory a trial's `engram learn` writes to the real vault (#708) and its
@@ -24256,13 +24256,13 @@ sequenceDiagram
 
 #### 792b38c1 Installing a skill into a trial configuration
 
-Requirement: 792b38c1 The eval-trial-harness MUST, to install a skill into a trial configuration's `skills/` directory from a skills
+Requirement: [792b38c1](#792b38c1-installing-a-skill-into-a-trial-configuration) The eval-trial-harness MUST, to install a skill into a trial configuration's `skills/` directory from a skills
 root, raise an error that names the skill and the path checked when the skill's source directory does not exist, and one
 that names the skill, the path and `SKILL.md` when the directory holds no `SKILL.md`. It MUST otherwise copy the skill tree to
 the destination, replacing what is there, and MUST raise when `SKILL.md` is not present at the destination afterwards, so that
 it never installs fewer skills than it was asked to.
 
-Supports: 792a23a1a, 792a23a1b, 792a23b1a, 792a23b1b.
+Supports: [792a23a1a](./792a_product-spec.md#792a23a1-uat-scenarios), [792a23a1b](./792a_product-spec.md#792a23a1-uat-scenarios), [792a23b1a](./792a_product-spec.md#792a23b1-uat-scenarios), [792a23b1b](./792a_product-spec.md#792a23b1-uat-scenarios).
 
 Rationale: a copy that silently does nothing because its source path is wrong looks the same as a successful copy of an empty
 directory unless the source and the destination are each checked.
@@ -24288,14 +24288,14 @@ Scenario: 792b38c1a3 The copy is verified at the destination
 
 #### 792b38c2 The warm-configuration builders
 
-Requirement: 792b38c2 Every function of the eval-trial-harness that builds a warm trial configuration MUST install each requested
-skill through the one installation of 792b38c1, from `agent-instructions/skills/<skill>` under a repository root that it
+Requirement: [792b38c2](#792b38c2-the-warm-configuration-builders) Every function of the eval-trial-harness that builds a warm trial configuration MUST install each requested
+skill through the one installation of [792b38c1](#792b38c1-installing-a-skill-into-a-trial-configuration), from `agent-instructions/skills/<skill>` under a repository root that it
 computes from its own file's location and never from a hard-coded absolute path, so that a missing or empty source raises
 through it. The cumulative harness's builder MUST install `recall` and `learn` for a warm configuration, and the probe harness's
 builder MUST install the skills it is given, `recall` and `learn` by default and none for an empty list, and propagate the
 choice to every configuration it copies. Each builder MUST skip rebuilding a configuration that is already built.
 
-Supports: 792a23a1c, 792a23b1c, 792a23c1a, 792a23c1b.
+Supports: [792a23a1c](./792a_product-spec.md#792a23a1-uat-scenarios), [792a23b1c](./792a_product-spec.md#792a23b1-uat-scenarios), [792a23c1a](./792a_product-spec.md#792a23c1-uat-scenarios), [792a23c1b](./792a_product-spec.md#792a23c1-uat-scenarios).
 
 Rationale: shared installation is the fix for the drift of #749, and the repository root derived from `__file__` is what keeps the
 source path right when the skills move again.
@@ -24366,7 +24366,7 @@ Scenario: 792b38c2a12 The repository root comes from the file's own location
 
 #### 792b38c3 The isolated environment of a trial
 
-Requirement: 792b38c3 The eval-trial-harness MUST build a trial's environment so that `ENGRAM_VAULT_PATH`, `ENGRAM_CHUNKS_DIR` and
+Requirement: [792b38c3](#792b38c3-the-isolated-environment-of-a-trial) The eval-trial-harness MUST build a trial's environment so that `ENGRAM_VAULT_PATH`, `ENGRAM_CHUNKS_DIR` and
 `ENGRAM_TRANSCRIPT_DIR` point inside the per-trial directory (the transcript directory at the session directory of the trial's
 working directory under the configuration's `projects/`, or at `projects/` when no working directory is given) and
 `CLAUDE_CONFIG_DIR` at the trial's configuration, creating the vault and chunk directories and keeping every other entry of
@@ -24377,7 +24377,7 @@ MUST set the vault and the chunk directory (by default the vault's `.chunks` sib
 maintainer's, without regard to the Claude variables. An environment that passes MUST register its trial directory, or its
 vault, as a trial marker as it is built, safely when several are built at once.
 
-Supports: 792a23d1a, 792a23d1b.
+Supports: [792a23d1a](./792a_product-spec.md#792a23d1-uat-scenarios), [792a23d1b](./792a_product-spec.md#792a23d1-uat-scenarios).
 
 Rationale: a vault-only environment is the half-fix of #642: `engram query` keeps ranking against the maintainer's global chunk
 index, so a probe measures his real memory competing with its own fixture. Walking the working directory's ancestors would
@@ -24460,14 +24460,14 @@ Scenario: 792b38c3a14 A direct call's environment registers its vault
 
 #### 792b38c4 The real-vault fingerprint
 
-Requirement: 792b38c4 The eval-trial-harness MUST fingerprint a vault as the number of its `.md` notes and the SHA-256 of their sorted
+Requirement: [792b38c4](#792b38c4-the-real-vault-fingerprint) The eval-trial-harness MUST fingerprint a vault as the number of its `.md` notes and the SHA-256 of their sorted
 basenames, ignoring sidecars and every other file, and a vault directory that does not exist MUST have the empty fingerprint.
-A harness's fingerprint of the maintainer's real vault MUST be taken before its trials run (792b38c6).
+A harness's fingerprint of the maintainer's real vault MUST be taken before its trials run ([792b38c6](#792b38c6-every-harness-guards-the-real-vault)).
 
-Supports: 792a23f1c.
+Supports: [792a23f1c](./792a_product-spec.md#792a23f1-uat-scenarios).
 
 Rationale: the fingerprint is the cheap before-picture for the leak guard. Because it hashes names and not modification times, an
-in-place edit of an existing note does not move it, a limit that 792a23f states.
+in-place edit of an existing note does not move it, a limit that [792a23f](./792a_product-spec.md#792a23f-the-leak-guards-limits-are-stated) states.
 
 ##### 792b38c4a Scenarios
 
@@ -24485,18 +24485,18 @@ Scenario: 792b38c4a2 A missing vault is empty
 
 #### 792b38c5 The leak guard
 
-Requirement: 792b38c5 The eval-trial-harness MUST, given the fingerprint from before a run, return without a finding when the real vault's fingerprint is
+Requirement: [792b38c5](#792b38c5-the-leak-guard) The eval-trial-harness MUST, given the fingerprint from before a run, return without a finding when the real vault's fingerprint is
 unchanged and when no note was added, and otherwise read the last ten note names in alphabetical order and raise an error that
 names the note and the marker when a note's content names the full path of a registered trial marker, or the marker's basename
 when that basename is distinctive. A basename MUST be distinctive when its last segment after the final `-` is at least 8
 characters, the length of the random suffix of `tempfile.mkdtemp`, whatever its characters, and a short deterministic name such as
 `plumbing-0` or `history-rewrite-R-0` MUST NOT be. A note that names no registered marker MUST be treated as an orchestrator's own write and not raise.
 
-Supports: 792a23d1a, 792a23e1a, 792a23e1b, 792a23e1c, 792a23f1a, 792a23f1b, 792a23f1c, 792a23f1d.
+Supports: [792a23d1a](./792a_product-spec.md#792a23d1-uat-scenarios), [792a23e1a](./792a_product-spec.md#792a23e1-uat-scenarios), [792a23e1b](./792a_product-spec.md#792a23e1-uat-scenarios), [792a23e1c](./792a_product-spec.md#792a23e1-uat-scenarios), [792a23f1a](./792a_product-spec.md#792a23f1-uat-scenarios), [792a23f1b](./792a_product-spec.md#792a23f1-uat-scenarios), [792a23f1c](./792a_product-spec.md#792a23f1-uat-scenarios), [792a23f1d](./792a_product-spec.md#792a23f1-uat-scenarios).
 
 Rationale: a whole-vault diff false-alarmed on the orchestrating session's legitimate writes (#750). The guard is single-layered
 and stated as such: it misses a path that never builds its environment with the primitive, a leaked note that names no marker, a
-non-distinctive basename and an in-place mutation, which the product scenarios of 792a23f state as accepted limits.
+non-distinctive basename and an in-place mutation, which the product scenarios of [792a23f](./792a_product-spec.md#792a23f-the-leak-guards-limits-are-stated) state as accepted limits.
 
 ##### 792b38c5a Scenarios
 
@@ -24544,11 +24544,11 @@ Scenario: 792b38c5a8 A leak the guard cannot see is not raised
 
 #### 792b38c6 Every harness guards the real vault
 
-Requirement: 792b38c6 Every harness of the eval-trial-harness that spawns trials MUST take the real vault's fingerprint before it runs them and call the leak guard
+Requirement: [792b38c6](#792b38c6-every-harness-guards-the-real-vault) Every harness of the eval-trial-harness that spawns trials MUST take the real vault's fingerprint before it runs them and call the leak guard
 after, and no harness MUST still compare a whole-vault fingerprint of its own: the retired `_real_vault_fingerprint` MUST be absent from the two
 files that used it.
 
-Supports: 792a23d1c.
+Supports: [792a23d1c](./792a_product-spec.md#792a23d1-uat-scenarios).
 
 Rationale: a harness that forgets the guard is the failure the guard exists for, so a test over the harness sources makes the omission fail.
 
@@ -24573,12 +24573,12 @@ Scenario: 792b38c6a3 The retired whole-vault comparison is gone
 
 #### 792b38c7 Detecting a step in every form of its command
 
-Requirement: 792b38c7 The eval-trial-harness MUST match the `history-rewrite` fixture's step 3 on a bash command that runs `git filter-branch`,
+Requirement: [792b38c7](#792b38c7-detecting-a-step-in-every-form-of-its-command) The eval-trial-harness MUST match the `history-rewrite` fixture's step 3 on a bash command that runs `git filter-branch`,
 `git filter-repo` or `git-filter-repo`, with whitespace or a hyphen between `git` and the tool, and only when `git` is not
 preceded by a word character or a hyphen, so that a command whose text merely contains the name, or ends a longer word with
 `git`, does not match. A step gated behind it MUST score as followed only after it.
 
-Supports: 792a23g1a, 792a23g1b, 792a23g1c, 792a23g1d.
+Supports: [792a23g1a](./792a_product-spec.md#792a23g1-uat-scenarios), [792a23g1b](./792a_product-spec.md#792a23g1-uat-scenarios), [792a23g1c](./792a_product-spec.md#792a23g1-uat-scenarios), [792a23g1d](./792a_product-spec.md#792a23g1-uat-scenarios).
 
 Rationale: a pattern for one valid form scores every success that used another as a miss and cascades the miss to every step behind it.
 
@@ -24608,13 +24608,13 @@ Scenario: 792b38c7a4 A full trial with the hyphenated form scores every step as 
 
 #### 792b38c8 A question stop
 
-Requirement: 792b38c8 The eval-trial-harness MUST report `question_stop` as false when the trial's end-state check passes. Otherwise it MUST
+Requirement: [792b38c8](#792b38c8-a-question-stop) The eval-trial-harness MUST report `question_stop` as false when the trial's end-state check passes. Otherwise it MUST
 report it as true exactly when the last assistant text that poses an ambiguity (the ambiguity wording, or a `?` anywhere) has
 no mutating tool call after it, whether the transcript ends there or an `AskUserQuestion` or `ExitPlanMode` call follows, and
 false when a mutation follows it or no ambiguity was ever posed. Both the live scoring and the re-scoring of a recorded trial MUST pass
 the end-state result in, and the argument MUST be required so that no call site can skip it.
 
-Supports: 792a23h1a, 792a23h1b.
+Supports: [792a23h1a](./792a_product-spec.md#792a23h1-uat-scenarios), [792a23h1b](./792a_product-spec.md#792a23h1-uat-scenarios).
 
 Rationale: if the final state already satisfies the checks, every mutation the task required has happened, so ambiguity text with no
 mutation after it cannot have blocked one. An agent that raises an ambiguity and mutates anyway is a silent deviation and
@@ -24676,12 +24676,12 @@ Scenario: 792b38c8a10 Re-scoring wires the end state
 
 #### 792b38c9 A fixture's local follow-up target
 
-Requirement: 792b38c9 The `bisect-before-fix` fixture of the eval-trial-harness MUST contain `ISSUES.md` from its initial commit, MUST name `ISSUES.md` in its task prompt as
+Requirement: [792b38c9](#792b38c9-a-fixtures-local-follow-up-target) The `bisect-before-fix` fixture of the eval-trial-harness MUST contain `ISSUES.md` from its initial commit, MUST name `ISSUES.md` in its task prompt as
 the place to file a follow-up issue for a pre-existing regression, and its step 8 MUST score a trial as having filed the issue when it
 edits or writes `ISSUES.md` with a native tool after step 6, or appends to it with a bash redirect or `tee -a` anchored on the file,
 and MUST NOT when step 6 never matched or the command only mentions the file.
 
-Supports: 792a23i1a.
+Supports: [792a23i1a](./792a_product-spec.md#792a23i1-uat-scenarios).
 
 Rationale: without a local target a shim-following agent must stop and ask merely because the fixture omitted the means to comply, and the
 runbook is not changed to work around a fixture gap.
@@ -24722,14 +24722,14 @@ Scenario: 792b38c9a6 An unanchored append or a mention does not score
 
 #### 792b38c10 The rank of a surfaced note
 
-Requirement: 792b38c10 The eval-trial-harness MUST, to decide whether a target note surfaced in an `engram query` payload, look for the target
+Requirement: [792b38c10](#792b38c10-the-rank-of-a-surfaced-note) The eval-trial-harness MUST, to decide whether a target note surfaced in an `engram query` payload, look for the target
 among the payload's top-level `items[]` by path or basename and report `surfaced` true with its one-based rank there, and `surfaced`
 false when it is absent, and MUST NOT consult any cluster's `candidate_l2s`. A probe over a set of runbooks MUST do this for each
 and report a batch outcome per runbook, a miss included, a failed subprocess included, and escalate per phrase.
 
-Supports: 792a23j1a, 792a23j1b.
+Supports: [792a23j1a](./792a_product-spec.md#792a23j1-uat-scenarios), [792a23j1b](./792a_product-spec.md#792a23j1-uat-scenarios).
 
-Rationale: `candidate_l2s` is a capped subset chosen for synthesis (792b24c10), so reading it reports a correctly matched note as a miss.
+Rationale: `candidate_l2s` is a capped subset chosen for synthesis ([792b24c10](#792b24c10-candidate-notes)), so reading it reports a correctly matched note as a miss.
 
 ##### 792b38c10a Scenarios
 
@@ -24757,12 +24757,12 @@ Scenario: 792b38c10a4 Escalation is per phrase and the corpus loads
 
 #### 792b38c11 Every spawn site builds its environment through the primitive
 
-Requirement: 792b38c11 Every site of the eval-trial-harness that spawns a trial MUST build its environment with the isolated-environment
-primitive of 792b38c3 and import it, and MUST NOT hand-roll `env = dict(os.environ)`. A Python site that sets a vault MUST also
+Requirement: [792b38c11](#792b38c11-every-spawn-site-builds-its-environment-through-the-primitive) Every site of the eval-trial-harness that spawns a trial MUST build its environment with the isolated-environment
+primitive of [792b38c3](#792b38c3-the-isolated-environment-of-a-trial) and import it, and MUST NOT hand-roll `env = dict(os.environ)`. A Python site that sets a vault MUST also
 set the chunk directory, by building its direct-call environment with `engram_env`, and a shell site that sets a vault MUST set the
 chunk directory too. The Claude harness's own environment building MUST delegate to the isolation module.
 
-Supports: 792a23d1b.
+Supports: [792a23d1b](./792a_product-spec.md#792a23d1-uat-scenarios).
 
 Rationale: a site that sets only `CLAUDE_CONFIG_DIR` wrote seven real notes into the maintainer's vault during #687's measurement,
 and a site that sets the vault alone leaves the chunk index at the maintainer's global one (#642). The sites share no entry point
@@ -24991,14 +24991,14 @@ Canonical target: `docs/specs/technical/memory-loop-auditor.md` (title `Memory L
   `judge_moment`, `audit_transcript`, the point-in-time check helpers, `_build_engram_query_argv`,
   `_run_engram_query_at_moment`, `_resolve_fork_parent_context`) and `dev/eval/audit/generate_outcome_records.py`. The mechanical
   extractor (`extract.py`), the full-corpus runner (`run_audit.py`), the scorecard (`build_scorecard.py`) and the parent-capture
-  and re-judging scripts of the same directory are not specified here (792d127).
+  and re-judging scripts of the same directory are not specified here ([792d127](./792d_decision-log.md#792d127-memory-loop-auditor-scope-adr-0028-deleted-and-where-the-sources-differ-from-the-code)).
 - Qualification: responsibility, the windows, the detection, the record, the existence check and the outcome records are stated
   without naming a function; ownership, it owns how a transcript becomes records, while the model call it makes, the vault
   and the chunk index it searches, and the engram binary it queries are others'; independent verification, every requirement is
   tested with a stub in place of the model and a scratch vault and chunk index, so no test makes a model call; stability, the
   contract survives a change of model or of window size; necessity, without it the maintainer has no measurement of where the
   memory loop loses what it should have kept.
-- Supported capabilities: 792a23 memory-effectiveness-evaluation.
+- Supported capabilities: [792a23](./792a_product-spec.md#792a23-added-memory-effectiveness-evaluation) memory-effectiveness-evaluation.
 
 Rationale (ADR-0028 D1 to D3, D8): engram is meant to close the loop that lets a fixed-weight model learn from experience, and the
 audit is the step that looks back and labels what happened a win or a loss. It is a standing instrument, built Python-first under
@@ -25052,13 +25052,13 @@ sequenceDiagram
 
 #### 792b39c1 Windows
 
-Requirement: 792b39c1 The memory-loop-auditor MUST return a transcript file of at most `max_kb` (150 KB) as a single window, and MUST split a
+Requirement: [792b39c1](#792b39c1-windows) The memory-loop-auditor MUST return a transcript file of at most `max_kb` (150 KB) as a single window, and MUST split a
 larger file into windows of at most `max_kb` at line boundaries, never inside a line, with the single-window threshold the
 same number and not a larger one. Each window MUST carry its lines exactly as they are in the file, its path, its first and
 last line locations counted from one in the file, and its size. A single line larger than the cap MUST be detected in the
 window that holds it.
 
-Supports: 792a23k1a, 792a23k1b.
+Supports: [792a23k1a](./792a_product-spec.md#792a23k1-uat-scenarios), [792a23k1b](./792a_product-spec.md#792a23k1-uat-scenarios).
 
 Rationale: a 431.8 KB transcript once qualified for the old 500 KB single-window threshold, produced one prompt of about 441,000
 characters and was rejected instantly and deterministically by `claude -p` (`prompt_too_long`); pinning the threshold to the cap
@@ -25100,7 +25100,7 @@ Scenario: 792b39c1a6 An oversized line is detected
 
 #### 792b39c2 Detecting moments
 
-Requirement: 792b39c2 The memory-loop-auditor MUST ask a model to read a window, with its lines numbered by their absolute location in the
+Requirement: [792b39c2](#792b39c2-detecting-moments) The memory-loop-auditor MUST ask a model to read a window, with its lines numbered by their absolute location in the
 file, and to return the moments it finds as failures, corrections, rework, successes and dispatches, each with its location, and
 MUST flag generously. It MUST read the window with the faster model first and re-read it with the stronger one, merging the
 candidates by location, when the first returns fewer than the low-yield threshold (2). It MUST parse the model's JSON reply
@@ -25109,9 +25109,9 @@ backoff sequence fails, so that a sustained outage never looks like a run of cle
 genuinely yields no candidate MUST NOT raise. It MUST raise `PromptTooLongError` at once, without retrying, when the model
 answers `prompt_too_long`, and MUST still retry a genuine transient error. A stub in place of the model MUST make no subprocess call.
 
-Supports: 792a23k1a, 792a23k1b.
+Supports: [792a23k1a](./792a_product-spec.md#792a23k1-uat-scenarios), [792a23k1b](./792a_product-spec.md#792a23k1-uat-scenarios).
 
-Rationale: detection that matched keywords would miss most subtle corrections (792a23k). A sustained auth or API outage once
+Rationale: detection that matched keywords would miss most subtle corrections ([792a23k](./792a_product-spec.md#792a23k-the-audit-detects-moments-by-reading-them)). A sustained auth or API outage once
 produced 40 windows of clean-looking zero-moment results (the 2026-09-02 incident), and a 431.8 KB prompt burned a three-minute
 backoff twice before being diagnosed as deterministic, so each failure has its own exception.
 
@@ -25166,7 +25166,7 @@ Scenario: 792b39c2a9 A stub makes no subprocess call
 
 #### 792b39c3 The moment record
 
-Requirement: 792b39c3 The memory-loop-auditor MUST ask a model to judge each candidate moment and MUST return a record that carries the
+Requirement: [792b39c3](#792b39c3-the-moment-record) The memory-loop-auditor MUST ask a model to judge each candidate moment and MUST return a record that carries the
 moment's stable identifier (derived from its transcript and location), its type, description, timestamp (read from the window), location,
 transcript, repository, harness, role, evidence pointer and instrument version (2), the finding-side answers, the writing-side answers, the handoff answers and the
 failure category, joined with the structural events the extractor found. A question that the model answers "not applicable"
@@ -25177,7 +25177,7 @@ categorization guidance, give success moments the capture-reachability variant a
 need the search phrases MUST be null when there are none. A reply with a retry budget spent MUST raise `ExhaustedRetriesError`, a reply
 of `prompt_too_long` MUST raise `PromptTooLongError`, and the whole pipeline MUST run with stubs and make no subprocess call.
 
-Supports: 792a23l1a, 792a23k1b.
+Supports: [792a23l1a](./792a_product-spec.md#792a23l1-uat-scenarios), [792a23k1b](./792a_product-spec.md#792a23k1-uat-scenarios).
 
 Rationale: a bare null is ambiguous between "not asked" and "not applicable", so the conditional answers are stated, with a reason, and
 the record says which instrument produced it so that before-and-after comparisons declare their sides (vault note 282).
@@ -25248,8 +25248,8 @@ Scenario: 792b39c3a12 Judgment failures raise their own errors
 
 #### 792b39c4 Existence as of the moment's time
 
-Requirement: 792b39c4 The memory-loop-auditor MUST judge whether a relevant memory existed by running `engram query` in the sandbox of
-792b38c3 against the vault as of the moment's timestamp T. When the vault's git history has a commit at or before T and the flat-vault
+Requirement: [792b39c4](#792b39c4-existence-as-of-the-moments-time) The memory-loop-auditor MUST judge whether a relevant memory existed by running `engram query` in the sandbox of
+[792b38c3](#792b38c3-the-isolated-environment-of-a-trial) against the vault as of the moment's timestamp T. When the vault's git history has a commit at or before T and the flat-vault
 migration's commit (2026-06-12) is an ancestor of it, it MUST query a detached worktree at that commit, remove the worktree afterwards even when the query fails, prune a dangling registration, and
 label the answer DERIVED. Otherwise it MUST query only the notes whose creation date is at or before T and label the answer
 ESTIMATE. It MUST query a copy of the chunk index that holds only the records ingested at or before T, excluding records with no
@@ -25257,7 +25257,7 @@ ingestion date, and label the chunk answer DERIVED. It MUST capture the top five
 relevant to the moment (`relevant_top1`, `relevant_in_top5` or `nothing_relevant`) with a follow-up call, skipping that call when
 no item came back and leaving the grade null for a reply that is not one of the three. It MUST NOT write to the live vault.
 
-Supports: 792a23m1a, 792a23m1b, 792a23m1c, 792a23m1d.
+Supports: [792a23m1a](./792a_product-spec.md#792a23m1-uat-scenarios), [792a23m1b](./792a_product-spec.md#792a23m1-uat-scenarios), [792a23m1c](./792a_product-spec.md#792a23m1-uat-scenarios), [792a23m1d](./792a_product-spec.md#792a23m1-uat-scenarios).
 
 Rationale: a memory written after a moment cannot have been missed at it. A worktree is a read-only operation on the vault's git
 registry, so the live working tree is never touched. A relevance grade, where the first version used a thresholdless "any item
@@ -25309,14 +25309,14 @@ Scenario: 792b39c4a8 The top five are captured and graded
 
 #### 792b39c5 The existence check's query
 
-Requirement: 792b39c5 The memory-loop-auditor MUST build its `engram query --lazy-chunks` invocation with each phrase as one `--phrase=<value>`
+Requirement: [792b39c5](#792b39c5-the-existence-checks-query) The memory-loop-auditor MUST build its `engram query --lazy-chunks` invocation with each phrase as one `--phrase=<value>`
 argument, so that no value, one beginning with `--` included, can be read as a new flag, and the diagnostic rerun of the window
 sampler MUST use the same builder. It MUST run the query with a 60-second timeout in the isolated environment and return
 `items`, the raw output and an `error`: a failure to run, a timeout or a missing binary as an `error` with `items` null, a
 non-zero exit as an `error` that contains both the standard output and the standard error, and an empty result as an empty list with no error. A judged moment MUST record a query error and an empty result
 distinctly.
 
-Supports: 792a23n1a, 792a23n1b.
+Supports: [792a23n1a](./792a_product-spec.md#792a23n1-uat-scenarios), [792a23n1b](./792a_product-spec.md#792a23n1-uat-scenarios).
 
 Rationale: `engram`'s own errors print to standard output and a phrase beginning with `--` was once parsed as a flag, so the check recorded
 a failure with an empty error (#787); two copies of the builder had drifted apart, so there is one.
@@ -25352,14 +25352,14 @@ Scenario: 792b39c5a5 A judged moment records a query error and an empty result
 
 #### 792b39c6 What a forked subagent inherited
 
-Requirement: 792b39c6 The memory-loop-auditor MUST, for a forked subagent, read the fork-context line that starts its transcript to
+Requirement: [792b39c6](#792b39c6-what-a-forked-subagent-inherited) The memory-loop-auditor MUST, for a forked subagent, read the fork-context line that starts its transcript to
 find the parent transcript and the point in it the fork branched from, find the last recall that happened at or before that
 point, and read back the vault notes it matched, skipping a note whose file is gone and keeping the rest. It MUST report why it
 cannot resolve (not a fork transcript, the parent transcript is gone, the branch point is not in the parent) and why the notes are
 empty (no recall before the fork point). The judgment prompt of a fork MUST include the inherited recall content, and the prompt of
 any other role, and the prompt of a fork whose context cannot be resolved, MUST include no inherited-context section.
 
-Supports: 792a23o1a.
+Supports: [792a23o1a](./792a_product-spec.md#792a23o1-uat-scenarios).
 
 Rationale: a fork inherits its parent's whole conversation, so the memories recalled there count as found for it, but the model that
 judges the fork is shown only the fork's own window, which holds none of it.
@@ -25410,12 +25410,12 @@ Scenario: 792b39c6a8 An unresolvable fork has no dangling section
 
 #### 792b39c7 A dispatch prompt's memories
 
-Requirement: 792b39c7 The memory-loop-auditor MUST, for a fresh, workflow or Pi subagent whose dispatching parent's dispatch event is given, scan the
+Requirement: [792b39c7](#792b39c7-a-dispatch-prompts-memories) The memory-loop-auditor MUST, for a fresh, workflow or Pi subagent whose dispatching parent's dispatch event is given, scan the
 dispatch prompt for vault notes and record the ones it finds in `memories_in_dispatch_prompt`, count them as a search that ran
 (injected) and as surfaced for the judgment, and MUST leave `memories_orchestrator_had_but_left_out` null: the orchestrator-side gap is
 measured outside the per-moment record.
 
-Supports: 792a23o1a, 792a23o1b.
+Supports: [792a23o1a](./792a_product-spec.md#792a23o1-uat-scenarios), [792a23o1b](./792a_product-spec.md#792a23o1-uat-scenarios).
 
 Rationale: a memory in the prompt counts as found for the subagent (Joe's rule, 2026-08-30), and what the orchestrator left out is
 measured from its side, at the dispatch, so the per-transcript runner, which cannot see the parent, leaves the field to the
@@ -25432,7 +25432,7 @@ Scenario: 792b39c7a1 A fresh subagent's injected memories count as found
 
 #### 792b39c8 Outcome records
 
-Requirement: 792b39c8 The memory-loop-auditor MUST derive draft outcome records from finished moment records and the extractor's events, as plain data files and
+Requirement: [792b39c8](#792b39c8-outcome-records) The memory-loop-auditor MUST derive draft outcome records from finished moment records and the extractor's events, as plain data files and
 deterministically, with each record `{moment_id, note_ref, situation_text, outcome, ts, evidence{transcript, anchor}}`. For a success, failure or rework moment whose
 `followed` answer is set and whose search ran, it MUST emit one record per distinct note found (a fork's inherited recall for an injected search, otherwise the last
 recall at or before the moment) tagged `applied-helped` when followed is yes, `applied-hurt` when contradicted, and `injected-unused` for an
@@ -25440,7 +25440,7 @@ injected search or `surfaced-ignored` otherwise when it was ignored, partly foll
 moment it MUST emit an `absent-needed` record when no memory existed, or one existed and did not surface. It MUST make no LLM call and MUST NOT
 write, amend, activate, supersede or remove any vault note.
 
-Supports: 792a23p1a.
+Supports: [792a23p1a](./792a_product-spec.md#792a23p1-uat-scenarios).
 
 Rationale: acting on the records takes a human judgment, so the audit labels and a person acts (ADR-0028 D3). Determinism means the same inputs
 reproduce the same file byte for byte.
@@ -25478,18 +25478,18 @@ Scenario: 792b39c8a5 The derivation is deterministic and writes no note
 
 | Product scenario | Technical requirements |
 | --- | --- |
-| 792a23k1a | 792b39c1, 792b39c2 |
-| 792a23k1b | 792b39c1, 792b39c2 |
-| 792a23l1a | 792b39c3 |
-| 792a23m1a | 792b39c4 |
-| 792a23m1b | 792b39c4 |
-| 792a23m1c | 792b39c4 |
-| 792a23m1d | 792b39c4 |
-| 792a23n1a | 792b39c5 |
-| 792a23n1b | 792b39c5 |
-| 792a23o1a | 792b39c6, 792b39c7 |
-| 792a23o1b | 792b39c7 |
-| 792a23p1a | 792b39c8 |
+| [792a23k1a](./792a_product-spec.md#792a23k1-uat-scenarios) | [792b39c1](#792b39c1-windows), [792b39c2](#792b39c2-detecting-moments) |
+| [792a23k1b](./792a_product-spec.md#792a23k1-uat-scenarios) | [792b39c1](#792b39c1-windows), [792b39c2](#792b39c2-detecting-moments) |
+| [792a23l1a](./792a_product-spec.md#792a23l1-uat-scenarios) | [792b39c3](#792b39c3-the-moment-record) |
+| [792a23m1a](./792a_product-spec.md#792a23m1-uat-scenarios) | [792b39c4](#792b39c4-existence-as-of-the-moments-time) |
+| [792a23m1b](./792a_product-spec.md#792a23m1-uat-scenarios) | [792b39c4](#792b39c4-existence-as-of-the-moments-time) |
+| [792a23m1c](./792a_product-spec.md#792a23m1-uat-scenarios) | [792b39c4](#792b39c4-existence-as-of-the-moments-time) |
+| [792a23m1d](./792a_product-spec.md#792a23m1-uat-scenarios) | [792b39c4](#792b39c4-existence-as-of-the-moments-time) |
+| [792a23n1a](./792a_product-spec.md#792a23n1-uat-scenarios) | [792b39c5](#792b39c5-the-existence-checks-query) |
+| [792a23n1b](./792a_product-spec.md#792a23n1-uat-scenarios) | [792b39c5](#792b39c5-the-existence-checks-query) |
+| [792a23o1a](./792a_product-spec.md#792a23o1-uat-scenarios) | [792b39c6](#792b39c6-what-a-forked-subagent-inherited), [792b39c7](#792b39c7-a-dispatch-prompts-memories) |
+| [792a23o1b](./792a_product-spec.md#792a23o1-uat-scenarios) | [792b39c7](#792b39c7-a-dispatch-prompts-memories) |
+| [792a23p1a](./792a_product-spec.md#792a23p1-uat-scenarios) | [792b39c8](#792b39c8-outcome-records) |
 
 ```gherkin
 Scenario: 792a23k1a A subtle correction is detected
