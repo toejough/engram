@@ -336,7 +336,7 @@ flowchart TD
 
 #### 792c7a1 vault-identity product spec
 
-Target: [792a2](./792a_product-spec.md#792a2-added-vault-identity) (`docs/specs/product/vault-identity.md`).
+Target: [792a2](./792a_product-spec.md#792a2-added-vault-identity) ([`docs/specs/product/vault-identity.md`](../../specs/product/vault-identity.md)).
 
 **Legacy sources (port, then remove):**
 
@@ -350,7 +350,7 @@ Target: [792a2](./792a_product-spec.md#792a2-added-vault-identity) (`docs/specs/
 
 **Rationale sources (read only; deleted by [792c8c](#792c8c-openspec-archive-and-tooling-removal)):**
 
-- `openspec/changes/archive/2026-09-28-local-first-parent-sync (shared with 792c7t1)`
+- `openspec/changes/archive/2026-09-28-local-first-parent-sync` (shared with [792c7t1 parent-sync product spec](#792c7t1-parent-sync-product-spec))
 
 **Cautions:**
 
@@ -375,7 +375,7 @@ resolved by [792d46](./792d_decision-log.md#792d46-first-use-creation-does-not-c
 
 #### 792c7a2 command-line-surface tech spec
 
-Target: [792b2](./792b_technical-spec.md#792b2-added-command-line-surface) (`docs/specs/technical/command-line-surface.md`).
+Target: [792b2](./792b_technical-spec.md#792b2-added-command-line-surface) ([`docs/specs/technical/command-line-surface.md`](../../specs/technical/command-line-surface.md)).
 
 - Ownership: Repository component (caller); process argv/env/stdio boundary through the targ library.
 - Current realization (informational): `internal/cli/targets.go`, `cli.go`, chunks-dir resolution, `show.go` routing; `cmd/engram/main.go` wiring.
@@ -426,7 +426,7 @@ end (covered only through [792b2c1](./792b_technical-spec.md#792b2c1-vault-path-
 - Deferred to the capability node that adds their routing requirement here ([792d51](./792d_decision-log.md#792d51-command-line-surface-routing-requirements-arrive-with-their-scenarios)):
   `removed_server_test` (2, parent-sync [792c7t1](#792c7t1-parent-sync-product-spec)), `chunksdir_test` (1, chunk-indexing [792c7d1](#792c7d1-chunk-indexing-product-spec)),
   `show_test` (9, memory-query [792c7f1](#792c7f1-memory-query-product-spec)), `cmd/engram/main_test` `TestSpawnPrimitives_*` (4,
-  install-and-update [792c7j1](#792c7j1-install-and-update-product-spec), via subprocess-runner).
+  install-and-update [792c7j1](#792c7j1-install-and-update-product-spec), via subprocess-runner ([792b4 subprocess-runner](./792b_technical-spec.md#792b4-added-subprocess-runner))).
 - `targets_test`: `TestCacheDirFromHome` (text-embedder [792c7b5](#792c7b5-text-embedder-tech-spec)), `TestProjectSlugFromPath`,
   `TestRunSafe`, `TestTargets`, `TestTargets_ActivateNoNotes`, `TestTargets_Amend_NoSkillHashFlag` (renamed by [792c7c1](#792c7c1-note-revision-product-spec)),
   `TestTargets_CheckEmptyVault`, `TestTargets_EmbedApplyDryRun`, `TestTargets_EmbedStatus`,
@@ -442,11 +442,11 @@ end (covered only through [792b2c1](./792b_technical-spec.md#792b2c1-vault-path-
 
 #### 792c7a3 durable-file-store tech spec
 
-Target: [792b3](./792b_technical-spec.md#792b3-added-durable-file-store) (`docs/specs/technical/durable-file-store.md`).
+Target: [792b3](./792b_technical-spec.md#792b3-added-durable-file-store) ([`docs/specs/technical/durable-file-store.md`](../../specs/technical/durable-file-store.md)).
 
 - Ownership: Repository-owned dependency-boundary interaction (OS filesystem).
 - Current realization (informational): `internal/cli/edgefs.go`, `vault_fs.go`, `FSPrims`.
-- Later capabilities that extend it: note-writing, note-revision, chunk-indexing.
+- Later capabilities that extend it: note-writing ([792a3 note-writing](./792a_product-spec.md#792a3-added-note-writing)), note-revision ([792a4 note-revision](./792a_product-spec.md#792a4-added-note-revision)), chunk-indexing ([792a5 chunk-indexing](./792a_product-spec.md#792a5-added-chunk-indexing)).
 
 **Legacy sources (port, then remove):**
 
@@ -508,11 +508,11 @@ operations with no stated contract), `TestRealDebugSink_*` (excluded debug-log, 
 
 #### 792c7a4 subprocess-runner tech spec
 
-Target: [792b4](./792b_technical-spec.md#792b4-added-subprocess-runner) (`docs/specs/technical/subprocess-runner.md`).
+Target: [792b4](./792b_technical-spec.md#792b4-added-subprocess-runner) ([`docs/specs/technical/subprocess-runner.md`](../../specs/technical/subprocess-runner.md)).
 
 - Ownership: Repository-owned dependency-boundary interaction (OS processes).
 - Current realization (informational): `internal/cli/commander.go`, `spawner.go`, `ExecPrims`.
-- Later capabilities that extend it: note-writing (provenance), install-and-update.
+- Later capabilities that extend it: note-writing ([792a3 note-writing](./792a_product-spec.md#792a3-added-note-writing)) (provenance), install-and-update ([792a11 install-and-update](./792a_product-spec.md#792a11-added-install-and-update)).
 
 **Legacy sources (port, then remove):**
 
@@ -554,11 +554,11 @@ spawn requirements: `spawner_test` `TestSpawner_PassesCallThroughOnSuccess`,
 
 #### 792c7a5 vault-identity-registry tech spec
 
-Target: [792b5](./792b_technical-spec.md#792b5-added-vault-identity-registry) (`docs/specs/technical/vault-identity-registry.md`).
+Target: [792b5](./792b_technical-spec.md#792b5-added-vault-identity-registry) ([`docs/specs/technical/vault-identity-registry.md`](../../specs/technical/vault-identity-registry.md)).
 
 - Ownership: Repository component.
 - Current realization (informational): `internal/cli/exchangestate.go`, `vaultid.go`, `vault_init.go`.
-- Later capabilities that extend it: note-writing, parent-sync.
+- Later capabilities that extend it: note-writing ([792a3 note-writing](./792a_product-spec.md#792a3-added-note-writing)), parent-sync ([792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync)).
 
 **Legacy sources (port, then remove):**
 
@@ -630,7 +630,7 @@ parent-cache, decline and exchange-identifier tests elsewhere are left to parent
 
 #### 792c7b1 note-writing product spec
 
-Target: [792a3](./792a_product-spec.md#792a3-added-note-writing) (`docs/specs/product/note-writing.md`).
+Target: [792a3](./792a_product-spec.md#792a3-added-note-writing) ([`docs/specs/product/note-writing.md`](../../specs/product/note-writing.md)).
 
 **Legacy sources (port, then remove):**
 
@@ -682,9 +682,9 @@ Target: [792a3](./792a_product-spec.md#792a3-added-note-writing) (`docs/specs/pr
 | 792c7b1d | Confirm the supporting-component list; record changes in [792d](./792d_decision-log.md#documentation-framework-adoption---decision-log) and this plan | Non-test action | Keeps the inventory complete | Done |
 | 792c7b1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
 
-**Outcome:** the seven new and four extended supporting components are confirmed. command-line-surface
-gains [792b2c5](./792b_technical-spec.md#792b2c5-argument-refusal) ([792d60](./792d_decision-log.md#792d60-command-line-surface-refuses-undefined-and-missing-required-flags)); vault-identity-registry gains no mapping, because note-writing's first-use
-creation is vault-identity's [792a2e](./792a_product-spec.md#792a2e-first-use-vault-creation). Other choices are [792d55](./792d_decision-log.md#792d55-learn---tier-is-documented-as-a-frontmatter-field)–[792d59](./792d_decision-log.md#792d59-qa-retrieval-and-per-kind-vocabulary-tagging-belong-to-note-writing).
+**Outcome:** the seven new and four extended supporting components are confirmed. command-line-surface ([792b2 command-line-surface](./792b_technical-spec.md#792b2-added-command-line-surface))
+gains [792b2c5](./792b_technical-spec.md#792b2c5-argument-refusal) ([792d60](./792d_decision-log.md#792d60-command-line-surface-refuses-undefined-and-missing-required-flags)); vault-identity-registry ([792b5 vault-identity-registry](./792b_technical-spec.md#792b5-added-vault-identity-registry)) gains no mapping, because note-writing ([792a3 note-writing](./792a_product-spec.md#792a3-added-note-writing))'s first-use
+creation is vault-identity ([792a2 vault-identity](./792a_product-spec.md#792a2-added-vault-identity))'s [792a2e](./792a_product-spec.md#792a2e-first-use-vault-creation). Other choices are [792d55](./792d_decision-log.md#792d55-learn---tier-is-documented-as-a-frontmatter-field)–[792d59](./792d_decision-log.md#792d59-qa-retrieval-and-per-kind-vocabulary-tagging-belong-to-note-writing).
 
 **Test Traceability**
 
@@ -705,11 +705,11 @@ note-provenance ([792c7b7](#792c7b7-note-provenance-tech-spec)), whose tests ver
 
 #### 792c7b2 note-document-format tech spec
 
-Target: [792b6](./792b_technical-spec.md#792b6-added-note-document-format) (`docs/specs/technical/note-document-format.md`).
+Target: [792b6](./792b_technical-spec.md#792b6-added-note-document-format) ([`docs/specs/technical/note-document-format.md`](../../specs/technical/note-document-format.md)).
 
 - Ownership: Repository component; YAML library boundary.
 - Current realization (informational): `internal/cli/frontmatter_node.go`, `exchangefields.go`, learn render functions, `embed/hash.go` `SplitFrontmatter`.
-- Later capabilities that extend it: note-revision, vault-counting, skill-runbook-registration, parent-sync.
+- Later capabilities that extend it: note-revision ([792a4 note-revision](./792a_product-spec.md#792a4-added-note-revision)), vault-counting ([792a8 vault-counting](./792a_product-spec.md#792a8-added-vault-counting)), skill-runbook-registration ([792a12 skill-runbook-registration](./792a_product-spec.md#792a12-added-skill-runbook-registration)), parent-sync ([792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync)).
 
 **Legacy sources (port, then remove):**
 
@@ -786,11 +786,11 @@ for note-authoring, [792c7b8](#792c7b8-note-authoring-tech-spec)). Of the mapped
 
 #### 792c7b3 luhmann-addressing tech spec
 
-Target: [792b7](./792b_technical-spec.md#792b7-added-luhmann-addressing) (`docs/specs/technical/luhmann-addressing.md`).
+Target: [792b7](./792b_technical-spec.md#792b7-added-luhmann-addressing) ([`docs/specs/technical/luhmann-addressing.md`](../../specs/technical/luhmann-addressing.md)).
 
 - Ownership: Repository component.
 - Current realization (informational): `internal/luhmann`, `internal/cli/luhmann.go`.
-- Later capabilities that extend it: vault-migration.
+- Later capabilities that extend it: vault-migration ([792a10 vault-migration](./792a_product-spec.md#792a10-added-vault-migration)).
 
 **Legacy sources (port, then remove):**
 
@@ -807,7 +807,7 @@ Target: [792b7](./792b_technical-spec.md#792b7-added-luhmann-addressing) (`docs/
 | 792c7b3d | Rename the tests that verify this section's scenarios and its mapped [792a](./792a_product-spec.md#documentation-framework-adoption---product-spec) scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
 | 792c7b3e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
 
-**Outcome:** note-writing gains scenario [792a3k1d](./792a_product-spec.md#792a3k1-uat-scenarios), a malformed `--target`, which `luhmann-addressing` refuses; command-line-surface maps it under [792b2c4](./792b_technical-spec.md#792b2c4-result-reporting).
+**Outcome:** note-writing ([792a3 note-writing](./792a_product-spec.md#792a3-added-note-writing)) gains scenario [792a3k1d](./792a_product-spec.md#792a3k1-uat-scenarios), a malformed `--target`, which `luhmann-addressing` ([792b7 luhmann-addressing](./792b_technical-spec.md#792b7-added-luhmann-addressing)) refuses; command-line-surface ([792b2 command-line-surface](./792b_technical-spec.md#792b2-added-command-line-surface)) maps it under [792b2c4](./792b_technical-spec.md#792b2c4-result-reporting).
 
 **Test Traceability**
 
@@ -849,11 +849,11 @@ Target: [792b7](./792b_technical-spec.md#792b7-added-luhmann-addressing) (`docs/
 
 #### 792c7b4 vault-write-lock tech spec
 
-Target: [792b8](./792b_technical-spec.md#792b8-added-vault-write-lock) (`docs/specs/technical/vault-write-lock.md`).
+Target: [792b8](./792b_technical-spec.md#792b8-added-vault-write-lock) ([`docs/specs/technical/vault-write-lock.md`](../../specs/technical/vault-write-lock.md)).
 
 - Ownership: Repository-owned dependency-boundary interaction (OS advisory locks).
 - Current realization (informational): `internal/cli/locker.go`, `LockPrims`.
-- Later capabilities that extend it: note-revision, chunk-indexing.
+- Later capabilities that extend it: note-revision ([792a4 note-revision](./792a_product-spec.md#792a4-added-note-revision)), chunk-indexing ([792a5 chunk-indexing](./792a_product-spec.md#792a5-added-chunk-indexing)).
 
 **Legacy sources (port, then remove):**
 
@@ -892,11 +892,11 @@ Target: [792b8](./792b_technical-spec.md#792b8-added-vault-write-lock) (`docs/sp
 
 #### 792c7b5 text-embedder tech spec
 
-Target: [792b9](./792b_technical-spec.md#792b9-added-text-embedder) (`docs/specs/technical/text-embedder.md`).
+Target: [792b9](./792b_technical-spec.md#792b9-added-text-embedder) ([`docs/specs/technical/text-embedder.md`](../../specs/technical/text-embedder.md)).
 
 - Ownership: Repository-owned dependency-boundary interaction (hugot/GoMLX library, bundled ONNX model, cache directory).
 - Current realization (informational): `internal/embed` hugot.go, runtime.go, cache.go, cachefs.go, assets/model; `cmd/engram/hugot.go`.
-- Later capabilities that extend it: chunk-indexing, controlled-vocabulary, memory-query, vault-health.
+- Later capabilities that extend it: chunk-indexing ([792a5 chunk-indexing](./792a_product-spec.md#792a5-added-chunk-indexing)), controlled-vocabulary ([792a6 controlled-vocabulary](./792a_product-spec.md#792a6-added-controlled-vocabulary)), memory-query ([792a7 memory-query](./792a_product-spec.md#792a7-added-memory-query)), vault-health ([792a9 vault-health](./792a_product-spec.md#792a9-added-vault-health)).
 
 **Legacy sources (port, then remove):**
 
@@ -969,11 +969,11 @@ Target: [792b9](./792b_technical-spec.md#792b9-added-text-embedder) (`docs/specs
 
 #### 792c7b6 embedding-sidecar tech spec
 
-Target: [792b10](./792b_technical-spec.md#792b10-added-embedding-sidecar) (`docs/specs/technical/embedding-sidecar.md`).
+Target: [792b10](./792b_technical-spec.md#792b10-added-embedding-sidecar) ([`docs/specs/technical/embedding-sidecar.md`](../../specs/technical/embedding-sidecar.md)).
 
 - Ownership: Repository component.
 - Current realization (informational): `internal/embed` sidecar.go, hash.go, state.go, cosine.go, `BuildSidecar`; `internal/cli/embed.go`, auto-embed in learn.
-- Later capabilities that extend it: note-revision, controlled-vocabulary, memory-query, vault-health, vault-migration.
+- Later capabilities that extend it: note-revision ([792a4 note-revision](./792a_product-spec.md#792a4-added-note-revision)), controlled-vocabulary ([792a6 controlled-vocabulary](./792a_product-spec.md#792a6-added-controlled-vocabulary)), memory-query ([792a7 memory-query](./792a_product-spec.md#792a7-added-memory-query)), vault-health ([792a9 vault-health](./792a_product-spec.md#792a9-added-vault-health)), vault-migration ([792a10 vault-migration](./792a_product-spec.md#792a10-added-vault-migration)).
 
 **Legacy sources (port, then remove):**
 
@@ -996,7 +996,7 @@ Target: [792b10](./792b_technical-spec.md#792b10-added-embedding-sidecar) (`docs
 | 792c7b6d | Rename the tests that verify this section's scenarios and its mapped [792a](./792a_product-spec.md#documentation-framework-adoption---product-spec) scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
 | 792c7b6e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
 
-**Outcome:** the `embed apply`, `status` and note-revision sidecar writes are deferred ([792d66](./792d_decision-log.md#792d66-embedding-sidecar-scope-and-the-partial-model-mismatch-gap)). ADR-0002, ADR-0003 and the ADR-0012 `stripMachineLines` clause are ported, and ADR-0006 is deleted.
+**Outcome:** the `embed apply`, `status` and note-revision ([792a4 note-revision](./792a_product-spec.md#792a4-added-note-revision)) sidecar writes are deferred ([792d66](./792d_decision-log.md#792d66-embedding-sidecar-scope-and-the-partial-model-mismatch-gap)). ADR-0002, ADR-0003 and the ADR-0012 `stripMachineLines` clause are ported, and ADR-0006 is deleted.
 
 **Test Traceability**
 
@@ -1064,11 +1064,11 @@ Target: [792b10](./792b_technical-spec.md#792b10-added-embedding-sidecar) (`docs
 
 #### 792c7b7 note-provenance tech spec
 
-Target: [792b11](./792b_technical-spec.md#792b11-added-note-provenance) (`docs/specs/technical/note-provenance.md`).
+Target: [792b11](./792b_technical-spec.md#792b11-added-note-provenance) ([`docs/specs/technical/note-provenance.md`](../../specs/technical/note-provenance.md)).
 
-- Ownership: Repository-owned dependency-boundary interaction (git through subprocess-runner).
+- Ownership: Repository-owned dependency-boundary interaction (git through subprocess-runner ([792b4 subprocess-runner](./792b_technical-spec.md#792b4-added-subprocess-runner))).
 - Current realization (informational): `internal/cli/identity.go`, `identity_backfill.go`.
-- Later capabilities that extend it: note-revision, vault-migration.
+- Later capabilities that extend it: note-revision ([792a4 note-revision](./792a_product-spec.md#792a4-added-note-revision)), vault-migration ([792a10 vault-migration](./792a_product-spec.md#792a10-added-vault-migration)).
 
 **Legacy sources (port, then remove):**
 
@@ -1103,11 +1103,11 @@ Target: [792b11](./792b_technical-spec.md#792b11-added-note-provenance) (`docs/s
 
 #### 792c7b8 note-authoring tech spec
 
-Target: [792b12](./792b_technical-spec.md#792b12-added-note-authoring) (`docs/specs/technical/note-authoring.md`).
+Target: [792b12](./792b_technical-spec.md#792b12-added-note-authoring) ([`docs/specs/technical/note-authoring.md`](../../specs/technical/note-authoring.md)).
 
 - Ownership: Repository component (caller of the format, addressing, lock, sidecar and provenance components).
 - Current realization (informational): `internal/cli/learn.go`, `qa.go`, learn args in `targets.go`.
-- Later capabilities that extend it: controlled-vocabulary, skill-runbook-registration, write-memory, learn, vault-serving.
+- Later capabilities that extend it: controlled-vocabulary ([792a6 controlled-vocabulary](./792a_product-spec.md#792a6-added-controlled-vocabulary)), skill-runbook-registration ([792a12 skill-runbook-registration](./792a_product-spec.md#792a12-added-skill-runbook-registration)), write-memory ([792a13 write-memory](./792a_product-spec.md#792a13-added-write-memory)), learn ([792a15 learn](./792a_product-spec.md#792a15-added-learn)), vault-serving ([792a20 vault-serving](./792a_product-spec.md#792a20-added-vault-serving)).
 
 **Legacy sources (port, then remove):**
 
@@ -1211,7 +1211,7 @@ Target: [792b12](./792b_technical-spec.md#792b12-added-note-authoring) (`docs/sp
 
 #### 792c7c1 note-revision product spec
 
-Target: [792a4](./792a_product-spec.md#792a4-added-note-revision) (`docs/specs/product/note-revision.md`).
+Target: [792a4](./792a_product-spec.md#792a4-added-note-revision) ([`docs/specs/product/note-revision.md`](../../specs/product/note-revision.md)).
 
 **Legacy sources (port, then remove):**
 
@@ -1257,9 +1257,9 @@ Target: [792a4](./792a_product-spec.md#792a4-added-note-revision) (`docs/specs/p
 | 792c7c1d | Confirm the supporting-component list; record changes in [792d](./792d_decision-log.md#documentation-framework-adoption---decision-log) and this plan | Non-test action | Keeps the inventory complete | Done |
 | 792c7c1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
 
-**Outcome:** the two new and six extended supporting components are confirmed. note-document-format
-gains [792b6c7](./792b_technical-spec.md#792b6c7-frontmatter-node-edits) and [792b6c8](./792b_technical-spec.md#792b6c8-crlf-reading), embedding-sidecar [792b10c9](./792b_technical-spec.md#792b10c9-crlf-notes) and note-provenance [792b11c4](./792b_technical-spec.md#792b11c4-re-stamp); command-line-surface,
-durable-file-store and vault-write-lock gain mappings only. The amend wire fields are [792d70](./792d_decision-log.md#792d70-amend---repo---user-and---pending-are-not-specified); other
+**Outcome:** the two new and six extended supporting components are confirmed. note-document-format ([792b6 note-document-format](./792b_technical-spec.md#792b6-added-note-document-format))
+gains [792b6c7](./792b_technical-spec.md#792b6c7-frontmatter-node-edits) and [792b6c8](./792b_technical-spec.md#792b6c8-crlf-reading), embedding-sidecar [792b10c9](./792b_technical-spec.md#792b10c9-crlf-notes) and note-provenance [792b11c4](./792b_technical-spec.md#792b11c4-re-stamp); command-line-surface ([792b2 command-line-surface](./792b_technical-spec.md#792b2-added-command-line-surface)),
+durable-file-store ([792b3 durable-file-store](./792b_technical-spec.md#792b3-added-durable-file-store)) and vault-write-lock ([792b8 vault-write-lock](./792b_technical-spec.md#792b8-added-vault-write-lock)) gain mappings only. The amend wire fields are [792d70](./792d_decision-log.md#792d70-amend---repo---user-and---pending-are-not-specified); other
 choices are [792d69](./792d_decision-log.md#792d69-mixed-sources-of-note-revision-are-split-by-owner) and [792d71](./792d_decision-log.md#792d71-rebuilding-a-sidecar-drops-its-last-used-date)–[792d74](./792d_decision-log.md#792d74-where-note-revisions-technical-contracts-land). c3 K4w is left whole for [792c7c3](#792c7c3-note-amendment-tech-spec).
 
 **Test Traceability**
@@ -1310,11 +1310,11 @@ activate with no refs, which no requirement states). Deferred to the node that o
 
 #### 792c7c2 wikilink-graph tech spec
 
-Target: [792b13](./792b_technical-spec.md#792b13-added-wikilink-graph) (`docs/specs/technical/wikilink-graph.md`).
+Target: [792b13](./792b_technical-spec.md#792b13-added-wikilink-graph) ([`docs/specs/technical/wikilink-graph.md`](../../specs/technical/wikilink-graph.md)).
 
 - Ownership: Repository component.
 - Current realization (informational): `internal/vaultgraph`; `internal/cli/note_ref.go`.
-- Later capabilities that extend it: memory-query, vault-counting, vault-health, vault-migration.
+- Later capabilities that extend it: memory-query ([792a7 memory-query](./792a_product-spec.md#792a7-added-memory-query)), vault-counting ([792a8 vault-counting](./792a_product-spec.md#792a8-added-vault-counting)), vault-health ([792a9 vault-health](./792a_product-spec.md#792a9-added-vault-health)), vault-migration ([792a10 vault-migration](./792a_product-spec.md#792a10-added-vault-migration)).
 
 **Legacy sources (port, then remove):**
 
@@ -1367,11 +1367,11 @@ and the other `graph_test` tests (6) (vault-counting [792c7g1](#792c7g1-vault-co
 
 #### 792c7c3 note-amendment tech spec
 
-Target: [792b14](./792b_technical-spec.md#792b14-added-note-amendment) (`docs/specs/technical/note-amendment.md`).
+Target: [792b14](./792b_technical-spec.md#792b14-added-note-amendment) ([`docs/specs/technical/note-amendment.md`](../../specs/technical/note-amendment.md)).
 
 - Ownership: Repository component.
 - Current realization (informational): `internal/cli/amend.go`, `resituate.go`, `supersedes.go`, `activate.go`.
-- Later capabilities that extend it: write-memory, recall, parent-sync, curate.
+- Later capabilities that extend it: write-memory ([792a13 write-memory](./792a_product-spec.md#792a13-added-write-memory)), recall ([792a14 recall](./792a_product-spec.md#792a14-added-recall)), parent-sync ([792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync)), curate ([792a22 curate](./792a_product-spec.md#792a22-added-curate)).
 
 **Legacy sources (port, then remove):**
 
@@ -1476,7 +1476,7 @@ command is wired). Deferred to the capability that adds their requirement ([792d
 
 #### 792c7d1 chunk-indexing product spec
 
-Target: [792a5](./792a_product-spec.md#792a5-added-chunk-indexing) (`docs/specs/product/chunk-indexing.md`).
+Target: [792a5](./792a_product-spec.md#792a5-added-chunk-indexing) ([`docs/specs/product/chunk-indexing.md`](../../specs/product/chunk-indexing.md)).
 
 **Legacy sources (port, then remove):**
 
@@ -1515,9 +1515,9 @@ Target: [792a5](./792a_product-spec.md#792a5-added-chunk-indexing) (`docs/specs/
 | 792c7d1d | Confirm the supporting-component list; record changes in [792d](./792d_decision-log.md#documentation-framework-adoption---decision-log) and this plan | Non-test action | Keeps the inventory complete | Done |
 | 792c7d1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
 
-**Outcome:** the four new supporting components are confirmed and embedding-sidecar is added
-([792d77](./792d_decision-log.md#792d77-mixed-sources-of-chunk-indexing-are-split-by-owner)). command-line-surface gains [792b2c6](./792b_technical-spec.md#792b2c6-chunk-index-directory-resolution); durable-file-store, vault-write-lock, text-embedder
-and embedding-sidecar gain mappings only ([792d80](./792d_decision-log.md#792d80-command-line-surface-gains-chunk-index-resolution)). The three OpenSpec specs keep technical
+**Outcome:** the four new supporting components are confirmed and embedding-sidecar ([792b10 embedding-sidecar](./792b_technical-spec.md#792b10-added-embedding-sidecar)) is added
+([792d77](./792d_decision-log.md#792d77-mixed-sources-of-chunk-indexing-are-split-by-owner)). command-line-surface ([792b2 command-line-surface](./792b_technical-spec.md#792b2-added-command-line-surface)) gains [792b2c6](./792b_technical-spec.md#792b2c6-chunk-index-directory-resolution); durable-file-store ([792b3 durable-file-store](./792b_technical-spec.md#792b3-added-durable-file-store)), vault-write-lock ([792b8 vault-write-lock](./792b_technical-spec.md#792b8-added-vault-write-lock)), text-embedder ([792b9 text-embedder](./792b_technical-spec.md#792b9-added-text-embedder))
+and embedding-sidecar ([792b10 embedding-sidecar](./792b_technical-spec.md#792b10-added-embedding-sidecar)) gain mappings only ([792d80](./792d_decision-log.md#792d80-command-line-surface-gains-chunk-index-resolution)). The three OpenSpec specs keep technical
 residues for [792c7d4](#792c7d4-ingestion-source-discovery-tech-spec) and [792c7d5](#792c7d5-chunk-index-store-tech-spec), and ADR-0021 stays for [792c7d5](#792c7d5-chunk-index-store-tech-spec). Other choices are [792d78](./792d_decision-log.md#792d78-chunk-indexing-requirements-beyond-the-legacy-text) and
 [792d79](./792d_decision-log.md#792d79-known-divergences-in-chunk-indexing).
 
@@ -1536,7 +1536,7 @@ their technical scenarios and list the product scenarios still uncovered.
 
 #### 792c7d2 transcript-reader tech spec
 
-Target: [792b15](./792b_technical-spec.md#792b15-added-transcript-reader) (`docs/specs/technical/transcript-reader.md`).
+Target: [792b15](./792b_technical-spec.md#792b15-added-transcript-reader) ([`docs/specs/technical/transcript-reader.md`](../../specs/technical/transcript-reader.md)).
 
 - Ownership: Repository component; Claude Code and Pi session file-format boundary.
 - Current realization (informational): `internal/transcript`, `internal/context`.
@@ -1595,7 +1595,7 @@ and `TestJSONLReader_ReadFrom_NullTimestampRowsInheritPrior` (the last kept time
 
 #### 792c7d3 source-chunking tech spec
 
-Target: [792b16](./792b_technical-spec.md#792b16-added-source-chunking) (`docs/specs/technical/source-chunking.md`).
+Target: [792b16](./792b_technical-spec.md#792b16-added-source-chunking) ([`docs/specs/technical/source-chunking.md`](../../specs/technical/source-chunking.md)).
 
 - Ownership: Repository component.
 - Current realization (informational): `internal/chunk/chunk.go`.
@@ -1639,7 +1639,7 @@ anchor through ingestion and is examined by chunk-index-store ([792c7d5](#792c7d
 
 #### 792c7d4 ingestion-source-discovery tech spec
 
-Target: [792b17](./792b_technical-spec.md#792b17-added-ingestion-source-discovery) (`docs/specs/technical/ingestion-source-discovery.md`).
+Target: [792b17](./792b_technical-spec.md#792b17-added-ingestion-source-discovery) ([`docs/specs/technical/ingestion-source-discovery.md`](../../specs/technical/ingestion-source-discovery.md)).
 
 - Ownership: Repository component.
 - Current realization (informational): `internal/cli/sweepspec.go`, ingest source gathering.
@@ -1692,7 +1692,7 @@ only its zero-record residue for [792c7d5](#792c7d5-chunk-index-store-tech-spec)
 | [792b17c7a3](./792b_technical-spec.md#792b17c7a-scenarios) | `TestPiSessionsReadErrorOnDirScan` → `Test792b17c7a3_PiSessionsReadErrorOnDirScan` | `RunIngest` with a failing lister | Walk failure | Done |
 | [792b17c8a3](./792b_technical-spec.md#792b17c8a-scenarios) | `TestPiSessionsAutoSweepIngestsPISessionsFromAncestor` → `Test792b17c8a3_PiSessionsAutoSweepIngestsPISessionsFromAncestor` | `RunIngest` over injected deps, in-memory listing | Swept root's file | Done |
 
-**Coverage gaps:** [792b17c3a6](./792b_technical-spec.md#792b17c3a-scenarios) (taken as `split deferred` by chunk-index-store's ancestor-precedence
+**Coverage gaps:** [792b17c3a6](./792b_technical-spec.md#792b17c3a-scenarios) (taken as `split deferred` by chunk-index-store ([792b18 chunk-index-store](./792b_technical-spec.md#792b18-added-chunk-index-store))'s ancestor-precedence
 test, [792d83](./792d_decision-log.md#792d83-ingestion-source-discovery-scope-and-the-tests-it-leaves)), [792b17c5a4](./792b_technical-spec.md#792b17c5a-scenarios) (no test of an invalid `sweep.json`), [792b17c8a1](./792b_technical-spec.md#792b17c8a-scenarios) and [792b17c8a2](./792b_technical-spec.md#792b17c8a-scenarios) (no test
 of the extension filter or of the chunk-directory skip). No [792a5](./792a_product-spec.md#792a5-added-chunk-indexing) scenario this section maps has an
 end-to-end test.
@@ -1703,11 +1703,11 @@ stat, write, prune-deps and transcript-read tests.
 
 #### 792c7d5 chunk-index-store tech spec
 
-Target: [792b18](./792b_technical-spec.md#792b18-added-chunk-index-store) (`docs/specs/technical/chunk-index-store.md`).
+Target: [792b18](./792b_technical-spec.md#792b18-added-chunk-index-store) ([`docs/specs/technical/chunk-index-store.md`](../../specs/technical/chunk-index-store.md)).
 
 - Ownership: Repository component.
 - Current realization (informational): `internal/chunk/index.go`; `internal/cli/ingest.go`, `ingest_dedup.go`, `prune.go`, `prune_duplicates.go`, `show_chunk.go`.
-- Later capabilities that extend it: memory-query, install-and-update, learn.
+- Later capabilities that extend it: memory-query ([792a7 memory-query](./792a_product-spec.md#792a7-added-memory-query)), install-and-update ([792a11 install-and-update](./792a_product-spec.md#792a11-added-install-and-update)), learn ([792a15 learn](./792a_product-spec.md#792a15-added-learn)).
 
 **Legacy sources (port, then remove):**
 
@@ -1827,7 +1827,7 @@ and `ingest_integration_test` `TestChunkQueryClustersManyChunks`, `TestChunkQuer
 
 #### 792c7e1 controlled-vocabulary product spec
 
-Target: [792a6](./792a_product-spec.md#792a6-added-controlled-vocabulary) (`docs/specs/product/controlled-vocabulary.md`).
+Target: [792a6](./792a_product-spec.md#792a6-added-controlled-vocabulary) ([`docs/specs/product/controlled-vocabulary.md`](../../specs/product/controlled-vocabulary.md)).
 
 **Legacy sources (port, then remove):**
 
@@ -1875,9 +1875,9 @@ Target: [792a6](./792a_product-spec.md#792a6-added-controlled-vocabulary) (`docs
 | 792c7e1d | Confirm the supporting-component list; record changes in [792d](./792d_decision-log.md#documentation-framework-adoption---decision-log) and this plan | Non-test action | Keeps the inventory complete | Done |
 | 792c7e1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
 
-**Outcome:** the two new supporting components are confirmed and note-amendment is added ([792d86](./792d_decision-log.md#792d86-controlled-vocabulary-requirements-beyond-the-legacy-text-and-their-components)).
-note-authoring gains [792b12c6](./792b_technical-spec.md#792b12c6-vocabulary-tagging-after-a-write) and note-amendment [792b14c11](./792b_technical-spec.md#792b14c11-vocabulary-tagging-after-a-revision); command-line-surface,
-note-document-format, text-embedder and embedding-sidecar gain mappings only. ADR-0019 is deleted;
+**Outcome:** the two new supporting components are confirmed and note-amendment ([792b14 note-amendment](./792b_technical-spec.md#792b14-added-note-amendment)) is added ([792d86](./792d_decision-log.md#792d86-controlled-vocabulary-requirements-beyond-the-legacy-text-and-their-components)).
+note-authoring ([792b12 note-authoring](./792b_technical-spec.md#792b12-added-note-authoring)) gains [792b12c6](./792b_technical-spec.md#792b12c6-vocabulary-tagging-after-a-write) and note-amendment [792b14c11](./792b_technical-spec.md#792b14c11-vocabulary-tagging-after-a-revision); command-line-surface ([792b2 command-line-surface](./792b_technical-spec.md#792b2-added-command-line-surface)),
+note-document-format ([792b6 note-document-format](./792b_technical-spec.md#792b6-added-note-document-format)), text-embedder ([792b9 text-embedder](./792b_technical-spec.md#792b9-added-text-embedder)) and embedding-sidecar ([792b10 embedding-sidecar](./792b_technical-spec.md#792b10-added-embedding-sidecar)) gain mappings only. ADR-0019 is deleted;
 `vault-vocab-lifecycle` keeps a mechanism residue for [792c7e3](#792c7e3-vocabulary-engine-tech-spec) and its supersession ride-along for
 [792c7f1](#792c7f1-memory-query-product-spec) ([792d85](./792d_decision-log.md#792d85-mixed-sources-of-controlled-vocabulary-are-split-by-owner)). Other choices are [792d86](./792d_decision-log.md#792d86-controlled-vocabulary-requirements-beyond-the-legacy-text-and-their-components) and [792d87](./792d_decision-log.md#792d87-known-divergences-in-the-controlled-vocabulary).
 
@@ -1902,11 +1902,11 @@ dispatch and unit tests of their scenarios and list the product scenarios still 
 
 #### 792c7e2 similarity-clustering tech spec
 
-Target: [792b19](./792b_technical-spec.md#792b19-added-similarity-clustering) (`docs/specs/technical/similarity-clustering.md`).
+Target: [792b19](./792b_technical-spec.md#792b19-added-similarity-clustering) ([`docs/specs/technical/similarity-clustering.md`](../../specs/technical/similarity-clustering.md)).
 
 - Ownership: Repository component.
 - Current realization (informational): `internal/cluster`.
-- Later capabilities that extend it: memory-query, vault-migration.
+- Later capabilities that extend it: memory-query ([792a7 memory-query](./792a_product-spec.md#792a7-added-memory-query)), vault-migration ([792a10 vault-migration](./792a_product-spec.md#792a10-added-vault-migration)).
 
 **Legacy sources (port, then remove):**
 
@@ -1948,7 +1948,7 @@ keeps the query's input bound for memory-query ([792d88](./792d_decision-log.md#
 | [792b19c4a4](./792b_technical-spec.md#792b19c4a-scenarios) | `TestAutoK_AbsorbsSingletons` → `Test792b19c4a4_AutoK_AbsorbsSingletons` | Pure unit | No singleton cluster | Done |
 
 **Coverage gaps:** [792b19](./792b_technical-spec.md#792b19-added-similarity-clustering) has none. The [792a6](./792a_product-spec.md#792a6-added-controlled-vocabulary) refit scenarios it maps are covered end to end only
-through vocabulary-engine's tests ([792c7e3](#792c7e3-vocabulary-engine-tech-spec)).
+through vocabulary-engine ([792b20 vocabulary-engine](./792b_technical-spec.md#792b20-added-vocabulary-engine))'s tests ([792c7e3](#792c7e3-vocabulary-engine-tech-spec)).
 
 **No-scenario tests:** deferred to memory-query ([792c7f1](#792c7f1-memory-query-product-spec), [792d88](./792d_decision-log.md#792d88-similarity-clustering-scope-and-the-tests-it-leaves)): `silhouette_test`
 `TestPointSilhouette_OutOfRangeOwnClusterReturnsZero`, `TestPointSilhouette_SingletonOwnClusterReturnsZero`,
@@ -1958,11 +1958,11 @@ through vocabulary-engine's tests ([792c7e3](#792c7e3-vocabulary-engine-tech-spe
 
 #### 792c7e3 vocabulary-engine tech spec
 
-Target: [792b20](./792b_technical-spec.md#792b20-added-vocabulary-engine) (`docs/specs/technical/vocabulary-engine.md`).
+Target: [792b20](./792b_technical-spec.md#792b20-added-vocabulary-engine) ([`docs/specs/technical/vocabulary-engine.md`](../../specs/technical/vocabulary-engine.md)).
 
 - Ownership: Repository component.
 - Current realization (informational): `internal/cli/vocab*.go`.
-- Later capabilities that extend it: memory-query.
+- Later capabilities that extend it: memory-query ([792a7 memory-query](./792a_product-spec.md#792a7-added-memory-query)).
 
 **Legacy sources (port, then remove):**
 
@@ -2175,7 +2175,7 @@ to memory-query [792c7f1](#792c7f1-memory-query-product-spec)); `update_test` `T
 
 #### 792c7f1 memory-query product spec
 
-Target: [792a7](./792a_product-spec.md#792a7-added-memory-query) (`docs/specs/product/memory-query.md`).
+Target: [792a7](./792a_product-spec.md#792a7-added-memory-query) ([`docs/specs/product/memory-query.md`](../../specs/product/memory-query.md)).
 
 **Legacy sources (port, then remove):**
 
@@ -2235,10 +2235,10 @@ Target: [792a7](./792a_product-spec.md#792a7-added-memory-query) (`docs/specs/pr
 | 792c7f1d | Confirm the supporting-component list; record changes in [792d](./792d_decision-log.md#documentation-framework-adoption---decision-log) and this plan | Non-test action | Keeps the inventory complete | Done |
 | 792c7f1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
 
-**Outcome:** the four new supporting components are confirmed. command-line-surface gains [792b2c7](./792b_technical-spec.md#792b2c7-note-lookup) (note
-lookup) and [792b2c8](./792b_technical-spec.md#792b2c8-chunk-lookup) (chunk lookup), wikilink-graph [792b13c3](./792b_technical-spec.md#792b13c3-link-targets) (link targets), chunk-index-store
-[792b18c14](./792b_technical-spec.md#792b18c14-first-indexed-time) (first-indexed time), transcript-reader [792b15c6](./792b_technical-spec.md#792b15c6-last-timestamp) (last timestamp) and similarity-clustering
-[792b19c5](./792b_technical-spec.md#792b19c5-per-point-silhouette) (per-point silhouette); text-embedder, embedding-sidecar and vocabulary-engine gain mappings
+**Outcome:** the four new supporting components are confirmed. command-line-surface ([792b2 command-line-surface](./792b_technical-spec.md#792b2-added-command-line-surface)) gains [792b2c7](./792b_technical-spec.md#792b2c7-note-lookup) (note
+lookup) and [792b2c8](./792b_technical-spec.md#792b2c8-chunk-lookup) (chunk lookup), wikilink-graph [792b13c3](./792b_technical-spec.md#792b13c3-link-targets) (link targets), chunk-index-store ([792b18 chunk-index-store](./792b_technical-spec.md#792b18-added-chunk-index-store))
+[792b18c14](./792b_technical-spec.md#792b18c14-first-indexed-time) (first-indexed time), transcript-reader [792b15c6](./792b_technical-spec.md#792b15c6-last-timestamp) (last timestamp) and similarity-clustering ([792b19 similarity-clustering](./792b_technical-spec.md#792b19-added-similarity-clustering))
+[792b19c5](./792b_technical-spec.md#792b19c5-per-point-silhouette) (per-point silhouette); text-embedder ([792b9 text-embedder](./792b_technical-spec.md#792b9-added-text-embedder)), embedding-sidecar ([792b10 embedding-sidecar](./792b_technical-spec.md#792b10-added-embedding-sidecar)) and vocabulary-engine ([792b20 vocabulary-engine](./792b_technical-spec.md#792b20-added-vocabulary-engine)) gain mappings
 only ([792d91](./792d_decision-log.md#792d91-memory-query-requirements-beyond-the-legacy-text-and-the-components-extended)). Six OpenSpec specs are deleted; `recall-payload-cuts` keeps one requirement for
 recall ([792c7m1](#792c7m1-recall-product-spec)), `runbook-lexical-triggers` three residues for [792c7s1](#792c7s1-vault-serving-product-spec), [792c7r1](#792c7r1-ambient-guidance-product-spec) and [792c7l1](#792c7l1-write-memory-product-spec), and
 `vault-note-identity` its check and count readers ([792d90](./792d_decision-log.md#792d90-mixed-sources-of-memory-query-are-split-by-owner)). ADR-0026's retrieval decision is [792a7v](./792a_product-spec.md#792a7v-runbooks-rank-like-other-notes).
@@ -2300,7 +2300,7 @@ examined by [792c7f5](#792c7f5-query-engine-tech-spec) ([792d91](./792d_decision
 
 #### 792c7f2 recency-ranking tech spec
 
-Target: [792b21](./792b_technical-spec.md#792b21-added-recency-ranking) (`docs/specs/technical/recency-ranking.md`).
+Target: [792b21](./792b_technical-spec.md#792b21-added-recency-ranking) ([`docs/specs/technical/recency-ranking.md`](../../specs/technical/recency-ranking.md)).
 
 - Ownership: Repository component (wall clock injected).
 - Current realization (informational): `internal/cli/recency.go`.
@@ -2355,11 +2355,11 @@ component tests until query-engine ([792c7f5](#792c7f5-query-engine-tech-spec)) 
 
 #### 792c7f3 runbook-trigger-matching tech spec
 
-Target: [792b22](./792b_technical-spec.md#792b22-added-runbook-trigger-matching) (`docs/specs/technical/runbook-trigger-matching.md`).
+Target: [792b22](./792b_technical-spec.md#792b22-added-runbook-trigger-matching) ([`docs/specs/technical/runbook-trigger-matching.md`](../../specs/technical/runbook-trigger-matching.md)).
 
 - Ownership: Repository component.
 - Current realization (informational): `internal/cli/query_triggers.go`.
-- Later capabilities that extend it: ambient-guidance.
+- Later capabilities that extend it: ambient-guidance ([792a19 ambient-guidance](./792a_product-spec.md#792a19-added-ambient-guidance)).
 
 **Legacy sources (port, then remove):**
 
@@ -2404,11 +2404,11 @@ query-payload-renderer ([792c7f4](#792c7f4-query-payload-renderer-tech-spec)) an
 
 #### 792c7f4 query-payload-renderer tech spec
 
-Target: [792b23](./792b_technical-spec.md#792b23-added-query-payload-renderer) (`docs/specs/technical/query-payload-renderer.md`).
+Target: [792b23](./792b_technical-spec.md#792b23-added-query-payload-renderer) ([`docs/specs/technical/query-payload-renderer.md`](../../specs/technical/query-payload-renderer.md)).
 
 - Ownership: Repository component; YAML output on stdout.
 - Current realization (informational): render and cap functions in `internal/cli/query.go`, `redflags_truncation.go`.
-- Later capabilities that extend it: recall.
+- Later capabilities that extend it: recall ([792a14 recall](./792a_product-spec.md#792a14-added-recall)).
 
 **Legacy sources (port, then remove):**
 
@@ -2426,7 +2426,7 @@ Target: [792b23](./792b_technical-spec.md#792b23-added-query-payload-renderer) (
 
 **Outcome:** [792b23](./792b_technical-spec.md#792b23-added-query-payload-renderer) specifies eight requirements. Nothing remained in the legacy sources to remove
 ([792d90](./792d_decision-log.md#792d90-mixed-sources-of-memory-query-are-split-by-owner)), and no live reference named the component. Tests of the pending-offer keys and the merged
-payload wait for curate and parent-sync ([792d95](./792d_decision-log.md#792d95-query-payload-renderer-scope-and-the-tests-it-leaves)).
+payload wait for curate ([792a22 curate](./792a_product-spec.md#792a22-added-curate)) and parent-sync ([792d95](./792d_decision-log.md#792d95-query-payload-renderer-scope-and-the-tests-it-leaves)).
 
 **Test Traceability**
 
@@ -2477,11 +2477,11 @@ curate [792c7u1](#792c7u1-curate-product-spec)) and `TestQueryPayload_NoFromPare
 
 #### 792c7f5 query-engine tech spec
 
-Target: [792b24](./792b_technical-spec.md#792b24-added-query-engine) (`docs/specs/technical/query-engine.md`).
+Target: [792b24](./792b_technical-spec.md#792b24-added-query-engine) ([`docs/specs/technical/query-engine.md`](../../specs/technical/query-engine.md)).
 
 - Ownership: Repository component (caller of the embedder, sidecar, chunk-index, clustering, vocabulary, recency, trigger and renderer components).
 - Current realization (informational): `internal/cli/query.go`, `query_chunks.go`, `query_vault_meta.go`, `query_explore.go`, supersession ride-along, pending-offer exclusion.
-- Later capabilities that extend it: recall, ambient-guidance, vault-serving, parent-sync.
+- Later capabilities that extend it: recall ([792a14 recall](./792a_product-spec.md#792a14-added-recall)), ambient-guidance ([792a19 ambient-guidance](./792a_product-spec.md#792a19-added-ambient-guidance)), vault-serving ([792a20 vault-serving](./792a_product-spec.md#792a20-added-vault-serving)), parent-sync ([792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync)).
 
 **Legacy sources (port, then remove):**
 
@@ -2508,7 +2508,7 @@ Target: [792b24](./792b_technical-spec.md#792b24-added-query-engine) (`docs/spec
 
 **Outcome:** [792b24](./792b_technical-spec.md#792b24-added-query-engine) specifies 24 requirements. ADR-0025 is deleted, and the query mechanics are removed from
 c1 Flow: recall, c2 and c3, which keep the skill steps and the other components. Tests of the
-pending-offer exclusion and the merged payload wait for curate and parent-sync ([792d96](./792d_decision-log.md#792d96-query-engine-scope-legacy-removal-and-the-tests-it-leaves)).
+pending-offer exclusion and the merged payload wait for curate ([792a22 curate](./792a_product-spec.md#792a22-added-curate)) and parent-sync ([792d96](./792d_decision-log.md#792d96-query-engine-scope-legacy-removal-and-the-tests-it-leaves)).
 
 **Test Traceability**
 
@@ -2637,14 +2637,14 @@ reaches, [792d96](./792d_decision-log.md#792d96-query-engine-scope-legacy-remova
 `TestQueryPayload_PendingOffersHintPresentWhenTrue`, `TestQueryPayload_PendingOffersLeadPayload` and
 `TestRunQuery_ExcludesPendingSkillRunbookNote` (curate [792c7u1](#792c7u1-curate-product-spec)), and
 `TestQueryPayload_NoFromParentKeyWithoutMerge` (parent-sync [792c7t1](#792c7t1-parent-sync-product-spec)). `merged_query_*` tests
-belong to parent-sync.
+belong to parent-sync ([792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync)).
 
 
 ### 792c7g vault-counting
 
 #### 792c7g1 vault-counting product spec
 
-Target: [792a8](./792a_product-spec.md#792a8-added-vault-counting) (`docs/specs/product/vault-counting.md`).
+Target: [792a8](./792a_product-spec.md#792a8-added-vault-counting) ([`docs/specs/product/vault-counting.md`](../../specs/product/vault-counting.md)).
 
 **Legacy sources (port, then remove):**
 
@@ -2677,10 +2677,10 @@ Target: [792a8](./792a_product-spec.md#792a8-added-vault-counting) (`docs/specs/
 | 792c7g1d | Confirm the supporting-component list; record changes in [792d](./792d_decision-log.md#documentation-framework-adoption---decision-log) and this plan | Non-test action | Keeps the inventory complete | Done |
 | 792c7g1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
 
-**Outcome:** the supporting component `vault-counter` is confirmed. wikilink-graph gains [792b13c4](./792b_technical-spec.md#792b13c4-link-graph)
+**Outcome:** the supporting component `vault-counter` ([792b25 vault-counter](./792b_technical-spec.md#792b25-added-vault-counter)) is confirmed. wikilink-graph ([792b13 wikilink-graph](./792b_technical-spec.md#792b13-added-wikilink-graph)) gains [792b13c4](./792b_technical-spec.md#792b13c4-link-graph)
 (link graph) and [792b13c5](./792b_technical-spec.md#792b13c5-in-degree) (in-degree), which are the graph build and in-degree that [792d75](./792d_decision-log.md#792d75-wikilink-graphs-link-graph-and-resolution-contracts-arrive-with-their-scenarios) deferred
-here, and mappings to [792b13c1](./792b_technical-spec.md#792b13c1-vault-scan) and [792b13c3](./792b_technical-spec.md#792b13c3-link-targets); command-line-surface gains mappings to [792b2c4](./792b_technical-spec.md#792b2c4-result-reporting);
-note-document-format gains mappings to [792b6c6](./792b_technical-spec.md#792b6c6-frontmatter-splitting) and [792b6c8](./792b_technical-spec.md#792b6c8-crlf-reading); durable-file-store gains two `Supports`
+here, and mappings to [792b13c1](./792b_technical-spec.md#792b13c1-vault-scan) and [792b13c3](./792b_technical-spec.md#792b13c3-link-targets); command-line-surface ([792b2 command-line-surface](./792b_technical-spec.md#792b2-added-command-line-surface)) gains mappings to [792b2c4](./792b_technical-spec.md#792b2c4-result-reporting);
+note-document-format ([792b6 note-document-format](./792b_technical-spec.md#792b6-added-note-document-format)) gains mappings to [792b6c6](./792b_technical-spec.md#792b6c6-frontmatter-splitting) and [792b6c8](./792b_technical-spec.md#792b6c8-crlf-reading); durable-file-store ([792b3 durable-file-store](./792b_technical-spec.md#792b3-added-durable-file-store)) gains two `Supports`
 IDs on [792b3c4](./792b_technical-spec.md#792b3c4-vault-markdown-listing) ([792d97](./792d_decision-log.md#792d97-vault-counting-scope-and-the-behaviors-the-code-shows)). `cli-count` keeps its technical requirements until [792c7g2](#792c7g2-vault-counter-tech-spec), and the
 note-reader CRLF clause for `engram count` is out of `vault-note-identity`, which now keeps only
 the `engram check` reader for vault-health ([792d69](./792d_decision-log.md#792d69-mixed-sources-of-note-revision-are-split-by-owner)). ADR-0018 is deleted and ADR-0007 keeps its
@@ -2708,11 +2708,11 @@ vault-health ([792d75](./792d_decision-log.md#792d75-wikilink-graphs-link-graph-
 
 #### 792c7g2 vault-counter tech spec
 
-Target: [792b25](./792b_technical-spec.md#792b25-added-vault-counter) (`docs/specs/technical/vault-counter.md`).
+Target: [792b25](./792b_technical-spec.md#792b25-added-vault-counter) ([`docs/specs/technical/vault-counter.md`](../../specs/technical/vault-counter.md)).
 
 - Ownership: Repository component.
 - Current realization (informational): `internal/cli/count.go`.
-- Later capabilities that extend it: route.
+- Later capabilities that extend it: route ([792a17 route](./792a_product-spec.md#792a17-added-route)).
 
 **Legacy sources (port, then remove):**
 
@@ -2729,7 +2729,7 @@ Target: [792b25](./792b_technical-spec.md#792b25-added-vault-counter) (`docs/spe
 | 792c7g2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
 
 **Outcome:** the component is specified in eight requirements, [792b25c1](./792b_technical-spec.md#792b25c1-mode-selection) to [792b25c8](./792b_technical-spec.md#792b25c8-no-writes) ([792d98](./792d_decision-log.md#792d98-vault-counter-scope-and-the-tests-it-leaves)). Its link
-graph and in-degree are wikilink-graph's [792b13c4](./792b_technical-spec.md#792b13c4-link-graph) and [792b13c5](./792b_technical-spec.md#792b13c5-in-degree) ([792c7g1](#792c7g1-vault-counting-product-spec)). The `cli-count` OpenSpec
+graph and in-degree are wikilink-graph ([792b13 wikilink-graph](./792b_technical-spec.md#792b13-added-wikilink-graph))'s [792b13c4](./792b_technical-spec.md#792b13c4-link-graph) and [792b13c5](./792b_technical-spec.md#792b13c5-in-degree) ([792c7g1](#792c7g1-vault-counting-product-spec)). The `cli-count` OpenSpec
 spec is deleted, as nothing remains in it.
 
 **Test Traceability**
@@ -2771,7 +2771,7 @@ read a real directory in both modes and verifies no scenario.
 
 #### 792c7h1 vault-health product spec
 
-Target: [792a9](./792a_product-spec.md#792a9-added-vault-health) (`docs/specs/product/vault-health.md`).
+Target: [792a9](./792a_product-spec.md#792a9-added-vault-health) ([`docs/specs/product/vault-health.md`](../../specs/product/vault-health.md)).
 
 **Legacy sources (port, then remove):**
 
@@ -2812,9 +2812,9 @@ Target: [792a9](./792a_product-spec.md#792a9-added-vault-health) (`docs/specs/pr
 | 792c7h1d | Confirm the supporting-component list; record changes in [792d](./792d_decision-log.md#documentation-framework-adoption---decision-log) and this plan | Non-test action | Keeps the inventory complete | Done |
 | 792c7h1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
 
-**Outcome:** the supporting component `vault-invariant-checker` is confirmed. embedding-sidecar gains
+**Outcome:** the supporting component `vault-invariant-checker` ([792b26 vault-invariant-checker](./792b_technical-spec.md#792b26-added-vault-invariant-checker)) is confirmed. embedding-sidecar ([792b10 embedding-sidecar](./792b_technical-spec.md#792b10-added-embedding-sidecar)) gains
 [792b10c10](./792b_technical-spec.md#792b10c10-embedding-census) to [792b10c12](./792b_technical-spec.md#792b10c12-embedding-run) (the census, the selection and the run of `engram embed`, [792d66](./792d_decision-log.md#792d66-embedding-sidecar-scope-and-the-partial-model-mismatch-gap)) and a second
-sequence; wikilink-graph gains [792b13c6](./792b_technical-spec.md#792b13c6-unresolved-links) (unresolved links); command-line-surface and text-embedder gain
+sequence; wikilink-graph ([792b13 wikilink-graph](./792b_technical-spec.md#792b13-added-wikilink-graph)) gains [792b13c6](./792b_technical-spec.md#792b13c6-unresolved-links) (unresolved links); command-line-surface ([792b2 command-line-surface](./792b_technical-spec.md#792b2-added-command-line-surface)) and text-embedder ([792b9 text-embedder](./792b_technical-spec.md#792b9-added-text-embedder)) gain
 mappings ([792b2c4](./792b_technical-spec.md#792b2c4-result-reporting), [792b9c1](./792b_technical-spec.md#792b9c1-bundled-model-embedding)). Three OpenSpec files are emptied and deleted: `vault-embed-on-write`,
 `vault-wikilink-resolution` and, with its last reader, the CRLF requirement of `vault-note-identity`
 (which keeps only exchange, backfill and skill-identity requirements for later nodes). ADR-0007 is
@@ -2848,7 +2848,7 @@ product scenario for it) verify no scenario and keep their names.
 
 #### 792c7h2 vault-invariant-checker tech spec
 
-Target: [792b26](./792b_technical-spec.md#792b26-added-vault-invariant-checker) (`docs/specs/technical/vault-invariant-checker.md`).
+Target: [792b26](./792b_technical-spec.md#792b26-added-vault-invariant-checker) ([`docs/specs/technical/vault-invariant-checker.md`](../../specs/technical/vault-invariant-checker.md)).
 
 - Ownership: Repository component.
 - Current realization (informational): `internal/cli/check.go`.
@@ -2870,8 +2870,8 @@ Target: [792b26](./792b_technical-spec.md#792b26-added-vault-invariant-checker) 
 | 792c7h2e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
 
 **Outcome:** the component is specified in six requirements, [792b26c1](./792b_technical-spec.md#792b26c1-running-the-checks) to [792b26c6](./792b_technical-spec.md#792b26c6-no-writes) ([792d100](./792d_decision-log.md#792d100-vault-invariant-checker-scope-and-the-tests-it-leaves)). Its scan and
-unresolved-link list are wikilink-graph's [792b13c1](./792b_technical-spec.md#792b13c1-vault-scan) and [792b13c6](./792b_technical-spec.md#792b13c6-unresolved-links), and its sidecar decoding is
-embedding-sidecar's [792b10c1](./792b_technical-spec.md#792b10c1-sidecar-format). `memory-system-rigor` is deleted: its rationale is [792b26a](./792b_technical-spec.md#792b26a-orientation)'s, and the rest
+unresolved-link list are wikilink-graph ([792b13 wikilink-graph](./792b_technical-spec.md#792b13-added-wikilink-graph))'s [792b13c1](./792b_technical-spec.md#792b13c1-vault-scan) and [792b13c6](./792b_technical-spec.md#792b13c6-unresolved-links), and its sidecar decoding is
+embedding-sidecar ([792b10 embedding-sidecar](./792b_technical-spec.md#792b10-added-embedding-sidecar))'s [792b10c1](./792b_technical-spec.md#792b10c1-sidecar-format). `memory-system-rigor` is deleted: its rationale is [792b26a](./792b_technical-spec.md#792b26a-orientation)'s, and the rest
 is process history. `memory-invariants` points its G3, E1 and M5 rows at [792b26](./792b_technical-spec.md#792b26-added-vault-invariant-checker) and drops its severity
 model, its robustness requirement and the checker section; G2 is noted as not run ([792d100](./792d_decision-log.md#792d100-vault-invariant-checker-scope-and-the-tests-it-leaves)).
 
@@ -2903,7 +2903,7 @@ writes). Every [792a9](./792a_product-spec.md#792a9-added-vault-health) scenario
 
 #### 792c7i1 vault-migration product spec
 
-Target: [792a10](./792a_product-spec.md#792a10-added-vault-migration) (`docs/specs/product/vault-migration.md`).
+Target: [792a10](./792a_product-spec.md#792a10-added-vault-migration) ([`docs/specs/product/vault-migration.md`](../../specs/product/vault-migration.md)).
 
 **Legacy sources (port, then remove):**
 
@@ -2941,11 +2941,11 @@ Target: [792a10](./792a_product-spec.md#792a10-added-vault-migration) (`docs/spe
 | 792c7i1d | Confirm the supporting-component list; record changes in [792d](./792d_decision-log.md#documentation-framework-adoption---decision-log) and this plan | Non-test action | Keeps the inventory complete | Done |
 | 792c7i1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
 
-**Outcome:** the supporting component `note-reparenting` is confirmed, and similarity-clustering and
-wikilink-graph gain nothing: re-parenting uses the sidecar cosine ([792b10c8](./792b_technical-spec.md#792b10c8-cosine-similarity)) and its own link rewrite, not
-the clustering or the link parser ([792d101](./792d_decision-log.md#792d101-vault-migration-scope-and-the-behaviors-the-code-shows)). luhmann-addressing gains [792b7c6](./792b_technical-spec.md#792b7c6-id-and-date-from-a-filename) (ID and date from a filename);
-embedding-sidecar gains mappings only ([792b10c1](./792b_technical-spec.md#792b10c1-sidecar-format), [792b10c4](./792b_technical-spec.md#792b10c4-content-hash), [792b10c5](./792b_technical-spec.md#792b10c5-building-a-sidecar), [792b10c8](./792b_technical-spec.md#792b10c8-cosine-similarity)); note-provenance gains
-[792b11c5](./792b_technical-spec.md#792b11c5-repository-for-a-backfill) to [792b11c7](./792b_technical-spec.md#792b11c7-identity-backfill) (the backfill, [792d67](./792d_decision-log.md#792d67-note-provenance-covers-detection-and-the-first-write-stamp)); command-line-surface gains mappings ([792b2c4](./792b_technical-spec.md#792b2c4-result-reporting)). The two notice
+**Outcome:** the supporting component `note-reparenting` ([792b27 note-reparenting](./792b_technical-spec.md#792b27-added-note-reparenting)) is confirmed, and similarity-clustering ([792b19 similarity-clustering](./792b_technical-spec.md#792b19-added-similarity-clustering)) and
+wikilink-graph ([792b13 wikilink-graph](./792b_technical-spec.md#792b13-added-wikilink-graph)) gain nothing: re-parenting uses the sidecar cosine ([792b10c8](./792b_technical-spec.md#792b10c8-cosine-similarity)) and its own link rewrite, not
+the clustering or the link parser ([792d101](./792d_decision-log.md#792d101-vault-migration-scope-and-the-behaviors-the-code-shows)). luhmann-addressing ([792b7 luhmann-addressing](./792b_technical-spec.md#792b7-added-luhmann-addressing)) gains [792b7c6](./792b_technical-spec.md#792b7c6-id-and-date-from-a-filename) (ID and date from a filename);
+embedding-sidecar ([792b10 embedding-sidecar](./792b_technical-spec.md#792b10-added-embedding-sidecar)) gains mappings only ([792b10c1](./792b_technical-spec.md#792b10c1-sidecar-format), [792b10c4](./792b_technical-spec.md#792b10c4-content-hash), [792b10c5](./792b_technical-spec.md#792b10c5-building-a-sidecar), [792b10c8](./792b_technical-spec.md#792b10c8-cosine-similarity)); note-provenance ([792b11 note-provenance](./792b_technical-spec.md#792b11-added-note-provenance)) gains
+[792b11c5](./792b_technical-spec.md#792b11c5-repository-for-a-backfill) to [792b11c7](./792b_technical-spec.md#792b11c7-identity-backfill) (the backfill, [792d67](./792d_decision-log.md#792d67-note-provenance-covers-detection-and-the-first-write-stamp)); command-line-surface ([792b2 command-line-surface](./792b_technical-spec.md#792b2-added-command-line-surface)) gains mappings ([792b2c4](./792b_technical-spec.md#792b2c4-result-reporting)). The two notice
 scenarios [792a10a1a](./792a_product-spec.md#792a10a1-uat-scenarios) to [792a10a1c](./792a_product-spec.md#792a10a1-uat-scenarios) have their detection in [792c7i2](#792c7i2-note-reparenting-tech-spec), and [792a10a1d](./792a_product-spec.md#792a10a1-uat-scenarios), [792a10b1a](./792a_product-spec.md#792a10b1-uat-scenarios) and [792a10b1b](./792a_product-spec.md#792a10b1-uat-scenarios)
 wait for self-installer ([792c7j2](#792c7j2-self-installer-tech-spec)), which owns `engram update`'s report and flag routing ([792d101](./792d_decision-log.md#792d101-vault-migration-scope-and-the-behaviors-the-code-shows)).
 `update-flat-vault-luhmann-notice` keeps only its detection requirement and `update-reparent-luhmann-batch`
@@ -2981,11 +2981,11 @@ skill-runbook-registration ([792c7k1](#792c7k1-skill-runbook-registration-produc
 
 #### 792c7i2 note-reparenting tech spec
 
-Target: [792b27](./792b_technical-spec.md#792b27-added-note-reparenting) (`docs/specs/technical/note-reparenting.md`).
+Target: [792b27](./792b_technical-spec.md#792b27-added-note-reparenting) ([`docs/specs/technical/note-reparenting.md`](../../specs/technical/note-reparenting.md)).
 
 - Ownership: Repository component.
 - Current realization (informational): `internal/cli/luhmann_reparent.go`, `luhmann_reparent_apply.go`.
-- Later capabilities that extend it: install-and-update.
+- Later capabilities that extend it: install-and-update ([792a11 install-and-update](./792a_product-spec.md#792a11-added-install-and-update)).
 
 **Legacy sources (port, then remove):**
 
@@ -3004,7 +3004,7 @@ Target: [792b27](./792b_technical-spec.md#792b27-added-note-reparenting) (`docs/
 **Outcome:** the component is specified in ten requirements, [792b27c1](./792b_technical-spec.md#792b27c1-flat-vault-detection) to [792b27c10](./792b_technical-spec.md#792b27c10-preview) ([792d102](./792d_decision-log.md#792d102-note-reparenting-scope-and-the-tests-it-leaves)). The two
 remaining OpenSpec files, `update-flat-vault-luhmann-notice` and `update-reparent-luhmann-batch`, are
 deleted, as nothing remains in them. The rename and rewrite step is shared with `register-skills
---adopt`, so install-and-update and skill-runbook-registration extend [792b27c6](./792b_technical-spec.md#792b27c6-rename-and-link-rewrite) and [792b27c7](./792b_technical-spec.md#792b27c7-rename-safety).
+--adopt`, so install-and-update ([792a11 install-and-update](./792a_product-spec.md#792a11-added-install-and-update)) and skill-runbook-registration ([792a12 skill-runbook-registration](./792a_product-spec.md#792a12-added-skill-runbook-registration)) extend [792b27c6](./792b_technical-spec.md#792b27c6-rename-and-link-rewrite) and [792b27c7](./792b_technical-spec.md#792b27c7-rename-safety).
 
 **Test Traceability**
 
@@ -3070,13 +3070,13 @@ skill-runbook-registration, [792c7k1](#792c7k1-skill-runbook-registration-produc
 `TestWriteUpdateReport_LuhmannBranchingHint` (the command's routing and its notice, left to self-installer,
 [792c7j2](#792c7j2-self-installer-tech-spec)), `TestNewUpdateDeps_ReparentDepsWireThrough` (wiring) and the reparent survival tests
 `TestExchangeFieldsSurvive_ReparentRenamesNote` and `TestSkillIdentityFieldsSurvive_ReparentRenamesSkillNote`
-(parent-sync and skill-runbook-registration).
+(parent-sync ([792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync)) and skill-runbook-registration ([792a12 skill-runbook-registration](./792a_product-spec.md#792a12-added-skill-runbook-registration))).
 
 ### 792c7j install-and-update
 
 #### 792c7j1 install-and-update product spec
 
-Target: [792a11](./792a_product-spec.md#792a11-added-install-and-update) (`docs/specs/product/install-and-update.md`).
+Target: [792a11](./792a_product-spec.md#792a11-added-install-and-update) ([`docs/specs/product/install-and-update.md`](../../specs/product/install-and-update.md)).
 
 **Legacy sources (port, then remove):**
 
@@ -3126,10 +3126,10 @@ Target: [792a11](./792a_product-spec.md#792a11-added-install-and-update) (`docs/
 [792a11](./792a_product-spec.md#792a11-added-install-and-update) has fifteen requirements ([792a11a](./792a_product-spec.md#792a11a-installing-from-a-local-clone-or-a-fresh-clone) to [792a11o](./792a_product-spec.md#792a11o-the-update-options)): the source and the install, the model check, the
 downgrade refusal, the report header, the hand-off to the new binary, the dry run, the harness list, the
 deploy and its links, removal, the ownership rules, the first-sync adoption, guidance opt-in, the Claude
-import links, the chunk-index notices and the options ([792d103](./792d_decision-log.md#792d103-install-and-update-scope-ownership-of-the-update-run-and-the-behaviors-the-code-shows)). Extended components: subprocess-runner
+import links, the chunk-index notices and the options ([792d103](./792d_decision-log.md#792d103-install-and-update-scope-ownership-of-the-update-run-and-the-behaviors-the-code-shows)). Extended components: subprocess-runner ([792b4 subprocess-runner](./792b_technical-spec.md#792b4-added-subprocess-runner))
 gains [792b4c4](./792b_technical-spec.md#792b4c4-run-with-the-callers-streams) (the spawn that shares the caller's streams, with the tests listed in [792d51](./792d_decision-log.md#792d51-command-line-surface-routing-requirements-arrive-with-their-scenarios)), and
-chunk-index-store gains [792b18c15](./792b_technical-spec.md#792b18c15-reporting-a-prune-backlog) (the prune-backlog check behind the two notices). command-line-surface
-and note-reparenting gain nothing: the `update` command's flags, routing and report belong to
+chunk-index-store ([792b18 chunk-index-store](./792b_technical-spec.md#792b18-added-chunk-index-store)) gains [792b18c15](./792b_technical-spec.md#792b18c15-reporting-a-prune-backlog) (the prune-backlog check behind the two notices). command-line-surface ([792b2 command-line-surface](./792b_technical-spec.md#792b2-added-command-line-surface))
+and note-reparenting ([792b27 note-reparenting](./792b_technical-spec.md#792b27-added-note-reparenting)) gain nothing: the `update` command's flags, routing and report belong to
 self-installer ([792d101](./792d_decision-log.md#792d101-vault-migration-scope-and-the-behaviors-the-code-shows), [792d103](./792d_decision-log.md#792d103-install-and-update-scope-ownership-of-the-update-run-and-the-behaviors-the-code-shows)), and the flat-vault detection was mapped by [792c7i2](#792c7i2-note-reparenting-tech-spec). The scenarios of
 [792a11](./792a_product-spec.md#792a11-added-install-and-update) are mapped by self-installer ([792c7j2](#792c7j2-self-installer-tech-spec)) and harness-deploy-sync ([792c7j3](#792c7j3-harness-deploy-sync-tech-spec)), where their tests are
 renamed. Legacy removal: ADR-0021 is deleted (its decision 9 is the rationale of [792a11n](./792a_product-spec.md#792a11n-backlog-notices-for-the-chunk-index)) and
@@ -3161,7 +3161,7 @@ negative control, which runs from a checkout, asserts nothing about the shims.
 
 #### 792c7j2 self-installer tech spec
 
-Target: [792b28](./792b_technical-spec.md#792b28-added-self-installer) (`docs/specs/technical/self-installer.md`).
+Target: [792b28](./792b_technical-spec.md#792b28-added-self-installer) ([`docs/specs/technical/self-installer.md`](../../specs/technical/self-installer.md)).
 
 - Ownership: Repository-owned dependency-boundary interaction (Go toolchain and git).
 - Current realization (informational): `internal/update` reexec, downgrade guard, binary-path resolution; `internal/cli/update.go` install phase.
@@ -3292,11 +3292,11 @@ to skill-runbook-registration ([792c7k1](#792c7k1-skill-runbook-registration-pro
 
 #### 792c7j3 harness-deploy-sync tech spec
 
-Target: [792b29](./792b_technical-spec.md#792b29-added-harness-deploy-sync) (`docs/specs/technical/harness-deploy-sync.md`).
+Target: [792b29](./792b_technical-spec.md#792b29-added-harness-deploy-sync) ([`docs/specs/technical/harness-deploy-sync.md`](../../specs/technical/harness-deploy-sync.md)).
 
 - Ownership: Repository-owned dependency-boundary interaction (harness configuration directories).
 - Current realization (informational): `internal/update` sync, symlink, migration; `internal/cli/update.go` sync phase.
-- Later capabilities that extend it: skill-runbook-registration, ambient-guidance.
+- Later capabilities that extend it: skill-runbook-registration ([792a12 skill-runbook-registration](./792a_product-spec.md#792a12-added-skill-runbook-registration)), ambient-guidance ([792a19 ambient-guidance](./792a_product-spec.md#792a19-added-ambient-guidance)).
 
 **Legacy sources (port, then remove):**
 
@@ -3496,7 +3496,7 @@ update package's tests (`memFS`, `fakeCmd`, `fakeEnv`, `engramFaultFS`, `symlink
 
 #### 792c7k1 skill-runbook-registration product spec
 
-Target: [792a12](./792a_product-spec.md#792a12-added-skill-runbook-registration) (`docs/specs/product/skill-runbook-registration.md`).
+Target: [792a12](./792a_product-spec.md#792a12-added-skill-runbook-registration) ([`docs/specs/product/skill-runbook-registration.md`](../../specs/product/skill-runbook-registration.md)).
 
 **Legacy sources (port, then remove):**
 
@@ -3545,11 +3545,11 @@ Target: [792a12](./792a_product-spec.md#792a12-added-skill-runbook-registration)
 offers and declines, the accepted registration, refresh and removal, the terminal gate, the standalone
 command, adoption, the Claude, Pi, plugin and project sources, the harness gate, the keys, copies and
 conflicts, removal eligibility, scopes and answers, the declines file, the update step, the skill identity
-fields, and the skill note as a runbook ([792d106](./792d_decision-log.md#792d106-skill-runbook-registration-scope-and-the-behaviors-the-code-shows)). Extended components: note-document-format gains [792b6c9](./792b_technical-spec.md#792b6c9-skill-identity-fields)
-(the three fields in the document) and [792b6c10](./792b_technical-spec.md#792b6c10-rewrites-by-other-writers-keep-the-skill-identity-fields) (every other writer keeps them), note-authoring gains
-[792b12c7](./792b_technical-spec.md#792b12c7-skill-identity-fields-are-not-written-by-learn) (learn never writes them), note-reparenting gains mappings for adoption ([792b27c6](./792b_technical-spec.md#792b27c6-rename-and-link-rewrite), [792b27c7](./792b_technical-spec.md#792b27c7-rename-safety)), and
-self-installer gains [792b28c16](./792b_technical-spec.md#792b28c16-the-registration-step) (the registration step). command-line-surface and harness-deploy-sync gain
-nothing: the `register-skills` flags and routing are skill-registration-ledger's ([792c7k3](#792c7k3-skill-registration-ledger-tech-spec)), and the
+fields, and the skill note as a runbook ([792d106](./792d_decision-log.md#792d106-skill-runbook-registration-scope-and-the-behaviors-the-code-shows)). Extended components: note-document-format ([792b6 note-document-format](./792b_technical-spec.md#792b6-added-note-document-format)) gains [792b6c9](./792b_technical-spec.md#792b6c9-skill-identity-fields)
+(the three fields in the document) and [792b6c10](./792b_technical-spec.md#792b6c10-rewrites-by-other-writers-keep-the-skill-identity-fields) (every other writer keeps them), note-authoring ([792b12 note-authoring](./792b_technical-spec.md#792b12-added-note-authoring)) gains
+[792b12c7](./792b_technical-spec.md#792b12c7-skill-identity-fields-are-not-written-by-learn) (learn never writes them), note-reparenting ([792b27 note-reparenting](./792b_technical-spec.md#792b27-added-note-reparenting)) gains mappings for adoption ([792b27c6](./792b_technical-spec.md#792b27c6-rename-and-link-rewrite), [792b27c7](./792b_technical-spec.md#792b27c7-rename-safety)), and
+self-installer ([792b28 self-installer](./792b_technical-spec.md#792b28-added-self-installer)) gains [792b28c16](./792b_technical-spec.md#792b28c16-the-registration-step) (the registration step). command-line-surface ([792b2 command-line-surface](./792b_technical-spec.md#792b2-added-command-line-surface)) and harness-deploy-sync ([792b29 harness-deploy-sync](./792b_technical-spec.md#792b29-added-harness-deploy-sync)) gain
+nothing: the `register-skills` flags and routing are skill-registration-ledger ([792b31 skill-registration-ledger](./792b_technical-spec.md#792b31-added-skill-registration-ledger))'s ([792c7k3](#792c7k3-skill-registration-ledger-tech-spec)), and the
 harness detection the sources use is [792b29c1](./792b_technical-spec.md#792b29c1-harness-detection) as it stands. Legacy removal: ADR-0015's and ADR-0026's
 2026-09-26 amendments, the `update-deploy-sync` spec, the "no metadata" requirement of
 `skill-runbook-registration`, the skill runbook note requirement of `learn-runbook-capture` and the two
@@ -3606,7 +3606,7 @@ skill-registration-ledger ([792c7k3](#792c7k3-skill-registration-ledger-tech-spe
 
 #### 792c7k2 skill-source-discovery tech spec
 
-Target: [792b30](./792b_technical-spec.md#792b30-added-skill-source-discovery) (`docs/specs/technical/skill-source-discovery.md`).
+Target: [792b30](./792b_technical-spec.md#792b30-added-skill-source-discovery) ([`docs/specs/technical/skill-source-discovery.md`](../../specs/technical/skill-source-discovery.md)).
 
 - Ownership: Repository-owned dependency-boundary interaction (harness configuration files and plugin manifests).
 - Current realization (informational): `internal/cli/skillsources*.go`, `skillkeys.go`.
@@ -3799,7 +3799,7 @@ and `TestFindSkillNote_SlugAloneLocatesNothing`, and `register_skills_resolve_te
 
 #### 792c7k3 skill-registration-ledger tech spec
 
-Target: [792b31](./792b_technical-spec.md#792b31-added-skill-registration-ledger) (`docs/specs/technical/skill-registration-ledger.md`).
+Target: [792b31](./792b_technical-spec.md#792b31-added-skill-registration-ledger) ([`docs/specs/technical/skill-registration-ledger.md`](../../specs/technical/skill-registration-ledger.md)).
 
 - Ownership: Repository component; terminal detection boundary.
 - Current realization (informational): `internal/cli/skillreg*.go`, `skilloffers.go`, `skillanswers.go`.
@@ -4000,7 +4000,7 @@ one ([792d106](./792d_decision-log.md#792d106-skill-runbook-registration-scope-a
 
 #### 792c7l1 write-memory product spec
 
-Target: [792a13](./792a_product-spec.md#792a13-added-write-memory) (`docs/specs/product/write-memory.md`).
+Target: [792a13](./792a_product-spec.md#792a13-added-write-memory) ([`docs/specs/product/write-memory.md`](../../specs/product/write-memory.md)).
 
 **Legacy sources (port, then remove):**
 
@@ -4041,8 +4041,8 @@ Target: [792a13](./792a_product-spec.md#792a13-added-write-memory) (`docs/specs/
 [792a13](./792a_product-spec.md#792a13-added-write-memory) has fourteen requirements ([792a13a](./792a_product-spec.md#792a13a-the-worker-runs-only-on-a-handoff-and-never-re-judges-it) to [792a13n](./792a_product-spec.md#792a13n-the-write-is-verified-and-reported)): the handoff-only rule, invocation by name, the handoff and
 its missing fields, the fact and feedback, runbook and question-and-answer compositions, placement, flag quoting,
 provenance and tags, the tag-free qa note, the kind and notation rules, trigger pass-through and cue authoring,
-and verification ([792d109](./792d_decision-log.md#792d109-write-memory-scope-and-what-the-skill-text-alone-verifies)). Extended components: note-authoring gains mapping rows for nine scenarios ([792b12c1](./792b_technical-spec.md#792b12c1-argument-validation),
-[792b12c3](./792b_technical-spec.md#792b12c3-locked-write), [792b12c4](./792b_technical-spec.md#792b12c4-arguments-to-fields), [792b12c5](./792b_technical-spec.md#792b12c5-question-and-answer-write)) and nothing else; note-amendment gains nothing, because no write-memory scenario
+and verification ([792d109](./792d_decision-log.md#792d109-write-memory-scope-and-what-the-skill-text-alone-verifies)). Extended components: note-authoring ([792b12 note-authoring](./792b_technical-spec.md#792b12-added-note-authoring)) gains mapping rows for nine scenarios ([792b12c1](./792b_technical-spec.md#792b12c1-argument-validation),
+[792b12c3](./792b_technical-spec.md#792b12c3-locked-write), [792b12c4](./792b_technical-spec.md#792b12c4-arguments-to-fields), [792b12c5](./792b_technical-spec.md#792b12c5-question-and-answer-write)) and nothing else; note-amendment ([792b14 note-amendment](./792b_technical-spec.md#792b14-added-note-amendment)) gains nothing, because no write-memory scenario
 amends a note. Legacy removal: `learn-runbook-capture` is deleted (its skill note requirement went in [792c7k1](#792c7k1-skill-runbook-registration-product-spec) and
 the write-memory requirement here); five requirements of `write-memory-worker` (worker handoff, three kinds, chunk
 sources and tags, verification, trigger pass-through) and the trigger-cue authoring requirement of
@@ -4052,7 +4052,7 @@ to the deleted spec (two Go comments, one research map) point at [792a13](./792a
 **Test Traceability**
 
 No test is renamed. The write-memory worker is a markdown skill with no `tests/` baseline directory, and the
-note-authoring tests that verify the mapped scenarios are already named for their technical scenarios ([792b12c1](./792b_technical-spec.md#792b12c1-argument-validation)
+note-authoring ([792b12 note-authoring](./792b_technical-spec.md#792b12-added-note-authoring)) tests that verify the mapped scenarios are already named for their technical scenarios ([792b12c1](./792b_technical-spec.md#792b12c1-argument-validation)
 to [792b12c5](./792b_technical-spec.md#792b12c5-question-and-answer-write)).
 
 **Coverage gaps:** every scenario of [792a13](./792a_product-spec.md#792a13-added-write-memory) except the nine mapped to note-authoring ([792a13e1a](./792a_product-spec.md#792a13e1-uat-scenarios), [792a13f1a](./792a_product-spec.md#792a13f1-uat-scenarios),
@@ -4065,11 +4065,11 @@ no deterministic test. Its only evidence is the text-only skill runs recorded at
 
 #### 792c7l2 agent-instruction-bundle tech spec
 
-Target: [792b32](./792b_technical-spec.md#792b32-added-agent-instruction-bundle) (`docs/specs/technical/agent-instruction-bundle.md`).
+Target: [792b32](./792b_technical-spec.md#792b32-added-agent-instruction-bundle) ([`docs/specs/technical/agent-instruction-bundle.md`](../../specs/technical/agent-instruction-bundle.md)).
 
 - Ownership: Repository component (shipped skill and guidance markdown).
 - Current realization (informational): `agent-instructions/skills/*`, `agent-instructions/guidance/*`.
-- Later capabilities that extend it: recall, learn, lessons-contract, route, please, ambient-guidance, curate.
+- Later capabilities that extend it: recall ([792a14 recall](./792a_product-spec.md#792a14-added-recall)), learn ([792a15 learn](./792a_product-spec.md#792a15-added-learn)), lessons-contract ([792a16 lessons-contract](./792a_product-spec.md#792a16-added-lessons-contract)), route ([792a17 route](./792a_product-spec.md#792a17-added-route)), please ([792a18 please](./792a_product-spec.md#792a18-added-please)), ambient-guidance ([792a19 ambient-guidance](./792a_product-spec.md#792a19-added-ambient-guidance)), curate ([792a22 curate](./792a_product-spec.md#792a22-added-curate)).
 
 **Legacy sources (port, then remove):**
 
@@ -4119,7 +4119,7 @@ are non-Go evidence for their skills' capabilities ([792c7m1](#792c7m1-recall-pr
 
 #### 792c7m1 recall product spec
 
-Target: [792a14](./792a_product-spec.md#792a14-added-recall) (`docs/specs/product/recall.md`).
+Target: [792a14](./792a_product-spec.md#792a14-added-recall) ([`docs/specs/product/recall.md`](../../specs/product/recall.md)).
 
 **Legacy sources (port, then remove):**
 
@@ -4161,8 +4161,8 @@ Target: [792a14](./792a_product-spec.md#792a14-added-recall) (`docs/specs/produc
 glance's escalation, the ten phrases, the single query, reading the payload, reading chunk content before
 judging, recency weighting, coverage and its writes, parent notes, activation, the closing synthesis,
 reconciling a recommendation, the re-entry check, persisting a conclusion and its qa capture ([792d111](./792d_decision-log.md#792d111-recall-scope-the-tests-it-leaves-and-known-divergences)). Extended
-components: query-engine gains mapping rows for [792b24c1](./792b_technical-spec.md#792b24c1-input-and-defaults), [792b24c10](./792b_technical-spec.md#792b24c10-candidate-notes) and [792b24c19](./792b_technical-spec.md#792b24c19-the-newest-chunks), query-payload-renderer gains
-[792b23c5](./792b_technical-spec.md#792b23c5-lazy-chunks), note-amendment gains [792b14c3](./792b_technical-spec.md#792b14c3-field-replacement), [792b14c4](./792b_technical-spec.md#792b14c4-supersessions-and-chunk-sources), [792b14c9](./792b_technical-spec.md#792b14c9-recording-a-use) and [792b14c10](./792b_technical-spec.md#792b14c10-activation-refs), and agent-instruction-bundle gains
+components: query-engine ([792b24 query-engine](./792b_technical-spec.md#792b24-added-query-engine)) gains mapping rows for [792b24c1](./792b_technical-spec.md#792b24c1-input-and-defaults), [792b24c10](./792b_technical-spec.md#792b24c10-candidate-notes) and [792b24c19](./792b_technical-spec.md#792b24c19-the-newest-chunks), query-payload-renderer ([792b23 query-payload-renderer](./792b_technical-spec.md#792b23-added-query-payload-renderer)) gains
+[792b23c5](./792b_technical-spec.md#792b23c5-lazy-chunks), note-amendment ([792b14 note-amendment](./792b_technical-spec.md#792b14-added-note-amendment)) gains [792b14c3](./792b_technical-spec.md#792b14c3-field-replacement), [792b14c4](./792b_technical-spec.md#792b14c4-supersessions-and-chunk-sources), [792b14c9](./792b_technical-spec.md#792b14c9-recording-a-use) and [792b14c10](./792b_technical-spec.md#792b14c10-activation-refs), and agent-instruction-bundle ([792b32 agent-instruction-bundle](./792b_technical-spec.md#792b32-added-agent-instruction-bundle)) gains
 [792b32c2](./792b_technical-spec.md#792b32c2-free-text-flag-values-use-the-attached-form) and [792b32c3](./792b_technical-spec.md#792b32c3-a-skill-states-the-attached-form-once); none gains a requirement, because the sources carry none for them. Legacy removal: the
 `recall-glance-deep-dial` and `recall-payload-cuts` specs, the superpowers plan for #733 and the `docs/deprecated/superpowers`
 directory it emptied are deleted, together with the skill steps of the context view's recall flow and the
@@ -4171,7 +4171,7 @@ and the guidance spec that cited the dial spec, point at [792a14](./792a_product
 
 **Test Traceability**
 
-No Go or Python test is renamed: recall is a markdown skill, and the tests that verify the mapped technical
+No Go or Python test is renamed: recall ([792a14 recall](./792a_product-spec.md#792a14-added-recall)) is a markdown skill, and the tests that verify the mapped technical
 scenarios already carry their technical scenario IDs. The baselines under `agent-instructions/skills/recall/tests`
 are the skill's tests (`README.md` indexes them). They are scenario inputs for a writing-skills RED/GREEN cycle and
 keep their names ([792d111](./792d_decision-log.md#792d111-recall-scope-the-tests-it-leaves-and-known-divergences)).
@@ -4197,7 +4197,7 @@ phrases and `engram show` of candidates, which the shipped skill no longer says 
 
 #### 792c7n1 learn product spec
 
-Target: [792a15](./792a_product-spec.md#792a15-added-learn) (`docs/specs/product/learn.md`).
+Target: [792a15](./792a_product-spec.md#792a15-added-learn) ([`docs/specs/product/learn.md`](../../specs/product/learn.md)).
 
 **Legacy sources (port, then remove):**
 
@@ -4239,9 +4239,9 @@ Target: [792a15](./792a_product-spec.md#792a15-added-learn) (`docs/specs/product
 [792a15](./792a_product-spec.md#792a15-added-learn) has twelve requirements ([792a15a](./792a_product-spec.md#792a15a-learn-writes-only-explicit-lessons) to [792a15l](./792a_product-spec.md#792a15l-the-re-parent-batch-mode)): the writes learn does not make, the sweep, the single-note
 capture at a correction, the vocabulary check and refit, the four kinds, reversals, the confirmed-approach bar and
 its routing by shape, placement, the general principle, the parent-offer report, the answered-question pair and the
-re-parent batch mode ([792d112](./792d_decision-log.md#792d112-learn-scope-the-tests-it-leaves-and-known-divergences)). Extended components: note-authoring gains mapping rows for [792b12c3](./792b_technical-spec.md#792b12c3-locked-write) and [792b12c5](./792b_technical-spec.md#792b12c5-question-and-answer-write),
-chunk-index-store gains [792b18c3](./792b_technical-spec.md#792b18c3-change-detection), and vocabulary-engine, which the catalog did not list, gains [792b20c7](./792b_technical-spec.md#792b20c7-statistics), [792b20c15](./792b_technical-spec.md#792b20c15-refit-routing),
-[792b20c16](./792b_technical-spec.md#792b20c16-naming-requests), [792b20c17](./792b_technical-spec.md#792b20c17-naming-answers) and [792b20c18](./792b_technical-spec.md#792b20c18-applying-a-derivation) because the refit procedure's binary half lives there; agent-instruction-bundle
+re-parent batch mode ([792d112](./792d_decision-log.md#792d112-learn-scope-the-tests-it-leaves-and-known-divergences)). Extended components: note-authoring ([792b12 note-authoring](./792b_technical-spec.md#792b12-added-note-authoring)) gains mapping rows for [792b12c3](./792b_technical-spec.md#792b12c3-locked-write) and [792b12c5](./792b_technical-spec.md#792b12c5-question-and-answer-write),
+chunk-index-store ([792b18 chunk-index-store](./792b_technical-spec.md#792b18-added-chunk-index-store)) gains [792b18c3](./792b_technical-spec.md#792b18c3-change-detection), and vocabulary-engine ([792b20 vocabulary-engine](./792b_technical-spec.md#792b20-added-vocabulary-engine)), which the catalog did not list, gains [792b20c7](./792b_technical-spec.md#792b20c7-statistics), [792b20c15](./792b_technical-spec.md#792b20c15-refit-routing),
+[792b20c16](./792b_technical-spec.md#792b20c16-naming-requests), [792b20c17](./792b_technical-spec.md#792b20c17-naming-answers) and [792b20c18](./792b_technical-spec.md#792b20c18-applying-a-derivation) because the refit procedure's binary half lives there; agent-instruction-bundle ([792b32 agent-instruction-bundle](./792b_technical-spec.md#792b32-added-agent-instruction-bundle))
 gains nothing. Legacy removal: the `learn-adhoc-qa-capture` and `learn-branching-disposition` specs are deleted;
 the four-kinds requirement is removed from `write-memory-worker`; the learn flow of the context view, the whole
 key-flows section of the container view (its learn flow and flowchart, and the boundary text its introduction
@@ -4249,7 +4249,7 @@ repeated) and the "not made into ADRs" section of the ADR file are deleted; ADR-
 
 **Test Traceability**
 
-No Go or Python test is renamed: learn is a markdown skill. The baselines under
+No Go or Python test is renamed: learn ([792a15 learn](./792a_product-spec.md#792a15-added-learn)) is a markdown skill. The baselines under
 `agent-instructions/skills/learn/tests` are its tests (`README.md` indexes them) and keep their names ([792d112](./792d_decision-log.md#792d112-learn-scope-the-tests-it-leaves-and-known-divergences)).
 
 | Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
@@ -4275,7 +4275,7 @@ path was removed from the skill, which the restored placement step ([792a15h](./
 
 #### 792c7o1 lessons-contract product spec
 
-Target: [792a16](./792a_product-spec.md#792a16-added-lessons-contract) (`docs/specs/product/lessons-contract.md`).
+Target: [792a16](./792a_product-spec.md#792a16-added-lessons-contract) ([`docs/specs/product/lessons-contract.md`](../../specs/product/lessons-contract.md)).
 
 **Legacy sources (port, then remove):**
 
@@ -4307,7 +4307,7 @@ Target: [792a16](./792a_product-spec.md#792a16-added-lessons-contract) (`docs/sp
 
 [792a16](./792a_product-spec.md#792a16-added-lessons-contract) has seven requirements ([792a16a](./792a_product-spec.md#792a16a-a-completion-report-ends-with-a-lessons-line) to [792a16g](./792a_product-spec.md#792a16g-a-confirmed-approach-is-looked-for-at-the-moment-of-confirmation)): the line, the handoff that mandates it, the single re-ask,
 verbatim recording, judging at the return, the whole list for the closing learn, and the completion-moment scan
-for confirmed approaches ([792d113](./792d_decision-log.md#792d113-lessons-contract-scope-and-where-the-sources-differ-from-the-skills)). agent-instruction-bundle gains nothing: no scenario of the contract is a
+for confirmed approaches ([792d113](./792d_decision-log.md#792d113-lessons-contract-scope-and-where-the-sources-differ-from-the-skills)). agent-instruction-bundle ([792b32 agent-instruction-bundle](./792b_technical-spec.md#792b32-added-agent-instruction-bundle)) gains nothing: no scenario of the contract is a
 property of the shipped text's metadata, form or vault path. Legacy removal: the `lessons-contract`, `learn`,
 `please` and `route` OpenSpec specs are deleted, because each held only the `LESSONS:` slice and every one of
 their requirements and scenarios is in [792a16](./792a_product-spec.md#792a16-added-lessons-contract) (the `please` scenario "Re-executed work after gate rejection" is
@@ -4334,7 +4334,7 @@ by the skill text), and `learn/tests` has no baseline for the closing-learn cura
 
 #### 792c7p1 route product spec
 
-Target: [792a17](./792a_product-spec.md#792a17-added-route) (`docs/specs/product/route.md`).
+Target: [792a17](./792a_product-spec.md#792a17-added-route) ([`docs/specs/product/route.md`](../../specs/product/route.md)).
 
 **Legacy sources (port, then remove):**
 
@@ -4374,9 +4374,9 @@ Target: [792a17](./792a_product-spec.md#792a17-added-route) (`docs/specs/product
 [792a17](./792a_product-spec.md#792a17-added-route) has fifteen requirements ([792a17a](./792a_product-spec.md#792a17a-the-orchestrator-routes-and-delegates) to [792a17o](./792a_product-spec.md#792a17o-the-loop-improves-the-rubric)): delegation, the starting tier, spec-first retry, the memory
 discount, the cheap tier by environment, the cold-start priors, the exact handoff, recall-first and decomposition,
 the mini-report row, cost and duration, the tagged evidence note, the aggregate, the count audit, the drowning audit
-and the improving loop ([792d114](./792d_decision-log.md#792d114-route-scope-the-skillmd-repoint-and-where-the-sources-differ-from-the-skill)). Extended components: vault-counter gains mapping rows for [792b25c2](./792b_technical-spec.md#792b25c2-attribute-membership-counting) and [792b25c3](./792b_technical-spec.md#792b25c3-filters),
-note-authoring gains [792b12c1](./792b_technical-spec.md#792b12c1-argument-validation) and [792b12c4](./792b_technical-spec.md#792b12c4-arguments-to-fields), note-amendment gains [792b14c3](./792b_technical-spec.md#792b14c3-field-replacement) (the last two were not on the catalog's
-list; the tests named in the legacy spec verify them), and agent-instruction-bundle gains nothing. Legacy removal:
+and the improving loop ([792d114](./792d_decision-log.md#792d114-route-scope-the-skillmd-repoint-and-where-the-sources-differ-from-the-skill)). Extended components: vault-counter ([792b25 vault-counter](./792b_technical-spec.md#792b25-added-vault-counter)) gains mapping rows for [792b25c2](./792b_technical-spec.md#792b25c2-attribute-membership-counting) and [792b25c3](./792b_technical-spec.md#792b25c3-filters),
+note-authoring ([792b12 note-authoring](./792b_technical-spec.md#792b12-added-note-authoring)) gains [792b12c1](./792b_technical-spec.md#792b12c1-argument-validation) and [792b12c4](./792b_technical-spec.md#792b12c4-arguments-to-fields), note-amendment ([792b14 note-amendment](./792b_technical-spec.md#792b14-added-note-amendment)) gains [792b14c3](./792b_technical-spec.md#792b14c3-field-replacement) (the last two were not on the catalog's
+list; the tests named in the legacy spec verify them), and agent-instruction-bundle ([792b32 agent-instruction-bundle](./792b_technical-spec.md#792b32-added-agent-instruction-bundle)) gains nothing. Legacy removal:
 the `route-evidence-rubric` and `route-dispatch-evidence` specs, ADR-0014 and ADR-0017 and the route paragraph of
 the context view's out-of-scope section are deleted. Repointed: the ROADMAP row that cited ADR-0017, and the four
 stale citations in route's `SKILL.md` (a pure reference repoint, see [792d114](./792d_decision-log.md#792d114-route-scope-the-skillmd-repoint-and-where-the-sources-differ-from-the-skill)): ADR-0019 became [792a6c](./792a_product-spec.md#792a6c-categorical-tags-share-one-list) in three
@@ -4399,7 +4399,7 @@ authored at edit time), and `memory-discount-microtest.json` is a fixture for th
 **Coverage gaps:** no test or baseline covers any other scenario of [792a17](./792a_product-spec.md#792a17-added-route). The scenarios of [792a17b](./792a_product-spec.md#792a17b-the-starting-tier-comes-from-recalled-evidence-otherwise-the-cheapest-tier) to [792a17j](./792a_product-spec.md#792a17j-cost-and-duration-are-real-or-stated-as-unavailable) are
 behaviors of the skill text, measured by the tier-routing parity run (`dev/eval/LEDGER.md#tier-routing-parity`).
 [792a17l](./792a_product-spec.md#792a17l-each-work-kind-keeps-one-aggregate-note), [792a17n](./792a_product-spec.md#792a17n-drowning-is-reported-not-patched) and [792a17o](./792a_product-spec.md#792a17o-the-loop-improves-the-rubric) are verified only by the scratch-vault gauge the legacy spec cites (20 evidence notes
-and one aggregate). [792a17m1a](./792a_product-spec.md#792a17m1-uat-scenarios) and [792a17m1c](./792a_product-spec.md#792a17m1-uat-scenarios) are mapped to vault-counter, whose scenarios have their own tests ([792b25](./792b_technical-spec.md#792b25-added-vault-counter)).
+and one aggregate). [792a17m1a](./792a_product-spec.md#792a17m1-uat-scenarios) and [792a17m1c](./792a_product-spec.md#792a17m1-uat-scenarios) are mapped to vault-counter ([792b25 vault-counter](./792b_technical-spec.md#792b25-added-vault-counter)), whose scenarios have their own tests ([792b25](./792b_technical-spec.md#792b25-added-vault-counter)).
 
 **No-scenario tests:** `agent-instructions/skills/route/tests/memory-discount-microtest.json`, a fixture of the
 memory-discount measurement, keeps its name.
@@ -4408,7 +4408,7 @@ memory-discount measurement, keeps its name.
 
 #### 792c7q1 please product spec
 
-Target: [792a18](./792a_product-spec.md#792a18-added-please) (`docs/specs/product/please.md`).
+Target: [792a18](./792a_product-spec.md#792a18-added-please) ([`docs/specs/product/please.md`](../../specs/product/please.md)).
 
 **Legacy sources (port, then remove):**
 
@@ -4446,7 +4446,7 @@ Target: [792a18](./792a_product-spec.md#792a18-added-please) (`docs/specs/produc
 non-waivable steps, the opening learn and orientation, the challenge, anti-displacement, the plan, the enumeration
 grep, TDD, documentation, completion, the four gates and their staffing, the reviewer charges, the argument to
 resolution, escalation provenance, the lessons audit, the question of what should have surfaced a lesson, the closing
-learn and delegation ([792d115](./792d_decision-log.md#792d115-please-scope-and-where-the-sources-differ-from-the-skill)). agent-instruction-bundle gains nothing: no scenario of the workflow is a property of
+learn and delegation ([792d115](./792d_decision-log.md#792d115-please-scope-and-where-the-sources-differ-from-the-skill)). agent-instruction-bundle ([792b32 agent-instruction-bundle](./792b_technical-spec.md#792b32-added-agent-instruction-bundle)) gains nothing: no scenario of the workflow is a property of
 the shipped text's metadata, form or vault path. Legacy removal: the `please-doc-enumeration-gate` and
 `write-memory-worker` OpenSpec specs are deleted (their last requirements), and the context view's please flow,
 decision flowchart and gates companion are removed. Repointed: the GLOSSARY entry for the surprise harvest, the
@@ -4454,7 +4454,7 @@ ROADMAP row for #768, and the context view's flowchart intro.
 
 **Test Traceability**
 
-No test is renamed: please is a markdown skill with no `tests/` directory. Its evidence is the eval ledger and the
+No test is renamed: please ([792a18 please](./792a_product-spec.md#792a18-added-please)) is a markdown skill with no `tests/` directory. Its evidence is the eval ledger and the
 confined headless harnesses, not a test of this repository's code, and those keep their names ([792d115](./792d_decision-log.md#792d115-please-scope-and-where-the-sources-differ-from-the-skill)).
 
 | Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
@@ -4473,7 +4473,7 @@ which is a historical record.
 
 #### 792c7r1 ambient-guidance product spec
 
-Target: [792a19](./792a_product-spec.md#792a19-added-ambient-guidance) (`docs/specs/product/ambient-guidance.md`).
+Target: [792a19](./792a_product-spec.md#792a19-added-ambient-guidance) ([`docs/specs/product/ambient-guidance.md`](../../specs/product/ambient-guidance.md)).
 
 **Legacy sources (port, then remove):**
 
@@ -4522,9 +4522,9 @@ delegate guidance (plan and route every unit, solo work only on a recorded measu
 report), the shim (the first query, the second phrase, the kinds, announce and restate, red flags, `done_when`, the
 genuine-uncertainty stop, linked and skill-named runbooks, the floor, the unrequested-work signal, the four re-entry
 moments), the additive activation of the shim, the update report's activation hints and the engagement lifecycle
-([792d116](./792d_decision-log.md#792d116-ambient-guidance-scope-the-guidance-edits-and-where-the-sources-differ-from-the-documents)). harness-deploy-sync gains [792b29c18](./792b_technical-spec.md#792b29c18-guidance-activation-hints) (the activation hints) and mapping rows for [792a19u](./792a_product-spec.md#792a19u-the-shim-joins-the-other-guidance-additively) and [792a19v](./792a_product-spec.md#792a19v-the-update-report-says-how-to-activate-guidance);
-runbook-trigger-matching gains rows for [792b22c2](./792b_technical-spec.md#792b22c2-whole-word-occurrence), [792b22c3](./792b_technical-spec.md#792b22c3-the-hits) and [792b22c7](./792b_technical-spec.md#792b22c7-no-message-no-matching); query-engine gains rows for [792b24c1](./792b_technical-spec.md#792b24c1-input-and-defaults); and
-agent-instruction-bundle gains a row for [792b32c2](./792b_technical-spec.md#792b32c2-free-text-flag-values-use-the-attached-form) and [792b32c3](./792b_technical-spec.md#792b32c3-a-skill-states-the-attached-form-once). Legacy removal: the five `guidance-*` and
+([792d116](./792d_decision-log.md#792d116-ambient-guidance-scope-the-guidance-edits-and-where-the-sources-differ-from-the-documents)). harness-deploy-sync ([792b29 harness-deploy-sync](./792b_technical-spec.md#792b29-added-harness-deploy-sync)) gains [792b29c18](./792b_technical-spec.md#792b29c18-guidance-activation-hints) (the activation hints) and mapping rows for [792a19u](./792a_product-spec.md#792a19u-the-shim-joins-the-other-guidance-additively) and [792a19v](./792a_product-spec.md#792a19v-the-update-report-says-how-to-activate-guidance);
+runbook-trigger-matching ([792b22 runbook-trigger-matching](./792b_technical-spec.md#792b22-added-runbook-trigger-matching)) gains rows for [792b22c2](./792b_technical-spec.md#792b22c2-whole-word-occurrence), [792b22c3](./792b_technical-spec.md#792b22c3-the-hits) and [792b22c7](./792b_technical-spec.md#792b22c7-no-message-no-matching); query-engine ([792b24 query-engine](./792b_technical-spec.md#792b24-added-query-engine)) gains rows for [792b24c1](./792b_technical-spec.md#792b24c1-input-and-defaults); and
+agent-instruction-bundle ([792b32 agent-instruction-bundle](./792b_technical-spec.md#792b32-added-agent-instruction-bundle)) gains a row for [792b32c2](./792b_technical-spec.md#792b32c2-free-text-flag-values-use-the-attached-form) and [792b32c3](./792b_technical-spec.md#792b32c3-a-skill-states-the-attached-form-once). Legacy removal: the five `guidance-*` and
 `production-guidance-activation` OpenSpec specs are deleted, the shim requirement is removed from
 `runbook-lexical-triggers` (its served residue stays for [792c7s1](#792c7s1-vault-serving-product-spec)), ADR-0026 becomes a pointer, and the context view's
 decision flowchart is removed. Repointed: the `ADR-0022 D9` citations in the three firing guidance documents and the
@@ -4561,7 +4561,7 @@ verify the guard itself and no scenario; they keep their names.
 
 #### 792c7s1 vault-serving product spec
 
-Target: [792a20](./792a_product-spec.md#792a20-added-vault-serving) (`docs/specs/product/vault-serving.md`).
+Target: [792a20](./792a_product-spec.md#792a20-added-vault-serving) ([`docs/specs/product/vault-serving.md`](../../specs/product/vault-serving.md)).
 
 **Legacy sources (port, then remove):**
 
@@ -4607,12 +4607,12 @@ Target: [792a20](./792a_product-spec.md#792a20-added-vault-serving) (`docs/specs
 the help, served commands that behave as the local ones, the pending offer and its receipt, the declared identity,
 the repo, vault name and first-write stamp, the lookup order of a served learn, the refusals, placement and tags, the
 fields a caller cannot set, the served show and its raw envelope, the served activate, the served query's text and
-dedupe keys, the size caps, and the receiving vault's own tagging ([792d117](./792d_decision-log.md#792d117-vault-serving-scope-what-stays-for-the-technical-node-and-where-the-sources-differ-from-the-server)). command-line-surface gains mapping rows
-for [792b2c2](./792b_technical-spec.md#792b2c2-vault-name-resolution) and [792b2c5](./792b_technical-spec.md#792b2c5-argument-refusal), note-provenance (added to the list, [792d117](./792d_decision-log.md#792d117-vault-serving-scope-what-stays-for-the-technical-node-and-where-the-sources-differ-from-the-server)) for [792b11c3](./792b_technical-spec.md#792b11c3-first-write-stamp), and note-authoring for [792b12c3](./792b_technical-spec.md#792b12c3-locked-write)
-and [792b12c6](./792b_technical-spec.md#792b12c6-vocabulary-tagging-after-a-write); query-engine gains nothing, because the served query is the route's ([792b35](./792b_technical-spec.md#792b35-added-vault-http-server)). Legacy removal: the
+dedupe keys, the size caps, and the receiving vault's own tagging ([792d117](./792d_decision-log.md#792d117-vault-serving-scope-what-stays-for-the-technical-node-and-where-the-sources-differ-from-the-server)). command-line-surface ([792b2 command-line-surface](./792b_technical-spec.md#792b2-added-command-line-surface)) gains mapping rows
+for [792b2c2](./792b_technical-spec.md#792b2c2-vault-name-resolution) and [792b2c5](./792b_technical-spec.md#792b2c5-argument-refusal), note-provenance ([792b11 note-provenance](./792b_technical-spec.md#792b11-added-note-provenance)) (added to the list, [792d117](./792d_decision-log.md#792d117-vault-serving-scope-what-stays-for-the-technical-node-and-where-the-sources-differ-from-the-server)) for [792b11c3](./792b_technical-spec.md#792b11c3-first-write-stamp), and note-authoring ([792b12 note-authoring](./792b_technical-spec.md#792b12-added-note-authoring)) for [792b12c3](./792b_technical-spec.md#792b12c3-locked-write)
+and [792b12c6](./792b_technical-spec.md#792b12c6-vocabulary-tagging-after-a-write); query-engine ([792b24 query-engine](./792b_technical-spec.md#792b24-added-query-engine)) gains nothing, because the served query is the route's ([792b35](./792b_technical-spec.md#792b35-added-vault-http-server)). Legacy removal: the
 `runbook-lexical-triggers` spec is deleted (its last requirement), the served-learn clause leaves
 `vault-note-identity`, and ADR-0029 D7 becomes a pointer. `vault-serve-api` stays for [792c7s4](#792c7s4-vault-http-server-tech-spec), whose technical contract
-reads the same requirements ([792d117](./792d_decision-log.md#792d117-vault-serving-scope-what-stays-for-the-technical-node-and-where-the-sources-differ-from-the-server)). Repointed: the three "belongs to vault-serving" statements in [792a](./792a_product-spec.md#documentation-framework-adoption---product-spec) and the
+reads the same requirements ([792d117](./792d_decision-log.md#792d117-vault-serving-scope-what-stays-for-the-technical-node-and-where-the-sources-differ-from-the-server)). Repointed: the three "belongs to vault-serving ([792a20 vault-serving](./792a_product-spec.md#792a20-added-vault-serving))" statements in [792a](./792a_product-spec.md#documentation-framework-adoption---product-spec) and the
 `--text` comment in `internal/cli/serve.go`.
 
 **Test Traceability**
@@ -4633,11 +4633,11 @@ boundary of [792a20m1b](./792a_product-spec.md#792a20m1-uat-scenarios), [792a20n
 
 #### 792c7s2 exchange-versioning tech spec
 
-Target: [792b33](./792b_technical-spec.md#792b33-added-exchange-versioning) (`docs/specs/technical/exchange-versioning.md`).
+Target: [792b33](./792b_technical-spec.md#792b33-added-exchange-versioning) ([`docs/specs/technical/exchange-versioning.md`](../../specs/technical/exchange-versioning.md)).
 
 - Ownership: Repository component.
 - Current realization (informational): `internal/cli/exchangehash.go`, `exchange_blocks.go`, `offer_receipt.go`, `exchangefields.go`.
-- Later capabilities that extend it: parent-sync, curate.
+- Later capabilities that extend it: parent-sync ([792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync)), curate ([792a22 curate](./792a_product-spec.md#792a22-added-curate)).
 
 **Legacy sources (port, then remove):**
 
@@ -4656,7 +4656,7 @@ Target: [792b33](./792b_technical-spec.md#792b33-added-exchange-versioning) (`do
 [792b33](./792b_technical-spec.md#792b33-added-exchange-versioning) has nine requirements ([792b33c1](./792b_technical-spec.md#792b33c1-the-exchange-hash) to [792b33c9](./792b_technical-spec.md#792b33c9-recording-an-offer-receipt)): the exchange hash, what it covers, the canonical body, the
 hash of an unreadable frontmatter, the three-way comparison, the exchange fields, the lazy exchange ID, the edit of
 the exchange blocks and the recording of an offer receipt ([792d118](./792d_decision-log.md#792d118-exchange-versioning-scope-requirements-with-no-product-scenario-yet-and-the-tests-it-keeps-apart)). It owns no sequence. Legacy removal: ADR-0029 D3
-and D4 become pointers (the consumers of the hash and the dedupe and survival sentences stay for parent-sync and
+and D4 become pointers (the consumers of the hash and the dedupe and survival sentences stay for parent-sync ([792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync)) and
 curate), and their rejected alternatives for the hash and the single link leave with them.
 
 **Test Traceability**
@@ -4698,23 +4698,23 @@ curate), and their rejected alternatives for the hash and the single link leave 
 | [792b6c7a7](./792b_technical-spec.md#792b6c7a-scenarios) | `Test792b6c7a7_RunAmend_ExchangeHashParityWithPreChangeAmend` (already named) | Golden parity | Amend keeps every exchange hash as the pre-change amend wrote it; owned by [792b6](./792b_technical-spec.md#792b6-added-note-document-format) | Done |
 
 **Coverage gaps:** [792b33c9a7](./792b_technical-spec.md#792b33c9a-scenarios) only (no direct test: the CRLF receipt is asserted only through the outbox drain, which
-is parent-sync's). [792b33c7a2](./792b_technical-spec.md#792b33c7a-scenarios), [792b33c7a3](./792b_technical-spec.md#792b33c7a-scenarios) and [792b33c9a6](./792b_technical-spec.md#792b33c9a-scenarios) are verified by `TestSetXIDField` with [792b33c7a1](./792b_technical-spec.md#792b33c7a-scenarios), and are
+is parent-sync ([792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync))'s). [792b33c7a2](./792b_technical-spec.md#792b33c7a-scenarios), [792b33c7a3](./792b_technical-spec.md#792b33c7a-scenarios) and [792b33c9a6](./792b_technical-spec.md#792b33c9a-scenarios) are verified by `TestSetXIDField` with [792b33c7a1](./792b_technical-spec.md#792b33c7a-scenarios), and are
 `split deferred`. The mapped product scenarios
 [792a20d1a](./792a_product-spec.md#792a20d1-uat-scenarios), [792a20j1a](./792a_product-spec.md#792a20j1-uat-scenarios), [792a20j1b](./792a_product-spec.md#792a20j1-uat-scenarios), [792a20k1a](./792a_product-spec.md#792a20k1-uat-scenarios), [792a20k1b](./792a_product-spec.md#792a20k1-uat-scenarios) and [792a20m1c](./792a_product-spec.md#792a20m1-uat-scenarios) are verified by the served handler tests that
 [792c7s4](#792c7s4-vault-http-server-tech-spec) renames.
 
-**No-scenario tests:** `Test792b6c8a1_ToLF` is note-document-format's (already named). These verify a scenario of another
+**No-scenario tests:** `Test792b6c8a1_ToLF` is note-document-format ([792b6 note-document-format](./792b_technical-spec.md#792b6-added-note-document-format))'s (already named). These verify a scenario of another
 component and keep their names or are renamed by that component's node: `TestActivate_PullsCRLFParentNote` and
 `TestDrainOutbox_FindsCRLFNote` (parent-sync, [792c7t1](#792c7t1-parent-sync-product-spec)); `TestNoteHasPendingMarker_CRLF` and
 `TestShow_ExchangeHashHeaderForCRLFNote` are renamed by [792c7s3](#792c7s3-pending-offer-bookkeeping-tech-spec) to [792b34c1a4](./792b_technical-spec.md#792b34c1a-scenarios) and [792b34c8a3](./792b_technical-spec.md#792b34c8a-scenarios).
 
 #### 792c7s3 pending-offer-bookkeeping tech spec
 
-Target: [792b34](./792b_technical-spec.md#792b34-added-pending-offer-bookkeeping) (`docs/specs/technical/pending-offer-bookkeeping.md`).
+Target: [792b34](./792b_technical-spec.md#792b34-added-pending-offer-bookkeeping) ([`docs/specs/technical/pending-offer-bookkeeping.md`](../../specs/technical/pending-offer-bookkeeping.md)).
 
 - Ownership: Repository component.
 - Current realization (informational): `internal/cli/amend_fold.go`, pending-marker functions in `offer.go`.
-- Later capabilities that extend it: parent-sync, curate.
+- Later capabilities that extend it: parent-sync ([792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync)), curate ([792a22 curate](./792a_product-spec.md#792a22-added-curate)).
 
 **Legacy sources (port, then remove):**
 
@@ -4768,14 +4768,14 @@ pointer.
 **Coverage gaps:** [792b34c5a4](./792b_technical-spec.md#792b34c5a-scenarios) (a hash that cannot be computed is not tested for a given `--expect-hash`).
 
 **No-scenario tests:** `TestServeShow_ExchangeHashHeaderMatchesLocal` (served show equals local, [792c7s4](#792c7s4-vault-http-server-tech-spec)) and
-`TestShowFallback_LabelPrecedesParentExchangeHash` (the parent fallback label, parent-sync) are in `amend_fold_test` and
+`TestShowFallback_LabelPrecedesParentExchangeHash` (the parent fallback label, parent-sync ([792a21 parent-sync](./792a_product-spec.md#792a21-added-parent-sync))) are in `amend_fold_test` and
 verify scenarios of other components; they keep their names until those nodes. `TestQueryPayload_PendingOffersLeadPayload`
 and the update notice test belong to curate.
 
 
 #### 792c7s4 vault-http-server tech spec
 
-Target: [792b35](./792b_technical-spec.md#792b35-added-vault-http-server) (`docs/specs/technical/vault-http-server.md`).
+Target: [792b35](./792b_technical-spec.md#792b35-added-vault-http-server) ([`docs/specs/technical/vault-http-server.md`](../../specs/technical/vault-http-server.md)).
 
 - Ownership: Repository-owned dependency-boundary interaction (net/http server).
 - Current realization (informational): `internal/cli/serve.go`, `serve_learn.go`, `serve_exchange_read.go`; `cmd/engram/serve.go`.
@@ -4873,7 +4873,7 @@ the spec point at [792a20](./792a_product-spec.md#792a20-added-vault-serving).
 
 #### 792c7t1 parent-sync product spec
 
-Target: [792a21](./792a_product-spec.md#792a21-added-parent-sync) (`docs/specs/product/parent-sync.md`).
+Target: [792a21](./792a_product-spec.md#792a21-added-parent-sync) ([`docs/specs/product/parent-sync.md`](../../specs/product/parent-sync.md)).
 
 **Legacy sources (port, then remove):**
 
@@ -4915,7 +4915,7 @@ Target: [792a21](./792a_product-spec.md#792a21-added-parent-sync) (`docs/specs/p
 - `exchange-versioning` ([792b33](./792b_technical-spec.md#792b33-added-exchange-versioning))
 - `pending-offer-bookkeeping` ([792b34](./792b_technical-spec.md#792b34-added-pending-offer-bookkeeping))
 
-(Changes made by [792c7t1d](#792c7t1-parent-sync-product-spec), recorded in [792d121](./792d_decision-log.md#792d121-parent-sync-scope-what-stays-whole-the-components-extended-and-where-the-sources-differ-from-the-code): `query-engine` gains no requirement, and `query-payload-renderer`
+(Changes made by [792c7t1d](#792c7t1-parent-sync-product-spec), recorded in [792d121](./792d_decision-log.md#792d121-parent-sync-scope-what-stays-whole-the-components-extended-and-where-the-sources-differ-from-the-code): `query-engine` ([792b24 query-engine](./792b_technical-spec.md#792b24-added-query-engine)) gains no requirement, and `query-payload-renderer`
 ([792b23](./792b_technical-spec.md#792b23-added-query-payload-renderer)), `note-reparenting` ([792b27](./792b_technical-spec.md#792b27-added-note-reparenting)) and `self-installer` ([792b28](./792b_technical-spec.md#792b28-added-self-installer)) are extended.)
 
 | ID | Work | Classification | Why | Status |
@@ -4933,7 +4933,7 @@ receipt and the states of an entry that wait), the update notice, CRLF notes, th
 the pending copy, idempotence and declines, the re-check, the use signal and the first-write identity) and the exchange
 fields (`xid`, links, aliases and survival). It adds [792b2c9](./792b_technical-spec.md#792b2c9-a-removed-environment-variable-is-refused) to [792b2c10](./792b_technical-spec.md#792b2c10-parent-routing-of-note-lookup), [792b5c14](./792b_technical-spec.md#792b5c14-the-parent-cache-and-the-contact-backoff) to [792b5c16](./792b_technical-spec.md#792b5c16-the-declined-pull-record), [792b14c12](./792b_technical-spec.md#792b14c12-activation-against-the-parent) to [792b14c13](./792b_technical-spec.md#792b14c13-a-discard-of-a-pulled-note-records-its-decline),
 [792b23c9](./792b_technical-spec.md#792b23c9-the-item-tags-of-a-merge) and [792b33c10](./792b_technical-spec.md#792b33c10-the-exchange-fields-survive-every-other-rewrite), a scenario to [792b28c13](./792b_technical-spec.md#792b28c13-notices), and mapping rows to [792b27](./792b_technical-spec.md#792b27-added-note-reparenting) and [792b34](./792b_technical-spec.md#792b34-added-pending-offer-bookkeeping) ([792d121](./792d_decision-log.md#792d121-parent-sync-scope-what-stays-whole-the-components-extended-and-where-the-sources-differ-from-the-code)). Legacy removal: the
-`vault-local-first` spec is deleted, `vault-note-identity` keeps only the two clauses that wait for curate, the S7 row of
+`vault-local-first` spec is deleted, `vault-note-identity` keeps only the two clauses that wait for curate ([792a22 curate](./792a_product-spec.md#792a22-added-curate)), the S7 row of
 the system context shows a pointer, and ADR-0029 keeps only D3's `--expect-hash` consumer, D10 and the curation
 consequences and risks. The three other parent specs stay whole until the technical nodes that read them ([792d121](./792d_decision-log.md#792d121-parent-sync-scope-what-stays-whole-the-components-extended-and-where-the-sources-differ-from-the-code)).
 
@@ -5054,7 +5054,7 @@ only end to end, through the `Test792a21zc1x` and `Test792a21zg1x` tests listed 
 by the survival tests.
 
 **Coverage gaps ([792a21](./792a_product-spec.md#792a21-added-parent-sync), completed by [792c7t3e](#792c7t3-parent-vault-client-tech-spec)):** the scenarios that no command-level test renamed here verifies are
-listed by [792c7t3e](#792c7t3-parent-vault-client-tech-spec), after the offer-outbox and parent-vault-client tests are renamed.
+listed by [792c7t3e](#792c7t3-parent-vault-client-tech-spec), after the offer-outbox ([792b36 offer-outbox](./792b_technical-spec.md#792b36-added-offer-outbox)) and parent-vault-client ([792b37 parent-vault-client](./792b_technical-spec.md#792b37-added-parent-vault-client)) tests are renamed.
 
 **No-scenario tests:** `offer_wiring_test` `TestWiringEnv_DepsIsolateRealUserHome` (a guard on the test helper itself);
 `pulldown_recheck_test` `TestCurateNearOrder_PulledOffer` (curate, [792c7u1](#792c7u1-curate-product-spec)); `serve_client_test`
@@ -5067,7 +5067,7 @@ the rest of `outbox_test`, `outbox_attention_test`, `offer_payload_test`, `offer
 
 #### 792c7t2 offer-outbox tech spec
 
-Target: [792b36](./792b_technical-spec.md#792b36-added-offer-outbox) (`docs/specs/technical/offer-outbox.md`).
+Target: [792b36](./792b_technical-spec.md#792b36-added-offer-outbox) ([`docs/specs/technical/offer-outbox.md`](../../specs/technical/offer-outbox.md)).
 
 - Ownership: Repository component.
 - Current realization (informational): `internal/cli/offer_classify.go`, `offer_payload.go`, `outbox.go`, `offer_wiring.go`.
@@ -5187,11 +5187,11 @@ cite [792a21](./792a_product-spec.md#792a21-added-parent-sync) and [792b36](./79
 
 **No-scenario tests:** none among `outbox_test`, `outbox_attention_test`, `offer_payload_test`, `offer_classify_test`,
 `offer_errors_test` and `identity_gaps_test` (`Test792b33c7a1_SetXIDField` was renamed by [792c7s2](#792c7s2-exchange-versioning-tech-spec), and the two
-`identity_gaps_test` tests that stamp a vault name belong to note-amendment and are already named).
+`identity_gaps_test` tests that stamp a vault name belong to note-amendment ([792b14 note-amendment](./792b_technical-spec.md#792b14-added-note-amendment)) and are already named).
 
 #### 792c7t3 parent-vault-client tech spec
 
-Target: [792b37](./792b_technical-spec.md#792b37-added-parent-vault-client) (`docs/specs/technical/parent-vault-client.md`).
+Target: [792b37](./792b_technical-spec.md#792b37-added-parent-vault-client) ([`docs/specs/technical/parent-vault-client.md`](../../specs/technical/parent-vault-client.md)).
 
 - Ownership: Repository-owned dependency-boundary interaction (HTTP client).
 - Current realization (informational): `internal/cli/serve_client.go`, `merged_query.go`, `merged_dedupe.go`, `pulldown.go`.
@@ -5329,7 +5329,7 @@ parent), [792b36c4a8](./792b_technical-spec.md#792b36c4a-scenarios), [792b36c5a6
 
 #### 792c7u1 curate product spec
 
-Target: [792a22](./792a_product-spec.md#792a22-added-curate) (`docs/specs/product/curate.md`).
+Target: [792a22](./792a_product-spec.md#792a22-added-curate) ([`docs/specs/product/curate.md`](../../specs/product/curate.md)).
 
 **Legacy sources (port, then remove):**
 
@@ -5359,7 +5359,7 @@ Target: [792a22](./792a_product-spec.md#792a22-added-curate) (`docs/specs/produc
 
 (Changes made by [792c7u1d](#792c7u1-curate-product-spec), recorded in [792d124](./792d_decision-log.md#792d124-curate-scope-the-scenarios-only-the-skill-text-verifies-and-where-the-sources-differ-from-the-skill-and-the-code): `note-authoring` ([792b12](./792b_technical-spec.md#792b12-added-note-authoring)), `query-payload-renderer` ([792b23](./792b_technical-spec.md#792b23-added-query-payload-renderer)),
 `self-installer` ([792b28](./792b_technical-spec.md#792b28-added-self-installer)), `runbook-trigger-matching` ([792b22](./792b_technical-spec.md#792b22-added-runbook-trigger-matching)) and `vault-http-server` ([792b35](./792b_technical-spec.md#792b35-added-vault-http-server)) gain mapping rows
-or requirements, and `agent-instruction-bundle` gains one mapping row.)
+or requirements, and `agent-instruction-bundle` ([792b32 agent-instruction-bundle](./792b_technical-spec.md#792b32-added-agent-instruction-bundle)) gains one mapping row.)
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
@@ -5414,7 +5414,7 @@ and `update_test`. `TestShowChunkTarget_LocalDispatch` stays unrenamed (show-chu
 
 #### 792c7v1 memory-effectiveness-evaluation product spec
 
-Target: [792a23](./792a_product-spec.md#792a23-added-memory-effectiveness-evaluation) (`docs/specs/product/memory-effectiveness-evaluation.md`).
+Target: [792a23](./792a_product-spec.md#792a23-added-memory-effectiveness-evaluation) ([`docs/specs/product/memory-effectiveness-evaluation.md`](../../specs/product/memory-effectiveness-evaluation.md)).
 
 **Legacy sources (port, then remove):**
 
@@ -5465,7 +5465,7 @@ and Go tests that [792c7v2](#792c7v2-eval-trial-harness-tech-spec) and [792c7v3]
 
 #### 792c7v2 eval-trial-harness tech spec
 
-Target: [792b38](./792b_technical-spec.md#792b38-added-eval-trial-harness) (`docs/specs/technical/eval-trial-harness.md`).
+Target: [792b38](./792b_technical-spec.md#792b38-added-eval-trial-harness) ([`docs/specs/technical/eval-trial-harness.md`](../../specs/technical/eval-trial-harness.md)).
 
 - Ownership: Repository component (dev tooling).
 - Current realization (informational): `dev/eval` Go harness and Python drivers.
@@ -5591,7 +5591,7 @@ remaining tests of `cumulative/runbook_vs_skill/phase2/test_probe_phase2.py` and
 
 #### 792c7v3 memory-loop-auditor tech spec
 
-Target: [792b39](./792b_technical-spec.md#792b39-added-memory-loop-auditor) (`docs/specs/technical/memory-loop-auditor.md`).
+Target: [792b39](./792b_technical-spec.md#792b39-added-memory-loop-auditor) ([`docs/specs/technical/memory-loop-auditor.md`](../../specs/technical/memory-loop-auditor.md)).
 
 - Ownership: Repository component (dev tooling).
 - Current realization (informational): `dev/eval/audit`.
