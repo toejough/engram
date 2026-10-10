@@ -16,6 +16,116 @@ import (
 	"github.com/toejough/engram/internal/update"
 )
 
+// Test792b11c1a1_DetectRepo covers the three cases from design.md: origin remote
+// configured, no origin remote (dirname fallback), and not inside a git
+// repo at all (Getwd failing stands in for "no git" too, since detectRepo
+// treats every failure path the same way — resolve to "").
+func Test792b11c1a1_DetectRepo(t *testing.T) {
+	t.Parallel()
+
+	table := []struct {
+		name      string
+		getwd     func() (string, error)
+		commander fakeGitCommander
+		want      string
+	}{
+		{
+			name:      "origin remote configured",
+			getwd:     func() (string, error) { return "/repo", nil },
+			commander: fakeGitCommander{remoteOut: "git@github.com:example/repo.git\n"},
+			want:      "git@github.com:example/repo.git",
+		},
+		{
+			name:  "no origin remote falls back to toplevel basename",
+			getwd: func() (string, error) { return "/repo", nil },
+			commander: fakeGitCommander{
+				remoteErr:   errFakeGitFailed,
+				revParseOut: "/home/joe/src/engram\n",
+			},
+			want: "engram",
+		},
+		{
+			name:  "not inside a git repo resolves to empty",
+			getwd: func() (string, error) { return "/tmp/scratch", nil },
+			commander: fakeGitCommander{
+				remoteErr:   errFakeGitFailed,
+				revParseErr: errFakeGitFailed,
+			},
+			want: "",
+		},
+		{
+			name:      "getwd failure resolves to empty",
+			getwd:     func() (string, error) { return "", errFakeGitFailed },
+			commander: fakeGitCommander{remoteOut: "should never be reached"},
+			want:      "",
+		},
+	}
+
+	for _, tc := range table {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			got := cli.ExportDetectRepo(t.Context(), tc.getwd, tc.commander)
+			g.Expect(got).To(Equal(tc.want))
+		})
+	}
+}
+
+// Test792b11c2a1_DetectUser covers user.email present and user.email absent (machine-
+// username fallback), plus both signals failing.
+func Test792b11c2a1_DetectUser(t *testing.T) {
+	t.Parallel()
+
+	table := []struct {
+		name      string
+		commander fakeGitCommander
+		username  func() (string, error)
+		want      string
+	}{
+		{
+			name:      "git config user.email present",
+			commander: fakeGitCommander{configOut: "agent@example.com\n"},
+			username:  func() (string, error) { return "should-not-be-used", nil },
+			want:      "agent@example.com",
+		},
+		{
+			name:      "git config user.email absent falls back to OS username",
+			commander: fakeGitCommander{configOut: ""},
+			username:  func() (string, error) { return "joe", nil },
+			want:      "joe",
+		},
+		{
+			name:      "git config fails, username fallback used",
+			commander: fakeGitCommander{configErr: errFakeGitFailed},
+			username:  func() (string, error) { return "joe", nil },
+			want:      "joe",
+		},
+		{
+			name:      "both git config and username fail resolves to empty",
+			commander: fakeGitCommander{configErr: errFakeGitFailed},
+			username:  func() (string, error) { return "", errFakeGitFailed },
+			want:      "",
+		},
+		{
+			name:      "nil username func with no git config resolves to empty",
+			commander: fakeGitCommander{configOut: ""},
+			username:  nil,
+			want:      "",
+		},
+	}
+
+	for _, tc := range table {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			got := cli.ExportDetectUser(t.Context(), tc.commander, tc.username)
+			g.Expect(got).To(Equal(tc.want))
+		})
+	}
+}
+
 // Test792b2c2a1_ResolveVaultName covers the flag -> env -> default("personal") order,
 // mirroring resolveVault's flag/env/default shape for the vault path.
 func Test792b2c2a1_ResolveVaultName(t *testing.T) {
@@ -239,116 +349,6 @@ func TestBackfillIdentity_SkipsUnrelatedContentAndPropagatesReadErrors(t *testin
 		_, err := cli.ExportBackfillIdentity(t.Context(), "/vault", deps, false)
 		g.Expect(err).To(HaveOccurred())
 	})
-}
-
-// TestDetectRepo covers the three cases from design.md: origin remote
-// configured, no origin remote (dirname fallback), and not inside a git
-// repo at all (Getwd failing stands in for "no git" too, since detectRepo
-// treats every failure path the same way — resolve to "").
-func TestDetectRepo(t *testing.T) {
-	t.Parallel()
-
-	table := []struct {
-		name      string
-		getwd     func() (string, error)
-		commander fakeGitCommander
-		want      string
-	}{
-		{
-			name:      "origin remote configured",
-			getwd:     func() (string, error) { return "/repo", nil },
-			commander: fakeGitCommander{remoteOut: "git@github.com:example/repo.git\n"},
-			want:      "git@github.com:example/repo.git",
-		},
-		{
-			name:  "no origin remote falls back to toplevel basename",
-			getwd: func() (string, error) { return "/repo", nil },
-			commander: fakeGitCommander{
-				remoteErr:   errFakeGitFailed,
-				revParseOut: "/home/joe/src/engram\n",
-			},
-			want: "engram",
-		},
-		{
-			name:  "not inside a git repo resolves to empty",
-			getwd: func() (string, error) { return "/tmp/scratch", nil },
-			commander: fakeGitCommander{
-				remoteErr:   errFakeGitFailed,
-				revParseErr: errFakeGitFailed,
-			},
-			want: "",
-		},
-		{
-			name:      "getwd failure resolves to empty",
-			getwd:     func() (string, error) { return "", errFakeGitFailed },
-			commander: fakeGitCommander{remoteOut: "should never be reached"},
-			want:      "",
-		},
-	}
-
-	for _, tc := range table {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			got := cli.ExportDetectRepo(t.Context(), tc.getwd, tc.commander)
-			g.Expect(got).To(Equal(tc.want))
-		})
-	}
-}
-
-// TestDetectUser covers user.email present and user.email absent (machine-
-// username fallback), plus both signals failing.
-func TestDetectUser(t *testing.T) {
-	t.Parallel()
-
-	table := []struct {
-		name      string
-		commander fakeGitCommander
-		username  func() (string, error)
-		want      string
-	}{
-		{
-			name:      "git config user.email present",
-			commander: fakeGitCommander{configOut: "agent@example.com\n"},
-			username:  func() (string, error) { return "should-not-be-used", nil },
-			want:      "agent@example.com",
-		},
-		{
-			name:      "git config user.email absent falls back to OS username",
-			commander: fakeGitCommander{configOut: ""},
-			username:  func() (string, error) { return "joe", nil },
-			want:      "joe",
-		},
-		{
-			name:      "git config fails, username fallback used",
-			commander: fakeGitCommander{configErr: errFakeGitFailed},
-			username:  func() (string, error) { return "joe", nil },
-			want:      "joe",
-		},
-		{
-			name:      "both git config and username fail resolves to empty",
-			commander: fakeGitCommander{configErr: errFakeGitFailed},
-			username:  func() (string, error) { return "", errFakeGitFailed },
-			want:      "",
-		},
-		{
-			name:      "nil username func with no git config resolves to empty",
-			commander: fakeGitCommander{configOut: ""},
-			username:  nil,
-			want:      "",
-		},
-	}
-
-	for _, tc := range table {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			got := cli.ExportDetectUser(t.Context(), tc.commander, tc.username)
-			g.Expect(got).To(Equal(tc.want))
-		})
-	}
 }
 
 // TestNewIdentityDeps covers the production Deps->IdentityDeps composition

@@ -16,6 +16,31 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
+// Test792b11c3a3_Learn_OmitsEmptyVault: a first write with no resolved vault name
+// omits vault: and warns.
+func Test792b11c3a3_Learn_OmitsEmptyVault(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var (
+		written  []byte
+		warnings []string
+	)
+
+	args := cli.LearnArgs{
+		Type: "fact", Slug: "no-vault", Vault: t.TempDir(), Position: "top", Source: "test",
+		Situation: "no vault name", Subject: "A", Predicate: "has", Object: "B",
+	}
+	deps := learnDepsForUserTest(&written)
+	deps.DetectUser = func(context.Context) string { return "bob@example.com" }
+	deps.LogWarning = func(format string, _ ...any) { warnings = append(warnings, format) }
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &strings.Builder{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(string(written)).NotTo(MatchRegexp(`(?m)^vault:`))
+	g.Expect(strings.Join(warnings, "\n")).To(ContainSubstring("vault"))
+}
+
 // TestBuildOfferPayload_NoUserIdentityRefuses: a note with no user: on a
 // host whose user detection is empty builds no payload, rather than
 // sending user: "" for the parent to reject.
@@ -68,31 +93,6 @@ func TestDrainOutbox_NoUserIdentityNeedsAttention(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(sentXIDs(parent)).To(Equal([]string{xidA}), "resumes once a payload can be built")
 	g.Expect(env.outbox().Entries).To(BeEmpty())
-}
-
-// TestLearn_OmitsEmptyVault: a first write with no resolved vault name
-// omits vault: and warns.
-func TestLearn_OmitsEmptyVault(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var (
-		written  []byte
-		warnings []string
-	)
-
-	args := cli.LearnArgs{
-		Type: "fact", Slug: "no-vault", Vault: t.TempDir(), Position: "top", Source: "test",
-		Situation: "no vault name", Subject: "A", Predicate: "has", Object: "B",
-	}
-	deps := learnDepsForUserTest(&written)
-	deps.DetectUser = func(context.Context) string { return "bob@example.com" }
-	deps.LogWarning = func(format string, _ ...any) { warnings = append(warnings, format) }
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &strings.Builder{})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(string(written)).NotTo(MatchRegexp(`(?m)^vault:`))
-	g.Expect(strings.Join(warnings, "\n")).To(ContainSubstring("vault"))
 }
 
 // TestRunAmend_BookkeepingNeverWritesEmptyVault: a bookkeeping amend on a

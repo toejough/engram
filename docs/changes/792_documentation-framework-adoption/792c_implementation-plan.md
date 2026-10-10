@@ -209,8 +209,8 @@ flowchart TD
   N792c7b4["792c7b4 vault-write-lock tech spec<br/>Complete"]
   N792c7b5["792c7b5 text-embedder tech spec<br/>Complete"]
   N792c7b6["792c7b6 embedding-sidecar tech spec<br/>Complete"]
-  N792c7b7["792c7b7 note-provenance tech spec<br/>Ready"]
-  N792c7b8["792c7b8 note-authoring tech spec<br/>Blocked by: 792c7b7"]
+  N792c7b7["792c7b7 note-provenance tech spec<br/>Complete"]
+  N792c7b8["792c7b8 note-authoring tech spec<br/>Ready"]
   N792c7c1["792c7c1 note-revision product spec<br/>Blocked by: 792c7b8"]
   N792c7c2["792c7c2 wikilink-graph tech spec<br/>Blocked by: 792c7c1"]
   N792c7c3["792c7c3 note-amendment tech spec<br/>Blocked by: 792c7c2"]
@@ -1078,11 +1078,28 @@ Target: `792b11` (`docs/specs/technical/note-provenance.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7b7a | Port the component contract to `792b11` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7b7b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7b7c | Repoint stale references to `792b11` | Non-test action | Keeps live links valid | Not started |
-| 792c7b7d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7b7e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7b7a | Port the component contract to `792b11` | Non-test action | Documents the component in the framework format | Done |
+| 792c7b7b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7b7c | Repoint stale references to `792b11` | Non-test action | Keeps live links valid | Done |
+| 792c7b7d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7b7e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+**Outcome:** the amend re-stamp, identity backfill and served and pull-down first writes are deferred (792d67).
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b11c1a1 | `TestDetectRepo` → `Test792b11c1a1_DetectRepo` (split deferred: 792b11c1a2, 792b11c1a3, 792b11c1a4) | Pure unit table (fake git commander), subtests | All four repository cases | Done |
+| 792b11c2a1 | `TestDetectUser` → `Test792b11c2a1_DetectUser` (split deferred: 792b11c2a2, 792b11c2a3) | Pure unit table (fake git commander), subtests, fake user lookup | All user cases | Done |
+| 792b11c3a1 | `TestRunLearn_StampsIdentityFields` → `Test792b11c3a1_RunLearn_StampsIdentityFields` | `RunLearn` with fake detection, subtests | Fact and feedback stamped | Done |
+| 792b11c3a1 | `TestLearn_StampsDetectedUser` → `Test792b11c3a1_Learn_StampsDetectedUser` | `RunLearn` with fake detection | Detected user, no warning | Done |
+| 792b11c3a2 | `TestLearn_OmitsEmptyUser` → `Test792b11c3a2_Learn_OmitsEmptyUser` | `RunLearn` with failing user detection | No user key, one warning | Done |
+| 792b11c3a3 | `TestLearn_OmitsEmptyVault` → `Test792b11c3a3_Learn_OmitsEmptyVault` | `RunLearn` with no vault name | No vault key, warning | Done |
+
+**Coverage gaps:** none for 792b11. 792a3o1a–792a3o1c and 792a3p1a–792a3p1c have no end-to-end test over a real `git`; 792a2b1a–792a2b1c are covered end to end by `Test792a2b1a_Targets_AmendDefaultVaultName` for the default only.
+
+**No-scenario tests:** deferred to the capability that adds their requirement here (792d67): `amend_identity_test` (5), `identity_internal_test` (2) and `identity_gaps_test` `TestRunAmend_BookkeepingNeverWritesEmptyVault` (note-revision 792c7c1); `identity_test` `TestApplyIdentityBackfill`, `TestBackfillIdentity`, `TestBackfillIdentity_SkipsUnrelatedContentAndPropagatesReadErrors`, `TestNewIdentityDeps`, `TestNotesMissingIdentityFields`, `TestRepoWithProjectFallback`, `identity_backfill_node_test` (7) and `identity_backfill_parity_test` (1) (vault-migration 792c7i1); `first_write_user_test` `TestActivate_PullDownOmitsEmptyUser` and `identity_gaps_test` `TestBuildOfferPayload_NoUserIdentityRefuses`, `TestDrainOutbox_NoUserIdentityNeedsAttention`, `TestUpdateExchange_NoUserIdentityWaitsThenOffers` (parent-sync 792c7t1).
 
 #### 792c7b8 note-authoring tech spec
 
@@ -1118,6 +1135,7 @@ Target: `792a4` (`docs/specs/product/note-revision.md`).
 
 **Legacy sources (port, then remove):**
 
+- `openspec/specs/vault-note-identity/spec.md` ("Amend re-stamps identity fields on every write", the amend clause of "Repo detection prefers the note's own project field during backfill only", and the bookkeeping-amend vault clause of the first-write residue; their technical side extends `792b11`, 792d67)
 - `openspec/specs/vault-note-identity/spec.md` (the note-reader CRLF requirement, and the amend and resituate key-preservation, anchor and CRLF paragraphs of "Exchange fields SHALL survive every frontmatter rewrite"; their format side extends `792b6`, 792d61)
 - `openspec/specs/vault-embed-on-write/spec.md` (the `amend` and `resituate` re-embedding requirement and the lossless `last_used` bump, 792d57, 792d66)
 - `openspec/specs/vault-wikilink-resolution/spec.md` (product requirements; the G3 dangling-link scenario goes to 792c7h1)
@@ -2309,6 +2327,7 @@ Target: `792a20` (`docs/specs/product/vault-serving.md`).
 
 **Legacy sources (port, then remove):**
 
+- `openspec/specs/vault-note-identity/spec.md` (the served-learn clause of the first-write identity residue, 792d67)
 - `openspec/specs/vault-serve-api/spec.md` (product requirements)
 - `docs/deprecated/architecture/adr.md` ADR-0029 D7 (serve API)
 
@@ -2421,6 +2440,7 @@ Target: `792a21` (`docs/specs/product/parent-sync.md`).
 
 **Legacy sources (port, then remove):**
 
+- `openspec/specs/vault-note-identity/spec.md` (the pull-down clause and scenario of the first-write identity residue, 792d67)
 - `openspec/specs/vault-local-first/spec.md` (exchange requirements and `ENGRAM_SERVER` as a MUST NOT)
 - `openspec/specs/vault-merged-recall/spec.md` (product requirements)
 - `openspec/specs/vault-parent-offers/spec.md` (product requirements)

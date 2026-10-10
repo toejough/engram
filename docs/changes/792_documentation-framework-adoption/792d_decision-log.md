@@ -721,3 +721,16 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792d51, 792d33 and 792d6.
 - **Alternatives:** a **MUST** that all sidecars share one model. Rejected because nothing enforces
   it.
+
+## 792d67 note-provenance covers detection and the first-write stamp
+
+- **Choice:** 792b11 specifies repository and user detection and the first-write stamp, which
+  note-writing's scenarios need. The amend re-stamp, which keeps a prior user when detection comes
+  back empty, goes to note-revision (792c7c1); identity backfill and its `project:` preference go to
+  vault-migration (792c7i1), which already owns them; and first-write stamping by a served learn and
+  by a pull-down go to vault-serving (792c7s1) and parent-sync (792c7t1). `vault-note-identity`
+  keeps those clauses, and the nodes' sources now list them. Their tests stay unrenamed.
+  `TestDetectRepo` and `TestDetectUser` are tables whose cases cover every scenario of their
+  requirement, so each takes the first scenario's ID and lists the rest as `split deferred`.
+- **Rationale:** 792d51. Only `learn` has product scenarios so far.
+- **Alternatives:** specify the amend and backfill stamping now, with no supported scenarios.

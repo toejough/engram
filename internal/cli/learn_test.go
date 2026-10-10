@@ -20,6 +20,65 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+// Test792b11c3a1_RunLearn_StampsIdentityFields verifies RunLearn stamps repo:/user:/
+// vault: on both fact and feedback notes from the detection helpers and
+// args.VaultName — the identity fields are fresh-detected, not copied from
+// any existing state (there is none at learn time).
+func Test792b11c3a1_RunLearn_StampsIdentityFields(t *testing.T) {
+	t.Parallel()
+
+	table := []struct {
+		name string
+		args cli.LearnArgs
+	}{
+		{name: "fact", args: cli.LearnArgs{
+			Type: "fact", Slug: "s", Vault: "/vault", VaultName: "work", Position: "top",
+			Situation: "s", Subject: "a", Predicate: "b", Object: "c",
+		}},
+		{name: "feedback", args: cli.LearnArgs{
+			Type: "feedback", Slug: "s", Vault: "/vault", VaultName: "work", Position: "top",
+			Situation: "s", Behavior: "b", Impact: "i", Action: "act",
+		}},
+	}
+
+	for _, tc := range table {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			var writtenContent []byte
+
+			deps := cli.LearnDeps{
+				DetectRepo: func(context.Context) string { return "git@github.com:example/vault.git" },
+				DetectUser: func(context.Context) string { return "agent@example.com" },
+				Now:        func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
+				Getenv:     func(string) string { return "" },
+				ListIDs:    func(string) ([]string, error) { return nil, nil },
+				Lock:       func(string) (func(), error) { return func() {}, nil },
+				WriteNew: func(_ string, data []byte) error {
+					writtenContent = data
+
+					return nil
+				},
+			}
+
+			var stdout strings.Builder
+
+			err := cli.ExportRunLearn(t.Context(), tc.args, deps, &stdout)
+			g.Expect(err).NotTo(HaveOccurred())
+
+			if err != nil {
+				return
+			}
+
+			got := string(writtenContent)
+			g.Expect(got).To(ContainSubstring("repo: git@github.com:example/vault.git"))
+			g.Expect(got).To(ContainSubstring("user: agent@example.com"))
+			g.Expect(got).To(ContainSubstring("vault: work"))
+		})
+	}
+}
+
 func Test792b6c1a1_LearnPath_Permanent(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -1542,65 +1601,6 @@ func TestRunLearn_Runbook_WritesTriggersInOrderAfterRedFlags(t *testing.T) {
 	g.Expect(parseErr).NotTo(HaveOccurred())
 	g.Expect(triggers).To(Equal([]string{"/please", "take this end-to-end"}))
 	g.Expect(strings.Index(rendered, "triggers:")).To(BeNumerically(">", strings.Index(rendered, "red_flags:")))
-}
-
-// TestRunLearn_StampsIdentityFields verifies RunLearn stamps repo:/user:/
-// vault: on both fact and feedback notes from the detection helpers and
-// args.VaultName — the identity fields are fresh-detected, not copied from
-// any existing state (there is none at learn time).
-func TestRunLearn_StampsIdentityFields(t *testing.T) {
-	t.Parallel()
-
-	table := []struct {
-		name string
-		args cli.LearnArgs
-	}{
-		{name: "fact", args: cli.LearnArgs{
-			Type: "fact", Slug: "s", Vault: "/vault", VaultName: "work", Position: "top",
-			Situation: "s", Subject: "a", Predicate: "b", Object: "c",
-		}},
-		{name: "feedback", args: cli.LearnArgs{
-			Type: "feedback", Slug: "s", Vault: "/vault", VaultName: "work", Position: "top",
-			Situation: "s", Behavior: "b", Impact: "i", Action: "act",
-		}},
-	}
-
-	for _, tc := range table {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			var writtenContent []byte
-
-			deps := cli.LearnDeps{
-				DetectRepo: func(context.Context) string { return "git@github.com:example/vault.git" },
-				DetectUser: func(context.Context) string { return "agent@example.com" },
-				Now:        func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
-				Getenv:     func(string) string { return "" },
-				ListIDs:    func(string) ([]string, error) { return nil, nil },
-				Lock:       func(string) (func(), error) { return func() {}, nil },
-				WriteNew: func(_ string, data []byte) error {
-					writtenContent = data
-
-					return nil
-				},
-			}
-
-			var stdout strings.Builder
-
-			err := cli.ExportRunLearn(t.Context(), tc.args, deps, &stdout)
-			g.Expect(err).NotTo(HaveOccurred())
-
-			if err != nil {
-				return
-			}
-
-			got := string(writtenContent)
-			g.Expect(got).To(ContainSubstring("repo: git@github.com:example/vault.git"))
-			g.Expect(got).To(ContainSubstring("user: agent@example.com"))
-			g.Expect(got).To(ContainSubstring("vault: work"))
-		})
-	}
 }
 
 // TestTierFrontmatter_BadTierRejected verifies that an invalid --tier value

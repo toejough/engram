@@ -19,6 +19,57 @@ import (
 	"github.com/toejough/engram/internal/update"
 )
 
+// Test792b11c3a1_Learn_StampsDetectedUser: a detected user is still stamped, with no
+// warning.
+func Test792b11c3a1_Learn_StampsDetectedUser(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var (
+		written  []byte
+		warnings int
+	)
+
+	args := cli.LearnArgs{
+		Type: "fact", Slug: "user", Vault: t.TempDir(), Position: "top", Source: "test",
+		Situation: "user detected", Subject: "A", Predicate: "has", Object: "B", VaultName: "personal",
+	}
+	deps := learnDepsForUserTest(&written)
+	deps.DetectUser = func(context.Context) string { return "bob@example.com" }
+	deps.LogWarning = func(string, ...any) { warnings++ }
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &strings.Builder{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(string(written)).To(ContainSubstring("user: bob@example.com\n"))
+	g.Expect(warnings).To(BeZero())
+}
+
+// Test792b11c3a2_Learn_OmitsEmptyUser: a learn whose user detection is empty writes
+// the note without user: and warns once.
+func Test792b11c3a2_Learn_OmitsEmptyUser(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var (
+		written  []byte
+		warnings []string
+	)
+
+	args := cli.LearnArgs{
+		Type: "fact", Slug: "no-user", Vault: t.TempDir(), Position: "top", Source: "test",
+		Situation: "no user detected", Subject: "A", Predicate: "has", Object: "B", VaultName: "personal",
+	}
+	deps := learnDepsForUserTest(&written)
+	deps.LogWarning = func(format string, _ ...any) { warnings = append(warnings, format) }
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &strings.Builder{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(string(written)).NotTo(ContainSubstring("user:"))
+	g.Expect(string(written)).To(ContainSubstring("vault: personal"))
+	g.Expect(warnings).To(HaveLen(1))
+	g.Expect(strings.Join(warnings, "")).To(ContainSubstring("user detection resolved empty"))
+}
+
 // TestActivate_PullDownOmitsEmptyUser: a pull-down whose user detection is
 // empty writes the copy without user: and warns once.
 func TestActivate_PullDownOmitsEmptyUser(t *testing.T) {
@@ -45,57 +96,6 @@ func TestActivate_PullDownOmitsEmptyUser(t *testing.T) {
 	frontmatter, _, _ := strings.Cut(strings.TrimPrefix(raw, "---\n"), "\n---\n")
 	g.Expect(frontmatter).NotTo(MatchRegexp(`(?m)^user:`), "no top-level user: key")
 	g.Expect(strings.Count(stderr, "user detection resolved empty")).To(Equal(1))
-}
-
-// TestLearn_OmitsEmptyUser: a learn whose user detection is empty writes
-// the note without user: and warns once.
-func TestLearn_OmitsEmptyUser(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var (
-		written  []byte
-		warnings []string
-	)
-
-	args := cli.LearnArgs{
-		Type: "fact", Slug: "no-user", Vault: t.TempDir(), Position: "top", Source: "test",
-		Situation: "no user detected", Subject: "A", Predicate: "has", Object: "B", VaultName: "personal",
-	}
-	deps := learnDepsForUserTest(&written)
-	deps.LogWarning = func(format string, _ ...any) { warnings = append(warnings, format) }
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &strings.Builder{})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(string(written)).NotTo(ContainSubstring("user:"))
-	g.Expect(string(written)).To(ContainSubstring("vault: personal"))
-	g.Expect(warnings).To(HaveLen(1))
-	g.Expect(strings.Join(warnings, "")).To(ContainSubstring("user detection resolved empty"))
-}
-
-// TestLearn_StampsDetectedUser: a detected user is still stamped, with no
-// warning.
-func TestLearn_StampsDetectedUser(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var (
-		written  []byte
-		warnings int
-	)
-
-	args := cli.LearnArgs{
-		Type: "fact", Slug: "user", Vault: t.TempDir(), Position: "top", Source: "test",
-		Situation: "user detected", Subject: "A", Predicate: "has", Object: "B", VaultName: "personal",
-	}
-	deps := learnDepsForUserTest(&written)
-	deps.DetectUser = func(context.Context) string { return "bob@example.com" }
-	deps.LogWarning = func(string, ...any) { warnings++ }
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &strings.Builder{})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(string(written)).To(ContainSubstring("user: bob@example.com\n"))
-	g.Expect(warnings).To(BeZero())
 }
 
 // unexported variables.

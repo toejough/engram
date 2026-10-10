@@ -1,13 +1,12 @@
 ## Purpose
 
-The repo/user provenance stamped by `engram learn` is in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a3-added-note-writing`. Every note gets structured, auto-detected provenance — which repo, which person, and which vault instance produced it — so origin survives beyond the existing free-text `source:` description and can be relied on by downstream consumers (filtering, attribution, parent exchange: `xid`, vault-qualified `parent` links, `aliases`).
+The repo/user provenance stamped by `engram learn` is in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a3-added-note-writing`, and its detection in `792b_technical-spec.md#792b11-added-note-provenance`. Every note gets structured, auto-detected provenance — which repo, which person, and which vault instance produced it — so origin survives beyond the existing free-text `source:` description and can be relied on by downstream consumers (filtering, attribution, parent exchange: `xid`, vault-qualified `parent` links, `aliases`).
 ## Requirements
-### Requirement: Identity detection residue (node 792c7b7)
-The product behavior of `repo:` and `user:` stamping by `engram learn` is in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a3-added-note-writing` (792a3o, 792a3p), and the vault name in 792a2b. These technical clauses wait for node 792c7b7 (note-provenance):
+### Requirement: First-write identity residue
+The product behavior of `repo:` and `user:` stamping by `engram learn` is in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a3-added-note-writing` (792a3o, 792a3p), and detection and the first-write stamp in `docs/changes/792_documentation-framework-adoption/792b_technical-spec.md#792b11-added-note-provenance`. These clauses wait for parent-sync (792c7t1), vault-serving (792c7s1) and note-revision (792c7c1):
 
-- `repo:` comes from `git remote get-url origin` run in the working directory, falling back to the basename printed by `git rev-parse --show-toplevel`.
-- `user:` comes from `git config user.email`, falling back to the OS username. The same detection SHALL stamp every first write: `engram learn`, a served learn's in-place rewrite of a pending offer, and a pull-down. When both sources resolve empty, the note SHALL be written with no `user:` key, never `user: ""`, and the command SHALL print one warning saying user detection resolved empty. A pull-down SHALL NOT keep the parent note's own `user:` in that case. Identity backfill, or a later re-stamping amend, fills the key in.
-- No write SHALL produce `vault: ""`. An amend, bookkeeping included, SHALL write the resolved vault name into a note whose `vault:` is absent or empty, and SHALL keep a declared `vault:`. A writer that has no resolved vault name (a direct caller that skipped the resolution) SHALL omit the key and print one warning.
+- The same detection SHALL stamp every first write: a served learn's in-place rewrite of a pending offer, and a pull-down. A pull-down SHALL NOT keep the parent note's own `user:` when user detection resolves empty.
+- An amend, bookkeeping included, SHALL write the resolved vault name into a note whose `vault:` is absent or empty, and SHALL keep a declared `vault:`.
 
 #### Scenario: No user detectable on a pull-down
 - **WHEN** a pull-down runs where neither `git config user.email` nor the OS username lookup resolves

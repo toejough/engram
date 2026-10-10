@@ -2875,3 +2875,168 @@ Scenario: 792a3t1a The answer is found and the question is not
   When the user runs engram query with that phrase
   Then the answer note can appear in the results, and the question note never does
 ```
+
+## 792b11 Added: note-provenance
+
+Canonical target: `docs/specs/technical/note-provenance.md` (title `Note Provenance - Technical Spec`).
+
+### 792b11a Orientation
+
+- Ownership: Repository-owned dependency-boundary interaction (`git`, through the
+  subprocess-runner, and the operating system's user lookup).
+- Responsibility: works out who and where a note write comes from: the repository of the working
+  directory and the writing user. It stamps them, with the vault name, on a note's first write, and
+  omits, with a warning, any value that does not resolve.
+- Current realization (informational): `detectRepo`, `detectUser`, `firstWriteIdentity` and
+  `identityStamp` in `internal/cli/identity.go`; `newLearnDeps` wires them for `learn`. The amend
+  re-stamp (`identityStamp.stampPreservingUser`) and identity backfill
+  (`internal/cli/identity_backfill.go`) are specified by note-revision and vault-migration (792d67).
+- Qualification: responsibility, provenance detection is stated without naming any command;
+  ownership, writers decide when to stamp, while this component decides what the values are;
+  independent verification, detection and stamping are tested directly over a fake `git` and user
+  lookup; stability, the fields and their sources survive any change to the writers; necessity,
+  every note's `repo:`, `user:` and `vault:` come from it.
+- Supported capabilities: 792a2 vault-identity, 792a3 note-writing. Note-revision, vault-migration,
+  vault-serving and parent-sync add their requirements (792d30, 792d67).
+
+Rationale: detection shells out to `git` rather than reading `.git/config`, because reproducing
+git's own configuration precedence (worktrees, `includeIf` and so on) would bring no benefit.
+Identity is self-reported: it is detected from the writer's own environment at the moment of the
+write and never verified, as `source:` already was; a verified identity could later replace it
+without changing the fields. Detection never fails a write. A working directory outside git, like
+an absent `project:`, simply leaves the field out.
+
+### 792b11b Sequences
+
+```mermaid
+sequenceDiagram
+  participant Writer as Note writer
+  participant Provenance as note-provenance
+  participant Runner as subprocess-runner
+  Writer->>Provenance: stamp a first write with the resolved vault name (792b11c3)
+  Provenance->>Runner: git remote get-url origin in the working directory (792b11c1)
+  alt origin found
+    Runner-->>Provenance: origin URL
+  else no origin
+    Provenance->>Runner: git rev-parse --show-toplevel
+    Runner-->>Provenance: top-level path, or failure outside git
+  end
+  Provenance->>Runner: git config user.email (792b11c2)
+  alt email found
+    Runner-->>Provenance: email
+  else no email
+    Provenance->>Provenance: OS username, or nothing
+  end
+  opt user or vault name empty
+    Provenance-->>Writer: one warning per empty field (792b11c3)
+  end
+  Provenance-->>Writer: repo, user and vault, empty ones omitted from the note (792b11c3)
+```
+
+### 792b11c Behavior Requirements
+
+#### 792b11c1 Repository detection
+
+Requirement: 792b11c1 The note-provenance MUST resolve the repository as the output of
+`git remote get-url origin` in the working directory, trimmed; when that fails or prints nothing,
+as the basename of the path printed by `git rev-parse --show-toplevel`; and otherwise, including
+when the working directory cannot be resolved, as empty, without failing.
+
+Supports: 792a3o1a, 792a3o1b, 792a3o1c.
+
+##### 792b11c1a Scenarios
+
+```gherkin
+Scenario: 792b11c1a1 The origin remote names the repository
+  Given git remote get-url origin prints git@github.com:example/repo.git
+  When the repository is resolved
+  Then it is git@github.com:example/repo.git
+
+Scenario: 792b11c1a2 Without an origin the top-level basename names it
+  Given no origin remote, and git rev-parse --show-toplevel prints /home/joe/src/engram
+  When the repository is resolved
+  Then it is engram
+
+Scenario: 792b11c1a3 Outside git there is no repository
+  Given both git commands fail
+  When the repository is resolved
+  Then it is empty
+
+Scenario: 792b11c1a4 An unresolvable working directory has no repository
+  Given the working directory cannot be resolved
+  When the repository is resolved
+  Then it is empty, and git is never run
+```
+
+#### 792b11c2 User detection
+
+Requirement: 792b11c2 The note-provenance MUST resolve the user as the output of
+`git config user.email`, trimmed; when that fails or prints nothing, as the OS username; and when
+that also fails or is unavailable, as empty, without failing.
+
+Supports: 792a3p1a, 792a3p1b, 792a3p1c.
+
+##### 792b11c2a Scenarios
+
+```gherkin
+Scenario: 792b11c2a1 The git email names the user
+  Given git config user.email prints agent@example.com
+  When the user is resolved
+  Then it is agent@example.com, and the OS username is not used
+
+Scenario: 792b11c2a2 The OS username is the fallback
+  Given git config user.email prints nothing or fails, and the OS username is joe
+  When the user is resolved
+  Then it is joe
+
+Scenario: 792b11c2a3 No source resolves
+  Given git config user.email fails and the OS username lookup fails or is unavailable
+  When the user is resolved
+  Then it is empty
+```
+
+#### 792b11c3 First-write stamp
+
+Requirement: 792b11c3 On a note's first write, the note-provenance MUST stamp the resolved
+repository, user and vault name; a stamp whose user is empty MUST leave `user:` out and log one
+warning that user detection resolved empty, naming the command, and a stamp whose vault name is
+empty MUST leave `vault:` out and log one warning.
+
+Supports: 792a2b1a, 792a2b1b, 792a2b1c, 792a3o1a, 792a3o1b, 792a3o1c, 792a3p1a, 792a3p1b,
+792a3p1c.
+
+Rationale: an empty `user: ""` or `vault: ""` would look like a real value to every later reader.
+Identity backfill, or a later amend that re-stamps, fills a missing user in.
+
+##### 792b11c3a Scenarios
+
+```gherkin
+Scenario: 792b11c3a1 All three fields are stamped
+  Given repository git@github.com:example/vault.git, user agent@example.com and vault name work
+  When a fact or feedback note is first written
+  Then it carries repo, user and vault with those values, and no warning is logged
+
+Scenario: 792b11c3a2 An empty user is left out
+  Given user detection resolves empty and the vault name is personal
+  When a note is first written
+  Then it has no user: key, carries vault: personal, and one warning says user detection resolved empty
+
+Scenario: 792b11c3a3 An empty vault name is left out
+  Given no vault name was resolved
+  When a note is first written
+  Then it has no vault: key, and a warning names the vault
+```
+
+### 792b11d Product-Scenario Mapping
+
+| Product scenario | Technical requirements |
+| --- | --- |
+| 792a2b1a | 792b11c3 |
+| 792a2b1b | 792b11c3 |
+| 792a2b1c | 792b11c3 |
+| 792a3o1a | 792b11c1, 792b11c3 |
+| 792a3o1b | 792b11c1, 792b11c3 |
+| 792a3o1c | 792b11c1, 792b11c3 |
+| 792a3p1a | 792b11c2, 792b11c3 |
+| 792a3p1b | 792b11c2, 792b11c3 |
+| 792a3p1c | 792b11c2, 792b11c3 |
