@@ -16837,6 +16837,7 @@ Scenario: 792b29c18a10 A dry run prefixes the guidance lines
   Given a dry run with guidance deployed and not imported
   When the report is written
   Then the line begins "[dry-run] guidance deployed to"
+```
 
 ### 792b29d Product-Scenario Mapping
 
@@ -24809,6 +24810,7 @@ Scenario: 792b38c11a7 The Claude harness delegates to the isolation module
   Given the cumulative harness's environment building
   When its source is read
   Then it delegates to the isolation module
+```
 
 ### 792b38d Product-Scenario Mapping
 
