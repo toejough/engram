@@ -78,6 +78,173 @@ func Test792b13c2a2_RunResituate_NotFound(t *testing.T) {
 	g.Expect(err).To(MatchError(cli.ErrResituateNoteNotFoundForTest))
 }
 
+// Test792b14c11a3_ApplyVocabAssignmentAfterResituate_TagsNote verifies that
+// applyVocabAssignmentAfterResituate assigns a vocab term to the note body
+// when the body vector is close enough to the term vector.
+func Test792b14c11a3_ApplyVocabAssignmentAfterResituate_TagsNote(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	termVec := []float32{1, 0, 0, 0}
+	noteVec := []float32{0.9, 0.1, 0, 0} // cosine ≈ 0.99 — above the default floor
+
+	fakeSidecar := embed.MarshalSidecar(embed.Sidecar{
+		SchemaVersion: embed.SidecarSchemaVersion, EmbeddingModelID: "test", Dims: 4,
+		BodyVector: noteVec, SituationVector: make([]float32, 4),
+	})
+
+	const rawNote = "---\ntype: fact\n---\n\nBody.\n"
+
+	var written []byte
+
+	deps := cli.ResituateDeps{
+		Read: func(path string) ([]byte, error) {
+			if strings.HasSuffix(path, ".vec.json") {
+				return fakeSidecar, nil
+			}
+
+			return nil, os.ErrNotExist
+		},
+		Write: func(_ string, data []byte) error {
+			written = data
+
+			return nil
+		},
+		LoadTermVectors: func(string) ([]cli.TermWithVector, error) {
+			return []cli.TermWithVector{{Term: "agentic-recall-triggers", Vector: termVec}}, nil
+		},
+	}
+
+	cli.ExportApplyVocabAssignmentAfterResituate(deps, "/vault", "/vault/1.note.md", rawNote)
+	g.Expect(written).NotTo(BeNil())
+	g.Expect(string(written)).To(ContainSubstring("agentic-recall-triggers"))
+}
+
+// Test792b14c11a3_RunResituate_CallsVocabAssignment verifies that RunResituate invokes
+// the vocab-assignment path (LoadTermVectors is called) after writing the note.
+func Test792b14c11a3_RunResituate_CallsVocabAssignment(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const noteContent = "---\ntype: fact\ntier: L2\nsituation: old\nsubject: A\npredicate: has\nobject: B\n" +
+		"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\n---\n\nInformation learned: when in old, A has B.\n"
+
+	fakeVec := make([]float32, 4)
+	fakeSidecar := embed.MarshalSidecar(embed.Sidecar{
+		SchemaVersion: embed.SidecarSchemaVersion, EmbeddingModelID: "test", Dims: 4,
+		BodyVector: fakeVec, SituationVector: fakeVec,
+	})
+
+	loadTermsCalled := false
+
+	deps := cli.ResituateDeps{
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: "1aa.2026-01-01.note.md", LuhmannID: "1aa"}}, nil
+		},
+		Read: func(path string) ([]byte, error) {
+			if strings.HasSuffix(path, ".md") {
+				return []byte(noteContent), nil
+			}
+
+			if strings.HasSuffix(path, ".vec.json") {
+				return fakeSidecar, nil
+			}
+
+			return nil, os.ErrNotExist
+		},
+		Write: func(string, []byte) error {
+			return nil
+		},
+		Embedder: successEmbedder{},
+		LoadTermVectors: func(string) ([]cli.TermWithVector, error) {
+			loadTermsCalled = true
+
+			return nil, nil // no terms → no assignment, but call path exercised
+		},
+	}
+
+	var buf strings.Builder
+
+	err := cli.RunResituate(t.Context(), cli.ResituateArgs{
+		Vault:     "/vault",
+		Note:      "1aa",
+		Situation: "new situation",
+	}, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(loadTermsCalled).To(BeTrue(), "LoadTermVectors must be called after writing the note")
+}
+
+// Test792b14c11a4_ApplyVocabAssignmentAfterResituate_TriggerFires drives
+// applyVocabAssignmentAfterResituate with a vault at the growth threshold and
+// asserts the trigger flag is persisted. ListMD and Now are set but
+// LoadTermVectors is nil — the trigger check must still run (mirrors the
+// learn/amend trigger tests).
+func Test792b14c11a4_ApplyVocabAssignmentAfterResituate_TriggerFires(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// 150 non-vocab notes, last_refit at 100 notes 20 days ago → growth trigger
+	names := make([]string, 150)
+	for i := range names {
+		names[i] = fmt.Sprintf("%d.2026-01-01.note.md", i+1)
+	}
+
+	centroidsDoc := cli.ExportVocabCentroidsDoc{
+		SchemaVersion: 1,
+		LastRefit:     &cli.ExportVocabLastRefitDoc{NoteCount: 100, Date: "2026-06-13"},
+	}
+
+	centroidsData, marshalErr := json.Marshal(centroidsDoc)
+
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	var centroidsWritten []byte
+
+	deps := cli.ResituateDeps{
+		Now:    func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
+		ListMD: func(string) ([]string, error) { return names, nil },
+		Read: func(path string) ([]byte, error) {
+			if strings.HasSuffix(path, "vocab.centroids.json") {
+				return centroidsData, nil
+			}
+
+			return nil, os.ErrNotExist
+		},
+		Write: func(path string, data []byte) error {
+			if strings.HasSuffix(path, "vocab.centroids.json") {
+				centroidsWritten = data
+			}
+
+			return nil
+		},
+	}
+
+	cli.ExportApplyVocabAssignmentAfterResituate(deps, "/vault", "/vault/150.note.md", "---\ntype: fact\n---\n")
+
+	g.Expect(centroidsWritten).NotTo(BeNil(), "trigger check must write centroids")
+
+	var got cli.ExportVocabCentroidsDoc
+
+	unmarshalErr := json.Unmarshal(centroidsWritten, &got)
+
+	g.Expect(unmarshalErr).NotTo(HaveOccurred())
+
+	if unmarshalErr != nil {
+		return
+	}
+
+	g.Expect(got.RefitPending).To(BeTrue(), "growth trigger must set refit_pending")
+}
+
 // Test792b14c1a2_RunResituate_LocksVaultAroundReadModifyWrite asserts that RunResituate
 // acquires the vault lock BEFORE reading the note and releases it AFTER
 // writing the sidecar, so concurrent amend/resituate/learn runs do not lose
@@ -435,173 +602,6 @@ func Test792b6c7a1_RunResituate_KeepsUnmodeledKeys(t *testing.T) {
 			g.Expect(fields["provenance"]).To(Equal(map[string]any{"origin": "import", "steps": []any{"a", "b"}}))
 		})
 	}
-}
-
-// TestApplyVocabAssignmentAfterResituate_TagsNote verifies that
-// applyVocabAssignmentAfterResituate assigns a vocab term to the note body
-// when the body vector is close enough to the term vector.
-func TestApplyVocabAssignmentAfterResituate_TagsNote(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	termVec := []float32{1, 0, 0, 0}
-	noteVec := []float32{0.9, 0.1, 0, 0} // cosine ≈ 0.99 — above the default floor
-
-	fakeSidecar := embed.MarshalSidecar(embed.Sidecar{
-		SchemaVersion: embed.SidecarSchemaVersion, EmbeddingModelID: "test", Dims: 4,
-		BodyVector: noteVec, SituationVector: make([]float32, 4),
-	})
-
-	const rawNote = "---\ntype: fact\n---\n\nBody.\n"
-
-	var written []byte
-
-	deps := cli.ResituateDeps{
-		Read: func(path string) ([]byte, error) {
-			if strings.HasSuffix(path, ".vec.json") {
-				return fakeSidecar, nil
-			}
-
-			return nil, os.ErrNotExist
-		},
-		Write: func(_ string, data []byte) error {
-			written = data
-
-			return nil
-		},
-		LoadTermVectors: func(string) ([]cli.TermWithVector, error) {
-			return []cli.TermWithVector{{Term: "agentic-recall-triggers", Vector: termVec}}, nil
-		},
-	}
-
-	cli.ExportApplyVocabAssignmentAfterResituate(deps, "/vault", "/vault/1.note.md", rawNote)
-	g.Expect(written).NotTo(BeNil())
-	g.Expect(string(written)).To(ContainSubstring("agentic-recall-triggers"))
-}
-
-// TestApplyVocabAssignmentAfterResituate_TriggerFires drives
-// applyVocabAssignmentAfterResituate with a vault at the growth threshold and
-// asserts the trigger flag is persisted. ListMD and Now are set but
-// LoadTermVectors is nil — the trigger check must still run (mirrors the
-// learn/amend trigger tests).
-func TestApplyVocabAssignmentAfterResituate_TriggerFires(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// 150 non-vocab notes, last_refit at 100 notes 20 days ago → growth trigger
-	names := make([]string, 150)
-	for i := range names {
-		names[i] = fmt.Sprintf("%d.2026-01-01.note.md", i+1)
-	}
-
-	centroidsDoc := cli.ExportVocabCentroidsDoc{
-		SchemaVersion: 1,
-		LastRefit:     &cli.ExportVocabLastRefitDoc{NoteCount: 100, Date: "2026-06-13"},
-	}
-
-	centroidsData, marshalErr := json.Marshal(centroidsDoc)
-
-	g.Expect(marshalErr).NotTo(HaveOccurred())
-
-	if marshalErr != nil {
-		return
-	}
-
-	var centroidsWritten []byte
-
-	deps := cli.ResituateDeps{
-		Now:    func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
-		ListMD: func(string) ([]string, error) { return names, nil },
-		Read: func(path string) ([]byte, error) {
-			if strings.HasSuffix(path, "vocab.centroids.json") {
-				return centroidsData, nil
-			}
-
-			return nil, os.ErrNotExist
-		},
-		Write: func(path string, data []byte) error {
-			if strings.HasSuffix(path, "vocab.centroids.json") {
-				centroidsWritten = data
-			}
-
-			return nil
-		},
-	}
-
-	cli.ExportApplyVocabAssignmentAfterResituate(deps, "/vault", "/vault/150.note.md", "---\ntype: fact\n---\n")
-
-	g.Expect(centroidsWritten).NotTo(BeNil(), "trigger check must write centroids")
-
-	var got cli.ExportVocabCentroidsDoc
-
-	unmarshalErr := json.Unmarshal(centroidsWritten, &got)
-
-	g.Expect(unmarshalErr).NotTo(HaveOccurred())
-
-	if unmarshalErr != nil {
-		return
-	}
-
-	g.Expect(got.RefitPending).To(BeTrue(), "growth trigger must set refit_pending")
-}
-
-// TestRunResituate_CallsVocabAssignment verifies that RunResituate invokes
-// the vocab-assignment path (LoadTermVectors is called) after writing the note.
-func TestRunResituate_CallsVocabAssignment(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	const noteContent = "---\ntype: fact\ntier: L2\nsituation: old\nsubject: A\npredicate: has\nobject: B\n" +
-		"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\n---\n\nInformation learned: when in old, A has B.\n"
-
-	fakeVec := make([]float32, 4)
-	fakeSidecar := embed.MarshalSidecar(embed.Sidecar{
-		SchemaVersion: embed.SidecarSchemaVersion, EmbeddingModelID: "test", Dims: 4,
-		BodyVector: fakeVec, SituationVector: fakeVec,
-	})
-
-	loadTermsCalled := false
-
-	deps := cli.ResituateDeps{
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: "1aa.2026-01-01.note.md", LuhmannID: "1aa"}}, nil
-		},
-		Read: func(path string) ([]byte, error) {
-			if strings.HasSuffix(path, ".md") {
-				return []byte(noteContent), nil
-			}
-
-			if strings.HasSuffix(path, ".vec.json") {
-				return fakeSidecar, nil
-			}
-
-			return nil, os.ErrNotExist
-		},
-		Write: func(string, []byte) error {
-			return nil
-		},
-		Embedder: successEmbedder{},
-		LoadTermVectors: func(string) ([]cli.TermWithVector, error) {
-			loadTermsCalled = true
-
-			return nil, nil // no terms → no assignment, but call path exercised
-		},
-	}
-
-	var buf strings.Builder
-
-	err := cli.RunResituate(t.Context(), cli.ResituateArgs{
-		Vault:     "/vault",
-		Note:      "1aa",
-		Situation: "new situation",
-	}, deps, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(loadTermsCalled).To(BeTrue(), "LoadTermVectors must be called after writing the note")
 }
 
 // unexported constants.

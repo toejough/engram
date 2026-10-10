@@ -219,8 +219,8 @@ flowchart TD
   N792c7d3["792c7d3 source-chunking tech spec<br/>Complete"]
   N792c7d4["792c7d4 ingestion-source-discovery tech spec<br/>Complete"]
   N792c7d5["792c7d5 chunk-index-store tech spec<br/>Complete"]
-  N792c7e1["792c7e1 controlled-vocabulary product spec<br/>Ready"]
-  N792c7e2["792c7e2 similarity-clustering tech spec<br/>Blocked by: 792c7e1"]
+  N792c7e1["792c7e1 controlled-vocabulary product spec<br/>Complete"]
+  N792c7e2["792c7e2 similarity-clustering tech spec<br/>Ready"]
   N792c7e3["792c7e3 vocabulary-engine tech spec<br/>Blocked by: 792c7e2"]
   N792c7f1["792c7f1 memory-query product spec<br/>Blocked by: 792c7e3"]
   N792c7f2["792c7f2 recency-ranking tech spec<br/>Blocked by: 792c7f1"]
@@ -1865,14 +1865,40 @@ Target: `792a6` (`docs/specs/product/controlled-vocabulary.md`).
 - `text-embedder` (`792b9`)
 - `embedding-sidecar` (`792b10`)
 - `note-authoring` (`792b12`)
+- `note-amendment` (`792b14`, added by this node, 792d86)
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7e1a | Port product requirements and UAT to `792a6` | Non-test action | Moves current behavior into the framework format | Not started |
-| 792c7e1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7e1c | Repoint stale references to `792a6` | Non-test action | Keeps live links valid | Not started |
-| 792c7e1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Not started |
-| 792c7e1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Not started |
+| 792c7e1a | Port product requirements and UAT to `792a6` | Non-test action | Moves current behavior into the framework format | Done |
+| 792c7e1b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7e1c | Repoint stale references to `792a6` | Non-test action | Keeps live links valid | Done |
+| 792c7e1d | Confirm the supporting-component list; record changes in 792d and this plan | Non-test action | Keeps the inventory complete | Done |
+| 792c7e1e | Extend already-migrated components: mappings, added requirements, test renames | Non-test action | Traces this capability through existing component sections | Done |
+
+**Outcome:** the two new supporting components are confirmed and note-amendment is added (792d86).
+note-authoring gains 792b12c6 and note-amendment 792b14c11; command-line-surface,
+note-document-format, text-embedder and embedding-sidecar gain mappings only. ADR-0019 is deleted;
+`vault-vocab-lifecycle` keeps a mechanism residue for 792c7e3 and its supersession ride-along for
+792c7f1 (792d85). Other choices are 792d86 and 792d87.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b12c6a1 | `TestRunLearn_VocabAssignment_WritesVocabWhenTermsPresent` → `Test792b12c6a1_RunLearn_VocabAssignment_WritesVocabWhenTermsPresent` | `RunLearn` over injected deps with a term and a sidecar | Tag written after the note | Done |
+| 792b12c6a2 | `TestApplyVocabAssignmentAfterLearn_TriggerFires` → `Test792b12c6a2_ApplyVocabAssignmentAfterLearn_TriggerFires` | Learn's post-write step over injected deps | Refit marked pending | Done |
+| 792b14c11a1 | `TestRunAmend_VocabAssignment_WritesVocabWhenTermsPresent` → `Test792b14c11a1_RunAmend_VocabAssignment_WritesVocabWhenTermsPresent` | `RunAmend` over injected deps with a term and a sidecar | Tag written after the amend | Done |
+| 792b14c11a2 | `TestApplyVocabAssignmentAfterAmend_TriggerFires` → `Test792b14c11a2_ApplyVocabAssignmentAfterAmend_TriggerFires` | Amend's post-write step over injected deps | Refit marked pending | Done |
+| 792b14c11a3 | `TestRunResituate_CallsVocabAssignment` → `Test792b14c11a3_RunResituate_CallsVocabAssignment` | `RunResituate` over injected deps | Term vectors loaded after the write | Done |
+| 792b14c11a3 | `TestApplyVocabAssignmentAfterResituate_TagsNote` → `Test792b14c11a3_ApplyVocabAssignmentAfterResituate_TagsNote` | Resituate's post-write step over injected deps | Tag written | Done |
+| 792b14c11a4 | `TestApplyVocabAssignmentAfterResituate_TriggerFires` → `Test792b14c11a4_ApplyVocabAssignmentAfterResituate_TriggerFires` | Resituate's post-write step over injected deps | Refit marked pending | Done |
+
+**Coverage gaps:** 792b12c6a3 (no test checks that the question of a pair is left untagged). No 792a6
+scenario has an end-to-end test renamed here; the component nodes 792c7e2 and 792c7e3 rename the
+dispatch and unit tests of their scenarios and list the product scenarios still uncovered.
+
+**No-scenario tests:** none added by this node. The learn and amend skip-case tests and the
+`TestTargets_Vocab*` dispatch tests are examined by 792c7e3 (792d86).
 
 #### 792c7e2 similarity-clustering tech spec
 
@@ -1913,7 +1939,7 @@ Target: `792b20` (`docs/specs/technical/vocabulary-engine.md`).
 - `docs/deprecated/architecture/c2-containers.md` Flowchart: vocab lifecycle
 - `openspec/specs/vault-vocab-lifecycle/spec.md` (technical requirements)
 
-**Tests to examine (from discovery; `internal/cli` unless prefixed):** vocab_commands_test, vocab_test, vocab_apply_test, vocab_derive_test, vocab_trigger_test, vocab_regen_test
+**Tests to examine (from discovery; `internal/cli` unless prefixed):** vocab_commands_test, vocab_test, vocab_apply_test, vocab_derive_test, vocab_trigger_test, vocab_regen_test; deferred here: `qa_test` `TestCollectVaultStats_QAQuestionExcluded_QAAnswerCounted`, `TestCountQAPairs`, `TestIsQAQuestionFilename`, `TestScanNonVocabNotes_QAQuestionFilenameSkipped` (792d68), `crlf_readers_internal_test` `TestVocab_CRLFNote` (792d69), the `vocab_commands_test` skip-case and dispatch tests (792d86), and the `update_test` vocabulary tests
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
@@ -1941,6 +1967,7 @@ Target: `792a7` (`docs/specs/product/memory-query.md`).
 - `openspec/specs/runbook-lexical-triggers/spec.md`
 - `openspec/specs/vault-query-model-provenance/spec.md`
 - `openspec/specs/vault-note-identity/spec.md` (the note-reader CRLF clauses for the project filter, recency, vault metadata, note kind, trigger index and red-flags preview, and the "Query, check and count" and CRLF-runbook trigger scenarios, 792d69)
+- `openspec/specs/vault-vocab-lifecycle/spec.md` (the supersession ride-along residue, 792d85)
 
 **Shipped artifacts to describe:**
 

@@ -1043,3 +1043,68 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792d30, 792d51 and 792d6.
 - **Alternatives:** specify the first-indexed time here as a **MAY**. Rejected because memory-query's
   recency channel makes it a contract there.
+
+## 792d85 Mixed sources of controlled-vocabulary are split by owner
+
+- **Choice:** node 792c7e1 ports the product behavior of its sources into 792a6 (792d31, 792d50):
+  - `vault-vocab-lifecycle` keeps a residue requirement with the mechanism clauses (definition
+    discrimination, the assignment function, the centroid preference, the trigger function, the
+    slug parse, the derivation and the centroids-file format) and their function-named scenarios for
+    vocabulary-engine (792c7e3). Its supersession ride-along requirement is query behavior, not
+    vocabulary behavior, so it is re-deferred to memory-query (792c7f1), whose sources now list it.
+  - `vault-note-identity`'s CRLF reader clause for vocabulary tagging, removal and refit and its
+    "Vocab tagging reads a CRLF note" scenario are ported (792a6f).
+  - ADR-0012's `vocab stats` QA lines and the c3 QA capture residue's `vocab stats` bullet are ported
+    (792a6t); both now point at it.
+  - ADR-0019 is ported whole as 792a6c's rationale, including route's evidence and aggregate notes
+    and the drowning remedies, and deleted. Its citations in GLOSSARY, ROADMAP, ADR-0011 and the
+    `route-dispatch-evidence` spec point at 792a6c; route SKILL.md's three citations wait for
+    792c7p1, as its catalog says (792d40).
+  - The query payload's `refit_pending` field stays with memory-query, and acting on a pending
+    refit with the learn skill (792d32).
+- **Rationale:** each part has one owner, and a node removes only what it ports.
+- **Alternatives:** port the ride-along into 792a6. Rejected because it describes how `engram query`
+  orders its results.
+
+## 792d86 Controlled-vocabulary requirements beyond the legacy text, and their components
+
+- **Choice:**
+  - 792a6 adds requirements that the legacy sources don't state but the code, `--help` and tests
+    show, each confirmed against the built binary on a temporary vault: the definition and family
+    note shapes and the version bumps (792a6a, 792a6b), the skip cases (792a6e), bootstrap's output,
+    floor and failures (792a6g, 792a6h), propose's output and its missing-family-note warning
+    (792a6i), the dry-run, naming-request and naming-answer formats and errors (792a6l–792a6n),
+    the applied-refit line (792a6o), the refusal of `--plan` and `--emit-request` (792a6r), the
+    baseline seeding of the trigger (792a6s), every `vocab stats` line (792a6t), the backfill's skip
+    lines (792a6u), and `engram update`'s two vocabulary notices and `--regen-vocab` (792a6v,
+    792a6w).
+  - note-amendment (`792b14`) is added to the node's extended components: `amend` and `resituate`
+    tag the note they write. note-authoring gains 792b12c6 and note-amendment 792b14c11, the
+    caller's ordering of tagging and the refit check after a write (792d63). command-line-surface,
+    note-document-format, text-embedder and embedding-sidecar gain mappings only.
+  - The dispatch tests in `vocab_commands_test` that assert a 792a6 scenario end to end
+    (`TestTargets_Vocab*`) are renamed by vocabulary-engine (792c7e3), which examines that file; the
+    learn and amend tests that check the skip cases (`TestRunLearn_VocabAssignment_Skips*`,
+    `TestRunAmend_VocabAssignment_SkipsWhenSidecarMissing`) go there too, because the skip is the
+    tagger's behavior.
+- **Rationale:** 792d33, 792d49 and 792d58; 792d30 for the extensions.
+- **Alternatives:** port only the OpenSpec text.
+
+## 792d87 Known divergences in the controlled vocabulary
+
+- **Choice:** 792a6 describes these as they are and does not specify the alternative (792d33,
+  792d42):
+  - `engram vocab propose` does not check for an existing definition: proposing a term twice writes
+    a second `vocab-<term>-definition` note, and only the first one listed is used as the term.
+  - Retirement scrubs links from note bodies and `supersedes:` lists but not from other frontmatter
+    fields: a fact whose `object:` links a retired definition keeps that link, and `engram check`
+    reports it as dangling. 792a6p1b is stated for body links.
+  - The refit check after `engram learn` lists the vault with the starter `README.md`, so its note
+    count is one higher than the baseline bootstrap and refit record (a vault with one fact recorded
+    a baseline of 2 notes).
+  - A bootstrap rewrites `vocab.centroids.json` without each term's origin, so a proposed term loses
+    its `proposed` origin and the next refit can retire it (792a6q holds only until then).
+  - `engram vocab <subcommand> --help` prints the `vocab` group's help, not the subcommand's flags.
+- **Rationale:** a divergence becomes a later change proposal (vault note 645).
+- **Alternatives:** specify the intended behavior with coverage gaps. Rejected because the code does
+  not do it.

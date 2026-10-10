@@ -513,7 +513,7 @@ Repeatable categorical-tag flag on `engram learn fact` / `engram learn feedback`
 amend — amend nonetheless round-trips an existing `tags:` list unchanged). Each value must match
 `[a-z0-9-]+` (bare family) or `[a-z0-9-]+/[a-z0-9-]+` (family/value); anything else is rejected
 before any write. Writes the frontmatter `tags:` string list — the sole categorical
-representation (ADR-0019). The binary also auto-assigns vocab terms into the same list under the
+representation ([792a6c](changes/792_documentation-framework-adoption/792a_product-spec.md#792a6c-categorical-tags-share-one-list)). The binary also auto-assigns vocab terms into the same list under the
 `vocab/` namespace (see **vocab definition note**) — hand-authored `--tag` values and the binary's
 `vocab/<term>` entries share the one list but are written by different actors; never hand-author a
 `vocab/` tag yourself.
@@ -627,7 +627,7 @@ One fact note per work-kind, slug `route-evidence-<work-kind>`, whose object tex
 current tier tallies ("cheap 14/16, mid 2/2 as of <date>") and wikilinks every evidence note it
 summarizes (append-only trail). Amended (`engram amend --object`) as each dispatch lands; created
 untagged. Route READS it via plain recall — it surfaces as a normal memory; `engram count` over
-the evidence notes' tags is the audit that verifies/repairs its tallies (ADR-0019).
+the evidence notes' tags is the audit that verifies/repairs its tallies ([792a6c](changes/792_documentation-framework-adoption/792a_product-spec.md#792a6c-categorical-tags-share-one-list)).
 
 ### family definition note / bare-tag convention
 A fact note documenting a tag family — its meaning, allowed values, and counting pattern —
@@ -923,7 +923,7 @@ linkers* (e.g. a hand-authored MOC/hub page that links every note on a topic wit
 that topic in frontmatter; `vocab.index.md` was a machine-generated instance of this pattern, retired
 2026-07-10 under #678). See ADR-0018. Since #674 it is also the audit surface for route's dispatch-evidence tallies —
 `--group-by tags --filter tags=...` recomputes ground truth from evidence-note tags (see
-"aggregate note (route)" and ADR-0019); audit only, never the routing read path.
+"aggregate note (route)" and [792a6c](changes/792_documentation-framework-adoption/792a_product-spec.md#792a6c-categorical-tags-share-one-list)); audit only, never the routing read path.
 
 ### guidance file
 An always-loaded ambient doc under `agent-instructions/guidance/` in the engram repo,

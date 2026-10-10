@@ -65,6 +65,69 @@ func Test792b13c2a1_RunAmend_ResolvesTargetWithMdSuffix(t *testing.T) {
 		To(BeTrue(), "amend must write the note when target resolves via .md suffix")
 }
 
+// Test792b14c11a2_ApplyVocabAssignmentAfterAmend_TriggerFires drives applyVocabAssignmentAfterAmend
+// with a vault at the growth threshold and asserts the trigger flag is persisted.
+// ListMD is set but LoadTermVectors is nil — the trigger check must still run.
+func Test792b14c11a2_ApplyVocabAssignmentAfterAmend_TriggerFires(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// 150 non-vocab notes, last_refit at 100 notes 20 days ago → growth trigger
+	names := make([]string, 150)
+	for i := range names {
+		names[i] = fmt.Sprintf("%d.2026-01-01.note.md", i+1)
+	}
+
+	centroidsDoc := cli.ExportVocabCentroidsDoc{
+		SchemaVersion: 1,
+		LastRefit:     &cli.ExportVocabLastRefitDoc{NoteCount: 100, Date: "2026-06-13"},
+	}
+
+	centroidsData, marshalErr := json.Marshal(centroidsDoc)
+
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	var centroidsWritten []byte
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Now:        func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
+		ListMD:     func(string) ([]string, error) { return names, nil },
+		Read: func(path string) ([]byte, error) {
+			if strings.HasSuffix(path, "vocab.centroids.json") {
+				return centroidsData, nil
+			}
+
+			return nil, os.ErrNotExist
+		},
+		Write: func(_ string, data []byte) error {
+			centroidsWritten = data
+
+			return nil
+		},
+		LogWarning: nil,
+	}
+
+	cli.ExportApplyVocabAssignmentAfterAmend(deps, "/vault", "/vault/1.note.md", "---\ntype: fact\n---\n")
+
+	g.Expect(centroidsWritten).NotTo(BeNil(), "trigger check must write centroids")
+
+	var got cli.ExportVocabCentroidsDoc
+
+	g.Expect(json.Unmarshal(centroidsWritten, &got)).NotTo(HaveOccurred())
+
+	if err := json.Unmarshal(centroidsWritten, &got); err != nil {
+		return
+	}
+
+	g.Expect(got.RefitPending).To(BeTrue())
+}
+
 // Test792b14c1a1_RunAmend_LocksVaultAroundReadModifyWrite asserts that RunAmend acquires
 // the vault lock BEFORE reading the note and releases it AFTER writing, so
 // concurrent amend/resituate/learn runs cannot produce lost updates.
@@ -1215,69 +1278,6 @@ func Test792b6c7a1_RunAmend_Runbook_ToleratesUnknownFrontmatterKey(t *testing.T)
 	err := cli.ExportRunAmend(t.Context(), args, runbookAmendDeps(noteContent, &written, &writes), &buf)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(string(written)).To(ContainSubstring("done_when: new done"))
-}
-
-// TestApplyVocabAssignmentAfterAmend_TriggerFires drives applyVocabAssignmentAfterAmend
-// with a vault at the growth threshold and asserts the trigger flag is persisted.
-// ListMD is set but LoadTermVectors is nil — the trigger check must still run.
-func TestApplyVocabAssignmentAfterAmend_TriggerFires(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// 150 non-vocab notes, last_refit at 100 notes 20 days ago → growth trigger
-	names := make([]string, 150)
-	for i := range names {
-		names[i] = fmt.Sprintf("%d.2026-01-01.note.md", i+1)
-	}
-
-	centroidsDoc := cli.ExportVocabCentroidsDoc{
-		SchemaVersion: 1,
-		LastRefit:     &cli.ExportVocabLastRefitDoc{NoteCount: 100, Date: "2026-06-13"},
-	}
-
-	centroidsData, marshalErr := json.Marshal(centroidsDoc)
-
-	g.Expect(marshalErr).NotTo(HaveOccurred())
-
-	if marshalErr != nil {
-		return
-	}
-
-	var centroidsWritten []byte
-
-	deps := cli.AmendDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Now:        func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
-		ListMD:     func(string) ([]string, error) { return names, nil },
-		Read: func(path string) ([]byte, error) {
-			if strings.HasSuffix(path, "vocab.centroids.json") {
-				return centroidsData, nil
-			}
-
-			return nil, os.ErrNotExist
-		},
-		Write: func(_ string, data []byte) error {
-			centroidsWritten = data
-
-			return nil
-		},
-		LogWarning: nil,
-	}
-
-	cli.ExportApplyVocabAssignmentAfterAmend(deps, "/vault", "/vault/1.note.md", "---\ntype: fact\n---\n")
-
-	g.Expect(centroidsWritten).NotTo(BeNil(), "trigger check must write centroids")
-
-	var got cli.ExportVocabCentroidsDoc
-
-	g.Expect(json.Unmarshal(centroidsWritten, &got)).NotTo(HaveOccurred())
-
-	if err := json.Unmarshal(centroidsWritten, &got); err != nil {
-		return
-	}
-
-	g.Expect(got.RefitPending).To(BeTrue())
 }
 
 // TestDiscardNote_PropagatesNoteRemoveError asserts discardNote wraps and

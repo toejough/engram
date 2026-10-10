@@ -168,7 +168,7 @@ candidate-side "join the pool on shared vocab term" mechanism is replaced by cen
 explore sampling; this ADR's context/decision/consequences below remain the historical record of
 why candidate-side augmentation beat graph traversal in the first place.
 
-**Representation update (2026-07-10, #678, per ADR-0019):** the fixed term set now lives as bare-`vocab`-tagged definition fact notes (`vocab-<term>-definition`) and member terms as `tags: [vocab/<term>]`. The centroid-assignment and query-nomination mechanism is unchanged.
+**Representation update (2026-07-10, #678, per [792a6c](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a6c-categorical-tags-share-one-list)):** the fixed term set now lives as bare-`vocab`-tagged definition fact notes (`vocab-<term>-definition`) and member terms as `tags: [vocab/<term>]`. The centroid-assignment and query-nomination mechanism is unchanged.
 
 **Representation update (2026-07-27, openspec change `vocab-definition-self-tags`):** per-term definition notes additionally carry their own `vocab/<term>` self-tag (display-only — connects each definition to its member cluster in tag-based views; the family note stays bare-`vocab`-only). Member semantics unchanged: assignment, stats/trigger math, and tag nomination all exclude definitions via the bare marker.
 
@@ -212,7 +212,8 @@ The context and decision (linked capture, answers compete, questions excluded) a
 [792a3q](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a3q-question-and-answer-pairs)
 and [792a3t](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a3t-question-and-answer-retrieval).
 
-**Consequences.** `engram vocab stats` prints `qa pairs:` / `qa round-2 gate:` lines.
+**Consequences.** The `vocab stats` QA lines are in
+[792a6t](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a6t-vocabulary-statistics).
 **Caveat carried forward to round-2/3 gating:** D5′'s asymmetry rests on n=5 synthetic pairs
 (vintage 2026-07-03), not yet re-validated at corpus scale — round-2 gates on ≥20 real captured
 pairs (or ~2026-07-17, whichever comes first) against pre-registered bands (PASS ≥8, BORDERLINE
@@ -390,56 +391,6 @@ report count parity as unqualified "count == Obsidian backlinks"; state per-mode
 the divergence relationship, or the two modes read as redundant when they are complementary.
 `TestRunCount_GroupByBacklinksAgreement` locks the clean-fixture case (no non-member linkers, so the
 two agree); `TestRunCount_BacklinksExceedGroupByForNonMemberLinkers` locks the divergence case.
-
----
-
-## ADR-0019 — Tags are the sole categorical representation; recall reads, count audits
-
-**Status:** Accepted (2026-07-10 — Joe's decision recorded on #669; shipped via #674)
-
-**Context.** Route's dispatch records were free transcript text — recallable as fuzzy chunks but
-not aggregable (ADR-0017's deferred ledger, #669). ADR-0018 shipped `engram count` as a general
-aggregation surface. The overlap needed one representation for low-cardinality categoricals
-(work-kind, tier, outcome) that recall, counting, and Obsidian can all read without a bespoke
-store.
-
-**Decision.** Frontmatter `tags:` — a plain YAML string list written by the repeatable
-`engram learn --tag <family>[/<value>]` flag (fact/feedback only; not qa, not amend, though amend
-round-trips an existing list) — is the **sole** categorical mechanism: no attr nodes, no
-categorical wikilinks, no bespoke tables (#676 closed moot; #669 closed subsumed). Three note
-roles ride on it: **evidence notes** (one per route dispatch, tagged `work-kind/<k>`, `tier/<t>`,
-`outcome/<o>`; ordinary recallable facts — no query exclusion); **aggregate notes** (one per
-work-kind, slug `route-evidence-<work-kind>`, object text = tier tallies + wikilinks to every
-summarized evidence note; amended per dispatch; untagged); **family definition notes** (bare
-family tag = definition, nested `family/value` = member; tier: cheap|mid|deep, outcome:
-pass|fail, work-kind: open kebab-case set). Route's read path is **plain recall** — aggregates
-surface as normal memories. `engram count --group-by tags --filter tags=...` is the **audit**
-surface: it recomputes true tallies from evidence tags to verify/repair the LLM-maintained
-aggregates, and is never on the read path. (`--group-by work-kind` does not apply — work-kind is
-a tag value, not a frontmatter attribute.)
-
-**Consequences.** LLM-maintained tallies WILL drift; count makes them falsifiable (audit commands
-live in route's production runbook — formerly `agent-instructions/skills/route/SKILL.md`, retired
-2026-09-19, see `openspec/changes/archive/2026-09-19-route-skill-to-runbook/`). Evidence notes stay in recall — excluding them would regress on
-the already-recallable free-text records they replace. The aggregate-drowning risk (many
-near-identical evidence notes outranking their aggregate on the read query) is gauged, not
-pre-engineered: a scratch-vault gauge (20 sibling evidence notes + 1 aggregate; PASS = the
-aggregate's path appears in the read query's items or candidate_l2s) passed 2026-07-10, and the
-same check is documented in the route skill as a standing drowning audit. **Pre-registered
-follow-up** if drowning is ever measured on the real vault: (a) a "summarizes" ride-along edge
-(supersession-shaped insertion of the aggregate when its evidence surfaces) or (b) demoting
-evidence notes to the chunk-population ranking tier — choose with the measured case in hand, per
-the standing rule that a new edge type must first demonstrate retrieval value (ADR-0011;
-`docs/ROADMAP.md` → Standing constraint; vault note 73). Vocab's hub-note channel migrated to this tags
-convention 2026-07-10 (#678): definitions are recallable bare-`vocab`-tagged fact notes,
-`vocab_version` lives on `vocab-definition`, and the vocab query exclusions are deleted.
-
-**Amendment (2026-09-26):** `agent-instructions/skills/route/SKILL.md`, referenced above as
-retired 2026-09-19, is restored by `register-skills-as-runbooks`
-(`openspec/changes/archive/2026-09-26-register-skills-as-runbooks/`): route ships again as a
-skill and the audit commands live in it. Its vault runbook note (`skill-route`) is a registered
-mirror of the skill, not the sole surface for this guidance. (Slug `skill-claude-route`, key
-`claude:route`, since `register-skills-all-skill-folders` qualified every key.)
 
 ---
 

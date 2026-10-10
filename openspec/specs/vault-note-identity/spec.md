@@ -224,9 +224,9 @@ The served-request decoding SHALL be unable to populate `xid`, `parent`, `aliase
 - **THEN** the resulting pending note carries none of those values
 
 ### Requirement: Note readers SHALL read a CRLF note as its LF form
-The embedding readers (situation, body and content hash) are in `docs/changes/792_documentation-framework-adoption/792b_technical-spec.md#792b10-added-embedding-sidecar` (792b10c9), and amend's and resituate's reads in 792a4m. The other readers wait for memory-query (792c7f1: the project filter, recency, vault metadata, note kind, trigger index and red-flags preview), vault-health (792c7h1: `engram check`, and a CRLF note's sidecar not reported stale), vault-counting (792c7g1: `engram count`) and controlled-vocabulary (792c7e1: vocab tagging, removal and refit).
+The embedding readers (situation, body and content hash) are in `docs/changes/792_documentation-framework-adoption/792b_technical-spec.md#792b10-added-embedding-sidecar` (792b10c9), and amend's and resituate's reads in 792a4m. The other readers wait for memory-query (792c7f1: the project filter, recency, vault metadata, note kind, trigger index and red-flags preview), vault-health (792c7h1: `engram check`, and a CRLF note's sidecar not reported stale) and vault-counting (792c7g1: `engram count`). Vocab tagging, removal and refit are in `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a6-added-controlled-vocabulary` (792a6f).
 
-Every reader of a note's frontmatter or body SHALL read the note as its LF form (each `\r\n` converted to `\n`), so a note with CRLF line endings is read exactly as its LF conversion: `engram query`'s project filter, recency, vault metadata (tags, supersedes, triggers), note kind (runbook trigger indexing, the qa-question exclusion and the kind label) and red-flags preview, vocab tagging, removal and refit, `engram check` and `engram count`. `embed.SplitFrontmatter` SHALL stay LF-only; the readers convert before splitting. No reader SHALL write a note only to convert it: a writer converts a CRLF note only inside a write it makes anyway, and an assignment that changes nothing writes nothing.
+Every reader of a note's frontmatter or body SHALL read the note as its LF form (each `\r\n` converted to `\n`), so a note with CRLF line endings is read exactly as its LF conversion: `engram query`'s project filter, recency, vault metadata (tags, supersedes, triggers), note kind (runbook trigger indexing, the qa-question exclusion and the kind label) and red-flags preview, `engram check` and `engram count`. `embed.SplitFrontmatter` SHALL stay LF-only; the readers convert before splitting. No reader SHALL write a note only to convert it: a writer converts a CRLF note only inside a write it makes anyway.
 
 #### Scenario: A CRLF note embeds and hashes as its LF form
 - **WHEN** a note's lines end in `\r\n`
@@ -239,8 +239,3 @@ Every reader of a note's frontmatter or body SHALL read the note as its LF form 
 #### Scenario: A CRLF runbook's trigger matches
 - **WHEN** `engram query --text` contains a trigger of a runbook whose lines end in `\r\n`
 - **THEN** the runbook is placed ahead as a trigger hit, labelled `kind: runbook`
-
-#### Scenario: Vocab tagging reads a CRLF note
-- **WHEN** vocab assignment tags a CRLF note with a new term
-- **THEN** the tag is written and the note is written as LF; a CRLF note whose tags do not change is not written
-

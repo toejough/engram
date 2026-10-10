@@ -21,6 +21,161 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
+// ── Assigner wiring: learn ────────────────────────────────────────────────────
+
+// Test792b12c6a1_RunLearn_VocabAssignment_WritesVocabWhenTermsPresent verifies that when
+// LoadTermVectors returns a non-empty set and ReadSidecar returns a valid sidecar,
+// WriteNote is called with vocab/<term> tags only — neither the legacy vocab:
+// frontmatter key nor a Vocab: body line is written.
+// Test792b12c6a1_RunLearn_VocabAssignment_WritesVocabWhenTermsPresent verifies that when
+// LoadTermVectors returns a non-empty set and ReadSidecar returns a valid sidecar,
+// WriteNote is called with vocab/<term> tags only — neither the legacy vocab:
+// frontmatter key nor a Vocab: body line is written.
+func Test792b12c6a1_RunLearn_VocabAssignment_WritesVocabWhenTermsPresent(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	bodyVec := makeUnitVec(1.0)
+	termVec := makeUnitVec(0.95) // cosine >> floor 0.30 → assigned
+
+	sidecar := embed.Sidecar{
+		SchemaVersion:    1,
+		EmbeddingModelID: "test",
+		Dims:             2,
+		BodyVector:       bodyVec,
+		SituationVector:  bodyVec,
+		ContentHash:      "abc",
+	}
+
+	var updatedContent []byte
+
+	deps := cli.LearnDeps{
+		DetectRepo:    func(context.Context) string { return "" },
+		DetectUser:    func(context.Context) string { return "" },
+		Now:           func() time.Time { return time.Date(2026, 7, 2, 0, 0, 0, 0, time.UTC) },
+		Getenv:        func(string) string { return "" },
+		ListIDs:       func(string) ([]string, error) { return nil, nil },
+		ListBasenames: func(string) ([]string, error) { return nil, nil },
+		Lock:          func(string) (func(), error) { return func() {}, nil },
+		WriteNew:      func(string, []byte) error { return nil },
+		ReadSidecar: func(_ string) ([]byte, error) {
+			return embed.MarshalSidecar(sidecar), nil
+		},
+		LoadTermVectors: func(string) ([]cli.TermWithVector, error) {
+			return []cli.TermWithVector{{Term: "eval-methodology", Vector: termVec}}, nil
+		},
+		WriteNote: func(_ string, data []byte) error { updatedContent = data; return nil },
+	}
+
+	args := cli.LearnArgs{
+		Type:      "feedback",
+		Slug:      "test-feedback",
+		Vault:     "/vault",
+		Position:  "top",
+		Source:    "test",
+		Situation: "testing vocab wiring",
+		Action:    "do something",
+	}
+
+	var buf strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(updatedContent).NotTo(BeNil(), "WriteNote must be called when terms are assigned")
+	g.Expect(string(updatedContent)).To(ContainSubstring("tags:\n    - vocab/eval-methodology"),
+		"the vocab/ namespace of tags: must be present in updated note")
+	g.Expect(string(updatedContent)).NotTo(ContainSubstring("\nvocab:"),
+		"legacy vocab: frontmatter key must not be written")
+	g.Expect(string(updatedContent)).NotTo(ContainSubstring("Vocab:"),
+		"legacy Vocab: body line must not be written")
+}
+
+// ── Assigner wiring: amend ────────────────────────────────────────────────────
+
+// Test792b14c11a1_RunAmend_VocabAssignment_WritesVocabWhenTermsPresent verifies that after
+// an amend, if terms are present, the note gets vocab/<term> tags written.
+// Test792b14c11a1_RunAmend_VocabAssignment_WritesVocabWhenTermsPresent verifies that after
+// an amend, if terms are present, the note gets vocab/<term> tags written.
+func Test792b14c11a1_RunAmend_VocabAssignment_WritesVocabWhenTermsPresent(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-01-01.test.md"
+
+	noteContent := []byte(
+		"---\ntype: feedback\ntier: L2\nsituation: ctx\nbehavior: b\nimpact: i\naction: a\n" +
+			"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\n---\n\n" +
+			"Lesson learned: when ctx, a.\n\n",
+	)
+
+	bodyVec := makeUnitVec(1.0)
+	termVec := makeUnitVec(0.95)
+
+	sidecar := embed.Sidecar{
+		SchemaVersion:    1,
+		EmbeddingModelID: "test",
+		Dims:             2,
+		BodyVector:       bodyVec,
+		SituationVector:  bodyVec,
+		ContentHash:      "abc",
+	}
+
+	var written []byte
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Lock:       func(string) (func(), error) { return func() {}, nil },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read: func(path string) ([]byte, error) {
+			if strings.HasSuffix(path, ".vec.json") {
+				return embed.MarshalSidecar(sidecar), nil
+			}
+
+			return noteContent, nil
+		},
+		Write: func(_ string, data []byte) error { written = data; return nil },
+		Now:   func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		ListIndexes: func(string) ([]string, error) { return nil, nil },
+		LoadTermVectors: func(string) ([]cli.TermWithVector, error) {
+			return []cli.TermWithVector{{Term: "eval-methodology", Vector: termVec}}, nil
+		},
+	}
+
+	args := cli.AmendArgs{
+		Vault:  "/vault",
+		Target: "1aa",
+	}
+
+	var buf strings.Builder
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(written)).To(ContainSubstring("tags:\n    - vocab/eval-methodology"),
+		"the vocab/ namespace of tags: must be present after amend when terms are assigned")
+	g.Expect(string(written)).NotTo(ContainSubstring("\nvocab:"),
+		"legacy vocab: frontmatter key must not be written")
+	g.Expect(string(written)).NotTo(ContainSubstring("Vocab:"),
+		"legacy Vocab: body line must not be written")
+}
+
 // ── Coverage: bump version, noteContainsAnyRemoval ───────────────────────────
 
 // TestBumpVersion_InvalidInput verifies bumpMajorVersion and bumpMinorVersion
@@ -1375,86 +1530,6 @@ func TestRunAmend_VocabAssignment_SkipsWhenSidecarMissing(t *testing.T) {
 		"Vocab: body line must not be added when sidecar is missing")
 }
 
-// ── Assigner wiring: amend ────────────────────────────────────────────────────
-
-// TestRunAmend_VocabAssignment_WritesVocabWhenTermsPresent verifies that after
-// an amend, if terms are present, the note gets vocab/<term> tags written.
-// TestRunAmend_VocabAssignment_WritesVocabWhenTermsPresent verifies that after
-// an amend, if terms are present, the note gets vocab/<term> tags written.
-func TestRunAmend_VocabAssignment_WritesVocabWhenTermsPresent(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const basename = "1aa.2026-01-01.test.md"
-
-	noteContent := []byte(
-		"---\ntype: feedback\ntier: L2\nsituation: ctx\nbehavior: b\nimpact: i\naction: a\n" +
-			"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\n---\n\n" +
-			"Lesson learned: when ctx, a.\n\n",
-	)
-
-	bodyVec := makeUnitVec(1.0)
-	termVec := makeUnitVec(0.95)
-
-	sidecar := embed.Sidecar{
-		SchemaVersion:    1,
-		EmbeddingModelID: "test",
-		Dims:             2,
-		BodyVector:       bodyVec,
-		SituationVector:  bodyVec,
-		ContentHash:      "abc",
-	}
-
-	var written []byte
-
-	deps := cli.AmendDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Lock:       func(string) (func(), error) { return func() {}, nil },
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read: func(path string) ([]byte, error) {
-			if strings.HasSuffix(path, ".vec.json") {
-				return embed.MarshalSidecar(sidecar), nil
-			}
-
-			return noteContent, nil
-		},
-		Write: func(_ string, data []byte) error { written = data; return nil },
-		Now:   func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{}, nil
-		},
-		ListIndexes: func(string) ([]string, error) { return nil, nil },
-		LoadTermVectors: func(string) ([]cli.TermWithVector, error) {
-			return []cli.TermWithVector{{Term: "eval-methodology", Vector: termVec}}, nil
-		},
-	}
-
-	args := cli.AmendArgs{
-		Vault:  "/vault",
-		Target: "1aa",
-	}
-
-	var buf strings.Builder
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(string(written)).To(ContainSubstring("tags:\n    - vocab/eval-methodology"),
-		"the vocab/ namespace of tags: must be present after amend when terms are assigned")
-	g.Expect(string(written)).NotTo(ContainSubstring("\nvocab:"),
-		"legacy vocab: frontmatter key must not be written")
-	g.Expect(string(written)).NotTo(ContainSubstring("Vocab:"),
-		"legacy Vocab: body line must not be written")
-}
-
 // TestRunLearn_VocabAssignment_SkipsWhenDepsNotWired verifies backward compat:
 // when LoadTermVectors is nil, no vocab assignment occurs and no panic.
 // TestRunLearn_VocabAssignment_SkipsWhenDepsNotWired verifies backward compat:
@@ -1589,81 +1664,6 @@ func TestRunLearn_VocabAssignment_SkipsWhenSidecarMissing(t *testing.T) {
 	}
 
 	g.Expect(writeNoteCalled).To(BeFalse(), "WriteNote must not be called when sidecar is missing")
-}
-
-// ── Assigner wiring: learn ────────────────────────────────────────────────────
-
-// TestRunLearn_VocabAssignment_WritesVocabWhenTermsPresent verifies that when
-// LoadTermVectors returns a non-empty set and ReadSidecar returns a valid sidecar,
-// WriteNote is called with vocab/<term> tags only — neither the legacy vocab:
-// frontmatter key nor a Vocab: body line is written.
-// TestRunLearn_VocabAssignment_WritesVocabWhenTermsPresent verifies that when
-// LoadTermVectors returns a non-empty set and ReadSidecar returns a valid sidecar,
-// WriteNote is called with vocab/<term> tags only — neither the legacy vocab:
-// frontmatter key nor a Vocab: body line is written.
-func TestRunLearn_VocabAssignment_WritesVocabWhenTermsPresent(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	bodyVec := makeUnitVec(1.0)
-	termVec := makeUnitVec(0.95) // cosine >> floor 0.30 → assigned
-
-	sidecar := embed.Sidecar{
-		SchemaVersion:    1,
-		EmbeddingModelID: "test",
-		Dims:             2,
-		BodyVector:       bodyVec,
-		SituationVector:  bodyVec,
-		ContentHash:      "abc",
-	}
-
-	var updatedContent []byte
-
-	deps := cli.LearnDeps{
-		DetectRepo:    func(context.Context) string { return "" },
-		DetectUser:    func(context.Context) string { return "" },
-		Now:           func() time.Time { return time.Date(2026, 7, 2, 0, 0, 0, 0, time.UTC) },
-		Getenv:        func(string) string { return "" },
-		ListIDs:       func(string) ([]string, error) { return nil, nil },
-		ListBasenames: func(string) ([]string, error) { return nil, nil },
-		Lock:          func(string) (func(), error) { return func() {}, nil },
-		WriteNew:      func(string, []byte) error { return nil },
-		ReadSidecar: func(_ string) ([]byte, error) {
-			return embed.MarshalSidecar(sidecar), nil
-		},
-		LoadTermVectors: func(string) ([]cli.TermWithVector, error) {
-			return []cli.TermWithVector{{Term: "eval-methodology", Vector: termVec}}, nil
-		},
-		WriteNote: func(_ string, data []byte) error { updatedContent = data; return nil },
-	}
-
-	args := cli.LearnArgs{
-		Type:      "feedback",
-		Slug:      "test-feedback",
-		Vault:     "/vault",
-		Position:  "top",
-		Source:    "test",
-		Situation: "testing vocab wiring",
-		Action:    "do something",
-	}
-
-	var buf strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(updatedContent).NotTo(BeNil(), "WriteNote must be called when terms are assigned")
-	g.Expect(string(updatedContent)).To(ContainSubstring("tags:\n    - vocab/eval-methodology"),
-		"the vocab/ namespace of tags: must be present in updated note")
-	g.Expect(string(updatedContent)).NotTo(ContainSubstring("\nvocab:"),
-		"legacy vocab: frontmatter key must not be written")
-	g.Expect(string(updatedContent)).NotTo(ContainSubstring("Vocab:"),
-		"legacy Vocab: body line must not be written")
 }
 
 // ── Coverage: assignVocabToNote sidecar-error and note-read-error paths ───────

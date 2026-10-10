@@ -53,7 +53,8 @@ Canonical target: `docs/specs/technical/command-line-surface.md` (title `Command
   through dispatch with injected environment and filesystem; stability, the surface survives any
   refactoring of command internals; necessity, every product capability is reached through it.
 - Supported capabilities: 792a2 vault-identity, 792a3 note-writing, 792a4 note-revision, 792a5
-  chunk-indexing. Later capabilities add their own routing requirements here (792d30, 792d51).
+  chunk-indexing, 792a6 controlled-vocabulary. Later capabilities add their own routing requirements
+  here (792d30, 792d51).
 
 Rationale: each `engram <subcommand>` is its own process. Commands never call each other in
 process; a skill reads one command's stdout and runs the next. (An earlier C3 draft drew an
@@ -101,7 +102,7 @@ when it is non-empty, else to `ENGRAM_VAULT_PATH` when it is non-empty, else to
 `$XDG_DATA_HOME/engram/vault` when `XDG_DATA_HOME` is non-empty, else to
 `$HOME/.local/share/engram/vault`, and MUST return that path without checking that it exists.
 
-Supports: 792a2a1a, 792a2a1b, 792a2a1c, 792a2a1d.
+Supports: 792a2a1a, 792a2a1b, 792a2a1c, 792a2a1d, 792a6t1a.
 
 ##### 792b2c1a Scenarios
 
@@ -159,7 +160,7 @@ Requirement: 792b2c3 For every vault-resolving command, the command-line-surface
 vault-identity-registry to ensure the vault at the resolved path before running the command, and
 MUST NOT run the command when that step fails.
 
-Supports: 792a2e1a, 792a2e1b, 792a2e1c, 792a2e1d, 792a2f1a, 792a2g1a.
+Supports: 792a2e1a, 792a2e1b, 792a2e1c, 792a2e1d, 792a2f1a, 792a2g1a, 792a6t1a.
 
 Rationale: one shared first-use step in dispatch, rather than one per command, makes every command
 create a missing vault the same way (#766).
@@ -186,7 +187,7 @@ command succeeds.
 
 Supports: 792a2e1b, 792a2j1c, 792a2n1b, 792a2o1a, 792a3f1b, 792a3g1a, 792a3k1a, 792a3k1b, 792a3k1c,
 792a3k1d, 792a3r1a, 792a3s1a, 792a4a1b, 792a4c1a, 792a4f1a, 792a4k1a, 792a4k1b, 792a4l1b, 792a4l1c,
-792a4n1c.
+792a4n1c, 792a6h1a, 792a6i1c, 792a6r1a, 792a6t1a.
 
 ##### 792b2c4a Scenarios
 
@@ -208,7 +209,7 @@ Requirement: 792b2c5 The command-line-surface MUST refuse an invocation that pas
 command does not define, or omits a flag the command marks required, by writing an error naming the
 flag to stderr and exiting non-zero without running the command.
 
-Supports: 792a3e1a, 792a3f1a, 792a3f1c, 792a3g1a, 792a3r1a.
+Supports: 792a3e1a, 792a3f1a, 792a3f1c, 792a3g1a, 792a3r1a, 792a6h1a, 792a6i1c, 792a6r1a.
 
 ##### 792b2c5a Scenarios
 
@@ -305,6 +306,10 @@ Scenario: 792b2c6a4 The home directory is the last fallback
 | 792a5b1d | 792b2c4 |
 | 792a5e1b | 792b2c4 |
 | 792a5r1e | 792b2c4 |
+| 792a6h1a | 792b2c4, 792b2c5 |
+| 792a6i1c | 792b2c4, 792b2c5 |
+| 792a6r1a | 792b2c4, 792b2c5 |
+| 792a6t1a | 792b2c1, 792b2c3, 792b2c4 |
 
 ```gherkin
 Scenario: 792a2a1a The flag wins over the environment
@@ -561,6 +566,37 @@ Scenario: 792a5r1e A failed removal is reported and fails the run
   Given an index with two removable duplicates, one of whose index files cannot be removed
   When the user runs engram prune --duplicates
   Then stderr has a "[FAIL]" line naming that file, the other duplicate is removed, and the command fails saying 1 of 2 removals failed
+
+Scenario Outline: 792a6h1a A bad seed is refused
+  Given a vault
+  When the user runs engram vocab bootstrap <arguments>
+  Then it fails with an error saying <problem>, and nothing is written
+
+  Examples:
+    | arguments                   | problem                              |
+    | without --seed              | --seed is a missing required flag    |
+    | --seed missing.yaml         | the seed file cannot be read         |
+    | --seed with "term: [unclosed" | the seed YAML cannot be parsed     |
+
+Scenario: 792a6i1c Both flags are required
+  Given a vault
+  When the user runs engram vocab propose --term x without --description
+  Then it fails saying --description is a missing required flag, and nothing is written
+
+Scenario Outline: 792a6r1a The plan flow is gone
+  Given a vault
+  When the user runs engram vocab refit <flag> x
+  Then it fails saying the flag provided is not defined, and nothing is written
+
+  Examples:
+    | flag           |
+    | --plan         |
+    | --emit-request |
+
+Scenario: 792a6t1a Stats on an empty vault
+  Given an empty vault
+  When the user runs engram vocab stats
+  Then it prints "terms: 0  member-notes: 0  untagged: 0" and nothing on stderr
 ```
 
 ## 792b3 Added: durable-file-store
@@ -1703,8 +1739,9 @@ Canonical target: `docs/specs/technical/note-document-format.md` (title `Note Do
   directly on strings; stability, the shape survives any change to the commands that write it, and
   hand-edited and Obsidian-edited notes depend on it; necessity, every note engram writes or reads
   passes through it.
-- Supported capabilities: 792a3 note-writing, 792a4 note-revision. Vault-counting,
-  skill-runbook-registration and parent-sync add their requirements here (792d30, 792d61).
+- Supported capabilities: 792a3 note-writing, 792a4 note-revision, 792a6 controlled-vocabulary.
+  Vault-counting, skill-runbook-registration and parent-sync add their requirements here (792d30,
+  792d61).
 
 Rationale: the vault is flat. Notes sit at the vault root, and a note's place in the hierarchy is
 carried by the Luhmann ID that leads its filename, not by a folder (792a2c). A fact or feedback note
@@ -1726,7 +1763,7 @@ Requirement: 792b6c1 The note-document-format MUST name a fact, feedback or runb
 `<luhmann>.<YYYY-MM-DD>.<slug>.md` in the vault root, using its creation date, and MUST name a
 question-and-answer pair `qa.<YYYY-MM-DD>.<slug>.q.md` and `qa.<YYYY-MM-DD>.<slug>.a.md`.
 
-Supports: 792a3a1a, 792a3b1a, 792a3c1a, 792a3q1a.
+Supports: 792a3a1a, 792a3b1a, 792a3c1a, 792a3q1a, 792a6a1a, 792a6b1a.
 
 ##### 792b6c1a Scenarios
 
@@ -1787,7 +1824,7 @@ out any optional key whose value is empty:
 date as `YYYY-MM-DD`, and list values MUST keep their order.
 
 Supports: 792a3a1a, 792a3b1a, 792a3c1a, 792a3d1a, 792a3d1b, 792a3d1c, 792a3h1a, 792a3h1b, 792a3i1a,
-792a3i1b, 792a3o1c, 792a3p1c, 792a4b1c.
+792a3i1b, 792a3o1c, 792a3p1c, 792a4b1c, 792a6a1a, 792a6b1a.
 
 Rationale: a Luhmann ID is quoted so that an ID such as `1e1` is not read back as the number 10, and
 so that notes written by engram, migrated and written by hand all read the same way. A fact or
@@ -1842,7 +1879,7 @@ blank line and then one line `Supersedes: [[<note>]] — <type>: <claim>` per su
 `.md` dropped from the linked note.
 
 Supports: 792a3a1a, 792a3a1b, 792a3b1a, 792a3b1b, 792a3c1a, 792a3h1a, 792a4b1a, 792a4b1b, 792a4d1a,
-792a4d1b, 792a4l1a.
+792a4d1b, 792a4l1a, 792a6a1a.
 
 Rationale: situations are usually phrased "When …", while the formulas already say "when"; without
 the strip, a body would read "when When". A supersession link drops `.md` because links resolve by
@@ -2009,7 +2046,7 @@ Requirement: 792b6c8 The note-document-format MUST read a note for splitting and
 form, converting each `\r\n` to `\n` and keeping a lone `\r`, while frontmatter splitting itself
 stays LF-only (792b6c6).
 
-Supports: 792a4m1a, 792a4m1b.
+Supports: 792a4m1a, 792a4m1b, 792a6f1a.
 
 Rationale: a CRLF-aware split would hand the writers that splice its slices back into a note CRLF
 lines, and they would write mixed line endings; converting at the reader leaves every writer working
@@ -2062,6 +2099,9 @@ Scenario: 792b6c8a1 CRLF pairs become LF
 | 792a4l1a | 792b6c4 |
 | 792a4m1a | 792b6c8 |
 | 792a4m1b | 792b6c8 |
+| 792a6a1a | 792b6c1, 792b6c3, 792b6c4 |
+| 792a6b1a | 792b6c1, 792b6c3 |
+| 792a6f1a | 792b6c8 |
 
 ```gherkin
 Scenario: 792a3a1b A leading When is not doubled
@@ -2165,6 +2205,21 @@ Scenario: 792a4m1b Resituate converts a CRLF note
   Given a fact or feedback note whose lines end in \r\n
   When the user runs engram resituate --note <note> --situation new
   Then the rewrite succeeds, the written note contains no \r, and only situation: and the body's first line changed
+
+Scenario: 792a6a1a A definition note carries its self-tag
+  Given a vault and a seed file naming the term cooking with the description "recipes and kitchens" and one exemplar
+  When the user runs engram vocab bootstrap --seed with that file
+  Then the vault holds a note <id>.<date>.vocab-cooking-definition.md with tags [vocab, vocab/cooking], object "recipes and kitchens", an Exemplars: list holding the exemplar, and a sidecar
+
+Scenario: 792a6b1a Bootstrap creates the family note
+  Given a vault with no vocabulary
+  When the user runs engram vocab bootstrap with a seed file naming two terms
+  Then the vault holds one note <id>.<date>.vocab-definition.md tagged only vocab, carrying vocab_version "1.0", and its text names neither term
+
+Scenario: 792a6f1a Vocab tagging reads a CRLF note
+  Given a note whose lines end in \r\n
+  When vocabulary tagging adds a new term to it
+  Then the tag is written and the note is written as LF; a CRLF note whose tags do not change is not written
 ```
 
 ## 792b7 Added: luhmann-addressing
@@ -2591,8 +2646,8 @@ Canonical target: `docs/specs/technical/text-embedder.md` (title `Text Embedder 
   model, its cache and its window; independent verification, it is tested directly over fake
   backends and cache filesystems and over the real bundled model; stability, the contract survives
   a change of runtime library; necessity, every sidecar and every query phrase depends on it.
-- Supported capabilities: 792a3 note-writing, 792a5 chunk-indexing. Controlled-vocabulary,
-  memory-query and vault-health add their mappings (792d30).
+- Supported capabilities: 792a3 note-writing, 792a5 chunk-indexing, 792a6 controlled-vocabulary.
+  Memory-query and vault-health add their mappings (792d30).
 
 Rationale: an early design embedded through an external API, which brought a network dependency,
 per-call cost and latency, and sent vault content off the machine. Instead the
@@ -2635,7 +2690,7 @@ Requirement: 792b9c1 The text-embedder MUST embed text with the bundled model, m
 `minilm-l6-v2@384`, returning one 384-value vector per text, and MUST match the reference
 implementation's similarities for that model.
 
-Supports: 792a3n1a.
+Supports: 792a3n1a, 792a6a1a.
 
 ##### 792b9c1a Scenarios
 
@@ -2898,6 +2953,7 @@ Scenario: 792b9c7a5 A missing runtime fails loudly
 | 792a3n1b | 792b9c3, 792b9c4, 792b9c5 |
 | 792a5b1a | 792b9c1, 792b9c2 |
 | 792a5i1b | 792b9c1 |
+| 792a6a1a | 792b9c1 |
 
 ```gherkin
 Scenario: 792a3n1b A failed embedding keeps the note
@@ -2930,8 +2986,8 @@ Canonical target: `docs/specs/technical/embedding-sidecar.md` (title `Embedding 
   the on-disk format is versioned and outlives any refactoring; necessity, every retrieval over notes
   reads it.
 - Supported capabilities: 792a2 vault-identity, 792a3 note-writing, 792a4 note-revision, 792a5
-  chunk-indexing. Controlled-vocabulary, memory-query, vault-health and vault-migration add their
-  mappings and requirements (792d30).
+  chunk-indexing, 792a6 controlled-vocabulary. Memory-query, vault-health and vault-migration add
+  their mappings and requirements (792d30).
 
 Rationale: semantic search needs vectors, but a vector database or a separate rebuild step is a
 moving part that can drift from the notes. Instead every note carries its own sidecar, written as
@@ -3014,7 +3070,7 @@ Scenario: 792b10c1a5 An old single-vector sidecar is a schema error
 Requirement: 792b10c2 The embedding-sidecar MUST place a note's sidecar beside it, named after the
 note with `.md` replaced by `.vec.json`, and MUST append `.vec.json` to any other path.
 
-Supports: 792a3n1a.
+Supports: 792a3n1a, 792a6a1a.
 
 ##### 792b10c2a Scenarios
 
@@ -3038,7 +3094,7 @@ the frontmatter, less one leading blank line, with every machine-written line re
 starting `Supersedes:`, `Contributors:`, `Answered by:` or `Answers:`) and trailing blank lines
 reduced to one newline. Other body lines MUST be kept. A note with no frontmatter is all body.
 
-Supports: 792a3n1a, 792a3q1a, 792a4g1a, 792a4g1b.
+Supports: 792a3n1a, 792a3q1a, 792a4g1a, 792a4g1b, 792a6d1a, 792a6j1a.
 
 Rationale: the machine-written lines are link channels rewritten in place by learn, amend and
 curation. Leaving them out means a link-only change neither moves the body vector nor makes the
@@ -3079,7 +3135,7 @@ Requirement: 792b10c4 The embedding-sidecar MUST hash a note as `sha256:` follow
 SHA-256 of its situation text, a zero byte, and its body text, so the hash changes when either
 changes, does not change for any other frontmatter edit, and is the same for the same note.
 
-Supports: 792a3n1a, 792a4g1a, 792a4g1b.
+Supports: 792a3n1a, 792a4g1a, 792a4g1b, 792a6u1a.
 
 ##### 792b10c4a Scenarios
 
@@ -3112,7 +3168,7 @@ or the body text when the note has no situation, and the body text, and stamping
 the embedder's model ID and dimension, and the note's content hash; an embedding failure MUST be
 returned.
 
-Supports: 792a3n1a, 792a3n1b, 792a4g1a, 792a4g1c, 792a4l1a, 792a4l1c, 792a4o1b.
+Supports: 792a3n1a, 792a3n1b, 792a4g1a, 792a4g1c, 792a4l1a, 792a4l1c, 792a4o1b, 792a6a1a.
 
 ##### 792b10c5a Scenarios
 
@@ -3135,7 +3191,7 @@ sidecar and atomically write it to the note's sidecar path. When building or wri
 log a warning naming the note and return without failing the command. With no embedder or no
 sidecar writer wired, it MUST do nothing.
 
-Supports: 792a3n1a, 792a3n1b.
+Supports: 792a3n1a, 792a3n1b, 792a6e1b.
 
 Rationale: the note itself is already written in one atomic step, so a missing sidecar is
 recoverable later by `engram embed apply --missing`.
@@ -3172,7 +3228,7 @@ sidecar cannot be read, is malformed or has a dims mismatch; `incompatible` when
 schema version or another model ID; `stale` when its content hash differs from the note's; and `ok`
 otherwise, checking the model before the hash.
 
-Supports: 792a2c1a, 792a2d1a, 792a2d1b.
+Supports: 792a2c1a, 792a2d1a, 792a2d1b, 792a6u1a.
 
 Rationale: a re-embed under a new model also picks up any content change, so a model mismatch takes
 precedence. Every failure is a state rather than an error, so a pass over the whole vault never
@@ -3219,7 +3275,7 @@ Scenario: 792b10c7a6 States have labels
 Requirement: 792b10c8 The embedding-sidecar MUST measure two vectors' cosine similarity, and MUST
 return 0 when their lengths differ, when they are empty, or when either has zero magnitude.
 
-Supports: 792a3t1a, 792a3u1a, 792a3u1b.
+Supports: 792a3t1a, 792a3u1a, 792a3u1b, 792a6d1a, 792a6d1c.
 
 ##### 792b10c8a Scenarios
 
@@ -3284,6 +3340,12 @@ Scenario: 792b10c9a1 A CRLF note embeds and hashes as its LF form
 | 792a4n1d | 792b10c1 |
 | 792a4o1b | 792b10c5 |
 | 792a5n1a | 792b10c2 |
+| 792a6a1a | 792b10c2, 792b10c5 |
+| 792a6d1a | 792b10c3, 792b10c8 |
+| 792a6d1c | 792b10c8 |
+| 792a6e1b | 792b10c6 |
+| 792a6j1a | 792b10c3 |
+| 792a6u1a | 792b10c4, 792b10c7 |
 
 ```gherkin
 Scenario: 792a3t1a The answer is found and the question is not
@@ -3319,6 +3381,31 @@ Scenario: 792a5n1a A vault-note copy outside the vault is skipped
   Given a swept directory holding 1.2026-10-09.x.md with 1.2026-10-09.x.vec.json beside it, and plain.md with no sidecar, outside the vault
   When the user runs engram ingest --sweep <dir>
   Then plain.md is indexed and 1.2026-10-09.x.md is not
+
+Scenario: 792a6d1a A learned note is tagged with its closest terms
+  Given a vault whose vocabulary holds the terms build-tooling and cooking
+  When the user runs engram learn fact about running a linter before committing Go code
+  Then the note carries vocab/build-tooling and not vocab/cooking
+
+Scenario: 792a6d1c At most three terms are kept
+  Given a vault with four terms, each close to one note's text
+  When the user writes that note with engram learn
+  Then the note carries the three closest terms, closest first
+
+Scenario: 792a6e1b A note whose embedding failed is not tagged
+  Given a vault with a vocabulary, where embedding the new note fails
+  When the user runs engram learn fact
+  Then the note is written, stderr carries a warning naming it, and the note has no vocab/ tag
+
+Scenario: 792a6j1a The term count follows the vault's clusters
+  Given a vault of notes in two clear topics
+  When the user runs engram vocab refit --dry-run
+  Then it prints "vocab refit (dry-run): K=2 silhouette=<s>"
+
+Scenario: 792a6u1a Backfill adds missing self-tags
+  Given a vault whose definition notes carry only the bare vocab tag
+  When the user runs engram vocab tag-definitions
+  Then each per-term definition's tags become [vocab, vocab/<term>], engram embed status reports none of them stale, and one "added" line is printed per note
 ```
 
 ## 792b11 Added: note-provenance
@@ -3604,7 +3691,7 @@ Canonical target: `docs/specs/technical/note-authoring.md` (title `Note Authorin
   calls own the format, the IDs, the lock, the sidecar and provenance; independent verification,
   it is tested directly over injected dependencies; stability, the capture flow survives any
   refactoring of the components it calls; necessity, every new note is written through it.
-- Supported capabilities: 792a3 note-writing. Controlled-vocabulary, skill-runbook-registration,
+- Supported capabilities: 792a3 note-writing, 792a6 controlled-vocabulary. Skill-runbook-registration,
   write-memory, learn, vault-serving and parent-sync add their requirements (792d30).
 
 Rationale: the vault lock spans everything from listing the existing IDs to creating the note, so
@@ -3645,7 +3732,7 @@ sequenceDiagram
         Author->>Format: name and render the note (792b12c4)
         Author->>Store: create the note exclusively
         Author->>Sidecar: write its sidecar
-        Author->>Author: apply vocabulary tagging
+        Author->>Author: apply vocabulary tagging, then the refit check (792b12c6)
         Author->>Lock: release
         Author-->>CLI: the note's path on stdout (792b12c3)
       end
@@ -3679,7 +3766,7 @@ sequenceDiagram
     else both written
       Author->>Lock: release
       Author->>Sidecar: write both sidecars
-      Author->>Author: apply vocabulary tagging to the answer only
+      Author->>Author: apply vocabulary tagging to the answer only, then the refit check (792b12c6)
       Author-->>CLI: the question's path, then the answer's (792b12c5)
     end
   end
@@ -3900,6 +3987,34 @@ Scenario: 792b12c5a7 A failed removal is reported too
   Then the error names the orphaned question note
 ```
 
+#### 792b12c6 Vocabulary tagging after a write
+
+Requirement: 792b12c6 After creating a fact, feedback or runbook note and writing its sidecar, and
+after writing both sidecars of a question-and-answer pair, the note-authoring MUST have the
+vocabulary-engine tag the written note (the answer only, never the question) and then check whether
+a refit is due, and MUST still succeed when tagging or the check does nothing.
+
+Supports: 792a3u1a, 792a3u1b, 792a6c1a, 792a6d1a, 792a6e1a, 792a6e1b, 792a6s1a, 792a6s1c.
+
+##### 792b12c6a Scenarios
+
+```gherkin
+Scenario: 792b12c6a1 A learned note is tagged after its write
+  Given a vault with a term close to the note's text and a readable sidecar for the note
+  When the note is learned
+  Then the note is rewritten with the term's vocab/ tag after its sidecar is written
+
+Scenario: 792b12c6a2 The refit check runs after a learn
+  Given a vault whose refit baseline is 100 notes 20 days ago, now holding 150 notes, and no term vectors wired
+  When a note is learned
+  Then the vault's refit is marked pending
+
+Scenario: 792b12c6a3 The question of a pair is not tagged
+  Given a vault with a term close to both a question and its answer
+  When the pair is learned
+  Then only the answer note is tagged
+```
+
 ### 792b12d Product-Scenario Mapping
 
 | Product scenario | Technical requirements |
@@ -3938,14 +4053,40 @@ Scenario: 792b12c5a7 A failed removal is reported too
 | 792a3r1a | 792b12c5 |
 | 792a3r1b | 792b12c5 |
 | 792a3s1a | 792b12c5 |
-| 792a3u1a | 792b12c3 |
-| 792a3u1b | 792b12c5 |
+| 792a3u1a | 792b12c3, 792b12c6 |
+| 792a3u1b | 792b12c5, 792b12c6 |
+| 792a6c1a | 792b12c4, 792b12c6 |
+| 792a6d1a | 792b12c6 |
+| 792a6e1a | 792b12c6 |
+| 792a6e1b | 792b12c6 |
+| 792a6s1a | 792b12c6 |
+| 792a6s1c | 792b12c6 |
 
 ```gherkin
 Scenario: 792a3r1b Certainty defaults to medium
   Given an existing vault
   When the user runs engram learn qa without --certainty
   Then the answer note carries certainty: medium
+
+Scenario: 792a6c1a A categorical tag survives tagging
+  Given a vault whose vocabulary holds the term build-tooling
+  When the user runs engram learn fact --tag work-kind/review with text close to build-tooling
+  Then the note's tags are [work-kind/review, vocab/build-tooling], in that order
+
+Scenario: 792a6e1a A vault without a vocabulary writes plain notes
+  Given a vault with no definition notes
+  When the user runs engram learn fact
+  Then the note is written with no vocab/ tag
+
+Scenario: 792a6s1a Growth marks a refit pending
+  Given a vault whose refit baseline is 100 notes 20 days ago, now holding 150 notes
+  When the user runs engram learn fact
+  Then engram vocab stats reports "verdict: REFIT_PENDING (growth: <N> notes, <D> days)"
+
+Scenario: 792a6s1c A first write records the baseline
+  Given a vault with no refit baseline
+  When the user runs engram learn fact
+  Then a baseline is recorded, and engram vocab stats reports verdict: OK
 ```
 
 ## 792b13 Added: wikilink-graph
@@ -4128,8 +4269,8 @@ Canonical target: `docs/specs/technical/note-amendment.md` (title `Note Amendmen
   lookup, read, write, lock and embedder fakes; stability, the read-modify-write contract survives any
   change to the flags that drive it; necessity, every change an agent makes to an existing note
   goes through it.
-- Supported capabilities: 792a4 note-revision. Write-memory, recall, parent-sync and curate add
-  their requirements (792d30).
+- Supported capabilities: 792a4 note-revision, 792a6 controlled-vocabulary. Write-memory, recall,
+  parent-sync and curate add their requirements (792d30).
 
 Rationale: a revision is a read-modify-write of a note and its sidecar, so two revisions, or a
 revision and a learn, that interleave could each overwrite the other's change. Every revision takes
@@ -4170,6 +4311,7 @@ sequenceDiagram
       opt --activate
         Amend->>Store: record today as the sidecar's last use (792b14c9)
       end
+      Amend->>Amend: apply vocabulary tagging, then the refit check (792b14c11)
       Amend-->>CLI: the note's path (792b14c3)
     end
   end
@@ -4194,6 +4336,7 @@ sequenceDiagram
     Reviser->>Store: write the note once (792b14c8)
     Reviser->>Sidecar: build the sidecar, then write it (792b14c8)
     alt the sidecar is written
+      Reviser->>Reviser: apply vocabulary tagging, then the refit check (792b14c11)
       Reviser-->>CLI: the note's path
     else building or writing fails
       Reviser-->>CLI: error naming the note, the note already rewritten (792b14c8)
@@ -4580,6 +4723,38 @@ Scenario: 792b14c10a4 All refs failing fails the command
   Then the command fails
 ```
 
+#### 792b14c11 Vocabulary tagging after a revision
+
+Requirement: 792b14c11 After an amend or a resituate writes the note (and, for a resituate, after its
+sidecar is rewritten), the note-amendment MUST have the vocabulary-engine tag the note's written
+content and then check whether a refit is due.
+
+Supports: 792a6d1d, 792a6d1e.
+
+##### 792b14c11a Scenarios
+
+```gherkin
+Scenario: 792b14c11a1 An amended note is tagged
+  Given a vault with a term close to the amended note and a readable sidecar for it
+  When the note is amended
+  Then the note is rewritten with the term's vocab/ tag
+
+Scenario: 792b14c11a2 The refit check runs after an amend
+  Given a vault whose refit baseline is 100 notes 20 days ago, now holding 150 notes, and no term vectors wired
+  When a note is amended
+  Then the vault's refit is marked pending
+
+Scenario: 792b14c11a3 A resituated note is tagged
+  Given a vault with a term close to the resituated note
+  When the note is resituated
+  Then the term vectors are loaded after the note is written, and the note gains the term's vocab/ tag
+
+Scenario: 792b14c11a4 The refit check runs after a resituate
+  Given a vault whose refit baseline is 100 notes 20 days ago, now holding 150 notes
+  When a note is resituated
+  Then the vault's refit is marked pending
+```
+
 ### 792b14d Product-Scenario Mapping
 
 | Product scenario | Technical requirements |
@@ -4622,6 +4797,8 @@ Scenario: 792b14c10a4 All refs failing fails the command
 | 792a4n1d | 792b14c9 |
 | 792a4o1a | 792b14c1 |
 | 792a4o1b | 792b14c1 |
+| 792a6d1d | 792b14c11 |
+| 792a6d1e | 792b14c11 |
 
 ```gherkin
 Scenario: 792a4e1a Chunk sources are merged without duplicates
@@ -4638,6 +4815,16 @@ Scenario: 792a4n1b A note without a sidecar still counts
   Given a note that has no sidecar
   When the user runs engram activate --note <basename>
   Then the command succeeds and writes no sidecar
+
+Scenario: 792a6d1d An amend re-tags the note
+  Given a note tagged vocab/cooking whose object is then rewritten to describe a linter
+  When the user runs engram amend --object with the new text
+  Then the note carries vocab/build-tooling and no longer vocab/cooking
+
+Scenario: 792a6d1e A resituated note is re-tagged
+  Given a fact note and a vault vocabulary
+  When the user runs engram resituate on it
+  Then its vocab/ tags are set from its rewritten text
 ```
 
 ## 792b15 Added: transcript-reader

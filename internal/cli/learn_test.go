@@ -1009,6 +1009,71 @@ func Test792b12c4a7_RunLearn_Runbook_WritesTriggersInOrderAfterRedFlags(t *testi
 	g.Expect(strings.Index(rendered, "triggers:")).To(BeNumerically(">", strings.Index(rendered, "red_flags:")))
 }
 
+// Test792b12c6a2_ApplyVocabAssignmentAfterLearn_TriggerFires drives applyVocabAssignmentAfterLearn
+// with a vault at the growth threshold and asserts the trigger flag is persisted.
+// ListMD is set but LoadTermVectors is nil — the trigger check must still run.
+func Test792b12c6a2_ApplyVocabAssignmentAfterLearn_TriggerFires(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// 150 non-vocab notes, last_refit at 100 notes 20 days ago → growth trigger
+	names := make([]string, 150)
+	for i := range names {
+		names[i] = fmt.Sprintf("%d.2026-01-01.note.md", i+1)
+	}
+
+	centroidsDoc := cli.ExportVocabCentroidsDoc{
+		SchemaVersion: 1,
+		LastRefit:     &cli.ExportVocabLastRefitDoc{NoteCount: 100, Date: "2026-06-13"},
+	}
+
+	centroidsData, marshalErr := json.Marshal(centroidsDoc)
+
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	var centroidsWritten []byte
+
+	deps := cli.LearnDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Now:        func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
+		ListMD:     func(string) ([]string, error) { return names, nil },
+		ReadSidecar: func(path string) ([]byte, error) {
+			if strings.HasSuffix(path, "vocab.centroids.json") {
+				return centroidsData, nil
+			}
+
+			return nil, os.ErrNotExist
+		},
+		WriteNote: func(path string, data []byte) error {
+			if strings.HasSuffix(path, "vocab.centroids.json") {
+				centroidsWritten = data
+			}
+
+			return nil
+		},
+		LogWarning: nil,
+	}
+
+	cli.ExportApplyVocabAssignmentAfterLearn(deps, "/vault", "/vault/150.note.md", "---\ntype: fact\n---\n")
+
+	g.Expect(centroidsWritten).NotTo(BeNil(), "trigger check must write centroids")
+
+	var got cli.ExportVocabCentroidsDoc
+
+	g.Expect(json.Unmarshal(centroidsWritten, &got)).NotTo(HaveOccurred())
+
+	if err := json.Unmarshal(centroidsWritten, &got); err != nil {
+		return
+	}
+
+	g.Expect(got.RefitPending).To(BeTrue())
+}
+
 func Test792b6c1a1_LearnPath_Permanent(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -1549,71 +1614,6 @@ func Test792b7c2a3_ExtractLuhmannFromFilename_RejectsNonMd(t *testing.T) {
 	g := NewWithT(t)
 	_, ok := cli.ExportExtractLuhmannFromFilename("1a3.2026-05-09.subagent-recovery.txt")
 	g.Expect(ok).To(BeFalse())
-}
-
-// TestApplyVocabAssignmentAfterLearn_TriggerFires drives applyVocabAssignmentAfterLearn
-// with a vault at the growth threshold and asserts the trigger flag is persisted.
-// ListMD is set but LoadTermVectors is nil — the trigger check must still run.
-func TestApplyVocabAssignmentAfterLearn_TriggerFires(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// 150 non-vocab notes, last_refit at 100 notes 20 days ago → growth trigger
-	names := make([]string, 150)
-	for i := range names {
-		names[i] = fmt.Sprintf("%d.2026-01-01.note.md", i+1)
-	}
-
-	centroidsDoc := cli.ExportVocabCentroidsDoc{
-		SchemaVersion: 1,
-		LastRefit:     &cli.ExportVocabLastRefitDoc{NoteCount: 100, Date: "2026-06-13"},
-	}
-
-	centroidsData, marshalErr := json.Marshal(centroidsDoc)
-
-	g.Expect(marshalErr).NotTo(HaveOccurred())
-
-	if marshalErr != nil {
-		return
-	}
-
-	var centroidsWritten []byte
-
-	deps := cli.LearnDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Now:        func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
-		ListMD:     func(string) ([]string, error) { return names, nil },
-		ReadSidecar: func(path string) ([]byte, error) {
-			if strings.HasSuffix(path, "vocab.centroids.json") {
-				return centroidsData, nil
-			}
-
-			return nil, os.ErrNotExist
-		},
-		WriteNote: func(path string, data []byte) error {
-			if strings.HasSuffix(path, "vocab.centroids.json") {
-				centroidsWritten = data
-			}
-
-			return nil
-		},
-		LogWarning: nil,
-	}
-
-	cli.ExportApplyVocabAssignmentAfterLearn(deps, "/vault", "/vault/150.note.md", "---\ntype: fact\n---\n")
-
-	g.Expect(centroidsWritten).NotTo(BeNil(), "trigger check must write centroids")
-
-	var got cli.ExportVocabCentroidsDoc
-
-	g.Expect(json.Unmarshal(centroidsWritten, &got)).NotTo(HaveOccurred())
-
-	if err := json.Unmarshal(centroidsWritten, &got); err != nil {
-		return
-	}
-
-	g.Expect(got.RefitPending).To(BeTrue())
 }
 
 // TestRenderRunbookFrontmatter_IncludesSkillHashWhenSet guards the populated

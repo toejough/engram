@@ -201,13 +201,11 @@ sequenceDiagram
 
 The capture path is in
 [792b12](../../changes/792_documentation-framework-adoption/792b_technical-spec.md#792b12-added-note-authoring)
-(792b12c5). Residue for later nodes:
+(792b12c5), and `vocab stats`' question exclusion in
+[792a6t](../../changes/792_documentation-framework-adoption/792a_product-spec.md#792a6t-vocabulary-statistics). Residue for later nodes:
 
 - Query (memory-query): a question note is excluded at all four query-pipeline seam points
   (`isQueryExcludedKind`): `applyFloorAndCap`, `isFloorQualifyingNote` (the `capWithNoteFloor`
   reservation), `mergePhraseIntoUnion` (the per-phrase union), and the explore-half `TermIndex`
   build (`loadAllVaultNotesMeta` in `query_vault_meta.go`, guarded by `isQueryExcludedKind` before
   a note's terms populate `TermIndex`). The answer note competes like any fact or feedback note.
-- Vocabulary statistics (controlled-vocabulary): `engram vocab stats` leaves question notes out of
-  the `totalNotes` and untagged counts (`collectVaultStats` skips `isQAQuestionFilename`); answer
-  notes count normally.

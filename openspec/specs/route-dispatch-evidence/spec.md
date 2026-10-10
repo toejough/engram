@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Every route dispatch is recorded as an ordinary recallable fact note tagged with three categorical tags (work-kind, tier, outcome in frontmatter tags:), and each work-kind keeps one aggregate fact note (route-evidence-<work-kind>) whose object text holds running tier tallies plus wikilinks to every evidence note. Route reads evidence by plain recall — aggregates surface as normal memories; engram count recomputes tallies from tags as the drift audit. Why: docs/architecture/adr.md — ADR-0019 (the 2026-07-10 decision on #669); issue #674. Validation: internal/cli/learn_test.go (Test792b12c4a3_LearnFact_Tags_WrittenToFrontmatter, Test792b12c1a2_LearnFact_InvalidTag_RejectedBeforeWrite, Test792b6c3a7_RenderFactFrontmatter_TagsRoundtripFidelity) and internal/cli/amend_test.go (Test792b6c7a1_RunAmend_PreservesTagsFrontmatter); scratch-vault drowning gauge PASS at 20 sibling evidence notes + count recompute parity.
+Every route dispatch is recorded as an ordinary recallable fact note tagged with three categorical tags (work-kind, tier, outcome in frontmatter tags:), and each work-kind keeps one aggregate fact note (route-evidence-<work-kind>) whose object text holds running tier tallies plus wikilinks to every evidence note. Route reads evidence by plain recall — aggregates surface as normal memories; engram count recomputes tallies from tags as the drift audit. Why: `docs/changes/792_documentation-framework-adoption/792a_product-spec.md#792a6c-categorical-tags-share-one-list` (the 2026-07-10 decision on #669); issue #674. Validation: internal/cli/learn_test.go (Test792b12c4a3_LearnFact_Tags_WrittenToFrontmatter, Test792b12c1a2_LearnFact_InvalidTag_RejectedBeforeWrite, Test792b6c3a7_RenderFactFrontmatter_TagsRoundtripFidelity) and internal/cli/amend_test.go (Test792b6c7a1_RunAmend_PreservesTagsFrontmatter); scratch-vault drowning gauge PASS at 20 sibling evidence notes + count recompute parity.
 ## Requirements
 ### Requirement: Every route dispatch SHALL be recorded as a tagged fact note
 After each dispatch resolves, the orchestrator SHALL hand off a structured fact note to write-memory with three categorical tags (work-kind/<k>, tier/<cheap|mid|deep>, outcome/<pass|fail>) and provenance in the note's situation/subject/predicate/object fields.
@@ -43,9 +43,9 @@ orchestrator SHALL run a deterministic uniqueness check (a vault basename listin
 `route-evidence-<work-kind>*`, since aggregates are untagged and cannot be enumerated via
 `engram count`) at the same trigger moments as the count audit, to distinguish "the aggregate
 truly doesn't exist" from "the lookup missed an existing aggregate" (an embedding miss, or the
-ADR-0019 drowning case). When the uniqueness check finds more than one aggregate for the same
+792a6c drowning case). When the uniqueness check finds more than one aggregate for the same
 work-kind, the orchestrator SHALL merge them: union the evidence wikilinks, recompute the tally
-via the documented count commands, and record the incident as evidence for the ADR-0019
+via the documented count commands, and record the incident as evidence for the 792a6c
 drowning-remedy decision.
 
 #### Scenario: Aggregate creation
@@ -62,7 +62,7 @@ drowning-remedy decision.
 
 #### Scenario: Duplicate aggregates found and merged
 - **WHEN** the uniqueness check finds more than one `route-evidence-<work-kind>` note
-- **THEN** the orchestrator unions their evidence wikilinks, recomputes the tally via the documented count commands, merges them into one aggregate, and records the incident as ADR-0019 drowning-remedy evidence
+- **THEN** the orchestrator unions their evidence wikilinks, recomputes the tally via the documented count commands, merges them into one aggregate, and records the incident as 792a6c drowning-remedy evidence
 
 ### Requirement: Count SHALL audit aggregate drift using tags
 engram count with --group-by tags filters SHALL recompute ground-truth tier tallies from
