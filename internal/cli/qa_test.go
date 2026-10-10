@@ -287,6 +287,105 @@ func Test792b12c5a7_RunLearnQA_AWriteAndRemoveFailure_OrphanWarning(t *testing.T
 	g.Expect(err).To(MatchError(ContainSubstring("orphan")))
 }
 
+func Test792b20c6a6_ScanNonVocabNotes_QAQuestionFilenameSkipped(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	names := []string{
+		"qa.2026-07-03.slug.q.md", // should be skipped
+		"qa.2026-07-03.slug.a.md", // should be visited
+		"100.2026-07-01.note.md",  // should be visited
+		"vocab.some-term.md",      // should be visited — filename is no longer special (#681)
+	}
+
+	var visited []string
+
+	cli.ExportScanNonVocabNotes("/vault", names,
+		func(string) ([]byte, error) { return []byte("---\ntype: fact\n---\n"), nil },
+		func(name string, _ []byte, _ error) { visited = append(visited, name) },
+	)
+
+	g.Expect(visited).To(ConsistOf(
+		"qa.2026-07-03.slug.a.md", "100.2026-07-01.note.md", "vocab.some-term.md"))
+}
+
+func Test792b20c7a3_CollectVaultStats_QAQuestionExcluded_QAAnswerCounted(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// qa.*.q.md file should NOT appear in totalNotes; qa.*.a.md should.
+	names := []string{
+		"qa.2026-07-03.slug.q.md", // Q note — excluded
+		"qa.2026-07-03.slug.a.md", // A note — counted
+		"vocab.agentic-recall-triggers.md",
+		"vocab.index.md",
+	}
+
+	qaAContent := "---\ntype: qa-answer\ndate: \"2026-07-03\"\nvocab: [agentic-recall-triggers]\n---\n\nAnswer body.\n"
+	// Gate A F1: the Q note MUST return real qa-question content — a read error would
+	// exclude it from totalNotes even WITHOUT the new skip (extractNoteVocabTags returns
+	// nil,false on read errors), making the RED phase a false pass. With real content,
+	// the unmodified code counts it (totalNotes=2 → RED genuinely fails) and only the
+	// added isQAQuestionFilename skip turns it GREEN (totalNotes=1).
+	qaQContent := "---\ntype: qa-question\ndate: \"2026-07-03\"\nanswered_by: qa.2026-07-03.slug.a\n---\n\n" +
+		"Question body.\n"
+
+	deps := cli.VocabStatsDeps{
+		ListMD: func(string) ([]string, error) { return names, nil },
+		ReadFile: func(path string) ([]byte, error) {
+			switch {
+			case strings.HasSuffix(path, "slug.a.md"):
+				return []byte(qaAContent), nil
+			case strings.HasSuffix(path, "slug.q.md"):
+				return []byte(qaQContent), nil
+			}
+
+			return nil, os.ErrNotExist
+		},
+	}
+
+	_, _, totalNotes, _ := cli.ExportCollectVaultStats(names, deps, "/vault")
+	g.Expect(totalNotes).To(Equal(1), "only A-note should count; Q-note excluded")
+}
+
+func Test792b20c7a3_IsQAQuestionFilename(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{"question_file", "qa.2026-07-03.my-slug.q.md", true},
+		{"answer_file", "qa.2026-07-03.my-slug.a.md", false},
+		{"vocab_file", "vocab.agentic-recall-triggers.md", false},
+		{"regular_fact", "100.2026-07-01.some-fact.md", false},
+		{"bare_qa_prefix", "qa.md", false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+			g.Expect(cli.ExportIsQAQuestionFilename(tc.in)).To(Equal(tc.want))
+		})
+	}
+}
+
+func Test792b20c7a5_CountQAPairs(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	names := []string{
+		"qa.2026-07-03.first.q.md",
+		"qa.2026-07-03.first.a.md",
+		"qa.2026-07-03.second.q.md", // no matching .a.md — orphan Q
+		"100.2026-07-01.some-fact.md",
+		"vocab.agentic-recall-triggers.md",
+	}
+	g.Expect(cli.ExportCountQAPairs(names)).To(Equal(1))
+}
+
 func Test792b6c5a1_RenderQAQuestionNote_ContainsExpectedParts(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -334,83 +433,6 @@ func Test792b6c5a3_RenderQAAnswerNote_NoContributors_NoContributorsLine(t *testi
 	g.Expect(got).NotTo(ContainSubstring("Contributors:"))
 }
 
-func TestCollectVaultStats_QAQuestionExcluded_QAAnswerCounted(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// qa.*.q.md file should NOT appear in totalNotes; qa.*.a.md should.
-	names := []string{
-		"qa.2026-07-03.slug.q.md", // Q note — excluded
-		"qa.2026-07-03.slug.a.md", // A note — counted
-		"vocab.agentic-recall-triggers.md",
-		"vocab.index.md",
-	}
-
-	qaAContent := "---\ntype: qa-answer\ndate: \"2026-07-03\"\nvocab: [agentic-recall-triggers]\n---\n\nAnswer body.\n"
-	// Gate A F1: the Q note MUST return real qa-question content — a read error would
-	// exclude it from totalNotes even WITHOUT the new skip (extractNoteVocabTags returns
-	// nil,false on read errors), making the RED phase a false pass. With real content,
-	// the unmodified code counts it (totalNotes=2 → RED genuinely fails) and only the
-	// added isQAQuestionFilename skip turns it GREEN (totalNotes=1).
-	qaQContent := "---\ntype: qa-question\ndate: \"2026-07-03\"\nanswered_by: qa.2026-07-03.slug.a\n---\n\n" +
-		"Question body.\n"
-
-	deps := cli.VocabStatsDeps{
-		ListMD: func(string) ([]string, error) { return names, nil },
-		ReadFile: func(path string) ([]byte, error) {
-			switch {
-			case strings.HasSuffix(path, "slug.a.md"):
-				return []byte(qaAContent), nil
-			case strings.HasSuffix(path, "slug.q.md"):
-				return []byte(qaQContent), nil
-			}
-
-			return nil, os.ErrNotExist
-		},
-	}
-
-	_, _, totalNotes, _ := cli.ExportCollectVaultStats(names, deps, "/vault")
-	g.Expect(totalNotes).To(Equal(1), "only A-note should count; Q-note excluded")
-}
-
-func TestCountQAPairs(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	names := []string{
-		"qa.2026-07-03.first.q.md",
-		"qa.2026-07-03.first.a.md",
-		"qa.2026-07-03.second.q.md", // no matching .a.md — orphan Q
-		"100.2026-07-01.some-fact.md",
-		"vocab.agentic-recall-triggers.md",
-	}
-	g.Expect(cli.ExportCountQAPairs(names)).To(Equal(1))
-}
-
-func TestIsQAQuestionFilename(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		name string
-		in   string
-		want bool
-	}{
-		{"question_file", "qa.2026-07-03.my-slug.q.md", true},
-		{"answer_file", "qa.2026-07-03.my-slug.a.md", false},
-		{"vocab_file", "vocab.agentic-recall-triggers.md", false},
-		{"regular_fact", "100.2026-07-01.some-fact.md", false},
-		{"bare_qa_prefix", "qa.md", false},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-			g.Expect(cli.ExportIsQAQuestionFilename(tc.in)).To(Equal(tc.want))
-		})
-	}
-}
-
 func TestIsQueryExcludedKind(t *testing.T) {
 	t.Parallel()
 
@@ -435,26 +457,4 @@ func TestIsQueryExcludedKind(t *testing.T) {
 			g.Expect(cli.ExportIsQueryExcludedKind(tc.content)).To(Equal(tc.want))
 		})
 	}
-}
-
-func TestScanNonVocabNotes_QAQuestionFilenameSkipped(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	names := []string{
-		"qa.2026-07-03.slug.q.md", // should be skipped
-		"qa.2026-07-03.slug.a.md", // should be visited
-		"100.2026-07-01.note.md",  // should be visited
-		"vocab.some-term.md",      // should be visited — filename is no longer special (#681)
-	}
-
-	var visited []string
-
-	cli.ExportScanNonVocabNotes("/vault", names,
-		func(string) ([]byte, error) { return []byte("---\ntype: fact\n---\n"), nil },
-		func(name string, _ []byte, _ error) { visited = append(visited, name) },
-	)
-
-	g.Expect(visited).To(ConsistOf(
-		"qa.2026-07-03.slug.a.md", "100.2026-07-01.note.md", "vocab.some-term.md"))
 }

@@ -20,6 +20,138 @@ import (
 	"github.com/toejough/engram/internal/update"
 )
 
+func Test792b20c22a1_OldVocabFilesPresent(t *testing.T) {
+	t.Parallel()
+
+	table := []struct {
+		name  string
+		files map[string][]byte
+		want  bool
+	}{
+		{
+			name:  "vocab-index-present",
+			files: map[string][]byte{"/vault/vocab.index.md": []byte("index")},
+			want:  true,
+		},
+		{
+			name:  "vocab-term-note-present",
+			files: map[string][]byte{"/vault/vocab.recall.md": []byte("term note")},
+			want:  true,
+		},
+		{
+			name:  "no-old-vocab-files",
+			files: map[string][]byte{"/vault/1.2026-07-01.some-note.md": []byte("note")},
+			want:  false,
+		},
+		{
+			name:  "missing-vault-dir",
+			files: map[string][]byte{},
+			want:  false,
+		},
+	}
+
+	for _, tc := range table {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			fileSystem := newU1FS()
+			maps.Copy(fileSystem.files, tc.files)
+
+			got := cli.ExportOldVocabFilesPresent("/vault", fileSystem)
+			g.Expect(got).To(Equal(tc.want))
+		})
+	}
+}
+
+// Test792b20c22a2_VocabDefinitionsMissingSelfTags pins the self-tag backfill detection
+// for the vocab-definition-self-tags upgrade (4f68fada): a vault holding a
+// definition note (bare `vocab` tag + "vocab-<term>-definition" slug) whose
+// tags lack the vocab/<term> self-tag triggers the notice; the FAMILY note
+// (slug "vocab-definition") is deliberately bare-vocab-only and must never
+// trigger it; fully-tagged and fresh vaults stay silent (idempotent-clean).
+func Test792b20c22a2_VocabDefinitionsMissingSelfTags(t *testing.T) {
+	t.Parallel()
+
+	untaggedDefinition := []byte("---\ntype: fact\ntags:\n    - vocab\n---\n\nDefines recall-design.\n")
+	taggedDefinition := []byte(
+		"---\ntype: fact\ntags:\n    - vocab\n    - vocab/recall-design\n---\n\nDefines recall-design.\n")
+	familyNote := []byte("---\ntype: fact\ntags:\n    - vocab\n---\n\nFamily root.\n")
+	memberNote := []byte("---\ntype: fact\ntags:\n    - vocab/recall-design\n---\n\nMember mentions recall-design.\n")
+
+	table := []struct {
+		name  string
+		files map[string][]byte
+		want  bool
+	}{
+		{
+			name: "untagged-definition-present",
+			files: map[string][]byte{
+				"/vault/12.2026-07-27.vocab-recall-design-definition.md": untaggedDefinition,
+			},
+			want: true,
+		},
+		{
+			name: "fully-tagged-definition",
+			files: map[string][]byte{
+				"/vault/12.2026-07-27.vocab-recall-design-definition.md": taggedDefinition,
+			},
+			want: false,
+		},
+		{
+			name: "family-note-is-exempt",
+			files: map[string][]byte{
+				"/vault/1.2026-07-10.vocab-definition.md": familyNote,
+			},
+			want: false,
+		},
+		{
+			name: "member-note-is-not-a-definition",
+			files: map[string][]byte{
+				"/vault/3.2026-07-11.some-member.md": memberNote,
+			},
+			want: false,
+		},
+		{
+			name: "definition-slug-without-bare-vocab-tag",
+			files: map[string][]byte{
+				"/vault/12.2026-07-27.vocab-recall-design-definition.md": memberNote,
+			},
+			want: false,
+		},
+		{
+			name:  "missing-vault-dir",
+			files: map[string][]byte{},
+			want:  false,
+		},
+		{
+			name: "mixed-vault-with-one-untagged",
+			files: map[string][]byte{
+				"/vault/1.2026-07-10.vocab-definition.md":                familyNote,
+				"/vault/12.2026-07-27.vocab-recall-design-definition.md": taggedDefinition,
+				"/vault/13.2026-07-27.vocab-eval-design-definition.md": []byte(
+					"---\ntype: fact\ntags:\n    - vocab\n---\n\nDefines eval-design.\n"),
+			},
+			want: true,
+		},
+	}
+
+	for _, tc := range table {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			fileSystem := newU1FS()
+			maps.Copy(fileSystem.files, tc.files)
+
+			got := cli.ExportVocabDefinitionsMissingSelfTags("/vault", fileSystem)
+			g.Expect(got).To(Equal(tc.want))
+		})
+	}
+}
+
 func TestAnyHarnessFailed(t *testing.T) {
 	t.Parallel()
 
@@ -62,7 +194,7 @@ func TestChunkIndexHasEmptyFiles(t *testing.T) {
 			fileSystem := newU1FS()
 			maps.Copy(fileSystem.files, tc.files)
 			// Do NOT set dirs["/chunks"]: u1FS.hasChildren synthesizes the dir
-			// from seeded /chunks/*.jsonl paths (mirror TestOldVocabFilesPresent),
+			// from seeded /chunks/*.jsonl paths (mirror Test792b20c22a1_OldVocabFilesPresent),
 			// so the "missing dir" case (empty maps) genuinely hits the
 			// ReadDir-error (self-silencing) branch.
 
@@ -344,51 +476,6 @@ func TestFinishUpdate_PropagatesRunError(t *testing.T) {
 	g.Expect(errors.Is(err, runErr)).To(BeTrue())
 }
 
-func TestOldVocabFilesPresent(t *testing.T) {
-	t.Parallel()
-
-	table := []struct {
-		name  string
-		files map[string][]byte
-		want  bool
-	}{
-		{
-			name:  "vocab-index-present",
-			files: map[string][]byte{"/vault/vocab.index.md": []byte("index")},
-			want:  true,
-		},
-		{
-			name:  "vocab-term-note-present",
-			files: map[string][]byte{"/vault/vocab.recall.md": []byte("term note")},
-			want:  true,
-		},
-		{
-			name:  "no-old-vocab-files",
-			files: map[string][]byte{"/vault/1.2026-07-01.some-note.md": []byte("note")},
-			want:  false,
-		},
-		{
-			name:  "missing-vault-dir",
-			files: map[string][]byte{},
-			want:  false,
-		},
-	}
-
-	for _, tc := range table {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			g := NewWithT(t)
-
-			fileSystem := newU1FS()
-			maps.Copy(fileSystem.files, tc.files)
-
-			got := cli.ExportOldVocabFilesPresent("/vault", fileSystem)
-			g.Expect(got).To(Equal(tc.want))
-		})
-	}
-}
-
 func TestPluralFile(t *testing.T) {
 	t.Parallel()
 
@@ -655,93 +742,6 @@ func TestVaultHasOnlyTopLevelNotes(t *testing.T) {
 		got := cli.ExportVaultHasOnlyTopLevelNotes("/missing-vault", fileSystem)
 		g.Expect(got).To(BeFalse())
 	})
-}
-
-// TestVocabDefinitionsMissingSelfTags pins the self-tag backfill detection
-// for the vocab-definition-self-tags upgrade (4f68fada): a vault holding a
-// definition note (bare `vocab` tag + "vocab-<term>-definition" slug) whose
-// tags lack the vocab/<term> self-tag triggers the notice; the FAMILY note
-// (slug "vocab-definition") is deliberately bare-vocab-only and must never
-// trigger it; fully-tagged and fresh vaults stay silent (idempotent-clean).
-func TestVocabDefinitionsMissingSelfTags(t *testing.T) {
-	t.Parallel()
-
-	untaggedDefinition := []byte("---\ntype: fact\ntags:\n    - vocab\n---\n\nDefines recall-design.\n")
-	taggedDefinition := []byte(
-		"---\ntype: fact\ntags:\n    - vocab\n    - vocab/recall-design\n---\n\nDefines recall-design.\n")
-	familyNote := []byte("---\ntype: fact\ntags:\n    - vocab\n---\n\nFamily root.\n")
-	memberNote := []byte("---\ntype: fact\ntags:\n    - vocab/recall-design\n---\n\nMember mentions recall-design.\n")
-
-	table := []struct {
-		name  string
-		files map[string][]byte
-		want  bool
-	}{
-		{
-			name: "untagged-definition-present",
-			files: map[string][]byte{
-				"/vault/12.2026-07-27.vocab-recall-design-definition.md": untaggedDefinition,
-			},
-			want: true,
-		},
-		{
-			name: "fully-tagged-definition",
-			files: map[string][]byte{
-				"/vault/12.2026-07-27.vocab-recall-design-definition.md": taggedDefinition,
-			},
-			want: false,
-		},
-		{
-			name: "family-note-is-exempt",
-			files: map[string][]byte{
-				"/vault/1.2026-07-10.vocab-definition.md": familyNote,
-			},
-			want: false,
-		},
-		{
-			name: "member-note-is-not-a-definition",
-			files: map[string][]byte{
-				"/vault/3.2026-07-11.some-member.md": memberNote,
-			},
-			want: false,
-		},
-		{
-			name: "definition-slug-without-bare-vocab-tag",
-			files: map[string][]byte{
-				"/vault/12.2026-07-27.vocab-recall-design-definition.md": memberNote,
-			},
-			want: false,
-		},
-		{
-			name:  "missing-vault-dir",
-			files: map[string][]byte{},
-			want:  false,
-		},
-		{
-			name: "mixed-vault-with-one-untagged",
-			files: map[string][]byte{
-				"/vault/1.2026-07-10.vocab-definition.md":                familyNote,
-				"/vault/12.2026-07-27.vocab-recall-design-definition.md": taggedDefinition,
-				"/vault/13.2026-07-27.vocab-eval-design-definition.md": []byte(
-					"---\ntype: fact\ntags:\n    - vocab\n---\n\nDefines eval-design.\n"),
-			},
-			want: true,
-		},
-	}
-
-	for _, tc := range table {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			g := NewWithT(t)
-
-			fileSystem := newU1FS()
-			maps.Copy(fileSystem.files, tc.files)
-
-			got := cli.ExportVocabDefinitionsMissingSelfTags("/vault", fileSystem)
-			g.Expect(got).To(Equal(tc.want))
-		})
-	}
 }
 
 // TestWriteUpdateReport_DryRunContractSweep pins the unified D9 dry-run

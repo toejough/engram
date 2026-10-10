@@ -11,85 +11,11 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestRegenVocab_DryRun_ChangesNothing verifies --dry-run reports what would
-// be removed/cleaned/regenerated but writes and deletes nothing.
-func TestRegenVocab_DryRun_ChangesNothing(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	termNote := "---\ntype: fact\nterm: recall\ndescription: recall the vault\n---\n\nExemplars:\n" +
-		"- recalling before a decision\n"
-	memberNote := "---\ntype: fact\nvocab: [recall]\ntags:\n    - go\n---\n\n" +
-		"Vocab: recall\nsome body text\n"
-
-	files := map[string][]byte{
-		"/vault/vocab.recall.md":        []byte(termNote),
-		"/vault/vocab.index.md":         []byte("---\ntype: fact\nvocab_version: \"2.0\"\n---\n\nindex\n"),
-		"/vault/1.2026-07-01.member.md": []byte(memberNote),
-	}
-	names := []string{"vocab.recall.md", "vocab.index.md", "1.2026-07-01.member.md"}
-
-	deps, written, deleted := newRegenVocabDeps(files, names)
-
-	result, err := cli.ExportRegenVocab(t.Context(), "/vault", deps, true)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	g.Expect(result.OldFilesRemoved).To(Equal(2), "both vocab.recall.md and vocab.index.md are old-format")
-	g.Expect(result.MembersCleaned).To(Equal(1))
-	g.Expect(result.TermsSeeded).To(Equal(1))
-	g.Expect(*written).To(BeEmpty(), "dry-run must not write anything")
-	g.Expect(*deleted).To(BeEmpty(), "dry-run must not delete anything")
-}
-
-// TestRegenVocab_ListMDErrorPropagates verifies regenVocab wraps and returns
-// a ListMD failure rather than silently proceeding as if the vault were
-// empty.
-func TestRegenVocab_ListMDErrorPropagates(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	deps := cli.VocabDeps{
-		ListMD: func(string) ([]string, error) { return nil, errRegenTestNotFound },
-	}
-
-	_, err := cli.ExportRegenVocab(t.Context(), "/vault", deps, false)
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(err).To(MatchError(ContainSubstring("regen-vocab")))
-}
-
-// TestRegenVocab_NothingToRegenerate verifies the cheap no-op path: a vault
-// with no old-format vocab files and no legacy member notes returns a
-// zero-valued result, and no writes/deletes are attempted.
-func TestRegenVocab_NothingToRegenerate(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	files := map[string][]byte{
-		"/vault/1.2026-07-01.some-note.md": []byte("---\ntype: fact\ntags:\n    - go\n---\n\nbody\n"),
-	}
-	names := []string{"1.2026-07-01.some-note.md"}
-
-	deps, written, deleted := newRegenVocabDeps(files, names)
-
-	result, err := cli.ExportRegenVocab(t.Context(), "/vault", deps, false)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	g.Expect(result.OldFilesRemoved).To(Equal(0))
-	g.Expect(result.MembersCleaned).To(Equal(0))
-	g.Expect(result.TermsSeeded).To(Equal(0))
-	g.Expect(result.NotesAssigned).To(Equal(0))
-	g.Expect(*written).To(BeEmpty())
-	g.Expect(*deleted).To(BeEmpty())
-}
-
-// TestRegenVocab_RealRun_RemovesFilesAndCleansMembers verifies a real
+// Test792b20c21a1_RegenVocab_RealRun_RemovesFilesAndCleansMembers verifies a real
 // (non-dry-run) regen removes the old-format hub files, strips the legacy
 // vocab: key / Vocab: body line from the member note, and mints a
 // current-format definition note carrying the harvested term+description.
-func TestRegenVocab_RealRun_RemovesFilesAndCleansMembers(t *testing.T) {
+func Test792b20c21a1_RegenVocab_RealRun_RemovesFilesAndCleansMembers(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -141,11 +67,99 @@ func TestRegenVocab_RealRun_RemovesFilesAndCleansMembers(t *testing.T) {
 	g.Expect(foundMinted).To(BeTrue(), "a current-format definition note must be minted from the old term note")
 }
 
-// TestRegenVocab_SkipsUnparseableLegacyTermNotes verifies harvestLegacyVocabSeed
+// Test792b20c21a1_StripLegacyVocabChannel verifies the frontmatter-key and body-line
+// stripping in isolation, including the no-op case.
+func Test792b20c21a1_StripLegacyVocabChannel(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	t.Run("strips both channels", func(t *testing.T) {
+		t.Parallel()
+
+		content := "---\ntype: fact\nvocab: [recall]\ntags:\n    - go\n---\n\nVocab: recall\nbody text\n"
+
+		updated, changed := cli.ExportStripLegacyVocabChannel(content)
+		g.Expect(changed).To(BeTrue())
+		g.Expect(updated).NotTo(ContainSubstring("vocab: [recall]"))
+		g.Expect(updated).NotTo(ContainSubstring("Vocab: recall"))
+		g.Expect(updated).To(ContainSubstring("body text"))
+		g.Expect(updated).To(ContainSubstring("tags:\n    - go"))
+	})
+
+	t.Run("no legacy channel is a no-op", func(t *testing.T) {
+		t.Parallel()
+
+		content := "---\ntype: fact\ntags:\n    - go\n---\n\nbody text\n"
+
+		updated, changed := cli.ExportStripLegacyVocabChannel(content)
+		g.Expect(changed).To(BeFalse())
+		g.Expect(updated).To(Equal(content))
+	})
+}
+
+// Test792b20c21a2_RegenVocab_DryRun_ChangesNothing verifies --dry-run reports what would
+// be removed/cleaned/regenerated but writes and deletes nothing.
+func Test792b20c21a2_RegenVocab_DryRun_ChangesNothing(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	termNote := "---\ntype: fact\nterm: recall\ndescription: recall the vault\n---\n\nExemplars:\n" +
+		"- recalling before a decision\n"
+	memberNote := "---\ntype: fact\nvocab: [recall]\ntags:\n    - go\n---\n\n" +
+		"Vocab: recall\nsome body text\n"
+
+	files := map[string][]byte{
+		"/vault/vocab.recall.md":        []byte(termNote),
+		"/vault/vocab.index.md":         []byte("---\ntype: fact\nvocab_version: \"2.0\"\n---\n\nindex\n"),
+		"/vault/1.2026-07-01.member.md": []byte(memberNote),
+	}
+	names := []string{"vocab.recall.md", "vocab.index.md", "1.2026-07-01.member.md"}
+
+	deps, written, deleted := newRegenVocabDeps(files, names)
+
+	result, err := cli.ExportRegenVocab(t.Context(), "/vault", deps, true)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(result.OldFilesRemoved).To(Equal(2), "both vocab.recall.md and vocab.index.md are old-format")
+	g.Expect(result.MembersCleaned).To(Equal(1))
+	g.Expect(result.TermsSeeded).To(Equal(1))
+	g.Expect(*written).To(BeEmpty(), "dry-run must not write anything")
+	g.Expect(*deleted).To(BeEmpty(), "dry-run must not delete anything")
+}
+
+// Test792b20c21a3_RegenVocab_NothingToRegenerate verifies the cheap no-op path: a vault
+// with no old-format vocab files and no legacy member notes returns a
+// zero-valued result, and no writes/deletes are attempted.
+func Test792b20c21a3_RegenVocab_NothingToRegenerate(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	files := map[string][]byte{
+		"/vault/1.2026-07-01.some-note.md": []byte("---\ntype: fact\ntags:\n    - go\n---\n\nbody\n"),
+	}
+	names := []string{"1.2026-07-01.some-note.md"}
+
+	deps, written, deleted := newRegenVocabDeps(files, names)
+
+	result, err := cli.ExportRegenVocab(t.Context(), "/vault", deps, false)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(result.OldFilesRemoved).To(Equal(0))
+	g.Expect(result.MembersCleaned).To(Equal(0))
+	g.Expect(result.TermsSeeded).To(Equal(0))
+	g.Expect(result.NotesAssigned).To(Equal(0))
+	g.Expect(*written).To(BeEmpty())
+	g.Expect(*deleted).To(BeEmpty())
+}
+
+// Test792b20c21a4_RegenVocab_SkipsUnparseableLegacyTermNotes verifies harvestLegacyVocabSeed
 // (via parseLegacyTermNote) skips a term note that is unreadable, has no
 // frontmatter, or has an empty term: key — without failing the whole regen —
 // while still harvesting a well-formed sibling term note.
-func TestRegenVocab_SkipsUnparseableLegacyTermNotes(t *testing.T) {
+func Test792b20c21a4_RegenVocab_SkipsUnparseableLegacyTermNotes(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -168,11 +182,28 @@ func TestRegenVocab_SkipsUnparseableLegacyTermNotes(t *testing.T) {
 	g.Expect(result.OldFilesRemoved).To(Equal(4), "all four are still old-format hub files by filename shape")
 }
 
-// TestRemoveOldVocabFiles_WarnsOnDeleteErrorAndSkipsCount verifies that a
+// Test792b20c21a5_RegenVocab_ListMDErrorPropagates verifies regenVocab wraps and returns
+// a ListMD failure rather than silently proceeding as if the vault were
+// empty.
+func Test792b20c21a5_RegenVocab_ListMDErrorPropagates(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	deps := cli.VocabDeps{
+		ListMD: func(string) ([]string, error) { return nil, errRegenTestNotFound },
+	}
+
+	_, err := cli.ExportRegenVocab(t.Context(), "/vault", deps, false)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("regen-vocab")))
+}
+
+// Test792b20c21a6_RemoveOldVocabFiles_WarnsOnDeleteErrorAndSkipsCount verifies that a
 // hub file whose DeleteFile call fails is logged (when LogWarning is wired)
 // and excluded from the removed count, without aborting the rest of the
 // regen — and that a nil LogWarning does not panic.
-func TestRemoveOldVocabFiles_WarnsOnDeleteErrorAndSkipsCount(t *testing.T) {
+func Test792b20c21a6_RemoveOldVocabFiles_WarnsOnDeleteErrorAndSkipsCount(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -212,37 +243,6 @@ func TestRemoveOldVocabFiles_WarnsOnDeleteErrorAndSkipsCount(t *testing.T) {
 	g.Expect(func() {
 		_, _ = cli.ExportRegenVocab(t.Context(), "/vault", deps, false)
 	}).NotTo(Panic())
-}
-
-// TestStripLegacyVocabChannel verifies the frontmatter-key and body-line
-// stripping in isolation, including the no-op case.
-func TestStripLegacyVocabChannel(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	t.Run("strips both channels", func(t *testing.T) {
-		t.Parallel()
-
-		content := "---\ntype: fact\nvocab: [recall]\ntags:\n    - go\n---\n\nVocab: recall\nbody text\n"
-
-		updated, changed := cli.ExportStripLegacyVocabChannel(content)
-		g.Expect(changed).To(BeTrue())
-		g.Expect(updated).NotTo(ContainSubstring("vocab: [recall]"))
-		g.Expect(updated).NotTo(ContainSubstring("Vocab: recall"))
-		g.Expect(updated).To(ContainSubstring("body text"))
-		g.Expect(updated).To(ContainSubstring("tags:\n    - go"))
-	})
-
-	t.Run("no legacy channel is a no-op", func(t *testing.T) {
-		t.Parallel()
-
-		content := "---\ntype: fact\ntags:\n    - go\n---\n\nbody text\n"
-
-		updated, changed := cli.ExportStripLegacyVocabChannel(content)
-		g.Expect(changed).To(BeFalse())
-		g.Expect(updated).To(Equal(content))
-	})
 }
 
 // unexported variables.

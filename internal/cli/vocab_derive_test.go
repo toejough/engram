@@ -11,52 +11,10 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestApplyVocabKHysteresis_DegeneratePinnedFallsBackToFree verifies a
-// pinned derivation with no structure (K=0) never wins.
-func TestApplyVocabKHysteresis_DegeneratePinnedFallsBackToFree(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	free := cli.ExportVocabDerivation{K: 3, Silhouette: 0.50}
-	pinned := cli.ExportVocabDerivation{}
-
-	g.Expect(cli.ExportApplyVocabKHysteresis(free, pinned)).To(Equal(free))
-}
-
-// TestApplyVocabKHysteresis_FreeWinsOutsideEpsilon verifies a clearly better
-// free optimum overrides the previous K.
-func TestApplyVocabKHysteresis_FreeWinsOutsideEpsilon(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	free := cli.ExportVocabDerivation{K: 3, Silhouette: 0.50}
-	pinned := cli.ExportVocabDerivation{K: 2, Silhouette: 0.50 - 2*float64(cli.ExportVocabSilhouetteEpsilon)}
-
-	g.Expect(cli.ExportApplyVocabKHysteresis(free, pinned)).To(Equal(free))
-}
-
-// ── Task 1.3: silhouette hysteresis + min-K floor ────────────────────────────
-
-// TestApplyVocabKHysteresis_PrefersPreviousKWithinEpsilon verifies that when
-// the previous-K derivation scores within epsilon of the free optimum, the
-// previous K is kept (name/structure stability beats a marginal gain).
-func TestApplyVocabKHysteresis_PrefersPreviousKWithinEpsilon(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	free := cli.ExportVocabDerivation{K: 3, Silhouette: 0.50}
-	pinned := cli.ExportVocabDerivation{K: 2, Silhouette: 0.50 - float64(cli.ExportVocabSilhouetteEpsilon)/2}
-
-	g.Expect(cli.ExportApplyVocabKHysteresis(free, pinned)).To(Equal(pinned))
-}
-
-// TestDeriveVocabClusters_CentroidIsMeanOfMembers verifies the derived
+// Test792b20c13a1_DeriveVocabClusters_CentroidIsMeanOfMembers verifies the derived
 // centroid of each cluster equals the arithmetic mean of its members'
 // vectors.
-func TestDeriveVocabClusters_CentroidIsMeanOfMembers(t *testing.T) {
+func Test792b20c13a1_DeriveVocabClusters_CentroidIsMeanOfMembers(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -83,10 +41,10 @@ func TestDeriveVocabClusters_CentroidIsMeanOfMembers(t *testing.T) {
 	}
 }
 
-// TestDeriveVocabClusters_ConservesAllNotes is a property test: every input
+// Test792b20c13a1_DeriveVocabClusters_ConservesAllNotes is a property test: every input
 // note appears in exactly one cluster (allocation conservation), regardless
 // of blob sizes.
-func TestDeriveVocabClusters_ConservesAllNotes(t *testing.T) {
+func Test792b20c13a1_DeriveVocabClusters_ConservesAllNotes(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -121,35 +79,13 @@ func TestDeriveVocabClusters_ConservesAllNotes(t *testing.T) {
 	})
 }
 
-// TestDeriveVocabClusters_DegenerateCorpusYieldsZero verifies the
-// noise-rejection floor still fires on truly structureless input: identical
-// vectors have silhouette 0, below even the lowered floor, so derivation
-// reports no structure.
-func TestDeriveVocabClusters_DegenerateCorpusYieldsZero(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	notes := make([]cli.ExportNoteVector, 0, degenerateCorpusSize)
-	for i := range degenerateCorpusSize {
-		name := "same-" + string(rune('a'+i)) + ".md"
-		notes = append(notes, cli.ExportNoteVector{Name: name, Vector: []float32{1, 0}})
-	}
-
-	derivation, err := cli.ExportDeriveVocabClusters(notes, noPreviousK, testDeriveSeed)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	g.Expect(derivation.K).To(BeZero())
-	g.Expect(derivation.Clusters).To(BeEmpty())
-}
-
-// TestDeriveVocabClusters_DiffuseCorpusYieldsNonZeroK pins the noise-floor
+// Test792b20c13a1_DeriveVocabClusters_DiffuseCorpusYieldsNonZeroK pins the noise-floor
 // semantics of the silhouette floor: a diffuse-but-structured corpus whose
 // peak silhouette sits in the ~0.05-0.09 band (where the real 597-note vault
 // measured its 0.0987 peak) must yield a non-zero K — never a no-op. The floor
 // exists only to reject degenerate no-structure input, not to arbitrate
 // among plausible clusterings.
-func TestDeriveVocabClusters_DiffuseCorpusYieldsNonZeroK(t *testing.T) {
+func Test792b20c13a1_DeriveVocabClusters_DiffuseCorpusYieldsNonZeroK(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -167,11 +103,11 @@ func TestDeriveVocabClusters_DiffuseCorpusYieldsNonZeroK(t *testing.T) {
 
 // ── Task 1.1: derivation core — cluster non-definition note vectors ──────────
 
-// TestDeriveVocabClusters_GroupsMembersByCluster verifies that derivation
+// Test792b20c13a1_DeriveVocabClusters_GroupsMembersByCluster verifies that derivation
 // clusters two well-separated note groups into K=2 clusters and that the
 // note↔vector correlation is owned correctly: each cluster's member list
 // contains exactly the note names of one group.
-func TestDeriveVocabClusters_GroupsMembersByCluster(t *testing.T) {
+func Test792b20c13a1_DeriveVocabClusters_GroupsMembersByCluster(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -195,10 +131,65 @@ func TestDeriveVocabClusters_GroupsMembersByCluster(t *testing.T) {
 	))
 }
 
-// TestDeriveVocabClusters_PreviousKMatchingOptimumIsStable verifies the
+// Test792b20c13a2_DeriveVocabClusters_DegenerateCorpusYieldsZero verifies the
+// noise-rejection floor still fires on truly structureless input: identical
+// vectors have silhouette 0, below even the lowered floor, so derivation
+// reports no structure.
+func Test792b20c13a2_DeriveVocabClusters_DegenerateCorpusYieldsZero(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	notes := make([]cli.ExportNoteVector, 0, degenerateCorpusSize)
+	for i := range degenerateCorpusSize {
+		name := "same-" + string(rune('a'+i)) + ".md"
+		notes = append(notes, cli.ExportNoteVector{Name: name, Vector: []float32{1, 0}})
+	}
+
+	derivation, err := cli.ExportDeriveVocabClusters(notes, noPreviousK, testDeriveSeed)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(derivation.K).To(BeZero())
+	g.Expect(derivation.Clusters).To(BeEmpty())
+}
+
+// Test792b20c13a2_DeriveVocabClusters_TinyVaultYieldsNoDerivation verifies the tiny-vault
+// floor: below the minimum note count for meaningful clustering the
+// derivation reports K=0 and no clusters (caller keeps the existing vocab).
+func Test792b20c13a2_DeriveVocabClusters_TinyVaultYieldsNoDerivation(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	notes := []cli.ExportNoteVector{{Name: "only.md", Vector: []float32{1, 0}}}
+
+	derivation, err := cli.ExportDeriveVocabClusters(notes, noPreviousK, testDeriveSeed)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(derivation.K).To(BeZero())
+	g.Expect(derivation.Clusters).To(BeEmpty())
+}
+
+// ── Task 1.3: silhouette hysteresis + min-K floor ────────────────────────────
+
+// Test792b20c13a3_ApplyVocabKHysteresis_PrefersPreviousKWithinEpsilon verifies that when
+// the previous-K derivation scores within epsilon of the free optimum, the
+// previous K is kept (name/structure stability beats a marginal gain).
+func Test792b20c13a3_ApplyVocabKHysteresis_PrefersPreviousKWithinEpsilon(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	free := cli.ExportVocabDerivation{K: 3, Silhouette: 0.50}
+	pinned := cli.ExportVocabDerivation{K: 2, Silhouette: 0.50 - float64(cli.ExportVocabSilhouetteEpsilon)/2}
+
+	g.Expect(cli.ExportApplyVocabKHysteresis(free, pinned)).To(Equal(pinned))
+}
+
+// Test792b20c13a3_DeriveVocabClusters_PreviousKMatchingOptimumIsStable verifies the
 // end-to-end path: when the previous K equals the free optimum the
 // derivation is unchanged by hysteresis.
-func TestDeriveVocabClusters_PreviousKMatchingOptimumIsStable(t *testing.T) {
+func Test792b20c13a3_DeriveVocabClusters_PreviousKMatchingOptimumIsStable(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -214,27 +205,36 @@ func TestDeriveVocabClusters_PreviousKMatchingOptimumIsStable(t *testing.T) {
 	g.Expect(withPrev).To(Equal(fresh))
 }
 
-// TestDeriveVocabClusters_TinyVaultYieldsNoDerivation verifies the tiny-vault
-// floor: below the minimum note count for meaningful clustering the
-// derivation reports K=0 and no clusters (caller keeps the existing vocab).
-func TestDeriveVocabClusters_TinyVaultYieldsNoDerivation(t *testing.T) {
+// Test792b20c13a4_ApplyVocabKHysteresis_DegeneratePinnedFallsBackToFree verifies a
+// pinned derivation with no structure (K=0) never wins.
+func Test792b20c13a4_ApplyVocabKHysteresis_DegeneratePinnedFallsBackToFree(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	notes := []cli.ExportNoteVector{{Name: "only.md", Vector: []float32{1, 0}}}
+	free := cli.ExportVocabDerivation{K: 3, Silhouette: 0.50}
+	pinned := cli.ExportVocabDerivation{}
 
-	derivation, err := cli.ExportDeriveVocabClusters(notes, noPreviousK, testDeriveSeed)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	g.Expect(derivation.K).To(BeZero())
-	g.Expect(derivation.Clusters).To(BeEmpty())
+	g.Expect(cli.ExportApplyVocabKHysteresis(free, pinned)).To(Equal(free))
 }
 
-// TestDeriveVocabClusters_WeakPreviousKDoesNotOverride verifies the
+// Test792b20c13a4_ApplyVocabKHysteresis_FreeWinsOutsideEpsilon verifies a clearly better
+// free optimum overrides the previous K.
+func Test792b20c13a4_ApplyVocabKHysteresis_FreeWinsOutsideEpsilon(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	free := cli.ExportVocabDerivation{K: 3, Silhouette: 0.50}
+	pinned := cli.ExportVocabDerivation{K: 2, Silhouette: 0.50 - 2*float64(cli.ExportVocabSilhouetteEpsilon)}
+
+	g.Expect(cli.ExportApplyVocabKHysteresis(free, pinned)).To(Equal(free))
+}
+
+// Test792b20c13a4_DeriveVocabClusters_WeakPreviousKDoesNotOverride verifies the
 // end-to-end path with a previous K that clusters the data much worse than
 // the free optimum: the free K wins.
-func TestDeriveVocabClusters_WeakPreviousKDoesNotOverride(t *testing.T) {
+func Test792b20c13a4_DeriveVocabClusters_WeakPreviousKDoesNotOverride(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -248,30 +248,34 @@ func TestDeriveVocabClusters_WeakPreviousKDoesNotOverride(t *testing.T) {
 	g.Expect(derivation.K).To(Equal(2))
 }
 
-// TestMatchClustersToTerms_BelowThresholdSplitsBothWays verifies a cluster
-// below the threshold against every term becomes a new cluster, and the
-// unclaimed derived term is reported for retirement.
-func TestMatchClustersToTerms_BelowThresholdSplitsBothWays(t *testing.T) {
+// ── Task 1.2: greedy centroid-cosine name matching ───────────────────────────
+
+// Test792b20c14a1_MatchClustersToTerms_KeepsNameAboveThreshold verifies a cluster whose
+// centroid is nearly identical to an existing term's vector keeps that
+// term's name, with no new clusters and no retirements.
+func Test792b20c14a1_MatchClustersToTerms_KeepsNameAboveThreshold(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	centroids := [][]float32{{0, 1}} // orthogonal to "east"
+	centroids := [][]float32{{1, 0}}
 	existing := []cli.ExportExistingVocabTerm{
-		{Name: "east", Vector: []float32{1, 0}, Origin: cli.ExportVocabOriginDerived},
+		{Name: "east", Vector: []float32{1, 0.01}, Origin: cli.ExportVocabOriginDerived},
 	}
 
 	result := cli.ExportMatchClustersToTerms(centroids, existing, cli.ExportVocabNameMatchThreshold)
 
-	g.Expect(result.Matched).To(BeEmpty())
-	g.Expect(result.NewClusters).To(Equal([]int{0}))
-	g.Expect(result.RetiredTerms).To(Equal([]string{"east"}))
+	g.Expect(result.Matched).To(HaveLen(1))
+	g.Expect(result.Matched[0].ClusterIndex).To(Equal(0))
+	g.Expect(result.Matched[0].Term).To(Equal("east"))
+	g.Expect(result.NewClusters).To(BeEmpty())
+	g.Expect(result.RetiredTerms).To(BeEmpty())
 }
 
-// TestMatchClustersToTerms_GreedyHighestSimilarityWins verifies that when two
+// Test792b20c14a2_MatchClustersToTerms_GreedyHighestSimilarityWins verifies that when two
 // clusters both exceed the threshold against one term, the higher-similarity
 // cluster claims the name and the other is reported as a new cluster.
-func TestMatchClustersToTerms_GreedyHighestSimilarityWins(t *testing.T) {
+func Test792b20c14a2_MatchClustersToTerms_GreedyHighestSimilarityWins(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -293,35 +297,31 @@ func TestMatchClustersToTerms_GreedyHighestSimilarityWins(t *testing.T) {
 	g.Expect(result.RetiredTerms).To(BeEmpty())
 }
 
-// ── Task 1.2: greedy centroid-cosine name matching ───────────────────────────
-
-// TestMatchClustersToTerms_KeepsNameAboveThreshold verifies a cluster whose
-// centroid is nearly identical to an existing term's vector keeps that
-// term's name, with no new clusters and no retirements.
-func TestMatchClustersToTerms_KeepsNameAboveThreshold(t *testing.T) {
+// Test792b20c14a3_MatchClustersToTerms_BelowThresholdSplitsBothWays verifies a cluster
+// below the threshold against every term becomes a new cluster, and the
+// unclaimed derived term is reported for retirement.
+func Test792b20c14a3_MatchClustersToTerms_BelowThresholdSplitsBothWays(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	centroids := [][]float32{{1, 0}}
+	centroids := [][]float32{{0, 1}} // orthogonal to "east"
 	existing := []cli.ExportExistingVocabTerm{
-		{Name: "east", Vector: []float32{1, 0.01}, Origin: cli.ExportVocabOriginDerived},
+		{Name: "east", Vector: []float32{1, 0}, Origin: cli.ExportVocabOriginDerived},
 	}
 
 	result := cli.ExportMatchClustersToTerms(centroids, existing, cli.ExportVocabNameMatchThreshold)
 
-	g.Expect(result.Matched).To(HaveLen(1))
-	g.Expect(result.Matched[0].ClusterIndex).To(Equal(0))
-	g.Expect(result.Matched[0].Term).To(Equal("east"))
-	g.Expect(result.NewClusters).To(BeEmpty())
-	g.Expect(result.RetiredTerms).To(BeEmpty())
+	g.Expect(result.Matched).To(BeEmpty())
+	g.Expect(result.NewClusters).To(Equal([]int{0}))
+	g.Expect(result.RetiredTerms).To(Equal([]string{"east"}))
 }
 
-// TestMatchClustersToTerms_PartitionInvariants is a property test: every
+// Test792b20c14a3_MatchClustersToTerms_PartitionInvariants is a property test: every
 // cluster lands in exactly one of Matched/NewClusters, each term is claimed
 // at most once, matched similarities meet the threshold, and no proposed
 // term is ever retired.
-func TestMatchClustersToTerms_PartitionInvariants(t *testing.T) {
+func Test792b20c14a3_MatchClustersToTerms_PartitionInvariants(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -379,10 +379,10 @@ func TestMatchClustersToTerms_PartitionInvariants(t *testing.T) {
 	})
 }
 
-// TestMatchClustersToTerms_ProposedTermsNeverRetired verifies that an
+// Test792b20c14a4_MatchClustersToTerms_ProposedTermsNeverRetired verifies that an
 // unclaimed term with origin "proposed" is excluded from the retirement
 // output — proposed terms exist precisely because clustering cannot see them.
-func TestMatchClustersToTerms_ProposedTermsNeverRetired(t *testing.T) {
+func Test792b20c14a4_MatchClustersToTerms_ProposedTermsNeverRetired(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)

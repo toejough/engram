@@ -1123,3 +1123,41 @@ decisions as `792dN`, continuing the sequence.
 - **Rationale:** 792d51: requirements arrive with the product scenarios they support.
 - **Alternatives:** specify the per-point silhouette now as a **MAY**. Rejected because the query
   makes it a contract there.
+
+## 792d89 vocabulary-engine scope, legacy removal and the tests it leaves
+
+- **Choice:**
+  - 792b20 specifies definition recognition, term vectors, term selection, the tag rewrite, tagging a
+    written note, the refit check, statistics, definition and family notes with the version,
+    bootstrap and its two-pass re-tag, propose, derivation, matching, refit routing, naming
+    requests and answers, applying, retirement, the self-tag backfill, the old-format migration and
+    the two vault-state checks behind `engram update`'s notices. The question-note helpers in
+    `qa.go` and the two detectors in `update.go` are its realization because they answer
+    vocabulary questions; how `engram update` runs them and renders their result is
+    install-and-update's (792c7j1), so `update_test`'s `TestWriteUpdateReport_VocabMigrationHint`,
+    `TestWriteUpdateReport_VocabRegenReport`, `TestWriteUpdateReport_VocabSelfTagHint` and
+    `TestRunUpdate_RegenVocabFlag_RunsRegenAndUpdatesReport` wait for it.
+  - The dispatch tests `TestTargets_Vocab*` take the product IDs of the scenarios they assert
+    (792a6h1a, 792a6i1b, 792a6j1b, 792a6t1a; 792d52).
+  - Legacy removal: ADR-0024 is ported as the rationale of 792a6j–792a6s and 792b20, and deleted; its
+    "retirement semantics" consequence (demote and record a supersession) is stale since retirement
+    deletes (792a6p) and is dropped. ADR-0011 keeps its history, with its assignment clause pointing
+    at 792b20. The c2 vocab lifecycle flowchart becomes 792b20b; its query-payload step is
+    memory-query's (`refit_pending`, now in that node's shipped artifacts) and its learn-skill step
+    is learn's (792d32). `vault-concurrency-safe-writes` loses its last requirement (bootstrap and
+    refit hold the lock: 792b20c10, 792b20c15) and is deleted; `vault-vocab-lifecycle` keeps only the
+    ride-along residue for 792c7f1 (792d85).
+  - Remaining tests in its files verify no 792b20 scenario: `TestNewVocabDeps_ClosuresCalled`
+    (composition wiring), `TestIdAndDateFromNoteFilename` (a filename helper used by reparenting,
+    registration and update, left to vault-migration 792c7i1), and
+    `TestVocabDefinitionNote_FloorPromoted` and `TestVocabDefinitionNote_ReturnedWhenOnlyItem` (query
+    behavior, left to memory-query 792c7f1). The vocabulary tests in `query_vault_meta_test`,
+    `skillfields_survival_test` and `exchangefields_survival_test` belong to memory-query,
+    skill-runbook-registration and parent-sync.
+- **Divergences noted (792d33):** `engram update --regen-vocab` rewrites and deletes vault files
+  without taking the vault lock, unlike every other vocabulary writer; `engram vocab
+  tag-definitions` lists the vault before taking the lock.
+- **Rationale:** 792d30, 792d51 and 792d63.
+- **Alternatives:** split the statistics or the migration into their own components. Rejected
+  because each is one command over the same definition and tag contracts, with no contract of its own
+  that a caller could use apart from the vocabulary.

@@ -221,8 +221,8 @@ flowchart TD
   N792c7d5["792c7d5 chunk-index-store tech spec<br/>Complete"]
   N792c7e1["792c7e1 controlled-vocabulary product spec<br/>Complete"]
   N792c7e2["792c7e2 similarity-clustering tech spec<br/>Complete"]
-  N792c7e3["792c7e3 vocabulary-engine tech spec<br/>Ready"]
-  N792c7f1["792c7f1 memory-query product spec<br/>Blocked by: 792c7e3"]
+  N792c7e3["792c7e3 vocabulary-engine tech spec<br/>Complete"]
+  N792c7f1["792c7f1 memory-query product spec<br/>Ready"]
   N792c7f2["792c7f2 recency-ranking tech spec<br/>Blocked by: 792c7f1"]
   N792c7f3["792c7f3 runbook-trigger-matching tech spec<br/>Blocked by: 792c7f2"]
   N792c7f4["792c7f4 query-payload-renderer tech spec<br/>Blocked by: 792c7f3"]
@@ -1976,11 +1976,200 @@ Target: `792b20` (`docs/specs/technical/vocabulary-engine.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7e3a | Port the component contract to `792b20` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7e3b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7e3c | Repoint stale references to `792b20` | Non-test action | Keeps live links valid | Not started |
-| 792c7e3d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7e3e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7e3a | Port the component contract to `792b20` | Non-test action | Documents the component in the framework format | Done |
+| 792c7e3b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7e3c | Repoint stale references to `792b20` | Non-test action | Keeps live links valid | Done |
+| 792c7e3d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7e3e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+**Outcome:** ADR-0024 and `vault-concurrency-safe-writes` are deleted, ADR-0011 keeps its history,
+the c2 vocab lifecycle flowchart becomes 792b20b, and `vault-vocab-lifecycle` keeps only its
+ride-along residue for 792c7f1 (792d89). This completes group 792c7e.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b20c1a1 | `TestIsVocabDefinitionNote` → `Test792b20c1a1_IsVocabDefinitionNote` | Pure unit | The bare tag marks a definition | Done |
+| 792b20c1a1 | `TestMemberScan_FilenamePrefixNoLongerSpecial` → `Test792b20c1a1_MemberScan_FilenamePrefixNoLongerSpecial` | Internal unit over injected deps | The bare tag marks a definition | Done |
+| 792b20c1a2 | `TestTermFromDefinitionSlug` → `Test792b20c1a2_TermFromDefinitionSlug` | Pure unit | The term comes from the slug | Done |
+| 792b20c1a2 | `TestSlugFromNoteFilename` → `Test792b20c1a2_SlugFromNoteFilename` | Pure unit | The term comes from the slug | Done |
+| 792b20c1a3 | `TestVocabTermsFromTags_FiltersAndStripsPrefix` → `Test792b20c1a3_VocabTermsFromTags_FiltersAndStripsPrefix` | Pure unit | A note's terms are its vocab/ entries | Done |
+| 792b20c1a3 | `TestParseTagsFromFrontmatter_EdgeCases` → `Test792b20c1a3_ParseTagsFromFrontmatter_EdgeCases` | Pure unit | A note's terms are its vocab/ entries | Done |
+| 792b20c1a3 | `TestExtractNoteVocabTags_TypeFieldIsIrrelevant` → `Test792b20c1a3_ExtractNoteVocabTags_TypeFieldIsIrrelevant` | Internal unit over injected deps | A note's terms are its vocab/ entries | Done |
+| 792b20c2a1 | `TestLoadTermVectors_ReadsDefinitionNoteSidecars` → `Test792b20c2a1_LoadTermVectors_ReadsDefinitionNoteSidecars` | Internal unit over injected deps | Each definition's sidecar gives its term's vector | Done |
+| 792b20c2a2 | `TestLoadTermVectors_DuplicateDefinitionNotes_FirstWins` → `Test792b20c2a2_LoadTermVectors_DuplicateDefinitionNotes_FirstWins` | Internal unit over injected deps | The first definition of a term wins | Done |
+| 792b20c2a3 | `TestLoadAssignmentTermVectors_PrefersCentroids` → `Test792b20c2a3_LoadAssignmentTermVectors_PrefersCentroids` | Internal unit over injected deps | A stored centroid replaces the description vector | Done |
+| 792b20c3a1 | `TestAssignVocabTerms_BelowFloor_NilResult` → `Test792b20c3a1_AssignVocabTerms_BelowFloor_NilResult` | Pure unit | Terms below the floor are dropped | Done |
+| 792b20c3a1 | `TestAssignVocabTerms_TwoQualifyingOneBelowFloor_TakesTwo` → `Test792b20c3a1_AssignVocabTerms_TwoQualifyingOneBelowFloor_TakesTwo` | Pure unit | Terms below the floor are dropped | Done |
+| 792b20c3a1 | `TestAssignVocabTerms_OnlyOneQualifies_ReturnsSingle` → `Test792b20c3a1_AssignVocabTerms_OnlyOneQualifies_ReturnsSingle` | Pure unit | Terms below the floor are dropped | Done |
+| 792b20c3a2 | `TestAssignVocabTerms_FourQualifying_CapsAtTopThree` → `Test792b20c3a2_AssignVocabTerms_FourQualifying_CapsAtTopThree` | Pure unit | At most three are kept, best first | Done |
+| 792b20c3a2 | `TestAssignVocabTerms_ThreeQualifying_TakesAllThree` → `Test792b20c3a2_AssignVocabTerms_ThreeQualifying_TakesAllThree` | Pure unit | At most three are kept, best first | Done |
+| 792b20c3a3 | `TestAssignVocabTerms_EmptyBodyVec_NilResult` → `Test792b20c3a3_AssignVocabTerms_EmptyBodyVec_NilResult` | Pure unit | No vector or no terms gives no terms | Done |
+| 792b20c3a3 | `TestAssignVocabTerms_EmptyTerms_NilResult` → `Test792b20c3a3_AssignVocabTerms_EmptyTerms_NilResult` | Pure unit | No vector or no terms gives no terms | Done |
+| 792b20c4a1 | `TestWriteVocabAssignment_WritesVocabNamespaceTags` → `Test792b20c4a1_WriteVocabAssignment_WritesVocabNamespaceTags` | Pure unit | Vocab entries are replaced and other tags kept | Done |
+| 792b20c4a1 | `TestWriteVocabAssignment_PreservesCategoricalTags` → `Test792b20c4a1_WriteVocabAssignment_PreservesCategoricalTags` | Pure unit | Vocab entries are replaced and other tags kept | Done |
+| 792b20c4a1 | `TestWriteVocabAssignment_Idempotent` → `Test792b20c4a1_WriteVocabAssignment_Idempotent` | Pure unit | Vocab entries are replaced and other tags kept | Done |
+| 792b20c4a1 | `TestWriteVocabAssignment_StripsBareVocabMarkerTag` → `Test792b20c4a1_WriteVocabAssignment_StripsBareVocabMarkerTag` | Pure unit | Vocab entries are replaced and other tags kept | Done |
+| 792b20c4a2 | `TestWriteVocabAssignment_EmptyTermsNoOtherTagsRemovesTagsKey` → `Test792b20c4a2_WriteVocabAssignment_EmptyTermsNoOtherTagsRemovesTagsKey` | Pure unit | An emptied list is removed | Done |
+| 792b20c4a2 | `TestWriteVocabAssignment_EmptyTermsRemovesVocabNamespaceOnly` → `Test792b20c4a2_WriteVocabAssignment_EmptyTermsRemovesVocabNamespaceOnly` | Pure unit | An emptied list is removed | Done |
+| 792b20c4a3 | `TestWriteVocabAssignment_PreservesTagsKeyPosition` → `Test792b20c4a3_WriteVocabAssignment_PreservesTagsKeyPosition` | Pure unit | The rest of the note is untouched | Done |
+| 792b20c4a3 | `TestWriteVocabAssignment_BodyIsOpaque` → `Test792b20c4a3_WriteVocabAssignment_BodyIsOpaque` | Pure unit | The rest of the note is untouched | Done |
+| 792b20c4a3 | `TestWriteVocabAssignment_TagsRoundtripFidelity` → `Test792b20c4a3_WriteVocabAssignment_TagsRoundtripFidelity` | Pure unit | The rest of the note is untouched | Done |
+| 792b20c4a3 | `TestWriteVocabAssignment_LearnRendererRoundtripFidelity` → `Test792b20c4a3_WriteVocabAssignment_LearnRendererRoundtripFidelity` | Pure unit | The rest of the note is untouched | Done |
+| 792b20c4a3 | `TestWriteVocabAssignment_InlineTagsListParsed` → `Test792b20c4a3_WriteVocabAssignment_InlineTagsListParsed` | Pure unit | The rest of the note is untouched | Done |
+| 792b20c4a4 | `TestWriteVocabAssignment_NoFrontmatterUnchanged` → `Test792b20c4a4_WriteVocabAssignment_NoFrontmatterUnchanged` | Pure unit | A note without frontmatter is unchanged | Done |
+| 792b20c4a5 | `TestVocabAssignment_KeepsSidecarStateOK` → `Test792b20c4a5_VocabAssignment_KeepsSidecarStateOK` | Internal unit over injected deps | A tags-only rewrite keeps the sidecar current | Done |
+| 792b20c5a2 | `TestRunLearn_VocabAssignment_SkipsWhenDepsNotWired` → `Test792b20c5a2_RunLearn_VocabAssignment_SkipsWhenDepsNotWired` | Command over injected deps | Nothing to tag with writes nothing | Done |
+| 792b20c5a2 | `TestRunLearn_VocabAssignment_SkipsWhenNoTerms` → `Test792b20c5a2_RunLearn_VocabAssignment_SkipsWhenNoTerms` | Command over injected deps | Nothing to tag with writes nothing | Done |
+| 792b20c5a3 | `TestRunLearn_VocabAssignment_SkipsWhenSidecarMissing` → `Test792b20c5a3_RunLearn_VocabAssignment_SkipsWhenSidecarMissing` | Command over injected deps | A note without a sidecar is not tagged | Done |
+| 792b20c5a3 | `TestRunAmend_VocabAssignment_SkipsWhenSidecarMissing` → `Test792b20c5a3_RunAmend_VocabAssignment_SkipsWhenSidecarMissing` | Command over injected deps | A note without a sidecar is not tagged | Done |
+| 792b20c5a4 | `TestApplyVocabAssignmentCore_SkipsDefinitionNotes` → `Test792b20c5a4_ApplyVocabAssignmentCore_SkipsDefinitionNotes` | Internal unit over injected deps | A definition is never tagged | Done |
+| 792b20c5a5 | `TestVocab_CRLFNote` → `Test792b20c5a5_Vocab_CRLFNote` | Pure unit | A CRLF note is tagged as LF and only when its tags change | Done |
+| 792b20c6a1 | `TestCheckAndPersistVocabRefitTrigger_MissingCentroids_SeedsBaseline` → `Test792b20c6a1_CheckAndPersistVocabRefitTrigger_MissingCentroids_SeedsBaseline` | Internal unit over injected deps | The first check records the baseline | Done |
+| 792b20c6a1 | `TestCheckAndPersistVocabRefitTrigger_ListMDError_SeedsWithZeroCount` → `Test792b20c6a1_CheckAndPersistVocabRefitTrigger_ListMDError_SeedsWithZeroCount` | Internal unit over injected deps | The first check records the baseline | Done |
+| 792b20c6a1 | `TestEvaluateVocabTriggers_NilLastRefit_NoFire` → `Test792b20c6a1_EvaluateVocabTriggers_NilLastRefit_NoFire` | Pure unit | The first check records the baseline | Done |
+| 792b20c6a2 | `TestCheckAndPersistVocabRefitTrigger_GrowthTrigger_SetsPending` → `Test792b20c6a2_CheckAndPersistVocabRefitTrigger_GrowthTrigger_SetsPending` | Internal unit over injected deps | Growth past both thresholds marks a refit pending | Done |
+| 792b20c6a2 | `TestEvaluateVocabTriggers_GrowthFires` → `Test792b20c6a2_EvaluateVocabTriggers_GrowthFires` | Pure unit | Growth past both thresholds marks a refit pending | Done |
+| 792b20c6a3 | `TestEvaluateVocabTriggers_GrowthBelowDaysFloor` → `Test792b20c6a3_EvaluateVocabTriggers_GrowthBelowDaysFloor` | Pure unit | Growth without the days does not trigger | Done |
+| 792b20c6a4 | `TestCheckAndPersistVocabRefitTrigger_UntaggedHigh_GrowthNotFired_StaysUnpending` → `Test792b20c6a4_CheckAndPersistVocabRefitTrigger_UntaggedHigh_GrowthNotFired_StaysUnpending` | Internal unit over injected deps | Untagged rate and hubs never trigger | Done |
+| 792b20c6a4 | `TestCheckAndPersistVocabRefitTrigger_HubHigh_GrowthNotFired_StaysUnpending` → `Test792b20c6a4_CheckAndPersistVocabRefitTrigger_HubHigh_GrowthNotFired_StaysUnpending` | Internal unit over injected deps | Untagged rate and hubs never trigger | Done |
+| 792b20c6a5 | `TestCheckAndPersistVocabRefitTrigger_AlreadyPending_Idempotent` → `Test792b20c6a5_CheckAndPersistVocabRefitTrigger_AlreadyPending_Idempotent` | Internal unit over injected deps | A pending refit is left alone | Done |
+| 792b20c6a6 | `TestCountTriggerVaultNotes_DefinitionsExcluded` → `Test792b20c6a6_CountTriggerVaultNotes_DefinitionsExcluded` | Internal unit over injected deps | Definitions and questions are not counted | Done |
+| 792b20c6a6 | `TestCountTriggerVaultNotes_MixedContentByContentNotFilename` → `Test792b20c6a6_CountTriggerVaultNotes_MixedContentByContentNotFilename` | Internal unit over injected deps | Definitions and questions are not counted | Done |
+| 792b20c6a6 | `TestCheckAndPersistVocabRefitTrigger_SelfTaggedDefinitionsLeaveTriggerMathUnchanged` → `Test792b20c6a6_CheckAndPersistVocabRefitTrigger_SelfTaggedDefinitionsLeaveTriggerMathUnchanged` | Internal unit over injected deps | Definitions and questions are not counted | Done |
+| 792b20c6a6 | `TestScanNonVocabNotes_QAQuestionFilenameSkipped` → `Test792b20c6a6_ScanNonVocabNotes_QAQuestionFilenameSkipped` | Internal unit over injected deps | Definitions and questions are not counted | Done |
+| 792b20c6a6 | `TestVocabRefitSeed_MatchesTriggerCheckUnits` → `Test792b20c6a6_VocabRefitSeed_MatchesTriggerCheckUnits` | Internal unit over injected deps | Definitions and questions are not counted | Done |
+| 792b20c6a7 | `TestCheckAndPersistVocabRefitTrigger_WriteError_LogsWarning` → `Test792b20c6a7_CheckAndPersistVocabRefitTrigger_WriteError_LogsWarning` | Internal unit over injected deps | A failed write is a warning | Done |
+| 792b20c6a7 | `TestWriteCentroidsDocRaw_MarshalError_ReturnsWrappedError` → `Test792b20c6a7_WriteCentroidsDocRaw_MarshalError_ReturnsWrappedError` | Internal unit over injected deps | A failed write is a warning | Done |
+| 792b20c6a8 | `TestCheckAndPersistVocabRefitTrigger_NilDeps_NoOp` → `Test792b20c6a8_CheckAndPersistVocabRefitTrigger_NilDeps_NoOp` | Internal unit over injected deps | Nothing wired does nothing | Done |
+| 792b20c7a1 | `TestRunVocabStats_NoTerms_PrintsZeroStats` → `Test792b20c7a1_RunVocabStats_NoTerms_PrintsZeroStats` | Command over injected deps | An empty vault reports zero | Done |
+| 792b20c7a1 | `TestCollectVaultStats_DefinitionNoteTermsWithMemberCounts` → `Test792b20c7a1_CollectVaultStats_DefinitionNoteTermsWithMemberCounts` | Internal unit over injected deps | An empty vault reports zero | Done |
+| 792b20c7a1 | `TestPrintStatsReport_VerdictOK` → `Test792b20c7a1_PrintStatsReport_VerdictOK` | Pure unit | An empty vault reports zero | Done |
+| 792b20c7a2 | `TestRunVocabStats_ReportsHubAndOrphan` → `Test792b20c7a2_RunVocabStats_ReportsHubAndOrphan` | Command over injected deps | Hubs, orphans and a high untagged rate are flagged | Done |
+| 792b20c7a2 | `TestRunVocabStats_UntaggedRateHigh_DiagnosticOnly` → `Test792b20c7a2_RunVocabStats_UntaggedRateHigh_DiagnosticOnly` | Command over injected deps | Hubs, orphans and a high untagged rate are flagged | Done |
+| 792b20c7a3 | `TestCollectVaultStats_DefinitionNotesExcluded` → `Test792b20c7a3_CollectVaultStats_DefinitionNotesExcluded` | Internal unit over injected deps | Definitions, questions and plain files are not members | Done |
+| 792b20c7a3 | `TestCollectVaultStats_QAQuestionExcluded_QAAnswerCounted` → `Test792b20c7a3_CollectVaultStats_QAQuestionExcluded_QAAnswerCounted` | Internal unit over injected deps | Definitions, questions and plain files are not members | Done |
+| 792b20c7a3 | `TestRunVocabStats_NoteWithNoFrontmatter` → `Test792b20c7a3_RunVocabStats_NoteWithNoFrontmatter` | Command over injected deps | Definitions, questions and plain files are not members | Done |
+| 792b20c7a3 | `TestIsQAQuestionFilename` → `Test792b20c7a3_IsQAQuestionFilename` | Pure unit | Definitions, questions and plain files are not members | Done |
+| 792b20c7a4 | `TestRunVocabStats_ReadsRefitPendingFromCentroids` → `Test792b20c7a4_RunVocabStats_ReadsRefitPendingFromCentroids` | Command over injected deps | The verdict follows the pending flag | Done |
+| 792b20c7a4 | `TestPrintStatsReport_VerdictRefitPending` → `Test792b20c7a4_PrintStatsReport_VerdictRefitPending` | Pure unit | The verdict follows the pending flag | Done |
+| 792b20c7a5 | `TestRunVocabStats_CountsQAPairs` → `Test792b20c7a5_RunVocabStats_CountsQAPairs` | Command over injected deps | Question-and-answer pairs are counted | Done |
+| 792b20c7a5 | `TestCountQAPairs` → `Test792b20c7a5_CountQAPairs` | Pure unit | Question-and-answer pairs are counted | Done |
+| 792b20c7a5 | `TestPrintStatsReport_QAPairsLine` → `Test792b20c7a5_PrintStatsReport_QAPairsLine` | Pure unit | Question-and-answer pairs are counted | Done |
+| 792b20c7a5 | `TestPrintStatsReport_QAGateReady` → `Test792b20c7a5_PrintStatsReport_QAGateReady` | Pure unit | Question-and-answer pairs are counted | Done |
+| 792b20c8a1 | `TestMintDefinitionNote_SelfTagOrder` → `Test792b20c8a1_MintDefinitionNote_SelfTagOrder` | Internal unit over injected deps | A definition takes the next top-level ID and its self-tag | Done |
+| 792b20c8a2 | `TestRenderDefinitionNoteContent_NoDoublePeriod` → `Test792b20c8a2_RenderDefinitionNoteContent_NoDoublePeriod` | Pure unit | The body ends in one period and carries the exemplars | Done |
+| 792b20c8a2 | `TestRunVocabBootstrap_ExemplarsInTermNoteBody` → `Test792b20c8a2_RunVocabBootstrap_ExemplarsInTermNoteBody` | Command over injected deps | The body ends in one period and carries the exemplars | Done |
+| 792b20c8a3 | `TestRunVocabBootstrap_EmbedError_BootstrapSucceeds` → `Test792b20c8a3_RunVocabBootstrap_EmbedError_BootstrapSucceeds` | Command over injected deps | A failed embedding keeps the note | Done |
+| 792b20c8a3 | `TestRunVocabBootstrap_SidecarWriteError_BootstrapSucceeds` → `Test792b20c8a3_RunVocabBootstrap_SidecarWriteError_BootstrapSucceeds` | Command over injected deps | A failed embedding keeps the note | Done |
+| 792b20c8a4 | `TestRunVocabBootstrap_TermNoteWriteError_LogsWarning` → `Test792b20c8a4_RunVocabBootstrap_TermNoteWriteError_LogsWarning` | Command over injected deps | A failed note write is a warning | Done |
+| 792b20c8a4 | `TestRunVocabPropose_TermNoteWriteError_LogsWarning` → `Test792b20c8a4_RunVocabPropose_TermNoteWriteError_LogsWarning` | Command over injected deps | A failed note write is a warning | Done |
+| 792b20c9a1 | `TestEnsureVocabFamilyNote_StaysBareOnly` → `Test792b20c9a1_EnsureVocabFamilyNote_StaysBareOnly` | Internal unit over injected deps | The family note is created bare and names no term | Done |
+| 792b20c9a1 | `TestVocabFamilyNote_NeverEnumeratesTerms` → `Test792b20c9a1_VocabFamilyNote_NeverEnumeratesTerms` | Command over injected deps | The family note is created bare and names no term | Done |
+| 792b20c9a2 | `TestEnsureVocabFamilyNote_MintFailureReturnsFalse` → `Test792b20c9a2_EnsureVocabFamilyNote_MintFailureReturnsFalse` | Internal unit over injected deps | A failed family write is reported as not written | Done |
+| 792b20c9a3 | `TestLoadCurrentVocabVersion_ReadsFamilyNote` → `Test792b20c9a3_LoadCurrentVocabVersion_ReadsFamilyNote` | Internal unit over injected deps | The version is read with a default | Done |
+| 792b20c9a3 | `TestLoadCurrentVocabVersion_NoFamilyNote_DefaultsInitial` → `Test792b20c9a3_LoadCurrentVocabVersion_NoFamilyNote_DefaultsInitial` | Internal unit over injected deps | The version is read with a default | Done |
+| 792b20c9a3 | `TestLoadCurrentVocabVersion_ListMDError_DefaultsInitial` → `Test792b20c9a3_LoadCurrentVocabVersion_ListMDError_DefaultsInitial` | Internal unit over injected deps | The version is read with a default | Done |
+| 792b20c9a4 | `TestBumpVersion_InvalidInput` → `Test792b20c9a4_BumpVersion_InvalidInput` | Pure unit | The version is raised in place | Done |
+| 792b20c9a4 | `TestWriteVocabVersionToFamilyNote_RewritesOnlyFamilyNote` → `Test792b20c9a4_WriteVocabVersionToFamilyNote_RewritesOnlyFamilyNote` | Internal unit over injected deps | The version is raised in place | Done |
+| 792b20c9a4 | `TestRewriteVocabVersionKey_NoFrontmatter_ReturnsUnchanged` → `Test792b20c9a4_RewriteVocabVersionKey_NoFrontmatter_ReturnsUnchanged` | Pure unit | The version is raised in place | Done |
+| 792b20c9a5 | `TestWriteVocabVersionToFamilyNote_MissingFamilyNote_ReturnsSentinel` → `Test792b20c9a5_WriteVocabVersionToFamilyNote_MissingFamilyNote_ReturnsSentinel` | Internal unit over injected deps | Writing a version without a family note fails | Done |
+| 792b20c9a5 | `TestWriteVocabVersionToFamilyNote_ListMDError_ReturnsWrappedError` → `Test792b20c9a5_WriteVocabVersionToFamilyNote_ListMDError_ReturnsWrappedError` | Internal unit over injected deps | Writing a version without a family note fails | Done |
+| 792b20c10a1 | `TestRunVocabBootstrap_CreatesTermNote` → `Test792b20c10a1_RunVocabBootstrap_CreatesTermNote` | Command over injected deps | Bootstrap seeds the terms and tags the vault | Done |
+| 792b20c10a1 | `TestRunVocabBootstrap_AssignsTermsToExistingNote` → `Test792b20c10a1_RunVocabBootstrap_AssignsTermsToExistingNote` | Command over injected deps | Bootstrap seeds the terms and tags the vault | Done |
+| 792b20c10a1 | `TestRunVocabBootstrap_WithMockEmbedder` → `Test792b20c10a1_RunVocabBootstrap_WithMockEmbedder` | Command over injected deps | Bootstrap seeds the terms and tags the vault | Done |
+| 792b20c10a2 | `TestRunVocabBootstrap_Idempotent` → `Test792b20c10a2_RunVocabBootstrap_Idempotent` | Command over injected deps | A second bootstrap writes no new definition | Done |
+| 792b20c10a3 | `TestRunVocabBootstrap_NoIndexFile` → `Test792b20c10a3_RunVocabBootstrap_NoIndexFile` | Command over injected deps | No index file is written | Done |
+| 792b20c10a4 | `TestRunVocabBootstrap_AssignErrors_SkipBothNotes` → `Test792b20c10a4_RunVocabBootstrap_AssignErrors_SkipBothNotes` | Command over injected deps | Unreadable notes are skipped | Done |
+| 792b20c11a1 | `TestRunVocabBootstrap_CentroidTwoPass_SecondPassAssignsNote` → `Test792b20c11a1_RunVocabBootstrap_CentroidTwoPass_SecondPassAssignsNote` | Command over injected deps | The second pass tags against member centroids | Done |
+| 792b20c11a2 | `TestComputeTermCentroids_ExcludesDefinitionVectors` → `Test792b20c11a2_ComputeTermCentroids_ExcludesDefinitionVectors` | Internal unit over injected deps | Definitions are neither inputs nor targets | Done |
+| 792b20c11a2 | `TestRetagAllNotesTwoPass_SkipsDefinitionNotes` → `Test792b20c11a2_RetagAllNotesTwoPass_SkipsDefinitionNotes` | Internal unit over injected deps | Definitions are neither inputs nor targets | Done |
+| 792b20c11a2 | `TestRetagAllNotesTwoPass_PreservesDefinitionSelfTags` → `Test792b20c11a2_RetagAllNotesTwoPass_PreservesDefinitionSelfTags` | Internal unit over injected deps | Definitions are neither inputs nor targets | Done |
+| 792b20c11a2 | `TestRetagAllNotesTwoPass_LoadMemberNoteVectors_SkipsDefinitionAndUnreadable` → `Test792b20c11a2_RetagAllNotesTwoPass_LoadMemberNoteVectors_SkipsDefinitionAndUnreadable` | Internal unit over injected deps | Definitions are neither inputs nor targets | Done |
+| 792b20c11a2 | `TestLoadMemberNoteVectors_ExcludesDefinitionNotes` → `Test792b20c11a2_LoadMemberNoteVectors_ExcludesDefinitionNotes` | Internal unit over injected deps | Definitions are neither inputs nor targets | Done |
+| 792b20c11a3 | `TestRetagAllNotesTwoPass_SeedsLastRefit` → `Test792b20c11a3_RetagAllNotesTwoPass_SeedsLastRefit` | Internal unit over injected deps | The baseline is recorded | Done |
+| 792b20c11a4 | `TestRetagAllNotesTwoPass_ListMDError_LogsWarning` → `Test792b20c11a4_RetagAllNotesTwoPass_ListMDError_LogsWarning` | Internal unit over injected deps | A listing failure is a warning | Done |
+| 792b20c12a1 | `TestRunVocabPropose_CreatesTermNote` → `Test792b20c12a1_RunVocabPropose_CreatesTermNote` | Command over injected deps | A proposed term is written and the minor version raised | Done |
+| 792b20c12a1 | `TestRunVocabPropose_BumpsMinorVersion` → `Test792b20c12a1_RunVocabPropose_BumpsMinorVersion` | Command over injected deps | A proposed term is written and the minor version raised | Done |
+| 792b20c12a2 | `TestRunVocabPropose_StampsProposedOriginInCentroids` → `Test792b20c12a2_RunVocabPropose_StampsProposedOriginInCentroids` | Command over injected deps | The proposed origin is recorded | Done |
+| 792b20c12a2 | `TestRunVocabPropose_StampCarriesSidecarVector` → `Test792b20c12a2_RunVocabPropose_StampCarriesSidecarVector` | Command over injected deps | The proposed origin is recorded | Done |
+| 792b20c12a2 | `TestRunVocabPropose_StampPreservesExistingCentroidEntries` → `Test792b20c12a2_RunVocabPropose_StampPreservesExistingCentroidEntries` | Command over injected deps | The proposed origin is recorded | Done |
+| 792b20c12a3 | `TestRunVocabPropose_StampSurvivesMintFailure` → `Test792b20c12a3_RunVocabPropose_StampSurvivesMintFailure` | Command over injected deps | The origin survives a failed definition write | Done |
+| 792b20c13a1 | `TestDeriveVocabClusters_GroupsMembersByCluster` → `Test792b20c13a1_DeriveVocabClusters_GroupsMembersByCluster` | Pure unit | Clusters hold their members and mean vectors | Done |
+| 792b20c13a1 | `TestDeriveVocabClusters_CentroidIsMeanOfMembers` → `Test792b20c13a1_DeriveVocabClusters_CentroidIsMeanOfMembers` | Pure unit | Clusters hold their members and mean vectors | Done |
+| 792b20c13a1 | `TestDeriveVocabClusters_ConservesAllNotes` → `Test792b20c13a1_DeriveVocabClusters_ConservesAllNotes` | Pure unit | Clusters hold their members and mean vectors | Done |
+| 792b20c13a1 | `TestDeriveVocabClusters_DiffuseCorpusYieldsNonZeroK` → `Test792b20c13a1_DeriveVocabClusters_DiffuseCorpusYieldsNonZeroK` | Pure unit | Clusters hold their members and mean vectors | Done |
+| 792b20c13a2 | `TestDeriveVocabClusters_DegenerateCorpusYieldsZero` → `Test792b20c13a2_DeriveVocabClusters_DegenerateCorpusYieldsZero` | Pure unit | No structure gives no clusters | Done |
+| 792b20c13a2 | `TestDeriveVocabClusters_TinyVaultYieldsNoDerivation` → `Test792b20c13a2_DeriveVocabClusters_TinyVaultYieldsNoDerivation` | Pure unit | No structure gives no clusters | Done |
+| 792b20c13a3 | `TestApplyVocabKHysteresis_PrefersPreviousKWithinEpsilon` → `Test792b20c13a3_ApplyVocabKHysteresis_PrefersPreviousKWithinEpsilon` | Pure unit | The previous K is kept on a near tie | Done |
+| 792b20c13a3 | `TestDeriveVocabClusters_PreviousKMatchingOptimumIsStable` → `Test792b20c13a3_DeriveVocabClusters_PreviousKMatchingOptimumIsStable` | Pure unit | The previous K is kept on a near tie | Done |
+| 792b20c13a4 | `TestApplyVocabKHysteresis_FreeWinsOutsideEpsilon` → `Test792b20c13a4_ApplyVocabKHysteresis_FreeWinsOutsideEpsilon` | Pure unit | A clearly better K replaces the previous one | Done |
+| 792b20c13a4 | `TestApplyVocabKHysteresis_DegeneratePinnedFallsBackToFree` → `Test792b20c13a4_ApplyVocabKHysteresis_DegeneratePinnedFallsBackToFree` | Pure unit | A clearly better K replaces the previous one | Done |
+| 792b20c13a4 | `TestDeriveVocabClusters_WeakPreviousKDoesNotOverride` → `Test792b20c13a4_DeriveVocabClusters_WeakPreviousKDoesNotOverride` | Pure unit | A clearly better K replaces the previous one | Done |
+| 792b20c14a1 | `TestMatchClustersToTerms_KeepsNameAboveThreshold` → `Test792b20c14a1_MatchClustersToTerms_KeepsNameAboveThreshold` | Pure unit | A close cluster keeps the term's name | Done |
+| 792b20c14a2 | `TestMatchClustersToTerms_GreedyHighestSimilarityWins` → `Test792b20c14a2_MatchClustersToTerms_GreedyHighestSimilarityWins` | Pure unit | The best pair is taken first | Done |
+| 792b20c14a3 | `TestMatchClustersToTerms_BelowThresholdSplitsBothWays` → `Test792b20c14a3_MatchClustersToTerms_BelowThresholdSplitsBothWays` | Pure unit | Below the threshold, both sides are left | Done |
+| 792b20c14a3 | `TestMatchClustersToTerms_PartitionInvariants` → `Test792b20c14a3_MatchClustersToTerms_PartitionInvariants` | Pure unit | Below the threshold, both sides are left | Done |
+| 792b20c14a4 | `TestMatchClustersToTerms_ProposedTermsNeverRetired` → `Test792b20c14a4_MatchClustersToTerms_ProposedTermsNeverRetired` | Pure unit | A proposed term is never retired | Done |
+| 792b20c15a1 | `TestRunVocabRefit_NoStructure_NoWrites` → `Test792b20c15a1_RunVocabRefit_NoStructure_NoWrites` | Command over injected deps | No structure writes nothing | Done |
+| 792b20c15a2 | `TestRunVocabRefit_DryRun_PrintsDiffWithoutWrites` → `Test792b20c15a2_RunVocabRefit_DryRun_PrintsDiffWithoutWrites` | Command over injected deps | A dry run writes nothing | Done |
+| 792b20c15a3 | `TestRunVocabRefit_EmitsNamingRequestsWithoutWrites` → `Test792b20c15a3_RunVocabRefit_EmitsNamingRequestsWithoutWrites` | Command over injected deps | New clusters without names emit requests | Done |
+| 792b20c15a4 | `TestRunVocabRefit_BadNamesFile_Errors` → `Test792b20c15a4_RunVocabRefit_BadNamesFile_Errors` | Command over injected deps | A bad or stale answer writes nothing | Done |
+| 792b20c15a4 | `TestRunVocabRefit_VaultChangedBetweenRuns_FailsFingerprint` → `Test792b20c15a4_RunVocabRefit_VaultChangedBetweenRuns_FailsFingerprint` | Command over injected deps | A bad or stale answer writes nothing | Done |
+| 792b20c15a5 | `TestRunVocabRefit_AppliesDerivationWithNames` → `Test792b20c15a5_RunVocabRefit_AppliesDerivationWithNames` | Command over injected deps | An accepted answer applies the derivation | Done |
+| 792b20c16a1 | `TestBuildNamingRequests_ExemplarsAreCentroidNearest` → `Test792b20c16a1_BuildNamingRequests_ExemplarsAreCentroidNearest` | Internal unit over injected deps | Exemplars are the members nearest the centroid | Done |
+| 792b20c17a1 | `TestParseRefitNames_ValidCoversAllClusters` → `Test792b20c17a1_ParseRefitNames_ValidCoversAllClusters` | Pure unit | A complete answer is accepted | Done |
+| 792b20c17a1 | `TestParseRefitNames_RoundTripProperty` → `Test792b20c17a1_ParseRefitNames_RoundTripProperty` | Property test (rapid) | A complete answer is accepted | Done |
+| 792b20c17a2 | `TestParseRefitNames_RejectsIncompleteAndUnknown` → `Test792b20c17a2_ParseRefitNames_RejectsIncompleteAndUnknown` | Pure unit | An incomplete, unknown or stale answer is refused | Done |
+| 792b20c17a3 | `TestNamedClustersToSeedTerms` → `Test792b20c17a3_NamedClustersToSeedTerms` | Pure unit | A named cluster becomes a term with its snippets | Done |
+| 792b20c18a1 | `TestWriteCentroidsFile_PersistsOriginAndDerivationMetadata` → `Test792b20c18a1_WriteCentroidsFile_PersistsOriginAndDerivationMetadata` | Internal unit over injected deps | The centroid record carries origins and the derivation | Done |
+| 792b20c18a1 | `TestWriteCentroidsFile_OriginAndDerivationAreAdditive` → `Test792b20c18a1_WriteCentroidsFile_OriginAndDerivationAreAdditive` | Internal unit over injected deps | The centroid record carries origins and the derivation | Done |
+| 792b20c18a1 | `TestVocabCentroidsDoc_NewFieldsRoundTrip` → `Test792b20c18a1_VocabCentroidsDoc_NewFieldsRoundTrip` | Pure unit | The centroid record carries origins and the derivation | Done |
+| 792b20c18a1 | `TestVocabCentroidsDoc_ZeroValueOmitted` → `Test792b20c18a1_VocabCentroidsDoc_ZeroValueOmitted` | Pure unit | The centroid record carries origins and the derivation | Done |
+| 792b20c19a1 | `TestRetireVocabTerms_DeletesDefinitionNoteAndSidecar` → `Test792b20c19a1_RetireVocabTerms_DeletesDefinitionNoteAndSidecar` | Internal unit over injected deps | The definition and its sidecar are deleted | Done |
+| 792b20c19a1 | `TestRetireVocabTerms_NoSupersessionRecorded` → `Test792b20c19a1_RetireVocabTerms_NoSupersessionRecorded` | Internal unit over injected deps | The definition and its sidecar are deleted | Done |
+| 792b20c19a2 | `TestRetireVocabTerms_ScrubsReferencesVaultWide` → `Test792b20c19a2_RetireVocabTerms_ScrubsReferencesVaultWide` | Internal unit over injected deps | References to the deleted note are scrubbed | Done |
+| 792b20c19a2 | `TestRetireVocabTerms_ScrubDropsEmptySupersedesKey` → `Test792b20c19a2_RetireVocabTerms_ScrubDropsEmptySupersedesKey` | Internal unit over injected deps | References to the deleted note are scrubbed | Done |
+| 792b20c19a2 | `TestRemoveNoteReferences_FrontmatterlessContent` → `Test792b20c19a2_RemoveNoteReferences_FrontmatterlessContent` | Pure unit | References to the deleted note are scrubbed | Done |
+| 792b20c19a3 | `TestClearRemovedTermsFromMembers_SkipsDefinitionNotes` → `Test792b20c19a3_ClearRemovedTermsFromMembers_SkipsDefinitionNotes` | Internal unit over injected deps | Member tags are stripped, definitions untouched | Done |
+| 792b20c19a3 | `TestNoteContainsAnyRemoval_NoMatch` → `Test792b20c19a3_NoteContainsAnyRemoval_NoMatch` | Pure unit | Member tags are stripped, definitions untouched | Done |
+| 792b20c19a4 | `TestRetireVocabTerms_ListError_Warns` → `Test792b20c19a4_RetireVocabTerms_ListError_Warns` | Internal unit over injected deps | Failures are warnings | Done |
+| 792b20c19a4 | `TestRetireVocabTerms_WriteErrors_Warn` → `Test792b20c19a4_RetireVocabTerms_WriteErrors_Warn` | Internal unit over injected deps | Failures are warnings | Done |
+| 792b20c20a1 | `TestVocabTagDefinitionsBackfill_AddsAndIsIdempotent` → `Test792b20c20a1_VocabTagDefinitionsBackfill_AddsAndIsIdempotent` | Command over injected deps | Missing self-tags are added once | Done |
+| 792b20c20a1 | `TestRunVocabTagDefinitions_PublicAPI` → `Test792b20c20a1_RunVocabTagDefinitions_PublicAPI` | Command over injected deps | Missing self-tags are added once | Done |
+| 792b20c20a2 | `TestProcessVocabDefinitionNote_WriteError` → `Test792b20c20a2_ProcessVocabDefinitionNote_WriteError` | Internal unit over injected deps | A failed write is reported | Done |
+| 792b20c21a1 | `TestRegenVocab_RealRun_RemovesFilesAndCleansMembers` → `Test792b20c21a1_RegenVocab_RealRun_RemovesFilesAndCleansMembers` | Internal unit over injected deps | An old-format vocabulary is migrated | Done |
+| 792b20c21a1 | `TestStripLegacyVocabChannel` → `Test792b20c21a1_StripLegacyVocabChannel` | Pure unit | An old-format vocabulary is migrated | Done |
+| 792b20c21a2 | `TestRegenVocab_DryRun_ChangesNothing` → `Test792b20c21a2_RegenVocab_DryRun_ChangesNothing` | Internal unit over injected deps | A dry run writes nothing | Done |
+| 792b20c21a3 | `TestRegenVocab_NothingToRegenerate` → `Test792b20c21a3_RegenVocab_NothingToRegenerate` | Internal unit over injected deps | Nothing to migrate writes nothing | Done |
+| 792b20c21a4 | `TestRegenVocab_SkipsUnparseableLegacyTermNotes` → `Test792b20c21a4_RegenVocab_SkipsUnparseableLegacyTermNotes` | Internal unit over injected deps | An unparseable term file is skipped | Done |
+| 792b20c21a5 | `TestRegenVocab_ListMDErrorPropagates` → `Test792b20c21a5_RegenVocab_ListMDErrorPropagates` | Internal unit over injected deps | A listing failure is an error | Done |
+| 792b20c21a6 | `TestRemoveOldVocabFiles_WarnsOnDeleteErrorAndSkipsCount` → `Test792b20c21a6_RemoveOldVocabFiles_WarnsOnDeleteErrorAndSkipsCount` | Internal unit over injected deps | A file that cannot be deleted is warned about and not counted | Done |
+| 792b20c22a1 | `TestOldVocabFilesPresent` → `Test792b20c22a1_OldVocabFilesPresent` | Detector over a fake filesystem, table | Old-format files are detected | Done |
+| 792b20c22a2 | `TestVocabDefinitionsMissingSelfTags` → `Test792b20c22a2_VocabDefinitionsMissingSelfTags` | Detector over a fake filesystem, table | A missing self-tag is detected | Done |
+| 792a6h1a | `TestTargets_VocabBootstrapNonExistentSeed` → `Test792a6h1a_Targets_VocabBootstrapNonExistentSeed` | Dispatch through `Targets` over a temp vault | A bad seed is refused | Done |
+| 792a6i1b | `TestTargets_VocabProposeCreatesNote` → `Test792a6i1b_Targets_VocabProposeCreatesNote` | Dispatch through `Targets` over a temp vault | Propose in a vault without a family note | Done |
+| 792a6j1b | `TestTargets_VocabRefitDryRun` → `Test792a6j1b_Targets_VocabRefitDryRun` | Dispatch through `Targets` over a temp vault | A vault without structure keeps its vocabulary | Done |
+| 792a6t1a | `TestTargets_VocabStatsEmpty` → `Test792a6t1a_Targets_VocabStatsEmpty` | Dispatch through `Targets` over a temp vault | Stats on an empty vault | Done |
+
+**Coverage gaps:** 792b20c5a1 (no direct test; the positive path is verified through
+`Test792b12c6a1_RunLearn_VocabAssignment_WritesVocabWhenTermsPresent` and
+`Test792b14c11a1_RunAmend_VocabAssignment_WritesVocabWhenTermsPresent`); 792b20c10a5 (no unit test;
+only `Test792a6h1a_Targets_VocabBootstrapNonExistentSeed` covers an unreadable seed, and nothing an
+unparseable one); the lock clauses of 792b20c10 and 792b20c15 (no test asserts that bootstrap or refit
+holds the vault lock); and 792b20c22's exclusion of `vocab.centroids.json` and directories (the
+detector table has neither case). Product scenarios: only 792a6h1a, 792a6i1b, 792a6j1b and 792a6t1a
+have end-to-end tests; every other 792a6 scenario is covered only by the component tests above and in
+792c7e1–792c7e2.
+
+**No-scenario tests:** `vocab_commands_test` `TestNewVocabDeps_ClosuresCalled` (composition wiring)
+and `TestIdAndDateFromNoteFilename` (deferred to vault-migration 792c7i1); `vocab_test`
+`TestVocabDefinitionNote_FloorPromoted` and `TestVocabDefinitionNote_ReturnedWhenOnlyItem` (deferred
+to memory-query 792c7f1); `update_test` `TestWriteUpdateReport_VocabMigrationHint`,
+`TestWriteUpdateReport_VocabRegenReport`, `TestWriteUpdateReport_VocabSelfTagHint` and
+`TestRunUpdate_RegenVocabFlag_RunsRegenAndUpdatesReport` (deferred to install-and-update 792c7j1,
+792d89).
 
 ### 792c7f memory-query
 
@@ -2006,6 +2195,7 @@ Target: `792a7` (`docs/specs/product/memory-query.md`).
 
 - `engram query|query-chunks|show|show-chunk --help`
 - `ENGRAM_CONTENT_BUDGET`, `ENGRAM_RECENT_FILL`, `ENGRAM_LAZY_CHUNKS`
+- the query payload's `refit_pending` field (from the deleted c2 vocab lifecycle flowchart, 792d89)
 
 **Rationale sources (read only; deleted by 792c8c):**
 

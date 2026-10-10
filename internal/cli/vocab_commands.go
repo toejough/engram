@@ -204,7 +204,7 @@ func RunVocabPropose(ctx context.Context, args VocabProposeArgs, deps VocabDeps,
 // on stdout; answer via --names), or applies the derivation: retirement of
 // unmatched derived terms, minting of named new clusters, a full re-tag pass,
 // the centroids-file write, and a major version bump. The vault lock is held
-// for the whole run (vault-concurrency-safe-writes).
+// for the whole run (792b20c15).
 func RunVocabRefit(ctx context.Context, args VocabRefitArgs, deps VocabDeps, stdout io.Writer) error {
 	release, lockErr := acquireOptionalLock(deps.Lock, args.Vault)
 	if lockErr != nil {
@@ -700,7 +700,7 @@ func embedDefinitionNote(ctx context.Context, deps VocabDeps, notePath, content 
 // already present — bootstrap's idempotency requirement.
 // The minted note documents the tags: convention WITHOUT enumerating any term
 // (a maintained term list is the stale-index problem reborn — see
-// TestVocabFamilyNote_NeverEnumeratesTerms). Returns true only when a mint
+// Test792b20c9a1_VocabFamilyNote_NeverEnumeratesTerms). Returns true only when a mint
 // was attempted AND succeeded (mintErr == nil); false both when one already
 // existed (no mint attempted — the idempotent no-op) and when a mint was
 // attempted but failed (#678 Task 7 FIX 2 — the prior unconditional `true`
@@ -765,7 +765,7 @@ func extractNoteVocabTags(deps VocabStatsDeps, vault, name string) ([]string, bo
 // family note: subject "the vocab tag family", object documents the tags:
 // convention WITHOUT enumerating any term name — a maintained term list in
 // this note is the stale-index problem reborn (issue #678's most explicit
-// warning; see TestVocabFamilyNote_NeverEnumeratesTerms). Luhmann is left
+// warning; see Test792b20c9a1_VocabFamilyNote_NeverEnumeratesTerms). Luhmann is left
 // unset — mintDefinitionNote sets it once allocated.
 func familyDefinitionFactFields(source string) factFields {
 	return factFields{

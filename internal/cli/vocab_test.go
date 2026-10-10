@@ -16,34 +16,52 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-// ── Task 2: bare-vocab definition exemption ──────────────────────────────────
-
-// TestApplyVocabAssignmentCore_SkipsDefinitionNotes verifies that
-// applyVocabAssignmentCore never writes a term assignment to a note whose
-// content is itself a bare-vocab DEFINITION note — a definition must never
-// acquire its own term tag, even when its body vector would otherwise
-// qualify under the floor.
-func TestApplyVocabAssignmentCore_SkipsDefinitionNotes(t *testing.T) {
+// Test792b20c1a1_IsVocabDefinitionNote verifies the bare-vocab definition marker:
+// a note tagged bare "vocab" is a definition; a note tagged vocab/<term>
+// (a member) or an unrelated bare family tag (work-kind) is not.
+func Test792b20c1a1_IsVocabDefinitionNote(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	definition := "---\ntype: fact\ntags:\n    - vocab\n---\n\nDefines the retrieval-design term.\n"
-	sidecar := mustMarshalSidecarWithBodyVector(t, []float32{1, 0, 0})
-	loadTerms := func(string) ([]cli.TermWithVector, error) {
-		return []cli.TermWithVector{{Term: "retrieval-design", Vector: []float32{1, 0, 0}}}, nil
-	}
-	read := func(string) ([]byte, error) { return sidecar, nil }
+	definition := "---\ntype: fact\ntags:\n    - vocab\n---\n\nDefines a term.\n"
+	member := "---\ntype: fact\ntags:\n    - vocab/retrieval-design\n---\n\nA member.\n"
+	otherFamily := "---\ntype: fact\ntags:\n    - work-kind\n---\n\nRoute family definition.\n"
 
-	wrote := false
-	write := func(string, []byte) error { wrote = true; return nil }
-
-	cli.ExportApplyVocabAssignmentCore(loadTerms, read, write, nil, "/v", "/v/n.md", definition, "test")
-
-	g.Expect(wrote).To(BeFalse(), "a definition must never acquire its own term tag")
+	g.Expect(cli.ExportIsVocabDefinitionNote(definition)).To(BeTrue())
+	g.Expect(cli.ExportIsVocabDefinitionNote(member)).To(BeFalse())
+	g.Expect(cli.ExportIsVocabDefinitionNote(otherFamily)).To(BeFalse())
 }
 
-func TestAssignVocabTerms_BelowFloor_NilResult(t *testing.T) {
+// Test792b20c1a3_ParseTagsFromFrontmatter_EdgeCases pins nil-without-panic semantics for
+// an absent key, a key with no value, an empty inline list, and malformed YAML.
+func Test792b20c1a3_ParseTagsFromFrontmatter_EdgeCases(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	g.Expect(cli.ExportParseTagsFromFrontmatter("type: fact")).To(BeNil())
+	g.Expect(cli.ExportParseTagsFromFrontmatter("type: fact\ntags:")).To(BeNil())
+	g.Expect(cli.ExportParseTagsFromFrontmatter("type: fact\ntags: []")).To(BeNil())
+	g.Expect(cli.ExportParseTagsFromFrontmatter("type: fact\ntags: [")).To(BeNil())
+}
+
+// Test792b20c1a3_VocabTermsFromTags_FiltersAndStripsPrefix locks vocabTermsFromTags'
+// contract ahead of its Task 2+ consumers: only vocab/<term> entries are
+// returned, prefix-stripped, in order; non-vocab tags and the bare "vocab"
+// marker are excluded.
+func Test792b20c1a3_VocabTermsFromTags_FiltersAndStripsPrefix(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	tags := []string{"work-kind/rename", "vocab/retrieval-design", "vocab", "vocab/token-budget"}
+	got := cli.ExportVocabTermsFromTags(tags)
+
+	g.Expect(got).To(Equal([]string{"retrieval-design", "token-budget"}))
+}
+
+func Test792b20c3a1_AssignVocabTerms_BelowFloor_NilResult(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -58,54 +76,7 @@ func TestAssignVocabTerms_BelowFloor_NilResult(t *testing.T) {
 	g.Expect(got).To(BeNil(), "no terms above floor must return nil")
 }
 
-func TestAssignVocabTerms_EmptyBodyVec_NilResult(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	terms := []cli.TermWithVector{{Term: "foo", Vector: []float32{1.0}}}
-	got := cli.AssignVocabTerms(nil, terms, 0.30)
-	g.Expect(got).To(BeNil())
-}
-
-func TestAssignVocabTerms_EmptyTerms_NilResult(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	got := cli.AssignVocabTerms([]float32{1.0}, nil, 0.30)
-	g.Expect(got).To(BeNil())
-}
-
-// ── Unit 3: write-time assigner (AssignVocabTerms) ───────────────────────────
-
-func TestAssignVocabTerms_FourQualifying_CapsAtTopThree(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	// Four terms qualify; plain top-3 (the sweep-chosen K) caps the selection
-	// at the three highest cosines, in descending order.
-	bodyVec := []float32{1.0, 0.0}
-	terms := []cli.TermWithVector{
-		{Term: "alpha", Vector: []float32{0.90, 0.4359}}, // cosine ≈ 0.90
-		{Term: "beta", Vector: []float32{0.80, 0.60}},    // cosine = 0.80
-		{Term: "gamma", Vector: []float32{0.79, 0.6131}}, // cosine ≈ 0.79
-		{Term: "delta", Vector: []float32{0.50, 0.8660}}, // cosine = 0.50
-	}
-
-	got := cli.AssignVocabTerms(bodyVec, terms, 0.30)
-
-	g.Expect(got).To(HaveLen(3), "selection caps at top-3")
-
-	if got == nil {
-		return
-	}
-
-	g.Expect(got).To(Equal([]string{"alpha", "beta", "gamma"}))
-}
-
-func TestAssignVocabTerms_OnlyOneQualifies_ReturnsSingle(t *testing.T) {
+func Test792b20c3a1_AssignVocabTerms_OnlyOneQualifies_ReturnsSingle(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -131,7 +102,53 @@ func TestAssignVocabTerms_OnlyOneQualifies_ReturnsSingle(t *testing.T) {
 	g.Expect(got[0]).To(Equal("alpha"))
 }
 
-func TestAssignVocabTerms_ThreeQualifying_TakesAllThree(t *testing.T) {
+func Test792b20c3a1_AssignVocabTerms_TwoQualifyingOneBelowFloor_TakesTwo(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// Third term does not meet the floor, so only top-2 are returned.
+	bodyVec := []float32{1.0, 0.0}
+	terms := []cli.TermWithVector{
+		{Term: "alpha", Vector: []float32{0.90, 0.4359}}, // cosine ≈ 0.90 ≥ floor
+		{Term: "beta", Vector: []float32{0.80, 0.60}},    // cosine = 0.80 ≥ floor
+		{Term: "gamma", Vector: []float32{0.20, 0.9798}}, // cosine = 0.20 < floor 0.30
+	}
+
+	got := cli.AssignVocabTerms(bodyVec, terms, 0.30)
+
+	g.Expect(got).To(HaveLen(2), "only floor-passing terms are selected")
+}
+
+// ── Unit 3: write-time assigner (AssignVocabTerms) ───────────────────────────
+
+func Test792b20c3a2_AssignVocabTerms_FourQualifying_CapsAtTopThree(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// Four terms qualify; plain top-3 (the sweep-chosen K) caps the selection
+	// at the three highest cosines, in descending order.
+	bodyVec := []float32{1.0, 0.0}
+	terms := []cli.TermWithVector{
+		{Term: "alpha", Vector: []float32{0.90, 0.4359}}, // cosine ≈ 0.90
+		{Term: "beta", Vector: []float32{0.80, 0.60}},    // cosine = 0.80
+		{Term: "gamma", Vector: []float32{0.79, 0.6131}}, // cosine ≈ 0.79
+		{Term: "delta", Vector: []float32{0.50, 0.8660}}, // cosine = 0.50
+	}
+
+	got := cli.AssignVocabTerms(bodyVec, terms, 0.30)
+
+	g.Expect(got).To(HaveLen(3), "selection caps at top-3")
+
+	if got == nil {
+		return
+	}
+
+	g.Expect(got).To(Equal([]string{"alpha", "beta", "gamma"}))
+}
+
+func Test792b20c3a2_AssignVocabTerms_ThreeQualifying_TakesAllThree(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -158,61 +175,283 @@ func TestAssignVocabTerms_ThreeQualifying_TakesAllThree(t *testing.T) {
 	g.Expect(got[2]).To(Equal("verification"), "third cosine term should be third")
 }
 
-func TestAssignVocabTerms_TwoQualifyingOneBelowFloor_TakesTwo(t *testing.T) {
+func Test792b20c3a3_AssignVocabTerms_EmptyBodyVec_NilResult(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	// Third term does not meet the floor, so only top-2 are returned.
-	bodyVec := []float32{1.0, 0.0}
-	terms := []cli.TermWithVector{
-		{Term: "alpha", Vector: []float32{0.90, 0.4359}}, // cosine ≈ 0.90 ≥ floor
-		{Term: "beta", Vector: []float32{0.80, 0.60}},    // cosine = 0.80 ≥ floor
-		{Term: "gamma", Vector: []float32{0.20, 0.9798}}, // cosine = 0.20 < floor 0.30
+	terms := []cli.TermWithVector{{Term: "foo", Vector: []float32{1.0}}}
+	got := cli.AssignVocabTerms(nil, terms, 0.30)
+	g.Expect(got).To(BeNil())
+}
+
+func Test792b20c3a3_AssignVocabTerms_EmptyTerms_NilResult(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	got := cli.AssignVocabTerms([]float32{1.0}, nil, 0.30)
+	g.Expect(got).To(BeNil())
+}
+
+// Test792b20c4a1_WriteVocabAssignment_Idempotent proves that applying the same
+// assignment twice yields byte-identical output — the vocab/ namespace is
+// replaced, never appended, on every call.
+func Test792b20c4a1_WriteVocabAssignment_Idempotent(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	content := "---\ntype: fact\ntags:\n    - work-kind/rename\nvocab: [a]\n---\n\nBody.\n\nVocab: [[vocab.a]]\n"
+	once := cli.WriteVocabAssignment(content, []string{"a", "b"})
+	twice := cli.WriteVocabAssignment(once, []string{"a", "b"})
+
+	g.Expect(twice).To(Equal(once))
+}
+
+// Test792b20c4a1_WriteVocabAssignment_PreservesCategoricalTags proves that non-vocab
+// tags already present survive, in order, ahead of the vocab/ namespace, and
+// that a stale vocab/ entry is discarded (namespace is REPLACED, not merged).
+func Test792b20c4a1_WriteVocabAssignment_PreservesCategoricalTags(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	content := "---\ntype: fact\ntags:\n    - work-kind/rename\n    - tier/cheap\n    - vocab/stale-term\n" +
+		"---\n\nBody.\n"
+	got := cli.WriteVocabAssignment(content, []string{"retrieval-design"})
+
+	g.Expect(got).To(ContainSubstring(
+		"tags:\n    - work-kind/rename\n    - tier/cheap\n    - vocab/retrieval-design\n"))
+	g.Expect(got).NotTo(ContainSubstring("vocab/stale-term"))
+}
+
+// Test792b20c4a1_WriteVocabAssignment_StripsBareVocabMarkerTag proves that a bare
+// "vocab" tag entry (the definition marker, not a vocab/<term> entry) is
+// filtered by nonVocabTags exactly like a namespaced entry.
+func Test792b20c4a1_WriteVocabAssignment_StripsBareVocabMarkerTag(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	content := "---\ntype: fact\ntags:\n    - work-kind/rename\n    - vocab\n---\n\nBody.\n"
+	got := cli.WriteVocabAssignment(content, []string{"retrieval-design"})
+
+	g.Expect(got).To(ContainSubstring("tags:\n    - work-kind/rename\n    - vocab/retrieval-design\n"))
+	g.Expect(got).NotTo(ContainSubstring("    - vocab\n"))
+}
+
+// Test792b20c4a1_WriteVocabAssignment_WritesVocabNamespaceTags proves that assigned
+// terms land in the vocab/ namespace of the shared tags: list and that
+// neither legacy channel (vocab: frontmatter key, Vocab: body line) is written.
+func Test792b20c4a1_WriteVocabAssignment_WritesVocabNamespaceTags(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	content := "---\ntype: fact\nsituation: s\n---\n\nBody.\n"
+	got := cli.WriteVocabAssignment(content, []string{"retrieval-design", "token-budget"})
+
+	g.Expect(got).To(ContainSubstring("tags:\n    - vocab/retrieval-design\n    - vocab/token-budget\n"))
+	g.Expect(got).NotTo(ContainSubstring("\nvocab:"))
+	g.Expect(got).NotTo(ContainSubstring("Vocab:"))
+}
+
+// Test792b20c4a2_WriteVocabAssignment_EmptyTermsNoOtherTagsRemovesTagsKey proves that
+// when the vocab/ namespace was the ONLY content of tags:, an empty terms
+// list removes the tags: key entirely rather than leaving an empty list.
+func Test792b20c4a2_WriteVocabAssignment_EmptyTermsNoOtherTagsRemovesTagsKey(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	content := "---\ntype: fact\ntags:\n    - vocab/stale-term\n---\n\nBody.\n"
+	got := cli.WriteVocabAssignment(content, nil)
+
+	g.Expect(got).NotTo(ContainSubstring("tags:"))
+}
+
+// Test792b20c4a2_WriteVocabAssignment_EmptyTermsRemovesVocabNamespaceOnly proves that an
+// empty terms list clears only the vocab/ namespace, leaving other tags intact.
+func Test792b20c4a2_WriteVocabAssignment_EmptyTermsRemovesVocabNamespaceOnly(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	content := "---\ntype: fact\ntags:\n    - work-kind/rename\n    - vocab/stale-term\n---\n\nBody.\n"
+	got := cli.WriteVocabAssignment(content, nil)
+
+	g.Expect(got).To(ContainSubstring("tags:\n    - work-kind/rename\n"))
+	g.Expect(got).NotTo(ContainSubstring("vocab/"))
+}
+
+// Test792b20c4a3_WriteVocabAssignment_BodyIsOpaque proves that a body line starting
+// `Vocab: [[vocab.old-term]]` is user prose now — WriteVocabAssignment must
+// not parse or strip it; it survives byte-identical through the rewrite.
+func Test792b20c4a3_WriteVocabAssignment_BodyIsOpaque(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	body := "Body.\n\nVocab: [[vocab.old-term]]\n"
+	content := "---\ntype: fact\n---\n\n" + body
+	got := cli.WriteVocabAssignment(content, []string{"old-term"})
+
+	g.Expect(strings.HasSuffix(got, body)).To(BeTrue(),
+		"the Vocab: body line is user prose now — WriteVocabAssignment must not strip it")
+}
+
+// Test792b20c4a3_WriteVocabAssignment_InlineTagsListParsed proves that a pre-existing
+// inline-style tags: list ("tags: [a, b]") is parsed correctly, not just the
+// block style.
+func Test792b20c4a3_WriteVocabAssignment_InlineTagsListParsed(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	content := "---\ntype: fact\ntags: [work-kind/rename, vocab/stale]\n---\n\nBody.\n"
+	got := cli.WriteVocabAssignment(content, []string{"fresh"})
+
+	g.Expect(got).To(ContainSubstring("tags:\n    - work-kind/rename\n    - vocab/fresh\n"))
+}
+
+// Test792b20c4a3_WriteVocabAssignment_LearnRendererRoundtripFidelity decodes the
+// writer's output — applied on top of a note actually produced by the #674
+// learn renderer (ExportRenderFactFrontmatter) — with the same tags-only
+// struct shape Test792b6c3a7_RenderFactFrontmatter_TagsRoundtripFidelity decodes with,
+// pinning byte-compatibility between the learn renderer's tags: block style
+// and the one WriteVocabAssignment merges into it.
+func Test792b20c4a3_WriteVocabAssignment_LearnRendererRoundtripFidelity(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	when := time.Date(2026, time.July, 10, 0, 0, 0, 0, time.UTC)
+	fields := cli.ExportFactFields{
+		Situation: "s", Subject: "a", Predicate: "has", Object: "b",
+		Luhmann: "1a", Source: "test", Tags: []string{"work-kind/rename"},
 	}
 
-	got := cli.AssignVocabTerms(bodyVec, terms, 0.30)
+	rendered := cli.ExportRenderFactFrontmatter(fields, when) + cli.ExportRenderFactBody(fields)
 
-	g.Expect(got).To(HaveLen(2), "only floor-passing terms are selected")
+	got := cli.WriteVocabAssignment(rendered, []string{"retrieval-design", "token-budget"})
+
+	const delim = "---\n"
+
+	body := strings.TrimPrefix(got, delim)
+	end := strings.Index(body, "\n"+delim)
+	g.Expect(end).To(BeNumerically(">", -1))
+
+	if end < 0 {
+		return
+	}
+
+	var doc struct {
+		Tags []string `yaml:"tags"`
+	}
+
+	unmarshalErr := yaml.Unmarshal([]byte(body[:end+1]), &doc)
+	g.Expect(unmarshalErr).NotTo(HaveOccurred())
+
+	if unmarshalErr != nil {
+		return
+	}
+
+	g.Expect(doc.Tags).To(Equal([]string{
+		"work-kind/rename", "vocab/retrieval-design", "vocab/token-budget",
+	}))
 }
 
-// TestIsVocabDefinitionNote verifies the bare-vocab definition marker:
-// a note tagged bare "vocab" is a definition; a note tagged vocab/<term>
-// (a member) or an unrelated bare family tag (work-kind) is not.
-func TestIsVocabDefinitionNote(t *testing.T) {
+// Test792b20c4a3_WriteVocabAssignment_PreservesTagsKeyPosition proves the rewritten
+// tags: block lands at the ORIGINAL tags: key's line position when other
+// frontmatter keys follow it, rather than always being appended at the end
+// of the frontmatter block (behavior spec item 4: "at the position of the
+// existing tags: key").
+func Test792b20c4a3_WriteVocabAssignment_PreservesTagsKeyPosition(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	definition := "---\ntype: fact\ntags:\n    - vocab\n---\n\nDefines a term.\n"
-	member := "---\ntype: fact\ntags:\n    - vocab/retrieval-design\n---\n\nA member.\n"
-	otherFamily := "---\ntype: fact\ntags:\n    - work-kind\n---\n\nRoute family definition.\n"
+	content := "---\ntype: fact\ntags:\n    - work-kind/rename\nsource: test\n---\n\nBody.\n"
+	got := cli.WriteVocabAssignment(content, []string{"retrieval-design"})
 
-	g.Expect(cli.ExportIsVocabDefinitionNote(definition)).To(BeTrue())
-	g.Expect(cli.ExportIsVocabDefinitionNote(member)).To(BeFalse())
-	g.Expect(cli.ExportIsVocabDefinitionNote(otherFamily)).To(BeFalse())
+	g.Expect(got).To(Equal(
+		"---\ntype: fact\ntags:\n    - work-kind/rename\n    - vocab/retrieval-design\nsource: test\n---\n\nBody.\n"))
 }
 
-// TestParseTagsFromFrontmatter_EdgeCases pins nil-without-panic semantics for
-// an absent key, a key with no value, an empty inline list, and malformed YAML.
-func TestParseTagsFromFrontmatter_EdgeCases(t *testing.T) {
+// Test792b20c4a3_WriteVocabAssignment_TagsRoundtripFidelity is a property test: for
+// random non-vocab tag lists, term lists, and 0-2 trailing frontmatter keys
+// after tags:, the writer's full output is byte-exact against the expected
+// bytes built inline from the drawn input (tags block at the original tags:
+// index, trailing keys — including a key literally named "vocab" if drawn,
+// which is just an ordinary untouched trailing key since legacy vocab:
+// support has been consolidated into tags: — intact and untouched), and a
+// second application with the same terms is byte-identical (idempotency).
+// This closes the position-blind gap a parse-equality oracle left open: the
+// #678 cycle's insert-index off-by-one (b19e3a5d) and content-anchor
+// regression (e7882530) were both parse-identical and idempotent, so only a
+// full byte oracle catches their class of bug.
+func Test792b20c4a3_WriteVocabAssignment_TagsRoundtripFidelity(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		tagGen := rapid.StringMatching(`[a-z][a-z0-9-]{0,10}/[a-z][a-z0-9-]{0,10}`).
+			Filter(func(s string) bool { return !strings.HasPrefix(s, "vocab/") })
+		termGen := rapid.StringMatching(`[a-z][a-z0-9-]{0,10}`)
+		trailingKeyGen := rapid.StringMatching(`[a-z][a-z0-9]{0,8}`).
+			Filter(func(s string) bool { return s != "type" && s != "tags" })
+		trailingValGen := rapid.StringMatching(`[a-z][a-z0-9-]{0,10}`)
+
+		const maxGenLen = 4
+
+		tags := rapid.SliceOfN(tagGen, 0, maxGenLen).Draw(rt, "tags")
+		terms := rapid.SliceOfN(termGen, 0, maxGenLen).Draw(rt, "terms")
+
+		const maxTrailingKeys = 2
+
+		trailingKeyCount := rapid.IntRange(0, maxTrailingKeys).Draw(rt, "trailingKeyCount")
+
+		trailingKeys := make([]string, trailingKeyCount)
+		trailingVals := make([]string, trailingKeyCount)
+
+		for i := range trailingKeyCount {
+			// Suffix each drawn key with its index to guarantee distinctness
+			// across the 0-2 draws (rapid can draw the same string twice).
+			trailingKeys[i] = trailingKeyGen.Draw(rt, "trailingKey"+strconv.Itoa(i)) + strconv.Itoa(i)
+			trailingVals[i] = trailingValGen.Draw(rt, "trailingVal"+strconv.Itoa(i))
+		}
+
+		frontmatterStr := buildTestFrontmatter(tags) + buildTrailingKeysFrontmatter(trailingKeys, trailingVals)
+		content := "---\n" + frontmatterStr + "---\n\nBody.\n"
+		got := cli.WriteVocabAssignment(content, terms)
+
+		expected := buildExpectedWriteVocabAssignmentBytes(tags, terms, trailingKeys, trailingVals)
+		if got != expected {
+			rt.Fatalf("byte-exact mismatch:\ngot:\n%q\nwant:\n%q", got, expected)
+		}
+
+		verifyIdempotency(rt, got, terms)
+	})
+}
+
+// Test792b20c4a4_WriteVocabAssignment_NoFrontmatterUnchanged proves that content with no
+// leading frontmatter block is returned unchanged.
+func Test792b20c4a4_WriteVocabAssignment_NoFrontmatterUnchanged(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	g.Expect(cli.ExportParseTagsFromFrontmatter("type: fact")).To(BeNil())
-	g.Expect(cli.ExportParseTagsFromFrontmatter("type: fact\ntags:")).To(BeNil())
-	g.Expect(cli.ExportParseTagsFromFrontmatter("type: fact\ntags: []")).To(BeNil())
-	g.Expect(cli.ExportParseTagsFromFrontmatter("type: fact\ntags: [")).To(BeNil())
+	content := "Just a body, no frontmatter.\n"
+	g.Expect(cli.WriteVocabAssignment(content, []string{"a"})).To(Equal(content))
 }
 
-// TestVocabAssignment_KeepsSidecarStateOK is the write→embed→assign→state
+// Test792b20c4a5_VocabAssignment_KeepsSidecarStateOK is the write→embed→assign→state
 // round-trip: a note embedded BEFORE vocab assignment must still classify
 // StateOK afterwards — the assigned terms land in the tags: frontmatter
 // field, which is neither the situation: field nor the body, so the
 // assignment write must not stale the sidecar (otherwise `embed apply
 // --stale` re-embeds every assigned note for no reason).
-func TestVocabAssignment_KeepsSidecarStateOK(t *testing.T) {
+func Test792b20c4a5_VocabAssignment_KeepsSidecarStateOK(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -245,6 +484,33 @@ func TestVocabAssignment_KeepsSidecarStateOK(t *testing.T) {
 	g.Expect(embed.ComputeState(filesystem, "/vault/1aa.note.md", modelID)).
 		To(Equal(embed.StateOK),
 			"vocab assignment must not stale the sidecar (tags live in frontmatter, not body hash)")
+}
+
+// ── Task 2: bare-vocab definition exemption ──────────────────────────────────
+
+// Test792b20c5a4_ApplyVocabAssignmentCore_SkipsDefinitionNotes verifies that
+// applyVocabAssignmentCore never writes a term assignment to a note whose
+// content is itself a bare-vocab DEFINITION note — a definition must never
+// acquire its own term tag, even when its body vector would otherwise
+// qualify under the floor.
+func Test792b20c5a4_ApplyVocabAssignmentCore_SkipsDefinitionNotes(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	definition := "---\ntype: fact\ntags:\n    - vocab\n---\n\nDefines the retrieval-design term.\n"
+	sidecar := mustMarshalSidecarWithBodyVector(t, []float32{1, 0, 0})
+	loadTerms := func(string) ([]cli.TermWithVector, error) {
+		return []cli.TermWithVector{{Term: "retrieval-design", Vector: []float32{1, 0, 0}}}, nil
+	}
+	read := func(string) ([]byte, error) { return sidecar, nil }
+
+	wrote := false
+	write := func(string, []byte) error { wrote = true; return nil }
+
+	cli.ExportApplyVocabAssignmentCore(loadTerms, read, write, nil, "/v", "/v/n.md", definition, "test")
+
+	g.Expect(wrote).To(BeFalse(), "a definition must never acquire its own term tag")
 }
 
 // ── Unit 2: recallability seam (definitions are ordinary notes, #678 Task 6) ─
@@ -321,272 +587,6 @@ func TestVocabDefinitionNote_ReturnedWhenOnlyItem(t *testing.T) {
 
 	g.Expect(keys).To(ContainElement(definitionPath),
 		"a bare-vocab-tagged definition note enters the matched set even as the sole item")
-}
-
-// TestVocabTermsFromTags_FiltersAndStripsPrefix locks vocabTermsFromTags'
-// contract ahead of its Task 2+ consumers: only vocab/<term> entries are
-// returned, prefix-stripped, in order; non-vocab tags and the bare "vocab"
-// marker are excluded.
-func TestVocabTermsFromTags_FiltersAndStripsPrefix(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	tags := []string{"work-kind/rename", "vocab/retrieval-design", "vocab", "vocab/token-budget"}
-	got := cli.ExportVocabTermsFromTags(tags)
-
-	g.Expect(got).To(Equal([]string{"retrieval-design", "token-budget"}))
-}
-
-// TestWriteVocabAssignment_BodyIsOpaque proves that a body line starting
-// `Vocab: [[vocab.old-term]]` is user prose now — WriteVocabAssignment must
-// not parse or strip it; it survives byte-identical through the rewrite.
-func TestWriteVocabAssignment_BodyIsOpaque(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	body := "Body.\n\nVocab: [[vocab.old-term]]\n"
-	content := "---\ntype: fact\n---\n\n" + body
-	got := cli.WriteVocabAssignment(content, []string{"old-term"})
-
-	g.Expect(strings.HasSuffix(got, body)).To(BeTrue(),
-		"the Vocab: body line is user prose now — WriteVocabAssignment must not strip it")
-}
-
-// TestWriteVocabAssignment_EmptyTermsNoOtherTagsRemovesTagsKey proves that
-// when the vocab/ namespace was the ONLY content of tags:, an empty terms
-// list removes the tags: key entirely rather than leaving an empty list.
-func TestWriteVocabAssignment_EmptyTermsNoOtherTagsRemovesTagsKey(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	content := "---\ntype: fact\ntags:\n    - vocab/stale-term\n---\n\nBody.\n"
-	got := cli.WriteVocabAssignment(content, nil)
-
-	g.Expect(got).NotTo(ContainSubstring("tags:"))
-}
-
-// TestWriteVocabAssignment_EmptyTermsRemovesVocabNamespaceOnly proves that an
-// empty terms list clears only the vocab/ namespace, leaving other tags intact.
-func TestWriteVocabAssignment_EmptyTermsRemovesVocabNamespaceOnly(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	content := "---\ntype: fact\ntags:\n    - work-kind/rename\n    - vocab/stale-term\n---\n\nBody.\n"
-	got := cli.WriteVocabAssignment(content, nil)
-
-	g.Expect(got).To(ContainSubstring("tags:\n    - work-kind/rename\n"))
-	g.Expect(got).NotTo(ContainSubstring("vocab/"))
-}
-
-// TestWriteVocabAssignment_Idempotent proves that applying the same
-// assignment twice yields byte-identical output — the vocab/ namespace is
-// replaced, never appended, on every call.
-func TestWriteVocabAssignment_Idempotent(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	content := "---\ntype: fact\ntags:\n    - work-kind/rename\nvocab: [a]\n---\n\nBody.\n\nVocab: [[vocab.a]]\n"
-	once := cli.WriteVocabAssignment(content, []string{"a", "b"})
-	twice := cli.WriteVocabAssignment(once, []string{"a", "b"})
-
-	g.Expect(twice).To(Equal(once))
-}
-
-// TestWriteVocabAssignment_InlineTagsListParsed proves that a pre-existing
-// inline-style tags: list ("tags: [a, b]") is parsed correctly, not just the
-// block style.
-func TestWriteVocabAssignment_InlineTagsListParsed(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	content := "---\ntype: fact\ntags: [work-kind/rename, vocab/stale]\n---\n\nBody.\n"
-	got := cli.WriteVocabAssignment(content, []string{"fresh"})
-
-	g.Expect(got).To(ContainSubstring("tags:\n    - work-kind/rename\n    - vocab/fresh\n"))
-}
-
-// TestWriteVocabAssignment_LearnRendererRoundtripFidelity decodes the
-// writer's output — applied on top of a note actually produced by the #674
-// learn renderer (ExportRenderFactFrontmatter) — with the same tags-only
-// struct shape Test792b6c3a7_RenderFactFrontmatter_TagsRoundtripFidelity decodes with,
-// pinning byte-compatibility between the learn renderer's tags: block style
-// and the one WriteVocabAssignment merges into it.
-func TestWriteVocabAssignment_LearnRendererRoundtripFidelity(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	when := time.Date(2026, time.July, 10, 0, 0, 0, 0, time.UTC)
-	fields := cli.ExportFactFields{
-		Situation: "s", Subject: "a", Predicate: "has", Object: "b",
-		Luhmann: "1a", Source: "test", Tags: []string{"work-kind/rename"},
-	}
-
-	rendered := cli.ExportRenderFactFrontmatter(fields, when) + cli.ExportRenderFactBody(fields)
-
-	got := cli.WriteVocabAssignment(rendered, []string{"retrieval-design", "token-budget"})
-
-	const delim = "---\n"
-
-	body := strings.TrimPrefix(got, delim)
-	end := strings.Index(body, "\n"+delim)
-	g.Expect(end).To(BeNumerically(">", -1))
-
-	if end < 0 {
-		return
-	}
-
-	var doc struct {
-		Tags []string `yaml:"tags"`
-	}
-
-	unmarshalErr := yaml.Unmarshal([]byte(body[:end+1]), &doc)
-	g.Expect(unmarshalErr).NotTo(HaveOccurred())
-
-	if unmarshalErr != nil {
-		return
-	}
-
-	g.Expect(doc.Tags).To(Equal([]string{
-		"work-kind/rename", "vocab/retrieval-design", "vocab/token-budget",
-	}))
-}
-
-// TestWriteVocabAssignment_NoFrontmatterUnchanged proves that content with no
-// leading frontmatter block is returned unchanged.
-func TestWriteVocabAssignment_NoFrontmatterUnchanged(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	content := "Just a body, no frontmatter.\n"
-	g.Expect(cli.WriteVocabAssignment(content, []string{"a"})).To(Equal(content))
-}
-
-// TestWriteVocabAssignment_PreservesCategoricalTags proves that non-vocab
-// tags already present survive, in order, ahead of the vocab/ namespace, and
-// that a stale vocab/ entry is discarded (namespace is REPLACED, not merged).
-func TestWriteVocabAssignment_PreservesCategoricalTags(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	content := "---\ntype: fact\ntags:\n    - work-kind/rename\n    - tier/cheap\n    - vocab/stale-term\n" +
-		"---\n\nBody.\n"
-	got := cli.WriteVocabAssignment(content, []string{"retrieval-design"})
-
-	g.Expect(got).To(ContainSubstring(
-		"tags:\n    - work-kind/rename\n    - tier/cheap\n    - vocab/retrieval-design\n"))
-	g.Expect(got).NotTo(ContainSubstring("vocab/stale-term"))
-}
-
-// TestWriteVocabAssignment_PreservesTagsKeyPosition proves the rewritten
-// tags: block lands at the ORIGINAL tags: key's line position when other
-// frontmatter keys follow it, rather than always being appended at the end
-// of the frontmatter block (behavior spec item 4: "at the position of the
-// existing tags: key").
-func TestWriteVocabAssignment_PreservesTagsKeyPosition(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	content := "---\ntype: fact\ntags:\n    - work-kind/rename\nsource: test\n---\n\nBody.\n"
-	got := cli.WriteVocabAssignment(content, []string{"retrieval-design"})
-
-	g.Expect(got).To(Equal(
-		"---\ntype: fact\ntags:\n    - work-kind/rename\n    - vocab/retrieval-design\nsource: test\n---\n\nBody.\n"))
-}
-
-// TestWriteVocabAssignment_StripsBareVocabMarkerTag proves that a bare
-// "vocab" tag entry (the definition marker, not a vocab/<term> entry) is
-// filtered by nonVocabTags exactly like a namespaced entry.
-func TestWriteVocabAssignment_StripsBareVocabMarkerTag(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	content := "---\ntype: fact\ntags:\n    - work-kind/rename\n    - vocab\n---\n\nBody.\n"
-	got := cli.WriteVocabAssignment(content, []string{"retrieval-design"})
-
-	g.Expect(got).To(ContainSubstring("tags:\n    - work-kind/rename\n    - vocab/retrieval-design\n"))
-	g.Expect(got).NotTo(ContainSubstring("    - vocab\n"))
-}
-
-// TestWriteVocabAssignment_TagsRoundtripFidelity is a property test: for
-// random non-vocab tag lists, term lists, and 0-2 trailing frontmatter keys
-// after tags:, the writer's full output is byte-exact against the expected
-// bytes built inline from the drawn input (tags block at the original tags:
-// index, trailing keys — including a key literally named "vocab" if drawn,
-// which is just an ordinary untouched trailing key since legacy vocab:
-// support has been consolidated into tags: — intact and untouched), and a
-// second application with the same terms is byte-identical (idempotency).
-// This closes the position-blind gap a parse-equality oracle left open: the
-// #678 cycle's insert-index off-by-one (b19e3a5d) and content-anchor
-// regression (e7882530) were both parse-identical and idempotent, so only a
-// full byte oracle catches their class of bug.
-func TestWriteVocabAssignment_TagsRoundtripFidelity(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		tagGen := rapid.StringMatching(`[a-z][a-z0-9-]{0,10}/[a-z][a-z0-9-]{0,10}`).
-			Filter(func(s string) bool { return !strings.HasPrefix(s, "vocab/") })
-		termGen := rapid.StringMatching(`[a-z][a-z0-9-]{0,10}`)
-		trailingKeyGen := rapid.StringMatching(`[a-z][a-z0-9]{0,8}`).
-			Filter(func(s string) bool { return s != "type" && s != "tags" })
-		trailingValGen := rapid.StringMatching(`[a-z][a-z0-9-]{0,10}`)
-
-		const maxGenLen = 4
-
-		tags := rapid.SliceOfN(tagGen, 0, maxGenLen).Draw(rt, "tags")
-		terms := rapid.SliceOfN(termGen, 0, maxGenLen).Draw(rt, "terms")
-
-		const maxTrailingKeys = 2
-
-		trailingKeyCount := rapid.IntRange(0, maxTrailingKeys).Draw(rt, "trailingKeyCount")
-
-		trailingKeys := make([]string, trailingKeyCount)
-		trailingVals := make([]string, trailingKeyCount)
-
-		for i := range trailingKeyCount {
-			// Suffix each drawn key with its index to guarantee distinctness
-			// across the 0-2 draws (rapid can draw the same string twice).
-			trailingKeys[i] = trailingKeyGen.Draw(rt, "trailingKey"+strconv.Itoa(i)) + strconv.Itoa(i)
-			trailingVals[i] = trailingValGen.Draw(rt, "trailingVal"+strconv.Itoa(i))
-		}
-
-		frontmatterStr := buildTestFrontmatter(tags) + buildTrailingKeysFrontmatter(trailingKeys, trailingVals)
-		content := "---\n" + frontmatterStr + "---\n\nBody.\n"
-		got := cli.WriteVocabAssignment(content, terms)
-
-		expected := buildExpectedWriteVocabAssignmentBytes(tags, terms, trailingKeys, trailingVals)
-		if got != expected {
-			rt.Fatalf("byte-exact mismatch:\ngot:\n%q\nwant:\n%q", got, expected)
-		}
-
-		verifyIdempotency(rt, got, terms)
-	})
-}
-
-// TestWriteVocabAssignment_WritesVocabNamespaceTags proves that assigned
-// terms land in the vocab/ namespace of the shared tags: list and that
-// neither legacy channel (vocab: frontmatter key, Vocab: body line) is written.
-func TestWriteVocabAssignment_WritesVocabNamespaceTags(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	content := "---\ntype: fact\nsituation: s\n---\n\nBody.\n"
-	got := cli.WriteVocabAssignment(content, []string{"retrieval-design", "token-budget"})
-
-	g.Expect(got).To(ContainSubstring("tags:\n    - vocab/retrieval-design\n    - vocab/token-budget\n"))
-	g.Expect(got).NotTo(ContainSubstring("\nvocab:"))
-	g.Expect(got).NotTo(ContainSubstring("Vocab:"))
 }
 
 // fakeStateFS serves ComputeState reads from a map (note + sidecar paths).

@@ -204,32 +204,6 @@ flowchart TD
 Source: `agent-instructions/skills/learn/SKILL.md` (Step 1, Step 2, Step 2.5), `agent-instructions/skills/please/SKILL.md` Step 7 (lessons audit), `internal/cli/qa.go` (`isQueryExcludedKind`, `writeQANotesUnderLock`, the D5′ comments),
 `internal/cli/learn.go` (`writeLearnUnderLock`, `applyVocabAssignmentCore`).
 
-### Flowchart: vocab lifecycle (C2)
-
-```mermaid
-flowchart TD
-    W["note write: engram learn / amend / resituate"] --> D["vocab-tag assignment (AssignVocabTerms, cosine >= 0.35 floor, top-3) — writes vocab/<term> entries into the note's shared tags: list"]
-    D --> TR["in-process trigger check (checkAndPersistVocabRefitTrigger, token-free)"]
-    TR --> G{"growth >= 40 notes AND >= 14 days since last refit? (sole trigger — untagged rate and hub concentration are vocab stats diagnostics only)"}
-    G -->|yes| RP["persist refit_pending + reason in vocab.centroids.json"]
-    G -->|no| OK["no trigger fires — verdict OK"]
-    RP --> ST["engram vocab stats: verdict REFIT_PENDING (reason)"]
-    RP --> PF["engram query payload: refit_pending flag"]
-    ST --> L15["learn skill Step 1.5: run the refit autonomously"]
-    L15 --> DR["engram vocab refit: derive clusters (silhouette auto-K, noise floor 0.02) → greedy centroid-to-term match (cosine >= 0.80)"]
-    DR --> NR["unmatched clusters → naming_requests JSON (fingerprinted); agent answers via engram vocab refit --names <file>"]
-    NR --> AP["apply: retire unmatched derived-origin terms (family-note supersession), mint named new terms, retag members"]
-    AP --> VB["vocab version bump on the vocab-definition family note (no index to regenerate — the index is emergent, #678)"]
-```
-
-Source: `internal/cli/vocab_trigger.go` (`refitGrowthMinNotes`, `refitGrowthMinDays`,
-`evaluateVocabTriggers`), `internal/cli/vocab_commands.go` (`RunVocabRefit`, `hubThreshold`,
-stats verdict rendering), `internal/cli/vocab_derive.go` (`vocabDeriveSilhouetteFloor`,
-`vocabNameMatchThreshold`), `internal/cli/vocab_apply.go` (`emitNamingRequests`,
-`retireVocabTerms`), `internal/cli/vocab.go` (`AssignVocabTerms`, `WriteVocabAssignment`,
-`applyVocabAssignmentCore`), `internal/cli/query.go` (`RefitPending` payload field),
-`agent-instructions/skills/learn/SKILL.md` Step 1.5.
-
 ### Recall-time lazy-L2 synthesis — skill-orchestrated, blocking, NOT a binary loop
 
 Synthesis now happens at **recall**, **inline and blocking** — not at learn time and not via

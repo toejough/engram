@@ -15,6 +15,32 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
+func Test792b20c5a5_Vocab_CRLFNote(t *testing.T) {
+	t.Parallel()
+
+	t.Run("assignment writes tags as LF", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		updated := WriteVocabAssignment(crlfReaderNote(""), []string{"widgets"})
+		g.Expect(updated).To(ContainSubstring("tags:\n    - vocab/widgets\n"))
+		g.Expect(updated).NotTo(ContainSubstring("\r\n"))
+	})
+
+	t.Run("definition note is recognised", func(t *testing.T) {
+		t.Parallel()
+		NewWithT(t).Expect(isVocabDefinitionNote(crlfReaderNote("tags:\n    - vocab\n"))).To(BeTrue())
+	})
+
+	t.Run("an unchanged CRLF note is not written", func(t *testing.T) {
+		t.Parallel()
+
+		note := crlfReaderNote("tags:\n    - vocab/widgets\n")
+		NewWithT(t).Expect(vocabAssignmentUnchanged(note, WriteVocabAssignment(note, []string{"widgets"}))).
+			To(BeTrue(), "an assignment that changes no tag must not write a note just to convert it")
+	})
+}
+
 func TestCapRedFlagsForPreview_CRLFNote(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -97,32 +123,6 @@ func TestTriggerIndex_CRLFRunbook(t *testing.T) {
 		func(string) ([]byte, error) { return []byte(runbook), nil })
 	g.Expect(meta.TriggerIndex).To(HaveKeyWithValue("1.2026-01-01.rb", []string{"rotate the keys"}))
 	g.Expect(matchTriggers("please rotate the keys today", meta.TriggerIndex)).To(Equal([]string{"1.2026-01-01.rb"}))
-}
-
-func TestVocab_CRLFNote(t *testing.T) {
-	t.Parallel()
-
-	t.Run("assignment writes tags as LF", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		updated := WriteVocabAssignment(crlfReaderNote(""), []string{"widgets"})
-		g.Expect(updated).To(ContainSubstring("tags:\n    - vocab/widgets\n"))
-		g.Expect(updated).NotTo(ContainSubstring("\r\n"))
-	})
-
-	t.Run("definition note is recognised", func(t *testing.T) {
-		t.Parallel()
-		NewWithT(t).Expect(isVocabDefinitionNote(crlfReaderNote("tags:\n    - vocab\n"))).To(BeTrue())
-	})
-
-	t.Run("an unchanged CRLF note is not written", func(t *testing.T) {
-		t.Parallel()
-
-		note := crlfReaderNote("tags:\n    - vocab/widgets\n")
-		NewWithT(t).Expect(vocabAssignmentUnchanged(note, WriteVocabAssignment(note, []string{"widgets"}))).
-			To(BeTrue(), "an assignment that changes no tag must not write a note just to convert it")
-	})
 }
 
 // crlfReaderNote is a fact note with extra frontmatter lines, all CRLF.
