@@ -115,6 +115,24 @@ Requirement: CAP-1434a1a The application MUST select the prior month by default.
 Scenario: CAP-1434a1a1a Select the prior month during the year
 ```
 
+### References to Addressable Content
+
+- Every reference to an addressable node MUST cite the node's stable ID and MUST be a Markdown
+  link to that node. Do not refer to addressable content by name or description alone.
+- A reference to a canonical capability or component file MUST link to that file.
+- Link to the node's own heading. When the node is not itself a heading, such as a scenario line
+  or a table row, link to the nearest heading that contains it.
+- Use a relative path, plus the heading anchor: `#<anchor>` within the same file, or
+  `<relative-path>#<anchor>` across files.
+- The node's own definition (its heading, `Requirement:` line, or `Scenario:` line) is not a
+  reference and is not linked.
+- Text inside code blocks and diagrams, where links do not render, MUST still cite the ID.
+
+```text
+Bad:  This reuses the parent-sync capability.
+Good: This reuses [792a21](./792a_product-spec.md#792a21-added-parent-sync).
+```
+
 ## Specification Lifecycle
 
 Follow [`docs/SPECIFICATION-LIFECYCLE-GUIDE.md`](./SPECIFICATION-LIFECYCLE-GUIDE.md) when describing
@@ -141,6 +159,8 @@ Before considering a document complete, verify:
 - Canonical capability and component filenames and titles are semantic and have no issue or
   Luhmann prefix.
 - Organizational paths do not create a competing identity hierarchy.
+- Every reference to addressable content cites its ID and links to it; every reference to a
+  canonical capability or component file links to the file.
 - Existing documentation was not renumbered without an explicit migration request.
 - The specification lifecycle guide has been followed when the work changes canonical behavior.
 - The applicable authoring guide has been followed.
