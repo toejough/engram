@@ -13,11 +13,166 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestRegisterSkillsCLI_AcceptRegistersRealNote drives an --accept over the
+// Test792b31c6a10_RegisterSkillsCLI_SkillsDirIsRepeatablePreview covers `--skills-dir`
+// (design D9): repeatable, relative dirs resolve against the working
+// directory, and the run is a dry-run preview of `claude:` keys that writes
+// nothing to the vault.
+func Test792b31c6a10_RegisterSkillsCLI_SkillsDirIsRepeatablePreview(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	cwd, resolveErr := filepath.EvalSymlinks(t.TempDir())
+	g.Expect(resolveErr).NotTo(HaveOccurred())
+
+	for _, skill := range []string{"one/curate", "two/c4"} {
+		g.Expect(os.MkdirAll(filepath.Join(cwd, skill), 0o750)).To(Succeed())
+		g.Expect(os.WriteFile(filepath.Join(cwd, skill, "SKILL.md"), []byte(skill), 0o600)).To(Succeed())
+	}
+
+	var stdout bytes.Buffer
+
+	stderr := executeForTestWithDeps(t, []string{
+		"engram", "register-skills", "--vault", vault, "--skills-dir", "one", "--skills-dir", filepath.Join(cwd, "two"),
+	}, func(d *cli.Deps) {
+		d.Stdout = &stdout
+		d.Getwd = func() (string, error) { return cwd, nil }
+		d.IsTerminal = func() bool { return true }
+	})
+
+	g.Expect(stderr).To(BeEmpty())
+	g.Expect(stdout.String()).To(Equal("@claude-user (2)\n" +
+		"  would offer: register claude:c4 (" + filepath.Join(cwd, "two", "c4", "SKILL.md") + ")\n" +
+		"  would offer: register claude:curate (" + filepath.Join(cwd, "one", "curate", "SKILL.md") + ")\n"))
+
+	entries, readErr := os.ReadDir(vault)
+	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(entries).To(BeEmpty())
+}
+
+// Test792b31c6a11_RegisterSkillsCLI_SkillsDirRefusesAccept covers "Skills-dir runs are
+// preview-only": `--skills-dir agent-instructions/skills --accept claude:route` is
+// refused with an error, and nothing is written.
+func Test792b31c6a11_RegisterSkillsCLI_SkillsDirRefusesAccept(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+
+	stderr := executeForTest(t, []string{
+		"engram", "register-skills", "--vault", vault,
+		"--skills-dir", filepath.Join(projectRoot(t), "agent-instructions", "skills"), "--accept", "claude:route",
+	})
+
+	g.Expect(stderr).To(ContainSubstring("--skills-dir is a read-only preview"))
+
+	entries, readErr := os.ReadDir(vault)
+	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(entries).To(BeEmpty())
+}
+
+// Test792b31c6a13_RegisterSkillsCLI_RelativeSkillsDirNeedsWorkingDir: a relative
+// --skills-dir with no resolvable working directory is an error, not a scan
+// of some other directory.
+func Test792b31c6a13_RegisterSkillsCLI_RelativeSkillsDirNeedsWorkingDir(t *testing.T) {
+	t.Parallel()
+
+	for name, getwd := range map[string]func() (string, error){
+		"getwd fails": func() (string, error) { return "", os.ErrPermission },
+		"no getwd":    nil,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			stderr := executeForTestWithDeps(t, []string{
+				"engram", "register-skills", "--vault", t.TempDir(), "--skills-dir", "skills",
+			}, func(d *cli.Deps) {
+				d.Getwd = getwd
+			})
+
+			g.Expect(stderr).To(ContainSubstring("--skills-dir: resolving a relative dir"))
+		})
+	}
+}
+
+// Test792b31c6a27_RegisterSkillsCLI_DuplicateAdoptKey_WritesNothing covers two --adopt
+// entries claiming the same key for different notes: refused before any
+// adopt writes (a later flag must never silently replace an earlier one).
+func Test792b31c6a27_RegisterSkillsCLI_DuplicateAdoptKey_WritesNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const note = "---\ntype: runbook\nsituation: s\ndone_when: d\n---\n\nbody\n"
+
+	vault := t.TempDir()
+	notes := map[string]string{
+		"1045.2026-09-22.curate-draft.md":                 note,
+		"1049.2026-09-21.curate-review-pending-offers.md": note,
+	}
+
+	for name, content := range notes {
+		g.Expect(os.WriteFile(filepath.Join(vault, name), []byte(content), 0o600)).To(Succeed())
+	}
+
+	home := t.TempDir()
+	skillsDir := filepath.Join(home, ".claude", "engram", "skills")
+
+	g.Expect(os.MkdirAll(filepath.Join(skillsDir, "curate"), 0o750)).To(Succeed())
+	g.Expect(os.WriteFile(
+		filepath.Join(skillsDir, "curate", "SKILL.md"),
+		[]byte("---\nname: curate\ndescription: judge pending offers\n---\n\nbody\n"),
+		0o600,
+	)).To(Succeed())
+	linkDeployedSkill(g, home, "curate")
+
+	stderr := executeForTestWithDeps(t, []string{
+		"engram", "register-skills", "--vault", vault,
+		"--adopt", "claude:curate=1049", "--adopt", "claude:curate=1045",
+	}, func(d *cli.Deps) {
+		d.Embed = skillAcceptFakeEmbedder{}
+		d.UserHomeDir = func() (string, error) { return home, nil }
+		d.Getwd = func() (string, error) { return home, nil }
+	})
+
+	g.Expect(stderr).To(ContainSubstring("claude:curate"))
+	g.Expect(stderr).To(ContainSubstring("more than one --adopt"))
+
+	entries, readErr := os.ReadDir(vault)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	after := make(map[string]string, len(entries))
+
+	for _, entry := range entries {
+		content, fileErr := os.ReadFile(filepath.Join(vault, entry.Name()))
+		g.Expect(fileErr).NotTo(HaveOccurred())
+
+		after[entry.Name()] = string(content)
+	}
+
+	g.Expect(after).To(Equal(notes), "a refused adopt run must write nothing")
+}
+
+// Test792b31c6a27_RegisterSkillsCLI_MalformedAdoptFlag covers --adopt values that aren't
+// shaped "<name>=<note-ref>".
+func Test792b31c6a27_RegisterSkillsCLI_MalformedAdoptFlag(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+
+	stderr := executeForTest(t, []string{
+		"engram", "register-skills", "--dry-run", "--vault", vault, "--adopt", "not-a-pair",
+	})
+
+	g.Expect(stderr).To(ContainSubstring("<key>=<note-ref>"))
+}
+
+// Test792b31c8a1_RegisterSkillsCLI_AcceptRegistersRealNote drives an --accept over the
 // real filesystem end to end, exercising newSkillRegistrationDeps' full
 // composition for the register path (Learn's capture pipeline, embed-on-
 // write via a fake embedder).
-func TestRegisterSkillsCLI_AcceptRegistersRealNote(t *testing.T) {
+func Test792b31c8a1_RegisterSkillsCLI_AcceptRegistersRealNote(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -72,10 +227,10 @@ func TestRegisterSkillsCLI_AcceptRegistersRealNote(t *testing.T) {
 	}
 }
 
-// TestRegisterSkillsCLI_AdoptRealNote drives an --adopt over the real
+// Test792b31c8a2_RegisterSkillsCLI_AdoptRealNote drives an --adopt over the real
 // filesystem end to end, exercising newSkillRegistrationDeps' Adopt
 // composition (Scan, Rename, embed-on-write via a fake embedder).
-func TestRegisterSkillsCLI_AdoptRealNote(t *testing.T) {
+func Test792b31c8a2_RegisterSkillsCLI_AdoptRealNote(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -114,10 +269,10 @@ func TestRegisterSkillsCLI_AdoptRealNote(t *testing.T) {
 	g.Expect(string(newContent)).To(ContainSubstring("1. Judge offers."))
 }
 
-// TestRegisterSkillsCLI_DryRunListsRegisterOffer drives the real CLI wiring
+// Test792b31c8a3_RegisterSkillsCLI_DryRunListsRegisterOffer drives the real CLI wiring
 // (registerSkillsTargets, newSkillRegistrationDeps) end to end over temp
 // dirs: a shipped skill with no runbook note previews a register offer.
-func TestRegisterSkillsCLI_DryRunListsRegisterOffer(t *testing.T) {
+func Test792b31c8a3_RegisterSkillsCLI_DryRunListsRegisterOffer(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -147,79 +302,7 @@ func TestRegisterSkillsCLI_DryRunListsRegisterOffer(t *testing.T) {
 		filepath.Join(resolvedSkillsDir, "curate", "SKILL.md") + ")\n"))
 }
 
-// TestRegisterSkillsCLI_DuplicateAdoptKey_WritesNothing covers two --adopt
-// entries claiming the same key for different notes: refused before any
-// adopt writes (a later flag must never silently replace an earlier one).
-func TestRegisterSkillsCLI_DuplicateAdoptKey_WritesNothing(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	const note = "---\ntype: runbook\nsituation: s\ndone_when: d\n---\n\nbody\n"
-
-	vault := t.TempDir()
-	notes := map[string]string{
-		"1045.2026-09-22.curate-draft.md":                 note,
-		"1049.2026-09-21.curate-review-pending-offers.md": note,
-	}
-
-	for name, content := range notes {
-		g.Expect(os.WriteFile(filepath.Join(vault, name), []byte(content), 0o600)).To(Succeed())
-	}
-
-	home := t.TempDir()
-	skillsDir := filepath.Join(home, ".claude", "engram", "skills")
-
-	g.Expect(os.MkdirAll(filepath.Join(skillsDir, "curate"), 0o750)).To(Succeed())
-	g.Expect(os.WriteFile(
-		filepath.Join(skillsDir, "curate", "SKILL.md"),
-		[]byte("---\nname: curate\ndescription: judge pending offers\n---\n\nbody\n"),
-		0o600,
-	)).To(Succeed())
-	linkDeployedSkill(g, home, "curate")
-
-	stderr := executeForTestWithDeps(t, []string{
-		"engram", "register-skills", "--vault", vault,
-		"--adopt", "claude:curate=1049", "--adopt", "claude:curate=1045",
-	}, func(d *cli.Deps) {
-		d.Embed = skillAcceptFakeEmbedder{}
-		d.UserHomeDir = func() (string, error) { return home, nil }
-		d.Getwd = func() (string, error) { return home, nil }
-	})
-
-	g.Expect(stderr).To(ContainSubstring("claude:curate"))
-	g.Expect(stderr).To(ContainSubstring("more than one --adopt"))
-
-	entries, readErr := os.ReadDir(vault)
-	g.Expect(readErr).NotTo(HaveOccurred())
-
-	after := make(map[string]string, len(entries))
-
-	for _, entry := range entries {
-		content, fileErr := os.ReadFile(filepath.Join(vault, entry.Name()))
-		g.Expect(fileErr).NotTo(HaveOccurred())
-
-		after[entry.Name()] = string(content)
-	}
-
-	g.Expect(after).To(Equal(notes), "a refused adopt run must write nothing")
-}
-
-// TestRegisterSkillsCLI_MalformedAdoptFlag covers --adopt values that aren't
-// shaped "<name>=<note-ref>".
-func TestRegisterSkillsCLI_MalformedAdoptFlag(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-
-	stderr := executeForTest(t, []string{
-		"engram", "register-skills", "--dry-run", "--vault", vault, "--adopt", "not-a-pair",
-	})
-
-	g.Expect(stderr).To(ContainSubstring("<key>=<note-ref>"))
-}
-
-// TestRegisterSkillsCLI_NonTerminalStdinNeverPromptsOrWrites drives the real
+// Test792b31c8a4_RegisterSkillsCLI_NonTerminalStdinNeverPromptsOrWrites drives the real
 // built binary (not the in-process targ wiring, which never exercises
 // cmd/engram/main.go's IsTerminal primitive) with stdin redirected from
 // /dev/null — a character device, exactly like an agent harness's `</dev/null`
@@ -229,7 +312,7 @@ func TestRegisterSkillsCLI_MalformedAdoptFlag(t *testing.T) {
 // vault stays untouched (regression coverage for the ModeCharDevice
 // misdetection: /dev/null satisfies ModeCharDevice, so os.Stdin.Stat() alone
 // can't tell it apart from a real tty).
-func TestRegisterSkillsCLI_NonTerminalStdinNeverPromptsOrWrites(t *testing.T) {
+func Test792b31c8a4_RegisterSkillsCLI_NonTerminalStdinNeverPromptsOrWrites(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -264,89 +347,6 @@ func TestRegisterSkillsCLI_NonTerminalStdinNeverPromptsOrWrites(t *testing.T) {
 	entries, readErr := os.ReadDir(vault)
 	g.Expect(readErr).NotTo(HaveOccurred())
 	g.Expect(entries).To(BeEmpty(), "expected vault to remain untouched, found: %v", entries)
-}
-
-// TestRegisterSkillsCLI_RelativeSkillsDirNeedsWorkingDir: a relative
-// --skills-dir with no resolvable working directory is an error, not a scan
-// of some other directory.
-func TestRegisterSkillsCLI_RelativeSkillsDirNeedsWorkingDir(t *testing.T) {
-	t.Parallel()
-
-	for name, getwd := range map[string]func() (string, error){
-		"getwd fails": func() (string, error) { return "", os.ErrPermission },
-		"no getwd":    nil,
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			stderr := executeForTestWithDeps(t, []string{
-				"engram", "register-skills", "--vault", t.TempDir(), "--skills-dir", "skills",
-			}, func(d *cli.Deps) {
-				d.Getwd = getwd
-			})
-
-			g.Expect(stderr).To(ContainSubstring("--skills-dir: resolving a relative dir"))
-		})
-	}
-}
-
-// TestRegisterSkillsCLI_SkillsDirIsRepeatablePreview covers `--skills-dir`
-// (design D9): repeatable, relative dirs resolve against the working
-// directory, and the run is a dry-run preview of `claude:` keys that writes
-// nothing to the vault.
-func TestRegisterSkillsCLI_SkillsDirIsRepeatablePreview(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	cwd, resolveErr := filepath.EvalSymlinks(t.TempDir())
-	g.Expect(resolveErr).NotTo(HaveOccurred())
-
-	for _, skill := range []string{"one/curate", "two/c4"} {
-		g.Expect(os.MkdirAll(filepath.Join(cwd, skill), 0o750)).To(Succeed())
-		g.Expect(os.WriteFile(filepath.Join(cwd, skill, "SKILL.md"), []byte(skill), 0o600)).To(Succeed())
-	}
-
-	var stdout bytes.Buffer
-
-	stderr := executeForTestWithDeps(t, []string{
-		"engram", "register-skills", "--vault", vault, "--skills-dir", "one", "--skills-dir", filepath.Join(cwd, "two"),
-	}, func(d *cli.Deps) {
-		d.Stdout = &stdout
-		d.Getwd = func() (string, error) { return cwd, nil }
-		d.IsTerminal = func() bool { return true }
-	})
-
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(stdout.String()).To(Equal("@claude-user (2)\n" +
-		"  would offer: register claude:c4 (" + filepath.Join(cwd, "two", "c4", "SKILL.md") + ")\n" +
-		"  would offer: register claude:curate (" + filepath.Join(cwd, "one", "curate", "SKILL.md") + ")\n"))
-
-	entries, readErr := os.ReadDir(vault)
-	g.Expect(readErr).NotTo(HaveOccurred())
-	g.Expect(entries).To(BeEmpty())
-}
-
-// TestRegisterSkillsCLI_SkillsDirRefusesAccept covers "Skills-dir runs are
-// preview-only": `--skills-dir agent-instructions/skills --accept claude:route` is
-// refused with an error, and nothing is written.
-func TestRegisterSkillsCLI_SkillsDirRefusesAccept(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-
-	stderr := executeForTest(t, []string{
-		"engram", "register-skills", "--vault", vault,
-		"--skills-dir", filepath.Join(projectRoot(t), "agent-instructions", "skills"), "--accept", "claude:route",
-	})
-
-	g.Expect(stderr).To(ContainSubstring("--skills-dir is a read-only preview"))
-
-	entries, readErr := os.ReadDir(vault)
-	g.Expect(readErr).NotTo(HaveOccurred())
-	g.Expect(entries).To(BeEmpty())
 }
 
 // linkDeployedSkill links ~/.claude/skills/<name> to engram's deployed copy

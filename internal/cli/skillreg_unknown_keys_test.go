@@ -21,10 +21,10 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
-// TestAdoptAndRefresh_KeepUnmodeledKeys is the two spec scenarios: a
+// Test792b31c7a13_AdoptAndRefresh_KeepUnmodeledKeys is the two spec scenarios: a
 // refreshed and an adopted note both still carry `luhmann_old: "12"` and a
 // nested unknown map with their values.
-func TestAdoptAndRefresh_KeepUnmodeledKeys(t *testing.T) {
+func Test792b31c7a13_AdoptAndRefresh_KeepUnmodeledKeys(t *testing.T) {
 	t.Parallel()
 
 	const unknown = "luhmann_old: \"12\"\nprovenance:\n    origin: import\n    steps: [a, b]\n"
@@ -46,9 +46,9 @@ func TestAdoptAndRefresh_KeepUnmodeledKeys(t *testing.T) {
 	}
 }
 
-// TestAdoptAndRefresh_PendingParity: refresh writes `pending: true`; adopt
+// Test792b31c7a13_AdoptAndRefresh_PendingParity: refresh writes `pending: true`; adopt
 // writes no pending key at all, even over a note that carried one.
-func TestAdoptAndRefresh_PendingParity(t *testing.T) {
+func Test792b31c7a13_AdoptAndRefresh_PendingParity(t *testing.T) {
 	t.Parallel()
 
 	for mode, want := range map[string]any{"refresh": true, "adopt": nil} {
@@ -72,14 +72,14 @@ func TestAdoptAndRefresh_PendingParity(t *testing.T) {
 	}
 }
 
-// TestAdoptAndRefresh_UnknownKeysProperty is P2 (design D7): for LF
+// Test792b31c7a13_AdoptAndRefresh_UnknownKeysProperty is P2 (design D7): for LF
 // runbook notes carrying 0-3 unknown keys (scalar, list or nested map),
 // adopt and refresh write frontmatter that decodes, sets the skill fields,
 // and keeps every other key — unknown ones, and luhmann (and, for refresh,
 // aliases) included — at its decoded value. When a key the edit sets or
 // deletes carries an anchor another key aliases, the note is refused
 // unwritten instead (ruling V3).
-func TestAdoptAndRefresh_UnknownKeysProperty(t *testing.T) {
+func Test792b31c7a13_AdoptAndRefresh_UnknownKeysProperty(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		mode := rapid.SampledFrom([]string{"refresh", "adopt"}).Draw(rt, "mode")

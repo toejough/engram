@@ -10,11 +10,11 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestAcceptSkillOffer_MissedSourceErrorsAndWritesNothing: an accepted
+// Test792b31c6a28_AcceptSkillOffer_MissedSourceErrorsAndWritesNothing: an accepted
 // Register or Refresh offer whose key and source path name no candidate's
 // note source is an error, never a note registered with an empty key or
 // slug — and nothing is written to the vault.
-func TestAcceptSkillOffer_MissedSourceErrorsAndWritesNothing(t *testing.T) {
+func Test792b31c6a28_AcceptSkillOffer_MissedSourceErrorsAndWritesNothing(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -45,10 +45,10 @@ func TestAcceptSkillOffer_MissedSourceErrorsAndWritesNothing(t *testing.T) {
 	})
 }
 
-// TestAcceptSkillOffer_UnknownKindErrorsAndWritesNothing guards the
+// Test792b31c6a29_AcceptSkillOffer_UnknownKindErrorsAndWritesNothing guards the
 // dispatch's default: an offer kind CompareSkillOffers never emits is an
 // error, and nothing is written.
-func TestAcceptSkillOffer_UnknownKindErrorsAndWritesNothing(t *testing.T) {
+func Test792b31c6a29_AcceptSkillOffer_UnknownKindErrorsAndWritesNothing(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 

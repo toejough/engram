@@ -14,51 +14,194 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestAnswerSkillOffers_AcceptAll_AcceptsEveryScopeOffer covers the grouped
-// prompt's "accept all": every register/refresh offer of that scope is
-// accepted with one answer.
-func TestAnswerSkillOffers_AcceptAll_AcceptsEveryScopeOffer(t *testing.T) {
+// Test792b31c5a10_AnswerSkillOffers_SingleOffer_UsesPerOfferPrompt covers "A single
+// offer uses the per-offer y/N prompt", with no group question.
+func Test792b31c5a10_AnswerSkillOffers_SingleOffer_UsesPerOfferPrompt(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	offers := superpowersOffers("brainstorming", "writing-plans", "writing-skills")
+	offers := superpowersOffers("brainstorming")
 	rec := newAnswerRecorder()
 
 	var stdout bytes.Buffer
 
-	err := cli.AnswerSkillOffers(rec.answering(offers, emptyAnswers(t), "a\n"), &stdout)
+	err := cli.AnswerSkillOffers(rec.answering(offers, emptyAnswers(t), "y\n"), &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(rec.accepted).To(Equal(offerKeys(offers)))
-	g.Expect(rec.declined).To(BeEmpty())
+	g.Expect(rec.accepted).To(Equal([]string{"superpowers:brainstorming"}))
+	g.Expect(stdout.String()).To(Equal("Register skill `superpowers:brainstorming` as a vault runbook? [y/N] "))
+}
+
+// Test792b31c5a11_AnswerSkillOffers_PerOfferPrompt_EOFRecordsNothingNoDeclines covers
+// ruling R29: end of input at a per-offer y/N prompt is no answer — for a
+// single offer, under "review each", and for a removal — so nothing is
+// accepted or declined, while an explicit "n" still declines.
+func Test792b31c5a11_AnswerSkillOffers_PerOfferPrompt_EOFRecordsNothingNoDeclines(t *testing.T) {
+	t.Parallel()
+
+	removal := []cli.SkillOffer{{Kind: cli.SkillOfferRemove, Key: "old", ScopeID: "claude-user", Hash: "h-old"}}
+
+	cases := []struct {
+		name         string
+		offers       []cli.SkillOffer
+		stdin        string
+		wantDeclined []string
+	}{
+		{name: "single offer EOF", offers: superpowersOffers("a"), stdin: ""},
+		{name: "review each EOF", offers: superpowersOffers("a", "b"), stdin: "r\n"},
+		{name: "review each EOF after one no", offers: superpowersOffers("a", "b"), stdin: "r\nn\n",
+			wantDeclined: []string{"superpowers:a"}},
+		{name: "removal EOF", offers: removal, stdin: ""},
+		{name: "single offer no", offers: superpowersOffers("a"), stdin: "n\n", wantDeclined: []string{"superpowers:a"}},
+		{name: "review each no", offers: superpowersOffers("a", "b"), stdin: "r\n" + strings.Repeat("n\n", 2),
+			wantDeclined: []string{"superpowers:a", "superpowers:b"}},
+		{name: "removal no", offers: removal, stdin: "n\n", wantDeclined: []string{"old"}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			rec := newAnswerRecorder()
+
+			var stdout bytes.Buffer
+
+			g.Expect(cli.AnswerSkillOffers(rec.answering(tc.offers, emptyAnswers(t), tc.stdin), &stdout)).To(Succeed())
+			g.Expect(rec.accepted).To(BeEmpty())
+			g.Expect(rec.declined).To(ConsistOf(stringsOrEmpty(tc.wantDeclined)))
+		})
+	}
+}
+
+// Test792b31c5a12_AnswerSkillOffers_RemovalsPromptIndividually covers "Removal offers
+// SHALL be answered only by ... an individual prompt, never by accept-all":
+// the scope's two register offers get the group question, and each removal
+// its own y/N prompt.
+func Test792b31c5a12_AnswerSkillOffers_RemovalsPromptIndividually(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	offers := []cli.SkillOffer{
+		{Kind: cli.SkillOfferRegister, Key: "c4", ScopeID: "claude-user"},
+		{Kind: cli.SkillOfferRegister, Key: "dev", ScopeID: "claude-user"},
+		{Kind: cli.SkillOfferRemove, Key: "gone", ScopeID: "claude-user"},
+		{Kind: cli.SkillOfferRemove, Key: "old", ScopeID: "claude-user"},
+	}
+	rec := newAnswerRecorder()
+
+	var stdout bytes.Buffer
+
+	err := cli.AnswerSkillOffers(rec.answering(offers, emptyAnswers(t), "a\ny\nn\n"), &stdout)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(rec.accepted).To(Equal([]string{"c4", "dev", "gone"}))
+	g.Expect(rec.declined).To(Equal([]string{"old"}))
+	g.Expect(stdout.String()).To(ContainSubstring("@claude-user (2): [a]ccept all"))
 	g.Expect(stdout.String()).To(ContainSubstring(
-		"@plugin:superpowers (3): [a]ccept all / [d]ecline all / [r]eview each / [s]kip for now "))
-	g.Expect(stdout.String()).To(ContainSubstring("  register superpowers:writing-plans\n"))
-	g.Expect(stdout.String()).NotTo(ContainSubstring("[y/N]"))
+		"Skill `gone` is no longer found in its source. Remove its runbook note? [y/N] "))
 }
 
-// TestAnswerSkillOffers_DeclineAll_DeclinesEveryScopeOffer covers "decline
-// all": each key is declined (recorded per key, design D6 alternative c).
-func TestAnswerSkillOffers_DeclineAll_DeclinesEveryScopeOffer(t *testing.T) {
+// Test792b31c5a13_AnswerSkillOffers_PromptsNameEverySource covers the source path shown
+// in the per-offer and grouped prompts for every offer that has one, engram's
+// installed skills included (design D8: no special case), so the user sees
+// which file they are accepting.
+func Test792b31c5a13_AnswerSkillOffers_PromptsNameEverySource(t *testing.T) {
 	t.Parallel()
-	g := NewWithT(t)
 
-	offers := superpowersOffers("brainstorming", "writing-plans")
-	rec := newAnswerRecorder()
+	cases := map[string]struct {
+		offers []cli.SkillOffer
+		stdin  string
+		want   string
+	}{
+		"register from a plugin": {
+			offers: []cli.SkillOffer{{
+				Kind: cli.SkillOfferRegister, Key: "evil:cmd:x", ScopeID: "plugin:evil", SourcePath: "/cache/evil/x.md",
+			}},
+			stdin: "n\n",
+			want:  "Register skill `evil:cmd:x` (/cache/evil/x.md) as a vault runbook? [y/N] ",
+		},
+		"refresh from a plugin": {
+			offers: []cli.SkillOffer{{
+				Kind: cli.SkillOfferRefresh, Key: "evil:x", ScopeID: "plugin:evil", SourcePath: "/cache/evil/x/SKILL.md",
+			}},
+			stdin: "n\n",
+			want: "Skill `evil:x` (/cache/evil/x/SKILL.md) changed since its note was last synced. " +
+				"Update the note? [y/N] ",
+		},
+		"removal with a recorded source": {
+			offers: []cli.SkillOffer{{
+				Kind: cli.SkillOfferRemove, Key: "old", ScopeID: "claude-user", SourcePath: "~/.claude/skills/old/SKILL.md",
+			}},
+			stdin: "n\n",
+			want: "Skill `old` (~/.claude/skills/old/SKILL.md) is no longer found in its source. " +
+				"Remove its runbook note? [y/N] ",
+		},
+		"register of an installed engram skill": {
+			offers: []cli.SkillOffer{{
+				Kind: cli.SkillOfferRegister, Key: "route", ScopeID: "claude-user",
+				SourcePath: "/h/.claude/engram/skills/route/SKILL.md",
+			}},
+			stdin: "n\n",
+			want:  "Register skill `route` (/h/.claude/engram/skills/route/SKILL.md) as a vault runbook? [y/N] ",
+		},
+		"grouped offers list their sources": {
+			offers: []cli.SkillOffer{
+				{Kind: cli.SkillOfferRegister, Key: "evil:a", ScopeID: "plugin:evil", SourcePath: "/cache/evil/a/SKILL.md"},
+				{
+					Kind: cli.SkillOfferRegister, Key: "evil:b", ScopeID: "plugin:evil",
+					SourcePath: "/cache/evil/b/SKILL.md",
+				},
+			},
+			stdin: "s\n",
+			want: "  register evil:a (/cache/evil/a/SKILL.md)\n  register evil:b (/cache/evil/b/SKILL.md)\n" +
+				"@plugin:evil (2): [a]ccept all / [d]ecline all / [r]eview each / [s]kip for now ",
+		},
+	}
 
-	var stdout bytes.Buffer
+	for name, testCase := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
 
-	err := cli.AnswerSkillOffers(rec.answering(offers, emptyAnswers(t), "d\n"), &stdout)
+			rec := newAnswerRecorder()
 
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(rec.declined).To(Equal(offerKeys(offers)))
-	g.Expect(rec.accepted).To(BeEmpty())
+			var stdout bytes.Buffer
+
+			err := cli.AnswerSkillOffers(rec.answering(testCase.offers, emptyAnswers(t), testCase.stdin), &stdout)
+
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(stdout.String()).To(Equal(testCase.want))
+		})
+	}
 }
 
-// TestAnswerSkillOffers_DryRunPreview_ListsOffersUnderScopeHeaders covers
+// Test792b31c5a14_AnswerSkillOffers_PropagatesActionErrors covers an accept or decline
+// action failing: the run stops with that error.
+func Test792b31c5a14_AnswerSkillOffers_PropagatesActionErrors(t *testing.T) {
+	t.Parallel()
+
+	for _, stdin := range []string{"a\n", "d\n", "r\ny\n"} {
+		t.Run(strings.ReplaceAll(strings.TrimSpace(stdin), "\n", "-"), func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			rec := newAnswerRecorder()
+			input := rec.answering(superpowersOffers("a", "b"), emptyAnswers(t), stdin)
+			input.Accept = func(cli.SkillOffer) error { return errAnswerActionForTest }
+			input.Decline = input.Accept
+
+			var stdout bytes.Buffer
+
+			g.Expect(cli.AnswerSkillOffers(input, &stdout)).To(MatchError(errAnswerActionForTest))
+		})
+	}
+}
+
+// Test792b31c5a15_AnswerSkillOffers_DryRunPreview_ListsOffersUnderScopeHeaders covers
 // "`--dry-run` SHALL list each offer with its kind, key, and source path
 // under scope headers"; a removal with no recorded source names its note.
-func TestAnswerSkillOffers_DryRunPreview_ListsOffersUnderScopeHeaders(t *testing.T) {
+func Test792b31c5a15_AnswerSkillOffers_DryRunPreview_ListsOffersUnderScopeHeaders(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -84,9 +227,9 @@ func TestAnswerSkillOffers_DryRunPreview_ListsOffersUnderScopeHeaders(t *testing
 		"  would offer: refresh superpowers:tdd (~/.claude/plugins/cache/o/superpowers/6/skills/tdd/SKILL.md)\n"))
 }
 
-// TestAnswerSkillOffers_DryRunPreview_ReportsConflictsLast covers the dry
+// Test792b31c5a16_AnswerSkillOffers_DryRunPreview_ReportsConflictsLast covers the dry
 // run still reporting conflicts after the offers, with the failure status.
-func TestAnswerSkillOffers_DryRunPreview_ReportsConflictsLast(t *testing.T) {
+func Test792b31c5a16_AnswerSkillOffers_DryRunPreview_ReportsConflictsLast(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -103,27 +246,37 @@ func TestAnswerSkillOffers_DryRunPreview_ReportsConflictsLast(t *testing.T) {
 	g.Expect(stdout.String()).To(HaveSuffix("engram: skill key conflict: x at /a and /b\n"))
 }
 
-// TestAnswerSkillOffers_EOFAtGroupPrompt_RecordsNothing covers "end-of-input
-// at that prompt SHALL record nothing".
-func TestAnswerSkillOffers_EOFAtGroupPrompt_RecordsNothing(t *testing.T) {
+// Test792b31c5a1_ParseSkillAnswers_Property_SameTokenInBothFlagsIsRefused is the
+// refusal rule over any two token lists: parsing fails exactly when some
+// token appears in both --accept and --decline.
+func Test792b31c5a1_ParseSkillAnswers_Property_SameTokenInBothFlagsIsRefused(t *testing.T) {
 	t.Parallel()
-	g := NewWithT(t)
 
-	offers := superpowersOffers("brainstorming", "writing-plans")
-	rec := newAnswerRecorder()
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(rt)
 
-	var stdout bytes.Buffer
+		accept := rapid.SliceOfN(genAnswerToken(), 0, 4).Draw(rt, "accept")
+		decline := rapid.SliceOfN(genAnswerToken(), 0, 4).Draw(rt, "decline")
 
-	err := cli.AnswerSkillOffers(rec.answering(offers, emptyAnswers(t), ""), &stdout)
+		if rapid.Bool().Draw(rt, "forceShared") && len(accept) > 0 {
+			decline = append(decline, accept[rapid.IntRange(0, len(accept)-1).Draw(rt, "shared")])
+		}
 
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(rec.accepted).To(BeEmpty())
-	g.Expect(rec.declined).To(BeEmpty())
+		shared := slices.ContainsFunc(accept, func(token string) bool { return slices.Contains(decline, token) })
+
+		_, err := cli.ParseSkillAnswers(accept, decline)
+
+		if shared {
+			g.Expect(err).To(MatchError(cli.ErrAnswerInBothFlagsForTest))
+		} else {
+			g.Expect(err).NotTo(HaveOccurred())
+		}
+	})
 }
 
-// TestAnswerSkillOffers_ExplicitAnswers_SpecScenarios covers the spec's
+// Test792b31c5a2_AnswerSkillOffers_ExplicitAnswers_SpecScenarios covers the spec's
 // answering scenarios non-interactively over fixture comparisons.
-func TestAnswerSkillOffers_ExplicitAnswers_SpecScenarios(t *testing.T) {
+func Test792b31c5a2_AnswerSkillOffers_ExplicitAnswers_SpecScenarios(t *testing.T) {
 	t.Parallel()
 
 	fifteen := superpowersOffers("a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9", "b1", "b2", "b3", "b4",
@@ -205,346 +358,14 @@ func TestAnswerSkillOffers_ExplicitAnswers_SpecScenarios(t *testing.T) {
 	}
 }
 
-// TestAnswerSkillOffers_NonInteractiveSummary_NamesScopesAndCounts covers
-// the one-line non-interactive summary (design D6): the total, each scope's
-// `@<scope-id> <count>` in scope order, and the answering command.
-func TestAnswerSkillOffers_NonInteractiveSummary_NamesScopesAndCounts(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	offers := append(superpowersOffers("a", "b"),
-		cli.SkillOffer{Kind: cli.SkillOfferRegister, Key: "anthropic-skills:pdf", ScopeID: "synced"},
-		cli.SkillOffer{
-			Kind: cli.SkillOfferRegister, Key: "project:github.com/toejough/engram:c4",
-			ScopeID: "project:github.com/toejough/engram",
-		},
-	)
-	sortOffers(offers)
-
-	rec := newAnswerRecorder()
-	input := rec.answering(offers, emptyAnswers(t), "")
-	input.Interactive = false
-
-	var stdout bytes.Buffer
-
-	err := cli.AnswerSkillOffers(input, &stdout)
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(stdout.String()).To(Equal("engram: 4 skill runbook offers awaiting an answer: " +
-		"@plugin:superpowers 2, @project:github.com/toejough/engram 1, @synced 1 — run " +
-		"`engram register-skills` in a terminal, or `engram register-skills --accept <key|prefix*|@scope>` / " +
-		"`--decline <key|prefix*|@scope>`\n"))
-	g.Expect(rec.accepted).To(BeEmpty())
-	g.Expect(rec.declined).To(BeEmpty())
-}
-
-// TestAnswerSkillOffers_NonInteractiveSummary_SingularOffer covers the
-// summary's singular form.
-func TestAnswerSkillOffers_NonInteractiveSummary_SingularOffer(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	rec := newAnswerRecorder()
-	input := rec.answering(superpowersOffers("a"), emptyAnswers(t), "")
-	input.Interactive = false
-
-	var stdout bytes.Buffer
-
-	g.Expect(cli.AnswerSkillOffers(input, &stdout)).To(Succeed())
-	g.Expect(stdout.String()).To(HavePrefix(
-		"engram: 1 skill runbook offer awaiting an answer: @plugin:superpowers 1 — run "))
-}
-
-// TestAnswerSkillOffers_PerOfferPrompt_EOFRecordsNothingNoDeclines covers
-// ruling R29: end of input at a per-offer y/N prompt is no answer — for a
-// single offer, under "review each", and for a removal — so nothing is
-// accepted or declined, while an explicit "n" still declines.
-func TestAnswerSkillOffers_PerOfferPrompt_EOFRecordsNothingNoDeclines(t *testing.T) {
-	t.Parallel()
-
-	removal := []cli.SkillOffer{{Kind: cli.SkillOfferRemove, Key: "old", ScopeID: "claude-user", Hash: "h-old"}}
-
-	cases := []struct {
-		name         string
-		offers       []cli.SkillOffer
-		stdin        string
-		wantDeclined []string
-	}{
-		{name: "single offer EOF", offers: superpowersOffers("a"), stdin: ""},
-		{name: "review each EOF", offers: superpowersOffers("a", "b"), stdin: "r\n"},
-		{name: "review each EOF after one no", offers: superpowersOffers("a", "b"), stdin: "r\nn\n",
-			wantDeclined: []string{"superpowers:a"}},
-		{name: "removal EOF", offers: removal, stdin: ""},
-		{name: "single offer no", offers: superpowersOffers("a"), stdin: "n\n", wantDeclined: []string{"superpowers:a"}},
-		{name: "review each no", offers: superpowersOffers("a", "b"), stdin: "r\n" + strings.Repeat("n\n", 2),
-			wantDeclined: []string{"superpowers:a", "superpowers:b"}},
-		{name: "removal no", offers: removal, stdin: "n\n", wantDeclined: []string{"old"}},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			rec := newAnswerRecorder()
-
-			var stdout bytes.Buffer
-
-			g.Expect(cli.AnswerSkillOffers(rec.answering(tc.offers, emptyAnswers(t), tc.stdin), &stdout)).To(Succeed())
-			g.Expect(rec.accepted).To(BeEmpty())
-			g.Expect(rec.declined).To(ConsistOf(stringsOrEmpty(tc.wantDeclined)))
-		})
-	}
-}
-
-// TestAnswerSkillOffers_PromptsNameEverySource covers the source path shown
-// in the per-offer and grouped prompts for every offer that has one, engram's
-// installed skills included (design D8: no special case), so the user sees
-// which file they are accepting.
-func TestAnswerSkillOffers_PromptsNameEverySource(t *testing.T) {
-	t.Parallel()
-
-	cases := map[string]struct {
-		offers []cli.SkillOffer
-		stdin  string
-		want   string
-	}{
-		"register from a plugin": {
-			offers: []cli.SkillOffer{{
-				Kind: cli.SkillOfferRegister, Key: "evil:cmd:x", ScopeID: "plugin:evil", SourcePath: "/cache/evil/x.md",
-			}},
-			stdin: "n\n",
-			want:  "Register skill `evil:cmd:x` (/cache/evil/x.md) as a vault runbook? [y/N] ",
-		},
-		"refresh from a plugin": {
-			offers: []cli.SkillOffer{{
-				Kind: cli.SkillOfferRefresh, Key: "evil:x", ScopeID: "plugin:evil", SourcePath: "/cache/evil/x/SKILL.md",
-			}},
-			stdin: "n\n",
-			want: "Skill `evil:x` (/cache/evil/x/SKILL.md) changed since its note was last synced. " +
-				"Update the note? [y/N] ",
-		},
-		"removal with a recorded source": {
-			offers: []cli.SkillOffer{{
-				Kind: cli.SkillOfferRemove, Key: "old", ScopeID: "claude-user", SourcePath: "~/.claude/skills/old/SKILL.md",
-			}},
-			stdin: "n\n",
-			want: "Skill `old` (~/.claude/skills/old/SKILL.md) is no longer found in its source. " +
-				"Remove its runbook note? [y/N] ",
-		},
-		"register of an installed engram skill": {
-			offers: []cli.SkillOffer{{
-				Kind: cli.SkillOfferRegister, Key: "route", ScopeID: "claude-user",
-				SourcePath: "/h/.claude/engram/skills/route/SKILL.md",
-			}},
-			stdin: "n\n",
-			want:  "Register skill `route` (/h/.claude/engram/skills/route/SKILL.md) as a vault runbook? [y/N] ",
-		},
-		"grouped offers list their sources": {
-			offers: []cli.SkillOffer{
-				{Kind: cli.SkillOfferRegister, Key: "evil:a", ScopeID: "plugin:evil", SourcePath: "/cache/evil/a/SKILL.md"},
-				{
-					Kind: cli.SkillOfferRegister, Key: "evil:b", ScopeID: "plugin:evil",
-					SourcePath: "/cache/evil/b/SKILL.md",
-				},
-			},
-			stdin: "s\n",
-			want: "  register evil:a (/cache/evil/a/SKILL.md)\n  register evil:b (/cache/evil/b/SKILL.md)\n" +
-				"@plugin:evil (2): [a]ccept all / [d]ecline all / [r]eview each / [s]kip for now ",
-		},
-	}
-
-	for name, testCase := range cases {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			rec := newAnswerRecorder()
-
-			var stdout bytes.Buffer
-
-			err := cli.AnswerSkillOffers(rec.answering(testCase.offers, emptyAnswers(t), testCase.stdin), &stdout)
-
-			g.Expect(err).NotTo(HaveOccurred())
-			g.Expect(stdout.String()).To(Equal(testCase.want))
-		})
-	}
-}
-
-// TestAnswerSkillOffers_PropagatesActionErrors covers an accept or decline
-// action failing: the run stops with that error.
-func TestAnswerSkillOffers_PropagatesActionErrors(t *testing.T) {
-	t.Parallel()
-
-	for _, stdin := range []string{"a\n", "d\n", "r\ny\n"} {
-		t.Run(strings.ReplaceAll(strings.TrimSpace(stdin), "\n", "-"), func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			rec := newAnswerRecorder()
-			input := rec.answering(superpowersOffers("a", "b"), emptyAnswers(t), stdin)
-			input.Accept = func(cli.SkillOffer) error { return errAnswerActionForTest }
-			input.Decline = input.Accept
-
-			var stdout bytes.Buffer
-
-			g.Expect(cli.AnswerSkillOffers(input, &stdout)).To(MatchError(errAnswerActionForTest))
-		})
-	}
-}
-
-// TestAnswerSkillOffers_RemovalsPromptIndividually covers "Removal offers
-// SHALL be answered only by ... an individual prompt, never by accept-all":
-// the scope's two register offers get the group question, and each removal
-// its own y/N prompt.
-func TestAnswerSkillOffers_RemovalsPromptIndividually(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	offers := []cli.SkillOffer{
-		{Kind: cli.SkillOfferRegister, Key: "c4", ScopeID: "claude-user"},
-		{Kind: cli.SkillOfferRegister, Key: "dev", ScopeID: "claude-user"},
-		{Kind: cli.SkillOfferRemove, Key: "gone", ScopeID: "claude-user"},
-		{Kind: cli.SkillOfferRemove, Key: "old", ScopeID: "claude-user"},
-	}
-	rec := newAnswerRecorder()
-
-	var stdout bytes.Buffer
-
-	err := cli.AnswerSkillOffers(rec.answering(offers, emptyAnswers(t), "a\ny\nn\n"), &stdout)
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(rec.accepted).To(Equal([]string{"c4", "dev", "gone"}))
-	g.Expect(rec.declined).To(Equal([]string{"old"}))
-	g.Expect(stdout.String()).To(ContainSubstring("@claude-user (2): [a]ccept all"))
-	g.Expect(stdout.String()).To(ContainSubstring(
-		"Skill `gone` is no longer found in its source. Remove its runbook note? [y/N] "))
-}
-
-// TestAnswerSkillOffers_ReviewEach_PromptsPerOffer covers "review each":
-// each offer then gets its own y/N prompt.
-func TestAnswerSkillOffers_ReviewEach_PromptsPerOffer(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	offers := superpowersOffers("brainstorming", "writing-plans")
-	rec := newAnswerRecorder()
-
-	var stdout bytes.Buffer
-
-	err := cli.AnswerSkillOffers(rec.answering(offers, emptyAnswers(t), "r\ny\nn\n"), &stdout)
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(rec.accepted).To(Equal([]string{"superpowers:brainstorming"}))
-	g.Expect(rec.declined).To(Equal([]string{"superpowers:writing-plans"}))
-	g.Expect(stdout.String()).To(ContainSubstring(
-		"Register skill `superpowers:writing-plans` as a vault runbook? [y/N] "))
-}
-
-// TestAnswerSkillOffers_SingleOffer_UsesPerOfferPrompt covers "A single
-// offer uses the per-offer y/N prompt", with no group question.
-func TestAnswerSkillOffers_SingleOffer_UsesPerOfferPrompt(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	offers := superpowersOffers("brainstorming")
-	rec := newAnswerRecorder()
-
-	var stdout bytes.Buffer
-
-	err := cli.AnswerSkillOffers(rec.answering(offers, emptyAnswers(t), "y\n"), &stdout)
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(rec.accepted).To(Equal([]string{"superpowers:brainstorming"}))
-	g.Expect(stdout.String()).To(Equal("Register skill `superpowers:brainstorming` as a vault runbook? [y/N] "))
-}
-
-// TestAnswerSkillOffers_Skip_RecordsNothingAndMovesOn covers "Skip leaves
-// the scope for next time": a skipped scope records nothing, and the next
-// scope is still asked.
-func TestAnswerSkillOffers_Skip_RecordsNothingAndMovesOn(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	offers := append(superpowersOffers("a", "b"),
-		cli.SkillOffer{Kind: cli.SkillOfferRegister, Key: "anthropic-skills:pdf", ScopeID: "synced"},
-		cli.SkillOffer{Kind: cli.SkillOfferRegister, Key: "anthropic-skills:xlsx", ScopeID: "synced"},
-	)
-	rec := newAnswerRecorder()
-
-	var stdout bytes.Buffer
-
-	err := cli.AnswerSkillOffers(rec.answering(offers, emptyAnswers(t), "s\nd\n"), &stdout)
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(rec.accepted).To(BeEmpty())
-	g.Expect(rec.declined).To(Equal([]string{"anthropic-skills:pdf", "anthropic-skills:xlsx"}))
-}
-
-// TestAnswerSkillOffers_UnmatchedToken_PrintsExistingNote covers "A token
-// matching no offer → the existing one-line note", for each token form, and
-// a pattern or selector that would match only a removal.
-func TestAnswerSkillOffers_UnmatchedToken_PrintsExistingNote(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	offers := []cli.SkillOffer{{Kind: cli.SkillOfferRemove, Key: "old", ScopeID: "claude-user"}}
-	answers, parseErr := cli.ParseSkillAnswers([]string{"bogus", "ol*"}, []string{"@claude-user", "@plugin:nope"})
-	g.Expect(parseErr).NotTo(HaveOccurred())
-
-	rec := newAnswerRecorder()
-	input := rec.answering(offers, answers, "")
-	input.Interactive = false
-
-	var stdout bytes.Buffer
-
-	g.Expect(cli.AnswerSkillOffers(input, &stdout)).To(Succeed())
-
-	out := stdout.String()
-	g.Expect(out).To(ContainSubstring("engram: no pending offer for skill \"bogus\" — ignoring --accept\n"))
-	g.Expect(out).To(ContainSubstring("engram: no pending offer for skill \"ol*\" — ignoring --accept\n"))
-	g.Expect(out).To(ContainSubstring("engram: no pending offer for skill \"@claude-user\" — ignoring --decline\n"))
-	g.Expect(out).To(ContainSubstring("engram: no pending offer for skill \"@plugin:nope\" — ignoring --decline\n"))
-	g.Expect(rec.accepted).To(BeEmpty())
-	g.Expect(rec.declined).To(BeEmpty())
-}
-
-// TestParseSkillAnswers_Property_SameTokenInBothFlagsIsRefused is the
-// refusal rule over any two token lists: parsing fails exactly when some
-// token appears in both --accept and --decline.
-func TestParseSkillAnswers_Property_SameTokenInBothFlagsIsRefused(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		g := NewWithT(rt)
-
-		accept := rapid.SliceOfN(genAnswerToken(), 0, 4).Draw(rt, "accept")
-		decline := rapid.SliceOfN(genAnswerToken(), 0, 4).Draw(rt, "decline")
-
-		if rapid.Bool().Draw(rt, "forceShared") && len(accept) > 0 {
-			decline = append(decline, accept[rapid.IntRange(0, len(accept)-1).Draw(rt, "shared")])
-		}
-
-		shared := slices.ContainsFunc(accept, func(token string) bool { return slices.Contains(decline, token) })
-
-		_, err := cli.ParseSkillAnswers(accept, decline)
-
-		if shared {
-			g.Expect(err).To(MatchError(cli.ErrAnswerInBothFlagsForTest))
-		} else {
-			g.Expect(err).NotTo(HaveOccurred())
-		}
-	})
-}
-
-// TestResolveSkillAnswer_Property_ExactThenLongestPatternThenSelector is the
+// Test792b31c5a2_ResolveSkillAnswer_Property_ExactThenLongestPatternThenSelector is the
 // precedence rule over any offer and any disjoint accept/decline token
 // sets. The oracle is the spec's ranking of each token against the offer:
 // an exact key outranks every pattern, a longer matching prefix outranks a
 // shorter one, any pattern outranks a selector, and a removal is matched
 // only by its exact key. The winning answer must come from the flag holding
 // the unique top-ranked matching token, or be none when nothing matches.
-func TestResolveSkillAnswer_Property_ExactThenLongestPatternThenSelector(t *testing.T) {
+func Test792b31c5a2_ResolveSkillAnswer_Property_ExactThenLongestPatternThenSelector(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -589,6 +410,185 @@ func TestResolveSkillAnswer_Property_ExactThenLongestPatternThenSelector(t *test
 
 		g.Expect(answers.Resolve(offer)).To(Equal(want))
 	})
+}
+
+// Test792b31c5a3_AnswerSkillOffers_UnmatchedToken_PrintsExistingNote covers "A token
+// matching no offer → the existing one-line note", for each token form, and
+// a pattern or selector that would match only a removal.
+func Test792b31c5a3_AnswerSkillOffers_UnmatchedToken_PrintsExistingNote(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	offers := []cli.SkillOffer{{Kind: cli.SkillOfferRemove, Key: "old", ScopeID: "claude-user"}}
+	answers, parseErr := cli.ParseSkillAnswers([]string{"bogus", "ol*"}, []string{"@claude-user", "@plugin:nope"})
+	g.Expect(parseErr).NotTo(HaveOccurred())
+
+	rec := newAnswerRecorder()
+	input := rec.answering(offers, answers, "")
+	input.Interactive = false
+
+	var stdout bytes.Buffer
+
+	g.Expect(cli.AnswerSkillOffers(input, &stdout)).To(Succeed())
+
+	out := stdout.String()
+	g.Expect(out).To(ContainSubstring("engram: no pending offer for skill \"bogus\" — ignoring --accept\n"))
+	g.Expect(out).To(ContainSubstring("engram: no pending offer for skill \"ol*\" — ignoring --accept\n"))
+	g.Expect(out).To(ContainSubstring("engram: no pending offer for skill \"@claude-user\" — ignoring --decline\n"))
+	g.Expect(out).To(ContainSubstring("engram: no pending offer for skill \"@plugin:nope\" — ignoring --decline\n"))
+	g.Expect(rec.accepted).To(BeEmpty())
+	g.Expect(rec.declined).To(BeEmpty())
+}
+
+// Test792b31c5a4_AnswerSkillOffers_NonInteractiveSummary_NamesScopesAndCounts covers
+// the one-line non-interactive summary (design D6): the total, each scope's
+// `@<scope-id> <count>` in scope order, and the answering command.
+func Test792b31c5a4_AnswerSkillOffers_NonInteractiveSummary_NamesScopesAndCounts(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	offers := append(superpowersOffers("a", "b"),
+		cli.SkillOffer{Kind: cli.SkillOfferRegister, Key: "anthropic-skills:pdf", ScopeID: "synced"},
+		cli.SkillOffer{
+			Kind: cli.SkillOfferRegister, Key: "project:github.com/toejough/engram:c4",
+			ScopeID: "project:github.com/toejough/engram",
+		},
+	)
+	sortOffers(offers)
+
+	rec := newAnswerRecorder()
+	input := rec.answering(offers, emptyAnswers(t), "")
+	input.Interactive = false
+
+	var stdout bytes.Buffer
+
+	err := cli.AnswerSkillOffers(input, &stdout)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(stdout.String()).To(Equal("engram: 4 skill runbook offers awaiting an answer: " +
+		"@plugin:superpowers 2, @project:github.com/toejough/engram 1, @synced 1 — run " +
+		"`engram register-skills` in a terminal, or `engram register-skills --accept <key|prefix*|@scope>` / " +
+		"`--decline <key|prefix*|@scope>`\n"))
+	g.Expect(rec.accepted).To(BeEmpty())
+	g.Expect(rec.declined).To(BeEmpty())
+}
+
+// Test792b31c5a4_AnswerSkillOffers_NonInteractiveSummary_SingularOffer covers the
+// summary's singular form.
+func Test792b31c5a4_AnswerSkillOffers_NonInteractiveSummary_SingularOffer(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	rec := newAnswerRecorder()
+	input := rec.answering(superpowersOffers("a"), emptyAnswers(t), "")
+	input.Interactive = false
+
+	var stdout bytes.Buffer
+
+	g.Expect(cli.AnswerSkillOffers(input, &stdout)).To(Succeed())
+	g.Expect(stdout.String()).To(HavePrefix(
+		"engram: 1 skill runbook offer awaiting an answer: @plugin:superpowers 1 — run "))
+}
+
+// Test792b31c5a5_AnswerSkillOffers_AcceptAll_AcceptsEveryScopeOffer covers the grouped
+// prompt's "accept all": every register/refresh offer of that scope is
+// accepted with one answer.
+func Test792b31c5a5_AnswerSkillOffers_AcceptAll_AcceptsEveryScopeOffer(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	offers := superpowersOffers("brainstorming", "writing-plans", "writing-skills")
+	rec := newAnswerRecorder()
+
+	var stdout bytes.Buffer
+
+	err := cli.AnswerSkillOffers(rec.answering(offers, emptyAnswers(t), "a\n"), &stdout)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(rec.accepted).To(Equal(offerKeys(offers)))
+	g.Expect(rec.declined).To(BeEmpty())
+	g.Expect(stdout.String()).To(ContainSubstring(
+		"@plugin:superpowers (3): [a]ccept all / [d]ecline all / [r]eview each / [s]kip for now "))
+	g.Expect(stdout.String()).To(ContainSubstring("  register superpowers:writing-plans\n"))
+	g.Expect(stdout.String()).NotTo(ContainSubstring("[y/N]"))
+}
+
+// Test792b31c5a6_AnswerSkillOffers_DeclineAll_DeclinesEveryScopeOffer covers "decline
+// all": each key is declined (recorded per key, design D6 alternative c).
+func Test792b31c5a6_AnswerSkillOffers_DeclineAll_DeclinesEveryScopeOffer(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	offers := superpowersOffers("brainstorming", "writing-plans")
+	rec := newAnswerRecorder()
+
+	var stdout bytes.Buffer
+
+	err := cli.AnswerSkillOffers(rec.answering(offers, emptyAnswers(t), "d\n"), &stdout)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(rec.declined).To(Equal(offerKeys(offers)))
+	g.Expect(rec.accepted).To(BeEmpty())
+}
+
+// Test792b31c5a7_AnswerSkillOffers_ReviewEach_PromptsPerOffer covers "review each":
+// each offer then gets its own y/N prompt.
+func Test792b31c5a7_AnswerSkillOffers_ReviewEach_PromptsPerOffer(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	offers := superpowersOffers("brainstorming", "writing-plans")
+	rec := newAnswerRecorder()
+
+	var stdout bytes.Buffer
+
+	err := cli.AnswerSkillOffers(rec.answering(offers, emptyAnswers(t), "r\ny\nn\n"), &stdout)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(rec.accepted).To(Equal([]string{"superpowers:brainstorming"}))
+	g.Expect(rec.declined).To(Equal([]string{"superpowers:writing-plans"}))
+	g.Expect(stdout.String()).To(ContainSubstring(
+		"Register skill `superpowers:writing-plans` as a vault runbook? [y/N] "))
+}
+
+// Test792b31c5a8_AnswerSkillOffers_Skip_RecordsNothingAndMovesOn covers "Skip leaves
+// the scope for next time": a skipped scope records nothing, and the next
+// scope is still asked.
+func Test792b31c5a8_AnswerSkillOffers_Skip_RecordsNothingAndMovesOn(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	offers := append(superpowersOffers("a", "b"),
+		cli.SkillOffer{Kind: cli.SkillOfferRegister, Key: "anthropic-skills:pdf", ScopeID: "synced"},
+		cli.SkillOffer{Kind: cli.SkillOfferRegister, Key: "anthropic-skills:xlsx", ScopeID: "synced"},
+	)
+	rec := newAnswerRecorder()
+
+	var stdout bytes.Buffer
+
+	err := cli.AnswerSkillOffers(rec.answering(offers, emptyAnswers(t), "s\nd\n"), &stdout)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(rec.accepted).To(BeEmpty())
+	g.Expect(rec.declined).To(Equal([]string{"anthropic-skills:pdf", "anthropic-skills:xlsx"}))
+}
+
+// Test792b31c5a9_AnswerSkillOffers_EOFAtGroupPrompt_RecordsNothing covers "end-of-input
+// at that prompt SHALL record nothing".
+func Test792b31c5a9_AnswerSkillOffers_EOFAtGroupPrompt_RecordsNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	offers := superpowersOffers("brainstorming", "writing-plans")
+	rec := newAnswerRecorder()
+
+	var stdout bytes.Buffer
+
+	err := cli.AnswerSkillOffers(rec.answering(offers, emptyAnswers(t), ""), &stdout)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(rec.accepted).To(BeEmpty())
+	g.Expect(rec.declined).To(BeEmpty())
 }
 
 // unexported constants.

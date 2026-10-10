@@ -14,6 +14,35 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+// Test792b31c7a12_RefreshSkill_RefusesAnchoredSkillKey: refresh sets skill_key:; an
+// anchor on it refuses the refresh unwritten.
+func Test792b31c7a12_RefreshSkill_RefusesAnchoredSkillKey(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	before := strings.Replace(curatePromotedNoteFixture(), "vault: personal\n",
+		"vault: personal\nskill_key: &k \"claude:curate\"\nx_k: *k\n", 1)
+
+	after, err := runSkillAcceptMode(t.Context(), "refresh", before)
+	g.Expect(err).To(MatchError(cli.ErrFrontmatterAnchoredKeyForTest))
+	g.Expect(err).To(MatchError(ContainSubstring("skill_key")))
+	g.Expect(after).To(Equal(before), "the note must not be written")
+}
+
+// Test792b31c7a29_AdoptSkillNote_RefusesAnchoredPending: adopt deletes pending:; an
+// anchor on it refuses the adopt before any rename or write.
+func Test792b31c7a29_AdoptSkillNote_RefusesAnchoredPending(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	before := strings.Replace(curatePromotedNoteFixturePending(), "pending: true\n", "pending: &p true\nx_flag: *p\n", 1)
+
+	after, err := runSkillAcceptMode(t.Context(), "adopt", before)
+	g.Expect(err).To(MatchError(cli.ErrFrontmatterAnchoredKeyForTest))
+	g.Expect(err).To(MatchError(ContainSubstring("pending")))
+	g.Expect(after).To(BeEmpty(), "the note must not be renamed or written")
+}
+
 // Test792b6c7a4_RunResituate_RefusesAnchoredEditedKey: situation: and created: are
 // the keys resituate sets; an anchor on either refuses the note unwritten.
 func Test792b6c7a4_RunResituate_RefusesAnchoredEditedKey(t *testing.T) {
@@ -36,33 +65,4 @@ func Test792b6c7a4_RunResituate_RefusesAnchoredEditedKey(t *testing.T) {
 			g.Expect(writes).To(BeZero())
 		})
 	}
-}
-
-// TestAdoptSkillNote_RefusesAnchoredPending: adopt deletes pending:; an
-// anchor on it refuses the adopt before any rename or write.
-func TestAdoptSkillNote_RefusesAnchoredPending(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	before := strings.Replace(curatePromotedNoteFixturePending(), "pending: true\n", "pending: &p true\nx_flag: *p\n", 1)
-
-	after, err := runSkillAcceptMode(t.Context(), "adopt", before)
-	g.Expect(err).To(MatchError(cli.ErrFrontmatterAnchoredKeyForTest))
-	g.Expect(err).To(MatchError(ContainSubstring("pending")))
-	g.Expect(after).To(BeEmpty(), "the note must not be renamed or written")
-}
-
-// TestRefreshSkill_RefusesAnchoredSkillKey: refresh sets skill_key:; an
-// anchor on it refuses the refresh unwritten.
-func TestRefreshSkill_RefusesAnchoredSkillKey(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	before := strings.Replace(curatePromotedNoteFixture(), "vault: personal\n",
-		"vault: personal\nskill_key: &k \"claude:curate\"\nx_k: *k\n", 1)
-
-	after, err := runSkillAcceptMode(t.Context(), "refresh", before)
-	g.Expect(err).To(MatchError(cli.ErrFrontmatterAnchoredKeyForTest))
-	g.Expect(err).To(MatchError(ContainSubstring("skill_key")))
-	g.Expect(after).To(Equal(before), "the note must not be written")
 }

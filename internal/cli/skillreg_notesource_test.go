@@ -18,395 +18,92 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
-// TestAdoptSkillNote_QualifiedKeyStampsKeySlugAndSource covers `--adopt
-// <key>=<note-ref>` with a source-qualified key: the note is renamed to the
-// key-derived slug and carries skill_key, skill_source and a preamble naming
-// the real file.
-func TestAdoptSkillNote_QualifiedKeyStampsKeySlugAndSource(t *testing.T) {
+// Test792b31c6a10_RunSkillRegistration_SkillsDirIsAReadOnlyPreview covers design D9 and
+// "Skills-dir runs are preview-only": several dirs replace the default set
+// and are scanned with Claude-user rules (a symlinked skill dir is found,
+// keys are `claude:<n>`); the run lists offers under a scope header, prompts
+// nothing, writes nothing (a stale note is not refreshed, so its preamble is
+// never rewritten), and lists no removal offer.
+func Test792b31c6a10_RunSkillRegistration_SkillsDirIsAReadOnlyPreview(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	vault := newSkillAcceptFixtureVault()
-	vault.put("1049.2026-09-21.curate-review-pending-offers.md", curatePromotedNoteFixture())
+	vault.put("1036.2026-09-18.skill-claude-route.md", keyedSkillNote(cli.SkillContentHash([]byte("old")), "claude:route"))
+	vault.put("1053.2026-09-21.skill-claude-write-memory.md", keyedSkillNote("gone-hash", "claude:write-memory"))
 
-	source := pluginSkillSource("6.4.1", "# Brainstorming\n")
+	fsys := newFakeSkillFS().
+		file("/checkout/agent-instructions/skills/route/SKILL.md", "route v2").
+		file("/elsewhere/real/c4/SKILL.md", "c4").
+		link("/extra/skills/c4", "/elsewhere/real/c4").
+		file("/extra/skills/synced/b/pdf/SKILL.md", "pdf")
 
-	err := cli.AdoptSkillNote(t.Context(), "/vault", source, "1049", skillAdoptDepsFor(vault), &bytes.Buffer{})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	adopted, found := vault.get("1049.2026-09-21.skill-superpowers-brainstorming.md")
-	g.Expect(found).To(BeTrue())
-
-	doc := parseSkillAcceptFrontmatter(g, adopted)
-	g.Expect(doc.SkillKey).To(Equal("superpowers:brainstorming"))
-	g.Expect(doc.SkillSource).To(Equal(source.SkillSource))
-	g.Expect(doc.Pending).To(BeFalse())
-	g.Expect(skillNoteBodyOf(adopted)).To(Equal(preambleNaming(source.SkillSource) + "\n# Brainstorming\n"))
-}
-
-// TestNewSkillNoteSource covers design D8's inputs: every source, engram's
-// installed skills included, records its `~`-relative resolved path,
-// through the home or its resolved form, and a path outside both homes
-// stays absolute.
-func TestNewSkillNoteSource(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		name        string
-		candidate   cli.SkillCandidate
-		homes       []string
-		wantSource  string
-		wantKeyName string
-	}{
-		{
-			name:        "engram's installed skill",
-			candidate:   offerCand("claude:route", cli.SkillScopeClaudeUser, engramClaudeSkills+"/route/SKILL.md", "r"),
-			homes:       []string{fakeHome},
-			wantSource:  "~/.claude/engram/skills/route/SKILL.md",
-			wantKeyName: "claude:route",
-		},
-		{
-			name:        "user skill",
-			candidate:   offerCand("c4", cli.SkillScopeClaudeUser, fakeHome+"/.claude/skills/c4/SKILL.md", "c"),
-			homes:       []string{fakeHome},
-			wantSource:  "~/.claude/skills/c4/SKILL.md",
-			wantKeyName: "c4",
-		},
-		{
-			name: "source under the resolved home",
-			candidate: offerCand("anthropic-skills:pdf", cli.SkillScopeSynced,
-				"/real/joe/.claude/skills/synced/b1/pdf/SKILL.md", "p"),
-			homes:       []string{"/links/joe", "/real/joe"},
-			wantSource:  "~/.claude/skills/synced/b1/pdf/SKILL.md",
-			wantKeyName: "anthropic-skills:pdf",
-		},
-		{
-			name: "source outside every home",
-			candidate: offerCand("project:local/x:cmd:go", "project:local/x",
-				"/work/x/.claude/commands/go.md", "g"),
-			homes:       []string{fakeHome, ""},
-			wantSource:  "/work/x/.claude/commands/go.md",
-			wantKeyName: "project:local/x:cmd:go",
-		},
-	}
-
-	for _, testCase := range cases {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			source := cli.NewSkillNoteSource(testCase.candidate, testCase.homes...)
-
-			g.Expect(source.Key).To(Equal(testCase.wantKeyName))
-			g.Expect(source.SkillSource).To(Equal(testCase.wantSource))
-			g.Expect(source.Content).To(Equal(testCase.candidate.Content))
-		})
-	}
-}
-
-// TestRefreshSkill_FollowsPluginVersionBump covers "Refresh follows a plugin
-// version bump": skill_source and the preamble name the new version's path.
-func TestRefreshSkill_FollowsPluginVersionBump(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := newSkillAcceptFixtureVault()
-	basename := "1100.2026-09-26.skill-superpowers-brainstorming"
-	oldSource := pluginSkillSource("6.4.1", "# Brainstorming v1\n")
-	vault.put(basename+".md", keyedSkillNoteFixture(oldSource))
-
-	newSource := pluginSkillSource("6.5.0", "# Brainstorming v2\n")
-
-	err := cli.RefreshSkill(t.Context(), "/vault", newSource, basename, skillAcceptDeps(vault), &bytes.Buffer{})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	updated, _ := vault.get(basename + ".md")
-	doc := parseSkillAcceptFrontmatter(g, updated)
-
-	g.Expect(doc.SkillKey).To(Equal("superpowers:brainstorming"))
-	g.Expect(doc.SkillSource).To(HaveSuffix("/superpowers/6.5.0/skills/brainstorming/SKILL.md"))
-	g.Expect(doc.SkillHash).To(Equal(cli.SkillContentHash(newSource.Content)))
-	g.Expect(doc.Pending).To(BeTrue())
-	g.Expect(skillNoteBodyOf(updated)).To(Equal(preambleNaming(newSource.SkillSource) + "\n# Brainstorming v2\n"))
-}
-
-// TestRegisterSkill_EngramInstalledPreambleNamesDeployedFile asserts, for
-// the six engram skills behind the real notes (route, please, curate,
-// write-memory, learn, recall), that a copy read through ~/.claude/skills
-// gives the key-derived slug, skill_key, skill_source, and a preamble and
-// `source:` naming the deployed file with no special case (design D8).
-func TestRegisterSkill_EngramInstalledPreambleNamesDeployedFile(t *testing.T) {
-	t.Parallel()
-
-	for _, name := range []string{"route", "please", "curate", "write-memory", "learn", "recall"} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			content := "---\nname: " + name + "\ndescription: d\n---\n\nbody of " + name + "\n"
-			written := registerForTest(g, installedEngramSkill(name, []byte(content)))
-
-			g.Expect(written.path).To(Equal("/vault/1.2026-09-25.skill-claude-" + name + ".md"))
-			g.Expect(skillNoteBodyOf(written.content)).To(Equal(deployedPreamble(name) + "\n" + content))
-			g.Expect(written.content).To(ContainSubstring(
-				"source: 'skill registration: ~/.claude/engram/skills/" + name + "/SKILL.md'\n"))
-
-			doc := parseSkillAcceptFrontmatter(g, written.content)
-			g.Expect(doc.SkillKey).To(Equal("claude:" + name))
-			g.Expect(doc.SkillSource).To(Equal("~/.claude/engram/skills/" + name + "/SKILL.md"))
-			g.Expect(doc.Pending).To(BeTrue())
-		})
-	}
-}
-
-// TestRegisterSkill_NonEngramSourcesNamePathAndKeySlug covers the plugin
-// skill, project command and Pi prompt registrations: the key-derived slug,
-// skill_key, skill_source and a preamble naming the `~`-relative file.
-func TestRegisterSkill_NonEngramSourcesNamePathAndKeySlug(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		name     string
-		source   cli.SkillNoteSource
-		wantSlug string
-	}{
-		{
-			name:     "plugin skill",
-			source:   pluginSkillSource("6.4.1", "# Brainstorming\n"),
-			wantSlug: "skill-superpowers-brainstorming",
-		},
-		{
-			name: "project command",
-			source: cli.SkillNoteSource{
-				Key:         "project:github.com/toejough/engram:cmd:opsx:apply",
-				SkillSource: "~/repos/engram/.claude/commands/opsx/apply.md",
-				Content:     []byte("---\ndescription: apply\nargument-hint: <change>\n---\n\nApply it.\n"),
-			},
-			wantSlug: "skill-project-github-com-toejough-engram-cmd-opsx-apply",
-		},
-		{
-			name: "Pi prompt template",
-			source: cli.SkillNoteSource{
-				Key:         "pi-prompt:review",
-				SkillSource: "~/.pi/agent/prompts/review.md",
-				Content:     []byte("Review $1.\n"),
-			},
-			wantSlug: "skill-pi-prompt-review",
-		},
-	}
-
-	for _, testCase := range cases {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			written := registerForTest(g, testCase.source)
-
-			g.Expect(written.path).To(Equal("/vault/1.2026-09-25." + testCase.wantSlug + ".md"))
-			g.Expect(skillNoteBodyOf(written.content)).To(Equal(
-				preambleNaming(testCase.source.SkillSource) + "\n" + string(testCase.source.Content)))
-
-			doc := parseSkillAcceptFrontmatter(g, written.content)
-			g.Expect(doc.SkillKey).To(Equal(testCase.source.Key))
-			g.Expect(doc.SkillSource).To(Equal(testCase.source.SkillSource))
-		})
-	}
-}
-
-// TestRegisterSkill_SkillSourceRoundTripsThroughRemovalEligibility (property):
-// a note registered from a candidate under the home, or under its resolved
-// form when the home is a symlink, records a `~`-relative skill_source that
-// the removal-eligibility check expands against the unresolved home back
-// into the candidate's own read root, so the note is offered for removal
-// once its key is gone.
-func TestRegisterSkill_SkillSourceRoundTripsThroughRemovalEligibility(t *testing.T) {
-	t.Parallel()
-	rapid.Check(t, func(rt *rapid.T) {
-		home := "/home/" + rapid.StringMatching(`[a-z]{1,6}`).Draw(rt, "user")
-		resolvedHome := home
-
-		if rapid.Bool().Draw(rt, "symlinkedHome") {
-			resolvedHome = "/private" + home
-		}
-
-		bucket := rapid.StringMatching(`[a-z0-9]{1,6}`).Draw(rt, "bucket")
-		name := rapid.StringMatching(`[a-z][a-z0-9-]{0,8}`).Draw(rt, "name")
-		rootRel := "/.claude/skills/synced/" + bucket
-		candidate := offerCand("anthropic-skills:"+name, cli.SkillScopeSynced,
-			resolvedHome+rootRel+"/"+name+"/SKILL.md", "content of "+name)
-
-		source := cli.NewSkillNoteSource(candidate, home, resolvedHome)
-		if !strings.HasPrefix(source.SkillSource, "~/") {
-			rt.Fatalf("skill_source %q is not ~-relative", source.SkillSource)
-		}
-
-		vault := newSkillAcceptFixtureVault()
-
-		var (
-			writtenPath    string
-			writtenContent []byte
-		)
-
-		registerErr := cli.RegisterSkill(t.Context(), "/vault", "personal", source,
-			registerSkillLearnDeps(vault, &writtenPath, &writtenContent), &bytes.Buffer{})
-		if registerErr != nil {
-			rt.Fatalf("RegisterSkill: %v", registerErr)
-		}
-
-		names, _ := vault.ListMD("/vault")
-
-		var sources cli.ResolvedSkillSources
-
-		sources.Roots = []cli.ScannedRoot{{
-			Path: home + rootRel, Resolved: resolvedHome + rootRel, Scanned: true,
-			Form: cli.SkillRootFormSynced, KeyPrefixes: []string{"anthropic-skills:"},
-		}}
-
-		comparison, compareErr := cli.CompareSkillOffers(cli.SkillOfferInput{
-			Vault: "/vault", Names: names, ReadFile: vault.ReadFile, Home: home, Sources: sources,
-		})
-		if compareErr != nil {
-			rt.Fatalf("CompareSkillOffers: %v", compareErr)
-		}
-
-		if len(comparison.Offers) != 1 || comparison.Offers[0].Kind != cli.SkillOfferRemove ||
-			comparison.Offers[0].Key != candidate.Key {
-			rt.Fatalf("want one removal offer for %s, got %+v (skill_source %q)",
-				candidate.Key, comparison.Offers, source.SkillSource)
-		}
-	})
-}
-
-// TestRunSkillRegistration_AcceptLeavesSourceFilesByteIdentical covers the
-// MODIFIED "no engram-specific metadata" scenarios over fixture offers: a
-// plugin skill, a project command and a Pi prompt are registered with the
-// key-derived slugs, and every write lands in the vault — nothing is written
-// to or beside a source file, and the source bytes are unchanged.
-func TestRunSkillRegistration_AcceptLeavesSourceFilesByteIdentical(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := newSkillAcceptFixtureVault()
-	deps := skillRegistrationDepsFor(vault, nil)
+	deps := skillRegistrationDepsFor(vault, fsys)
+	deps.Getwd = failingGetwd(g)
+	deps.IsTerminal = func() bool { return true }
+	deps.Stdin = strings.NewReader(strings.Repeat("y\n", 3))
 
 	var writes []string
 
 	recordWrites(&deps, vault, &writes)
 
-	skill := offerCand("superpowers:brainstorming", "plugin:superpowers",
-		fakeHome+"/.claude/plugins/cache/m/superpowers/6.4.1/skills/brainstorming/SKILL.md",
-		"---\nname: brainstorming\ndescription: d\n---\n\nThink.\n")
-	command := offerCand("project:github.com/toejough/engram:cmd:opsx:apply", "project:github.com/toejough/engram",
-		"/work/engram/.claude/commands/opsx/apply.md", "---\ndescription: a\nargument-hint: <c>\n---\n\nApply.\n")
-	command.Name, command.Kind = "opsx:apply", cli.SkillSourceKindCommand
-	prompt := offerCand("pi-prompt:review", cli.SkillScopePiPrompt,
-		fakeHome+"/.pi/agent/prompts/review.md", "Review $1.\n")
-	prompt.Kind = cli.SkillSourceKindPrompt
-
-	var sources cli.ResolvedSkillSources
-
-	sources.Candidates = []cli.SkillCandidate{skill, command, prompt}
-	before := make([]string, 0, len(sources.Candidates))
-
-	for _, candidate := range sources.Candidates {
-		before = append(before, string(candidate.Content))
-	}
-
-	err := cli.ExportAnswerSkillSources(t.Context(), cli.SkillRegistrationArgs{
-		Vault: "/vault", VaultName: "personal", Home: fakeHome, Accept: []string{"*"},
-	}, sources, deps, &bytes.Buffer{})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	for index, candidate := range sources.Candidates {
-		g.Expect(string(candidate.Content)).To(Equal(before[index]))
-	}
-
-	for _, path := range writes {
-		g.Expect(path).To(HavePrefix("/vault/"))
-	}
-
-	names, _ := vault.ListMD("/vault")
-	g.Expect(names).To(ConsistOf(
-		"1.2026-09-25.skill-superpowers-brainstorming.md",
-		"1.2026-09-25.skill-project-github-com-toejough-engram-cmd-opsx-apply.md",
-		"1.2026-09-25.skill-pi-prompt-review.md",
-	))
-
-	commandNote, _ := vault.get("1.2026-09-25.skill-project-github-com-toejough-engram-cmd-opsx-apply.md")
-	g.Expect(skillNoteBodyOf(commandNote)).To(Equal(
-		preambleNaming("/work/engram/.claude/commands/opsx/apply.md") + "\n" + string(command.Content)))
-}
-
-// TestRunSkillRegistration_AdoptOfAConflictedKeyErrors: a key whose copies
-// differ (design D4) has no single source to mirror, so adopting it is
-// refused and the note is left untouched.
-func TestRunSkillRegistration_AdoptOfAConflictedKeyErrors(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := newSkillAcceptFixtureVault()
-	vault.put("1049.2026-09-21.curate-review-pending-offers.md", curatePromotedNoteFixture())
-
-	var sources cli.ResolvedSkillSources
-
-	sources.Candidates = []cli.SkillCandidate{
-		offerCand("pi:foo", cli.SkillScopePiUser, piUserRoot+"/a/foo/SKILL.md", "one"),
-		offerCand("pi:foo", cli.SkillScopePiUser, piUserRoot+"/b/foo/SKILL.md", "two"),
-	}
-
-	err := cli.ExportAnswerSkillSources(t.Context(), cli.SkillRegistrationArgs{
-		Vault: "/vault", Home: fakeHome, Adopt: map[string]string{"pi:foo": "1049"},
-	}, sources, skillRegistrationDepsFor(vault, nil), &bytes.Buffer{})
-	g.Expect(err).To(MatchError(ContainSubstring("key conflict")))
-
-	_, untouched := vault.get("1049.2026-09-21.curate-review-pending-offers.md")
-	g.Expect(untouched).To(BeTrue())
-}
-
-// TestRunSkillRegistration_AdoptTakesKeyOfAScannedSource covers `--adopt
-// <key>=<note-ref>` over fixture sources: the key names a scanned candidate,
-// whose file, key and source the adopted note then mirrors.
-func TestRunSkillRegistration_AdoptTakesKeyOfAScannedSource(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := newSkillAcceptFixtureVault()
-	vault.put("1049.2026-09-21.curate-review-pending-offers.md", curatePromotedNoteFixture())
-
-	var sources cli.ResolvedSkillSources
-
-	sources.Candidates = []cli.SkillCandidate{offerCand("superpowers:brainstorming", "plugin:superpowers",
-		fakeHome+"/.claude/plugins/cache/m/superpowers/6.4.1/skills/brainstorming/SKILL.md", "# B\n")}
-
 	var stdout bytes.Buffer
 
-	err := cli.ExportAnswerSkillSources(t.Context(), cli.SkillRegistrationArgs{
+	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
 		Vault: "/vault", VaultName: "personal", Home: fakeHome,
-		Adopt: map[string]string{"superpowers:brainstorming": "1049"},
-	}, sources, skillRegistrationDepsFor(vault, nil), &stdout)
+		PreviewDirs: []string{"/checkout/agent-instructions/skills", "/extra/skills"},
+	}, deps, &stdout)
 	g.Expect(err).NotTo(HaveOccurred())
 
-	adopted, found := vault.get("1049.2026-09-21.skill-superpowers-brainstorming.md")
-	g.Expect(found).To(BeTrue())
-
-	doc := parseSkillAcceptFrontmatter(g, adopted)
-	g.Expect(doc.SkillKey).To(Equal("superpowers:brainstorming"))
-	g.Expect(doc.SkillSource).To(Equal("~/.claude/plugins/cache/m/superpowers/6.4.1/skills/brainstorming/SKILL.md"))
-	g.Expect(stdout.String()).NotTo(ContainSubstring("awaiting an answer"))
+	g.Expect(stdout.String()).To(Equal("@claude-user (2)\n" +
+		"  would offer: register claude:c4 (/elsewhere/real/c4/SKILL.md)\n" +
+		"  would offer: refresh claude:route (/checkout/agent-instructions/skills/route/SKILL.md)\n"))
+	g.Expect(writes).To(BeEmpty())
 }
 
-// TestRunSkillRegistration_Property_SkillsDirKeysClaudeUserAndWritesNothing
+// Test792b31c6a11_RunSkillRegistration_SkillsDirRefusesAnswersBeforeScanning: with
+// `--skills-dir`, each of `--accept`, `--decline` and `--adopt` is refused
+// with an error before any directory is scanned or the vault is read.
+func Test792b31c6a11_RunSkillRegistration_SkillsDirRefusesAnswersBeforeScanning(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]cli.SkillRegistrationArgs{
+		"accept":  {Accept: []string{"route"}},
+		"decline": {Decline: []string{"route"}},
+		"adopt":   {Adopt: map[string]string{"route": "1036"}},
+	}
+
+	for name, args := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			vault := newSkillAcceptFixtureVault()
+			deps := skillRegistrationDepsFor(vault, untouchableSkillFS{g: g})
+			deps.Getwd = failingGetwd(g)
+			deps.ListMD = func(string) ([]string, error) {
+				g.Expect("the vault").To(BeEmpty(), "read before the refusal")
+
+				return nil, nil
+			}
+
+			args.Vault = "/vault"
+			args.PreviewDirs = []string{"/checkout/agent-instructions/skills"}
+
+			err := cli.RunSkillRegistration(t.Context(), args, deps, &bytes.Buffer{})
+			g.Expect(err).To(MatchError(cli.ErrSkillsDirReadOnlyForTest))
+		})
+	}
+}
+
+// Test792b31c6a12_RunSkillRegistration_Property_SkillsDirKeysClaudeUserAndWritesNothing
 // is design D9's invariant over any preview dir and vault: every offer a
 // `--skills-dir` run lists is a register or refresh keyed `claude:<n>` under
 // the single @claude-user header, notes whose hash is current get no offer,
 // no removal is listed even for orphaned notes of every key form (one
 // recording a skill_source inside the preview dir), and nothing in the vault
 // changes, even with a terminal answering yes.
-func TestRunSkillRegistration_Property_SkillsDirKeysClaudeUserAndWritesNothing(t *testing.T) {
+func Test792b31c6a12_RunSkillRegistration_Property_SkillsDirKeysClaudeUserAndWritesNothing(t *testing.T) {
 	t.Parallel()
 
 	const previewDir = "/preview/skills"
@@ -482,80 +179,383 @@ func TestRunSkillRegistration_Property_SkillsDirKeysClaudeUserAndWritesNothing(t
 	})
 }
 
-// TestRunSkillRegistration_SkillsDirIsAReadOnlyPreview covers design D9 and
-// "Skills-dir runs are preview-only": several dirs replace the default set
-// and are scanned with Claude-user rules (a symlinked skill dir is found,
-// keys are `claude:<n>`); the run lists offers under a scope header, prompts
-// nothing, writes nothing (a stale note is not refreshed, so its preamble is
-// never rewritten), and lists no removal offer.
-func TestRunSkillRegistration_SkillsDirIsAReadOnlyPreview(t *testing.T) {
+// Test792b31c6a14_RunSkillRegistration_AcceptLeavesSourceFilesByteIdentical covers the
+// MODIFIED "no engram-specific metadata" scenarios over fixture offers: a
+// plugin skill, a project command and a Pi prompt are registered with the
+// key-derived slugs, and every write lands in the vault — nothing is written
+// to or beside a source file, and the source bytes are unchanged.
+func Test792b31c6a14_RunSkillRegistration_AcceptLeavesSourceFilesByteIdentical(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	vault := newSkillAcceptFixtureVault()
-	vault.put("1036.2026-09-18.skill-claude-route.md", keyedSkillNote(cli.SkillContentHash([]byte("old")), "claude:route"))
-	vault.put("1053.2026-09-21.skill-claude-write-memory.md", keyedSkillNote("gone-hash", "claude:write-memory"))
-
-	fsys := newFakeSkillFS().
-		file("/checkout/agent-instructions/skills/route/SKILL.md", "route v2").
-		file("/elsewhere/real/c4/SKILL.md", "c4").
-		link("/extra/skills/c4", "/elsewhere/real/c4").
-		file("/extra/skills/synced/b/pdf/SKILL.md", "pdf")
-
-	deps := skillRegistrationDepsFor(vault, fsys)
-	deps.Getwd = failingGetwd(g)
-	deps.IsTerminal = func() bool { return true }
-	deps.Stdin = strings.NewReader(strings.Repeat("y\n", 3))
+	deps := skillRegistrationDepsFor(vault, nil)
 
 	var writes []string
 
 	recordWrites(&deps, vault, &writes)
 
-	var stdout bytes.Buffer
+	skill := offerCand("superpowers:brainstorming", "plugin:superpowers",
+		fakeHome+"/.claude/plugins/cache/m/superpowers/6.4.1/skills/brainstorming/SKILL.md",
+		"---\nname: brainstorming\ndescription: d\n---\n\nThink.\n")
+	command := offerCand("project:github.com/toejough/engram:cmd:opsx:apply", "project:github.com/toejough/engram",
+		"/work/engram/.claude/commands/opsx/apply.md", "---\ndescription: a\nargument-hint: <c>\n---\n\nApply.\n")
+	command.Name, command.Kind = "opsx:apply", cli.SkillSourceKindCommand
+	prompt := offerCand("pi-prompt:review", cli.SkillScopePiPrompt,
+		fakeHome+"/.pi/agent/prompts/review.md", "Review $1.\n")
+	prompt.Kind = cli.SkillSourceKindPrompt
 
-	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
-		Vault: "/vault", VaultName: "personal", Home: fakeHome,
-		PreviewDirs: []string{"/checkout/agent-instructions/skills", "/extra/skills"},
-	}, deps, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
+	var sources cli.ResolvedSkillSources
 
-	g.Expect(stdout.String()).To(Equal("@claude-user (2)\n" +
-		"  would offer: register claude:c4 (/elsewhere/real/c4/SKILL.md)\n" +
-		"  would offer: refresh claude:route (/checkout/agent-instructions/skills/route/SKILL.md)\n"))
-	g.Expect(writes).To(BeEmpty())
-}
+	sources.Candidates = []cli.SkillCandidate{skill, command, prompt}
+	before := make([]string, 0, len(sources.Candidates))
 
-// TestRunSkillRegistration_SkillsDirRefusesAnswersBeforeScanning: with
-// `--skills-dir`, each of `--accept`, `--decline` and `--adopt` is refused
-// with an error before any directory is scanned or the vault is read.
-func TestRunSkillRegistration_SkillsDirRefusesAnswersBeforeScanning(t *testing.T) {
-	t.Parallel()
-
-	cases := map[string]cli.SkillRegistrationArgs{
-		"accept":  {Accept: []string{"route"}},
-		"decline": {Decline: []string{"route"}},
-		"adopt":   {Adopt: map[string]string{"route": "1036"}},
+	for _, candidate := range sources.Candidates {
+		before = append(before, string(candidate.Content))
 	}
 
-	for name, args := range cases {
+	err := cli.ExportAnswerSkillSources(t.Context(), cli.SkillRegistrationArgs{
+		Vault: "/vault", VaultName: "personal", Home: fakeHome, Accept: []string{"*"},
+	}, sources, deps, &bytes.Buffer{})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	for index, candidate := range sources.Candidates {
+		g.Expect(string(candidate.Content)).To(Equal(before[index]))
+	}
+
+	for _, path := range writes {
+		g.Expect(path).To(HavePrefix("/vault/"))
+	}
+
+	names, _ := vault.ListMD("/vault")
+	g.Expect(names).To(ConsistOf(
+		"1.2026-09-25.skill-superpowers-brainstorming.md",
+		"1.2026-09-25.skill-project-github-com-toejough-engram-cmd-opsx-apply.md",
+		"1.2026-09-25.skill-pi-prompt-review.md",
+	))
+
+	commandNote, _ := vault.get("1.2026-09-25.skill-project-github-com-toejough-engram-cmd-opsx-apply.md")
+	g.Expect(skillNoteBodyOf(commandNote)).To(Equal(
+		preambleNaming("/work/engram/.claude/commands/opsx/apply.md") + "\n" + string(command.Content)))
+}
+
+// Test792b31c6a16_RunSkillRegistration_AdoptTakesKeyOfAScannedSource covers `--adopt
+// <key>=<note-ref>` over fixture sources: the key names a scanned candidate,
+// whose file, key and source the adopted note then mirrors.
+func Test792b31c6a16_RunSkillRegistration_AdoptTakesKeyOfAScannedSource(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newSkillAcceptFixtureVault()
+	vault.put("1049.2026-09-21.curate-review-pending-offers.md", curatePromotedNoteFixture())
+
+	var sources cli.ResolvedSkillSources
+
+	sources.Candidates = []cli.SkillCandidate{offerCand("superpowers:brainstorming", "plugin:superpowers",
+		fakeHome+"/.claude/plugins/cache/m/superpowers/6.4.1/skills/brainstorming/SKILL.md", "# B\n")}
+
+	var stdout bytes.Buffer
+
+	err := cli.ExportAnswerSkillSources(t.Context(), cli.SkillRegistrationArgs{
+		Vault: "/vault", VaultName: "personal", Home: fakeHome,
+		Adopt: map[string]string{"superpowers:brainstorming": "1049"},
+	}, sources, skillRegistrationDepsFor(vault, nil), &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	adopted, found := vault.get("1049.2026-09-21.skill-superpowers-brainstorming.md")
+	g.Expect(found).To(BeTrue())
+
+	doc := parseSkillAcceptFrontmatter(g, adopted)
+	g.Expect(doc.SkillKey).To(Equal("superpowers:brainstorming"))
+	g.Expect(doc.SkillSource).To(Equal("~/.claude/plugins/cache/m/superpowers/6.4.1/skills/brainstorming/SKILL.md"))
+	g.Expect(stdout.String()).NotTo(ContainSubstring("awaiting an answer"))
+}
+
+// Test792b31c6a17_RunSkillRegistration_AdoptOfAConflictedKeyErrors: a key whose copies
+// differ (design D4) has no single source to mirror, so adopting it is
+// refused and the note is left untouched.
+func Test792b31c6a17_RunSkillRegistration_AdoptOfAConflictedKeyErrors(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newSkillAcceptFixtureVault()
+	vault.put("1049.2026-09-21.curate-review-pending-offers.md", curatePromotedNoteFixture())
+
+	var sources cli.ResolvedSkillSources
+
+	sources.Candidates = []cli.SkillCandidate{
+		offerCand("pi:foo", cli.SkillScopePiUser, piUserRoot+"/a/foo/SKILL.md", "one"),
+		offerCand("pi:foo", cli.SkillScopePiUser, piUserRoot+"/b/foo/SKILL.md", "two"),
+	}
+
+	err := cli.ExportAnswerSkillSources(t.Context(), cli.SkillRegistrationArgs{
+		Vault: "/vault", Home: fakeHome, Adopt: map[string]string{"pi:foo": "1049"},
+	}, sources, skillRegistrationDepsFor(vault, nil), &bytes.Buffer{})
+	g.Expect(err).To(MatchError(ContainSubstring("key conflict")))
+
+	_, untouched := vault.get("1049.2026-09-21.curate-review-pending-offers.md")
+	g.Expect(untouched).To(BeTrue())
+}
+
+// Test792b31c6a30_AdoptSkillNote_QualifiedKeyStampsKeySlugAndSource covers `--adopt
+// <key>=<note-ref>` with a source-qualified key: the note is renamed to the
+// key-derived slug and carries skill_key, skill_source and a preamble naming
+// the real file.
+func Test792b31c6a30_AdoptSkillNote_QualifiedKeyStampsKeySlugAndSource(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newSkillAcceptFixtureVault()
+	vault.put("1049.2026-09-21.curate-review-pending-offers.md", curatePromotedNoteFixture())
+
+	source := pluginSkillSource("6.4.1", "# Brainstorming\n")
+
+	err := cli.AdoptSkillNote(t.Context(), "/vault", source, "1049", skillAdoptDepsFor(vault), &bytes.Buffer{})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	adopted, found := vault.get("1049.2026-09-21.skill-superpowers-brainstorming.md")
+	g.Expect(found).To(BeTrue())
+
+	doc := parseSkillAcceptFrontmatter(g, adopted)
+	g.Expect(doc.SkillKey).To(Equal("superpowers:brainstorming"))
+	g.Expect(doc.SkillSource).To(Equal(source.SkillSource))
+	g.Expect(doc.Pending).To(BeFalse())
+	g.Expect(skillNoteBodyOf(adopted)).To(Equal(preambleNaming(source.SkillSource) + "\n# Brainstorming\n"))
+}
+
+// Test792b31c7a10_RefreshSkill_FollowsPluginVersionBump covers "Refresh follows a plugin
+// version bump": skill_source and the preamble name the new version's path.
+func Test792b31c7a10_RefreshSkill_FollowsPluginVersionBump(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newSkillAcceptFixtureVault()
+	basename := "1100.2026-09-26.skill-superpowers-brainstorming"
+	oldSource := pluginSkillSource("6.4.1", "# Brainstorming v1\n")
+	vault.put(basename+".md", keyedSkillNoteFixture(oldSource))
+
+	newSource := pluginSkillSource("6.5.0", "# Brainstorming v2\n")
+
+	err := cli.RefreshSkill(t.Context(), "/vault", newSource, basename, skillAcceptDeps(vault), &bytes.Buffer{})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	updated, _ := vault.get(basename + ".md")
+	doc := parseSkillAcceptFrontmatter(g, updated)
+
+	g.Expect(doc.SkillKey).To(Equal("superpowers:brainstorming"))
+	g.Expect(doc.SkillSource).To(HaveSuffix("/superpowers/6.5.0/skills/brainstorming/SKILL.md"))
+	g.Expect(doc.SkillHash).To(Equal(cli.SkillContentHash(newSource.Content)))
+	g.Expect(doc.Pending).To(BeTrue())
+	g.Expect(skillNoteBodyOf(updated)).To(Equal(preambleNaming(newSource.SkillSource) + "\n# Brainstorming v2\n"))
+}
+
+// Test792b31c7a3_RegisterSkill_EngramInstalledPreambleNamesDeployedFile asserts, for
+// the six engram skills behind the real notes (route, please, curate,
+// write-memory, learn, recall), that a copy read through ~/.claude/skills
+// gives the key-derived slug, skill_key, skill_source, and a preamble and
+// `source:` naming the deployed file with no special case (design D8).
+func Test792b31c7a3_RegisterSkill_EngramInstalledPreambleNamesDeployedFile(t *testing.T) {
+	t.Parallel()
+
+	for _, name := range []string{"route", "please", "curate", "write-memory", "learn", "recall"} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			g := NewWithT(t)
 
-			vault := newSkillAcceptFixtureVault()
-			deps := skillRegistrationDepsFor(vault, untouchableSkillFS{g: g})
-			deps.Getwd = failingGetwd(g)
-			deps.ListMD = func(string) ([]string, error) {
-				g.Expect("the vault").To(BeEmpty(), "read before the refusal")
+			content := "---\nname: " + name + "\ndescription: d\n---\n\nbody of " + name + "\n"
+			written := registerForTest(g, installedEngramSkill(name, []byte(content)))
 
-				return nil, nil
-			}
+			g.Expect(written.path).To(Equal("/vault/1.2026-09-25.skill-claude-" + name + ".md"))
+			g.Expect(skillNoteBodyOf(written.content)).To(Equal(deployedPreamble(name) + "\n" + content))
+			g.Expect(written.content).To(ContainSubstring(
+				"source: 'skill registration: ~/.claude/engram/skills/" + name + "/SKILL.md'\n"))
 
-			args.Vault = "/vault"
-			args.PreviewDirs = []string{"/checkout/agent-instructions/skills"}
+			doc := parseSkillAcceptFrontmatter(g, written.content)
+			g.Expect(doc.SkillKey).To(Equal("claude:" + name))
+			g.Expect(doc.SkillSource).To(Equal("~/.claude/engram/skills/" + name + "/SKILL.md"))
+			g.Expect(doc.Pending).To(BeTrue())
+		})
+	}
+}
 
-			err := cli.RunSkillRegistration(t.Context(), args, deps, &bytes.Buffer{})
-			g.Expect(err).To(MatchError(cli.ErrSkillsDirReadOnlyForTest))
+// Test792b31c7a4_RegisterSkill_NonEngramSourcesNamePathAndKeySlug covers the plugin
+// skill, project command and Pi prompt registrations: the key-derived slug,
+// skill_key, skill_source and a preamble naming the `~`-relative file.
+func Test792b31c7a4_RegisterSkill_NonEngramSourcesNamePathAndKeySlug(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name     string
+		source   cli.SkillNoteSource
+		wantSlug string
+	}{
+		{
+			name:     "plugin skill",
+			source:   pluginSkillSource("6.4.1", "# Brainstorming\n"),
+			wantSlug: "skill-superpowers-brainstorming",
+		},
+		{
+			name: "project command",
+			source: cli.SkillNoteSource{
+				Key:         "project:github.com/toejough/engram:cmd:opsx:apply",
+				SkillSource: "~/repos/engram/.claude/commands/opsx/apply.md",
+				Content:     []byte("---\ndescription: apply\nargument-hint: <change>\n---\n\nApply it.\n"),
+			},
+			wantSlug: "skill-project-github-com-toejough-engram-cmd-opsx-apply",
+		},
+		{
+			name: "Pi prompt template",
+			source: cli.SkillNoteSource{
+				Key:         "pi-prompt:review",
+				SkillSource: "~/.pi/agent/prompts/review.md",
+				Content:     []byte("Review $1.\n"),
+			},
+			wantSlug: "skill-pi-prompt-review",
+		},
+	}
+
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			written := registerForTest(g, testCase.source)
+
+			g.Expect(written.path).To(Equal("/vault/1.2026-09-25." + testCase.wantSlug + ".md"))
+			g.Expect(skillNoteBodyOf(written.content)).To(Equal(
+				preambleNaming(testCase.source.SkillSource) + "\n" + string(testCase.source.Content)))
+
+			doc := parseSkillAcceptFrontmatter(g, written.content)
+			g.Expect(doc.SkillKey).To(Equal(testCase.source.Key))
+			g.Expect(doc.SkillSource).To(Equal(testCase.source.SkillSource))
+		})
+	}
+}
+
+// Test792b31c7a5_RegisterSkill_SkillSourceRoundTripsThroughRemovalEligibility (property):
+// a note registered from a candidate under the home, or under its resolved
+// form when the home is a symlink, records a `~`-relative skill_source that
+// the removal-eligibility check expands against the unresolved home back
+// into the candidate's own read root, so the note is offered for removal
+// once its key is gone.
+func Test792b31c7a5_RegisterSkill_SkillSourceRoundTripsThroughRemovalEligibility(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		home := "/home/" + rapid.StringMatching(`[a-z]{1,6}`).Draw(rt, "user")
+		resolvedHome := home
+
+		if rapid.Bool().Draw(rt, "symlinkedHome") {
+			resolvedHome = "/private" + home
+		}
+
+		bucket := rapid.StringMatching(`[a-z0-9]{1,6}`).Draw(rt, "bucket")
+		name := rapid.StringMatching(`[a-z][a-z0-9-]{0,8}`).Draw(rt, "name")
+		rootRel := "/.claude/skills/synced/" + bucket
+		candidate := offerCand("anthropic-skills:"+name, cli.SkillScopeSynced,
+			resolvedHome+rootRel+"/"+name+"/SKILL.md", "content of "+name)
+
+		source := cli.NewSkillNoteSource(candidate, home, resolvedHome)
+		if !strings.HasPrefix(source.SkillSource, "~/") {
+			rt.Fatalf("skill_source %q is not ~-relative", source.SkillSource)
+		}
+
+		vault := newSkillAcceptFixtureVault()
+
+		var (
+			writtenPath    string
+			writtenContent []byte
+		)
+
+		registerErr := cli.RegisterSkill(t.Context(), "/vault", "personal", source,
+			registerSkillLearnDeps(vault, &writtenPath, &writtenContent), &bytes.Buffer{})
+		if registerErr != nil {
+			rt.Fatalf("RegisterSkill: %v", registerErr)
+		}
+
+		names, _ := vault.ListMD("/vault")
+
+		var sources cli.ResolvedSkillSources
+
+		sources.Roots = []cli.ScannedRoot{{
+			Path: home + rootRel, Resolved: resolvedHome + rootRel, Scanned: true,
+			Form: cli.SkillRootFormSynced, KeyPrefixes: []string{"anthropic-skills:"},
+		}}
+
+		comparison, compareErr := cli.CompareSkillOffers(cli.SkillOfferInput{
+			Vault: "/vault", Names: names, ReadFile: vault.ReadFile, Home: home, Sources: sources,
+		})
+		if compareErr != nil {
+			rt.Fatalf("CompareSkillOffers: %v", compareErr)
+		}
+
+		if len(comparison.Offers) != 1 || comparison.Offers[0].Kind != cli.SkillOfferRemove ||
+			comparison.Offers[0].Key != candidate.Key {
+			rt.Fatalf("want one removal offer for %s, got %+v (skill_source %q)",
+				candidate.Key, comparison.Offers, source.SkillSource)
+		}
+	})
+}
+
+// Test792b31c7a6_NewSkillNoteSource covers design D8's inputs: every source, engram's
+// installed skills included, records its `~`-relative resolved path,
+// through the home or its resolved form, and a path outside both homes
+// stays absolute.
+func Test792b31c7a6_NewSkillNoteSource(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name        string
+		candidate   cli.SkillCandidate
+		homes       []string
+		wantSource  string
+		wantKeyName string
+	}{
+		{
+			name:        "engram's installed skill",
+			candidate:   offerCand("claude:route", cli.SkillScopeClaudeUser, engramClaudeSkills+"/route/SKILL.md", "r"),
+			homes:       []string{fakeHome},
+			wantSource:  "~/.claude/engram/skills/route/SKILL.md",
+			wantKeyName: "claude:route",
+		},
+		{
+			name:        "user skill",
+			candidate:   offerCand("c4", cli.SkillScopeClaudeUser, fakeHome+"/.claude/skills/c4/SKILL.md", "c"),
+			homes:       []string{fakeHome},
+			wantSource:  "~/.claude/skills/c4/SKILL.md",
+			wantKeyName: "c4",
+		},
+		{
+			name: "source under the resolved home",
+			candidate: offerCand("anthropic-skills:pdf", cli.SkillScopeSynced,
+				"/real/joe/.claude/skills/synced/b1/pdf/SKILL.md", "p"),
+			homes:       []string{"/links/joe", "/real/joe"},
+			wantSource:  "~/.claude/skills/synced/b1/pdf/SKILL.md",
+			wantKeyName: "anthropic-skills:pdf",
+		},
+		{
+			name: "source outside every home",
+			candidate: offerCand("project:local/x:cmd:go", "project:local/x",
+				"/work/x/.claude/commands/go.md", "g"),
+			homes:       []string{fakeHome, ""},
+			wantSource:  "/work/x/.claude/commands/go.md",
+			wantKeyName: "project:local/x:cmd:go",
+		},
+	}
+
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			source := cli.NewSkillNoteSource(testCase.candidate, testCase.homes...)
+
+			g.Expect(source.Key).To(Equal(testCase.wantKeyName))
+			g.Expect(source.SkillSource).To(Equal(testCase.wantSource))
+			g.Expect(source.Content).To(Equal(testCase.candidate.Content))
 		})
 	}
 }

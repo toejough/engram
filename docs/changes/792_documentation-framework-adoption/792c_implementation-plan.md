@@ -238,8 +238,8 @@ flowchart TD
   N792c7j3["792c7j3 harness-deploy-sync tech spec<br/>Complete"]
   N792c7k1["792c7k1 skill-runbook-registration product spec<br/>Complete"]
   N792c7k2["792c7k2 skill-source-discovery tech spec<br/>Complete"]
-  N792c7k3["792c7k3 skill-registration-ledger tech spec<br/>Ready"]
-  N792c7l1["792c7l1 write-memory product spec<br/>Blocked by: 792c7k3"]
+  N792c7k3["792c7k3 skill-registration-ledger tech spec<br/>Complete"]
+  N792c7l1["792c7l1 write-memory product spec<br/>Ready"]
   N792c7l2["792c7l2 agent-instruction-bundle tech spec<br/>Blocked by: 792c7l1"]
   N792c7m1["792c7m1 recall product spec<br/>Blocked by: 792c7l2"]
   N792c7n1["792c7n1 learn product spec<br/>Blocked by: 792c7m1"]
@@ -3813,11 +3813,188 @@ Target: `792b31` (`docs/specs/technical/skill-registration-ledger.md`).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 792c7k3a | Port the component contract to `792b31` | Non-test action | Documents the component in the framework format | Not started |
-| 792c7k3b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Not started |
-| 792c7k3c | Repoint stale references to `792b31` | Non-test action | Keeps live links valid | Not started |
-| 792c7k3d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Not started |
-| 792c7k3e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Not started |
+| 792c7k3a | Port the component contract to `792b31` | Non-test action | Documents the component in the framework format | Done |
+| 792c7k3b | Remove ported legacy content; delete emptied files | Non-test action | Leaves no duplicate normative copy | Done |
+| 792c7k3c | Repoint stale references to `792b31` | Non-test action | Keeps live links valid | Done |
+| 792c7k3d | Rename the tests that verify this section's scenarios and its mapped `792a` scenarios; fill the Test Traceability table | Non-test action | Traces scenario IDs to the tests that verify them | Done |
+| 792c7k3e | List coverage gaps and no-scenario tests | Non-test action | Makes untested scenarios visible without writing tests | Done |
+
+792b31 has eight requirements (792b31c1 to 792b31c8): the skill note lookup, the offer comparison, removal
+eligibility, the declines file, the answers and prompts, the registration run, the note actions and the
+command wiring (792d108). It maps 75 product scenarios of 792a12. It also renames the accept-action tests that
+792c7k1 deferred and the comparison and note tests that 792c7k2 left, so every test of the registration
+files now carries a scenario. Legacy removal: the `skill-runbook-registration` OpenSpec spec is deleted, as
+nothing is left in it.
+
+**Test Traceability**
+
+| Gherkin | Test (old → new) | Classification (existing method) | Why | Status |
+| --- | --- | --- | --- | --- |
+| 792b31c1a1 | `TestFindSkillNote_BySkillKey` → `Test792b31c1a1_FindSkillNote_BySkillKey` | Pure unit (in-memory vault) | A note is found by its skill key | Done |
+| 792b31c1a2 | `TestFindSkillNote` → `Test792b31c1a2_FindSkillNote` | Pure unit (in-memory vault) | Only keyed runbook notes with a hash are skill notes | Done |
+| 792b31c1a2 | `TestFindSkillNote_IgnoresNonSkillOrMalformedEntries` → `Test792b31c1a2_FindSkillNote_IgnoresNonSkillOrMalformedEntries` | Pure unit (in-memory vault) | Only keyed runbook notes with a hash are skill notes | Done |
+| 792b31c1a2 | `TestFindSkillNote_SkillKeyWithoutHashIsNotASkillNote` → `Test792b31c1a2_FindSkillNote_SkillKeyWithoutHashIsNotASkillNote` | Pure unit (in-memory vault) | Only keyed runbook notes with a hash are skill notes | Done |
+| 792b31c1a3 | `TestFindSkillNote_IdentityProperty` → `Test792b31c1a3_FindSkillNote_IdentityProperty` | Property (rapid) | A lookup finds exactly the key's notes | Done |
+| 792b31c1a4 | `TestFindSkillNote_KeyedNoteBesideAnUnkeyedOneIsNoDuplicate` → `Test792b31c1a4_FindSkillNote_KeyedNoteBesideAnUnkeyedOneIsNoDuplicate` | Pure unit (in-memory vault) | A keyed note beside an unkeyed one is no duplicate | Done |
+| 792b31c1a5 | `TestFindSkillNote_SlugAloneLocatesNothing` → `Test792b31c1a5_FindSkillNote_SlugAloneLocatesNothing` | Pure unit (in-memory vault) | A slug alone locates nothing | Done |
+| 792b31c1a6 | `TestFindSkillNote_DuplicateQualifiedKeyIsAnError` → `Test792b31c1a6_FindSkillNote_DuplicateQualifiedKeyIsAnError` | Pure unit (in-memory vault) | A duplicate qualified key is an error | Done |
+| 792b31c2a1 | `TestCompareSkillOffers_EachKind` → `Test792b31c2a1_CompareSkillOffers_EachKind` | Pure unit (fixture comparisons) | Each offer kind | Done |
+| 792b31c2a2 | `TestCompareSkillOffers_DeclineSuppression` → `Test792b31c2a2_CompareSkillOffers_DeclineSuppression` | Pure unit (fixture comparisons) | A decline suppresses each kind | Done |
+| 792b31c2a3 | `TestCompareSkillOffers_DeclineAllThenRecompute_YieldsNoOffers` → `Test792b31c2a3_CompareSkillOffers_DeclineAllThenRecompute_YieldsNoOffers` | Pure unit (fixture comparisons) | Declining everything then recomputing yields no offers | Done |
+| 792b31c2a4 | `TestCompareSkillOffers_ContentChangeAfterDecline_ReOffersExactlyOnce` → `Test792b31c2a4_CompareSkillOffers_ContentChangeAfterDecline_ReOffersExactlyOnce` | Pure unit (fixture comparisons) | A content change after a decline offers exactly once | Done |
+| 792b31c2a5 | `TestCompareSkillOffers_OffersCarryKeyScopeAndSource` → `Test792b31c2a5_CompareSkillOffers_OffersCarryKeyScopeAndSource` | Pure unit (fixture comparisons) | Offers carry key, scope, source and kind in order | Done |
+| 792b31c2a6 | `TestCompareSkillOffers_Dedupe` → `Test792b31c2a6_CompareSkillOffers_Dedupe` | Pure unit (fixture comparisons) | Copies collapse and conflicts are named | Done |
+| 792b31c2a7 | `TestCompareSkillOffers_AliasNeverOffers` → `Test792b31c2a7_CompareSkillOffers_AliasNeverOffers` | Pure unit (fixture comparisons) | An alias never offers | Done |
+| 792b31c2a8 | `TestCompareSkillOffers_OfferSetIndependentOfScanOrder` → `Test792b31c2a8_CompareSkillOffers_OfferSetIndependentOfScanOrder` | Pure unit (fixture comparisons) | The offer set does not depend on scan order | Done |
+| 792b31c2a9 | `TestCompareSkillOffers_InstalledEngramSkillsAreOrdinaryKeys` → `Test792b31c2a9_CompareSkillOffers_InstalledEngramSkillsAreOrdinaryKeys` | Pure unit (fixture comparisons) | Engram's installed skills are ordinary keys | Done |
+| 792b31c2a10 | `TestCompareSkillOffers_SixLegacyNotesYieldSixRegisterOffers` → `Test792b31c2a10_CompareSkillOffers_SixLegacyNotesYieldSixRegisterOffers` | Pure unit (fixture comparisons) | Six legacy notes yield six register offers | Done |
+| 792b31c2a11 | `TestCompareSkillOffers_UnkeyedNotesNeverChangeTheOfferSet` → `Test792b31c2a11_CompareSkillOffers_UnkeyedNotesNeverChangeTheOfferSet` | Pure unit (fixture comparisons) | Unkeyed notes never change the offer set | Done |
+| 792b31c2a12 | `TestReportSkillOfferProblems` → `Test792b31c2a12_ReportSkillOfferProblems` | Pure unit (fixture comparisons) | Problems are reported last | Done |
+| 792b31c2a13 | `TestCompareSkillOffers_ResolvedUserAndPi` → `Test792b31c2a13_CompareSkillOffers_ResolvedUserAndPi` | Pure unit (fixture comparisons) | User and Pi sources compare end to end | Done |
+| 792b31c2a14 | `TestCompareSkillOffers_ResolvedPluginsAndSources` → `Test792b31c2a14_CompareSkillOffers_ResolvedPluginsAndSources` | Pure unit (fixture comparisons) | Plugin, synced and Pi settings sources compare end to end | Done |
+| 792b31c2a15 | `TestCompareSkillOffers_ResolvedProject` → `Test792b31c2a15_CompareSkillOffers_ResolvedProject` | Pure unit (fixture comparisons) | Project sources compare end to end | Done |
+| 792b31c2a16 | `TestCompareSkillOffers_ClaudeKeysParseToClaudeForms` → `Test792b31c2a16_CompareSkillOffers_ClaudeKeysParseToClaudeForms` | Pure unit (fixture comparisons) | Claude keys parse to Claude forms | Done |
+| 792b31c2a17 | `TestCompareSkillOffers_UnrecognizedKeysAreNeverMatchedOrRemoved` → `Test792b31c2a17_CompareSkillOffers_UnrecognizedKeysAreNeverMatchedOrRemoved` | Pure unit (fixture comparisons) | Unrecognized keys are never matched or removed | Done |
+| 792b31c2a18 | `TestCompareSkillOffers_UnrecognizedKeyProperty` → `Test792b31c2a18_CompareSkillOffers_UnrecognizedKeyProperty` | Property (rapid) | An unrecognized key is never eligible for any state | Done |
+| 792b31c3a1 | `TestCompareSkillOffers_RemovalEligibilityPlugins` → `Test792b31c3a1_CompareSkillOffers_RemovalEligibilityPlugins` | Pure unit (fixture comparisons) | Plugin notes follow the manifest rule | Done |
+| 792b31c3a2 | `TestCompareSkillOffers_RemovalEligibilityProject` → `Test792b31c3a2_CompareSkillOffers_RemovalEligibilityProject` | Pure unit (fixture comparisons) | Project notes need their exact project directory | Done |
+| 792b31c3a3 | `TestCompareSkillOffers_RemovalEligibilitySourceRooted` → `Test792b31c3a3_CompareSkillOffers_RemovalEligibilitySourceRooted` | Pure unit (fixture comparisons) | Source-rooted notes need the root holding their source | Done |
+| 792b31c3a4 | `TestCompareSkillOffers_RemovalEligibilityUserRoots` → `Test792b31c3a4_CompareSkillOffers_RemovalEligibilityUserRoots` | Pure unit (fixture comparisons) | User-root notes need their own fixed root | Done |
+| 792b31c3a5 | `TestCompareSkillOffers_RemovalOnlyWhenOwnRootReadAndKeyAbsent` → `Test792b31c3a5_CompareSkillOffers_RemovalOnlyWhenOwnRootReadAndKeyAbsent` | Pure unit (fixture comparisons) | Removal only when the own root was read and the key is absent | Done |
+| 792b31c3a6 | `TestCompareSkillOffers_AnotherNamespacesMissingRootDoesNotBlockRemoval` → `Test792b31c3a6_CompareSkillOffers_AnotherNamespacesMissingRootDoesNotBlockRemoval` | Pure unit (fixture comparisons) | Another namespace's missing root does not block removal | Done |
+| 792b31c3a7 | `TestCompareSkillOffers_UnkeyedLegacyNoteIsNeverOfferedForRemoval` → `Test792b31c3a7_CompareSkillOffers_UnkeyedLegacyNoteIsNeverOfferedForRemoval` | Pure unit (fixture comparisons) | An unkeyed legacy note is never offered for removal | Done |
+| 792b31c3a8 | `TestSkillRemovalEligibility_FixedFormFollowsOnlyItsOwnRoots` → `Test792b31c3a8_SkillRemovalEligibility_FixedFormFollowsOnlyItsOwnRoots` | Pure unit (fixture comparisons) | A fixed form follows only its own roots | Done |
+| 792b31c3a9 | `TestSkillRemovalEligibility_NamespaceIsolation` → `Test792b31c3a9_SkillRemovalEligibility_NamespaceIsolation` | Pure unit (fixture comparisons) | Eligibility depends only on the note's own namespace | Done |
+| 792b31c3a10 | `TestResolveSkillSources_StampsRootForms` → `Test792b31c3a10_ResolveSkillSources_StampsRootForms` | Pure unit (fixture comparisons) | Read roots carry their form | Done |
+| 792b31c3a11 | `TestResolveSkillPathBestEffort` → `Test792b31c3a11_ResolveSkillPathBestEffort` | Pure unit (fixture comparisons) | A failed root keeps its real location | Done |
+| 792b31c3a11 | `TestResolveSkillPathBestEffort_FollowsLinkChainsToAMissingTarget` → `Test792b31c3a11_ResolveSkillPathBestEffort_FollowsLinkChainsToAMissingTarget` | Pure unit (fixture comparisons) | A failed root keeps its real location | Done |
+| 792b31c4a1 | `TestReadSkillRegistrations_AbsentFileIsEmptyState` → `Test792b31c4a1_ReadSkillRegistrations_AbsentFileIsEmptyState` | Pure unit (in-memory vault) | An absent file is the empty state | Done |
+| 792b31c4a2 | `TestReadSkillRegistrations_PropagatesOtherReadErrors` → `Test792b31c4a2_ReadSkillRegistrations_PropagatesOtherReadErrors` | Pure unit (in-memory vault) | Other read errors surface | Done |
+| 792b31c4a3 | `TestReadSkillRegistrations_RejectsUnknownFields` → `Test792b31c4a3_ReadSkillRegistrations_RejectsUnknownFields` | Pure unit (in-memory vault) | Unknown fields are rejected | Done |
+| 792b31c4a4 | `TestReadSkillRegistrations_AcceptsVersion2` → `Test792b31c4a4_ReadSkillRegistrations_AcceptsVersion2` | Pure unit (in-memory vault) | Version 2 is read by key | Done |
+| 792b31c4a5 | `TestReadSkillRegistrations_RejectsEveryVersionButTwo` → `Test792b31c4a5_ReadSkillRegistrations_RejectsEveryVersionButTwo` | Pure unit (in-memory vault) | Every other version is rejected | Done |
+| 792b31c4a5 | `TestSkillRegistrations_Property_OnlyVersion2IsRead` → `Test792b31c4a5_SkillRegistrations_Property_OnlyVersion2IsRead` | Property (rapid) | Every other version is rejected | Done |
+| 792b31c4a6 | `TestRecordSkillDeclined_SetsHashAndLeavesOtherEntriesIntact` → `Test792b31c4a6_RecordSkillDeclined_SetsHashAndLeavesOtherEntriesIntact` | Pure unit (in-memory vault) | A decline sets the hash and keeps the rest | Done |
+| 792b31c4a7 | `TestRecordSkillDeclined_WritesFirstEntryWhenFileIsAbsent` → `Test792b31c4a7_RecordSkillDeclined_WritesFirstEntryWhenFileIsAbsent` | Pure unit (in-memory vault) | The first decline writes the file | Done |
+| 792b31c4a8 | `TestRecordSkillDeclined_PropagatesReadError` → `Test792b31c4a8_RecordSkillDeclined_PropagatesReadError` | Pure unit (in-memory vault) | A read failure stops a decline | Done |
+| 792b31c4a9 | `TestRecordSkillDeclined_PropagatesWriteError` → `Test792b31c4a9_RecordSkillDeclined_PropagatesWriteError` | Pure unit (in-memory vault) | A write failure is returned | Done |
+| 792b31c4a10 | `TestRecordSkillDeclined_OlderReaderDecodesVersion2` → `Test792b31c4a10_RecordSkillDeclined_OlderReaderDecodesVersion2` | Pure unit (in-memory vault) | An older reader decodes the version-2 file | Done |
+| 792b31c4a11 | `TestRecordSkillDeclined_Property_KeepsEveryEntryAndStampsV2` → `Test792b31c4a11_RecordSkillDeclined_Property_KeepsEveryEntryAndStampsV2` | Property (rapid) | Recording keeps every entry and stamps version 2 | Done |
+| 792b31c4a12 | `TestRunSkillRegistration_NonVersion2File_ErrorsAndWritesNothing` → `Test792b31c4a12_RunSkillRegistration_NonVersion2File_ErrorsAndWritesNothing` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | A run on a non-version-2 file writes nothing | Done |
+| 792b31c5a1 | `TestParseSkillAnswers_Property_SameTokenInBothFlagsIsRefused` → `Test792b31c5a1_ParseSkillAnswers_Property_SameTokenInBothFlagsIsRefused` | Property (rapid) | The same token in both flags is refused | Done |
+| 792b31c5a1 | `TestRunSkillRegistration_BothNamedError` → `Test792b31c5a1_RunSkillRegistration_BothNamedError` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | The same token in both flags is refused | Done |
+| 792b31c5a2 | `TestResolveSkillAnswer_Property_ExactThenLongestPatternThenSelector` → `Test792b31c5a2_ResolveSkillAnswer_Property_ExactThenLongestPatternThenSelector` | Property (rapid) | Exact, then longest pattern, then selector | Done |
+| 792b31c5a2 | `TestAnswerSkillOffers_ExplicitAnswers_SpecScenarios` → `Test792b31c5a2_AnswerSkillOffers_ExplicitAnswers_SpecScenarios` | Pure unit (fake terminal) | Exact, then longest pattern, then selector | Done |
+| 792b31c5a3 | `TestAnswerSkillOffers_UnmatchedToken_PrintsExistingNote` → `Test792b31c5a3_AnswerSkillOffers_UnmatchedToken_PrintsExistingNote` | Pure unit (fake terminal) | A token matching no offer is noted | Done |
+| 792b31c5a3 | `TestRunSkillRegistration_ExplicitAnswerWithNoOffer_PrintsNoteAndContinues` → `Test792b31c5a3_RunSkillRegistration_ExplicitAnswerWithNoOffer_PrintsNoteAndContinues` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | A token matching no offer is noted | Done |
+| 792b31c5a4 | `TestAnswerSkillOffers_NonInteractiveSummary_NamesScopesAndCounts` → `Test792b31c5a4_AnswerSkillOffers_NonInteractiveSummary_NamesScopesAndCounts` | Pure unit (fake terminal) | The outstanding offers are summarized | Done |
+| 792b31c5a4 | `TestAnswerSkillOffers_NonInteractiveSummary_SingularOffer` → `Test792b31c5a4_AnswerSkillOffers_NonInteractiveSummary_SingularOffer` | Pure unit (fake terminal) | The outstanding offers are summarized | Done |
+| 792b31c5a4 | `TestRunSkillRegistration_NonInteractive_NoAnswers_WritesNothingPrintsSummary` → `Test792b31c5a4_RunSkillRegistration_NonInteractive_NoAnswers_WritesNothingPrintsSummary` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | The outstanding offers are summarized | Done |
+| 792b31c5a5 | `TestAnswerSkillOffers_AcceptAll_AcceptsEveryScopeOffer` → `Test792b31c5a5_AnswerSkillOffers_AcceptAll_AcceptsEveryScopeOffer` | Pure unit (fake terminal) | Accept all accepts every offer of the scope | Done |
+| 792b31c5a6 | `TestAnswerSkillOffers_DeclineAll_DeclinesEveryScopeOffer` → `Test792b31c5a6_AnswerSkillOffers_DeclineAll_DeclinesEveryScopeOffer` | Pure unit (fake terminal) | Decline all declines every offer of the scope | Done |
+| 792b31c5a7 | `TestAnswerSkillOffers_ReviewEach_PromptsPerOffer` → `Test792b31c5a7_AnswerSkillOffers_ReviewEach_PromptsPerOffer` | Pure unit (fake terminal) | Review each prompts per offer | Done |
+| 792b31c5a8 | `TestAnswerSkillOffers_Skip_RecordsNothingAndMovesOn` → `Test792b31c5a8_AnswerSkillOffers_Skip_RecordsNothingAndMovesOn` | Pure unit (fake terminal) | Skip records nothing and moves on | Done |
+| 792b31c5a9 | `TestAnswerSkillOffers_EOFAtGroupPrompt_RecordsNothing` → `Test792b31c5a9_AnswerSkillOffers_EOFAtGroupPrompt_RecordsNothing` | Pure unit (fake terminal) | End of input at the group prompt records nothing | Done |
+| 792b31c5a10 | `TestAnswerSkillOffers_SingleOffer_UsesPerOfferPrompt` → `Test792b31c5a10_AnswerSkillOffers_SingleOffer_UsesPerOfferPrompt` | Pure unit (fake terminal) | A single offer uses the per-offer prompt | Done |
+| 792b31c5a11 | `TestAnswerSkillOffers_PerOfferPrompt_EOFRecordsNothingNoDeclines` → `Test792b31c5a11_AnswerSkillOffers_PerOfferPrompt_EOFRecordsNothingNoDeclines` | Pure unit (fake terminal) | End of input at a per-offer prompt records nothing | Done |
+| 792b31c5a11 | `TestRunSkillRegistration_PromptEOF_RecordsNothing` → `Test792b31c5a11_RunSkillRegistration_PromptEOF_RecordsNothing` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | End of input at a per-offer prompt records nothing | Done |
+| 792b31c5a12 | `TestAnswerSkillOffers_RemovalsPromptIndividually` → `Test792b31c5a12_AnswerSkillOffers_RemovalsPromptIndividually` | Pure unit (fake terminal) | Removals prompt individually | Done |
+| 792b31c5a13 | `TestAnswerSkillOffers_PromptsNameEverySource` → `Test792b31c5a13_AnswerSkillOffers_PromptsNameEverySource` | Pure unit (fake terminal) | Prompts name every source | Done |
+| 792b31c5a14 | `TestAnswerSkillOffers_PropagatesActionErrors` → `Test792b31c5a14_AnswerSkillOffers_PropagatesActionErrors` | Pure unit (fake terminal) | An action error stops the run | Done |
+| 792b31c5a15 | `TestAnswerSkillOffers_DryRunPreview_ListsOffersUnderScopeHeaders` → `Test792b31c5a15_AnswerSkillOffers_DryRunPreview_ListsOffersUnderScopeHeaders` | Pure unit (fake terminal) | A dry run lists offers under scope headers | Done |
+| 792b31c5a15 | `TestRunSkillRegistration_DryRun_PreviewsOffersWritesNothing` → `Test792b31c5a15_RunSkillRegistration_DryRun_PreviewsOffersWritesNothing` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | A dry run lists offers under scope headers | Done |
+| 792b31c5a16 | `TestAnswerSkillOffers_DryRunPreview_ReportsConflictsLast` → `Test792b31c5a16_AnswerSkillOffers_DryRunPreview_ReportsConflictsLast` | Pure unit (fake terminal) | A dry run reports conflicts last | Done |
+| 792b31c5a17 | `TestRunSkillRegistration_PromptRegister_Yes_CreatesNote` → `Test792b31c5a17_RunSkillRegistration_PromptRegister_Yes_CreatesNote` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | The register prompt and a yes answer | Done |
+| 792b31c5a18 | `TestRunSkillRegistration_PromptRegister_No_RecordsDecline` → `Test792b31c5a18_RunSkillRegistration_PromptRegister_No_RecordsDecline` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | The register prompt and a no answer | Done |
+| 792b31c5a19 | `TestRunSkillRegistration_PromptRefresh_Yes_ReplacesBody` → `Test792b31c5a19_RunSkillRegistration_PromptRefresh_Yes_ReplacesBody` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | The refresh prompt and a yes answer | Done |
+| 792b31c5a20 | `TestRunSkillRegistration_PromptRemove_Yes_DeletesNote` → `Test792b31c5a20_RunSkillRegistration_PromptRemove_Yes_DeletesNote` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | The remove prompt and a yes answer | Done |
+| 792b31c6a1 | `TestRunSkillRegistration_ResolvesFromTheWorkingDirectory` → `Test792b31c6a1_RunSkillRegistration_ResolvesFromTheWorkingDirectory` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | The default set is resolved from the working directory | Done |
+| 792b31c6a2 | `TestRunSkillRegistration_ResolveError_Propagates` → `Test792b31c6a2_RunSkillRegistration_ResolveError_Propagates` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | A resolution failure is returned | Done |
+| 792b31c6a3 | `TestRunSkillRegistration_ListMDError_Propagates` → `Test792b31c6a3_RunSkillRegistration_ListMDError_Propagates` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | A listing failure is returned | Done |
+| 792b31c6a4 | `TestRunSkillRegistration_ReadSkillRegistrationsError_Propagates` → `Test792b31c6a4_RunSkillRegistration_ReadSkillRegistrationsError_Propagates` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | A declines read failure is returned | Done |
+| 792b31c6a5 | `TestRunSkillRegistration_CompareSkillOffersError_Propagates` → `Test792b31c6a5_RunSkillRegistration_CompareSkillOffersError_Propagates` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | A comparison failure is returned | Done |
+| 792b31c6a6 | `TestRunSkillRegistration_RealRunsPrintScanWarnings` → `Test792b31c6a6_RunSkillRegistration_RealRunsPrintScanWarnings` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | Scan warnings print on every path | Done |
+| 792b31c6a6 | `TestUpdateSkillRegistration_RealRunPrintsScanWarnings` → `Test792b31c6a6_UpdateSkillRegistration_RealRunPrintsScanWarnings` | Pure unit (in-memory vault) | Scan warnings print on every path | Done |
+| 792b31c6a7 | `TestRunSkillRegistration_ExplicitAccept_NonInteractive_ActsWithoutPrompting` → `Test792b31c6a7_RunSkillRegistration_ExplicitAccept_NonInteractive_ActsWithoutPrompting` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | An explicit accept acts without prompting | Done |
+| 792b31c6a8 | `TestRunSkillRegistration_ExplicitDecline_NonInteractive_RecordsWithoutPrompting` → `Test792b31c6a8_RunSkillRegistration_ExplicitDecline_NonInteractive_RecordsWithoutPrompting` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | An explicit decline records without prompting | Done |
+| 792b31c6a9 | `TestRunSkillRegistration_SkillsDirEntryWithoutSkillMD_Ignored` → `Test792b31c6a9_RunSkillRegistration_SkillsDirEntryWithoutSkillMD_Ignored` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | A skills-dir entry without SKILL.md is ignored | Done |
+| 792b31c6a10 | `TestRunSkillRegistration_SkillsDirIsAReadOnlyPreview` → `Test792b31c6a10_RunSkillRegistration_SkillsDirIsAReadOnlyPreview` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | A skills-dir run is a read-only preview | Done |
+| 792b31c6a10 | `TestRegisterSkillsCLI_SkillsDirIsRepeatablePreview` → `Test792b31c6a10_RegisterSkillsCLI_SkillsDirIsRepeatablePreview` | Pure unit (production wiring over fakes) | A skills-dir run is a read-only preview | Done |
+| 792b31c6a11 | `TestRunSkillRegistration_SkillsDirRefusesAnswersBeforeScanning` → `Test792b31c6a11_RunSkillRegistration_SkillsDirRefusesAnswersBeforeScanning` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | A skills-dir run refuses answers before scanning | Done |
+| 792b31c6a11 | `TestRegisterSkillsCLI_SkillsDirRefusesAccept` → `Test792b31c6a11_RegisterSkillsCLI_SkillsDirRefusesAccept` | Pure unit (production wiring over fakes) | A skills-dir run refuses answers before scanning | Done |
+| 792b31c6a12 | `TestRunSkillRegistration_Property_SkillsDirKeysClaudeUserAndWritesNothing` → `Test792b31c6a12_RunSkillRegistration_Property_SkillsDirKeysClaudeUserAndWritesNothing` | Property (rapid) | A skills-dir run keys claude and writes nothing | Done |
+| 792b31c6a13 | `TestRegisterSkillsCLI_RelativeSkillsDirNeedsWorkingDir` → `Test792b31c6a13_RegisterSkillsCLI_RelativeSkillsDirNeedsWorkingDir` | Pure unit (production wiring over fakes) | A relative skills-dir needs a working directory | Done |
+| 792b31c6a14 | `TestRunSkillRegistration_AcceptLeavesSourceFilesByteIdentical` → `Test792b31c6a14_RunSkillRegistration_AcceptLeavesSourceFilesByteIdentical` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | Accepting leaves source files byte-identical | Done |
+| 792b31c6a15 | `TestRunSkillRegistration_AdoptRunsBeforeOffers_NoDuplicateOffer` → `Test792b31c6a15_RunSkillRegistration_AdoptRunsBeforeOffers_NoDuplicateOffer` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | Adopt runs before the offers | Done |
+| 792b31c6a16 | `TestRunSkillRegistration_AdoptTakesKeyOfAScannedSource` → `Test792b31c6a16_RunSkillRegistration_AdoptTakesKeyOfAScannedSource` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | Adopt takes the key of a scanned source | Done |
+| 792b31c6a17 | `TestRunSkillRegistration_AdoptOfAConflictedKeyErrors` → `Test792b31c6a17_RunSkillRegistration_AdoptOfAConflictedKeyErrors` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | Adopting a conflicted key is an error | Done |
+| 792b31c6a18 | `TestRunSkillRegistration_AdoptUnshippedSkill_Errors` → `Test792b31c6a18_RunSkillRegistration_AdoptUnshippedSkill_Errors` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | Adopting an unscanned skill is an error | Done |
+| 792b31c6a19 | `TestRunSkillRegistration_AdoptAmbiguousBareID_WritesNothing` → `Test792b31c6a19_RunSkillRegistration_AdoptAmbiguousBareID_WritesNothing` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | An ambiguous bare ID writes nothing | Done |
+| 792b31c6a20 | `TestRunSkillRegistration_AdoptKeyRegisteredElsewhere_WritesNothing` → `Test792b31c6a20_RunSkillRegistration_AdoptKeyRegisteredElsewhere_WritesNothing` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | A key registered elsewhere writes nothing | Done |
+| 792b31c6a21 | `TestRunSkillRegistration_AdoptKeyWhileBatchRekeysItsNote_WritesNothing` → `Test792b31c6a21_RunSkillRegistration_AdoptKeyWhileBatchRekeysItsNote_WritesNothing` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | A batch that re-keys the key's note writes nothing | Done |
+| 792b31c6a22 | `TestRunSkillRegistration_AdoptLinkedNotes_OrderIndependent` → `Test792b31c6a22_RunSkillRegistration_AdoptLinkedNotes_OrderIndependent` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | Linked notes adopt in any order | Done |
+| 792b31c6a23 | `TestRunSkillRegistration_AdoptMultiLineLuhmannValues` → `Test792b31c6a23_RunSkillRegistration_AdoptMultiLineLuhmannValues` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | Multi-line Luhmann values are adopted | Done |
+| 792b31c6a24 | `TestRunSkillRegistration_AdoptOneNoteToTwoKeys_ErrorsAndWritesNothing` → `Test792b31c6a24_RunSkillRegistration_AdoptOneNoteToTwoKeys_ErrorsAndWritesNothing` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | One note to two keys is an error | Done |
+| 792b31c6a25 | `TestRunSkillRegistration_AdoptUnparseableBasenameLater_WritesNothing` → `Test792b31c6a25_RunSkillRegistration_AdoptUnparseableBasenameLater_WritesNothing` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | An unparseable basename later writes nothing | Done |
+| 792b31c6a26 | `TestRunSkillRegistration_AdoptUnrenderableLater_WritesNothing` → `Test792b31c6a26_RunSkillRegistration_AdoptUnrenderableLater_WritesNothing` | Pure unit (`RunSkillRegistration` over an in-memory vault and fake terminal) | An unrenderable note later writes nothing | Done |
+| 792b31c6a27 | `TestProperty_ParseAdoptFlags_RefusesAnyRepeatedKey` → `Test792b31c6a27_Property_ParseAdoptFlags_RefusesAnyRepeatedKey` | Property (rapid) | A repeated or malformed adopt flag is refused | Done |
+| 792b31c6a27 | `TestRegisterSkillsCLI_DuplicateAdoptKey_WritesNothing` → `Test792b31c6a27_RegisterSkillsCLI_DuplicateAdoptKey_WritesNothing` | Pure unit (production wiring over fakes) | A repeated or malformed adopt flag is refused | Done |
+| 792b31c6a27 | `TestRegisterSkillsCLI_MalformedAdoptFlag` → `Test792b31c6a27_RegisterSkillsCLI_MalformedAdoptFlag` | Pure unit (production wiring over fakes) | A repeated or malformed adopt flag is refused | Done |
+| 792b31c6a28 | `TestAcceptSkillOffer_MissedSourceErrorsAndWritesNothing` → `Test792b31c6a28_AcceptSkillOffer_MissedSourceErrorsAndWritesNothing` | Pure unit (in-memory vault) | An accepted offer with no source errors | Done |
+| 792b31c6a29 | `TestAcceptSkillOffer_UnknownKindErrorsAndWritesNothing` → `Test792b31c6a29_AcceptSkillOffer_UnknownKindErrorsAndWritesNothing` | Pure unit (in-memory vault) | An unknown offer kind errors | Done |
+| 792b31c6a30 | `TestAdoptSkillNote_QualifiedKeyStampsKeySlugAndSource` → `Test792b31c6a30_AdoptSkillNote_QualifiedKeyStampsKeySlugAndSource` | Pure unit (in-memory vault) | Adopting takes a conflict-free qualified key | Done |
+| 792b31c7a1 | `TestRegisterSkill_CreatesPendingNoteWithHashAndPreamble` → `Test792b31c7a1_RegisterSkill_CreatesPendingNoteWithHashAndPreamble` | Pure unit (in-memory vault) | Registering creates a pending note with hash and preamble | Done |
+| 792b31c7a2 | `TestRegisterSkill_NeverSetsRunbookFields` → `Test792b31c7a2_RegisterSkill_NeverSetsRunbookFields` | Pure unit (in-memory vault) | Registering sets no runbook fields | Done |
+| 792b31c7a3 | `TestRegisterSkill_EngramInstalledPreambleNamesDeployedFile` → `Test792b31c7a3_RegisterSkill_EngramInstalledPreambleNamesDeployedFile` | Pure unit (in-memory vault) | An engram-installed skill's preamble names the deployed file | Done |
+| 792b31c7a4 | `TestRegisterSkill_NonEngramSourcesNamePathAndKeySlug` → `Test792b31c7a4_RegisterSkill_NonEngramSourcesNamePathAndKeySlug` | Pure unit (in-memory vault) | Other sources name their path and key slug | Done |
+| 792b31c7a5 | `TestRegisterSkill_SkillSourceRoundTripsThroughRemovalEligibility` → `Test792b31c7a5_RegisterSkill_SkillSourceRoundTripsThroughRemovalEligibility` | Pure unit (in-memory vault) | A recorded source round-trips through removal eligibility | Done |
+| 792b31c7a6 | `TestNewSkillNoteSource` → `Test792b31c7a6_NewSkillNoteSource` | Pure unit (in-memory vault) | A source is recorded home-relative | Done |
+| 792b31c7a7 | `TestRefreshSkill_ReplacesBodyKeepsFieldsAndMarksPending` → `Test792b31c7a7_RefreshSkill_ReplacesBodyKeepsFieldsAndMarksPending` | Pure unit (in-memory vault) | Refresh replaces the body, keeps the fields and marks pending | Done |
+| 792b31c7a8 | `TestRefreshSkill_PendingClearedBeforehandIsSetAgain` → `Test792b31c7a8_RefreshSkill_PendingClearedBeforehandIsSetAgain` | Pure unit (in-memory vault) | Refresh sets pending again | Done |
+| 792b31c7a9 | `TestRefreshSkill_RedFlagsSurviveRefresh` → `Test792b31c7a9_RefreshSkill_RedFlagsSurviveRefresh` | Pure unit (in-memory vault) | Red flags survive a refresh | Done |
+| 792b31c7a10 | `TestRefreshSkill_FollowsPluginVersionBump` → `Test792b31c7a10_RefreshSkill_FollowsPluginVersionBump` | Pure unit (in-memory vault) | Refresh follows a plugin version bump | Done |
+| 792b31c7a11 | `TestRefreshSkill_ConvertsCRLFNote` → `Test792b31c7a11_RefreshSkill_ConvertsCRLFNote` | Pure unit (in-memory vault) | Refresh converts a CRLF note | Done |
+| 792b31c7a12 | `TestRefreshSkill_RefusesAnchoredSkillKey` → `Test792b31c7a12_RefreshSkill_RefusesAnchoredSkillKey` | Pure unit (in-memory vault) | Refresh refuses an anchored key | Done |
+| 792b31c7a13 | `TestAdoptAndRefresh_KeepUnmodeledKeys` → `Test792b31c7a13_AdoptAndRefresh_KeepUnmodeledKeys` | Pure unit (in-memory vault) | Refresh and adopt keep unmodeled keys and agree on pending | Done |
+| 792b31c7a13 | `TestAdoptAndRefresh_PendingParity` → `Test792b31c7a13_AdoptAndRefresh_PendingParity` | Pure unit (in-memory vault) | Refresh and adopt keep unmodeled keys and agree on pending | Done |
+| 792b31c7a13 | `TestAdoptAndRefresh_UnknownKeysProperty` → `Test792b31c7a13_AdoptAndRefresh_UnknownKeysProperty` | Property (rapid) | Refresh and adopt keep unmodeled keys and agree on pending | Done |
+| 792b31c7a14 | `TestRefreshSkill_PropagatesEmbedError` → `Test792b31c7a14_RefreshSkill_PropagatesEmbedError` | Pure unit (in-memory vault) | Refresh failures are returned | Done |
+| 792b31c7a14 | `TestRefreshSkill_PropagatesLockError` → `Test792b31c7a14_RefreshSkill_PropagatesLockError` | Pure unit (in-memory vault) | Refresh failures are returned | Done |
+| 792b31c7a14 | `TestRefreshSkill_PropagatesMalformedFrontmatterError` → `Test792b31c7a14_RefreshSkill_PropagatesMalformedFrontmatterError` | Pure unit (in-memory vault) | Refresh failures are returned | Done |
+| 792b31c7a14 | `TestRefreshSkill_PropagatesReadError` → `Test792b31c7a14_RefreshSkill_PropagatesReadError` | Pure unit (in-memory vault) | Refresh failures are returned | Done |
+| 792b31c7a14 | `TestRefreshSkill_PropagatesWriteError` → `Test792b31c7a14_RefreshSkill_PropagatesWriteError` | Pure unit (in-memory vault) | Refresh failures are returned | Done |
+| 792b31c7a15 | `TestRemoveSkill_DeletesNoteAndSidecar` → `Test792b31c7a15_RemoveSkill_DeletesNoteAndSidecar` | Pure unit (in-memory vault) | Removal deletes the note and its sidecar | Done |
+| 792b31c7a16 | `TestRemoveSkill_ToleratesMissingSidecar` → `Test792b31c7a16_RemoveSkill_ToleratesMissingSidecar` | Pure unit (in-memory vault) | Removal tolerates a missing sidecar | Done |
+| 792b31c7a17 | `TestAdoptSkillNote_RenamesRewritesLinksPreservesFieldsClearsPending` → `Test792b31c7a17_AdoptSkillNote_RenamesRewritesLinksPreservesFieldsClearsPending` | Pure unit (in-memory vault) | Adopt renames, rewrites links, keeps fields and clears pending | Done |
+| 792b31c7a18 | `TestAdoptSkillNote_IdempotentOnAlreadyAdoptedNote` → `Test792b31c7a18_AdoptSkillNote_IdempotentOnAlreadyAdoptedNote` | Pure unit (in-memory vault) | Adopt is idempotent | Done |
+| 792b31c7a19 | `TestAdoptSkillNote_ClearsPreExistingPendingMarker` → `Test792b31c7a19_AdoptSkillNote_ClearsPreExistingPendingMarker` | Pure unit (in-memory vault) | Adopt clears a pending marker | Done |
+| 792b31c7a20 | `TestAdoptSkillNote_MigratesAnUnkeyedLegacyNote` → `Test792b31c7a20_AdoptSkillNote_MigratesAnUnkeyedLegacyNote` | Pure unit (in-memory vault) | Adopt migrates an unkeyed legacy note | Done |
+| 792b31c7a21 | `TestAdoptSkillNote_RebuildsReferrerSidecars` → `Test792b31c7a21_AdoptSkillNote_RebuildsReferrerSidecars` | Pure unit (in-memory vault) | Adopt rebuilds the referrers' sidecars | Done |
+| 792b31c7a22 | `TestAdoptSkillNote_RefusesNoteKeyedToAnotherSkill` → `Test792b31c7a22_AdoptSkillNote_RefusesNoteKeyedToAnotherSkill` | Pure unit (in-memory vault) | Adopt refuses a note keyed to another skill | Done |
+| 792b31c7a23 | `TestAdoptSkillNote_ErrorsOnConflictingExistingSkillNote` → `Test792b31c7a23_AdoptSkillNote_ErrorsOnConflictingExistingSkillNote` | Pure unit (in-memory vault) | Adopt refuses a conflicting existing note | Done |
+| 792b31c7a24 | `TestAdoptSkillNote_ErrorsOnMissingTarget` → `Test792b31c7a24_AdoptSkillNote_ErrorsOnMissingTarget` | Pure unit (in-memory vault) | Adopt errors on a missing target | Done |
+| 792b31c7a25 | `TestAdoptSkillNote_ErrorsOnNonRunbookTarget` → `Test792b31c7a25_AdoptSkillNote_ErrorsOnNonRunbookTarget` | Pure unit (in-memory vault) | Adopt errors on a non-runbook target | Done |
+| 792b31c7a26 | `TestAdoptSkillNote_ErrorsOnUnparseableBasename` → `Test792b31c7a26_AdoptSkillNote_ErrorsOnUnparseableBasename` | Pure unit (in-memory vault) | Adopt errors on an unparseable basename | Done |
+| 792b31c7a27 | `TestAdoptSkillNote_RenderFailureLeavesNoteUnrenamed` → `Test792b31c7a27_AdoptSkillNote_RenderFailureLeavesNoteUnrenamed` | Pure unit (in-memory vault) | A render failure leaves the note unrenamed | Done |
+| 792b31c7a28 | `TestAdoptSkillNote_ConvertsCRLFNote` → `Test792b31c7a28_AdoptSkillNote_ConvertsCRLFNote` | Pure unit (in-memory vault) | Adopt converts a CRLF note | Done |
+| 792b31c7a29 | `TestAdoptSkillNote_RefusesAnchoredPending` → `Test792b31c7a29_AdoptSkillNote_RefusesAnchoredPending` | Pure unit (in-memory vault) | Adopt refuses an anchored pending key | Done |
+| 792b31c7a30 | `TestAdoptSkillNote_PropagatesEmbedError` → `Test792b31c7a30_AdoptSkillNote_PropagatesEmbedError` | Pure unit (in-memory vault) | Adopt failures are returned | Done |
+| 792b31c7a30 | `TestAdoptSkillNote_PropagatesFindSkillNoteError` → `Test792b31c7a30_AdoptSkillNote_PropagatesFindSkillNoteError` | Pure unit (in-memory vault) | Adopt failures are returned | Done |
+| 792b31c7a30 | `TestAdoptSkillNote_PropagatesListMDError` → `Test792b31c7a30_AdoptSkillNote_PropagatesListMDError` | Pure unit (in-memory vault) | Adopt failures are returned | Done |
+| 792b31c7a30 | `TestAdoptSkillNote_PropagatesLockError` → `Test792b31c7a30_AdoptSkillNote_PropagatesLockError` | Pure unit (in-memory vault) | Adopt failures are returned | Done |
+| 792b31c7a30 | `TestAdoptSkillNote_PropagatesScanError` → `Test792b31c7a30_AdoptSkillNote_PropagatesScanError` | Pure unit (in-memory vault) | Adopt failures are returned | Done |
+| 792b31c7a30 | `TestAdoptSkillNote_PropagatesWriteError` → `Test792b31c7a30_AdoptSkillNote_PropagatesWriteError` | Pure unit (in-memory vault) | Adopt failures are returned | Done |
+| 792b31c8a1 | `TestRegisterSkillsCLI_AcceptRegistersRealNote` → `Test792b31c8a1_RegisterSkillsCLI_AcceptRegistersRealNote` | Real binary and filesystem | Accept registers a real note | Done |
+| 792b31c8a2 | `TestRegisterSkillsCLI_AdoptRealNote` → `Test792b31c8a2_RegisterSkillsCLI_AdoptRealNote` | Real binary and filesystem | Adopt adopts a real note | Done |
+| 792b31c8a3 | `TestRegisterSkillsCLI_DryRunListsRegisterOffer` → `Test792b31c8a3_RegisterSkillsCLI_DryRunListsRegisterOffer` | Pure unit (production wiring over fakes) | A dry run lists a register offer | Done |
+| 792b31c8a4 | `TestRegisterSkillsCLI_NonTerminalStdinNeverPromptsOrWrites` → `Test792b31c8a4_RegisterSkillsCLI_NonTerminalStdinNeverPromptsOrWrites` | Real binary and filesystem | A non-terminal never prompts or writes | Done |
+
+**Coverage gaps:** none; every scenario of 792b31 has a test. The
+interactive prompts of 792a12r1 were not run against a terminal here, and `register-skills` was run without
+one (792d106).
+
+**No-scenario tests:** none among the registration files; `update_skillreg_internal_test` was renamed by
+792c7k1 with the update step (792b28c16).
 
 ### 792c7l write-memory
 

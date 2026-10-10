@@ -323,10 +323,10 @@ func Test792b27c8a2_RunReparentLuhmann_ApplyRebuildsConvertedNoteSidecars(t *tes
 	}
 }
 
-// TestAdoptSkillNote_ConvertsCRLFNote: adopt converts a CRLF runbook note to
+// Test792b31c7a28_AdoptSkillNote_ConvertsCRLFNote: adopt converts a CRLF runbook note to
 // LF instead of refusing it (design D5) — both when the adopt renames it and
 // when it already carries the key's slug — keeping its fields and luhmann:.
-func TestAdoptSkillNote_ConvertsCRLFNote(t *testing.T) {
+func Test792b31c7a28_AdoptSkillNote_ConvertsCRLFNote(t *testing.T) {
 	t.Parallel()
 
 	for name, tc := range map[string]struct{ basename, content string }{

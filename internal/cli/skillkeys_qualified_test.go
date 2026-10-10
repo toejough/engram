@@ -124,13 +124,268 @@ func Test792b30c7a14_ScanClaudePlugins_ReservedNameCheckFollowsEnablement(t *tes
 	}
 }
 
-// TestAdoptSkillNote_MigratesAnUnkeyedLegacyNote is the spec scenario
+// Test792b31c1a5_FindSkillNote_SlugAloneLocatesNothing is the spec scenario "Note
+// located by slug": an unkeyed legacy note is no key's note, whatever its
+// slug says.
+func Test792b31c1a5_FindSkillNote_SlugAloneLocatesNothing(t *testing.T) {
+	t.Parallel()
+
+	vault, names := legacyVault()
+
+	for _, name := range legacyNotes {
+		for _, key := range []string{name, "claude:" + name, "pi:" + name} {
+			t.Run(key, func(t *testing.T) {
+				t.Parallel()
+				g := NewWithT(t)
+
+				_, _, found, err := cli.FindSkillNote("/vault", key, names, vault.readFile)
+
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(found).To(BeFalse())
+			})
+		}
+	}
+}
+
+func Test792b31c1a6_FindSkillNote_DuplicateQualifiedKeyIsAnError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const (
+		first  = "1049.2026-09-21.skill-claude-curate.md"
+		second = "2001.2026-09-26.skill-claude-curate.md"
+	)
+
+	vault := newSkillregFixtureVault()
+	vault.put(first, keyedSkillNote("abc", "claude:curate"))
+	vault.put(second, keyedSkillNote("def", "claude:curate"))
+
+	_, _, found, err := cli.FindSkillNote("/vault", "claude:curate", []string{first, second}, vault.readFile)
+
+	g.Expect(found).To(BeFalse())
+	g.Expect(err).To(MatchError(cli.ErrDuplicateSkillNoteForTest))
+	g.Expect(err).To(MatchError(ContainSubstring("1049.2026-09-21.skill-claude-curate")))
+	g.Expect(err).To(MatchError(ContainSubstring("2001.2026-09-26.skill-claude-curate")))
+}
+
+// Test792b31c2a10_CompareSkillOffers_SixLegacyNotesYieldSixRegisterOffers is the spec
+// scenario "Unkeyed legacy notes are ignored until adopted" (design D11):
+// the six unkeyed legacy notes, whose skill_hash equals the scanned bytes,
+// are not skill notes, so each of engram's six skills found through
+// ~/.claude/skills is offered for registration as `claude:<n>`; the
+// byte-identical Pi copies alias them, and nothing is refreshed or removed.
+func Test792b31c2a10_CompareSkillOffers_SixLegacyNotesYieldSixRegisterOffers(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault, names := legacyVault()
+
+	var sources cli.ResolvedSkillSources
+
+	sources.Roots = []cli.ScannedRoot{
+		{Path: userSkillsRoot, Resolved: userSkillsRoot, Scanned: true, Form: cli.SkillRootFormClaudeUser},
+		{Path: piUserRoot, Resolved: piUserRoot, Scanned: true, Form: cli.SkillRootFormPiUser},
+	}
+
+	want := make([]string, 0, len(legacyNotes))
+
+	for _, name := range legacyNotes {
+		sources.Candidates = append(sources.Candidates,
+			offerCand("claude:"+name, cli.SkillScopeClaudeUser, engramClaudeSkills+"/"+name+"/SKILL.md", name),
+			offerCand("pi:"+name, cli.SkillScopePiUser, engramPiSkills+"/"+name+"/SKILL.md", name))
+		want = append(want, "register claude:"+name+" claude-user")
+	}
+
+	comparison, err := cli.CompareSkillOffers(cli.SkillOfferInput{
+		Vault: skillregFixtureVaultRoot, Names: names, ReadFile: vault.readFile,
+		Declined: map[string]string{}, Home: fakeHome, Sources: sources,
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(offerScopes(comparison)).To(ConsistOf(want))
+	g.Expect(comparison.Conflicts).To(BeEmpty())
+	g.Expect(comparison.Warnings).To(BeEmpty())
+}
+
+// Test792b31c2a11_CompareSkillOffers_UnkeyedNotesNeverChangeTheOfferSet is 8.2's
+// property: for any vault, adding or removing unkeyed notes (skill_hash, no
+// skill_key) — whatever their slug or hash — never changes the offer set.
+func Test792b31c2a11_CompareSkillOffers_UnkeyedNotesNeverChangeTheOfferSet(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		fixture, _ := drawRemovalUniverse(rt)
+		fixture.sources.Candidates = append(fixture.sources.Candidates, drawDedupeUniverse(rt).sources.Candidates...)
+
+		baseline, baseErr := compareWithUnkeyedNotes(fixture, nil)
+		if baseErr != nil {
+			rt.Fatalf("baseline: %v", baseErr)
+		}
+
+		unkeyed := drawUnkeyedNotes(rt, fixture)
+
+		withUnkeyed, withErr := compareWithUnkeyedNotes(fixture, unkeyed)
+		if withErr != nil {
+			rt.Fatalf("with unkeyed notes %v: %v", unkeyed, withErr)
+		}
+
+		if strings.Join(offerScopes(baseline), "\n") != strings.Join(offerScopes(withUnkeyed), "\n") {
+			rt.Fatalf("unkeyed notes %v changed the offers:\nbefore %v\nafter  %v",
+				slices.Sorted(maps.Keys(unkeyed)), offerScopes(baseline), offerScopes(withUnkeyed))
+		}
+	})
+}
+
+// Test792b31c2a16_CompareSkillOffers_ClaudeKeysParseToClaudeForms covers the key parser
+// for `claude:` keys (design D3, D5): `claude:<n>` is a Claude user skill
+// (scope claude-user, root ~/.claude/skills), `claude:cmd:…` with three or
+// more segments a Claude user command (scope claude-cmd, root
+// ~/.claude/commands), and `claude:cmd` a skill named cmd.
+func Test792b31c2a16_CompareSkillOffers_ClaudeKeysParseToClaudeForms(t *testing.T) {
+	t.Parallel()
+
+	commandsRoot := fakeHome + "/.claude/commands"
+	notes := func(fixture *offerFixture) {
+		fixture.note("claude:c4", "h1", "")
+		fixture.note("claude:cmd", "h2", "")
+		fixture.note("claude:cmd:audit", "h3", "")
+		fixture.note("claude:cmd:opsx:apply", "h4", "")
+	}
+
+	t.Run("both roots read", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fixture := newOfferFixture()
+		fixture.home = fakeHome
+		fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
+		fixture.root(commandsRoot, cli.SkillRootFormClaudeCmd, true)
+		notes(fixture)
+
+		g.Expect(offerScopes(fixture.compare(g))).To(ConsistOf(
+			"remove claude:c4 claude-user",
+			"remove claude:cmd claude-user",
+			"remove claude:cmd:audit claude-cmd",
+			"remove claude:cmd:opsx:apply claude-cmd",
+		))
+	})
+
+	t.Run("an unread commands root keeps only the command notes", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fixture := newOfferFixture()
+		fixture.home = fakeHome
+		fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
+		fixture.root(commandsRoot, cli.SkillRootFormClaudeCmd, false)
+		notes(fixture)
+
+		g.Expect(offerScopes(fixture.compare(g))).To(ConsistOf(
+			"remove claude:c4 claude-user",
+			"remove claude:cmd claude-user",
+		))
+	})
+
+	t.Run("an unread skills root keeps only the skill notes", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fixture := newOfferFixture()
+		fixture.home = fakeHome
+		fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, false)
+		fixture.root(commandsRoot, cli.SkillRootFormClaudeCmd, true)
+		notes(fixture)
+
+		g.Expect(offerScopes(fixture.compare(g))).To(ConsistOf(
+			"remove claude:cmd:audit claude-cmd",
+			"remove claude:cmd:opsx:apply claude-cmd",
+		))
+	})
+}
+
+// Test792b31c2a17_CompareSkillOffers_UnrecognizedKeysAreNeverMatchedOrRemoved is the
+// spec scenario "An unrecognized skill_key is never matched or removed"
+// (design D3): with every source root read and the plugin manifests
+// parsed, a note whose key has no `:`, an empty segment, or a reserved
+// prefix with a malformed tail is never offered for removal and makes no
+// scanned entry an alias; any other `<x>:<n>` is a plugin key, removable
+// when plugin <x> is not installed (like `ralph-loop:cmd:help`).
+func Test792b31c2a17_CompareSkillOffers_UnrecognizedKeysAreNeverMatchedOrRemoved(t *testing.T) {
+	t.Parallel()
+
+	for _, key := range unrecognizedKeyExamples() {
+		t.Run(key, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			fixture := everyRootReadFixture()
+			fixture.note(key, cli.SkillContentHash([]byte("same bytes")), "~/.claude/skills/route/SKILL.md")
+			fixture.candidate(offerCand("claude:route", cli.SkillScopeClaudeUser,
+				userSkillsRoot+"/route/SKILL.md", "same bytes"))
+
+			g.Expect(offerScopes(fixture.compare(g))).To(Equal([]string{"register claude:route claude-user"}),
+				"no removal, and the note's hash makes no alias")
+		})
+	}
+
+	for _, key := range []string{"engram:route", "ralph-loop:cmd:help", "cmd:x", "claude-hud:x:y"} {
+		t.Run(key+" is a plugin key", func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			fixture := everyRootReadFixture()
+			fixture.note(key, "h", "")
+
+			plugin, _, _ := strings.Cut(key, ":")
+			g.Expect(offerScopes(fixture.compare(g))).To(Equal([]string{"remove " + key + " plugin:" + plugin}))
+		})
+	}
+}
+
+// Test792b31c2a18_CompareSkillOffers_UnrecognizedKeyProperty is 8.2b's property: over
+// generated keys, root read states, plugin facts and candidates, a note
+// whose key is unrecognized is never removal-eligible, never offered for
+// removal and never makes a candidate an alias; every other generated
+// `<x>:<n…>` with <x> not a reserved form is judged by the plugin rule.
+func Test792b31c2a18_CompareSkillOffers_UnrecognizedKeyProperty(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		key, wantRecognized := drawSkillKeyForParsing(rt)
+
+		recognized, _, _, plugin, _ := cli.ExportParseSkillKey(key)
+		if recognized != wantRecognized {
+			rt.Fatalf("key %q: recognized=%v, want %v", key, recognized, wantRecognized)
+		}
+
+		fixture := drawEligibilityUniverse(rt)
+		note := offerNote{key: key, hash: cli.SkillContentHash([]byte("note bytes")), source: drawNoteSource(rt)}
+		eligible := cli.ExportSkillKeyRemovalEligible(fixture.input(), key, note.source)
+
+		if !recognized {
+			assertUnrecognizedNoteIsInert(rt, fixture, note, eligible)
+
+			return
+		}
+
+		if plugin == "" {
+			return
+		}
+
+		scanned, installed := fixture.pluginState(plugin)
+		want := fixture.sources.PluginManifestsRead && !fixture.pluginConflicted(plugin) && (!installed || scanned)
+
+		if eligible != want {
+			rt.Fatalf("plugin key %q: eligible=%v, want %v (plugin rule)", key, eligible, want)
+		}
+	})
+}
+
+// Test792b31c7a20_AdoptSkillNote_MigratesAnUnkeyedLegacyNote is the spec scenario
 // "Adopting a previously promoted note" for D11's migration: `--adopt
 // claude:curate=1049` over the unkeyed legacy note 1049 renames it to the
 // key-derived slug, rewrites the referrer's link and rebuilds its sidecar,
 // names skill_source in the preamble, stamps skill_key and skill_source,
 // keeps skill_hash and clears pending.
-func TestAdoptSkillNote_MigratesAnUnkeyedLegacyNote(t *testing.T) {
+func Test792b31c7a20_AdoptSkillNote_MigratesAnUnkeyedLegacyNote(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -194,261 +449,6 @@ func TestAdoptSkillNote_MigratesAnUnkeyedLegacyNote(t *testing.T) {
 	g.Expect(rewritten).NotTo(ContainSubstring("[[" + oldBasename + "]]"))
 	g.Expect(embed.ComputeState(vault, "/vault/"+referrer+".md", fakeEmbedder.ModelID())).To(Equal(embed.StateOK))
 	g.Expect(stdout.String()).NotTo(ContainSubstring("awaiting an answer"), "the adopted key makes no offer")
-}
-
-// TestCompareSkillOffers_ClaudeKeysParseToClaudeForms covers the key parser
-// for `claude:` keys (design D3, D5): `claude:<n>` is a Claude user skill
-// (scope claude-user, root ~/.claude/skills), `claude:cmd:…` with three or
-// more segments a Claude user command (scope claude-cmd, root
-// ~/.claude/commands), and `claude:cmd` a skill named cmd.
-func TestCompareSkillOffers_ClaudeKeysParseToClaudeForms(t *testing.T) {
-	t.Parallel()
-
-	commandsRoot := fakeHome + "/.claude/commands"
-	notes := func(fixture *offerFixture) {
-		fixture.note("claude:c4", "h1", "")
-		fixture.note("claude:cmd", "h2", "")
-		fixture.note("claude:cmd:audit", "h3", "")
-		fixture.note("claude:cmd:opsx:apply", "h4", "")
-	}
-
-	t.Run("both roots read", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fixture := newOfferFixture()
-		fixture.home = fakeHome
-		fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
-		fixture.root(commandsRoot, cli.SkillRootFormClaudeCmd, true)
-		notes(fixture)
-
-		g.Expect(offerScopes(fixture.compare(g))).To(ConsistOf(
-			"remove claude:c4 claude-user",
-			"remove claude:cmd claude-user",
-			"remove claude:cmd:audit claude-cmd",
-			"remove claude:cmd:opsx:apply claude-cmd",
-		))
-	})
-
-	t.Run("an unread commands root keeps only the command notes", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fixture := newOfferFixture()
-		fixture.home = fakeHome
-		fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
-		fixture.root(commandsRoot, cli.SkillRootFormClaudeCmd, false)
-		notes(fixture)
-
-		g.Expect(offerScopes(fixture.compare(g))).To(ConsistOf(
-			"remove claude:c4 claude-user",
-			"remove claude:cmd claude-user",
-		))
-	})
-
-	t.Run("an unread skills root keeps only the skill notes", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fixture := newOfferFixture()
-		fixture.home = fakeHome
-		fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, false)
-		fixture.root(commandsRoot, cli.SkillRootFormClaudeCmd, true)
-		notes(fixture)
-
-		g.Expect(offerScopes(fixture.compare(g))).To(ConsistOf(
-			"remove claude:cmd:audit claude-cmd",
-			"remove claude:cmd:opsx:apply claude-cmd",
-		))
-	})
-}
-
-// TestCompareSkillOffers_SixLegacyNotesYieldSixRegisterOffers is the spec
-// scenario "Unkeyed legacy notes are ignored until adopted" (design D11):
-// the six unkeyed legacy notes, whose skill_hash equals the scanned bytes,
-// are not skill notes, so each of engram's six skills found through
-// ~/.claude/skills is offered for registration as `claude:<n>`; the
-// byte-identical Pi copies alias them, and nothing is refreshed or removed.
-func TestCompareSkillOffers_SixLegacyNotesYieldSixRegisterOffers(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault, names := legacyVault()
-
-	var sources cli.ResolvedSkillSources
-
-	sources.Roots = []cli.ScannedRoot{
-		{Path: userSkillsRoot, Resolved: userSkillsRoot, Scanned: true, Form: cli.SkillRootFormClaudeUser},
-		{Path: piUserRoot, Resolved: piUserRoot, Scanned: true, Form: cli.SkillRootFormPiUser},
-	}
-
-	want := make([]string, 0, len(legacyNotes))
-
-	for _, name := range legacyNotes {
-		sources.Candidates = append(sources.Candidates,
-			offerCand("claude:"+name, cli.SkillScopeClaudeUser, engramClaudeSkills+"/"+name+"/SKILL.md", name),
-			offerCand("pi:"+name, cli.SkillScopePiUser, engramPiSkills+"/"+name+"/SKILL.md", name))
-		want = append(want, "register claude:"+name+" claude-user")
-	}
-
-	comparison, err := cli.CompareSkillOffers(cli.SkillOfferInput{
-		Vault: skillregFixtureVaultRoot, Names: names, ReadFile: vault.readFile,
-		Declined: map[string]string{}, Home: fakeHome, Sources: sources,
-	})
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(offerScopes(comparison)).To(ConsistOf(want))
-	g.Expect(comparison.Conflicts).To(BeEmpty())
-	g.Expect(comparison.Warnings).To(BeEmpty())
-}
-
-// TestCompareSkillOffers_UnkeyedNotesNeverChangeTheOfferSet is 8.2's
-// property: for any vault, adding or removing unkeyed notes (skill_hash, no
-// skill_key) — whatever their slug or hash — never changes the offer set.
-func TestCompareSkillOffers_UnkeyedNotesNeverChangeTheOfferSet(t *testing.T) {
-	t.Parallel()
-	rapid.Check(t, func(rt *rapid.T) {
-		fixture, _ := drawRemovalUniverse(rt)
-		fixture.sources.Candidates = append(fixture.sources.Candidates, drawDedupeUniverse(rt).sources.Candidates...)
-
-		baseline, baseErr := compareWithUnkeyedNotes(fixture, nil)
-		if baseErr != nil {
-			rt.Fatalf("baseline: %v", baseErr)
-		}
-
-		unkeyed := drawUnkeyedNotes(rt, fixture)
-
-		withUnkeyed, withErr := compareWithUnkeyedNotes(fixture, unkeyed)
-		if withErr != nil {
-			rt.Fatalf("with unkeyed notes %v: %v", unkeyed, withErr)
-		}
-
-		if strings.Join(offerScopes(baseline), "\n") != strings.Join(offerScopes(withUnkeyed), "\n") {
-			rt.Fatalf("unkeyed notes %v changed the offers:\nbefore %v\nafter  %v",
-				slices.Sorted(maps.Keys(unkeyed)), offerScopes(baseline), offerScopes(withUnkeyed))
-		}
-	})
-}
-
-// TestCompareSkillOffers_UnrecognizedKeyProperty is 8.2b's property: over
-// generated keys, root read states, plugin facts and candidates, a note
-// whose key is unrecognized is never removal-eligible, never offered for
-// removal and never makes a candidate an alias; every other generated
-// `<x>:<n…>` with <x> not a reserved form is judged by the plugin rule.
-func TestCompareSkillOffers_UnrecognizedKeyProperty(t *testing.T) {
-	t.Parallel()
-	rapid.Check(t, func(rt *rapid.T) {
-		key, wantRecognized := drawSkillKeyForParsing(rt)
-
-		recognized, _, _, plugin, _ := cli.ExportParseSkillKey(key)
-		if recognized != wantRecognized {
-			rt.Fatalf("key %q: recognized=%v, want %v", key, recognized, wantRecognized)
-		}
-
-		fixture := drawEligibilityUniverse(rt)
-		note := offerNote{key: key, hash: cli.SkillContentHash([]byte("note bytes")), source: drawNoteSource(rt)}
-		eligible := cli.ExportSkillKeyRemovalEligible(fixture.input(), key, note.source)
-
-		if !recognized {
-			assertUnrecognizedNoteIsInert(rt, fixture, note, eligible)
-
-			return
-		}
-
-		if plugin == "" {
-			return
-		}
-
-		scanned, installed := fixture.pluginState(plugin)
-		want := fixture.sources.PluginManifestsRead && !fixture.pluginConflicted(plugin) && (!installed || scanned)
-
-		if eligible != want {
-			rt.Fatalf("plugin key %q: eligible=%v, want %v (plugin rule)", key, eligible, want)
-		}
-	})
-}
-
-// TestCompareSkillOffers_UnrecognizedKeysAreNeverMatchedOrRemoved is the
-// spec scenario "An unrecognized skill_key is never matched or removed"
-// (design D3): with every source root read and the plugin manifests
-// parsed, a note whose key has no `:`, an empty segment, or a reserved
-// prefix with a malformed tail is never offered for removal and makes no
-// scanned entry an alias; any other `<x>:<n>` is a plugin key, removable
-// when plugin <x> is not installed (like `ralph-loop:cmd:help`).
-func TestCompareSkillOffers_UnrecognizedKeysAreNeverMatchedOrRemoved(t *testing.T) {
-	t.Parallel()
-
-	for _, key := range unrecognizedKeyExamples() {
-		t.Run(key, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			fixture := everyRootReadFixture()
-			fixture.note(key, cli.SkillContentHash([]byte("same bytes")), "~/.claude/skills/route/SKILL.md")
-			fixture.candidate(offerCand("claude:route", cli.SkillScopeClaudeUser,
-				userSkillsRoot+"/route/SKILL.md", "same bytes"))
-
-			g.Expect(offerScopes(fixture.compare(g))).To(Equal([]string{"register claude:route claude-user"}),
-				"no removal, and the note's hash makes no alias")
-		})
-	}
-
-	for _, key := range []string{"engram:route", "ralph-loop:cmd:help", "cmd:x", "claude-hud:x:y"} {
-		t.Run(key+" is a plugin key", func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			fixture := everyRootReadFixture()
-			fixture.note(key, "h", "")
-
-			plugin, _, _ := strings.Cut(key, ":")
-			g.Expect(offerScopes(fixture.compare(g))).To(Equal([]string{"remove " + key + " plugin:" + plugin}))
-		})
-	}
-}
-
-func TestFindSkillNote_DuplicateQualifiedKeyIsAnError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	const (
-		first  = "1049.2026-09-21.skill-claude-curate.md"
-		second = "2001.2026-09-26.skill-claude-curate.md"
-	)
-
-	vault := newSkillregFixtureVault()
-	vault.put(first, keyedSkillNote("abc", "claude:curate"))
-	vault.put(second, keyedSkillNote("def", "claude:curate"))
-
-	_, _, found, err := cli.FindSkillNote("/vault", "claude:curate", []string{first, second}, vault.readFile)
-
-	g.Expect(found).To(BeFalse())
-	g.Expect(err).To(MatchError(cli.ErrDuplicateSkillNoteForTest))
-	g.Expect(err).To(MatchError(ContainSubstring("1049.2026-09-21.skill-claude-curate")))
-	g.Expect(err).To(MatchError(ContainSubstring("2001.2026-09-26.skill-claude-curate")))
-}
-
-// TestFindSkillNote_SlugAloneLocatesNothing is the spec scenario "Note
-// located by slug": an unkeyed legacy note is no key's note, whatever its
-// slug says.
-func TestFindSkillNote_SlugAloneLocatesNothing(t *testing.T) {
-	t.Parallel()
-
-	vault, names := legacyVault()
-
-	for _, name := range legacyNotes {
-		for _, key := range []string{name, "claude:" + name, "pi:" + name} {
-			t.Run(key, func(t *testing.T) {
-				t.Parallel()
-				g := NewWithT(t)
-
-				_, _, found, err := cli.FindSkillNote("/vault", key, names, vault.readFile)
-
-				g.Expect(err).NotTo(HaveOccurred())
-				g.Expect(found).To(BeFalse())
-			})
-		}
-	}
 }
 
 func (fixture *offerFixture) input() cli.SkillOfferInput {

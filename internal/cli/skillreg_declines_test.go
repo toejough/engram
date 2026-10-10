@@ -13,56 +13,11 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestReadSkillRegistrations_AcceptsVersion2 covers design D7: a v2 file's
-// declines are read keyed by skill key.
-func TestReadSkillRegistrations_AcceptsVersion2(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := newSkillregFixtureVault()
-	vault.put("skill-registrations.json", `{"schema_version":2,"declined":{"superpowers:brainstorming":"h1"}}`)
-
-	declined, err := cli.ReadSkillRegistrations("/vault", vault.readFile)
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(declined).To(Equal(map[string]string{"superpowers:brainstorming": "h1"}))
-}
-
-// TestReadSkillRegistrations_RejectsEveryVersionButTwo covers "Version-1 file
-// fails loudly" and "Unknown schema version fails loudly" (design D7: v1
-// reading is dropped): a schema_version below 2, above 2 or missing is an
-// error, never an empty decline state.
-func TestReadSkillRegistrations_RejectsEveryVersionButTwo(t *testing.T) {
-	t.Parallel()
-
-	cases := map[string]string{
-		"version 1": `{"schema_version":1,"declined":{"route":"h"}}`,
-		"version 3": `{"schema_version":3,"declined":{"route":"h"}}`,
-		"missing":   `{"declined":{"route":"h"}}`,
-	}
-
-	for name, body := range cases {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			vault := newSkillregFixtureVault()
-			vault.put("skill-registrations.json", body)
-
-			declined, err := cli.ReadSkillRegistrations("/vault", vault.readFile)
-
-			g.Expect(err).To(MatchError(cli.ErrSkillRegistrationsVersionForTest))
-			g.Expect(err).To(MatchError(ContainSubstring("delete /vault/skill-registrations.json to reset recorded declines")))
-			g.Expect(declined).To(BeNil())
-		})
-	}
-}
-
-// TestRecordSkillDeclined_OlderReaderDecodesVersion2 covers design D7's
+// Test792b31c4a10_RecordSkillDeclined_OlderReaderDecodesVersion2 covers design D7's
 // compatibility claim: the v2 file keeps exactly the fields the old reader
 // knows, so a strict decode of that shape (unknown fields rejected, as
 // ReadSkillRegistrations always did) still succeeds.
-func TestRecordSkillDeclined_OlderReaderDecodesVersion2(t *testing.T) {
+func Test792b31c4a10_RecordSkillDeclined_OlderReaderDecodesVersion2(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -90,11 +45,11 @@ func TestRecordSkillDeclined_OlderReaderDecodesVersion2(t *testing.T) {
 	g.Expect(oldShape.Declined).To(Equal(map[string]string{"pi:x": "h"}))
 }
 
-// TestRecordSkillDeclined_Property_KeepsEveryEntryAndStampsV2 is the
+// Test792b31c4a11_RecordSkillDeclined_Property_KeepsEveryEntryAndStampsV2 is the
 // invariant over any v2 decline state: a recorded decline yields a
 // v2 file holding every prior entry plus the new one (overwriting only its
 // own key), and reading it back returns exactly that map.
-func TestRecordSkillDeclined_Property_KeepsEveryEntryAndStampsV2(t *testing.T) {
+func Test792b31c4a11_RecordSkillDeclined_Property_KeepsEveryEntryAndStampsV2(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -137,12 +92,12 @@ func TestRecordSkillDeclined_Property_KeepsEveryEntryAndStampsV2(t *testing.T) {
 	})
 }
 
-// TestRunSkillRegistration_NonVersion2File_ErrorsAndWritesNothing covers
+// Test792b31c4a12_RunSkillRegistration_NonVersion2File_ErrorsAndWritesNothing covers
 // "Version-1 file fails loudly" and "Unknown schema version fails loudly" end
 // to end: registration reports the error and writes nothing, even with an
 // explicit --accept or an --adopt (which must not rename, rewrite or
 // re-embed its note before the decline file is validated).
-func TestRunSkillRegistration_NonVersion2File_ErrorsAndWritesNothing(t *testing.T) {
+func Test792b31c4a12_RunSkillRegistration_NonVersion2File_ErrorsAndWritesNothing(t *testing.T) {
 	t.Parallel()
 
 	bodies := map[string]string{
@@ -186,11 +141,56 @@ func TestRunSkillRegistration_NonVersion2File_ErrorsAndWritesNothing(t *testing.
 	}
 }
 
-// TestSkillRegistrations_Property_OnlyVersion2IsRead is the invariant over
+// Test792b31c4a4_ReadSkillRegistrations_AcceptsVersion2 covers design D7: a v2 file's
+// declines are read keyed by skill key.
+func Test792b31c4a4_ReadSkillRegistrations_AcceptsVersion2(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newSkillregFixtureVault()
+	vault.put("skill-registrations.json", `{"schema_version":2,"declined":{"superpowers:brainstorming":"h1"}}`)
+
+	declined, err := cli.ReadSkillRegistrations("/vault", vault.readFile)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(declined).To(Equal(map[string]string{"superpowers:brainstorming": "h1"}))
+}
+
+// Test792b31c4a5_ReadSkillRegistrations_RejectsEveryVersionButTwo covers "Version-1 file
+// fails loudly" and "Unknown schema version fails loudly" (design D7: v1
+// reading is dropped): a schema_version below 2, above 2 or missing is an
+// error, never an empty decline state.
+func Test792b31c4a5_ReadSkillRegistrations_RejectsEveryVersionButTwo(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]string{
+		"version 1": `{"schema_version":1,"declined":{"route":"h"}}`,
+		"version 3": `{"schema_version":3,"declined":{"route":"h"}}`,
+		"missing":   `{"declined":{"route":"h"}}`,
+	}
+
+	for name, body := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			vault := newSkillregFixtureVault()
+			vault.put("skill-registrations.json", body)
+
+			declined, err := cli.ReadSkillRegistrations("/vault", vault.readFile)
+
+			g.Expect(err).To(MatchError(cli.ErrSkillRegistrationsVersionForTest))
+			g.Expect(err).To(MatchError(ContainSubstring("delete /vault/skill-registrations.json to reset recorded declines")))
+			g.Expect(declined).To(BeNil())
+		})
+	}
+}
+
+// Test792b31c4a5_SkillRegistrations_Property_OnlyVersion2IsRead is the invariant over
 // any schema_version, present or missing: version 2 reads back its declines;
 // every other version (missing included) is errSkillRegistrationsVersion on
 // read, and RecordSkillDeclined over it errors without writing.
-func TestSkillRegistrations_Property_OnlyVersion2IsRead(t *testing.T) {
+func Test792b31c4a5_SkillRegistrations_Property_OnlyVersion2IsRead(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {

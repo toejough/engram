@@ -15,52 +15,404 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestCompareSkillOffers_AliasNeverOffers (task 2.3 property, postcondition):
-// no register or refresh offer carries a hash some note already holds, and
-// no two such offers share a hash; every offer's hash is the content of an
-// enabled candidate with its key.
-func TestCompareSkillOffers_AliasNeverOffers(t *testing.T) {
+// Test792b31c2a12_ReportSkillOfferProblems: warnings and conflict lines are printed, and
+// any conflict is a failure; without one it is silent success.
+func Test792b31c2a12_ReportSkillOfferProblems(t *testing.T) {
 	t.Parallel()
-	rapid.Check(t, func(rt *rapid.T) {
-		fixture := drawDedupeUniverse(rt)
 
-		comparison, err := fixture.compareRapid()
-		if err != nil {
-			rt.Fatalf("CompareSkillOffers: %v", err)
-		}
+	t.Run("conflicts print and fail", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
 
-		noteHashes := map[string]bool{}
-		for _, note := range fixture.notes {
-			noteHashes[note.hash] = true
-		}
+		var out bytes.Buffer
 
-		offeredHashes := map[string]string{}
+		err := cli.ReportSkillOfferProblems(&out, cli.SkillOfferComparison{
+			Conflicts: []string{"engram: skill key conflict: x at /a and /b"},
+			Warnings:  []string{"engram: w"},
+		})
 
-		for _, offer := range comparison.Offers {
-			if offer.Kind == cli.SkillOfferRemove {
-				continue
-			}
+		g.Expect(err).To(MatchError(cli.ErrSkillOfferConflictForTest))
+		g.Expect(out.String()).To(Equal("engram: w\nengram: skill key conflict: x at /a and /b\n"))
+	})
 
-			if noteHashes[offer.Hash] {
-				rt.Fatalf("offer %s %s repeats a note's skill_hash", offer.Kind, offer.Key)
-			}
+	t.Run("warnings alone print and succeed", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
 
-			if other, dup := offeredHashes[offer.Hash]; dup {
-				rt.Fatalf("offers %s and %s share hash %s", other, offer.Key, offer.Hash)
-			}
+		var out bytes.Buffer
 
-			offeredHashes[offer.Hash] = offer.Key
+		err := cli.ReportSkillOfferProblems(&out, cli.SkillOfferComparison{Warnings: []string{"engram: w"}})
 
-			if !fixture.hasEnabledCandidate(offer.Key, offer.Hash) {
-				rt.Fatalf("offer %s has no enabled candidate with hash %s", offer.Key, offer.Hash)
-			}
-		}
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(out.String()).To(Equal("engram: w\n"))
+	})
+
+	t.Run("nothing to report is silent", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		var out bytes.Buffer
+
+		g.Expect(cli.ReportSkillOfferProblems(&out, cli.SkillOfferComparison{})).To(Succeed())
+		g.Expect(out.String()).To(BeEmpty())
 	})
 }
 
-// TestCompareSkillOffers_Dedupe covers design D4: same-path collapse,
+// Test792b31c2a13_CompareSkillOffers_ResolvedUserAndPi runs the spec scenarios for
+// the user roots and the Pi harness end to end: a fake home through ResolveSkillSources, then
+// CompareSkillOffers against a fake vault.
+func Test792b31c2a13_CompareSkillOffers_ResolvedUserAndPi(t *testing.T) {
+	t.Parallel()
+
+	t.Run("unreadable ~/.claude/skills keeps claude: notes", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := resolverFixture(g).failRead(userSkillsRoot)
+		notes := []offerNote{{key: "claude:gone", hash: "h"}}
+
+		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
+
+		g.Expect(removedKeys(comparison)).To(BeEmpty())
+	})
+
+	t.Run("readable ~/.claude/skills offers a gone claude: note for removal", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := resolverFixture(g)
+		notes := []offerNote{{key: "claude:gone", hash: "h"}}
+
+		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
+
+		g.Expect(removedKeys(comparison)).To(Equal([]string{"claude:gone"}))
+	})
+
+	t.Run("a Pi-disabled skill makes no offer of any kind", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := newFakeSkillFS().
+			file(piUserRoot+"/ping/SKILL.md", "ping").
+			file(piAgentDir+"/settings.json", `{"skills": ["!ping"]}`)
+		notes := []offerNote{{key: "pi:ping", hash: "stale"}}
+
+		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
+
+		g.Expect(comparison.Offers).To(BeEmpty())
+	})
+
+	t.Run("no Pi harness keeps pi notes", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := resolverFixture(g).remove(fakeHome + "/.pi")
+		notes := []offerNote{{key: "pi:ping", hash: "h"}}
+
+		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
+
+		g.Expect(removedKeys(comparison)).To(BeEmpty())
+	})
+}
+
+// Test792b31c2a14_CompareSkillOffers_ResolvedPluginsAndSources runs the spec scenarios for
+// plugins, synced buckets, Pi settings entries and packages end to end: a fake home through ResolveSkillSources, then
+// CompareSkillOffers against a fake vault.
+func Test792b31c2a14_CompareSkillOffers_ResolvedPluginsAndSources(t *testing.T) {
+	t.Parallel()
+
+	t.Run("an uninstalled plugin's note is offered for removal; the installed one's kept", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := resolverFixture(g)
+		notes := []offerNote{
+			{key: "ralph-loop:cmd:help", hash: "h1"},
+			{key: "tools:tl", hash: cli.SkillContentHash([]byte("tl"))},
+		}
+
+		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
+
+		g.Expect(removedKeys(comparison)).To(Equal([]string{"ralph-loop:cmd:help"}))
+	})
+
+	t.Run("a disabled plugin keeps its notes", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := resolverFixture(g)
+		writePluginManifestsAt(g, fsys, fakeHome+"/.claude",
+			[]pluginInstall{{key: "tools@m", installPath: resolverPluginCache + "/m/tools/1.0"}},
+			map[string]bool{"tools@m": false},
+		)
+		notes := []offerNote{{key: "tools:tl", hash: "h"}}
+
+		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
+
+		g.Expect(removedKeys(comparison)).To(BeEmpty())
+	})
+
+	t.Run("a plugin in two marketplaces is loud and keeps its notes", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := resolverFixture(g)
+		writePluginManifestsAt(g, fsys, fakeHome+"/.claude",
+			[]pluginInstall{
+				{key: "tools@alpha", installPath: resolverPluginCache + "/m/tools/1.0"},
+				{key: "tools@beta", installPath: resolverPluginCache + "/m/tools/1.0"},
+			},
+			map[string]bool{"tools@alpha": true, "tools@beta": true},
+		)
+		notes := []offerNote{{key: "tools:gone", hash: "h"}}
+
+		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
+
+		g.Expect(comparison.Conflicts).To(Equal([]string{"engram: plugin name conflict: tools in alpha, beta"}))
+		g.Expect(removedKeys(comparison)).To(BeEmpty())
+		g.Expect(offeredKeys(comparison)).NotTo(ContainElement(HavePrefix("tools:")))
+	})
+
+	t.Run("one failing synced bucket keeps its notes", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := resolverFixture(g).file(userSkillsRoot+"/synced/b2/manifest.json", "not json")
+		notes := []offerNote{
+			{key: "anthropic-skills:in-b2", hash: "h1", source: userSkillsRoot + "/synced/b2/in-b2/SKILL.md"},
+			{key: "anthropic-skills:in-b1", hash: "h2", source: "~/.claude/skills/synced/b1/in-b1/SKILL.md"},
+		}
+
+		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
+
+		g.Expect(removedKeys(comparison)).To(Equal([]string{"anthropic-skills:in-b1"}))
+	})
+
+	t.Run("a pi-settings note is tied to its own entry", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := resolverFixture(g).
+			file(piAgentDir+"/settings.json", `{"skills": ["~/first", "~/extra-skills"]}`).
+			dir(fakeHome + "/first").
+			failRead(fakeHome + "/first")
+		notes := []offerNote{
+			{key: "pi-settings:x", hash: "h1", source: "~/first/x/SKILL.md"},
+			{key: "pi-settings:y", hash: "h2", source: "~/extra-skills/y/SKILL.md"},
+		}
+
+		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
+
+		g.Expect(removedKeys(comparison)).To(Equal([]string{"pi-settings:y"}))
+	})
+
+	t.Run("a failed settings entry reached through a symlink still guards its notes", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := resolverFixture(g).
+			file(piAgentDir+"/settings.json", `{"skills": ["~/outer", "~/lnk"]}`).
+			file(fakeHome+"/outer/keep/SKILL.md", "keep").
+			link(fakeHome+"/lnk", fakeHome+"/outer/inner")
+		notes := []offerNote{
+			{key: "pi-settings:x", hash: "h1", source: "~/outer/inner/x/SKILL.md"},
+			{key: "pi-settings:y", hash: "h2", source: "~/outer/y/SKILL.md"},
+		}
+
+		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
+
+		g.Expect(removedKeys(comparison)).To(Equal([]string{"pi-settings:y"}))
+	})
+
+	t.Run("a package dropped from settings leaves an orphan", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := resolverFixture(g).file(piAgentDir+"/settings.json", `{"skills": ["~/extra-skills"]}`)
+		notes := []offerNote{{key: "pi-pkg:pk:gone", hash: "h", source: pkGoneSource}}
+
+		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
+
+		g.Expect(removedKeys(comparison)).To(BeEmpty())
+	})
+
+	t.Run("a listed package's gone skill is offered for removal", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := resolverFixture(g)
+		notes := []offerNote{{key: "pi-pkg:pk:gone", hash: "h", source: pkGoneSource}}
+
+		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
+
+		g.Expect(removedKeys(comparison)).To(Equal([]string{"pi-pkg:pk:gone"}))
+	})
+}
+
+// Test792b31c2a15_CompareSkillOffers_ResolvedProject runs the spec scenarios for
+// project sources end to end (conflicts across chain levels, removals
+// scoped to the exact project directory): a fake home through
+// ResolveSkillSources, then CompareSkillOffers against a fake vault.
+func Test792b31c2a15_CompareSkillOffers_ResolvedProject(t *testing.T) {
+	t.Parallel()
+
+	t.Run("same project skill name at two levels is a conflict from sub/", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := newFakeSkillFS().dir(fakeHome+"/.claude").
+			file(projectTop+"/.claude/skills/foo/SKILL.md", "top foo").
+			file(projectTop+"/sub/.claude/skills/foo/SKILL.md", "sub foo").
+			file(projectTop+"/.claude/skills/bar/SKILL.md", "bar")
+
+		comparison := resolveAndCompare(g, fsys, projectTop+"/sub", resolverDeps(fsys), nil)
+
+		g.Expect(comparison.Conflicts).To(Equal([]string{
+			"engram: skill key conflict: " + projectScope + ":foo at " + projectTop + "/.claude/skills/foo/SKILL.md and " +
+				projectTop + "/sub/.claude/skills/foo/SKILL.md",
+		}))
+		g.Expect(offeredKeys(comparison)).To(Equal([]string{projectScope + ":bar"}))
+	})
+
+	t.Run("nested-only project note is kept when run from the top level", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := newFakeSkillFS().dir(fakeHome+"/.claude").file(projectTop+"/.claude/skills/bar/SKILL.md", "bar")
+		notes := []offerNote{{key: projectScope + ":foo", hash: "h", source: projectTop + "/sub/.claude/skills/foo/SKILL.md"}}
+
+		comparison := resolveAndCompare(g, fsys, projectTop, resolverDeps(fsys), notes)
+
+		g.Expect(removedKeys(comparison)).To(BeEmpty())
+	})
+
+	t.Run("a gone project skill in the read folder is offered for removal", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := newFakeSkillFS().dir(fakeHome+"/.claude").file(projectTop+"/.claude/skills/bar/SKILL.md", "bar")
+		notes := []offerNote{{key: projectScope + ":foo", hash: "h", source: projectTop + "/.claude/skills/foo/SKILL.md"}}
+
+		comparison := resolveAndCompare(g, fsys, projectTop, resolverDeps(fsys), notes)
+
+		g.Expect(removedKeys(comparison)).To(Equal([]string{projectScope + ":foo"}))
+	})
+
+	t.Run("update outside a repository keeps project notes", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := resolverFixture(g)
+		notes := []offerNote{{key: projectScope + ":foo", hash: "h", source: projectTop + "/.claude/skills/foo/SKILL.md"}}
+
+		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
+
+		g.Expect(removedKeys(comparison)).To(BeEmpty())
+	})
+
+	t.Run("an untrusted Pi project keeps its Pi project notes", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := resolverFixture(g).remove(piAgentDir + "/trust.json")
+		notes := []offerNote{{key: projectScope + ":pi:gone", hash: "h", source: projectTop + "/.pi/skills/gone/SKILL.md"}}
+
+		comparison := resolveAndCompare(g, fsys, projectTop, resolverDeps(fsys), notes)
+
+		g.Expect(removedKeys(comparison)).To(BeEmpty())
+	})
+
+	t.Run("a trusted Pi project's gone skill is offered for removal", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := resolverFixture(g)
+		notes := []offerNote{{key: projectScope + ":pi:gone", hash: "h", source: projectTop + "/.pi/skills/gone/SKILL.md"}}
+
+		comparison := resolveAndCompare(g, fsys, projectTop, resolverDeps(fsys), notes)
+
+		g.Expect(removedKeys(comparison)).To(Equal([]string{projectScope + ":pi:gone"}))
+	})
+
+	t.Run("a project settings entry of .. never exposes a nested-only project note", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := resolverFixture(g).
+			file(projectTop+"/.pi/settings.json", `{"skills": [".."]}`).
+			file(projectTop+"/sub/.claude/skills/foo/SKILL.md", "foo")
+		notes := []offerNote{{key: projectScope + ":foo", hash: "h", source: projectTop + "/sub/.claude/skills/foo/SKILL.md"}}
+
+		comparison := resolveAndCompare(g, fsys, projectTop, resolverDeps(fsys), notes)
+
+		g.Expect(removedKeys(comparison)).To(BeEmpty())
+	})
+}
+
+// Test792b31c2a5_CompareSkillOffers_OffersCarryKeyScopeAndSource covers task 2.5:
+// offers carry Key, ScopeID, SourcePath and Kind, sorted by (scope, key),
+// and a removal's scope follows its key form.
+func Test792b31c2a5_CompareSkillOffers_OffersCarryKeyScopeAndSource(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fixture := newOfferFixture()
+	fixture.home = fakeHome
+	fixture.sources.PluginManifestsRead = true
+	fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
+	fixture.root(fakeHome+"/.claude/commands", cli.SkillRootFormClaudeCmd, true)
+	fixture.root(piUserRoot, cli.SkillRootFormPiUser, true)
+	fixture.root(agentsUserRoot, cli.SkillRootFormAgentsUser, true)
+	fixture.root(piPromptsRoot, cli.SkillRootFormPiPrompt, true)
+	fixture.root(userSkillsRoot+"/synced/b1", cli.SkillRootFormSynced, true, "anthropic-skills:")
+	fixture.root(fakeHome+"/extra", cli.SkillRootFormPiSettings, true, "pi-settings:")
+	fixture.root(piAgentDir+"/npm/node_modules/pk", cli.SkillRootFormPiPkg, true, "pi-pkg:pk:")
+	fixture.root(projectTop+"/.claude/skills", cli.SkillRootFormProject, true, projectScope+":")
+
+	fixture.candidate(offerCand("claude:zeta", cli.SkillScopeClaudeUser, userSkillsRoot+"/zeta/SKILL.md", "zeta"))
+	fixture.candidate(offerCand("claude:alpha", cli.SkillScopeClaudeUser, userSkillsRoot+"/alpha/SKILL.md", "alpha"))
+	fixture.note("claude:gone", "h1", "")
+	fixture.note("claude:cmd:gone", "h2", "")
+	fixture.note("pi:gone", "h3", "")
+	fixture.note("agents:gone", "h4", "")
+	fixture.note("pi-prompt:gone", "h5", "")
+	fixture.note("anthropic-skills:gone", "h6", "~/.claude/skills/synced/b1/gone/SKILL.md")
+	fixture.note("pi-settings:gone", "h7", "~/extra/gone/SKILL.md")
+	fixture.note("pi-pkg:pk:gone", "h8", "~/.pi/agent/npm/node_modules/pk/skills/gone/SKILL.md")
+	fixture.note(projectScope+":gone", "h9", projectTop+"/.claude/skills/gone/SKILL.md")
+	fixture.note("ralph-loop:cmd:help", "h10", "")
+
+	comparison := fixture.compare(g)
+
+	type offerView struct {
+		Kind                     cli.SkillOfferKind
+		Key, ScopeID, SourcePath string
+	}
+
+	views := make([]offerView, 0, len(comparison.Offers))
+	for _, offer := range comparison.Offers {
+		views = append(views, offerView{offer.Kind, offer.Key, offer.ScopeID, offer.SourcePath})
+	}
+
+	g.Expect(views).To(Equal([]offerView{
+		{cli.SkillOfferRemove, "agents:gone", "agents-user", ""},
+		{cli.SkillOfferRemove, "claude:cmd:gone", "claude-cmd", ""},
+		{cli.SkillOfferRegister, "claude:alpha", "claude-user", userSkillsRoot + "/alpha/SKILL.md"},
+		{cli.SkillOfferRemove, "claude:gone", "claude-user", ""},
+		{cli.SkillOfferRegister, "claude:zeta", "claude-user", userSkillsRoot + "/zeta/SKILL.md"},
+		{cli.SkillOfferRemove, "pi-pkg:pk:gone", "pi-pkg:pk", "~/.pi/agent/npm/node_modules/pk/skills/gone/SKILL.md"},
+		{cli.SkillOfferRemove, "pi-prompt:gone", "pi-prompt", ""},
+		{cli.SkillOfferRemove, "pi-settings:gone", "pi-settings", "~/extra/gone/SKILL.md"},
+		{cli.SkillOfferRemove, "pi:gone", "pi-user", ""},
+		{cli.SkillOfferRemove, "ralph-loop:cmd:help", "plugin:ralph-loop", ""},
+		{cli.SkillOfferRemove, projectScope + ":gone", projectScope, projectTop + "/.claude/skills/gone/SKILL.md"},
+		{cli.SkillOfferRemove, "anthropic-skills:gone", "synced", "~/.claude/skills/synced/b1/gone/SKILL.md"},
+	}))
+}
+
+// Test792b31c2a6_CompareSkillOffers_Dedupe covers design D4: same-path collapse,
 // same-key collapse and conflicts (no source is exempt), and aliases.
-func TestCompareSkillOffers_Dedupe(t *testing.T) {
+func Test792b31c2a6_CompareSkillOffers_Dedupe(t *testing.T) {
 	t.Parallel()
 
 	t.Run("entries resolving to one file collapse and both keys stay present", func(t *testing.T) {
@@ -246,10 +598,53 @@ func TestCompareSkillOffers_Dedupe(t *testing.T) {
 	})
 }
 
-// TestCompareSkillOffers_OfferSetIndependentOfScanOrder (task 2.3 property,
+// Test792b31c2a7_CompareSkillOffers_AliasNeverOffers (task 2.3 property, postcondition):
+// no register or refresh offer carries a hash some note already holds, and
+// no two such offers share a hash; every offer's hash is the content of an
+// enabled candidate with its key.
+func Test792b31c2a7_CompareSkillOffers_AliasNeverOffers(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		fixture := drawDedupeUniverse(rt)
+
+		comparison, err := fixture.compareRapid()
+		if err != nil {
+			rt.Fatalf("CompareSkillOffers: %v", err)
+		}
+
+		noteHashes := map[string]bool{}
+		for _, note := range fixture.notes {
+			noteHashes[note.hash] = true
+		}
+
+		offeredHashes := map[string]string{}
+
+		for _, offer := range comparison.Offers {
+			if offer.Kind == cli.SkillOfferRemove {
+				continue
+			}
+
+			if noteHashes[offer.Hash] {
+				rt.Fatalf("offer %s %s repeats a note's skill_hash", offer.Kind, offer.Key)
+			}
+
+			if other, dup := offeredHashes[offer.Hash]; dup {
+				rt.Fatalf("offers %s and %s share hash %s", other, offer.Key, offer.Hash)
+			}
+
+			offeredHashes[offer.Hash] = offer.Key
+
+			if !fixture.hasEnabledCandidate(offer.Key, offer.Hash) {
+				rt.Fatalf("offer %s has no enabled candidate with hash %s", offer.Key, offer.Hash)
+			}
+		}
+	})
+}
+
+// Test792b31c2a8_CompareSkillOffers_OfferSetIndependentOfScanOrder (task 2.3 property,
 // metamorphic): permuting the candidates, roots, plugin facts and the vault
 // listing never changes the comparison.
-func TestCompareSkillOffers_OfferSetIndependentOfScanOrder(t *testing.T) {
+func Test792b31c2a8_CompareSkillOffers_OfferSetIndependentOfScanOrder(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		fixture := drawDedupeUniverse(rt)
@@ -272,70 +667,128 @@ func TestCompareSkillOffers_OfferSetIndependentOfScanOrder(t *testing.T) {
 	})
 }
 
-// TestCompareSkillOffers_OffersCarryKeyScopeAndSource covers task 2.5:
-// offers carry Key, ScopeID, SourcePath and Kind, sorted by (scope, key),
-// and a removal's scope follows its key form.
-func TestCompareSkillOffers_OffersCarryKeyScopeAndSource(t *testing.T) {
+// Test792b31c3a10_ResolveSkillSources_StampsRootForms: every read root carries the
+// removal-eligibility form of the notes it can prove absent, and each
+// source-rooted root the key prefixes it vouches for; the synced directory
+// itself and plugin roots carry neither.
+func Test792b31c3a10_ResolveSkillSources_StampsRootForms(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	fixture := newOfferFixture()
-	fixture.home = fakeHome
-	fixture.sources.PluginManifestsRead = true
-	fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
-	fixture.root(fakeHome+"/.claude/commands", cli.SkillRootFormClaudeCmd, true)
-	fixture.root(piUserRoot, cli.SkillRootFormPiUser, true)
-	fixture.root(agentsUserRoot, cli.SkillRootFormAgentsUser, true)
-	fixture.root(piPromptsRoot, cli.SkillRootFormPiPrompt, true)
-	fixture.root(userSkillsRoot+"/synced/b1", cli.SkillRootFormSynced, true, "anthropic-skills:")
-	fixture.root(fakeHome+"/extra", cli.SkillRootFormPiSettings, true, "pi-settings:")
-	fixture.root(piAgentDir+"/npm/node_modules/pk", cli.SkillRootFormPiPkg, true, "pi-pkg:pk:")
-	fixture.root(projectTop+"/.claude/skills", cli.SkillRootFormProject, true, projectScope+":")
+	resolved, err := cli.ResolveSkillSources(context.Background(), fakeHome, projectTop, resolverDeps(resolverFixture(g)))
+	g.Expect(err).NotTo(HaveOccurred())
 
-	fixture.candidate(offerCand("claude:zeta", cli.SkillScopeClaudeUser, userSkillsRoot+"/zeta/SKILL.md", "zeta"))
-	fixture.candidate(offerCand("claude:alpha", cli.SkillScopeClaudeUser, userSkillsRoot+"/alpha/SKILL.md", "alpha"))
-	fixture.note("claude:gone", "h1", "")
-	fixture.note("claude:cmd:gone", "h2", "")
-	fixture.note("pi:gone", "h3", "")
-	fixture.note("agents:gone", "h4", "")
-	fixture.note("pi-prompt:gone", "h5", "")
-	fixture.note("anthropic-skills:gone", "h6", "~/.claude/skills/synced/b1/gone/SKILL.md")
-	fixture.note("pi-settings:gone", "h7", "~/extra/gone/SKILL.md")
-	fixture.note("pi-pkg:pk:gone", "h8", "~/.pi/agent/npm/node_modules/pk/skills/gone/SKILL.md")
-	fixture.note(projectScope+":gone", "h9", projectTop+"/.claude/skills/gone/SKILL.md")
-	fixture.note("ralph-loop:cmd:help", "h10", "")
-
-	comparison := fixture.compare(g)
-
-	type offerView struct {
-		Kind                     cli.SkillOfferKind
-		Key, ScopeID, SourcePath string
+	forms := map[string]cli.SkillRootForm{}
+	for _, root := range resolved.Roots {
+		forms[root.Path] = root.Form
 	}
 
-	views := make([]offerView, 0, len(comparison.Offers))
-	for _, offer := range comparison.Offers {
-		views = append(views, offerView{offer.Kind, offer.Key, offer.ScopeID, offer.SourcePath})
+	g.Expect(forms).To(Equal(map[string]cli.SkillRootForm{
+		userSkillsRoot:                              cli.SkillRootFormClaudeUser,
+		fakeHome + "/.claude/commands":              cli.SkillRootFormClaudeCmd,
+		userSkillsRoot + "/synced":                  "",
+		userSkillsRoot + "/synced/b1":               cli.SkillRootFormSynced,
+		piUserRoot:                                  cli.SkillRootFormPiUser,
+		agentsUserRoot:                              cli.SkillRootFormAgentsUser,
+		piPromptsRoot:                               cli.SkillRootFormPiPrompt,
+		fakeHome + "/extra-skills":                  cli.SkillRootFormPiSettings,
+		fakeHome + "/extra-prompts":                 cli.SkillRootFormPiSettings,
+		piAgentDir + "/npm/node_modules/pk":         cli.SkillRootFormPiPkg,
+		resolverPluginCache + "/m/tools/1.0":        "",
+		resolverPluginCache + "/m/tools/1.0/skills": "",
+		projectTop + "/.claude/skills":              cli.SkillRootFormProject,
+		projectTop + "/.claude/commands":            cli.SkillRootFormProject,
+		projectTop + "/.pi/skills":                  cli.SkillRootFormProject,
+		projectTop + "/.agents/skills":              cli.SkillRootFormProject,
+		projectTop + "/.pi/prompts":                 cli.SkillRootFormProject,
+		projectTop + "/.pi/extra":                   cli.SkillRootFormProject,
+		projectTop + "/.pi/extra-prompts":           cli.SkillRootFormProject,
+		projectTop + "/.pi/npm/node_modules/ppk":    cli.SkillRootFormProject,
+	}))
+
+	prefixes := map[string][]string{}
+
+	for _, root := range resolved.Roots {
+		if root.KeyPrefixes != nil {
+			prefixes[root.Path] = root.KeyPrefixes
+		}
 	}
 
-	g.Expect(views).To(Equal([]offerView{
-		{cli.SkillOfferRemove, "agents:gone", "agents-user", ""},
-		{cli.SkillOfferRemove, "claude:cmd:gone", "claude-cmd", ""},
-		{cli.SkillOfferRegister, "claude:alpha", "claude-user", userSkillsRoot + "/alpha/SKILL.md"},
-		{cli.SkillOfferRemove, "claude:gone", "claude-user", ""},
-		{cli.SkillOfferRegister, "claude:zeta", "claude-user", userSkillsRoot + "/zeta/SKILL.md"},
-		{cli.SkillOfferRemove, "pi-pkg:pk:gone", "pi-pkg:pk", "~/.pi/agent/npm/node_modules/pk/skills/gone/SKILL.md"},
-		{cli.SkillOfferRemove, "pi-prompt:gone", "pi-prompt", ""},
-		{cli.SkillOfferRemove, "pi-settings:gone", "pi-settings", "~/extra/gone/SKILL.md"},
-		{cli.SkillOfferRemove, "pi:gone", "pi-user", ""},
-		{cli.SkillOfferRemove, "ralph-loop:cmd:help", "plugin:ralph-loop", ""},
-		{cli.SkillOfferRemove, projectScope + ":gone", projectScope, projectTop + "/.claude/skills/gone/SKILL.md"},
-		{cli.SkillOfferRemove, "anthropic-skills:gone", "synced", "~/.claude/skills/synced/b1/gone/SKILL.md"},
+	project := projectScope + ":"
+	g.Expect(prefixes).To(Equal(map[string][]string{
+		userSkillsRoot + "/synced/b1":            {"anthropic-skills:"},
+		fakeHome + "/extra-skills":               {"pi-settings:"},
+		fakeHome + "/extra-prompts":              {"pi-settings:pi-prompt:"},
+		piAgentDir + "/npm/node_modules/pk":      {"pi-pkg:pk:", "pi-pkg:pk:pi-prompt:"},
+		projectTop + "/.claude/skills":           {project},
+		projectTop + "/.claude/commands":         {project + "cmd:"},
+		projectTop + "/.pi/skills":               {project + "pi:"},
+		projectTop + "/.agents/skills":           {project + "agents:"},
+		projectTop + "/.pi/prompts":              {project + "pi-prompt:"},
+		projectTop + "/.pi/extra":                {project + "pi-settings:"},
+		projectTop + "/.pi/extra-prompts":        {project + "pi-settings:pi-prompt:"},
+		projectTop + "/.pi/npm/node_modules/ppk": {project + "pi-pkg:ppk:", project + "pi-pkg:ppk:pi-prompt:"},
 	}))
 }
 
-// TestCompareSkillOffers_RemovalEligibilityPlugins covers design D5 for
+// Test792b31c3a11_ResolveSkillPathBestEffort: a root that cannot be resolved still gets
+// the real location it points into, up to the failing component.
+func Test792b31c3a11_ResolveSkillPathBestEffort(t *testing.T) {
+	t.Parallel()
+
+	fsys := newFakeSkillFS().
+		dir("/real/ok").
+		link("/home/joe/ok", "/real/ok").
+		link("/home/joe/lnk", "/real/gone/inner").
+		dir("/real/denied").failLstat("/real/denied").
+		link("/home/joe/via", "/real/denied").
+		link("/loop/a", "/loop/b").link("/loop/b", "/loop/a")
+
+	testCases := map[string]string{
+		"/home/joe/ok":      "/real/ok",
+		"/home/joe/lnk":     "/real/gone/inner",
+		"/home/joe/via/x":   "/real/denied/x",
+		"relative/path":     "relative/path",
+		"/loop/a/skills":    "/loop/a/skills",
+		"/home/joe/missing": "/home/joe/missing",
+	}
+
+	for path, want := range testCases {
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			g.Expect(cli.ExportResolveSkillPathBestEffort(fsys, path)).To(Equal(want))
+		})
+	}
+}
+
+// Test792b31c3a11_ResolveSkillPathBestEffort_FollowsLinkChainsToAMissingTarget
+// (property): a chain of symlinks ending at a missing path resolves to that
+// path, whatever the chain's length and link forms.
+func Test792b31c3a11_ResolveSkillPathBestEffort_FollowsLinkChainsToAMissingTarget(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		hops := rapid.IntRange(0, 5).Draw(rt, "hops")
+		leaf := "/real/" + rapid.StringMatching(`[a-z]{1,6}`).Draw(rt, "leaf") + "/SKILL.md"
+		fsys := newFakeSkillFS().dir("/real")
+		target := leaf
+
+		for hop := hops; hop > 0; hop-- {
+			link := fmt.Sprintf("/links/l%d", hop)
+			fsys.link(link, target)
+			target = link
+		}
+
+		if got := cli.ExportResolveSkillPathBestEffort(fsys, target); got != leaf {
+			rt.Fatalf("best effort of %s: got %s, want %s", target, got, leaf)
+		}
+	})
+}
+
+// Test792b31c3a1_CompareSkillOffers_RemovalEligibilityPlugins covers design D5 for
 // plugin notes: the manifest rule.
-func TestCompareSkillOffers_RemovalEligibilityPlugins(t *testing.T) {
+func Test792b31c3a1_CompareSkillOffers_RemovalEligibilityPlugins(t *testing.T) {
 	t.Parallel()
 	runRemovalCases(t, []removalCase{
 		{
@@ -381,9 +834,9 @@ func TestCompareSkillOffers_RemovalEligibilityPlugins(t *testing.T) {
 	})
 }
 
-// TestCompareSkillOffers_RemovalEligibilityProject covers design D5 for
+// Test792b31c3a2_CompareSkillOffers_RemovalEligibilityProject covers design D5 for
 // project notes: the exact project directory must be read and vouch for the key.
-func TestCompareSkillOffers_RemovalEligibilityProject(t *testing.T) {
+func Test792b31c3a2_CompareSkillOffers_RemovalEligibilityProject(t *testing.T) {
 	t.Parallel()
 	runRemovalCases(t, []removalCase{
 		{
@@ -460,9 +913,9 @@ func TestCompareSkillOffers_RemovalEligibilityProject(t *testing.T) {
 	})
 }
 
-// TestCompareSkillOffers_RemovalEligibilitySourceRooted covers design D5 for
+// Test792b31c3a3_CompareSkillOffers_RemovalEligibilitySourceRooted covers design D5 for
 // synced, pi-settings and pi-pkg notes: the root holding skill_source must be read and vouch for the key.
-func TestCompareSkillOffers_RemovalEligibilitySourceRooted(t *testing.T) {
+func Test792b31c3a3_CompareSkillOffers_RemovalEligibilitySourceRooted(t *testing.T) {
 	t.Parallel()
 	runRemovalCases(t, []removalCase{
 		{
@@ -582,9 +1035,9 @@ func TestCompareSkillOffers_RemovalEligibilitySourceRooted(t *testing.T) {
 	})
 }
 
-// TestCompareSkillOffers_RemovalEligibilityUserRoots covers design D5 for
+// Test792b31c3a4_CompareSkillOffers_RemovalEligibilityUserRoots covers design D5 for
 // single-root user forms, aliases, disabled candidates, --skills-dir and declines.
-func TestCompareSkillOffers_RemovalEligibilityUserRoots(t *testing.T) {
+func Test792b31c3a4_CompareSkillOffers_RemovalEligibilityUserRoots(t *testing.T) {
 	t.Parallel()
 	runRemovalCases(t, []removalCase{
 		{
@@ -677,13 +1130,13 @@ func TestCompareSkillOffers_RemovalEligibilityUserRoots(t *testing.T) {
 	})
 }
 
-// TestCompareSkillOffers_RemovalOnlyWhenOwnRootReadAndKeyAbsent (task 2.4
+// Test792b31c3a5_CompareSkillOffers_RemovalOnlyWhenOwnRootReadAndKeyAbsent (task 2.4
 // property, model-based): each drawn note gets an intended root state and,
 // for source-rooted forms, maybe a read decoy root of the same form but
 // another scope or segment, around or inside its own root; a removal is
 // offered exactly when its own root was read, no decoy hides it, and no
 // candidate, alias or disabled one included, holds the note's key.
-func TestCompareSkillOffers_RemovalOnlyWhenOwnRootReadAndKeyAbsent(t *testing.T) {
+func Test792b31c3a5_CompareSkillOffers_RemovalOnlyWhenOwnRootReadAndKeyAbsent(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		fixture, expected := drawRemovalUniverse(rt)
@@ -700,459 +1153,6 @@ func TestCompareSkillOffers_RemovalOnlyWhenOwnRootReadAndKeyAbsent(t *testing.T)
 			rt.Fatalf("removals: want %v, got %v", expected, got)
 		}
 	})
-}
-
-// TestCompareSkillOffers_ResolvedPluginsAndSources runs the spec scenarios for
-// plugins, synced buckets, Pi settings entries and packages end to end: a fake home through ResolveSkillSources, then
-// CompareSkillOffers against a fake vault.
-func TestCompareSkillOffers_ResolvedPluginsAndSources(t *testing.T) {
-	t.Parallel()
-
-	t.Run("an uninstalled plugin's note is offered for removal; the installed one's kept", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := resolverFixture(g)
-		notes := []offerNote{
-			{key: "ralph-loop:cmd:help", hash: "h1"},
-			{key: "tools:tl", hash: cli.SkillContentHash([]byte("tl"))},
-		}
-
-		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
-
-		g.Expect(removedKeys(comparison)).To(Equal([]string{"ralph-loop:cmd:help"}))
-	})
-
-	t.Run("a disabled plugin keeps its notes", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := resolverFixture(g)
-		writePluginManifestsAt(g, fsys, fakeHome+"/.claude",
-			[]pluginInstall{{key: "tools@m", installPath: resolverPluginCache + "/m/tools/1.0"}},
-			map[string]bool{"tools@m": false},
-		)
-		notes := []offerNote{{key: "tools:tl", hash: "h"}}
-
-		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
-
-		g.Expect(removedKeys(comparison)).To(BeEmpty())
-	})
-
-	t.Run("a plugin in two marketplaces is loud and keeps its notes", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := resolverFixture(g)
-		writePluginManifestsAt(g, fsys, fakeHome+"/.claude",
-			[]pluginInstall{
-				{key: "tools@alpha", installPath: resolverPluginCache + "/m/tools/1.0"},
-				{key: "tools@beta", installPath: resolverPluginCache + "/m/tools/1.0"},
-			},
-			map[string]bool{"tools@alpha": true, "tools@beta": true},
-		)
-		notes := []offerNote{{key: "tools:gone", hash: "h"}}
-
-		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
-
-		g.Expect(comparison.Conflicts).To(Equal([]string{"engram: plugin name conflict: tools in alpha, beta"}))
-		g.Expect(removedKeys(comparison)).To(BeEmpty())
-		g.Expect(offeredKeys(comparison)).NotTo(ContainElement(HavePrefix("tools:")))
-	})
-
-	t.Run("one failing synced bucket keeps its notes", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := resolverFixture(g).file(userSkillsRoot+"/synced/b2/manifest.json", "not json")
-		notes := []offerNote{
-			{key: "anthropic-skills:in-b2", hash: "h1", source: userSkillsRoot + "/synced/b2/in-b2/SKILL.md"},
-			{key: "anthropic-skills:in-b1", hash: "h2", source: "~/.claude/skills/synced/b1/in-b1/SKILL.md"},
-		}
-
-		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
-
-		g.Expect(removedKeys(comparison)).To(Equal([]string{"anthropic-skills:in-b1"}))
-	})
-
-	t.Run("a pi-settings note is tied to its own entry", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := resolverFixture(g).
-			file(piAgentDir+"/settings.json", `{"skills": ["~/first", "~/extra-skills"]}`).
-			dir(fakeHome + "/first").
-			failRead(fakeHome + "/first")
-		notes := []offerNote{
-			{key: "pi-settings:x", hash: "h1", source: "~/first/x/SKILL.md"},
-			{key: "pi-settings:y", hash: "h2", source: "~/extra-skills/y/SKILL.md"},
-		}
-
-		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
-
-		g.Expect(removedKeys(comparison)).To(Equal([]string{"pi-settings:y"}))
-	})
-
-	t.Run("a failed settings entry reached through a symlink still guards its notes", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := resolverFixture(g).
-			file(piAgentDir+"/settings.json", `{"skills": ["~/outer", "~/lnk"]}`).
-			file(fakeHome+"/outer/keep/SKILL.md", "keep").
-			link(fakeHome+"/lnk", fakeHome+"/outer/inner")
-		notes := []offerNote{
-			{key: "pi-settings:x", hash: "h1", source: "~/outer/inner/x/SKILL.md"},
-			{key: "pi-settings:y", hash: "h2", source: "~/outer/y/SKILL.md"},
-		}
-
-		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
-
-		g.Expect(removedKeys(comparison)).To(Equal([]string{"pi-settings:y"}))
-	})
-
-	t.Run("a package dropped from settings leaves an orphan", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := resolverFixture(g).file(piAgentDir+"/settings.json", `{"skills": ["~/extra-skills"]}`)
-		notes := []offerNote{{key: "pi-pkg:pk:gone", hash: "h", source: pkGoneSource}}
-
-		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
-
-		g.Expect(removedKeys(comparison)).To(BeEmpty())
-	})
-
-	t.Run("a listed package's gone skill is offered for removal", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := resolverFixture(g)
-		notes := []offerNote{{key: "pi-pkg:pk:gone", hash: "h", source: pkGoneSource}}
-
-		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
-
-		g.Expect(removedKeys(comparison)).To(Equal([]string{"pi-pkg:pk:gone"}))
-	})
-}
-
-// TestCompareSkillOffers_ResolvedProject runs the spec scenarios for
-// project sources end to end (conflicts across chain levels, removals
-// scoped to the exact project directory): a fake home through
-// ResolveSkillSources, then CompareSkillOffers against a fake vault.
-func TestCompareSkillOffers_ResolvedProject(t *testing.T) {
-	t.Parallel()
-
-	t.Run("same project skill name at two levels is a conflict from sub/", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := newFakeSkillFS().dir(fakeHome+"/.claude").
-			file(projectTop+"/.claude/skills/foo/SKILL.md", "top foo").
-			file(projectTop+"/sub/.claude/skills/foo/SKILL.md", "sub foo").
-			file(projectTop+"/.claude/skills/bar/SKILL.md", "bar")
-
-		comparison := resolveAndCompare(g, fsys, projectTop+"/sub", resolverDeps(fsys), nil)
-
-		g.Expect(comparison.Conflicts).To(Equal([]string{
-			"engram: skill key conflict: " + projectScope + ":foo at " + projectTop + "/.claude/skills/foo/SKILL.md and " +
-				projectTop + "/sub/.claude/skills/foo/SKILL.md",
-		}))
-		g.Expect(offeredKeys(comparison)).To(Equal([]string{projectScope + ":bar"}))
-	})
-
-	t.Run("nested-only project note is kept when run from the top level", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := newFakeSkillFS().dir(fakeHome+"/.claude").file(projectTop+"/.claude/skills/bar/SKILL.md", "bar")
-		notes := []offerNote{{key: projectScope + ":foo", hash: "h", source: projectTop + "/sub/.claude/skills/foo/SKILL.md"}}
-
-		comparison := resolveAndCompare(g, fsys, projectTop, resolverDeps(fsys), notes)
-
-		g.Expect(removedKeys(comparison)).To(BeEmpty())
-	})
-
-	t.Run("a gone project skill in the read folder is offered for removal", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := newFakeSkillFS().dir(fakeHome+"/.claude").file(projectTop+"/.claude/skills/bar/SKILL.md", "bar")
-		notes := []offerNote{{key: projectScope + ":foo", hash: "h", source: projectTop + "/.claude/skills/foo/SKILL.md"}}
-
-		comparison := resolveAndCompare(g, fsys, projectTop, resolverDeps(fsys), notes)
-
-		g.Expect(removedKeys(comparison)).To(Equal([]string{projectScope + ":foo"}))
-	})
-
-	t.Run("update outside a repository keeps project notes", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := resolverFixture(g)
-		notes := []offerNote{{key: projectScope + ":foo", hash: "h", source: projectTop + "/.claude/skills/foo/SKILL.md"}}
-
-		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
-
-		g.Expect(removedKeys(comparison)).To(BeEmpty())
-	})
-
-	t.Run("an untrusted Pi project keeps its Pi project notes", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := resolverFixture(g).remove(piAgentDir + "/trust.json")
-		notes := []offerNote{{key: projectScope + ":pi:gone", hash: "h", source: projectTop + "/.pi/skills/gone/SKILL.md"}}
-
-		comparison := resolveAndCompare(g, fsys, projectTop, resolverDeps(fsys), notes)
-
-		g.Expect(removedKeys(comparison)).To(BeEmpty())
-	})
-
-	t.Run("a trusted Pi project's gone skill is offered for removal", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := resolverFixture(g)
-		notes := []offerNote{{key: projectScope + ":pi:gone", hash: "h", source: projectTop + "/.pi/skills/gone/SKILL.md"}}
-
-		comparison := resolveAndCompare(g, fsys, projectTop, resolverDeps(fsys), notes)
-
-		g.Expect(removedKeys(comparison)).To(Equal([]string{projectScope + ":pi:gone"}))
-	})
-
-	t.Run("a project settings entry of .. never exposes a nested-only project note", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := resolverFixture(g).
-			file(projectTop+"/.pi/settings.json", `{"skills": [".."]}`).
-			file(projectTop+"/sub/.claude/skills/foo/SKILL.md", "foo")
-		notes := []offerNote{{key: projectScope + ":foo", hash: "h", source: projectTop + "/sub/.claude/skills/foo/SKILL.md"}}
-
-		comparison := resolveAndCompare(g, fsys, projectTop, resolverDeps(fsys), notes)
-
-		g.Expect(removedKeys(comparison)).To(BeEmpty())
-	})
-}
-
-// TestCompareSkillOffers_ResolvedUserAndPi runs the spec scenarios for
-// the user roots and the Pi harness end to end: a fake home through ResolveSkillSources, then
-// CompareSkillOffers against a fake vault.
-func TestCompareSkillOffers_ResolvedUserAndPi(t *testing.T) {
-	t.Parallel()
-
-	t.Run("unreadable ~/.claude/skills keeps claude: notes", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := resolverFixture(g).failRead(userSkillsRoot)
-		notes := []offerNote{{key: "claude:gone", hash: "h"}}
-
-		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
-
-		g.Expect(removedKeys(comparison)).To(BeEmpty())
-	})
-
-	t.Run("readable ~/.claude/skills offers a gone claude: note for removal", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := resolverFixture(g)
-		notes := []offerNote{{key: "claude:gone", hash: "h"}}
-
-		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
-
-		g.Expect(removedKeys(comparison)).To(Equal([]string{"claude:gone"}))
-	})
-
-	t.Run("a Pi-disabled skill makes no offer of any kind", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := newFakeSkillFS().
-			file(piUserRoot+"/ping/SKILL.md", "ping").
-			file(piAgentDir+"/settings.json", `{"skills": ["!ping"]}`)
-		notes := []offerNote{{key: "pi:ping", hash: "stale"}}
-
-		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
-
-		g.Expect(comparison.Offers).To(BeEmpty())
-	})
-
-	t.Run("no Pi harness keeps pi notes", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := resolverFixture(g).remove(fakeHome + "/.pi")
-		notes := []offerNote{{key: "pi:ping", hash: "h"}}
-
-		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
-
-		g.Expect(removedKeys(comparison)).To(BeEmpty())
-	})
-}
-
-// TestReportSkillOfferProblems: warnings and conflict lines are printed, and
-// any conflict is a failure; without one it is silent success.
-func TestReportSkillOfferProblems(t *testing.T) {
-	t.Parallel()
-
-	t.Run("conflicts print and fail", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		var out bytes.Buffer
-
-		err := cli.ReportSkillOfferProblems(&out, cli.SkillOfferComparison{
-			Conflicts: []string{"engram: skill key conflict: x at /a and /b"},
-			Warnings:  []string{"engram: w"},
-		})
-
-		g.Expect(err).To(MatchError(cli.ErrSkillOfferConflictForTest))
-		g.Expect(out.String()).To(Equal("engram: w\nengram: skill key conflict: x at /a and /b\n"))
-	})
-
-	t.Run("warnings alone print and succeed", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		var out bytes.Buffer
-
-		err := cli.ReportSkillOfferProblems(&out, cli.SkillOfferComparison{Warnings: []string{"engram: w"}})
-
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(out.String()).To(Equal("engram: w\n"))
-	})
-
-	t.Run("nothing to report is silent", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		var out bytes.Buffer
-
-		g.Expect(cli.ReportSkillOfferProblems(&out, cli.SkillOfferComparison{})).To(Succeed())
-		g.Expect(out.String()).To(BeEmpty())
-	})
-}
-
-// TestResolveSkillPathBestEffort: a root that cannot be resolved still gets
-// the real location it points into, up to the failing component.
-func TestResolveSkillPathBestEffort(t *testing.T) {
-	t.Parallel()
-
-	fsys := newFakeSkillFS().
-		dir("/real/ok").
-		link("/home/joe/ok", "/real/ok").
-		link("/home/joe/lnk", "/real/gone/inner").
-		dir("/real/denied").failLstat("/real/denied").
-		link("/home/joe/via", "/real/denied").
-		link("/loop/a", "/loop/b").link("/loop/b", "/loop/a")
-
-	testCases := map[string]string{
-		"/home/joe/ok":      "/real/ok",
-		"/home/joe/lnk":     "/real/gone/inner",
-		"/home/joe/via/x":   "/real/denied/x",
-		"relative/path":     "relative/path",
-		"/loop/a/skills":    "/loop/a/skills",
-		"/home/joe/missing": "/home/joe/missing",
-	}
-
-	for path, want := range testCases {
-		t.Run(path, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			g.Expect(cli.ExportResolveSkillPathBestEffort(fsys, path)).To(Equal(want))
-		})
-	}
-}
-
-// TestResolveSkillPathBestEffort_FollowsLinkChainsToAMissingTarget
-// (property): a chain of symlinks ending at a missing path resolves to that
-// path, whatever the chain's length and link forms.
-func TestResolveSkillPathBestEffort_FollowsLinkChainsToAMissingTarget(t *testing.T) {
-	t.Parallel()
-	rapid.Check(t, func(rt *rapid.T) {
-		hops := rapid.IntRange(0, 5).Draw(rt, "hops")
-		leaf := "/real/" + rapid.StringMatching(`[a-z]{1,6}`).Draw(rt, "leaf") + "/SKILL.md"
-		fsys := newFakeSkillFS().dir("/real")
-		target := leaf
-
-		for hop := hops; hop > 0; hop-- {
-			link := fmt.Sprintf("/links/l%d", hop)
-			fsys.link(link, target)
-			target = link
-		}
-
-		if got := cli.ExportResolveSkillPathBestEffort(fsys, target); got != leaf {
-			rt.Fatalf("best effort of %s: got %s, want %s", target, got, leaf)
-		}
-	})
-}
-
-// TestResolveSkillSources_StampsRootForms: every read root carries the
-// removal-eligibility form of the notes it can prove absent, and each
-// source-rooted root the key prefixes it vouches for; the synced directory
-// itself and plugin roots carry neither.
-func TestResolveSkillSources_StampsRootForms(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	resolved, err := cli.ResolveSkillSources(context.Background(), fakeHome, projectTop, resolverDeps(resolverFixture(g)))
-	g.Expect(err).NotTo(HaveOccurred())
-
-	forms := map[string]cli.SkillRootForm{}
-	for _, root := range resolved.Roots {
-		forms[root.Path] = root.Form
-	}
-
-	g.Expect(forms).To(Equal(map[string]cli.SkillRootForm{
-		userSkillsRoot:                              cli.SkillRootFormClaudeUser,
-		fakeHome + "/.claude/commands":              cli.SkillRootFormClaudeCmd,
-		userSkillsRoot + "/synced":                  "",
-		userSkillsRoot + "/synced/b1":               cli.SkillRootFormSynced,
-		piUserRoot:                                  cli.SkillRootFormPiUser,
-		agentsUserRoot:                              cli.SkillRootFormAgentsUser,
-		piPromptsRoot:                               cli.SkillRootFormPiPrompt,
-		fakeHome + "/extra-skills":                  cli.SkillRootFormPiSettings,
-		fakeHome + "/extra-prompts":                 cli.SkillRootFormPiSettings,
-		piAgentDir + "/npm/node_modules/pk":         cli.SkillRootFormPiPkg,
-		resolverPluginCache + "/m/tools/1.0":        "",
-		resolverPluginCache + "/m/tools/1.0/skills": "",
-		projectTop + "/.claude/skills":              cli.SkillRootFormProject,
-		projectTop + "/.claude/commands":            cli.SkillRootFormProject,
-		projectTop + "/.pi/skills":                  cli.SkillRootFormProject,
-		projectTop + "/.agents/skills":              cli.SkillRootFormProject,
-		projectTop + "/.pi/prompts":                 cli.SkillRootFormProject,
-		projectTop + "/.pi/extra":                   cli.SkillRootFormProject,
-		projectTop + "/.pi/extra-prompts":           cli.SkillRootFormProject,
-		projectTop + "/.pi/npm/node_modules/ppk":    cli.SkillRootFormProject,
-	}))
-
-	prefixes := map[string][]string{}
-
-	for _, root := range resolved.Roots {
-		if root.KeyPrefixes != nil {
-			prefixes[root.Path] = root.KeyPrefixes
-		}
-	}
-
-	project := projectScope + ":"
-	g.Expect(prefixes).To(Equal(map[string][]string{
-		userSkillsRoot + "/synced/b1":            {"anthropic-skills:"},
-		fakeHome + "/extra-skills":               {"pi-settings:"},
-		fakeHome + "/extra-prompts":              {"pi-settings:pi-prompt:"},
-		piAgentDir + "/npm/node_modules/pk":      {"pi-pkg:pk:", "pi-pkg:pk:pi-prompt:"},
-		projectTop + "/.claude/skills":           {project},
-		projectTop + "/.claude/commands":         {project + "cmd:"},
-		projectTop + "/.pi/skills":               {project + "pi:"},
-		projectTop + "/.agents/skills":           {project + "agents:"},
-		projectTop + "/.pi/prompts":              {project + "pi-prompt:"},
-		projectTop + "/.pi/extra":                {project + "pi-settings:"},
-		projectTop + "/.pi/extra-prompts":        {project + "pi-settings:pi-prompt:"},
-		projectTop + "/.pi/npm/node_modules/ppk": {project + "pi-pkg:ppk:", project + "pi-pkg:ppk:pi-prompt:"},
-	}))
 }
 
 // unexported constants.

@@ -33,9 +33,9 @@ func Test792b14c7a3_RunResituate_ConvertsCRLFNote(t *testing.T) {
 	}
 }
 
-// TestRefreshSkill_ConvertsCRLFNote: a CRLF skill note is refreshed (not
+// Test792b31c7a11_RefreshSkill_ConvertsCRLFNote: a CRLF skill note is refreshed (not
 // refused) and written as LF, keeping its authored fields.
-func TestRefreshSkill_ConvertsCRLFNote(t *testing.T) {
+func Test792b31c7a11_RefreshSkill_ConvertsCRLFNote(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 

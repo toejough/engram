@@ -1677,3 +1677,25 @@ decisions as `792dN`, continuing the sequence.
     a skill needs a folder name to key on.
 - **Rationale:** 792d30, 792d52, 792d106.
 - **Alternatives:** none beyond 792d106.
+
+## 792d108 skill-registration-ledger scope, and the behaviors the code shows
+
+- **Choice:**
+  - 792b31 specifies eight requirements. The accept actions (register, refresh, remove, adopt) are specified
+    here, in the component that owns `skillreg_accept.go`, with the offers they answer, since the catalog
+    named no other owner for them (792d106).
+  - The comparison, note and key tests that 792c7k2 left (`skillkeys_qualified_test`, the skill tests in
+    `skilloffers_test` that resolve real sources) take ledger scenarios, as do the accept-action tests that
+    792c7k1 deferred (`TestRefreshSkill_ConvertsCRLFNote`, the two anchored-key tests and
+    `TestAdoptSkillNote_ConvertsCRLFNote`).
+  - `TestResolveSkillPathBestEffort*` test a function of skill-source-discovery's file, but its only purpose
+    is the eligibility rule that a failed root hides the notes under it, so they take 792b31c3.
+- **Divergences noted (792d33):**
+  - A missing or unrenderable target of `--adopt` is detected for every entry before the first one writes, but
+    an I/O failure of the rename, write or embed after that point cannot be, so a later entry can still fail
+    after an earlier one was written.
+  - An unanswered offer is not an error: a non-interactive run exits 0 with the summary line, and only a
+    conflict gives a failure status.
+  - The summary line is printed after the unmatched-token notes and before the conflicts.
+- **Rationale:** 792d30, 792d52, 792d106, 792d107.
+- **Alternatives:** none beyond 792d106.

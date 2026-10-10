@@ -14,167 +14,134 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestCompareSkillOffers_ContentChangeAfterDecline_ReOffersExactlyOnce is
-// the second half of tasks.md 1.4's property test: changing a skill's
-// content re-yields exactly one offer for it (and none for any other
-// skill, whose declines still hold).
-func TestCompareSkillOffers_ContentChangeAfterDecline_ReOffersExactlyOnce(t *testing.T) {
+// Test792b31c1a2_FindSkillNote covers the lookup identity rule (skill-runbook-
+// registration D3): none, one, duplicate, a non-runbook note with a
+// matching slug, and a runbook note with the matching slug but no
+// skill_hash.
+func Test792b31c1a2_FindSkillNote(t *testing.T) {
 	t.Parallel()
-	rapid.Check(t, func(rt *rapid.T) {
-		skills, names, vault := genSkillregFixture(rt)
-		if len(skills) == 0 {
-			return
-		}
 
-		baseline, err := compareShippedSkills(skills, names, vault.readFile, map[string]string{})
-		if err != nil {
-			rt.Fatalf("CompareSkillOffers: %v", err)
-		}
+	t.Run("none", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
 
-		declined := make(map[string]string, len(baseline))
-		for _, offer := range baseline {
-			declined[offer.Key] = offer.Hash
-		}
+		vault := newSkillregFixtureVault()
+		vault.put("1.2026-01-01.some-other-note.md", runbookNote("abc"))
 
-		changedIdx := rapid.IntRange(0, len(skills)-1).Draw(rt, "changedIdx")
-		// A stale note's hash is content+staleSkillMarker, so appending exactly
-		// that byte would make the note current (no offer, correctly).
-		extra := rapid.SliceOfN(rapid.Byte(), 1, 8).
-			Filter(func(extra []byte) bool { return !bytes.Equal(extra, []byte{staleSkillMarker}) }).
-			Draw(rt, "extraBytes")
-		skills[changedIdx].Content = append(append([]byte{}, skills[changedIdx].Content...), extra...)
+		basename, hash, found, err := cli.FindSkillNote(
+			"/vault", "claude:curate", []string{"1.2026-01-01.some-other-note.md"}, vault.readFile,
+		)
 
-		offersAfter, afterErr := compareShippedSkills(skills, names, vault.readFile, declined)
-		if afterErr != nil {
-			rt.Fatalf("CompareSkillOffers (after content change): %v", afterErr)
-		}
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(found).To(BeFalse())
+		g.Expect(basename).To(BeEmpty())
+		g.Expect(hash).To(BeEmpty())
+	})
 
-		matchCount := 0
+	t.Run("one", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
 
-		for _, offer := range offersAfter {
-			if offer.Key != "claude:"+skills[changedIdx].Name {
-				rt.Fatalf("unexpected offer for unrelated skill %q: %+v", offer.Key, offer)
-			}
+		vault := newSkillregFixtureVault()
+		vault.put("1049.2026-09-21.skill-curate.md", claudeSkillNote("curate", "abc123"))
 
-			matchCount++
-		}
+		basename, hash, found, err := cli.FindSkillNote(
+			"/vault", "claude:curate", []string{"1049.2026-09-21.skill-curate.md"}, vault.readFile,
+		)
 
-		if matchCount != 1 {
-			rt.Fatalf("expected exactly one offer for changed skill %q, got %d: %+v",
-				skills[changedIdx].Name, matchCount, offersAfter)
-		}
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(found).To(BeTrue())
+		g.Expect(basename).To(Equal("1049.2026-09-21.skill-curate"))
+		g.Expect(hash).To(Equal("abc123"))
+	})
+
+	t.Run("duplicate", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		vault := newSkillregFixtureVault()
+		vault.put("1049.2026-09-21.skill-curate.md", claudeSkillNote("curate", "abc"))
+		vault.put("1050.2026-09-22.skill-curate.md", claudeSkillNote("curate", "def"))
+
+		_, _, found, err := cli.FindSkillNote(
+			"/vault", "claude:curate",
+			[]string{"1049.2026-09-21.skill-curate.md", "1050.2026-09-22.skill-curate.md"},
+			vault.readFile,
+		)
+
+		g.Expect(found).To(BeFalse())
+		g.Expect(err).To(MatchError(cli.ErrDuplicateSkillNoteForTest))
+		g.Expect(err).To(MatchError(ContainSubstring("1049.2026-09-21.skill-curate")))
+		g.Expect(err).To(MatchError(ContainSubstring("1050.2026-09-22.skill-curate")))
+	})
+
+	t.Run("non-runbook note with a matching slug is not a skill note", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		vault := newSkillregFixtureVault()
+		vault.put("1.2026-01-01.skill-curate.md",
+			"---\ntype: fact\nsituation: s\nsubject: s\npredicate: p\nobject: o\n---\n\nbody\n")
+
+		_, _, found, err := cli.FindSkillNote(
+			"/vault", "claude:curate", []string{"1.2026-01-01.skill-curate.md"}, vault.readFile,
+		)
+
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(found).To(BeFalse())
+	})
+
+	t.Run("runbook note with a matching slug but no skill_hash is not a skill note", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		vault := newSkillregFixtureVault()
+		vault.put("1.2026-01-01.skill-curate.md", "---\ntype: runbook\nsituation: s\ndone_when: d\n---\n\nbody\n")
+
+		_, _, found, err := cli.FindSkillNote(
+			"/vault", "claude:curate", []string{"1.2026-01-01.skill-curate.md"}, vault.readFile,
+		)
+
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(found).To(BeFalse())
 	})
 }
 
-// TestCompareSkillOffers_DeclineAllThenRecompute_YieldsNoOffers is the
-// property test tasks.md 1.4 asks for: after recording a decline for every
-// offer CompareSkillOffers produces, recomputing over the same fixture
-// yields zero offers.
-func TestCompareSkillOffers_DeclineAllThenRecompute_YieldsNoOffers(t *testing.T) {
+// Test792b31c1a2_FindSkillNote_IgnoresNonSkillOrMalformedEntries drives every early-out
+// branch of the internal slug and frontmatter probes: a listed name with no
+// .md suffix, one whose stem has no dot segment at all, one whose slug is
+// exactly "skill-" (empty skill name), a "skill-curate" note with no
+// frontmatter delimiter at all, and one with unparseable YAML frontmatter.
+// None of these should ever be mistaken for curate's note.
+func Test792b31c1a2_FindSkillNote_IgnoresNonSkillOrMalformedEntries(t *testing.T) {
 	t.Parallel()
-	rapid.Check(t, func(rt *rapid.T) {
-		skills, names, vault := genSkillregFixture(rt)
+	g := NewWithT(t)
 
-		offers, err := compareShippedSkills(skills, names, vault.readFile, map[string]string{})
-		if err != nil {
-			rt.Fatalf("CompareSkillOffers: %v", err)
-		}
+	vault := newSkillregFixtureVault()
+	vault.put("notitle.md", claudeSkillNote("curate", "x"))
+	vault.put("1.2026-01-01.skill-.md", claudeSkillNote("curate", "y"))
+	vault.put("1.2026-01-01.skill-curate.md", "not frontmatter at all\n")
+	vault.put("2.2026-01-01.skill-curate.md", "---\ntype: [unterminated\n---\n\nbody\n")
 
-		declined := make(map[string]string, len(offers))
-		for _, offer := range offers {
-			declined[offer.Key] = offer.Hash
-		}
+	names := []string{
+		"readme.txt", // never in files: skillNameFromNoteName must reject before any read
+		"notitle.md",
+		"1.2026-01-01.skill-.md",
+		"1.2026-01-01.skill-curate.md",
+		"2.2026-01-01.skill-curate.md",
+	}
 
-		offersAfter, afterErr := compareShippedSkills(skills, names, vault.readFile, declined)
-		if afterErr != nil {
-			rt.Fatalf("CompareSkillOffers (recompute): %v", afterErr)
-		}
+	_, _, found, err := cli.FindSkillNote("/vault", "claude:curate", names, vault.readFile)
 
-		if len(offersAfter) != 0 {
-			rt.Fatalf("expected no offers after declining every prior offer, got %+v", offersAfter)
-		}
-	})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(found).To(BeFalse())
 }
 
-// TestCompareSkillOffers_DeclineSuppression covers per-kind decline
-// suppression (skill-runbook-registration: "no offer SHALL be made ... when
-// the skill's current hash is recorded as declined") and re-offering once
-// the acting hash changes.
-func TestCompareSkillOffers_DeclineSuppression(t *testing.T) {
-	t.Parallel()
-
-	t.Run("declined register is not re-offered at the same hash", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		content := []byte("curate procedure v1")
-		hash := cli.SkillContentHash(content)
-		vault := newSkillregFixtureVault()
-		skills := []engramSkill{{Name: "curate", Content: content}}
-
-		offers, err := compareShippedSkills(skills, nil, vault.readFile, map[string]string{"claude:curate": hash})
-
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(offers).To(BeEmpty())
-	})
-
-	t.Run("declined register is re-offered once content changes", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		vault := newSkillregFixtureVault()
-		declined := map[string]string{"claude:curate": cli.SkillContentHash([]byte("curate procedure v1"))}
-		skills := []engramSkill{{Name: "curate", Content: []byte("curate procedure v2")}}
-
-		offers, err := compareShippedSkills(skills, nil, vault.readFile, declined)
-
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(offers).To(HaveLen(1))
-		if len(offers) != 1 {
-			return
-		}
-
-		g.Expect(offers[0].Kind).To(Equal(cli.SkillOfferRegister))
-	})
-
-	t.Run("declined refresh is not re-offered at the same hash", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		content := []byte("curate procedure v2")
-		hash := cli.SkillContentHash(content)
-		vault := newSkillregFixtureVault()
-		vault.put("1049.2026-09-21.skill-curate.md", claudeSkillNote("curate", "stale-hash"))
-		skills := []engramSkill{{Name: "curate", Content: content}}
-		names := []string{"1049.2026-09-21.skill-curate.md"}
-
-		offers, err := compareShippedSkills(skills, names, vault.readFile, map[string]string{"claude:curate": hash})
-
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(offers).To(BeEmpty())
-	})
-
-	t.Run("declined removal is not re-offered at the same hash", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		vault := newSkillregFixtureVault()
-		vault.put("1053.2026-09-21.skill-write-memory.md", claudeSkillNote("write-memory", "wm-hash"))
-		names := []string{"1053.2026-09-21.skill-write-memory.md"}
-		declined := map[string]string{"claude:write-memory": "wm-hash"}
-
-		offers, err := compareShippedSkills(nil, names, vault.readFile, declined)
-
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(offers).To(BeEmpty())
-	})
-}
-
-// TestCompareSkillOffers_EachKind covers the four offer outcomes (skill-
+// Test792b31c2a1_CompareSkillOffers_EachKind covers the four offer outcomes (skill-
 // runbook-registration: "Registration SHALL offer, not act"): register when
 // no note exists, refresh when the note's hash is stale, remove when a
 // note's skill is no longer shipped, and no offer when hashes match.
-func TestCompareSkillOffers_EachKind(t *testing.T) {
+func Test792b31c2a1_CompareSkillOffers_EachKind(t *testing.T) {
 	t.Parallel()
 
 	t.Run("register when no note exists", func(t *testing.T) {
@@ -278,132 +245,165 @@ func TestCompareSkillOffers_EachKind(t *testing.T) {
 	})
 }
 
-// TestFindSkillNote covers the lookup identity rule (skill-runbook-
-// registration D3): none, one, duplicate, a non-runbook note with a
-// matching slug, and a runbook note with the matching slug but no
-// skill_hash.
-func TestFindSkillNote(t *testing.T) {
+// Test792b31c2a2_CompareSkillOffers_DeclineSuppression covers per-kind decline
+// suppression (skill-runbook-registration: "no offer SHALL be made ... when
+// the skill's current hash is recorded as declined") and re-offering once
+// the acting hash changes.
+func Test792b31c2a2_CompareSkillOffers_DeclineSuppression(t *testing.T) {
 	t.Parallel()
 
-	t.Run("none", func(t *testing.T) {
+	t.Run("declined register is not re-offered at the same hash", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
+		content := []byte("curate procedure v1")
+		hash := cli.SkillContentHash(content)
 		vault := newSkillregFixtureVault()
-		vault.put("1.2026-01-01.some-other-note.md", runbookNote("abc"))
+		skills := []engramSkill{{Name: "curate", Content: content}}
 
-		basename, hash, found, err := cli.FindSkillNote(
-			"/vault", "claude:curate", []string{"1.2026-01-01.some-other-note.md"}, vault.readFile,
-		)
+		offers, err := compareShippedSkills(skills, nil, vault.readFile, map[string]string{"claude:curate": hash})
 
 		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(found).To(BeFalse())
-		g.Expect(basename).To(BeEmpty())
-		g.Expect(hash).To(BeEmpty())
+		g.Expect(offers).To(BeEmpty())
 	})
 
-	t.Run("one", func(t *testing.T) {
+	t.Run("declined register is re-offered once content changes", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
 		vault := newSkillregFixtureVault()
-		vault.put("1049.2026-09-21.skill-curate.md", claudeSkillNote("curate", "abc123"))
+		declined := map[string]string{"claude:curate": cli.SkillContentHash([]byte("curate procedure v1"))}
+		skills := []engramSkill{{Name: "curate", Content: []byte("curate procedure v2")}}
 
-		basename, hash, found, err := cli.FindSkillNote(
-			"/vault", "claude:curate", []string{"1049.2026-09-21.skill-curate.md"}, vault.readFile,
-		)
+		offers, err := compareShippedSkills(skills, nil, vault.readFile, declined)
 
 		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(found).To(BeTrue())
-		g.Expect(basename).To(Equal("1049.2026-09-21.skill-curate"))
-		g.Expect(hash).To(Equal("abc123"))
+		g.Expect(offers).To(HaveLen(1))
+		if len(offers) != 1 {
+			return
+		}
+
+		g.Expect(offers[0].Kind).To(Equal(cli.SkillOfferRegister))
 	})
 
-	t.Run("duplicate", func(t *testing.T) {
+	t.Run("declined refresh is not re-offered at the same hash", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
+		content := []byte("curate procedure v2")
+		hash := cli.SkillContentHash(content)
 		vault := newSkillregFixtureVault()
-		vault.put("1049.2026-09-21.skill-curate.md", claudeSkillNote("curate", "abc"))
-		vault.put("1050.2026-09-22.skill-curate.md", claudeSkillNote("curate", "def"))
+		vault.put("1049.2026-09-21.skill-curate.md", claudeSkillNote("curate", "stale-hash"))
+		skills := []engramSkill{{Name: "curate", Content: content}}
+		names := []string{"1049.2026-09-21.skill-curate.md"}
 
-		_, _, found, err := cli.FindSkillNote(
-			"/vault", "claude:curate",
-			[]string{"1049.2026-09-21.skill-curate.md", "1050.2026-09-22.skill-curate.md"},
-			vault.readFile,
-		)
-
-		g.Expect(found).To(BeFalse())
-		g.Expect(err).To(MatchError(cli.ErrDuplicateSkillNoteForTest))
-		g.Expect(err).To(MatchError(ContainSubstring("1049.2026-09-21.skill-curate")))
-		g.Expect(err).To(MatchError(ContainSubstring("1050.2026-09-22.skill-curate")))
-	})
-
-	t.Run("non-runbook note with a matching slug is not a skill note", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		vault := newSkillregFixtureVault()
-		vault.put("1.2026-01-01.skill-curate.md",
-			"---\ntype: fact\nsituation: s\nsubject: s\npredicate: p\nobject: o\n---\n\nbody\n")
-
-		_, _, found, err := cli.FindSkillNote(
-			"/vault", "claude:curate", []string{"1.2026-01-01.skill-curate.md"}, vault.readFile,
-		)
+		offers, err := compareShippedSkills(skills, names, vault.readFile, map[string]string{"claude:curate": hash})
 
 		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(found).To(BeFalse())
+		g.Expect(offers).To(BeEmpty())
 	})
 
-	t.Run("runbook note with a matching slug but no skill_hash is not a skill note", func(t *testing.T) {
+	t.Run("declined removal is not re-offered at the same hash", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
 		vault := newSkillregFixtureVault()
-		vault.put("1.2026-01-01.skill-curate.md", "---\ntype: runbook\nsituation: s\ndone_when: d\n---\n\nbody\n")
+		vault.put("1053.2026-09-21.skill-write-memory.md", claudeSkillNote("write-memory", "wm-hash"))
+		names := []string{"1053.2026-09-21.skill-write-memory.md"}
+		declined := map[string]string{"claude:write-memory": "wm-hash"}
 
-		_, _, found, err := cli.FindSkillNote(
-			"/vault", "claude:curate", []string{"1.2026-01-01.skill-curate.md"}, vault.readFile,
-		)
+		offers, err := compareShippedSkills(nil, names, vault.readFile, declined)
 
 		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(found).To(BeFalse())
+		g.Expect(offers).To(BeEmpty())
 	})
 }
 
-// TestFindSkillNote_IgnoresNonSkillOrMalformedEntries drives every early-out
-// branch of the internal slug and frontmatter probes: a listed name with no
-// .md suffix, one whose stem has no dot segment at all, one whose slug is
-// exactly "skill-" (empty skill name), a "skill-curate" note with no
-// frontmatter delimiter at all, and one with unparseable YAML frontmatter.
-// None of these should ever be mistaken for curate's note.
-func TestFindSkillNote_IgnoresNonSkillOrMalformedEntries(t *testing.T) {
+// Test792b31c2a3_CompareSkillOffers_DeclineAllThenRecompute_YieldsNoOffers is the
+// property test tasks.md 1.4 asks for: after recording a decline for every
+// offer CompareSkillOffers produces, recomputing over the same fixture
+// yields zero offers.
+func Test792b31c2a3_CompareSkillOffers_DeclineAllThenRecompute_YieldsNoOffers(t *testing.T) {
 	t.Parallel()
-	g := NewWithT(t)
+	rapid.Check(t, func(rt *rapid.T) {
+		skills, names, vault := genSkillregFixture(rt)
 
-	vault := newSkillregFixtureVault()
-	vault.put("notitle.md", claudeSkillNote("curate", "x"))
-	vault.put("1.2026-01-01.skill-.md", claudeSkillNote("curate", "y"))
-	vault.put("1.2026-01-01.skill-curate.md", "not frontmatter at all\n")
-	vault.put("2.2026-01-01.skill-curate.md", "---\ntype: [unterminated\n---\n\nbody\n")
+		offers, err := compareShippedSkills(skills, names, vault.readFile, map[string]string{})
+		if err != nil {
+			rt.Fatalf("CompareSkillOffers: %v", err)
+		}
 
-	names := []string{
-		"readme.txt", // never in files: skillNameFromNoteName must reject before any read
-		"notitle.md",
-		"1.2026-01-01.skill-.md",
-		"1.2026-01-01.skill-curate.md",
-		"2.2026-01-01.skill-curate.md",
-	}
+		declined := make(map[string]string, len(offers))
+		for _, offer := range offers {
+			declined[offer.Key] = offer.Hash
+		}
 
-	_, _, found, err := cli.FindSkillNote("/vault", "claude:curate", names, vault.readFile)
+		offersAfter, afterErr := compareShippedSkills(skills, names, vault.readFile, declined)
+		if afterErr != nil {
+			rt.Fatalf("CompareSkillOffers (recompute): %v", afterErr)
+		}
 
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(found).To(BeFalse())
+		if len(offersAfter) != 0 {
+			rt.Fatalf("expected no offers after declining every prior offer, got %+v", offersAfter)
+		}
+	})
 }
 
-// TestReadSkillRegistrations_AbsentFileIsEmptyState covers tasks.md 1.5's
+// Test792b31c2a4_CompareSkillOffers_ContentChangeAfterDecline_ReOffersExactlyOnce is
+// the second half of tasks.md 1.4's property test: changing a skill's
+// content re-yields exactly one offer for it (and none for any other
+// skill, whose declines still hold).
+func Test792b31c2a4_CompareSkillOffers_ContentChangeAfterDecline_ReOffersExactlyOnce(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		skills, names, vault := genSkillregFixture(rt)
+		if len(skills) == 0 {
+			return
+		}
+
+		baseline, err := compareShippedSkills(skills, names, vault.readFile, map[string]string{})
+		if err != nil {
+			rt.Fatalf("CompareSkillOffers: %v", err)
+		}
+
+		declined := make(map[string]string, len(baseline))
+		for _, offer := range baseline {
+			declined[offer.Key] = offer.Hash
+		}
+
+		changedIdx := rapid.IntRange(0, len(skills)-1).Draw(rt, "changedIdx")
+		// A stale note's hash is content+staleSkillMarker, so appending exactly
+		// that byte would make the note current (no offer, correctly).
+		extra := rapid.SliceOfN(rapid.Byte(), 1, 8).
+			Filter(func(extra []byte) bool { return !bytes.Equal(extra, []byte{staleSkillMarker}) }).
+			Draw(rt, "extraBytes")
+		skills[changedIdx].Content = append(append([]byte{}, skills[changedIdx].Content...), extra...)
+
+		offersAfter, afterErr := compareShippedSkills(skills, names, vault.readFile, declined)
+		if afterErr != nil {
+			rt.Fatalf("CompareSkillOffers (after content change): %v", afterErr)
+		}
+
+		matchCount := 0
+
+		for _, offer := range offersAfter {
+			if offer.Key != "claude:"+skills[changedIdx].Name {
+				rt.Fatalf("unexpected offer for unrelated skill %q: %+v", offer.Key, offer)
+			}
+
+			matchCount++
+		}
+
+		if matchCount != 1 {
+			rt.Fatalf("expected exactly one offer for changed skill %q, got %d: %+v",
+				skills[changedIdx].Name, matchCount, offersAfter)
+		}
+	})
+}
+
+// Test792b31c4a1_ReadSkillRegistrations_AbsentFileIsEmptyState covers tasks.md 1.5's
 // "Read tolerates an absent file (empty state)" scenario.
-func TestReadSkillRegistrations_AbsentFileIsEmptyState(t *testing.T) {
+func Test792b31c4a1_ReadSkillRegistrations_AbsentFileIsEmptyState(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -415,11 +415,11 @@ func TestReadSkillRegistrations_AbsentFileIsEmptyState(t *testing.T) {
 	g.Expect(declined).To(BeEmpty())
 }
 
-// TestReadSkillRegistrations_PropagatesOtherReadErrors distinguishes an
+// Test792b31c4a2_ReadSkillRegistrations_PropagatesOtherReadErrors distinguishes an
 // absent file (tolerated) from any other read failure (surfaced) — a
 // present-but-unreadable decline-state file must not be silently treated as
 // "nothing declined".
-func TestReadSkillRegistrations_PropagatesOtherReadErrors(t *testing.T) {
+func Test792b31c4a2_ReadSkillRegistrations_PropagatesOtherReadErrors(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -430,11 +430,11 @@ func TestReadSkillRegistrations_PropagatesOtherReadErrors(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
-// TestReadSkillRegistrations_RejectsUnknownFields documents the tasks.md
+// Test792b31c4a3_ReadSkillRegistrations_RejectsUnknownFields documents the tasks.md
 // 1.5 "unknown JSON keys preserved or rejected" choice: this file has no
 // third-party writer to stay forward-compatible with, so an unrecognized
 // top-level field is rejected rather than silently dropped.
-func TestReadSkillRegistrations_RejectsUnknownFields(t *testing.T) {
+func Test792b31c4a3_ReadSkillRegistrations_RejectsUnknownFields(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -446,42 +446,9 @@ func TestReadSkillRegistrations_RejectsUnknownFields(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
-// TestRecordSkillDeclined_PropagatesReadError covers RecordSkillDeclined's
-// read-failure path: a decline is never written when the existing state
-// can't be loaded.
-func TestRecordSkillDeclined_PropagatesReadError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	readFile := func(string) ([]byte, error) { return nil, errPermissionDeniedForTest }
-	writeFile := func(string, []byte) error {
-		g.Fail("writeFile must not be called when the read fails")
-
-		return nil
-	}
-
-	err := cli.RecordSkillDeclined("/vault", "claude:curate", "abc", readFile, writeFile)
-
-	g.Expect(err).To(HaveOccurred())
-}
-
-// TestRecordSkillDeclined_PropagatesWriteError covers RecordSkillDeclined's
-// write-failure path.
-func TestRecordSkillDeclined_PropagatesWriteError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := newSkillregFixtureVault()
-	writeFile := func(string, []byte) error { return errPermissionDeniedForTest }
-
-	err := cli.RecordSkillDeclined("/vault", "curate", "abc", vault.readFile, writeFile)
-
-	g.Expect(err).To(HaveOccurred())
-}
-
-// TestRecordSkillDeclined_SetsHashAndLeavesOtherEntriesIntact covers
+// Test792b31c4a6_RecordSkillDeclined_SetsHashAndLeavesOtherEntriesIntact covers
 // tasks.md 1.5's "decline write leaves other entries intact" scenario.
-func TestRecordSkillDeclined_SetsHashAndLeavesOtherEntriesIntact(t *testing.T) {
+func Test792b31c4a6_RecordSkillDeclined_SetsHashAndLeavesOtherEntriesIntact(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -512,9 +479,9 @@ func TestRecordSkillDeclined_SetsHashAndLeavesOtherEntriesIntact(t *testing.T) {
 	g.Expect(doc.Declined).To(Equal(map[string]string{"claude:route": "aaa", "claude:curate": "bbb"}))
 }
 
-// TestRecordSkillDeclined_WritesFirstEntryWhenFileIsAbsent covers recording
+// Test792b31c4a7_RecordSkillDeclined_WritesFirstEntryWhenFileIsAbsent covers recording
 // a decline when skill-registrations.json doesn't exist yet.
-func TestRecordSkillDeclined_WritesFirstEntryWhenFileIsAbsent(t *testing.T) {
+func Test792b31c4a7_RecordSkillDeclined_WritesFirstEntryWhenFileIsAbsent(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -538,6 +505,39 @@ func TestRecordSkillDeclined_WritesFirstEntryWhenFileIsAbsent(t *testing.T) {
 
 	g.Expect(json.Unmarshal(writtenData, &doc)).To(Succeed())
 	g.Expect(doc.Declined).To(Equal(map[string]string{"claude:curate": "abc"}))
+}
+
+// Test792b31c4a8_RecordSkillDeclined_PropagatesReadError covers RecordSkillDeclined's
+// read-failure path: a decline is never written when the existing state
+// can't be loaded.
+func Test792b31c4a8_RecordSkillDeclined_PropagatesReadError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	readFile := func(string) ([]byte, error) { return nil, errPermissionDeniedForTest }
+	writeFile := func(string, []byte) error {
+		g.Fail("writeFile must not be called when the read fails")
+
+		return nil
+	}
+
+	err := cli.RecordSkillDeclined("/vault", "claude:curate", "abc", readFile, writeFile)
+
+	g.Expect(err).To(HaveOccurred())
+}
+
+// Test792b31c4a9_RecordSkillDeclined_PropagatesWriteError covers RecordSkillDeclined's
+// write-failure path.
+func Test792b31c4a9_RecordSkillDeclined_PropagatesWriteError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newSkillregFixtureVault()
+	writeFile := func(string, []byte) error { return errPermissionDeniedForTest }
+
+	err := cli.RecordSkillDeclined("/vault", "curate", "abc", vault.readFile, writeFile)
+
+	g.Expect(err).To(HaveOccurred())
 }
 
 // unexported constants.

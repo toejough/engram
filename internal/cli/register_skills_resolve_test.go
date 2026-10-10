@@ -134,10 +134,10 @@ func Test792b30c16a16_RegisterSkillsCLI_SymlinkedHomeRoundTripsSkillSource(t *te
 	g.Expect(stdout.String()).To(BeEmpty())
 }
 
-// TestUpdateSkillRegistration_RealRunPrintsScanWarnings covers the update
+// Test792b31c6a6_UpdateSkillRegistration_RealRunPrintsScanWarnings covers the update
 // hook printing the scanner and key-builder warnings on a real (non-dry)
 // run: a `:` skill name is skipped with a warning, as under --dry-run.
-func TestUpdateSkillRegistration_RealRunPrintsScanWarnings(t *testing.T) {
+func Test792b31c6a6_UpdateSkillRegistration_RealRunPrintsScanWarnings(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 

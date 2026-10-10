@@ -18,49 +18,10 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestCompareSkillOffers_AnotherNamespacesMissingRootDoesNotBlockRemoval is
-// the spec scenario "Another namespace's missing root does not block
-// removal" (the old ruling R39 case), end to end through ResolveSkillSources:
-// no ~/.agents/skills, a permission error listing ~/.pi/agent/skills, and a
-// read ~/.claude/skills without c4 → the claude:c4 note is offered for
-// removal.
-func TestCompareSkillOffers_AnotherNamespacesMissingRootDoesNotBlockRemoval(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fsys := newFakeSkillFS().
-		file(userSkillsRoot+"/route/SKILL.md", "route").
-		dir(piUserRoot).
-		failRead(piUserRoot)
-
-	resolved, err := cli.ResolveSkillSources(t.Context(), fakeHome, "/tmp",
-		cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	read := map[cli.SkillRootForm]bool{}
-	for _, root := range resolved.Roots {
-		read[root.Form] = root.Scanned
-	}
-
-	g.Expect(read).To(HaveKeyWithValue(cli.SkillRootFormClaudeUser, true))
-	g.Expect(read).To(HaveKeyWithValue(cli.SkillRootFormPiUser, false))
-	g.Expect(read[cli.SkillRootFormAgentsUser]).To(BeFalse())
-
-	fixture := newOfferFixture()
-	fixture.home = fakeHome
-	fixture.sources = resolved
-	fixture.note("claude:c4", "h", "~/.claude/skills/c4/SKILL.md")
-
-	g.Expect(offerScopes(fixture.compare(g))).To(Equal([]string{
-		"register claude:route claude-user",
-		"remove claude:c4 claude-user",
-	}))
-}
-
-// TestCompareSkillOffers_InstalledEngramSkillsAreOrdinaryKeys covers design
+// Test792b31c2a9_CompareSkillOffers_InstalledEngramSkillsAreOrdinaryKeys covers design
 // D3/D4's round-3 rule: engram's installed skills are keyed by their folder, with
 // no collision rule and no diverged-copy exception.
-func TestCompareSkillOffers_InstalledEngramSkillsAreOrdinaryKeys(t *testing.T) {
+func Test792b31c2a9_CompareSkillOffers_InstalledEngramSkillsAreOrdinaryKeys(t *testing.T) {
 	t.Parallel()
 
 	t.Run("a real claude route and an engram-linked pi route are two keys", func(t *testing.T) {
@@ -126,11 +87,50 @@ func TestCompareSkillOffers_InstalledEngramSkillsAreOrdinaryKeys(t *testing.T) {
 	})
 }
 
-// TestCompareSkillOffers_UnkeyedLegacyNoteIsNeverOfferedForRemoval is the
+// Test792b31c3a6_CompareSkillOffers_AnotherNamespacesMissingRootDoesNotBlockRemoval is
+// the spec scenario "Another namespace's missing root does not block
+// removal" (the old ruling R39 case), end to end through ResolveSkillSources:
+// no ~/.agents/skills, a permission error listing ~/.pi/agent/skills, and a
+// read ~/.claude/skills without c4 → the claude:c4 note is offered for
+// removal.
+func Test792b31c3a6_CompareSkillOffers_AnotherNamespacesMissingRootDoesNotBlockRemoval(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fsys := newFakeSkillFS().
+		file(userSkillsRoot+"/route/SKILL.md", "route").
+		dir(piUserRoot).
+		failRead(piUserRoot)
+
+	resolved, err := cli.ResolveSkillSources(t.Context(), fakeHome, "/tmp",
+		cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	read := map[cli.SkillRootForm]bool{}
+	for _, root := range resolved.Roots {
+		read[root.Form] = root.Scanned
+	}
+
+	g.Expect(read).To(HaveKeyWithValue(cli.SkillRootFormClaudeUser, true))
+	g.Expect(read).To(HaveKeyWithValue(cli.SkillRootFormPiUser, false))
+	g.Expect(read[cli.SkillRootFormAgentsUser]).To(BeFalse())
+
+	fixture := newOfferFixture()
+	fixture.home = fakeHome
+	fixture.sources = resolved
+	fixture.note("claude:c4", "h", "~/.claude/skills/c4/SKILL.md")
+
+	g.Expect(offerScopes(fixture.compare(g))).To(Equal([]string{
+		"register claude:route claude-user",
+		"remove claude:c4 claude-user",
+	}))
+}
+
+// Test792b31c3a7_CompareSkillOffers_UnkeyedLegacyNoteIsNeverOfferedForRemoval is the
 // spec scenario "Unkeyed legacy note is never offered for removal": with
 // every fixed root read and nothing scanned, runbook note 1036 carrying
 // skill_hash and no skill_key is no removal candidate.
-func TestCompareSkillOffers_UnkeyedLegacyNoteIsNeverOfferedForRemoval(t *testing.T) {
+func Test792b31c3a7_CompareSkillOffers_UnkeyedLegacyNoteIsNeverOfferedForRemoval(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -144,12 +144,12 @@ func TestCompareSkillOffers_UnkeyedLegacyNoteIsNeverOfferedForRemoval(t *testing
 	g.Expect(comparison.Offers).To(BeEmpty())
 }
 
-// TestSkillRemovalEligibility_FixedFormFollowsOnlyItsOwnRoots is 8.4's
+// Test792b31c3a8_SkillRemovalEligibility_FixedFormFollowsOnlyItsOwnRoots is 8.4's
 // property (b), from design D5's rule for the single-root user forms: a note
 // of fixed form F is eligible exactly when at least one root is recorded
 // with form F and every root recorded with form F was read — whatever the
 // roots of every other form, the note's source, or the plugin facts.
-func TestSkillRemovalEligibility_FixedFormFollowsOnlyItsOwnRoots(t *testing.T) {
+func Test792b31c3a8_SkillRemovalEligibility_FixedFormFollowsOnlyItsOwnRoots(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		fixture := drawNamespaceRoots(rt)
@@ -173,13 +173,13 @@ func TestSkillRemovalEligibility_FixedFormFollowsOnlyItsOwnRoots(t *testing.T) {
 	})
 }
 
-// TestSkillRemovalEligibility_NamespaceIsolation is 8.4's property (a), a
+// Test792b31c3a9_SkillRemovalEligibility_NamespaceIsolation is 8.4's property (a), a
 // metamorphic relation from design D5 ("a note's eligibility depends only
 // on the roots of its own key form"): flipping the read status of any root
 // whose form differs from the note's key form never changes the note's
 // eligibility, for every recognized key form (plugin keys, whose rule reads
 // no root, included).
-func TestSkillRemovalEligibility_NamespaceIsolation(t *testing.T) {
+func Test792b31c3a9_SkillRemovalEligibility_NamespaceIsolation(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		fixture := drawNamespaceRoots(rt)

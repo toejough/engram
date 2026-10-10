@@ -9,13 +9,13 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestProperty_ParseAdoptFlags_RefusesAnyRepeatedKey covers the --adopt
+// Test792b31c6a27_Property_ParseAdoptFlags_RefusesAnyRepeatedKey covers the --adopt
 // dedupe rule: for any list of well-formed "<key>=<note-ref>" entries, the
 // parse succeeds exactly when no key repeats — mapping each key to its one
 // ref — and fails with errDuplicateAdoptKey otherwise, whatever the refs
 // and whatever the position of the repeat (a later flag never silently
 // replaces an earlier one).
-func TestProperty_ParseAdoptFlags_RefusesAnyRepeatedKey(t *testing.T) {
+func Test792b31c6a27_Property_ParseAdoptFlags_RefusesAnyRepeatedKey(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {

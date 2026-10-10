@@ -11,7 +11,7 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-func TestFindSkillNote_BySkillKey(t *testing.T) {
+func Test792b31c1a1_FindSkillNote_BySkillKey(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -34,12 +34,27 @@ func TestFindSkillNote_BySkillKey(t *testing.T) {
 	g.Expect(found).To(BeFalse())
 }
 
-// TestFindSkillNote_IdentityProperty is model-based: over a generated vault
+func Test792b31c1a2_FindSkillNote_SkillKeyWithoutHashIsNotASkillNote(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const note = "2000.2026-09-26.skill-superpowers-brainstorming.md"
+
+	vault := newSkillregFixtureVault()
+	vault.put(note, "---\ntype: runbook\nsituation: s\ndone_when: d\nskill_key: superpowers:brainstorming\n---\n\nb\n")
+
+	_, _, found, err := cli.FindSkillNote("/vault", "superpowers:brainstorming", []string{note}, vault.readFile)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(found).To(BeFalse())
+}
+
+// Test792b31c1a3_FindSkillNote_IdentityProperty is model-based: over a generated vault
 // of keyed, unkeyed and hash-less notes, a key's lookup finds exactly the
 // keyed notes the generator made for it with a skill_hash, reporting a
 // duplicate when there are several; an unkeyed note, whatever its slug, is
 // no key's note (design D3).
-func TestFindSkillNote_IdentityProperty(t *testing.T) {
+func Test792b31c1a3_FindSkillNote_IdentityProperty(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		keys := []string{
@@ -76,10 +91,10 @@ func TestFindSkillNote_IdentityProperty(t *testing.T) {
 	})
 }
 
-// TestFindSkillNote_KeyedNoteBesideAnUnkeyedOneIsNoDuplicate: an unkeyed
+// Test792b31c1a4_FindSkillNote_KeyedNoteBesideAnUnkeyedOneIsNoDuplicate: an unkeyed
 // legacy note is no skill note, so it never duplicates the keyed note of
 // the same skill.
-func TestFindSkillNote_KeyedNoteBesideAnUnkeyedOneIsNoDuplicate(t *testing.T) {
+func Test792b31c1a4_FindSkillNote_KeyedNoteBesideAnUnkeyedOneIsNoDuplicate(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -98,21 +113,6 @@ func TestFindSkillNote_KeyedNoteBesideAnUnkeyedOneIsNoDuplicate(t *testing.T) {
 	g.Expect(found).To(BeTrue())
 	g.Expect(basename).To(Equal(strings.TrimSuffix(keyed, ".md")))
 	g.Expect(hash).To(Equal("def"))
-}
-
-func TestFindSkillNote_SkillKeyWithoutHashIsNotASkillNote(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	const note = "2000.2026-09-26.skill-superpowers-brainstorming.md"
-
-	vault := newSkillregFixtureVault()
-	vault.put(note, "---\ntype: runbook\nsituation: s\ndone_when: d\nskill_key: superpowers:brainstorming\n---\n\nb\n")
-
-	_, _, found, err := cli.FindSkillNote("/vault", "superpowers:brainstorming", []string{note}, vault.readFile)
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(found).To(BeFalse())
 }
 
 // unexported constants.
