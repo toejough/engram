@@ -67,3 +67,14 @@ Boundary review: process environment access and command execution remain at the 
 policy inputs are injected for pure tests. Command orchestration tests are the next work package.
 Performance review: no production changes follow the successful scoped real-analyzer run;
 no new performance guarantee is inferred. These review checkpoints do not require code changes.
+## 794d7 Command-boundary RED checkpoint
+
+`targ test-dev` and `targ test-dev-integration` fail as expected when the injected
+executor receives no environment, its error is discarded, and the adapter ignores
+settings. Successful invocation, failure propagation, isolation, default and
+partial-override scenarios are Red. The real analyzer scope characterization passes:
+explicitly selecting both fixture packages exposes the dependency diagnostic without
+the include flag, and removes only that diagnostic with the include flag. This is
+Green-single characterization of existing policy, not claimed historical TDD.
+
+Policy work is Done. Boundary implementation and final validation remain incomplete.

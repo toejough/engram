@@ -33,6 +33,9 @@ func init() {
 	targ.Register(targ.Targ(testDev).
 		Name("test-dev").
 		Description("Run unit tests for the dev package (targ build tag)"))
+	targ.Register(targ.Targ(testDevIntegration).
+		Name("test-dev-integration").
+		Description("Run local integration tests for dev tooling"))
 
 	targ.Register(targ.Targ(runEval).
 		Name("eval").
@@ -88,4 +91,8 @@ func testDev(ctx context.Context) error {
 		return err
 	}
 	return targ.RunContext(ctx, "go", "test", "-timeout=2m", "-race", "-tags=targ", "./dev/...")
+}
+
+func testDevIntegration(ctx context.Context) error {
+	return targ.RunContext(ctx, "go", "test", "-timeout=2m", "-race", "-tags=targ,integration", "./dev")
 }

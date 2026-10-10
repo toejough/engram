@@ -43,9 +43,16 @@ func nilawayEnvironment(lookup func(string) (string, bool)) map[string]string {
 }
 
 func runNilaway(ctx context.Context, fix bool) error {
-	command := targ.Cmd("nilaway", nilawayArgs(fix)...)
-	for key, value := range nilawayEnvironment(os.LookupEnv) {
-		command.Env(key, value)
-	}
-	return command.Run(ctx)
+	return runConfiguredNilaway(ctx, fix, os.LookupEnv, executeNilaway)
+}
+
+func runConfiguredNilaway(ctx context.Context, fix bool, lookup func(string) (string, bool), execute func(context.Context, []string, map[string]string) error) error {
+	_ = lookup
+	_ = execute(ctx, nilawayArgs(fix), nil)
+	return nil
+}
+
+func executeNilaway(ctx context.Context, args []string, settings map[string]string) error {
+	_ = settings
+	return targ.Cmd("nilaway", args...).Run(ctx)
 }
