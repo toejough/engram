@@ -94,6 +94,10 @@ var (
 	errEvalUsage  = errors.New("usage: targ eval <arm> [trials]  (nothing|skills-only|current-state)")
 	lintDevTarget = targ.Targ(lintDev).Name("lint-dev").
 			Description("Lint the dev package's build-tagged files (targ, integration)")
+	// mutateTarget reuses Targ's mutation run behind Engram's check-for-fail, as Targ's runs behind its own (794b4a).
+	mutateTarget = targ.Targ(targdev.Mutate.Fn()).Name("mutate").
+			Description(targdev.Mutate.GetDescription()).
+			Deps(checkForFailTarget)
 	// sharedTargets are Targ's shared targets other than the nil targets and aggregates Engram replaces, keyed by
 	// Targ's variable name. Test794b4a1d fails when Targ adds or removes one.
 	sharedTargets = map[string]*targ.Target{
@@ -125,10 +129,6 @@ var (
 		"TodoCheck":            targdev.TodoCheck,
 		"Watch":                targdev.Watch,
 	}
-	// mutateTarget reuses Targ's mutation run behind Engram's check-for-fail, as Targ's runs behind its own (794b4a).
-	mutateTarget = targ.Targ(targdev.Mutate.Fn()).Name("mutate").
-			Description(targdev.Mutate.GetDescription()).
-			Deps(checkForFailTarget)
 	testDevIntegrationTarget = targ.Targ(testDevIntegration).
 					Name("test-dev-integration").
 					Description("Run local integration tests for dev tooling")

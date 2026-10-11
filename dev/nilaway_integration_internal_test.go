@@ -19,7 +19,8 @@ import (
 )
 
 func Test794a2a1a_ExistingEntryPointsReportOnlyEngramModulePackages(t *testing.T) {
-	for _, entry := range []string{"check-nils-for-fail", "check-nils", "check", "check-for-fail", "check-full", "mutate"} {
+	entries := []string{"check-nils-for-fail", "check-nils", "check", "check-for-fail", "check-full", "mutate"}
+	for _, entry := range entries {
 		t.Run(entry, func(t *testing.T) {
 			g := NewWithT(t)
 			g.Expect(reachesNilsForFail(entryTarget(entry))).To(BeTrue(), "%s does not run check-nils-for-fail", entry)
