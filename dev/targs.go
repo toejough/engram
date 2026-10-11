@@ -129,6 +129,8 @@ var (
 	testDevTarget = targ.Targ(testDev).
 			Name("test-dev").
 			Description("Run unit tests for the dev package (targ build tag)")
+	// watchCheck is the check watch runs on a change: Engram's, never Targ's (794b4a1e).
+	watchCheck  = checkTarget
 	watchTarget = targ.Targ(watch).Name("watch").Description(targdev.Watch.GetDescription())
 )
 
@@ -275,7 +277,7 @@ func watch(ctx context.Context) error {
 	targ.Print(ctx, "Watching...\n")
 
 	err := targ.Watch(ctx, []string{"**/*.go", "**/*.fish", "**/*.toml"}, targ.WatchOptions{},
-		watchOnChange(ctx, func(checkCtx context.Context) error { return checkTarget.Run(checkCtx) }))
+		watchOnChange(ctx, func(checkCtx context.Context) error { return watchCheck.Run(checkCtx) }))
 	if err != nil {
 		return fmt.Errorf("watching: %w", err)
 	}

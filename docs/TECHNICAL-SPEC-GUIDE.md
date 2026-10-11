@@ -96,7 +96,7 @@ qualify when the application relies on an independent contract at that boundary.
 - For a called-component behavior requirement, the owning component is the called unit and the
   direct test exercises what it accepts, does, returns, or fails with without a broader caller
   merely proving invocation.
-- Every intended final-system request/response pair or one-way arrow MUST have an owning component-behavior requirement and Gherkin scenario.
+- Every intended final-system request/response pair or one-way arrow between components MUST have an owning component-behavior requirement and Gherkin scenario. An arrow to or from an external actor, such as the developer, carries the flow's interaction ID and needs no component-behavior requirement.
 - A request and its related response MUST share one behavior requirement ID.
 - A one-way interaction uses its behavior requirement ID once.
 - Component-behavior requirements MUST state what the called component does and returns.
@@ -240,7 +240,7 @@ Verify:
   requirement is drawn in at least one flow.
 - Every canonical technical requirement links to its supported canonical product scenario IDs.
 - The specification lifecycle checklist passes.
-- Every mandatory branch has an interaction requirement and scenario.
+- Every mandatory branch is covered by its flow's interaction requirement and has its own scenario.
 - Every mandatory final-system arrow set has an owning component-behavior requirement and scenario.
 - Optional behavior is not protected by validation scenarios or application-owned contract tests.
 - Branch and component requirements do not duplicate each other's responsibilities.

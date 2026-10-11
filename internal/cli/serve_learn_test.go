@@ -324,6 +324,26 @@ func Test792b35c13a1_ServeLearn_ForResolution(t *testing.T) {
 			To(ContainSubstring("for: 7.2026-01-07.existing"))
 	})
 
+	t.Run("live note whose slug is md (#841)", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		// offer.for is an extensionless basename, so "7.2026-01-07.md" is a name, not a file extension.
+		vault := newServeVault(t)
+		live := writeVaultNote(t, vault, "7.2026-01-07.md.md", liveFactNote("7", ""))
+		liveBefore := readFileString(t, live)
+
+		resp := serveLearnRequest(t, vault,
+			offeredFact("amend-offer", "object", offerOf(childOrigin, "k", "7.2026-01-07.md")))
+		g.Expect(resp.Status).To(Equal(200))
+
+		receipt := decodeReceipt(t, resp)
+		g.Expect(receipt.For).To(Equal("7.2026-01-07.md"))
+		g.Expect(readFileString(t, live)).To(Equal(liveBefore), "the live note is unchanged")
+		g.Expect(readFileString(t, filepath.Join(vault, receipt.Basename+".md"))).
+			To(ContainSubstring("for: 7.2026-01-07.md"))
+	})
+
 	t.Run("renamed target resolves through aliases", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
@@ -378,21 +398,6 @@ func Test792b35c13a1_ServeLearn_ForResolution(t *testing.T) {
 		g.Expect(written).NotTo(ContainSubstring("for:"))
 		g.Expect(written).NotTo(ContainSubstring("nowhere"))
 	})
-}
-
-// Test792b35c13a1_ServeLearn_ForResolvesSlugMd (#841): offer.for is an extensionless
-// basename, so a live note whose slug is "md" ("7.2026-01-07.md") is a name, not a file extension.
-func Test792b35c13a1_ServeLearn_ForResolvesSlugMd(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := newServeVault(t)
-	writeVaultNote(t, vault, "7.2026-01-07.md.md", liveFactNote("7", ""))
-
-	resp := serveLearnRequest(t, vault,
-		offeredFact("amend-offer", "object", offerOf(childOrigin, "k", "7.2026-01-07.md")))
-	g.Expect(resp.Status).To(Equal(200))
-	g.Expect(decodeReceipt(t, resp).For).To(Equal("7.2026-01-07.md"))
 }
 
 // Test792b35c13a5_ServeLearn_ForIgnoresNonExchangeNotes: offer.for resolves only to

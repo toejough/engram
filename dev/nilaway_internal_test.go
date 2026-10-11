@@ -75,22 +75,6 @@ func Test794b4a1a_RegistrationReplacesTargsSharedTargets(t *testing.T) {
 	g.Expect(registered).To(HaveLen(len(want)))
 }
 
-// Test794b4a1a_RegistrationStopsWhenDeregistrationFails: a failed deregistration stops registration.
-func Test794b4a1a_RegistrationStopsWhenDeregistrationFails(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	registrations := 0
-
-	err := registerTargets(
-		func(string) error { return errAnalyzerFailed },
-		func(...any) { registrations++ },
-	)
-
-	g.Expect(err).To(MatchError(errAnalyzerFailed))
-	g.Expect(registrations).To(BeZero())
-}
-
 func Test794b4a1a_TargetWiring(t *testing.T) {
 	t.Parallel()
 
@@ -119,6 +103,13 @@ func Test794b4a1a_TargetWiring(t *testing.T) {
 		for _, targs := range []*targ.Target{targdev.CheckNilsFix, targdev.CheckNilsForFail} {
 			g.Expect(reaches(aggregate, targs)).To(BeFalse(), "%s reaches Targ's %s", name, targs.GetName())
 		}
+	}
+
+	// watch reaches the nil targets through the check it runs, and never through Targ's.
+	g.Expect(reaches(watchCheck, checkNilsForFailTarget)).To(BeTrue(), "watch")
+
+	for _, targs := range []*targ.Target{targdev.CheckNilsFix, targdev.CheckNilsForFail} {
+		g.Expect(reaches(watchCheck, targs)).To(BeFalse(), "watch reaches Targ's %s", targs.GetName())
 	}
 
 	g.Expect(reaches(checkTarget, checkNilsFixTarget)).To(BeTrue())
@@ -204,6 +195,7 @@ func Test794b4a1e_WatchRunsEngramsCheck(t *testing.T) {
 
 	g.Expect(watchTarget.GetName()).To(Equal("watch"))
 	g.Expect(sameFunc(watchTarget.Fn(), watch)).To(BeTrue())
+	g.Expect(watchCheck).To(BeIdenticalTo(checkTarget), "watch runs Engram's check, not Targ's")
 }
 
 // Test794b4a1f walks the dependencies of every retained Targ target. A dependency walk cannot see a call made
@@ -219,6 +211,22 @@ func Test794b4a1f_NoReRegisteredTargTargetReachesTargsNilTargets(t *testing.T) {
 			g.Expect(reaches(target, nilTarget)).To(BeFalse(), "%s reaches Targ's %s", name, nilTarget.GetName())
 		}
 	}
+}
+
+// TestRegistrationStopsWhenDeregistrationFails: a failed deregistration stops registration.
+func TestRegistrationStopsWhenDeregistrationFails(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	registrations := 0
+
+	err := registerTargets(
+		func(string) error { return errAnalyzerFailed },
+		func(...any) { registrations++ },
+	)
+
+	g.Expect(err).To(MatchError(errAnalyzerFailed))
+	g.Expect(registrations).To(BeZero())
 }
 
 // reaches reports whether from is, or depends transitively on, wanted.

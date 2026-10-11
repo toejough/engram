@@ -15,6 +15,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"unicode"
 
 	. "github.com/onsi/gomega"
 	"github.com/toejough/targ"
@@ -159,7 +160,7 @@ func Test794b4a1d_TargsOtherSharedTargetsStayAvailable(t *testing.T) {
 		kept = append(kept, name)
 
 		g.Expect(target.GetSource()).To(Equal(targSourcePackage), "%s is not Targ's own target", name)
-		g.Expect(target.GetName()).NotTo(BeEmpty(), name)
+		g.Expect(target.GetName()).To(Equal(targTargetName(name)), "%s is not the Targ target its key names", name)
 	}
 
 	replaced := []string{
@@ -206,6 +207,25 @@ func isTargRegister(call *ast.CallExpr) bool {
 	qualifier, isName := selector.X.(*ast.Ident)
 
 	return isName && qualifier.Name == "targ"
+}
+
+// kebabCase turns a Targ variable name such as CheckThinAPI into its target name, check-thin-api: a word starts at an
+// upper-case letter that follows a lower-case one, or that ends an acronym.
+func kebabCase(name string) string {
+	runes := []rune(name)
+
+	var builder strings.Builder
+
+	for index, char := range runes {
+		if index > 0 && unicode.IsUpper(char) &&
+			(unicode.IsLower(runes[index-1]) || (index+1 < len(runes) && unicode.IsLower(runes[index+1]))) {
+			builder.WriteByte('-')
+		}
+
+		builder.WriteRune(unicode.ToLower(char))
+	}
+
+	return builder.String()
 }
 
 // newFixture writes a hermetic checkout whose root module is Engram's module path. extraModule is appended to its
@@ -329,4 +349,14 @@ func runEntry(t *testing.T, dir string, entry func(context.Context) error) (stri
 	}
 
 	return string(contents), err
+}
+
+// targTargetName is the name Targ gives the target held in the named variable: the kebab-case of the variable name,
+// except where Targ names it otherwise (Fmt is fmt-code).
+func targTargetName(variable string) string {
+	if name, renamed := map[string]string{"Fmt": "fmt-code"}[variable]; renamed {
+		return name
+	}
+
+	return kebabCase(variable)
 }

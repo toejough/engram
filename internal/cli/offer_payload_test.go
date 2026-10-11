@@ -14,6 +14,25 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+// Test792b36c2a10_BuildOfferPayload_SlugMdIsKept (#841): a note whose slug is "md" has the
+// extensionless basename "7.2026-09-27.md"; the slug is still "md", not an extension to strip.
+func Test792b36c2a10_BuildOfferPayload_SlugMdIsKept(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	raw := string(offerTestNote{}.render(t))
+	note := cli.OfferNoteForTest{
+		XID: xidA, Basename: "7.2026-09-27.md", Raw: []byte(raw), Hash: mustHash(t, []byte(raw)),
+	}
+
+	body, err := cli.ExportBuildOfferPayload(note, seqID(60), parentVaultID, "", "bob", nil)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var keys map[string]any
+	g.Expect(json.Unmarshal(body, &keys)).To(Succeed())
+	g.Expect(keys).To(HaveKeyWithValue("slug", "md"))
+}
+
 // Test792b36c2a1_BuildOfferPayload_PlacementIsNotSent: the request carries no target,
 // position, chunkSources or vault key at all (spec "Placement is not
 // sent"), even for a note with chunk provenance.
@@ -83,25 +102,6 @@ func Test792b36c2a3_BuildOfferPayload_DeclaresNotesOwnIdentity(t *testing.T) {
 	g.Expect(json.Unmarshal(body, &fallback)).To(Succeed())
 	g.Expect(fallback.User).To(Equal("bob"))
 	g.Expect(fallback.Repo).To(Equal("detected-repo"))
-}
-
-// Test792b36c2a3_BuildOfferPayload_SlugMdIsKept (#841): a note whose slug is "md" has the
-// extensionless basename "7.2026-09-27.md"; the slug is still "md", not an extension to strip.
-func Test792b36c2a3_BuildOfferPayload_SlugMdIsKept(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	raw := string(offerTestNote{}.render(t))
-	note := cli.OfferNoteForTest{
-		XID: xidA, Basename: "7.2026-09-27.md", Raw: []byte(raw), Hash: mustHash(t, []byte(raw)),
-	}
-
-	body, err := cli.ExportBuildOfferPayload(note, seqID(60), parentVaultID, "", "bob", nil)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var keys map[string]any
-	g.Expect(json.Unmarshal(body, &keys)).To(Succeed())
-	g.Expect(keys).To(HaveKeyWithValue("slug", "md"))
 }
 
 // Test792b36c2a4_BuildOfferPayload_OriginKeyAndPath: offer.origin is <local id>:<xid>,
