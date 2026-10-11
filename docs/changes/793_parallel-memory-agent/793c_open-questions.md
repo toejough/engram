@@ -386,7 +386,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 
 ## 793c31 Which canonical nodes that ask the agent to run recall or learn change while the Integration is installed?
 
-- **Status:** open.
+- **Status:** answered (Joe, 2026-10-11): (a) conditional Modified operations against every canonical node that tells the agent to run recall or learn.
 - **Context:** [793a2k The working agent does not run recall or learn](793a_product-spec.md#793a2k-the-working-agent-does-not-run-recall-or-learn) says the working agent is not asked to run recall or learn while the Integration is installed. The Modified operations of [793a6 lessons-contract (the LESSONS line is replaced while the Integration is installed)](793a_product-spec.md#793a6-modified-lessons-contract-the-lessons-line-is-replaced-while-the-integration-is-installed) cover only the nodes that name the LESSONS line. Other canonical nodes tell the agent to run recall or learn: [ambient-guidance](../../specs/product/ambient-guidance.md)'s [792a19a Recall fires at four decision moments](../../specs/product/ambient-guidance.md#792a19a-recall-fires-at-four-decision-moments), [792a19b Recall escalates from glance to deep](../../specs/product/ambient-guidance.md#792a19b-recall-escalates-from-glance-to-deep), [792a19c Learn fires at the correction moment](../../specs/product/ambient-guidance.md#792a19c-learn-fires-at-the-correction-moment) and [792a19d The capture is learn's fast path](../../specs/product/ambient-guidance.md#792a19d-the-capture-is-learns-fast-path), and the shim's [792a19j The first action on every request is an engram query](../../specs/product/ambient-guidance.md#792a19j-the-first-action-on-every-request-is-an-engram-query) and [792a19t The query runs again at four moments mid-task](../../specs/product/ambient-guidance.md#792a19t-the-query-runs-again-at-four-moments-mid-task); [route](../../specs/product/route.md)'s [792a17h Every subagent recalls first, and large units are decomposed](../../specs/product/route.md#792a17h-every-subagent-recalls-first-and-large-units-are-decomposed); and [please](../../specs/product/please.md)'s seven-step workflow, which opens with learn and orients with recall ([792a18d The workflow opens with learn and orients with recall](../../specs/product/please.md#792a18d-the-workflow-opens-with-learn-and-orients-with-recall)). Without a change, a harness that imports that guidance still tells the agent to do what the System now does.
 - **Options:**
   - (a) Modified operations, conditional on the Integration, against each of those nodes, as for the LESSONS line.
@@ -397,7 +397,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 
 ## 793c32 Does the System keep a rule against concurrent duplicate captures?
 
-- **Status:** open.
+- **Status:** answered (Joe, 2026-10-11): (a) keep the concurrent-duplicate rule.
 - **Context:** The draft's rule (formerly CAP-3) said the System writes one note when two subagents capture the same lesson concurrently. With learn delegated, learn's own handling of an existing equivalent note applies (D5 dropped), but two System sessions can race, which no skill specifies. [793a3m Lessons from subagent sessions are captured directly](793a_product-spec.md#793a3m-lessons-from-subagent-sessions-are-captured-directly) keeps the concurrent case, with [793a3m1d Two subagents contain the same lesson](793a_product-spec.md#793a3m1-uat-scenarios).
 - **Options:**
   - (a) Keep it in 793a3m, with the scenario.
@@ -407,7 +407,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 
 ## 793c33 Do the requirements outside the D1-D5 and N1-N8 lists stay?
 
-- **Status:** open.
+- **Status:** answered (Joe, 2026-10-11): (a) as applied.
 - **Context:** [793c30 Which earlier decisions stay as deliberate differences from the skills?](#793c30-which-earlier-decisions-stay-as-deliberate-differences-from-the-skills) did not mention these. Applied meanwhile, as in [793b92 Requirements that re-specified skill behavior are retired](793b_decision-log.md#793b92-requirements-that-re-specified-skill-behavior-are-retired) and [793b96 Other interpretations made in the restructure](793b_decision-log.md#793b96-other-interpretations-made-in-the-restructure): kept are [793a3d Provenance](793a_product-spec.md#793a3d-provenance) (the graders and the log need to know which notes are the System's), [793a4d Sensitive content](793a_product-spec.md#793a4d-sensitive-content) (no canonical skill has a secrets rule), [793a5c Environments without the capability](793a_product-spec.md#793a5c-environments-without-the-capability) (it is what makes the operations of 793a6 conditional) and [793a5f Effect on outcomes](793a_product-spec.md#793a5f-effect-on-outcomes) (a SHOULD about the whole System). Retired as skill behavior are confirmed lessons only, no duplicates, direct writes to the local vault, independence from agent compliance and coexistence. The earlier decisions about the deep moment's writes (793c16, 793c23, 793c24) are treated as retired by delegation. The sweep difference ([793a2l The chunk index is swept after the turn](793a_product-spec.md#793a2l-the-chunk-index-is-swept-after-the-turn)) means the first moment of a session may query a staler index than the skill would.
 - **Options:**
   - (a) As applied.
@@ -418,7 +418,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 
 ## 793c34 What stands in for learn's closing learn?
 
-- **Status:** open.
+- **Status:** answered (Joe, 2026-10-11): (a) after each completed turn.
 - **Context:** [learn](../../specs/product/learn.md) runs at the end of work and at the moments a lesson is confirmed. The System has no end of work, only turns and sessions. [793a3a Learn is performed for the working agent](793a_product-spec.md#793a3a-learn-is-performed-for-the-working-agent) runs learn at the moments it fires and, in place of the closing learn, after each completed turn.
 - **Options:**
   - (a) After each completed turn.
@@ -429,7 +429,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 
 ## 793c35 How is the delay comparison in 793a5g1a made given timing noise?
 
-- **Status:** open.
+- **Status:** answered (Joe, 2026-10-11): (a) one logged time against one inline time; repeat counts are test design.
 - **Context:** [793a5g1a Recall adds no more delay than the agent's own recall](793a_product-spec.md#793a5g1-uat-scenarios) compares one logged latency with one inline timing. Both vary between runs, which was the point of the retired [793c28 How is 793a5g's latency comparison measured?](#793c28-how-is-793a5gs-latency-comparison-measured).
 - **Options:**
   - (a) As written: one logged latency against one inline timing, leaving noise handling to the technical test design.
