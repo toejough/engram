@@ -5,60 +5,92 @@ package dev
 import (
 	"context"
 	"errors"
-	"reflect"
 	"testing"
+	"time"
 
+	. "github.com/onsi/gomega"
 	"github.com/toejough/imptest/match"
 )
 
-//go:generate impgen executeNilaway --dependency --name MockExecuteNilaway
+func Test794b4b1a_OneRequestCarriesTheContextAndThePolicysArguments(t *testing.T) {
+	t.Parallel()
 
-func Test794b4b1a_ConfiguredInvocation(t *testing.T) {
-	for _, fix := range []bool{false, true} {
-		t.Run(map[bool]string{false: "check", true: "fix"}[fix], func(t *testing.T) {
+	for _, scenario := range []struct {
+		name string
+		fix  bool
+	}{{"check", false}, {"fix", true}} {
+		t.Run(scenario.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			execute, expectation := MockExecuteNilaway(t)
-			supplied := map[string]string{"GOMEMLIMIT": "4GiB"}
-			lookup := func(key string) (string, bool) {
-				value, present := supplied[key]
-				return value, present
+			placeholder := []string{"placeholder-arguments", "for-" + scenario.name}
+			var policyMode []bool
+			policy := func(fix bool) []string {
+				policyMode = append(policyMode, fix)
+				return placeholder
 			}
 			done := make(chan error, 1)
-			go func() { done <- runConfiguredNilaway(ctx, fix, lookup, execute) }()
-			call := expectation.ArgsShould(match.BeAny, match.BeAny, match.BeAny)
+			go func() { done <- runConfiguredNilaway(ctx, scenario.fix, policy, execute) }()
+
+			call := expectation.ArgsShould(match.BeAny, match.BeAny)
 			got := call.GetArgs()
-			wantArgs := []string{"-include-pkgs=github.com/toejough/engram"}
-			if fix {
-				wantArgs = append(wantArgs, "-fix")
-			}
-			wantArgs = append(wantArgs, "./...")
-			wantSettings := map[string]string{"GOMEMLIMIT": "4GiB", "GOGC": "50", "GOMAXPROCS": "2"}
-			if got.Ctx != ctx || !reflect.DeepEqual(got.Args, wantArgs) || !reflect.DeepEqual(got.Settings, wantSettings) {
-				t.Errorf("command request = %#v, want supplied context, %v, %v", got, wantArgs, wantSettings)
-			}
 			call.Return(nil)
-			if err := <-done; err != nil {
-				t.Fatal(err)
-			}
-			if !reflect.DeepEqual(supplied, map[string]string{"GOMEMLIMIT": "4GiB"}) {
-				t.Fatal("caller settings were modified")
-			}
+
+			g.Expect(got.Ctx).To(BeIdenticalTo(ctx))
+			g.Expect(got.Args).To(Equal(placeholder))
+			g.Expect(awaitReturn(g, done)).To(Succeed())
+			g.Expect(policyMode).To(Equal([]bool{scenario.fix}))
 		})
 	}
 }
 
-func Test794b4b1b_AnalyzerFailure(t *testing.T) {
-	ctx := context.Background()
+func Test794b4b1b_SuccessfulRunReturnsSuccess(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
 	execute, expectation := MockExecuteNilaway(t)
-	want := errors.New("analyzer failed")
 	done := make(chan error, 1)
-	go func() {
-		done <- runConfiguredNilaway(ctx, false, func(string) (string, bool) { return "", false }, execute)
-	}()
-	call := expectation.ArgsShould(match.BeAny, match.BeAny, match.BeAny)
-	call.Return(want)
-	if got := <-done; got != want {
-		t.Fatalf("got %v, want original analyzer failure %v", got, want)
+	go func() { done <- runConfiguredNilaway(context.Background(), false, nilawayArgs, execute) }()
+
+	expectation.ArgsShould(match.BeAny, match.BeAny).Return(nil)
+
+	g.Expect(awaitReturn(g, done)).To(Succeed())
+}
+
+func Test794b4b1c_FailedRunReturnsTheFailureWithoutRetrying(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	execute, expectation := MockExecuteNilaway(t)
+	done := make(chan error, 1)
+	go func() { done <- runConfiguredNilaway(context.Background(), false, nilawayArgs, execute) }()
+
+	expectation.ArgsShould(match.BeAny, match.BeAny).Return(errAnalyzerFailed)
+
+	g.Expect(awaitReturn(g, done)).To(MatchError(errAnalyzerFailed))
+}
+
+// unexported constants.
+const (
+	returnWait = 2 * time.Second
+)
+
+// unexported variables.
+var (
+	errAnalyzerFailed = errors.New("analyzer failed")
+)
+
+// awaitReturn waits for the run to return. The mock blocks on any request after the first one the test answered,
+// so a run that retries never returns and fails here.
+func awaitReturn(g *WithT, done <-chan error) error {
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(returnWait):
+		g.Expect(false).To(BeTrue(), "the run did not return after one answered request; it made a second request")
+		return nil
 	}
 }

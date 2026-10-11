@@ -7,13 +7,168 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"strings"
 	"testing"
+
+	. "github.com/onsi/gomega"
+	"github.com/toejough/targ"
+	targdev "github.com/toejough/targ/dev"
 )
 
-func Test794a2a1a_RealAnalyzerScope(t *testing.T) {
+func Test794a2a1a_ExistingEntryPointsReportOnlyEngramModulePackages(t *testing.T) {
+	for _, entry := range []string{"check-nils-for-fail", "check-nils", "check", "check-for-fail", "check-full"} {
+		t.Run(entry, func(t *testing.T) {
+			g := NewWithT(t)
+			g.Expect(reachesNilsForFail(entryTarget(entry))).To(BeTrue(), "%s does not run check-nils-for-fail", entry)
+		})
+	}
+
+	t.Run("check-nils-for-fail reports in Engram and not in the dependency", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := newFixture(t, map[string]string{
+			"thirdparty/go.mod":        "module example.com/thirdparty\n\ngo " + fixtureGoVersion + "\n",
+			"thirdparty/thirdparty.go": "package thirdparty\n\nfunc Broken() { var value *int; println(*value) }\n",
+		}, "require example.com/thirdparty v0.0.0\nreplace example.com/thirdparty => ./thirdparty\n",
+			"import \"example.com/thirdparty\"\n\nfunc Dependent() { thirdparty.Broken() }\n")
+
+		output, err := runEntry(t, dir, checkNilsForFail)
+
+		g.Expect(err).To(HaveOccurred(), "known nil dereference produced no failure")
+		g.Expect(output).To(ContainSubstring(fixtureEngineMarker))
+		g.Expect(output).To(ContainSubstring(fixtureFaultMarker))
+		g.Expect(output).NotTo(ContainSubstring("thirdparty.go:"))
+	})
+}
+
+func Test794a2a1b_PrefixSiblingModuleIsNotReportedOn(t *testing.T) {
+	g := NewWithT(t)
+	dir := newFixture(t, map[string]string{
+		"evaldep/go.mod":  "module github.com/toejough/engram-eval\n\ngo " + fixtureGoVersion + "\n",
+		"evaldep/eval.go": "package eval\n\nfunc Broken() { var value *int; println(*value) }\n",
+	}, "require github.com/toejough/engram-eval v0.0.0\nreplace github.com/toejough/engram-eval => ./evaldep\n",
+		"import eval \"github.com/toejough/engram-eval\"\n\nfunc Dependent() { eval.Broken() }\n")
+
+	output, err := runEntry(t, dir, checkNilsForFail)
+
+	g.Expect(err).To(HaveOccurred(), "known nil dereference produced no failure")
+	g.Expect(output).To(ContainSubstring(fixtureEngineMarker))
+	g.Expect(output).To(ContainSubstring(fixtureFaultMarker))
+	g.Expect(output).NotTo(ContainSubstring("eval.go:"))
+}
+
+func Test794a2a1c_FixCommandActsOnlyOnEngramModulePackages(t *testing.T) {
+	g := NewWithT(t)
+	dependencyPath := "thirdparty/thirdparty.go"
+	dependencySource := "package thirdparty\n\nfunc Broken() { var value *int; println(*value) }\n"
+	dir := newFixture(t, map[string]string{
+		"thirdparty/go.mod": "module example.com/thirdparty\n\ngo " + fixtureGoVersion + "\n",
+		dependencyPath:      dependencySource,
+	}, "require example.com/thirdparty v0.0.0\nreplace example.com/thirdparty => ./thirdparty\n",
+		"import \"example.com/thirdparty\"\n\nfunc Dependent() { thirdparty.Broken() }\n")
+
+	// NilAway with -fix applies suggested fixes and prints no diagnostics, even for a known nil dereference, so
+	// the scenario's "is reported" clause is not observable with the real analyzer. What is observable is that
+	// the dependency is neither reported on nor modified.
+	output, err := runEntry(t, dir, checkNilsFix)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(output).NotTo(ContainSubstring("thirdparty.go:"))
+	after, err := os.ReadFile(filepath.Join(dir, dependencyPath))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(string(after)).To(Equal(dependencySource))
+}
+
+func Test794a2a1d_NestedModuleIsNotReportedOn(t *testing.T) {
+	g := NewWithT(t)
+	dir := newFixture(t, map[string]string{
+		"nested/go.mod":    "module github.com/toejough/engram/nested\n\ngo " + fixtureGoVersion + "\n",
+		"nested/nested.go": "package nested\n\nfunc Broken() { var value *int; println(*value) }\n",
+	}, "require github.com/toejough/engram/nested v0.0.0\nreplace github.com/toejough/engram/nested => ./nested\n",
+		"import \"github.com/toejough/engram/nested\"\n\nfunc Dependent() { nested.Broken() }\n")
+
+	output, err := runEntry(t, dir, checkNilsForFail)
+
+	g.Expect(err).To(HaveOccurred(), "known nil dereference produced no failure")
+	g.Expect(output).To(ContainSubstring(fixtureEngineMarker))
+	g.Expect(output).To(ContainSubstring(fixtureFaultMarker))
+	g.Expect(output).NotTo(ContainSubstring("nested.go:"))
+}
+
+func Test794a2c1a_SuppliedSettingsArePassedThrough(t *testing.T) {
+	entries := map[string]func(context.Context) error{
+		"check-nils-for-fail": checkNilsForFail,
+		"check-nils-fix":      checkNilsFix,
+	}
+	for _, scenario := range []struct {
+		entry    string
+		supplied map[string]string
+	}{
+		{"check-nils-for-fail", map[string]string{"GOMEMLIMIT": "4GiB"}},
+		{"check-nils-fix", map[string]string{"GOMEMLIMIT": "off", "GOGC": "off", "GOMAXPROCS": "8"}},
+		{"check-nils-for-fail", map[string]string{"GOMEMLIMIT": "", "GOGC": "", "GOMAXPROCS": ""}},
+	} {
+		t.Run(scenario.entry+" "+formatSettings(scenario.supplied), func(t *testing.T) {
+			g := NewWithT(t)
+			capture := standInNilaway(t, 0)
+			setResourceVariables(t, scenario.supplied)
+
+			g.Expect(entries[scenario.entry](context.Background())).To(Succeed())
+
+			g.Expect(readStandInResources(t, capture)).To(Equal(scenario.supplied))
+			g.Expect(currentResourceVariables()).To(Equal(scenario.supplied))
+		})
+	}
+}
+
+func Test794a2c1b_AbsentSettingsStayAbsent(t *testing.T) {
+	entries := map[string]func(context.Context) error{
+		"check-nils-for-fail": checkNilsForFail,
+		"check-nils-fix":      checkNilsFix,
+	}
+	for entry, run := range entries {
+		t.Run(entry, func(t *testing.T) {
+			g := NewWithT(t)
+			capture := standInNilaway(t, 0)
+			setResourceVariables(t, nil)
+
+			g.Expect(run(context.Background())).To(Succeed())
+
+			g.Expect(readStandInResources(t, capture)).To(BeEmpty())
+			g.Expect(currentResourceVariables()).To(BeEmpty())
+		})
+	}
+}
+
+// unexported constants.
+const (
+	fixtureDiagnosticFile = "diagnostics"
+	fixtureEngineMarker   = "engram.go:"
+	fixtureEnginePackage  = `package engram
+
+func Broken() { var value *int; println(*value) }
+`
+	fixtureFaultMarker = "Potential nil panic"
+	fixtureGoVersion   = "1.21"
+	fixtureWrapper     = "#!/bin/sh\nexec \"$ENGRAM_NILAWAY_REAL_BINARY\" -pretty-print=false \"$@\" " +
+		"> \"$ENGRAM_NILAWAY_CAPTURE\" 2>&1\n"
+)
+
+// entryTarget returns the shared development target the named entry point resolves to.
+func entryTarget(name string) *targ.Target {
+	return map[string]*targ.Target{
+		"check-nils-for-fail": targdev.CheckNilsForFail,
+		"check-nils":          targdev.CheckNils,
+		"check":               targdev.Check,
+		"check-for-fail":      targdev.CheckForFail,
+		"check-full":          targdev.CheckFull,
+	}[name]
+}
+
+// newFixture writes a hermetic checkout whose root module is Engram's module path. extraModule is appended to its
+// go.mod, and importBlock plus a nil dereference in the root package are written to engram.go.
+func newFixture(t *testing.T, files map[string]string, extraModule, importBlock string) string {
+	t.Helper()
 	if runtime.GOOS == "windows" {
 		t.Skip("subprocess fixture requires a POSIX shell")
 	}
@@ -21,15 +176,19 @@ func Test794a2a1a_RealAnalyzerScope(t *testing.T) {
 	if err != nil {
 		t.Fatal("NilAway is required for the explicit dev integration suite")
 	}
-	dir := t.TempDir()
-	files := map[string]string{
-		"go.mod":                   "module github.com/toejough/engram/nilawayfixture\n\ngo 1.26\n\nrequire example.com/nilawaydependency v0.0.0\nreplace example.com/nilawaydependency => ./dependency\n",
-		"main.go":                  "package main\nimport dependency \"example.com/nilawaydependency\"\nfunc main() { var value *int; println(*value); dependency.Broken() }\n",
-		"dependency/go.mod":        "module example.com/nilawaydependency\n\ngo 1.26\n",
-		"dependency/dependency.go": "package dependency\nfunc Broken() { var value *int; println(*value) }\n",
-		"nilaway":                  "#!/bin/sh\nexec \"$ENGRAM_NILAWAY_REAL_BINARY\" \"$@\" > \"$ENGRAM_NILAWAY_CAPTURE\" 2>&1\n",
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	all := map[string]string{
+		"go.mod":    "module github.com/toejough/engram\n\ngo " + fixtureGoVersion + "\n\n" + extraModule,
+		"engram.go": strings.Replace(fixtureEnginePackage, "\nfunc Broken", "\n"+importBlock+"\nfunc Broken", 1),
+		"nilaway":   fixtureWrapper,
 	}
 	for name, contents := range files {
+		all[name] = contents
+	}
+	for name, contents := range all {
 		path := filepath.Join(dir, name)
 		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 			t.Fatal(err)
@@ -38,141 +197,36 @@ func Test794a2a1a_RealAnalyzerScope(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	capture := filepath.Join(dir, "diagnostics")
-	t.Chdir(dir)
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("ENGRAM_NILAWAY_REAL_BINARY", binary)
-	t.Setenv("ENGRAM_NILAWAY_CAPTURE", capture)
+	t.Setenv("ENGRAM_NILAWAY_CAPTURE", filepath.Join(dir, fixtureDiagnosticFile))
 	t.Setenv("GOWORK", "off")
 	t.Setenv("GOPROXY", "off")
-	settings := map[string]string{"GOMEMLIMIT": "2GiB", "GOGC": "50", "GOMAXPROCS": "2"}
-	for _, scoped := range []bool{false, true} {
-		args := []string{"-pretty-print=false", "-include-errors-in-files=" + dir}
-		if scoped {
-			args = append(args, nilawayArgs(false)...)
-		} else {
-			args = append(args, "./...")
-		}
-		args = append(args, "example.com/nilawaydependency")
-		if err := executeNilaway(context.Background(), args, settings); err == nil {
-			t.Fatal("known first-party nil dereference produced no failure")
-		}
-		contents, err := os.ReadFile(capture)
-		if err != nil {
-			t.Fatal(err)
-		}
-		output := string(contents)
-		if !strings.Contains(output, "main.go:") || !strings.Contains(output, "Potential nil panic") {
-			t.Fatalf("missing first-party nil diagnostic: %s", output)
-		}
-		if strings.Contains(output, "dependency.go:") == scoped {
-			t.Fatalf("scoped=%v: unexpected dependency analysis: %s", scoped, output)
-		}
-	}
+	t.Setenv("GOFLAGS", "-mod=mod")
+	return dir
 }
 
-func Test794a2b1a_AcceptanceDefaults(t *testing.T) {
-	for _, fix := range []bool{false, true} {
-		t.Run(map[bool]string{false: "check", true: "fix"}[fix], func(t *testing.T) {
-			capture := nilawayCapture(t)
-			if err := executeNilaway(context.Background(), nilawayArgs(fix), nilawayEnvironment(os.LookupEnv)); err != nil {
-				t.Fatal(err)
-			}
-			want := []string{"2GiB", "50", "2", "inherited", "-include-pkgs=github.com/toejough/engram"}
-			if fix {
-				want = append(want, "-fix")
-			}
-			assertNilawayCapture(t, capture, append(want, "./..."))
-			for _, key := range []string{"GOMEMLIMIT", "GOGC", "GOMAXPROCS"} {
-				if _, present := os.LookupEnv(key); present {
-					t.Fatalf("parent environment gained %s", key)
-				}
-			}
-		})
+// reachesNilsForFail reports whether the target runs the configured check-nils-for-fail target.
+func reachesNilsForFail(target *targ.Target) bool {
+	if target == targdev.CheckNilsForFail {
+		return true
 	}
-}
-
-func Test794a2c1a_AcceptanceOverrides(t *testing.T) {
-	for _, supplied := range []map[string]string{
-		{"GOMEMLIMIT": "4GiB"},
-		{"GOMEMLIMIT": "off", "GOGC": "off", "GOMAXPROCS": "8"},
-		{"GOMEMLIMIT": "", "GOGC": "", "GOMAXPROCS": ""},
-	} {
-		for _, fix := range []bool{false, true} {
-			t.Run(map[bool]string{false: "check", true: "fix"}[fix], func(t *testing.T) {
-				capture := nilawayCapture(t)
-				for key, value := range supplied {
-					t.Setenv(key, value)
-				}
-				if err := executeNilaway(context.Background(), nilawayArgs(fix), nilawayEnvironment(os.LookupEnv)); err != nil {
-					t.Fatal(err)
-				}
-				want := []string{"2GiB", "50", "2", "inherited", "-include-pkgs=github.com/toejough/engram"}
-				for index, key := range []string{"GOMEMLIMIT", "GOGC", "GOMAXPROCS"} {
-					if value, present := supplied[key]; present {
-						want[index] = value
-					}
-				}
-				if fix {
-					want = append(want, "-fix")
-				}
-				assertNilawayCapture(t, capture, append(want, "./..."))
-				for _, key := range []string{"GOMEMLIMIT", "GOGC", "GOMAXPROCS"} {
-					value, suppliedPresent := supplied[key]
-					if got, present := os.LookupEnv(key); present != suppliedPresent || got != value {
-						t.Fatalf("parent %s changed", key)
-					}
-				}
-			})
+	for _, dependency := range target.GetDeps() {
+		if reachesNilsForFail(dependency) {
+			return true
 		}
 	}
+	return false
 }
 
-func Test794b4b1c_ChildEnvironmentIsolation(t *testing.T) {
-	capture := nilawayCapture(t)
-	settings := map[string]string{"GOMEMLIMIT": "2GiB", "GOGC": "50", "GOMAXPROCS": "2"}
-	if err := executeNilaway(context.Background(), []string{"-include-pkgs=github.com/toejough/engram", "./..."}, settings); err != nil {
-		t.Fatal(err)
-	}
-	assertNilawayCapture(t, capture, []string{"2GiB", "50", "2", "inherited", "-include-pkgs=github.com/toejough/engram", "./..."})
-	for key := range settings {
-		if _, present := os.LookupEnv(key); present {
-			t.Fatalf("parent environment gained %s", key)
-		}
-	}
-}
-
-func assertNilawayCapture(t *testing.T, capture string, want []string) {
+// runEntry runs an entry point from the fixture directory and returns the analyzer's diagnostics.
+func runEntry(t *testing.T, dir string, entry func(context.Context) error) (string, error) {
 	t.Helper()
-	contents, err := os.ReadFile(capture)
-	if err != nil {
-		t.Fatal(err)
+	t.Chdir(dir)
+	err := entry(context.Background())
+	contents, readErr := os.ReadFile(filepath.Join(dir, fixtureDiagnosticFile))
+	if readErr != nil {
+		t.Fatal(readErr)
 	}
-	got := strings.Split(strings.TrimSuffix(string(contents), "\n"), "\n")
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("child values = %#v, want %#v", got, want)
-	}
-}
-
-func nilawayCapture(t *testing.T) string {
-	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("subprocess fixture requires a POSIX shell")
-	}
-	dir := t.TempDir()
-	capture := filepath.Join(dir, "capture")
-	script := "#!/bin/sh\n: \"${GOMEMLIMIT?}\" \"${GOGC?}\" \"${GOMAXPROCS?}\"\nprintf '%s\\n' \"$GOMEMLIMIT\" \"$GOGC\" \"$GOMAXPROCS\" \"$ENGRAM_NILAWAY_MARKER\" > \"$ENGRAM_NILAWAY_CAPTURE\"\nprintf '%s\\n' \"$@\" >> \"$ENGRAM_NILAWAY_CAPTURE\"\n"
-	if err := os.WriteFile(filepath.Join(dir, "nilaway"), []byte(script), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	t.Setenv("ENGRAM_NILAWAY_CAPTURE", capture)
-	t.Setenv("ENGRAM_NILAWAY_MARKER", "inherited")
-	for _, key := range []string{"GOMEMLIMIT", "GOGC", "GOMAXPROCS"} {
-		t.Setenv(key, "")
-		if err := os.Unsetenv(key); err != nil {
-			t.Fatal(err)
-		}
-	}
-	return capture
+	return string(contents), err
 }

@@ -7,79 +7,68 @@ import (
 	"reflect"
 	"testing"
 
+	. "github.com/onsi/gomega"
 	"github.com/toejough/targ"
 	targdev "github.com/toejough/targ/dev"
 )
 
 func Test794b3a1a_ModeArguments(t *testing.T) {
-	for _, fix := range []bool{false, true} {
-		want := []string{"-include-pkgs=github.com/toejough/engram"}
-		if fix {
-			want = append(want, "-fix")
-		}
-		want = append(want, "./...")
-		if got := nilawayArgs(fix); !reflect.DeepEqual(got, want) {
-			t.Fatalf("fix=%v: got %v, want %v", fix, got, want)
-		}
-	}
-}
+	t.Parallel()
 
-func Test794b3b1a_EnvironmentPrecedence(t *testing.T) {
-	for _, supplied := range []map[string]string{
-		{},
-		{"GOMEMLIMIT": "4GiB"},
-		{"GOMEMLIMIT": "off", "GOGC": "off", "GOMAXPROCS": "8"},
-		{"GOMEMLIMIT": "", "GOGC": "", "GOMAXPROCS": ""},
+	for _, scenario := range []struct {
+		name string
+		fix  bool
+		want []string
+	}{
+		{"check", false, []string{"-include-pkgs=github.com/toejough/engram", "./..."}},
+		{"fix", true, []string{"-include-pkgs=github.com/toejough/engram", "-fix", "./..."}},
 	} {
-		got := nilawayEnvironment(func(key string) (string, bool) {
-			value, present := supplied[key]
-			return value, present
+		t.Run(scenario.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			g.Expect(nilawayArgs(scenario.fix)).To(Equal(scenario.want))
 		})
-		want := map[string]string{"GOMEMLIMIT": "2GiB", "GOGC": "50", "GOMAXPROCS": "2"}
-		for key, value := range supplied {
-			want[key] = value
-		}
-		if !reflect.DeepEqual(got, want) {
-			t.Fatalf("supplied=%v: got %v, want %v", supplied, got, want)
-		}
 	}
 }
 
 func Test794b4a1a_TargetWiring(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
 	for target, expected := range map[*targ.Target]func(context.Context) error{
 		targdev.CheckNilsFix:     checkNilsFix,
 		targdev.CheckNilsForFail: checkNilsForFail,
 	} {
-		if reflect.ValueOf(target.Fn()).Pointer() != reflect.ValueOf(expected).Pointer() {
-			t.Fatalf("%s does not use Engram's NilAway invocation", target.GetName())
-		}
+		g.Expect(sameFunc(target.Fn(), expected)).To(BeTrue(), "%s does not use Engram's NilAway invocation", target.GetName())
 	}
-	if targdev.CheckNilsFix.GetName() != "check-nils-fix" || targdev.CheckNilsForFail.GetName() != "check-nils-for-fail" {
-		t.Fatal("direct NilAway target names changed")
+	g.Expect(targdev.CheckNilsFix.GetName()).To(Equal("check-nils-fix"))
+	g.Expect(targdev.CheckNilsForFail.GetName()).To(Equal("check-nils-for-fail"))
+	g.Expect(targdev.CheckNils.GetDeps()).To(ContainElements(targdev.CheckNilsFix, targdev.CheckNilsForFail))
+	g.Expect(targdev.Check.GetDeps()).To(ContainElement(targdev.CheckNils))
+	for _, target := range []*targ.Target{targdev.CheckForFail, targdev.CheckFull} {
+		g.Expect(target.GetDeps()).To(ContainElement(targdev.CheckNilsForFail), target.GetName())
 	}
-	for target, dependency := range map[*targ.Target]*targ.Target{
-		targdev.Check:     targdev.CheckNils,
-		targdev.CheckNils: targdev.CheckNilsFix,
-	} {
-		found := false
-		for _, candidate := range target.GetDeps() {
-			if candidate == dependency {
-				found = true
-			}
-		}
-		if !found {
-			t.Fatalf("%s lost dependency %s", target.GetName(), dependency.GetName())
-		}
+}
+
+func Test794b4a1b_RegistrationMetadataIsPreserved(t *testing.T) {
+	t.Parallel()
+	t.Skip("blocked: targ has no supported way to replace a target's action while keeping its source package; " +
+		"see the 794 report")
+
+	g := NewWithT(t)
+	for _, target := range []*targ.Target{targdev.CheckNilsFix, targdev.CheckNilsForFail} {
+		g.Expect(target.GetSource()).To(Equal(targSourcePackage), "%s lost its registration source", target.GetName())
+		g.Expect(target.GetDescription()).NotTo(BeEmpty(), target.GetName())
 	}
-	for _, target := range []*targ.Target{targdev.CheckForFail, targdev.CheckFull, targdev.CheckNils} {
-		found := false
-		for _, dependency := range target.GetDeps() {
-			if dependency == targdev.CheckNilsForFail {
-				found = true
-			}
-		}
-		if !found {
-			t.Fatalf("%s lost its configured NilAway dependency", target.GetName())
-		}
-	}
+}
+
+// unexported constants.
+const (
+	targSourcePackage = "github.com/toejough/targ/dev"
+)
+
+func sameFunc(actual any, expected func(context.Context) error) bool {
+	return reflect.ValueOf(actual).Pointer() == reflect.ValueOf(expected).Pointer()
 }
