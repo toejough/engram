@@ -1486,7 +1486,7 @@ New IDs: [793a2c1d Tier evidence is delivered before a dispatch is routed](793a_
 | Retired, never reused | `793a7a1e`, `793a7b1b`, `793a7c1d`, `793a7d1c`, `793a7e1b`, `793a7f1b`, `793a7g1c`, `793a7h1b`, `793a7i1c`, `793a7j1c`, `793a7k1b`, `793a7l1c`, `793a7m1c`, `793a7n1c`, `793a7o1c`, `793a7o1e`, `793a7p1c`, `793a7q1e`, `793a7r1f` |
 | Entries | [793b115 Fifth review: findings held for 793c41 to 793c44](#793b115-fifth-review-findings-held-for-793c41-to-793c44) to [793b136 Change 793 depends on change 795 being widened](#793b136-change-793-depends-on-change-795-being-widened); [793c41 At a recall moment, what does the System put in front of the working agent?](793c_open-questions.md#793c41-at-a-recall-moment-what-does-the-system-put-in-front-of-the-working-agent) to [793c48 How is the widening of `engram init` (change #795) sequenced with this change?](793c_open-questions.md#793c48-how-is-the-widening-of-engram-init-change-795-sequenced-with-this-change) |
 
-- **Status:** applied in the commit that records this review.
+- **Status:** applied in commit 89e6a3a0.
 
 ## 793b136 Change 793 depends on change 795 being widened
 
