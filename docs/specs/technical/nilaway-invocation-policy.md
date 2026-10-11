@@ -1,6 +1,6 @@
 # NilAway Invocation Policy - Technical Spec
 
-Constructs first-party analyzer arguments that limit analysis to Engram's module packages.
+Builds NilAway's arguments: the analysis scope for Engram's module and the check or fix mode.
 
 ## 794b3a Mode and scope
 
@@ -29,10 +29,4 @@ Scenario Outline: 794b3a1a Scope and mode arguments
     | mode  | arguments                                           |
     | check | -include-pkgs=github.com/toejough/engram ./...      |
     | fix   | -include-pkgs=github.com/toejough/engram -fix ./... |
-
-Scenario: 794b3a1b The scope covers the root package and its subpackages
-  Given the invocation mode is check
-  When the invocation policy constructs analyzer arguments
-  Then the scope value is a string prefix of "github.com/toejough/engram"
-  And the scope value is a string prefix of "github.com/toejough/engram/internal/cli"
 ```
