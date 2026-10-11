@@ -67,7 +67,7 @@ Scenario: 793a2a1a Relevant note exists for the prompt
 
 Scenario: 793a2a1c Only incidental items come back
   Given a vault holding only notes about unrelated topics, and an indexed chunk history
-  And the operator runs the glance query for the prompt and finds only newest chunks returned
+  And the operator runs the glance query with the phrases the log records for that moment and finds only newest chunks returned
   When the human submits the prompt
   Then the session transcript shows those chunks delivered before the agent's first response or tool call
 ```
@@ -219,7 +219,7 @@ Scenario: 793a2h1e Applying a convention stays glance
 
 ### 793a2i Recall for every prompt regardless of source
 
-Requirement: 793a2i The System MUST apply prompt-time recall to every prompt regardless of its source
+Requirement: 793a2i The System MUST apply prompt-time recall, in every working session (excluding System sessions per [793a4f No recall or capture in its own evaluation sessions](#793a4f-no-recall-or-capture-in-its-own-evaluation-sessions)), to every prompt regardless of its source
 (human, automated notification, scheduled trigger, message from another session).
 
 Rationale: memory is always worth checking, whatever produced the prompt.
@@ -300,8 +300,8 @@ Canonical target: `docs/specs/product/automatic-memory.md` (title `Automatic Mem
 
 ### 793a3a Evaluate every completed turn
 
-Requirement: 793a3a (formerly CAP-1) After each completed turn, in both top-level and subagent
-sessions, the System MUST evaluate the turn for lessons without the working agent requesting it. The
+Requirement: 793a3a (formerly CAP-1) After each completed turn, in every working session, top-level or subagent
+(excluding System sessions per [793a4f No recall or capture in its own evaluation sessions](#793a4f-no-recall-or-capture-in-its-own-evaluation-sessions)), the System MUST evaluate the turn for lessons without the working agent requesting it. The
 System, not the working agent, MUST judge what is worth saving, and MUST write each captured lesson
 directly to the vault.
 
@@ -595,9 +595,9 @@ Scenario: 793a4b1c No error reaches the agent
 
 ### 793a4c Memory purview only
 
-Requirement: 793a4c (formerly CTL-3) The System MUST NOT itself make or override task decisions, tool
-permissions, tool arguments, model choice, or the user's prompt text. Its only effects are injecting
-reference notes and writing vault notes.
+Requirement: 793a4c (formerly CTL-3) The System MUST NOT itself make or override tool permissions,
+tool arguments, model choice, or the user's prompt text. Its only effect on the working session is the
+items it injects; outside the session it writes and activates vault notes and writes its log.
 
 #### 793a4c1 UAT Scenarios
 
@@ -614,6 +614,16 @@ Scenario: 793a4c1b The prompt is unchanged and the note is separate
   When the session transcript is inspected
   Then the user's prompt text is exactly as the user typed it
   And the injected note appears as separate content attributed to its source
+
+Scenario: 793a4c1c The only effect on the session is the injected items
+  Given a session in which the System injected notes and captured a lesson
+  When the session transcript is inspected
+  Then the only content the System added to the session is the injected items
+
+Scenario: 793a4c1d Effects outside the session are vault notes and the log
+  Given a session in which the System captured a lesson and activated an injected note
+  When the files changed during the session outside the session transcript are listed
+  Then the changes are the vault notes written or activated and the System's log
 ```
 
 ### 793a4d Sensitive content
@@ -744,9 +754,9 @@ glance escalated to deep, the phrases of each query, the items and their scores)
 (written, reinforced, or discarded, with reason) and every activation decision (activated or not, per
 injected note) MUST be logged, so effect on behavior can be measured and the operator can audit it. The
 log MUST be available to the operator by session id. Each entry MUST carry the session id, the turn id
-and the moment. The System MUST also record, per moment, the volume injected and the latency added. A
+and the moment. The System MUST also record, per moment, the volume injected, as the number of items and the number of bytes, and the latency added. A
 moment with no injection MUST be recorded with volume 0. The System MUST record all of this whenever it is
-active, and no configuration MUST switch the recording off while the System is active.
+active, and MUST NOT provide, or honor, any setting that switches the recording off while the System is active.
 
 Rationale: the volume and latency record is the evidence any later change to the volume and latency
 requirements ([793a2j Volume equals the depth's output](#793a2j-volume-equals-the-depths-output), [793a5g Latency per recall moment](#793a5g-latency-per-recall-moment)) rests on.
@@ -776,7 +786,7 @@ Scenario: 793a5e1d A discarded capture is recorded with its reason
   Then the turn has a capture decision of discarded with a reason
 
 Scenario: 793a5e1e Measurement cannot be switched off while the System is active
-  Given the integration is installed and the operator's configuration tries to turn measurement off
+  Given the integration is installed and the operator tries to turn measurement off with an environment variable or config key that would disable logging
   When a session runs
   Then the log still records each moment with its volume and latency
 

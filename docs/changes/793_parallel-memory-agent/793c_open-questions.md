@@ -2,9 +2,8 @@
 
 These are the Open Decisions carried over from the draft requirements. Joe answered the first six on
 2026-10-11, and the answers are applied in [`793a_product-spec.md`](./793a_product-spec.md). His later
-review answers are recorded in [793c7 Review answers (2026-10-11)](#793c7-review-answers-2026-10-11), and his answers to 793c8, 793c9, 793c11 and 793c12 are applied too. The phrasing choices
-made in applying them are in [`793b_decision-log.md`](./793b_decision-log.md). The last two questions
-are open and await Joe.
+review answers are recorded in [793c7 Review answers (2026-10-11)](#793c7-review-answers-2026-10-11), and his answers to [793c8 What does the System inject when only incidental items come back?](#793c8-what-does-the-system-inject-when-only-incidental-items-come-back), [793c9 Does the System activate notes?](#793c9-does-the-system-activate-notes), [793c11 What does the latency bound cover?](#793c11-what-does-the-latency-bound-cover), [793c12 Are operating modes needed at all?](#793c12-are-operating-modes-needed-at-all), [793c13 Does the System activate notes the agent retrieved itself?](#793c13-does-the-system-activate-notes-the-agent-retrieved-itself) and [793c14 Should reinforcing an existing note be a MUST?](#793c14-should-reinforcing-an-existing-note-be-a-must) are applied too. The phrasing choices
+made in applying them are in [`793b_decision-log.md`](./793b_decision-log.md). Six questions, [793c15 Does the System inject chunks with their content?](#793c15-does-the-system-inject-chunks-with-their-content) to [793c20 Must injected chunks identify their source like notes?](#793c20-must-injected-chunks-identify-their-source-like-notes), are open and await Joe.
 
 ## 793c1 What are the capture precision bar and capture-rate target?
 
@@ -28,7 +27,7 @@ are open and await Joe.
 - **Status:** answered (Joe, 2026-10-11).
 - **Answer:** active, with measurement always on, so data accumulates for later optimization. Observe
   and off remain operator choices.
-- **Applied in:** nothing now: `793a4e Operating modes and measurement` is retired by [793c12 Are operating modes needed at all?](#793c12-are-operating-modes-needed-at-all). The active default is [793a4g Active whenever installed](793a_product-spec.md#793a4g-active-whenever-installed) scenario `793a4g1a`.
+- **Applied in:** nothing now: `793a4e Operating modes and measurement` is retired by [793c12 Are operating modes needed at all?](#793c12-are-operating-modes-needed-at-all). The active default is [793a4g Active whenever installed](793a_product-spec.md#793a4g-active-whenever-installed) scenario [793a4g1a A fresh install is active](793a_product-spec.md#793a4g1-uat-scenarios).
 
 ## 793c4 Are captured lessons written directly, or held for `curate` review?
 
@@ -76,9 +75,7 @@ Joe's answers to the review of the first revision, all applied in [`793a_product
 13. **Attributable presentation only**; the non-imperative rule and refusal check are dropped ([793a2d Attributable presentation](793a_product-spec.md#793a2d-attributable-presentation)).
 14. **No self-links** on `Requirement:` lines; canonical specs tracked in #847.
 
-Open for Joe: the log now also records the depth and the phrases queried ([793b8 Per-moment record sits in the existing log requirement](793b_decision-log.md#793b8-per-moment-record-sits-in-the-existing-log-requirement)), so that the depth
-and volume scenarios are checkable from the operator-accessible log. This adds two log fields beyond his
-answers.
+Open for Joe: whether the log keeps the extra fields it records beyond his answers is [793c19 Does the log keep the depth, each query's phrases and the glance escalation?](#793c19-does-the-log-keep-the-depth-each-querys-phrases-and-the-glance-escalation).
 
 ## 793c8 What does the System inject when only incidental items come back?
 
@@ -132,7 +129,7 @@ answers.
 - **Status:** answered (Joe, 2026-10-11): (a) remove modes; the System is active whenever installed, measurement is always recorded, and disabling or uninstalling turns it off.
 - **Context:** `793a4e Operating modes and measurement` carries the draft's off/observe/active modes (formerly CTL-1). Joe asked (2026-10-11) why not keep today's behavior: if the integration is installed, it is active. The draft's reasons for modes were an observe-first rollout (measure before injecting or writing) and an emergency off switch without uninstalling. Joe's later answers remove the first need: default active ([793c3 What is the default mode for a fresh install?](#793c3-what-is-the-default-mode-for-a-fresh-install)), measurement always recorded ([793c7 Review answers (2026-10-11)](#793c7-review-answers-2026-10-11)), and direct writes with git as the fallback. Disabling or uninstalling the integration covers the second need.
 - **Options:**
-  - (a) Remove modes. The System is active whenever it is installed, measurement is always recorded, and disabling or uninstalling the integration turns it off. 793a4e, its scenarios and [793c10 What is the default mode for an existing install that updates?](#793c10-what-is-the-default-mode-for-an-existing-install-that-updates) are retired.
+  - (a) Remove modes. The System is active whenever it is installed, measurement is always recorded, and disabling or uninstalling the integration turns it off. `793a4e`, its scenarios and [793c10 What is the default mode for an existing install that updates?](#793c10-what-is-the-default-mode-for-an-existing-install-that-updates) are retired.
   - (b) Keep only an off switch, with no observe mode.
   - (c) Keep off, observe and active.
 - **Recommendation:** (a). It matches today's behavior and removes a configuration surface and its tests.
@@ -147,14 +144,75 @@ answers.
   - (a) injected notes only.
   - (b) also notes the agent retrieved itself and used.
 - **Recommendation:** (a). Recall already activates its own retrievals, and (b) widens the System's judgment to content it did not deliver.
-- **Blocks:** [793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated). The spec reads as (a) until Joe answers.
+- **Blocks:** [793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated).
 
 ## 793c14 Should reinforcing an existing note be a MUST?
 
-- **Status:** answered (Joe, 2026-10-11): (b) reinforcement is a MUST; 793a3c and 793a3c1a updated.
+- **Status:** answered (Joe, 2026-10-11): (b) reinforcement is a MUST; [793a3c No duplicates](793a_product-spec.md#793a3c-no-duplicates) and [793a3c1a Existing note already covers the lesson](793a_product-spec.md#793a3c1-uat-scenarios) updated. Decision: [793b52 Reinforcement is required](793b_decision-log.md#793b52-reinforcement-is-required).
 - **Context:** [793a3c No duplicates](793a_product-spec.md#793a3c-no-duplicates) says the System SHOULD reinforce an equivalent existing note. The second review ([793b35 M8: "Reinforced" is not backed by a MUST](793b_decision-log.md#793b35-m8-reinforced-is-not-backed-by-a-must)) noted the scenario asserted a mark the requirement did not require, and the scenario no longer does.
 - **Options:**
   - (a) keep SHOULD, with no scenario.
   - (b) make it a MUST, with a scenario asserting the existing note's recency or reinforcement record changed.
 - **Recommendation:** (a). The owner has not asked for more, and a duplicate is already forbidden.
-- **Blocks:** [793a3c No duplicates](793a_product-spec.md#793a3c-no-duplicates). The spec reads as (a) until Joe answers.
+- **Blocks:** [793a3c No duplicates](793a_product-spec.md#793a3c-no-duplicates).
+
+## 793c15 Does the System inject chunks with their content?
+
+- **Status:** open.
+- **Context:** [792a14f One unified query](../../specs/product/recall.md#792a14f-one-unified-query) requires `--lazy-chunks`, which prints chunks as path and score only ([792a7s Lazy chunks](../../specs/product/memory-query.md#792a7s-lazy-chunks)). The baseline measurement in [793c2 Are the volume bounds and latency budget accepted?](#793c2-are-the-volume-bounds-and-latency-budget-accepted) used the query's defaults, which print chunk content. [793a2e1f A chunk shown without content is delivered with it](793a_product-spec.md#793a2e1-uat-scenarios) has the System deliver a chunk with its content.
+- **Options:**
+  - (a) yes: the System runs the query with the defaults, without `--lazy-chunks`, so [793a2e1f A chunk shown without content is delivered with it](793a_product-spec.md#793a2e1-uat-scenarios) stands.
+  - (b) no: the System runs it lazy as recall does, which needs a "do not re-inject the same stub" rule and retires [793a2e1f A chunk shown without content is delivered with it](793a_product-spec.md#793a2e1-uat-scenarios).
+- **Recommendation:** (a). It matches the volume that was measured, and the System has no agent turn in which to fetch a stub.
+- **Blocks:** [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection), [793a2e1f A chunk shown without content is delivered with it](793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1h A chunk delivered earlier is not delivered again](793a_product-spec.md#793a2e1-uat-scenarios) and the volume figures in [793a5e Auditability and measurability](793a_product-spec.md#793a5e-auditability-and-measurability).
+
+## 793c16 At a deep moment, does the System's coverage write activate the note it covers?
+
+- **Status:** open.
+- **Context:** at a deep moment the System writes coverage ([792a14j Coverage is judged by the agent and written once per cluster](../../specs/product/recall.md#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster), [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems)) by adding chunk sources to an existing note with `engram amend`. `engram amend --activate` would also bump that note's recency, which [793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated) otherwise reserves for notes the agent used ([793c9 Does the System activate notes?](#793c9-does-the-system-activate-notes)).
+- **Options:**
+  - (a) no: the System adds chunk sources without `--activate`, and only agent-used notes are activated ([793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated)).
+  - (b) yes: a coverage write activates the note it covers, as an exception to [793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated).
+- **Recommendation:** (a). A coverage write records that a note covers a cluster, not that the agent used it, so activating it would keep unused notes fresh.
+- **Blocks:** [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) and [793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated).
+
+## 793c17 Does the latency bound include reading the glance results?
+
+- **Status:** open.
+- **Context:** [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment) bounds added latency by the instruction path's full lookup on the same input ([793c11 What does the latency bound cover?](#793c11-what-does-the-latency-bound-cover)). Escalating from glance to deep ([793a2h Recall depth per moment](793a_product-spec.md#793a2h-recall-depth-per-moment), [792a14d Glance escalates to deep for a recent standard](../../specs/product/recall.md#792a14d-glance-escalates-to-deep-for-a-recent-standard)) and the recommendation check ([792a14o An emergent recommendation is checked against the vault](../../specs/product/recall.md#792a14o-an-emergent-recommendation-is-checked-against-the-vault)) depend on reading the glance results, which takes agent time.
+- **Options:**
+  - (a) yes: reading the results is part of the instruction path's full lookup, so the bound includes it.
+  - (b) no: the bound covers phrases plus queries only.
+  - (c) drop the result-dependent escalation triggers and fix the depth up front.
+- **Recommendation:** (a). It compares like with like and keeps the escalation triggers.
+- **Blocks:** [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment), [793a2h Recall depth per moment](793a_product-spec.md#793a2h-recall-depth-per-moment), [793a2h1c An unresolved gap uses deep](793a_product-spec.md#793a2h1-uat-scenarios) and [793a5e1f An escalated moment records both depths](793a_product-spec.md#793a5e1-uat-scenarios).
+
+## 793c18 How is the System installed and turned off?
+
+- **Status:** open.
+- **Context:** [793a4g Active whenever installed](793a_product-spec.md#793a4g-active-whenever-installed) makes the System active whenever the integration is installed and enabled, and inert when disabled or uninstalled. It does not say how the integration gets installed, or how an operator disables it.
+- **Options:**
+  - (a) `engram update` installs it by default, and it is disabled through the harness's own disable mechanism or by uninstalling.
+  - (b) opt-in like guidance ([792a11l Guidance is managed only after opt-in](../../specs/product/install-and-update.md#792a11l-guidance-is-managed-only-after-opt-in)), then active.
+- **Recommendation:** (a). It matches "active whenever installed" and adds no engram setting.
+- **Blocks:** [793a4g Active whenever installed](793a_product-spec.md#793a4g-active-whenever-installed).
+
+## 793c19 Does the log keep the depth, each query's phrases and the glance escalation?
+
+- **Status:** open.
+- **Context:** raised unnumbered at the end of [793c7 Review answers (2026-10-11)](#793c7-review-answers-2026-10-11). [793a5e Auditability and measurability](793a_product-spec.md#793a5e-auditability-and-measurability) also logs the depth, the phrases of each query and whether glance escalated, which is more than Joe's answers asked for ([793b8 Per-moment record sits in the existing log requirement](793b_decision-log.md#793b8-per-moment-record-sits-in-the-existing-log-requirement), [793b43 Author's choice accepted: log depth, phrases and escalation](793b_decision-log.md#793b43-authors-choice-accepted-log-depth-phrases-and-escalation)).
+- **Options:**
+  - (a) keep the fields.
+  - (b) drop them, which makes the [793a2h1a A routine decision uses glance](793a_product-spec.md#793a2h1-uat-scenarios) and [793a2h1c An unresolved gap uses deep](793a_product-spec.md#793a2h1-uat-scenarios) scenarios unverifiable from the log.
+- **Recommendation:** (a). The depth and escalation scenarios can only be checked from the operator-accessible log.
+- **Blocks:** [793a5e Auditability and measurability](793a_product-spec.md#793a5e-auditability-and-measurability), [793a2h1a A routine decision uses glance](793a_product-spec.md#793a2h1-uat-scenarios), [793a2h1c An unresolved gap uses deep](793a_product-spec.md#793a2h1-uat-scenarios) and [793a5e1f An escalated moment records both depths](793a_product-spec.md#793a5e1-uat-scenarios).
+
+## 793c20 Must injected chunks identify their source like notes?
+
+- **Status:** open.
+- **Context:** [793a2d Attributable presentation](793a_product-spec.md#793a2d-attributable-presentation) requires injected notes to identify their source note. The System also injects chunks, which have an id but no note file name.
+- **Options:**
+  - (a) yes: "Injected items MUST identify their source (a note's file name, a chunk's id)".
+  - (b) chunks are exempt.
+- **Recommendation:** (a). A chunk the agent cannot trace to its source cannot be weighed or looked up.
+- **Blocks:** [793a2d Attributable presentation](793a_product-spec.md#793a2d-attributable-presentation).
