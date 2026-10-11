@@ -62,13 +62,15 @@ docs/
       <capability-slug>
     technical/
       <component-slug>
+      <flow-name>-flow
   images/
 ```
 
 - `docs/changes/` contains active change artifacts.
 - `docs/specs/product/` contains exactly one canonical specification file per user-facing
   capability.
-- `docs/specs/technical/` contains exactly one canonical specification file per stable component.
+- `docs/specs/technical/` contains exactly one canonical specification file per stable component
+  (`<component-slug>`) and per flow (`<flow-name>-flow`).
 - `docs/images/` contains assets (diagrams, screenshots) that documents and the root `README.md` embed. It holds no specification content.
 - Organizational directory names do not establish identity or Luhmann ancestry.
 - Repository-governance files remain directly under `docs/`.
@@ -106,7 +108,7 @@ docs/
 - A requirement or scenario introduced by a change MUST receive an ID beneath the introducing
   change artifact.
 - A canonical product filename MUST be a semantic kebab-case capability name. A canonical
-  technical filename MUST be a semantic kebab-case component name.
+  technical filename MUST be a semantic kebab-case component name or `<flow-name>-flow`.
 - IDs MUST remain stable through promotion, revision, rename, and relocation.
 - A later change that modifies an existing addressable node MUST reference and preserve the target
   node's ID.

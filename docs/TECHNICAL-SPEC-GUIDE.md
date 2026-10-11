@@ -42,12 +42,17 @@ A section MAY be omitted when it genuinely does not apply. Do not add empty plac
 
 ## Sequence and Interaction Requirements
 
-- Use Mermaid sequence diagrams to show relevant final-system interactions and changed or removed behavior.
-- Use consistent visual treatment for added, removed, and retained interactions.
+- In a change specification, use Mermaid sequence diagrams to show relevant final-system interactions and changed or removed behavior.
+- Use consistent visual treatment for added, removed, and retained interactions in a change diagram.
 - A removal arrow MUST retain the semantic label of the original interaction; do not add redundant prose such as `Remove` when the visual treatment already communicates removal.
 - Explanatory removal arrows are non-normative and do not require IDs.
 - Every normative sequence flow and every `alt` or `else` branch MUST have its own RFC 2119 interaction requirement and Gherkin scenario.
 - Branch requirements MUST describe routing, ordering, continuation, and gating. They MUST NOT duplicate the called component's behavior contract.
+- Canonical diagrams and interaction requirements live only in a flow spec (see Technical Lifecycle
+  Rules). A flow spec's diagram shows the current system only, with no added or removed treatment.
+- In a flow spec, every arrow MUST be labelled with the ID of the behavior requirement it realizes,
+  and every `alt` or `else` branch with the ID of its interaction requirement. Every ID in a diagram
+  MUST exist, and every interaction requirement MUST appear in its flow's diagram.
 - Aggregate-flow scenarios MUST cover every materially distinct terminal path from entry to valid continuation or invalid exit.
 - A temporary gating condition MUST be an intermediate assertion, not the final outcome of a valid path.
 
@@ -150,17 +155,27 @@ boundary is local and which do not require a live remote service.
 Follow [`docs/SPECIFICATION-LIFECYCLE-GUIDE.md`](./SPECIFICATION-LIFECYCLE-GUIDE.md) for shared
 delta, stable-identity, canonical-specification, and promotion rules.
 
-- Each canonical technical specification file MUST represent exactly one stable component.
-- Its filename MUST be the semantic kebab-case component name without an issue or Luhmann prefix.
-- Its title MUST be the semantic component name without an issue or Luhmann prefix and MUST end
-  with ` - Technical Spec`.
-- A component file MAY contain requirements and scenarios introduced by multiple changes.
-- Interaction requirements belong in the file for the component that owns the interaction.
-- Every requirement belongs in the file of the one component that owns it. A requirement that binds
-  two components MUST be split into one requirement per owner. Components that each qualify under
-  Component Qualification MUST have separate canonical files; one file MUST NOT hold requirements
-  owned by different components.
-- Do not promote option analysis, diagrams, impact analysis, reviews, or other change context.
+- A canonical technical specification file is one of two kinds: a **component spec** for exactly
+  one stable component, or a **flow spec** for exactly one flow.
+- A component filename MUST be the semantic kebab-case component name, and its title that name
+  ending with ` - Technical Spec`. A flow filename MUST be `<flow-name>-flow.md` in kebab-case, and
+  its title `<Flow Name> Flow - Technical Spec`. Neither carries an issue or Luhmann prefix.
+- A file MAY contain requirements and scenarios introduced by multiple changes.
+- A component spec holds behavior requirements only: what the component accepts, does, and
+  returns. It MUST NOT hold interaction requirements.
+- A flow spec covers one flow, from an entry point to every materially distinct terminal outcome. It
+  holds the current-state sequence diagram, the interaction requirements, and the aggregate-flow
+  scenarios.
+- Interaction requirements belong in the flow spec. Each names its owning (caller) component, which
+  has the direct contract test.
+- Every behavior requirement belongs in the file of the one component that owns it. A requirement
+  that binds two components MUST be split into one requirement per owner. Components that each
+  qualify under Component Qualification MUST have separate canonical files; one component file MUST
+  NOT hold requirements owned by different components. A flow file is not a component, so this
+  rule does not apply to it.
+- Every cross-component behavior requirement MUST be drawn in at least one flow spec diagram.
+- Do not promote option analysis, change diagrams, impact analysis, reviews, or other change
+  context. The current-state diagram in a flow spec is the only diagram promoted.
 - Canonical technical requirements MUST list the stable product scenario IDs they support and MUST
   NOT duplicate canonical product scenario text.
 
@@ -206,9 +221,17 @@ Verify:
 - The specification stands alone and introduces technical decisions before referencing them.
 - The default structure is present or every omission is justified by non-applicability.
 - Every product UAT scenario is preserved and mapped.
-- Every canonical technical requirement is located in its owning component file.
-- No requirement binds more than one component, and no file holds requirements owned by different
-  components.
+- Every canonical behavior requirement is located in its owning component file, and every
+  interaction requirement in its flow spec, naming its owning component.
+- No requirement binds more than one component, and no component file holds requirements owned by
+  different components.
+- Component filenames and titles follow the component rule; flow filenames and titles follow the
+  `<flow-name>-flow.md` and `<Flow Name> Flow - Technical Spec` rule.
+- Each flow spec's diagram shows the current system only, labels every arrow with a behavior
+  requirement ID and every `alt` or `else` branch with an interaction requirement ID, and uses only
+  IDs that exist.
+- Every interaction requirement appears in its flow's diagram, and every cross-component behavior
+  requirement is drawn in at least one flow.
 - Every canonical technical requirement links to its supported canonical product scenario IDs.
 - The specification lifecycle checklist passes.
 - Every mandatory branch has an interaction requirement and scenario.

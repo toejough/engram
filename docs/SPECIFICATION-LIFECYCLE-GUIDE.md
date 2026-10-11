@@ -50,7 +50,7 @@ the concise context needed to understand that behavior.
 
 Do not promote problem statements, implementation plans, implementation decisions, option
 analysis, diagrams, reviews, impact analysis, or other change history into canonical
-specifications.
+specifications, except the current-state sequence diagram in a flow spec.
 
 ### Rationale at Promotion
 
@@ -89,19 +89,23 @@ Promote current technical requirements and their Gherkin scenarios into
 `docs/specs/technical/`.
 
 Each canonical technical file MUST represent exactly one stable component that qualifies under
-[`docs/TECHNICAL-SPEC-GUIDE.md`](./TECHNICAL-SPEC-GUIDE.md). Its filename and title MUST use the
-semantic component name without an issue or Luhmann prefix. The filename MUST be kebab-case, and
-the title MUST end with ` - Technical Spec`:
+[`docs/TECHNICAL-SPEC-GUIDE.md`](./TECHNICAL-SPEC-GUIDE.md), or exactly one flow. A component
+filename and title MUST use the semantic component name without an issue or Luhmann prefix; the
+filename MUST be kebab-case and the title MUST end with ` - Technical Spec`. A flow filename MUST
+be `<flow-name>-flow.md` in kebab-case, and its title `<Flow Name> Flow - Technical Spec`:
 
 ```text
 docs/specs/technical/terminal-argument-adapter.md
 docs/specs/technical/reporting-period-policy.md
+docs/specs/technical/report-generation-flow.md
 ```
 
-A component file MAY contain requirements and scenarios introduced by multiple changes.
-Interaction requirements MUST be placed in the file for the component that owns the interaction.
-Each requirement has exactly one owning component, and components that qualify separately MUST have
-separate canonical files.
+A file MAY contain requirements and scenarios introduced by multiple changes. A component file holds
+behavior requirements only; interaction requirements MUST be placed in the flow spec, each naming
+its owning (caller) component. In a component file, each requirement has exactly one owning
+component, and components that qualify separately MUST have separate canonical files. A flow file
+is not a component, so that rule does not apply to it. A flow spec also holds the current-state
+sequence diagram and the aggregate-flow scenarios.
 
 Every canonical technical requirement MUST identify the stable product scenario IDs it supports
 and MUST NOT duplicate canonical product scenario text.
@@ -112,7 +116,8 @@ Promotion MUST occur in the same completed integration as the implementation and
 
 1. Confirm the implemented behavior and executable tests match the approved change specifications.
 2. Apply all product deltas to `docs/specs/product/`.
-3. Apply all technical deltas to `docs/specs/technical/`.
+3. Apply all technical deltas to `docs/specs/technical/`, writing each affected flow spec's
+   diagram to the final state.
 4. Validate stable IDs, product-to-technical traceability, Gherkin coverage, and documentation
    links.
 5. Delete the completed change directory from `docs/changes/`.
@@ -142,8 +147,10 @@ Before completing a change, verify:
 - Each canonical product file represents one capability and contains only its current product
   requirements and UAT.
 - Each canonical technical file represents one component that qualifies under
-  [`docs/TECHNICAL-SPEC-GUIDE.md`](./TECHNICAL-SPEC-GUIDE.md) and contains only its current
-  technical requirements and scenarios.
+  [`docs/TECHNICAL-SPEC-GUIDE.md`](./TECHNICAL-SPEC-GUIDE.md) or one flow, and contains only its
+  current technical requirements and scenarios. Component files hold behavior requirements only;
+  interaction requirements and the current-state diagram are in the flow spec.
+- Each affected flow spec's diagram shows the final system with no added or removed treatment.
 - Every canonical technical requirement has a direct contract test for the component that owns
   that requirement: the caller for a caller interaction requirement, and the called unit for a
   called-component behavior requirement.

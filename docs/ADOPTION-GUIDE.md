@@ -125,8 +125,9 @@ the component node that reads it, which then deletes it.
 For each component node:
 
 1. Read the node's legacy sources, the current code, and its tests.
-2. Add the component section to the technical spec: orientation, sequence diagrams ported from any
-   architecture views, behavior requirements with scenarios, and the product scenarios it supports.
+2. Add the component section to the technical spec: orientation, behavior requirements with scenarios,
+   and the product scenarios it supports. Port sequence diagrams from any architecture views into
+   flow specs, one per flow, with the flow's interaction requirements.
 3. Remove ported legacy content and repoint references, as in Step 5.
 4. Rename each existing test that verifies a scenario so its name begins with the scenario ID, as
    [`docs/IMPLEMENTATION-PLAN-GUIDE.md`](./IMPLEMENTATION-PLAN-GUIDE.md) requires. Update every live
