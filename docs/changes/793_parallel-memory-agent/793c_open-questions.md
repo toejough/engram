@@ -1,9 +1,9 @@
 # Parallel Memory Agent - Open Questions
 
-These are the Open Decisions carried over from the draft requirements. Joe answered all six on
+These are the Open Decisions carried over from the draft requirements. Joe answered the first six on
 2026-10-11, and the answers are applied in [`793a_product-spec.md`](./793a_product-spec.md). His later
 review answers are recorded in [793c7 Review answers (2026-10-11)](#793c7-review-answers-2026-10-11). The phrasing choices made in applying them are in
-[`793b_decision-log.md`](./793b_decision-log.md).
+[`793b_decision-log.md`](./793b_decision-log.md). The last four questions are open and await Joe.
 
 ## 793c1 What are the capture precision bar and capture-rate target?
 
@@ -78,3 +78,47 @@ Joe's answers to the review of the first revision, all applied in [`793a_product
 Open for Joe: the log now also records the depth and the phrases queried ([793b8 Per-moment record sits in the existing log requirement](793b_decision-log.md#793b8-per-moment-record-sits-in-the-existing-log-requirement)), so that the depth
 and volume scenarios are checkable from the operator-accessible log. This adds two log fields beyond his
 answers.
+
+## 793c8 What does the System inject when only incidental items come back?
+
+- **Status:** open.
+- **Context:** At a moment whose queries return only incidental items (explore picks per [792a7i Half of the notes are explored](../../specs/product/memory-query.md#792a7i-half-of-the-notes-are-explored), newest chunks per [792a7o The newest chunks](../../specs/product/memory-query.md#792a7o-the-newest-chunks), ride-alongs per [792a7n Superseding notes ride along](../../specs/product/memory-query.md#792a7n-superseding-notes-ride-along)) and no direct match, [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output) would inject all of it.
+- **Options:**
+  - (a) everything the queries return.
+  - (b) only direct matches and their ride-alongs.
+  - (c) the full output when at least one direct match exists, nothing otherwise.
+- **Recommendation:** (c). It keeps the "depth's output" rule when something matches and avoids injecting noise when nothing does.
+- **Blocks:** [793a2e Relevance and no re-injection](793a_product-spec.md#793a2e-relevance-and-no-re-injection), [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output), [793a2a1b No relevant note exists](793a_product-spec.md#793a2a1-uat-scenarios), [793a2e1b Irrelevant note suppressed](793a_product-spec.md#793a2e1-uat-scenarios).
+
+## 793c9 Does the System activate notes?
+
+- **Status:** open.
+- **Context:** Recall activates the notes it used (Step 2.7, [792a14l Only the notes that were used are activated](../../specs/product/recall.md#792a14l-only-the-notes-that-were-used-are-activated)). When the System injects notes, nobody activates the ones the agent applies.
+- **Options:**
+  - (a) never.
+  - (b) every injected note.
+  - (c) notes the agent went on to use, judged at turn-end capture.
+- **Recommendation:** (c). It matches recall's "only the notes that were used" rule at a moment the System already evaluates.
+- **Blocks:** a new requirement.
+
+## 793c10 What is the default mode for an existing install that updates?
+
+- **Status:** open.
+- **Context:** [793a4e Operating modes and measurement](793a_product-spec.md#793a4e-operating-modes-and-measurement) makes active the default for a fresh install ([793c3 What is the default mode for a fresh install?](793c_open-questions.md#793c3-what-is-the-default-mode-for-a-fresh-install)). An existing install that updates has its own mode choice, and an update could start writing to its vault.
+- **Options:**
+  - (a) active.
+  - (b) observe.
+  - (c) off until opt-in.
+- **Recommendation:** (a), consistent with the fresh-install answer; measurement stays on either way.
+- **Blocks:** [793a4e Operating modes and measurement](793a_product-spec.md#793a4e-operating-modes-and-measurement).
+
+## 793c11 What does the latency bound cover?
+
+- **Status:** open.
+- **Context:** [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment) caps added latency at the latency of the depth's queries. The instruction path's lookup also includes the agent phrasing its query, which the System does too.
+- **Options:**
+  - (a) queries only.
+  - (b) the instruction path's full lookup (phrasing plus queries) on the same input.
+  - (c) queries plus a fixed allowance.
+- **Recommendation:** (b). It compares like with like and needs no fixed number that would go stale.
+- **Blocks:** [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment).
