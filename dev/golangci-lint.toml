@@ -99,6 +99,10 @@ allow = [
 	'github.com/charmbracelet/lipgloss',
 	'github.com/dave/dst',
 	'github.com/onsi/gomega',
+	# Parsing Targ's dev package source to find what its init registers (794b4a1d).
+	'go/ast',
+	'go/parser',
+	'go/token',
 	'github.com/toejough/imptest',
 	'github.com/toejough/targ',
 	'github.com/toejough/testredundancy',

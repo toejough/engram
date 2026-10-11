@@ -4,11 +4,13 @@ package dev
 
 import (
 	"context"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"slices"
 	"strings"
@@ -149,7 +151,7 @@ func Test794b4a1d_TargsOtherSharedTargetsStayAvailable(t *testing.T) {
 	module, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", "github.com/toejough/targ").Output()
 	g.Expect(err).NotTo(HaveOccurred())
 
-	declared := exportedTargetVariables(t, filepath.Join(strings.TrimSpace(string(module)), "dev"))
+	declared := registeredTargetNames(t, filepath.Join(strings.TrimSpace(string(module)), "dev"))
 	g.Expect(declared).NotTo(BeEmpty())
 
 	kept := make([]string, 0, len(sharedTargets))
@@ -161,7 +163,7 @@ func Test794b4a1d_TargsOtherSharedTargetsStayAvailable(t *testing.T) {
 	}
 
 	replaced := []string{
-		"Check", "CheckForFail", "CheckFull", "CheckNils", "CheckNilsFix", "CheckNilsForFail", "Mutate",
+		"Check", "CheckForFail", "CheckFull", "CheckNils", "CheckNilsFix", "CheckNilsForFail", "Mutate", "Watch",
 	}
 
 	g.Expect(slices.Concat(kept, replaced)).To(ConsistOf(declared),
@@ -182,11 +184,6 @@ func Broken() { var value *int; println(*value) }
 		"> \"$ENGRAM_NILAWAY_CAPTURE\" 2>&1\n"
 )
 
-// unexported variables.
-var (
-	targetVariable = regexp.MustCompile(`(?m)^\s*([A-Z]\w*)\s*=\s*targ\.Targ\(`)
-)
-
 // entryTarget returns the target Engram registers under the named entry point.
 func entryTarget(name string) *targ.Target {
 	return map[string]*targ.Target{
@@ -199,33 +196,16 @@ func entryTarget(name string) *targ.Target {
 	}[name]
 }
 
-// exportedTargetVariables returns the names of the exported targets the package at dir declares.
-func exportedTargetVariables(t *testing.T, dir string) []string {
-	t.Helper()
-
-	paths, err := filepath.Glob(filepath.Join(dir, "*.go"))
-	if err != nil {
-		t.Fatal(err)
+// isTargRegister reports whether the call is targ.Register(...).
+func isTargRegister(call *ast.CallExpr) bool {
+	selector, isSelector := call.Fun.(*ast.SelectorExpr)
+	if !isSelector || selector.Sel.Name != "Register" {
+		return false
 	}
 
-	names := make([]string, 0, len(paths))
+	qualifier, isName := selector.X.(*ast.Ident)
 
-	for _, path := range paths {
-		if strings.HasSuffix(path, "_test.go") {
-			continue
-		}
-
-		source, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		for _, match := range targetVariable.FindAllSubmatch(source, -1) {
-			names = append(names, string(match[1]))
-		}
-	}
-
-	return names
+	return isName && qualifier.Name == "targ"
 }
 
 // newFixture writes a hermetic checkout whose root module is Engram's module path. extraModule is appended to its
@@ -271,6 +251,71 @@ func newFixture(t *testing.T, files map[string]string, extraModule, importBlock 
 // reachesNilsForFail reports whether the target runs Engram's check-nils-for-fail target.
 func reachesNilsForFail(target *targ.Target) bool {
 	return reaches(target, checkNilsForFailTarget)
+}
+
+// registerArguments returns the arguments of every targ.Register call in the file's init functions.
+func registerArguments(file *ast.File) []ast.Expr {
+	var args []ast.Expr
+
+	for _, decl := range file.Decls {
+		function, isFunc := decl.(*ast.FuncDecl)
+		if !isFunc || function.Name.Name != "init" || function.Recv != nil {
+			continue
+		}
+
+		ast.Inspect(function, func(node ast.Node) bool {
+			call, isCall := node.(*ast.CallExpr)
+			if !isCall || !isTargRegister(call) {
+				return true
+			}
+
+			args = append(args, call.Args...)
+
+			return false
+		})
+	}
+
+	return args
+}
+
+// registeredTargetNames returns the names of the targets the package at dir registers: the arguments of every
+// targ.Register call in its init functions, however the targets were declared (var block, grouped, or inline).
+// An argument that is not a plain name cannot be matched to a Targ variable, so it fails the test rather than
+// being skipped.
+func registeredTargetNames(t *testing.T, dir string) []string {
+	t.Helper()
+
+	paths, err := filepath.Glob(filepath.Join(dir, "*.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	names := make([]string, 0, len(paths))
+	fileSet := token.NewFileSet()
+
+	for _, path := range paths {
+		if strings.HasSuffix(path, "_test.go") {
+			continue
+		}
+
+		file, parseErr := parser.ParseFile(fileSet, path, nil, parser.SkipObjectResolution)
+		if parseErr != nil {
+			t.Fatal(parseErr)
+		}
+
+		for _, arg := range registerArguments(file) {
+			name, isName := arg.(*ast.Ident)
+			if !isName {
+				t.Errorf("%s: targ.Register argument is not a plain target name: %T", fileSet.Position(arg.Pos()), arg)
+
+				continue
+			}
+
+			names = append(names, name.Name)
+		}
+	}
+
+	return names
 }
 
 // runEntry runs an entry point from the fixture directory and returns the analyzer's diagnostics.

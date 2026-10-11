@@ -11,6 +11,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strings"
+	"sync"
 
 	"github.com/toejough/targ"
 	targdev "github.com/toejough/targ/dev"
@@ -19,17 +21,10 @@ import (
 )
 
 func init() {
-	// Engram customizes Targ's shared development targets by deregistering them and registering its own nil targets
-	// and aggregates, plus every other shared target unchanged (794b4a). Targ's aggregates hold direct references to
-	// its own nil targets, so replacing the nil targets alone would leave the aggregates running Targ's versions.
-	err := targ.DeregisterFrom(targSourcePackage)
+	err := registerTargets(targ.DeregisterFrom, targ.Register)
 	if err != nil {
-		panic(fmt.Sprintf("deregistering Targ's shared development targets: %v", err))
+		panic(err.Error())
 	}
-
-	targ.Register(checkNilsFixTarget, checkNilsForFailTarget, checkNilsTarget,
-		checkTarget, checkForFailTarget, checkFullTarget, mutateTarget)
-	targ.Register(sharedTargetList()...)
 
 	// Engram's spec-traced tests are named Test<scenario ID>_ (#792, e.g.
 	// Test792b9c5a6_) or, until renamed, the older TestT<N>_ (not TestProperty_).
@@ -63,14 +58,14 @@ var (
 	// The aggregates below mirror Targ's dependencies, order and mode with Engram's nil targets in place of Targ's
 	// (794b4a); Test794b4a1c fails when Targ's aggregates change. The dev package's tests carry build tags the
 	// shared test targets do not pass, so check-for-fail and check-full also run them here.
-	checkForFailTarget = targ.Targ(checkForFailAggregate).Name("check-for-fail").
+	checkForFailTarget = targ.Targ(targdev.CheckForFail.Fn()).Name("check-for-fail").
 				Description(targdev.CheckForFail.GetDescription()).
 				Deps(
 			targdev.CheckCoverageForFail, targdev.CheckUncommitted, targdev.ReorderDeclsCheck, targdev.LintFast,
 			targdev.LintForFail, targdev.Deadcode, targdev.CheckThinAPI, checkNilsForFailTarget,
 			targdev.TestIntegration, testDevTarget, testDevIntegrationTarget, lintDevTarget, targ.DepModeParallel,
 		)
-	checkFullTarget = targ.Targ(checkFullAggregate).Name("check-full").
+	checkFullTarget = targ.Targ(targdev.CheckFull.Fn()).Name("check-full").
 			Description(targdev.CheckFull.GetDescription()).
 			Deps(
 			targdev.CheckCoverageForFail, targdev.CheckUncommitted, targdev.ReorderDeclsCheck, targdev.LintFast,
@@ -82,10 +77,10 @@ var (
 				Description("Fix nil issues in Engram packages")
 	checkNilsForFailTarget = targ.Targ(checkNilsForFail).Name("check-nils-for-fail").
 				Description("Check nil issues in Engram packages")
-	checkNilsTarget = targ.Targ(checkNilsAggregate).Name("check-nils").
+	checkNilsTarget = targ.Targ(targdev.CheckNils.Fn()).Name("check-nils").
 			Description(targdev.CheckNils.GetDescription()).
 			Deps(checkNilsFixTarget, checkNilsForFailTarget)
-	checkTarget = targ.Targ(checkAggregate).Name("check").
+	checkTarget = targ.Targ(targdev.Check.Fn()).Name("check").
 			Description(targdev.Check.GetDescription()).
 			Deps(
 			targdev.DeleteDeadcode, targdev.Fmt, targdev.Tidy, targdev.Modernize, checkNilsTarget,
@@ -127,7 +122,6 @@ var (
 		"TestIntegration":      targdev.TestIntegration,
 		"Tidy":                 targdev.Tidy,
 		"TodoCheck":            targdev.TodoCheck,
-		"Watch":                targdev.Watch,
 	}
 	testDevIntegrationTarget = targ.Targ(testDevIntegration).
 					Name("test-dev-integration").
@@ -135,6 +129,7 @@ var (
 	testDevTarget = targ.Targ(testDev).
 			Name("test-dev").
 			Description("Run unit tests for the dev package (targ build tag)")
+	watchTarget = targ.Targ(watch).Name("watch").Description(targdev.Watch.GetDescription())
 )
 
 // evalArgs holds the positional arm name and optional trials count for targ eval.
@@ -143,21 +138,14 @@ type evalArgs struct {
 	Trials int    `targ:"positional,default=1,placeholder=TRIALS,desc=number of trials per scenario (default 1)"`
 }
 
-func checkAggregate(ctx context.Context) error {
-	targ.Print(ctx, "Checking...\n")
-	return nil // dependencies run before this function
-}
+// hasRelevantChanges mirrors Targ's filter (dev/targets.go hasRelevantChanges): generated files and coverage output
+// are ignored so a check's own output cannot retrigger it.
+func hasRelevantChanges(changes targ.ChangeSet) bool {
+	allFiles := slices.Concat(changes.Added, changes.Removed, changes.Modified)
 
-func checkForFailAggregate(ctx context.Context) {
-	targ.Print(ctx, "All checks passed!\n")
-}
-
-func checkFullAggregate(ctx context.Context) {
-	targ.Print(ctx, "All checks passed!\n")
-}
-
-func checkNilsAggregate(_ context.Context) error {
-	return nil // dependencies run before this function
+	return slices.ContainsFunc(allFiles, func(file string) bool {
+		return !strings.Contains(file, "generated_") && !strings.HasSuffix(file, "coverage.out")
+	})
 }
 
 // lintDev lints the dev package with the build tags its files need. Targ's lint targets use no tags, so they skip
@@ -178,6 +166,22 @@ func lintDev(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("linting the dev package: %w", err)
 	}
+
+	return nil
+}
+
+// registerTargets customizes Targ's shared development targets (794b4a): it deregisters them, then registers Engram's
+// nil targets, aggregates, watch and lint-dev, and every other shared target unchanged. Targ's aggregates hold direct
+// references to its own nil targets, so replacing the nil targets alone would leave them running Targ's versions.
+func registerTargets(deregister func(string) error, register func(...any)) error {
+	err := deregister(targSourcePackage)
+	if err != nil {
+		return fmt.Errorf("deregistering Targ's shared development targets: %w", err)
+	}
+
+	register(checkNilsFixTarget, checkNilsForFailTarget, checkNilsTarget,
+		checkTarget, checkForFailTarget, checkFullTarget, mutateTarget, watchTarget, lintDevTarget)
+	register(sharedTargetList()...)
 
 	return nil
 }
@@ -262,4 +266,72 @@ func testDevIntegration(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// watch is Targ's watch (dev/targets.go watch) running Engram's check instead of Targ's (794b4a). Targ's cannot be
+// parameterised: it calls its own Check from inside the function, so this mirrors it. Drift risk: a change to Targ's
+// watch patterns, filter or cancellation is not picked up here; the watch handler below is the part that is tested.
+func watch(ctx context.Context) error {
+	targ.Print(ctx, "Watching...\n")
+
+	err := targ.Watch(ctx, []string{"**/*.go", "**/*.fish", "**/*.toml"}, targ.WatchOptions{},
+		watchOnChange(ctx, func(checkCtx context.Context) error { return checkTarget.Run(checkCtx) }))
+	if err != nil {
+		return fmt.Errorf("watching: %w", err)
+	}
+
+	return nil
+}
+
+// watchOnChange returns the change handler: on a relevant change it cancels any running check and starts a new one
+// through check. It never stops the watch on a failed check.
+func watchOnChange(ctx context.Context, check func(context.Context) error) func(targ.ChangeSet) error {
+	var (
+		cancelCheck context.CancelFunc
+		checkMu     sync.Mutex
+	)
+
+	return func(changes targ.ChangeSet) error {
+		if !hasRelevantChanges(changes) {
+			return nil
+		}
+
+		targ.Print(ctx, "Change detected in:\n")
+
+		for _, file := range changes.Added {
+			targ.Printf(ctx, "  + %s\n", file)
+		}
+
+		for _, file := range changes.Modified {
+			targ.Printf(ctx, "  ~ %s\n", file)
+		}
+
+		for _, file := range changes.Removed {
+			targ.Printf(ctx, "  - %s\n", file)
+		}
+
+		checkMu.Lock()
+		defer checkMu.Unlock()
+
+		if cancelCheck != nil {
+			targ.Print(ctx, "Cancelling previous check...\n")
+			cancelCheck()
+		}
+
+		checkCtx, cancel := context.WithCancel(ctx)
+		cancelCheck = cancel
+
+		err := check(checkCtx)
+
+		switch {
+		case errors.Is(err, context.Canceled):
+			targ.Print(ctx, "Check cancelled, restarting...\n")
+		case err != nil:
+			targ.Print(ctx, "continuing to watch after check failure (see errors above)\n")
+		default:
+			targ.Print(ctx, "continuing to watch after all checks passed!\n")
+		}
+
+		return nil
+	}
 }

@@ -34,6 +34,63 @@ func Test794b3a1a_ModeArguments(t *testing.T) {
 	}
 }
 
+// Test794b4a1a_RegistrationReplacesTargsSharedTargets checks the registration itself, not only the targets it
+// registers: Targ's shared package is deregistered once, before anything is registered, and what is registered is
+// Engram's replaced targets, lint-dev and the retained shared targets, exactly.
+func Test794b4a1a_RegistrationReplacesTargsSharedTargets(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var (
+		events       []string
+		deregistered []string
+		registered   []any
+	)
+
+	err := registerTargets(
+		func(packagePath string) error {
+			events = append(events, "deregister")
+			deregistered = append(deregistered, packagePath)
+
+			return nil
+		},
+		func(targets ...any) {
+			events = append(events, "register")
+			registered = append(registered, targets...)
+		},
+	)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(deregistered).To(Equal([]string{"github.com/toejough/targ/dev"}))
+	g.Expect(events[0]).To(Equal("deregister"))
+	g.Expect(events[1:]).NotTo(ContainElement("deregister"))
+
+	want := slices.Concat([]any{
+		checkNilsFixTarget, checkNilsForFailTarget, checkNilsTarget, checkTarget, checkForFailTarget,
+		checkFullTarget, mutateTarget, watchTarget, lintDevTarget,
+	}, sharedTargetList())
+
+	g.Expect(registered).To(ConsistOf(want...))
+	g.Expect(registered).To(HaveLen(len(want)))
+}
+
+// Test794b4a1a_RegistrationStopsWhenDeregistrationFails: a failed deregistration stops registration.
+func Test794b4a1a_RegistrationStopsWhenDeregistrationFails(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	registrations := 0
+
+	err := registerTargets(
+		func(string) error { return errAnalyzerFailed },
+		func(...any) { registrations++ },
+	)
+
+	g.Expect(err).To(MatchError(errAnalyzerFailed))
+	g.Expect(registrations).To(BeZero())
+}
+
 func Test794b4a1a_TargetWiring(t *testing.T) {
 	t.Parallel()
 
@@ -123,6 +180,44 @@ func Test794b4a1c_AggregatesMatchTargsApartFromNilTargets(t *testing.T) {
 		}
 
 		g.Expect(pair.engram.GetDepGroups()).To(Equal(want), name)
+	}
+}
+
+// Test794b4a1e_WatchRunsEngramsCheck: a change makes the watch handler run the check it was given (watch gives it
+// Engram's check target), and a change to generated files or coverage output alone runs nothing.
+func Test794b4a1e_WatchRunsEngramsCheck(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	runs := 0
+	onChange := watchOnChange(t.Context(), func(context.Context) error {
+		runs++
+
+		return errAnalyzerFailed // a failing check does not stop the watch
+	})
+
+	g.Expect(onChange(targ.ChangeSet{Modified: []string{"generated_Mock_test.go", "coverage.out"}})).To(Succeed())
+	g.Expect(runs).To(BeZero())
+
+	g.Expect(onChange(targ.ChangeSet{Modified: []string{"dev/targs.go"}})).To(Succeed())
+	g.Expect(runs).To(Equal(1))
+
+	g.Expect(watchTarget.GetName()).To(Equal("watch"))
+	g.Expect(sameFunc(watchTarget.Fn(), watch)).To(BeTrue())
+}
+
+// Test794b4a1f walks the dependencies of every retained Targ target. A dependency walk cannot see a call made
+// inside a function body, which is how Targ's watch reached its own check, so watch is replaced explicitly
+// (Test794b4a1e) rather than relying on this walk.
+func Test794b4a1f_NoReRegisteredTargTargetReachesTargsNilTargets(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	for name, target := range sharedTargets {
+		for _, nilTarget := range []*targ.Target{targdev.CheckNils, targdev.CheckNilsFix, targdev.CheckNilsForFail} {
+			g.Expect(reaches(target, nilTarget)).To(BeFalse(), "%s reaches Targ's %s", name, nilTarget.GetName())
+		}
 	}
 }
 
