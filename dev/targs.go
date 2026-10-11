@@ -54,11 +54,8 @@ func init() {
 
 // unexported constants.
 const (
-	evalOutDirPerm = 0o750
-	// integrationTestPattern selects the tests that need the integration tag: the explicit-entry-point suite, the
-	// subprocess suite and the target-registration check.
-	integrationTestPattern = `^Test794(a2|b4a1d|b4c)`
-	targSourcePackage      = "github.com/toejough/targ/dev"
+	evalOutDirPerm    = 0o750
+	targSourcePackage = "github.com/toejough/targ/dev"
 )
 
 // unexported variables.
@@ -251,11 +248,14 @@ func testDev(ctx context.Context) error {
 	return nil
 }
 
-// testDevIntegration runs only the integration-tagged tests: the pure tests already ran in testDev.
+// testDevIntegration runs the dev tree with the integration tag added. Integration tests are selected by that build
+// tag (files named *_integration_internal_test.go), never by test name, so a new one cannot be skipped by its name.
+// They stay in package dev because they drive its unexported entry points and targets. The tag only adds files, so
+// the pure tests compile in this run too and run a second time; that duplication is deliberate and cheap.
 func testDevIntegration(ctx context.Context) error {
 	err := targ.RunContext(ctx,
 		"go", "test", "-count=1", "-timeout=2m", "-race", "-tags=targ,integration",
-		"-run", integrationTestPattern, "./dev",
+		"./dev/...",
 	)
 	if err != nil {
 		return fmt.Errorf("running dev integration tests: %w", err)
