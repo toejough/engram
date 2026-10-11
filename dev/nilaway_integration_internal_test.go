@@ -141,6 +141,32 @@ func Test794a2c1b_AbsentSettingsStayAbsent(t *testing.T) {
 	}
 }
 
+func Test794b4a1d_TargsOtherSharedTargetsStayAvailable(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	module, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", "github.com/toejough/targ").Output()
+	g.Expect(err).NotTo(HaveOccurred())
+
+	declared := exportedTargetVariables(t, filepath.Join(strings.TrimSpace(string(module)), "dev"))
+	g.Expect(declared).NotTo(BeEmpty())
+
+	kept := make([]string, 0, len(sharedTargets))
+	for name, target := range sharedTargets {
+		kept = append(kept, name)
+
+		g.Expect(target.GetSource()).To(Equal(targSourcePackage), "%s is not Targ's own target", name)
+		g.Expect(target.GetName()).NotTo(BeEmpty(), name)
+	}
+
+	replaced := []string{
+		"Check", "CheckForFail", "CheckFull", "CheckNils", "CheckNilsFix", "CheckNilsForFail",
+	}
+
+	g.Expect(slices.Concat(kept, replaced)).To(ConsistOf(declared),
+		"Targ's shared targets changed: re-register each new one, or drop each removed one, in sharedTargets")
+}
+
 // unexported constants.
 const (
 	fixtureDiagnosticFile = "diagnostics"
@@ -155,6 +181,11 @@ func Broken() { var value *int; println(*value) }
 		"> \"$ENGRAM_NILAWAY_CAPTURE\" 2>&1\n"
 )
 
+// unexported variables.
+var (
+	targetVariable = regexp.MustCompile(`(?m)^\s*([A-Z]\w*)\s*=\s*targ\.Targ\(`)
+)
+
 // entryTarget returns the target Engram registers under the named entry point.
 func entryTarget(name string) *targ.Target {
 	return map[string]*targ.Target{
@@ -164,6 +195,35 @@ func entryTarget(name string) *targ.Target {
 		"check-for-fail":      checkForFailTarget,
 		"check-full":          checkFullTarget,
 	}[name]
+}
+
+// exportedTargetVariables returns the names of the exported targets the package at dir declares.
+func exportedTargetVariables(t *testing.T, dir string) []string {
+	t.Helper()
+
+	paths, err := filepath.Glob(filepath.Join(dir, "*.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	names := make([]string, 0, len(paths))
+
+	for _, path := range paths {
+		if strings.HasSuffix(path, "_test.go") {
+			continue
+		}
+
+		source, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for _, match := range targetVariable.FindAllSubmatch(source, -1) {
+			names = append(names, string(match[1]))
+		}
+	}
+
+	return names
 }
 
 // newFixture writes a hermetic checkout whose root module is Engram's module path. extraModule is appended to its
@@ -222,62 +282,4 @@ func runEntry(t *testing.T, dir string, entry func(context.Context) error) (stri
 	}
 
 	return string(contents), err
-}
-
-func Test794b4a1d_TargsOtherSharedTargetsStayAvailable(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	module, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", "github.com/toejough/targ").Output()
-	g.Expect(err).NotTo(HaveOccurred())
-
-	declared := exportedTargetVariables(t, filepath.Join(strings.TrimSpace(string(module)), "dev"))
-	g.Expect(declared).NotTo(BeEmpty())
-
-	kept := make([]string, 0, len(sharedTargets))
-	for name, target := range sharedTargets {
-		kept = append(kept, name)
-
-		g.Expect(target.GetSource()).To(Equal(targSourcePackage), "%s is not Targ's own target", name)
-		g.Expect(target.GetName()).NotTo(BeEmpty(), name)
-	}
-
-	replaced := []string{
-		"Check", "CheckForFail", "CheckFull", "CheckNils", "CheckNilsFix", "CheckNilsForFail",
-	}
-
-	g.Expect(slices.Concat(kept, replaced)).To(ConsistOf(declared),
-		"Targ's shared targets changed: re-register each new one, or drop each removed one, in sharedTargets")
-}
-
-// targetVariable matches a top-level exported variable declared as targ.Targ(...), as Targ's dev package does.
-var targetVariable = regexp.MustCompile(`(?m)^\s*([A-Z]\w*)\s*=\s*targ\.Targ\(`)
-
-// exportedTargetVariables returns the names of the exported targets the package at dir declares.
-func exportedTargetVariables(t *testing.T, dir string) []string {
-	t.Helper()
-
-	paths, err := filepath.Glob(filepath.Join(dir, "*.go"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	names := make([]string, 0, len(paths))
-
-	for _, path := range paths {
-		if strings.HasSuffix(path, "_test.go") {
-			continue
-		}
-
-		source, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		for _, match := range targetVariable.FindAllSubmatch(source, -1) {
-			names = append(names, string(match[1]))
-		}
-	}
-
-	return names
 }

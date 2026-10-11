@@ -63,7 +63,6 @@ const (
 
 // unexported variables.
 var (
-	errEvalUsage = errors.New("usage: targ eval <arm> [trials]  (nothing|skills-only|current-state)")
 	// The aggregates below mirror Targ's dependencies, order and mode with Engram's nil targets in place of Targ's
 	// (794b4a); Test794b4a1c fails when Targ's aggregates change. The dev package's tests carry build tags the
 	// shared test targets do not pass, so check-for-fail and check-full also run them here.
@@ -95,6 +94,7 @@ var (
 			targdev.DeleteDeadcode, targdev.Fmt, targdev.Tidy, targdev.Modernize, checkNilsTarget,
 			targdev.CheckCoverage, targdev.ReorderDecls, targdev.Lint, targdev.CheckThinAPI, lintDevTarget,
 		)
+	errEvalUsage  = errors.New("usage: targ eval <arm> [trials]  (nothing|skills-only|current-state)")
 	lintDevTarget = targ.Targ(lintDev).Name("lint-dev").
 			Description("Lint the dev package's build-tagged files (targ, integration)")
 	// sharedTargets are Targ's shared targets other than the nil targets and aggregates Engram replaces, keyed by
@@ -143,6 +143,45 @@ type evalArgs struct {
 	Trials int    `targ:"positional,default=1,placeholder=TRIALS,desc=number of trials per scenario (default 1)"`
 }
 
+func checkAggregate(ctx context.Context) error {
+	targ.Print(ctx, "Checking...\n")
+	return nil // dependencies run before this function
+}
+
+func checkForFailAggregate(ctx context.Context) {
+	targ.Print(ctx, "All checks passed!\n")
+}
+
+func checkFullAggregate(ctx context.Context) {
+	targ.Print(ctx, "All checks passed!\n")
+}
+
+func checkNilsAggregate(_ context.Context) error {
+	return nil // dependencies run before this function
+}
+
+// lintDev lints the dev package with the build tags its files need. Targ's lint targets use no tags, so they skip
+// every file in this package; this is the same lint configuration with the tags added.
+func lintDev(ctx context.Context) error {
+	targ.Print(ctx, "Linting the dev package (tags=targ,integration)...\n")
+
+	err := targ.RunContext(ctx,
+		"golangci-lint", "run",
+		"-c", "dev/golangci-lint.toml",
+		"--build-tags", "targ,integration",
+		"--fix=false",
+		"--max-issues-per-linter=0",
+		"--max-same-issues=0",
+		"--allow-parallel-runners",
+		"./dev",
+	)
+	if err != nil {
+		return fmt.Errorf("linting the dev package: %w", err)
+	}
+
+	return nil
+}
+
 func runEval(ctx context.Context, args evalArgs) error {
 	if args.Arm == "" {
 		return errEvalUsage
@@ -186,23 +225,6 @@ func runEval(ctx context.Context, args evalArgs) error {
 	return nil
 }
 
-func checkAggregate(ctx context.Context) error {
-	targ.Print(ctx, "Checking...\n")
-	return nil // dependencies run before this function
-}
-
-func checkForFailAggregate(ctx context.Context) {
-	targ.Print(ctx, "All checks passed!\n")
-}
-
-func checkFullAggregate(ctx context.Context) {
-	targ.Print(ctx, "All checks passed!\n")
-}
-
-func checkNilsAggregate(_ context.Context) error {
-	return nil // dependencies run before this function
-}
-
 // sharedTargetList returns Targ's retained shared targets in name order.
 func sharedTargetList() []any {
 	names := slices.Sorted(maps.Keys(sharedTargets))
@@ -213,28 +235,6 @@ func sharedTargetList() []any {
 	}
 
 	return targets
-}
-
-// lintDev lints the dev package with the build tags its files need. Targ's lint targets use no tags, so they skip
-// every file in this package; this is the same lint configuration with the tags added.
-func lintDev(ctx context.Context) error {
-	targ.Print(ctx, "Linting the dev package (tags=targ,integration)...\n")
-
-	err := targ.RunContext(ctx,
-		"golangci-lint", "run",
-		"-c", "dev/golangci-lint.toml",
-		"--build-tags", "targ,integration",
-		"--fix=false",
-		"--max-issues-per-linter=0",
-		"--max-same-issues=0",
-		"--allow-parallel-runners",
-		"./dev",
-	)
-	if err != nil {
-		return fmt.Errorf("linting the dev package: %w", err)
-	}
-
-	return nil
 }
 
 func testDev(ctx context.Context) error {

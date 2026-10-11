@@ -122,10 +122,6 @@ func Test794b4a1c_AggregatesMatchTargsApartFromNilTargets(t *testing.T) {
 	}
 }
 
-func sameFunc(actual any, expected func(context.Context) error) bool {
-	return reflect.ValueOf(actual).Pointer() == reflect.ValueOf(expected).Pointer()
-}
-
 // reaches reports whether from is, or depends transitively on, wanted.
 func reaches(from, wanted *targ.Target) bool {
 	if from == wanted {
@@ -133,4 +129,8 @@ func reaches(from, wanted *targ.Target) bool {
 	}
 
 	return slices.ContainsFunc(from.GetDeps(), func(dep *targ.Target) bool { return reaches(dep, wanted) })
+}
+
+func sameFunc(actual any, expected func(context.Context) error) bool {
+	return reflect.ValueOf(actual).Pointer() == reflect.ValueOf(expected).Pointer()
 }
