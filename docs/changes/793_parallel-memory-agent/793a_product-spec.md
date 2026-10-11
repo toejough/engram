@@ -387,7 +387,7 @@ Scenario: 793a3n1b The top-level agent's own mistake overturned by evidence is c
 
 Requirement: 793a3o While the Integration is installed, the System MUST perform please's lessons audit and its which-artifact-should-have-surfaced-it question for a please run, from the transcript and as part of capture, exactly as [792a18p The closing learn is preceded by a lessons audit](../../specs/product/please.md#792a18p-the-closing-learn-is-preceded-by-a-lessons-audit) and [792a18q A lesson about to be captured asks what should have surfaced it](../../specs/product/please.md#792a18q-a-lesson-about-to-be-captured-asks-what-should-have-surfaced-it) define them, so that the outcome of the audit and of the question, and any reword, appear in the vault and the log. The working agent MUST NOT be asked to perform either.
 
-Rationale: the audit and the question exist to feed a capture, and with the capture the System's, so are they. They are read from the vault and the log, because please's closing report no longer carries them ([793c40 Does the user still see please's audit list?](793c_open-questions.md#793c40-does-the-user-still-see-pleases-audit-list)).
+Rationale: the audit and the question exist to feed a capture, and with the capture the System's, so are they. The per-item list is read from the vault and the log, because please's closing report no longer carries it; the user sees the counts of the events it produced in the summary ([793a5h A memory-activity summary is shown to the user](#793a5h-a-memory-activity-summary-is-shown-to-the-user), [793c40 Does the user still see please's audit list?](793c_open-questions.md#793c40-does-the-user-still-see-pleases-audit-list)).
 
 #### 793a3o1 UAT Scenarios
 
@@ -829,6 +829,44 @@ Scenario: 793a5g1c Slow capture does not stall the session
   When a turn completes and the user submits the next prompt immediately
   Then the next prompt is processed without waiting for the capture to finish
   And the working agent's response to the completed turn appeared without waiting for the capture
+```
+
+### 793a5h A memory-activity summary is shown to the user
+
+Requirement: 793a5h After each completed turn, the System MUST show the user, outside the working agent's context, the counts of memory events since its previous summary: items surfaced (injected), notes used (activated), notes added, notes amended, captures discarded, and evidence notes written. A turn with no memory events MUST show nothing. The summary MUST NOT enter the working agent's context. The per-item details and the reason for each event stay in the log ([793a5e Auditability and measurability](#793a5e-auditability-and-measurability)) and the vault.
+
+Rationale: the user keeps visibility of the memory work the System took over, including what please's closing report used to show, without the working agent relaying it.
+
+#### 793a5h1 UAT Scenarios
+
+```gherkin
+Scenario: 793a5h1a The summary shows the counts after a turn with events
+  Given the Integration is installed and a turn in which the System injected 3 items, activated 2 notes, added 1 note, amended 1 note, discarded 1 capture and wrote 1 evidence note
+  When the turn completes
+  Then the user is shown a summary with 3 items surfaced, 2 notes used, 1 note added, 1 note amended, 1 capture discarded and 1 evidence note written
+
+Scenario: 793a5h1b Nothing is shown after a turn without events
+  Given the Integration is installed and a turn in which the System injected, activated, added, amended, discarded and wrote nothing
+  When the turn completes
+  Then the user is shown no memory-activity summary
+
+Scenario: 793a5h1c The summary is not in the agent's context
+  Given the Integration is installed and a turn after which a summary was shown to the user
+  When the user submits the next prompt and the transcript of the working agent's session is inspected
+  Then the summary text appears nowhere in the transcript
+  And the working agent's next response does not refer to it
+
+Scenario: 793a5h1d The counts match the log
+  Given the Integration is installed and a turn after which a summary was shown to the user
+  When the operator queries the log by session id for that turn
+  Then the log's recorded events for that turn, counted by kind, equal the counts in the summary
+  And the per-item details and the reason for each event are in the log and the vault, not in the summary
+
+Scenario: 793a5h1e The counts cover the events since the previous summary
+  Given the Integration is installed and a summary was shown after one turn
+  When the next turn completes with 1 note added and nothing else
+  Then the user is shown a summary with 1 note added and every other count 0 or omitted
+  And no event counted in the previous summary is counted again
 ```
 
 ## 793a6 Modified: lessons-contract (the LESSONS line is replaced while the Integration is installed)
@@ -1437,7 +1475,7 @@ Scenario: 793a7n1c Without the Integration a reviewer recalls first
 
 Target: [792a18p The closing learn is preceded by a lessons audit](../../specs/product/please.md#792a18p-the-closing-learn-is-preceded-by-a-lessons-audit)
 
-Requirement: 792a18p While the Integration is installed, please MUST NOT audit the cycle's mechanical corpus, MUST NOT map items to vault notes and MUST NOT show an audit list in its closing report; the System performs the audit from the transcript, following the procedure of the branch below ([793a3o Please's lessons audit and surfacing question are performed by the System](#793a3o-pleases-lessons-audit-and-surfacing-question-are-performed-by-the-system)). Where the Integration is not installed: Before the closing learn at step 7, please MUST audit the cycle's mechanical corpus: every pre-registered stop that fired, every gate FAIL verdict, every commit whose message contains CORRECTION, supersede or superseded, instrument-invalid, or redraw or redrawn, and every mid-cycle escalation to the user. It MUST map each item to the vault note that captures its lesson, or write the one-line "no lesson: <why>"; MUST treat an unmapped item as a reversal handoff for the closing learn ([792a15e The four kinds of explicit lesson](../../specs/product/learn.md#792a15e-the-four-kinds-of-explicit-lesson)); and MUST show the audit list (item → note or no-lesson) in the cycle's closing report to the user. It MUST NOT use the audit for positive reinforcement, which has no mechanical marker and belongs to the closing learn's confirmed-approach scan.
+Requirement: 792a18p While the Integration is installed, please MUST NOT audit the cycle's mechanical corpus, MUST NOT map items to vault notes and MUST NOT show an audit list in its closing report; the System performs the audit from the transcript, following the procedure of the branch below ([793a3o Please's lessons audit and surfacing question are performed by the System](#793a3o-pleases-lessons-audit-and-surfacing-question-are-performed-by-the-system)); the user sees the counts of the audit's memory events in the System's summary ([793a5h A memory-activity summary is shown to the user](#793a5h-a-memory-activity-summary-is-shown-to-the-user)), and the per-item list stays in the log and the vault. Where the Integration is not installed: Before the closing learn at step 7, please MUST audit the cycle's mechanical corpus: every pre-registered stop that fired, every gate FAIL verdict, every commit whose message contains CORRECTION, supersede or superseded, instrument-invalid, or redraw or redrawn, and every mid-cycle escalation to the user. It MUST map each item to the vault note that captures its lesson, or write the one-line "no lesson: <why>"; MUST treat an unmapped item as a reversal handoff for the closing learn ([792a15e The four kinds of explicit lesson](../../specs/product/learn.md#792a15e-the-four-kinds-of-explicit-lesson)); and MUST show the audit list (item → note or no-lesson) in the cycle's closing report to the user. It MUST NOT use the audit for positive reinforcement, which has no mechanical marker and belongs to the closing learn's confirmed-approach scan.
 
 Rationale: The audit exists to feed a capture, so the System performs it where it captures. What the System does with an unmapped item is [793a3o Please's lessons audit and surfacing question are performed by the System](#793a3o-pleases-lessons-audit-and-surfacing-question-are-performed-by-the-system).
 
