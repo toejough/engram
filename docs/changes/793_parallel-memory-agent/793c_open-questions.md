@@ -81,7 +81,7 @@ answers.
 
 ## 793c8 What does the System inject when only incidental items come back?
 
-- **Status:** open.
+- **Status:** answered (Joe, 2026-10-11): (a) inject what recall delivers today, the depth's whole output including incidental items. Trimming is a follow-up, [#848](https://github.com/toejough/engram/issues/848), gated on #845 data.
 - **Context:** At a moment whose queries return only incidental items (explore picks per [792a7i Half of the notes are explored](../../specs/product/memory-query.md#792a7i-half-of-the-notes-are-explored), newest chunks per [792a7o The newest chunks](../../specs/product/memory-query.md#792a7o-the-newest-chunks), ride-alongs per [792a7n Superseding notes ride along](../../specs/product/memory-query.md#792a7n-superseding-notes-ride-along)) and no direct match, [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output) would inject all of it.
 - **Options:**
   - (a) everything the queries return.
@@ -92,7 +92,7 @@ answers.
 
 ## 793c9 Does the System activate notes?
 
-- **Status:** open.
+- **Status:** answered (Joe, 2026-10-11): (c) notes the agent went on to use, judged at turn-end capture.
 - **Context:** Recall activates the notes it used (Step 2.7, [792a14l Only the notes that were used are activated](../../specs/product/recall.md#792a14l-only-the-notes-that-were-used-are-activated)). When the System injects notes, nobody activates the ones the agent applies.
 - **Options:**
   - (a) never.
@@ -103,7 +103,7 @@ answers.
 
 ## 793c10 What is the default mode for an existing install that updates?
 
-- **Status:** open.
+- **Status:** superseded by [793c12 Are operating modes needed at all?](#793c12-are-operating-modes-needed-at-all), pending its answer.
 - **Context:** [793a4e Operating modes and measurement](793a_product-spec.md#793a4e-operating-modes-and-measurement) makes active the default for a fresh install ([793c3 What is the default mode for a fresh install?](793c_open-questions.md#793c3-what-is-the-default-mode-for-a-fresh-install)). An existing install that updates has its own mode choice, and an update could start writing to its vault.
 - **Options:**
   - (a) active.
@@ -114,7 +114,7 @@ answers.
 
 ## 793c11 What does the latency bound cover?
 
-- **Status:** open.
+- **Status:** answered (Joe, 2026-10-11): (b) the instruction path's full lookup, phrasing plus queries, on the same input.
 - **Context:** [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment) caps added latency at the latency of the depth's queries. The instruction path's lookup also includes the agent phrasing its query, which the System does too.
 - **Options:**
   - (a) queries only.
@@ -122,3 +122,15 @@ answers.
   - (c) queries plus a fixed allowance.
 - **Recommendation:** (b). It compares like with like and needs no fixed number that would go stale.
 - **Blocks:** [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment).
+
+## 793c12 Are operating modes needed at all?
+
+- **Status:** open.
+- **Context:** [793a4e Operating modes and measurement](793a_product-spec.md#793a4e-operating-modes-and-measurement) carries the draft's off/observe/active modes (formerly CTL-1). Joe asked (2026-10-11) why not keep today's behavior: if the integration is installed, it is active. The draft's reasons for modes were an observe-first rollout (measure before injecting or writing) and an emergency off switch without uninstalling. Joe's later answers remove the first need: default active ([793c3 What is the default mode for a fresh install?](#793c3-what-is-the-default-mode-for-a-fresh-install)), measurement always recorded ([793c7 Review answers (2026-10-11)](#793c7-review-answers-2026-10-11)), and direct writes with git as the fallback. Disabling or uninstalling the integration covers the second need.
+- **Options:**
+  - (a) Remove modes. The System is active whenever it is installed, measurement is always recorded, and disabling or uninstalling the integration turns it off. 793a4e, its scenarios and [793c10 What is the default mode for an existing install that updates?](#793c10-what-is-the-default-mode-for-an-existing-install-that-updates) are retired.
+  - (b) Keep only an off switch, with no observe mode.
+  - (c) Keep off, observe and active.
+- **Recommendation:** (a). It matches today's behavior and removes a configuration surface and its tests.
+- **Blocks:** [793a4e Operating modes and measurement](793a_product-spec.md#793a4e-operating-modes-and-measurement), [793c10 What is the default mode for an existing install that updates?](#793c10-what-is-the-default-mode-for-an-existing-install-that-updates), and the observe-mode findings in 793b (M1).
+
