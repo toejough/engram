@@ -45,9 +45,31 @@ The following repository-governance files are unnumbered exceptions. They do not
 
 - Optimize for concision and clarity.
 - Document only confirmed scope. Do not introduce plausible assumptions, features, constraints, or decisions that the user did not specify.
-- Resolve material ambiguity with the user before writing. Ask one focused question at a time.
+- Resolve material ambiguity with the user before writing. Ask focused questions, recorded as
+  described in [Decisions and Open Questions](#decisions-and-open-questions).
 - Use concrete language and examples where they remove ambiguity.
 - Add newly confirmed shared conventions to this file. Add workflow-specific conventions to the applicable authoring guide.
+
+## Decisions and Open Questions
+
+Every change directory MUST keep two artifacts beside its specifications:
+
+- A **decision log** (`<key><letter>_decision-log.md`): one ID'd entry per decision made while
+  producing the change, each stating the choice, its rationale, the alternatives considered, and
+  **who decided it**: the owner (the person who owns the change), the author, or a reviewer. An
+  author's or reviewer's interpretation of an owner's answer is its own entry, marked as such, so
+  the owner can validate it.
+- An **open-questions** file (`<key><letter>_open-questions.md`): one ID'd entry per decision that
+  needs the owner, each with context, lettered options, a recommendation, and what it blocks. When
+  the owner answers, the entry records the answer and the date and stays in place.
+
+Record decisions and questions in these artifacts as they arise, not afterwards:
+
+- Each review round MUST record its outcome before anything is asked of the owner: findings
+  accepted without asking go in the decision log, and questions go in the open-questions file.
+- Questions MUST reach the owner only from the open-questions file, numbered by their IDs, never
+  only in conversation.
+- An owner's answer MUST be recorded in the open-questions file in the same commit that applies it.
 
 ## Documentation Structure
 
@@ -199,5 +221,7 @@ Before considering a document complete, verify:
 - Existing documentation was not renumbered without an explicit migration request.
 - The specification lifecycle guide has been followed when the work changes canonical behavior.
 - The applicable authoring guide has been followed.
+- Every decision is in the change's decision log with who decided it, and every question for the
+  owner is in its open-questions file, answered or marked as blocking.
 - No placeholders, contradictions, duplicate rules, or ambiguous statements remain.
 - The final document is as concise as clarity permits.

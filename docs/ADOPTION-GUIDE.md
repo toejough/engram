@@ -47,10 +47,10 @@ Create `docs/changes/<issue-key>_documentation-framework-adoption/` with:
 - `<key>b_technical-spec.md`: an orientation that says once why option analysis, impact and
   alternative sections are omitted (the change documents an existing system);
 - `<key>c_implementation-plan.md`: the plan that tracks the migration (Step 4);
-- `<key>d_decision-log.md`: every choice the author makes, each with its rationale and the
-  alternatives considered, for the owner to validate afterwards;
+- `<key>d_decision-log.md`: every decision made, each with its rationale, the alternatives
+  considered, and who decided it (see [Decisions and Open Questions](./AGENTS.md#decisions-and-open-questions));
 - `<key>e_open-questions.md`: only the questions that need the owner, each with options, a
-  recommendation, a provisional default, and what it blocks.
+  recommendation, a provisional default, and what it blocks; answers are recorded in place.
 
 Working inventories MAY live in a further artifact directory inside the change. They are deleted
 with the change.
