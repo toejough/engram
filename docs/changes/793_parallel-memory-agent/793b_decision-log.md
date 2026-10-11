@@ -312,21 +312,21 @@ orchestrator or a reviewer await the owner's validation.
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** The re-entry query is [792a14o An emergent recommendation is checked against the vault](../../specs/product/recall.md#792a14o-an-emergent-recommendation-is-checked-against-the-vault)'s recommendation check. It runs at both depths, conditionally, so [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output) and [793b7 Volume and latency equal the chosen depth's output](793b_decision-log.md#793b7-volume-and-latency-equal-the-chosen-depths-output) count it twice.
 - **Fix to be applied:** Reword [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output) and [793b7 Volume and latency equal the chosen depth's output](793b_decision-log.md#793b7-volume-and-latency-equal-the-chosen-depths-output) to list the conditional recommendation check once, at both depths, with no separate re-entry query.
-- **Status:** applied in @@HASH@@. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
+- **Status:** applied in 5fd6712a. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
 
 ## 793b26 H3: lazy mode truncates only chunks, never notes
 
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** Lazy mode truncates only chunks. [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection) treats a truncated note as not present, which cannot occur.
 - **Fix to be applied:** [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection) becomes "an item (note or chunk) shown without its content doesn't count as present"; no re-injection covers chunks too; [793a2e1f A chunk shown without content is delivered with it](793a_product-spec.md#793a2e1-uat-scenarios) is rewritten around a chunk.
-- **Status:** applied in @@HASH@@. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
+- **Status:** applied in 5fd6712a. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
 
 ## 793b27 H4: an escalated moment covers both depths' queries
 
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** When glance escalates to deep, the moment runs the queries of both depths, but [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output) and [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment) bound only one.
 - **Fix to be applied:** An escalated moment's volume and latency cover both depths' queries (the union). Add subagent dispatch to [793a5g1a Added latency stays within the instruction path's lookup latency](793a_product-spec.md#793a5g1-uat-scenarios).
-- **Status:** applied in @@HASH@@. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
+- **Status:** applied in 5fd6712a. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
 
 ## 793b28 M1: observe mode logs the would-be volume
 
@@ -340,105 +340,105 @@ orchestrator or a reviewer await the owner's validation.
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** [793a4f No recall or capture in its own evaluation sessions](793a_product-spec.md#793a4f-no-recall-or-capture-in-its-own-evaluation-sessions) depends on the System recognizing its own sessions, but no requirement says how they are identified.
 - **Fix to be applied:** [793a4f No recall or capture in its own evaluation sessions](793a_product-spec.md#793a4f-no-recall-or-capture-in-its-own-evaluation-sessions): the System logs the session ids it starts itself as System sessions. Add a scenario for the depth and phrase choice.
-- **Status:** applied in @@HASH@@. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
+- **Status:** applied in 5fd6712a. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
 
 ## 793b30 M3: deep recall's writes carry provenance
 
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) writes have no provenance, and [793a3i Precision is graded independently](793a_product-spec.md#793a3i-precision-is-graded-independently) grades more than captures.
 - **Fix to be applied:** [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) writes carry [793a3d Provenance](793a_product-spec.md#793a3d-provenance) provenance plus their derived marker. Scope [793a3i Precision is graded independently](793a_product-spec.md#793a3i-precision-is-graded-independently) to [793a3a Evaluate every completed turn](793a_product-spec.md#793a3a-evaluate-every-completed-turn) captures. [793a3g1a A coverage write is made without the working agent](793a_product-spec.md#793a3g1-uat-scenarios) and [793a3g1b A sound conclusion is persisted without the working agent](793a_product-spec.md#793a3g1-uat-scenarios) assert that no write request appears in the transcript.
-- **Status:** applied in @@HASH@@. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
+- **Status:** applied in 5fd6712a. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
 
 ## 793b31 M4: coexistence defers to the owning requirements
 
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** [793a5b Coexistence without double-firing](793a_product-spec.md#793a5b-coexistence-without-double-firing) restates duplicate rules that [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection) and [793a3c No duplicates](793a_product-spec.md#793a3c-no-duplicates) own, and the outcome of [793a5b1a Both paths active](793a_product-spec.md#793a5b1-uat-scenarios) contradicts them.
 - **Fix to be applied:** [793a5b Coexistence without double-firing](793a_product-spec.md#793a5b-coexistence-without-double-firing) defers to [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection) and [793a3c No duplicates](793a_product-spec.md#793a3c-no-duplicates). Fix the [793a5b1a Both paths active](793a_product-spec.md#793a5b1-uat-scenarios) outcome.
-- **Status:** applied in @@HASH@@. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
+- **Status:** applied in 5fd6712a. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
 
 ## 793b32 M5: the purview rule restricts the System, not the main agent
 
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** [793a4c Memory purview only](793a_product-spec.md#793a4c-memory-purview-only) reads as if the System could never affect the agent at all, though it injects notes by design.
 - **Fix to be applied:** [793a4c Memory purview only](793a_product-spec.md#793a4c-memory-purview-only) becomes "MUST NOT itself make or override …". Fix its scenario.
-- **Status:** applied in @@HASH@@. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
+- **Status:** applied in 5fd6712a. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
 
 ## 793b33 M6: grade every capture independently
 
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** [793a3i Precision is graded independently](793a_product-spec.md#793a3i-precision-is-graded-independently) samples 30 notes, which hides the grader's coverage.
 - **Fix to be applied:** [793a3i Precision is graded independently](793a_product-spec.md#793a3i-precision-is-graded-independently): grade every [793a3a Evaluate every completed turn](793a_product-spec.md#793a3a-evaluate-every-completed-turn) capture independently, and log the verdicts, the sample size and the precision.
-- **Status:** applied in @@HASH@@. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
+- **Status:** applied in 5fd6712a. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
 
 ## 793b34 M7: a scenario stops asserting "context"
 
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** [793a2j1a Delivered items equal the depth's output](793a_product-spec.md#793a2j1-uat-scenarios) asserts on "context", which an end user cannot observe ([793b16 Observable scenarios](793b_decision-log.md#793b16-observable-scenarios)).
 - **Fix to be applied:** [793a2j1a Delivered items equal the depth's output](793a_product-spec.md#793a2j1-uat-scenarios) stops asserting "context" and asserts what the transcript shows.
-- **Status:** applied in @@HASH@@. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
+- **Status:** applied in 5fd6712a. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
 
 ## 793b35 M8: "Reinforced" is not backed by a MUST
 
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** [793a3c1a Existing note already covers the lesson](793a_product-spec.md#793a3c1-uat-scenarios) says an existing note is "reinforced", but [793a3c No duplicates](793a_product-spec.md#793a3c-no-duplicates) has no requirement for it.
 - **Fix to be applied:** Either [793a3c No duplicates](793a_product-spec.md#793a3c-no-duplicates) gets a MUST for reinforcement, or the word is dropped from [793a3c1a Existing note already covers the lesson](793a_product-spec.md#793a3c1-uat-scenarios). The orchestrator recommends dropping it from the scenario unless Joe wants a MUST.
-- **Status:** applied in @@HASH@@, by dropping the word from the scenario, as the orchestrator recommended. Reinforcement stays SHOULD ([793b50 Reinforcement stays SHOULD](#793b50-reinforcement-stays-should)). The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
+- **Status:** applied in 5fd6712a, by dropping the word from the scenario, as the orchestrator recommended. Reinforcement stays SHOULD ([793b50 Reinforcement stays SHOULD](#793b50-reinforcement-stays-should)). The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
 
 ## 793b36 L1: scenario Given refers to the recent-activity channel
 
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** [793a2h1d A recently surfaced standard uses deep](793a_product-spec.md#793a2h1-uat-scenarios)'s Given does not name the recent-activity channel the standard comes from.
 - **Fix to be applied:** [793a2h1d A recently surfaced standard uses deep](793a_product-spec.md#793a2h1-uat-scenarios)'s Given refers to the recent-activity channel.
-- **Status:** applied in @@HASH@@. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
+- **Status:** applied in 5fd6712a. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
 
 ## 793b37 L2: next response or tool call
 
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** [793a2b Recall after each tool result](793a_product-spec.md#793a2b-recall-after-each-tool-result) says "next response", but a tool call can come first.
 - **Fix to be applied:** [793a2b Recall after each tool result](793a_product-spec.md#793a2b-recall-after-each-tool-result) says "next response or tool call".
-- **Status:** applied in @@HASH@@. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
+- **Status:** applied in 5fd6712a. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
 
 ## 793b38 L3: drop "Added:" from link labels
 
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** Some link labels carry the delta-operation word "Added:", which docs/AGENTS.md "References to Addressable Content" forbids.
 - **Fix to be applied:** Drop "Added:" from those link labels.
-- **Status:** applied in @@HASH@@. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
+- **Status:** applied in 5fd6712a. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
 
 ## 793b39 L4: rationale states the why only
 
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** Rationale text in [793a3h Capture rate exceeds the baseline](793a_product-spec.md#793a3h-capture-rate-exceeds-the-baseline) and the #846 mention in [793a3a Evaluate every completed turn](793a_product-spec.md#793a3a-evaluate-every-completed-turn) describe history instead of the why, and "(formerly REC-n)" notes remain.
 - **Fix to be applied:** Rationale states the why only in [793a3h Capture rate exceeds the baseline](793a_product-spec.md#793a3h-capture-rate-exceeds-the-baseline) and in [793a3a Evaluate every completed turn](793a_product-spec.md#793a3a-evaluate-every-completed-turn) (the #846 mention); strip the "(formerly REC-n)" notes at promotion.
-- **Status:** applied in @@HASH@@. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
+- **Status:** applied in 5fd6712a. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
 
 ## 793b40 L5: correct the ID map
 
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** The [793b14 ID handling](793b_decision-log.md#793b14-id-handling) ID map calls [793a2e1a Note delivered earlier is not delivered again](793a_product-spec.md#793a2e1-uat-scenarios) new though it was rewritten, and omits material modifications.
 - **Fix to be applied:** Correct the [793b14 ID handling](793b_decision-log.md#793b14-id-handling) map: [793a2e1a Note delivered earlier is not delivered again](793a_product-spec.md#793a2e1-uat-scenarios) was rewritten, not new; name [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection) and [793a4d Sensitive content](793a_product-spec.md#793a4d-sensitive-content) as material modifications; list the scenarios modified in place.
-- **Status:** applied in @@HASH@@. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
+- **Status:** applied in 5fd6712a. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
 
 ## 793b41 L6: a scenario for a discarded capture
 
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** [793a5e Auditability and measurability](793a_product-spec.md#793a5e-auditability-and-measurability) has no scenario for a capture the System discards.
 - **Fix to be applied:** Add a [793a5e Auditability and measurability](793a_product-spec.md#793a5e-auditability-and-measurability) scenario for a discarded capture.
-- **Status:** applied in @@HASH@@. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
+- **Status:** applied in 5fd6712a. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
 
 ## 793b42 L7: trim 793a2j1b
 
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** [793a2j1b A vault holding more than 20 notes about the topic](793a_product-spec.md#793a2j1-uat-scenarios) asserts more than its requirement states.
 - **Fix to be applied:** Trim [793a2j1b A vault holding more than 20 notes about the topic](793a_product-spec.md#793a2j1-uat-scenarios).
-- **Status:** applied in @@HASH@@. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
+- **Status:** applied in 5fd6712a. The second review of commit 058c70b3 found it; the orchestrator accepted it as a fix to make without asking Joe.
 
 ## 793b43 Author's choice accepted: log depth, phrases and escalation
 
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Choice:** the reviewer accepted the author's choice to log depth and phrases ([793b8 Per-moment record sits in the existing log requirement](793b_decision-log.md#793b8-per-moment-record-sits-in-the-existing-log-requirement)), extended to each query's phrases and whether glance escalated.
 - **Rationale:** the depth scenarios stay checkable from the operator-accessible log.
-- **Status:** applied in @@HASH@@: [793a5e Auditability and measurability](793a_product-spec.md#793a5e-auditability-and-measurability) logs the phrases of each query and whether glance escalated.
+- **Status:** applied in 5fd6712a: [793a5e Auditability and measurability](793a_product-spec.md#793a5e-auditability-and-measurability) logs the phrases of each query and whether glance escalated.
 
 ## 793b44 Author's choice accepted: the rate/precision split
 
@@ -452,7 +452,7 @@ orchestrator or a reviewer await the owner's validation.
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Choice:** the reviewer accepted the conditional recommendation check ([792a14o An emergent recommendation is checked against the vault](../../specs/product/recall.md#792a14o-an-emergent-recommendation-is-checked-against-the-vault)), worded as the H2 fix says.
 - **Rationale:** the check runs only when a recommendation is emergent, so counting it unconditionally overstates the output.
-- **Status:** applied in @@HASH@@ (see [793b25 H2: drop the double count of the re-entry query](#793b25-h2-drop-the-double-count-of-the-re-entry-query)).
+- **Status:** applied in 5fd6712a (see [793b25 H2: drop the double count of the re-entry query](#793b25-h2-drop-the-double-count-of-the-re-entry-query)).
 
 ## 793b46 Inject what recall delivers today
 
