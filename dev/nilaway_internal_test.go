@@ -42,7 +42,8 @@ func Test794b4a1a_TargetWiring(t *testing.T) {
 		checkNilsFixTarget:     checkNilsFix,
 		checkNilsForFailTarget: checkNilsForFail,
 	} {
-		g.Expect(sameFunc(target.Fn(), expected)).To(BeTrue(), "%s does not use Engram's NilAway invocation", target.GetName())
+		g.Expect(sameFunc(target.Fn(), expected)).To(BeTrue(),
+			"%s does not use Engram's NilAway invocation", target.GetName())
 	}
 
 	g.Expect(checkNilsFixTarget.GetName()).To(Equal("check-nils-fix"))
@@ -80,10 +81,12 @@ func Test794b4a1c_AggregatesMatchTargsApartFromNilTargets(t *testing.T) {
 		targdev.CheckNilsFix:     checkNilsFixTarget,
 		targdev.CheckNilsForFail: checkNilsForFailTarget,
 	}
-	// Engram's own additions to the aggregates: the dev package's tests, appended to the final dependency group.
+	// Engram's own additions to the aggregates, appended to the final dependency group: the dev package's tests
+	// and the lint run that covers the dev package's build-tagged files.
 	engramExtras := map[string][]*targ.Target{
-		"check-for-fail": {testDevTarget, testDevIntegrationTarget},
-		"check-full":     {testDevTarget, testDevIntegrationTarget},
+		"check":          {lintDevTarget},
+		"check-for-fail": {testDevTarget, testDevIntegrationTarget, lintDevTarget},
+		"check-full":     {testDevTarget, testDevIntegrationTarget, lintDevTarget},
 	}
 
 	for _, pair := range []struct{ engram, targs *targ.Target }{

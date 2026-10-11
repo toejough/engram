@@ -4,13 +4,11 @@ package dev
 
 import (
 	"context"
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"slices"
 	"strings"
@@ -227,6 +225,8 @@ func runEntry(t *testing.T, dir string, entry func(context.Context) error) (stri
 }
 
 func Test794b4a1d_TargsOtherSharedTargetsStayAvailable(t *testing.T) {
+	t.Parallel()
+
 	g := NewWithT(t)
 	module, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", "github.com/toejough/targ").Output()
 	g.Expect(err).NotTo(HaveOccurred())
@@ -250,59 +250,34 @@ func Test794b4a1d_TargsOtherSharedTargetsStayAvailable(t *testing.T) {
 		"Targ's shared targets changed: re-register each new one, or drop each removed one, in sharedTargets")
 }
 
+// targetVariable matches a top-level exported variable declared as targ.Targ(...), as Targ's dev package does.
+var targetVariable = regexp.MustCompile(`(?m)^\s*([A-Z]\w*)\s*=\s*targ\.Targ\(`)
+
 // exportedTargetVariables returns the names of the exported targets the package at dir declares.
 func exportedTargetVariables(t *testing.T, dir string) []string {
 	t.Helper()
-	files, err := parser.ParseDir(token.NewFileSet(), dir, func(info os.FileInfo) bool {
-		return !strings.HasSuffix(info.Name(), "_test.go")
-	}, 0)
+
+	paths, err := filepath.Glob(filepath.Join(dir, "*.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	names := make([]string, 0)
-	for _, pkg := range files {
-		for _, file := range pkg.Files {
-			for _, decl := range file.Decls {
-				gen, isGen := decl.(*ast.GenDecl)
-				if !isGen || gen.Tok != token.VAR {
-					continue
-				}
+	names := make([]string, 0, len(paths))
 
-				for _, spec := range gen.Specs {
-					value, isValue := spec.(*ast.ValueSpec)
-					if !isValue || len(value.Values) != 1 || !buildsTarget(value.Values[0]) {
-						continue
-					}
+	for _, path := range paths {
+		if strings.HasSuffix(path, "_test.go") {
+			continue
+		}
 
-					for _, name := range value.Names {
-						if name.IsExported() {
-							names = append(names, name.Name)
-						}
-					}
-				}
-			}
+		source, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for _, match := range targetVariable.FindAllSubmatch(source, -1) {
+			names = append(names, string(match[1]))
 		}
 	}
 
 	return names
-}
-
-// buildsTarget reports whether the expression is a call chain rooted at targ.Targ(...).
-func buildsTarget(expr ast.Expr) bool {
-	call, isCall := expr.(*ast.CallExpr)
-	if !isCall {
-		return false
-	}
-
-	selector, isSelector := call.Fun.(*ast.SelectorExpr)
-	if !isSelector {
-		return false
-	}
-
-	if root, isIdent := selector.X.(*ast.Ident); isIdent {
-		return root.Name == "targ" && selector.Sel.Name == "Targ"
-	}
-
-	return buildsTarget(selector.X)
 }

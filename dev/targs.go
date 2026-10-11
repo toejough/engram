@@ -34,7 +34,10 @@ func init() {
 	// Engram's spec-traced tests are named Test<scenario ID>_ (#792, e.g.
 	// Test792b9c5a6_) or, until renamed, the older TestT<N>_ (not TestProperty_).
 	if os.Getenv("TARG_BASELINE_PATTERN") == "" {
-		os.Setenv("TARG_BASELINE_PATTERN", `Test(T[0-9]+|[0-9]+[a-z][a-z0-9]*)_`)
+		err = os.Setenv("TARG_BASELINE_PATTERN", `Test(T[0-9]+|[0-9]+[a-z][a-z0-9]*)_`)
+		if err != nil {
+			panic(fmt.Sprintf("setting TARG_BASELINE_PATTERN: %v", err))
+		}
 	}
 
 	// Sentinel target so targ discovers this package and loads targdev.
@@ -51,6 +54,7 @@ func init() {
 
 // unexported constants.
 const (
+	evalOutDirPerm = 0o750
 	// integrationTestPattern selects the tests that need the integration tag: the explicit-entry-point suite, the
 	// subprocess suite and the target-registration check.
 	integrationTestPattern = `^Test794(a2|b4a1d|b4c)`
@@ -59,6 +63,7 @@ const (
 
 // unexported variables.
 var (
+	errEvalUsage = errors.New("usage: targ eval <arm> [trials]  (nothing|skills-only|current-state)")
 	// The aggregates below mirror Targ's dependencies, order and mode with Engram's nil targets in place of Targ's
 	// (794b4a); Test794b4a1c fails when Targ's aggregates change. The dev package's tests carry build tags the
 	// shared test targets do not pass, so check-for-fail and check-full also run them here.
@@ -67,14 +72,14 @@ var (
 				Deps(
 			targdev.CheckCoverageForFail, targdev.CheckUncommitted, targdev.ReorderDeclsCheck, targdev.LintFast,
 			targdev.LintForFail, targdev.Deadcode, targdev.CheckThinAPI, checkNilsForFailTarget,
-			targdev.TestIntegration, testDevTarget, testDevIntegrationTarget, targ.DepModeParallel,
+			targdev.TestIntegration, testDevTarget, testDevIntegrationTarget, lintDevTarget, targ.DepModeParallel,
 		)
 	checkFullTarget = targ.Targ(checkFullAggregate).Name("check-full").
 			Description(targdev.CheckFull.GetDescription()).
 			Deps(
 			targdev.CheckCoverageForFail, targdev.CheckUncommitted, targdev.ReorderDeclsCheck, targdev.LintFast,
 			targdev.LintFull, targdev.Deadcode, targdev.CheckThinAPI, checkNilsForFailTarget,
-			targdev.TestIntegration, testDevTarget, testDevIntegrationTarget,
+			targdev.TestIntegration, testDevTarget, testDevIntegrationTarget, lintDevTarget,
 			targ.DepModeParallel, targ.CollectAllErrors,
 		)
 	checkNilsFixTarget = targ.Targ(checkNilsFix).Name("check-nils-fix").
@@ -88,8 +93,10 @@ var (
 			Description(targdev.Check.GetDescription()).
 			Deps(
 			targdev.DeleteDeadcode, targdev.Fmt, targdev.Tidy, targdev.Modernize, checkNilsTarget,
-			targdev.CheckCoverage, targdev.ReorderDecls, targdev.Lint, targdev.CheckThinAPI,
+			targdev.CheckCoverage, targdev.ReorderDecls, targdev.Lint, targdev.CheckThinAPI, lintDevTarget,
 		)
+	lintDevTarget = targ.Targ(lintDev).Name("lint-dev").
+			Description("Lint the dev package's build-tagged files (targ, integration)")
 	// sharedTargets are Targ's shared targets other than the nil targets and aggregates Engram replaces, keyed by
 	// Targ's variable name. Test794b4a1d fails when Targ adds or removes one.
 	sharedTargets = map[string]*targ.Target{
@@ -138,7 +145,7 @@ type evalArgs struct {
 
 func runEval(ctx context.Context, args evalArgs) error {
 	if args.Arm == "" {
-		return errors.New("usage: targ eval <arm> [trials]  (nothing|skills-only|current-state)")
+		return errEvalUsage
 	}
 
 	enginePath, err := exec.LookPath("engram")
@@ -159,7 +166,8 @@ func runEval(ctx context.Context, args evalArgs) error {
 		cfg.Trials = args.Trials
 	}
 
-	if err := os.MkdirAll(cfg.OutDir, 0o755); err != nil {
+	err = os.MkdirAll(cfg.OutDir, evalOutDirPerm)
+	if err != nil {
 		return fmt.Errorf("creating out dir: %w", err)
 	}
 
@@ -170,7 +178,12 @@ func runEval(ctx context.Context, args evalArgs) error {
 		Results: eval.NewJSONLResultsWriter(filepath.Join(cfg.OutDir, args.Arm+".jsonl")),
 	}
 
-	return eval.Run(ctx, args.Arm, cfg, deps)
+	err = eval.Run(ctx, args.Arm, cfg, deps)
+	if err != nil {
+		return fmt.Errorf("running eval arm %q: %w", args.Arm, err)
+	}
+
+	return nil
 }
 
 func checkAggregate(ctx context.Context) error {
@@ -200,6 +213,28 @@ func sharedTargetList() []any {
 	}
 
 	return targets
+}
+
+// lintDev lints the dev package with the build tags its files need. Targ's lint targets use no tags, so they skip
+// every file in this package; this is the same lint configuration with the tags added.
+func lintDev(ctx context.Context) error {
+	targ.Print(ctx, "Linting the dev package (tags=targ,integration)...\n")
+
+	err := targ.RunContext(ctx,
+		"golangci-lint", "run",
+		"-c", "dev/golangci-lint.toml",
+		"--build-tags", "targ,integration",
+		"--fix=false",
+		"--max-issues-per-linter=0",
+		"--max-same-issues=0",
+		"--allow-parallel-runners",
+		"./dev",
+	)
+	if err != nil {
+		return fmt.Errorf("linting the dev package: %w", err)
+	}
+
+	return nil
 }
 
 func testDev(ctx context.Context) error {

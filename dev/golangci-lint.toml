@@ -45,6 +45,17 @@ linters = [
 path = '_test\.go$'
 text = 'dot-imports'
 
+# The dev package is Targ build tooling: targ discovers its targets through package-level variables and init,
+# which the global-state linters reject.
+[[linters.exclusions.rules]]
+linters = ['gochecknoglobals', 'gochecknoinits']
+path = '^dev/targs\.go$'
+
+# Tests that use t.Setenv or t.Chdir cannot run in parallel (the testing package panics on the combination).
+[[linters.exclusions.rules]]
+linters = ['paralleltest']
+path = '^dev/nilaway_.*integration_internal_test\.go$'
+
 # #700: forbidigo applies only to internal non-test code (edge wiring in cmd/ and
 # dev tooling legitimately call the forbidden symbols).
 [[linters.exclusions.rules]]
