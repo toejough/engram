@@ -41,6 +41,7 @@ func currentResourceVariables() map[string]string {
 			current[key] = value
 		}
 	}
+
 	return current
 }
 
@@ -50,6 +51,7 @@ func formatSettings(settings map[string]string) string {
 		pairs = append(pairs, key+"="+value)
 	}
 	sort.Strings(pairs)
+
 	return strings.Join(pairs, ",")
 }
 
@@ -62,6 +64,7 @@ func readStandInArgs(t *testing.T, capture string) []string {
 			args = append(args, value)
 		}
 	}
+
 	return args
 }
 
@@ -71,6 +74,7 @@ func readStandInLines(t *testing.T, capture string) []string {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	return strings.Split(strings.TrimSuffix(string(contents), "\n"), "\n")
 }
 
@@ -82,6 +86,7 @@ func readStandInMarker(t *testing.T, capture string) string {
 			return value
 		}
 	}
+
 	return ""
 }
 
@@ -100,6 +105,7 @@ func readStandInResources(t *testing.T, capture string) map[string]string {
 			}
 		}
 	}
+
 	return seen
 }
 
@@ -132,5 +138,6 @@ func standInNilaway(t *testing.T, exitCode int) string {
 	t.Setenv("ENGRAM_NILAWAY_CAPTURE", capture)
 	t.Setenv("ENGRAM_NILAWAY_MARKER", standInMarker)
 	t.Setenv("ENGRAM_NILAWAY_EXIT", strconv.Itoa(exitCode))
+
 	return capture
 }

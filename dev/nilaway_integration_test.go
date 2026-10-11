@@ -4,10 +4,12 @@ package dev
 
 import (
 	"context"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -185,9 +187,7 @@ func newFixture(t *testing.T, files map[string]string, extraModule, importBlock 
 		"engram.go": strings.Replace(fixtureEnginePackage, "\nfunc Broken", "\n"+importBlock+"\nfunc Broken", 1),
 		"nilaway":   fixtureWrapper,
 	}
-	for name, contents := range files {
-		all[name] = contents
-	}
+	maps.Copy(all, files)
 	for name, contents := range all {
 		path := filepath.Join(dir, name)
 		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
@@ -203,6 +203,7 @@ func newFixture(t *testing.T, files map[string]string, extraModule, importBlock 
 	t.Setenv("GOWORK", "off")
 	t.Setenv("GOPROXY", "off")
 	t.Setenv("GOFLAGS", "-mod=mod")
+
 	return dir
 }
 
@@ -211,12 +212,8 @@ func reachesNilsForFail(target *targ.Target) bool {
 	if target == targdev.CheckNilsForFail {
 		return true
 	}
-	for _, dependency := range target.GetDeps() {
-		if reachesNilsForFail(dependency) {
-			return true
-		}
-	}
-	return false
+
+	return slices.ContainsFunc(target.GetDeps(), reachesNilsForFail)
 }
 
 // runEntry runs an entry point from the fixture directory and returns the analyzer's diagnostics.
@@ -228,5 +225,6 @@ func runEntry(t *testing.T, dir string, entry func(context.Context) error) (stri
 	if readErr != nil {
 		t.Fatal(readErr)
 	}
+
 	return string(contents), err
 }

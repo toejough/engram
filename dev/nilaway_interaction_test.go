@@ -23,8 +23,7 @@ func Test794b4b1a_OneRequestCarriesTheContextAndThePolicysArguments(t *testing.T
 			t.Parallel()
 
 			g := NewWithT(t)
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 			execute, expectation := MockExecuteNilaway(t)
 			placeholder := []string{"placeholder-arguments", "for-" + scenario.name}
 			var policyMode []bool

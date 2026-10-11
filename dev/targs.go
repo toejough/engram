@@ -59,7 +59,7 @@ type evalArgs struct {
 
 func runEval(ctx context.Context, args evalArgs) error {
 	if args.Arm == "" {
-		return fmt.Errorf("usage: targ eval <arm> [trials]  (nothing|skills-only|current-state)")
+		return errors.New("usage: targ eval <arm> [trials]  (nothing|skills-only|current-state)")
 	}
 
 	enginePath, err := exec.LookPath("engram")
@@ -96,9 +96,11 @@ func runEval(ctx context.Context, args evalArgs) error {
 
 func testDev(ctx context.Context) error {
 	targ.Print(ctx, "Running dev-package tests (tag=targ)...\n")
-	if err := targ.RunContext(ctx, "go", "clean", "-testcache"); err != nil {
+	err := targ.RunContext(ctx, "go", "clean", "-testcache")
+	if err != nil {
 		return err
 	}
+
 	return targ.RunContext(ctx, "go", "test", "-timeout=2m", "-race", "-tags=targ", "./dev/...")
 }
 
