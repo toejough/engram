@@ -54,6 +54,7 @@ func Test794b4a1a_TargetWiring(t *testing.T) {
 		"check":          checkTarget,
 		"check-for-fail": checkForFailTarget,
 		"check-full":     checkFullTarget,
+		"mutate":         mutateTarget,
 	} {
 		g.Expect(aggregate.GetName()).To(Equal(name))
 		g.Expect(reaches(aggregate, checkNilsForFailTarget) || reaches(aggregate, checkNilsFixTarget)).To(BeTrue(), name)
@@ -80,6 +81,8 @@ func Test794b4a1c_AggregatesMatchTargsApartFromNilTargets(t *testing.T) {
 		targdev.CheckNils:        checkNilsTarget,
 		targdev.CheckNilsFix:     checkNilsFixTarget,
 		targdev.CheckNilsForFail: checkNilsForFailTarget,
+		// Targ's mutate runs behind Targ's check-for-fail; Engram's runs behind Engram's.
+		targdev.CheckForFail: checkForFailTarget,
 	}
 	// Engram's own additions to the aggregates, appended to the final dependency group: the dev package's tests
 	// and the lint run that covers the dev package's build-tagged files.
@@ -94,6 +97,7 @@ func Test794b4a1c_AggregatesMatchTargsApartFromNilTargets(t *testing.T) {
 		{checkTarget, targdev.Check},
 		{checkForFailTarget, targdev.CheckForFail},
 		{checkFullTarget, targdev.CheckFull},
+		{mutateTarget, targdev.Mutate},
 	} {
 		name := pair.engram.GetName()
 		g.Expect(name).To(Equal(pair.targs.GetName()))

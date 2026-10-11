@@ -28,7 +28,7 @@ func init() {
 	}
 
 	targ.Register(checkNilsFixTarget, checkNilsForFailTarget, checkNilsTarget,
-		checkTarget, checkForFailTarget, checkFullTarget)
+		checkTarget, checkForFailTarget, checkFullTarget, mutateTarget)
 	targ.Register(sharedTargetList()...)
 
 	// Engram's spec-traced tests are named Test<scenario ID>_ (#792, e.g.
@@ -118,7 +118,6 @@ var (
 		"LintForFail":          targdev.LintForFail,
 		"LintFull":             targdev.LintFull,
 		"Modernize":            targdev.Modernize,
-		"Mutate":               targdev.Mutate,
 		"ReorderDecls":         targdev.ReorderDecls,
 		"ReorderDeclsCheck":    targdev.ReorderDeclsCheck,
 		"Status":               targdev.Status,
@@ -129,6 +128,10 @@ var (
 		"TodoCheck":            targdev.TodoCheck,
 		"Watch":                targdev.Watch,
 	}
+	// mutateTarget reuses Targ's mutation run behind Engram's check-for-fail, as Targ's runs behind its own (794b4a).
+	mutateTarget = targ.Targ(targdev.Mutate.Fn()).Name("mutate").
+			Description(targdev.Mutate.GetDescription()).
+			Deps(checkForFailTarget)
 	testDevIntegrationTarget = targ.Targ(testDevIntegration).
 					Name("test-dev-integration").
 					Description("Run local integration tests for dev tooling")

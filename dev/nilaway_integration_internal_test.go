@@ -19,7 +19,7 @@ import (
 )
 
 func Test794a2a1a_ExistingEntryPointsReportOnlyEngramModulePackages(t *testing.T) {
-	for _, entry := range []string{"check-nils-for-fail", "check-nils", "check", "check-for-fail", "check-full"} {
+	for _, entry := range []string{"check-nils-for-fail", "check-nils", "check", "check-for-fail", "check-full", "mutate"} {
 		t.Run(entry, func(t *testing.T) {
 			g := NewWithT(t)
 			g.Expect(reachesNilsForFail(entryTarget(entry))).To(BeTrue(), "%s does not run check-nils-for-fail", entry)
@@ -160,7 +160,7 @@ func Test794b4a1d_TargsOtherSharedTargetsStayAvailable(t *testing.T) {
 	}
 
 	replaced := []string{
-		"Check", "CheckForFail", "CheckFull", "CheckNils", "CheckNilsFix", "CheckNilsForFail",
+		"Check", "CheckForFail", "CheckFull", "CheckNils", "CheckNilsFix", "CheckNilsForFail", "Mutate",
 	}
 
 	g.Expect(slices.Concat(kept, replaced)).To(ConsistOf(declared),
@@ -194,6 +194,7 @@ func entryTarget(name string) *targ.Target {
 		"check":               checkTarget,
 		"check-for-fail":      checkForFailTarget,
 		"check-full":          checkFullTarget,
+		"mutate":              mutateTarget,
 	}[name]
 }
 
