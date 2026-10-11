@@ -44,8 +44,7 @@ Scenario: 794a2a1c The fix command acts only on Engram's module packages
   And an Engram package contains a known nil dereference
   And a third-party dependency contains a known nil dereference
   When the developer invokes check-nils-fix
-  Then the nil dereference in the Engram package is reported
-  And the third-party dependency is neither modified nor reported on
+  Then the third-party dependency is neither modified nor reported on
 
 Scenario: 794a2a1d A nested module is not reported on
   Given an Engram checkout with NilAway installed

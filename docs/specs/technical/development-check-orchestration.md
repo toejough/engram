@@ -8,9 +8,16 @@ Starting the analyzer process is [NilAway Subprocess](./nilaway-subprocess.md).
 
 ## 794b4a Preserve entry points
 
-Requirement: 794b4a Development-check orchestration MUST replace the action of the existing shared
-check/fix targets, preserving their names, their registration metadata, and all aggregate
-references to them.
+Requirement: 794b4a Development-check orchestration MUST deregister Targ's shared development targets
+and register Engram's own nil check and fix targets under the existing names `check-nils-fix` and
+`check-nils-for-fail`. It MUST register its own `check-nils`, `check`, `check-for-fail` and
+`check-full` aggregates under the existing names, each with the same dependencies and dependency
+mode as Targ's aggregate of that name, except that Engram's nil targets replace Targ's. It MUST
+re-register Targ's other shared targets unchanged.
+
+Rationale: Targ's aggregates hold direct references to its own nil targets, so replacing the nil
+targets alone would leave the aggregates running Targ's versions; deregistering and re-registering
+is Targ's supported way to customize shared targets.
 
 Supports
 [794a2a1a Existing check entry points report only on Engram's module packages](../product/development-checks.md#794a2a1-uat-scenarios) and
@@ -22,15 +29,18 @@ Supports
 Scenario: 794b4a1a Direct and aggregate target routing
   Given Targ has registered its shared development targets
   When Engram initializes its development targets
-  Then the existing check and fix target objects execute Engram's configured invocation
-  And check-nils retains both configured targets
-  And check retains check-nils
-  And check-for-fail and check-full retain the configured checking target
-  And the direct target names remain check-nils-fix and check-nils-for-fail
+  Then check-nils-fix and check-nils-for-fail run Engram's configured invocation
+  And check-nils, check, check-for-fail and check-full each reach Engram's nil targets
+  And none of them reaches Targ's nil targets
 
-Scenario: 794b4a1b Registration metadata is preserved
-  Given Targ has registered its shared check and fix targets with their registration metadata
+Scenario: 794b4a1c Engram's aggregates match Targ's apart from the nil targets
+  Given Targ's check-nils, check, check-for-fail and check-full aggregates
   When Engram initializes its development targets
-  Then each target keeps the registration metadata Targ gave it, including its source package
-  And deregistering Targ's shared targets still removes them
+  Then each Engram aggregate of the same name has the same dependencies in the same order and mode
+  And the only differences are Engram's nil targets in place of Targ's
+
+Scenario: 794b4a1d Targ's other shared targets stay available
+  Given Targ has registered its shared development targets
+  When Engram initializes its development targets
+  Then every Targ shared target other than the nil and aggregate targets is registered unchanged
 ```
