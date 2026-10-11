@@ -10,9 +10,9 @@ Starting the analyzer process is [NilAway Subprocess](./nilaway-subprocess.md).
 
 Requirement: 794b4a Development-check orchestration MUST deregister Targ's shared development targets
 and register Engram's own nil check and fix targets under the existing names `check-nils-fix` and
-`check-nils-for-fail`. It MUST register its own `check-nils`, `check`, `check-for-fail` and
-`check-full` aggregates under the existing names, each with the same dependencies and dependency
-mode as Targ's aggregate of that name, except that Engram's nil targets replace Targ's. It MUST
+`check-nils-for-fail`. It MUST register its own `check-nils`, `check`, `check-for-fail`,
+`check-full` and `mutate` under the existing names, each with the same dependencies and dependency
+mode as Targ's target of that name, except that Engram's nil and aggregate targets replace Targ's. It MUST
 re-register Targ's other shared targets unchanged.
 
 Rationale: Targ's aggregates hold direct references to its own nil targets, so replacing the nil
@@ -30,11 +30,11 @@ Scenario: 794b4a1a Direct and aggregate target routing
   Given Targ has registered its shared development targets
   When Engram initializes its development targets
   Then check-nils-fix and check-nils-for-fail run Engram's configured invocation
-  And check-nils, check, check-for-fail and check-full each reach Engram's nil targets
+  And check-nils, check, check-for-fail, check-full and mutate each reach Engram's nil targets
   And none of them reaches Targ's nil targets
 
 Scenario: 794b4a1c Engram's aggregates match Targ's apart from the nil targets
-  Given Targ's check-nils, check, check-for-fail and check-full aggregates
+  Given Targ's check-nils, check, check-for-fail, check-full and mutate targets
   When Engram initializes its development targets
   Then each Engram aggregate of the same name has the same dependencies in the same order and mode
   And the only differences are Engram's nil targets in place of Targ's
@@ -42,5 +42,5 @@ Scenario: 794b4a1c Engram's aggregates match Targ's apart from the nil targets
 Scenario: 794b4a1d Targ's other shared targets stay available
   Given Targ has registered its shared development targets
   When Engram initializes its development targets
-  Then every Targ shared target other than the nil and aggregate targets is registered unchanged
+  Then every Targ shared target other than those Engram replaces is registered unchanged
 ```
