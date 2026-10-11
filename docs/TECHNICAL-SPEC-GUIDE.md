@@ -46,14 +46,19 @@ A section MAY be omitted when it genuinely does not apply. Do not add empty plac
 - Use consistent visual treatment for added, removed, and retained interactions in a change diagram.
 - A removal arrow MUST retain the semantic label of the original interaction; do not add redundant prose such as `Remove` when the visual treatment already communicates removal.
 - Explanatory removal arrows are non-normative and do not require IDs.
-- Every normative sequence flow and every `alt` or `else` branch MUST have its own RFC 2119 interaction requirement and Gherkin scenario.
-- Branch requirements MUST describe routing, ordering, continuation, and gating. They MUST NOT duplicate the called component's behavior contract.
+- Each normative flow MUST have one RFC 2119 interaction requirement that states its routing,
+  ordering, continuation, gating, value propagation, and every `alt` or `else` branch. Do not split a
+  flow's branches into separate requirements.
+- Each branch and each materially distinct terminal path MUST have its own Gherkin scenario under the
+  flow's requirement. These are the flow's aggregate-flow scenarios.
+- A flow requirement MUST NOT duplicate a called component's behavior contract: its scenarios assert
+  what the caller propagates and decides, not what the called component returns.
 - Canonical diagrams and interaction requirements live only in a flow spec (see Technical Lifecycle
   Rules). A flow spec's diagram shows the current system only, with no added or removed treatment.
-- In a flow spec, every arrow MUST be labelled with the ID of the behavior requirement it realizes,
-  and every `alt` or `else` branch with the ID of its interaction requirement. Every ID in a diagram
-  MUST exist, and every interaction requirement MUST appear in its flow's diagram.
-- Aggregate-flow scenarios MUST cover every materially distinct terminal path from entry to valid continuation or invalid exit.
+- In a flow spec, IDs label arrows only: each arrow carries the ID of the behavior requirement it
+  realizes, plus the flow's interaction requirement ID where that requirement constrains the arrow.
+  Notes and branch labels carry no IDs. Every ID in a diagram MUST exist, and every interaction
+  requirement MUST appear on at least one arrow of its flow's diagram.
 - A temporary gating condition MUST be an intermediate assertion, not the final outcome of a valid path.
 
 ## Component Qualification
@@ -227,8 +232,9 @@ Verify:
   different components.
 - Component filenames and titles follow the component rule; flow filenames and titles follow the
   `<flow-name>-flow.md` and `<Flow Name> Flow - Technical Spec` rule.
-- Each flow spec's diagram shows the current system only, labels every arrow with a behavior
-  requirement ID and every `alt` or `else` branch with an interaction requirement ID, and uses only
+- Each flow has one interaction requirement covering every branch, with one scenario per branch and
+  terminal path.
+- Each flow spec's diagram shows the current system only, carries IDs on arrows only, and uses only
   IDs that exist.
 - Every interaction requirement appears in its flow's diagram, and every cross-component behavior
   requirement is drawn in at least one flow.
