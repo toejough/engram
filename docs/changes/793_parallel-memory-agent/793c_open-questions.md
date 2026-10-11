@@ -257,7 +257,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 
 ## 793c23 Is a note amended as near injected?
 
-- **Status:** open.
+- **Status:** answered (Joe, 2026-10-11): (b) inject the amended note; a changed note is not present in its changed form.
 - **Context:** [793c16 At a deep moment, does the System's coverage write activate the note it covers?](#793c16-at-a-deep-moment-does-the-systems-coverage-write-activate-the-note-it-covers) was answered for the covered outcome only: the covering note is injected. [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) says nothing about injecting a near note after it is amended with re-synthesized content ([792a14j Coverage is judged by the agent and written once per cluster](../../specs/product/recall.md#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster)). The version the working agent saw, if it saw one, differs from the amended note.
 - **Options:**
   - (a) no: a near note is amended and not injected again.
@@ -268,7 +268,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 
 ## 793c24 Does the covering note's injection add anything to the depth's output?
 
-- **Status:** open.
+- **Status:** answered (Joe, 2026-10-11): (a) keep the explicit clause and inject the cluster's items too; "covering note instead of its cluster" is added to [#848](https://github.com/toejough/engram/issues/848).
 - **Context:** [793c16 At a deep moment, does the System's coverage write activate the note it covers?](#793c16-at-a-deep-moment-does-the-systems-coverage-write-activate-the-note-it-covers) has the System inject the covering note. A covering note is a candidate from the moment's query results, which [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output) already injects, so the clause matters only when the note is not among the injected results.
 - **Options:**
   - (a) keep the clause in [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) as an explicit guarantee.

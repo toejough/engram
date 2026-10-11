@@ -665,3 +665,15 @@ orchestrator or a reviewer await the owner's validation.
 - **Decided by:** Author (agent); awaiting owner validation.
 - **Choice:** two points were ambiguous and were not decided silently: [793c23 Is a note amended as near injected?](793c_open-questions.md#793c23-is-a-note-amended-as-near-injected) (whether a note amended as near is injected) and [793c24 Does the covering note's injection add anything to the depth's output?](793c_open-questions.md#793c24-does-the-covering-notes-injection-add-anything-to-the-depths-output) (whether the covering note's injection adds anything beyond [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output)). Both carry a recommendation and block [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems).
 - **Rationale:** the answers to [793c16 At a deep moment, does the System's coverage write activate the note it covers?](793c_open-questions.md#793c16-at-a-deep-moment-does-the-systems-coverage-write-activate-the-note-it-covers) covered the covered outcome only, and the injection clause overlaps an existing rule.
+
+## 793b71 A near-amended note is injected
+
+- **Choice:** [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) injects the amended note after a near amend, without activating it. [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection) treats a note changed after delivery as not present in its changed form, with new scenario [793a2e1j An amended note is delivered in its changed form](793a_product-spec.md#793a2e1-uat-scenarios). [793a3g1e A near cluster amends the note](793a_product-spec.md#793a3g1-uat-scenarios) asserts the delivery.
+- **Rationale:** in recall the agent doing the deep pass writes the amendment, so the amended content is in its context. Injecting it keeps that behavior.
+- **Decided by:** Owner (Joe), [793c23 Is a note amended as near injected?](793c_open-questions.md#793c23-is-a-note-amended-as-near-injected); wording and the 793a2e clause by Orchestrator (Claude), awaiting owner validation.
+
+## 793b72 Covering note and cluster are both injected
+
+- **Choice:** keep the explicit covering-note injection in 793a3g, and inject the cluster's items as [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output) requires. Injecting the covering note in place of its cluster is a trim, tracked in #848.
+- **Decided by:** Owner (Joe), [793c24 Does the covering note's injection add anything to the depth's output?](793c_open-questions.md#793c24-does-the-covering-notes-injection-add-anything-to-the-depths-output).
+

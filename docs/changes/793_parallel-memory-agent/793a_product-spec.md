@@ -136,7 +136,7 @@ Scenario: 793a2d1b Injected chunk names its id
 Requirement: 793a2e (formerly REC-5) The System MUST NOT inject an item (a note or a chunk) already
 present in the receiving agent's context, whether the System injected it earlier, the agent retrieved it,
 or it arrived by any other means. A chunk stub already shown counts as present, so a chunk stub MUST NOT be
-injected again.
+injected again. A note whose content changed after the agent received it is not present in its changed form.
 
 Rationale: an item the agent already has adds only noise. Each subagent is a separate context, so a
 parent's items do not spare the subagent. Compaction removes content, so a removed item can be useful
@@ -182,6 +182,12 @@ Scenario: 793a2e1i A chunk stub already shown is not injected again
   And the session has not been compacted
   When a later moment's query returns Y
   Then the session transcript shows Y's id and score only once
+
+Scenario: 793a2e1j An amended note is delivered in its changed form
+  Given note Q was delivered to the working agent earlier in the session
+  And Q was amended afterwards
+  When a later recall moment returns Q
+  Then the transcript shows Q's amended content delivered
 ```
 
 ### 793a2h Recall depth per moment
@@ -452,7 +458,8 @@ writes, and the working agent MUST NOT be asked to. For each cluster, using the 
   without rewriting its content, and MUST inject the covering note into the working agent, subject to [793a2e No re-injection](#793a2e-no-re-injection). The
   coverage write MUST NOT activate the note; it is activated only as [793a3k Used notes are activated](#793a3k-used-notes-are-activated) activates any injected note.
 - When an existing note addresses the same situation but omits a substantive claim the cluster evidences, the System MUST
-  amend it with the cluster's chunks as evidence and the re-synthesized content.
+  amend it with the cluster's chunks as evidence and the re-synthesized content, and MUST inject the amended note into the
+  working agent. The amend MUST NOT activate the note.
 - When no existing note addresses the situation, the System MUST write one new note for the cluster.
 
 Each such write MUST carry the provenance of [793a3d Provenance](#793a3d-provenance). For an amend, the chunk sources it adds and the log entry MUST
@@ -505,6 +512,7 @@ Scenario: 793a3g1e A near cluster amends the note
   Given a deep recall moment whose results include a cluster that existing note Q addresses but omits a substantive claim the cluster evidences
   When the moment completes
   Then Q states the omitted claim and lists the cluster's chunks as evidence
+  And the transcript shows Q's amended content delivered to the working agent
   And Q's original source field is unchanged
   And the chunk sources the amend added and the log entry name the session id and the turn id
   And Q's recency metadata is the same as before the moment
