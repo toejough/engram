@@ -168,7 +168,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 
 ## 793c16 At a deep moment, does the System's coverage write activate the note it covers?
 
-- **Status:** deferred (Joe, 2026-10-11): Joe asked first whether the System can know what the agent actually used; see [793c21 How does the System know a note was used?](#793c21-how-does-the-system-know-a-note-was-used).
+- **Status:** open again now that [793c21 How does the System know a note was used?](#793c21-how-does-the-system-know-a-note-was-used) is answered.
 - **Context:** at a deep moment the System writes coverage ([792a14j Coverage is judged by the agent and written once per cluster](../../specs/product/recall.md#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster), [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems)) by adding chunk sources to an existing note with `engram amend`. `engram amend --activate` would also bump that note's recency, which [793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated) otherwise reserves for notes the agent used ([793c9 Does the System activate notes?](#793c9-does-the-system-activate-notes)).
 - **Options:**
   - (a) no: the System adds chunk sources without `--activate`, and only agent-used notes are activated ([793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated)).
@@ -219,7 +219,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 
 ## 793c21 How does the System know a note was used?
 
-- **Status:** open.
+- **Status:** answered (Joe, 2026-10-11): (a) infer use from the transcript at turn-end capture, log each verdict with its evidence, and have the precision grader sample activation verdicts.
 - **Context:** Joe asked (2026-10-11, on [793c16 At a deep moment, does the System's coverage write activate the note it covers?](#793c16-at-a-deep-moment-does-the-systems-coverage-write-activate-the-note-it-covers)) whether the System can know what the agent actually used. Today, recall's activation step ([792a14l Only the notes that were used are activated](../../specs/product/recall.md#792a14l-only-the-notes-that-were-used-are-activated)) relies on the agent declaring which notes it drew on. The System has no such declaration. It can only infer use from the session transcript after the turn: the agent quoting or citing the note, following its steps, or taking an action the note prescribes. Inference misses unstated use and can mistake coincidence for use. Asking the working agent to declare use would put memory bookkeeping back into its context.
 - **Options:**
   - (a) Infer use from the transcript at turn-end capture, log each verdict with its evidence, and have the [793a3i Precision is graded independently](793a_product-spec.md#793a3i-precision-is-graded-independently) grader also sample activation verdicts so their accuracy is measured.
@@ -230,7 +230,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 
 ## 793c22 There is no uninstall command today
 
-- **Status:** open.
+- **Status:** answered (Joe, 2026-10-11): (b) a general `engram uninstall` in its own change, [#849](https://github.com/toejough/engram/issues/849); this change depends on it.
 - **Context:** [793c18 How is the System installed and turned off?](#793c18-how-is-the-system-installed-and-turned-off) says to extend the existing uninstall. `engram --help` has no uninstall command. The install-and-update capability ([install-and-update](../../specs/product/install-and-update.md)) covers installing and syncing only; today, removing engram means deleting the binary and the deployed links by hand.
 - **Options:**
   - (a) Add an `engram uninstall` command in this change that removes the System, and only the System, so turning it off is one command.
