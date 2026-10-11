@@ -168,7 +168,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 
 ## 793c16 At a deep moment, does the System's coverage write activate the note it covers?
 
-- **Status:** open again now that [793c21 How does the System know a note was used?](#793c21-how-does-the-system-know-a-note-was-used) is answered.
+- **Status:** answered (Joe, 2026-10-11): when a note covers a cluster, attach the cluster's chunks to it as evidence and inject the covering note into the working agent (subject to no re-injection); mark it used only on the same transcript evidence as any injected note ([793c21 How does the System know a note was used?](#793c21-how-does-the-system-know-a-note-was-used)).
 - **Context:** at a deep moment the System writes coverage ([792a14j Coverage is judged by the agent and written once per cluster](../../specs/product/recall.md#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster), [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems)) by adding chunk sources to an existing note with `engram amend`. `engram amend --activate` would also bump that note's recency, which [793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated) otherwise reserves for notes the agent used ([793c9 Does the System activate notes?](#793c9-does-the-system-activate-notes)).
 - **Options:**
   - (a) no: the System adds chunk sources without `--activate`, and only agent-used notes are activated ([793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated)).
