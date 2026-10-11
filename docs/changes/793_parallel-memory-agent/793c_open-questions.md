@@ -3,7 +3,7 @@
 These are the Open Decisions carried over from the draft requirements. Joe answered the first six on
 2026-10-11, and the answers are applied in [`793a_product-spec.md`](./793a_product-spec.md). His later
 review answers are recorded in [793c7 Review answers (2026-10-11)](#793c7-review-answers-2026-10-11), and his answers to [793c8 What does the System inject when only incidental items come back?](#793c8-what-does-the-system-inject-when-only-incidental-items-come-back), [793c9 Does the System activate notes?](#793c9-does-the-system-activate-notes), [793c11 What does the latency bound cover?](#793c11-what-does-the-latency-bound-cover), [793c12 Are operating modes needed at all?](#793c12-are-operating-modes-needed-at-all), [793c13 Does the System activate notes the agent retrieved itself?](#793c13-does-the-system-activate-notes-the-agent-retrieved-itself) and [793c14 Should reinforcing an existing note be a MUST?](#793c14-should-reinforcing-an-existing-note-be-a-must) are applied too. The phrasing choices
-made in applying them are in [`793b_decision-log.md`](./793b_decision-log.md). His answers to [793c15 Does the System inject chunks with their content?](#793c15-does-the-system-inject-chunks-with-their-content) to [793c22 There is no uninstall command today](#793c22-there-is-no-uninstall-command-today) are applied too, as are his answers to [793c23 Is a note amended as near injected?](#793c23-is-a-note-amended-as-near-injected) and [793c24 Does the covering note's injection add anything to the depth's output?](#793c24-does-the-covering-notes-injection-add-anything-to-the-depths-output). Four questions, [793c25 When are the covering and amended notes from a deep moment injected?](#793c25-when-are-the-covering-and-amended-notes-from-a-deep-moment-injected), [793c26 What does the System's recommendation check (792a14o) key on?](#793c26-what-does-the-systems-recommendation-check-792a14o-key-on), [793c27 Does the System sweep the chunk index (792a14b)?](#793c27-does-the-system-sweep-the-chunk-index-792a14b) and [793c28 How is 793a5g's latency comparison measured?](#793c28-how-is-793a5gs-latency-comparison-measured), are open and await Joe.
+made in applying them are in [`793b_decision-log.md`](./793b_decision-log.md). His answers to [793c15 Does the System inject chunks with their content?](#793c15-does-the-system-inject-chunks-with-their-content) to [793c22 There is no uninstall command today](#793c22-there-is-no-uninstall-command-today) are applied too, as are his answers to [793c23 Is a note amended as near injected?](#793c23-is-a-note-amended-as-near-injected) and [793c24 Does the covering note's injection add anything to the depth's output?](#793c24-does-the-covering-notes-injection-add-anything-to-the-depths-output). Four questions, [793c25 When are the covering and amended notes from a deep moment injected?](#793c25-when-are-the-covering-and-amended-notes-from-a-deep-moment-injected), [793c26 What does the System's recommendation check (792a14o) key on?](#793c26-what-does-the-systems-recommendation-check-792a14o-key-on), [793c27 Does the System sweep the chunk index (792a14b)?](#793c27-does-the-system-sweep-the-chunk-index-792a14b) and [793c28 How is 793a5g's latency comparison measured?](#793c28-how-is-793a5gs-latency-comparison-measured), were open when Joe's answers to [793c29 Is the System a delegate for the existing memory skills?](#793c29-is-the-system-a-delegate-for-the-existing-memory-skills) and [793c30 Which earlier decisions stay as deliberate differences from the skills?](#793c30-which-earlier-decisions-stay-as-deliberate-differences-from-the-skills) settled them: 793c25, 793c26 and 793c28 are retired and 793c27 is answered. Those two answers restructured [`793a_product-spec.md`](./793a_product-spec.md) as a delegation of the memory skills, and many earlier answers now govern requirements that no longer exist; their applied-in lines name those requirements in code font. The open questions are [793c31 Which canonical nodes that ask the agent to run recall or learn change while the Integration is installed?](#793c31-which-canonical-nodes-that-ask-the-agent-to-run-recall-or-learn-change-while-the-integration-is-installed), [793c32 Does the System keep a rule against concurrent duplicate captures?](#793c32-does-the-system-keep-a-rule-against-concurrent-duplicate-captures), [793c33 Do the requirements outside the D1-D5 and N1-N8 lists stay?](#793c33-do-the-requirements-outside-the-d1-d5-and-n1-n8-lists-stay), [793c34 What stands in for learn's closing learn?](#793c34-what-stands-in-for-learns-closing-learn) and [793c35 How is the delay comparison in 793a5g1a made given timing noise?](#793c35-how-is-the-delay-comparison-in-793a5g1a-made-given-timing-noise).
 
 ## 793c1 What are the capture precision bar and capture-rate target?
 
@@ -20,7 +20,7 @@ made in applying them are in [`793b_decision-log.md`](./793b_decision-log.md). H
   about 135 KB, 45 items and 10.6-11.0 s per query (measured 2026-10-11 on Joe's vault; `engram query`
   defaults `--limit 20`, content budget 15). The System MUST record, per moment, the injected volume
   and the added latency; reducing the bounds needs that data (follow-up #845).
-- **Applied in:** [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output), [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment) and [793a5e Auditability and measurability](793a_product-spec.md#793a5e-auditability-and-measurability).
+- **Applied in:** `793a2j Volume equals the depth's output`, [793a5g No added delay](793a_product-spec.md#793a5g-no-added-delay) and [793a5e Auditability and measurability](793a_product-spec.md#793a5e-auditability-and-measurability).
 
 ## 793c3 What is the default mode for a fresh install?
 
@@ -35,7 +35,7 @@ made in applying them are in [`793b_decision-log.md`](./793b_decision-log.md). H
 - **Answer:** written directly to the vault. The System, the parallel agent, owns judging what is
   worth saving, so the main agent's context is not polluted with memory evaluation. Precision
   recording ([793c1 What are the capture precision bar and capture-rate target?](#793c1-what-are-the-capture-precision-bar-and-capture-rate-target)) is the quality guard.
-- **Applied in:** [793a3a Evaluate every completed turn](793a_product-spec.md#793a3a-evaluate-every-completed-turn) (scenarios [793a3a1a User correction is captured without agent action](793a_product-spec.md#793a3a1-uat-scenarios) and [793a3a1b Explicit save-request](793a_product-spec.md#793a3a1-uat-scenarios)) and [793a3d Provenance](793a_product-spec.md#793a3d-provenance) (scenario [793a3d1a Provenance present](793a_product-spec.md#793a3d1-uat-scenarios)).
+- **Applied in:** [793a3a Learn is performed for the working agent](793a_product-spec.md#793a3a-learn-is-performed-for-the-working-agent) (scenarios [793a3a1a User correction is captured without agent action](793a_product-spec.md#793a3a1-uat-scenarios) and [793a3a1b Explicit save-request](793a_product-spec.md#793a3a1-uat-scenarios)) and [793a3d Provenance](793a_product-spec.md#793a3d-provenance) (scenario [793a3d1a Provenance present](793a_product-spec.md#793a3d1-uat-scenarios)).
 
 ## 793c5 Does 793a2i Recall for every prompt regardless of source keep human-originated prompts as the default?
 
@@ -48,7 +48,7 @@ made in applying them are in [`793b_decision-log.md`](./793b_decision-log.md). H
 
 - **Status:** answered (Joe, 2026-10-11).
 - **Answer:** yes, in both top-level and subagent sessions.
-- **Applied in:** [793a3a Evaluate every completed turn](793a_product-spec.md#793a3a-evaluate-every-completed-turn), scenario [793a3a1c A subagent's own guess overturned by evidence is captured](793a_product-spec.md#793a3a1-uat-scenarios).
+- **Applied in:** [793a3a Learn is performed for the working agent](793a_product-spec.md#793a3a-learn-is-performed-for-the-working-agent), scenario `793a3a1c A subagent's own guess overturned by evidence is captured`.
 
 ## 793c7 Review answers (2026-10-11)
 
@@ -56,11 +56,11 @@ Joe's answers to the review of the first revision, all applied in [`793a_product
 
 1. **Bounds equal recall's output.** Each recall moment picks a depth by the existing triggers; the
    System injects at most what that depth's queries return, which is also the floor, less notes already
-   in context. Deep's writes are the System's. Applied in [793a2h Recall depth per moment](793a_product-spec.md#793a2h-recall-depth-per-moment), [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output), [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems).
+   in context. Deep's writes are the System's. Applied in `793a2h Recall depth per moment`, `793a2j Volume equals the depth's output`, `793a3g Deep recall's writes are the System's`.
 2. **Per-turn and per-session bounds are dropped.**
 3. **The per-moment bound applies at tool-result moments too.**
 4. **Latency** covers every recall moment and MUST NOT exceed the depth's query latency on the same vault
-   and input. Per-moment volume and latency are recorded ([793a5e Auditability and measurability](793a_product-spec.md#793a5e-auditability-and-measurability), [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment)). Reductions wait on #845.
+   and input. Per-moment volume and latency are recorded ([793a5e Auditability and measurability](793a_product-spec.md#793a5e-auditability-and-measurability), [793a5g No added delay](793a_product-spec.md#793a5g-no-added-delay)). Reductions wait on #845.
 5. **Never re-inject** means never a note already in the receiving agent's context; term Context added;
    subagents are separate; a truncated note is not present. Applied in [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection), [793a2i Recall for every prompt regardless of source](793a_product-spec.md#793a2i-recall-for-every-prompt-regardless-of-source).
 6. **Measurement** is recorded in observe and active, not switchable apart from the mode; off records
@@ -68,7 +68,7 @@ Joe's answers to the review of the first revision, all applied in [`793a_product
 7. **Precision** is judged by a separate grader, reported with its sample size ([793a3i Precision is graded independently](793a_product-spec.md#793a3i-precision-is-graded-independently)).
 8. **Capture rate** must exceed 5.6% on the point estimate, no margin ([793a3h Capture rate exceeds the baseline](793a_product-spec.md#793a3h-capture-rate-exceeds-the-baseline)).
 9. **Lesson** is any corrected failure, including the agent's own overturned mistake; wider than learn's
-   definition, tracked in #846 ([793a1 Problem Statement](793a_product-spec.md#793a1-problem-statement), [793a3a Evaluate every completed turn](793a_product-spec.md#793a3a-evaluate-every-completed-turn)).
+   definition, tracked in #846 ([793a1 Problem Statement](793a_product-spec.md#793a1-problem-statement), [793a3a Learn is performed for the working agent](793a_product-spec.md#793a3a-learn-is-performed-for-the-working-agent)).
 10. **Secrets** are a MUST NOT ([793a4d Sensitive content](793a_product-spec.md#793a4d-sensitive-content)).
 11. **New IDs** for nodes whose meaning reversed; old IDs retired ([793b14 ID handling](793b_decision-log.md#793b14-id-handling)).
 12. **N = 20** per arm accepted, proposed marker removed ([793a5f Effect on outcomes](793a_product-spec.md#793a5f-effect-on-outcomes)).
@@ -80,14 +80,14 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 ## 793c8 What does the System inject when only incidental items come back?
 
 - **Status:** answered (Joe, 2026-10-11): (a) inject what recall delivers today, the depth's whole output including incidental items. Trimming is a follow-up, [#848](https://github.com/toejough/engram/issues/848), gated on #845 data.
-- **Context:** At a moment whose queries return only incidental items (explore picks per [792a7i Half of the notes are explored](../../specs/product/memory-query.md#792a7i-half-of-the-notes-are-explored), newest chunks per [792a7o The newest chunks](../../specs/product/memory-query.md#792a7o-the-newest-chunks), ride-alongs per [792a7n Superseding notes ride along](../../specs/product/memory-query.md#792a7n-superseding-notes-ride-along)) and no direct match, [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output) would inject all of it.
+- **Context:** At a moment whose queries return only incidental items (explore picks per [792a7i Half of the notes are explored](../../specs/product/memory-query.md#792a7i-half-of-the-notes-are-explored), newest chunks per [792a7o The newest chunks](../../specs/product/memory-query.md#792a7o-the-newest-chunks), ride-alongs per [792a7n Superseding notes ride along](../../specs/product/memory-query.md#792a7n-superseding-notes-ride-along)) and no direct match, `793a2j Volume equals the depth's output` would inject all of it.
 - **Options:**
   - (a) everything the queries return.
   - (b) only direct matches and their ride-alongs.
   - (c) the full output when at least one direct match exists, nothing otherwise.
 - **Recommendation:** (c). It keeps the "depth's output" rule when something matches and avoids injecting noise when nothing does.
-- **Applied in:** [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection), [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output) and [793a2a1c Only incidental items come back](793a_product-spec.md#793a2a1-uat-scenarios); `793a2a1b` and `793a2e1b` are retired. Decision: [793b46 Inject what recall delivers today](793b_decision-log.md#793b46-inject-what-recall-delivers-today).
-- **Blocks:** [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection), [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output), `793a2a1b No relevant note exists`, `793a2e1b Irrelevant note suppressed`.
+- **Applied in:** [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection), `793a2j Volume equals the depth's output` and `793a2a1c Only incidental items come back`; `793a2a1b` and `793a2e1b` are retired. Decision: [793b46 Inject what recall delivers today](793b_decision-log.md#793b46-inject-what-recall-delivers-today).
+- **Blocks:** [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection), `793a2j Volume equals the depth's output`, `793a2a1b No relevant note exists`, `793a2e1b Irrelevant note suppressed`.
 
 ## 793c9 Does the System activate notes?
 
@@ -98,7 +98,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
   - (b) every injected note.
   - (c) notes the agent went on to use, judged at turn-end capture.
 - **Recommendation:** (c). It matches recall's "only the notes that were used" rule at a moment the System already evaluates.
-- **Applied in:** [793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated). Decision: [793b47 Used notes are activated at turn-end capture](793b_decision-log.md#793b47-used-notes-are-activated-at-turn-end-capture).
+- **Applied in:** [793a3k Use is inferred from the transcript](793a_product-spec.md#793a3k-use-is-inferred-from-the-transcript). Decision: [793b47 Used notes are activated at turn-end capture](793b_decision-log.md#793b47-used-notes-are-activated-at-turn-end-capture).
 - **Blocks:** a new requirement.
 
 ## 793c10 What is the default mode for an existing install that updates?
@@ -115,14 +115,14 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 ## 793c11 What does the latency bound cover?
 
 - **Status:** answered (Joe, 2026-10-11): (b) the instruction path's full lookup, phrasing plus queries, on the same input.
-- **Context:** [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment) caps added latency at the latency of the depth's queries. The instruction path's lookup also includes the agent phrasing its query, which the System does too.
+- **Context:** [793a5g No added delay](793a_product-spec.md#793a5g-no-added-delay) caps added latency at the latency of the depth's queries. The instruction path's lookup also includes the agent phrasing its query, which the System does too.
 - **Options:**
   - (a) queries only.
   - (b) the instruction path's full lookup (phrasing plus queries) on the same input.
   - (c) queries plus a fixed allowance.
 - **Recommendation:** (b). It compares like with like and needs no fixed number that would go stale.
-- **Applied in:** [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment). Decision: [793b48 Latency covers the instruction path's full lookup](793b_decision-log.md#793b48-latency-covers-the-instruction-paths-full-lookup).
-- **Blocks:** [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment).
+- **Applied in:** [793a5g No added delay](793a_product-spec.md#793a5g-no-added-delay). Decision: [793b48 Latency covers the instruction path's full lookup](793b_decision-log.md#793b48-latency-covers-the-instruction-paths-full-lookup).
+- **Blocks:** [793a5g No added delay](793a_product-spec.md#793a5g-no-added-delay).
 
 ## 793c12 Are operating modes needed at all?
 
@@ -139,27 +139,27 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 ## 793c13 Does the System activate notes the agent retrieved itself?
 
 - **Status:** answered (Joe, 2026-10-11): (a) only notes the System injected; explicit recall activates its own.
-- **Context:** [793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated) covers the notes the System injected during the turn, per [793c9 Does the System activate notes?](#793c9-does-the-system-activate-notes). When recall runs as an instruction, it activates the notes it used ([792a14l Only the notes that were used are activated](../../specs/product/recall.md#792a14l-only-the-notes-that-were-used-are-activated)). A note the agent retrieved by its own lookup and used is activated only if that lookup was a recall.
+- **Context:** [793a3k Use is inferred from the transcript](793a_product-spec.md#793a3k-use-is-inferred-from-the-transcript) covers the notes the System injected during the turn, per [793c9 Does the System activate notes?](#793c9-does-the-system-activate-notes). When recall runs as an instruction, it activates the notes it used ([792a14l Only the notes that were used are activated](../../specs/product/recall.md#792a14l-only-the-notes-that-were-used-are-activated)). A note the agent retrieved by its own lookup and used is activated only if that lookup was a recall.
 - **Options:**
   - (a) injected notes only.
   - (b) also notes the agent retrieved itself and used.
 - **Recommendation:** (a). Recall already activates its own retrievals, and (b) widens the System's judgment to content it did not deliver.
-- **Blocks:** [793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated).
+- **Blocks:** [793a3k Use is inferred from the transcript](793a_product-spec.md#793a3k-use-is-inferred-from-the-transcript).
 
 ## 793c14 Should reinforcing an existing note be a MUST?
 
-- **Status:** answered (Joe, 2026-10-11): (b) reinforcement is a MUST; [793a3c No duplicates](793a_product-spec.md#793a3c-no-duplicates) and [793a3c1a Existing note already covers the lesson](793a_product-spec.md#793a3c1-uat-scenarios) updated. Decision: [793b52 Reinforcement is required](793b_decision-log.md#793b52-reinforcement-is-required).
-- **Context:** [793a3c No duplicates](793a_product-spec.md#793a3c-no-duplicates) says the System SHOULD reinforce an equivalent existing note. The second review ([793b35 M8: "Reinforced" is not backed by a MUST](793b_decision-log.md#793b35-m8-reinforced-is-not-backed-by-a-must)) noted the scenario asserted a mark the requirement did not require, and the scenario no longer does.
+- **Status:** answered (Joe, 2026-10-11): (b) reinforcement is a MUST; `793a3c No duplicates` and `793a3c1a Existing note already covers the lesson` updated. Decision: [793b52 Reinforcement is required](793b_decision-log.md#793b52-reinforcement-is-required).
+- **Context:** `793a3c No duplicates` says the System SHOULD reinforce an equivalent existing note. The second review ([793b35 M8: "Reinforced" is not backed by a MUST](793b_decision-log.md#793b35-m8-reinforced-is-not-backed-by-a-must)) noted the scenario asserted a mark the requirement did not require, and the scenario no longer does.
 - **Options:**
   - (a) keep SHOULD, with no scenario.
   - (b) make it a MUST, with a scenario asserting the existing note's recency or reinforcement record changed.
 - **Recommendation:** (a). The owner has not asked for more, and a duplicate is already forbidden.
-- **Blocks:** [793a3c No duplicates](793a_product-spec.md#793a3c-no-duplicates).
+- **Blocks:** `793a3c No duplicates`.
 
 ## 793c15 Does the System inject chunks with their content?
 
 - **Status:** answered (Joe, 2026-10-11): (b) lazy chunks, as recall runs the query; add a rule against re-injecting the same chunk stub, and retire the chunk-content scenario.
-- **Applied in:** [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection), [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output), [793a2j1e Chunks are delivered as stubs](793a_product-spec.md#793a2j1-uat-scenarios), [793a2e1h A chunk whose content the agent fetched is not injected](793a_product-spec.md#793a2e1-uat-scenarios) and [793a2e1i A chunk stub already shown is not injected again](793a_product-spec.md#793a2e1-uat-scenarios); `793a2e1f` is retired. Decision: [793b62 Chunks are injected lazily, as stubs](793b_decision-log.md#793b62-chunks-are-injected-lazily-as-stubs).
+- **Applied in:** [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection), `793a2j Volume equals the depth's output`, `793a2j1e Chunks are delivered as stubs`, [793a2e1h A chunk whose content the agent fetched is not injected](793a_product-spec.md#793a2e1-uat-scenarios) and [793a2e1i A chunk stub already shown is not injected again](793a_product-spec.md#793a2e1-uat-scenarios); `793a2e1f` is retired. Decision: [793b62 Chunks are injected lazily, as stubs](793b_decision-log.md#793b62-chunks-are-injected-lazily-as-stubs).
 - **Applied in commit:** 1adbb77e.
 - **Context:** [792a14f One unified query](../../specs/product/recall.md#792a14f-one-unified-query) requires `--lazy-chunks`, which prints chunks as path and score only ([792a7s Lazy chunks](../../specs/product/memory-query.md#792a7s-lazy-chunks)). The baseline measurement in [793c2 Are the volume bounds and latency budget accepted?](#793c2-are-the-volume-bounds-and-latency-budget-accepted) used the query's defaults, which print chunk content. `793a2e1f A chunk shown without content is delivered with it` has the System deliver a chunk with its content.
 - **Options:**
@@ -171,27 +171,27 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 ## 793c16 At a deep moment, does the System's coverage write activate the note it covers?
 
 - **Status:** answered (Joe, 2026-10-11): when a note covers a cluster, attach the cluster's chunks to it as evidence and inject the covering note into the working agent (subject to no re-injection); mark it used only on the same transcript evidence as any injected note ([793c21 How does the System know a note was used?](#793c21-how-does-the-system-know-a-note-was-used)).
-- **Applied in:** [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) (scenarios [793a3g1c A covered cluster gets evidence and its note is injected](793a_product-spec.md#793a3g1-uat-scenarios), [793a3g1d A covering note already in context is not injected again](793a_product-spec.md#793a3g1-uat-scenarios) and [793a3g1e A near cluster amends the note](793a_product-spec.md#793a3g1-uat-scenarios)) and [793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated). Decision: [793b63 A coverage write attaches evidence and injects, and never activates](793b_decision-log.md#793b63-a-coverage-write-attaches-evidence-and-injects-and-never-activates).
+- **Applied in:** `793a3g Deep recall's writes are the System's` (scenarios `793a3g1c A covered cluster gets evidence and its note is injected`, `793a3g1d A covering note already in context is not injected again` and `793a3g1e A near cluster amends the note`) and [793a3k Use is inferred from the transcript](793a_product-spec.md#793a3k-use-is-inferred-from-the-transcript). Decision: [793b63 A coverage write attaches evidence and injects, and never activates](793b_decision-log.md#793b63-a-coverage-write-attaches-evidence-and-injects-and-never-activates).
 - **Applied in commit:** 1adbb77e.
-- **Context:** at a deep moment the System writes coverage ([792a14j Coverage is judged by the agent and written once per cluster](../../specs/product/recall.md#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster), [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems)) by adding chunk sources to an existing note with `engram amend`. `engram amend --activate` would also bump that note's recency, which [793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated) otherwise reserves for notes the agent used ([793c9 Does the System activate notes?](#793c9-does-the-system-activate-notes)).
+- **Context:** at a deep moment the System writes coverage ([792a14j Coverage is judged by the agent and written once per cluster](../../specs/product/recall.md#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster), `793a3g Deep recall's writes are the System's`) by adding chunk sources to an existing note with `engram amend`. `engram amend --activate` would also bump that note's recency, which [793a3k Use is inferred from the transcript](793a_product-spec.md#793a3k-use-is-inferred-from-the-transcript) otherwise reserves for notes the agent used ([793c9 Does the System activate notes?](#793c9-does-the-system-activate-notes)).
 - **Options:**
-  - (a) no: the System adds chunk sources without `--activate`, and only agent-used notes are activated ([793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated)).
-  - (b) yes: a coverage write activates the note it covers, as an exception to [793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated).
+  - (a) no: the System adds chunk sources without `--activate`, and only agent-used notes are activated ([793a3k Use is inferred from the transcript](793a_product-spec.md#793a3k-use-is-inferred-from-the-transcript)).
+  - (b) yes: a coverage write activates the note it covers, as an exception to [793a3k Use is inferred from the transcript](793a_product-spec.md#793a3k-use-is-inferred-from-the-transcript).
 - **Recommendation:** (a). A coverage write records that a note covers a cluster, not that the agent used it, so activating it would keep unused notes fresh.
-- **Blocks:** [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) and [793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated).
+- **Blocks:** `793a3g Deep recall's writes are the System's` and [793a3k Use is inferred from the transcript](793a_product-spec.md#793a3k-use-is-inferred-from-the-transcript).
 
 ## 793c17 Does the latency bound include reading the glance results?
 
 - **Status:** answered (Joe, 2026-10-11): (a) the bound includes reading the glance results that escalation and the recommendation check depend on.
-- **Applied in:** [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment). Decision: [793b64 Latency includes reading the results](793b_decision-log.md#793b64-latency-includes-reading-the-results).
+- **Applied in:** [793a5g No added delay](793a_product-spec.md#793a5g-no-added-delay). Decision: [793b64 Latency includes reading the results](793b_decision-log.md#793b64-latency-includes-reading-the-results).
 - **Applied in commit:** 1adbb77e.
-- **Context:** [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment) bounds added latency by the instruction path's full lookup on the same input ([793c11 What does the latency bound cover?](#793c11-what-does-the-latency-bound-cover)). Escalating from glance to deep ([793a2h Recall depth per moment](793a_product-spec.md#793a2h-recall-depth-per-moment), [792a14d Glance escalates to deep for a recent standard](../../specs/product/recall.md#792a14d-glance-escalates-to-deep-for-a-recent-standard)) and the recommendation check ([792a14o An emergent recommendation is checked against the vault](../../specs/product/recall.md#792a14o-an-emergent-recommendation-is-checked-against-the-vault)) depend on reading the glance results, which takes agent time.
+- **Context:** [793a5g No added delay](793a_product-spec.md#793a5g-no-added-delay) bounds added latency by the instruction path's full lookup on the same input ([793c11 What does the latency bound cover?](#793c11-what-does-the-latency-bound-cover)). Escalating from glance to deep (`793a2h Recall depth per moment`, [792a14d Glance escalates to deep for a recent standard](../../specs/product/recall.md#792a14d-glance-escalates-to-deep-for-a-recent-standard)) and the recommendation check ([792a14o An emergent recommendation is checked against the vault](../../specs/product/recall.md#792a14o-an-emergent-recommendation-is-checked-against-the-vault)) depend on reading the glance results, which takes agent time.
 - **Options:**
   - (a) yes: reading the results is part of the instruction path's full lookup, so the bound includes it.
   - (b) no: the bound covers phrases plus queries only.
   - (c) drop the result-dependent escalation triggers and fix the depth up front.
 - **Recommendation:** (a). It compares like with like and keeps the escalation triggers.
-- **Blocks:** [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment), [793a2h Recall depth per moment](793a_product-spec.md#793a2h-recall-depth-per-moment), [793a2h1c An unresolved gap uses deep](793a_product-spec.md#793a2h1-uat-scenarios) and [793a5e1f An escalated moment records both depths](793a_product-spec.md#793a5e1-uat-scenarios).
+- **Blocks:** [793a5g No added delay](793a_product-spec.md#793a5g-no-added-delay), `793a2h Recall depth per moment`, `793a2h1c An unresolved gap uses deep` and [793a5e1f An escalated moment records both depths](793a_product-spec.md#793a5e1-uat-scenarios).
 
 ## 793c18 How is the System installed and turned off?
 
@@ -213,9 +213,9 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 - **Context:** raised unnumbered at the end of [793c7 Review answers (2026-10-11)](#793c7-review-answers-2026-10-11). [793a5e Auditability and measurability](793a_product-spec.md#793a5e-auditability-and-measurability) also logs the depth, the phrases of each query and whether glance escalated, which is more than Joe's answers asked for ([793b8 Per-moment record sits in the existing log requirement](793b_decision-log.md#793b8-per-moment-record-sits-in-the-existing-log-requirement), [793b43 Author's choice accepted: log depth, phrases and escalation](793b_decision-log.md#793b43-authors-choice-accepted-log-depth-phrases-and-escalation)).
 - **Options:**
   - (a) keep the fields.
-  - (b) drop them, which makes the [793a2h1a A routine decision uses glance](793a_product-spec.md#793a2h1-uat-scenarios) and [793a2h1c An unresolved gap uses deep](793a_product-spec.md#793a2h1-uat-scenarios) scenarios unverifiable from the log.
+  - (b) drop them, which makes the `793a2h1a A routine decision uses glance` and `793a2h1c An unresolved gap uses deep` scenarios unverifiable from the log.
 - **Recommendation:** (a). The depth and escalation scenarios can only be checked from the operator-accessible log.
-- **Blocks:** [793a5e Auditability and measurability](793a_product-spec.md#793a5e-auditability-and-measurability), [793a2h1a A routine decision uses glance](793a_product-spec.md#793a2h1-uat-scenarios), [793a2h1c An unresolved gap uses deep](793a_product-spec.md#793a2h1-uat-scenarios) and [793a5e1f An escalated moment records both depths](793a_product-spec.md#793a5e1-uat-scenarios).
+- **Blocks:** [793a5e Auditability and measurability](793a_product-spec.md#793a5e-auditability-and-measurability), `793a2h1a A routine decision uses glance`, `793a2h1c An unresolved gap uses deep` and [793a5e1f An escalated moment records both depths](793a_product-spec.md#793a5e1-uat-scenarios).
 
 ## 793c20 Must injected chunks identify their source like notes?
 
@@ -232,7 +232,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 ## 793c21 How does the System know a note was used?
 
 - **Status:** answered (Joe, 2026-10-11): (a) infer use from the transcript at turn-end capture, log each verdict with its evidence, and have the precision grader sample activation verdicts.
-- **Applied in:** [793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated), [793a3l Activation accuracy is graded independently](793a_product-spec.md#793a3l-activation-accuracy-is-graded-independently) and [793a5e Auditability and measurability](793a_product-spec.md#793a5e-auditability-and-measurability). Decision: [793b68 Use is inferred from the transcript and graded](793b_decision-log.md#793b68-use-is-inferred-from-the-transcript-and-graded).
+- **Applied in:** [793a3k Use is inferred from the transcript](793a_product-spec.md#793a3k-use-is-inferred-from-the-transcript), [793a3l Activation accuracy is graded independently](793a_product-spec.md#793a3l-activation-accuracy-is-graded-independently) and [793a5e Auditability and measurability](793a_product-spec.md#793a5e-auditability-and-measurability). Decision: [793b68 Use is inferred from the transcript and graded](793b_decision-log.md#793b68-use-is-inferred-from-the-transcript-and-graded).
 - **Applied in commit:** 1adbb77e.
 - **Context:** Joe asked (2026-10-11, on [793c16 At a deep moment, does the System's coverage write activate the note it covers?](#793c16-at-a-deep-moment-does-the-systems-coverage-write-activate-the-note-it-covers)) whether the System can know what the agent actually used. Today, recall's activation step ([792a14l Only the notes that were used are activated](../../specs/product/recall.md#792a14l-only-the-notes-that-were-used-are-activated)) relies on the agent declaring which notes it drew on. The System has no such declaration. It can only infer use from the session transcript after the turn: the agent quoting or citing the note, following its steps, or taking an action the note prescribes. Inference misses unstated use and can mistake coincidence for use. Asking the working agent to declare use would put memory bookkeeping back into its context.
 - **Options:**
@@ -240,7 +240,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
   - (b) Treat every injected note as used. Activation is then recency of injection, with no judgment.
   - (c) Don't activate at all until a reliable signal exists. Record it as a follow-up.
 - **Recommendation:** (a). It keeps the main agent's context clean, matches how capture already judges turns, and makes the inference's accuracy measurable instead of assumed.
-- **Blocks:** [793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated) and [793c16 At a deep moment, does the System's coverage write activate the note it covers?](#793c16-at-a-deep-moment-does-the-systems-coverage-write-activate-the-note-it-covers).
+- **Blocks:** [793a3k Use is inferred from the transcript](793a_product-spec.md#793a3k-use-is-inferred-from-the-transcript) and [793c16 At a deep moment, does the System's coverage write activate the note it covers?](#793c16-at-a-deep-moment-does-the-systems-coverage-write-activate-the-note-it-covers).
 
 ## 793c22 There is no uninstall command today
 
@@ -258,80 +258,82 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 ## 793c23 Is a note amended as near injected?
 
 - **Status:** answered (Joe, 2026-10-11): (b) inject the amended note; a changed note is not present in its changed form.
-- **Applied in:** [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection), [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems), [793a2e1j An amended note is delivered in its changed form](793a_product-spec.md#793a2e1-uat-scenarios) and [793a3g1e A near cluster amends the note](793a_product-spec.md#793a3g1-uat-scenarios). Decision: [793b71 A near-amended note is injected](793b_decision-log.md#793b71-a-near-amended-note-is-injected).
+- **Applied in:** [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection), `793a3g Deep recall's writes are the System's`, [793a2e1j An amended note is delivered in its changed form](793a_product-spec.md#793a2e1-uat-scenarios) and `793a3g1e A near cluster amends the note`. Decision: [793b71 A near-amended note is injected](793b_decision-log.md#793b71-a-near-amended-note-is-injected).
 - **Applied in commit:** da69f814.
-- **Context:** [793c16 At a deep moment, does the System's coverage write activate the note it covers?](#793c16-at-a-deep-moment-does-the-systems-coverage-write-activate-the-note-it-covers) was answered for the covered outcome only: the covering note is injected. [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) says nothing about injecting a near note after it is amended with re-synthesized content ([792a14j Coverage is judged by the agent and written once per cluster](../../specs/product/recall.md#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster)). The version the working agent saw, if it saw one, differs from the amended note.
+- **Context:** [793c16 At a deep moment, does the System's coverage write activate the note it covers?](#793c16-at-a-deep-moment-does-the-systems-coverage-write-activate-the-note-it-covers) was answered for the covered outcome only: the covering note is injected. `793a3g Deep recall's writes are the System's` says nothing about injecting a near note after it is amended with re-synthesized content ([792a14j Coverage is judged by the agent and written once per cluster](../../specs/product/recall.md#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster)). The version the working agent saw, if it saw one, differs from the amended note.
 - **Options:**
   - (a) no: a near note is amended and not injected again.
   - (b) yes: the amended note is injected, which needs a rule that an amended version is not the version already present under [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection).
 - **When this happens:** only at deep moments (a weighty or irreversible decision, a gap glance could not resolve, or a recently surfaced standard), and only for a cluster of results whose content overlaps an existing note but adds to or changes it. An example is a note saying "use targ for tests" and a cluster of recent sessions also saying "and pass -tags=integration for dev tests". Recall rewrites the note to include the new detail.
 - **Recommendation (revised 2026-10-11 by Orchestrator (Claude)):** (b). In recall today the agent that does the deep pass also writes the amendment, so the amended content is in its context. Injecting the amended note keeps that behavior. The earlier recommendation (a) would have left the agent with the older text.
-- **Blocks:** [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) and [793a3g1e A near cluster amends the note](793a_product-spec.md#793a3g1-uat-scenarios).
+- **Blocks:** `793a3g Deep recall's writes are the System's` and `793a3g1e A near cluster amends the note`.
 
 ## 793c24 Does the covering note's injection add anything to the depth's output?
 
 - **Status:** answered (Joe, 2026-10-11): (a) keep the explicit clause and inject the cluster's items too; "covering note instead of its cluster" is added to [#848](https://github.com/toejough/engram/issues/848).
-- **Applied in:** [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) (the clause is kept) and [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output) (the cluster's items are injected as before). Decision: [793b72 Covering note and cluster are both injected](793b_decision-log.md#793b72-covering-note-and-cluster-are-both-injected).
+- **Applied in:** `793a3g Deep recall's writes are the System's` (the clause is kept) and `793a2j Volume equals the depth's output` (the cluster's items are injected as before). Decision: [793b72 Covering note and cluster are both injected](793b_decision-log.md#793b72-covering-note-and-cluster-are-both-injected).
 - **Applied in commit:** da69f814.
-- **Context:** [793c16 At a deep moment, does the System's coverage write activate the note it covers?](#793c16-at-a-deep-moment-does-the-systems-coverage-write-activate-the-note-it-covers) has the System inject the covering note. A covering note is a candidate from the moment's query results, which [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output) already injects, so the clause matters only when the note is not among the injected results.
+- **Context:** [793c16 At a deep moment, does the System's coverage write activate the note it covers?](#793c16-at-a-deep-moment-does-the-systems-coverage-write-activate-the-note-it-covers) has the System inject the covering note. A covering note is a candidate from the moment's query results, which `793a2j Volume equals the depth's output` already injects, so the clause matters only when the note is not among the injected results.
 - **Options:**
-  - (a) keep the clause in [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) as an explicit guarantee.
-  - (b) drop it, since [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output) covers the case.
+  - (a) keep the clause in `793a3g Deep recall's writes are the System's` as an explicit guarantee.
+  - (b) drop it, since `793a2j Volume equals the depth's output` covers the case.
 - **Owner follow-up (Joe, 2026-10-11):** is it a reasonable optimization to inject only the covering note and not the cluster's own items?
 - **Assessment (Orchestrator (Claude)):** the gain is small and something is lost. Under [793c15 Does the System inject chunks with their content?](#793c15-does-the-system-inject-chunks-with-their-content) the cluster's chunks are already only stubs (path and score), so dropping them saves little. Dropping them removes the agent's pointers to the specific past sessions behind the note. Those sessions carry examples, edge cases and context the note's summary leaves out, which the agent can fetch when it needs them. This is a trim of today's output, so per [793c8 What does the System inject when only incidental items come back?](#793c8-what-does-the-system-inject-when-only-incidental-items-come-back) it belongs with [#848](https://github.com/toejough/engram/issues/848) and needs measurement.
 - **Recommendation:** (a). Keep the explicit clause, inject the cluster's items as well, and add "covering note instead of its cluster" to #848.
-- **Blocks:** [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) and [793a3g1c A covered cluster gets evidence and its note is injected](793a_product-spec.md#793a3g1-uat-scenarios).
+- **Blocks:** `793a3g Deep recall's writes are the System's` and `793a3g1c A covered cluster gets evidence and its note is injected`.
 
 ## 793c25 When are the covering and amended notes from a deep moment injected?
 
 - **Status:** retired by [793c29 Is the System a delegate for the existing memory skills?](#793c29-is-the-system-a-delegate-for-the-existing-memory-skills) (Joe, 2026-10-11): the System does what the skill does.
 - **Owner follow-up (Joe, 2026-10-11):** why do note writes only happen at the end of a turn? See [793c29 Is the System a delegate for the existing memory skills?](#793c29-is-the-system-a-delegate-for-the-existing-memory-skills).
-- **Context:** [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) says the System's capture performs the deep moment's writes, but capture runs asynchronously at turn end ([793a3a Evaluate every completed turn](793a_product-spec.md#793a3a-evaluate-every-completed-turn), [793a3f Capture does not delay the session](793a_product-spec.md#793a3f-capture-does-not-delay-the-session)), while the covering and amended notes it injects must reach the working agent. A finished subagent has no context left to receive anything. The coverage judgment and the writes add time outside [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment)'s comparison.
+- **Context:** `793a3g Deep recall's writes are the System's` says the System's capture performs the deep moment's writes, but capture runs asynchronously at turn end ([793a3a Learn is performed for the working agent](793a_product-spec.md#793a3a-learn-is-performed-for-the-working-agent), `793a3f Capture does not delay the session`), while the covering and amended notes it injects must reach the working agent. A finished subagent has no context left to receive anything. The coverage judgment and the writes add time outside [793a5g No added delay](793a_product-spec.md#793a5g-no-added-delay)'s comparison.
 - **Options:**
-  - (a) At the same moment, before the agent's next action. The coverage judgment and writes are added to [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment)'s comparison, because the instruction path's deep recall performs the same step.
+  - (a) At the same moment, before the agent's next action. The coverage judgment and writes are added to [793a5g No added delay](793a_product-spec.md#793a5g-no-added-delay)'s comparison, because the instruction path's deep recall performs the same step.
   - (b) At the agent's next recall moment. Nothing is injected if the agent has finished.
-  - (c) At the same moment if it fits in the [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment) bound; otherwise as (b).
+  - (c) At the same moment if it fits in the [793a5g No added delay](793a_product-spec.md#793a5g-no-added-delay) bound; otherwise as (b).
 - **Recommendation:** (a). The instruction path's deep recall judges coverage and writes before the agent's next action, so (a) delivers the same notes at the same time, and a finished subagent still gets them.
-- **Blocks:** [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) and [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment). Raised by finding H4 of the fourth review ([793b89 Fourth review: findings waiting on open questions](793b_decision-log.md#793b89-fourth-review-findings-waiting-on-open-questions)).
+- **Blocks:** `793a3g Deep recall's writes are the System's` and [793a5g No added delay](793a_product-spec.md#793a5g-no-added-delay). Raised by finding H4 of the fourth review ([793b89 Fourth review: findings waiting on open questions](793b_decision-log.md#793b89-fourth-review-findings-waiting-on-open-questions)).
 
 ## 793c26 What does the System's recommendation check (792a14o) key on?
 
 - **Status:** retired by [793c29 Is the System a delegate for the existing memory skills?](#793c29-is-the-system-a-delegate-for-the-existing-memory-skills) (Joe, 2026-10-11): the System does what the skill does.
 - **Owner follow-up (Joe, 2026-10-11):** leaning (c). Asked why the System can't simply take over the memory actions from the main agent without exceptions. See [793c29 Is the System a delegate for the existing memory skills?](#793c29-is-the-system-a-delegate-for-the-existing-memory-skills).
-- **Context:** [792a14o An emergent recommendation is checked against the vault](../../specs/product/recall.md#792a14o-an-emergent-recommendation-is-checked-against-the-vault) fires on a recommendation that is not in the Step 0 plan. The System has no plan and never ships a recommendation, yet [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output) and [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment) include the check.
+- **Context:** [792a14o An emergent recommendation is checked against the vault](../../specs/product/recall.md#792a14o-an-emergent-recommendation-is-checked-against-the-vault) fires on a recommendation that is not in the Step 0 plan. The System has no plan and never ships a recommendation, yet `793a2j Volume equals the depth's output` and [793a5g No added delay](793a_product-spec.md#793a5g-no-added-delay) include the check.
 - **Options:**
   - (a) The System's own synthesis, with the query text standing in for the plan.
-  - (b) Drop the check at System moments, and remove it from [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output) and [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment).
+  - (b) Drop the check at System moments, and remove it from `793a2j Volume equals the depth's output` and [793a5g No added delay](793a_product-spec.md#793a5g-no-added-delay).
   - (c) Run it at the next moment, keyed on a recommendation the working agent stated.
 - **Recommendation:** (b). The System ships no recommendation, so there is nothing for the check to key on, and (a) and (c) invent a trigger that recall does not have.
-- **Blocks:** [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output) and [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment). Raised by finding M2 of the fourth review ([793b89 Fourth review: findings waiting on open questions](793b_decision-log.md#793b89-fourth-review-findings-waiting-on-open-questions)).
+- **Blocks:** `793a2j Volume equals the depth's output` and [793a5g No added delay](793a_product-spec.md#793a5g-no-added-delay). Raised by finding M2 of the fourth review ([793b89 Fourth review: findings waiting on open questions](793b_decision-log.md#793b89-fourth-review-findings-waiting-on-open-questions)).
 
 ## 793c27 Does the System sweep the chunk index (792a14b)?
 
 - **Status:** answered (Joe, 2026-10-11): (c) sweep asynchronously at turn-end capture.
+- **Applied in:** [793a2l The chunk index is swept after the turn](793a_product-spec.md#793a2l-the-chunk-index-is-swept-after-the-turn) (kept as a difference from recall's own sweep). Decision: [793b95 The sweep runs after the turn](793b_decision-log.md#793b95-the-sweep-runs-after-the-turn).
 - **Context:** [792a14b The index is swept once per session](../../specs/product/recall.md#792a14b-the-index-is-swept-once-per-session) has recall run `engram ingest --auto` before its first query of a session, so the index holds the latest sessions and document edits. The product spec does not say whether the System does. A sweep takes time before the first query and writes to the chunk index.
 - **Options:**
-  - (a) Once per session before its first query, as recall does. Its time counts in [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment), and its index writes are added to [793a4c Memory purview only](793a_product-spec.md#793a4c-memory-purview-only).
+  - (a) Once per session before its first query, as recall does. Its time counts in [793a5g No added delay](793a_product-spec.md#793a5g-no-added-delay), and its index writes are added to [793a4c Memory purview only](793a_product-spec.md#793a4c-memory-purview-only).
   - (b) Never.
   - (c) Asynchronously at turn-end capture.
 - **Recommendation:** (a), which matches [793c8 What does the System inject when only incidental items come back?](#793c8-what-does-the-system-inject-when-only-incidental-items-come-back) "what recall delivers today".
-- **Blocks:** [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output), [793a4c Memory purview only](793a_product-spec.md#793a4c-memory-purview-only) and [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment). Raised by finding M3 of the fourth review ([793b89 Fourth review: findings waiting on open questions](793b_decision-log.md#793b89-fourth-review-findings-waiting-on-open-questions)).
+- **Blocks:** `793a2j Volume equals the depth's output`, [793a4c Memory purview only](793a_product-spec.md#793a4c-memory-purview-only) and [793a5g No added delay](793a_product-spec.md#793a5g-no-added-delay). Raised by finding M3 of the fourth review ([793b89 Fourth review: findings waiting on open questions](793b_decision-log.md#793b89-fourth-review-findings-waiting-on-open-questions)).
 
 ## 793c28 How is 793a5g's latency comparison measured?
 
 - **Status:** retired by [793c29 Is the System a delegate for the existing memory skills?](#793c29-is-the-system-a-delegate-for-the-existing-memory-skills) (Joe, 2026-10-11): the System does what the skill does.
 - **Owner follow-up (Joe, 2026-10-11):** what is being measured? See [793c29 Is the System a delegate for the existing memory skills?](#793c29-is-the-system-a-delegate-for-the-existing-memory-skills).
-- **Context:** [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment) compares the latency the System adds at a moment with the time the instruction path's lookup takes at that moment. Both are timings, and each varies between runs.
+- **Context:** [793a5g No added delay](793a_product-spec.md#793a5g-no-added-delay) compares the latency the System adds at a moment with the time the instruction path's lookup takes at that moment. Both are timings, and each varies between runs.
 - **Options:**
   - (a) Median added latency against median lookup latency, over N repeats per moment kind.
   - (b) A single sample per moment.
   - (c) Aggregate per session.
 - **Recommendation:** (a), because a single sample of two noisy timings cannot pass reliably.
-- **Blocks:** [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment). Raised by finding M6 of the fourth review ([793b89 Fourth review: findings waiting on open questions](793b_decision-log.md#793b89-fourth-review-findings-waiting-on-open-questions)).
+- **Blocks:** [793a5g No added delay](793a_product-spec.md#793a5g-no-added-delay). Raised by finding M6 of the fourth review ([793b89 Fourth review: findings waiting on open questions](793b_decision-log.md#793b89-fourth-review-findings-waiting-on-open-questions)).
 
 ## 793c29 Is the System a delegate for the existing memory skills?
 
 - **Status:** answered (Joe, 2026-10-11): (a) restructure 793a as a delegation of the existing memory skills. [793c25 When are the covering and amended notes from a deep moment injected?](#793c25-when-are-the-covering-and-amended-notes-from-a-deep-moment-injected), [793c26 What does the System's recommendation check (792a14o) key on?](#793c26-what-does-the-systems-recommendation-check-792a14o-key-on) and [793c28 How is 793a5g's latency comparison measured?](#793c28-how-is-793a5gs-latency-comparison-measured) are retired by it.
+- **Applied in:** the whole of [`793a_product-spec.md`](./793a_product-spec.md): [793a2a Recall is performed for the working agent](793a_product-spec.md#793a2a-recall-is-performed-for-the-working-agent), [793a3a Learn is performed for the working agent](793a_product-spec.md#793a3a-learn-is-performed-for-the-working-agent) and [793a2k The working agent does not run recall or learn](793a_product-spec.md#793a2k-the-working-agent-does-not-run-recall-or-learn) state the delegation; the requirements that re-specified skill behavior are retired. Decisions: [793b90 Restructure 793a as a delegation of the memory skills](793b_decision-log.md#793b90-restructure-793a-as-a-delegation-of-the-memory-skills), [793b92 Requirements that re-specified skill behavior are retired](793b_decision-log.md#793b92-requirements-that-re-specified-skill-behavior-are-retired), [793b94 No added delay, and how it is measured](793b_decision-log.md#793b94-no-added-delay-and-how-it-is-measured) and [793b97 ID map for the restructure](793b_decision-log.md#793b97-id-map-for-the-restructure).
 - **Context:** Joe (2026-10-11): "I really don't understand why the watching agent can't just take the memory actions over from the main agent. Why all these exceptions? I'm not trying to do anything different. I'm trying to offload the context." The draft, and every revision since, re-specified recall and learn behavior requirement by requirement. The draft defined capture as evaluating each completed turn (formerly CAP-1), which is why writes happen at turn end. That and the other re-specifications produced the exceptions in [793c23 Is a note amended as near injected?](#793c23-is-a-note-amended-as-near-injected) through [793c28 How is 793a5g's latency comparison measured?](#793c28-how-is-793a5gs-latency-comparison-measured). The existing skills already define when they run and what they do: [recall](../../specs/product/recall.md), [learn](../../specs/product/learn.md), and the moments in [ambient-guidance](../../specs/product/ambient-guidance.md).
 - **Options:**
   - (a) Restructure 793a as a delegation. The System runs recall and learn exactly as their canonical specs define them, at the moments the guidance defines, on the working agent's behalf, including their writes, activation and sweep, when and as those skills do them. The working agent receives only what the skill would have put in front of it, and no longer runs the skills itself. 793a then specifies only what is new: noticing the moments without the agent, handing the results to the agent, failure isolation, the System's own sessions, measurement, and install and uninstall. Most re-specified requirements, and the questions about them (including [793c25 When are the covering and amended notes from a deep moment injected?](#793c25-when-are-the-covering-and-amended-notes-from-a-deep-moment-injected), [793c26 What does the System's recommendation check (792a14o) key on?](#793c26-what-does-the-systems-recommendation-check-792a14o-key-on) and [793c28 How is 793a5g's latency comparison measured?](#793c28-how-is-793a5gs-latency-comparison-measured)), are retired.
@@ -348,6 +350,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
   - D4 keep: the System uses the wider definition now, ahead of #846.
   - D5 drop: follow learn's handling of an existing equivalent note.
   - Keep all of N1–N8.
+- **Applied in:** D1 [793a2i Recall for every prompt regardless of source](793a_product-spec.md#793a2i-recall-for-every-prompt-regardless-of-source); D2 [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection); D3 [793a3m Lessons from subagent sessions are captured directly](793a_product-spec.md#793a3m-lessons-from-subagent-sessions-are-captured-directly) and the operations of [793a6 lessons-contract (the LESSONS line is replaced while the Integration is installed)](793a_product-spec.md#793a6-modified-lessons-contract-the-lessons-line-is-replaced-while-the-integration-is-installed); D4 [793a3n Any corrected failure is a lesson](793a_product-spec.md#793a3n-any-corrected-failure-is-a-lesson); D5 dropped; N1 [793a2c Moments are noticed without the agent](793a_product-spec.md#793a2c-moments-are-noticed-without-the-agent); N2 [793a4f No recall or capture in its own sessions](793a_product-spec.md#793a4f-no-recall-or-capture-in-its-own-sessions); N3 [793a4b Failure isolation](793a_product-spec.md#793a4b-failure-isolation); N4 [793a4h Installed by engram update](793a_product-spec.md#793a4h-installed-by-engram-update) and [793a4g Active whenever installed](793a_product-spec.md#793a4g-active-whenever-installed); N5 [793a5e Auditability and measurability](793a_product-spec.md#793a5e-auditability-and-measurability); N6 [793a3h Capture rate exceeds the baseline](793a_product-spec.md#793a3h-capture-rate-exceeds-the-baseline); N7 [793a3i Precision is graded independently](793a_product-spec.md#793a3i-precision-is-graded-independently) and [793a3l Activation accuracy is graded independently](793a_product-spec.md#793a3l-activation-accuracy-is-graded-independently); N8 [793a2d Attributable presentation](793a_product-spec.md#793a2d-attributable-presentation). Decisions: [793b91 Which differences and new capabilities stay](793b_decision-log.md#793b91-which-differences-and-new-capabilities-stay) and [793b93 The LESSONS contract is modified, not removed](793b_decision-log.md#793b93-the-lessons-contract-is-modified-not-removed).
 - **Context:** under [793c29 Is the System a delegate for the existing memory skills?](#793c29-is-the-system-a-delegate-for-the-existing-memory-skills) the System does what recall and learn do. Some earlier owner decisions change that behavior. The items below are in one of three groups. **Inherent** items follow from delegation itself and stay. **New** items are capabilities the skills don't have, and stay unless dropped. **Differences** change what the skills do; each needs a keep or drop.
 - **Inherent (stay):**
   - the working agent no longer runs recall or learn ([793c4 Are captured lessons written directly, or held for `curate` review?](#793c4-are-captured-lessons-written-directly-or-held-for-curate-review));
@@ -378,3 +381,55 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
   - Keep all N items.
 - **Blocks:** the 793a restructure.
 
+## 793c31 Which canonical nodes that ask the agent to run recall or learn change while the Integration is installed?
+
+- **Status:** open.
+- **Context:** [793a2k The working agent does not run recall or learn](793a_product-spec.md#793a2k-the-working-agent-does-not-run-recall-or-learn) says the working agent is not asked to run recall or learn while the Integration is installed. The Modified operations of [793a6 lessons-contract (the LESSONS line is replaced while the Integration is installed)](793a_product-spec.md#793a6-modified-lessons-contract-the-lessons-line-is-replaced-while-the-integration-is-installed) cover only the nodes that name the LESSONS line. Other canonical nodes tell the agent to run recall or learn: [ambient-guidance](../../specs/product/ambient-guidance.md)'s [792a19a Recall fires at four decision moments](../../specs/product/ambient-guidance.md#792a19a-recall-fires-at-four-decision-moments), [792a19b Recall escalates from glance to deep](../../specs/product/ambient-guidance.md#792a19b-recall-escalates-from-glance-to-deep), [792a19c Learn fires at the correction moment](../../specs/product/ambient-guidance.md#792a19c-learn-fires-at-the-correction-moment) and [792a19d The capture is learn's fast path](../../specs/product/ambient-guidance.md#792a19d-the-capture-is-learns-fast-path), and the shim's [792a19j The first action on every request is an engram query](../../specs/product/ambient-guidance.md#792a19j-the-first-action-on-every-request-is-an-engram-query) and [792a19t The query runs again at four moments mid-task](../../specs/product/ambient-guidance.md#792a19t-the-query-runs-again-at-four-moments-mid-task); [route](../../specs/product/route.md)'s [792a17h Every subagent recalls first, and large units are decomposed](../../specs/product/route.md#792a17h-every-subagent-recalls-first-and-large-units-are-decomposed); and [please](../../specs/product/please.md)'s seven-step workflow, which opens with learn and orients with recall ([792a18d The workflow opens with learn and orients with recall](../../specs/product/please.md#792a18d-the-workflow-opens-with-learn-and-orients-with-recall)). Without a change, a harness that imports that guidance still tells the agent to do what the System now does.
+- **Options:**
+  - (a) Modified operations, conditional on the Integration, against each of those nodes, as for the LESSONS line.
+  - (b) Do it for the LESSONS nodes now, as written, and decide the rest separately, because it reaches please's seven-step workflow, the shim and route and is a larger change than this one.
+  - (c) Change nothing canonical; the agent's own redundant runs are harmless under [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection).
+- **Recommendation:** (b). The LESSONS operations were the scope of the restructure; the other nodes need their own review, and [793a2k The working agent does not run recall or learn](793a_product-spec.md#793a2k-the-working-agent-does-not-run-recall-or-learn) states the observable requirement meanwhile.
+- **Blocks:** [793a2k The working agent does not run recall or learn](793a_product-spec.md#793a2k-the-working-agent-does-not-run-recall-or-learn) when promoted (the canonical nodes would contradict it), and the nodes listed.
+
+## 793c32 Does the System keep a rule against concurrent duplicate captures?
+
+- **Status:** open.
+- **Context:** The draft's rule (formerly CAP-3) said the System writes one note when two subagents capture the same lesson concurrently. With learn delegated, learn's own handling of an existing equivalent note applies (D5 dropped), but two System sessions can race, which no skill specifies. [793a3m Lessons from subagent sessions are captured directly](793a_product-spec.md#793a3m-lessons-from-subagent-sessions-are-captured-directly) keeps the concurrent case, with [793a3m1d Two subagents contain the same lesson](793a_product-spec.md#793a3m1-uat-scenarios).
+- **Options:**
+  - (a) Keep it in 793a3m, with the scenario.
+  - (b) Drop it; learn's handling governs and concurrency is a technical concern.
+- **Recommendation:** (a). The race exists only because the System runs captures in parallel, and a duplicate note is user-visible.
+- **Blocks:** [793a3m Lessons from subagent sessions are captured directly](793a_product-spec.md#793a3m-lessons-from-subagent-sessions-are-captured-directly) and [793a3m1d Two subagents contain the same lesson](793a_product-spec.md#793a3m1-uat-scenarios).
+
+## 793c33 Do the requirements outside the D1-D5 and N1-N8 lists stay?
+
+- **Status:** open.
+- **Context:** [793c30 Which earlier decisions stay as deliberate differences from the skills?](#793c30-which-earlier-decisions-stay-as-deliberate-differences-from-the-skills) did not mention these. Applied meanwhile, as in [793b92 Requirements that re-specified skill behavior are retired](793b_decision-log.md#793b92-requirements-that-re-specified-skill-behavior-are-retired) and [793b96 Other interpretations made in the restructure](793b_decision-log.md#793b96-other-interpretations-made-in-the-restructure): kept are [793a3d Provenance](793a_product-spec.md#793a3d-provenance) (the graders and the log need to know which notes are the System's), [793a4d Sensitive content](793a_product-spec.md#793a4d-sensitive-content) (no canonical skill has a secrets rule), [793a5c Environments without the capability](793a_product-spec.md#793a5c-environments-without-the-capability) (it is what makes the operations of 793a6 conditional) and [793a5f Effect on outcomes](793a_product-spec.md#793a5f-effect-on-outcomes) (a SHOULD about the whole System). Retired as skill behavior are confirmed lessons only, no duplicates, direct writes to the local vault, independence from agent compliance and coexistence. The earlier decisions about the deep moment's writes (793c16, 793c23, 793c24) are treated as retired by delegation. The sweep difference ([793a2l The chunk index is swept after the turn](793a_product-spec.md#793a2l-the-chunk-index-is-swept-after-the-turn)) means the first moment of a session may query a staler index than the skill would.
+- **Options:**
+  - (a) As applied.
+  - (b) Also keep some of the retired ones, naming which.
+  - (c) Drop some of the kept ones, naming which.
+- **Recommendation:** (a).
+- **Blocks:** the requirements named above.
+
+## 793c34 What stands in for learn's closing learn?
+
+- **Status:** open.
+- **Context:** [learn](../../specs/product/learn.md) runs at the end of work and at the moments a lesson is confirmed. The System has no end of work, only turns and sessions. [793a3a Learn is performed for the working agent](793a_product-spec.md#793a3a-learn-is-performed-for-the-working-agent) runs learn at the moments it fires and, in place of the closing learn, after each completed turn.
+- **Options:**
+  - (a) After each completed turn.
+  - (b) At the end of the session.
+  - (c) At the end of each unit of work the agent completes.
+- **Recommendation:** (a). It matches the turn-end capture of [793c27 Does the System sweep the chunk index (792a14b)?](#793c27-does-the-system-sweep-the-chunk-index-792a14b) and covers a subagent session whose end the System may not see.
+- **Blocks:** [793a3a Learn is performed for the working agent](793a_product-spec.md#793a3a-learn-is-performed-for-the-working-agent).
+
+## 793c35 How is the delay comparison in 793a5g1a made given timing noise?
+
+- **Status:** open.
+- **Context:** [793a5g1a Recall adds no more delay than the agent's own recall](793a_product-spec.md#793a5g1-uat-scenarios) compares one logged latency with one inline timing. Both vary between runs, which was the point of the retired [793c28 How is 793a5g's latency comparison measured?](#793c28-how-is-793a5gs-latency-comparison-measured).
+- **Options:**
+  - (a) As written: one logged latency against one inline timing, leaving noise handling to the technical test design.
+  - (b) Median over N repeats per moment kind.
+- **Recommendation:** (a). Joe asked for one simple requirement, and the repeat count is a test-design choice.
+- **Blocks:** [793a5g1a Recall adds no more delay than the agent's own recall](793a_product-spec.md#793a5g1-uat-scenarios).

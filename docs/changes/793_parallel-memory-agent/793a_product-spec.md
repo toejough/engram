@@ -4,9 +4,10 @@
 
 Joe, and the LLM agents that work in engram-enabled sessions, get value from engram's memory only if
 two things happen at the right moments: relevant vault notes are **consulted** before the working
-agent acts, and lessons worth keeping are **saved** after they occur. Today both depend on the working
-agent noticing, unprompted, that the moment is worth a lookup or a save. The agent must "remember to
-remember."
+agent acts, and lessons worth keeping are **saved** after they occur. The memory skills,
+[recall](../../specs/product/recall.md) and [learn](../../specs/product/learn.md), already say what to consult, what to save and when
+([ambient-guidance](../../specs/product/ambient-guidance.md)). But the working agent has to run them, which depends on its noticing, unprompted, that the moment is
+worth a lookup or a save. The agent must "remember to remember."
 
 Measured evidence of the failure (issue #793):
 
@@ -18,21 +19,26 @@ Measured evidence of the failure (issue #793):
 - Prose fixes plateau: repeated rewording of the instructions has not moved these rates.
 
 Memory use is gated on the working agent's own metacognition, which is the least reliable component
-and competes with the task for attention. Memory must be consulted and saved at the right moments
-regardless of whether the working agent thinks to do so, without degrading the working session.
+and competes with the task for attention. The need is for the skills to run at the right moments
+regardless of whether the working agent thinks to run them, and out of the working agent's context, without
+degrading the working session. This change makes the System a delegate for the existing memory skills: it
+performs recall and learn as their own specifications define them, on the working agent's behalf, and puts
+in front of the agent only what the skill would have. This document specifies only that delegation, the
+deliberate differences from the skills, and what is new.
 
 Terms used below:
 
 - **Working agent:** the model doing the user's task in a session, including any subagents it
   dispatches.
-- **System:** the capability this document specifies. It runs alongside the working agent.
+- **System:** the capability this document specifies. It runs alongside the working agent and acts for it.
 - **Vault** and **note:** the engram note store and one entry in it (fact, feedback, runbook, or Q&A).
-- **Moment:** a point where memory should be consulted (a prompt, a tool result, a subagent dispatch)
-  or where a lesson may have occurred (a completed turn). A **recall moment** is one of the first kind.
+- **Moment:** a point at which recall or learn fires: the moments [ambient-guidance](../../specs/product/ambient-guidance.md) defines, every
+  prompt ([793a2i Recall for every prompt regardless of source](#793a2i-recall-for-every-prompt-regardless-of-source)) and a subagent's dispatch
+  ([793a2c Moments are noticed without the agent](#793a2c-moments-are-noticed-without-the-agent)). A **recall moment** is one at which recall fires.
 - **Depth:** how thorough one recall is, `glance` or `deep`, as defined by [792a14c Recall has two depths](../../specs/product/recall.md#792a14c-recall-has-two-depths).
 - **Lesson:** any corrected failure, including an agent's own mid-task mistake that evidence
   overturned, plus a correction, an explicit save-request and a confirmed approach. It is wider than
-  the four kinds in [792a15e The four kinds of explicit lesson](../../specs/product/learn.md#792a15e-the-four-kinds-of-explicit-lesson).
+  the four kinds in [792a15e The four kinds of explicit lesson](../../specs/product/learn.md#792a15e-the-four-kinds-of-explicit-lesson) ([793a3n Any corrected failure is a lesson](#793a3n-any-corrected-failure-is-a-lesson)).
 - **Injection:** placing note content, or a chunk stub, in front of the working agent without the agent requesting it.
 - **Chunk stub:** a chunk shown as its id and score only, with no content, as a lazy query prints it ([792a7s Lazy chunks](../../specs/product/memory-query.md#792a7s-lazy-chunks)).
 - **Integration:** what `engram update` installs for the System ([793a4h Installed by engram update](#793a4h-installed-by-engram-update)).
@@ -43,61 +49,51 @@ Terms used below:
 
 Requirement keywords follow RFC 2119.
 
-Sections [793a2 automatic-memory (automatic recall)](#793a2-added-automatic-memory-automatic-recall) through [793a5 automatic-memory (independence, coexistence, and measurement)](#793a5-added-automatic-memory-independence-coexistence-and-measurement) add requirements to one new capability. A requirement carried
+Sections [793a2 automatic-memory (delegation of recall)](#793a2-added-automatic-memory-delegation-of-recall) through [793a5 automatic-memory (coexistence and measurement)](#793a5-added-automatic-memory-coexistence-and-measurement) add requirements to one new capability.
+[793a6 lessons-contract (the LESSONS line is replaced while the Integration is installed)](#793a6-modified-lessons-contract-the-lessons-line-is-replaced-while-the-integration-is-installed) modifies the lessons contract and the capabilities that name its LESSONS line. A requirement carried
 over from the draft keeps its draft identifier in a "formerly" note so that review comments on the
 draft still map.
 
-## 793a2 Added: automatic-memory (automatic recall)
+## 793a2 Added: automatic-memory (delegation of recall)
 
 Canonical target: `docs/specs/product/automatic-memory.md` (title `Automatic Memory - Product Spec`).
 
-### 793a2a Recall at a human prompt
+### 793a2a Recall is performed for the working agent
 
-Requirement: 793a2a (formerly REC-1) When a human submits a prompt, the System MUST make what recall
-returns for that prompt ([793a2j Volume equals the depth's output](#793a2j-volume-equals-the-depths-output)) available to the working agent before it begins acting on that prompt,
-without the agent requesting it.
+Requirement: 793a2a (formerly REC-1) The System MUST perform recall on the working agent's behalf at each moment at which recall fires
+([792a19a Recall fires at four decision moments](../../specs/product/ambient-guidance.md#792a19a-recall-fires-at-four-decision-moments), [792a19b Recall escalates from glance to deep](../../specs/product/ambient-guidance.md#792a19b-recall-escalates-from-glance-to-deep)) and at every prompt
+([793a2i Recall for every prompt regardless of source](#793a2i-recall-for-every-prompt-regardless-of-source)), exactly as [recall](../../specs/product/recall.md) defines it: at the depth that
+[792a14c Recall has two depths](../../specs/product/recall.md#792a14c-recall-has-two-depths) and [792a19b Recall escalates from glance to deep](../../specs/product/ambient-guidance.md#792a19b-recall-escalates-from-glance-to-deep) select, by the same procedure, with the same queries, writes and
+activation, except that use is inferred as [793a3k Use is inferred from the transcript](#793a3k-use-is-inferred-from-the-transcript) says. The System MUST put in front of the working agent what recall would have
+put in front of it, before the agent's next response or tool call, subject only to
+[793a2e No re-injection](#793a2e-no-re-injection), and MUST put nothing else of recall's in front of it.
+
+Rationale: recall already says what to consult and when, so the work moves out of the working agent's context and
+nothing about what recall does changes.
 
 #### 793a2a1 UAT Scenarios
 
 ```gherkin
-Scenario: 793a2a1a Relevant note exists for the prompt
+Scenario: 793a2a1a Recall happens without the agent running it
   Given a vault containing a note whose situation matches "renaming a Go package"
   And a session whose configuration contains no memory instructions
   When the human submits "rename package foo to bar across the repo"
   Then the session transcript shows that note's content delivered before the agent's first response or tool call
   And the transcript shows the agent ran no memory command
+  And the log for that moment records the recall that was performed, with its depth, phrases, items and scores
 
-Scenario: 793a2a1c Only incidental items come back
-  Given a vault holding only notes about unrelated topics, and an indexed chunk history
-  When the human submits the prompt
-  And the operator reads the log for that moment and finds only newest chunks recorded as returned
-  Then the session transcript shows those chunks delivered as chunk stubs before the agent's first response or tool call
+Scenario: 793a2a1b Recall's vault writes happen without the agent
+  Given a deep recall moment whose results include a cluster that no existing note addresses
+  When the moment completes
+  Then a note covering the cluster exists in the vault
+  And the transcript shows the working agent ran no learn, amend or write-memory command
+  And the transcript shows no request to the working agent to write the note
 ```
 
-### 793a2b Recall after each tool result
+### 793a2c Moments are noticed without the agent
 
-Requirement: 793a2b (formerly REC-2) After a tool result is returned to the working agent, and before
-the agent's next response or tool call, the System MUST make what recall returns for the current
-situation (the tool, its arguments, and its outcome) available ([793a2j Volume equals the depth's output](#793a2j-volume-equals-the-depths-output)).
-
-#### 793a2b1 UAT Scenarios
-
-```gherkin
-Scenario: 793a2b1a Tool failure matches a known lesson
-  Given a note whose situation matches "go build fails with an import cycle"
-  When the working agent runs a command that fails with an import-cycle error
-  Then the session transcript shows that note's content delivered before the agent's next response or tool call
-
-Scenario: 793a2b1b Every post-tool step is covered
-  Given a turn in which the working agent makes 5 tool calls
-  When the operator reads the log for that turn
-  Then each of the 5 tool results has a recorded injection decision (injected or none)
-```
-
-### 793a2c Recall at subagent dispatch
-
-Requirement: 793a2c (formerly REC-3) When the working agent dispatches a subagent, the System MUST
-make what recall returns for the subagent's task available to that subagent ([793a2j Volume equals the depth's output](#793a2j-volume-equals-the-depths-output)).
+Requirement: 793a2c (formerly REC-3) The System MUST notice each moment at which recall or learn fires without the working agent signalling it.
+A subagent's dispatch is one such moment: the System MUST make what recall returns for the subagent's task available to that subagent.
 
 #### 793a2c1 UAT Scenarios
 
@@ -107,6 +103,18 @@ Scenario: 793a2c1a Subagent receives relevant notes
   When the working agent dispatches a subagent with the task "add tests for internal/cli"
   Then the subagent's transcript shows that note's content delivered before its first response or tool call
   And the working agent's dispatch text did not mention the note
+
+Scenario: 793a2c1b A recall moment mid-task is noticed
+  Given a note matching the work the working agent is about to declare done
+  When the working agent reaches the point of declaring the work done
+  Then the session transcript shows that note's content delivered before the declaration
+  And the transcript shows the agent ran no memory command
+
+Scenario: 793a2c1c A learn moment is noticed
+  Given a build fails and the transcript then shows its non-obvious cause
+  When the cause is known
+  Then a note stating the cause exists in the vault
+  And the transcript shows the working agent invoked no learn command and was asked for none
 ```
 
 ### 793a2d Attributable presentation
@@ -197,51 +205,11 @@ Scenario: 793a2e1k A note whose sources or recency changed is still present
   Then the transcript shows X's content delivered only once
 ```
 
-### 793a2h Recall depth per moment
-
-Requirement: 793a2h At each recall moment the System MUST choose a depth using the triggers of the
-instruction-based path ([792a19b Recall escalates from glance to deep](../../specs/product/ambient-guidance.md#792a19b-recall-escalates-from-glance-to-deep)): deep when the decision is weighty or irreversible, when glance
-flagged a gap it could not resolve, or when the decision turns on a recently surfaced standard
-([792a14d Glance escalates to deep for a recent standard](../../specs/product/recall.md#792a14d-glance-escalates-to-deep-for-a-recent-standard)); glance otherwise.
-
-Rationale: depth is the existing lever that matches effort to the decision, so the System spends deep
-recall only where the working agent would.
-
-#### 793a2h1 UAT Scenarios
-
-```gherkin
-Scenario: 793a2h1a A routine decision uses glance
-  Given a prompt that asks to rename a local variable
-  When the operator reads the log for that moment
-  Then it records depth glance and about 3 query phrases
-
-Scenario: 793a2h1b An irreversible decision uses deep
-  Given a prompt that asks to force-push over a shared branch
-  When the operator reads the log for that moment
-  Then it records depth deep and 10 query phrases
-
-Scenario: 793a2h1c An unresolved gap uses deep
-  Given a glance recall whose result flags a gap it cannot resolve
-  When the operator reads the log for that moment
-  Then it records that glance escalated and that the moment ran at depth deep
-
-Scenario: 793a2h1d A recently surfaced standard uses deep
-  Given the recent-activity channel of the query surfaced a note saying "use X going forward"
-  And a decision that turns on honoring it
-  When the operator reads the log for that moment
-  Then it records depth deep
-
-Scenario: 793a2h1e Applying a convention stays glance
-  Given a decision that only applies an established convention
-  When the operator reads the log for that moment
-  Then it records depth glance
-```
-
 ### 793a2i Recall for every prompt regardless of source
 
-Requirement: 793a2i The System MUST apply prompt-time recall, in every working session (excluding System sessions per [793a4f No recall or capture in its own evaluation sessions](#793a4f-no-recall-or-capture-in-its-own-evaluation-sessions)), to every prompt regardless of its source
+Requirement: 793a2i In addition to the moments at which recall fires ([793a2a Recall is performed for the working agent](#793a2a-recall-is-performed-for-the-working-agent)), the System MUST perform recall, in every working session (excluding System sessions per [793a4f No recall or capture in its own sessions](#793a4f-no-recall-or-capture-in-its-own-sessions)), at every prompt regardless of its source
 (human, automated notification, scheduled trigger, message from another session). The prompt that dispatches a
-subagent is the moment of [793a2c Recall at subagent dispatch](#793a2c-recall-at-subagent-dispatch), not a separate prompt moment.
+subagent is the moment of [793a2c Moments are noticed without the agent](#793a2c-moments-are-noticed-without-the-agent), not a separate prompt moment.
 
 Rationale: memory is always worth checking, whatever produced the prompt.
 
@@ -268,100 +236,60 @@ Scenario: 793a2i1b A subagent's dispatch prompt is one moment, of the dispatch k
   And the subagent's transcript shows the note's content delivered once
 ```
 
-### 793a2j Volume equals the depth's output
+### 793a2k The working agent does not run recall or learn
 
-Requirement: 793a2j At each recall moment (a prompt, a tool result or a subagent dispatch) the System
-MUST inject the items (notes and chunks) that the chosen depth's queries return for that moment,
-incidental items included, and MUST NOT inject more than those, except the covering and amended notes that
-[793a3g Deep recall's writes are the System's](#793a3g-deep-recalls-writes-are-the-systems) injects. A note is injected as the query returns it,
-with its content. A chunk is injected as a chunk stub (id and score), as recall's lazy query returns it
-([792a7s Lazy chunks](../../specs/product/memory-query.md#792a7s-lazy-chunks)), because recall's queries are lazy ([792a14f One unified query](../../specs/product/recall.md#792a14f-one-unified-query)). Incidental items are the explore picks
-([792a7i Half of the notes are explored](../../specs/product/memory-query.md#792a7i-half-of-the-notes-are-explored)), the ride-along notes ([792a7n Superseding notes ride along](../../specs/product/memory-query.md#792a7n-superseding-notes-ride-along)) and the newest chunks
-([792a7o The newest chunks](../../specs/product/memory-query.md#792a7o-the-newest-chunks)); they are injected even when no item matches directly. At glance the queries are one
-lazy query with about 3 phrases ([792a14c Recall has two depths](../../specs/product/recall.md#792a14c-recall-has-two-depths), [792a14f One unified query](../../specs/product/recall.md#792a14f-one-unified-query)). At deep they are one
-lazy query with 10 phrases from the ten angles ([792a14e Ten phrases from ten angles](../../specs/product/recall.md#792a14e-ten-phrases-from-ten-angles)). At either depth they also include the recommendation check
-([792a14o An emergent recommendation is checked against the vault](../../specs/product/recall.md#792a14o-an-emergent-recommendation-is-checked-against-the-vault)), also one lazy query, when it runs. When glance escalates to deep at a moment, the moment's
-queries are those of both depths. Each query returns the payload of [792a7b The payload](../../specs/product/memory-query.md#792a7b-the-payload) as a lazy query, with its default result limit. The
-System MUST omit an item already present in the receiving agent's context ([793a2e No re-injection](#793a2e-no-re-injection)) and MUST
-NOT otherwise reduce that output.
+Requirement: 793a2k While the Integration is installed, the System MUST perform recall and learn so that the working agent is not required to run either, and MUST NOT ask the working agent to run them or to evaluate, approve or write any memory.
 
-Rationale: automatic recall must give the working agent what the instruction-based path gives it, no
-more and no less, so that its effect is attributable to who initiates it and not to what it delivers. A chunk arrives as a stub because that is how the instruction path's agent receives it.
+Rationale: the point of the delegation is to take memory work, and its bookkeeping, out of the working agent's context.
 
-#### 793a2j1 UAT Scenarios
+#### 793a2k1 UAT Scenarios
 
 ```gherkin
-Scenario Outline: 793a2j1a Delivered items equal the depth's output
-  Given a recall moment of kind <moment> at depth <depth>
-  And the log records the items and scores the depth's queries returned for that moment
-  When the session transcript is compared with those logged items
-  Then every logged item is delivered in the transcript as the query returns it, a note with its content and a chunk as a chunk stub, except items the transcript already shows to that agent (a chunk by its stub or its fetched content)
-  And no other item is delivered, except a covering or amended note injected under 793a3g
-
-  Examples:
-    | moment            | depth  |
-    | prompt            | glance |
-    | prompt            | deep   |
-    | tool result       | glance |
-    | tool result       | deep   |
-    | subagent dispatch | glance |
-    | subagent dispatch | deep   |
-
-Scenario: 793a2j1b A vault holding more than 20 notes about the topic
-  Given a vault holding more than 20 notes about the prompt's topic
-  When the human submits the prompt at depth glance
-  Then the notes delivered are those the glance query returns under its default result limit
-
-Scenario: 793a2j1c Incidental items are delivered with the direct matches
-  Given the glance query for a prompt returns a direct match, an explore pick, a ride-along note and the newest chunks
-  When the human submits the prompt
-  Then the session transcript shows all four kinds of item delivered, the chunks as chunk stubs
-
-Scenario: 793a2j1d An escalated moment delivers both depths' output
-  Given a glance recall whose result flags a gap it cannot resolve, so that the moment escalates to deep
-  And the log records the items and scores the glance queries and the deep queries returned
-  When the session transcript is compared with those logged items
-  Then every logged item is delivered, except items already shown to that agent
-  And no other item is delivered, except a covering or amended note injected under 793a3g
-
-Scenario: 793a2j1e Chunks are delivered as stubs
-  Given the glance query for a prompt returns chunk Y
-  When the human submits the prompt
-  Then the session transcript shows Y's id and score
-  And the transcript does not show Y's content
-
-Scenario Outline: 793a2j1f The log matches the depth's queries
-  Given a recall moment of kind <moment> at depth <depth>
-  And a copy of the vault as it was at that moment
-  When the operator runs the depth's queries on the copy with the phrases the log records for that moment
-  Then the queries return the items and scores the log records for that moment
-
-  Examples:
-    | moment            | depth                       |
-    | prompt            | glance                      |
-    | prompt            | deep                        |
-    | tool result       | glance                      |
-    | tool result       | deep                        |
-    | subagent dispatch | glance                      |
-    | subagent dispatch | deep                        |
-    | prompt            | glance escalated to deep    |
+Scenario: 793a2k1a The agent runs neither skill and is asked for neither
+  Given the Integration is installed
+  And a session whose configuration contains no memory instructions
+  When the human submits a prompt that matches a note and contains a correction
+  Then the transcript shows the note's content delivered and a note stating the correction in the vault
+  And the transcript shows the working agent ran no recall or learn skill and no memory command
+  And the transcript shows no request from the System to run one, or to evaluate, approve or write a note
 ```
 
-## 793a3 Added: automatic-memory (automatic capture)
+### 793a2l The chunk index is swept after the turn
+
+Requirement: 793a2l The System MUST sweep the chunk index asynchronously after a turn completes, MUST NOT make the working agent wait for a sweep, and MUST NOT run the sweeps that [792a14b The index is swept once per session](../../specs/product/recall.md#792a14b-the-index-is-swept-once-per-session) and [792a15b The sweep comes first](../../specs/product/learn.md#792a15b-the-sweep-comes-first) place before a skill's first query or first step.
+
+Rationale: a sweep is slow work that the working agent need not wait for, and the turn that has just completed is what the next sweep must index.
+
+#### 793a2l1 UAT Scenarios
+
+```gherkin
+Scenario: 793a2l1a The sweep follows the turn and nothing waits for it
+  Given a turn that completes with content not yet in the chunk index
+  When the human submits the next prompt immediately
+  Then the next prompt is processed without waiting for a sweep
+  And the log records a sweep for the completed turn
+  And a later query returns a chunk from that turn
+
+Scenario: 793a2l1b No sweep runs before a moment's recall
+  Given a session's first moment
+  When the operator reads the log for that moment
+  Then it records no sweep before the moment's recall
+```
+
+## 793a3 Added: automatic-memory (delegation of learn)
 
 Canonical target: `docs/specs/product/automatic-memory.md` (title `Automatic Memory - Product Spec`).
 
-### 793a3a Evaluate every completed turn
+### 793a3a Learn is performed for the working agent
 
-Requirement: 793a3a (formerly CAP-1) After each completed turn, in every working session, top-level or subagent
-(excluding System sessions per [793a4f No recall or capture in its own evaluation sessions](#793a4f-no-recall-or-capture-in-its-own-evaluation-sessions)), the System MUST evaluate the turn for lessons without the working agent requesting it. The
-System, not the working agent, MUST judge what is worth saving, and MUST write each captured lesson
-directly to the vault.
+Requirement: 793a3a (formerly CAP-1) The System MUST perform learn on the working agent's behalf, in every working session, top-level or subagent
+(excluding System sessions per [793a4f No recall or capture in its own sessions](#793a4f-no-recall-or-capture-in-its-own-sessions)), at each moment at which learn fires
+([792a19c Learn fires at the correction moment](../../specs/product/ambient-guidance.md#792a19c-learn-fires-at-the-correction-moment), [792a15e The four kinds of explicit lesson](../../specs/product/learn.md#792a15e-the-four-kinds-of-explicit-lesson)) and, in place of the closing learn, after each completed turn, exactly as
+[learn](../../specs/product/learn.md) defines it: the same judgment of what is worth saving, the same single-note capture
+([792a15c A correction moment gets a single-note capture](../../specs/product/learn.md#792a15c-a-correction-moment-gets-a-single-note-capture)) and the same notes handed to [write-memory](../../specs/product/write-memory.md). The System MUST write each captured lesson directly to the vault, with no
+involvement of the working agent.
 
-Rationale: the working agent's context stays free of memory evaluation, and subagent sessions are
-where lessons occur too. A lesson here is any corrected failure, which is wider than the four kinds in
-[792a15e The four kinds of explicit lesson](../../specs/product/learn.md#792a15e-the-four-kinds-of-explicit-lesson), because a mistake the agent catches and fixes itself is as reusable as one the user
-catches.
+Rationale: the working agent's context stays free of memory evaluation, and subagent sessions are where lessons occur too.
 
 #### 793a3a1 UAT Scenarios
 
@@ -379,8 +307,56 @@ Scenario: 793a3a1b Explicit save-request
   When the user says "remember that releases are tagged from main"
   And the turn completes
   Then a fact note stating that exists in the vault
+```
 
-Scenario: 793a3a1c A subagent's own guess overturned by evidence is captured
+### 793a3m Lessons from subagent sessions are captured directly
+
+Requirement: 793a3m While the Integration is installed, the System MUST capture lessons that occur in subagent sessions directly from those sessions, as
+[793a3a Learn is performed for the working agent](#793a3a-learn-is-performed-for-the-working-agent) does for the top-level session, so that no lesson depends on the subagent or its dispatching agent reporting it. The LESSONS line
+of the [lessons contract](../../specs/product/lessons-contract.md) is replaced while the Integration is installed, as the operations of
+[793a6 lessons-contract (the LESSONS line is replaced while the Integration is installed)](#793a6-modified-lessons-contract-the-lessons-line-is-replaced-while-the-integration-is-installed) state. When two subagent sessions contain the same lesson, the System MUST write one note for it.
+
+Rationale: a lesson reported by the subagent is lost whenever the report omits it, and the System sees the subagent's own session. Capturing from
+the session also leaves nothing for the parent to collect.
+
+#### 793a3m1 UAT Scenarios
+
+```gherkin
+Scenario: 793a3m1a A correction from the dispatching agent is captured
+  Given the working agent dispatched a subagent
+  And the dispatching agent tells the subagent "no, run targ test, not go test"
+  When the subagent's turn completes
+  Then a note stating that rule exists in the vault
+  And the subagent's transcript shows it invoked no learn command
+
+Scenario: 793a3m1b Capture survives the subagent's context being discarded
+  Given a subagent whose turn contained a lesson
+  When the subagent finishes and its context is discarded
+  Then a note stating the lesson exists in the vault
+
+Scenario: 793a3m1c No report of lessons is asked for or collected
+  Given the working agent dispatched a subagent whose turn contained a lesson
+  When the subagent returns and the parent's turn completes
+  Then the vault holds exactly one note stating the lesson
+  And neither the subagent's instructions nor its report carry a LESSONS line
+
+Scenario: 793a3m1d Two subagents contain the same lesson
+  Given two subagents whose turns complete at the same time, each containing the same lesson
+  When both captures finish
+  Then the vault holds exactly one note stating the lesson
+```
+
+### 793a3n Any corrected failure is a lesson
+
+Requirement: 793a3n The System MUST treat any corrected failure as a lesson, including an agent's own mid-task mistake that evidence overturned, in addition to the lessons that
+[792a15e The four kinds of explicit lesson](../../specs/product/learn.md#792a15e-the-four-kinds-of-explicit-lesson) defines.
+
+Rationale: a mistake the agent catches and fixes itself is as reusable as one the user catches.
+
+#### 793a3n1 UAT Scenarios
+
+```gherkin
+Scenario: 793a3n1a A subagent's own guess overturned by evidence is captured
   Given the working agent dispatched a subagent
   And the subagent stated a conclusion that a test result then overturned
   And the subagent corrected its conclusion
@@ -388,67 +364,11 @@ Scenario: 793a3a1c A subagent's own guess overturned by evidence is captured
   Then a note stating the corrected conclusion exists in the vault
   And the subagent's transcript shows it invoked no learn command
 
-Scenario: 793a3a1d A correction from the dispatching agent is captured
-  Given the working agent dispatched a subagent
-  And the dispatching agent tells the subagent "no, run targ test, not go test"
-  When the subagent's turn completes
-  Then a note stating that rule exists in the vault
-
-Scenario: 793a3a1e Capture survives the subagent's context being discarded
-  Given a subagent whose turn contained a lesson
-  When the subagent finishes and its context is discarded
-  Then a note stating the lesson exists in the vault
-```
-
-### 793a3b Confirmed lessons only
-
-Requirement: 793a3b (formerly CAP-2) The System MUST NOT capture a hypothesis, a routine success with
-no resolved uncertainty, or a bare pleasantry as a lesson.
-
-#### 793a3b1 UAT Scenarios
-
-```gherkin
-Scenario: 793a3b1a Pleasantry ignored
-  When the user says "thanks, great work"
-  And the turn completes
-  Then no note is captured
-
-Scenario: 793a3b1b Unconfirmed guess ignored
-  Given the working agent said "maybe the cause is a race"
-  And nothing confirmed it
+Scenario: 793a3n1b The top-level agent's own mistake overturned by evidence is captured
+  Given the working agent stated a cause for a failing test
+  And a later command output overturned that cause and the agent corrected it
   When the turn completes
-  Then no note is captured for that statement
-
-Scenario: 793a3b1c Routine success ignored
-  Given a turn in which a command succeeded as expected with no uncertainty resolved
-  When the turn completes
-  Then no note is captured
-```
-
-### 793a3c No duplicates
-
-Requirement: 793a3c (formerly CAP-3) Before writing, the System MUST check for an existing note
-stating the same lesson and MUST NOT write a duplicate, including when two subagents capture the same
-lesson concurrently. When an equivalent note exists, the System MUST reinforce it instead.
-
-#### 793a3c1 UAT Scenarios
-
-```gherkin
-Scenario: 793a3c1a Existing note already covers the lesson
-  Given a note stating "never amend pushed commits"
-  When the user repeats that correction and the turn completes
-  Then no new note is created
-  And the log records a capture decision of reinforced for the existing note
-
-Scenario: 793a3c1b A lesson reported to the parent yields one note
-  Given a subagent's turn contained a lesson and the System captured it
-  When the subagent reports that lesson to its parent and the parent's turn completes
-  Then the vault holds exactly one note stating the lesson
-
-Scenario: 793a3c1c Two subagents capture the same lesson concurrently
-  Given two subagents whose turns complete at the same time, each containing the same lesson
-  When both captures finish
-  Then the vault holds exactly one note stating the lesson
+  Then a note stating the corrected cause exists in the vault
 ```
 
 ### 793a3d Provenance
@@ -465,110 +385,34 @@ Scenario: 793a3d1a Provenance present
   Then it identifies automatic capture, the session id, and the turn id
 ```
 
-### 793a3f Capture does not delay the session
+### 793a3k Use is inferred from the transcript
 
-Requirement: 793a3f (formerly CAP-6) Capture MUST NOT delay the working agent's response or the
-processing of the next prompt.
+Requirement: 793a3k The System MUST infer from the session transcript which of the notes it injected the working agent went on to use, for example by quoting or citing the note,
+following its steps, or taking the action it prescribes, because it cannot ask the agent, and MUST activate each of those notes as recall activates a used note
+([792a14l Only the notes that were used are activated](../../specs/product/recall.md#792a14l-only-the-notes-that-were-used-are-activated)), in place of recall's own activation, which relies on the agent's declaration. The System MUST log each activation verdict,
+activated or not, with its evidence, and MUST NOT activate an injected note for which the transcript shows no
+evidence of use.
 
-#### 793a3f1 UAT Scenarios
+Rationale: a note's recency tracks whether it is useful. The System has no declaration from the agent of
+what it used, and asking for one would put memory bookkeeping back into the agent's context, so it infers use from the
+transcript, where the evidence is.
 
-```gherkin
-Scenario: 793a3f1a Slow capture does not stall the session
-  Given capture evaluation takes 20 seconds
-  When a turn completes and the user submits the next prompt immediately
-  Then the next prompt is processed without waiting for the capture to finish
-  And the working agent's response to the completed turn appeared without waiting for the capture
-```
-
-### 793a3g Deep recall's writes are the System's
-
-Requirement: 793a3g Where deep recall writes to the vault, namely the coverage writes
-([792a14j Coverage is judged by the agent and written once per cluster](../../specs/product/recall.md#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster)) and the persisted conclusion ([792a14p A sound conclusion is persisted as a derived note](../../specs/product/recall.md#792a14p-a-sound-conclusion-is-persisted-as-a-derived-note)), the System's capture MUST perform those
-writes, and the working agent MUST NOT be asked to. For each cluster, using the outcomes of [792a14j Coverage is judged by the agent and written once per cluster](../../specs/product/recall.md#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster):
-
-- When an existing note covers the cluster, the System MUST attach the cluster's chunks to that note as evidence
-  without rewriting its content, and MUST inject the covering note into the working agent, subject to [793a2e No re-injection](#793a2e-no-re-injection). The
-  coverage write MUST NOT activate the note; it is activated only as [793a3k Used notes are activated](#793a3k-used-notes-are-activated) activates any injected note.
-- When an existing note addresses the same situation but omits a substantive claim the cluster evidences, the System MUST
-  amend it with the cluster's chunks as evidence and the re-synthesized content, and MUST inject the amended note into the
-  working agent. The amend MUST NOT activate the note.
-- When no existing note addresses the situation, the System MUST write one new note for the cluster.
-- When the covering or near note is from the parent vault, or is its pending copy, the System MUST NOT amend it or write a note restating it
-  ([792a14k A note from the parent vault is activated, never amended](../../specs/product/recall.md#792a14k-a-note-from-the-parent-vault-is-activated-never-amended)), so the attach and the amend above do not apply to it. It MUST inject it, subject to
-  [793a2e No re-injection](#793a2e-no-re-injection), and MUST activate it only under [793a3k Used notes are activated](#793a3k-used-notes-are-activated).
-
-Each such write MUST carry the provenance of [793a3d Provenance](#793a3d-provenance). For an amend, each chunk-source entry it adds MUST record the session id and
-the turn id that added it, the log entry MUST name them, and the note's original source MUST be unchanged. A persisted conclusion MUST also have
-its source marked as derived.
-
-Rationale: the working agent's context stays free of memory writes at deep moments as it does at
-capture. A coverage write records that a note covers a cluster, not that the agent used it, so it leaves the note's
-recency to the inference of use.
-
-#### 793a3g1 UAT Scenarios
+#### 793a3k1 UAT Scenarios
 
 ```gherkin
-Scenario: 793a3g1a A coverage write is made without the working agent
-  Given a deep recall moment whose results include a cluster that no existing note addresses
-  When the moment completes
-  Then a note covering the cluster exists in the vault
-  And its source field identifies automatic capture, the session id and the turn id
-  And the transcript shows the working agent ran no learn, amend or write-memory command
-  And the transcript shows no request to the working agent to write the note
+Scenario: 793a3k1a A note the transcript shows used is activated
+  Given the System injected note X into a turn
+  And the transcript shows the working agent quoting X's rule and taking the action X prescribes
+  When the turn completes
+  Then X's recency metadata shows it was used in this session
+  And the log records the activation of X with that evidence
 
-Scenario: 793a3g1b A sound conclusion is persisted without the working agent
-  Given a deep recall moment whose closing synthesis reaches a sound conclusion that no note states
-  When the moment completes
-  Then a derived note stating the conclusion exists in the vault
-  And its source field identifies automatic capture, the session id and the turn id, and marks the source as derived
-  And the transcript shows the working agent ran no learn, amend or write-memory command
-  And the transcript shows no request to the working agent to write the note
-
-Scenario: 793a3g1c A covered cluster gets evidence and its note is injected
-  Given a deep recall moment whose results include a cluster that existing note X covers
-  And X is not yet in the working agent's context
-  When the moment completes
-  Then X lists the cluster's chunks as evidence and its text, other than its sources, is unchanged
-  And the transcript shows X's content delivered once
-  And X's recency metadata is the same as before the moment
-  And X's original source field is unchanged
-  And each chunk-source entry the amend added records the session id and the turn id, and the log entry names them
-  And the transcript shows the working agent ran no learn, amend or write-memory command
-
-Scenario: 793a3g1d A covering note already in context is not injected again
-  Given a deep recall moment whose results include a cluster that existing note X covers
-  And X's content was delivered to the working agent earlier in the session
-  And the session has not been compacted
-  When the moment completes
-  Then X lists the cluster's chunks as evidence
-  And the transcript shows X's content delivered only once
-
-Scenario: 793a3g1e A near cluster amends the note
-  Given a deep recall moment whose results include a cluster that existing note Q addresses but omits a substantive claim the cluster evidences
-  When the moment completes
-  Then Q states the omitted claim and lists the cluster's chunks as evidence
-  And the transcript shows Q's amended content delivered to the working agent
-  And Q's original source field is unchanged
-  And each chunk-source entry the amend added records the session id and the turn id, and the log entry names them
-  And Q's recency metadata is the same as before the moment
-  And the transcript shows the working agent ran no learn, amend or write-memory command
-
-Scenario Outline: 793a3g1f A parent-vault note is injected and never amended
-  Given a deep recall moment whose results include a cluster
-  And the cluster has <note> P
-  And P is not yet in the working agent's context
-  And the transcript shows the working agent making no use of P
-  When the moment completes
-  Then no chunk source was added to P and P's text is unchanged
-  And no note restating P exists in the vault
-  And the transcript shows P's content delivered once
-  And the log records that P was not activated
-
-  Examples:
-    | note                                                         |
-    | a covering note from the parent vault                        |
-    | a near note from the parent vault                            |
-    | a covering note that is the pending copy of a parent note    |
+Scenario: 793a3k1b An injected note with no evidence of use is not activated
+  Given the System injected note Z into a turn
+  And the transcript shows no quote or citation of Z, no step of Z followed and no action Z prescribes
+  When the turn completes
+  Then Z's recency metadata is unchanged
+  And the log records the verdict that Z was not activated
 ```
 
 ### 793a3h Capture rate exceeds the baseline
@@ -591,7 +435,7 @@ Scenario: 793a3h1a Capture rate exceeds the baseline
 ### 793a3i Precision is graded independently
 
 Requirement: 793a3i A separate grader inside the System, independent of the capture judgment, MUST
-grade every note the System captures at turn completion ([793a3a Evaluate every completed turn](#793a3a-evaluate-every-completed-turn)) as a valid lesson or not,
+grade every note the System captures as a valid lesson or not,
 and the System MUST log each verdict, the number of notes graded and the resulting precision.
 
 Rationale: the judge that decides what to save cannot also be the measure of whether it was right.
@@ -600,7 +444,7 @@ Rationale: the judge that decides what to save cannot also be the measure of whe
 
 ```gherkin
 Scenario: 793a3i1a Precision is reported with the number graded
-  Given the System captured 30 notes from completed turns
+  Given the System captured 30 notes
   When the grader has judged each as valid or not valid
   Then the operator can read each of the 30 verdicts, the number graded (30) and the resulting precision
 
@@ -611,87 +455,10 @@ Scenario: 793a3i1b The grader does not defer to the capture judgment
   And the log holds the grader's verdict and the capture decision as separate entries
 ```
 
-### 793a3j Direct writes go to the local vault
-
-Requirement: 793a3j The System's direct writes MUST go to the local vault, including when the vault has
-a parent ([parent-sync](../../specs/product/parent-sync.md)) or is served ([vault-serving](../../specs/product/vault-serving.md)). Offers to a parent MUST follow normal
-note-writing behavior ([792a21n A local write is offered to the parent](../../specs/product/parent-sync.md#792a21n-a-local-write-is-offered-to-the-parent)).
-
-Rationale: the System writes as any local write does, so a parent or a server sees nothing different
-from an ordinary note.
-
-#### 793a3j1 UAT Scenarios
-
-```gherkin
-Scenario: 793a3j1a A captured lesson lands locally and is offered normally
-  Given a vault with a configured parent
-  When the System captures a lesson
-  Then the note exists in the local vault
-  And the parent receives an offer for it exactly as it does for a note written by `engram learn`
-
-Scenario: 793a3j1b A served vault receives the write locally
-  Given a vault that is also served to other callers
-  When the System captures a lesson
-  Then the note exists in that local vault
-```
-
-### 793a3k Used notes are activated
-
-Requirement: 793a3k At turn-end capture ([793a3a Evaluate every completed turn](#793a3a-evaluate-every-completed-turn)) the System MUST infer from the session transcript which of the
-notes it injected during the turn the working agent went on to use, for example by quoting or citing the note,
-following its steps, or taking the action it prescribes, and MUST activate each of those notes, so that its
-recency metadata is bumped as when recall activates a used note ([792a14l Only the notes that were used are activated](../../specs/product/recall.md#792a14l-only-the-notes-that-were-used-are-activated)). It MUST log each activation verdict,
-activated or not, with its evidence. It MUST NOT activate an injected note for which the transcript shows no
-evidence of use, and MUST NOT activate a chunk. It MUST activate a used note from the parent vault by its path, so
-that a pending local copy appears ([792a14c Recall has two depths](../../specs/product/recall.md#792a14c-recall-has-two-depths)), and MUST leave that copy pending. The System's recall MUST NOT
-run recall's own activation step ([792a14l Only the notes that were used are activated](../../specs/product/recall.md#792a14l-only-the-notes-that-were-used-are-activated)); the activations of this requirement are the only ones the
-System makes.
-
-Rationale: a note's recency tracks whether it is useful. Bumping every injected note would keep an ignored
-one fresh, and bumping none would let a note the agent applies fade. The System has no declaration from the agent of
-what it used, and asking for one would put memory bookkeeping back into the agent's context, so it infers use from the
-transcript, where the evidence is.
-
-#### 793a3k1 UAT Scenarios
-
-```gherkin
-Scenario: 793a3k1a A note the transcript shows used is activated
-  Given the System injected note X into a turn
-  And the transcript shows the working agent quoting X's rule and taking the action X prescribes
-  When the turn completes
-  Then X's recency metadata shows it was used in this session
-  And the log records the activation of X with that evidence
-
-Scenario: 793a3k1b An injected note with no evidence of use is not activated
-  Given the System injected note Z into a turn
-  And the transcript shows no quote or citation of Z, no step of Z followed and no action Z prescribes
-  When the turn completes
-  Then Z's recency metadata is unchanged
-  And the log records the verdict that Z was not activated
-
-Scenario: 793a3k1c An injected chunk is not activated
-  Given the System injected a chunk stub into a turn and the working agent fetched and used the chunk's content
-  When the turn completes
-  Then the log records no activation for the chunk
-
-Scenario: 793a3k1d A used parent note is pulled down and left pending
-  Given the System injected a note from the parent vault and the working agent used it
-  When the turn completes
-  Then a pending local copy of that note appears in the vault
-  And the copy is still pending after the System's work for the turn
-
-Scenario: 793a3k1e Recall's own activation step does not run
-  Given a deep recall moment at which note X is judged to cover a cluster
-  And the transcript shows no use of X by the working agent
-  When the turn completes
-  Then X's recency metadata is unchanged
-  And the log records no activation of X, only the verdict that X was not activated
-```
-
 ### 793a3l Activation accuracy is graded independently
 
 Requirement: 793a3l A separate grader inside the System, independent of the activation judgment, MUST sample the
-activation verdicts of [793a3k Used notes are activated](#793a3k-used-notes-are-activated) (activated or not), grade each sampled verdict against the session transcript as
+activation verdicts of [793a3k Use is inferred from the transcript](#793a3k-use-is-inferred-from-the-transcript) (activated or not), grade each sampled verdict against the session transcript as
 correct or not, and the System MUST log each graded verdict, the sample size and the resulting accuracy.
 
 Rationale: inferring use can miss use the agent never states and can mistake coincidence for use, and the judge that
@@ -749,9 +516,9 @@ Scenario: 793a4b1c No error reaches the agent
 
 Requirement: 793a4c (formerly CTL-3) The System MUST NOT itself make or override tool permissions,
 tool arguments, model choice, or the user's prompt text. Its only effect on the working session is the
-items it injects; outside the session it writes and activates vault notes with their sidecars, pulls down pending copies of parent notes and
-makes offers to the parent ([793a3j Direct writes go to the local vault](#793a3j-direct-writes-go-to-the-local-vault), [792a21n A local write is offered to the parent](../../specs/product/parent-sync.md#792a21n-a-local-write-is-offered-to-the-parent)), writes its log, and starts System sessions
-([793a4f No recall or capture in its own evaluation sessions](#793a4f-no-recall-or-capture-in-its-own-evaluation-sessions)).
+items it injects; outside the session it writes and activates vault notes with their sidecars, refreshes the chunk index, pulls down pending copies of parent notes and
+makes offers to the parent ([792a21n A local write is offered to the parent](../../specs/product/parent-sync.md#792a21n-a-local-write-is-offered-to-the-parent)), writes its log, and starts System sessions
+([793a4f No recall or capture in its own sessions](#793a4f-no-recall-or-capture-in-its-own-sessions)).
 
 #### 793a4c1 UAT Scenarios
 
@@ -778,7 +545,7 @@ Scenario: 793a4c1d Effects outside the session are the System's own writes
   Given a vault with a configured parent
   And a session in which the System captured a lesson and activated an injected note from the parent vault
   When the files changed during the session outside the session transcript are listed
-  Then the changes are the vault notes written or activated with their sidecars, the pending parent copies, the offers to the parent, the System's log and the sessions the System started
+  Then the changes are the vault notes written or activated with their sidecars, the chunk index, the pending parent copies, the offers to the parent, the System's log and the sessions the System started
 ```
 
 ### 793a4d Sensitive content
@@ -795,27 +562,26 @@ Scenario: 793a4d1a Secret in correction is not persisted
   Then the written note contains the rule but not the key
 ```
 
-### 793a4f No recall or capture in its own evaluation sessions
+### 793a4f No recall or capture in its own sessions
 
-Requirement: 793a4f The System MUST NOT recall into, or capture from, the sessions it runs to evaluate
-(to judge capture and activation, to grade precision and activation accuracy, or to choose recall). The System MUST log the id of each session
-it starts itself, marked as a System session.
+Requirement: 793a4f The System MUST NOT recall into, or capture from, the sessions it runs itself (to perform recall and learn, to judge activation, or to grade precision and activation accuracy).
+The System MUST log the id of each session it starts itself, marked as a System session.
 
-Rationale: an evaluation session that triggers the System would recurse and would write notes about
-the System's own judging.
+Rationale: a System session that triggers the System would recurse and would write notes about
+the System's own work.
 
 #### 793a4f1 UAT Scenarios
 
 ```gherkin
-Scenario: 793a4f1a Evaluation sessions are left alone
+Scenario: 793a4f1a System sessions are left alone
   Given the System ran a capture judgment, an activation judgment and the gradings of both for a turn
   When the operator reads the log and the vault
-  Then the log lists each evaluation session's id as a System session
-  And the log has no recall or capture decision for any evaluation session
-  And no note's provenance names an evaluation session
+  Then the log lists each such session's id as a System session
+  And the log has no recall or capture decision for any System session
+  And no note's provenance names a System session
 
-Scenario: 793a4f1b The session that chooses depth and phrases is left alone
-  Given the System started a session to choose the depth and the query phrases for a recall moment
+Scenario: 793a4f1b The session that performs a recall is left alone
+  Given the System started a session to perform recall for a moment
   When the operator reads the log
   Then the log lists that session's id as a System session
   And the log has no recall decision for that session
@@ -880,40 +646,9 @@ Scenario: 793a4h1c A preview installs none of the Integration
   Then the transcript shows no injected content
 ```
 
-## 793a5 Added: automatic-memory (independence, coexistence, and measurement)
+## 793a5 Added: automatic-memory (coexistence and measurement)
 
 Canonical target: `docs/specs/product/automatic-memory.md` (title `Automatic Memory - Product Spec`).
-
-### 793a5a Independence from agent compliance
-
-Requirement: 793a5a (formerly IND-1) The System's recall and capture MUST function with no
-memory-related instructions present in the working agent's configuration.
-
-#### 793a5a1 UAT Scenarios
-
-```gherkin
-Scenario: 793a5a1a Bare configuration
-  Given a project and user configuration with no engram instructions
-  When the scenarios in 793a2a1 (formerly REC-1) and 793a3a1 (formerly CAP-1) are run
-  Then they pass
-```
-
-### 793a5b Coexistence without double-firing
-
-Requirement: 793a5b (formerly IND-2) Where the existing instruction-based path ([ambient-guidance](../../specs/product/ambient-guidance.md)) is
-also active, the rules of [793a2e No re-injection](#793a2e-no-re-injection) and [793a3c No duplicates](#793a3c-no-duplicates) MUST hold across both paths, and the
-working agent SHOULD NOT perform redundant lookups or saves for a moment the System already handled.
-
-#### 793a5b1 UAT Scenarios
-
-```gherkin
-Scenario: 793a5b1a Both paths active
-  Given the prompt-based memory instructions and the System are both active
-  And the working agent's own lookup for a moment displayed note X
-  When the System's recall for that moment returns X
-  Then the transcript shows X's content delivered by no System injection
-  And a lesson that both paths capture yields one note in the vault
-```
 
 ### 793a5c Environments without the capability
 
@@ -933,15 +668,14 @@ Scenario: 793a5c1a Unsupported harness
 
 Requirement: 793a5e (formerly NFR-2) Every recall decision (injected or none, with the depth, whether
 glance escalated to deep, the phrases of each query, the items and their scores), every capture decision
-(written, reinforced, or discarded, with reason) and every activation decision (activated or not, per
+(what learn did with the lesson, or that it was discarded, with the reason) and every activation decision (activated or not, per
 injected note, with its evidence) MUST be logged, so effect on behavior can be measured and the operator can audit it. The
 log MUST be available to the operator by session id. Each entry MUST carry the session id, the turn id
 and the moment. The System MUST also record, per moment, the volume injected, as the number of items and the number of bytes, and the latency added. A
 moment with no injection MUST be recorded with volume 0. The System MUST record all of this whenever it is
 active, and MUST NOT provide, or honor, any setting that switches the recording off while the System is active.
 
-Rationale: the volume and latency record is the evidence any later change to the volume and latency
-requirements ([793a2j Volume equals the depth's output](#793a2j-volume-equals-the-depths-output), [793a5g Latency per recall moment](#793a5g-latency-per-recall-moment)) rests on.
+Rationale: the volume and latency record is the evidence any later change to what the System delivers and how long it takes rests on.
 
 #### 793a5e1 UAT Scenarios
 
@@ -995,36 +729,233 @@ Scenario: 793a5f1a Treatment beats control
   Then the installed arm's rate is higher by more than the noise floor measured between repeat runs of the same arm
 ```
 
-### 793a5g Latency per recall moment
+### 793a5g No added delay
 
-Requirement: 793a5g At every recall moment (a prompt, a tool result or a subagent dispatch) the latency the
-System adds MUST NOT exceed the latency of the instruction path's full lookup at that moment: generating the query
-phrases, running the chosen depth's queries ([793a2j Volume equals the depth's output](#793a2j-volume-equals-the-depths-output)), and reading the results that escalation
-([793a2h Recall depth per moment](#793a2h-recall-depth-per-moment), [792a14d Glance escalates to deep for a recent standard](../../specs/product/recall.md#792a14d-glance-escalates-to-deep-for-a-recent-standard)) and the recommendation check
-([792a14o An emergent recommendation is checked against the vault](../../specs/product/recall.md#792a14o-an-emergent-recommendation-is-checked-against-the-vault)) depend on. At a moment where glance escalates to deep, that lookup is
-the queries of both depths and that reading. The comparison MUST be made on a copy of the vault as it was at that moment, with the same input.
+Requirement: 793a5g (formerly NFR-1) The System's work MUST NOT add delay to the working agent beyond what the agent would spend performing the same skill itself.
+Latency added is the time the working agent waits on the System: before it receives a moment's recall, or before its next prompt is processed.
+Work the working agent does not wait on adds none.
 
-Rationale: recall must cost no more than the whole lookup the working agent would otherwise perform, including
-forming its query and reading what comes back.
+Rationale: moving the skills out of the working agent only pays if it is never slower than the agent doing them.
 
 #### 793a5g1 UAT Scenarios
 
 ```gherkin
-Scenario Outline: 793a5g1a Added latency stays within the instruction path's lookup latency
+Scenario Outline: 793a5g1a Recall adds no more delay than the agent's own recall
   Given a recorded recall moment of kind <moment>
-  And the operator performs the instruction path's lookup for that moment on a copy of the vault as it was at that moment, with the same input, generating the phrases, running the depth's queries and reading the results that escalation and the recommendation check depend on
-  When the latency added in the log is compared with the time that lookup took
+  And the operator performs the same recall inline, as the agent would, on a copy of the vault as it was at that moment, with the same input
+  When the latency added in the log is compared with the time that inline recall took
   Then the latency added does not exceed that time
 
   Examples:
     | moment            |
     | prompt            |
-    | tool result       |
     | subagent dispatch |
+    | mid-task moment   |
 
-Scenario: 793a5g1b An escalated moment is compared with both depths
-  Given a recorded recall moment at which glance escalated to deep
-  And the operator performs the instruction path's lookup on a copy of the vault as it was at that moment, with the same input, generating the phrases, running the queries of both depths and reading the results
-  When the latency added in the log is compared with the time that lookup took
-  Then the latency added does not exceed that time
+Scenario: 793a5g1c Slow capture does not stall the session
+  Given capture evaluation takes 20 seconds
+  When a turn completes and the user submits the next prompt immediately
+  Then the next prompt is processed without waiting for the capture to finish
+  And the working agent's response to the completed turn appeared without waiting for the capture
+```
+
+## 793a6 Modified: lessons-contract (the LESSONS line is replaced while the Integration is installed)
+
+Canonical targets: [lessons-contract](../../specs/product/lessons-contract.md) and the capabilities that name its LESSONS line: [route](../../specs/product/route.md), [please](../../specs/product/please.md) and [ambient-guidance](../../specs/product/ambient-guidance.md). Each operation is a Modified operation against exactly one canonical node, conditional on the Integration, because the contract still holds in harnesses and installs without the Integration ([793a5c Environments without the capability](#793a5c-environments-without-the-capability)). Each target's ID is preserved. The replacement text carries the Integration branch first, then the target's text unchanged for an install without the Integration.
+
+### 793a6a Modified: A completion report ends with a LESSONS line
+
+Target: [792a16a A completion report ends with a LESSONS line](../../specs/product/lessons-contract.md#792a16a-a-completion-report-ends-with-a-lessons-line)
+
+Requirement: 792a16a While the Integration is installed, a subagent MUST NOT be asked to end its report with a `LESSONS:` line, and its report MUST NOT be required to carry one. Where the Integration is not installed: Every subagent dispatched through route, whether a fork, a fresh-context agent or a workflow, MUST end its final report with a `LESSONS:` line that is `LESSONS: none`, or one to three one-line lessons separated by commas. Each lesson MUST be a confirmed correction, a surprising finding or a validated approach, summarized in one line. A subagent MUST NOT decide for itself that a lesson becomes a vault note.
+
+Rationale: A subagent's lessons are captured from its own session, so a line offered by the subagent would only repeat them.
+
+#### 793a6a1 UAT Scenarios
+
+```gherkin
+Scenario: 793a6a1a A subagent is not asked for a LESSONS line
+  Given the Integration is installed and the working agent dispatches a subagent through route
+  When the subagent's instructions and its final report are inspected
+  Then the instructions do not ask for a LESSONS line
+  And the report is not required to end with one
+```
+
+### 793a6b Modified: Every dispatch is told to report lessons
+
+Target: [792a16b Every dispatch is told to report lessons](../../specs/product/lessons-contract.md#792a16b-every-dispatch-is-told-to-report-lessons)
+
+Requirement: 792a16b While the Integration is installed, the handoff that route builds MUST NOT include the completion-report contract, and its other contents are unchanged. Where the Integration is not installed: The handoff that route builds for every dispatch MUST include, among the items it must hand over (exact files and paths, acceptance checks, do-not-touch bounds and the subagent's recall-first instruction), the completion-report contract: the subagent's final report MUST end with a `LESSONS:` line in the format of [792a16a A completion report ends with a LESSONS line](../../specs/product/lessons-contract.md#792a16a-a-completion-report-ends-with-a-lessons-line). The instruction MUST be prescriptive, and MUST be written out even for a fork, which inherits session context.
+
+Rationale: The contract's only purpose was to get lessons back, and the System captures them from the subagent's session.
+
+#### 793a6b1 UAT Scenarios
+
+```gherkin
+Scenario: 793a6b1a The handoff omits the LESSONS mandate
+  Given the Integration is installed and route builds the handoff for a fresh-context agent
+  When the handoff is written
+  Then it names the exact files, acceptance checks, bounds and the recall-first instruction
+  And it does not include a LESSONS mandate
+```
+
+### 793a6c Modified: A missing line is asked for once
+
+Target: [792a16c A missing line is asked for once](../../specs/product/lessons-contract.md#792a16c-a-missing-line-is-asked-for-once)
+
+Requirement: 792a16c While the Integration is installed, the orchestrator MUST NOT send a follow-up that asks a subagent for a missing `LESSONS:` line, and MUST NOT record `LESSONS: none` in its place. Where the Integration is not installed: When a returned report does not end with a `LESSONS:` line, the orchestrator MUST send exactly one targeted follow-up that asks only for the line, and MUST NOT re-ask a second time. A line supplied in response MUST be treated like an on-time line. When the line is still missing after the one follow-up, the orchestrator MUST record `LESSONS: none` and proceed without blocking.
+
+Rationale: There is no required line to be missing.
+
+#### 793a6c1 UAT Scenarios
+
+```gherkin
+Scenario: 793a6c1a A report without a LESSONS line is not re-asked
+  Given the Integration is installed and a subagent report that ends without a LESSONS line
+  When the orchestrator receives it
+  Then it sends no follow-up asking for the line
+  And it proceeds without waiting
+```
+
+### 793a6d Modified: Every line is recorded as it returns
+
+Target: [792a16d Every line is recorded as it returns](../../specs/product/lessons-contract.md#792a16d-every-line-is-recorded-as-it-returns)
+
+Requirement: 792a16d While the Integration is installed, the orchestrator following please MUST NOT keep a running list of `LESSONS:` lines. Where the Integration is not installed: The orchestrator following please MUST record the `LESSONS:` line of every dispatched unit verbatim, including `LESSONS: none`, in a running list for the cycle at the moment each unit's result comes back and before it moves to the next unit, wherever in the workflow the dispatch lands. Judging a line MUST NOT remove or rewrite it, and the list MUST NOT carry marks of what was captured. The please gates MUST NOT block or filter the collection: a line is recorded even when its work is rejected at a gate.
+
+Rationale: There are no lines to collect.
+
+#### 793a6d1 UAT Scenarios
+
+```gherkin
+Scenario: 793a6d1a No running list of LESSONS lines is kept
+  Given the Integration is installed and please dispatches three units in sequence
+  When each returns
+  Then the orchestrator keeps no list of LESSONS lines
+  And the lessons the units' sessions contained are in the vault
+```
+
+### 793a6e Modified: Each lesson is judged when it returns
+
+Target: [792a16e Each lesson is judged when it returns](../../specs/product/lessons-contract.md#792a16e-each-lesson-is-judged-when-it-returns)
+
+Requirement: 792a16e While the Integration is installed, the orchestrator MUST NOT judge or capture lessons from a returned report; the System captures them ([793a3m Lessons from subagent sessions are captured directly](#793a3m-lessons-from-subagent-sessions-are-captured-directly)). Where the Integration is not installed: When a returned report's `LESSONS:` line is not `none`, the orchestrator MUST judge each lesson in it at that moment, and MUST capture each lesson that clears learn's bar with a fast-path learn (one note per lesson, no sweep, handed to write-memory) before the next dispatch, or before ending its turn when no dispatch is left. A lesson clears the bar when it is one of learn's four kinds of lesson ([792a15e The four kinds of explicit lesson](../../specs/product/learn.md#792a15e-the-four-kinds-of-explicit-lesson)), is confirmed and not hypothesized, and states a general reusable principle and not a session-specific narrative. The orchestrator MUST NOT capture `none`, a routine "done, tests pass" or an unconfirmed lesson.
+
+Rationale: The System judges each lesson against learn's bar in the subagent's own session.
+
+#### 793a6e1 UAT Scenarios
+
+```gherkin
+Scenario: 793a6e1a The orchestrator does not judge returned lessons
+  Given the Integration is installed and a subagent's turn contained a confirmed correction
+  When the subagent returns and the orchestrator reads the report
+  Then the transcript shows the orchestrator invoked no learn command for it
+  And a note stating the correction exists in the vault
+```
+
+### 793a6f Modified: The closing learn gets the whole list
+
+Target: [792a16f The closing learn gets the whole list](../../specs/product/lessons-contract.md#792a16f-the-closing-learn-gets-the-whole-list)
+
+Requirement: 792a16f While the Integration is installed, please MUST NOT collect `LESSONS:` lines or hand a collection of them to the closing learn; the audit's map is handed over alone. Where the Integration is not installed: At workflow step 7, please MUST hand the full list of `LESSONS:` lines collected across its dispatches, `none` entries included, to the closing learn, alongside the lessons-audit map ([please](../../specs/product/please.md)), and MUST drop no line. Please MUST run the closing learn when the session had no dispatches, handing it an empty collection. The closing learn MUST skip a line that a vault note written earlier this session already covers, MUST judge every other line against the bar of [792a16e Each lesson is judged when it returns](../../specs/product/lessons-contract.md#792a16e-each-lesson-is-judged-when-it-returns), and MUST discard a line that does not clear it silently, with no note and no log. It MUST NOT write a second time a line captured at its return.
+
+Rationale: There is no collection to hand over.
+
+#### 793a6f1 UAT Scenarios
+
+```gherkin
+Scenario: 793a6f1a The closing learn is handed no list of LESSONS lines
+  Given the Integration is installed and a session with three dispatches
+  When please reaches step 7
+  Then no list of LESSONS lines is handed to the closing learn
+  And the lessons the three units contained are already in the vault
+```
+
+### 793a6g Modified: A confirmed approach is looked for at the moment of confirmation
+
+Target: [792a16g A confirmed approach is looked for at the moment of confirmation](../../specs/product/lessons-contract.md#792a16g-a-confirmed-approach-is-looked-for-at-the-moment-of-confirmation)
+
+Requirement: 792a16g While the Integration is installed, the clauses about a dispatched subagent's `LESSONS:` line and the collected lines do not apply, and the System scans for a confirmed approach, with the same bar, at the moment a unit of work's outcome is confirmed. Where the Integration is not installed: Learn MUST scan for a confirmed approach (kind 4) at the moment a unit of work's outcome is confirmed: a review or gate verdict lands, a check or test passes, or the user explicitly confirms something. That includes the moment the agent reads a dispatched subagent's completion report and its `LESSONS:` line once its outcome is known, and, at the closing learn, the session's completion reports and collected lines. The bar MUST NOT move: a resolved uncertainty or an explicit specific confirmation, never bare success.
+
+Rationale: The scan is anchored on the confirmation, which the System sees in the transcript.
+
+#### 793a6g1 UAT Scenarios
+
+```gherkin
+Scenario: 793a6g1a A confirmed approach is looked for without the lines
+  Given the Integration is installed and a subagent's work was confirmed by a passing check that resolved an uncertainty
+  When the confirmation lands
+  Then a note stating the confirmed approach exists in the vault
+  And no LESSONS line was read or collected
+```
+
+### 793a6h Modified: Every dispatch hands over an exact spec
+
+Target: [792a17g Every dispatch hands over an exact spec](../../specs/product/route.md#792a17g-every-dispatch-hands-over-an-exact-spec)
+
+Requirement: 792a17g While the Integration is installed, the handoff MUST NOT include the completion-report contract. Where the Integration is not installed: The orchestrator MUST hand every dispatched subagent the exact files and paths to create or modify (not "the auth code" but a file and line range), the acceptance checks that mean done (a command with its expected output, a test that must pass, or a property that must hold), the explicit bounds that the unit must leave alone (files, interfaces and behaviors), the instruction to recall first ([792a17h Every subagent recalls first, and large units are decomposed](../../specs/product/route.md#792a17h-every-subagent-recalls-first-and-large-units-are-decomposed)), and the completion-report contract of [792a16b Every dispatch is told to report lessons](../../specs/product/lessons-contract.md#792a16b-every-dispatch-is-told-to-report-lessons). A vague handoff MUST be fixed before the model is blamed.
+
+Rationale: The contract is not asked of a subagent while the Integration is installed.
+
+#### 793a6h1 UAT Scenarios
+
+```gherkin
+Scenario: 793a6h1a The handoff carries no completion-report contract
+  Given the Integration is installed and a unit to implement a function
+  When the orchestrator writes the handoff
+  Then it names the exact files and lines, the acceptance checks, the do-not-touch bounds and the recall-first instruction
+  And it does not include a LESSONS line mandate
+```
+
+### 793a6i Modified: The closing learn gets the lessons and the audit
+
+Target: [792a18r The closing learn gets the lessons and the audit](../../specs/product/please.md#792a18r-the-closing-learn-gets-the-lessons-and-the-audit)
+
+Requirement: 792a18r While the Integration is installed, the closing learn MUST NOT be handed a list of `LESSONS:` lines; it is handed the audit's map. Where the Integration is not installed: Please MUST run the `learn` skill again at step 7 and hand it the full list of `LESSONS:` lines collected across step 4's dispatches ([792a16f The closing learn gets the whole list](../../specs/product/lessons-contract.md#792a16f-the-closing-learn-gets-the-whole-list)) together with the audit's map, and MUST NOT duplicate learn's ad-hoc question-and-answer capture ([792a15k An answered question is captured once](../../specs/product/learn.md#792a15k-an-answered-question-is-captured-once)), which learn performs for substantive answered questions.
+
+Rationale: There are no collected lines to hand over.
+
+#### 793a6i1 UAT Scenarios
+
+```gherkin
+Scenario: 793a6i1a The closing learn receives only the audit
+  Given the Integration is installed and a finished cycle with an audit map
+  When please runs the closing learn
+  Then learn is given the audit's map and no list of LESSONS lines
+```
+
+### 793a6j Modified: A returned subagent lesson is captured before the next dispatch
+
+Target: [792a19e A returned subagent lesson is captured before the next dispatch](../../specs/product/ambient-guidance.md#792a19e-a-returned-subagent-lesson-is-captured-before-the-next-dispatch)
+
+Requirement: 792a19e While the Integration is installed, the orchestrating agent MUST NOT judge or capture returned subagent lessons, and the cue does not apply; the System captures them ([793a3m Lessons from subagent sessions are captured directly](#793a3m-lessons-from-subagent-sessions-are-captured-directly)). Where the Integration is not installed: When a dispatched subagent returns and its `LESSONS:` line is not `none`, the orchestrating agent MUST judge each lesson at that moment against the learn skill's bar ([792a15e The four kinds of explicit lesson](../../specs/product/learn.md#792a15e-the-four-kinds-of-explicit-lesson)): it is one of the four kinds, it is confirmed and not hypothesized, and it states a general reusable principle. For each lesson that clears the bar it MUST invoke the `learn` skill on the fast path, one note per lesson and no sweep, before it dispatches the next subagent or ends its turn. The cue MUST apply to every dispatch, whether or not the route or please skill mediated it.
+
+Rationale: The System captures the lesson from the subagent's session, so the return is no longer the moment to keep it.
+
+#### 793a6j1 UAT Scenarios
+
+```gherkin
+Scenario: 793a6j1a A returned report is not a capture moment
+  Given the Integration is installed and two parallel subagents whose turns each contained a lesson
+  When the orchestrator reads both reports
+  Then the transcript shows it invoked no learn command before its next dispatch
+  And both lessons are in the vault, one note each
+```
+
+### 793a6k Modified: A returned line that fails the bar is not captured
+
+Target: [792a19f A returned line that fails the bar is not captured](../../specs/product/ambient-guidance.md#792a19f-a-returned-line-that-fails-the-bar-is-not-captured)
+
+Requirement: 792a19f While the Integration is installed, no returned `LESSONS:` line exists, so there is nothing for the learn guidance to fire for or skip. Where the Integration is not installed: The learn guidance MUST NOT fire for a returned `LESSONS:` line that is `none`, for a lesson that is a bare success or routine narrative, or for a lesson that is an unconfirmed hypothesis, which are left for the closing learn to discard under the same bar.
+
+Rationale: The requirement governs lines that are no longer returned.
+
+#### 793a6k1 UAT Scenarios
+
+```gherkin
+Scenario: 793a6k1a No returned line exists to skip
+  Given the Integration is installed and a subagent whose turn contained only routine success
+  When the orchestrator reads the report
+  Then the report carries no LESSONS line
+  And no note is written for the routine success
 ```
