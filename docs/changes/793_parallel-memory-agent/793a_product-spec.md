@@ -34,8 +34,8 @@ Terms used below:
 - **Injection:** placing note content in front of the working agent without the agent requesting it.
 - **Operator:** the human who configures and audits the System.
 
-Numeric thresholds marked **[proposed]** are suggested starting values that await a decision in
-[`793c_open-questions.md`](./793c_open-questions.md). Requirement keywords follow RFC 2119.
+Numeric values marked **[proposed]** (sample sizes and the refusal-rate floor) are suggested starting
+values. Requirement keywords follow RFC 2119.
 
 Sections [793a2 automatic-memory (automatic recall)](#793a2-added-automatic-memory-automatic-recall) through [793a5 automatic-memory (independence, coexistence, and measurement)](#793a5-added-automatic-memory-independence-coexistence-and-measurement) add requirements to one new capability. Each requirement keeps its
 draft identifier in a "formerly" note so that review comments on the draft still map.
@@ -141,9 +141,12 @@ Scenario: 793a2e1b Irrelevant note suppressed
 ### 793a2f Bounded volume
 
 Requirement: [793a2f Bounded volume](#793a2f-bounded-volume) (formerly REC-6) Injections MUST be bounded per injection, per turn, and per
-session, so that recall cannot materially crowd out the task. Initial bounds **[proposed]**: at a
-prompt, at most 3 notes / 6 KB; at a tool result, at most 2 notes / 3 KB; per turn, at most 4
-tool-result injections and 12 KB.
+session, so that recall cannot materially crowd out the task. Each bound MUST be at least what one run
+of the current recall query (the instruction-based path in [ambient-guidance](../../specs/product/ambient-guidance.md), `engram query` with its
+default result limit and content budget) delivers to the working agent.
+
+Rationale: automatic recall must give the working agent at least what it receives today, and bounds
+exist only to stop runaway injection.
 
 #### 793a2f1 UAT Scenarios
 
@@ -151,34 +154,57 @@ tool-result injections and 12 KB.
 Scenario: 793a2f1a Per-turn bound holds
   Given a turn with 10 tool results that each match several notes
   When the turn completes
-  Then total injected content for the turn is at most 12 KB
-  And no more than 4 tool-result injections occurred
+  Then the total injected content for the turn does not exceed the System's documented per-turn bound
+  And that bound is not lower than the content one run of the current recall query returns under its defaults
 
 Scenario: 793a2f1b Prompt-time bound holds
-  Given a prompt that matches more than 3 notes totaling more than 6 KB
+  Given a prompt that matches more notes than the current recall query's default result limit
   When the human submits the prompt
-  Then at most 3 notes and 6 KB are injected for that prompt
+  Then the injected content does not exceed the System's documented prompt-time bound
+  And no note that the current recall query returns for that prompt under its defaults is dropped for volume
 
 Scenario: 793a2f1c Tool-result bound holds
-  Given a tool result that matches more than 2 notes totaling more than 3 KB
+  Given a tool result that matches more notes than the current recall query's default result limit
   When the tool result is returned to the working agent
-  Then at most 2 notes and 3 KB are injected for that tool result
+  Then the injected content does not exceed the System's documented tool-result bound
+  And no note that the current recall query returns for that tool result under its defaults is dropped for volume
 ```
 
-### 793a2g Human-originated moments only
+### 793a2g Recall for every prompt regardless of source
 
-Requirement: [793a2g Human-originated moments only](#793a2g-human-originated-moments-only) (formerly REC-7) The System SHOULD NOT inject recall for prompts that did not
-originate from the human (automated notifications, scheduled triggers, messages from other sessions)
-unless the operator configures otherwise.
+Requirement: [793a2g Recall for every prompt regardless of source](#793a2g-recall-for-every-prompt-regardless-of-source) (formerly REC-7) The System MUST apply prompt-time recall to every prompt
+regardless of its source (human, automated notification, scheduled trigger, message from another
+session). When a note relevant to the prompt ([793a2e Relevance and non-repetition](#793a2e-relevance-and-non-repetition)) is not already present in the working agent's context,
+the System MUST inject it. The System MUST NOT inject a note that is already present in the working
+agent's context.
+
+Rationale: memory is always worth checking, and a relevant note the agent lacks is worth injecting
+whatever produced the prompt; a note it already has adds only noise.
 
 #### 793a2g1 UAT Scenarios
 
 ```gherkin
-Scenario: 793a2g1a Automated prompt skipped
-  Given an automated task notification arrives as a prompt
-  When the System evaluates it
-  Then no prompt-time injection occurs
-  And the skip is recorded
+Scenario Outline: 793a2g1a Non-human prompt receives recall
+  Given a note whose situation matches the prompt
+  And the note is not in the working agent's context
+  When <source> delivers that prompt to the working agent
+  Then the working agent's next model call includes that note
+
+  Examples:
+    | source                             |
+    | an automated task notification     |
+    | a scheduled trigger                |
+    | a message from another session     |
+
+Scenario: 793a2g1b Note injected earlier is not injected again
+  Given note X was injected earlier in this session and is still in the working agent's context
+  When a later prompt matches X
+  Then X is not injected again
+
+Scenario: 793a2g1c Note the agent already retrieved is not injected
+  Given the working agent obtained note X itself and X is in its context
+  When a later prompt matches X
+  Then X is not injected
 ```
 
 ## 793a3 Added: automatic-memory (automatic capture)
@@ -187,9 +213,13 @@ Canonical target: `docs/specs/product/automatic-memory.md` (title `Automatic Mem
 
 ### 793a3a Evaluate every completed turn
 
-Requirement: [793a3a Evaluate every completed turn](#793a3a-evaluate-every-completed-turn) (formerly CAP-1) After each completed turn, the System MUST evaluate the turn for
-lessons (correction, explicit save-request, reversal, confirmed approach) without the working agent
-requesting it.
+Requirement: [793a3a Evaluate every completed turn](#793a3a-evaluate-every-completed-turn) (formerly CAP-1) After each completed turn, in both top-level and subagent
+sessions, the System MUST evaluate the turn for lessons (correction, explicit save-request, reversal,
+confirmed approach) without the working agent requesting it. The System, not the working agent,
+MUST judge what is worth saving, and MUST write each captured lesson directly to the vault.
+
+Rationale: the working agent's context stays free of memory evaluation, and subagent sessions are
+where lessons occur too.
 
 #### 793a3a1 UAT Scenarios
 
@@ -198,13 +228,23 @@ Scenario: 793a3a1a User correction is captured without agent action
   Given a session whose configuration contains no memory instructions
   When the user says "no, use the targ build system, not go test directly"
   And the turn completes
-  Then a feedback note stating that rule exists in the vault or in the dry-run log
+  Then a feedback note stating that rule exists in the vault
+  And it was written directly, not left as a pending offer for review
   And the working agent did not invoke any learn command
+  And the working agent's context contains no request to evaluate, approve or write the note
 
 Scenario: 793a3a1b Explicit save-request
   When the user says "remember that releases are tagged from main"
   And the turn completes
-  Then a fact note stating that is captured
+  Then a fact note stating that exists in the vault
+
+Scenario: 793a3a1c Lesson in a subagent session is captured
+  Given the working agent dispatched a subagent
+  And the subagent stated a conclusion that a test result then overturned
+  And the subagent corrected its conclusion
+  When the subagent's turn completes
+  Then a note stating the corrected conclusion exists in the vault
+  And the subagent did not invoke any learn command
 ```
 
 ### 793a3b Confirmed lessons only
@@ -252,29 +292,32 @@ captured automatically, and the session and turn it came from.
 
 ```gherkin
 Scenario: 793a3d1a Provenance present
-  Given an automatically captured note
+  Given an automatically captured note in the vault
   When its source field is inspected
   Then it identifies automatic capture, the session id, and the turn id
 ```
 
-### 793a3e Capture quality
+### 793a3e Capture rate and recorded precision
 
-Requirement: [793a3e Capture quality](#793a3e-capture-quality) (formerly CAP-5) Of automatically captured notes, at least **[proposed] 70%**
-MUST be judged valid lessons by the operator on review. The System SHOULD capture materially more of
-the lesson-worthy moments than the current baseline of about 5%; target **[proposed] at least 50%**.
+Requirement: [793a3e Capture rate and recorded precision](#793a3e-capture-rate-and-recorded-precision) (formerly CAP-5) The System MUST capture a larger share of lesson-worthy moments
+than the current baseline of about 5%. The System MUST record its capture precision: the share of
+automatically captured notes judged valid lessons on a sample.
+
+Rationale: the capture rate must improve on the baseline that motivated the System, and recorded
+precision shows whether direct writes ([793a3a Evaluate every completed turn](#793a3a-evaluate-every-completed-turn)) keep the vault clean.
 
 #### 793a3e1 UAT Scenarios
 
 ```gherkin
-Scenario: 793a3e1a Precision measured on a sample
+Scenario: 793a3e1a Precision recorded on a sample
   Given 30 automatically captured notes sampled from real sessions
-  When the operator reviews each as valid or not valid
-  Then at least 21 are valid
+  When each is reviewed as valid or not valid
+  Then the System records the verdicts, the sample size and the resulting precision
 
-Scenario: 793a3e1b Recall rate measured against labeled moments
+Scenario: 793a3e1b Capture rate exceeds the baseline
   Given a labeled set of at least 60 lesson-worthy moments from real sessions
   When the System runs over those sessions
-  Then it captures at least 50% of them
+  Then it captures a larger share of them than the 5.6% baseline
 ```
 
 ### 793a3f Non-blocking capture
@@ -299,7 +342,11 @@ Canonical target: `docs/specs/product/automatic-memory.md` (title `Automatic Mem
 
 Requirement: [793a4a Operating modes](#793a4a-operating-modes) (formerly CTL-1) The operator MUST be able to select among: off (no recall, no
 capture), observe (decisions are logged, nothing is injected or written), and active (injection and
-writes occur). The initial default for a new install SHOULD be observe.
+writes occur). The default for a fresh install MUST be active. Measurement ([793a5e Auditability and measurability](#793a5e-auditability-and-measurability)) MUST be
+recorded in observe and active modes.
+
+Rationale: an active default with always-on measurement accumulates the data later optimizations
+need.
 
 #### 793a4a1 UAT Scenarios
 
@@ -315,6 +362,12 @@ Scenario: 793a4a1b Off mode is inert
   Given mode is off
   When a session runs
   Then the System performs no recall, no capture, and writes no log entries
+
+Scenario: 793a4a1c Fresh install is active and measured
+  Given a fresh install with no mode configured
+  When a session runs with a prompt that matches a note
+  Then the note is injected into the working agent
+  And a decision is recorded for that moment
 ```
 
 ### 793a4b Failure isolation
@@ -416,8 +469,11 @@ Scenario: 793a5c1a Unsupported harness
 
 ### 793a5d Latency
 
-Requirement: [793a5d Latency](#793a5d-latency) (formerly NFR-1) The System MUST add at most **[proposed] 1.5 s** median added
-latency per human prompt, and MUST NOT add blocking latency for capture ([793a3f Non-blocking capture](#793a3f-non-blocking-capture), formerly CAP-6).
+Requirement: [793a5d Latency](#793a5d-latency) (formerly NFR-1) The System's median added latency per prompt MUST be bounded, and the bound
+MUST NOT be lower than the median latency of one run of the current recall query on the same vault.
+The System MUST NOT add blocking latency for capture ([793a3f Non-blocking capture](#793a3f-non-blocking-capture), formerly CAP-6).
+
+Rationale: recall must cost no more than the lookup the working agent performs today.
 
 #### 793a5d1 UAT Scenarios
 
@@ -425,7 +481,8 @@ latency per human prompt, and MUST NOT add blocking latency for capture ([793a3f
 Scenario: 793a5d1a Latency measured
   Given 50 prompts run with the System off and 50 in active mode
   When median time-to-first-model-call is compared
-  Then the active median is at most 1.5 s higher
+  Then the active median is higher by no more than the System's documented latency bound
+  And that bound is not lower than the median latency of one run of the current recall query on the same vault
 ```
 
 ### 793a5e Auditability and measurability
@@ -433,7 +490,10 @@ Scenario: 793a5d1a Latency measured
 Requirement: [793a5e Auditability and measurability](#793a5e-auditability-and-measurability) (formerly NFR-2) Every recall decision (injected or none, with the notes and
 scores) and every capture decision (written, reinforced, or discarded, with reason) MUST be logged
 with session and turn identifiers, so effect on behavior can be measured and the operator can audit
-it.
+it. The System MUST also record, per moment, the volume injected and the latency added.
+
+Rationale: the volume and latency record is the evidence any later change to the bounds in
+[793a2f Bounded volume](#793a2f-bounded-volume) and [793a5d Latency](#793a5d-latency) rests on.
 
 #### 793a5e1 UAT Scenarios
 
@@ -443,6 +503,11 @@ Scenario: 793a5e1a Decision log joins to outcomes
   When the operator queries the log by session id
   Then each moment has a recorded decision
   And each injected note can be matched to the later actions of the working agent
+
+Scenario: 793a5e1b Volume and latency recorded per moment
+  Given a completed session with moments at which notes were injected
+  When the operator queries the log by session id
+  Then each moment shows the volume injected and the latency added
 ```
 
 ### 793a5f Effect on outcomes
