@@ -30,17 +30,26 @@ func init() {
 		Name("engram-dev").
 		Description("Engram dev target registration"))
 
-	targ.Register(targ.Targ(testDev).
-		Name("test-dev").
-		Description("Run unit tests for the dev package (targ build tag)"))
-	targ.Register(targ.Targ(testDevIntegration).
-		Name("test-dev-integration").
-		Description("Run local integration tests for dev tooling"))
+	targ.Register(testDevTarget, testDevIntegrationTarget)
+
+	// The dev package's tests carry build tags the shared test targets do not pass, so the checks run them here.
+	targdev.CheckForFail.Deps(testDevTarget, testDevIntegrationTarget, targ.DepModeParallel)
+	targdev.CheckFull.Deps(testDevTarget, testDevIntegrationTarget, targ.DepModeParallel, targ.CollectAllErrors)
 
 	targ.Register(targ.Targ(runEval).
 		Name("eval").
 		Description("Run the memory eval harness for one arm (nothing|skills-only|current-state)"))
 }
+
+// unexported variables.
+var (
+	testDevIntegrationTarget = targ.Targ(testDevIntegration).
+					Name("test-dev-integration").
+					Description("Run local integration tests for dev tooling")
+	testDevTarget = targ.Targ(testDev).
+			Name("test-dev").
+			Description("Run unit tests for the dev package (targ build tag)")
+)
 
 // evalArgs holds the positional arm name and optional trials count for targ eval.
 type evalArgs struct {
