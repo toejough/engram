@@ -7,7 +7,6 @@ Persistent memory for LLM agents, backed by an agent-memory zettelkasten vault. 
 - **Verify, don't guess.** Always read source code and documentation before guessing at formats, paths, or API contracts. Never assume directory structures or payload fields — verify first.
 - **Follow the documentation workflow before implementation.** For every behavior change, including code, tooling, configuration, and agent instructions, read and follow the required implementation workflow in [docs/AGENTS.md](docs/AGENTS.md#required-implementation-workflow), even when no documentation edits were initially planned.
 
-
 ## Directory Structure
 
 ```
