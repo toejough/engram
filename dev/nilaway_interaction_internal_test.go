@@ -5,8 +5,8 @@ package dev
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
-	"time"
 
 	. "github.com/onsi/gomega"
 	"github.com/toejough/imptest/match"
@@ -24,7 +24,8 @@ func Test794b4b1a_OneRequestCarriesTheContextAndThePolicysArguments(t *testing.T
 
 			g := NewWithT(t)
 			ctx := t.Context()
-			execute, expectation := MockExecuteNilaway(t)
+			mock, expectation := MockExecuteNilaway(t)
+			execute, requests := countRequests(mock)
 			placeholder := []string{"placeholder-arguments", "for-" + scenario.name}
 			var policyMode []bool
 			policy := func(fix bool) []string {
@@ -40,7 +41,7 @@ func Test794b4b1a_OneRequestCarriesTheContextAndThePolicysArguments(t *testing.T
 
 			g.Expect(got.Ctx).To(BeIdenticalTo(ctx))
 			g.Expect(got.Args).To(Equal(placeholder))
-			g.Expect(awaitReturn(g, done)).To(Succeed())
+			g.Expect(awaitReturn(g, done, requests)).To(Succeed())
 			g.Expect(policyMode).To(Equal([]bool{scenario.fix}))
 		})
 	}
@@ -50,46 +51,56 @@ func Test794b4b1b_SuccessfulRunReturnsSuccess(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
-	execute, expectation := MockExecuteNilaway(t)
+	mock, expectation := MockExecuteNilaway(t)
+	execute, requests := countRequests(mock)
 	done := make(chan error, 1)
 	go func() { done <- runConfiguredNilaway(context.Background(), false, nilawayArgs, execute) }()
 
 	expectation.ArgsShould(match.BeAny, match.BeAny).Return(nil)
 
-	g.Expect(awaitReturn(g, done)).To(Succeed())
+	g.Expect(awaitReturn(g, done, requests)).To(Succeed())
 }
 
 func Test794b4b1c_FailedRunReturnsTheFailureWithoutRetrying(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
-	execute, expectation := MockExecuteNilaway(t)
+	mock, expectation := MockExecuteNilaway(t)
+	execute, requests := countRequests(mock)
 	done := make(chan error, 1)
 	go func() { done <- runConfiguredNilaway(context.Background(), false, nilawayArgs, execute) }()
 
 	expectation.ArgsShould(match.BeAny, match.BeAny).Return(errAnalyzerFailed)
 
-	g.Expect(awaitReturn(g, done)).To(MatchError(errAnalyzerFailed))
+	g.Expect(awaitReturn(g, done, requests)).To(MatchError(errAnalyzerFailed))
 }
-
-// unexported constants.
-const (
-	returnWait = 2 * time.Second
-)
 
 // unexported variables.
 var (
 	errAnalyzerFailed = errors.New("analyzer failed")
 )
 
-// awaitReturn waits for the run to return. The mock blocks on any request after the first one the test answered,
-// so a run that retries never returns and fails here.
-func awaitReturn(g *WithT, done <-chan error) error {
-	select {
-	case err := <-done:
-		return err
-	case <-time.After(returnWait):
-		g.Expect(false).To(BeTrue(), "the run did not return after one answered request; it made a second request")
-		return nil
-	}
+// awaitReturn waits for the run to return and checks that it made exactly one request.
+func awaitReturn(g *WithT, done <-chan error, requests *atomic.Int32) error {
+	err := <-done
+
+	g.Expect(requests.Load()).To(Equal(int32(1)), "the run made more than one request: it retried")
+
+	return err
+}
+
+// countRequests wraps the mock, counting requests. Only the first reaches the mock; a retry is answered at once with
+// success so the run still returns and the count shows it, with no timer to wait out.
+func countRequests(
+	mock func(context.Context, []string) error,
+) (func(context.Context, []string) error, *atomic.Int32) {
+	var requests atomic.Int32
+
+	return func(ctx context.Context, args []string) error {
+		if requests.Add(1) > 1 {
+			return nil
+		}
+
+		return mock(ctx, args)
+	}, &requests
 }
