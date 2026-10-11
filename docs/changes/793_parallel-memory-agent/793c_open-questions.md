@@ -285,6 +285,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 ## 793c25 When are the covering and amended notes from a deep moment injected?
 
 - **Status:** open.
+- **Owner follow-up (Joe, 2026-10-11):** why do note writes only happen at the end of a turn? See [793c29 Is the System a delegate for the existing memory skills?](#793c29-is-the-system-a-delegate-for-the-existing-memory-skills).
 - **Context:** [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) says the System's capture performs the deep moment's writes, but capture runs asynchronously at turn end ([793a3a Evaluate every completed turn](793a_product-spec.md#793a3a-evaluate-every-completed-turn), [793a3f Capture does not delay the session](793a_product-spec.md#793a3f-capture-does-not-delay-the-session)), while the covering and amended notes it injects must reach the working agent. A finished subagent has no context left to receive anything. The coverage judgment and the writes add time outside [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment)'s comparison.
 - **Options:**
   - (a) At the same moment, before the agent's next action. The coverage judgment and writes are added to [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment)'s comparison, because the instruction path's deep recall performs the same step.
@@ -296,6 +297,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 ## 793c26 What does the System's recommendation check (792a14o) key on?
 
 - **Status:** open.
+- **Owner follow-up (Joe, 2026-10-11):** leaning (c). Asked why the System can't simply take over the memory actions from the main agent without exceptions. See [793c29 Is the System a delegate for the existing memory skills?](#793c29-is-the-system-a-delegate-for-the-existing-memory-skills).
 - **Context:** [792a14o An emergent recommendation is checked against the vault](../../specs/product/recall.md#792a14o-an-emergent-recommendation-is-checked-against-the-vault) fires on a recommendation that is not in the Step 0 plan. The System has no plan and never ships a recommendation, yet [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output) and [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment) include the check.
 - **Options:**
   - (a) The System's own synthesis, with the query text standing in for the plan.
@@ -306,7 +308,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 
 ## 793c27 Does the System sweep the chunk index (792a14b)?
 
-- **Status:** open.
+- **Status:** answered (Joe, 2026-10-11): (c) sweep asynchronously at turn-end capture.
 - **Context:** [792a14b The index is swept once per session](../../specs/product/recall.md#792a14b-the-index-is-swept-once-per-session) has recall run `engram ingest --auto` before its first query of a session, so the index holds the latest sessions and document edits. The product spec does not say whether the System does. A sweep takes time before the first query and writes to the chunk index.
 - **Options:**
   - (a) Once per session before its first query, as recall does. Its time counts in [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment), and its index writes are added to [793a4c Memory purview only](793a_product-spec.md#793a4c-memory-purview-only).
@@ -318,6 +320,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 ## 793c28 How is 793a5g's latency comparison measured?
 
 - **Status:** open.
+- **Owner follow-up (Joe, 2026-10-11):** what is being measured? See [793c29 Is the System a delegate for the existing memory skills?](#793c29-is-the-system-a-delegate-for-the-existing-memory-skills).
 - **Context:** [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment) compares the latency the System adds at a moment with the time the instruction path's lookup takes at that moment. Both are timings, and each varies between runs.
 - **Options:**
   - (a) Median added latency against median lookup latency, over N repeats per moment kind.
@@ -325,3 +328,14 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
   - (c) Aggregate per session.
 - **Recommendation:** (a), because a single sample of two noisy timings cannot pass reliably.
 - **Blocks:** [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment). Raised by finding M6 of the fourth review ([793b89 Fourth review: findings waiting on open questions](793b_decision-log.md#793b89-fourth-review-findings-waiting-on-open-questions)).
+
+## 793c29 Is the System a delegate for the existing memory skills?
+
+- **Status:** open.
+- **Context:** Joe (2026-10-11): "I really don't understand why the watching agent can't just take the memory actions over from the main agent. Why all these exceptions? I'm not trying to do anything different. I'm trying to offload the context." The draft, and every revision since, re-specified recall and learn behavior requirement by requirement. The draft defined capture as evaluating each completed turn (formerly CAP-1), which is why writes happen at turn end. That and the other re-specifications produced the exceptions in [793c23 Is a note amended as near injected?](#793c23-is-a-note-amended-as-near-injected) through [793c28 How is 793a5g's latency comparison measured?](#793c28-how-is-793a5gs-latency-comparison-measured). The existing skills already define when they run and what they do: [recall](../../specs/product/recall.md), [learn](../../specs/product/learn.md), and the moments in [ambient-guidance](../../specs/product/ambient-guidance.md).
+- **Options:**
+  - (a) Restructure 793a as a delegation. The System runs recall and learn exactly as their canonical specs define them, at the moments the guidance defines, on the working agent's behalf, including their writes, activation and sweep, when and as those skills do them. The working agent receives only what the skill would have put in front of it, and no longer runs the skills itself. 793a then specifies only what is new: noticing the moments without the agent, handing the results to the agent, failure isolation, the System's own sessions, measurement, and install and uninstall. Most re-specified requirements, and the questions about them (including [793c25 When are the covering and amended notes from a deep moment injected?](#793c25-when-are-the-covering-and-amended-notes-from-a-deep-moment-injected), [793c26 What does the System's recommendation check (792a14o) key on?](#793c26-what-does-the-systems-recommendation-check-792a14o-key-on) and [793c28 How is 793a5g's latency comparison measured?](#793c28-how-is-793a5gs-latency-comparison-measured)), are retired.
+  - (b) Keep the current structure and answer 793c25–c28 individually.
+- **Recommendation:** (a). It states Joe's intent directly and removes the exceptions by construction. Owner decisions that change the skills' behavior stay, as deliberate differences from the skills: direct writes with no main-agent involvement, the wider lesson definition (#846), inferred use, and the volume and latency measurements. A follow-up question will list each one for Joe to confirm or drop.
+- **Blocks:** every requirement in 793a, and [793c25 When are the covering and amended notes from a deep moment injected?](#793c25-when-are-the-covering-and-amended-notes-from-a-deep-moment-injected)–[793c28 How is 793a5g's latency comparison measured?](#793c28-how-is-793a5gs-latency-comparison-measured).
+
