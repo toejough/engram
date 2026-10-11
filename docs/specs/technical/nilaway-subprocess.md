@@ -2,8 +2,8 @@
 
 Starts the NilAway analyzer process for a configured request, inheriting the developer's
 environment. Choosing the arguments is [NilAway Invocation Policy](./nilaway-invocation-policy.md),
-and routing entry points to the request is
-[Development Check Orchestration](./development-check-orchestration.md).
+and routing entry points to the request is the
+[Nil Check Run Flow](./nil-check-run-flow.md).
 
 ## 794b4c Run NilAway
 
