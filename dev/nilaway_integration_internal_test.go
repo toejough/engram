@@ -4,6 +4,9 @@ package dev
 
 import (
 	"context"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"maps"
 	"os"
 	"os/exec"
@@ -15,7 +18,6 @@ import (
 
 	. "github.com/onsi/gomega"
 	"github.com/toejough/targ"
-	targdev "github.com/toejough/targ/dev"
 )
 
 func Test794a2a1a_ExistingEntryPointsReportOnlyEngramModulePackages(t *testing.T) {
@@ -69,9 +71,8 @@ func Test794a2a1c_FixCommandActsOnlyOnEngramModulePackages(t *testing.T) {
 	}, "require example.com/thirdparty v0.0.0\nreplace example.com/thirdparty => ./thirdparty\n",
 		"import \"example.com/thirdparty\"\n\nfunc Dependent() { thirdparty.Broken() }\n")
 
-	// NilAway with -fix applies suggested fixes and prints no diagnostics, even for a known nil dereference, so
-	// the scenario's "is reported" clause is not observable with the real analyzer. What is observable is that
-	// the dependency is neither reported on nor modified.
+	// The fix command guarantees only that the dependency is neither modified nor reported on. NilAway with -fix
+	// applies suggested fixes and prints no diagnostics, so whether the Engram fault is reported is not asserted.
 	output, err := runEntry(t, dir, checkNilsFix)
 
 	g.Expect(err).NotTo(HaveOccurred())
@@ -156,14 +157,14 @@ func Broken() { var value *int; println(*value) }
 		"> \"$ENGRAM_NILAWAY_CAPTURE\" 2>&1\n"
 )
 
-// entryTarget returns the shared development target the named entry point resolves to.
+// entryTarget returns the target Engram registers under the named entry point.
 func entryTarget(name string) *targ.Target {
 	return map[string]*targ.Target{
-		"check-nils-for-fail": targdev.CheckNilsForFail,
-		"check-nils":          targdev.CheckNils,
-		"check":               targdev.Check,
-		"check-for-fail":      targdev.CheckForFail,
-		"check-full":          targdev.CheckFull,
+		"check-nils-for-fail": checkNilsForFailTarget,
+		"check-nils":          checkNilsTarget,
+		"check":               checkTarget,
+		"check-for-fail":      checkForFailTarget,
+		"check-full":          checkFullTarget,
 	}[name]
 }
 
@@ -176,7 +177,7 @@ func newFixture(t *testing.T, files map[string]string, extraModule, importBlock 
 	}
 	binary, err := exec.LookPath("nilaway")
 	if err != nil {
-		t.Fatal("NilAway is required for the explicit dev integration suite")
+		t.Fatal("nilaway not on PATH; install it to run check-full")
 	}
 	dir, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
@@ -207,13 +208,9 @@ func newFixture(t *testing.T, files map[string]string, extraModule, importBlock 
 	return dir
 }
 
-// reachesNilsForFail reports whether the target runs the configured check-nils-for-fail target.
+// reachesNilsForFail reports whether the target runs Engram's check-nils-for-fail target.
 func reachesNilsForFail(target *targ.Target) bool {
-	if target == targdev.CheckNilsForFail {
-		return true
-	}
-
-	return slices.ContainsFunc(target.GetDeps(), reachesNilsForFail)
+	return reaches(target, checkNilsForFailTarget)
 }
 
 // runEntry runs an entry point from the fixture directory and returns the analyzer's diagnostics.
@@ -227,4 +224,85 @@ func runEntry(t *testing.T, dir string, entry func(context.Context) error) (stri
 	}
 
 	return string(contents), err
+}
+
+func Test794b4a1d_TargsOtherSharedTargetsStayAvailable(t *testing.T) {
+	g := NewWithT(t)
+	module, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", "github.com/toejough/targ").Output()
+	g.Expect(err).NotTo(HaveOccurred())
+
+	declared := exportedTargetVariables(t, filepath.Join(strings.TrimSpace(string(module)), "dev"))
+	g.Expect(declared).NotTo(BeEmpty())
+
+	kept := make([]string, 0, len(sharedTargets))
+	for name, target := range sharedTargets {
+		kept = append(kept, name)
+
+		g.Expect(target.GetSource()).To(Equal(targSourcePackage), "%s is not Targ's own target", name)
+		g.Expect(target.GetName()).NotTo(BeEmpty(), name)
+	}
+
+	replaced := []string{
+		"Check", "CheckForFail", "CheckFull", "CheckNils", "CheckNilsFix", "CheckNilsForFail",
+	}
+
+	g.Expect(slices.Concat(kept, replaced)).To(ConsistOf(declared),
+		"Targ's shared targets changed: re-register each new one, or drop each removed one, in sharedTargets")
+}
+
+// exportedTargetVariables returns the names of the exported targets the package at dir declares.
+func exportedTargetVariables(t *testing.T, dir string) []string {
+	t.Helper()
+	files, err := parser.ParseDir(token.NewFileSet(), dir, func(info os.FileInfo) bool {
+		return !strings.HasSuffix(info.Name(), "_test.go")
+	}, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	names := make([]string, 0)
+	for _, pkg := range files {
+		for _, file := range pkg.Files {
+			for _, decl := range file.Decls {
+				gen, isGen := decl.(*ast.GenDecl)
+				if !isGen || gen.Tok != token.VAR {
+					continue
+				}
+
+				for _, spec := range gen.Specs {
+					value, isValue := spec.(*ast.ValueSpec)
+					if !isValue || len(value.Values) != 1 || !buildsTarget(value.Values[0]) {
+						continue
+					}
+
+					for _, name := range value.Names {
+						if name.IsExported() {
+							names = append(names, name.Name)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return names
+}
+
+// buildsTarget reports whether the expression is a call chain rooted at targ.Targ(...).
+func buildsTarget(expr ast.Expr) bool {
+	call, isCall := expr.(*ast.CallExpr)
+	if !isCall {
+		return false
+	}
+
+	selector, isSelector := call.Fun.(*ast.SelectorExpr)
+	if !isSelector {
+		return false
+	}
+
+	if root, isIdent := selector.X.(*ast.Ident); isIdent {
+		return root.Name == "targ" && selector.Sel.Name == "Targ"
+	}
+
+	return buildsTarget(selector.X)
 }

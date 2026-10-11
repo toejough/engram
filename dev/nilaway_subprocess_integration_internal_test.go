@@ -5,6 +5,7 @@ package dev
 import (
 	"context"
 	"errors"
+	"os"
 	"os/exec"
 	"testing"
 
@@ -27,6 +28,7 @@ func Test794b4c1a_InheritedEnvironmentPassThrough(t *testing.T) {
 
 			g.Expect(err).NotTo(HaveOccurred())
 			g.Expect(readStandInMarker(t, capture)).To(Equal(standInMarker))
+			g.Expect(os.Getenv("ENGRAM_NILAWAY_MARKER")).To(Equal(standInMarker), "the parent's marker changed")
 			g.Expect(readStandInResources(t, capture)).To(Equal(supplied))
 			g.Expect(currentResourceVariables()).To(Equal(supplied))
 		})
