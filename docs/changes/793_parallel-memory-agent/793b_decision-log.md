@@ -1239,3 +1239,19 @@ New IDs: [793a7 ambient-guidance, route and please (the working agent no longer 
 | [793a7r Each work-kind keeps one aggregate note](793a_product-spec.md#793a7r-modified-each-work-kind-keeps-one-aggregate-note) | new operation, target [792a17l Each work-kind keeps one aggregate note](../../specs/product/route.md#792a17l-each-work-kind-keeps-one-aggregate-note) | the System keeps the aggregate |
 
 New IDs: `793a2c1d`, `793a3o`, `793a3o1` with `793a3o1a`..`793a3o1d`, `793a3p`, `793a3p1` with `793a3p1a`..`793a3p1b`, `793a6i1b`, `793a7o1d`, `793a7o1e`, `793a7q` with `793a7q1a`..`793a7q1e`, `793a7r` with `793a7r1a`..`793a7r1f`, [793b106 793c36: the shim follow-frame nodes stay unmodified](793b_decision-log.md#793b106-793c36-the-shim-follow-frame-nodes-stay-unmodified) to [793b113 ID map for the application of 793c36 to 793c39](793b_decision-log.md#793b113-id-map-for-the-application-of-793c36-to-793c39), and [793c40 Does the user still see please's audit list?](793c_open-questions.md#793c40-does-the-user-still-see-pleases-audit-list). Retired and never reused: `793a6i1a`, `793a7o1a`, `793a7o1b`.
+
+## 793b114 A memory-activity summary is shown to the user
+
+- **Choice:** a new capability, to be added to 793a as a requirement with its own ID. After each completed turn, the System shows the user, outside the working agent's context, the counts of memory events since its previous summary:
+  - items surfaced (injected);
+  - notes used (activated);
+  - notes added;
+  - notes amended;
+  - captures discarded;
+  - evidence notes written.
+
+  The please audit's per-item list and the reason for each event stay in the log and the vault. A turn with no memory events shows nothing.
+- **Rationale:** the user keeps visibility of the memory work the System took over, including what please's closing report used to show, without the working agent relaying it.
+- **Decided by:** Owner (Joe), [793c40 Does the user still see please's audit list?](793c_open-questions.md#793c40-does-the-user-still-see-pleases-audit-list) (d). Orchestrator (Claude) interpreted "every opportunity" as after each completed turn, chose the counted kinds, and chose to stay silent when nothing happened. Awaiting owner validation.
+- **Status:** accepted, not yet applied to 793a.
+

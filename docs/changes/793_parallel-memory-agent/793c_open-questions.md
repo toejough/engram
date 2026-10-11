@@ -500,7 +500,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 
 ## 793c40 Does the user still see please's audit list?
 
-- **Status:** open. Applied meanwhile as (a).
+- **Status:** answered (Joe, 2026-10-11): (d), Joe's own option. At every opportunity the System prints the counts of relevant memory events directly to the user (surfaced x, used y, added z, and so on), through the harness's own display surface ("with mods, the system can just print stuff to the user"). None of it enters the working agent's context. Applied as interpreted in [793b114 A memory-activity summary is shown to the user](793b_decision-log.md#793b114-a-memory-activity-summary-is-shown-to-the-user).
 - **Context:** [792a18p The closing learn is preceded by a lessons audit](../../specs/product/please.md#792a18p-the-closing-learn-is-preceded-by-a-lessons-audit) has please show the audit list (item to note, or "no lesson: why") in the cycle's closing report to the user. Joe's answer to [793c37 What is the shape of please's workflow while the Integration is installed?](793c_open-questions.md#793c37-what-is-the-shape-of-pleases-workflow-while-the-integration-is-installed) moves the audit to the System ([793a3o Please's lessons audit and surfacing question are performed by the System](793a_product-spec.md#793a3o-pleases-lessons-audit-and-surfacing-question-are-performed-by-the-system)), which records its outcome in the vault and the log. Please's closing report then carries no list, so the user sees the audit only by reading the log or the notes.
 - **Options:**
   - (a) The list is in the vault and the log only, as applied.
