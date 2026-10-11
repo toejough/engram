@@ -33,7 +33,8 @@ Terms used below:
 - **System:** the capability this document specifies. It runs alongside the working agent and acts for it.
 - **Vault** and **note:** the engram note store and one entry in it (fact, feedback, runbook, or Q&A).
 - **Moment:** a point at which recall or learn fires: the moments [ambient-guidance](../../specs/product/ambient-guidance.md) defines, every
-  prompt ([793a2i Recall for every prompt regardless of source](#793a2i-recall-for-every-prompt-regardless-of-source)) and a subagent's dispatch
+  prompt ([793a2i Recall for every prompt regardless of source](#793a2i-recall-for-every-prompt-regardless-of-source)), a subagent's dispatch
+  and the orchestrator's decision to dispatch
   ([793a2c Moments are noticed without the agent](#793a2c-moments-are-noticed-without-the-agent)). A **recall moment** is one at which recall fires.
 - **Depth:** how thorough one recall is, `glance` or `deep`, as defined by [792a14c Recall has two depths](../../specs/product/recall.md#792a14c-recall-has-two-depths).
 - **Lesson:** any corrected failure, including an agent's own mid-task mistake that evidence
@@ -94,6 +95,10 @@ Scenario: 793a2a1b Recall's vault writes happen without the agent
 
 Requirement: 793a2c (formerly REC-3) The System MUST notice each moment at which recall or learn fires without the working agent signalling it.
 A subagent's dispatch is one such moment: the System MUST make what recall returns for the subagent's task available to that subagent.
+The orchestrator's decision to dispatch a unit is another, of its own kind: before the orchestrator routes the unit, the System MUST deliver the
+tier-performance evidence for the unit's kind of work that recall returns for it, so that the orchestrator routes on it.
+
+Rationale: the evidence that route's starting tier rests on reaches the orchestrator only if it is delivered before the unit is routed. How the System detects that the orchestrator is about to dispatch, and what the unit's kind of work is, is for the technical specification.
 
 #### 793a2c1 UAT Scenarios
 
@@ -115,6 +120,13 @@ Scenario: 793a2c1c A learn moment is noticed
   When the cause is known
   Then a note stating the cause exists in the vault
   And the transcript shows the working agent invoked no learn command and was asked for none
+
+Scenario: 793a2c1d Tier evidence is delivered before a dispatch is routed
+  Given tier-performance evidence for a kind of work that shows a cheaper tier failed
+  When the orchestrator decides to dispatch a unit of that kind
+  Then the transcript shows that evidence delivered before the orchestrator routes the unit
+  And the log records one recall moment for the decision, of kind dispatch decision
+  And the transcript shows the orchestrator ran no memory command
 ```
 
 ### 793a2d Attributable presentation
@@ -369,6 +381,66 @@ Scenario: 793a3n1b The top-level agent's own mistake overturned by evidence is c
   And a later command output overturned that cause and the agent corrected it
   When the turn completes
   Then a note stating the corrected cause exists in the vault
+```
+
+### 793a3o Please's lessons audit and surfacing question are performed by the System
+
+Requirement: 793a3o While the Integration is installed, the System MUST perform please's lessons audit and its which-artifact-should-have-surfaced-it question for a please run, from the transcript and as part of capture, exactly as [792a18p The closing learn is preceded by a lessons audit](../../specs/product/please.md#792a18p-the-closing-learn-is-preceded-by-a-lessons-audit) and [792a18q A lesson about to be captured asks what should have surfaced it](../../specs/product/please.md#792a18q-a-lesson-about-to-be-captured-asks-what-should-have-surfaced-it) define them, so that the outcome of the audit and of the question, and any reword, appear in the vault and the log. The working agent MUST NOT be asked to perform either.
+
+Rationale: the audit and the question exist to feed a capture, and with the capture the System's, so are they. They are read from the vault and the log, because please's closing report no longer carries them ([793c40 Does the user still see please's audit list?](793c_open-questions.md#793c40-does-the-user-still-see-pleases-audit-list)).
+
+#### 793a3o1 UAT Scenarios
+
+```gherkin
+Scenario: 793a3o1a The audit's outcome is in the log and the vault
+  Given the Integration is installed and a please run with one gate FAIL verdict and one commit named CORRECTION
+  And the vault holds a note that captures the lesson of the verdict and none that captures the lesson of the commit
+  When the run's turn completes
+  Then the log records an audit entry for each item, naming the existing note for the verdict and the note the System wrote for the commit
+  And the note written for the commit is a reversal
+  And the transcript shows the orchestrator ran no audit and no learn, and its closing report carries no audit list
+
+Scenario: 793a3o1b An item with no lesson is logged with its reason
+  Given the Integration is installed and a please run with one gate FAIL verdict that taught nothing reusable
+  When the run's turn completes
+  Then the log records "no lesson: <why>" for the item
+  And no note is written for it
+
+Scenario: 793a3o1c The surfacing question's outcome is in the vault and the log
+  Given the Integration is installed and a please run containing a lesson that an existing note covers
+  And that note did not surface because its situation line does not match how the moment presented
+  When the run's turn completes
+  Then the log records which existing note should have surfaced the lesson and that its situation line was reworded
+  And that note's situation line in the vault now matches how the moment presented
+  And the vault holds no second note on the lesson
+  And the transcript shows the orchestrator asked no which-artifact-should-have-surfaced-it question and ran no vault search for a covering note
+
+Scenario: 793a3o1d A repository change is never filed automatically
+  Given the Integration is installed and a please run containing a lesson that a change shipped from the repository could prevent
+  When the run's turn completes
+  Then no issue or change for it was filed automatically
+```
+
+### 793a3p Route's evidence writes are performed by the System
+
+Requirement: 793a3p While the Integration is installed, the System MUST write route's tagged evidence note for each dispatch and keep the work-kind's one aggregate note, exactly as [792a17k Each dispatch is also written to the vault as a tagged evidence note](../../specs/product/route.md#792a17k-each-dispatch-is-also-written-to-the-vault-as-a-tagged-evidence-note) and [792a17l Each work-kind keeps one aggregate note](../../specs/product/route.md#792a17l-each-work-kind-keeps-one-aggregate-note) define them as [793a7q Each dispatch is also written to the vault as a tagged evidence note](#793a7q-modified-each-dispatch-is-also-written-to-the-vault-as-a-tagged-evidence-note) and [793a7r Each work-kind keeps one aggregate note](#793a7r-modified-each-work-kind-keeps-one-aggregate-note) state, reading the work-kind, tier, model and outcome from the dispatch's row in route's report ([792a17i Each dispatch is recorded in a mini-report row](../../specs/product/route.md#792a17i-each-dispatch-is-recorded-in-a-mini-report-row)) in the transcript. The orchestrator MUST NOT write either note.
+
+Rationale: the evidence notes are measurements of dispatches, built from the row the orchestrator already produces, so the orchestrator writes no memory.
+
+#### 793a3p1 UAT Scenarios
+
+```gherkin
+Scenario: 793a3p1a A dispatch's evidence note is written from its report row
+  Given the Integration is installed and a report row for a dispatch of work-kind K at tier mid with outcome pass
+  When the row appears in the transcript
+  Then a fact tagged work-kind/K, tier/mid and outcome/pass exists in the vault, and its object states the verdict, reason, escalation, duration and cost from the row
+  And the transcript shows the orchestrator handed nothing to write-memory and ran no memory command
+
+Scenario: 793a3p1b The work-kind's aggregate is kept from the same row
+  Given the Integration is installed and a report row for a dispatch of work-kind K
+  When the row appears in the transcript
+  Then the aggregate note for K exists in the vault with its tally including that dispatch and a link to its evidence note
+  And the transcript shows the orchestrator ran no engram learn or amend command
 ```
 
 ### 793a3d Provenance
@@ -911,18 +983,18 @@ Scenario: 793a6h1a The handoff carries no completion-report contract
 
 Target: [792a18r The closing learn gets the lessons and the audit](../../specs/product/please.md#792a18r-the-closing-learn-gets-the-lessons-and-the-audit)
 
-Requirement: 792a18r While the Integration is installed, please MUST NOT run the `learn` skill at the end of the workflow, and MUST NOT hand a list of `LESSONS:` lines or the audit's map to one; the audit's result is in the closing report ([793a7o The closing learn is preceded by a lessons audit](#793a7o-modified-the-closing-learn-is-preceded-by-a-lessons-audit)). Where the Integration is not installed: Please MUST run the `learn` skill again at step 7 and hand it the full list of `LESSONS:` lines collected across step 4's dispatches ([792a16f The closing learn gets the whole list](../../specs/product/lessons-contract.md#792a16f-the-closing-learn-gets-the-whole-list)) together with the audit's map, and MUST NOT duplicate learn's ad-hoc question-and-answer capture ([792a15k An answered question is captured once](../../specs/product/learn.md#792a15k-an-answered-question-is-captured-once)), which learn performs for substantive answered questions.
+Requirement: 792a18r While the Integration is installed, please MUST NOT run the `learn` skill at the end of the workflow, and MUST NOT hand a list of `LESSONS:` lines or an audit's map to one; the System performs the audit ([793a3o Please's lessons audit and surfacing question are performed by the System](#793a3o-pleases-lessons-audit-and-surfacing-question-are-performed-by-the-system)). Where the Integration is not installed: Please MUST run the `learn` skill again at step 7 and hand it the full list of `LESSONS:` lines collected across step 4's dispatches ([792a16f The closing learn gets the whole list](../../specs/product/lessons-contract.md#792a16f-the-closing-learn-gets-the-whole-list)) together with the audit's map, and MUST NOT duplicate learn's ad-hoc question-and-answer capture ([792a15k An answered question is captured once](../../specs/product/learn.md#792a15k-an-answered-question-is-captured-once)), which learn performs for substantive answered questions.
 
-Rationale: There are no collected lines to hand over and no closing learn to run.
+Rationale: There are no collected lines to hand over, no audit map and no closing learn to run.
 
 #### 793a6i1 UAT Scenarios
 
 ```gherkin
-Scenario: 793a6i1a The closing learn receives only the audit
-  Given the Integration is installed and a finished cycle with an audit map
+Scenario: 793a6i1b The closing learn is not run and nothing is handed to one
+  Given the Integration is installed and a finished cycle
   When please reaches the end of the workflow
   Then the transcript shows please invoked no learn command
-  And the audit's map is in the closing report and no list of LESSONS lines exists
+  And no list of LESSONS lines and no audit map exists in the session
 ```
 
 ### 793a6j Modified: A returned subagent lesson is captured before the next dispatch
@@ -1199,22 +1271,23 @@ Scenario: 793a7h1b Without the Integration the orchestrator runs the meta-skills
 
 Target: [792a17b The starting tier comes from recalled evidence, otherwise the cheapest tier](../../specs/product/route.md#792a17b-the-starting-tier-comes-from-recalled-evidence-otherwise-the-cheapest-tier)
 
-Requirement: 792a17b While the Integration is installed, before dispatching, the orchestrator MUST use the tier-performance evidence for this kind of work that the System's recall has already put in its context (the aggregates surface as ordinary memories), MUST NOT run recall to look for it, and MUST NOT use a special query or counting on the read path. Absent such evidence, it MUST start every unit at the cheapest, fastest available tier, with no exception for work that merely looks hard (hard debugging, a cross-cutting refactor, a correctness-critical review, a greenfield design). The starting tier MUST NOT be raised for any reason other than recalled evidence of failure at a cheaper tier, or a cold-start prior that records such evidence ([792a17f Cold-start priors carry only evidence-backed escalations](../../specs/product/route.md#792a17f-cold-start-priors-carry-only-evidence-backed-escalations)), and then only to the tier the evidence supports. Predicted difficulty ("genuinely complex", "needs careful reasoning", "broad impact") MUST NOT count as evidence. Where the Integration is not installed: Before dispatching, the orchestrator MUST check recalled memory for tier-performance evidence on this kind of work, using the plain recall of the agent (the aggregates surface as ordinary memories) and no special query or counting on the read path. Absent recalled evidence, it MUST start every unit at the cheapest, fastest available tier, with no exception for work that merely looks hard (hard debugging, a cross-cutting refactor, a correctness-critical review, a greenfield design). The starting tier MUST NOT be raised for any reason other than recalled evidence of failure at a cheaper tier, or a cold-start prior that records such evidence ([792a17f Cold-start priors carry only evidence-backed escalations](../../specs/product/route.md#792a17f-cold-start-priors-carry-only-evidence-backed-escalations)), and then only to the tier the evidence supports. Predicted difficulty ("genuinely complex", "needs careful reasoning", "broad impact") MUST NOT count as evidence.
+Requirement: 792a17b While the Integration is installed, before dispatching, the orchestrator MUST use the tier-performance evidence for this kind of work that the System delivered at its decision to dispatch ([793a2c Moments are noticed without the agent](#793a2c-moments-are-noticed-without-the-agent)) (the aggregates surface as ordinary memories), MUST NOT run recall to look for it, and MUST NOT use a special query or counting on the read path. Absent such evidence, it MUST start every unit at the cheapest, fastest available tier, with no exception for work that merely looks hard (hard debugging, a cross-cutting refactor, a correctness-critical review, a greenfield design). The starting tier MUST NOT be raised for any reason other than recalled evidence of failure at a cheaper tier, or a cold-start prior that records such evidence ([792a17f Cold-start priors carry only evidence-backed escalations](../../specs/product/route.md#792a17f-cold-start-priors-carry-only-evidence-backed-escalations)), and then only to the tier the evidence supports. Predicted difficulty ("genuinely complex", "needs careful reasoning", "broad impact") MUST NOT count as evidence. Where the Integration is not installed: Before dispatching, the orchestrator MUST check recalled memory for tier-performance evidence on this kind of work, using the plain recall of the agent (the aggregates surface as ordinary memories) and no special query or counting on the read path. Absent recalled evidence, it MUST start every unit at the cheapest, fastest available tier, with no exception for work that merely looks hard (hard debugging, a cross-cutting refactor, a correctness-critical review, a greenfield design). The starting tier MUST NOT be raised for any reason other than recalled evidence of failure at a cheaper tier, or a cold-start prior that records such evidence ([792a17f Cold-start priors carry only evidence-backed escalations](../../specs/product/route.md#792a17f-cold-start-priors-carry-only-evidence-backed-escalations)), and then only to the tier the evidence supports. Predicted difficulty ("genuinely complex", "needs careful reasoning", "broad impact") MUST NOT count as evidence.
 
-Rationale: The evidence arrives through the System's recall instead of the orchestrator's own. Whether it arrives before routing is [793c39 Does tier evidence reach the orchestrator before it routes?](793c_open-questions.md#793c39-does-tier-evidence-reach-the-orchestrator-before-it-routes).
+Rationale: The evidence arrives through the System's recall at the orchestrator's decision to dispatch instead of through the orchestrator's own.
 
 #### 793a7i1 UAT Scenarios
 
 ```gherkin
 Scenario: 793a7i1a The Integration routes on evidence the System delivered
-  Given the Integration is installed and the System delivered an aggregate showing that cheap failed for a work-kind
-  When the orchestrator routes a unit of that work-kind
-  Then the unit starts at the tier the evidence supports
+  Given the Integration is installed and an aggregate showing that cheap failed for a work-kind
+  When the orchestrator decides to dispatch a unit of that work-kind
+  Then the transcript shows the aggregate delivered before the orchestrator routes the unit
+  And the unit starts at the tier the evidence supports
   And the transcript shows the orchestrator ran no recall
 
 Scenario: 793a7i1b The Integration starts at the cheapest tier absent evidence
-  Given the Integration is installed and no tier evidence was delivered for a hard-looking work-kind
-  When the orchestrator routes a unit of that work-kind
+  Given the Integration is installed and no tier evidence exists to deliver for a hard-looking work-kind
+  When the orchestrator decides to dispatch a unit of that work-kind
   Then the unit starts at the cheapest tier
   And the transcript shows the orchestrator ran no recall
 
@@ -1279,9 +1352,9 @@ Scenario: 793a7k1b Without the Integration the orchestrator crystallizes a rever
 
 Target: [792a18c The seven steps are tracked, ordered and non-waivable](../../specs/product/please.md#792a18c-the-seven-steps-are-tracked-ordered-and-non-waivable)
 
-Requirement: 792a18c While the Integration is installed, the workflow's first step (the opening learn) and seventh step (the closing learn) are performed by the System, not by please. At the start of execution, please MUST push steps 2 to 6 to the task list in a single `TaskCreate` call, keeping their numbers, mark each step in progress when it begins and completed when it finishes, and start each step only after the previous step is completed. A step MUST be marked not applicable only when its mechanism does not exist in the environment (for example step 6's commit when the repository is not under version control), with a one-line rationale naming the missing mechanism written into the task description. "Too small to bother", "nothing to document" and "no memories will be relevant" MUST NOT count. The user MUST NOT be able to waive steps by saying "no ceremony", "skip the plan" or "hurry". When the user interrupts and redirects, please MUST update the task list to the new shape and MUST NOT abandon open steps without an explicit close. Where the Integration is not installed: At the start of execution, please MUST push all seven steps to the task list in a single `TaskCreate` call, mark each step in progress when it begins and completed when it finishes, and start each step only after the previous step is completed. A step MUST be marked not applicable only when its mechanism does not exist in the environment (for example step 6's commit when the repository is not under version control, or step 7's closing learn when the engram binary is absent), with a one-line rationale naming the missing mechanism written into the task description. "Too small to bother", "nothing to document" and "no memories will be relevant" MUST NOT count. The user MUST NOT be able to waive steps by saying "no ceremony", "skip the plan" or "hurry". When the user interrupts and redirects, please MUST update the task list to the new shape and MUST NOT abandon open steps without an explicit close.
+Requirement: 792a18c While the Integration is installed, the workflow's first step (the opening learn) and seventh step (the closing learn), with the lessons audit and the which-artifact-should-have-surfaced-it question, are performed by the System ([793a3o Please's lessons audit and surfacing question are performed by the System](#793a3o-pleases-lessons-audit-and-surfacing-question-are-performed-by-the-system)), not by please. At the start of execution, please MUST push steps 2 to 6 to the task list in a single `TaskCreate` call, keeping their numbers, mark each step in progress when it begins and completed when it finishes, and start each step only after the previous step is completed. A step MUST be marked not applicable only when its mechanism does not exist in the environment (for example step 6's commit when the repository is not under version control), with a one-line rationale naming the missing mechanism written into the task description. "Too small to bother", "nothing to document" and "no memories will be relevant" MUST NOT count. The user MUST NOT be able to waive steps by saying "no ceremony", "skip the plan" or "hurry". When the user interrupts and redirects, please MUST update the task list to the new shape and MUST NOT abandon open steps without an explicit close. Where the Integration is not installed: At the start of execution, please MUST push all seven steps to the task list in a single `TaskCreate` call, mark each step in progress when it begins and completed when it finishes, and start each step only after the previous step is completed. A step MUST be marked not applicable only when its mechanism does not exist in the environment (for example step 6's commit when the repository is not under version control, or step 7's closing learn when the engram binary is absent), with a one-line rationale naming the missing mechanism written into the task description. "Too small to bother", "nothing to document" and "no memories will be relevant" MUST NOT count. The user MUST NOT be able to waive steps by saying "no ceremony", "skip the plan" or "hurry". When the user interrupts and redirects, please MUST update the task list to the new shape and MUST NOT abandon open steps without an explicit close.
 
-Rationale: Steps 1 and 7 are learn and nothing else, so the System performing it leaves five tracked steps. The shape is [793c37 What is the shape of please's workflow while the Integration is installed?](793c_open-questions.md#793c37-what-is-the-shape-of-pleases-workflow-while-the-integration-is-installed).
+Rationale: Steps 1 and 7 are learn and nothing else, and the audit and the question are steps of capturing, so the System performing them leaves five tracked steps.
 
 #### 793a7l1 UAT Scenarios
 
@@ -1290,7 +1363,7 @@ Scenario: 793a7l1a The Integration leaves five tracked steps
   Given the Integration is installed and a valid ask
   When please begins execution
   Then the task list gets steps 2 to 6 from one TaskCreate call and each moves in progress and then completed in order
-  And the transcript shows please ran no learn
+  And the transcript shows please ran no learn, no audit and no which-artifact-should-have-surfaced-it question
 
 Scenario: 793a7l1b The Integration still does not let the user waive steps
   Given the Integration is installed and the user says "no ceremony, skip the plan"
@@ -1364,38 +1437,39 @@ Scenario: 793a7n1c Without the Integration a reviewer recalls first
 
 Target: [792a18p The closing learn is preceded by a lessons audit](../../specs/product/please.md#792a18p-the-closing-learn-is-preceded-by-a-lessons-audit)
 
-Requirement: 792a18p While the Integration is installed, after step 6 and before its closing report, please MUST audit the cycle's mechanical corpus: every pre-registered stop that fired, every gate FAIL verdict, every commit whose message contains CORRECTION, supersede or superseded, instrument-invalid, or redraw or redrawn, and every mid-cycle escalation to the user. It MUST map each item to the vault note that captures its lesson, or write the one-line "no lesson: <why>"; MUST list an unmapped item as unmapped, and MUST NOT hand it to a learn; and MUST show the audit list (item → note or no-lesson) in the cycle's closing report to the user. It MUST NOT use the audit for positive reinforcement, which has no mechanical marker and belongs to the System's scan for a confirmed approach ([792a16g A confirmed approach is looked for at the moment of confirmation](../../specs/product/lessons-contract.md#792a16g-a-confirmed-approach-is-looked-for-at-the-moment-of-confirmation)). Where the Integration is not installed: Before the closing learn at step 7, please MUST audit the cycle's mechanical corpus: every pre-registered stop that fired, every gate FAIL verdict, every commit whose message contains CORRECTION, supersede or superseded, instrument-invalid, or redraw or redrawn, and every mid-cycle escalation to the user. It MUST map each item to the vault note that captures its lesson, or write the one-line "no lesson: <why>"; MUST treat an unmapped item as a reversal handoff for the closing learn ([792a15e The four kinds of explicit lesson](../../specs/product/learn.md#792a15e-the-four-kinds-of-explicit-lesson)); and MUST show the audit list (item → note or no-lesson) in the cycle's closing report to the user. It MUST NOT use the audit for positive reinforcement, which has no mechanical marker and belongs to the closing learn's confirmed-approach scan.
+Requirement: 792a18p While the Integration is installed, please MUST NOT audit the cycle's mechanical corpus, MUST NOT map items to vault notes and MUST NOT show an audit list in its closing report; the System performs the audit from the transcript, following the procedure of the branch below ([793a3o Please's lessons audit and surfacing question are performed by the System](#793a3o-pleases-lessons-audit-and-surfacing-question-are-performed-by-the-system)). Where the Integration is not installed: Before the closing learn at step 7, please MUST audit the cycle's mechanical corpus: every pre-registered stop that fired, every gate FAIL verdict, every commit whose message contains CORRECTION, supersede or superseded, instrument-invalid, or redraw or redrawn, and every mid-cycle escalation to the user. It MUST map each item to the vault note that captures its lesson, or write the one-line "no lesson: <why>"; MUST treat an unmapped item as a reversal handoff for the closing learn ([792a15e The four kinds of explicit lesson](../../specs/product/learn.md#792a15e-the-four-kinds-of-explicit-lesson)); and MUST show the audit list (item → note or no-lesson) in the cycle's closing report to the user. It MUST NOT use the audit for positive reinforcement, which has no mechanical marker and belongs to the closing learn's confirmed-approach scan.
 
-Rationale: There is no closing learn to hand an unmapped item to, so the audit reports it. What the audit does with an unmapped item is [793c37 What is the shape of please's workflow while the Integration is installed?](793c_open-questions.md#793c37-what-is-the-shape-of-pleases-workflow-while-the-integration-is-installed).
+Rationale: The audit exists to feed a capture, so the System performs it where it captures. What the System does with an unmapped item is [793a3o Please's lessons audit and surfacing question are performed by the System](#793a3o-pleases-lessons-audit-and-surfacing-question-are-performed-by-the-system).
 
 #### 793a7o1 UAT Scenarios
 
 ```gherkin
-Scenario: 793a7o1a The Integration's audit enumerates the corpus and maps each item
+Scenario: 793a7o1d The Integration's please runs no audit
   Given the Integration is installed and a cycle with one fired stop, one gate FAIL, one commit named CORRECTION and one escalation
-  When please audits before its closing report
-  Then all four items are on the list
-  And each names the vault note that captures its lesson or says "no lesson: <why>"
-
-Scenario: 793a7o1b The Integration's audit hands nothing to a learn
-  Given the Integration is installed and an audit item with no vault note
-  When please reports to the user
-  Then the report lists the item as unmapped
-  And the transcript shows please invoked no learn command
+  When please reaches its closing report
+  Then the transcript shows please enumerated and mapped no item
+  And the closing report carries no audit list
 
 Scenario: 793a7o1c Without the Integration an unmapped item becomes a reversal handoff
   Given the Integration is not installed and an audit item with no vault note
   When the closing learn runs
   Then the item is handed to learn as a reversal
+
+Scenario: 793a7o1e Without the Integration the audit enumerates the corpus and maps each item
+  Given the Integration is not installed and a cycle with one fired stop, one gate FAIL, one commit named CORRECTION and one escalation
+  When please audits before the closing learn
+  Then all four items are on the list
+  And each names the vault note that captures its lesson or says "no lesson: <why>"
+  And the list is in the closing report to the user
 ```
 
 ### 793a7p Modified: A lesson about to be captured asks what should have surfaced it
 
 Target: [792a18q A lesson about to be captured asks what should have surfaced it](../../specs/product/please.md#792a18q-a-lesson-about-to-be-captured-asks-what-should-have-surfaced-it)
 
-Requirement: 792a18q While the Integration is installed, please captures no lesson, so it MUST NOT ask which existing artifact should have surfaced a lesson, MUST NOT search the vault for a covering note before writing one, and MUST NOT reword a note whose situation line does not match; the System captures lessons under learn's own rules. Please MUST NOT file automatically a change that ships from the repository (code, skills, guidance). Where the Integration is not installed: For each lesson the cycle is about to capture, please MUST ask which artifact that already existed should have surfaced it first, MUST search the vault for a note that already covers the situation before writing a new one, and MUST, when a note existed but did not surface at the moment it was needed, check whether its `situation:` line matches how the moment actually presented and reword the note when it does not, in preference to writing a second note on the same lesson. It MUST propose a change that ships from the repository (code, skills, guidance) only as a last resort, and MUST NOT file it automatically.
+Requirement: 792a18q While the Integration is installed, please captures no lesson, so it MUST NOT ask which existing artifact should have surfaced a lesson, MUST NOT search the vault for a covering note before writing one, and MUST NOT reword a note whose situation line does not match; the System asks and answers them where it captures lessons ([793a3o Please's lessons audit and surfacing question are performed by the System](#793a3o-pleases-lessons-audit-and-surfacing-question-are-performed-by-the-system)), under learn's own rules. Please MUST NOT file automatically a change that ships from the repository (code, skills, guidance). Where the Integration is not installed: For each lesson the cycle is about to capture, please MUST ask which artifact that already existed should have surfaced it first, MUST search the vault for a note that already covers the situation before writing a new one, and MUST, when a note existed but did not surface at the moment it was needed, check whether its `situation:` line matches how the moment actually presented and reword the note when it does not, in preference to writing a second note on the same lesson. It MUST propose a change that ships from the repository (code, skills, guidance) only as a last resort, and MUST NOT file it automatically.
 
-Rationale: The question, the search and the reword belong to capturing a lesson, which please no longer does.
+Rationale: The question, the search and the reword belong to capturing a lesson, which please no longer does; the System performs them.
 
 #### 793a7p1 UAT Scenarios
 
@@ -1415,4 +1489,87 @@ Scenario: 793a7p1c Without the Integration an existing note is searched for firs
   Given the Integration is not installed and a lesson about to be captured
   When please prepares the capture
   Then it asks which existing artifact should have surfaced it and searches the vault for a note covering the situation
+```
+
+### 793a7q Modified: Each dispatch is also written to the vault as a tagged evidence note
+
+Target: [792a17k Each dispatch is also written to the vault as a tagged evidence note](../../specs/product/route.md#792a17k-each-dispatch-is-also-written-to-the-vault-as-a-tagged-evidence-note)
+
+Requirement: 792a17k While the Integration is installed, the System MUST, for each dispatch whose row is in the transcript ([792a17i Each dispatch is recorded in a mini-report row](../../specs/product/route.md#792a17i-each-dispatch-is-recorded-in-a-mini-report-row)), hand a fact to the write-memory skill as a field handoff and not as a command it composes, with the slug `route-dispatch-<work-kind>`, the tags `work-kind/<k>`, `tier/<cheap|mid|deep>` and `outcome/<pass|fail>`, the situation "routing <work-kind> work", the subject "<work-kind> dispatch at <tier> (<model @ dispatch>)", the predicate "resolved as", an object that states the verdict, the reason, the escalation, the duration and the cost with their units, taken from the row, and the source "route dispatch record, <project>, <date>". It MUST state the fields as written and MUST NOT invent a flag for them. The tags MUST be the three closed families only, work-kind an open kebab-case set, tier and outcome closed sets; duration and cost MUST stay in the object prose and never become tags. Producing only the table row MUST NOT count as recording. The orchestrator MUST NOT write the note. Where the Integration is not installed: After each dispatch resolves, with the review verdict in hand, the orchestrator MUST hand a fact to the write-memory skill as a field handoff and not as a command it composes, with the slug `route-dispatch-<work-kind>`, the tags `work-kind/<k>`, `tier/<cheap|mid|deep>` and `outcome/<pass|fail>`, the situation "routing <work-kind> work", the subject "<work-kind> dispatch at <tier> (<model @ dispatch>)", the predicate "resolved as", an object that states the verdict, the reason, the escalation, the duration and the cost with their units, and the source "route dispatch record, <project>, <date>". It MUST state the fields as written and MUST NOT invent a flag for them. The tags MUST be the three closed families only, work-kind an open kebab-case set, tier and outcome closed sets; duration and cost MUST stay in the object prose and never become tags. Producing only the table row MUST NOT count as recording.
+
+Rationale: The evidence note is a measurement the System writes from the dispatch's report row, so the orchestrator writes no memory ([793a3p Route's evidence writes are performed by the System](#793a3p-routes-evidence-writes-are-performed-by-the-system)).
+
+#### 793a7q1 UAT Scenarios
+
+```gherkin
+Scenario: 793a7q1a The Integration writes a passing dispatch's evidence note
+  Given the Integration is installed and a dispatch with a passing verdict whose report row is in the transcript
+  When the row appears
+  Then a fact tagged work-kind/<k>, tier/<t> and outcome/pass exists in the vault with the dispatch details in its object
+  And the transcript shows the orchestrator handed nothing to write-memory and wrote no note
+
+Scenario: 793a7q1b The Integration tags a failing dispatch fail with its escalation
+  Given the Integration is installed and a dispatch that fails and escalates, whose report row is in the transcript
+  When the row appears
+  Then the note is tagged outcome/fail and its object names the escalation tier
+
+Scenario: 793a7q1c The Integration validates the tag format
+  Given the Integration is installed and a dispatch row
+  When the System writes its tags
+  Then each is work-kind/<k>, tier/<t> or outcome/<o> with only lowercase letters, digits and hyphens, and an invalid tag is rejected before the write
+  And duration and cost appear in the object and in no tag
+
+Scenario: 793a7q1d The Integration's handoff states fields, not flags
+  Given the Integration is installed and a dispatch row
+  When the System hands the evidence note to write-memory
+  Then the log records the handoff with each field as written and no invented flag
+
+Scenario: 793a7q1e Without the Integration the orchestrator hands off the note
+  Given the Integration is not installed and a dispatch with a passing verdict
+  When the orchestrator records it
+  Then write-memory receives a fact tagged work-kind/<k>, tier/<t> and outcome/pass with the dispatch details in the object
+```
+
+### 793a7r Modified: Each work-kind keeps one aggregate note
+
+Target: [792a17l Each work-kind keeps one aggregate note](../../specs/product/route.md#792a17l-each-work-kind-keeps-one-aggregate-note)
+
+Requirement: 792a17l While the Integration is installed, After the evidence note, the System MUST amend or create the aggregate fact `route-evidence-<work-kind>`, composing and running that write itself and not handing it to write-memory, which has no amend form. It MUST look the aggregate up with `engram query --lazy-chunks --phrase="route evidence <work-kind> tier tally"` and take a returned path as a match only when its basename, without `.md` and split on `.`, ends in a slug equal to `route-evidence-<work-kind>` exactly. On a match it MUST recompute the tally from the aggregate's current text plus this dispatch and run `engram amend --target <basename> --object="..."`, keeping the existing evidence wikilinks and appending the new one. On no match it MUST first run a uniqueness check, a listing of vault basenames matching `route-evidence-<work-kind>*` under the same exact rule, and create the aggregate (`engram learn fact --slug route-evidence-<work-kind> --position top`, with a tier tally of 1/1 and a wikilink to the evidence note) only when the check finds nothing; when it finds more than one, it MUST merge them by uniting their evidence wikilinks, recomputing the tally with the count commands of [792a17m Counting audits the tallies and never routes](../../specs/product/route.md#792a17m-counting-audits-the-tallies-and-never-routes), amending one into the merged aggregate and recording the incident as drowning-remedy evidence. An aggregate MUST NOT carry the work-kind, tier or outcome tags. Its wikilink list MUST be the append-only evidence trail. The orchestrator MUST NOT write the aggregate. Where the Integration is not installed: After the evidence note, the orchestrator MUST amend or create the aggregate fact `route-evidence-<work-kind>`, composing and running that write itself and not handing it to write-memory, which has no amend form; this is a stated, structurally forced exception to the write-site doctrine and the skill MUST say so. It MUST look the aggregate up with `engram query --lazy-chunks --phrase="route evidence <work-kind> tier tally"` and take a returned path as a match only when its basename, without `.md` and split on `.`, ends in a slug equal to `route-evidence-<work-kind>` exactly. On a match it MUST recompute the tally from the aggregate's current text plus this dispatch and run `engram amend --target <basename> --object="..."`, keeping the existing evidence wikilinks and appending the new one. On no match it MUST first run a uniqueness check, a listing of vault basenames matching `route-evidence-<work-kind>*` under the same exact rule, and create the aggregate (`engram learn fact --slug route-evidence-<work-kind> --position top`, with a tier tally of 1/1 and a wikilink to the evidence note) only when the check finds nothing; when it finds more than one, it MUST merge them by uniting their evidence wikilinks, recomputing the tally with the count commands of [792a17m Counting audits the tallies and never routes](../../specs/product/route.md#792a17m-counting-audits-the-tallies-and-never-routes), amending one into the merged aggregate and recording the incident as drowning-remedy evidence. An aggregate MUST NOT carry the work-kind, tier or outcome tags. Its wikilink list MUST be the append-only evidence trail. When recording a dispatch before the lookup has run, the orchestrator MUST state both candidate commands and not guess.
+
+Rationale: The aggregate is kept by the System from the same row ([793a3p Route's evidence writes are performed by the System](#793a3p-routes-evidence-writes-are-performed-by-the-system)); the orchestrator writes none.
+
+#### 793a7r1 UAT Scenarios
+
+```gherkin
+Scenario: 793a7r1a The Integration creates the first aggregate
+  Given the Integration is installed, no aggregate exists for the work-kind and the uniqueness check finds nothing
+  When the first dispatch's row appears in the transcript
+  Then the System creates route-evidence-<work-kind> with the tally from that dispatch, a link to its evidence note and no tags
+  And the transcript shows the orchestrator wrote no aggregate
+
+Scenario: 793a7r1b The Integration amends a later aggregate
+  Given the Integration is installed and an aggregate for the work-kind
+  When a subsequent dispatch's row appears
+  Then the System amends the aggregate, recomputes the tier tally and appends the new evidence wikilink while keeping the old ones
+  And the transcript shows the orchestrator wrote no aggregate
+
+Scenario: 793a7r1c The Integration does not count a fuzzy match as the aggregate
+  Given the Integration is installed and a lookup that returns a note whose slug only begins with route-evidence-<work-kind>
+  When the System applies the match rule
+  Then the note is not treated as the aggregate
+
+Scenario: 793a7r1d The Integration checks a no-match result before creating
+  Given the Integration is installed and a lookup that returns no match
+  When the System would create an aggregate
+  Then the log records a listing of vault basenames matching route-evidence-<work-kind>* before the aggregate is created
+
+Scenario: 793a7r1e The Integration merges duplicate aggregates
+  Given the Integration is installed and a uniqueness check that finds two aggregates for one work-kind
+  When the System resolves it
+  Then it unites their evidence wikilinks, recomputes the tally by count, amends one into the merged aggregate and records the incident
+
+Scenario: 793a7r1f Without the Integration the orchestrator keeps the aggregate
+  Given the Integration is not installed and an aggregate for the work-kind
+  When the orchestrator records a subsequent dispatch
+  Then it amends the aggregate, recomputes the tier tally and appends the new evidence wikilink while keeping the old ones
 ```
