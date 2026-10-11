@@ -22,8 +22,8 @@ Memory use is gated on the working agent's own metacognition, which is the least
 and competes with the task for attention. The need is for the skills to run at the right moments
 regardless of whether the working agent thinks to run them, and out of the working agent's context, without
 degrading the working session. This change makes the System a delegate for the existing memory skills: it
-performs recall and learn as their own specifications define them, on the working agent's behalf, and puts
-in front of the agent only what the skill would have. This document specifies only that delegation, the
+performs the memory handling of recall and learn as their own specifications define them, on the working agent's behalf, and puts
+in front of the agent the recall results and an instruction to apply them. Memory handling goes to the System; applying memory stays with the agent, which does recall's planning, synthesis and reconciliation in its own reasoning. This document specifies only that delegation, the
 deliberate differences from the skills, and what is new. The delegation applies to the Claude Code harness; every other harness keeps the existing skills, guidance and LESSONS contract, and its working agent keeps running recall and learn ([793a4h Installed by engram update](#793a4h-installed-by-engram-update), [793a5c Environments without the capability](#793a5c-environments-without-the-capability)).
 
 Terms used below:
@@ -32,15 +32,16 @@ Terms used below:
   dispatches.
 - **System:** the capability this document specifies. It runs alongside the working agent and acts for it.
 - **Vault** and **note:** the engram note store and one entry in it (fact, feedback, runbook, or Q&A).
-- **Moment:** a point at which recall or learn fires: the moments [ambient-guidance](../../specs/product/ambient-guidance.md) defines, every
-  prompt ([793a2i Recall for every prompt regardless of source](#793a2i-recall-for-every-prompt-regardless-of-source)), a subagent's dispatch
+- **Moment:** a point at which recall, learn or the shim's lookup fires: the moments [ambient-guidance](../../specs/product/ambient-guidance.md) defines, every
+  prompt, where the System performs the shim's lookup ([793a2i Recall for every prompt regardless of source](#793a2i-recall-for-every-prompt-regardless-of-source)), a subagent's dispatch
   and the orchestrator's decision to dispatch
-  ([793a2c Moments are noticed without the agent](#793a2c-moments-are-noticed-without-the-agent)). A **recall moment** is one at which recall fires.
+  ([793a2c Moments are noticed without the agent](#793a2c-moments-are-noticed-without-the-agent)). A **recall moment** is one at which recall fires, at a depth.
 - **Depth:** how thorough one recall is, `glance` or `deep`, as defined by [792a14c Recall has two depths](../../specs/product/recall.md#792a14c-recall-has-two-depths).
 - **Lesson:** any corrected failure, including an agent's own mid-task mistake that evidence
   overturned, plus a correction, an explicit save-request and a confirmed approach. It is wider than
   the four kinds in [792a15e The four kinds of explicit lesson](../../specs/product/learn.md#792a15e-the-four-kinds-of-explicit-lesson) ([793a3n Any corrected failure is a lesson](#793a3n-any-corrected-failure-is-a-lesson)).
 - **Injection:** placing note content, or a chunk stub, in front of the working agent without the agent requesting it.
+- **Plan instruction:** the instruction the System delivers with the results of a recall or lookup, telling the working agent to work them into its plan, or to replan entirely where they change what it should do ([793a2a Recall is performed for the working agent](#793a2a-recall-is-performed-for-the-working-agent)).
 - **Chunk stub:** a chunk shown as its id and score only, with no content, as a lazy query prints it ([792a7s Lazy chunks](../../specs/product/memory-query.md#792a7s-lazy-chunks)).
 - **Integration:** what `engram update` installs for the System in the Claude Code harness ([793a4h Installed by engram update](#793a4h-installed-by-engram-update)). It is installed per harness, so a condition "while the Integration is installed" is evaluated per harness and per agent session: a session in a harness without it, such as Pi, follows the canonical branch, and its working agent keeps running recall and learn ([793a5c Environments without the capability](#793a5c-environments-without-the-capability)).
 - **Context:** the content currently available to one agent, a top-level agent or one subagent.
@@ -60,23 +61,23 @@ Canonical target: `docs/specs/product/automatic-memory.md` (title `Automatic Mem
 ### 793a2a Recall is performed for the working agent
 
 Requirement: 793a2a The System MUST perform recall on the working agent's behalf at each moment at which recall fires
-([792a19a Recall fires at four decision moments](../../specs/product/ambient-guidance.md#792a19a-recall-fires-at-four-decision-moments), [792a19b Recall escalates from glance to deep](../../specs/product/ambient-guidance.md#792a19b-recall-escalates-from-glance-to-deep)), at every prompt ([793a2i Recall for every prompt regardless of source](#793a2i-recall-for-every-prompt-regardless-of-source)), at a subagent's dispatch and at the orchestrator's decision to dispatch ([793a2c Moments are noticed without the agent](#793a2c-moments-are-noticed-without-the-agent)), exactly as [recall](../../specs/product/recall.md) defines it: at the depth that
+([792a19a Recall fires at four decision moments](../../specs/product/ambient-guidance.md#792a19a-recall-fires-at-four-decision-moments), [792a19b Recall escalates from glance to deep](../../specs/product/ambient-guidance.md#792a19b-recall-escalates-from-glance-to-deep)), at a subagent's dispatch and at the orchestrator's decision to dispatch ([793a2c Moments are noticed without the agent](#793a2c-moments-are-noticed-without-the-agent)), exactly as [recall](../../specs/product/recall.md) defines it: at the depth that
 [792a14c Recall has two depths](../../specs/product/recall.md#792a14c-recall-has-two-depths) and [792a19b Recall escalates from glance to deep](../../specs/product/ambient-guidance.md#792a19b-recall-escalates-from-glance-to-deep) select, by the same procedure, with the same queries, writes and
-activation, except that use is inferred as [793a3k Use is inferred from the transcript](#793a3k-use-is-inferred-from-the-transcript) says. The System MUST put in front of the working agent what recall would have
-put in front of it, before the agent's next response or tool call, subject only to
-[793a2e No re-injection](#793a2e-no-re-injection), and MUST put nothing else of recall's in front of it.
+activation, except that use is inferred as [793a3k Use is inferred from the transcript](#793a3k-use-is-inferred-from-the-transcript) says, and except that the System does not plan, synthesize or reconcile. Recall's plan ([792a14a The plan is stated before anything is retrieved](../../specs/product/recall.md#792a14a-the-plan-is-stated-before-anything-is-retrieved)), closing synthesis ([792a14m The closing synthesis says whether memory changed the plan](../../specs/product/recall.md#792a14m-the-closing-synthesis-says-whether-memory-changed-the-plan)) and reconciliation ([792a14n A recommendation is reconciled against the asked task](../../specs/product/recall.md#792a14n-a-recommendation-is-reconciled-against-the-asked-task), [792a14o An emergent recommendation is checked against the vault](../../specs/product/recall.md#792a14o-an-emergent-recommendation-is-checked-against-the-vault)) are done by the working agent, in its own reasoning, from what the System delivered and without a query of its own. At each such moment, before the agent's next response or tool call and subject to
+[793a2e No re-injection](#793a2e-no-re-injection), the System MUST deliver to the working agent the results of its recall together with the plan instruction, which MUST tell the agent to work the results into its plan, or to replan entirely where they change what it should do. The System MUST NOT put anything else of recall's in front of the agent: no plan, synthesis, recommendation or reconciliation authored by the System. When no result remains to deliver, the System MUST deliver nothing, the plan instruction included. At every prompt the System performs the shim's lookup instead ([793a2i Recall for every prompt regardless of source](#793a2i-recall-for-every-prompt-regardless-of-source)).
 
-Rationale: recall already says what to consult and when, so the work moves out of the working agent's context and
-nothing about what recall does changes.
+Rationale: recall already says what to consult and when, so the memory handling moves out of the working agent's context and
+nothing about what recall does changes. The System does not have the agent's full context: its job is to handle memory and to hand the results over, and the agent, which does have the context, applies them.
 
 #### 793a2a1 UAT Scenarios
 
 ```gherkin
 Scenario: 793a2a1a Recall happens without the agent running it
-  Given a vault containing a note whose situation matches "renaming a Go package"
+  Given a vault containing a note whose situation matches "declaring a Go package rename done"
   And a session whose configuration contains no memory instructions
-  When the human submits "rename package foo to bar across the repo"
-  Then the session transcript shows that note's content delivered before the agent's first response or tool call
+  And the note is not yet in the transcript
+  When the working agent reaches the point of declaring the rename done
+  Then the session transcript shows that note's content delivered before the declaration
   And the transcript shows the agent ran no memory command
   And the log for that moment records the recall that was performed, with its depth, phrases, items and scores
 
@@ -86,13 +87,31 @@ Scenario: 793a2a1d Recall's vault writes happen without the agent
   Then a note covering the cluster exists in the vault
   And the transcript shows the working agent ran no learn, amend or write-memory command
   And the transcript shows no request to the working agent to write the note
+
+Scenario: 793a2a1e The plan instruction accompanies the results
+  Given a note matching the work the working agent is about to declare done
+  When the agent reaches the point of declaring the work done
+  Then the session transcript shows that note's content delivered together with an instruction to work it into the agent's plan, or to replan entirely where it changes what the agent should do
+  And both appear before the agent's next response or tool call
+
+Scenario: 793a2a1f Nothing else of recall's is delivered
+  Given a deep recall moment whose results include two notes that, read together, suggest a recommendation the agent has not made
+  When the moment's results are delivered
+  Then the session transcript shows the result items and the plan instruction
+  And it shows no plan, synthesis, recommendation or reconciliation authored by the System
+
+Scenario: 793a2a1g No result, nothing delivered
+  Given a recall moment whose query returns no item that is absent from the agent's context
+  When the moment completes
+  Then the session transcript shows no content delivered for it, the plan instruction included
+  And the log records the moment with volume 0
 ```
 
 ### 793a2c Moments are noticed without the agent
 
 Requirement: 793a2c The System MUST notice each moment at which recall or learn fires without the working agent signalling it.
-A subagent's dispatch is one such moment: the System MUST make what recall returns for the subagent's task available to that subagent.
-The orchestrator's decision to dispatch a unit is another, of its own kind: at that decision, before the orchestrator routes the unit, the System MUST perform recall for the unit and put what it returns in front of the orchestrator, including the tier-performance evidence for the unit's kind of work, so that the orchestrator routes on it.
+A subagent's dispatch is one such moment: the System MUST deliver what recall returns for the subagent's task to that subagent, with the plan instruction ([793a2a Recall is performed for the working agent](#793a2a-recall-is-performed-for-the-working-agent)).
+The orchestrator's decision to dispatch a unit is another, of its own kind: at that decision, before the orchestrator routes the unit, the System MUST perform recall for the unit and put what it returns, with the plan instruction, in front of the orchestrator, including the tier-performance evidence for the unit's kind of work, so that the orchestrator routes on it.
 
 Rationale: the evidence that route's starting tier rests on reaches the orchestrator only if it is delivered before the unit is routed. How the System detects that the orchestrator is about to dispatch, and what the unit's kind of work is, is for the technical specification.
 
@@ -102,7 +121,7 @@ Rationale: the evidence that route's starting tier rests on reaches the orchestr
 Scenario: 793a2c1a Subagent receives relevant notes
   Given a note matching "writing Go tests in this repo"
   When the working agent dispatches a subagent with the task "add tests for internal/cli"
-  Then the subagent's transcript shows that note's content delivered before its first response or tool call
+  Then the subagent's transcript shows that note's content delivered, with the plan instruction, before its first response or tool call
   And the working agent's dispatch text did not mention the note
 
 Scenario: 793a2c1b A recall moment mid-task is noticed
@@ -120,16 +139,16 @@ Scenario: 793a2c1c A learn moment is noticed
 Scenario: 793a2c1d Tier evidence is delivered before a dispatch is routed
   Given tier-performance evidence for a kind of work that shows a cheaper tier failed
   When the orchestrator decides to dispatch a unit of that kind
-  Then the transcript shows that evidence delivered before the orchestrator routes the unit
+  Then the transcript shows that evidence delivered, with the plan instruction, before the orchestrator routes the unit
   And the log records one recall moment for the decision, of kind dispatch decision
   And the transcript shows the orchestrator ran no memory command
 ```
 
 ### 793a2d Attributable presentation
 
-Requirement: 793a2d Injected items MUST identify their source: a note by its file name and a chunk by its id.
+Requirement: 793a2d Injected items MUST identify their source: a note by its file name and a chunk by its id and score.
 
-Rationale: an agent that can see where an item came from can weigh it and look it up, and a chunk's id is what it fetches the chunk by ([792a7t Reading one chunk](../../specs/product/memory-query.md#792a7t-reading-one-chunk)). Imperative memory,
+Rationale: an agent that can see where an item came from can weigh it and look it up, and a chunk's id is what it fetches the chunk by ([792a7t Reading one chunk](../../specs/product/memory-query.md#792a7t-reading-one-chunk)). Raw ids and scores are fine in what is delivered: the rule of [792a14m The closing synthesis says whether memory changed the plan](../../specs/product/recall.md#792a14m-the-closing-synthesis-says-whether-memory-changed-the-plan) against raw scores and paths governs what the agent tells the user, not what the System delivers to the agent. Imperative memory,
 such as a runbook or a skill, is a legitimate injection; whether injected memory is applied is
 tested by [793a5f Effect on outcomes](#793a5f-effect-on-outcomes).
 
@@ -215,11 +234,11 @@ Scenario: 793a2e1k A note whose sources or recency changed is still present
 
 ### 793a2i Recall for every prompt regardless of source
 
-Requirement: 793a2i In addition to the moments at which recall fires ([793a2a Recall is performed for the working agent](#793a2a-recall-is-performed-for-the-working-agent)), the System MUST perform recall, in every working session (excluding System sessions per [793a4f No recall or capture in its own sessions](#793a4f-no-recall-or-capture-in-its-own-sessions)), at every prompt regardless of its source
-(human, automated notification, scheduled trigger, message from another session). The prompt that dispatches a
+Requirement: 793a2i In addition to the moments at which recall fires ([793a2a Recall is performed for the working agent](#793a2a-recall-is-performed-for-the-working-agent)), the System MUST perform, in every working session (excluding System sessions per [793a4f No recall or capture in its own sessions](#793a4f-no-recall-or-capture-in-its-own-sessions)), at every prompt regardless of its source
+(human, automated notification, scheduled trigger, message from another session), the lookup that the shim makes the agent's first action, as delegated from [792a19j The first action on every request is an engram query](../../specs/product/ambient-guidance.md#792a19j-the-first-action-on-every-request-is-an-engram-query): one `engram query` carrying its phrase shapes ([792a19k The second phrase names a kind of work-handling decision](../../specs/product/ambient-guidance.md#792a19k-the-second-phrase-names-a-kind-of-work-handling-decision)). It MUST deliver the results with the plan instruction, as [793a2a Recall is performed for the working agent](#793a2a-recall-is-performed-for-the-working-agent) says, and MUST NOT perform a recall at a named depth at a prompt. The prompt that dispatches a
 subagent is the moment of [793a2c Moments are noticed without the agent](#793a2c-moments-are-noticed-without-the-agent), not a separate prompt moment.
 
-Rationale: memory is always worth checking, whatever produced the prompt.
+Rationale: memory is always worth checking, whatever produced the prompt, and the per-prompt action the shim defines is the one query. Recall at a depth, which at deep writes to the vault, stays at the moments the guidance names.
 
 #### 793a2i1 UAT Scenarios
 
@@ -228,7 +247,7 @@ Scenario Outline: 793a2i1a Non-human prompt receives recall
   Given a note whose situation matches the prompt
   And the note is not yet in the transcript
   When <source> delivers that prompt to the working agent
-  Then the session transcript shows that note's content delivered before the agent's first response or tool call
+  Then the session transcript shows that note's content delivered, with the plan instruction, before the agent's first response or tool call
 
   Examples:
     | source                             |
@@ -240,15 +259,21 @@ Scenario: 793a2i1b A subagent's dispatch prompt is one moment, of the dispatch k
   Given a note matching a subagent's task
   When the working agent dispatches the subagent
   Then the log records one recall moment for the dispatch, of kind subagent dispatch
-  And the log records no recall moment of kind prompt for the subagent's dispatch prompt
+  And the log records no moment of kind prompt for the subagent's dispatch prompt
   And the subagent's transcript shows the note's content delivered once
+
+Scenario: 793a2i1c A prompt gets one query and no depth recall
+  Given a prompt that matches a note and a vault whose deep recall would write a note
+  When the prompt is submitted
+  Then the log records for that moment one query with its phrases, and no recall depth
+  And no note is written for that moment by a recall
 ```
 
 ### 793a2k The working agent does not run recall or learn
 
-Requirement: 793a2k While the Integration is installed, the System MUST perform recall and learn so that the working agent is not required to run either, and MUST NOT ask the working agent to run them or to evaluate, approve or write any memory.
+Requirement: 793a2k While the Integration is installed, the System MUST perform recall and learn so that the working agent is not required to run either, and MUST NOT ask the working agent to run them or to evaluate, approve or write any memory. The plan instruction ([793a2a Recall is performed for the working agent](#793a2a-recall-is-performed-for-the-working-agent)) is the only thing it asks of the agent about memory, and it asks the agent to apply what was delivered, not to handle memory.
 
-Rationale: the point of the delegation is to take memory work, and its bookkeeping, out of the working agent's context.
+Rationale: the point of the delegation is to take memory handling, and its bookkeeping, out of the working agent's context. Applying memory to the task stays with the agent, which has the context to do it.
 
 #### 793a2k1 UAT Scenarios
 
@@ -282,6 +307,37 @@ Scenario: 793a2l1b No sweep runs before a moment's recall
   Given a session's first moment
   When the operator reads the log for that moment
   Then it records no sweep before the moment's recall
+```
+
+### 793a2m Pending offers are curated by the System
+
+Requirement: 793a2m While the Integration is installed, the System MUST run curate after each recall and each lookup it performs, whenever a pending offer exists, as [792a14l Only the notes that were used are activated](../../specs/product/recall.md#792a14l-only-the-notes-that-were-used-are-activated) defines it for recall: the pulled copies of parent notes stay pending until curation resolves them, as [curate](../../specs/product/curate.md) defines. The System MUST run it after it has delivered the results, and MUST NOT make the working agent wait for it. The System MUST NOT put the pending-offer flag or hint of [792a22o Pending offers are surfaced at three points](../../specs/product/curate.md#792a22o-pending-offers-are-surfaced-at-three-points) in front of the working agent, and MUST NOT ask the agent to curate.
+
+Rationale: recall's own step of curating, and the hint that tells the agent to curate, would otherwise ask the agent for memory work that the System has taken over.
+
+#### 793a2m1 UAT Scenarios
+
+```gherkin
+Scenario: 793a2m1a The agent is shown no pending-offer hint
+  Given the Integration is installed and a vault that holds a pending offer
+  And a prompt that matches a note
+  When the prompt is submitted
+  Then the session transcript shows the note's content delivered
+  And the transcript shows no pending-offer flag, no pending-offer hint and no instruction to curate
+  And the transcript shows the working agent ran no curate command
+
+Scenario: 793a2m1b Offers are resolved by the System
+  Given the Integration is installed and a vault that holds two pending offers, one that an existing note already covers and one that no existing note addresses
+  When a recall moment completes
+  Then the covered offer is folded into the existing note it duplicates and is no longer pending
+  And the other offer is accepted and is no longer pending
+  And the transcript shows the working agent took no part in either
+
+Scenario: 793a2m1c The agent does not wait for curation
+  Given the Integration is installed and a pending offer whose curation takes 20 seconds
+  When a recall moment completes and the user submits the next prompt immediately
+  Then the next prompt is processed without waiting for the curation
+  And the offer is no longer pending once the curation has finished
 ```
 
 ## 793a3 Added: automatic-memory (delegation of learn)
@@ -381,7 +437,7 @@ Scenario: 793a3n1b The top-level agent's own mistake overturned by evidence is c
 
 ### 793a3o Please's lessons audit and surfacing question are performed by the System
 
-Requirement: 793a3o While the Integration is installed, the System MUST perform please's lessons audit and its which-artifact-should-have-surfaced-it question for a please run, from the transcript and as part of capture, exactly as [792a18p The closing learn is preceded by a lessons audit](../../specs/product/please.md#792a18p-the-closing-learn-is-preceded-by-a-lessons-audit) and [792a18q A lesson about to be captured asks what should have surfaced it](../../specs/product/please.md#792a18q-a-lesson-about-to-be-captured-asks-what-should-have-surfaced-it) define them, so that the outcome of the audit and of the question, and any reword, appear in the vault and the log. The working agent MUST NOT be asked to perform either.
+Requirement: 793a3o While the Integration is installed, the System MUST perform please's lessons audit and its which-artifact-should-have-surfaced-it question for a please run, from the transcript and as part of capture, exactly as [792a18p The closing learn is preceded by a lessons audit](../../specs/product/please.md#792a18p-the-closing-learn-is-preceded-by-a-lessons-audit) and [792a18q A lesson about to be captured asks what should have surfaced it](../../specs/product/please.md#792a18q-a-lesson-about-to-be-captured-asks-what-should-have-surfaced-it) define them, so that the outcome of the audit and of the question, and any reword, appear in the vault and the log. A proposal for a change that ships from the repository, which [792a18q A lesson about to be captured asks what should have surfaced it](../../specs/product/please.md#792a18q-a-lesson-about-to-be-captured-asks-what-should-have-surfaced-it) allows only as a last resort, MUST be shown to the user ([793a5i Messages the skills address to the user are shown to the user](#793a5i-messages-the-skills-address-to-the-user-are-shown-to-the-user)) and never filed automatically. The working agent MUST NOT be asked to perform either.
 
 Rationale: the audit and the question exist to feed a capture, and with the capture the System's, so are they. The per-item list is read from the vault and the log, because please's closing report no longer carries it; the user sees the counts of the events it produced in the summary ([793a5h A memory-activity summary is shown to the user](#793a5h-a-memory-activity-summary-is-shown-to-the-user), [793c40 Does the user still see please's audit list?](793c_open-questions.md#793c40-does-the-user-still-see-pleases-audit-list)).
 
@@ -415,6 +471,7 @@ Scenario: 793a3o1d A repository change is never filed automatically
   Given the Integration is installed and a please run containing a lesson that a change shipped from the repository could prevent
   When the run's turn completes
   Then no issue or change for it was filed automatically
+  And the user is shown a proposal for the change, outside the working agent's context
 ```
 
 ### 793a3p Route's evidence writes are performed by the System
@@ -596,7 +653,7 @@ Scenario: 793a4b1c No error reaches the agent
 
 Requirement: 793a4c The System MUST NOT itself make or override tool permissions,
 tool arguments, model choice, or the user's prompt text. Its only effect on the working agent's context is the
-items it injects; outside that context it shows the user the memory-activity summary ([793a5h A memory-activity summary is shown to the user](#793a5h-a-memory-activity-summary-is-shown-to-the-user)), writes and activates vault notes with their sidecars, refreshes the chunk index, pulls down pending copies of parent notes and
+items it injects and the plan instruction delivered with them ([793a2a Recall is performed for the working agent](#793a2a-recall-is-performed-for-the-working-agent)); outside that context it shows the user the memory-activity summary and the messages the skills address to the user ([793a5h A memory-activity summary is shown to the user](#793a5h-a-memory-activity-summary-is-shown-to-the-user), [793a5i Messages the skills address to the user are shown to the user](#793a5i-messages-the-skills-address-to-the-user-are-shown-to-the-user)), writes and activates vault notes with their sidecars, curates pending offers, which accepts them, folds them into existing notes or discards them ([793a2m Pending offers are curated by the System](#793a2m-pending-offers-are-curated-by-the-system)), refreshes the chunk index, pulls down pending copies of parent notes and
 makes offers to the parent ([792a21n A local write is offered to the parent](../../specs/product/parent-sync.md#792a21n-a-local-write-is-offered-to-the-parent)), writes its log, and starts System sessions
 ([793a4f No recall or capture in its own sessions](#793a4f-no-recall-or-capture-in-its-own-sessions)).
 
@@ -619,13 +676,13 @@ Scenario: 793a4c1b The prompt is unchanged and the note is separate
 Scenario: 793a4c1c The only effect on the working agent's context is the injected items
   Given a session in which the System injected notes and captured a lesson
   When the session transcript is inspected
-  Then the only content the System added to the working agent's context is the injected items
+  Then the only content the System added to the working agent's context is the injected items and the plan instruction delivered with them
 
 Scenario: 793a4c1d Effects outside the session are the System's own writes
   Given a vault with a configured parent
-  And a session in which the System captured a lesson and activated an injected note from the parent vault
+  And a session in which the System captured a lesson, activated an injected note from the parent vault and curated a pending offer
   When the files changed during the session outside the session transcript are listed
-  Then the changes are the vault notes written or activated with their sidecars, the chunk index, the pending parent copies, the offers to the parent, the System's log and the sessions the System started
+  Then the changes are the vault notes written, activated or amended by curation, with their sidecars, the offers curation accepted, folded or discarded, the chunk index, the pending parent copies, the offers to the parent, the System's log and the sessions the System started
 ```
 
 ### 793a4d Sensitive content
@@ -708,7 +765,7 @@ Requirement: 793a4h `engram init` MUST install the Integration, what the System 
 existing install of engram MUST have the System in Claude Code after its next `engram update`, with no further step.
 `engram update --dry-run` ([792a11f Previewing an update](../../specs/product/install-and-update.md#792a11f-previewing-an-update)) MUST install none of it.
 
-Rationale: init is the one place that sets up a machine, and update runs it, so a first-time install, a later update and an existing install all end in the same state, and rerunning either is safe. A harness without the Integration keeps the setup that works there; on Claude Code the agent is not given skills and guidance for work the System does ([793c46 On Claude Code with the Integration installed, does engram update still deploy the recall and learn skills and guidance files?](793c_open-questions.md#793c46-on-claude-code-with-the-integration-installed-does-engram-update-still-deploy-the-recall-and-learn-skills-and-guidance-files), [793c47 Does "init" mean `engram init` or the first-time install by `engram update`?](793c_open-questions.md#793c47-does-init-mean-engram-init-or-the-first-time-install-by-engram-update)). Init depends on [793c48 How is the widening of `engram init` (change #795) sequenced with this change?](793c_open-questions.md#793c48-how-is-the-widening-of-engram-init-change-795-sequenced-with-this-change).
+Rationale: init is the one place that sets up a machine, and update runs it, so a first-time install, a later update and an existing install all end in the same state, and rerunning either is safe. A harness without the Integration keeps the setup that works there; on Claude Code the agent is not given skills and guidance for work the System does ([793c46 On Claude Code with the Integration installed, does engram update still deploy the recall and learn skills and guidance files?](793c_open-questions.md#793c46-on-claude-code-with-the-integration-installed-does-engram-update-still-deploy-the-recall-and-learn-skills-and-guidance-files), [793c47 Does "init" mean `engram init` or the first-time install by `engram update`?](793c_open-questions.md#793c47-does-init-mean-engram-init-or-the-first-time-install-by-engram-update)). Init's scope is owned by change #795, which is widened to cover it, so this change builds on it ([793c48 How is the widening of `engram init` (change #795) sequenced with this change?](793c_open-questions.md#793c48-how-is-the-widening-of-engram-init-change-795-sequenced-with-this-change), [793b136 Change 793 depends on change 795 being widened](793b_decision-log.md#793b136-change-793-depends-on-change-795-being-widened)).
 
 #### 793a4h1 UAT Scenarios
 
@@ -858,8 +915,8 @@ Rationale: moving the skills out of the working agent only pays if it is never s
 ```gherkin
 Scenario Outline: 793a5g1a Recall adds no more delay than the agent's own recall
   Given a recorded recall moment of kind <moment>
-  And the operator performs the same recall inline, as the agent would, on a copy of the vault as it was at that moment, with the same input
-  When the latency added in the log is compared with the time that inline recall took
+  And the operator performs the same recall inline, or for a prompt the same lookup, as the agent would, on a copy of the vault as it was at that moment, with the same input
+  When the latency added in the log is compared with the time that inline recall or lookup took
   Then the latency added does not exceed that time
 
   Examples:
@@ -878,7 +935,7 @@ Scenario: 793a5g1c Slow capture does not stall the session
 
 ### 793a5h A memory-activity summary is shown to the user
 
-Requirement: 793a5h After each completed top-level turn, once the System's work for that turn (capture included) has finished, the System MUST show the user, outside the working agent's context, the counts of memory events recorded since its previous summary, across the session and its subagent sessions: items surfaced (injected), notes used (activated), notes added, notes amended, captures discarded, and evidence notes written. A turn with no memory events MUST show nothing. The summary MUST NOT enter the working agent's context. The per-item details and the reason for each event stay in the log ([793a5e Auditability and measurability](#793a5e-auditability-and-measurability)) and the vault.
+Requirement: 793a5h After each completed top-level turn, once the System's work for that turn (capture included) has finished, the System MUST show the user, outside the working agent's context, the counts of memory events recorded since its previous summary, across the session and its subagent sessions: items surfaced (injected), notes used (activated), notes added, notes amended, captures discarded, and evidence notes written. A turn with no memory events MUST show nothing. The summary MUST NOT enter the working agent's context. The per-item details and the reason for each event stay in the log ([793a5e Auditability and measurability](#793a5e-auditability-and-measurability)) and the vault. The messages that the skills address to the user are shown on the same surface ([793a5i Messages the skills address to the user are shown to the user](#793a5i-messages-the-skills-address-to-the-user-are-shown-to-the-user)).
 
 Rationale: the user keeps visibility of the memory work the System took over, including what please's closing report used to show, without the working agent relaying it.
 
@@ -923,6 +980,54 @@ Scenario: 793a5h1g The summary follows the capture
   When the turn completes and the user submits the next prompt immediately
   Then the next prompt is processed without waiting for the capture
   And the summary is shown only after the capture has finished, and counts that note
+```
+
+### 793a5i Messages the skills address to the user are shown to the user
+
+Requirement: 793a5i While the Integration is installed, the System MUST show the user, on the display surface of [793a5h A memory-activity summary is shown to the user](#793a5h-a-memory-activity-summary-is-shown-to-the-user) and outside the working agent's context, each message that a skill addresses to the user and that the System now performs: learn's report that a write to a parent is saved and its offer queued ([792a15j A write to a parent is reported as done](../../specs/product/learn.md#792a15j-a-write-to-a-parent-is-reported-as-done)), please's proposal of a change that ships from the repository ([792a18q A lesson about to be captured asks what should have surfaced it](../../specs/product/please.md#792a18q-a-lesson-about-to-be-captured-asks-what-should-have-surfaced-it)) and route's drowning report ([792a17n Drowning is reported, not patched](../../specs/product/route.md#792a17n-drowning-is-reported-not-patched)). A message MUST be shown after the completed top-level turn in which it arose, once the System's work for that turn has finished, even when the turn has no counts to show. A message MUST NOT enter the working agent's context. The System MUST NOT show a message for an event that did not occur.
+
+Rationale: with the System performing the skills, the working agent is no longer the speaker, and the user must still hear what these skills tell them. Recall's synthesis is not among the messages: the working agent does it ([793a2a Recall is performed for the working agent](#793a2a-recall-is-performed-for-the-working-agent)) and tells the user in its own response.
+
+#### 793a5i1 UAT Scenarios
+
+```gherkin
+Scenario Outline: 793a5i1a A skill's message is shown to the user
+  Given the Integration is installed and <event>
+  When the turn completes
+  Then the user is shown <message>
+
+  Examples:
+    | event                                                                                                   | message                                                          |
+    | a captured note whose write printed "engram: parent unreachable (retry after 30s); 1 offer(s) queued"   | a message that the note is saved and its offer is queued         |
+    | a please run containing a lesson that only a change shipped from the repository could prevent           | a proposal for that change                                       |
+    | a lookup at the audit moment in which a known aggregate does not surface                                 | the pre-registered drowning report                               |
+
+Scenario: 793a5i1b An unreachable parent is not reported as a failure
+  Given the Integration is installed and a captured note whose write printed "engram: parent unreachable (retry after 30s); 1 offer(s) queued"
+  When the turn completes
+  Then the message shown to the user says the note is saved and its offer is queued, and does not call the write failed
+  And the vault holds exactly one note for the lesson
+
+Scenario: 793a5i1c The messages are not in the agent's context
+  Given the Integration is installed and a turn after which a message of each of the three kinds was shown to the user
+  When the user submits the next prompt and the transcript of the working agent's session is inspected
+  Then none of the messages appears anywhere in the transcript
+
+Scenario: 793a5i1d A message is shown for a turn with no counts
+  Given the Integration is installed and a turn whose only memory event is a drowning report
+  When the turn completes
+  Then the user is shown the drowning report
+  And the user is shown no counts
+
+Scenario: 793a5i1e Nothing is shown for an event that did not occur
+  Given the Integration is installed and a turn whose captured note was written with the parent reachable, with no repository change proposed and every aggregate surfacing
+  When the turn completes
+  Then the user is shown none of the three messages
+
+Scenario: 793a5i1f A message waits for the turn's work
+  Given the Integration is installed and a turn whose capture takes 20 seconds and prints the queued-offer line
+  When the turn completes
+  Then the message is shown only after the capture has finished
 ```
 
 ## 793a6 Modified: lessons-contract (the LESSONS line is replaced while the Integration is installed)
@@ -1399,9 +1504,9 @@ Each row is a Modified operation against one canonical scenario of [792a19d The 
 
 Target: [792a19j The first action on every request is an engram query](../../specs/product/ambient-guidance.md#792a19j-the-first-action-on-every-request-is-an-engram-query)
 
-Requirement: 792a19j While the Integration is installed, an agent that has the shim MUST NOT be required to make an `engram query` its first tool call on any request; the System performs the lookup at every prompt ([793a2i Recall for every prompt regardless of source](#793a2i-recall-for-every-prompt-regardless-of-source)) and puts what it finds in front of the agent before the agent's first response or tool call. Where the Integration is not installed: An agent that has the shim MUST make its first tool call on every user request an `engram query` that carries at least two `--phrase` values (the request in the agent's own words, and the kind of situation it is in) and a `--text` value holding the user's message verbatim (its first 300 characters or so when long), before it reads a file, answers or asks a clarifying question, and whether or not it has decided to delegate. It MUST NOT gate the query on a judgment that the task is multi-step, recurring or done before. It MUST write every `--text` and `--phrase` value as `--flag="value"`, never `--flag "value"`, and MUST NOT rewrite or summarize the message in `--text`, whose paraphrase belongs only in `--phrase`.
+Requirement: 792a19j While the Integration is installed, an agent that has the shim MUST NOT be required to make an `engram query` its first tool call on any request; the System MUST perform the lookup at every prompt ([793a2i Recall for every prompt regardless of source](#793a2i-recall-for-every-prompt-regardless-of-source)), following the branch below with the System in the agent's place (except its sentences addressed to the agent), and MUST put what it finds, with the plan instruction ([793a2a Recall is performed for the working agent](#793a2a-recall-is-performed-for-the-working-agent)), in front of the agent before the agent's first response or tool call. Where the Integration is not installed: An agent that has the shim MUST make its first tool call on every user request an `engram query` that carries at least two `--phrase` values (the request in the agent's own words, and the kind of situation it is in) and a `--text` value holding the user's message verbatim (its first 300 characters or so when long), before it reads a file, answers or asks a clarifying question, and whether or not it has decided to delegate. It MUST NOT gate the query on a judgment that the task is multi-step, recurring or done before. It MUST write every `--text` and `--phrase` value as `--flag="value"`, never `--flag "value"`, and MUST NOT rewrite or summarize the message in `--text`, whose paraphrase belongs only in `--phrase`.
 
-Rationale: The lookup is performed for the agent, so no first query is asked of it.
+Rationale: The lookup is performed for the agent exactly as the shim defines it, so no first query is asked of it.
 
 #### 793a7e1 UAT Scenarios
 
@@ -1410,8 +1515,13 @@ Scenario: 793a7e1a The Integration looks up memory without a first query
   Given the Integration is installed and an agent with the shim in its config
   And a note whose situation matches a request
   When the user submits the request
-  Then the transcript shows the note's content delivered before the agent's first response or tool call
+  Then the transcript shows the note's content delivered, with the plan instruction, before the agent's first response or tool call
   And the agent's instructions contain no requirement to make an engram query its first tool call
+
+Scenario: 793a7e1c The lookup carries the shim's phrase shapes
+  Given the Integration is installed and the user's message "- fix the login bug"
+  When the System performs the lookup for that prompt
+  Then the log records one query carrying the message verbatim as its text and at least two phrases, one the request in other words and one the kind of situation it is in
 ```
 
 #### 793a7e2 Canonical scenarios with the Integration not installed
@@ -1746,9 +1856,9 @@ Each row is a Modified operation against one canonical scenario of [792a18p The 
 
 Target: [792a18q A lesson about to be captured asks what should have surfaced it](../../specs/product/please.md#792a18q-a-lesson-about-to-be-captured-asks-what-should-have-surfaced-it)
 
-Requirement: 792a18q While the Integration is installed, please captures no lesson, so it MUST NOT ask which existing artifact should have surfaced a lesson, MUST NOT search the vault for a covering note before writing one, and MUST NOT reword a note whose situation line does not match; the System asks and answers them where it captures lessons ([793a3o Please's lessons audit and surfacing question are performed by the System](#793a3o-pleases-lessons-audit-and-surfacing-question-are-performed-by-the-system)), under learn's own rules. Please MUST NOT file automatically a change that ships from the repository (code, skills, guidance). Where the Integration is not installed: For each lesson the cycle is about to capture, please MUST ask which artifact that already existed should have surfaced it first, MUST search the vault for a note that already covers the situation before writing a new one, and MUST, when a note existed but did not surface at the moment it was needed, check whether its `situation:` line matches how the moment actually presented and reword the note when it does not, in preference to writing a second note on the same lesson. It MUST propose a change that ships from the repository (code, skills, guidance) only as a last resort, and MUST NOT file it automatically.
+Requirement: 792a18q While the Integration is installed, please captures no lesson, so it MUST NOT ask which existing artifact should have surfaced a lesson, MUST NOT search the vault for a covering note before writing one, and MUST NOT reword a note whose situation line does not match; the System asks and answers them where it captures lessons ([793a3o Please's lessons audit and surfacing question are performed by the System](#793a3o-pleases-lessons-audit-and-surfacing-question-are-performed-by-the-system)), under learn's own rules. The System MUST propose a change that ships from the repository (code, skills, guidance) only as a last resort, and MUST show the proposal to the user, outside the working agent's context ([793a5i Messages the skills address to the user are shown to the user](#793a5i-messages-the-skills-address-to-the-user-are-shown-to-the-user)). The System MUST NOT file such a change automatically, and please MUST NOT either. Where the Integration is not installed: For each lesson the cycle is about to capture, please MUST ask which artifact that already existed should have surfaced it first, MUST search the vault for a note that already covers the situation before writing a new one, and MUST, when a note existed but did not surface at the moment it was needed, check whether its `situation:` line matches how the moment actually presented and reword the note when it does not, in preference to writing a second note on the same lesson. It MUST propose a change that ships from the repository (code, skills, guidance) only as a last resort, and MUST NOT file it automatically.
 
-Rationale: The question, the search and the reword belong to capturing a lesson, which please no longer does; the System performs them.
+Rationale: The question, the search and the reword belong to capturing a lesson, which please no longer does; the System performs them, and tells the user what it proposes because the working agent is no longer the speaker.
 
 #### 793a7p1 UAT Scenarios
 
@@ -1763,6 +1873,8 @@ Scenario: 793a7p1b The Integration's please files no repository change
   Given the Integration is installed and a lesson that a repository change could prevent
   When please closes
   Then no issue or change for it was filed automatically
+  And the user is shown a proposal for the change outside the working agent's context
+  And the proposal appears nowhere in the working agent's transcript
 ```
 
 #### 793a7p2 Canonical scenarios with the Integration not installed
@@ -1946,9 +2058,9 @@ Each row is a Modified operation against one canonical scenario of [792a17m Coun
 
 Target: [792a17n Drowning is reported, not patched](../../specs/product/route.md#792a17n-drowning-is-reported-not-patched)
 
-Requirement: 792a17n While the Integration is installed, the System MUST perform the aggregate lookup and the drowning detection at the same moments as the count audit, following the branch below with the System in the orchestrator's place (except its sentences addressed to the orchestrator), and MUST show a drowning report to the user, outside the working agent's context, as [793a5h A memory-activity summary is shown to the user](#793a5h-a-memory-activity-summary-is-shown-to-the-user) shows its summary; the orchestrator MUST NOT run the lookup. Where the Integration is not installed: At the same moments as the count audit, the orchestrator MUST run the aggregate lookup for a work-kind with many evidence notes and confirm that the aggregate's path still surfaces in the items or in any cluster's candidates; when it does not, it MUST report the pre-registered drowning case and MUST NOT patch the skill ad hoc.
+Requirement: 792a17n While the Integration is installed, the System MUST perform the aggregate lookup and the drowning detection at the same moments as the count audit, following the branch below with the System in the orchestrator's place (except its sentences addressed to the orchestrator), and MUST show a drowning report to the user, outside the working agent's context, as [793a5i Messages the skills address to the user are shown to the user](#793a5i-messages-the-skills-address-to-the-user-are-shown-to-the-user) says; the orchestrator MUST NOT run the lookup. Where the Integration is not installed: At the same moments as the count audit, the orchestrator MUST run the aggregate lookup for a work-kind with many evidence notes and confirm that the aggregate's path still surfaces in the items or in any cluster's candidates; when it does not, it MUST report the pre-registered drowning case and MUST NOT patch the skill ad hoc.
 
-Rationale: The lookup belongs to the aggregate's keeper. Where the report goes waits on [793c44 Where do the delegated skills' messages to the user go?](793c_open-questions.md#793c44-where-do-the-delegated-skills-messages-to-the-user-go); until the owner answers, it is shown to the user, which is that question's recommendation for an item that asks the user to act.
+Rationale: The lookup belongs to the aggregate's keeper. The report is one of the messages shown to the user ([793a5i Messages the skills address to the user are shown to the user](#793a5i-messages-the-skills-address-to-the-user-are-shown-to-the-user)), because the working agent is no longer the speaker.
 
 #### 793a7u1 UAT Scenarios
 
@@ -1976,3 +2088,38 @@ Each row is a Modified operation against one canonical scenario of [792a17n Drow
 | --- | --- | --- |
 | 793a7u2a | [792a17n1a The aggregate still surfaces](../../specs/product/route.md#792a17n1-uat-scenarios) | Scenario: 792a17n1a The aggregate still surfaces<br>Given the Integration is not installed<br>And a work-kind with 20 evidence notes<br>When the orchestrator runs the lookup<br>Then the aggregate's path is among the results |
 | 793a7u2b | [792a17n1b A missing aggregate is reported](../../specs/product/route.md#792a17n1-uat-scenarios) | Scenario: 792a17n1b A missing aggregate is reported<br>Given the Integration is not installed<br>And a lookup in which a known aggregate does not surface<br>When the orchestrator audits<br>Then it reports the drowning case and does not patch the skill |
+
+### 793a7v Modified: A signal of unrequested work is a standing instruction
+
+Target: [792a19s A signal of unrequested work is a standing instruction](../../specs/product/ambient-guidance.md#792a19s-a-signal-of-unrequested-work-is-a-standing-instruction)
+
+Requirement: 792a19s While the Integration is installed, the shim MUST NOT name the pending-offer flag and hint, because the System shows the agent neither and curates the pending offers itself ([793a2m Pending offers are curated by the System](#793a2m-pending-offers-are-curated-by-the-system)). The rule for any other signal of unrequested work MUST be unchanged and MUST still be stated generically, naming no skill or runbook. Where the Integration is not installed: The shim MUST tell the agent to treat a tool result that names pending work it was not asked to do, such as the `pending_offers` flag and hint of `engram query`, as a standing instruction, and after finishing the user's request to do what the signal says without asking, unless the named action is destructive or hard to reverse and the agent is genuinely uncertain, in which case it MUST stop and ask. The rule MUST be stated generically, naming no skill or runbook, so that a later signal of the same shape needs no further edit.
+
+Rationale: The pending-offer signal was the rule's example, and with the System curating, the agent is never shown it; the rule stays for the signals that remain.
+
+#### 793a7v1 UAT Scenarios
+
+```gherkin
+Scenario: 793a7v1a The Integration's shim names no pending-offer signal
+  Given the Integration is installed and an agent with the shim in its config
+  When the agent's instructions are inspected
+  Then they do not name the pending-offer flag or hint
+  And they still tell the agent to treat a result that names other unrequested pending work as a standing instruction
+
+Scenario: 793a7v1b The agent is shown no pending-offer signal and does nothing about offers
+  Given the Integration is installed and a vault that holds a pending offer
+  When the agent works a request to completion
+  Then the transcript shows no pending-offer flag or hint
+  And the transcript shows the agent took no action on pending offers
+  And the offer is no longer pending
+```
+
+#### 793a7v2 Canonical scenarios with the Integration not installed
+
+Each row is a Modified operation against one canonical scenario of [792a19s A signal of unrequested work is a standing instruction](../../specs/product/ambient-guidance.md#792a19s-a-signal-of-unrequested-work-is-a-standing-instruction): the replacement text is the canonical scenario prefixed with "Given the Integration is not installed", and the target's ID is preserved.
+
+| Operation | Target scenario | Replacement scenario |
+| --- | --- | --- |
+| 793a7v2a | [792a19s1a Pending work is acted on after the request](../../specs/product/ambient-guidance.md#792a19s1-uat-scenarios) | Scenario: 792a19s1a Pending work is acted on after the request<br>Given the Integration is not installed<br>And a tool result in the turn names pending work outside the user's request, such as a pending-offer flag and hint<br>When the agent has completed the user's request<br>Then it acts on the named work without asking permission first |
+| 793a7v2b | [792a19s1b A destructive and uncertain action still asks](../../specs/product/ambient-guidance.md#792a19s1-uat-scenarios) | Scenario: 792a19s1b A destructive and uncertain action still asks<br>Given the Integration is not installed<br>And the named work would need a destructive or hard-to-reverse action and the agent is genuinely uncertain how to proceed<br>When it reaches the action<br>Then it stops and asks |
+| 793a7v2c | [792a19s1c The rule is generic](../../specs/product/ambient-guidance.md#792a19s1-uat-scenarios) | Scenario: 792a19s1c The rule is generic<br>Given the Integration is not installed<br>And the shim's wording for this rule<br>When it is read<br>Then it names no specific skill or runbook |
