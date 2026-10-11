@@ -13,26 +13,26 @@ sequenceDiagram
     participant NA as NilAway process
 
     Dev->>Orch: 794b4a run check or fix entry point
-    Note over Orch,Sub: 794b4b one request: context and policy arguments only
-    Orch->>Policy: 794b3a arguments for the selected mode
+    Orch->>Policy: 794b3a, 794b4b arguments for the selected mode
     Policy-->>Orch: 794b3a scope and mode arguments
-    Orch->>Sub: 794b4c run NilAway with arguments
+    Orch->>Sub: 794b4c, 794b4b one request with context and arguments
     Sub->>NA: 794b4c start with arguments and parent environment
     NA-->>Sub: 794b4c exit result
     Sub-->>Orch: 794b4c success or NilAway failure
-    Note over Dev,NA: 794b4f aggregate scenarios cover each terminal path
-    alt 794b4d success
-        Orch-->>Dev: 794b4d success
-    else 794b4e failure
-        Orch-->>Dev: 794b4e the failure, no retry
+    alt success
+        Orch-->>Dev: 794b4b success
+    else failure
+        Orch-->>Dev: 794b4b the failure, no retry
     end
 ```
 
-## 794b4b Execute configured request
+## 794b4b Nil check run
 
-Requirement: 794b4b Development-check orchestration MUST obtain the arguments for the selected mode
-from the invocation policy, then send one request containing only the supplied context and those
-arguments to the NilAway subprocess.
+Requirement: 794b4b Development-check orchestration MUST obtain the selected mode's arguments from
+the invocation policy, then send exactly one request, containing only the supplied context and
+those arguments, to the NilAway subprocess. When the subprocess returns success, orchestration MUST
+return success to the invoking entry point. When it returns a failure, orchestration MUST return
+that failure and MUST NOT retry.
 
 Owner: [Development Check Orchestration](./development-check-orchestration.md)
 
@@ -47,79 +47,20 @@ Scenario Outline: 794b4b1a One request carries the context and the policy's argu
   Given the invocation mode is <mode>
   When orchestration executes the configured check
   Then the NilAway subprocess receives exactly one request
-  And the request contains only the supplied context and the policy's arguments for <mode>
+  And the request contains only the supplied context and the arguments the policy returned for <mode>
   Examples:
     | mode  |
     | check |
     | fix   |
-```
 
-## 794b4d Successful result
-
-Requirement: 794b4d When the NilAway subprocess returns success, development-check orchestration
-MUST return success to the invoking entry point.
-
-Owner: [Development Check Orchestration](./development-check-orchestration.md)
-
-Supports
-[794a2a1a Existing check entry points report only on Engram's module packages](../product/development-checks.md#794a2a1-uat-scenarios).
-
-### 794b4d1 Contract Scenarios
-
-```gherkin
-Scenario: 794b4d1a A successful run returns success
+Scenario: 794b4b1b A successful run returns success
   Given the NilAway subprocess returns success
   When orchestration executes the configured check
-  Then orchestration returns success
-```
+  Then orchestration returns success to the invoking entry point
 
-## 794b4e Failed result
-
-Requirement: 794b4e When the NilAway subprocess returns a failure, development-check orchestration
-MUST return that failure to the invoking entry point and MUST NOT retry.
-
-Owner: [Development Check Orchestration](./development-check-orchestration.md)
-
-Supports
-[794a2a1a Existing check entry points report only on Engram's module packages](../product/development-checks.md#794a2a1-uat-scenarios).
-
-### 794b4e1 Contract Scenarios
-
-```gherkin
-Scenario: 794b4e1a A failed run returns the failure without retrying
+Scenario: 794b4b1c A failed run returns the failure without retrying
   Given the NilAway subprocess returns an analyzer failure
   When orchestration executes the configured check
-  Then orchestration returns that failure
-  And the NilAway subprocess receives no second request
-```
-
-## 794b4f Check run outcomes
-
-Requirement: 794b4f A check run MUST reach exactly one terminal outcome: success when the NilAway
-subprocess returns success, and the subprocess's failure otherwise, each after the single request
-of [794b4b Execute configured request](#794b4b-execute-configured-request).
-
-Owner: [Development Check Orchestration](./development-check-orchestration.md)
-
-Supports
-[794a2a1a Existing check entry points report only on Engram's module packages](../product/development-checks.md#794a2a1-uat-scenarios) and
-[794a2a1c The fix command acts only on Engram's module packages](../product/development-checks.md#794a2a1-uat-scenarios).
-
-### 794b4f1 Aggregate-Flow Scenarios
-
-```gherkin
-Scenario: 794b4f1a A successful check run
-  Given the invocation policy supplies the arguments for the selected mode
-  And the NilAway subprocess returns success
-  When a developer runs the check entry point
-  Then the NilAway subprocess receives one request with the policy's arguments
-  And the entry point returns success
-
-Scenario: 794b4f1b A failed check run returns the failure
-  Given the invocation policy supplies the arguments for the selected mode
-  And the NilAway subprocess returns an analyzer failure
-  When a developer runs the check entry point
-  Then the NilAway subprocess receives one request with the policy's arguments
-  And the entry point returns that failure
+  Then orchestration returns that failure to the invoking entry point
   And the NilAway subprocess receives no second request
 ```

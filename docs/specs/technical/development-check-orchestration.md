@@ -2,10 +2,8 @@
 
 Preserves the existing nil-check entry points under their shared target identity. Routing a check
 run through the invocation policy and the analyzer subprocess is the
-[Nil Check Run Flow](./nil-check-run-flow.md): it holds
-[794b4b Execute configured request](./nil-check-run-flow.md#794b4b-execute-configured-request),
-[794b4d Successful result](./nil-check-run-flow.md#794b4d-successful-result) and
-[794b4e Failed result](./nil-check-run-flow.md#794b4e-failed-result).
+[Nil Check Run Flow](./nil-check-run-flow.md), whose interaction requirement is
+[794b4b Nil check run](./nil-check-run-flow.md#794b4b-nil-check-run).
 Starting the analyzer process is [NilAway Subprocess](./nilaway-subprocess.md).
 
 ## 794b4a Preserve entry points
