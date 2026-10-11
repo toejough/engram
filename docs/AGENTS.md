@@ -71,6 +71,18 @@ Record decisions and questions in these artifacts as they arise, not afterwards:
   only in conversation.
 - An owner's answer MUST be recorded in the open-questions file in the same commit that applies it.
 
+Keep the owner's time to one walkthrough:
+
+- A change spec MUST get one agent review round, unless the owner asks for more. After it, go
+  straight to the owner walkthrough.
+- Every item already known to need the owner MUST be presented in one batch. Never call a batch
+  final unless it is.
+- An open question MUST be raised only for something blocking: a contradiction, an untestable
+  requirement, or a behavior change the owner has not decided. An author choice that follows a
+  standing owner rule (for example, default to today's behavior) MUST be recorded in the decision
+  log as decided by the author and shown to the owner during the walkthrough, where the owner can
+  overrule it. It MUST NOT be asked as a question.
+
 ## Documentation Structure
 
 Use semantic organizational directories:
