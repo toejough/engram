@@ -3,7 +3,7 @@
 These are the Open Decisions carried over from the draft requirements. Joe answered the first six on
 2026-10-11, and the answers are applied in [`793a_product-spec.md`](./793a_product-spec.md). His later
 review answers are recorded in [793c7 Review answers (2026-10-11)](#793c7-review-answers-2026-10-11), and his answers to [793c8 What does the System inject when only incidental items come back?](#793c8-what-does-the-system-inject-when-only-incidental-items-come-back), [793c9 Does the System activate notes?](#793c9-does-the-system-activate-notes), [793c11 What does the latency bound cover?](#793c11-what-does-the-latency-bound-cover), [793c12 Are operating modes needed at all?](#793c12-are-operating-modes-needed-at-all), [793c13 Does the System activate notes the agent retrieved itself?](#793c13-does-the-system-activate-notes-the-agent-retrieved-itself) and [793c14 Should reinforcing an existing note be a MUST?](#793c14-should-reinforcing-an-existing-note-be-a-must) are applied too. The phrasing choices
-made in applying them are in [`793b_decision-log.md`](./793b_decision-log.md). Six questions, [793c15 Does the System inject chunks with their content?](#793c15-does-the-system-inject-chunks-with-their-content) to [793c20 Must injected chunks identify their source like notes?](#793c20-must-injected-chunks-identify-their-source-like-notes), are open and await Joe.
+made in applying them are in [`793b_decision-log.md`](./793b_decision-log.md). His answers to [793c15 Does the System inject chunks with their content?](#793c15-does-the-system-inject-chunks-with-their-content) to [793c22 There is no uninstall command today](#793c22-there-is-no-uninstall-command-today) are applied too. Two questions, [793c23 Is a note amended as near injected?](#793c23-is-a-note-amended-as-near-injected) and [793c24 Does the covering note's injection add anything to the depth's output?](#793c24-does-the-covering-notes-injection-add-anything-to-the-depths-output), are open and await Joe.
 
 ## 793c1 What are the capture precision bar and capture-rate target?
 
@@ -27,7 +27,7 @@ made in applying them are in [`793b_decision-log.md`](./793b_decision-log.md). S
 - **Status:** answered (Joe, 2026-10-11).
 - **Answer:** active, with measurement always on, so data accumulates for later optimization. Observe
   and off remain operator choices.
-- **Applied in:** nothing now: `793a4e Operating modes and measurement` is retired by [793c12 Are operating modes needed at all?](#793c12-are-operating-modes-needed-at-all). The active default is [793a4g Active whenever installed](793a_product-spec.md#793a4g-active-whenever-installed) scenario [793a4g1a A fresh install is active](793a_product-spec.md#793a4g1-uat-scenarios).
+- **Applied in:** nothing now: `793a4e Operating modes and measurement` is retired by [793c12 Are operating modes needed at all?](#793c12-are-operating-modes-needed-at-all). The active default is [793a4g Active whenever installed](793a_product-spec.md#793a4g-active-whenever-installed) scenario [793a4g1a An Integration installed by update is active](793a_product-spec.md#793a4g1-uat-scenarios).
 
 ## 793c4 Are captured lessons written directly, or held for `curate` review?
 
@@ -104,7 +104,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 ## 793c10 What is the default mode for an existing install that updates?
 
 - **Status:** retired by [793c12 Are operating modes needed at all?](#793c12-are-operating-modes-needed-at-all) (Joe, 2026-10-11): there are no modes.
-- **Context:** `793a4e Operating modes and measurement` makes active the default for a fresh install ([793c3 What is the default mode for a fresh install?](793c_open-questions.md#793c3-what-is-the-default-mode-for-a-fresh-install)). An existing install that updates has its own mode choice, and an update could start writing to its vault.
+- **Context:** `793a4e Operating modes and measurement` makes active the default for a fresh install ([793c3 What is the default mode for a fresh install?](#793c3-what-is-the-default-mode-for-a-fresh-install)). An existing install that updates has its own mode choice, and an update could start writing to its vault.
 - **Options:**
   - (a) active.
   - (b) observe.
@@ -159,16 +159,20 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 ## 793c15 Does the System inject chunks with their content?
 
 - **Status:** answered (Joe, 2026-10-11): (b) lazy chunks, as recall runs the query; add a rule against re-injecting the same chunk stub, and retire the chunk-content scenario.
-- **Context:** [792a14f One unified query](../../specs/product/recall.md#792a14f-one-unified-query) requires `--lazy-chunks`, which prints chunks as path and score only ([792a7s Lazy chunks](../../specs/product/memory-query.md#792a7s-lazy-chunks)). The baseline measurement in [793c2 Are the volume bounds and latency budget accepted?](#793c2-are-the-volume-bounds-and-latency-budget-accepted) used the query's defaults, which print chunk content. [793a2e1f A chunk shown without content is delivered with it](793a_product-spec.md#793a2e1-uat-scenarios) has the System deliver a chunk with its content.
+- **Applied in:** [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection), [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output), [793a2j1e Chunks are delivered as stubs](793a_product-spec.md#793a2j1-uat-scenarios), [793a2e1h A chunk whose content the agent fetched is not injected](793a_product-spec.md#793a2e1-uat-scenarios) and [793a2e1i A chunk stub already shown is not injected again](793a_product-spec.md#793a2e1-uat-scenarios); `793a2e1f` is retired. Decision: [793b62 Chunks are injected lazily, as stubs](793b_decision-log.md#793b62-chunks-are-injected-lazily-as-stubs).
+- **Applied in commit:** COMMIT_HASH.
+- **Context:** [792a14f One unified query](../../specs/product/recall.md#792a14f-one-unified-query) requires `--lazy-chunks`, which prints chunks as path and score only ([792a7s Lazy chunks](../../specs/product/memory-query.md#792a7s-lazy-chunks)). The baseline measurement in [793c2 Are the volume bounds and latency budget accepted?](#793c2-are-the-volume-bounds-and-latency-budget-accepted) used the query's defaults, which print chunk content. `793a2e1f A chunk shown without content is delivered with it` has the System deliver a chunk with its content.
 - **Options:**
-  - (a) yes: the System runs the query with the defaults, without `--lazy-chunks`, so [793a2e1f A chunk shown without content is delivered with it](793a_product-spec.md#793a2e1-uat-scenarios) stands.
-  - (b) no: the System runs it lazy as recall does, which needs a "do not re-inject the same stub" rule and retires [793a2e1f A chunk shown without content is delivered with it](793a_product-spec.md#793a2e1-uat-scenarios).
+  - (a) yes: the System runs the query with the defaults, without `--lazy-chunks`, so `793a2e1f A chunk shown without content is delivered with it` stands.
+  - (b) no: the System runs it lazy as recall does, which needs a "do not re-inject the same stub" rule and retires `793a2e1f A chunk shown without content is delivered with it`.
 - **Recommendation:** (a). It matches the volume that was measured, and the System has no agent turn in which to fetch a stub.
-- **Blocks:** [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection), [793a2e1f A chunk shown without content is delivered with it](793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1h A chunk delivered earlier is not delivered again](793a_product-spec.md#793a2e1-uat-scenarios) and the volume figures in [793a5e Auditability and measurability](793a_product-spec.md#793a5e-auditability-and-measurability).
+- **Blocks:** [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection), `793a2e1f A chunk shown without content is delivered with it`, [793a2e1h A chunk whose content the agent fetched is not injected](793a_product-spec.md#793a2e1-uat-scenarios) and the volume figures in [793a5e Auditability and measurability](793a_product-spec.md#793a5e-auditability-and-measurability).
 
 ## 793c16 At a deep moment, does the System's coverage write activate the note it covers?
 
 - **Status:** answered (Joe, 2026-10-11): when a note covers a cluster, attach the cluster's chunks to it as evidence and inject the covering note into the working agent (subject to no re-injection); mark it used only on the same transcript evidence as any injected note ([793c21 How does the System know a note was used?](#793c21-how-does-the-system-know-a-note-was-used)).
+- **Applied in:** [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) (scenarios [793a3g1c A covered cluster gets evidence and its note is injected](793a_product-spec.md#793a3g1-uat-scenarios), [793a3g1d A covering note already in context is not injected again](793a_product-spec.md#793a3g1-uat-scenarios) and [793a3g1e A near cluster amends the note](793a_product-spec.md#793a3g1-uat-scenarios)) and [793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated). Decision: [793b63 A coverage write attaches evidence and injects, and never activates](793b_decision-log.md#793b63-a-coverage-write-attaches-evidence-and-injects-and-never-activates).
+- **Applied in commit:** COMMIT_HASH.
 - **Context:** at a deep moment the System writes coverage ([792a14j Coverage is judged by the agent and written once per cluster](../../specs/product/recall.md#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster), [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems)) by adding chunk sources to an existing note with `engram amend`. `engram amend --activate` would also bump that note's recency, which [793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated) otherwise reserves for notes the agent used ([793c9 Does the System activate notes?](#793c9-does-the-system-activate-notes)).
 - **Options:**
   - (a) no: the System adds chunk sources without `--activate`, and only agent-used notes are activated ([793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated)).
@@ -179,6 +183,8 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 ## 793c17 Does the latency bound include reading the glance results?
 
 - **Status:** answered (Joe, 2026-10-11): (a) the bound includes reading the glance results that escalation and the recommendation check depend on.
+- **Applied in:** [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment). Decision: [793b64 Latency includes reading the results](793b_decision-log.md#793b64-latency-includes-reading-the-results).
+- **Applied in commit:** COMMIT_HASH.
 - **Context:** [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment) bounds added latency by the instruction path's full lookup on the same input ([793c11 What does the latency bound cover?](#793c11-what-does-the-latency-bound-cover)). Escalating from glance to deep ([793a2h Recall depth per moment](793a_product-spec.md#793a2h-recall-depth-per-moment), [792a14d Glance escalates to deep for a recent standard](../../specs/product/recall.md#792a14d-glance-escalates-to-deep-for-a-recent-standard)) and the recommendation check ([792a14o An emergent recommendation is checked against the vault](../../specs/product/recall.md#792a14o-an-emergent-recommendation-is-checked-against-the-vault)) depend on reading the glance results, which takes agent time.
 - **Options:**
   - (a) yes: reading the results is part of the instruction path's full lookup, so the bound includes it.
@@ -189,7 +195,9 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 
 ## 793c18 How is the System installed and turned off?
 
-- **Status:** answered (Joe, 2026-10-11): (a), with installation in this spec. Extend the existing install so it installs what the System needs; existing systems get it through `engram update`. The System is turned off by uninstalling, and uninstall is extended to remove it. See [793c22 There is no uninstall command today](#793c22-there-is-no-uninstall-command-today).
+- **Status:** answered (Joe, 2026-10-11): (a), with installation in this spec and without the harness's own disable mechanism of option (a). Extend the existing install so it installs what the System needs; existing systems get it through `engram update`. The System is turned off by uninstalling, and uninstall is extended to remove it. See [793c22 There is no uninstall command today](#793c22-there-is-no-uninstall-command-today).
+- **Applied in:** [793a4h Installed by engram update](793a_product-spec.md#793a4h-installed-by-engram-update), [793a4g Active whenever installed](793a_product-spec.md#793a4g-active-whenever-installed) and the Integration term in [793a1 Problem Statement](793a_product-spec.md#793a1-problem-statement); `793a4g1b` is retired. Decision: [793b65 Installation is part of this spec](793b_decision-log.md#793b65-installation-is-part-of-this-spec).
+- **Applied in commit:** COMMIT_HASH.
 - **Context:** [793a4g Active whenever installed](793a_product-spec.md#793a4g-active-whenever-installed) makes the System active whenever the integration is installed and enabled, and inert when disabled or uninstalled. It does not say how the integration gets installed, or how an operator disables it.
 - **Options:**
   - (a) `engram update` installs it by default, and it is disabled through the harness's own disable mechanism or by uninstalling.
@@ -200,6 +208,8 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 ## 793c19 Does the log keep the depth, each query's phrases and the glance escalation?
 
 - **Status:** answered (Joe, 2026-10-11): (a) keep the log fields.
+- **Applied in:** [793a5e Auditability and measurability](793a_product-spec.md#793a5e-auditability-and-measurability) (the depth, phrase and escalation fields are kept). Decision: [793b66 The log keeps depth, phrases and escalation](793b_decision-log.md#793b66-the-log-keeps-depth-phrases-and-escalation).
+- **Applied in commit:** COMMIT_HASH.
 - **Context:** raised unnumbered at the end of [793c7 Review answers (2026-10-11)](#793c7-review-answers-2026-10-11). [793a5e Auditability and measurability](793a_product-spec.md#793a5e-auditability-and-measurability) also logs the depth, the phrases of each query and whether glance escalated, which is more than Joe's answers asked for ([793b8 Per-moment record sits in the existing log requirement](793b_decision-log.md#793b8-per-moment-record-sits-in-the-existing-log-requirement), [793b43 Author's choice accepted: log depth, phrases and escalation](793b_decision-log.md#793b43-authors-choice-accepted-log-depth-phrases-and-escalation)).
 - **Options:**
   - (a) keep the fields.
@@ -210,6 +220,8 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 ## 793c20 Must injected chunks identify their source like notes?
 
 - **Status:** answered (Joe, 2026-10-11): (a) every injected item identifies its source: a note by its file name, a chunk by its id.
+- **Applied in:** [793a2d Attributable presentation](793a_product-spec.md#793a2d-attributable-presentation) and [793a2d1b Injected chunk names its id](793a_product-spec.md#793a2d1-uat-scenarios). Decision: [793b67 Every injected item names its source](793b_decision-log.md#793b67-every-injected-item-names-its-source).
+- **Applied in commit:** COMMIT_HASH.
 - **Context:** [793a2d Attributable presentation](793a_product-spec.md#793a2d-attributable-presentation) requires injected notes to identify their source note. The System also injects chunks, which have an id but no note file name.
 - **Options:**
   - (a) yes: "Injected items MUST identify their source (a note's file name, a chunk's id)".
@@ -220,6 +232,8 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 ## 793c21 How does the System know a note was used?
 
 - **Status:** answered (Joe, 2026-10-11): (a) infer use from the transcript at turn-end capture, log each verdict with its evidence, and have the precision grader sample activation verdicts.
+- **Applied in:** [793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated), [793a3l Activation accuracy is graded independently](793a_product-spec.md#793a3l-activation-accuracy-is-graded-independently) and [793a5e Auditability and measurability](793a_product-spec.md#793a5e-auditability-and-measurability). Decision: [793b68 Use is inferred from the transcript and graded](793b_decision-log.md#793b68-use-is-inferred-from-the-transcript-and-graded).
+- **Applied in commit:** COMMIT_HASH.
 - **Context:** Joe asked (2026-10-11, on [793c16 At a deep moment, does the System's coverage write activate the note it covers?](#793c16-at-a-deep-moment-does-the-systems-coverage-write-activate-the-note-it-covers)) whether the System can know what the agent actually used. Today, recall's activation step ([792a14l Only the notes that were used are activated](../../specs/product/recall.md#792a14l-only-the-notes-that-were-used-are-activated)) relies on the agent declaring which notes it drew on. The System has no such declaration. It can only infer use from the session transcript after the turn: the agent quoting or citing the note, following its steps, or taking an action the note prescribes. Inference misses unstated use and can mistake coincidence for use. Asking the working agent to declare use would put memory bookkeeping back into its context.
 - **Options:**
   - (a) Infer use from the transcript at turn-end capture, log each verdict with its evidence, and have the [793a3i Precision is graded independently](793a_product-spec.md#793a3i-precision-is-graded-independently) grader also sample activation verdicts so their accuracy is measured.
@@ -231,6 +245,8 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 ## 793c22 There is no uninstall command today
 
 - **Status:** answered (Joe, 2026-10-11): (b) a general `engram uninstall` in its own change, [#849](https://github.com/toejough/engram/issues/849); this change depends on it.
+- **Applied in:** [793a4g Active whenever installed](793a_product-spec.md#793a4g-active-whenever-installed) (uninstalling removes the System); the dependency on #849 is recorded in [793b69 The uninstall command is a separate change](793b_decision-log.md#793b69-the-uninstall-command-is-a-separate-change).
+- **Applied in commit:** COMMIT_HASH.
 - **Context:** [793c18 How is the System installed and turned off?](#793c18-how-is-the-system-installed-and-turned-off) says to extend the existing uninstall. `engram --help` has no uninstall command. The install-and-update capability ([install-and-update](../../specs/product/install-and-update.md)) covers installing and syncing only; today, removing engram means deleting the binary and the deployed links by hand.
 - **Options:**
   - (a) Add an `engram uninstall` command in this change that removes the System, and only the System, so turning it off is one command.
@@ -239,3 +255,22 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 - **Recommendation:** (b). Uninstall is a capability of install-and-update, not of the parallel agent. Building it separately keeps one owner and gives every installed piece a removal path.
 - **Blocks:** the turn-off requirement in [793a4g Active whenever installed](793a_product-spec.md#793a4g-active-whenever-installed) and the new install requirement.
 
+## 793c23 Is a note amended as near injected?
+
+- **Status:** open.
+- **Context:** [793c16 At a deep moment, does the System's coverage write activate the note it covers?](#793c16-at-a-deep-moment-does-the-systems-coverage-write-activate-the-note-it-covers) was answered for the covered outcome only: the covering note is injected. [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) says nothing about injecting a near note after it is amended with re-synthesized content ([792a14j Coverage is judged by the agent and written once per cluster](../../specs/product/recall.md#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster)). The version the working agent saw, if it saw one, differs from the amended note.
+- **Options:**
+  - (a) no: a near note is amended and not injected again.
+  - (b) yes: the amended note is injected, which needs a rule that an amended version is not the version already present under [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection).
+- **Recommendation:** (a). The note was already delivered with the query's results, and the amend adds evidence the agent did not ask for.
+- **Blocks:** [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) and [793a3g1e A near cluster amends the note](793a_product-spec.md#793a3g1-uat-scenarios).
+
+## 793c24 Does the covering note's injection add anything to the depth's output?
+
+- **Status:** open.
+- **Context:** [793c16 At a deep moment, does the System's coverage write activate the note it covers?](#793c16-at-a-deep-moment-does-the-systems-coverage-write-activate-the-note-it-covers) has the System inject the covering note. A covering note is a candidate from the moment's query results, which [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output) already injects, so the clause matters only when the note is not among the injected results.
+- **Options:**
+  - (a) keep the clause in [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) as an explicit guarantee.
+  - (b) drop it, since [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output) covers the case.
+- **Recommendation:** (a). It states what Joe asked for and costs nothing when the note is already present.
+- **Blocks:** [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) and [793a3g1c A covered cluster gets evidence and its note is injected](793a_product-spec.md#793a3g1-uat-scenarios).

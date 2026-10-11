@@ -33,7 +33,9 @@ Terms used below:
 - **Lesson:** any corrected failure, including an agent's own mid-task mistake that evidence
   overturned, plus a correction, an explicit save-request and a confirmed approach. It is wider than
   the four kinds in [792a15e The four kinds of explicit lesson](../../specs/product/learn.md#792a15e-the-four-kinds-of-explicit-lesson).
-- **Injection:** placing note content in front of the working agent without the agent requesting it.
+- **Injection:** placing note content, or a chunk stub, in front of the working agent without the agent requesting it.
+- **Chunk stub:** a chunk shown as its id and score only, with no content, as a lazy query prints it ([792a7s Lazy chunks](../../specs/product/memory-query.md#792a7s-lazy-chunks)).
+- **Integration:** what `engram update` installs for the System ([793a4h Installed by engram update](#793a4h-installed-by-engram-update)).
 - **Context:** the content currently available to one agent, a top-level agent or one subagent.
   Content removed by compaction is no longer present. A subagent's context is separate from its
   parent's. A resumed session's restored content is present.
@@ -69,7 +71,7 @@ Scenario: 793a2a1c Only incidental items come back
   Given a vault holding only notes about unrelated topics, and an indexed chunk history
   And the operator runs the glance query with the phrases the log records for that moment and finds only newest chunks returned
   When the human submits the prompt
-  Then the session transcript shows those chunks delivered before the agent's first response or tool call
+  Then the session transcript shows those chunks delivered as chunk stubs before the agent's first response or tool call
 ```
 
 ### 793a2b Recall after each tool result
@@ -109,9 +111,9 @@ Scenario: 793a2c1a Subagent receives relevant notes
 
 ### 793a2d Attributable presentation
 
-Requirement: 793a2d (formerly REC-4) Injected notes MUST identify their source note.
+Requirement: 793a2d (formerly REC-4) Injected items MUST identify their source: a note by its file name and a chunk by its id.
 
-Rationale: an agent that can see where a note came from can weigh it and look it up. Imperative memory,
+Rationale: an agent that can see where an item came from can weigh it and look it up, and a chunk's id is what it fetches the chunk by ([792a7t Reading one chunk](../../specs/product/memory-query.md#792a7t-reading-one-chunk)). Imperative memory,
 such as a runbook or a skill, is a legitimate injection; whether injected memory is applied is
 tested by [793a5f Effect on outcomes](#793a5f-effect-on-outcomes).
 
@@ -121,19 +123,24 @@ tested by [793a5f Effect on outcomes](#793a5f-effect-on-outcomes).
 Scenario: 793a2d1a Injected content names its source
   Given an injection of note "474.2026-07-25.charge-one-reviewer-to-execute..."
   When the injected text in the session transcript is inspected
-  Then it names that note as its source
+  Then it gives that note's file name as its source
+
+Scenario: 793a2d1b Injected chunk names its id
+  Given an injection of the chunk with id "session-ab12#turn-7"
+  When the injected text in the session transcript is inspected
+  Then it gives that chunk's id and score
 ```
 
 ### 793a2e No re-injection
 
 Requirement: 793a2e (formerly REC-5) The System MUST NOT inject an item (a note or a chunk) already
 present in the receiving agent's context, whether the System injected it earlier, the agent retrieved it,
-or it arrived by any other means. An item shown without its content, as a path and score only, does not
-count as present.
+or it arrived by any other means. A chunk stub already shown counts as present, so a chunk stub MUST NOT be
+injected again.
 
 Rationale: an item the agent already has adds only noise. Each subagent is a separate context, so a
 parent's items do not spare the subagent. Compaction removes content, so a removed item can be useful
-again. An item the agent saw only as a path and score has not given it the content.
+again. A stub already shown tells the agent that the chunk exists and where to fetch it, so repeating it adds only noise.
 
 #### 793a2e1 UAT Scenarios
 
@@ -159,22 +166,22 @@ Scenario: 793a2e1e A note removed by compaction can be injected again
   When a later prompt matches X
   Then the transcript shows X's content delivered again
 
-Scenario: 793a2e1f A chunk shown without content is delivered with it
-  Given a lazily-cut payload showed chunk Y to the agent as a path and score only
-  When a later moment's query returns Y
-  Then the transcript shows Y's content delivered
-
 Scenario: 793a2e1g A resumed session's restored content counts as present
   Given note X was delivered in a session that was then ended and resumed
   And the resumed session's transcript shows X's content restored
   When a later prompt matches X
   Then the transcript shows no second delivery of X
 
-Scenario: 793a2e1h A chunk delivered earlier is not delivered again
-  Given chunk Y was delivered with its content to the working agent
+Scenario: 793a2e1h A chunk whose content the agent fetched is not injected
+  Given the working agent ran a command that displayed chunk Y's content in the transcript
+  When a later moment's query returns Y
+  Then the transcript shows Y delivered by no injection
+
+Scenario: 793a2e1i A chunk stub already shown is not injected again
+  Given chunk Y was injected into the working agent's context as a chunk stub
   And the session has not been compacted
   When a later moment's query returns Y
-  Then the session transcript shows Y's content delivered only once
+  Then the session transcript shows Y's id and score only once
 ```
 
 ### 793a2h Recall depth per moment
@@ -244,18 +251,20 @@ Scenario Outline: 793a2i1a Non-human prompt receives recall
 
 Requirement: 793a2j At each recall moment (a prompt, a tool result or a subagent dispatch) the System
 MUST inject the items (notes and chunks) that the chosen depth's queries return for that moment,
-incidental items included, and MUST NOT inject more than those. Incidental items are the explore picks
+incidental items included, and MUST NOT inject more than those. A note is injected as the query returns it,
+with its content. A chunk is injected as a chunk stub, because the System's queries use `--lazy-chunks`
+([792a7s Lazy chunks](../../specs/product/memory-query.md#792a7s-lazy-chunks)), as recall's do ([792a14f One unified query](../../specs/product/recall.md#792a14f-one-unified-query)). Incidental items are the explore picks
 ([792a7i Half of the notes are explored](../../specs/product/memory-query.md#792a7i-half-of-the-notes-are-explored)), the ride-along notes ([792a7n Superseding notes ride along](../../specs/product/memory-query.md#792a7n-superseding-notes-ride-along)) and the newest chunks
 ([792a7o The newest chunks](../../specs/product/memory-query.md#792a7o-the-newest-chunks)); they are injected even when no item matches directly. At glance the queries are one
-`engram query` with about 3 phrases ([792a14c Recall has two depths](../../specs/product/recall.md#792a14c-recall-has-two-depths), [792a14f One unified query](../../specs/product/recall.md#792a14f-one-unified-query)). At deep they are one query with 10
-phrases from the ten angles ([792a14e Ten phrases from ten angles](../../specs/product/recall.md#792a14e-ten-phrases-from-ten-angles)). At either depth they also include the recommendation check
-([792a14o An emergent recommendation is checked against the vault](../../specs/product/recall.md#792a14o-an-emergent-recommendation-is-checked-against-the-vault)) when it runs. When glance escalates to deep at a moment, the moment's
-queries are those of both depths. Each query returns the payload of [792a7b The payload](../../specs/product/memory-query.md#792a7b-the-payload) under its defaults. The
+`engram query --lazy-chunks` with about 3 phrases ([792a14c Recall has two depths](../../specs/product/recall.md#792a14c-recall-has-two-depths), [792a14f One unified query](../../specs/product/recall.md#792a14f-one-unified-query)). At deep they are one
+`engram query --lazy-chunks` with 10 phrases from the ten angles ([792a14e Ten phrases from ten angles](../../specs/product/recall.md#792a14e-ten-phrases-from-ten-angles)). At either depth they also include the recommendation check
+([792a14o An emergent recommendation is checked against the vault](../../specs/product/recall.md#792a14o-an-emergent-recommendation-is-checked-against-the-vault)), also one `engram query --lazy-chunks`, when it runs. When glance escalates to deep at a moment, the moment's
+queries are those of both depths. Each query returns the payload of [792a7b The payload](../../specs/product/memory-query.md#792a7b-the-payload) under `--lazy-chunks` and its default result limit and content budget. The
 System MUST omit an item already present in the receiving agent's context ([793a2e No re-injection](#793a2e-no-re-injection)) and MUST
 NOT otherwise reduce that output.
 
 Rationale: automatic recall must give the working agent what the instruction-based path gives it, no
-more and no less, so that its effect is attributable to who initiates it and not to what it delivers.
+more and no less, so that its effect is attributable to who initiates it and not to what it delivers. A chunk arrives as a stub because that is how the instruction path's agent receives it.
 
 #### 793a2j1 UAT Scenarios
 
@@ -264,7 +273,7 @@ Scenario Outline: 793a2j1a Delivered items equal the depth's output
   Given a recall moment of kind <moment> at depth <depth>
   And the operator runs the depth's queries on the same vault with the phrases the log records for that moment
   When the session transcript is compared with those query results
-  Then every item the queries return is delivered in the transcript, except items whose content the transcript already shows to that agent
+  Then every item the queries return is delivered in the transcript as the query returns it, a note with its content and a chunk as a chunk stub, except items the transcript already shows to that agent (a chunk by its stub or its fetched content)
   And no other item is delivered
 
   Examples:
@@ -284,7 +293,7 @@ Scenario: 793a2j1b A vault holding more than 20 notes about the topic
 Scenario: 793a2j1c Incidental items are delivered with the direct matches
   Given the glance query for a prompt returns a direct match, an explore pick, a ride-along note and the newest chunks
   When the human submits the prompt
-  Then the session transcript shows all four kinds of item delivered
+  Then the session transcript shows all four kinds of item delivered, the chunks as chunk stubs
 
 Scenario: 793a2j1d An escalated moment delivers both depths' output
   Given a glance recall whose result flags a gap it cannot resolve, so that the moment escalates to deep
@@ -292,6 +301,12 @@ Scenario: 793a2j1d An escalated moment delivers both depths' output
   When the session transcript is compared with those query results
   Then every item either depth returns is delivered, except items already shown to that agent
   And no other item is delivered
+
+Scenario: 793a2j1e Chunks are delivered as stubs
+  Given the glance query for a prompt returns chunk Y
+  When the human submits the prompt
+  Then the session transcript shows Y's id and score
+  And the transcript does not show Y's content
 ```
 
 ## 793a3 Added: automatic-memory (automatic capture)
@@ -431,11 +446,22 @@ Scenario: 793a3f1a Slow capture does not stall the session
 
 Requirement: 793a3g Where deep recall writes to the vault, namely the coverage writes
 ([792a14j Coverage is judged by the agent and written once per cluster](../../specs/product/recall.md#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster)) and the persisted conclusion ([792a14p A sound conclusion is persisted as a derived note](../../specs/product/recall.md#792a14p-a-sound-conclusion-is-persisted-as-a-derived-note)), the System's capture MUST perform those
-writes, and the working agent MUST NOT be asked to. Each such write MUST carry the provenance of
-[793a3d Provenance](#793a3d-provenance), and a persisted conclusion MUST also have its source marked as derived.
+writes, and the working agent MUST NOT be asked to. For each cluster, using the outcomes of [792a14j Coverage is judged by the agent and written once per cluster](../../specs/product/recall.md#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster):
+
+- When an existing note covers the cluster, the System MUST attach the cluster's chunks to that note as evidence
+  without rewriting its content, and MUST inject the covering note into the working agent, subject to [793a2e No re-injection](#793a2e-no-re-injection). The
+  coverage write MUST NOT activate the note; it is activated only as [793a3k Used notes are activated](#793a3k-used-notes-are-activated) activates any injected note.
+- When an existing note addresses the same situation but omits a substantive claim the cluster evidences, the System MUST
+  amend it with the cluster's chunks as evidence and the re-synthesized content.
+- When no existing note addresses the situation, the System MUST write one new note for the cluster.
+
+Each such write MUST carry the provenance of [793a3d Provenance](#793a3d-provenance). For an amend, the chunk sources it adds and the log entry MUST
+name the session and the turn, and the note's original source MUST be unchanged. A persisted conclusion MUST also have
+its source marked as derived.
 
 Rationale: the working agent's context stays free of memory writes at deep moments as it does at
-capture.
+capture. A coverage write records that a note covers a cluster, not that the agent used it, so it leaves the note's
+recency to the inference of use.
 
 #### 793a3g1 UAT Scenarios
 
@@ -455,6 +481,34 @@ Scenario: 793a3g1b A sound conclusion is persisted without the working agent
   And its source field identifies automatic capture, the session id and the turn id, and marks the source as derived
   And the transcript shows the working agent ran no learn, amend or write-memory command
   And the transcript shows no request to the working agent to write the note
+
+Scenario: 793a3g1c A covered cluster gets evidence and its note is injected
+  Given a deep recall moment whose results include a cluster that existing note X covers
+  And X is not yet in the working agent's context
+  When the moment completes
+  Then X lists the cluster's chunks as evidence and its content is unchanged
+  And the transcript shows X's content delivered once
+  And X's recency metadata is the same as before the moment
+  And X's original source field is unchanged
+  And the chunk sources the amend added and the log entry name the session id and the turn id
+  And the transcript shows the working agent ran no learn, amend or write-memory command
+
+Scenario: 793a3g1d A covering note already in context is not injected again
+  Given a deep recall moment whose results include a cluster that existing note X covers
+  And X's content was delivered to the working agent earlier in the session
+  And the session has not been compacted
+  When the moment completes
+  Then X lists the cluster's chunks as evidence
+  And the transcript shows X's content delivered only once
+
+Scenario: 793a3g1e A near cluster amends the note
+  Given a deep recall moment whose results include a cluster that existing note Q addresses but omits a substantive claim the cluster evidences
+  When the moment completes
+  Then Q states the omitted claim and lists the cluster's chunks as evidence
+  And Q's original source field is unchanged
+  And the chunk sources the amend added and the log entry name the session id and the turn id
+  And Q's recency metadata is the same as before the moment
+  And the transcript shows the working agent ran no learn, amend or write-memory command
 ```
 
 ### 793a3h Capture rate exceeds the baseline
@@ -523,35 +577,40 @@ Scenario: 793a3j1b A served vault receives the write locally
 
 ### 793a3k Used notes are activated
 
-Requirement: 793a3k At turn-end capture ([793a3a Evaluate every completed turn](#793a3a-evaluate-every-completed-turn)) the System MUST judge which of the notes it injected
-during the turn the working agent went on to use, and MUST activate each of those notes, so that its
-recency metadata is bumped as when recall activates a used note ([792a14l Only the notes that were used are activated](../../specs/product/recall.md#792a14l-only-the-notes-that-were-used-are-activated)). It MUST NOT
-activate an injected note the agent did not use, and MUST NOT activate a chunk. It MUST activate a used
-note from the parent vault by its path, so that a pending local copy appears ([792a14c Recall has two depths](../../specs/product/recall.md#792a14c-recall-has-two-depths)),
-and MUST leave that copy pending.
+Requirement: 793a3k At turn-end capture ([793a3a Evaluate every completed turn](#793a3a-evaluate-every-completed-turn)) the System MUST infer from the session transcript which of the
+notes it injected during the turn the working agent went on to use, for example by quoting or citing the note,
+following its steps, or taking the action it prescribes, and MUST activate each of those notes, so that its
+recency metadata is bumped as when recall activates a used note ([792a14l Only the notes that were used are activated](../../specs/product/recall.md#792a14l-only-the-notes-that-were-used-are-activated)). It MUST log each activation verdict,
+activated or not, with its evidence. It MUST NOT activate an injected note for which the transcript shows no
+evidence of use, and MUST NOT activate a chunk. It MUST activate a used note from the parent vault by its path, so
+that a pending local copy appears ([792a14c Recall has two depths](../../specs/product/recall.md#792a14c-recall-has-two-depths)), and MUST leave that copy pending. The System's recall MUST NOT
+run recall's own activation step (Step 2.7 of [792a14l Only the notes that were used are activated](../../specs/product/recall.md#792a14l-only-the-notes-that-were-used-are-activated)); the activations of this requirement are the only ones the
+System makes.
 
 Rationale: a note's recency tracks whether it is useful. Bumping every injected note would keep an ignored
-one fresh, and bumping none would let a note the agent applies fade.
+one fresh, and bumping none would let a note the agent applies fade. The System has no declaration from the agent of
+what it used, and asking for one would put memory bookkeeping back into the agent's context, so it infers use from the
+transcript, where the evidence is.
 
 #### 793a3k1 UAT Scenarios
 
 ```gherkin
-Scenario: 793a3k1a A note the agent used is activated
+Scenario: 793a3k1a A note the transcript shows used is activated
   Given the System injected note X into a turn
-  And the working agent then applied X's rule in its work
+  And the transcript shows the working agent quoting X's rule and taking the action X prescribes
   When the turn completes
   Then X's recency metadata shows it was used in this session
-  And the log records the activation of X
+  And the log records the activation of X with that evidence
 
-Scenario: 793a3k1b An injected note the agent ignored is not activated
+Scenario: 793a3k1b An injected note with no evidence of use is not activated
   Given the System injected note Z into a turn
-  And the working agent's work in the turn does not apply or cite Z
+  And the transcript shows no quote or citation of Z, no step of Z followed and no action Z prescribes
   When the turn completes
   Then Z's recency metadata is unchanged
-  And the log records that Z was not activated
+  And the log records the verdict that Z was not activated
 
 Scenario: 793a3k1c An injected chunk is not activated
-  Given the System injected a chunk into a turn and the working agent used its content
+  Given the System injected a chunk stub into a turn and the working agent fetched and used the chunk's content
   When the turn completes
   Then the log records no activation for the chunk
 
@@ -560,6 +619,39 @@ Scenario: 793a3k1d A used parent note is pulled down and left pending
   When the turn completes
   Then a pending local copy of that note appears in the vault
   And the copy is still pending after the System's work for the turn
+
+Scenario: 793a3k1e Recall's own activation step does not run
+  Given a deep recall moment at which note X is judged to cover a cluster
+  And the transcript shows no use of X by the working agent
+  When the turn completes
+  Then X's recency metadata is unchanged
+  And the log records no activation of X, only the verdict that X was not activated
+```
+
+### 793a3l Activation accuracy is graded independently
+
+Requirement: 793a3l A separate grader inside the System, independent of the activation judgment, MUST sample the
+activation verdicts of [793a3k Used notes are activated](#793a3k-used-notes-are-activated) (activated or not), grade each sampled verdict against the session transcript as
+correct or not, and the System MUST log each graded verdict, the sample size and the resulting accuracy.
+
+Rationale: inferring use can miss use the agent never states and can mistake coincidence for use, and the judge that
+makes the verdicts cannot also be the measure of whether they were right.
+
+#### 793a3l1 UAT Scenarios
+
+```gherkin
+Scenario: 793a3l1a A sampled activation verdict is graded
+  Given the System made 40 activation verdicts over completed turns
+  And the grader sampled 10 of them
+  When the grader has judged each sampled verdict as correct or not
+  Then the operator can read each of the 10 graded verdicts, the sample size (10) and the resulting accuracy
+
+Scenario: 793a3l1b The grader does not defer to the activation judgment
+  Given a note the System activated although the transcript shows no use of it
+  And that verdict is in the sample
+  When the grader judges it
+  Then the recorded grade is not correct
+  And the log holds the grader's grade and the activation verdict as separate entries
 ```
 
 ## 793a4 Added: automatic-memory (operator control and safety)
@@ -643,7 +735,7 @@ Scenario: 793a4d1a Secret in correction is not persisted
 ### 793a4f No recall or capture in its own evaluation sessions
 
 Requirement: 793a4f The System MUST NOT recall into, or capture from, the sessions it runs to evaluate
-(to judge capture, to grade precision or to choose recall). The System MUST log the id of each session
+(to judge capture and activation, to grade precision and activation accuracy, or to choose recall). The System MUST log the id of each session
 it starts itself, marked as a System session.
 
 Rationale: an evaluation session that triggers the System would recurse and would write notes about
@@ -653,7 +745,7 @@ the System's own judging.
 
 ```gherkin
 Scenario: 793a4f1a Evaluation sessions are left alone
-  Given the System ran a capture judgment and a precision grading for a turn
+  Given the System ran a capture judgment, an activation judgment and the gradings of both for a turn
   When the operator reads the log and the vault
   Then the log lists each evaluation session's id as a System session
   And the log has no recall or capture decision for any evaluation session
@@ -668,34 +760,61 @@ Scenario: 793a4f1b The session that chooses depth and phrases is left alone
 
 ### 793a4g Active whenever installed
 
-Requirement: 793a4g The System MUST be active whenever the engram integration is installed and enabled, with
-no operating mode to select. When the integration is disabled or uninstalled, the System MUST inject
-nothing, capture nothing and record nothing.
+Requirement: 793a4g The System MUST be active in every session of a harness in which the Integration is installed, with
+no operating mode to select and no step beyond installing it. When the Integration has been uninstalled, the System MUST
+inject nothing, capture nothing and record nothing.
 
-Rationale: one state to reason about, and turning the integration off is the way to stop the System.
+Rationale: one state to reason about. `engram update` is how the System is turned on ([793a4h Installed by engram update](#793a4h-installed-by-engram-update)), and uninstalling is how it
+is turned off, through the general uninstall that is specified separately (#849).
 
 #### 793a4g1 UAT Scenarios
 
 ```gherkin
-Scenario: 793a4g1a A fresh install is active
-  Given a fresh install of the integration with no configuration
+Scenario: 793a4g1a An Integration installed by update is active
+  Given the Integration was installed by engram update, with no other configuration
   When a session runs with a prompt that matches a note and contains a correction
   Then the transcript shows the note's content delivered
   And a note stating the correction exists in the vault
 
-Scenario: 793a4g1b A disabled integration is inert
-  Given the integration is installed and then disabled
+Scenario: 793a4g1c An uninstalled Integration is inert
+  Given the Integration is installed and then uninstalled
   When a session runs with prompts that match notes and contain a correction
   Then the transcript shows no injected content
   And no note is written to the vault
   And no log entry is written
+```
 
-Scenario: 793a4g1c An uninstalled integration is inert
-  Given the integration is installed and then uninstalled
-  When a session runs with prompts that match notes and contain a correction
+### 793a4h Installed by engram update
+
+Requirement: 793a4h `engram update` MUST install the Integration, what the System needs to run, for each harness it
+updates ([792a11g The harnesses that are updated](../../specs/product/install-and-update.md#792a11g-the-harnesses-that-are-updated)) in which the System can run ([793a5c Environments without the capability](#793a5c-environments-without-the-capability)), extending the install of [install-and-update](../../specs/product/install-and-update.md). An
+existing install of engram MUST have the System after its next `engram update`, with no further step.
+`engram update --dry-run` ([792a11f Previewing an update](../../specs/product/install-and-update.md#792a11f-previewing-an-update)) MUST install none of it.
+
+Rationale: operators already run one command to bring a machine to the current engram, so the System arrives and stays
+current through it, and an existing install needs no separate step.
+
+#### 793a4h1 UAT Scenarios
+
+```gherkin
+Scenario: 793a4h1a Update installs the Integration for the harness it updates
+  Given ~/.claude exists, ~/.pi does not, and the System can run in Claude Code
+  When the user runs engram update
+  Then a Claude Code session runs with the System active
+  And ~/.pi is not created
+
+Scenario: 793a4h1b An existing install gains the System on its next update
+  Given an engram install made before the System existed, with no Integration
+  When the user runs engram update
+  And a session runs with a prompt that matches a note and contains a correction
+  Then the transcript shows the note's content delivered
+  And a note stating the correction exists in the vault
+
+Scenario: 793a4h1c A preview installs none of the Integration
+  Given a machine with no Integration
+  When the user runs engram update --dry-run
+  And a session runs with a prompt that matches a note
   Then the transcript shows no injected content
-  And no note is written to the vault
-  And no log entry is written
 ```
 
 ## 793a5 Added: automatic-memory (independence, coexistence, and measurement)
@@ -752,7 +871,7 @@ Scenario: 793a5c1a Unsupported harness
 Requirement: 793a5e (formerly NFR-2) Every recall decision (injected or none, with the depth, whether
 glance escalated to deep, the phrases of each query, the items and their scores), every capture decision
 (written, reinforced, or discarded, with reason) and every activation decision (activated or not, per
-injected note) MUST be logged, so effect on behavior can be measured and the operator can audit it. The
+injected note, with its evidence) MUST be logged, so effect on behavior can be measured and the operator can audit it. The
 log MUST be available to the operator by session id. Each entry MUST carry the session id, the turn id
 and the moment. The System MUST also record, per moment, the volume injected, as the number of items and the number of bytes, and the latency added. A
 moment with no injection MUST be recorded with volume 0. The System MUST record all of this whenever it is
@@ -786,7 +905,7 @@ Scenario: 793a5e1d A discarded capture is recorded with its reason
   Then the turn has a capture decision of discarded with a reason
 
 Scenario: 793a5e1e Measurement cannot be switched off while the System is active
-  Given the integration is installed and the operator tries to turn measurement off with an environment variable or config key that would disable logging
+  Given the Integration is installed and the operator tries to turn measurement off with an environment variable or config key that would disable logging
   When a session runs
   Then the log still records each moment with its volume and latency
 
@@ -808,28 +927,29 @@ Rationale: injection only pays if the injected memory is applied; this compariso
 ```gherkin
 Scenario: 793a5f1a Treatment beats control
   Given a set of tasks each with a relevant existing note
-  And N = 20 runs per arm with the System disabled and enabled, fresh process each
+  And N = 20 runs per arm, one with the Integration uninstalled and one with it installed, fresh process each
   When the rate of applying the relevant note is compared
-  Then the enabled arm's rate is higher by more than the noise floor measured between repeat runs of the same arm
+  Then the installed arm's rate is higher by more than the noise floor measured between repeat runs of the same arm
 ```
 
 ### 793a5g Latency per recall moment
 
 Requirement: 793a5g At every recall moment (a prompt, a tool result or a subagent dispatch) the latency the
-System adds MUST NOT exceed the latency of the instruction path's full lookup for that moment: generating
-the query phrases plus running the chosen depth's queries ([793a2j Volume equals the depth's output](#793a2j-volume-equals-the-depths-output)), and the
-queries of both depths when glance escalates to deep. The comparison MUST be made on the same vault and
-input.
+System adds MUST NOT exceed the latency of the instruction path's full lookup at that moment: generating the query
+phrases, running the chosen depth's queries ([793a2j Volume equals the depth's output](#793a2j-volume-equals-the-depths-output)), and reading the results that escalation
+([793a2h Recall depth per moment](#793a2h-recall-depth-per-moment), [792a14d Glance escalates to deep for a recent standard](../../specs/product/recall.md#792a14d-glance-escalates-to-deep-for-a-recent-standard)) and the recommendation check
+([792a14o An emergent recommendation is checked against the vault](../../specs/product/recall.md#792a14o-an-emergent-recommendation-is-checked-against-the-vault)) depend on. At a moment where glance escalates to deep, that lookup is
+the queries of both depths and that reading. The comparison MUST be made on the same vault and input.
 
-Rationale: recall must cost no more than the whole lookup the working agent would otherwise perform,
-including forming its query.
+Rationale: recall must cost no more than the whole lookup the working agent would otherwise perform, including
+forming its query and reading what comes back.
 
 #### 793a5g1 UAT Scenarios
 
 ```gherkin
 Scenario Outline: 793a5g1a Added latency stays within the instruction path's lookup latency
   Given a recorded recall moment of kind <moment>
-  And the operator performs the instruction path's lookup for that moment on the same vault and input, generating the phrases and running the depth's queries
+  And the operator performs the instruction path's lookup for that moment on the same vault and input, generating the phrases, running the depth's queries and reading the results that escalation and the recommendation check depend on
   When the latency added in the log is compared with the time that lookup took
   Then the latency added does not exceed that time
 
@@ -841,7 +961,7 @@ Scenario Outline: 793a5g1a Added latency stays within the instruction path's loo
 
 Scenario: 793a5g1b An escalated moment is compared with both depths
   Given a recorded recall moment at which glance escalated to deep
-  And the operator performs the instruction path's lookup on the same vault and input, generating the phrases and running the queries of both depths
+  And the operator performs the instruction path's lookup on the same vault and input, generating the phrases, running the queries of both depths and reading the results
   When the latency added in the log is compared with the time that lookup took
   Then the latency added does not exceed that time
 ```
