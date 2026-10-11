@@ -158,7 +158,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 
 ## 793c15 Does the System inject chunks with their content?
 
-- **Status:** open.
+- **Status:** answered (Joe, 2026-10-11): (b) lazy chunks, as recall runs the query; add a rule against re-injecting the same chunk stub, and retire the chunk-content scenario.
 - **Context:** [792a14f One unified query](../../specs/product/recall.md#792a14f-one-unified-query) requires `--lazy-chunks`, which prints chunks as path and score only ([792a7s Lazy chunks](../../specs/product/memory-query.md#792a7s-lazy-chunks)). The baseline measurement in [793c2 Are the volume bounds and latency budget accepted?](#793c2-are-the-volume-bounds-and-latency-budget-accepted) used the query's defaults, which print chunk content. [793a2e1f A chunk shown without content is delivered with it](793a_product-spec.md#793a2e1-uat-scenarios) has the System deliver a chunk with its content.
 - **Options:**
   - (a) yes: the System runs the query with the defaults, without `--lazy-chunks`, so [793a2e1f A chunk shown without content is delivered with it](793a_product-spec.md#793a2e1-uat-scenarios) stands.
@@ -168,7 +168,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 
 ## 793c16 At a deep moment, does the System's coverage write activate the note it covers?
 
-- **Status:** open.
+- **Status:** deferred (Joe, 2026-10-11): Joe asked first whether the System can know what the agent actually used; see [793c21 How does the System know a note was used?](#793c21-how-does-the-system-know-a-note-was-used).
 - **Context:** at a deep moment the System writes coverage ([792a14j Coverage is judged by the agent and written once per cluster](../../specs/product/recall.md#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster), [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems)) by adding chunk sources to an existing note with `engram amend`. `engram amend --activate` would also bump that note's recency, which [793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated) otherwise reserves for notes the agent used ([793c9 Does the System activate notes?](#793c9-does-the-system-activate-notes)).
 - **Options:**
   - (a) no: the System adds chunk sources without `--activate`, and only agent-used notes are activated ([793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated)).
@@ -178,7 +178,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 
 ## 793c17 Does the latency bound include reading the glance results?
 
-- **Status:** open.
+- **Status:** answered (Joe, 2026-10-11): (a) the bound includes reading the glance results that escalation and the recommendation check depend on.
 - **Context:** [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment) bounds added latency by the instruction path's full lookup on the same input ([793c11 What does the latency bound cover?](#793c11-what-does-the-latency-bound-cover)). Escalating from glance to deep ([793a2h Recall depth per moment](793a_product-spec.md#793a2h-recall-depth-per-moment), [792a14d Glance escalates to deep for a recent standard](../../specs/product/recall.md#792a14d-glance-escalates-to-deep-for-a-recent-standard)) and the recommendation check ([792a14o An emergent recommendation is checked against the vault](../../specs/product/recall.md#792a14o-an-emergent-recommendation-is-checked-against-the-vault)) depend on reading the glance results, which takes agent time.
 - **Options:**
   - (a) yes: reading the results is part of the instruction path's full lookup, so the bound includes it.
@@ -189,7 +189,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 
 ## 793c18 How is the System installed and turned off?
 
-- **Status:** open.
+- **Status:** answered (Joe, 2026-10-11): (a), with installation in this spec. Extend the existing install so it installs what the System needs; existing systems get it through `engram update`. The System is turned off by uninstalling, and uninstall is extended to remove it. See [793c22 There is no uninstall command today](#793c22-there-is-no-uninstall-command-today).
 - **Context:** [793a4g Active whenever installed](793a_product-spec.md#793a4g-active-whenever-installed) makes the System active whenever the integration is installed and enabled, and inert when disabled or uninstalled. It does not say how the integration gets installed, or how an operator disables it.
 - **Options:**
   - (a) `engram update` installs it by default, and it is disabled through the harness's own disable mechanism or by uninstalling.
@@ -199,7 +199,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 
 ## 793c19 Does the log keep the depth, each query's phrases and the glance escalation?
 
-- **Status:** open.
+- **Status:** answered (Joe, 2026-10-11): (a) keep the log fields.
 - **Context:** raised unnumbered at the end of [793c7 Review answers (2026-10-11)](#793c7-review-answers-2026-10-11). [793a5e Auditability and measurability](793a_product-spec.md#793a5e-auditability-and-measurability) also logs the depth, the phrases of each query and whether glance escalated, which is more than Joe's answers asked for ([793b8 Per-moment record sits in the existing log requirement](793b_decision-log.md#793b8-per-moment-record-sits-in-the-existing-log-requirement), [793b43 Author's choice accepted: log depth, phrases and escalation](793b_decision-log.md#793b43-authors-choice-accepted-log-depth-phrases-and-escalation)).
 - **Options:**
   - (a) keep the fields.
@@ -209,10 +209,33 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 
 ## 793c20 Must injected chunks identify their source like notes?
 
-- **Status:** open.
+- **Status:** answered (Joe, 2026-10-11): (a) every injected item identifies its source: a note by its file name, a chunk by its id.
 - **Context:** [793a2d Attributable presentation](793a_product-spec.md#793a2d-attributable-presentation) requires injected notes to identify their source note. The System also injects chunks, which have an id but no note file name.
 - **Options:**
   - (a) yes: "Injected items MUST identify their source (a note's file name, a chunk's id)".
   - (b) chunks are exempt.
 - **Recommendation:** (a). A chunk the agent cannot trace to its source cannot be weighed or looked up.
 - **Blocks:** [793a2d Attributable presentation](793a_product-spec.md#793a2d-attributable-presentation).
+
+## 793c21 How does the System know a note was used?
+
+- **Status:** open.
+- **Context:** Joe asked (2026-10-11, on [793c16 At a deep moment, does the System's coverage write activate the note it covers?](#793c16-at-a-deep-moment-does-the-systems-coverage-write-activate-the-note-it-covers)) whether the System can know what the agent actually used. Today, recall's activation step ([792a14l Only the notes that were used are activated](../../specs/product/recall.md#792a14l-only-the-notes-that-were-used-are-activated)) relies on the agent declaring which notes it drew on. The System has no such declaration. It can only infer use from the session transcript after the turn: the agent quoting or citing the note, following its steps, or taking an action the note prescribes. Inference misses unstated use and can mistake coincidence for use. Asking the working agent to declare use would put memory bookkeeping back into its context.
+- **Options:**
+  - (a) Infer use from the transcript at turn-end capture, log each verdict with its evidence, and have the [793a3i Precision is graded independently](793a_product-spec.md#793a3i-precision-is-graded-independently) grader also sample activation verdicts so their accuracy is measured.
+  - (b) Treat every injected note as used. Activation is then recency of injection, with no judgment.
+  - (c) Don't activate at all until a reliable signal exists. Record it as a follow-up.
+- **Recommendation:** (a). It keeps the main agent's context clean, matches how capture already judges turns, and makes the inference's accuracy measurable instead of assumed.
+- **Blocks:** [793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated) and [793c16 At a deep moment, does the System's coverage write activate the note it covers?](#793c16-at-a-deep-moment-does-the-systems-coverage-write-activate-the-note-it-covers).
+
+## 793c22 There is no uninstall command today
+
+- **Status:** open.
+- **Context:** [793c18 How is the System installed and turned off?](#793c18-how-is-the-system-installed-and-turned-off) says to extend the existing uninstall. `engram --help` has no uninstall command. The install-and-update capability ([install-and-update](../../specs/product/install-and-update.md)) covers installing and syncing only; today, removing engram means deleting the binary and the deployed links by hand.
+- **Options:**
+  - (a) Add an `engram uninstall` command in this change that removes the System, and only the System, so turning it off is one command.
+  - (b) Add a general `engram uninstall` that removes everything `engram update` installed, the System included, as its own issue and change. This change depends on it.
+  - (c) Document manual removal steps for the System, with no command.
+- **Recommendation:** (b). Uninstall is a capability of install-and-update, not of the parallel agent. Building it separately keeps one owner and gives every installed piece a removal path.
+- **Blocks:** the turn-off requirement in [793a4g Active whenever installed](793a_product-spec.md#793a4g-active-whenever-installed) and the new install requirement.
+
