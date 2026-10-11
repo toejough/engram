@@ -513,7 +513,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 
 ## 793c41 At a recall moment, what does the System put in front of the working agent?
 
-- **Status:** open.
+- **Status:** answered (Joe, 2026-10-11), Joe's own option: recall's planning part is what the agent does with what was recalled. The System returns the results with an instruction to work them into the agent's plan, or to replan entirely. The agent does recall's plan, synthesis and reconciliation (792a14a, 792a14m, 792a14n, 792a14o) itself, in its own reasoning. Joe: "The watcher won't have all of the same context as the main agent. Its job is to handle memory, not play puppet master."
 - **Context:** Joe's intent ([793c29 Is the System a delegate for the existing memory skills?](#793c29-is-the-system-a-delegate-for-the-existing-memory-skills)) is the same behavior, offloaded from the working agent's context. When the agent runs recall, its context gets the query results plus recall's plan ([792a14a The plan is stated before anything is retrieved](../../specs/product/recall.md#792a14a-the-plan-is-stated-before-anything-is-retrieved)), its closing synthesis ([792a14m The closing synthesis says whether memory changed the plan](../../specs/product/recall.md#792a14m-the-closing-synthesis-says-whether-memory-changed-the-plan)) and its reconciliation of a recommendation ([792a14n A recommendation is reconciled against the asked task](../../specs/product/recall.md#792a14n-a-recommendation-is-reconciled-against-the-asked-task), [792a14o An emergent recommendation is checked against the vault](../../specs/product/recall.md#792a14o-an-emergent-recommendation-is-checked-against-the-vault)). [792a14c Recall has two depths](../../specs/product/recall.md#792a14c-recall-has-two-depths) keeps the synthesis even at glance, and [792a14m The closing synthesis says whether memory changed the plan](../../specs/product/recall.md#792a14m-the-closing-synthesis-says-whether-memory-changed-the-plan) forbids raw scores and paths in it. [793a2a Recall is performed for the working agent](793a_product-spec.md#793a2a-recall-is-performed-for-the-working-agent), [793a2d Attributable presentation](793a_product-spec.md#793a2d-attributable-presentation) and [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection) instead assume that the System injects raw items, each named by its source.
 - **Options:**
   - (a) The query results only; recall's plan, synthesis and reconciliation are not performed at System moments. This is a deliberate difference from the skill.
@@ -524,7 +524,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 
 ## 793c42 What runs at every prompt (D1)?
 
-- **Status:** open.
+- **Status:** answered (Joe, 2026-10-11): (a) the shim's lookup at every prompt.
 - **Context:** [793a2i Recall for every prompt regardless of source](793a_product-spec.md#793a2i-recall-for-every-prompt-regardless-of-source) has the System perform recall at every prompt, a difference from the guidance ([793c30 Which earlier decisions stay as deliberate differences from the skills?](#793c30-which-earlier-decisions-stay-as-deliberate-differences-from-the-skills), D1). The skills define no per-prompt action, but the shim's per-prompt action is one `engram query` with its phrase shapes ([792a19j The first action on every request is an engram query](../../specs/product/ambient-guidance.md#792a19j-the-first-action-on-every-request-is-an-engram-query), [792a19k The second phrase names a kind of work-handling decision](../../specs/product/ambient-guidance.md#792a19k-the-second-phrase-names-a-kind-of-work-handling-decision)), the lookup [793a7e The first action on every request is an engram query](793a_product-spec.md#793a7e-modified-the-first-action-on-every-request-is-an-engram-query) takes over. Recall's canonical default depth is deep ([792a14c Recall has two depths](../../specs/product/recall.md#792a14c-recall-has-two-depths)), which writes to the vault.
 - **Options:**
   - (a) The shim's lookup, delegated exactly from [792a19j The first action on every request is an engram query](../../specs/product/ambient-guidance.md#792a19j-the-first-action-on-every-request-is-an-engram-query): one `engram query` with its phrase shapes, results delivered.
@@ -535,7 +535,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 
 ## 793c43 Who handles pending offers and the curate step?
 
-- **Status:** open.
+- **Status:** answered (Joe, 2026-10-11): (a) the System runs curate after its recall, and the hint is removed from what the agent sees.
 - **Context:** [792a14l Only the notes that were used are activated](../../specs/product/recall.md#792a14l-only-the-notes-that-were-used-are-activated) has recall leave pulled copies of parent notes pending, finish the request and run the curate skill as a separate step; [792a22o Pending offers are surfaced at three points](../../specs/product/curate.md#792a22o-pending-offers-are-surfaced-at-three-points) surfaces pending offers in the query payload; [792a19s A signal of unrequested work is a standing instruction](../../specs/product/ambient-guidance.md#792a19s-a-signal-of-unrequested-work-is-a-standing-instruction) tells the agent to obey that hint after finishing the request. With recall delegated, the agent runs neither recall nor curate, yet the hint would still reach it and ask for memory work.
 - **Options:**
   - (a) The System runs curate after its recall, as recall defines it. [793a4c Memory purview only](793a_product-spec.md#793a4c-memory-purview-only) lists curation's effects, and the hint is removed from what the agent sees.
@@ -546,7 +546,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 
 ## 793c44 Where do the delegated skills' messages to the user go?
 
-- **Status:** open.
+- **Status:** answered (Joe, 2026-10-11): (b) all of these messages are shown to the user on the summary's display surface. Joe will open a new change if it's too much.
 - **Context:** the skills address the user through the agent: recall's synthesis to the user ([792a14m The closing synthesis says whether memory changed the plan](../../specs/product/recall.md#792a14m-the-closing-synthesis-says-whether-memory-changed-the-plan)), learn's report that a write is saved or queued for the parent ([792a15j A write to a parent is reported as done](../../specs/product/learn.md#792a15j-a-write-to-a-parent-is-reported-as-done)), please's repository-change proposal ([792a18q A lesson about to be captured asks what should have surfaced it](../../specs/product/please.md#792a18q-a-lesson-about-to-be-captured-asks-what-should-have-surfaced-it)) and route's drowning report ([792a17n Drowning is reported, not patched](../../specs/product/route.md#792a17n-drowning-is-reported-not-patched)). With the System performing them, the agent is not the speaker, and [793a5h A memory-activity summary is shown to the user](793a_product-spec.md#793a5h-a-memory-activity-summary-is-shown-to-the-user) shows counts only.
 - **Options:**
   - (a) Log only, plus counts in the [793a5h A memory-activity summary is shown to the user](793a_product-spec.md#793a5h-a-memory-activity-summary-is-shown-to-the-user) summary.
@@ -594,7 +594,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 
 ## 793c48 How is the widening of `engram init` (change #795) sequenced with this change?
 
-- **Status:** open.
+- **Status:** answered (Joe, 2026-10-11): (a) widen #795. Its issue is retitled and its scope extended (init initializes everything idempotently, and update runs it). #795's spec is widened as part of #795's own work, and #793 builds on it.
 - **Context:** [793c47 Does "init" mean `engram init` or the first-time install by `engram update`?](#793c47-does-init-mean-engram-init-or-the-first-time-install-by-engram-update) makes `engram init` set up the vault and every harness's integration, idempotently, with `engram update` running it. Change #795 (`docs/changes/795_vault-init-command/`) scopes init to vault creation only, and says `engram update` with no vault skips its vault steps and never creates one. [793a4h Installed by engram update](793a_product-spec.md#793a4h-installed-by-engram-update) now depends on init having the wider scope, and #795's update behavior conflicts with update running init ([793b136 Change 793 depends on change 795 being widened](793b_decision-log.md#793b136-change-793-depends-on-change-795-being-widened)).
 - **Options:**
   - (a) Widen #795's own spec to cover harness setup, with update running init, so this change builds on it. (recommended)
