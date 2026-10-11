@@ -262,7 +262,8 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 - **Options:**
   - (a) no: a near note is amended and not injected again.
   - (b) yes: the amended note is injected, which needs a rule that an amended version is not the version already present under [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection).
-- **Recommendation:** (a). The note was already delivered with the query's results, and the amend adds evidence the agent did not ask for.
+- **When this happens:** only at deep moments (a weighty or irreversible decision, a gap glance could not resolve, or a recently surfaced standard), and only for a cluster of results whose content overlaps an existing note but adds to or changes it. An example is a note saying "use targ for tests" and a cluster of recent sessions also saying "and pass -tags=integration for dev tests". Recall rewrites the note to include the new detail.
+- **Recommendation (revised 2026-10-11 by Orchestrator (Claude)):** (b). In recall today the agent that does the deep pass also writes the amendment, so the amended content is in its context. Injecting the amended note keeps that behavior. The earlier recommendation (a) would have left the agent with the older text.
 - **Blocks:** [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) and [793a3g1e A near cluster amends the note](793a_product-spec.md#793a3g1-uat-scenarios).
 
 ## 793c24 Does the covering note's injection add anything to the depth's output?
@@ -272,5 +273,7 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 - **Options:**
   - (a) keep the clause in [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) as an explicit guarantee.
   - (b) drop it, since [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output) covers the case.
-- **Recommendation:** (a). It states what Joe asked for and costs nothing when the note is already present.
+- **Owner follow-up (Joe, 2026-10-11):** is it a reasonable optimization to inject only the covering note and not the cluster's own items?
+- **Assessment (Orchestrator (Claude)):** the gain is small and something is lost. Under [793c15 Does the System inject chunks with their content?](#793c15-does-the-system-inject-chunks-with-their-content) the cluster's chunks are already only stubs (path and score), so dropping them saves little. Dropping them removes the agent's pointers to the specific past sessions behind the note. Those sessions carry examples, edge cases and context the note's summary leaves out, which the agent can fetch when it needs them. This is a trim of today's output, so per [793c8 What does the System inject when only incidental items come back?](#793c8-what-does-the-system-inject-when-only-incidental-items-come-back) it belongs with [#848](https://github.com/toejough/engram/issues/848) and needs measurement.
+- **Recommendation:** (a). Keep the explicit clause, inject the cluster's items as well, and add "covering note instead of its cluster" to #848.
 - **Blocks:** [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) and [793a3g1c A covered cluster gets evidence and its note is injected](793a_product-spec.md#793a3g1-uat-scenarios).
