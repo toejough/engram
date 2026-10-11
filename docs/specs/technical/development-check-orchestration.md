@@ -8,10 +8,13 @@ Starting the analyzer process is [NilAway Subprocess](./nilaway-subprocess.md).
 
 ## 794b4a Preserve entry points
 
-Requirement: 794b4a Development-check orchestration MUST replace the behavior of the existing
-shared check/fix target objects in place, preserving the target names and all aggregate references.
+Requirement: 794b4a Development-check orchestration MUST replace the action of the existing shared
+check/fix targets, preserving their names, their registration metadata, and all aggregate
+references to them.
 
-Supports [794a2a1a Existing entry points use project analysis](../product/development-checks.md#794a2a1-uat-scenarios).
+Supports
+[794a2a1a Existing check entry points report only on Engram's module packages](../product/development-checks.md#794a2a1-uat-scenarios) and
+[794a2a1c The fix command acts only on Engram's module packages](../product/development-checks.md#794a2a1-uat-scenarios).
 
 ### 794b4a1 Contract Scenarios
 
@@ -24,4 +27,10 @@ Scenario: 794b4a1a Direct and aggregate target routing
   And check retains check-nils
   And check-for-fail and check-full retain the configured checking target
   And the direct target names remain check-nils-fix and check-nils-for-fail
+
+Scenario: 794b4a1b Registration metadata is preserved
+  Given Targ has registered its shared check and fix targets with their registration metadata
+  When Engram initializes its development targets
+  Then each target keeps the registration metadata Targ gave it, including its source package
+  And deregistering Targ's shared targets still removes them
 ```
