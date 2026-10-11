@@ -341,7 +341,13 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 
 ## 793c30 Which earlier decisions stay as deliberate differences from the skills?
 
-- **Status:** open.
+- **Status:** answered (Joe, 2026-10-11):
+  - D1 keep.
+  - D2 keep.
+  - D3 keep, and more: agents no longer report lessons back at all, because the System captures them. While the Integration is installed, the LESSONS-line contract ([lessons-contract](../../specs/product/lessons-contract.md)) is replaced, not supplemented.
+  - D4 keep: the System uses the wider definition now, ahead of #846.
+  - D5 drop: follow learn's handling of an existing equivalent note.
+  - Keep all of N1–N8.
 - **Context:** under [793c29 Is the System a delegate for the existing memory skills?](#793c29-is-the-system-a-delegate-for-the-existing-memory-skills) the System does what recall and learn do. Some earlier owner decisions change that behavior. The items below are in one of three groups. **Inherent** items follow from delegation itself and stay. **New** items are capabilities the skills don't have, and stay unless dropped. **Differences** change what the skills do; each needs a keep or drop.
 - **Inherent (stay):**
   - the working agent no longer runs recall or learn ([793c4 Are captured lessons written directly, or held for `curate` review?](#793c4-are-captured-lessons-written-directly-or-held-for-curate-review));
