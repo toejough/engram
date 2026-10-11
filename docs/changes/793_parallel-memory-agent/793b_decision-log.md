@@ -494,6 +494,7 @@ orchestrator or a reviewer await the owner's validation.
 - **Choice:** [793a3c No duplicates](793a_product-spec.md#793a3c-no-duplicates) keeps "SHOULD reinforce" and [793a3c1a Existing note already covers the lesson](793a_product-spec.md#793a3c1-uat-scenarios) no longer asserts a "reinforced" mark. Whether reinforcement should be a MUST is open in [793c14 Should reinforcing an existing note be a MUST?](793c_open-questions.md#793c14-should-reinforcing-an-existing-note-be-a-must).
 - **Rationale:** a scenario cannot hold the System to a behavior the requirement leaves optional.
 - **Alternatives:** make reinforcement a MUST with a scenario. Not chosen without the owner's say.
+- **Status:** superseded by 793b52 (Joe chose MUST in 793c14).
 
 ## 793b51 Phrasing choices in applying the second review
 
@@ -509,4 +510,9 @@ orchestrator or a reviewer await the owner's validation.
   - [793a2h1d A recently surfaced standard uses deep](793a_product-spec.md#793a2h1-uat-scenarios) names the recent-activity channel; [793a2h1c An unresolved gap uses deep](793a_product-spec.md#793a2h1-uat-scenarios) records the escalation; [793a2j1a Delivered items equal the depth's output](793a_product-spec.md#793a2j1-uat-scenarios) asserts on the transcript; [793a2j1b A vault holding more than 20 notes about the topic](793a_product-spec.md#793a2j1-uat-scenarios) is trimmed; [793a2b Recall after each tool result](793a_product-spec.md#793a2b-recall-after-each-tool-result) says "next response or tool call".
   - The "Added:" word is dropped from link labels, and the rationale text in [793a3a Evaluate every completed turn](793a_product-spec.md#793a3a-evaluate-every-completed-turn) and [793a3h Capture rate exceeds the baseline](793a_product-spec.md#793a3h-capture-rate-exceeds-the-baseline) states the why only.
 - **Rationale:** each follows the finding's fix and keeps every MUST branch checkable from the transcript or the operator log.
+
+## 793b52 Reinforcement is required
+
+- **Choice:** [793a3c No duplicates](793a_product-spec.md#793a3c-no-duplicates) makes reinforcing an equivalent existing note a MUST, and [793a3c1a Existing note already covers the lesson](793a_product-spec.md#793a3c1-uat-scenarios) asserts that the log records a reinforced capture decision. This supersedes 793b50.
+- **Decided by:** Owner (Joe), [793c14 Should reinforcing an existing note be a MUST?](793c_open-questions.md#793c14-should-reinforcing-an-existing-note-be-a-must); scenario wording by Orchestrator (Claude), awaiting owner validation.
 

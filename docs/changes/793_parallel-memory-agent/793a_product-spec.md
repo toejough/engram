@@ -376,7 +376,7 @@ Scenario: 793a3b1c Routine success ignored
 
 Requirement: 793a3c (formerly CAP-3) Before writing, the System MUST check for an existing note
 stating the same lesson and MUST NOT write a duplicate, including when two subagents capture the same
-lesson concurrently. When an equivalent note exists, the System SHOULD reinforce it instead.
+lesson concurrently. When an equivalent note exists, the System MUST reinforce it instead.
 
 #### 793a3c1 UAT Scenarios
 
@@ -385,6 +385,7 @@ Scenario: 793a3c1a Existing note already covers the lesson
   Given a note stating "never amend pushed commits"
   When the user repeats that correction and the turn completes
   Then no new note is created
+  And the log records a capture decision of reinforced for the existing note
 
 Scenario: 793a3c1b A lesson reported to the parent yields one note
   Given a subagent's turn contained a lesson and the System captured it

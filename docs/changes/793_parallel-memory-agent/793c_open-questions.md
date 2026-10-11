@@ -141,7 +141,7 @@ answers.
 
 ## 793c13 Does the System activate notes the agent retrieved itself?
 
-- **Status:** open.
+- **Status:** answered (Joe, 2026-10-11): (a) only notes the System injected; explicit recall activates its own.
 - **Context:** [793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated) covers the notes the System injected during the turn, per [793c9 Does the System activate notes?](#793c9-does-the-system-activate-notes). When recall runs as an instruction, it activates the notes it used ([792a14l Only the notes that were used are activated](../../specs/product/recall.md#792a14l-only-the-notes-that-were-used-are-activated)). A note the agent retrieved by its own lookup and used is activated only if that lookup was a recall.
 - **Options:**
   - (a) injected notes only.
@@ -151,7 +151,7 @@ answers.
 
 ## 793c14 Should reinforcing an existing note be a MUST?
 
-- **Status:** open.
+- **Status:** answered (Joe, 2026-10-11): (b) reinforcement is a MUST; 793a3c and 793a3c1a updated.
 - **Context:** [793a3c No duplicates](793a_product-spec.md#793a3c-no-duplicates) says the System SHOULD reinforce an equivalent existing note. The second review ([793b35 M8: "Reinforced" is not backed by a MUST](793b_decision-log.md#793b35-m8-reinforced-is-not-backed-by-a-must)) noted the scenario asserted a mark the requirement did not require, and the scenario no longer does.
 - **Options:**
   - (a) keep SHOULD, with no scenario.
