@@ -216,7 +216,6 @@ func receiptForNote(note exchangeNote, notes []exchangeNote, vaultID string) (of
 // returns the resolved note's current basename and whether that note is
 // live; an unresolved name returns "".
 func resolveOfferFor(notes []exchangeNote, name string) (string, bool) {
-	name = strings.TrimSuffix(name, mdExt)
 	if name == "" {
 		return "", false
 	}

@@ -222,9 +222,9 @@ func runbookSteps(raw []byte) string {
 	return replaceSupersedes(string(embed.ExtractBody(raw)), nil)
 }
 
-// slugOfBasename extracts <slug> from "<luhmann>.<date>.<slug>".
+// slugOfBasename extracts <slug> from the extensionless "<luhmann>.<date>.<slug>"; a slug "md" is a slug.
 func slugOfBasename(basename string) (string, error) {
-	parts := strings.SplitN(strings.TrimSuffix(basename, mdExt), ".", basenameParts)
+	parts := strings.SplitN(basename, ".", basenameParts)
 	if len(parts) != basenameParts || parts[basenameParts-1] == "" {
 		return "", fmt.Errorf("%w: %q", errOfferNoteNoSlug, basename)
 	}
