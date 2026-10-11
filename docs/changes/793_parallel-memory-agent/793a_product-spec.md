@@ -69,8 +69,8 @@ Scenario: 793a2a1a Relevant note exists for the prompt
 
 Scenario: 793a2a1c Only incidental items come back
   Given a vault holding only notes about unrelated topics, and an indexed chunk history
-  And the operator runs the glance query with the phrases the log records for that moment and finds only newest chunks returned
   When the human submits the prompt
+  And the operator reads the log for that moment and finds only newest chunks recorded as returned
   Then the session transcript shows those chunks delivered as chunk stubs before the agent's first response or tool call
 ```
 
@@ -136,7 +136,7 @@ Scenario: 793a2d1b Injected chunk names its id
 Requirement: 793a2e (formerly REC-5) The System MUST NOT inject an item (a note or a chunk) already
 present in the receiving agent's context, whether the System injected it earlier, the agent retrieved it,
 or it arrived by any other means. A chunk stub already shown counts as present, so a chunk stub MUST NOT be
-injected again. A note whose content changed after the agent received it is not present in its changed form.
+injected again. A note whose text changed after the agent received it, other than in its sources or its recency metadata, is not present in its changed form.
 
 Rationale: an item the agent already has adds only noise. Each subagent is a separate context, so a
 parent's items do not spare the subagent. Compaction removes content, so a removed item can be useful
@@ -185,9 +185,16 @@ Scenario: 793a2e1i A chunk stub already shown is not injected again
 
 Scenario: 793a2e1j An amended note is delivered in its changed form
   Given note Q was delivered to the working agent earlier in the session
-  And Q was amended afterwards
+  And Q's text was changed afterwards by an amend that added a claim
   When a later recall moment returns Q
   Then the transcript shows Q's amended content delivered
+
+Scenario: 793a2e1k A note whose sources or recency changed is still present
+  Given note X was delivered to the working agent earlier in the session
+  And X then gained chunk sources and a later activation, with its text unchanged
+  And the session has not been compacted
+  When a later recall moment returns X
+  Then the transcript shows X's content delivered only once
 ```
 
 ### 793a2h Recall depth per moment
@@ -233,7 +240,8 @@ Scenario: 793a2h1e Applying a convention stays glance
 ### 793a2i Recall for every prompt regardless of source
 
 Requirement: 793a2i The System MUST apply prompt-time recall, in every working session (excluding System sessions per [793a4f No recall or capture in its own evaluation sessions](#793a4f-no-recall-or-capture-in-its-own-evaluation-sessions)), to every prompt regardless of its source
-(human, automated notification, scheduled trigger, message from another session).
+(human, automated notification, scheduled trigger, message from another session). The prompt that dispatches a
+subagent is the moment of [793a2c Recall at subagent dispatch](#793a2c-recall-at-subagent-dispatch), not a separate prompt moment.
 
 Rationale: memory is always worth checking, whatever produced the prompt.
 
@@ -251,21 +259,29 @@ Scenario Outline: 793a2i1a Non-human prompt receives recall
     | an automated task notification     |
     | a scheduled trigger                |
     | a message from another session     |
+
+Scenario: 793a2i1b A subagent's dispatch prompt is one moment, of the dispatch kind
+  Given a note matching a subagent's task
+  When the working agent dispatches the subagent
+  Then the log records one recall moment for the dispatch, of kind subagent dispatch
+  And the log records no recall moment of kind prompt for the subagent's dispatch prompt
+  And the subagent's transcript shows the note's content delivered once
 ```
 
 ### 793a2j Volume equals the depth's output
 
 Requirement: 793a2j At each recall moment (a prompt, a tool result or a subagent dispatch) the System
 MUST inject the items (notes and chunks) that the chosen depth's queries return for that moment,
-incidental items included, and MUST NOT inject more than those. A note is injected as the query returns it,
-with its content. A chunk is injected as a chunk stub, because the System's queries use `--lazy-chunks`
-([792a7s Lazy chunks](../../specs/product/memory-query.md#792a7s-lazy-chunks)), as recall's do ([792a14f One unified query](../../specs/product/recall.md#792a14f-one-unified-query)). Incidental items are the explore picks
+incidental items included, and MUST NOT inject more than those, except the covering and amended notes that
+[793a3g Deep recall's writes are the System's](#793a3g-deep-recalls-writes-are-the-systems) injects. A note is injected as the query returns it,
+with its content. A chunk is injected as a chunk stub (id and score), as recall's lazy query returns it
+([792a7s Lazy chunks](../../specs/product/memory-query.md#792a7s-lazy-chunks)), because recall's queries are lazy ([792a14f One unified query](../../specs/product/recall.md#792a14f-one-unified-query)). Incidental items are the explore picks
 ([792a7i Half of the notes are explored](../../specs/product/memory-query.md#792a7i-half-of-the-notes-are-explored)), the ride-along notes ([792a7n Superseding notes ride along](../../specs/product/memory-query.md#792a7n-superseding-notes-ride-along)) and the newest chunks
 ([792a7o The newest chunks](../../specs/product/memory-query.md#792a7o-the-newest-chunks)); they are injected even when no item matches directly. At glance the queries are one
-`engram query --lazy-chunks` with about 3 phrases ([792a14c Recall has two depths](../../specs/product/recall.md#792a14c-recall-has-two-depths), [792a14f One unified query](../../specs/product/recall.md#792a14f-one-unified-query)). At deep they are one
-`engram query --lazy-chunks` with 10 phrases from the ten angles ([792a14e Ten phrases from ten angles](../../specs/product/recall.md#792a14e-ten-phrases-from-ten-angles)). At either depth they also include the recommendation check
-([792a14o An emergent recommendation is checked against the vault](../../specs/product/recall.md#792a14o-an-emergent-recommendation-is-checked-against-the-vault)), also one `engram query --lazy-chunks`, when it runs. When glance escalates to deep at a moment, the moment's
-queries are those of both depths. Each query returns the payload of [792a7b The payload](../../specs/product/memory-query.md#792a7b-the-payload) under `--lazy-chunks` and its default result limit and content budget. The
+lazy query with about 3 phrases ([792a14c Recall has two depths](../../specs/product/recall.md#792a14c-recall-has-two-depths), [792a14f One unified query](../../specs/product/recall.md#792a14f-one-unified-query)). At deep they are one
+lazy query with 10 phrases from the ten angles ([792a14e Ten phrases from ten angles](../../specs/product/recall.md#792a14e-ten-phrases-from-ten-angles)). At either depth they also include the recommendation check
+([792a14o An emergent recommendation is checked against the vault](../../specs/product/recall.md#792a14o-an-emergent-recommendation-is-checked-against-the-vault)), also one lazy query, when it runs. When glance escalates to deep at a moment, the moment's
+queries are those of both depths. Each query returns the payload of [792a7b The payload](../../specs/product/memory-query.md#792a7b-the-payload) as a lazy query, with its default result limit. The
 System MUST omit an item already present in the receiving agent's context ([793a2e No re-injection](#793a2e-no-re-injection)) and MUST
 NOT otherwise reduce that output.
 
@@ -277,10 +293,10 @@ more and no less, so that its effect is attributable to who initiates it and not
 ```gherkin
 Scenario Outline: 793a2j1a Delivered items equal the depth's output
   Given a recall moment of kind <moment> at depth <depth>
-  And the operator runs the depth's queries on the same vault with the phrases the log records for that moment
-  When the session transcript is compared with those query results
-  Then every item the queries return is delivered in the transcript as the query returns it, a note with its content and a chunk as a chunk stub, except items the transcript already shows to that agent (a chunk by its stub or its fetched content)
-  And no other item is delivered
+  And the log records the items and scores the depth's queries returned for that moment
+  When the session transcript is compared with those logged items
+  Then every logged item is delivered in the transcript as the query returns it, a note with its content and a chunk as a chunk stub, except items the transcript already shows to that agent (a chunk by its stub or its fetched content)
+  And no other item is delivered, except a covering or amended note injected under 793a3g
 
   Examples:
     | moment            | depth  |
@@ -294,7 +310,7 @@ Scenario Outline: 793a2j1a Delivered items equal the depth's output
 Scenario: 793a2j1b A vault holding more than 20 notes about the topic
   Given a vault holding more than 20 notes about the prompt's topic
   When the human submits the prompt at depth glance
-  Then the notes delivered are those the glance query returns under its default result limit and content budget
+  Then the notes delivered are those the glance query returns under its default result limit
 
 Scenario: 793a2j1c Incidental items are delivered with the direct matches
   Given the glance query for a prompt returns a direct match, an explore pick, a ride-along note and the newest chunks
@@ -303,16 +319,32 @@ Scenario: 793a2j1c Incidental items are delivered with the direct matches
 
 Scenario: 793a2j1d An escalated moment delivers both depths' output
   Given a glance recall whose result flags a gap it cannot resolve, so that the moment escalates to deep
-  And the operator runs the glance queries and the deep queries with the phrases the log records
-  When the session transcript is compared with those query results
-  Then every item either depth returns is delivered, except items already shown to that agent
-  And no other item is delivered
+  And the log records the items and scores the glance queries and the deep queries returned
+  When the session transcript is compared with those logged items
+  Then every logged item is delivered, except items already shown to that agent
+  And no other item is delivered, except a covering or amended note injected under 793a3g
 
 Scenario: 793a2j1e Chunks are delivered as stubs
   Given the glance query for a prompt returns chunk Y
   When the human submits the prompt
   Then the session transcript shows Y's id and score
   And the transcript does not show Y's content
+
+Scenario Outline: 793a2j1f The log matches the depth's queries
+  Given a recall moment of kind <moment> at depth <depth>
+  And a copy of the vault as it was at that moment
+  When the operator runs the depth's queries on the copy with the phrases the log records for that moment
+  Then the queries return the items and scores the log records for that moment
+
+  Examples:
+    | moment            | depth                       |
+    | prompt            | glance                      |
+    | prompt            | deep                        |
+    | tool result       | glance                      |
+    | tool result       | deep                        |
+    | subagent dispatch | glance                      |
+    | subagent dispatch | deep                        |
+    | prompt            | glance escalated to deep    |
 ```
 
 ## 793a3 Added: automatic-memory (automatic capture)
@@ -461,9 +493,12 @@ writes, and the working agent MUST NOT be asked to. For each cluster, using the 
   amend it with the cluster's chunks as evidence and the re-synthesized content, and MUST inject the amended note into the
   working agent. The amend MUST NOT activate the note.
 - When no existing note addresses the situation, the System MUST write one new note for the cluster.
+- When the covering or near note is from the parent vault, or is its pending copy, the System MUST NOT amend it or write a note restating it
+  ([792a14k A note from the parent vault is activated, never amended](../../specs/product/recall.md#792a14k-a-note-from-the-parent-vault-is-activated-never-amended)), so the attach and the amend above do not apply to it. It MUST inject it, subject to
+  [793a2e No re-injection](#793a2e-no-re-injection), and MUST activate it only under [793a3k Used notes are activated](#793a3k-used-notes-are-activated).
 
-Each such write MUST carry the provenance of [793a3d Provenance](#793a3d-provenance). For an amend, the chunk sources it adds and the log entry MUST
-name the session and the turn, and the note's original source MUST be unchanged. A persisted conclusion MUST also have
+Each such write MUST carry the provenance of [793a3d Provenance](#793a3d-provenance). For an amend, each chunk-source entry it adds MUST record the session id and
+the turn id that added it, the log entry MUST name them, and the note's original source MUST be unchanged. A persisted conclusion MUST also have
 its source marked as derived.
 
 Rationale: the working agent's context stays free of memory writes at deep moments as it does at
@@ -474,7 +509,7 @@ recency to the inference of use.
 
 ```gherkin
 Scenario: 793a3g1a A coverage write is made without the working agent
-  Given a deep recall moment whose results include a cluster that no existing note covers
+  Given a deep recall moment whose results include a cluster that no existing note addresses
   When the moment completes
   Then a note covering the cluster exists in the vault
   And its source field identifies automatic capture, the session id and the turn id
@@ -493,11 +528,11 @@ Scenario: 793a3g1c A covered cluster gets evidence and its note is injected
   Given a deep recall moment whose results include a cluster that existing note X covers
   And X is not yet in the working agent's context
   When the moment completes
-  Then X lists the cluster's chunks as evidence and its content is unchanged
+  Then X lists the cluster's chunks as evidence and its text, other than its sources, is unchanged
   And the transcript shows X's content delivered once
   And X's recency metadata is the same as before the moment
   And X's original source field is unchanged
-  And the chunk sources the amend added and the log entry name the session id and the turn id
+  And each chunk-source entry the amend added records the session id and the turn id, and the log entry names them
   And the transcript shows the working agent ran no learn, amend or write-memory command
 
 Scenario: 793a3g1d A covering note already in context is not injected again
@@ -514,9 +549,26 @@ Scenario: 793a3g1e A near cluster amends the note
   Then Q states the omitted claim and lists the cluster's chunks as evidence
   And the transcript shows Q's amended content delivered to the working agent
   And Q's original source field is unchanged
-  And the chunk sources the amend added and the log entry name the session id and the turn id
+  And each chunk-source entry the amend added records the session id and the turn id, and the log entry names them
   And Q's recency metadata is the same as before the moment
   And the transcript shows the working agent ran no learn, amend or write-memory command
+
+Scenario Outline: 793a3g1f A parent-vault note is injected and never amended
+  Given a deep recall moment whose results include a cluster
+  And the cluster has <note> P
+  And P is not yet in the working agent's context
+  And the transcript shows the working agent making no use of P
+  When the moment completes
+  Then no chunk source was added to P and P's text is unchanged
+  And no note restating P exists in the vault
+  And the transcript shows P's content delivered once
+  And the log records that P was not activated
+
+  Examples:
+    | note                                                         |
+    | a covering note from the parent vault                        |
+    | a near note from the parent vault                            |
+    | a covering note that is the pending copy of a parent note    |
 ```
 
 ### 793a3h Capture rate exceeds the baseline
@@ -592,7 +644,7 @@ recency metadata is bumped as when recall activates a used note ([792a14l Only t
 activated or not, with its evidence. It MUST NOT activate an injected note for which the transcript shows no
 evidence of use, and MUST NOT activate a chunk. It MUST activate a used note from the parent vault by its path, so
 that a pending local copy appears ([792a14c Recall has two depths](../../specs/product/recall.md#792a14c-recall-has-two-depths)), and MUST leave that copy pending. The System's recall MUST NOT
-run recall's own activation step (Step 2.7 of [792a14l Only the notes that were used are activated](../../specs/product/recall.md#792a14l-only-the-notes-that-were-used-are-activated)); the activations of this requirement are the only ones the
+run recall's own activation step ([792a14l Only the notes that were used are activated](../../specs/product/recall.md#792a14l-only-the-notes-that-were-used-are-activated)); the activations of this requirement are the only ones the
 System makes.
 
 Rationale: a note's recency tracks whether it is useful. Bumping every injected note would keep an ignored
@@ -668,7 +720,7 @@ Canonical target: `docs/specs/product/automatic-memory.md` (title `Automatic Mem
 
 ### 793a4b Failure isolation
 
-Requirement: 793a4b (formerly CTL-2) If the System fails, times out, or is unavailable, the working
+Requirement: 793a4b (formerly CTL-2) While the Integration is installed, if the System fails, times out, or is unavailable, the working
 session MUST continue unaffected, with no error surfaced to the working agent and no lost user input.
 The failure MUST be logged for the operator.
 
@@ -697,7 +749,9 @@ Scenario: 793a4b1c No error reaches the agent
 
 Requirement: 793a4c (formerly CTL-3) The System MUST NOT itself make or override tool permissions,
 tool arguments, model choice, or the user's prompt text. Its only effect on the working session is the
-items it injects; outside the session it writes and activates vault notes and writes its log.
+items it injects; outside the session it writes and activates vault notes with their sidecars, pulls down pending copies of parent notes and
+makes offers to the parent ([793a3j Direct writes go to the local vault](#793a3j-direct-writes-go-to-the-local-vault), [792a21n A local write is offered to the parent](../../specs/product/parent-sync.md#792a21n-a-local-write-is-offered-to-the-parent)), writes its log, and starts System sessions
+([793a4f No recall or capture in its own evaluation sessions](#793a4f-no-recall-or-capture-in-its-own-evaluation-sessions)).
 
 #### 793a4c1 UAT Scenarios
 
@@ -720,10 +774,11 @@ Scenario: 793a4c1c The only effect on the session is the injected items
   When the session transcript is inspected
   Then the only content the System added to the session is the injected items
 
-Scenario: 793a4c1d Effects outside the session are vault notes and the log
-  Given a session in which the System captured a lesson and activated an injected note
+Scenario: 793a4c1d Effects outside the session are the System's own writes
+  Given a vault with a configured parent
+  And a session in which the System captured a lesson and activated an injected note from the parent vault
   When the files changed during the session outside the session transcript are listed
-  Then the changes are the vault notes written or activated and the System's log
+  Then the changes are the vault notes written or activated with their sidecars, the pending parent copies, the offers to the parent, the System's log and the sessions the System started
 ```
 
 ### 793a4d Sensitive content
@@ -935,7 +990,7 @@ Rationale: injection only pays if the injected memory is applied; this compariso
 ```gherkin
 Scenario: 793a5f1a Treatment beats control
   Given a set of tasks each with a relevant existing note
-  And N = 20 runs per arm, one with the Integration uninstalled and one with it installed, fresh process each
+  And N = 20 runs per arm, one without the Integration installed and one with it installed, fresh process each
   When the rate of applying the relevant note is compared
   Then the installed arm's rate is higher by more than the noise floor measured between repeat runs of the same arm
 ```
@@ -947,7 +1002,7 @@ System adds MUST NOT exceed the latency of the instruction path's full lookup at
 phrases, running the chosen depth's queries ([793a2j Volume equals the depth's output](#793a2j-volume-equals-the-depths-output)), and reading the results that escalation
 ([793a2h Recall depth per moment](#793a2h-recall-depth-per-moment), [792a14d Glance escalates to deep for a recent standard](../../specs/product/recall.md#792a14d-glance-escalates-to-deep-for-a-recent-standard)) and the recommendation check
 ([792a14o An emergent recommendation is checked against the vault](../../specs/product/recall.md#792a14o-an-emergent-recommendation-is-checked-against-the-vault)) depend on. At a moment where glance escalates to deep, that lookup is
-the queries of both depths and that reading. The comparison MUST be made on the same vault and input.
+the queries of both depths and that reading. The comparison MUST be made on a copy of the vault as it was at that moment, with the same input.
 
 Rationale: recall must cost no more than the whole lookup the working agent would otherwise perform, including
 forming its query and reading what comes back.
@@ -957,7 +1012,7 @@ forming its query and reading what comes back.
 ```gherkin
 Scenario Outline: 793a5g1a Added latency stays within the instruction path's lookup latency
   Given a recorded recall moment of kind <moment>
-  And the operator performs the instruction path's lookup for that moment on the same vault and input, generating the phrases, running the depth's queries and reading the results that escalation and the recommendation check depend on
+  And the operator performs the instruction path's lookup for that moment on a copy of the vault as it was at that moment, with the same input, generating the phrases, running the depth's queries and reading the results that escalation and the recommendation check depend on
   When the latency added in the log is compared with the time that lookup took
   Then the latency added does not exceed that time
 
@@ -969,7 +1024,7 @@ Scenario Outline: 793a5g1a Added latency stays within the instruction path's loo
 
 Scenario: 793a5g1b An escalated moment is compared with both depths
   Given a recorded recall moment at which glance escalated to deep
-  And the operator performs the instruction path's lookup on the same vault and input, generating the phrases, running the queries of both depths and reading the results
+  And the operator performs the instruction path's lookup on a copy of the vault as it was at that moment, with the same input, generating the phrases, running the queries of both depths and reading the results
   When the latency added in the log is compared with the time that lookup took
   Then the latency added does not exceed that time
 ```
