@@ -686,7 +686,7 @@ orchestrator or a reviewer await the owner's validation.
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output) says the System MUST NOT inject more than the depth's queries return, but [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) has the System inject the covering and the amended note, which the queries need not have returned ([793c24 Does the covering note's injection add anything to the depth's output?](793c_open-questions.md#793c24-does-the-covering-notes-injection-add-anything-to-the-depths-output) kept that clause). [793a2j1a Delivered items equal the depth's output](793a_product-spec.md#793a2j1-uat-scenarios) says "no other item is delivered" and so contradicts it.
 - **Fix to be applied:** [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output)'s ceiling reads "MUST NOT inject more than those, except the covering and amended notes that [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) injects". [793a2j1a Delivered items equal the depth's output](793a_product-spec.md#793a2j1-uat-scenarios) and [793a2j1d An escalated moment delivers both depths' output](793a_product-spec.md#793a2j1-uat-scenarios) read "no other item is delivered, except a covering or amended note injected under 793a3g".
-- **Status:** applied in commit @@COMMIT@@ (fourth review, round 4 of change 793).
+- **Status:** applied in commit 52eab1f0 (fourth review, round 4 of change 793).
 
 ## 793b74 H2: a note is present unless its text changed
 
@@ -694,14 +694,14 @@ orchestrator or a reviewer await the owner's validation.
 - **Finding:** [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection) treats a note whose "content changed" as not present in its changed form, but the covered outcome of [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) attaches chunk sources to a note that the agent already holds, and a use activation changes its recency metadata. Read literally, either would make the note "changed" and inject it again, against [793a3g1d A covering note already in context is not injected again](793a_product-spec.md#793a3g1-uat-scenarios). [793a3g1c A covered cluster gets evidence and its note is injected](793a_product-spec.md#793a3g1-uat-scenarios) said the covering note's "content is unchanged" although the attach adds sources.
 - **Fix to be applied:** [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection) reads: "A note whose text changed after the agent received it, other than in its sources or its recency metadata, is not present in its changed form." [793a3g1c A covered cluster gets evidence and its note is injected](793a_product-spec.md#793a3g1-uat-scenarios) reads "its text, other than its sources, is unchanged". New scenario [793a2e1k A note whose sources or recency changed is still present](793a_product-spec.md#793a2e1-uat-scenarios) covers a note whose sources and recency changed.
 - **Consistency check:** [793a3g1d A covering note already in context is not injected again](793a_product-spec.md#793a3g1-uat-scenarios) holds: the attach changes only sources, so the note stays present and is delivered once. [793a3c No duplicates](793a_product-spec.md#793a3c-no-duplicates) reinforcement holds: reinforcing a note adds evidence and recency and rewrites no content (as in [792a22f A covered offer is reinforced and folded away](../../specs/product/curate.md#792a22f-a-covered-offer-is-reinforced-and-folded-away)), so a reinforced note stays present. [793a2e1j An amended note is delivered in its changed form](793a_product-spec.md#793a2e1-uat-scenarios) (an amend that changes the text) still injects the changed note, and now says the text was changed by an amend that added a claim.
-- **Status:** applied in commit @@COMMIT@@ (fourth review, round 4 of change 793).
+- **Status:** applied in commit 52eab1f0 (fourth review, round 4 of change 793).
 
 ## 793b75 H3: a parent-vault note is never amended or restated by the System
 
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) attaches evidence to, or amends, whatever note covers or nearly covers a cluster, and writes a new note when none does. [792a14k A note from the parent vault is activated, never amended](../../specs/product/recall.md#792a14k-a-note-from-the-parent-vault-is-activated-never-amended) forbids amending a parent-vault note or its pending copy and forbids writing a note that restates it. [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) did not carry that rule.
 - **Fix to be applied:** [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) gains a bullet: when the covering or near note is from the parent vault, or is its pending copy, the System MUST NOT amend it or write a note restating it, so the attach and the amend do not apply to it; it MUST inject it, subject to [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection), and MUST activate it only under [793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated). New scenario [793a3g1f A parent-vault note is injected and never amended](793a_product-spec.md#793a3g1-uat-scenarios) covers a covering parent note, a near parent note and a covering pending copy, each unused by the agent.
-- **Status:** applied in commit @@COMMIT@@ (fourth review, round 4 of change 793).
+- **Status:** applied in commit 52eab1f0 (fourth review, round 4 of change 793).
 
 ## 793b76 The parent-note rule interprets 793c16 against 792a14k
 
@@ -715,7 +715,7 @@ orchestrator or a reviewer await the owner's validation.
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** [793a4c Memory purview only](793a_product-spec.md#793a4c-memory-purview-only) lists vault notes and the log as the effects outside the session, but the System also writes each note's sidecar, pulls down pending copies of parent notes ([793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated)), makes offers to the parent ([793a3j Direct writes go to the local vault](793a_product-spec.md#793a3j-direct-writes-go-to-the-local-vault), [792a21n A local write is offered to the parent](../../specs/product/parent-sync.md#792a21n-a-local-write-is-offered-to-the-parent)) and starts System sessions ([793a4f No recall or capture in its own evaluation sessions](793a_product-spec.md#793a4f-no-recall-or-capture-in-its-own-evaluation-sessions)).
 - **Fix to be applied:** [793a4c Memory purview only](793a_product-spec.md#793a4c-memory-purview-only) lists them: vault notes with their sidecars, pending parent copies and parent offers, its log, and its System sessions. [793a4c1d Effects outside the session are the System's own writes](793a_product-spec.md#793a4c1-uat-scenarios) gives the scenario a parent vault and lists the same effects, and is retitled "Effects outside the session are the System's own writes".
-- **Status:** applied in commit @@COMMIT@@ (fourth review, round 4 of change 793).
+- **Status:** applied in commit 52eab1f0 (fourth review, round 4 of change 793).
 
 ## 793b78 M4: replay scenarios compare with the log, and the log is checked separately
 
@@ -723,77 +723,77 @@ orchestrator or a reviewer await the owner's validation.
 - **Finding:** [793a2j1a Delivered items equal the depth's output](793a_product-spec.md#793a2j1-uat-scenarios), [793a2j1d An escalated moment delivers both depths' output](793a_product-spec.md#793a2j1-uat-scenarios), [793a2a1c Only incidental items come back](793a_product-spec.md#793a2a1-uat-scenarios), [793a5g1a Added latency stays within the instruction path's lookup latency](793a_product-spec.md#793a5g1-uat-scenarios) and [793a5g1b An escalated moment is compared with both depths](793a_product-spec.md#793a5g1-uat-scenarios) had the operator re-run the queries on "the same vault", but the vault may have changed since the moment, and the recency scaling of [792a7f Recency scaling](../../specs/product/memory-query.md#792a7f-recency-scaling) makes scores depend on when the query ran. A transcript cannot be compared reliably with a later re-run.
 - **Fix to be applied:** the scenarios that compare the transcript with the items ([793a2j1a Delivered items equal the depth's output](793a_product-spec.md#793a2j1-uat-scenarios), [793a2j1d An escalated moment delivers both depths' output](793a_product-spec.md#793a2j1-uat-scenarios), [793a2a1c Only incidental items come back](793a_product-spec.md#793a2a1-uat-scenarios)) compare it with the items and scores the log records for that moment. New scenario [793a2j1f The log matches the depth's queries](793a_product-spec.md#793a2j1-uat-scenarios) separately checks the log against the depth's queries run on a copy of the vault as it was at that moment. [793a5g Latency per recall moment](793a_product-spec.md#793a5g-latency-per-recall-moment), [793a5g1a Added latency stays within the instruction path's lookup latency](793a_product-spec.md#793a5g1-uat-scenarios) and [793a5g1b An escalated moment is compared with both depths](793a_product-spec.md#793a5g1-uat-scenarios) make the latency comparison "on a copy of the vault as it was at that moment, with the same input". [793a2a1c Only incidental items come back](793a_product-spec.md#793a2a1-uat-scenarios) also has its log reading after the When ([793b82 L3: the operator replay follows the When](#793b82-l3-the-operator-replay-follows-the-when)).
 - **Open point:** the canonical query spec says the same vault and phrases give the same clusters ([792a7g Clusters](../../specs/product/memory-query.md#792a7g-clusters)); it does not say the explore picks repeat for the same vault and phrases. [793a2j1f The log matches the depth's queries](793a_product-spec.md#793a2j1-uat-scenarios) assumes the replay returns the logged items.
-- **Status:** applied in commit @@COMMIT@@ (fourth review, round 4 of change 793).
+- **Status:** applied in commit 52eab1f0 (fourth review, round 4 of change 793).
 
 ## 793b79 M5: a subagent dispatch prompt is a dispatch moment
 
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** [793a2i Recall for every prompt regardless of source](793a_product-spec.md#793a2i-recall-for-every-prompt-regardless-of-source) applies prompt-time recall to every prompt, and a subagent's dispatch prompt is also the moment of [793a2c Recall at subagent dispatch](793a_product-spec.md#793a2c-recall-at-subagent-dispatch), so the dispatch could be read as two moments.
 - **Fix to be applied:** [793a2i Recall for every prompt regardless of source](793a_product-spec.md#793a2i-recall-for-every-prompt-regardless-of-source) says the prompt that dispatches a subagent is the moment of [793a2c Recall at subagent dispatch](793a_product-spec.md#793a2c-recall-at-subagent-dispatch), not a separate prompt moment. New scenario [793a2i1b A subagent's dispatch prompt is one moment, of the dispatch kind](793a_product-spec.md#793a2i1-uat-scenarios) checks the log records one dispatch moment and no prompt moment for it.
-- **Status:** applied in commit @@COMMIT@@ (fourth review, round 4 of change 793).
+- **Status:** applied in commit 52eab1f0 (fourth review, round 4 of change 793).
 
 ## 793b80 L1: the open-questions header and the applied answers
 
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** the header of [`793c_open-questions.md`](793c_open-questions.md) still called [793c23 Is a note amended as near injected?](793c_open-questions.md#793c23-is-a-note-amended-as-near-injected) and [793c24 Does the covering note's injection add anything to the depth's output?](793c_open-questions.md#793c24-does-the-covering-notes-injection-add-anything-to-the-depths-output) open, and neither entry had an "Applied in" line.
 - **Fix to be applied:** the header says they are answered and applied. Each entry gains "Applied in" and "Applied in commit: da69f814", linking [793b71 A near-amended note is injected](#793b71-a-near-amended-note-is-injected) for [793c23 Is a note amended as near injected?](793c_open-questions.md#793c23-is-a-note-amended-as-near-injected) and [793b72 Covering note and cluster are both injected](#793b72-covering-note-and-cluster-are-both-injected) for [793c24 Does the covering note's injection add anything to the depth's output?](793c_open-questions.md#793c24-does-the-covering-notes-injection-add-anything-to-the-depths-output).
-- **Status:** applied in commit @@COMMIT@@ (fourth review, round 4 of change 793).
+- **Status:** applied in commit 52eab1f0 (fourth review, round 4 of change 793).
 
 ## 793b81 L2: the ID handling and cross-links
 
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** [793b14 ID handling](#793b14-id-handling) did not record [793a2e1j An amended note is delivered in its changed form](793a_product-spec.md#793a2e1-uat-scenarios) as new or [793a2e No re-injection](793a_product-spec.md#793a2e-no-re-injection), [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) and [793a3g1e A near cluster amends the note](793a_product-spec.md#793a3g1-uat-scenarios) as modified. [793b63 A coverage write attaches evidence and injects, and never activates](#793b63-a-coverage-write-attaches-evidence-and-injects-and-never-activates) and [793b70 Questions raised while applying the answers](#793b70-questions-raised-while-applying-the-answers) raised questions with no status. [793b72 Covering note and cluster are both injected](#793b72-covering-note-and-cluster-are-both-injected) did not link [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems). The 4.2 row of [793b2 ID mapping](#793b2-id-mapping) lacks a comma between [793a3j Direct writes go to the local vault](793a_product-spec.md#793a3j-direct-writes-go-to-the-local-vault) and [793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated).
 - **Fix to be applied:** [793b14 ID handling](#793b14-id-handling) records them, and the nodes of this round. [793b63 A coverage write attaches evidence and injects, and never activates](#793b63-a-coverage-write-attaches-evidence-and-injects-and-never-activates) and [793b70 Questions raised while applying the answers](#793b70-questions-raised-while-applying-the-answers) gain Status lines pointing to [793b71 A near-amended note is injected](#793b71-a-near-amended-note-is-injected) and [793b72 Covering note and cluster are both injected](#793b72-covering-note-and-cluster-are-both-injected). [793b72 Covering note and cluster are both injected](#793b72-covering-note-and-cluster-are-both-injected) links [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems). The comma is added.
-- **Status:** applied in commit @@COMMIT@@ (fourth review, round 4 of change 793).
+- **Status:** applied in commit 52eab1f0 (fourth review, round 4 of change 793).
 
 ## 793b82 L3: the operator replay follows the When
 
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** [793a2a1c Only incidental items come back](793a_product-spec.md#793a2a1-uat-scenarios) put the operator's replay of the query in the Given, before the human submits the prompt.
 - **Fix to be applied:** the operator reads the log after the When, and the Then asserts the delivery. See also [793b78 M4: replay scenarios compare with the log, and the log is checked separately](#793b78-m4-replay-scenarios-compare-with-the-log-and-the-log-is-checked-separately).
-- **Status:** applied in commit @@COMMIT@@ (fourth review, round 4 of change 793).
+- **Status:** applied in commit 52eab1f0 (fourth review, round 4 of change 793).
 
 ## 793b83 L4: "content budget" is dropped
 
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output) and [793a2j1b A vault holding more than 20 notes about the topic](793a_product-spec.md#793a2j1-uat-scenarios) cite the default "content budget", but under lazy queries a chunk carries no content to budget ([792a7r Chunk content budget](../../specs/product/memory-query.md#792a7r-chunk-content-budget), [792a7s Lazy chunks](../../specs/product/memory-query.md#792a7s-lazy-chunks)), and notes are never reduced.
 - **Fix to be applied:** both say "default result limit" only.
-- **Status:** applied in commit @@COMMIT@@ (fourth review, round 4 of change 793).
+- **Status:** applied in commit 52eab1f0 (fourth review, round 4 of change 793).
 
 ## 793b84 L5: the absent outcome is "no existing note addresses"
 
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** the Given of [793a3g1a A coverage write is made without the working agent](793a_product-spec.md#793a3g1-uat-scenarios) said "no existing note covers the cluster", which also holds in the near outcome, where an existing note addresses it.
 - **Fix to be applied:** the Given reads "a cluster that no existing note addresses".
-- **Status:** applied in commit @@COMMIT@@ (fourth review, round 4 of change 793).
+- **Status:** applied in commit 52eab1f0 (fourth review, round 4 of change 793).
 
 ## 793b85 L6: the control arm is "without the Integration installed"
 
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** [793a5f1a Treatment beats control](793a_product-spec.md#793a5f1-uat-scenarios) called the control arm one "with the Integration uninstalled", which implies an install followed by a removal, and the uninstall command does not exist yet ([793b69 The uninstall command is a separate change](#793b69-the-uninstall-command-is-a-separate-change)).
 - **Fix to be applied:** "one without the Integration installed and one with it installed".
-- **Status:** applied in commit @@COMMIT@@ (fourth review, round 4 of change 793).
+- **Status:** applied in commit 52eab1f0 (fourth review, round 4 of change 793).
 
 ## 793b86 L7: failure isolation holds while the Integration is installed
 
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** [793a4b Failure isolation](793a_product-spec.md#793a4b-failure-isolation) says the session continues unaffected if the System is "unavailable", which is always true once the Integration is uninstalled ([793a4g Active whenever installed](793a_product-spec.md#793a4g-active-whenever-installed)).
 - **Fix to be applied:** [793a4b Failure isolation](793a_product-spec.md#793a4b-failure-isolation) begins "While the Integration is installed, if the System fails".
-- **Status:** applied in commit @@COMMIT@@ (fourth review, round 4 of change 793).
+- **Status:** applied in commit 52eab1f0 (fourth review, round 4 of change 793).
 
 ## 793b87 L8: no flag names or step numbers in the product spec
 
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output) named `engram query --lazy-chunks`, and [793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated) named "Step 2.7" of recall, which are implementation details a product spec should not carry.
 - **Fix to be applied:** [793a2j Volume equals the depth's output](793a_product-spec.md#793a2j-volume-equals-the-depths-output) describes a chunk as a stub (id and score), as recall's lazy query returns it, and names "one lazy query" for each depth and for the recommendation check. [793a3k Used notes are activated](793a_product-spec.md#793a3k-used-notes-are-activated) says "recall's own activation step" and links [792a14l Only the notes that were used are activated](../../specs/product/recall.md#792a14l-only-the-notes-that-were-used-are-activated).
-- **Status:** applied in commit @@COMMIT@@ (fourth review, round 4 of change 793).
+- **Status:** applied in commit 52eab1f0 (fourth review, round 4 of change 793).
 
 ## 793b88 L9: amend provenance is recorded per chunk-source entry
 
 - **Decided by:** Reviewer (opus agent), accepted by Orchestrator (Claude); awaiting owner validation.
 - **Finding:** [793a3g Deep recall's writes are the System's](793a_product-spec.md#793a3g-deep-recalls-writes-are-the-systems) said "the chunk sources it adds ... MUST name the session and the turn", which does not say what carries the names.
 - **Fix to be applied:** "each chunk-source entry the amend adds records the session id and the turn id that added it, the log entry names them, and the note's original source is unchanged". [793a3g1c A covered cluster gets evidence and its note is injected](793a_product-spec.md#793a3g1-uat-scenarios) and [793a3g1e A near cluster amends the note](793a_product-spec.md#793a3g1-uat-scenarios) say the same.
-- **Status:** applied in commit @@COMMIT@@ (fourth review, round 4 of change 793).
+- **Status:** applied in commit 52eab1f0 (fourth review, round 4 of change 793).
 
 ## 793b89 Fourth review: findings waiting on open questions
 
