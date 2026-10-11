@@ -21,13 +21,15 @@ Measured evidence of the failure (issue #793):
 Memory use is gated on the working agent's own metacognition, which is the least reliable component
 and competes with the task for attention. The need is for the memory handling that the skills describe to
 happen at the right moments regardless of whether the working agent thinks to run the skills, and out of the working
-agent's context, without degrading the working session.
+agent's context, without degrading the working session. The need is for that automatic handling in addition to the skills, not in place of them: memory is a dual system, automatic and intentional ([793b175 Memory is a dual system: automatic and intentional](793b_decision-log.md#793b175-memory-is-a-dual-system-automatic-and-intentional)). For the automatic channel the System handles memory and the agent applies it. The working agent and the user keep the skills and the memory commands, and may run them whenever they choose.
 
 Terms used below:
 
 - **Working agent:** the model doing the user's task in a session, including any subagents it
   dispatches.
 - **System:** the capability this document specifies. It runs alongside the working agent and acts for it.
+- **Automatic memory:** the recall, learn and lookup that the System performs at the moments, without the working agent or the user asking for them.
+- **Intentional memory:** a memory command that the working agent or the user runs deliberately, whenever they choose, such as "remember this", `/recall`, `/learn` or a mid-task `engram query`. It is available alongside automatic memory and is neither replaced by it nor blocked by it ([793a2k Automatic memory does not require the agent, and intentional memory stays available](#793a2k-automatic-memory-does-not-require-the-agent-and-intentional-memory-stays-available)).
 - **Vault** and **note:** the engram note store and one entry in it (fact, feedback, runbook, or Q&A).
 - **Moment:** a point at which recall, learn or the shim's lookup fires: the moments [ambient-guidance](../../specs/product/ambient-guidance.md) defines, please's orientation ([792a18d The workflow opens with learn and orients with recall](../../specs/product/please.md#792a18d-the-workflow-opens-with-learn-and-orients-with-recall)), every
   prompt, where the System performs the shim's lookup ([793a2i Recall for every prompt regardless of source](#793a2i-recall-for-every-prompt-regardless-of-source)), a subagent's dispatch
@@ -46,13 +48,13 @@ Terms used below:
   parent's. A resumed session's restored content is present.
 - **Operator:** the human who configures and audits the System.
 - **Memory command:** running recall, learn, curate or write-memory, or an engram command that queries, writes, amends, activates or sweeps. Reading an item that was already delivered, such as fetching a delivered chunk by its id, is not a memory command.
-- **Reduced shim:** the shim as the Integration deploys it to Claude Code: its rules for applying delivered items ([792a19l Each returned kind is treated for what it is](../../specs/product/ambient-guidance.md#792a19l-each-returned-kind-is-treated-for-what-it-is) to [792a19s A signal of unrequested work is a standing instruction](../../specs/product/ambient-guidance.md#792a19s-a-signal-of-unrequested-work-is-a-standing-instruction)), without its instructions to run `engram query` ([792a19j The first action on every request is an engram query](../../specs/product/ambient-guidance.md#792a19j-the-first-action-on-every-request-is-an-engram-query), [792a19k The second phrase names a kind of work-handling decision](../../specs/product/ambient-guidance.md#792a19k-the-second-phrase-names-a-kind-of-work-handling-decision), [792a19t The query runs again at four moments mid-task](../../specs/product/ambient-guidance.md#792a19t-the-query-runs-again-at-four-moments-mid-task)).
+- **Reduced shim:** the shim as the Integration deploys it to Claude Code: today's shim, with its rules for applying delivered items ([792a19l Each returned kind is treated for what it is](../../specs/product/ambient-guidance.md#792a19l-each-returned-kind-is-treated-for-what-it-is) to [792a19s A signal of unrequested work is a standing instruction](../../specs/product/ambient-guidance.md#792a19s-a-signal-of-unrequested-work-is-a-standing-instruction)), and with its mandatory wording made optional: the agent MAY run `engram query` intentionally, at its first action or at the four moments, and is not required to, because the System performs the lookup and the recall at those moments ([792a19j The first action on every request is an engram query](../../specs/product/ambient-guidance.md#792a19j-the-first-action-on-every-request-is-an-engram-query), [792a19k The second phrase names a kind of work-handling decision](../../specs/product/ambient-guidance.md#792a19k-the-second-phrase-names-a-kind-of-work-handling-decision), [792a19t The query runs again at four moments mid-task](../../specs/product/ambient-guidance.md#792a19t-the-query-runs-again-at-four-moments-mid-task)).
 
 Requirement keywords follow RFC 2119.
 
 This document specifies only the System's delegation of recall and learn, the deliberate differences from the skills, and what is new.
 Sections [793a2 automatic-memory (delegation of recall)](#793a2-added-automatic-memory-delegation-of-recall) through [793a5 automatic-memory (coexistence and measurement)](#793a5-added-automatic-memory-coexistence-and-measurement) add requirements to one new capability.
-[793a6 lessons-contract (the LESSONS line is replaced while the Integration is installed)](#793a6-modified-lessons-contract-the-lessons-line-is-replaced-while-the-integration-is-installed) modifies the lessons contract and the capabilities that name its LESSONS line, [793a7 ambient-guidance, route and please (the working agent no longer runs recall or learn while the Integration is installed)](#793a7-modified-ambient-guidance-route-and-please-the-working-agent-no-longer-runs-recall-or-learn-while-the-integration-is-installed) modifies the nodes that tell the working agent to run recall or learn, [793a8 recall (the plan, synthesis and re-entry check are the agent's, and the persisting of conclusions is the System's, while the Integration is installed)](#793a8-modified-recall-the-plan-synthesis-and-re-entry-check-are-the-agents-and-the-persisting-of-conclusions-is-the-systems-while-the-integration-is-installed) modifies the recall nodes whose steps the System no longer states or performs, and [793a9 install-and-update and ambient-guidance (what is deployed to Claude Code while the Integration is installed)](#793a9-modified-install-and-update-and-ambient-guidance-what-is-deployed-to-claude-code-while-the-integration-is-installed) modifies the install and guidance nodes for Claude Code. The draft's identifiers map to the current ones in [793b2 ID mapping](793b_decision-log.md#793b2-id-mapping) and [793b132 L7: draft identifiers are mapped here, not in Requirement lines](793b_decision-log.md#793b132-l7-draft-identifiers-are-mapped-here-not-in-requirement-lines).
+[793a6 lessons-contract (the LESSONS line is replaced while the Integration is installed)](#793a6-modified-lessons-contract-the-lessons-line-is-replaced-while-the-integration-is-installed) modifies the lessons contract and the capabilities that name its LESSONS line, [793a7 ambient-guidance, route and please (the working agent is not required to run recall or learn while the Integration is installed)](#793a7-modified-ambient-guidance-route-and-please-the-working-agent-is-not-required-to-run-recall-or-learn-while-the-integration-is-installed) modifies the nodes that tell the working agent to run recall or learn, [793a8 recall (the plan, synthesis and re-entry check are the agent's, and the persisting of conclusions is the System's, while the Integration is installed)](#793a8-modified-recall-the-plan-synthesis-and-re-entry-check-are-the-agents-and-the-persisting-of-conclusions-is-the-systems-while-the-integration-is-installed) modifies the recall nodes whose steps the System no longer states or performs, and [793a9 install-and-update and ambient-guidance (what is deployed to Claude Code while the Integration is installed)](#793a9-modified-install-and-update-and-ambient-guidance-what-is-deployed-to-claude-code-while-the-integration-is-installed) modifies the install and guidance nodes for Claude Code. The draft's identifiers map to the current ones in [793b2 ID mapping](793b_decision-log.md#793b2-id-mapping) and [793b132 L7: draft identifiers are mapped here, not in Requirement lines](793b_decision-log.md#793b132-l7-draft-identifiers-are-mapped-here-not-in-requirement-lines).
 
 ## 793a2 Added: automatic-memory (delegation of recall)
 
@@ -78,14 +80,14 @@ Scenario: 793a2n1a Recall happens without the agent running it
   And the note is not yet in the transcript
   When the working agent reaches the point of declaring the rename done
   Then the session transcript shows that note's content delivered before the declaration
-  And the transcript shows the agent ran no memory command
+  And the transcript shows no request to the agent to run a memory command
   And the log for that moment records the recall that was performed, with its depth, phrases, items and scores
 
 Scenario: 793a2n1b Recall's vault writes happen without the agent
   Given a deep recall moment whose results include a cluster that no existing note addresses
   When the moment completes
   Then a note covering the cluster exists in the vault
-  And the transcript shows the working agent ran no learn, amend or write-memory command
+  And the transcript shows no request to the working agent to run a learn, amend or write-memory command
   And the transcript shows no request to the working agent to write the note
 
 Scenario: 793a2n1c The plan instruction accompanies the results
@@ -106,12 +108,11 @@ Scenario: 793a2n1e No result, nothing delivered
   Then the session transcript shows no content delivered for it, the plan instruction included
   And the log records the moment with volume 0
 
-Scenario: 793a2n1f The agent applies the results without a query of its own
+Scenario: 793a2n1f The agent applies the results without being asked to query
   Given a delivered note that records an approach as rolled back
   And the agent is about to recommend that approach, which its plan did not contain
   When the agent writes its response
-  Then the transcript shows the agent ran no engram query
-  And the response carries no Re-entry line
+  Then the transcript shows no request to the agent to run an engram query
   And the response says how the delivered note changed the agent's plan, without a count, raw scores or paths
 ```
 
@@ -139,27 +140,27 @@ Scenario: 793a2c1b A recall moment mid-task is noticed
   Given a note matching the work the working agent is about to declare done
   When the working agent reaches the point of declaring the work done
   Then the session transcript shows that note's content delivered before the declaration
-  And the transcript shows the agent ran no memory command
+  And the transcript shows no request to the agent to run a memory command
 
 Scenario: 793a2c1c A learn moment is noticed
   Given a build fails and the transcript then shows its non-obvious cause
   When the cause is known
   Then a note stating the cause exists in the vault
-  And the transcript shows the working agent invoked no learn command and was asked for none
+  And the transcript shows the working agent was not asked to invoke a learn command
 
 Scenario: 793a2c1d Tier evidence is delivered before a dispatch is routed
   Given tier-performance evidence for a kind of work that shows a cheaper tier failed
   When the orchestrator decides to dispatch a unit of that kind
   Then the transcript shows that evidence delivered, with the plan instruction, before the orchestrator routes the unit
   And the log records one recall moment for the decision, of kind dispatch decision
-  And the transcript shows the orchestrator ran no memory command
+  And the transcript shows no request to the orchestrator to run a memory command
 
 Scenario: 793a2c1e Please's orientation is a recall moment
   Given a note matching an ask given to please
   When please starts
   Then the transcript shows that note's content delivered, with the plan instruction, before please's first response or tool call
   And the log records one recall moment, of kind please orientation
-  And the transcript shows please ran no recall
+  And the transcript shows please was not asked to run recall
 
 Scenario: 793a2c1f The dispatch moments recall at the default depth
   Given a subagent's dispatch and an orchestrator's decision to dispatch
@@ -205,7 +206,7 @@ Scenario: 793a2d1c A delivered chunk is fetched by its id
 ### 793a2e No re-injection
 
 Requirement: 793a2e The System MUST NOT inject an item (a note or a chunk) already
-present in the receiving agent's context, whether the System injected it earlier, the agent retrieved it,
+present in the receiving agent's context, whether the System injected it earlier, the agent retrieved it (by an intentional recall or query, or otherwise),
 or it arrived by any other means. A chunk stub already shown counts as present, so a chunk stub MUST NOT be
 injected again. A note whose text changed after the agent received it, other than in its sources or its recency metadata, is not present in its changed form.
 
@@ -242,6 +243,13 @@ Scenario: 793a2e1g A resumed session's restored content counts as present
   And the resumed session's transcript shows X's content restored
   When a later prompt matches X
   Then the transcript shows no second delivery of X
+
+Scenario: 793a2e1m An item surfaced by an intentional recall or query is not re-delivered
+  Given the working agent ran /recall, and separately an engram query, and their output showed note X and chunk stub Y in its context
+  And the session has not been compacted
+  When a later prompt and a later recall moment match X and Y
+  Then the transcript shows X's content delivered only once, by the agent's own run
+  And it shows Y's id and score only once
 
 Scenario: 793a2e1l A chunk the agent fetched by its id is not injected
   Given chunk Y was delivered as a chunk stub and the working agent then fetched Y's content by its id
@@ -305,29 +313,46 @@ Scenario: 793a2i1c A prompt gets one query and no depth recall
   And no note is written for that moment by a recall
 ```
 
-### 793a2k The working agent does not run recall or learn
+### 793a2k Automatic memory does not require the agent, and intentional memory stays available
 
-Requirement: 793a2k While the Integration is installed, the System MUST perform recall and learn so that the working agent is not required to run either, and MUST NOT ask the working agent to run them or any other memory command, or to evaluate, approve or write any memory. The plan instruction ([793a2n Recall is performed for the working agent](#793a2n-recall-is-performed-for-the-working-agent)) is the only thing it asks of the agent about memory, and it asks the agent to apply what was delivered, not to handle memory. The System MUST NOT deliver a runbook note that mirrors the recall, learn, curate or write-memory skill, such as `pi:recall`, because it would ask the agent to run memory work.
+Requirement: 793a2k While the Integration is installed, the System MUST perform recall and learn so that the working agent is not required to run either, and MUST NOT require the working agent to run any memory command, or to evaluate, approve or write any memory, as part of the automatic channel. The plan instruction ([793a2n Recall is performed for the working agent](#793a2n-recall-is-performed-for-the-working-agent)) is the only thing the System asks of the agent about memory, and it asks the agent to apply what was delivered, not to handle memory. The working agent MAY run any memory command intentionally, and the user MAY ask it to; such a run is not an error, and the System MUST NOT block it or undo its result. The System MUST deliver a runbook note that mirrors a memory skill, such as `pi:recall`, as it delivers any other note: it is guidance for intentional memory and is not a requirement of the automatic channel.
 
-Rationale: the point of the delegation is to take memory handling, and its bookkeeping, out of the working agent's context. Applying memory to the task stays with the agent, which has the context to do it.
+Rationale: the point of the delegation is to take memory handling, and its bookkeeping, out of the working agent's context by default, so that memory happens at the moments the agent reliably misses. It does not take memory away from the agent or the user: memory is a dual system ([793b175 Memory is a dual system: automatic and intentional](793b_decision-log.md#793b175-memory-is-a-dual-system-automatic-and-intentional)), and an agent that is told "remember this" or that wants a lookup mid-task must be able to run the command. Applying memory to the task stays with the agent, which has the context to do it.
 
 #### 793a2k1 UAT Scenarios
 
 ```gherkin
-Scenario: 793a2k1a The agent runs neither skill and is asked for neither
+Scenario: 793a2k1a The agent is neither required nor asked to run either skill
   Given the Integration is installed
   And a session whose configuration contains no memory instructions
   When the human submits a prompt that matches a note and contains a correction
   Then the transcript shows the note's content delivered and a note stating the correction in the vault
-  And the transcript shows the working agent ran no recall or learn skill and no memory command
-  And the transcript shows no request from the System to run one, or to evaluate, approve or write a note
+  And the transcript shows no request from the System to run a memory command, or to evaluate, approve or write a note
 
-Scenario: 793a2k1b A runbook that mirrors a memory skill is not delivered
+Scenario: 793a2k1c An intentional recall by the agent is allowed
+  Given the Integration is installed and a vault that holds a note matching "how releases are tagged"
+  When the user says "run /recall on how releases are tagged" and the agent runs the recall skill
+  Then the transcript shows the recall's results and the agent's reply to the user
+  And the System neither blocks the run nor records it as an error
+  And any note the recall wrote is still in the vault when the turn completes
+
+Scenario: 793a2k1d An intentional learn by the agent is allowed and is not undone
+  Given the Integration is installed
+  When the user says "remember that releases are tagged from main" and the agent runs the learn skill
+  Then the vault holds one note stating that releases are tagged from main
+  And the System neither blocks the run nor removes the note
+  And the capture that follows the turn writes no second note stating it
+
+Scenario: 793a2k1e An intentional engram query by the agent is allowed
+  Given the Integration is installed and a vault that holds a note matching a topic
+  When the agent runs an engram query on that topic in the middle of a task
+  Then the transcript shows the query's results
+  And the System neither blocks the query nor records it as an error
+
+Scenario: 793a2k1f A runbook that mirrors a memory skill is delivered like any other note
   Given the Integration is installed and a vault that holds a runbook note mirroring the recall skill (skill key pi:recall) and an ordinary fact, both matching a prompt
   When the prompt is submitted
-  Then the transcript shows the fact delivered
-  And the transcript shows the mirror note not delivered
-  And the transcript shows no instruction to run recall
+  Then the transcript shows both notes delivered
 ```
 
 ### 793a2l The chunk index is swept after the turn
@@ -367,7 +392,7 @@ Scenario: 793a2m1a The agent is shown no pending-offer hint
   When the prompt is submitted
   Then the session transcript shows the note's content delivered
   And the transcript shows no pending-offer flag, no pending-offer hint and no instruction to curate
-  And the transcript shows the working agent ran no curate command
+  And the transcript shows no request to the working agent to run curate
 
 Scenario: 793a2m1b Offers are resolved by the System
   Given the Integration is installed and a vault that holds two pending offers, one that an existing note already covers and one that no existing note addresses
@@ -408,7 +433,7 @@ Scenario: 793a3a1a User correction is captured without agent action
   And the turn completes
   Then a feedback note stating that rule exists in the vault
   And it was written directly, not left as a pending offer for review
-  And the transcript shows the working agent invoked no learn command
+  And the transcript shows no request to the working agent to invoke a learn command
   And the transcript shows no request to evaluate, approve or write the note
 
 Scenario: 793a3a1b Explicit save-request
@@ -435,7 +460,7 @@ Scenario: 793a3m1a A correction from the dispatching agent is captured
   And the dispatching agent tells the subagent "no, run targ test, not go test"
   When the subagent's turn completes
   Then a note stating that rule exists in the vault
-  And the subagent's transcript shows it invoked no learn command
+  And the subagent's transcript shows no request to it to invoke a learn command
 
 Scenario: 793a3m1b Capture survives the subagent's context being discarded
   Given a subagent whose turn contained a lesson
@@ -470,7 +495,7 @@ Scenario: 793a3n1a A subagent's own guess overturned by evidence is captured
   And the subagent corrected its conclusion
   When the subagent's turn completes
   Then a note stating the corrected conclusion exists in the vault
-  And the subagent's transcript shows it invoked no learn command
+  And the subagent's transcript shows no request to it to invoke a learn command
 
 Scenario: 793a3n1b The top-level agent's own mistake overturned by evidence is captured
   Given the working agent stated a cause for a failing test
@@ -494,7 +519,7 @@ Scenario: 793a3o1a The audit's outcome is in the log and the vault
   When the run's turn completes
   Then the log records an audit entry for each item, naming the existing note for the verdict and the note the System wrote for the commit
   And the note written for the commit is a reversal
-  And the transcript shows the orchestrator ran no audit and no learn, and its closing report carries no audit list
+  And the transcript shows no request to the orchestrator to run an audit or learn, and its closing report is not asked to carry an audit list
 
 Scenario: 793a3o1b An item with no lesson is logged with its reason
   Given the Integration is installed and a please run with one gate FAIL verdict that taught nothing reusable
@@ -509,7 +534,7 @@ Scenario: 793a3o1c The surfacing question's outcome is in the vault and the log
   Then the log records which existing note should have surfaced the lesson and that its situation line was reworded
   And that note's situation line in the vault now matches how the moment presented
   And the vault holds no second note on the lesson
-  And the transcript shows the orchestrator asked no which-artifact-should-have-surfaced-it question and ran no vault search for a covering note
+  And the transcript shows no request to the orchestrator to ask the which-artifact-should-have-surfaced-it question or to search the vault for a covering note
 
 Scenario: 793a3o1d A repository change is never filed automatically
   Given the Integration is installed and a please run containing a lesson that a change shipped from the repository could prevent
@@ -520,9 +545,9 @@ Scenario: 793a3o1d A repository change is never filed automatically
 
 ### 793a3p Route's evidence writes are performed by the System
 
-Requirement: 793a3p While the Integration is installed, the System MUST write route's tagged evidence note for each dispatch and keep the work-kind's one aggregate note, exactly as [792a17k Each dispatch is also written to the vault as a tagged evidence note](../../specs/product/route.md#792a17k-each-dispatch-is-also-written-to-the-vault-as-a-tagged-evidence-note) and [792a17l Each work-kind keeps one aggregate note](../../specs/product/route.md#792a17l-each-work-kind-keeps-one-aggregate-note) define them, reading the work-kind, tier, model and outcome from the dispatch's row in route's report ([792a17i Each dispatch is recorded in a mini-report row](../../specs/product/route.md#792a17i-each-dispatch-is-recorded-in-a-mini-report-row)) in the transcript. The orchestrator MUST NOT write either note. When a dispatch's row is not in the transcript, the System MUST write nothing for that dispatch and MUST log that the row was missing.
+Requirement: 793a3p While the Integration is installed, the System MUST write route's tagged evidence note for each dispatch and keep the work-kind's one aggregate note, exactly as [792a17k Each dispatch is also written to the vault as a tagged evidence note](../../specs/product/route.md#792a17k-each-dispatch-is-also-written-to-the-vault-as-a-tagged-evidence-note) and [792a17l Each work-kind keeps one aggregate note](../../specs/product/route.md#792a17l-each-work-kind-keeps-one-aggregate-note) define them, reading the work-kind, tier, model and outcome from the dispatch's row in route's report ([792a17i Each dispatch is recorded in a mini-report row](../../specs/product/route.md#792a17i-each-dispatch-is-recorded-in-a-mini-report-row)) in the transcript. The orchestrator is not required to write either note. When a dispatch's row is not in the transcript, the System MUST write nothing for that dispatch and MUST log that the row was missing.
 
-Rationale: the evidence notes are measurements of dispatches, built from the row the orchestrator already produces, so the orchestrator writes no memory.
+Rationale: the evidence notes are measurements of dispatches, built from the row the orchestrator already produces, so the orchestrator is not required to write memory.
 
 #### 793a3p1 UAT Scenarios
 
@@ -531,13 +556,13 @@ Scenario: 793a3p1a A dispatch's evidence note is written from its report row
   Given the Integration is installed and a report row for a dispatch of work-kind K at tier mid with outcome pass
   When the row appears in the transcript
   Then a fact tagged work-kind/K, tier/mid and outcome/pass exists in the vault, and its object states the verdict, reason, escalation, duration and cost from the row
-  And the transcript shows the orchestrator handed nothing to write-memory and ran no memory command
+  And the transcript shows no request to the orchestrator to hand anything to write-memory or to run a memory command
 
 Scenario: 793a3p1b The work-kind's aggregate is kept from the same row
   Given the Integration is installed and a report row for a dispatch of work-kind K
   When the row appears in the transcript
   Then the aggregate note for K exists in the vault with its tally including that dispatch and a link to its evidence note
-  And the transcript shows the orchestrator ran no engram learn or amend command
+  And the transcript shows no request to the orchestrator to run an engram learn or amend command
 
 Scenario: 793a3p1c A missing row is logged and nothing is written
   Given the Integration is installed and a dispatch that resolved without its report row in the transcript
@@ -560,7 +585,7 @@ Scenario: 793a3q1a A sound conclusion in the response is persisted
   And the agent's response states a sound, non-trivial conclusion that no vault note states
   When the turn completes
   Then the vault holds a derived note stating the conclusion, with a derived source
-  And the transcript shows the agent ran no learn command and handed nothing to write-memory
+  And the transcript shows no request to the agent to run a learn command or to hand anything to write-memory
 
 Scenario: 793a3q1b An abduction is marked probable
   Given the Integration is installed and a deep recall moment
@@ -843,7 +868,7 @@ Scenario: 793a4g1d One machine, a delegated session and a session that is not
   And ~/.pi/agent/AGENTS.md imports the recall, learn and shim guidance
   And a note whose situation matches a prompt that contains a correction
   When the same prompt is submitted in a Claude Code session and in a Pi session
-  Then the Claude Code transcript shows the note's content delivered and the transcript shows the agent ran no memory command
+  Then the Claude Code transcript shows the note's content delivered and the transcript shows no request to the agent to run a memory command
   And a note stating the correction exists in the vault, written without the Claude Code agent
   And the Pi transcript shows no content injected by the System, and the Pi agent ran the recall skill itself before acting and invoked the learn skill itself for the correction
   And the log has no moment for the Pi session
@@ -851,11 +876,11 @@ Scenario: 793a4g1d One machine, a delegated session and a session that is not
 
 ### 793a4h Installed by engram update
 
-Requirement: 793a4h The setup that `engram init` performs for the Claude Code harness, and that `engram update` performs by running it for each harness it updates ([792a11g The harnesses that are updated](../../specs/product/install-and-update.md#792a11g-the-harnesses-that-are-updated)), MUST install the Integration, what the System needs to run, in place of the deployment of the memory skills. On Claude Code, they MUST NOT deploy the recall and learn skills, the guidance documents `recall.md` and `learn.md`, or the shim's instructions to run `engram query` ([792a19j The first action on every request is an engram query](../../specs/product/ambient-guidance.md#792a19j-the-first-action-on-every-request-is-an-engram-query), [792a19k The second phrase names a kind of work-handling decision](../../specs/product/ambient-guidance.md#792a19k-the-second-phrase-names-a-kind-of-work-handling-decision), [792a19t The query runs again at four moments mid-task](../../specs/product/ambient-guidance.md#792a19t-the-query-runs-again-at-four-moments-mid-task)), and `engram update` MUST remove them where an earlier install deployed them. They MUST deploy `delegate.md` and the reduced shim, the shim's rules for applying delivered items ([792a19l Each returned kind is treated for what it is](../../specs/product/ambient-guidance.md#792a19l-each-returned-kind-is-treated-for-what-it-is) to [792a19s A signal of unrequested work is a standing instruction](../../specs/product/ambient-guidance.md#792a19s-a-signal-of-unrequested-work-is-a-standing-instruction)). For every other harness, they MUST keep deploying the skills, the guidance, the shim and the LESSONS contract's text, and the working agent in that harness MUST keep running recall and learn. An
+Requirement: 793a4h The setup that `engram init` performs for the Claude Code harness, and that `engram update` performs by running it for each harness it updates ([792a11g The harnesses that are updated](../../specs/product/install-and-update.md#792a11g-the-harnesses-that-are-updated)), MUST install the Integration, what the System needs to run, in addition to the deployment of the memory skills. On Claude Code, they MUST keep deploying the memory skills, so that the agent and the user can run them intentionally ([793a2k Automatic memory does not require the agent, and intentional memory stays available](#793a2k-automatic-memory-does-not-require-the-agent-and-intentional-memory-stays-available)), MUST NOT deploy the guidance documents `recall.md` and `learn.md`, and `engram update` MUST remove those two documents where an earlier install deployed them. They MUST deploy `delegate.md` and the reduced shim: today's shim, with the instructions to run `engram query` ([792a19j The first action on every request is an engram query](../../specs/product/ambient-guidance.md#792a19j-the-first-action-on-every-request-is-an-engram-query), [792a19k The second phrase names a kind of work-handling decision](../../specs/product/ambient-guidance.md#792a19k-the-second-phrase-names-a-kind-of-work-handling-decision), [792a19t The query runs again at four moments mid-task](../../specs/product/ambient-guidance.md#792a19t-the-query-runs-again-at-four-moments-mid-task)) made optional and the shim's rules for applying delivered items ([792a19l Each returned kind is treated for what it is](../../specs/product/ambient-guidance.md#792a19l-each-returned-kind-is-treated-for-what-it-is) to [792a19s A signal of unrequested work is a standing instruction](../../specs/product/ambient-guidance.md#792a19s-a-signal-of-unrequested-work-is-a-standing-instruction)) kept. For every other harness, they MUST keep deploying the skills, the guidance, the shim and the LESSONS contract's text, and the working agent in that harness MUST keep running recall and learn. An
 existing install of engram MUST have the System in Claude Code after its next `engram update`, with no further step.
 `engram update --dry-run` ([792a11f Previewing an update](../../specs/product/install-and-update.md#792a11f-previewing-an-update)) MUST install none of it.
 
-Rationale: a harness without the Integration keeps the setup that works there; on Claude Code the agent is not given skills and guidance for work the System does, and keeps the rules it needs to apply what the System delivers ([793c46 On Claude Code with the Integration installed, does engram update still deploy the recall and learn skills and guidance files?](793c_open-questions.md#793c46-on-claude-code-with-the-integration-installed-does-engram-update-still-deploy-the-recall-and-learn-skills-and-guidance-files), [793c51 How does the Claude Code agent learn to apply delivered memory once the shim is gone?](793c_open-questions.md#793c51-how-does-the-claude-code-agent-learn-to-apply-delivered-memory-once-the-shim-is-gone), [793c52 Is delegate.md removed from Claude Code with recall.md and learn.md?](793c_open-questions.md#793c52-is-delegatemd-removed-from-claude-code-with-recallmd-and-learnmd)). What `engram init` does for the vault, and that running it again changes nothing, are owned by change #795 (`docs/changes/795_vault-init-command/`), whose requirements [795a2a Init creates a new vault](../795_vault-init-command/795a_product-spec.md#795a2a-init-creates-a-new-vault), [795a3a Existing vaults are left alone by init](../795_vault-init-command/795a_product-spec.md#795a3a-existing-vaults-are-left-alone-by-init), [795a6a Update skips its vault steps](../795_vault-init-command/795a_product-spec.md#795a6a-update-skips-its-vault-steps) and [795a6b Update never creates or repairs a vault](../795_vault-init-command/795a_product-spec.md#795a6b-update-never-creates-or-repairs-a-vault) are to be widened so that init sets up everything idempotently and update runs it; this requirement is blocked on that widening ([793c47 Does "init" mean `engram init` or the first-time install by `engram update`?](793c_open-questions.md#793c47-does-init-mean-engram-init-or-the-first-time-install-by-engram-update), [793c48 How is the widening of `engram init` (change #795) sequenced with this change?](793c_open-questions.md#793c48-how-is-the-widening-of-engram-init-change-795-sequenced-with-this-change), [793b136 Change 793 depends on change 795 being widened](793b_decision-log.md#793b136-change-793-depends-on-change-795-being-widened), [793b148 H5: 793a4h is trimmed to the Claude Code delta, and change 795 is referenced](793b_decision-log.md#793b148-h5-793a4h-is-trimmed-to-the-claude-code-delta-and-change-795-is-referenced)).
+Rationale: a harness without the Integration keeps the setup that works there; on Claude Code the agent and the user keep the skills for intentional memory, the agent is not given the guidance documents that tell it to run memory work at the moments the System handles, and it keeps the shim, with its query instructions optional, and the rules it needs to apply what the System delivers ([793c46 On Claude Code with the Integration installed, does engram update still deploy the recall and learn skills and guidance files?](793c_open-questions.md#793c46-on-claude-code-with-the-integration-installed-does-engram-update-still-deploy-the-recall-and-learn-skills-and-guidance-files), [793c51 How does the Claude Code agent learn to apply delivered memory once the shim is gone?](793c_open-questions.md#793c51-how-does-the-claude-code-agent-learn-to-apply-delivered-memory-once-the-shim-is-gone), [793c52 Is delegate.md removed from Claude Code with recall.md and learn.md?](793c_open-questions.md#793c52-is-delegatemd-removed-from-claude-code-with-recallmd-and-learnmd)). What `engram init` does for the vault, and that running it again changes nothing, are owned by change #795 (`docs/changes/795_vault-init-command/`), whose requirements [795a2a Init creates a new vault](../795_vault-init-command/795a_product-spec.md#795a2a-init-creates-a-new-vault), [795a3a Existing vaults are left alone by init](../795_vault-init-command/795a_product-spec.md#795a3a-existing-vaults-are-left-alone-by-init), [795a6a Update skips its vault steps](../795_vault-init-command/795a_product-spec.md#795a6a-update-skips-its-vault-steps) and [795a6b Update never creates or repairs a vault](../795_vault-init-command/795a_product-spec.md#795a6b-update-never-creates-or-repairs-a-vault) are to be widened so that init sets up everything idempotently and update runs it; this requirement is blocked on that widening ([793c47 Does "init" mean `engram init` or the first-time install by `engram update`?](793c_open-questions.md#793c47-does-init-mean-engram-init-or-the-first-time-install-by-engram-update), [793c48 How is the widening of `engram init` (change #795) sequenced with this change?](793c_open-questions.md#793c48-how-is-the-widening-of-engram-init-change-795-sequenced-with-this-change), [793b136 Change 793 depends on change 795 being widened](793b_decision-log.md#793b136-change-793-depends-on-change-795-being-widened), [793b148 H5: 793a4h is trimmed to the Claude Code delta, and change 795 is referenced](793b_decision-log.md#793b148-h5-793a4h-is-trimmed-to-the-claude-code-delta-and-change-795-is-referenced)).
 
 #### 793a4h1 UAT Scenarios
 
@@ -883,14 +908,15 @@ Scenario: 793a4h1d One update serves both harnesses differently
   Given ~/.claude and ~/.pi both exist
   And ~/.pi/agent/AGENTS.md imports the recall, learn and shim guidance
   When the user runs engram update
-  Then a Claude Code session runs with the System active, and its agent ran no memory command
+  Then a Claude Code session runs with the System active, and its agent was not asked to run a memory command
+  And the Claude Code agent's configuration still holds the recall and learn skills
   And the Pi agent's configuration still holds the recall and learn skills, the guidance and the shim, and in a Pi session the agent runs recall itself
 
-Scenario: 793a4h1e Claude Code gets no recall or learn skills or guidance
+Scenario: 793a4h1i Claude Code keeps the recall and learn skills and loses their guidance documents
   Given an earlier install deployed the recall and learn skills and their guidance to Claude Code
   When the user runs engram update
-  Then the Claude Code agent's configuration holds no recall or learn skill, no recall.md or learn.md and no shim instruction to run engram query
-  And the user cannot invoke /recall or /learn in a Claude Code session
+  Then the Claude Code agent's configuration holds the recall and learn skills and no recall.md or learn.md
+  And the user can invoke /recall and /learn in a Claude Code session
 
 Scenario: 793a4h1f A first-time update installs the Integration
   Given a machine on which engram has never been installed and ~/.claude exists
@@ -907,7 +933,7 @@ Scenario: 793a4h1h Claude Code keeps delegate.md and the rules for applying deli
   Given an earlier install deployed the full shim and delegate.md to Claude Code
   When the user runs engram update
   Then Claude Code's delegate.md is present
-  And Claude Code's shim.md holds the rules for treating each returned kind and for following a matched runbook, and no instruction to make an engram query a first tool call
+  And Claude Code's shim.md holds the rules for treating each returned kind and for following a matched runbook, and its query instructions say the agent may query and do not require an engram query as a first tool call
 ```
 
 ### 793a4i The update report names the imports to remove
@@ -1166,7 +1192,7 @@ Canonical targets: [lessons-contract](../../specs/product/lessons-contract.md) a
 
 Target: [792a16a A completion report ends with a LESSONS line](../../specs/product/lessons-contract.md#792a16a-a-completion-report-ends-with-a-lessons-line)
 
-Requirement: 792a16a While the Integration is installed, a subagent MUST NOT be asked to end its report with a `LESSONS:` line, and its report MUST NOT be required to carry one; the target's sentences that require the line do not apply. The rest of the target applies unchanged. Where the Integration is not installed: Every subagent dispatched through route, whether a fork, a fresh-context agent or a workflow, MUST end its final report with a `LESSONS:` line that is `LESSONS: none`, or one to three one-line lessons separated by commas. Each lesson MUST be a confirmed correction, a surprising finding or a validated approach, summarized in one line. A subagent MUST NOT decide for itself that a lesson becomes a vault note.
+Requirement: 792a16a While the Integration is installed, a subagent MUST NOT be asked to end its report with a `LESSONS:` line, and its report MUST NOT be required to carry one; the target's sentences that require the line do not apply. A report that still ends with a `LESSONS:` line is not an error. The rest of the target applies unchanged. Where the Integration is not installed: Every subagent dispatched through route, whether a fork, a fresh-context agent or a workflow, MUST end its final report with a `LESSONS:` line that is `LESSONS: none`, or one to three one-line lessons separated by commas. Each lesson MUST be a confirmed correction, a surprising finding or a validated approach, summarized in one line. A subagent MUST NOT decide for itself that a lesson becomes a vault note.
 
 Rationale: A subagent's lessons are captured from its own session, so a line offered by the subagent would only repeat them.
 
@@ -1178,6 +1204,12 @@ Scenario: 793a6a1a A subagent is not asked for a LESSONS line
   When the subagent's instructions and its final report are inspected
   Then the instructions do not ask for a LESSONS line
   And the report is not required to end with one
+
+Scenario: 793a6a1b A subagent that emits a LESSONS line is not in error
+  Given the Integration is installed and a subagent that ends its report with a LESSONS line
+  When the orchestrator receives the report
+  Then the orchestrator treats the report as complete and neither rejects it nor asks the subagent to remove the line
+  And the lesson is captured once, from the subagent's session
 ```
 
 #### 793a6a2 Canonical scenarios with the Integration not installed
@@ -1194,7 +1226,7 @@ Each row is a Modified operation against one canonical scenario of [792a16a A co
 
 Target: [792a16b Every dispatch is told to report lessons](../../specs/product/lessons-contract.md#792a16b-every-dispatch-is-told-to-report-lessons)
 
-Requirement: 792a16b While the Integration is installed, the handoff that route builds MUST NOT include the completion-report contract or an instruction to recall first, and the target's requirement that it include them does not apply. The rest of the target applies unchanged. Where the Integration is not installed: The handoff that route builds for every dispatch MUST include, among the items it must hand over (exact files and paths, acceptance checks, do-not-touch bounds and the subagent's recall-first instruction), the completion-report contract: the subagent's final report MUST end with a `LESSONS:` line in the format of [792a16a A completion report ends with a LESSONS line](../../specs/product/lessons-contract.md#792a16a-a-completion-report-ends-with-a-lessons-line). The instruction MUST be prescriptive, and MUST be written out even for a fork, which inherits session context.
+Requirement: 792a16b While the Integration is installed, the handoff that route builds is not required to include the completion-report contract or an instruction to recall first, and the target's requirement that it include them does not apply. The rest of the target applies unchanged. Where the Integration is not installed: The handoff that route builds for every dispatch MUST include, among the items it must hand over (exact files and paths, acceptance checks, do-not-touch bounds and the subagent's recall-first instruction), the completion-report contract: the subagent's final report MUST end with a `LESSONS:` line in the format of [792a16a A completion report ends with a LESSONS line](../../specs/product/lessons-contract.md#792a16a-a-completion-report-ends-with-a-lessons-line). The instruction MUST be prescriptive, and MUST be written out even for a fork, which inherits session context.
 
 Rationale: The contract's only purpose was to get lessons back, and the System captures them from the subagent's session.
 
@@ -1205,7 +1237,7 @@ Scenario: 793a6b1a The handoff omits the LESSONS mandate
   Given the Integration is installed and route builds the handoff for a fresh-context agent
   When the handoff is written
   Then it names the exact files, acceptance checks and bounds
-  And it does not include a LESSONS mandate or a recall-first instruction
+  And it is accepted as complete without a LESSONS mandate or a recall-first instruction
 ```
 
 #### 793a6b2 Canonical scenarios with the Integration not installed
@@ -1222,7 +1254,7 @@ Each row is a Modified operation against one canonical scenario of [792a16b Ever
 
 Target: [792a16c A missing line is asked for once](../../specs/product/lessons-contract.md#792a16c-a-missing-line-is-asked-for-once)
 
-Requirement: 792a16c While the Integration is installed, the orchestrator MUST NOT send a follow-up that asks a subagent for a missing `LESSONS:` line, and MUST NOT record `LESSONS: none` in its place. Where the Integration is not installed: When a returned report does not end with a `LESSONS:` line, the orchestrator MUST send exactly one targeted follow-up that asks only for the line, and MUST NOT re-ask a second time. A line supplied in response MUST be treated like an on-time line. When the line is still missing after the one follow-up, the orchestrator MUST record `LESSONS: none` and proceed without blocking.
+Requirement: 792a16c While the Integration is installed, the orchestrator is not required to send a follow-up that asks a subagent for a missing `LESSONS:` line, or to record `LESSONS: none` in its place. Where the Integration is not installed: When a returned report does not end with a `LESSONS:` line, the orchestrator MUST send exactly one targeted follow-up that asks only for the line, and MUST NOT re-ask a second time. A line supplied in response MUST be treated like an on-time line. When the line is still missing after the one follow-up, the orchestrator MUST record `LESSONS: none` and proceed without blocking.
 
 Rationale: There is no required line to be missing.
 
@@ -1232,8 +1264,8 @@ Rationale: There is no required line to be missing.
 Scenario: 793a6c1a A report without a LESSONS line is not re-asked
   Given the Integration is installed and a subagent report that ends without a LESSONS line
   When the orchestrator receives it
-  Then it sends no follow-up asking for the line
-  And it proceeds without waiting
+  Then it proceeds without waiting
+  And it is not required to send a follow-up asking for the line
 ```
 
 #### 793a6c2 Canonical scenarios with the Integration not installed
@@ -1250,7 +1282,7 @@ Each row is a Modified operation against one canonical scenario of [792a16c A mi
 
 Target: [792a16d Every line is recorded as it returns](../../specs/product/lessons-contract.md#792a16d-every-line-is-recorded-as-it-returns)
 
-Requirement: 792a16d While the Integration is installed, the orchestrator following please MUST NOT keep a running list of `LESSONS:` lines. Where the Integration is not installed: The orchestrator following please MUST record the `LESSONS:` line of every dispatched unit verbatim, including `LESSONS: none`, in a running list for the cycle at the moment each unit's result comes back and before it moves to the next unit, wherever in the workflow the dispatch lands. Judging a line MUST NOT remove or rewrite it, and the list MUST NOT carry marks of what was captured. The please gates MUST NOT block or filter the collection: a line is recorded even when its work is rejected at a gate.
+Requirement: 792a16d While the Integration is installed, the orchestrator following please is not required to keep a running list of `LESSONS:` lines. Where the Integration is not installed: The orchestrator following please MUST record the `LESSONS:` line of every dispatched unit verbatim, including `LESSONS: none`, in a running list for the cycle at the moment each unit's result comes back and before it moves to the next unit, wherever in the workflow the dispatch lands. Judging a line MUST NOT remove or rewrite it, and the list MUST NOT carry marks of what was captured. The please gates MUST NOT block or filter the collection: a line is recorded even when its work is rejected at a gate.
 
 Rationale: There are no lines to collect.
 
@@ -1260,7 +1292,7 @@ Rationale: There are no lines to collect.
 Scenario: 793a6d1a No running list of LESSONS lines is kept
   Given the Integration is installed and please dispatches three units in sequence
   When each returns
-  Then the orchestrator keeps no list of LESSONS lines
+  Then the orchestrator is not required to keep a list of LESSONS lines
   And the lessons the units' sessions contained are in the vault
 ```
 
@@ -1278,7 +1310,7 @@ Each row is a Modified operation against one canonical scenario of [792a16d Ever
 
 Target: [792a16e Each lesson is judged when it returns](../../specs/product/lessons-contract.md#792a16e-each-lesson-is-judged-when-it-returns)
 
-Requirement: 792a16e While the Integration is installed, the orchestrator MUST NOT judge or capture lessons from a returned report; the System captures them ([793a3m Lessons from subagent sessions are captured directly](#793a3m-lessons-from-subagent-sessions-are-captured-directly)). Where the Integration is not installed: When a returned report's `LESSONS:` line is not `none`, the orchestrator MUST judge each lesson in it at that moment, and MUST capture each lesson that clears learn's bar with a fast-path learn (one note per lesson, no sweep, handed to write-memory) before the next dispatch, or before ending its turn when no dispatch is left. A lesson clears the bar when it is one of learn's four kinds of lesson ([792a15e The four kinds of explicit lesson](../../specs/product/learn.md#792a15e-the-four-kinds-of-explicit-lesson)), is confirmed and not hypothesized, and states a general reusable principle and not a session-specific narrative. The orchestrator MUST NOT capture `none`, a routine "done, tests pass" or an unconfirmed lesson.
+Requirement: 792a16e While the Integration is installed, the orchestrator is not required to judge or capture lessons from a returned report; the System captures them ([793a3m Lessons from subagent sessions are captured directly](#793a3m-lessons-from-subagent-sessions-are-captured-directly)). Where the Integration is not installed: When a returned report's `LESSONS:` line is not `none`, the orchestrator MUST judge each lesson in it at that moment, and MUST capture each lesson that clears learn's bar with a fast-path learn (one note per lesson, no sweep, handed to write-memory) before the next dispatch, or before ending its turn when no dispatch is left. A lesson clears the bar when it is one of learn's four kinds of lesson ([792a15e The four kinds of explicit lesson](../../specs/product/learn.md#792a15e-the-four-kinds-of-explicit-lesson)), is confirmed and not hypothesized, and states a general reusable principle and not a session-specific narrative. The orchestrator MUST NOT capture `none`, a routine "done, tests pass" or an unconfirmed lesson.
 
 Rationale: The System judges each lesson against learn's bar in the subagent's own session.
 
@@ -1288,7 +1320,7 @@ Rationale: The System judges each lesson against learn's bar in the subagent's o
 Scenario: 793a6e1a The orchestrator does not judge returned lessons
   Given the Integration is installed and a subagent's turn contained a confirmed correction
   When the subagent returns and the orchestrator reads the report
-  Then the transcript shows the orchestrator invoked no learn command for it
+  Then the transcript shows no request to the orchestrator to invoke a learn command for it
   And a note stating the correction exists in the vault
 ```
 
@@ -1307,7 +1339,7 @@ Each row is a Modified operation against one canonical scenario of [792a16e Each
 
 Target: [792a16f The closing learn gets the whole list](../../specs/product/lessons-contract.md#792a16f-the-closing-learn-gets-the-whole-list)
 
-Requirement: 792a16f While the Integration is installed, please MUST NOT collect `LESSONS:` lines, MUST NOT run a closing learn ([793a7l The seven steps are tracked, ordered and non-waivable](#793a7l-modified-the-seven-steps-are-tracked-ordered-and-non-waivable)) and MUST NOT hand a collection of lines to one. Where the Integration is not installed: At workflow step 7, please MUST hand the full list of `LESSONS:` lines collected across its dispatches, `none` entries included, to the closing learn, alongside the lessons-audit map ([please](../../specs/product/please.md)), and MUST drop no line. Please MUST run the closing learn when the session had no dispatches, handing it an empty collection. The closing learn MUST skip a line that a vault note written earlier this session already covers, MUST judge every other line against the bar of [792a16e Each lesson is judged when it returns](../../specs/product/lessons-contract.md#792a16e-each-lesson-is-judged-when-it-returns), and MUST discard a line that does not clear it silently, with no note and no log. It MUST NOT write a second time a line captured at its return.
+Requirement: 792a16f While the Integration is installed, please is not required to collect `LESSONS:` lines, to run a closing learn ([793a7l The seven steps are tracked, ordered and non-waivable](#793a7l-modified-the-seven-steps-are-tracked-ordered-and-non-waivable)) or to hand a collection of lines to one. Where the Integration is not installed: At workflow step 7, please MUST hand the full list of `LESSONS:` lines collected across its dispatches, `none` entries included, to the closing learn, alongside the lessons-audit map ([please](../../specs/product/please.md)), and MUST drop no line. Please MUST run the closing learn when the session had no dispatches, handing it an empty collection. The closing learn MUST skip a line that a vault note written earlier this session already covers, MUST judge every other line against the bar of [792a16e Each lesson is judged when it returns](../../specs/product/lessons-contract.md#792a16e-each-lesson-is-judged-when-it-returns), and MUST discard a line that does not clear it silently, with no note and no log. It MUST NOT write a second time a line captured at its return.
 
 Rationale: There is no collection to hand over, and no closing learn to hand it to.
 
@@ -1318,7 +1350,7 @@ Scenario: 793a6f1a The closing learn is handed no list of LESSONS lines
   Given the Integration is installed and a session with three dispatches
   When please finishes step 6
   Then no list of LESSONS lines is handed to any learn
-  And the transcript shows please ran no closing learn
+  And the transcript shows no request to please to run a closing learn
   And the lessons the three units contained are already in the vault
 ```
 
@@ -1338,7 +1370,7 @@ Each row is a Modified operation against one canonical scenario of [792a16f The 
 
 Target: [792a16g A confirmed approach is looked for at the moment of confirmation](../../specs/product/lessons-contract.md#792a16g-a-confirmed-approach-is-looked-for-at-the-moment-of-confirmation)
 
-Requirement: 792a16g While the Integration is installed, the clauses about a dispatched subagent's `LESSONS:` line and the collected lines MUST NOT apply, and the System MUST scan for a confirmed approach, with the same bar, at the moment a unit of work's outcome is confirmed. The rest of the target applies unchanged. Where the Integration is not installed: Learn MUST scan for a confirmed approach (kind 4) at the moment a unit of work's outcome is confirmed: a review or gate verdict lands, a check or test passes, or the user explicitly confirms something. That includes the moment the agent reads a dispatched subagent's completion report and its `LESSONS:` line once its outcome is known, and, at the closing learn, the session's completion reports and collected lines. The bar MUST NOT move: a resolved uncertainty or an explicit specific confirmation, never bare success.
+Requirement: 792a16g While the Integration is installed, the clauses about a dispatched subagent's `LESSONS:` line and the collected lines do not apply, and the System MUST scan for a confirmed approach, with the same bar, at the moment a unit of work's outcome is confirmed. The rest of the target applies unchanged. Where the Integration is not installed: Learn MUST scan for a confirmed approach (kind 4) at the moment a unit of work's outcome is confirmed: a review or gate verdict lands, a check or test passes, or the user explicitly confirms something. That includes the moment the agent reads a dispatched subagent's completion report and its `LESSONS:` line once its outcome is known, and, at the closing learn, the session's completion reports and collected lines. The bar MUST NOT move: a resolved uncertainty or an explicit specific confirmation, never bare success.
 
 Rationale: The scan is anchored on the confirmation, which the System sees in the transcript.
 
@@ -1366,7 +1398,7 @@ Each row is a Modified operation against one canonical scenario of [792a16g A co
 
 Target: [792a17g Every dispatch hands over an exact spec](../../specs/product/route.md#792a17g-every-dispatch-hands-over-an-exact-spec)
 
-Requirement: 792a17g While the Integration is installed, the handoff MUST NOT include the instruction to recall first ([792a17h Every subagent recalls first, and large units are decomposed](../../specs/product/route.md#792a17h-every-subagent-recalls-first-and-large-units-are-decomposed)) or the completion-report contract, and the target's requirement that it include them does not apply. The rest of the target applies unchanged. Where the Integration is not installed: The orchestrator MUST hand every dispatched subagent the exact files and paths to create or modify (not "the auth code" but a file and line range), the acceptance checks that mean done (a command with its expected output, a test that must pass, or a property that must hold), the explicit bounds that the unit must leave alone (files, interfaces and behaviors), the instruction to recall first ([792a17h Every subagent recalls first, and large units are decomposed](../../specs/product/route.md#792a17h-every-subagent-recalls-first-and-large-units-are-decomposed)), and the completion-report contract of [792a16b Every dispatch is told to report lessons](../../specs/product/lessons-contract.md#792a16b-every-dispatch-is-told-to-report-lessons). A vague handoff MUST be fixed before the model is blamed.
+Requirement: 792a17g While the Integration is installed, the handoff is not required to include the instruction to recall first ([792a17h Every subagent recalls first, and large units are decomposed](../../specs/product/route.md#792a17h-every-subagent-recalls-first-and-large-units-are-decomposed)) or the completion-report contract, and the target's requirement that it include them does not apply. The rest of the target applies unchanged. Where the Integration is not installed: The orchestrator MUST hand every dispatched subagent the exact files and paths to create or modify (not "the auth code" but a file and line range), the acceptance checks that mean done (a command with its expected output, a test that must pass, or a property that must hold), the explicit bounds that the unit must leave alone (files, interfaces and behaviors), the instruction to recall first ([792a17h Every subagent recalls first, and large units are decomposed](../../specs/product/route.md#792a17h-every-subagent-recalls-first-and-large-units-are-decomposed)), and the completion-report contract of [792a16b Every dispatch is told to report lessons](../../specs/product/lessons-contract.md#792a16b-every-dispatch-is-told-to-report-lessons). A vague handoff MUST be fixed before the model is blamed.
 
 Rationale: The contract is not asked of a subagent while the Integration is installed, and the System makes recall available to the subagent ([793a7j Every subagent recalls first, and large units are decomposed](#793a7j-modified-every-subagent-recalls-first-and-large-units-are-decomposed)).
 
@@ -1377,7 +1409,7 @@ Scenario: 793a6h1a The handoff carries no completion-report contract
   Given the Integration is installed and a unit to implement a function
   When the orchestrator writes the handoff
   Then it names the exact files and lines, the acceptance checks and the do-not-touch bounds
-  And it does not include a LESSONS line mandate or a recall-first instruction
+  And it is accepted as complete without a LESSONS line mandate or a recall-first instruction
 ```
 
 #### 793a6h2 Canonical scenarios with the Integration not installed
@@ -1392,7 +1424,7 @@ Each row is a Modified operation against one canonical scenario of [792a17g Ever
 
 Target: [792a18r The closing learn gets the lessons and the audit](../../specs/product/please.md#792a18r-the-closing-learn-gets-the-lessons-and-the-audit)
 
-Requirement: 792a18r While the Integration is installed, please MUST NOT run the `learn` skill at the end of the workflow, and MUST NOT hand a list of `LESSONS:` lines or an audit's map to one; the System performs the audit ([793a3o Please's lessons audit and surfacing question are performed by the System](#793a3o-pleases-lessons-audit-and-surfacing-question-are-performed-by-the-system)). The target's sentences that have please run learn at step 7 and hand it the list and the audit's map do not apply. The rest of the target applies unchanged. Where the Integration is not installed: Please MUST run the `learn` skill again at step 7 and hand it the full list of `LESSONS:` lines collected across step 4's dispatches ([792a16f The closing learn gets the whole list](../../specs/product/lessons-contract.md#792a16f-the-closing-learn-gets-the-whole-list)) together with the audit's map, and MUST NOT duplicate learn's ad-hoc question-and-answer capture ([792a15k An answered question is captured once](../../specs/product/learn.md#792a15k-an-answered-question-is-captured-once)), which learn performs for substantive answered questions.
+Requirement: 792a18r While the Integration is installed, please is not required to run the `learn` skill at the end of the workflow, or to hand a list of `LESSONS:` lines or an audit's map to one; the System performs the audit ([793a3o Please's lessons audit and surfacing question are performed by the System](#793a3o-pleases-lessons-audit-and-surfacing-question-are-performed-by-the-system)). The target's sentences that have please run learn at step 7 and hand it the list and the audit's map do not apply. The rest of the target applies unchanged. Where the Integration is not installed: Please MUST run the `learn` skill again at step 7 and hand it the full list of `LESSONS:` lines collected across step 4's dispatches ([792a16f The closing learn gets the whole list](../../specs/product/lessons-contract.md#792a16f-the-closing-learn-gets-the-whole-list)) together with the audit's map, and MUST NOT duplicate learn's ad-hoc question-and-answer capture ([792a15k An answered question is captured once](../../specs/product/learn.md#792a15k-an-answered-question-is-captured-once)), which learn performs for substantive answered questions.
 
 Rationale: There are no collected lines to hand over, no audit map and no closing learn to run.
 
@@ -1402,7 +1434,7 @@ Rationale: There are no collected lines to hand over, no audit map and no closin
 Scenario: 793a6i1b The closing learn is not run and nothing is handed to one
   Given the Integration is installed and a finished cycle
   When please reaches the end of the workflow
-  Then the transcript shows please invoked no learn command
+  Then the transcript shows no request to please to invoke the learn skill
   And no list of LESSONS lines and no audit map exists in the session
 ```
 
@@ -1418,7 +1450,7 @@ Each row is a Modified operation against one canonical scenario of [792a18r The 
 
 Target: [792a19e A returned subagent lesson is captured before the next dispatch](../../specs/product/ambient-guidance.md#792a19e-a-returned-subagent-lesson-is-captured-before-the-next-dispatch)
 
-Requirement: 792a19e While the Integration is installed, the orchestrating agent MUST NOT judge or capture returned subagent lessons, and the cue does not apply; the System captures them ([793a3m Lessons from subagent sessions are captured directly](#793a3m-lessons-from-subagent-sessions-are-captured-directly)). Where the Integration is not installed: When a dispatched subagent returns and its `LESSONS:` line is not `none`, the orchestrating agent MUST judge each lesson at that moment against the learn skill's bar ([792a15e The four kinds of explicit lesson](../../specs/product/learn.md#792a15e-the-four-kinds-of-explicit-lesson)): it is one of the four kinds, it is confirmed and not hypothesized, and it states a general reusable principle. For each lesson that clears the bar it MUST invoke the `learn` skill on the fast path, one note per lesson and no sweep, before it dispatches the next subagent or ends its turn. The cue MUST apply to every dispatch, whether or not the route or please skill mediated it.
+Requirement: 792a19e While the Integration is installed, the orchestrating agent is not required to judge or capture returned subagent lessons, and the cue does not apply; the System captures them ([793a3m Lessons from subagent sessions are captured directly](#793a3m-lessons-from-subagent-sessions-are-captured-directly)). Where the Integration is not installed: When a dispatched subagent returns and its `LESSONS:` line is not `none`, the orchestrating agent MUST judge each lesson at that moment against the learn skill's bar ([792a15e The four kinds of explicit lesson](../../specs/product/learn.md#792a15e-the-four-kinds-of-explicit-lesson)): it is one of the four kinds, it is confirmed and not hypothesized, and it states a general reusable principle. For each lesson that clears the bar it MUST invoke the `learn` skill on the fast path, one note per lesson and no sweep, before it dispatches the next subagent or ends its turn. The cue MUST apply to every dispatch, whether or not the route or please skill mediated it.
 
 Rationale: The System captures the lesson from the subagent's session, so the return is no longer the moment to keep it.
 
@@ -1428,7 +1460,7 @@ Rationale: The System captures the lesson from the subagent's session, so the re
 Scenario: 793a6j1a A returned report is not a capture moment
   Given the Integration is installed and two parallel subagents whose turns each contained a lesson
   When the orchestrator reads both reports
-  Then the transcript shows it invoked no learn command before its next dispatch
+  Then the transcript shows no request to it to invoke a learn command before its next dispatch
   And both lessons are in the vault, one note each
 ```
 
@@ -1472,9 +1504,9 @@ Each row is a Modified operation against one canonical scenario of [792a19f A re
 | 793a6k2b | [792a19f1b A routine narrative is skipped](../../specs/product/ambient-guidance.md#792a19f1-uat-scenarios) | Scenario: 792a19f1b A routine narrative is skipped<br>Given the Integration is not installed<br>And a subagent returns "LESSONS: completed the unit, all tests pass"<br>When the orchestrator reads the report<br>Then it does not invoke the learn skill before the next dispatch |
 | 793a6k2c | [792a19f1c An unconfirmed hunch is skipped](../../specs/product/ambient-guidance.md#792a19f1-uat-scenarios) | Scenario: 792a19f1c An unconfirmed hunch is skipped<br>Given the Integration is not installed<br>And a subagent returns "LESSONS: the build flake might be a race in the cache warmer" and nothing in the report confirms it<br>When the orchestrator reads the report<br>Then it does not invoke the learn skill before the next dispatch |
 
-## 793a7 Modified: ambient-guidance, route and please (the working agent no longer runs recall or learn while the Integration is installed)
+## 793a7 Modified: ambient-guidance, route and please (the working agent is not required to run recall or learn while the Integration is installed)
 
-Canonical targets: [ambient-guidance](../../specs/product/ambient-guidance.md), [route](../../specs/product/route.md) and [please](../../specs/product/please.md), the nodes that tell the working agent to run recall or learn, or to perform their steps ([793c31 Which canonical nodes that ask the agent to run recall or learn change while the Integration is installed?](793c_open-questions.md#793c31-which-canonical-nodes-that-ask-the-agent-to-run-recall-or-learn-change-while-the-integration-is-installed)). Each operation is a Modified operation against exactly one canonical node, conditional on the Integration, because the node still holds in harnesses and installs without the Integration ([793a5c Environments without the capability](#793a5c-environments-without-the-capability)). Each target's ID is preserved. The replacement text carries the Integration branch first, which states only what differs from the target and, where something of the target remains, ends with "The rest of the target applies unchanged.", then the target's text unchanged for an install without the Integration, with its in-page references rewritten as links to the canonical file. The condition is evaluated per harness and per agent session: a session in a harness without the Integration, such as Pi, follows the target's text unchanged. Each operation's scenario group ending in 1 covers its Integration branch. Where an operation has a group ending in 2, it holds one Modified operation for each canonical scenario of the target whose outcome differs when the Integration is installed: that scenario's text prefixed with "Given the Integration is not installed", so that the branch for an install without the Integration keeps its canonical coverage. A canonical scenario that is not listed holds in both branches and is left unmodified ([793b147 H4: only the canonical scenarios whose outcome differs by branch are modified (revisits 793b117)](793b_decision-log.md#793b147-h4-only-the-canonical-scenarios-whose-outcome-differs-by-branch-are-modified-revisits-793b117)). No scenario in this section restates a canonical scenario under a new ID; the "Without the Integration" scenarios that did, `793a7a1e`, `793a7b1b`, `793a7c1d`, `793a7d1c`, `793a7e1b`, `793a7f1b`, `793a7g1c`, `793a7h1b`, `793a7i1c`, `793a7j1c`, `793a7k1b`, `793a7l1c`, `793a7m1c`, `793a7n1c`, `793a7o1c`, `793a7o1e`, `793a7p1c`, `793a7q1e`, `793a7r1f`, are retired and their IDs are never reused ([793b117 H4: every Modified target keeps its canonical scenarios](793b_decision-log.md#793b117-h4-every-modified-target-keeps-its-canonical-scenarios)).
+Canonical targets: [ambient-guidance](../../specs/product/ambient-guidance.md), [route](../../specs/product/route.md) and [please](../../specs/product/please.md), the nodes that tell the working agent to run recall or learn, or to perform their steps ([793c31 Which canonical nodes that ask the agent to run recall or learn change while the Integration is installed?](793c_open-questions.md#793c31-which-canonical-nodes-that-ask-the-agent-to-run-recall-or-learn-change-while-the-integration-is-installed)). Each operation is a Modified operation against exactly one canonical node, conditional on the Integration, because the node still holds in harnesses and installs without the Integration ([793a5c Environments without the capability](#793a5c-environments-without-the-capability)). Each target's ID is preserved. The replacement text carries the Integration branch first, which states only what differs from the target and, where something of the target remains, ends with "The rest of the target applies unchanged.", then the target's text unchanged for an install without the Integration, with its in-page references rewritten as links to the canonical file. The condition is evaluated per harness and per agent session: a session in a harness without the Integration, such as Pi, follows the target's text unchanged. Each operation's scenario group ending in 1 covers its Integration branch. Where an operation has a group ending in 2, it holds one Modified operation for each canonical scenario of the target whose outcome differs when the Integration is installed: that scenario's text prefixed with "Given the Integration is not installed", so that the branch for an install without the Integration keeps its canonical coverage. A canonical scenario that is not listed holds in both branches and is left unmodified ([793b147 H4: only the canonical scenarios whose outcome differs by branch are modified (revisits 793b117)](793b_decision-log.md#793b147-h4-only-the-canonical-scenarios-whose-outcome-differs-by-branch-are-modified-revisits-793b117)). No scenario in this section restates a canonical scenario under a new ID; the "Without the Integration" scenarios that did, `793a7a1e`, `793a7b1b`, `793a7c1d`, `793a7d1c`, `793a7e1b`, `793a7f1b`, `793a7g1c`, `793a7h1b`, `793a7i1c`, `793a7j1c`, `793a7k1b`, `793a7l1c`, `793a7m1c`, `793a7n1c`, `793a7o1c`, `793a7o1e`, `793a7p1c`, `793a7q1e`, `793a7r1f`, are retired and their IDs are never reused ([793b117 H4: every Modified target keeps its canonical scenarios](793b_decision-log.md#793b117-h4-every-modified-target-keeps-its-canonical-scenarios)). None of these operations stops the working agent from running recall, learn or `engram query` intentionally ([793a2k Automatic memory does not require the agent, and intentional memory stays available](#793a2k-automatic-memory-does-not-require-the-agent-and-intentional-memory-stays-available)): each Integration branch removes a requirement that the agent run the step, and an agent that runs it anyway follows the target as it would without the Integration.
 
 ### 793a7a Modified: Recall fires at four decision moments
 
@@ -1492,13 +1524,13 @@ Scenario: 793a7a1a The Integration recalls before a proposed approach is endorse
   And the user proposes the approach and asks the agent what it thinks
   When the agent is about to evaluate it
   Then the transcript shows the note's content delivered before the agent offers any analysis
-  And the transcript shows the agent ran no recall command
+  And the transcript shows no request to the agent to run a recall command
 
 Scenario: 793a7a1b The Integration recalls before work is declared done
   Given the Integration is installed and a note that matches the work the agent is about to declare done
   When the agent reaches the point of declaring it done
   Then the transcript shows the note's content delivered before the declaration
-  And the transcript shows the agent ran no recall command
+  And the transcript shows no request to the agent to run a recall command
 
 Scenario: 793a7a1c The Integration recalls once for an unexplained failure
   Given the Integration is installed and a failure the agent cannot immediately explain, and then a retry that fails the same way
@@ -1509,7 +1541,7 @@ Scenario: 793a7a1d The Integration recalls before a new approach is built
   Given the Integration is installed and a note holding a prior decision that matches a new approach
   When the agent has chosen the approach and is about to start building
   Then the transcript shows the note's content delivered before the agent starts building
-  And the transcript shows the agent ran no recall command
+  And the transcript shows no request to the agent to run a recall command
 ```
 
 #### 793a7a2 Canonical scenarios with the Integration not installed
@@ -1538,7 +1570,7 @@ Scenario: 793a7b1a The Integration escalates a weighty decision
   Given the Integration is installed and a decision that is irreversible
   When the agent reaches the moment before making it
   Then the log records the recall for that moment at depth deep
-  And the transcript shows the agent ran no recall command
+  And the transcript shows no request to the agent to run a recall command
 ```
 
 #### 793a7b2 Canonical scenarios with the Integration not installed
@@ -1566,7 +1598,7 @@ Scenario: 793a7c1a The Integration captures a rejected approach
   When the user says "no, do X not Y, the convention here is Z"
   And the turn completes
   Then a note stating the convention exists in the vault
-  And the transcript shows the agent invoked no learn command and was asked for none
+  And the transcript shows the agent was not asked to invoke a learn command
 
 Scenario: 793a7c1e The agent applies the fix without waiting for the capture
   Given the Integration is installed and a capture that takes 20 seconds
@@ -1578,13 +1610,13 @@ Scenario: 793a7c1b The Integration captures a failing check with a known cause
   Given the Integration is installed and a check that failed with a cause that was not obvious
   When the agent states the cause
   Then a note stating the cause exists in the vault
-  And the transcript shows the agent invoked no learn command
+  And the transcript shows no request to the agent to invoke a learn command
 
 Scenario: 793a7c1c The Integration captures a one-line fix
   Given the Integration is installed and a correction whose fix is a single line
   When the agent applies the fix
   Then a note stating the rule exists in the vault
-  And the transcript shows the agent invoked no learn command
+  And the transcript shows no request to the agent to invoke a learn command
 ```
 
 #### 793a7c2 Canonical scenarios with the Integration not installed
@@ -1602,7 +1634,7 @@ Each row is a Modified operation against one canonical scenario of [792a19c Lear
 
 Target: [792a19d The capture is learn's fast path](../../specs/product/ambient-guidance.md#792a19d-the-capture-is-learns-fast-path)
 
-Requirement: 792a19d While the Integration is installed, the System, not the agent, MUST make the capture, and the agent MUST NOT be asked to capture it; the target's sentences that name the agent or the `learn` skill as the capturer do not apply. The rest of the target applies unchanged. Where the Integration is not installed: When the learn guidance fires, the agent MUST capture the one confirmed lesson with the `learn` skill, invoked as a skill and not as a plain note file or the harness's own project memory, on the skill's mid-cycle fast path, and MUST NOT run `engram ingest --auto` mid-task. It MUST capture a confirmed negative (what was rejected), which is enough on its own, and MUST NOT crystallize an unconfirmed hunch.
+Requirement: 792a19d While the Integration is installed, the System, not the agent, MUST make the capture, and the agent is not required to capture it; the target's sentences that name the agent or the `learn` skill as the capturer do not apply. The rest of the target applies unchanged. Where the Integration is not installed: When the learn guidance fires, the agent MUST capture the one confirmed lesson with the `learn` skill, invoked as a skill and not as a plain note file or the harness's own project memory, on the skill's mid-cycle fast path, and MUST NOT run `engram ingest --auto` mid-task. It MUST capture a confirmed negative (what was rejected), which is enough on its own, and MUST NOT crystallize an unconfirmed hunch.
 
 Rationale: The fast-path rules stay the same; the System applies them.
 
@@ -1637,9 +1669,9 @@ Each row is a Modified operation against one canonical scenario of [792a19d The 
 
 Target: [792a19j The first action on every request is an engram query](../../specs/product/ambient-guidance.md#792a19j-the-first-action-on-every-request-is-an-engram-query)
 
-Requirement: 792a19j While the Integration is installed, an agent that has the shim MUST NOT be required to make an `engram query` its first tool call on any request. The System MUST perform the lookup at every prompt ([793a2i Recall for every prompt regardless of source](#793a2i-recall-for-every-prompt-regardless-of-source)), whether or not the task looks multi-step, recurring or done before and whether or not the agent will delegate, as one query that carries at least two phrases (the request in other words, and the kind of situation it is in) and the user's message verbatim as its text, and MUST put what it finds, with the plan instruction ([793a2n Recall is performed for the working agent](#793a2n-recall-is-performed-for-the-working-agent)), in front of the agent before the agent's first response or tool call. Where the Integration is not installed: An agent that has the shim MUST make its first tool call on every user request an `engram query` that carries at least two `--phrase` values (the request in the agent's own words, and the kind of situation it is in) and a `--text` value holding the user's message verbatim (its first 300 characters or so when long), before it reads a file, answers or asks a clarifying question, and whether or not it has decided to delegate. It MUST NOT gate the query on a judgment that the task is multi-step, recurring or done before. It MUST write every `--text` and `--phrase` value as `--flag="value"`, never `--flag "value"`, and MUST NOT rewrite or summarize the message in `--text`, whose paraphrase belongs only in `--phrase`.
+Requirement: 792a19j While the Integration is installed, an agent that has the reduced shim MAY make an `engram query` its first tool call, or run one at any other time, and MUST NOT be required to: the shim makes the query optional. The System MUST perform the lookup at every prompt ([793a2i Recall for every prompt regardless of source](#793a2i-recall-for-every-prompt-regardless-of-source)), whether or not the task looks multi-step, recurring or done before and whether or not the agent will delegate, as one query that carries at least two phrases (the request in other words, and the kind of situation it is in) and the user's message verbatim as its text, and MUST put what it finds, with the plan instruction ([793a2n Recall is performed for the working agent](#793a2n-recall-is-performed-for-the-working-agent)), in front of the agent before the agent's first response or tool call. Where the Integration is not installed: An agent that has the shim MUST make its first tool call on every user request an `engram query` that carries at least two `--phrase` values (the request in the agent's own words, and the kind of situation it is in) and a `--text` value holding the user's message verbatim (its first 300 characters or so when long), before it reads a file, answers or asks a clarifying question, and whether or not it has decided to delegate. It MUST NOT gate the query on a judgment that the task is multi-step, recurring or done before. It MUST write every `--text` and `--phrase` value as `--flag="value"`, never `--flag "value"`, and MUST NOT rewrite or summarize the message in `--text`, whose paraphrase belongs only in `--phrase`.
 
-Rationale: The lookup is performed for the agent exactly as the shim defines it, so no first query is asked of it.
+Rationale: The lookup is performed for the agent exactly as the shim defines it, so no first query is required of it; the optional query stays available as intentional memory ([793a2k Automatic memory does not require the agent, and intentional memory stays available](#793a2k-automatic-memory-does-not-require-the-agent-and-intentional-memory-stays-available)).
 
 #### 793a7e1 UAT Scenarios
 
@@ -1650,6 +1682,18 @@ Scenario: 793a7e1a The Integration looks up memory without a first query
   When the user submits the request
   Then the transcript shows the note's content delivered, with the plan instruction, before the agent's first response or tool call
   And the agent's instructions contain no requirement to make an engram query its first tool call
+
+Scenario: 793a7e1e The reduced shim keeps the first query as optional wording
+  Given the Integration is installed and the reduced shim in the agent's configuration
+  When the agent's instructions are inspected
+  Then they say the agent may make an engram query at its first action or later
+  And they do not require it
+
+Scenario: 793a7e1f An agent's own first-action query is allowed
+  Given the Integration is installed and the reduced shim in the agent's configuration
+  When the agent makes an engram query as its first tool call on a request
+  Then the query runs and the transcript shows its results
+  And the log still records the System's lookup for that prompt
 
 Scenario: 793a7e1c The lookup carries the shim's phrase shapes
   Given the Integration is installed and the user's message "- fix the login bug"
@@ -1679,17 +1723,18 @@ Each row is a Modified operation against one canonical scenario of [792a19j The 
 
 Target: [792a19k The second phrase names a kind of work-handling decision](../../specs/product/ambient-guidance.md#792a19k-the-second-phrase-names-a-kind-of-work-handling-decision)
 
-Requirement: 792a19k While the Integration is installed, the shim MUST NOT tell the agent how to compose the phrases of an `engram query`, because the agent does not run the first query; the System composes its own. Where the Integration is not installed: The shim MUST tell the agent that the second phrase of the first query names the kind of situation, in the wording a runbook's own `situation` uses, and not the concrete ticket, and MUST tell it to re-check that phrase before the query runs and rewrite it as the kind of work-handling decision when it contains a concrete noun from the ticket (a file, flag, feature, bug or field name) or restates the request. The shim MUST illustrate the shape with at least two examples of different kinds of work, and the re-check and the examples MUST NOT name a specific runbook, skill or evaluation task.
+Requirement: 792a19k While the Integration is installed, the shim's instructions on composing the phrases of an `engram query` apply to any query the agent chooses to run, and the shim MUST NOT present them as the composition of a required first query; the System composes its own phrases for its lookup. The rest of the target applies unchanged. Where the Integration is not installed: The shim MUST tell the agent that the second phrase of the first query names the kind of situation, in the wording a runbook's own `situation` uses, and not the concrete ticket, and MUST tell it to re-check that phrase before the query runs and rewrite it as the kind of work-handling decision when it contains a concrete noun from the ticket (a file, flag, feature, bug or field name) or restates the request. The shim MUST illustrate the shape with at least two examples of different kinds of work, and the re-check and the examples MUST NOT name a specific runbook, skill or evaluation task.
 
-Rationale: There is no agent-composed query to shape.
+Rationale: The agent's query is optional, but an agent that runs one still needs the shape of a good one.
 
 #### 793a7f1 UAT Scenarios
 
 ```gherkin
-Scenario: 793a7f1a The Integration gives the agent no phrase-shaping instruction
+Scenario: 793a7f1c The reduced shim keeps the phrase-shaping instruction for a query the agent chooses to run
   Given the Integration is installed and the reduced shim in the agent's configuration
   When the agent's instructions are inspected
-  Then they contain no instruction on how to write the phrases of a query
+  Then they tell the agent how to write the phrases of a query it chooses to run
+  And they do not present a required first query
 ```
 
 #### 793a7f2 Canonical scenarios with the Integration not installed
@@ -1706,24 +1751,30 @@ Each row is a Modified operation against one canonical scenario of [792a19k The 
 
 Target: [792a19t The query runs again at four moments mid-task](../../specs/product/ambient-guidance.md#792a19t-the-query-runs-again-at-four-moments-mid-task)
 
-Requirement: 792a19t While the Integration is installed, the shim MUST NOT tell the agent to run `engram query` again at the four moments, or to escalate to a matched runbook's `deep` procedure: the System performs recall at those moments ([793a7a Recall fires at four decision moments](#793a7a-modified-recall-fires-at-four-decision-moments)), at deep depth where [793a7b Recall escalates from glance to deep](#793a7b-modified-recall-escalates-from-glance-to-deep) says. Where the Integration is not installed: The shim MUST tell the agent to run `engram query` again, with the same two phrase shapes re-keyed to what is in front of it, before it endorses or ranks a proposed approach, even when only discussing it; before it declares work done, querying first and then verifying; once after a failure it cannot immediately explain; and before it starts building a new approach. It MUST tell the agent to escalate to the matched runbook's `deep` procedure, if it offers one, when the decision is weighty or irreversible or the pass surfaces a gap it cannot resolve.
+Requirement: 792a19t While the Integration is installed, the shim MUST present the agent's `engram query` at the four moments, and the escalation to a matched runbook's `deep` procedure, as optional, and MUST NOT require either: the System performs recall at those moments ([793a7a Recall fires at four decision moments](#793a7a-modified-recall-fires-at-four-decision-moments)), at deep depth where [793a7b Recall escalates from glance to deep](#793a7b-modified-recall-escalates-from-glance-to-deep) says. The rest of the target applies unchanged to a query the agent chooses to run. Where the Integration is not installed: The shim MUST tell the agent to run `engram query` again, with the same two phrase shapes re-keyed to what is in front of it, before it endorses or ranks a proposed approach, even when only discussing it; before it declares work done, querying first and then verifying; once after a failure it cannot immediately explain; and before it starts building a new approach. It MUST tell the agent to escalate to the matched runbook's `deep` procedure, if it offers one, when the decision is weighty or irreversible or the pass surfaces a gap it cannot resolve.
 
-Rationale: The same four moments are recalled for the agent, and the instructions to query again, with the escalation to a runbook's deep procedure, leave the shim on Claude Code ([793c51 How does the Claude Code agent learn to apply delivered memory once the shim is gone?](793c_open-questions.md#793c51-how-does-the-claude-code-agent-learn-to-apply-delivered-memory-once-the-shim-is-gone)).
+Rationale: The same four moments are recalled for the agent, and the instructions to query again, with the escalation to a runbook's deep procedure, stay in the shim on Claude Code as optional, so the agent can still check the vault itself ([793c51 How does the Claude Code agent learn to apply delivered memory once the shim is gone?](793c_open-questions.md#793c51-how-does-the-claude-code-agent-learn-to-apply-delivered-memory-once-the-shim-is-gone)).
 
 #### 793a7g1 UAT Scenarios
 
 ```gherkin
-Scenario: 793a7g1a The Integration queries before work is declared done without the agent
+Scenario: 793a7g1a The Integration queries before work is declared done without the agent being required to
   Given the Integration is installed and a note that matches the work the agent is about to declare done
   When the agent prepares to declare it done
   Then the transcript shows the note's content delivered before the declaration
-  And the transcript shows the agent ran no engram query
+  And the transcript shows no request to the agent to run an engram query
+
+Scenario: 793a7g1d The reduced shim presents the re-entry query and the deep escalation as optional
+  Given the Integration is installed and the reduced shim in the agent's configuration
+  When the agent's instructions are inspected
+  Then they say the agent may run engram query again at the four moments and may escalate to a matched runbook's deep procedure
+  And they do not require either
 
 Scenario: 793a7g1b The Integration recalls at deep depth for a runbook's weighty decision
   Given the Integration is installed, a matched runbook that offers a deep procedure and a decision that is irreversible
   When the agent reaches the decision
   Then the log records the recall for that moment at depth deep
-  And the transcript shows the runbook delivered and the agent ran no engram query
+  And the transcript shows the runbook delivered and no request to the agent to run an engram query
 ```
 
 #### 793a7g2 Canonical scenarios with the Integration not installed
@@ -1740,25 +1791,25 @@ Each row is a Modified operation against one canonical scenario of [792a19t The 
 
 Target: [792a17a The orchestrator routes and delegates](../../specs/product/route.md#792a17a-the-orchestrator-routes-and-delegates)
 
-Requirement: 792a17a While the Integration is installed, recall and learn are not among the meta-skills that the orchestrator following route runs, and it MUST NOT run them, because the System performs them; the target's mention of them among those meta-skills does not apply. The rest of the target applies unchanged. Where the Integration is not installed: The orchestrator following route MUST do orchestration itself (routing and decomposition decisions, dispatching subagents, sequencing steps, updating the task list, running the meta-skills that are the workflow such as recall, learn and planning, and synthesizing returned results into the next decision or the report) and MUST delegate every piece of object-level work (writing code or prose, running tests or builds, judging the artifact, reviewing it) to a subagent. It MUST NOT do easy work inline: easy work goes to a cheap model and is not skipped.
+Requirement: 792a17a While the Integration is installed, the orchestrator following route is not required to run recall or learn among its meta-skills, because the System performs them, and MAY still run either intentionally; the target's mention of them among those meta-skills does not make them required. The rest of the target applies unchanged. Where the Integration is not installed: The orchestrator following route MUST do orchestration itself (routing and decomposition decisions, dispatching subagents, sequencing steps, updating the task list, running the meta-skills that are the workflow such as recall, learn and planning, and synthesizing returned results into the next decision or the report) and MUST delegate every piece of object-level work (writing code or prose, running tests or builds, judging the artifact, reviewing it) to a subagent. It MUST NOT do easy work inline: easy work goes to a cheap model and is not skipped.
 
-Rationale: Recall and learn are no longer among the meta-skills the orchestrator runs.
+Rationale: Recall and learn are no longer among the meta-skills the orchestrator is required to run.
 
 #### 793a7h1 UAT Scenarios
 
 ```gherkin
-Scenario: 793a7h1a The Integration leaves recall and learn out of the orchestrator's work
+Scenario: 793a7h1a The Integration leaves recall and learn out of the orchestrator's required work
   Given the Integration is installed and a unit that writes code and runs its tests
   When the orchestrator follows route
   Then it dispatches the unit to a subagent and does not do it inline
-  And the transcript shows the orchestrator ran no recall or learn
+  And the transcript shows no request to the orchestrator to run recall or learn
 ```
 
 ### 793a7i Modified: The starting tier comes from recalled evidence, otherwise the cheapest tier
 
 Target: [792a17b The starting tier comes from recalled evidence, otherwise the cheapest tier](../../specs/product/route.md#792a17b-the-starting-tier-comes-from-recalled-evidence-otherwise-the-cheapest-tier)
 
-Requirement: 792a17b While the Integration is installed, before dispatching, the orchestrator MUST use the tier-performance evidence for this kind of work that is in its context, including what the System delivered at its decision to dispatch ([793a2c Moments are noticed without the agent](#793a2c-moments-are-noticed-without-the-agent)), in place of checking recalled memory; it MUST NOT run recall to look for it and MUST NOT use a special query or counting on the read path, and the target's sentence that has it check recalled memory does not apply. The rest of the target applies unchanged. Where the Integration is not installed: Before dispatching, the orchestrator MUST check recalled memory for tier-performance evidence on this kind of work, using the plain recall of the agent (the aggregates surface as ordinary memories) and no special query or counting on the read path. Absent recalled evidence, it MUST start every unit at the cheapest, fastest available tier, with no exception for work that merely looks hard (hard debugging, a cross-cutting refactor, a correctness-critical review, a greenfield design). The starting tier MUST NOT be raised for any reason other than recalled evidence of failure at a cheaper tier, or a cold-start prior that records such evidence ([792a17f Cold-start priors carry only evidence-backed escalations](../../specs/product/route.md#792a17f-cold-start-priors-carry-only-evidence-backed-escalations)), and then only to the tier the evidence supports. Predicted difficulty ("genuinely complex", "needs careful reasoning", "broad impact") MUST NOT count as evidence.
+Requirement: 792a17b While the Integration is installed, before dispatching, the orchestrator MUST use the tier-performance evidence for this kind of work that is in its context, including what the System delivered at its decision to dispatch ([793a2c Moments are noticed without the agent](#793a2c-moments-are-noticed-without-the-agent)), in place of checking recalled memory; it is not required to run recall to look for it, and MUST NOT use a special query or counting on the read path, and the target's sentence that has it check recalled memory does not apply. The rest of the target applies unchanged. Where the Integration is not installed: Before dispatching, the orchestrator MUST check recalled memory for tier-performance evidence on this kind of work, using the plain recall of the agent (the aggregates surface as ordinary memories) and no special query or counting on the read path. Absent recalled evidence, it MUST start every unit at the cheapest, fastest available tier, with no exception for work that merely looks hard (hard debugging, a cross-cutting refactor, a correctness-critical review, a greenfield design). The starting tier MUST NOT be raised for any reason other than recalled evidence of failure at a cheaper tier, or a cold-start prior that records such evidence ([792a17f Cold-start priors carry only evidence-backed escalations](../../specs/product/route.md#792a17f-cold-start-priors-carry-only-evidence-backed-escalations)), and then only to the tier the evidence supports. Predicted difficulty ("genuinely complex", "needs careful reasoning", "broad impact") MUST NOT count as evidence.
 
 Rationale: The evidence arrives through the System's recall at the orchestrator's decision to dispatch instead of through the orchestrator's own.
 
@@ -1770,13 +1821,13 @@ Scenario: 793a7i1a The Integration routes on evidence the System delivered
   When the orchestrator decides to dispatch a unit of that work-kind
   Then the transcript shows the aggregate delivered before the orchestrator routes the unit
   And the unit starts at the tier the evidence supports
-  And the transcript shows the orchestrator ran no recall, no special query and no count
+  And the transcript shows no request to the orchestrator to run recall, a special query or a count
 
 Scenario: 793a7i1b The Integration starts at the cheapest tier absent evidence
   Given the Integration is installed and no tier evidence exists to deliver for a hard-looking work-kind
   When the orchestrator decides to dispatch a unit of that work-kind
   Then the unit starts at the cheapest tier
-  And the transcript shows the orchestrator ran no recall
+  And the transcript shows no request to the orchestrator to run recall
 ```
 
 #### 793a7i2 Canonical scenarios with the Integration not installed
@@ -1792,17 +1843,17 @@ Each row is a Modified operation against one canonical scenario of [792a17b The 
 
 Target: [792a17h Every subagent recalls first, and large units are decomposed](../../specs/product/route.md#792a17h-every-subagent-recalls-first-and-large-units-are-decomposed)
 
-Requirement: 792a17h While the Integration is installed, the orchestrator MUST NOT instruct a dispatched subagent to recall first, because the System makes what recall returns for the subagent's task available to it ([793a2c Moments are noticed without the agent](#793a2c-moments-are-noticed-without-the-agent)); the target's sentence that has it give that instruction does not apply. The rest of the target applies unchanged. Where the Integration is not installed: The orchestrator MUST instruct every dispatched subagent that its first action is recall, with phrases drawn from its unit, before it does the work, and this instruction MUST NOT be waived. A unit that spans multiple files or concerns or needs more than one clear deliverable MUST NOT be dispatched as it stands: the orchestrator MUST break it into smaller units and route each, and the decomposition MUST be done by the orchestrator.
+Requirement: 792a17h While the Integration is installed, the orchestrator is not required to instruct a dispatched subagent to recall first, because the System makes what recall returns for the subagent's task available to it ([793a2c Moments are noticed without the agent](#793a2c-moments-are-noticed-without-the-agent)); the target's sentence that has it give that instruction does not apply. The rest of the target applies unchanged. Where the Integration is not installed: The orchestrator MUST instruct every dispatched subagent that its first action is recall, with phrases drawn from its unit, before it does the work, and this instruction MUST NOT be waived. A unit that spans multiple files or concerns or needs more than one clear deliverable MUST NOT be dispatched as it stands: the orchestrator MUST break it into smaller units and route each, and the decomposition MUST be done by the orchestrator.
 
 Rationale: The subagent's recall is the System's, and the decomposition rule does not depend on it.
 
 #### 793a7j1 UAT Scenarios
 
 ```gherkin
-Scenario: 793a7j1a The Integration's handoff carries no recall-first instruction
+Scenario: 793a7j1a The Integration's handoff needs no recall-first instruction
   Given the Integration is installed and a note matching a subagent's unit
-  When the orchestrator dispatches the subagent
-  Then the handoff does not tell the subagent to recall first
+  When the orchestrator dispatches the subagent without a recall-first instruction
+  Then the handoff is accepted as complete
   And the subagent's transcript shows the note's content delivered before its first response or tool call
 
 Scenario: 793a7j1b The Integration still decomposes a large unit
@@ -1823,7 +1874,7 @@ Each row is a Modified operation against one canonical scenario of [792a17h Ever
 
 Target: [792a17o The loop improves the rubric](../../specs/product/route.md#792a17o-the-loop-improves-the-rubric)
 
-Requirement: 792a17o While the Integration is installed, the orchestrator MUST NOT crystallize the finding with learn, and the target's sentence that has it do so does not apply; the System MUST capture it, as a confirmed approach when a tier's outcome confirms the routing or as a reversal when it overturns a prior tier assumption. The rest of the target applies unchanged. Where the Integration is not installed: When a finding about a work-kind is strong and general (for example, "cheap failed N times on work-kind K, so it needs mid"), the orchestrator MUST crystallize it with learn, as a confirmed approach when a tier's outcome confirms the routing (for example, "cheap sufficed for K") or as a reversal when it overturns a prior tier assumption. The next recall MUST surface that evidence so that the starting tier for similar work reflects it.
+Requirement: 792a17o While the Integration is installed, the orchestrator is not required to crystallize the finding with learn, and the target's sentence that has it do so does not apply; the System MUST capture it, as a confirmed approach when a tier's outcome confirms the routing or as a reversal when it overturns a prior tier assumption. The rest of the target applies unchanged. Where the Integration is not installed: When a finding about a work-kind is strong and general (for example, "cheap failed N times on work-kind K, so it needs mid"), the orchestrator MUST crystallize it with learn, as a confirmed approach when a tier's outcome confirms the routing (for example, "cheap sufficed for K") or as a reversal when it overturns a prior tier assumption. The next recall MUST surface that evidence so that the starting tier for similar work reflects it.
 
 Rationale: The finding is a lesson, and the System captures lessons.
 
@@ -1834,7 +1885,7 @@ Scenario: 793a7k1a The Integration captures a confirming tier outcome
   Given the Integration is installed and cheap sufficed repeatedly for a work-kind
   When the confirming outcome lands
   Then a note stating the confirmed approach exists in the vault
-  And the transcript shows the orchestrator invoked no learn command
+  And the transcript shows no request to the orchestrator to invoke a learn command
 ```
 
 #### 793a7k2 Canonical scenarios with the Integration not installed
@@ -1850,7 +1901,7 @@ Each row is a Modified operation against one canonical scenario of [792a17o The 
 
 Target: [792a18c The seven steps are tracked, ordered and non-waivable](../../specs/product/please.md#792a18c-the-seven-steps-are-tracked-ordered-and-non-waivable)
 
-Requirement: 792a18c While the Integration is installed, please MUST NOT perform the workflow's first step (the opening learn), its seventh step (the closing learn), the lessons audit or the which-artifact-should-have-surfaced-it question, which the System performs ([793a3o Please's lessons audit and surfacing question are performed by the System](#793a3o-pleases-lessons-audit-and-surfacing-question-are-performed-by-the-system)), and MUST push steps 2 to 6 to the task list, keeping their numbers, in a single `TaskCreate` call; the target's requirement to push all seven steps does not apply. The rest of the target applies unchanged. Where the Integration is not installed: At the start of execution, please MUST push all seven steps to the task list in a single `TaskCreate` call, mark each step in progress when it begins and completed when it finishes, and start each step only after the previous step is completed. A step MUST be marked not applicable only when its mechanism does not exist in the environment (for example step 6's commit when the repository is not under version control, or step 7's closing learn when the engram binary is absent), with a one-line rationale naming the missing mechanism written into the task description. "Too small to bother", "nothing to document" and "no memories will be relevant" MUST NOT count. The user MUST NOT be able to waive steps by saying "no ceremony", "skip the plan" or "hurry". When the user interrupts and redirects, please MUST update the task list to the new shape and MUST NOT abandon open steps without an explicit close.
+Requirement: 792a18c While the Integration is installed, please is not required to perform the workflow's first step (the opening learn), its seventh step (the closing learn), the lessons audit or the which-artifact-should-have-surfaced-it question, which the System performs ([793a3o Please's lessons audit and surfacing question are performed by the System](#793a3o-pleases-lessons-audit-and-surfacing-question-are-performed-by-the-system)), and MUST push steps 2 to 6 to the task list, keeping their numbers, in a single `TaskCreate` call; the target's requirement to push all seven steps does not apply. The rest of the target applies unchanged. Where the Integration is not installed: At the start of execution, please MUST push all seven steps to the task list in a single `TaskCreate` call, mark each step in progress when it begins and completed when it finishes, and start each step only after the previous step is completed. A step MUST be marked not applicable only when its mechanism does not exist in the environment (for example step 6's commit when the repository is not under version control, or step 7's closing learn when the engram binary is absent), with a one-line rationale naming the missing mechanism written into the task description. "Too small to bother", "nothing to document" and "no memories will be relevant" MUST NOT count. The user MUST NOT be able to waive steps by saying "no ceremony", "skip the plan" or "hurry". When the user interrupts and redirects, please MUST update the task list to the new shape and MUST NOT abandon open steps without an explicit close.
 
 Rationale: Steps 1 and 7 are learn and nothing else, and the audit and the question are steps of capturing, so the System performing them leaves five tracked steps.
 
@@ -1861,7 +1912,7 @@ Scenario: 793a7l1a The Integration leaves five tracked steps
   Given the Integration is installed and a valid ask
   When please begins execution
   Then the task list gets steps 2 to 6 from one TaskCreate call and each moves in progress and then completed in order
-  And the transcript shows please ran no learn, no audit and no which-artifact-should-have-surfaced-it question
+  And the transcript shows no request to please to run learn, an audit or the which-artifact-should-have-surfaced-it question
 
 Scenario: 793a7l1b The Integration still does not let the user waive steps
   Given the Integration is installed and the user says "no ceremony, skip the plan"
@@ -1882,7 +1933,7 @@ Each row is a Modified operation against one canonical scenario of [792a18c The 
 
 Target: [792a18d The workflow opens with learn and orients with recall](../../specs/product/please.md#792a18d-the-workflow-opens-with-learn-and-orients-with-recall)
 
-Requirement: 792a18d While the Integration is installed, please MUST begin with step 2 and MUST NOT run the `learn` skill or recall, because the System performs both: the System's recall at please's orientation ([793a2c Moments are noticed without the agent](#793a2c-moments-are-noticed-without-the-agent)) is the orientation's recall. The target's sentences that have please invoke learn and recall do not apply. The rest of the target applies unchanged. Where the Integration is not installed: Please MUST begin with step 1, the `learn` skill, to preserve anything pending from the session so far, before starting new work. Step 2 MUST begin with a literal invocation of recall, with queries derived from the ask, and MUST NOT substitute reading the working tree for it ("I already know this repo", "small ask", "I'll just grep" are the moments recall matters most): file reads surface working-tree content and recall surfaces vault content. Step 2 MUST loop until the ask is understood: it MUST read the repository's relevant markdown (the project instructions, the files under `docs/`, any glossary, architecture or design notes), MUST ask the user clarifying questions about intent or new concepts through `AskUserQuestion`, MUST NOT move on while material doubt remains about the ask's meaning or whether it should be done as stated, and MUST state the agent's own assessment of the ask (sound, flawed or underspecified).
+Requirement: 792a18d While the Integration is installed, please MUST begin with step 2 and is not required to run the `learn` skill or recall, because the System performs both, and MAY still run either intentionally: the System's recall at please's orientation ([793a2c Moments are noticed without the agent](#793a2c-moments-are-noticed-without-the-agent)) is the orientation's recall. The target's sentences that have please invoke learn and recall do not apply. The rest of the target applies unchanged. Where the Integration is not installed: Please MUST begin with step 1, the `learn` skill, to preserve anything pending from the session so far, before starting new work. Step 2 MUST begin with a literal invocation of recall, with queries derived from the ask, and MUST NOT substitute reading the working tree for it ("I already know this repo", "small ask", "I'll just grep" are the moments recall matters most): file reads surface working-tree content and recall surfaces vault content. Step 2 MUST loop until the ask is understood: it MUST read the repository's relevant markdown (the project instructions, the files under `docs/`, any glossary, architecture or design notes), MUST ask the user clarifying questions about intent or new concepts through `AskUserQuestion`, MUST NOT move on while material doubt remains about the ask's meaning or whether it should be done as stated, and MUST state the agent's own assessment of the ask (sound, flawed or underspecified).
 
 Rationale: The opening learn and the orienting recall are performed by the System; the orientation loop is please's own.
 
@@ -1893,7 +1944,7 @@ Scenario: 793a7m1a The Integration opens with orientation
   Given the Integration is installed and a valid ask that matches a note
   When please starts
   Then the transcript shows the note's content delivered before please's first response or tool call
-  And the transcript shows please ran neither the learn skill nor recall
+  And the transcript shows no request to please to run the learn skill or recall
 
 Scenario: 793a7m1b The Integration still loops orientation on doubt
   Given the Integration is installed and an ask whose meaning is unclear after reading
@@ -1914,17 +1965,17 @@ Each row is a Modified operation against one canonical scenario of [792a18d The 
 
 Target: [792a18n Findings are argued to resolution](../../specs/product/please.md#792a18n-findings-are-argued-to-resolution)
 
-Requirement: 792a18n While the Integration is installed, the orchestrator MUST NOT instruct a reviewer to recall first, because the System makes what recall returns for the reviewer's task available to it ([793a2c Moments are noticed without the agent](#793a2c-moments-are-noticed-without-the-agent)); the target's sentence that has each reviewer recall first, and "recall-first" in its sentence about the gate, do not apply. The rest of the target applies unchanged. Where the Integration is not installed: Each reviewer MUST recall first, with phrases drawn from the artifact and its angle, before it reviews. Its findings MUST be refutations with concrete stakes (a quote or `file:line`, why it fails the angle, and what better looks like), and a clean pass MUST state what was checked. The author MUST address every finding by fixing it or rebutting it with reasons, the reviewer MUST ACK or counter, and the reviewer MUST be kept alive until its gate closes. A finding MUST NOT be dropped silently. After about two unresolved rounds, please MUST stop, summarize both positions and escalate through `AskUserQuestion`. The gate itself (a fresh reviewer per angle, recall-first, argued to resolution) MUST NOT be waived by the availability of a review-focused skill, which a reviewer may apply as its discipline source. An angle MUST be marked not applicable only when its subject is absent from the environment (no diagrams in the repository, no documents touched) and the missing subject MUST be named out loud; "the artifact is small" MUST NOT be a skip.
+Requirement: 792a18n While the Integration is installed, the orchestrator is not required to instruct a reviewer to recall first, because the System makes what recall returns for the reviewer's task available to it ([793a2c Moments are noticed without the agent](#793a2c-moments-are-noticed-without-the-agent)); the target's sentence that has each reviewer recall first, and "recall-first" in its sentence about the gate, do not apply. The rest of the target applies unchanged. Where the Integration is not installed: Each reviewer MUST recall first, with phrases drawn from the artifact and its angle, before it reviews. Its findings MUST be refutations with concrete stakes (a quote or `file:line`, why it fails the angle, and what better looks like), and a clean pass MUST state what was checked. The author MUST address every finding by fixing it or rebutting it with reasons, the reviewer MUST ACK or counter, and the reviewer MUST be kept alive until its gate closes. A finding MUST NOT be dropped silently. After about two unresolved rounds, please MUST stop, summarize both positions and escalate through `AskUserQuestion`. The gate itself (a fresh reviewer per angle, recall-first, argued to resolution) MUST NOT be waived by the availability of a review-focused skill, which a reviewer may apply as its discipline source. An angle MUST be marked not applicable only when its subject is absent from the environment (no diagrams in the repository, no documents touched) and the missing subject MUST be named out loud; "the artifact is small" MUST NOT be a skip.
 
 Rationale: A reviewer's recall is the System's, and the rest of the gate does not depend on it.
 
 #### 793a7n1 UAT Scenarios
 
 ```gherkin
-Scenario: 793a7n1a The Integration's reviewer is not told to recall
+Scenario: 793a7n1a The Integration's reviewer need not be told to recall
   Given the Integration is installed and a note matching a reviewer's artifact and angle
   When the reviewer is dispatched
-  Then its instructions do not tell it to recall first
+  Then its instructions are accepted as complete without telling it to recall first
   And its transcript shows the note's content delivered before its first response or tool call
 
 Scenario: 793a7n1b The Integration still argues every finding to resolution
@@ -1945,18 +1996,18 @@ Each row is a Modified operation against one canonical scenario of [792a18n Find
 
 Target: [792a18p The closing learn is preceded by a lessons audit](../../specs/product/please.md#792a18p-the-closing-learn-is-preceded-by-a-lessons-audit)
 
-Requirement: 792a18p While the Integration is installed, please MUST NOT audit the cycle's mechanical corpus, MUST NOT map items to vault notes and MUST NOT show an audit list in its closing report, and the target's sentences that have it do so do not apply; the System performs the audit from the transcript ([793a3o Please's lessons audit and surfacing question are performed by the System](#793a3o-pleases-lessons-audit-and-surfacing-question-are-performed-by-the-system)), enumerating, mapping and handing off unmapped items as the target describes, and the user sees the counts of the audit's memory events in the System's summary ([793a5h A memory-activity summary is shown to the user](#793a5h-a-memory-activity-summary-is-shown-to-the-user)), while the per-item list stays in the log and the vault. The rest of the target applies unchanged. Where the Integration is not installed: Before the closing learn at step 7, please MUST audit the cycle's mechanical corpus: every pre-registered stop that fired, every gate FAIL verdict, every commit whose message contains CORRECTION, supersede or superseded, instrument-invalid, or redraw or redrawn, and every mid-cycle escalation to the user. It MUST map each item to the vault note that captures its lesson, or write the one-line "no lesson: <why>"; MUST treat an unmapped item as a reversal handoff for the closing learn ([792a15e The four kinds of explicit lesson](../../specs/product/learn.md#792a15e-the-four-kinds-of-explicit-lesson)); and MUST show the audit list (item → note or no-lesson) in the cycle's closing report to the user. It MUST NOT use the audit for positive reinforcement, which has no mechanical marker and belongs to the closing learn's confirmed-approach scan.
+Requirement: 792a18p While the Integration is installed, please is not required to audit the cycle's mechanical corpus, to map items to vault notes or to show an audit list in its closing report, and the target's sentences that have it do so do not apply; the System performs the audit from the transcript ([793a3o Please's lessons audit and surfacing question are performed by the System](#793a3o-pleases-lessons-audit-and-surfacing-question-are-performed-by-the-system)), enumerating, mapping and handing off unmapped items as the target describes, and the user sees the counts of the audit's memory events in the System's summary ([793a5h A memory-activity summary is shown to the user](#793a5h-a-memory-activity-summary-is-shown-to-the-user)), while the per-item list stays in the log and the vault. The rest of the target applies unchanged. Where the Integration is not installed: Before the closing learn at step 7, please MUST audit the cycle's mechanical corpus: every pre-registered stop that fired, every gate FAIL verdict, every commit whose message contains CORRECTION, supersede or superseded, instrument-invalid, or redraw or redrawn, and every mid-cycle escalation to the user. It MUST map each item to the vault note that captures its lesson, or write the one-line "no lesson: <why>"; MUST treat an unmapped item as a reversal handoff for the closing learn ([792a15e The four kinds of explicit lesson](../../specs/product/learn.md#792a15e-the-four-kinds-of-explicit-lesson)); and MUST show the audit list (item → note or no-lesson) in the cycle's closing report to the user. It MUST NOT use the audit for positive reinforcement, which has no mechanical marker and belongs to the closing learn's confirmed-approach scan.
 
 Rationale: The audit exists to feed a capture, so the System performs it where it captures. What the System does with an unmapped item is [793a3o Please's lessons audit and surfacing question are performed by the System](#793a3o-pleases-lessons-audit-and-surfacing-question-are-performed-by-the-system).
 
 #### 793a7o1 UAT Scenarios
 
 ```gherkin
-Scenario: 793a7o1d The Integration's please runs no audit
+Scenario: 793a7o1d The Integration's please is not asked to audit
   Given the Integration is installed and a cycle with one fired stop, one gate FAIL, one commit named CORRECTION and one escalation
   When please reaches its closing report
-  Then the transcript shows please enumerated and mapped no item
-  And the closing report carries no audit list
+  Then the transcript shows no request to please to enumerate or map any item
+  And the closing report is not asked to carry an audit list
 ```
 
 #### 793a7o2 Canonical scenarios with the Integration not installed
@@ -1974,17 +2025,17 @@ Each row is a Modified operation against one canonical scenario of [792a18p The 
 
 Target: [792a18q A lesson about to be captured asks what should have surfaced it](../../specs/product/please.md#792a18q-a-lesson-about-to-be-captured-asks-what-should-have-surfaced-it)
 
-Requirement: 792a18q While the Integration is installed, please captures no lesson, so it MUST NOT ask which existing artifact should have surfaced a lesson, MUST NOT search the vault for a covering note before writing one and MUST NOT reword a note whose situation line does not match, and the target's sentences that have it do so do not apply; the System asks and answers them where it captures lessons ([793a3o Please's lessons audit and surfacing question are performed by the System](#793a3o-pleases-lessons-audit-and-surfacing-question-are-performed-by-the-system)), under learn's own rules, and MUST show a proposal for a change that ships from the repository to the user, outside the working agent's context ([793a5i Messages the skills address to the user are shown to the user](#793a5i-messages-the-skills-address-to-the-user-are-shown-to-the-user)). Neither the System nor please MUST file such a change automatically. The rest of the target applies unchanged. Where the Integration is not installed: For each lesson the cycle is about to capture, please MUST ask which artifact that already existed should have surfaced it first, MUST search the vault for a note that already covers the situation before writing a new one, and MUST, when a note existed but did not surface at the moment it was needed, check whether its `situation:` line matches how the moment actually presented and reword the note when it does not, in preference to writing a second note on the same lesson. It MUST propose a change that ships from the repository (code, skills, guidance) only as a last resort, and MUST NOT file it automatically.
+Requirement: 792a18q While the Integration is installed, please captures no lesson, so it is not required to ask which existing artifact should have surfaced a lesson, to search the vault for a covering note before writing one, or to reword a note whose situation line does not match, and the target's sentences that have it do so do not apply; the System asks and answers them where it captures lessons ([793a3o Please's lessons audit and surfacing question are performed by the System](#793a3o-pleases-lessons-audit-and-surfacing-question-are-performed-by-the-system)), under learn's own rules, and MUST show a proposal for a change that ships from the repository to the user, outside the working agent's context ([793a5i Messages the skills address to the user are shown to the user](#793a5i-messages-the-skills-address-to-the-user-are-shown-to-the-user)). Neither the System nor please MUST file such a change automatically. The rest of the target applies unchanged. Where the Integration is not installed: For each lesson the cycle is about to capture, please MUST ask which artifact that already existed should have surfaced it first, MUST search the vault for a note that already covers the situation before writing a new one, and MUST, when a note existed but did not surface at the moment it was needed, check whether its `situation:` line matches how the moment actually presented and reword the note when it does not, in preference to writing a second note on the same lesson. It MUST propose a change that ships from the repository (code, skills, guidance) only as a last resort, and MUST NOT file it automatically.
 
 Rationale: The question, the search and the reword belong to capturing a lesson, which please no longer does; the System performs them, and tells the user what it proposes because the working agent is no longer the speaker.
 
 #### 793a7p1 UAT Scenarios
 
 ```gherkin
-Scenario: 793a7p1a The Integration's please asks, searches and rewords nothing
+Scenario: 793a7p1a The Integration's please is not asked to ask, search or reword
   Given the Integration is installed and a cycle that contained a lesson
   When please closes
-  Then the transcript shows please asked no which-artifact-should-have-surfaced-it question, ran no vault search for a covering note and reworded no note
+  Then the transcript shows no request to please to ask the which-artifact-should-have-surfaced-it question, to search the vault for a covering note or to reword a note
   And a note stating the lesson exists in the vault
 
 Scenario: 793a7p1b The Integration's please files no repository change
@@ -2008,9 +2059,9 @@ Each row is a Modified operation against one canonical scenario of [792a18q A le
 
 Target: [792a17k Each dispatch is also written to the vault as a tagged evidence note](../../specs/product/route.md#792a17k-each-dispatch-is-also-written-to-the-vault-as-a-tagged-evidence-note)
 
-Requirement: 792a17k While the Integration is installed, the orchestrator MUST NOT write the evidence note; the System MUST write it after each dispatch resolves ([793a3p Route's evidence writes are performed by the System](#793a3p-routes-evidence-writes-are-performed-by-the-system)), as one fact per dispatch with the slug `route-dispatch-<work-kind>`; exactly the three tag families `work-kind/<k>` (an open kebab-case set), `tier/<cheap|mid|deep>` and `outcome/<pass|fail>`, with duration and cost never becoming tags; the situation "routing <work-kind> work"; the subject "<work-kind> dispatch at <tier> (<model @ dispatch>)"; the predicate "resolved as"; an object that states the verdict, the reason, the escalation, the duration and the cost with their units; and the source "route dispatch record, <project>, <date>". Where the Integration is not installed: After each dispatch resolves, with the review verdict in hand, the orchestrator MUST hand a fact to the write-memory skill as a field handoff and not as a command it composes, with the slug `route-dispatch-<work-kind>`, the tags `work-kind/<k>`, `tier/<cheap|mid|deep>` and `outcome/<pass|fail>`, the situation "routing <work-kind> work", the subject "<work-kind> dispatch at <tier> (<model @ dispatch>)", the predicate "resolved as", an object that states the verdict, the reason, the escalation, the duration and the cost with their units, and the source "route dispatch record, <project>, <date>". It MUST state the fields as written and MUST NOT invent a flag for them. The tags MUST be the three closed families only, work-kind an open kebab-case set, tier and outcome closed sets; duration and cost MUST stay in the object prose and never become tags. Producing only the table row MUST NOT count as recording.
+Requirement: 792a17k While the Integration is installed, the orchestrator is not required to write the evidence note; the System MUST write it after each dispatch resolves ([793a3p Route's evidence writes are performed by the System](#793a3p-routes-evidence-writes-are-performed-by-the-system)), as one fact per dispatch with the slug `route-dispatch-<work-kind>`; exactly the three tag families `work-kind/<k>` (an open kebab-case set), `tier/<cheap|mid|deep>` and `outcome/<pass|fail>`, with duration and cost never becoming tags; the situation "routing <work-kind> work"; the subject "<work-kind> dispatch at <tier> (<model @ dispatch>)"; the predicate "resolved as"; an object that states the verdict, the reason, the escalation, the duration and the cost with their units; and the source "route dispatch record, <project>, <date>". Where the Integration is not installed: After each dispatch resolves, with the review verdict in hand, the orchestrator MUST hand a fact to the write-memory skill as a field handoff and not as a command it composes, with the slug `route-dispatch-<work-kind>`, the tags `work-kind/<k>`, `tier/<cheap|mid|deep>` and `outcome/<pass|fail>`, the situation "routing <work-kind> work", the subject "<work-kind> dispatch at <tier> (<model @ dispatch>)", the predicate "resolved as", an object that states the verdict, the reason, the escalation, the duration and the cost with their units, and the source "route dispatch record, <project>, <date>". It MUST state the fields as written and MUST NOT invent a flag for them. The tags MUST be the three closed families only, work-kind an open kebab-case set, tier and outcome closed sets; duration and cost MUST stay in the object prose and never become tags. Producing only the table row MUST NOT count as recording.
 
-Rationale: The evidence note is a measurement the System writes from the dispatch's report row, so the orchestrator writes no memory ([793a3p Route's evidence writes are performed by the System](#793a3p-routes-evidence-writes-are-performed-by-the-system)).
+Rationale: The evidence note is a measurement the System writes from the dispatch's report row, so the orchestrator is not required to write memory ([793a3p Route's evidence writes are performed by the System](#793a3p-routes-evidence-writes-are-performed-by-the-system)).
 
 #### 793a7q1 UAT Scenarios
 
@@ -2019,7 +2070,7 @@ Scenario: 793a7q1a The Integration writes a passing dispatch's evidence note
   Given the Integration is installed and a dispatch with a passing verdict whose report row is in the transcript
   When the row appears
   Then a fact tagged work-kind/<k>, tier/<t> and outcome/pass exists in the vault with the dispatch details in its object
-  And the transcript shows the orchestrator handed nothing to write-memory and wrote no note
+  And the transcript shows no request to the orchestrator to hand anything to write-memory or to write a note
 
 Scenario: 793a7q1b The Integration tags a failing dispatch fail with its escalation
   Given the Integration is installed and a dispatch that fails and escalates, whose report row is in the transcript
@@ -2052,7 +2103,7 @@ Each row is a Modified operation against one canonical scenario of [792a17k Each
 
 Target: [792a17l Each work-kind keeps one aggregate note](../../specs/product/route.md#792a17l-each-work-kind-keeps-one-aggregate-note)
 
-Requirement: 792a17l While the Integration is installed, the orchestrator MUST NOT write the aggregate; the System MUST keep it after the evidence note ([793a3p Route's evidence writes are performed by the System](#793a3p-routes-evidence-writes-are-performed-by-the-system)), so that each work-kind has exactly one aggregate fact whose slug is `route-evidence-<work-kind>` exactly (a note whose slug only begins with it is not the aggregate); the first dispatch creates it with a tier tally of 1/1 and a wikilink to the evidence note; each later dispatch amends it with the recomputed tier tally and the new evidence wikilink appended to the existing ones; it carries no work-kind, tier or outcome tag; and when more than one aggregate exists for a work-kind they are merged into one by uniting their evidence wikilinks and recomputing the tally from the evidence notes, and the incident is recorded as drowning-remedy evidence. Where the Integration is not installed: After the evidence note, the orchestrator MUST amend or create the aggregate fact `route-evidence-<work-kind>`, composing and running that write itself and not handing it to write-memory, which has no amend form; this is a stated, structurally forced exception to the write-site doctrine and the skill MUST say so. It MUST look the aggregate up with `engram query --lazy-chunks --phrase="route evidence <work-kind> tier tally"` and take a returned path as a match only when its basename, without `.md` and split on `.`, ends in a slug equal to `route-evidence-<work-kind>` exactly. On a match it MUST recompute the tally from the aggregate's current text plus this dispatch and run `engram amend --target <basename> --object="..."`, keeping the existing evidence wikilinks and appending the new one. On no match it MUST first run a uniqueness check, a listing of vault basenames matching `route-evidence-<work-kind>*` under the same exact rule, and create the aggregate (`engram learn fact --slug route-evidence-<work-kind> --position top`, with a tier tally of 1/1 and a wikilink to the evidence note) only when the check finds nothing; when it finds more than one, it MUST merge them by uniting their evidence wikilinks, recomputing the tally with the count commands of [792a17m Counting audits the tallies and never routes](../../specs/product/route.md#792a17m-counting-audits-the-tallies-and-never-routes), amending one into the merged aggregate and recording the incident as drowning-remedy evidence. An aggregate MUST NOT carry the work-kind, tier or outcome tags. Its wikilink list MUST be the append-only evidence trail. When recording a dispatch before the lookup has run, the orchestrator MUST state both candidate commands and not guess.
+Requirement: 792a17l While the Integration is installed, the orchestrator is not required to write the aggregate; the System MUST keep it after the evidence note ([793a3p Route's evidence writes are performed by the System](#793a3p-routes-evidence-writes-are-performed-by-the-system)), so that each work-kind has exactly one aggregate fact whose slug is `route-evidence-<work-kind>` exactly (a note whose slug only begins with it is not the aggregate); the first dispatch creates it with a tier tally of 1/1 and a wikilink to the evidence note; each later dispatch amends it with the recomputed tier tally and the new evidence wikilink appended to the existing ones; it carries no work-kind, tier or outcome tag; and when more than one aggregate exists for a work-kind they are merged into one by uniting their evidence wikilinks and recomputing the tally from the evidence notes, and the incident is recorded as drowning-remedy evidence. Where the Integration is not installed: After the evidence note, the orchestrator MUST amend or create the aggregate fact `route-evidence-<work-kind>`, composing and running that write itself and not handing it to write-memory, which has no amend form; this is a stated, structurally forced exception to the write-site doctrine and the skill MUST say so. It MUST look the aggregate up with `engram query --lazy-chunks --phrase="route evidence <work-kind> tier tally"` and take a returned path as a match only when its basename, without `.md` and split on `.`, ends in a slug equal to `route-evidence-<work-kind>` exactly. On a match it MUST recompute the tally from the aggregate's current text plus this dispatch and run `engram amend --target <basename> --object="..."`, keeping the existing evidence wikilinks and appending the new one. On no match it MUST first run a uniqueness check, a listing of vault basenames matching `route-evidence-<work-kind>*` under the same exact rule, and create the aggregate (`engram learn fact --slug route-evidence-<work-kind> --position top`, with a tier tally of 1/1 and a wikilink to the evidence note) only when the check finds nothing; when it finds more than one, it MUST merge them by uniting their evidence wikilinks, recomputing the tally with the count commands of [792a17m Counting audits the tallies and never routes](../../specs/product/route.md#792a17m-counting-audits-the-tallies-and-never-routes), amending one into the merged aggregate and recording the incident as drowning-remedy evidence. An aggregate MUST NOT carry the work-kind, tier or outcome tags. Its wikilink list MUST be the append-only evidence trail. When recording a dispatch before the lookup has run, the orchestrator MUST state both candidate commands and not guess.
 
 Rationale: The aggregate is kept by the System from the same row ([793a3p Route's evidence writes are performed by the System](#793a3p-routes-evidence-writes-are-performed-by-the-system)); the orchestrator writes none.
 
@@ -2063,13 +2114,13 @@ Scenario: 793a7r1a The Integration creates the first aggregate
   Given the Integration is installed, no aggregate exists for the work-kind and the uniqueness check finds nothing
   When the first dispatch's row appears in the transcript
   Then the System creates route-evidence-<work-kind> with the tally from that dispatch, a link to its evidence note and no tags
-  And the transcript shows the orchestrator wrote no aggregate
+  And the transcript shows no request to the orchestrator to write an aggregate
 
 Scenario: 793a7r1b The Integration amends a later aggregate
   Given the Integration is installed and an aggregate for the work-kind
   When a subsequent dispatch's row appears
   Then the System amends the aggregate, recomputes the tier tally and appends the new evidence wikilink while keeping the old ones
-  And the transcript shows the orchestrator wrote no aggregate
+  And the transcript shows no request to the orchestrator to write an aggregate
 
 Scenario: 793a7r1c The Integration does not take a longer slug for the aggregate
   Given the Integration is installed, a note whose slug only begins with route-evidence-<work-kind> and no aggregate for the work-kind
@@ -2108,7 +2159,7 @@ Target: [792a17d A memory-backed unit drops one tier](../../specs/product/route.
 
 Requirement: 792a17d While the Integration is installed, a unit whose needed knowledge is in the orchestrator's context from the System's recall (a known convention, a prior decision, a crystallized diagnostic) MUST be routed one tier cheaper than it otherwise would be, floored at the cheap tier. Where the Integration is not installed: A unit whose needed knowledge is recallable (a known convention, a prior decision, a crystallized diagnostic) MUST be routed one tier cheaper than it otherwise would be, floored at the cheap tier.
 
-Rationale: The orchestrator runs no recall, so knowledge is available to it only through what the System delivered ([793a2c Moments are noticed without the agent](#793a2c-moments-are-noticed-without-the-agent)).
+Rationale: The orchestrator is not required to run recall, so knowledge is available to it only through what the System delivered ([793a2c Moments are noticed without the agent](#793a2c-moments-are-noticed-without-the-agent)).
 
 #### 793a7s1 UAT Scenarios
 
@@ -2141,9 +2192,9 @@ Each row is a Modified operation against one canonical scenario of [792a17d A me
 
 Target: [792a17m Counting audits the tallies and never routes](../../specs/product/route.md#792a17m-counting-audits-the-tallies-and-never-routes)
 
-Requirement: 792a17m While the Integration is installed, the orchestrator MUST NOT run `engram count` and MUST NOT amend any aggregate. After each aggregate write ([793a3p Route's evidence writes are performed by the System](#793a3p-routes-evidence-writes-are-performed-by-the-system)) the System MUST recompute the work-kind's tier tallies from the evidence notes' `tier/` and `outcome/` tags, the numerators from the notes that passed at each tier and the denominators from all notes at that tier, and MUST amend the aggregate to the recomputed numbers when it disagrees. The recount MUST NOT be used on the read path or to route, and MUST NOT take the tier from the note-tier frontmatter field (L1, L2, L3) in place of the `tier/` tag family. Where the Integration is not installed: The orchestrator MUST recompute aggregate tallies from the evidence notes' tags with `engram count --group-by tags --filter tags=tier/<t> --filter tags=outcome/pass` for the numerators and `engram count --group-by tags --filter tags=tier/<t>` for the denominators (reading the `work-kind/<k>` rows), or with `--filter tags=work-kind/<k> --filter tags=tier/<t>` and the `total:` line for one kind, when a tally is doubted and at periodic consolidation, and MUST amend an aggregate that disagrees to the recomputed numbers. It MUST NOT use count on the read path, MUST NOT group by `work-kind` (a tag value, not an attribute), and MUST NOT use `--group-by tier`, which runs without error but groups the note-tier frontmatter field (L1, L2, L3) and not the `tier/` tag family.
+Requirement: 792a17m While the Integration is installed, the orchestrator is not required to run `engram count` or to amend any aggregate. After each aggregate write ([793a3p Route's evidence writes are performed by the System](#793a3p-routes-evidence-writes-are-performed-by-the-system)) the System MUST recompute the work-kind's tier tallies from the evidence notes' `tier/` and `outcome/` tags, the numerators from the notes that passed at each tier and the denominators from all notes at that tier, and MUST amend the aggregate to the recomputed numbers when it disagrees. The recount MUST NOT be used on the read path or to route, and MUST NOT take the tier from the note-tier frontmatter field (L1, L2, L3) in place of the `tier/` tag family. Where the Integration is not installed: The orchestrator MUST recompute aggregate tallies from the evidence notes' tags with `engram count --group-by tags --filter tags=tier/<t> --filter tags=outcome/pass` for the numerators and `engram count --group-by tags --filter tags=tier/<t>` for the denominators (reading the `work-kind/<k>` rows), or with `--filter tags=work-kind/<k> --filter tags=tier/<t>` and the `total:` line for one kind, when a tally is doubted and at periodic consolidation, and MUST amend an aggregate that disagrees to the recomputed numbers. It MUST NOT use count on the read path, MUST NOT group by `work-kind` (a tag value, not an attribute), and MUST NOT use `--group-by tier`, which runs without error but groups the note-tier frontmatter field (L1, L2, L3) and not the `tier/` tag family.
 
-Rationale: The aggregate is kept by the System ([793a3p Route's evidence writes are performed by the System](#793a3p-routes-evidence-writes-are-performed-by-the-system)), so the audit that repairs it is the System's too; the orchestrator runs no count and amends nothing.
+Rationale: The aggregate is kept by the System ([793a3p Route's evidence writes are performed by the System](#793a3p-routes-evidence-writes-are-performed-by-the-system)), so the audit that repairs it is the System's too; the orchestrator is not required to run a count or amend anything.
 
 #### 793a7t1 UAT Scenarios
 
@@ -2152,13 +2203,13 @@ Scenario: 793a7t1a The System recounts after an aggregate write
   Given the Integration is installed and a work-kind with evidence notes
   When an aggregate write for the work-kind completes
   Then the log records the System's count of the evidence tags for the work-kind and tier
-  And the transcript shows the orchestrator ran no engram count
+  And the transcript shows no request to the orchestrator to run engram count
 
 Scenario: 793a7t1b The System repairs a drifted aggregate
   Given the Integration is installed and an aggregate whose prose tally disagrees with the evidence notes' tags
   When an aggregate write for the work-kind completes
   Then the aggregate in the vault now carries the recomputed numbers
-  And the transcript shows the orchestrator amended no aggregate
+  And the transcript shows no request to the orchestrator to amend an aggregate
 
 Scenario: 793a7t1c The recount reads the tier tags and not the note tier
   Given the Integration is installed, evidence notes tagged tier/cheap and outcome/pass whose frontmatter tier is L2, and an aggregate that disagrees with their count
@@ -2181,7 +2232,7 @@ Each row is a Modified operation against one canonical scenario of [792a17m Coun
 
 Target: [792a17n Drowning is reported, not patched](../../specs/product/route.md#792a17n-drowning-is-reported-not-patched)
 
-Requirement: 792a17n While the Integration is installed, the orchestrator MUST NOT run the aggregate lookup. After each aggregate write ([793a3p Route's evidence writes are performed by the System](#793a3p-routes-evidence-writes-are-performed-by-the-system)) the System MUST confirm that the aggregate's path still surfaces for the work-kind in the items or in any cluster's candidates, and when it does not, MUST show the pre-registered drowning report to the user, outside the working agent's context ([793a5i Messages the skills address to the user are shown to the user](#793a5i-messages-the-skills-address-to-the-user-are-shown-to-the-user)), and MUST NOT patch the skill ad hoc. Where the Integration is not installed: At the same moments as the count audit, the orchestrator MUST run the aggregate lookup for a work-kind with many evidence notes and confirm that the aggregate's path still surfaces in the items or in any cluster's candidates; when it does not, it MUST report the pre-registered drowning case and MUST NOT patch the skill ad hoc.
+Requirement: 792a17n While the Integration is installed, the orchestrator is not required to run the aggregate lookup. After each aggregate write ([793a3p Route's evidence writes are performed by the System](#793a3p-routes-evidence-writes-are-performed-by-the-system)) the System MUST confirm that the aggregate's path still surfaces for the work-kind in the items or in any cluster's candidates, and when it does not, MUST show the pre-registered drowning report to the user, outside the working agent's context ([793a5i Messages the skills address to the user are shown to the user](#793a5i-messages-the-skills-address-to-the-user-are-shown-to-the-user)), and MUST NOT patch the skill ad hoc. Where the Integration is not installed: At the same moments as the count audit, the orchestrator MUST run the aggregate lookup for a work-kind with many evidence notes and confirm that the aggregate's path still surfaces in the items or in any cluster's candidates; when it does not, it MUST report the pre-registered drowning case and MUST NOT patch the skill ad hoc.
 
 Rationale: The lookup belongs to the aggregate's keeper. The report is one of the messages shown to the user ([793a5i Messages the skills address to the user are shown to the user](#793a5i-messages-the-skills-address-to-the-user-are-shown-to-the-user)), because the working agent is no longer the speaker.
 
@@ -2193,7 +2244,7 @@ Scenario: 793a7u1a The System finds the aggregate among the results
   When an aggregate write for the work-kind completes
   Then the log records that the aggregate's path surfaced
   And the user is shown no drowning report
-  And the transcript shows the orchestrator ran no aggregate lookup
+  And the transcript shows no request to the orchestrator to run the aggregate lookup
 
 Scenario: 793a7u1b A missing aggregate is shown to the user, not patched
   Given the Integration is installed and a lookup in which a known aggregate does not surface
@@ -2247,13 +2298,13 @@ Each row is a Modified operation against one canonical scenario of [792a19s A si
 
 ## 793a8 Modified: recall (the plan, synthesis and re-entry check are the agent's, and the persisting of conclusions is the System's, while the Integration is installed)
 
-Canonical target: [recall](../../specs/product/recall.md). Each operation follows the conventions of [793a6 lessons-contract (the LESSONS line is replaced while the Integration is installed)](#793a6-modified-lessons-contract-the-lessons-line-is-replaced-while-the-integration-is-installed): it is a Modified operation against exactly one canonical node, conditional on the Integration and evaluated per harness and per agent session; its target's ID is preserved; the Integration branch states only what differs; its group ending in 1 covers the Integration branch, and its group ending in 2 holds the canonical scenarios whose outcome differs, prefixed with "Given the Integration is not installed". The target of each operation is a step that the System does not perform for the working agent ([793a2n Recall is performed for the working agent](#793a2n-recall-is-performed-for-the-working-agent)), so a session in a harness without the Integration follows the target's text unchanged.
+Canonical target: [recall](../../specs/product/recall.md). Each operation follows the conventions of [793a6 lessons-contract (the LESSONS line is replaced while the Integration is installed)](#793a6-modified-lessons-contract-the-lessons-line-is-replaced-while-the-integration-is-installed): it is a Modified operation against exactly one canonical node, conditional on the Integration and evaluated per harness and per agent session; its target's ID is preserved; the Integration branch states only what differs; its group ending in 1 covers the Integration branch, and its group ending in 2 holds the canonical scenarios whose outcome differs, prefixed with "Given the Integration is not installed". The target of each operation is a step that the System does not perform for the working agent ([793a2n Recall is performed for the working agent](#793a2n-recall-is-performed-for-the-working-agent)), so a session in a harness without the Integration follows the target's text unchanged. A recall that the working agent runs intentionally follows the target unchanged, whatever the branch.
 
 ### 793a8a Modified: The plan is stated before anything is retrieved
 
 Target: [792a14a The plan is stated before anything is retrieved](../../specs/product/recall.md#792a14a-the-plan-is-stated-before-anything-is-retrieved)
 
-Requirement: 792a14a While the Integration is installed, the System MUST NOT state recall's plan, and the working agent MUST NOT be asked to print the Ask, the Situation and the Plan; the agent works the delivered results into the plan it already has ([793a2n Recall is performed for the working agent](#793a2n-recall-is-performed-for-the-working-agent)). Where the Integration is not installed: Recall MUST print, before any `engram` call, three blocks in plain prose: the Ask (what is being asked, in the agent's own words, in one or two sentences), the Situation (the concrete context, such as the repository, the branch, the operation underway and what is loaded) and the Plan (the numbered actions the agent would take next absent any guidance from memory).
+Requirement: 792a14a While the Integration is installed, the System MUST NOT state recall's plan, and the working agent is not required to print the Ask, the Situation and the Plan; the agent works the delivered results into the plan it already has ([793a2n Recall is performed for the working agent](#793a2n-recall-is-performed-for-the-working-agent)). Where the Integration is not installed: Recall MUST print, before any `engram` call, three blocks in plain prose: the Ask (what is being asked, in the agent's own words, in one or two sentences), the Situation (the concrete context, such as the repository, the branch, the operation underway and what is loaded) and the Plan (the numbered actions the agent would take next absent any guidance from memory).
 
 Rationale: The plan is the agent's own, in its reasoning; the System does not have the context to state it.
 
@@ -2280,7 +2331,7 @@ Each row is a Modified operation against one canonical scenario of [792a14a The 
 
 Target: [792a14m The closing synthesis says whether memory changed the plan](../../specs/product/recall.md#792a14m-the-closing-synthesis-says-whether-memory-changed-the-plan)
 
-Requirement: 792a14m While the Integration is installed, the working agent's response MUST say how the delivered results changed its plan, or that they did not, in place of the opening count and of the walk through the Step 0 plan, and MUST NOT open with a count of what was surfaced or crystallized, which the summary carries ([793a5h A memory-activity summary is shown to the user](#793a5h-a-memory-activity-summary-is-shown-to-the-user)). The rest of the target applies unchanged. Where the Integration is not installed: Recall MUST close with a synthesis shown to the user that opens with one sentence counting what the query surfaced and what was crystallized ("Query surfaced N items (K chunks, M notes); crystallized J lessons."), walks the Step 0 plan in order marking each numbered action confirmed, adjusted (and how), contradicted or silent, leads the load-bearing conventions with "Apply these as requirements:" drawn from lessons and chunk evidence alike, and surfaces contradictions inline where they affect the action. It MUST NOT dump the payload, MUST NOT paste whole chunks or list raw scores or paths, and MUST be one sentence when memory was silent on everything.
+Requirement: 792a14m While the Integration is installed, the working agent's response to results the System delivered MUST say how they changed its plan, or that they did not, in place of the opening count and of the walk through the Step 0 plan, and MUST NOT open with a count of what was surfaced or crystallized, which the summary carries ([793a5h A memory-activity summary is shown to the user](#793a5h-a-memory-activity-summary-is-shown-to-the-user)). The rest of the target applies unchanged. Where the Integration is not installed: Recall MUST close with a synthesis shown to the user that opens with one sentence counting what the query surfaced and what was crystallized ("Query surfaced N items (K chunks, M notes); crystallized J lessons."), walks the Step 0 plan in order marking each numbered action confirmed, adjusted (and how), contradicted or silent, leads the load-bearing conventions with "Apply these as requirements:" drawn from lessons and chunk evidence alike, and surfaces contradictions inline where they affect the action. It MUST NOT dump the payload, MUST NOT paste whole chunks or list raw scores or paths, and MUST be one sentence when memory was silent on everything.
 
 Rationale: The agent, which has the context, gives the account that the synthesis gave; the count is the System's ([793c50 Does recall's synthesis to the user (792a14m) still apply, and who shows it?](793c_open-questions.md#793c50-does-recalls-synthesis-to-the-user-792a14m-still-apply-and-who-shows-it), [793c53 What asks the agent for the synthesis now that the recall skill is gone, and what becomes of the Re-entry line?](793c_open-questions.md#793c53-what-asks-the-agent-for-the-synthesis-now-that-the-recall-skill-is-gone-and-what-becomes-of-the-re-entry-line)).
 
@@ -2308,9 +2359,9 @@ Each row is a Modified operation against one canonical scenario of [792a14m The 
 
 Target: [792a14o An emergent recommendation is checked against the vault](../../specs/product/recall.md#792a14o-an-emergent-recommendation-is-checked-against-the-vault)
 
-Requirement: 792a14o While the Integration is installed, the working agent MUST NOT run a re-entry query and MUST NOT carry a `Re-entry:` line: the System's recall at the moment before the agent endorses or ranks an approach ([792a19a Recall fires at four decision moments](../../specs/product/ambient-guidance.md#792a19a-recall-fires-at-four-decision-moments)) is the vault check. A recommendation that a delivered note records as rolled back, rejected or superseded MUST be withdrawn, with the response saying what replaces it, unless the agent names new evidence that did not exist when the note was written, and re-weighing the note's own tradeoffs MUST NOT count as new evidence. Where the Integration is not installed: Before the synthesis is shown, when it is about to ship a recommendation, lever or approach, named as the thing to do, that does not appear in the Step 0 plan, recall MUST run one more `engram query --lazy-chunks` keyed to the recommendation itself with three phrases (the recommendation in its own words, the recommendation with "rolled back rejected not worth it superseded", and the recommendation with "tried measured outcome"), applying the recency weight to what returns. The synthesis MUST carry one `Re-entry:` line per emergent recommendation directly above the final recommendation statement, in one of three forms: clean (with the best-match basename or "no items"), CLOSED with the prior outcome and "drop", or CLOSED with the prior outcome and "revisit because" named new evidence. A recommendation MUST NOT ship without its line. A CLOSED recommendation marked drop MUST be withdrawn, with the synthesis saying what replaces it. A revisit MUST be valid only with new evidence that did not exist when the note was written, and re-weighing the note's own tradeoffs MUST NOT count. A note this query surfaced and the agent cites MUST be included in the activation, which MUST run again if it already ran. The step MUST run in both modes.
+Requirement: 792a14o While the Integration is installed, the working agent is not required to run a re-entry query or to carry a `Re-entry:` line, and MAY run one intentionally: the System's recall at the moment before the agent endorses or ranks an approach ([792a19a Recall fires at four decision moments](../../specs/product/ambient-guidance.md#792a19a-recall-fires-at-four-decision-moments)) is the vault check. A recommendation that a delivered note records as rolled back, rejected or superseded MUST be withdrawn, with the response saying what replaces it, unless the agent names new evidence that did not exist when the note was written, and re-weighing the note's own tradeoffs MUST NOT count as new evidence. Where the Integration is not installed: Before the synthesis is shown, when it is about to ship a recommendation, lever or approach, named as the thing to do, that does not appear in the Step 0 plan, recall MUST run one more `engram query --lazy-chunks` keyed to the recommendation itself with three phrases (the recommendation in its own words, the recommendation with "rolled back rejected not worth it superseded", and the recommendation with "tried measured outcome"), applying the recency weight to what returns. The synthesis MUST carry one `Re-entry:` line per emergent recommendation directly above the final recommendation statement, in one of three forms: clean (with the best-match basename or "no items"), CLOSED with the prior outcome and "drop", or CLOSED with the prior outcome and "revisit because" named new evidence. A recommendation MUST NOT ship without its line. A CLOSED recommendation marked drop MUST be withdrawn, with the synthesis saying what replaces it. A revisit MUST be valid only with new evidence that did not exist when the note was written, and re-weighing the note's own tradeoffs MUST NOT count. A note this query surfaced and the agent cites MUST be included in the activation, which MUST run again if it already ran. The step MUST run in both modes.
 
-Rationale: The agent runs no memory command ([793a2k The working agent does not run recall or learn](#793a2k-the-working-agent-does-not-run-recall-or-learn)), so the check is the System's recall, and the agent reconciles against what was delivered ([793c49 Does the agent run recall's re-entry query (792a14o) while the Integration is installed?](793c_open-questions.md#793c49-does-the-agent-run-recalls-re-entry-query-792a14o-while-the-integration-is-installed), [793c53 What asks the agent for the synthesis now that the recall skill is gone, and what becomes of the Re-entry line?](793c_open-questions.md#793c53-what-asks-the-agent-for-the-synthesis-now-that-the-recall-skill-is-gone-and-what-becomes-of-the-re-entry-line)).
+Rationale: The agent is not required to run any memory command ([793a2k Automatic memory does not require the agent, and intentional memory stays available](#793a2k-automatic-memory-does-not-require-the-agent-and-intentional-memory-stays-available)), so the check is the System's recall, and the agent reconciles against what was delivered ([793c49 Does the agent run recall's re-entry query (792a14o) while the Integration is installed?](793c_open-questions.md#793c49-does-the-agent-run-recalls-re-entry-query-792a14o-while-the-integration-is-installed), [793c53 What asks the agent for the synthesis now that the recall skill is gone, and what becomes of the Re-entry line?](793c_open-questions.md#793c53-what-asks-the-agent-for-the-synthesis-now-that-the-recall-skill-is-gone-and-what-becomes-of-the-re-entry-line)).
 
 #### 793a8c1 UAT Scenarios
 
@@ -2320,8 +2371,7 @@ Scenario: 793a8c1a A closed recommendation is withdrawn
   And the agent is about to recommend that approach, which its plan did not contain
   When the agent responds
   Then the response recommends something else and says what replaces the approach
-  And the response carries no Re-entry line
-  And the transcript shows the agent ran no engram query
+  And the transcript shows no request to the agent to run an engram query
 
 Scenario: 793a8c1b A revisit needs new evidence
   Given the Integration is installed, a delivered note recording that an approach was rejected and no evidence newer than the note
@@ -2401,47 +2451,6 @@ Each row is a Modified operation against one canonical scenario of [792a14q A ci
 ## 793a9 Modified: install-and-update and ambient-guidance (what is deployed to Claude Code while the Integration is installed)
 
 Canonical targets: [install-and-update](../../specs/product/install-and-update.md) and [ambient-guidance](../../specs/product/ambient-guidance.md). Each operation follows the conventions of [793a6 lessons-contract (the LESSONS line is replaced while the Integration is installed)](#793a6-modified-lessons-contract-the-lessons-line-is-replaced-while-the-integration-is-installed): it is a Modified operation against exactly one canonical node, conditional on the Integration, so Pi and every harness without the Integration follow the target's text unchanged ([793a5c Environments without the capability](#793a5c-environments-without-the-capability)); its target's ID is preserved; the Integration branch states only what differs; its group ending in 1 covers the Integration branch, and its group ending in 2 holds the canonical scenarios whose outcome differs, prefixed with "Given the Integration is not installed". The Claude Code setup these operations describe is the one that [793a4h Installed by engram update](#793a4h-installed-by-engram-update) requires.
-
-### 793a9a Modified: Skills are deployed to an engram-owned root and linked
-
-Target: [792a11h Skills are deployed to an engram-owned root and linked](../../specs/product/install-and-update.md#792a11h-skills-are-deployed-to-an-engram-owned-root-and-linked)
-
-Requirement: 792a11h While the Integration is installed, `engram update` MUST NOT copy the `recall` and `learn` skills into Claude Code's engram root or link them from `~/.claude/skills`, and MUST remove them and their links where an earlier install deployed them. The rest of the target applies unchanged. Where the Integration is not installed: `engram update` MUST copy every file under `agent-instructions/skills/` of the source into the `skills/` subtree of the harness's engram-owned root (`~/.claude/engram/` for Claude Code, `~/.pi/agent/engram/` for Pi), creating a missing file and overwriting a different one, and MUST make `~/.claude/skills/<skill>` and `~/.pi/agent/skills/<skill>` each a symbolic link to that skill's directory in the root, one link per skill directory, never a copy. It MUST repoint a link that points anywhere else, and MUST leave a correct link alone. Its report MUST list each skill as `agent-instructions/skills/<skill>/ → <skills dir>/<skill>/  (<N> file[s])`, then `installed: <harnesses>`.
-
-Rationale: The agent is not given skills for work the System does ([793c46 On Claude Code with the Integration installed, does engram update still deploy the recall and learn skills and guidance files?](793c_open-questions.md#793c46-on-claude-code-with-the-integration-installed-does-engram-update-still-deploy-the-recall-and-learn-skills-and-guidance-files), [793c51 How does the Claude Code agent learn to apply delivered memory once the shim is gone?](793c_open-questions.md#793c51-how-does-the-claude-code-agent-learn-to-apply-delivered-memory-once-the-shim-is-gone)).
-
-#### 793a9a1 UAT Scenarios
-
-```gherkin
-Scenario: 793a9a1a Claude Code's skills exclude recall and learn
-  Given the source holds the skills recall, learn and route, and ~/.claude exists
-  And the Integration is installed
-  When the user runs engram update
-  Then ~/.claude/skills/route is a symbolic link to the skills/route directory of ~/.claude/engram
-  And ~/.claude/skills holds no recall or learn
-  And the report lists route for Claude Code and neither recall nor learn
-
-Scenario: 793a9a1b Pi's skills are unaffected
-  Given ~/.claude and ~/.pi both exist and the Integration is installed for Claude Code
-  When the user runs engram update
-  Then ~/.pi/agent/skills/recall and ~/.pi/agent/skills/learn are symbolic links into ~/.pi/agent/engram
-
-Scenario: 793a9a1c An earlier deployment is removed
-  Given an earlier install linked ~/.claude/skills/recall and ~/.claude/skills/learn into ~/.claude/engram
-  When the user runs engram update
-  Then both links are gone
-  And ~/.claude/engram holds no skills/recall or skills/learn
-```
-
-#### 793a9a2 Canonical scenarios with the Integration not installed
-
-Each row is a Modified operation against one canonical scenario of [792a11h Skills are deployed to an engram-owned root and linked](../../specs/product/install-and-update.md#792a11h-skills-are-deployed-to-an-engram-owned-root-and-linked) whose outcome differs when the Integration is installed: the replacement text is the canonical scenario prefixed with "Given the Integration is not installed", and the target's ID is preserved. The target's other canonical scenarios hold in both branches and are unmodified.
-
-| Operation | Target scenario | Replacement scenario |
-| --- | --- | --- |
-| 793a9a2a | [792a11h1a A skill deploys as a directory link](../../specs/product/install-and-update.md#792a11h1-uat-scenarios) | Scenario: 792a11h1a A skill deploys as a directory link<br>Given the Integration is not installed<br>And the source holds skill recall and a symlink-mode harness whose skills dir is ~/.claude/skills<br>When the user runs engram update<br>Then ~/.claude/skills/recall is a symbolic link to the skills/recall directory of ~/.claude/engram, and its SKILL.md is readable through the link |
-| 793a9a2b | [792a11h1c A link that points elsewhere is repointed](../../specs/product/install-and-update.md#792a11h1-uat-scenarios) | Scenario: 792a11h1c A link that points elsewhere is repointed<br>Given the Integration is not installed<br>And ~/.claude/skills/recall is a symbolic link to a different directory<br>When the user runs engram update<br>Then it is a link to the engram root's skills/recall |
-| 793a9a2c | [792a11h1d The report lists each skill and its file count](../../specs/product/install-and-update.md#792a11h1-uat-scenarios) | Scenario: 792a11h1d The report lists each skill and its file count<br>Given the Integration is not installed<br>And a source skill learn with 3 files and recall with 1<br>When the user runs engram update<br>Then the report lists "agent-instructions/skills/learn/ → ~/.claude/skills/learn/  (3 files)" and "... recall/ → ...  (1 file)" |
 
 ### 793a9b Modified: Guidance is managed only after opt-in
 
