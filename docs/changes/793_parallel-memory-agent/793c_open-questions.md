@@ -103,7 +103,7 @@ answers.
 
 ## 793c10 What is the default mode for an existing install that updates?
 
-- **Status:** superseded by [793c12 Are operating modes needed at all?](#793c12-are-operating-modes-needed-at-all), pending its answer.
+- **Status:** retired by [793c12 Are operating modes needed at all?](#793c12-are-operating-modes-needed-at-all) (Joe, 2026-10-11): there are no modes.
 - **Context:** [793a4e Operating modes and measurement](793a_product-spec.md#793a4e-operating-modes-and-measurement) makes active the default for a fresh install ([793c3 What is the default mode for a fresh install?](793c_open-questions.md#793c3-what-is-the-default-mode-for-a-fresh-install)). An existing install that updates has its own mode choice, and an update could start writing to its vault.
 - **Options:**
   - (a) active.
@@ -125,7 +125,7 @@ answers.
 
 ## 793c12 Are operating modes needed at all?
 
-- **Status:** open.
+- **Status:** answered (Joe, 2026-10-11): (a) remove modes; the System is active whenever installed, measurement is always recorded, and disabling or uninstalling turns it off.
 - **Context:** [793a4e Operating modes and measurement](793a_product-spec.md#793a4e-operating-modes-and-measurement) carries the draft's off/observe/active modes (formerly CTL-1). Joe asked (2026-10-11) why not keep today's behavior: if the integration is installed, it is active. The draft's reasons for modes were an observe-first rollout (measure before injecting or writing) and an emergency off switch without uninstalling. Joe's later answers remove the first need: default active ([793c3 What is the default mode for a fresh install?](#793c3-what-is-the-default-mode-for-a-fresh-install)), measurement always recorded ([793c7 Review answers (2026-10-11)](#793c7-review-answers-2026-10-11)), and direct writes with git as the fallback. Disabling or uninstalling the integration covers the second need.
 - **Options:**
   - (a) Remove modes. The System is active whenever it is installed, measurement is always recorded, and disabling or uninstalling the integration turns it off. 793a4e, its scenarios and [793c10 What is the default mode for an existing install that updates?](#793c10-what-is-the-default-mode-for-an-existing-install-that-updates) are retired.
