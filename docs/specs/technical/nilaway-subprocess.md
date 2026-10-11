@@ -5,6 +5,10 @@ environment. Choosing the arguments is [NilAway Invocation Policy](./nilaway-inv
 and routing entry points to the request is the
 [Nil Check Run Flow](./nil-check-run-flow.md).
 
+Its contract is the boundary with a real NilAway process, so its direct contract tests are
+integration tests (`//go:build integration`). They start a stand-in `nilaway` on PATH that reports
+its arguments and environment, rather than the real analyzer.
+
 ## 794b4c Run NilAway
 
 Requirement: 794b4c The NilAway subprocess MUST start NilAway with the request's arguments and the
