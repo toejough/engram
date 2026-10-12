@@ -2480,6 +2480,7 @@ New IDs: `793a2c1d`, `793a3o`, `793a3o1` with `793a3o1a`..`793a3o1d`, [793a3p Di
 - **Alternatives:** `$.model.fork` (the main conversation only, and the session's expensive model), `claude -p` (a real session with a transcript, the user's global instructions and the mod loaded again).
 
 - **Amended by:** [793b212 The judgement model is the session's own model; a cheaper model is a follow-up under #850](#793b212-the-judgement-model-is-the-sessions-own-model-a-cheaper-model-is-a-follow-up-under-850): the model is the session's own, not a constant `haiku`; a cheaper model is a follow-up under #850.
+- **Amended by:** [793b224 Judgement runs on the cheapest capable tier](#793b224-judgement-runs-on-the-cheapest-capable-tier): the model is again a cheap one, now named per request kind by a configurable table (default the `haiku` family) rather than one constant.
 
 ## 793b197 The Go side is stateless and advances a job one round per call
 
@@ -2698,6 +2699,7 @@ New IDs (checked with `git log -S`: unused): `793d2a1g`, `793d2b1j`, `793d3a1f`,
 - **Rationale:** today the agent runs the learn, recall and curate skills in its own model, so the session's model is today's behavior; a cheaper model is a cost and quality change that needs the measurement #850 plans, and the decision belongs to the owner.
 - **Alternatives:** `haiku` as a constant (cheaper, unmeasured for these judgements).
 - **Amends:** [793b196 Judgement runs as relayed model completions, not sessions](#793b196-judgement-runs-as-relayed-model-completions-not-sessions).
+- **Amended by:** [793b224 Judgement runs on the cheapest capable tier](#793b224-judgement-runs-on-the-cheapest-capable-tier): reversed; the session's own model is not used for judgement.
 
 ## 793b213 Author decisions in applying the review: ledger, capture input, task and curation
 
@@ -2787,3 +2789,11 @@ New IDs (checked with `git log -S`: unused): `793d2a1g`, `793d2b1j`, `793d3a1f`,
 - **Rationale:** [793b210 ID map for the review of the technical spec](#793b210-id-map-for-the-review-of-the-technical-spec) retired the install flow as a restatement of the deploy requirement; the owner wants the flow visible, and the check and the report belong to a flow that spans the Self Installer, Harness Deploy Sync and the Claude Code CLI.
 - **Alternatives:** leave the install covered by [793d10a Mod deploy](./793d_technical-spec.md#793d10a-mod-deploy) alone (rejected by the owner).
 - **Amends:** [793b210 ID map for the review of the technical spec](#793b210-id-map-for-the-review-of-the-technical-spec) (row `793d2d`: the ID stays retired, and the flow returns under a new ID).
+
+## 793b224 Judgement runs on the cheapest capable tier
+
+- **Decided by:** Owner (Joe, 2026-10-12), in the walkthrough of [793d2b Turn memory work](./793d_technical-spec.md#793d2b-turn-memory-work): every System task that needs model judgement (lesson and conclusion extraction, the covered or absent reconcile, curation outcomes, the authoring of a skill-runbook note, and any other request the mod relays) MUST go to the least capable model tier that can handle that kind of judgement, not the session's model.
+- **Choice:** each request the Go side builds names a `model`, taken from one configurable table, `judgeTiers`, keyed by request kind (`extraction`, which also judges the conclusions, `reconcile`, `curation`); the default for every kind is the cheapest tier available to the session (the `haiku` family), with no dated id in the spec. The mod relays `$.model.complete` with the request's model and never substitutes the session's. A kind is raised only on measured evidence that the cheapest tier fails it, and #850 measures judgement quality per kind and is the only path to a raise ([793d4a A job in rounds](./793d_technical-spec.md#793d4a-a-job-in-rounds), [793d1a What the design relies on in Claude Code mods](./793d_technical-spec.md#793d1a-what-the-design-relies-on-in-claude-code-mods) row 18; verified in the mods API docs and declarations that `model` takes an alias such as `haiku` or a full id).
+- **Rationale:** the automatic System must be as fast and as cheap as possible; the engram eval validated a haiku-family tier at parity with a top tier on subtle lesson-sifting, and routing is by capability tier, not model name, with only measured evidence raising a tier (as route does).
+- **Alternatives:** the session's own model (rejected by the owner; it was [793b212 The judgement model is the session's own model; a cheaper model is a follow-up under #850](#793b212-the-judgement-model-is-the-sessions-own-model-a-cheaper-model-is-a-follow-up-under-850)); one global constant (no per-kind raise).
+- **Amends:** [793b212 The judgement model is the session's own model; a cheaper model is a follow-up under #850](#793b212-the-judgement-model-is-the-sessions-own-model-a-cheaper-model-is-a-follow-up-under-850), [793b196 Judgement runs as relayed model completions, not sessions](#793b196-judgement-runs-as-relayed-model-completions-not-sessions).
