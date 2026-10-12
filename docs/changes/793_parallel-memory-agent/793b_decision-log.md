@@ -2581,6 +2581,8 @@ New IDs: `793a2c1d`, `793a3o`, `793a3o1` with `793a3o1a`..`793a3o1d`, `793a3p`, 
 - **Rationale:** these are the documented ways to check a mod without a session ([Create a mod](https://code.claude.com/docs/en/plugins/mods/create.md), [Test a mod](https://code.claude.com/docs/en/plugins/mods/test.md)); `claude plugin test` runs without a sign-in or a network.
 - **Alternatives:** a Go test that starts `claude` (a live session and a network); no mod tests (the adapter is the only code the Go gates do not cover).
 
+- **Amended by:** [793b236 The mod is validated and tested through the existing integration gate, not a new check target](#793b236-the-mod-is-validated-and-tested-through-the-existing-integration-gate-not-a-new-check-target): the `check-mod` target and its place in `check-full` are withdrawn; the same two commands run from an `integration`-tagged Go test.
+
 ## 793b207 Late delivery at stop is a MAY and nothing else is late
 
 - **Decided by:** Author (agent); awaiting owner validation.
@@ -2741,9 +2743,11 @@ New IDs (checked with `git log -S`: unused): `793d2a1g`, `793d2b1j`, `793d3a1f`,
 ## 793b214 check-mod is part of check-full and check-for-fail
 
 - **Decided by:** Orchestrator (under owner rules; shown in walkthrough).
-- **Choice:** `check-mod` (`claude plugin validate` and `claude plugin test` on the mod) is a dependency of `check-full` and `check-for-fail`, and fails, not skips, when the Claude Code CLI is unavailable. [793d15a Modified: Preserve entry points](./793d_technical-spec.md#793d15a-modified-preserve-entry-points) modifies `794b4a` to permit it, and `Test794b4a1c` in `dev/nilaway_internal_test.go` is updated.
+- **Choice:** `check-mod` (`claude plugin validate` and `claude plugin test` on the mod) is a dependency of `check-full` and `check-for-fail`, and fails, not skips, when the Claude Code CLI is unavailable. `793d15a` (retired in 793b236) modified `794b4a` to permit it, and `Test794b4a1c` in `dev/nilaway_internal_test.go` is updated.
 - **Rationale:** the repository says to use `check-full` to get all errors at once and allows no silent skips; the Claude Code CLI is already a development dependency of this repository's workflow. This is the question the review raised as Q5.
 - **Alternatives:** a separate target outside the aggregates. Rejected: a silent gap in the check that is supposed to be complete.
+
+- **Amended by:** [793b236 The mod is validated and tested through the existing integration gate, not a new check target](#793b236-the-mod-is-validated-and-tested-through-the-existing-integration-gate-not-a-new-check-target): reversed; there is no `check-mod`, `793d15a` is retired and `794b4a` is not modified.
 
 ## 793b215 Choices shown to the owner in the walkthrough
 
@@ -2963,3 +2967,12 @@ New IDs (each checked with `git log -S`: unused): `793a3a1k` to `793a3a1o`, `793
   - Kept: `engram update`, `engram ingest --auto` as a user-run command, `/recall`, `/learn`; "backlog" and "content it has not captured before". No scenario needed the mechanism to be stated.
 - **Rationale:** the owner's rule that a product spec states what the user can observe, and the mechanism belongs in the technical spec.
 - **Alternatives:** keep the lock as a named means (rejected by the owner).
+
+## 793b236 The mod is validated and tested through the existing integration gate, not a new check target
+
+- **Decided by:** Orchestrator (under owner rules; shown in walkthrough).
+- **Choice:** `793d15a` (the Modified operation on `794b4a`) and the `check-mod` target are removed. The Memory Mod is validated and tested by one Go integration test (build tag `integration`) that runs `claude plugin validate` and `claude plugin test` on `agent-instructions/mods/engram-memory/` (the second running the mod's own `*.test.ts` files) and fails, not skips, when a command fails or the `claude` CLI is unavailable. It is the requirement [793d3g Validated and tested through the existing checks](793d_technical-spec.md#793d3g-validated-and-tested-through-the-existing-checks) under the Memory Mod component. It supports no product scenario: it is a development gate.
+- **Rationale:** the existing targets already cover every Go file the change adds, so the only new thing to check is the JavaScript mod. A Go integration test keeps that under the existing integration gates, like other tests that need an external tool, with no new target and no change to any aggregate. The nil-check requirement `794b4a` was touched only because it is where `check-full`'s dependency list lives; a Modified operation on it was disproportionate, and with it gone no canonical node is modified by this change ([793b182 Reduce 793a to the minimum set of end-to-end, user-verifiable requirements; layer automatic memory beside intentional memory](#793b182-reduce-793a-to-the-minimum-set-of-end-to-end-user-verifiable-requirements-layer-automatic-memory-beside-intentional-memory)). The owner asked why the spec touched the nil-check target and why the existing test commands were not enough.
+- **Alternatives:** keep `check-mod` in `check-full` and `check-for-fail` ([793b214 check-mod is part of check-full and check-for-fail](#793b214-check-mod-is-part-of-check-full-and-check-for-fail), reversed here; [793b206 The mod is validated and tested by claude plugin validate and claude plugin test in check-full](#793b206-the-mod-is-validated-and-tested-by-claude-plugin-validate-and-claude-plugin-test-in-check-full), reversed here); a separate target outside the aggregates (a silent gap).
+- **Amends:** [793b206 The mod is validated and tested by claude plugin validate and claude plugin test in check-full](#793b206-the-mod-is-validated-and-tested-by-claude-plugin-validate-and-claude-plugin-test-in-check-full), [793b214 check-mod is part of check-full and check-for-fail](#793b214-check-mod-is-part-of-check-full-and-check-for-fail).
+- **ID map:** retired, not reused: `793d15`, `793d15a`, `793d15a1`, `793d15a1a` (the Modified operation on `794b4a` and its scenarios; the scenario `794b4a1c` stays as the canonical text says). Added (checked with `git log -S`: unused): `793d3g`, `793d3g1`, `793d3g1a` to `793d3g1c`, `793b236`. No row of [793d11 Product-scenario mapping](793d_technical-spec.md#793d11-product-scenario-mapping) changes: `793d3g` supports no product scenario.
