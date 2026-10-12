@@ -31,9 +31,9 @@ var (
 
 // acceptanceArgs holds the arguments of targ acceptance.
 type acceptanceArgs struct {
-	Filter string `targ:"positional,placeholder=ID-PREFIX,desc=scenario ID prefix (empty is the product scenarios; 793d is H1)"`
+	Filter string `targ:"positional,placeholder=ID-PREFIX,desc=scenario ID prefix (empty: product scenarios; 793d: H1)"`
 	DryRun bool   `targ:"flag,name=dry-run,desc=vocabulary check only; no session and no credentials"`
-	Check  bool   `targ:"flag,name=check,desc=harness self-tests and vocabulary check; no session and no credentials"`
+	Check  bool   `targ:"flag,name=check,desc=self-tests and vocabulary check; no session and no credentials"`
 }
 
 // acceptanceCommand is one program run of an acceptance plan; paths in Args are absolute.
