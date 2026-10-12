@@ -242,7 +242,7 @@ Requirement: 793a3a The [System](#793a1-problem-statement) MUST write to the [va
 
 The [System](#793a1-problem-statement) MUST also capture [lessons](#793a1-problem-statement) from the [backlog](#793a1-problem-statement): from the [transcript source](#793a1-problem-statement) of any [session](../../GLOSSARY.md#session) that is no longer running, of any [harness](../../GLOSSARY.md#harness), whether or not that harness has the [Integration](#793a1-problem-statement) ([793a5c Other harnesses are unchanged](#793a5c-other-harnesses-are-unchanged)). It MUST do so after the fact, beginning when a Claude Code session with the Integration next completes a turn, and MAY spread a large backlog over several turns. It MUST capture from a [transcript](../../GLOSSARY.md#transcript) source only the content it has not captured before. It MUST NOT capture from the transcript source of a session that is still running until that transcript has been quiet for a period the System sets.
 
-The [System](#793a1-problem-statement) MUST NOT write a [note](#793a1-problem-statement) for a [lesson](#793a1-problem-statement) or a conclusion ([793a3q Sound conclusions are persisted by the System](#793a3q-sound-conclusions-are-persisted-by-the-system)) that a note written earlier in the [session](../../GLOSSARY.md#session) already records, or, for a [backlog](#793a1-problem-statement) session, a note written at any time before the System captured from it, whoever wrote it (the System, the agent, the user's command or the orchestrator).
+The [System](#793a1-problem-statement) MUST NOT write a [note](#793a1-problem-statement) for a [lesson](#793a1-problem-statement) or a conclusion ([793a3q Sound conclusions are persisted by the System](#793a3q-sound-conclusions-are-persisted-by-the-system)) that a note written earlier in the [session](../../GLOSSARY.md#session) already records, or, for a [backlog](#793a1-problem-statement) session, a note written at any time before the System captured from it, whoever wrote it (the System, the agent, the user's command or the orchestrator), including a note the agent of another [harness](../../GLOSSARY.md#harness) wrote with its own learn before the backlog captured that session ([793a5c Other harnesses are unchanged](#793a5c-other-harnesses-are-unchanged)).
 
 Rationale: the [working agent](#793a1-problem-statement)'s [context](#793a1-problem-statement) stays free of memory evaluation, and [subagent](../../GLOSSARY.md#subagent) [sessions](../../GLOSSARY.md#session) are where [lessons](#793a1-problem-statement) occur too. The existing [skills](../../GLOSSARY.md#skill) still ask the agent to save the same lessons, so the [System](#793a1-problem-statement) must not write a second [note](#793a1-problem-statement) for what the agent already saved. A session can also end before its lessons are saved (a Pi session interrupted before its agent learned, a Claude Code session killed mid-turn), so the System catches what is left behind at its next opportunity, without delivering anything into the other session ([793b231 Backlog capture: the System captures lessons from any swept session transcript after the fact](793b_decision-log.md#793b231-backlog-capture-the-system-captures-lessons-from-any-swept-session-transcript-after-the-fact)).
 
@@ -328,6 +328,12 @@ Scenario: 793a3a1o A session is captured once it is quiet
   And the Pi session has ended and its transcript has been quiet for the System's quiet period
   When a Claude Code session with the Integration completes a turn
   Then a note stating the correction exists in the vault
+
+Scenario: 793a3a1p A note another harness's agent wrote is not written again
+  Given a Pi session in which the user said "no, use targ, not go test directly" and whose agent saved that rule with its own learn during the session
+  And the Pi session has ended and its transcript has been quiet for the System's quiet period
+  When a Claude Code session with the Integration completes a turn and the System captures the Pi session as backlog
+  Then the vault holds one note stating that rule, the one the Pi agent wrote
 ```
 
 ### 793a3q Sound conclusions are persisted by the System
@@ -503,7 +509,7 @@ Canonical target: `docs/specs/product/automatic-memory.md` (title `Automatic Mem
 ### 793a5c Other harnesses are unchanged
 
 Requirement: 793a5c In every [harness](../../GLOSSARY.md#harness) in which engram is installed without the [Integration](#793a1-problem-statement), the existing
-instruction-based path ([ambient-guidance](../../specs/product/ambient-guidance.md)) MUST continue to work unchanged, and the [working agent](#793a1-problem-statement) in that [harness](../../GLOSSARY.md#harness) MUST keep running recall and learn. The [System](#793a1-problem-statement) MUST NOT deliver into a [session](../../GLOSSARY.md#session) of such a harness or change its [transcript](../../GLOSSARY.md#transcript), and MUST NOT capture from the session while it is running. Its [lessons](#793a1-problem-statement) are captured afterwards, as [backlog](#793a1-problem-statement), once it is no longer running ([793a3a Lessons are captured without the agent](#793a3a-lessons-are-captured-without-the-agent)).
+instruction-based path ([ambient-guidance](../../specs/product/ambient-guidance.md)) MUST continue to work unchanged, and the [working agent](#793a1-problem-statement) in that [harness](../../GLOSSARY.md#harness) MUST keep running recall and learn: its own intentional ingestion and learn (`engram ingest --auto`, the learn [skill](../../GLOSSARY.md#skill), recall's writes) continue exactly as they did before the [System](#793a1-problem-statement) existed, and the System MUST NOT block, delay, undo or duplicate them. The System MUST NOT deliver into a [session](../../GLOSSARY.md#session) of such a harness or change its [transcript](../../GLOSSARY.md#transcript). The System's own ingest and [backlog](#793a1-problem-statement) capture MUST coexist with that intentional ingestion and learn through the [vault write lock](../../specs/technical/vault-write-lock.md#792b8c1-exclusive-hold) and `.manifest.lock`: when an intentional ingest or learn in such a harness runs at the same time as a System ingest or capture, both MUST complete, and neither MUST corrupt the chunk index or the [vault](#793a1-problem-statement). Backlog capture takes a [transcript source](#793a1-problem-statement) only once it is quiet ([793a3a Lessons are captured without the agent](#793a3a-lessons-are-captured-without-the-agent)), and a [lesson](#793a1-problem-statement) the harness's own agent already saved is covered by the duplicate rule of 793a3a, so the backlog never writes a second [note](#793a1-problem-statement) for it.
 
 Rationale: [delivery](#793a1-problem-statement) needs the [Integration](#793a1-problem-statement) inside the [session](../../GLOSSARY.md#session), but capture only reads the [transcript](../../GLOSSARY.md#transcript) the [harness](../../GLOSSARY.md#harness) already wrote, so it can run later from a Claude Code session ([793b231 Backlog capture: the System captures lessons from any swept session transcript after the fact](793b_decision-log.md#793b231-backlog-capture-the-system-captures-lessons-from-any-swept-session-transcript-after-the-fact)).
 
@@ -520,13 +526,28 @@ Scenario: 793a5c1b A Pi session on a machine whose Claude Code has the Integrati
   When a Pi session runs with a prompt that matches a note and contains a correction
   Then its behavior is identical to its behavior before the System existed
   And the transcript shows no content delivered by the System
-  And no note is written from the session while it is running, except by the Pi agent's own learn
+  And the Pi agent's own ingest and learn run and write exactly as they would without the System
 
 Scenario: 793a5c1c A captured Pi session's transcript is left unchanged
   Given a Pi session that has ended, whose transcript holds a correction that no note states, and a copy of that transcript
   When a Claude Code session with the Integration completes a turn and the System captures the correction
   Then the Pi transcript is identical to the copy
   And the Pi transcript shows no content delivered by the System
+
+Scenario: 793a5c1d A Pi agent's own ingest and learn run while the System ingests and captures
+  Given Pi with the existing skills, guidance and shim, on a machine whose Claude Code has the Integration installed
+  And a Pi session whose agent runs engram ingest --auto and the learn skill
+  And a Claude Code session whose turn is completing, with the System running engram ingest --auto and a backlog capture
+  When the two run at the same time
+  Then the Pi agent's ingest and learn both complete and write what they would have written without the System
+  And the System's ingest and capture both complete
+  And the chunk index and the vault are intact: every note is readable, no note ID is used twice, and the index holds no entry twice
+
+Scenario: 793a5c1e A lesson the Pi agent saved is not written again by the backlog
+  Given a Pi session whose agent saved lesson L with the learn skill, and which has since ended
+  When a Claude Code session with the Integration completes a turn and the System captures that session as backlog
+  Then the vault holds one note for L, the one the Pi agent wrote
+  And the System wrote no second note for L
 ```
 
 ### 793a5h The user sees a summary of the memory activity
