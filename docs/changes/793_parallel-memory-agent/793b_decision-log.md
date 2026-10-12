@@ -3717,6 +3717,7 @@ ID map for 793b243 to 793b254 (each checked with `git log -S`: unused): `793b243
 - **Rationale:** the owner's minimum-owned-code rule, and the Go command exists only because of the stripped text and the sweep roots; if the ingest output already holds both, a second implementation of either is waste.
 - **Alternatives:** keep the command unconditionally (the previous plan); drop it without the spike (the manifest records what was ingested, not what was captured, so the claim needs evidence).
 - **Amends:** [793b256 The PoC orchestrates in JavaScript inside the mod over the existing engram commands](#793b256-the-poc-orchestrates-in-javascript-inside-the-mod-over-the-existing-engram-commands) (one small Go command stays) and [793b232 Backlog capture is a watermark per transcript source and a scan after each turn's own capture, and the $.store queue is dropped](#793b232-backlog-capture-is-a-watermark-per-transcript-source-and-a-scan-after-each-turns-own-capture-and-the-store-queue-is-dropped) where it places the watermark on the Go side (a design draft in any case, [793b240 The product spec is the owner's intent; the technical spec is his two hypotheses with the scenarios that test them](#793b240-the-product-spec-is-the-owners-intent-the-technical-spec-is-his-two-hypotheses-with-the-scenarios-that-test-them)).
+- **Amended by:** [793b281 The spikes SP1 to SP15 are settled](#793b281-the-spikes-sp1-to-sp15-are-settled): SP15 holds, so `engram backlog` is dropped.
 
 ## 793b279 Judgement is one richer prompt per kind, and capture judges extraction and reconciliation in one call
 
@@ -3730,5 +3731,35 @@ ID map for 793b243 to 793b254 (each checked with `git log -S`: unused): `793b243
 
 - **Decided by:** Author (agent); awaiting owner validation.
 - **Choice:** added (each checked with `git log -S`: unused): `793b275` to `793b280`, `793e2i` and spike `SP15`. Retired: none. No heading is retitled. The Work rows of [793e8a Harness skeleton and platform spikes](./793e_implementation-plan.md#793e8a-harness-skeleton-and-platform-spikes) are reworded for the JavaScript harness; no row ID exists to retire.
+- **Rationale:** the guide: removed IDs are not reused.
+- **Alternatives:** none.
+
+## 793b281 The spikes SP1 to SP15 are settled
+
+- **Decided by:** Author (agent); awaiting owner validation. The outcomes are facts observed on Claude Code 2.1.296 (Agent SDK 0.3.296, Sonnet 5.5) on 2026-10-12 by the probes in `dev/acceptance/probes/`; the choices that follow from them are the author's and the owner can overrule them.
+- **Choice:** the outcomes are in the Outcome column of the spike table of [793e2e Platform claims to verify first](./793e_implementation-plan.md#793e2e-platform-claims-to-verify-first) and in the Status column of [793d1a What the hypotheses rely on in Claude Code mods](./793d_technical-spec.md#793d1a-what-the-hypotheses-rely-on-in-claude-code-mods). One claim holds only in part (SP7), one does not hold for a Pi agent (SP14), one changes the design (SP9), and four change a mechanism of the plan:
+  - **A refused mod is found in the debug log (SP2).** A stream prints nothing to `stderr`, so the driver starts every session with `--debug-file` and fails fast on `hooks module <name> not loaded` in that file.
+  - **The product needs no seam for status lines (SP9).** `$.ui.status` arrives in the stream as a `system` message of subtype `ui_status`, so the summaries and warnings of [793a5h The user sees a summary of the memory activity](./793a_product-spec.md#793a5h-the-user-sees-a-summary-of-the-memory-activity) and [793a4b The session is never broken or stalled](./793a_product-spec.md#793a4b-the-session-is-never-broken-or-stalled) are read from the stream. The seam file named by `ENGRAM_AUTO_SEAM_LOG` shrinks to the one `idle` line that a wait in the middle of a scenario needs; the end of a scenario closes the session, which drains the System's work (SP13).
+  - **Presence is the ledger plus the transcript file (SP7).** `$.session.messages()` holds typed texts and replies, not delivered blocks, and is not shortened by a compaction; the mod reads the `hook_additional_context` rows of its transcript file (path from SP6) after the last compaction, which a resume also covers.
+  - **Capture of a subagent reads `last_assistant_message` and polls (SP5).** The subagent's transcript is not complete when `classic.SubagentStop` fires.
+  - **No `engram backlog` (SP15).** The backlog scan is the mod's, over the ingest manifest, the chunk files and a capture mark the mod writes ([793b278 The backlog scan reads the ingest manifest if SP15 shows it suffices; engram backlog stays only if it does not](#793b278-the-backlog-scan-reads-the-ingest-manifest-if-sp15-shows-it-suffices-engram-backlog-stays-only-if-it-does-not)); the World gives each workspace a `.engram/sweep.json` that lifts the throwaway-root rule and puts the workspace under the home.
+  - **Pi rows stay `Not run` (SP14).** `pi` runs headless in an isolated home but the subscription token's model call is refused, so no Pi agent's behaviour can be observed; Pi transcripts are fixture inputs.
+  - **The human origin is `sdk` (SP8).** Under the driver a typed prompt has origin `sdk`; the other three origins are produced live (a background task, a one-shot `CronCreate` about 60 s later, and a message from another session's mod).
+  - **A cost correction (SP11).** `engram query` with an empty embedder cache takes 0.56 s, not the 11 s assumed in [793b245 Scenarios run real claude sessions in an isolated home with credentials from the environment](#793b245-scenarios-run-real-claude-sessions-in-an-isolated-home-with-credentials-from-the-environment); the shared pre-warmed cache stays, as it is free.
+- **Rationale:** the plan asked for the platform claims to be verified first; each deviation above is what the evidence says.
+- **Alternatives:** none: the outcomes are observations.
+- **Amends:** [793b246 Assertions read the transcript, the vault and a harness-only seam log; only preconditions are retried](#793b246-assertions-read-the-transcript-the-vault-and-a-harness-only-seam-log-only-preconditions-are-retried) (status lines come from the stream), [793b248 The session driver streams input and waits for the System's idle marker](#793b248-the-session-driver-streams-input-and-waits-for-the-systems-idle-marker) (the close drains), [793b278 The backlog scan reads the ingest manifest if SP15 shows it suffices; engram backlog stays only if it does not](#793b278-the-backlog-scan-reads-the-ingest-manifest-if-sp15-shows-it-suffices-engram-backlog-stays-only-if-it-does-not) (SP15 holds: the command is dropped) and [793b249 Scenarios whose prompt origin cannot be produced in -p get a contract-test substitute](#793b249-scenarios-whose-prompt-origin-cannot-be-produced-in--p-get-a-contract-test-substitute) (the three origins are producible live).
+
+## 793b282 The whole-plan cost estimate is presented to the owner
+
+- **Decided by:** Author (agent); awaiting owner validation. It is the estimate that [793b259 A whole-plan cost estimate is presented to the owner before the PoC is built](#793b259-a-whole-plan-cost-estimate-is-presented-to-the-owner-before-the-poc-is-built) requires; the table is [793e2j Whole-plan cost estimate](./793e_implementation-plan.md#793e2j-whole-plan-cost-estimate).
+- **Choice:** the estimate is about 125 US dollars at published list prices (the sessions are billed to a subscription login, so the figure is what the same tokens cost on the API), spread over about 450 scenario runs of the product suite, H1, H2 and the gold drafting; the assumptions are stated in the table. No cap interrupts a run.
+- **Rationale:** the owner's rule: estimate and confirm cost up front, then let a run finish.
+- **Alternatives:** the SDK's client-side cost estimate, which is about 60 percent of the list price computed from the same tokens (0.015 against 0.024 USD for a trivial turn); the table states both.
+
+## 793b283 ID map for 793b281 to 793b282
+
+- **Decided by:** Author (agent); awaiting owner validation.
+- **Choice:** added (each checked with `git log -S`: unused): `793b281` to `793b283` and `793e2j`. Retired: none.
 - **Rationale:** the guide: removed IDs are not reused.
 - **Alternatives:** none.
