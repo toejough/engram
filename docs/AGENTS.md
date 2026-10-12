@@ -200,6 +200,16 @@ Bad:  A refused variable fails as in [792a21a](../../specs/product/parent-sync.m
 Good: A refused variable fails as in [792a21a ENGRAM_SERVER is refused](../../specs/product/parent-sync.md#792a21a-engram_server-is-refused).
 ```
 
+### Defined Terms
+
+- A term defined in a change's Terms list (the product spec's problem statement) or in
+  [`docs/GLOSSARY.md`](./GLOSSARY.md) MUST, where a spec uses it, link to its definition.
+- Link the first use in each addressable node's prose: a requirement paragraph, a rationale,
+  orientation or flow prose, or a table cell. The link label is the term as written, in its own
+  case and number.
+- The definition itself is not linked. Text inside code blocks and Gherkin, where links do not
+  render, is exempt.
+
 ## Specification Lifecycle
 
 Follow [`docs/SPECIFICATION-LIFECYCLE-GUIDE.md`](./SPECIFICATION-LIFECYCLE-GUIDE.md) when describing
@@ -230,6 +240,7 @@ Before considering a document complete, verify:
 - Organizational paths do not create a competing identity hierarchy.
 - Every reference to addressable content cites its ID and links to it; every reference to a
   canonical capability or component file links to the file.
+- The first use of each defined term in an addressable node's prose links to its definition.
 - Existing documentation was not renumbered without an explicit migration request.
 - The specification lifecycle guide has been followed when the work changes canonical behavior.
 - The applicable authoring guide has been followed.
