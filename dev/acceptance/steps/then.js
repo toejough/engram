@@ -122,7 +122,8 @@ Then(
       '|a later engram query returns a chunk from that turn' +
       "|every note written by the agent's own memory command is still in the vault)$",
   ),
-  () => NOT_BUILT,
+  // the capture Then of 793a5j1b is built with the capture node (793e8c); until then the scenario ends Pending here
+  (_stated, _offer, _folded) => NOT_BUILT,
 )
 
 Then(

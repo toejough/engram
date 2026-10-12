@@ -13,6 +13,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -119,6 +120,8 @@ type CopyOp struct {
 	Dst          string
 	SkillDir     string
 	GuidanceFile string
+	// Mod marks a copy of a mod (793b251) planned like a skill copy: its SkillDir is the mod's directory.
+	Mod bool
 }
 
 // DirEntry is the subset of fs.DirEntry used by Updater.
@@ -254,7 +257,10 @@ type HarnessReport struct {
 	// inside EngramRoot but no longer existed (792b29c10 Dangling-link cleanup). Under DryRun these are
 	// the links that WOULD be removed; nothing is actually deleted.
 	DanglingLinksRemoved []string
-	Err                  error
+	// ModNotice, when non-empty, says why this harness may not run the mods deployed to it (the installed Claude
+	// Code is older than the first release with mods, or its version could not be read; 793b220).
+	ModNotice string
+	Err       error
 }
 
 // HarnessSpec captures one harness's well-known paths (relative to home).
@@ -282,6 +288,9 @@ type HarnessSpec struct {
 	// harness's surfaces (792b29c13 Manifest mode) — see the DeployMode doc comment.
 	// supportedHarnesses sets this for every currently-supported harness.
 	DeployMode DeployMode
+	// TakesMods marks a harness that loads mods (793b251): the mods of agent-instructions/mods are
+	// deployed to it like skills. Only Claude Code does.
+	TakesMods bool
 }
 
 // Options controls one Run invocation.
@@ -454,6 +463,7 @@ type Report struct {
 type SkillDirCount struct {
 	Name  string // top-level skill dir name, e.g. "learn"
 	Files int    // number of files copied into <skills-root>/<Name>/
+	Mod   bool   // the directory is a mod deployed like a skill (793b251), not a skill
 }
 
 // SourceInfo describes where the binary was installed from and where the
@@ -535,7 +545,7 @@ func (u *Updater) Run(ctx context.Context, opts Options) (Report, error) {
 		return report, nil
 	}
 
-	return u.planAndApply(home, source, harnesses, opts, report)
+	return u.planAndApply(ctx, home, source, harnesses, opts, report)
 }
 
 // applyClearedOne clears any real content at copyOp.Dst before copying —
@@ -972,7 +982,7 @@ func (u *Updater) applySkillLinks(rep *HarnessReport, spec HarnessSpec, skillOps
 		skillCounts[copyOp.SkillDir]++
 	}
 
-	rep.SkillDirs = collectSkillDirs(skillOrder, skillCounts)
+	rep.SkillDirs = collectSkillDirs(skillOrder, skillCounts, modDirsOf(spec.Name, skillOps))
 
 	for _, name := range skillOrder {
 		link := filepath.Join(rep.SkillsRoot, name)
@@ -996,7 +1006,7 @@ func (u *Updater) applySkillOps(rep *HarnessReport, name Harness, skillOps []Cop
 	skillOrder := make([]string, 0)
 	cleared := map[string]bool{}
 
-	defer func() { rep.SkillDirs = collectSkillDirs(skillOrder, skillCounts) }()
+	defer func() { rep.SkillDirs = collectSkillDirs(skillOrder, skillCounts, modDirsOf(name, skillOps)) }()
 
 	for _, copyOp := range skillOps {
 		if copyOp.Harness != name {
@@ -1191,21 +1201,60 @@ func (u *Updater) installedBinaryRevision(ctx context.Context, binaryPath string
 	return ""
 }
 
+// modNotice checks that the installed Claude Code can load mods (793b220): "" when it can, else the sentence for
+// the report. It only reads the version, so a dry run makes it too. Not being able to tell is reported, not hidden.
+func (u *Updater) modNotice(ctx context.Context) string {
+	stdout, _, runErr := u.Cmd.Run(ctx, "", "claude", "--version")
+	if runErr != nil {
+		if errors.Is(runErr, ErrCommandNotFound) {
+			return "claude was not found on PATH: could not check that Claude Code loads mods (" +
+				minModClaudeText + " or later)"
+		}
+
+		return fmt.Sprintf("could not read the Claude Code version (claude --version: %v): mods need %s or later",
+			runErr, minModClaudeText)
+	}
+
+	version, ok := parseClaudeVersion(string(stdout))
+	if !ok {
+		return fmt.Sprintf("could not read the Claude Code version from %q: mods need %s or later",
+			strings.TrimSpace(string(stdout)), minModClaudeText)
+	}
+
+	if version[0] > minModClaudeMajor ||
+		version[0] == minModClaudeMajor && (version[1] > minModClaudeMinor ||
+			version[1] == minModClaudeMinor && version[2] >= minModClaudePatch) {
+		return ""
+	}
+
+	return fmt.Sprintf("Claude Code %d.%d.%d is older than %s, the first release that loads mods: "+
+		"update Claude Code for the engram-memory mod to run", version[0], version[1], version[2], minModClaudeText)
+}
+
 // planAndApply is Run's post-install phase (792b28c9 Hand-off: everything AFTER the
 // re-exec boundary, when this call didn't hand off to a re-execed child —
 // either it fell back, or the sentinel/dry-run skipped install in the first
 // place): plans skill/guidance copies and applies them per harness. Split
 // out of Run to keep Run's own branching within the complexity budget.
 func (u *Updater) planAndApply(
-	home string, source SourceInfo, harnesses []HarnessSpec, opts Options, report Report,
+	ctx context.Context, home string, source SourceInfo, harnesses []HarnessSpec, opts Options, report Report,
 ) (Report, error) {
 	srcSkills := filepath.Join(source.Root, "agent-instructions", "skills")
+	srcMods := filepath.Join(source.Root, "agent-instructions", "mods")
 	srcGuidance := filepath.Join(source.Root, "agent-instructions", "guidance")
 
 	skillOps, planErr := planSkillCopies(srcSkills, home, harnesses, u.FS)
 	if planErr != nil {
 		return report, planErr
 	}
+
+	// A mod is deployed like a skill, for the harnesses that take mods (793b251).
+	modOps, modPlanErr := planModCopies(srcMods, home, harnesses, u.FS)
+	if modPlanErr != nil {
+		return report, modPlanErr
+	}
+
+	skillOps = append(skillOps, modOps...)
 
 	report.GuidanceImports = u.detectGuidanceImports(home, harnesses)
 	report.GuidanceImported = len(report.GuidanceImports) > 0
@@ -1229,6 +1278,16 @@ func (u *Updater) planAndApply(
 	}
 
 	report.Harnesses = u.applyOps(harnesses, home, skillOps, guidanceOps, guidanceManaged, opts.DryRun)
+
+	if len(modOps) > 0 {
+		notice := u.modNotice(ctx)
+
+		for index, spec := range harnesses {
+			if spec.TakesMods {
+				report.Harnesses[index].ModNotice = notice
+			}
+		}
+	}
 
 	return report, nil
 }
@@ -1493,10 +1552,17 @@ const (
 	// itself (Claude's root-level compat links, 792b29c9 Guidance links)}.
 	maxCleanupSurfaceDirs = 2
 	maxSupportedHarnesses = 2
+	// minModClaude* is the first Claude Code release that loads mods (793b220, 2.1.287).
+	minModClaudeMajor = 2
+	minModClaudeMinor = 1
+	minModClaudePatch = 287
+	minModClaudeText  = "2.1.287"
 	// modelMinBytes: the real MiniLM ONNX is ~90 MB; anything under a
 	// megabyte is certainly not it.
 	modelMinBytes = 1 << 20
 	repoCloneURL  = "https://" + ModulePath + ".git"
+	// versionParts is the number of dotted numbers in a Claude Code version.
+	versionParts = 3
 )
 
 // engramRootOwnership is the marker-driven verdict for one sync run against
@@ -1881,11 +1947,11 @@ func collectPrunableDirs(
 	return hasContent, nil
 }
 
-func collectSkillDirs(order []string, counts map[string]int) []SkillDirCount {
+func collectSkillDirs(order []string, counts map[string]int, mods map[string]bool) []SkillDirCount {
 	out := make([]SkillDirCount, 0, len(order))
 
 	for _, name := range order {
-		out = append(out, SkillDirCount{Name: name, Files: counts[name]})
+		out = append(out, SkillDirCount{Name: name, Files: counts[name], Mod: mods[name]})
 	}
 
 	return out
@@ -2316,6 +2382,50 @@ func mdFilesIn(entries []DirEntry) []string {
 	return out
 }
 
+// modDirsOf collects the top-level directory names of the mods one harness's planned copies deploy.
+func modDirsOf(name Harness, skillOps []CopyOp) map[string]bool {
+	out := map[string]bool{}
+
+	for _, copyOp := range skillOps {
+		if copyOp.Harness == name && copyOp.Mod {
+			out[copyOp.SkillDir] = true
+		}
+	}
+
+	return out
+}
+
+// parseClaudeVersion reads the first dotted three-number version out of `claude --version` output.
+func parseClaudeVersion(output string) ([versionParts]int, bool) {
+	for field := range strings.FieldsSeq(output) {
+		parts := strings.Split(field, ".")
+		if len(parts) != versionParts {
+			continue
+		}
+
+		var version [versionParts]int
+
+		valid := true
+
+		for index, part := range parts {
+			number, convErr := strconv.Atoi(part)
+			if convErr != nil || number < 0 {
+				valid = false
+
+				break
+			}
+
+			version[index] = number
+		}
+
+		if valid {
+			return version, true
+		}
+	}
+
+	return [versionParts]int{}, false
+}
+
 // pathWithinRoot reports whether path is root itself or lies inside it,
 // comparing the Cleaned strings only (no filesystem access, no symlink
 // resolution) — the lexical-identity check 792b29c10 Dangling-link cleanup requires.
@@ -2417,6 +2527,44 @@ func planGuidanceCopies(
 				Src:          filepath.Join(srcGuidance, name),
 				Dst:          filepath.Join(dstRoot, name),
 				GuidanceFile: name,
+			})
+		}
+	}
+
+	return ops, nil
+}
+
+// planModCopies enumerates every file under srcMods and produces one CopyOp per file for each harness that takes
+// mods (793b251), planned like a skill copy: the file keeps its path relative to srcMods under the harness's skills
+// directory, and the mod's top-level directory is the SkillDir. A source without a mods directory plans nothing.
+func planModCopies(srcMods, home string, harnesses []HarnessSpec, fileSystem Filesystem) ([]CopyOp, error) {
+	files := make([]string, 0)
+
+	walkErr := walkFilesRecursive(srcMods, "", fileSystem, &files)
+	if walkErr != nil {
+		if errors.Is(walkErr, ErrSkillsSrcMissing) {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("listing mods under %s: %w", srcMods, walkErr)
+	}
+
+	ops := make([]CopyOp, 0, len(files)*len(harnesses))
+
+	for _, spec := range harnesses {
+		if !spec.TakesMods {
+			continue
+		}
+
+		dstRoot := filepath.Join(home, spec.SkillsTargetRel)
+
+		for _, rel := range files {
+			ops = append(ops, CopyOp{
+				Harness:  spec.Name,
+				Src:      filepath.Join(srcMods, rel),
+				Dst:      filepath.Join(dstRoot, rel),
+				SkillDir: topLevelDir(rel),
+				Mod:      true,
 			})
 		}
 	}
@@ -2655,6 +2803,9 @@ func supportedHarnesses() []HarnessSpec {
 			// Verified symlink-capable (skill discovered through a
 			// symlinked skill dir) — 792b29a Orientation.
 			DeployMode: DeployModeSymlink,
+			// Claude Code loads a folder with .claude-plugin/plugin.json
+			// under its skills directory as a mod (793b251).
+			TakesMods: true,
 		},
 		{
 			Name:              HarnessPi,

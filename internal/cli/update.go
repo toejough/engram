@@ -952,12 +952,23 @@ func writeSkillRegistrationErrorHint(buffer *bytes.Buffer, report update.Report)
 func writeSkillRows(buffer *bytes.Buffer, harness update.HarnessReport, home string) {
 	for _, dirCount := range harness.SkillDirs {
 		dst := filepath.Join(harness.SkillsRoot, dirCount.Name) + string(filepath.Separator)
-		fmt.Fprintf(buffer, "    agent-instructions/skills/%s/ → %s  (%d %s)\n",
+
+		source := "skills"
+		if dirCount.Mod {
+			source = "mods"
+		}
+
+		fmt.Fprintf(buffer, "    agent-instructions/%s/%s/ → %s  (%d %s)\n",
+			source,
 			dirCount.Name,
 			tildify(dst, home),
 			dirCount.Files,
 			pluralFile(dirCount.Files),
 		)
+	}
+
+	if harness.ModNotice != "" {
+		fmt.Fprintf(buffer, "    mods: %s\n", harness.ModNotice)
 	}
 }
 
