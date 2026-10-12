@@ -72,29 +72,31 @@ Rationale: recall already says what to consult and when; the change is who does 
 
 ```gherkin
 Scenario: 793a2n1a Recall happens without the agent running it
-  Given a vault containing a note whose situation matches "declaring a Go package rename done"
+  Given the System is installed
+  And the vault holds a note "N" whose situation is "declaring a Go package rename done"
   And the user has not asked for any memory command
-  And the note is not yet in the transcript
-  When the working agent reaches the point of declaring the rename done
-  Then the session transcript shows that note's content delivered before the declaration, together with an instruction to apply it
-  And the transcript shows no request from the System to the agent to run a memory command
+  When a turn completes in which "the working agent reaches the point of declaring the rename done"
+  Then the transcript shows note "N" delivered with the instruction to apply it before the agent's next response or tool call
+  And the transcript shows no request from the System to the agent to run a memory command, or to evaluate, approve, write or curate a note
 
 Scenario: 793a2n1e No result, nothing delivered
-  Given a moment whose lookup finds no note that is absent from the agent's context
-  When the moment completes
-  Then the session transcript shows no content delivered for it, the instruction to apply it included
+  Given the System is installed
+  And the vault holds no matching note
+  When a turn completes in which "the human submits a prompt"
+  Then the transcript shows no content delivered, the instruction to apply it included
 
 Scenario: 793a2n1g A subagent receives relevant notes
-  Given a note matching "writing Go tests in this repo"
-  When the working agent dispatches a subagent with the task "add tests for internal/cli"
-  Then the subagent's transcript shows that note's content delivered, with the instruction to apply it, before its first response or tool call
-  And the working agent's dispatch text did not mention the note
+  Given the System is installed
+  And the vault holds a note "N" whose situation is "writing Go tests in this repo"
+  When a turn completes in which "the working agent dispatches a subagent with the task 'add tests for internal/cli'"
+  Then the subagent's transcript shows note "N" delivered with the instruction to apply it before the agent's next response or tool call
+  And the working agent's dispatch text does not mention note "N"
 
 Scenario Outline: 793a2n1h A prompt from any source receives relevant notes
-  Given a note whose situation matches the prompt
-  And the note is not yet in the transcript
-  When <source> delivers that prompt to the working agent
-  Then the session transcript shows that note's content delivered, with the instruction to apply it, before the agent's first response or tool call
+  Given the System is installed
+  And the vault holds a note "N" whose situation is "adding a flag to the engram CLI"
+  When <source> delivers a prompt matching note "N"
+  Then the transcript shows note "N" delivered with the instruction to apply it before the agent's next response or tool call
 
   Examples:
     | source                         |
@@ -104,16 +106,18 @@ Scenario Outline: 793a2n1h A prompt from any source receives relevant notes
     | a message from another session |
 
 Scenario: 793a2n1i Please's orientation receives relevant notes
-  Given a note matching an ask given to please
-  When please starts
-  Then the transcript shows that note's content delivered, with the instruction to apply it, before please's first response or tool call
-  And the transcript shows please was not asked to run recall
+  Given the System is installed
+  And the vault holds a note "N" whose situation is "planning a documentation change"
+  When a turn completes in which "the user gives please the ask 'add a section on releases to the README'"
+  Then the transcript shows note "N" delivered with the instruction to apply it before the agent's next response or tool call
+  And the transcript shows no request from the System to the agent to run a memory command, or to evaluate, approve, write or curate a note
 
 Scenario: 793a2n1j Tier evidence is delivered before a dispatch is routed
-  Given a dispatch evidence note for a kind of work that shows a cheaper tier failed
-  When the orchestrator routes a unit of that kind through route
-  Then the transcript shows that evidence delivered, with the instruction to apply it, before the orchestrator routes the unit
-  And the transcript shows no request to the orchestrator to run a memory command
+  Given the System is installed
+  And the vault holds a note "E" whose situation is "routing a unit of Go test writing to a tier" and which says "a cheaper tier failed on this kind of work"
+  When a turn completes in which "the orchestrator routes a unit of Go test writing through route"
+  Then the transcript shows note "E" delivered with the instruction to apply it before the agent's next response or tool call
+  And the transcript shows no request from the System to the agent to run a memory command, or to evaluate, approve, write or curate a note
 ```
 
 ### 793a2e Nothing already in context is delivered again
@@ -126,31 +130,43 @@ Rationale: an item the agent already has adds only noise. [Intentional memory](#
 
 ```gherkin
 Scenario: 793a2e1a Note delivered earlier is not delivered again
-  Given note X was delivered to the working agent at its prompt
-  And the session has not been compacted
-  When the agent's next two tool results match X again
-  Then the session transcript shows X's content delivered only once
+  Given the System is installed
+  And the vault holds a note "X" whose situation is "tagging a release"
+  And the human delivers a prompt matching note "X"
+  When a turn completes in which "the agent's next two tool results match note X again"
+  Then the transcript shows note "X" delivered 1 time and retrieved by the agent 0 times
 
 Scenario: 793a2e1c Note the agent retrieved itself is not delivered
-  Given the working agent ran /recall, and separately an engram query, and their output showed note X in the transcript
-  When a later prompt matches X
-  Then the transcript shows X's content only once, from the agent's own run
+  Given the System is installed
+  And the vault holds a note "X" whose situation is "tagging a release"
+  And a turn completes in which "the user says 'run /recall on tagging a release' and the agent runs the recall skill"
+  And a turn completes in which "the user says 'run an engram query on tagging a release' and the agent runs it"
+  When the human delivers a prompt matching note "X"
+  Then the transcript shows note "X" delivered 0 times and retrieved by the agent 1 time
 
 Scenario: 793a2e1d A parent's note is still delivered to a subagent
-  Given note X is in the parent agent's transcript
-  When the parent dispatches a subagent whose task matches X
-  Then the subagent's transcript shows X's content delivered before its first response or tool call
+  Given the System is installed
+  And the vault holds a note "X" whose situation is "tagging a release"
+  And the human delivers a prompt matching note "X"
+  When a turn completes in which "the parent dispatches a subagent whose task matches note X"
+  Then the subagent's transcript shows note "X" delivered with the instruction to apply it before the agent's next response or tool call
 
 Scenario: 793a2e1e A note removed by compaction can be delivered again
-  Given note X was delivered and the session was then compacted so that X's content no longer appears in what the agent sees
-  When a later prompt matches X
-  Then the transcript shows X's content delivered again
+  Given the System is installed
+  And the vault holds a note "X" whose situation is "tagging a release"
+  And the human delivers a prompt matching note "X"
+  And the session is compacted
+  When the human delivers a prompt matching note "X"
+  Then the transcript shows note "X" delivered 2 times and retrieved by the agent 0 times
 
 Scenario: 793a2e1g A resumed session's restored content counts as present
-  Given note X was delivered in a session that was then ended and resumed
-  And the resumed session's transcript shows X's content restored
-  When a later prompt matches X
-  Then the transcript shows no second delivery of X
+  Given the System is installed
+  And the vault holds a note "X" whose situation is "tagging a release"
+  And the human delivers a prompt matching note "X"
+  And the session is ended and resumed
+  And the transcript shows note "X" delivered 1 time and retrieved by the agent 0 times
+  When the human delivers a prompt matching note "X"
+  Then the transcript shows note "X" delivered 1 time and retrieved by the agent 0 times
 ```
 
 ## 793a3 Added: automatic-memory (it captures)
@@ -168,49 +184,50 @@ Rationale: the [working agent](#793a1-problem-statement)'s [context](#793a1-prob
 ```gherkin
 Scenario Outline: 793a3a1a A lesson is captured without agent action
   Given the System is installed
-  When <what happens> and the turn completes
-  Then a note stating <lesson> exists in the vault
-  And the transcript shows no request to the working agent to run a memory command or to evaluate, approve or write the note
+  When a turn completes in which "<what happens>"
+  Then the vault holds a note stating "<lesson>"
+  And the transcript shows no request from the System to the agent to run a memory command, or to evaluate, approve, write or curate a note
 
   Examples:
-    | what happens                                                                                                     | lesson                           |
-    | the user says "no, use the targ build system, not go test directly"                                              | that rule                        |
-    | the user says "remember that releases are tagged from main"                                                      | that releases are tagged from main |
-    | the agent states a cause for a failing test, a later command output overturns it, and the agent corrects itself | the corrected cause              |
+    | what happens                                                                                                    | lesson                                          |
+    | the user says 'no, use the targ build system, not go test directly'                                             | use the targ build system, not go test directly |
+    | the user says 'remember that releases are tagged from main'                                                     | releases are tagged from main                   |
+    | the agent states a cause for a failing test, a later command output overturns it, and the agent corrects itself | the corrected cause of the failing test         |
 
 Scenario: 793a3a1g A lesson in a subagent session is captured
-  Given the working agent dispatched a subagent
-  And the dispatching agent tells the subagent "no, run targ test, not go test"
-  When the subagent finishes and its context is discarded
-  Then a note stating that rule exists in the vault
-  And the subagent's transcript shows no request to it to invoke a learn command or to report a lesson
+  Given the System is installed
+  When a turn completes in which "the working agent dispatches a subagent, tells it 'no, run targ test, not go test', and the subagent finishes"
+  Then the vault holds a note stating "run targ test, not go test"
+  And the subagent's transcript shows no request from the System to the agent to run a memory command, or to evaluate, approve, write or curate a note
 
 Scenario: 793a3a1h Two subagents contain the same lesson
-  Given two subagents whose turns complete at the same time, each containing the same lesson
-  When both captures finish
-  Then the vault holds exactly one note stating the lesson
+  Given the System is installed
+  When a turn completes in which "two subagents finish at the same time, each containing the lesson 'run targ test, not go test'"
+  Then the vault holds exactly one note stating "run targ test, not go test"
 
 Scenario Outline: 793a3a1j A lesson that is already recorded is not written again
-  Given the System is installed and <earlier>
-  When a Claude Code turn completes
-  Then the vault holds one note for the lesson
+  Given the System is installed
+  And <earlier>
+  When a turn completes in which "the user asks a neutral question"
+  Then the vault holds exactly one note stating "use targ, not go test directly"
 
   Examples:
-    | earlier                                                                                                                                                  |
-    | the user said "no, use targ, not go test directly" in this turn and the agent ran the learn skill, which wrote a feedback note stating that rule          |
-    | a Pi session in which the user said "no, use targ, not go test directly" ended after its agent ran the learn skill, which wrote a feedback note stating that rule |
-    | the lesson of an ended Pi session was captured by an earlier Claude Code turn, and the Pi session has not run since                                      |
+    | earlier                                                                                                                                                           |
+    | a turn completes in which "the user says 'no, use targ, not go test directly' and the agent runs the learn skill, which writes a feedback note stating that rule" |
+    | an ended Pi session in which the user said "no, use targ, not go test directly" and its agent saved the lesson by running the learn skill                         |
+    | an ended Pi session in which the user said "no, use targ, not go test directly" and its lesson was captured by an earlier Claude Code turn                        |
 
 Scenario Outline: 793a3a1k A lesson in a session that ended before it was saved is captured later
-  Given <session>, in which the user said <said>, which ended before its lesson was saved, and no note states that lesson
-  When a Claude Code session that has the System completes a turn
-  Then a note stating <lesson> exists in the vault
-  And the Claude Code transcript shows no request to the working agent to run a memory command
+  Given the System is installed
+  And an ended <harness> session in which the user said "<said>" and its lesson was not saved
+  When a turn completes in which "the user asks a neutral question"
+  Then the vault holds a note stating "<lesson>"
+  And the transcript shows no request from the System to the agent to run a memory command, or to evaluate, approve, write or curate a note
 
   Examples:
-    | session                                | said                                                  | lesson                             |
-    | a Pi session whose agent never ran learn | "no, use targ, not go test directly"                  | that rule                          |
-    | a Claude Code session killed mid-turn  | "remember that releases are tagged from main"         | that releases are tagged from main |
+    | harness     | said                                        | lesson                         |
+    | Pi          | no, use targ, not go test directly          | use targ, not go test directly |
+    | Claude Code | remember that releases are tagged from main | releases are tagged from main  |
 ```
 
 ## 793a4 Added: automatic-memory (it keeps house, handles memory and not the task, and stays out of the way)
@@ -227,29 +244,35 @@ Rationale: indexing and curation are slow bookkeeping that the [working agent](#
 
 ```gherkin
 Scenario: 793a4j1a The index catches up after the turn
-  Given a turn that completes with content not yet in the chunk index
-  When the turn has completed and the System's work for it has finished
-  Then a later query returns a chunk from that turn
+  Given the System is installed
+  When a turn completes in which "the working agent produces content that is not yet in the chunk index"
+  Then a later engram query returns a chunk from that turn
 
 Scenario: 793a4j1c Offers are resolved by the System
-  Given the System is installed and a vault that holds two pending offers, one that an existing note already covers and one that no existing note addresses
-  When a turn that delivered memory completes
-  Then the covered offer is folded into the existing note it duplicates and is no longer pending
-  And the other offer is accepted and is no longer pending
+  Given the System is installed
+  And the vault holds a note "N" whose situation is "tagging a release"
+  And the vault holds a pending offer "O1" that note "N" covers
+  And the vault holds a pending offer "O2" that no note covers
+  When the human delivers a prompt matching note "N"
+  Then the offer "O1" was folded into note "N" and is no longer pending
+  And the offer "O2" was accepted and is no longer pending
 
 Scenario: 793a4j1d The agent is not asked to curate
-  Given the System is installed and a vault that holds a pending offer
-  And a prompt that matches a note
+  Given the System is installed
+  And the vault holds a note "N" whose situation is "tagging a release"
+  And the vault holds a pending offer "O" that no note covers
   And the agent runs no memory command itself
-  When the prompt is submitted
-  Then the session transcript shows the note's content delivered
-  And the transcript shows no instruction to curate and no request to the agent to run curate
+  When the human delivers a prompt matching note "N"
+  Then the transcript shows note "N" delivered with the instruction to apply it before the agent's next response or tool call
+  And the transcript shows no request from the System to the agent to run a memory command, or to evaluate, approve, write or curate a note
 
 Scenario: 793a4j1e Slow housekeeping does not stall the session
-  Given the System is installed and its work for a turn takes 20 seconds
-  When the turn completes and the user submits the next prompt immediately
-  Then the next prompt is processed without waiting for that work to finish
-  And the working agent's response to the completed turn appeared without waiting for it
+  Given the System is installed
+  And the System's work for a turn takes 20 seconds
+  When a turn completes in which "the human submits a prompt"
+  And the user submits the prompt "What is in README.md?" immediately
+  Then the next prompt was processed without waiting for the System's work
+  And the response to the completed turn appeared without waiting for the System's work
 ```
 
 ### 793a4c Memory purview only
@@ -260,29 +283,31 @@ Requirement: 793a4c The [System](#793a1-problem-statement) MUST NOT itself make 
 
 ```gherkin
 Scenario: 793a4c1a Tool calls and permissions unchanged
-  Given a session in which the System delivered notes and captured a lesson
-  When the session's tool calls and permission decisions are inspected
-  Then every tool call ran with exactly the arguments the agent issued
-  And every permission decision was made by the user's permission settings
-  And the model in use is the one the session was configured with
+  Given the System is installed
+  And the vault holds a note "N" whose situation is "tagging a release"
+  When a turn completes in which "the System delivers a note and captures a lesson"
+  Then the System changed none of the session's tool calls, permission decisions or model
 
 Scenario: 793a4c1b The prompt is unchanged and the note is separate
-  Given a prompt that matches a note
-  When the session transcript is inspected
-  Then the user's prompt text is exactly as the user typed it
-  And the delivered note appears as separate content attributed to its source
+  Given the System is installed
+  And the vault holds a note "N" whose situation is "tagging a release"
+  When the human delivers a prompt matching note "N"
+  Then the user's prompt text is exactly as typed, and note "N" is separate content attributed to its source
 
 Scenario: 793a4c1c The only effect on the working agent's context is what is delivered
-  Given a session in which the System delivered notes and captured a lesson
-  When the session transcript is inspected
+  Given the System is installed
+  And the vault holds a note "N" whose situation is "tagging a release"
+  When a turn completes in which "the System delivers a note and captures a lesson"
   Then the only content the System added to the working agent's context is the delivered items and the instruction to apply them
 
 Scenario: 793a4c1f The agent is neither required nor asked to run a memory command
   Given the System is installed
+  And the vault holds a note "N" whose situation is "tagging a release"
   And the user has not asked for any memory command
-  When the human submits a prompt that matches a note and contains a correction
-  Then the transcript shows the note's content delivered and a note stating the correction in the vault
-  And the transcript shows no request from the System to run a memory command, or to evaluate, approve or write a note
+  When the human delivers a prompt matching note "N" that says "no, use targ, not go test directly"
+  Then the transcript shows note "N" delivered with the instruction to apply it before the agent's next response or tool call
+  And the vault holds a note stating "use targ, not go test directly"
+  And the transcript shows no request from the System to the agent to run a memory command, or to evaluate, approve, write or curate a note
 ```
 
 ### 793a4b The session is never broken or stalled
@@ -295,30 +320,35 @@ Rationale: the owner wants to know when the automatic channel silently did nothi
 
 ```gherkin
 Scenario: 793a4b1a Vault unavailable
-  Given the vault cannot be read
-  When the human submits a prompt
-  Then the session proceeds normally with nothing delivered
+  Given the System is installed
+  And the vault cannot be read
+  When a turn completes in which "the human submits a prompt"
+  Then the session proceeds normally, with no error from the System and no user input missing
+  And the transcript shows no content delivered, the instruction to apply it included
   And the user is shown a warning that automatic memory was skipped because the vault is unavailable
-  And the warning appears nowhere in the working agent's transcript
+  And the warning appears nowhere in the transcript
 
 Scenario: 793a4b1b Evaluation crashes
-  Given the System's work for a turn raises an error
-  When a turn completes
-  Then the session continues and the next prompt is processed normally
+  Given the System is installed
+  And the System's work for a turn raises an error
+  When a turn completes in which "the human submits a prompt"
+  Then the session proceeds normally, with no error from the System and no user input missing
   And the user is shown a warning that automatic memory was skipped because of an error
-  And the warning appears nowhere in the working agent's transcript
+  And the warning appears nowhere in the transcript
 
 Scenario: 793a4b1c No error reaches the agent and the user is warned
-  Given the System times out at a moment
-  When the session transcript is inspected
-  Then it shows no error message from the System and no user input missing
-  And the user was shown a warning that automatic memory was skipped because the System timed out
+  Given the System is installed
+  And the System's work for a turn times out
+  When a turn completes in which "the human submits a prompt"
+  Then the session proceeds normally, with no error from the System and no user input missing
+  And the user is shown a warning that automatic memory was skipped because the System timed out
   And the warning appears nowhere in the transcript
 
 Scenario: 793a4b1e No warning when nothing matched
-  Given the System is installed and a moment at which nothing in the vault matches
-  When the moment passes
-  Then nothing is delivered
+  Given the System is installed
+  And the vault holds no matching note
+  When a turn completes in which "the human submits a prompt"
+  Then the transcript shows no content delivered, the instruction to apply it included
   And the user is shown no warning
 ```
 
@@ -336,37 +366,43 @@ Rationale: one state to reason about. Installing turns the [System](#793a1-probl
 
 ```gherkin
 Scenario: 793a5j1a Update installs the System for the harness it updates
-  Given Claude Code is installed and Pi is not
+  Given Claude Code is installed
+  And Pi is not installed
   When the user runs engram update
-  Then a Claude Code session runs with the System active, with no other configuration
-  And no Pi configuration is created
+  Then a Claude Code session runs with the System active and no other configuration
+  And the install tree has no Pi configuration
 
 Scenario: 793a5j1b An existing install gains the System and keeps what it had
-  Given an engram install made before the System existed, with the memory skills, guidance and shim deployed to Claude Code
+  Given an engram install made before the System existed
+  And the vault holds a note "N" whose situation is "tagging a release"
   When the user runs engram update
-  And a session runs with a prompt that matches a note and contains a correction
-  Then the transcript shows the note's content delivered
-  And a note stating the correction exists in the vault
-  And the Claude Code agent's configuration still holds the memory skills, the guidance and the shim it held before
+  And the human delivers a prompt matching note "N" that says "no, use targ, not go test directly"
+  Then the transcript shows note "N" delivered with the instruction to apply it before the agent's next response or tool call
+  And the vault holds a note stating "use targ, not go test directly"
+  And the install tree still holds the memory skills, guidance and shim it held before
 
 Scenario: 793a5j1c A preview installs none of the System
-  Given a machine without the System
+  Given the System is not installed
+  And the vault holds a note "N" whose situation is "tagging a release"
   When the user runs engram update --dry-run
-  And a session runs with a prompt that matches a note
-  Then the transcript shows no delivered content
+  And the human delivers a prompt matching note "N"
+  Then the transcript shows no content delivered, the instruction to apply it included
 
 Scenario: 793a5j1d One update serves both harnesses differently
-  Given Claude Code and Pi are both installed
-  And Pi is configured with the recall, learn and shim guidance
+  Given Claude Code is installed
+  And Pi is installed with the memory skills, guidance and shim
+  And the vault holds a note "N" whose situation is "tagging a release"
   When the user runs engram update
-  Then a Claude Code session runs with the System active
-  And a Pi session shows no content delivered by the System, and the Pi agent runs recall itself before acting
+  And a Pi user delivers a prompt matching note "N"
+  Then a Claude Code session runs with the System active and no other configuration
+  And the Pi transcript shows no content delivered, the instruction to apply it included
+  And the Pi agent runs recall before acting
 
 Scenario: 793a5j1l Running update twice changes nothing
-  Given engram update has installed the System for Claude Code
-  When the user runs engram update again
-  Then the System is unchanged
-  And a Claude Code session behaves identically to one run after the first update
+  Given the System is installed
+  When the user runs engram update
+  Then the install tree is unchanged
+  And the Claude Code session behaves identically to a session run after the first update
 ```
 
 ### 793a5h The user sees a summary of the memory activity
@@ -379,26 +415,26 @@ Rationale: the user keeps visibility of the memory work the [System](#793a1-prob
 
 ```gherkin
 Scenario: 793a5h1a The summary shows the counts after a turn with events
-  Given the System is installed and a turn in which it delivered 3 items, added 1 note, amended 1 note and curated 2 offers, and a subagent's session produced 1 of the added notes
-  When the turn completes
+  Given the System is installed
+  When a turn completes in which "the System delivers 3 items, adds 1 note, amends 1 note and curates 2 offers, and a subagent's session produces 1 of the added notes"
   Then the user is shown a one-line summary with 3 items delivered, 1 note added, 1 note amended and 2 offers curated
 
 Scenario: 793a5h1b Nothing is shown after a turn without events
-  Given the System is installed and a turn in which it delivered, added, amended and curated nothing
-  When the turn completes
+  Given the System is installed
+  When a turn completes in which "the System delivers, adds, amends and curates nothing"
   Then the user is shown no memory-activity summary
 
 Scenario: 793a5h1c The summary is not in the agent's context
-  Given the System is installed and a turn after which a summary was shown to the user
-  When the user submits the next prompt and the transcript of the working agent's session is inspected
-  Then the summary text appears nowhere in the transcript
-  And the working agent's next response does not refer to it
+  Given the System is installed
+  And a turn completes in which "the System delivers 1 item"
+  When a turn completes in which "the human submits the next prompt"
+  Then the summary appears nowhere in the transcript or in the working agent's next response
 
 Scenario: 793a5h1e The counts cover the events since the previous summary
-  Given the System is installed and a summary was shown after one turn
-  When the next turn completes with 1 note added and nothing else
-  Then the user is shown a summary with 1 note added and every other count 0 or omitted
-  And no event counted in the previous summary is counted again
+  Given the System is installed
+  And a turn completes in which "the System delivers 1 item"
+  When a turn completes in which "the System adds 1 note and nothing else"
+  Then the user is shown a one-line summary with 1 note added and no other count
 ```
 
 ### 793a5k Intentional memory is never blocked or changed
@@ -411,21 +447,23 @@ Rationale: the [System](#793a1-problem-statement) takes memory handling out of t
 
 ```gherkin
 Scenario: 793a5k1c An intentional recall by the agent is allowed
-  Given the System is installed and a vault that holds a note matching "how releases are tagged"
-  When the user says "run /recall on how releases are tagged" and the agent runs the recall skill
-  Then the transcript shows the recall's results and the agent's reply to the user
-  And any note the recall wrote is still in the vault when the turn completes
+  Given the System is installed
+  And the vault holds a note "N" whose situation is "how releases are tagged"
+  When a turn completes in which "the user says 'run /recall on how releases are tagged' and the agent runs the recall skill"
+  Then the transcript shows the results of the agent's own memory command, the agent's reply to the user and no error
+  And every note written by the agent's own memory command is still in the vault
 
 Scenario: 793a5k1d An intentional learn by the agent is allowed and is not undone
   Given the System is installed
-  When the user says "remember that releases are tagged from main" and the agent runs the learn skill
-  Then the vault holds one note stating that releases are tagged from main
-  And the note is still in the vault after the turn completes
+  When a turn completes in which "the user says 'remember that releases are tagged from main' and the agent runs the learn skill"
+  Then the vault holds exactly one note stating "releases are tagged from main"
+  And every note written by the agent's own memory command is still in the vault
 
 Scenario: 793a5k1e An intentional engram query by the agent is allowed
-  Given the System is installed and a vault that holds a note matching a topic
-  When the agent runs an engram query on that topic in the middle of a task
-  Then the transcript shows the query's results and no error
+  Given the System is installed
+  And the vault holds a note "N" whose situation is "how releases are tagged"
+  When a turn completes in which "the agent runs an engram query on how releases are tagged in the middle of a task"
+  Then the transcript shows the results of the agent's own memory command and no error
 ```
 
 ### 793a5c Other harnesses are unchanged
@@ -438,20 +476,24 @@ Rationale: [delivery](#793a1-problem-statement) needs the [System](#793a1-proble
 
 ```gherkin
 Scenario: 793a5c1a Unsupported harness
-  Given a harness without support for the System
-  When a session runs with the existing instruction-based path
-  Then its behavior is identical to its behavior before the System existed
+  Given the System is not installed
+  When a turn completes in which "the human submits a prompt"
+  Then the Claude Code session behaves identically to its behavior before the System existed
 
 Scenario: 793a5c1b A Pi session on a machine whose Claude Code has the System
-  Given Pi with the existing skills, guidance and shim, on a machine whose Claude Code has the System installed
-  When a Pi session runs with a prompt that matches a note and contains a correction
-  Then its behavior is identical to its behavior before the System existed
-  And the transcript shows no content delivered by the System
-  And the Pi agent's own ingest and learn run and write exactly as they would without the System
+  Given Pi is installed with the memory skills, guidance and shim
+  And the System is installed
+  And the vault holds a note "N" whose situation is "tagging a release"
+  When a Pi user delivers a prompt matching note "N" that says "no, use targ, not go test directly"
+  Then the Pi session behaves identically to its behavior before the System existed
+  And the Pi transcript shows no content delivered, the instruction to apply it included
+  And the Pi agent's own ingest and learn run and write as they would without the System
 
 Scenario: 793a5c1c A captured Pi session's transcript is left unchanged
-  Given a Pi session that has ended, whose transcript holds a correction that no note states, and a copy of that transcript
-  When a Claude Code session that has the System completes a turn and the System captures the correction
-  Then the Pi transcript is identical to the copy
-  And the Pi transcript shows no content delivered by the System
+  Given the System is installed
+  And an ended Pi session in which the user said "no, use targ, not go test directly" and its lesson was not saved
+  When a turn completes in which "the user asks a neutral question"
+  Then the vault holds a note stating "use targ, not go test directly"
+  And the Pi transcript is identical to its copy
+  And the Pi transcript shows no content delivered, the instruction to apply it included
 ```
