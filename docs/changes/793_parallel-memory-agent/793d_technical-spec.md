@@ -19,7 +19,7 @@ How a hypothesis is settled. Every scenario below is a runnable experiment or a 
 
 | # | Capability relied on | Status | Settled by |
 | --- | --- | --- | --- |
-| 1 | A plugin whose `hooks/hooks.json` lists `modules` loads a module exporting `register(on, options)`; handlers are `($, e, next)`; Claude Code 2.1.287 or later | Verified (docs) | [793d17d1b The mod loads only on a Claude Code version that supports it](#793d17d1-experiments) |
+| 1 | A plugin whose `hooks/hooks.json` lists `modules` loads a module exporting `register(on, options)`; handlers are `($, e, next)`; Claude Code 2.1.287 or later | Verified (docs) | [793d17d1a The mod loads in every session from the install path](#793d17d1-experiments) |
 | 2 | A folder under `~/.claude/skills` holding `.claude-plugin/plugin.json` loads as a plugin in every [session](../../GLOSSARY.md#session), with no flag, install step or settings edit; its hooks module loads, also through a symlink into the engram root | Plugin load: Verified (docs); hooks module and symlink: Verified (tested) | [793d17d1a The mod loads in every session from the install path](#793d17d1-experiments) |
 | 3 | `prompt.submit` fires for every origin (composer, task notification, scheduled trigger, peer [session](../../GLOSSARY.md#session)) and `next({ ...e, context })` adds text the model reads after the prompt as typed | Verified (declarations); a typed slash command: To verify | [793d17a1a Each surface is probed for each capability the product needs](#793d17a1-experiments) |
 | 4 | `additionalContext` from `classic.PostToolUse`, `classic.PostToolUseFailure` and `classic.SubagentStart` reaches the model; [context](./793a_product-spec.md#793a1-problem-statement) added by a `tool.call` hook appears in the [transcript](../../GLOSSARY.md#transcript) as an `attachment` row; whether `prompt.submit` context is stored as a transcript row | Classic events: Verified (docs, declarations, a 2.1.296 [transcript](../../GLOSSARY.md#transcript)); `prompt.submit` row: To verify | [793d17a1b Added context is attributable in the transcript](#793d17a1-experiments) |
@@ -27,12 +27,9 @@ How a hypothesis is settled. Every scenario below is a runnable experiment or a 
 | 6 | `classic.SessionStart` carries the main agent's `transcript_path` | To verify | [793d17a1a Each surface is probed for each capability the product needs](#793d17a1-experiments) |
 | 7 | `session.compact` fires for the main agent and, with `agentId`, for each [subagent](../../GLOSSARY.md#subagent) or fork compaction; `turn.complete` also fires for an interrupted turn; module variables survive `/clear`, `/resume` and `/branch` | Verified (docs, declarations) | [793d17a1a Each surface is probed for each capability the product needs](#793d17a1-experiments) |
 | 8 | `$.session.messages()` returns the newest 4096 messages the next model request carries, main loop only; after a compaction or a resume, and whether a [context](./793a_product-spec.md#793a1-problem-statement) block added through row 3 or 4 appears in it | Shape and limit: Verified (declarations); the rest: To verify | [793d17a1c The mod can read what the agent's context holds, through a compaction and a resume](#793d17a1-experiments) |
-| 9 | `turn.step` is an async-generator hook that fires before each model request of the main agent; `yield* next(e)` evaluates to a result whose `answer` is the visible text and whose `toolUses` lists its tool calls | Event and fields: Verified (docs, declarations); that a pass-through adds no visible delay and drops no chunk, and that the step's message is readable when `next(e)` returns: To verify | [793d17a1d A response step is observed without being delayed](#793d17a1-experiments) |
 | 10 | Time inside a [mods](#793d1b-terms) API call (`$.process.run`, `$.model.complete`) does not count against a hook's 10 s budget; `.catch` handlers have 1 s | Verified (docs, declarations) | [793d17c1b Work longer than the hook budget is awaited without the handler being cut off](#793d17c1-experiments) |
-| 11 | `$.model.complete({ model, prompt, system, maxTokens, timeoutMs })` returns `{ isAnswered, text, reason, usage }`; `model` is an alias (`haiku`, `sonnet`, `opus`) or a full id, billed to the [session](../../GLOSSARY.md#session)'s credentials. That the `haiku` alias resolves on every provider (Bedrock, Vertex, Foundry, a gateway), and that a model the organization blocks is rejected | Verified (docs, declarations); provider coverage and rejection: To verify | [793d17c1a A model call is relayed on a named tier](#793d17c1-experiments), [793d18c1c An unavailable cheapest tier fails loudly and does not fall back upward](#793d18c1-experiments) |
-| 12 | `$.ui.status(text)` pins one line under the prompt; it is not a [transcript](../../GLOSSARY.md#transcript) row | Pinned line: Verified (declarations); not a [transcript](../../GLOSSARY.md#transcript) row, and the prefix it is drawn with: To verify | [793d17b1a A message reaches the user and not the agent](#793d17b1-experiments) |
-| 13 | The [mod](#793d1b-terms) is inactive under `--safe-mode`, `--bare`, `disableAllHooks`, managed policy, an untrusted folder, the remote rollout switch, WSL and Claude Code older than 2.1.287; `claude -p` and the VS Code panel do not draw the status line | Verified (docs) | [793d17d1c The sessions in which each surface is inactive are known](#793d17d1-experiments) |
-| 14 | The Claude Code version each event and field first appears in | To verify | [793d17d1b The mod loads only on a Claude Code version that supports it](#793d17d1-experiments) |
+| 11 | `$.model.complete({ model, prompt, system, maxTokens, timeoutMs })` returns `{ isAnswered, text, reason, usage }`; `model` is an alias (`haiku`, `sonnet`, `opus`) or a full id, billed to the [session](../../GLOSSARY.md#session)'s credentials. That the `haiku` alias resolves on this machine's subscription login | Verified (docs, declarations); the alias on this login: To verify | [793d17c1a A model call is relayed on a named tier](#793d17c1-experiments) |
+| 12 | `$.ui.status(text)` pins one line under the prompt; it is not a [transcript](../../GLOSSARY.md#transcript) row; `claude -p` draws no status line | Pinned line: Verified (declarations); no status line in `claude -p`: Verified (docs); not a [transcript](../../GLOSSARY.md#transcript) row, and the prefix it is drawn with: To verify | [793d17b1a A message reaches the user and not the agent](#793d17b1-experiments) |
 
 ### 793d1b Terms
 
@@ -42,7 +39,7 @@ The terms **moment**, **delivery**, **lesson**, **working agent**, **context**, 
 - **Settings hook:** a command that Claude Code runs on an event, as configured in a settings file, exchanging JSON through its standard input and output.
 - **Surface:** the mod or the settings hooks, as a way to build the System's Claude Code side.
 - **Hook budget:** the 10 seconds a hook handler's own time may take before Claude Code cuts it off.
-- **Stand-in command:** a program that takes the place of the engram Go program in an experiment: it returns a fixed delivery after a set delay, so that a surface is measured apart from the real memory logic.
+- **Stand-in command:** a program that takes the place of the engram program in an experiment: it returns a fixed delivery after a set delay, so that a surface is measured apart from the real memory logic.
 - **Probe:** a minimal mod module or settings hook that exercises one capability and writes what it observed to a log outside the transcript.
 - **Judgement:** a model decision the System makes about memory. Its **kind** is one of: `classify` (from the recent texts, which of the four decision moments of recall the agent is about to reach, or none), `relevance` (from a moment and candidate notes, which bear on the moment), `extraction` (from a window of a session, which lessons it contains), `reconcile` (whether a candidate lesson is already covered by the nearest notes or absent) and `curation` (whether a pending offer is covered, near, absent or rejected).
 - **Session model:** the model the working session is configured with.
@@ -59,14 +56,16 @@ Hypothesis: 793d17 The Claude Code side of the [System](./793a_product-spec.md#7
 
 Owner's reason: the owner assumes that [mods](#793d1b-terms) offer a smaller [surface](#793d1b-terms) and more functionality, and builds the design on "the novel capabilities mods provide" ([793b189 The System is a Claude Code mod and a Go command, with the logic in Go](./793b_decision-log.md#793b189-the-system-is-a-claude-code-mod-and-a-go-command-with-the-logic-in-go)); for example "with mods, the system can just print stuff to the user" ([793c40 Does the user still see please's audit list?](./793c_open-questions.md#793c40-does-the-user-still-see-pleases-audit-list)). It is an assumption to test, not a settled fact.
 
+Scope: this machine only, a macOS terminal session and `claude -p`, signed in with a subscription, on the installed Claude Code version ([793b268 The PoC is minimal and targeted: environments the owner does not use and everything no scenario needs are cut](./793b_decision-log.md#793b268-the-poc-is-minimal-and-targeted-environments-the-owner-does-not-use-and-everything-no-scenario-needs-are-cut)). The verdict says nothing about other environments.
+
 Every experiment builds the same [probe](#793d1b-terms) twice, as a [mod](#793d1b-terms) and as a [settings hook](#793d1b-terms), on the verified Claude Code version, and writes the observations to a log outside the [transcript](../../GLOSSARY.md#transcript). The memory logic is a [stand-in command](#793d1b-terms), so the [surfaces](#793d1b-terms) are compared with nothing else varying. "Smaller" and "more" are defined by [793d17f1a The same behavior is counted on both surfaces](#793d17f1-experiments) and [793d17a1a Each surface is probed for each capability the product needs](#793d17a1-experiments).
 
 Confirmed if all hold:
 
 - Capability: the [mod](#793d1b-terms) achieves every capability of [793d17a1a Each surface is probed for each capability the product needs](#793d17a1-experiments), and every capability a [settings hook](#793d1b-terms) achieves.
-- Channels: the mod adds [context](./793a_product-spec.md#793a1-problem-statement) at a prompt of every origin, at a tool result, a failed tool result and a [subagent](../../GLOSSARY.md#subagent)'s start, each attributable in the [transcript](../../GLOSSARY.md#transcript) ([793d17a1b Added context is attributable in the transcript](#793d17a1-experiments)), and shows the user text that is not in the transcript ([793d17b1a A message reaches the user and not the agent](#793d17b1-experiments)).
+- Channels: the mod adds [context](./793a_product-spec.md#793a1-problem-statement) at a prompt of every origin, at a tool result and at a [subagent](../../GLOSSARY.md#subagent)'s start, each attributable in the [transcript](../../GLOSSARY.md#transcript) ([793d17a1b Added context is attributable in the transcript](#793d17a1-experiments)), and shows the user text that is not in the transcript ([793d17b1a A message reaches the user and not the agent](#793d17b1-experiments)).
 - Heavy work: the mod relays a model call on a named tier, awaits work longer than the [hook budget](#793d1b-terms) and runs work in the background without delaying the next event ([793d17c1a A model call is relayed on a named tier](#793d17c1-experiments), [793d17c1b Work longer than the hook budget is awaited without the handler being cut off](#793d17c1-experiments), [793d17c1c Background work does not delay the next event](#793d17c1-experiments)).
-- Load: the mod loads in every [session](../../GLOSSARY.md#session) from the install path with no flag, install step or settings edit, on the supported versions ([793d17d1a The mod loads in every session from the install path](#793d17d1-experiments), [793d17d1b The mod loads only on a Claude Code version that supports it](#793d17d1-experiments)).
+- Load: the mod loads in every [session](../../GLOSSARY.md#session) from the install path with no flag, install step or settings edit, on the installed Claude Code version ([793d17d1a The mod loads in every session from the install path](#793d17d1-experiments)).
 - Restraint: a failure inside the mod leaves the session unaffected, and no handler denies, drops or answers an event ([793d17e1a A failure inside the surface leaves the session unaffected](#793d17e1-experiments), [793d17e1b The mod changes nothing it must not](#793d17e1-experiments)).
 - Smaller: the mod's [surface](#793d1b-terms) total is lower than the settings hooks' and none of its four counts is higher ([793d17f1a The same behavior is counted on both surfaces](#793d17f1-experiments)).
 
@@ -74,27 +73,12 @@ Disproved if any holds:
 
 - A capability the product needs is achieved by the [settings hooks](#793d1b-terms) and not by the [mod](#793d1b-terms), or by neither [surface](#793d1b-terms).
 - A "To verify" row on which a capability depends fails and no other mod capability replaces it.
-- The mod is inactive in an interactive terminal [session](../../GLOSSARY.md#session) on a supported platform where the settings hooks are active ([793d17d1c The sessions in which each surface is inactive are known](#793d17d1-experiments)).
+- The mod is inactive in a [session](../../GLOSSARY.md#session) of this machine where the settings hooks are active ([793d17d1a The mod loads in every session from the install path](#793d17d1-experiments)).
 - The settings hooks reach the same capability set with a lower surface total, or with any count lower than the mod's.
-
-Recorded with the result, but neither confirming nor disproving: the early-access risk ([793d17d1d The mod's contract tests pass on the newest release](#793d17d1-experiments)).
-
-The reference behavior both [surfaces](#793d1b-terms) are built to, for the surface count:
-
-| Event | Effect |
-| --- | --- |
-| a prompt, whatever its origin | one lookup through the [stand-in command](#793d1b-terms); its text added after the prompt as typed |
-| a tool result or a failed tool result of the main agent | the same, with the text added next to the result |
-| a [subagent](../../GLOSSARY.md#subagent)'s start | the same, for that [subagent](../../GLOSSARY.md#subagent) only |
-| a [subagent](../../GLOSSARY.md#subagent)'s stop | the [stand-in command](#793d1b-terms) is started for it without delaying the stop |
-| the end of a main-agent turn | the [stand-in command](#793d1b-terms) is started for it without delaying the next prompt |
-| a response step that ended with text and a tool call | a background lookup whose text waits for the next tool result |
-| a compaction or a resume | the record of what the agent holds is refreshed |
-| any failure or timeout of the above | the event continues unchanged and the user sees one warning |
 
 ### 793d17a Capability coverage
 
-Settles rows 3 to 9 of [793d1a What the hypotheses rely on in Claude Code mods](#793d1a-what-the-hypotheses-rely-on-in-claude-code-mods). Run: live.
+Settles rows 3 to 8 of [793d1a What the hypotheses rely on in Claude Code mods](#793d1a-what-the-hypotheses-rely-on-in-claude-code-mods). Run: live.
 
 #### 793d17a1 Experiments
 
@@ -110,17 +94,15 @@ Scenario Outline: 793d17a1a Each surface is probed for each capability the produ
     | capability                                                                                                                              |
     | a prompt from the composer, from a task notification, from a scheduled trigger and from another session is observed before the agent responds |
     | text is added after the prompt as typed, and the model reads it                                                                          |
-    | text is added next to a tool result and next to a failed tool result                                                                     |
+    | text is added next to a tool result                                                                                                      |
     | text is added at a subagent's start, for that subagent only                                                                              |
     | a subagent's dispatch is observed with its task prompt                                                                                   |
     | a subagent's stop is observed with its transcript path, and the file read at the stop holds the subagent's last message                 |
     | the main agent's transcript path is known at the session's start                                                                         |
-    | a response step that ended with text and a tool call is observed before the turn ends                                                    |
-    | an interrupted main-agent turn is observed to end                                                                                        |
-    | a compaction of the main agent and of a subagent is observed and told apart                                                              |
+    | a compaction of the main agent is observed                                                                                               |
 
 Scenario: 793d17a1b Added context is attributable in the transcript
-  Given a mod that adds one block through each channel: after a prompt, next to a tool result, next to a failed tool result and at a subagent's start
+  Given a mod that adds one block through each channel: after a prompt, next to a tool result and at a subagent's start
   When the session runs and its transcript file is read
   Then each block appears as its own row, separate from the prompt as typed and from the tool result, and names the channel it came through
   And the prompt text and the tool result are exactly as they were without the mod
@@ -129,13 +111,6 @@ Scenario: 793d17a1c The mod can read what the agent's context holds, through a c
   Given a mod that delivered block X to the main agent, and a probe that lists the delivered blocks found in the messages the mod can read
   When the session is compacted so that X no longer reaches the model, X is delivered again, and the session is then ended and resumed
   Then the probe lists X after its delivery, does not list X after the compaction removed it, and lists X again after the resume restored it
-  And the probe records whether it can read a subagent's context
-
-Scenario: 793d17a1d A response step is observed without being delayed
-  Given a mod whose step handler forwards every chunk and returns the result unchanged, and a script of 20 steps each ending with text and a tool call
-  When the 20 steps run with the mod and 20 run without it
-  Then the handler reads each step's visible text and tool calls, no chunk is dropped or reordered, and the median added delay to a step's completion is below stepDelayBudgetMs (50, an initial value)
-  And the step's own assistant message is among the messages the mod can read when the handler's call returns
 ```
 
 ### 793d17b Output outside the agent's context
@@ -150,27 +125,20 @@ Scenario: 793d17b1a A message reaches the user and not the agent
   When the session runs a turn and then the next prompt
   Then the user sees each message on screen
   And neither message appears in the transcript file or in the messages the model's next request carries
-  And the experiment records, for each surface, the session types in which the message is not drawn
 ```
 
 ### 793d17c Model calls and long work
 
-Settles rows 10 and 11. Run: live, on each provider the owner uses.
+Settles rows 10 and 11. Run: live, on this machine's subscription login.
 
 #### 793d17c1 Experiments
 
 ```gherkin
-Scenario Outline: 793d17c1a A model call is relayed on a named tier
-  Given a mod that relays one short judgement request naming the model "haiku", and a settings hook script that must make the same call, on <provider>
+Scenario: 793d17c1a A model call is relayed on a named tier
+  Given a mod that relays one short judgement request naming the model "haiku", and a settings hook script that must make the same call
   When both run
   Then the mod's call returns an answered reply with its text and usage, on the session's credentials, and the usage names a model of the haiku family
   And the report counts what the hook script needed for the same call (credentials, subprocess and parsing)
-
-  Examples:
-    | provider                               |
-    | the first-party API                    |
-    | a cloud provider (Bedrock, Vertex or Foundry) |
-    | a gateway                              |
 
 Scenario: 793d17c1b Work longer than the hook budget is awaited without the handler being cut off
   Given a stand-in command that returns a delivery after 25 seconds, and a handler that awaits it through the mods API
@@ -189,7 +157,7 @@ Scenario: 793d17c1c Background work does not delay the next event
 
 ### 793d17d Install and load
 
-Settles rows 1, 2, 13 and 14. Run: live.
+Settles rows 1 and 2. Run: live.
 
 #### 793d17d1 Experiments
 
@@ -198,42 +166,9 @@ Scenario: 793d17d1a The mod loads in every session from the install path
   Given the mod directory in the engram-owned root, a link to it in the skills directory, and no flag, install step or settings edit
   When a new session starts, is cleared, is resumed and is branched
   Then the mod's probe log shows its register ran and a handler fired in each
+  And a settings hook probe built to the same events fires in the same sessions
   And claude plugin validate accepts the directory
   And the directory in the skills directory is a link whose target is in the engram-owned root
-
-Scenario Outline: 793d17d1b The mod loads only on a Claude Code version that supports it
-  Given Claude Code <version>
-  When a session starts
-  Then the mod <loads>
-  And the report records the first version at which each event and field of 793d17a1a is present
-
-  Examples:
-    | version                 | loads          |
-    | 2.1.200                 | does not load  |
-    | 2.1.287                 | loads          |
-    | 2.1.296 (verified)      | loads          |
-
-Scenario Outline: 793d17d1c The sessions in which each surface is inactive are known
-  Given <session type>, with a mod probe and a settings hook probe installed
-  When it runs a prompt and a tool call
-  Then the report records whether each probe fired
-
-  Examples:
-    | session type                       |
-    | a session started with --safe-mode |
-    | a session started with --bare      |
-    | a session with disableAllHooks set |
-    | a session under managed policy     |
-    | a session in an untrusted folder   |
-    | a session with the remote rollout switch off |
-    | a session on WSL                   |
-    | a claude -p run                    |
-    | a VS Code panel session            |
-
-Scenario: 793d17d1d The mod's contract tests pass on the newest release
-  Given the mod's own test files and the verified Claude Code version
-  When claude plugin test runs on the verified version and on the newest release
-  Then both pass, or the report names the mods API change that broke the mod, so that the early-access risk is recorded with the result
 ```
 
 ### 793d17e Failure containment and restraint
@@ -253,8 +188,8 @@ Scenario Outline: 793d17e1a A failure inside the surface leaves the session unaf
 
   Examples:
     | cause                                                |
-    | the Go command cannot start                          |
-    | the Go command's output is not a JSON document       |
+    | the engram command cannot start                      |
+    | the engram command's output cannot be parsed         |
     | the handler or script throws                         |
     | the work passes its deadline                         |
 
@@ -274,8 +209,8 @@ Run: build and count.
 
 ```gherkin
 Scenario: 793d17f1a The same behavior is counted on both surfaces
-  Given the reference behavior table of 793d17 built once as a mod and once as settings hooks, both calling the same stand-in command
-  When the artifacts each surface needs are counted
+  Given the probe pairs of 793d17a1a, 793d17c1a to 793d17c1c and 793d17e1a, each built once as a mod and once as a settings hook, calling the same stand-in command
+  When the artifacts each surface needs are counted over the pairs
   Then the report gives, for each surface, the files it deploys outside the Go program, its registered handlers or hook entries, its edits to files the user owns, and its glue lines
   And the report gives how many capabilities of 793d17a1a each surface achieved
   And the mod's surface is smaller when its total of the four counts is lower and none of the four is higher than the settings hooks'
@@ -284,6 +219,8 @@ Scenario: 793d17f1a The same behavior is counted on both surfaces
 ## 793d18 H2: the cheapest capable model is adequate for every System judgement, and is faster and cheaper
 
 Hypothesis: 793d18 Every [judgement](#793d1b-terms) the [System](./793a_product-spec.md#793a1-problem-statement) makes (`classify`, `relevance`, `extraction`, `reconcile`, `curation`) can be made by the [cheapest tier](#793d1b-terms) as well as by the [session model](#793d1b-terms), within a [margin](#793d1b-terms), and the cheapest tier is faster and cheaper per call.
+
+Scope: this machine only, `claude -p` on a subscription login, priced at the published price of each model ([793b268 The PoC is minimal and targeted: environments the owner does not use and everything no scenario needs are cut](./793b_decision-log.md#793b268-the-poc-is-minimal-and-targeted-environments-the-owner-does-not-use-and-everything-no-scenario-needs-are-cut)).
 
 Owner's reason: every [System](./793a_product-spec.md#793a1-problem-statement) task that needs model [judgement](#793d1b-terms) should go to the least capable tier that can handle that kind of judgement, not the [session](../../GLOSSARY.md#session)'s model, because the automatic System must be as fast and as cheap as possible ([793b224 Judgement runs on the cheapest capable tier](./793b_decision-log.md#793b224-judgement-runs-on-the-cheapest-capable-tier), which records the same for the [delivery](./793a_product-spec.md#793a1-problem-statement) side in [793b238 Delivery has two model judgements on the cheapest tier: moment classification and a relevance filter](./793b_decision-log.md#793b238-delivery-has-two-model-judgements-on-the-cheapest-tier-moment-classification-and-a-relevance-filter)). Prior evidence, not a result for this System: the engram evaluation found a haiku-family tier at parity with a top tier on subtle lesson-sifting, with the framing of the request mattering more than the tier; a kind is raised only on measured evidence.
 
@@ -302,7 +239,7 @@ Constants, initial values the owner can change: [margin](#793d1b-terms) 0.05, 3 
 Confirmed if all hold, for each kind:
 
 - Parity: the [cheapest tier](#793d1b-terms)'s primary measure is at least the [session model](#793d1b-terms)'s minus the [margin](#793d1b-terms), and its guard measure is no worse than the session model's plus the margin, on the whole set and on its subtle stratum ([793d18a1a The cheapest tier agrees with the gold labels as well as the session model, within the margin](#793d18a1-experiments), [793d18a1c Subtle cases are not hidden by easy ones](#793d18a1-experiments)).
-- Speed and cost: the cheapest tier's median latency per call and its cost per fixture are lower than the session model's ([793d18b1a The cheapest tier is faster per call](#793d18b1-experiments), [793d18b1b The cheapest tier is cheaper per fixture and per session](#793d18b1-experiments)).
+- Speed and cost: the cheapest tier's median latency per call and its cost per fixture are lower than the session model's ([793d18b1a The cheapest tier is faster per call](#793d18b1-experiments), [793d18b1b The cheapest tier is cheaper per fixture](#793d18b1-experiments)).
 - Table: the kind can be raised alone, on evidence, and its request always names its own model ([793d18c1a Every request names the model of its kind](#793d18c1-experiments), [793d18c1b Raising one kind changes only that kind](#793d18c1-experiments)).
 
 Disproved for a kind if the [cheapest tier](#793d1b-terms) falls short of parity by more than the [margin](#793d1b-terms) on either measure; that kind is then raised in [`judgeTiers`](#793d1b-terms) and measured again, and H2 holds for the other kinds. Disproved as a whole if the cheapest tier is not faster or not cheaper than the [session model](#793d1b-terms) on the fixtures. Inconclusive for a kind if the gap lies inside the [noise](#793d1b-terms) ([793d18a1b A gap inside the noise is inconclusive, not a tie](#793d18a1-experiments)).
@@ -352,7 +289,6 @@ Scenario Outline: 793d18b1a The cheapest tier is faster per call
   Given the fixture set of <kind> and the same request text for both tiers
   When each tier judges every fixture 3 times and each call's latency is recorded
   Then the cheapest tier's median latency is below the session model's
-  And, for the kinds with a moment deadline, the cheapest tier's 95th percentile latency is within the per-call bound drafted for it (5 seconds)
 
   Examples:
     | kind       |
@@ -362,16 +298,16 @@ Scenario Outline: 793d18b1a The cheapest tier is faster per call
     | reconcile  |
     | curation   |
 
-Scenario: 793d18b1b The cheapest tier is cheaper per fixture and per session
+Scenario: 793d18b1b The cheapest tier is cheaper per fixture
   Given the usage reported for each call and the published price of each model
-  When the cost per fixture is computed for each kind, and the cost of every judgement a replayed 50-turn session would trigger is computed for each tier
-  Then the cheapest tier's cost is lower for each kind and for the replayed session
-  And the report gives the ratio of the two costs for each
+  When the cost per fixture is computed for each kind and each tier
+  Then the cheapest tier's cost is lower for each kind
+  And the report gives the ratio of the two costs for each kind
 ```
 
 ### 793d18c The tier table
 
-Run: contract tests over the request builders, and a live check of the alias.
+Run: contract tests over the request builders.
 
 #### 793d18c1 Experiments
 
@@ -385,25 +321,19 @@ Scenario: 793d18c1b Raising one kind changes only that kind
   Given a kind that failed the parity of 793d18a1a
   When judgeTiers gives that kind the next tier
   Then the requests of that kind name the new model, the requests of the other four kinds are unchanged, and the raised kind is measured again with 793d18a1a
-
-Scenario: 793d18c1c An unavailable cheapest tier fails loudly and does not fall back upward
-  Given a provider on which the "haiku" alias does not resolve, or an organization that blocks the model
-  When a judgement is requested
-  Then the job ends as an error that names the step and the model, and the user is warned outside the transcript
-  And the session model is not used in its place
 ```
 
 ## 793d19 Design as currently drafted
 
 These are the author's choices so far. They are not requirements of this spec and are not claimed to be right; each is recorded, with its rationale and the alternatives, in the decision log, and they move to the implementation plan once the hypotheses are settled.
 
-- **The split between the [mod](#793d1b-terms) and the Go command**, with [judgements](#793d1b-terms) relayed through the mod: [793b189 The System is a Claude Code mod and a Go command, with the logic in Go](./793b_decision-log.md#793b189-the-system-is-a-claude-code-mod-and-a-go-command-with-the-logic-in-go), [793b238 Delivery has two model judgements on the cheapest tier: moment classification and a relevance filter](./793b_decision-log.md#793b238-delivery-has-two-model-judgements-on-the-cheapest-tier-moment-classification-and-a-relevance-filter).
+- **The split between the [mod](#793d1b-terms) and the engram commands**, with [judgements](#793d1b-terms) relayed through the mod (the mod orchestrates over the existing commands and no Go runner is built, per [793b256 The PoC orchestrates in JavaScript inside the mod over the existing engram commands](./793b_decision-log.md#793b256-the-poc-orchestrates-in-javascript-inside-the-mod-over-the-existing-engram-commands)): [793b189 The System is a Claude Code mod and a Go command, with the logic in Go](./793b_decision-log.md#793b189-the-system-is-a-claude-code-mod-and-a-go-command-with-the-logic-in-go), [793b238 Delivery has two model judgements on the cheapest tier: moment classification and a relevance filter](./793b_decision-log.md#793b238-delivery-has-two-model-judgements-on-the-cheapest-tier-moment-classification-and-a-relevance-filter).
 - **Where the mod's source lives, and how `engram update` installs it:** [793b190 The mod's source lives in agent-instructions/mods and is written in JavaScript](./793b_decision-log.md#793b190-the-mods-source-lives-in-agent-instructionsmods-and-is-written-in-javascript), [793b191 engram update installs the mod as a skills-directory plugin](./793b_decision-log.md#793b191-engram-update-installs-the-mod-as-a-skills-directory-plugin).
 - **[Delivery](./793a_product-spec.md#793a1-problem-statement) channels** (prompt [context](./793a_product-spec.md#793a1-problem-statement), tool-result context, subagent-start context): [793b192 Delivery uses prompt context, tool-result context and subagent-start context](./793b_decision-log.md#793b192-delivery-uses-prompt-context-tool-result-context-and-subagent-start-context).
 - **[Moments](./793a_product-spec.md#793a1-problem-statement):** the cues and the classification: [793b193 Moments are mechanical cues; the prompt lookup spans recall's four moments](./793b_decision-log.md#793b193-moments-are-mechanical-cues-the-prompt-lookup-spans-recalls-four-moments), [793b239 Author choices in applying 793b238, shown to the owner](./793b_decision-log.md#793b239-author-choices-in-applying-793b238-shown-to-the-owner); [subagents](../../GLOSSARY.md#subagent): [793b194 Subagents get a dispatch delivery and a capture at stop; moments inside a subagent are not detected](./793b_decision-log.md#793b194-subagents-get-a-dispatch-delivery-and-a-capture-at-stop-moments-inside-a-subagent-are-not-detected); tier evidence at routing: [793b218 793c64 is answered (a): tier evidence is delivered when the orchestrator routes through route](./793b_decision-log.md#793b218-793c64-is-answered-a-tier-evidence-is-delivered-when-the-orchestrator-routes-through-route).
 - **Presence and the delivery ledger:** [793b195 Presence is read from the live context and a delivery ledger](./793b_decision-log.md#793b195-presence-is-read-from-the-live-context-and-a-delivery-ledger).
 - **Judgement as relayed completions, and the tier table:** [793b196 Judgement runs as relayed model completions, not sessions](./793b_decision-log.md#793b196-judgement-runs-as-relayed-model-completions-not-sessions), [793b224 Judgement runs on the cheapest capable tier](./793b_decision-log.md#793b224-judgement-runs-on-the-cheapest-capable-tier).
-- **The round protocol, with a Go side that keeps no state:** [793b197 The Go side is stateless and advances a job one round per call](./793b_decision-log.md#793b197-the-go-side-is-stateless-and-advances-a-job-one-round-per-call).
+- **The round protocol, with a Go side that keeps no state:** dropped for the PoC by [793b256 The PoC orchestrates in JavaScript inside the mod over the existing engram commands](./793b_decision-log.md#793b256-the-poc-orchestrates-in-javascript-inside-the-mod-over-the-existing-engram-commands); it was [793b197 The Go side is stateless and advances a job one round per call](./793b_decision-log.md#793b197-the-go-side-is-stateless-and-advances-a-job-one-round-per-call).
 - **Relevance, the item limit and the wording of the instruction:** [793b198 Relevance, item limit, chunk content and the wording of the instruction](./793b_decision-log.md#793b198-relevance-item-limit-chunk-content-and-the-wording-of-the-instruction).
 - **Capture:** the window, redaction and the [System](./793a_product-spec.md#793a1-problem-statement)'s own blocks [793b199 The capture window, redaction and the System's own blocks](./793b_decision-log.md#793b199-the-capture-window-redaction-and-the-systems-own-blocks); reconciliation [793b200 Reconciliation is covered or absent; dispatch outcomes are deduplicated mechanically](./793b_decision-log.md#793b200-reconciliation-is-covered-or-absent-dispatch-outcomes-are-deduplicated-mechanically); curation [793b201 Curation follows curate's table, including the skill-runbook case](./793b_decision-log.md#793b201-curation-follows-curates-table-including-the-skill-runbook-case); the index [793b202 The chunk index is brought up to date with engram ingest --auto after the turn's other work](./793b_decision-log.md#793b202-the-chunk-index-is-brought-up-to-date-with-engram-ingest---auto-after-the-turns-other-work).
 - **Background work, the activity line and failures:** [793b203 Background work is one in-memory queue, and a final turn can be lost on exit](./793b_decision-log.md#793b203-background-work-is-one-in-memory-queue-and-a-final-turn-can-be-lost-on-exit), [793b204 The memory-activity line is the mod's status line](./793b_decision-log.md#793b204-the-memory-activity-line-is-the-mods-status-line), [793b205 Failures are classified by the mod and the runner, with named deadlines](./793b_decision-log.md#793b205-failures-are-classified-by-the-mod-and-the-runner-with-named-deadlines).
@@ -443,7 +373,7 @@ Every scenario of [Parallel Memory Agent - Product Spec](./793a_product-spec.md#
 | [793a4c1f The agent is neither required nor asked to run a memory command](./793a_product-spec.md#793a4c1-uat-scenarios) | [793d17a1b Added context is attributable in the transcript](#793d17a1-experiments), [793d17e1b The mod changes nothing it must not](#793d17e1-experiments) |
 | [793a4b1a Vault unavailable](./793a_product-spec.md#793a4b1-uat-scenarios) | [793d17e1a A failure inside the surface leaves the session unaffected](#793d17e1-experiments), [793b205 Failures are classified by the mod and the runner, with named deadlines](./793b_decision-log.md#793b205-failures-are-classified-by-the-mod-and-the-runner-with-named-deadlines) |
 | [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios) | [793d17e1a A failure inside the surface leaves the session unaffected](#793d17e1-experiments), [793b205 Failures are classified by the mod and the runner, with named deadlines](./793b_decision-log.md#793b205-failures-are-classified-by-the-mod-and-the-runner-with-named-deadlines) |
-| [793a4b1c No error reaches the agent and the user is warned](./793a_product-spec.md#793a4b1-uat-scenarios) | [793d17e1a A failure inside the surface leaves the session unaffected](#793d17e1-experiments), [793d18c1c An unavailable cheapest tier fails loudly and does not fall back upward](#793d18c1-experiments), [793b205 Failures are classified by the mod and the runner, with named deadlines](./793b_decision-log.md#793b205-failures-are-classified-by-the-mod-and-the-runner-with-named-deadlines) |
+| [793a4b1c No error reaches the agent and the user is warned](./793a_product-spec.md#793a4b1-uat-scenarios) | [793d17e1a A failure inside the surface leaves the session unaffected](#793d17e1-experiments), [793b205 Failures are classified by the mod and the runner, with named deadlines](./793b_decision-log.md#793b205-failures-are-classified-by-the-mod-and-the-runner-with-named-deadlines) |
 | [793a4b1e No warning when nothing matched](./793a_product-spec.md#793a4b1-uat-scenarios) | [793d17e1a A failure inside the surface leaves the session unaffected](#793d17e1-experiments), [793b205 Failures are classified by the mod and the runner, with named deadlines](./793b_decision-log.md#793b205-failures-are-classified-by-the-mod-and-the-runner-with-named-deadlines) |
 | [793a5j1a Update installs the System for the harness it updates](./793a_product-spec.md#793a5j1-uat-scenarios) | [793d17d1a The mod loads in every session from the install path](#793d17d1-experiments), [793b191 engram update installs the mod as a skills-directory plugin](./793b_decision-log.md#793b191-engram-update-installs-the-mod-as-a-skills-directory-plugin) |
 | [793a5j1b An existing install gains the System and keeps what it had](./793a_product-spec.md#793a5j1-uat-scenarios) | [793d17d1a The mod loads in every session from the install path](#793d17d1-experiments), [793b191 engram update installs the mod as a skills-directory plugin](./793b_decision-log.md#793b191-engram-update-installs-the-mod-as-a-skills-directory-plugin) |

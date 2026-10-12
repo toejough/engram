@@ -1023,3 +1023,42 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 - **Amends:** [793b193 Moments are mechanical cues; the prompt lookup spans recall's four moments](./793b_decision-log.md#793b193-moments-are-mechanical-cues-the-prompt-lookup-spans-recalls-four-moments), whose cues were the whole of moment detection.
 
 - **Amended by:** [793b240 The product spec is the owner's intent; the technical spec is his two hypotheses with the scenarios that test them](./793b_decision-log.md#793b240-the-product-spec-is-the-owners-intent-the-technical-spec-is-his-two-hypotheses-with-the-scenarios-that-test-them): this entry cites 7 IDs, each in the ID map, which that decision retired (its subject was removed or merged; the entry itself is left as written, and the ID map [793b241 ID map for 793b240](./793b_decision-log.md#793b241-id-map-for-793b240) gives each reason).
+
+## 793c70 May the H2 gold be mined read-only from the real transcripts and vault?
+
+- **Status:** answered (Joe, 2026-10-12). Raised by the review of the implementation plan ([793b255 The review of the implementation plan (round 1): findings and where each was applied](./793b_decision-log.md#793b255-the-review-of-the-implementation-plan-round-1-findings-and-where-each-was-applied)).
+- **Context:** the H2 fixtures ([793d18 H2: the cheapest capable model is adequate for every System judgement, and is faster and cheaper](./793d_technical-spec.md#793d18-h2-the-cheapest-capable-model-is-adequate-for-every-system-judgement-and-is-faster-and-cheaper)) need inputs drawn from real sessions and the vault's history, and the runs may not touch the real `~/.claude` or vault ([793b253 The hypothesis scenarios are updated to the PoC before they are run; unrealised kinds are recorded, not built](./793b_decision-log.md#793b253-the-hypothesis-scenarios-are-updated-to-the-poc-before-they-are-run-unrealised-kinds-are-recorded-not-built)). Mining is a one-off read that copies selected, owner-confirmed fixtures into the repository.
+- **Answer:** yes, read-only (Joe, 2026-10-12).
+- **Applied in:** the fixture row of [793e8j H2 eval and verdict](./793e_implementation-plan.md#793e8j-h2-eval-and-verdict). Decision: [793b269 793c70 is answered: the gold is mined read-only from the real transcripts and vault](./793b_decision-log.md#793b269-793c70-is-answered-the-gold-is-mined-read-only-from-the-real-transcripts-and-vault).
+- **Options:**
+  - (a) Yes: a one-off read-only mining of the real transcripts and vault history, copying only fixtures the owner confirms. (recommended)
+  - (b) No: write synthetic fixtures. The results then say less about the real System.
+  - (c) Mine the vault history only (`reconcile`, `curation`) and write the other two kinds synthetically.
+- **Recommendation:** (a). Real inputs are what H2's parity claim is about, and nothing is copied without the owner's confirmation.
+- **Blocks:** nothing now; it blocked the fixture row of [793e8j H2 eval and verdict](./793e_implementation-plan.md#793e8j-h2-eval-and-verdict).
+
+## 793c71 Who labels the relevance and extraction gold?
+
+- **Status:** answered (Joe, 2026-10-12). Raised by the review of the implementation plan ([793b255 The review of the implementation plan (round 1): findings and where each was applied](./793b_decision-log.md#793b255-the-review-of-the-implementation-plan-round-1-findings-and-where-each-was-applied)).
+- **Context:** gold for `reconcile` and `curation` is read mechanically from the vault's history. Gold for `relevance` and `extraction` needs a judgement, and it may come from neither tier under test.
+- **Answer (a):** a third model drafts and the owner confirms every fixture (Joe, 2026-10-12). Since sonnet, opus and fable are all comparison arms, no candidate is neither tier under test; the plan records which model drafted and treats the owner's confirmation of every label as what makes it gold, preferring the arm whose bias matters least. The author's choice of drafter is fable (the smallest sample), awaiting his validation.
+- **Applied in:** the fixture row of [793e8j H2 eval and verdict](./793e_implementation-plan.md#793e8j-h2-eval-and-verdict). Decision: [793b270 793c71 is answered: a third model drafts the gold, fable here, and the owner confirms every label](./793b_decision-log.md#793b270-793c71-is-answered-a-third-model-drafts-the-gold-fable-here-and-the-owner-confirms-every-label).
+- **Options:**
+  - (a) A third model, neither the cheapest tier nor the comparison arm, drafts the labels, and the owner confirms every fixture. (recommended)
+  - (b) The owner labels every fixture from scratch. Cleanest, and the most of his time.
+  - (c) A third model labels and the owner confirms a sample. Less of his time, an unconfirmed remainder.
+- **Recommendation:** (a). It keeps the gold independent of both tiers and the owner's time to a confirmation pass.
+- **Blocks:** nothing now; it blocked the fixture row of [793e8j H2 eval and verdict](./793e_implementation-plan.md#793e8j-h2-eval-and-verdict).
+
+## 793c72 Which model do the acceptance sessions run on, and which are H2's comparison arms?
+
+- **Status:** answered (Joe, 2026-10-12). Raised by the review of the implementation plan ([793b255 The review of the implementation plan (round 1): findings and where each was applied](./793b_decision-log.md#793b255-the-review-of-the-implementation-plan-round-1-findings-and-where-each-was-applied)).
+- **Context:** the harness pins `--model` so runs are comparable; the pin sets the live suite's cost and the agent behaviour its retried preconditions depend on, and H2 needs a comparison arm for the session model.
+- **Answer:** (a) for the acceptance sessions: pinned to sonnet (Joe, 2026-10-12). For H2 the comparison is three arms, because his main-agent model shifts: sonnet on the full fixture set, opus on a sample and fable on a sample, beside haiku on the full set. Refinement the same day: the samples are cost-proportional, sample size inversely proportional to per-token price, anchored at the full set for sonnet. With the published prices (sonnet 2, opus 4, fable 10 US dollars per million input tokens; output 10, 20, 50) the ratios are sonnet:opus 1:2 and opus:fable 1:2.5, so opus takes one half of sonnet's set and fable one fifth of it: at 200 fixtures per kind, 100 and 40. They support margins of about 0.066 and 0.10 (the full set about 0.047); they are indicative. See [793b272 H2 arm sample sizes are inversely proportional to per-token price, anchored at the full set for sonnet](./793b_decision-log.md#793b272-h2-arm-sample-sizes-are-inversely-proportional-to-per-token-price-anchored-at-the-full-set-for-sonnet).
+- **Applied in:** [793e8a Harness skeleton and platform spikes](./793e_implementation-plan.md#793e8a-harness-skeleton-and-platform-spikes) and [793e8j H2 eval and verdict](./793e_implementation-plan.md#793e8j-h2-eval-and-verdict). Decision: [793b271 793c72 is answered: acceptance sessions on sonnet, and H2 compares three cost-scaled arms](./793b_decision-log.md#793b271-793c72-is-answered-acceptance-sessions-on-sonnet-and-h2-compares-three-cost-scaled-arms).
+- **Options:**
+  - (a) Acceptance sessions on sonnet; H2's comparison arm on opus. (recommended)
+  - (b) Everything on opus: the highest cost for the live suite.
+  - (c) The account default, unpinned: runs are not comparable across releases.
+- **Recommendation:** (a). It keeps the roughly fifty live sessions affordable and still compares the cheapest tier against the strongest.
+- **Blocks:** nothing now; it blocked the session settings row of [793e8a Harness skeleton and platform spikes](./793e_implementation-plan.md#793e8a-harness-skeleton-and-platform-spikes) and the comparison arms of [793e8j H2 eval and verdict](./793e_implementation-plan.md#793e8j-h2-eval-and-verdict).
