@@ -1,0 +1,4 @@
+{
+  "description": "The probe recorder module",
+  "modules": ["./register.js"]
+}

@@ -7,13 +7,7 @@ import { Scenario } from '../lib/world.js'
 import { getRunContext } from '../lib/run-state.js'
 import scenarios from '../scenarios.js'
 
-class World extends CucumberWorld {
-  constructor(options) {
-    super(options)
-    this.dryRunOnly = false
-  }
-}
-setWorldConstructor(World)
+setWorldConstructor(CucumberWorld)
 
 Before(async function ({ pickle }) {
   this.id = pickle.name.split(' ')[0]

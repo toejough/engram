@@ -23,8 +23,11 @@ export class Scenario {
   init() {
     this.dir = fs.mkdtempSync(path.join(this.context.dir, 'scenario-'))
     this.home = path.join(this.dir, 'home')
-    this.workspace = path.join(this.dir, 'workspace')
+    // the workspace sits under the home, as a real project does, so the ancestor .claude and .pi directories of
+    // `engram ingest --auto` are the scenario's own
+    this.workspace = path.join(this.home, 'work')
     this.notes = new Map()
+    this.extraEnv = {}
     this.sessions = []
     this.session = null
     this.installed = false
@@ -32,6 +35,12 @@ export class Scenario {
       fs.mkdirSync(dir, { recursive: true })
     }
     this.vault = path.join(this.home, '.local', 'share', 'engram', 'vault')
+    // the sweep spec of the workspace: a scenario lives under a throwaway root, which `--auto` skips by default (SP15)
+    fs.mkdirSync(path.join(this.workspace, '.engram'), { recursive: true })
+    fs.writeFileSync(
+      path.join(this.workspace, '.engram', 'sweep.json'),
+      `${JSON.stringify({ non_persistent_prefixes: [], non_persistent_path_prefixes: [] })}\n`,
+    )
     fs.writeFileSync(
       path.join(this.home, '.claude', 'settings.json'),
       `${JSON.stringify({ permissions: { allow: ALLOWED_TOOLS } }, null, 2)}\n`,
@@ -56,7 +65,7 @@ export class Scenario {
 
   // env is the whole environment of a process started for this scenario, credentials included for sessions only.
   env({ withCredentials = false } = {}) {
-    const env = baseEnv({ home: this.home, cacheDir: this.context.cacheDir, binDir: this.context.binDir })
+    const env = { ...baseEnv({ home: this.home, cacheDir: this.context.cacheDir, binDir: this.context.binDir }), ...this.extraEnv }
     return withCredentials ? { ...env, ...this.context.creds.env } : env
   }
 

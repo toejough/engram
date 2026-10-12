@@ -1,0 +1,5 @@
+{
+  "name": "probe-recorder",
+  "version": "0.0.1",
+  "description": "Spike probe (793e8a): records the events a mod sees, and adds context or runs long work when its configuration says so"
+}

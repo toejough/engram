@@ -7,11 +7,12 @@ import { query } from '@anthropic-ai/claude-agent-sdk'
 
 import { redact } from './creds.js'
 
-const NOT_LOADED = /hooks module .*not loaded/i
+const NOT_LOADED = /hooks module (\S+) not loaded:? ?(.*)/i
 
 export class Session {
-  constructor({ env, cwd, home, claudePath, creds, model = 'sonnet', plugins = [], resume, maxBudgetUsd = 5 }) {
+  constructor({ env, cwd, home, claudePath, creds, model = 'sonnet', plugins = [], resume, maxBudgetUsd = 5, debugFile }) {
     this.home = home
+    this.debugFile = debugFile ?? path.join(home, 'claude-debug.log')
     this.creds = creds
     this.messages = []
     this.turns = []
@@ -35,6 +36,7 @@ export class Session {
         pathToClaudeCodeExecutable: claudePath,
         permissionMode: 'default',
         permissionPrompts: 'none',
+        extraArgs: { 'debug-file': this.debugFile },
         stderr: (data) => this.#onStderr(data),
       },
     })
@@ -85,9 +87,21 @@ export class Session {
 
   #onStderr(data) {
     this.stderr += data
-    if (NOT_LOADED.test(this.stderr) && !this.failure) {
-      this.#fail(new Error(`a mod did not load (fail fast): ${redact(this.stderr.trim(), this.creds)}`))
+    this.#checkLoad()
+  }
+
+  // #checkLoad fails the session when a hooks module was refused. In a stream the line goes to the debug log, not to
+  // stderr (SP2), so both are read.
+  #checkLoad() {
+    if (this.failure) return
+    let log = ''
+    try {
+      log = fs.readFileSync(this.debugFile, 'utf8')
+    } catch {
+      log = ''
     }
+    const match = NOT_LOADED.exec(`${this.stderr}\n${log}`)
+    if (match) this.#fail(new Error(`hooks module ${match[1]} not loaded (fail fast): ${redact(match[2], this.creds)}`))
   }
 
   #fail(error) {
@@ -104,7 +118,10 @@ export class Session {
         if (message.type === 'system' && message.subtype === 'init') {
           this.sessionId = message.session_id
           this.init = message
+          this.#checkLoad()
         } else if (message.type === 'result' && this.waiting) {
+          this.#checkLoad()
+          if (this.failure) return
           const turn = summarize(message, this.waiting.startedAt)
           this.turns.push(turn)
           const { resolve } = this.waiting
