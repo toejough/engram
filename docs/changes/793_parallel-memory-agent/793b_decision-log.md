@@ -2860,3 +2860,10 @@ ID map for this decision (retired IDs are never reused):
 | `793d2e1a` | `793d2e1e` | round one no longer calls the recorder; the scenario now states that round one returns the extraction request |
 
 Changed in place under stable IDs: [793a2n Relevant memory reaches the agent at the moments](793a_product-spec.md#793a2n-relevant-memory-reaches-the-agent-at-the-moments) (the bullet and `793a2n1j` name route's evidence notes), [793a3a Lessons are captured without the agent](793a_product-spec.md#793a3a-lessons-are-captured-without-the-agent), [793a5h The user sees a summary of the memory activity](793a_product-spec.md#793a5h-the-user-sees-a-summary-of-the-memory-activity) (counts and `793a5h1a`, `793a5h1b`), [793d2e Job order within a round](793d_technical-spec.md#793d2e-job-order-within-a-round), [793d3f Memory-activity line](793d_technical-spec.md#793d3f-memory-activity-line) (and `793d3f1a`), [793d4a A job in rounds](793d_technical-spec.md#793d4a-a-job-in-rounds) (and `793d4a1c`).
+
+## 793b228 An intentional learn after an automatic capture may write a duplicate; the fix is filed as an issue
+
+- **Decided by:** Owner (Joe, 2026-10-12)
+- **Choice:** an intentional learn that follows an automatic capture of the same lesson may write a duplicate note. This is accepted for this change. The fix, a covered / near / absent reconcile inside `engram learn`, is filed as [issue #853](https://github.com/toejough/engram/issues/853).
+- **Rationale:** the existing learn system stays as-is in this change. Ordering decides whether the gap appears. Agent-first (the agent writes, then the System captures) is handled by the covered judgement of `793d7c`. System-first (the System captures, then the agent learns) is the gap: learn never checks the vault for a near-sibling, and [793a2k](793a_product-spec.md) forbids the System from undoing an intentional run, so it cannot fold the duplicate.
+- **Alternatives:** fix learn in this change (rejected: the existing system stays as-is); the System folds agent-written duplicates (rejected: `793a2k` never undoes an intentional run).
