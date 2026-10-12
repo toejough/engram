@@ -80,6 +80,7 @@ Retired scenarios of requirements that remain: `793a2a1b`, `793a2a1c`, `793a2e1b
 - **Status:** the per-mode scenarios are retired with `793a4e`; see [793b49 No operating modes](#793b49-no-operating-modes).
 
 - **Status update:** superseded in part by [793c29 Is the System a delegate for the existing memory skills?](793c_open-questions.md#793c29-is-the-system-a-delegate-for-the-existing-memory-skills) ([793b90 Restructure 793a as a delegation of the memory skills](#793b90-restructure-793a-as-a-delegation-of-the-memory-skills)): the restructure retired `793a2h`, `793a3b`, `793a3c`, `793a3j`.
+- **Amended by:** [793b185 The user is warned when automatic memory is skipped](#793b185-the-user-is-warned-when-automatic-memory-is-skipped): the no-error-to-the-agent branch of 793a4b now also has the user-warning scenarios 793a4b1a to 793a4b1c and 793a4b1e.
 
 ## 793b4 Draft sections that are not requirements
 
@@ -342,6 +343,7 @@ Retired scenarios of requirements that remain: `793a2a1b`, `793a2a1c`, `793a2e1b
 - **Status update:** superseded in part by [793c29 Is the System a delegate for the existing memory skills?](793c_open-questions.md#793c29-is-the-system-a-delegate-for-the-existing-memory-skills) ([793b90 Restructure 793a as a delegation of the memory skills](#793b90-restructure-793a-as-a-delegation-of-the-memory-skills)): the restructure retired `793a3f`.
 
 - **Amended by:** [793b182 Reduce 793a to the minimum set of end-to-end, user-verifiable requirements; layer automatic memory beside intentional memory](#793b182-reduce-793a-to-the-minimum-set-of-end-to-end-user-verifiable-requirements-layer-automatic-memory-beside-intentional-memory): this entry cites `793a5g`, which that decision retired (its subject was removed or merged; the entry itself is left as written, and the ID map [793b183 ID map for the minimal reduction](#793b183-id-map-for-the-minimal-reduction) gives each reason).
+- **Amended by:** [793b185 The user is warned when automatic memory is skipped](#793b185-the-user-is-warned-when-automatic-memory-is-skipped): the session still continues unaffected, but a failure is no longer silent: the user is warned (the operator-log clause was already retired by the reduction).
 
 ## 793b20 Deep recall's writes and no self-links
 
@@ -2369,3 +2371,10 @@ New IDs: `793a2c1d`, `793a3o`, `793a3o1` with `793a3o1a`..`793a3o1d`, [793a3p Di
   12. No new open question is raised.
 - **Rationale:** each follows the owner's rule in [793b182 Reduce 793a to the minimum set of end-to-end, user-verifiable requirements; layer automatic memory beside intentional memory](#793b182-reduce-793a-to-the-minimum-set-of-end-to-end-user-verifiable-requirements-layer-automatic-memory-beside-intentional-memory) (what a user can verify from the outside) or the standing rule to default to today's behavior; none is genuinely blocking.
 - **Alternatives:** keep any of the dropped items as a requirement; ask the owner. Not chosen, per the rules in [793b174 Review rules R1 to R3 apply to this change](#793b174-review-rules-r1-to-r3-apply-to-this-change).
+
+## 793b185 The user is warned when automatic memory is skipped
+
+- **Decided by:** Owner (Joe), walkthrough of [793a4b The session is never broken or stalled](793a_product-spec.md#793a4b-the-session-is-never-broken-or-stalled), 2026-10-11.
+- **Choice:** when the System fails, times out or is unavailable, the user MUST be shown a warning on the same surface as the memory-activity summary ([793a5h The user sees a summary of the memory activity](793a_product-spec.md#793a5h-the-user-sees-a-summary-of-the-memory-activity)), outside the working agent's context, saying automatic memory was skipped for that moment or turn and why (unavailable, timed out, error). The session continues unaffected, with no error to the agent and no lost input. A moment at which nothing matched is not a failure and gets no warning. New scenario `793a4b1e` (checked with `git log -S`: unused); `793a4b1a` to `793a4b1c` also assert the warning and its absence from the agent's transcript.
+- **Rationale:** the owner wants to know when the automatic channel silently did nothing.
+- **Alternatives:** keep failures silent (the earlier behavior). Not chosen by the owner.

@@ -344,7 +344,9 @@ Canonical target: `docs/specs/product/automatic-memory.md` (title `Automatic Mem
 
 ### 793a4b The session is never broken or stalled
 
-Requirement: 793a4b While the Integration is installed, if the System fails, times out, or is unavailable, the working session MUST continue unaffected, with no error surfaced to the working agent and no lost user input. The System MUST NOT make the agent or the user wait for any of its work that is not needed before the agent's next step: capturing, indexing, curating and the summary.
+Requirement: 793a4b While the Integration is installed, if the System fails, times out, or is unavailable, the working session MUST continue unaffected, with no error surfaced to the working agent and no lost user input, and the System MUST show the user a warning, on the same surface as the memory-activity summary ([793a5h The user sees a summary of the memory activity](#793a5h-the-user-sees-a-summary-of-the-memory-activity)) and outside the working agent's context, saying that automatic memory was skipped for that moment or turn and why (unavailable, timed out, or error). A moment at which nothing matched is not a failure and MUST show no warning. The System MUST NOT make the agent or the user wait for any of its work that is not needed before the agent's next step: capturing, indexing, curating and the summary.
+
+Rationale: the owner wants to know when the automatic channel silently did nothing, without that ever reaching the working agent ([793b185 The user is warned when automatic memory is skipped](793b_decision-log.md#793b185-the-user-is-warned-when-automatic-memory-is-skipped)).
 
 #### 793a4b1 UAT Scenarios
 
@@ -353,22 +355,34 @@ Scenario: 793a4b1a Vault unavailable
   Given the vault cannot be read
   When the human submits a prompt
   Then the session proceeds normally with nothing delivered
+  And the user is shown a warning that automatic memory was skipped because the vault is unavailable
+  And the warning appears nowhere in the working agent's transcript
 
 Scenario: 793a4b1b Evaluation crashes
   Given capture evaluation raises an error
   When a turn completes
   Then the session continues and the next prompt is processed normally
+  And the user is shown a warning that automatic memory was skipped because of an error
+  And the warning appears nowhere in the working agent's transcript
 
-Scenario: 793a4b1c No error reaches the agent
+Scenario: 793a4b1c No error reaches the agent and the user is warned
   Given the System times out at a moment
   When the session transcript is inspected
   Then it shows no error message from the System and no user input missing
+  And the user was shown a warning that automatic memory was skipped because the System timed out
+  And the warning appears nowhere in the transcript
 
 Scenario: 793a4b1d Slow capture does not stall the session
   Given capture takes 20 seconds
   When a turn completes and the user submits the next prompt immediately
   Then the next prompt is processed without waiting for the capture to finish
   And the working agent's response to the completed turn appeared without waiting for the capture
+
+Scenario: 793a4b1e No warning when nothing matched
+  Given the Integration is installed and a moment at which nothing in the vault matches
+  When the moment passes
+  Then nothing is delivered
+  And the user is shown no warning
 ```
 
 ### 793a4c Memory purview only
@@ -493,7 +507,7 @@ Scenario: 793a5c1b A Pi session on a machine whose Claude Code has the Integrati
 
 ### 793a5h The user sees a summary of the memory activity
 
-Requirement: 793a5h After each completed top-level turn, once the System's work for that turn (capture included) has finished, the System MUST show the user, outside the working agent's context, the counts of memory events since its previous summary, across the session and its subagent sessions: items delivered, notes added, notes amended, dispatch outcomes recorded and offers curated. A turn with no memory events MUST show nothing. The summary MUST NOT enter the working agent's context. When a note the System wrote could not reach a parent vault and its offer is queued ([792a15j A write to a parent is reported as done](../../specs/product/learn.md#792a15j-a-write-to-a-parent-is-reported-as-done)), the System MUST tell the user, on the same surface and also outside the agent's context, that the note is saved and its offer is queued, and MUST NOT call the write failed, even when the turn has no counts to show.
+Requirement: 793a5h After each completed top-level turn, once the System's work for that turn (capture included) has finished, the System MUST show the user, outside the working agent's context, the counts of memory events since its previous summary, across the session and its subagent sessions: items delivered, notes added, notes amended, dispatch outcomes recorded and offers curated. A turn with no memory events MUST show nothing. The warning that automatic memory was skipped ([793a4b The session is never broken or stalled](#793a4b-the-session-is-never-broken-or-stalled)) is shown on this same surface. The summary MUST NOT enter the working agent's context. When a note the System wrote could not reach a parent vault and its offer is queued ([792a15j A write to a parent is reported as done](../../specs/product/learn.md#792a15j-a-write-to-a-parent-is-reported-as-done)), the System MUST tell the user, on the same surface and also outside the agent's context, that the note is saved and its offer is queued, and MUST NOT call the write failed, even when the turn has no counts to show.
 
 Rationale: the user keeps visibility of the memory work the System took over without the working agent relaying it, and hears what the learn skill would have told them.
 
