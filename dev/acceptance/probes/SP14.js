@@ -13,7 +13,8 @@ export const claim = 'pi runs headless in an isolated home and writes a session 
 export async function run(h) {
   const pi = whichOnPath('pi')
   if (!pi) return { available: false }
-  const evidence = { available: true, version: (await exec(pi, ['--version'], { env: { PATH: process.env.PATH } }).catch((e) => ({ stdout: '', stderr: e.message }))).stdout.trim() }
+  const versionScenario = h.scenario()
+  const evidence = { available: true, version: (await exec(pi, ['--version'], { env: versionScenario.env(), cwd: versionScenario.workspace }).catch((e) => ({ stdout: '', stderr: e.message }))).stdout.trim() }
   const attempt = async (extraEnv) => {
     const scenario = h.scenario()
     const sessions = path.join(scenario.dir, 'pi-sessions')

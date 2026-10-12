@@ -9,6 +9,7 @@ export const PRODUCT_SPEC = path.join(CHANGE_DIR, '793a_product-spec.md')
 export const TECHNICAL_SPEC = path.join(CHANGE_DIR, '793d_technical-spec.md')
 
 const HEADING = /^#{2,6} (\S+ (?:UAT Scenarios|Experiments))\s*$/
+const ANY_HEADING = /^#{1,6} /
 const SCENARIO = /^Scenario( Outline)?: (\d+[a-z][a-z0-9]*) (.*)$/
 
 // extractScenarios returns the scenarios of the gherkin blocks that sit under a "UAT Scenarios" or "Experiments"
@@ -21,6 +22,7 @@ export function extractScenarios(specPath, { idPrefix = '' } = {}) {
     if (block === null) {
       const match = HEADING.exec(line)
       if (match) heading = match[1]
+      else if (ANY_HEADING.test(line)) heading = null
       else if (line.startsWith('```gherkin')) block = []
       continue
     }

@@ -1,4 +1,3 @@
-import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
 import { Given } from '@cucumber/cucumber'
@@ -13,7 +12,7 @@ Given(/^the System is (installed|not installed)$/, async function (state) {
 
 Given(/^(Claude Code is installed|Pi is installed with the memory skills, guidance and shim|Pi is not installed)$/, function (form) {
   if (form !== 'Claude Code is installed') return NOT_BUILT
-  assert.ok(fs.existsSync(this.scenario.context.claudePath), 'claude is not installed')
+  if (!fs.existsSync(this.scenario.context.claudePath)) throw new Error('claude is not installed')
   return undefined
 })
 

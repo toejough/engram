@@ -74,7 +74,7 @@ Then(
 
 Then(/^the transcript shows the results of the agent's own memory command(, the agent's reply to the user)? and no error$/, function (withReply) {
   const session = this.scenario.session
-  assert.ok(session, 'no session ran')
+  if (!session) throw new Error('no session ran: a harness error, the scenario has no turn before this step')
   const rows = readRows(session.transcriptPath())
   const calls = memoryCalls(rows)
   assert.ok(calls.length > 0, "the agent ran no memory command of its own: the transcript has no engram command or memory skill call")
@@ -89,6 +89,7 @@ Then(/^the transcript shows the results of the agent's own memory command(, the 
       'the results of the memory command do not show the seeded note',
     )
   }
-  assert.equal(session.turns.at(-1).isError, false, 'the last turn ended in an error')
+  // an errored turn (an API error, the budget guard, no login) is not evidence about the System
+  if (session.turns.at(-1).isError) throw new Error(`the last turn ended in an error: ${session.turns.at(-1).text.slice(0, 200)}`)
   if (withReply) assert.notEqual(finalReply(rows), '', 'the transcript has no reply of the agent')
 })

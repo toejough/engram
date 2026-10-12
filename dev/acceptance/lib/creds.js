@@ -43,3 +43,8 @@ function build(env) {
 export function redact(text, creds) {
   return creds.values.reduce((out, value) => out.split(value).join('[redacted]'), text)
 }
+
+// redactDeep removes the credential values from any JSON-serialisable value (a probe's evidence, a report).
+export function redactDeep(value, creds) {
+  return JSON.parse(redact(JSON.stringify(value) ?? 'null', creds))
+}

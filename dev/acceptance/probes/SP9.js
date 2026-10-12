@@ -16,9 +16,9 @@ function makeMod(dir, source) {
   fs.writeFileSync(path.join(dir, 'hooks', 'register.js'), source)
 }
 
-function validate(dir) {
+function validate(h, scenario, dir) {
   try {
-    return execFileSync('claude', ['plugin', 'validate', dir], { encoding: 'utf8' })
+    return execFileSync(h.context.claudePath, ['plugin', 'validate', dir], { encoding: 'utf8', env: scenario.env(), cwd: scenario.workspace })
   } catch (error) {
     return `${error.stdout ?? ''}${error.stderr ?? ''}`
   }
@@ -33,11 +33,10 @@ export async function run(h) {
   await h.settle(1000)
   const events = h.events(scenario)
   evidence.handlers = {
-    envGetWorked: events.length > 0,
-    fsWriteWorked: events.length > 0,
+    envGetAndFsWriteWorked: events.length > 0,
     statusRecorded: events.some((event) => event.kind === 'ui.status'),
     statusErrors: events.filter((event) => event.kind === 'ui.status.error').map((event) => event.data),
-    statusInSdkMessages: session.messages.some((message) => JSON.stringify(message).includes(STATUS)),
+    statusMessage: session.messages.filter((message) => JSON.stringify(message).includes(STATUS)).map((message) => ({ type: message.type, subtype: message.subtype, plugin: message.plugin, text: message.text })),
     statusInTranscript: rowsContaining(h.rows(session), STATUS).length,
     replyOk: !turn.isError,
   }
@@ -45,7 +44,7 @@ export async function run(h) {
   const dir = path.join(scenario.dir, 'validate')
   makeMod(path.join(dir, 'gate-no-catch'), "export function register(on) {\n  on('tool.call', { tool: 'Bash' }, async ($, e, next) => next(e))\n}\n")
   makeMod(path.join(dir, 'gate-with-catch'), "export function register(on) {\n  on('tool.call', { tool: 'Bash' }, async ($, e, next) => next(e)).catch(async ($, e, next) => (next.called ? next(e) : { deny: 'guard failed' }))\n}\n")
-  const lines = (name) => validate(path.join(dir, name)).split('\n').filter((line) => /gating|passed|failed|error/i.test(line)).map((line) => line.trim())
+  const lines = (name) => validate(h, scenario, path.join(dir, name)).split('\n').filter((line) => /gating|passed|failed|error/i.test(line)).map((line) => line.trim())
   evidence.validate = { withoutCatch: lines('gate-no-catch'), withCatch: lines('gate-with-catch') }
   return evidence
 }

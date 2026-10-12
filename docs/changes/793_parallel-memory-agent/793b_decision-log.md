@@ -3142,6 +3142,7 @@ New IDs (each checked with `git log -S`: unused): `793a3a1k` to `793a3a1o`, `793
 
 - **Amended by:** [793b240 The product spec is the owner's intent; the technical spec is his two hypotheses with the scenarios that test them](#793b240-the-product-spec-is-the-owners-intent-the-technical-spec-is-his-two-hypotheses-with-the-scenarios-that-test-them): the watermark and the scan are design drafts, not requirements.
 - **Amended by:** [793b240 The product spec is the owner's intent; the technical spec is his two hypotheses with the scenarios that test them](#793b240-the-product-spec-is-the-owners-intent-the-technical-spec-is-his-two-hypotheses-with-the-scenarios-that-test-them): this entry cites 32 IDs, each in the ID map, which that decision retired (its subject was removed or merged; the entry itself is left as written, and the ID map [793b241 ID map for 793b240](#793b241-id-map-for-793b240) gives each reason).
+- **Amended by:** [793b278 The backlog scan reads the ingest manifest if SP15 shows it suffices; engram backlog stays only if it does not](#793b278-the-backlog-scan-reads-the-ingest-manifest-if-sp15-shows-it-suffices-engram-backlog-stays-only-if-it-does-not): the backlog scan reads the ingest manifest and chunk files and the mod writes the capture mark; there is no Go command.
 
 ## 793b233 Choices made in applying 793b232, shown to the owner
 
@@ -3364,6 +3365,7 @@ Technical spec: `793d1`, `793d1a` and `793d1b` are kept, with new content (the r
 - **Amended by:** [793b261 The World installs by running engram update in local mode, without the go install leg](#793b261-the-world-installs-by-running-engram-update-in-local-mode-without-the-go-install-leg): the World runs `engram update` with the worktree as working directory, `ENGRAM_UPDATE_REEXEC=1` and a per-scenario TMPDIR, so the `go install` leg is skipped.
 - **Amended by:** [793b267 The OAuth token comes from a file the harness reads only when the variable is unset](#793b267-the-oauth-token-comes-from-a-file-the-harness-reads-only-when-the-variable-is-unset): the credential source includes the owner's token file, read only when the variable is unset.
 - **Amended by:** [793b276 The harness is cucumber-js in plain JavaScript over the Agent SDK, run by targ acceptance](#793b276-the-harness-is-cucumber-js-in-plain-javascript-over-the-agent-sdk-run-by-targ-acceptance): the session is an Agent SDK query with an explicit environment; the credentials rule is unchanged.
+- **Amended by:** [793b275 The harness and the PoC are JavaScript; only the update's mod copies stay Go](#793b275-the-harness-and-the-poc-are-javascript-only-the-updates-mod-copies-stay-go): the harness is JavaScript, by the owner's decision.
 
 ## 793b246 Assertions read the transcript, the vault and a harness-only seam log; only preconditions are retried
 
@@ -3372,7 +3374,7 @@ Technical spec: `793d1`, `793d1a` and `793d1b` are kept, with new content (the r
 - **Rationale:** the owner asked that flaky-by-nature scenarios get retries, not mocks, and that the status and warning be captured through a mod-written log in `-p`. Retrying only the precondition keeps a real miss of the System from being retried away.
 - **Alternatives:** retry the whole scenario (hides misses); an LLM judge for the Then (a second source of error); no seam, assert on screen scrapes (not possible in `-p`).
 - **Amended by:** [793b266 Non-blocking review fixes in the plan](#793b266-non-blocking-review-fixes-in-the-plan): the precondition retries live inside the When step and rebuild the World (N5), "identical behaviour" is defined (N6), and the seam is the `$.ui.status` call site (N7).
-
+- **Amended by:** [793b281 The spikes SP1 to SP15 are settled](#793b281-the-spikes-sp1-to-sp15-are-settled): see the outcomes of the spikes it names: status lines come from the stream, the close drains the work, and the three non-human origins are produced live.
 
 ## 793b247 Scenario data lives in one fixtures file keyed by scenario ID, so step definitions stay generic
 
@@ -3382,6 +3384,7 @@ Technical spec: `793d1`, `793d1a` and `793d1b` are kept, with new content (the r
 - **Alternatives:** one step definition per distinct sentence; one Go function per scenario.
 - **Amended by:** [793b263 godog runs strict with anchored steps, and the scenario data holds inputs only](#793b263-godog-runs-strict-with-anchored-steps-and-the-scenario-data-holds-inputs-only): scenario data holds inputs only; the step definitions are 60 to 90 anchored ones and hold every expected outcome; godog runs strict.
 - **Amended by:** [793b276 The harness is cucumber-js in plain JavaScript over the Agent SDK, run by targ acceptance](#793b276-the-harness-is-cucumber-js-in-plain-javascript-over-the-agent-sdk-run-by-targ-acceptance): the data file is `scenarios.js` and holds inputs only.
+- **Amended by:** [793b275 The harness and the PoC are JavaScript; only the update's mod copies stay Go](#793b275-the-harness-and-the-poc-are-javascript-only-the-updates-mod-copies-stay-go): the harness is JavaScript, by the owner's decision.
 
 ## 793b248 The session driver streams input and waits for the System's idle marker
 
@@ -3391,6 +3394,7 @@ Technical spec: `793d1`, `793d1a` and `793d1b` are kept, with new content (the r
 - **Alternatives:** one-shot `-p` runs with a sleep (races); an interactive session for every scenario (slower, needs a pty).
 - **Amended by:** [793b268 The PoC is minimal and targeted: environments the owner does not use and everything no scenario needs are cut](#793b268-the-poc-is-minimal-and-targeted-environments-the-owner-does-not-use-and-everything-no-scenario-needs-are-cut): the tmux fallback for a failing SP13 is cut; a failing SP13 stops for the owner.
 - **Amended by:** [793b276 The harness is cucumber-js in plain JavaScript over the Agent SDK, run by targ acceptance](#793b276-the-harness-is-cucumber-js-in-plain-javascript-over-the-agent-sdk-run-by-targ-acceptance): sessions are Agent SDK queries with streaming input; the idle marker is unchanged.
+- **Amended by:** [793b281 The spikes SP1 to SP15 are settled](#793b281-the-spikes-sp1-to-sp15-are-settled): see the outcomes of the spikes it names: status lines come from the stream, the close drains the work, and the three non-human origins are produced live.
 
 ## 793b249 Scenarios whose prompt origin cannot be produced in -p get a contract-test substitute
 
@@ -3400,7 +3404,7 @@ Technical spec: `793d1`, `793d1a` and `793d1b` are kept, with new content (the r
 - **Alternatives:** leave the rows red (the harness would then never reach green); fake the origin with the mod's own `$.prompt.submit` (it does not carry that origin).
 - **Amended by:** [793b264 Results include Substituted, and Pi-agent behaviour is not faked with fixtures](#793b264-results-include-substituted-and-pi-agent-behaviour-is-not-faked-with-fixtures): a substitute ends `Substituted: product promise unverified`, and a Pi-agent behaviour is not faked with a fixture.
 - **Amended by:** [793b266 Non-blocking review fixes in the plan](#793b266-non-blocking-review-fixes-in-the-plan): the live driver for the non-human origins is spike SP8, not SP9 as the choice above says.
-
+- **Amended by:** [793b281 The spikes SP1 to SP15 are settled](#793b281-the-spikes-sp1-to-sp15-are-settled): see the outcomes of the spikes it names: status lines come from the stream, the close drains the work, and the three non-human origins are produced live.
 
 ## 793b250 The PoC is the drafted design cut to what the 43 scenarios need
 
@@ -3480,6 +3484,7 @@ ID map for 793b243 to 793b254 (each checked with `git log -S`: unused): `793b243
 - **Alternatives:** keep the Go runner (more owned code, the reason of [793b189 The System is a Claude Code mod and a Go command, with the logic in Go](#793b189-the-system-is-a-claude-code-mod-and-a-go-command-with-the-logic-in-go) is the author's); JavaScript for the backlog as well (a second transcript stripper).
 - **Amends:** [793b189 The System is a Claude Code mod and a Go command, with the logic in Go](#793b189-the-system-is-a-claude-code-mod-and-a-go-command-with-the-logic-in-go) and [793b197 The Go side is stateless and advances a job one round per call](#793b197-the-go-side-is-stateless-and-advances-a-job-one-round-per-call) for the PoC, and [793b250 The PoC is the drafted design cut to what the 43 scenarios need](#793b250-the-poc-is-the-drafted-design-cut-to-what-the-43-scenarios-need) where it names `engram auto run` and the round protocol.
 - **Amended by:** [793b275 The harness and the PoC are JavaScript; only the update's mod copies stay Go](#793b275-the-harness-and-the-poc-are-javascript-only-the-updates-mod-copies-stay-go): the owner decided that the PoC, harness and tooling are JavaScript and the Go command is subject to [793b278 The backlog scan reads the ingest manifest if SP15 shows it suffices; engram backlog stays only if it does not](#793b278-the-backlog-scan-reads-the-ingest-manifest-if-sp15-shows-it-suffices-engram-backlog-stays-only-if-it-does-not).
+- **Amended by:** [793b278 The backlog scan reads the ingest manifest if SP15 shows it suffices; engram backlog stays only if it does not](#793b278-the-backlog-scan-reads-the-ingest-manifest-if-sp15-shows-it-suffices-engram-backlog-stays-only-if-it-does-not): the backlog scan reads the ingest manifest and chunk files and the mod writes the capture mark; there is no Go command.
 
 ## 793b257 H1 is scoped to this environment, and rows for other environments are not run
 
@@ -3512,6 +3517,7 @@ ID map for 793b243 to 793b254 (each checked with `git log -S`: unused): `793b243
 - **Alternatives:** the `integration` tag with a name-based exclusion (the selection is by tag, so no name protects it); a script outside targ (not the repository's convention).
 - **Amends:** [793b244 Acceptance runs are TestAcceptance under the integration tag, run by targ acceptance, not by check-full](#793b244-acceptance-runs-are-testacceptance-under-the-integration-tag-run-by-targ-acceptance-not-by-check-full), whose "a new build tag for no gain" reasoning was wrong.
 - **Amended by:** [793b276 The harness is cucumber-js in plain JavaScript over the Agent SDK, run by targ acceptance](#793b276-the-harness-is-cucumber-js-in-plain-javascript-over-the-agent-sdk-run-by-targ-acceptance): the live suite is not a Go build tag; it is the `targ acceptance` target and `check-full` still never runs it.
+- **Amended by:** [793b275 The harness and the PoC are JavaScript; only the update's mod copies stay Go](#793b275-the-harness-and-the-poc-are-javascript-only-the-updates-mod-copies-stay-go): the harness is JavaScript, by the owner's decision.
 
 ## 793b261 The World installs by running engram update in local mode, without the go install leg
 
@@ -3536,6 +3542,7 @@ ID map for 793b243 to 793b254 (each checked with `git log -S`: unused): `793b243
 - **Alternatives:** thirty generic steps with outcomes in the data (the finding); one Go function per scenario.
 - **Amends:** [793b247 Scenario data lives in one fixtures file keyed by scenario ID, so step definitions stay generic](#793b247-scenario-data-lives-in-one-fixtures-file-keyed-by-scenario-id-so-step-definitions-stay-generic).
 - **Amended by:** [793b277 The Gherkin step lines of the 43 product scenarios use a fixed vocabulary of 27 steps](#793b277-the-gherkin-step-lines-of-the-43-product-scenarios-use-a-fixed-vocabulary-of-27-steps): the definitions are 27 phrasings, not 60 to 90.
+- **Amended by:** [793b275 The harness and the PoC are JavaScript; only the update's mod copies stay Go](#793b275-the-harness-and-the-poc-are-javascript-only-the-updates-mod-copies-stay-go): the harness is JavaScript, by the owner's decision.
 
 ## 793b264 Results include Substituted, and Pi-agent behaviour is not faked with fixtures
 
@@ -3680,7 +3687,7 @@ ID map for 793b243 to 793b254 (each checked with `git log -S`: unused): `793b243
   - **Features.** The extractor writes the `gherkin` blocks of the product spec (and of the H1 section of the technical spec), with a `Feature:` line per `UAT Scenarios` or `Experiments` heading, to a per-run temporary directory that the run removes, because cucumber-js reads feature files from paths. No `.feature` file is committed; the scenario IDs in the scenario names are the trace.
   - **Sessions.** One Agent SDK `query()` per scenario session, with an async-iterable prompt (streaming input) so that further prompts, compaction and resume reach the same session; `env` replaced by an explicit list (the SDK replaces, not merges, the subprocess environment, so no variable of the calling session leaks in); `cwd` the workspace; `model: 'sonnet'`; `pathToClaudeCodeExecutable` the `claude` on PATH, so the suite exercises the installed Claude Code; the `stderr` callback for the fail-fast on `hooks module ... not loaded`; `maxBudgetUsd` as a generous per-session guard. The typed message stream (the init message carries `session_id`, `plugins`, `apiKeySource` and `claude_code_version`) is a second observable beside the transcript JSONL that Claude Code writes under the temporary HOME.
   - **Data.** `dev/acceptance/scenarios.js`, an ES module keyed by scenario ID, holds inputs only (scripts for the turns, seeds, keywords that identify a lesson). It is JavaScript rather than YAML because a parser would be one more dependency and the prompts are multi-line strings.
-  - **Running.** `targ acceptance [filter]` is a Go target in `dev/targs.go` that checks for `node`, `npm` and `claude`, runs `npm ci` when `node_modules` is missing, and runs `node dev/acceptance/run.js`; `--dry-run` runs the vocabulary check without a session. A missing program fails with a message that names it. The live suite is not a Go build tag any more: it stays outside `check-full` because only this target runs it.
+  - **Running.** `targ acceptance [filter]` is a Go target in `dev/targs.go` that checks for `node`, `npm` and `claude`, runs `npm ci` when `node_modules` is missing, and runs `node dev/acceptance/run.js`; `--dry-run` runs the vocabulary check without a session. A missing program fails with a message that names it. `--check` runs the harness self-tests and the vocabulary check only. Every step is bounded by 10 minutes, because cucumber's default of 5 seconds is shorter than one turn with its retries; a run exits non-zero on a Red or a harness error and reports Pending rows as INCOMPLETE without failing. The live suite is not a Go build tag any more: it stays outside `check-full` because only this target runs it.
   - **What `check-full` runs.** The extractor's `node:test` suite (no dependency installed), through one `dev` integration test that skips with a reason when `node` is absent, as [793b254 The CLI absent skips, anything else missing fails](#793b254-the-cli-absent-skips-anything-else-missing-fails) does for `claude`.
 - **Rationale:** the owner's reasons in [793b275 The harness and the PoC are JavaScript; only the update's mod copies stay Go](#793b275-the-harness-and-the-poc-are-javascript-only-the-updates-mod-copies-stay-go); the failure of the live target on a missing program (instead of a skip) is the owner's direction, and a skip there would only hide a missing install because nothing else runs the suite.
 - **Alternatives:** TypeScript for the harness; YAML scenario data; the `claude -p` stream-json protocol parsed by hand; in-memory feature contents (not offered by cucumber-js, whose programmatic API takes feature paths).

@@ -4,10 +4,15 @@ package dev
 
 import (
 	"os/exec"
+	"strconv"
+	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
 )
+
+// minNodeMajor is the first node with the glob argument of node --test (the package declares >=22).
+const minNodeMajor = 22
 
 // Test793e8a_ExtractorSuiteRunsInCheckFull runs the acceptance package's dependency-free node:test suite (the
 // extractor, credential, transcript and preflight tests), so that check-full guards the claim that the specs are the
@@ -20,6 +25,17 @@ func Test793e8a_ExtractorSuiteRunsInCheckFull(t *testing.T) {
 	node, err := exec.LookPath("node")
 	if err != nil {
 		t.Skip("node is not on PATH: the acceptance package's node:test suite did not run")
+	}
+
+	version, err := exec.CommandContext(t.Context(), node, "--version").Output()
+	g.Expect(err).NotTo(HaveOccurred())
+
+	majorText, _, _ := strings.Cut(strings.TrimPrefix(strings.TrimSpace(string(version)), "v"), ".")
+	major, err := strconv.Atoi(majorText)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if major < minNodeMajor {
+		t.Skipf("node %d is older than %d: the acceptance package's node:test suite did not run", major, minNodeMajor)
 	}
 
 	command := exec.CommandContext(t.Context(), node, "--test", "test/*.test.js")

@@ -27,6 +27,8 @@ const (
 // unexported variables.
 var (
 	errAcceptanceProgram = errors.New("acceptance needs a program that is not on PATH")
+	errAcceptanceRoot    = errors.New("acceptance needs the repository that holds " + acceptanceDir)
+	errAcceptanceUsage   = errors.New("--check runs the self-tests and the vocabulary check only")
 )
 
 // acceptanceArgs holds the arguments of targ acceptance.
@@ -51,6 +53,10 @@ type acceptanceEnv struct {
 
 // acceptancePlan returns the commands of one targ acceptance run, or the missing program that stops it (793e2a).
 func acceptancePlan(args acceptanceArgs, env acceptanceEnv) ([]acceptanceCommand, error) {
+	if args.Check && (args.DryRun || args.Filter != "") {
+		return nil, fmt.Errorf("%w: give it without a filter or --dry-run", errAcceptanceUsage)
+	}
+
 	live := !args.DryRun && !args.Check
 
 	programs := []string{nodeProgram, npmProgram}
@@ -62,7 +68,7 @@ func acceptancePlan(args acceptanceArgs, env acceptanceEnv) ([]acceptanceCommand
 		_, err := env.LookPath(program)
 		if err != nil {
 			return nil, fmt.Errorf(
-				"%w: `%s` (a dev dependency of %s: install it, then run targ acceptance again)",
+				"%w: `%s` (%s needs it: install it, then run targ acceptance again)",
 				errAcceptanceProgram, program, acceptanceDir,
 			)
 		}
@@ -113,7 +119,7 @@ func acceptanceRoot() (string, error) {
 
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return "", fmt.Errorf("%w: no %s above the working directory", errAcceptanceProgram, acceptanceDir)
+			return "", fmt.Errorf("%w: none above the working directory", errAcceptanceRoot)
 		}
 
 		dir = parent

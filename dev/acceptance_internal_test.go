@@ -113,4 +113,16 @@ func Test793e8a_AcceptancePlan(t *testing.T) {
 			g.Expect(err).To(MatchError(ContainSubstring("`" + name + "`")))
 		}
 	})
+
+	t.Run("check cannot be combined with a filter or the dry-run flag", func(t *testing.T) {
+		t.Parallel()
+
+		for _, args := range []acceptanceArgs{{Check: true, Filter: "793a"}, {Check: true, DryRun: true}} {
+			g := NewWithT(t)
+
+			_, err := acceptancePlan(args, acceptanceEnv{Root: "/repo", LookPath: present, Exists: installed})
+
+			g.Expect(err).To(MatchError(errAcceptanceUsage))
+		}
+	})
 }

@@ -54,3 +54,20 @@ test('written features carry one Feature line per heading and the scenario text 
     fs.rmSync(dir, { recursive: true, force: true })
   }
 })
+
+test('a gherkin block under a heading that is not a scenario heading is not extracted', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'extract-heading-'))
+  try {
+    const file = path.join(dir, 'spec.md')
+    fs.writeFileSync(
+      file,
+      [
+        '#### 793z1 UAT Scenarios', '', '```gherkin', 'Scenario: 793z1a Counted', '  Given a world', '```', '',
+        '### 793z2 Some other section', '', '```gherkin', 'Scenario: 793z2a Not a scenario of the spec', '  Given a world', '```', '',
+      ].join('\n'),
+    )
+    assert.deepEqual(extractScenarios(file).map((scenario) => scenario.id), ['793z1a'])
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})

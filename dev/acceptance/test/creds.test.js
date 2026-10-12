@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { resolveCredentials, redact, TOKEN_FILE } from '../lib/creds.js'
+import { resolveCredentials, redact, redactDeep, TOKEN_FILE } from '../lib/creds.js'
 
 const SECRET = 'sk-ant-oat01-SECRETVALUE'
 
@@ -47,4 +47,10 @@ test('with no credential anywhere the error names the variables and the file and
 test('redact removes every credential value from a text', () => {
   const creds = resolveCredentials({ CLAUDE_CODE_OAUTH_TOKEN: SECRET }, fakeFs(''))
   assert.equal(redact(`token ${SECRET} and again ${SECRET}`, creds), 'token [redacted] and again [redacted]')
+})
+
+test('redactDeep removes every credential value from nested evidence', () => {
+  const creds = resolveCredentials({ CLAUDE_CODE_OAUTH_TOKEN: SECRET }, fakeFs(''))
+  const evidence = { a: [`x ${SECRET}`, 1], b: { c: SECRET, d: null } }
+  assert.deepEqual(redactDeep(evidence, creds), { a: ['x [redacted]', 1], b: { c: '[redacted]', d: null } })
 })

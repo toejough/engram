@@ -5,6 +5,7 @@ import path from 'node:path'
 
 import { query } from '@anthropic-ai/claude-agent-sdk'
 
+import { turnCost } from './cost.js'
 import { redact } from './creds.js'
 
 const NOT_LOADED = /hooks module (\S+) not loaded:? ?(.*)/i
@@ -20,6 +21,7 @@ export class Session {
     this.sessionId = null
     this.init = null
     this.failure = null
+    this.costTotal = 0
     this.waiting = null
     this.inputs = []
     this.inputWaiter = null
@@ -122,7 +124,8 @@ export class Session {
         } else if (message.type === 'result' && this.waiting) {
           this.#checkLoad()
           if (this.failure) return
-          const turn = summarize(message, this.waiting.startedAt)
+          const turn = summarize(message, this.waiting.startedAt, turnCost(this.costTotal, message.total_cost_usd))
+          this.costTotal = typeof message.total_cost_usd === 'number' ? message.total_cost_usd : this.costTotal
           this.turns.push(turn)
           const { resolve } = this.waiting
           this.waiting = null
@@ -136,12 +139,12 @@ export class Session {
   }
 }
 
-function summarize(result, startedAt) {
+function summarize(result, startedAt, costUsd) {
   return {
     text: result.result ?? '',
     isError: Boolean(result.is_error),
     subtype: result.subtype,
-    costUsd: result.total_cost_usd ?? 0,
+    costUsd,
     durationMs: result.duration_ms ?? Date.now() - startedAt,
     wallMs: Date.now() - startedAt,
     usage: result.usage,

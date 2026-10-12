@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { resolveCredentials } from '../lib/creds.js'
+import { redactDeep, resolveCredentials } from '../lib/creds.js'
 import { preflight } from '../lib/preflight.js'
 import { createRunContext, disposeRunContext } from '../lib/run-context.js'
 import { readRows } from '../lib/transcript.js'
@@ -54,7 +54,7 @@ export async function withProbeContext(fn, { withCredentials = true } = {}) {
     },
   }
   try {
-    return await fn(helpers)
+    return redactDeep(await fn(helpers), creds)
   } finally {
     await Promise.all(scenarios.map((scenario) => scenario.dispose()))
     disposeRunContext(context)
