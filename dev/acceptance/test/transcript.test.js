@@ -60,3 +60,45 @@ test('content occurrences count the rows that carry a text, whatever their kind'
 test('the final reply is the last assistant text', () => {
   assert.match(finalReply(readRows(FIXTURE)), /releases are tagged from main/)
 })
+
+import { MARKER, afterLastCompaction, agentCalls, deliveries, precedesResponse, retrievals, systemBlocks } from '../lib/transcript.js'
+
+function block(text) {
+  return { type: 'attachment', attachment: { type: 'hook_additional_context', content: [text] } }
+}
+
+const PROMPT = { type: 'user', message: { role: 'user', content: 'hi' } }
+const REPLY = { type: 'assistant', message: { content: [{ type: 'text', text: 'ok' }] } }
+
+test('system blocks are the hook context rows that open with the marker', () => {
+  const rows = [PROMPT, block(`${MARKER} notes\n- n1 SENTINEL-A`), block('someone else'), REPLY]
+  assert.deepEqual(systemBlocks(rows).map((entry) => entry.index), [1])
+  assert.equal(deliveries(rows, 'SENTINEL-A').length, 1)
+  assert.equal(deliveries(rows, 'SENTINEL-B').length, 0)
+})
+
+test('a block precedes the response when no assistant row sits between its prompt and itself', () => {
+  assert.equal(precedesResponse([PROMPT, block(`${MARKER} x`), REPLY], 1), true)
+  assert.equal(precedesResponse([PROMPT, REPLY, block(`${MARKER} x`)], 2), false)
+})
+
+test('retrievals are the agent memory commands whose results show the text', () => {
+  const rows = [
+    { type: 'assistant', message: { content: [{ type: 'tool_use', id: 't1', name: 'Bash', input: { command: 'engram query --phrase x' } }] } },
+    { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't1', content: 'SENTINEL-A' }] } },
+    { type: 'assistant', message: { content: [{ type: 'tool_use', id: 't2', name: 'Bash', input: { command: 'echo SENTINEL-A' } }] } },
+    { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't2', content: 'SENTINEL-A' }] } },
+  ]
+  assert.equal(retrievals(rows, 'SENTINEL-A').length, 1)
+})
+
+test('rows before the last compaction boundary and its summary are not in the context any more', () => {
+  const rows = [PROMPT, block(`${MARKER} old`), { type: 'system', subtype: 'compact_boundary' }, { type: 'user', isCompactSummary: true, message: { content: 'summary' } }, PROMPT]
+  assert.equal(afterLastCompaction(rows).length, 1)
+  assert.equal(afterLastCompaction([PROMPT]).length, 1)
+})
+
+test('subagent dispatches are the Agent and Task tool uses', () => {
+  const rows = [{ type: 'assistant', message: { content: [{ type: 'tool_use', id: 'a', name: 'Agent', input: { prompt: 'p' } }, { type: 'tool_use', id: 'b', name: 'Bash', input: {} }] } }]
+  assert.equal(agentCalls(rows).length, 1)
+})

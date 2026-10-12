@@ -1,20 +1,38 @@
 // A scripted turn (793b246): the prompt that elicits an event, sent to the scenario's session, and the observation
 // that confirms the agent did what the event says. Only this precondition is retried, up to three attempts, each in a
 // rebuilt World; the Then of a scenario is never retried.
-import { readRows, toolCalls } from './transcript.js'
+import { memoryCalls, readRows, toolCalls } from './transcript.js'
 
 export const MAX_ATTEMPTS = 3
 const TRANSCRIPT_WAIT_MS = 5000
 const POLL_MS = 100
 
-export function observed(rows, observe) {
+function matches(expected, actual) {
+  if (expected === undefined) return true
+  return expected instanceof RegExp ? expected.test(actual) : expected === actual
+}
+
+// observed: the agent did what the event says. `tool` and `command` (and `skill`) are matched against a tool call,
+// `reply` against the agent's last reply; a script with no observation is confirmed by the turn itself.
+export function observed(rows, observe, reply = '') {
   if (!observe) return true
+  if (observe.reply !== undefined && !matches(observe.reply, reply)) return false
+  if (observe.tool === undefined) return true
   return toolCalls(rows).some(
-    (call) => call.name === observe.tool && (observe.command === undefined || observe.command.test(call.input.command ?? '')),
+    (call) =>
+      matches(observe.tool, call.name) &&
+      matches(observe.command, call.input.command ?? '') &&
+      matches(observe.skill, call.input.skill ?? ''),
   )
 }
 
-async function readTranscript(session) {
+// constraintsHold: the Given constraints of the scenario ("the user has not asked for any memory command", "the agent
+// runs no memory command itself") are enforced by the turn: a turn in which the agent ran one is a failed precondition.
+export function constraintsHold(world, rows) {
+  return !world.noAgentMemoryCommands || memoryCalls(rows).length === 0
+}
+
+export async function readTranscript(session) {
   const deadline = Date.now() + TRANSCRIPT_WAIT_MS
   for (;;) {
     const file = session.transcriptPath()
@@ -24,17 +42,43 @@ async function readTranscript(session) {
   }
 }
 
-export async function runTurn(world, script) {
-  for (let attempt = 1; ; attempt += 1) {
-    const scenario = world.scenario
-    const session = scenario.session ?? scenario.startSession()
-    const turn = await session.send(script.prompt)
-    const rows = await readTranscript(session)
-    if (observed(rows, script.observe)) return { turn, rows }
-    if (attempt === MAX_ATTEMPTS) {
-      throw new Error(`the precondition of the turn was not observed in ${MAX_ATTEMPTS} attempts (${JSON.stringify(script.observe)})`)
+// settle gives the transcript writer a moment to flush the rows of a finished turn before they are read.
+export async function settle(ms = 600) {
+  await new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+export function currentSession(scenario) {
+  return scenario.session ?? scenario.startSession()
+}
+
+// sendPrompt sends one prompt to the scenario's session and returns what the turn left in the transcript.
+export async function sendPrompt(scenario, prompt) {
+  const session = currentSession(scenario)
+  const turn = await session.send(prompt)
+  await settle()
+  return { turn, rows: await readTranscript(session) }
+}
+
+// attempt runs one try of a precondition and returns its rows, or null when the precondition was not observed. A
+// successful try is appended to the setup log, so that a later retry rebuilds the World with this turn replayed.
+export async function attempt(world, run, check) {
+  for (let tries = 1; ; tries += 1) {
+    const result = await run(world.scenario)
+    if (check(result)) {
+      world.scenario.log.push(async (scenario) => { await run(scenario) })
+      return result
     }
+    if (tries === MAX_ATTEMPTS) throw new Error(`the precondition of the turn was not observed in ${MAX_ATTEMPTS} attempts`)
     world.retries += 1
-    await scenario.rebuild()
+    await world.scenario.rebuild()
   }
+}
+
+export async function runTurn(world, script) {
+  const result = await attempt(
+    world,
+    (scenario) => sendPrompt(scenario, script.prompt),
+    ({ turn, rows }) => observed(rows, script.observe, turn.text) && constraintsHold(world, rows),
+  )
+  return result
 }

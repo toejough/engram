@@ -11,7 +11,11 @@ import { baseEnv } from './run-context.js'
 import { Session } from './session.js'
 
 const run = promisify(execFile)
-const ALLOWED_TOOLS = ['Bash(engram:*)', 'Read', 'Glob', 'Grep']
+const ALLOWED_TOOLS = ['Bash(engram:*)', 'Bash(echo:*)', 'Bash(sleep:*)', 'Read', 'Glob', 'Grep', 'Agent', 'Skill', 'CronCreate']
+// the mod of the System in the source tree; the stand-in for the install of 793e8e is a link to it (793b251)
+export const MOD_DIR = path.join(REPO_ROOT, 'agent-instructions', 'mods', 'engram-memory')
+// a turn bound for the sessions of the scenarios: a skill such as please can run long, and no scenario needs more
+const MAX_TURNS = 8
 
 export class Scenario {
   constructor(context) {
@@ -91,20 +95,37 @@ export class Scenario {
   // that the go install leg is skipped, 793b261) into this scenario's home.
   async install() {
     await this.engram(['update'], { cwd: REPO_ROOT, extraEnv: { ENGRAM_UPDATE_REEXEC: '1' } })
+    this.linkMod(MOD_DIR, 'engram-memory')
     this.installed = true
   }
 
-  startSession(options = {}) {
+  // linkMod puts a mod where Claude Code loads it from: a link in the skills directory of this home (793b251). A mod
+  // that does not exist yet (the System before it is built) is not linked, and the session then runs without it.
+  linkMod(modDir, name) {
+    if (!fs.existsSync(modDir)) return
+    const skills = path.join(this.home, '.claude', 'skills')
+    fs.mkdirSync(skills, { recursive: true })
+    fs.symlinkSync(modDir, path.join(skills, name))
+  }
+
+  // writeWorkspaceFile writes an input file the agent is told to read (a command, a prompt to schedule).
+  writeWorkspaceFile(name, text) {
+    fs.writeFileSync(path.join(this.workspace, name), text)
+  }
+
+  // startSession starts a session in this World; current: false leaves `this.session` alone (a peer's sender).
+  startSession({ current = true, ...options } = {}) {
     const session = new Session({
       env: this.env({ withCredentials: true }),
       cwd: this.workspace,
       home: this.home,
       claudePath: this.context.claudePath,
       creds: this.context.creds,
+      maxTurns: MAX_TURNS,
       ...options,
     })
     this.sessions.push(session)
-    this.session = session
+    if (current) this.session = session
     return session
   }
 

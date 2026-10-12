@@ -8,20 +8,24 @@ import { query } from '@anthropic-ai/claude-agent-sdk'
 import { turnCost } from './cost.js'
 import { redact } from './creds.js'
 
+let sessionCount = 0
 const NOT_LOADED = /hooks module (\S+) not loaded:? ?(.*)/i
 
 export class Session {
-  constructor({ env, cwd, home, claudePath, creds, model = 'sonnet', plugins = [], resume, maxBudgetUsd = 5, debugFile }) {
+  constructor({ env, cwd, home, claudePath, creds, model = 'sonnet', plugins = [], resume, maxBudgetUsd = 5, maxTurns, debugFile }) {
     this.home = home
-    this.debugFile = debugFile ?? path.join(home, 'claude-debug.log')
+    // one debug log per session: a World may hold several (a resume, a peer's sender)
+    sessionCount += 1
+    this.debugFile = debugFile ?? path.join(home, `claude-debug-${sessionCount}.log`)
     this.creds = creds
     this.messages = []
     this.turns = []
     this.stderr = ''
-    this.sessionId = null
+    this.sessionId = resume ?? null
     this.init = null
     this.failure = null
     this.costTotal = 0
+    this.lastResultAt = Date.now()
     this.waiting = null
     this.inputs = []
     this.inputWaiter = null
@@ -35,6 +39,7 @@ export class Session {
         plugins,
         resume,
         maxBudgetUsd,
+        maxTurns,
         pathToClaudeCodeExecutable: claudePath,
         permissionMode: 'default',
         permissionPrompts: 'none',
@@ -54,6 +59,24 @@ export class Session {
     })
   }
 
+  // awaitTurn resolves with the summary of the next turn the session runs without being sent anything: a task
+  // notification, a scheduled trigger or a peer's message starts one (SP8).
+  awaitTurn({ after = this.turns.length, timeoutMs = 180000 } = {}) {
+    if (this.failure) return Promise.reject(this.failure)
+    if (this.turns.length > after) return Promise.resolve(this.turns[after])
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.waiting = null
+        reject(new Error(`no turn started by itself within ${timeoutMs} ms`))
+      }, timeoutMs)
+      this.waiting = {
+        resolve: (turn) => { clearTimeout(timer); resolve(turn) },
+        reject: (error) => { clearTimeout(timer); reject(error) },
+        startedAt: Date.now(),
+      }
+    })
+  }
+
   // close ends the input stream and waits for the SDK to finish.
   async close() {
     this.closed = true
@@ -69,6 +92,15 @@ export class Session {
       if (fs.existsSync(file)) return file
     }
     return null
+  }
+
+  // subagentTranscripts are the transcript files of the subagents this session dispatched (SP4).
+  subagentTranscripts() {
+    const main = this.transcriptPath()
+    if (!main) return []
+    const dir = path.join(main.slice(0, -'.jsonl'.length), 'subagents')
+    if (!fs.existsSync(dir)) return []
+    return fs.readdirSync(dir).filter((name) => name.endsWith('.jsonl')).map((name) => path.join(dir, name))
   }
 
   async *#inputStream() {
@@ -121,15 +153,16 @@ export class Session {
           this.sessionId = message.session_id
           this.init = message
           this.#checkLoad()
-        } else if (message.type === 'result' && this.waiting) {
+        } else if (message.type === 'result') {
           this.#checkLoad()
           if (this.failure) return
-          const turn = summarize(message, this.waiting.startedAt, turnCost(this.costTotal, message.total_cost_usd))
+          const turn = summarize(message, this.waiting?.startedAt ?? this.lastResultAt, turnCost(this.costTotal, message.total_cost_usd))
           this.costTotal = typeof message.total_cost_usd === 'number' ? message.total_cost_usd : this.costTotal
+          this.lastResultAt = Date.now()
           this.turns.push(turn)
-          const { resolve } = this.waiting
+          const waiting = this.waiting
           this.waiting = null
-          resolve(turn)
+          waiting?.resolve(turn)
         }
       }
     } catch (error) {

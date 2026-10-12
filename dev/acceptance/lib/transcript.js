@@ -78,3 +78,67 @@ export function finalReply(rows) {
   }
   return ''
 }
+
+// MARKER opens every block the System delivers (793e2b: the System's blocks are identified by their fixed marker line).
+export const MARKER = '[engram memory]'
+
+function attachmentText(row) {
+  const content = row?.attachment?.content
+  if (Array.isArray(content)) return content.filter((part) => typeof part === 'string').join('\n')
+  return typeof content === 'string' ? content : ''
+}
+
+// systemBlocks are the rows the System added to an agent's context: the hook_additional_context attachment rows
+// (SP4) that open with the marker. { index, text } per row, in order.
+export function systemBlocks(rows) {
+  const blocks = []
+  rows.forEach((row, index) => {
+    if (row.type !== 'attachment' || row.attachment?.type !== 'hook_additional_context') return
+    const text = attachmentText(row)
+    if (text.startsWith(MARKER)) blocks.push({ index, text })
+  })
+  return blocks
+}
+
+// deliveries are the System's blocks that carry the text (a note's sentinel).
+export function deliveries(rows, needle) {
+  return systemBlocks(rows).filter((block) => block.text.includes(needle))
+}
+
+// retrievals are the agent's own memory commands whose results show the text.
+export function retrievals(rows, needle) {
+  return memoryCalls(rows).filter((call) => call.result?.text.includes(needle))
+}
+
+// precedesResponse is true when no assistant row sits between the row that caused a block (the nearest earlier user
+// row: the prompt, a tool result, a task prompt) and the block: the agent reads it before its next response or tool call.
+export function precedesResponse(rows, index) {
+  for (let i = index - 1; i >= 0; i -= 1) {
+    if (rows[i].type === 'assistant') return false
+    if (rows[i].type === 'user') return true
+  }
+  return false
+}
+
+// afterLastCompaction drops the rows up to the last compaction boundary and the summary row that follows it.
+export function afterLastCompaction(rows) {
+  let boundary = -1
+  rows.forEach((row, index) => {
+    if (row.type === 'system' && row.subtype === 'compact_boundary') boundary = index
+  })
+  return rows.slice(boundary + 1).filter((row) => !row.isCompactSummary)
+}
+
+// agentCalls are the dispatches of a subagent in the rows: the Agent (formerly Task) tool uses.
+export function agentCalls(rows) {
+  return toolCalls(rows).filter((call) => call.name === 'Agent' || call.name === 'Task')
+}
+
+// promptRows are the rows that open a turn from a given origin, by the origin fields Claude Code writes on the row.
+export function promptRows(rows, kind) {
+  return rows.flatMap((row, index) => {
+    if (row.type !== 'user' || typeof row.message?.content !== 'string') return []
+    const origin = JSON.stringify([row.origin, row.turnOrigin, row.promptSource])
+    return kind === undefined || origin.includes(kind) ? [{ index, row }] : []
+  })
+}

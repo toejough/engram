@@ -1,22 +1,44 @@
 import { When } from '@cucumber/cucumber'
 
-import { runTurn } from '../lib/turn.js'
+import { deliverPrompt } from '../lib/origins.js'
+import { runTurn, settle } from '../lib/turn.js'
 
 const NOT_BUILT = 'pending'
 
 When(/^a turn completes in which "([^"]*)"$/, async function (event) {
   const script = this.data.turns?.[event]
   if (!script) throw new Error(`scenarios.js has no turn script for ${this.id}: "${event}"`)
+  this.origin = null
   this.lastTurn = await runTurn(this, script)
 })
 
 When(
-  /^(?:the human|an automated task notification|a scheduled trigger|a message from another session|a Pi user) delivers a prompt matching note "([^"]*)"(?: that says "([^"]*)")?$/,
-  () => NOT_BUILT,
+  /^(the human|an automated task notification|a scheduled trigger|a message from another session|a Pi user) delivers a prompt matching note "([^"]*)"(?: that says "([^"]*)")?$/,
+  async function (origin, label, correction) {
+    if (origin === 'a Pi user') return NOT_BUILT
+    this.lastTurn = await deliverPrompt(this, origin, label, correction)
+    return undefined
+  },
 )
 
 When(/^the user submits the prompt "([^"]*)" immediately$/, () => NOT_BUILT)
 
-When(/^the session is (?:compacted|ended and resumed)$/, () => NOT_BUILT)
+// compact sends /compact in the stream (SP7); resume ends the session and starts one that resumes it by id.
+async function compact(scenario) {
+  await scenario.session.send('/compact')
+  await settle()
+}
+
+async function resume(scenario) {
+  const { sessionId } = scenario.session
+  await scenario.session.close()
+  scenario.startSession({ resume: sessionId })
+}
+
+When(/^the session is (compacted|ended and resumed)$/, async function (what) {
+  const action = what === 'compacted' ? compact : resume
+  await action(this.scenario)
+  this.scenario.log.push(action)
+})
 
 When(/^the user runs engram update(?: --dry-run)?$/, () => NOT_BUILT)
