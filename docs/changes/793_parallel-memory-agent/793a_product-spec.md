@@ -55,8 +55,8 @@ Requirement: 793a2n The System MUST deliver relevant vault memory to the working
 - where recall fires ([792a19a Recall fires at four decision moments](../../specs/product/ambient-guidance.md#792a19a-recall-fires-at-four-decision-moments));
 - at please's orientation ([792a18d The workflow opens with learn and orients with recall](../../specs/product/please.md#792a18d-the-workflow-opens-with-learn-and-orients-with-recall));
 - at every prompt, whatever its source (a human, an automated notification, a scheduled trigger or a message from another session);
-- at a subagent's dispatch, delivered to that subagent for its task;
-- at the orchestrator's decision to dispatch a unit, before the orchestrator routes the unit, including any recorded evidence about which tier suits that kind of work ([793a3p Dispatch outcomes are recorded by the System](#793a3p-dispatch-outcomes-are-recorded-by-the-system)).
+- at a subagent's dispatch, delivered to that subagent for its task (a subagent's own first edit or first failure is not a moment);
+- when the orchestrator routes a unit through route, before it routes the unit, including any recorded evidence about which tier suits that kind of work ([793a3p Dispatch outcomes are recorded by the System](#793a3p-dispatch-outcomes-are-recorded-by-the-system)).
 
 Each delivery MUST tell the agent to apply what it received. When nothing relevant remains to deliver, the System MUST deliver nothing, that instruction included. Delivery is subject to [793a2e Nothing already in context is delivered again](#793a2e-nothing-already-in-context-is-delivered-again).
 
@@ -105,7 +105,7 @@ Scenario: 793a2n1i Please's orientation receives relevant notes
 
 Scenario: 793a2n1j Tier evidence is delivered before a dispatch is routed
   Given a recorded dispatch outcome for a kind of work that shows a cheaper tier failed
-  When the orchestrator decides to dispatch a unit of that kind
+  When the orchestrator routes a unit of that kind through route
   Then the transcript shows that evidence delivered, with the instruction to apply it, before the orchestrator routes the unit
   And the transcript shows no request to the orchestrator to run a memory command
 ```
@@ -438,7 +438,7 @@ Scenario: 793a4f1b A session of its own receives no delivery
 
 ### 793a4h Installed by engram update and active in Claude Code
 
-Requirement: 793a4h `engram update` MUST install the Integration for the Claude Code harness, directly, when it updates that harness ([792a11g The harnesses that are updated](../../specs/product/install-and-update.md#792a11g-the-harnesses-that-are-updated)), and the System MUST be active in every Claude Code session from then on, with no operating mode to select and no step beyond installing it. It MUST NOT depend on `engram init`. It MUST NOT remove or alter anything else that `engram update` deploys today. An existing install of engram MUST have the System in Claude Code after its next `engram update`, and running `engram update` again MUST change nothing about the Integration. The Integration MUST NOT be installed for any other harness, and `engram update` MUST NOT create the directory of a harness that is not present. `engram update --dry-run` ([792a11f Previewing an update](../../specs/product/install-and-update.md#792a11f-previewing-an-update)) MUST install none of it.
+Requirement: 793a4h `engram update` MUST install the Integration for the Claude Code harness, directly, when it updates that harness ([792a11g The harnesses that are updated](../../specs/product/install-and-update.md#792a11g-the-harnesses-that-are-updated)), and the System MUST be active in every Claude Code session in which mods run from then on, with no operating mode to select and no step beyond installing it. It MUST NOT depend on `engram init`. It MUST NOT remove or alter anything else that `engram update` deploys today. An existing install of engram MUST have the System in Claude Code after its next `engram update`, and running `engram update` again MUST change nothing about the Integration. The Integration MUST NOT be installed for any other harness, and `engram update` MUST NOT create the directory of a harness that is not present. `engram update --dry-run` ([792a11f Previewing an update](../../specs/product/install-and-update.md#792a11f-previewing-an-update)) MUST install none of it.
 
 This requirement is delivered by this change and does not wait on any other issue ([793b186 793a4h is delivered by this change and does not depend on #795](793b_decision-log.md#793b186-793a4h-is-delivered-by-this-change-and-does-not-depend-on-795)). When change #795 (`docs/changes/795_vault-init-command/`) later makes `engram update` run `engram init`, init takes over installing the Integration with no change to this requirement's promises.
 
@@ -508,7 +508,7 @@ Scenario: 793a5c1b A Pi session on a machine whose Claude Code has the Integrati
 
 ### 793a5h The user sees a summary of the memory activity
 
-Requirement: 793a5h After each completed top-level turn, once the System's work for that turn (capture included) has finished, the System MUST show the user, outside the working agent's context, the counts of memory events since its previous summary, across the session and its subagent sessions: items delivered, notes added, notes amended, dispatch outcomes recorded and offers curated. A turn with no memory events MUST show nothing. The warning that automatic memory was skipped ([793a4b The session is never broken or stalled](#793a4b-the-session-is-never-broken-or-stalled)) is shown on this same surface. The summary MUST NOT enter the working agent's context. When a note the System wrote could not reach a parent vault and its offer is queued ([792a15j A write to a parent is reported as done](../../specs/product/learn.md#792a15j-a-write-to-a-parent-is-reported-as-done)), the System MUST tell the user, on the same surface and also outside the agent's context, that the note is saved and its offer is queued, and MUST NOT call the write failed, even when the turn has no counts to show.
+Requirement: 793a5h After each completed top-level turn of a Claude Code session in which mods run, once the System's work for that turn (capture included) has finished, the System MUST show the user, outside the working agent's context, the counts of memory events since its previous summary, across the session and its subagent sessions: items delivered, notes added, notes amended, dispatch outcomes recorded and offers curated. A turn with no memory events MUST show nothing. The warning that automatic memory was skipped ([793a4b The session is never broken or stalled](#793a4b-the-session-is-never-broken-or-stalled)) is shown on this same surface. The summary MUST NOT enter the working agent's context. When a note the System wrote could not reach a parent vault and its offer is queued ([792a15j A write to a parent is reported as done](../../specs/product/learn.md#792a15j-a-write-to-a-parent-is-reported-as-done)), the System MUST tell the user, on the same surface and also outside the agent's context, that the note is saved and its offer is queued, and MUST NOT call the write failed, even when the turn has no counts to show.
 
 Rationale: the user keeps visibility of the memory work the System took over without the working agent relaying it, and hears what the learn skill would have told them.
 

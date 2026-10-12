@@ -12,7 +12,7 @@ The product scope is the 14 requirements of [Parallel Memory Agent - Product Spe
 
 1. The **Memory Mod** ([793d3 Added: memory-mod](#793d3-added-memory-mod)), a thin adapter loaded by Claude Code: it forwards the events of [793d3a Events, channels and pass-through](#793d3a-events-channels-and-pass-through) to the Go command, adds the text it returns through the documented context channels, relays its model requests through `$.model.complete`, runs the slow work in a background queue, shows one status line, and swallows every failure into a warning.
 2. The **`engram auto run` command** ([793d4 Added: auto-job-runner](#793d4-added-auto-job-runner)) and the components behind it: [793d6 Added: memory-delivery](#793d6-added-memory-delivery) (decide the moment, ask the vault, drop what the agent holds, write the delivery), [793d7 Added: auto-capture](#793d7-added-auto-capture) (judge and write lessons and conclusions), [793d8 Added: dispatch-outcome-recorder](#793d8-added-dispatch-outcome-recorder) (write dispatch outcome notes) and [793d9 Added: auto-curation](#793d9-added-auto-curation) (settle pending offers). Every decision is made in Go, over the existing injected interfaces.
-3. An extension of Harness Deploy Sync ([793d10 Added: harness-deploy-sync (mod deploy)](#793d10-added-harness-deploy-sync-mod-deploy)) that deploys the mod for Claude Code only, and a modification of Development Check Orchestration ([793d15 Modified: development-check-orchestration](#793d15-modified-development-check-orchestration)) that makes `check-mod` part of `check-full` and `check-for-fail`.
+3. An extension of Harness Deploy Sync ([793d10 Added: harness-deploy-sync (mod deploy)](#793d10-added-harness-deploy-sync-mod-deploy)) that deploys the mod for Claude Code only, driven by the update flow of [793d2f Mod install](#793d2f-mod-install), and a modification of Development Check Orchestration ([793d15 Modified: development-check-orchestration](#793d15-modified-development-check-orchestration)) that makes `check-mod` part of `check-full` and `check-for-fail`.
 
 The flows are [793d2 Added: flows](#793d2-added-flows); the option comparisons that bear on the contract are [793d13 Relative option impact](#793d13-relative-option-impact), and the other choices are in the decision log ([793b189 The System is a Claude Code mod and a Go command, with the logic in Go](./793b_decision-log.md#793b189-the-system-is-a-claude-code-mod-and-a-go-command-with-the-logic-in-go) to [793b207 Late delivery at stop is a MAY and nothing else is late](./793b_decision-log.md#793b207-late-delivery-at-stop-is-a-may-and-nothing-else-is-late), [793b211 Option comparisons and rejected alternatives moved out of the technical spec](./793b_decision-log.md#793b211-option-comparisons-and-rejected-alternatives-moved-out-of-the-technical-spec)). There is no change diagram: each flow diagram shows the final system.
 
@@ -44,7 +44,7 @@ Terms. **Moment**, **delivery**, **lesson**, **Integration**, **working agent**,
 
 ## 793d2 Added: flows
 
-Each section is a flow spec (canonical destination `docs/specs/technical/<flow>-flow.md`). IDs appear on arrows only: the behavior requirement an arrow realizes and, where the flow's requirement constrains it, the flow's ID. Claude Code, the user and `$.store` are external actors, so their arrows carry the flow's ID.
+Each of [793d2a Moment delivery](#793d2a-moment-delivery), [793d2b Turn memory work](#793d2b-turn-memory-work) and [793d2f Mod install](#793d2f-mod-install) is a flow spec (canonical destination `docs/specs/technical/<flow>-flow.md`); [793d2e Job order within a round](#793d2e-job-order-within-a-round) is the second interaction requirement of the flow of [793d2b Turn memory work](#793d2b-turn-memory-work). Every flow requirement names its one owner, and a flow whose steps belong to two owners has one requirement per owner. IDs appear on arrows only: the behavior requirement an arrow realizes and, where the flow's requirement constrains it, the flow's ID. Claude Code, the user and `$.store` are external actors, so their arrows carry the flow's ID.
 
 ### 793d2a Moment delivery
 
@@ -85,7 +85,7 @@ Requirement: 793d2a The Memory Mod MUST, for each event of [793d3a Events, chann
 
 Owner: Memory Mod ([793d3 Added: memory-mod](#793d3-added-memory-mod)).
 
-Supports the product scenarios that [793d11 Product-scenario mapping](#793d11-product-scenario-mapping) maps to it.
+Supports [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1e No result, nothing delivered](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1g A subagent receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1h A prompt from any source receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1i Please's orientation receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1j Tier evidence is delivered before a dispatch is routed](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2e1a Note delivered earlier is not delivered again](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2k1a The agent is neither required nor asked to run a memory command](./793a_product-spec.md#793a2k1-uat-scenarios), [793a4b1a Vault unavailable](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1c No error reaches the agent and the user is warned](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1e No warning when nothing matched](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4c1c The only effect on the working agent's context is what is delivered](./793a_product-spec.md#793a4c1-uat-scenarios).
 
 #### 793d2a1 Aggregate-flow Scenarios
 
@@ -129,7 +129,7 @@ Scenario Outline: 793d2a1g A failure continues the event and warns the user
 
 Canonical destination: `docs/specs/technical/turn-memory-work-flow.md` (title `Turn Memory Work Flow - Technical Spec`).
 
-When a top-level turn ends, or a subagent stops, the mod lets the event continue at once and queues the System's work: judging and writing lessons, conclusions and dispatch outcomes; bringing the chunk index up to date; settling pending offers; showing the user what happened. The mod relays the model requests the runner asks for. A failed step is shown as a warning and the queue continues.
+When a top-level turn ends, or a subagent stops, the mod lets the event continue at once and queues the System's work: judging and writing lessons, conclusions and dispatch outcomes; bringing the chunk index up to date; settling pending offers; showing the user what happened. The mod relays the model requests the runner asks for. A failed step is shown as a warning and the queue continues. The flow has two interaction requirements, one per owner: this requirement for the Memory Mod and [793d2e Job order within a round](#793d2e-job-order-within-a-round) for the Auto Job Runner.
 
 ```mermaid
 sequenceDiagram
@@ -150,18 +150,18 @@ sequenceDiagram
     Mod-->>CC: 793d2b, 793d3a the event continues at once
     Note over Mod: the work is queued and runs one item at a time, each from a timer
     Mod->>Run: 793d2b, 793d4a capture job: the window, or the subagent's transcript path
-    Run->>Out: 793d8a the report rows of the window
+    Run->>Out: 793d2e, 793d8a the report rows of the window
     Out->>Aut: 792b12c3 write one note per new row
     Aut-->>Out: 792b12c3 the path
     Out-->>Run: 793d8a the outcome events
-    Run->>Cap: 793d7a the window
+    Run->>Cap: 793d2e, 793d7a the window
     alt a model request is needed
         Cap-->>Run: 793d7a the extraction request
         Run-->>Mod: 793d2b, 793d4a need: the request
         Mod->>CC: 793d2b the model request, relayed
         CC-->>Mod: 793d2b the reply
         Mod->>Run: 793d2b, 793d4a the answers and the state
-        Run->>Cap: 793d7a the reply as candidates
+        Run->>Cap: 793d2e, 793d7a the reply as candidates
         Cap->>Qry: 792b24c1 query by each candidate's situation
         Qry-->>Cap: 792b24c1 the nearest notes
         Cap-->>Run: 793d7a one reconcile request per candidate
@@ -169,7 +169,7 @@ sequenceDiagram
         Mod->>CC: 793d2b the model requests, relayed
         CC-->>Mod: 793d2b the replies
         Mod->>Run: 793d2b, 793d4a the answers and the state
-        Run->>Cap: 793d7c the reconcile replies
+        Run->>Cap: 793d2e, 793d7c the reconcile replies
         alt a candidate is covered
             Cap->>Amd: 792b14c9 record a use of the existing note
             Amd-->>Cap: 792b14c9 done
@@ -185,7 +185,7 @@ sequenceDiagram
     Mod->>Ing: 792b17c3 engram ingest --auto
     Ing-->>Mod: 792b17c3 the index is up to date
     Mod->>Run: 793d2b, 793d4a curation job
-    Run->>Cur: 793d9a the pending offers
+    Run->>Cur: 793d2e, 793d9a the pending offers
     alt a pending offer exists
         Cur->>Amd: 792b14c14 settle by the judged outcome
         Amd-->>Cur: 792b14c14 done
@@ -203,11 +203,11 @@ sequenceDiagram
     Sto-->>Mod: 793d2b the unfinished captures, at the next session start
 ```
 
-Requirement: 793d2b The Memory Mod MUST, on `turn.complete` of the main agent (an interrupted turn included) and on `classic.SubagentStop`, take what the capture needs (for a turn, the window of [793d7a Judging a window](#793d7a-judging-a-window) formed from `$.session.messages()` at that moment; for a subagent, the stop's `agent_transcript_path` and `last_assistant_message`), return from the handler without waiting, and queue the work in one in-memory first-in-first-out queue that runs one item at a time, each started from a `$.clock.after` callback: a subagent's capture job at its stop; at a turn's end the turn's capture job, then `engram ingest --auto` (`ingestDeadlineMs`), then one curation job, then the summary. It MUST run a capture or curation job with one loop: send the job to the runner (`roundDeadlineMs` per call); while the result is `need`, relay each request as one `$.model.complete` call in the session's own model with exactly the request's system, prompt and maxTokens, bounded by `judgeDeadlineMs`, and send the replies back with the `state`; stop at `done`. A relayed call MUST carry nothing but the request's fields and MUST NOT submit a prompt, start an agent or call a tool. The runner MUST run a capture job in the order of the diagram, the Dispatch Outcome Recorder first so that a failed model request does not lose the outcomes the report rows already hold, and a curation job through Auto Curation, which finishes with no request when no offer is pending; a job that finishes without a request lets the queue continue. A job ends as an error when a reply is unanswered (`isAnswered` false), after `maxRounds` (4) rounds, or when a call fails or passes its deadline; a failed item MUST show a warning as in [793d2a Moment delivery](#793d2a-moment-delivery), naming the step (capture, index or curation), and MUST NOT remove the items after it. The mod MUST add the `events` and `notices` of every `done` to the counts since the previous summary, after the turn's items MUST show the line of [793d3f Memory-activity line](#793d3f-memory-activity-line) and nothing when the turn produced no event, notice or warning, at `session.end` MUST write the captures still queued or running to `$.store`, and at the next session start MUST queue them again.
+Requirement: 793d2b The Memory Mod MUST, on `turn.complete` of the main agent (an interrupted turn included) and on `classic.SubagentStop`, take what the capture needs (for a turn, the window of [793d7a Judging a window](#793d7a-judging-a-window) formed from `$.session.messages()` at that moment; for a subagent, the stop's `agent_transcript_path` and `last_assistant_message`), return from the handler without waiting, and queue the work in one in-memory first-in-first-out queue that runs one item at a time, each started from a `$.clock.after` callback: a subagent's capture job at its stop; at a turn's end the turn's capture job, then `engram ingest --auto` (`ingestDeadlineMs`), then one curation job, then the summary. It MUST run a capture or curation job with one loop: send the job to the runner (`roundDeadlineMs` per call); while the result is `need`, relay each request as one `$.model.complete` call in the session's own model with exactly the request's system, prompt and maxTokens, bounded by `judgeDeadlineMs`, and send the replies back with the `state`; stop at `done`. A relayed call MUST carry nothing but the request's fields and MUST NOT submit a prompt, start an agent or call a tool. A job that finishes without a request lets the queue continue. A job ends as an error when a reply is unanswered (`isAnswered` false), after `maxRounds` (4) rounds, or when a call fails or passes its deadline; a failed item MUST show a warning as in [793d2a Moment delivery](#793d2a-moment-delivery), naming the step (capture, index or curation), and MUST NOT remove the items after it. The mod MUST add the `events` and `notices` of every `done` to the counts since the previous summary, after the turn's items MUST show the line of [793d3f Memory-activity line](#793d3f-memory-activity-line) and nothing when the turn produced no event, notice or warning, at `session.end` MUST write the captures still queued or running to `$.store`, and at the next session start MUST queue them again.
 
-Owner: Memory Mod ([793d3 Added: memory-mod](#793d3-added-memory-mod)), and Auto Job Runner ([793d4 Added: auto-job-runner](#793d4-added-auto-job-runner)) for the order of its component calls inside one job.
+Owner: Memory Mod ([793d3 Added: memory-mod](#793d3-added-memory-mod)).
 
-Supports the product scenarios that [793d11 Product-scenario mapping](#793d11-product-scenario-mapping) maps to it.
+Supports [793a2l1a The index catches up after the turn](./793a_product-spec.md#793a2l1-uat-scenarios), [793a2l1c Offers are resolved by the System](./793a_product-spec.md#793a2l1-uat-scenarios), [793a3a1a User correction is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1b Explicit save-request](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1f The agent's own mistake overturned by evidence is captured](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1g A lesson in a subagent session is captured](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1h Two subagents contain the same lesson](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3p1a A dispatch's outcome note is written from its report row](./793a_product-spec.md#793a3p1-uat-scenarios), [793a3q1a A sound conclusion in the response is persisted](./793a_product-spec.md#793a3q1-uat-scenarios), [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1c No error reaches the agent and the user is warned](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1d Slow capture does not stall the session](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4f1a No note records the System's own work](./793a_product-spec.md#793a4f1-uat-scenarios), [793a4f1b A session of its own receives no delivery](./793a_product-spec.md#793a4f1-uat-scenarios), [793a5h1a The summary shows the counts after a turn with events](./793a_product-spec.md#793a5h1-uat-scenarios), [793a5h1g The summary follows the capture](./793a_product-spec.md#793a5h1-uat-scenarios), [793a5h1h An unreachable parent is not reported as a failure](./793a_product-spec.md#793a5h1-uat-scenarios).
 
 #### 793d2b1 Aggregate-flow Scenarios
 
@@ -263,6 +263,144 @@ Scenario: 793d2b1j Unfinished captures survive the session's end
   Then the capture is written to $.store at the end and queued again at the start
 ```
 
+### 793d2e Job order within a round
+
+Part of the flow spec of [793d2b Turn memory work](#793d2b-turn-memory-work) (`docs/specs/technical/turn-memory-work-flow.md`); its arrows are the runner's calls in that diagram.
+
+Requirement: 793d2e The Auto Job Runner MUST run a capture job in this order. In the first round it calls the Dispatch Outcome Recorder on the report rows of the window, before it builds any model request, so that a failed model request does not lose the outcomes the rows already hold, and then calls Auto Capture on the window and returns its extraction request as `need`. In the next round it calls Auto Capture with the extraction reply and returns the reconcile requests, one per candidate, as `need`. In the last round it calls Auto Capture with the reconcile replies, which makes the writes, and returns `done` with the events and notices of every round. It MUST NOT call a component of a job before the component before it has returned. When the window is empty or holds no candidate it MUST return `done` with the events already counted and no `need`. It MUST run a curation job through Auto Curation alone, and return `done` with no `need` when no offer is pending.
+
+Owner: Auto Job Runner ([793d4 Added: auto-job-runner](#793d4-added-auto-job-runner)).
+
+Supports [793a2l1c Offers are resolved by the System](./793a_product-spec.md#793a2l1-uat-scenarios), [793a3a1a User correction is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3p1a A dispatch's outcome note is written from its report row](./793a_product-spec.md#793a3p1-uat-scenarios), [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios).
+
+#### 793d2e1 Aggregate-flow Scenarios
+
+```gherkin
+Scenario: 793d2e1a The outcomes are written before the extraction request
+  Given a capture job whose window holds a report row and a candidate lesson
+  When the runner runs round one
+  Then the Dispatch Outcome Recorder is called before Auto Capture
+  And the output is a need holding the extraction request, with a state that holds events.outcomes 1
+
+Scenario: 793d2e1b The rounds follow the extraction, the reconcile requests and the writes
+  Given an extraction reply with two candidates
+  When the runner runs round two with the reply, and round three with two reconcile replies
+  Then round two returns one need of two reconcile requests and calls no write
+  And round three calls Auto Capture with both replies and returns a done with the events of all three rounds
+
+Scenario Outline: 793d2e1c A job without work finishes without a request
+  Given <job> whose <input>
+  When the runner runs it
+  Then it returns done with no need
+  And no later component is called
+  Examples:
+    | job              | input                                            |
+    | a capture job    | window is empty after the removals               |
+    | a capture job    | extraction reply holds no candidate              |
+    | a curation job   | vault holds no pending offer                     |
+
+Scenario: 793d2e1d A curation job calls Auto Curation alone
+  Given a curation job and one pending offer
+  When the runner runs it
+  Then only Auto Curation is called and the output is a need holding the offer's request
+```
+
+### 793d2f Mod install
+
+Canonical destination: `docs/specs/technical/mod-install-flow.md` (title `Mod Install Flow - Technical Spec`).
+
+`engram update` deploys the mod with the other agent instructions, for the harness that loads mods and for no other. As part of the Claude Code deploy the Claude Code version is checked, and when the mod cannot load on it the report says so. A preview writes nothing.
+
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant Upd as Self Installer
+    participant Syn as Harness Deploy Sync
+    participant Cli as Claude Code CLI
+
+    Dev->>Upd: 793d2f engram update, optionally --dry-run
+    Upd->>Syn: 792b29c1 detect the harnesses
+    Syn-->>Upd: 792b29c1 the harnesses present
+    Upd->>Syn: 793d2f, 793d10a the mod deploy for the harnesses that load mods
+    opt Claude Code is present
+        Syn->>Cli: 793d2f claude --version
+        Cli-->>Syn: 793d2f the version, or that it cannot be run
+    end
+    alt a preview, or no harness that loads mods
+        Syn-->>Upd: 793d10a the plan only, nothing written
+    else the mod deploy fails
+        Syn-->>Upd: 793d10a the failure
+    else the mod is deployed
+        alt claude is older than 2.1.287 or cannot be run
+            Syn-->>Upd: 793d10a the mod deployed, adopted or left alone, with the row that it will not load
+        else
+            Syn-->>Upd: 793d10a the mod deployed, adopted or left alone
+        end
+    end
+    Upd-->>Dev: 793d2f, 792b28c12 the report, with the mod's row where one applies
+```
+
+Requirement: 793d2f The Self Installer MUST, during an update, detect the harnesses, ask Harness Deploy Sync to deploy the mod after the skills and guidance of the same harness and only for the harnesses that were detected, and include in the report the row Harness Deploy Sync returns for the mod, whether it says the mod was deployed, adopted, left alone or will not load. For a preview (`--dry-run`) it MUST ask for the plan and no write and MUST NOT change any other step of the update. When Harness Deploy Sync reports a failure of the mod deploy it MUST show the failure in the report and end the update with the update's failure status; otherwise the mod's deploy, including a row that says the mod will not load, MUST NOT change the exit status of the update.
+
+Owner: Self Installer ([Self Installer](../../specs/technical/self-installer.md)).
+
+Supports [793a4h1a Update installs the Integration for the harness it updates](./793a_product-spec.md#793a4h1-uat-scenarios), [793a4h1b An existing install gains the System and keeps what it had](./793a_product-spec.md#793a4h1-uat-scenarios), [793a4h1c A preview installs none of the Integration](./793a_product-spec.md#793a4h1-uat-scenarios), [793a4h1d One update serves both harnesses differently](./793a_product-spec.md#793a4h1-uat-scenarios), [793a4h1l Running update twice changes nothing](./793a_product-spec.md#793a4h1-uat-scenarios), [793a5c1a Unsupported harness](./793a_product-spec.md#793a5c1-uat-scenarios), [793a5c1b A Pi session on a machine whose Claude Code has the Integration](./793a_product-spec.md#793a5c1-uat-scenarios).
+
+#### 793d2f1 Aggregate-flow Scenarios
+
+```gherkin
+Scenario: 793d2f1a Claude Code gets the mod and Pi is not created
+  Given ~/.claude exists and ~/.pi does not
+  When the user runs engram update
+  Then Harness Deploy Sync is asked to deploy the mod for Claude Code only
+  And ~/.pi is not created
+  And the report has a row for the mod
+
+Scenario: 793d2f1b Both harnesses are updated and only Claude Code gets the mod
+  Given ~/.claude and ~/.pi both exist
+  When the user runs engram update
+  Then Harness Deploy Sync is asked for the mod for Claude Code only
+  And the report has no mod row for Pi
+
+Scenario: 793d2f1c A harness that does not load mods gets no mod request
+  Given ~/.pi exists and ~/.claude does not
+  When the user runs engram update
+  Then Harness Deploy Sync is asked for no mod deploy
+  And the report has no mod row and the update's status is unchanged
+
+Scenario: 793d2f1d A preview asks for the plan and writes nothing
+  Given a machine with no mod
+  When the user runs engram update --dry-run
+  Then Harness Deploy Sync is asked for the plan only, and the other steps of the update are those of a preview
+  And the report lists the mod as it would be deployed
+
+Scenario: 793d2f1e A second update reports the mod unchanged
+  Given an update has deployed the mod
+  When the user runs engram update again
+  Then the mod's row reports it unchanged and the update's status is unchanged
+
+Scenario: 793d2f1f An existing install keeps what it had
+  Given a Claude Code install with skills, guidance and shim, and an earlier copy of the mod
+  When the user runs engram update
+  Then the report names the mod as adopted or left alone
+  And the rows of the skills, guidance and imports are the ones an update without the mod gives
+
+Scenario: 793d2f1g A failed mod deploy is reported and fails the update
+  Given Harness Deploy Sync reports a failure of the mod deploy
+  When the update finishes
+  Then the report shows the failure and the exit status is the update's failure status
+
+Scenario Outline: 793d2f1h The report says when the mod will not load
+  Given Harness Deploy Sync returns the mod's row for a Claude Code <claude>
+  When the update finishes
+  Then the report carries that row, which says the mod will not load
+  And the exit status is the update's success status
+  Examples:
+    | claude                         |
+    | older than 2.1.287             |
+    | that cannot be run             |
+```
+
 ## 793d3 Added: memory-mod
 
 Canonical destination: `docs/specs/technical/memory-mod.md` (title `Memory Mod - Technical Spec`).
@@ -292,7 +430,7 @@ Requirement: 793d3a The Memory Mod MUST register handlers for the events of the 
 | `classic.SessionStart` | always | none: queues the captures kept in `$.store`; on `source` `resume` refills the ledger ([793d3b State kept for the System](#793d3b-state-kept-for-the-system)) |
 | `session.end` | always | none: writes the unfinished captures to `$.store` ([793d2b Turn memory work](#793d2b-turn-memory-work)) |
 
-Supports the product scenarios that [793d11 Product-scenario mapping](#793d11-product-scenario-mapping) maps to it.
+Supports [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1g A subagent receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1h A prompt from any source receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1i Please's orientation receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1j Tier evidence is delivered before a dispatch is routed](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2k1a The agent is neither required nor asked to run a memory command](./793a_product-spec.md#793a2k1-uat-scenarios), [793a2k1c An intentional recall by the agent is allowed](./793a_product-spec.md#793a2k1-uat-scenarios), [793a2k1d An intentional learn by the agent is allowed and is not undone](./793a_product-spec.md#793a2k1-uat-scenarios), [793a2k1e An intentional engram query by the agent is allowed](./793a_product-spec.md#793a2k1-uat-scenarios), [793a2l1d The agent is not asked to curate](./793a_product-spec.md#793a2l1-uat-scenarios), [793a3a1g A lesson in a subagent session is captured](./793a_product-spec.md#793a3a1-uat-scenarios), [793a4c1a Tool calls and permissions unchanged](./793a_product-spec.md#793a4c1-uat-scenarios), [793a4c1b The prompt is unchanged and the note is separate](./793a_product-spec.md#793a4c1-uat-scenarios), [793a4c1c The only effect on the working agent's context is what is delivered](./793a_product-spec.md#793a4c1-uat-scenarios).
 
 #### 793d3a1 Contract Scenarios
 
@@ -335,7 +473,7 @@ Scenario: 793d3a1f A skipped handler is caught
 
 Requirement: 793d3b The Memory Mod MUST keep, in module variables: a ledger of the item ids delivered, for each agent and keyed by `$.session.id()`, so that `/clear`, `/resume` and `/branch` give a new session an empty ledger; for the main agent the number of edit-tool calls and of failure lookups in the current turn, zeroed at each `turn.start` (the edit count raised for every edit-tool result of the main agent after its job is built, the failure count for every failure job sent); and for each `agent.spawn` its task prompt, description and fork flag, until the matching `classic.SubagentStart`, matched by the description `$.agent.list()` reports for the starting agent and otherwise by spawn order. A moment job MUST carry the receiving agent's context as a list of texts, its ledger and the task. For the main agent the context is the text of every message of `$.session.messages()` and of every tool result in them, and the task is the latest human-origin prompt of at least `taskMinChars` characters, else the current prompt. For a starting subagent the context and the task are its task prompt, and a fork's context adds the main agent's texts. On `session.compact` without `agentId` the mod MUST empty the main ledger and refill it with the ids of the delivery blocks (from the line `[engram memory]` to the line `[end engram memory]`) found in `$.session.messages()`; `session.compact` with an `agentId` MUST leave the main ledger untouched; and on `classic.SessionStart` with `source` `resume` the mod MUST refill the ledger the same way.
 
-Supports the product scenarios that [793d11 Product-scenario mapping](#793d11-product-scenario-mapping) maps to it.
+Supports [793a2n1g A subagent receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1j Tier evidence is delivered before a dispatch is routed](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2e1a Note delivered earlier is not delivered again](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1c Note the agent retrieved itself is not delivered](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1d A parent's note is still delivered to a subagent](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1e A note removed by compaction can be delivered again](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1g A resumed session's restored content counts as present](./793a_product-spec.md#793a2e1-uat-scenarios).
 
 #### 793d3b1 Contract Scenarios
 
@@ -379,7 +517,7 @@ Scenario Outline: 793d3b1e The ledger follows compaction and resume
 
 Requirement: 793d3f The Memory Mod MUST keep, since the previous summary, the sum over the main agent and all subagents of the `events` of every job (`delivered`, `added`, `amended`, `outcomes`, `curated`), the `notices` and the warnings recorded under [793d2a Moment delivery](#793d2a-moment-delivery) and [793d2b Turn memory work](#793d2b-turn-memory-work), each work item's counts added once. After a top-level turn's work has finished it MUST set the status line, with `$.ui.status`, to one line: the non-zero counts in the order delivered, added, amended, outcomes, curated as `engram memory: 3 items delivered, 1 note added, 1 note amended, 1 dispatch outcome recorded, 2 offers curated`, then each notice, then each warning as `engram memory skipped (<step>): <unavailable|timed out|error>`; or clear it with `undefined` when there is no count, notice or warning; and then MUST reset the sums. It MUST NOT write the line with `$.ui.log`, in a prompt, in a context channel or in any result Claude reads.
 
-Supports the product scenarios that [793d11 Product-scenario mapping](#793d11-product-scenario-mapping) maps to it.
+Supports [793a4b1a Vault unavailable](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1c No error reaches the agent and the user is warned](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1e No warning when nothing matched](./793a_product-spec.md#793a4b1-uat-scenarios), [793a5h1a The summary shows the counts after a turn with events](./793a_product-spec.md#793a5h1-uat-scenarios), [793a5h1b Nothing is shown after a turn without events](./793a_product-spec.md#793a5h1-uat-scenarios), [793a5h1c The summary is not in the agent's context](./793a_product-spec.md#793a5h1-uat-scenarios), [793a5h1e The counts cover the events since the previous summary](./793a_product-spec.md#793a5h1-uat-scenarios), [793a5h1g The summary follows the capture](./793a_product-spec.md#793a5h1-uat-scenarios), [793a5h1h An unreachable parent is not reported as a failure](./793a_product-spec.md#793a5h1-uat-scenarios).
 
 #### 793d3f1 Contract Scenarios
 
@@ -424,7 +562,7 @@ Canonical destination: `docs/specs/technical/auto-job-runner.md` (title `Auto Jo
 
 Requirement: 793d4a The Auto Job Runner MUST read one JSON document from standard input holding `job` (`moment`, `capture` or `curate`), the job's input and, from the second round, `answers` and `state`, run the job for one round, and write one JSON document and nothing else to standard output and exit 0. A `moment` job's input is the event, the receiving agent's context, its ledger and the task; a `capture` job's is the window of messages (a turn) or the subagent's transcript path and last assistant message, with the session and turn ids. The document MUST be `{ "need": [ { id, prompt, system?, maxTokens } ], "state": "<opaque>" }` when the job needs model replies; `{ "done": { deliver, deliveredIds, moment, events, notices } }` when it is finished, with `events` the integer counts `delivered`, `added`, `amended`, `outcomes` and `curated`; or `{ "done": { "warning": { "why", "detail" }, "events", "notices" } }` when a step failed, with `why` `unavailable` when the vault cannot be read and `error` otherwise, and the events and notices of the steps that completed before the failure (a note written before a failure is still counted). A `moment` job MUST finish in its one round. `state` MUST hold everything the next round needs, the events already counted included; the runner MUST keep nothing between calls. It MUST exit non-zero, with the reason on standard error and nothing on standard output, only when its input is not a valid job document.
 
-Supports the product scenarios that [793d11 Product-scenario mapping](#793d11-product-scenario-mapping) maps to it.
+Supports [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1e No result, nothing delivered](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2l1a The index catches up after the turn](./793a_product-spec.md#793a2l1-uat-scenarios), [793a2l1c Offers are resolved by the System](./793a_product-spec.md#793a2l1-uat-scenarios), [793a3a1a User correction is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3p1a A dispatch's outcome note is written from its report row](./793a_product-spec.md#793a3p1-uat-scenarios), [793a4b1a Vault unavailable](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios), [793a5h1a The summary shows the counts after a turn with events](./793a_product-spec.md#793a5h1-uat-scenarios).
 
 #### 793d4a1 Contract Scenarios
 
@@ -483,7 +621,7 @@ Requirement: 793d6a The Memory Delivery MUST map an event to a moment by the tab
 | the first edit-tool result of a turn by the main agent | `edit` | the file path and the first 500 characters of the new text |
 | the first failed tool result of a turn by the main agent | `failure` | the first 500 characters of the error |
 
-Supports the product scenarios that [793d11 Product-scenario mapping](#793d11-product-scenario-mapping) maps to it.
+Supports [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1e No result, nothing delivered](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1g A subagent receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1h A prompt from any source receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1i Please's orientation receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1j Tier evidence is delivered before a dispatch is routed](./793a_product-spec.md#793a2n1-uat-scenarios).
 
 #### 793d6a1 Contract Scenarios
 
@@ -532,7 +670,7 @@ Scenario Outline: 793d6a1g Events outside the table are not moments
 
 Requirement: 793d6b The Memory Delivery MUST treat an item as present when its note file name or its chunk id occurs in any text of the receiving agent's context or equals an id in the ledger it was given, and as not present when it occurs in neither (an item delivered, retrieved or restored whose text has left the context is not present, and a parent's item is not present for a subagent whose context is its task prompt). When at least one item remains it MUST return a text whose first line is `[engram memory]` followed by the instruction `Engram surfaced the vault items below for this moment. Apply what bears on your next step; disregard the rest.`, then each item as a line `--- note <file name> (<kind>)` or `--- chunk <id> (score <score to two decimals>)` followed by its content, and a last line `[end engram memory]`, MUST return the items' ids and MUST set `events.delivered` to their number. The text MUST NOT ask the agent to run a command, to evaluate, approve or write a note, or to curate. When no item remains it MUST return the empty text, no ids and no instruction.
 
-Supports the product scenarios that [793d11 Product-scenario mapping](#793d11-product-scenario-mapping) maps to it.
+Supports [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1e No result, nothing delivered](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2d1a Delivered content names its source](./793a_product-spec.md#793a2d1-uat-scenarios), [793a2d1b A delivered chunk names its id](./793a_product-spec.md#793a2d1-uat-scenarios), [793a2e1a Note delivered earlier is not delivered again](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1c Note the agent retrieved itself is not delivered](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1d A parent's note is still delivered to a subagent](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1e A note removed by compaction can be delivered again](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1g A resumed session's restored content counts as present](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2k1a The agent is neither required nor asked to run a memory command](./793a_product-spec.md#793a2k1-uat-scenarios), [793a2l1d The agent is not asked to curate](./793a_product-spec.md#793a2l1-uat-scenarios), [793a4c1b The prompt is unchanged and the note is separate](./793a_product-spec.md#793a4c1-uat-scenarios), [793a4c1c The only effect on the working agent's context is what is delivered](./793a_product-spec.md#793a4c1-uat-scenarios).
 
 #### 793d6b1 Contract Scenarios
 
@@ -573,7 +711,7 @@ Canonical destination: `docs/specs/technical/auto-capture.md` (title `Auto Captu
 
 Requirement: 793d7a The Auto Capture MUST judge a window with two kinds of model request, neither naming a model (the mod uses the session's) and neither asking the model to run anything: one extraction request per window, then one reconcile request per candidate. A main-agent turn's window is the one the mod took from `$.session.messages()` at the turn's end (the last assistant message before the turn's last human prompt, that prompt, and everything after it); a subagent's window is its whole transcript read with the Transcript Reader, with the stop's `last_assistant_message` appended when the transcript lacks it. It MUST remove from the window every block from a line `[engram memory]` through the next line `[end engram memory]`, replace each credential, token and private key matched by the redactor's patterns with `[redacted]` in the window and in every later request and note, and build the extraction request from the criteria of the learn skill's Step 2 and the recall skill's Step 4, the redacted window and the file names of the notes present in the agent's context. It MUST read the reply as JSON with `lessons` and `conclusions` and end the job as an error when it cannot; keep as candidates each lesson of one of the four kinds (correction, explicit save-request, reversal, confirmed approach) that the reply marks confirmed and that carries the fields its write needs, and each conclusion the reply marks sound and non-trivial with an inference of deduction, abduction or induction and a hedge of `none` or `probable`; drop a conclusion hedged below probable; and for each candidate query the vault by its situation and build one reconcile request giving the candidate and the `candidateNotes` nearest notes and asking whether an existing note already states it (`covered`, naming the note) or not (`absent`). When the window is empty after the removals, or no candidate remains, it MUST finish the job with no further request.
 
-Supports the product scenarios that [793d11 Product-scenario mapping](#793d11-product-scenario-mapping) maps to it.
+Supports [793a3a1a User correction is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1b Explicit save-request](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1f The agent's own mistake overturned by evidence is captured](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1g A lesson in a subagent session is captured](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1j A record that already exists is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3q1a A sound conclusion in the response is persisted](./793a_product-spec.md#793a3q1-uat-scenarios), [793a3q1c A hunch is not persisted](./793a_product-spec.md#793a3q1-uat-scenarios), [793a4c1e A secret in a correction is not persisted](./793a_product-spec.md#793a4c1-uat-scenarios), [793a4f1a No note records the System's own work](./793a_product-spec.md#793a4f1-uat-scenarios), [793a4f1b A session of its own receives no delivery](./793a_product-spec.md#793a4f1-uat-scenarios).
 
 #### 793d7a1 Contract Scenarios
 
@@ -631,7 +769,7 @@ Scenario: 793d7a1h An unreadable reply is an error
 
 Requirement: 793d7c The Auto Capture MUST read each reconcile reply. For a candidate judged covered by a named existing note it MUST record a use of that note through Note Amendment and write nothing; for a candidate judged absent it MUST write one note through Note Authoring, of the kind the candidate names (feedback for a correction or a reversal, fact for an explicit save-request, feedback or runbook for a confirmed approach, fact or feedback for a conclusion, and also a question-and-answer note when a conclusion's body cites at least one `[[file name]]`), with the source the learn skill defines for it followed by `; written automatically (session <session id>, turn <turn id>)`. It MUST write candidates one at a time in the reply's order, count `events.added` once for each note written, amend, discard or delete no note other than to record a use, and write no credential, token or private key. When a write reports that the parent is unreachable and an offer is queued (`engram: parent unreachable (retry after …); N offer(s) queued`), it MUST count the note as written, add the notice `note saved, offer queued (parent unreachable)` to `notices` once for the job, and neither write the note again nor report the job as failed.
 
-Supports the product scenarios that [793d11 Product-scenario mapping](#793d11-product-scenario-mapping) maps to it.
+Supports [793a2k1d An intentional learn by the agent is allowed and is not undone](./793a_product-spec.md#793a2k1-uat-scenarios), [793a3a1a User correction is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1b Explicit save-request](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1f The agent's own mistake overturned by evidence is captured](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1g A lesson in a subagent session is captured](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1h Two subagents contain the same lesson](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1i A captured note records how it was written](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1j A record that already exists is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3q1a A sound conclusion in the response is persisted](./793a_product-spec.md#793a3q1-uat-scenarios), [793a4c1e A secret in a correction is not persisted](./793a_product-spec.md#793a4c1-uat-scenarios), [793a4f1a No note records the System's own work](./793a_product-spec.md#793a4f1-uat-scenarios), [793a5h1h An unreachable parent is not reported as a failure](./793a_product-spec.md#793a5h1-uat-scenarios).
 
 #### 793d7c1 Contract Scenarios
 
@@ -683,7 +821,7 @@ Canonical destination: `docs/specs/technical/dispatch-outcome-recorder.md` (titl
 
 Requirement: 793d8a The Dispatch Outcome Recorder MUST find in the assistant text of the window each row of route's mini-report table ([792a17i Each dispatch is recorded in a mini-report row](../../specs/product/route.md#792a17i-each-dispatch-is-recorded-in-a-mini-report-row)) and, for each row whose outcome is PASS or FAIL and whose work-kind, tier and outcome are valid (kebab-case work-kind; tier `cheap`, `mid` or `deep`; outcome `pass` or `fail`), write through Note Authoring the evidence note that [792a17k Each dispatch is also written to the vault as a tagged evidence note](../../specs/product/route.md#792a17k-each-dispatch-is-also-written-to-the-vault-as-a-tagged-evidence-note) defines, with the source it defines followed by `; written automatically (session <session id>, turn <turn id>)`, and count `events.outcomes` for each note written. It MUST write nothing for a dispatch whose row is not in the window, for an invalid row, or when the vault already holds a note with the same slug and the same three tags whose object holds the row's duration text and cost text, whoever wrote it.
 
-Supports the product scenarios that [793d11 Product-scenario mapping](#793d11-product-scenario-mapping) maps to it.
+Supports [793a3a1i A captured note records how it was written](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1j A record that already exists is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3p1a A dispatch's outcome note is written from its report row](./793a_product-spec.md#793a3p1-uat-scenarios), [793a3p1c A missing row writes nothing](./793a_product-spec.md#793a3p1-uat-scenarios).
 
 #### 793d8a1 Contract Scenarios
 
@@ -720,7 +858,7 @@ Canonical destination: `docs/specs/technical/auto-curation.md` (title `Auto Cura
 
 Requirement: 793d9a The Auto Curation MUST find the vault's pending offers and, when there are none, finish with no request. For each offer that is not a skill-runbook registration it MUST build one request, naming no model, with the offer and its candidates (the note its `offer.for` names, else the notes the query by its situation returns), and apply the reply with Note Amendment as the curate skill's table does: covered ([792a22f A covered offer is reinforced and folded away](../../specs/product/curate.md#792a22f-a-covered-offer-is-reinforced-and-folded-away)), near ([792a22g A near offer is folded away first, then its claim is folded in](../../specs/product/curate.md#792a22g-a-near-offer-is-folded-away-first-then-its-claim-is-folded-in)), absent ([792a22h An absent offer is accepted with its declared author](../../specs/product/curate.md#792a22h-an-absent-offer-is-accepted-with-its-declared-author)) and rejected ([792a22i A rejected offer is discarded outright](../../specs/product/curate.md#792a22i-a-rejected-offer-is-discarded-outright)). It MUST pass the offer's exchange hash when it has one and, when the hash check refuses it, leave the offer pending and continue. For a pending note that carries a `skill_hash` ([792a22k A pending skill runbook note is authored, not judged](../../specs/product/curate.md#792a22k-a-pending-skill-runbook-note-is-authored-not-judged)) it MUST build one request from the skill's body asking for the note's `situation`, `done_when`, `triggers` and `red_flags`, amend the note with the reply and clear its pending marker, and MUST NOT judge it covered, near or rejected or discard it. It MUST count `events.curated` for each offer or note settled and `events.amended` for each existing note amended by a near, change no note that is neither pending nor named as an existing note by a reply, and not ask the agent to do any of it.
 
-Supports the product scenarios that [793d11 Product-scenario mapping](#793d11-product-scenario-mapping) maps to it.
+Supports [793a2k1d An intentional learn by the agent is allowed and is not undone](./793a_product-spec.md#793a2k1-uat-scenarios), [793a2l1c Offers are resolved by the System](./793a_product-spec.md#793a2l1-uat-scenarios), [793a2l1d The agent is not asked to curate](./793a_product-spec.md#793a2l1-uat-scenarios).
 
 #### 793d9a1 Contract Scenarios
 
@@ -762,7 +900,7 @@ Canonical destination: `docs/specs/technical/harness-deploy-sync.md` (the existi
 
 Requirement: 793d10a The Harness Deploy Sync MUST, for each detected harness that has a mods surface, plan one copy of every file under `agent-instructions/mods/` of the source into the harness's engram-owned root under `mods/`, keeping paths relative to that directory, and make `<mods surface>/<top-level mod directory>` a link into the root (in manifest mode, a copy recorded in the manifest). Claude Code's mods surface is `~/.claude/skills`; Pi has none, so for Pi it MUST plan no mod file and MUST NOT create `~/.pi`. It MUST NOT remove, replace or alter any file that the update deploys for skills, guidance or imports, MUST apply to the mod the rules it applies to skills ([792b29c14 Dry run](../../specs/technical/harness-deploy-sync.md#792b29c14-dry-run), [792b29c16 Idempotence](../../specs/technical/harness-deploy-sync.md#792b29c16-idempotence), a mod file that left the source and a link that points at nothing are removed, and nothing it cannot prove it owns is deleted), and MUST report in the harness's section of the report each mod directory deployed, adopted or left alone. For Claude Code it MUST also run `claude --version` through the existing subprocess capability and, when `claude` cannot be run or reports a version older than 2.1.287, report with the mod's row that the mod will not load.
 
-Supports the product scenarios that [793d11 Product-scenario mapping](#793d11-product-scenario-mapping) maps to it.
+Supports [793a4h1a Update installs the Integration for the harness it updates](./793a_product-spec.md#793a4h1-uat-scenarios), [793a4h1b An existing install gains the System and keeps what it had](./793a_product-spec.md#793a4h1-uat-scenarios), [793a4h1c A preview installs none of the Integration](./793a_product-spec.md#793a4h1-uat-scenarios), [793a4h1d One update serves both harnesses differently](./793a_product-spec.md#793a4h1-uat-scenarios), [793a4h1l Running update twice changes nothing](./793a_product-spec.md#793a4h1-uat-scenarios), [793a5c1a Unsupported harness](./793a_product-spec.md#793a5c1-uat-scenarios), [793a5c1b A Pi session on a machine whose Claude Code has the Integration](./793a_product-spec.md#793a5c1-uat-scenarios).
 
 #### 793d10a1 Contract Scenarios
 
@@ -851,7 +989,7 @@ Scenario Outline: 793d15a1a check-mod validates and tests the mod, or fails
 ```
 ## 793d11 Product-scenario mapping
 
-Every scenario of [Parallel Memory Agent - Product Spec](./793a_product-spec.md#parallel-memory-agent---product-spec) is listed once with the technical requirements that realize it; the scenario text is not restated here ([793b188 Technical spec structure: flows and components, with the scenario mapping as a table](./793b_decision-log.md#793b188-technical-spec-structure-flows-and-components-with-the-scenario-mapping-as-a-table)). A flow requirement ([793d2a Moment delivery](#793d2a-moment-delivery), [793d2b Turn memory work](#793d2b-turn-memory-work)) realizes a scenario by its routing, ordering, continuation and gating; a component requirement realizes it by the behavior it owns.
+Every scenario of [Parallel Memory Agent - Product Spec](./793a_product-spec.md#parallel-memory-agent---product-spec) is listed once with the technical requirements that realize it; each requirement's `Supports` list is the same mapping read the other way; the scenario text is not restated here ([793b188 Technical spec structure: flows and components, with the scenario mapping as a table](./793b_decision-log.md#793b188-technical-spec-structure-flows-and-components-with-the-scenario-mapping-as-a-table)). A flow requirement ([793d2a Moment delivery](#793d2a-moment-delivery), [793d2b Turn memory work](#793d2b-turn-memory-work), [793d2e Job order within a round](#793d2e-job-order-within-a-round), [793d2f Mod install](#793d2f-mod-install)) realizes a scenario by its routing, ordering, continuation and gating; a component requirement realizes it by the behavior it owns.
 
 | Product scenario | Realized by |
 | --- | --- |
@@ -873,21 +1011,21 @@ Every scenario of [Parallel Memory Agent - Product Spec](./793a_product-spec.md#
 | [793a2k1d An intentional learn by the agent is allowed and is not undone](./793a_product-spec.md#793a2k1-uat-scenarios) | [793d3a Events, channels and pass-through](#793d3a-events-channels-and-pass-through), [793d7c Reconciling and writing](#793d7c-reconciling-and-writing), [793d9a Settling offers](#793d9a-settling-offers) |
 | [793a2k1e An intentional engram query by the agent is allowed](./793a_product-spec.md#793a2k1-uat-scenarios) | [793d3a Events, channels and pass-through](#793d3a-events-channels-and-pass-through) |
 | [793a2l1a The index catches up after the turn](./793a_product-spec.md#793a2l1-uat-scenarios) | [793d2b Turn memory work](#793d2b-turn-memory-work), [793d4a A job in rounds](#793d4a-a-job-in-rounds) |
-| [793a2l1c Offers are resolved by the System](./793a_product-spec.md#793a2l1-uat-scenarios) | [793d2b Turn memory work](#793d2b-turn-memory-work), [793d4a A job in rounds](#793d4a-a-job-in-rounds), [793d9a Settling offers](#793d9a-settling-offers) |
+| [793a2l1c Offers are resolved by the System](./793a_product-spec.md#793a2l1-uat-scenarios) | [793d2b Turn memory work](#793d2b-turn-memory-work), [793d2e Job order within a round](#793d2e-job-order-within-a-round), [793d4a A job in rounds](#793d4a-a-job-in-rounds), [793d9a Settling offers](#793d9a-settling-offers) |
 | [793a2l1d The agent is not asked to curate](./793a_product-spec.md#793a2l1-uat-scenarios) | [793d3a Events, channels and pass-through](#793d3a-events-channels-and-pass-through), [793d6b Presence and delivery text](#793d6b-presence-and-delivery-text), [793d9a Settling offers](#793d9a-settling-offers) |
-| [793a3a1a User correction is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios) | [793d2b Turn memory work](#793d2b-turn-memory-work), [793d4a A job in rounds](#793d4a-a-job-in-rounds), [793d7a Judging a window](#793d7a-judging-a-window), [793d7c Reconciling and writing](#793d7c-reconciling-and-writing) |
+| [793a3a1a User correction is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios) | [793d2b Turn memory work](#793d2b-turn-memory-work), [793d2e Job order within a round](#793d2e-job-order-within-a-round), [793d4a A job in rounds](#793d4a-a-job-in-rounds), [793d7a Judging a window](#793d7a-judging-a-window), [793d7c Reconciling and writing](#793d7c-reconciling-and-writing) |
 | [793a3a1b Explicit save-request](./793a_product-spec.md#793a3a1-uat-scenarios) | [793d2b Turn memory work](#793d2b-turn-memory-work), [793d7a Judging a window](#793d7a-judging-a-window), [793d7c Reconciling and writing](#793d7c-reconciling-and-writing) |
 | [793a3a1f The agent's own mistake overturned by evidence is captured](./793a_product-spec.md#793a3a1-uat-scenarios) | [793d2b Turn memory work](#793d2b-turn-memory-work), [793d7a Judging a window](#793d7a-judging-a-window), [793d7c Reconciling and writing](#793d7c-reconciling-and-writing) |
 | [793a3a1g A lesson in a subagent session is captured](./793a_product-spec.md#793a3a1-uat-scenarios) | [793d2b Turn memory work](#793d2b-turn-memory-work), [793d3a Events, channels and pass-through](#793d3a-events-channels-and-pass-through), [793d7a Judging a window](#793d7a-judging-a-window), [793d7c Reconciling and writing](#793d7c-reconciling-and-writing) |
 | [793a3a1h Two subagents contain the same lesson](./793a_product-spec.md#793a3a1-uat-scenarios) | [793d2b Turn memory work](#793d2b-turn-memory-work), [793d7c Reconciling and writing](#793d7c-reconciling-and-writing) |
 | [793a3a1i A captured note records how it was written](./793a_product-spec.md#793a3a1-uat-scenarios) | [793d7c Reconciling and writing](#793d7c-reconciling-and-writing), [793d8a Rows to notes](#793d8a-rows-to-notes) |
 | [793a3a1j A record that already exists is not written again](./793a_product-spec.md#793a3a1-uat-scenarios) | [793d7a Judging a window](#793d7a-judging-a-window), [793d7c Reconciling and writing](#793d7c-reconciling-and-writing), [793d8a Rows to notes](#793d8a-rows-to-notes) |
-| [793a3p1a A dispatch's outcome note is written from its report row](./793a_product-spec.md#793a3p1-uat-scenarios) | [793d2b Turn memory work](#793d2b-turn-memory-work), [793d4a A job in rounds](#793d4a-a-job-in-rounds), [793d8a Rows to notes](#793d8a-rows-to-notes) |
+| [793a3p1a A dispatch's outcome note is written from its report row](./793a_product-spec.md#793a3p1-uat-scenarios) | [793d2b Turn memory work](#793d2b-turn-memory-work), [793d2e Job order within a round](#793d2e-job-order-within-a-round), [793d4a A job in rounds](#793d4a-a-job-in-rounds), [793d8a Rows to notes](#793d8a-rows-to-notes) |
 | [793a3p1c A missing row writes nothing](./793a_product-spec.md#793a3p1-uat-scenarios) | [793d8a Rows to notes](#793d8a-rows-to-notes) |
 | [793a3q1a A sound conclusion in the response is persisted](./793a_product-spec.md#793a3q1-uat-scenarios) | [793d2b Turn memory work](#793d2b-turn-memory-work), [793d7a Judging a window](#793d7a-judging-a-window), [793d7c Reconciling and writing](#793d7c-reconciling-and-writing) |
 | [793a3q1c A hunch is not persisted](./793a_product-spec.md#793a3q1-uat-scenarios) | [793d7a Judging a window](#793d7a-judging-a-window) |
 | [793a4b1a Vault unavailable](./793a_product-spec.md#793a4b1-uat-scenarios) | [793d2a Moment delivery](#793d2a-moment-delivery), [793d3f Memory-activity line](#793d3f-memory-activity-line), [793d4a A job in rounds](#793d4a-a-job-in-rounds) |
-| [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios) | [793d2a Moment delivery](#793d2a-moment-delivery), [793d2b Turn memory work](#793d2b-turn-memory-work), [793d3f Memory-activity line](#793d3f-memory-activity-line), [793d4a A job in rounds](#793d4a-a-job-in-rounds) |
+| [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios) | [793d2a Moment delivery](#793d2a-moment-delivery), [793d2b Turn memory work](#793d2b-turn-memory-work), [793d2e Job order within a round](#793d2e-job-order-within-a-round), [793d3f Memory-activity line](#793d3f-memory-activity-line), [793d4a A job in rounds](#793d4a-a-job-in-rounds) |
 | [793a4b1c No error reaches the agent and the user is warned](./793a_product-spec.md#793a4b1-uat-scenarios) | [793d2a Moment delivery](#793d2a-moment-delivery), [793d2b Turn memory work](#793d2b-turn-memory-work), [793d3f Memory-activity line](#793d3f-memory-activity-line) |
 | [793a4b1d Slow capture does not stall the session](./793a_product-spec.md#793a4b1-uat-scenarios) | [793d2b Turn memory work](#793d2b-turn-memory-work) |
 | [793a4b1e No warning when nothing matched](./793a_product-spec.md#793a4b1-uat-scenarios) | [793d2a Moment delivery](#793d2a-moment-delivery), [793d3f Memory-activity line](#793d3f-memory-activity-line) |
@@ -897,13 +1035,13 @@ Every scenario of [Parallel Memory Agent - Product Spec](./793a_product-spec.md#
 | [793a4c1e A secret in a correction is not persisted](./793a_product-spec.md#793a4c1-uat-scenarios) | [793d7a Judging a window](#793d7a-judging-a-window), [793d7c Reconciling and writing](#793d7c-reconciling-and-writing) |
 | [793a4f1a No note records the System's own work](./793a_product-spec.md#793a4f1-uat-scenarios) | [793d2b Turn memory work](#793d2b-turn-memory-work), [793d7a Judging a window](#793d7a-judging-a-window), [793d7c Reconciling and writing](#793d7c-reconciling-and-writing) |
 | [793a4f1b A session of its own receives no delivery](./793a_product-spec.md#793a4f1-uat-scenarios) | [793d2b Turn memory work](#793d2b-turn-memory-work), [793d7a Judging a window](#793d7a-judging-a-window) |
-| [793a4h1a Update installs the Integration for the harness it updates](./793a_product-spec.md#793a4h1-uat-scenarios) | [793d10a Mod deploy](#793d10a-mod-deploy) |
-| [793a4h1b An existing install gains the System and keeps what it had](./793a_product-spec.md#793a4h1-uat-scenarios) | [793d10a Mod deploy](#793d10a-mod-deploy) |
-| [793a4h1c A preview installs none of the Integration](./793a_product-spec.md#793a4h1-uat-scenarios) | [793d10a Mod deploy](#793d10a-mod-deploy) |
-| [793a4h1d One update serves both harnesses differently](./793a_product-spec.md#793a4h1-uat-scenarios) | [793d10a Mod deploy](#793d10a-mod-deploy) |
-| [793a4h1l Running update twice changes nothing](./793a_product-spec.md#793a4h1-uat-scenarios) | [793d10a Mod deploy](#793d10a-mod-deploy) |
-| [793a5c1a Unsupported harness](./793a_product-spec.md#793a5c1-uat-scenarios) | [793d10a Mod deploy](#793d10a-mod-deploy) |
-| [793a5c1b A Pi session on a machine whose Claude Code has the Integration](./793a_product-spec.md#793a5c1-uat-scenarios) | [793d10a Mod deploy](#793d10a-mod-deploy) |
+| [793a4h1a Update installs the Integration for the harness it updates](./793a_product-spec.md#793a4h1-uat-scenarios) | [793d2f Mod install](#793d2f-mod-install), [793d10a Mod deploy](#793d10a-mod-deploy) |
+| [793a4h1b An existing install gains the System and keeps what it had](./793a_product-spec.md#793a4h1-uat-scenarios) | [793d2f Mod install](#793d2f-mod-install), [793d10a Mod deploy](#793d10a-mod-deploy) |
+| [793a4h1c A preview installs none of the Integration](./793a_product-spec.md#793a4h1-uat-scenarios) | [793d2f Mod install](#793d2f-mod-install), [793d10a Mod deploy](#793d10a-mod-deploy) |
+| [793a4h1d One update serves both harnesses differently](./793a_product-spec.md#793a4h1-uat-scenarios) | [793d2f Mod install](#793d2f-mod-install), [793d10a Mod deploy](#793d10a-mod-deploy) |
+| [793a4h1l Running update twice changes nothing](./793a_product-spec.md#793a4h1-uat-scenarios) | [793d2f Mod install](#793d2f-mod-install), [793d10a Mod deploy](#793d10a-mod-deploy) |
+| [793a5c1a Unsupported harness](./793a_product-spec.md#793a5c1-uat-scenarios) | [793d2f Mod install](#793d2f-mod-install), [793d10a Mod deploy](#793d10a-mod-deploy) |
+| [793a5c1b A Pi session on a machine whose Claude Code has the Integration](./793a_product-spec.md#793a5c1-uat-scenarios) | [793d2f Mod install](#793d2f-mod-install), [793d10a Mod deploy](#793d10a-mod-deploy) |
 | [793a5h1a The summary shows the counts after a turn with events](./793a_product-spec.md#793a5h1-uat-scenarios) | [793d2b Turn memory work](#793d2b-turn-memory-work), [793d3f Memory-activity line](#793d3f-memory-activity-line), [793d4a A job in rounds](#793d4a-a-job-in-rounds) |
 | [793a5h1b Nothing is shown after a turn without events](./793a_product-spec.md#793a5h1-uat-scenarios) | [793d3f Memory-activity line](#793d3f-memory-activity-line) |
 | [793a5h1c The summary is not in the agent's context](./793a_product-spec.md#793a5h1-uat-scenarios) | [793d3f Memory-activity line](#793d3f-memory-activity-line) |
@@ -925,7 +1063,7 @@ Every scenario of [Parallel Memory Agent - Product Spec](./793a_product-spec.md#
 
 ### 793d12a Known limits and follow-ups
 
-The first four are provisional defaults awaiting the owner ([793b216 The recommendations for 793c63 to 793c66 are applied meanwhile, and the claim of no open question is withdrawn](./793b_decision-log.md#793b216-the-recommendations-for-793c63-to-793c66-are-applied-meanwhile-and-the-claim-of-no-open-question-is-withdrawn)).
+The first four are the owner's answers of 2026-10-11 ([793b217 793c63 is answered (a): subagents get a dispatch delivery and a stop capture now](./793b_decision-log.md#793b217-793c63-is-answered-a-subagents-get-a-dispatch-delivery-and-a-stop-capture-now) to [793b220 793c66 is answered (a): the product promise covers the sessions in which mods run](./793b_decision-log.md#793b220-793c66-is-answered-a-the-product-promise-covers-the-sessions-in-which-mods-run)).
 
 - Moments inside a subagent's own loop are not detected; its dispatch and stop are. Follow-up #852 ([793c63 Must recall moments inside a subagent's own loop be delivered now?](./793c_open-questions.md#793c63-must-recall-moments-inside-a-subagents-own-loop-be-delivered-now)).
 - Tier evidence is delivered when the orchestrator routes through the route skill; a direct `Agent` call has no pre-dispatch channel, so it reaches the subagent at its start and the orchestrator after the return ([793c64 When is tier evidence delivered relative to routing?](./793c_open-questions.md#793c64-when-is-tier-evidence-delivered-relative-to-routing)).
