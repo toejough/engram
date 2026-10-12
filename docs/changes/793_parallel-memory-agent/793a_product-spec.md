@@ -50,17 +50,17 @@ Canonical target: `docs/specs/product/automatic-memory.md` (title `Automatic Mem
 
 ### 793a2n Relevant memory reaches the agent at the moments
 
-Requirement: 793a2n The System MUST deliver relevant vault memory to the working agent, before the agent's next response or tool call, without the agent running or being asked to run any memory command, at each of these moments:
+Requirement: 793a2n The [System](#793a1-problem-statement) MUST deliver relevant [vault](#793a1-problem-statement) memory to the [working agent](#793a1-problem-statement), before the agent's next response or tool call, without the agent running or being asked to run any [memory command](#793a1-problem-statement), at each of these [moments](#793a1-problem-statement):
 
 - where recall fires ([792a19a Recall fires at four decision moments](../../specs/product/ambient-guidance.md#792a19a-recall-fires-at-four-decision-moments));
 - at please's orientation ([792a18d The workflow opens with learn and orients with recall](../../specs/product/please.md#792a18d-the-workflow-opens-with-learn-and-orients-with-recall));
-- at every prompt, whatever its source (a human, an automated notification, a scheduled trigger or a message from another session);
-- at a subagent's dispatch, delivered to that subagent for its task (a subagent's own first edit or first failure is not a moment);
+- at every prompt, whatever its source (a human, an automated notification, a scheduled trigger or a message from another [session](../../GLOSSARY.md#session));
+- at a [subagent](../../GLOSSARY.md#subagent)'s dispatch, delivered to that subagent for its task (a subagent's own first edit or first failure is not a moment);
 - when the orchestrator routes a unit through route, before it routes the unit, including any recorded evidence about which tier suits that kind of work ([793a3p Dispatch outcomes are recorded by the System](#793a3p-dispatch-outcomes-are-recorded-by-the-system)).
 
-Each delivery MUST tell the agent to apply what it received. When nothing relevant remains to deliver, the System MUST deliver nothing, that instruction included. Delivery is subject to [793a2e Nothing already in context is delivered again](#793a2e-nothing-already-in-context-is-delivered-again).
+Each [delivery](#793a1-problem-statement) MUST tell the agent to apply what it received. When nothing relevant remains to deliver, the [System](#793a1-problem-statement) MUST deliver nothing, that instruction included. Delivery is subject to [793a2e Nothing already in context is delivered again](#793a2e-nothing-already-in-context-is-delivered-again).
 
-Rationale: recall already says what to consult and when; the change is who does it. The System does not have the agent's full context, so it hands memory over and the agent, which has the context, applies it. Tier evidence reaches the orchestrator only if it is delivered before the unit is routed.
+Rationale: recall already says what to consult and when; the change is who does it. The [System](#793a1-problem-statement) does not have the agent's full [context](#793a1-problem-statement), so it hands memory over and the agent, which has the context, applies it. Tier evidence reaches the orchestrator only if it is delivered before the unit is routed.
 
 #### 793a2n1 UAT Scenarios
 
@@ -112,7 +112,7 @@ Scenario: 793a2n1j Tier evidence is delivered before a dispatch is routed
 
 ### 793a2d Delivered memory is attributable
 
-Requirement: 793a2d Every note or chunk the System delivers MUST identify its source: a note by its file name and its kind, and a chunk by its id and score.
+Requirement: 793a2d Every [note](#793a1-problem-statement) or chunk the [System](#793a1-problem-statement) delivers MUST identify its source: a note by its file name and its kind, and a chunk by its id and score.
 
 Rationale: an agent that can see where an item came from can weigh it and look it up.
 
@@ -132,9 +132,9 @@ Scenario: 793a2d1b A delivered chunk names its id
 
 ### 793a2e Nothing already in context is delivered again
 
-Requirement: 793a2e The System MUST NOT deliver a note or chunk that is already present in the receiving agent's context, however it got there: delivered earlier by the System, retrieved by the agent or the user (by an intentional recall or query, or otherwise), restored when a session resumed, or any other means. A subagent's context is separate from its parent's, so a parent's items do not spare the subagent. Content removed by compaction is not present, so the System MAY deliver it again.
+Requirement: 793a2e The [System](#793a1-problem-statement) MUST NOT deliver a [note](#793a1-problem-statement) or chunk that is already present in the receiving agent's [context](#793a1-problem-statement), however it got there: delivered earlier by the System, retrieved by the agent or the user (by an intentional recall or query, or otherwise), restored when a [session](../../GLOSSARY.md#session) resumed, or any other means. A [subagent](../../GLOSSARY.md#subagent)'s context is separate from its parent's, so a parent's items do not spare the subagent. Content removed by compaction is not present, so the System MAY deliver it again.
 
-Rationale: an item the agent already has adds only noise. Intentional memory runs beside automatic memory, so what the agent or the user surfaced themselves must not be delivered again.
+Rationale: an item the agent already has adds only noise. [Intentional memory](#793a1-problem-statement) runs beside [automatic memory](#793a1-problem-statement), so what the agent or the user surfaced themselves must not be delivered again.
 
 #### 793a2e1 UAT Scenarios
 
@@ -169,9 +169,9 @@ Scenario: 793a2e1g A resumed session's restored content counts as present
 
 ### 793a2k Intentional memory stays available and is never blocked
 
-Requirement: 793a2k The System MUST NOT require the working agent to run any memory command, or to evaluate, approve or write any memory, as part of automatic memory: the only thing it asks of the agent about memory is to apply what was delivered ([793a2n Relevant memory reaches the agent at the moments](#793a2n-relevant-memory-reaches-the-agent-at-the-moments)). The working agent MAY run any memory command intentionally, and the user MAY ask it to; such a run is not an error, and the System MUST NOT block it or undo its result. Everything that provides intentional memory (the memory skills, the ambient guidance and the shim) stays as it is today.
+Requirement: 793a2k The [System](#793a1-problem-statement) MUST NOT require the [working agent](#793a1-problem-statement) to run any [memory command](#793a1-problem-statement), or to evaluate, approve or write any memory, as part of [automatic memory](#793a1-problem-statement): the only thing it asks of the agent about memory is to apply what was delivered ([793a2n Relevant memory reaches the agent at the moments](#793a2n-relevant-memory-reaches-the-agent-at-the-moments)). The working agent MAY run any memory command intentionally, and the user MAY ask it to; such a run is not an error, and the System MUST NOT block it or undo its result. Everything that provides [intentional memory](#793a1-problem-statement) (the memory [skills](../../GLOSSARY.md#skill), the ambient guidance and the shim) stays as it is today.
 
-Rationale: the point of the System is to take memory handling out of the working agent's context by default, so that memory happens at the moments the agent reliably misses. It does not take memory away from the agent or the user: an agent that is told "remember this" or that wants a lookup mid-task must still be able to run the command.
+Rationale: the point of the [System](#793a1-problem-statement) is to take memory handling out of the [working agent](#793a1-problem-statement)'s [context](#793a1-problem-statement) by default, so that memory happens at the [moments](#793a1-problem-statement) the agent reliably misses. It does not take memory away from the agent or the user: an agent that is told "remember this" or that wants a lookup mid-task must still be able to run the command.
 
 #### 793a2k1 UAT Scenarios
 
@@ -203,9 +203,9 @@ Scenario: 793a2k1e An intentional engram query by the agent is allowed
 
 ### 793a2l Indexing and curation happen without the agent
 
-Requirement: 793a2l After a turn completes, the System MUST bring the chunk index up to date with the turn's content, and MUST resolve the vault's pending offers as [curate](../../specs/product/curate.md) does (accept an offer, fold it into the existing note it duplicates, or discard it), without the working agent. The System MUST NOT ask the agent to curate.
+Requirement: 793a2l After a turn completes, the [System](#793a1-problem-statement) MUST bring the chunk index up to date with the turn's content, and MUST resolve the [vault](#793a1-problem-statement)'s pending [offers](../../GLOSSARY.md#offer) as [curate](../../specs/product/curate.md) does (accept an offer, fold it into the existing [note](#793a1-problem-statement) it duplicates, or discard it), without the [working agent](#793a1-problem-statement). The System MUST NOT ask the agent to curate.
 
-Rationale: indexing and curation are slow bookkeeping that the working agent need not do or wait for ([793a4b The session is never broken or stalled](#793a4b-the-session-is-never-broken-or-stalled)); the turn that has just completed is what the next lookup must find.
+Rationale: indexing and curation are slow bookkeeping that the [working agent](#793a1-problem-statement) need not do or wait for ([793a4b The session is never broken or stalled](#793a4b-the-session-is-never-broken-or-stalled)); the turn that has just completed is what the next lookup must find.
 
 #### 793a2l1 UAT Scenarios
 
@@ -236,11 +236,11 @@ Canonical target: `docs/specs/product/automatic-memory.md` (title `Automatic Mem
 
 ### 793a3a Lessons are captured without the agent
 
-Requirement: 793a3a The System MUST write to the vault each lesson that occurs in a working session, top-level or subagent (excluding [793a4f No delivery or capture in its own sessions](#793a4f-no-delivery-or-capture-in-its-own-sessions)), without the working agent being asked and without it taking part: a correction, an explicit save-request, a reversal and a confirmed approach ([792a19c Learn fires at the correction moment](../../specs/product/ambient-guidance.md#792a19c-learn-fires-at-the-correction-moment), [792a15e The four kinds of explicit lesson](../../specs/product/learn.md#792a15e-the-four-kinds-of-explicit-lesson)), and any corrected failure, including an agent's own mid-task mistake that evidence overturned. A lesson in a subagent session MUST be captured from that session, so that no lesson depends on the subagent or its dispatching agent reporting it. When two subagent sessions contain the same lesson, the System MUST write one note for it. Each note the System writes MUST record that it was written automatically and the session and turn it came from, in addition to the source learn defines for it.
+Requirement: 793a3a The [System](#793a1-problem-statement) MUST write to the [vault](#793a1-problem-statement) each [lesson](#793a1-problem-statement) that occurs in a working [session](../../GLOSSARY.md#session), top-level or [subagent](../../GLOSSARY.md#subagent) (excluding [793a4f No delivery or capture in its own sessions](#793a4f-no-delivery-or-capture-in-its-own-sessions)), without the [working agent](#793a1-problem-statement) being asked and without it taking part: a correction, an explicit save-request, a [reversal](../../GLOSSARY.md#reversal-capture-kind) and a [confirmed approach](../../GLOSSARY.md#confirmed-approach-capture-kind) ([792a19c Learn fires at the correction moment](../../specs/product/ambient-guidance.md#792a19c-learn-fires-at-the-correction-moment), [792a15e The four kinds of explicit lesson](../../specs/product/learn.md#792a15e-the-four-kinds-of-explicit-lesson)), and any corrected failure, including an agent's own mid-task mistake that evidence overturned. A lesson in a subagent session MUST be captured from that session, so that no lesson depends on the subagent or its dispatching agent reporting it. When two subagent sessions contain the same lesson, the System MUST write one [note](#793a1-problem-statement) for it. Each note the System writes MUST record that it was written automatically and the session and turn it came from, in addition to the source learn defines for it.
 
-The System MUST NOT write a note for a lesson, a conclusion ([793a3q Sound conclusions are persisted by the System](#793a3q-sound-conclusions-are-persisted-by-the-system)) or a dispatch outcome ([793a3p Dispatch outcomes are recorded by the System](#793a3p-dispatch-outcomes-are-recorded-by-the-system)) that a note written earlier in the session already records, whoever wrote it (the System, the agent, the user's command or the orchestrator).
+The [System](#793a1-problem-statement) MUST NOT write a [note](#793a1-problem-statement) for a [lesson](#793a1-problem-statement), a conclusion ([793a3q Sound conclusions are persisted by the System](#793a3q-sound-conclusions-are-persisted-by-the-system)) or a dispatch outcome ([793a3p Dispatch outcomes are recorded by the System](#793a3p-dispatch-outcomes-are-recorded-by-the-system)) that a note written earlier in the [session](../../GLOSSARY.md#session) already records, whoever wrote it (the System, the agent, the user's command or the orchestrator).
 
-Rationale: the working agent's context stays free of memory evaluation, and subagent sessions are where lessons occur too. The existing skills still ask the agent to save the same lessons, so the System must not write a second note for what the agent already saved.
+Rationale: the [working agent](#793a1-problem-statement)'s [context](#793a1-problem-statement) stays free of memory evaluation, and [subagent](../../GLOSSARY.md#subagent) [sessions](../../GLOSSARY.md#session) are where [lessons](#793a1-problem-statement) occur too. The existing [skills](../../GLOSSARY.md#skill) still ask the agent to save the same lessons, so the [System](#793a1-problem-statement) must not write a second [note](#793a1-problem-statement) for what the agent already saved.
 
 #### 793a3a1 UAT Scenarios
 
@@ -296,9 +296,9 @@ Scenario Outline: 793a3a1j A record that already exists is not written again
 
 ### 793a3p Dispatch outcomes are recorded by the System
 
-Requirement: 793a3p For each dispatch whose row appears in route's report ([792a17i Each dispatch is recorded in a mini-report row](../../specs/product/route.md#792a17i-each-dispatch-is-recorded-in-a-mini-report-row)), the System MUST write the note that records its work-kind, tier, model and outcome ([792a17k Each dispatch is also written to the vault as a tagged evidence note](../../specs/product/route.md#792a17k-each-dispatch-is-also-written-to-the-vault-as-a-tagged-evidence-note)), without the orchestrator writing it. When a dispatch's row is not in the transcript, the System MUST write nothing for that dispatch.
+Requirement: 793a3p For each dispatch whose row appears in route's report ([792a17i Each dispatch is recorded in a mini-report row](../../specs/product/route.md#792a17i-each-dispatch-is-recorded-in-a-mini-report-row)), the [System](#793a1-problem-statement) MUST write the [note](#793a1-problem-statement) that records its work-kind, tier, model and outcome ([792a17k Each dispatch is also written to the vault as a tagged evidence note](../../specs/product/route.md#792a17k-each-dispatch-is-also-written-to-the-vault-as-a-tagged-evidence-note)), without the orchestrator writing it. When a dispatch's row is not in the [transcript](../../GLOSSARY.md#transcript), the System MUST write nothing for that dispatch.
 
-Rationale: the outcome notes are measurements of dispatches, built from the row the orchestrator already produces. They are what lets a later dispatch decision start from evidence ([793a2n Relevant memory reaches the agent at the moments](#793a2n-relevant-memory-reaches-the-agent-at-the-moments)).
+Rationale: the outcome [notes](#793a1-problem-statement) are measurements of dispatches, built from the row the orchestrator already produces. They are what lets a later dispatch decision start from evidence ([793a2n Relevant memory reaches the agent at the moments](#793a2n-relevant-memory-reaches-the-agent-at-the-moments)).
 
 #### 793a3p1 UAT Scenarios
 
@@ -317,9 +317,9 @@ Scenario: 793a3p1c A missing row writes nothing
 
 ### 793a3q Sound conclusions are persisted by the System
 
-Requirement: 793a3q The System MUST write a note for a sound, non-trivial conclusion that the working agent states in its response and that no vault note states, in the cases and form that recall persists conclusions ([792a14p A sound conclusion is persisted as a derived note](../../specs/product/recall.md#792a14p-a-sound-conclusion-is-persisted-as-a-derived-note), [792a14q A cited synthesis is also captured as a question and answer](../../specs/product/recall.md#792a14q-a-cited-synthesis-is-also-captured-as-a-question-and-answer)), without the agent writing it. The System MUST NOT write a note for a conclusion it would hedge below probable.
+Requirement: 793a3q The [System](#793a1-problem-statement) MUST write a [note](#793a1-problem-statement) for a sound, non-trivial conclusion that the [working agent](#793a1-problem-statement) states in its response and that no [vault](#793a1-problem-statement) note states, in the cases and form that recall persists conclusions ([792a14p A sound conclusion is persisted as a derived note](../../specs/product/recall.md#792a14p-a-sound-conclusion-is-persisted-as-a-derived-note), [792a14q A cited synthesis is also captured as a question and answer](../../specs/product/recall.md#792a14q-a-cited-synthesis-is-also-captured-as-a-question-and-answer)), without the agent writing it. The System MUST NOT write a note for a conclusion it would hedge below probable.
 
-Rationale: the agent, which has the context, reasons in its response, and the System, which handles memory, persists what is sound in it. Reasoning that is never written down evaporates.
+Rationale: the agent, which has the [context](#793a1-problem-statement), reasons in its response, and the [System](#793a1-problem-statement), which handles memory, persists what is sound in it. Reasoning that is never written down evaporates.
 
 #### 793a3q1 UAT Scenarios
 
@@ -344,9 +344,9 @@ Canonical target: `docs/specs/product/automatic-memory.md` (title `Automatic Mem
 
 ### 793a4b The session is never broken or stalled
 
-Requirement: 793a4b While the Integration is installed, if the System fails, times out, or is unavailable, the working session MUST continue unaffected, with no error surfaced to the working agent and no lost user input, and the System MUST show the user a warning, on the same surface as the memory-activity summary ([793a5h The user sees a summary of the memory activity](#793a5h-the-user-sees-a-summary-of-the-memory-activity)) and outside the working agent's context, saying that automatic memory was skipped for that moment or turn and why (unavailable, timed out, or error). A moment at which nothing matched is not a failure and MUST show no warning. The System MUST NOT make the agent or the user wait for any of its work that is not needed before the agent's next step: capturing, indexing, curating and the summary.
+Requirement: 793a4b While the [Integration](#793a1-problem-statement) is installed, if the [System](#793a1-problem-statement) fails, times out, or is unavailable, the working [session](../../GLOSSARY.md#session) MUST continue unaffected, with no error surfaced to the [working agent](#793a1-problem-statement) and no lost user input, and the System MUST show the user a warning, on the same surface as the memory-activity summary ([793a5h The user sees a summary of the memory activity](#793a5h-the-user-sees-a-summary-of-the-memory-activity)) and outside the working agent's [context](#793a1-problem-statement), saying that [automatic memory](#793a1-problem-statement) was skipped for that [moment](#793a1-problem-statement) or turn and why (unavailable, timed out, or error). A moment at which nothing matched is not a failure and MUST show no warning. The System MUST NOT make the agent or the user wait for any of its work that is not needed before the agent's next step: capturing, indexing, curating and the summary.
 
-Rationale: the owner wants to know when the automatic channel silently did nothing, without that ever reaching the working agent ([793b185 The user is warned when automatic memory is skipped](793b_decision-log.md#793b185-the-user-is-warned-when-automatic-memory-is-skipped)).
+Rationale: the owner wants to know when the automatic channel silently did nothing, without that ever reaching the [working agent](#793a1-problem-statement) ([793b185 The user is warned when automatic memory is skipped](793b_decision-log.md#793b185-the-user-is-warned-when-automatic-memory-is-skipped)).
 
 #### 793a4b1 UAT Scenarios
 
@@ -387,7 +387,7 @@ Scenario: 793a4b1e No warning when nothing matched
 
 ### 793a4c Memory purview only
 
-Requirement: 793a4c The System MUST NOT itself make or override tool permissions, tool arguments, model choice, or the user's prompt text. Its only effect on the working agent's context is what it delivers ([793a2n Relevant memory reaches the agent at the moments](#793a2n-relevant-memory-reaches-the-agent-at-the-moments)). Outside that context it shows the user the memory-activity summary ([793a5h The user sees a summary of the memory activity](#793a5h-the-user-sees-a-summary-of-the-memory-activity)), writes, amends and activates vault notes, curates pending offers, refreshes the chunk index, pulls down pending copies of parent notes and makes offers to the parent ([792a21n A local write is offered to the parent](../../specs/product/parent-sync.md#792a21n-a-local-write-is-offered-to-the-parent)), and starts its own sessions ([793a4f No delivery or capture in its own sessions](#793a4f-no-delivery-or-capture-in-its-own-sessions)). The System MUST NOT write credentials, tokens, or secrets present in a transcript into a note.
+Requirement: 793a4c The [System](#793a1-problem-statement) MUST NOT itself make or override tool permissions, tool arguments, model choice, or the user's prompt text. Its only effect on the [working agent](#793a1-problem-statement)'s [context](#793a1-problem-statement) is what it delivers ([793a2n Relevant memory reaches the agent at the moments](#793a2n-relevant-memory-reaches-the-agent-at-the-moments)). Outside that context it shows the user the memory-activity summary ([793a5h The user sees a summary of the memory activity](#793a5h-the-user-sees-a-summary-of-the-memory-activity)), writes, amends and activates [vault](#793a1-problem-statement) [notes](#793a1-problem-statement), curates pending [offers](../../GLOSSARY.md#offer), refreshes the chunk index, pulls down pending copies of parent notes and makes offers to the parent ([792a21n A local write is offered to the parent](../../specs/product/parent-sync.md#792a21n-a-local-write-is-offered-to-the-parent)), and starts its own [sessions](../../GLOSSARY.md#session) ([793a4f No delivery or capture in its own sessions](#793a4f-no-delivery-or-capture-in-its-own-sessions)). The System MUST NOT write credentials, tokens, or secrets present in a [transcript](../../GLOSSARY.md#transcript) into a note.
 
 #### 793a4c1 UAT Scenarios
 
@@ -418,9 +418,9 @@ Scenario: 793a4c1e A secret in a correction is not persisted
 
 ### 793a4f No delivery or capture in its own sessions
 
-Requirement: 793a4f The System MUST NOT deliver memory into, or capture lessons from, the sessions it runs itself (to perform its lookups and captures).
+Requirement: 793a4f The [System](#793a1-problem-statement) MUST NOT deliver memory into, or capture [lessons](#793a1-problem-statement) from, the [sessions](../../GLOSSARY.md#session) it runs itself (to perform its lookups and captures).
 
-Rationale: a System session that triggers the System would recurse and would write notes about the System's own work.
+Rationale: a [System](#793a1-problem-statement) [session](../../GLOSSARY.md#session) that triggers the System would recurse and would write [notes](#793a1-problem-statement) about the System's own work.
 
 #### 793a4f1 UAT Scenarios
 
@@ -438,11 +438,11 @@ Scenario: 793a4f1b A session of its own receives no delivery
 
 ### 793a4h Installed by engram update and active in Claude Code
 
-Requirement: 793a4h `engram update` MUST install the Integration for the Claude Code harness, directly, when it updates that harness ([792a11g The harnesses that are updated](../../specs/product/install-and-update.md#792a11g-the-harnesses-that-are-updated)), and the System MUST be active in every Claude Code session in which mods run from then on, with no operating mode to select and no step beyond installing it. It MUST NOT depend on `engram init`. It MUST NOT remove or alter anything else that `engram update` deploys today. An existing install of engram MUST have the System in Claude Code after its next `engram update`, and running `engram update` again MUST change nothing about the Integration. The Integration MUST NOT be installed for any other harness, and `engram update` MUST NOT create the directory of a harness that is not present. `engram update --dry-run` ([792a11f Previewing an update](../../specs/product/install-and-update.md#792a11f-previewing-an-update)) MUST install none of it.
+Requirement: 793a4h `engram update` MUST install the [Integration](#793a1-problem-statement) for the Claude Code [harness](../../GLOSSARY.md#harness), directly, when it updates that harness ([792a11g The harnesses that are updated](../../specs/product/install-and-update.md#792a11g-the-harnesses-that-are-updated)), and the [System](#793a1-problem-statement) MUST be active in every Claude Code [session](../../GLOSSARY.md#session) in which mods run from then on, with no operating mode to select and no step beyond installing it. It MUST NOT depend on `engram init`. It MUST NOT remove or alter anything else that `engram update` deploys today. An existing install of engram MUST have the System in Claude Code after its next `engram update`, and running `engram update` again MUST change nothing about the Integration. The Integration MUST NOT be installed for any other harness, and `engram update` MUST NOT create the directory of a harness that is not present. `engram update --dry-run` ([792a11f Previewing an update](../../specs/product/install-and-update.md#792a11f-previewing-an-update)) MUST install none of it.
 
-This requirement is delivered by this change and does not wait on any other issue ([793b186 793a4h is delivered by this change and does not depend on #795](793b_decision-log.md#793b186-793a4h-is-delivered-by-this-change-and-does-not-depend-on-795)). When change #795 (`docs/changes/795_vault-init-command/`) later makes `engram update` run `engram init`, init takes over installing the Integration with no change to this requirement's promises.
+This requirement is delivered by this change and does not wait on any other issue ([793b186 793a4h is delivered by this change and does not depend on #795](793b_decision-log.md#793b186-793a4h-is-delivered-by-this-change-and-does-not-depend-on-795)). When change #795 (`docs/changes/795_vault-init-command/`) later makes `engram update` run `engram init`, init takes over installing the [Integration](#793a1-problem-statement) with no change to this requirement's promises.
 
-Rationale: one state to reason about. Installing turns the System on, and everything intentional memory relies on stays installed beside it.
+Rationale: one state to reason about. Installing turns the [System](#793a1-problem-statement) on, and everything [intentional memory](#793a1-problem-statement) relies on stays installed beside it.
 
 #### 793a4h1 UAT Scenarios
 
@@ -487,8 +487,8 @@ Canonical target: `docs/specs/product/automatic-memory.md` (title `Automatic Mem
 
 ### 793a5c Other harnesses are unchanged
 
-Requirement: 793a5c In every harness in which engram is installed without the Integration, the existing
-instruction-based path ([ambient-guidance](../../specs/product/ambient-guidance.md)) MUST continue to work unchanged, and the working agent in that harness MUST keep running recall and learn. The System MUST NOT deliver into, or capture from, a session of such a harness.
+Requirement: 793a5c In every [harness](../../GLOSSARY.md#harness) in which engram is installed without the [Integration](#793a1-problem-statement), the existing
+instruction-based path ([ambient-guidance](../../specs/product/ambient-guidance.md)) MUST continue to work unchanged, and the [working agent](#793a1-problem-statement) in that harness MUST keep running recall and learn. The [System](#793a1-problem-statement) MUST NOT deliver into, or capture from, a [session](../../GLOSSARY.md#session) of such a harness.
 
 #### 793a5c1 UAT Scenarios
 
@@ -508,9 +508,9 @@ Scenario: 793a5c1b A Pi session on a machine whose Claude Code has the Integrati
 
 ### 793a5h The user sees a summary of the memory activity
 
-Requirement: 793a5h After each completed top-level turn of a Claude Code session in which mods run, once the System's work for that turn (capture included) has finished, the System MUST show the user, outside the working agent's context, the counts of memory events since its previous summary, across the session and its subagent sessions: items delivered, notes added, notes amended, dispatch outcomes recorded and offers curated. A turn with no memory events MUST show nothing. The warning that automatic memory was skipped ([793a4b The session is never broken or stalled](#793a4b-the-session-is-never-broken-or-stalled)) is shown on this same surface. The summary MUST NOT enter the working agent's context. When a note the System wrote could not reach a parent vault and its offer is queued ([792a15j A write to a parent is reported as done](../../specs/product/learn.md#792a15j-a-write-to-a-parent-is-reported-as-done)), the System MUST tell the user, on the same surface and also outside the agent's context, that the note is saved and its offer is queued, and MUST NOT call the write failed, even when the turn has no counts to show.
+Requirement: 793a5h After each completed top-level turn of a Claude Code [session](../../GLOSSARY.md#session) in which mods run, once the [System](#793a1-problem-statement)'s work for that turn (capture included) has finished, the System MUST show the user, outside the [working agent](#793a1-problem-statement)'s [context](#793a1-problem-statement), the counts of memory events since its previous summary, across the session and its [subagent](../../GLOSSARY.md#subagent) sessions: items delivered, [notes](#793a1-problem-statement) added, notes amended, dispatch outcomes recorded and [offers](../../GLOSSARY.md#offer) curated. A turn with no memory events MUST show nothing. The warning that [automatic memory](#793a1-problem-statement) was skipped ([793a4b The session is never broken or stalled](#793a4b-the-session-is-never-broken-or-stalled)) is shown on this same surface. The summary MUST NOT enter the working agent's context. When a note the System wrote could not reach a parent [vault](#793a1-problem-statement) and its offer is queued ([792a15j A write to a parent is reported as done](../../specs/product/learn.md#792a15j-a-write-to-a-parent-is-reported-as-done)), the System MUST tell the user, on the same surface and also outside the agent's context, that the note is saved and its offer is queued, and MUST NOT call the write failed, even when the turn has no counts to show.
 
-Rationale: the user keeps visibility of the memory work the System took over without the working agent relaying it, and hears what the learn skill would have told them.
+Rationale: the user keeps visibility of the memory work the [System](#793a1-problem-statement) took over without the [working agent](#793a1-problem-statement) relaying it, and hears what the learn [skill](../../GLOSSARY.md#skill) would have told them.
 
 #### 793a5h1 UAT Scenarios
 

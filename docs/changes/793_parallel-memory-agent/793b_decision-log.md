@@ -2797,3 +2797,19 @@ New IDs (checked with `git log -S`: unused): `793d2a1g`, `793d2b1j`, `793d3a1f`,
 - **Rationale:** the automatic System must be as fast and as cheap as possible; the engram eval validated a haiku-family tier at parity with a top tier on subtle lesson-sifting, and routing is by capability tier, not model name, with only measured evidence raising a tier (as route does).
 - **Alternatives:** the session's own model (rejected by the owner; it was [793b212 The judgement model is the session's own model; a cheaper model is a follow-up under #850](#793b212-the-judgement-model-is-the-sessions-own-model-a-cheaper-model-is-a-follow-up-under-850)); one global constant (no per-kind raise).
 - **Amends:** [793b212 The judgement model is the session's own model; a cheaper model is a follow-up under #850](#793b212-the-judgement-model-is-the-sessions-own-model-a-cheaper-model-is-a-follow-up-under-850), [793b196 Judgement runs as relayed model completions, not sessions](#793b196-judgement-runs-as-relayed-model-completions-not-sessions).
+
+## 793b225 Defined terms link to their definitions
+
+- **Decided by:** Owner (Joe, 2026-10-12): "in specs, a defined term, when used, links back to its definition."
+- **Choice:** a term defined in a change's Terms list or in [`docs/GLOSSARY.md`](../../GLOSSARY.md) MUST link to its definition at its first use in each addressable node's prose (a requirement paragraph, a rationale, orientation or flow prose, a table cell), with the term as written as the label; the definition, Gherkin and code blocks are not linked. The rule is in the "Defined Terms" subsection of `docs/AGENTS.md` and in the Shared Author Checklist. It is applied to [Parallel Memory Agent - Product Spec](./793a_product-spec.md#parallel-memory-agent---product-spec) and [Parallel Memory Agent - Technical Spec](./793d_technical-spec.md#parallel-memory-agent---technical-spec) by a script: the terms of the Terms list in [793a1 Problem Statement](./793a_product-spec.md#793a1-problem-statement) and [793d1b Terms](./793d_technical-spec.md#793d1b-terms) link to those nodes (the list items are not headings, so the link goes to the nearest heading), and the glossary terms used in these specs (skill, runbook, harness, session, transcript, subagent, offer, evidence note, reversal, confirmed approach, recency channel, targ) link to their glossary entries. Glossary words that these specs use in another sense (trigger, engram, recall, learn, candidate, fact, feedback, binary) are not linked.
+- **Rationale:** a reader of one requirement should reach the meaning of a term without searching; the rule is mechanical, so it can be checked.
+- **Alternatives:** link every use (noisy); link only the first use in a document (a requirement read alone after promotion would have no link).
+- **Amends:** none.
+
+## 793b226 The technical spec's own terms are a node, 793d1b Terms
+
+- **Decided by:** Author (agent); awaiting owner validation.
+- **Choice:** the terms paragraph of [793d1 Orientation](./793d_technical-spec.md#793d1-orientation) (cue, job, round, judgement request, ledger) became a list under the new heading [793d1b Terms](./793d_technical-spec.md#793d1b-terms), so that the terms have an ID to link to under [793b225 Defined terms link to their definitions](#793b225-defined-terms-link-to-their-definitions). Its wording is unchanged except that **round** is defined as one run of `engram auto run` that advances a job, taken from [793d4a A job in rounds](./793d_technical-spec.md#793d4a-a-job-in-rounds). The new ID was checked with `git log -S`: unused.
+- **Rationale:** a term without an addressable definition cannot be linked.
+- **Alternatives:** link to 793d1 (the whole orientation; too coarse).
+- **Amends:** none.
