@@ -2948,3 +2948,18 @@ New IDs (each checked with `git log -S`: unused): `793a3a1k` to `793a3a1o`, `793
 - **Rationale:** the System is an addition in Claude Code; it must not take anything away from a harness that lacks the Integration. The locks that already serialize concurrent ingest, learn, amend and activate ([vault-write-lock](../../specs/technical/vault-write-lock.md)) are what make the two paths safe together, so no new mechanism is needed.
 - **Alternatives:** have the System skip a source an intentional ingest is touching (rejected: the lock already serializes them and the quiet period already keeps capture off a running session).
 - **Amends:** [793b231 Backlog capture: the System captures lessons from any swept session transcript after the fact](793b_decision-log.md#793b231-backlog-capture-the-system-captures-lessons-from-any-swept-session-transcript-after-the-fact) and [793b232 Backlog capture is a watermark per transcript source and a scan after each turn's own capture, and the $.store queue is dropped](793b_decision-log.md#793b232-backlog-capture-is-a-watermark-per-transcript-source-and-a-scan-after-each-turns-own-capture-and-the-store-queue-is-dropped).
+
+## 793b235 The product spec states promises, not mechanisms
+
+- **Decided by:** Owner (Joe, 2026-10-12): "The product spec shouldn't include technical details like .manifest.lock or even referencing a lock file at all."
+- **Choice:** [793a5c Other harnesses are unchanged](793a_product-spec.md#793a5c-other-harnesses-are-unchanged) states only the promise: when an intentional ingest or learn in such a harness runs at the same time as the System's indexing or capture, both complete and neither corrupts the index or the vault. The vault write lock and `.manifest.lock` stay in the technical spec ([793d2b](793d_technical-spec.md#793d2b-turn-memory-work), [793d7e](793d_technical-spec.md#793d7e-the-backlog-scan-and-the-watermark)). A sweep of 793a for other mechanism wording made these rewrites:
+  - 793a1 Transcript source: "`engram ingest --auto` finds and indexes" to "engram's automatic indexing finds and indexes".
+  - 793a5c requirement: the vault-write-lock link and `.manifest.lock` removed; "the System's own ingest and backlog capture ... through the lock" to "indexing and backlog capture ... both MUST complete" (same promise); "chunk index" to "index"; `engram ingest --auto` kept only as "the user-run" command.
+  - 793a5c1d: "engram ingest --auto" (Pi agent) to "its own ingest"; "the System running engram ingest --auto and a backlog capture" to "indexing and running a backlog capture"; "chunk index" to "index".
+  - 793a4h: "in which mods run" to "that supports the Integration" (mod API name).
+  - 793a5h: "in which mods run" to "that has the Integration".
+  - 793a4h1a: "~/.claude exists, ~/.pi does not" to "Claude Code is installed, Pi is not"; "~/.pi is not created" to "no Pi configuration is created".
+  - 793a4h1d: "~/.claude and ~/.pi both exist; ~/.pi/agent/AGENTS.md imports ..." to "Claude Code and Pi are both installed; Pi is configured with the recall, learn and shim guidance".
+  - Kept: `engram update`, `engram ingest --auto` as a user-run command, `/recall`, `/learn`; "backlog" and "content it has not captured before". No scenario needed the mechanism to be stated.
+- **Rationale:** the owner's rule that a product spec states what the user can observe, and the mechanism belongs in the technical spec.
+- **Alternatives:** keep the lock as a named means (rejected by the owner).

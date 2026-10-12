@@ -41,7 +41,7 @@ Terms used below:
   Content removed by compaction is no longer present. A subagent's context is separate from its
   parent's. A resumed session's restored content is present.
 - **Memory command:** running recall, learn, curate or write-memory, or an engram command that queries, writes or amends the vault.
-- **Transcript source:** a session transcript that `engram ingest --auto` finds and indexes ([792a5d Automatic sweep roots](../../specs/product/chunk-indexing.md#792a5d-automatic-sweep-roots)): a Claude Code session log or a Pi session file, whichever harness wrote it and whether or not that harness has the Integration.
+- **Transcript source:** a session transcript that engram's automatic indexing finds and indexes ([792a5d Automatic sweep roots](../../specs/product/chunk-indexing.md#792a5d-automatic-sweep-roots)): a Claude Code session log or a Pi session file, whichever harness wrote it and whether or not that harness has the Integration.
 - **Backlog:** the content of transcript sources that the System has not yet captured lessons from, held by sessions that are no longer running ([793a3a Lessons are captured without the agent](#793a3a-lessons-are-captured-without-the-agent)).
 
 Requirement keywords follow RFC 2119.
@@ -459,7 +459,7 @@ Scenario: 793a4f1b A session of its own receives no delivery
 
 ### 793a4h Installed by engram update and active in Claude Code
 
-Requirement: 793a4h `engram update` MUST install the [Integration](#793a1-problem-statement) for the Claude Code [harness](../../GLOSSARY.md#harness), directly, when it updates that harness ([792a11g The harnesses that are updated](../../specs/product/install-and-update.md#792a11g-the-harnesses-that-are-updated)), and the [System](#793a1-problem-statement) MUST be active in every Claude Code [session](../../GLOSSARY.md#session) in which mods run from then on, with no operating mode to select and no step beyond installing it. It MUST NOT depend on `engram init`. It MUST NOT remove or alter anything else that `engram update` deploys today. An existing install of engram MUST have the System in Claude Code after its next `engram update`, and running `engram update` again MUST change nothing about the Integration. The Integration MUST NOT be installed for any other harness, and `engram update` MUST NOT create the directory of a harness that is not present. `engram update --dry-run` ([792a11f Previewing an update](../../specs/product/install-and-update.md#792a11f-previewing-an-update)) MUST install none of it.
+Requirement: 793a4h `engram update` MUST install the [Integration](#793a1-problem-statement) for the Claude Code [harness](../../GLOSSARY.md#harness), directly, when it updates that harness ([792a11g The harnesses that are updated](../../specs/product/install-and-update.md#792a11g-the-harnesses-that-are-updated)), and the [System](#793a1-problem-statement) MUST be active in every Claude Code [session](../../GLOSSARY.md#session) that supports the Integration from then on, with no operating mode to select and no step beyond installing it. It MUST NOT depend on `engram init`. It MUST NOT remove or alter anything else that `engram update` deploys today. An existing install of engram MUST have the System in Claude Code after its next `engram update`, and running `engram update` again MUST change nothing about the Integration. The Integration MUST NOT be installed for any other harness, and `engram update` MUST NOT create the directory of a harness that is not present. `engram update --dry-run` ([792a11f Previewing an update](../../specs/product/install-and-update.md#792a11f-previewing-an-update)) MUST install none of it.
 
 This requirement is delivered by this change and does not wait on any other issue ([793b186 793a4h is delivered by this change and does not depend on #795](793b_decision-log.md#793b186-793a4h-is-delivered-by-this-change-and-does-not-depend-on-795)). When change #795 (`docs/changes/795_vault-init-command/`) later makes `engram update` run `engram init`, init takes over installing the [Integration](#793a1-problem-statement) with no change to this requirement's promises.
 
@@ -469,10 +469,10 @@ Rationale: one state to reason about. Installing turns the [System](#793a1-probl
 
 ```gherkin
 Scenario: 793a4h1a Update installs the Integration for the harness it updates
-  Given ~/.claude exists, ~/.pi does not, and the System can run in Claude Code
+  Given Claude Code is installed, Pi is not, and the System can run in Claude Code
   When the user runs engram update
   Then a Claude Code session runs with the System active, with no other configuration
-  And ~/.pi is not created
+  And no Pi configuration is created
 
 Scenario: 793a4h1b An existing install gains the System and keeps what it had
   Given an engram install made before the System existed, with the memory skills, guidance and shim deployed to Claude Code
@@ -489,8 +489,8 @@ Scenario: 793a4h1c A preview installs none of the Integration
   Then the transcript shows no delivered content
 
 Scenario: 793a4h1d One update serves both harnesses differently
-  Given ~/.claude and ~/.pi both exist
-  And ~/.pi/agent/AGENTS.md imports the recall, learn and shim guidance
+  Given Claude Code and Pi are both installed
+  And Pi is configured with the recall, learn and shim guidance
   When the user runs engram update
   Then a Claude Code session runs with the System active
   And a Pi session shows no content delivered by the System, and the Pi agent runs recall itself before acting
@@ -509,7 +509,7 @@ Canonical target: `docs/specs/product/automatic-memory.md` (title `Automatic Mem
 ### 793a5c Other harnesses are unchanged
 
 Requirement: 793a5c In every [harness](../../GLOSSARY.md#harness) in which engram is installed without the [Integration](#793a1-problem-statement), the existing
-instruction-based path ([ambient-guidance](../../specs/product/ambient-guidance.md)) MUST continue to work unchanged, and the [working agent](#793a1-problem-statement) in that [harness](../../GLOSSARY.md#harness) MUST keep running recall and learn: its own intentional ingestion and learn (`engram ingest --auto`, the learn [skill](../../GLOSSARY.md#skill), recall's writes) continue exactly as they did before the [System](#793a1-problem-statement) existed, and the System MUST NOT block, delay, undo or duplicate them. The System MUST NOT deliver into a [session](../../GLOSSARY.md#session) of such a harness or change its [transcript](../../GLOSSARY.md#transcript). The System's own ingest and [backlog](#793a1-problem-statement) capture MUST coexist with that intentional ingestion and learn through the [vault write lock](../../specs/technical/vault-write-lock.md#792b8c1-exclusive-hold) and `.manifest.lock`: when an intentional ingest or learn in such a harness runs at the same time as a System ingest or capture, both MUST complete, and neither MUST corrupt the chunk index or the [vault](#793a1-problem-statement). Backlog capture takes a [transcript source](#793a1-problem-statement) only once it is quiet ([793a3a Lessons are captured without the agent](#793a3a-lessons-are-captured-without-the-agent)), and a [lesson](#793a1-problem-statement) the harness's own agent already saved is covered by the duplicate rule of 793a3a, so the backlog never writes a second [note](#793a1-problem-statement) for it.
+instruction-based path ([ambient-guidance](../../specs/product/ambient-guidance.md)) MUST continue to work unchanged, and the [working agent](#793a1-problem-statement) in that [harness](../../GLOSSARY.md#harness) MUST keep running recall and learn: its own intentional ingestion and learn (the user-run `engram ingest --auto`, the learn [skill](../../GLOSSARY.md#skill), recall's writes) continue exactly as they did before the [System](#793a1-problem-statement) existed, and the System MUST NOT block, delay, undo or duplicate them. The System MUST NOT deliver into a [session](../../GLOSSARY.md#session) of such a harness or change its [transcript](../../GLOSSARY.md#transcript). The System's own indexing and [backlog](#793a1-problem-statement) capture MUST coexist with that intentional ingestion and learn: when an intentional ingest or learn in such a harness runs at the same time as the System's indexing or capture, both MUST complete, and neither MUST corrupt the index or the [vault](#793a1-problem-statement). Backlog capture takes a [transcript source](#793a1-problem-statement) only once it is quiet ([793a3a Lessons are captured without the agent](#793a3a-lessons-are-captured-without-the-agent)), and a [lesson](#793a1-problem-statement) the harness's own agent already saved is covered by the duplicate rule of 793a3a, so the backlog never writes a second [note](#793a1-problem-statement) for it.
 
 Rationale: [delivery](#793a1-problem-statement) needs the [Integration](#793a1-problem-statement) inside the [session](../../GLOSSARY.md#session), but capture only reads the [transcript](../../GLOSSARY.md#transcript) the [harness](../../GLOSSARY.md#harness) already wrote, so it can run later from a Claude Code session ([793b231 Backlog capture: the System captures lessons from any swept session transcript after the fact](793b_decision-log.md#793b231-backlog-capture-the-system-captures-lessons-from-any-swept-session-transcript-after-the-fact)).
 
@@ -536,12 +536,12 @@ Scenario: 793a5c1c A captured Pi session's transcript is left unchanged
 
 Scenario: 793a5c1d A Pi agent's own ingest and learn run while the System ingests and captures
   Given Pi with the existing skills, guidance and shim, on a machine whose Claude Code has the Integration installed
-  And a Pi session whose agent runs engram ingest --auto and the learn skill
-  And a Claude Code session whose turn is completing, with the System running engram ingest --auto and a backlog capture
+  And a Pi session whose agent runs its own ingest and the learn skill
+  And a Claude Code session whose turn is completing, with the System indexing and running a backlog capture
   When the two run at the same time
   Then the Pi agent's ingest and learn both complete and write what they would have written without the System
   And the System's ingest and capture both complete
-  And the chunk index and the vault are intact: every note is readable, no note ID is used twice, and the index holds no entry twice
+  And the index and the vault are intact: every note is readable, no note ID is used twice, and the index holds no entry twice
 
 Scenario: 793a5c1e A lesson the Pi agent saved is not written again by the backlog
   Given a Pi session whose agent saved lesson L with the learn skill, and which has since ended
@@ -552,7 +552,7 @@ Scenario: 793a5c1e A lesson the Pi agent saved is not written again by the backl
 
 ### 793a5h The user sees a summary of the memory activity
 
-Requirement: 793a5h After each completed top-level turn of a Claude Code [session](../../GLOSSARY.md#session) in which mods run, once the [System](#793a1-problem-statement)'s work for that turn (capture included) has finished, the System MUST show the user, outside the [working agent](#793a1-problem-statement)'s [context](#793a1-problem-statement), the counts of memory events since its previous summary, across the session, its [subagent](../../GLOSSARY.md#subagent) sessions and the [backlog](#793a1-problem-statement) the System captured after the turn: items delivered, [notes](#793a1-problem-statement) added, notes amended and [offers](../../GLOSSARY.md#offer) curated. A turn with no memory events MUST show nothing. The warning that [automatic memory](#793a1-problem-statement) was skipped ([793a4b The session is never broken or stalled](#793a4b-the-session-is-never-broken-or-stalled)) is shown on this same surface. The summary MUST NOT enter the working agent's context. When a note the System wrote could not reach a parent [vault](#793a1-problem-statement) and its offer is queued ([792a15j A write to a parent is reported as done](../../specs/product/learn.md#792a15j-a-write-to-a-parent-is-reported-as-done)), the System MUST tell the user, on the same surface and also outside the agent's context, that the note is saved and its offer is queued, and MUST NOT call the write failed, even when the turn has no counts to show.
+Requirement: 793a5h After each completed top-level turn of a Claude Code [session](../../GLOSSARY.md#session) that has the Integration, once the [System](#793a1-problem-statement)'s work for that turn (capture included) has finished, the System MUST show the user, outside the [working agent](#793a1-problem-statement)'s [context](#793a1-problem-statement), the counts of memory events since its previous summary, across the session, its [subagent](../../GLOSSARY.md#subagent) sessions and the [backlog](#793a1-problem-statement) the System captured after the turn: items delivered, [notes](#793a1-problem-statement) added, notes amended and [offers](../../GLOSSARY.md#offer) curated. A turn with no memory events MUST show nothing. The warning that [automatic memory](#793a1-problem-statement) was skipped ([793a4b The session is never broken or stalled](#793a4b-the-session-is-never-broken-or-stalled)) is shown on this same surface. The summary MUST NOT enter the working agent's context. When a note the System wrote could not reach a parent [vault](#793a1-problem-statement) and its offer is queued ([792a15j A write to a parent is reported as done](../../specs/product/learn.md#792a15j-a-write-to-a-parent-is-reported-as-done)), the System MUST tell the user, on the same surface and also outside the agent's context, that the note is saved and its offer is queued, and MUST NOT call the write failed, even when the turn has no counts to show.
 
 Rationale: the user keeps visibility of the memory work the [System](#793a1-problem-statement) took over without the [working agent](#793a1-problem-statement) relaying it, and hears what the learn [skill](../../GLOSSARY.md#skill) would have told them.
 
