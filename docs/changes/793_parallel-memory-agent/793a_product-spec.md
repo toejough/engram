@@ -56,7 +56,7 @@ Requirement: 793a2n The [System](#793a1-problem-statement) MUST deliver relevant
 - at please's orientation ([792a18d The workflow opens with learn and orients with recall](../../specs/product/please.md#792a18d-the-workflow-opens-with-learn-and-orients-with-recall));
 - at every prompt, whatever its source (a human, an automated notification, a scheduled trigger or a message from another [session](../../GLOSSARY.md#session));
 - at a [subagent](../../GLOSSARY.md#subagent)'s dispatch, delivered to that subagent for its task (a subagent's own first edit or first failure is not a moment);
-- when the orchestrator routes a unit through route, before it routes the unit, including any recorded evidence about which tier suits that kind of work ([793a3p Dispatch outcomes are recorded by the System](#793a3p-dispatch-outcomes-are-recorded-by-the-system)).
+- when the orchestrator routes a unit through route, before it routes the unit, including any recorded evidence about which tier suits that kind of work ([792a17k Each dispatch is also written to the vault as a tagged evidence note](../../specs/product/route.md#792a17k-each-dispatch-is-also-written-to-the-vault-as-a-tagged-evidence-note)).
 
 Each [delivery](#793a1-problem-statement) MUST tell the agent to apply what it received. When nothing relevant remains to deliver, the [System](#793a1-problem-statement) MUST deliver nothing, that instruction included. Delivery is subject to [793a2e Nothing already in context is delivered again](#793a2e-nothing-already-in-context-is-delivered-again).
 
@@ -104,7 +104,7 @@ Scenario: 793a2n1i Please's orientation receives relevant notes
   And the transcript shows please was not asked to run recall
 
 Scenario: 793a2n1j Tier evidence is delivered before a dispatch is routed
-  Given a recorded dispatch outcome for a kind of work that shows a cheaper tier failed
+  Given a dispatch evidence note for a kind of work that shows a cheaper tier failed
   When the orchestrator routes a unit of that kind through route
   Then the transcript shows that evidence delivered, with the instruction to apply it, before the orchestrator routes the unit
   And the transcript shows no request to the orchestrator to run a memory command
@@ -238,7 +238,7 @@ Canonical target: `docs/specs/product/automatic-memory.md` (title `Automatic Mem
 
 Requirement: 793a3a The [System](#793a1-problem-statement) MUST write to the [vault](#793a1-problem-statement) each [lesson](#793a1-problem-statement) that occurs in a working [session](../../GLOSSARY.md#session), top-level or [subagent](../../GLOSSARY.md#subagent) (excluding [793a4f No delivery or capture in its own sessions](#793a4f-no-delivery-or-capture-in-its-own-sessions)), without the [working agent](#793a1-problem-statement) being asked and without it taking part: a correction, an explicit save-request, a [reversal](../../GLOSSARY.md#reversal-capture-kind) and a [confirmed approach](../../GLOSSARY.md#confirmed-approach-capture-kind) ([792a19c Learn fires at the correction moment](../../specs/product/ambient-guidance.md#792a19c-learn-fires-at-the-correction-moment), [792a15e The four kinds of explicit lesson](../../specs/product/learn.md#792a15e-the-four-kinds-of-explicit-lesson)), and any corrected failure, including an agent's own mid-task mistake that evidence overturned. A lesson in a subagent session MUST be captured from that session, so that no lesson depends on the subagent or its dispatching agent reporting it. When two subagent sessions contain the same lesson, the System MUST write one [note](#793a1-problem-statement) for it. Each note the System writes MUST record that it was written automatically and the session and turn it came from, in addition to the source learn defines for it.
 
-The [System](#793a1-problem-statement) MUST NOT write a [note](#793a1-problem-statement) for a [lesson](#793a1-problem-statement), a conclusion ([793a3q Sound conclusions are persisted by the System](#793a3q-sound-conclusions-are-persisted-by-the-system)) or a dispatch outcome ([793a3p Dispatch outcomes are recorded by the System](#793a3p-dispatch-outcomes-are-recorded-by-the-system)) that a note written earlier in the [session](../../GLOSSARY.md#session) already records, whoever wrote it (the System, the agent, the user's command or the orchestrator).
+The [System](#793a1-problem-statement) MUST NOT write a [note](#793a1-problem-statement) for a [lesson](#793a1-problem-statement) or a conclusion ([793a3q Sound conclusions are persisted by the System](#793a3q-sound-conclusions-are-persisted-by-the-system)) that a note written earlier in the [session](../../GLOSSARY.md#session) already records, whoever wrote it (the System, the agent, the user's command or the orchestrator).
 
 Rationale: the [working agent](#793a1-problem-statement)'s [context](#793a1-problem-statement) stays free of memory evaluation, and [subagent](../../GLOSSARY.md#subagent) [sessions](../../GLOSSARY.md#session) are where [lessons](#793a1-problem-statement) occur too. The existing [skills](../../GLOSSARY.md#skill) still ask the agent to save the same lessons, so the [System](#793a1-problem-statement) must not write a second [note](#793a1-problem-statement) for what the agent already saved.
 
@@ -290,29 +290,7 @@ Scenario Outline: 793a3a1j A record that already exists is not written again
   Examples:
     | earlier                                                                                                              |
     | the user said "no, use targ, not go test directly" and the agent ran the learn skill, which wrote a feedback note stating that rule |
-    | a dispatch of work-kind K whose outcome note the orchestrator wrote itself                                           |
     | a sound conclusion that the agent wrote to the vault itself during the turn                                          |
-```
-
-### 793a3p Dispatch outcomes are recorded by the System
-
-Requirement: 793a3p For each dispatch whose row appears in route's report ([792a17i Each dispatch is recorded in a mini-report row](../../specs/product/route.md#792a17i-each-dispatch-is-recorded-in-a-mini-report-row)), the [System](#793a1-problem-statement) MUST write the [note](#793a1-problem-statement) that records its work-kind, tier, model and outcome ([792a17k Each dispatch is also written to the vault as a tagged evidence note](../../specs/product/route.md#792a17k-each-dispatch-is-also-written-to-the-vault-as-a-tagged-evidence-note)), without the orchestrator writing it. When a dispatch's row is not in the [transcript](../../GLOSSARY.md#transcript), the System MUST write nothing for that dispatch.
-
-Rationale: the outcome [notes](#793a1-problem-statement) are measurements of dispatches, built from the row the orchestrator already produces. They are what lets a later dispatch decision start from evidence ([793a2n Relevant memory reaches the agent at the moments](#793a2n-relevant-memory-reaches-the-agent-at-the-moments)).
-
-#### 793a3p1 UAT Scenarios
-
-```gherkin
-Scenario: 793a3p1a A dispatch's outcome note is written from its report row
-  Given the Integration is installed and a report row for a dispatch of work-kind K at tier mid with outcome pass
-  When the row appears in the transcript
-  Then a note for work-kind K, tier mid and outcome pass exists in the vault, stating the verdict, reason, escalation, duration and cost from the row
-  And the transcript shows no request to the orchestrator to write it or to run a memory command
-
-Scenario: 793a3p1c A missing row writes nothing
-  Given the Integration is installed and a dispatch that resolved without its report row in the transcript
-  When the dispatch's turn completes
-  Then no outcome note for that dispatch exists in the vault
 ```
 
 ### 793a3q Sound conclusions are persisted by the System
@@ -508,7 +486,7 @@ Scenario: 793a5c1b A Pi session on a machine whose Claude Code has the Integrati
 
 ### 793a5h The user sees a summary of the memory activity
 
-Requirement: 793a5h After each completed top-level turn of a Claude Code [session](../../GLOSSARY.md#session) in which mods run, once the [System](#793a1-problem-statement)'s work for that turn (capture included) has finished, the System MUST show the user, outside the [working agent](#793a1-problem-statement)'s [context](#793a1-problem-statement), the counts of memory events since its previous summary, across the session and its [subagent](../../GLOSSARY.md#subagent) sessions: items delivered, [notes](#793a1-problem-statement) added, notes amended, dispatch outcomes recorded and [offers](../../GLOSSARY.md#offer) curated. A turn with no memory events MUST show nothing. The warning that [automatic memory](#793a1-problem-statement) was skipped ([793a4b The session is never broken or stalled](#793a4b-the-session-is-never-broken-or-stalled)) is shown on this same surface. The summary MUST NOT enter the working agent's context. When a note the System wrote could not reach a parent [vault](#793a1-problem-statement) and its offer is queued ([792a15j A write to a parent is reported as done](../../specs/product/learn.md#792a15j-a-write-to-a-parent-is-reported-as-done)), the System MUST tell the user, on the same surface and also outside the agent's context, that the note is saved and its offer is queued, and MUST NOT call the write failed, even when the turn has no counts to show.
+Requirement: 793a5h After each completed top-level turn of a Claude Code [session](../../GLOSSARY.md#session) in which mods run, once the [System](#793a1-problem-statement)'s work for that turn (capture included) has finished, the System MUST show the user, outside the [working agent](#793a1-problem-statement)'s [context](#793a1-problem-statement), the counts of memory events since its previous summary, across the session and its [subagent](../../GLOSSARY.md#subagent) sessions: items delivered, [notes](#793a1-problem-statement) added, notes amended and [offers](../../GLOSSARY.md#offer) curated. A turn with no memory events MUST show nothing. The warning that [automatic memory](#793a1-problem-statement) was skipped ([793a4b The session is never broken or stalled](#793a4b-the-session-is-never-broken-or-stalled)) is shown on this same surface. The summary MUST NOT enter the working agent's context. When a note the System wrote could not reach a parent [vault](#793a1-problem-statement) and its offer is queued ([792a15j A write to a parent is reported as done](../../specs/product/learn.md#792a15j-a-write-to-a-parent-is-reported-as-done)), the System MUST tell the user, on the same surface and also outside the agent's context, that the note is saved and its offer is queued, and MUST NOT call the write failed, even when the turn has no counts to show.
 
 Rationale: the user keeps visibility of the memory work the [System](#793a1-problem-statement) took over without the [working agent](#793a1-problem-statement) relaying it, and hears what the learn [skill](../../GLOSSARY.md#skill) would have told them.
 
@@ -516,12 +494,12 @@ Rationale: the user keeps visibility of the memory work the [System](#793a1-prob
 
 ```gherkin
 Scenario: 793a5h1a The summary shows the counts after a turn with events
-  Given the Integration is installed and a turn in which the System delivered 3 items, added 1 note, amended 1 note, recorded 1 dispatch outcome and curated 2 offers, and a subagent's session produced 1 of the added notes
+  Given the Integration is installed and a turn in which the System delivered 3 items, added 1 note, amended 1 note and curated 2 offers, and a subagent's session produced 1 of the added notes
   When the turn completes
-  Then the user is shown a summary with 3 items delivered, 1 note added, 1 note amended, 1 dispatch outcome recorded and 2 offers curated
+  Then the user is shown a summary with 3 items delivered, 1 note added, 1 note amended and 2 offers curated
 
 Scenario: 793a5h1b Nothing is shown after a turn without events
-  Given the Integration is installed and a turn in which the System delivered, added, amended, recorded and curated nothing
+  Given the Integration is installed and a turn in which the System delivered, added, amended and curated nothing
   When the turn completes
   Then the user is shown no memory-activity summary
 
