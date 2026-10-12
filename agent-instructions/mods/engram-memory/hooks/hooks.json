@@ -1,0 +1,4 @@
+{
+  "description": "The engram memory module",
+  "modules": ["./register.js"]
+}

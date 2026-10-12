@@ -10,7 +10,7 @@ import { attempt, currentSession, readTranscript, sendPrompt, settle } from './t
 import { promptRows } from './transcript.js'
 
 const NOTIFICATION_WAIT_MS = 120000
-const SCHEDULE_WAIT_MS = 240000
+const SCHEDULE_WAIT_MS = 150000
 
 export function promptFor(note, correction) {
   const text = `Next I am working on: ${note.situation}. Answer with one short sentence.`

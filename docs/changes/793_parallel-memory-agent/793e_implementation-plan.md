@@ -214,7 +214,7 @@ A test row has one of `Not started`, `Red`, `Green-single`, `Green-all`, `Refact
 ```mermaid
 flowchart TD
   n793e8a["793e8a Harness skeleton and platform spikes<br/>Complete"]
-  n793e8b["793e8b Delivery at the moments<br/>In progress: 1/16 entries complete"]
+  n793e8b["793e8b Delivery at the moments<br/>In progress: 5/16 entries complete"]
   n793e8e["793e8e Install by engram update<br/>Blocked by: 793e8b"]
   n793e8c["793e8c Capture at turn end<br/>Blocked by: 793e8e"]
   n793e8d["793e8d Housekeeping, purview and failure isolation<br/>Blocked by: 793e8c"]
@@ -287,25 +287,25 @@ Verification: `targ acceptance 793a2n` and `targ acceptance 793a2e`; `claude plu
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |
-| [Mod](./793d_technical-spec.md#793d1b-terms) skeleton: manifest, `hooks.json`, `register.js` with the `prompt.submit` hook (with its `.catch`), the `$.process.run` helper that runs engram commands, the `$.model.complete` relay and the `judgeTiers` table; contract tests, including that every request names its model of kind (the base of [793d18c1a Every request names the model of its kind](./793d_technical-spec.md#793d18c1-experiments)) | Dedicated example (mod contract) | Hook wiring and request building are reachable without a [session](../../GLOSSARY.md#session) | Not started |
-| The moment job in the mod: `engram query` with the four recall phrases beside the prompt, the presence filter, the `relevance` request, the [delivery](./793a_product-spec.md#793a1-problem-statement) text with the apply instruction, nothing when nothing remains | Dedicated example (mod contract) | The stubbed process and model record the query arguments, the request and the call order; nothing delivered is the contract for an empty result | Not started |
-| Presence: ledger plus live messages, emptied for the main agent at `session.compact`, refilled from the messages after a resume | Dedicated example (mod contract) | Boundary between the mod's memory and the filter | Not started |
-| Cues: the Skill call of route (`classic.PostToolUse`), `classic.SubagentStart` with the dispatch prompt | Dedicated example (mod contract) | Event shapes, per SP4 and SP5 | Not started |
+| [Mod](./793d_technical-spec.md#793d1b-terms) skeleton: manifest, `hooks.json`, `register.js` with the `prompt.submit` hook (with its `.catch`), the `$.process.run` helper that runs engram commands, the `$.model.complete` relay and the `judgeTiers` table; contract tests, including that every request names its model of kind (the base of [793d18c1a Every request names the model of its kind](./793d_technical-spec.md#793d18c1-experiments)) | Dedicated example (mod contract) | Hook wiring and request building are reachable without a [session](../../GLOSSARY.md#session) | Done |
+| The moment job in the mod: `engram query` with the four recall phrases beside the prompt, the presence filter, the `relevance` request, the [delivery](./793a_product-spec.md#793a1-problem-statement) text with the apply instruction, nothing when nothing remains | Dedicated example (mod contract) | The stubbed process and model record the query arguments, the request and the call order; nothing delivered is the contract for an empty result | Done |
+| Presence: ledger plus live messages, emptied for the main agent at `session.compact`, refilled from the messages after a resume | Dedicated example (mod contract) | Boundary between the mod's memory and the filter | Done |
+| Cues: the Skill call of route (`classic.PostToolUse`), `classic.SubagentStart` with the dispatch prompt | Dedicated example (mod contract) | Event shapes, per SP4 and SP5 | Done |
 | The harness's "installed" step puts the mod where Claude Code loads it, by the link `engram update` will make; [793e8e Install by engram update](#793e8e-install-by-engram-update) replaces it with the real update | Setup | Lets these rows run before the install node exists | Done |
 
 | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- |
-| [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios) (flaky by nature: the agent must reach the declaration; precondition retried) | Dedicated example (acceptance) | The central promise: the done-shaped phrase finds the [note](./793a_product-spec.md#793a1-problem-statement) at the prompt | Red |
+| [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios) (flaky by nature: the agent must reach the declaration; precondition retried) | Dedicated example (acceptance) | The central promise: the done-shaped phrase finds the [note](./793a_product-spec.md#793a1-problem-statement) at the prompt | Green-single |
 | [793a2n1e No result, nothing delivered](./793a_product-spec.md#793a2n1-uat-scenarios) | Dedicated example (acceptance) | Absence: no delivered row and no instruction | Green-single |
-| [793a2n1g A subagent receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios) (precondition retried: the agent must dispatch) | Dedicated example (acceptance) | [Subagent](../../GLOSSARY.md#subagent) [transcript](../../GLOSSARY.md#transcript) is a separate file; the dispatch text must not mention the note | Red |
+| [793a2n1g A subagent receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios) (precondition retried: the agent must dispatch) | Dedicated example (acceptance) | [Subagent](../../GLOSSARY.md#subagent) [transcript](../../GLOSSARY.md#transcript) is a separate file; the dispatch text must not mention the note | Green-single |
 | [793a2n1h A prompt from any source receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios) (human row live; the other three live if SP8 allows, else `Substituted: product promise unverified`) | Dedicated example (acceptance, outline) | One flow for four origins; a substituted row is a mod contract test | Red |
-| [793a2n1i Please's orientation receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios) (precondition retried) | Dedicated example (acceptance) | The please prompt is a slash-command prompt (SP3) | Red |
-| [793a2n1j Tier evidence is delivered before a dispatch is routed](./793a_product-spec.md#793a2n1-uat-scenarios) (precondition retried: the agent must route through route) | Dedicated example (acceptance) | The route cue delivers before the unit is routed | Red |
-| [793a2e1a Note delivered earlier is not delivered again](./793a_product-spec.md#793a2e1-uat-scenarios) | Dedicated example (acceptance) | Ledger and live messages; no session event is needed beyond tool results | Red |
-| [793a2e1c Note the agent retrieved itself is not delivered](./793a_product-spec.md#793a2e1-uat-scenarios) | Dedicated example (acceptance) | Presence read from what the agent's own runs left in the transcript | Red |
-| [793a2e1d A parent's note is still delivered to a subagent](./793a_product-spec.md#793a2e1-uat-scenarios) | Dedicated example (acceptance) | A parent's note is not present for the subagent | Red |
-| [793a2e1e A note removed by compaction can be delivered again](./793a_product-spec.md#793a2e1-uat-scenarios) | Dedicated example (acceptance) | Compaction driven per SP7 | Red |
-| [793a2e1g A resumed session's restored content counts as present](./793a_product-spec.md#793a2e1-uat-scenarios) | Dedicated example (acceptance) | Resume driven per SP7 | Red |
+| [793a2n1i Please's orientation receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios) (precondition retried) | Dedicated example (acceptance) | The please prompt is a slash-command prompt (SP3) | Green-single |
+| [793a2n1j Tier evidence is delivered before a dispatch is routed](./793a_product-spec.md#793a2n1-uat-scenarios) (precondition retried: the agent must route through route) | Dedicated example (acceptance) | The route cue delivers before the unit is routed | Green-single |
+| [793a2e1a Note delivered earlier is not delivered again](./793a_product-spec.md#793a2e1-uat-scenarios) | Dedicated example (acceptance) | Ledger and live messages; no session event is needed beyond tool results | Green-single |
+| [793a2e1c Note the agent retrieved itself is not delivered](./793a_product-spec.md#793a2e1-uat-scenarios) | Dedicated example (acceptance) | Presence read from what the agent's own runs left in the transcript | Green-single |
+| [793a2e1d A parent's note is still delivered to a subagent](./793a_product-spec.md#793a2e1-uat-scenarios) | Dedicated example (acceptance) | A parent's note is not present for the subagent | Green-single |
+| [793a2e1e A note removed by compaction can be delivered again](./793a_product-spec.md#793a2e1-uat-scenarios) | Dedicated example (acceptance) | Compaction driven per SP7 | Green-single |
+| [793a2e1g A resumed session's restored content counts as present](./793a_product-spec.md#793a2e1-uat-scenarios) | Dedicated example (acceptance) | Resume driven per SP7 | Green-single |
 
 ### 793e8e Install by engram update
 

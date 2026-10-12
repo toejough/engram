@@ -142,7 +142,7 @@ Scenario: 793a2e1c Note the agent retrieved itself is not delivered
   And a turn completes in which "the user says 'run /recall on tagging a release' and the agent runs the recall skill"
   And a turn completes in which "the user says 'run an engram query on tagging a release' and the agent runs it"
   When the human delivers a prompt matching note "X"
-  Then the transcript shows note "X" delivered 0 times and retrieved by the agent 1 time
+  Then the transcript shows note "X" delivered 0 times and retrieved by the agent 2 times
 
 Scenario: 793a2e1d A parent's note is still delivered to a subagent
   Given the System is installed

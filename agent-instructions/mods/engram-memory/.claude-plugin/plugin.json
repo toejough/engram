@@ -1,0 +1,8 @@
+{
+  "name": "engram-memory",
+  "version": "0.1.0",
+  "description": "Automatic memory for Claude Code: delivers relevant engram notes at the moments recall should fire (793)",
+  "author": {
+    "name": "engram"
+  }
+}

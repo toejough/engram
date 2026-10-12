@@ -3771,3 +3771,39 @@ ID map for 793b243 to 793b254 (each checked with `git log -S`: unused): `793b243
 - **Choice:** added (each checked with `git log -S`: unused): `793b281` to `793b283` and `793e2j`. Retired: none.
 - **Rationale:** the guide: removed IDs are not reused.
 - **Alternatives:** none.
+
+## 793b284 The delivery mod keeps every call on $ in register.js; the rest is pure functions
+
+- **Decided by:** Author (agent); awaiting owner validation. Forced by the platform: `claude plugin validate` refuses a module that passes `$` across an import ("$ is followed only into a function declared in this same file, never across an import").
+- **Choice:** `agent-instructions/mods/engram-memory/hooks/register.js` holds the event wiring and the one function that calls `$` (`moment`: `$.process.run` for `engram query`, `$.fs.read` for the transcript file, `$.model.complete` for the judgement, `$.ui.log` for a contained failure). `moment.js` (query arguments, the reading of the query's YAML, the presence test, the delivery block) and `judge.js` (the `JUDGE_TIERS` table, the relevance prompt, the reading of the reply) are pure and carry no `$`. The judgement prompt is one constant, `RELEVANCE`, in `judge.js`; `JUDGE_TIERS` has the one row `relevance` (`haiku`) because that is the only kind this node uses, and `request(kind, ...)` throws for a kind without a row, so a request always names the model of its kind. The mod is 219 lines of JavaScript (register.js 91, moment.js 87, judge.js 41) and 148 of TypeScript contract tests.
+- **Rationale:** the plan's "thin mod" with pure helpers is what the validator allows, and it keeps the part a contract test can reach without `$` (parsing, presence, block text) apart from the part it must stub.
+- **Alternatives:** one file (validator-clean, but it mixes the pure and the effectful parts and grows with each later node).
+- **Amends:** [793e2c PoC architecture](./793e_implementation-plan.md#793e2c-poc-architecture) (the mod's file list: `moment.js` and `judge.js` beside `register.js`).
+
+## 793b285 Presence is the ledger plus the transcript text since the last compaction, keyed by the note's path
+
+- **Decided by:** Author (agent); awaiting owner validation. It applies [793b281 The spikes SP1 to SP15 are settled](#793b281-the-spikes-sp1-to-sp15-are-settled) (presence is the ledger plus the transcript file, SP7) and [793b195 Presence is read from the live context and a delivery ledger](#793b195-presence-is-read-from-the-live-context-and-a-delivery-ledger).
+- **Choice:** a candidate note is present when the main agent's ledger (a set of note paths, emptied at `session.compact`) holds its path, or when its path occurs in the transcript file text after the last `compact_boundary` row, without the `isCompactSummary` row that follows it. The path occurs in the System's own blocks (delivered earlier, before a resume) and in the output of the agent's own `engram query` or recall (retrieved by the agent), so one test covers delivered, retrieved and resumed. A subagent has its own ledger and reads no transcript: its context is its task. The transcript file is read once per lookup and a missing file (the first prompt of a session) is empty.
+- **Rationale:** the transcript file is written asynchronously and may lag (the ledger covers a delivery made a moment ago); the file is the only place the agent's own retrievals and a resumed conversation appear, because `$.session.messages()` holds typed texts and replies only (SP7).
+- **Alternatives:** the ledger alone (fails [793a2e1c Note the agent retrieved itself is not delivered](./793a_product-spec.md#793a2e1-uat-scenarios) and [793a2e1g A resumed session's restored content counts as present](./793a_product-spec.md#793a2e1-uat-scenarios)); matching the note's text instead of its path (a delivered block quotes the text, so a path is the shorter stable key).
+
+## 793b286 Two moment texts are normalised, and a prompt that asks for a memory command gets nothing
+
+- **Decided by:** Author (agent); awaiting owner validation.
+- **Choice:** (1) the text of a task notification, which is markup around ids and file paths, is reduced to its `<summary>` element before the lookup, because the paths drown the query's semantic match (observed: 760 characters back, no candidate); (2) the relevance prompt tells the model that a prompt which itself asks to run a memory command (recall, learn, an engram query) means the user is retrieving on purpose, so none bears. Without (2) the System delivers the note at the very prompt that asks the agent to retrieve it, and [793a2e1c Note the agent retrieved itself is not delivered](./793a_product-spec.md#793a2e1-uat-scenarios) cannot hold.
+- **Rationale:** both are what the scenarios need and nothing more; (2) is a judgement, so it lives in the one relevance prompt rather than in a regular expression on the prompt.
+- **Alternatives:** a regular expression for `/recall` and `engram query` in the prompt (cheaper, but it would miss any other phrasing of the same request).
+
+## 793b287 Scenario 793a2e1c counts two retrievals; the delivery scenarios' inputs keep the situation out of the setup turn
+
+- **Decided by:** Author (agent); awaiting owner validation. The first part changes the text of a product scenario and is shown to the owner for that reason.
+- **Choice:** (1) [793a2e1c Note the agent retrieved itself is not delivered](./793a_product-spec.md#793a2e1-uat-scenarios) read "retrieved by the agent 1 time" after two Givens in which the agent retrieves the note twice (the recall skill, then an `engram query`); the live transcript holds two retrievals, so the Then now reads "2 times". The scenario ID and its other lines are unchanged. (2) For the task-notification, scheduled-trigger and peer origins of [793a2n1h A prompt from any source receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios) the setup prompt does not state the situation: it tells the agent to read a workspace file that holds it (`task.txt` description, `scheduled.txt` prompt) or sends it from the recorder mod of another session, so that the delivery under test is the one at the prompt of the origin and not at the setup turn. (3) The permissions of every World add `Bash(echo:*)`, `Bash(sleep:*)`, `Agent`, `Skill` and `CronCreate` to the allow rules, and a session stops after 8 agentic turns (`maxTurns`), because a skill such as please can run long and no scenario needs more.
+- **Rationale:** (1) the scenario and the premise (two retrievals) disagreed; (2) a setup turn that states the situation could itself be a moment for the note and make the origin row pass for the wrong reason; (3) the scenarios dispatch subagents and run echo commands.
+- **Alternatives:** (1) define "retrieved" as at least one (loses the count the other rows use); (2) put the situation in the setup prompt (the note is then delivered at the setup turn and the later delivery is deduplicated).
+
+## 793b288 ID map for 793b284 to 793b287
+
+- **Decided by:** Author (agent); awaiting owner validation.
+- **Choice:** added (each checked with `git log -S`: unused): `793b284` to `793b288`. Retired: none. No heading is retitled.
+- **Rationale:** the guide: removed IDs are not reused.
+- **Alternatives:** none.
