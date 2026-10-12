@@ -120,15 +120,6 @@ export function precedesResponse(rows, index) {
   return false
 }
 
-// afterLastCompaction drops the rows up to the last compaction boundary and the summary row that follows it.
-export function afterLastCompaction(rows) {
-  let boundary = -1
-  rows.forEach((row, index) => {
-    if (row.type === 'system' && row.subtype === 'compact_boundary') boundary = index
-  })
-  return rows.slice(boundary + 1).filter((row) => !row.isCompactSummary)
-}
-
 // agentCalls are the dispatches of a subagent in the rows: the Agent (formerly Task) tool uses.
 export function agentCalls(rows) {
   return toolCalls(rows).filter((call) => call.name === 'Agent' || call.name === 'Task')

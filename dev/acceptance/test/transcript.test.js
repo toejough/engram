@@ -61,7 +61,7 @@ test('the final reply is the last assistant text', () => {
   assert.match(finalReply(readRows(FIXTURE)), /releases are tagged from main/)
 })
 
-import { MARKER, afterLastCompaction, agentCalls, deliveries, precedesResponse, retrievals, systemBlocks } from '../lib/transcript.js'
+import { MARKER, agentCalls, deliveries, precedesResponse, retrievals, systemBlocks } from '../lib/transcript.js'
 
 function block(text) {
   return { type: 'attachment', attachment: { type: 'hook_additional_context', content: [text] } }
@@ -90,12 +90,6 @@ test('retrievals are the agent memory commands whose results show the text', () 
     { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't2', content: 'SENTINEL-A' }] } },
   ]
   assert.equal(retrievals(rows, 'SENTINEL-A').length, 1)
-})
-
-test('rows before the last compaction boundary and its summary are not in the context any more', () => {
-  const rows = [PROMPT, block(`${MARKER} old`), { type: 'system', subtype: 'compact_boundary' }, { type: 'user', isCompactSummary: true, message: { content: 'summary' } }, PROMPT]
-  assert.equal(afterLastCompaction(rows).length, 1)
-  assert.equal(afterLastCompaction([PROMPT]).length, 1)
 })
 
 test('subagent dispatches are the Agent and Task tool uses', () => {
