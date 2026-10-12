@@ -215,7 +215,7 @@ A test row has one of `Not started`, `Red`, `Green-single`, `Green-all`, `Refact
 flowchart TD
   n793e8a["793e8a Harness skeleton and platform spikes<br/>Complete"]
   n793e8b["793e8b Delivery at the moments<br/>Complete"]
-  n793e8e["793e8e Install by engram update<br/>Ready"]
+  n793e8e["793e8e Install by engram update<br/>In progress: 0/8 entries complete"]
   n793e8c["793e8c Capture at turn end<br/>Blocked by: 793e8e"]
   n793e8d["793e8d Housekeeping, purview and failure isolation<br/>Blocked by: 793e8c"]
   n793e8g["793e8g Backlog capture<br/>Blocked by: 793e8c"]
