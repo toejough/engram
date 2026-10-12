@@ -51,45 +51,26 @@ type acceptanceEnv struct {
 	Exists   func(string) bool
 }
 
-// acceptancePlan returns the commands of one targ acceptance run, or the missing program that stops it (793e2a).
+// acceptancePlan returns the commands of one targ acceptance run, or the reason it cannot run (793e2a).
 func acceptancePlan(args acceptanceArgs, env acceptanceEnv) ([]acceptanceCommand, error) {
-	if args.Check && (args.DryRun || args.Filter != "") {
-		return nil, fmt.Errorf("%w: give it without a filter or --dry-run", errAcceptanceUsage)
-	}
-
-	live := !args.DryRun && !args.Check
-
-	programs := []string{nodeProgram, npmProgram}
-	if live {
-		programs = append(programs, "claude")
-	}
-
-	for _, program := range programs {
-		_, err := env.LookPath(program)
-		if err != nil {
-			return nil, fmt.Errorf(
-				"%w: `%s` (%s needs it: install it, then run targ acceptance again)",
-				errAcceptanceProgram, program, acceptanceDir,
-			)
-		}
+	err := requireAcceptancePrograms(args, env.LookPath)
+	if err != nil {
+		return nil, err
 	}
 
 	dir := filepath.Join(env.Root, acceptanceDir)
+	entry := filepath.Join(dir, acceptanceRunEntry)
 	plan := make([]acceptanceCommand, 0, acceptancePlanSize)
 
 	if !env.Exists(filepath.Join(dir, acceptanceModules)) {
 		plan = append(plan, acceptanceCommand{Name: npmProgram, Args: []string{"ci", "--prefix", dir}})
 	}
 
-	entry := filepath.Join(dir, acceptanceRunEntry)
-
 	if args.Check {
-		plan = append(plan,
+		return append(plan,
 			acceptanceCommand{Name: nodeProgram, Args: []string{"--test", filepath.Join(dir, "test", "self") + "/"}},
 			acceptanceCommand{Name: nodeProgram, Args: []string{entry, acceptanceDryRun}},
-		)
-
-		return plan, nil
+		), nil
 	}
 
 	runArgs := []string{entry}
@@ -124,6 +105,31 @@ func acceptanceRoot() (string, error) {
 
 		dir = parent
 	}
+}
+
+// requireAcceptancePrograms rejects a combination of arguments that cannot run, and names the first program the run
+// needs that is not on PATH: claude only for a live run.
+func requireAcceptancePrograms(args acceptanceArgs, lookPath func(string) (string, error)) error {
+	if args.Check && (args.DryRun || args.Filter != "") {
+		return fmt.Errorf("%w: give it without a filter or --dry-run", errAcceptanceUsage)
+	}
+
+	programs := []string{nodeProgram, npmProgram}
+	if !args.DryRun && !args.Check {
+		programs = append(programs, "claude")
+	}
+
+	for _, program := range programs {
+		_, err := lookPath(program)
+		if err != nil {
+			return fmt.Errorf(
+				"%w: `%s` (%s needs it: install it, then run targ acceptance again)",
+				errAcceptanceProgram, program, acceptanceDir,
+			)
+		}
+	}
+
+	return nil
 }
 
 // runAcceptance runs the plan of acceptancePlan from the repository root, streaming each command's output.

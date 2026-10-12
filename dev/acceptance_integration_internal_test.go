@@ -11,9 +11,6 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// minNodeMajor is the first node with the glob argument of node --test (the package declares >=22).
-const minNodeMajor = 22
-
 // Test793e8a_ExtractorSuiteRunsInCheckFull runs the acceptance package's dependency-free node:test suite (the
 // extractor, credential, transcript and preflight tests), so that check-full guards the claim that the specs are the
 // test source. The live suite never runs here. It skips, with its reason, on a machine without node.
@@ -45,3 +42,8 @@ func Test793e8a_ExtractorSuiteRunsInCheckFull(t *testing.T) {
 
 	g.Expect(err).NotTo(HaveOccurred(), string(output))
 }
+
+// unexported constants.
+const (
+	minNodeMajor = 22
+)
