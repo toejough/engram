@@ -9,11 +9,10 @@ import { promisify } from 'node:util'
 import { REPO_ROOT } from './extract.js'
 import { baseEnv } from './run-context.js'
 import { Session } from './session.js'
+import { snapshotTree } from './tree.js'
 
 const run = promisify(execFile)
 const ALLOWED_TOOLS = ['Bash(engram:*)', 'Bash(echo:*)', 'Bash(sleep:*)', 'Read', 'Glob', 'Grep', 'Agent', 'Skill', 'CronCreate']
-// the mod of the System in the source tree; the stand-in for the install of 793e8e is a link to it (793b251)
-export const MOD_DIR = path.join(REPO_ROOT, 'agent-instructions', 'mods', 'engram-memory')
 // a turn bound for the sessions of the scenarios: a skill such as please can run long, and no scenario needs more
 const MAX_TURNS = 8
 
@@ -45,10 +44,11 @@ export class Scenario {
       path.join(this.workspace, '.engram', 'sweep.json'),
       `${JSON.stringify({ non_persistent_prefixes: [], non_persistent_path_prefixes: [] })}\n`,
     )
-    fs.writeFileSync(
-      path.join(this.home, '.claude', 'settings.json'),
-      `${JSON.stringify({ permissions: { allow: ALLOWED_TOOLS } }, null, 2)}\n`,
-    )
+    // the settings the World starts from: the update must add none (793a5j)
+    this.baselineSettings = { permissions: { allow: ALLOWED_TOOLS } }
+    fs.writeFileSync(path.join(this.home, '.claude', 'settings.json'), `${JSON.stringify(this.baselineSettings, null, 2)}\n`)
+    this.treeBefore = null
+    this.updateOutput = ''
   }
 
   // setup runs a Given action and records it, so that a retried precondition can rebuild this World (793b266).
@@ -91,18 +91,47 @@ export class Scenario {
     return this.notes.get(label)
   }
 
-  // install runs the real `engram update` (local mode, the worktree as working directory, ENGRAM_UPDATE_REEXEC=1 so
-  // that the go install leg is skipped, 793b261) into this scenario's home.
-  async install() {
-    await this.engram(['update'], { cwd: REPO_ROOT, extraEnv: { ENGRAM_UPDATE_REEXEC: '1' } })
-    this.linkMod(MOD_DIR, 'engram-memory')
-    this.installed = true
+  // runUpdate runs the real `engram update` (local mode, `source` as working directory, ENGRAM_UPDATE_REEXEC=1 so
+  // that the go install leg is skipped, 793b261) into this scenario's home. `claude` is put on PATH for the update's
+  // own `claude --version`; nothing else is added to the update's environment.
+  async runUpdate({ dryRun = false, source = REPO_ROOT, args = [] } = {}) {
+    const claudeDir = path.dirname(this.context.claudePath)
+    const PATH = `${this.env().PATH}${path.delimiter}${claudeDir}`
+    this.updateOutput = await this.engram(['update', ...(dryRun ? ['--dry-run'] : []), ...args], {
+      cwd: source,
+      extraEnv: { ENGRAM_UPDATE_REEXEC: '1', PATH },
+    })
+    return this.updateOutput
   }
 
-  // linkMod puts a mod where Claude Code loads it from: a link in the skills directory of this home (793b251). A mod
-  // that does not exist yet (the System before it is built) is not linked, and the session then runs without it.
+  // install: the System as `engram update` deploys it, and the tree it left, to compare later steps against.
+  async install() {
+    await this.runUpdate()
+    this.installed = true
+    this.treeBefore = this.snapshot()
+  }
+
+  // installPreSystem: an update of a source tree that has the skills and the guidance (with the shim) and no mod,
+  // which is what an install made before the System existed holds (793e2i step 3).
+  async installPreSystem() {
+    const source = path.join(this.dir, 'pre-system-source')
+    const agentInstructions = path.join(source, 'agent-instructions')
+    fs.mkdirSync(agentInstructions, { recursive: true })
+    fs.copyFileSync(path.join(REPO_ROOT, 'go.mod'), path.join(source, 'go.mod'))
+    for (const name of ['skills', 'guidance']) {
+      fs.cpSync(path.join(REPO_ROOT, 'agent-instructions', name), path.join(agentInstructions, name), { recursive: true })
+    }
+    await this.runUpdate({ source, args: ['--with-guidance'] })
+    this.treeBefore = this.snapshot()
+  }
+
+  snapshot() {
+    return snapshotTree(this.home)
+  }
+
+  // linkMod puts a mod that is not the System where Claude Code loads it from: a link in the skills directory of this
+  // home (793b251). Only the recorder mod of a peer's sender uses it; the System itself is deployed by `engram update`.
   linkMod(modDir, name) {
-    if (!fs.existsSync(modDir)) return
     const skills = path.join(this.home, '.claude', 'skills')
     fs.mkdirSync(skills, { recursive: true })
     fs.symlinkSync(modDir, path.join(skills, name))

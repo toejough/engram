@@ -84,4 +84,11 @@ export default {
   },
   '793a2e1e': { turns: {} },
   '793a2e1g': { turns: {} },
+
+  // 793e8e: install by engram update. No scripted turns: the steps start the sessions the Thens read.
+  '793a5j1a': { turns: {} },
+  '793a5j1b': { turns: {} },
+  '793a5j1c': { turns: {} },
+  '793a5j1d': { turns: {} },
+  '793a5j1l': { turns: {} },
 }

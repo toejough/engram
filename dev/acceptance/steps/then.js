@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import path from 'node:path'
 
 import { Then } from '@cucumber/cucumber'
 
-import { settle } from '../lib/turn.js'
+import { changes, lost } from '../lib/tree.js'
+import { currentSession, sendPrompt, settle } from '../lib/turn.js'
 import {
   agentCalls,
   deliveries,
@@ -145,16 +148,63 @@ Then(
 
 Then(/^(?:the next prompt was processed|the response to the completed turn appeared) without waiting for the System's work$/, () => NOT_BUILT)
 
-Then(/^a Claude Code session runs with the System active and no other configuration$/, () => NOT_BUILT)
+// The System is the mod `engram update` deployed: a session of the home lists it among its loaded plugins (SP2).
+const MOD_NAME = 'engram-memory'
 
-Then(
-  /^the install tree (?:is unchanged|has no Pi configuration|still holds the memory skills, guidance and shim it held before)$/,
-  () => NOT_BUILT,
-)
+function modLoaded(session) {
+  const plugins = session.init?.plugins ?? []
+  return plugins.some((plugin) => `${plugin.name ?? ''} ${plugin.path ?? ''}`.includes(MOD_NAME))
+}
 
+function treeBefore(world) {
+  const before = world.scenario.treeBefore
+  if (!before) throw new Error('no install tree was recorded before this step: a harness error, a Given or When is missing')
+  return before
+}
+
+// A session of the home, started if none ran yet, that has answered one turn.
+async function answered(world, prompt) {
+  const scenario = world.scenario
+  const session = currentSession(scenario)
+  if (session.turns.length === 0) await sendPrompt(scenario, prompt)
+  return session
+}
+
+function settingsOf(world) {
+  return JSON.parse(fs.readFileSync(path.join(world.scenario.home, '.claude', 'settings.json'), 'utf8'))
+}
+
+Then(/^a Claude Code session runs with the System active and no other configuration$/, async function () {
+  const session = await answered(this, 'Reply with the word ready.')
+  assert.ok(modLoaded(session), `the session did not load the ${MOD_NAME} mod: plugins ${JSON.stringify(session.init?.plugins)}`)
+  assert.equal(session.turns.at(-1).isError, false, `the session's turn ended in an error: ${session.turns.at(-1).text.slice(0, 200)}`)
+  assert.deepEqual(settingsOf(this), this.scenario.baselineSettings, 'the update added configuration to the settings of the home')
+})
+
+Then(/^the install tree (is unchanged|has no Pi configuration|still holds the memory skills, guidance and shim it held before)$/, function (what) {
+  const scenario = this.scenario
+  if (what === 'has no Pi configuration') {
+    assert.ok(!fs.existsSync(path.join(scenario.home, '.pi')), 'the update created a Pi directory')
+  } else if (what === 'is unchanged') {
+    assert.deepEqual(changes(treeBefore(this), scenario.snapshot()), [], 'the install tree changed')
+  } else {
+    assert.deepEqual(lost(treeBefore(this), scenario.snapshot()), [], 'the install tree lost what it held before')
+  }
+})
+
+// "Identical" is the same install tree, the mod loaded as it was, and no System-attributed row in the transcript
+// (793e2h): a prompt that matches no note is answered with nothing delivered.
 Then(
-  /^the (?:Claude Code|Pi) session behaves identically to (?:its behavior before the System existed|a session run after the first update)$/,
-  () => NOT_BUILT,
+  /^the (Claude Code|Pi) session behaves identically to (its behavior before the System existed|a session run after the first update)$/,
+  async function (harness, baseline) {
+    if (harness !== 'Claude Code' || baseline !== 'a session run after the first update') return NOT_BUILT
+    assert.deepEqual(changes(treeBefore(this), this.scenario.snapshot()), [], 'the install tree changed')
+    const session = await answered(this, 'What is two plus two? Answer in one word.')
+    assert.ok(modLoaded(session), `the mod is not loaded as it was after the first update: plugins ${JSON.stringify(session.init?.plugins)}`)
+    assert.equal(session.turns.at(-1).isError, false, `the turn ended in an error: ${session.turns.at(-1).text.slice(0, 200)}`)
+    assert.equal(systemBlocks(await mainRows(this)).length, 0, 'the System added content to a session that matches no note')
+    return undefined
+  },
 )
 
 Then(

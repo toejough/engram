@@ -378,8 +378,8 @@ Scenario: 793a5j1b An existing install gains the System and keeps what it had
   When the user runs engram update
   And the human delivers a prompt matching note "N" that says "no, use targ, not go test directly"
   Then the transcript shows note "N" delivered with the instruction to apply it before the agent's next response or tool call
-  And the vault holds a note stating "use targ, not go test directly"
   And the install tree still holds the memory skills, guidance and shim it held before
+  And the vault holds a note stating "use targ, not go test directly"
 
 Scenario: 793a5j1c A preview installs none of the System
   Given the System is not installed

@@ -1,6 +1,9 @@
+import assert from 'node:assert/strict'
+
 import { When } from '@cucumber/cucumber'
 
 import { deliverPrompt } from '../lib/origins.js'
+import { changes } from '../lib/tree.js'
 import { runTurn, settle } from '../lib/turn.js'
 
 const NOT_BUILT = 'pending'
@@ -41,4 +44,11 @@ When(/^the session is (compacted|ended and resumed)$/, async function (what) {
   this.scenario.log.push(action)
 })
 
-When(/^the user runs engram update(?: --dry-run)?$/, () => NOT_BUILT)
+// A preview writes nothing: the tree it ran against is the tree it leaves (793a5j).
+When(/^the user runs engram update( --dry-run)?$/, async function (dryRun) {
+  await this.scenario.setup(async (scenario) => {
+    const before = scenario.snapshot()
+    await scenario.runUpdate({ dryRun: Boolean(dryRun) })
+    if (dryRun) assert.deepEqual(changes(before, scenario.snapshot()), [], 'the preview wrote to the install tree')
+  })
+})

@@ -1,22 +1,36 @@
+import assert from 'node:assert/strict'
 import fs from 'node:fs'
+import path from 'node:path'
 
 import { Given } from '@cucumber/cucumber'
 
 const NOT_BUILT = 'pending'
+// SP14 (793e2e): `pi` runs headless but needs its own credentials, which the harness is not given.
+const NO_HEADLESS_PI = 'no headless Pi: SP14, pi needs its own credentials and the subscription token is refused'
 
 Given(/^the System is (installed|not installed)$/, async function (state) {
   await this.scenario.setup(async (scenario) => {
     if (state === 'installed') await scenario.install()
+    else scenario.treeBefore = scenario.snapshot()
   })
 })
 
 Given(/^(Claude Code is installed|Pi is installed with the memory skills, guidance and shim|Pi is not installed)$/, function (form) {
-  if (form !== 'Claude Code is installed') return NOT_BUILT
+  if (form === 'Pi is installed with the memory skills, guidance and shim') {
+    this.skipReason = NO_HEADLESS_PI
+    return 'skipped'
+  }
+  if (form === 'Pi is not installed') {
+    assert.ok(!fs.existsSync(path.join(this.scenario.home, '.pi')), 'the World has a Pi directory')
+    return undefined
+  }
   if (!fs.existsSync(this.scenario.context.claudePath)) throw new Error('claude is not installed')
   return undefined
 })
 
-Given(/^an engram install made before the System existed$/, () => NOT_BUILT)
+Given(/^an engram install made before the System existed$/, async function () {
+  await this.scenario.setup((scenario) => scenario.installPreSystem())
+})
 
 Given(/^the vault holds (?:a note "([^"]*)" whose situation is "([^"]*)"(?: and which says "([^"]*)")?|no matching note)$/, async function (label, situation, says) {
   if (label == null) return undefined

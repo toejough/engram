@@ -319,11 +319,11 @@ Verification: `targ acceptance 793a5j`; the first Green-all re-runs `targ accept
 
 | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- |
-| [793a5j1a Update installs the System for the harness it updates](./793a_product-spec.md#793a5j1-uat-scenarios) | Dedicated example (acceptance) | Claude Code present, Pi absent: a [session](../../GLOSSARY.md#session) runs with the System; no Pi directory | Not started |
-| [793a5j1b An existing install gains the System and keeps what it had](./793a_product-spec.md#793a5j1-uat-scenarios) | Dedicated example (acceptance) | Starts from a pre-System install tree; the memory skills, guidance and shim remain | Not started |
-| [793a5j1c A preview installs none of the System](./793a_product-spec.md#793a5j1-uat-scenarios) | Dedicated example (acceptance) | `--dry-run` then a session: nothing delivered | Not started |
+| [793a5j1a Update installs the System for the harness it updates](./793a_product-spec.md#793a5j1-uat-scenarios) | Dedicated example (acceptance) | Claude Code present, Pi absent: a [session](../../GLOSSARY.md#session) runs with the System; no Pi directory | Red |
+| [793a5j1b An existing install gains the System and keeps what it had](./793a_product-spec.md#793a5j1-uat-scenarios) | Dedicated example (acceptance) | Starts from a pre-System install tree; the memory skills, guidance and shim remain | Red |
+| [793a5j1c A preview installs none of the System](./793a_product-spec.md#793a5j1-uat-scenarios) | Dedicated example (acceptance) | `--dry-run` then a session: nothing delivered | Green-single |
 | [793a5j1d One update serves both harnesses differently](./793a_product-spec.md#793a5j1-uat-scenarios) (`Not run` unless SP14 shows a headless Pi: its Then is about a Pi agent's behaviour and no fixture stands in) | Dedicated example (acceptance) | Claude Code part as [793a5j1a Update installs the System for the harness it updates](./793a_product-spec.md#793a5j1-uat-scenarios); the Pi session shows no delivered content and the Pi agent runs recall itself | Not started |
-| [793a5j1l Running update twice changes nothing](./793a_product-spec.md#793a5j1-uat-scenarios) | Dedicated example (acceptance) | Tree identical after the second update; behaviour identical in the sense of [793e2h Results](#793e2h-results) | Not started |
+| [793a5j1l Running update twice changes nothing](./793a_product-spec.md#793a5j1-uat-scenarios) | Dedicated example (acceptance) | Tree identical after the second update; behaviour identical in the sense of [793e2h Results](#793e2h-results) | Red |
 
 ### 793e8c Capture at turn end
 
