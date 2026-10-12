@@ -163,7 +163,7 @@ H1's steps ([793e8i H1 probe harness and verdict](#793e8i-h1-probe-harness-and-v
 
 ### 793e2j Whole-plan cost estimate
 
-The estimate of [793b282 The whole-plan cost estimate is presented to the owner](./793b_decision-log.md#793b282-the-whole-plan-cost-estimate-is-presented-to-the-owner), required by [793b259 A whole-plan cost estimate is presented to the owner before the PoC is built](./793b_decision-log.md#793b259-a-whole-plan-cost-estimate-is-presented-to-the-owner-before-the-poc-is-built) and built on [SP11](#793e2e-platform-claims-to-verify-first). The sessions are billed to a subscription login, so every figure is what the same tokens cost at published list prices (US dollars per million tokens, from `agent-instructions/skills/route/price-table.md`: Sonnet 5 input 3, output 15, cache write 1 hour 6, cache read 0.30; Haiku 4.5 1 and 5; Opus 5 5 and 25; Fable 5 10 and 50). No cap interrupts a run.
+The estimate of [793b282 The whole-plan cost estimate is presented to the owner](./793b_decision-log.md#793b282-the-whole-plan-cost-estimate-is-presented-to-the-owner), required by [793b259 A whole-plan cost estimate is presented to the owner before the PoC is built](./793b_decision-log.md#793b259-a-whole-plan-cost-estimate-is-presented-to-the-owner-before-the-poc-is-built) and built on [SP11](#793e2e-platform-claims-to-verify-first). The sessions are billed to a subscription login, so every figure is what the same tokens cost at published list prices (US dollars per million tokens, from `agent-instructions/skills/route/price-table.md`: Sonnet 5 input 3, output 15, cache write 1 hour 6, cache read 0.30; Haiku 4.5 1 and 5; Opus 5 5 and 25; Fable 5 10 and 50). No cap interrupts a run. The owner confirmed this estimate on 2026-10-12 and said not to stop for budget reasons.
 
 Assumptions:
 
@@ -213,7 +213,7 @@ A test row has one of `Not started`, `Red`, `Green-single`, `Green-all`, `Refact
 
 ```mermaid
 flowchart TD
-  n793e8a["793e8a Harness skeleton and platform spikes<br/>In progress: 23/24 entries complete"]
+  n793e8a["793e8a Harness skeleton and platform spikes<br/>Complete"]
   n793e8b["793e8b Delivery at the moments<br/>Blocked by: 793e8a"]
   n793e8e["793e8e Install by engram update<br/>Blocked by: 793e8b"]
   n793e8c["793e8c Capture at turn end<br/>Blocked by: 793e8e"]
@@ -275,7 +275,7 @@ Verification: `targ acceptance 793a5k1e` green; `targ acceptance --dry-run` (or 
 | SP14 headless Pi in an isolated home | Spike | Whether the two Pi-behaviour rows can run | Done |
 | SP15 the backlog scan and the stripped text from the ingest manifest and chunk files | Spike | Whether `engram backlog` exists ([793b278 The backlog scan reads the ingest manifest if SP15 shows it suffices; engram backlog stays only if it does not](./793b_decision-log.md#793b278-the-backlog-scan-reads-the-ingest-manifest-if-sp15-shows-it-suffices-engram-backlog-stays-only-if-it-does-not)) | Done |
 | Baseline check: the vocabulary check passes for all 43 scenarios; the 42 other scenarios end `Pending (not built)` without a session; one in-memory test feature with every step defined and a Then that fails shows that a failing Then is reported `Red` with its ID | Work | Undefined and pending are not Red evidence; this proves the Red path | Done |
-| Whole-plan cost estimate: planned full-suite runs times the per-session cost of SP11, plus the H2 calls of the four models (haiku and sonnet on the full set, opus and fable on cost-scaled samples) times usage times published price, as one table ([793e2j Whole-plan cost estimate](#793e2j-whole-plan-cost-estimate)); presented to the owner, and the node is complete only when he has it | Work | [793b259 A whole-plan cost estimate is presented to the owner before the PoC is built](./793b_decision-log.md#793b259-a-whole-plan-cost-estimate-is-presented-to-the-owner-before-the-poc-is-built): no cap interrupts a run; the owner sees the cost before [793e8b Delivery at the moments](#793e8b-delivery-at-the-moments) starts | In progress |
+| Whole-plan cost estimate: planned full-suite runs times the per-session cost of SP11, plus the H2 calls of the four models (haiku and sonnet on the full set, opus and fable on cost-scaled samples) times usage times published price, as one table ([793e2j Whole-plan cost estimate](#793e2j-whole-plan-cost-estimate)); presented to the owner, and the node is complete only when he has it | Work | [793b259 A whole-plan cost estimate is presented to the owner before the PoC is built](./793b_decision-log.md#793b259-a-whole-plan-cost-estimate-is-presented-to-the-owner-before-the-poc-is-built): no cap interrupts a run; the owner sees the cost before [793e8b Delivery at the moments](#793e8b-delivery-at-the-moments) starts; the owner confirmed the estimate on 2026-10-12 ([793e2j Whole-plan cost estimate](#793e2j-whole-plan-cost-estimate)) | Done |
 
 | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- |

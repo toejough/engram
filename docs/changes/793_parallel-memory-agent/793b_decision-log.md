@@ -3763,6 +3763,7 @@ ID map for 793b243 to 793b254 (each checked with `git log -S`: unused): `793b243
 - **Choice:** the estimate is about 125 US dollars at published list prices (the sessions are billed to a subscription login, so the figure is what the same tokens cost on the API), spread over about 450 scenario runs of the product suite, H1, H2 and the gold drafting; the assumptions are stated in the table. No cap interrupts a run.
 - **Rationale:** the owner's rule: estimate and confirm cost up front, then let a run finish.
 - **Alternatives:** the SDK's client-side cost estimate, which is about 60 percent of the list price computed from the same tokens (0.015 against 0.024 USD for a trivial turn); the table states both.
+- **Owner confirmation:** the owner confirmed the estimate on 2026-10-12 and said not to stop for budget reasons; node [793e8a Harness skeleton and platform spikes](./793e_implementation-plan.md#793e8a-harness-skeleton-and-platform-spikes) is Complete.
 
 ## 793b283 ID map for 793b281 to 793b282
 
