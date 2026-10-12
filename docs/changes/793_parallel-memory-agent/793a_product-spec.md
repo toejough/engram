@@ -36,11 +36,13 @@ Terms used below:
 - **Lesson:** any corrected failure, including an agent's own mid-task mistake that evidence
   overturned, plus a correction, an explicit save-request, a reversal and a confirmed approach ([793a3a Lessons are captured without the agent](#793a3a-lessons-are-captured-without-the-agent)).
 - **Delivery:** placing note content in front of the working agent without the agent requesting it.
-- **Integration:** what `engram update` installs for the System in the Claude Code harness ([793a4h Installed by engram update and active in Claude Code](#793a4h-installed-by-engram-update-and-active-in-claude-code)). It is installed per harness, so a condition "while the Integration is installed" is evaluated per harness and per agent session: a session in a harness without it, such as Pi, is unaffected ([793a5c Other harnesses are unchanged](#793a5c-other-harnesses-are-unchanged)).
+- **Integration:** what `engram update` installs for the System in the Claude Code harness ([793a4h Installed by engram update and active in Claude Code](#793a4h-installed-by-engram-update-and-active-in-claude-code)). It is installed per harness, so a condition "while the Integration is installed" is evaluated per harness and per agent session: a session in a harness without it, such as Pi, receives no delivery and runs as before, and its transcript can be captured from only after the session is no longer running ([793a5c Other harnesses are unchanged](#793a5c-other-harnesses-are-unchanged)).
 - **Context:** the content currently available to one agent, a top-level agent or one subagent.
   Content removed by compaction is no longer present. A subagent's context is separate from its
   parent's. A resumed session's restored content is present.
 - **Memory command:** running recall, learn, curate or write-memory, or an engram command that queries, writes or amends the vault.
+- **Transcript source:** a session transcript that `engram ingest --auto` finds and indexes ([792a5d Automatic sweep roots](../../specs/product/chunk-indexing.md#792a5d-automatic-sweep-roots)): a Claude Code session log or a Pi session file, whichever harness wrote it and whether or not that harness has the Integration.
+- **Backlog:** the content of transcript sources that the System has not yet captured lessons from, held by sessions that are no longer running ([793a3a Lessons are captured without the agent](#793a3a-lessons-are-captured-without-the-agent)).
 
 Requirement keywords follow RFC 2119.
 
@@ -236,11 +238,13 @@ Canonical target: `docs/specs/product/automatic-memory.md` (title `Automatic Mem
 
 ### 793a3a Lessons are captured without the agent
 
-Requirement: 793a3a The [System](#793a1-problem-statement) MUST write to the [vault](#793a1-problem-statement) each [lesson](#793a1-problem-statement) that occurs in a working [session](../../GLOSSARY.md#session), top-level or [subagent](../../GLOSSARY.md#subagent) (excluding [793a4f No delivery or capture in its own sessions](#793a4f-no-delivery-or-capture-in-its-own-sessions)), without the [working agent](#793a1-problem-statement) being asked and without it taking part: a correction, an explicit save-request, a [reversal](../../GLOSSARY.md#reversal-capture-kind) and a [confirmed approach](../../GLOSSARY.md#confirmed-approach-capture-kind) ([792a19c Learn fires at the correction moment](../../specs/product/ambient-guidance.md#792a19c-learn-fires-at-the-correction-moment), [792a15e The four kinds of explicit lesson](../../specs/product/learn.md#792a15e-the-four-kinds-of-explicit-lesson)), and any corrected failure, including an agent's own mid-task mistake that evidence overturned. A lesson in a subagent session MUST be captured from that session, so that no lesson depends on the subagent or its dispatching agent reporting it. When two subagent sessions contain the same lesson, the System MUST write one [note](#793a1-problem-statement) for it. Each note the System writes MUST record that it was written automatically and the session and turn it came from, in addition to the source learn defines for it.
+Requirement: 793a3a The [System](#793a1-problem-statement) MUST write to the [vault](#793a1-problem-statement) each [lesson](#793a1-problem-statement) that occurs in a working [session](../../GLOSSARY.md#session), top-level or [subagent](../../GLOSSARY.md#subagent) (excluding [793a4f No delivery or capture in its own sessions](#793a4f-no-delivery-or-capture-in-its-own-sessions)), without the [working agent](#793a1-problem-statement) being asked and without it taking part: a correction, an explicit save-request, a [reversal](../../GLOSSARY.md#reversal-capture-kind) and a [confirmed approach](../../GLOSSARY.md#confirmed-approach-capture-kind) ([792a19c Learn fires at the correction moment](../../specs/product/ambient-guidance.md#792a19c-learn-fires-at-the-correction-moment), [792a15e The four kinds of explicit lesson](../../specs/product/learn.md#792a15e-the-four-kinds-of-explicit-lesson)), and any corrected failure, including an agent's own mid-task mistake that evidence overturned. A lesson in a subagent session MUST be captured from that session, so that no lesson depends on the subagent or its dispatching agent reporting it. When two subagent sessions contain the same lesson, the System MUST write one [note](#793a1-problem-statement) for it. Each note the System writes MUST record that it was written automatically and the source [transcript](../../GLOSSARY.md#transcript) and the position in it that it came from, in addition to the source learn defines for it.
 
-The [System](#793a1-problem-statement) MUST NOT write a [note](#793a1-problem-statement) for a [lesson](#793a1-problem-statement) or a conclusion ([793a3q Sound conclusions are persisted by the System](#793a3q-sound-conclusions-are-persisted-by-the-system)) that a note written earlier in the [session](../../GLOSSARY.md#session) already records, whoever wrote it (the System, the agent, the user's command or the orchestrator).
+The [System](#793a1-problem-statement) MUST also capture [lessons](#793a1-problem-statement) from the [backlog](#793a1-problem-statement): from the [transcript source](#793a1-problem-statement) of any [session](../../GLOSSARY.md#session) that is no longer running, of any [harness](../../GLOSSARY.md#harness), whether or not that harness has the [Integration](#793a1-problem-statement) ([793a5c Other harnesses are unchanged](#793a5c-other-harnesses-are-unchanged)). It MUST do so after the fact, beginning when a Claude Code session with the Integration next completes a turn, and MAY spread a large backlog over several turns. It MUST capture from a [transcript](../../GLOSSARY.md#transcript) source only the content it has not captured before. It MUST NOT capture from the transcript source of a session that is still running until that transcript has been quiet for a period the System sets.
 
-Rationale: the [working agent](#793a1-problem-statement)'s [context](#793a1-problem-statement) stays free of memory evaluation, and [subagent](../../GLOSSARY.md#subagent) [sessions](../../GLOSSARY.md#session) are where [lessons](#793a1-problem-statement) occur too. The existing [skills](../../GLOSSARY.md#skill) still ask the agent to save the same lessons, so the [System](#793a1-problem-statement) must not write a second [note](#793a1-problem-statement) for what the agent already saved.
+The [System](#793a1-problem-statement) MUST NOT write a [note](#793a1-problem-statement) for a [lesson](#793a1-problem-statement) or a conclusion ([793a3q Sound conclusions are persisted by the System](#793a3q-sound-conclusions-are-persisted-by-the-system)) that a note written earlier in the [session](../../GLOSSARY.md#session) already records, or, for a [backlog](#793a1-problem-statement) session, a note written at any time before the System captured from it, whoever wrote it (the System, the agent, the user's command or the orchestrator).
+
+Rationale: the [working agent](#793a1-problem-statement)'s [context](#793a1-problem-statement) stays free of memory evaluation, and [subagent](../../GLOSSARY.md#subagent) [sessions](../../GLOSSARY.md#session) are where [lessons](#793a1-problem-statement) occur too. The existing [skills](../../GLOSSARY.md#skill) still ask the agent to save the same lessons, so the [System](#793a1-problem-statement) must not write a second [note](#793a1-problem-statement) for what the agent already saved. A session can also end before its lessons are saved (a Pi session interrupted before its agent learned, a Claude Code session killed mid-turn), so the System catches what is left behind at its next opportunity, without delivering anything into the other session ([793b231 Backlog capture: the System captures lessons from any swept session transcript after the fact](793b_decision-log.md#793b231-backlog-capture-the-system-captures-lessons-from-any-swept-session-transcript-after-the-fact)).
 
 #### 793a3a1 UAT Scenarios
 
@@ -280,7 +284,7 @@ Scenario: 793a3a1i A captured note records how it was written
   Given a note the System captured automatically
   When its source is inspected
   Then it states the source learn defines for that note
-  And it also states that the note was written automatically, and the session and turn it came from
+  And it also states that the note was written automatically, and the source transcript and the position in it that it came from
 
 Scenario Outline: 793a3a1j A record that already exists is not written again
   Given the Integration is installed and <earlier>
@@ -291,6 +295,39 @@ Scenario Outline: 793a3a1j A record that already exists is not written again
     | earlier                                                                                                              |
     | the user said "no, use targ, not go test directly" and the agent ran the learn skill, which wrote a feedback note stating that rule |
     | a sound conclusion that the agent wrote to the vault itself during the turn                                          |
+    | a Pi session in which the user said "no, use targ, not go test directly" and the Pi agent ran the learn skill, which wrote a feedback note stating that rule, before the session ended and went quiet |
+
+Scenario: 793a3a1k An interrupted Pi session is captured after the fact
+  Given the Integration is installed in Claude Code, and Pi has the existing skills, guidance and shim
+  And a Pi session in which the user said "no, use targ, not go test directly" ended before its agent ran the learn skill
+  And the Pi session's transcript has been quiet for the System's quiet period, and no note states that rule
+  When a Claude Code session completes a turn
+  Then a feedback note stating that rule exists in the vault
+  And the note states that it was written automatically and names the Pi session's transcript and a position in it
+  And the Claude Code transcript shows no request to the working agent to run a memory command
+
+Scenario: 793a3a1l A Claude Code session killed mid-turn is captured by a later session
+  Given a Claude Code session with the Integration was killed during a turn in which the user said "remember that releases are tagged from main"
+  And that session's transcript has been quiet for the System's quiet period, and no note states that
+  When a new Claude Code session with the Integration completes a turn
+  Then a fact note stating that exists in the vault
+
+Scenario: 793a3a1m A running session is not captured
+  Given a Pi session that is still running, whose transcript holds a correction that no note states
+  When a Claude Code session with the Integration completes a turn
+  Then the vault holds no note stating the correction
+
+Scenario: 793a3a1n A transcript is captured once
+  Given the lesson of an ended Pi session was captured by an earlier Claude Code turn, and the Pi session has not run since
+  When further Claude Code turns complete
+  Then the vault holds one note for the lesson
+  And that note records no use by those turns
+
+Scenario: 793a3a1o A session is captured once it is quiet
+  Given a Pi session whose transcript holds a correction that no note states
+  And the Pi session has ended and its transcript has been quiet for the System's quiet period
+  When a Claude Code session with the Integration completes a turn
+  Then a note stating the correction exists in the vault
 ```
 
 ### 793a3q Sound conclusions are persisted by the System
@@ -466,7 +503,9 @@ Canonical target: `docs/specs/product/automatic-memory.md` (title `Automatic Mem
 ### 793a5c Other harnesses are unchanged
 
 Requirement: 793a5c In every [harness](../../GLOSSARY.md#harness) in which engram is installed without the [Integration](#793a1-problem-statement), the existing
-instruction-based path ([ambient-guidance](../../specs/product/ambient-guidance.md)) MUST continue to work unchanged, and the [working agent](#793a1-problem-statement) in that harness MUST keep running recall and learn. The [System](#793a1-problem-statement) MUST NOT deliver into, or capture from, a [session](../../GLOSSARY.md#session) of such a harness.
+instruction-based path ([ambient-guidance](../../specs/product/ambient-guidance.md)) MUST continue to work unchanged, and the [working agent](#793a1-problem-statement) in that [harness](../../GLOSSARY.md#harness) MUST keep running recall and learn. The [System](#793a1-problem-statement) MUST NOT deliver into a [session](../../GLOSSARY.md#session) of such a harness or change its [transcript](../../GLOSSARY.md#transcript), and MUST NOT capture from the session while it is running. Its [lessons](#793a1-problem-statement) are captured afterwards, as [backlog](#793a1-problem-statement), once it is no longer running ([793a3a Lessons are captured without the agent](#793a3a-lessons-are-captured-without-the-agent)).
+
+Rationale: [delivery](#793a1-problem-statement) needs the [Integration](#793a1-problem-statement) inside the [session](../../GLOSSARY.md#session), but capture only reads the [transcript](../../GLOSSARY.md#transcript) the [harness](../../GLOSSARY.md#harness) already wrote, so it can run later from a Claude Code session ([793b231 Backlog capture: the System captures lessons from any swept session transcript after the fact](793b_decision-log.md#793b231-backlog-capture-the-system-captures-lessons-from-any-swept-session-transcript-after-the-fact)).
 
 #### 793a5c1 UAT Scenarios
 
@@ -481,12 +520,18 @@ Scenario: 793a5c1b A Pi session on a machine whose Claude Code has the Integrati
   When a Pi session runs with a prompt that matches a note and contains a correction
   Then its behavior is identical to its behavior before the System existed
   And the transcript shows no content delivered by the System
-  And no note is written from the session except by the Pi agent's own learn
+  And no note is written from the session while it is running, except by the Pi agent's own learn
+
+Scenario: 793a5c1c A captured Pi session's transcript is left unchanged
+  Given a Pi session that has ended, whose transcript holds a correction that no note states, and a copy of that transcript
+  When a Claude Code session with the Integration completes a turn and the System captures the correction
+  Then the Pi transcript is identical to the copy
+  And the Pi transcript shows no content delivered by the System
 ```
 
 ### 793a5h The user sees a summary of the memory activity
 
-Requirement: 793a5h After each completed top-level turn of a Claude Code [session](../../GLOSSARY.md#session) in which mods run, once the [System](#793a1-problem-statement)'s work for that turn (capture included) has finished, the System MUST show the user, outside the [working agent](#793a1-problem-statement)'s [context](#793a1-problem-statement), the counts of memory events since its previous summary, across the session and its [subagent](../../GLOSSARY.md#subagent) sessions: items delivered, [notes](#793a1-problem-statement) added, notes amended and [offers](../../GLOSSARY.md#offer) curated. A turn with no memory events MUST show nothing. The warning that [automatic memory](#793a1-problem-statement) was skipped ([793a4b The session is never broken or stalled](#793a4b-the-session-is-never-broken-or-stalled)) is shown on this same surface. The summary MUST NOT enter the working agent's context. When a note the System wrote could not reach a parent [vault](#793a1-problem-statement) and its offer is queued ([792a15j A write to a parent is reported as done](../../specs/product/learn.md#792a15j-a-write-to-a-parent-is-reported-as-done)), the System MUST tell the user, on the same surface and also outside the agent's context, that the note is saved and its offer is queued, and MUST NOT call the write failed, even when the turn has no counts to show.
+Requirement: 793a5h After each completed top-level turn of a Claude Code [session](../../GLOSSARY.md#session) in which mods run, once the [System](#793a1-problem-statement)'s work for that turn (capture included) has finished, the System MUST show the user, outside the [working agent](#793a1-problem-statement)'s [context](#793a1-problem-statement), the counts of memory events since its previous summary, across the session, its [subagent](../../GLOSSARY.md#subagent) sessions and the [backlog](#793a1-problem-statement) the System captured after the turn: items delivered, [notes](#793a1-problem-statement) added, notes amended and [offers](../../GLOSSARY.md#offer) curated. A turn with no memory events MUST show nothing. The warning that [automatic memory](#793a1-problem-statement) was skipped ([793a4b The session is never broken or stalled](#793a4b-the-session-is-never-broken-or-stalled)) is shown on this same surface. The summary MUST NOT enter the working agent's context. When a note the System wrote could not reach a parent [vault](#793a1-problem-statement) and its offer is queued ([792a15j A write to a parent is reported as done](../../specs/product/learn.md#792a15j-a-write-to-a-parent-is-reported-as-done)), the System MUST tell the user, on the same surface and also outside the agent's context, that the note is saved and its offer is queued, and MUST NOT call the write failed, even when the turn has no counts to show.
 
 Rationale: the user keeps visibility of the memory work the [System](#793a1-problem-statement) took over without the [working agent](#793a1-problem-statement) relaying it, and hears what the learn [skill](../../GLOSSARY.md#skill) would have told them.
 
@@ -527,4 +572,9 @@ Scenario: 793a5h1h An unreachable parent is not reported as a failure
   Then the user is shown a message that the note is saved and its offer is queued, and the message does not call the write failed
   And the message appears nowhere in the working agent's transcript
   And the vault holds exactly one note for the lesson
+
+Scenario: 793a5h1i A backlog capture is counted
+  Given the Integration is installed and a turn after which the System captured 1 note from a Pi session that had ended
+  When the turn completes
+  Then the user is shown a summary with 1 note added
 ```
