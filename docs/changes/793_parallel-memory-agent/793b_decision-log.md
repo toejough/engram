@@ -1677,6 +1677,8 @@ New IDs: `793a2c1d`, `793a3o`, `793a3o1` with `793a3o1a`..`793a3o1d`, [793a3p Di
 - **Alternatives:** the options of [793c46 On Claude Code with the Integration installed, does engram update still deploy the recall and learn skills and guidance files?](793c_open-questions.md#793c46-on-claude-code-with-the-integration-installed-does-engram-update-still-deploy-the-recall-and-learn-skills-and-guidance-files) and [793c47 Does "init" mean `engram init` or the first-time install by `engram update`?](793c_open-questions.md#793c47-does-init-mean-engram-init-or-the-first-time-install-by-engram-update); the owner chose (b) for both.
 - **Status:** applied in the commit that records this review ([793b135 ID map for the fifth review](#793b135-id-map-for-the-fifth-review)).
 
+- **Amended by:** [793b186 793a4h is delivered by this change and does not depend on #795](793b_decision-log.md#793b186-793a4h-is-delivered-by-this-change-and-does-not-depend-on-795): 793a4h no longer makes `engram init` the owner of the Integration install; `engram update` installs it directly (the entry itself is left as written).
+
 ## 793b135 ID map for the fifth review
 
 - **Decided by:** Author (agent), interpreting the fifth review and the answers it prompted; awaiting owner validation.
@@ -1701,6 +1703,8 @@ New IDs: `793a2c1d`, `793a3o`, `793a3o1` with `793a3o1a`..`793a3o1d`, [793a3p Di
 - **Rationale:** a change directory belongs to its own issue, and one change owns `engram init`, so the two specifications cannot disagree once #795 is widened ([793b141 793c48: change 795 is widened and this change builds on it](#793b141-793c48-change-795-is-widened-and-this-change-builds-on-it)).
 - **Alternatives:** the options of [793c48 How is the widening of `engram init` (change #795) sequenced with this change?](793c_open-questions.md#793c48-how-is-the-widening-of-engram-init-change-795-sequenced-with-this-change): (b) this change specifies the harness part of init itself and #795 stays vault-only; (c) a new issue for "init sets up everything". Not chosen by the owner.
 - **Status:** applied in commit b2eceed0; decided by the owner's answer to [793c48 How is the widening of `engram init` (change #795) sequenced with this change?](793c_open-questions.md#793c48-how-is-the-widening-of-engram-init-change-795-sequenced-with-this-change); the dependency stays until #795 is widened.
+
+- **Amended by:** [793b186 793a4h is delivered by this change and does not depend on #795](793b_decision-log.md#793b186-793a4h-is-delivered-by-this-change-and-does-not-depend-on-795): the dependency on change 795 is withdrawn; 793a4h is delivered by this change on today's `engram update` (the entry itself is left as written).
 
 ## 793b137 793c41: recall is split between the System and the agent
 
@@ -1778,6 +1782,8 @@ New IDs: `793a2c1d`, `793a3o`, `793a3o1` with `793a3o1a`..`793a3o1d`, [793a3p Di
 - **Status:** applied in the commit that records the ID map ([793b142 Interpretations made in applying 793c41 to 793c44 and 793c48](#793b142-interpretations-made-in-applying-793c41-to-793c44-and-793c48)).
 
 - **Amended by:** [793b182 Reduce 793a to the minimum set of end-to-end, user-verifiable requirements; layer automatic memory beside intentional memory](#793b182-reduce-793a-to-the-minimum-set-of-end-to-end-user-verifiable-requirements-layer-automatic-memory-beside-intentional-memory): this entry cites `793a4h1f`, which that decision retired (its subject was removed or merged; the entry itself is left as written, and the ID map [793b183 ID map for the minimal reduction](#793b183-id-map-for-the-minimal-reduction) gives each reason).
+
+- **Amended by:** [793b186 793a4h is delivered by this change and does not depend on #795](793b_decision-log.md#793b186-793a4h-is-delivered-by-this-change-and-does-not-depend-on-795): this change no longer builds on #795's widening for 793a4h; `793a4h1g` is retired (the entry itself is left as written).
 
 ## 793b142 Interpretations made in applying 793c41 to 793c44 and 793c48
 
@@ -1868,6 +1874,8 @@ New IDs: `793a2c1d`, `793a3o`, `793a3o1` with `793a3o1a`..`793a3o1d`, [793a3p Di
 - **Status:** applied in the commit that records this review ([793b164 ID map for the sixth review](#793b164-id-map-for-the-sixth-review)).
 
 - **Amended by:** [793b182 Reduce 793a to the minimum set of end-to-end, user-verifiable requirements; layer automatic memory beside intentional memory](#793b182-reduce-793a-to-the-minimum-set-of-end-to-end-user-verifiable-requirements-layer-automatic-memory-beside-intentional-memory): this entry cites `793a4h1f`, which that decision retired (its subject was removed or merged; the entry itself is left as written, and the ID map [793b183 ID map for the minimal reduction](#793b183-id-map-for-the-minimal-reduction) gives each reason).
+
+- **Amended by:** [793b186 793a4h is delivered by this change and does not depend on #795](793b_decision-log.md#793b186-793a4h-is-delivered-by-this-change-and-does-not-depend-on-795): the Blocker line and the reference to scenario `793a4h1g` no longer hold: 793a4h is not blocked on #795 and `793a4h1g` is retired (the entry itself is left as written).
 
 ## 793b149 M1: please's orientation is a recall moment
 
@@ -2378,3 +2386,21 @@ New IDs: `793a2c1d`, `793a3o`, `793a3o1` with `793a3o1a`..`793a3o1d`, [793a3p Di
 - **Choice:** when the System fails, times out or is unavailable, the user MUST be shown a warning on the same surface as the memory-activity summary ([793a5h The user sees a summary of the memory activity](793a_product-spec.md#793a5h-the-user-sees-a-summary-of-the-memory-activity)), outside the working agent's context, saying automatic memory was skipped for that moment or turn and why (unavailable, timed out, error). The session continues unaffected, with no error to the agent and no lost input. A moment at which nothing matched is not a failure and gets no warning. New scenario `793a4b1e` (checked with `git log -S`: unused); `793a4b1a` to `793a4b1c` also assert the warning and its absence from the agent's transcript.
 - **Rationale:** the owner wants to know when the automatic channel silently did nothing.
 - **Alternatives:** keep failures silent (the earlier behavior). Not chosen by the owner.
+
+## 793b186 793a4h is delivered by this change and does not depend on #795
+
+- **Decided by:** Owner (Joe), walkthrough of [793a4h Installed by engram update and active in Claude Code](793a_product-spec.md#793a4h-installed-by-engram-update-and-active-in-claude-code), 2026-10-11.
+- **Choice:** 793a4h is delivered by this change and is not blocked on #795 or any other issue. It stands on today's commands: `engram update` ([792a11g The harnesses that are updated](../../specs/product/install-and-update.md#792a11g-the-harnesses-that-are-updated)) installs the Integration for Claude Code directly, with no dependence on `engram init`, and running it again changes nothing about the Integration. The paragraph saying init owns the install and the requirement is blocked on #795's widening is replaced by one sentence: when #795 later makes update run init, init takes over installing the Integration with no change to the requirement's promises (#795's change directory is linked as a note only). Scenario `793a4h1g` (init gives Claude Code the Integration) is retired, since init is #795's; its ID is never reused. New scenario `793a4h1l` (running update twice changes nothing; checked with `git log -S`: unused) is added under [793a4h1 UAT Scenarios](793a_product-spec.md#793a4h1-uat-scenarios).
+- **ID map:**
+
+| Retired | Was | Reason |
+| --- | --- | --- |
+| `793a4h1g` | Init gives Claude Code the Integration | `engram init` is owned by change #795; the requirement no longer depends on it |
+
+| New | Covers |
+| --- | --- |
+| `793a4h1l` | running `engram update` twice leaves the Integration unchanged |
+
+- **Rationale:** the owner wants the System delivered by this change without a cross-issue blocker; today's `engram update` already installs per harness, so the requirement can be stated and verified without init.
+- **Alternatives:** keep the dependency on #795's widening ([793b136 Change 793 depends on change 795 being widened](#793b136-change-793-depends-on-change-795-being-widened)). Not chosen by the owner.
+- **Status:** applied in the commit that records this entry; amends [793b134 Interpretations made in applying 793c45, 793c46 and 793c47](#793b134-interpretations-made-in-applying-793c45-793c46-and-793c47), [793b136 Change 793 depends on change 795 being widened](#793b136-change-793-depends-on-change-795-being-widened), [793b141 793c48: change 795 is widened and this change builds on it](#793b141-793c48-change-795-is-widened-and-this-change-builds-on-it) and [793b148 H5: 793a4h is trimmed to the Claude Code delta, and change 795 is referenced](#793b148-h5-793a4h-is-trimmed-to-the-claude-code-delta-and-change-795-is-referenced).

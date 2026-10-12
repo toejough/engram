@@ -438,9 +438,9 @@ Scenario: 793a4f1b A session of its own receives no delivery
 
 ### 793a4h Installed by engram update and active in Claude Code
 
-Requirement: 793a4h The setup that `engram init` performs for the Claude Code harness, and that `engram update` performs by running it for each harness it updates ([792a11g The harnesses that are updated](../../specs/product/install-and-update.md#792a11g-the-harnesses-that-are-updated)), MUST install the Integration, and the System MUST be active in every Claude Code session from then on, with no operating mode to select and no step beyond installing it. It MUST NOT remove or alter anything else that those commands deploy today. An existing install of engram MUST have the System in Claude Code after its next `engram update`. The Integration MUST NOT be installed for any other harness, and `engram update` MUST NOT create the directory of a harness that is not present. `engram update --dry-run` ([792a11f Previewing an update](../../specs/product/install-and-update.md#792a11f-previewing-an-update)) MUST install none of it.
+Requirement: 793a4h `engram update` MUST install the Integration for the Claude Code harness, directly, when it updates that harness ([792a11g The harnesses that are updated](../../specs/product/install-and-update.md#792a11g-the-harnesses-that-are-updated)), and the System MUST be active in every Claude Code session from then on, with no operating mode to select and no step beyond installing it. It MUST NOT depend on `engram init`. It MUST NOT remove or alter anything else that `engram update` deploys today. An existing install of engram MUST have the System in Claude Code after its next `engram update`, and running `engram update` again MUST change nothing about the Integration. The Integration MUST NOT be installed for any other harness, and `engram update` MUST NOT create the directory of a harness that is not present. `engram update --dry-run` ([792a11f Previewing an update](../../specs/product/install-and-update.md#792a11f-previewing-an-update)) MUST install none of it.
 
-What `engram init` does for the vault, and that running it again changes nothing, are owned by change #795 (`docs/changes/795_vault-init-command/`), which is to be widened so that init sets up everything idempotently and update runs it; this requirement is blocked on that widening ([793b136 Change 793 depends on change 795 being widened](793b_decision-log.md#793b136-change-793-depends-on-change-795-being-widened)).
+This requirement is delivered by this change and does not wait on any other issue ([793b186 793a4h is delivered by this change and does not depend on #795](793b_decision-log.md#793b186-793a4h-is-delivered-by-this-change-and-does-not-depend-on-795)). When change #795 (`docs/changes/795_vault-init-command/`) later makes `engram update` run `engram init`, init takes over installing the Integration with no change to this requirement's promises.
 
 Rationale: one state to reason about. Installing turns the System on, and everything intentional memory relies on stays installed beside it.
 
@@ -474,10 +474,11 @@ Scenario: 793a4h1d One update serves both harnesses differently
   Then a Claude Code session runs with the System active
   And a Pi session shows no content delivered by the System, and the Pi agent runs recall itself before acting
 
-Scenario: 793a4h1g Init gives Claude Code the Integration
-  Given a machine with Claude Code and Pi
-  When the user runs engram init
-  Then Claude Code has the Integration and Pi has none of it
+Scenario: 793a4h1l Running update twice changes nothing
+  Given engram update has installed the Integration for Claude Code
+  When the user runs engram update again
+  Then the Integration is unchanged
+  And a Claude Code session behaves identically to one run after the first update
 ```
 
 ## 793a5 Added: automatic-memory (coexistence and visibility)

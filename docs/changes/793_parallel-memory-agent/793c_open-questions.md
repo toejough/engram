@@ -684,6 +684,8 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 
 - **Amended by:** [793b182 Reduce 793a to the minimum set of end-to-end, user-verifiable requirements; layer automatic memory beside intentional memory](793b_decision-log.md#793b182-reduce-793a-to-the-minimum-set-of-end-to-end-user-verifiable-requirements-layer-automatic-memory-beside-intentional-memory): this entry cites `793a4h1f`, which that decision retired (its subject was removed or merged; the entry itself is left as written, and the ID map [793b183 ID map for the minimal reduction](793b_decision-log.md#793b183-id-map-for-the-minimal-reduction) gives each reason).
 
+- **Amended by:** [793b186 793a4h is delivered by this change and does not depend on #795](793b_decision-log.md#793b186-793a4h-is-delivered-by-this-change-and-does-not-depend-on-795): 793a4h no longer makes `engram init` the owner of the Integration install; `engram update` installs it directly, and `793a4h1g` is retired (the answer and its record are left as written).
+
 ## 793c48 How is the widening of `engram init` (change #795) sequenced with this change?
 
 - **Status:** answered (Joe, 2026-10-11): (a) widen #795. Its issue is retitled and its scope extended (init initializes everything idempotently, and update runs it). #795's spec is widened as part of #795's own work, and #793 builds on it.
@@ -696,6 +698,8 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
   - (c) A new issue for "init sets up everything".
 - **Recommendation:** (a). One change owns `engram init`, so the two specs cannot disagree.
 - **Blocks:** [793a4h Installed by engram update and active in Claude Code](793a_product-spec.md#793a4h-installed-by-engram-update-and-active-in-claude-code), and #795's scope and its statement that update never creates a vault. This change does not edit #795's files.
+
+- **Amended by:** [793b186 793a4h is delivered by this change and does not depend on #795](793b_decision-log.md#793b186-793a4h-is-delivered-by-this-change-and-does-not-depend-on-795): the dependency on #795's widening is withdrawn for 793a4h (the answer and its record are left as written).
 
 ## 793c49 Does the agent run recall's re-entry query (792a14o) while the Integration is installed?
 
