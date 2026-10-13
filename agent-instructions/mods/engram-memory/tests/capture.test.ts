@@ -43,7 +43,7 @@ const MESSAGES = [
 type Setup = { calls: string[]; argvs: string[][]; requests: any[]; clock: any }
 
 // stubs stands for the engine under the mod. `replies` are the successive answers of the capture judgement.
-function stubs(on: any, query: string, replies: string[], extra: { files?: Record<string, string>; messages?: any[]; unanswered?: boolean } = {}): Setup {
+function stubs(on: any, query: string, replies: string[], extra: { files?: Record<string, string>; messages?: any[]; unanswered?: boolean; onWrite?: (e: any) => void } = {}): Setup {
   const calls: string[] = []
   const argvs: string[][] = []
   const requests: any[] = []
@@ -68,6 +68,10 @@ function stubs(on: any, query: string, replies: string[], extra: { files?: Recor
   on('ui.log', async () => ({ value: undefined }))
   on('ui.status', async () => ({ value: undefined }))
   on('fs.exists', async () => ({ value: false }))
+  on('fs.write', async (_$: any, e: any) => {
+    extra.onWrite?.(e)
+    return { value: undefined }
+  })
   on('session.id', async () => ({ value: 'sess-1' }))
   on('session.turns', async () => ({ value: 3 }))
   on('session.messages', async () => ({ value: extra.messages ?? MESSAGES }))
@@ -196,11 +200,10 @@ describe('capture at turn end', () => {
   test('the seam file, when named, records a job joining the queue and the queue being empty', async ($: any, on: any) => {
     const writes: string[] = []
     mock.env(on, { ENGRAM_AUTO_SEAM_LOG: '/seam.log' })
-    on('fs.write', async (_$: any, e: any) => {
-      writes.push(e.text ?? e.content ?? e.data)
-      return { value: undefined }
-    })
-    const { clock } = stubs(on, EMPTY_OUTPUT, ['[]'])
+    const onWrite = (e: any) => {
+      if (e.path === '/seam.log') writes.push(e.text ?? e.content ?? e.data)
+    }
+    const { clock } = stubs(on, EMPTY_OUTPUT, ['[]'], { onWrite })
     await $.turn.complete(COMPLETE)
     expect(writes.at(-1)).toBe('queued\n')
     await clock.settle()
@@ -336,11 +339,10 @@ describe('capture at a subagent stop', () => {
   test('the seam records the job before the stop hook returns, so a test waiting for idle cannot pass before the System has started', async ($: any, on: any) => {
     const writes: string[] = []
     mock.env(on, { ENGRAM_AUTO_SEAM_LOG: '/seam.log' })
-    on('fs.write', async (_$: any, e: any) => {
-      writes.push(e.text ?? e.content ?? e.data)
-      return { value: undefined }
-    })
-    const { clock } = stubs(on, EMPTY_OUTPUT, ['[]'], { files: { [FILE]: rowsText(ROWS) } })
+    const onWrite = (e: any) => {
+      if (e.path === '/seam.log') writes.push(e.text ?? e.content ?? e.data)
+    }
+    const { clock } = stubs(on, EMPTY_OUTPUT, ['[]'], { files: { [FILE]: rowsText(ROWS) }, onWrite })
     await $.classic.SubagentStop({ agent_id: 'a1', agent_type: 'general-purpose', agent_transcript_path: FILE, last_assistant_message: 'Noted: targ test.', stop_hook_active: false })
     expect(writes.at(-1)).toBe('queued\n')
     await clock.settle()

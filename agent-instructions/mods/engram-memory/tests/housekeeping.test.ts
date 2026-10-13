@@ -71,6 +71,7 @@ function world(on: any, options: { process?: Record<string, any>; replies?: any[
   })
   on('fs.exists', async () => ({ value: options.exists ?? true }))
   on('fs.read', async () => ({ deny: 'ENOENT' }))
+  on('fs.write', async () => ({ value: undefined }))
   on('ui.log', async () => ({ value: undefined }))
   on('ui.status', async (_$: any, e: any) => {
     shown.push(e.text)

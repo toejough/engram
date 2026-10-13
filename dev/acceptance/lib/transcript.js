@@ -112,6 +112,32 @@ export function noResponseBetween(rows, from, to) {
   return rows.slice(from + 1, to).every((row) => row.type !== 'assistant')
 }
 
+// declarationIndex is the row of the declaration: the last assistant row that says anything (a tool call alone says
+// nothing), or -1. The agent's declaration is its closing statement of a turn (793a2n1a).
+export function declarationIndex(rows) {
+  for (let i = rows.length - 1; i >= 0; i -= 1) {
+    if (rows[i].type === 'assistant' && blocks(rows[i]).some((block) => block.type === 'text' && block.text.trim() !== '')) return i
+  }
+  return -1
+}
+
+// precedesFirstResponse is true when no assistant row sits anywhere before the block: nothing the agent wrote came
+// first, so the block precedes its first response or tool call (793a2n1i).
+export function precedesFirstResponse(rows, index) {
+  return rows.slice(0, index).every((row) => row.type !== 'assistant')
+}
+
+// dispatchIndexAfter is the row at which the orchestrator routes the unit once the route call returned (793a2n1j): its
+// next dispatch (an Agent or Task use) after that result, else its declaration if that comes later than the result,
+// else Infinity (it did neither, so nothing the block could have preceded).
+export function dispatchIndexAfter(rows, toolUseId) {
+  const result = resultIndex(rows, toolUseId)
+  const dispatch = rows.findIndex((row, i) => i > result && blocks(row).some((block) => block.type === 'tool_use' && (block.name === 'Agent' || block.name === 'Task')))
+  if (dispatch >= 0) return dispatch
+  const declared = declarationIndex(rows)
+  return declared > result ? declared : Infinity
+}
+
 // agentCalls are the dispatches of a subagent in the rows: the Agent (formerly Task) tool uses.
 export function agentCalls(rows) {
   return toolCalls(rows).filter((call) => call.name === 'Agent' || call.name === 'Task')

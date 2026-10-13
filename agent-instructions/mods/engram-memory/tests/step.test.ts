@@ -61,6 +61,7 @@ function world(on: any, options: Options = {}) {
     return { value: { isAnswered: true, text: reply, usage: {} } }
   })
   on('fs.read', async () => ({ deny: 'ENOENT' }))
+  on('fs.write', async () => ({ value: undefined }))
   on('fs.exists', async () => ({ value: false }))
   on('ui.log', async () => ({ value: undefined }))
   on('ui.status', async (_$: any, e: any) => {

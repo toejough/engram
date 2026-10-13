@@ -157,10 +157,57 @@ describe('backlog capture', () => {
     expect(calls).toEqual(['query', 'model', 'ingest'])
   })
 
-  test('a source older than the age limit is history and is not mined', async ($: any, on: any) => {
-    const { calls, clock } = await stubs(on, { manifest: { [PI]: entry(30 * DAY, 'sha256:old') }, files: ONE().files })
+  test('the cut-off is a fixed point recorded at the first run, install time minus 7 days; a source that ended before it is history and is not mined, one after it is', async ($: any, on: any) => {
+    const manifest = { [PI]: entry(8 * DAY, 'sha256:before'), [PI_TWO]: entry(6 * DAY, 'sha256:after') }
+    const files = { [PI]: SAID, [PI_TWO]: piRows([['user', text('after the cut-off says: use targ')], ['assistant', text('ok')]]) }
+    const { requests, marks, clock } = await stubs(on, { manifest, files })
     await $.turn.complete(COMPLETE)
     await clock.settle()
+    expect(marks().cutoff).toBe(NOW - 7 * DAY)
+    expect(marks().installed).toBe(NOW)
+    expect(requests.length).toBe(2)
+    expect(requests[1].prompt).toContain('after the cut-off says')
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    expect(requests.length).toBe(3)
+    expect(Object.keys(marks().sources)).toEqual([PI_TWO])
+  })
+
+  test('the cut-off does not roll: a source that ended after it stays eligible however long the machine was idle, and one that ended before it never becomes eligible', async ($: any, on: any) => {
+    const manifest = { [PI]: entry(3 * DAY, 'sha256:three-days'), [PI_TWO]: entry(8 * DAY, 'sha256:eight-days') }
+    const { requests, marks, clock } = await stubs(on, { manifest, files: { [PI]: SAID, [PI_TWO]: SAID }, unanswered: true })
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    // the capture failed, so the source holds no mark; 30 days pass with no session
+    expect(marks().sources[PI]).toBeUndefined()
+    await clock.advance(30 * DAY)
+    const before = requests.length
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    expect(requests.length).toBeGreaterThan(before)
+    expect(marks().cutoff).toBe(NOW - 7 * DAY)
+    // the source of 8 days was never read, in either run
+  })
+
+  test('the cut-off is recorded once: a later run keeps the one in the mark file, and a first run with nothing to capture still records it', async ($: any, on: any) => {
+    const { marks, files, clock } = await stubs(on, { manifest: {}, files: {} })
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    expect(marks().cutoff).toBe(NOW - 7 * DAY)
+    files[MARKS] = JSON.stringify({ ...marks(), cutoff: 123, installed: 456 })
+    await clock.advance(DAY)
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    expect(marks().cutoff).toBe(123)
+    expect(marks().installed).toBe(456)
+  })
+
+  test('a mark file the older version wrote, with no cut-off, gets one at its next run and keeps its marks', async ($: any, on: any) => {
+    const { marks, calls, clock } = await stubs(on, { ...ONE(), files: { ...ONE().files, [MARKS]: JSON.stringify({ sources: { [PI]: 'sha256:aaa' }, turns: {} }) } })
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    expect(marks().cutoff).toBe(NOW - 7 * DAY)
+    expect(marks().sources[PI]).toBe('sha256:aaa')
     expect(calls).toEqual(['query', 'model', 'ingest'])
   })
 
@@ -200,7 +247,7 @@ describe('backlog capture', () => {
     await $.turn.complete(COMPLETE)
     await clock.settle()
     expect(calls).toEqual(['query', 'model', 'ingest', 'query', 'model'])
-    expect(marks()).toBeNull()
+    expect(marks().sources).toEqual({})
   })
 
   const LONG = Array.from({ length: 40 }, (_, index): [string, any][] => [['user', text(`message ${index} ${'word '.repeat(150)}`)], ['assistant', text(`reply ${index} ${'word '.repeat(150)}`)]]).flat()
@@ -302,7 +349,8 @@ describe('backlog capture', () => {
     await $.turn.complete(COMPLETE)
     await clock.settle()
     expect(calls).toEqual(['query', 'model', 'ingest'])
-    expect(writes).toEqual([])
+    // the only write is the first run's cut-off: no source is marked
+    expect(writes.map((write) => JSON.parse(write.text).sources)).toEqual([{}])
   })
 
   test('a session whose turns the System captured is not captured again as backlog', async ($: any, on: any) => {
@@ -333,7 +381,7 @@ describe('backlog capture', () => {
     })
     await $.turn.complete(COMPLETE)
     await clock.settle()
-    expect(writes.map((write) => write.path)).toEqual([`${custom}/backlog-marks.json`])
+    expect(new Set(writes.map((write) => write.path))).toEqual(new Set([`${custom}/backlog-marks.json`]))
   })
 
   test('without either variable the chunks directory is under the home', async ($: any, on: any) => {
@@ -346,12 +394,48 @@ describe('backlog capture', () => {
     })
     await $.turn.complete(COMPLETE)
     await clock.settle()
-    expect(writes.map((write) => write.path)).toEqual([`${home}/backlog-marks.json`])
+    expect(new Set(writes.map((write) => write.path))).toEqual(new Set([`${home}/backlog-marks.json`]))
   })
 })
 
 describe('backlog capture: what a transcript source may say (the source is untrusted)', () => {
   const windowOf = (request: any): string[] => /<window>\n([\s\S]*?)\n<\/window>/.exec(request.prompt)![1].split('\n')
+
+  // The rows of a real Pi session file, version 3 (read from one file under ~/.pi/agent/sessions on 2026-10-13, structure
+  // only, 793b325): the session, model-change and thinking-level rows; messages with a numeric timestamp whose assistant
+  // content holds thinking, text and toolCall blocks; the result of a tool call as a message of role toolResult; and the
+  // compaction, custom_message, custom and session_info rows. Only the user's and the agent's text are the conversation.
+  test('a real Pi file: its thinking, tool calls, tool results, compaction summaries and injected custom messages never enter the window', async ($: any, on: any) => {
+    const rows = [
+      { type: 'session', version: 3, id: 'p1', timestamp: '2026-10-12T10:00:00.000Z', cwd: '/work' },
+      { type: 'model_change', id: 'm1', parentId: null, timestamp: '2026-10-12T10:00:00.000Z', provider: 'anthropic', modelId: 'claude-sonnet-5-5' },
+      { type: 'thinking_level_change', id: 't1', parentId: 'm1', timestamp: '2026-10-12T10:00:00.000Z', thinkingLevel: 'off' },
+      { type: 'session_info', id: 's1', parentId: null, timestamp: '2026-10-12T10:00:00.000Z', name: 'SESSION-NAME-INJECTED' },
+      { type: 'message', id: 'u1', parentId: 't1', timestamp: '2026-10-12T10:00:01.000Z', message: { role: 'user', content: text('Run the tests.'), timestamp: 1 } },
+      {
+        type: 'message', id: 'a1', parentId: 'u1', timestamp: '2026-10-12T10:00:02.000Z',
+        message: { role: 'assistant', content: [{ type: 'thinking', thinking: 'THINKING-INJECTED', thinkingSignature: 'sig' }, { type: 'text', text: 'Running go test.' }, { type: 'toolCall', id: 'c1', name: 'bash', arguments: { command: 'TOOLCALL-INJECTED' } }], api: 'anthropic-messages', provider: 'anthropic', model: 'm', usage: {}, stopReason: 'toolUse', timestamp: 2, responseId: 'r1' },
+      },
+      { type: 'message', id: 'r1', parentId: 'a1', timestamp: '2026-10-12T10:00:03.000Z', message: { role: 'toolResult', toolCallId: 'c1', toolName: 'bash', content: text('TOOLRESULT-INJECTED'), isError: false, timestamp: 3 } },
+      { type: 'custom_message', id: 'x1', parentId: 'r1', timestamp: '2026-10-12T10:00:04.000Z', customType: 'intercom', content: 'CUSTOM-INJECTED', display: true, details: {} },
+      { type: 'custom', id: 'x2', parentId: 'x1', timestamp: '2026-10-12T10:00:04.000Z', customType: 'intercom', data: { to: 'CUSTOMDATA-INJECTED' } },
+      { type: 'compaction', id: 'k1', parentId: 'x2', timestamp: '2026-10-12T10:00:05.000Z', summary: 'COMPACTION-INJECTED', firstKeptEntryId: 'u1', tokensBefore: 1, details: {}, fromHook: false },
+      { type: 'message', id: 'u2', parentId: 'k1', timestamp: '2026-10-12T10:00:06.000Z', message: { role: 'user', content: text('no, use targ, not go test directly'), timestamp: 4 } },
+      { type: 'message', id: 'a2', parentId: 'u2', timestamp: '2026-10-12T10:00:07.000Z', message: { role: 'assistant', content: [{ type: 'thinking', thinking: 'THINKING-TWO-INJECTED', thinkingSignature: 'sig' }, { type: 'text', text: 'Understood, I will use targ.' }], api: 'anthropic-messages', provider: 'anthropic', model: 'm', usage: {}, stopReason: 'stop', timestamp: 5, responseId: 'r2' } },
+    ].map((row) => JSON.stringify(row)).join('\n')
+    const { requests, clock } = await stubs(on, { manifest: { [PI]: entry(2 * HOUR, 'sha256:aaa') }, files: { [PI]: rows } })
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    expect(requests.length).toBe(2)
+    expect(windowOf(requests[1])).toEqual([
+      'User: Run the tests.',
+      'Agent: Running go test.',
+      'Agent used bash',
+      'User: no, use targ, not go test directly',
+      'Agent: Understood, I will use targ.',
+    ])
+    expect(requests[1].prompt).not.toMatch(/INJECTED/)
+  })
 
   test('only what the user and the agent said enters the window: not a tool call\'s input, a tool result, program output or text the harness injected', async ($: any, on: any) => {
     const pi = piRows([

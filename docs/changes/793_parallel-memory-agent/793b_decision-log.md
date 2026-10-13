@@ -3725,6 +3725,7 @@ ID map for 793b243 to 793b254 (each checked with `git log -S`: unused): `793b243
 - **Rationale:** a step that matches two sentences, and an expected outcome in a data file, are what [793b263 godog runs strict with anchored steps, and the scenario data holds inputs only](#793b263-godog-runs-strict-with-anchored-steps-and-the-scenario-data-holds-inputs-only) found to be the cost of free wording; about 170 free step lines needed 60 to 90 definitions, and 27 phrasings carry the same scenarios. Every outcome is in a step; the data holds inputs.
 - **Alternatives:** keep the free wording and write 60 to 90 definitions (the previous plan, [793b263 godog runs strict with anchored steps, and the scenario data holds inputs only](#793b263-godog-runs-strict-with-anchored-steps-and-the-scenario-data-holds-inputs-only)); split the outline of 793a3a1j into three scenarios (it would add IDs and change the run counts of the plan).
 - **Amends:** [793b263 godog runs strict with anchored steps, and the scenario data holds inputs only](#793b263-godog-runs-strict-with-anchored-steps-and-the-scenario-data-holds-inputs-only) (the number of definitions) and the step wording of [793b273 The implementation-plan audit of the Gherkin scenarios](#793b273-the-implementation-plan-audit-of-the-gherkin-scenarios)'s rows (their findings and resolutions stand).
+- **Amended by:** [793b322 Owner answer 1: the three weakened Thens are restored to the original wording; the step catalog gains one form](#793b322-owner-answer-1-the-three-weakened-thens-are-restored-to-the-original-wording-the-step-catalog-gains-one-form): the second row of the table, for 793a2n1a, 793a2n1i and 793a2n1j.
 
 ## 793b278 The backlog scan reads the ingest manifest if SP15 shows it suffices; engram backlog stays only if it does not
 
@@ -4001,6 +4002,7 @@ ID map for 793b243 to 793b254 (each checked with `git log -S`: unused): `793b243
 - **Alternatives:** a cut-off at the first write of the mark file (as [793b233](#793b233-choices-made-in-applying-793b232-shown-to-the-owner)): the scenario's leftovers, written after the install, would be older than the cut-off, or the cut-off would have to be given a time the harness controls; no turn mark (every session is read once more after it ends, and its notes are reinforced twice); `engram backlog` (dropped by SP15); the whole source in one window (a lesson in the long tail of a session is outside the 8,000-character limit); the chunk files of the index as the text (the planned design of SP15: they do not carry roles).
 - **Known limits:** a source longer than six windows is captured from its first six (one over 4 MiB, from the last 3,000,000 bytes); a source whose capture keeps failing is retried at every turn and, being the most recent, keeps the others waiting; a source the platform cannot read is skipped; two terminals sharing a chunks directory can lose a mark (one more capture, whose notes the reconcile step finds covered).
 - **Amends:** [793b233 Choices made in applying 793b232, shown to the owner](#793b233-choices-made-in-applying-793b232-shown-to-the-owner) (the first-write cut-off) and [793b278 The backlog scan reads the ingest manifest if SP15 shows it suffices; engram backlog stays only if it does not](#793b278-the-backlog-scan-reads-the-ingest-manifest-if-sp15-shows-it-suffices-engram-backlog-stays-only-if-it-does-not) (the scan's details).
+- **Amended by:** [793b323 Owner answer 2: the backlog cut-off is one fixed point, install time minus 7 days](#793b323-owner-answer-2-the-backlog-cut-off-is-one-fixed-point-install-time-minus-7-days): the 7-day age limit is replaced by a fixed cut-off.
 
 ## 793b311 What the backlog node found of the platform
 
@@ -4110,5 +4112,69 @@ ID map for 793b243 to 793b254 (each checked with `git log -S`: unused): `793b243
 
 - **Decided by:** Author (agent); awaiting owner validation.
 - **Choice:** added (each checked with `git log -S`: unused): `793b315` to `793b321`, `793d19a`. Retired: none. No heading is retitled.
+- **Rationale:** the guide: removed IDs are not reused.
+- **Alternatives:** none.
+
+## 793b322 Owner answer 1: the three weakened Thens are restored to the original wording; the step catalog gains one form
+
+- **Decided by:** Owner (Joe, 2026-10-13), answer (a): restore the original, stronger Then of [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios) ("before the declaration"), [793a2n1i Please's orientation receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios) ("before please's first response or tool call") and [793a2n1j Tier evidence is delivered before a dispatch is routed](./793a_product-spec.md#793a2n1-uat-scenarios) ("before the orchestrator routes the unit"), keep the step vocabulary minimal, re-run the rows, and accept [793b291 793a5j1b is carried by the capture node; its install Thens run in this node and its Then order is changed](#793b291-793a5j1b-is-carried-by-the-capture-node-its-install-thens-run-in-this-node-and-its-then-order-is-changed)'s reorder. Author for the checks each point names and for the step form, awaiting owner validation.
+- **Choice:**
+  - The three Then lines in [Parallel Memory Agent - Product Spec](./793a_product-spec.md#parallel-memory-agent---product-spec) read as in the owner's original text (the words after "to apply it"); no other scenario changes ([793b277 The Gherkin step lines of the 43 product scenarios use a fixed vocabulary of 27 steps](#793b277-the-gherkin-step-lines-of-the-43-product-scenarios-use-a-fixed-vocabulary-of-27-steps) stands for every other delivery Then). The vocabulary stays at 27 definitions: step 14 of [793e2i Step catalog](./793e_implementation-plan.md#793e2i-step-catalog) gains one form, `the transcript shows note "N" delivered with the instruction to apply it before (the declaration | please's first response or tool call | the orchestrator routes the unit)`.
+  - What each point is, as `steps/then.js` checks it, on top of the checks the weaker form had (an instruction to apply it, no assistant row between the cause and the block, the cue named by the scenario): the declaration is the agent's last statement of the turn (the last assistant row with text), and every block holding the note sits before it; please's first response or tool call is any assistant row, and no assistant row may precede a block; the point at which the orchestrator routes the unit is its next dispatch (an Agent or Task use) after the `route` call's result, else its declaration, and every block sits before it. Harness unit tests (`declarationIndex`, `precedesFirstResponse`, `dispatchIndexAfter`) were written first and failed for the missing functions.
+  - Re-runs on 2026-10-13, one run each, the final tree:
+
+| Row | Green | Red |
+| --- | --- | --- |
+| 793a2n1a, the first ten runs | 8 of 10 | 2 |
+| 793a2n1a, twenty more runs | 15 of 20 | 5 |
+| 793a2n1a, the tree before this change (old Then), 22 runs | 19 of 22 | 3 |
+| 793a2n1i | 10 of 10 | 0 |
+| 793a2n1j | 10 of 10 | 0 |
+
+  - Every Red of 793a2n1a is "no System block holds the note": the in-turn cue delivered nothing, or delivered after the turn's last tool result. A kept Red (`ACCEPTANCE_KEEP`) shows the debug log of the cause: the first step's classification answered `[]`, the second step's lookup finished 0.5 s after `turn.complete`, so no later tool result was left to carry it. That is the known limit of the cue ([793b320 The in-turn recall cue is built as 793b238 decided](#793b320-the-in-turn-recall-cue-is-built-as-793b238-decided): 9 of 10 twice before); no Red comes from the new Then, which is read only after a delivery. The rate today (23 of 30 on the final tree, 19 of 22 on the earlier tree) is lower than the 9 of 10 recorded before and varies with the machine's load and the API's speed; it is reported as measured.
+- **Rationale:** the owner's original text states the promise at the point the requirement names; the generic wording had dropped it.
+- **Alternatives:** keep the generic Then and name the point in the harness only (the promise would not be in the spec); three new step definitions (30 instead of 27).
+- **Amends:** [793b277 The Gherkin step lines of the 43 product scenarios use a fixed vocabulary of 27 steps](#793b277-the-gherkin-step-lines-of-the-43-product-scenarios-use-a-fixed-vocabulary-of-27-steps) (its second row, for these three scenarios) and [793e2i Step catalog](./793e_implementation-plan.md#793e2i-step-catalog) (step 14).
+
+## 793b323 Owner answer 2: the backlog cut-off is one fixed point, install time minus 7 days
+
+- **Decided by:** Owner (Joe, 2026-10-13), answer (d): the cut-off is a fixed point, the install time minus 7 days, recorded at the first run in the mark file; it is not a rolling window; a source that ended after it stays eligible until it is captured, whatever gaps there are between sessions; nothing before it is mined. Author for the mark file keys and the reading of "install time" as the first run of the mod, awaiting owner validation.
+- **Choice:** the mark file `backlog-marks.json` gains `installed` (the time of the first run) and `cutoff` (that time minus 7 days), written once, by the first turn's capture mark or the first backlog scan, whichever comes first, and never rewritten; a file written by the earlier version, with none, gets them at its next run and keeps its marks. A source is eligible when it changed at or after `cutoff` and has been quiet for 15 minutes; the 7-day upper age limit is gone. Contract tests (`tests/backlog.test.ts`): the cut-off is recorded at the first run as the install time minus 7 days; a source from before it is not mined and one from after it is; a source after the cut-off is still captured 30 days later while one from before it never is; a later run keeps the recorded cut-off; a first run with nothing to capture still records it; a mark file with no cut-off gets one. The tests of the other mod files stub the extra write.
+- **Rationale:** a rolling window drops a session that ended after the install if the machine is idle for a week; a fixed point bounds the first scan of a machine with years of sessions and loses nothing after it.
+- **Alternatives:** the rolling 7-day window ([793b310 The backlog scan: the mod's mark file, quiet and age limits, windows, and one source per turn](#793b310-the-backlog-scan-the-mods-mark-file-quiet-and-age-limits-windows-and-one-source-per-turn)); the time the mod directory was installed (not visible to the mod).
+- **Amends:** [793b310 The backlog scan: the mod's mark file, quiet and age limits, windows, and one source per turn](#793b310-the-backlog-scan-the-mods-mark-file-quiet-and-age-limits-windows-and-one-source-per-turn) (its age limit), [793d19a](./793d_technical-spec.md#793d19a-security) (the clause "up to 7 days old", edited to match, the ratified risks unchanged), and the backlog row of [793e8g Backlog capture](./793e_implementation-plan.md#793e8g-backlog-capture).
+
+## 793b324 Owner answer 3: the residual-risk statement 793d19a is ratified as written, with the near outcome kept
+
+- **Decided by:** Owner (Joe, 2026-10-13), answer (a): ratify [793d19a](./793d_technical-spec.md#793d19a-security) as written; the `near` outcome of curation is kept.
+- **Choice:** the opening of 793d19a now says it is ratified. The only other edit is the consequence of [793b323 Owner answer 2: the backlog cut-off is one fixed point, install time minus 7 days](#793b323-owner-answer-2-the-backlog-cut-off-is-one-fixed-point-install-time-minus-7-days): "up to 7 days old" became "ended after the install time minus 7 days" (author, for the owner to see).
+- **Rationale:** the owner's answer.
+- **Alternatives:** none (the owner chose among ratify, drop `near` and ratify with changes).
+- **Amends:** [793b315 An opus implementation and security review of the PoC returned "targeted fixes first"](#793b315-an-opus-implementation-and-security-review-of-the-poc-returned-targeted-fixes-first) (its status).
+
+## 793b325 Owner answer 4: a real Pi session file read, and the fixture and the reader checked against it
+
+- **Decided by:** Owner (Joe, 2026-10-13), answer (a): read one real `~/.pi` session file read-only, compare it with the harness fixture builder and the mod's backlog reader, fix what differs, record the shape (structure only, no content). Rows [793a5j1d](./793a_product-spec.md#793a5j1-uat-scenarios) and [793a5c1b](./793a_product-spec.md#793a5c1-uat-scenarios) stay `Not run`. Author for the fixes, awaiting owner validation.
+- **Finding (the real shape, Pi session version 3, read from one 7-row file of 2026-07-28 and checked by structure against the 52 files under `~/.pi/agent/sessions`):**
+  - Directory: `--<working directory without its first slash, slashes as dashes>--` (for example `--Users-joe-repos-personal-pi-skills--`), not Claude Code's slug. File: `<ISO time with : and . as dashes>_<uuid>.jsonl`.
+  - Rows, by `type`: `session` (`version` 3, `id`, `timestamp`, `cwd`), `model_change` (`provider`, `modelId`), `thinking_level_change`, `message`, `compaction` (`summary`, `firstKeptEntryId`, `tokensBefore`, `details`), `custom_message` (`customType`, `content` a string, `details`: an inter-session message), `custom` (`data`), `session_info` (`name`). Every row after the first has `id`, `parentId` and `timestamp`.
+  - A `message` row holds `message` with a numeric `timestamp` and a `role` of `user`, `assistant` or `toolResult`. User content is an array of `text` blocks. An assistant message holds `thinking` blocks (`thinking`, `thinkingSignature`), `text` blocks and `toolCall` blocks (`id`, `name`, `arguments`), with `api`, `provider`, `model`, `usage` (`input`, `output`, `cacheRead`, `cacheWrite`, `reasoning`, `totalTokens`, `cost`), `stopReason` (`toolUse` or `stop`) and `responseId`. A `toolResult` message holds `toolCallId`, `toolName`, `content` (text blocks) and `isError`. Across the 52 files: 8,688 message rows (303 user, 4,313 assistant, 4,072 toolResult).
+- **Differences and fixes:** the reader was right: it takes the rows of type `message` with role `user` or `assistant` and their `text` blocks, reads a `toolCall` block's `name`, and ignores `thinking`, the `toolResult` role, `custom_message`, `custom`, `compaction` and `session_info`; a contract test with a file of the real row types shows that nothing but the user's and the agent's text enters the window. The fixture builder differed: it wrote only a `session` row and bare messages, with the Claude Code slug as the directory. `lib/ended.js` now writes the real shape (the three leading rows, numeric message timestamps, thinking blocks, a shell tool call answered by a `toolResult`, `usage`, `stopReason`, the Pi directory name), tested first. The rows [793a3a1j](./793a_product-spec.md#793a3a1-uat-scenarios) (3 examples, 10 runs each), [793a3a1k](./793a_product-spec.md#793a3a1-uat-scenarios) (2 examples, 10 runs each) and [793a5c1c](./793a_product-spec.md#793a5c1-uat-scenarios) (10 runs) were Green in every run on the new fixtures, with the cut-off of [793b323](#793b323-owner-answer-2-the-backlog-cut-off-is-one-fixed-point-install-time-minus-7-days) in the mod.
+- **Rationale:** a fixture is evidence only if it has the shape of what it stands for.
+- **Alternatives:** none.
+- **Amends:** [793b312 The ended sessions of the backlog scenarios are back-dated fixtures kept with a copy, and the Pi Thens read the fixture](#793b312-the-ended-sessions-of-the-backlog-scenarios-are-back-dated-fixtures-kept-with-a-copy-and-the-pi-thens-read-the-fixture) (the Pi file's format).
+
+## 793b326 Owner answer 5: turn.step leaves the purview list; the pass-through contract test is the guard
+
+- **Decided by:** Owner (Joe, 2026-10-13), answer (a): `turn.step` is not on the list of events that could change the session; the contract test that shows the step hook passes everything on is the guard.
+- **Choice:** the choice [793b320 The in-turn recall cue is built as 793b238 decided](#793b320-the-in-turn-recall-cue-is-built-as-793b238-decided) made as the author's is the owner's. `steps/housekeeping.js` keeps `turn.step` out of `PURVIEW_EVENTS` with its comment; the guard is `tests/step.test.ts` ("the chunks and the result of a step pass as they were, and a step without a tool call is no job"), which shows the input (model and effort included), the chunks and the result pass unchanged.
+- **Rationale:** the owner's answer.
+- **Alternatives:** keep it on the list (the acceptance check would fail for the hook that makes the in-turn cue).
+- **Amends:** [793b320 The in-turn recall cue is built as 793b238 decided](#793b320-the-in-turn-recall-cue-is-built-as-793b238-decided) (its purview choice, now the owner's).
+
+## 793b327 ID map for 793b322 to 793b326
+
+- **Decided by:** Author (agent); awaiting owner validation.
+- **Choice:** added (each checked with `git log -S`: unused): `793b322` to `793b327`. Retired: none. No heading is retitled.
 - **Rationale:** the guide: removed IDs are not reused.
 - **Alternatives:** none.

@@ -19,19 +19,42 @@ function stamp(base, index) {
   return new Date(base + index * 1000).toISOString()
 }
 
+// piDirName is how Pi names the session directory of a working directory (read from ~/.pi/agent/sessions, 793b325):
+// two dashes, the path without its first slash with a dash for each slash, two dashes. Not Claude Code's slug.
+export function piDirName(directory) {
+  return `--${directory.replace(/^[/\\]/, '').replace(/[/\\:]/g, '-')}--`
+}
+
+const PI_MODEL = { api: 'anthropic-messages', provider: 'anthropic', model: 'claude-sonnet-5-5' }
+const PI_USAGE = { input: 1200, output: 80, cacheRead: 0, cacheWrite: 0, reasoning: 0, totalTokens: 1280, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } }
+
+// piRows is the file Pi (version 3) writes, in the shape of a real one: a session row, a model change, a thinking-level
+// change, then one message row per message, each with a numeric timestamp inside the message; an assistant message holds
+// thinking, text and tool-call blocks with its model, usage and stop reason, and a tool call is answered by a message
+// whose role is toolResult. The first assistant turn runs one shell command, so that the file holds the roles the
+// backlog must not read as the conversation. `turns` are the user's and the agent's words, in order.
 function piRows({ id, cwd, startedAt, turns }) {
-  const rows = [{ type: 'session', version: PI_VERSION, id, timestamp: stamp(startedAt, 0), cwd }]
-  let parent = null
-  turns.forEach(([role, text], index) => {
-    const rowId = `${role[0]}${index}`
-    rows.push({
-      type: 'message',
-      id: rowId,
-      parentId: parent,
-      timestamp: stamp(startedAt, index + 1),
-      message: { role, content: [{ type: 'text', text }] },
-    })
+  const rows = [
+    { type: 'session', version: PI_VERSION, id, timestamp: stamp(startedAt, 0), cwd },
+    { type: 'model_change', id: 'mc0', parentId: null, timestamp: stamp(startedAt, 0), provider: PI_MODEL.provider, modelId: PI_MODEL.model },
+    { type: 'thinking_level_change', id: 'tl0', parentId: 'mc0', timestamp: stamp(startedAt, 0), thinkingLevel: 'off' },
+  ]
+  let parent = 'tl0'
+  let tick = 0
+  const add = (rowId, message) => {
+    tick += 1
+    rows.push({ type: 'message', id: rowId, parentId: parent, timestamp: stamp(startedAt, tick), message: { ...message, timestamp: startedAt + tick * 1000 } })
     parent = rowId
+  }
+  let ran = false
+  turns.forEach(([role, text], index) => {
+    if (role === 'user') return add(`u${index}`, { role, content: [{ type: 'text', text }] })
+    const assistant = (content, stopReason) => ({ role, content: [{ type: 'thinking', thinking: '', thinkingSignature: 'sig' }, ...content], ...PI_MODEL, usage: PI_USAGE, stopReason, responseId: `resp-${index}` })
+    if (ran) return add(`a${index}`, assistant([{ type: 'text', text }], 'stop'))
+    ran = true
+    add(`a${index}`, assistant([{ type: 'text', text }, { type: 'toolCall', id: `call-${index}`, name: 'bash', arguments: { command: 'go test ./...' } }], 'toolUse'))
+    add(`r${index}`, { role: 'toolResult', toolCallId: `call-${index}`, toolName: 'bash', content: [{ type: 'text', text: 'ok  \texample.com/work\t0.4s' }], isError: false })
+    return undefined
   })
   return rows
 }
@@ -73,7 +96,7 @@ export function writeEnded(scenario, { harness, turns, ageMs = DEFAULT_AGE_MS })
   let file
   let rows
   if (harness === 'Pi') {
-    const dir = path.join(scenario.home, '.pi', 'agent', 'sessions', slugOf(cwd))
+    const dir = path.join(scenario.home, '.pi', 'agent', 'sessions', piDirName(cwd))
     fs.mkdirSync(dir, { recursive: true })
     file = path.join(fs.realpathSync(dir), `${stamp(startedAt, 0).replace(/[:.]/g, '-')}_${id}.jsonl`)
     rows = piRows({ id, cwd, startedAt, turns })

@@ -1,8 +1,8 @@
 // The System's mod (793e2c): maps the events of the delivery moments to the moment job and adds what it returns
 // through the channel each event has: prompt context, tool-result context, subagent-start context (793b192).
 import {
-  MARKS_NAME, SOURCES_PER_TURN, baseName, chunksDirectory, nextWindows, parseManifest, parseMarks, pending, windowsDone, withProgress, withSource,
-  withTurns,
+  MARKS_NAME, SOURCES_PER_TURN, baseName, chunksDirectory, nextWindows, parseManifest, parseMarks, pending, windowsDone, withCutoff, withProgress,
+  withSource, withTurns,
 } from './backlog.js'
 import {
   amendArgv, backlogSourceFor, learnArgv, messagesFromTranscript, neighbours, parseLessons, queryText, recentNote, recentTexts,
@@ -228,7 +228,8 @@ async function markTurns($) {
   if (!state.transcript) return
   const dir = await chunksDir($)
   const marks = await readMarks($, dir)
-  await $.fs.write(`${dir}/${MARKS_NAME}`, JSON.stringify(withTurns(marks, baseName(state.transcript), await $.clock.now())))
+  const now = await $.clock.now()
+  await $.fs.write(`${dir}/${MARKS_NAME}`, JSON.stringify(withTurns(withCutoff(marks, now), baseName(state.transcript), now)))
 }
 
 // A file the platform will not read whole (over 4 MiB) is read from its tail by `tail -c`; the first line is then cut
@@ -269,9 +270,15 @@ const unreadable = new Set()
 async function backlog($) {
   const dir = await chunksDir($)
   const sources = parseManifest(await readTranscript($, `${dir}/manifest.json`))
-  const marks = await readMarks($, dir)
+  const now = await $.clock.now()
+  let marks = await readMarks($, dir)
+  // the first run records the cut-off, install time minus 7 days, once (793b323)
+  if (!Number.isFinite(marks.cutoff)) {
+    marks = withCutoff(marks, now)
+    await writeMarks($, dir, marks)
+  }
   let looked = 0
-  for (const source of pending(sources, marks, { now: await $.clock.now(), live: state.transcript })) {
+  for (const source of pending(sources, marks, { now, live: state.transcript })) {
     if (unreadable.has(source.path)) continue
     if (looked >= SOURCES_PER_TURN) return
     looked += 1

@@ -29,6 +29,7 @@ const logs: string[] = []
 
 // bottom stands for the engine: the transcript file does not exist yet, the log goes nowhere, and the prompt enters.
 function bottom(on: any, transcript: { text: string | null } = { text: null }) {
+  on('fs.write', async () => ({ value: undefined }))
   on('fs.read', async () => (transcript.text === null ? { deny: 'ENOENT' } : { value: transcript.text }))
   on('ui.log', async (_$: any, e: any) => {
     logs.push(e.text ?? e.line ?? JSON.stringify(e))

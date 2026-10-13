@@ -76,7 +76,7 @@ Scenario: 793a2n1a Recall happens without the agent running it
   And the vault holds a note "N" whose situation is "declaring a Go package rename done"
   And the user has not asked for any memory command
   When a turn completes in which "the working agent reaches the point of declaring the rename done"
-  Then the transcript shows note "N" delivered with the instruction to apply it before the agent's next response or tool call
+  Then the transcript shows note "N" delivered with the instruction to apply it before the declaration
   And the transcript shows no request from the System to the agent to run a memory command, or to evaluate, approve, write or curate a note
 
 Scenario: 793a2n1e No result, nothing delivered
@@ -109,14 +109,14 @@ Scenario: 793a2n1i Please's orientation receives relevant notes
   Given the System is installed
   And the vault holds a note "N" whose situation is "planning a documentation change"
   When a turn completes in which "the user gives please the ask 'add a section on releases to the README'"
-  Then the transcript shows note "N" delivered with the instruction to apply it before the agent's next response or tool call
+  Then the transcript shows note "N" delivered with the instruction to apply it before please's first response or tool call
   And the transcript shows no request from the System to the agent to run a memory command, or to evaluate, approve, write or curate a note
 
 Scenario: 793a2n1j Tier evidence is delivered before a dispatch is routed
   Given the System is installed
   And the vault holds a note "E" whose situation is "routing a unit of Go test writing to a tier" and which says "a cheaper tier failed on this kind of work"
   When a turn completes in which "the orchestrator routes a unit of Go test writing through route"
-  Then the transcript shows note "E" delivered with the instruction to apply it before the agent's next response or tool call
+  Then the transcript shows note "E" delivered with the instruction to apply it before the orchestrator routes the unit
   And the transcript shows no request from the System to the agent to run a memory command, or to evaluate, approve, write or curate a note
 ```
 

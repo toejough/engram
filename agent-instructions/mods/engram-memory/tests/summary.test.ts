@@ -79,6 +79,7 @@ function world(on: any, options: Options = {}) {
     return { value: { isAnswered: true, text, usage: { input_tokens: 1, output_tokens: 1 } } }
   })
   on('fs.exists', async () => ({ value: true }))
+  on('fs.write', async () => ({ value: undefined }))
   on('fs.read', async (_$: any, e: any) => (options.files?.[e.path] === undefined ? { deny: 'ENOENT' } : { value: options.files[e.path] }))
   on('ui.log', async () => ({ value: undefined }))
   on('ui.status', async (_$: any, e: any) => {

@@ -4,10 +4,11 @@
 // from a line that imitates one). Every call on `$` is in register.js.
 import { dataDirectory } from './housekeeping.js'
 
-// A source is left alone while it may still be running (quiet), and history older than the age limit is not mined:
-// only the leftovers of the last days are the backlog.
+// A source is left alone while it may still be running (quiet). History before the cut-off is not mined: the cut-off is
+// one fixed point, install time minus 7 days, recorded in the mark file at the first run (793b323). It is not a window
+// that moves: a source that ended after it stays eligible until it is captured, however long the sessions stopped.
 const QUIET_MS = 15 * 60 * 1000
-const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
+export const CUTOFF_MS = 7 * 24 * 60 * 60 * 1000
 // The rows a harness writes just after the last turn the System captured (a closing row, a flush) are not a turn: a
 // source changed by no more than this after that turn is covered by it. A turn that ends later is captured (793b317).
 const TURN_SLACK_MS = 10 * 1000
@@ -37,22 +38,30 @@ export function parseManifest(text) {
 
 // parseMarks reads the mark file: `sources` maps a source path to the hash of the file when its backlog capture
 // finished; `turns` maps a session's file name to the time its turns were last captured by the System itself;
-// `partial` maps a source path to the hash it had and the number of its windows (counted from the end) judged so far.
+// `partial` maps a source path to the hash it had and the number of its windows (counted from the end) judged so far;
+// `installed` and `cutoff` are the time of the first run and the fixed cut-off (that time minus 7 days), absent in a file
+// that has not had its first run yet.
 export function parseMarks(text) {
   if (text.trim() === '') return { sources: {}, turns: {}, partial: {} }
   const marks = JSON.parse(text)
   if (marks === null || typeof marks !== 'object' || typeof marks.sources !== 'object' || typeof marks.turns !== 'object') throw new Error('backlog marks are not {sources, turns}')
-  return { sources: marks.sources, turns: marks.turns, partial: marks.partial ?? {} }
+  const parsed = { sources: marks.sources, turns: marks.turns, partial: marks.partial ?? {} }
+  if (Number.isFinite(marks.cutoff)) parsed.cutoff = marks.cutoff
+  if (Number.isFinite(marks.installed)) parsed.installed = marks.installed
+  return parsed
 }
 
+// withCutoff records the first run: the install time and the cut-off, once. A mark file that has a cut-off keeps it.
+export const withCutoff = (marks, now) => (Number.isFinite(marks.cutoff) ? marks : { ...marks, installed: now, cutoff: now - CUTOFF_MS })
+
 // pending are the sources to capture, the most recently changed first: not the live session (by its file name), quiet
-// for a while, within the age limit, and neither marked with their present hash nor covered by the System's own turn
-// captures.
+// for a while, changed after the cut-off (none, while the marks hold no cut-off), and neither marked with their present
+// hash nor covered by the System's own turn captures.
 export function pending(sources, marks, { now, live }) {
   const liveName = live ? baseName(live) : null
   return sources
     .filter((source) => baseName(source.path) !== liveName)
-    .filter((source) => now - source.mtimeMs >= QUIET_MS && now - source.mtimeMs <= MAX_AGE_MS)
+    .filter((source) => now - source.mtimeMs >= QUIET_MS && Number.isFinite(marks.cutoff) && source.mtimeMs >= marks.cutoff)
     .filter((source) => marks.sources[source.path] !== source.hash)
     .filter((source) => !(baseName(source.path) in marks.turns && source.mtimeMs <= marks.turns[baseName(source.path)] + TURN_SLACK_MS))
     .sort((a, b) => b.mtimeMs - a.mtimeMs)

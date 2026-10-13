@@ -10,10 +10,13 @@ import { piTranscriptHoldsNoDelivery, piTranscriptUnchanged } from './backlog.js
 import { APPLY, NOT_BUILT, Q, REQUEST, lookupDeclined, mainRows, sentinelOf, subagentRows } from './shared.js'
 import {
   agentCalls,
+  declarationIndex,
   deliveries,
   finalReply,
+  dispatchIndexAfter,
   memoryCalls,
   noResponseBetween,
+  precedesFirstResponse,
   precedesResponse,
   readRows,
   resultIndex,
@@ -49,18 +52,21 @@ Then(
       "|()the (subagent's |Pi )?transcript shows no content delivered, the instruction to apply it included" +
       `|()the transcript shows note ${Q} delivered (\\d+) times? and retrieved by the agent (\\d+) times?` +
       `|()the working agent's dispatch text does not mention note ${Q}` +
-      `|()the transcript shows note ${Q} retrieved by the agent and not delivered by the System)$`,
+      `|()the transcript shows note ${Q} retrieved by the agent and not delivered by the System` +
+      `|()the transcript shows note ${Q} delivered with the instruction to apply it before (the declaration|please's first response or tool call|the orchestrator routes the unit))$`,
   ),
-  async function (isDelivered, subagent, delivered, isNone, noneOf, isCount, counted, times, fetched, isDispatch, dispatched, isFetched, fetchedOnly) {
-    if (isDelivered != null) {
+  async function (isDelivered, subagent, delivered, isNone, noneOf, isCount, counted, times, fetched, isDispatch, dispatched, isFetched, fetchedOnly, isUntil, untilNote, until) {
+    if (isDelivered != null || isUntil != null) {
+      const label = delivered ?? untilNote
       const groups = subagent ? await subagentRows(this) : [await mainRows(this)]
-      const sentinel = sentinelOf(this, delivered)
+      const sentinel = sentinelOf(this, label)
       const found = groups.flatMap((rows) => deliveries(rows, sentinel).map((block) => ({ rows, ...block })))
-      assert.ok(found.length > 0, `note "${delivered}" was not delivered to the ${subagent ? 'subagent' : 'working agent'}: no System block holds ${sentinel}`)
+      assert.ok(found.length > 0, `note "${label}" was not delivered to the ${subagent ? 'subagent' : 'working agent'}: no System block holds ${sentinel}`)
       const good = found.filter((block) => APPLY.test(block.text) && precedesResponse(block.rows, block.index) && (subagent || causedBy(block.rows, block.index, this.origin)))
-      assert.ok(good.length > 0, `note "${delivered}" was delivered, but not with the instruction to apply it before the agent's next response${this.origin ? ` at the prompt from ${this.origin}` : ''}`)
+      assert.ok(good.length > 0, `note "${label}" was delivered, but not with the instruction to apply it before the agent's next response${this.origin ? ` at the prompt from ${this.origin}` : ''}`)
       if (this.data.deliveredAfter) deliveredAtTheCue(this.data.deliveredAfter, found)
       if (this.data.deliveredMidTurn) deliveredMidTurn(found)
+      if (until) deliveredBefore(until, found, this.data.deliveredAfter)
     } else if (isNone != null) {
       if (noneOf === 'Pi ') return piTranscriptHoldsNoDelivery(this)
       const groups = noneOf === "subagent's " ? await subagentRows(this) : [await mainRows(this), ...(await subagentRows(this))]
@@ -90,6 +96,26 @@ Then(
     return undefined
   },
 )
+
+// deliveredBefore: the stronger "before" of the three scenarios whose wording names the point (793a2n1a, 793a2n1i,
+// 793a2n1j; 793b322). Every block that holds the note sits before that point of the transcript: the agent's declaration,
+// its first response or tool call, or the dispatch with which the orchestrator routes the unit.
+function deliveredBefore(until, found, cue) {
+  const rows = found[0].rows
+  if (until === 'the declaration') {
+    const declared = declarationIndex(rows)
+    assert.ok(declared >= 0, 'the agent made no declaration')
+    for (const block of found) assert.ok(block.index < declared, `the note was delivered at row ${block.index}, not before the declaration (row ${declared})`)
+  } else if (until === "please's first response or tool call") {
+    for (const block of found) assert.ok(precedesFirstResponse(rows, block.index), `the note was delivered at row ${block.index}, after please had already responded or called a tool`)
+  } else {
+    assert.ok(cue?.skill, 'the scenario names no route call to deliver before')
+    const call = toolCalls(rows).find((each) => each.name === cue.tool && each.input.skill === cue.skill)
+    assert.ok(call, `the orchestrator made no ${cue.skill} call`)
+    const routed = dispatchIndexAfter(rows, call.id)
+    for (const block of found) assert.ok(block.index < routed, `the note was delivered at row ${block.index}, not before the orchestrator routed the unit (row ${routed})`)
+  }
+}
 
 // deliveredAtTheCue: the note reached the agent at the tool result of the call the scenario names (a cue of the
 // mod), not earlier, at the prompt: every block that holds it sits after that call's result with no response between.

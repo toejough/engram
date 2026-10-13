@@ -99,3 +99,27 @@ test('subagent dispatches are the Agent and Task tool uses', () => {
   const rows = [{ type: 'assistant', message: { content: [{ type: 'tool_use', id: 'a', name: 'Agent', input: { prompt: 'p' } }, { type: 'tool_use', id: 'b', name: 'Bash', input: {} }] } }]
   assert.equal(agentCalls(rows).length, 1)
 })
+
+import { declarationIndex, dispatchIndexAfter, precedesFirstResponse } from '../lib/transcript.js'
+
+const SAY = (text) => ({ type: 'assistant', message: { content: [{ type: 'text', text }] } })
+const CALL = (id, name, input = {}) => ({ type: 'assistant', message: { content: [{ type: 'tool_use', id, name, input }] } })
+const RESULT = (id) => ({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: id, content: 'ok' }] } })
+
+test('the declaration is the last assistant row that says anything; a tool call alone is not one', () => {
+  const rows = [PROMPT, SAY('I will search.'), CALL('t1', 'Grep'), RESULT('t1'), SAY('The rename is done.')]
+  assert.equal(declarationIndex(rows), 4)
+  assert.equal(declarationIndex([PROMPT, CALL('t1', 'Grep'), RESULT('t1')]), -1)
+})
+
+test('a block precedes the first response only when no assistant row sits before it at all', () => {
+  assert.equal(precedesFirstResponse([PROMPT, block(`${MARKER} x`), SAY('ok')], 1), true)
+  assert.equal(precedesFirstResponse([PROMPT, CALL('t1', 'Grep'), RESULT('t1'), block(`${MARKER} x`)], 3), false)
+})
+
+test('the dispatch after a call is the next Agent or Task use after its result, or the declaration when there is none', () => {
+  const dispatched = [PROMPT, CALL('r', 'Skill'), RESULT('r'), block(`${MARKER} x`), CALL('d', 'Agent'), RESULT('d'), SAY('done')]
+  assert.equal(dispatchIndexAfter(dispatched, 'r'), 4)
+  assert.equal(dispatchIndexAfter([PROMPT, CALL('r', 'Skill'), RESULT('r'), SAY('done')], 'r'), 3)
+  assert.equal(dispatchIndexAfter([PROMPT, CALL('r', 'Skill'), RESULT('r')], 'r'), Infinity)
+})
