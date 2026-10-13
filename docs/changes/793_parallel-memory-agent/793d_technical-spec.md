@@ -31,6 +31,14 @@ How a hypothesis is settled. Every scenario below is a runnable experiment or a 
 | 11 | `$.model.complete({ model, prompt, system, maxTokens, timeoutMs })` returns `{ isAnswered, text, reason, usage }`; `model` is an alias (`haiku`, `sonnet`, `opus`) or a full id, billed to the [session](../../GLOSSARY.md#session)'s credentials. That the `haiku` alias resolves on this machine's subscription login | Verified (docs, declarations; tested, SP1: `haiku` answered on this login; the reply's `usage` holds token counts and does not name the model, which the debug log does: `$.model.complete (<mod>): <model id> answered in <n>ms`; the PoC's calls named `claude-haiku-5-5`) | [793d17c1a A model call is relayed on a named tier](#793d17c1-experiments) |
 | 12 | `$.ui.status(text)` pins one line under the prompt; it is not a [transcript](../../GLOSSARY.md#transcript) row; `claude -p` draws no status line | Verified (declarations). Tested (SP9): in a stream `$.ui.status` arrives as a `system` message of subtype `ui_status`, and is not a transcript row | [793d17b1a A message reaches the user and not the agent](#793d17b1-experiments) |
 | 13 | `turn.step` fires once per model request of the main agent (with `agentId` for a subagent's), its result carries the step's `answer`, `toolUses`, `stopReason` and `usage`, a job started there with `$.clock.after(0, ...)` can be awaited from the next `classic.PostToolUse` and its `additionalContext` reaches the model before the next assistant row; a wait there is cut at about 10 s | Verified (tested, SP16, [793b320](./793b_decision-log.md#793b320-the-in-turn-recall-cue-is-built-as-793b238-decided)) | [793d17a1a Each surface is probed for each capability the product needs](#793d17a1-experiments) |
+| 14 | The environment of a settings hook command lacks the session's credential, so a hook script that calls a model needs one of its own; a nested `claude -p` with `--setting-sources ""`, `--tools ""`, a short `--system-prompt`, `--disable-slash-commands`, `--strict-mcp-config` and `--no-session-persistence` answers on `haiku` (its result names `claude-haiku-5-5`) with 438 tokens of usage, against 23 for the mod's `$.model.complete`, and loads none of the hooks | Verified (tested, 793e8i, [793b335 The settings-hook column is the recorder's counterpart plus one script, installed by a settings merge](./793b_decision-log.md#793b335-the-settings-hook-column-is-the-recorders-counterpart-plus-one-script-installed-by-a-settings-merge)): the hook's environment held the probe's variables and not `CLAUDE_CODE_OAUTH_TOKEN`; the call needed the token under another name. The default flags were measured once in a development run, about 17,000 tokens and the hooks loaded again in the nested session; that run is not recorded | [793d17c1a A model call is relayed on a named tier](#793d17c1-experiments) |
+| 15 | A command hook's `timeout` defaults to 30 s on `UserPromptSubmit`; a longer job is cut off and the prompt goes on without its context; the `timeout` field of the entry avoids it | Verified (docs, [Hooks reference](https://code.claude.com/docs/en/hooks.md), Timeouts; tested, 793e8i): 25 s delivered at the default; cut off with `timeout` 10 (a `hook_cancelled` row) and at 35 s with the default; 35 s delivered with `timeout` 60 | [793d17c1b Work longer than the hook budget is awaited without the handler being cut off](#793d17c1-experiments) |
+| 16 | A hook's `systemMessage` is shown to the user in the conversation and is stored in the transcript file as an attachment row of type `hook_system_message`; the mod's `$.ui.status` line is pinned under the prompt and is in no transcript row | Verified (tested, 793e8i, tmux): both on screen; the hook's text in the transcript file, the mod's not; the model quoted neither when asked | [793d17b1a A message reaches the user and not the agent](#793d17b1-experiments) |
+| 17 | A settings hook that exits 1 leaves an attachment row of type `hook_non_blocking_error` in the transcript, with its stderr; a hook that succeeds leaves `hook_success` attachment rows and each `Stop` a `stop_hook_summary` system row; the mod adds none of these | Verified (tested, 793e8i): 4 of 4 failures left the row; the agent, asked for any hook error in its context, quoted none (0 of 4 uncontained runs); the main tour's hook set added 4 `stop_hook_summary` and 1 `hook_success` row | [793d17e1a A failure inside the surface leaves the session unaffected](#793d17e1-experiments), [793d17a1b Added context is attributable in the transcript](#793d17a1-experiments) |
+| 18 | Settings hooks placed in the `hooks.json` of a plugin linked into the skills directory fire with no settings edit | Verified (docs, [Mods reference](https://code.claude.com/docs/en/plugins/mods/reference.md), Files; tested, 793e8i): `SessionStart`, `UserPromptSubmit` and `Stop` fired, and `settings.json` held no hooks | [793d17d1a The mod loads in every session from the install path](#793d17d1-experiments) |
+| 19 | `UserPromptSubmit` fires for a task notification, a scheduled trigger and a peer message, and its input has no field that names the origin; the mod's `prompt.submit` carries `origin.kind` (`sdk`, `task-notification`, `scheduled-trigger`, `peer`) | Verified (tested, 793e8i): both surfaces saw all four prompts in the recorded run (and the hook column in three development reruns); the hook input holds `session_id`, `transcript_path`, `cwd`, `prompt_id`, `permission_mode`, `hook_event_name` and `prompt` | [793d17a1a Each surface is probed for each capability the product needs](#793d17a1-experiments) |
+| 20 | A mod timer callback that runs while the handler that set it is still open puts its calls in that handler's scope, and the next event waits for them; set as the last action of the handler, the callback does not delay it | Verified (tested, 793e8i, [793b337 Defects of the probes found by running them, and the platform behaviours they exposed](./793b_decision-log.md#793b337-defects-of-the-probes-found-by-running-them-and-the-platform-behaviours-they-exposed)): a 20 s job held the next prompt 22.8 s in the first form and 2.7 s in the second | [793d17c1c Background work does not delay the next event](#793d17c1-experiments) |
+| 21 | A settings hook registered with `async: true` does not delay the next prompt, and its `additionalContext` reaches the agent with the next conversation turn, not at a tool result | Verified (docs; tested, 793e8i): next prompt 3.2 s while a 20 s hook ran; the result arrived as an `async_hook_response` row before the next turn's first assistant row | [793d17c1c Background work does not delay the next event](#793d17c1-experiments) |
 
 ### 793d1b Terms
 
@@ -76,6 +84,8 @@ Disproved if any holds:
 - A "To verify" row on which a capability depends fails and no other mod capability replaces it.
 - The mod is inactive in a [session](../../GLOSSARY.md#session) of this machine where the settings hooks are active ([793d17d1a The mod loads in every session from the install path](#793d17d1-experiments)).
 - The settings hooks reach the same capability set with a lower surface total, or with any count lower than the mod's.
+
+Result on this machine: DISPROVED ([793d17g4 Verdict](#793d17g4-verdict), [793b338 H1 is disproved by its own rule on this machine](./793b_decision-log.md#793b338-h1-is-disproved-by-its-own-rule-on-this-machine)).
 
 ### 793d17a Capability coverage
 
@@ -217,6 +227,80 @@ Scenario: 793d17f1a The same behavior is counted on both surfaces
   And the report gives how many capabilities of 793d17a1a each surface achieved
   And the mod's surface is smaller when its total of the four counts is lower and none of the four is higher than the settings hooks'
 ```
+
+### 793d17g Results
+
+Run on 2026-10-13 on this machine: Claude Code 2.1.296, a macOS terminal, Agent SDK sessions on the sonnet model signed in with the subscription token, `targ acceptance 793d17` and then `targ h1-report`. The final run was 22 scenario runs reading 55 sessions in 6 min 22 s, 1.99 USD by the SDK's client-side estimate, and about 6 USD more went to the development runs before it (a first full run, reruns and labs, by the same estimate). The observations are `dev/acceptance/h1/results/*.json`, the report `results/report.md`; how the run was built is [793b334 H1 is run on shared tours, and the Thens assert the mod and record the settings hook](./793b_decision-log.md#793b334-h1-is-run-on-shared-tours-and-the-thens-assert-the-mod-and-record-the-settings-hook), [793b335 The settings-hook column is the recorder's counterpart plus one script, installed by a settings merge](./793b_decision-log.md#793b335-the-settings-hook-column-is-the-recorders-counterpart-plus-one-script-installed-by-a-settings-merge) and [793b336 The surfaces are counted by rule, over the probe files as built](./793b_decision-log.md#793b336-the-surfaces-are-counted-by-rule-over-the-probe-files-as-built), and what the runs corrected in the probes is [793b337 Defects of the probes found by running them, and the platform behaviours they exposed](./793b_decision-log.md#793b337-defects-of-the-probes-found-by-running-them-and-the-platform-behaviours-they-exposed). Scope as [793d17 H1: a Claude Code mod gives a smaller implementation surface and more capability than settings hooks](#793d17-h1-a-claude-code-mod-gives-a-smaller-implementation-surface-and-more-capability-than-settings-hooks): nothing is said of other environments.
+
+#### 793d17g1 Scenario results
+
+Before the steps were written the 11 scenarios (22 runs) had 110 undefined steps. After, 21 runs were Green and one Red (793d17e1b: the check counted the agent's own rows as rows the mod added, a fault of the check); with it corrected all 22 are Green. A Green run means the experiment ran and what the mod must do held; the hook column is in the observations.
+
+| Scenario | Result | What the run recorded |
+| --- | --- | --- |
+| [793d17a1a Each surface is probed for each capability the product needs](#793d17a1-experiments) (9 examples) | 9 Green | the mod achieved 9 of 9 capabilities, the settings hooks 9 of 9; the hook input names no origin; every origin arrived on the first try on both surfaces |
+| [793d17a1b Added context is attributable in the transcript](#793d17a1-experiments) | Green | each block is its own `hook_additional_context` row naming its hook event, on both surfaces; the typed prompts and the tool result equal the control run's; the hooks add 4 `stop_hook_summary` rows and 1 `hook_success` row, the mod none |
+| [793d17a1c The mod can read what the agent's context holds, through a compaction and a resume](#793d17a1-experiments) | Green | blocks listed at the five prompts: [0, 1, 0, 1, 1] on both surfaces, read from the transcript file; the mod's own ledger alone: [no, yes, no, yes, no] (it is lost on the resume) |
+| [793d17b1a A message reaches the user and not the agent](#793d17b1-experiments) | Green | both lines on screen under tmux; the mod's is in no transcript row, the hook's is in the transcript file as a `hook_system_message` row; the model quoted neither |
+| [793d17c1a A model call is relayed on a named tier](#793d17c1-experiments) | Green | mod: answered, 23 tokens, `claude-haiku-5-5` named in the debug log, 1.3 s (0.9 s and 2.5 s in two earlier full runs); hook: answered through `claude -p`, 438 tokens, the model named in the result, 2.0 s (1.8 s in both earlier runs); the latencies were taken with up to six sessions at once and are indicative, the token counts are exact |
+| [793d17c1b Work longer than the hook budget is awaited without the handler being cut off](#793d17c1-experiments) | Green | mod: 25 s awaited, own time 0 ms, turn 27.5 s; hook: delivered at the default 30 s, cut off with `timeout` 10, cut off at 35 s by default, delivered at 35 s with `timeout` 60 |
+| [793d17c1c Background work does not delay the next event](#793d17c1-experiments) | Green | the next prompt took 2.7 s (mod), 3.4 s (detached hook process), 3.2 s (async hook) while the 20 s job ran; the mod's result, done at 20.1 s, reached the agent at the first tool result after it, the detached hook's at the next `PostToolUse`, the async hook's at the next turn; the mod with the timer set before an API call held the next prompt 22.8 s |
+| [793d17d1a The mod loads in every session from the install path](#793d17d1-experiments) | Green | both surfaces saw startup, clear, resume and fork and handled a prompt in each; the debug log lists both modules and their events; `claude plugin validate` accepts both directories; hooks in a plugin's `hooks.json` fired with no settings edit |
+| [793d17e1a A failure inside the surface leaves the session unaffected](#793d17e1-experiments) (4 examples) | 4 Green | contained or not, on both surfaces: the prompt continued with its text and no block (8 of 8 per surface), the agent quoted no error (0 of 16); a contained failure warned the user 4 of 4 (mod `ui_status`, hook `systemMessage`); an uncontained hook left a `hook_non_blocking_error` row with its stderr 4 of 4, an uncontained mod nothing; containment code 3 lines on each surface |
+| [793d17e1b The mod changes nothing it must not](#793d17e1-experiments) | Green | the System's mod lists 9 events; its source holds no refusal object and its `turn.step` handler returns the step it was given; 138 contract tests pass; `claude plugin validate` passes with 5 gating-handler warnings (handlers that could deny and have no `.catch`; none denies); the same two commands in a live turn gave the same input, outcome and result with and without the mod, and the mod added no row |
+| [793d17f1a The same behavior is counted on both surfaces](#793d17f1-experiments) | Green | the counts of 793d17g3 |
+
+#### 793d17g2 Evidence table
+
+Handler lines are the lines of the handler a capability uses in the probe (a handler shared by two capabilities carries the lines of both).
+
+| Capability | Mod: possible | Hook: possible | Mod: handler lines (lines) | Hook: handler lines (lines) | Limit observed |
+| --- | --- | --- | --- | --- | --- |
+| prompts from every origin observed | yes | yes | 22 | 10 | the hook input names no origin; the notification and the peer message are told by their text |
+| text after the prompt, read by the model | yes | yes | 22 | 10 | none |
+| text next to a tool result | yes | yes | 9 | 4 | none |
+| text at a subagent's start, for it only | yes | yes | 9 | 4 | none |
+| a subagent's dispatch with its task prompt | yes | yes | 4 | 3 | the hook reads it from the `Agent` tool call (`PreToolUse`) |
+| a subagent's stop with path and last message | yes | yes | 22 | 3 | the file at the stop lacked the message in 2 of 2 runs of the mod and in 1 of 2 of the hook: poll the file |
+| the main transcript path at the start | yes | yes | 4 | 3 | none |
+| a compaction observed | yes | yes | 4 | 3 | the hook event is `PostCompact` and carries the summary |
+| a step with its text and tool calls, and a job's text at the next tool result | yes | yes | 21 | 17 | no step event for a hook: the text is read from the transcript file at the first `PostToolUse` after the step; the job starts one tool result later |
+| context attributable in the transcript | yes | yes | (the handlers above) | (the handlers above) | the hooks add 4 `stop_hook_summary` and 1 `hook_success` row |
+| what the context holds, through a compaction and a resume | yes | yes | 46 (4 + 4 + 38) | 24 | the mod's ledger alone is lost on a resume; both read the transcript file |
+| a line for the user outside the agent's context | yes | partly | (in the prompt handler) | (in the prompt handler) | the hook's line is a transcript row |
+| a model call on the cheapest tier | yes | yes | 6 | 6 | the hook has no credential of the session; 438 tokens against 23 and a subprocess |
+| work longer than 10 s | yes | yes | (in the prompt handler) | (in the prompt handler) | the hook is cut off at its `timeout`: 30 s by default on `UserPromptSubmit` |
+| background work that does not delay the next event | yes | yes | 17 (5 + 12) | 25 (8 + 17) | a mod timer must be set as the last action of its handler; a hook's job outlives it only if detached |
+| loaded in every kind of session from the install path | yes | yes | (the install) | (the install) | the hooks need a settings edit, or the plugin form |
+| a failure contained and shown | yes | yes | 3 | 3 | an uncontained hook leaves a `hook_non_blocking_error` row |
+| restraint (no deny, drop or answer) | yes | yes | (the System's mod) | not run | not run for the hooks: no System hook set exists |
+
+#### 793d17g3 Surface counts
+
+| Surface | Files deployed (files + links) | Handlers or hook entries (count) | Edits to user files (files) | Glue lines (lines) | Total of the four (count) | Handler lines (lines) | Processes started by the surface in the main tour (count) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| mod, as built | 8 (6 + 2) | 13 | 0 | 86 | 107 | 146 | 0 |
+| settings hooks, as built | 2 (2 + 0) | 10 | 1 | 81 | 94 | 79 | 27 |
+| settings hooks packaged as a plugin | 5 (4 + 1) | 10 | 0 | 90 | 105 | 79 | 27 |
+
+The mod has more files and links, more handlers and more glue than the hooks; the hooks have one more edit. A plugin's manifest, hooks file and link are 3 files wherever the mod is merged, so the file count of the mod does not fall to the hooks' under any packaging. The 27 processes are `node` commands (two scripts per event in this probe); the mod's handlers run in Claude Code's own worker.
+
+#### 793d17g4 Verdict
+
+| Condition of 793d17 | Holds | Evidence |
+| --- | --- | --- |
+| Confirmed if: capability | yes | 9 of 9 by the mod; 9 of 9 by the hooks, all of them also by the mod |
+| Confirmed if: channels | yes | context at the prompt of all four origins, at a tool result and at a subagent's start, each its own attributable row; the line on screen and not in the transcript |
+| Confirmed if: heavy work | yes | a haiku call answered, 25 s awaited with 0 ms of the handler's own time, a 20 s job without delaying the next prompt |
+| Confirmed if: load | yes | startup, clear, resume and fork, from the link in the skills directory |
+| Confirmed if: restraint | yes | four causes leave the session unaffected; no refusal object, `turn.step` passes through, 138 contract tests |
+| Confirmed if: smaller | no | total 107 against 94; higher for the mod: files, handlers, glue lines |
+| Disproved if: a capability the hooks achieve and the mod does not, or neither | no | none |
+| Disproved if: a "To verify" row fails | no | no such row remains |
+| Disproved if: the mod is inactive where the hooks are active | no | active in all four session kinds |
+| Disproved if: the hooks reach the same capability set with a lower total or any lower count | yes | same set (9 of 9 each); total 94 against 107; lower for files (2 against 8), entries (10 against 13) and glue lines (81 against 86) |
+
+Verdict: DISPROVED on this machine. The mod and the settings hooks both achieved every capability the product needs, so the clause of the disproof that applies is the counts: the hooks need fewer files, fewer entries, less glue and a lower total, and the mod wins only the edit to a user file (none against one), which the plugin form of the hooks also avoids at a total of 105. The first half of the hypothesis, a smaller surface, is therefore not supported; the second half, more capability, is not refuted but does not show up in the nine capabilities: the mod tells a prompt's origin, keeps its user line out of the transcript, makes a model call in 23 tokens without provisioning a credential or starting a process, and sees a step before its tool runs, while a hook set is smaller, runs in its own process (a crash is a notice row, a slow job cannot hold Claude Code's worker), works without the early-access mods runtime and, in its plugin form, installs the same way. What the hook surface can do that the mod cannot, as far as this run and the Hooks reference show: handler types that call a model or an HTTP endpoint without code (`prompt`, `agent`, `http`, `mcp_tool`), `async` with `asyncRewake`, `onFailure: "block"`, and hooks in managed settings that keep running when mods are restricted (documented, not run); none was needed for the nine. Whether the System's Claude Code side stays a mod is the owner's ([793c73](./793c_open-questions.md#793c73-does-the-systems-claude-code-side-stay-a-mod-now-that-h1-is-disproved-by-its-own-rule)).
 
 ## 793d18 H2: the cheapest capable model is adequate for every System judgement, and is faster and cheaper
 
