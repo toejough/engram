@@ -131,6 +131,7 @@ func Test793e8i_H1ReportPlan(t *testing.T) {
 	t.Parallel()
 
 	present := func(name string) (string, error) { return "/bin/" + name, nil }
+	installed := func(string) bool { return true }
 
 	t.Run("the report is one node command that saves the report beside the observations", func(t *testing.T) {
 		t.Parallel()
@@ -197,7 +198,7 @@ func Test793e8i_H1ReportPlan(t *testing.T) {
 			return "/bin/" + program, nil
 		}
 
-		_, err := h1ReportPlan(acceptanceEnv{Root: "/repo", LookPath: onlyClaudeMissing, Exists: func(string) bool { return true }})
+		_, err := h1ReportPlan(acceptanceEnv{Root: "/repo", LookPath: onlyClaudeMissing, Exists: installed})
 
 		g.Expect(err).NotTo(HaveOccurred())
 	})

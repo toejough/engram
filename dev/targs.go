@@ -60,8 +60,6 @@ var (
 	// The aggregates below mirror Targ's dependencies, order and mode with Engram's nil targets in place of Targ's
 	// (794b4a); Test794b4a1c fails when Targ's aggregates change. The dev package's tests carry build tags the
 	// shared test targets do not pass, so check-for-fail and check-full also run them here.
-	h1ReportTarget = targ.Targ(runH1Report).Name("h1-report").
-			Description("Report the H1 probes' observations: capability table, surface counts, ledger and verdict (793e8i)")
 	checkForFailTarget = targ.Targ(targdev.CheckForFail.Fn()).Name("check-for-fail").
 				Description(targdev.CheckForFail.GetDescription()).
 				Deps(
@@ -90,7 +88,9 @@ var (
 			targdev.DeleteDeadcode, targdev.Fmt, targdev.Tidy, targdev.Modernize, checkNilsTarget,
 			targdev.CheckCoverage, targdev.ReorderDecls, targdev.Lint, targdev.CheckThinAPI, lintDevTarget,
 		)
-	errEvalUsage  = errors.New("usage: targ eval <arm> [trials]  (nothing|skills-only|current-state)")
+	errEvalUsage   = errors.New("usage: targ eval <arm> [trials]  (nothing|skills-only|current-state)")
+	h1ReportTarget = targ.Targ(runH1Report).Name("h1-report").
+			Description("Report the H1 probes' observations: capability table, surface counts, ledger and verdict (793e8i)")
 	lintDevTarget = targ.Targ(lintDev).Name("lint-dev").
 			Description("Lint the dev package's build-tagged files (targ, integration)")
 	// mutateTarget reuses Targ's mutation run behind Engram's check-for-fail, as Targ's runs behind its own (794b4a).

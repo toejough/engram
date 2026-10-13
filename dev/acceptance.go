@@ -19,9 +19,9 @@ const (
 	acceptanceDryRun   = "--dry-run"
 	acceptanceModules  = "node_modules"
 	acceptancePlanSize = 3 // npm ci, self-tests, run
-	h1ReportPlanSize   = 2 // npm ci, report
 	acceptanceRunEntry = "run.js"
 	h1ReportEntry      = "h1/report.js"
+	h1ReportPlanSize   = 2 // npm ci, report
 	h1ReportWriteFlag  = "--write"
 	nodeProgram        = "node"
 	npmProgram         = "npm"
@@ -88,6 +88,28 @@ func acceptancePlan(args acceptanceArgs, env acceptanceEnv) ([]acceptanceCommand
 	return append(plan, acceptanceCommand{Name: nodeProgram, Args: runArgs}), nil
 }
 
+// acceptanceRoot finds the repository root from the working directory: the nearest ancestor that holds the package.
+func acceptanceRoot() (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("finding the repository root: %w", err)
+	}
+
+	for {
+		_, statErr := os.Stat(filepath.Join(dir, acceptanceDir, "package.json"))
+		if statErr == nil {
+			return dir, nil
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", fmt.Errorf("%w: none above the working directory", errAcceptanceRoot)
+		}
+
+		dir = parent
+	}
+}
+
 // h1ReportPlan returns the commands of one targ h1-report run (793e8i): the install of the package's dependencies when
 // they are missing, then the report of the H1 probes' observations, saved beside them.
 func h1ReportPlan(env acceptanceEnv) ([]acceptanceCommand, error) {
@@ -112,28 +134,6 @@ func h1ReportPlan(env acceptanceEnv) ([]acceptanceCommand, error) {
 		Name: nodeProgram,
 		Args: []string{filepath.Join(dir, h1ReportEntry), h1ReportWriteFlag},
 	}), nil
-}
-
-// acceptanceRoot finds the repository root from the working directory: the nearest ancestor that holds the package.
-func acceptanceRoot() (string, error) {
-	dir, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("finding the repository root: %w", err)
-	}
-
-	for {
-		_, statErr := os.Stat(filepath.Join(dir, acceptanceDir, "package.json"))
-		if statErr == nil {
-			return dir, nil
-		}
-
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "", fmt.Errorf("%w: none above the working directory", errAcceptanceRoot)
-		}
-
-		dir = parent
-	}
 }
 
 // requireAcceptancePrograms rejects a combination of arguments that cannot run, and names the first program the run
@@ -161,14 +161,14 @@ func requireAcceptancePrograms(args acceptanceArgs, lookPath func(string) (strin
 	return nil
 }
 
-// runH1Report runs the plan of h1ReportPlan from the repository root, streaming each command's output.
-func runH1Report(ctx context.Context) error {
+// runAcceptance runs the plan of acceptancePlan from the repository root, streaming each command's output.
+func runAcceptance(ctx context.Context, args acceptanceArgs) error {
 	root, err := acceptanceRoot()
 	if err != nil {
 		return err
 	}
 
-	plan, err := h1ReportPlan(acceptanceEnv{
+	plan, err := acceptancePlan(args, acceptanceEnv{
 		Root:     root,
 		LookPath: exec.LookPath,
 		Exists: func(path string) bool {
@@ -191,14 +191,14 @@ func runH1Report(ctx context.Context) error {
 	return nil
 }
 
-// runAcceptance runs the plan of acceptancePlan from the repository root, streaming each command's output.
-func runAcceptance(ctx context.Context, args acceptanceArgs) error {
+// runH1Report runs the plan of h1ReportPlan from the repository root, streaming each command's output.
+func runH1Report(ctx context.Context) error {
 	root, err := acceptanceRoot()
 	if err != nil {
 		return err
 	}
 
-	plan, err := acceptancePlan(args, acceptanceEnv{
+	plan, err := h1ReportPlan(acceptanceEnv{
 		Root:     root,
 		LookPath: exec.LookPath,
 		Exists: func(path string) bool {
