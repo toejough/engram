@@ -219,7 +219,7 @@ flowchart TD
   n793e8c["793e8c Capture at turn end<br/>Complete"]
   n793e8d["793e8d Housekeeping, purview and failure isolation<br/>Complete"]
   n793e8g["793e8g Backlog capture<br/>Ready"]
-  n793e8f["793e8f Summary, intentional memory and other harnesses<br/>In progress: 0/9 entries complete"]
+  n793e8f["793e8f Summary, intentional memory and other harnesses<br/>Complete"]
   n793e8h["793e8h Hypothesis scenarios updated to the PoC<br/>Blocked by: 793e8f, 793e8g"]
   n793e8i["793e8i H1 probe harness and verdict<br/>Blocked by: 793e8h"]
   n793e8j["793e8j H2 eval and verdict<br/>Blocked by: 793e8h"]
@@ -368,22 +368,22 @@ Verification: `targ acceptance 793a4j`, `793a4c`, `793a4b`; `claude plugin test`
 
 ### 793e8f Summary, intentional memory and other harnesses
 
-Verification: `targ acceptance 793a5h`, `793a5k`, `793a5c1a`, `793a5c1b`; `targ test`; `targ check-full`.
+Verification: `targ acceptance 793a5h`, `793a5k`, `793a5c`; `claude plugin test`; `targ test`; `targ check-full`. Result (2026-10-13): 793a5h1a, 1b, 1c, 1e, 793a5k1c, 1d (and 1e, already green) and 793a5c1a Green; 793a5c1b `Not run` (no headless Pi, SP14); 793a5c1c stays Pending for another node. `claude plugin validate` and `claude plugin test` (71 tests) pass, `targ test` and `targ check-full` pass. Three rows ran Red first (793a5h1a, 1c, 1e: no status line); 793a5h1b, 793a5k1c, 1d and 793a5c1a held before any new mod code and guard what the mod already did. The counts of 793a5h1a depend on the relevance, capture and curation judgements (three notes delivered, one lesson from a subagent, one near and one absent offer): the four summary scenarios ran 10 times each after the last change, 40 of 40 Green. The decisions are 793bQ1 to 793bQ3 of [793b_pending-793e8f.md](./793b_pending-793e8f.md). The summary and the warning share the one status line: a warning is shown when it happens, and the line after the turn carries each warning of the turn and then the summary.
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |
-| Activity counters in the [mod](./793d_technical-spec.md#793d1b-terms) (delivered, added, amended, curated across the [session](../../GLOSSARY.md#session) and its [subagents](../../GLOSSARY.md#subagent)), one line after the System's work for a turn, nothing for an empty turn, counts since the previous line | Dedicated example (mod contract) | Counting and reset are reachable with stubbed job results | Not started |
+| Activity counters in the [mod](./793d_technical-spec.md#793d1b-terms) (delivered, added, amended, curated across the [session](../../GLOSSARY.md#session) and its [subagents](../../GLOSSARY.md#subagent)), one line after the System's work for a turn, nothing for an empty turn, counts since the previous line | Dedicated example (mod contract) | Counting and reset are reachable with stubbed job results | Done |
 
 | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- |
-| [793a5h1a The summary shows the counts after a turn with events](./793a_product-spec.md#793a5h1-uat-scenarios) (read from the stream's status messages) | Dedicated example (acceptance) | Counts across a subagent session | Not started |
-| [793a5h1b Nothing is shown after a turn without events](./793a_product-spec.md#793a5h1-uat-scenarios) (read from the stream's status messages) | Dedicated example (acceptance) | No line | Not started |
-| [793a5h1c The summary is not in the agent's context](./793a_product-spec.md#793a5h1-uat-scenarios) | Dedicated example (acceptance) | The summary text is absent from the transcript and from the next reply | Not started |
-| [793a5h1e The counts cover the events since the previous summary](./793a_product-spec.md#793a5h1-uat-scenarios) (read from the stream's status messages) | Dedicated example (acceptance) | Counts reset between summaries | Not started |
-| [793a5k1c An intentional recall by the agent is allowed](./793a_product-spec.md#793a5k1-uat-scenarios) | Dedicated example (acceptance) | The System does not undo what a recall wrote | Not started |
-| [793a5k1d An intentional learn by the agent is allowed and is not undone](./793a_product-spec.md#793a5k1-uat-scenarios) | Dedicated example (acceptance) | One note after the turn and still there after the System's work | Not started |
-| [793a5c1a Unsupported harness](./793a_product-spec.md#793a5c1-uat-scenarios) (the unmodified Claude Code home variant; "identical" as in [793e2h Results](#793e2h-results)) | Dedicated example (acceptance) | Same install tree, mod not loaded, no System-attributed row | Not started |
-| [793a5c1b A Pi session on a machine whose Claude Code has the System](./793a_product-spec.md#793a5c1-uat-scenarios) (`Not run` unless SP14 shows a headless Pi: its Thens are about a Pi agent's behaviour and no fixture stands in) | Dedicated example (acceptance) | No delivery in the Pi transcript; the Pi agent's own ingest and learn unchanged | Not started |
+| [793a5h1a The summary shows the counts after a turn with events](./793a_product-spec.md#793a5h1-uat-scenarios) (read from the stream's status messages) | Dedicated example (acceptance) | Counts across a subagent session | Done |
+| [793a5h1b Nothing is shown after a turn without events](./793a_product-spec.md#793a5h1-uat-scenarios) (read from the stream's status messages) | Dedicated example (acceptance) | No line | Done |
+| [793a5h1c The summary is not in the agent's context](./793a_product-spec.md#793a5h1-uat-scenarios) | Dedicated example (acceptance) | The summary text is absent from the transcript and from the next reply | Done |
+| [793a5h1e The counts cover the events since the previous summary](./793a_product-spec.md#793a5h1-uat-scenarios) (read from the stream's status messages) | Dedicated example (acceptance) | Counts reset between summaries | Done |
+| [793a5k1c An intentional recall by the agent is allowed](./793a_product-spec.md#793a5k1-uat-scenarios) | Dedicated example (acceptance) | The System does not undo what a recall wrote | Done |
+| [793a5k1d An intentional learn by the agent is allowed and is not undone](./793a_product-spec.md#793a5k1-uat-scenarios) | Dedicated example (acceptance) | One note after the turn and still there after the System's work | Done |
+| [793a5c1a Unsupported harness](./793a_product-spec.md#793a5c1-uat-scenarios) (the unmodified Claude Code home variant; "identical" as in [793e2h Results](#793e2h-results)) | Dedicated example (acceptance) | Same install tree, mod not loaded, no System-attributed row | Done |
+| [793a5c1b A Pi session on a machine whose Claude Code has the System](./793a_product-spec.md#793a5c1-uat-scenarios) (`Not run` unless SP14 shows a headless Pi: its Thens are about a Pi agent's behaviour and no fixture stands in) | Dedicated example (acceptance) | No delivery in the Pi transcript; the Pi agent's own ingest and learn unchanged | Done |
 
 ### 793e8g Backlog capture
 
