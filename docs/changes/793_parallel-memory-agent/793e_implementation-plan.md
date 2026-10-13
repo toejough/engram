@@ -81,6 +81,7 @@ The rows of [793d1a What the hypotheses rely on in Claude Code mods](./793d_tech
 | SP13 | With streaming input the module keeps running its queue after `turn.complete` and until the session closes ([793b248 The session driver streams input and waits for the System's idle marker](./793b_decision-log.md#793b248-the-session-driver-streams-input-and-waits-for-the-systems-idle-marker)) | [793a3a Lessons are captured without the agent](./793a_product-spec.md#793a3a-lessons-are-captured-without-the-agent), [793a4j Indexing and curation happen after the turn](./793a_product-spec.md#793a4j-indexing-and-curation-happen-after-the-turn) | stop and ask the owner | Holds. A 2 s timer and a 6 s process job started in `turn.complete` finished 2 s and 6 s after it while the stream stayed open, and also when the driver closed the input 0.3 s after the result: the close waited 6.2 s for the work. So closing a session drains the System's work. `probes/SP13.js` |
 | SP14 | `pi` runs headless in an isolated home and writes a session file that the Transcript Reader parses | [793a5c1b A Pi session on a machine whose Claude Code has the System](./793a_product-spec.md#793a5c1-uat-scenarios), [793a5j1d One update serves both harnesses differently](./793a_product-spec.md#793a5j1-uat-scenarios) | those two rows are `Not run`; the Pi transcripts of [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios) and [793a5c1c A captured Pi session's transcript is left unchanged](./793a_product-spec.md#793a5c1-uat-scenarios) stay fixture inputs | Does not hold for a Pi agent. `pi` 0.83.0 runs headless (`-p`, `--session-dir`) in an isolated home but needs its own credentials: with none it answers `No API key found`; the subscription token is accepted but the model call is refused (`You're out of extra usage`). A session file is written and `engram ingest --transcript` reads it (0 chunks: no completed turn). The two Pi-behaviour rows are `Not run`; Pi transcripts stay fixture inputs. `probes/SP14.js` |
 | SP15 | The transcript sources with content not yet captured, and their stripped text, can be derived by the [mod](./793d_technical-spec.md#793d1b-terms) from what `engram ingest --auto` leaves on disk: the manifest of the chunks directory (source path to modification time, size and file hash), the chunk files, and the `source` of the notes capture writes | [793e8g Backlog capture](#793e8g-backlog-capture), and whether `engram backlog` exists ([793b278 The backlog scan reads the ingest manifest if SP15 shows it suffices; engram backlog stays only if it does not](./793b_decision-log.md#793b278-the-backlog-scan-reads-the-ingest-manifest-if-sp15-shows-it-suffices-engram-backlog-stays-only-if-it-does-not)) | keep the minimal command `engram backlog` of [793b256 The PoC orchestrates in JavaScript inside the mod over the existing engram commands](./793b_decision-log.md#793b256-the-poc-orchestrates-in-javascript-inside-the-mod-over-the-existing-engram-commands) | Holds. After `engram ingest --auto` the manifest lists each transcript source with `mtime_unix_nano`, `size` and `file_hash`, and the source's chunk file holds the stripped text per `turn-N` anchor, for Claude Code and Pi sessions alike. A mod-written mark `source → file_hash` leaves 2 sources uncaptured at first, 0 after marking, and the grown session again after one more turn: `engram backlog` is not needed. Two conditions: `--auto` skips sessions under a throwaway root, so the World writes `.engram/sweep.json` in the workspace; and the workspace sits under the home, so the ancestor `.claude` and `.pi` directories are the scenario's own. `probes/SP15.js` |
+| SP16 | `turn.step` gives the in-turn cue what it needs: the step's own text and tool calls in its result, the main agent told from a subagent, a background job started in the step hook that a later `classic.PostToolUse` can await and deliver from, with a hold of a few seconds | [793e8k Fixes from the implementation and security review](#793e8k-fixes-from-the-implementation-and-security-review), [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios) | the delivery rides `classic.PostToolUse` alone, one tool later | Holds, with limits ([793b320](./793b_decision-log.md#793b320-the-in-turn-recall-cue-is-built-as-793b238-decided), a throwaway probe of 23 sessions, recordings not kept): the input has no text, the result has `answer`, `toolUses`, `stopReason` and `usage`, `agentId` marks a subagent's steps, the step's messages are in `$.session.messages()` when the step returns, a job started with `$.clock.after(0, …)` was awaited from `PostToolUse` and its context reached the model before the next assistant row (6 of 6), a wait there is cut at about 10 s (8.8 s delivered, 14 s lost), and a pass-through step hook changes nothing visible. A step has text only when the agent narrates (1 of 1 without a request, 3 of 3 with one) |
 
 ### 793e2f Estimated owned code
 
@@ -220,6 +221,7 @@ flowchart TD
   n793e8d["793e8d Housekeeping, purview and failure isolation<br/>Complete"]
   n793e8g["793e8g Backlog capture<br/>Complete"]
   n793e8f["793e8f Summary, intentional memory and other harnesses<br/>Complete"]
+  n793e8k["793e8k Fixes from the implementation and security review<br/>Complete"]
   n793e8h["793e8h Hypothesis scenarios updated to the PoC<br/>Ready"]
   n793e8i["793e8i H1 probe harness and verdict<br/>Blocked by: 793e8h"]
   n793e8j["793e8j H2 eval and verdict<br/>Blocked by: 793e8h"]
@@ -227,8 +229,9 @@ flowchart TD
   n793e8c --> n793e8d
   n793e8c --> n793e8g
   n793e8d --> n793e8f
-  n793e8f --> n793e8h
-  n793e8g --> n793e8h
+  n793e8f --> n793e8k
+  n793e8g --> n793e8k
+  n793e8k --> n793e8h
   n793e8h --> n793e8i
   n793e8h --> n793e8j
 ```
@@ -315,12 +318,12 @@ Verification: `targ acceptance 793a2n` and `targ acceptance 793a2e`; `claude plu
 
 | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- |
-| [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios) (flaky by nature: the agent must reach the declaration; precondition retried) | Dedicated example (acceptance) | Done |
+| [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios) (re-driven by [793b320 The in-turn recall cue is built as 793b238 decided](./793b_decision-log.md#793b320-the-in-turn-recall-cue-is-built-as-793b238-decided): the task is in a file, the prompt does not say that the work is done, and the note must arrive after the first tool result, from the in-turn cue; judgement row: 9 of 10 runs Green, twice) | Dedicated example (acceptance) | Done |
 | [793a2n1e No result, nothing delivered](./793a_product-spec.md#793a2n1-uat-scenarios) | Dedicated example (acceptance) | Done |
 | [793a2n1g A subagent receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios) (precondition retried: the agent must dispatch) | Dedicated example (acceptance) | Done |
 | [793a2n1h A prompt from any source receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios) (human row live; the other three live if SP8 allows, else `Substituted: product promise unverified`) | Dedicated example (acceptance, outline) | Done |
 | [793a2n1i Please's orientation receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios) (precondition retried) | Dedicated example (acceptance) | Done |
-| [793a2n1j Tier evidence is delivered before a dispatch is routed](./793a_product-spec.md#793a2n1-uat-scenarios) (precondition retried: the agent must route through route) | Dedicated example (acceptance) | Done |
+| [793a2n1j Tier evidence is delivered before a dispatch is routed](./793a_product-spec.md#793a2n1-uat-scenarios) (the unit of work is in a file, not in the prompt, and every block that holds the note must sit after the result of the `route` call; precondition retried: the agent must route through route with the unit in its args; 9 of 10 runs Green; with the route cue disabled the row is Red) | Dedicated example (acceptance) | Done |
 | [793a2e1a Note delivered earlier is not delivered again](./793a_product-spec.md#793a2e1-uat-scenarios) | Dedicated example (acceptance) | Done |
 | [793a2e1c Note the agent retrieved itself is not delivered](./793a_product-spec.md#793a2e1-uat-scenarios) | Dedicated example (acceptance) | Done |
 | [793a2e1d A parent's note is still delivered to a subagent](./793a_product-spec.md#793a2e1-uat-scenarios) | Dedicated example (acceptance) | Done |
@@ -356,8 +359,8 @@ Verification: `targ acceptance 793a3a1a`, `793a3a1g`, `793a3a1h`, the first exam
 | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- |
 | [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios) (outline of three; the third row retries its precondition) | Dedicated example (acceptance, outline) | Same flow for a correction, a save request and a self-corrected cause | Done |
-| [793a3a1g A lesson in a subagent session is captured](./793a_product-spec.md#793a3a1-uat-scenarios) (precondition retried: the agent must dispatch) | Dedicated example (acceptance) | The note comes from the subagent's own transcript | Done |
-| [793a3a1h Two subagents contain the same lesson](./793a_product-spec.md#793a3a1-uat-scenarios) (precondition retried: the agent must dispatch both) | Dedicated example (acceptance) | Two subagents finish together; exactly one note | Done |
+| [793a3a1g A lesson in a subagent session is captured](./793a_product-spec.md#793a3a1-uat-scenarios) (precondition retried: the agent must dispatch; the parent's prompt does not state the lesson, the subagent corrects its own guess after reading a file, and the note's source must name that subagent; 10 of 10 runs Green) | Dedicated example (acceptance) | The note comes from the subagent's own transcript | Done |
+| [793a3a1h Two subagents contain the same lesson](./793a_product-spec.md#793a3a1-uat-scenarios) (precondition retried: the agent must dispatch both; the lesson is in the subagents' own sessions only; 10 of 10 runs Green) | Dedicated example (acceptance) | Two subagents finish together; exactly one note, whose source names a subagent | Done |
 | [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios) (first example only: the agent ran the learn skill in this turn; the other two are in [793e8g Backlog capture](#793e8g-backlog-capture)) | Dedicated example (acceptance, outline example) | Reconcile finds the agent's own note and writes nothing | Done |
 | [793a5j1b An existing install gains the System and keeps what it had](./793a_product-spec.md#793a5j1-uat-scenarios) (moved from [793e8e Install by engram update](#793e8e-install-by-engram-update), [793b291 793a5j1b is carried by the capture node; its install Thens run in this node and its Then order is changed](./793b_decision-log.md#793b291-793a5j1b-is-carried-by-the-capture-node-its-install-thens-run-in-this-node-and-its-then-order-is-changed)) | Dedicated example (acceptance) | Starts from a pre-System install tree; the delivery and install-tree Thens are Green, the capture Then is built here | Done |
 
@@ -420,6 +423,32 @@ Verification: `targ acceptance 793a3a1j`, `793a3a1k`, `793a5c1c`; `claude plugin
 | [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios) (second and third examples: Pi session already learned; lesson captured by an earlier Claude Code turn) | Dedicated example (acceptance, outline examples) | Reconcile and the mark prevent a second [note](./793a_product-spec.md#793a1-problem-statement) | Done |
 | [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios) (outline of two: a Pi session never learned; a Claude Code session killed mid-turn) | Dedicated example (acceptance, outline) | Same flow: a later turn captures what the ended session left | Done |
 | [793a5c1c A captured Pi session's transcript is left unchanged](./793a_product-spec.md#793a5c1-uat-scenarios) | Dedicated example (acceptance) | Byte comparison of the Pi transcript with its copy | Done |
+
+### 793e8k Fixes from the implementation and security review
+
+Added by the owner's instruction after [793b315 An opus implementation and security review of the PoC returned "targeted fixes first"](./793b_decision-log.md#793b315-an-opus-implementation-and-security-review-of-the-poc-returned-targeted-fixes-first): the PoC is corrected before the hypotheses are measured on it. Each fix has a failing contract test or acceptance row first; the decisions are [793b316](./793b_decision-log.md#793b316-the-acceptance-harness-makes-each-scenario-pass-through-the-mechanism-it-names) to [793b320](./793b_decision-log.md#793b320-the-in-turn-recall-cue-is-built-as-793b238-decided).
+
+Verification: `claude plugin validate` and `claude plugin test` (RESULT_TESTS); `npm test` of `dev/acceptance` (RESULT_NPM); `targ test` and `targ check-full`; the affected rows run 10 times each (below) and the whole `targ acceptance` once (RESULT_FULL).
+
+| Work | Classification | Why | Status |
+| --- | --- | --- | --- |
+| Harness honesty: the unit of work out of the prompt of 2n1j; the lesson only in the subagent's own session (3a1g, 3a1h, 5h1a) and the source naming the subagent; `noMemoryCommands` and the automatic source for 5j1b; `awaitIdle` from the last result; whole-word lesson patterns; the unrelated note and the mark file; a System precondition that fails is Red; narrowed `echo`; redacted error | Setup, and dedicated examples (harness unit tests, mutation check) | A scenario must not pass without the mechanism it names | Done |
+| Mod: the backlog reads the end first and consumes every window; the summary flag; the pairing of dispatches; the 8 s hold | Dedicated example (mod contract) | The review's confirmed defects | Done |
+| Mod, security: `--text=`/`--phrase=`, the `for:` name, skipped offers and the cap, the hash anchor, redaction | Dedicated example (mod contract) | Each is a confirmed bypass or denial of service | Done |
+| Trims: dead and duplicate code and stale references | Refactor | Nothing left that describes what does not exist | Done |
+| The in-turn recall cue (`turn.step` classification, delivery at the next tool result) | Dedicated example (mod contract, 16 tests) and 793a2n1a (acceptance) | [793b238](./793b_decision-log.md#793b238-delivery-has-two-model-judgements-on-the-cheapest-tier-moment-classification-and-a-relevance-filter) was the owner's decision and the PoC had cut it | Done |
+| Records: the review, the security statement, the stale pointers | Setup | [793b315](./793b_decision-log.md#793b315-an-opus-implementation-and-security-review-of-the-poc-returned-targeted-fixes-first), [793d19a](./793d_technical-spec.md#793d19a-security) | Done |
+
+| Judgement row, 10 runs each, the final tree | Green |
+| --- | --- |
+| 793a2n1a (the in-turn cue) | 9 of 10 (9 of 10 before the lookup deadline was moved from 4 s to 5 s) |
+| 793a2n1j | 9 of 10 |
+| 793a3a1g | 10 of 10 |
+| 793a3a1h | 10 of 10 |
+| 793a5h1a | 10 of 10 |
+| 793a5j1b | 10 of 10 |
+| 793a2e1c | 10 of 10 (it was Red once in the full run before the cue left alone a turn in which the agent runs memory itself) |
+| 793a4c1f | 9 of 10 (the Red is a note not delivered at the prompt) |
 
 ### 793e8h Hypothesis scenarios updated to the PoC
 
