@@ -131,7 +131,7 @@ The 27 step definitions that every scenario of the product spec is written in ([
 
 | # | Kind | Phrasing | What the definition does |
 | --- | --- | --- | --- |
-| 1 | Given | `the System is (installed \| not installed)` | installed: runs `engram update` (local mode) into the temporary HOME, or the stand-in link before [793e8e Install by engram update](#793e8e-install-by-engram-update); not installed: the same HOME without the mod |
+| 1 | Given | `the System is (installed \| not installed)` | installed: runs `engram update` (local mode) into the temporary HOME and records the install tree; not installed: the same HOME without the mod |
 | 2 | Given | `(Claude Code \| Pi) is (installed \| installed with the memory skills, guidance and shim \| not installed)` | the forms in use are `Claude Code is installed` (the `claude` on PATH, version 2.1.287 or later), `Pi is installed with the memory skills, guidance and shim` and `Pi is not installed` |
 | 3 | Given | `an engram install made before the System existed` | an update of the pre-System tree: skills, guidance and shim, no mod |
 | 4 | Given | `the vault holds (a note "N" whose situation is "S"[ and which says "T"] \| no matching note)` | seeds the note through `engram learn` with a unique sentinel in its body (or the stated text) |
@@ -215,8 +215,8 @@ A test row has one of `Not started`, `Red`, `Green-single`, `Green-all`, `Refact
 flowchart TD
   n793e8a["793e8a Harness skeleton and platform spikes<br/>Complete"]
   n793e8b["793e8b Delivery at the moments<br/>Complete"]
-  n793e8e["793e8e Install by engram update<br/>In progress: 0/8 entries complete"]
-  n793e8c["793e8c Capture at turn end<br/>Blocked by: 793e8e"]
+  n793e8e["793e8e Install by engram update<br/>Complete"]
+  n793e8c["793e8c Capture at turn end<br/>Ready"]
   n793e8d["793e8d Housekeeping, purview and failure isolation<br/>Blocked by: 793e8c"]
   n793e8g["793e8g Backlog capture<br/>Blocked by: 793e8c"]
   n793e8f["793e8f Summary, intentional memory and other harnesses<br/>Blocked by: 793e8d"]
@@ -309,25 +309,24 @@ Verification: `targ acceptance 793a2n` and `targ acceptance 793a2e`; `claude plu
 
 ### 793e8e Install by engram update
 
-Verification: `targ acceptance 793a5j`; the first Green-all re-runs `targ acceptance 793a2n` and `793a2e` with the real update in place of the stand-in link; `targ test`; `targ check-full`.
+Verification: `targ acceptance 793a5j`; the first Green-all re-runs `targ acceptance 793a2n` and `793a2e` with the real update in place of the stand-in link; `targ test`; `targ check-full`. Result (2026-10-12): 793a5j1a, 1c and 1l Green, 1d `Not run` (SP14: no headless Pi), 793a2n (9 runs) and 793a2e (5) Green on the real update, the full suite 18 Green, 1 Not run, 32 Pending (other nodes), none Red; 793a5j1b moved to [793e8c Capture at turn end](#793e8c-capture-at-turn-end) ([793b291 793a5j1b is carried by the capture node; its install Thens run in this node and its Then order is changed](./793b_decision-log.md#793b291-793a5j1b-is-carried-by-the-capture-node-its-install-thens-run-in-this-node-and-its-then-order-is-changed)). 793a5j1c is an absence guard: it is Green before the mod is deployed and guards against a preview that delivers.
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |
-| [Mod](./793d_technical-spec.md#793d1b-terms) copy planning for harnesses flagged to take mods, destination under the skills directory; the flag set for Claude Code only; the report lists the mod; registration scanning leaves the directory alone ([793b251 The mod deploys through the skills subtree and links, for Claude Code only](./793b_decision-log.md#793b251-the-mod-deploys-through-the-skills-subtree-and-links-for-claude-code-only)) | imptest | File-system plan and apply are the boundary; dry run writes nothing; a second run changes nothing | Not started |
-| `engram update` reports, with the mod's row, when the installed Claude Code is older than 2.1.287 ([793b220 793c66 is answered (a): the product promise covers the sessions in which mods run](./793b_decision-log.md#793b220-793c66-is-answered-a-the-product-promise-covers-the-sessions-in-which-mods-run)) | imptest | The owner keeps this one update-side report; a fake `claude --version` is the boundary. No product scenario names it | Not started |
-| `agent-instructions/mods/` is the source tree; the "[System](./793a_product-spec.md#793a1-problem-statement) is installed" step of the harness runs the real `engram update` and asserts the mod's link | Setup | Replaces the stand-in link of [793e8b Delivery at the moments](#793e8b-delivery-at-the-moments) | Not started |
+| [Mod](./793d_technical-spec.md#793d1b-terms) copy planning for harnesses flagged to take mods, destination under the skills directory; the flag set for Claude Code only; the report lists the mod; registration scanning leaves the directory alone ([793b251 The mod deploys through the skills subtree and links, for Claude Code only](./793b_decision-log.md#793b251-the-mod-deploys-through-the-skills-subtree-and-links-for-claude-code-only)) | Dedicated example (Go unit, the package's fakes: [793b289](./793b_decision-log.md#793b289-the-mod-is-deployed-as-a-whole-directory-the-version-check-runs-only-when-a-mod-is-planned-and-the-update-tests-use-the-packages-fakes)) | File-system plan and apply are the boundary; dry run writes nothing; a second run changes nothing | Done |
+| `engram update` reports, with the mod's row, when the installed Claude Code is older than 2.1.287 ([793b220 793c66 is answered (a): the product promise covers the sessions in which mods run](./793b_decision-log.md#793b220-793c66-is-answered-a-the-product-promise-covers-the-sessions-in-which-mods-run)) | Dedicated example (Go unit, the package's fakes) | The owner keeps this one update-side report; a fake `claude --version` is the boundary. No product scenario names it | Done |
+| `agent-instructions/mods/` is the source tree; the "[System](./793a_product-spec.md#793a1-problem-statement) is installed" step of the harness runs the real `engram update` and asserts the mod's link | Setup | Replaces the stand-in link of [793e8b Delivery at the moments](#793e8b-delivery-at-the-moments) | Done |
 
 | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- |
-| [793a5j1a Update installs the System for the harness it updates](./793a_product-spec.md#793a5j1-uat-scenarios) | Dedicated example (acceptance) | Claude Code present, Pi absent: a [session](../../GLOSSARY.md#session) runs with the System; no Pi directory | Red |
-| [793a5j1b An existing install gains the System and keeps what it had](./793a_product-spec.md#793a5j1-uat-scenarios) | Dedicated example (acceptance) | Starts from a pre-System install tree; the memory skills, guidance and shim remain | Red |
-| [793a5j1c A preview installs none of the System](./793a_product-spec.md#793a5j1-uat-scenarios) | Dedicated example (acceptance) | `--dry-run` then a session: nothing delivered | Green-single |
-| [793a5j1d One update serves both harnesses differently](./793a_product-spec.md#793a5j1-uat-scenarios) (`Not run` unless SP14 shows a headless Pi: its Then is about a Pi agent's behaviour and no fixture stands in) | Dedicated example (acceptance) | Claude Code part as [793a5j1a Update installs the System for the harness it updates](./793a_product-spec.md#793a5j1-uat-scenarios); the Pi session shows no delivered content and the Pi agent runs recall itself | Not started |
-| [793a5j1l Running update twice changes nothing](./793a_product-spec.md#793a5j1-uat-scenarios) | Dedicated example (acceptance) | Tree identical after the second update; behaviour identical in the sense of [793e2h Results](#793e2h-results) | Red |
+| [793a5j1a Update installs the System for the harness it updates](./793a_product-spec.md#793a5j1-uat-scenarios) | Dedicated example (acceptance) | Claude Code present, Pi absent: a [session](../../GLOSSARY.md#session) runs with the System; no Pi directory | Done |
+| [793a5j1c A preview installs none of the System](./793a_product-spec.md#793a5j1-uat-scenarios) | Dedicated example (acceptance) | `--dry-run` then a session: nothing delivered | Done |
+| [793a5j1d One update serves both harnesses differently](./793a_product-spec.md#793a5j1-uat-scenarios) (`Not run` unless SP14 shows a headless Pi: its Then is about a Pi agent's behaviour and no fixture stands in) | Dedicated example (acceptance) | Claude Code part as [793a5j1a Update installs the System for the harness it updates](./793a_product-spec.md#793a5j1-uat-scenarios); the Pi session shows no delivered content and the Pi agent runs recall itself | Done |
+| [793a5j1l Running update twice changes nothing](./793a_product-spec.md#793a5j1-uat-scenarios) | Dedicated example (acceptance) | Tree identical after the second update; behaviour identical in the sense of [793e2h Results](#793e2h-results) | Done |
 
 ### 793e8c Capture at turn end
 
-Verification: `targ acceptance 793a3a1a`, `793a3a1g`, `793a3a1h` and the first example of `793a3a1j`; `claude plugin test`; `targ test`; `targ check-full`.
+Verification: `targ acceptance 793a3a1a`, `793a3a1g`, `793a3a1h`, the first example of `793a3a1j` and `793a5j1b` (whose install Thens passed in [793e8e Install by engram update](#793e8e-install-by-engram-update); this node builds its capture Then); `claude plugin test`; `targ test`; `targ check-full`.
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |
@@ -340,6 +339,7 @@ Verification: `targ acceptance 793a3a1a`, `793a3a1g`, `793a3a1h` and the first e
 | [793a3a1g A lesson in a subagent session is captured](./793a_product-spec.md#793a3a1-uat-scenarios) (precondition retried: the agent must dispatch) | Dedicated example (acceptance) | The note comes from the subagent's own transcript | Not started |
 | [793a3a1h Two subagents contain the same lesson](./793a_product-spec.md#793a3a1-uat-scenarios) (precondition retried: the agent must dispatch both) | Dedicated example (acceptance) | Two subagents finish together; exactly one note | Not started |
 | [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios) (first example only: the agent ran the learn skill in this turn; the other two are in [793e8g Backlog capture](#793e8g-backlog-capture)) | Dedicated example (acceptance, outline example) | Reconcile finds the agent's own note and writes nothing | Not started |
+| [793a5j1b An existing install gains the System and keeps what it had](./793a_product-spec.md#793a5j1-uat-scenarios) (moved from [793e8e Install by engram update](#793e8e-install-by-engram-update), [793b291 793a5j1b is carried by the capture node; its install Thens run in this node and its Then order is changed](./793b_decision-log.md#793b291-793a5j1b-is-carried-by-the-capture-node-its-install-thens-run-in-this-node-and-its-then-order-is-changed)) | Dedicated example (acceptance) | Starts from a pre-System install tree; the delivery and install-tree Thens are Green, the capture Then is built here | Not started |
 
 ### 793e8d Housekeeping, purview and failure isolation
 
