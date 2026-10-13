@@ -219,7 +219,7 @@ flowchart TD
   n793e8c["793e8c Capture at turn end<br/>Complete"]
   n793e8d["793e8d Housekeeping, purview and failure isolation<br/>Complete"]
   n793e8g["793e8g Backlog capture<br/>Ready"]
-  n793e8f["793e8f Summary, intentional memory and other harnesses<br/>Ready"]
+  n793e8f["793e8f Summary, intentional memory and other harnesses<br/>In progress: 0/9 entries complete"]
   n793e8h["793e8h Hypothesis scenarios updated to the PoC<br/>Blocked by: 793e8f, 793e8g"]
   n793e8i["793e8i H1 probe harness and verdict<br/>Blocked by: 793e8h"]
   n793e8j["793e8j H2 eval and verdict<br/>Blocked by: 793e8h"]
