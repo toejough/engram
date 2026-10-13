@@ -325,6 +325,8 @@ describe('failures are contained and the user is warned', () => {
       'Automatic memory was skipped because of an error (the capture)',
       'Automatic memory was skipped because the System timed out (indexing)',
       'Automatic memory was skipped because the vault is unavailable (curation)',
+      // the status line holds one line (793b302): after the turn it carries all three warnings (793e8f)
+      'Automatic memory was skipped because of an error (the capture). Automatic memory was skipped because the System timed out (indexing). Automatic memory was skipped because the vault is unavailable (curation)',
     ])
     expect(commands()).toEqual(['engram query --limit', 'engram ingest --auto', 'grep -rl --include=*.md'])
   })

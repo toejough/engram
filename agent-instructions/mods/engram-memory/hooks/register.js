@@ -10,6 +10,7 @@ import {
 } from './housekeeping.js'
 import { captureRequest, curationRequest, parseCuration, parseSelection, relevanceRequest } from './judge.js'
 import { candidates, buildBlock, momentText, parseQuery, present, queryArgv, sinceCompaction } from './moment.js'
+import { emptyCounts, statusLine } from './summary.js'
 
 const MAIN = 'main'
 // a subagent's transcript file lags its stop event (SP5): it is polled this often, this many times
@@ -20,12 +21,18 @@ const POLL_TRIES = 20
 // the dispatch prompts of agent.spawn, in order, for the SubagentStart events that follow (SP5: start carries no prompt)
 const spawns = []
 const ledgers = new Map()
-const queue = { tail: Promise.resolve(), pending: 0, seam: [] }
+// `turnDone`: a top-level turn finished in the burst of jobs now in the queue, so its summary is due at the burst's end
+const queue = { tail: Promise.resolve(), pending: 0, seam: [], turnDone: false }
 // the notes this session wrote (basename, situation and text), kept to compare later windows with
 const written = []
 const state = {
   transcript: null,
   lastPrompt: '',
+  // what the System did since the last summary (793a5h), the warnings not yet reported with one, and whether the
+  // status line holds anything the System put there
+  counts: emptyCounts(),
+  warnings: new Set(),
+  lineShown: false,
   ledger(agent) {
     if (!ledgers.has(agent)) ledgers.set(agent, new Set())
     return ledgers.get(agent)
@@ -38,8 +45,11 @@ const CAPTURE_STEP = 'the capture'
 
 // warn shows the user, on the status line and nowhere else, that automatic memory was skipped and why. It never fails.
 async function warn($, step, kind) {
+  const text = warning(step, kind)
+  state.warnings.add(text)
+  state.lineShown = true
   try {
-    await $.ui.status(warning(step, kind))
+    await $.ui.status(text)
   } catch (error) {
     $.ui.log(`engram-memory: the warning could not be shown: ${error.message}`, { to: 'debug' })
   }
@@ -98,6 +108,7 @@ async function moment($, { agent, kind, text, readContext }) {
   const chosen = parseSelection(answered(reply, 'relevance'), fresh.length).map((index) => fresh[index])
   if (chosen.length === 0) return null
   for (const note of chosen) ledger.add(note.path)
+  state.counts.delivered += chosen.length
   return buildBlock(chosen)
 }
 
@@ -119,6 +130,7 @@ async function capture($, { window, sessionId, turn }) {
       continue
     }
     const note = recentNote(lesson, (await exec($, learnArgv(lesson, source), DEADLINE_MS.command)).stdout)
+    state.counts.added += 1
     if (note) written.push(note)
   }
 }
@@ -168,6 +180,9 @@ async function curateOne($, name) {
   const decision = parseCuration(answered(reply, 'curation'), near, redact)
   $.ui.log(`engram-memory: curation judged ${name} ${decision.outcome}${decision.target ? ` ${decision.target}` : ''} against ${near.length} nearest note(s)`, { to: 'debug' })
   for (const argv of settleArgvs(decision, name, shown.hash)) await exec($, argv, DEADLINE_MS.command)
+  // a reinforcing activation (covered) is not an amendment: only a near offer changes a note's claim (793b204)
+  state.counts.curated += 1
+  if (decision.outcome === 'near') state.counts.amended += 1
 }
 
 // curate scans the vault for pending offers the way the curate skill does (the query excludes them) and settles each.
@@ -185,15 +200,32 @@ async function housekeeping($) {
   await attempt($, () => curate($), 'curation')
 }
 
+// report shows the user the one line of the turn (793a5h): the summary of what the System did since the previous one,
+// with the warnings of the turn on the same line (793b302), or nothing; a turn with nothing to say clears the line a
+// previous turn left, so that a stale count is not read as this turn's. It runs once the System's work has finished.
+async function report($) {
+  const line = statusLine(state.counts, [...state.warnings])
+  state.counts = emptyCounts()
+  state.warnings.clear()
+  queue.turnDone = false
+  if (line === null && !state.lineShown) return
+  state.lineShown = line !== null
+  await $.ui.status(line ?? undefined)
+}
+
 // schedule returns at once: the job joins the queue from a timer, after the event has been answered. The last job of
 // the queue is followed by the housekeeping, so that the index is brought up to date once per burst of jobs.
-async function schedule($, job, step) {
+async function schedule($, job, step, { turn = false } = {}) {
   queue.pending += 1
+  if (turn) queue.turnDone = true
   await attempt($, () => seam($, 'queued'))
   $.clock.after(0, () => {
     queue.tail = queue.tail.then(async () => {
       await attempt($, job, step)
-      if (queue.pending === 1) await housekeeping($)
+      if (queue.pending === 1) {
+        await housekeeping($)
+        if (queue.turnDone) await attempt($, () => report($))
+      }
       queue.pending -= 1
       if (queue.pending === 0) await attempt($, () => seam($, 'idle'))
     }).catch(() => undefined)
@@ -219,7 +251,7 @@ export function register(on) {
     const turn = await attempt($, () => $.session.turns(), CAPTURE_STEP)
     const window = messages ? windowFromMessages(messages, e.answer ?? '') : ''
     // every completed turn is followed by the housekeeping, whether or not it has a window to capture
-    await schedule($, () => (window === '' ? undefined : capture($, { window, sessionId, turn })), CAPTURE_STEP)
+    await schedule($, () => (window === '' ? undefined : capture($, { window, sessionId, turn })), CAPTURE_STEP, { turn: true })
     return result
   })
 
