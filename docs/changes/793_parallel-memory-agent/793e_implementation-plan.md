@@ -243,6 +243,26 @@ The method of the [implementation plan guide](../../IMPLEMENTATION-PLAN-GUIDE.md
 
 The statuses are those of the guide: `Blocked by: <node IDs>`, `Ready`, `In progress: n/x entries complete`, `Complete`, `Merged`. The graph above carries each node's current status and changes in the commit that changes it.
 
+### 793e7a Full-suite result on the merged tree (a to g)
+
+Run on 2026-10-13 at `2b9a2ebf` (nodes 793e8a to 793e8g merged), nothing installed, token never printed.
+
+| Check | Result |
+| --- | --- |
+| `targ check-full` | 12 of 12 PASS: check-coverage-for-fail, check-uncommitted, reorder-decls-check, lint-fast, lint-full, deadcode, check-thin-api, check-nils-for-fail, test-integration, test-dev, test-dev-integration, lint-dev |
+| `claude plugin validate` (mod, temporary HOME and CLAUDE_CONFIG_DIR) | passed (the gating-hook-without-`.catch` lines are SP9's known warnings) |
+| `claude plugin test` (mod, same) | 93 pass, 0 fail, 5 files |
+| `targ acceptance` (full) | 51 runs: 48 Green, 1 Red, 2 `Not run` (793a5j1d, 793a5c1b: SP14, no headless Pi); SDK client-side cost 2.073 USD |
+
+| Row | Result (full run) | Re-runs |
+| --- | --- | --- |
+| every row except the three below | Green (793a2n1h 3/4 passed after 2 retried preconditions; 793a2n1a after 1) | not needed |
+| 793a5j1b | Red: no note in the vault states "use targ, not go test directly" | 3 of 3 Green (cost 0.063 USD) |
+| 793a5j1d | Not run (SP14) | n/a |
+| 793a5c1b | Not run (SP14) | n/a |
+
+Attribution of 793a5j1b: judgement miss. The failed Then is that the capture judgement (haiku) wrote no note for the lesson; the harness evaluated the scenario normally (an assertion, not an exception), and the same row with the same inputs and mod passed 3 of 3 alone, so it is neither a deterministic System bug nor a harness error. It matches the known least-reliable capture judgement ([793e8c Capture at turn end](#793e8c-capture-at-turn-end)). The pass rate over the full run plus re-runs is 3 of 4. No merge regression was found.
+
 ## 793e8 Test Catalog
 
 Every executable test name begins with its row's Gherkin ID; the acceptance suite's scenarios are named `<ID> <title>` by the scenario line itself. Acceptance rows are verified with `targ acceptance <ID>`.
