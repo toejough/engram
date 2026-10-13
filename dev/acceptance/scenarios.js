@@ -1,6 +1,26 @@
 // Scenario inputs (793b276): keyed by scenario ID, inputs only. A scenario with no entry here is not built yet.
 // `turns` maps the quoted event of a "a turn completes in which ..." step to the prompt that elicits it and the
 // observation that confirms the agent did it; the outcomes are asserted by the steps, never here.
+// 793e8f: the seeds of the summary scenarios. Three notes on one situation are three items for a delivery; a near offer
+// states the claim of one of them and adds a claim it lacks; an absent offer states a claim no note does. The quoted
+// events of a scenario name what the System does; the seeds and the prompt make the model do it (the counts are asserted
+// by the Then, never here).
+const TAGGING = 'tagging a release'
+const THREE_NOTES = [
+  { label: 'RA', situation: TAGGING, says: 'release tags are annotated tags' },
+  { label: 'RB', situation: TAGGING, says: 'release tags are signed with the maintainer key' },
+  { label: 'RC', situation: TAGGING, says: 'release tags are pushed to origin right after they are created' },
+]
+const ONE_NOTE = [THREE_NOTES[0]]
+const DELIVER_ONE = {
+  seeds: { notes: ONE_NOTE },
+  prompt: 'Next I am working on: tagging a release. Reply with one word: ok.',
+  observe: { delivered: true },
+  noMemoryCommands: true,
+  settle: true,
+}
+const NEUTRAL = { prompt: 'What is two plus two? Answer in one word.' }
+
 export default {
   '793a5k1e': {
     turns: {
@@ -199,4 +219,60 @@ export default {
   '793a4b1b': { turns: { 'the human submits a prompt': { prompt: 'What is two plus two? Answer in one word.' } } },
   '793a4b1c': { turns: { 'the human submits a prompt': { prompt: 'What is two plus two? Answer in one word.' } } },
   '793a4b1e': { turns: { 'the human submits a prompt': { prompt: 'What is two plus two? Answer in one word.' } } },
+
+  // 793e8f: the summary, intentional memory and other harnesses.
+  '793a5h1a': {
+    turns: {
+      "the System delivers 3 items, adds 1 note, amends 1 note and curates 2 offers, and a subagent's session produces 1 of the added notes": {
+        seeds: {
+          notes: THREE_NOTES,
+          offers: [
+            { label: 'ON', covers: 'RA', extend: 'and the tag message names the version being released' },
+            { label: 'OA' },
+          ],
+        },
+        prompt:
+          'Next I am working on: tagging a release. Dispatch a subagent with the Agent tool (type general-purpose) whose task is exactly: I ran `go test ./internal/cli`. No, run targ test, not go test. Acknowledge this in one sentence. Do not do the work yourself. When it returns, reply DONE.',
+        observe: { tool: /^(Agent|Task)$/, subagentsRead: /run targ test/ },
+        noMemoryCommands: true,
+      },
+    },
+  },
+  '793a5h1b': { turns: { 'the System delivers, adds, amends and curates nothing': NEUTRAL } },
+  '793a5h1c': {
+    turns: {
+      'the System delivers 1 item': DELIVER_ONE,
+      'the human submits the next prompt': NEUTRAL,
+    },
+  },
+  '793a5h1e': {
+    turns: {
+      'the System delivers 1 item': DELIVER_ONE,
+      'the System adds 1 note and nothing else': {
+        prompt: 'No, use the targ build system, not go test directly. Reply with one short sentence.',
+        noMemoryCommands: true,
+      },
+    },
+  },
+  '793a5k1c': {
+    turns: {
+      "the user says 'run /recall on how releases are tagged' and the agent runs the recall skill": {
+        prompt: '/recall how releases are tagged',
+        observe: { tool: 'Bash', command: /engram\s+query/ },
+      },
+    },
+  },
+  '793a5k1d': {
+    agentWrites: true,
+    lessons: { 'releases are tagged from main': /tag[\s\S]*main/i },
+    turns: {
+      "the user says 'remember that releases are tagged from main' and the agent runs the learn skill": {
+        prompt: 'Remember that releases are tagged from main. Save it now by running the learn skill with the Skill tool, then reply DONE.',
+        observe: { tool: 'Bash', command: /engram\s+learn\b/ },
+      },
+    },
+  },
+  '793a5c1a': { turns: { 'the human submits a prompt': NEUTRAL } },
+  // SP14: no headless Pi, so the Givens end the row `Not run` before any session
+  '793a5c1b': { turns: {} },
 }

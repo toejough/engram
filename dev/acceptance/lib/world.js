@@ -103,12 +103,14 @@ export class Scenario {
     return this.notes.get(label)
   }
 
-  // seedOffer puts a pending offer in the vault (793e2i step 5): one that states the claim of note `covers`, or a
-  // claim no note states.
-  async seedOffer(label, coversLabel) {
+  // seedOffer puts a pending offer in the vault (793e2i step 5): one that states the claim of note `covers` (and, with
+  // `extend`, one more), or a claim no note states.
+  async seedOffer(label, coversLabel, extend) {
     const covers = coversLabel ? this.notes.get(coversLabel) : null
     if (coversLabel && !covers) throw new Error(`no note "${coversLabel}" was seeded before the offer "${label}"`)
-    this.offers.set(label, await seedOffer(this, label, covers))
+    // a near offer: the note's claim and one more it does not state
+    const claim = covers && extend ? { ...covers, object: `${covers.object}; ${extend}` } : covers
+    this.offers.set(label, await seedOffer(this, label, claim))
     return this.offers.get(label)
   }
 

@@ -151,15 +151,26 @@ function subagentTexts(scenario) {
   return scenario.session ? scenario.session.subagentTranscripts().map((file) => fs.readFileSync(file, 'utf8')) : []
 }
 
+// seed puts a script's `seeds` in the vault before its prompt is sent (793e8f): the notes a delivery should find and
+// the pending offers housekeeping should settle. A near offer (`extend`) states the claim of its note and one more.
+async function seed(scenario, seeds = {}) {
+  for (const note of seeds.notes ?? []) await scenario.seedNote(note.label, note.situation, note.says)
+  for (const offer of seeds.offers ?? []) await scenario.seedOffer(offer.label, offer.covers, offer.extend)
+}
+
 // A script's `files` are input files of the workspace the prompt tells the agent to read: the situation of the turn
 // reaches the agent through a tool result, so the prompt itself does not state it.
 export async function runTurn(world, script) {
   world.typed = script.prompt
   const result = await attempt(
     world,
-    (scenario) => {
+    async (scenario) => {
       for (const [name, text] of Object.entries(script.files ?? {})) scenario.writeWorkspaceFile(name, text)
-      return sendPrompt(scenario, script.prompt)
+      await seed(scenario, script.seeds)
+      const sent = await sendPrompt(scenario, script.prompt)
+      // `settle`: the user reads the System's line before the next prompt (a summary counts since the previous one)
+      if (script.settle) await awaitIdle(scenario)
+      return sent
     },
     ({ turn, rows }) =>
       observed(rows, script.observe, turn.text, subagentTexts(world.scenario)) && constraintsHold(world, rows, script),

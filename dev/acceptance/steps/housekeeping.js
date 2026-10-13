@@ -12,6 +12,7 @@ import {
   SKIPPED,
   deliveries,
   finalReply,
+  memoryCalls,
   readRows,
   rowsMentioning,
   statusTexts,
@@ -19,9 +20,11 @@ import {
   toolCalls,
   typedRows,
 } from '../lib/transcript.js'
-import { APPLY, NOT_BUILT, Q, REQUEST, mainRows, quiesce, sentinelOf, subagentRows, vaultHolds } from './shared.js'
+import { APPLY, Q, REQUEST, mainRows, quiesce, sentinelOf, subagentRows, vaultHolds } from './shared.js'
 
 const MOD_NAME = 'engram-memory'
+// the fixed prefix of the System's summary line (mod: summary.js)
+const SUMMARY_PREFIX = 'Memory activity: '
 // An item line of a delivery: a path, the situation in brackets, then the text.
 const ITEM_LINE = /^- \S+\.md \(.*\): /
 // Events a mod could use to change a tool call's arguments or its permission, the model, or the prompt (793a4c).
@@ -67,9 +70,23 @@ Then(
       return acceptedOffer(this, offerLabel)
     }
     if (chunk) return chunkReturned(this)
-    return NOT_BUILT
+    return agentNotesRemain(this)
   },
 )
+
+// 793a5k: the notes the agent's own memory command wrote (the path `engram learn` prints, in the command's result)
+// are still in the vault once the System's work is idle: the System neither undid nor discarded them.
+async function agentNotesRemain(world) {
+  await quiesce(world)
+  const session = world.scenario.session
+  const written = memoryCalls(readRows(session.transcriptPath()))
+    .filter((call) => call.name === 'Bash' && /(^|[\s;&|(])engram\s+learn\b/.test(call.input.command ?? ''))
+    .flatMap((call) => (call.result?.text ?? '').split('\n'))
+    .map((line) => line.trim().split('/').at(-1))
+    .filter((name) => name.endsWith('.md'))
+  if (world.data.agentWrites) assert.ok(written.length > 0, "the agent's own memory command wrote no note: a precondition of the scenario did not hold")
+  for (const name of written) assert.ok(fs.existsSync(path.join(world.scenario.vault, name)), `the note ${name}, written by the agent's own memory command, is no longer in the vault`)
+}
 
 async function chunkReturned(world) {
   await quiesce(world)
@@ -211,15 +228,15 @@ Then(/^the only content the System added to the working agent's context is the d
 Then(
   new RegExp(
     '^(?:the user is shown a warning that automatic memory was skipped because (the vault is unavailable|of an error|the System timed out)' +
-      '|(the user is shown a one-line summary with (?:3 items delivered, 1 note added, 1 note amended and 2 offers curated|1 note added and no other count))' +
+      '|the user is shown a one-line summary with (3 items delivered, 1 note added, 1 note amended and 2 offers curated|1 note added and no other count)' +
       '|the user is shown no (warning|memory-activity summary)' +
       "|the (warning|summary) appears nowhere in the transcript( or in the working agent's next response)?)$",
   ),
-  async function (reason, isSummaryShown, noneOf, nowhereOf, _inResponse) {
-    if (isSummaryShown != null) return NOT_BUILT
+  async function (reason, counts, noneOf, nowhereOf, inResponse) {
+    if (counts != null) return summaryShown(this, counts)
     if (reason != null) return warningShown(this, reason)
-    if (noneOf != null) return noWarning(this, noneOf)
-    return warningNotInTranscript(this, nowhereOf)
+    if (noneOf != null) return noneOf === 'warning' ? noWarning(this) : noSummary(this)
+    return nowhereOf === 'warning' ? warningNotInTranscript(this) : summaryNotInContext(this, inResponse != null)
   },
 )
 
@@ -233,19 +250,59 @@ async function warningShown(world, reason) {
   return undefined
 }
 
-async function noWarning(world, what) {
-  if (what !== 'warning') return NOT_BUILT
+async function noWarning(world) {
   await quiesce(world)
   assert.deepEqual(statuses(world).filter((text) => SKIPPED.test(text)), [], 'the user was shown a warning')
   return undefined
 }
 
-async function warningNotInTranscript(world, what) {
-  if (what !== 'warning') return NOT_BUILT
+async function warningNotInTranscript(world) {
   await quiesce(world)
   assert.ok(statuses(world).some((text) => SKIPPED.test(text)), 'no warning was shown, so there is nothing to look for in the transcript')
   const groups = [await mainRows(world), ...(await subagentRows(world))]
   for (const rows of groups) assert.equal(rowsMentioning(rows, SKIPPED).length, 0, 'the warning is in the transcript')
+  return undefined
+}
+
+// ---- 793a5h: the summary --------------------------------------------------------------------------------------
+
+// summaries are the status messages that are a memory-activity summary (the warning may share the line, 793b302)
+const summaries = (world) => statuses(world).filter((text) => text.includes(SUMMARY_PREFIX))
+
+// "with COUNTS": the line says these counts; "and no other count" is a line that says nothing more.
+async function summaryShown(world, counts) {
+  await quiesce(world)
+  const shown = statuses(world)
+  const exact = counts.endsWith(' and no other count')
+  const expected = `${SUMMARY_PREFIX}${exact ? counts.slice(0, -' and no other count'.length) : counts}`
+  const found = summaries(world).filter((text) => (exact ? text.endsWith(expected) : text.includes(expected)))
+  assert.ok(found.length > 0, `no status message is a one-line summary with ${counts}; the status messages were ${JSON.stringify(shown)}`)
+  for (const text of found) assert.ok(!/[\r\n]/.test(text), 'the summary is not one line')
+  return undefined
+}
+
+async function noSummary(world) {
+  await quiesce(world)
+  assert.deepEqual(summaries(world), [], 'the user was shown a memory-activity summary')
+  return undefined
+}
+
+// the summary is out of the agent's context: no row of any transcript holds a line the user was shown, and the
+// agent's reply to the turn after it does not either
+async function summaryNotInContext(world, inResponse) {
+  await quiesce(world)
+  const lines = summaries(world)
+  assert.ok(lines.length > 0, 'no summary was shown, so there is nothing to look for in the transcript')
+  const groups = [await mainRows(world), ...(await subagentRows(world))]
+  for (const rows of groups) {
+    assert.equal(rowsMentioning(rows, new RegExp(SUMMARY_PREFIX.trim(), 'i')).length, 0, 'the summary is in the transcript')
+    for (const line of lines) assert.equal(rows.filter((row) => JSON.stringify(row).includes(line)).length, 0, `the summary line "${line}" is in the transcript`)
+  }
+  if (inResponse) {
+    const reply = finalReply(await mainRows(world))
+    for (const line of lines) assert.ok(!reply.includes(line), "the working agent's next response repeats the summary")
+    assert.ok(!/memory activity/i.test(reply), "the working agent's next response mentions the memory activity")
+  }
   return undefined
 }
 

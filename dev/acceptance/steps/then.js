@@ -5,7 +5,7 @@ import path from 'node:path'
 import { Then } from '@cucumber/cucumber'
 
 import { changes, lost } from '../lib/tree.js'
-import { currentSession, sendPrompt } from '../lib/turn.js'
+import { currentSession, sendPrompt, settle } from '../lib/turn.js'
 import { APPLY, NOT_BUILT, Q, REQUEST, mainRows, sentinelOf, subagentRows } from './shared.js'
 import {
   agentCalls,
@@ -15,6 +15,7 @@ import {
   precedesResponse,
   readRows,
   retrievals,
+  statusTexts,
   systemBlocks,
 } from '../lib/transcript.js'
 
@@ -146,7 +147,8 @@ Then(/^the install tree (is unchanged|has no Pi configuration|still holds the me
 Then(
   /^the (Claude Code|Pi) session behaves identically to (its behavior before the System existed|a session run after the first update)$/,
   async function (harness, baseline) {
-    if (harness !== 'Claude Code' || baseline !== 'a session run after the first update') return NOT_BUILT
+    if (harness !== 'Claude Code') return NOT_BUILT
+    if (baseline === 'its behavior before the System existed') return unchangedHome(this)
     assert.deepEqual(changes(treeBefore(this), this.scenario.snapshot()), [], 'the install tree changed')
     const session = await answered(this, 'What is two plus two? Answer in one word.')
     assert.ok(modLoaded(session), `the mod is not loaded as it was after the first update: plugins ${JSON.stringify(session.init?.plugins)}`)
@@ -155,6 +157,22 @@ Then(
     return undefined
   },
 )
+
+// 793a5c1a: a home without the System (the unmodified Claude Code variant) behaves as it did before the System
+// existed (793e2h): the install tree is what it was, the mod is not loaded, the System shows the user nothing and adds
+// nothing to the transcript, and the System's seam is never written.
+async function unchangedHome(world) {
+  const scenario = world.scenario
+  const session = await answered(world, 'What is two plus two? Answer in one word.')
+  assert.deepEqual(changes(treeBefore(world), scenario.snapshot()), [], 'the install tree changed')
+  assert.ok(!modLoaded(session), `the ${MOD_NAME} mod is loaded in a home that does not have the System: plugins ${JSON.stringify(session.init?.plugins)}`)
+  assert.equal(session.turns.at(-1).isError, false, `the turn ended in an error: ${session.turns.at(-1).text.slice(0, 200)}`)
+  await settle()
+  assert.equal(systemBlocks(await mainRows(world)).length, 0, 'the System added content to a session of a home without it')
+  assert.deepEqual(scenario.sessions.flatMap((each) => statusTexts(each.messages)), [], 'the user was shown a message from the System')
+  assert.ok(!fs.existsSync(scenario.seamFile), 'the System recorded work in a home without it')
+  return undefined
+}
 
 Then(
   /^the Pi (?:agent runs recall before acting|agent's own ingest and learn run and write as they would without the System|transcript is identical to its copy)$/,
