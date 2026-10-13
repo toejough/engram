@@ -17,7 +17,11 @@ const REDACTED = '[redacted]'
 // (an encoded secret), a run of wrapped lines of such characters (a key split across lines), a percent-encoded token
 // whose decoding is one of these. What no pattern describes (a short secret in prose, a base64 value that is not long)
 // is the residual risk: the judge is also told never to write a credential.
-const NAMED = /([\w.-]*(?:token|secret|passw(?:or)?d|pwd|api[-_ ]?key|apikey|credential|private[-_ ]?key|authorization)[\w.-]*["']?\s*(?::|=|\bis\b)\s*)("[^"\n]*"|'[^'\n]*'|\S+)/gi
+const NAMES = '(?:[\\w.-]*(?:token|secret|passw(?:or)?d|pwd|api[-_ ]?key|apikey|credential|private[-_ ]?key|authorization|[_-]key)[\\w.-]*|(?:[\\w.-]*[_-])?pass)'
+const NAMED = new RegExp(`(${NAMES}["']?\\s*(?::|=|\\bis\\b)\\s*)("[^"\\n]*"|'[^'\\n]*'|\\S+)`, 'gi')
+// a value assigned to a name that ends in key (`KEY=`, `monkey=`) and an Authorization header: the whole line is the value
+const KEY_ASSIGNED = /([\w.-]*key["']?\s*=\s*)("[^"\n]*"|'[^'\n]*'|\S+)/gi
+const AUTHORIZATION = /(\bauthorization["']?\s*[:=]\s*)[^\n]*/gi
 const SECRETS = [
   /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(-----END [A-Z ]*PRIVATE KEY-----|$)/g,
   /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g,
@@ -26,7 +30,8 @@ const SECRETS = [
   /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/g,
   /\bAIza[0-9A-Za-z_-]{30,}/g,
   /\bxox[abprs]-[A-Za-z0-9-]{10,}/g,
-  /\b(?:Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{12,}/gi,
+  /\bBearer\s+[A-Za-z0-9._~+/=-]+/gi,
+  /\bBasic\s+[A-Za-z0-9._~+/=-]{12,}/gi,
 ]
 const URL_USERINFO = /\b([a-z][a-z0-9+.-]*:\/\/)[^\s:@/]+:[^\s@/]+@/gi
 const LONG_TOKEN = /[A-Za-z0-9+_=]{32,}/g
@@ -34,15 +39,19 @@ const WRAPPED_LINES = /(?:^[ \t]*[A-Za-z0-9+/=_-]{20,}[ \t]*\r?\n){2,}/gm
 const WRAPPED_TOKEN = /([A-Za-z0-9_+/=-]{12,})[ \t]*\r?\n[ \t]*(?=[A-Za-z0-9_+/=-]{4,})/g
 const PERCENT_TOKEN = /\S*%[0-9A-Fa-f]{2}\S*/g
 
+// a 40-character hex run is a git commit hash far more often than a secret
+const GIT_SHA = /^[0-9a-f]{40}$/
 const mixed = (text) => /\d/.test(text) && /[A-Za-z]/.test(text)
 
 function redactOnce(text) {
   let result = text
   for (const pattern of SECRETS) result = result.replace(pattern, REDACTED)
   result = result.replace(URL_USERINFO, `$1${REDACTED}@`)
+  result = result.replace(AUTHORIZATION, (_match, name) => `${name}${REDACTED}`)
+  result = result.replace(KEY_ASSIGNED, (_match, name) => `${name}${REDACTED}`)
   result = result.replace(NAMED, (_match, name) => `${name}${REDACTED}`)
   result = result.replace(WRAPPED_LINES, (run) => (mixed(run) ? `${REDACTED}\n` : run))
-  return result.replace(LONG_TOKEN, (token) => (mixed(token) ? REDACTED : token))
+  return result.replace(LONG_TOKEN, (token) => (mixed(token) && !GIT_SHA.test(token) ? REDACTED : token))
 }
 
 function decoded(token) {

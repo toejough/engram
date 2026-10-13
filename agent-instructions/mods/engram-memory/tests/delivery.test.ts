@@ -34,9 +34,11 @@ function bottom(on: any, transcript: { text: string | null } = { text: null }) {
 
 function stubs(on: any, output: string, reply: string | (() => string), transcript?: { text: string | null }) {
   const calls: string[] = []
+  const argvs: string[][] = []
   const requests: any[] = []
   on('process.run', async (_$: any, e: any) => {
     calls.push(e.argv.join(' '))
+    argvs.push(e.argv)
     return { value: { exitCode: 0, stdout: output, stderr: '' } }
   })
   on('model.complete', async (_$: any, e: any) => {
@@ -45,7 +47,7 @@ function stubs(on: any, output: string, reply: string | (() => string), transcri
     return { value: { isAnswered: true, text: typeof reply === 'function' ? reply() : reply, usage: { input_tokens: 1, output_tokens: 1 } } }
   })
   bottom(on, transcript)
-  return { calls, requests }
+  return { calls, argvs, requests }
 }
 
 const PROMPT = { text: 'I just finished renaming the package. Is it done?', wait: false, origin: { kind: 'sdk' } }
@@ -61,7 +63,7 @@ describe('prompt delivery', () => {
     expect(result.context[0]).toContain('SENTINEL-N')
     expect(calls.length).toBe(2)
     expect(calls[0].startsWith('engram query --limit 10 --text')).toBe(true)
-    expect(calls[0]).toContain('--phrase declaring work done')
+    expect(calls[0]).toContain('--phrase=declaring work done')
     expect(calls[1]).toBe('model')
     expect(requests[0].model).toBe('haiku')
   })
@@ -96,6 +98,16 @@ describe('prompt delivery', () => {
     const second = await $.prompt.submit(PROMPT)
     expect(second.context ?? []).toEqual([])
     expect(calls.filter((call) => call === 'model').length).toBe(1)
+  })
+
+  test('free text that starts with a dash is a value of its flag, never a flag: --text= and --phrase= forms', async ($: any, on: any) => {
+    const { argvs } = stubs(on, EMPTY_OUTPUT, '[]')
+    await $.prompt.submit({ ...PROMPT, text: '--limit 99 --phrase rename check' })
+    const query = argvs[0]
+    expect(query.filter((arg) => arg === '--text' || arg === '--phrase')).toEqual([])
+    expect(query.filter((arg) => arg === '--limit')).toEqual(['--limit'])
+    expect(query).toContain('--text=--limit 99 --phrase rename check')
+    expect(query).toContain('--phrase=--limit 99 --phrase rename check')
   })
 
   test('a failing query leaves the prompt as typed', async ($: any, on: any) => {
@@ -143,7 +155,7 @@ describe('cues', () => {
     const route = await $.classic.PostToolUse({ tool_name: 'Skill', tool_input: { skill: 'route', args: 'write Go tests' }, tool_response: '', tool_use_id: 't2' })
     expect(route.additionalContext.length).toBe(1)
     expect(route.additionalContext[0]).toContain('[engram memory]')
-    expect(calls[0]).toContain('--phrase routing a unit of work to a model tier')
+    expect(calls[0]).toContain('--phrase=routing a unit of work to a model tier')
   })
 
   test('a subagent receives the notes for its dispatch prompt at its start, whatever its parent holds', async ($: any, on: any) => {
@@ -154,6 +166,6 @@ describe('cues', () => {
     await $.agent.spawn({ tool_use_id: 't', prompt: 'add tests for internal/cli', description: 'tests', subagentType: 'general-purpose' })
     const start = await $.classic.SubagentStart({ agent_id: 'a1', agent_type: 'general-purpose' })
     expect(start.additionalContext.length).toBe(1)
-    expect(calls.filter((call) => call.includes('--text add tests for internal/cli')).length).toBe(1)
+    expect(calls.filter((call) => call.includes('--text=add tests for internal/cli')).length).toBe(1)
   })
 })

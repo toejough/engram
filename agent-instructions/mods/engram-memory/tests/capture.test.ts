@@ -223,6 +223,33 @@ describe('capture at turn end', () => {
     expect(requests[0].prompt).toContain('No, use targ.')
   })
 
+  test('secrets of the shapes a review probed do not reach the judgement: a name ending in KEY or PASS, pass: and a Bearer token with a dot', async ($: any, on: any) => {
+    const secrets = ['OPENAIVALUE123', 'dbhunter2value', 'passhunter2value', 'abc.def', 'headerpart.second', 'trailing words']
+    const lines = [
+      'No, use targ.',
+      `OPENAI_KEY=${secrets[0]}`,
+      `DB_PASS=${secrets[1]}`,
+      `pass: ${secrets[2]}`,
+      `curl -H "Authorization: Bearer ${secrets[3]}"`,
+      `Authorization: Bearer ${secrets[4]} ${secrets[5]}`,
+      `MY_SERVICE_KEY: ${secrets[0]}2`,
+    ]
+    const messages = lines.map((text, index) => ({ role: index === 0 ? 'user' : 'assistant', text, toolUses: [] }))
+    const { requests, clock } = stubs(on, EMPTY_OUTPUT, ['[]'], { messages })
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    for (const secret of [...secrets, `${secrets[0]}2`]) expect(requests[0].prompt, secret).not.toContain(secret)
+    expect(requests[0].prompt).toContain('No, use targ.')
+  })
+
+  test('a git commit hash is not mistaken for a secret', async ($: any, on: any) => {
+    const sha = '3f786850e387550fdab836ed7e6dc881de23001b'
+    const { requests, clock } = stubs(on, EMPTY_OUTPUT, ['[]'], { messages: [{ role: 'user', text: `No, revert commit ${sha}, use targ.`, toolUses: [] }] })
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    expect(requests[0].prompt).toContain(sha)
+  })
+
   test('what a tool took in or gave back never enters the window, only the name of the tool', async ($: any, on: any) => {
     const messages = [
       { role: 'user', text: 'Please read the page.', toolUses: [] },

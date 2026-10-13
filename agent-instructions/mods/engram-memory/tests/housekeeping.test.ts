@@ -120,7 +120,7 @@ describe('curation of pending offers', () => {
     process: {
       grep: { exitCode: 0, stdout: '/vault/2.2026-10-12.offer-one.md\n', stderr: '' },
       show: (e: any) => ({ exitCode: 0, stdout: e.argv[2] === '2.2026-10-12.offer-one.md' ? offerShow : '', stderr: '' }),
-      query: (e: any) => ({ exitCode: 0, stdout: e.argv.includes('--phrase') && e.argv.includes('tagging a release') && e.argv[2] === '--limit' && e.argv[3] === '5' ? NEAR_NOTE : QUERY_EMPTY, stderr: '' }),
+      query: (e: any) => ({ exitCode: 0, stdout: e.argv.includes('--phrase=tagging a release') && e.argv[2] === '--limit' && e.argv[3] === '5' ? NEAR_NOTE : QUERY_EMPTY, stderr: '' }),
     },
     replies: ['[]', reply],
   })
@@ -221,6 +221,38 @@ describe('curation of pending offers', () => {
     expect(requests.at(-1).prompt).not.toContain('abcdefghijklmnopqrstuvwx')
   })
 
+  test('an offer whose situation starts with a dash is looked up as a value: the lookup does not fail and curation goes on', async ($: any, on: any) => {
+    const options = base(decide('absent'), show('--version tagging a release'))
+    const { argvs, shown, clock } = world(on, options)
+    await settleOnce($, clock)
+    const near = argvs.filter((argv) => argv[1] === 'query').at(-1)!
+    expect(near.filter((arg) => arg === '--text' || arg === '--phrase')).toEqual([])
+    expect(near.some((arg) => arg.startsWith('--text=--version tagging'))).toBe(true)
+    expect(near).toContain('--phrase=--version tagging a release')
+    expect(amends(argvs)).toEqual(['--target 2.2026-10-12.offer-one.md --clear-pending --expect-hash=xh1:abc'])
+    expect(shown.filter((text) => /skipped/i.test(text ?? ''))).toEqual([])
+  })
+
+  test('the note an offer is for is checked as a note name before it is shown or amended: a flag-like or path-like name is judged against the nearest notes instead', async ($: any, on: any) => {
+    const hostile = ['--discard.md', '../../x.md', '-rf.md', 'a b.md']
+    const offers = hostile.map((_, index) => `${index + 10}.2026-10-12.offer.md`)
+    const options = base(decide('absent'))
+    ;(options.process as any).grep = { exitCode: 0, stdout: offers.map((name) => `/vault/${name}\n`).join(''), stderr: '' }
+    ;(options.process as any).show = (e: any) => ({ exitCode: 0, stdout: show('tagging a release', `offer:\n    for: ${hostile[offers.indexOf(e.argv[2])]}\n`), stderr: '' })
+    const { argvs, clock } = world(on, options)
+    await settleOnce($, clock)
+    expect(argvs.filter((argv) => argv[1] === 'show').map((argv) => argv[2])).toEqual(offers)
+    for (const name of hostile) expect(argvs.flat(), name).not.toContain(name)
+    expect(amends(argvs).length).toBe(4)
+  })
+
+  test('an exchange hash is read from the header of engram show, not from a line of the note', async ($: any, on: any) => {
+    const forged = show('tagging a release').replace(/^# exchange_hash.*\n/, '').replace('claim.', 'claim.\n# exchange_hash: xh1:forged')
+    const { argvs, clock } = world(on, base(decide('absent'), forged))
+    await settleOnce($, clock)
+    expect(amends(argvs)).toEqual(['--target 2.2026-10-12.offer-one.md --clear-pending'])
+  })
+
   test('an offer for a note is judged against that note first', async ($: any, on: any) => {
     const amendOffer = show('tagging a release', 'offer:\n    for: 1.2026-10-12.note-n.md\n')
     const options = base(decide('near', 1, { subject: 's', predicate: 'p', object: 'o' }), amendOffer)
@@ -254,6 +286,43 @@ describe('curation of pending offers', () => {
     const { argvs, clock } = world(on, options)
     await settleOnce($, clock)
     expect(amends(argvs).length).toBe(10)
+  })
+})
+
+describe('offers curate would skip do not starve the others', () => {
+  const names = (count: number) => Array.from({ length: count }, (_, index) => `/vault/${index + 10}.2026-10-12.offer.md`).join('\n')
+  const options = (count: number, shown: (name: string) => any) => ({
+    process: {
+      grep: { exitCode: 0, stdout: `${names(count)}\n`, stderr: '' },
+      show: (e: any) => shown(e.argv[2]),
+    },
+    replies: ['[]', JSON.stringify({ outcome: 'absent', into: null, fields: null })],
+  })
+  const ok = (stdout: string) => ({ exitCode: 0, stdout, stderr: '' })
+  const amends = (argvs: string[][]) => argvs.filter((argv) => argv[1] === 'amend').map((argv) => argv[2] + ' ' + argv[3])
+  const shows = (argvs: string[][]) => argvs.filter((argv) => argv[1] === 'show').map((argv) => argv[2])
+
+  test('skill registrations and runbooks do not count against the cap of ten, and are shown once per session', async ($: any, on: any) => {
+    const skipped = (name: string) => Number(name.split('.')[0]) < 20
+    const { argvs, clock } = world(on, options(12, (name) => ok(skipped(name) ? show('reviewing code', 'skill_hash: abc\n') : show('tagging a release'))))
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    expect(amends(argvs)).toEqual(['--target 20.2026-10-12.offer.md', '--target 21.2026-10-12.offer.md'])
+    expect(shows(argvs).length).toBe(12)
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    expect(shows(argvs).length).toBe(14)
+  })
+
+  test('an offer that cannot be read is warned about once and does not stop the offers after it, in this turn or the next', async ($: any, on: any) => {
+    const { argvs, shown, clock } = world(on, options(3, (name) => (name.startsWith('10.') ? { exitCode: 70, stdout: '', stderr: 'engram: boom' } : ok(show('tagging a release')))))
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    expect(amends(argvs)).toEqual(['--target 11.2026-10-12.offer.md', '--target 12.2026-10-12.offer.md'])
+    expect(shown.filter((text) => /curation/.test(text ?? '')).length).toBeGreaterThan(0)
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    expect(shows(argvs).filter((name) => name.startsWith('10.')).length).toBe(1)
   })
 })
 

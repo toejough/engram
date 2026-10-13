@@ -20,23 +20,26 @@ export function pendingArgv(vault) {
   return ['grep', '-rl', '--include=*.md', '-e', '^pending: true$', vault]
 }
 
-// parseOffers: the file names of the grep output, the vault's README apart, at most MAX_OFFERS, in name order.
+// parseOffers: the file names of the grep output, the vault's README apart, in name order. The cap of MAX_OFFERS applies
+// to the offers settled in a run, not to the names listed: an offer that is skipped does not use it up.
 export function parseOffers(output) {
   return output
     .split('\n')
     .map((line) => line.trim().split('/').at(-1))
     .filter((name) => NOTE_NAME.test(name) && name !== 'README.md')
     .sort()
-    .slice(0, MAX_OFFERS)
 }
+
+// noteName is the name if it is a note file name engram could have written, else null.
+const noteName = (name) => (name && NOTE_NAME.test(name) ? name : null)
 
 export const showArgv = (name) => ['engram', 'show', name]
 
 // parseShow reads `engram show`: the exchange hash of the version shown (absent for a note with no xid), the front
 // matter fields curation needs, and the note's text.
 export function parseShow(output) {
-  const hash = /^# exchange_hash: (\S+)/m.exec(output)?.[1] ?? null
   const parts = output.split(/^---$/m)
+  const hash = /^# exchange_hash: (\S+)/m.exec(parts[0])?.[1] ?? null
   const front = parts[1] ?? ''
   const body = (parts.slice(2).join('---').split(/^# outbound links/m)[0] ?? '').replace(/\s+/g, ' ').trim()
   const field = (name) => new RegExp(`^${name}: (.*)$`, 'm').exec(front)?.[1]?.trim().replace(/^["']|["']$/g, '') ?? ''
@@ -46,14 +49,15 @@ export function parseShow(output) {
     situation: field('situation'),
     pending: /^pending: true$/m.test(front),
     skill: /^skill_hash:/m.test(front),
-    forNote: /^ {2,}for: (\S+)/m.exec(front)?.[1] ?? null,
+    forNote: noteName(/^ {2,}for: (\S+)/m.exec(front)?.[1]),
     body,
   }
 }
 
-// nearestArgv looks up the existing notes nearest to an offer; the query leaves pending offers out.
+// nearestArgv looks up the existing notes nearest to an offer; the query leaves pending offers out. Free text is
+// `--flag=value`: an offer's situation that starts with a dash must not be read as a flag.
 export function nearestArgv(offer) {
-  return ['engram', 'query', '--limit', String(NEAR_COUNT), '--text', `${offer.situation}. ${offer.body}`.slice(0, TEXT_LIMIT), '--phrase', offer.situation.slice(0, TEXT_LIMIT)]
+  return ['engram', 'query', '--limit', String(NEAR_COUNT), `--text=${`${offer.situation}. ${offer.body}`.slice(0, TEXT_LIMIT)}`, `--phrase=${offer.situation.slice(0, TEXT_LIMIT)}`]
 }
 
 // settleArgvs are the commands of an outcome, in curate's order: a covered offer reinforces the note and is folded

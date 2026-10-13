@@ -88,9 +88,10 @@ export function momentText(prompt) {
   return /<summary>([\s\S]*?)<\/summary>/.exec(prompt)?.[1].trim() ?? prompt
 }
 
-// queryArgv is the existing `engram query` for the text of a moment and its phrases.
+// queryArgv is the existing `engram query` for the text of a moment and its phrases; free text is `--flag=value` so
+// that a value that starts with a dash is not read as a flag.
 export function queryArgv(kind, text) {
-  const argv = ['engram', 'query', '--limit', String(ITEM_LIMIT), '--text', text.slice(0, TEXT_LIMIT)]
-  for (const phrase of PHRASES[kind](text)) argv.push('--phrase', phrase)
+  const argv = ['engram', 'query', '--limit', String(ITEM_LIMIT), `--text=${text.slice(0, TEXT_LIMIT)}`]
+  for (const phrase of PHRASES[kind](text)) argv.push(`--phrase=${phrase}`)
   return argv
 }

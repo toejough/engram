@@ -7,7 +7,7 @@ import {
 } from './capture.js'
 import { DEADLINE_MS, StepError, exitKind, kindOf, replyKind, spawnKind, warning } from './failure.js'
 import {
-  NEAR_COUNT, ingestArgv, nearestArgv, parseOffers, parseShow, pendingArgv, settleArgvs, showArgv, vaultFrom,
+  MAX_OFFERS, NEAR_COUNT, ingestArgv, nearestArgv, parseOffers, parseShow, pendingArgv, settleArgvs, showArgv, vaultFrom,
 } from './housekeeping.js'
 import { captureRequest, curationRequest, parseCuration, parseSelection, relevanceRequest } from './judge.js'
 import { candidates, buildBlock, momentText, parseQuery, present, queryArgv, sinceCompaction } from './moment.js'
@@ -22,6 +22,9 @@ const POLL_TRIES = 20
 // the dispatch prompts of agent.spawn, in order, for the SubagentStart events that follow (SP5: start carries no prompt)
 const spawns = []
 const ledgers = new Map()
+// the pending offers this process will not look at again (793b318): those curate leaves alone (a skill registration, a
+// runbook, a note no longer pending) and those that failed, so that none of them uses up the run's cap or is retried
+const skipped = new Set()
 // `turnDone`: a top-level turn finished in the burst of jobs now in the queue, so its summary is due at the burst's end
 const queue = { tail: Promise.resolve(), pending: 0, seam: [], turnDone: false }
 // the notes this session wrote (basename, situation and text), kept to compare later windows with
@@ -235,7 +238,7 @@ async function nearest($, shown, offer) {
 // is left pending for curate; a note that is not pending (settled meanwhile) is left alone.
 async function curateOne($, name) {
   const shown = parseShow((await exec($, showArgv(name), DEADLINE_MS.command)).stdout)
-  if (!shown.pending || shown.skill || shown.kind === 'runbook') return
+  if (!shown.pending || shown.skill || shown.kind === 'runbook') return 'skipped'
   const offer = { situation: redact(shown.situation), body: redact(shown.body) }
   const near = await nearest($, shown, offer)
   const reply = await $.model.complete(curationRequest(offer, near))
@@ -245,14 +248,24 @@ async function curateOne($, name) {
   // a reinforcing activation (covered) is not an amendment: only a near offer changes a note's claim (793b204)
   state.counts.curated += 1
   if (decision.outcome === 'near') state.counts.amended += 1
+  return 'settled'
 }
 
-// curate scans the vault for pending offers the way the curate skill does (the query excludes them) and settles each.
+// curate scans the vault for pending offers the way the curate skill does (the query excludes them) and settles each,
+// at most MAX_OFFERS a run; an offer that is skipped or fails is not counted again and not looked at again.
 async function curate($) {
   const vault = vaultFrom({ vault: await $.env.get('ENGRAM_VAULT_PATH'), xdg: await $.env.get('XDG_DATA_HOME'), home: await $.env.get('HOME') })
   if (!(await $.fs.exists(vault))) return
   const found = await exec($, pendingArgv(vault), DEADLINE_MS.scan, [0, 1])
-  for (const name of parseOffers(found.stdout)) await curateOne($, name)
+  let handled = 0
+  for (const name of parseOffers(found.stdout)) {
+    if (handled >= MAX_OFFERS) break
+    if (skipped.has(name)) continue
+    // one offer that fails is warned about once and does not stop the offers after it
+    const outcome = await attempt($, () => curateOne($, name), 'curation')
+    if (outcome !== 'skipped') handled += 1
+    if (outcome !== 'settled') skipped.add(name)
+  }
 }
 
 // housekeeping is the work that follows the last job of a queue (793b202, 793b201): the chunk index catches up with the
