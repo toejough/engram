@@ -1,5 +1,6 @@
 // The pure parts of the capture job (793b199, 793b200, 793b279): the window of a turn or a subagent, the redaction, the
 // reading of the judgement and the arguments of the writes. Every call on `$` is in register.js.
+import { parseDocument } from './judge.js'
 import { MARKER } from './moment.js'
 
 const PART_LIMIT = 1200
@@ -192,35 +193,36 @@ function slugOf(text) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'captured-lesson'
 }
 
-// parseLessons reads the judge's reply: a JSON array, each lesson with its kind, its fields and the number of the
-// nearest note that already states it (`covered`) or null. A lesson that is incomplete, or covered by a number that is
-// no note, is dropped or written as absent; a reply that is not an array is no lesson.
+const STRING_LIMIT = 600
+const LESSON_LIMIT = 10
+const COMMON_KEYS = ['kind', 'slug', 'situation', 'covered']
+
+function text(value, name) {
+  if (typeof value !== 'string' || value.trim() === '' || value.length > STRING_LIMIT) throw new Error(`capture reply: ${name} is not a short non-empty string`)
+  return value.trim()
+}
+
+// parseLessons reads the judge's reply strictly (793b299): exactly one JSON document, an array of at most ten lessons,
+// each an object with exactly the keys of its kind (`feedback`: behavior, impact, action; `fact`: subject, predicate,
+// object, beside kind, slug, situation and covered), every string non-empty and bounded, `covered` null or the number
+// of a nearest note. Anything else is an error for the whole reply and nothing is written.
 export function parseLessons(reply, near) {
-  const start = reply.indexOf('[')
-  const end = reply.lastIndexOf(']')
-  if (start < 0 || end < start) return []
-  let list
-  try {
-    list = JSON.parse(reply.slice(start, end + 1))
-  } catch {
-    return []
-  }
+  const list = parseDocument(reply)
+  if (!Array.isArray(list) || list.length > LESSON_LIMIT) throw new Error('capture reply is not an array of at most ten lessons')
   const seen = new Set()
   const lessons = []
-  for (const item of Array.isArray(list) ? list : []) {
-    const fields = KINDS[item?.kind]
-    if (!fields) continue
-    const situation = [item.situation, item.subject, item.behavior].find((text) => typeof text === 'string' && text.trim() !== '')
-    if (situation === undefined) continue
-    if (item.kind === 'fact' && fields.some((name) => typeof item[name] !== 'string' || item[name].trim() === '')) continue
-    if (item.kind === 'feedback' && (typeof item.behavior !== 'string' || typeof item.action !== 'string' || !item.behavior.trim() || !item.action.trim())) continue
-    const slug = slugOf(typeof item.slug === 'string' && item.slug !== '' ? item.slug : situation)
+  for (const item of list) {
+    if (item === null || typeof item !== 'object' || Array.isArray(item)) throw new Error('capture reply: a lesson is not an object')
+    const fields = KINDS[item.kind]
+    if (!fields) throw new Error('capture reply: a lesson has a kind that is neither feedback nor fact')
+    const allowed = new Set([...COMMON_KEYS, ...fields])
+    if (Object.keys(item).some((key) => !allowed.has(key)) || [...allowed].some((key) => !(key in item))) throw new Error(`capture reply: a ${item.kind} lesson does not have exactly its keys`)
+    if (item.covered !== null && !(Number.isInteger(item.covered) && item.covered >= 1 && item.covered <= near.length)) throw new Error('capture reply: covered is no nearest note')
+    const slug = slugOf(text(item.slug, 'slug'))
     if (seen.has(slug)) continue
     seen.add(slug)
-    const covered = Number.isInteger(item.covered) && item.covered >= 1 && item.covered <= near.length ? near[item.covered - 1].path : null
-    const values = Object.fromEntries(fields.map((name) => [name, redact(String(item[name] ?? '').trim())]))
-    if (item.kind === 'feedback' && values.impact === '') values.impact = 'the lesson had to be given again'
-    lessons.push({ kind: item.kind, slug, situation: redact(situation.trim()), covered, values })
+    const values = Object.fromEntries(fields.map((name) => [name, redact(text(item[name], name))]))
+    lessons.push({ kind: item.kind, slug, situation: redact(text(item.situation, 'situation')), covered: item.covered === null ? null : near[item.covered - 1].path, values })
   }
   return lessons
 }

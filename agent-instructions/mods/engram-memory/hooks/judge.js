@@ -15,7 +15,7 @@ export const RELEVANCE = [
   'Candidate notes:\n{notes}',
   'A note bears on the moment when its situation describes the work in the text. If the text itself asks to run a',
   'memory command (recall, learn, an engram query), the user is retrieving on purpose: none bears.',
-  'Reply with only a JSON array of the numbers of the notes that bear, [] if none.',
+  'Reply with only the JSON array of the numbers of the notes that bear, no other text, [] if none.',
 ].join('\n')
 
 // CAPTURE is the whole of the capture judgement (793b279): extraction and reconciliation in one reply. The notes are
@@ -33,8 +33,8 @@ export const CAPTURE = [
   'For each lesson give a JSON object with: kind ("feedback" for a rule about what to do or not to do, "fact" for',
   'something that is true), slug (kebab-case), situation (when it applies, as a retrieval cue), covered (the number',
   'of a nearest note that already states the same lesson, else null), and for feedback behavior, impact and action, for',
-  'fact subject, predicate and object.',
-  'Reply with only a JSON array, [] if the window has no lesson.',
+  'fact subject, predicate and object; every lesson has all of its fields, each a short string.',
+  'Reply with only the JSON array, no code fence and no other text, [] if the window has no lesson.',
   '<window>\n{window}\n</window>',
   '<notes>\n{notes}\n</notes>',
 ].join('\n')
@@ -58,14 +58,27 @@ export function request(kind, prompt) {
   return { model, prompt, maxTokens: REPLY_TOKENS[kind], effort: EFFORT[kind], timeoutMs: JUDGE_TIMEOUT_MS[kind] }
 }
 
-// parseSelection reads the numbers of the reply; anything that is not an array of valid numbers selects nothing.
-export function parseSelection(reply, count) {
-  const match = /\[[^\]]*\]/.exec(reply)
-  if (!match) return []
+// parseDocument reads a reply strictly (793b299): the reply is exactly one JSON document. A code fence that opens at
+// the first character and closes at the last one is the only wrapper taken off; prose around the document, a second
+// document, or anything else is an error, never a best guess, so that no text the parser skips can differ from the text
+// a reader sees.
+export function parseDocument(reply) {
+  const fenced = /^```(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n```$/.exec(reply.trim())
+  const body = (fenced ? fenced[1] : reply).trim()
+  if (body === '') throw new Error('judgement reply is empty')
   try {
-    const numbers = JSON.parse(match[0])
-    return numbers.filter((number) => Number.isInteger(number) && number >= 1 && number <= count).map((number) => number - 1)
+    return JSON.parse(body)
   } catch {
-    return []
+    throw new Error('judgement reply is not exactly one JSON document')
   }
+}
+
+// parseSelection reads the relevance reply: an array of distinct whole numbers, each the number of a candidate. Any
+// other reply, or a number outside the candidates, is an error and nothing is delivered.
+export function parseSelection(reply, count) {
+  const numbers = parseDocument(reply)
+  if (!Array.isArray(numbers) || numbers.length > count) throw new Error('relevance reply is not an array of at most one number per candidate')
+  if (!numbers.every((number) => Number.isInteger(number) && number >= 1 && number <= count)) throw new Error('relevance reply names a number that is no candidate')
+  if (new Set(numbers).size !== numbers.length) throw new Error('relevance reply repeats a number')
+  return numbers.map((number) => number - 1)
 }

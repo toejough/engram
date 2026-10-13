@@ -3886,9 +3886,17 @@ ID map for 793b243 to 793b254 (each checked with `git log -S`: unused): `793b243
 - **Residual risk:** a short secret in prose that no name precedes, a secret in an encoding the patterns do not decode (base64 that is under 32 characters, a hex dump with separators, a split by a character other than a line break), and a secret the user obfuscates on purpose. A pattern list cannot be complete; the judge's instruction is the second line.
 - **Alternatives:** an entropy score on every word (false positives on slugs and hashes the lessons mention); sending nothing from a window that holds a pattern hit (loses the lesson around it).
 
-## 793b299 ID map for 793b293 to 793b298
+## 793b299 A judge's reply is read strictly: exactly one JSON document of the expected shape, else a job error
+
+- **Decided by:** Author (agent); awaiting owner validation. It answers a security finding on the mod (a parser differential in the reading of the model's reply) and amends [793b295](#793b295-one-capture-judgement-the-window-drops-tool-noise-and-subagent-results-the-nearest-notes-include-what-the-session-wrote) (4) and [793b198](#793b198-relevance-item-limit-chunk-content-and-the-wording-of-the-instruction).
+- **Choice:** the first form took the first `[` to the last `]` of the reply, and dropped or repaired what did not fit (a number outside the candidates, a lesson with a missing field, a `covered` number that is no note), so text around a document, or a second document, could be read differently from how a reader sees it. `parseDocument` (`judge.js`) now accepts a reply only if it is exactly one JSON document; the one wrapper taken off is a code fence that opens at the first character and closes at the last. `parseSelection` accepts an array of distinct whole numbers, each in 1 to the number of candidates, and rejects anything else; `parseLessons` accepts an array of at most ten objects, each with exactly the keys of its kind (`kind`, `slug`, `situation`, `covered` and `behavior`, `impact`, `action` for feedback, `subject`, `predicate`, `object` for fact), every string non-empty and at most 600 characters, `covered` null or in range, and rejects the whole reply otherwise. A rejection is an error of the job: contained by `attempt`, a line in the debug log, nothing written and nothing delivered (the user-only warning belongs to [793e8d](./793e_implementation-plan.md#793e8d-housekeeping-purview-and-failure-isolation)). The prompts ask for the bare array with no code fence and no other text, and for every lesson to carry all its fields. Contract tests: a reply wrapped in prose, two documents, a fence followed by prose, an out-of-range, zero, repeated, fractional or string number, an unknown key, a missing field, an empty or oversized string, an unknown kind, more than ten lessons and an object in place of an array each write or deliver nothing; a bare array and a whole-reply fence are accepted.
+- **Rationale:** a reply that does not have the shape asked for is no evidence of what the model meant; guessing it is the differential.
+- **Measured cost:** the stricter reading lost nothing on the self-correction row (10 of 10 runs captured), and a lesson the judge gave without a situation, which the first form repaired, now writes nothing (1 of 10 replies in the earlier runs).
+- **Alternatives:** keep repairing (the finding); ask the model for a schema-constrained output (`$.model.complete` has no such option).
+
+## 793b300 ID map for 793b293 to 793b299
 
 - **Decided by:** Author (agent); awaiting owner validation.
-- **Choice:** added (each checked with `git log -S`: unused): `793b293` to `793b299`. Retired: none. No heading is retitled.
+- **Choice:** added (each checked with `git log -S`: unused): `793b293` to `793b300`. Retired: none. No heading is retitled.
 - **Rationale:** the guide: removed IDs are not reused.
 - **Alternatives:** none.

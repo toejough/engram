@@ -110,20 +110,40 @@ describe('capture at turn end', () => {
     expect(calls).toEqual(['query', 'model', 'query', 'model'])
   })
 
-  test('a fact the judge gave without a situation takes its subject as the situation', async ($: any, on: any) => {
-    const fact = { kind: 'fact', slug: 'cause', subject: 'TestSync failure', predicate: 'is caused by', object: 'FIXTURE_DIR being unset' }
-    const { argvs, clock } = stubs(on, EMPTY_OUTPUT, [JSON.stringify([fact])])
-    await $.turn.complete(COMPLETE)
-    await clock.settle()
-    expect(argvs[1]).toContain('--situation=TestSync failure')
-    expect(argvs[1]).toContain('--object=FIXTURE_DIR being unset')
+  test('a reply is read strictly: prose around the document, two documents, a code-fenced reply with prose, a covered mark that is no note, an unknown key, a missing field and an unknown kind each write nothing', async ($: any, on: any) => {
+    const good = JSON.stringify([LESSON])
+    const replies = [
+      `Here is the lesson: ${good} Hope that helps.`,
+      `${good}${good}`,
+      `${good}\n[]`,
+      `\`\`\`json\n${good}\n\`\`\` and then some prose`,
+      JSON.stringify([{ ...LESSON, covered: 4 }]),
+      JSON.stringify([{ ...LESSON, covered: 0 }]),
+      JSON.stringify([{ ...LESSON, extra: 'x' }]),
+      JSON.stringify([{ ...LESSON, impact: undefined }]),
+      JSON.stringify([{ ...LESSON, action: '' }]),
+      JSON.stringify([{ ...LESSON, kind: 'runbook' }]),
+      JSON.stringify([{ ...LESSON, action: 'x'.repeat(601) }]),
+      JSON.stringify(Array.from({ length: 11 }, (_, index) => ({ ...LESSON, slug: `s${index}` }))),
+      JSON.stringify({ lessons: [LESSON] }),
+    ]
+    const { calls, clock } = stubs(on, EMPTY_OUTPUT, replies)
+    for (let index = 0; index < replies.length; index += 1) {
+      await $.turn.complete(COMPLETE)
+      await clock.settle()
+    }
+    expect(calls.filter((call) => call === 'learn' || call === 'amend')).toEqual([])
+    expect(calls.filter((call) => call === 'model').length).toBe(replies.length)
   })
 
-  test('a covered mark that is no nearest note counts as absent', async ($: any, on: any) => {
-    const { calls, clock } = stubs(on, EMPTY_OUTPUT, [JSON.stringify([{ ...LESSON, covered: 4 }])])
+  test('exactly one document is accepted, bare or in a code fence that wraps the whole reply', async ($: any, on: any) => {
+    const good = JSON.stringify([LESSON])
+    const { calls, clock } = stubs(on, EMPTY_OUTPUT, [good, `\`\`\`json\n${good}\n\`\`\``])
     await $.turn.complete(COMPLETE)
     await clock.settle()
-    expect(calls).toEqual(['query', 'model', 'learn'])
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    expect(calls.filter((call) => call === 'learn').length).toBe(2)
   })
 
   test('captures run one at a time, in order: the second sees the first one\'s note', async ($: any, on: any) => {

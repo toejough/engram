@@ -32,7 +32,7 @@ function bottom(on: any, transcript: { text: string | null } = { text: null }) {
   on('prompt.submit', async (_$: any, e: any) => ({ text: e.text, context: e.context }))
 }
 
-function stubs(on: any, output: string, reply: string, transcript?: { text: string | null }) {
+function stubs(on: any, output: string, reply: string | (() => string), transcript?: { text: string | null }) {
   const calls: string[] = []
   const requests: any[] = []
   on('process.run', async (_$: any, e: any) => {
@@ -42,7 +42,7 @@ function stubs(on: any, output: string, reply: string, transcript?: { text: stri
   on('model.complete', async (_$: any, e: any) => {
     calls.push('model')
     requests.push(e)
-    return { value: { isAnswered: true, text: reply, usage: { input_tokens: 1, output_tokens: 1 } } }
+    return { value: { isAnswered: true, text: typeof reply === 'function' ? reply() : reply, usage: { input_tokens: 1, output_tokens: 1 } } }
   })
   bottom(on, transcript)
   return { calls, requests }
@@ -77,6 +77,17 @@ describe('prompt delivery', () => {
     stubs(on, QUERY_OUTPUT, '[]')
     const result = await $.prompt.submit(PROMPT)
     expect(result.context ?? []).toEqual([])
+  })
+
+  test('a relevance reply is read strictly: prose around it, two documents, a number that is no candidate, a repeat and a non-array deliver nothing', async ($: any, on: any) => {
+    const replies = ['The first note bears: [1]', '[1][1]', '[1] and [2]', '[7]', '[0]', '[1,1]', '{"notes":[1]}', '[1.5]', '["1"]']
+    let next = 0
+    const { requests } = stubs(on, QUERY_OUTPUT, () => replies[next++])
+    for (let index = 0; index < replies.length; index += 1) {
+      const result = await $.prompt.submit(PROMPT)
+      expect(result.context ?? []).toEqual([])
+    }
+    expect(requests.length).toBe(replies.length)
   })
 
   test('a note delivered once is not delivered again in the same session', async ($: any, on: any) => {
