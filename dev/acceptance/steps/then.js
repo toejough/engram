@@ -5,7 +5,7 @@ import path from 'node:path'
 import { Then } from '@cucumber/cucumber'
 
 import { changes, lost } from '../lib/tree.js'
-import { currentSession, sendPrompt, settle } from '../lib/turn.js'
+import { awaitIdle, currentSession, sendPrompt, settle } from '../lib/turn.js'
 import {
   agentCalls,
   deliveries,
@@ -122,10 +122,11 @@ Then(
   },
 )
 
-// The notes the System or the agent wrote: the vault's notes less the seeded ones. A close drains the System's pending
-// work (SP13), so the vault is read after every session of the scenario is closed.
+// The notes the System or the agent wrote: the vault's notes less the seeded ones, read once the System's work is idle
+// and the sessions are closed.
 async function writtenNotes(world) {
   const scenario = world.scenario
+  await awaitIdle(scenario)
   await Promise.all(scenario.sessions.map((session) => session.close()))
   const seeded = [...scenario.notes.values()].map((note) => note.sentinel)
   return fs

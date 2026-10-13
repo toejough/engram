@@ -20,6 +20,7 @@ export const PHRASES = {
   prompt: (text) => [...RECALL_MOMENTS, text.slice(0, TEXT_LIMIT)],
   route: (text) => ['routing a unit of work to a model tier', text.slice(0, TEXT_LIMIT)],
   subagent: (text) => ['dispatching a subagent for a task', text.slice(0, TEXT_LIMIT)],
+  capture: (text) => ['capturing a lesson from a conversation', text.slice(0, TEXT_LIMIT)],
 }
 
 const FRAMING = [

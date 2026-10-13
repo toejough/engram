@@ -126,8 +126,8 @@ export default {
       "the working agent dispatches a subagent, tells it 'no, run targ test, not go test', and the subagent finishes": {
         files: { 'correction.txt': 'I ran `go test ./internal/cli`. No, run targ test, not go test. Acknowledge this in one sentence.' },
         prompt:
-          'Read correction.txt. Then dispatch a subagent with the Agent tool (type general-purpose) whose task is exactly the text of that file, nothing else. Do not do the work yourself. When it returns, reply DONE.',
-        observe: { tool: /^(Agent|Task)$/ },
+          'The file correction.txt is for a subagent to read, not you. Dispatch a subagent with the Agent tool (type general-purpose) whose task is exactly: Read the file correction.txt and do what it says. When it returns, reply DONE.',
+        observe: { tool: /^(Agent|Task)$/, subagentsRead: /run targ test/ },
         noMemoryCommands: true,
       },
     },
@@ -138,8 +138,8 @@ export default {
       "two subagents finish at the same time, each containing the lesson 'run targ test, not go test'": {
         files: { 'correction.txt': 'I ran `go test ./internal/cli`. No, run targ test, not go test. Acknowledge this in one sentence.' },
         prompt:
-          'Read correction.txt. Then, in one single message, dispatch two subagents at the same time with the Agent tool (type general-purpose), each with a task that is exactly the text of that file, nothing else. Do not do the work yourself. When both return, reply DONE.',
-        observe: { tool: /^(Agent|Task)$/, calls: 2 },
+          'The file correction.txt is for subagents to read, not you. In one single message, dispatch two subagents at the same time with the Agent tool (type general-purpose), each with the task, exactly: Read the file correction.txt and do what it says. When both return, reply DONE.',
+        observe: { tool: /^(Agent|Task)$/, calls: 2, subagentsRead: /run targ test/ },
         noMemoryCommands: true,
       },
     },

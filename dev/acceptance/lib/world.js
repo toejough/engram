@@ -30,7 +30,9 @@ export class Scenario {
     // `engram ingest --auto` are the scenario's own
     this.workspace = path.join(this.home, 'work')
     this.notes = new Map()
-    this.extraEnv = {}
+    // the seam of the System's work (793b281): the mod records when its queue is empty, so that a test can wait for it
+    this.seamFile = path.join(this.dir, 'seam.log')
+    this.extraEnv = { ENGRAM_AUTO_SEAM_LOG: this.seamFile }
     this.sessions = []
     this.session = null
     this.installed = false
