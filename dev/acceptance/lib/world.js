@@ -46,11 +46,13 @@ export class Scenario {
       fs.mkdirSync(dir, { recursive: true })
     }
     this.vault = path.join(this.home, '.local', 'share', 'engram', 'vault')
-    // the sweep spec of the workspace: a scenario lives under a throwaway root, which `--auto` skips by default (SP15)
+    // the sweep spec of the workspace: a scenario lives under a throwaway root, which `--auto` skips by default (SP15).
+    // The ancestor .claude directory holds the installed skills, about sixty seconds of embedding that every scenario's
+    // fresh home would pay at the System's first indexing (793e8d); the sessions, which the scenarios look for, stay.
     fs.mkdirSync(path.join(this.workspace, '.engram'), { recursive: true })
     fs.writeFileSync(
       path.join(this.workspace, '.engram', 'sweep.json'),
-      `${JSON.stringify({ non_persistent_prefixes: [], non_persistent_path_prefixes: [] })}\n`,
+      `${JSON.stringify({ non_persistent_prefixes: [], non_persistent_path_prefixes: [], ancestor_claude_dirs: false })}\n`,
     )
     // the settings the World starts from: the update must add none (793a5j)
     this.baselineSettings = { permissions: { allow: ALLOWED_TOOLS } }

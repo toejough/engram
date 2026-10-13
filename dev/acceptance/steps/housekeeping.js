@@ -215,7 +215,7 @@ Then(
       '|the user is shown no (warning|memory-activity summary)' +
       "|the (warning|summary) appears nowhere in the transcript( or in the working agent's next response)?)$",
   ),
-  async function (reason, isSummaryShown, noneOf, nowhereOf) {
+  async function (reason, isSummaryShown, noneOf, nowhereOf, _inResponse) {
     if (isSummaryShown != null) return NOT_BUILT
     if (reason != null) return warningShown(this, reason)
     if (noneOf != null) return noWarning(this, noneOf)
@@ -227,7 +227,7 @@ async function warningShown(world, reason) {
   await quiesce(world)
   const shown = statuses(world)
   assert.ok(
-    shown.some((text) => SKIPPED.test(text) && text.toLowerCase().includes(`because ${reason}`)),
+    shown.some((text) => SKIPPED.test(text) && text.toLowerCase().includes(`because ${reason}`.toLowerCase())),
     `no status message warns that automatic memory was skipped because ${reason}; the status messages were ${JSON.stringify(shown)}`,
   )
   return undefined

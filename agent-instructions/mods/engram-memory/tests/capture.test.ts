@@ -50,6 +50,8 @@ function stubs(on: any, query: string, replies: string[], extra: { files?: Recor
   const clock = mock.clock(on)
   let reply = 0
   on('process.run', async (_$: any, e: any) => {
+    // the housekeeping after the queue (793e8d) is tested in housekeeping.test.ts; here only the capture is recorded
+    if (e.argv[1] === 'ingest') return { value: { exitCode: 0, stdout: '', stderr: '' } }
     argvs.push(e.argv)
     calls.push(e.argv[1])
     return { value: { exitCode: 0, stdout: e.argv[1] === 'query' ? query : e.argv[1] === 'learn' ? '/vault/9.2026-10-12.written.md\n' : '', stderr: '' } }
@@ -64,6 +66,8 @@ function stubs(on: any, query: string, replies: string[], extra: { files?: Recor
   })
   on('fs.read', async (_$: any, e: any) => (extra.files?.[e.path] === undefined ? { deny: 'ENOENT' } : { value: extra.files[e.path] }))
   on('ui.log', async () => ({ value: undefined }))
+  on('ui.status', async () => ({ value: undefined }))
+  on('fs.exists', async () => ({ value: false }))
   on('session.id', async () => ({ value: 'sess-1' }))
   on('session.turns', async () => ({ value: 3 }))
   on('session.messages', async () => ({ value: extra.messages ?? MESSAGES }))

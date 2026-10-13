@@ -45,6 +45,13 @@ export function parseItems(output) {
   })
 }
 
+// parseQuery is parseItems for the output of a command that must have run: a result that is not the output of
+// `engram query` (no version line, no items list) is an error, never an empty result.
+export function parseQuery(output) {
+  if (!/^version: 1$/m.test(output) || !/^items:/m.test(output)) throw new Error('engram query output cannot be parsed')
+  return parseItems(output)
+}
+
 // candidates: the notes the lookup counted as direct matches above the floor, best first, at most ITEM_LIMIT.
 export function candidates(items) {
   return items

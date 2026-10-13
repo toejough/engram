@@ -27,10 +27,16 @@ export function formatReport(results) {
   const tally = {}
   for (const entry of results) tally[entry.result] = (tally[entry.result] ?? 0) + 1
   const total = results.reduce((sum, entry) => sum + (entry.usage?.costUsd ?? 0), 0)
+  // the table cuts a detail to fit; a result that is not Green or Pending has its whole first line below the table
+  const details = results
+    .map((entry, index) => ({ entry, name: names[index] }))
+    .filter(({ entry }) => /^(Red|Harness error)/.test(entry.result) && entry.message)
+    .map(({ entry, name }) => `${name}: ${entry.message}`)
   return [
     line(HEADERS),
     line(widths.map((width) => '-'.repeat(width))),
     ...rows.map(line),
+    ...(details.length > 0 ? ['', ...details] : []),
     '',
     `${results.length} scenario runs: ${Object.entries(tally).map(([name, count]) => `${count} ${name}`).join(', ') || 'none'}; cost ${total.toFixed(3)} USD (the SDK's client-side estimate)`,
   ].join('\n')

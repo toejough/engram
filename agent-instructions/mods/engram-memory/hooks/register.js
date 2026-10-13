@@ -4,8 +4,12 @@ import {
   amendArgv, learnArgv, neighbours, parseLessons, queryText, recentNote, redact, sourceFor, stripOwnBlocks, transcriptHolds,
   windowFromMessages, windowFromTranscript,
 } from './capture.js'
-import { captureRequest, relevanceRequest, parseSelection } from './judge.js'
-import { candidates, buildBlock, momentText, parseItems, present, queryArgv, sinceCompaction } from './moment.js'
+import { DEADLINE_MS, StepError, exitKind, kindOf, replyKind, spawnKind, warning } from './failure.js'
+import {
+  NEAR_COUNT, ingestArgv, nearestArgv, parseOffers, parseShow, pendingArgv, settleArgvs, showArgv, vaultFrom,
+} from './housekeeping.js'
+import { captureRequest, curationRequest, parseCuration, parseSelection, relevanceRequest } from './judge.js'
+import { candidates, buildBlock, momentText, parseQuery, present, queryArgv, sinceCompaction } from './moment.js'
 
 const MAIN = 'main'
 // a subagent's transcript file lags its stop event (SP5): it is polled this often, this many times
@@ -28,14 +32,49 @@ const state = {
   },
 }
 
-// attempt contains a failure of the job: the event goes on as if the mod were not there (793a4b).
-async function attempt($, job) {
+// The steps a failure is reported against (793a4b): the user is told which part of automatic memory was skipped.
+const LOOKUP_STEP = { prompt: 'the prompt lookup', route: 'the route lookup', subagent: 'the subagent lookup' }
+const CAPTURE_STEP = 'the capture'
+
+// warn shows the user, on the status line and nowhere else, that automatic memory was skipped and why. It never fails.
+async function warn($, step, kind) {
+  try {
+    await $.ui.status(warning(step, kind))
+  } catch (error) {
+    $.ui.log(`engram-memory: the warning could not be shown: ${error.message}`, { to: 'debug' })
+  }
+}
+
+// attempt contains a failure of the job: the event goes on as if the mod were not there, and a job with a `step` warns
+// the user (793a4b). A job with no step is bookkeeping of the mod's own and fails quietly, into the debug log.
+async function attempt($, job, step) {
   try {
     return await job()
   } catch (error) {
-    $.ui.log(`engram-memory: ${error.message}`, { to: 'debug' })
+    $.ui.log(`engram-memory: ${step ?? 'internal'}: ${error.message}`, { to: 'debug' })
+    if (step) await warn($, step, kindOf(error))
     return null
   }
+}
+
+// exec runs one engram (or system) command with its deadline. A command that cannot start, that passes its deadline or
+// that exits with a code other than the `ok` ones is a StepError with its class (793b205).
+async function exec($, argv, deadlineMs, ok = [0]) {
+  const label = argv.slice(0, 3).join(' ')
+  let result
+  try {
+    result = await $.process.run(argv, { timeoutMs: deadlineMs })
+  } catch (error) {
+    throw new StepError(`${label}: ${error.message}`, spawnKind(error.message))
+  }
+  if (!ok.includes(result.exitCode)) throw new StepError(`${label} exited ${result.exitCode}: ${result.stderr.slice(0, 200)}`, exitKind(result.stderr))
+  return result
+}
+
+// answered is the text of a model reply, or a StepError of the class the reply's absence shows.
+function answered(reply, what) {
+  if (!reply.isAnswered) throw new StepError(`${what} judgement unanswered: ${reply.reason}`, replyKind(reply))
+  return reply.text
 }
 
 // readTranscript reads the session's transcript file; the file does not exist before the first row is written.
@@ -50,24 +89,16 @@ async function readTranscript($, file) {
 // moment runs one lookup (793b192): query, presence, relevance. `agent` keys the ledger; a subagent's context is its
 // task, so it reads no transcript. Nothing relevant remaining is nothing delivered (793a2n).
 async function moment($, { agent, kind, text, readContext }) {
-  const result = await $.process.run(queryArgv(kind, text))
-  if (result.exitCode !== 0) throw new Error(`engram query exited ${result.exitCode}: ${result.stderr.slice(0, 200)}`)
+  const result = await exec($, queryArgv(kind, text), DEADLINE_MS.lookup)
   const ledger = state.ledger(agent)
   const context = readContext && state.transcript ? sinceCompaction(await readTranscript($, state.transcript)) : ''
-  const fresh = candidates(parseItems(result.stdout)).filter((note) => !present(note, ledger, context))
+  const fresh = candidates(parseQuery(result.stdout)).filter((note) => !present(note, ledger, context))
   if (fresh.length === 0) return null
   const reply = await $.model.complete(relevanceRequest(kind, text, fresh))
-  const chosen = reply.isAnswered ? parseSelection(reply.text, fresh.length).map((index) => fresh[index]) : []
+  const chosen = parseSelection(answered(reply, 'relevance'), fresh.length).map((index) => fresh[index])
   if (chosen.length === 0) return null
   for (const note of chosen) ledger.add(note.path)
   return buildBlock(chosen)
-}
-
-// run executes one engram command; a failing command fails the job that issued it.
-async function run($, argv) {
-  const result = await $.process.run(argv)
-  if (result.exitCode !== 0) throw new Error(`${argv.slice(0, 3).join(' ')} exited ${result.exitCode}: ${result.stderr.slice(0, 200)}`)
-  return result
 }
 
 // capture is one capture job (793b279): the nearest notes of the window by `engram query`, one `capture` judgement of
@@ -76,19 +107,18 @@ async function run($, argv) {
 async function capture($, { window, sessionId, turn }) {
   const text = redact(stripOwnBlocks(window))
   if (!text.includes('User:')) return
-  const found = await run($, queryArgv('capture', queryText(text)))
-  const near = neighbours(parseItems(found.stdout), written)
+  const found = await exec($, queryArgv('capture', queryText(text)), DEADLINE_MS.lookup)
+  const near = neighbours(parseQuery(found.stdout), written)
   const reply = await $.model.complete(captureRequest(text, near))
-  if (!reply.isAnswered) throw new Error(`capture judgement unanswered: ${reply.reason}`)
   const source = sourceFor(sessionId, turn)
-  const lessons = parseLessons(reply.text, near)
+  const lessons = parseLessons(answered(reply, 'capture'), near)
   $.ui.log(`engram-memory: capture judged ${lessons.length} lesson(s) against ${near.length} nearest note(s)`, { to: 'debug' })
   for (const lesson of lessons) {
     if (lesson.covered) {
-      await run($, amendArgv(lesson.covered))
+      await exec($, amendArgv(lesson.covered), DEADLINE_MS.command)
       continue
     }
-    const note = recentNote(lesson, (await run($, learnArgv(lesson, source))).stdout)
+    const note = recentNote(lesson, (await exec($, learnArgv(lesson, source), DEADLINE_MS.command)).stdout)
     if (note) written.push(note)
   }
 }
@@ -114,16 +144,59 @@ async function seam($, line) {
   await $.fs.write(file, `${queue.seam.join('\n')}\n`)
 }
 
-// schedule returns at once: the job joins the queue from a timer, after the event has been answered.
-async function schedule($, job) {
+// nearest is the existing notes an offer is judged against: for an offer that amends a note, that note; otherwise the
+// vault's nearest notes by `engram query`, which leaves pending offers out. Everything the judge reads is redacted.
+async function nearest($, shown, offer) {
+  const cleaned = (note) => ({ ...note, situation: redact(note.situation), body: redact(note.body) })
+  if (shown.forNote) {
+    const note = parseShow((await exec($, showArgv(shown.forNote), DEADLINE_MS.command)).stdout)
+    return [cleaned({ path: shown.forNote, kind: note.kind, situation: note.situation, body: note.body })]
+  }
+  const found = await exec($, nearestArgv(offer), DEADLINE_MS.lookup)
+  return parseQuery(found.stdout).filter((item) => item.kind !== 'chunk' && item.situation !== '').slice(0, NEAR_COUNT).map(cleaned)
+}
+
+// curateOne settles one pending offer as curate does (793b201): read it, judge it against the nearest notes, run the
+// commands of the outcome. A skill registration (a runbook marked by its skill hash) is authored, never judged, so it
+// is left pending for curate; a note that is not pending (settled meanwhile) is left alone.
+async function curateOne($, name) {
+  const shown = parseShow((await exec($, showArgv(name), DEADLINE_MS.command)).stdout)
+  if (!shown.pending || shown.skill || shown.kind === 'runbook') return
+  const offer = { situation: redact(shown.situation), body: redact(shown.body) }
+  const near = await nearest($, shown, offer)
+  const reply = await $.model.complete(curationRequest(offer, near))
+  const decision = parseCuration(answered(reply, 'curation'), near, redact)
+  $.ui.log(`engram-memory: curation judged ${name} ${decision.outcome}${decision.target ? ` ${decision.target}` : ''} against ${near.length} nearest note(s)`, { to: 'debug' })
+  for (const argv of settleArgvs(decision, name, shown.hash)) await exec($, argv, DEADLINE_MS.command)
+}
+
+// curate scans the vault for pending offers the way the curate skill does (the query excludes them) and settles each.
+async function curate($) {
+  const vault = vaultFrom({ vault: await $.env.get('ENGRAM_VAULT_PATH'), xdg: await $.env.get('XDG_DATA_HOME'), home: await $.env.get('HOME') })
+  if (!(await $.fs.exists(vault))) return
+  const found = await exec($, pendingArgv(vault), DEADLINE_MS.scan, [0, 1])
+  for (const name of parseOffers(found.stdout)) await curateOne($, name)
+}
+
+// housekeeping is the work that follows the last job of a queue (793b202, 793b201): the chunk index catches up with the
+// turn, then the pending offers are settled. A failure of one step is reported and the other still runs.
+async function housekeeping($) {
+  await attempt($, () => exec($, ingestArgv(), DEADLINE_MS.ingest), 'indexing')
+  await attempt($, () => curate($), 'curation')
+}
+
+// schedule returns at once: the job joins the queue from a timer, after the event has been answered. The last job of
+// the queue is followed by the housekeeping, so that the index is brought up to date once per burst of jobs.
+async function schedule($, job, step) {
   queue.pending += 1
   await attempt($, () => seam($, 'queued'))
   $.clock.after(0, () => {
     queue.tail = queue.tail.then(async () => {
-      await attempt($, job)
+      await attempt($, job, step)
+      if (queue.pending === 1) await housekeeping($)
       queue.pending -= 1
       if (queue.pending === 0) await attempt($, () => seam($, 'idle'))
-    })
+    }).catch(() => undefined)
   })
 }
 
@@ -141,30 +214,31 @@ export function register(on) {
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
     if (e.agentId) return result
-    const messages = await attempt($, () => $.session.messages())
-    const sessionId = await attempt($, () => $.session.id())
-    const turn = await attempt($, () => $.session.turns())
+    const messages = await attempt($, () => $.session.messages(), CAPTURE_STEP)
+    const sessionId = await attempt($, () => $.session.id(), CAPTURE_STEP)
+    const turn = await attempt($, () => $.session.turns(), CAPTURE_STEP)
     const window = messages ? windowFromMessages(messages, e.answer ?? '') : ''
-    if (window !== '') await schedule($, () => capture($, { window, sessionId, turn }))
+    // every completed turn is followed by the housekeeping, whether or not it has a window to capture
+    await schedule($, () => (window === '' ? undefined : capture($, { window, sessionId, turn })), CAPTURE_STEP)
     return result
   })
 
   on('classic.SubagentStop', async ($, e, next) => {
     const result = await next(e)
-    const sessionId = await attempt($, () => $.session.id())
-    const turn = await attempt($, () => $.session.turns())
+    const sessionId = await attempt($, () => $.session.id(), CAPTURE_STEP)
+    const turn = await attempt($, () => $.session.turns(), CAPTURE_STEP)
     const last = e.last_assistant_message ?? ''
     await schedule($, async () => {
       const file = await settled($, e.agent_transcript_path, last)
       const window = windowFromTranscript(file, last)
       if (window !== '') await capture($, { window, sessionId, turn })
-    })
+    }, CAPTURE_STEP)
     return result
   }).catch(($, e, next) => next(e))
 
   on('prompt.submit', async ($, e, next) => {
     state.lastPrompt = e.text
-    const block = await attempt($, () => moment($, { agent: MAIN, kind: 'prompt', text: momentText(e.text), readContext: true }))
+    const block = await attempt($, () => moment($, { agent: MAIN, kind: 'prompt', text: momentText(e.text), readContext: true }), LOOKUP_STEP.prompt)
     return next(block ? { ...e, context: [...(e.context ?? []), block] } : e)
   }).catch(($, e, next) => next(e))
 
@@ -172,7 +246,7 @@ export function register(on) {
     const result = await next(e)
     if (e.tool_name !== 'Skill' || e.tool_input?.skill !== 'route' || e.agent_id) return result
     const text = `${e.tool_input.args ?? ''} ${state.lastPrompt}`.trim()
-    const block = await attempt($, () => moment($, { agent: MAIN, kind: 'route', text, readContext: true }))
+    const block = await attempt($, () => moment($, { agent: MAIN, kind: 'route', text, readContext: true }), LOOKUP_STEP.route)
     return block ? { ...result, additionalContext: [...(result?.additionalContext ?? []), block] } : result
   })
 
@@ -185,7 +259,7 @@ export function register(on) {
     const result = await next(e)
     const task = spawns.shift() ?? ''
     if (task === '') return result
-    const block = await attempt($, () => moment($, { agent: e.agent_id, kind: 'subagent', text: task, readContext: false }))
+    const block = await attempt($, () => moment($, { agent: e.agent_id, kind: 'subagent', text: task, readContext: false }), LOOKUP_STEP.subagent)
     return block ? { ...result, additionalContext: [...(result?.additionalContext ?? []), block] } : result
   })
 }
