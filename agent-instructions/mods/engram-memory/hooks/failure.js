@@ -2,9 +2,11 @@
 // engram program cannot start, or the vault cannot be read), `timeout` (a named deadline passed, or a model call was
 // cut) or `error` (anything else). Every call on `$` is in register.js.
 
-// The deadlines of the steps, in milliseconds (initial values, tuned under #850): a lookup holds the agent's prompt,
-// so it is the shortest; the commands of background work, the scan for pending offers and the index have their own.
-export const DEADLINE_MS = { lookup: 25000, command: 30000, scan: 30000, ingest: 300000 }
+// The deadlines of the steps, in milliseconds (initial values, tuned under #850): the lookup of a moment holds the
+// agent's prompt or tool result, so it is the shortest and, with the relevance judgement's own deadline (judge.js), it
+// holds the agent for 8 s at most (793b317); the lookups of background work, the other commands, the scan for pending
+// offers and the index have their own.
+export const DEADLINE_MS = { moment: 4000, lookup: 25000, command: 30000, scan: 30000, ingest: 300000 }
 
 const REASON = {
   unavailable: 'the vault is unavailable',

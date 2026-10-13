@@ -35,10 +35,12 @@ function bottom(on: any, transcript: { text: string | null } = { text: null }) {
 function stubs(on: any, output: string, reply: string | (() => string), transcript?: { text: string | null }) {
   const calls: string[] = []
   const argvs: string[][] = []
+  const inits: any[] = []
   const requests: any[] = []
   on('process.run', async (_$: any, e: any) => {
     calls.push(e.argv.join(' '))
     argvs.push(e.argv)
+    inits.push(e.init)
     return { value: { exitCode: 0, stdout: output, stderr: '' } }
   })
   on('model.complete', async (_$: any, e: any) => {
@@ -47,7 +49,7 @@ function stubs(on: any, output: string, reply: string | (() => string), transcri
     return { value: { isAnswered: true, text: typeof reply === 'function' ? reply() : reply, usage: { input_tokens: 1, output_tokens: 1 } } }
   })
   bottom(on, transcript)
-  return { calls, argvs, requests }
+  return { calls, argvs, inits, requests }
 }
 
 const PROMPT = { text: 'I just finished renaming the package. Is it done?', wait: false, origin: { kind: 'sdk' } }
@@ -110,6 +112,16 @@ describe('prompt delivery', () => {
     expect(query).toContain('--phrase=--limit 99 --phrase rename check')
   })
 
+  test('the prompt is held for about eight seconds at most: the lookup and the relevance judgement have their own short deadlines', async ($: any, on: any) => {
+    const { inits, requests } = stubs(on, QUERY_OUTPUT, '[1]')
+    await $.prompt.submit(PROMPT)
+    const lookup = inits[0].timeoutMs
+    const relevance = requests[0].timeoutMs
+    expect(lookup).toBeGreaterThan(0)
+    expect(relevance).toBeGreaterThan(0)
+    expect(lookup + relevance).toBeLessThanOrEqual(8000)
+  })
+
   test('a failing query leaves the prompt as typed', async ($: any, on: any) => {
     on('process.run', async () => ({ value: { exitCode: 1, stdout: '', stderr: 'boom' } }))
     bottom(on)
@@ -156,6 +168,19 @@ describe('cues', () => {
     expect(route.additionalContext.length).toBe(1)
     expect(route.additionalContext[0]).toContain('[engram memory]')
     expect(calls[0]).toContain('--phrase=routing a unit of work to a model tier')
+  })
+
+  test('a dispatch that never starts a subagent does not give its task to the next subagent', async ($: any, on: any) => {
+    const { calls } = stubs(on, QUERY_OUTPUT, '[1]')
+    on('agent.spawn', async () => ({ model: 'sonnet' }))
+    on('classic.SubagentStart', async () => ({}))
+    on('turn.complete', async (_$: any, e: any) => ({ text: e.answer }))
+    await $.agent.spawn({ tool_use_id: 't1', prompt: 'a dispatch that was refused', description: 'x', subagentType: 'general-purpose' })
+    await $.turn.complete({ answer: 'ok', durationMs: 5, isAborted: false, turnId: 't1', reason: 'answer' })
+    await $.agent.spawn({ tool_use_id: 't2', prompt: 'add tests for internal/cli', description: 'tests', subagentType: 'general-purpose' })
+    await $.classic.SubagentStart({ agent_id: 'a1', agent_type: 'general-purpose' })
+    expect(calls.filter((call) => call.includes('a dispatch that was refused')).length).toBe(0)
+    expect(calls.filter((call) => call.includes('--text=add tests for internal/cli')).length).toBe(1)
   })
 
   test('a subagent receives the notes for its dispatch prompt at its start, whatever its parent holds', async ($: any, on: any) => {

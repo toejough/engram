@@ -46,6 +46,7 @@ async function stubs(on: any, options: Options = {}) {
   const inits: any[] = []
   const requests: any[] = []
   const writes: { path: string; text: string }[] = []
+  const reads: string[] = []
   const files: Record<string, string> = { ...(options.files ?? {}) }
   const dir = options.dir ?? CHUNKS
   if (options.manifest) files[`${dir}/manifest.json`] = JSON.stringify(options.manifest)
@@ -71,6 +72,7 @@ async function stubs(on: any, options: Options = {}) {
     return { value: { isAnswered: true, text, usage: { input_tokens: 1, output_tokens: 1 } } }
   })
   on('fs.read', async (_$: any, e: any) => {
+    reads.push(e.path)
     if (options.tooBig?.includes(e.path)) return { deny: 'the file is over the 4194304-byte limit' }
     return files[e.path] === undefined ? { deny: 'ENOENT' } : { value: files[e.path] }
   })
@@ -88,7 +90,7 @@ async function stubs(on: any, options: Options = {}) {
   on('turn.complete', async (_$: any, e: any) => ({ text: e.answer }))
   on('classic.SessionStart', async () => ({}))
   const marks = () => (files[MARKS] === undefined ? null : JSON.parse(files[MARKS]))
-  return { calls, argvs, inits, requests, writes, files, clock, marks }
+  return { calls, argvs, inits, requests, writes, reads, files, clock, marks }
 }
 
 // a manifest with one Pi session that ended two hours ago and says the lesson
@@ -201,18 +203,91 @@ describe('backlog capture', () => {
     expect(marks()).toBeNull()
   })
 
-  test('a transcript longer than one window is judged in windows that overlap by a message, up to a limit', async ($: any, on: any) => {
-    const turns = Array.from({ length: 40 }, (_, index): [string, any][] => [['user', text(`message ${index} ${'word '.repeat(150)}`)], ['assistant', text(`reply ${index} ${'word '.repeat(150)}`)]]).flat()
-    const files = { [PI]: piRows(turns) }
-    const { requests, clock } = await stubs(on, { manifest: { [PI]: entry(2 * HOUR, 'sha256:aaa') }, files })
+  const LONG = Array.from({ length: 40 }, (_, index): [string, any][] => [['user', text(`message ${index} ${'word '.repeat(150)}`)], ['assistant', text(`reply ${index} ${'word '.repeat(150)}`)]]).flat()
+
+  test('a transcript longer than one window is judged in windows that overlap by a message, the end of it first', async ($: any, on: any) => {
+    const { requests, clock } = await stubs(on, { manifest: { [PI]: entry(2 * HOUR, 'sha256:aaa') }, files: { [PI]: piRows(LONG) } })
     await $.turn.complete(COMPLETE)
     await clock.settle()
     const windows = requests.slice(1)
-    expect(windows.length).toBeGreaterThan(1)
-    expect(windows.length).toBeLessThanOrEqual(6)
-    const first = windows[0].prompt as string
-    const lastOfFirst = [...first.matchAll(/^(?:User|Agent): (message|reply) (\d+)/gm)].at(-1)!
-    expect(windows[1].prompt).toContain(`${lastOfFirst[1]} ${lastOfFirst[2]} `)
+    expect(windows.length).toBe(6)
+    // the newest window is judged first, and the older ones after it, each overlapping the one before it in time
+    expect(windows[0].prompt).toContain('reply 39 ')
+    const oldestOfFirst = [...(windows[0].prompt as string).matchAll(/^(?:User|Agent): (message|reply) (\d+)/gm)][0]
+    expect(windows[1].prompt).toContain(`${oldestOfFirst[1]} ${oldestOfFirst[2]} `)
+  })
+
+  test('a lesson beyond the windows of one turn is not lost: the source is marked only once every window has been judged, over later turns', async ($: any, on: any) => {
+    const { requests, marks, clock } = await stubs(on, { manifest: { [PI]: entry(2 * HOUR, 'sha256:aaa') }, files: { [PI]: piRows(LONG) } })
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    expect(marks().sources[PI]).toBeUndefined()
+    const first = requests.length - 1
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    expect(marks().sources[PI]).toBe('sha256:aaa')
+    const windows = requests.filter((_, index) => index !== 0 && index !== first + 1).map((request) => request.prompt as string)
+    expect(windows.length).toBeGreaterThan(first)
+    expect(new Set(windows).size).toBe(windows.length)
+    expect(windows.some((prompt) => prompt.includes('message 0 '))).toBe(true)
+    // and a third turn finds nothing left
+    const before = requests.length
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    expect(requests.length).toBe(before + 1)
+  })
+
+  test('a source that grew while its windows were being consumed starts again', async ($: any, on: any) => {
+    const { requests, marks, files, clock } = await stubs(on, { manifest: { [PI]: entry(2 * HOUR, 'sha256:aaa') }, files: { [PI]: piRows(LONG) } })
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    files[`${CHUNKS}/manifest.json`] = JSON.stringify({ [PI]: entry(2 * HOUR, 'sha256:bbb') })
+    const before = requests.length
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    expect((requests.slice(before + 1)[0].prompt as string)).toContain('reply 39 ')
+    expect(marks().sources[PI]).toBeUndefined()
+  })
+
+  test('a source with no message in it is marked, and is not read again', async ($: any, on: any) => {
+    const { calls, reads, marks, clock } = await stubs(on, { manifest: { [PI]: entry(2 * HOUR, 'sha256:aaa') }, files: { [PI]: piRows([]) } })
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    expect(calls).toEqual(['query', 'model', 'ingest'])
+    expect(marks().sources[PI]).toBe('sha256:aaa')
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    expect(reads.filter((path) => path === PI).length).toBe(1)
+  })
+
+  test('a source that cannot be read does not use up the turn: the next source is captured, and the unreadable one is not read again', async ($: any, on: any) => {
+    const manifest = { [PI]: entry(2 * HOUR, 'sha256:aaa'), [PI_TWO]: entry(4 * HOUR, 'sha256:bbb') }
+    const { requests, reads, marks, clock } = await stubs(on, { manifest, files: { [PI_TWO]: SAID } })
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    expect(requests.length).toBe(2)
+    expect(Object.keys(marks().sources)).toEqual([PI_TWO])
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    expect(reads.filter((path) => path === PI).length).toBe(1)
+  })
+
+  test('a turn killed soon after the last turn the System captured is still captured; one that only finished writing is not', async ($: any, on: any) => {
+    const session = '9f1e2d3c.jsonl'
+    const files = { [CC]: SAID, [MARKS]: JSON.stringify({ sources: {}, turns: { [session]: NOW - HOUR } }) }
+    const killed = await stubs(on, { manifest: { [CC]: entry(HOUR - 60_000, 'sha256:cc') }, files })
+    await $.turn.complete(COMPLETE)
+    await killed.clock.settle()
+    expect(killed.calls).toEqual(['query', 'model', 'ingest', 'query', 'model'])
+  })
+
+  test('the closing rows a harness writes a moment after the last captured turn are not a turn', async ($: any, on: any) => {
+    const session = '9f1e2d3c.jsonl'
+    const files = { [CC]: SAID, [MARKS]: JSON.stringify({ sources: {}, turns: { [session]: NOW - HOUR } }) }
+    const { calls, clock } = await stubs(on, { manifest: { [CC]: entry(HOUR - 3000, 'sha256:cc') }, files })
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    expect(calls).toEqual(['query', 'model', 'ingest'])
   })
 
   test('no manifest is an empty backlog, not an error', async ($: any, on: any) => {
@@ -222,7 +297,7 @@ describe('backlog capture', () => {
     expect(calls).toEqual(['query', 'model', 'ingest'])
   })
 
-  test('a source that cannot be read is skipped without a write', async ($: any, on: any) => {
+  test('a source that cannot be read is skipped without a write (and see below: not read again)', async ($: any, on: any) => {
     const { calls, writes, clock } = await stubs(on, { manifest: { [PI]: entry(2 * HOUR, 'sha256:aaa') } })
     await $.turn.complete(COMPLETE)
     await clock.settle()

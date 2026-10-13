@@ -41,6 +41,9 @@ type Options = {
   offers?: string[]
   failing?: Record<string, number>
   files?: Record<string, string>
+  // the index command (ingest) answers only when this promise is resolved
+  holdIngest?: Promise<void>
+  onIngest?: () => void
 }
 
 // world stands for the engine under the mod; `shown` is what the user is shown on the status line, in order.
@@ -59,6 +62,10 @@ function world(on: any, options: Options = {}) {
     if (e.argv[0] === 'grep') {
       const names = options.offers ?? []
       return { value: { exitCode: names.length === 0 ? 1 : 0, stdout: names.map((name) => `/vault/${name}\n`).join(''), stderr: '' } }
+    }
+    if (key === 'ingest' && options.holdIngest) {
+      options.onIngest?.()
+      await options.holdIngest
     }
     if (key === 'show') return { value: { exitCode: 0, stdout: OFFER('tagging a release'), stderr: '' } }
     if (key === 'learn') return { value: { exitCode: 0, stdout: '/vault/9.2026-10-12.written.md\n', stderr: '' } }
@@ -88,6 +95,25 @@ function world(on: any, options: Options = {}) {
 }
 
 const LINE = 'Memory activity: '
+
+describe('the summary of a turn that completes while the housekeeping of another is running', () => {
+  test('each turn is reported by the burst that holds its work: the turn that completes during the index is reported after its own work', async ($: any, on: any) => {
+    let release: () => void = () => undefined
+    const held = new Promise<void>((resolve) => { release = resolve })
+    let started: () => void = () => undefined
+    const running = new Promise<void>((resolve) => { started = resolve })
+    const { shown, clock } = world(on, { messages: WITH_LESSON, capture: [JSON.stringify([LESSON])], holdIngest: held, onIngest: started })
+    await $.turn.complete(COMPLETE)
+    const settling = clock.settle()
+    await running
+    // the second turn completes while the first burst is in its housekeeping
+    await $.turn.complete(COMPLETE)
+    release()
+    await settling
+    await clock.settle()
+    expect(shown).toEqual([`${LINE}1 note added`, `${LINE}1 note added`])
+  })
+})
 
 describe('the summary after a turn', () => {
   test('one line counts what the System did, once its work for the turn has finished, and not before', async ($: any, on: any) => {

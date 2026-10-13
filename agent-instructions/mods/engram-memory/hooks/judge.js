@@ -2,7 +2,8 @@
 // (793b279). The relay itself, `$.model.complete`, is called in register.js.
 // A request names the model of its kind; a kind without a row is a programming error, never a default.
 export const JUDGE_TIERS = { relevance: 'haiku', capture: 'haiku', curation: 'haiku' }
-const JUDGE_TIMEOUT_MS = { relevance: 20000, capture: 40000, curation: 60000 }
+// the relevance judgement holds the agent's prompt: 4 s here and 4 s for the lookup (failure.js) are the 8 s hold
+const JUDGE_TIMEOUT_MS = { relevance: 4000, capture: 40000, curation: 60000 }
 const REPLY_TOKENS = { relevance: 200, capture: 1500, curation: 700 }
 const EFFORT = { relevance: 'low', capture: 'medium', curation: 'medium' }
 const TEXT_LIMIT = 1500

@@ -1,6 +1,9 @@
 // The System's mod (793e2c): maps the events of the delivery moments to the moment job and adds what it returns
 // through the channel each event has: prompt context, tool-result context, subagent-start context (793b192).
-import { MARKS_NAME, baseName, chunksDirectory, parseManifest, parseMarks, pending, withSource, withTurns } from './backlog.js'
+import {
+  MARKS_NAME, SOURCES_PER_TURN, baseName, chunksDirectory, nextWindows, parseManifest, parseMarks, pending, windowsDone, withProgress, withSource,
+  withTurns,
+} from './backlog.js'
 import {
   amendArgv, backlogSourceFor, learnArgv, messagesFromTranscript, neighbours, parseLessons, queryText, recentNote, redact,
   sourceFor, stripOwnBlocks, transcriptHolds, windowFromMessages, windowFromTranscript, windowsFromMessages,
@@ -104,7 +107,7 @@ async function readTranscript($, file) {
 // moment runs one lookup (793b192): query, presence, relevance. `agent` keys the ledger; a subagent's context is its
 // task, so it reads no transcript. Nothing relevant remaining is nothing delivered (793a2n).
 async function moment($, { agent, kind, text, readContext }) {
-  const result = await exec($, queryArgv(kind, text), DEADLINE_MS.lookup)
+  const result = await exec($, queryArgv(kind, text), DEADLINE_MS.moment)
   const ledger = state.ledger(agent)
   const context = readContext && state.transcript ? sinceCompaction(await readTranscript($, state.transcript)) : ''
   const fresh = candidates(parseQuery(result.stdout)).filter((note) => !present(note, ledger, context))
@@ -173,29 +176,52 @@ async function readSource($, path) {
 }
 
 // sourceMessages reads a source's conversation from the file itself, by the roles of its rows (the index text cannot
-// tell a speaker from a line that imitates one, 793e8g). A source that cannot be read is left for a later turn.
+// tell a speaker from a line that imitates one, 793e8g). A source that cannot be read is null.
 async function sourceMessages($, source) {
   try {
     return messagesFromTranscript(await readSource($, source.path))
   } catch (error) {
     $.ui.log(`engram-memory: backlog: ${source.path}: ${error.message}`, { to: 'debug' })
-    return []
+    return null
   }
 }
 
+const writeMarks = ($, dir, marks) => $.fs.write(`${dir}/${MARKS_NAME}`, JSON.stringify(marks))
+
+// the sources that could not be read, which this process does not try again (a later process does)
+const unreadable = new Set()
+
 // backlog is the job after a turn's housekeeping (793e8g), whose ingest has brought the manifest up to date: take the
-// one most recently changed source nobody has captured yet, capture it in windows with the same judgement as a turn,
-// and mark it only when every window finished without a failure.
+// one most recently changed source nobody has captured yet and judge up to WINDOWS_PER_TURN of its windows, the end of
+// the conversation first, with the same judgement as a turn. The source is marked only when every window has been
+// judged without a failure; a source with nothing to judge is marked at once, one that cannot be read is left alone.
 async function backlog($) {
   const dir = await chunksDir($)
   const sources = parseManifest(await readTranscript($, `${dir}/manifest.json`))
   const marks = await readMarks($, dir)
+  let looked = 0
   for (const source of pending(sources, marks, { now: await $.clock.now(), live: state.transcript })) {
+    if (unreadable.has(source.path)) continue
+    if (looked >= SOURCES_PER_TURN) return
+    looked += 1
     const messages = await sourceMessages($, source)
+    if (messages === null) {
+      unreadable.add(source.path)
+      continue
+    }
     const windows = windowsFromMessages(messages)
-    if (windows.length === 0) continue
-    for (const window of windows) await capture($, { window, source: backlogSourceFor(source.path, `message ${messages.length}`) })
-    await $.fs.write(`${dir}/${MARKS_NAME}`, JSON.stringify(withSource(await readMarks($, dir), source)))
+    if (windows.length === 0) {
+      await writeMarks($, dir, withSource(await readMarks($, dir), source))
+      continue
+    }
+    const done = windowsDone(marks, source)
+    const { batch, finished } = nextWindows(windows, done)
+    for (const [index, window] of batch.entries()) {
+      await capture($, { window, source: backlogSourceFor(source.path, `message ${messages.length}`) })
+      if (index < batch.length - 1) await writeMarks($, dir, withProgress(await readMarks($, dir), source, done + index + 1))
+    }
+    const latest = await readMarks($, dir)
+    await writeMarks($, dir, finished ? withSource(latest, source) : withProgress(latest, source, done + batch.length))
     return
   }
 }
@@ -271,8 +297,7 @@ async function curate($) {
 // housekeeping is the work that follows the last job of a queue (793b202, 793b201): the chunk index catches up with the
 // turn, then the pending offers are settled, then, after a top-level turn, one source of the backlog is captured
 // (793e8g). A failure of one step is reported and the others still run.
-async function housekeeping($) {
-  const turn = queue.turnDone
+async function housekeeping($, turn) {
   await attempt($, () => exec($, ingestArgv(), DEADLINE_MS.ingest), 'indexing')
   await attempt($, () => curate($), 'curation')
   if (turn) await attempt($, () => backlog($), BACKLOG_STEP)
@@ -285,7 +310,6 @@ async function report($) {
   const line = statusLine(state.counts, [...state.warnings])
   state.counts = emptyCounts()
   state.warnings.clear()
-  queue.turnDone = false
   if (line === null && !state.lineShown) return
   state.lineShown = line !== null
   await $.ui.status(line ?? undefined)
@@ -301,8 +325,12 @@ async function schedule($, job, step, { turn = false } = {}) {
     queue.tail = queue.tail.then(async () => {
       await attempt($, job, step)
       if (queue.pending === 1) {
-        await housekeeping($)
-        if (queue.turnDone) await attempt($, () => report($))
+        // the flag is taken as the burst ends: a turn that completes during the housekeeping sets it again and is
+        // reported by the burst that holds its own work (793b317)
+        const turn = queue.turnDone
+        queue.turnDone = false
+        await housekeeping($, turn)
+        if (turn) await attempt($, () => report($))
       }
       queue.pending -= 1
       if (queue.pending === 0) await attempt($, () => seam($, 'idle'))
@@ -324,6 +352,8 @@ export function register(on) {
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
     if (e.agentId) return result
+    // a dispatch that started no subagent must not give its task to the next one that starts (793b317)
+    spawns.length = 0
     const messages = await attempt($, () => $.session.messages(), CAPTURE_STEP)
     const sessionId = await attempt($, () => $.session.id(), CAPTURE_STEP)
     const turn = await attempt($, () => $.session.turns(), CAPTURE_STEP)

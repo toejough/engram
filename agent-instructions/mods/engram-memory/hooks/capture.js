@@ -6,7 +6,6 @@ import { MARKER } from './moment.js'
 const PART_LIMIT = 1200
 const WINDOW_LIMIT = 8000
 const NEAR_LIMIT = 8
-const BACKLOG_WINDOWS = 6
 const SOURCE_NOTE = 'captured from the conversation'
 const REDACTED = '[redacted]'
 
@@ -193,10 +192,9 @@ export function windowFromTranscript(fileText, lastMessage = '') {
   return join(lines)
 }
 
-// windowsFromMessages is a whole conversation as capture windows: each holds whole messages up to the window limit and
-// starts with the last message of the one before (a correction needs the message it corrects), at most `max` of them;
-// what lies beyond is left, a known limit.
-export function windowsFromMessages(messages, max = BACKLOG_WINDOWS) {
+// windowsFromMessages is a whole conversation as capture windows, oldest first: each holds whole messages up to the
+// window limit and starts with the last message of the one before (a correction needs the message it corrects).
+export function windowsFromMessages(messages) {
   const groups = messages.map(render).filter((lines) => lines.length > 0)
   const windows = []
   let current = []
@@ -204,7 +202,6 @@ export function windowsFromMessages(messages, max = BACKLOG_WINDOWS) {
   for (const group of groups) {
     const length = group.join('\n').length + 1
     if (current.length > 0 && size + length > WINDOW_LIMIT) {
-      if (windows.length + 1 === max) return [...windows, current.flat().join('\n')]
       windows.push(current.flat().join('\n'))
       current = [current.at(-1)]
       size = current[0].join('\n').length + 1
