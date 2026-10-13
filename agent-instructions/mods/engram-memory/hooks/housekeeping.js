@@ -9,11 +9,12 @@ const TEXT_LIMIT = 300
 
 export const ingestArgv = () => ['engram', 'ingest', '--auto']
 
-// vaultFrom is the vault engram uses: ENGRAM_VAULT_PATH, else $XDG_DATA_HOME/engram/vault, else under the home.
-export function vaultFrom({ vault, xdg, home }) {
-  if (vault) return vault
-  return `${xdg || `${home}/.local/share`}/engram/vault`
-}
+// dataDirectory is where engram keeps its data: $XDG_DATA_HOME/engram, else under the home. The vault and the chunk
+// index are in it unless the variable of each says otherwise.
+export const dataDirectory = ({ xdg, home }) => `${xdg || `${home}/.local/share`}/engram`
+
+// vaultFrom is the vault engram uses: ENGRAM_VAULT_PATH, else the vault under the data directory.
+export const vaultFrom = ({ vault, xdg, home }) => vault || `${dataDirectory({ xdg, home })}/vault`
 
 // pendingArgv lists the notes marked pending, the way curate finds them (the query excludes them by design).
 export function pendingArgv(vault) {

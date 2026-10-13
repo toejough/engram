@@ -2,6 +2,7 @@
 // captured. It reads what `engram ingest --auto` leaves in the chunks directory (the manifest) and a mark file of its
 // own; the conversation itself is read from the source file, by its rows' roles (the index text cannot tell a speaker
 // from a line that imitates one). Every call on `$` is in register.js.
+import { dataDirectory } from './housekeeping.js'
 
 // A source is left alone while it may still be running (quiet), and history older than the age limit is not mined:
 // only the leftovers of the last days are the backlog.
@@ -18,11 +19,7 @@ const NANOS_PER_MS = 1e6
 export const MARKS_NAME = 'backlog-marks.json'
 
 // chunksDirectory is where the chunk index lives (792a5a): the same precedence as the engram commands.
-export function chunksDirectory({ chunks, xdg, home }) {
-  if (chunks) return chunks
-  if (xdg) return `${xdg}/engram/chunks`
-  return `${home}/.local/share/engram/chunks`
-}
+export const chunksDirectory = ({ chunks, xdg, home }) => chunks || `${dataDirectory({ xdg, home })}/chunks`
 
 export const baseName = (path) => path.split('/').at(-1)
 

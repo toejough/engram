@@ -6,9 +6,9 @@ import {
 } from './backlog.js'
 import {
   amendArgv, backlogSourceFor, learnArgv, messagesFromTranscript, neighbours, parseLessons, queryText, recentNote, redact,
-  sourceFor, stripOwnBlocks, transcriptHolds, windowFromMessages, windowFromTranscript, windowsFromMessages,
+  sourceFor, transcriptHolds, windowFromMessages, windowFromTranscript, windowsFromMessages,
 } from './capture.js'
-import { DEADLINE_MS, StepError, exitKind, kindOf, replyKind, spawnKind, warning } from './failure.js'
+import { DEADLINE_MS, StepError, failureKind, kindOf, warning } from './failure.js'
 import {
   MAX_OFFERS, NEAR_COUNT, ingestArgv, nearestArgv, parseOffers, parseShow, pendingArgv, settleArgvs, showArgv, vaultFrom,
 } from './housekeeping.js'
@@ -83,15 +83,15 @@ async function exec($, argv, deadlineMs, ok = [0]) {
   try {
     result = await $.process.run(argv, { timeoutMs: deadlineMs })
   } catch (error) {
-    throw new StepError(`${label}: ${error.message}`, spawnKind(error.message))
+    throw new StepError(`${label}: ${error.message}`, failureKind(error.message))
   }
-  if (!ok.includes(result.exitCode)) throw new StepError(`${label} exited ${result.exitCode}: ${result.stderr.slice(0, 200)}`, exitKind(result.stderr))
+  if (!ok.includes(result.exitCode)) throw new StepError(`${label} exited ${result.exitCode}: ${result.stderr.slice(0, 200)}`, failureKind(result.stderr))
   return result
 }
 
 // answered is the text of a model reply, or a StepError of the class the reply's absence shows.
 function answered(reply, what) {
-  if (!reply.isAnswered) throw new StepError(`${what} judgement unanswered: ${reply.reason}`, replyKind(reply))
+  if (!reply.isAnswered) throw new StepError(`${what} judgement unanswered: ${reply.reason}`, failureKind(reply.reason ?? ''))
   return reply.text
 }
 
@@ -124,7 +124,7 @@ async function moment($, { agent, kind, text, readContext }) {
 // extraction and reconciliation, then the writes: `engram learn` for a lesson no note states, `engram amend
 // --activate` for one a note already states. Secrets are redacted before anything reaches the model or a note.
 async function capture($, { window, source }) {
-  const text = redact(stripOwnBlocks(window))
+  const text = redact(window)
   if (!text.includes('User:')) return
   const found = await exec($, queryArgv('capture', queryText(text)), DEADLINE_MS.lookup)
   const near = neighbours(parseQuery(found.stdout), written)

@@ -1,7 +1,7 @@
 // The pure parts of the capture job (793b199, 793b200, 793b279): the window of a turn or a subagent, the redaction, the
 // reading of the judgement and the arguments of the writes. Every call on `$` is in register.js.
-import { parseDocument } from './judge.js'
-import { MARKER } from './moment.js'
+import { NOTE_FIELDS, parseDocument, shortString } from './judge.js'
+import { summaryOf } from './moment.js'
 
 const PART_LIMIT = 1200
 const WINDOW_LIMIT = 8000
@@ -69,19 +69,6 @@ export function redact(text) {
   return result.replace(PERCENT_TOKEN, (token) => (redactOnce(decoded(token)) === decoded(token) ? token : REDACTED))
 }
 
-// stripOwnBlocks removes what the System delivered itself: a block opens with the fixed marker line and runs to the
-// next blank line, so that capture never records its own deliveries.
-export function stripOwnBlocks(text) {
-  const kept = []
-  let inBlock = false
-  for (const line of text.split('\n')) {
-    if (line.startsWith(MARKER)) inBlock = true
-    else if (line.trim() === '') inBlock = false
-    if (!inBlock) kept.push(line)
-  }
-  return kept.join('\n')
-}
-
 function cut(text, limit = PART_LIMIT) {
   return text.length > limit ? `${text.slice(0, limit)}...` : text
 }
@@ -89,8 +76,7 @@ function cut(text, limit = PART_LIMIT) {
 // userText: what a user message says. A task notification is not the user speaking: only its summary is kept, because
 // its result is a subagent's reply, which that subagent's own capture has judged (and the notification is markup).
 function userText(text) {
-  const summary = /<summary>([\s\S]*?)<\/summary>/.exec(text)?.[1]
-  return text.trimStart().startsWith('<task-notification>') ? `Task notification: ${(summary ?? 'a task finished').trim()}` : text.trim()
+  return text.trimStart().startsWith('<task-notification>') ? `Task notification: ${summaryOf(text) ?? 'a task finished'}` : text.trim()
 }
 
 // oneLine keeps a message on one line of the window, so that every line begins with a label this module wrote: a
@@ -169,10 +155,7 @@ export function messagesFromTranscript(fileText) {
     const blocks = blocksOf(found.content)
     const text = blocks.filter((block) => block.type === 'text' && !(found.role === 'user' && HARNESS_TEXT.test(block.text))).map((block) => block.text).join('\n')
     const toolUses = blocks.filter((block) => TOOL_USE.has(block.type)).map((block) => ({ tool: block.name }))
-    const toolResults = blocks
-      .filter((block) => block.type === 'tool_result')
-      .map((block) => ({ text: typeof block.content === 'string' ? block.content : (block.content ?? []).map((part) => part.text ?? '').join('\n') }))
-    messages.push({ role: found.role, text, toolUses, toolResults })
+    messages.push({ role: found.role, text, toolUses })
   }
   return messages
 }
@@ -233,23 +216,12 @@ export function recentNote(lesson, learnOutput) {
   return { path, situation: lesson.situation, body: Object.values(lesson.values).join('. ') }
 }
 
-const KINDS = {
-  feedback: ['behavior', 'impact', 'action'],
-  fact: ['subject', 'predicate', 'object'],
-}
-
 function slugOf(text) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'captured-lesson'
 }
 
-const STRING_LIMIT = 600
 const LESSON_LIMIT = 10
 const COMMON_KEYS = ['kind', 'slug', 'situation', 'covered']
-
-function text(value, name) {
-  if (typeof value !== 'string' || value.trim() === '' || value.length > STRING_LIMIT) throw new Error(`capture reply: ${name} is not a short non-empty string`)
-  return value.trim()
-}
 
 // parseLessons reads the judge's reply strictly (793b299): exactly one JSON document, an array of at most ten lessons,
 // each an object with exactly the keys of its kind (`feedback`: behavior, impact, action; `fact`: subject, predicate,
@@ -262,16 +234,16 @@ export function parseLessons(reply, near) {
   const lessons = []
   for (const item of list) {
     if (item === null || typeof item !== 'object' || Array.isArray(item)) throw new Error('capture reply: a lesson is not an object')
-    const fields = KINDS[item.kind]
+    const fields = NOTE_FIELDS[item.kind]
     if (!fields) throw new Error('capture reply: a lesson has a kind that is neither feedback nor fact')
     const allowed = new Set([...COMMON_KEYS, ...fields])
     if (Object.keys(item).some((key) => !allowed.has(key)) || [...allowed].some((key) => !(key in item))) throw new Error(`capture reply: a ${item.kind} lesson does not have exactly its keys`)
     if (item.covered !== null && !(Number.isInteger(item.covered) && item.covered >= 1 && item.covered <= near.length)) throw new Error('capture reply: covered is no nearest note')
-    const slug = slugOf(text(item.slug, 'slug'))
+    const slug = slugOf(shortString(item.slug, 'slug'))
     if (seen.has(slug)) continue
     seen.add(slug)
-    const values = Object.fromEntries(fields.map((name) => [name, redact(text(item[name], name))]))
-    lessons.push({ kind: item.kind, slug, situation: redact(text(item.situation, 'situation')), covered: item.covered === null ? null : near[item.covered - 1].path, values })
+    const values = Object.fromEntries(fields.map((name) => [name, redact(shortString(item[name], name))]))
+    lessons.push({ kind: item.kind, slug, situation: redact(shortString(item.situation, 'situation')), covered: item.covered === null ? null : near[item.covered - 1].path, values })
   }
   return lessons
 }

@@ -82,11 +82,12 @@ export function present(note, ledger, context) {
   return ledger.has(note.path) || context.includes(note.path)
 }
 
-// momentText is what a prompt says: a task notification is markup around ids and paths with its summary inside,
-// and only the summary says what the task was.
-export function momentText(prompt) {
-  return /<summary>([\s\S]*?)<\/summary>/.exec(prompt)?.[1].trim() ?? prompt
-}
+// summaryOf is the summary a task notification carries, or null: the notification is markup around ids and paths, and
+// only the summary says what the task was.
+export const summaryOf = (text) => /<summary>([\s\S]*?)<\/summary>/.exec(text)?.[1].trim() ?? null
+
+// momentText is what a prompt says: its summary if it is a task notification, else the prompt.
+export const momentText = (prompt) => summaryOf(prompt) ?? prompt
 
 // queryArgv is the existing `engram query` for the text of a moment and its phrases; free text is `--flag=value` so
 // that a value that starts with a dash is not read as a flag.

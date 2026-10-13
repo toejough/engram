@@ -22,24 +22,17 @@ export class StepError extends Error {
   }
 }
 
-// The messages of `$.process.run` when it rejects: "... aborted: still running after Nms", "... failed to start: ENOENT ..."
-const TIMED_OUT = /still running after|timed out/i
-const NOT_STARTED = /failed to start|ENOENT/i
-// What engram or grep print when the vault directory cannot be read.
-const UNREADABLE = /permission denied|no such file or directory|read-only file system|input\/output error/i
+// What the messages of a failure say: `$.process.run` rejecting ("... aborted: still running after Nms", "... failed to
+// start: ENOENT ..."), a model call that was cut ("aborted"), what engram or grep print when the vault directory cannot
+// be read.
+const TIMED_OUT = /still running after|timed out|^aborted$/i
+const UNAVAILABLE = /failed to start|ENOENT|permission denied|no such file or directory|read-only file system|input\/output error/i
 
-export function spawnKind(message) {
-  if (TIMED_OUT.test(message)) return 'timeout'
-  return NOT_STARTED.test(message) ? 'unavailable' : 'error'
-}
-
-export function exitKind(stderr) {
-  return UNREADABLE.test(stderr) ? 'unavailable' : 'error'
-}
-
-// replyKind: a model call that did not answer was either cut (its deadline passed) or refused by the provider.
-export function replyKind(reply) {
-  return reply.reason === 'aborted' ? 'timeout' : 'error'
+// failureKind is the class of a failure from the text it left: the message of a rejected call, the stderr of a command,
+// the reason a model call gave.
+export function failureKind(text) {
+  if (TIMED_OUT.test(text)) return 'timeout'
+  return UNAVAILABLE.test(text) ? 'unavailable' : 'error'
 }
 
 export function kindOf(error) {
