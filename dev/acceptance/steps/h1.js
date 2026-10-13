@@ -184,7 +184,7 @@ Then(/^the report counts what the hook script needed for the same call \(credent
   merge(this, 'modelCallCost', {
     modLines: code.mod.modelCallLines,
     hookLines: code.hook.modelCallLines,
-    hookNeeded: ['a credential passed under another name (Claude Code removes the session\'s from a hook\'s environment)', 'a `claude -p` subprocess with eight flags that leave out the tools, settings and default prompt', 'parsing of its JSON result', 'the model id read from modelUsage (the mod reads it from the debug log)'],
+    hookNeeded: ['a credential passed under another name (Claude Code removes the session\'s from a hook\'s environment)', 'a `claude -p` subprocess with nine flags, five of which leave out the tools, the settings (and so these hooks) and the default prompt', 'parsing of its JSON result', 'the model id read from modelUsage (the mod reads it from the debug log)'],
   })
   assert.ok(this.h1.found.hook.answered, `the hook script's call was not answered: ${JSON.stringify(this.h1.found.hook)}`)
 })
