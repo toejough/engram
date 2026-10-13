@@ -33,6 +33,8 @@ export class Scenario {
     this.workspace = path.join(this.home, 'work')
     this.notes = new Map()
     this.offers = new Map()
+    // the ended sessions written as inputs (793e8g): the transcript, its copy and its time
+    this.ended = []
     this.shimDir = null
     this.shimSeconds = 0
     this.vaultHidden = false

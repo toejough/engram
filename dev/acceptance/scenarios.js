@@ -21,6 +21,16 @@ const DELIVER_ONE = {
 }
 const NEUTRAL = { prompt: 'What is two plus two? Answer in one word.' }
 
+// the ended Pi session of the targ lesson: a run of the tests the user corrects, and the agent's last reply
+const TARG_PI_SESSION = {
+  lesson: 'use targ, not go test directly',
+  opening: [
+    ['user', 'Run the tests of this repository.'],
+    ['assistant', 'I will run go test ./... in the repository root now.'],
+  ],
+  closing: 'Understood, I will use targ from now on and not call go test directly in this repository.',
+}
+
 export default {
   '793a5k1e': {
     turns: {
@@ -172,6 +182,43 @@ export default {
       },
       'the user asks a neutral question': { prompt: 'What is two plus two? Answer in one word.' },
     },
+    // 793e8g: the ended Pi session of the second and third examples; the second has its agent save the lesson, the
+    // third has an earlier Claude Code turn capture it
+    ended: { 'no, use targ, not go test directly': TARG_PI_SESSION },
+    agentNote: {
+      slug: 'use-targ-not-go-test-directly',
+      source: 'Pi session; saved by the Pi agent running the learn skill',
+      situation: 'running the tests of a Go repository',
+      behavior: 'ran go test directly',
+      impact: 'the repository gates were skipped',
+      action: 'use targ, not go test directly',
+    },
+    earlierTurn: {
+      prompt: 'No, use targ, not go test directly. Reply with one short sentence.',
+      noMemoryCommands: true,
+    },
+  },
+
+  // 793e8g: backlog capture. `ended` gives the conversation of an ended session around what the user said: its
+  // opening, and the agent's last reply (a session killed mid-turn has none).
+  '793a3a1k': {
+    lessons: { 'use targ, not go test directly': /targ/i, 'releases are tagged from main': /tag[\s\S]*main/i },
+    turns: { 'the user asks a neutral question': { prompt: 'What is two plus two? Answer in one word.' } },
+    ended: {
+      'no, use targ, not go test directly': TARG_PI_SESSION,
+      'remember that releases are tagged from main': {
+        lesson: 'releases are tagged from main',
+        opening: [
+          ['user', 'Which branch do we tag releases from in this repository?'],
+          ['assistant', 'I do not know which branch releases are tagged from here.'],
+        ],
+      },
+    },
+  },
+  '793a5c1c': {
+    lessons: { 'use targ, not go test directly': /targ/i },
+    turns: { 'the user asks a neutral question': { prompt: 'What is two plus two? Answer in one word.' } },
+    ended: { 'no, use targ, not go test directly': TARG_PI_SESSION },
   },
 
   // 793e8d: housekeeping, purview and failure isolation. `chunk` is what a later query must find in the index; the

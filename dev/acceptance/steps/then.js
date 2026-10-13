@@ -6,6 +6,7 @@ import { Then } from '@cucumber/cucumber'
 
 import { changes, lost } from '../lib/tree.js'
 import { currentSession, sendPrompt, settle } from '../lib/turn.js'
+import { piTranscriptHoldsNoDelivery, piTranscriptUnchanged } from './backlog.js'
 import { APPLY, NOT_BUILT, Q, REQUEST, mainRows, sentinelOf, subagentRows } from './shared.js'
 import {
   agentCalls,
@@ -56,7 +57,7 @@ Then(
       const good = found.filter((block) => APPLY.test(block.text) && precedesResponse(block.rows, block.index) && (subagent || causedBy(block.rows, block.index, this.origin)))
       assert.ok(good.length > 0, `note "${delivered}" was delivered, but not with the instruction to apply it before the agent's next response${this.origin ? ` at the prompt from ${this.origin}` : ''}`)
     } else if (isNone != null) {
-      if (noneOf === 'Pi ') return NOT_BUILT
+      if (noneOf === 'Pi ') return piTranscriptHoldsNoDelivery(this)
       const groups = noneOf === "subagent's " ? await subagentRows(this) : [await mainRows(this), ...(await subagentRows(this))]
       const blocks = groups.flatMap((rows) => systemBlocks(rows))
       assert.equal(blocks.length, 0, `the System delivered content: ${blocks[0]?.text.slice(0, 200)}`)
@@ -175,8 +176,10 @@ async function unchangedHome(world) {
 }
 
 Then(
-  /^the Pi (?:agent runs recall before acting|agent's own ingest and learn run and write as they would without the System|transcript is identical to its copy)$/,
-  () => NOT_BUILT,
+  /^the Pi (agent runs recall before acting|agent's own ingest and learn run and write as they would without the System|transcript is identical to its copy)$/,
+  async function (what) {
+    return what === 'transcript is identical to its copy' ? piTranscriptUnchanged(this) : NOT_BUILT
+  },
 )
 
 Then(/^the transcript shows the results of the agent's own memory command(, the agent's reply to the user)? and no error$/, function (withReply) {

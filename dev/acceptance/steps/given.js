@@ -4,7 +4,6 @@ import path from 'node:path'
 
 import { Given } from '@cucumber/cucumber'
 
-const NOT_BUILT = 'pending'
 // SP14 (793e2e): `pi` runs headless but needs its own credentials, which the harness is not given.
 const NO_HEADLESS_PI = 'no headless Pi: SP14, pi needs its own credentials and the subscription token is refused'
 
@@ -60,8 +59,3 @@ Given(
 Given(/^(?:the user has not asked for any memory command|the agent runs no memory command itself)$/, function () {
   this.noAgentMemoryCommands = true
 })
-
-Given(
-  /^an ended (?:Pi|Claude Code) session in which the user said "([^"]*)" and (?:its lesson was not saved|its agent saved the lesson by running the learn skill|its lesson was captured by an earlier Claude Code turn)$/,
-  (_said) => NOT_BUILT,
-)
