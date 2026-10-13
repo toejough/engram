@@ -192,12 +192,12 @@ Then(/^the report counts what the hook script needed for the same call \(credent
 // ---- 793d17c1b: work longer than the hook budget ---------------------------------------------------------------------------
 
 Given("a stand-in command that returns a delivery after 25 seconds, and a handler that awaits it through the mods API", function () {
-  prefetch(['long:mod', 'long:hook', 'long:hook-timeout10'])
+  prefetch(['long:mod', 'long:hook', 'long:hook-timeout10', 'long:hook-35', 'long:hook-35-timeout60'])
 })
 
 When('a prompt is submitted', async function () {
   this.h1 = { found: {} }
-  for (const [label, name, surface] of [['mod', 'long:mod', 'mod'], ['hook', 'long:hook', 'hook'], ['hookTimeout10', 'long:hook-timeout10', 'hook']]) {
+  for (const [label, name, surface] of [['mod', 'long:mod', 'mod'], ['hook', 'long:hook', 'hook'], ['hookTimeout10', 'long:hook-timeout10', 'hook'], ['hook35', 'long:hook-35', 'hook'], ['hook35Timeout60', 'long:hook-35-timeout60', 'hook']]) {
     const data = await tour(name)
     this.h1.found[label] = longWork(data, surface)
     keep(this, name, data)
@@ -216,12 +216,14 @@ Then("the handler's own time stays under the hook budget of 10 seconds", functio
 })
 
 Then('the report records, for a settings hook running the same stand-in command, whether it was cut off and what setting avoided that', function () {
-  const { hook, hookTimeout10 } = this.h1.found
+  const { hook, hookTimeout10, hook35, hook35Timeout60 } = this.h1.found
   merge(this, 'longWorkHook', {
     cutOffAtDefault: !hook.delivered,
     defaultTimeoutSeconds: 30,
     cutOffWithTimeout10: hookTimeout10.cancelled || !hookTimeout10.delivered,
-    avoidedBy: 'the timeout field of the hook entry (the default of a UserPromptSubmit command hook is 30 s, so 25 s needs no setting here; a longer job needs a larger value)',
+    cutOff35AtDefault: hook35.cancelled || !hook35.delivered,
+    cutOff35WithTimeout60: hook35Timeout60.cancelled || !hook35Timeout60.delivered,
+    avoidedBy: 'the timeout field of the hook entry: the default of a UserPromptSubmit command hook is 30 s, so 25 s needs no setting and 35 s does',
   })
 })
 
@@ -360,8 +362,9 @@ When(/^the debug log lists the events its handlers are registered for .* and Cla
   const without = await tour('system:without')
   const context = await getRunContext()
   const modDir = path.join(path.dirname(FILES.mod.code[0]), '..', '..', '..', '..', '..', 'agent-instructions', 'mods', 'engram-memory')
-  const test = execFileSync(context.claudePath, ['plugin', 'test', modDir], { encoding: 'utf8', env: { PATH: process.env.PATH, HOME: fs.mkdtempSync(path.join(context.dir, 'plugin-test-')) } })
-  this.h1 = { withMod, without, test, modDir }
+  const tmpHome = fs.mkdtempSync(path.join(context.dir, 'plugin-test-'))
+  const test = execFileSync(context.claudePath, ['plugin', 'test', modDir], { encoding: 'utf8', env: { PATH: process.env.PATH, HOME: tmpHome } })
+  this.h1 = { withMod, without, test, modDir, tmpHome, claudePath: context.claudePath }
   keep(this, 'system:with', withMod)
   keep(this, 'system:without', without)
 })
@@ -374,7 +377,14 @@ Then("no handler denies, drops, or answers an event in place of continuing it, a
   const refusals = source.match(/\{\s*(deny|drop|consumed|isOffered|skip|refuse|decision)\s*:/g) ?? []
   const passes = /on\('turn\.step', async function\* \(\$, e, next\) \{\n\s*const result = yield\* next\(e\)[\s\S]*?return result\n\s*\}\)/.test(source)
   const summary = /(\d+) pass\n\s*(\d+) fail/.exec(this.h1.test)
-  merge(this, 'restraint', { events, refusalsInSource: refusals, turnStepPassesThrough: passes, contractTests: summary ? { pass: Number(summary[1]), fail: Number(summary[2]) } : null })
+  const validated = (() => {
+    try {
+      return { ok: true, gatingWarnings: (execFileSync(this.h1.claudePath, ['plugin', 'validate', this.h1.modDir], { encoding: 'utf8', env: { PATH: process.env.PATH, HOME: this.h1.tmpHome } }).match(/gating hook without \.catch: [\w.]+/g) ?? []) }
+    } catch (error) {
+      return { ok: false, output: `${error.stdout ?? ''}${error.stderr ?? ''}`.slice(0, 300) }
+    }
+  })()
+  merge(this, 'restraint', { events, refusalsInSource: refusals, turnStepPassesThrough: passes, contractTests: summary ? { pass: Number(summary[1]), fail: Number(summary[2]) } : null, validate: validated })
   assert.deepEqual(refusals, [], `a handler may deny, drop or answer: ${refusals.join(', ')}`)
   assert.ok(passes, 'the handler of turn.step does not pass the step on unchanged')
   assert.equal(summary?.[2], '0', 'the mod\'s contract tests fail')
@@ -398,7 +408,8 @@ Then("each memory command's input, permission decision and result are unchanged"
 
 Then('the only effect of the mod on the agent\'s context is the blocks it added', async function () {
   const { rowKindDelta } = await import('../h1/capabilities.js')
-  const added = rowKindDelta(this.h1.withMod.rows, this.h1.without.rows)
+  // what the agent wrote or was typed is its own and varies between two runs; the rows the System can add are attachments and system rows
+  const added = Object.fromEntries(Object.entries(rowKindDelta(this.h1.withMod.rows, this.h1.without.rows)).filter(([kind]) => /^(attachment|system)/.test(kind)))
   merge(this, 'restraintContext', { addedRowKinds: added })
   const other = Object.keys(added).filter((kind) => kind !== 'attachment:hook_additional_context')
   assert.deepEqual(other, [], `the mod added rows that are not blocks: ${other.join(', ')}`)
