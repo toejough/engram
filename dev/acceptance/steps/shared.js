@@ -68,8 +68,16 @@ export function endedSourcesMarked(world) {
   if (scenario.ended.length === 0) return
   const file = path.join(scenario.home, '.local', 'share', 'engram', 'chunks', 'backlog-marks.json')
   assert.ok(fs.existsSync(file), 'the backlog wrote no mark file: it never captured an ended session')
-  const marked = Object.keys(JSON.parse(fs.readFileSync(file, 'utf8')).sources ?? {})
-  for (const ended of scenario.ended) assert.ok(marked.includes(ended.file), `the mark file does not list the ${ended.harness} source ${ended.file}; it lists ${JSON.stringify(marked)}`)
+  // the mod keys a source by the path the manifest holds, which may name a temporary directory through a link
+  const real = (name) => {
+    try {
+      return fs.realpathSync(name)
+    } catch {
+      return name
+    }
+  }
+  const marked = Object.keys(JSON.parse(fs.readFileSync(file, 'utf8')).sources ?? {}).map(real)
+  for (const ended of scenario.ended) assert.ok(marked.includes(real(ended.file)), `the mark file does not list the ${ended.harness} source ${ended.file}; it lists ${JSON.stringify(marked)}`)
 }
 
 // "stating L": scenarios.js gives the words that state each lesson (a pattern per lesson, matched against what a note says,

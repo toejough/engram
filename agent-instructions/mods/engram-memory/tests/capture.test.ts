@@ -322,6 +322,20 @@ const ROWS = [
 const rowsText = (rows: any[]) => rows.map((row) => JSON.stringify(row)).join('\n')
 
 describe('capture at a subagent stop', () => {
+  test('the seam records the job before the stop hook returns, so a test waiting for idle cannot pass before the System has started', async ($: any, on: any) => {
+    const writes: string[] = []
+    mock.env(on, { ENGRAM_AUTO_SEAM_LOG: '/seam.log' })
+    on('fs.write', async (_$: any, e: any) => {
+      writes.push(e.text ?? e.content ?? e.data)
+      return { value: undefined }
+    })
+    const { clock } = stubs(on, EMPTY_OUTPUT, ['[]'], { files: { [FILE]: rowsText(ROWS) } })
+    await $.classic.SubagentStop({ agent_id: 'a1', agent_type: 'general-purpose', agent_transcript_path: FILE, last_assistant_message: 'Noted: targ test.', stop_hook_active: false })
+    expect(writes.at(-1)).toBe('queued\n')
+    await clock.settle()
+    expect(writes.at(-1)).toBe('queued\nidle\n')
+  })
+
   test('the window is the subagent transcript, polled until it holds the last message', async ($: any, on: any) => {
     const files = { [FILE]: rowsText(ROWS.slice(0, 1)) }
     const { calls, requests, clock } = stubs(on, EMPTY_OUTPUT, [JSON.stringify([LESSON])], { files })
