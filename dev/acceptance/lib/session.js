@@ -12,7 +12,7 @@ let sessionCount = 0
 const NOT_LOADED = /hooks module (\S+) not loaded:? ?(.*)/i
 
 export class Session {
-  constructor({ env, cwd, home, claudePath, creds, model = 'sonnet', plugins = [], resume, maxBudgetUsd = 5, maxTurns, debugFile }) {
+  constructor({ env, cwd, home, claudePath, creds, model = 'sonnet', plugins = [], resume, forkSession, maxBudgetUsd = 5, maxTurns, debugFile }) {
     this.home = home
     // one debug log per session: a World may hold several (a resume, a peer's sender)
     sessionCount += 1
@@ -39,6 +39,7 @@ export class Session {
         model,
         plugins,
         resume,
+        forkSession,
         maxBudgetUsd,
         maxTurns,
         pathToClaudeCodeExecutable: claudePath,

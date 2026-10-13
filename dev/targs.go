@@ -40,7 +40,7 @@ func init() {
 		Name("engram-dev").
 		Description("Engram dev target registration"))
 
-	targ.Register(testDevTarget, testDevIntegrationTarget, acceptanceTarget)
+	targ.Register(testDevTarget, testDevIntegrationTarget, acceptanceTarget, h1ReportTarget)
 
 	targ.Register(targ.Targ(runEval).
 		Name("eval").
@@ -60,6 +60,8 @@ var (
 	// The aggregates below mirror Targ's dependencies, order and mode with Engram's nil targets in place of Targ's
 	// (794b4a); Test794b4a1c fails when Targ's aggregates change. The dev package's tests carry build tags the
 	// shared test targets do not pass, so check-for-fail and check-full also run them here.
+	h1ReportTarget = targ.Targ(runH1Report).Name("h1-report").
+			Description("Report the H1 probes' observations: capability table, surface counts, ledger and verdict (793e8i)")
 	checkForFailTarget = targ.Targ(targdev.CheckForFail.Fn()).Name("check-for-fail").
 				Description(targdev.CheckForFail.GetDescription()).
 				Deps(

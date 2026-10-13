@@ -43,30 +43,32 @@ export function register(on) {
   on('prompt.submit', async ($, e, next) => {
     const cfg = await config($)
     const started = await $.clock.now()
-    const messages = await guarded($, 'session.messages', () => $.session.messages())
+    const messages = await guarded($, 'session.messages', () => $.session.messages()) // not-h1
     await record($, 'prompt.submit', {
       text: short(e.text),
       origin: e.origin,
       turnId: e.turnId,
       context: e.context,
-      messages: Array.isArray(messages)
-        ? messages.map((m) => ({ role: m.role, text: short(m.text), tools: (m.toolUses || []).length, hasWatch: Boolean(cfg.watch && typeof m.text === 'string' && m.text.includes(cfg.watch)) }))
-        : null,
+      messages: Array.isArray(messages) // not-h1
+        ? messages.map((m) => ({ role: m.role, text: short(m.text), tools: (m.toolUses || []).length, hasWatch: Boolean(cfg.watch && typeof m.text === 'string' && m.text.includes(cfg.watch)) })) // not-h1
+        : null, // not-h1
     })
+    // model-call:begin
     if (cfg.model) {
       const r = await guarded($, 'model.complete', () =>
         $.model.complete({ model: cfg.model.alias, prompt: cfg.model.prompt, maxTokens: 20, timeoutMs: 20000 }),
       )
       await record($, 'model.complete', r)
     }
+    // model-call:end
     if (cfg.sleepSeconds) {
       const r = await guarded($, 'process.run', () => $.process.run(['sleep', String(cfg.sleepSeconds)]))
       await record($, 'process.run', { exitCode: r && r.exitCode, ms: (await $.clock.now()) - started })
     }
-    if (cfg.sendTo) {
-      const sent = await guarded($, 'session.send', () => $.session.send({ to: { sessionId: cfg.sendTo }, text: cfg.sendText }))
-      await record($, 'session.send', sent)
-    }
+    if (cfg.sendTo) { // not-h1
+      const sent = await guarded($, 'session.send', () => $.session.send({ to: { sessionId: cfg.sendTo }, text: cfg.sendText })) // not-h1
+      await record($, 'session.send', sent) // not-h1
+    } // not-h1
     if (cfg.status) {
       await guarded($, 'ui.status', () => $.ui.status(cfg.status))
       await record($, 'ui.status', { text: cfg.status })
