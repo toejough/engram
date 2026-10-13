@@ -64,9 +64,10 @@ Then(
     `^(?:()the (subagent's )?transcript shows note ${Q} delivered with the instruction to apply it before the agent's next response or tool call` +
       "|()the (subagent's |Pi )?transcript shows no content delivered, the instruction to apply it included" +
       `|()the transcript shows note ${Q} delivered (\\d+) times? and retrieved by the agent (\\d+) times?` +
-      `|()the working agent's dispatch text does not mention note ${Q})$`,
+      `|()the working agent's dispatch text does not mention note ${Q}` +
+      `|()the transcript shows note ${Q} retrieved by the agent and not delivered by the System)$`,
   ),
-  async function (isDelivered, subagent, delivered, isNone, noneOf, isCount, counted, times, fetched, isDispatch, dispatched) {
+  async function (isDelivered, subagent, delivered, isNone, noneOf, isCount, counted, times, fetched, isDispatch, dispatched, isFetched, fetchedOnly) {
     if (isDelivered != null) {
       const groups = subagent ? await subagentRows(this) : [await mainRows(this)]
       const sentinel = sentinelOf(this, delivered)
@@ -84,6 +85,12 @@ Then(
       const sentinel = sentinelOf(this, counted)
       assert.equal(deliveries(rows, sentinel).length, Number(times), `note "${counted}" delivered a different number of times`)
       assert.equal(retrievals(rows, sentinel).length, Number(fetched), `note "${counted}" retrieved by the agent a different number of times`)
+    } else if (isFetched != null) {
+      // the promise of 793a2e1c: what the agent retrieved itself the System does not deliver (793b293)
+      const rows = await mainRows(this)
+      const sentinel = sentinelOf(this, fetchedOnly)
+      assert.ok(retrievals(rows, sentinel).length > 0, `the agent did not retrieve note "${fetchedOnly}" itself`)
+      assert.equal(deliveries(rows, sentinel).length, 0, `the System delivered note "${fetchedOnly}" that the agent retrieved itself`)
     } else {
       const rows = await mainRows(this)
       const sentinel = sentinelOf(this, dispatched)

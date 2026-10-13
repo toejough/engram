@@ -3802,6 +3802,8 @@ ID map for 793b243 to 793b254 (each checked with `git log -S`: unused): `793b243
 - **Rationale:** (1) the scenario and the premise (two retrievals) disagreed; (2) a setup turn that states the situation could itself be a moment for the note and make the origin row pass for the wrong reason; (3) the scenarios dispatch subagents and run echo commands.
 - **Alternatives:** (1) define "retrieved" as at least one (loses the count the other rows use); (2) put the situation in the setup prompt (the note is then delivered at the setup turn and the later delivery is deduplicated).
 
+- **Amended by:** [793b293 793a2e1c's Then states the promise, not a count](#793b293-793a2e1cs-then-states-the-promise-not-a-count): part (1) is replaced; the Then no longer counts retrievals.
+
 ## 793b288 ID map for 793b284 to 793b287
 
 - **Decided by:** Author (agent); awaiting owner validation.
@@ -3838,3 +3840,11 @@ ID map for 793b243 to 793b254 (each checked with `git log -S`: unused): `793b243
 - **Choice:** added (each checked with `git log -S`: unused): `793b289` to `793b291`. Retired: none. No heading is retitled.
 - **Rationale:** the guide: removed IDs are not reused.
 - **Alternatives:** none.
+
+## 793b293 793a2e1c's Then states the promise, not a count
+
+- **Decided by:** Owner (Joe, 2026-10-12). It changes the text of a product scenario.
+- **Choice:** the Then of [793a2e1c Note the agent retrieved itself is not delivered](./793a_product-spec.md#793a2e1-uat-scenarios) reads `the transcript shows note "X" retrieved by the agent and not delivered by the System`, in place of `delivered 0 times and retrieved by the agent 2 times`. The scenario's ID and Givens are unchanged. The step is a fourth form of step 14 of [793e2i Step catalog](./793e_implementation-plan.md#793e2i-step-catalog): it holds when the transcript shows the agent retrieved the note at least once and no System block holds it. The count of two retrievals that [793b287](#793b287-scenario-793a2e1c-counts-two-retrievals-the-delivery-scenarios-inputs-keep-the-situation-out-of-the-setup-turn) added is no longer asserted; the Givens still make the agent retrieve the note twice.
+- **Rationale:** a scenario states a promise a user can read; the number of retrievals is a detail of how the Givens are scripted, not part of the promise.
+- **Alternatives:** keep the counts (the scenario text then reads as a measurement).
+- **Amends:** [793b287](#793b287-scenario-793a2e1c-counts-two-retrievals-the-delivery-scenarios-inputs-keep-the-situation-out-of-the-setup-turn) (part 1).
