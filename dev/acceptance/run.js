@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 
 import { extractScenarios, selectScenarios, writeFeatures, PRODUCT_SPEC, TECHNICAL_SPEC } from './lib/extract.js'
 import { parseArgs } from './lib/args.js'
+import { secretValues } from './lib/creds.js'
 import { formatReport, passed } from './lib/report.js'
 import { runFeatures } from './lib/runner.js'
 import { disposeRun } from './lib/run-state.js'
@@ -61,7 +62,9 @@ process.on('SIGINT', () => {
 main(process.argv.slice(2)).then(
   (code) => process.exit(code),
   (error) => {
-    console.error(`acceptance: ${error.message}`)
+    // an error can quote what a command printed, and the commands run with the credentials in their environment
+    const secrets = secretValues(process.env, { readFile: (file) => fs.readFileSync(file, 'utf8') })
+    console.error(`acceptance: ${secrets.reduce((text, value) => text.split(value).join('[redacted]'), error.message)}`)
     process.exit(2)
   },
 )

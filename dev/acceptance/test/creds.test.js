@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { resolveCredentials, redact, redactDeep, TOKEN_FILE } from '../lib/creds.js'
+import { resolveCredentials, redact, redactDeep, secretValues, TOKEN_FILE } from '../lib/creds.js'
 
 const SECRET = 'sk-ant-oat01-SECRETVALUE'
 
@@ -53,4 +53,10 @@ test('redactDeep removes every credential value from nested evidence', () => {
   const creds = resolveCredentials({ CLAUDE_CODE_OAUTH_TOKEN: SECRET }, fakeFs(''))
   const evidence = { a: [`x ${SECRET}`, 1], b: { c: SECRET, d: null } }
   assert.deepEqual(redactDeep(evidence, creds), { a: ['x [redacted]', 1], b: { c: '[redacted]', d: null } })
+})
+
+test('the values to remove from a message are those of the environment and of the token file, whether or not credentials resolved', () => {
+  const file = fakeFs(`CLAUDE_CODE_OAUTH_TOKEN=${SECRET}-FILE\n`)
+  assert.deepEqual(secretValues({ ANTHROPIC_API_KEY: SECRET, CLAUDE_CODE_OAUTH_TOKEN: `${SECRET}-ENV` }, file).sort(), [SECRET, `${SECRET}-ENV`, `${SECRET}-FILE`].sort())
+  assert.deepEqual(secretValues({}, fakeFs(null)), [])
 })

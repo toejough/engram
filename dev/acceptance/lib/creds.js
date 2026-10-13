@@ -48,3 +48,15 @@ export function redact(text, creds) {
 export function redactDeep(value, creds) {
   return JSON.parse(redact(JSON.stringify(value) ?? 'null', creds))
 }
+
+// secretValues are all the credential values that can be named in a message, found without requiring that any resolves:
+// both variables and the token file. An error that is printed before credentials were resolved is redacted with these.
+export function secretValues(environment, fs) {
+  let content = ''
+  try {
+    content = fs.readFile(TOKEN_FILE)
+  } catch {
+    content = ''
+  }
+  return [...new Set([environment[OAUTH], environment[API_KEY], parseTokenFile(content)].filter(Boolean))]
+}

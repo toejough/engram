@@ -2689,6 +2689,8 @@ New IDs: `793a2c1d`, `793a3o`, `793a3o1` with `793a3o1a`..`793a3o1d`, `793a3p`, 
 
 - **Amended by:** [793b213 Author decisions in applying the review: ledger, capture input, task and curation](#793b213-author-decisions-in-applying-the-review-ledger-capture-input-task-and-curation): a turn's window is formed from `$.session.messages()` at the turn's end and passed in the job; only a subagent's window is read from its transcript.
 
+- **Amended by:** [793b319 The PoC drops the code and the references of what does not exist](#793b319-the-poc-drops-the-code-and-the-references-of-what-does-not-exist): the closing line `[end engram memory]` was never written (a delivered block is a block of the marker line and its items), and a delivered block is an attachment row that `$.session.messages()` does not hold (SP7), so the removal of the System's own blocks from the window removed nothing; it is gone, and the choice above is read without it.
+
 - **Amended by:** [793b240 The product spec is the owner's intent; the technical spec is his two hypotheses with the scenarios that test them](#793b240-the-product-spec-is-the-owners-intent-the-technical-spec-is-his-two-hypotheses-with-the-scenarios-that-test-them): this entry cites `793a4c1e`, which that decision retired (its subject was removed or merged; the entry itself is left as written, and the ID map [793b241 ID map for 793b240](#793b241-id-map-for-793b240) gives each reason).
 
 ## 793b200 Reconciliation is covered or absent; dispatch outcomes are deduplicated mechanically

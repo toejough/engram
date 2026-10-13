@@ -22,20 +22,6 @@ function blocks(row) {
   return Array.isArray(content) ? content : []
 }
 
-export function userPrompts(rows) {
-  const prompts = []
-  for (const row of rows) {
-    if (row.type !== 'user') continue
-    const content = row.message?.content
-    if (typeof content === 'string') prompts.push(content)
-    else {
-      const text = blocks(row).filter((block) => block.type === 'text').map((block) => block.text).join('\n')
-      if (text !== '') prompts.push(text)
-    }
-  }
-  return prompts
-}
-
 function resultText(block) {
   if (typeof block.content === 'string') return block.content
   if (Array.isArray(block.content)) return block.content.map((part) => part.text ?? '').join('\n')
@@ -63,11 +49,6 @@ export function memoryCalls(rows) {
     if (call.name === 'Skill') return MEMORY_SKILLS.has(call.input.skill)
     return false
   })
-}
-
-// countContent counts the rows whose serialised form holds the text.
-export function countContent(rows, needle) {
-  return rows.filter((row) => JSON.stringify(row).includes(needle)).length
 }
 
 export function finalReply(rows) {
@@ -118,6 +99,17 @@ export function precedesResponse(rows, index) {
     if (rows[i].type === 'user') return true
   }
   return false
+}
+
+// resultIndex is the index of the user row that carries the result of a tool call, or -1.
+export function resultIndex(rows, toolUseId) {
+  return rows.findIndex((row) => blocks(row).some((block) => block.type === 'tool_result' && block.tool_use_id === toolUseId))
+}
+
+// noResponseBetween: no assistant row sits between the two indexes, so that what sits at `to` is read by the agent
+// before its next response or tool call, as what sits at `from` is.
+export function noResponseBetween(rows, from, to) {
+  return rows.slice(from + 1, to).every((row) => row.type !== 'assistant')
 }
 
 // agentCalls are the dispatches of a subagent in the rows: the Agent (formerly Task) tool uses.

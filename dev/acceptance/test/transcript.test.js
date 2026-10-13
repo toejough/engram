@@ -5,7 +5,7 @@ import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import { readRows, userPrompts, toolCalls, memoryCalls, countContent, finalReply } from '../lib/transcript.js'
+import { readRows, toolCalls, memoryCalls, finalReply, noResponseBetween, resultIndex } from '../lib/transcript.js'
 
 const FIXTURE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'engram-query-turn.jsonl')
 const SENTINEL = 'SENTINEL-N-71c03d'
@@ -27,12 +27,6 @@ test('a malformed last line is skipped, not an error', () => {
   }
 })
 
-test('user prompts are the typed texts, not tool results', () => {
-  const prompts = userPrompts(readRows(FIXTURE))
-  assert.equal(prompts.length, 1)
-  assert.match(prompts[0], /^In the middle of this task, run `engram query/)
-})
-
 test('a tool call is paired with its result', () => {
   const calls = toolCalls(readRows(FIXTURE))
   assert.equal(calls.length, 1)
@@ -51,10 +45,19 @@ test('memory calls are the runs of an engram command and of the memory skills', 
   assert.equal(memoryCalls(skill).length, 1)
 })
 
-test('content occurrences count the rows that carry a text, whatever their kind', () => {
-  const rows = readRows(FIXTURE)
-  assert.equal(countContent(rows, SENTINEL), 2)
-  assert.equal(countContent(rows, 'no-such-text'), 0)
+test('the row of a tool result is found by the call, and what sits after it before any response is read with it', () => {
+  const rows = [
+    { type: 'assistant', message: { content: [{ type: 'tool_use', id: 't1', name: 'Skill', input: { skill: 'route' } }] } },
+    { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't1', content: 'ok' }] } },
+    { type: 'user', message: { content: [{ type: 'text', text: 'Base directory for this skill' }] } },
+    { type: 'attachment', attachment: { type: 'hook_additional_context', content: ['[engram memory]'] } },
+    { type: 'assistant', message: { content: [{ type: 'text', text: 'ok' }] } },
+    { type: 'attachment', attachment: { type: 'hook_additional_context', content: ['[engram memory]'] } },
+  ]
+  assert.equal(resultIndex(rows, 't1'), 1)
+  assert.equal(resultIndex(rows, 'nope'), -1)
+  assert.equal(noResponseBetween(rows, 1, 3), true)
+  assert.equal(noResponseBetween(rows, 1, 5), false)
 })
 
 test('the final reply is the last assistant text', () => {

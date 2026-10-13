@@ -195,6 +195,16 @@ export function windowsFromMessages(messages) {
   return current.length > 0 ? [...windows, current.flat().join('\n')] : windows
 }
 
+// recentTexts is what the in-turn classification reads (793b320): the last texts of the user and the agent, no tool input
+// or result, each redacted and cut like the lines of a window, the oldest cut first to the window limit. The step's own
+// text is added when the messages lag behind it.
+const RECENT_MESSAGES = 6
+export function recentTexts(messages, answer = '') {
+  const lines = messages.filter((message) => message.text?.trim()).slice(-RECENT_MESSAGES).flatMap((message) => render({ role: message.role, text: message.text }))
+  if (answer.trim() && !lines.some((line) => line.includes(answer.trim().slice(0, 80)))) lines.push(`Agent: ${cut(oneLine(redact(answer.trim())))}`)
+  return lines.join('\n').slice(-WINDOW_LIMIT)
+}
+
 // queryText is what the nearest notes are looked up with: what the user said first, then the rest.
 export function queryText(window) {
   const lines = window.split('\n')
@@ -248,8 +258,9 @@ export function parseLessons(reply, near) {
   return lessons
 }
 
-export function sourceFor(sessionId, turn) {
-  return `${SOURCE_NOTE}; written automatically (session ${sessionId}, turn ${turn})`
+// sourceFor names a note written from a live turn; a note written from a subagent's transcript names the subagent too.
+export function sourceFor(sessionId, turn, agentId = null) {
+  return `${SOURCE_NOTE}; written automatically (session ${sessionId}, turn ${turn}${agentId ? `, subagent ${agentId}` : ''})`
 }
 
 // backlogSourceFor names a note written from a transcript read after the fact: the source and the position in it.

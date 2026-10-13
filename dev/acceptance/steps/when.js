@@ -11,6 +11,12 @@ const NOT_BUILT = 'pending'
 When(/^a turn completes in which "([^"]*)"$/, async function (event) {
   const script = this.data.turns?.[event]
   if (!script) throw new Error(`scenarios.js has no turn script for ${this.id}: "${event}"`)
+  // a lesson that must come from a subagent's own session is not in the prompt of the parent that dispatches it
+  if (this.data.fromSubagent) {
+    for (const [lesson, pattern] of Object.entries(this.data.lessons ?? {})) {
+      if (pattern.test(script.prompt)) throw new Error(`the prompt of ${this.id} states the lesson "${lesson}" itself: it must reach the System only through the subagent`)
+    }
+  }
   this.origin = null
   this.lastTurn = await runTurn(this, script)
 })

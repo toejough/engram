@@ -25,10 +25,15 @@ clusters:
 
 const EMPTY_OUTPUT = 'version: 1\nphrases: []\nitems: []\nclusters: []\n'
 
+const logs: string[] = []
+
 // bottom stands for the engine: the transcript file does not exist yet, the log goes nowhere, and the prompt enters.
 function bottom(on: any, transcript: { text: string | null } = { text: null }) {
   on('fs.read', async () => (transcript.text === null ? { deny: 'ENOENT' } : { value: transcript.text }))
-  on('ui.log', async () => ({ value: undefined }))
+  on('ui.log', async (_$: any, e: any) => {
+    logs.push(e.text ?? e.line ?? JSON.stringify(e))
+    return { value: undefined }
+  })
   on('prompt.submit', async (_$: any, e: any) => ({ text: e.text, context: e.context }))
 }
 
@@ -75,6 +80,20 @@ describe('prompt delivery', () => {
     const result = await $.prompt.submit(PROMPT)
     expect(result.context ?? []).toEqual([])
     expect(calls.length).toBe(1)
+  })
+
+  test('a lookup that found an irrelevant note says so in the debug log: one candidate, none delivered', async ($: any, on: any) => {
+    logs.length = 0
+    stubs(on, QUERY_OUTPUT, '[]')
+    await $.prompt.submit(PROMPT)
+    expect(logs).toContain('engram-memory: prompt lookup: 1 candidate(s), 0 delivered')
+  })
+
+  test('a lookup that found nothing says so in the debug log: no candidate', async ($: any, on: any) => {
+    logs.length = 0
+    stubs(on, EMPTY_OUTPUT, '[]')
+    await $.prompt.submit(PROMPT)
+    expect(logs).toContain('engram-memory: prompt lookup: 0 candidate(s), 0 delivered')
   })
 
   test('a judgement that selects nothing delivers nothing', async ($: any, on: any) => {

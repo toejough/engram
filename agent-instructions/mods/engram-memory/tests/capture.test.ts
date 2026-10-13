@@ -336,6 +336,15 @@ describe('capture at a subagent stop', () => {
     expect(requests[0].prompt).toContain('Noted: targ test.')
   })
 
+  test('a note written from a subagent names the subagent in its source', async ($: any, on: any) => {
+    const files = { [FILE]: rowsText(ROWS) }
+    const { argvs, clock } = stubs(on, EMPTY_OUTPUT, [JSON.stringify([LESSON])], { files })
+    await $.classic.SubagentStop({ agent_id: 'a1', agent_type: 'general-purpose', agent_transcript_path: FILE, last_assistant_message: 'Noted: targ test.', stop_hook_active: false })
+    await clock.settle()
+    const learn = argvs.find((argv) => argv[1] === 'learn')!
+    expect(learn).toContain('--source=captured from the conversation; written automatically (session sess-1, turn 3, subagent a1)')
+  })
+
   test('two subagents with the same lesson are two jobs in order, so the second sees the first note', async ($: any, on: any) => {
     const files = { [FILE]: rowsText(ROWS), '/b.jsonl': rowsText(ROWS) }
     const { calls, clock } = stubs(on, EMPTY_OUTPUT, [JSON.stringify([LESSON]), '[]'], { files })

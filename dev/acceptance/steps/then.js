@@ -7,17 +7,20 @@ import { Then } from '@cucumber/cucumber'
 import { changes, lost } from '../lib/tree.js'
 import { currentSession, sendPrompt, settle } from '../lib/turn.js'
 import { piTranscriptHoldsNoDelivery, piTranscriptUnchanged } from './backlog.js'
-import { APPLY, NOT_BUILT, Q, REQUEST, mainRows, sentinelOf, subagentRows } from './shared.js'
+import { APPLY, NOT_BUILT, Q, REQUEST, lookupDeclined, mainRows, sentinelOf, subagentRows } from './shared.js'
 import {
   agentCalls,
   deliveries,
   finalReply,
   memoryCalls,
+  noResponseBetween,
   precedesResponse,
   readRows,
+  resultIndex,
   retrievals,
   statusTexts,
   systemBlocks,
+  toolCalls,
 } from '../lib/transcript.js'
 
 // What a delivery looks like in the transcripts (SP4): the System's blocks are attachment rows of the agent that
@@ -56,11 +59,14 @@ Then(
       assert.ok(found.length > 0, `note "${delivered}" was not delivered to the ${subagent ? 'subagent' : 'working agent'}: no System block holds ${sentinel}`)
       const good = found.filter((block) => APPLY.test(block.text) && precedesResponse(block.rows, block.index) && (subagent || causedBy(block.rows, block.index, this.origin)))
       assert.ok(good.length > 0, `note "${delivered}" was delivered, but not with the instruction to apply it before the agent's next response${this.origin ? ` at the prompt from ${this.origin}` : ''}`)
+      if (this.data.deliveredAfter) deliveredAtTheCue(this.data.deliveredAfter, found)
+      if (this.data.deliveredMidTurn) deliveredMidTurn(found)
     } else if (isNone != null) {
       if (noneOf === 'Pi ') return piTranscriptHoldsNoDelivery(this)
       const groups = noneOf === "subagent's " ? await subagentRows(this) : [await mainRows(this), ...(await subagentRows(this))]
       const blocks = groups.flatMap((rows) => systemBlocks(rows))
       assert.equal(blocks.length, 0, `the System delivered content: ${blocks[0]?.text.slice(0, 200)}`)
+      if (noneOf !== "subagent's ") lookupDeclined(this)
     } else if (isCount != null) {
       const rows = await mainRows(this)
       const sentinel = sentinelOf(this, counted)
@@ -84,6 +90,30 @@ Then(
     return undefined
   },
 )
+
+// deliveredAtTheCue: the note reached the agent at the tool result of the call the scenario names (a cue of the
+// mod), not earlier, at the prompt: every block that holds it sits after that call's result with no response between.
+function deliveredAtTheCue(cue, found) {
+  const rows = found[0].rows
+  const call = toolCalls(rows).find((each) => each.name === cue.tool && (cue.skill === undefined || each.input.skill === cue.skill))
+  assert.ok(call, `the agent made no ${cue.tool} call${cue.skill ? ` of ${cue.skill}` : ''}`)
+  const result = resultIndex(rows, call.id)
+  assert.ok(result >= 0, `the ${cue.tool} call has no result row`)
+  for (const block of found) {
+    assert.ok(block.index > result, `the note was delivered before the ${cue.skill ?? cue.tool} call returned (at row ${block.index}, the result is row ${result}), not at the cue`)
+    assert.ok(noResponseBetween(rows, result, block.index), `the note was delivered after the agent had responded to the ${cue.skill ?? cue.tool} result`)
+  }
+}
+
+// deliveredMidTurn: the note reached the agent in the turn, after the result of the first tool the agent used, and not at
+// the prompt, where the agent had done nothing yet.
+function deliveredMidTurn(found) {
+  const rows = found[0].rows
+  const first = toolCalls(rows)[0]
+  assert.ok(first, 'the agent used no tool')
+  const result = resultIndex(rows, first.id)
+  for (const block of found) assert.ok(block.index > result, `the note was delivered at row ${block.index}, before the agent had used a tool (the first result is row ${result}): not in the turn`)
+}
 
 Then(
   /^the (subagent's )?transcript shows no request from the System to the agent to run a memory command, or to evaluate, approve, write or curate a note$/,
@@ -155,6 +185,7 @@ Then(
     assert.ok(modLoaded(session), `the mod is not loaded as it was after the first update: plugins ${JSON.stringify(session.init?.plugins)}`)
     assert.equal(session.turns.at(-1).isError, false, `the turn ended in an error: ${session.turns.at(-1).text.slice(0, 200)}`)
     assert.equal(systemBlocks(await mainRows(this)).length, 0, 'the System added content to a session that matches no note')
+    lookupDeclined(this)
     return undefined
   },
 )

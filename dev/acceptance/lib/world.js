@@ -14,7 +14,10 @@ import { installShim, shimCalls } from './shim.js'
 import { snapshotTree } from './tree.js'
 
 const run = promisify(execFile)
-const ALLOWED_TOOLS = ['Bash(engram:*)', 'Bash(echo:*)', 'Bash(sleep:*)', 'Read', 'Glob', 'Grep', 'Agent', 'Skill', 'CronCreate']
+// The agent may run engram and sleep, and echo only the words the scenarios give it: `Bash(echo:*)` would let it echo
+// the environment of the session, and the environment holds the credentials (793b316).
+export const ECHOES = ['ok', 'tagging a release', 'tagging a release again', "'TestSync failed: FIXTURE_DIR is unset'", '\"TestSync failed: FIXTURE_DIR is unset\"']
+const ALLOWED_TOOLS = ['Bash(engram:*)', ...ECHOES.map((words) => `Bash(echo ${words})`), 'Bash(sleep:*)', 'Read', 'Glob', 'Grep', 'Agent', 'Skill', 'CronCreate']
 // a turn bound for the sessions of the scenarios: a skill such as please can run long, and no scenario needs more
 const MAX_TURNS = 8
 

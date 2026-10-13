@@ -5,14 +5,14 @@ import {
   withTurns,
 } from './backlog.js'
 import {
-  amendArgv, backlogSourceFor, learnArgv, messagesFromTranscript, neighbours, parseLessons, queryText, recentNote, redact,
-  sourceFor, transcriptHolds, windowFromMessages, windowFromTranscript, windowsFromMessages,
+  amendArgv, backlogSourceFor, learnArgv, messagesFromTranscript, neighbours, parseLessons, queryText, recentNote, recentTexts,
+  redact, sourceFor, transcriptHolds, windowFromMessages, windowFromTranscript, windowsFromMessages,
 } from './capture.js'
 import { DEADLINE_MS, StepError, failureKind, kindOf, warning } from './failure.js'
 import {
   MAX_OFFERS, NEAR_COUNT, ingestArgv, nearestArgv, parseOffers, parseShow, pendingArgv, settleArgvs, showArgv, vaultFrom,
 } from './housekeeping.js'
-import { captureRequest, curationRequest, parseCuration, parseSelection, relevanceRequest } from './judge.js'
+import { captureRequest, classifyRequest, curationRequest, parseCuration, parseMoments, parseSelection, relevanceRequest } from './judge.js'
 import { candidates, buildBlock, momentText, parseQuery, present, queryArgv, sinceCompaction } from './moment.js'
 import { emptyCounts, statusLine } from './summary.js'
 
@@ -30,6 +30,13 @@ const ledgers = new Map()
 const skipped = new Set()
 // `turnDone`: a top-level turn finished in the burst of jobs now in the queue, so its summary is due at the burst's end
 const queue = { tail: Promise.resolve(), pending: 0, seam: [], turnDone: false }
+// the in-turn cue (793b320): the job started at the last step of the working agent that wrote text and called a tool
+// ({ promise, done, notes, startedAt }), whose notes ride the result of a later tool of the same turn
+const step = { job: null }
+// a tool result waits for the job this long at most (the hook's own budget is about 10 s, measured), and a job older
+// than the deadline is dropped
+const HOLD_MS = 7000
+const STEP_DEADLINE_MS = 25000
 // the notes this session wrote (basename, situation and text), kept to compare later windows with
 const written = []
 const state = {
@@ -47,7 +54,7 @@ const state = {
 }
 
 // The steps a failure is reported against (793a4b): the user is told which part of automatic memory was skipped.
-const LOOKUP_STEP = { prompt: 'the prompt lookup', route: 'the route lookup', subagent: 'the subagent lookup' }
+const LOOKUP_STEP = { prompt: 'the prompt lookup', route: 'the route lookup', subagent: 'the subagent lookup', step: 'the step lookup' }
 const CAPTURE_STEP = 'the capture'
 const BACKLOG_STEP = 'the backlog capture'
 
@@ -104,20 +111,75 @@ async function readTranscript($, file) {
   }
 }
 
-// moment runs one lookup (793b192): query, presence, relevance. `agent` keys the ledger; a subagent's context is its
-// task, so it reads no transcript. Nothing relevant remaining is nothing delivered (793a2n).
-async function moment($, { agent, kind, text, readContext }) {
-  const result = await exec($, queryArgv(kind, text), DEADLINE_MS.moment)
+// lookup runs one lookup (793b192): query, presence, relevance, and answers the notes that bear on the moment. `agent`
+// keys the ledger; a subagent's context is its task, so it reads no transcript. `moments` are the phrases the moment
+// names beside the text. Nothing relevant remaining is nothing (793a2n).
+async function lookup($, { agent, kind, text, readContext, moments = [] }) {
+  const result = await exec($, queryArgv(kind, text, moments), DEADLINE_MS.moment)
   const ledger = state.ledger(agent)
   const context = readContext && state.transcript ? sinceCompaction(await readTranscript($, state.transcript)) : ''
   const fresh = candidates(parseQuery(result.stdout)).filter((note) => !present(note, ledger, context))
-  if (fresh.length === 0) return null
-  const reply = await $.model.complete(relevanceRequest(kind, text, fresh))
+  const said = (delivered) => $.ui.log(`engram-memory: ${kind} lookup: ${fresh.length} candidate(s), ${delivered} delivered`, { to: 'debug' })
+  if (fresh.length === 0) {
+    await said(0)
+    return []
+  }
+  const reply = await $.model.complete(relevanceRequest(moments.length > 0 ? moments.join(', ') : kind, text, fresh))
   const chosen = parseSelection(answered(reply, 'relevance'), fresh.length).map((index) => fresh[index])
-  if (chosen.length === 0) return null
-  for (const note of chosen) ledger.add(note.path)
-  state.counts.delivered += chosen.length
-  return buildBlock(chosen)
+  await said(chosen.length)
+  return chosen
+}
+
+// deliver makes the block of notes the agent does not hold yet, and counts them: a note that entered the ledger since
+// the lookup is not delivered again (793a2e).
+function deliver(agent, notes) {
+  const ledger = state.ledger(agent)
+  const fresh = notes.filter((note) => !ledger.has(note.path))
+  if (fresh.length === 0) return null
+  for (const note of fresh) ledger.add(note.path)
+  state.counts.delivered += fresh.length
+  return buildBlock(fresh)
+}
+
+const moment = async ($, args) => deliver(args.agent, await lookup($, args))
+
+// stepJob is the in-turn cue (793b320): one classification of the recent texts, then, when it names a moment, the lookup
+// of those moments and subjects.
+async function stepJob($, { messages, answer }) {
+  const reply = await $.model.complete(classifyRequest(recentTexts(messages, answer)))
+  const moments = parseMoments(answered(reply, 'classification'), redact)
+  if (moments.length === 0) return []
+  const text = moments.map((each) => each.subject).join('; ')
+  return lookup($, { agent: MAIN, kind: 'step', text, readContext: true, moments: moments.map((each) => each.moment) })
+}
+
+// startStep starts the job of a step in the background, one at a time: the step goes on while it runs.
+async function startStep($, result) {
+  if (step.job && !step.job.done) return
+  const messages = await $.session.messages()
+  const job = { done: false, notes: [], startedAt: await $.clock.now() }
+  job.promise = new Promise((resolve) => {
+    $.clock.after(0, async () => {
+      job.notes = (await attempt($, () => stepJob($, { messages, answer: result.answer }), LOOKUP_STEP.step)) ?? []
+      job.done = true
+      resolve()
+    })
+  })
+  step.job = job
+}
+
+// heldStep answers the notes of the step job for a tool result of the working agent: it waits for the job up to HOLD_MS;
+// a job still running is kept for a later result until its deadline, a finished one is taken.
+async function heldStep($) {
+  const job = step.job
+  if (!job) return []
+  if (!job.done) await Promise.race([job.promise, $.clock.sleep(HOLD_MS)])
+  if (job.done) {
+    step.job = null
+    return job.notes
+  }
+  if ((await $.clock.now()) - job.startedAt > STEP_DEADLINE_MS) step.job = null
+  return []
 }
 
 // capture is one capture job (793b279): the nearest notes of the window by `engram query`, one `capture` judgement of
@@ -352,8 +414,10 @@ export function register(on) {
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
     if (e.agentId) return result
-    // a dispatch that started no subagent must not give its task to the next one that starts (793b317)
+    // a dispatch that started no subagent must not give its task to the next one that starts (793b317), and a step job
+    // is dropped with the turn it belongs to (793b320)
     spawns.length = 0
+    step.job = null
     const messages = await attempt($, () => $.session.messages(), CAPTURE_STEP)
     const sessionId = await attempt($, () => $.session.id(), CAPTURE_STEP)
     const turn = await attempt($, () => $.session.turns(), CAPTURE_STEP)
@@ -380,7 +444,7 @@ export function register(on) {
     await schedule($, async () => {
       const file = await settled($, e.agent_transcript_path, last)
       const window = windowFromTranscript(file, last)
-      if (window !== '') await capture($, { window, source: sourceFor(sessionId, turn) })
+      if (window !== '') await capture($, { window, source: sourceFor(sessionId, turn, e.agent_id) })
     }, CAPTURE_STEP)
     return result
   }).catch(($, e, next) => next(e))
@@ -391,11 +455,22 @@ export function register(on) {
     return next(block ? { ...e, context: [...(e.context ?? []), block] } : e)
   }).catch(($, e, next) => next(e))
 
+  // The step hook only reads: the chunks pass as they come and the result is the one beneath (purview, 793a4c). A step
+  // of the working agent that wrote text and called a tool starts the in-turn cue.
+  on('turn.step', async function* ($, e, next) {
+    const result = yield* next(e)
+    if (!e.agentId && result?.answer?.trim() && result.toolUses?.length > 0) await attempt($, () => startStep($, result))
+    return result
+  })
+
   on('classic.PostToolUse', async ($, e, next) => {
     const result = await next(e)
-    if (e.tool_name !== 'Skill' || e.tool_input?.skill !== 'route' || e.agent_id) return result
-    const text = `${e.tool_input.args ?? ''} ${state.lastPrompt}`.trim()
-    const block = await attempt($, () => moment($, { agent: MAIN, kind: 'route', text, readContext: true }), LOOKUP_STEP.route)
+    if (e.agent_id) return result
+    const isRoute = e.tool_name === 'Skill' && e.tool_input?.skill === 'route'
+    // the result of route has the lookup of its own; the notes of a step wait for a later result (793b239)
+    const block = isRoute
+      ? await attempt($, () => moment($, { agent: MAIN, kind: 'route', text: `${e.tool_input.args ?? ''} ${state.lastPrompt}`.trim(), readContext: true }), LOOKUP_STEP.route)
+      : deliver(MAIN, (await attempt($, () => heldStep($))) ?? [])
     return block ? { ...result, additionalContext: [...(result?.additionalContext ?? []), block] } : result
   })
 

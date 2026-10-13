@@ -9,7 +9,7 @@ const TEXT_LIMIT = 300
 const COUNTED_PROVENANCE = /^(direct|cluster_rep|trigger)$/
 
 // The four decision moments of recall (792a19a), the phrases a prompt is looked up with beside its own text.
-const RECALL_MOMENTS = [
+export const RECALL_MOMENTS = [
   'endorsing or ranking a proposed approach',
   'declaring work done',
   'a failure that cannot be explained',
@@ -20,6 +20,7 @@ export const PHRASES = {
   prompt: (text) => [...RECALL_MOMENTS, text.slice(0, TEXT_LIMIT)],
   route: (text) => ['routing a unit of work to a model tier', text.slice(0, TEXT_LIMIT)],
   subagent: (text) => ['dispatching a subagent for a task', text.slice(0, TEXT_LIMIT)],
+  step: (text) => [text.slice(0, TEXT_LIMIT)],
   capture: (text) => ['capturing a lesson from a conversation', text.slice(0, TEXT_LIMIT)],
 }
 
@@ -91,8 +92,8 @@ export const momentText = (prompt) => summaryOf(prompt) ?? prompt
 
 // queryArgv is the existing `engram query` for the text of a moment and its phrases; free text is `--flag=value` so
 // that a value that starts with a dash is not read as a flag.
-export function queryArgv(kind, text) {
+export function queryArgv(kind, text, moments = []) {
   const argv = ['engram', 'query', '--limit', String(ITEM_LIMIT), `--text=${text.slice(0, TEXT_LIMIT)}`]
-  for (const phrase of PHRASES[kind](text)) argv.push(`--phrase=${phrase}`)
+  for (const phrase of [...moments, ...PHRASES[kind](text)]) argv.push(`--phrase=${phrase}`)
   return argv
 }

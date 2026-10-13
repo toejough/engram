@@ -11,6 +11,7 @@ import { promptRows } from './transcript.js'
 
 const NOTIFICATION_WAIT_MS = 120000
 const SCHEDULE_WAIT_MS = 150000
+const NOT_ARRIVED = { system: false, message: 'the prompt of the origin did not arrive' }
 
 export function promptFor(note, correction) {
   const text = `Next I am working on: ${note.situation}. Answer with one short sentence.`
@@ -42,7 +43,7 @@ async function human(world, note, correction) {
   return attempt(
     world,
     (scenario) => sendPrompt(scenario, prompt),
-    ({ rows }) => constraintsHold(world, rows),
+    ({ rows }) => (constraintsHold(world, rows, world.data) ? null : { system: false, message: 'the agent ran a memory command itself' }),
   )
 }
 
@@ -60,7 +61,7 @@ async function taskNotification(world, note) {
       await settle()
       return { turn, rows: await readTranscript(session) }
     },
-    ({ turn, rows }) => turn !== null && promptRows(rows, 'task').length > 0,
+    ({ turn, rows }) => (turn !== null && promptRows(rows, 'task').length > 0 ? null : NOT_ARRIVED),
   )
 }
 
@@ -78,7 +79,7 @@ async function scheduledTrigger(world, note) {
       await settle()
       return { turn, rows: await readTranscript(session) }
     },
-    ({ turn, rows }) => turn !== null && promptRows(rows, 'schedul').length + promptRows(rows, 'cron').length > 0,
+    ({ turn, rows }) => (turn !== null && promptRows(rows, 'schedul').length + promptRows(rows, 'cron').length > 0 ? null : NOT_ARRIVED),
   )
 }
 
@@ -105,6 +106,6 @@ async function peerMessage(world, note) {
       await settle()
       return { turn, rows: await readTranscript(receiver) }
     },
-    ({ turn, rows }) => turn !== null && promptRows(rows, 'peer').length > 0,
+    ({ turn, rows }) => (turn !== null && promptRows(rows, 'peer').length > 0 ? null : NOT_ARRIVED),
   )
 }

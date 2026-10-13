@@ -1,6 +1,7 @@
 // A scripted turn (793b246): the prompt that elicits an event, sent to the scenario's session, and the observation
 // that confirms the agent did what the event says. Only this precondition is retried, up to three attempts, each in a
 // rebuilt World; the Then of a scenario is never retried.
+import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
 import { agentCalls, memoryCalls, readRows, systemBlocks, toolCalls } from './transcript.js'
@@ -14,24 +15,29 @@ function matches(expected, actual) {
   return expected instanceof RegExp ? expected.test(actual) : expected === actual
 }
 
-// observed: the agent did what the event says. `tool` and `command` (and `skill`) are matched against a tool call,
-// `reply` against the agent's last reply, `delivered` that the System delivered a block in the turn, `calls` is how many matching tool calls the turn needs (default 1); a script
-// with no observation is confirmed by the turn itself.
-export function observed(rows, observe, reply = '', subagents = []) {
-  if (!observe) return true
-  if (observe.delivered && systemBlocks(rows).length === 0) return false
-  if (observe.reply !== undefined && !matches(observe.reply, reply)) return false
-  if (observe.tool === undefined) return true
-  const found = toolCalls(rows).filter(
-    (call) =>
-      matches(observe.tool, call.name) &&
-      matches(observe.command, call.input.command ?? '') &&
-      matches(observe.skill, call.input.skill ?? ''),
-  )
-  if (found.length < (observe.calls ?? 1)) return false
-  // `subagentsRead`: each dispatched subagent's transcript holds the text, so the lesson reached the subagent's session
-  if (observe.subagentsRead === undefined) return true
-  return subagents.length >= found.length && subagents.filter((text) => observe.subagentsRead.test(text)).length >= found.length
+// preconditionFailure is null when the turn left what the script's event needs, else why it did not. `tool`, `command`,
+// `skill` and `args` are matched against a tool call, `reply` against the agent's last reply, `calls` is how many
+// matching tool calls the turn needs (default 1), `subagentsRead` that each dispatched subagent's transcript holds the
+// text. All of these are about what the agent did; `delivered` (the turn left a block of the System) is about the System
+// itself, and a precondition the System did not meet is a failed assertion and not a harness error (793b316).
+export function preconditionFailure(rows, observe, reply = '', subagents = []) {
+  if (!observe) return null
+  const agent = { system: false, message: 'the agent did not do what the event says' }
+  if (observe.reply !== undefined && !matches(observe.reply, reply)) return agent
+  if (observe.tool !== undefined) {
+    const found = toolCalls(rows).filter(
+      (call) =>
+        matches(observe.tool, call.name) &&
+        matches(observe.command, call.input.command ?? '') &&
+        matches(observe.skill, call.input.skill ?? '') &&
+        matches(observe.args, call.input.args ?? ''),
+    )
+    if (found.length < (observe.calls ?? 1)) return agent
+    // each dispatched subagent's transcript holds the text, so the lesson reached the subagent's session
+    if (observe.subagentsRead !== undefined && !(subagents.length >= found.length && subagents.filter((text) => observe.subagentsRead.test(text)).length >= found.length)) return agent
+  }
+  if (observe.delivered && systemBlocks(rows).length === 0) return { system: true, message: 'the System delivered nothing in a turn that needed a delivery' }
+  return null
 }
 
 // constraintsHold: the Given constraints of the scenario ("the user has not asked for any memory command", "the agent
@@ -39,6 +45,13 @@ export function observed(rows, observe, reply = '', subagents = []) {
 // A script says the same of its own turn with `noMemoryCommands` (the capture scenarios: the System writes, not the agent).
 export function constraintsHold(world, rows, script = {}) {
   return !(world.noAgentMemoryCommands || script.noMemoryCommands) || memoryCalls(rows).length === 0
+}
+
+// failedPrecondition: why a try of a scripted turn is not the event, or null.
+function failedPrecondition(world, script, { turn, rows }) {
+  const failure = preconditionFailure(rows, script.observe, turn.text, subagentTexts(world.scenario))
+  if (failure) return failure
+  return constraintsHold(world, rows, script) ? null : { system: false, message: 'the agent ran a memory command itself' }
 }
 
 export async function readTranscript(session) {
@@ -60,26 +73,34 @@ const IDLE_WAIT_MS = 180000
 const NO_WORK_GRACE_MS = 3000
 const IDLE_STABLE_MS = 1500
 
-// awaitIdle waits for the System's work to finish: the mod's seam file ends with `idle` once its queue is empty. A
-// session that queued nothing leaves no file, which a short grace period tells from work not yet queued.
-export async function awaitIdle(scenario) {
+const seamLines = (file) => {
+  try {
+    return fs.readFileSync(file, 'utf8').split('\n').filter((line) => line !== '')
+  } catch {
+    return []
+  }
+}
+
+// awaitIdle waits for the System's work to finish: the mod's seam file ends with `idle` once its queue is empty. The mod
+// writes `queued` before the hook of a completed turn returns, so a session that queued nothing leaves no file; that is
+// told from work not yet queued by a grace period that begins when the last turn's result arrived, and never while a
+// session is still in a turn: an absence guard cannot pass before the System had started (793b316).
+export async function awaitIdle(scenario, { graceMs = NO_WORK_GRACE_MS, pollMs = POLL_MS, stableMs = IDLE_STABLE_MS } = {}) {
   const start = Date.now()
+  const sessions = () => scenario.sessions ?? []
   for (;;) {
-    let lines = []
-    try {
-      lines = fs.readFileSync(scenario.seamFile, 'utf8').split('\n').filter((line) => line !== '')
-    } catch {
-      lines = []
-    }
-    if (lines.length > 0 && lines.at(-1) === 'idle') {
+    const lines = seamLines(scenario.seamFile)
+    if (lines.at(-1) === 'idle') {
       // idle stays idle: no job joined the queue in the next moment
-      await new Promise((resolve) => setTimeout(resolve, IDLE_STABLE_MS))
-      if (fs.readFileSync(scenario.seamFile, 'utf8').split('\n').filter((line) => line !== '').length === lines.length) return
+      await new Promise((resolve) => setTimeout(resolve, stableMs))
+      if (seamLines(scenario.seamFile).length === lines.length) return
       continue
     }
-    if (lines.length === 0 && Date.now() - start > NO_WORK_GRACE_MS) return
+    const inTurn = sessions().some((session) => session.waiting)
+    const lastResult = Math.max(start, ...sessions().map((session) => session.lastResultAt ?? 0))
+    if (lines.length === 0 && !inTurn && Date.now() - lastResult > graceMs) return
     if (Date.now() - start > IDLE_WAIT_MS) throw new Error('the System\'s work did not finish: no idle line in the seam file')
-    await new Promise((resolve) => setTimeout(resolve, POLL_MS))
+    await new Promise((resolve) => setTimeout(resolve, pollMs))
   }
 }
 
@@ -131,16 +152,23 @@ export async function sendPrompt(scenario, prompt) {
   return { turn, rows: await afterDispatches(session, await readTranscript(session)) }
 }
 
-// attempt runs one try of a precondition and returns its rows, or null when the precondition was not observed. A
-// successful try is appended to the setup log, so that a later retry rebuilds the World with this turn replayed.
+// attempt runs one try of a precondition and returns its result once `check` accepts it: check returns null (or true)
+// when the try is what the event needs, else why not, as { system, message }. A successful try is appended to the setup
+// log, so that a retry rebuilds the World with this turn replayed. A precondition the agent did not meet in three
+// attempts is a harness error (the model did not do what the script asked); one the System did not meet is a failed
+// assertion, which makes the row Red (793b316).
 export async function attempt(world, run, check) {
   for (let tries = 1; ; tries += 1) {
     const result = await run(world.scenario)
-    if (check(result)) {
+    const failure = check(result)
+    if (failure === null || failure === true) {
       world.scenario.log.push(async (scenario) => { await run(scenario) })
       return result
     }
-    if (tries === MAX_ATTEMPTS) throw new Error(`the precondition of the turn was not observed in ${MAX_ATTEMPTS} attempts`)
+    if (tries === MAX_ATTEMPTS) {
+      const message = `the precondition of the turn was not observed in ${MAX_ATTEMPTS} attempts: ${failure.message ?? 'not observed'}`
+      throw failure.system ? new assert.AssertionError({ message }) : new Error(message)
+    }
     world.retries += 1
     await world.scenario.rebuild()
   }
@@ -172,8 +200,7 @@ export async function runTurn(world, script) {
       if (script.settle) await awaitIdle(scenario)
       return sent
     },
-    ({ turn, rows }) =>
-      observed(rows, script.observe, turn.text, subagentTexts(world.scenario)) && constraintsHold(world, rows, script),
+    (sent) => failedPrecondition(world, script, sent),
   )
   return result
 }

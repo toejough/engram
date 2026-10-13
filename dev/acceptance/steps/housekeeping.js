@@ -28,10 +28,13 @@ const SUMMARY_PREFIX = 'Memory activity: '
 // An item line of a delivery: a path, the situation in brackets, then the text.
 const ITEM_LINE = /^- \S+\.md \(.*\): /
 // Events a mod could use to change a tool call's arguments or its permission, the model, or the prompt (793a4c).
+// `turn.step` is not in the list: the in-turn cue (793b320) hooks it to read the step's text, passing every chunk, the
+// result and the step's own input (model, effort) on as they came, which the mod's contract test of the step hook
+// (tests/step.test.ts) shows; the checks below read the transcript for the model and the tool calls of the session.
 const PURVIEW_EVENTS = [
   'tool.call', 'tool.check', 'tool.register', 'classic.PreToolUse', 'classic.PermissionRequest', 'session.authorize',
   'session.model', 'prompt.compose', 'prompt.edit', 'prompt.section', 'model.classify', 'model.complete', 'model.fork',
-  'turn.start', 'turn.step', 'agent.register', 'skill.prompt',
+  'turn.start', 'agent.register', 'skill.prompt',
 ]
 
 function statuses(world) {
@@ -269,12 +272,26 @@ async function warningNotInTranscript(world) {
 // summaries are the status messages that are a memory-activity summary (the warning may share the line, 793b302)
 const summaries = (world) => statuses(world).filter((text) => text.includes(SUMMARY_PREFIX))
 
-// "with COUNTS": the line says these counts; "and no other count" is a line that says nothing more.
+// "with COUNTS": the line says these counts; "and no other count" is a line that says nothing more. A scenario whose
+// work finishes after the turn's own summary (a subagent that finishes in the background, `summaryAcrossTurns`) is shown
+// the counts in the lines of the turns that follow, each since the previous line: the lines add up to the counts, and
+// each is one line (793a5h: "since its previous summary").
+const COUNT_WORDS = { delivered: /(\d+) items? delivered/, added: /(\d+) notes? added/, amended: /(\d+) notes? amended/, curated: /(\d+) offers? curated/ }
+const sumOf = (name, lines) => lines.reduce((total, text) => total + Number(COUNT_WORDS[name].exec(text)?.[1] ?? 0), 0)
+
 async function summaryShown(world, counts) {
   await quiesce(world)
   const shown = statuses(world)
   const exact = counts.endsWith(' and no other count')
   const expected = `${SUMMARY_PREFIX}${exact ? counts.slice(0, -' and no other count'.length) : counts}`
+  if (world.data.summaryAcrossTurns) {
+    const lines = summaries(world)
+    for (const text of lines) assert.ok(!/[\r\n]/.test(text), 'a summary is not one line')
+    const wanted = Object.fromEntries(Object.entries(COUNT_WORDS).map(([name, pattern]) => [name, Number(pattern.exec(counts)?.[1] ?? 0)]))
+    const got = Object.fromEntries(Object.keys(COUNT_WORDS).map((name) => [name, sumOf(name, lines)]))
+    assert.deepEqual(got, wanted, `the summaries do not add up to ${counts}; the status messages were ${JSON.stringify(shown)}`)
+    return undefined
+  }
   const found = summaries(world).filter((text) => (exact ? text.endsWith(expected) : text.includes(expected)))
   assert.ok(found.length > 0, `no status message is a one-line summary with ${counts}; the status messages were ${JSON.stringify(shown)}`)
   for (const text of found) assert.ok(!/[\r\n]/.test(text), 'the summary is not one line')

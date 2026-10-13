@@ -7,6 +7,8 @@ import path from 'node:path'
 import { Given } from '@cucumber/cucumber'
 
 import { turnsOf, writeEnded } from '../lib/ended.js'
+import { parseNote } from '../lib/vault.js'
+import { endedSourcesMarked } from './shared.js'
 import { MARKER } from '../lib/transcript.js'
 import { awaitIdle, runTurn } from '../lib/turn.js'
 
@@ -16,7 +18,7 @@ function notesStating(scenario, pattern) {
   return fs
     .readdirSync(scenario.vault)
     .filter((name) => name.endsWith('.md'))
-    .filter((name) => pattern.test(fs.readFileSync(path.join(scenario.vault, name), 'utf8')))
+    .filter((name) => pattern.test(parseNote(fs.readFileSync(path.join(scenario.vault, name), 'utf8')).content))
 }
 
 function lessonPattern(world, input) {
@@ -67,6 +69,7 @@ export async function piTranscriptUnchanged(world) {
   const ended = piFixture(world)
   assert.ok(Buffer.compare(fs.readFileSync(ended.file), fs.readFileSync(ended.copy)) === 0, 'the Pi transcript differs from its copy')
   assert.equal(fs.statSync(ended.file).mtimeMs, ended.mtimeMs, 'the Pi transcript was modified')
+  endedSourcesMarked(world)
 }
 
 export function piTranscriptHoldsNoDelivery(world) {

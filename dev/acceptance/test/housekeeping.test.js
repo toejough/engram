@@ -7,7 +7,7 @@ import path from 'node:path'
 import test from 'node:test'
 
 import { installShim, shimCalls } from '../lib/shim.js'
-import { observed } from '../lib/turn.js'
+import { preconditionFailure } from '../lib/turn.js'
 import { MARKER, SKIPPED, rowsMentioning, statusTexts, typedRows } from '../lib/transcript.js'
 
 function temp(fn) {
@@ -89,7 +89,7 @@ test('rows mentioning a pattern are found whatever their kind', () => {
 
 test('a script that needs a delivery is not observed in a turn without one', () => {
   const block = { type: 'attachment', attachment: { type: 'hook_additional_context', content: [`${MARKER} notes`] } }
-  assert.equal(observed([], { delivered: true }), false)
-  assert.equal(observed([block], { delivered: true }), true)
-  assert.equal(observed([], {}), true)
+  assert.notEqual(preconditionFailure([], { delivered: true }), null)
+  assert.equal(preconditionFailure([block], { delivered: true }), null)
+  assert.equal(preconditionFailure([], {}), null)
 })
