@@ -13,23 +13,26 @@ function matches(expected, actual) {
 }
 
 // observed: the agent did what the event says. `tool` and `command` (and `skill`) are matched against a tool call,
-// `reply` against the agent's last reply; a script with no observation is confirmed by the turn itself.
+// `reply` against the agent's last reply, `calls` is how many matching tool calls the turn needs (default 1); a script
+// with no observation is confirmed by the turn itself.
 export function observed(rows, observe, reply = '') {
   if (!observe) return true
   if (observe.reply !== undefined && !matches(observe.reply, reply)) return false
   if (observe.tool === undefined) return true
-  return toolCalls(rows).some(
+  const found = toolCalls(rows).filter(
     (call) =>
       matches(observe.tool, call.name) &&
       matches(observe.command, call.input.command ?? '') &&
       matches(observe.skill, call.input.skill ?? ''),
   )
+  return found.length >= (observe.calls ?? 1)
 }
 
 // constraintsHold: the Given constraints of the scenario ("the user has not asked for any memory command", "the agent
 // runs no memory command itself") are enforced by the turn: a turn in which the agent ran one is a failed precondition.
-export function constraintsHold(world, rows) {
-  return !world.noAgentMemoryCommands || memoryCalls(rows).length === 0
+// A script says the same of its own turn with `noMemoryCommands` (the capture scenarios: the System writes, not the agent).
+export function constraintsHold(world, rows, script = {}) {
+  return !(world.noAgentMemoryCommands || script.noMemoryCommands) || memoryCalls(rows).length === 0
 }
 
 export async function readTranscript(session) {
@@ -74,11 +77,16 @@ export async function attempt(world, run, check) {
   }
 }
 
+// A script's `files` are input files of the workspace the prompt tells the agent to read: the situation of the turn
+// reaches the agent through a tool result, so the prompt itself does not state it.
 export async function runTurn(world, script) {
   const result = await attempt(
     world,
-    (scenario) => sendPrompt(scenario, script.prompt),
-    ({ turn, rows }) => observed(rows, script.observe, turn.text) && constraintsHold(world, rows),
+    (scenario) => {
+      for (const [name, text] of Object.entries(script.files ?? {})) scenario.writeWorkspaceFile(name, text)
+      return sendPrompt(scenario, script.prompt)
+    },
+    ({ turn, rows }) => observed(rows, script.observe, turn.text) && constraintsHold(world, rows, script),
   )
   return result
 }

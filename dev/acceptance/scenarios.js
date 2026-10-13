@@ -87,8 +87,72 @@ export default {
 
   // 793e8e: install by engram update. No scripted turns: the steps start the sessions the Thens read.
   '793a5j1a': { turns: {} },
-  '793a5j1b': { turns: {} },
+  '793a5j1b': { turns: {}, lessons: { 'use targ, not go test directly': /targ/i } },
   '793a5j1c': { turns: {} },
   '793a5j1d': { turns: {} },
   '793a5j1l': { turns: {} },
+
+  // 793e8c: capture at turn end. `lessons` gives the words that state each lesson (a model words the note); `files`
+  // are input files the prompt tells the agent to read, so that the situation reaches the agent through a tool result
+  // and not through the prompt; `noMemoryCommands` makes a turn in which the agent saved the lesson itself a failed
+  // precondition (the System writes it, 793a3a).
+  '793a3a1a': {
+    lessons: {
+      'use the targ build system, not go test directly': /targ/i,
+      'releases are tagged from main': /tag[\s\S]*main/i,
+      'the corrected cause of the failing test': /FIXTURE_DIR/,
+    },
+    turns: {
+      "the user says 'no, use the targ build system, not go test directly'": {
+        prompt:
+          'Earlier you proposed checking my change with `go test ./...`. No, use the targ build system, not go test directly. Reply with one short sentence.',
+        noMemoryCommands: true,
+      },
+      "the user says 'remember that releases are tagged from main'": {
+        prompt: 'Remember that releases are tagged from main. Reply with the one word: ok.',
+        noMemoryCommands: true,
+      },
+      'the agent states a cause for a failing test, a later command output overturns it, and the agent corrects itself': {
+        prompt:
+          "A test named TestSync is failing. First, before running anything, state in one sentence what you think the cause is, guessing from its name. Then run `echo 'TestSync failed: FIXTURE_DIR is unset'` with the Bash tool. Then state in one sentence the real cause, saying that your first guess was wrong.",
+        observe: { tool: 'Bash', command: /echo/, reply: /wrong|incorrect|actually|mistaken|correct/i },
+        noMemoryCommands: true,
+      },
+    },
+  },
+  '793a3a1g': {
+    lessons: { 'run targ test, not go test': /targ test/i },
+    turns: {
+      "the working agent dispatches a subagent, tells it 'no, run targ test, not go test', and the subagent finishes": {
+        files: { 'correction.txt': 'I ran `go test ./internal/cli`. No, run targ test, not go test. Acknowledge this in one sentence.' },
+        prompt:
+          'Read correction.txt. Then dispatch a subagent with the Agent tool (type general-purpose) whose task is exactly the text of that file, nothing else. Do not do the work yourself. When it returns, reply DONE.',
+        observe: { tool: /^(Agent|Task)$/ },
+        noMemoryCommands: true,
+      },
+    },
+  },
+  '793a3a1h': {
+    lessons: { 'run targ test, not go test': /targ test/i },
+    turns: {
+      "two subagents finish at the same time, each containing the lesson 'run targ test, not go test'": {
+        files: { 'correction.txt': 'I ran `go test ./internal/cli`. No, run targ test, not go test. Acknowledge this in one sentence.' },
+        prompt:
+          'Read correction.txt. Then, in one single message, dispatch two subagents at the same time with the Agent tool (type general-purpose), each with a task that is exactly the text of that file, nothing else. Do not do the work yourself. When both return, reply DONE.',
+        observe: { tool: /^(Agent|Task)$/, calls: 2 },
+        noMemoryCommands: true,
+      },
+    },
+  },
+  '793a3a1j': {
+    lessons: { 'use targ, not go test directly': /targ/i },
+    turns: {
+      "the user says 'no, use targ, not go test directly' and the agent runs the learn skill, which writes a feedback note stating that rule": {
+        prompt:
+          'No, use targ, not go test directly. Save that rule now by running the learn skill with the Skill tool, then reply DONE.',
+        observe: { tool: 'Bash', command: /engram\s+learn\b/ },
+      },
+      'the user asks a neutral question': { prompt: 'What is two plus two? Answer in one word.' },
+    },
+  },
 }

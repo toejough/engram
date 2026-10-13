@@ -49,5 +49,5 @@ Given(/^(?:the user has not asked for any memory command|the agent runs no memor
 
 Given(
   /^an ended (?:Pi|Claude Code) session in which the user said "([^"]*)" and (?:its lesson was not saved|its agent saved the lesson by running the learn skill|its lesson was captured by an earlier Claude Code turn)$/,
-  () => NOT_BUILT,
+  (_said) => NOT_BUILT,
 )

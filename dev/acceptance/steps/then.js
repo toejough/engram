@@ -122,15 +122,42 @@ Then(
   },
 )
 
+// The notes the System or the agent wrote: the vault's notes less the seeded ones. A close drains the System's pending
+// work (SP13), so the vault is read after every session of the scenario is closed.
+async function writtenNotes(world) {
+  const scenario = world.scenario
+  await Promise.all(scenario.sessions.map((session) => session.close()))
+  const seeded = [...scenario.notes.values()].map((note) => note.sentinel)
+  return fs
+    .readdirSync(scenario.vault)
+    .filter((name) => name.endsWith('.md'))
+    .map((name) => ({ name, text: fs.readFileSync(path.join(scenario.vault, name), 'utf8') }))
+    .filter((note) => !seeded.some((sentinel) => note.text.includes(sentinel)))
+}
+
+// "stating L": scenarios.js gives the words that state the lesson (a pattern per lesson), because a note is worded by
+// a model; the check is that a note written to the vault says it.
+async function vaultHolds(world, quantity, lesson) {
+  const pattern = world.data.lessons?.[lesson]
+  if (!pattern) throw new Error(`scenarios.js has no words for the lesson "${lesson}" of ${world.id}`)
+  const stating = (await writtenNotes(world)).filter((note) => pattern.test(note.text))
+  const names = stating.map((note) => note.name).join(', ')
+  if (quantity === 'a') assert.ok(stating.length > 0, `no note in the vault states "${lesson}"`)
+  else assert.equal(stating.length, 1, `${stating.length} notes state "${lesson}", expected exactly one: ${names}`)
+}
+
 Then(
   new RegExp(
-    `^(?:the vault holds (?:a|exactly one) note stating ${Q}` +
+    `^(?:the vault holds (a|exactly one) note stating ${Q}` +
       `|the offer ${Q} was (?:folded into note ${Q}|accepted) and is no longer pending` +
       '|a later engram query returns a chunk from that turn' +
       "|every note written by the agent's own memory command is still in the vault)$",
   ),
-  // the capture Then of 793a5j1b is built with the capture node (793e8c); until then the scenario ends Pending here
-  (_stated, _offer, _folded) => NOT_BUILT,
+  async function (quantity, lesson, _offer, _folded) {
+    if (quantity === undefined) return NOT_BUILT
+    await vaultHolds(this, quantity, lesson)
+    return undefined
+  },
 )
 
 Then(
