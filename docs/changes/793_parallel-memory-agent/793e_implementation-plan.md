@@ -217,9 +217,9 @@ flowchart TD
   n793e8b["793e8b Delivery at the moments<br/>Complete"]
   n793e8e["793e8e Install by engram update<br/>Complete"]
   n793e8c["793e8c Capture at turn end<br/>Complete"]
-  n793e8d["793e8d Housekeeping, purview and failure isolation<br/>In progress: 0/15 entries complete"]
+  n793e8d["793e8d Housekeeping, purview and failure isolation<br/>Complete"]
   n793e8g["793e8g Backlog capture<br/>Ready"]
-  n793e8f["793e8f Summary, intentional memory and other harnesses<br/>Blocked by: 793e8d"]
+  n793e8f["793e8f Summary, intentional memory and other harnesses<br/>Ready"]
   n793e8h["793e8h Hypothesis scenarios updated to the PoC<br/>Blocked by: 793e8f, 793e8g"]
   n793e8i["793e8i H1 probe harness and verdict<br/>Blocked by: 793e8h"]
   n793e8j["793e8j H2 eval and verdict<br/>Blocked by: 793e8h"]
@@ -343,28 +343,28 @@ Verification: `targ acceptance 793a3a1a`, `793a3a1g`, `793a3a1h`, the first exam
 
 ### 793e8d Housekeeping, purview and failure isolation
 
-Verification: `targ acceptance 793a4j`, `793a4c`, `793a4b`; `claude plugin test`; `targ test`; `targ check-full`.
+Verification: `targ acceptance 793a4j`, `793a4c`, `793a4b`; `claude plugin test`; `targ test`; `targ check-full`. Result (2026-10-12): all 12 scenarios Green, none retried; `claude plugin validate` and `claude plugin test` (56 tests) pass, `targ test` and `targ check-full` pass, and the full suite is 37 Green, 13 Pending (other nodes), 1 `Not run` (793a5j1d, SP14), none Red. Six rows ran Red first (793a4j1a, 1c, 1e and 793a4b1a, 1b, 1c); 793a4j1d, 793a4c1a, 1b, 1c, 1f and 793a4b1e held before any new mod code and guard what the mod already did. The judgement-dependent rows ran 12 times each after the last prompt change: 793a4j1c (curation) 12 of 12, 793a4c1f 12 of 12, 793a4j1d 12 of 12; before the change 793a4j1c failed 4 of 12 runs ([793b301](./793b_decision-log.md#793b301-housekeeping-is-the-tail-of-the-queue-the-index-then-the-pending-offers-once-per-burst-of-jobs)). The decisions are [793b301](./793b_decision-log.md#793b301-housekeeping-is-the-tail-of-the-queue-the-index-then-the-pending-offers-once-per-burst-of-jobs) to [793b305](./793b_decision-log.md#793b305-id-map-for-793b301-to-793b304).
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |
-| After capture the [mod](./793d_technical-spec.md#793d1b-terms) runs `engram ingest --auto` through `$.process.run`, then settles each pending [offer](../../GLOSSARY.md#offer) by the four outcomes of curate (covered, near, absent, rejected) with a `curation` request, through the commands curate uses | Dedicated example (mod contract) | The stubbed process records listing, amend, discard and learn; no destructive action without the outcome is the contract | Not started |
-| Failure classification (unavailable, timeout, error), named deadlines, `.catch` handlers, warning through the status line | Dedicated example (mod contract) | The three causes and the deadlines are reachable with the test kit's stubs | Not started |
-| Fault shims for the harness: unreadable vault, `engram` that cannot start, prints output that cannot be parsed, or sleeps past the deadline | Setup | Real mechanisms instead of a product-side fault switch | Not started |
+| After capture the [mod](./793d_technical-spec.md#793d1b-terms) runs `engram ingest --auto` through `$.process.run`, then settles each pending [offer](../../GLOSSARY.md#offer) by the four outcomes of curate (covered, near, absent, rejected) with a `curation` request, through the commands curate uses | Dedicated example (mod contract) | The stubbed process records listing, amend, discard and learn; no destructive action without the outcome is the contract | Done |
+| Failure classification (unavailable, timeout, error), named deadlines, `.catch` handlers, warning through the status line | Dedicated example (mod contract) | The three causes and the deadlines are reachable with the test kit's stubs | Done |
+| Fault shims for the harness: unreadable vault, `engram` that cannot start, prints output that cannot be parsed, or sleeps past the deadline | Setup | Real mechanisms instead of a product-side fault switch | Done |
 
 | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- |
-| [793a4j1a The index catches up after the turn](./793a_product-spec.md#793a4j1-uat-scenarios) | Dedicated example (acceptance) | Waits for `idle`, then queries | Not started |
-| [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios) | Dedicated example (acceptance) | One offer folded, one accepted; needs SP10 | Not started |
-| [793a4j1d The agent is not asked to curate](./793a_product-spec.md#793a4j1-uat-scenarios) | Dedicated example (acceptance) | Absence of any curate instruction in the [transcript](../../GLOSSARY.md#transcript) | Not started |
-| [793a4j1e Slow housekeeping does not stall the session](./793a_product-spec.md#793a4j1-uat-scenarios) (a shim makes the System's work take 20 seconds) | Dedicated example (acceptance) | Second prompt streamed at once; timing read from the transcript | Not started |
-| [793a4c1a Tool calls and permissions unchanged](./793a_product-spec.md#793a4c1-uat-scenarios) | Dedicated example (acceptance) | Tool-call and permission rows compared with the agent's own | Not started |
-| [793a4c1b The prompt is unchanged and the note is separate](./793a_product-spec.md#793a4c1-uat-scenarios) | Dedicated example (acceptance) | Depends on the row shape found in SP4 | Not started |
-| [793a4c1c The only effect on the working agent's context is what is delivered](./793a_product-spec.md#793a4c1-uat-scenarios) | Dedicated example (acceptance) | Every System-added row is a [delivery](./793a_product-spec.md#793a1-problem-statement) or its instruction | Not started |
-| [793a4c1f The agent is neither required nor asked to run a memory command](./793a_product-spec.md#793a4c1-uat-scenarios) (precondition retried) | Dedicated example (acceptance) | Delivery and capture in the same turn, nothing asked of the agent | Not started |
-| [793a4b1a Vault unavailable](./793a_product-spec.md#793a4b1-uat-scenarios) (warning read from the stream's status messages) | Dedicated example (acceptance) | Vault made unreadable | Not started |
-| [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios) (warning read from the stream's status messages) | Dedicated example (acceptance) | The shim makes the System's work throw | Not started |
-| [793a4b1c No error reaches the agent and the user is warned](./793a_product-spec.md#793a4b1-uat-scenarios) (warning read from the stream's status messages) | Dedicated example (acceptance) | The shim sleeps past the deadline | Not started |
-| [793a4b1e No warning when nothing matched](./793a_product-spec.md#793a4b1-uat-scenarios) | Dedicated example (acceptance) | No status message is a warning | Not started |
+| [793a4j1a The index catches up after the turn](./793a_product-spec.md#793a4j1-uat-scenarios) | Dedicated example (acceptance) | Waits for `idle`, then queries | Done |
+| [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios) | Dedicated example (acceptance) | One offer folded, one accepted; needs SP10 | Done |
+| [793a4j1d The agent is not asked to curate](./793a_product-spec.md#793a4j1-uat-scenarios) | Dedicated example (acceptance) | Absence of any curate instruction in the [transcript](../../GLOSSARY.md#transcript) | Done |
+| [793a4j1e Slow housekeeping does not stall the session](./793a_product-spec.md#793a4j1-uat-scenarios) (a shim makes the System's work take 20 seconds) | Dedicated example (acceptance) | Second prompt streamed at once; timing read from the transcript | Done |
+| [793a4c1a Tool calls and permissions unchanged](./793a_product-spec.md#793a4c1-uat-scenarios) | Dedicated example (acceptance) | Tool-call and permission rows compared with the agent's own | Done |
+| [793a4c1b The prompt is unchanged and the note is separate](./793a_product-spec.md#793a4c1-uat-scenarios) | Dedicated example (acceptance) | Depends on the row shape found in SP4 | Done |
+| [793a4c1c The only effect on the working agent's context is what is delivered](./793a_product-spec.md#793a4c1-uat-scenarios) | Dedicated example (acceptance) | Every System-added row is a [delivery](./793a_product-spec.md#793a1-problem-statement) or its instruction | Done |
+| [793a4c1f The agent is neither required nor asked to run a memory command](./793a_product-spec.md#793a4c1-uat-scenarios) (precondition retried) | Dedicated example (acceptance) | Delivery and capture in the same turn, nothing asked of the agent | Done |
+| [793a4b1a Vault unavailable](./793a_product-spec.md#793a4b1-uat-scenarios) (warning read from the stream's status messages) | Dedicated example (acceptance) | Vault made unreadable | Done |
+| [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios) (warning read from the stream's status messages) | Dedicated example (acceptance) | The shim makes the System's work throw | Done |
+| [793a4b1c No error reaches the agent and the user is warned](./793a_product-spec.md#793a4b1-uat-scenarios) (warning read from the stream's status messages) | Dedicated example (acceptance) | The shim sleeps past the deadline | Done |
+| [793a4b1e No warning when nothing matched](./793a_product-spec.md#793a4b1-uat-scenarios) | Dedicated example (acceptance) | No status message is a warning | Done |
 
 ### 793e8f Summary, intentional memory and other harnesses
 
