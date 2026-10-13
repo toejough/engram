@@ -6,6 +6,7 @@ import { MARKER } from './moment.js'
 const PART_LIMIT = 1200
 const WINDOW_LIMIT = 8000
 const NEAR_LIMIT = 8
+const BACKLOG_WINDOWS = 6
 const SOURCE_NOTE = 'captured from the conversation'
 const REDACTED = '[redacted]'
 
@@ -84,17 +85,21 @@ function userText(text) {
   return text.trimStart().startsWith('<task-notification>') ? `Task notification: ${(summary ?? 'a task finished').trim()}` : text.trim()
 }
 
-// render turns a message (the shape of `$.session.messages()`) into the lines the judge reads. Only what the user and
-// the agent said is read (793b297): a tool's input and result are untrusted content (a file, a web page, another
-// program's output), so they never enter the window, only the name of the tool that was used. Every part is
-// redacted before it is cut.
+// oneLine keeps a message on one line of the window, so that every line begins with a label this module wrote: a
+// label or a tag inside a message's own words is part of that message and cannot pose as another speaker.
+const oneLine = (text) => text.replace(/\s*[\r\n]+\s*/g, ' \u23CE ')
+
+// render turns a message (the shape of `$.session.messages()`) into the lines the judge reads. The speaker is the
+// message's role, a structured field, never anything in its text. Only what the user and the agent said is read
+// (793b297): a tool's input and result are untrusted content (a file, a web page, another program's output), so they
+// never enter the window, only the name of the tool that was used. Every part is redacted before it is cut.
 function render(message) {
   const lines = []
   if (message.text?.trim()) {
     const said = message.role === 'user' ? userText(message.text) : message.text.trim()
-    lines.push(`${message.role === 'user' ? 'User' : 'Agent'}: ${cut(redact(said))}`)
+    lines.push(`${message.role === 'user' ? 'User' : 'Agent'}: ${cut(oneLine(redact(said)))}`)
   }
-  for (const use of message.toolUses ?? []) lines.push(`Agent used ${use.tool}`)
+  for (const use of message.toolUses ?? []) lines.push(`Agent used ${oneLine(String(use.tool))}`)
   return lines
 }
 
@@ -126,6 +131,21 @@ function blocksOf(content) {
   return Array.isArray(content) ? content : []
 }
 
+// What a harness puts in a user turn that the user did not say: injected reminders, a skill's body, the output of a
+// local command. It is not the user's words.
+const HARNESS_TEXT = /^\s*(?:<system-reminder|<local-command-|Base directory for this skill:)/
+
+const TOOL_USE = new Set(['tool_use', 'toolCall'])
+
+// rowMessage is the speaker and content of a transcript row: a Claude Code row (`type` user or assistant, the content
+// in `message`) or a Pi row (`type` message, its role in `message.role`). Any other row, and any other role (a tool
+// result, program output a harness records as a message), is nobody's words.
+function rowMessage(row) {
+  if (row?.type === 'user' || row?.type === 'assistant') return { role: row.type, content: row.message?.content }
+  if (row?.type === 'message' && (row.message?.role === 'user' || row.message?.role === 'assistant')) return { role: row.message.role, content: row.message.content }
+  return null
+}
+
 // messagesFromTranscript reads the rows of a transcript file in the shape of `$.session.messages()`.
 export function messagesFromTranscript(fileText) {
   const messages = []
@@ -136,14 +156,15 @@ export function messagesFromTranscript(fileText) {
     } catch {
       continue
     }
-    if (row?.type !== 'user' && row?.type !== 'assistant') continue
-    const blocks = blocksOf(row.message?.content)
-    const text = blocks.filter((block) => block.type === 'text').map((block) => block.text).join('\n')
-    const toolUses = blocks.filter((block) => block.type === 'tool_use').map((block) => ({ tool: block.name, input: block.input }))
+    const found = rowMessage(row)
+    if (!found) continue
+    const blocks = blocksOf(found.content)
+    const text = blocks.filter((block) => block.type === 'text' && !(found.role === 'user' && HARNESS_TEXT.test(block.text))).map((block) => block.text).join('\n')
+    const toolUses = blocks.filter((block) => TOOL_USE.has(block.type)).map((block) => ({ tool: block.name }))
     const toolResults = blocks
       .filter((block) => block.type === 'tool_result')
       .map((block) => ({ text: typeof block.content === 'string' ? block.content : (block.content ?? []).map((part) => part.text ?? '').join('\n') }))
-    messages.push({ role: row.type, text, toolUses, toolResults })
+    messages.push({ role: found.role, text, toolUses, toolResults })
   }
   return messages
 }
@@ -161,6 +182,28 @@ export function windowFromTranscript(fileText, lastMessage = '') {
   const lines = messagesFromTranscript(fileText).flatMap(render)
   if (lastMessage.trim() && !transcriptHolds(fileText, lastMessage)) lines.push(`Agent: ${cut(lastMessage.trim())}`)
   return join(lines)
+}
+
+// windowsFromMessages is a whole conversation as capture windows: each holds whole messages up to the window limit and
+// starts with the last message of the one before (a correction needs the message it corrects), at most `max` of them;
+// what lies beyond is left, a known limit.
+export function windowsFromMessages(messages, max = BACKLOG_WINDOWS) {
+  const groups = messages.map(render).filter((lines) => lines.length > 0)
+  const windows = []
+  let current = []
+  let size = 0
+  for (const group of groups) {
+    const length = group.join('\n').length + 1
+    if (current.length > 0 && size + length > WINDOW_LIMIT) {
+      if (windows.length + 1 === max) return [...windows, current.flat().join('\n')]
+      windows.push(current.flat().join('\n'))
+      current = [current.at(-1)]
+      size = current[0].join('\n').length + 1
+    }
+    current.push(group)
+    size += length
+  }
+  return current.length > 0 ? [...windows, current.flat().join('\n')] : windows
 }
 
 // queryText is what the nearest notes are looked up with: what the user said first, then the rest.
@@ -229,6 +272,11 @@ export function parseLessons(reply, near) {
 
 export function sourceFor(sessionId, turn) {
   return `${SOURCE_NOTE}; written automatically (session ${sessionId}, turn ${turn})`
+}
+
+// backlogSourceFor names a note written from a transcript read after the fact: the source and the position in it.
+export function backlogSourceFor(path, position) {
+  return `${SOURCE_NOTE}; written automatically (source ${path}, position ${position})`
 }
 
 // learnArgv is the existing `engram learn` for an absent lesson; a free-text value is `--flag=value` so that one

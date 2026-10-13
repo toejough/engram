@@ -1,8 +1,9 @@
 // The System's mod (793e2c): maps the events of the delivery moments to the moment job and adds what it returns
 // through the channel each event has: prompt context, tool-result context, subagent-start context (793b192).
+import { MARKS_NAME, baseName, chunksDirectory, parseManifest, parseMarks, pending, withSource, withTurns } from './backlog.js'
 import {
-  amendArgv, learnArgv, neighbours, parseLessons, queryText, recentNote, redact, sourceFor, stripOwnBlocks, transcriptHolds,
-  windowFromMessages, windowFromTranscript,
+  amendArgv, backlogSourceFor, learnArgv, messagesFromTranscript, neighbours, parseLessons, queryText, recentNote, redact,
+  sourceFor, stripOwnBlocks, transcriptHolds, windowFromMessages, windowFromTranscript, windowsFromMessages,
 } from './capture.js'
 import { DEADLINE_MS, StepError, exitKind, kindOf, replyKind, spawnKind, warning } from './failure.js'
 import {
@@ -42,6 +43,7 @@ const state = {
 // The steps a failure is reported against (793a4b): the user is told which part of automatic memory was skipped.
 const LOOKUP_STEP = { prompt: 'the prompt lookup', route: 'the route lookup', subagent: 'the subagent lookup' }
 const CAPTURE_STEP = 'the capture'
+const BACKLOG_STEP = 'the backlog capture'
 
 // warn shows the user, on the status line and nowhere else, that automatic memory was skipped and why. It never fails.
 async function warn($, step, kind) {
@@ -115,13 +117,12 @@ async function moment($, { agent, kind, text, readContext }) {
 // capture is one capture job (793b279): the nearest notes of the window by `engram query`, one `capture` judgement of
 // extraction and reconciliation, then the writes: `engram learn` for a lesson no note states, `engram amend
 // --activate` for one a note already states. Secrets are redacted before anything reaches the model or a note.
-async function capture($, { window, sessionId, turn }) {
+async function capture($, { window, source }) {
   const text = redact(stripOwnBlocks(window))
   if (!text.includes('User:')) return
   const found = await exec($, queryArgv('capture', queryText(text)), DEADLINE_MS.lookup)
   const near = neighbours(parseQuery(found.stdout), written)
   const reply = await $.model.complete(captureRequest(text, near))
-  const source = sourceFor(sessionId, turn)
   const lessons = parseLessons(answered(reply, 'capture'), near)
   $.ui.log(`engram-memory: capture judged ${lessons.length} lesson(s) against ${near.length} nearest note(s)`, { to: 'debug' })
   for (const lesson of lessons) {
@@ -132,6 +133,67 @@ async function capture($, { window, sessionId, turn }) {
     const note = recentNote(lesson, (await exec($, learnArgv(lesson, source), DEADLINE_MS.command)).stdout)
     state.counts.added += 1
     if (note) written.push(note)
+  }
+}
+
+// chunksDir is where `engram ingest` keeps the chunk index; the mark file of the backlog lies beside the manifest.
+async function chunksDir($) {
+  return chunksDirectory({ chunks: await $.env.get('ENGRAM_CHUNKS_DIR'), xdg: await $.env.get('XDG_DATA_HOME'), home: await $.env.get('HOME') })
+}
+
+async function readMarks($, dir) {
+  return parseMarks(await readTranscript($, `${dir}/${MARKS_NAME}`))
+}
+
+// markTurns records that the System captured the turns of this session up to now, so that the backlog does not read
+// the session again once it is quiet (793e8g).
+async function markTurns($) {
+  if (!state.transcript) return
+  const dir = await chunksDir($)
+  const marks = await readMarks($, dir)
+  await $.fs.write(`${dir}/${MARKS_NAME}`, JSON.stringify(withTurns(marks, baseName(state.transcript), await $.clock.now())))
+}
+
+// A file the platform will not read whole (over 4 MiB) is read from its tail by `tail -c`; the first line is then cut
+// and is dropped.
+const READ_LIMIT = /over the \d+-byte limit/
+const TAIL_ARGV = (path) => ['tail', '-c', '3000000', path]
+
+async function readSource($, path) {
+  try {
+    return await $.fs.read(path)
+  } catch (error) {
+    if (!READ_LIMIT.test(error.message)) throw error
+    const tail = await exec($, TAIL_ARGV(path), DEADLINE_MS.command)
+    return tail.stdout.slice(tail.stdout.indexOf('\n') + 1)
+  }
+}
+
+// sourceMessages reads a source's conversation from the file itself, by the roles of its rows (the index text cannot
+// tell a speaker from a line that imitates one, 793e8g). A source that cannot be read is left for a later turn.
+async function sourceMessages($, source) {
+  try {
+    return messagesFromTranscript(await readSource($, source.path))
+  } catch (error) {
+    $.ui.log(`engram-memory: backlog: ${source.path}: ${error.message}`, { to: 'debug' })
+    return []
+  }
+}
+
+// backlog is the job after a turn's housekeeping (793e8g), whose ingest has brought the manifest up to date: take the
+// one most recently changed source nobody has captured yet, capture it in windows with the same judgement as a turn,
+// and mark it only when every window finished without a failure.
+async function backlog($) {
+  const dir = await chunksDir($)
+  const sources = parseManifest(await readTranscript($, `${dir}/manifest.json`))
+  const marks = await readMarks($, dir)
+  for (const source of pending(sources, marks, { now: await $.clock.now(), live: state.transcript })) {
+    const messages = await sourceMessages($, source)
+    const windows = windowsFromMessages(messages)
+    if (windows.length === 0) continue
+    for (const window of windows) await capture($, { window, source: backlogSourceFor(source.path, `message ${messages.length}`) })
+    await $.fs.write(`${dir}/${MARKS_NAME}`, JSON.stringify(withSource(await readMarks($, dir), source)))
+    return
   }
 }
 
@@ -194,10 +256,13 @@ async function curate($) {
 }
 
 // housekeeping is the work that follows the last job of a queue (793b202, 793b201): the chunk index catches up with the
-// turn, then the pending offers are settled. A failure of one step is reported and the other still runs.
+// turn, then the pending offers are settled, then, after a top-level turn, one source of the backlog is captured
+// (793e8g). A failure of one step is reported and the others still run.
 async function housekeeping($) {
+  const turn = queue.turnDone
   await attempt($, () => exec($, ingestArgv(), DEADLINE_MS.ingest), 'indexing')
   await attempt($, () => curate($), 'curation')
+  if (turn) await attempt($, () => backlog($), BACKLOG_STEP)
 }
 
 // report shows the user the one line of the turn (793a5h): the summary of what the System did since the previous one,
@@ -251,7 +316,16 @@ export function register(on) {
     const turn = await attempt($, () => $.session.turns(), CAPTURE_STEP)
     const window = messages ? windowFromMessages(messages, e.answer ?? '') : ''
     // every completed turn is followed by the housekeeping, whether or not it has a window to capture
-    await schedule($, () => (window === '' ? undefined : capture($, { window, sessionId, turn })), CAPTURE_STEP, { turn: true })
+    await schedule(
+      $,
+      async () => {
+        if (window === '') return
+        await capture($, { window, source: sourceFor(sessionId, turn) })
+        await attempt($, () => markTurns($))
+      },
+      CAPTURE_STEP,
+      { turn: true },
+    )
     return result
   })
 
@@ -263,7 +337,7 @@ export function register(on) {
     await schedule($, async () => {
       const file = await settled($, e.agent_transcript_path, last)
       const window = windowFromTranscript(file, last)
-      if (window !== '') await capture($, { window, sessionId, turn })
+      if (window !== '') await capture($, { window, source: sourceFor(sessionId, turn) })
     }, CAPTURE_STEP)
     return result
   }).catch(($, e, next) => next(e))
