@@ -6,7 +6,7 @@
 // agent's prompt or tool result, so it is the shortest and, with the relevance judgement's own deadline (judge.js), it
 // holds the agent for 8 s at most (793b317); the lookups of background work, the other commands, the scan for pending
 // offers and the index have their own.
-export const DEADLINE_MS = { moment: 4000, lookup: 25000, command: 30000, scan: 30000, ingest: 300000 }
+export const DEADLINE_MS = { moment: 5000, lookup: 25000, command: 30000, scan: 30000, ingest: 300000 }
 
 const REASON = {
   unavailable: 'the vault is unavailable',

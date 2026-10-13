@@ -4,8 +4,8 @@
 import { RECALL_MOMENTS } from './moment.js'
 
 export const JUDGE_TIERS = { classify: 'haiku', relevance: 'haiku', capture: 'haiku', curation: 'haiku' }
-// the relevance judgement holds the agent's prompt: 4 s here and 4 s for the lookup (failure.js) are the 8 s hold
-const JUDGE_TIMEOUT_MS = { classify: 4000, relevance: 4000, capture: 40000, curation: 60000 }
+// the relevance judgement holds the agent's prompt: 3 s here and 5 s for the lookup (failure.js) are the 8 s hold
+const JUDGE_TIMEOUT_MS = { classify: 4000, relevance: 3000, capture: 40000, curation: 60000 }
 const REPLY_TOKENS = { classify: 300, relevance: 200, capture: 1500, curation: 700 }
 const EFFORT = { classify: 'low', relevance: 'low', capture: 'medium', curation: 'medium' }
 const TEXT_LIMIT = 1500

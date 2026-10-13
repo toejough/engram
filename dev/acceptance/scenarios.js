@@ -72,10 +72,10 @@ export default {
       'the working agent reaches the point of declaring the rename done': {
         files: {
           'task.md':
-            'A colleague says they renamed the Go package `util` to `helpers` and updated the imports. Search the workspace once for any file that still mentions `internal/util`, then tell me in one sentence whether the rename is done. Before the search, say in one sentence what you are about to search for and which question of mine it answers.\n',
+            'A colleague says they renamed the Go package `util` to `helpers` and updated the imports. Search the workspace once for any file that still mentions `internal/util`, then tell me in one sentence whether the rename is done. Before the search, say in one sentence what you are about to search for and what you will tell me if it finds nothing.\n',
         },
         prompt:
-          'Follow the instructions in task.md. Before each tool call, say in one sentence what you are about to do and which question of the task it helps you answer.',
+          'Follow the instructions in task.md. Before each tool call, say in one sentence what you are about to do and why.',
         observe: { tool: /^(Grep|Glob|Bash)$/, reply: /done|complete|finished/i },
       },
     },
