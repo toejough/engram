@@ -19,17 +19,18 @@ How a hypothesis is settled. Every scenario below is a runnable experiment or a 
 
 | # | Capability relied on | Status | Settled by |
 | --- | --- | --- | --- |
-| 1 | A plugin whose `hooks/hooks.json` lists `modules` loads a module exporting `register(on, options)`; handlers are `($, e, next)`; Claude Code 2.1.287 or later | Verified (docs) | [793d17d1a The mod loads in every session from the install path](#793d17d1-experiments) |
+| 1 | A plugin whose `hooks/hooks.json` lists `modules` loads a module exporting `register(on, options)`; handlers are `($, e, next)`; Claude Code 2.1.287 or later | Verified (docs; tested, SP2 and every acceptance run: the debug log says `hooks module <name> loaded ... events: <the handlers>`) | [793d17d1a The mod loads in every session from the install path](#793d17d1-experiments) |
 | 2 | A folder under `~/.claude/skills` holding `.claude-plugin/plugin.json` loads as a plugin in every [session](../../GLOSSARY.md#session), with no flag, install step or settings edit; its hooks module loads, also through a symlink into the engram root | Plugin load: Verified (docs); hooks module and symlink: Verified (tested). Also tested (SP2): the SDK `plugins` option loads it; a refused module is found in the debug log, not on `stderr`. | [793d17d1a The mod loads in every session from the install path](#793d17d1-experiments) |
 | 3 | `prompt.submit` fires for every origin (composer, task notification, scheduled trigger, peer [session](../../GLOSSARY.md#session)) and `next({ ...e, context })` adds text the model reads after the prompt as typed | Verified (tested, SP3 and SP8): `prompt.submit` fired for a typed prompt and for `/recall ...` (origin `sdk` under the driver) and the context reached the model; it also fired for a task notification, a scheduled trigger and a peer message, with their own origins | [793d17a1a Each surface is probed for each capability the product needs](#793d17a1-experiments) |
 | 4 | `additionalContext` from `classic.PostToolUse`, `classic.PostToolUseFailure` and `classic.SubagentStart` reaches the model; [context](./793a_product-spec.md#793a1-problem-statement) added by a `tool.call` hook appears in the [transcript](../../GLOSSARY.md#transcript) as an `attachment` row; whether `prompt.submit` context is stored as a transcript row | Verified (tested, SP4): context is a separate `attachment` row, `attachment.type` `hook_additional_context`, in the transcript that received it; `prompt.submit` and `classic.PostToolUse` context in the main transcript, `classic.SubagentStart` context only in the subagent's | [793d17a1b Added context is attributable in the transcript](#793d17a1-experiments) |
 | 5 | `agent.spawn` carries the Agent call's `prompt`, `description` and `fork`; `classic.SubagentStop` carries `agent_transcript_path` and `last_assistant_message` | Verified (tested, SP5): the fields are as declared; the subagent transcript file is not complete at the stop (its final assistant row is written after), so `last_assistant_message` is used and the file polled | [793d17a1a Each surface is probed for each capability the product needs](#793d17a1-experiments) |
 | 6 | `classic.SessionStart` carries the main agent's `transcript_path` | Verified (tested, SP6): `classic.SessionStart` `transcript_path` is the session's transcript file | [793d17a1a Each surface is probed for each capability the product needs](#793d17a1-experiments) |
-| 7 | `session.compact` fires for the main agent and, with `agentId`, for each [subagent](../../GLOSSARY.md#subagent) or fork compaction; `turn.complete` also fires for an interrupted turn; module variables survive `/clear`, `/resume` and `/branch` | Verified (docs, declarations) | [793d17a1a Each surface is probed for each capability the product needs](#793d17a1-experiments) |
+| 7 | `session.compact` fires for the main agent and, with `agentId`, for each [subagent](../../GLOSSARY.md#subagent) or fork compaction; `turn.complete` also fires for an interrupted turn; module variables survive `/clear`, `/resume` and `/branch` | Verified (docs, declarations); tested (SP7: a `/compact` sent in the stream fired one `session.compact`; SP13: the module keeps running after `turn.complete`). Module variables across `/clear` and `/branch` stay docs-only until [793d17d1a The mod loads in every session from the install path](#793d17d1-experiments) | [793d17a1a Each surface is probed for each capability the product needs](#793d17a1-experiments) |
 | 8 | `$.session.messages()` returns the newest 4096 messages the next model request carries, main loop only; after a compaction or a resume, and whether a [context](./793a_product-spec.md#793a1-problem-statement) block added through row 3 or 4 appears in it | Shape and limit: Verified (declarations). Tested (SP7): it holds typed texts and replies, not a delivered block; a `/compact` in the stream does not shorten it; a resume restores it. Presence is read from the ledger and the transcript file instead | [793d17a1c The mod can read what the agent's context holds, through a compaction and a resume](#793d17a1-experiments) |
 | 10 | Time inside a [mods](#793d1b-terms) API call (`$.process.run`, `$.model.complete`) does not count against a hook's 10 s budget; `.catch` handlers have 1 s | Verified (docs, declarations; tested, SP12: a 25 s `$.process.run` in a `prompt.submit` hook was not cut off) | [793d17c1b Work longer than the hook budget is awaited without the handler being cut off](#793d17c1-experiments) |
-| 11 | `$.model.complete({ model, prompt, system, maxTokens, timeoutMs })` returns `{ isAnswered, text, reason, usage }`; `model` is an alias (`haiku`, `sonnet`, `opus`) or a full id, billed to the [session](../../GLOSSARY.md#session)'s credentials. That the `haiku` alias resolves on this machine's subscription login | Verified (docs, declarations; tested, SP1: `haiku` answered on this login) | [793d17c1a A model call is relayed on a named tier](#793d17c1-experiments) |
+| 11 | `$.model.complete({ model, prompt, system, maxTokens, timeoutMs })` returns `{ isAnswered, text, reason, usage }`; `model` is an alias (`haiku`, `sonnet`, `opus`) or a full id, billed to the [session](../../GLOSSARY.md#session)'s credentials. That the `haiku` alias resolves on this machine's subscription login | Verified (docs, declarations; tested, SP1: `haiku` answered on this login; the reply's `usage` holds token counts and does not name the model, which the debug log does: `$.model.complete (<mod>): <model id> answered in <n>ms`; the PoC's calls named `claude-haiku-5-5`) | [793d17c1a A model call is relayed on a named tier](#793d17c1-experiments) |
 | 12 | `$.ui.status(text)` pins one line under the prompt; it is not a [transcript](../../GLOSSARY.md#transcript) row; `claude -p` draws no status line | Verified (declarations). Tested (SP9): in a stream `$.ui.status` arrives as a `system` message of subtype `ui_status`, and is not a transcript row | [793d17b1a A message reaches the user and not the agent](#793d17b1-experiments) |
+| 13 | `turn.step` fires once per model request of the main agent (with `agentId` for a subagent's), its result carries the step's `answer`, `toolUses`, `stopReason` and `usage`, a job started there with `$.clock.after(0, ...)` can be awaited from the next `classic.PostToolUse` and its `additionalContext` reaches the model before the next assistant row; a wait there is cut at about 10 s | Verified (tested, SP16, [793b320](./793b_decision-log.md#793b320-the-in-turn-recall-cue-is-built-as-793b238-decided)) | [793d17a1a Each surface is probed for each capability the product needs](#793d17a1-experiments) |
 
 ### 793d1b Terms
 
@@ -41,14 +42,14 @@ The terms **moment**, **delivery**, **lesson**, **working agent**, **context**, 
 - **Hook budget:** the 10 seconds a hook handler's own time may take before Claude Code cuts it off.
 - **Stand-in command:** a program that takes the place of the engram program in an experiment: it returns a fixed delivery after a set delay, so that a surface is measured apart from the real memory logic.
 - **Probe:** a minimal mod module or settings hook that exercises one capability and writes what it observed to a log outside the transcript.
-- **Judgement:** a model decision the System makes about memory. Its **kind** is one of: `classify` (from the recent texts, which of the four decision moments of recall the agent is about to reach, or none), `relevance` (from a moment and candidate notes, which bear on the moment), `extraction` (from a window of a session, which lessons it contains), `reconcile` (whether a candidate lesson is already covered by the nearest notes or absent) and `curation` (whether a pending offer is covered, near, absent or rejected).
-- **Session model:** the model the working session is configured with.
+- **Judgement:** a model decision the System makes about memory. Its **kind** is one of the four the proof of concept has: `classify` (from the recent texts, which of the four decision moments of recall the agent is about to reach, or none), `relevance` (from a moment and candidate notes, which bear on the moment), `capture` (from a window of a session and the nearest notes, the lessons it contains, each marked covered by a nearest note or absent: extraction and reconciliation in one call) and `curation` (whether a pending offer is covered, near, absent or rejected). Extraction and reconcile are the two things `capture` is scored on, not kinds of their own.
+- **Session model:** the model the working session is configured with; for H2 on this machine, the sonnet arm, because the acceptance sessions are pinned to it.
 - **Cheapest tier:** the least capable and cheapest model tier available to the session, the `haiku` family, named by an alias and not by a dated id.
 - **`judgeTiers`:** the table from a judgement kind to the model its requests name; every kind defaults to the cheapest tier.
 - **Fixture set:** for one kind, the inputs drawn from real sessions and the vault, each with a gold label.
 - **Gold label:** the correct answer for a fixture, fixed before either tier runs and not taken from the output of either tier.
-- **Margin:** the largest shortfall of the cheapest tier against the session model that still counts as parity.
-- **Noise:** the spread of the session model's own result over repeated runs of the same fixtures.
+- **Margin:** the largest shortfall of the cheapest tier against the session model that still counts as parity. A sample supports a margin when the one-sided 95% bound on its mean difference is no larger than it.
+- **Noise:** the larger of the spread of the session model's own result over repeated runs of the same fixtures and the half-width of the 95% paired-bootstrap interval of a difference between two arms.
 
 ## 793d17 H1: a Claude Code mod gives a smaller implementation surface and more capability than settings hooks
 
@@ -78,7 +79,7 @@ Disproved if any holds:
 
 ### 793d17a Capability coverage
 
-Settles rows 3 to 8 of [793d1a What the hypotheses rely on in Claude Code mods](#793d1a-what-the-hypotheses-rely-on-in-claude-code-mods). Run: live.
+Settles rows 3 to 8 and 13 of [793d1a What the hypotheses rely on in Claude Code mods](#793d1a-what-the-hypotheses-rely-on-in-claude-code-mods). Run: live. The non-composer prompt origins are produced as the spikes found they can be (SP8): a background Bash task's completion notice, a one-shot `CronCreate` that fires about 60 s later, and a message sent by another session's module to the session's own id (the peer socket is shared with the machine's real sessions, so the message is addressed to that id and to no other); the human origin is `sdk` under the driver.
 
 #### 793d17a1 Experiments
 
@@ -97,18 +98,19 @@ Scenario Outline: 793d17a1a Each surface is probed for each capability the produ
     | text is added next to a tool result                                                                                                      |
     | text is added at a subagent's start, for that subagent only                                                                              |
     | a subagent's dispatch is observed with its task prompt                                                                                   |
-    | a subagent's stop is observed with its transcript path, and the file read at the stop holds the subagent's last message                 |
+    | a subagent's stop is observed with its transcript path and its last message; the file read at the stop may lack that message and holds it once polled |
     | the main agent's transcript path is known at the session's start                                                                         |
     | a compaction of the main agent is observed                                                                                               |
+    | a step of the main agent is observed with its text and tool calls, and a job started there delivers its text at the next tool result       |
 
 Scenario: 793d17a1b Added context is attributable in the transcript
   Given a mod that adds one block through each channel: after a prompt, next to a tool result and at a subagent's start
   When the session runs and its transcript file is read
-  Then each block appears as its own row, separate from the prompt as typed and from the tool result, and names the channel it came through
+  Then each block appears as its own attachment row of type hook_additional_context, in the transcript of the agent that received it (a subagent's start block only in that subagent's own file), separate from the prompt as typed and from the tool result, and its channel is told by where it sits and by any field of the row that names the hook event
   And the prompt text and the tool result are exactly as they were without the mod
 
 Scenario: 793d17a1c The mod can read what the agent's context holds, through a compaction and a resume
-  Given a mod that delivered block X to the main agent, and a probe that lists the delivered blocks found in the messages the mod can read
+  Given a mod that delivered block X to the main agent, and a probe that lists the delivered blocks found by reading what the surface can read: for the mod its own ledger and the hook_additional_context rows of the transcript file after the last compaction (the delivered blocks are in no message that session.messages returns, SP7), for a settings hook the transcript file named in its input
   When the session is compacted so that X no longer reaches the model, X is delivered again, and the session is then ended and resumed
   Then the probe lists X after its delivery, does not list X after the compaction removed it, and lists X again after the resume restored it
 ```
@@ -121,7 +123,7 @@ Settles row 12. Run: live.
 
 ```gherkin
 Scenario: 793d17b1a A message reaches the user and not the agent
-  Given a mod that shows the user one warning line, and a settings hook that returns the equivalent user-facing message
+  Given a mod that shows the user one warning line, and a settings hook that returns the equivalent user-facing message, in an interactive session under tmux (a stream has no screen: it carries the mod's line as a ui_status message, SP9)
   When the session runs a turn and then the next prompt
   Then the user sees each message on screen
   And neither message appears in the transcript file or in the messages the model's next request carries
@@ -137,7 +139,7 @@ Settles rows 10 and 11. Run: live, on this machine's subscription login.
 Scenario: 793d17c1a A model call is relayed on a named tier
   Given a mod that relays one short judgement request naming the model "haiku", and a settings hook script that must make the same call
   When both run
-  Then the mod's call returns an answered reply with its text and usage, on the session's credentials, and the usage names a model of the haiku family
+  Then the mod's call returns an answered reply with its text and token usage, on the session's credentials, and the debug log of the session names a model of the haiku family as the one that answered
   And the report counts what the hook script needed for the same call (credentials, subprocess and parsing)
 
 Scenario: 793d17c1b Work longer than the hook budget is awaited without the handler being cut off
@@ -151,7 +153,7 @@ Scenario: 793d17c1c Background work does not delay the next event
   Given a handler that starts a 20 second job in the background and continues its event at once, and a settings hook that starts the same job detached
   When a turn ends and the next prompt is submitted immediately
   Then the next prompt is processed without waiting for the job, under both surfaces
-  And the job's result appears after about 20 seconds and, in the mod, reaches the agent at its next tool result
+  And the job's result appears after about 20 seconds and, in the mod, reaches the agent at the first tool result that follows it (a wait for it inside the hook of a tool result is cut at about 10 s, SP16, so a job longer than that is not awaited there)
   And the report records how a settings hook's detached result would reach the agent
 ```
 
@@ -164,8 +166,8 @@ Settles rows 1 and 2. Run: live.
 ```gherkin
 Scenario: 793d17d1a The mod loads in every session from the install path
   Given the mod directory in the engram-owned root, a link to it in the skills directory, and no flag, install step or settings edit
-  When a new session starts, is cleared, is resumed and is branched
-  Then the mod's probe log shows its register ran and a handler fired in each
+  When a new session starts, is cleared (a /clear sent in the stream), is resumed (the SDK's resume option) and is branched (the SDK's fork option)
+  Then the mod's probe log shows its register ran and a handler fired in each, and the debug log of each session says that the module loaded and lists its events
   And a settings hook probe built to the same events fires in the same sessions
   And claude plugin validate accepts the directory
   And the directory in the skills directory is a link whose target is in the engram-owned root
@@ -183,7 +185,7 @@ Scenario Outline: 793d17e1a A failure inside the surface leaves the session unaf
   When the handler finishes
   Then the prompt continues with its text and no added context
   And no error text and no warning reach the agent's context, and no user input is lost
-  And the user sees a warning outside the transcript saying what was skipped and why
+  And the user sees a warning outside the transcript saying what was skipped and why (in a stream, a ui_status message)
   And the report counts the code each surface needed to contain this failure
 
   Examples:
@@ -195,8 +197,8 @@ Scenario Outline: 793d17e1a A failure inside the surface leaves the session unaf
 
 Scenario: 793d17e1b The mod changes nothing it must not
   Given the loaded mod and an agent that runs engram query and the learn skill in a turn
-  When claude plugin validate lists its handlers and Claude Code fires the tool events of those commands
-  Then no handler denies, drops, or answers an event in place of continuing it
+  When the debug log lists the events its handlers are registered for (claude plugin validate does not list them) and Claude Code fires the tool events of those commands
+  Then no handler denies, drops, or answers an event in place of continuing it, and the handler of turn.step passes the step's input, chunks and result on unchanged
   And each memory command's input, permission decision and result are unchanged
   And the only effect of the mod on the agent's context is the blocks it added
 ```
@@ -218,64 +220,77 @@ Scenario: 793d17f1a The same behavior is counted on both surfaces
 
 ## 793d18 H2: the cheapest capable model is adequate for every System judgement, and is faster and cheaper
 
-Hypothesis: 793d18 Every [judgement](#793d1b-terms) the [System](./793a_product-spec.md#793a1-problem-statement) makes (`classify`, `relevance`, `extraction`, `reconcile`, `curation`) can be made by the [cheapest tier](#793d1b-terms) as well as by the [session model](#793d1b-terms), within a [margin](#793d1b-terms), and the cheapest tier is faster and cheaper per call.
+Hypothesis: 793d18 Every [judgement](#793d1b-terms) the [System](./793a_product-spec.md#793a1-problem-statement) makes (`classify`, `relevance`, `capture` and `curation`: the kinds of the proof of concept, in which `capture` judges extraction and reconciliation in one call, [793b279 Judgement is one richer prompt per kind, and capture judges extraction and reconciliation in one call](./793b_decision-log.md#793b279-judgement-is-one-richer-prompt-per-kind-and-capture-judges-extraction-and-reconciliation-in-one-call)) can be made by the [cheapest tier](#793d1b-terms) as well as by the [session model](#793d1b-terms), within a [margin](#793d1b-terms), and the cheapest tier is faster and cheaper per call.
 
 Scope: this machine only, Claude Code sessions (the Agent SDK) on a subscription login, priced at the published price of each model ([793b268 The PoC is minimal and targeted: environments the owner does not use and everything no scenario needs are cut](./793b_decision-log.md#793b268-the-poc-is-minimal-and-targeted-environments-the-owner-does-not-use-and-everything-no-scenario-needs-are-cut)).
 
 Owner's reason: every [System](./793a_product-spec.md#793a1-problem-statement) task that needs model [judgement](#793d1b-terms) should go to the least capable tier that can handle that kind of judgement, not the [session](../../GLOSSARY.md#session)'s model, because the automatic System must be as fast and as cheap as possible ([793b224 Judgement runs on the cheapest capable tier](./793b_decision-log.md#793b224-judgement-runs-on-the-cheapest-capable-tier), which records the same for the [delivery](./793a_product-spec.md#793a1-problem-statement) side in [793b238 Delivery has two model judgements on the cheapest tier: moment classification and a relevance filter](./793b_decision-log.md#793b238-delivery-has-two-model-judgements-on-the-cheapest-tier-moment-classification-and-a-relevance-filter)). Prior evidence, not a result for this System: the engram evaluation found a haiku-family tier at parity with a top tier on subtle lesson-sifting, with the framing of the request mattering more than the tier; a kind is raised only on measured evidence.
 
-Each kind is measured on its own [fixture set](#793d1b-terms) against its [gold labels](#793d1b-terms):
+The comparison ([793b271 793c72 is answered: acceptance sessions on sonnet, and H2 compares three cost-scaled arms](./793b_decision-log.md#793b271-793c72-is-answered-acceptance-sessions-on-sonnet-and-h2-compares-three-cost-scaled-arms), [793b272 H2 arm sample sizes are inversely proportional to per-token price, anchored at the full set for sonnet](./793b_decision-log.md#793b272-h2-arm-sample-sizes-are-inversely-proportional-to-per-token-price-anchored-at-the-full-set-for-sonnet), sized again in [793b329](./793b_decision-log.md#793b329-h2-is-sized-again-for-the-kinds-the-poc-has-the-spread-is-stated-and-the-noise-floor-is-a-paired-bootstrap)). The **session model** of this machine is the sonnet arm, because the acceptance sessions are pinned to sonnet; the verdict of a kind is the cheapest tier against the sonnet arm. The prices are the published first-party list prices of 2026-10-06 (checked against the `claude-api` skill's cached table on 2026-10-13): US dollars per million input and output tokens, haiku (Claude Haiku 5.5) 0.10 and 0.50, sonnet (Claude Sonnet 5.5) 2 and 10, opus (Claude Opus 5.5) 4 and 20, fable (Claude Fable 5.1) 10 and 50; the run records the model id each alias resolves to and re-checks the prices that day.
+
+| Arm | Model | Fixtures per kind | Margin the sample supports (one-sided 95%, spread below): over all fixtures, over the fixtures with a gold item | Reading |
+| --- | --- | --- | --- | --- |
+| cheapest tier | haiku | the full set | 0.047 at 200, 0.050 at 173 | the tier under test |
+| session model | sonnet | the full set | 0.047 at 200, 0.050 at 173 | the verdict arm |
+| opus | opus | half of the full set, stratified | 0.066 at 100, 0.071 at 87 | indicative |
+| fable | fable | a fifth of the full set, stratified | 0.104 at 40, 0.111 at 35 | indicative |
+
+The spread assumption: the per-fixture difference between two arms has a standard deviation of at most 0.4 (the arms disagree on at most 16 percent of the fixtures), so the one-sided 95% bound on a mean difference over n fixtures is 1.645 times 0.4 over the square root of n. For a guard measure over a subset the spread assumed is 0.3 and n is the size of the subset. A primary measure that is defined only over the fixtures that have a gold item (recall of the gold-relevant notes, lesson recall) has n equal to the number of those fixtures, so the full set of `relevance` and `capture` is 280 fixtures, at least 173 with a gold item and at least 100 with none, and the full set of `classify` and `curation` is 200 ([793b329](./793b_decision-log.md#793b329-h2-is-sized-again-for-the-kinds-the-poc-has-the-spread-is-stated-and-the-noise-floor-is-a-paired-bootstrap)). The run measures the real spread and reports it beside the assumed one; a sample whose real spread is larger supports a wider margin and says so.
+
+Each kind is measured on its own [fixture set](#793d1b-terms) against its [gold labels](#793d1b-terms), with the request text the proof of concept sends (the same builders, copied byte for byte into the replay mod, and the same `maxTokens` and effort for every arm):
 
 | Kind | Fixture input | [Gold label](#793d1b-terms) | Source of the gold | Primary measure | Guard measure |
 | --- | --- | --- | --- | --- | --- |
-| `classify` | the recent texts at a judged cue | which of the four [moments](./793a_product-spec.md#793a1-problem-statement) the agent reached next, or none | the next action in the original [transcript](../../GLOSSARY.md#transcript), confirmed by the owner for a sample | agreement with the gold [moment](./793a_product-spec.md#793a1-problem-statement) | rate of naming a [moment](./793a_product-spec.md#793a1-problem-statement) where the gold is none |
-| `relevance` | a [moment](./793a_product-spec.md#793a1-problem-statement) and its candidate [notes](./793a_product-spec.md#793a1-problem-statement) | which candidates bear on it | the owner's labels | recall of the gold-relevant [notes](./793a_product-spec.md#793a1-problem-statement) | rate of delivering a [note](./793a_product-spec.md#793a1-problem-statement) the gold excludes |
-| `extraction` | a window of a [session](../../GLOSSARY.md#session) | the [lessons](./793a_product-spec.md#793a1-problem-statement) it contains | the [lessons](./793a_product-spec.md#793a1-problem-statement) the original [session](../../GLOSSARY.md#session)'s learn recorded, plus the owner's additions | [lesson](./793a_product-spec.md#793a1-problem-statement) recall (one minus the miss rate) | rate of candidates that are not [lessons](./793a_product-spec.md#793a1-problem-statement) |
-| `reconcile` | one candidate [lesson](./793a_product-spec.md#793a1-problem-statement) and its nearest [notes](./793a_product-spec.md#793a1-problem-statement) | covered or absent | the outcomes already decided in the [vault](./793a_product-spec.md#793a1-problem-statement)'s history | accuracy | rate of "absent" where the gold is covered (a duplicate) |
-| `curation` | one pending offer and its candidates | covered, near, absent or rejected | the outcomes past curation recorded | agreement | rate of destructive errors (a fold or discard the gold does not make) |
+| `classify` | the recent texts of a step of the main agent that wrote text and called a tool, as the cue reads them | which of the four [moments](./793a_product-spec.md#793a1-problem-statement) the agent is at, or none | drafted by fable from the step and what the agent did next, confirmed by the owner for every fixture | agreement: the moments named equal the gold moments | rate of naming a [moment](./793a_product-spec.md#793a1-problem-statement) where the gold is none |
+| `relevance` | a lookup's moment text and its candidate [notes](./793a_product-spec.md#793a1-problem-statement) (the real lookup of the vault of that day) | which candidates bear on it | drafted by fable, confirmed by the owner for every fixture | recall of the gold-relevant [notes](./793a_product-spec.md#793a1-problem-statement) | rate of delivering a [note](./793a_product-spec.md#793a1-problem-statement) the gold excludes |
+| `capture` | a window of a turn of a real session and the nearest notes of the vault of that day | the [lessons](./793a_product-spec.md#793a1-problem-statement) it contains, each with the terms a note stating it must hold, its stratum (explicit or subtle) and the nearest note that already states it, if any | the lessons the session's own `engram learn` recorded, plus drafted by fable and confirmed by the owner for every fixture | lesson recall (the share of gold lessons a written lesson states, by the terms) | the share of windows with no gold lesson in which the reply writes a lesson; and the share of covered gold lessons the reply writes as absent (a duplicate) |
+| `curation` | one pending offer and its nearest notes | covered, near, absent or rejected, and the note it is covered by or folded into | constructed from real notes (the vault records no curation outcome that can be read, [793b330](./793b_decision-log.md#793b330-the-gold-of-curation-cannot-be-read-from-the-vaults-history-the-offers-are-made-from-real-notes)), the label by construction and drafted by fable, confirmed by the owner for every fixture | agreement: the outcome, and the note for covered and near | rate of destructive errors: a covered, near or rejected reply where the gold is another outcome |
 
-Constants, initial values the owner can change: [margin](#793d1b-terms) 0.05, 3 runs per fixture per tier, at least 40 fixtures per kind of which at least 10 have the gold "none" or "absent", at most 200 fixtures.
+Measurement points ([793b265 H2 is replayed by a small mod over fixtures, and gold comes from history or the owner](./793b_decision-log.md#793b265-h2-is-replayed-by-a-small-mod-over-fixtures-and-gold-comes-from-history-or-the-owner)): the replay mod loops `$.model.complete` over the fixtures with the proof of concept's request for the kind and the arm's model in place of the kind's. The wall time of a call is read around the call, in the mod (`$.clock.now()`); the cost of a call is the `usage` of its reply times the published price of the arm's model; each reply is read by the proof of concept's own strict parsers and a reply that is not read is a miss of the kind. A fixture's score is the mean of its 3 runs. The deadline of each kind in the proof of concept (3 s for `relevance`, 4 s for `classify`) is not applied to the replay (every call has 120 s); the share of calls over it is reported for every arm.
+
+The noise floor of a comparison is the larger of two things: the spread of the sonnet arm's own result over its 3 runs (largest minus smallest of the three whole-set means) and the half-width of the 95% interval of the difference, from a paired bootstrap over fixtures (10,000 resamples with a fixed seed, resampling the fixtures and, inside a fixture, its 3 runs, the same resample for both arms).
+
+Constants, initial values the owner can change: [margin](#793d1b-terms) 0.05, 3 runs per fixture per arm, a full set of 200 fixtures for `classify` and `curation` and 280 for `relevance` and `capture`, of which at least 100 have the gold "none" (`classify`), no relevant candidate (`relevance`), no lesson (`capture`) or, for `curation`, an outcome of each of the four (at least 40 each), and at least 173 have a gold item (`relevance`, `capture`); at least 40 fixtures per kind.
 
 Confirmed if all hold, for each kind:
 
-- Parity: the [cheapest tier](#793d1b-terms)'s primary measure is at least the [session model](#793d1b-terms)'s minus the [margin](#793d1b-terms), and its guard measure is no worse than the session model's plus the margin, on the whole set and on its subtle stratum ([793d18a1a The cheapest tier agrees with the gold labels as well as the session model, within the margin](#793d18a1-experiments), [793d18a1c Subtle cases are not hidden by easy ones](#793d18a1-experiments)).
-- Speed and cost: the cheapest tier's median latency per call and its cost per fixture are lower than the session model's ([793d18b1a The cheapest tier is faster per call](#793d18b1-experiments), [793d18b1b The cheapest tier is cheaper per fixture](#793d18b1-experiments)).
+- Parity: the one-sided 95% lower bound of (the cheapest tier's primary measure minus the sonnet arm's) is at least minus the [margin](#793d1b-terms), and the one-sided 95% upper bound of (its guard measure minus the sonnet arm's) is at most the margin, on the whole set and on the subtle stratum of `capture` ([793d18a1a The cheapest tier agrees with the gold labels as well as the session model, within the margin](#793d18a1-experiments), [793d18a1c Subtle cases are not hidden by easy ones](#793d18a1-experiments)).
+- Speed and cost: the cheapest tier's median latency per call and its cost per fixture are lower than the sonnet arm's ([793d18b1a The cheapest tier is faster per call](#793d18b1-experiments), [793d18b1b The cheapest tier is cheaper per fixture](#793d18b1-experiments)).
 - Table: the kind can be raised alone, on evidence, and its request always names its own model ([793d18c1a Every request names the model of its kind](#793d18c1-experiments), [793d18c1b Raising one kind changes only that kind](#793d18c1-experiments)).
 
-Disproved for a kind if the [cheapest tier](#793d1b-terms) falls short of parity by more than the [margin](#793d1b-terms) on either measure; that kind is then raised in [`judgeTiers`](#793d1b-terms) and measured again, and H2 holds for the other kinds. Disproved as a whole if the cheapest tier is not faster or not cheaper than the [session model](#793d1b-terms) on the fixtures. Inconclusive for a kind if the gap lies inside the [noise](#793d1b-terms) ([793d18a1b A gap inside the noise is inconclusive, not a tie](#793d18a1-experiments)).
+Disproved for a kind if the one-sided 95% upper bound of the primary difference is below minus the [margin](#793d1b-terms), or the one-sided lower bound of the guard difference is above the margin; that kind is then raised in [`judgeTiers`](#793d1b-terms) and measured again, and H2 holds for the other kinds. Disproved as a whole if the cheapest tier is not faster or not cheaper than the sonnet arm on the fixtures. Inconclusive for a kind if neither holds, that is when an interval reaches across the margin, which is when the gap lies inside the [noise](#793d1b-terms) of the sample ([793d18a1b A gap inside the noise is inconclusive, not a tie](#793d18a1-experiments)). The opus and fable arms are read as indicative ([793b272 H2 arm sample sizes are inversely proportional to per-token price, anchored at the full set for sonnet](./793b_decision-log.md#793b272-h2-arm-sample-sizes-are-inversely-proportional-to-per-token-price-anchored-at-the-full-set-for-sonnet)): a haiku shortfall beyond the margin their sample supports is flagged to the owner and is not a disproof, and they cannot show parity at 0.05.
 
 ### 793d18a Agreement with the gold labels
 
-Run: replay of the [fixture sets](#793d1b-terms) through both tiers.
+Run: replay of the [fixture sets](#793d1b-terms) through the four arms.
 
 #### 793d18a1 Experiments
 
 ```gherkin
 Scenario Outline: 793d18a1a The cheapest tier agrees with the gold labels as well as the session model, within the margin
-  Given the fixture set of <kind> and the same request text for both tiers
-  When each tier judges every fixture 3 times
-  Then the cheapest tier's mean <primary> is at least the session model's mean minus 0.05
-  And the cheapest tier's mean <guard> is no worse than the session model's plus 0.05
+  Given the fixture set of <kind> and the same request text for every arm
+  When each arm judges its fixtures 3 times
+  Then the cheapest tier's mean <primary> is at least the session model's mean minus 0.05, by the lower bound of the paired bootstrap
+  And the cheapest tier's mean <guard> is no worse than the session model's plus 0.05, by the upper bound of the paired bootstrap
 
   Examples:
-    | kind       | primary                              | guard                                                    |
-    | classify   | agreement with the gold moment       | rate of naming a moment where the gold is none           |
-    | relevance  | recall of the gold-relevant notes    | rate of delivering a note the gold excludes              |
-    | extraction | lesson recall                        | rate of candidates that are not lessons                  |
-    | reconcile  | accuracy                             | rate of "absent" where the gold is covered               |
-    | curation   | agreement                            | rate of destructive errors                               |
+    | kind       | primary                              | guard                                                                                              |
+    | classify   | agreement with the gold moments      | rate of naming a moment where the gold is none                                                     |
+    | relevance  | recall of the gold-relevant notes    | rate of delivering a note the gold excludes                                                        |
+    | capture    | lesson recall                        | rate of lessons written in a window with none, and rate of covered lessons written as absent       |
+    | curation   | agreement                            | rate of destructive errors                                                                         |
 
 Scenario: 793d18a1b A gap inside the noise is inconclusive, not a tie
-  Given a kind whose cheapest-tier result differs from the session model's by less than the spread of the session model's own result over its 3 runs
+  Given a kind whose interval of the cheapest tier's difference from the session model reaches across the margin, or whose gap is smaller than the noise floor while its bound does not clear the margin
   When the result is recorded
   Then the kind is marked inconclusive and not confirmed
-  And fixtures are added, up to 200, until the gap exceeds the spread or the cap is reached
+  And the full set is the cap, so the report gives the interval and the fixtures that would bring it inside the margin at the real spread
 
 Scenario: 793d18a1c Subtle cases are not hidden by easy ones
-  Given the extraction fixtures split into a stratum with an explicit correction in the user's words and a subtle stratum where the lesson is implied by what the user did
-  When both tiers are scored
+  Given the capture fixtures split into a stratum with an explicit correction in the user's words and a subtle stratum where the lesson is implied by what the user did or is the agent's own correction of itself
+  When the arms are scored
   Then each stratum is reported on its own
-  And H2 is confirmed for extraction only if the subtle stratum also meets the parity of 793d18a1a
+  And H2 is confirmed for capture only if the subtle stratum also meets the parity of 793d18a1a, and is inconclusive for capture if the subtle stratum's bound does not clear the margin
 ```
 
 ### 793d18b Speed and cost
@@ -286,21 +301,21 @@ Run: the same replay, timing and pricing each call.
 
 ```gherkin
 Scenario Outline: 793d18b1a The cheapest tier is faster per call
-  Given the fixture set of <kind> and the same request text for both tiers
-  When each tier judges every fixture 3 times and each call's latency is recorded
+  Given the fixture set of <kind> and the same request text for every arm
+  When each arm judges its fixtures 3 times and each call's wall time is recorded around the call
   Then the cheapest tier's median latency is below the session model's
+  And the report gives the share of calls of each arm over the deadline the proof of concept gives the kind
 
   Examples:
     | kind       |
     | classify   |
     | relevance  |
-    | extraction |
-    | reconcile  |
+    | capture    |
     | curation   |
 
 Scenario: 793d18b1b The cheapest tier is cheaper per fixture
   Given the usage reported for each call and the published price of each model
-  When the cost per fixture is computed for each kind and each tier
+  When the cost per fixture is computed for each kind and each arm
   Then the cheapest tier's cost is lower for each kind
   And the report gives the ratio of the two costs for each kind
 ```
@@ -320,7 +335,7 @@ Scenario: 793d18c1a Every request names the model of its kind
 Scenario: 793d18c1b Raising one kind changes only that kind
   Given a kind that failed the parity of 793d18a1a
   When judgeTiers gives that kind the next tier
-  Then the requests of that kind name the new model, the requests of the other four kinds are unchanged, and the raised kind is measured again with 793d18a1a
+  Then the requests of that kind name the new model, the requests of the other three kinds are unchanged, and the raised kind is measured again with 793d18a1a
 ```
 
 ## 793d19 Design as currently drafted
