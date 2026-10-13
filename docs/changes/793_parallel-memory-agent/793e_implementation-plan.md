@@ -218,9 +218,9 @@ flowchart TD
   n793e8e["793e8e Install by engram update<br/>Complete"]
   n793e8c["793e8c Capture at turn end<br/>Complete"]
   n793e8d["793e8d Housekeeping, purview and failure isolation<br/>Complete"]
-  n793e8g["793e8g Backlog capture<br/>In progress: 0/6 entries complete"]
+  n793e8g["793e8g Backlog capture<br/>Complete"]
   n793e8f["793e8f Summary, intentional memory and other harnesses<br/>Complete"]
-  n793e8h["793e8h Hypothesis scenarios updated to the PoC<br/>Blocked by: 793e8f, 793e8g"]
+  n793e8h["793e8h Hypothesis scenarios updated to the PoC<br/>Ready"]
   n793e8i["793e8i H1 probe harness and verdict<br/>Blocked by: 793e8h"]
   n793e8j["793e8j H2 eval and verdict<br/>Blocked by: 793e8h"]
   n793e8a --> n793e8b --> n793e8e --> n793e8c
@@ -387,19 +387,19 @@ Verification: `targ acceptance 793a5h`, `793a5k`, `793a5c`; `claude plugin test`
 
 ### 793e8g Backlog capture
 
-Verification: `targ acceptance 793a3a1j`, `793a3a1k`, `793a5c1c`; `targ test`; `targ check-full`.
+Verification: `targ acceptance 793a3a1j`, `793a3a1k`, `793a5c1c`; `claude plugin validate` and `claude plugin test`; `targ test`; `targ check-full`. Result (2026-10-12): the three scenarios are Green in 10 of 10 runs each (793a3a1j's second and third examples, like its first, are absence guards: they hold before the backlog exists and fail if it writes a second note; 793a3a1k's two examples and 793a5c1c each captured the lesson in 10 of 10 runs, so the Red before the mod was a missing backlog, not a judgement miss). `claude plugin validate` passes and `claude plugin test` runs 49 tests, `targ check-full` passes, and the decisions are [793b310 The backlog scan: the mod's mark file, quiet and age limits, windows, and one source per turn](./793b_decision-log.md#793b310-the-backlog-scan-the-mods-mark-file-quiet-and-age-limits-windows-and-one-source-per-turn) to [793b313 The backlog reads untrusted transcripts by the roles of their rows, and the window and prompt keep content from posing as structure](./793b_decision-log.md#793b313-the-backlog-reads-untrusted-transcripts-by-the-roles-of-their-rows-and-the-window-and-prompt-keep-content-from-posing-as-structure) (the scan as built, the platform findings, the fixtures, and the security boundary of the backlog: roles are read from the rows of the source file, never from the index text, a message is one line, and prompt tags are neutralised in any case). The scan is the last step of the housekeeping of [793e8d Housekeeping, purview and failure isolation](#793e8d-housekeeping-purview-and-failure-isolation), after a burst that holds a top-level turn. The planned design read the chunk file of a source; it does not carry roles, so the source file is read (from its tail when it is over the platform's 4 MiB read limit).
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |
-| Backlog scan in the mod (no Go command, SP15): after the turn's own `engram ingest --auto`, read `manifest.json` of the chunks directory, list the transcript sources whose `file_hash` differs from the mod's capture mark file beside it (not the live session, whose path SP6 gives; any other source quiet for a while by its manifest `mtime_unix_nano`), read the source's chunk file for its `turn-N` texts, and write the mark only when the capture finished without a warning | Dedicated example (mod contract) | The manifest, chunk-file and mark-file reads are `$.fs` stubs; a source never changes, and a captured one is not captured again | Not started |
-| The mod queues the backlog capture after a turn's own capture, at most one per turn, and marks the source captured only when the capture finished without a warning | Dedicated example (mod contract) | Order and the single-source limit are reachable with stubs | Not started |
-| Fixture builders: a Pi [session](../../GLOSSARY.md#session) transcript with an uncaptured [lesson](./793a_product-spec.md#793a1-problem-statement), a killed Claude Code session transcript | Setup | These are inputs: a real Pi run if SP14 allows, else the Transcript Reader's documented format | Not started |
+| Backlog scan in the mod (no Go command, SP15): after the turn's own `engram ingest --auto`, read `manifest.json` of the chunks directory, list the transcript sources whose `file_hash` differs from the mod's capture mark file beside it (not the live session, whose file name SP6 gives; any other source quiet for a while by its manifest `mtime_unix_nano` and not older than a week), read the source file for the messages of its `user` and `assistant` rows (a Pi file or a Claude Code file), and write the mark only when the capture finished without a warning | Dedicated example (mod contract) | The manifest, source-file and mark-file reads are `$.fs` stubs; a captured source is not captured again, and what a source says is untrusted (tool output, injected text and look-alike labels or tags never enter the prompt as structure) | Done |
+| The mod queues the backlog capture after a turn's own capture, at most one per turn, and marks the source captured only when the capture finished without a warning | Dedicated example (mod contract) | Order and the single-source limit are reachable with stubs | Done |
+| Fixture builders: a Pi [session](../../GLOSSARY.md#session) transcript with an uncaptured [lesson](./793a_product-spec.md#793a1-problem-statement), a killed Claude Code session transcript | Setup | These are inputs: SP14 shows no headless Pi, so the files are written in the formats of the harnesses, back-dated so that the session is quiet, with a byte-identical copy | Done |
 
 | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- |
-| [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios) (second and third examples: Pi session already learned; lesson captured by an earlier Claude Code turn) | Dedicated example (acceptance, outline examples) | Reconcile and the watermark prevent a second [note](./793a_product-spec.md#793a1-problem-statement) | Not started |
-| [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios) (outline of two: a Pi session never learned; a Claude Code session killed mid-turn) | Dedicated example (acceptance, outline) | Same flow: a later turn captures what the ended session left | Not started |
-| [793a5c1c A captured Pi session's transcript is left unchanged](./793a_product-spec.md#793a5c1-uat-scenarios) | Dedicated example (acceptance) | Byte comparison of the Pi transcript with its copy | Not started |
+| [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios) (second and third examples: Pi session already learned; lesson captured by an earlier Claude Code turn) | Dedicated example (acceptance, outline examples) | Reconcile and the mark prevent a second [note](./793a_product-spec.md#793a1-problem-statement) | Done |
+| [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios) (outline of two: a Pi session never learned; a Claude Code session killed mid-turn) | Dedicated example (acceptance, outline) | Same flow: a later turn captures what the ended session left | Done |
+| [793a5c1c A captured Pi session's transcript is left unchanged](./793a_product-spec.md#793a5c1-uat-scenarios) | Dedicated example (acceptance) | Byte comparison of the Pi transcript with its copy | Done |
 
 ### 793e8h Hypothesis scenarios updated to the PoC
 
