@@ -6,7 +6,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { RECORDER } from '../probes/lib.js'
-import { attempt, currentSession, readTranscript, sendPrompt, settle } from './turn.js'
+import { attempt, constraintsHold, currentSession, readTranscript, sendPrompt, settle } from './turn.js'
 import { promptRows } from './transcript.js'
 
 const NOTIFICATION_WAIT_MS = 120000
@@ -35,10 +35,15 @@ export async function deliverPrompt(world, origin, label, correction) {
   return deliver(world, note, correction)
 }
 
+// the human's prompt retries its precondition: a Given may forbid the agent its own memory commands (793e2i step 7)
 async function human(world, note, correction) {
-  const result = await sendPrompt(world.scenario, promptFor(note, correction))
-  world.scenario.log.push(async (scenario) => { await sendPrompt(scenario, promptFor(note, correction)) })
-  return result
+  const prompt = promptFor(note, correction)
+  world.typed = prompt
+  return attempt(
+    world,
+    (scenario) => sendPrompt(scenario, prompt),
+    ({ rows }) => constraintsHold(world, rows),
+  )
 }
 
 async function taskNotification(world, note) {

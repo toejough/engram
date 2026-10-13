@@ -19,6 +19,7 @@ export class Session {
     this.debugFile = debugFile ?? path.join(home, `claude-debug-${sessionCount}.log`)
     this.creds = creds
     this.messages = []
+    this.statuses = []
     this.turns = []
     this.stderr = ''
     this.sessionId = resume ?? null
@@ -149,6 +150,8 @@ export class Session {
     try {
       for await (const message of this.query) {
         this.messages.push(message)
+        // what a mod passes to $.ui.status arrives as a system message in a stream (SP9); it is not a transcript row
+        if (message.type === 'system' && message.subtype === 'ui_status') this.statuses.push({ text: String(message.text ?? ''), plugin: message.plugin, at: Date.now() })
         if (message.type === 'system' && message.subtype === 'init') {
           this.sessionId = message.session_id
           this.init = message
@@ -180,6 +183,7 @@ function summarize(result, startedAt, costUsd) {
     costUsd,
     durationMs: result.duration_ms ?? Date.now() - startedAt,
     wallMs: Date.now() - startedAt,
+    endedAt: Date.now(),
     usage: result.usage,
     modelUsage: result.modelUsage,
   }

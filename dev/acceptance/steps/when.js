@@ -4,7 +4,7 @@ import { When } from '@cucumber/cucumber'
 
 import { deliverPrompt } from '../lib/origins.js'
 import { changes } from '../lib/tree.js'
-import { runTurn, settle } from '../lib/turn.js'
+import { runTurn, sendPrompt, settle } from '../lib/turn.js'
 
 const NOT_BUILT = 'pending'
 
@@ -24,7 +24,11 @@ When(
   },
 )
 
-When(/^the user submits the prompt "([^"]*)" immediately$/, () => NOT_BUILT)
+// At once: the prompt goes in as the previous turn's result arrives, without waiting for the System's work (793e2i step 11).
+When(/^the user submits the prompt "([^"]*)" immediately$/, async function (prompt) {
+  this.typed = prompt
+  this.lastTurn = await sendPrompt(this.scenario, prompt)
+})
 
 // compact sends /compact in the stream (SP7); resume ends the session and starts one that resumes it by id.
 async function compact(scenario) {

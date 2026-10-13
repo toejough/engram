@@ -153,4 +153,50 @@ export default {
       'the user asks a neutral question': { prompt: 'What is two plus two? Answer in one word.' },
     },
   },
+
+  // 793e8d: housekeeping, purview and failure isolation. `chunk` is what a later query must find in the index; the
+  // purview turn delivers a note (the prompt states its situation), captures a lesson (the correction) and runs one
+  // command, `commands` being the only command the agent is told to run.
+  '793a4j1a': {
+    chunk: { query: 'harbor lantern code', text: 'KESTREL-4471' },
+    turns: {
+      'the working agent produces content that is not yet in the chunk index': {
+        prompt: 'The harbor lantern code is KESTREL-4471. Reply with exactly that sentence.',
+      },
+    },
+  },
+  '793a4j1c': { turns: {} },
+  '793a4j1d': { turns: {} },
+  '793a4j1e': {
+    turns: {
+      'the human submits a prompt': { prompt: 'What is two plus two? Answer in one word.' },
+    },
+  },
+  '793a4c1a': {
+    commands: /^echo ok$/,
+    turns: {
+      'the System delivers a note and captures a lesson': {
+        prompt:
+          'Next I am working on: tagging a release. No, use targ, not go test directly. First run `echo ok` with the Bash tool, then reply with one short sentence.',
+        observe: { tool: 'Bash', command: /^echo ok$/, delivered: true },
+        noMemoryCommands: true,
+      },
+    },
+  },
+  '793a4c1b': { turns: {} },
+  '793a4c1c': {
+    turns: {
+      'the System delivers a note and captures a lesson': {
+        prompt:
+          'Next I am working on: tagging a release. No, use targ, not go test directly. First run `echo ok` with the Bash tool, then reply with one short sentence.',
+        observe: { tool: 'Bash', command: /^echo ok$/, delivered: true },
+        noMemoryCommands: true,
+      },
+    },
+  },
+  '793a4c1f': { lessons: { 'use targ, not go test directly': /targ/i }, turns: {} },
+  '793a4b1a': { turns: { 'the human submits a prompt': { prompt: 'What is two plus two? Answer in one word.' } } },
+  '793a4b1b': { turns: { 'the human submits a prompt': { prompt: 'What is two plus two? Answer in one word.' } } },
+  '793a4b1c': { turns: { 'the human submits a prompt': { prompt: 'What is two plus two? Answer in one word.' } } },
+  '793a4b1e': { turns: { 'the human submits a prompt': { prompt: 'What is two plus two? Answer in one word.' } } },
 }

@@ -38,9 +38,23 @@ Given(/^the vault holds (?:a note "([^"]*)" whose situation is "([^"]*)"(?: and 
   return undefined
 })
 
-Given(/^the vault holds a pending offer "([^"]*)" that (?:note "([^"]*)" covers|no note covers)$/, () => NOT_BUILT)
+Given(/^the vault holds a pending offer "([^"]*)" that (?:note "([^"]*)" covers|no note covers)$/, async function (label, covered) {
+  await this.scenario.setup((scenario) => scenario.seedOffer(label, covered))
+})
 
-Given(/^(?:the vault cannot be read|the System's work for a turn (?:raises an error|times out|takes (\d+) seconds))$/, () => NOT_BUILT)
+// Fault injection by a real mechanism (793e2i step 6): an unreadable vault directory, or an engram shim that fails.
+const DELAY_SECONDS = '(?:takes (\\d+) seconds)'
+Given(
+  new RegExp(`^(?:(the vault cannot be read)|the System's work for a turn (?:(raises an error)|(times out)|${DELAY_SECONDS}))$`),
+  async function (unreadable, raises, times, seconds) {
+    await this.scenario.setup((scenario) => {
+      if (unreadable) scenario.hideVault()
+      else if (raises) scenario.injectFault('error')
+      else if (times) scenario.injectFault('hang')
+      else scenario.injectFault('delay', Number(seconds))
+    })
+  },
+)
 
 // A constraint the turn steps enforce (793e2i): a turn in which the agent ran a memory command fails its precondition.
 Given(/^(?:the user has not asked for any memory command|the agent runs no memory command itself)$/, function () {

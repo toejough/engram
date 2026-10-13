@@ -133,3 +133,26 @@ export function promptRows(rows, kind) {
     return kind === undefined || origin.includes(kind) ? [{ index, row }] : []
   })
 }
+
+// SKIPPED is the fixed phrase of the warning the System shows when automatic memory is skipped (793a4b).
+export const SKIPPED = /automatic memory was skipped/i
+
+// statusTexts are the strings the mod passed to $.ui.status, in order, from the stream's system messages (SP9).
+export function statusTexts(messages) {
+  return messages.filter((message) => message.type === 'system' && message.subtype === 'ui_status').map((message) => String(message.text ?? ''))
+}
+
+// rowsMentioning are the rows (any kind) whose serialised form matches the pattern.
+export function rowsMentioning(rows, pattern) {
+  return rows.filter((row) => pattern.test(JSON.stringify(row)))
+}
+
+// typedRows are the user rows whose text is exactly the typed prompt (a block of context is a row of its own).
+export function typedRows(rows, typed) {
+  return rows.filter((row) => {
+    if (row.type !== 'user') return false
+    const content = row.message?.content
+    if (typeof content === 'string') return content === typed
+    return Array.isArray(content) && content.length > 0 && content.every((block) => block.type === 'text') && content.map((block) => block.text).join('\n') === typed
+  })
+}

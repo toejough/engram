@@ -3,7 +3,7 @@
 // rebuilt World; the Then of a scenario is never retried.
 import fs from 'node:fs'
 
-import { agentCalls, memoryCalls, readRows, toolCalls } from './transcript.js'
+import { agentCalls, memoryCalls, readRows, systemBlocks, toolCalls } from './transcript.js'
 
 export const MAX_ATTEMPTS = 3
 const TRANSCRIPT_WAIT_MS = 5000
@@ -15,10 +15,11 @@ function matches(expected, actual) {
 }
 
 // observed: the agent did what the event says. `tool` and `command` (and `skill`) are matched against a tool call,
-// `reply` against the agent's last reply, `calls` is how many matching tool calls the turn needs (default 1); a script
+// `reply` against the agent's last reply, `delivered` that the System delivered a block in the turn, `calls` is how many matching tool calls the turn needs (default 1); a script
 // with no observation is confirmed by the turn itself.
 export function observed(rows, observe, reply = '', subagents = []) {
   if (!observe) return true
+  if (observe.delivered && systemBlocks(rows).length === 0) return false
   if (observe.reply !== undefined && !matches(observe.reply, reply)) return false
   if (observe.tool === undefined) return true
   const found = toolCalls(rows).filter(
@@ -153,6 +154,7 @@ function subagentTexts(scenario) {
 // A script's `files` are input files of the workspace the prompt tells the agent to read: the situation of the turn
 // reaches the agent through a tool result, so the prompt itself does not state it.
 export async function runTurn(world, script) {
+  world.typed = script.prompt
   const result = await attempt(
     world,
     (scenario) => {

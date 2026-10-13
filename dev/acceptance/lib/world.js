@@ -7,8 +7,10 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 
 import { REPO_ROOT } from './extract.js'
+import { seedOffer } from './offers.js'
 import { baseEnv } from './run-context.js'
 import { Session } from './session.js'
+import { installShim, shimCalls } from './shim.js'
 import { snapshotTree } from './tree.js'
 
 const run = promisify(execFile)
@@ -30,6 +32,10 @@ export class Scenario {
     // `engram ingest --auto` are the scenario's own
     this.workspace = path.join(this.home, 'work')
     this.notes = new Map()
+    this.offers = new Map()
+    this.shimDir = null
+    this.shimSeconds = 0
+    this.vaultHidden = false
     // the seam of the System's work (793b281): the mod records when its queue is empty, so that a test can wait for it
     this.seamFile = path.join(this.dir, 'seam.log')
     this.extraEnv = { ENGRAM_AUTO_SEAM_LOG: this.seamFile }
@@ -72,6 +78,8 @@ export class Scenario {
   // env is the whole environment of a process started for this scenario, credentials included for sessions only.
   env({ withCredentials = false } = {}) {
     const env = { ...baseEnv({ home: this.home, cacheDir: this.context.cacheDir, binDir: this.context.binDir }), ...this.extraEnv }
+    // a fault shim stands before the real engram on the PATH of every process of the World (793e8d)
+    if (this.shimDir) env.PATH = `${this.shimDir}${path.delimiter}${env.PATH}`
     return withCredentials ? { ...env, ...this.context.creds.env } : env
   }
 
@@ -89,8 +97,39 @@ export class Scenario {
       'learn', 'fact', '--slug', `note-${label.toLowerCase()}`, '--position', 'top', '--source', 'acceptance harness',
       '--situation', situation, '--subject', situation, '--predicate', 'is recorded as', '--object', object,
     ])
-    this.notes.set(label, { label, situation, sentinel })
+    this.notes.set(label, { label, situation, sentinel, object })
     return this.notes.get(label)
+  }
+
+  // seedOffer puts a pending offer in the vault (793e2i step 5): one that states the claim of note `covers`, or a
+  // claim no note states.
+  async seedOffer(label, coversLabel) {
+    const covers = coversLabel ? this.notes.get(coversLabel) : null
+    if (coversLabel && !covers) throw new Error(`no note "${coversLabel}" was seeded before the offer "${label}"`)
+    this.offers.set(label, await seedOffer(this, label, covers))
+    return this.offers.get(label)
+  }
+
+  // injectFault installs a shim before the real engram (793e8d); `delay` takes the seconds the background work waits.
+  injectFault(mode, seconds = 0) {
+    this.shimDir = installShim({ dir: this.dir, realEngram: this.context.engramPath, mode, seconds })
+    this.shimSeconds = seconds
+  }
+
+  shimCalls() {
+    return shimCalls(this.shimDir)
+  }
+
+  // hideVault makes the vault directory unreadable, a real way for it to be unavailable (793e8d).
+  hideVault() {
+    fs.mkdirSync(this.vault, { recursive: true })
+    fs.chmodSync(this.vault, 0o000)
+    this.vaultHidden = true
+  }
+
+  showVault() {
+    if (this.vaultHidden && fs.existsSync(this.vault)) fs.chmodSync(this.vault, 0o755)
+    this.vaultHidden = false
   }
 
   // runUpdate runs the real `engram update` (local mode, `source` as working directory, ENGRAM_UPDATE_REEXEC=1 so
@@ -168,6 +207,7 @@ export class Scenario {
   async #discard() {
     this.discardedSessions = (this.discardedSessions ?? 0) + this.sessions.length
     await Promise.all(this.sessions.map((session) => session.close()))
+    this.showVault()
     fs.rmSync(this.dir, { recursive: true, force: true })
   }
 

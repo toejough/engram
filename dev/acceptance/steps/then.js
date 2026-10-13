@@ -5,7 +5,8 @@ import path from 'node:path'
 import { Then } from '@cucumber/cucumber'
 
 import { changes, lost } from '../lib/tree.js'
-import { awaitIdle, currentSession, sendPrompt, settle } from '../lib/turn.js'
+import { currentSession, sendPrompt } from '../lib/turn.js'
+import { APPLY, NOT_BUILT, Q, REQUEST, mainRows, sentinelOf, subagentRows } from './shared.js'
 import {
   agentCalls,
   deliveries,
@@ -17,35 +18,13 @@ import {
   systemBlocks,
 } from '../lib/transcript.js'
 
-const NOT_BUILT = 'pending'
-const Q = '"([^"]*)"'
-
 // What a delivery looks like in the transcripts (SP4): the System's blocks are attachment rows of the agent that
 // received them, the main transcript for the working agent and the subagent's own file for a subagent.
-const APPLY = /\bapply\b/i
 const ORIGIN_KIND = {
   'the human': 'sdk',
   'an automated task notification': 'task',
   'a scheduled trigger': 'schedul|cron',
   'a message from another session': 'peer',
-}
-
-async function mainRows(world) {
-  const session = world.scenario.session
-  if (!session) throw new Error('no session ran: a harness error, the scenario has no turn before this step')
-  await settle()
-  return readRows(session.transcriptPath())
-}
-
-async function subagentRows(world) {
-  await settle()
-  return world.scenario.session.subagentTranscripts().map((file) => readRows(file))
-}
-
-function sentinelOf(world, label) {
-  const note = world.scenario.notes.get(label)
-  if (!note) throw new Error(`no note "${label}" was seeded before this step`)
-  return note.sentinel
 }
 
 // causedBy: the nearest earlier user row of the block is a prompt of the origin the scenario delivered from.
@@ -104,10 +83,6 @@ Then(
   },
 )
 
-// A request is an instruction to run a memory command or to evaluate, approve, write or curate a note; the framing
-// of a block (everything but its item lines) must hold none.
-const REQUEST = /\b(run|execute|invoke|call)\b[^.\n]*\b(engram|recall|learn|curate|write-memory|memory command)\b|\b(evaluate|approve|curate)\b|\bwrite (a|the) note\b/i
-
 Then(
   /^the (subagent's )?transcript shows no request from the System to the agent to run a memory command, or to evaluate, approve, write or curate a note$/,
   async function (subagent) {
@@ -121,68 +96,6 @@ Then(
     return undefined
   },
 )
-
-// The notes the System or the agent wrote: the vault's notes less the seeded ones, read once the System's work is idle
-// and the sessions are closed.
-async function writtenNotes(world) {
-  const scenario = world.scenario
-  await awaitIdle(scenario)
-  await Promise.all(scenario.sessions.map((session) => session.close()))
-  const seeded = [...scenario.notes.values()].map((note) => note.sentinel)
-  return fs
-    .readdirSync(scenario.vault)
-    .filter((name) => name.endsWith('.md'))
-    .map((name) => ({ name, text: fs.readFileSync(path.join(scenario.vault, name), 'utf8') }))
-    .filter((note) => !seeded.some((sentinel) => note.text.includes(sentinel)))
-}
-
-// "stating L": scenarios.js gives the words that state the lesson (a pattern per lesson), because a note is worded by
-// a model; the check is that a note written to the vault says it.
-async function vaultHolds(world, quantity, lesson) {
-  const pattern = world.data.lessons?.[lesson]
-  if (!pattern) throw new Error(`scenarios.js has no words for the lesson "${lesson}" of ${world.id}`)
-  const stating = (await writtenNotes(world)).filter((note) => pattern.test(note.text))
-  const names = stating.map((note) => note.name).join(', ')
-  if (quantity === 'a') assert.ok(stating.length > 0, `no note in the vault states "${lesson}"`)
-  else assert.equal(stating.length, 1, `${stating.length} notes state "${lesson}", expected exactly one: ${names}`)
-}
-
-Then(
-  new RegExp(
-    `^(?:the vault holds (a|exactly one) note stating ${Q}` +
-      `|the offer ${Q} was (?:folded into note ${Q}|accepted) and is no longer pending` +
-      '|a later engram query returns a chunk from that turn' +
-      "|every note written by the agent's own memory command is still in the vault)$",
-  ),
-  async function (quantity, lesson, _offer, _folded) {
-    if (quantity === undefined) return NOT_BUILT
-    await vaultHolds(this, quantity, lesson)
-    return undefined
-  },
-)
-
-Then(
-  new RegExp(
-    '^(?:the user is shown a warning that automatic memory was skipped because (?:the vault is unavailable|of an error|the System timed out)' +
-      '|the user is shown a one-line summary with (?:3 items delivered, 1 note added, 1 note amended and 2 offers curated|1 note added and no other count)' +
-      '|the user is shown no (?:warning|memory-activity summary)' +
-      "|the (?:warning|summary) appears nowhere in the transcript(?: or in the working agent's next response)?)$",
-  ),
-  () => NOT_BUILT,
-)
-
-Then(/^the session proceeds normally, with no error from the System and no user input missing$/, () => NOT_BUILT)
-
-Then(/^the System changed none of the session's tool calls, permission decisions or model$/, () => NOT_BUILT)
-
-Then(new RegExp(`^the user's prompt text is exactly as typed, and note ${Q} is separate content attributed to its source$`), () => NOT_BUILT)
-
-Then(
-  /^the only content the System added to the working agent's context is the delivered items and the instruction to apply them$/,
-  () => NOT_BUILT,
-)
-
-Then(/^(?:the next prompt was processed|the response to the completed turn appeared) without waiting for the System's work$/, () => NOT_BUILT)
 
 // The System is the mod `engram update` deployed: a session of the home lists it among its loaded plugins (SP2).
 const MOD_NAME = 'engram-memory'
