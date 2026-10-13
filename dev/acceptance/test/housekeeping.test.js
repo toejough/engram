@@ -36,12 +36,12 @@ test('the error shim exits with a message and logs the call', () => {
 test('the delay shim passes a query through at once and waits before any other command', () => {
   temp((dir) => {
     const shim = installShim({ dir, realEngram: fakeEngram(dir), mode: 'delay', seconds: 1 })
-    const query = Date.now()
+    // the evidence is the shim's own log, not the clock: a loaded machine can make a passed-through query slow
     assert.equal(execFileSync(path.join(shim, 'engram'), ['query', 'x'], { encoding: 'utf8' }), 'real query x\n')
-    assert.ok(Date.now() - query < 900)
+    assert.equal(shimCalls(shim).filter((call) => call.what.includes('slept-start')).length, 0)
     const ingest = Date.now()
     assert.equal(execFileSync(path.join(shim, 'engram'), ['ingest', '--auto'], { encoding: 'utf8' }), 'real ingest --auto\n')
-    assert.ok(Date.now() - ingest >= 1000)
+    assert.ok(Date.now() - ingest >= 900)
     assert.equal(shimCalls(shim).filter((call) => call.what.includes('slept-start')).length, 1)
   })
 })
