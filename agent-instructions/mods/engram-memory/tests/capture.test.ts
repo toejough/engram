@@ -105,6 +105,17 @@ describe('capture at turn end', () => {
     expect(argvs[1]).toEqual(['engram', 'amend', '--target', '7.2026-10-12.use-targ.md', '--activate'])
   })
 
+  test('the prompt names the exact keys of each kind and shows one lesson of each, so that a reply with a key too many or too few is rare', async ($: any, on: any) => {
+    const { requests, clock } = stubs(on, EMPTY_OUTPUT, ['[]'])
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    const prompt = requests[0].prompt as string
+    expect(prompt).toContain('exactly the keys kind, slug, situation, covered, behavior, impact and action')
+    expect(prompt).toContain('exactly the keys kind, slug, situation, covered, subject, predicate and object')
+    expect(prompt).toContain('{"kind":"feedback","slug":')
+    expect(prompt).toContain('{"kind":"fact","slug":')
+  })
+
   test('a reply with no lesson, or one that is not an array, writes nothing', async ($: any, on: any) => {
     const { calls, clock } = stubs(on, EMPTY_OUTPUT, ['[]', 'no idea'])
     await $.turn.complete(COMPLETE)

@@ -153,8 +153,17 @@ async function stepJob($, { messages, answer }) {
   return lookup($, { agent: MAIN, kind: 'step', text, readContext: true, moments: moments.map((each) => each.moment) })
 }
 
+// The agent is running memory itself (793a2e): a prompt that is a memory command or asks for one, and a step whose tool
+// is a memory skill or an engram command. The System adds nothing to what the agent retrieves on purpose.
+const MEMORY_ASK = /^\s*\/(?:recall|learn|curate|write-memory)\b|\bengram\s+(?:query|learn|amend|ingest|show|activate)\b/i
+const MEMORY_SKILLS = new Set(['recall', 'learn', 'curate', 'write-memory'])
+const runsMemory = (use) => (use.name === 'Skill' && MEMORY_SKILLS.has(use.input?.skill)) || (use.name === 'Bash' && /\bengram\s/.test(use.input?.command ?? ''))
+// the path of a note, as engram names it: what a tool result shows of it is in the agent's context
+const NOTE_PATH = /\b\d+\.\d{4}-\d{2}-\d{2}\.[A-Za-z0-9_.-]+\.md\b/g
+
 // startStep starts the job of a step in the background, one at a time: the step goes on while it runs.
 async function startStep($, result) {
+  if (MEMORY_ASK.test(state.lastPrompt) || result.toolUses.some(runsMemory)) return
   if (step.job && !step.job.done) return
   const messages = await $.session.messages()
   const job = { done: false, notes: [], startedAt: await $.clock.now() }
@@ -466,6 +475,8 @@ export function register(on) {
   on('classic.PostToolUse', async ($, e, next) => {
     const result = await next(e)
     if (e.agent_id) return result
+    // what a tool result shows of a note, the agent holds: it is not delivered again
+    for (const path of JSON.stringify(e.tool_response ?? '').match(NOTE_PATH) ?? []) state.ledger(MAIN).add(path)
     const isRoute = e.tool_name === 'Skill' && e.tool_input?.skill === 'route'
     // the result of route has the lookup of its own; the notes of a step wait for a later result (793b239)
     const block = isRoute

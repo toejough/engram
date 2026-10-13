@@ -31,6 +31,7 @@ const MESSAGES = [
   { role: 'assistant', text: 'The rename looks complete; I will grep for leftovers before saying it is done.', toolUses: [] },
   { role: 'assistant', text: '', toolUses: [{ tool: 'Grep' }] },
 ]
+const overrideResult: { value: any } = { value: null }
 const STEP = { turnId: 't1', index: 1, model: 'm', messageCount: 5 }
 const RESULT = { turnId: 't1', index: 1, answer: MESSAGES[1].text, toolUses: [{ name: 'Grep', input: { pattern: 'util' } }], stopReason: 'tool_use', usage: {} }
 const COMPLETE = { answer: 'The rename is done.', durationMs: 5, isAborted: false, turnId: 't1', reason: 'answer' }
@@ -44,6 +45,7 @@ function world(on: any, options: Options = {}) {
   const argvs: string[][] = []
   const shown: (string | undefined)[] = []
   const seen: any[] = []
+  overrideResult.value = null
   const clock = mock.clock(on)
   mock.env(on, { ENGRAM_VAULT_PATH: '/vault' })
   on('process.run', async (_$: any, e: any) => {
@@ -73,13 +75,14 @@ function world(on: any, options: Options = {}) {
   on('turn.step', async function* (_$: any, e: any) {
     seen.push(e)
     yield { kind: 'text', index: 0, text: 'chunk' }
-    return { ...(options.result ?? RESULT), turnId: e.turnId, index: e.index }
+    return { ...(overrideResult.value ?? options.result ?? RESULT), turnId: e.turnId, index: e.index }
   })
   return { requests, argvs, shown, clock, seen }
 }
 
 // runStep drives a step through the chain: its chunks and its result.
-async function runStep($: any, input: any = STEP) {
+async function runStep($: any, input: any = STEP, override?: any) {
+  if (override) overrideResult.value = override
   const stream = $.turn.step(input)
   const chunks: any[] = []
   let step = await stream.next()
@@ -100,6 +103,44 @@ describe('the step hook changes nothing', () => {
     expect(chunks).toEqual([{ kind: 'text', index: 0, text: 'chunk' }])
     expect(result.answer).toBe('Four.')
     expect(requests).toEqual([])
+  })
+})
+
+describe('what the agent retrieves itself is not delivered (793a2e)', () => {
+  test('a step that runs a memory command, and a turn the user began with a memory command, start no job', async ($: any, on: any) => {
+    const { requests, clock } = world(on)
+    on('prompt.submit', async (_$: any, e: any) => ({ text: e.text, context: e.context }))
+    for (const toolUses of [[{ name: 'Bash', input: { command: 'engram query --phrase x' } }], [{ name: 'Skill', input: { skill: 'recall' } }], [{ name: 'Bash', input: { command: 'cd x && engram ingest --auto 2>&1' } }]]) {
+      await runStep($, STEP, { ...RESULT, toolUses })
+    }
+    await clock.settle()
+    expect(requests).toEqual([])
+  })
+
+  test('a turn that began with /recall or an engram command asked for starts no job', async ($: any, on: any) => {
+    const { requests, clock } = world(on)
+    on('prompt.submit', async (_$: any, e: any) => ({ text: e.text, context: e.context }))
+    await $.prompt.submit({ text: '/recall tagging a release', wait: false, origin: { kind: 'sdk' } })
+    await runStep($)
+    await clock.settle()
+    expect(requests.filter((request) => !request.prompt.includes('which vault notes bear'))).toEqual([])
+  })
+
+  test('a note whose path a tool result of the agent shows is held by the agent, and is not delivered', async ($: any, on: any) => {
+    let release: (text: string) => void = () => undefined
+    const held = new Promise<string>((resolve) => { release = resolve })
+    const { clock } = world(on, { relevance: (prompt) => (prompt.includes('Moment: declaring work done') ? held : '[1]') })
+    await runStep($)
+    await clock.advance(1)
+    // the agent runs its own query meanwhile and the result shows the note
+    const waiting = $.classic.PostToolUse({ tool_name: 'Bash', tool_input: { command: 'ls' }, tool_response: { stdout: 'see 1.2026-10-12.note-n.md for the rule' }, tool_use_id: 'u0' })
+    await clock.advance(1)
+    release('[1]')
+    const first = await waiting
+    expect(first.additionalContext ?? []).toEqual([])
+    await clock.settle()
+    const tool = await $.classic.PostToolUse(TOOL)
+    expect(tool.additionalContext ?? []).toEqual([])
   })
 })
 
