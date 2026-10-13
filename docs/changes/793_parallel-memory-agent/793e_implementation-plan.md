@@ -266,6 +266,21 @@ Run on 2026-10-13 at `2b9a2ebf` (nodes 793e8a to 793e8g merged), nothing install
 
 Attribution of 793a5j1b: judgement miss. The failed Then is that the capture judgement (haiku) wrote no note for the lesson; the harness evaluated the scenario normally (an assertion, not an exception), and the same row with the same inputs and mod passed 3 of 3 alone, so it is neither a deterministic System bug nor a harness error. It matches the known least-reliable capture judgement ([793e8c Capture at turn end](#793e8c-capture-at-turn-end)). The pass rate over the full run plus re-runs is 3 of 4. No merge regression was found.
 
+
+### 793e7b Full-suite result after the review fixes
+
+Run on 2026-10-13 at the head of node 793e8k, nothing installed, token never printed.
+
+| Check | Result |
+| --- | --- |
+| `targ check-full` | 12 of 12 PASS (twice: before and after the last change of the mod) |
+| `targ test` | passes |
+| `claude plugin validate` (mod, temporary HOME) | passed |
+| `claude plugin test` (mod, same) | 134 pass, 0 fail, 6 files |
+| `npm test` (`dev/acceptance`) | 57 pass, 0 fail |
+| `targ acceptance` (full, first run, before the cue left alone a turn in which the agent runs memory itself and before the capture prompt named the exact keys) | 51 runs: 47 Green, 2 Red (793a2e1c: the cue delivered a note before the agent's own recall; 793a4c1f: a capture reply with a key too many or too few), 2 `Not run` (SP14); 2.029 USD |
+| `targ acceptance` (full, final) | 51 runs: 48 Green, 1 Red (793a3a1a third example: the judge worded the note without the corrected cause; 15 of 15 in five reruns), 2 `Not run` (793a5j1d, 793a5c1b: SP14); 1.983 USD |
+
 ## 793e8 Test Catalog
 
 Every executable test name begins with its row's Gherkin ID; the acceptance suite's scenarios are named `<ID> <title>` by the scenario line itself. Acceptance rows are verified with `targ acceptance <ID>`.
@@ -428,7 +443,7 @@ Verification: `targ acceptance 793a3a1j`, `793a3a1k`, `793a5c1c`; `claude plugin
 
 Added by the owner's instruction after [793b315 An opus implementation and security review of the PoC returned "targeted fixes first"](./793b_decision-log.md#793b315-an-opus-implementation-and-security-review-of-the-poc-returned-targeted-fixes-first): the PoC is corrected before the hypotheses are measured on it. Each fix has a failing contract test or acceptance row first; the decisions are [793b316](./793b_decision-log.md#793b316-the-acceptance-harness-makes-each-scenario-pass-through-the-mechanism-it-names) to [793b320](./793b_decision-log.md#793b320-the-in-turn-recall-cue-is-built-as-793b238-decided).
 
-Verification: `claude plugin validate` and `claude plugin test` (RESULT_TESTS); `npm test` of `dev/acceptance` (RESULT_NPM); `targ test` and `targ check-full`; the affected rows run 10 times each (below) and the whole `targ acceptance` once (RESULT_FULL).
+Verification: `claude plugin validate` and `claude plugin test` (134 tests pass in 6 files; validation passes); `npm test` of `dev/acceptance` (57 tests pass); `targ test` and `targ check-full`; the affected rows run 10 times each (below) and the whole `targ acceptance` once (result below).
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |
@@ -448,7 +463,8 @@ Verification: `claude plugin validate` and `claude plugin test` (RESULT_TESTS); 
 | 793a5h1a | 10 of 10 |
 | 793a5j1b | 10 of 10 |
 | 793a2e1c | 10 of 10 (it was Red once in the full run before the cue left alone a turn in which the agent runs memory itself) |
-| 793a4c1f | 9 of 10 (the Red is a note not delivered at the prompt) |
+| 793a4c1f | 9 of 10 (the Red is a note not delivered at the prompt; before the capture prompt named the exact keys, one run in the full run ended with "a feedback lesson does not have exactly its keys") |
+| 793a3a1a (3 examples) | 15 of 15 in five runs (one example was Red in the full run: the judge worded a note about guessing a cause from a name, without the corrected cause) |
 
 ### 793e8h Hypothesis scenarios updated to the PoC
 
