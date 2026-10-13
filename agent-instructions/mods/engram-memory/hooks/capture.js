@@ -4,28 +4,59 @@ import { MARKER } from './moment.js'
 
 const PART_LIMIT = 1200
 const WINDOW_LIMIT = 8000
-const TOOL_INPUT_LIMIT = 200
 const NEAR_LIMIT = 8
-const RESULT_LIMIT = 300
 const SOURCE_NOTE = 'captured from the conversation'
 const REDACTED = '[redacted]'
 
-// Secrets never reach a model request or a note (793b199): the patterns are credentials with a known shape, private
-// keys, and a value that follows a name such as token, secret, password or api key.
+// Secrets never reach a model request or a note (793b199, 793b298). Each part of the window is redacted before it is
+// cut or joined, and the window and the judge's fields again. The patterns: credentials with a known shape (private
+// keys, JWTs, provider keys, bearer and basic headers, passwords in URLs), a value that follows a name such as token,
+// secret, password or api key (quoted with spaces, after `is`, or in JSON), a long unbroken run of letters and digits
+// (an encoded secret), a run of wrapped lines of such characters (a key split across lines), a percent-encoded token
+// whose decoding is one of these. What no pattern describes (a short secret in prose, a base64 value that is not long)
+// is the residual risk: the judge is also told never to write a credential.
+const NAMED = /([\w.-]*(?:token|secret|passw(?:or)?d|pwd|api[-_ ]?key|apikey|credential|private[-_ ]?key|authorization)[\w.-]*["']?\s*(?::|=|\bis\b)\s*)("[^"\n]*"|'[^'\n]*'|\S+)/gi
 const SECRETS = [
   /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(-----END [A-Z ]*PRIVATE KEY-----|$)/g,
-  /\b(sk|pk|rk)-[A-Za-z0-9_-]{16,}/g,
-  /\b(ghp|gho|ghs|ghu|github_pat)_[A-Za-z0-9_]{20,}/g,
-  /\bAKIA[0-9A-Z]{16}\b/g,
+  /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g,
+  /\b(?:sk|pk|rk)[-_][A-Za-z0-9_-]{16,}/g,
+  /\b(?:ghp|gho|ghs|ghu|ghr|github_pat|npm|glpat)[-_][A-Za-z0-9_-]{16,}/g,
+  /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/g,
+  /\bAIza[0-9A-Za-z_-]{30,}/g,
   /\bxox[abprs]-[A-Za-z0-9-]{10,}/g,
-  /\bBearer\s+[A-Za-z0-9._~+/=-]{16,}/gi,
-  /\b([A-Za-z_]*(token|secret|password|passwd|api[_-]?key)[A-Za-z_]*)\s*[=:]\s*\S+/gi,
+  /\b(?:Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{12,}/gi,
 ]
+const URL_USERINFO = /\b([a-z][a-z0-9+.-]*:\/\/)[^\s:@/]+:[^\s@/]+@/gi
+const LONG_TOKEN = /[A-Za-z0-9+_=]{32,}/g
+const WRAPPED_LINES = /(?:^[ \t]*[A-Za-z0-9+/=_-]{20,}[ \t]*\r?\n){2,}/gm
+const WRAPPED_TOKEN = /([A-Za-z0-9_+/=-]{12,})[ \t]*\r?\n[ \t]*(?=[A-Za-z0-9_+/=-]{4,})/g
+const PERCENT_TOKEN = /\S*%[0-9A-Fa-f]{2}\S*/g
+
+const mixed = (text) => /\d/.test(text) && /[A-Za-z]/.test(text)
+
+function redactOnce(text) {
+  let result = text
+  for (const pattern of SECRETS) result = result.replace(pattern, REDACTED)
+  result = result.replace(URL_USERINFO, `$1${REDACTED}@`)
+  result = result.replace(NAMED, (_match, name) => `${name}${REDACTED}`)
+  result = result.replace(WRAPPED_LINES, (run) => (mixed(run) ? `${REDACTED}\n` : run))
+  return result.replace(LONG_TOKEN, (token) => (mixed(token) ? REDACTED : token))
+}
+
+function decoded(token) {
+  try {
+    return decodeURIComponent(token)
+  } catch {
+    return token
+  }
+}
 
 export function redact(text) {
-  let result = text
-  for (const pattern of SECRETS) result = result.replace(pattern, (match, name) => (name && /[=:]/.test(match) ? `${name}=${REDACTED}` : REDACTED))
-  return result
+  // a token wrapped over lines is judged joined; the joined text is kept only when it held a secret
+  const joined = text.replace(WRAPPED_TOKEN, '$1')
+  const base = redactOnce(joined) === joined ? text : joined
+  const result = redactOnce(base)
+  return result.replace(PERCENT_TOKEN, (token) => (redactOnce(decoded(token)) === decoded(token) ? token : REDACTED))
 }
 
 // stripOwnBlocks removes what the System delivered itself: a block opens with the fixed marker line and runs to the
@@ -52,13 +83,17 @@ function userText(text) {
   return text.trimStart().startsWith('<task-notification>') ? `Task notification: ${(summary ?? 'a task finished').trim()}` : text.trim()
 }
 
-// render turns a message (the shape of `$.session.messages()`) into the lines the judge reads. A tool's result is
-// read from the message that carries it, so a call's text is not repeated.
+// render turns a message (the shape of `$.session.messages()`) into the lines the judge reads. Only what the user and
+// the agent said is read (793b297): a tool's input and result are untrusted content (a file, a web page, another
+// program's output), so they never enter the window, only the name of the tool that was used. Every part is
+// redacted before it is cut.
 function render(message) {
   const lines = []
-  if (message.text?.trim()) lines.push(`${message.role === 'user' ? 'User' : 'Agent'}: ${cut(message.role === 'user' ? userText(message.text) : message.text.trim())}`)
-  for (const use of message.toolUses ?? []) lines.push(`Agent ran ${use.tool}: ${cut(JSON.stringify(use.input ?? {}).slice(0, TOOL_INPUT_LIMIT))}`)
-  for (const result of message.toolResults ?? []) if (result.text?.trim()) lines.push(`Result: ${cut(result.text.trim(), RESULT_LIMIT)}`)
+  if (message.text?.trim()) {
+    const said = message.role === 'user' ? userText(message.text) : message.text.trim()
+    lines.push(`${message.role === 'user' ? 'User' : 'Agent'}: ${cut(redact(said))}`)
+  }
+  for (const use of message.toolUses ?? []) lines.push(`Agent used ${use.tool}`)
   return lines
 }
 
@@ -174,16 +209,18 @@ export function parseLessons(reply, near) {
   const lessons = []
   for (const item of Array.isArray(list) ? list : []) {
     const fields = KINDS[item?.kind]
-    if (!fields || typeof item.situation !== 'string' || item.situation.trim() === '') continue
+    if (!fields) continue
+    const situation = [item.situation, item.subject, item.behavior].find((text) => typeof text === 'string' && text.trim() !== '')
+    if (situation === undefined) continue
     if (item.kind === 'fact' && fields.some((name) => typeof item[name] !== 'string' || item[name].trim() === '')) continue
     if (item.kind === 'feedback' && (typeof item.behavior !== 'string' || typeof item.action !== 'string' || !item.behavior.trim() || !item.action.trim())) continue
-    const slug = slugOf(typeof item.slug === 'string' && item.slug !== '' ? item.slug : item.situation)
+    const slug = slugOf(typeof item.slug === 'string' && item.slug !== '' ? item.slug : situation)
     if (seen.has(slug)) continue
     seen.add(slug)
     const covered = Number.isInteger(item.covered) && item.covered >= 1 && item.covered <= near.length ? near[item.covered - 1].path : null
     const values = Object.fromEntries(fields.map((name) => [name, redact(String(item[name] ?? '').trim())]))
     if (item.kind === 'feedback' && values.impact === '') values.impact = 'the lesson had to be given again'
-    lessons.push({ kind: item.kind, slug, situation: redact(item.situation.trim()), covered, values })
+    lessons.push({ kind: item.kind, slug, situation: redact(situation.trim()), covered, values })
   }
   return lessons
 }

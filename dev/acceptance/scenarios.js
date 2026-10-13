@@ -115,7 +115,7 @@ export default {
       'the agent states a cause for a failing test, a later command output overturns it, and the agent corrects itself': {
         prompt:
           "A test named TestSync is failing. First, before running anything, state in one sentence what you think the cause is, guessing from its name. Then run `echo 'TestSync failed: FIXTURE_DIR is unset'` with the Bash tool. Then state in one sentence the real cause, saying that your first guess was wrong.",
-        observe: { tool: 'Bash', command: /echo/, reply: /wrong|incorrect|actually|mistaken|correct/i },
+        observe: { tool: 'Bash', command: /echo/, reply: /(?=[\s\S]*FIXTURE_DIR)(?=[\s\S]*(wrong|incorrect|mistaken|actually|not the))/i },
         noMemoryCommands: true,
       },
     },
@@ -124,9 +124,8 @@ export default {
     lessons: { 'run targ test, not go test': /targ test/i },
     turns: {
       "the working agent dispatches a subagent, tells it 'no, run targ test, not go test', and the subagent finishes": {
-        files: { 'correction.txt': 'I ran `go test ./internal/cli`. No, run targ test, not go test. Acknowledge this in one sentence.' },
         prompt:
-          'The file correction.txt is for a subagent to read, not you. Dispatch a subagent with the Agent tool (type general-purpose) whose task is exactly: Read the file correction.txt and do what it says. When it returns, reply DONE.',
+          'Dispatch a subagent with the Agent tool (type general-purpose) whose task is exactly: I ran `go test ./internal/cli`. No, run targ test, not go test. Acknowledge this in one sentence. Do not do the work yourself. When it returns, reply DONE.',
         observe: { tool: /^(Agent|Task)$/, subagentsRead: /run targ test/ },
         noMemoryCommands: true,
       },
@@ -136,9 +135,8 @@ export default {
     lessons: { 'run targ test, not go test': /targ test/i },
     turns: {
       "two subagents finish at the same time, each containing the lesson 'run targ test, not go test'": {
-        files: { 'correction.txt': 'I ran `go test ./internal/cli`. No, run targ test, not go test. Acknowledge this in one sentence.' },
         prompt:
-          'The file correction.txt is for subagents to read, not you. In one single message, dispatch two subagents at the same time with the Agent tool (type general-purpose), each with the task, exactly: Read the file correction.txt and do what it says. When both return, reply DONE.',
+          'In one single message, dispatch two subagents at the same time with the Agent tool (type general-purpose), each with the task, exactly: I ran `go test ./internal/cli`. No, run targ test, not go test. Acknowledge this in one sentence. Do not do the work yourself. When both return, reply DONE.',
         observe: { tool: /^(Agent|Task)$/, calls: 2, subagentsRead: /run targ test/ },
         noMemoryCommands: true,
       },
