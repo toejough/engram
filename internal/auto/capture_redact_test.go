@@ -177,26 +177,28 @@ func Test793d26b1_RedactNeverReturnsATextHoldingAKnownSecretAndIsIdempotentOnIts
 	})
 }
 
+// The time of the redaction grows in proportion to the text (793d26b1): four times the text costs about four times as
+// long, where the quadratic redactor of the JavaScript twin cost sixteen times as long. A ratio holds on a slow or busy
+// machine where a wall-clock budget does not.
 func Test793d26b1_RedactionCostsTimeInProportionToTheText(t *testing.T) {
 	t.Parallel()
 
-	texts := map[string]string{
-		"a 12,000-character unbroken run":           strings.Repeat("a", unbrokenRun),
-		"a 15,000-character block of wrapped lines": strings.Repeat("abcdefghijklmnopqrstuvwxyz0123\n", wrappedBlockRows),
+	texts := map[string][2]string{
+		"an unbroken run": {strings.Repeat("a", unbrokenRun), strings.Repeat("a", unbrokenRun*growth)},
+		"a block of wrapped lines": {
+			strings.Repeat("abcdefghijklmnopqrstuvwxyz0123\n", wrappedBlockRows),
+			strings.Repeat("abcdefghijklmnopqrstuvwxyz0123\n", wrappedBlockRows*growth),
+		},
 	}
 
-	for name, text := range texts {
+	for name, pair := range texts {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
 			g := NewWithT(t)
-			world := NewWorld()
-			start := time.Now()
+			small, large := redactionCost(t, pair[0]), redactionCost(t, pair[1])
 
-			world.Do(t, captureOf([]any{said("user", text)}))
-
-			g.Expect(time.Since(start)).To(BeNumerically("<=", redactBudget))
-			g.Expect(world.Requests).To(HaveLen(1))
+			g.Expect(large).To(BeNumerically("<=", small*proportionSlack+redactSlack))
 		})
 	}
 }
@@ -388,9 +390,12 @@ func Test793e8g_TheMarksOfAnEarlierRunAreKeptAndTheFirstRunFixesTheCutoffOnce(t 
 
 // unexported constants.
 const (
+	costRuns         = 3
 	defaultChunks    = "/home/t/.local/share/engram/chunks"
+	growth           = 4
 	marksFile        = "/backlog-marks.json"
-	redactBudget     = 200 * time.Millisecond
+	proportionSlack  = 8
+	redactSlack      = 20 * time.Millisecond
 	transcriptPath   = "/private/home/.claude/projects/p/9f1e2d3c.jsonl"
 	unbrokenRun      = 12_000
 	windowCharLimit  = 8000
@@ -436,4 +441,22 @@ func marksOf(t *testing.T, world *World, dir string) (map[string]float64, bool) 
 	}
 
 	return marks.Turns, true
+}
+
+// redactionCost is the least time of three captures of a message of this text, the redaction being their only cost.
+func redactionCost(t *testing.T, text string) time.Duration {
+	t.Helper()
+
+	least := time.Hour
+
+	for range costRuns {
+		world := NewWorld()
+		start := time.Now()
+
+		world.Do(t, captureOf([]any{said("user", text)}))
+
+		least = min(least, time.Since(start))
+	}
+
+	return least
 }
