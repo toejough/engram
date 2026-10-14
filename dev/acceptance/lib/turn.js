@@ -174,9 +174,10 @@ export async function sendPrompt(scenario, prompt) {
 
 // attempt runs one try of a precondition and returns its result once `check` accepts it: check returns null (or true)
 // when the try is what the event needs, else why not, as { system, message }. A successful try is appended to the setup
-// log, so that a retry rebuilds the World with this turn replayed. A precondition the agent did not meet in three
-// attempts is a harness error (the model did not do what the script asked); one the System did not meet is a failed
-// assertion, which makes the row Red (793b316).
+// log, so that a retry rebuilds the World with this turn replayed. A precondition the System did not meet is a failed
+// assertion at the first try, which makes the row Red: the System's behavior is what is under test and is not tried
+// again. One the agent did not meet is tried again, up to MAX_ATTEMPTS times, and is then a harness error (the model
+// did not do what the script asked) (793b316).
 export async function attempt(world, run, check) {
   for (let tries = 1; ; tries += 1) {
     const result = await run(world.scenario)
@@ -187,10 +188,12 @@ export async function attempt(world, run, check) {
       })
       return result
     }
+    const reason = failure.message ?? 'not observed'
+    if (failure.system) {
+      throw new assert.AssertionError({ message: `the precondition of the turn was not observed: ${reason}` })
+    }
     if (tries === MAX_ATTEMPTS) {
-      const reason = failure.message ?? 'not observed'
-      const message = `the precondition of the turn was not observed in ${MAX_ATTEMPTS} attempts: ${reason}`
-      throw failure.system ? new assert.AssertionError({ message }) : new Error(message)
+      throw new Error(`the precondition of the turn was not observed in ${MAX_ATTEMPTS} attempts: ${reason}`)
     }
     world.retries += 1
     await world.scenario.rebuild()

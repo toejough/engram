@@ -226,25 +226,9 @@ These are the author's choices so far. They are not requirements of this spec an
 
 ### 793d19a Security
 
-Ratified by the owner (Joe, 2026-10-13, [793b324 Owner answer 3: the residual-risk statement 793d19a is ratified as written, with the near outcome kept](./793b_decision-log.md#793b324-owner-answer-3-the-residual-risk-statement-793d19a-is-ratified-as-written-with-the-near-outcome-kept)). This is the residual-risk statement of the opus implementation and security review of the PoC ([793b315 An opus implementation and security review of the PoC returned "targeted fixes first"](./793b_decision-log.md#793b315-an-opus-implementation-and-security-review-of-the-poc-returned-targeted-fixes-first)), recorded here as the reviewer wrote it; the fixes it asked for are [793b318 The mod's lookups, offers and redaction are hardened against what an offer, a prompt or a transcript can say](./793b_decision-log.md#793b318-the-mods-lookups-offers-and-redaction-are-hardened-against-what-an-offer-a-prompt-or-a-transcript-can-say).
+Ratified by the owner (Joe, 2026-10-13, [793b324 Owner answer 3: the residual-risk statement 793d19a is ratified as written, with the near outcome kept](./793b_decision-log.md#793b324-owner-answer-3-the-residual-risk-statement-793d19a-is-ratified-as-written-with-the-near-outcome-kept)). This is the residual-risk statement of the opus implementation and security review of the PoC ([793b315 An opus implementation and security review of the PoC returned "targeted fixes first"](./793b_decision-log.md#793b315-an-opus-implementation-and-security-review-of-the-poc-returned-targeted-fixes-first)), recorded as the reviewer wrote it; the fixes it asked for are [793b318 The mod's lookups, offers and redaction are hardened against what an offer, a prompt or a transcript can say](./793b_decision-log.md#793b318-the-mods-lookups-offers-and-redaction-are-hardened-against-what-an-offer-a-prompt-or-a-transcript-can-say).
 
-Automatic memory reads the user's and the agent's own messages, from live turns, subagent transcripts and session files on this machine that ended after the install time minus 7 days ([793b323 Owner answer 2: the backlog cut-off is one fixed point, install time minus 7 days](./793b_decision-log.md#793b323-owner-answer-2-the-backlog-cut-off-is-one-fixed-point-install-time-minus-7-days)), and pending offers from linked vaults. It sends them, after pattern-based redaction, to a cheap model that may write or amend notes. Tool inputs and results never reach the model. Speakers are taken from row structure. Replies are parsed strictly, and model output can touch only a note named by number from the nearest set, through fixed engram commands. Remaining risks: (1) an injection in user or agent text, or a planted session file, can become a note that is delivered as memory to later sessions; (2) a crafted offer can be folded into a trusted note's fields; (3) secrets of shapes the patterns do not cover can reach the model provider and the vault; (4) a wrongly judged `covered` discards an offer, recoverable only from vault history. Mitigations: provenance lines on every automatic note, aliases on folded offers, data framing on delivered notes, the user-visible activity line, and owner review of the vault. Model refusal to follow data is not a guarantee.
-
-The mitigations above are each held by a requirement that carries a `Security` line, and by Go tests of `internal/auto` (names are the starts of test names, with the file where it is not `internal/auto`). Each test was written to fail before the code it holds, from the security review of the Go port and the hardening node ([793b375 Three findings of the security review of the Go port, and the mitigations of 793d19a that map to Go tests](./793b_decision-log.md#793b375-three-findings-of-the-security-review-of-the-go-port-and-the-mitigations-of-793d19a-that-map-to-go-tests), [793b396 The answer and the last message of a subagent reached the window as raw lines, and the line breaks were not all of them](./793b_decision-log.md#793b396-the-answer-and-the-last-message-of-a-subagent-reached-the-window-as-raw-lines-and-the-line-breaks-were-not-all-of-them), [793b397 The judge's prompt fences and reply parser accepted forms a reader takes differently](./793b_decision-log.md#793b397-the-judges-prompt-fences-and-reply-parser-accepted-forms-a-reader-takes-differently), [793b398 The persisted queue is a file the engine owns, and the red tests of 793b362 became tests of the jobs the mod hands it](./793b_decision-log.md#793b398-the-persisted-queue-is-a-file-the-engine-owns-and-the-red-tests-of-793b362-became-tests-of-the-jobs-the-mod-hands-it), [793b399 A near fold carries a provenance line, by a new flag of engram amend](./793b_decision-log.md#793b399-a-near-fold-carries-a-provenance-line-by-a-new-flag-of-engram-amend)).
-
-| Mitigation | Requirement | Tests |
-| --- | --- | --- |
-| Speakers from the role of a message; one line a message; a tool's input and result never in a [window](#793d1b-terms) | [793d27b1 Windows](#793d27b1-windows) | `Test793d19a_ASpeakerIsKnownByTheRoleOfTheMessageNotByALabelInItsText`, `Test793d19a_WhatAToolTookInOrGaveBackNeverEntersTheWindowOnlyTheNameOfTheTool`, `Test793d27b1_NoLineBreakOfAnyKindLetsAMessageStartALineOfItsOwn`, `Test793d27b1_NoTextOfAnyMessageAnswerOrSubagentStartsALineOfItsOwn` |
-| A [backlog source](#793d1b-terms) read by the roles of its rows | [793d28b2 Reading and windows](#793d28b2-reading-and-windows) | `Test793d19a_ABacklogSourceIsReadByTheRolesOfItsRowsAndItsTextCannotPoseAsStructure` |
-| Data fenced: placeholders filled in one pass, the tags of a prompt broken in any form | [793d25b2 Data and replies](#793d25b2-data-and-replies) | `Test793d19a_ATagImitationOfAnyBracketSpacingOrCaseIsBrokenInEveryPrompt`, `Test793d19a_APlaceholderInAnOfferIsNotFilledWithTheNearestNotes`, `Test793d19a_APlaceholderInTheTextOfAMomentIsNotFilledWithTheCandidates`, `Test793d19a_APlaceholderInTheWindowIsNotFilledWithTheNearestNotes`, `Test793d19a_TheWindowCannotCloseTheTagItSitsIn`, `Test793d19a_TextThatImitatesThePromptsTagsCannotCloseOrOpenThemInTheWindowOrInANote`, `Test793d19a_AnOfferOrANoteThatHoldsTheTagsOfThePromptCannotCloseOrOpenASection` |
-| Replies read strictly, with types, ranges and no duplicate key | [793d25b3 Result shapes](#793d25b3-result-shapes) | `Test793d25b3_OnlyExactlyOneJSONDocumentIsAReply`, `Test793d25b3_AReplyIsReadStrictlyAndAnythingElseWritesNothing`, `Test793d19a_ADuplicateKeyIsAnErrorWhereverItIsInAReply` |
-| Redaction before the cut, in every shape listed, on the [queue file](#793d1b-terms) too | [793d26b1 Credential shapes](#793d26b1-credential-shapes), [793d37b1 Entries](#793d37b1-entries) | `Test793d26b1_ASecretOfAKnownShapeNeverReachesTheModelTheCommandLineOrANote`, `Test793d26b1_ASecretInTheWindowNeverReachesTheJudgement`, `Test793d19a_ASecretInAnOfferNeverReachesTheJudgement`, `Test793d37b1_ATurnIsRedactedBeforeItIsWrittenToDisk` |
-| A result names a [nearest note](#793d1b-terms) only by its number; a [note](./793a_product-spec.md#793a1-problem-statement) name is checked before it reaches a command or a [block](#793d1b-terms) | [793d29b2 Outcomes and guards](#793d29b2-outcomes-and-guards), [793d24b3 Block](#793d24b3-block), [793d29b1 Offers to settle](#793d29b1-offers-to-settle) | `Test793d29b2_AnOfferIsSettledByTheOutcomeTheJudgementGave`, `Test793d29b2_AnOutcomeSettlesWithTheCommandsOfCurate`, `Test793d24b3_ANoteWhoseNameIsNotANoteNameIsNeverDeliveredOrNamedInACommand`, `Test793d19a_TheNoteAnOfferIsForIsCheckedAsANoteNameBeforeItIsShownOrAmended` |
-| `--expect-hash` read from `engram show`; free text as `--flag=value` | [793d29b2 Outcomes and guards](#793d29b2-outcomes-and-guards), [793d24b1 Lookup and selection](#793d24b1-lookup-and-selection) | `Test793d29b2_AnExchangeHashIsReadFromTheHeaderOfShowNotFromALineOfTheNote`, `Test793d19a_AnOfferWhoseSituationStartsWithADashIsLookedUpAsAValue`, `Test793d24b1_FreeTextThatStartsWithADashIsAValueOfItsFlagNeverAFlag` |
-| Delivered [notes](./793a_product-spec.md#793a1-problem-statement) framed as data, one line each | [793d24b3 Block](#793d24b3-block) | `Test793d24b3_ADeliveredNoteIsFramedAsDataOneLineEachAndNoneIsImitated` |
-| A folded offer is discarded into its [note](./793a_product-spec.md#793a1-problem-statement), never deleted | [793d29b2 Outcomes and guards](#793d29b2-outcomes-and-guards) | `Test793d19a_AnOfferJudgedCoveredNearOrRejectedIsFoldedOrDiscardedAndOnlyRejectedIsDiscardedOutright` |
-| The activity line from constants and counts only | [793d30b2 Warnings and surface](#793d30b2-warnings-and-surface) | `Test793d30b2_OnlyConstantsAndCountsReachTheLineNothingANoteAnOfferOrALessonSays` |
-| A provenance line on every automatic [note](./793a_product-spec.md#793a1-problem-statement), the near fold included | [793d27b2 Reconciliation, writes and provenance](#793d27b2-reconciliation-writes-and-provenance), [793d38b1 Amend provenance](#793d38b1-amend-provenance) | `Test793d19a_ANoteFromATurnOrASubagentSaysItWasWrittenAutomatically`, `Test793d38b1_AmendSourceAppendsAProvenanceLineToTheSourceOfAnyKindOfNote` |
+The statement itself, and the map of its mitigations to the requirements that hold them, are in [793d25a Orientation](#793d25a-orientation), where they are promoted with the Judgement Relay; this section is the record of how they came to be, and is not promoted.
 
 ## 793d20 Traceability to the product spec
 
@@ -326,7 +310,7 @@ Supports: [793a4c1a Tool calls and permissions unchanged](./793a_product-spec.md
 
 Verified by: `wiring.test.ts` "a request is relayed…"; `wiring.test.ts` "the result of a tool carries…"; `wiring.test.ts` "a subagent gets nothing…"
 
-Rationale: The owner kept the [mod](#793d1b-terms) over settings hooks for its capability and efficiency: a model call in process on the [session](../../GLOSSARY.md#session)'s credentials, a [status line](#793d1b-terms) off the [transcript](../../GLOSSARY.md#transcript), the prompt's origin known ([793d17g4 Verdict](#793d17g4-verdict)).
+Rationale: The System is a [mod](#793d1b-terms) and not a set of settings hooks for what only a mod has: a model call in process on the [session](../../GLOSSARY.md#session)'s credentials, a [status line](#793d1b-terms) off the [transcript](../../GLOSSARY.md#transcript), and the prompt's origin.
 
 ##### 793d22b1a Scenarios
 
@@ -402,7 +386,7 @@ Supports: [793a2n1a Recall happens without the agent running it](./793a_product-
 
 Verified by: `wiring.test.ts` "a request is relayed…"; `wiring.test.ts` "a wait is slept…"; `wiring.test.ts` "the effects of a round…"; `wiring.test.ts` "the ledger the engine hands back…"; `wiring.test.ts` "the jobs that touch the ledger…"
 
-Rationale: The model call is the [mod](#793d1b-terms)'s because only the mod runs on the [session](../../GLOSSARY.md#session)'s credentials, in process, with no token to provision ([793d17g4 Verdict](#793d17g4-verdict)); the engine asks and is called again, so it keeps no state between calls ([793b370 A round is stateless because the job is replayed from a record of its effects](./793b_decision-log.md#793b370-a-round-is-stateless-because-the-job-is-replayed-from-a-record-of-its-effects)).
+Rationale: The model call is the [mod](#793d1b-terms)'s because only the mod runs on the [session](../../GLOSSARY.md#session)'s credentials, in process, with no token to provision; the engine asks and is called again, replaying the job from a record of its effects, so it keeps no state between calls.
 
 ##### 793d22b5a Scenarios
 
@@ -499,8 +483,6 @@ Supports: [793a2n1g A subagent receives relevant notes](./793a_product-spec.md#7
 
 Verified by: `internal/auto/moment_test.go`: Test793d23b1_ATaskNotificationIsLookedUpByItsSummaryNotItsMarkup, Test793d23b1_TheResultOfRouteIsDeliveredWithItsOwnLookupAndAHeldStepNoteWaitsForALaterResult, Test793d23b1_TheResultOfRouteIsDeliveredWithItsOwnLookupAndNoOtherToolIsLookedUp; `wiring.test.ts` "the result of a tool carries…"; `wiring.test.ts` "a subagent gets nothing…"
 
-Gap: the origins of a prompt other than the SDK's are exercised only by the acceptance row [793a2n1h A prompt from any source receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios).
-
 
 ##### 793d23b1a Scenarios
 
@@ -519,7 +501,7 @@ Supports: [793a2n1a Recall happens without the agent running it](./793a_product-
 
 Verified by: `internal/auto/moment_test.go`: Test793d23b2_AClassificationIsReadStrictly, Test793d23b2_AClassificationThatNamesNoMomentMakesNoQueryAndDeliversNothing, Test793d23b2_AStepThatRunsMemoryItselfEndsWithNoNoteAndMakesNoModelCallOrCommand, Test793d23b2_AStepWithTextAndAToolCallIsClassifiedOnceAndItsNoteRidesTheNextToolResult, Test793d23b2_ATurnThatBeganWithAMemoryCommandEndsWithNoNoteAndMakesNoModelCallOrCommand, Test793d23b2_TextThatImitatesThePromptsOwnTagsCannotCloseTheSectionItSitsIn, Test793d23b2_TheRecentTextsReachTheClassificationRedactedAndTheToolResultsNeverDo; `wiring.test.ts` "a step that called a tool…"; `wiring.test.ts` "no job is started…"; `wiring.test.ts` "the next tool result waits…"
 
-Security: [793d19a Security](#793d19a-security), risk (1): the recent texts are redacted and fenced.
+Security: risk (1) of [793d25a Orientation](#793d25a-orientation), held by [793d26b1 Credential shapes](#793d26b1-credential-shapes) and [793d25b2 Data and replies](#793d25b2-data-and-replies): the recent texts are redacted and fenced.
 
 Rationale: A prompt cannot name a [moment](./793a_product-spec.md#793a1-problem-statement) the agent reaches mid-task, such as declaring the work done, so the [cue](#793d1b-terms) reads what the agent says at each step; memory the agent retrieves on purpose is [intentional memory](./793a_product-spec.md#793a1-problem-statement) and gets nothing added.
 
@@ -548,9 +530,9 @@ Requirement: 793d24b1 For a [moment](./793a_product-spec.md#793a1-problem-statem
 
 Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1e No result, nothing delivered](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1h A prompt from any source receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios)
 
-Verified by: `internal/auto/moment_test.go`: Test793d24b1_AJudgementThatSelectsNothingDeliversNothing, Test793d24b1_ALookupSaysInTheDebugLogHowManyCandidatesItFoundAndDelivered, Test793d24b1_ARelevanceReplyIsReadStrictly, Test793d24b1_ARelevantNoteRidesThePromptWithTheApplyInstructionAfterTheQueryAndOneJudgement, Test793d24b1_FreeTextThatStartsWithADashIsAValueOfItsFlagNeverAFlag, Test793d24b1_NothingRelevantIsNothingDeliveredAndAQueryWithNoResultMakesNoJudgement
+Verified by: `internal/auto/moment_test.go`: Test793d24b1_AJudgementThatSelectsNothingDeliversNothing, Test793d24b1_ALookupSaysInTheDebugLogHowManyCandidatesItFoundAndDelivered, Test793d24b1_ARelevanceReplyIsReadStrictly, Test793d24b1_ARelevantNoteRidesThePromptWithTheApplyInstructionAfterTheQueryAndOneJudgement, Test793d24b1_FreeTextThatStartsWithADashIsAValueOfItsFlagNeverAFlag, Test793d24b1_NothingRelevantIsNothingDeliveredAndAQueryWithNoResultMakesNoJudgement; `internal/auto/curate_test.go`: Test793d19a_AnOfferWhoseSituationStartsWithADashIsLookedUpAsAValue
 
-Security: [793d19a Security](#793d19a-security), mitigation: free text reaches a command only as `--flag=value`, so a query that starts with a dash is a value.
+Security: held here: free text reaches a command only as `--flag=value`, so a query that starts with a dash is a value.
 
 ##### 793d24b1a Scenarios
 
@@ -597,7 +579,7 @@ Supports: [793a2n1e No result, nothing delivered](./793a_product-spec.md#793a2n1
 
 Verified by: `internal/auto/moment_test.go`: Test793d24b3_ABlockHasTheHeaderThenOneLineForTheNoteAndCountsOneDelivery, Test793d24b3_ADeliveredNoteIsFramedAsDataOneLineEachAndNoneIsImitated; `internal/auto/security_test.go`: Test793d24b3_ANoteWhoseNameIsNotANoteNameIsNeverDeliveredOrNamedInACommand
 
-Security: [793d19a Security](#793d19a-security), mitigation: data framing of delivered [notes](./793a_product-spec.md#793a1-problem-statement).
+Security: held here: delivered [notes](./793a_product-spec.md#793a1-problem-statement) are framed as data, one line each, and a note whose name is not a note name is never delivered.
 
 ##### 793d24b3a Scenarios
 
@@ -616,6 +598,23 @@ Canonical target: `docs/specs/technical/judgement-relay.md`.
 
 Ownership: repository component, bounded by the model call the Memory Mod makes. Responsibility: makes each [judgement](#793d1b-terms) one request that names its kind's model, effort, reply size and deadline and frames the data as data, and reads the reply strictly into a typed result or an error. Realization: `Tiers`, `fill`, `fence` and `document` in `internal/auto/judge.go`, and the prompts in `internal/auto/prompts`.
 
+Rationale: Automatic memory reads the user's and the agent's own messages, from live turns, [subagent](../../GLOSSARY.md#subagent) transcripts and [session](../../GLOSSARY.md#session) files on this machine that ended after the install time minus 7 days, and pending [offers](../../GLOSSARY.md#offer) from linked vaults. It sends them, after pattern-based redaction, to a cheap model that may write or amend [notes](./793a_product-spec.md#793a1-problem-statement). Tool inputs and results never reach the model. Speakers are taken from row structure. Replies are parsed strictly, and model output can touch only a note named by number from the nearest set, through fixed engram commands. The owner accepts the risks that remain: (1) an injection in user or agent text, or a planted session file, can become a note that is delivered as memory to later sessions; (2) a crafted offer can be folded into a trusted note's fields; (3) secrets of shapes the patterns do not cover can reach the model provider and the [vault](./793a_product-spec.md#793a1-problem-statement); (4) a wrongly judged `covered` discards an offer, recoverable only from vault history. The mitigations are provenance lines on every automatic note, aliases on folded offers, data framing on delivered notes, the user-visible activity line, and owner review of the vault. Model refusal to follow data is not a guarantee. Each requirement that holds a mitigation has a `Security` line, and the map below names them.
+
+| Mitigation | Requirements |
+| --- | --- |
+| Speakers from the role of a message; one line a message; a tool's input and result never in a [window](#793d1b-terms) | [793d27b1 Windows](#793d27b1-windows) |
+| A [backlog source](#793d1b-terms) read by the roles of its rows | [793d28b2 Reading and windows](#793d28b2-reading-and-windows) |
+| What is read is bounded to the sessions that ended after the install time minus 7 days | [793d28b1 Eligible sources and cut-off](#793d28b1-eligible-sources-and-cut-off) |
+| Data fenced: placeholders filled in one pass, the tags of a prompt broken in any form | [793d25b2 Data and replies](#793d25b2-data-and-replies) |
+| Replies read strictly, with types, ranges and no duplicate key | [793d25b3 Result shapes](#793d25b3-result-shapes) |
+| Redaction before the cut, in every shape listed, on the [queue file](#793d1b-terms) too | [793d26b1 Credential shapes](#793d26b1-credential-shapes), [793d37b1 Entries](#793d37b1-entries) |
+| A result names a [nearest note](#793d1b-terms) only by its number; a note name is checked before it reaches a command or a [block](#793d1b-terms) | [793d29b2 Outcomes and guards](#793d29b2-outcomes-and-guards), [793d24b3 Block](#793d24b3-block), [793d29b1 Offers to settle](#793d29b1-offers-to-settle) |
+| `--expect-hash` read from `engram show`; free text as `--flag=value` | [793d29b2 Outcomes and guards](#793d29b2-outcomes-and-guards), [793d24b1 Lookup and selection](#793d24b1-lookup-and-selection) |
+| Delivered notes framed as data, one line each | [793d24b3 Block](#793d24b3-block) |
+| A folded offer is folded by the canonical fold, which keeps its names as aliases of the note | [793d29b2 Outcomes and guards](#793d29b2-outcomes-and-guards) |
+| The activity line from constants and counts only | [793d30b2 Warnings and surface](#793d30b2-warnings-and-surface) |
+| A provenance line on every automatic note, the near fold included | [793d27b2 Reconciliation, writes and provenance](#793d27b2-reconciliation-writes-and-provenance), [793d38b1 Amend provenance](#793d38b1-amend-provenance) |
+
 ### 793d25b Behavior Requirements
 
 #### 793d25b1 Tier and request shape
@@ -626,7 +625,7 @@ Supports: [793a2n1a Recall happens without the agent running it](./793a_product-
 
 Verified by: `internal/auto/tiers_test.go`: Test793d25b1_AKindWithoutARowIsAnErrorNeverADefaultModel, Test793d25b1_EveryRequestCarriesTheModelOfItsKindAndNotTheSessionModel, Test793d25b1_EveryRequestRunsAtTheLowestAcceptedEffort, Test793d25b1_RaisingOneKindChangesOnlyTheRequestsOfThatKind, Test793d25b1_TheDefaultTableHasARowForExactlyTheFourKinds; `internal/auto/golden_test.go`: Test793d25b1_RequestsAreTheOnesTheGreenPhaseMeasured
 
-Rationale: The cheapest tier is 10 to 15 times cheaper in every kind and its replies are read by the strict parsers almost every time, though it is not faster, so the owner chose it at the lowest accepted effort for all four kinds ([793d18d4 Verdict](#793d18d4-verdict)). The relevance deadline and the lookup's 2 seconds fit the 8 seconds a prompt may be held.
+Rationale: Every judgement is a bounded reading task whose reply a strict parser checks, so each kind runs on the cheapest tier at the lowest accepted effort. The relevance deadline and the lookup's 2 seconds fit the 8 seconds a prompt may be held.
 
 ##### 793d25b1a Scenarios
 
@@ -643,9 +642,9 @@ Requirement: 793d25b2 The Judgement Relay MUST state in the capture, classificat
 
 Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `internal/auto/capture_test.go`: Test793d25b2_ThePromptNamesTheExactKeysOfEachKindAndShowsOneLessonOfEach; `internal/auto/differential_test.go`: Test793d19a_ATagImitationOfAnyBracketSpacingOrCaseIsBrokenInEveryPrompt, Test793d19a_ADuplicateKeyIsAnErrorWhereverItIsInAReply; `internal/auto/security_test.go`: Test793d19a_APlaceholderInAnOfferIsNotFilledWithTheNearestNotes, Test793d19a_APlaceholderInTheTextOfAMomentIsNotFilledWithTheCandidates, Test793d19a_APlaceholderInTheWindowIsNotFilledWithTheNearestNotes
+Verified by: `internal/auto/capture_test.go`: Test793d25b2_ThePromptNamesTheExactKeysOfEachKindAndShowsOneLessonOfEach, Test793d19a_TheWindowCannotCloseTheTagItSitsIn, Test793d19a_TextThatImitatesThePromptsTagsCannotCloseOrOpenThemInTheWindowOrInANote; `internal/auto/differential_test.go`: Test793d19a_ATagImitationOfAnyBracketSpacingOrCaseIsBrokenInEveryPrompt, Test793d19a_ADuplicateKeyIsAnErrorWhereverItIsInAReply; `internal/auto/security_test.go`: Test793d19a_APlaceholderInAnOfferIsNotFilledWithTheNearestNotes, Test793d19a_APlaceholderInTheTextOfAMomentIsNotFilledWithTheCandidates, Test793d19a_APlaceholderInTheWindowIsNotFilledWithTheNearestNotes; `internal/auto/curate_test.go`: Test793d19a_AnOfferOrANoteThatHoldsTheTagsOfThePromptCannotCloseOrOpenASection
 
-Security: [793d19a Security](#793d19a-security), risks (1) and (2): data fencing and strict reading.
+Security: risks (1) and (2) of [793d25a Orientation](#793d25a-orientation), held here: data fencing and strict reading.
 
 ##### 793d25b2a Scenarios
 
@@ -662,9 +661,9 @@ Requirement: 793d25b3 The Judgement Relay MUST read `relevance` as an array of d
 
 Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `internal/auto/capture_test.go`: Test793d25b3_ALessonWhoseSlugAnEarlierLessonOfTheReplyHasIsSkippedAndTheReplyIsNotRefused, Test793d25b3_AReplyIsReadStrictlyAndAnythingElseWritesNothing, Test793d25b3_AReplyWithNoLessonOrNotAnArrayWritesNothing, Test793d25b3_ExactlyOneDocumentIsAcceptedBareOrInACodeFenceThatWrapsTheReply; `internal/auto/golden_test.go`: Test793d25b3_CurationIsReadStrictly, Test793d25b3_LessonsAreReadStrictly, Test793d25b3_MomentsAreReadStrictly, Test793d25b3_SelectionIsReadStrictly; `internal/auto/differential_test.go`: Test793d25b3_AnInvalidByteInAStringIsAnErrorAndNotAReplacementCharacter, Test793d25b3_NothingBeforeOrAfterTheDocumentIsEverTaken, Test793d25b3_OneDocumentWithOnlyJSONWhiteSpaceAroundItOrInAFenceIsTaken, Test793d25b3_OnlyExactlyOneJSONDocumentIsAReply
+Verified by: `internal/auto/capture_test.go`: Test793d25b3_ALessonWhoseSlugAnEarlierLessonOfTheReplyHasIsSkippedAndTheReplyIsNotRefused, Test793d25b3_AReplyIsReadStrictlyAndAnythingElseWritesNothing, Test793d25b3_AReplyWithNoLessonOrNotAnArrayWritesNothing, Test793d25b3_ExactlyOneDocumentIsAcceptedBareOrInACodeFenceThatWrapsTheReply; `internal/auto/golden_test.go`: Test793d25b3_CurationIsReadStrictly, Test793d25b3_LessonsAreReadStrictly, Test793d25b3_MomentsAreReadStrictly, Test793d25b3_SelectionIsReadStrictly; `internal/auto/differential_test.go`: Test793d25b3_AnInvalidByteInAStringIsAnErrorAndNotAReplacementCharacter, Test793d25b3_NothingBeforeOrAfterTheDocumentIsEverTaken, Test793d25b3_OneDocumentWithOnlyJSONWhiteSpaceAroundItOrInAFenceIsTaken, Test793d25b3_OnlyExactlyOneJSONDocumentIsAReply, Test793d19a_ADuplicateKeyIsAnErrorWhereverItIsInAReply
 
-Security: [793d19a Security](#793d19a-security), risks (1), (2) and (4): a result names a [nearest note](#793d1b-terms) only by its number.
+Security: risks (1), (2) and (4) of [793d25a Orientation](#793d25a-orientation), held here: a result names a [nearest note](#793d1b-terms) only by its number.
 
 ##### 793d25b3a Scenarios
 
@@ -691,9 +690,9 @@ Requirement: 793d26b1 Secret Redaction MUST replace with `[redacted]` private ke
 
 Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `internal/auto/capture_redact_test.go`: Test793d26b1_ABlockOfWrappedLinesIsHiddenOnlyWhenItHoldsDigitsAndLetters, Test793d26b1_AGitCommitHashIsNotMistakenForASecret, Test793d26b1_ASecretInALessonThatTheJudgeWroteNeverReachesTheCommandLine, Test793d26b1_ASecretInTheWindowNeverReachesTheJudgement, Test793d26b1_ASecretOfAKnownShapeNeverReachesTheModelTheCommandLineOrANote, Test793d26b1_ASecretThatEvadedASinglePatternDoesNotReachTheJudgement, Test793d26b1_RedactNeverReturnsATextHoldingAKnownSecretAndIsIdempotentOnItsOutput, Test793d26b1_RedactionCostsTimeInProportionToTheText, Test793d26b1_SecretsOfTheShapesAReviewProbedDoNotReachTheJudgement; `internal/auto/security_test.go`: Test793d26b1_AnUnusualSpaceDoesNotHideACredentialFromTheRedactor
+Verified by: `internal/auto/capture_redact_test.go`: Test793d26b1_ABlockOfWrappedLinesIsHiddenOnlyWhenItHoldsDigitsAndLetters, Test793d26b1_AGitCommitHashIsNotMistakenForASecret, Test793d26b1_ASecretInALessonThatTheJudgeWroteNeverReachesTheCommandLine, Test793d26b1_ASecretInTheWindowNeverReachesTheJudgement, Test793d26b1_ASecretOfAKnownShapeNeverReachesTheModelTheCommandLineOrANote, Test793d26b1_ASecretThatEvadedASinglePatternDoesNotReachTheJudgement, Test793d26b1_RedactNeverReturnsATextHoldingAKnownSecretAndIsIdempotentOnItsOutput, Test793d26b1_RedactionCostsTimeInProportionToTheText, Test793d26b1_SecretsOfTheShapesAReviewProbedDoNotReachTheJudgement; `internal/auto/security_test.go`: Test793d26b1_AnUnusualSpaceDoesNotHideACredentialFromTheRedactor; `internal/auto/curate_test.go`: Test793d19a_ASecretInAnOfferNeverReachesTheJudgement
 
-Security: [793d19a Security](#793d19a-security), risk (3): secrets of other shapes are its residual risk.
+Security: risk (3) of [793d25a Orientation](#793d25a-orientation) is the residual risk of this requirement: secrets of other shapes.
 
 Rationale: The pattern engine is RE2, whose match time is linear, so a crafted text cannot stall a hook.
 
@@ -722,9 +721,9 @@ Requirement: 793d27b1 Auto Capture MUST build the [window](#793d1b-terms) of a c
 
 Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1g A lesson in a subagent session is captured](./793a_product-spec.md#793a3a1-uat-scenarios)
 
-Verified by: `internal/auto/capture_test.go`: Test793d27b1_ASubagentTranscriptThatIsNotThereIsPolledAndThenNothingIsJudged, Test793d27b1_ASubagentTranscriptThatNeverHoldsTheLastMessageIsJudgedWithItAppendedAfterThePolls, Test793d27b1_ATaskNotificationEntersTheWindowAsItsSummaryNeverAsTheResultItCarries, Test793d27b1_AWindowWithNoWordsOfTheUserIsNothingToJudge, Test793d27b1_TheAnswerOfTheTurnIsAddedWhenTheMessagesLagBehindIt, Test793d27b1_TheWindowIsTheSubagentTranscriptPolledUntilItHoldsTheLastMessage; `internal/auto/perf_test.go`: Test793d27b1_ATranscriptCompleteAfter100msIsReadWithinThatWait; `internal/auto/queue_test.go`: Test793d27b1_ACaptureWithNoEntryIsTheTurnItself
+Verified by: `internal/auto/capture_test.go`: Test793d27b1_ASubagentTranscriptThatIsNotThereIsPolledAndThenNothingIsJudged, Test793d27b1_ASubagentTranscriptThatNeverHoldsTheLastMessageIsJudgedWithItAppendedAfterThePolls, Test793d27b1_ATaskNotificationEntersTheWindowAsItsSummaryNeverAsTheResultItCarries, Test793d27b1_AWindowWithNoWordsOfTheUserIsNothingToJudge, Test793d27b1_TheAnswerOfTheTurnIsAddedWhenTheMessagesLagBehindIt, Test793d27b1_TheWindowIsTheSubagentTranscriptPolledUntilItHoldsTheLastMessage, Test793d19a_ASpeakerIsKnownByTheRoleOfTheMessageNotByALabelInItsText, Test793d19a_WhatAToolTookInOrGaveBackNeverEntersTheWindowOnlyTheNameOfTheTool; `internal/auto/perf_test.go`: Test793d27b1_ATranscriptCompleteAfter100msIsReadWithinThatWait; `internal/auto/queue_test.go`: Test793d27b1_ACaptureWithNoEntryIsTheTurnItself; `internal/auto/security_test.go`: Test793d27b1_NoLineBreakOfAnyKindLetsAMessageStartALineOfItsOwn; `internal/auto/differential_test.go`: Test793d27b1_NoTextOfAnyMessageAnswerOrSubagentStartsALineOfItsOwn
 
-Security: [793d19a Security](#793d19a-security), risks (1) and (3): only speech enters, by role, one line a message, redacted before it is cut.
+Security: risks (1) and (3) of [793d25a Orientation](#793d25a-orientation), held here and by [793d26b1 Credential shapes](#793d26b1-credential-shapes): only speech enters, by role, one line a message, redacted before it is cut.
 
 ##### 793d27b1a Scenarios
 
@@ -741,9 +740,9 @@ Requirement: 793d27b2 Given a [window](#793d1b-terms) and a source line, Auto Ca
 
 Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1g A lesson in a subagent session is captured](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1h Two subagents contain the same lesson](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5k1d An intentional learn by the agent is allowed and is not undone](./793a_product-spec.md#793a5k1-uat-scenarios)
 
-Verified by: `internal/auto/capture_test.go`: Test793d27b2_AFailingJudgementIsContainedAndNothingIsWrittenOrMarked, Test793d27b2_AFailingQueryIsContainedAndNothingIsJudged, Test793d27b2_AFailingWriteIsContained, Test793d27b2_ALessonANearestNoteStatesReinforcesThatNoteAndWritesNothing, Test793d27b2_ALessonNoNoteStatesIsWrittenWithTheAutomaticSource, Test793d27b2_ANoteTheSessionWroteIsANearestNoteOfTheNextWindowWhateverTheQueryReturned, Test793d27b2_ANoteTheSessionWroteIsNotListedTwiceWhenTheQueryReturnsItToo, Test793d27b2_ANoteWrittenFromASubagentNamesTheSubagentInItsSource, Test793d27b2_AQueryThatCannotBeReadIsContainedAndNothingIsJudged, Test793d27b2_TheLessonsOfOneReplyAreWrittenOrAmendedAndTheSameSlugOnlyOnce; `internal/auto/golden_test.go`: Test793d27b2_SourcesNameTheTurnOrThePositionAndTheAutomaticWrite, Test793d27b2_TheNearestNotesAreLookedUpWithWhatTheUserSaidFirst
+Verified by: `internal/auto/capture_test.go`: Test793d27b2_AFailingJudgementIsContainedAndNothingIsWrittenOrMarked, Test793d27b2_AFailingQueryIsContainedAndNothingIsJudged, Test793d27b2_AFailingWriteIsContained, Test793d27b2_ALessonANearestNoteStatesReinforcesThatNoteAndWritesNothing, Test793d27b2_ALessonNoNoteStatesIsWrittenWithTheAutomaticSource, Test793d27b2_ANoteTheSessionWroteIsANearestNoteOfTheNextWindowWhateverTheQueryReturned, Test793d27b2_ANoteTheSessionWroteIsNotListedTwiceWhenTheQueryReturnsItToo, Test793d27b2_ANoteWrittenFromASubagentNamesTheSubagentInItsSource, Test793d27b2_AQueryThatCannotBeReadIsContainedAndNothingIsJudged, Test793d27b2_TheLessonsOfOneReplyAreWrittenOrAmendedAndTheSameSlugOnlyOnce, Test793d19a_ANoteFromATurnOrASubagentSaysItWasWrittenAutomatically; `internal/auto/golden_test.go`: Test793d27b2_SourcesNameTheTurnOrThePositionAndTheAutomaticWrite, Test793d27b2_TheNearestNotesAreLookedUpWithWhatTheUserSaidFirst
 
-Security: [793d19a Security](#793d19a-security), mitigation: a provenance line on every automatic [note](./793a_product-spec.md#793a1-problem-statement).
+Security: held here and by [793d38b1 Amend provenance](#793d38b1-amend-provenance): a provenance line on every automatic [note](./793a_product-spec.md#793a1-problem-statement).
 
 ##### 793d27b2a Scenarios
 
@@ -777,7 +776,7 @@ Supports: [793a3a1k A lesson in a session that ended before it was saved is capt
 
 Verified by: `internal/auto/queue_test.go`: Test793d37b1_AFileThatCannotBeWrittenQueuesNothingAndWarnsNoOneSoTheTurnIsCapturedFromMemory, Test793d37b1_ATurnIsAddedAfterTheOnesAlreadyInTheFile, Test793d37b1_ATurnIsRedactedBeforeItIsWrittenToDisk, Test793d37b1_ATurnIsWrittenToTheFileWithItsWindowAndSourceAndNothingIsJudged, Test793d37b1_ATurnWithNoWordsOfTheUserIsNotQueued, Test793d37b1_NoFileAndAFileThatIsNotAQueueAreAnEmptyQueue
 
-Security: [793d19a Security](#793d19a-security), risk (3): the text on disk is redacted.
+Security: risk (3) of [793d25a Orientation](#793d25a-orientation), held here and by [793d26b1 Credential shapes](#793d26b1-credential-shapes): the text on disk is redacted.
 
 ##### 793d37b1a Scenarios
 
@@ -842,7 +841,7 @@ Supports: [793a3a1k A lesson in a session that ended before it was saved is capt
 
 Verified by: `internal/auto/backlog_test.go`: Test793d28b1_ABrokenManifestOrMarkFileIsReportedAndNothingIsCaptured, Test793d28b1_AMarkFileWithNoCutoffGetsOneAndKeepsItsMarks, Test793d28b1_ASourceMayStillBeRunningIsNotCaptured, Test793d28b1_ASourceThatGrewSinceItWasMarkedIsCapturedAgain, Test793d28b1_ASourceWhoseHashTheMarkHoldsIsNotCapturedAgain, Test793d28b1_AtMostOneSourceIsCapturedPerTurnTheMostRecentlyChangedFirst, Test793d28b1_AtMostTwentySourcesAreLookedAtInOneTurn, Test793d28b1_NoManifestIsAnEmptyBacklogNotAnError, Test793d28b1_OneQuietSourceIsCapturedThenMarked, Test793d28b1_TheChunksDirectoryIsTheOneTheEnvironmentNames, Test793d28b1_TheCutoffDoesNotRollWhateverTheIdleTime, Test793d28b1_TheCutoffIsAFixedPointARunRecordsAndNotAWindow, Test793d28b1_TheCutoffIsRecordedOnceEvenByAFirstRunWithNothingToCapture, Test793d28b1_WhatIsNotASessionTranscriptIsNotASource; `internal/auto/golden_test.go`: Test793d28b1_TheSourcesToCaptureAreTheQuietOnesAfterTheCutoff
 
-Security: [793d19a Security](#793d19a-security), bounds what is read: [sessions](../../GLOSSARY.md#session) that ended after the install time minus 7 days.
+Security: held here: what is read is bounded to [sessions](../../GLOSSARY.md#session) that ended after the install time minus 7 days.
 
 ##### 793d28b1a Scenarios
 
@@ -864,9 +863,9 @@ Requirement: 793d28b2 Backlog Capture MUST read a source's conversation from the
 
 Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5c1c A captured Pi session's transcript is left unchanged](./793a_product-spec.md#793a5c1-uat-scenarios)
 
-Verified by: `internal/auto/backlog_test.go`: Test793d28b2_ALessonBeyondTheWindowsOfOneTurnIsNotLostTheSourceIsMarkedWhenAllAreJudged, Test793d28b2_ALongTranscriptIsJudgedInOverlappingWindowsTheEndFirst, Test793d28b2_ASourceOverThePlatformReadLimitIsReadFromItsTail, Test793d28b2_ASourceThatGrewWhileItsWindowsWereConsumedStartsAgain, Test793d28b2_ASourceWithNoMessageIsMarkedAndNotReadAgain; `internal/auto/golden_test.go`: Test793d28b2_AConversationIsWindowsThatOverlapByAMessage, Test793d28b2_ATranscriptIsReadByTheRolesOfItsRows
+Verified by: `internal/auto/backlog_test.go`: Test793d28b2_ALessonBeyondTheWindowsOfOneTurnIsNotLostTheSourceIsMarkedWhenAllAreJudged, Test793d28b2_ALongTranscriptIsJudgedInOverlappingWindowsTheEndFirst, Test793d28b2_ASourceOverThePlatformReadLimitIsReadFromItsTail, Test793d28b2_ASourceThatGrewWhileItsWindowsWereConsumedStartsAgain, Test793d28b2_ASourceWithNoMessageIsMarkedAndNotReadAgain; `internal/auto/golden_test.go`: Test793d28b2_AConversationIsWindowsThatOverlapByAMessage, Test793d28b2_ATranscriptIsReadByTheRolesOfItsRows; `internal/auto/security_test.go`: Test793d19a_ABacklogSourceIsReadByTheRolesOfItsRowsAndItsTextCannotPoseAsStructure
 
-Security: [793d19a Security](#793d19a-security), risk (1): a planted [session](../../GLOSSARY.md#session) file is read by role and redacted.
+Security: risk (1) of [793d25a Orientation](#793d25a-orientation), held here and by [793d26b1 Credential shapes](#793d26b1-credential-shapes): a planted [session](../../GLOSSARY.md#session) file is read by role and redacted.
 
 ##### 793d28b2a Scenarios
 
@@ -910,9 +909,9 @@ Requirement: 793d29b1 Auto Curation MUST find pending [offers](../../GLOSSARY.md
 
 Supports: [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios), [793a4j1d The agent is not asked to curate](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `internal/auto/curate_test.go`: Test793d29b1_AVaultThatDoesNotExistYetHasNoOfferAndIsNoFailure, Test793d29b1_AnOfferThatCannotBeReadIsWarnedAboutOnceAndDoesNotStopTheOffersAfterIt, Test793d29b1_AtMostTenOffersAreSettledInOneRun, Test793d29b1_NoPendingOfferIsNoJudgement, Test793d29b1_OnlyANoteFileNameEngramCouldHaveWrittenIsAPendingOffer, Test793d29b1_OnlyTheNotesWhoseFrontMatterIsPendingAreOffers, Test793d29b1_SkillRegistrationsDoNotCountAgainstTheCapAndAreShownOnceInTheProcess, Test793d29b1_TheVaultIsFoundUnderTheEngramDataDirectoryWhenNoPathIsGiven; `internal/auto/golden_test.go`: Test793d29b1_AnOfferIsReadFromTheHeaderAndFrontMatterOfShow
+Verified by: `internal/auto/curate_test.go`: Test793d29b1_AVaultThatDoesNotExistYetHasNoOfferAndIsNoFailure, Test793d29b1_AnOfferThatCannotBeReadIsWarnedAboutOnceAndDoesNotStopTheOffersAfterIt, Test793d29b1_AtMostTenOffersAreSettledInOneRun, Test793d29b1_NoPendingOfferIsNoJudgement, Test793d29b1_OnlyANoteFileNameEngramCouldHaveWrittenIsAPendingOffer, Test793d29b1_OnlyTheNotesWhoseFrontMatterIsPendingAreOffers, Test793d29b1_SkillRegistrationsDoNotCountAgainstTheCapAndAreShownOnceInTheProcess, Test793d29b1_TheVaultIsFoundUnderTheEngramDataDirectoryWhenNoPathIsGiven, Test793d19a_TheNoteAnOfferIsForIsCheckedAsANoteNameBeforeItIsShownOrAmended; `internal/auto/golden_test.go`: Test793d29b1_AnOfferIsReadFromTheHeaderAndFrontMatterOfShow
 
-Security: [793d19a Security](#793d19a-security), mitigation: the note an offer is for is checked as a note name before it is shown or amended.
+Security: held here: the note an offer is for is checked as a note name before it is shown or amended.
 
 ##### 793d29b1a Scenarios
 
@@ -929,9 +928,9 @@ Requirement: 793d29b2 For each offer Auto Curation MUST read it with `engram sho
 
 Supports: [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios), [793a4j1d The agent is not asked to curate](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `internal/auto/curate_test.go`: Test793d29b2_ANoteThatIsNoLongerPendingIsLeftAlone, Test793d29b2_AReplyThatIsNotExactlyOneObjectOfTheExpectedShapeSettlesNothing, Test793d29b2_ARunbookOfferIsLeftToCurate, Test793d29b2_AnExchangeHashIsReadFromTheHeaderOfShowNotFromALineOfTheNote, Test793d29b2_AnOfferForANoteIsJudgedAgainstThatNoteFirst, Test793d29b2_AnOfferIsSettledByTheOutcomeTheJudgementGave, Test793d29b2_AnOfferThatIsASkillRegistrationIsNeverJudgedDiscardedOrAccepted, Test793d29b2_AnOfferWhoseCommandsFailIsNotCounted, Test793d29b2_AnOfferWithoutAnExchangeHashIsSettledWithoutOne, Test793d29b2_TheJudgementIsAskedOfTheCheapModelWithTheOfferAndItsNearestNotes; `internal/auto/golden_test.go`: Test793d29b2_AnOutcomeSettlesWithTheCommandsOfCurate
+Verified by: `internal/auto/curate_test.go`: Test793d29b2_ANoteThatIsNoLongerPendingIsLeftAlone, Test793d29b2_AReplyThatIsNotExactlyOneObjectOfTheExpectedShapeSettlesNothing, Test793d29b2_ARunbookOfferIsLeftToCurate, Test793d29b2_AnExchangeHashIsReadFromTheHeaderOfShowNotFromALineOfTheNote, Test793d29b2_AnOfferForANoteIsJudgedAgainstThatNoteFirst, Test793d29b2_AnOfferIsSettledByTheOutcomeTheJudgementGave, Test793d29b2_AnOfferThatIsASkillRegistrationIsNeverJudgedDiscardedOrAccepted, Test793d29b2_AnOfferWhoseCommandsFailIsNotCounted, Test793d29b2_AnOfferWithoutAnExchangeHashIsSettledWithoutOne, Test793d29b2_TheJudgementIsAskedOfTheCheapModelWithTheOfferAndItsNearestNotes, Test793d19a_AnOfferJudgedCoveredNearOrRejectedIsFoldedOrDiscardedAndOnlyRejectedIsDiscardedOutright; `internal/auto/golden_test.go`: Test793d29b2_AnOutcomeSettlesWithTheCommandsOfCurate; `internal/cli/amend_fold_test.go`: Test792b34c6a1_RunAmend_DiscardIntoFoldsPulledCopy
 
-Security: [793d19a Security](#793d19a-security), risks (2) and (4): a crafted offer cannot reach a [note](./793a_product-spec.md#793a1-problem-statement) it is not judged against; a covered offer is recoverable only from [vault](./793a_product-spec.md#793a1-problem-statement) history.
+Security: risks (2) and (4) of [793d25a Orientation](#793d25a-orientation), held here: a crafted offer cannot reach a [note](./793a_product-spec.md#793a1-problem-statement) it is not judged against, and a folded offer is folded by the canonical `--discard --into` of [Note Amendment](../../specs/technical/note-amendment.md), which deletes the offer and keeps its names as aliases of the note, so a covered offer is recoverable only from [vault](./793a_product-spec.md#793a1-problem-statement) history.
 
 ##### 793d29b2a Scenarios
 
@@ -964,7 +963,7 @@ Supports: [793a4j1c Offers are resolved by the System](./793a_product-spec.md#79
 
 Verified by: `internal/cli/amend_source_test.go`: Test793d38b1_AmendSourceAloneChangesNoContentSoNothingIsEmbeddedAgain, Test793d38b1_AmendSourceAloneKeepsTheDeclaredIdentity, Test793d38b1_AmendSourceAppendsAProvenanceLineToTheSourceOfAnyKindOfNote, Test793d38b1_AmendSourceIsAppendedOnceAndNeverReplacesWhatWasThere, Test793d38b1_AmendWithoutSourceLeavesTheSourceAsItWas
 
-Security: [793d19a Security](#793d19a-security), mitigation: a provenance line on every automatic [note](./793a_product-spec.md#793a1-problem-statement).
+Security: held here and by [793d27b2 Reconciliation, writes and provenance](#793d27b2-reconciliation-writes-and-provenance): a provenance line on every automatic [note](./793a_product-spec.md#793a1-problem-statement), the near fold included.
 
 ##### 793d38b1a Scenarios
 
@@ -1097,9 +1096,9 @@ Supports: [793a5h1c The summary is not in the agent's context](./793a_product-sp
 
 Verified by: `internal/auto/summary_test.go`: Test793d30b2_AFailedStepIsWarnedAboutAndNotCounted, Test793d30b2_OnlyConstantsAndCountsReachTheLineNothingANoteAnOfferOrALessonSays, Test793d30b2_TheWarningsAndTheCountsShareTheOneLine; `wiring.test.ts` "the effects of a round…"
 
-Security: [793d19a Security](#793d19a-security), mitigation: the user-visible activity line, which cannot carry injected text.
+Security: held here: the user-visible activity line, which cannot carry injected text.
 
-Rationale: The [status line](#793d1b-terms) is a [mod](#793d1b-terms) capability off the [transcript](../../GLOSSARY.md#transcript), so the user sees the [System](./793a_product-spec.md#793a1-problem-statement)'s work without the agent reading it ([793d17g4 Verdict](#793d17g4-verdict)).
+Rationale: The [status line](#793d1b-terms) is a [mod](#793d1b-terms) capability off the [transcript](../../GLOSSARY.md#transcript), so the user sees the [System](./793a_product-spec.md#793a1-problem-statement)'s work without the agent reading it.
 
 ##### 793d30b2a Scenarios
 
@@ -1449,7 +1448,7 @@ sequenceDiagram
 
 #### 793d33b1 Burst sequencing
 
-Requirement: 793d33b1 When a [session](../../GLOSSARY.md#session) starts the Memory Mod MUST hand the engine a `resume` [job](#793d1b-terms) and queue a capture for each entry returned. When a top-level turn completes it MUST have the turn written to the [queue file](#793d1b-terms) before the event returns, queue the capture of the entry (of the turn itself when none) and answer the event before any capture starts; it MUST run queued captures in order, after the last job of the [burst](#793d1b-terms) hand the engine one housekeeping job and, for a burst holding a top-level turn, the summary job. A failing job MUST be shown as a warning with its step and class and MUST NOT stop the next.
+Requirement: 793d33b1 Across the components, a top-level turn MUST reach the [queue file](#793d1b-terms) before the Memory Mod answers its event, the capture it queues MUST start only after that answer, and the captures of a [burst](#793d1b-terms) MUST be followed by one housekeeping [job](#793d1b-terms) and, for a burst holding a top-level turn, the summary job. A [session](../../GLOSSARY.md#session) start MUST hand the entries the file holds to the queue as captures of the queue. A job that fails MUST be shown as a warning with its step and class and MUST NOT stop the next. What the mod itself queues and hands is [793d22b2 Background queue and housekeeping](#793d22b2-background-queue-and-housekeeping) and [793d22b4 Persisted turn captures](#793d22b4-persisted-turn-captures); the file's own rules are [793d37b1 Entries](#793d37b1-entries) and [793d37b2 Resume](#793d37b2-resume).
 
 Owner: [793d22 Memory Mod](#793d22-memory-mod)
 

@@ -171,6 +171,7 @@ func Test793d25b3_OnlyExactlyOneJSONDocumentIsAReply(t *testing.T) {
 		"prose after":                     "[1] and that is all",
 		"prose before":                    "Here: [1]",
 		"a fence with prose after it":     "```json\n[1]\n```\nI hope this helps",
+		"a fence with prose before it":    "Here is the answer:\n```json\n[1]\n```",
 		"a fence closed twice":            "```json\n[1]\n```\n```",
 		"two fenced documents":            "```json\n[1]\n```\n```json\n[2]\n```",
 		"a fence that never closes":       "```json\n[1]",

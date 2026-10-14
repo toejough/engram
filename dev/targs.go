@@ -46,7 +46,7 @@ func init() {
 	targ.Register(
 		lintJSTarget, lintJSAdapterTarget, lintJSComplexityTarget, lintJSStandardsTarget, lintJSTypesTarget,
 		checkModBudgetTarget, testModTarget,
-		checkSpecConformanceTarget, refactorRedTarget,
+		checkSpecConformanceTarget,
 	)
 
 	targ.Register(targ.Targ(runEval).
@@ -121,8 +121,6 @@ var (
 	mutateTarget = targ.Targ(targdev.Mutate.Fn()).Name("mutate").
 			Description(targdev.Mutate.GetDescription()).
 			Deps(checkForFailTarget)
-	refactorRedTarget = targ.Targ(runRefactorRed).Name("refactor-red").
-				Description("Run every refactor gate and list which are red")
 	// sharedTargets are Targ's shared targets other than the nil targets and aggregates Engram replaces, keyed by
 	// Targ's variable name. Test794b4a1d fails when Targ adds or removes one.
 	sharedTargets = map[string]*targ.Target{
@@ -160,7 +158,7 @@ var (
 			Name("test-dev").
 			Description("Run unit tests for the dev package (targ build tag)")
 	testModTarget = targ.Targ(runTestMod).Name("test-mod").
-			Description("The mod's contract tests: green (tests/*.test.ts) or red (the gates, tests/*.red.ts)")
+			Description("The mod's contract tests (tests/*.test.ts), run by claude plugin test")
 	// watchCheck is the check watch runs on a change: Engram's, never Targ's (794b4a1e).
 	watchCheck  = checkTarget
 	watchTarget = targ.Targ(watch).Name("watch").Description(targdev.Watch.GetDescription())

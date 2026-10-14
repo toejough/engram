@@ -17,8 +17,9 @@ const PARSE = "CallExpression[callee.object.name='JSON'][callee.property.name='p
 
 export default [
   { ignores: ['**/node_modules/**'] },
+  { linterOptions: { noInlineConfig: true, reportUnusedDisableDirectives: 'error' } },
   {
-    files: ['agent-instructions/mods/engram-memory/hooks/*.js'],
+    files: ['agent-instructions/mods/engram-memory/**/*.js'],
     languageOptions: { ecmaVersion: 'latest', sourceType: 'module', globals: { ...globals.node } },
     rules: {
       complexity: ['error', ADAPTER.complexity],
@@ -37,7 +38,7 @@ export default [
     },
   },
   {
-    files: ['agent-instructions/mods/engram-memory/hooks/*.js'],
+    files: ['agent-instructions/mods/engram-memory/**/*.js'],
     ignores: ['agent-instructions/mods/engram-memory/hooks/register.js'],
     rules: {
       'no-restricted-imports': [

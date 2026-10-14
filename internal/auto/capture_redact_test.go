@@ -50,6 +50,24 @@ func Test793d26b1_AGitCommitHashIsNotMistakenForASecret(t *testing.T) {
 	g.Expect(world.Requests[0].Prompt).To(ContainSubstring(sha))
 }
 
+func Test793d26b1_AJWTIsHiddenWhateverItsThreeParts(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		part := rapid.StringMatching(`[A-Za-z0-9]{8,12}`)
+		first, second, third := part.Draw(rt, "first"), part.Draw(rt, "second"), part.Draw(rt, "third")
+		token := "ey" + "J" + first + ".ey" + "J" + second + "." + third
+
+		once := auto.Redact("see " + token + " end")
+
+		for _, piece := range []string{first, second, third} {
+			if strings.Contains(once, piece) {
+				rt.Fatalf("the part %q of a JWT survived in %q", piece, once)
+			}
+		}
+	})
+}
+
 func Test793d26b1_ASecretInALessonThatTheJudgeWroteNeverReachesTheCommandLine(t *testing.T) {
 	t.Parallel()
 
@@ -64,6 +82,26 @@ func Test793d26b1_ASecretInALessonThatTheJudgeWroteNeverReachesTheCommandLine(t 
 	g.Expect(world.Find("learn")).To(HaveLen(1))
 	g.Expect(world.Find("learn")[0].Line()).NotTo(ContainSubstring("JUDGEWROTEASECRET"))
 	g.Expect(world.Find("learn")[0].Line()).NotTo(ContainSubstring("hunter2"))
+}
+
+func Test793d26b1_ASecretInAnEntryTheQueueFileHeldReachesNeitherTheJudgementNorTheCommands(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := NewWorld()
+	world.Model = repliesInOrder(lessonsText(lessonWith(nil)))
+
+	world.Do(t, map[string]any{
+		"kind": "capture", "step": "the capture",
+		"entry": map[string]any{
+			"window": "User: No, use targ. password=hunter2hunter2\nAgent used api_key=" + queueSecretTail,
+			"source": "captured from the conversation",
+		},
+	})
+
+	g.Expect(world.Requests).NotTo(BeEmpty())
+	g.Expect(world.Requests[0].Prompt).NotTo(ContainSubstring("hunter2hunter2"))
+	g.Expect(world.Requests[0].Prompt).NotTo(ContainSubstring(queueSecretTail))
 }
 
 func Test793d26b1_ASecretInTheWindowNeverReachesTheJudgement(t *testing.T) {
@@ -142,10 +180,18 @@ func Test793d26b1_ASecretThatEvadedASinglePatternDoesNotReachTheJudgement(t *tes
 		"s3cretpassinurl",
 		unmask("{{eyJ}}hbGciOiJIUzI1NiJ9.{{eyJ}}zdWIiOiJKV1RQQVlMT0FEIn0.JWTSIGNATURE1234567890"),
 	}
-	text := long + "\nkey: " + secrets[1] + "\n{\"password\": \"" + secrets[2] + "\"}\nsee " + secrets[3] +
-		"\npostgres://bob:" + secrets[4] + "@db/x\n" + secrets[5]
+	// one message each: a message is cut at its part limit, so a secret after the first 1,200 characters of a message
+	// would never reach the window whether it was redacted or not
+	messages := []any{
+		said("user", long),
+		said("assistant", "key: "+secrets[1]),
+		said("assistant", "{\"password\": \""+secrets[2]+"\"}"),
+		said("assistant", "see "+secrets[3]),
+		said("assistant", "postgres://bob:"+secrets[4]+"@db/x"),
+		said("assistant", secrets[5]),
+	}
 
-	world.Do(t, captureOf([]any{said("user", text)}))
+	world.Do(t, captureOf(messages))
 
 	for _, secret := range secrets {
 		for part := range strings.SplitSeq(secret, "\n") {
@@ -154,6 +200,7 @@ func Test793d26b1_ASecretThatEvadedASinglePatternDoesNotReachTheJudgement(t *tes
 	}
 
 	g.Expect(world.Requests[0].Prompt).To(ContainSubstring("No, use targ."))
+	g.Expect(world.Requests[0].Prompt).To(ContainSubstring("Agent: key:"))
 }
 
 func Test793d26b1_RedactNeverReturnsATextHoldingAKnownSecretAndIsIdempotentOnItsOutput(t *testing.T) {
@@ -246,13 +293,14 @@ func Test793d27b1_AWindowNeverExceedsTheWindowLimit(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
+		// a prompt, then what the agent said after it: more than the window can hold
 		count := rapid.IntRange(1, 30).Draw(rt, "count")
-		messages := make([]auto.Message, 0, count)
+		messages := make([]auto.Message, 0, count+1)
+		messages = append(messages, auto.Message{Role: "user", Text: "No, use targ."})
 
 		for range count {
-			role := rapid.SampledFrom([]string{"user", "assistant"}).Draw(rt, "role")
-			text := rapid.StringN(0, 2500, -1).Draw(rt, "text")
-			messages = append(messages, auto.Message{Role: role, Text: text})
+			text := strings.Repeat("ab ", rapid.IntRange(0, 800).Draw(rt, "words"))
+			messages = append(messages, auto.Message{Role: "assistant", Text: text})
 		}
 
 		window := auto.WindowFromMessages(messages, rapid.String().Draw(rt, "answer"))

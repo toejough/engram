@@ -139,26 +139,24 @@ test('a Realization line names files and names that must exist in the code', () 
   ])
 })
 
-const TABLE = [
-  '| Mitigation | Requirement | Tests |',
-  '| --- | --- | --- |',
-  '| Data fenced | [793d25b2 Data and replies](#793d25b2-data-and-replies) | `Test793d19a_ATag`, `Test793d19a_Gone` |',
-  '| Nothing named | none | none |',
+const MAP = [
+  '| Mitigation | Requirements |',
+  '| --- | --- |',
+  '| Data fenced | [793d25b2 Data and replies](#793d25b2-data-and-replies), [793d26b1 Shapes](#793d26b1-shapes) |',
+  '| Nothing named | none |',
 ].join('\n')
 
-test('the security table names requirements that carry a Security line, and tests that exist by exact name', () => {
-  const rows = securityRows(`text\n\n${TABLE}\n\nafter`)
+test('the security map names requirements that exist and carry a Security line', () => {
+  const rows = securityRows(`text\n\n${MAP}\n\nafter`)
   assert.deepEqual(rows, [
-    { mitigation: 'Data fenced', requirements: ['793d25b2'], tests: ['Test793d19a_ATag', 'Test793d19a_Gone'] },
-    { mitigation: 'Nothing named', requirements: [], tests: [] },
+    { mitigation: 'Data fenced', requirements: ['793d25b2', '793d26b1'] },
+    { mitigation: 'Nothing named', requirements: [] },
   ])
   const requirements = [{ id: '793d25b2', security: null }]
-  const goSources = ['func Test793d19a_ATagImitation(t *testing.T) {}\nfunc Test793d19a_ATag(t *testing.T) {}']
-  assert.deepEqual(checkSecurity(rows, { requirements, goSources }), [
-    'security table: 793d25b2 has no Security line',
-    'security table: no Go test Test793d19a_Gone',
-    'security table: "Nothing named" names no requirement',
-    'security table: "Nothing named" names no test',
+  assert.deepEqual(checkSecurity(rows, { requirements }), [
+    'security map: 793d25b2 has no Security line',
+    'security map: 793d26b1 is no requirement',
+    'security map: "Nothing named" names no requirement',
   ])
 })
 
@@ -166,7 +164,7 @@ test('a Security line links requirements that exist', () => {
   const requirements = [
     { id: '793d25b2', security: 'risk (1): [793d26b1 Credential shapes](#793d26b1-credential-shapes)' },
   ]
-  assert.deepEqual(checkSecurity([], { requirements, goSources: [] }), [
+  assert.deepEqual(checkSecurity([], { requirements }), [
     '793d25b2: its Security line links 793d26b1, which is no requirement',
   ])
 })

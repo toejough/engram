@@ -10,7 +10,7 @@ import tseslint from 'typescript-eslint'
 export const LINE_LENGTH = 120
 const SCOPES = [
   'dev/acceptance/**/*.js',
-  'agent-instructions/mods/engram-memory/hooks/*.js',
+  'agent-instructions/mods/engram-memory/**/*.js',
   'agent-instructions/mods/engram-memory/tests/*.ts',
 ]
 
@@ -41,6 +41,8 @@ const shared = {
 
 export default tseslint.config(
   { ignores: ['**/node_modules/**', 'dev/acceptance/types/**'] },
+  // no file switches a rule off for itself: a rule that gets in the way is changed here, in the open
+  { linterOptions: { noInlineConfig: true, reportUnusedDisableDirectives: 'error' } },
   {
     files: SCOPES,
     extends: [js.configs.recommended],

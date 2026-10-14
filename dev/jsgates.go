@@ -21,11 +21,9 @@ const (
 	gateLint        = "lint"
 	gateModProgram  = "claude"
 	gateModTest     = "mod-test"
-	gateModWhich    = "green"
 	gatePlanMaxSize = 2
 	gateSpec        = "spec"
 	gateStandards   = "standards"
-	gateStatus      = "status"
 	gateTypes       = "types"
 )
 
@@ -39,7 +37,6 @@ type lintJSArgs struct {
 
 // testModArgs holds the arguments of targ test-mod.
 type testModArgs struct {
-	Which  string `targ:"positional,placeholder=WHICH,desc=green (test files) or red (refactor gates); default green"`
 	Filter string `targ:"positional,placeholder=FILE-PREFIX,desc=only the files whose name starts with this"`
 }
 
@@ -137,15 +134,6 @@ func runLintJSTypes(ctx context.Context) error {
 	return runJSGate(ctx, gateLint, []string{gateTypes}, false)
 }
 
-func runRefactorRed(ctx context.Context) error {
-	return runJSGate(ctx, gateStatus, nil, true)
-}
-
 func runTestMod(ctx context.Context, args testModArgs) error {
-	which := args.Which
-	if which == "" {
-		which = gateModWhich
-	}
-
-	return runJSGate(ctx, gateModTest, []string{which, args.Filter}, true)
+	return runJSGate(ctx, gateModTest, []string{args.Filter}, true)
 }

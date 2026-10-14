@@ -73,6 +73,16 @@ function adapter(verbose) {
   return result.problems
 }
 
+// tscProblems reads the result of a run of tsc: the lines that are errors, and one more problem when tsc failed
+// without printing one (a configuration it cannot read, a file it cannot find): its exit status is the verdict.
+export function tscProblems(run) {
+  const errors = (run.stdout ?? '').split('\n').filter((line) => /error TS\d+/.test(line))
+  if (run.status !== 0 && errors.length === 0) {
+    errors.push(`tsc exited ${run.status ?? run.signal}: ${(run.stderr || run.stdout || '').trim()}`)
+  }
+  return errors
+}
+
 function types() {
   const run = spawnSync(
     process.execPath,
@@ -83,8 +93,8 @@ function types() {
       maxBuffer: MAX_BUFFER,
     },
   )
-  const errors = run.stdout.split('\n').filter((line) => /error TS\d+/.test(line))
-  console.log(`types (tsc --noEmit over the mod's test files): ${errors.length} errors`)
+  const errors = tscProblems(run)
+  console.log(`types (tsc --noEmit over the mod and its test files): ${errors.length} errors`)
   for (const line of errors) console.log(`  ${line}`)
   return errors.length
 }

@@ -15,9 +15,9 @@ export const LIMITS = {
 export default [
   { ignores: ['**/node_modules/**'] },
   {
-    files: ['agent-instructions/mods/engram-memory/hooks/*.js'],
+    files: ['agent-instructions/mods/engram-memory/**/*.js'],
     languageOptions: { ecmaVersion: 'latest', sourceType: 'module', globals: { ...globals.node } },
-    linterOptions: { reportUnusedDisableDirectives: 'error' },
+    linterOptions: { noInlineConfig: true, reportUnusedDisableDirectives: 'error' },
     rules: {
       complexity: ['error', LIMITS.complexity],
       'max-depth': ['error', LIMITS.maxDepth],

@@ -48,15 +48,19 @@ test('a precondition about the agent that fails every attempt is a harness error
   assert.equal(tries, MAX_ATTEMPTS)
 })
 
-test('a precondition about the System that fails every attempt is a failed assertion, so the row is Red', async () => {
+test('a precondition about the System that fails once is a failed assertion at once, so the row is Red', async () => {
+  let tries = 0
+  const world = fakeWorld()
   await assert.rejects(
     attempt(
-      fakeWorld(),
-      async () => 1,
+      world,
+      async () => (tries += 1),
       () => ({ system: true, message: 'the System delivered nothing' }),
     ),
     (error) => error instanceof assert.AssertionError && /delivered nothing/.test(error.message),
   )
+  assert.equal(tries, 1)
+  assert.equal(world.retries, 0)
 })
 
 test('a precondition that holds on a later attempt is a pass', async () => {

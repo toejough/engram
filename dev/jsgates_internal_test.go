@@ -70,7 +70,7 @@ func Test793e8l_JSGatePlan(t *testing.T) {
 		g.Expect(err).NotTo(HaveOccurred())
 
 		noClaude := jsGateEnv{Root: "/repo", LookPath: missing("claude"), Exists: installed}
-		_, err = jsGatePlan("mod-test", []string{"red", ""}, true, noClaude)
+		_, err = jsGatePlan("mod-test", []string{""}, true, noClaude)
 		g.Expect(err).To(MatchError(errAcceptanceProgram))
 		g.Expect(err).To(MatchError(ContainSubstring("`claude`")))
 	})

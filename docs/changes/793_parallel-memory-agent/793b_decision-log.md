@@ -5001,3 +5001,109 @@ Reserved and unused: the number was skipped when the entries were written and no
 - **Cost:** `register.js` rises from 256 to 271 owned lines in `budgets.json` (15 lines: the constant, the hold, the round split out of `relay` to keep its complexity at 5); a ceiling raised by what a required behavior adds is the precedent of [793b399](#793b399-a-near-fold-carries-a-provenance-line-by-a-new-flag-of-engram-amend) (the ceilings as a goal or as a guard is the owner's question a in 793b403).
 - **Rationale:** a requirement that says more than its tests verify is a promise nobody checks; here the promise (a prompt is never held more than 8 s) is the owner's own budget and is cheap to keep.
 - **Alternatives:** reword 793d36b3 to the sum only (rejected: the hold would stay unenforced when the engine or the model hangs); enforce the hold in Go (rejected: Go cannot cut a process that does not answer, and the mod owns the event).
+
+## 793b407 Every Go test that replaced a guard of the deleted JavaScript was seen failing against a mutated code
+
+- **Decided by:** Orchestrator under the owner's standing rules (answer to B4 of [793b403 The refactor review returned "targeted fixes first"](#793b403-the-refactor-review-returned-targeted-fixes-first)); awaiting owner validation.
+- **Choice:** each guard test of `internal/auto` named for the performance, compaction, queue, security and hardening guards (`perf_test.go`, `compaction_test.go`, `queue_test.go`, `security_test.go`, `differential_test.go`, `capture_redact_test.go`) and the four tests of `hardening.test.ts` was run against the code with one mutation that its guard exists to prevent, and the mutation was reverted by restoring the file. A guard that did not fail was not a guard: its test was strengthened and run again. Eight did not fail the first time, and are listed after the table.
+- **Probes** (mutation, the test run alone, the file restored; `Failed?` is whether the test failed):
+
+| Test | Mutation | Failed? |
+| --- | --- | --- |
+| `Test793d23b2_TheInTurnCueAtItsClassifyP95IsNotCut` | the classify deadline 4,000 ms to 2,000 | yes |
+| `Test793d27b1_ATranscriptCompleteAfter100msIsReadWithinThatWait` | the first poll waits 500 ms | yes |
+| `Test793d36b3_APromptAtThe95thPercentileStillGetsItsNoteWithinTheHoldCeiling` | the relevance deadline 5,800 ms to 3,000, and to 7,000 | yes, yes |
+| `Test793d24b2_CompactingASubagentLeavesTheLedgerOfTheMainAgentAndEmptiesItsOwn` | a compaction empties the main agent's ledger | yes |
+| `Test793d24b2_CompactingTheMainAgentLeavesTheLedgerOfASubagent` | a compaction empties every ledger | yes |
+| `Test793d27b1_ACaptureWithNoEntryIsTheTurnItself` | no turn of its own without an entry | yes |
+| `Test793d28b3_ACaptureOfAnEntryMarksTheSessionTheEntryCameFromNotTheOneRunning` | the running session is marked | yes |
+| `Test793d37b1_AFileThatCannotBeWrittenQueuesNothingAndWarnsNoOne…` | a warning for a step with no name | yes |
+| `Test793d37b1_ATurnIsAddedAfterTheOnesAlreadyInTheFile` | the turn is added before them | yes |
+| `Test793d37b1_ATurnIsRedactedBeforeItIsWrittenToDisk` | the window is written unredacted | yes (after strengthening) |
+| `Test793d37b1_ATurnIsWrittenToTheFileWithItsWindowAndSourceAndNothingIsJudged` | the source is left empty | yes |
+| `Test793d37b1_ATurnWithNoWordsOfTheUserIsNotQueued` | an empty window is queued | yes |
+| `Test793d37b1_NoFileAndAFileThatIsNotAQueueAreAnEmptyQueue` | a file that is no queue is read as one entry | yes |
+| `Test793d37b2_ASessionThatIsNotNewTakesNothingAndWritesNothing` | every start takes the entries | yes |
+| `Test793d37b2_ASessionThatStartsTakesTheEntriesLeftBehindAndCountsTheTry` | the try is not counted | yes |
+| `Test793d37b2_AnEntryThatHasBeenTakenThreeTimesIsDroppedWithoutBeingTakenAgain` | the limit of tries raised by ten | yes |
+| `Test793d37b3_ACaptureOfAnEntryTakesItOutOfTheFileWhenItEnds` | the entry is not taken out | yes |
+| `Test793d37b3_ACaptureThatFailsKeepsItsEntryInTheFileForTheNextSession` | a failed capture is contained and the entry taken out | yes |
+| `Test793d37b3_TheFileHoldsExactlyTheTurnsNotYetCapturedWhateverTheOrder` | the entry is told by its window alone, and by its source alone | yes, yes (after strengthening) |
+| `Test793d19a_ABacklogSourceIsReadByTheRolesOfItsRows…` | any role is a speaker | yes |
+| `Test793d19a_APlaceholderInAnOfferIsNot…`, `…InTheTextOfAMoment…`, `…InTheWindow…`, `Test793d19a_ADataValueIsNeverReadForAPlaceholder…` | the placeholders are filled one after the other | yes (all four) |
+| `Test793d24b3_ANoteWhoseNameIsNotANoteNameIsNeverDeliveredOrNamedInACommand` | the note name is not checked | yes |
+| `Test793d26b1_AnUnusualSpaceDoesNotHideACredentialFromTheRedactor` | the ideographic space leaves the class of spaces | yes |
+| `Test793d27b1_NoLineBreakOfAnyKindLetsAMessageStartALineOfItsOwn` | the line and paragraph separators are not breaks | yes |
+| `Test793d19a_ADuplicateKeyIsAnErrorWhereverItIsInAReply` | a key twice is accepted | yes |
+| `Test793d19a_ATagImitationOfAnyBracketSpacingOrCaseIsBrokenInEveryPrompt` | only `<` is a bracket | yes |
+| `Test793d19a_ATextThatOnlyLooksLikeATagIsLeftAsItWas` | the word boundary of a tag name is dropped | yes |
+| `Test793d25b3_AnInvalidByteInAStringIsAnErrorAndNotAReplacementCharacter` | invalid UTF-8 is accepted | yes |
+| `Test793d25b3_NothingBeforeOrAfterTheDocumentIsEverTaken` | the fence may follow other text | no (see below) |
+| `Test793d25b3_OneDocumentWithOnlyJSONWhiteSpaceAroundItOrInAFenceIsTaken` | only a space is JSON white space | yes |
+| `Test793d25b3_OnlyExactlyOneJSONDocumentIsAReply` | the first document is taken | yes; and the fence that may follow other text: yes (after strengthening) |
+| `Test793d27b1_NoTextOfAnyMessageAnswerOrSubagentStartsALineOfItsOwn` | a message keeps its line breaks | yes |
+| `Test793d27b1_TheAnswerAndTheLastMessageOfASubagentCannotStartALineEither` | the answer keeps its line breaks | yes |
+| `Test793d26b1_ABlockOfWrappedLinesIsHiddenOnlyWhenItHoldsDigitsAndLetters` | every block of wrapped lines is hidden | yes |
+| `Test793d26b1_AGitCommitHashIsNotMistakenForASecret` | a commit hash is hidden | yes |
+| `Test793d26b1_ASecretInALessonThatTheJudgeWroteNeverReachesTheCommandLine` | the situation of a lesson is not redacted | yes |
+| `Test793d26b1_ASecretOfAKnownShapeNeverReachesTheModelTheCommandLineOrANote` | provider keys are not a shape | yes |
+| `Test793d26b1_RedactionCostsTimeInProportionToTheText` | the redactor does work in proportion to the square of the text | yes |
+| `Test793d27b1_AWindowNeverExceedsTheWindowLimit` | the window is not cut | yes (after strengthening) |
+| `Test793d28b3_ACapturedTurnMarksTheTurnsOfItsSessionByTheNameOfTheFile` | the mark is keyed by the whole path | yes |
+| `Test793d28b3_AMarkThatCannotBeWrittenGoesToTheDebugLogOnlyAndTheUserIsNotWarned` | the mark is a named step | yes |
+| `Test793d28b3_ATurnIsNotMarkedWhenNoTranscriptIsNamedOrTheJudgementFailed` | a turn with no transcript is marked | yes |
+| `Test793d28b3_TheChunksDirectoryFollowsTheVariablesOfTheEngramCommands` | `ENGRAM_CHUNKS_DIR` is not read | yes |
+| `Test793d28b3_TheMarksOfAnEarlierRunAreKeptAndTheFirstRunFixesTheCutoffOnce` | the cut-off is fixed at every run | yes |
+| `hardening.test.ts` "793d22b4 a turn is in the queue file…" | the enqueue job is not handed | yes |
+| `hardening.test.ts` "793d22b4 an entry a session left…" | the entries returned are not queued | yes |
+| `hardening.test.ts` "793d22b4 a start that is not…" | only a `startup` is handed to the engine | yes |
+| `hardening.test.ts` "793d22b4 a turn the file could not take…" | the turn from memory is never captured | yes |
+
+- **The guards that did not fail the first time, and what was done:**
+  - `Test793d37b1_ATurnIsRedactedBeforeItIsWrittenToDisk`: the entry-level redaction was redundant for a message (each message is redacted when it is rendered). The test now also puts a secret in the name of a tool, a line the window writes without redacting the message; only the redaction of the window hides it.
+  - `Test793d37b3_TheFileHoldsExactlyTheTurnsNotYetCaptured…`: every turn of the property had its own window and its own source, so a test of one half of the entry's identity passed. The turns now share windows and share sources, and no two share both.
+  - `Test793d25b3_NothingBeforeOrAfterTheDocumentIsEverTaken` still survives the mutation (the property draws no fence); `Test793d25b3_OnlyExactlyOneJSONDocumentIsAReply` has a new case, a fence with prose before it, and fails.
+  - `Test793d26b1_ASecretInTheWindowNeverReachesTheJudgement`: the window-level redaction of a capture is redundant for a turn; it matters for an entry read from the queue file, which may not have been redacted (a file from an earlier version, or edited). New test `Test793d26b1_ASecretInAnEntryTheQueueFileHeldReachesNeitherTheJudgementNorTheCommands`, which fails without it.
+  - `Test793d26b1_ASecretThatEvadedASinglePatternDoesNotReachTheJudgement` was vacuous: all its secrets were in one message, which is cut at 1,200 characters, so only the first was ever in the window. Each secret is now in a message of its own; the test fails with the named-value pattern removed and with the URL pattern removed (`Test793d26b1_SecretsOfTheShapesAReviewProbedDoNotReachTheJudgement` itself does not hold the URL shape; the other does).
+  - `Test793d26b1_RedactNeverReturnsATextHoldingAKnownSecretAndIsIdempotentOnItsOutput` did not draw a JWT; new test `Test793d26b1_AJWTIsHiddenWhateverItsThreeParts` (parts too short for any other pattern) fails without the JWT pattern.
+  - `Test793d27b1_AWindowNeverExceedsTheWindowLimit` drew a conversation whose last prompt came near its end, so the window was short; it now draws a prompt followed by up to thirty long messages.
+  - The first run of the redaction cost probe was a mutation so costly that the run was killed after minutes; it was run again with a mutation that costs `len/2000` redactions more and failed on the ratio.
+- **Rationale:** a test that has never been seen failing has not been shown to guard anything; the weakest of these were passing for reasons that had nothing to do with the code they name.
+- **Alternatives:** probe a sample (rejected: the review named the whole set).
+
+## 793b411 The residual-risk statement has a home in the Judgement Relay, and the Security lines link requirements
+
+- **Decided by:** Orchestrator under the owner's standing rules (answer to C of [793b403 The refactor review returned "targeted fixes first"](#793b403-the-refactor-review-returned-targeted-fixes-first)); awaiting owner validation. The statement itself is the owner's, ratified in [793b324 Owner answer 3: the residual-risk statement 793d19a is ratified as written, with the near outcome kept](#793b324-owner-answer-3-the-residual-risk-statement-793d19a-is-ratified-as-written-with-the-near-outcome-kept); its words are unchanged except that the dates and the links to the log are dropped.
+- **Choice:**
+  - [793d19a Security](./793d_technical-spec.md#793d19a-security) is in the design section, which is not promoted; the statement moves to [793d25a Orientation](./793d_technical-spec.md#793d25a-orientation) of the Judgement Relay as its `Rationale:` paragraph (the lifecycle guide allows requirements and context only), with the map from each mitigation to the requirements that hold it as a table of links. 793d19a keeps its heading, so the log's links to it stay valid, and points to the new home.
+  - Each `Security` line of a requirement now says which of the four risks it answers (a link to 793d25a) and which requirement holds the mitigation (itself, or a linked one), not a link to 793d19a. Two requirements the map names had no such line (793d24b1, 793d29b1); they have one.
+  - The map has no column of tests: a mitigation's tests are the `Verified by` of the requirements that hold it, and the gate holds those to exact names. Fourteen tests the old table named were not in the `Verified by` of the requirement beside them; they are now. The row on the fold is reworded to what the canonical fold does (it deletes the offer and its sidecar and keeps the offer's names as aliases of the note it folds into) and cites the Note Amendment test of that fold, `Test792b34c6a1_RunAmend_DiscardIntoFoldsPulledCopy`, beside the System's own test that the commands of each outcome are issued.
+  - The gate (`gates/spec.js`) reads the map: each row names a requirement; each requirement exists and has a `Security` line; each `Security` line links requirements that exist. (The first version of the gate also read a column of tests; it was dropped with the column.)
+  - `Rationale:` lines carry the why and no history: the verdicts of the hypotheses, the measured cost ratio and the links to the log are removed from four of them. The `Gap:` line of [793d23b1 Event cues](./793d_technical-spec.md#793d23b1-event-cues) is removed; [793d35c Gaps and what is not built](./793d_technical-spec.md#793d35c-gaps-and-what-is-not-built) states the gap. The reading guide no longer states a count of the mod's tests.
+- **Rationale:** a statement that is promoted must not live in a section that is not, and a requirement must say which requirement holds a mitigation or the reader cannot find it.
+- **Alternatives:** a file `automatic-memory-security.md` (rejected: the guide allows a file per component and flow only); the Memory Mod component (rejected: the mitigations are mostly in the judgement's fences, the parsers and the redaction, which the Relay and its neighbours own).
+
+## 793b412 Test names carry the IDs of their owners, and a flow repeats no behavior of a component
+
+- **Decided by:** Orchestrator under the owner's standing rules (answer to C of [793b403 The refactor review returned "targeted fixes first"](#793b403-the-refactor-review-returned-targeted-fixes-first)); awaiting owner validation.
+- **Choice:**
+  - The 14 tests named `Test793e8e…` (the plan's node, not a requirement) carry the ID of the requirement they verify: `Test793d31b1_*` (the mod deploy set: four in `internal/update/mods_test.go`), `Test793d31b2_*` (a mod is deployed and removed like a skill: two), `Test793d31b3_*` (the version check and the report rows: three in `internal/update` and two in `internal/cli`) and `Test793d34b1_*` (the update, as a flow: Pi gets no mod, a dry run writes nothing, a second run changes nothing: three). The `Verified by` lines of 793d31b1 to 793d31b3 and of [793d34b1 Update with the mod](./793d_technical-spec.md#793d34b1-update-with-the-mod) cite them by their exact names, one test beside each requirement it verifies. [793b402 The component and flow specs are written from the refactored system](#793b402-the-component-and-flow-specs-are-written-from-the-refactored-system) listed the renames it made and not these, which it left under the plan's numbering.
+  - Two tests of [793d23b2 In-turn cue](./793d_technical-spec.md#793d23b2-in-turn-cue) are renamed for what they check (see [793b406](#793b406-four-requirements-are-worded-to-what-their-tests-verify-and-the-8-seconds-a-prompt-is-held-are-enforced-by-the-mod)).
+  - [793d33b1 Burst sequencing](./793d_technical-spec.md#793d33b1-burst-sequencing) repeated what the Memory Mod does (793d22b2, 793d22b4) and what the Capture Queue does (793d37b1, 793d37b2). It now states the order across the components (the file before the answer, the capture after it, the housekeeping and the summary after the burst, a failure not stopping the next) and links the requirements that hold the rest; the component requirements hold the behavior.
+- **Rationale:** a test named for a plan node says nothing about what it verifies, and a flow that restates its components must be changed with each of them.
+- **Alternatives:** keep the plan's numbering (rejected: the plan is deleted at promotion); move the requirement text of the flow up to the components entirely (rejected: the order across components is the flow's own).
+- **Amended by this entry:** [793b402 The component and flow specs are written from the refactored system](#793b402-the-component-and-flow-specs-are-written-from-the-refactored-system): the tests of the mod deploy carry the IDs of their owners (above); the entry itself is left as written.
+
+## 793b414 The lint configuration cannot be switched off from a file, the mod's JavaScript is all measured, and the harness reports the System's miss at the first try
+
+- **Decided by:** Orchestrator under the owner's standing rules (answer to D of [793b403 The refactor review returned "targeted fixes first"](#793b403-the-refactor-review-returned-targeted-fixes-first)); awaiting owner validation.
+- **Choice:**
+  - The three eslint configurations set `noInlineConfig` (with `reportUnusedDisableDirectives`), so a file cannot silence a rule for itself; a self-test lints a file with an `eslint-disable-next-line` for a rule of each configuration and finds the rule still reports (it fails with `noInlineConfig` removed, for each of the three).
+  - The complexity, adapter and standards configurations and the budget gate measure every JavaScript file of the mod (`agent-instructions/mods/engram-memory/**/*.js`), not only `hooks/*.js`; the row of the budget is keyed by the path from the mod (`hooks/register.js`), and a new JavaScript file anywhere in the mod has no budget and fails the gate. The mod has one such file today.
+  - `gates/lint.js` is red by the exit status of `tsc` as well as by the errors it prints (`tscProblems`): a `tsc` that fails without printing an error line (a configuration it cannot read) was counted as no problem. A self-test fails with the check removed.
+  - `lib/turn.js`: a precondition about the System that is not met is a failed assertion at the first try; before, the harness tried it three times and only then reported it, which made a System that misses once in three look right, against the rule of [793b316 The acceptance harness makes each scenario pass through the mechanism it names](#793b316-the-acceptance-harness-makes-each-scenario-pass-through-the-mechanism-it-names) that a System behavior is not retried. A precondition about the agent is still tried up to three times and is then a harness error. A self-test fails with the first-try rule removed.
+  - The commands `targ refactor-red`, `node gates/run.js status` and `targ test-mod red` are removed: they listed the gates that were red, none is, every gate is in `check-full`, and the `*.red.ts` files they staged do not exist.
+  - The count of checks of `check-full` is 19 since [793e8q Spec conformance and the technical specification](./793e_implementation-plan.md#793e8q-spec-conformance-and-the-technical-specification); the plan's earlier "18 of 18" was the count of the node before it, and says so.
+- **Not done here:** `checkJs` for `register.js` is done with the changes to that file: see [793b413 The duplicated code of the engine and the mod is one, and the engine owns the wording of a failure](#793b413-the-duplicated-code-of-the-engine-and-the-mod-is-one-and-the-engine-owns-the-wording-of-a-failure) (it type-checks the file after the other changes to it).
+- **Rationale:** a rule that a file can switch off, a gate that a failing tool cannot turn red and a retry that the rule forbids are three ways for a gate to say green without having looked.
+- **Alternatives:** keep `refactor-red` as a status table (rejected: it lists a gate that is always green; git is the fallback).

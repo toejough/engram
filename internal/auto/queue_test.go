@@ -83,13 +83,19 @@ func Test793d37b1_ATurnIsRedactedBeforeItIsWrittenToDisk(t *testing.T) {
 
 	g := NewWithT(t)
 	world := NewWorld()
-	job := captureOf([]any{said("user", "No. password: hunter2hunter2 is wrong")})
+	// the second secret sits in the name of a tool, a line the window writes without redacting the message: only the
+	// redaction of the window itself hides it
+	toolNamed := map[string]any{
+		"role": "assistant", "text": "", "toolUses": []map[string]any{{"tool": "api_key=sk-" + queueSecretTail}},
+	}
+	job := captureOf([]any{said("user", "No. password: hunter2hunter2 is wrong"), toolNamed})
 	job["kind"] = "enqueue"
 
 	world.Do(t, job)
 
 	g.Expect(world.Written[queueFile]).To(ContainSubstring("[redacted]"))
 	g.Expect(world.Written[queueFile]).NotTo(ContainSubstring("hunter2hunter2"))
+	g.Expect(world.Written[queueFile]).NotTo(ContainSubstring(queueSecretTail))
 }
 
 func Test793d37b1_ATurnIsWrittenToTheFileWithItsWindowAndSourceAndNothingIsJudged(t *testing.T) {
@@ -244,12 +250,14 @@ func Test793d37b3_TheFileHoldsExactlyTheTurnsNotYetCapturedWhateverTheOrder(t *t
 
 	rapid.Check(t, func(rt *rapid.T) {
 		world := NewWorld()
-		count := rapid.IntRange(1, 6).Draw(rt, "count")
+		count := rapid.IntRange(1, len(turnShapes)).Draw(rt, "count")
 		entries := make([]auto.QueueEntry, 0, count)
 
+		// turns that share a window, turns that share a source, and no two the same in both
 		for index := range count {
-			job := captureOf([]any{said("user", "No, use targ "+strings.Repeat("x", index+1))})
-			job["kind"], job["turn"] = "enqueue", index
+			shape := turnShapes[index]
+			job := captureOf([]any{said("user", "No, use targ "+strings.Repeat("x", shape.words))})
+			job["kind"], job["turn"] = "enqueue", shape.turn
 
 			entries = append(entries, *world.Do(&testing.T{}, job).Queued)
 		}
@@ -275,6 +283,12 @@ const (
 	leftBehindWindow = "Agent: I will run go test ./...\nUser: No, use targ, not go test directly.\nAgent: Understood."
 	oldTranscript    = "/private/home/.claude/projects/p/old-session.jsonl"
 	queueFile        = defaultChunks + "/capture-queue.json"
+	queueSecretTail  = "abcdefghijklmnopqrstuvwxyz0123456789"
+)
+
+// unexported variables.
+var (
+	turnShapes = []struct{ words, turn int }{{1, 0}, {1, 1}, {1, 2}, {2, 0}, {2, 1}, {2, 2}}
 )
 
 // queued is an entry of the queue file as the tests read it.

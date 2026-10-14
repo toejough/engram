@@ -1,4 +1,4 @@
-// The minimality gate (793e8m): the repo-owned lines of each hook file of the mod against a budget table. A line is
+// The minimality gate (793e8m): the owned lines of each JavaScript file of the mod against a budget table. A line is
 // owned when it is neither blank nor a comment; the count is the same for every file so that a budget is comparable.
 import fs from 'node:fs'
 import path from 'node:path'
@@ -37,16 +37,22 @@ export function externalImports(text) {
     .filter((name) => !name.startsWith('.') && !name.startsWith('node:'))
 }
 
-// measure reads the hook files of dir and returns { file: ownedLines }.
-export function measure(dir) {
-  const sizes = {}
-  for (const name of fs
-    .readdirSync(dir)
-    .filter((entry) => entry.endsWith('.js'))
-    .sort()) {
-    sizes[name] = ownedLines(fs.readFileSync(path.join(dir, name), 'utf8'))
+// jsFilesOf lists the JavaScript files of the mod under dir, as paths relative to it (`hooks/register.js`): the mod's
+// tests are TypeScript and are not the mod.
+export function jsFilesOf(dir, relative = '') {
+  const found = []
+  for (const entry of fs.readdirSync(path.join(dir, relative), { withFileTypes: true })) {
+    const name = path.join(relative, entry.name)
+    if (entry.isDirectory() && entry.name !== 'node_modules') found.push(...jsFilesOf(dir, name))
+    else if (entry.name.endsWith('.js')) found.push(name)
   }
-  return sizes
+  return found.sort()
+}
+
+// measure reads the JavaScript files of the mod under dir and returns { relative path: ownedLines }.
+export function measure(dir) {
+  const sizeOf = (file) => ownedLines(fs.readFileSync(path.join(dir, file), 'utf8'))
+  return Object.fromEntries(jsFilesOf(dir).map((file) => [file, sizeOf(file)]))
 }
 
 // compare holds the measured sizes against the budget table: { rows, total, over, unbudgeted, imports }. A file with no

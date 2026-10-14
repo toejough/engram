@@ -1,5 +1,4 @@
-// Self-tests of the refactor gate for the mod tests (793e8l): the tool is tested on fixtures; whether
-// the mod is within the gate is what the gate itself says, and it is red on purpose.
+// Self-tests of the gate for the mod's tests (793e8l): the tool is tested on fixtures.
 import assert from 'node:assert/strict'
 import test from 'node:test'
 

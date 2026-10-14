@@ -3,8 +3,8 @@
 // see lib/extract.js). Every requirement has a `Supports` and a `Verified by` line; every product scenario named by a
 // `Supports` line exists, and every product scenario is supported; every contract test a `Verified by` line names
 // exists and, for the mod's tests, passes. A mod test is named by its file and the start of its name ("…" stands for
-// any text); a Go test by its file and its exact function name. The security table (mitigation, requirement, tests)
-// is held to the same rule: its requirements exist and carry a `Security` line, and its tests exist by exact name.
+// any text); a Go test by its file and its exact function name. The security map (mitigation, requirements) is held to
+// the same rule: its requirements exist and carry a `Security` line; so does every `Security` line's links.
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -113,12 +113,12 @@ export function checkRealizations(list, { read, hooks }) {
 
 const hasTest = (source, name) => new RegExp(`^func ${name}\\(`, 'm').test(source)
 
-const SECURITY_COLUMNS = 3
-const SECURITY_HEADER = /^\|\s*Mitigation\s*\|\s*Requirement\s*\|\s*Tests\s*\|/
+const SECURITY_COLUMNS = 2
+const SECURITY_HEADER = /^\|\s*Mitigation\s*\|\s*Requirements\s*\|/
 const REQUIREMENT_LINK = /\[(793d\d+[a-z]\d+[a-z0-9]*) /g
 
-// securityRows reads the rows of the security table (header Mitigation | Requirement | Tests): { mitigation,
-// requirements: [IDs linked], tests: [exact Go test names] }.
+// securityRows reads the rows of the security map (header Mitigation | Requirements): { mitigation, requirements:
+// [IDs linked] }.
 export function securityRows(text) {
   const rows = []
   let inTable = false
@@ -137,27 +137,23 @@ export function securityRows(text) {
     rows.push({
       mitigation: cells[0].trim(),
       requirements: [...cells[1].matchAll(REQUIREMENT_LINK)].map((match) => match[1]),
-      tests: [...cells[2].matchAll(GO_NAME)].map((match) => match[0]),
     })
   }
   return rows
 }
 
-// checkSecurity: every row names a requirement and a test, every requirement exists and has a `Security` line, and
-// every test is a function of some Go test file by its exact name; and every `Security` line links requirements that
-// exist.
-export function checkSecurity(rows, { requirements, goSources }) {
+// checkSecurity: every row of the map names a requirement, every requirement it names exists and has a `Security`
+// line, and every `Security` line links requirements that exist. The tests that verify a mitigation are those of
+// the requirements that hold it (their `Verified by` lines).
+export function checkSecurity(rows, { requirements }) {
   const problems = []
   const byId = new Map(requirements.map((requirement) => [requirement.id, requirement]))
   for (const row of rows) {
-    if (row.requirements.length === 0) problems.push(`security table: "${row.mitigation}" names no requirement`)
-    if (row.tests.length === 0) problems.push(`security table: "${row.mitigation}" names no test`)
+    if (row.requirements.length === 0) problems.push(`security map: "${row.mitigation}" names no requirement`)
     for (const id of row.requirements) {
-      if (!byId.has(id)) problems.push(`security table: ${id} is no requirement`)
-      else if (byId.get(id).security === null) problems.push(`security table: ${id} has no Security line`)
+      if (!byId.has(id)) problems.push(`security map: ${id} is no requirement`)
+      else if (byId.get(id).security === null) problems.push(`security map: ${id} has no Security line`)
     }
-    for (const name of row.tests)
-      if (!goSources.some((source) => hasTest(source, name))) problems.push(`security table: no Go test ${name}`)
   }
   for (const requirement of requirements)
     for (const [, id] of (requirement.security ?? '').matchAll(REQUIREMENT_LINK))
@@ -210,18 +206,4 @@ export function loadGoFiles(repo, requirements) {
     }
   }
   return files
-}
-
-// loadGoTests: the text of every Go test file under internal/, for the names the security table cites.
-export function loadGoTests(repo) {
-  const sources = []
-  const visit = (directory) => {
-    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-      const full = path.join(directory, entry.name)
-      if (entry.isDirectory()) visit(full)
-      else if (entry.name.endsWith('_test.go')) sources.push(fs.readFileSync(full, 'utf8'))
-    }
-  }
-  visit(path.join(repo, 'internal'))
-  return sources
 }
