@@ -60,15 +60,15 @@ async function relay($, job) {
     const out = JSON.parse(result.stdout)
     absorb($, out)
     if (out.done) return out.done
-    input = { ...job, state: out.need.state, answers: await answers($, out.need) }
+    input = { ...job, state: out.state, answers: await answers($, out) }
   }
   throw new Error('the job did not end')
 }
 
-async function answers($, need) {
-  if (need.waitMs) await $.clock.sleep(need.waitMs)
+async function answers($, out) {
+  if (out.waitMs) await $.clock.sleep(out.waitMs)
   const replies = []
-  for (const request of need.requests) replies.push(await $.model.complete(request))
+  for (const request of out.requests ?? []) replies.push(await $.model.complete(request))
   return replies
 }
 

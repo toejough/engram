@@ -11,7 +11,7 @@ const REQUEST = { model: 'haiku', effort: 'low', prompt: 'which vault notes bear
 const REPLY = { isAnswered: true, text: '[1]', usage: {} }
 
 // asks answers a job's first round with a need for the request and its second with the block.
-const asks = (_job: Job, call: number): Answer => (call % 2 === 1 ? { need: { requests: [REQUEST], state: ['s'] } } : { done: { block: BLOCK } })
+const asks = (_job: Job, call: number): Answer => (call % 2 === 1 ? { requests: [REQUEST], state: ['s'] } : { done: { block: BLOCK } })
 
 async function runStep($: Driver): Promise<void> {
   const stream = $.turn.step(STEP_INPUT)
@@ -31,7 +31,7 @@ describe('the relay of a job (793b197)', () => {
   })
 
   test('a wait is slept on the clock before the next round', async ($: Driver, on: On) => {
-    const { clock, jobs } = world(on, { engine: (_job, call) => (call === 1 ? { need: { requests: [], waitMs: 500, state: [] } } : { done: {} }) })
+    const { clock, jobs } = world(on, { engine: (_job, call) => (call === 1 ? { requests: [], waitMs: 500, state: [] } : { done: {} }) })
     const submitted = $.prompt.submit(PROMPT)
     await clock.advance(499)
     expect(jobs.length).toBe(1)
