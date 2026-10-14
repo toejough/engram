@@ -8,10 +8,10 @@ What exists, and the gap. Every [vault](./793a_product-spec.md#793a1-problem-sta
 
 | Hypothesis | Statement | Result |
 | --- | --- | --- |
-| [793d17 H1: a Claude Code mod gives a smaller implementation surface and more capability than settings hooks](#793d17-h1-a-claude-code-mod-gives-a-smaller-implementation-surface-and-more-capability-than-settings-hooks) | A Claude Code [mod](#793d1b-terms) gives a smaller implementation [surface](#793d1b-terms) and more capability than [settings hooks](#793d1b-terms). | [793d17g4 Verdict](#793d17g4-verdict): disproved on the surface clause; the mod is kept. |
-| [793d18 H2: the cheapest capable model is adequate for every System judgement, and is faster and cheaper](#793d18-h2-the-cheapest-capable-model-is-adequate-for-every-system-judgement-and-is-faster-and-cheaper) | The cheapest capable model is adequate for every [System](./793a_product-spec.md#793a1-problem-statement) [judgement](#793d1b-terms) and is faster and cheaper than the [session](../../GLOSSARY.md#session)'s model. | [793d18d4 Verdict](#793d18d4-verdict): disproved on speed; quality inconclusive; haiku at `low` is kept. |
+| [793d17 H1: a Claude Code mod gives a smaller implementation surface and more capability than settings hooks](#793d17-h1-a-claude-code-mod-gives-a-smaller-implementation-surface-and-more-capability-than-settings-hooks) | A Claude Code [mod](#793d1b-terms) gives a smaller implementation [surface](#793d1b-terms) and more capability than [settings hooks](#793d1b-terms). | [793d17g4 Verdict](#793d17g4-verdict): the owner concludes a positive result; the surface clause is not supported, the capability clause is met; the mod is kept. |
+| [793d18 H2: the cheapest capable model is adequate for every System judgement, and is faster and cheaper](#793d18-h2-the-cheapest-capable-model-is-adequate-for-every-system-judgement-and-is-faster-and-cheaper) | The cheapest capable model is adequate for every [System](./793a_product-spec.md#793a1-problem-statement) [judgement](#793d1b-terms) and is faster and cheaper than the [session](../../GLOSSARY.md#session)'s model. | [793d18d4 Verdict](#793d18d4-verdict): the owner concludes a mixed result with unexpected advantages; the speed clause is not supported; haiku at `low` is kept. |
 
-How a hypothesis is settled. Every scenario is a runnable experiment or a contract test. A hypothesis is **confirmed** when every condition under "Confirmed if" holds, **disproved** when any condition under "Disproved if" holds (the owner then decides what to do next), and **inconclusive** when neither, because a result lay inside the [noise](#793d1b-terms).
+How a hypothesis is settled. Every scenario is a runnable experiment or a contract test. The rule of each hypothesis is applied clause by clause and its output is stated per clause; the **conclusion** is the owner's ([793b356 Hypothesis conclusions are the owner's: multi-clause hypotheses are reported per clause](./793b_decision-log.md#793b356-hypothesis-conclusions-are-the-owners-multi-clause-hypotheses-are-reported-per-clause)). A clause is **supported** when its "Confirmed if" conditions hold, **not supported** when a "Disproved if" condition holds, and **inconclusive** when neither, because a result lay inside the [noise](#793d1b-terms).
 
 ### 793d1a What the hypotheses rely on in Claude Code mods
 
@@ -117,12 +117,21 @@ Run on 2026-10-13 (`targ acceptance 793d17`). The observations were ephemeral an
 | Capabilities achieved (of 9) | 9 | 9 |
 | Surface total of the four counts, as built | 107 (8 files, 13 handlers, 0 user-file edits, 86 glue lines) | 94 (2 files, 10 entries, 1 user-file edit, 81 glue lines); 105 packaged as a plugin |
 | Restraint and containment | held (four causes contained, no refusal object, 138 contract tests) | contained too; restraint not run (no System hook set exists) |
-| What only the mod does | tells a prompt's origin, keeps its user line out of the transcript, makes a model call in 23 tokens without a credential to provision or a process to start (438 tokens for a hook), sees a step before its tool runs | |
-| What only the hooks do | | run in their own process, work without the early-access mods runtime; none of this was needed for the nine capabilities |
+| What only the mod does | see the verdict below; it also sees a step before its tool runs | |
+| What only the hooks do | | run in their own process, work without the early-access mods runtime |
 
 #### 793d17g4 Verdict
 
-DISPROVED on this machine, on the surface clause: both surfaces achieved every capability, and the hooks need fewer files, entries and glue lines and a lower total. The capability half is confirmed, though the mod's extra capability does not show up in the nine. Decision (Joe, 2026-10-14): the Claude Code side stays a mod ([793c73](./793c_open-questions.md#793c73-does-the-systems-claude-code-side-stay-a-mod-now-that-h1-is-disproved-by-its-own-rule), [793b352](./793b_decision-log.md#793b352-owner-answer-793c73-the-systems-claude-code-side-stays-a-mod)). Rationale: the surface-size reason is gone ([793b338 H1 is disproved by its own rule on this machine](./793b_decision-log.md#793b338-h1-is-disproved-by-its-own-rule-on-this-machine)); the mod is kept for in-process judgement cost, no credential to provision, and a status line that stays out of the transcript.
+Per clause, the measurements:
+
+- Surface: the hooks are smaller, 94 against 107 in total (2 files against 8, 10 entries against 13, 81 glue lines against 86, one user-file edit against none); 105 packaged as a plugin.
+- Capability: 9 of 9 on both surfaces. Only the mod: a model call in 23 tokens against 438 for a hook, 0 processes per tour against 27, no credential to provision, a status line off the [transcript](../../GLOSSARY.md#transcript), and the origin of a prompt known.
+
+Rule output: surface clause: not supported. Capability clause: met on the nine; the mod's extras are measured beside them.
+
+**Conclusion (owner, Joe, 2026-10-14):** "The mods do seem more capable in terms of ui, and we discovered that they were more efficient. I'd call that a positive result." H1 is a positive result: the mod is more capable in UI, and the unexpected gain is that it is more efficient ([793b356](./793b_decision-log.md#793b356-hypothesis-conclusions-are-the-owners-multi-clause-hypotheses-are-reported-per-clause)).
+
+Decision (Joe, 2026-10-14): the Claude Code side stays a [mod](#793d1b-terms) ([793c73](./793c_open-questions.md#793c73-does-the-systems-claude-code-side-stay-a-mod-now-that-h1-is-disproved-by-its-own-rule), [793b352](./793b_decision-log.md#793b352-owner-answer-793c73-the-systems-claude-code-side-stays-a-mod)). Rationale: the unexpected advantages are the reason (the in-process call, no credential, the status line off the transcript, the known prompt origin) with the UI capability; the smaller [surface](#793d1b-terms) of the [settings hooks](#793d1b-terms) ([793b338](./793b_decision-log.md#793b338-h1-is-disproved-by-its-own-rule-on-this-machine)) does not outweigh them.
 
 ## 793d18 H2: the cheapest capable model is adequate for every System judgement, and is faster and cheaper
 
@@ -170,7 +179,18 @@ Sonnet's replies were unread by the strict parsers in 27% (`classify`), 63% (`re
 
 #### 793d18d4 Verdict
 
-H2 is DISPROVED as a whole on this machine by its own rule, on speed ([793b349 H2 is disproved as a whole on this machine by its speed clause; relevance is disproved on its guard by the rule, and the unread replies are the reason](./793b_decision-log.md#793b349-h2-is-disproved-as-a-whole-on-this-machine-by-its-speed-clause-relevance-is-disproved-on-its-guard-by-the-rule-and-the-unread-replies-are-the-reason)); no kind is confirmed, and quality is inconclusive. Decision (Joe, 2026-10-14): every judgement runs on haiku at `low` effort ([793c79](./793c_open-questions.md#793c79-what-follows-from-h2-being-disproved-on-speed-and-for-relevance), [793b353](./793b_decision-log.md#793b353-owner-answer-793c79-every-system-judgement-runs-on-haiku-at-the-lowest-accepted-effort)). Rationale: haiku is 10 to 15 times cheaper; the quality gap against sonnet is inconclusive and mostly unread replies; the two holds that matter for delivery, `classify` and `relevance`, are a tie or faster; and `capture` and `curation` run after the turn, 1.1 to 1.2 s slower against deadlines no call approached.
+Per clause, the measurements:
+
+- Cheaper: yes, 10.1 to 14.9 times in every kind.
+- Faster: no. Median call, haiku against sonnet: a tie in `classify` (1.70 / 1.66 s) and faster in `relevance` (2.47 / 2.75 s, inside the [noise](#793d1b-terms)); slower in `capture` and `curation`, by 0.6 to 0.9 s at the floor effort. `capture` and `curation` run after the turn, against deadlines no call approached.
+- Agreement with the gold, haiku / sonnet: at or above sonnet in three kinds (`classify` 0.612 / 0.450, `relevance` 0.858 / 0.380, `curation` 0.889 / 0.736; strict parsers, so sonnet's figures are depressed by unread replies), inconclusive in `capture` (0.289 / 0.390).
+- Structured output: haiku's replies were read in 97 to 100% of calls, sonnet's in 45 to 96% (the effort-floor control). The effort floor is `low`, and haiku still thinks at it.
+
+Rule output: speed clause: not supported ([793b349](./793b_decision-log.md#793b349-h2-is-disproved-as-a-whole-on-this-machine-by-its-speed-clause-relevance-is-disproved-on-its-guard-by-the-rule-and-the-unread-replies-are-the-reason)). Cheaper clause: supported. Quality: no kind is confirmed.
+
+**Conclusion (owner, Joe, 2026-10-14):** "Haiku is much cheaper, though not faster, but clearly better suited for decision style structured output. I'd call that a mixed result with unexpected advantages." H2 is a mixed result with unexpected advantages: much cheaper, not faster, and clearly better suited to decision-style structured output ([793b356](./793b_decision-log.md#793b356-hypothesis-conclusions-are-the-owners-multi-clause-hypotheses-are-reported-per-clause)).
+
+Decision (Joe, 2026-10-14): every [judgement](#793d1b-terms) runs on haiku at `low` effort ([793c79](./793c_open-questions.md#793c79-what-follows-from-h2-being-disproved-on-speed-and-for-relevance), [793b353](./793b_decision-log.md#793b353-owner-answer-793c79-every-system-judgement-runs-on-haiku-at-the-lowest-accepted-effort)). Rationale: the unexpected advantages are the reason, namely 10 to 15 times lower cost and replies the parsers read almost always, with agreement at or above sonnet's in three kinds; the lost speed is a tie or a gain on the two judgements that gate delivery, and 0.6 to 0.9 s on background work.
 
 ## 793d19 Design as currently drafted
 
