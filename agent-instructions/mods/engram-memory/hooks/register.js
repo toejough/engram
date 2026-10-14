@@ -236,7 +236,7 @@ const onSessionStart = async ($, event, next) => {
 }
 
 const onCompact = async ($, event, next) => {
-  await attempt($, () => hooked($, { kind: 'compact' }))
+  await attempt($, () => hooked($, { kind: 'compact', agent: event.agentId }))
   return next(event)
 }
 

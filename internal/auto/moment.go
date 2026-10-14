@@ -61,9 +61,10 @@ var (
 	versionLine = regexp.MustCompile(`(?m)^version: 1$`)
 )
 
-// compactJob empties the ledger of the working agent: a compaction removed what it held (793a2e).
+// compactJob empties the ledger of the agent that was compacted, the main agent's when no agent is named: a
+// compaction removed what that agent held and nothing another one did (793d24b2).
 func (e *engine) compactJob() Done {
-	delete(e.ledger, mainAgent)
+	delete(e.ledger, orElse(e.job.Agent, mainAgent))
 
 	return Done{}
 }

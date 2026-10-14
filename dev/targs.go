@@ -72,6 +72,7 @@ var (
 			targdev.LintForFail, targdev.Deadcode, targdev.CheckThinAPI, checkNilsForFailTarget,
 			targdev.TestIntegration, testDevTarget, testDevIntegrationTarget, lintDevTarget,
 			lintJSComplexityTarget, lintJSAdapterTarget, lintJSStandardsTarget, lintJSTypesTarget, checkModBudgetTarget,
+			testModTarget,
 			targ.DepModeParallel,
 		)
 	checkFullTarget = targ.Targ(targdev.CheckFull.Fn()).Name("check-full").
@@ -81,6 +82,7 @@ var (
 			targdev.LintFull, targdev.Deadcode, targdev.CheckThinAPI, checkNilsForFailTarget,
 			targdev.TestIntegration, testDevTarget, testDevIntegrationTarget, lintDevTarget,
 			lintJSComplexityTarget, lintJSAdapterTarget, lintJSStandardsTarget, lintJSTypesTarget, checkModBudgetTarget,
+			testModTarget,
 			targ.DepModeParallel, targ.CollectAllErrors,
 		)
 	// The aggregates below mirror Targ's dependencies, order and mode with Engram's nil targets in place of Targ's

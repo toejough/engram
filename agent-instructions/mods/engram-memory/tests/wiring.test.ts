@@ -178,6 +178,17 @@ describe('the moments (793d22b1)', () => {
   )
 })
 
+describe('a compaction (793d24b2)', () => {
+  test('names the subagent that was compacted, and no agent when it was the main agent', async ($: Driver, on: On) => {
+    const { jobs } = world(on)
+    await $.session.compact({ trigger: 'auto', messages: MESSAGES })
+    await $.session.compact({ trigger: 'auto', messages: MESSAGES, agentId: 'a1' })
+    expect(jobs.map((job) => job.kind)).toEqual(['compact', 'compact'])
+    expect(jobs[0].agent).toBeUndefined()
+    expect(jobs[1].agent).toBe('a1')
+  })
+})
+
 describe('the in-turn cue (793d23b2)', () => {
   const cue = (job: Job): Answer => (job.kind === 'step' ? { done: { notes: [NOTE] } } : { done: { block: BLOCK } })
 
