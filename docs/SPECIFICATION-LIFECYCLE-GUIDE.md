@@ -110,6 +110,47 @@ sequence diagram and the aggregate-flow scenarios.
 Every canonical technical requirement MUST identify the stable product scenario IDs it supports
 and MUST NOT duplicate canonical product scenario text.
 
+## Change Phases
+
+A change is one feature-level TDD cycle: red, green, refactor, in that order. Each phase ends with
+one agent review round and the owner walkthrough
+([Decisions and Open Questions](./AGENTS.md#decisions-and-open-questions)).
+
+### Red
+
+- **Product spec:** user-verifiable promises and their UAT scenarios only, with no mechanism
+  ([Product Spec Guide](./PRODUCT-SPEC-GUIDE.md#scope-in-the-red-phase)).
+- **Technical spec:** the
+  [implementation hypotheses and build rules](./TECHNICAL-SPEC-GUIDE.md#implementation-hypotheses),
+  nothing else.
+- **Acceptance suite:** executes every UAT scenario literally and MUST fail on every `Then`.
+- **Review checks only:** each promise is user-verifiable, each hypothesis is testable, and the
+  build rules are stated.
+
+### Green
+
+- **Work:** the minimal implementation that turns the acceptance suite green, and each hypothesis
+  experiment run.
+- **Results:** reported per clause, with measurements as facts and the build rule's literal output as
+  one line. The owner states each conclusion.
+- **Gates:** the acceptance suite is green and the existing checks do not break.
+- **Review:** one consolidated review at the end of green, checking correctness, security,
+  minimality, and standards. Its findings are the refactor's input list; do not review per commit.
+- **Eval artifacts** are ephemeral: git history, the decision log, and the owner's conclusion are the
+  durable record.
+
+### Refactor
+
+- Behavior is fixed. The acceptance suite MUST stay green throughout and is the only behavioral gate.
+- Every standard or technical goal (minimality, performance, complexity, DI, lint, hardening, spec
+  conformance) MUST first be made red by a test, an enabled linter, or a measured budget, then worked
+  to green ([Refactor Checklist](./TECHNICAL-SPEC-GUIDE.md#refactor-checklist)).
+- Write the technical component and flow specs from the refactored system, with each hypothesis
+  conclusion as a `Rationale:` line under the requirements it justifies.
+- The refactor review precedes promotion.
+
+Across phases, record each decision with who decided it, and report multi-clause hypotheses per clause.
+
 ## Atomic Promotion
 
 Promotion MUST occur in the same completed integration as the implementation and tests:
@@ -138,6 +179,13 @@ a separate locking, blocking, or merge protocol.
 
 Before completing a change, verify:
 
+- Red produced only user-verifiable promises with UAT, the hypotheses and build rules, and an
+  acceptance suite that failed on every `Then`; its review checked only those.
+- Green turned the acceptance suite green with the existing checks intact, reported hypothesis
+  results per clause with owner-stated conclusions, and held one consolidated review.
+- Refactor kept the acceptance suite green, took each standard or technical goal red-first to green,
+  wrote the component and flow specs from the refactored system, and passed its review before
+  promotion.
 - Every normative change is represented as an Added, Modified, or Removed operation.
 - Every modification or removal names exactly one canonical target ID.
 - Added addressable nodes have new, stable issue-rooted IDs.
