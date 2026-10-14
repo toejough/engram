@@ -73,8 +73,9 @@ Record decisions and questions in these artifacts as they arise, not afterwards:
 
 Keep the owner's time to one walkthrough:
 
-- A change spec MUST get one agent review round, unless the owner asks for more. After it, go
-  straight to the owner walkthrough.
+- A change MUST get one agent review round per phase
+  ([Change Phases](./SPECIFICATION-LIFECYCLE-GUIDE.md#change-phases)), unless the owner asks for
+  more. After each round, go straight to the owner walkthrough.
 - Every item already known to need the owner MUST be presented in one batch. Never call a batch
   final unless it is.
 - An open question MUST be raised only for something blocking: a contradiction, an untestable
