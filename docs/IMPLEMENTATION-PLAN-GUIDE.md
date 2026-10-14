@@ -166,30 +166,34 @@ A plan follows the [change phases](./SPECIFICATION-LIFECYCLE-GUIDE.md#change-pha
 The test-driven cycle above governs green; its refactor step moves to part 2.
 
 - **Part 1, green nodes:** the acceptance-suite and hypothesis-experiment entries and the minimal
-  implementation. A green node is complete when every entry reaches `Green-all`; its `Refactor-*`
-  checkpoints and `Done` are reached through the refactor nodes that cover it.
+  implementation. A green node is complete when every entry reaches `Green-all`; `Done` is reached through
+  the refactor nodes that cover it.
 - **Part 2, refactor nodes:** created from the findings of the consolidated review at the end of green
   and the [Refactor Checklist](./TECHNICAL-SPEC-GUIDE.md#refactor-checklist). Each node names the
   findings it addresses and its **red gate** (a test, an enabled linter, or a measured budget that
   fails before the work), and keeps the acceptance suite green. It is complete when its gate and the
   suite are green.
 
+Part 2 lists **goals** and **guards** separately, per the
+[Refactor Checklist](./TECHNICAL-SPEC-GUIDE.md#refactor-checklist). A goal is a gate red on the real
+code and gets a node with before and after numbers. A guard is a gate already green, proven by a probe
+violation watched to fail and then removed (recorded in the commit message or decision log, never
+committed as a fixture), and gets no node. A goal found green on the real code is a finding: check the
+measure before dropping its node.
+
 ## Test Status
 
 Each test MUST have one status recording its latest verified checkpoint:
 
-`Not started` → `Red` → `Green-single` → `Green-all` → `Refactor-complexity` →
-`Refactor-consistency` → `Refactor-boundaries` → `Refactor-performance` → `Done`
+`Not started` → `Red` → `Green-single` → `Green-all`
 
 - **Red:** The test was observed failing for the expected reason.
 - **Green-single:** The minimum implementation change made the focused test pass.
-- **Green-all:** The complete test suite passes after any required corrections.
-- **Refactor-complexity:** Complexity has been reduced where possible and the suite passes.
-- **Refactor-consistency:** Inconsistencies have been removed and the suite passes.
-- **Refactor-boundaries:** Boundaries are clear and minimal and the suite passes.
-- **Refactor-performance:** Performance has been assessed and improved where appropriate and the
-  suite passes.
-- **Done:** Every checkpoint is complete and the suite passes.
+- **Green-all:** The complete test suite passes after any required corrections. This ends a green node.
+
+Refactor nodes (part 2) carry no per-test statuses. Each uses the non-test statuses below, and is
+`Done` when its red gate (a goal) or its probe-verified guard and the suite are green. A test covered by
+a refactor node is `Done` when that node is.
 
 Non-test actions use:
 
@@ -215,8 +219,9 @@ uncommitted status transition.
 
 Use worktrees to materialize independent ready nodes:
 
-- A node is **complete** only when every assigned catalog entry is `Done`, the full suite passes,
-  refactoring is complete, and the result is committed.
+- A node is **complete** only when every assigned catalog entry has reached its terminal status
+  (`Green-all` for a green node, `Done` for a refactor node), the full suite passes, and the result is
+  committed.
 - A node is **ready** when it is a root node or every direct dependency is complete and their commits
   are present in one base commit.
 - Use the development-branch commit as a root node's base.
@@ -288,8 +293,8 @@ Define measurable gates for:
 - The completed change directory deleted in the same merge as its implementation, tests, and
   canonical specification updates.
 
-Do not repeat a generic regression-suite catalog entry when `Green-all` and every refactoring status
-already require the full suite to pass.
+Do not repeat a generic regression-suite catalog entry when `Green-all`
+already requires the full suite to pass.
 
 ## Completion Checklist
 
