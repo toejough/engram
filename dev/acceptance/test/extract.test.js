@@ -17,25 +17,9 @@ test('the product spec yields exactly its 43 scenario IDs, once each', () => {
   assert.ok(ids.every((id) => /^793a\d+[a-z][a-z0-9]*$/.test(id)), ids.join(' '))
 })
 
-test('the H1 section of the technical spec yields exactly its 11 scenario IDs', () => {
-  assert.deepEqual(
-    h1.map((s) => s.id),
-    ['793d17a1a', '793d17a1b', '793d17a1c', '793d17b1a', '793d17c1a', '793d17c1b', '793d17c1c', '793d17d1a', '793d17e1a', '793d17e1b', '793d17f1a'],
-  )
-})
-
-test('the H2 section of the technical spec yields exactly its 7 scenario IDs, and its outlines run four kinds each', () => {
-  assert.deepEqual(
-    h2.map((s) => s.id),
-    ['793d18a1a', '793d18a1b', '793d18a1c', '793d18b1a', '793d18b1b', '793d18c1a', '793d18c1b'],
-  )
-  const byId = Object.fromEntries(h2.map((s) => [s.id, s]))
-  assert.equal(byId['793d18a1a'].examples, 4)
-  assert.equal(byId['793d18b1a'].examples, 4)
-})
-
-test('the capability outline of H1 has nine examples (793e8h added the step cue)', () => {
-  assert.equal(Object.fromEntries(h1.map((s) => [s.id, s]))['793d17a1a'].examples, 9)
+test('the hypothesis sections of the technical spec carry no scenarios: 793b355 retired the experiment scenarios', () => {
+  assert.deepEqual(h1, [])
+  assert.deepEqual(h2, [])
 })
 
 test('an outline is one scenario and reports its example count', () => {
