@@ -14,6 +14,13 @@ Unless the user explicitly requests additional sections, a product specification
 2. Product requirements.
 3. User acceptance testing scenarios.
 
+## Scope in the Red Phase
+
+In red ([Change Phases](./SPECIFICATION-LIFECYCLE-GUIDE.md#change-phases)) the product spec states
+only promises and their UAT scenarios. Implementation hypotheses and build rules belong in the
+[technical spec](./TECHNICAL-SPEC-GUIDE.md#implementation-hypotheses), never here. The acceptance
+suite executes each scenario literally, so each `Then` MUST be checkable as written.
+
 ## Authoring Workflow
 
 Before drafting:
