@@ -8,6 +8,8 @@ This plan turns [Parallel Memory Agent - Product Spec](./793a_product-spec.md#pa
 2. A proof of concept ([System](./793a_product-spec.md#793a1-problem-statement)) that makes the product scenarios pass: the design drafted in [793d19 Design as currently drafted](./793d_technical-spec.md#793d19-design-as-currently-drafted), cut to what those scenarios need ([793b250 The PoC is the drafted design cut to what the 43 scenarios need](./793b_decision-log.md#793b250-the-poc-is-the-drafted-design-cut-to-what-the-43-scenarios-need)) and orchestrated in JavaScript inside the [mod](./793d_technical-spec.md#793d1b-terms) over the existing engram commands ([793b256 The PoC orchestrates in JavaScript inside the mod over the existing engram commands](./793b_decision-log.md#793b256-the-poc-orchestrates-in-javascript-inside-the-mod-over-the-existing-engram-commands)).
 3. The two hypotheses of the technical spec: update their scenarios to what the PoC does, run them, and record a verdict (confirmed, disproved or inconclusive) for each, on this machine.
 
+Part 2 of the plan is the refactor of the proof of concept ([793b360 The refactor is red gates first, then green, with the acceptance suite green throughout](./793b_decision-log.md#793b360-the-refactor-is-red-gates-first-then-green-with-the-acceptance-suite-green-throughout)): nodes [793e8l Red gates](#793e8l-red-gates) to [793e8r Refactor review and promotion](#793e8r-refactor-review-and-promotion). Behavior is fixed and the acceptance suite stays green throughout; each standard or technical goal is first made red by a test, an enabled linter or a measured budget, and then worked to green; the technical component and flow specs are rewritten from the refactored system at the end.
+
 Out of scope: promoting the specs to `docs/specs/` and deleting this change directory (done at integration, per the lifecycle guide), [delivery](./793a_product-spec.md#793a1-problem-statement) into other harnesses, environments other than this machine's macOS terminal and Claude Code [sessions](../../GLOSSARY.md#session) on a subscription login, and [#795](https://github.com/toejough/engram/issues/795).
 
 The design choices of this plan are in the decision log, [793b243 The harness is godog over scenarios extracted from the product spec at run time](./793b_decision-log.md#793b243-the-harness-is-godog-over-scenarios-extracted-from-the-product-spec-at-run-time) to [793b283 ID map for 793b281 to 793b282](./793b_decision-log.md#793b283-id-map-for-793b281-to-793b282). The owner answered the review's three questions on 2026-10-12: [793c70 May the H2 gold be mined read-only from the real transcripts and vault?](./793c_open-questions.md#793c70-may-the-h2-gold-be-mined-read-only-from-the-real-transcripts-and-vault), [793c71 Who labels the relevance and extraction gold?](./793c_open-questions.md#793c71-who-labels-the-relevance-and-extraction-gold) and [793c72 Which model do the acceptance sessions run on, and which are H2's comparison arms?](./793c_open-questions.md#793c72-which-model-do-the-acceptance-sessions-run-on-and-which-are-h2s-comparison-arms) ([793b269 793c70 is answered: the gold is mined read-only from the real transcripts and vault](./793b_decision-log.md#793b269-793c70-is-answered-the-gold-is-mined-read-only-from-the-real-transcripts-and-vault), [793b270 793c71 is answered: a third model drafts the gold, fable here, and the owner confirms every label](./793b_decision-log.md#793b270-793c71-is-answered-a-third-model-drafts-the-gold-fable-here-and-the-owner-confirms-every-label), [793b271 793c72 is answered: acceptance sessions on sonnet, and H2 compares three cost-scaled arms](./793b_decision-log.md#793b271-793c72-is-answered-acceptance-sessions-on-sonnet-and-h2-compares-three-cost-scaled-arms)).
@@ -227,6 +229,13 @@ flowchart TD
   n793e8h["793e8h Hypothesis scenarios updated to the PoC<br/>Complete"]
   n793e8i["793e8i H1 probe harness and verdict<br/>Complete"]
   n793e8j["793e8j H2 eval and verdict<br/>Complete"]
+  n793e8l["793e8l Red gates<br/>In progress: 0/7 entries complete"]
+  n793e8m["793e8m Logic in Go<br/>Blocked by: 793e8l"]
+  n793e8n["793e8n JavaScript standards<br/>Blocked by: 793e8m"]
+  n793e8o["793e8o Performance<br/>Blocked by: 793e8m"]
+  n793e8p["793e8p Hardening<br/>Blocked by: 793e8m"]
+  n793e8q["793e8q Spec conformance and the technical specification<br/>Blocked by: 793e8n, 793e8o, 793e8p"]
+  n793e8r["793e8r Refactor review and promotion<br/>Blocked by: 793e8q"]
   n793e8a --> n793e8b --> n793e8e --> n793e8c
   n793e8c --> n793e8d
   n793e8c --> n793e8g
@@ -236,6 +245,16 @@ flowchart TD
   n793e8k --> n793e8h
   n793e8h --> n793e8i
   n793e8h --> n793e8j
+  n793e8i --> n793e8l
+  n793e8j --> n793e8l
+  n793e8l --> n793e8m
+  n793e8m --> n793e8n
+  n793e8m --> n793e8o
+  n793e8m --> n793e8p
+  n793e8n --> n793e8q
+  n793e8o --> n793e8q
+  n793e8p --> n793e8q
+  n793e8q --> n793e8r
 ```
 
 The owner's nodes map as (1) [793e8a Harness skeleton and platform spikes](#793e8a-harness-skeleton-and-platform-spikes), (2) [793e8b Delivery at the moments](#793e8b-delivery-at-the-moments), (3) [793e8c Capture at turn end](#793e8c-capture-at-turn-end), (4) [793e8d Housekeeping, purview and failure isolation](#793e8d-housekeeping-purview-and-failure-isolation), (5) [793e8e Install by engram update](#793e8e-install-by-engram-update) and [793e8f Summary, intentional memory and other harnesses](#793e8f-summary-intentional-memory-and-other-harnesses), (6) [793e8g Backlog capture](#793e8g-backlog-capture), (7) [793e8h Hypothesis scenarios updated to the PoC](#793e8h-hypothesis-scenarios-updated-to-the-poc), (8) [793e8i H1 probe harness and verdict](#793e8i-h1-probe-harness-and-verdict) and [793e8j H2 eval and verdict](#793e8j-h2-eval-and-verdict) ([793b252 The owner's node 5 is two nodes, the backlog node follows capture, and the hypothesis nodes follow the PoC](./793b_decision-log.md#793b252-the-owners-node-5-is-two-nodes-the-backlog-node-follows-capture-and-the-hypothesis-nodes-follow-the-poc)). Install moved to follow delivery, because every acceptance row after the first says the [System](./793a_product-spec.md#793a1-problem-statement) is installed ([793b266 Non-blocking review fixes in the plan](./793b_decision-log.md#793b266-non-blocking-review-fixes-in-the-plan)). After [793e8c Capture at turn end](#793e8c-capture-at-turn-end), two nodes are ready at once ([793e8d Housekeeping, purview and failure isolation](#793e8d-housekeeping-purview-and-failure-isolation) and [793e8g Backlog capture](#793e8g-backlog-capture)).
@@ -530,6 +549,135 @@ Result (2026-10-13, Claude Code 2.1.296, this machine): the replay made 4,956 ca
 | [793d18c1a Every request names the model of its kind](./793d_technical-spec.md#793d18c1-experiments) | Dedicated example (contract test) | Request builders; the base is written in [793e8b Delivery at the moments](#793e8b-delivery-at-the-moments); since 2026-10-14 it also asserts `effort: 'low'` for every kind ([793b353](./793b_decision-log.md#793b353-owner-answer-793c79-every-system-judgement-runs-on-haiku-at-the-lowest-accepted-effort)) | Done |
 | [793d18c1b Raising one kind changes only that kind](./793d_technical-spec.md#793d18c1-experiments) | Dedicated example (contract test) | Raising one kind changes only that kind | Done |
 
+### 793e8l Red gates
+
+The refactor node that builds the gates, owned by the owner's rule in [793b361 Every red gate is a goal or a guard, and a guard is accepted when a probe has made it fail](./793b_decision-log.md#793b361-every-red-gate-is-a-goal-or-a-guard-and-a-guard-is-accepted-when-a-probe-has-made-it-fail): a gate is accepted when it has been seen red. A **goal** is red on the real code and has a node below; a **guard** is green on the real code and was accepted only after a probe made it fail (the probes are in 793b361; no violation is committed). The acceptance suite is unchanged by this node and stays green; `targ check-full` passes, because the gates are separate targets outside it ([793b365 The gates are separate targets outside check-full, and the red contract tests are .red.ts files](./793b_decision-log.md#793b365-the-gates-are-separate-targets-outside-check-full-and-the-red-contract-tests-are-redts-files)).
+
+Verification: `targ refactor-red` runs every gate and prints one table; `npm test` of `dev/acceptance` (77 tests, including the gates' self-tests); `claude plugin test` of the mod (168 tests pass: the 142 of the green nodes and 26 guards); `targ acceptance` once at the end; `targ check-full`.
+
+**The input list.** The open items of the consolidated review ([793b315 An opus implementation and security review of the PoC returned "targeted fixes first"](./793b_decision-log.md#793b315-an-opus-implementation-and-security-review-of-the-poc-returned-targeted-fixes-first), whose fixes are done in [793e8k Fixes from the implementation and security review](#793e8k-fixes-from-the-implementation-and-security-review)) are its residual risks of [793d19a Security](./793d_technical-spec.md#793d19a-security): an injection becoming a delivered note, a crafted offer folded into a trusted note, secrets of shapes no pattern covers, and a `covered` judged wrongly. The gaps of the derivation ([793d35c Gaps and what is not built](./793d_technical-spec.md#793d35c-gaps-and-what-is-not-built)) are the duplicated transcript reader, the subagent compaction that empties the top-level ledger, queued work that is not persisted, and the two built behaviors without a test. The owner then decided that, within reason, the logic moves to Go and the mod becomes a thin adapter ([793b368 Within reason the logic moves to Go and the mod becomes a thin adapter](./793b_decision-log.md#793b368-within-reason-the-logic-moves-to-go-and-the-mod-becomes-a-thin-adapter)), which supersedes the green-phase choice to orchestrate in JavaScript. Building the gates added four findings: the relevance deadline sits below the judgement's 95th percentile, the redactor is quadratic, the subagent transcript is polled every 500 ms, and a near-fold writes no provenance ([793b363 Performance budgets come from the measured baselines and the spec ceilings](./793b_decision-log.md#793b363-performance-budgets-come-from-the-measured-baselines-and-the-spec-ceilings), [793b367 Two things found while the gates were built: a stale test, and a flag that does not exist](./793b_decision-log.md#793b367-two-things-found-while-the-gates-were-built-a-stale-test-and-a-flag-that-does-not-exist)).
+
+**Goals, each with a node** (the refactor-red list: `check-full` does not run them until the node that turns them green wires them in; the closing node empties this list):
+
+| Gate | Command | Red today | Turns green in |
+| --- | --- | --- | --- |
+| The mod is an adapter: owned lines | `targ check-mod-budget` | 958 against 250 (`register.js` 383 against 250; the seven other hook files have no budget) | [793e8m Logic in Go](#793e8m-logic-in-go) |
+| The mod is an adapter: no logic constructs | `targ lint-js adapter` | 87 problems | 793e8m |
+| Complexity and size of what remains | `targ lint-js complexity` | 6 findings | 793e8m |
+| JavaScript standards | `targ lint-js standards` | 1,428 problems | [793e8n JavaScript standards](#793e8n-javascript-standards) |
+| Types of the mod's tests | `targ lint-js types` | 8 errors | 793e8n |
+| Performance contract tests | `targ test-mod red perf` | 5 of 5 fail | [793e8o Performance](#793e8o-performance) |
+| Hardening contract tests | `targ test-mod red hardening` | 5 of 5 fail | [793e8p Hardening](#793e8p-hardening) |
+| Spec conformance | `targ check-spec-conformance` | 1 problem (the stated test count) | [793e8q Spec conformance and the technical specification](#793e8q-spec-conformance-and-the-technical-specification) |
+
+**Guards, probe-verified, no node:** `perf.test.ts` (6 tests), `hardening.test.ts` (20 tests), the unbudgeted-file and external-import checks of `check-mod-budget`, the `JSON.parse` of a process's `stdout` that `lint-js adapter` allows, and the requirement, support, `Verified by` and `Realization` checks of `check-spec-conformance`. They run with `claude plugin test` and the gate targets and are green; each failed under its probe.
+
+| Work | Classification | Why | Status |
+| --- | --- | --- | --- |
+| JavaScript standards gate: `eslint.config.js` and `tsconfig.json` in `dev/acceptance`, the declaration of the test kit, the pinned dev dependencies, `prune-go-sources.js`, `targ lint-js standards` and `types` | Setup (goal, red) | [793b364 The complexity limits and the lint rules follow the Go configuration](./793b_decision-log.md#793b364-the-complexity-limits-and-the-lint-rules-follow-the-go-configuration) | Not started |
+| Complexity and adapter gates: `eslint.complexity.config.js`, `eslint.adapter.config.js` and `targ lint-js complexity` and `adapter` | Setup (goal, red) | 793b364 and [793b368 Within reason the logic moves to Go and the mod becomes a thin adapter](./793b_decision-log.md#793b368-within-reason-the-logic-moves-to-go-and-the-mod-becomes-a-thin-adapter) | Not started |
+| Adapter budget gate: `gates/budgets.json`, the owned-lines count and `targ check-mod-budget` | Setup (goal, red) | [793b366 The adapter budget is the wiring counted in register.js, the relay loop and a margin](./793b_decision-log.md#793b366-the-adapter-budget-is-the-wiring-counted-in-registerjs-the-relay-loop-and-a-margin) | Not started |
+| Performance gates: `tests/perf.test.ts` (guards) and `tests/perf.red.ts` (goals), the shared stub `tests/world.ts`, `targ test-mod` | Setup (goal, red, and guards) | [793b363 Performance budgets come from the measured baselines and the spec ceilings](./793b_decision-log.md#793b363-performance-budgets-come-from-the-measured-baselines-and-the-spec-ceilings) | Not started |
+| Hardening gates: `tests/hardening.test.ts` (guards) and `tests/hardening.red.ts` (goals) | Setup (goal, red, and guards) | [793b362 The queued-work file is chosen by its red test](./793b_decision-log.md#793b362-the-queued-work-file-is-chosen-by-its-red-test) | Not started |
+| Spec-conformance gate: `gates/spec.js` and `targ check-spec-conformance` | Setup (goal, red, and guards) | the specs 793d22 onward against the tests, the product spec and the code | Not started |
+| `targ refactor-red` and the record of every classification and probe in 793b361 | Setup | one table of the gates; the record is the owner's acceptance rule | Not started |
+
+### 793e8m Logic in Go
+
+Status: Not started (gate: `targ check-mod-budget`, `targ lint-js adapter`, `targ lint-js complexity`).
+
+Owner decision (Joe, 2026-10-14, [793b368 Within reason the logic moves to Go and the mod becomes a thin adapter](./793b_decision-log.md#793b368-within-reason-the-logic-moves-to-go-and-the-mod-becomes-a-thin-adapter)): within reason, most meaningful logic moves to Go, where the controls are stronger. The mod becomes a thin adapter: event wiring, `$` API calls (context channels, `ui.status`, the clock, `fs` and `process`, and the `model.complete` relay) and nothing else. Decisions move into the Go binary behind the existing dependency-injection pattern: moment detection, presence and relevance filtering, window building, redaction, reconcile and write, backlog selection, curation outcomes, summary counts and failure classification, and the strict parsing of every model reply. Go cannot call `$.model.complete`, so the stateless `need` and `done` round protocol of [793b197 The Go side is stateless and advances a job one round per call](./793b_decision-log.md#793b197-the-go-side-is-stateless-and-advances-a-job-one-round-per-call) returns: `engram auto run` reads one JSON job on standard input, does the Go-side work up to the next model request or the end, and writes one result, `need` (the requests to relay and an opaque state to send back with the answers) or `done`; the mod relays a request and its answer as opaque strings, keeps the opaque state it is handed and never reads it. The acceptance suite is the invariant: no scenario changes and every one that is green stays green.
+
+Red gates (all goals, seen red on the real code): `targ check-mod-budget` (958 owned lines against 250: `register.js` 383 against 250, and the seven other hook files have no budget, so they fail until they are gone or the owner gives a pure helper a row), `targ lint-js adapter` (87 problems: 60 `no-restricted-syntax` for regular expressions and `JSON.parse` of anything but a process's output, 17 `complexity` over 5, 4 `no-restricted-imports` for a module other than `register.js` that imports, 3 `max-statements`, 2 `max-params`, 1 `max-depth`) and `targ lint-js complexity` (6 findings, subsumed). The budget is derived in [793b366 The adapter budget is the wiring counted in register.js, the relay loop and a margin](./793b_decision-log.md#793b366-the-adapter-budget-is-the-wiring-counted-in-registerjs-the-relay-loop-and-a-margin).
+
+**Re-estimate of the Go side** (the green-phase estimate of [793e2f Estimated owned code](#793e2f-estimated-owned-code) had no Go for the logic). About 796 owned JavaScript lines of logic move (958 less the 162 of wiring). Dependency injection costs about twice the lines, so the Go production code is about 1,600 lines of `internal/auto` and about 150 of the `engram auto` target in `internal/cli` and its wiring in `cmd/engram`; its tests, at the 1.8 to 2.2 ratio of the earlier Go draft in 793e2f, are about 2,900 to 3,500 lines of logic tests and about 300 of target tests, with imptest for the injected boundaries and gomega, and the repository gates (`check-full`: coverage, nil analysis, thin API, lint) apply to all of it. The mod falls to at most 250 JavaScript lines and its contract tests to about 150 to 250 TypeScript lines (the wiring and the relay loop). Total: about 1,750 Go production and 3,200 to 3,800 Go test lines added, 700 JavaScript production lines and about 1,800 TypeScript test lines removed. The cost of the acceptance runs is the earlier one: about 2 USD for a full run, the node's scenarios after each step and the full suite at completion.
+
+| Gate | Classification | Why |
+| --- | --- | --- |
+| `check-mod-budget`: the hooks hold at most 250 owned lines, all in `register.js`, with no external import | Refactor (gate: goal) | the mod is an adapter |
+| `lint-js adapter`: 0 problems | Refactor (gate: goal) | no regular expression, no `JSON.parse` of a model reply, no import outside `register.js`, straight-line functions |
+| `lint-js complexity`: 0 findings | Refactor (gate: goal) | follows from the move; kept as the limit of what remains |
+
+| Work | Classification | Why | Status |
+| --- | --- | --- | --- |
+| The walking skeleton: `engram auto run` with the `need` and `done` rounds, the relay loop in the mod, one job kind through both; Go contract test first | Refactor | the protocol every later step uses; thin `cmd/engram`, logic in `internal/auto` behind injected interfaces, per `AGENTS.md` | Not started |
+| Move, one family at a time: failure classification and the warning; moment detection, the step cue, presence and relevance, the block; the window, redaction, reconcile and write; the activity counts and line; curation; the backlog; the queue. For each: the Go contract test first and seen red, then the Go code, then the JavaScript and its mod tests deleted, then the family's acceptance scenarios green | Refactor | behavior is fixed; each step is small enough to back out; the duplicated transcript reader of [793d35c Gaps and what is not built](./793d_technical-spec.md#793d35c-gaps-and-what-is-not-built) goes with the backlog and the window, by calling the Transcript Reader | Not started |
+| Port the contracts of the red gates of [793e8o Performance](#793e8o-performance) and [793e8p Hardening](#793e8p-hardening) that move with their logic to Go tests with the same budgets, under the build tag `refactorred` until their node turns them green (as the live suite has its own tag, [793b260](./793b_decision-log.md#793b260-the-live-suite-has-its-own-build-tag-acceptance-and-check-full-never-runs-it)); the JavaScript twin is retired when its Go twin exists | Refactor | the contracts survive the move; the Go twin of a quadratic redactor is linear because RE2 is, which is recorded, not assumed | Not started |
+| The three gates are in `check-full` and leave the refactor-red list | Setup | the gates stay green after the node | Not started |
+
+### 793e8n JavaScript standards
+
+Status: Not started (gate: `targ lint-js standards`, `targ lint-js types`).
+
+Red gate: `targ lint-js standards` (eslint, 1,428 problems: 621 `max-len`, 407 `no-explicit-any`, 225 `id-length`, 127 `no-magic-numbers`, 48 in nine other rules) and `targ lint-js types` (`tsc --noEmit`, 8 errors). The node follows [793e8m Logic in Go](#793e8m-logic-in-go), so the mod it fixes is the adapter and its tests, and the harness and the probes. Verification: those two targets pass; `claude plugin test` and `npm test` pass; `targ acceptance` green (the change is style, names and types, so the full suite runs once at completion); `targ check-full`. Invariant: the acceptance suite stays green.
+
+| Work | Classification | Why | Status |
+| --- | --- | --- | --- |
+| `lint-js standards` reports 0 problems with no rule disabled, no `eslint-disable` and no change to `eslint.config.js` other than by the owner | Refactor (gate: goal) | the Go rule that nothing is suppressed: a rule that is wrong is raised to the owner | Not started |
+| `lint-js types` reports 0 errors, the test kit's declaration typing what the tests use | Refactor (gate: goal) | the five implicit-`any` and `delete` errors of `tiers.test.ts` and the three unused declarations are defects of the tests | Not started |
+| The unused technical-spec path of the extractor is removed ([793b367](./793b_decision-log.md#793b367-two-things-found-while-the-gates-were-built-a-stale-test-and-a-flag-that-does-not-exist)) | Refactor | nothing reads the technical spec for scenarios any more | Not started |
+| `lint-js standards` and `types` are in `check-full` and leave the refactor-red list | Setup | the gate stays green after the node | Not started |
+
+### 793e8o Performance
+
+Status: Not started (gate: `targ test-mod red perf`).
+
+Red gate: `targ test-mod red perf` (5 of 5 fail): the relevance deadline of 3.00 s against a 95th percentile of 3.44 s (a prompt and an in-turn cue at that percentile deliver nothing and warn the user), the subagent capture that begins 500 ms after a stop whose transcript completes at 100 ms (budget 200 ms), the redactor at 1,363 ms on 12,000 unbroken characters and 1,561 ms on 15,000 characters of wrapped lines (budget 200 ms each). The six guards of `perf.test.ts` stay green: the hold on a prompt at the median (2.56 s plus 80 ms), the 8 s ceiling, the 7 s hold on a tool result, the cue at its median, turn end to summary (2.96 s plus 80 ms). The node follows [793e8m Logic in Go](#793e8m-logic-in-go): the contracts that moved are Go tests of the same budgets, and the work below is done on whichever side the logic lives. Latencies are stubs on the mock clock from the baselines of [793b363 Performance budgets come from the measured baselines and the spec ceilings](./793b_decision-log.md#793b363-performance-budgets-come-from-the-measured-baselines-and-the-spec-ceilings); the redactor's time is real. After the work the numbers are measured again and recorded here. Verification: `targ test-mod red perf` passes and the file is renamed to `perf.test.ts`; `targ acceptance` (793a2n, 793a4b, 793a4j, then the full suite once); `targ check-full`. Invariant: the acceptance suite stays green.
+
+| Gate | Classification | Why |
+| --- | --- | --- |
+| `perf.red.ts`: a prompt at the 95th percentile still gets its note within 8 s | Dedicated example (mod contract, goal) | the judgement's deadline must not sit below its own 95th percentile, and the lookup and judgement deadlines together stay at the 8 s of [793d22b3 Failure containment](./793d_technical-spec.md#793d22b3-failure-containment) |
+| `perf.red.ts`: the in-turn cue at the 95th percentile still delivers within 7 s | Dedicated example (mod contract, goal) | the same deadline on the cue's path |
+| `perf.red.ts`: a transcript complete 100 ms after the stop is captured at once | Dedicated example (mod contract, goal) | a poll of 500 ms adds up to 500 ms to every subagent capture |
+| `perf.red.ts`: a 12,000-character run is redacted within 200 ms | Dedicated example (mod contract, goal) | one pasted blob must not hold every hook of the session |
+| `perf.red.ts`: 15,000 characters of wrapped lines are redacted within 200 ms | Dedicated example (mod contract, goal) | same |
+
+| Work | Classification | Why | Status |
+| --- | --- | --- | --- |
+| Make the five pass without changing a budget; rename the file to `perf.test.ts`; put `test-mod` in `check-full` and take performance off the refactor-red list | Refactor | [Technical Spec Guide Refactor Checklist](../../TECHNICAL-SPEC-GUIDE.md#refactor-checklist): a budget exceeded before the work and met after | Not started |
+
+### 793e8p Hardening
+
+Status: Not started (gate: `targ test-mod red hardening`).
+
+Red gate: `targ test-mod red hardening` (5 of 5 fail): queued work is not written before the event returns, a queue left by an ended session is not run at the next start, a failed capture is not kept (the contract is [793b362 The queued-work file is chosen by its red test](./793b_decision-log.md#793b362-the-queued-work-file-is-chosen-by-its-red-test)); a subagent's compaction empties the main agent's ledger and leaves its own (the gap of [793d24b2 Presence and ledgers](./793d_technical-spec.md#793d24b2-presence-and-ledgers)). The 20 guards of `hardening.test.ts` stay green: one per mitigation of [793d19a Security](./793d_technical-spec.md#793d19a-security) (provenance, offers folded and never discarded outright except `rejected`, data framing, the activity line, 11 secret shapes), the compaction of the main agent, and the two behaviors that had no test (the task-notification summary text and the age limit of an unfinished step job). The node follows [793e8m Logic in Go](#793e8m-logic-in-go): the contracts that moved are Go tests with the same meaning, and the persisted queue is Go state. Verification: `targ test-mod red hardening` passes (or its Go twin) and the file is renamed to `hardening.test.ts`; `targ acceptance` (793a3a, 793a2e, 793a4b, then the full suite once); `targ check-full`. Invariant: the acceptance suite stays green.
+
+| Gate | Classification | Why |
+| --- | --- | --- |
+| `hardening.red.ts`: a capture is queued in the file before the turn returns | Dedicated example (mod contract, goal) | a final turn is lost on exit today |
+| `hardening.red.ts`: a capture left by an ended session is captured at the next start | Dedicated example (mod contract, goal) | the file is read at `classic.SessionStart` |
+| `hardening.red.ts`: a capture that fails stays in the file for the next session | Dedicated example (mod contract, goal) | a failure keeps the job; success removes it |
+| `hardening.red.ts`: compacting a subagent leaves the notes of the main agent delivered | Dedicated example (mod contract, goal) | `session.compact` with `agentId` clears that agent's ledger only |
+| `hardening.red.ts`: a compacted subagent is delivered again the notes it lost | Dedicated example (mod contract, goal) | same |
+
+| Work | Classification | Why | Status |
+| --- | --- | --- | --- |
+| Make the five pass; rename the file to `hardening.test.ts`; put `test-mod` in `check-full` and take hardening off the refactor-red list | Refactor | the gaps of the derivation, each with a test that failed first | Not started |
+| Write the red test for the provenance of a near-fold (it needs a flag on `engram amend`, a Go change with its own tests), then make it pass | Refactor | [793b367](./793b_decision-log.md#793b367-two-things-found-while-the-gates-were-built-a-stale-test-and-a-flag-that-does-not-exist): the mitigation of 793d19a does not cover that write | Not started |
+
+### 793e8q Spec conformance and the technical specification
+
+Status: Not started (gate: `targ check-spec-conformance`).
+
+Red gate: `targ check-spec-conformance` (1 problem: the reading guide of [793d21a Orientation](./793d_technical-spec.md#793d21a-orientation) states 142 contract tests and the mod has 168). It also holds the guards that the 32 requirements each have a `Supports` and a `Verified by` line, that all 43 scenarios are supported, that every cited test exists and passes, and that every `Realization` file and function exists; those drift red as the refactor moves code, which is how the rewrite is forced. Verification: the target passes; the lifecycle checklist and the specification checklist of `docs/AGENTS.md` pass; `python3` link check of the change directory is clean; `targ acceptance` full once; `targ check-full`. Invariant: the acceptance suite stays green.
+
+| Work | Classification | Why | Status |
+| --- | --- | --- | --- |
+| Rewrite [793d21 System technical specification from the proof of concept](./793d_technical-spec.md#793d21-system-technical-specification-from-the-proof-of-concept) to [793d35 Traceability and gaps](./793d_technical-spec.md#793d35-traceability-and-gaps) from the refactored system: components where the refactor made them, every requirement with its direct contract test, each hypothesis conclusion as a `Rationale:` line under the requirements it justifies | Refactor (gate: goal) | [Specification Lifecycle Guide](../../SPECIFICATION-LIFECYCLE-GUIDE.md#change-phases): the specs are written from the refactored system | Not started |
+| `check-spec-conformance` reports 0 problems; it is in `check-full` and the refactor-red list is empty | Setup | the gate stays green; the closing node needs the list empty | Not started |
+
+### 793e8r Refactor review and promotion
+
+Status: Not started (gate: the empty refactor-red list and the full acceptance run).
+
+One agent review round of the refactored system and its specs, then the owner walkthrough ([Decisions and Open Questions](../../AGENTS.md#decisions-and-open-questions)), then atomic promotion ([Specification Lifecycle Guide](../../SPECIFICATION-LIFECYCLE-GUIDE.md#atomic-promotion)): the product and technical deltas applied to `docs/specs/`, links and IDs validated, and this change directory deleted in the same integration. Verification: the refactor-red list is empty and every gate is in `check-full`; `targ acceptance` full run green; `targ check-full` passes. Invariant: the acceptance suite stays green.
+
+| Work | Classification | Why | Status |
+| --- | --- | --- | --- |
+| Refactor review, one round; its findings answered in the decision log | Review | [Specification Lifecycle Guide](../../SPECIFICATION-LIFECYCLE-GUIDE.md#change-phases): the refactor review precedes promotion | Not started |
+| Owner walkthrough of the decisions marked "awaiting owner validation" | Review | the owner's time is one walkthrough | Not started |
+| Promotion to `docs/specs/product/` and `docs/specs/technical/`, and removal of `docs/changes/793_parallel-memory-agent/` | Setup | atomic promotion | Not started |
+
 ## 793e9 Completion gates
 
 - **Product coverage.** `targ acceptance` runs all 43 scenarios of the product spec (51 runs counting outline examples) and each ends Green, `Not run (reason)` or `Substituted: product promise unverified` ([793e2h Results](#793e2h-results)); none is Red, undefined or ambiguous. The report lists every retried precondition, every `Not run` row and every `Substituted` row, and the product promise counts as verified only for the Green rows. The only reason for a skip is the absence of the `claude` CLI.
@@ -539,5 +687,6 @@ Result (2026-10-13, Claude Code 2.1.296, this machine): the replay made 4,956 ca
 - **Real dependency coverage.** The mod runs under `claude plugin validate` and `claude plugin test`; the update runs against a real temporary home; [sessions](../../GLOSSARY.md#session) are real. The update's `go install` leg is covered by the existing unit tests named in [793e2b Harness architecture](#793e2b-harness-architecture), not by acceptance.
 - **Full suite.** `targ check-full` passes, including the cheap `TestIntegration...` checks, and `targ test` passes; the full live suite is green at the completion of each node and at each convergence point; `go build -o <tmp>/bin/engram ./cmd/engram` builds; nothing was installed with `go install` or written outside temporary homes, and the token was never printed.
 - **Valid and invalid paths.** The failure scenarios show the session unchanged and a warning in the stream's status messages; the install scenarios show a preview that writes nothing and a second update that changes nothing.
+- **Refactor.** Every gate of [793e8l Red gates](#793e8l-red-gates) was seen red, each goal is green under the budget or limit it was red under, each guard is probe-verified, the refactor-red list is empty and every gate is in `check-full`, and the full `targ acceptance` run is green.
 - **Status.** Every catalog entry is `Done` and every graph node is `Merged`.
 - **Specification promotion.** The product and technical deltas are applied to their canonical specifications without changing a stable ID, every canonical technical requirement keeps valid product-scenario references, and the change directory is deleted in the same merge as the implementation, per the lifecycle guide.
