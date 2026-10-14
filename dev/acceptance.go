@@ -20,9 +20,6 @@ const (
 	acceptanceModules  = "node_modules"
 	acceptancePlanSize = 3 // npm ci, self-tests, run
 	acceptanceRunEntry = "run.js"
-	h1ReportEntry      = "h1/report.js"
-	h1ReportPlanSize   = 2 // npm ci, report
-	h1ReportWriteFlag  = "--write"
 	nodeProgram        = "node"
 	npmProgram         = "npm"
 )
@@ -110,32 +107,6 @@ func acceptanceRoot() (string, error) {
 	}
 }
 
-// h1ReportPlan returns the commands of one targ h1-report run (793e8i): the install of the package's dependencies when
-// they are missing, then the report of the H1 probes' observations, saved beside them.
-func h1ReportPlan(env acceptanceEnv) ([]acceptanceCommand, error) {
-	for _, program := range []string{nodeProgram, npmProgram} {
-		_, err := env.LookPath(program)
-		if err != nil {
-			return nil, fmt.Errorf(
-				"%w: `%s` (%s needs it: install it, then run targ h1-report again)",
-				errAcceptanceProgram, program, acceptanceDir,
-			)
-		}
-	}
-
-	dir := filepath.Join(env.Root, acceptanceDir)
-	plan := make([]acceptanceCommand, 0, h1ReportPlanSize)
-
-	if !env.Exists(filepath.Join(dir, acceptanceModules)) {
-		plan = append(plan, acceptanceCommand{Name: npmProgram, Args: []string{"ci", "--prefix", dir}})
-	}
-
-	return append(plan, acceptanceCommand{
-		Name: nodeProgram,
-		Args: []string{filepath.Join(dir, h1ReportEntry), h1ReportWriteFlag},
-	}), nil
-}
-
 // requireAcceptancePrograms rejects a combination of arguments that cannot run, and names the first program the run
 // needs that is not on PATH: claude only for a live run.
 func requireAcceptancePrograms(args acceptanceArgs, lookPath func(string) (string, error)) error {
@@ -169,36 +140,6 @@ func runAcceptance(ctx context.Context, args acceptanceArgs) error {
 	}
 
 	plan, err := acceptancePlan(args, acceptanceEnv{
-		Root:     root,
-		LookPath: exec.LookPath,
-		Exists: func(path string) bool {
-			_, statErr := os.Stat(path)
-
-			return statErr == nil
-		},
-	})
-	if err != nil {
-		return err
-	}
-
-	for _, step := range plan {
-		runErr := targ.RunContext(ctx, step.Name, step.Args...)
-		if runErr != nil {
-			return fmt.Errorf("running %s %v: %w", step.Name, step.Args, runErr)
-		}
-	}
-
-	return nil
-}
-
-// runH1Report runs the plan of h1ReportPlan from the repository root, streaming each command's output.
-func runH1Report(ctx context.Context) error {
-	root, err := acceptanceRoot()
-	if err != nil {
-		return err
-	}
-
-	plan, err := h1ReportPlan(acceptanceEnv{
 		Root:     root,
 		LookPath: exec.LookPath,
 		Exists: func(path string) bool {

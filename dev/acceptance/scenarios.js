@@ -52,8 +52,8 @@ const TARG_PI_SESSION = {
 }
 
 export default {
-  // 793e8i: the H1 scenarios are live experiments (h1/, steps/h1.js): their inputs are the scripted sessions of h1/tours.js,
-  // so an entry here only marks a scenario as built.
+  // 793e8i: the H1 scenarios are live experiments (h1/, steps/h1.js, kept under ENGRAM_EVAL_DIR since 793b343): their inputs
+  // are the scripted sessions of h1/tours.js, so an entry here only marks a scenario as built.
   ...Object.fromEntries(['a1a', 'a1b', 'a1c', 'b1a', 'c1a', 'c1b', 'c1c', 'd1a', 'e1a', 'e1b', 'f1a'].map((id) => [`793d17${id}`, { h1: true }])),
 
   '793a5k1e': {

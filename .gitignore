@@ -66,3 +66,7 @@ node_modules/
 /dev/eval/cumulative/.links/
 /dev/eval/cumulative/notes.db
 __pycache__/
+
+# One-time hypothesis-eval artifacts (793b343): they live under ENGRAM_EVAL_DIR, never in the repository
+/dev/acceptance/h1/
+/dev/acceptance/h2/

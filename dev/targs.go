@@ -40,7 +40,7 @@ func init() {
 		Name("engram-dev").
 		Description("Engram dev target registration"))
 
-	targ.Register(testDevTarget, testDevIntegrationTarget, acceptanceTarget, h1ReportTarget)
+	targ.Register(testDevTarget, testDevIntegrationTarget, acceptanceTarget)
 
 	targ.Register(targ.Targ(runEval).
 		Name("eval").
@@ -88,9 +88,7 @@ var (
 			targdev.DeleteDeadcode, targdev.Fmt, targdev.Tidy, targdev.Modernize, checkNilsTarget,
 			targdev.CheckCoverage, targdev.ReorderDecls, targdev.Lint, targdev.CheckThinAPI, lintDevTarget,
 		)
-	errEvalUsage   = errors.New("usage: targ eval <arm> [trials]  (nothing|skills-only|current-state)")
-	h1ReportTarget = targ.Targ(runH1Report).Name("h1-report").
-			Description("Report the H1 probes' observations: capability table, surface counts, ledger and verdict (793e8i)")
+	errEvalUsage  = errors.New("usage: targ eval <arm> [trials]  (nothing|skills-only|current-state)")
 	lintDevTarget = targ.Targ(lintDev).Name("lint-dev").
 			Description("Lint the dev package's build-tagged files (targ, integration)")
 	// mutateTarget reuses Targ's mutation run behind Engram's check-for-fail, as Targ's runs behind its own (794b4a).
