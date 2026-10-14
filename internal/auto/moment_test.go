@@ -118,7 +118,7 @@ func Test793d23b2_AClassificationThatNamesNoMomentMakesNoQueryAndDeliversNothing
 	g.Expect(world.Warnings).To(BeEmpty())
 }
 
-func Test793d23b2_AStepThatRunsMemoryItselfStartsNoJob(t *testing.T) {
+func Test793d23b2_AStepThatRunsMemoryItselfEndsWithNoNoteAndMakesNoModelCallOrCommand(t *testing.T) {
 	t.Parallel()
 
 	cases := map[string]map[string]any{
@@ -175,7 +175,7 @@ func Test793d23b2_AStepWithTextAndAToolCallIsClassifiedOnceAndItsNoteRidesTheNex
 	g.Expect(world.Counts.Delivered).To(Equal(1))
 }
 
-func Test793d23b2_ATurnThatBeganWithAMemoryCommandStartsNoJob(t *testing.T) {
+func Test793d23b2_ATurnThatBeganWithAMemoryCommandEndsWithNoNoteAndMakesNoModelCallOrCommand(t *testing.T) {
 	t.Parallel()
 
 	for _, prompt := range []string{"/recall tagging a release", "  /learn this", "please run engram query now"} {

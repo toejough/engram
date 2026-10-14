@@ -9,6 +9,9 @@ const STDERR_CHARS = 200
 // older than the deadline is dropped
 const HOLD_MS = 7000
 const STEP_DEADLINE_MS = 25000
+// an event waits for a job that holds it (a prompt, a tool result of route, a subagent's start) this long at most; the
+// declared deadlines of the engine's commands are within it (793d36b3)
+const HOOK_DEADLINE_MS = 8000
 // the steps a failure is reported against (793a4b)
 const STEP = {
   prompt: 'the prompt lookup',
@@ -72,19 +75,25 @@ function absorb($, out) {
 }
 
 // relay runs a job to its end (793b197): one round of `engram auto run` after another, each with the replies of the
-// model to the requests of the one before, which are relayed as they came and the replies as they were.
-async function relay($, job) {
+// model to the requests of the one before, which are relayed as they came and the replies as they were. A job whose
+// hold has passed (its `cut` is set) starts no further round.
+async function relay($, job, hold = { cut: false }) {
   let input = job
   for (let round = 0; round < MAX_ROUNDS; round += 1) {
-    const result = await $.process.run(['engram', 'auto', 'run'], { stdin: JSON.stringify(input), timeoutMs: ROUND_MS })
-    if (result.exitCode !== 0)
-      throw new Error(`engram auto run exited ${result.exitCode}: ${result.stderr.slice(0, STDERR_CHARS)}`)
-    const out = JSON.parse(result.stdout)
+    const out = await roundOf($, input, hold)
     absorb($, out)
     if (out.done) return out.done
     input = { ...job, state: out.state, answers: await answers($, out) }
   }
   throw new Error('the job did not end')
+}
+
+async function roundOf($, input, hold) {
+  if (hold.cut) throw new Error(`engram auto run still running after ${HOOK_DEADLINE_MS} ms`)
+  const result = await $.process.run(['engram', 'auto', 'run'], { stdin: JSON.stringify(input), timeoutMs: ROUND_MS })
+  if (result.exitCode !== 0)
+    throw new Error(`engram auto run exited ${result.exitCode}: ${result.stderr.slice(0, STDERR_CHARS)}`)
+  return JSON.parse(result.stdout)
 }
 
 async function answers($, out) {
@@ -94,11 +103,24 @@ async function answers($, out) {
   return replies
 }
 
-// hooked runs a job that reads and writes the ledger, one at a time, in the order the events came.
+// within gives up on a job that has not ended within the hold of the event (793d22b3): the event goes on as received.
+async function within($, work, hold) {
+  work.catch(() => undefined)
+  const expired = Symbol('expired')
+  const outcome = await Promise.race([work, $.clock.sleep(HOOK_DEADLINE_MS).then(() => expired)])
+  if (outcome !== expired) return outcome
+  hold.cut = true
+  throw new Error(`engram auto run still running after ${HOOK_DEADLINE_MS} ms`)
+}
+
+// hooked runs a job that reads and writes the ledger, one at a time, in the order the events came, and holds the
+// event for it HOOK_DEADLINE_MS at most.
 function hooked($, job) {
-  const done = mod.hooks.then(() =>
-    relay($, { ...job, ledger: mod.ledger, lastPrompt: mod.lastPrompt, transcript: mod.transcript }),
+  const hold = { cut: false }
+  const waiting = mod.hooks.then(() =>
+    relay($, { ...job, ledger: mod.ledger, lastPrompt: mod.lastPrompt, transcript: mod.transcript }, hold),
   )
+  const done = within($, waiting, hold)
   mod.hooks = done.then(
     (end) => {
       mod.ledger = end.ledger

@@ -96,6 +96,56 @@ describe('the relay of a job (793b197)', () => {
   }
 })
 
+describe('the hold of an event (793d22b3)', () => {
+  const LOOKUP_SILENT = (job: Job, call: number): Promise<Answer> | Answer =>
+    job.kind === 'lookup' && call === 1 ? new Promise<Answer>(() => {}) : { done: { block: BLOCK } }
+
+  test(
+    '793d22b3 a job that holds the prompt past 8 s is cut: the prompt goes on as typed, the user is told, ' +
+      'and the next prompt is served',
+    async ($: Driver, on: On) => {
+      const { clock, jobs, shown } = world(on, { engine: LOOKUP_SILENT })
+      const submitted = $.prompt.submit(PROMPT)
+      await clock.advance(7999)
+      expect(shown).toEqual([])
+      await clock.advance(1)
+      const result = await submitted
+      expect(result.text).toBe(PROMPT.text)
+      expect(result.context ?? []).toEqual([])
+      expect(shown).toEqual(['Automatic memory was skipped because the System timed out (the prompt lookup)'])
+      const next = await $.prompt.submit(PROMPT)
+      expect(next.context).toEqual([BLOCK])
+      expect(jobs.filter((job) => job.kind === 'lookup').length).toBe(2)
+    },
+  )
+
+  test('793d22b3 a job that ends within 8 s is not cut, and no timer keeps it waiting', async ($: Driver, on: On) => {
+    const { clock, shown } = world(on, { engine: () => ({ done: { block: BLOCK } }) })
+    const result = await $.prompt.submit(PROMPT)
+    expect(result.context).toEqual([BLOCK])
+    await clock.advance(8000)
+    expect(shown).toEqual([])
+  })
+
+  test(
+    '793d22b3 a round that would start after the cut is not started',
+    async ($: Driver, on: On) => {
+      let rounds = 0
+      const slow = async (): Promise<Answer> => {
+        rounds += 1
+        return { requests: [], waitMs: 5000, state: ['s'] }
+      }
+      const { clock, shown } = world(on, { engine: slow })
+      const submitted = $.prompt.submit(PROMPT)
+      await clock.advance(8000)
+      await submitted
+      await clock.advance(20000)
+      expect(shown.length).toBe(1)
+      expect(rounds).toBe(2)
+    },
+  )
+})
+
 describe('the moments (793d22b1)', () => {
   test(
     'the ledger the engine hands back goes with the next ' + 'job, and a compaction is a job of its own',

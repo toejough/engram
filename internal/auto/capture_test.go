@@ -128,6 +128,23 @@ func Test793d25b2_ThePromptNamesTheExactKeysOfEachKindAndShowsOneLessonOfEach(t 
 	g.Expect(prompt).To(ContainSubstring(`{"kind":"fact","slug":`))
 }
 
+func Test793d25b3_ALessonWhoseSlugAnEarlierLessonOfTheReplyHasIsSkippedAndTheReplyIsNotRefused(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := NewWorld()
+	world.Model = repliesInOrder(lessonsText(
+		lessonWith(nil),
+		lessonWith(map[string]any{"action": "use targ check"}),
+		lessonWith(map[string]any{"slug": "another-lesson"}),
+	))
+
+	world.Do(t, captureOf(turnMessages()))
+
+	g.Expect(writes(world)).To(Equal([]string{"learn", "learn"}))
+	g.Expect(world.Warnings).To(BeEmpty())
+}
+
 func Test793d25b3_AReplyIsReadStrictlyAndAnythingElseWritesNothing(t *testing.T) {
 	t.Parallel()
 
