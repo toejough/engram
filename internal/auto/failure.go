@@ -17,7 +17,7 @@ const (
 	deadlineCommand = 30 * time.Second
 	deadlineIngest  = 300 * time.Second
 	deadlineLookup  = 25 * time.Second
-	deadlineMoment  = 5 * time.Second
+	deadlineMoment  = 2 * time.Second
 	errorLimit      = 200
 	kindError       = "error"
 	kindTimeout     = "timeout"

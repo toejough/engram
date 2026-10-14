@@ -81,12 +81,10 @@ func Test793d26b1_ASecretInTheWindowNeverReachesTheJudgement(t *testing.T) {
 	g.Expect(world.Requests[0].Prompt).To(ContainSubstring("[redacted]"))
 }
 
-// awsKeyTail is the length of an AWS key id after its AKIA opening.
-const awsKeyTail = 16
-
 func Test793d26b1_ASecretOfAKnownShapeNeverReachesTheModelTheCommandLineOrANote(t *testing.T) {
 	t.Parallel()
 
+	awsKeyID := unmask("{{AKIA}}") + strings.Repeat("A", awsKeyTail)
 	shapes := map[string][2]string{
 		"a private key": {
 			unmask("{{-----BEGIN}} RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA0123456789abcdef\n-----END RSA PRIVATE KEY-----"),
@@ -98,7 +96,7 @@ func Test793d26b1_ASecretOfAKnownShapeNeverReachesTheModelTheCommandLineOrANote(
 		},
 		"a provider key":   {"sk-ant-api03-abcdefghijklmnopqrstuvwxyz", "abcdefghijklmnopqrstuvwxyz"},
 		"a GitHub token":   {unmask("{{ghp_}}abcdefghijklmnopqrstuvwxyz0123456789"), "abcdefghijklmnopqrstuvwxyz0123456789"},
-		"an AWS key id":    {unmask("{{AKIA}}") + strings.Repeat("A", awsKeyTail), unmask("{{AKIA}}") + strings.Repeat("A", awsKeyTail)},
+		"an AWS key id":    {awsKeyID, awsKeyID},
 		"a Google key":     {unmask("{{AIza}}SyA-abcdefghijklmnopqrstuvwxyz012345"), "abcdefghijklmnopqrstuvwxyz012345"},
 		"a Slack token":    {unmask("{{xoxb-}}1234567890-abcdefghij"), "1234567890-abcdefghij"},
 		"a bearer token":   {"Bearer abcdef.ghijkl-mnop", "abcdef.ghijkl-mnop"},
@@ -393,6 +391,7 @@ func Test793e8g_TheMarksOfAnEarlierRunAreKeptAndTheFirstRunFixesTheCutoffOnce(t 
 
 // unexported constants.
 const (
+	awsKeyTail       = 16
 	costRuns         = 3
 	defaultChunks    = "/home/t/.local/share/engram/chunks"
 	growth           = 4

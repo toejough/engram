@@ -677,11 +677,11 @@ const (
 	momentDoneCue       = `[{"moment":"declaring work done","subject":"the rename of package util to helpers"}]`
 	momentForgedLines   = 4
 	momentHoldCeiling   = 8 * time.Second
-	momentLookupLimit   = 5 * time.Second
+	momentLookupLimit   = 2 * time.Second
 	momentNotePath      = "1.2026-10-12.note-n.md"
 	momentPromptText    = "I just finished renaming the package. Is it done?"
 	momentRecentAnswer  = "The rename looks complete; I will grep for leftovers before saying it is done."
-	momentRelevanceMs   = 3000
+	momentRelevanceMs   = 5800
 	momentStepName      = "the step lookup"
 	momentStepSubject   = "the rename of package util to helpers"
 	momentTranscript    = "/home/.claude/projects/p/s.jsonl"

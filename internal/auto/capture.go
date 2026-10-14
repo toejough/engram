@@ -34,8 +34,10 @@ const (
 	nearLimit     = 8
 	needleLimit   = 40
 	partLimit     = 1200
-	pollMs        = 500
-	pollTries     = 20
+	pollFastMs    = 100
+	pollFastTries = 10
+	pollSlowMs    = 500
+	pollTries     = 29
 	recentCount   = 6
 	roleAssistant = "assistant"
 	roleUser      = "user"
@@ -133,7 +135,9 @@ func (e *engine) neighbours(items []Note) []Note {
 }
 
 // subagentJob is the capture of a subagent that stopped: its transcript file lags its stop event (SP5), so it is read
-// again until it holds the last message, or the tries are spent.
+// again until it holds the last message, or the tries are spent. The file lags its stop by about 100 ms, so the first
+// ten polls are 100 ms apart (a capture starts within 200 ms of the file being complete, 793d27b1) and the rest 500 ms
+// apart, since every poll is a round whose record holds the file it read; the patience is 10 s in all.
 func (e *engine) subagentJob() Done {
 	var file string
 
@@ -143,7 +147,7 @@ func (e *engine) subagentJob() Done {
 			break
 		}
 
-		e.wait(pollMs)
+		e.wait(pollDelay(tries))
 	}
 
 	e.capture(windowFromTranscript(file, e.job.Last), sourceFor(e.job.SessionID, e.job.Turn, e.job.Agent))
@@ -297,6 +301,15 @@ func parseLessons(text string, near []Note) []Lesson {
 	}
 
 	return lessons
+}
+
+// pollDelay is the wait after the given try of a subagent's transcript.
+func pollDelay(tries int) int {
+	if tries <= pollFastTries {
+		return pollFastMs
+	}
+
+	return pollSlowMs
 }
 
 // queryText is what the nearest notes are looked up with: what the user said first, then the rest.

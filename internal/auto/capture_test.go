@@ -221,6 +221,7 @@ func Test793d27b1_ASubagentTranscriptThatIsNotThereIsPolledAndThenNothingIsJudge
 	world.Do(t, subagentJob())
 
 	g.Expect(world.Waits).To(HaveLen(pollTriesInJobs - 1))
+	g.Expect(pollPatienceMs(world.Waits)).To(Equal(pollPatienceTotalMs))
 	g.Expect(world.Commands).To(BeEmpty())
 	g.Expect(world.Requests).To(BeEmpty())
 }
@@ -237,6 +238,7 @@ func Test793d27b1_ASubagentTranscriptThatNeverHoldsTheLastMessageIsJudgedWithItA
 
 	g.Expect(world.Waits).To(HaveLen(pollTriesInJobs - 1))
 	g.Expect(world.Waits[0]).To(Equal(pollDelayMs))
+	g.Expect(world.Waits[len(world.Waits)-1]).To(Equal(pollSlowDelayMs))
 	g.Expect(world.Requests).To(HaveLen(1))
 	g.Expect(windowOf(world.Requests[0].Prompt)).To(Equal([]string{"User: " + subagentFirst, "Agent: " + subagentLast}))
 }
@@ -500,13 +502,15 @@ items:
 
 clusters:
 `
-	pollDelayMs     = 500
-	pollTriesInJobs = 20
-	subagentFile    = "/home/.claude/projects/p/s/subagents/a1.jsonl"
-	subagentFirst   = "I ran go test. No, run targ test, not go test. Acknowledge."
-	subagentLast    = "Noted: targ test."
-	tooManyLessons  = 11
-	turnAnswer      = "Understood, I will use targ."
+	pollDelayMs         = 100
+	pollPatienceTotalMs = 10000
+	pollSlowDelayMs     = 500
+	pollTriesInJobs     = 29
+	subagentFile        = "/home/.claude/projects/p/s/subagents/a1.jsonl"
+	subagentFirst       = "I ran go test. No, run targ test, not go test. Acknowledge."
+	subagentLast        = "Noted: targ test."
+	tooManyLessons      = 11
+	turnAnswer          = "Understood, I will use targ."
 )
 
 // unexported variables.
@@ -540,6 +544,17 @@ func lessonWith(change map[string]any) map[string]any {
 }
 
 func lessonsText(lessons ...map[string]any) string { return string(asJSON(lessons)) }
+
+// pollPatienceMs is the time a subagent job waits for its transcript in all.
+func pollPatienceMs(waits []int) int {
+	total := 0
+
+	for _, wait := range waits {
+		total += wait
+	}
+
+	return total
+}
 
 // repliesInOrder answers the capture judgements with the texts, one after the other, the last one repeated.
 func repliesInOrder(texts ...string) func(string, auto.Request) map[string]any {

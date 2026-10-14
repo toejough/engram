@@ -414,6 +414,14 @@ func Test793d30b1_TheLineIsBuiltFromConstantsAndCounts(t *testing.T) {
 	})
 }
 
+// unexported variables.
+var (
+	secretPrefixes = []string{
+		"AKIA", "ASIA", "AIza", "eyJ", "ghp_", "github_pat_", "glpat-", "npm_", "pk_live_", "rk-", "sk-", "xoxb-",
+		"-----BEGIN",
+	}
+)
+
 // The golden files are what the JavaScript the logic replaced answered for a corpus of inputs (793e8m): the Go port
 // must answer the same, byte for byte, for every input of every file.
 type golden struct {
@@ -499,16 +507,9 @@ func load(t *testing.T, name string) []golden {
 // text is the string a golden answer holds.
 func text(want golden) string { return convert[string](want.Out) }
 
-// secretPrefixes are the openings of the secret shapes the redactor knows. A fixture never spells one out:
-// a secret scanner reads a committed file by these shapes. The fixtures hold {{prefix}} and the test expands it.
-var secretPrefixes = []string{ //nolint:gochecknoglobals // read-only table of the fixture placeholders
-	"AKIA", "ASIA", "AIza", "eyJ", "ghp_", "github_pat_", "glpat-", "npm_", "pk_live_", "rk-", "sk-", "xoxb-",
-	"-----BEGIN",
-}
-
 // unmask expands the {{prefix}} placeholders of a fixture into the secret-shaped text the test needs at run time.
 func unmask(fixture string) string {
-	pairs := make([]string, 0, len(secretPrefixes)*2) //nolint:mnd // an old and a new text per prefix
+	pairs := make([]string, 0, len(secretPrefixes)*2)
 
 	for _, prefix := range secretPrefixes {
 		pairs = append(pairs, "{{"+prefix+"}}", prefix)
