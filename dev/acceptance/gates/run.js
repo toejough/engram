@@ -110,10 +110,9 @@ function goRed() {
 }
 
 // the gates that are still red: the five of nodes 793e8m and 793e8n (complexity, adapter, minimality, standards, types)
-// are green and in check-full
+// and the mod's contract tests (793e8p) are green and in check-full
 const GATES = [
   ['go-red', 'go test -tags refactorred ./internal/auto/', goRed],
-  ['hardening', 'targ test-mod red hardening', () => modTest('red', 'hardening')],
   ['spec', 'targ check-spec-conformance', spec],
 ]
 

@@ -230,8 +230,16 @@ const facts = async ($) =>
     CAPTURE_STEP,
   )) ?? {}
 
+// resume takes up the turn captures an earlier session left in the queue file (793b398): the engine reads and rewrites
+// the file and hands the entries back, and each joins the queue as a capture of its own.
+async function resume($, start) {
+  const done = await attempt($, () => relay($, { kind: 'resume', start }))
+  for (const entry of done?.resumed ?? []) await schedule($, { kind: 'capture', entry }, false)
+}
+
 const onSessionStart = async ($, event, next) => {
   mod.transcript = event.transcript_path
+  await resume($, event.source)
   return next(event)
 }
 
@@ -247,7 +255,11 @@ const onTurnComplete = async ($, event, next) => {
   if (event.agentId) return result
   mod.spawns.length = 0
   mod.step = null
-  await schedule($, { kind: 'capture', answer: event.answer ?? '', ...(await facts($)) }, true)
+  const turn = { kind: 'capture', answer: event.answer ?? '', ...(await facts($)) }
+  // the turn is in the queue file before the hook returns (793b398); a turn the file could not take is captured from
+  // memory, as it was before the file
+  const stored = await attempt($, () => relay($, { ...turn, kind: 'enqueue', transcript: mod.transcript }))
+  await schedule($, stored?.queued ? { kind: 'capture', entry: stored.queued } : turn, true)
   return result
 }
 

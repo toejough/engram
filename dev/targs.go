@@ -41,9 +41,9 @@ func init() {
 		Description("Engram dev target registration"))
 
 	targ.Register(testDevTarget, testDevIntegrationTarget, acceptanceTarget)
-	// The refactor gates of 793e8l: the five of nodes 793e8m and 793e8n (complexity, adapter, minimality, standards,
-	// types) are green and in check-full; the others are red on purpose until their nodes turn them green, so none
-	// is in check-full yet.
+	// The refactor gates of 793e8l: those of nodes 793e8m, 793e8n and 793e8p (complexity, adapter, minimality,
+	// standards, types, the mod's contract tests) are green and in check-full; the others are red on purpose until
+	// their nodes turn them green, so none is in check-full yet.
 	targ.Register(
 		lintJSTarget, lintJSAdapterTarget, lintJSComplexityTarget, lintJSStandardsTarget, lintJSTypesTarget,
 		checkModBudgetTarget, testModTarget,

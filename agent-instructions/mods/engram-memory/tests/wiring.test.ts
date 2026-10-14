@@ -105,10 +105,10 @@ describe('the moments (793d22b1)', () => {
       await $.prompt.submit(PROMPT)
       await $.session.compact({ trigger: 'auto', messages: MESSAGES })
       await $.prompt.submit(PROMPT)
-      expect(jobs.map((job) => job.kind)).toEqual(['lookup', 'compact', 'lookup'])
-      expectHas(jobs[0], { transcript: '/t/s.jsonl', lastPrompt: PROMPT.text })
-      expect(jobs[1].ledger).toEqual({ main: ['a.md'] })
+      expect(jobs.map((job) => job.kind)).toEqual(['resume', 'lookup', 'compact', 'lookup'])
+      expectHas(jobs[1], { transcript: '/t/s.jsonl', lastPrompt: PROMPT.text })
       expect(jobs[2].ledger).toEqual({ main: ['a.md'] })
+      expect(jobs[3].ledger).toEqual({ main: ['a.md'] })
     },
   )
 
@@ -245,20 +245,27 @@ describe('the in-turn cue (793d23b2)', () => {
 })
 
 describe('the queue (793d22b2)', () => {
-  const work = (job: Job): Answer => ({ done: { work: { name: job.kind } } })
+  const ENTRY = { window: 'User: No, use targ.', source: 'captured from the conversation', transcript: '/t/s.jsonl' }
+  const work = (job: Job): Answer =>
+    job.kind === 'enqueue' ? { done: { queued: ENTRY } } : { done: { work: { name: job.kind } } }
 
   test(
-    'a turn is answered before any of its work starts, then the capture, ' +
+    'a turn is queued before it is answered, then the capture of the entry, ' +
       'the housekeeping and the summary follow in order',
     async ($: Driver, on: On) => {
       const { clock, jobs } = world(on, { engine: work })
+      await $.classic.SessionStart({ source: 'clear', transcript_path: '/t/s.jsonl' })
+      jobs.length = 0
       const result = await $.turn.complete(COMPLETE)
       expect(result.text).toBe(COMPLETE.answer)
-      expect(jobs).toEqual([])
-      await clock.settle()
-      expect(jobs.map((job) => job.kind)).toEqual(['capture', 'housekeeping', 'summary'])
+      expect(jobs.map((job) => job.kind)).toEqual(['enqueue'])
       expectHas(jobs[0], { answer: COMPLETE.answer, sessionId: 'sess-1', turn: 3, messages: MESSAGES })
-      expectHas(jobs[1], { turnEnded: true, work: { name: 'capture' } })
+      expectHas(jobs[0], { transcript: '/t/s.jsonl' })
+      await clock.settle()
+      expect(jobs.map((job) => job.kind)).toEqual(['enqueue', 'capture', 'housekeeping', 'summary'])
+      expectHas(jobs[1], { entry: ENTRY })
+      expect(jobs[1].messages).toBeUndefined()
+      expectHas(jobs[2], { turnEnded: true, work: { name: 'capture' } })
     },
   )
 
@@ -299,7 +306,7 @@ describe('the queue (793d22b2)', () => {
       expect(jobs).toEqual([])
       await $.turn.complete(COMPLETE)
       await clock.settle()
-      expect(jobs.map((job) => job.kind)).toEqual(['capture', 'housekeeping', 'summary'])
+      expect(jobs.map((job) => job.kind)).toEqual(['enqueue', 'capture', 'housekeeping', 'summary'])
       expect(shown).toContain('Automatic memory was skipped because of an error (the capture)')
     },
   )

@@ -83,12 +83,20 @@ func (e *engine) capture(conversation, source string) {
 }
 
 // captureJob is the capture of a turn that ended (793b279): the window of the turn, judged against the nearest notes.
-// The turns of the session are then marked captured, so that the backlog does not read the session again once it is
-// quiet (793e8g); a failure of the mark is the System's own bookkeeping and goes to the debug log only.
+// The turn is the entry the queue holds (793b398), or, when the queue could not take it, the turn itself. The turns of
+// its session are then marked captured, so that the backlog does not read the session again once it is quiet (793e8g),
+// and the entry leaves the queue file; a capture that fails leaves it there for the next session. A failure of the
+// mark or of the file is the System's own bookkeeping and goes to the debug log only.
 func (e *engine) captureJob() Done {
-	if conversation := windowFromMessages(e.job.Messages, e.job.Answer); conversation != "" {
-		e.capture(conversation, sourceFor(e.job.SessionID, e.job.Turn, ""))
-		e.attempt("", e.markTurns)
+	entry := e.turnEntry()
+	if e.job.Entry != nil {
+		entry = *e.job.Entry
+	}
+
+	if entry.Window != "" {
+		e.capture(entry.Window, entry.Source)
+		e.attempt("", func() { e.markTurns(entry.Transcript) })
+		e.attempt("", func() { e.dequeue(entry) })
 	}
 
 	return Done{}

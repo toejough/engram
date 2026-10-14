@@ -73,10 +73,12 @@ type World struct {
 	Process map[string]func(argv []string) (auto.Output, error)
 	Files   map[string]string
 	Writes  []string
-	Written map[string]string
-	Env     map[string]string
-	Clock   time.Time
-	Missing map[string]bool
+	// Unwritable are the paths the world refuses to write.
+	Unwritable map[string]bool
+	Written    map[string]string
+	Env        map[string]string
+	Clock      time.Time
+	Missing    map[string]bool
 	// Model answers a request by its kind (classify, relevance, capture, curation); a function may answer unanswered.
 	Model    func(kind string, request auto.Request) map[string]any
 	Requests []auto.Request
@@ -96,7 +98,7 @@ type World struct {
 func NewWorld() *World {
 	return &World{
 		Process: map[string]func([]string) (auto.Output, error){},
-		Files:   map[string]string{}, Written: map[string]string{}, Missing: map[string]bool{},
+		Files:   map[string]string{}, Written: map[string]string{}, Missing: map[string]bool{}, Unwritable: map[string]bool{},
 		Env: map[string]string{"HOME": "/home/t", "ENGRAM_VAULT_PATH": "/vault"}, Clock: time.UnixMilli(1_700_000_000_000),
 	}
 }
@@ -227,6 +229,10 @@ func (w *World) Walk(root string) ([]string, error) {
 
 // Write writes a file of the world.
 func (w *World) Write(path, text string) error {
+	if w.Unwritable[path] {
+		return errors.New("open " + path + ": permission denied")
+	}
+
 	w.Writes = append(w.Writes, path)
 	w.Written[path] = text
 	w.Files[path] = text

@@ -1,12 +1,12 @@
 {
   "unit": "owned lines: not blank and not a comment, per hook file of agent-instructions/mods/engram-memory/hooks",
   "reference": "793b368: the mod is an adapter; 162 owned lines of register.js are wiring today",
-  "total": 250,
+  "total": 256,
   "files": {
     "register.js": {
       "red": 383,
-      "budget": 250,
-      "basis": "the 162 owned lines of wiring in register.js today (the event handlers, state, warn, attempt, exec, answered, readTranscript, seam and schedule) plus about 40 for the relay loop of the need and done rounds plus a margin; every other hook file is logic and has no row, so it fails the gate until it is gone or the owner gives it a row"
+      "budget": 256,
+      "basis": "the 162 owned lines of wiring in register.js today (the event handlers, state, warn, attempt, exec, answered, readTranscript, seam and schedule) plus about 40 for the relay loop of the need and done rounds plus a margin, plus 6 for the two jobs of the persisted queue (793b398: the enqueue before a turn returns, the resume at a session start); every other hook file is logic and has no row, so it fails the gate until it is gone or the owner gives it a row"
     }
   },
   "go": {
@@ -42,7 +42,7 @@
           "relay.go"
         ],
         "basis": "judge.js 161, which holds the prompts (now text files) and the strict readings; the need and done rounds are the relay and have no JavaScript to replace",
-        "ceiling": 459
+        "ceiling": 464
       },
       "capture": {
         "js": 234,
@@ -51,7 +51,7 @@
           "redact.go"
         ],
         "basis": "capture.js 200, capture 18, markTurns 7, settled 9",
-        "ceiling": 428
+        "ceiling": 433
       },
       "backlog": {
         "js": 111,
@@ -76,6 +76,14 @@
         ],
         "basis": "summary.js 19, report 8",
         "ceiling": 40
+      },
+      "queue": {
+        "js": 0,
+        "files": [
+          "queue.go"
+        ],
+        "basis": "new in 793e8p (793b398): the JavaScript it replaces had no persisted queue, so its goal is nothing and its ceiling the size it reached",
+        "ceiling": 67
       }
     }
   }

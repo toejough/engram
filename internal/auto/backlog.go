@@ -144,12 +144,12 @@ func (e *engine) chunksDirectory() string {
 
 // markTurns records that the System captured the turns of this session up to now, so that the backlog does not read
 // the session again once it is quiet (793e8g).
-func (e *engine) markTurns() {
+func (e *engine) markTurns(transcript string) {
 	now := e.now()
-	if e.job.Transcript != "" {
+	if transcript != "" {
 		e.updateMarks(e.chunksDirectory(), func(marks *Marks) {
 			marks.firstRun(now)
-			marks.Turns[baseName(e.job.Transcript)] = now
+			marks.Turns[baseName(transcript)] = now
 		})
 	}
 }
