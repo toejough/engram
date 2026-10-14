@@ -4754,6 +4754,38 @@ ID map: added `793b352` to `793b354` (each checked with `git grep`: unused). Ret
 - **The pass over the harness for code the thin mod left unused:** every export, field, method and parameter was checked for a reader (a script over the sources, and `tsc` with `noUnusedLocals`). Found and removed: `Session.statuses` (the `ui_status` messages of a stream were collected and never read), `Scenario.installed` and the `lastTurn` of the When steps (written, never read), and the `export` of seven names nothing imports. Everything else has a caller: the seam file and `awaitIdle` (the mod still writes it), the delay shim, the debug-log check of `lookupDeclined` (the engine still words the lookup line), and the probes.
 - **Rationale:** the mod's thinning removed no harness feature; the harness drives sessions and reads transcripts, and neither changed. What changed is the engine behind them, which the acceptance suite exercises.
 
+## 793b378 Reserved, unused
+
+Reserved and unused: the number was skipped when the entries were written and no decision carries it; it is not reused.
+
+## 793b379 Reserved, unused
+
+Reserved and unused: the number was skipped when the entries were written and no decision carries it; it is not reused.
+
+## 793b380 Reserved, unused
+
+Reserved and unused: the number was skipped when the entries were written and no decision carries it; it is not reused.
+
+## 793b381 Reserved, unused
+
+Reserved and unused: the number was skipped when the entries were written and no decision carries it; it is not reused.
+
+## 793b382 Reserved, unused
+
+Reserved and unused: the number was skipped when the entries were written and no decision carries it; it is not reused.
+
+## 793b383 Reserved, unused
+
+Reserved and unused: the number was skipped when the entries were written and no decision carries it; it is not reused.
+
+## 793b384 Reserved, unused
+
+Reserved and unused: the number was skipped when the entries were written and no decision carries it; it is not reused.
+
+## 793b385 Reserved, unused
+
+Reserved and unused: the number was skipped when the entries were written and no decision carries it; it is not reused.
+
 ## 793b386 The deadlines of the lookup and of the relevance judgement fit the eight-second hold with a margin
 
 - **ID map:** added `793b386` to `793b389` (each checked with `git grep`: unused). Retired: none. No heading is retitled.
@@ -4781,6 +4813,30 @@ ID map: added `793b352` to `793b354` (each checked with `git grep`: unused). Ret
 - **Decided by:** Author, on the instruction of the coordinator after GitHub push protection refused the branch; awaiting owner validation.
 - **Choice:** no committed text matches a secret scanner: `internal/auto/testdata/golden/redact.json` holds `{{prefix}}` placeholders (`{{AKIA}}`, `{{ghp_}}`, `{{eyJ}}`, `{{-----BEGIN}}`, 13 prefixes) that `unmask` in `golden_test.go` expands when the test loads the file, and the shape tests build their inputs with `unmask` and `strings.Repeat` (the AWS key id is `AKIA` and sixteen letters made at run time). The redactor is still tested against the real shapes, because the expanded text is the old text exactly. Commit `test(793): secret-shaped fixtures are built at runtime`, separate and first; history is not rewritten here.
 - **Rationale:** a fixture that is a secret to a scanner blocks the push and trains people to bypass the scanner.
+
+## 793b390 Reserved, unused
+
+Reserved and unused: the number was skipped when the entries were written and no decision carries it; it is not reused.
+
+## 793b391 Reserved, unused
+
+Reserved and unused: the number was skipped when the entries were written and no decision carries it; it is not reused.
+
+## 793b392 Reserved, unused
+
+Reserved and unused: the number was skipped when the entries were written and no decision carries it; it is not reused.
+
+## 793b393 Reserved, unused
+
+Reserved and unused: the number was skipped when the entries were written and no decision carries it; it is not reused.
+
+## 793b394 Reserved, unused
+
+Reserved and unused: the number was skipped when the entries were written and no decision carries it; it is not reused.
+
+## 793b395 Reserved, unused
+
+Reserved and unused: the number was skipped when the entries were written and no decision carries it; it is not reused.
 
 ## 793b396 The answer and the last message of a subagent reached the window as raw lines, and the line breaks were not all of them
 
