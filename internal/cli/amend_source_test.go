@@ -30,6 +30,25 @@ func Test793d38b1_AmendSourceAloneChangesNoContentSoNothingIsEmbeddedAgain(t *te
 	g.Expect(embedCalled).To(gomega.BeFalse(), "a provenance line is not a content change")
 }
 
+// Test793d38b1_AmendSourceAloneKeepsTheDeclaredIdentity: a provenance line is bookkeeping, as --activate is
+// (792b14c5): on every note type, an amend that supplies only --source appends the line and leaves repo:, user: and
+// vault: as the note declared them, even when the running environment detects others.
+func Test793d38b1_AmendSourceAloneKeepsTheDeclaredIdentity(t *testing.T) {
+	t.Parallel()
+
+	for _, noteType := range identityAmendTypes {
+		t.Run(noteType, func(t *testing.T) {
+			t.Parallel()
+			g := gomega.NewWithT(t)
+
+			written, err := runIdentityAmend(t.Context(), noteType, cli.AmendArgs{Source: identityAmendSource})
+			g.Expect(err).NotTo(gomega.HaveOccurred())
+			g.Expect(written).To(gomega.ContainSubstring("source: test; " + identityAmendSource))
+			expectDeclaredIdentity(g, written)
+		})
+	}
+}
+
 func Test793d38b1_AmendSourceAppendsAProvenanceLineToTheSourceOfAnyKindOfNote(t *testing.T) {
 	t.Parallel()
 

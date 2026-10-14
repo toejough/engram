@@ -266,7 +266,7 @@ func amendIdentity(ctx context.Context, args AmendArgs, deps AmendDeps, basename
 
 // amendRestampsIdentity reports whether an amend changes content or
 // relations — any content flag, --supersedes or --chunk-source — and so
-// re-stamps identity. --activate and --clear-pending alone are bookkeeping.
+// re-stamps identity. --activate, --clear-pending and --source (a provenance line, 793d38b1) alone are bookkeeping.
 func amendRestampsIdentity(args AmendArgs) bool {
 	contentFlags := []string{
 		args.Situation, args.Subject, args.Predicate, args.Object,
@@ -275,7 +275,7 @@ func amendRestampsIdentity(args AmendArgs) bool {
 
 	return slices.ContainsFunc(contentFlags, func(value string) bool { return value != "" }) ||
 		len(args.RedFlags) > 0 || len(args.Triggers) > 0 ||
-		len(args.Supersedes) > 0 || len(args.ChunkSources) > 0 || args.Source != ""
+		len(args.Supersedes) > 0 || len(args.ChunkSources) > 0
 }
 
 // appendSource adds a provenance line to a note's source: after what is there, once: a line already in it, or none,

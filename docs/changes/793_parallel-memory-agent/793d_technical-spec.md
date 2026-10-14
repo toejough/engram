@@ -947,17 +947,17 @@ Scenario: 793d29b2a2 A malformed reply settles nothing
 
 ### 793d38a Orientation
 
-Canonical target: [Note Amendment](../../specs/technical/note-amendment.md), as an Added requirement and a Modified Orientation ([793b399 A near fold carries a provenance line, by a new flag of engram amend](./793b_decision-log.md#793b399-a-near-fold-carries-a-provenance-line-by-a-new-flag-of-engram-amend)). The flag `--source` lets a note whose claim an automatic judgement rewrote from an offer say so; before it, the near fold was the one write path with no provenance line. Realization: `RunAmend` in `internal/cli/amend.go`.
+Canonical target: [Note Amendment](../../specs/technical/note-amendment.md), as an Added requirement ([793d38b1 Amend provenance](#793d38b1-amend-provenance)) and the Modified operations [793d38c1 Modified: 792b14a Orientation](#793d38c1-modified-792b14a-orientation) and [793d38c2 Modified: 792b14c5 Identity re-stamp gating](#793d38c2-modified-792b14c5-identity-re-stamp-gating) ([793b399 A near fold carries a provenance line, by a new flag of engram amend](./793b_decision-log.md#793b399-a-near-fold-carries-a-provenance-line-by-a-new-flag-of-engram-amend)). The flag `--source` lets a note whose claim an automatic judgement rewrote from an offer say so; before it, the near fold was the one write path with no provenance line. Realization: `RunAmend` in `internal/cli/amend.go`.
 
 ### 793d38b Behavior Requirements
 
 #### 793d38b1 Amend provenance
 
-Requirement: 793d38b1 `engram amend --source <line>` MUST append the line to the `source:` of the [note](./793a_product-spec.md#793a1-problem-statement) it amends, after what is there and separated from it by `; `, once (a line the `source:` already holds is not added again), and never replace what was there. It MUST do so for a fact, a feedback and a [runbook](../../GLOSSARY.md#runbook) note, and a `--source` alone MUST NOT be a content change, so nothing is embedded again.
+Requirement: 793d38b1 `engram amend --source <line>` MUST append the line to the `source:` of the [note](./793a_product-spec.md#793a1-problem-statement) it amends, after what is there and separated from it by `; `, once (a line the `source:` already holds is not added again), and never replace what was there. It MUST do so for a fact, a feedback and a [runbook](../../GLOSSARY.md#runbook) note, and a `--source` alone MUST NOT be a content change, so nothing is embedded again, and MUST NOT re-stamp the note's identity ([793d38c2 Modified: 792b14c5 Identity re-stamp gating](#793d38c2-modified-792b14c5-identity-re-stamp-gating)).
 
 Supports: [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `internal/cli/amend_source_test.go`: Test793d38b1_AmendSourceAloneChangesNoContentSoNothingIsEmbeddedAgain, Test793d38b1_AmendSourceAppendsAProvenanceLineToTheSourceOfAnyKindOfNote, Test793d38b1_AmendSourceIsAppendedOnceAndNeverReplacesWhatWasThere, Test793d38b1_AmendWithoutSourceLeavesTheSourceAsItWas
+Verified by: `internal/cli/amend_source_test.go`: Test793d38b1_AmendSourceAloneChangesNoContentSoNothingIsEmbeddedAgain, Test793d38b1_AmendSourceAloneKeepsTheDeclaredIdentity, Test793d38b1_AmendSourceAppendsAProvenanceLineToTheSourceOfAnyKindOfNote, Test793d38b1_AmendSourceIsAppendedOnceAndNeverReplacesWhatWasThere, Test793d38b1_AmendWithoutSourceLeavesTheSourceAsItWas
 
 Security: [793d19a Security](#793d19a-security), mitigation: a provenance line on every automatic [note](./793a_product-spec.md#793a1-problem-statement).
 
@@ -975,9 +975,87 @@ Scenario: 793d38b1a1 A near fold says where the new claim came from
 
 #### 793d38c1 Modified: 792b14a Orientation
 
-Target: [792b14a Orientation](../../specs/technical/note-amendment.md#792b14a-orientation). The Responsibility bullet is replaced by the following; the other bullets are unchanged.
+Target: [792b14a Orientation](../../specs/technical/note-amendment.md#792b14a-orientation). Complete replacement text (the Responsibility bullet and the realization name the source line; the other bullets and the Rationale are the target's own):
 
-- Responsibility: revises a [note](./793a_product-spec.md#793a1-problem-statement) that already exists. Under the [vault](./793a_product-spec.md#793a1-problem-statement) lock it finds the note, reads it as LF, checks the revision's arguments, applies the field, supersession, chunk-source, source-line and identity changes, writes the note once, and rebuilds its sidecar when what is embedded changed. It rewrites a fact's or feedback note's situation in both of its places, and records a note's use in its sidecar.
+- Ownership: Repository component (caller of [wikilink-graph](../../specs/technical/wikilink-graph.md), [note-document-format](../../specs/technical/note-document-format.md),
+  [note-provenance](../../specs/technical/note-provenance.md), [embedding-sidecar](../../specs/technical/embedding-sidecar.md), [durable-file-store](../../specs/technical/durable-file-store.md) and [vault-write-lock](../../specs/technical/vault-write-lock.md)).
+- Responsibility: revises a note that already exists. Under the vault lock it finds the note,
+  reads it as LF, checks the revision's arguments, applies the field, supersession, chunk-source, source-line and
+  identity changes, writes the note once, and rebuilds its sidecar when what is embedded changed. It
+  rewrites a fact's or feedback note's situation in both of its places, and records a note's use
+  in its sidecar.
+- Current realization (informational): `internal/cli/amend.go` (`RunAmend`, `appendSource`), `resituate.go`
+  (`RunResituate`), `supersedes.go` (`replaceSupersedes`, `parseAllSupersedes`), `activate.go`
+  (`RunActivate`, `bumpLastUsed`); the amend and resituate targets in `internal/cli/targets.go`.
+  The curation flags in `amend_fold.go` are curate's ([curate](../../specs/product/curate.md)), the offer hooks are offer-outbox's ([offer-outbox](../../specs/technical/offer-outbox.md)) and
+  the pull-down is parent-vault-client's ([parent-vault-client](../../specs/technical/parent-vault-client.md)).
+- Qualification: responsibility, revising a stored note is stated without naming any function;
+  ownership, it owns the ordering of lookup, validation, edit, write and re-embed, while the format,
+  provenance, sidecar and lock contracts belong to the components it calls; independent
+  verification, `RunAmend`, `RunResituate` and `RunActivate` are tested directly over injected
+  lookup, read, write, lock and embedder fakes; stability, the read-modify-write contract survives any
+  change to the flags that drive it; necessity, every change an agent makes to an existing note
+  goes through it.
+- Supported capabilities: [note-revision](../../specs/product/note-revision.md), [controlled-vocabulary](../../specs/product/controlled-vocabulary.md), [parent-sync](../../specs/product/parent-sync.md) ([792b14c12 Activation against the parent](../../specs/technical/note-amendment.md#792b14c12-activation-against-the-parent),
+  [792b14c13 A discard of a pulled note records its decline](../../specs/technical/note-amendment.md#792b14c13-a-discard-of-a-pulled-note-records-its-decline)), [curate](../../specs/product/curate.md) ([792b14c14 Settling a pending offer](../../specs/technical/note-amendment.md#792b14c14-settling-a-pending-offer)), [write-memory](../../specs/product/write-memory.md), [recall](../../specs/product/recall.md).
+
+Rationale: a revision is a read-modify-write of a note and its sidecar, so two revisions, or a
+revision and a learn, that interleave could each overwrite the other's change. Every revision takes
+the vault's lock at its command's entry point and holds it through the note write, the sidecar
+rebuild and the last-used bump. The helpers it shares with other writers never take the lock
+themselves, because the lock is held per file descriptor and a nested acquire would wait on itself.
+
+#### 793d38c2 Modified: 792b14c5 Identity re-stamp gating
+
+Target: [792b14c5 Identity re-stamp gating](../../specs/technical/note-amendment.md#792b14c5-identity-re-stamp-gating). A provenance line alone is bookkeeping, as `--activate` is: it does not change the claim, so it does not change who stamped it. Complete replacement text, with the scenario 793d38c2a1 added and 792b14c5a4 reworded:
+
+Requirement: 792b14c5 The note-amendment MUST have [note-provenance](../../specs/technical/note-provenance.md) re-stamp a note ([792b11c4 Re-stamp](../../specs/technical/note-provenance.md#792b11c4-re-stamp)) exactly
+when the amend supplies a content flag of any kind, a `--red-flag`, a `--trigger`, a `--supersedes`
+or a `--chunk-source`, detecting the repository from the working directory whatever the note's
+`project:`, and MUST NOT re-stamp it otherwise, an amend that supplies only `--activate`, `--clear-pending` or `--source` included. On every amend it writes, it MUST fill an absent or
+empty `vault:` with the resolved vault name, keep a declared one, and, when no vault name was
+resolved, leave `vault:` out and log a warning.
+
+Supports: [792a4h1a Amend from another environment re-stamps](../../specs/product/note-revision.md#792a4h1-uat-scenarios), [792a4h1b Amend backfills missing identity](../../specs/product/note-revision.md#792a4h1-uat-scenarios), [792a4h1c The project field does not stand in for the repo](../../specs/product/note-revision.md#792a4h1-uat-scenarios), [792a4h1f Without a vault name the default is stamped](../../specs/product/note-revision.md#792a4h1-uat-scenarios), [792a4h1g Recording a use keeps the declared identity](../../specs/product/note-revision.md#792a4h1-uat-scenarios), [792a4i1a A use recorded on a note without vault fills it in](../../specs/product/note-revision.md#792a4i1-uat-scenarios).
+
+Scenarios of the target, with the fourth reworded and one added:
+
+```gherkin
+Scenario: 792b14c5a1 A content, supersession or chunk-source amend re-stamps
+  Given a note whose repo:, user: and vault: differ from the detected ones
+  When an amend supplies a content flag, --supersedes or --chunk-source
+  Then repo:, user: and vault: are the detected ones
+
+Scenario: 792b14c5a2 A note without identity gains it
+  Given a note with no repo:, user: or vault:
+  When an amend supplies --chunk-source
+  Then it gains the detected repo:, user: and vault:
+
+Scenario: 792b14c5a3 The project field is not the repository
+  Given a note whose project: differs from the detected repository
+  When an amend re-stamps it
+  Then repo: is the detected repository
+
+Scenario: 792b14c5a4 Re-stamping follows the flags exactly
+  Given any combination of amend flags on any kind of note
+  When the amend runs
+  Then identity is re-stamped exactly when a content flag of that kind, --supersedes or --chunk-source is present, and is otherwise as declared, whether or not --source is present
+
+Scenario: 792b14c5a5 A bookkeeping amend keeps the declared identity
+  Given a fact, feedback or runbook note with a declared identity
+  When an amend supplies only --activate
+  Then repo:, user: and vault: are unchanged, and the note was rewritten
+
+Scenario: 792b14c5a6 An empty vault is filled, never written empty
+  Given a note with no vault:
+  When an amend that does not re-stamp runs with the vault name personal, and again with no vault name
+  Then the first writes vault: personal with no warning, and the second writes no vault: key and warns naming vault
+
+Scenario: 793d38c2a1 A provenance line alone keeps the declared identity
+  Given a fact, feedback or runbook note with a declared identity
+  When an amend supplies only --source
+  Then the line is appended to source: and repo:, user: and vault: are unchanged
+```
 
 ## 793d30 Activity Report
 
@@ -1031,7 +1109,7 @@ Scenario: 793d30b2a1 A timeout is shown with its step, off the transcript
 
 ### 793d31a Orientation
 
-Canonical target: [Harness Deploy Sync](../../specs/technical/harness-deploy-sync.md), as Added requirements; they also Modify its [792b29a Orientation](../../specs/technical/harness-deploy-sync.md#792b29a-orientation), whose deploy set (skills, and guidance while it is managed) gains the mods of `agent-instructions/mods`. Realization: `planModCopies`, `modNotice` and `HarnessSpec.TakesMods` in `internal/update/update.go`, and `writeSkillRows` in `internal/cli/update.go`. The dependency boundary added is the `claude --version` command.
+Canonical target: [Harness Deploy Sync](../../specs/technical/harness-deploy-sync.md), as Added requirements; they also Modify its [792b29a Orientation](../../specs/technical/harness-deploy-sync.md#792b29a-orientation), whose deploy set (skills, and guidance while it is managed) gains the mods of `agent-instructions/mods` ([793d31c1 Modified: 792b29a Orientation](#793d31c1-modified-792b29a-orientation)). Realization: `planModCopies`, `modNotice` and `HarnessSpec.TakesMods` in `internal/update/update.go`, and `writeSkillRows` in `internal/cli/update.go`. The dependency boundary added is the `claude --version` command.
 
 ### 793d31b Behavior Requirements
 
@@ -1088,6 +1166,42 @@ Scenario: 793d31b3a1 An older Claude Code is reported and the deploy goes on
   When the update runs
   Then the mod notice names 2.1.286 and 2.1.287 and the deploy completes
 ```
+
+### 793d31c Modified operations
+
+#### 793d31c1 Modified: 792b29a Orientation
+
+Target: [792b29a Orientation](../../specs/technical/harness-deploy-sync.md#792b29a-orientation). The deploy set gains the mods of `agent-instructions/mods`. Complete replacement text:
+
+- Ownership: Repository-owned dependency-boundary interaction (the harness configuration directories
+  `~/.claude` and `~/.pi`).
+- Responsibility: for each detected harness, keeps an engram-owned root equal to the deploy set
+  computed from the source (skills, the mods of `agent-instructions/mods`, and guidance while it is managed), makes the harness's discovery
+  paths links into that root, adopts earlier copies of deploy-set artifacts, removes what left the
+  source and the links that dangle, deletes nothing it cannot prove it owns, and reports what it did
+  and what it left alone.
+- Current realization (informational): `internal/update/update.go` (`planAndApply`, `applyOps`,
+  `applyForHarnessSymlinkMode`, `applyForHarnessManifestMode`, `applyEngramRootSync`,
+  `planEngramRootSync`, `materializeSymlink`, `materializeOrAdopt`, `cleanupDanglingLinks`,
+  `surfaceStrays`, `detectGuidanceImports`, `supportedHarnesses`, `planModCopies`, `modNotice`), and the harness sections of
+  `internal/cli/update.go` (`writeHarnessSections`, `writeEngramRootNotice`, `writeSkillRows`,
+  `writeHarnessGuidanceHints`), over the injected `update.Filesystem`.
+- Qualification: responsibility, converging a harness onto a deploy set without deleting foreign files
+  is stated without naming any function; ownership, it owns the roots, links and findings, while the
+  source choice, install and hand-off belong to [self-installer](../../specs/technical/self-installer.md) and the guidance documents and the hints
+  that activate them to [ambient-guidance](../../specs/product/ambient-guidance.md); independent verification, every step runs over an in-memory
+  filesystem with injected faults; stability, the contract survives any change to the harness list or the
+  deploy mode; necessity, a skill reaches a harness only through it.
+- Supported capabilities: [install-and-update](../../specs/product/install-and-update.md). Skill-runbook-registration ([skill-runbook-registration](../../specs/product/skill-runbook-registration.md)) and [ambient-guidance](../../specs/product/ambient-guidance.md)
+  extend it (the registration sources read the deployed skills, and the activation hints name the
+  guidance it deploys).
+
+Rationale: real files live only in one root per harness that engram alone writes, and every discovery path is a link
+into it or a file the user owns. Because the only deletions are inside a root engram proved is its own and of links
+that provably point into it, the sync can propagate removals without risking user files. A harness whose discovery
+through links fails runs in manifest mode, which keeps the same removal semantics by recording the paths it wrote.
+Claude Code's guidance directory is its engram root, so its guidance is linked at the root's top level rather than
+into a separate directory.
 
 ## 793d32 Moment Delivery Flow
 
@@ -1596,7 +1710,7 @@ All 43 scenarios of the product spec are supported by at least one requirement, 
 - [Judgement](#793d1b-terms) quality is not a contract: a model's choice varied between runs of one scenario (a worded [note](./793a_product-spec.md#793a1-problem-statement) without the corrected cause in [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios); a missed offer in [793a4j1d The agent is not asked to curate](./793a_product-spec.md#793a4j1-uat-scenarios)) and was Green on rerun; no requirement is missing.
 - Built and untested: the origins of a prompt other than the SDK's ([793d23b1 Event cues](#793d23b1-event-cues)), exercised only by the acceptance row of [793a2n1h A prompt from any source receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios).
 - Residual, recorded: two processes that write the [queue file](#793d1b-terms) at the same [moment](./793a_product-spec.md#793a1-problem-statement) can lose one write, and a [session](../../GLOSSARY.md#session) that starts while another still runs takes up that other's unfinished entries, which may be captured twice (the second finds the first's note among the nearest and is covered) ([793d37b1 Entries](#793d37b1-entries), [793d37b2 Resume](#793d37b2-resume), [793b398 The persisted queue is a file the engine owns, and the red tests of 793b362 became tests of the jobs the mod hands it](./793b_decision-log.md#793b398-the-persisted-queue-is-a-file-the-engine-owns-and-the-red-tests-of-793b362-became-tests-of-the-jobs-the-mod-hands-it)); the sources and [offers](../../GLOSSARY.md#offer) a process skipped are tried again by the next process ([793d28b2 Reading and windows](#793d28b2-reading-and-windows), [793d29b1 Offers to settle](#793d29b1-offers-to-settle)).
-- Not in the product spec: the line of the product spec of note-revision that [793b399 A near fold carries a provenance line, by a new flag of engram amend](./793b_decision-log.md#793b399-a-near-fold-carries-a-provenance-line-by-a-new-flag-of-engram-amend) names for the `--source` flag ([793d38b1 Amend provenance](#793d38b1-amend-provenance)) is applied at promotion with the rest of the delta.
+- Not in the product spec, awaiting the owner: whether the `--source` flag ([793d38b1 Amend provenance](#793d38b1-amend-provenance)) is a promise to the user (an Added requirement of the product spec, with the line of note-revision that [793b399 A near fold carries a provenance line, by a new flag of engram amend](./793b_decision-log.md#793b399-a-near-fold-carries-a-provenance-line-by-a-new-flag-of-engram-amend) names) or a technical requirement only. Until he answers it is a technical requirement only, and no line of the product spec is written ([793b405 The delta operations of the technical spec are complete](./793b_decision-log.md#793b405-the-delta-operations-of-the-technical-spec-are-complete)).
 - Duplicated: `internal/auto` reads transcript rows by role itself ([793d28b2 Reading and windows](#793d28b2-reading-and-windows)) and not through the [Transcript Reader](../../specs/technical/transcript-reader.md), so the two can drift.
 - Harness-only, so a MAY with no requirement: the seam file named by `ENGRAM_AUTO_SEAM_LOG`, which lets a test wait for the queue (`wiring.test.ts` covers it).
 - The experiment scenarios of [793d17 H1: a Claude Code mod gives a smaller implementation surface and more capability than settings hooks](#793d17-h1-a-claude-code-mod-gives-a-smaller-implementation-surface-and-more-capability-than-settings-hooks) and [793d18 H2: the cheapest capable model is adequate for every System judgement, and is faster and cheaper](#793d18-h2-the-cheapest-capable-model-is-adequate-for-every-system-judgement-and-is-faster-and-cheaper) are not contract tests of these requirements, except [793d18c1a Every request names the model of its kind](#793d18c1-experiments) and [793d18c1b Raising one kind changes only that kind](#793d18c1-experiments), which are the tier tests of [793d25b1 Tier and request shape](#793d25b1-tier-and-request-shape).

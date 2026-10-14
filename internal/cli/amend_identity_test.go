@@ -93,12 +93,16 @@ func Test792b14c14a8_RunAmend_ClearPendingKeepsOfferAuthor(t *testing.T) {
 // Test792b14c5a4_RunAmend_IdentityRestampProperty: over any combination of amend flags,
 // on any note type, identity is re-stamped exactly when one of that type's
 // content flags, --supersedes or --chunk-source is present; otherwise the
-// declared identity survives.
+// declared identity survives, whether or not --source (a provenance line, 793d38b1) is given.
 func Test792b14c5a4_RunAmend_IdentityRestampProperty(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		noteType := rapid.SampledFrom(identityAmendTypes).Draw(rt, "noteType")
 		args := cli.AmendArgs{Activate: rapid.Bool().Draw(rt, "activate")}
+
+		if rapid.Bool().Draw(rt, "source") {
+			args.Source = identityAmendSource
+		}
 
 		if rapid.Bool().Draw(rt, "clearPending") {
 			cleared := false
@@ -158,6 +162,7 @@ func Test792b14c5a5_RunAmend_BookkeepingAmendsKeepIdentity(t *testing.T) {
 const (
 	emptyUserDetectionBasename = "1zz.2026-02-01.identity-empty-user"
 	identityAmendChunk         = "session.jsonl#a1"
+	identityAmendSource        = "amended automatically from offer 1zz.2026-02-01.an-offer"
 )
 
 // unexported variables.
@@ -202,6 +207,11 @@ func drawRestampingFlags(rt *rapid.T, noteType string, args *cli.AmendArgs) bool
 		flag{"supersedes", func(value string) { args.Supersedes = []string{"9.2026-01-01.old|narrows|" + value} }},
 		flag{"chunkSource", func(string) { args.ChunkSources = []string{identityAmendChunk} }},
 	)
+
+	// half the cases carry no restamping flag at all, so that the bookkeeping and --source amends are not rare
+	if rapid.Bool().Draw(rt, "noRestampingFlag") {
+		return false
+	}
 
 	for _, each := range flags {
 		if rapid.Bool().Draw(rt, each.name) {
