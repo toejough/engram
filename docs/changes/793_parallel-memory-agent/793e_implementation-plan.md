@@ -230,7 +230,7 @@ flowchart TD
   n793e8i["793e8i H1 probe harness and verdict<br/>Complete"]
   n793e8j["793e8j H2 eval and verdict<br/>Complete"]
   n793e8l["793e8l Red gates<br/>Complete"]
-  n793e8m["793e8m Logic in Go<br/>Ready"]
+  n793e8m["793e8m Logic in Go<br/>In progress: 0/4 entries complete"]
   n793e8n["793e8n JavaScript standards<br/>Blocked by: 793e8m"]
   n793e8o["793e8o Performance<br/>Blocked by: 793e8m"]
   n793e8p["793e8p Hardening<br/>Blocked by: 793e8m"]
@@ -586,7 +586,7 @@ Result (2026-10-14, Claude Code 2.1.299, nothing installed, no mod or engram fil
 
 ### 793e8m Logic in Go
 
-Status: Red (gate: `targ check-mod-budget`, `targ lint-js adapter`, `targ lint-js complexity`).
+Status: In progress: 0/4 entries complete (gates: `targ check-mod-budget`, `targ lint-js adapter`, `targ lint-js complexity`; still red).
 
 Owner decision (Joe, 2026-10-14, [793b368 Within reason the logic moves to Go and the mod becomes a thin adapter](./793b_decision-log.md#793b368-within-reason-the-logic-moves-to-go-and-the-mod-becomes-a-thin-adapter)): within reason, most meaningful logic moves to Go, where the controls are stronger. The mod becomes a thin adapter: event wiring, `$` API calls (context channels, `ui.status`, the clock, `fs` and `process`, and the `model.complete` relay) and nothing else. Decisions move into the Go binary behind the existing dependency-injection pattern: moment detection, presence and relevance filtering, window building, redaction, reconcile and write, backlog selection, curation outcomes, summary counts and failure classification, and the strict parsing of every model reply. Go cannot call `$.model.complete`, so the stateless `need` and `done` round protocol of [793b197 The Go side is stateless and advances a job one round per call](./793b_decision-log.md#793b197-the-go-side-is-stateless-and-advances-a-job-one-round-per-call) returns: `engram auto run` reads one JSON job on standard input, does the Go-side work up to the next model request or the end, and writes one result, `need` (the requests to relay and an opaque state to send back with the answers) or `done`; the mod relays a request and its answer as opaque strings, keeps the opaque state it is handed and never reads it. The acceptance suite is the invariant: no scenario changes and every one that is green stays green.
 

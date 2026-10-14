@@ -110,7 +110,7 @@ describe('the redactor, shape by shape (793d19a risk 3)', () => {
       text: 'ghp_abcdefghijklmnopqrstuvwxyz0123456789',
       needle: 'abcdefghijklmnopqrstuvwxyz0123456789',
     },
-    'an AWS key id': { text: 'AKIAABCDEFGHIJKLMNOP', needle: 'AKIAABCDEFGHIJKLMNOP' },
+    'an AWS key id': { text: 'AKIA-placeholder-rewritten', needle: 'AKIA-placeholder-rewritten' },
     'a Google key': { text: 'AIzaSyA-abcdefghijklmnopqrstuvwxyz012345', needle: 'abcdefghijklmnopqrstuvwxyz012345' },
     'a Slack token': { text: 'xoxb-1234567890-abcdefghij', needle: '1234567890-abcdefghij' },
     'a bearer token': { text: 'Bearer abcdef.ghijkl-mnop', needle: 'abcdef.ghijkl-mnop' },
