@@ -232,9 +232,9 @@ flowchart TD
   n793e8l["793e8l Red gates<br/>Complete"]
   n793e8m["793e8m Logic in Go<br/>Complete"]
   n793e8n["793e8n JavaScript standards<br/>Complete"]
-  n793e8o["793e8o Performance<br/>Ready"]
+  n793e8o["793e8o Performance<br/>Complete"]
   n793e8p["793e8p Hardening<br/>Ready"]
-  n793e8q["793e8q Spec conformance and the technical specification<br/>Blocked by: 793e8o, 793e8p"]
+  n793e8q["793e8q Spec conformance and the technical specification<br/>Blocked by: 793e8p"]
   n793e8r["793e8r Refactor review and promotion<br/>Blocked by: 793e8q"]
   n793e8a --> n793e8b --> n793e8e --> n793e8c
   n793e8c --> n793e8d
@@ -568,7 +568,7 @@ Result (2026-10-14, Claude Code 2.1.299, nothing installed, no mod or engram fil
 | Complexity and size of what remains | `targ lint-js complexity` | 6 findings | 793e8m |
 | JavaScript standards | `targ lint-js standards` | 1,428 problems | [793e8n JavaScript standards](#793e8n-javascript-standards) |
 | Types of the mod's tests | `targ lint-js types` | 8 errors | 793e8n |
-| Performance contract tests | `targ test-mod red perf` | 5 of 5 fail | [793e8o Performance](#793e8o-performance) |
+| Performance contract tests | `targ test-mod red perf` (retired: Go tests in `internal/auto/perf_test.go`, in `check-full`) | 5 of 5 fail; green | [793e8o Performance](#793e8o-performance) |
 | Hardening contract tests | `targ test-mod red hardening` | 5 of 5 fail | [793e8p Hardening](#793e8p-hardening) |
 | Spec conformance | `targ check-spec-conformance` | 1 problem (the stated test count) | [793e8q Spec conformance and the technical specification](#793e8q-spec-conformance-and-the-technical-specification) |
 
@@ -649,7 +649,7 @@ Acceptance (`targ acceptance`, the full suite, at the head of the node): 51 runs
 
 ### 793e8o Performance
 
-Status: Ready (after [793e8m Logic in Go](#793e8m-logic-in-go), whose Go port moved this node's gates: the goals are the three tests of `Refactorred` in `internal/auto/refactorred_test.go` under the build tag `refactorred` (`go test -tags refactorred -run Refactorred ./internal/auto/`, listed by `targ refactor-red`), of which the relevance deadline against its 95th percentile and the subagent poll interval are red; the redactor's two budgets are green in Go, RE2 being linear, and are the ordinary test `Test793d26b1_RedactionCostsTimeInProportionToTheText`, which compares sizes and not a wall clock; `perf.test.ts` and `perf.red.ts` are gone, their guards are Go tests).
+Status: Complete (the performance tests are ordinary Go tests in `internal/auto/perf_test.go` and `capture_redact_test.go`, run by `check-full`; none is on the refactor-red list).
 
 Red gate: `targ test-mod red perf` (5 of 5 fail): the relevance deadline of 3.00 s against a 95th percentile of 3.44 s (a prompt and an in-turn cue at that percentile deliver nothing and warn the user), the subagent capture that begins 500 ms after a stop whose transcript completes at 100 ms (budget 200 ms), the redactor at 1,363 ms on 12,000 unbroken characters and 1,561 ms on 15,000 characters of wrapped lines (budget 200 ms each). The six guards of `perf.test.ts` stay green: the hold on a prompt at the median (2.56 s plus 80 ms), the 8 s ceiling, the 7 s hold on a tool result, the cue at its median, turn end to summary (2.96 s plus 80 ms). The node follows [793e8m Logic in Go](#793e8m-logic-in-go): the contracts that moved are Go tests of the same budgets, and the work below is done on whichever side the logic lives. Latencies are stubs on the mock clock from the baselines of [793b363 Performance budgets come from the measured baselines and the spec ceilings](./793b_decision-log.md#793b363-performance-budgets-come-from-the-measured-baselines-and-the-spec-ceilings); the redactor's time is real. After the work the numbers are measured again and recorded here. Verification: `targ test-mod red perf` passes and the file is renamed to `perf.test.ts`; `targ acceptance` (793a2n, 793a4b, 793a4j, then the full suite once); `targ check-full`. Invariant: the acceptance suite stays green.
 
@@ -663,7 +663,21 @@ Red gate: `targ test-mod red perf` (5 of 5 fail): the relevance deadline of 3.00
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |
-| Make the five pass without changing a budget; rename the file to `perf.test.ts`; put `test-mod` in `check-full` and take performance off the refactor-red list | Refactor | [Technical Spec Guide Refactor Checklist](../../TECHNICAL-SPEC-GUIDE.md#refactor-checklist): a budget exceeded before the work and met after | Not started |
+| Make the five pass without changing a budget; rename the file to `perf.test.ts`; put `test-mod` in `check-full` and take performance off the refactor-red list | Refactor | [Technical Spec Guide Refactor Checklist](../../TECHNICAL-SPEC-GUIDE.md#refactor-checklist): a budget exceeded before the work and met after | Done |
+
+**Result (2026-10-14, Claude Code 2.1.299, nothing installed, token never printed; decisions [793b386](./793b_decision-log.md#793b386-the-deadlines-of-the-lookup-and-of-the-relevance-judgement-fit-the-eight-second-hold-with-a-margin) to [793b388](./793b_decision-log.md#793b388-the-performance-tests-are-ordinary-tests-and-the-redactor-is-linear-as-measured)).** The three performance tests of `Refactorred` moved out of the build tag to ordinary tests (`perf_test.go`), so `check-full` runs them; what is left under the tag is the compaction of a subagent, the goal of [793e8p Hardening](#793e8p-hardening). The numbers, measured again on this machine (the latencies are stubs from the baselines; the redactor's time is real):
+
+| Test | Budget | Before | After |
+| --- | --- | --- | --- |
+| Relevance deadline against its 95th percentile | above 3,440 ms | 3,000 ms (red) | 5,800 ms, 1.69 times the percentile |
+| Lookup and judgement together hold a prompt | at most 8,000 ms | 5,000 + 3,000 = 8,000 ms | 2,000 + 5,800 = 7,800 ms |
+| Classification deadline against its 95th percentile (guard) | above 2,980 ms | 4,000 ms | 4,000 ms |
+| First wait for a subagent transcript that completes 100 ms after the stop | at most 100 ms (a capture starts within 200 ms of the file) | 500 ms (red), a capture 500 to 600 ms after the file | 100 ms for the first four polls, then 500 ms; patience 9.9 s (was 9.5 s) |
+| Redaction of 12,000 unbroken characters | at most 200 ms | 1,363 ms in JavaScript | 25 ms |
+| Redaction of 15,000 characters of wrapped lines | at most 200 ms | 1,561 ms in JavaScript | 23 ms (15,500 characters) |
+| Redaction at 8 times the size (96,000 unbroken, 124,000 wrapped) | in proportion | over 20 s and 14 s at 40,000 | 118 ms and 155 ms |
+
+Redactor times are single runs on this machine, indicative; the test compares sizes, not a wall clock. Acceptance (`targ acceptance`, at the head of the node, token never printed): the rows of the timing 793a4b (4 Green), 793a4j (4 Green), 793a2n (9 Green, one retried precondition) and 793a3a (10 Green); the 793a5 family (15 runs: 13 Green, 2 `Not run`, 793a5j1d and 793a5c1b: SP14); then the full suite: 51 runs, 48 Green, 2 `Not run` (the same), 1 Red, 1.957 USD, none retried. The Red is 793a2n1j (note "E" was not delivered), which was Green in the row run, in an earlier full run of the same head and in 3 of 3 re-runs alone (0.068, 0.143 and 0.132 USD), so a miss of the judgement like those recorded in [793e7b Full-suite result after the review fixes](#793e7b-full-suite-result-after-the-review-fixes) and [793e8m](#793e8m-logic-in-go); it is the one scenario whose note rides a step cue (classification, lookup of 2 s and judgement of 5.8 s in the background), so a lookup cut by the new 2 s deadline on a loaded machine is not excluded, and the run did not keep the activity line to tell. An earlier full run at the same head was cut by the subscription's session limit (10 rows void: 793a5j1a, 793a5j1l, 793a5h1a, 793a5h1c, 793a5h1e, 793a5k1c to 793a5k1e, 793a5c1a, 793a5c1c) and is not counted; the 793a5 family was run again after the reset and was Green. `check-full` is recorded in the commit of the node.
 
 ### 793e8p Hardening
 
