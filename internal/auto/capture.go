@@ -34,10 +34,9 @@ const (
 	nearLimit     = 8
 	needleLimit   = 40
 	partLimit     = 1200
-	pollFastMs    = 100
-	pollFastTries = 10
-	pollSlowMs    = 500
-	pollTries     = 29
+	pollMs        = 100
+	pollSlow      = 5
+	pollTries     = 24
 	recentCount   = 6
 	roleAssistant = "assistant"
 	roleUser      = "user"
@@ -136,8 +135,8 @@ func (e *engine) neighbours(items []Note) []Note {
 
 // subagentJob is the capture of a subagent that stopped: its transcript file lags its stop event (SP5), so it is read
 // again until it holds the last message, or the tries are spent. The file lags its stop by about 100 ms, so the first
-// ten polls are 100 ms apart (a capture starts within 200 ms of the file being complete, 793d27b1) and the rest 500 ms
-// apart, since every poll is a round whose record holds the file it read; the patience is 10 s in all.
+// four polls are 100 ms apart (a capture starts within 200 ms of the file being complete, 793d27b1) and the rest 500 ms
+// apart, since every poll is a round whose record holds the file it read; the patience is 9.9 s in all.
 func (e *engine) subagentJob() Done {
 	var file string
 
@@ -147,7 +146,7 @@ func (e *engine) subagentJob() Done {
 			break
 		}
 
-		e.wait(pollDelay(tries))
+		e.wait(pollMs * (1 + (pollSlow-1)*min(tries/pollSlow, 1)))
 	}
 
 	e.capture(windowFromTranscript(file, e.job.Last), sourceFor(e.job.SessionID, e.job.Turn, e.job.Agent))
@@ -303,15 +302,6 @@ func parseLessons(text string, near []Note) []Lesson {
 	return lessons
 }
 
-// pollDelay is the wait after the given try of a subagent's transcript.
-func pollDelay(tries int) int {
-	if tries <= pollFastTries {
-		return pollFastMs
-	}
-
-	return pollSlowMs
-}
-
 // queryText is what the nearest notes are looked up with: what the user said first, then the rest.
 func queryText(window string) string {
 	var first, rest []string
@@ -353,10 +343,8 @@ func recentTexts(messages []Message, answer string) string {
 func render(message Message) []string {
 	lines := make([]string, 0, len(message.ToolUses)+1)
 
-	said, label := strings.TrimSpace(message.Text), "Agent"
-	if message.Role == roleUser {
-		label = "User"
-	}
+	said := strings.TrimSpace(message.Text)
+	label := map[bool]string{true: "User", false: "Agent"}[message.Role == roleUser]
 
 	if label == "User" && strings.HasPrefix(said, "<task-notification>") {
 		summary, found := summaryOf(said)

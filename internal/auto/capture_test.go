@@ -503,9 +503,9 @@ items:
 clusters:
 `
 	pollDelayMs         = 100
-	pollPatienceTotalMs = 10000
+	pollPatienceTotalMs = 9900
 	pollSlowDelayMs     = 500
-	pollTriesInJobs     = 29
+	pollTriesInJobs     = 24
 	subagentFile        = "/home/.claude/projects/p/s/subagents/a1.jsonl"
 	subagentFirst       = "I ran go test. No, run targ test, not go test. Acknowledge."
 	subagentLast        = "Noted: targ test."
