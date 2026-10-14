@@ -4779,8 +4779,6 @@ ID map: added `793b352` to `793b354` (each checked with `git grep`: unused). Ret
 - **Decided by:** Author, on the instruction of the coordinator after GitHub push protection refused the branch; awaiting owner validation.
 - **Choice:** no committed text matches a secret scanner: `internal/auto/testdata/golden/redact.json` holds `{{prefix}}` placeholders (`{{AKIA}}`, `{{ghp_}}`, `{{eyJ}}`, `{{-----BEGIN}}`, 13 prefixes) that `unmask` in `golden_test.go` expands when the test loads the file, and the shape tests build their inputs with `unmask` and `strings.Repeat` (the AWS key id is `AKIA` and sixteen letters made at run time). The redactor is still tested against the real shapes, because the expanded text is the old text exactly. Commit `test(793): secret-shaped fixtures are built at runtime`, separate and first; history is not rewritten here.
 - **Rationale:** a fixture that is a secret to a scanner blocks the push and trains people to bypass the scanner.
-- **Alternatives:** an allowlist entry for the file (a suppression, and a real key shape would pass unseen later); shorter fake keys (the redactor would no longer be tested against the real pattern).
-||||||| parent of 15dae519 (fix(793d19a): the judge's fences, reply parser and window lines agree with how they are read)
 
 
 ## 793b396 The answer and the last message of a subagent reached the window as raw lines, and the line breaks were not all of them
