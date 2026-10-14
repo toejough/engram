@@ -713,7 +713,7 @@ Red gate (before the node): `targ test-mod red hardening` (3 of 3 fail) and `go 
 | Provenance of a near fold | no flag | `Test793d29b3_*` (4) and the near row, green |
 | Security review: line structure, fences, parser | 7 of the 10 `differential_test.go` tests red | green |
 
-Gates after the node: `check-full` 17 of 17 PASS (with `test-mod`: 23 mod tests); `targ check-spec-conformance` 0 problems (it was 1: the stated count of mod tests, now 23, and the citations of the renamed tests). Budgets raised, with their reasons in the decision log: `judge-relay` 435 to 464, `capture` 426 to 433, `curation` 150 to 151, `register.js` 250 to 256, and a new `queue` component of 67 owned lines. Acceptance (`targ acceptance`, the full suite, at the head of the node): 51 runs, 49 Green, 2 `Not run` (793a5j1d, 793a5c1b: SP14), none Red, 1.862 USD, none retried; the rows 793a2e1e, 793a2e1g, 793a4b (4), 793a3a1g and 793a5h1a were Green alone before it.
+Gates after the node: `check-full` 18 of 18 PASS (with `test-mod`: 23 mod tests); `targ check-spec-conformance` 0 problems (it was 1: the stated count of mod tests, now 23, and the citations of the renamed tests). Budgets raised, with their reasons in the decision log: `judge-relay` 435 to 464, `capture` 426 to 433, `curation` 150 to 151, `register.js` 250 to 256, and a new `queue` component of 67 owned lines. Acceptance (`targ acceptance`, the full suite, at the head of the node): 51 runs, 49 Green, 2 `Not run` (793a5j1d, 793a5c1b: SP14), none Red, 1.862 USD, none retried; the rows 793a2e1e, 793a2e1g, 793a4b (4), 793a3a1g and 793a5h1a were Green alone before it.
 
 ### 793e8q Spec conformance and the technical specification
 
