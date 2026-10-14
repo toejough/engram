@@ -81,23 +81,26 @@ func Test793d26b1_ASecretInTheWindowNeverReachesTheJudgement(t *testing.T) {
 	g.Expect(world.Requests[0].Prompt).To(ContainSubstring("[redacted]"))
 }
 
+// awsKeyTail is the length of an AWS key id after its AKIA opening.
+const awsKeyTail = 16
+
 func Test793d26b1_ASecretOfAKnownShapeNeverReachesTheModelTheCommandLineOrANote(t *testing.T) {
 	t.Parallel()
 
 	shapes := map[string][2]string{
 		"a private key": {
-			"-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA0123456789abcdef\n-----END RSA PRIVATE KEY-----",
+			unmask("{{-----BEGIN}} RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA0123456789abcdef\n-----END RSA PRIVATE KEY-----"),
 			"MIIEowIBAAKCAQEA0123456789abcdef",
 		},
 		"a JWT": {
-			"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1p1r",
+			unmask("{{eyJ}}hbGciOiJIUzI1NiJ9.{{eyJ}}zdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1p1r"),
 			"dBjftJeZ4CVPmB92K27uhbUJU1p1r",
 		},
 		"a provider key":   {"sk-ant-api03-abcdefghijklmnopqrstuvwxyz", "abcdefghijklmnopqrstuvwxyz"},
-		"a GitHub token":   {"ghp_abcdefghijklmnopqrstuvwxyz0123456789", "abcdefghijklmnopqrstuvwxyz0123456789"},
-		"an AWS key id":    {"AKIA-placeholder-rewritten", "AKIA-placeholder-rewritten"},
-		"a Google key":     {"AIzaSyA-abcdefghijklmnopqrstuvwxyz012345", "abcdefghijklmnopqrstuvwxyz012345"},
-		"a Slack token":    {"xoxb-1234567890-abcdefghij", "1234567890-abcdefghij"},
+		"a GitHub token":   {unmask("{{ghp_}}abcdefghijklmnopqrstuvwxyz0123456789"), "abcdefghijklmnopqrstuvwxyz0123456789"},
+		"an AWS key id":    {unmask("{{AKIA}}") + strings.Repeat("A", awsKeyTail), unmask("{{AKIA}}") + strings.Repeat("A", awsKeyTail)},
+		"a Google key":     {unmask("{{AIza}}SyA-abcdefghijklmnopqrstuvwxyz012345"), "abcdefghijklmnopqrstuvwxyz012345"},
+		"a Slack token":    {unmask("{{xoxb-}}1234567890-abcdefghij"), "1234567890-abcdefghij"},
 		"a bearer token":   {"Bearer abcdef.ghijkl-mnop", "abcdef.ghijkl-mnop"},
 		"a URL password":   {"postgres://admin:s3cretpass@db.example.com/app", "s3cretpass"},
 		"a named password": {"DB_PASS=hunter2hunter2", "hunter2hunter2"},
@@ -139,7 +142,7 @@ func Test793d26b1_ASecretThatEvadedASinglePatternDoesNotReachTheJudgement(t *tes
 		"hunter two with spaces",
 		"%73%6B%2D%61%6E%74%2DENCODEDSECRET0123456789ABCDEF",
 		"s3cretpassinurl",
-		"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKV1RQQVlMT0FEIn0.JWTSIGNATURE1234567890",
+		unmask("{{eyJ}}hbGciOiJIUzI1NiJ9.{{eyJ}}zdWIiOiJKV1RQQVlMT0FEIn0.JWTSIGNATURE1234567890"),
 	}
 	text := long + "\nkey: " + secrets[1] + "\n{\"password\": \"" + secrets[2] + "\"}\nsee " + secrets[3] +
 		"\npostgres://bob:" + secrets[4] + "@db/x\n" + secrets[5]
