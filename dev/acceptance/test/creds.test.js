@@ -7,7 +7,14 @@ const SECRET = 'sk-ant-oat01-SECRETVALUE'
 
 function fakeFs(content) {
   const reads = []
-  return { reads, readFile: (file) => { reads.push(file); if (content === null) throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' }); return content } }
+  return {
+    reads,
+    readFile: (file) => {
+      reads.push(file)
+      if (content === null) throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
+      return content
+    },
+  }
 }
 
 test('the environment token wins and the token file is not read', () => {
@@ -25,7 +32,11 @@ test('an API key in the environment is used without reading the token file', () 
 })
 
 test('with neither variable set the token file is read, with or without export and quotes', () => {
-  for (const line of [`CLAUDE_CODE_OAUTH_TOKEN=${SECRET}`, `export CLAUDE_CODE_OAUTH_TOKEN="${SECRET}"`, `CLAUDE_CODE_OAUTH_TOKEN='${SECRET}'`]) {
+  for (const line of [
+    `CLAUDE_CODE_OAUTH_TOKEN=${SECRET}`,
+    `export CLAUDE_CODE_OAUTH_TOKEN="${SECRET}"`,
+    `CLAUDE_CODE_OAUTH_TOKEN='${SECRET}'`,
+  ]) {
     const fs = fakeFs(`# a comment\nOTHER=1\n${line}\n`)
     const creds = resolveCredentials({}, fs)
     assert.deepEqual(creds.env, { CLAUDE_CODE_OAUTH_TOKEN: SECRET }, line)
@@ -36,7 +47,10 @@ test('with neither variable set the token file is read, with or without export a
 test('with no credential anywhere the error names the variables and the file and holds no secret', () => {
   assert.throws(
     () => resolveCredentials({}, fakeFs(null)),
-    (error) => /CLAUDE_CODE_OAUTH_TOKEN/.test(error.message) && /ANTHROPIC_API_KEY/.test(error.message) && error.message.includes(TOKEN_FILE),
+    (error) =>
+      /CLAUDE_CODE_OAUTH_TOKEN/.test(error.message) &&
+      /ANTHROPIC_API_KEY/.test(error.message) &&
+      error.message.includes(TOKEN_FILE),
   )
   assert.throws(
     () => resolveCredentials({}, fakeFs(`NOTHING=${SECRET}\n`)),
@@ -51,12 +65,22 @@ test('redact removes every credential value from a text', () => {
 
 test('redactDeep removes every credential value from nested evidence', () => {
   const creds = resolveCredentials({ CLAUDE_CODE_OAUTH_TOKEN: SECRET }, fakeFs(''))
-  const evidence = { a: [`x ${SECRET}`, 1], b: { c: SECRET, d: null } }
-  assert.deepEqual(redactDeep(evidence, creds), { a: ['x [redacted]', 1], b: { c: '[redacted]', d: null } })
+  const evidence = { list: [`x ${SECRET}`, 1], nested: { secret: SECRET, none: null } }
+  assert.deepEqual(redactDeep(evidence, creds), {
+    list: ['x [redacted]', 1],
+    nested: { secret: '[redacted]', none: null },
+  })
 })
 
-test('the values to remove from a message are those of the environment and of the token file, whether or not credentials resolved', () => {
-  const file = fakeFs(`CLAUDE_CODE_OAUTH_TOKEN=${SECRET}-FILE\n`)
-  assert.deepEqual(secretValues({ ANTHROPIC_API_KEY: SECRET, CLAUDE_CODE_OAUTH_TOKEN: `${SECRET}-ENV` }, file).sort(), [SECRET, `${SECRET}-ENV`, `${SECRET}-FILE`].sort())
-  assert.deepEqual(secretValues({}, fakeFs(null)), [])
-})
+test(
+  'the values to remove from a message are those of the environment and of the token ' +
+    'file, whether or not credentials resolved',
+  () => {
+    const file = fakeFs(`CLAUDE_CODE_OAUTH_TOKEN=${SECRET}-FILE\n`)
+    assert.deepEqual(
+      secretValues({ ANTHROPIC_API_KEY: SECRET, CLAUDE_CODE_OAUTH_TOKEN: `${SECRET}-ENV` }, file).sort(),
+      [SECRET, `${SECRET}-ENV`, `${SECRET}-FILE`].sort(),
+    )
+    assert.deepEqual(secretValues({}, fakeFs(null)), [])
+  },
+)

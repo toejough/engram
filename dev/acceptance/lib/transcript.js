@@ -33,7 +33,8 @@ export function toolCalls(rows) {
   const calls = new Map()
   for (const row of rows) {
     for (const block of blocks(row)) {
-      if (block.type === 'tool_use') calls.set(block.id, { id: block.id, name: block.name, input: block.input ?? {}, result: null })
+      if (block.type === 'tool_use')
+        calls.set(block.id, { id: block.id, name: block.name, input: block.input ?? {}, result: null })
       else if (block.type === 'tool_result' && calls.has(block.tool_use_id)) {
         calls.get(block.tool_use_id).result = { text: resultText(block), isError: Boolean(block.is_error) }
       }
@@ -52,9 +53,12 @@ export function memoryCalls(rows) {
 }
 
 export function finalReply(rows) {
-  for (let i = rows.length - 1; i >= 0; i -= 1) {
-    if (rows[i].type !== 'assistant') continue
-    const text = blocks(rows[i]).filter((block) => block.type === 'text').map((block) => block.text).join('\n')
+  for (let index = rows.length - 1; index >= 0; index -= 1) {
+    if (rows[index].type !== 'assistant') continue
+    const text = blocks(rows[index])
+      .filter((block) => block.type === 'text')
+      .map((block) => block.text)
+      .join('\n')
     if (text !== '') return text
   }
   return ''
@@ -72,13 +76,13 @@ function attachmentText(row) {
 // systemBlocks are the rows the System added to an agent's context: the hook_additional_context attachment rows
 // (SP4) that open with the marker. { index, text } per row, in order.
 export function systemBlocks(rows) {
-  const blocks = []
+  const found = []
   rows.forEach((row, index) => {
     if (row.type !== 'attachment' || row.attachment?.type !== 'hook_additional_context') return
     const text = attachmentText(row)
-    if (text.startsWith(MARKER)) blocks.push({ index, text })
+    if (text.startsWith(MARKER)) found.push({ index, text })
   })
-  return blocks
+  return found
 }
 
 // deliveries are the System's blocks that carry the text (a note's sentinel).
@@ -92,18 +96,21 @@ export function retrievals(rows, needle) {
 }
 
 // precedesResponse is true when no assistant row sits between the row that caused a block (the nearest earlier user
-// row: the prompt, a tool result, a task prompt) and the block: the agent reads it before its next response or tool call.
+// row: the prompt, a tool result, a task prompt) and the block: the agent reads it before its next response or tool
+// call.
 export function precedesResponse(rows, index) {
-  for (let i = index - 1; i >= 0; i -= 1) {
-    if (rows[i].type === 'assistant') return false
-    if (rows[i].type === 'user') return true
+  for (let earlier = index - 1; earlier >= 0; earlier -= 1) {
+    if (rows[earlier].type === 'assistant') return false
+    if (rows[earlier].type === 'user') return true
   }
   return false
 }
 
 // resultIndex is the index of the user row that carries the result of a tool call, or -1.
 export function resultIndex(rows, toolUseId) {
-  return rows.findIndex((row) => blocks(row).some((block) => block.type === 'tool_result' && block.tool_use_id === toolUseId))
+  return rows.findIndex((row) =>
+    blocks(row).some((block) => block.type === 'tool_result' && block.tool_use_id === toolUseId),
+  )
 }
 
 // noResponseBetween: no assistant row sits between the two indexes, so that what sits at `to` is read by the agent
@@ -115,8 +122,12 @@ export function noResponseBetween(rows, from, to) {
 // declarationIndex is the row of the declaration: the last assistant row that says anything (a tool call alone says
 // nothing), or -1. The agent's declaration is its closing statement of a turn (793a2n1a).
 export function declarationIndex(rows) {
-  for (let i = rows.length - 1; i >= 0; i -= 1) {
-    if (rows[i].type === 'assistant' && blocks(rows[i]).some((block) => block.type === 'text' && block.text.trim() !== '')) return i
+  for (let index = rows.length - 1; index >= 0; index -= 1) {
+    if (
+      rows[index].type === 'assistant' &&
+      blocks(rows[index]).some((block) => block.type === 'text' && block.text.trim() !== '')
+    )
+      return index
   }
   return -1
 }
@@ -132,7 +143,11 @@ export function precedesFirstResponse(rows, index) {
 // else Infinity (it did neither, so nothing the block could have preceded).
 export function dispatchIndexAfter(rows, toolUseId) {
   const result = resultIndex(rows, toolUseId)
-  const dispatch = rows.findIndex((row, i) => i > result && blocks(row).some((block) => block.type === 'tool_use' && (block.name === 'Agent' || block.name === 'Task')))
+  const dispatch = rows.findIndex(
+    (row, index) =>
+      index > result &&
+      blocks(row).some((block) => block.type === 'tool_use' && (block.name === 'Agent' || block.name === 'Task')),
+  )
   if (dispatch >= 0) return dispatch
   const declared = declarationIndex(rows)
   return declared > result ? declared : Infinity
@@ -157,7 +172,9 @@ export const SKIPPED = /automatic memory was skipped/i
 
 // statusTexts are the strings the mod passed to $.ui.status, in order, from the stream's system messages (SP9).
 export function statusTexts(messages) {
-  return messages.filter((message) => message.type === 'system' && message.subtype === 'ui_status').map((message) => String(message.text ?? ''))
+  return messages
+    .filter((message) => message.type === 'system' && message.subtype === 'ui_status')
+    .map((message) => String(message.text ?? ''))
 }
 
 // rowsMentioning are the rows (any kind) whose serialised form matches the pattern.
@@ -171,6 +188,11 @@ export function typedRows(rows, typed) {
     if (row.type !== 'user') return false
     const content = row.message?.content
     if (typeof content === 'string') return content === typed
-    return Array.isArray(content) && content.length > 0 && content.every((block) => block.type === 'text') && content.map((block) => block.text).join('\n') === typed
+    return (
+      Array.isArray(content) &&
+      content.length > 0 &&
+      content.every((block) => block.type === 'text') &&
+      content.map((block) => block.text).join('\n') === typed
+    )
   })
 }

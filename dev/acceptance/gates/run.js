@@ -5,8 +5,9 @@
 //   mod-test [green|red] [file-prefix]  the mod's contract tests: tests/*.test.ts, or the gates tests/*.red.ts
 //   spec                                the specs 793d22 onward against the mod's tests, the product spec and the code
 //   status                              every gate above, in one table
-// Every gate exits non-zero while it is red. None is wired into check-full yet; 793e8l lists them (the refactor-red
-// list). Each gate's module is loaded when it runs, so that a gate that has not landed does not stop the others.
+// Every gate exits non-zero while it is red. The ones that are green are in check-full; the others are on the
+// refactor-red list (793e8l). Each gate's module is loaded when it runs, so that a gate that has not landed does not
+// stop the others.
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -17,6 +18,7 @@ const MOD = path.resolve(HERE, '..', '..', '..', 'agent-instructions', 'mods', '
 const HOOKS = path.join(MOD, 'hooks')
 const GO_DIR = path.resolve(HERE, '..', '..', '..', 'internal', 'auto')
 const NAME_WIDTH = 12
+const GO_RED_TAIL_LINES = 12
 const ARGS_FROM = 2
 const USAGE_EXIT = 2
 
@@ -28,14 +30,21 @@ async function lintGate(part) {
 }
 
 async function budget() {
-  const { measure, measureGo, goTable, goal, compare, externalImports, formatTable, passes } = await import('./owned-lines.js')
+  const { measure, measureGo, goTable, goal, compare, externalImports, formatTable, passes } = await import(
+    './owned-lines.js'
+  )
   const table = JSON.parse(fs.readFileSync(path.join(HERE, 'budgets.json'), 'utf8'))
   const goResult = compare(measureGo(GO_DIR, table.go), goTable(table.go))
   const goals = Object.entries(table.go.components).map(([name, row]) => `${name} ${goal(row, table.go.ratio)}`)
-  console.log(`Go components of ${table.go.dir}: owned lines against their ceilings; goal at ${table.go.ratio} times the owned JavaScript lines replaced: ${goals.join(', ')}`)
+  console.log(
+    `Go components of ${table.go.dir}: owned lines against their ceilings; goal at ${table.go.ratio} ` +
+      `times the owned JavaScript lines replaced: ${goals.join(', ')}`,
+  )
   console.log(formatTable(goResult))
   for (const row of goResult.unbudgeted) console.log(`${row.file} has no budget`)
-  console.log(`Go minimality: ${goResult.totalExcess > 0 || goResult.over.length > 0 ? 'over budget' : 'within budget'}\n`)
+  console.log(
+    `Go minimality: ${goResult.totalExcess > 0 || goResult.over.length > 0 ? 'over budget' : 'within budget'}\n`,
+  )
   const result = compare(measure(HOOKS), table)
   const imports = hookFiles().flatMap((name) =>
     externalImports(fs.readFileSync(path.join(HOOKS, name), 'utf8')).map((module) => `${name} imports ${module}`),
@@ -96,14 +105,13 @@ function goRed() {
     cwd: path.resolve(HERE, '..', '..', '..'),
     encoding: 'utf8',
   })
-  console.log(`${run.stdout}${run.stderr}`.trim().split('\n').slice(-12).join('\n'))
+  console.log(`${run.stdout}${run.stderr}`.trim().split('\n').slice(-GO_RED_TAIL_LINES).join('\n'))
   return run.status
 }
 
-// the gates that are still red: the three of node 793e8m (complexity, adapter, minimality) are green and in check-full
+// the gates that are still red: the five of nodes 793e8m and 793e8n (complexity, adapter, minimality, standards, types)
+// are green and in check-full
 const GATES = [
-  ['standards', 'targ lint-js standards', () => lintGate('standards')],
-  ['types', 'targ lint-js types', () => lintGate('types')],
   ['go-red', 'go test -tags refactorred ./internal/auto/', goRed],
   ['hardening', 'targ test-mod red hardening', () => modTest('red', 'hardening')],
   ['spec', 'targ check-spec-conformance', spec],

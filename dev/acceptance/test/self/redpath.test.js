@@ -41,7 +41,11 @@ test('a failing Then is Red with its ID; a harness bug, a pending and an undefin
   try {
     const feature = path.join(dir, 'red.feature')
     fs.writeFileSync(feature, FEATURE)
-    const { success, results } = await runFeatures({ features: [feature], support: [path.join(HERE, 'fixture', 'steps.js')], cwd: HERE })
+    const { success, results } = await runFeatures({
+      features: [feature],
+      support: [path.join(HERE, 'fixture', 'steps.js')],
+      cwd: HERE,
+    })
     const byId = Object.fromEntries(results.map((entry) => [entry.id, entry.result]))
     assert.deepEqual(byId, {
       '999z1a': 'Green',

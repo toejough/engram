@@ -13,7 +13,7 @@ test('the SDK reports a running total per session, so a turn costs the change si
   })
   assert.ok(Math.abs(costs[0] - 0.0164239) < 1e-9)
   assert.ok(Math.abs(costs[1] - 0.0154119) < 1e-9)
-  assert.ok(Math.abs(costs.reduce((a, b) => a + b, 0) - 0.0337758) < 1e-9)
+  assert.ok(Math.abs(costs.reduce((sum, block) => sum + block, 0) - 0.0337758) < 1e-9)
 })
 
 test('a total that went down (a new process) counts whole, never negative', () => {

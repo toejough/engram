@@ -11,15 +11,30 @@ import { redact } from './creds.js'
 let sessionCount = 0
 const NOT_LOADED = /hooks module (\S+) not loaded:? ?(.*)/i
 
+const DEFAULT_BUDGET_USD = 5
+const TURN_TIMEOUT_MS = 180000
+
 export class Session {
-  constructor({ env, cwd, home, claudePath, creds, model = 'sonnet', plugins = [], resume, forkSession, maxBudgetUsd = 5, maxTurns, debugFile }) {
+  constructor({
+    env,
+    cwd,
+    home,
+    claudePath,
+    creds,
+    model = 'sonnet',
+    plugins = [],
+    resume,
+    forkSession,
+    maxBudgetUsd = DEFAULT_BUDGET_USD,
+    maxTurns,
+    debugFile,
+  }) {
     this.home = home
     // one debug log per session: a World may hold several (a resume, a peer's sender)
     sessionCount += 1
     this.debugFile = debugFile ?? path.join(home, `claude-debug-${sessionCount}.log`)
     this.creds = creds
     this.messages = []
-    this.statuses = []
     this.turns = []
     this.stderr = ''
     this.sessionId = resume ?? null
@@ -63,7 +78,7 @@ export class Session {
 
   // awaitTurn resolves with the summary of the next turn the session runs without being sent anything: a task
   // notification, a scheduled trigger or a peer's message starts one (SP8).
-  awaitTurn({ after = this.turns.length, timeoutMs = 180000 } = {}) {
+  awaitTurn({ after = this.turns.length, timeoutMs = TURN_TIMEOUT_MS } = {}) {
     if (this.failure) return Promise.reject(this.failure)
     if (this.turns.length > after) return Promise.resolve(this.turns[after])
     return new Promise((resolve, reject) => {
@@ -72,8 +87,14 @@ export class Session {
         reject(new Error(`no turn started by itself within ${timeoutMs} ms`))
       }, timeoutMs)
       this.waiting = {
-        resolve: (turn) => { clearTimeout(timer); resolve(turn) },
-        reject: (error) => { clearTimeout(timer); reject(error) },
+        resolve: (turn) => {
+          clearTimeout(timer)
+          resolve(turn)
+        },
+        reject: (error) => {
+          clearTimeout(timer)
+          reject(error)
+        },
         startedAt: Date.now(),
       }
     })
@@ -102,13 +123,18 @@ export class Session {
     if (!main) return []
     const dir = path.join(main.slice(0, -'.jsonl'.length), 'subagents')
     if (!fs.existsSync(dir)) return []
-    return fs.readdirSync(dir).filter((name) => name.endsWith('.jsonl')).map((name) => path.join(dir, name))
+    return fs
+      .readdirSync(dir)
+      .filter((name) => name.endsWith('.jsonl'))
+      .map((name) => path.join(dir, name))
   }
 
   async *#inputStream() {
     for (;;) {
       while (this.inputs.length === 0) {
-        await new Promise((resolve) => { this.inputWaiter = resolve })
+        await new Promise((resolve) => {
+          this.inputWaiter = resolve
+        })
       }
       const next = this.inputs.shift()
       if (next === null) return
@@ -130,7 +156,7 @@ export class Session {
   // stderr (SP2), so both are read.
   #checkLoad() {
     if (this.failure) return
-    let log = ''
+    let log
     try {
       log = fs.readFileSync(this.debugFile, 'utf8')
     } catch {
@@ -151,8 +177,6 @@ export class Session {
     try {
       for await (const message of this.query) {
         this.messages.push(message)
-        // what a mod passes to $.ui.status arrives as a system message in a stream (SP9); it is not a transcript row
-        if (message.type === 'system' && message.subtype === 'ui_status') this.statuses.push({ text: String(message.text ?? ''), plugin: message.plugin, at: Date.now() })
         if (message.type === 'system' && message.subtype === 'init') {
           this.sessionId = message.session_id
           this.init = message
@@ -160,7 +184,11 @@ export class Session {
         } else if (message.type === 'result') {
           this.#checkLoad()
           if (this.failure) return
-          const turn = summarize(message, this.waiting?.startedAt ?? this.lastResultAt, turnCost(this.costTotal, message.total_cost_usd))
+          const turn = summarize(
+            message,
+            this.waiting?.startedAt ?? this.lastResultAt,
+            turnCost(this.costTotal, message.total_cost_usd),
+          )
           this.costTotal = typeof message.total_cost_usd === 'number' ? message.total_cost_usd : this.costTotal
           this.lastResultAt = Date.now()
           this.turns.push(turn)
@@ -172,7 +200,8 @@ export class Session {
     } catch (error) {
       if (!this.closed) this.#fail(error)
     }
-    if (this.waiting) this.#fail(new Error(`the session ended before the turn completed: ${redact(this.stderr.trim(), this.creds)}`))
+    if (this.waiting)
+      this.#fail(new Error(`the session ended before the turn completed: ${redact(this.stderr.trim(), this.creds)}`))
   }
 }
 

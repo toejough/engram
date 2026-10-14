@@ -7,18 +7,21 @@ export const TOKEN_FILE = path.join(os.homedir(), '.config', 'claude-key.env')
 const OAUTH = 'CLAUDE_CODE_OAUTH_TOKEN'
 const API_KEY = 'ANTHROPIC_API_KEY'
 
+// tokenFileContent is the text of the owner's token file, or nothing when it cannot be read.
+function tokenFileContent(fs) {
+  try {
+    return fs.readFile(TOKEN_FILE)
+  } catch {
+    return ''
+  }
+}
+
 // resolveCredentials returns { env, values }: env is what a session gets, values what redact removes.
 export function resolveCredentials(environment, fs) {
   for (const name of [OAUTH, API_KEY]) {
     if (environment[name]) return build({ [name]: environment[name] })
   }
-  let content = ''
-  try {
-    content = fs.readFile(TOKEN_FILE)
-  } catch {
-    content = ''
-  }
-  const token = parseTokenFile(content)
+  const token = parseTokenFile(tokenFileContent(fs))
   if (token === null) {
     throw new Error(`no credentials: set ${OAUTH} or ${API_KEY}, or put ${OAUTH}=<token> in ${TOKEN_FILE}`)
   }
@@ -52,11 +55,5 @@ export function redactDeep(value, creds) {
 // secretValues are all the credential values that can be named in a message, found without requiring that any resolves:
 // both variables and the token file. An error that is printed before credentials were resolved is redacted with these.
 export function secretValues(environment, fs) {
-  let content = ''
-  try {
-    content = fs.readFile(TOKEN_FILE)
-  } catch {
-    content = ''
-  }
-  return [...new Set([environment[OAUTH], environment[API_KEY], parseTokenFile(content)].filter(Boolean))]
+  return [...new Set([environment[OAUTH], environment[API_KEY], parseTokenFile(tokenFileContent(fs))].filter(Boolean))]
 }

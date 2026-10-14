@@ -40,7 +40,9 @@ export function disposeRunContext(context) {
 // the calling session, and every data, cache and config directory is inside the scenario's home.
 export function baseEnv({ home, cacheDir, binDir, tmp = path.join(home, 'tmp') }) {
   return {
-    PATH: [binDir, '/usr/bin', '/bin', '/usr/sbin', '/sbin', '/opt/homebrew/bin', '/usr/local/bin'].join(path.delimiter),
+    PATH: [binDir, '/usr/bin', '/bin', '/usr/sbin', '/sbin', '/opt/homebrew/bin', '/usr/local/bin'].join(
+      path.delimiter,
+    ),
     HOME: home,
     TMPDIR: tmp,
     LANG: 'en_US.UTF-8',

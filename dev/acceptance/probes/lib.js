@@ -2,6 +2,7 @@
 // scenario World and returns the evidence it observed (plain data, printed as JSON by probes/run.js).
 import fs from 'node:fs'
 import path from 'node:path'
+import { setTimeout as sleep } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 
 import { redactDeep, resolveCredentials } from '../lib/creds.js'
@@ -11,11 +12,14 @@ import { readRows } from '../lib/transcript.js'
 import { Scenario } from '../lib/world.js'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
+const ROW_KEYS = 12
 export const RECORDER = path.join(HERE, 'recorder')
 
-export async function withProbeContext(fn, { withCredentials = true } = {}) {
+export async function withProbeContext(body, { withCredentials = true } = {}) {
   const claude = preflight({ needClaude: true })
-  const creds = withCredentials ? resolveCredentials(process.env, { readFile: (file) => fs.readFileSync(file, 'utf8') }) : { env: {}, values: [] }
+  const creds = withCredentials
+    ? resolveCredentials(process.env, { readFile: (file) => fs.readFileSync(file, 'utf8') })
+    : { env: {}, values: [] }
   const context = await createRunContext({ claudePath: claude.path, creds })
   const scenarios = []
   const helpers = {
@@ -43,18 +47,21 @@ export async function withProbeContext(fn, { withCredentials = true } = {}) {
     events(scenario) {
       const dir = scenario.extraEnv.PROBE_DIR
       if (!dir || !fs.existsSync(dir)) return []
-      return fs.readdirSync(dir).sort().map((file) => JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8')))
+      return fs
+        .readdirSync(dir)
+        .sort()
+        .map((file) => JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8')))
     },
     rows(session) {
       const file = session.transcriptPath()
       return file ? readRows(file) : []
     },
-    async settle(ms) {
-      await new Promise((resolve) => setTimeout(resolve, ms))
+    async settle(milliseconds) {
+      await sleep(milliseconds)
     },
   }
   try {
-    return redactDeep(await fn(helpers), creds)
+    return redactDeep(await body(helpers), creds)
   } finally {
     await Promise.all(scenarios.map((scenario) => scenario.dispose()))
     disposeRunContext(context)
@@ -71,6 +78,6 @@ export function rowsContaining(rows, needle) {
       type: row.type,
       attachmentType: row.attachment?.type,
       role: row.message?.role,
-      keys: Object.keys(row).slice(0, 12),
+      keys: Object.keys(row).slice(0, ROW_KEYS),
     }))
 }

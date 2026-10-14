@@ -3,12 +3,14 @@
 // rebuilt World; the Then of a scenario is never retried.
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
+import { setTimeout as sleep } from 'node:timers/promises'
 
 import { agentCalls, memoryCalls, readRows, systemBlocks, toolCalls } from './transcript.js'
 
 export const MAX_ATTEMPTS = 3
 const TRANSCRIPT_WAIT_MS = 5000
 const POLL_MS = 100
+const SETTLE_MS = 600
 
 function matches(expected, actual) {
   if (expected === undefined) return true
@@ -18,8 +20,8 @@ function matches(expected, actual) {
 // preconditionFailure is null when the turn left what the script's event needs, else why it did not. `tool`, `command`,
 // `skill` and `args` are matched against a tool call, `reply` against the agent's last reply, `calls` is how many
 // matching tool calls the turn needs (default 1), `subagentsRead` that each dispatched subagent's transcript holds the
-// text. All of these are about what the agent did; `delivered` (the turn left a block of the System) is about the System
-// itself, and a precondition the System did not meet is a failed assertion and not a harness error (793b316).
+// text. All of these are about what the agent did; `delivered` (the turn left a block of the System) is about the
+// System itself, and a precondition the System did not meet is a failed assertion and not a harness error (793b316).
 export function preconditionFailure(rows, observe, reply = '', subagents = []) {
   if (!observe) return null
   const agent = { system: false, message: 'the agent did not do what the event says' }
@@ -34,15 +36,24 @@ export function preconditionFailure(rows, observe, reply = '', subagents = []) {
     )
     if (found.length < (observe.calls ?? 1)) return agent
     // each dispatched subagent's transcript holds the text, so the lesson reached the subagent's session
-    if (observe.subagentsRead !== undefined && !(subagents.length >= found.length && subagents.filter((text) => observe.subagentsRead.test(text)).length >= found.length)) return agent
+    if (
+      observe.subagentsRead !== undefined &&
+      !(
+        subagents.length >= found.length &&
+        subagents.filter((text) => observe.subagentsRead.test(text)).length >= found.length
+      )
+    )
+      return agent
   }
-  if (observe.delivered && systemBlocks(rows).length === 0) return { system: true, message: 'the System delivered nothing in a turn that needed a delivery' }
+  if (observe.delivered && systemBlocks(rows).length === 0)
+    return { system: true, message: 'the System delivered nothing in a turn that needed a delivery' }
   return null
 }
 
 // constraintsHold: the Given constraints of the scenario ("the user has not asked for any memory command", "the agent
 // runs no memory command itself") are enforced by the turn: a turn in which the agent ran one is a failed precondition.
-// A script says the same of its own turn with `noMemoryCommands` (the capture scenarios: the System writes, not the agent).
+// A script says the same of its own turn with `noMemoryCommands` (the capture scenarios: the System writes, not the
+// agent).
 export function constraintsHold(world, rows, script = {}) {
   return !(world.noAgentMemoryCommands || script.noMemoryCommands) || memoryCalls(rows).length === 0
 }
@@ -51,7 +62,9 @@ export function constraintsHold(world, rows, script = {}) {
 function failedPrecondition(world, script, { turn, rows }) {
   const failure = preconditionFailure(rows, script.observe, turn.text, subagentTexts(world.scenario))
   if (failure) return failure
-  return constraintsHold(world, rows, script) ? null : { system: false, message: 'the agent ran a memory command itself' }
+  return constraintsHold(world, rows, script)
+    ? null
+    : { system: false, message: 'the agent ran a memory command itself' }
 }
 
 export async function readTranscript(session) {
@@ -60,13 +73,13 @@ export async function readTranscript(session) {
     const file = session.transcriptPath()
     if (file) return readRows(file)
     if (Date.now() > deadline) throw new Error('the session transcript was not written')
-    await new Promise((resolve) => setTimeout(resolve, POLL_MS))
+    await sleep(POLL_MS)
   }
 }
 
 // settle gives the transcript writer a moment to flush the rows of a finished turn before they are read.
-export async function settle(ms = 600) {
-  await new Promise((resolve) => setTimeout(resolve, ms))
+export async function settle(milliseconds = SETTLE_MS) {
+  await sleep(milliseconds)
 }
 
 const IDLE_WAIT_MS = 180000
@@ -75,32 +88,39 @@ const IDLE_STABLE_MS = 1500
 
 const seamLines = (file) => {
   try {
-    return fs.readFileSync(file, 'utf8').split('\n').filter((line) => line !== '')
+    return fs
+      .readFileSync(file, 'utf8')
+      .split('\n')
+      .filter((line) => line !== '')
   } catch {
     return []
   }
 }
 
-// awaitIdle waits for the System's work to finish: the mod's seam file ends with `idle` once its queue is empty. The mod
-// writes `queued` before the hook of a completed turn returns, so a session that queued nothing leaves no file; that is
-// told from work not yet queued by a grace period that begins when the last turn's result arrived, and never while a
-// session is still in a turn: an absence guard cannot pass before the System had started (793b316).
-export async function awaitIdle(scenario, { graceMs = NO_WORK_GRACE_MS, pollMs = POLL_MS, stableMs = IDLE_STABLE_MS } = {}) {
+// awaitIdle waits for the System's work to finish: the mod's seam file ends with `idle` once its queue is empty. The
+// mod writes `queued` before the hook of a completed turn returns, so a session that queued nothing leaves no file;
+// that is told from work not yet queued by a grace period that begins when the last turn's result arrived, and never
+// while a session is still in a turn: an absence guard cannot pass before the System had started (793b316).
+export async function awaitIdle(
+  scenario,
+  { graceMs = NO_WORK_GRACE_MS, pollMs = POLL_MS, stableMs = IDLE_STABLE_MS } = {},
+) {
   const start = Date.now()
   const sessions = () => scenario.sessions ?? []
   for (;;) {
     const lines = seamLines(scenario.seamFile)
     if (lines.at(-1) === 'idle') {
       // idle stays idle: no job joined the queue in the next moment
-      await new Promise((resolve) => setTimeout(resolve, stableMs))
+      await sleep(stableMs)
       if (seamLines(scenario.seamFile).length === lines.length) return
       continue
     }
     const inTurn = sessions().some((session) => session.waiting)
     const lastResult = Math.max(start, ...sessions().map((session) => session.lastResultAt ?? 0))
     if (lines.length === 0 && !inTurn && Date.now() - lastResult > graceMs) return
-    if (Date.now() - start > IDLE_WAIT_MS) throw new Error('the System\'s work did not finish: no idle line in the seam file')
-    await new Promise((resolve) => setTimeout(resolve, pollMs))
+    if (Date.now() - start > IDLE_WAIT_MS)
+      throw new Error("the System's work did not finish: no idle line in the seam file")
+    await sleep(pollMs)
   }
 }
 
@@ -116,7 +136,8 @@ function reported(rows) {
   const ids = new Set()
   for (const row of rows) {
     if (row.type !== 'user') continue
-    const text = typeof row.message?.content === 'string' ? row.message.content : JSON.stringify(row.message?.content ?? '')
+    const text =
+      typeof row.message?.content === 'string' ? row.message.content : JSON.stringify(row.message?.content ?? '')
     if (!text.includes('<status>completed</status>')) continue
     for (const match of text.matchAll(/<task-id>([^<]+)<\/task-id>/g)) ids.add(match[1])
   }
@@ -130,15 +151,14 @@ async function afterDispatches(session, rows) {
   const dispatched = agentCalls(rows).length
   if (dispatched === 0) return rows
   const deadline = Date.now() + DISPATCH_WAIT_MS
-  let current = rows
   while (Date.now() < deadline) {
-    current = readRows(session.transcriptPath())
+    const current = readRows(session.transcriptPath())
     if (reported(current) >= dispatched) break
-    await new Promise((resolve) => setTimeout(resolve, POLL_MS))
+    await sleep(POLL_MS)
   }
   for (let seen = -1; seen !== session.turns.length && Date.now() < deadline; ) {
     seen = session.turns.length
-    await new Promise((resolve) => setTimeout(resolve, QUIET_MS))
+    await sleep(QUIET_MS)
   }
   await settle()
   return readRows(session.transcriptPath())
@@ -162,11 +182,14 @@ export async function attempt(world, run, check) {
     const result = await run(world.scenario)
     const failure = check(result)
     if (failure === null || failure === true) {
-      world.scenario.log.push(async (scenario) => { await run(scenario) })
+      world.scenario.log.push(async (scenario) => {
+        await run(scenario)
+      })
       return result
     }
     if (tries === MAX_ATTEMPTS) {
-      const message = `the precondition of the turn was not observed in ${MAX_ATTEMPTS} attempts: ${failure.message ?? 'not observed'}`
+      const reason = failure.message ?? 'not observed'
+      const message = `the precondition of the turn was not observed in ${MAX_ATTEMPTS} attempts: ${reason}`
       throw failure.system ? new assert.AssertionError({ message }) : new Error(message)
     }
     world.retries += 1

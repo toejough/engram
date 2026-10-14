@@ -14,37 +14,48 @@ Given(/^the System is (installed|not installed)$/, async function (state) {
   })
 })
 
-Given(/^(Claude Code is installed|Pi is installed with the memory skills, guidance and shim|Pi is not installed)$/, function (form) {
-  if (form === 'Pi is installed with the memory skills, guidance and shim') {
-    this.skipReason = NO_HEADLESS_PI
-    return 'skipped'
-  }
-  if (form === 'Pi is not installed') {
-    assert.ok(!fs.existsSync(path.join(this.scenario.home, '.pi')), 'the World has a Pi directory')
+Given(
+  /^(Claude Code is installed|Pi is installed with the memory skills, guidance and shim|Pi is not installed)$/,
+  function (form) {
+    if (form === 'Pi is installed with the memory skills, guidance and shim') {
+      this.skipReason = NO_HEADLESS_PI
+      return 'skipped'
+    }
+    if (form === 'Pi is not installed') {
+      assert.ok(!fs.existsSync(path.join(this.scenario.home, '.pi')), 'the World has a Pi directory')
+      return undefined
+    }
+    if (!fs.existsSync(this.scenario.context.claudePath)) throw new Error('claude is not installed')
     return undefined
-  }
-  if (!fs.existsSync(this.scenario.context.claudePath)) throw new Error('claude is not installed')
-  return undefined
-})
+  },
+)
 
 Given(/^an engram install made before the System existed$/, async function () {
   await this.scenario.setup((scenario) => scenario.installPreSystem())
 })
 
-Given(/^the vault holds (?:a note "([^"]*)" whose situation is "([^"]*)"(?: and which says "([^"]*)")?|no matching note)$/, async function (label, situation, says) {
-  if (label == null) return undefined
-  await this.scenario.setup((scenario) => scenario.seedNote(label, situation, says))
-  return undefined
-})
+Given(
+  /^the vault holds (?:a note "([^"]*)" whose situation is "([^"]*)"(?: and which says "([^"]*)")?|no matching note)$/,
+  async function (label, situation, says) {
+    if (typeof label !== 'string') return undefined
+    await this.scenario.setup((scenario) => scenario.seedNote(label, situation, says))
+    return undefined
+  },
+)
 
-Given(/^the vault holds a pending offer "([^"]*)" that (?:note "([^"]*)" covers|no note covers)$/, async function (label, covered) {
-  await this.scenario.setup((scenario) => scenario.seedOffer(label, covered))
-})
+Given(
+  /^the vault holds a pending offer "([^"]*)" that (?:note "([^"]*)" covers|no note covers)$/,
+  async function (label, covered) {
+    await this.scenario.setup((scenario) => scenario.seedOffer(label, covered))
+  },
+)
 
 // Fault injection by a real mechanism (793e2i step 6): an unreadable vault directory, or an engram shim that fails.
 const DELAY_SECONDS = '(?:takes (\\d+) seconds)'
 Given(
-  new RegExp(`^(?:(the vault cannot be read)|the System's work for a turn (?:(raises an error)|(times out)|${DELAY_SECONDS}))$`),
+  new RegExp(
+    `^(?:(the vault cannot be read)|the System's work for a turn (?:(raises an error)|(times out)|${DELAY_SECONDS}))$`,
+  ),
   async function (unreadable, raises, times, seconds) {
     await this.scenario.setup((scenario) => {
       if (unreadable) scenario.hideVault()

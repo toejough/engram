@@ -1,10 +1,9 @@
-// Scenario inputs (793b276): keyed by scenario ID, inputs only. A scenario with no entry here is not built yet.
-// `turns` maps the quoted event of a "a turn completes in which ..." step to the prompt that elicits it and the
-// observation that confirms the agent did it; the outcomes are asserted by the steps, never here.
-// 793e8f: the seeds of the summary scenarios. Three notes on one situation are three items for a delivery; a near offer
-// states the claim of one of them and adds a claim it lacks; an absent offer states a claim no note does. The quoted
-// events of a scenario name what the System does; the seeds and the prompt make the model do it (the counts are asserted
-// by the Then, never here).
+// Scenario inputs (793b276): keyed by scenario ID, inputs only. A scenario with no entry here is not built yet. `turns`
+// maps the quoted event of a "a turn completes in which ..." step to the prompt that elicits it and the observation
+// that confirms the agent did it; the outcomes are asserted by the steps, never here. 793e8f: the seeds of the summary
+// scenarios. Three notes on one situation are three items for a delivery; a near offer states the claim of one of them
+// and adds a claim it lacks; an absent offer states a claim no note does. The quoted events of a scenario name what the
+// System does; the seeds and the prompt make the model do it (the counts are asserted by the Then, never here).
 const TAGGING = 'tagging a release'
 const THREE_NOTES = [
   { label: 'RA', situation: TAGGING, says: 'release tags are annotated tags' },
@@ -29,17 +28,25 @@ const RELEASES_FROM_MAIN = says('\\breleases?\\b', '\\btag(?:s|ged|ging)?\\b', '
 const FIXTURE_UNSET = says('\\bFIXTURE_DIR\\b', '\\b(?:unset|not set|missing)\\b')
 const TARG_TEST_NOT_GO_TEST = says('\\btarg test\\b', '\\bgo test\\b')
 
-// A note the vault holds that no scenario prompt is about: it is found by the lookup of any prompt (it states one of the
-// four moments of recall) and bears on none of them, so that the judgement of relevance has a candidate to decline.
-const UNRELATED_NOTE = { situation: 'starting to build a new approach to caching in a web service', says: 'measure the hit rate before adding a cache' }
+// A note the vault holds that no scenario prompt is about: it is found by the lookup of any prompt (it states one of
+// the four moments of recall) and bears on none of them, so that the judgement of relevance has a candidate to decline.
+const UNRELATED_NOTE = {
+  situation: 'starting to build a new approach to caching in a web service',
+  says: 'measure the hit rate before adding a cache',
+}
 
-// The lesson a subagent finds out by itself: it states a guess, reads the user's feedback in a file, and corrects its own
-// guess in its next message. The parent's prompt never states the lesson, so a note that states it was written from what
-// the subagent itself said (793b316). The window of a capture holds what the user and the agent said, not what a tool
-// gave back, so the subagent has to say the rule.
-const FEEDBACK_FILE = { 'feedback.txt': 'User feedback on the last run: "I ran `go test ./internal/cli`. No, run targ test, not go test."\n' }
+// The lesson a subagent finds out by itself: it states a guess, reads the user's feedback in a file, and corrects its
+// own guess in its next message. The parent's prompt never states the lesson, so a note that states it was written from
+// what the subagent itself said (793b316). The window of a capture holds what the user and the agent said, not what a
+// tool gave back, so the subagent has to say the rule.
+const FEEDBACK_FILE = {
+  'feedback.txt': 'User feedback on the last run: "I ran `go test ./internal/cli`. No, run targ test, not go test."\n',
+}
 const ACKNOWLEDGE =
-  'Before looking at anything, state in one sentence which command you would use to run the tests of internal/cli. Then read feedback.txt with the Read tool. Then state in one sentence the rule that the feedback gives, saying that your first guess was wrong. Do not do anything else.'
+  'Before looking at anything, state in one sentence which command you would use to ' +
+  'run the tests of internal/cli. Then read feedback.txt with the Read tool. Then state ' +
+  'in one sentence the rule that the feedback gives, saying that your first guess was ' +
+  'wrong. Do not do anything else.'
 
 // the ended Pi session of the targ lesson: a run of the tests the user corrects, and the agent's last reply
 const TARG_PI_SESSION = {
@@ -52,15 +59,21 @@ const TARG_PI_SESSION = {
 }
 
 export default {
-  // 793e8i: the H1 scenarios are live experiments (h1/, steps/h1.js, kept under ENGRAM_EVAL_DIR since 793b343): their inputs
-  // are the scripted sessions of h1/tours.js, so an entry here only marks a scenario as built.
-  ...Object.fromEntries(['a1a', 'a1b', 'a1c', 'b1a', 'c1a', 'c1b', 'c1c', 'd1a', 'e1a', 'e1b', 'f1a'].map((id) => [`793d17${id}`, { h1: true }])),
+  // 793e8i: the H1 scenarios are live experiments (h1/, steps/h1.js, kept under ENGRAM_EVAL_DIR since 793b343): their
+  // inputs are the scripted sessions of h1/tours.js, so an entry here only marks a scenario as built.
+  ...Object.fromEntries(
+    ['a1a', 'a1b', 'a1c', 'b1a', 'c1a', 'c1b', 'c1c', 'd1a', 'e1a', 'e1b', 'f1a'].map((id) => [
+      `793d17${id}`,
+      { liveExperiment: true },
+    ]),
+  ),
 
   '793a5k1e': {
     turns: {
       'the agent runs an engram query on how releases are tagged in the middle of a task': {
         prompt:
-          "In the middle of this task, run `engram query --phrase 'how releases are tagged'` with the Bash tool, then tell me in one sentence what the top result says.",
+          "In the middle of this task, run `engram query --phrase 'how releases are tagged'` " +
+          'with the Bash tool, then tell me in one sentence what the top result says.',
         observe: { tool: 'Bash', command: /(^|[\s;&|(])engram\s+query\b/ },
       },
     },
@@ -68,18 +81,23 @@ export default {
 
   // 793e8b: delivery at the moments. The prompt does not say what the work is or that it is done: the task is in a file
   // the agent reads, so the note can only reach the agent in the turn, at the tool result after the step in which the
-  // agent says it is about to check the rename before it declares it done (the in-turn cue, 793b320). The agent is asked
-  // to say what it is about to do before each tool call: the cue reads what the agent said, not what a tool gave back.
+  // agent says it is about to check the rename before it declares it done (the in-turn cue, 793b320). The agent is
+  // asked to say what it is about to do before each tool call: the cue reads what the agent said, not what a tool gave
+  // back.
   '793a2n1a': {
     deliveredMidTurn: true,
     turns: {
       'the working agent reaches the point of declaring the rename done': {
         files: {
           'task.md':
-            'A colleague says they renamed the Go package `util` to `helpers` and updated the imports. Search the workspace once for any file that still mentions `internal/util`, then tell me in one sentence whether the rename is done. Before the search, say in one sentence what you are about to search for and what you will tell me if it finds nothing.\n',
+            'A colleague says they renamed the Go package `util` to `helpers` and updated the ' +
+            'imports. Search the workspace once for any file that still mentions `internal/util`, ' +
+            'then tell me in one sentence whether the rename is done. Before the search, say ' +
+            'in one sentence what you are about to search for and what you will tell me if it finds nothing.\n',
         },
         prompt:
-          'Follow the instructions in task.md. Before each tool call, say in one sentence what you are about to do and why.',
+          'Follow the instructions in task.md. Before each tool call, say in one sentence what ' +
+          'you are about to do and why.',
         observe: { tool: /^(Grep|Glob|Bash)$/, reply: /done|complete|finished/i },
       },
     },
@@ -94,7 +112,8 @@ export default {
     turns: {
       "the working agent dispatches a subagent with the task 'add tests for internal/cli'": {
         prompt:
-          'Dispatch a subagent with the Agent tool (type general-purpose) whose task is exactly: add tests for internal/cli. Do not do the work yourself. When it returns, reply DONE.',
+          'Dispatch a subagent with the Agent tool (type general-purpose) whose task is exactly: ' +
+          'add tests for internal/cli. Do not do the work yourself. When it returns, reply DONE.',
         observe: { tool: /^(Agent|Task)$/ },
       },
     },
@@ -114,7 +133,8 @@ export default {
       'the orchestrator routes a unit of Go test writing through route': {
         files: { 'unit.md': 'The unit of work to route: writing Go tests for internal/cli.\n' },
         prompt:
-          'Read unit.md with the Read tool. Then use the Skill tool to invoke the `route` skill for the unit of work it describes, passing that unit as the skill args, before you do anything else.',
+          'Read unit.md with the Read tool. Then use the Skill tool to invoke the `route` skill ' +
+          'for the unit of work it describes, passing that unit as the skill args, before you do anything else.',
         observe: { tool: 'Skill', skill: 'route', args: /Go tests/i },
       },
     },
@@ -123,7 +143,8 @@ export default {
     turns: {
       "the agent's next two tool results match note X again": {
         prompt:
-          'Run `echo tagging a release` with the Bash tool, then run `echo tagging a release again` with the Bash tool, then reply DONE.',
+          'Run `echo tagging a release` with the Bash tool, then run `echo tagging a release ' +
+          'again` with the Bash tool, then reply DONE.',
         observe: { tool: 'Bash', command: /echo tagging a release/ },
       },
     },
@@ -135,7 +156,9 @@ export default {
         observe: { tool: 'Bash', command: /engram\s+query/ },
       },
       "the user says 'run an engram query on tagging a release' and the agent runs it": {
-        prompt: "Run `engram query --phrase 'tagging a release'` with the Bash tool and tell me in one sentence what the top result says.",
+        prompt:
+          "Run `engram query --phrase 'tagging a release'` with the Bash tool and tell me in " +
+          'one sentence what the top result says.',
         observe: { tool: 'Bash', command: /engram\s+query/ },
       },
     },
@@ -144,7 +167,8 @@ export default {
     turns: {
       'the parent dispatches a subagent whose task matches note X': {
         prompt:
-          'Dispatch a subagent with the Agent tool (type general-purpose) whose task is exactly: explain how a release gets tagged. Do not do the work yourself. When it returns, reply DONE.',
+          'Dispatch a subagent with the Agent tool (type general-purpose) whose task is exactly: ' +
+          'explain how a release gets tagged. Do not do the work yourself. When it returns, reply DONE.',
         observe: { tool: /^(Agent|Task)$/ },
       },
     },
@@ -154,7 +178,12 @@ export default {
 
   // 793e8e: install by engram update. No scripted turns: the steps start the sessions the Thens read.
   '793a5j1a': { turns: {} },
-  '793a5j1b': { turns: {}, automatic: true, noMemoryCommands: true, lessons: { 'use targ, not go test directly': TARG_NOT_GO_TEST } },
+  '793a5j1b': {
+    turns: {},
+    automatic: true,
+    noMemoryCommands: true,
+    lessons: { 'use targ, not go test directly': TARG_NOT_GO_TEST },
+  },
   '793a5j1c': { turns: {} },
   '793a5j1d': { turns: {} },
   '793a5j1l': { turns: {}, unrelatedNote: UNRELATED_NOTE },
@@ -173,19 +202,28 @@ export default {
     turns: {
       "the user says 'no, use the targ build system, not go test directly'": {
         prompt:
-          'Earlier you proposed checking my change with `go test ./...`. No, use the targ build system, not go test directly. Reply with one short sentence.',
+          'Earlier you proposed checking my change with `go test ./...`. No, use the targ build ' +
+          'system, not go test directly. Reply with one short sentence.',
         noMemoryCommands: true,
       },
       "the user says 'remember that releases are tagged from main'": {
         prompt: 'Remember that releases are tagged from main. Reply with the one word: ok.',
         noMemoryCommands: true,
       },
-      'the agent states a cause for a failing test, a later command output overturns it, and the agent corrects itself': {
-        prompt:
-          "A test named TestSync is failing. First, before running anything, state in one sentence what you think the cause is, guessing from its name. Then run `echo 'TestSync failed: FIXTURE_DIR is unset'` with the Bash tool. Then state in one sentence the real cause, saying that your first guess was wrong.",
-        observe: { tool: 'Bash', command: /echo/, reply: /(?=[\s\S]*\bFIXTURE_DIR\b)(?=[\s\S]*\b(?:wrong|incorrect|mistaken|actually|not the)\b)/i },
-        noMemoryCommands: true,
-      },
+      'the agent states a cause for a failing test, a later command output overturns it, and the agent corrects itself':
+        {
+          prompt:
+            'A test named TestSync is failing. First, before running anything, state in one sentence ' +
+            "what you think the cause is, guessing from its name. Then run `echo 'TestSync failed: " +
+            "FIXTURE_DIR is unset'` with the Bash tool. Then state in one sentence the real cause, " +
+            'saying that your first guess was wrong.',
+          observe: {
+            tool: 'Bash',
+            command: /echo/,
+            reply: /(?=[\s\S]*\bFIXTURE_DIR\b)(?=[\s\S]*\b(?:wrong|incorrect|mistaken|actually|not the)\b)/i,
+          },
+          noMemoryCommands: true,
+        },
     },
   },
   '793a3a1g': {
@@ -195,7 +233,9 @@ export default {
     turns: {
       "the working agent dispatches a subagent, tells it 'no, run targ test, not go test', and the subagent finishes": {
         files: FEEDBACK_FILE,
-        prompt: `Dispatch a subagent with the Agent tool (type general-purpose) whose task is exactly: ${ACKNOWLEDGE} When it returns, reply DONE.`,
+        prompt:
+          `Dispatch a subagent with the Agent tool (type general-purpose) whose task is exactly: ` +
+          `${ACKNOWLEDGE} When it returns, reply DONE.`,
         observe: { tool: /^(Agent|Task)$/, subagentsRead: /run targ test/ },
         noMemoryCommands: true,
       },
@@ -208,7 +248,9 @@ export default {
     turns: {
       "two subagents finish at the same time, each containing the lesson 'run targ test, not go test'": {
         files: FEEDBACK_FILE,
-        prompt: `In one single message, dispatch two subagents at the same time with the Agent tool (type general-purpose), each with the task, exactly: ${ACKNOWLEDGE} When both return, reply DONE.`,
+        prompt:
+          `In one single message, dispatch two subagents at the same time with the Agent tool ` +
+          `(type general-purpose), each with the task, exactly: ${ACKNOWLEDGE} When both return, reply DONE.`,
         observe: { tool: /^(Agent|Task)$/, calls: 2, subagentsRead: /run targ test/ },
         noMemoryCommands: true,
       },
@@ -217,9 +259,11 @@ export default {
   '793a3a1j': {
     lessons: { 'use targ, not go test directly': TARG_NOT_GO_TEST },
     turns: {
-      "the user says 'no, use targ, not go test directly' and the agent runs the learn skill, which writes a feedback note stating that rule": {
+      ["the user says 'no, use targ, not go test directly' and the agent runs the learn skill, " +
+      'which writes a feedback note stating that rule']: {
         prompt:
-          'No, use targ, not go test directly. Save that rule now by running the learn skill with the Skill tool, then reply DONE.',
+          'No, use targ, not go test directly. Save that rule now by running the learn skill ' +
+          'with the Skill tool, then reply DONE.',
         observe: { tool: 'Bash', command: /engram\s+learn\b/ },
       },
       'the user asks a neutral question': { prompt: 'What is two plus two? Answer in one word.' },
@@ -245,7 +289,10 @@ export default {
   // opening, and the agent's last reply (a session killed mid-turn has none).
   '793a3a1k': {
     automatic: true,
-    lessons: { 'use targ, not go test directly': TARG_NOT_GO_TEST, 'releases are tagged from main': RELEASES_FROM_MAIN },
+    lessons: {
+      'use targ, not go test directly': TARG_NOT_GO_TEST,
+      'releases are tagged from main': RELEASES_FROM_MAIN,
+    },
     turns: { 'the user asks a neutral question': { prompt: 'What is two plus two? Answer in one word.' } },
     ended: {
       'no, use targ, not go test directly': TARG_PI_SESSION,
@@ -287,7 +334,8 @@ export default {
     turns: {
       'the System delivers a note and captures a lesson': {
         prompt:
-          'Next I am working on: tagging a release. No, use targ, not go test directly. First run `echo ok` with the Bash tool, then reply with one short sentence.',
+          'Next I am working on: tagging a release. No, use targ, not go test directly. First ' +
+          'run `echo ok` with the Bash tool, then reply with one short sentence.',
         observe: { tool: 'Bash', command: /^echo ok$/, delivered: true },
         noMemoryCommands: true,
       },
@@ -298,7 +346,8 @@ export default {
     turns: {
       'the System delivers a note and captures a lesson': {
         prompt:
-          'Next I am working on: tagging a release. No, use targ, not go test directly. First run `echo ok` with the Bash tool, then reply with one short sentence.',
+          'Next I am working on: tagging a release. No, use targ, not go test directly. First ' +
+          'run `echo ok` with the Bash tool, then reply with one short sentence.',
         observe: { tool: 'Bash', command: /^echo ok$/, delivered: true },
         noMemoryCommands: true,
       },
@@ -315,7 +364,8 @@ export default {
     // the subagent finishes in the background, after the turn that dispatched it: its note is in the next summary
     summaryAcrossTurns: true,
     turns: {
-      "the System delivers 3 items, adds 1 note, amends 1 note and curates 2 offers, and a subagent's session produces 1 of the added notes": {
+      ['the System delivers 3 items, adds 1 note, amends 1 note and curates 2 offers, ' +
+      "and a subagent's session produces 1 of the added notes"]: {
         seeds: {
           notes: THREE_NOTES,
           offers: [
@@ -324,7 +374,9 @@ export default {
           ],
         },
         files: FEEDBACK_FILE,
-        prompt: `Next I am working on: tagging a release. Dispatch a subagent with the Agent tool (type general-purpose) whose task is exactly: ${ACKNOWLEDGE} When it returns, reply DONE.`,
+        prompt:
+          `Next I am working on: tagging a release. Dispatch a subagent with the Agent tool ` +
+          `(type general-purpose) whose task is exactly: ${ACKNOWLEDGE} When it returns, reply DONE.`,
         observe: { tool: /^(Agent|Task)$/, subagentsRead: /run targ test/ },
         noMemoryCommands: true,
       },
@@ -359,7 +411,9 @@ export default {
     lessons: { 'releases are tagged from main': RELEASES_FROM_MAIN },
     turns: {
       "the user says 'remember that releases are tagged from main' and the agent runs the learn skill": {
-        prompt: 'Remember that releases are tagged from main. Save it now by running the learn skill with the Skill tool, then reply DONE.',
+        prompt:
+          'Remember that releases are tagged from main. Save it now by running the learn skill ' +
+          'with the Skill tool, then reply DONE.',
         observe: { tool: 'Bash', command: /engram\s+learn\b/ },
       },
     },

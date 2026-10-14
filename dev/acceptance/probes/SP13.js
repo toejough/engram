@@ -1,32 +1,44 @@
-export const claim = 'With streaming input the module keeps running its work after turn.complete until the session closes'
+import { tenthsOfSeconds } from '../lib/units.js'
 
-export async function run(h) {
+const LONG_SETTLE_MS = 10000
+const SHORT_SETTLE_MS = 300
+const CLOSE_SETTLE_MS = 9000
+
+export const claim =
+  'With streaming input the module keeps running its work after turn.complete until the session closes'
+
+export async function run(harness) {
   const evidence = {}
 
-  const open = h.scenario()
-  h.recorder(open, { background: { afterMs: 2000, sleepSeconds: 6 } })
-  const a = open.startSession()
-  await a.send('Reply with exactly the word: ok')
+  const open = harness.scenario()
+  harness.recorder(open, { background: { afterMs: 2000, sleepSeconds: 6 } })
+  const openSession = open.startSession()
+  await openSession.send('Reply with exactly the word: ok')
   const resultAt = Date.now()
-  await h.settle(10000)
-  const events = h.events(open)
+  await harness.settle(LONG_SETTLE_MS)
+  const events = harness.events(open)
   const after = (kind) => {
-    const event = events.find((e) => e.kind === kind)
-    const complete = events.find((e) => e.kind === 'turn.complete')
-    return event && complete ? Math.round((event.t - complete.t) / 100) / 10 : null
+    const event = events.find((entry) => entry.kind === kind)
+    const complete = events.find((entry) => entry.kind === 'turn.complete')
+    return event && complete ? tenthsOfSeconds(event.t - complete.t) : null
   }
-  evidence.sessionKeptOpen = { timerFiredSecondsAfterTurnComplete: after('background.timer'), processDoneSecondsAfterTurnComplete: after('background.process.done'), kinds: events.map((e) => e.kind), waitedMs: Date.now() - resultAt }
-  await a.close()
+  evidence.sessionKeptOpen = {
+    timerFiredSecondsAfterTurnComplete: after('background.timer'),
+    processDoneSecondsAfterTurnComplete: after('background.process.done'),
+    kinds: events.map((entry) => entry.kind),
+    waitedMs: Date.now() - resultAt,
+  }
+  await openSession.close()
 
-  const closing = h.scenario()
-  h.recorder(closing, { background: { afterMs: 2000, sleepSeconds: 6 } })
-  const b = closing.startSession()
-  await b.send('Reply with exactly the word: ok')
-  await h.settle(300)
+  const closing = harness.scenario()
+  harness.recorder(closing, { background: { afterMs: 2000, sleepSeconds: 6 } })
+  const closingSession = closing.startSession()
+  await closingSession.send('Reply with exactly the word: ok')
+  await harness.settle(SHORT_SETTLE_MS)
   const closing_started = Date.now()
-  await b.close()
+  await closingSession.close()
   const closeMs = Date.now() - closing_started
-  await h.settle(9000)
-  evidence.closedRightAfterTheResult = { closeMs, kinds: h.events(closing).map((e) => e.kind) }
+  await harness.settle(CLOSE_SETTLE_MS)
+  evidence.closedRightAfterTheResult = { closeMs, kinds: harness.events(closing).map((entry) => entry.kind) }
   return evidence
 }

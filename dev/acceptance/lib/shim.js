@@ -6,7 +6,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-export const MODES = ['error', 'hang', 'delay']
+const MODES = ['error', 'hang', 'delay']
 
 function script({ realEngram, dir, mode, seconds }) {
   const real = JSON.stringify(realEngram)
@@ -14,7 +14,12 @@ function script({ realEngram, dir, mode, seconds }) {
   const lines = ['#!/bin/sh', `echo "$(date +%s) ${mode} $*" >> ${log}`]
   if (mode === 'error') lines.push('echo "engram: injected failure" >&2', 'exit 70')
   else if (mode === 'hang') lines.push('if [ "$1" = query ]; then exec sleep 3600; fi', `exec ${real} "$@"`)
-  else lines.push(`if [ "$1" != query ] && [ "$1" != auto ]; then echo "$(date +%s) slept-start $1" >> ${log}; sleep ${seconds}; fi`, `exec ${real} "$@"`)
+  else
+    lines.push(
+      `if [ "$1" != query ] && [ "$1" != auto ]; then echo "$(date +%s) slept-start $1" ` +
+        `>> ${log}; sleep ${seconds}; fi`,
+      `exec ${real} "$@"`,
+    )
   return `${lines.join('\n')}\n`
 }
 
@@ -28,14 +33,18 @@ export function installShim({ dir, realEngram, mode, seconds = 0 }) {
   return shimDir
 }
 
-// calls are the lines the shim logged: { at (seconds), what }.
+// calls are the lines the shim logged: { seconds, what }.
 export function shimCalls(shimDir) {
   if (!shimDir) return []
   try {
-    return fs.readFileSync(path.join(shimDir, 'calls.log'), 'utf8').split('\n').filter((line) => line !== '').map((line) => {
-      const [at, ...rest] = line.split(' ')
-      return { at: Number(at), what: rest.join(' ') }
-    })
+    return fs
+      .readFileSync(path.join(shimDir, 'calls.log'), 'utf8')
+      .split('\n')
+      .filter((line) => line !== '')
+      .map((line) => {
+        const [seconds, ...rest] = line.split(' ')
+        return { seconds: Number(seconds), what: rest.join(' ') }
+      })
   } catch {
     return []
   }

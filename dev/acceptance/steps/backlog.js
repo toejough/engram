@@ -30,12 +30,25 @@ function lessonPattern(world, input) {
 // The note the agent of an ended session wrote by running the learn skill (793a3a1j): a real `engram learn`.
 async function agentSavedTheLesson(scenario, note) {
   await scenario.engram([
-    'learn', 'feedback', '--slug', note.slug, '--position', 'top', '--source', note.source,
-    `--situation=${note.situation}`, `--behavior=${note.behavior}`, `--impact=${note.impact}`, `--action=${note.action}`,
+    'learn',
+    'feedback',
+    '--slug',
+    note.slug,
+    '--position',
+    'top',
+    '--source',
+    note.source,
+    `--situation=${note.situation}`,
+    `--behavior=${note.behavior}`,
+    `--impact=${note.impact}`,
+    `--action=${note.action}`,
   ])
 }
 
-const SAVED = /its lesson was not saved|its agent saved the lesson by running the learn skill|its lesson was captured by an earlier Claude Code turn/
+const SAVED = new RegExp(
+  'its lesson was not saved|its agent saved the lesson by running the learn skill|' +
+    'its lesson was captured by an earlier Claude Code turn',
+)
 
 Given(
   new RegExp(`^an ended (Pi|Claude Code) session in which the user said "([^"]*)" and (${SAVED.source})$`),
@@ -48,11 +61,15 @@ Given(
       // the earlier turn is a real one, run first and settled, so that the System has written its note
       await runTurn(this, this.data.earlierTurn)
       await awaitIdle(this.scenario)
-      assert.ok(notesStating(this.scenario, pattern).length > 0, 'the earlier Claude Code turn captured no note: a precondition of the scenario did not hold')
+      assert.ok(
+        notesStating(this.scenario, pattern).length > 0,
+        'the earlier Claude Code turn captured no note: a precondition of the scenario did not hold',
+      )
     }
     await this.scenario.setup(async (scenario) => {
       writeEnded(scenario, { harness, turns: turnsOf(input, said) })
-      if (saved === 'its agent saved the lesson by running the learn skill') await agentSavedTheLesson(scenario, this.data.agentNote)
+      if (saved === 'its agent saved the lesson by running the learn skill')
+        await agentSavedTheLesson(scenario, this.data.agentNote)
     })
   },
 )
@@ -67,7 +84,10 @@ function piFixture(world) {
 export async function piTranscriptUnchanged(world) {
   await awaitIdle(world.scenario)
   const ended = piFixture(world)
-  assert.ok(Buffer.compare(fs.readFileSync(ended.file), fs.readFileSync(ended.copy)) === 0, 'the Pi transcript differs from its copy')
+  assert.ok(
+    Buffer.compare(fs.readFileSync(ended.file), fs.readFileSync(ended.copy)) === 0,
+    'the Pi transcript differs from its copy',
+  )
   assert.equal(fs.statSync(ended.file).mtimeMs, ended.mtimeMs, 'the Pi transcript was modified')
   endedSourcesMarked(world)
 }

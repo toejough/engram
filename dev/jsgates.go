@@ -24,7 +24,9 @@ const (
 	gateModWhich    = "green"
 	gatePlanMaxSize = 2
 	gateSpec        = "spec"
+	gateStandards   = "standards"
 	gateStatus      = "status"
+	gateTypes       = "types"
 )
 
 // jsGateEnv is what a gate plan reads from the machine: the repository root, the program lookup and the file check.
@@ -125,6 +127,14 @@ func runLintJSAdapter(ctx context.Context) error {
 
 func runLintJSComplexity(ctx context.Context) error {
 	return runJSGate(ctx, gateLint, []string{gateComplexity}, false)
+}
+
+func runLintJSStandards(ctx context.Context) error {
+	return runJSGate(ctx, gateLint, []string{gateStandards}, false)
+}
+
+func runLintJSTypes(ctx context.Context) error {
+	return runJSGate(ctx, gateLint, []string{gateTypes}, false)
 }
 
 func runRefactorRed(ctx context.Context) error {

@@ -62,36 +62,43 @@ test('an import that is neither relative nor a node built-in is a dependency', (
   assert.deepEqual(externalImports(text), ['left-pad', 'c-lib'])
 })
 
-test('a Go component is held to the owned JavaScript lines it replaces times the ratio, and a file without a component fails', () => {
-  const go = {
-    ratio: 1.3,
-    plumbing: ['ports.go'],
-    components: { moment: { js: 100, files: ['moment.go'] }, summary: { js: 20, files: ['summary.go'] } },
-  }
-  assert.deepEqual(goTable(go), { total: 156, files: { moment: { budget: 130 }, summary: { budget: 26 } } })
-  const ceilinged = { ...go, components: { moment: { ...go.components.moment, ceiling: 140 }, summary: go.components.summary } }
-  assert.deepEqual(goTable(ceilinged).files.moment, { budget: 140 })
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'go-budget-'))
-  try {
-    const lines = (count) => `${'x := 1\n'.repeat(count)}// a comment\n\n`
-    fs.writeFileSync(path.join(dir, 'moment.go'), lines(130))
-    fs.writeFileSync(path.join(dir, 'summary.go'), lines(26))
-    fs.writeFileSync(path.join(dir, 'ports.go'), lines(500))
-    fs.writeFileSync(path.join(dir, 'moment_test.go'), lines(500))
-    const within = compare(measureGo(dir, go), goTable(go))
-    assert.deepEqual(measureGo(dir, go), { moment: 130, summary: 26 })
-    assert.equal(passes(within, []), true)
-    fs.writeFileSync(path.join(dir, 'moment.go'), lines(131))
-    assert.equal(passes(compare(measureGo(dir, go), goTable(go)), []), false)
-    fs.writeFileSync(path.join(dir, 'moment.go'), lines(130))
-    fs.writeFileSync(path.join(dir, 'extra.go'), lines(1))
-    const unbudgeted = compare(measureGo(dir, go), goTable(go))
-    assert.deepEqual(
-      unbudgeted.unbudgeted.map((row) => row.file),
-      ['extra.go'],
-    )
-    assert.equal(passes(unbudgeted, []), false)
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true })
-  }
-})
+test(
+  'a Go component is held to the owned JavaScript lines it replaces times the ratio, ' +
+    'and a file without a component fails',
+  () => {
+    const goSection = {
+      ratio: 1.3,
+      plumbing: ['ports.go'],
+      components: { moment: { js: 100, files: ['moment.go'] }, summary: { js: 20, files: ['summary.go'] } },
+    }
+    assert.deepEqual(goTable(goSection), { total: 156, files: { moment: { budget: 130 }, summary: { budget: 26 } } })
+    const ceilinged = {
+      ...goSection,
+      components: { moment: { ...goSection.components.moment, ceiling: 140 }, summary: goSection.components.summary },
+    }
+    assert.deepEqual(goTable(ceilinged).files.moment, { budget: 140 })
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'go-budget-'))
+    try {
+      const lines = (count) => `${'x := 1\n'.repeat(count)}// a comment\n\n`
+      fs.writeFileSync(path.join(dir, 'moment.go'), lines(130))
+      fs.writeFileSync(path.join(dir, 'summary.go'), lines(26))
+      fs.writeFileSync(path.join(dir, 'ports.go'), lines(500))
+      fs.writeFileSync(path.join(dir, 'moment_test.go'), lines(500))
+      const within = compare(measureGo(dir, goSection), goTable(goSection))
+      assert.deepEqual(measureGo(dir, goSection), { moment: 130, summary: 26 })
+      assert.equal(passes(within, []), true)
+      fs.writeFileSync(path.join(dir, 'moment.go'), lines(131))
+      assert.equal(passes(compare(measureGo(dir, goSection), goTable(goSection)), []), false)
+      fs.writeFileSync(path.join(dir, 'moment.go'), lines(130))
+      fs.writeFileSync(path.join(dir, 'extra.go'), lines(1))
+      const unbudgeted = compare(measureGo(dir, goSection), goTable(goSection))
+      assert.deepEqual(
+        unbudgeted.unbudgeted.map((row) => row.file),
+        ['extra.go'],
+      )
+      assert.equal(passes(unbudgeted, []), false)
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  },
+)

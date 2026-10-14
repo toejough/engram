@@ -27,7 +27,11 @@ export interface World {
 }
 
 export const COMPLETE = { answer: 'Understood.', durationMs: 5, isAborted: false, turnId: 't1', reason: 'answer' }
-export const PROMPT = { text: 'I just finished renaming the package. Is it done?', wait: false, origin: { kind: 'sdk' } }
+export const PROMPT = {
+  text: 'I just finished renaming the package. Is it done?',
+  wait: false,
+  origin: { kind: 'sdk' },
+}
 export const MESSAGES = [
   { role: 'user', text: 'No, use targ, not go test directly.', toolUses: [] },
   { role: 'assistant', text: 'Understood.', toolUses: [] },
@@ -41,8 +45,18 @@ export const STEP_RESULT = {
   stopReason: 'tool_use',
   usage: {},
 }
-export const TOOL = { tool_name: 'Grep', tool_input: { pattern: 'util' }, tool_response: 'no matches', tool_use_id: 'u1' }
-export const NOTE = { Path: '1.2026-10-12.note-n.md', Kind: 'fact', Situation: 'renaming a package', Body: 'run go build first' }
+export const TOOL = {
+  tool_name: 'Grep',
+  tool_input: { pattern: 'util' },
+  tool_response: 'no matches',
+  tool_use_id: 'u1',
+}
+export const NOTE = {
+  Path: '1.2026-10-12.note-n.md',
+  Kind: 'fact',
+  Situation: 'renaming a package',
+  Body: 'run go build first',
+}
 export const BLOCK = '[engram memory] a block'
 
 export function world(on: On, options: WorldOptions = {}): World {

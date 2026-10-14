@@ -1,4 +1,8 @@
 // The report of a run, in the results of 793e2h, with the cost of each scenario beside it.
+import { MS_PER_SECOND } from './units.js'
+const COST_DECIMALS = 3
+const DETAIL_COLUMN = 6
+const DETAIL_WIDTH = 60
 const HEADERS = ['Scenario', 'Result', 'Retried', 'Sessions', 'Cost (USD)', 'Wall (s)', 'Detail']
 
 function labels(results) {
@@ -18,12 +22,23 @@ export function formatReport(results) {
     entry.result,
     String(entry.retries),
     entry.usage ? String(entry.usage.sessions) : '-',
-    entry.usage ? entry.usage.costUsd.toFixed(3) : '-',
-    entry.usage ? (entry.usage.wallMs / 1000).toFixed(1) : '-',
+    entry.usage ? entry.usage.costUsd.toFixed(COST_DECIMALS) : '-',
+    entry.usage ? (entry.usage.wallMs / MS_PER_SECOND).toFixed(1) : '-',
     entry.message ?? '',
   ])
-  const widths = HEADERS.map((header, i) => Math.max(header.length, ...rows.map((row) => row[i].length > 60 && i === 6 ? 60 : row[i].length)))
-  const line = (cells) => cells.map((cell, i) => (cell.length > widths[i] ? `${cell.slice(0, widths[i] - 1)}…` : cell).padEnd(widths[i])).join('  ').trimEnd()
+  const widths = HEADERS.map((header, index) =>
+    Math.max(
+      header.length,
+      ...rows.map((row) => (index === DETAIL_COLUMN ? Math.min(row[index].length, DETAIL_WIDTH) : row[index].length)),
+    ),
+  )
+  const line = (cells) =>
+    cells
+      .map((cell, index) =>
+        (cell.length > widths[index] ? `${cell.slice(0, widths[index] - 1)}…` : cell).padEnd(widths[index]),
+      )
+      .join('  ')
+      .trimEnd()
   const tally = {}
   for (const entry of results) tally[entry.result] = (tally[entry.result] ?? 0) + 1
   const total = results.reduce((sum, entry) => sum + (entry.usage?.costUsd ?? 0), 0)
@@ -38,7 +53,11 @@ export function formatReport(results) {
     ...rows.map(line),
     ...(details.length > 0 ? ['', ...details] : []),
     '',
-    `${results.length} scenario runs: ${Object.entries(tally).map(([name, count]) => `${count} ${name}`).join(', ') || 'none'}; cost ${total.toFixed(3)} USD (the SDK's client-side estimate)`,
+    `${results.length} scenario runs: ${
+      Object.entries(tally)
+        .map(([name, count]) => `${count} ${name}`)
+        .join(', ') || 'none'
+    }; cost ${total.toFixed(COST_DECIMALS)} USD (the SDK's client-side estimate)`,
   ].join('\n')
 }
 

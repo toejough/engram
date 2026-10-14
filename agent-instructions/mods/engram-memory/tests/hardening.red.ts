@@ -1,5 +1,6 @@
-// The hardening gate the mod does not meet yet (793e8p), from the gaps of 793d35c: queued work is not persisted. Each test
-// fails today for the reason in its comment; when the mod meets all of them this file is renamed to hardening.test.ts.
+// The hardening gate the mod does not meet yet (793e8p), from the gaps of 793d35c: queued work is not persisted.
+// Each test fails today for the reason in its comment; when the mod meets all of them
+// this file is renamed to hardening.test.ts.
 // The other gap, a subagent's compaction that empties the top-level ledger and not its own, moved to Go with the ledger
 // (internal/auto, refactorred_test.go).
 //

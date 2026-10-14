@@ -1,7 +1,7 @@
 // Delivering a prompt from each origin (793a2n1h, SP8). The human types it. A task notification, a scheduled trigger
-// and a peer's message are produced by real mechanisms: a background command, a one-shot CronCreate, another
-// session's mod. The setup prompt of those three never states the situation, which sits in a file the agent reads, so
-// that the setup turn is not itself a moment for the note: the delivery under test is the one at the prompt of the origin.
+// and a peer's message are produced by real mechanisms: a background command, a one-shot CronCreate, another session's
+// mod. The setup prompt of those three never states the situation, which sits in a file the agent reads, so that the
+// setup turn is not itself a moment for the note: the delivery under test is the one at the prompt of the origin.
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -13,7 +13,7 @@ const NOTIFICATION_WAIT_MS = 120000
 const SCHEDULE_WAIT_MS = 150000
 const NOT_ARRIVED = { system: false, message: 'the prompt of the origin did not arrive' }
 
-export function promptFor(note, correction) {
+function promptFor(note, correction) {
   const text = `Next I am working on: ${note.situation}. Answer with one short sentence.`
   return correction ? `${text} ${correction}` : text
 }
@@ -43,7 +43,10 @@ async function human(world, note, correction) {
   return attempt(
     world,
     (scenario) => sendPrompt(scenario, prompt),
-    ({ rows }) => (constraintsHold(world, rows, world.data) ? null : { system: false, message: 'the agent ran a memory command itself' }),
+    ({ rows }) =>
+      constraintsHold(world, rows, world.data)
+        ? null
+        : { system: false, message: 'the agent ran a memory command itself' },
   )
 }
 
@@ -55,7 +58,8 @@ async function taskNotification(world, note) {
       const session = currentSession(current)
       const before = session.turns.length
       await session.send(
-        'Read task.txt. Run its command as a background Bash task (run_in_background true) with exactly its description line as the Bash description. Then reply started.',
+        'Read task.txt. Run its command as a background Bash task (run_in_background true) ' +
+          'with exactly its description line as the Bash description. Then reply started.',
       )
       const turn = await session.awaitTurn({ after: before + 1, timeoutMs: NOTIFICATION_WAIT_MS }).catch(() => null)
       await settle()
@@ -73,13 +77,15 @@ async function scheduledTrigger(world, note) {
       const session = currentSession(current)
       const before = session.turns.length
       await session.send(
-        'Read scheduled.txt. Use the CronCreate tool to schedule its contents, exactly, as a prompt to run once, one minute from now. Then reply scheduled.',
+        'Read scheduled.txt. Use the CronCreate tool to schedule its contents, exactly, as ' +
+          'a prompt to run once, one minute from now. Then reply scheduled.',
       )
       const turn = await session.awaitTurn({ after: before + 1, timeoutMs: SCHEDULE_WAIT_MS }).catch(() => null)
       await settle()
       return { turn, rows: await readTranscript(session) }
     },
-    ({ turn, rows }) => (turn !== null && promptRows(rows, 'schedul').length + promptRows(rows, 'cron').length > 0 ? null : NOT_ARRIVED),
+    ({ turn, rows }) =>
+      turn !== null && promptRows(rows, 'schedul').length + promptRows(rows, 'cron').length > 0 ? null : NOT_ARRIVED,
   )
 }
 

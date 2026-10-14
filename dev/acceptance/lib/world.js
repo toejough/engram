@@ -1,7 +1,6 @@
 // The per-scenario World (793e2b): its own HOME, workspace, vault and TMPDIR, an explicit environment, notes seeded
 // through the real write path, and the session. Nothing under the real ~/.claude, ~/.pi or the real vault is touched.
 import { execFile } from 'node:child_process'
-import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { promisify } from 'node:util'
@@ -12,12 +11,32 @@ import { baseEnv } from './run-context.js'
 import { Session } from './session.js'
 import { installShim, shimCalls } from './shim.js'
 import { snapshotTree } from './tree.js'
+import { JSON_INDENT } from './units.js'
+import { sentinelFor } from './vault.js'
 
+const DIR_MODE = 0o755
+const SWEEP_SPEC = { non_persistent_prefixes: [], non_persistent_path_prefixes: [], ancestor_claude_dirs: false }
 const run = promisify(execFile)
 // The agent may run engram and sleep, and echo only the words the scenarios give it: `Bash(echo:*)` would let it echo
 // the environment of the session, and the environment holds the credentials (793b316).
-export const ECHOES = ['ok', 'tagging a release', 'tagging a release again', "'TestSync failed: FIXTURE_DIR is unset'", '\"TestSync failed: FIXTURE_DIR is unset\"']
-const ALLOWED_TOOLS = ['Bash(engram:*)', ...ECHOES.map((words) => `Bash(echo ${words})`), 'Bash(sleep:*)', 'Read', 'Glob', 'Grep', 'Agent', 'Skill', 'CronCreate']
+const ECHOES = [
+  'ok',
+  'tagging a release',
+  'tagging a release again',
+  "'TestSync failed: FIXTURE_DIR is unset'",
+  '"TestSync failed: FIXTURE_DIR is unset"',
+]
+const ALLOWED_TOOLS = [
+  'Bash(engram:*)',
+  ...ECHOES.map((words) => `Bash(echo ${words})`),
+  'Bash(sleep:*)',
+  'Read',
+  'Glob',
+  'Grep',
+  'Agent',
+  'Skill',
+  'CronCreate',
+]
 // a turn bound for the sessions of the scenarios: a skill such as please can run long, and no scenario needs more
 const MAX_TURNS = 8
 
@@ -46,7 +65,6 @@ export class Scenario {
     this.extraEnv = { ENGRAM_AUTO_SEAM_LOG: this.seamFile }
     this.sessions = []
     this.session = null
-    this.installed = false
     for (const dir of [this.home, path.join(this.home, 'tmp'), this.workspace, path.join(this.home, '.claude')]) {
       fs.mkdirSync(dir, { recursive: true })
     }
@@ -55,13 +73,13 @@ export class Scenario {
     // The ancestor .claude directory holds the installed skills, about sixty seconds of embedding that every scenario's
     // fresh home would pay at the System's first indexing (793e8d); the sessions, which the scenarios look for, stay.
     fs.mkdirSync(path.join(this.workspace, '.engram'), { recursive: true })
-    fs.writeFileSync(
-      path.join(this.workspace, '.engram', 'sweep.json'),
-      `${JSON.stringify({ non_persistent_prefixes: [], non_persistent_path_prefixes: [], ancestor_claude_dirs: false })}\n`,
-    )
+    fs.writeFileSync(path.join(this.workspace, '.engram', 'sweep.json'), `${JSON.stringify(SWEEP_SPEC)}\n`)
     // the settings the World starts from: the update must add none (793a5j)
     this.baselineSettings = { permissions: { allow: ALLOWED_TOOLS } }
-    fs.writeFileSync(path.join(this.home, '.claude', 'settings.json'), `${JSON.stringify(this.baselineSettings, null, 2)}\n`)
+    fs.writeFileSync(
+      path.join(this.home, '.claude', 'settings.json'),
+      `${JSON.stringify(this.baselineSettings, null, JSON_INDENT)}\n`,
+    )
     this.treeBefore = null
     this.updateOutput = ''
   }
@@ -84,7 +102,10 @@ export class Scenario {
 
   // env is the whole environment of a process started for this scenario, credentials included for sessions only.
   env({ withCredentials = false } = {}) {
-    const env = { ...baseEnv({ home: this.home, cacheDir: this.context.cacheDir, binDir: this.context.binDir }), ...this.extraEnv }
+    const env = {
+      ...baseEnv({ home: this.home, cacheDir: this.context.cacheDir, binDir: this.context.binDir }),
+      ...this.extraEnv,
+    }
     // a fault shim stands before the real engram on the PATH of every process of the World (793e8d)
     if (this.shimDir) env.PATH = `${this.shimDir}${path.delimiter}${env.PATH}`
     return withCredentials ? { ...env, ...this.context.creds.env } : env
@@ -98,11 +119,25 @@ export class Scenario {
   // seedNote writes a fact note through `engram learn` with a unique sentinel in its body; the sentinel is what a
   // delivery or a retrieval is recognised by.
   async seedNote(label, situation, says) {
-    const sentinel = `SENTINEL-${label}-${crypto.randomBytes(3).toString('hex')}`
+    const sentinel = sentinelFor(label)
     const object = says ? `${says} (${sentinel})` : sentinel
     await this.engram([
-      'learn', 'fact', '--slug', `note-${label.toLowerCase()}`, '--position', 'top', '--source', 'acceptance harness',
-      '--situation', situation, '--subject', situation, '--predicate', 'is recorded as', '--object', object,
+      'learn',
+      'fact',
+      '--slug',
+      `note-${label.toLowerCase()}`,
+      '--position',
+      'top',
+      '--source',
+      'acceptance harness',
+      '--situation',
+      situation,
+      '--subject',
+      situation,
+      '--predicate',
+      'is recorded as',
+      '--object',
+      object,
     ])
     this.notes.set(label, { label, situation, sentinel, object })
     return this.notes.get(label)
@@ -137,7 +172,7 @@ export class Scenario {
   }
 
   showVault() {
-    if (this.vaultHidden && fs.existsSync(this.vault)) fs.chmodSync(this.vault, 0o755)
+    if (this.vaultHidden && fs.existsSync(this.vault)) fs.chmodSync(this.vault, DIR_MODE)
     this.vaultHidden = false
   }
 
@@ -157,7 +192,6 @@ export class Scenario {
   // install: the System as `engram update` deploys it, and the tree it left, to compare later steps against.
   async install() {
     await this.runUpdate()
-    this.installed = true
     this.treeBefore = this.snapshot()
   }
 
@@ -169,7 +203,9 @@ export class Scenario {
     fs.mkdirSync(agentInstructions, { recursive: true })
     fs.copyFileSync(path.join(REPO_ROOT, 'go.mod'), path.join(source, 'go.mod'))
     for (const name of ['skills', 'guidance']) {
-      fs.cpSync(path.join(REPO_ROOT, 'agent-instructions', name), path.join(agentInstructions, name), { recursive: true })
+      fs.cpSync(path.join(REPO_ROOT, 'agent-instructions', name), path.join(agentInstructions, name), {
+        recursive: true,
+      })
     }
     await this.runUpdate({ source, args: ['--with-guidance'] })
     this.treeBefore = this.snapshot()
@@ -210,7 +246,12 @@ export class Scenario {
 
   usage() {
     const turns = [...(this.usageSoFar ?? []), ...this.sessions.flatMap((session) => session.turns)]
-    return { sessions: this.sessions.length + (this.discardedSessions ?? 0), turns: turns.length, costUsd: turns.reduce((sum, turn) => sum + turn.costUsd, 0), wallMs: turns.reduce((sum, turn) => sum + turn.wallMs, 0) }
+    return {
+      sessions: this.sessions.length + (this.discardedSessions ?? 0),
+      turns: turns.length,
+      costUsd: turns.reduce((sum, turn) => sum + turn.costUsd, 0),
+      wallMs: turns.reduce((sum, turn) => sum + turn.wallMs, 0),
+    }
   }
 
   async #discard() {

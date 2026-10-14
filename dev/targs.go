@@ -41,10 +41,12 @@ func init() {
 		Description("Engram dev target registration"))
 
 	targ.Register(testDevTarget, testDevIntegrationTarget, acceptanceTarget)
-	// The refactor gates of 793e8l: the three of node 793e8m (complexity, adapter, minimality) are green and in
-	// check-full; the others are red on purpose until their nodes turn them green, so none is in check-full yet.
+	// The refactor gates of 793e8l: the five of nodes 793e8m and 793e8n (complexity, adapter, minimality, standards,
+	// types) are green and in check-full; the others are red on purpose until their nodes turn them green, so none
+	// is in check-full yet.
 	targ.Register(
-		lintJSTarget, lintJSAdapterTarget, lintJSComplexityTarget, checkModBudgetTarget, testModTarget,
+		lintJSTarget, lintJSAdapterTarget, lintJSComplexityTarget, lintJSStandardsTarget, lintJSTypesTarget,
+		checkModBudgetTarget, testModTarget,
 		checkSpecConformanceTarget, refactorRedTarget,
 	)
 
@@ -69,7 +71,8 @@ var (
 			targdev.CheckCoverageForFail, targdev.CheckUncommitted, targdev.ReorderDeclsCheck, targdev.LintFast,
 			targdev.LintForFail, targdev.Deadcode, targdev.CheckThinAPI, checkNilsForFailTarget,
 			targdev.TestIntegration, testDevTarget, testDevIntegrationTarget, lintDevTarget,
-			lintJSComplexityTarget, lintJSAdapterTarget, checkModBudgetTarget, targ.DepModeParallel,
+			lintJSComplexityTarget, lintJSAdapterTarget, lintJSStandardsTarget, lintJSTypesTarget, checkModBudgetTarget,
+			targ.DepModeParallel,
 		)
 	checkFullTarget = targ.Targ(targdev.CheckFull.Fn()).Name("check-full").
 			Description(targdev.CheckFull.GetDescription()).
@@ -77,7 +80,7 @@ var (
 			targdev.CheckCoverageForFail, targdev.CheckUncommitted, targdev.ReorderDeclsCheck, targdev.LintFast,
 			targdev.LintFull, targdev.Deadcode, targdev.CheckThinAPI, checkNilsForFailTarget,
 			targdev.TestIntegration, testDevTarget, testDevIntegrationTarget, lintDevTarget,
-			lintJSComplexityTarget, lintJSAdapterTarget, checkModBudgetTarget,
+			lintJSComplexityTarget, lintJSAdapterTarget, lintJSStandardsTarget, lintJSTypesTarget, checkModBudgetTarget,
 			targ.DepModeParallel, targ.CollectAllErrors,
 		)
 	// The aggregates below mirror Targ's dependencies, order and mode with Engram's nil targets in place of Targ's
@@ -107,8 +110,12 @@ var (
 				Description("The mod is an adapter: no regular expression, no parsing, straight-line functions (793b368)")
 	lintJSComplexityTarget = targ.Targ(runLintJSComplexity).Name("lint-js-complexity").
 				Description("Complexity and size of what remains in the mod, by the limits of the Go configuration (793b364)")
+	lintJSStandardsTarget = targ.Targ(runLintJSStandards).Name("lint-js-standards").
+				Description("Standards for the mod and the harness: names, constants, line length, error handling (793e8n)")
 	lintJSTarget = targ.Targ(runLintJS).Name("lint-js").
 			Description("Refactor gate: eslint and tsc over the mod and the harness (standards|complexity|adapter|types)")
+	lintJSTypesTarget = targ.Targ(runLintJSTypes).Name("lint-js-types").
+				Description("tsc over the mod's test files and the test kit's declarations (793e8n)")
 	// mutateTarget reuses Targ's mutation run behind Engram's check-for-fail, as Targ's runs behind its own (794b4a).
 	mutateTarget = targ.Targ(targdev.Mutate.Fn()).Name("mutate").
 			Description(targdev.Mutate.GetDescription()).

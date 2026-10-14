@@ -3,7 +3,10 @@ import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 
-export const MIN_CLAUDE = [2, 1, 287]
+const MIN_MAJOR = 2
+const MIN_MINOR = 1
+const MIN_PATCH = 287
+export const MIN_CLAUDE = [MIN_MAJOR, MIN_MINOR, MIN_PATCH]
 const PROGRAMS = ['go', 'git']
 
 export function parseClaudeVersion(text) {
@@ -12,8 +15,8 @@ export function parseClaudeVersion(text) {
 }
 
 function atLeast(version, minimum) {
-  for (let i = 0; i < minimum.length; i += 1) {
-    if (version[i] !== minimum[i]) return version[i] > minimum[i]
+  for (let index = 0; index < minimum.length; index += 1) {
+    if (version[index] !== minimum[index]) return version[index] > minimum[index]
   }
   return true
 }
@@ -26,7 +29,10 @@ export function checkPrograms({ which, run }, { needClaude }) {
   const claudePath = which('claude')
   const version = parseClaudeVersion(run(claudePath, ['--version']))
   if (version === null || !atLeast(version, MIN_CLAUDE)) {
-    throw new Error(`claude ${version ? version.join('.') : '(unreadable version)'} is older than ${MIN_CLAUDE.join('.')}, the first with mods`)
+    throw new Error(
+      `claude ${version ? version.join('.') : '(unreadable version)'} is older than ` +
+        `${MIN_CLAUDE.join('.')}, the first with mods`,
+    )
   }
   return { path: claudePath, version }
 }
@@ -45,5 +51,8 @@ export function whichOnPath(name, envPath = process.env.PATH ?? '') {
 }
 
 export function preflight({ needClaude }) {
-  return checkPrograms({ which: whichOnPath, run: (file, args) => execFileSync(file, args, { encoding: 'utf8' }) }, { needClaude })
+  return checkPrograms(
+    { which: whichOnPath, run: (file, args) => execFileSync(file, args, { encoding: 'utf8' }) },
+    { needClaude },
+  )
 }

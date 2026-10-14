@@ -24,7 +24,8 @@ Before(async function ({ pickle }) {
   this.retries = 0
   // a note the vault holds that bears on nothing the scenario does (793b316)
   const unrelated = this.data.unrelatedNote
-  if (unrelated) await this.scenario.setup((scenario) => scenario.seedNote('UNRELATED', unrelated.situation, unrelated.says))
+  if (unrelated)
+    await this.scenario.setup((scenario) => scenario.seedNote('UNRELATED', unrelated.situation, unrelated.says))
   this.skipReason = null
 })
 
@@ -35,6 +36,7 @@ After(async function ({ result }) {
   recordResult(entry)
   // ACCEPTANCE_KEEP=<dir> keeps the World of a scenario that did not pass (transcripts, vault, debug logs) for a look
   const keep = process.env.ACCEPTANCE_KEEP
-  if (keep && this.scenario && result.status !== 'PASSED') fs.cpSync(this.scenario.dir, path.join(keep, `${this.id}-${Date.now()}`), { recursive: true })
+  if (keep && this.scenario && result.status !== 'PASSED')
+    fs.cpSync(this.scenario.dir, path.join(keep, `${this.id}-${Date.now()}`), { recursive: true })
   await this.scenario?.dispose()
 })

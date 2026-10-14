@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url'
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 export const MOD = path.join(REPO, 'agent-instructions', 'mods', 'engram-memory')
-export const RED_SUFFIX = '.red.ts'
+const RED_SUFFIX = '.red.ts'
 const TEST_SUFFIX = '.test.ts'
 
 // sessionEnv is the environment of the run: nothing of the caller's but the program lookup, and a home of its own.
@@ -26,7 +26,7 @@ export function sessionEnv(home) {
 }
 
 // stage copies the mod into dir with the files named `pick` of its tests, the red ones renamed to `.test.ts`.
-export function stage(mod, dir, { red, filter }) {
+function stage(mod, dir, { red, filter }) {
   for (const entry of ['.claude-plugin', 'hooks'])
     fs.cpSync(path.join(mod, entry), path.join(dir, entry), { recursive: true })
   fs.mkdirSync(path.join(dir, 'tests'))

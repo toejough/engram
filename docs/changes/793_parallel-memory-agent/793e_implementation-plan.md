@@ -231,10 +231,10 @@ flowchart TD
   n793e8j["793e8j H2 eval and verdict<br/>Complete"]
   n793e8l["793e8l Red gates<br/>Complete"]
   n793e8m["793e8m Logic in Go<br/>Complete"]
-  n793e8n["793e8n JavaScript standards<br/>Ready"]
+  n793e8n["793e8n JavaScript standards<br/>Complete"]
   n793e8o["793e8o Performance<br/>Ready"]
   n793e8p["793e8p Hardening<br/>Ready"]
-  n793e8q["793e8q Spec conformance and the technical specification<br/>Blocked by: 793e8n, 793e8o, 793e8p"]
+  n793e8q["793e8q Spec conformance and the technical specification<br/>Blocked by: 793e8o, 793e8p"]
   n793e8r["793e8r Refactor review and promotion<br/>Blocked by: 793e8q"]
   n793e8a --> n793e8b --> n793e8e --> n793e8c
   n793e8c --> n793e8d
@@ -623,16 +623,29 @@ Size: Go production code 1,529 owned lines in `internal/auto` (the ports and the
 
 ### 793e8n JavaScript standards
 
-Status: Red (gate: `targ lint-js standards`, `targ lint-js types`).
+Status: Complete (gates `targ lint-js standards` and `targ lint-js types` green and in `check-full`).
 
-Red gate: `targ lint-js standards` (eslint, 1,428 problems: 621 `max-len`, 407 `no-explicit-any`, 225 `id-length`, 127 `no-magic-numbers`, 48 in nine other rules) and `targ lint-js types` (`tsc --noEmit`, 8 errors). The node follows [793e8m Logic in Go](#793e8m-logic-in-go), so the mod it fixes is the adapter and its tests, and the harness and the probes. Verification: those two targets pass; `claude plugin test` and `npm test` pass; `targ acceptance` green (the change is style, names and types, so the full suite runs once at completion); `targ check-full`. Invariant: the acceptance suite stays green.
+Red gate (before the node): `targ lint-js standards` (eslint, 1,428 problems: 621 `max-len`, 407 `no-explicit-any`, 225 `id-length`, 127 `no-magic-numbers`, 48 in nine other rules) and `targ lint-js types` (`tsc --noEmit`, 8 errors). The node follows [793e8m Logic in Go](#793e8m-logic-in-go), so the mod it fixes is the adapter and its tests, and the harness and the probes. Verification: those two targets pass; `claude plugin test` and `npm test` pass; `targ acceptance` green (the change is style, names and types, so the full suite runs once at completion); `targ check-full`. Invariant: the acceptance suite stays green.
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |
-| `lint-js standards` reports 0 problems with no rule disabled, no `eslint-disable` and no change to `eslint.config.js` other than by the owner | Refactor (gate: goal) | the Go rule that nothing is suppressed: a rule that is wrong is raised to the owner | Not started |
-| `lint-js types` reports 0 errors, the test kit's declaration typing what the tests use | Refactor (gate: goal) | the five implicit-`any` and `delete` errors of `tiers.test.ts` and the three unused declarations are defects of the tests | Not started |
-| The unused technical-spec path of the extractor is removed ([793b367](./793b_decision-log.md#793b367-two-things-found-while-the-gates-were-built-a-stale-test-and-a-flag-that-does-not-exist)) | Refactor | nothing reads the technical spec for scenarios any more | Not started |
-| `lint-js standards` and `types` are in `check-full` and leave the refactor-red list | Setup | the gate stays green after the node | Not started |
+| `lint-js standards` reports 0 problems with no rule disabled, no `eslint-disable` and no change to `eslint.config.js` other than by the owner | Refactor (gate: goal) | the Go rule that nothing is suppressed: a rule that is wrong is raised to the owner; none was ([793b376](./793b_decision-log.md#793b376-the-javascript-standards-no-rule-changed-and-the-code-was-fixed-in-one-pass)) | Done |
+| `lint-js types` reports 0 errors, the test kit's declaration typing what the tests use | Refactor (gate: goal) | the five implicit-`any` and `delete` errors of `tiers.test.ts` and the three unused declarations are defects of the tests | Done |
+| The unused technical-spec path of the extractor is removed ([793b367](./793b_decision-log.md#793b367-two-things-found-while-the-gates-were-built-a-stale-test-and-a-flag-that-does-not-exist)) | Refactor | not done: the 793d mode of `run.js` reads it, and stays by instruction ([793b377](./793b_decision-log.md#793b377-the-extractors-technical-spec-path-stays-and-the-minimality-pass-of-the-harness-found-little)) | Not done |
+| `lint-js standards` and `types` are in `check-full` and leave the refactor-red list | Setup | the gate stays green after the node (the targets `lint-js-standards` and `lint-js-types`) | Done |
+
+**Result (2026-10-14, Claude Code 2.1.299, nothing installed, token never printed; decisions [793b376](./793b_decision-log.md#793b376-the-javascript-standards-no-rule-changed-and-the-code-was-fixed-in-one-pass) and [793b377](./793b_decision-log.md#793b377-the-extractors-technical-spec-path-stays-and-the-minimality-pass-of-the-harness-found-little)).** `eslint.config.js` and `tsconfig.json` are unchanged and no rule is disabled; every finding was fixed in the code. `lint-js-standards` and `lint-js-types` are targets of their own and are in `check-full` and `check-for-fail`; the refactor-red list is now `go-red`, `hardening` and `spec`.
+
+| Gate | Before | After |
+| --- | --- | --- |
+| `targ lint-js standards` | 648 problems: 354 `max-len`, 146 `id-length`, 110 `no-magic-numbers`, 12 `eqeqeq`, 10 `no-promise-executor-return`, 4 `no-useless-assignment`, 4 `require-atomic-updates`, 3 `no-unused-vars`, 2 `no-shadow`, 2 `no-useless-escape`, 1 `no-nested-ternary` | 0 |
+| `targ lint-js types` | 0 (not in `check-full`) | 0, in `check-full` |
+| `targ lint-js complexity`, `adapter` | 0, 0 | 0, 0 |
+| `targ check-mod-budget`, the mod | 171 owned lines | 249 against 250: the same logic after the formatting at 120 characters, with the handlers of `register` named functions |
+| Harness JavaScript (`dev/acceptance`, 82 files before) | 5,921 lines, 4,908 owned | 7,263 lines, 6,226 owned: the wrapping at 120 characters, the named constants and `lib/units.js`; less 2 write-only fields, a collector of messages nothing read and a duplicated sentinel |
+| Mod and its tests (4 files) | 622 lines, 515 owned | 816 lines, 703 owned (the same cause) |
+
+Acceptance (`targ acceptance`, the full suite, at the head of the node): 51 runs, 49 Green, 2 `Not run` (793a5j1d, 793a5c1b: SP14), none Red, 1.851 USD, none retried. The rows 793a5k1e, 793a2n1a and 793a4b1a ran first: 793a2n1a was Red once (the in-turn cue delivered nothing, a judgement miss of the kind 793e8m recorded) and Green in two runs after it and in the full run.
 
 ### 793e8o Performance
 

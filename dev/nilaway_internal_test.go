@@ -138,11 +138,11 @@ func Test794b4a1c_AggregatesMatchTargsApartFromNilTargets(t *testing.T) {
 		"check": {lintDevTarget},
 		"check-for-fail": {
 			testDevTarget, testDevIntegrationTarget, lintDevTarget, lintJSComplexityTarget, lintJSAdapterTarget,
-			checkModBudgetTarget,
+			lintJSStandardsTarget, lintJSTypesTarget, checkModBudgetTarget,
 		},
 		"check-full": {
 			testDevTarget, testDevIntegrationTarget, lintDevTarget, lintJSComplexityTarget, lintJSAdapterTarget,
-			checkModBudgetTarget,
+			lintJSStandardsTarget, lintJSTypesTarget, checkModBudgetTarget,
 		},
 	}
 

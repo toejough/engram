@@ -13,7 +13,7 @@ const TSC = path.join(PACKAGE, 'node_modules', 'typescript', 'bin', 'tsc')
 const KIBIBYTE = 1024
 const BUFFER_MEBIBYTES = 256
 const MAX_BUFFER = BUFFER_MEBIBYTES * KIBIBYTE * KIBIBYTE
-export const PARTS = ['standards', 'complexity', 'adapter', 'types']
+const PARTS = ['standards', 'complexity', 'adapter', 'types']
 const COUNT_WIDTH = 5
 const FILES_SHOWN = 8
 

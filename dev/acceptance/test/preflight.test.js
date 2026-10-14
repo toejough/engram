@@ -18,7 +18,10 @@ test('a missing program is reported by name with how to get it', () => {
 test('a Claude Code older than the minimum fails and names both versions', () => {
   const which = (name) => `/bin/${name}`
   const run = () => '2.1.286 (Claude Code)'
-  assert.throws(() => checkPrograms({ which, run }, { needClaude: true }), (error) => error.message.includes('2.1.286') && error.message.includes(MIN_CLAUDE.join('.')))
+  assert.throws(
+    () => checkPrograms({ which, run }, { needClaude: true }),
+    (error) => error.message.includes('2.1.286') && error.message.includes(MIN_CLAUDE.join('.')),
+  )
 })
 
 test('with every program present the claude path and version are returned', () => {

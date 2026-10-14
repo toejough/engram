@@ -2,10 +2,12 @@
 // child vault's `engram learn` with ENGRAM_PARENT, which lands the child's note as a pending offer. The offer states
 // the claim of a seeded note (it is covered) or a claim no note states.
 import { spawn } from 'node:child_process'
-import crypto from 'node:crypto'
 import fs from 'node:fs'
 import net from 'node:net'
 import path from 'node:path'
+import { setTimeout as sleep } from 'node:timers/promises'
+
+import { sentinelFor } from './vault.js'
 
 const UP_TRIES = 100
 const UP_WAIT_MS = 100
@@ -29,10 +31,16 @@ export function pendingNotes(vault) {
 }
 
 async function waitUp(port, server) {
-  for (let i = 0; i < UP_TRIES; i += 1) {
+  for (let index = 0; index < UP_TRIES; index += 1) {
     if (server.exitCode !== null) throw new Error('engram serve exited before it answered')
-    if (await fetch(`http://127.0.0.1:${port}/`).then(() => true, () => false)) return
-    await new Promise((resolve) => setTimeout(resolve, UP_WAIT_MS))
+    if (
+      await fetch(`http://127.0.0.1:${port}/`).then(
+        () => true,
+        () => false,
+      )
+    )
+      return
+    await sleep(UP_WAIT_MS)
   }
   throw new Error('engram serve did not answer')
 }
@@ -41,22 +49,41 @@ async function waitUp(port, server) {
 export async function seedOffer(scenario, label, covered) {
   const claim = covered ?? {
     situation: `rotating the ${label.toLowerCase()} staging database credentials`,
-    object: `SENTINEL-${label}-${crypto.randomBytes(3).toString('hex')}`,
+    object: sentinelFor(label),
   }
   const before = new Set(pendingNotes(scenario.vault))
   const port = await freePort()
-  const server = spawn(scenario.context.engramPath, ['serve', '--addr', `127.0.0.1:${port}`, '--vault', scenario.vault], {
-    env: scenario.env(),
-    stdio: 'ignore',
-  })
+  const server = spawn(
+    scenario.context.engramPath,
+    ['serve', '--addr', `127.0.0.1:${port}`, '--vault', scenario.vault],
+    {
+      env: scenario.env(),
+      stdio: 'ignore',
+    },
+  )
   try {
     await waitUp(port, server)
     const child = path.join(scenario.dir, `child-vault-${label.toLowerCase()}`)
     await scenario.engram(
       [
-        'learn', 'fact', '--slug', `offer-${label.toLowerCase()}`, '--position', 'top', '--source', 'acceptance harness',
-        '--vault', child, '--situation', claim.situation, '--subject', claim.situation, '--predicate', 'is recorded as',
-        '--object', claim.object,
+        'learn',
+        'fact',
+        '--slug',
+        `offer-${label.toLowerCase()}`,
+        '--position',
+        'top',
+        '--source',
+        'acceptance harness',
+        '--vault',
+        child,
+        '--situation',
+        claim.situation,
+        '--subject',
+        claim.situation,
+        '--predicate',
+        'is recorded as',
+        '--object',
+        claim.object,
       ],
       { extraEnv: { ENGRAM_PARENT: `http://127.0.0.1:${port}` } },
     )

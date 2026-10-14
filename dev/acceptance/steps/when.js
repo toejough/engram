@@ -14,26 +14,34 @@ When(/^a turn completes in which "([^"]*)"$/, async function (event) {
   // a lesson that must come from a subagent's own session is not in the prompt of the parent that dispatches it
   if (this.data.fromSubagent) {
     for (const [lesson, pattern] of Object.entries(this.data.lessons ?? {})) {
-      if (pattern.test(script.prompt)) throw new Error(`the prompt of ${this.id} states the lesson "${lesson}" itself: it must reach the System only through the subagent`)
+      if (pattern.test(script.prompt))
+        throw new Error(
+          `the prompt of ${this.id} states the lesson "${lesson}" itself: it must reach the ` +
+            `System only through the subagent`,
+        )
     }
   }
   this.origin = null
-  this.lastTurn = await runTurn(this, script)
+  await runTurn(this, script)
 })
 
 When(
-  /^(the human|an automated task notification|a scheduled trigger|a message from another session|a Pi user) delivers a prompt matching note "([^"]*)"(?: that says "([^"]*)")?$/,
+  new RegExp(
+    '^(the human|an automated task notification|a scheduled trigger|a message from another ' +
+      'session|a Pi user) delivers a prompt matching note "([^"]*)"(?: that says "([^"]*)")?$',
+  ),
   async function (origin, label, correction) {
     if (origin === 'a Pi user') return NOT_BUILT
-    this.lastTurn = await deliverPrompt(this, origin, label, correction)
+    await deliverPrompt(this, origin, label, correction)
     return undefined
   },
 )
 
-// At once: the prompt goes in as the previous turn's result arrives, without waiting for the System's work (793e2i step 11).
+// At once: the prompt goes in as the previous turn's result arrives, without waiting for the System's work (793e2i step
+// 11).
 When(/^the user submits the prompt "([^"]*)" immediately$/, async function (prompt) {
   this.typed = prompt
-  this.lastTurn = await sendPrompt(this.scenario, prompt)
+  await sendPrompt(this.scenario, prompt)
 })
 
 // compact sends /compact in the stream (SP7); resume ends the session and starts one that resumes it by id.

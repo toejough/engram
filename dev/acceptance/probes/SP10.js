@@ -2,8 +2,15 @@ import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import net from 'node:net'
 import path from 'node:path'
+import { LONG_EXCERPT, excerpt } from '../lib/units.js'
 
-export const claim = 'A pending offer can be seeded in an isolated vault through a real path (the registration offers of engram update, or the serve write path)'
+const REGISTERED_CHARS = 120
+const SERVE_TRIES = 50
+const SERVE_WAIT_MS = 100
+
+export const claim =
+  'A pending offer can be seeded in an isolated vault through a real path (the registration ' +
+  'offers of engram update, or the serve write path)'
 
 function freePort() {
   return new Promise((resolve, reject) => {
@@ -17,30 +24,71 @@ function freePort() {
 }
 
 const pendingNotes = (vault) =>
-  fs.readdirSync(vault).filter((name) => name.endsWith('.md') && /^pending: true$/m.test(fs.readFileSync(path.join(vault, name), 'utf8')))
+  fs
+    .readdirSync(vault)
+    .filter((name) => name.endsWith('.md') && /^pending: true$/m.test(fs.readFileSync(path.join(vault, name), 'utf8')))
 
-export async function run(h) {
+export async function run(harness) {
   const evidence = {}
-  const scenario = h.scenario()
-  await scenario.setup((s) => s.install())
+  const scenario = harness.scenario()
+  await scenario.setup((world) => world.install())
 
-  const registered = await scenario.engram(['register-skills', '--accept', 'claude:recall']).catch((error) => error.message)
-  evidence.registerSkills = { pendingAfter: pendingNotes(scenario.vault), queryFlag: /pending_offers: true/.test(await scenario.engram(['query', '--phrase', 'x', '--limit', '1'])), output: String(registered).slice(0, 120) }
+  const registered = await scenario
+    .engram(['register-skills', '--accept', 'claude:recall'])
+    .catch((error) => error.message)
+  evidence.registerSkills = {
+    pendingAfter: pendingNotes(scenario.vault),
+    queryFlag: /pending_offers: true/.test(await scenario.engram(['query', '--phrase', 'x', '--limit', '1'])),
+    output: excerpt(registered, REGISTERED_CHARS),
+  }
 
   const port = await freePort()
-  const server = spawn(h.context.engramPath, ['serve', '--addr', `127.0.0.1:${port}`, '--vault', scenario.vault], { env: scenario.env(), stdio: 'ignore' })
+  const server = spawn(
+    harness.context.engramPath,
+    ['serve', '--addr', `127.0.0.1:${port}`, '--vault', scenario.vault],
+    {
+      env: scenario.env(),
+      stdio: 'ignore',
+    },
+  )
   try {
-    for (let i = 0; i < 50; i += 1) {
-      const up = await fetch(`http://127.0.0.1:${port}/`).then(() => true, () => false)
-      if (up) break
-      await h.settle(100)
+    for (let index = 0; index < SERVE_TRIES; index += 1) {
+      const reachable = await fetch(`http://127.0.0.1:${port}/`).then(
+        () => true,
+        () => false,
+      )
+      if (reachable) break
+      await harness.settle(SERVE_WAIT_MS)
     }
     const childVault = path.join(scenario.dir, 'child-vault')
     const before = pendingNotes(scenario.vault).length
-    await scenario.engram(
-      ['learn', 'fact', '--slug', 'offered', '--position', 'top', '--source', 'probe', '--vault', childVault, '--situation', 'tagging a release', '--subject', 'releases', '--predicate', 'are tagged from', '--object', 'main'],
-      { extraEnv: { ENGRAM_PARENT: `http://127.0.0.1:${port}` } },
-    ).catch((error) => { evidence.serveLearnError = error.message.slice(0, 300) })
+    await scenario
+      .engram(
+        [
+          'learn',
+          'fact',
+          '--slug',
+          'offered',
+          '--position',
+          'top',
+          '--source',
+          'probe',
+          '--vault',
+          childVault,
+          '--situation',
+          'tagging a release',
+          '--subject',
+          'releases',
+          '--predicate',
+          'are tagged from',
+          '--object',
+          'main',
+        ],
+        { extraEnv: { ENGRAM_PARENT: `http://127.0.0.1:${port}` } },
+      )
+      .catch((error) => {
+        evidence.serveLearnError = excerpt(error.message, LONG_EXCERPT)
+      })
     const after = pendingNotes(scenario.vault)
     evidence.serve = { pendingBefore: before, pendingAfter: after.length, newest: after.at(-1) }
   } finally {

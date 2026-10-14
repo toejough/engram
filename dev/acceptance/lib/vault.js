@@ -1,11 +1,31 @@
-// The parts of a note file engram writes: the front matter between the two `---` lines (source and situation among
-// its fields), then the body. A lesson is stated by the body of a note; how it was written is told by its source (793b316).
+// The parts of a note file engram writes: the front matter between the two `---` lines (source and situation among its
+// fields), then the body. A lesson is stated by the body of a note; how it was written is told by its source (793b316).
+import crypto from 'node:crypto'
+
+const BODY_PART = 2
+const SENTINEL_BYTES = 3
+
+// sentinelFor is a marker no other note carries, by which a delivery or a retrieval of the note is recognised.
+export function sentinelFor(label) {
+  return `SENTINEL-${label}-${crypto.randomBytes(SENTINEL_BYTES).toString('hex')}`
+}
+
 export function parseNote(text) {
   const parts = text.split(/^---$/m)
   const front = parts[1] ?? ''
-  // `content` is everything a note says but where it came from: a lesson is stated by the note's fields and body, not by its source line
+  // `content` is everything a note says but where it came from: a lesson is stated by the note's fields and body, not
+  // by its source line
   const content = text.replace(/^source:.*$/m, '')
-  return { front, content, body: parts.slice(2).join('---').trim(), source: /^source:[ \t]*(.*)$/m.exec(front)?.[1]?.trim().replace(/^["']|["']$/g, '') ?? '' }
+  return {
+    front,
+    content,
+    body: parts.slice(BODY_PART).join('---').trim(),
+    source:
+      /^source:[ \t]*(.*)$/m
+        .exec(front)?.[1]
+        ?.trim()
+        .replace(/^["']|["']$/g, '') ?? '',
+  }
 }
 
 // automaticSource: the note says in its source that the System wrote it ("written automatically", mod: capture.js).
