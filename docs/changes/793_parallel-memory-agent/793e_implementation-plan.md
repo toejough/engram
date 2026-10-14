@@ -233,7 +233,7 @@ flowchart TD
   n793e8m["793e8m Logic in Go<br/>Complete"]
   n793e8n["793e8n JavaScript standards<br/>Complete"]
   n793e8o["793e8o Performance<br/>Complete"]
-  n793e8p["793e8p Hardening<br/>Ready"]
+  n793e8p["793e8p Hardening<br/>Complete"]
   n793e8q["793e8q Spec conformance and the technical specification<br/>Blocked by: 793e8p"]
   n793e8r["793e8r Refactor review and promotion<br/>Blocked by: 793e8q"]
   n793e8a --> n793e8b --> n793e8e --> n793e8c
@@ -681,22 +681,39 @@ Redactor times are single runs on this machine, indicative; the test compares si
 
 ### 793e8p Hardening
 
-Status: Ready (after [793e8m Logic in Go](#793e8m-logic-in-go), whose Go port moved part of this node's gates: the compaction goals are Go tests of `Refactorred` in `internal/auto/refactorred_test.go` (the compaction of a subagent is red, that of the main agent is a guard); the three queue goals stay in `hardening.red.ts` and are red; the 20 guards of `hardening.test.ts` are Go tests `Test793d19a_*`, `Test793d26b1_*` and `Test793d24b2_*` of `internal/auto`).
+Status: Complete (the contracts are green and in `check-full`: the persisted queue and the wiring of a compaction are tests of the mod, `hardening.test.ts` and `wiring.test.ts`, run by `test-mod`, now a dependency of `check-full` and `check-for-fail`; the compaction of a subagent and the queue file are Go tests in `internal/auto`; none is on the refactor-red list, and the Go gate `go-red` is gone with its last tagged test).
 
-Red gate: `targ test-mod red hardening` (5 of 5 fail): queued work is not written before the event returns, a queue left by an ended session is not run at the next start, a failed capture is not kept (the contract is [793b362 The queued-work file is chosen by its red test](./793b_decision-log.md#793b362-the-queued-work-file-is-chosen-by-its-red-test)); a subagent's compaction empties the main agent's ledger and leaves its own (the gap of [793d24b2 Presence and ledgers](./793d_technical-spec.md#793d24b2-presence-and-ledgers)). The 20 guards of `hardening.test.ts` stay green: one per mitigation of [793d19a Security](./793d_technical-spec.md#793d19a-security) (provenance, offers folded and never discarded outright except `rejected`, data framing, the activity line, 11 secret shapes), the compaction of the main agent, and the two behaviors that had no test (the task-notification summary text and the age limit of an unfinished step job). The node follows [793e8m Logic in Go](#793e8m-logic-in-go): the contracts that moved are Go tests with the same meaning, and the persisted queue is Go state. Verification: `targ test-mod red hardening` passes (or its Go twin) and the file is renamed to `hardening.test.ts`; `targ acceptance` (793a3a, 793a2e, 793a4b, then the full suite once); `targ check-full`. Invariant: the acceptance suite stays green.
+Red gate (before the node): `targ test-mod red hardening` (3 of 3 fail) and `go test -tags refactorred` (1 of 3 fail): queued work is not written before the event returns, a queue left by an ended session is not run at the next start, a failed capture is not kept (the contract was [793b362 The queued-work file is chosen by its red test](./793b_decision-log.md#793b362-the-queued-work-file-is-chosen-by-its-red-test)); a subagent's compaction empties the main agent's ledger and leaves its own (the gap of [793d24b2 Presence and ledgers](./793d_technical-spec.md#793d24b2-presence-and-ledgers)). The two behaviors the plan listed as having no test already had one: the summary of a task notification (`Test793d27b1_ATaskNotificationEntersTheWindowAsItsSummaryNeverAsTheResultItCarries`) and the age limit of an unfinished step job (the wiring test of the 7 s hold and the 25 s age, which stays in the mod). Verification: `targ test-mod`, `go test ./internal/auto/ ./internal/cli/`, `targ acceptance` (793a3a, 793a2e, 793a4b, 793a5h, then the full suite once), `targ check-full`. Invariant: the acceptance suite stays green.
 
 | Gate | Classification | Why |
 | --- | --- | --- |
-| `hardening.red.ts`: a capture is queued in the file before the turn returns | Dedicated example (mod contract, goal) | a final turn is lost on exit today |
-| `hardening.red.ts`: a capture left by an ended session is captured at the next start | Dedicated example (mod contract, goal) | the file is read at `classic.SessionStart` |
-| `hardening.red.ts`: a capture that fails stays in the file for the next session | Dedicated example (mod contract, goal) | a failure keeps the job; success removes it |
-| `hardening.red.ts`: compacting a subagent leaves the notes of the main agent delivered | Dedicated example (mod contract, goal) | `session.compact` with `agentId` clears that agent's ledger only |
-| `hardening.red.ts`: a compacted subagent is delivered again the notes it lost | Dedicated example (mod contract, goal) | same |
+| `Test793d22b2_*` in `internal/auto/queue_test.go` (14): a turn is written to the file with its window, source and transcript before anything is judged; a capture of an entry takes it out and marks its own session; a capture that fails keeps it; a start takes up the entries left, counts the try and drops the third; a clear or a compaction takes nothing; a file that is absent or not a queue is an empty one; a file that cannot be written leaves the turn to memory; the file holds exactly the turns not yet captured (`rapid`) | Dedicated example and property (Go contract, goal) | a final turn was lost on exit |
+| `hardening.test.ts` (4): a turn is in the queue file before its hook returns; an entry a session left is captured at the next start; a start that is not new is handed to the engine, which decides; a turn the file could not take is captured from memory and nobody is warned | Dedicated example (mod contract, goal) | the mod hands the three jobs and decides nothing |
+| `Test793d24b2_CompactingASubagent…` and `…TheMainAgent…` in `internal/auto/compaction_test.go`; `wiring.test.ts` "a compaction names the subagent…" | Dedicated example (Go and mod contract, goal and guard) | `session.compact` with `agentId` clears that agent's ledger only |
+| `Test793d29b3_*` in `internal/cli/amend_source_test.go` (4) and the near row of `Test793d29b2_AnOfferIsSettledByTheOutcomeTheJudgementGave` | Dedicated example (Go contract, goal) | the provenance of a near fold ([793b399](./793b_decision-log.md#793b399-a-near-fold-carries-a-provenance-line-by-a-new-flag-of-engram-amend)) |
+| `differential_test.go` in `internal/auto` (10, four of them `rapid` properties) | Dedicated example and property (Go contract, goal) | the two findings of the security review of `cc346ec7` ([793b396](./793b_decision-log.md#793b396-the-answer-and-the-last-message-of-a-subagent-reached-the-window-as-raw-lines-and-the-line-breaks-were-not-all-of-them), [793b397](./793b_decision-log.md#793b397-the-judges-prompt-fences-and-reply-parser-accepted-forms-a-reader-takes-differently)) |
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |
-| Make the five pass; rename the file to `hardening.test.ts`; put `test-mod` in `check-full` and take hardening off the refactor-red list | Refactor | the gaps of the derivation, each with a test that failed first | Not started |
-| Write the red test for the provenance of a near-fold (it needs a flag on `engram amend`, a Go change with its own tests), then make it pass | Refactor | [793b367](./793b_decision-log.md#793b367-two-things-found-while-the-gates-were-built-a-stale-test-and-a-flag-that-does-not-exist): the mitigation of 793d19a does not cover that write | Not started |
+| The findings of the security review of `cc346ec7`: the line structure of the window, the tag fences of every prompt, the strict reply parser; each a failing Go test first | Refactor | the coverage claimed by [793b375](./793b_decision-log.md#793b375-three-findings-of-the-security-review-of-the-go-port-and-the-mitigations-of-793d19a-that-map-to-go-tests) was incomplete | Done |
+| A compaction names its agent: the job `compact` has an `agent` field and empties that agent's ledger; the mod hands the `agentId` of the event; the two goals leave the `refactorred` tag | Refactor | the gap of 793d24b2 | Done |
+| The persisted queue: the jobs `enqueue` and `resume` and a `capture` of an entry, the file `capture-queue.json` ([793b398](./793b_decision-log.md#793b398-the-persisted-queue-is-a-file-the-engine-owns-and-the-red-tests-of-793b362-became-tests-of-the-jobs-the-mod-hands-it)); `hardening.red.ts` is `hardening.test.ts`; `test-mod` is in `check-full`; hardening is off the refactor-red list | Refactor | the gaps of the derivation, each with a test that failed first | Done |
+| The provenance of a near fold: a flag `--source` on `engram amend`, passed by Auto Curation on a `near` outcome ([793b399](./793b_decision-log.md#793b399-a-near-fold-carries-a-provenance-line-by-a-new-flag-of-engram-amend)) | Refactor | [793b367](./793b_decision-log.md#793b367-two-things-found-while-the-gates-were-built-a-stale-test-and-a-flag-that-does-not-exist): the mitigation of 793d19a did not cover that write | Done |
+| The harness report keeps the status lines of a scenario that did not pass ([793b400](./793b_decision-log.md#793b400-the-lookup-deadline-of-2-s-measured-and-the-harness-report-keeps-the-activity-line)) | Setup | a lookup the System cut is distinguishable from a judgement that missed | Done |
+
+**Result (2026-10-14, Claude Code 2.1.299, nothing installed, token never printed).** Before and after, per test:
+
+| Test | Before | After |
+| --- | --- | --- |
+| `hardening.red.ts`: a capture is queued in the file before the turn returns | red | `hardening.test.ts` "a turn is in the queue file before its hook returns" and `Test793d22b2_ATurnIsWrittenToTheFile…`, green |
+| `hardening.red.ts`: a capture left by an ended session is captured at the next start | red | "an entry a session left behind is captured at the next start" and `…ASessionThatStartsTakesTheEntriesLeftBehind…`, green |
+| `hardening.red.ts`: a capture that fails stays in the file | red | `…ACaptureThatFailsKeepsItsEntryInTheFile…`, green |
+| `Test793d24b2_RefactorredCompactingASubagent…` | red | green (`compaction_test.go`) |
+| `Test793d24b2_RefactorredCompactingTheMainAgent…` | guard | guard |
+| Provenance of a near fold | no flag | `Test793d29b3_*` (4) and the near row, green |
+| Security review: line structure, fences, parser | 7 of the 10 `differential_test.go` tests red | green |
+
+Gates after the node: `check-full` 17 of 17 PASS (with `test-mod`: 23 mod tests); `targ check-spec-conformance` 0 problems (it was 1: the stated count of mod tests, now 23, and the citations of the renamed tests). Budgets raised, with their reasons in the decision log: `judge-relay` 435 to 464, `capture` 426 to 433, `curation` 150 to 151, `register.js` 250 to 256, and a new `queue` component of 67 owned lines. Acceptance (`targ acceptance`, the full suite, at the head of the node): 51 runs, 49 Green, 2 `Not run` (793a5j1d, 793a5c1b: SP14), none Red, 1.862 USD, none retried; the rows 793a2e1e, 793a2e1g, 793a4b (4), 793a3a1g and 793a5h1a were Green alone before it.
 
 ### 793e8q Spec conformance and the technical specification
 
