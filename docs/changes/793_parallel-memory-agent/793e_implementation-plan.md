@@ -229,7 +229,7 @@ flowchart TD
   n793e8h["793e8h Hypothesis scenarios updated to the PoC<br/>Complete"]
   n793e8i["793e8i H1 probe harness and verdict<br/>Complete"]
   n793e8j["793e8j H2 eval and verdict<br/>Complete"]
-  n793e8l["793e8l Red gates<br/>In progress: 0/7 entries complete"]
+  n793e8l["793e8l Red gates<br/>In progress: 1/7 entries complete"]
   n793e8m["793e8m Logic in Go<br/>Blocked by: 793e8l"]
   n793e8n["793e8n JavaScript standards<br/>Blocked by: 793e8m"]
   n793e8o["793e8o Performance<br/>Blocked by: 793e8m"]
@@ -574,7 +574,7 @@ Verification: `targ refactor-red` runs every gate and prints one table; `npm tes
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |
-| JavaScript standards gate: `eslint.config.js` and `tsconfig.json` in `dev/acceptance`, the declaration of the test kit, the pinned dev dependencies, `prune-go-sources.js`, `targ lint-js standards` and `types` | Setup (goal, red) | [793b364 The complexity limits and the lint rules follow the Go configuration](./793b_decision-log.md#793b364-the-complexity-limits-and-the-lint-rules-follow-the-go-configuration) | Not started |
+| JavaScript standards gate: `eslint.config.js` and `tsconfig.json` in `dev/acceptance`, the declaration of the test kit, the pinned dev dependencies, `prune-go-sources.js`, `targ lint-js standards` and `types` | Setup (goal, red) | [793b364 The complexity limits and the lint rules follow the Go configuration](./793b_decision-log.md#793b364-the-complexity-limits-and-the-lint-rules-follow-the-go-configuration) | Done |
 | Complexity and adapter gates: `eslint.complexity.config.js`, `eslint.adapter.config.js` and `targ lint-js complexity` and `adapter` | Setup (goal, red) | 793b364 and [793b368 Within reason the logic moves to Go and the mod becomes a thin adapter](./793b_decision-log.md#793b368-within-reason-the-logic-moves-to-go-and-the-mod-becomes-a-thin-adapter) | Not started |
 | Adapter budget gate: `gates/budgets.json`, the owned-lines count and `targ check-mod-budget` | Setup (goal, red) | [793b366 The adapter budget is the wiring counted in register.js, the relay loop and a margin](./793b_decision-log.md#793b366-the-adapter-budget-is-the-wiring-counted-in-registerjs-the-relay-loop-and-a-margin) | Not started |
 | Performance gates: `tests/perf.test.ts` (guards) and `tests/perf.red.ts` (goals), the shared stub `tests/world.ts`, `targ test-mod` | Setup (goal, red, and guards) | [793b363 Performance budgets come from the measured baselines and the spec ceilings](./793b_decision-log.md#793b363-performance-budgets-come-from-the-measured-baselines-and-the-spec-ceilings) | Not started |
@@ -607,7 +607,7 @@ Red gates (all goals, seen red on the real code): `targ check-mod-budget` (958 o
 
 ### 793e8n JavaScript standards
 
-Status: Not started (gate: `targ lint-js standards`, `targ lint-js types`).
+Status: Red (gate: `targ lint-js standards`, `targ lint-js types`).
 
 Red gate: `targ lint-js standards` (eslint, 1,428 problems: 621 `max-len`, 407 `no-explicit-any`, 225 `id-length`, 127 `no-magic-numbers`, 48 in nine other rules) and `targ lint-js types` (`tsc --noEmit`, 8 errors). The node follows [793e8m Logic in Go](#793e8m-logic-in-go), so the mod it fixes is the adapter and its tests, and the harness and the probes. Verification: those two targets pass; `claude plugin test` and `npm test` pass; `targ acceptance` green (the change is style, names and types, so the full suite runs once at completion); `targ check-full`. Invariant: the acceptance suite stays green.
 

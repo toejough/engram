@@ -41,6 +41,8 @@ func init() {
 		Description("Engram dev target registration"))
 
 	targ.Register(testDevTarget, testDevIntegrationTarget, acceptanceTarget)
+	// The refactor gates of 793e8l: red on purpose until their nodes turn them green, so none is in check-full yet.
+	targ.Register(lintJSTarget, checkModBudgetTarget, testModTarget, checkSpecConformanceTarget, refactorRedTarget)
 
 	targ.Register(targ.Targ(runEval).
 		Name("eval").
@@ -57,9 +59,6 @@ const (
 var (
 	acceptanceTarget = targ.Targ(runAcceptance).Name("acceptance").
 				Description("Run the product scenarios (or an ID prefix; 793d for H1) against real Claude Code sessions")
-	// The aggregates below mirror Targ's dependencies, order and mode with Engram's nil targets in place of Targ's
-	// (794b4a); Test794b4a1c fails when Targ's aggregates change. The dev package's tests carry build tags the
-	// shared test targets do not pass, so check-for-fail and check-full also run them here.
 	checkForFailTarget = targ.Targ(targdev.CheckForFail.Fn()).Name("check-for-fail").
 				Description(targdev.CheckForFail.GetDescription()).
 				Deps(
@@ -75,6 +74,11 @@ var (
 			targdev.TestIntegration, testDevTarget, testDevIntegrationTarget, lintDevTarget,
 			targ.DepModeParallel, targ.CollectAllErrors,
 		)
+	// The aggregates below mirror Targ's dependencies, order and mode with Engram's nil targets in place of Targ's
+	// (794b4a); Test794b4a1c fails when Targ's aggregates change. The dev package's tests carry build tags the
+	// shared test targets do not pass, so check-for-fail and check-full also run them here.
+	checkModBudgetTarget = targ.Targ(runCheckModBudget).Name("check-mod-budget").
+				Description("Refactor gate (red): owned lines of each hook file of the mod against its budget")
 	checkNilsFixTarget = targ.Targ(checkNilsFix).Name("check-nils-fix").
 				Description("Fix nil issues in Engram packages")
 	checkNilsForFailTarget = targ.Targ(checkNilsForFail).Name("check-nils-for-fail").
@@ -82,6 +86,8 @@ var (
 	checkNilsTarget = targ.Targ(targdev.CheckNils.Fn()).Name("check-nils").
 			Description(targdev.CheckNils.GetDescription()).
 			Deps(checkNilsFixTarget, checkNilsForFailTarget)
+	checkSpecConformanceTarget = targ.Targ(runCheckSpecConformance).Name("check-spec-conformance").
+					Description("Refactor gate: the specs 793d22 onward against the mod's tests, the product spec and the code")
 	checkTarget = targ.Targ(targdev.Check.Fn()).Name("check").
 			Description(targdev.Check.GetDescription()).
 			Deps(
@@ -91,10 +97,14 @@ var (
 	errEvalUsage  = errors.New("usage: targ eval <arm> [trials]  (nothing|skills-only|current-state)")
 	lintDevTarget = targ.Targ(lintDev).Name("lint-dev").
 			Description("Lint the dev package's build-tagged files (targ, integration)")
+	lintJSTarget = targ.Targ(runLintJS).Name("lint-js").
+			Description("Refactor gate (red): eslint and tsc over the mod and the harness (standards|complexity|adapter|types)")
 	// mutateTarget reuses Targ's mutation run behind Engram's check-for-fail, as Targ's runs behind its own (794b4a).
 	mutateTarget = targ.Targ(targdev.Mutate.Fn()).Name("mutate").
 			Description(targdev.Mutate.GetDescription()).
 			Deps(checkForFailTarget)
+	refactorRedTarget = targ.Targ(runRefactorRed).Name("refactor-red").
+				Description("Run every refactor gate and list which are red")
 	// sharedTargets are Targ's shared targets other than the nil targets and aggregates Engram replaces, keyed by
 	// Targ's variable name. Test794b4a1d fails when Targ adds or removes one.
 	sharedTargets = map[string]*targ.Target{
@@ -131,6 +141,8 @@ var (
 	testDevTarget = targ.Targ(testDev).
 			Name("test-dev").
 			Description("Run unit tests for the dev package (targ build tag)")
+	testModTarget = targ.Targ(runTestMod).Name("test-mod").
+			Description("The mod's contract tests: green (tests/*.test.ts) or red (the gates, tests/*.red.ts)")
 	// watchCheck is the check watch runs on a change: Engram's, never Targ's (794b4a1e).
 	watchCheck  = checkTarget
 	watchTarget = targ.Targ(watch).Name("watch").Description(targdev.Watch.GetDescription())
