@@ -229,8 +229,8 @@ flowchart TD
   n793e8h["793e8h Hypothesis scenarios updated to the PoC<br/>Complete"]
   n793e8i["793e8i H1 probe harness and verdict<br/>Complete"]
   n793e8j["793e8j H2 eval and verdict<br/>Complete"]
-  n793e8l["793e8l Red gates<br/>In progress: 6/7 entries complete"]
-  n793e8m["793e8m Logic in Go<br/>Blocked by: 793e8l"]
+  n793e8l["793e8l Red gates<br/>Complete"]
+  n793e8m["793e8m Logic in Go<br/>Ready"]
   n793e8n["793e8n JavaScript standards<br/>Blocked by: 793e8m"]
   n793e8o["793e8o Performance<br/>Blocked by: 793e8m"]
   n793e8p["793e8p Hardening<br/>Blocked by: 793e8m"]
@@ -557,6 +557,8 @@ Verification: `targ refactor-red` runs every gate and prints one table; `npm tes
 
 **The input list.** The open items of the consolidated review ([793b315 An opus implementation and security review of the PoC returned "targeted fixes first"](./793b_decision-log.md#793b315-an-opus-implementation-and-security-review-of-the-poc-returned-targeted-fixes-first), whose fixes are done in [793e8k Fixes from the implementation and security review](#793e8k-fixes-from-the-implementation-and-security-review)) are its residual risks of [793d19a Security](./793d_technical-spec.md#793d19a-security): an injection becoming a delivered note, a crafted offer folded into a trusted note, secrets of shapes no pattern covers, and a `covered` judged wrongly. The gaps of the derivation ([793d35c Gaps and what is not built](./793d_technical-spec.md#793d35c-gaps-and-what-is-not-built)) are the duplicated transcript reader, the subagent compaction that empties the top-level ledger, queued work that is not persisted, and the two built behaviors without a test. The owner then decided that, within reason, the logic moves to Go and the mod becomes a thin adapter ([793b368 Within reason the logic moves to Go and the mod becomes a thin adapter](./793b_decision-log.md#793b368-within-reason-the-logic-moves-to-go-and-the-mod-becomes-a-thin-adapter)), which supersedes the green-phase choice to orchestrate in JavaScript. Building the gates added four findings: the relevance deadline sits below the judgement's 95th percentile, the redactor is quadratic, the subagent transcript is polled every 500 ms, and a near-fold writes no provenance ([793b363 Performance budgets come from the measured baselines and the spec ceilings](./793b_decision-log.md#793b363-performance-budgets-come-from-the-measured-baselines-and-the-spec-ceilings), [793b367 Two things found while the gates were built: a stale test, and a flag that does not exist](./793b_decision-log.md#793b367-two-things-found-while-the-gates-were-built-a-stale-test-and-a-flag-that-does-not-exist)).
 
+Result (2026-10-14, Claude Code 2.1.299, nothing installed, no mod or engram file changed by this node): `targ refactor-red` lists all eight gates red (standards 1,428 problems, types 8, complexity 6, adapter 87, adapter budget 958 against 250, performance 5 of 5 fail, hardening 5 of 5 fail, spec conformance 1 problem). `targ check-full` 12 of 12 PASS (with `GIT_CONFIG_GLOBAL` set, [793b367](./793b_decision-log.md#793b367-two-things-found-while-the-gates-were-built-a-stale-test-and-a-flag-that-does-not-exist)). `claude plugin test`: 168 pass, 0 fail. `npm test`: 77 pass. `targ acceptance` (full): 51 runs, 48 Green, 1 Red, 2 `Not run` (793a5j1d, 793a5c1b: SP14), 1.951 USD; the Red is 793a2e1e (note "X" delivered a different number of times), which was Green in 3 of 3 re-runs alone (0.049 USD each), so a judgement miss like the one recorded in [793e7b Full-suite result after the review fixes](#793e7b-full-suite-result-after-the-review-fixes). A first full run was void: the token passed through the environment was refused (401 on 18 runs, no scenario evaluated), and the second run let the harness read the token file itself.
+
 **Goals, each with a node** (the refactor-red list: `check-full` does not run them until the node that turns them green wires them in; the closing node empties this list):
 
 | Gate | Command | Red today | Turns green in |
@@ -580,7 +582,7 @@ Verification: `targ refactor-red` runs every gate and prints one table; `npm tes
 | Performance gates: `tests/perf.test.ts` (guards) and `tests/perf.red.ts` (goals), the shared stub `tests/world.ts`, `targ test-mod` | Setup (goal, red, and guards) | [793b363 Performance budgets come from the measured baselines and the spec ceilings](./793b_decision-log.md#793b363-performance-budgets-come-from-the-measured-baselines-and-the-spec-ceilings) | Done |
 | Hardening gates: `tests/hardening.test.ts` (guards) and `tests/hardening.red.ts` (goals) | Setup (goal, red, and guards) | [793b362 The queued-work file is chosen by its red test](./793b_decision-log.md#793b362-the-queued-work-file-is-chosen-by-its-red-test) | Done |
 | Spec-conformance gate: `gates/spec.js` and `targ check-spec-conformance` | Setup (goal, red, and guards) | the specs 793d22 onward against the tests, the product spec and the code | Done |
-| `targ refactor-red` and the record of every classification and probe in 793b361 | Setup | one table of the gates; the record is the owner's acceptance rule | Not started |
+| `targ refactor-red` and the record of every classification and probe in 793b361 | Setup | one table of the gates; the record is the owner's acceptance rule | Done |
 
 ### 793e8m Logic in Go
 
