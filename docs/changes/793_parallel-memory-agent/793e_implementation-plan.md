@@ -234,8 +234,8 @@ flowchart TD
   n793e8n["793e8n JavaScript standards<br/>Complete"]
   n793e8o["793e8o Performance<br/>Complete"]
   n793e8p["793e8p Hardening<br/>Complete"]
-  n793e8q["793e8q Spec conformance and the technical specification<br/>Blocked by: 793e8p"]
-  n793e8r["793e8r Refactor review and promotion<br/>Blocked by: 793e8q"]
+  n793e8q["793e8q Spec conformance and the technical specification<br/>Complete"]
+  n793e8r["793e8r Refactor review and promotion<br/>Ready"]
   n793e8a --> n793e8b --> n793e8e --> n793e8c
   n793e8c --> n793e8d
   n793e8c --> n793e8g
@@ -717,14 +717,29 @@ Gates after the node: `check-full` 18 of 18 PASS (with `test-mod`: 23 mod tests)
 
 ### 793e8q Spec conformance and the technical specification
 
-Status: In progress (gate: `targ check-spec-conformance`).
+Status: Complete (the component and flow specs are written from the refactored system; `targ check-spec-conformance` is in `check-full` and `check-for-fail`, and the refactor-red list is empty).
 
 Red gate: `targ check-spec-conformance` (1 problem: the reading guide of [793d21a Orientation](./793d_technical-spec.md#793d21a-orientation) states 142 contract tests and the mod has 168). It also holds the guards that the 32 requirements each have a `Supports` and a `Verified by` line, that all 43 scenarios are supported, that every cited test exists and passes, and that every `Realization` file and function exists; those drift red as the refactor moves code, which is how the rewrite is forced. Verification: the target passes; the lifecycle checklist and the specification checklist of `docs/AGENTS.md` pass; `python3` link check of the change directory is clean; `targ acceptance` full once; `targ check-full`. Invariant: the acceptance suite stays green.
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |
-| Rewrite [793d21 System technical specification from the refactored system](./793d_technical-spec.md#793d21-system-technical-specification-from-the-refactored-system) to [793d35 Traceability and gaps](./793d_technical-spec.md#793d35-traceability-and-gaps) from the refactored system: components where the refactor made them, every requirement with its direct contract test, each hypothesis conclusion as a `Rationale:` line under the requirements it justifies | Refactor (gate: goal) | [Specification Lifecycle Guide](../../SPECIFICATION-LIFECYCLE-GUIDE.md#change-phases): the specs are written from the refactored system | Not started |
-| `check-spec-conformance` reports 0 problems; it is in `check-full` and the refactor-red list is empty | Setup | the gate stays green; the closing node needs the list empty | Not started |
+| Rewrite [793d21 System technical specification from the refactored system](./793d_technical-spec.md#793d21-system-technical-specification-from-the-refactored-system) to [793d35 Traceability and gaps](./793d_technical-spec.md#793d35-traceability-and-gaps) from the refactored system: components where the refactor made them, every requirement with its direct contract test, each hypothesis conclusion as a `Rationale:` line under the requirements it justifies | Refactor (gate: goal) | [Specification Lifecycle Guide](../../SPECIFICATION-LIFECYCLE-GUIDE.md#change-phases): the specs are written from the refactored system | Done |
+| `check-spec-conformance` reports 0 problems; it is in `check-full` and the refactor-red list is empty | Setup | the gate stays green; the closing node needs the list empty | Done |
+
+**Result (2026-10-14, Claude Code 2.1.299, nothing installed, token never printed; decision [793b402](./793b_decision-log.md#793b402-the-component-and-flow-specs-are-written-from-the-refactored-system)).** The sections [793d21 System technical specification from the refactored system](./793d_technical-spec.md#793d21-system-technical-specification-from-the-refactored-system) to [793d35 Traceability and gaps](./793d_technical-spec.md#793d35-traceability-and-gaps) are written from the code and tests of the refactored system. Before and after:
+
+| Measure | Before (the spec of the proof of concept, updated in place by 793e8m) | After |
+| --- | --- | --- |
+| Components, each with one owner | 10 | 13: the Job Runner, the Capture Queue and the Note Amendment addition are new |
+| Requirements | 34 (26 behavior and 8 interaction; the reading guide said 32) | 42: 33 behavior and 9 interaction, each with `Supports` and the tests that verify it |
+| Product scenarios supported | 43 of 43 | 43 of 43 |
+| Flows | 3 | 3, now with the queue file, the resume of a session and the housekeeping job in the diagrams |
+| Words, 793d21 to 793d34 | 10.3 thousand | 11.9 thousand, 8.4 thousand outside the Gherkin and the diagrams, against the target of about 9 thousand |
+| Tests named for the requirement they verify | the queue, the failures and the amend flag under other owners' IDs | 61 Go tests renamed to their owner's ID, 4 mod tests renamed, 3 new (`Test793d36b2_*`, seen failing when replay and the request hash check were disabled by a probe) |
+| `targ check-spec-conformance` | 0 problems, outside `check-full` | 0 problems, in `check-full` and `check-for-fail` |
+| `targ refactor-red` | the spec gate listed | no gate red |
+
+Gates at the head of the node: `check-full` 19 of 19 PASS; `targ acceptance --check` 3 of 3 (43 scenarios, 27 definitions, 0 undefined, 0 ambiguous); the link check of the change directory clean. No behavior changed in the node (it renamed tests, added three, a spec and a gate), so the live suite of the head of [793e8p Hardening](#793e8p-hardening) stands (51 runs, 49 Green, 2 `Not run`, none Red) and was not run again.
 
 ### 793e8r Refactor review and promotion
 
