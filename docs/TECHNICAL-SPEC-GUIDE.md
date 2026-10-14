@@ -219,11 +219,56 @@ When quantitative measures are useful:
 - State when diagrams use different abstraction levels. Visual size MUST NOT be presented as comparable complexity evidence unless the diagrams cover comparable scopes.
 - Report excluded dependency surface and operational tradeoffs separately when they matter to the decision.
 
+## Implementation Hypotheses
+
+In red ([Change Phases](./SPECIFICATION-LIFECYCLE-GUIDE.md#change-phases)) the technical spec holds
+only implementation hypotheses and build rules. The rest of this guide's structure applies to the
+component and flow specs written in refactor.
+
+A **build rule** is a checkable constraint on the implementation, such as "minimum repo-owned code" or
+a named platform. State each with RFC 2119 language.
+
+A **hypothesis** is a bet about how to satisfy the product promises. Give each an ID and these fields;
+split a hypothesis with several independently testable claims into clauses and handle each clause
+separately:
+
+```text
+### <ID> <title>
+Hypothesis:         <the statement>
+Reason:             <the owner's reason>
+Experiment:         <what confirms or disproves it>
+Measurement points: <what is measured, and where>
+Results (green):    <measurements as facts; the build rule's literal output as one line>
+Conclusion (green): <stated by the owner, with the date>
+```
+
+Leave Results and Conclusion empty in red. In refactor, carry each conclusion as a `Rationale:` line
+under the requirements it justifies.
+
+## Refactor Checklist
+
+Each item is a gate made red first, by a test, an enabled linter, or a measured budget, then worked to
+green with the acceptance suite green throughout. Verify:
+
+- **Standards:** repository lint, static analysis, and DI boundaries pass with the relevant checks
+  enabled.
+- **Hardening:** each security or correctness finding from the green review has a test that failed
+  before the fix.
+- **Performance:** each performance goal is a measured budget that was exceeded before the work and
+  met after.
+- **Minimality:** repo-owned code and dependencies are within the build rule, enforced by a check that
+  failed before the work.
+- **Complexity:** the enabled complexity checks pass.
+- **Spec conformance:** the component and flow specs describe the refactored system, every requirement
+  has its direct contract test, and the lifecycle checklist passes.
+
 ## Completion Checklist
 
 Verify:
 
 - The specification stands alone and introduces technical decisions before referencing them.
+- In red, the specification holds only build rules and hypotheses with every field filled except
+  Results and Conclusion; each hypothesis is testable and its clauses are separate.
 - The default structure is present or every omission is justified by non-applicability.
 - Every product UAT scenario is preserved and mapped.
 - Every canonical behavior requirement is located in its owning component file, and every
@@ -262,4 +307,5 @@ Verify:
 - Options use agreed objectives and comparable complete scopes.
 - Quantitative counts follow one defined ownership and unit model.
 - Abbreviated diagrams are labeled so their size is not mistaken for complexity.
+- Every [Refactor Checklist](#refactor-checklist) gate was red before it was green.
 - The shared checklist in [`docs/AGENTS.md`](./AGENTS.md) passes.
