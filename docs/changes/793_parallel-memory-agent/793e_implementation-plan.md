@@ -229,7 +229,7 @@ flowchart TD
   n793e8h["793e8h Hypothesis scenarios updated to the PoC<br/>Complete"]
   n793e8i["793e8i H1 probe harness and verdict<br/>Complete"]
   n793e8j["793e8j H2 eval and verdict<br/>Complete"]
-  n793e8l["793e8l Red gates<br/>In progress: 5/7 entries complete"]
+  n793e8l["793e8l Red gates<br/>In progress: 6/7 entries complete"]
   n793e8m["793e8m Logic in Go<br/>Blocked by: 793e8l"]
   n793e8n["793e8n JavaScript standards<br/>Blocked by: 793e8m"]
   n793e8o["793e8o Performance<br/>Blocked by: 793e8m"]
@@ -579,7 +579,7 @@ Verification: `targ refactor-red` runs every gate and prints one table; `npm tes
 | Adapter budget gate: `gates/budgets.json`, the owned-lines count and `targ check-mod-budget` | Setup (goal, red) | [793b366 The adapter budget is the wiring counted in register.js, the relay loop and a margin](./793b_decision-log.md#793b366-the-adapter-budget-is-the-wiring-counted-in-registerjs-the-relay-loop-and-a-margin) | Done |
 | Performance gates: `tests/perf.test.ts` (guards) and `tests/perf.red.ts` (goals), the shared stub `tests/world.ts`, `targ test-mod` | Setup (goal, red, and guards) | [793b363 Performance budgets come from the measured baselines and the spec ceilings](./793b_decision-log.md#793b363-performance-budgets-come-from-the-measured-baselines-and-the-spec-ceilings) | Done |
 | Hardening gates: `tests/hardening.test.ts` (guards) and `tests/hardening.red.ts` (goals) | Setup (goal, red, and guards) | [793b362 The queued-work file is chosen by its red test](./793b_decision-log.md#793b362-the-queued-work-file-is-chosen-by-its-red-test) | Done |
-| Spec-conformance gate: `gates/spec.js` and `targ check-spec-conformance` | Setup (goal, red, and guards) | the specs 793d22 onward against the tests, the product spec and the code | Not started |
+| Spec-conformance gate: `gates/spec.js` and `targ check-spec-conformance` | Setup (goal, red, and guards) | the specs 793d22 onward against the tests, the product spec and the code | Done |
 | `targ refactor-red` and the record of every classification and probe in 793b361 | Setup | one table of the gates; the record is the owner's acceptance rule | Not started |
 
 ### 793e8m Logic in Go
@@ -657,7 +657,7 @@ Red gate: `targ test-mod red hardening` (5 of 5 fail): queued work is not writte
 
 ### 793e8q Spec conformance and the technical specification
 
-Status: Not started (gate: `targ check-spec-conformance`).
+Status: Red (gate: `targ check-spec-conformance`).
 
 Red gate: `targ check-spec-conformance` (1 problem: the reading guide of [793d21a Orientation](./793d_technical-spec.md#793d21a-orientation) states 142 contract tests and the mod has 168). It also holds the guards that the 32 requirements each have a `Supports` and a `Verified by` line, that all 43 scenarios are supported, that every cited test exists and passes, and that every `Realization` file and function exists; those drift red as the refactor moves code, which is how the rewrite is forced. Verification: the target passes; the lifecycle checklist and the specification checklist of `docs/AGENTS.md` pass; `python3` link check of the change directory is clean; `targ acceptance` full once; `targ check-full`. Invariant: the acceptance suite stays green.
 
