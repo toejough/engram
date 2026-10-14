@@ -26,6 +26,7 @@ type AmendArgs struct {
 	Target       string   `json:"target"       targ:"flag,name=target,required,desc=note ref: full basename | [[wikilink]] | trailing .md | or bare Luhmann id (required)"`    //nolint:lll // single unbreakable struct-tag string
 	Supersedes   []string `json:"supersedes"   targ:"flag,name=supersedes,desc=supersession: <note>|<type>|<claim> (updates/narrows/refutes)"`                                 //nolint:lll // single unbreakable struct-tag string
 	ChunkSources []string `json:"chunkSources" targ:"flag,name=chunk-source,desc=chunk id (source#anchor) merged into sources: (repeatable)"`                                  //nolint:lll // single unbreakable struct-tag string
+	Source       string   `json:"source"       targ:"flag,name=source,desc=append a provenance line to the note's source: once (optional)"`                                    //nolint:lll // single unbreakable struct-tag string
 	ChunksDir    string   `json:"chunksDir"    targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"`                                        //nolint:lll // single unbreakable struct-tag string
 	// Content flags — only supplied fields are overwritten.
 	Situation string `json:"situation" targ:"flag,name=situation,desc=replace situation (optional)"`
@@ -274,7 +275,21 @@ func amendRestampsIdentity(args AmendArgs) bool {
 
 	return slices.ContainsFunc(contentFlags, func(value string) bool { return value != "" }) ||
 		len(args.RedFlags) > 0 || len(args.Triggers) > 0 ||
-		len(args.Supersedes) > 0 || len(args.ChunkSources) > 0
+		len(args.Supersedes) > 0 || len(args.ChunkSources) > 0 || args.Source != ""
+}
+
+// appendSource adds a provenance line to a note's source: after what is there, once: a line already in it, or none,
+// leaves it as it was (793d29b3).
+func appendSource(current, line string) string {
+	if line == "" || strings.Contains(current, line) {
+		return current
+	}
+
+	if current == "" {
+		return line
+	}
+
+	return current + "; " + line
 }
 
 // applyAmendVocabAssignment performs only the term-assignment part of
@@ -396,6 +411,7 @@ func applyRunbookAmend(
 	}
 
 	doc.Sources = mergeChunkSources(doc.Sources, args.ChunkSources)
+	doc.Source = appendSource(doc.Source, args.Source)
 	identity.stampPreservingUser(&doc.Repo, &doc.User, &doc.Vault)
 	fillEmptyVault(&doc.Vault, args.VaultName)
 
@@ -647,6 +663,7 @@ func overrideFactFields(
 	doc *factFrontmatterDoc, args AmendArgs, parsedSupersedes []supersedesEntry, identity *identityStamp,
 ) bool {
 	doc.Sources = mergeChunkSources(doc.Sources, args.ChunkSources)
+	doc.Source = appendSource(doc.Source, args.Source)
 	identity.stampPreservingUser(&doc.Repo, &doc.User, &doc.Vault)
 	fillEmptyVault(&doc.Vault, args.VaultName)
 
@@ -676,6 +693,7 @@ func overrideFeedbackFields(
 	identity *identityStamp,
 ) bool {
 	doc.Sources = mergeChunkSources(doc.Sources, args.ChunkSources)
+	doc.Source = appendSource(doc.Source, args.Source)
 	identity.stampPreservingUser(&doc.Repo, &doc.User, &doc.Vault)
 	fillEmptyVault(&doc.Vault, args.VaultName)
 

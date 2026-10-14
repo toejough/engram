@@ -206,6 +206,8 @@ func settleArgvs(decision Decision, offer, hash string) [][]string {
 			set = append(set, "--"+field[0]+"="+field[1])
 		}
 
+		set = append(set, "--source=amended automatically from offer "+offer)
+
 		return [][]string{fold, set}
 	case outcomeAbsent:
 		return [][]string{amend(offer, "--clear-pending")}

@@ -327,7 +327,7 @@ Requirement: 793d22b2 After answering a top-level `turn.complete` or a `classic.
 
 Supports: [793a4j1a The index catches up after the turn](./793a_product-spec.md#793a4j1-uat-scenarios), [793a4j1e Slow housekeeping does not stall the session](./793a_product-spec.md#793a4j1-uat-scenarios), [793a3a1h Two subagents contain the same lesson](./793a_product-spec.md#793a3a1-uat-scenarios)
 
-Verified by: `internal/auto/curate_test.go`: Test793d22b2; `wiring.test.ts` "a turn is answered before any of its work starts…"; `wiring.test.ts` "the jobs of a burst run one at a time…"; `wiring.test.ts` "the seam file records a job joining the queue…"
+Verified by: `internal/auto/curate_test.go`: Test793d22b2; `wiring.test.ts` "a turn is queued before it is answered…"; `wiring.test.ts` "the jobs of a burst run one at a time…"; `wiring.test.ts` "the seam file records a job joining the queue…"
 
 Rationale: The event returns first so that no prompt waits for the [System](./793a_product-spec.md#793a1-problem-statement)'s work, and the order lets a later capture see an earlier [note](./793a_product-spec.md#793a1-problem-statement).
 
@@ -357,6 +357,31 @@ Scenario: 793d22b3a1 An unreadable vault leaves the prompt as typed
   When a prompt is submitted
   Then the prompt is returned as typed with no context
   And the Activity Report receives the step and the class unavailable
+```
+
+#### 793d22b4 Persisted turn captures
+
+Requirement: 793d22b4 Before a top-level `turn.complete` returns, the Memory Mod MUST have the engine write the turn to the queue file `capture-queue.json` of the chunks directory (`enqueue`), and the capture job it then queues MUST run that entry; a turn the engine could not write MUST be captured from memory, with no warning. The engine MUST write the entry's window redacted, take the entry out of the file only when its capture has ended, and keep it when the capture fails. When a session starts (`startup` or `resume`, not `clear` or `compact`) the mod MUST have the engine hand back the entries a session left (`resume`) and queue a capture for each; the engine MUST count each entry taken up and drop one that has been taken up three times. A `classic.SubagentStop` capture is not queued in the file.
+
+Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), [793a4j1e Slow housekeeping does not stall the session](./793a_product-spec.md#793a4j1-uat-scenarios)
+
+Verified by: `internal/auto/queue_test.go`: Test793d22b2; `hardening.test.ts` "a turn is in the queue file before its hook returns"; `hardening.test.ts` "an entry a session left behind is captured at the next start"; `hardening.test.ts` "a turn the file could not take is captured from memory and nobody is warned"
+
+Rationale: [793b398 The persisted queue is a file the engine owns, and the red tests of 793b362 became tests of the jobs the mod hands it](./793b_decision-log.md#793b398-the-persisted-queue-is-a-file-the-engine-owns-and-the-red-tests-of-793b362-became-tests-of-the-jobs-the-mod-hands-it): the file is written before the event returns so that a session that ends at once loses nothing; it is the engine's because the windows, the redaction and the failure handling are.
+
+##### 793d22b4a Scenarios
+
+```gherkin
+Scenario: 793d22b4a1 A session that ends before its last capture finished does not lose the turn
+  Given a turn that ended and was written to the queue file
+  And the session ended before the capture ran
+  When the next session starts
+  Then the turn is captured from the file, and the file no longer holds it
+
+Scenario: 793d22b4a2 A capture that fails stays for the next session
+  Given an entry in the queue file whose capture fails
+  When the capture ends
+  Then the entry is still in the file
 ```
 
 ## 793d23 Moment Detection
@@ -732,7 +757,7 @@ Scenario: 793d29b1a1 Pending offers are settled up to the cap, a skill registrat
 
 #### 793d29b2 Outcomes and guards
 
-Requirement: 793d29b2 For each [offer](../../GLOSSARY.md#offer) Auto Curation MUST read it with `engram show`, take as [nearest notes](#793d1b-terms) the [note](./793a_product-spec.md#793a1-problem-statement) it amends or else the [vault](./793a_product-spec.md#793a1-problem-statement)'s five nearest by `engram query` (which leaves pending offers out), redact both, make one curation [judgement](#793d1b-terms), and run the commands of the outcome, passing the offer's [exchange hash](../../GLOSSARY.md#exchange-hash) when it has one so that an offer changed since is not settled: `covered`: `engram amend --target <note> --activate`, then the offer `--discard --into <note>`; `near`: the offer `--discard --into <note>`, then the note amended with the rewritten fields; `absent`: the offer `--clear-pending`; `rejected`: the offer `--discard`, never `--into`. It MUST count a settled offer as one curated and a `near` note as one amended, and an offer whose commands fail as neither. It MUST pass an offer's text only as `--flag=value`, check a note name before showing or amending it, settle nothing on a reply not exactly of the expected shape, and run only these commands, naming only a nearest note by its number.
+Requirement: 793d29b2 For each [offer](../../GLOSSARY.md#offer) Auto Curation MUST read it with `engram show`, take as [nearest notes](#793d1b-terms) the [note](./793a_product-spec.md#793a1-problem-statement) it amends or else the [vault](./793a_product-spec.md#793a1-problem-statement)'s five nearest by `engram query` (which leaves pending offers out), redact both, make one curation [judgement](#793d1b-terms), and run the commands of the outcome, passing the offer's [exchange hash](../../GLOSSARY.md#exchange-hash) when it has one so that an offer changed since is not settled: `covered`: `engram amend --target <note> --activate`, then the offer `--discard --into <note>`; `near`: the offer `--discard --into <note>`, then the note amended with the rewritten fields and a provenance line (`--source=amended automatically from offer <offer>`, [793d29b3 Amend provenance](#793d29b3-amend-provenance)); `absent`: the offer `--clear-pending`; `rejected`: the offer `--discard`, never `--into`. It MUST count a settled offer as one curated and a `near` note as one amended, and an offer whose commands fail as neither. It MUST pass an offer's text only as `--flag=value`, check a note name before showing or amending it, settle nothing on a reply not exactly of the expected shape, and run only these commands, naming only a nearest note by its number.
 
 Supports: [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios), [793a4j1d The agent is not asked to curate](./793a_product-spec.md#793a4j1-uat-scenarios)
 
@@ -753,6 +778,26 @@ Scenario: 793d29b2a2 A malformed reply settles nothing
   Given a curation reply with an unknown outcome
   When the offer is judged
   Then no amend command runs
+```
+
+#### 793d29b3 Amend provenance
+
+Requirement: 793d29b3 `engram amend --source <line>` MUST append the line to the `source:` of the note it amends, after what is there and separated from it by `; `, once (a line the `source:` already holds is not added again), and never replace what was there. It MUST do so for a fact, a feedback and a runbook note, and a `--source` alone MUST NOT be a content change, so nothing is embedded again. Auto Curation MUST pass the line `amended automatically from offer <offer>` on the amend of a `near` outcome, so that a [note](./793a_product-spec.md#793a1-problem-statement) whose claim an automatic judgement rewrote from an [offer](../../GLOSSARY.md#offer) says so. This is a revision of the canonical [note-amendment](../../specs/technical/note-amendment.md) component (a new flag beside `--chunk-source`) and of [note-revision](../../specs/product/note-revision.md), applied at promotion ([793b399 A near fold carries a provenance line, by a new flag of engram amend](./793b_decision-log.md#793b399-a-near-fold-carries-a-provenance-line-by-a-new-flag-of-engram-amend)).
+
+Supports: [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios)
+
+Verified by: `internal/cli/amend_source_test.go`: Test793d29b3; `internal/auto/curate_test.go`: Test793d29b2
+
+Security: [793d19a Security](#793d19a-security), mitigation: a provenance line on every automatic [note](./793a_product-spec.md#793a1-problem-statement); the note a near fold rewrites was the one write path that had none.
+
+##### 793d29b3a Scenarios
+
+```gherkin
+Scenario: 793d29b3a1 A near fold says where the new claim came from
+  Given a note whose source is "test" and a near offer folded into it
+  When the note is amended with the rewritten fields
+  Then its source is "test; amended automatically from offer <the offer>"
+  And a second amend with the same line leaves it as it was
 ```
 
 ## 793d30 Activity Report
@@ -1303,7 +1348,7 @@ All 43 scenarios of the product spec are supported by at least one requirement b
 - `Red` once: the third example of [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios) in the last full acceptance run (the [judgement](#793d1b-terms) worded the [note](./793a_product-spec.md#793a1-problem-statement) without the corrected cause; 15 of 15 in five reruns). A judgement-quality gap, not a missing requirement.
 - Built and untested, so not required: the task-notification summary and non-SDK prompt origins of [793d23b1 Event cues](#793d23b1-event-cues); the age limit of an unfinished step job ([793d23b2 In-turn cue](#793d23b2-in-turn-cue)).
 - Built differently from the product intent: a [subagent](../../GLOSSARY.md#subagent)'s compaction empties the top-level [ledger](#793d1b-terms) and not its own ([793d24b2 Presence and ledgers](#793d24b2-presence-and-ledgers)).
-- Not built: persistence of queued work, so a final turn can be lost on exit ([793b203 Background work is one in-memory queue, and a final turn can be lost on exit](./793b_decision-log.md#793b203-background-work-is-one-in-memory-queue-and-a-final-turn-can-be-lost-on-exit)); the persisted queue is a goal of [793e8p Hardening](./793e_implementation-plan.md#793e8p-hardening).
+- Built, no longer a gap: persistence of queued work ([793b203 Background work is one in-memory queue, and a final turn can be lost on exit](./793b_decision-log.md#793b203-background-work-is-one-in-memory-queue-and-a-final-turn-can-be-lost-on-exit)); the persisted queue is built by [793e8p Hardening](./793e_implementation-plan.md#793e8p-hardening) ([793b398 The persisted queue is a file the engine owns, and the red tests of 793b362 became tests of the jobs the mod hands it](./793b_decision-log.md#793b398-the-persisted-queue-is-a-file-the-engine-owns-and-the-red-tests-of-793b362-became-tests-of-the-jobs-the-mod-hands-it)).
 - Duplicated: `internal/auto` reads transcript rows by role itself ([793d28b2 Reading and windows](#793d28b2-reading-and-windows)) and not through the [Transcript Reader](../../specs/technical/transcript-reader.md), so the two can drift.
 - Harness-only, so a MAY with no requirement: the seam file named by `ENGRAM_AUTO_SEAM_LOG`, which lets a test wait for the queue (`wiring.test.ts` covers it).
 - The experiment scenarios of 793d17 and 793d18 are not contract tests of these requirements, except [793d18c1a Every request names the model of its kind](#793d18c1-experiments) and [793d18c1b Raising one kind changes only that kind](#793d18c1-experiments), which are the tier tests of [793d25b1 Tier and request shape](#793d25b1-tier-and-request-shape).

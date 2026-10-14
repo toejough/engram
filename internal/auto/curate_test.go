@@ -569,7 +569,7 @@ func Test793d29b2_AnOfferIsSettledByTheOutcomeTheJudgementGave(t *testing.T) {
 			amends: []string{
 				curateFolded,
 				"--target 1.2026-10-12.note-n.md --subject=tagging a release --predicate=is recorded as " +
-					"--object=from main and signed",
+					"--object=from main and signed --source=amended automatically from offer 2.2026-10-12.offer-one.md",
 			},
 			curated: auto.Counts{Curated: 1, Amended: 1},
 		},

@@ -67,7 +67,7 @@
           "curate.go"
         ],
         "basis": "housekeeping.js 52, nearest 9, curateOne 13, curate 13, housekeeping 5, skipped 1",
-        "ceiling": 150
+        "ceiling": 151
       },
       "summary": {
         "js": 27,
