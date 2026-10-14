@@ -191,9 +191,10 @@ Each test MUST have one status recording its latest verified checkpoint:
 - **Green-single:** The minimum implementation change made the focused test pass.
 - **Green-all:** The complete test suite passes after any required corrections. This ends a green node.
 
-Refactor nodes (part 2) carry no per-test statuses. Each uses the non-test statuses below, and is
-`Done` when its red gate (a goal) or its probe-verified guard and the suite are green. A test covered by
-a refactor node is `Done` when that node is.
+Refactor nodes (part 2) carry no per-test statuses. Each carries `Not started` → `Red` → `Green` →
+`Done`, naming its gate: `Red` when the gate (a goal) has been seen failing on the real code, `Green`
+when the gate and the suite pass, `Done` when committed. A guard has no node. A test covered by a
+refactor node is `Done` when that node is.
 
 Non-test actions use:
 
