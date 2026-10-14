@@ -47,11 +47,17 @@ export function formatReport(results) {
     .map((entry, index) => ({ entry, name: names[index] }))
     .filter(({ entry }) => /^(Red|Harness error)/.test(entry.result) && entry.message)
     .map(({ entry, name }) => `${name}: ${entry.message}`)
+  // and, beside it, the status lines the System showed in the run (793e8p)
+  const activity = results
+    .map((entry, index) => ({ entry, name: names[index] }))
+    .filter(({ entry }) => /^(Red|Harness error)/.test(entry.result) && entry.activity !== undefined)
+    .map(({ entry, name }) => `${name} activity: ${entry.activity.join(' | ') || 'none shown'}`)
   return [
     line(HEADERS),
     line(widths.map((width) => '-'.repeat(width))),
     ...rows.map(line),
     ...(details.length > 0 ? ['', ...details] : []),
+    ...(activity.length > 0 ? ['', ...activity] : []),
     '',
     `${results.length} scenario runs: ${
       Object.entries(tally)
