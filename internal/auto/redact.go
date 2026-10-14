@@ -18,7 +18,7 @@ const (
 		`authorization|[_-]key)[\w.-]*|(?:[\w.-]*[_-])?pass)`
 	shaLength = 40
 	// the white space of ECMAScript, as the body of a character class
-	space = `\s\x{a0}\x{1680}\x{202f}\x{205f}\x{3000}\x{feff}`
+	space = `\s\v\x{a0}\x{1680}\x{2000}-\x{200a}\x{2028}\x{2029}\x{202f}\x{205f}\x{3000}\x{feff}`
 	value = `("[^"\n]*"|'[^'\n]*'|[^` + space + `]+)`
 )
 

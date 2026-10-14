@@ -51,7 +51,7 @@ var (
 	// local command
 	harnessText = regexp.MustCompile(
 		`^[` + space + `]*(?:<system-reminder|<local-command-|Base directory for this skill:)`)
-	oneLine     = regexp.MustCompile(`[` + space + `]*[\r\n]+[` + space + `]*`)
+	oneLine     = regexp.MustCompile(`[` + space + `]*[\r\n\v\f\x{85}\x{2028}\x{2029}]+[` + space + `]*`)
 	slugEdge    = regexp.MustCompile(`^-+|-+$`)
 	slugRun     = regexp.MustCompile(`[^a-z0-9]+`)
 	summaryText = regexp.MustCompile(`<summary>((?s:.*?))</summary>`)
@@ -114,12 +114,12 @@ func (e *engine) learn(lesson Lesson, source string) {
 
 // neighbours are the notes the judge compares a window with: the vault's nearest, then the notes this session already
 // wrote, so that a lesson it recorded is never recorded twice whatever the query ranked.
-func (e *engine) neighbours(items []item) []Note {
+func (e *engine) neighbours(items []Note) []Note {
 	near := []Note{}
 
 	for _, found := range items {
 		if found.Kind != chunkKind && found.Situation != "" && len(near) < nearLimit {
-			near = append(near, found.Note)
+			near = append(near, found)
 		}
 	}
 

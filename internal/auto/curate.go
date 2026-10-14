@@ -117,7 +117,7 @@ func (e *engine) nearest(offer shown, text Note) []Note {
 
 	for _, found := range parseQuery(e.exec(query, deadlineLookup)) {
 		if found.Kind != chunkKind && found.Situation != "" && len(notes) < nearCount {
-			notes = append(notes, redacted2(found.Path, found.Note))
+			notes = append(notes, redacted2(found.Path, found))
 		}
 	}
 

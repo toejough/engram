@@ -83,7 +83,6 @@ const (
 	outcomeCovered = "covered"
 	outcomeNear    = "near"
 	outcomeRefused = "rejected"
-	pairSize       = 2
 	relevanceLimit = 1500
 	stringLimit    = 600
 )
@@ -143,15 +142,12 @@ func document(text string) any {
 
 func fence(text string) string { return fencePattern.ReplaceAllString(text, "&lt;${1}") }
 
-// fill puts the values in the first places the prompt names; a value is never read as a pattern. A text that sits in a
+// fill puts the values in the places the prompt names, in one pass over the prompt: a value is data, and a placeholder
+// inside it is not filled (a later placeholder would otherwise be found in an earlier value). A text that sits in a
 // tag of the prompt cannot close or open the tags: `<` before a window, notes or recent tag (in any case, with any
 // spacing) is written as an entity, and every tag of the curation prompt inside a text is broken (793b303).
 func fill(prompt string, pairs ...string) string {
-	for pair := range slices.Chunk(pairs, pairSize) {
-		prompt = strings.Replace(prompt, pair[0], pair[1], 1)
-	}
-
-	return prompt
+	return strings.NewReplacer(pairs...).Replace(prompt)
 }
 
 // judged has the mod relay a request to the model, and reads the reply it brings with the parser of its kind.

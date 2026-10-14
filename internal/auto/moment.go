@@ -15,6 +15,9 @@ type Note struct {
 	Kind      string `json:"kind"`
 	Situation string `json:"situation"`
 	Body      string `json:"body"`
+	// the score of the item of a query, and whether it was a direct match
+	score   float64
+	counted bool
 }
 
 // ToolCall is a tool the agent called in a step.
@@ -177,14 +180,6 @@ func (e *engine) toolJob() Done {
 	return Done{Block: e.deliver(mainAgent, notes)}
 }
 
-// item is an item of the output of `engram query`: its note, its score, and whether it was a direct match.
-type item struct {
-	Note
-
-	score   float64
-	counted bool
-}
-
 // ledger is, for each agent, the paths of the notes it holds (793a2e): delivered by the System or shown by a tool.
 type ledger map[string][]string
 
@@ -198,14 +193,14 @@ func after(text string, pattern *regexp.Regexp, skip int, joiner string) string 
 }
 
 // candidates are the notes the lookup counted as direct matches above the floor, best first, at most itemLimit.
-func candidates(items []item) []Note {
+func candidates(items []Note) []Note {
 	var notes []Note
 
 	for _, found := range items {
 		direct := found.Kind != chunkKind && found.Situation != "" && found.score >= minScore && found.counted
 
 		if direct && len(notes) < itemLimit {
-			notes = append(notes, found.Note)
+			notes = append(notes, found)
 		}
 	}
 
@@ -236,7 +231,7 @@ func oneSpaced(text string) string { return strings.TrimSpace(runOfSpace.Replace
 
 // parseQuery reads the output of a command that must have run: a result that is not the output of `engram query` (no
 // version line, no items list) is an error, never an empty result.
-func parseQuery(output string) []item {
+func parseQuery(output string) []Note {
 	var doc struct {
 		Items []struct {
 			Path, Kind, Content string
@@ -248,13 +243,19 @@ func parseQuery(output string) []item {
 	check(versionLine.MatchString(output) && itemsLine.MatchString(output) && yaml.Unmarshal([]byte(output), &doc) == nil,
 		"engram query output cannot be parsed")
 
-	items := make([]item, len(doc.Items))
-	for index, found := range doc.Items {
-		note := Note{
-			Path: found.Path, Kind: found.Kind, Situation: first(situation, found.Content),
-			Body: cutEnd(oneSpaced(after(found.Content, ruleLine, bodyParts, "---")), bodyLimit),
+	items := make([]Note, 0, len(doc.Items))
+
+	for _, found := range doc.Items {
+		// a note named other than engram names a note would be a flag, a path or a line of its own in a command or block
+		if found.Kind != chunkKind && !noteName.MatchString(found.Path) {
+			continue
 		}
-		items[index] = item{note, found.Score, slices.ContainsFunc(found.Provenances, countedProvenance.MatchString)}
+
+		items = append(items, Note{
+			Path: found.Path, Kind: found.Kind, Situation: first(situation, found.Content),
+			Body:  cutEnd(oneSpaced(after(found.Content, ruleLine, bodyParts, "---")), bodyLimit),
+			score: found.Score, counted: slices.ContainsFunc(found.Provenances, countedProvenance.MatchString),
+		})
 	}
 
 	return items

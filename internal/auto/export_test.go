@@ -43,7 +43,7 @@ func CurationRequest(offer Note, near []Note) (Request, error) {
 }
 
 // Items are the items of a query's output as JSON, for the golden comparison.
-func Items(items []item) []map[string]any {
+func Items(items []Note) []map[string]any {
 	out := make([]map[string]any, 0, len(items))
 
 	for _, found := range items {
@@ -73,7 +73,7 @@ func ParseMarks(text string) (Marks, error) { return Try(func() Marks { return p
 
 func ParseMoments(text string) ([]Cue, error) { return Try(func() []Cue { return parseMoments(text) }) }
 
-func ParseQuery(text string) ([]item, error) { return Try(func() []item { return parseQuery(text) }) }
+func ParseQuery(text string) ([]Note, error) { return Try(func() []Note { return parseQuery(text) }) }
 
 func ParseSelection(text string, count int) ([]int, error) {
 	return Try(func() []int { return parseSelection(text, count) })

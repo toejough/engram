@@ -13,6 +13,7 @@ Persistent memory for LLM agents, backed by an agent-memory zettelkasten vault. 
 engram/
 ├── cmd/engram/        # CLI binary entry point — single-statement main() + checker-thin per-group functions supplying raw I/O primitives (targ check-thin-api-enforced)
 ├── internal/          # Non-public implementation
+│   ├── auto/          # Logic of the engram-memory mod behind `engram auto run`: moment lookups, capture, backlog, curation, summary; a job is replayed from a record of its effects, one round per call (793e8m)
 │   ├── chunk/         # Splits memory sources (stripped transcripts, markdown) into embedding-sized chunks for the auto-ingested vector space (pure string logic, no I/O)
 │   ├── cli/           # CLI command wiring (targ targets) + composition root: cli.NewDeps builds every production adapter from injected cli.Primitives
 │   ├── cluster/       # k-means clustering with silhouette-based auto-K, for recall clustering

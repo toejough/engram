@@ -285,7 +285,7 @@ Canonical targets: the component and flow files named in 793d22 to 793d34, each 
 
 This is the technical specification of the [System](./793a_product-spec.md#793a1-problem-statement) as the proof of concept builds it: the [mod](#793d1b-terms) `agent-instructions/mods/engram-memory` and its deploy in `internal/update` and `internal/cli`. It states only what that code and its tests do; what is not built is marked `Gap` or listed in [793d35c Gaps and what is not built](#793d35c-gaps-and-what-is-not-built). It reuses unchanged the [Query Engine](../../specs/technical/query-engine.md), [Note Authoring](../../specs/technical/note-authoring.md), [Note Amendment](../../specs/technical/note-amendment.md), [Ingestion Source Discovery](../../specs/technical/ingestion-source-discovery.md) (the manifest of `engram ingest --auto`), [Command Line Surface](../../specs/technical/command-line-surface.md) (`engram show`), [Vault Write Lock](../../specs/technical/vault-write-lock.md) (held by learn and amend, which is how the [System](./793a_product-spec.md#793a1-problem-statement) coexists with intentional ingestion) and [Self Installer](../../specs/technical/self-installer.md), and extends [Harness Deploy Sync](../../specs/technical/harness-deploy-sync.md) in [793d31 Harness Deploy Sync (mod additions)](#793d31-harness-deploy-sync-mod-additions).
 
-Reading guide. `Verified by` names contract tests: a file under `agent-instructions/mods/engram-memory/tests/` (run by `claude plugin test`; 142 tests) with the start of a test's name, or a Go test in `internal/update` or `internal/cli`. The [mod](#793d1b-terms)'s only entry is its registered events, so those tests register it under the test engine with commands, model, clock and files stubbed and assert the component's own outputs there (arguments, request, [block](#793d1b-terms), [status line](#793d1b-terms), files written); `tiers.test.ts` calls the request builders directly ([793b359 Flows carry one interaction requirement per calling owner, component tests drive the mod's event interface, and what is not built is marked](./793b_decision-log.md#793b359-flows-carry-one-interaction-requirement-per-calling-owner-component-tests-drive-the-mods-event-interface-and-what-is-not-built-is-marked)). Each product scenario ID is a `targ acceptance` row of `dev/acceptance/scenarios.js`; flow scenarios cite their rows in comments.
+Reading guide. `Verified by` names contract tests: a file under `agent-instructions/mods/engram-memory/tests/` (run by `claude plugin test`; 18 tests) with the start of a test's name, or a Go test in `internal/auto`, `internal/update` or `internal/cli`. The [mod](#793d1b-terms) is an adapter ([793b368 Within reason the logic moves to Go and the mod becomes a thin adapter](./793b_decision-log.md#793b368-within-reason-the-logic-moves-to-go-and-the-mod-becomes-a-thin-adapter)): `wiring.test.ts` registers it under the test engine with the engine of the Go side scripted and the model, clock and files stubbed, and asserts what it hands over and does with the answers (jobs, relayed requests, [block](#793d1b-terms), [status line](#793d1b-terms), the queue); the Go tests of `internal/auto` run each job through `Run` in a fake world of commands, files, environment and clock, with the model played by a function of the request, and the golden tests compare the pure parts with what the JavaScript they replaced answered for a corpus (`internal/auto/testdata/golden`) ([793b359 Flows carry one interaction requirement per calling owner, component tests drive the mod's event interface, and what is not built is marked](./793b_decision-log.md#793b359-flows-carry-one-interaction-requirement-per-calling-owner-component-tests-drive-the-mods-event-interface-and-what-is-not-built-is-marked)). Each product scenario ID is a `targ acceptance` row of `dev/acceptance/scenarios.js`; flow scenarios cite their rows in comments.
 
 Components, each with one owner ([793b358 The components that qualify and the candidates that fail](./793b_decision-log.md#793b358-the-components-that-qualify-and-the-candidates-that-fail)): [793d22 Memory Mod](#793d22-memory-mod), [793d23 Moment Detection](#793d23-moment-detection), [793d24 Memory Delivery](#793d24-memory-delivery), [793d25 Judgement Relay](#793d25-judgement-relay), [793d26 Secret Redaction](#793d26-secret-redaction), [793d27 Auto Capture](#793d27-auto-capture), [793d28 Backlog Capture](#793d28-backlog-capture), [793d29 Auto Curation](#793d29-auto-curation), [793d30 Activity Report](#793d30-activity-report), [793d31 Harness Deploy Sync (mod additions)](#793d31-harness-deploy-sync-mod-additions). Flows: [793d32 Moment Delivery Flow](#793d32-moment-delivery-flow), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow), [793d34 Mod Install Flow](#793d34-mod-install-flow).
 
@@ -297,7 +297,7 @@ Canonical target: `docs/specs/technical/memory-mod.md` (title `Memory Mod - Tech
 
 ### 793d22a Orientation
 
-Ownership: repository component (the `engram-memory` Claude Code plugin, a [mod](#793d1b-terms)). Responsibility: observes the events of a Claude Code [session](../../GLOSSARY.md#session), adds the [System](./793a_product-spec.md#793a1-problem-statement)'s delivered text to the agent's [context](./793a_product-spec.md#793a1-problem-statement) through the channel that event provides, runs the System's background work off the event, in order, and contains every failure, changing nothing else. Realization: `hooks/register.js`, `hooks/failure.js`.
+Ownership: repository component (the `engram-memory` Claude Code plugin, a [mod](#793d1b-terms)). Responsibility: observes the events of a Claude Code [session](../../GLOSSARY.md#session), adds the [System](./793a_product-spec.md#793a1-problem-statement)'s delivered text to the agent's [context](./793a_product-spec.md#793a1-problem-statement) through the channel that event provides, runs the System's background work off the event, in order, and contains every failure, changing nothing else. Realization: `hooks/register.js` (the events, the channels and the relay), `Run` and `guard` in `internal/auto/relay.go`, `failureKind` in `internal/auto/failure.go`.
 
 ### 793d22b Behavior Requirements
 
@@ -307,7 +307,7 @@ Requirement: 793d22b1 The Memory Mod MUST add a delivered [block](#793d1b-terms)
 
 Supports: [793a4c1a Tool calls and permissions unchanged](./793a_product-spec.md#793a4c1-uat-scenarios), [793a4c1b The prompt is unchanged and the note is separate](./793a_product-spec.md#793a4c1-uat-scenarios), [793a4c1c The only effect on the working agent's context is what is delivered](./793a_product-spec.md#793a4c1-uat-scenarios), [793a4c1f The agent is neither required nor asked to run a memory command](./793a_product-spec.md#793a4c1-uat-scenarios)
 
-Verified by: `delivery.test.ts` "a relevant note rides the prompt context"; `housekeeping.test.ts` "a dispatch is passed on as it was,…"
+Verified by: `wiring.test.ts` "the ledger the engine hands back goes with the next job…"; `wiring.test.ts` "a request is relayed as it came…"; `wiring.test.ts` "the result of a tool carries the block of the route lookup…"
 
 Rationale: The [mod](#793d1b-terms) adds [context](./793a_product-spec.md#793a1-problem-statement) at every channel, attributable in the [transcript](../../GLOSSARY.md#transcript), and shows the user text outside it ([793d17g4 Verdict](#793d17g4-verdict): the owner's positive result).
 
@@ -327,7 +327,7 @@ Requirement: 793d22b2 After answering a top-level `turn.complete` or a `classic.
 
 Supports: [793a4j1a The index catches up after the turn](./793a_product-spec.md#793a4j1-uat-scenarios), [793a4j1e Slow housekeeping does not stall the session](./793a_product-spec.md#793a4j1-uat-scenarios), [793a3a1h Two subagents contain the same lesson](./793a_product-spec.md#793a3a1-uat-scenarios)
 
-Verified by: `housekeeping.test.ts` "the turn is answered before any of the…"; `housekeeping.test.ts` "after the capture the index is brought up…"
+Verified by: `internal/auto/curate_test.go`: Test793d22b2; `wiring.test.ts` "a turn is answered before any of its work starts…"; `wiring.test.ts` "the jobs of a burst run one at a time…"; `wiring.test.ts` "the seam file records a job joining the queue…"
 
 Rationale: The event returns first so that no prompt waits for the [System](./793a_product-spec.md#793a1-problem-statement)'s work, and the order lets a later capture see an earlier [note](./793a_product-spec.md#793a1-problem-statement).
 
@@ -347,7 +347,7 @@ Requirement: 793d22b3 The Memory Mod MUST contain any failure of a step it runs 
 
 Supports: [793a4b1a Vault unavailable](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1c No error reaches the agent and the user is warned](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1e No warning when nothing matched](./793a_product-spec.md#793a4b1-uat-scenarios)
 
-Verified by: `housekeeping.test.ts` "the vault cannot be read"; `housekeeping.test.ts` "a command that passes its deadline: timed out"
+Verified by: `internal/auto/curate_test.go`: Test793d22b3; `internal/auto/failure_test.go`: Test793d22b3; `internal/auto/golden_test.go`: Test793d22b3; `internal/auto/moment_test.go`: Test793d22b3; `wiring.test.ts` "793d22b3 when the program exits with an error…"; `wiring.test.ts` "a job that fails warns, and the next one still runs…"
 
 ##### 793d22b3a Scenarios
 
@@ -365,7 +365,7 @@ Canonical target: `docs/specs/technical/moment-detection.md` (title `Moment Dete
 
 ### 793d23a Orientation
 
-Ownership: repository component. Responsibility: decides whether an event puts the [working agent](./793a_product-spec.md#793a1-problem-statement) at a [moment](./793a_product-spec.md#793a1-problem-statement) where memory should be delivered, which moment, and what text the lookup is about. Realization: the [cue](#793d1b-terms) wiring and step jobs of `hooks/register.js`, and `CLASSIFY` of `hooks/judge.js`.
+Ownership: repository component. Responsibility: decides whether an event puts the [working agent](./793a_product-spec.md#793a1-problem-statement) at a [moment](./793a_product-spec.md#793a1-problem-statement) where memory should be delivered, which moment, and what text the lookup is about. Realization: the [cue](#793d1b-terms) wiring of `hooks/register.js`, and `stepJob` in `internal/auto/moment.go`.
 
 ### 793d23b Behavior Requirements
 
@@ -375,7 +375,7 @@ Requirement: 793d23b1 Moment Detection MUST treat each `prompt.submit` as a [mom
 
 Supports: [793a2n1g A subagent receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1h A prompt from any source receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1i Please's orientation receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1j Tier evidence is delivered before a dispatch is routed](./793a_product-spec.md#793a2n1-uat-scenarios)
 
-Verified by: `delivery.test.ts` "a relevant note rides the prompt context"; `delivery.test.ts` "the Skill call of route is delivered next…"
+Verified by: `internal/auto/golden_test.go`: Test793d23b1; `internal/auto/moment_test.go`: Test793d23b1; `wiring.test.ts` "the result of a tool carries the block of the route lookup…"; `wiring.test.ts` "a subagent gets nothing of the main agent…"
 
 Gap: the task-notification summary text and prompts of origins other than the SDK have no test.
 
@@ -396,7 +396,7 @@ Requirement: 793d23b2 After a top-level step in which the agent wrote text and c
 
 Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2e1c Note the agent retrieved itself is not delivered](./793a_product-spec.md#793a2e1-uat-scenarios), [793a5k1c An intentional recall by the agent is allowed](./793a_product-spec.md#793a5k1-uat-scenarios), [793a5k1e An intentional engram query by the agent is allowed](./793a_product-spec.md#793a5k1-uat-scenarios)
 
-Verified by: `step.test.ts` "a step with text and a tool call…"; `step.test.ts` "the next tool result waits for the job…"
+Verified by: `internal/auto/golden_test.go`: Test793d23b2; `internal/auto/moment_test.go`: Test793d23b2; `wiring.test.ts` "a step that called a tool starts the job…"; `wiring.test.ts` "the next tool result waits for the job 7 s at most…"
 
 Security: [793d19a Security](#793d19a-security), risk (1): the recent texts are redacted and fenced.
 
@@ -417,7 +417,7 @@ Canonical target: `docs/specs/technical/memory-delivery.md` (title `Memory Deliv
 
 ### 793d24a Orientation
 
-Ownership: repository component. Responsibility: given a [moment](./793a_product-spec.md#793a1-problem-statement) and its text, finds the [vault](./793a_product-spec.md#793a1-problem-statement) [notes](./793a_product-spec.md#793a1-problem-statement) that bear on it and that the receiving agent does not already hold, composes the [block](#793d1b-terms), and remembers what each agent was given. Realization: `lookup`, `deliver` and the [ledgers](#793d1b-terms) of `hooks/register.js`, `hooks/moment.js`.
+Ownership: repository component. Responsibility: given a [moment](./793a_product-spec.md#793a1-problem-statement) and its text, finds the [vault](./793a_product-spec.md#793a1-problem-statement) [notes](./793a_product-spec.md#793a1-problem-statement) that bear on it and that the receiving agent does not already hold, composes the [block](#793d1b-terms), and remembers what each agent was given. Realization: `lookup`, `deliver` and the [ledgers](#793d1b-terms) in `internal/auto/moment.go`.
 
 ### 793d24b Behavior Requirements
 
@@ -427,7 +427,7 @@ Requirement: 793d24b1 For a [moment](./793a_product-spec.md#793a1-problem-statem
 
 Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1e No result, nothing delivered](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1h A prompt from any source receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios)
 
-Verified by: `delivery.test.ts` "a relevant note rides the prompt context"; `delivery.test.ts` "nothing relevant is nothing delivered, and a query…"
+Verified by: `internal/auto/golden_test.go`: Test793d24b1; `internal/auto/moment_test.go`: Test793d24b1
 
 ##### 793d24b1a Scenarios
 
@@ -449,7 +449,7 @@ Requirement: 793d24b2 Memory Delivery MUST NOT deliver a [note](./793a_product-s
 
 Supports: [793a2e1a Note delivered earlier is not delivered again](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1c Note the agent retrieved itself is not delivered](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1d A parent's note is still delivered to a subagent](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1e A note removed by compaction can be delivered again](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1g A resumed session's restored content counts as present](./793a_product-spec.md#793a2e1-uat-scenarios)
 
-Verified by: `delivery.test.ts` "a note the context already holds is not…"; `delivery.test.ts` "a note delivered once is not delivered again…"
+Verified by: `internal/auto/golden_test.go`: Test793d24b2; `internal/auto/moment_test.go`: Test793d24b2; `wiring.test.ts` "the jobs that touch the ledger run one at a time…"
 
 Gap: a [subagent](../../GLOSSARY.md#subagent)'s compaction empties the top-level [ledger](#793d1b-terms) and not its own; the [transcript](../../GLOSSARY.md#transcript) test still holds the top-level agent's [notes](./793a_product-spec.md#793a1-problem-statement).
 
@@ -469,7 +469,7 @@ Requirement: 793d24b3 Memory Delivery MUST compose the [block](#793d1b-terms) as
 
 Supports: [793a2n1e No result, nothing delivered](./793a_product-spec.md#793a2n1-uat-scenarios), [793a4c1b The prompt is unchanged and the note is separate](./793a_product-spec.md#793a4c1-uat-scenarios), [793a4c1c The only effect on the working agent's context is what is delivered](./793a_product-spec.md#793a4c1-uat-scenarios)
 
-Verified by: `delivery.test.ts` "a relevant note rides the prompt context with…"; `step.test.ts` "a classification, a query and a relevance judgement…"
+Verified by: `internal/auto/moment_test.go`: Test793d24b3
 
 Security: [793d19a Security](#793d19a-security), mitigation: data framing of delivered [notes](./793a_product-spec.md#793a1-problem-statement).
 
@@ -488,7 +488,7 @@ Canonical target: `docs/specs/technical/judgement-relay.md` (title `Judgement Re
 
 ### 793d25a Orientation
 
-Ownership: repository component, bounded by the model call the [mod](#793d1b-terms)'s engine provides. Responsibility: makes each [judgement](#793d1b-terms) of the [System](./793a_product-spec.md#793a1-problem-statement) one request that names its kind's model and effort and frames the data as data, and reads the reply strictly into a typed result or an error. Realization: `hooks/judge.js`, through `$.model.complete`.
+Ownership: repository component, bounded by the model call the [mod](#793d1b-terms)'s engine provides. Responsibility: makes each [judgement](#793d1b-terms) of the [System](./793a_product-spec.md#793a1-problem-statement) one request that names its kind's model and effort and frames the data as data, and reads the reply strictly into a typed result or an error. Realization: `internal/auto/judge.go`, through `$.model.complete`, which `relay` of `hooks/register.js` calls.
 
 ### 793d25b Behavior Requirements
 
@@ -498,7 +498,7 @@ Requirement: 793d25b1 The Judgement Relay MUST build every request with the mode
 
 Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `tiers.test.ts` "every request carries the model the table gives…"; `tiers.test.ts` "every request runs at the lowest accepted effort"
+Verified by: `internal/auto/golden_test.go`: Test793d25b1; `internal/auto/tiers_test.go`: Test793d25b1
 
 Rationale: The cheapest tier is the owner's choice for decision-style structured output: much cheaper, and its replies are read by the strict parsers almost every time; the lowest effort suffices for classification ([793d18d4 Verdict](#793d18d4-verdict): a mixed result with unexpected advantages). The relay runs in the [mod](#793d1b-terms)'s process on the [session](../../GLOSSARY.md#session)'s credentials ([793d17g4 Verdict](#793d17g4-verdict)).
 
@@ -517,7 +517,7 @@ Requirement: 793d25b2 The Judgement Relay MUST state in every request that its d
 
 Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `capture.test.ts` "the window cannot close the tag it sits…"; `capture.test.ts` "a reply is read strictly: prose around the…"
+Verified by: `internal/auto/capture_test.go`: Test793d25b2
 
 Security: [793d19a Security](#793d19a-security), risks (1) and (2): data fencing and strict parsing.
 
@@ -536,7 +536,7 @@ Requirement: 793d25b3 The Judgement Relay MUST read `relevance` as an array of d
 
 Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `capture.test.ts` "a reply is read strictly: … a covered…"; `housekeeping.test.ts` "a reply that is not exactly one object…"
+Verified by: `internal/auto/capture_test.go`: Test793d25b3; `internal/auto/golden_test.go`: Test793d25b3
 
 Security: [793d19a Security](#793d19a-security), risks (1), (2) and (4): a result can only name a [nearest note](#793d1b-terms) by number.
 
@@ -555,7 +555,7 @@ Canonical target: `docs/specs/technical/secret-redaction.md` (title `Secret Reda
 
 ### 793d26a Orientation
 
-Ownership: repository component. Responsibility: replaces credential-shaped text with `[redacted]` before it reaches a model request or a [note](./793a_product-spec.md#793a1-problem-statement). Realization: `redact` in `hooks/capture.js`.
+Ownership: repository component. Responsibility: replaces credential-shaped text with `[redacted]` before it reaches a model request or a [note](./793a_product-spec.md#793a1-problem-statement). Realization: `redact` in `internal/auto/redact.go`.
 
 ### 793d26b Behavior Requirements
 
@@ -565,7 +565,7 @@ Requirement: 793d26b1 Secret Redaction MUST replace with `[redacted]` private ke
 
 Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `capture.test.ts` "a secret in the window never reaches the…"; `capture.test.ts` "a secret that evaded a single pattern does…"
+Verified by: `internal/auto/capture_redact_test.go`: Test793d26b1; `internal/auto/golden_test.go`: Test793d26b1
 
 Security: [793d19a Security](#793d19a-security), risk (3).
 
@@ -585,7 +585,7 @@ Canonical target: `docs/specs/technical/auto-capture.md` (title `Auto Capture - 
 
 ### 793d27a Orientation
 
-Ownership: repository component. Responsibility: turns a conversation [window](#793d1b-terms) into [vault](./793a_product-spec.md#793a1-problem-statement) writes: reads what the user and the agent said, judges the [lessons](./793a_product-spec.md#793a1-problem-statement) against the vault's [nearest notes](#793d1b-terms), and writes each lesson once or reinforces the [note](./793a_product-spec.md#793a1-problem-statement) that already states it. Realization: `capture` in `hooks/register.js`, `hooks/capture.js`.
+Ownership: repository component. Responsibility: turns a conversation [window](#793d1b-terms) into [vault](./793a_product-spec.md#793a1-problem-statement) writes: reads what the user and the agent said, judges the [lessons](./793a_product-spec.md#793a1-problem-statement) against the vault's [nearest notes](#793d1b-terms), and writes each lesson once or reinforces the [note](./793a_product-spec.md#793a1-problem-statement) that already states it. Realization: `capture` in `internal/auto/capture.go`.
 
 ### 793d27b Behavior Requirements
 
@@ -595,7 +595,7 @@ Requirement: 793d27b1 Auto Capture MUST build the [window](#793d1b-terms) of a c
 
 Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1g A lesson in a subagent session is captured](./793a_product-spec.md#793a3a1-uat-scenarios)
 
-Verified by: `capture.test.ts` "what a tool took in or gave back…"; `capture.test.ts` "a speaker is known by the message's role,…"
+Verified by: `internal/auto/capture_redact_test.go`: Test793d27b1; `internal/auto/capture_test.go`: Test793d27b1; `internal/auto/golden_test.go`: Test793d27b1
 
 Security: [793d19a Security](#793d19a-security), risks (1) and (3): only speech enters, by role, redacted before it is cut.
 
@@ -614,7 +614,7 @@ Requirement: 793d27b2 Given a [window](#793d1b-terms) and a source line, Auto Ca
 
 Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1g A lesson in a subagent session is captured](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1h Two subagents contain the same lesson](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5k1d An intentional learn by the agent is allowed and is not undone](./793a_product-spec.md#793a5k1-uat-scenarios), [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios)
 
-Verified by: `capture.test.ts` "a lesson no note states is written with…"; `capture.test.ts` "a lesson a nearest note states reinforces that…"
+Verified by: `internal/auto/capture_test.go`: Test793d27b2; `internal/auto/golden_test.go`: Test793d27b2
 
 Security: [793d19a Security](#793d19a-security), mitigation: a provenance line on every automatic [note](./793a_product-spec.md#793a1-problem-statement).
 
@@ -639,7 +639,7 @@ Canonical target: `docs/specs/technical/backlog-capture.md` (title `Backlog Capt
 
 ### 793d28a Orientation
 
-Ownership: repository component. Responsibility: captures the [lessons](./793a_product-spec.md#793a1-problem-statement) of [session](../../GLOSSARY.md#session) [transcripts](../../GLOSSARY.md#transcript) nobody captured, from any [harness](../../GLOSSARY.md#harness), one [backlog source](#793d1b-terms) at a time after a turn, writing only its own [marks](#793d1b-terms). Realization: `hooks/backlog.js`, `backlog` and `markTurns` in `hooks/register.js`.
+Ownership: repository component. Responsibility: captures the [lessons](./793a_product-spec.md#793a1-problem-statement) of [session](../../GLOSSARY.md#session) [transcripts](../../GLOSSARY.md#transcript) nobody captured, from any [harness](../../GLOSSARY.md#harness), one [backlog source](#793d1b-terms) at a time after a turn, writing only its own [marks](#793d1b-terms). Realization: `backlog` and `markTurns` in `internal/auto/backlog.go`.
 
 ### 793d28b Behavior Requirements
 
@@ -649,7 +649,7 @@ Requirement: 793d28b1 After a top-level turn's [housekeeping](#793d1b-terms) has
 
 Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5c1c A captured Pi session's transcript is left unchanged](./793a_product-spec.md#793a5c1-uat-scenarios)
 
-Verified by: `backlog.test.ts` "after the turn's own capture and the housekeeping…"; `backlog.test.ts` "the cut-off is a fixed point recorded at…"
+Verified by: `internal/auto/backlog_test.go`: Test793d28b1; `internal/auto/golden_test.go`: Test793d28b1
 
 Security: [793d19a Security](#793d19a-security), bounds what is read: [sessions](../../GLOSSARY.md#session) that ended after the install time minus 7 days.
 
@@ -673,7 +673,7 @@ Requirement: 793d28b2 Backlog Capture MUST read a source's conversation from the
 
 Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5c1c A captured Pi session's transcript is left unchanged](./793a_product-spec.md#793a5c1-uat-scenarios)
 
-Verified by: `backlog.test.ts` "a real Pi file: its thinking, tool calls,…"; `backlog.test.ts` "a transcript longer than one window is judged…"
+Verified by: `internal/auto/backlog_test.go`: Test793d28b2; `internal/auto/golden_test.go`: Test793d28b2
 
 Security: [793d19a Security](#793d19a-security), risk (1): a planted [session](../../GLOSSARY.md#session) file is read by role and redacted.
 
@@ -692,7 +692,7 @@ Requirement: 793d28b3 Backlog Capture MUST mark a source with its hash only when
 
 Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5c1c A captured Pi session's transcript is left unchanged](./793a_product-spec.md#793a5c1-uat-scenarios)
 
-Verified by: `backlog.test.ts` "a capture that ends in a warning leaves…"; `backlog.test.ts` "a lesson beyond the windows of one turn…"
+Verified by: `internal/auto/backlog_test.go`: Test793d28b3; `internal/auto/golden_test.go`: Test793d28b3
 
 ##### 793d28b3a Scenarios
 
@@ -709,7 +709,7 @@ Canonical target: `docs/specs/technical/auto-curation.md` (title `Auto Curation 
 
 ### 793d29a Orientation
 
-Ownership: repository component. Responsibility: settles the [vault](./793a_product-spec.md#793a1-problem-statement)'s pending [offers](../../GLOSSARY.md#offer) as the curate [skill](../../GLOSSARY.md#skill) does, accepting, folding or discarding each. Realization: `hooks/housekeeping.js`, `curate`, `curateOne` and `nearest` in `hooks/register.js`.
+Ownership: repository component. Responsibility: settles the [vault](./793a_product-spec.md#793a1-problem-statement)'s pending [offers](../../GLOSSARY.md#offer) as the curate [skill](../../GLOSSARY.md#skill) does, accepting, folding or discarding each. Realization: `curate`, `curateOne` and `nearest` in `internal/auto/curate.go`.
 
 ### 793d29b Behavior Requirements
 
@@ -719,7 +719,7 @@ Requirement: 793d29b1 Auto Curation MUST find pending [offers](../../GLOSSARY.md
 
 Supports: [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios), [793a4j1d The agent is not asked to curate](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `housekeeping.test.ts` "at most ten offers are settled in one…"; `housekeeping.test.ts` "an offer that is a skill registration is…"
+Verified by: `internal/auto/curate_test.go`: Test793d29b1; `internal/auto/golden_test.go`: Test793d29b1
 
 ##### 793d29b1a Scenarios
 
@@ -736,7 +736,7 @@ Requirement: 793d29b2 For each [offer](../../GLOSSARY.md#offer) Auto Curation MU
 
 Supports: [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios), [793a4j1d The agent is not asked to curate](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `housekeeping.test.ts` "covered: the note is reinforced and the offer…"; `housekeeping.test.ts` "near: the offer is folded away first, then…"
+Verified by: `internal/auto/curate_test.go`: Test793d29b2; `internal/auto/golden_test.go`: Test793d29b2
 
 Security: [793d19a Security](#793d19a-security), risks (2) and (4): a crafted [offer](../../GLOSSARY.md#offer) cannot reach a [note](./793a_product-spec.md#793a1-problem-statement) it is not judged against; a covered offer is recoverable only from [vault](./793a_product-spec.md#793a1-problem-statement) history.
 
@@ -761,7 +761,7 @@ Canonical target: `docs/specs/technical/activity-report.md` (title `Activity Rep
 
 ### 793d30a Orientation
 
-Ownership: repository component, bounded by the [mod](#793d1b-terms)'s [status line](#793d1b-terms). Responsibility: tells the user what the [System](./793a_product-spec.md#793a1-problem-statement) did and what it skipped, on one status line outside the agent's [context](./793a_product-spec.md#793a1-problem-statement). Realization: `hooks/summary.js`, the counts, `warn` and `report` of `hooks/register.js`.
+Ownership: repository component, bounded by the [mod](#793d1b-terms)'s [status line](#793d1b-terms). Responsibility: tells the user what the [System](./793a_product-spec.md#793a1-problem-statement) did and what it skipped, on one status line outside the agent's [context](./793a_product-spec.md#793a1-problem-statement). Realization: `summaryJob` in `internal/auto/summary.go`, `warn` in `internal/auto/relay.go`, and `report` in `hooks/register.js`.
 
 ### 793d30b Behavior Requirements
 
@@ -771,7 +771,7 @@ Requirement: 793d30b1 Activity Report MUST keep the counts of items delivered, [
 
 Supports: [793a5h1a The summary shows the counts after a turn with events](./793a_product-spec.md#793a5h1-uat-scenarios), [793a5h1b Nothing is shown after a turn without events](./793a_product-spec.md#793a5h1-uat-scenarios), [793a5h1e The counts cover the events since the previous summary](./793a_product-spec.md#793a5h1-uat-scenarios)
 
-Verified by: `summary.test.ts` "one line counts what the System did, once…"; `summary.test.ts` "a turn with no memory event shows nothing,…"
+Verified by: `internal/auto/curate_test.go`: Test793d30b1; `internal/auto/golden_test.go`: Test793d30b1; `internal/auto/summary_test.go`: Test793d30b1; `wiring.test.ts` "a quiet turn shows nothing and clears nothing…"
 
 ##### 793d30b1a Scenarios
 
@@ -788,7 +788,7 @@ Requirement: 793d30b2 When a step reports a failure, Activity Report MUST show a
 
 Supports: [793a4b1a Vault unavailable](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1c No error reaches the agent and the user is warned](./793a_product-spec.md#793a4b1-uat-scenarios), [793a5h1c The summary is not in the agent's context](./793a_product-spec.md#793a5h1-uat-scenarios), [793a4c1c The only effect on the working agent's context is what is delivered](./793a_product-spec.md#793a4c1-uat-scenarios)
 
-Verified by: `summary.test.ts` "a warning is shown when it happens, and…"; `summary.test.ts` "the summary is shown on the status line…"
+Verified by: `internal/auto/summary_test.go`: Test793d30b2; `wiring.test.ts` "the effects of a round are applied…"
 
 Security: [793d19a Security](#793d19a-security), mitigation: the user-visible activity line, which cannot carry injected text.
 
@@ -930,7 +930,7 @@ Owner: [Memory Mod](#793d22-memory-mod)
 
 Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1e No result, nothing delivered](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1g A subagent receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1h A prompt from any source receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1i Please's orientation receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1j Tier evidence is delivered before a dispatch is routed](./793a_product-spec.md#793a2n1-uat-scenarios), [793a4b1a Vault unavailable](./793a_product-spec.md#793a4b1-uat-scenarios)
 
-Verified by: `delivery.test.ts` "a relevant note rides the prompt context"; `delivery.test.ts` "nothing relevant is nothing delivered"
+Verified by: `internal/auto/golden_test.go`: Test793d23b1, Test793d24b1; `internal/auto/moment_test.go`: Test793d23b1, Test793d24b1; `wiring.test.ts` "the result of a tool carries the block of the route lookup…"
 
 ##### 793d32b1a Scenarios
 
@@ -972,7 +972,7 @@ Owner: [Moment Detection](#793d23-moment-detection)
 
 Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios)
 
-Verified by: `step.test.ts` "a step with text and a tool call…"; `step.test.ts` "a classification that names no moment makes no…"
+Verified by: `internal/auto/golden_test.go`: Test793d23b2; `internal/auto/moment_test.go`: Test793d23b2; `wiring.test.ts` "a step that called a tool starts the job…"; `wiring.test.ts` "no job is started for a step of a subagent…"
 
 ##### 793d32b2a Scenarios
 
@@ -998,7 +998,7 @@ Owner: [Memory Delivery](#793d24-memory-delivery)
 
 Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1e No result, nothing delivered](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2e1a Note delivered earlier is not delivered again](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1c Note the agent retrieved itself is not delivered](./793a_product-spec.md#793a2e1-uat-scenarios)
 
-Verified by: `delivery.test.ts` "nothing relevant is nothing delivered, and a query…"; `delivery.test.ts` "a note the context already holds is not…"
+Verified by: `internal/auto/golden_test.go`: Test793d24b1, Test793d24b2; `internal/auto/moment_test.go`: Test793d24b1, Test793d24b2
 
 ##### 793d32b3a Scenarios
 
@@ -1085,7 +1085,7 @@ Owner: [Memory Mod](#793d22-memory-mod)
 
 Supports: [793a4j1a The index catches up after the turn](./793a_product-spec.md#793a4j1-uat-scenarios), [793a4j1e Slow housekeeping does not stall the session](./793a_product-spec.md#793a4j1-uat-scenarios), [793a3a1h Two subagents contain the same lesson](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5h1a The summary shows the counts after a turn with events](./793a_product-spec.md#793a5h1-uat-scenarios), [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios)
 
-Verified by: `housekeeping.test.ts` "after the capture the index is brought up…"; `housekeeping.test.ts` "the turn is answered before any of the…"
+Verified by: `internal/auto/curate_test.go`: Test793d22b2; `wiring.test.ts` "a turn is answered before any of its work starts…"; `wiring.test.ts` "the jobs of a burst run one at a time…"
 
 ##### 793d33b1a Scenarios
 
@@ -1123,7 +1123,7 @@ Owner: [Auto Capture](#793d27-auto-capture)
 
 Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1g A lesson in a subagent session is captured](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1h Two subagents contain the same lesson](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5k1d An intentional learn by the agent is allowed and is not undone](./793a_product-spec.md#793a5k1-uat-scenarios)
 
-Verified by: `capture.test.ts` "a lesson no note states is written with…"; `capture.test.ts` "a lesson a nearest note states reinforces that…"
+Verified by: `internal/auto/capture_test.go`: Test793d27b2; `internal/auto/golden_test.go`: Test793d27b2
 
 ##### 793d33b2a Scenarios
 
@@ -1161,7 +1161,7 @@ Owner: [Auto Curation](#793d29-auto-curation)
 
 Supports: [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios), [793a4j1d The agent is not asked to curate](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `housekeeping.test.ts` "covered: the note is reinforced and the offer…"; `housekeeping.test.ts` "absent: the offer clears its own marker and…"
+Verified by: `internal/auto/curate_test.go`: Test793d29b2; `internal/auto/golden_test.go`: Test793d29b2
 
 ##### 793d33b3a Scenarios
 
@@ -1188,7 +1188,7 @@ Owner: [Backlog Capture](#793d28-backlog-capture)
 
 Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5c1c A captured Pi session's transcript is left unchanged](./793a_product-spec.md#793a5c1-uat-scenarios)
 
-Verified by: `backlog.test.ts` "after the turn's own capture and the housekeeping…"; `backlog.test.ts` "a capture that ends in a warning leaves…"
+Verified by: `internal/auto/backlog_test.go`: Test793d28b1, Test793d28b3; `internal/auto/golden_test.go`: Test793d28b1, Test793d28b3
 
 ##### 793d33b4a Scenarios
 
@@ -1303,9 +1303,9 @@ All 43 scenarios of the product spec are supported by at least one requirement b
 - `Red` once: the third example of [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios) in the last full acceptance run (the [judgement](#793d1b-terms) worded the [note](./793a_product-spec.md#793a1-problem-statement) without the corrected cause; 15 of 15 in five reruns). A judgement-quality gap, not a missing requirement.
 - Built and untested, so not required: the task-notification summary and non-SDK prompt origins of [793d23b1 Event cues](#793d23b1-event-cues); the age limit of an unfinished step job ([793d23b2 In-turn cue](#793d23b2-in-turn-cue)).
 - Built differently from the product intent: a [subagent](../../GLOSSARY.md#subagent)'s compaction empties the top-level [ledger](#793d1b-terms) and not its own ([793d24b2 Presence and ledgers](#793d24b2-presence-and-ledgers)).
-- Not built: persistence of queued work, so a final turn can be lost on exit ([793b203 Background work is one in-memory queue, and a final turn can be lost on exit](./793b_decision-log.md#793b203-background-work-is-one-in-memory-queue-and-a-final-turn-can-be-lost-on-exit)); the Go side and its round protocol ([793b256 The PoC orchestrates in JavaScript inside the mod over the existing engram commands](./793b_decision-log.md#793b256-the-poc-orchestrates-in-javascript-inside-the-mod-over-the-existing-engram-commands)).
-- Duplicated: the mod reads transcript rows by role itself ([793d28b2 Reading and windows](#793d28b2-reading-and-windows)) and not through the [Transcript Reader](../../specs/technical/transcript-reader.md), which it cannot call, so the two can drift.
-- Harness-only, so a MAY with no requirement: the seam file named by `ENGRAM_AUTO_SEAM_LOG`, which lets a test wait for the queue (`capture.test.ts` covers it).
+- Not built: persistence of queued work, so a final turn can be lost on exit ([793b203 Background work is one in-memory queue, and a final turn can be lost on exit](./793b_decision-log.md#793b203-background-work-is-one-in-memory-queue-and-a-final-turn-can-be-lost-on-exit)); the persisted queue is a goal of [793e8p Hardening](./793e_implementation-plan.md#793e8p-hardening).
+- Duplicated: `internal/auto` reads transcript rows by role itself ([793d28b2 Reading and windows](#793d28b2-reading-and-windows)) and not through the [Transcript Reader](../../specs/technical/transcript-reader.md), so the two can drift.
+- Harness-only, so a MAY with no requirement: the seam file named by `ENGRAM_AUTO_SEAM_LOG`, which lets a test wait for the queue (`wiring.test.ts` covers it).
 - The experiment scenarios of 793d17 and 793d18 are not contract tests of these requirements, except [793d18c1a Every request names the model of its kind](#793d18c1-experiments) and [793d18c1b Raising one kind changes only that kind](#793d18c1-experiments), which are the tier tests of [793d25b1 Tier and request shape](#793d25b1-tier-and-request-shape).
 
 ### 793d35d Security cross-reference
