@@ -344,6 +344,8 @@ Confirmed if all hold, for each kind:
 
 Disproved for a kind if the one-sided 95% upper bound of the primary difference is below minus the [margin](#793d1b-terms), or the one-sided lower bound of the guard difference is above the margin; that kind is then raised in [`judgeTiers`](#793d1b-terms) and measured again, and H2 holds for the other kinds. Disproved as a whole if the cheapest tier is not faster or not cheaper than the sonnet arm on the fixtures. Inconclusive for a kind if neither holds, that is when an interval reaches across the margin, which is when the gap lies inside the [noise](#793d1b-terms) of the sample ([793d18a1b A gap inside the noise is inconclusive, not a tie](#793d18a1-experiments)). The opus and fable arms are read as indicative ([793b272 H2 arm sample sizes are inversely proportional to per-token price, anchored at the full set for sonnet](./793b_decision-log.md#793b272-h2-arm-sample-sizes-are-inversely-proportional-to-per-token-price-anchored-at-the-full-set-for-sonnet)): a haiku shortfall beyond the margin their sample supports is flagged to the owner and is not a disproof, and they cannot show parity at 0.05.
 
+Result of the run on this machine: [793d18d Results](#793d18d-results).
+
 ### 793d18a Agreement with the gold labels
 
 Run: replay of the [fixture sets](#793d1b-terms) through the four arms.
@@ -421,6 +423,150 @@ Scenario: 793d18c1b Raising one kind changes only that kind
   When judgeTiers gives that kind the next tier
   Then the requests of that kind name the new model, the requests of the other three kinds are unchanged, and the raised kind is measured again with 793d18a1a
 ```
+
+### 793d18d Results
+
+Run on 2026-10-13 on this machine: Claude Code 2.1.296, Agent SDK sessions on the subscription login, a replay mod of 40 lines that relays prepared requests to `$.model.complete` and writes one file per call (wall time around the call by `$.clock.now()`, the whole result with its `usage`). The requests are the proof of concept's own: `classifyRequest`, `relevanceRequest`, `captureRequest` and `curationRequest` of `judge.js`, called unchanged on the fixtures, with only `model` replaced by the arm's alias, the same `maxTokens` and effort, and a 120 s timeout; no fixture has two different requests across arms and runs (checked by hash over the 610 fixtures). The sources it built the requests from have these SHA-256 prefixes: `judge.js` 751f4b8fe729, `moment.js` 7b5958cbcf46, `capture.js` 8580c8bd4e07, `housekeeping.js` 17f4260042a8. The debug log names the model each alias resolved to: `claude-haiku-5-5` (1,830 calls), `claude-sonnet-5-5` (1,830), `claude-opus-5-5` (921) and `claude-fable-5-1` (375, and 199 of the adjudication). Six sessions ran at once in each arm's phase, in the order haiku, sonnet, opus, fable, each session working through its calls one after another; the sessions themselves ran on haiku and made no judgement. 4,956 calls were made in all: none failed, none was cut by the 120 s timeout, no rate limit was reached, and 2 opus `classify` calls returned an empty reply. The fixture sets are the confirmed first tranche ([793b346 The confirmed gold: final fixture counts and the share of drafts the owner changed](./793b_decision-log.md#793b346-the-confirmed-gold-final-fixture-counts-and-the-share-of-drafts-the-owner-changed)): 200 `classify`, 130 `relevance`, 130 `capture` and 150 `curation` fixtures, so the samples support wider margins than the full sets of the plan, which the tables state. Opus judged a stratified half (nested in the full set) and fable a fifth. The replay cost 32.49 USD at the list prices of 2026-10-06 (haiku 0.79, sonnet 9.69, opus 10.40, fable 11.62), the adjudication 2.43 USD and the sessions' own turns under 0.1 USD, about 35 USD in all against the 43 USD the owner confirmed. The observations (`run/out/*.json`, `run/report*.json`, `run/report*.md`) are ephemeral under `ENGRAM_EVAL_DIR` ([793b343 The hypothesis-eval artifacts are ephemeral and kept out of the repository](./793b_decision-log.md#793b343-the-hypothesis-eval-artifacts-are-ephemeral-and-kept-out-of-the-repository)); the tables below are the durable record. How the run was built and scored: [793b347 The H2 replay is a mod that relays prepared requests, run as ephemeral scripts](./793b_decision-log.md#793b347-the-h2-replay-is-a-mod-that-relays-prepared-requests-run-as-ephemeral-scripts) and [793b348 How the four kinds are scored, and how the verdict rule is applied](./793b_decision-log.md#793b348-how-the-four-kinds-are-scored-and-how-the-verdict-rule-is-applied).
+
+The finding that governs how the quality results are read: the PoC's prompts and strict parsers are tuned to the cheapest tier, and sonnet, given the same request, often does not reply in the form the parsers read. By the rule of 793d18 a reply that is not read is a miss, and that is the reading of the verdict; 793d18d3 shows how large the effect is and what the other readings give.
+
+#### 793d18d1 Scenario results
+
+| Scenario | Result | What the run recorded (the reading of the rule: strict parsers) |
+| --- | --- | --- |
+| [793d18a1a The cheapest tier agrees with the gold labels as well as the session model, within the margin](#793d18a1-experiments), `classify` | Inconclusive | primary clears (haiku 0.612 against 0.450, lower bound +9.8 points); guard does not (named a moment where the gold is none 0.310 against 0.337, upper bound +5.3 points against 5.0) |
+| the same, `relevance` | Does not hold | primary clears (recall 0.858 against 0.380); the guard fails the other way: haiku delivers a note the gold excludes in 0.538 of the fixtures against 0.131, lower bound +33.1 points. Sonnet's reply is not read in 62.6% of its calls, which lowers its recall and flatters its guard (793d18d3) |
+| the same, `capture` | Inconclusive | lesson recall 0.289 against 0.390, difference -10.1 points, bounds -17.8 to -2.6: neither parity nor disproof; the window guard clears (0.048 against 0.060, upper bound +1.6); the covered-as-absent guard has 1 lesson and cannot be assessed |
+| the same, `curation` | Inconclusive | agreement 0.889 against 0.736 (lower bound +9.3); destructive errors 0.049 against 0.013, difference +3.6 points, bounds +0.9 to +6.4: neither clears nor disproves |
+| [793d18a1b A gap inside the noise is inconclusive, not a tie](#793d18a1-experiments) | Applied | three kinds are marked inconclusive on a bound that straddles the margin, with the fixtures that would bring it inside in the table of 793d18d2 (105 for `classify`'s guard, 555 for `curation`'s guard); `capture`'s recall gap, -10.1 points, is larger than its noise floor, 9.0, and no number of fixtures changes that at the observed difference |
+| [793d18a1c Subtle cases are not hidden by easy ones](#793d18a1-experiments) | Inconclusive | subtle-stratum lesson recall 0.250 against 0.339 (36 fixtures), difference -8.9 points, bounds -17.0 to -0.7: not parity, not disproof |
+| [793d18b1a The cheapest tier is faster per call](#793d18b1-experiments), `classify` | Not faster | median 1.70 s against 1.66 s (haiku minus sonnet +0.04 s, 95% interval -0.04 to +0.13 s: a tie); calls over the 4 s deadline 0.7% against 1.2% |
+| the same, `relevance` | Faster | median 2.47 s against 2.75 s (-0.28 s, 95% interval -0.42 to +0.12 s: inside the noise); calls over the 3 s deadline 25.9% against 35.9% |
+| the same, `capture` | Not faster | median 2.47 s against 1.31 s (+1.16 s, 95% interval +0.56 to +1.74 s); none over the 40 s deadline for either |
+| the same, `curation` | Not faster | median 2.40 s against 1.28 s (+1.11 s, 95% interval +0.87 to +1.66 s); none over the 60 s deadline for haiku, 0.2% for sonnet |
+| [793d18b1b The cheapest tier is cheaper per fixture](#793d18b1-experiments) | Holds | cost per call 0.00025, 0.00039, 0.00077 and 0.00041 USD against 0.00340, 0.00582, 0.00899 and 0.00416 USD: sonnet costs 13.8, 14.9, 11.7 and 10.1 times as much for `classify`, `relevance`, `capture` and `curation` |
+| [793d18c1a Every request names the model of its kind](#793d18c1-experiments) | Holds | `tests/tiers.test.ts` builds a request of each kind: each names `judgeTiers`' model for its kind and none names the session model |
+| [793d18c1b Raising one kind changes only that kind](#793d18c1-experiments) | Holds | the same file raises each kind in turn to `sonnet`: that kind's request changes in its model alone and the other three are equal to their earlier requests; a kind without a row throws; 141 contract tests pass under `claude plugin test`, and 2 of the file's 3 tests fail when the table is bypassed |
+
+#### 793d18d2 Criteria tables
+
+Arms side by side, per kind. The primary measure is agreement (`classify`, `curation`) or recall (`relevance`, lesson recall of `capture`, by the terms); the guard is the rate named in the cell. The sonnet arm's run-to-run spread of its primary measure (largest minus smallest of its three whole-set means) is 4.0, 2.8, 3.0 and 2.0 score points for `classify`, `relevance`, `capture` and `curation`. Wall time is read around each call in the mod, with six sessions at once; the interleaved control below has the sequential figures.
+
+| Kind | Arm | Fixtures (n) | Calls (n) | Replies the PoC parsers do not read (% of calls) | Primary: agreement or recall (share) | Guard (share) | Median latency (s) | p95 latency (s) | Calls over the PoC deadline (%) | Cost (USD per call) | Cost of the arm (USD) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| classify | haiku | 200 | 600 | 0.0 | 0.612 (n=200) | moment named where the gold is none 0.310 (n=100) | 1.70 | 2.99 | 0.7 | 0.00025 | 0.15 |
+| classify | sonnet | 200 | 600 | 26.8 | 0.450 (n=200) | moment named where the gold is none 0.337 (n=100) | 1.66 | 2.49 | 1.2 | 0.00340 | 2.04 |
+| classify | opus (indicative) | 100 | 300 | 1.7 | 0.693 (n=100) | moment named where the gold is none 0.387 (n=50) | 1.90 | 3.17 | 0.0 | 0.00725 | 2.18 |
+| classify | fable (indicative) | 40 | 120 | 10.0 | 0.567 (n=40) | moment named where the gold is none 0.350 (n=20) | 1.32 | 3.57 | 3.3 | 0.01647 | 1.98 |
+| relevance | haiku | 130 | 390 | 0.0 | 0.858 (n=54) | a gold-excluded note delivered 0.538 (n=130); any note delivered where the gold is none 0.583 (n=76) | 2.47 | 4.22 | 25.9 | 0.00039 | 0.15 |
+| relevance | sonnet | 130 | 390 | 62.6 | 0.380 (n=54) | a gold-excluded note delivered 0.131 (n=130); any note delivered where the gold is none 0.118 (n=76) | 2.75 | 3.82 | 35.9 | 0.00582 | 2.27 |
+| relevance | opus (indicative) | 65 | 195 | 0.5 | 0.944 (n=27) | a gold-excluded note delivered 0.569 (n=65); any note delivered where the gold is none 0.588 (n=38) | 2.14 | 3.23 | 8.7 | 0.01026 | 2.00 |
+| relevance | fable (indicative) | 27 | 81 | 8.6 | 0.955 (n=11) | a gold-excluded note delivered 0.444 (n=27); any note delivered where the gold is none 0.375 (n=16) | 1.52 | 8.60 | 40.7 | 0.02414 | 1.95 |
+| capture | haiku | 130 | 390 | 3.3 | 0.289 (n=46) | lesson written in a window with none 0.048 (n=83); subtle recall 0.250 (n=36) | 2.47 | 12.09 | 0.0 | 0.00077 | 0.30 |
+| capture | sonnet | 130 | 390 | 3.1 | 0.390 (n=46) | lesson written in a window with none 0.060 (n=83); subtle recall 0.339 (n=36) | 1.31 | 5.75 | 0.0 | 0.00899 | 3.51 |
+| capture | opus (indicative) | 66 | 198 | 0.0 | 0.562 (n=24) | lesson written in a window with none 0.040 (n=42); subtle recall 0.534 (n=19) | 2.01 | 10.92 | 0.0 | 0.02048 | 4.06 |
+| capture | fable (indicative) | 27 | 81 | 11.1 | 0.450 (n=10) | lesson written in a window with none 0.059 (n=17); subtle recall 0.424 (n=8) | 5.11 | 24.75 | 0.0 | 0.06500 | 5.26 |
+| curation | haiku | 150 | 450 | 2.0 | 0.889 (n=150) | destructive error 0.049 (n=150) | 2.40 | 5.68 | 0.0 | 0.00041 | 0.19 |
+| curation | sonnet | 150 | 450 | 11.8 | 0.736 (n=150) | destructive error 0.013 (n=150) | 1.28 | 3.66 | 0.2 | 0.00416 | 1.87 |
+| curation | opus (indicative) | 76 | 228 | 0.0 | 0.860 (n=76) | destructive error 0.048 (n=76) | 1.89 | 5.98 | 0.0 | 0.00948 | 2.16 |
+| curation | fable (indicative) | 31 | 93 | 2.2 | 0.914 (n=31) | destructive error 0.032 (n=31) | 3.40 | 10.02 | 0.0 | 0.02604 | 2.42 |
+
+Differences from sonnet on the fixtures an arm shares with it (arm minus sonnet; paired two-stage bootstrap of 10,000 resamples, seed 793023; the noise floor is the larger of the sonnet arm's run spread and the half-width of the 95% interval; the supported margin is 1.645 times the real spread over the square root of n). The real spread of the primary measures is 0.43 to 0.52 for `classify`, `relevance` and `curation`, above the assumed 0.4, so their supported margins are 5.8 to 10.1 points and not the 4.7 to 5.0 of the plan; for the `capture` measures and the `curation` guard it is 0.16 to 0.26, below it.
+
+| Kind | Arm | Measure | Fixtures (n) | Difference from sonnet (score points) | One-sided 95% lower bound (score points) | One-sided 95% upper bound (score points) | Noise floor (score points) | Real spread (SD of fixture differences) | Margin the sample supports (score points) | Fixtures that would bring the bound inside the margin (n) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| classify | haiku | agreement with the gold moments | 200 | +16.2 | +9.8 | +22.7 | 7.6 | 0.517 | 6.0 | clear |
+| classify | haiku | moment named where the gold is none | 100 | -2.7 | -10.3 | +5.3 | 9.2 | 0.451 | 7.4 | 105 |
+| classify | opus (indicative) | agreement with the gold moments | 100 | +20.3 | +13.0 | +27.7 | 8.7 | 0.415 | 6.8 | clear |
+| classify | opus (indicative) | moment named where the gold is none | 50 | -0.7 | -12.0 | +10.7 | 13.3 | 0.454 | 10.6 | 200 |
+| classify | fable (indicative) | agreement with the gold moments | 40 | +8.3 | -4.2 | +21.7 | 15.0 | 0.476 | 12.4 | clear |
+| classify | fable (indicative) | moment named where the gold is none | 20 | -8.3 | -20.0 | +5.0 | 15.0 | 0.303 | 11.2 | clear |
+| relevance | haiku | recall of the gold-relevant notes | 54 | +47.8 | +37.3 | +58.6 | 12.7 | 0.452 | 10.1 | clear |
+| relevance | haiku | a gold-excluded note delivered | 130 | +40.8 | +33.1 | +48.5 | 9.4 | 0.522 | 7.5 | never |
+| relevance | haiku | a note delivered where the gold is none | 76 | +46.5 | +36.8 | +56.1 | 11.4 | 0.496 | 9.4 | never |
+| relevance | opus (indicative) | recall of the gold-relevant notes | 27 | +57.4 | +42.6 | +71.6 | 17.3 | 0.465 | 14.7 | clear |
+| relevance | opus (indicative) | a gold-excluded note delivered | 65 | +43.1 | +32.8 | +53.3 | 12.3 | 0.496 | 10.1 | never |
+| relevance | opus (indicative) | a note delivered where the gold is none | 38 | +44.7 | +29.8 | +58.8 | 17.1 | 0.527 | 14.1 | never |
+| relevance | fable (indicative) | recall of the gold-relevant notes | 11 | +51.5 | +28.8 | +72.7 | 27.3 | 0.456 | 22.6 | clear |
+| relevance | fable (indicative) | a gold-excluded note delivered | 27 | +38.3 | +24.7 | +51.9 | 16.0 | 0.410 | 13.0 | never |
+| relevance | fable (indicative) | a note delivered where the gold is none | 16 | +29.2 | +12.5 | +45.8 | 18.8 | 0.382 | 15.7 | never |
+| capture | haiku | lesson recall (terms) | 46 | -10.1 | -17.8 | -2.6 | 9.0 | 0.262 | 6.4 | never |
+| capture | haiku | lesson written in a window with none | 83 | -1.2 | -4.4 | +1.6 | 3.8 | 0.160 | 2.9 | clear |
+| capture | haiku | covered gold lesson written as absent | 1 | not assessable (1 fixture) | | | | | | |
+| capture | haiku | lesson recall, subtle stratum | 36 | -8.9 | -17.0 | -0.7 | 9.7 | 0.237 | 6.5 | never |
+| capture | opus (indicative) | lesson recall (terms) | 24 | +13.0 | +3.5 | +22.6 | 11.4 | 0.243 | 8.2 | clear |
+| capture | opus (indicative) | lesson written in a window with none | 42 | -0.8 | -4.8 | +2.4 | 4.8 | 0.116 | 2.9 | clear |
+| capture | opus | covered gold lesson written as absent | 0 | not assessable (0 fixture) | | | | | | |
+| capture | opus (indicative) | lesson recall, subtle stratum | 19 | +9.8 | -0.4 | +20.6 | 12.6 | 0.257 | 9.7 | clear |
+| capture | fable (indicative) | lesson recall (terms) | 10 | +20.0 | +2.8 | +38.1 | 21.2 | 0.286 | 14.9 | clear |
+| capture | fable (indicative) | lesson written in a window with none | 17 | +0.0 | +0.0 | +0.0 | 0.0 | 0.000 | 0.0 |  |
+| capture | fable | covered gold lesson written as absent | 0 | not assessable (0 fixture) | | | | | | |
+| capture | fable (indicative) | lesson recall, subtle stratum | 8 | +13.9 | -3.5 | +31.9 | 20.8 | 0.264 | 15.4 | clear |
+| curation | haiku | agreement (outcome and note) | 150 | +15.3 | +9.3 | +21.3 | 7.1 | 0.433 | 5.8 | clear |
+| curation | haiku | destructive error | 150 | +3.6 | +0.9 | +6.4 | 3.2 | 0.190 | 2.5 | 555 |
+| curation | opus (indicative) | agreement (outcome and note) | 76 | +11.0 | +3.5 | +18.4 | 9.0 | 0.394 | 7.4 | clear |
+| curation | opus (indicative) | destructive error | 76 | +3.5 | +0.0 | +7.5 | 4.6 | 0.193 | 3.6 | 475 |
+| curation | fable (indicative) | agreement (outcome and note) | 31 | +15.1 | +2.2 | +29.0 | 15.6 | 0.446 | 13.2 | clear |
+| curation | fable (indicative) | destructive error | 31 | +1.1 | -5.4 | +6.5 | 7.5 | 0.182 | 5.4 | 71 |
+
+Speed control. To rule out that the order of the arm phases (haiku first) or the six sessions at once explain the speed result, one session ran 20 fixtures of each kind sequentially, haiku and sonnet alternating on the same fixture: median latency in seconds, haiku against sonnet, `classify` 1.76 against 1.59, `relevance` 2.61 against 2.59, `capture` 3.76 against 1.69, `curation` 2.87 against 1.27 (p95 3.42 against 2.23, 9.51 against 3.96, 13.37 against 7.31, 6.20 against 3.78). The pattern is the main run's. Haiku's output tokens per call (201, 374, 802 and 508 for the four kinds, against 50, 173, 164 and 98 for sonnet) exceed what its reply text needs, as the reply is one short JSON document; that points to thinking tokens counted in `usage`, which the run did not read, and they would set its latency.
+
+#### 793d18d3 Replies the parsers do not read, and the other readings
+
+The PoC reads a reply with strict parsers (one JSON document, optionally in a fence that wraps the whole reply) and does nothing with a reply it cannot read. The share of calls not read: classify 0.0% (haiku), 26.8% (sonnet), 1.7% (opus), 10.0% (fable), relevance 0.0% (haiku), 62.6% (sonnet), 0.5% (opus), 8.6% (fable), capture 3.3% (haiku), 3.1% (sonnet), 0.0% (opus), 11.1% (fable), curation 2.0% (haiku), 11.8% (sonnet), 0.0% (opus), 2.2% (fable). Sonnet and fable write a prose analysis before the JSON document: 161 of sonnet's 600 `classify` replies and 243 of its 390 `relevance` replies end in a valid JSON document after prose; haiku's unread replies are 13 of its 390 `capture` replies (4 end before the document is complete) and 9 of its 450 `curation` replies. Scored as a miss (the rule), this lowers sonnet's agreement and recall; and since an unread reply delivers and writes nothing, it also lowers sonnet's guard rates. The same differences under the two other readings (lenient: a reader takes the last JSON document of a reply, which the PoC does not; read-only: the unread replies are left out of the means instead of scored as misses; the speed and cost are the same under each):
+
+| Kind | Reading | Haiku primary | Sonnet primary | Primary difference (score points) | Primary lower bound (score points) | Guard difference (score points) | Guard upper bound (score points) | Guard lower bound (score points) | Parity reading |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| classify | strict | 0.612 | 0.450 | +16.2 | +9.8 | -2.7 | +5.3 | -10.3 | inconclusive |
+| classify | lenient | 0.612 | 0.608 | +0.3 | -6.0 | -23.7 | -16.0 | -31.0 | inconclusive |
+| classify | readonly | 0.612 | 0.610 | +0.6 | -6.1 | -21.2 | -13.7 | -29.2 | inconclusive |
+| relevance | strict | 0.858 | 0.380 | +47.8 | +37.3 | +40.8 | +48.5 | +33.1 | disproved |
+| relevance | lenient | 0.858 | 0.830 | +2.8 | -4.3 | +1.3 | +7.9 | -5.4 | inconclusive |
+| relevance | readonly | 0.858 | 0.907 | +1.2 | -3.7 | +5.2 | +16.1 | -5.7 | inconclusive |
+| capture | strict | 0.289 | 0.390 | -10.1 | -17.8 | -1.2 | +1.6 | -4.4 | inconclusive |
+| capture | lenient | 0.289 | 0.390 | -10.1 | -17.8 | -1.2 | +1.6 | -4.4 | inconclusive |
+| capture | readonly | 0.325 | 0.428 | -11.3 | -19.5 | -1.2 | +1.6 | -4.4 | inconclusive |
+| curation | strict | 0.889 | 0.736 | +15.3 | +9.3 | +3.6 | +6.4 | +0.9 | inconclusive |
+| curation | lenient | 0.889 | 0.811 | +7.8 | +2.7 | +1.6 | +4.7 | -1.6 | parity |
+| curation | readonly | 0.906 | 0.831 | +5.9 | +1.0 | +3.2 | +6.2 | +0.2 | inconclusive |
+
+Under either other reading haiku and sonnet agree with the gold to within a few points on `classify` and `relevance` (0.612 against 0.608 and 0.858 against 0.830 under the lenient reading), the `relevance` guard difference falls from +40.8 to +1.3 points, and `curation` is at parity when read leniently. The result for the System is not that sonnet judges worse: it is that the PoC's request, as written for the cheapest tier, does not get the form it reads from sonnet, so raising a kind to sonnet needs a request sonnet obeys (and the table of `judgeTiers` alone is not enough). `capture` is the same under all three readings.
+
+`capture` is scored by the terms a note must hold ([793b331 H2's capture is scored by the terms a note must hold](./793b_decision-log.md#793b331-h2s-capture-is-scored-by-the-terms-a-note-must-hold)). To measure the scoring error, fable judged blind (no arm named, replies shuffled) whether the written lessons of each reply state each gold lesson, for the 27 fixtures with a gold lesson on which haiku and sonnet differ in the term match, all 3 runs of both arms (162 replies, 1 not answered in the format after a retry).
+
+| Arm | Reply and gold lesson pairs (n) | Term match and judgement agree (share) | Term match says stated, judgement says not (share) | Term match says not stated, judgement says stated (share) | Recall by the term match (share) | Recall by the fable judgement (share) |
+| --- | --- | --- | --- | --- | --- | --- |
+| haiku | 177 | 0.599 | 0.034 | 0.367 | 0.373 | 0.665 |
+| sonnet | 172 | 0.738 | 0.052 | 0.209 | 0.553 | 0.693 |
+| both | 349 | 0.668 | | | | |
+
+The term match misses a stated lesson in a third of the pairs, and misses more of haiku's (0.367) than of sonnet's (0.209): haiku words the same lesson differently. On these 27 fixtures the recall gap between the arms is 0.180 by the terms and 0.028 by the judgement. The fixtures were chosen because the arms differ in the term match, so the gap is not a whole-set estimate; if the 19 other fixtures with a gold lesson, where the arms tie by the terms, tie by the judgement too, the whole-set gap would be about 0.02 and not 0.10. The verdict of `capture` is by the pre-registered terms (inconclusive); the scoring error is large enough, and one-sided enough, that the terms are not a trustworthy score of haiku against sonnet. The adjudication is a single fable reading of each reply, not a second gold.
+
+Flags from the indicative arms (haiku minus the arm on the arm's fixtures; a shortfall beyond the margin the arm's sample supports is flagged and is not a disproof): `capture` lesson recall, haiku below opus by 18.9 points (supported margin 7.1) and below fable by 23.9 points (11.2); the subtle stratum likewise (opus 20.0, fable 19.4). No other kind or guard is flagged. The larger tiers read better than sonnet on the PoC's request (opus is +20.3 points above sonnet in `classify` agreement on its fixtures and +57.4 points in `relevance` recall), which is largely the unread replies again.
+
+#### 793d18d4 Verdict
+
+By the rule as written (strict parsers; unread is a miss):
+
+| Condition of 793d18 | `classify` | `relevance` | `capture` | `curation` |
+| --- | --- | --- | --- | --- |
+| Parity, primary (lower bound at least -5.0 points) | yes (+9.8) | yes (+37.3) | no (-17.8; upper bound -2.6, so not disproved) | yes (+9.3) |
+| Parity, guard (upper bound at most +5.0 points) | no (+5.3; not disproved) | no, disproved (lower bound +33.1) | yes for the window guard (+1.6); the covered guard has 1 lesson | no (+6.4; lower bound +0.9, not disproved) |
+| Parity, subtle stratum (`capture`) | | | no (-17.0; upper bound -0.7, not disproved) | |
+| Median latency below sonnet's | no (1.70 against 1.66 s, a tie) | yes (2.47 against 2.75 s, inside the noise) | no (2.47 against 1.31 s) | no (2.40 against 1.28 s) |
+| Cost per fixture below sonnet's | yes (13.8 times) | yes (14.9 times) | yes (11.7 times) | yes (10.1 times) |
+| Table (793d18c1a, 793d18c1b) | yes | yes | yes | yes |
+| Kind | Inconclusive | Disproved (guard) | Inconclusive | Inconclusive |
+| Kind, under the lenient and read-only readings | Inconclusive (primary lower bound -6.0 and -6.1) | Inconclusive (primary -4.3 and -3.7; guard upper bound +7.9 and +16.1) | Inconclusive | Parity read leniently (+2.7; +4.7), inconclusive read-only |
+
+Verdict: H2 is DISPROVED as a whole on this machine by its own rule, which disproves H2 when the cheapest tier is not faster or not cheaper than the sonnet arm on the fixtures: haiku is cheaper in all four kinds (10.1 to 14.9 times), but its median call is slower than sonnet's in three kinds (`classify` by a tie, `capture` by 1.16 s, `curation` by 1.11 s; 2.10 s against 1.63 s over all the calls) and faster only in `relevance`, inside the noise. The speed result does not depend on the reading of the replies, and the sequential control repeats it. Per kind:
+
+- `classify`: inconclusive under every reading. By the rule haiku agrees with the gold moments more than sonnet (0.612 against 0.450, lower bound +9.8 points) and its guard bound, +5.3 points, is 0.3 point beyond the margin (105 fixtures instead of 100 would bring it inside); read leniently the agreement is equal (0.612 against 0.608) and the primary bound, -6.0 points, is 1.0 point beyond. Not faster (a tie), 13.8 times cheaper.
+- `relevance`: disproved by the rule, on its guard: haiku delivers a gold-excluded note in 0.538 of the fixtures against 0.131 (lower bound +33.1 points above the margin). The disproof is an effect of sonnet's unread replies (62.6% of its calls deliver nothing); read leniently the kinds are at 0.858 and 0.830 and the guard difference is +1.3 points (upper bound +7.9), which is inconclusive. The rule's consequence, raising `relevance` in `judgeTiers` and measuring again, would raise it to a tier whose request the PoC reads in 37% of its calls. 25.9% of haiku's calls and 35.9% of sonnet's took longer than the 3 s the PoC gives the judgement.
+- `capture`: inconclusive under every reading. Haiku's lesson recall by the terms is below sonnet's by 10.1 points (bounds -17.8 to -2.6) and below opus and fable beyond their supported margins (flagged); the term match, though, misses a stated lesson in 0.367 of haiku's pairs and 0.209 of sonnet's, and by the blind judgement the gap on the fixtures where they differ shrinks from 0.180 to 0.028. The window guard clears; the covered guard cannot be assessed (1 gold lesson). Haiku is 1.16 s slower per call; the call is background work with a 40 s deadline, which no call approached.
+- `curation`: inconclusive by the rule. Haiku agrees with the gold more than sonnet (0.889 against 0.736, lower bound +9.3 points); its destructive errors are 0.049 against 0.013 (difference +3.6, bounds +0.9 to +6.4), which neither clears the margin nor disproves it, and 555 fixtures at the observed spread would settle it; read leniently parity holds. It is 1.11 s slower per call (a background job with a 60 s deadline) and 10.1 times cheaper.
+
+Scope: this machine, Claude Code 2.1.296 on a subscription login, the confirmed first tranche (130 to 200 fixtures a kind, not the 200 and 280 of the plan), the models the aliases resolved to on 2026-10-13, the prices of 2026-10-06, the PoC's requests as they were at the commit of this run. The decisions are [793b349 H2 is disproved as a whole on this machine by its speed clause; relevance is disproved on its guard by the rule, and the unread replies are the reason](./793b_decision-log.md#793b349-h2-is-disproved-as-a-whole-on-this-machine-by-its-speed-clause-relevance-is-disproved-on-its-guard-by-the-rule-and-the-unread-replies-are-the-reason) and the questions for the owner [793c79](./793c_open-questions.md#793c79-what-follows-from-h2-being-disproved-on-speed-and-for-relevance).
 
 ## 793d19 Design as currently drafted
 
