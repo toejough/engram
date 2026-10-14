@@ -262,6 +262,20 @@ green with the acceptance suite green throughout. Verify:
 - **Spec conformance:** the component and flow specs describe the refactored system, every requirement
   has its direct contract test, and the lifecycle checklist passes.
 
+A gate is accepted once it has been **seen red** at least once, in one of two ways:
+
+- **Goal (red on the real code):** the goal is not yet met. A goal gets a refactor node with before and
+  after numbers.
+- **Guard (red on a probe):** the code already satisfies the gate, so it is proven by a deliberate
+  violation (an oversized file, an unused import, a budget-busting line) that is watched to fail and
+  then removed. Record the probe in the commit message or decision log; it MUST NOT be committed as a
+  fixture. A guard gets no node. A limit on a file that does not exist yet is a guard by definition,
+  probe-verified when the file first has content.
+
+A gate expected to be a goal that is green on the real code is a finding: the goal was already met or
+the measure is too loose. Check the measure before dropping the node. The
+[plan](./IMPLEMENTATION-PLAN-GUIDE.md#two-part-plan) lists goals and guards separately.
+
 ## Completion Checklist
 
 Verify:
