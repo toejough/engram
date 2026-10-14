@@ -7,7 +7,7 @@ export const JUDGE_TIERS = { classify: 'haiku', relevance: 'haiku', capture: 'ha
 // the relevance judgement holds the agent's prompt: 3 s here and 5 s for the lookup (failure.js) are the 8 s hold
 const JUDGE_TIMEOUT_MS = { classify: 4000, relevance: 3000, capture: 40000, curation: 60000 }
 const REPLY_TOKENS = { classify: 300, relevance: 200, capture: 1500, curation: 700 }
-const EFFORT = { classify: 'low', relevance: 'low', capture: 'medium', curation: 'medium' }
+const EFFORT = { classify: 'low', relevance: 'low', capture: 'low', curation: 'low' }
 const TEXT_LIMIT = 1500
 
 // CLASSIFY is the judgement of the in-turn cue (793b320): whether the agent, at a step that wrote text and called a tool,

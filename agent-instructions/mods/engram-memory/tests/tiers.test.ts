@@ -5,7 +5,7 @@ import { describe, expect, test } from 'claude-code/testing'
 import { JUDGE_TIERS, captureRequest, classifyRequest, curationRequest, relevanceRequest } from '../hooks/judge.js'
 
 const note = { path: '1.2026-10-12.note-n.md', kind: 'fact', situation: 'renaming a Go package', body: 'run go build first' }
-const builders: Record<string, () => { model: string }> = {
+const builders: Record<string, () => { model: string; effort: string }> = {
   classify: () => classifyRequest('User: is it done?'),
   relevance: () => relevanceRequest('declaring work done', 'I just finished', [note]),
   capture: () => captureRequest('User: no, use the formatter', [note]),
@@ -20,6 +20,12 @@ describe('the tier table', () => {
       expect(request.model).toBe(JUDGE_TIERS[kind])
       expect(request.model).toBe('haiku')
       expect(request.model).not.toBe('sonnet')
+    }
+  })
+
+  test('every request runs at the lowest accepted effort (793c79)', () => {
+    for (const kind of KINDS) {
+      expect(builders[kind]().effort).toBe('low')
     }
   })
 

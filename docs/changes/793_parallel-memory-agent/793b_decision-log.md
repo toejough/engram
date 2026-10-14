@@ -4487,3 +4487,26 @@ ID map for 793b243 to 793b254 (each checked with `git log -S`: unused): `793b243
   - **Caveats.** The replay session and the control ran on Claude Code 2.1.299 (the main run on 2.1.296); the models resolved to the same ids. One session at a time with one call at a time is the condition of the main run's own sequential control. The thinking-token figure is an estimate, not a reading.
 - **Rationale:** the owner's question has a checkable answer and the answer should be in the record: the main run was not at the floor for two of four kinds, the floor does not change the speed result, and the cause is thinking the mods API cannot turn off, which the record had only as an inference ([793d18d2](./793d_technical-spec.md#793d18d2-criteria-tables), the speed control).
 - **Alternatives:** a full re-run of H2 at the floor (about 6 USD at list price for `capture` and `curation` with haiku and sonnet, 3 runs, none for `classify` and `relevance`, which already ran at the floor; not done, because the control already answers the speed clause and the agreement difference is inside the noise); treat the verdict as open until a model setting that disables thinking exists (not available through `$.model.complete`).
+
+## 793b352 Owner answer (793c73): the System's Claude Code side stays a mod
+
+- **Decided by:** Owner (Joe, 2026-10-14).
+- **Choice:** the System's Claude Code side stays a mod ([793c73](./793c_open-questions.md#793c73-does-the-systems-claude-code-side-stay-a-mod-now-that-h1-is-disproved-by-its-own-rule), option (a)); [793b189](./793b_decision-log.md#793b189-the-system-is-a-claude-code-mod-and-a-go-command-with-the-logic-in-go) stands. H1 stays recorded as disproved on the surface-size clause, with the capability half confirmed.
+- **Rationale:** the surface-size reason was disproved by [793b338](./793b_decision-log.md#793b338-h1-is-disproved-by-its-own-rule-on-this-machine); the mod stays on in-process judgement cost, no credential to provision, and the status line kept out of the transcript.
+- **Alternatives:** settings hooks, or a mixed form (793c73 (b) and (c)).
+
+## 793b353 Owner answer (793c79): every System judgement runs on haiku at the lowest accepted effort
+
+- **Decided by:** Owner (Joe, 2026-10-14).
+- **Choice:** every System judgement (`classify`, `relevance`, `capture`, `curation`) runs on haiku at the lowest accepted effort, `low` ([793c79](./793c_open-questions.md#793c79-what-follows-from-h2-being-disproved-on-speed-and-for-relevance)). `JUDGE_TIERS` stays haiku for all four kinds; `EFFORT` in `hooks/judge.js` becomes `low` for all four (it was `low` for `classify` and `relevance` and `medium` for `capture` and `curation`); the contract test `tests/tiers.test.ts` (793d18c1a) asserts `effort: 'low'` for every kind (written failing first).
+- **Rationale:** H2's result ([793b349](./793b_decision-log.md#793b349-h2-is-disproved-as-a-whole-on-this-machine-by-its-speed-clause-relevance-is-disproved-on-its-guard-by-the-rule-and-the-unread-replies-are-the-reason)) and the effort-floor control ([793b351](./793b_decision-log.md#793b351-the-h2-replay-ran-at-the-pocs-effort-low-and-medium-not-at-the-floor-a-latency-control-at-the-floor-does-not-flip-the-speed-clause)): haiku is 10 to 15 times cheaper; the floor changes agreement inside the noise; `capture` and `curation` are background work whose deadlines no call approached.
+- **Alternatives:** raise `relevance` to the next tier per the 793d18 rule; keep medium for `capture` and `curation`; extend the fixture sets first (793c79 (b) to (d)).
+
+## 793b354 The remaining open items of the H2 record are defaults, not owner decisions
+
+- **Decided by:** Owner (Joe, 2026-10-14), as a classification of the record.
+- **Choice:** the owner treats the remaining items as defaults, not decisions: capture scoring stays as recorded with the adjudication beside it; [793b346](./793b_decision-log.md#793b346-the-confirmed-gold-final-fixture-counts-and-the-share-of-drafts-the-owner-changed) to [793b349](./793b_decision-log.md#793b349-h2-is-disproved-as-a-whole-on-this-machine-by-its-speed-clause-relevance-is-disproved-on-its-guard-by-the-rule-and-the-unread-replies-are-the-reason) stand; the eval artifacts stay ephemeral ([793b343](./793b_decision-log.md#793b343-the-hypothesis-eval-artifacts-are-ephemeral-and-kept-out-of-the-repository)). The only decisions were [793b352](#793b352-owner-answer-793c73-the-systems-claude-code-side-stays-a-mod) and [793b353](#793b353-owner-answer-793c79-every-system-judgement-runs-on-haiku-at-the-lowest-accepted-effort).
+- **Rationale:** they are the author's choices with their evidence recorded; the owner is not asked to ratify each.
+- **Alternatives:** none.
+
+ID map: added `793b352` to `793b354` (each checked with `git grep`: unused). Retired: none. No heading is retitled.
