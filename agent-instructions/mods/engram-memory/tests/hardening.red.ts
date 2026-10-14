@@ -42,7 +42,7 @@ describe('queued work survives the end of the session (793b203)', () => {
     await $.classic.SessionStart({ source: 'startup', transcript_path: '/home/.claude/projects/p/next.jsonl' })
     await clock.settle()
     const capture = jobs.find((job) => JSON.stringify(job).includes(USER_LINE))
-    expect(capture, 'the left-behind capture was not handed to the engine').toBeDefined()
+    expect(capture !== undefined, 'the left-behind capture was not handed to the engine').toBe(true)
     expect(
       writes
         .filter((write) => write.path === QUEUE_FILE)

@@ -1,7 +1,7 @@
 // A stub of the engine under the mod, for the mod's contract tests (793e8m): the mod only wires events to jobs of
 // `engram auto run`, so the engine is a script that answers each job the mod hands over, and everything else the mod
 // touches (the model, the file system, the session, the status line, the clock) is a recorder. Nothing here is live.
-import { mock } from 'claude-code/testing'
+import { expect, mock } from 'claude-code/testing'
 import type { MockClock, On } from 'claude-code/testing'
 
 export interface Job {
@@ -99,4 +99,10 @@ export function world(on: On, options: WorldOptions = {}): World {
     return { ...STEP_RESULT, turnId: event.turnId, index: event.index }
   })
   return { clock, jobs, requests, shown, logs, writes }
+}
+
+// expectHas asserts that a job holds the fields given, with these values.
+export function expectHas(job: Job, fields: Record<string, unknown>): void {
+  const picked = Object.fromEntries(Object.keys(fields).map((key) => [key, job[key]]))
+  expect(picked).toEqual(fields)
 }

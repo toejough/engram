@@ -4,14 +4,14 @@
 import { describe, expect, test } from 'claude-code/testing'
 import type { Driver, On } from 'claude-code/testing'
 
-import { BLOCK, COMPLETE, MESSAGES, NOTE, PROMPT, STEP_INPUT, TOOL, world } from './world.js'
+import { BLOCK, COMPLETE, MESSAGES, NOTE, PROMPT, STEP_INPUT, STEP_RESULT, TOOL, expectHas, world } from './world.js'
 import type { Answer, Job } from './world.js'
 
 const REQUEST = { model: 'haiku', effort: 'low', prompt: 'which vault notes bear', maxTokens: 200, timeoutMs: 3000 }
 const REPLY = { isAnswered: true, text: '[1]', usage: {} }
 
 // asks answers a job's first round with a need for the request and its second with the block.
-const asks = (job: Job, call: number): Answer => (call % 2 === 1 ? { need: { requests: [REQUEST], state: ['s'] } } : { done: { block: BLOCK } })
+const asks = (_job: Job, call: number): Answer => (call % 2 === 1 ? { need: { requests: [REQUEST], state: ['s'] } } : { done: { block: BLOCK } })
 
 async function runStep($: Driver): Promise<void> {
   const stream = $.turn.step(STEP_INPUT)
@@ -25,8 +25,8 @@ describe('the relay of a job (793b197)', () => {
     const result = await $.prompt.submit(PROMPT)
     expect(requests).toEqual([REQUEST])
     expect(jobs.length).toBe(2)
-    expect(jobs[0]).toMatchObject({ kind: 'lookup', moment: 'prompt', text: PROMPT.text, readContext: true, step: 'the prompt lookup' })
-    expect(jobs[1]).toMatchObject({ kind: 'lookup', state: ['s'], answers: [REPLY] })
+    expectHas(jobs[0], { kind: 'lookup', moment: 'prompt', text: PROMPT.text, readContext: true, step: 'the prompt lookup' })
+    expectHas(jobs[1], { kind: 'lookup', state: ['s'], answers: [REPLY] })
     expect(result.context).toEqual([BLOCK])
   })
 
@@ -52,8 +52,8 @@ describe('the relay of a job (793b197)', () => {
     expect(shown).toEqual(['a warning'])
     await $.turn.complete(COMPLETE)
     await clock.settle()
-    const summary = jobs.find((job) => job.kind === 'summary')
-    expect(summary).toMatchObject({ tally: [{ delivered: 2 }], warnings: ['a warning'], lineShown: true })
+    const summary = jobs.find((job) => job.kind === 'summary') ?? { kind: '' }
+    expectHas(summary, { tally: [{ delivered: 2 }], warnings: ['a warning'], lineShown: true })
     expect(shown.at(-1)).toBe('the line')
   })
 
@@ -81,16 +81,18 @@ describe('the moments (793d22b1)', () => {
     await $.session.compact({ trigger: 'auto', messages: MESSAGES })
     await $.prompt.submit(PROMPT)
     expect(jobs.map((job) => job.kind)).toEqual(['lookup', 'compact', 'lookup'])
-    expect(jobs[0]).toMatchObject({ transcript: '/t/s.jsonl', lastPrompt: PROMPT.text })
+    expectHas(jobs[0], { transcript: '/t/s.jsonl', lastPrompt: PROMPT.text })
     expect(jobs[1].ledger).toEqual({ main: ['a.md'] })
     expect(jobs[2].ledger).toEqual({ main: ['a.md'] })
   })
 
   test('the jobs that touch the ledger run one at a time, in the order the events came', async ($: Driver, on: On) => {
-    const { clock, jobs } = world(on, { engine: async (job) => {
-      await new Promise((resolve) => setTimeout(resolve, 0))
-      return { done: { ledger: { main: [String(job.text)] } } }
-    } })
+    const { clock, jobs } = world(on, {
+      engine: async (job) => {
+        await Promise.resolve()
+        return { done: { ledger: { main: [String(job.text)] } } }
+      },
+    })
     await Promise.all([$.prompt.submit({ ...PROMPT, text: 'one' }), $.prompt.submit({ ...PROMPT, text: 'two' })])
     await clock.settle()
     expect(jobs.map((job) => job.ledger)).toEqual([undefined, { main: ['one'] }])
@@ -100,11 +102,11 @@ describe('the moments (793d22b1)', () => {
     const { jobs } = world(on, { engine: () => ({ done: { block: BLOCK } }) })
     const route = await $.classic.PostToolUse({ tool_name: 'Skill', tool_input: { skill: 'route', args: 'write tests' }, tool_response: '', tool_use_id: 'r' })
     expect(route.additionalContext).toEqual([BLOCK])
-    expect(jobs[0]).toMatchObject({ kind: 'tool', route: true, args: 'write tests' })
+    expectHas(jobs[0], { kind: 'tool', route: true, args: 'write tests' })
     await $.agent.spawn({ tool_use_id: 't', prompt: 'add tests for the cli', description: 'tests', subagentType: 'general-purpose' })
     const start = await $.classic.SubagentStart({ agent_id: 'a1', agent_type: 'general-purpose' })
     expect(start.additionalContext).toEqual([BLOCK])
-    expect(jobs[1]).toMatchObject({ kind: 'lookup', moment: 'subagent', agent: 'a1', text: 'add tests for the cli', readContext: false })
+    expectHas(jobs[1], { kind: 'lookup', moment: 'subagent', agent: 'a1', text: 'add tests for the cli', readContext: false })
     expect((await $.classic.SubagentStart({ agent_id: 'a2', agent_type: 'general-purpose' })).additionalContext ?? []).toEqual([])
     expect(jobs.length).toBe(2)
   })
@@ -127,10 +129,10 @@ describe('the in-turn cue (793d23b2)', () => {
     const { clock, jobs } = world(on, { engine: cue })
     await runStep($)
     await clock.settle()
-    expect(jobs[0]).toMatchObject({ kind: 'step', step: 'the step lookup', toolUses: [{ name: 'Grep' }] })
+    expectHas(jobs[0], { kind: 'step', step: 'the step lookup', toolUses: STEP_RESULT.toolUses })
     const tool = await $.classic.PostToolUse(TOOL)
     expect(tool.additionalContext).toEqual([BLOCK])
-    expect(jobs[1]).toMatchObject({ kind: 'tool', route: false, held: [NOTE] })
+    expectHas(jobs[1], { kind: 'tool', route: false, held: [NOTE] })
   })
 
   test('no job is started for a step of a subagent or while another is running; the cue is dropped with its turn', async ($: Driver, on: On) => {
@@ -174,8 +176,8 @@ describe('the queue (793d22b2)', () => {
     expect(jobs).toEqual([])
     await clock.settle()
     expect(jobs.map((job) => job.kind)).toEqual(['capture', 'housekeeping', 'summary'])
-    expect(jobs[0]).toMatchObject({ answer: COMPLETE.answer, sessionId: 'sess-1', turn: 3, messages: [{ role: 'user' }, { role: 'assistant' }] })
-    expect(jobs[1]).toMatchObject({ turnEnded: true, work: { n: 'capture' } })
+    expectHas(jobs[0], { answer: COMPLETE.answer, sessionId: 'sess-1', turn: 3, messages: MESSAGES })
+    expectHas(jobs[1], { turnEnded: true, work: { n: 'capture' } })
   })
 
   test('the jobs of a burst run one at a time, one housekeeping follows the last, and the summary only a turn', async ($: Driver, on: On) => {
@@ -184,9 +186,9 @@ describe('the queue (793d22b2)', () => {
     await $.classic.SubagentStop({ agent_id: 'a2', agent_type: 'general-purpose', agent_transcript_path: '/t/a2.jsonl', last_assistant_message: 'Done.', stop_hook_active: false })
     await clock.settle()
     expect(jobs.map((job) => job.kind)).toEqual(['subagent', 'subagent', 'housekeeping'])
-    expect(jobs[0]).toMatchObject({ path: '/t/a1.jsonl', last: 'Noted.', agent: 'a1', sessionId: 'sess-1', turn: 3 })
-    expect(jobs[1]).toMatchObject({ agent: 'a2', work: { n: 'subagent' } })
-    expect(jobs[2]).toMatchObject({ turnEnded: false })
+    expectHas(jobs[0], { path: '/t/a1.jsonl', last: 'Noted.', agent: 'a1', sessionId: 'sess-1', turn: 3 })
+    expectHas(jobs[1], { agent: 'a2', work: { n: 'subagent' } })
+    expectHas(jobs[2], { turnEnded: false })
   })
 
   test('a job that fails warns, and the next one still runs; a subagent turn is not captured at its turn.complete', async ($: Driver, on: On) => {
