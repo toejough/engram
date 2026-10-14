@@ -16,7 +16,6 @@ const (
 	// a name that says its value is a secret, and the value after a name: quoted (with spaces) or the next run
 	sensitive = `(?:[\w.-]*(?:token|secret|passw(?:or)?d|pwd|api[-_ ]?key|apikey|credential|private[-_ ]?key|` +
 		`authorization|[_-]key)[\w.-]*|(?:[\w.-]*[_-])?pass)`
-	shaLength = 40
 	// the white space of ECMAScript, as the body of a character class
 	space = `\s\v\x{a0}\x{1680}\x{2000}-\x{200a}\x{2028}\x{2029}\x{202f}\x{205f}\x{3000}\x{feff}`
 	value = `("[^"\n]*"|'[^'\n]*'|[^` + space + `]+)`
