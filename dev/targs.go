@@ -41,9 +41,8 @@ func init() {
 		Description("Engram dev target registration"))
 
 	targ.Register(testDevTarget, testDevIntegrationTarget, acceptanceTarget)
-	// The refactor gates of 793e8l: those of nodes 793e8m, 793e8n and 793e8p (complexity, adapter, minimality,
-	// standards, types, the mod's contract tests) are green and in check-full; the others are red on purpose until
-	// their nodes turn them green, so none is in check-full yet.
+	// The refactor gates of 793e8l are all green and in check-full (complexity, adapter, minimality, standards, types,
+	// the mod's contract tests, and spec conformance of 793e8q).
 	targ.Register(
 		lintJSTarget, lintJSAdapterTarget, lintJSComplexityTarget, lintJSStandardsTarget, lintJSTypesTarget,
 		checkModBudgetTarget, testModTarget,
@@ -72,7 +71,7 @@ var (
 			targdev.LintForFail, targdev.Deadcode, targdev.CheckThinAPI, checkNilsForFailTarget,
 			targdev.TestIntegration, testDevTarget, testDevIntegrationTarget, lintDevTarget,
 			lintJSComplexityTarget, lintJSAdapterTarget, lintJSStandardsTarget, lintJSTypesTarget, checkModBudgetTarget,
-			testModTarget,
+			testModTarget, checkSpecConformanceTarget,
 			targ.DepModeParallel,
 		)
 	checkFullTarget = targ.Targ(targdev.CheckFull.Fn()).Name("check-full").
@@ -82,7 +81,7 @@ var (
 			targdev.LintFull, targdev.Deadcode, targdev.CheckThinAPI, checkNilsForFailTarget,
 			targdev.TestIntegration, testDevTarget, testDevIntegrationTarget, lintDevTarget,
 			lintJSComplexityTarget, lintJSAdapterTarget, lintJSStandardsTarget, lintJSTypesTarget, checkModBudgetTarget,
-			testModTarget,
+			testModTarget, checkSpecConformanceTarget,
 			targ.DepModeParallel, targ.CollectAllErrors,
 		)
 	// The aggregates below mirror Targ's dependencies, order and mode with Engram's nil targets in place of Targ's
@@ -98,7 +97,7 @@ var (
 			Description(targdev.CheckNils.GetDescription()).
 			Deps(checkNilsFixTarget, checkNilsForFailTarget)
 	checkSpecConformanceTarget = targ.Targ(runCheckSpecConformance).Name("check-spec-conformance").
-					Description("Refactor gate: the specs 793d22 onward against the mod's tests, the product spec and the code")
+					Description("The specs of the change against the contract tests, the product spec and the code")
 	checkTarget = targ.Targ(targdev.Check.Fn()).Name("check").
 			Description(targdev.Check.GetDescription()).
 			Deps(

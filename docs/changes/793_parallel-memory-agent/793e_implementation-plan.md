@@ -717,7 +717,7 @@ Gates after the node: `check-full` 18 of 18 PASS (with `test-mod`: 23 mod tests)
 
 ### 793e8q Spec conformance and the technical specification
 
-Status: Red (gate: `targ check-spec-conformance`).
+Status: In progress (gate: `targ check-spec-conformance`).
 
 Red gate: `targ check-spec-conformance` (1 problem: the reading guide of [793d21a Orientation](./793d_technical-spec.md#793d21a-orientation) states 142 contract tests and the mod has 168). It also holds the guards that the 32 requirements each have a `Supports` and a `Verified by` line, that all 43 scenarios are supported, that every cited test exists and passes, and that every `Realization` file and function exists; those drift red as the refactor moves code, which is how the rewrite is forced. Verification: the target passes; the lifecycle checklist and the specification checklist of `docs/AGENTS.md` pass; `python3` link check of the change directory is clean; `targ acceptance` full once; `targ check-full`. Invariant: the acceptance suite stays green.
 

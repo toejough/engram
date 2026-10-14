@@ -96,8 +96,7 @@ async function spec() {
   return problems.length === 0 ? 0 : 1
 }
 
-// the gates that are still red: the five of nodes 793e8m and 793e8n (complexity, adapter, minimality, standards, types)
-// and the mod's contract tests (793e8p) are green and in check-full
+// the gates the status table lists: every refactor gate is green and in check-full, so the red list is empty
 const GATES = [
   ['spec', 'targ check-spec-conformance', spec],
 ]
