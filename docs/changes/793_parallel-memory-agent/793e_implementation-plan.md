@@ -229,7 +229,7 @@ flowchart TD
   n793e8h["793e8h Hypothesis scenarios updated to the PoC<br/>Complete"]
   n793e8i["793e8i H1 probe harness and verdict<br/>Complete"]
   n793e8j["793e8j H2 eval and verdict<br/>Complete"]
-  n793e8l["793e8l Red gates<br/>In progress: 3/7 entries complete"]
+  n793e8l["793e8l Red gates<br/>In progress: 4/7 entries complete"]
   n793e8m["793e8m Logic in Go<br/>Blocked by: 793e8l"]
   n793e8n["793e8n JavaScript standards<br/>Blocked by: 793e8m"]
   n793e8o["793e8o Performance<br/>Blocked by: 793e8m"]
@@ -577,7 +577,7 @@ Verification: `targ refactor-red` runs every gate and prints one table; `npm tes
 | JavaScript standards gate: `eslint.config.js` and `tsconfig.json` in `dev/acceptance`, the declaration of the test kit, the pinned dev dependencies, `prune-go-sources.js`, `targ lint-js standards` and `types` | Setup (goal, red) | [793b364 The complexity limits and the lint rules follow the Go configuration](./793b_decision-log.md#793b364-the-complexity-limits-and-the-lint-rules-follow-the-go-configuration) | Done |
 | Complexity and adapter gates: `eslint.complexity.config.js`, `eslint.adapter.config.js` and `targ lint-js complexity` and `adapter` | Setup (goal, red) | 793b364 and [793b368 Within reason the logic moves to Go and the mod becomes a thin adapter](./793b_decision-log.md#793b368-within-reason-the-logic-moves-to-go-and-the-mod-becomes-a-thin-adapter) | Done |
 | Adapter budget gate: `gates/budgets.json`, the owned-lines count and `targ check-mod-budget` | Setup (goal, red) | [793b366 The adapter budget is the wiring counted in register.js, the relay loop and a margin](./793b_decision-log.md#793b366-the-adapter-budget-is-the-wiring-counted-in-registerjs-the-relay-loop-and-a-margin) | Done |
-| Performance gates: `tests/perf.test.ts` (guards) and `tests/perf.red.ts` (goals), the shared stub `tests/world.ts`, `targ test-mod` | Setup (goal, red, and guards) | [793b363 Performance budgets come from the measured baselines and the spec ceilings](./793b_decision-log.md#793b363-performance-budgets-come-from-the-measured-baselines-and-the-spec-ceilings) | Not started |
+| Performance gates: `tests/perf.test.ts` (guards) and `tests/perf.red.ts` (goals), the shared stub `tests/world.ts`, `targ test-mod` | Setup (goal, red, and guards) | [793b363 Performance budgets come from the measured baselines and the spec ceilings](./793b_decision-log.md#793b363-performance-budgets-come-from-the-measured-baselines-and-the-spec-ceilings) | Done |
 | Hardening gates: `tests/hardening.test.ts` (guards) and `tests/hardening.red.ts` (goals) | Setup (goal, red, and guards) | [793b362 The queued-work file is chosen by its red test](./793b_decision-log.md#793b362-the-queued-work-file-is-chosen-by-its-red-test) | Not started |
 | Spec-conformance gate: `gates/spec.js` and `targ check-spec-conformance` | Setup (goal, red, and guards) | the specs 793d22 onward against the tests, the product spec and the code | Not started |
 | `targ refactor-red` and the record of every classification and probe in 793b361 | Setup | one table of the gates; the record is the owner's acceptance rule | Not started |
@@ -620,7 +620,7 @@ Red gate: `targ lint-js standards` (eslint, 1,428 problems: 621 `max-len`, 407 `
 
 ### 793e8o Performance
 
-Status: Not started (gate: `targ test-mod red perf`).
+Status: Red (gate: `targ test-mod red perf`).
 
 Red gate: `targ test-mod red perf` (5 of 5 fail): the relevance deadline of 3.00 s against a 95th percentile of 3.44 s (a prompt and an in-turn cue at that percentile deliver nothing and warn the user), the subagent capture that begins 500 ms after a stop whose transcript completes at 100 ms (budget 200 ms), the redactor at 1,363 ms on 12,000 unbroken characters and 1,561 ms on 15,000 characters of wrapped lines (budget 200 ms each). The six guards of `perf.test.ts` stay green: the hold on a prompt at the median (2.56 s plus 80 ms), the 8 s ceiling, the 7 s hold on a tool result, the cue at its median, turn end to summary (2.96 s plus 80 ms). The node follows [793e8m Logic in Go](#793e8m-logic-in-go): the contracts that moved are Go tests of the same budgets, and the work below is done on whichever side the logic lives. Latencies are stubs on the mock clock from the baselines of [793b363 Performance budgets come from the measured baselines and the spec ceilings](./793b_decision-log.md#793b363-performance-budgets-come-from-the-measured-baselines-and-the-spec-ceilings); the redactor's time is real. After the work the numbers are measured again and recorded here. Verification: `targ test-mod red perf` passes and the file is renamed to `perf.test.ts`; `targ acceptance` (793a2n, 793a4b, 793a4j, then the full suite once); `targ check-full`. Invariant: the acceptance suite stays green.
 
