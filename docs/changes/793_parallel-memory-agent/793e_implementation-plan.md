@@ -229,7 +229,7 @@ flowchart TD
   n793e8h["793e8h Hypothesis scenarios updated to the PoC<br/>Complete"]
   n793e8i["793e8i H1 probe harness and verdict<br/>Complete"]
   n793e8j["793e8j H2 eval and verdict<br/>Complete"]
-  n793e8l["793e8l Red gates<br/>In progress: 2/7 entries complete"]
+  n793e8l["793e8l Red gates<br/>In progress: 3/7 entries complete"]
   n793e8m["793e8m Logic in Go<br/>Blocked by: 793e8l"]
   n793e8n["793e8n JavaScript standards<br/>Blocked by: 793e8m"]
   n793e8o["793e8o Performance<br/>Blocked by: 793e8m"]
@@ -576,7 +576,7 @@ Verification: `targ refactor-red` runs every gate and prints one table; `npm tes
 | --- | --- | --- | --- |
 | JavaScript standards gate: `eslint.config.js` and `tsconfig.json` in `dev/acceptance`, the declaration of the test kit, the pinned dev dependencies, `prune-go-sources.js`, `targ lint-js standards` and `types` | Setup (goal, red) | [793b364 The complexity limits and the lint rules follow the Go configuration](./793b_decision-log.md#793b364-the-complexity-limits-and-the-lint-rules-follow-the-go-configuration) | Done |
 | Complexity and adapter gates: `eslint.complexity.config.js`, `eslint.adapter.config.js` and `targ lint-js complexity` and `adapter` | Setup (goal, red) | 793b364 and [793b368 Within reason the logic moves to Go and the mod becomes a thin adapter](./793b_decision-log.md#793b368-within-reason-the-logic-moves-to-go-and-the-mod-becomes-a-thin-adapter) | Done |
-| Adapter budget gate: `gates/budgets.json`, the owned-lines count and `targ check-mod-budget` | Setup (goal, red) | [793b366 The adapter budget is the wiring counted in register.js, the relay loop and a margin](./793b_decision-log.md#793b366-the-adapter-budget-is-the-wiring-counted-in-registerjs-the-relay-loop-and-a-margin) | Not started |
+| Adapter budget gate: `gates/budgets.json`, the owned-lines count and `targ check-mod-budget` | Setup (goal, red) | [793b366 The adapter budget is the wiring counted in register.js, the relay loop and a margin](./793b_decision-log.md#793b366-the-adapter-budget-is-the-wiring-counted-in-registerjs-the-relay-loop-and-a-margin) | Done |
 | Performance gates: `tests/perf.test.ts` (guards) and `tests/perf.red.ts` (goals), the shared stub `tests/world.ts`, `targ test-mod` | Setup (goal, red, and guards) | [793b363 Performance budgets come from the measured baselines and the spec ceilings](./793b_decision-log.md#793b363-performance-budgets-come-from-the-measured-baselines-and-the-spec-ceilings) | Not started |
 | Hardening gates: `tests/hardening.test.ts` (guards) and `tests/hardening.red.ts` (goals) | Setup (goal, red, and guards) | [793b362 The queued-work file is chosen by its red test](./793b_decision-log.md#793b362-the-queued-work-file-is-chosen-by-its-red-test) | Not started |
 | Spec-conformance gate: `gates/spec.js` and `targ check-spec-conformance` | Setup (goal, red, and guards) | the specs 793d22 onward against the tests, the product spec and the code | Not started |
@@ -584,7 +584,7 @@ Verification: `targ refactor-red` runs every gate and prints one table; `npm tes
 
 ### 793e8m Logic in Go
 
-Status: Not started (gate: `targ check-mod-budget`, `targ lint-js adapter`, `targ lint-js complexity`).
+Status: Red (gate: `targ check-mod-budget`, `targ lint-js adapter`, `targ lint-js complexity`).
 
 Owner decision (Joe, 2026-10-14, [793b368 Within reason the logic moves to Go and the mod becomes a thin adapter](./793b_decision-log.md#793b368-within-reason-the-logic-moves-to-go-and-the-mod-becomes-a-thin-adapter)): within reason, most meaningful logic moves to Go, where the controls are stronger. The mod becomes a thin adapter: event wiring, `$` API calls (context channels, `ui.status`, the clock, `fs` and `process`, and the `model.complete` relay) and nothing else. Decisions move into the Go binary behind the existing dependency-injection pattern: moment detection, presence and relevance filtering, window building, redaction, reconcile and write, backlog selection, curation outcomes, summary counts and failure classification, and the strict parsing of every model reply. Go cannot call `$.model.complete`, so the stateless `need` and `done` round protocol of [793b197 The Go side is stateless and advances a job one round per call](./793b_decision-log.md#793b197-the-go-side-is-stateless-and-advances-a-job-one-round-per-call) returns: `engram auto run` reads one JSON job on standard input, does the Go-side work up to the next model request or the end, and writes one result, `need` (the requests to relay and an opaque state to send back with the answers) or `done`; the mod relays a request and its answer as opaque strings, keeps the opaque state it is handed and never reads it. The acceptance suite is the invariant: no scenario changes and every one that is green stays green.
 
