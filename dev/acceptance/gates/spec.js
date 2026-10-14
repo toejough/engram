@@ -1,36 +1,34 @@
-// The spec-conformance gate (793e8q): the component and flow specs of the change (793d21 onward) against the mod's
-// tests and the product spec. Every requirement has a `Supports` and a `Verified by` line; every product scenario named
-// by a `Supports` line exists, and every product scenario is supported; every contract test a `Verified by` line names
+// The spec-conformance gate (793e8q): the requirements of the change's technical spec against the mod's tests, the Go
+// tests and the product spec, wherever the specs are (the change directory, or the canonical files after promotion:
+// see lib/extract.js). Every requirement has a `Supports` and a `Verified by` line; every product scenario named by a
+// `Supports` line exists, and every product scenario is supported; every contract test a `Verified by` line names
 // exists and, for the mod's tests, passes. A mod test is named by its file and the start of its name ("…" stands for
-// any text); a Go test by its file and the number-and-letter suffix of its name.
+// any text); a Go test by its file and its exact function name. The security table (mitigation, requirement, tests)
+// is held to the same rule: its requirements exist and carry a `Security` line, and its tests exist by exact name.
 import fs from 'node:fs'
 import path from 'node:path'
 
-const REQUIREMENT = /^Requirement: (793d\d+[a-z]\d+[a-z0-9]*) /
-const FIRST_COMPONENT = 22
-const FIRST_SECTION = /^## 793d(\d+) /
+const REQUIREMENT = /^Requirement: (?:\[)?(793d\d+[a-z]\d+[a-z0-9]*) /
+const ANY_HEADING = /^#{1,6} /
 
-// parseSpec reads the requirements of the sections 793d22 and later: { id, supports: [scenario IDs], verifiedBy:
-// text|null }.
+// parseSpec reads every requirement of the text: { id, supports: [scenario IDs], verifiedBy: text|null, security:
+// text|null }. A requirement ends at the next heading that is not a scenarios heading under it.
 export function parseSpec(text) {
   const requirements = []
-  let inRange = false
   let current = null
   for (const line of text.split('\n')) {
-    const section = FIRST_SECTION.exec(line)
-    if (section) {
-      inRange = Number(section[1]) >= FIRST_COMPONENT
-      current = null
-    }
-    if (!inRange) continue
     const found = REQUIREMENT.exec(line)
     if (found) {
-      current = { id: found[1], supports: null, verifiedBy: null }
+      current = { id: found[1], supports: null, verifiedBy: null, security: null }
       requirements.push(current)
     } else if (current && line.startsWith('Supports:')) {
       current.supports = [...line.matchAll(/\[(793a[0-9a-z]+) /g)].map((match) => match[1])
     } else if (current && line.startsWith('Verified by:')) {
       current.verifiedBy = line.slice('Verified by:'.length).trim()
+    } else if (current && line.startsWith('Security:')) {
+      current.security = line.slice('Security:'.length).trim()
+    } else if (current && ANY_HEADING.test(line) && !/ Scenarios\s*$/.test(line)) {
+      current = null
     }
   }
   return requirements
@@ -38,23 +36,15 @@ export function parseSpec(text) {
 
 const MOD_REF = /`([\w-]+\.test\.ts)` "([^"]+)"/g
 const GO_REF = /`([\w/.-]+_test\.go)`: ([^;`]+)/g
+const GO_NAME = /\bTest\w+/g
 
 // references lists the contract tests a `Verified by` line names: { kind: 'mod', file, name } and { kind: 'go', file,
-// name } (a Go name is the prefix "Test793e8e1a" for each suffix of "1a, 1b and 1c").
+// name }; a Go name is the exact name of the test function, never the start of a name.
 export function references(line) {
   const refs = []
   for (const match of line.matchAll(MOD_REF)) refs.push({ kind: 'mod', file: match[1], name: match[2] })
-  for (const match of line.matchAll(GO_REF)) {
-    const names = match[2]
-      .replace(/\s*\(.*?\)/g, '')
-      .split(/,\s*|\s+and\s+/)
-      .map((name) => name.trim())
-      .filter(Boolean)
-    const stem = names[0].replace(/\d+[a-z]$/, '')
-    refs.push(
-      ...names.map((name) => ({ kind: 'go', file: match[1], name: /^Test/.test(name) ? name : `${stem}${name}` })),
-    )
-  }
+  for (const match of line.matchAll(GO_REF))
+    refs.push(...[...match[2].matchAll(GO_NAME)].map((name) => ({ kind: 'go', file: match[1], name: name[0] })))
   return refs
 }
 
@@ -121,10 +111,58 @@ export function checkRealizations(list, { read, hooks }) {
   return problems
 }
 
-// the reading guide states how many contract tests the mod has; the number must be the number that ran
-export function statedTestCount(text) {
-  const match = /\((?:run by `claude plugin test`; )?(\d+) tests\)/.exec(text)
-  return match ? Number(match[1]) : null
+const hasTest = (source, name) => new RegExp(`^func ${name}\\(`, 'm').test(source)
+
+const SECURITY_COLUMNS = 3
+const SECURITY_HEADER = /^\|\s*Mitigation\s*\|\s*Requirement\s*\|\s*Tests\s*\|/
+const REQUIREMENT_LINK = /\[(793d\d+[a-z]\d+[a-z0-9]*) /g
+
+// securityRows reads the rows of the security table (header Mitigation | Requirement | Tests): { mitigation,
+// requirements: [IDs linked], tests: [exact Go test names] }.
+export function securityRows(text) {
+  const rows = []
+  let inTable = false
+  for (const line of text.split('\n')) {
+    if (SECURITY_HEADER.test(line)) {
+      inTable = true
+      continue
+    }
+    if (!inTable) continue
+    if (!line.startsWith('|')) {
+      inTable = false
+      continue
+    }
+    const cells = line.split('|').slice(1, -1)
+    if (cells.length < SECURITY_COLUMNS || /^\s*-+\s*$/.test(cells[0])) continue
+    rows.push({
+      mitigation: cells[0].trim(),
+      requirements: [...cells[1].matchAll(REQUIREMENT_LINK)].map((match) => match[1]),
+      tests: [...cells[2].matchAll(GO_NAME)].map((match) => match[0]),
+    })
+  }
+  return rows
+}
+
+// checkSecurity: every row names a requirement and a test, every requirement exists and has a `Security` line, and
+// every test is a function of some Go test file by its exact name; and every `Security` line links requirements that
+// exist.
+export function checkSecurity(rows, { requirements, goSources }) {
+  const problems = []
+  const byId = new Map(requirements.map((requirement) => [requirement.id, requirement]))
+  for (const row of rows) {
+    if (row.requirements.length === 0) problems.push(`security table: "${row.mitigation}" names no requirement`)
+    if (row.tests.length === 0) problems.push(`security table: "${row.mitigation}" names no test`)
+    for (const id of row.requirements) {
+      if (!byId.has(id)) problems.push(`security table: ${id} is no requirement`)
+      else if (byId.get(id).security === null) problems.push(`security table: ${id} has no Security line`)
+    }
+    for (const name of row.tests)
+      if (!goSources.some((source) => hasTest(source, name))) problems.push(`security table: no Go test ${name}`)
+  }
+  for (const requirement of requirements)
+    for (const [, id] of (requirement.security ?? '').matchAll(REQUIREMENT_LINK))
+      if (!byId.has(id)) problems.push(`${requirement.id}: its Security line links ${id}, which is no requirement`)
+  return problems
 }
 
 // check returns the list of problems; none means the specs conform.
@@ -155,16 +193,11 @@ function checkReference(owner, ref, { tests, goFiles }) {
   if (ref.kind === 'go') {
     const text = goFiles[ref.file]
     if (text === undefined) return [`${owner}: ${ref.file} does not exist`]
-    return new RegExp(`func ${ref.name}\\w*\\(`).test(text) ? [] : [`${owner}: ${ref.file} has no test ${ref.name}`]
+    return hasTest(text, ref.name) ? [] : [`${owner}: ${ref.file} has no test ${ref.name}`]
   }
   const matching = tests.filter((test) => test.file === ref.file && matchesName(ref.name, test.name))
   if (matching.length === 0) return [`${owner}: ${ref.file} has no test named "${ref.name}"`]
   return matching.filter((test) => !test.ok).map((test) => `${owner}: ${ref.file} "${test.name}" fails`)
-}
-
-export function checkTestCount(stated, actual) {
-  if (stated === null) return []
-  return stated === actual ? [] : [`the reading guide states ${stated} contract tests and the mod has ${actual}`]
 }
 
 export function loadGoFiles(repo, requirements) {
@@ -177,4 +210,18 @@ export function loadGoFiles(repo, requirements) {
     }
   }
   return files
+}
+
+// loadGoTests: the text of every Go test file under internal/, for the names the security table cites.
+export function loadGoTests(repo) {
+  const sources = []
+  const visit = (directory) => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const full = path.join(directory, entry.name)
+      if (entry.isDirectory()) visit(full)
+      else if (entry.name.endsWith('_test.go')) sources.push(fs.readFileSync(full, 'utf8'))
+    }
+  }
+  visit(path.join(repo, 'internal'))
+  return sources
 }

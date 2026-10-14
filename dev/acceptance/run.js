@@ -8,7 +8,13 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { extractScenarios, selectScenarios, writeFeatures, PRODUCT_SPEC, TECHNICAL_SPEC } from './lib/extract.js'
+import {
+  extractScenarios,
+  productScenarios,
+  selectScenarios,
+  technicalSpecFiles,
+  writeFeatures,
+} from './lib/extract.js'
 import { parseArgs } from './lib/args.js'
 import { secretValues } from './lib/creds.js'
 import { formatReport, passed } from './lib/report.js'
@@ -25,7 +31,7 @@ const SUPPORT = [path.join(ROOT, 'steps', 'index.js'), path.join(ROOT, 'support'
 async function main(argv) {
   const { dryRun, filter } = parseArgs(argv)
   const technical = filter.startsWith('793d')
-  const all = technical ? extractScenarios(TECHNICAL_SPEC, { idPrefix: '793d17' }) : extractScenarios(PRODUCT_SPEC)
+  const all = technical ? extractScenarios(technicalSpecFiles(), { idPrefix: '793d17' }) : productScenarios()
   const selected = selectScenarios(all, filter)
   if (selected.length === 0) {
     console.error(`no scenario ID starts with "${filter}" (${all.length} scenarios in the spec)`)

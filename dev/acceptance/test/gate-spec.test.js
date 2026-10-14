@@ -6,11 +6,12 @@ import test from 'node:test'
 import {
   check,
   checkRealizations,
+  checkSecurity,
   matchesName,
   parseSpec,
   realizations,
   references,
-  statedTestCount,
+  securityRows,
 } from '../gates/spec.js'
 
 test('a cited test name matches the start of a test name, with … standing for any text', () => {
@@ -35,26 +36,40 @@ test('a cited test name matches the start of a test name, with … standing for 
   )
 })
 
-test('the contract tests a Verified by line names are listed, Go test suffixes expanded', () => {
+test('the contract tests a Verified by line names are listed, a Go test by its exact function name', () => {
   const refs = references(
     [
       '`delivery.test.ts` "a relevant note…"',
-      '`internal/update/mods_test.go`: Test793e8e1a, 1b and 1f (Pi absent)',
-      '`internal/cli/update_mods_test.go`: Test793e8e3a',
+      '`internal/update/mods_test.go`: Test793d31b1_A, Test793d31b1_B (Pi absent)',
+      '`internal/cli/update_mods_test.go`: Test793d34b1_C',
     ].join('; '),
   )
   assert.deepEqual(refs, [
     { kind: 'mod', file: 'delivery.test.ts', name: 'a relevant note…' },
-    { kind: 'go', file: 'internal/update/mods_test.go', name: 'Test793e8e1a' },
-    { kind: 'go', file: 'internal/update/mods_test.go', name: 'Test793e8e1b' },
-    { kind: 'go', file: 'internal/update/mods_test.go', name: 'Test793e8e1f' },
-    { kind: 'go', file: 'internal/cli/update_mods_test.go', name: 'Test793e8e3a' },
+    { kind: 'go', file: 'internal/update/mods_test.go', name: 'Test793d31b1_A' },
+    { kind: 'go', file: 'internal/update/mods_test.go', name: 'Test793d31b1_B' },
+    { kind: 'go', file: 'internal/cli/update_mods_test.go', name: 'Test793d34b1_C' },
   ])
+})
+
+test('a Go test cited by the start of its name is not found: the name must be the function', () => {
+  const requirement = {
+    id: '793d22b1',
+    supports: ['793a1a1a'],
+    verifiedBy: '`internal/a_test.go`: Test793d22b1',
+    security: null,
+  }
+  const goFiles = { 'internal/a_test.go': 'func Test793d22b1_Longer(t *testing.T) {\n}\n' }
+  assert.deepEqual(check({ requirements: [requirement], productIds: ['793a1a1a'], tests: [], goFiles }), [
+    '793d22b1: internal/a_test.go has no test Test793d22b1',
+  ])
+  const exact = { ...requirement, verifiedBy: '`internal/a_test.go`: Test793d22b1_Longer' }
+  assert.deepEqual(check({ requirements: [exact], productIds: ['793a1a1a'], tests: [], goFiles }), [])
 })
 
 const SPEC = [
   '## 793d21 Intro',
-  'Requirement: 793d21x1 outside the range',
+  'Requirement: 793d21x1 in a section below 22.',
   '',
   '## 793d22 Mod',
   'Requirement: 793d22b1 The mod MUST.',
@@ -64,18 +79,19 @@ const SPEC = [
   'Supports: [793a1a1a One](x)',
 ].join('\n')
 
-test('the requirements of the component sections are read with their supports and verification', () => {
+test('every requirement is read, in any section, with its supports and verification', () => {
   const requirements = parseSpec(SPEC)
   assert.deepEqual(
     requirements.map((requirement) => requirement.id),
-    ['793d22b1', '793d22b2'],
+    ['793d21x1', '793d22b1', '793d22b2'],
   )
+  requirements.shift()
   assert.deepEqual(requirements[0].supports, ['793a1a1a', '793a1a1b'])
   assert.equal(requirements[1].verifiedBy, null)
 })
 
 test('the conformance check names a missing test, line, unknown scenario and unsupported scenario', () => {
-  const requirements = parseSpec(SPEC)
+  const requirements = parseSpec(SPEC).slice(1)
   const tests = [{ file: 'a.test.ts', name: 'g > does a thing today', ok: true }]
   const problems = check({ requirements, productIds: ['793a1a1a', '793a1a1c'], tests, goFiles: {} })
   assert.deepEqual(problems, [
@@ -123,7 +139,45 @@ test('a Realization line names files and names that must exist in the code', () 
   ])
 })
 
-test('the test count the reading guide states is read', () => {
-  assert.equal(statedTestCount('a file under tests/ (run by `claude plugin test`; 142 tests) with'), 142)
-  assert.equal(statedTestCount('no count here'), null)
+const TABLE = [
+  '| Mitigation | Requirement | Tests |',
+  '| --- | --- | --- |',
+  '| Data fenced | [793d25b2 Data and replies](#793d25b2-data-and-replies) | `Test793d19a_ATag`, `Test793d19a_Gone` |',
+  '| Nothing named | none | none |',
+].join('\n')
+
+test('the security table names requirements that carry a Security line, and tests that exist by exact name', () => {
+  const rows = securityRows(`text\n\n${TABLE}\n\nafter`)
+  assert.deepEqual(rows, [
+    { mitigation: 'Data fenced', requirements: ['793d25b2'], tests: ['Test793d19a_ATag', 'Test793d19a_Gone'] },
+    { mitigation: 'Nothing named', requirements: [], tests: [] },
+  ])
+  const requirements = [{ id: '793d25b2', security: null }]
+  const goSources = ['func Test793d19a_ATagImitation(t *testing.T) {}\nfunc Test793d19a_ATag(t *testing.T) {}']
+  assert.deepEqual(checkSecurity(rows, { requirements, goSources }), [
+    'security table: 793d25b2 has no Security line',
+    'security table: no Go test Test793d19a_Gone',
+    'security table: "Nothing named" names no requirement',
+    'security table: "Nothing named" names no test',
+  ])
+})
+
+test('a Security line links requirements that exist', () => {
+  const requirements = [
+    { id: '793d25b2', security: 'risk (1): [793d26b1 Credential shapes](#793d26b1-credential-shapes)' },
+  ]
+  assert.deepEqual(checkSecurity([], { requirements, goSources: [] }), [
+    '793d25b2: its Security line links 793d26b1, which is no requirement',
+  ])
+})
+
+test('a requirement ends at the next heading: a later section does not lend it its lines', () => {
+  const text = [
+    'Requirement: 793d22b1 The mod MUST.',
+    'Supports: [793a1a1a One](x)',
+    '',
+    '### 793d22c Orientation',
+    'Verified by: `a.test.ts` "belongs to nothing"',
+  ].join('\n')
+  assert.equal(parseSpec(text)[0].verifiedBy, null)
 })

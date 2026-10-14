@@ -10,7 +10,7 @@ import (
 	"github.com/toejough/engram/internal/update"
 )
 
-func Test793e8e3a_WriteUpdateReport_ListsTheModBesideTheSkillsItIsDeployedWith(t *testing.T) {
+func Test793d31b3_WriteUpdateReport_ListsTheModBesideTheSkillsItIsDeployedWith(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -40,7 +40,7 @@ func Test793e8e3a_WriteUpdateReport_ListsTheModBesideTheSkillsItIsDeployedWith(t
 	g.Expect(out).NotTo(ContainSubstring("mods:"), "no notice without a ModNotice")
 }
 
-func Test793e8e3b_WriteUpdateReport_ReportsWhyTheModMayNotRun(t *testing.T) {
+func Test793d31b3_WriteUpdateReport_ReportsWhyTheModMayNotRun(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)

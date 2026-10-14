@@ -6,10 +6,10 @@ import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import { extractScenarios, writeFeatures, PRODUCT_SPEC } from '../../lib/extract.js'
+import { changeDirectory, productScenarios, writeFeatures } from '../../lib/extract.js'
 import { checkVocabulary } from '../../lib/vocabulary.js'
 
-const PLAN = path.join(path.dirname(PRODUCT_SPEC), '793e_implementation-plan.md')
+const CHANGE = changeDirectory()
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 
@@ -18,7 +18,7 @@ test(
   async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vocabulary-test-'))
     try {
-      const features = writeFeatures(extractScenarios(PRODUCT_SPEC), dir)
+      const features = writeFeatures(productScenarios(), dir)
       const report = await checkVocabulary({ features, support: [path.join(ROOT, 'steps', 'index.js')], cwd: ROOT })
       assert.deepEqual(report.undefinedSteps, [])
       assert.deepEqual(report.ambiguousSteps, [])
@@ -31,8 +31,11 @@ test(
   },
 )
 
-test('the step catalog of the plan lists the same 27 definitions, numbered 1 to 27', () => {
-  const section = fs.readFileSync(PLAN, 'utf8').split('### 793e2i Step catalog')[1].split('## 793e3')[0]
+// the plan is a document of the change: it is deleted with the change directory at promotion
+const SKIP_WITHOUT_CHANGE = { skip: CHANGE === null }
+test('the step catalog of the plan lists the same 27 definitions, numbered 1 to 27', SKIP_WITHOUT_CHANGE, () => {
+  const plan = fs.readFileSync(path.join(CHANGE, '793e_implementation-plan.md'), 'utf8')
+  const section = plan.split('### 793e2i Step catalog')[1].split('## 793e3')[0]
   const numbers = [...section.matchAll(/^\| (\d+) \| (Given|When|Then) \|/gm)].map((match) => Number(match[1]))
   assert.deepEqual(
     numbers,

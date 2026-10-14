@@ -13,7 +13,30 @@ import (
 	"github.com/toejough/engram/internal/update"
 )
 
-func Test793e8e1a_PlanModCopies_ClaudeOnlyUnderItsSkillsDirectory(t *testing.T) {
+func Test793d31b1_HarnessSpecs_OnlyClaudeCodeTakesMods(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	fileSystem := newMemFS()
+	fileSystem.dirs[modsTestHome+"/.claude"] = true
+	fileSystem.dirs[modsTestHome+"/.pi"] = true
+
+	specs, err := update.ExportDetectHarnesses(modsTestHome, fileSystem)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(specs).To(HaveLen(2))
+
+	if len(specs) != 2 {
+		return
+	}
+
+	g.Expect(specs[0].Name).To(Equal(update.HarnessClaude))
+	g.Expect(specs[0].TakesMods).To(BeTrue())
+	g.Expect(specs[1].Name).To(Equal(update.HarnessPi))
+	g.Expect(specs[1].TakesMods).To(BeFalse())
+}
+
+func Test793d31b1_PlanModCopies_ClaudeOnlyUnderItsSkillsDirectory(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -47,19 +70,7 @@ func Test793e8e1a_PlanModCopies_ClaudeOnlyUnderItsSkillsDirectory(t *testing.T) 
 	g.Expect(ops[0].Dst).To(Equal(modsTestHome + "/.claude/skills/engram-memory/.claude-plugin/plugin.json"))
 }
 
-func Test793e8e1b_PlanModCopies_MissingSourcePlansNothing(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	harnesses := []update.HarnessSpec{{Name: update.HarnessClaude, SkillsTargetRel: ".claude/skills", TakesMods: true}}
-
-	ops, err := update.ExportPlanModCopies("/src/mods", modsTestHome, harnesses, newMemFS())
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(ops).To(BeEmpty())
-}
-
-func Test793e8e1c_PlanModCopies_ListingFailurePropagates(t *testing.T) {
+func Test793d31b1_PlanModCopies_ListingFailurePropagates(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -73,30 +84,44 @@ func Test793e8e1c_PlanModCopies_ListingFailurePropagates(t *testing.T) {
 	g.Expect(err).To(MatchError(wantErr))
 }
 
-func Test793e8e1d_HarnessSpecs_OnlyClaudeCodeTakesMods(t *testing.T) {
+func Test793d31b1_PlanModCopies_MissingSourcePlansNothing(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	fileSystem := newMemFS()
-	fileSystem.dirs[modsTestHome+"/.claude"] = true
-	fileSystem.dirs[modsTestHome+"/.pi"] = true
+	harnesses := []update.HarnessSpec{{Name: update.HarnessClaude, SkillsTargetRel: ".claude/skills", TakesMods: true}}
 
-	specs, err := update.ExportDetectHarnesses(modsTestHome, fileSystem)
+	ops, err := update.ExportPlanModCopies("/src/mods", modsTestHome, harnesses, newMemFS())
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(specs).To(HaveLen(2))
-
-	if len(specs) != 2 {
-		return
-	}
-
-	g.Expect(specs[0].Name).To(Equal(update.HarnessClaude))
-	g.Expect(specs[0].TakesMods).To(BeTrue())
-	g.Expect(specs[1].Name).To(Equal(update.HarnessPi))
-	g.Expect(specs[1].TakesMods).To(BeFalse())
+	g.Expect(ops).To(BeEmpty())
 }
 
-func Test793e8e1e_Run_DeploysTheModAsALinkedSkillsDirectoryPlugin(t *testing.T) {
+func Test793d31b2_Run_ARemovedModIsSyncDeletedWithItsLink(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	fileSystem := modsFixture(false)
+	updater := modsUpdater(fileSystem, &fakeCmd{})
+
+	_, firstErr := updater.Run(context.Background(), update.Options{})
+	g.Expect(firstErr).NotTo(HaveOccurred())
+
+	for path := range fileSystem.files {
+		if strings.HasPrefix(path, "/repo/agent-instructions/mods/") {
+			delete(fileSystem.files, path)
+		}
+	}
+
+	delete(fileSystem.dirs, "/repo/agent-instructions/mods")
+	delete(fileSystem.dirs, "/repo/agent-instructions/mods/engram-memory")
+
+	_, secondErr := updater.Run(context.Background(), update.Options{})
+	g.Expect(secondErr).NotTo(HaveOccurred())
+	g.Expect(touchedPaths(fileSystem, "engram-memory")).To(BeEmpty())
+}
+
+func Test793d31b2_Run_DeploysTheModAsALinkedSkillsDirectoryPlugin(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -124,99 +149,30 @@ func Test793e8e1e_Run_DeploysTheModAsALinkedSkillsDirectoryPlugin(t *testing.T) 
 	g.Expect(report.Harnesses[0].Err).NotTo(HaveOccurred())
 }
 
-func Test793e8e1f_Run_PiGetsNoModAndNoPiDirectoryIsCreated(t *testing.T) {
+func Test793d31b3_Run_ChecksTheVersionOncePerRunEvenInADryRun(t *testing.T) {
 	t.Parallel()
 
-	t.Run("Pi absent", func(t *testing.T) {
-		t.Parallel()
+	for _, dryRun := range []bool{false, true} {
+		t.Run(map[bool]string{false: "real run", true: "dry run"}[dryRun], func(t *testing.T) {
+			t.Parallel()
 
-		g := NewWithT(t)
+			g := NewWithT(t)
 
-		fileSystem := modsFixture(false)
-		_, err := modsUpdater(fileSystem, &fakeCmd{}).Run(context.Background(), update.Options{})
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(touchedPaths(fileSystem, "/.pi")).To(BeEmpty())
-	})
+			command := &fakeCmd{responses: map[string][]byte{"claude --version": []byte("2.1.296\n")}}
+			_, err := modsUpdater(modsFixture(true), command).Run(context.Background(), update.Options{DryRun: dryRun})
+			g.Expect(err).NotTo(HaveOccurred())
 
-	t.Run("Pi present", func(t *testing.T) {
-		t.Parallel()
-
-		g := NewWithT(t)
-
-		fileSystem := modsFixture(true)
-		report, err := modsUpdater(fileSystem, &fakeCmd{}).Run(context.Background(), update.Options{})
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(report.Harnesses).To(HaveLen(2))
-		g.Expect(touchedPaths(fileSystem, "engram-memory")).NotTo(BeEmpty())
-
-		for _, path := range touchedPaths(fileSystem, "engram-memory") {
-			g.Expect(path).NotTo(ContainSubstring("/.pi/"))
-		}
-
-		g.Expect(report.Harnesses[1].SkillDirs).NotTo(ContainElement(HaveField("Name", "engram-memory")))
-	})
+			g.Expect(claudeCalls(command)).To(HaveLen(1))
+		})
+	}
 }
 
-func Test793e8e1g_Run_DryRunWritesNothingAndStillReportsTheMod(t *testing.T) {
+func Test793d31b3_Run_NoModInTheSourceMeansNoVersionCheck(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
 	fileSystem := modsFixture(false)
-	before := stateOf(fileSystem)
-	updater := modsUpdater(fileSystem, &fakeCmd{})
-
-	report, err := updater.Run(context.Background(), update.Options{DryRun: true})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(fileSystem.written).To(BeEmpty())
-	g.Expect(fileSystem.symlinks).To(BeEmpty())
-	g.Expect(fileSystem.removed).To(BeEmpty())
-	g.Expect(stateOf(fileSystem)).To(Equal(before))
-	g.Expect(report.Harnesses).To(HaveLen(1))
-
-	if len(report.Harnesses) == 1 {
-		g.Expect(report.Harnesses[0].SkillDirs).To(ContainElement(modDirCount))
-	}
-}
-
-func Test793e8e1h_Run_SecondRunChangesNothing(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	fileSystem := modsFixture(true)
-	updater := modsUpdater(fileSystem, &fakeCmd{})
-
-	_, firstErr := updater.Run(context.Background(), update.Options{})
-	g.Expect(firstErr).NotTo(HaveOccurred())
-
-	afterFirst := stateOf(fileSystem)
-	removedAfterFirst := len(fileSystem.removed)
-
-	report, secondErr := updater.Run(context.Background(), update.Options{})
-	g.Expect(secondErr).NotTo(HaveOccurred())
-	g.Expect(stateOf(fileSystem)).To(Equal(afterFirst))
-	g.Expect(fileSystem.removed).To(HaveLen(removedAfterFirst))
-
-	for _, harness := range report.Harnesses {
-		g.Expect(harness.Err).NotTo(HaveOccurred())
-		g.Expect(harness.EngramSyncDeleted).To(BeEmpty())
-		g.Expect(harness.EngramAdopted).To(BeEmpty())
-		g.Expect(harness.DanglingLinksRemoved).To(BeEmpty())
-	}
-}
-
-func Test793e8e1i_Run_ARemovedModIsSyncDeletedWithItsLink(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	fileSystem := modsFixture(false)
-	updater := modsUpdater(fileSystem, &fakeCmd{})
-
-	_, firstErr := updater.Run(context.Background(), update.Options{})
-	g.Expect(firstErr).NotTo(HaveOccurred())
-
 	for path := range fileSystem.files {
 		if strings.HasPrefix(path, "/repo/agent-instructions/mods/") {
 			delete(fileSystem.files, path)
@@ -226,12 +182,19 @@ func Test793e8e1i_Run_ARemovedModIsSyncDeletedWithItsLink(t *testing.T) {
 	delete(fileSystem.dirs, "/repo/agent-instructions/mods")
 	delete(fileSystem.dirs, "/repo/agent-instructions/mods/engram-memory")
 
-	_, secondErr := updater.Run(context.Background(), update.Options{})
-	g.Expect(secondErr).NotTo(HaveOccurred())
+	command := &fakeCmd{}
+
+	report, err := modsUpdater(fileSystem, command).Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(claudeCalls(command)).To(BeEmpty())
 	g.Expect(touchedPaths(fileSystem, "engram-memory")).To(BeEmpty())
+
+	if len(report.Harnesses) == 1 {
+		g.Expect(report.Harnesses[0].ModNotice).To(BeEmpty())
+	}
 }
 
-func Test793e8e2a_Run_ReportsWhenClaudeCodeCannotLoadMods(t *testing.T) {
+func Test793d31b3_Run_ReportsWhenClaudeCodeCannotLoadMods(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -287,48 +250,85 @@ func Test793e8e2a_Run_ReportsWhenClaudeCodeCannotLoadMods(t *testing.T) {
 	}
 }
 
-func Test793e8e2b_Run_ChecksTheVersionOncePerRunEvenInADryRun(t *testing.T) {
-	t.Parallel()
-
-	for _, dryRun := range []bool{false, true} {
-		t.Run(map[bool]string{false: "real run", true: "dry run"}[dryRun], func(t *testing.T) {
-			t.Parallel()
-
-			g := NewWithT(t)
-
-			command := &fakeCmd{responses: map[string][]byte{"claude --version": []byte("2.1.296\n")}}
-			_, err := modsUpdater(modsFixture(true), command).Run(context.Background(), update.Options{DryRun: dryRun})
-			g.Expect(err).NotTo(HaveOccurred())
-
-			g.Expect(claudeCalls(command)).To(HaveLen(1))
-		})
-	}
-}
-
-func Test793e8e2c_Run_NoModInTheSourceMeansNoVersionCheck(t *testing.T) {
+func Test793d34b1_Run_DryRunWritesNothingAndStillReportsTheMod(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
 	fileSystem := modsFixture(false)
-	for path := range fileSystem.files {
-		if strings.HasPrefix(path, "/repo/agent-instructions/mods/") {
-			delete(fileSystem.files, path)
-		}
-	}
+	before := stateOf(fileSystem)
+	updater := modsUpdater(fileSystem, &fakeCmd{})
 
-	delete(fileSystem.dirs, "/repo/agent-instructions/mods")
-	delete(fileSystem.dirs, "/repo/agent-instructions/mods/engram-memory")
-
-	command := &fakeCmd{}
-
-	report, err := modsUpdater(fileSystem, command).Run(context.Background(), update.Options{})
+	report, err := updater.Run(context.Background(), update.Options{DryRun: true})
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(claudeCalls(command)).To(BeEmpty())
-	g.Expect(touchedPaths(fileSystem, "engram-memory")).To(BeEmpty())
+	g.Expect(fileSystem.written).To(BeEmpty())
+	g.Expect(fileSystem.symlinks).To(BeEmpty())
+	g.Expect(fileSystem.removed).To(BeEmpty())
+	g.Expect(stateOf(fileSystem)).To(Equal(before))
+	g.Expect(report.Harnesses).To(HaveLen(1))
 
 	if len(report.Harnesses) == 1 {
-		g.Expect(report.Harnesses[0].ModNotice).To(BeEmpty())
+		g.Expect(report.Harnesses[0].SkillDirs).To(ContainElement(modDirCount))
+	}
+}
+
+func Test793d34b1_Run_PiGetsNoModAndNoPiDirectoryIsCreated(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Pi absent", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+
+		fileSystem := modsFixture(false)
+		_, err := modsUpdater(fileSystem, &fakeCmd{}).Run(context.Background(), update.Options{})
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(touchedPaths(fileSystem, "/.pi")).To(BeEmpty())
+	})
+
+	t.Run("Pi present", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+
+		fileSystem := modsFixture(true)
+		report, err := modsUpdater(fileSystem, &fakeCmd{}).Run(context.Background(), update.Options{})
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(report.Harnesses).To(HaveLen(2))
+		g.Expect(touchedPaths(fileSystem, "engram-memory")).NotTo(BeEmpty())
+
+		for _, path := range touchedPaths(fileSystem, "engram-memory") {
+			g.Expect(path).NotTo(ContainSubstring("/.pi/"))
+		}
+
+		g.Expect(report.Harnesses[1].SkillDirs).NotTo(ContainElement(HaveField("Name", "engram-memory")))
+	})
+}
+
+func Test793d34b1_Run_SecondRunChangesNothing(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	fileSystem := modsFixture(true)
+	updater := modsUpdater(fileSystem, &fakeCmd{})
+
+	_, firstErr := updater.Run(context.Background(), update.Options{})
+	g.Expect(firstErr).NotTo(HaveOccurred())
+
+	afterFirst := stateOf(fileSystem)
+	removedAfterFirst := len(fileSystem.removed)
+
+	report, secondErr := updater.Run(context.Background(), update.Options{})
+	g.Expect(secondErr).NotTo(HaveOccurred())
+	g.Expect(stateOf(fileSystem)).To(Equal(afterFirst))
+	g.Expect(fileSystem.removed).To(HaveLen(removedAfterFirst))
+
+	for _, harness := range report.Harnesses {
+		g.Expect(harness.Err).NotTo(HaveOccurred())
+		g.Expect(harness.EngramSyncDeleted).To(BeEmpty())
+		g.Expect(harness.EngramAdopted).To(BeEmpty())
+		g.Expect(harness.DanglingLinksRemoved).To(BeEmpty())
 	}
 }
 

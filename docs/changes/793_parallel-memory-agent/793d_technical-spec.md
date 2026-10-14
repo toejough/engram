@@ -234,17 +234,17 @@ The mitigations above are each held by a requirement that carries a `Security` l
 
 | Mitigation | Requirement | Tests |
 | --- | --- | --- |
-| Speakers from the role of a message; one line a message; a tool's input and result never in a [window](#793d1b-terms) | [793d27b1 Windows](#793d27b1-windows) | `Test793d19a_ASpeakerIsKnownByTheRole`, `Test793d19a_WhatAToolTookIn`, `Test793d27b1_NoLineBreakOfAnyKind`, `Test793d27b1_NoTextOfAnyMessage` |
-| A [backlog source](#793d1b-terms) read by the roles of its rows | [793d28b2 Reading and windows](#793d28b2-reading-and-windows) | `Test793d19a_ABacklogSourceIsReadByTheRoles` |
-| Data fenced: placeholders filled in one pass, the tags of a prompt broken in any form | [793d25b2 Data and replies](#793d25b2-data-and-replies) | `Test793d19a_ATagImitation`, `Test793d19a_APlaceholder`, `Test793d19a_TheWindowCannotCloseTheTag`, `Test793d19a_TextThatImitatesThePromptsTags`, `Test793d19a_AnOfferOrANoteThatHoldsTheTags` |
-| Replies read strictly, with types, ranges and no duplicate key | [793d25b3 Result shapes](#793d25b3-result-shapes) | `Test793d25b3_`, `Test793d19a_ADuplicateKey` |
-| Redaction before the cut, in every shape listed, on the [queue file](#793d1b-terms) too | [793d26b1 Credential shapes](#793d26b1-credential-shapes), [793d37b1 Entries](#793d37b1-entries) | `Test793d26b1_`, `Test793d19a_ASecretInAnOffer`, `Test793d37b1_ATurnIsRedactedBeforeItIsWrittenToDisk` |
-| A result names a [nearest note](#793d1b-terms) only by its number; a [note](./793a_product-spec.md#793a1-problem-statement) name is checked before it reaches a command or a [block](#793d1b-terms) | [793d29b2 Outcomes and guards](#793d29b2-outcomes-and-guards), [793d24b3 Block](#793d24b3-block), [793d29b1 Offers to settle](#793d29b1-offers-to-settle) | `Test793d29b2_`, `Test793d24b3_ANoteWhoseNameIsNotANoteName`, `Test793d19a_TheNoteAnOfferIsFor` |
-| `--expect-hash` read from `engram show`; free text as `--flag=value` | [793d29b2 Outcomes and guards](#793d29b2-outcomes-and-guards), [793d24b1 Lookup and selection](#793d24b1-lookup-and-selection) | `Test793d29b2_AnExchangeHashIsReadFromTheHeader`, `Test793d19a_AnOfferWhoseSituationStartsWithADash`, `Test793d24b1_FreeTextThatStartsWithADash` |
-| Delivered [notes](./793a_product-spec.md#793a1-problem-statement) framed as data, one line each | [793d24b3 Block](#793d24b3-block) | `Test793d24b3_ADeliveredNoteIsFramedAsData` |
-| A folded offer is discarded into its [note](./793a_product-spec.md#793a1-problem-statement), never deleted | [793d29b2 Outcomes and guards](#793d29b2-outcomes-and-guards) | `Test793d19a_AnOfferJudgedCoveredNearOrRejected` |
-| The activity line from constants and counts only | [793d30b2 Warnings and surface](#793d30b2-warnings-and-surface) | `Test793d30b2_OnlyConstantsAndCounts` |
-| A provenance line on every automatic [note](./793a_product-spec.md#793a1-problem-statement), the near fold included | [793d27b2 Reconciliation, writes and provenance](#793d27b2-reconciliation-writes-and-provenance), [793d38b1 Amend provenance](#793d38b1-amend-provenance) | `Test793d19a_ANoteFromATurnOrASubagent`, `Test793d38b1_` in `internal/cli` |
+| Speakers from the role of a message; one line a message; a tool's input and result never in a [window](#793d1b-terms) | [793d27b1 Windows](#793d27b1-windows) | `Test793d19a_ASpeakerIsKnownByTheRoleOfTheMessageNotByALabelInItsText`, `Test793d19a_WhatAToolTookInOrGaveBackNeverEntersTheWindowOnlyTheNameOfTheTool`, `Test793d27b1_NoLineBreakOfAnyKindLetsAMessageStartALineOfItsOwn`, `Test793d27b1_NoTextOfAnyMessageAnswerOrSubagentStartsALineOfItsOwn` |
+| A [backlog source](#793d1b-terms) read by the roles of its rows | [793d28b2 Reading and windows](#793d28b2-reading-and-windows) | `Test793d19a_ABacklogSourceIsReadByTheRolesOfItsRowsAndItsTextCannotPoseAsStructure` |
+| Data fenced: placeholders filled in one pass, the tags of a prompt broken in any form | [793d25b2 Data and replies](#793d25b2-data-and-replies) | `Test793d19a_ATagImitationOfAnyBracketSpacingOrCaseIsBrokenInEveryPrompt`, `Test793d19a_APlaceholderInAnOfferIsNotFilledWithTheNearestNotes`, `Test793d19a_APlaceholderInTheTextOfAMomentIsNotFilledWithTheCandidates`, `Test793d19a_APlaceholderInTheWindowIsNotFilledWithTheNearestNotes`, `Test793d19a_TheWindowCannotCloseTheTagItSitsIn`, `Test793d19a_TextThatImitatesThePromptsTagsCannotCloseOrOpenThemInTheWindowOrInANote`, `Test793d19a_AnOfferOrANoteThatHoldsTheTagsOfThePromptCannotCloseOrOpenASection` |
+| Replies read strictly, with types, ranges and no duplicate key | [793d25b3 Result shapes](#793d25b3-result-shapes) | `Test793d25b3_OnlyExactlyOneJSONDocumentIsAReply`, `Test793d25b3_AReplyIsReadStrictlyAndAnythingElseWritesNothing`, `Test793d19a_ADuplicateKeyIsAnErrorWhereverItIsInAReply` |
+| Redaction before the cut, in every shape listed, on the [queue file](#793d1b-terms) too | [793d26b1 Credential shapes](#793d26b1-credential-shapes), [793d37b1 Entries](#793d37b1-entries) | `Test793d26b1_ASecretOfAKnownShapeNeverReachesTheModelTheCommandLineOrANote`, `Test793d26b1_ASecretInTheWindowNeverReachesTheJudgement`, `Test793d19a_ASecretInAnOfferNeverReachesTheJudgement`, `Test793d37b1_ATurnIsRedactedBeforeItIsWrittenToDisk` |
+| A result names a [nearest note](#793d1b-terms) only by its number; a [note](./793a_product-spec.md#793a1-problem-statement) name is checked before it reaches a command or a [block](#793d1b-terms) | [793d29b2 Outcomes and guards](#793d29b2-outcomes-and-guards), [793d24b3 Block](#793d24b3-block), [793d29b1 Offers to settle](#793d29b1-offers-to-settle) | `Test793d29b2_AnOfferIsSettledByTheOutcomeTheJudgementGave`, `Test793d29b2_AnOutcomeSettlesWithTheCommandsOfCurate`, `Test793d24b3_ANoteWhoseNameIsNotANoteNameIsNeverDeliveredOrNamedInACommand`, `Test793d19a_TheNoteAnOfferIsForIsCheckedAsANoteNameBeforeItIsShownOrAmended` |
+| `--expect-hash` read from `engram show`; free text as `--flag=value` | [793d29b2 Outcomes and guards](#793d29b2-outcomes-and-guards), [793d24b1 Lookup and selection](#793d24b1-lookup-and-selection) | `Test793d29b2_AnExchangeHashIsReadFromTheHeaderOfShowNotFromALineOfTheNote`, `Test793d19a_AnOfferWhoseSituationStartsWithADashIsLookedUpAsAValue`, `Test793d24b1_FreeTextThatStartsWithADashIsAValueOfItsFlagNeverAFlag` |
+| Delivered [notes](./793a_product-spec.md#793a1-problem-statement) framed as data, one line each | [793d24b3 Block](#793d24b3-block) | `Test793d24b3_ADeliveredNoteIsFramedAsDataOneLineEachAndNoneIsImitated` |
+| A folded offer is discarded into its [note](./793a_product-spec.md#793a1-problem-statement), never deleted | [793d29b2 Outcomes and guards](#793d29b2-outcomes-and-guards) | `Test793d19a_AnOfferJudgedCoveredNearOrRejectedIsFoldedOrDiscardedAndOnlyRejectedIsDiscardedOutright` |
+| The activity line from constants and counts only | [793d30b2 Warnings and surface](#793d30b2-warnings-and-surface) | `Test793d30b2_OnlyConstantsAndCountsReachTheLineNothingANoteAnOfferOrALessonSays` |
+| A provenance line on every automatic [note](./793a_product-spec.md#793a1-problem-statement), the near fold included | [793d27b2 Reconciliation, writes and provenance](#793d27b2-reconciliation-writes-and-provenance), [793d38b1 Amend provenance](#793d38b1-amend-provenance) | `Test793d19a_ANoteFromATurnOrASubagentSaysItWasWrittenAutomatically`, `Test793d38b1_AmendSourceAppendsAProvenanceLineToTheSourceOfAnyKindOfNote` |
 
 ## 793d20 Traceability to the product spec
 
@@ -304,7 +304,7 @@ Canonical targets: the component and flow files named in [793d22 Memory Mod](#79
 
 This is the technical specification of the [System](./793a_product-spec.md#793a1-problem-statement) as the refactored system builds it, written from its code and tests ([793b402 The component and flow specs are written from the refactored system](./793b_decision-log.md#793b402-the-component-and-flow-specs-are-written-from-the-refactored-system)): the Go engine behind `engram auto run` (`internal/auto`), the thin [mod](#793d1b-terms) `agent-instructions/mods/engram-memory`, and the deploy in `internal/update`. What is not built is marked `Gap` or listed in [793d35c Gaps and what is not built](#793d35c-gaps-and-what-is-not-built). It reuses unchanged [Query Engine](../../specs/technical/query-engine.md), [Note Authoring](../../specs/technical/note-authoring.md), [Ingestion Source Discovery](../../specs/technical/ingestion-source-discovery.md), [Command Line Surface](../../specs/technical/command-line-surface.md), [Vault Write Lock](../../specs/technical/vault-write-lock.md) (held by learn and amend, which is how the System coexists with intentional ingestion) and [Self Installer](../../specs/technical/self-installer.md), and extends [Harness Deploy Sync](../../specs/technical/harness-deploy-sync.md) in [793d31 Harness Deploy Sync (mod additions)](#793d31-harness-deploy-sync-mod-additions) and [Note Amendment](../../specs/technical/note-amendment.md) in [793d38 Note Amendment (additions)](#793d38-note-amendment-additions).
 
-Reading guide. `Verified by` names contract tests: a file under `agent-instructions/mods/engram-memory/tests/` (run by `claude plugin test`; 23 tests) with the start of a test's name, or a Go test with the start of its name. The [mod](#793d1b-terms) is an adapter ([793b368 Within reason the logic moves to Go and the mod becomes a thin adapter](./793b_decision-log.md#793b368-within-reason-the-logic-moves-to-go-and-the-mod-becomes-a-thin-adapter)): its tests register it with the engine scripted. The Go tests run each [job](#793d1b-terms) through `Run` in a fake world of commands, files, environment and clock, with the model played by a function of the request ([793b359 Flows carry one interaction requirement per calling owner, component tests drive the mod's event interface, and what is not built is marked](./793b_decision-log.md#793b359-flows-carry-one-interaction-requirement-per-calling-owner-component-tests-drive-the-mods-event-interface-and-what-is-not-built-is-marked)). Each product scenario ID is a `targ acceptance` row. `targ check-spec-conformance`, in `check-full`, fails when a requirement lacks `Supports` or `Verified by`, a cited test is absent or fails, a product scenario is unsupported, or a `Realization` names absent code.
+Reading guide. `Verified by` names contract tests: a file under `agent-instructions/mods/engram-memory/tests/` (run by `claude plugin test`) with the start of a test's name, or a Go test with its exact function name. The [mod](#793d1b-terms) is an adapter ([793b368 Within reason the logic moves to Go and the mod becomes a thin adapter](./793b_decision-log.md#793b368-within-reason-the-logic-moves-to-go-and-the-mod-becomes-a-thin-adapter)): its tests register it with the engine scripted. The Go tests run each [job](#793d1b-terms) through `Run` in a fake world of commands, files, environment and clock, with the model played by a function of the request ([793b359 Flows carry one interaction requirement per calling owner, component tests drive the mod's event interface, and what is not built is marked](./793b_decision-log.md#793b359-flows-carry-one-interaction-requirement-per-calling-owner-component-tests-drive-the-mods-event-interface-and-what-is-not-built-is-marked)). Each product scenario ID is a `targ acceptance` row. `targ check-spec-conformance`, in `check-full`, fails when a requirement lacks `Supports` or `Verified by`, a cited test is absent or fails, a product scenario is unsupported, or a `Realization` names absent code.
 
 Components, each with one owner ([793b358 The components that qualify and the candidates that fail](./793b_decision-log.md#793b358-the-components-that-qualify-and-the-candidates-that-fail), [793b402 The component and flow specs are written from the refactored system](./793b_decision-log.md#793b402-the-component-and-flow-specs-are-written-from-the-refactored-system)): [793d22 Memory Mod](#793d22-memory-mod), [793d36 Job Runner](#793d36-job-runner), [793d23 Moment Detection](#793d23-moment-detection), [793d24 Memory Delivery](#793d24-memory-delivery), [793d25 Judgement Relay](#793d25-judgement-relay), [793d26 Secret Redaction](#793d26-secret-redaction), [793d27 Auto Capture](#793d27-auto-capture), [793d37 Capture Queue](#793d37-capture-queue), [793d28 Backlog Capture](#793d28-backlog-capture), [793d29 Auto Curation](#793d29-auto-curation), [793d38 Note Amendment (additions)](#793d38-note-amendment-additions), [793d30 Activity Report](#793d30-activity-report) and [793d31 Harness Deploy Sync (mod additions)](#793d31-harness-deploy-sync-mod-additions). Flows: [793d32 Moment Delivery Flow](#793d32-moment-delivery-flow), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow) and [793d34 Mod Install Flow](#793d34-mod-install-flow). Folded into an owner: the [delivery](./793a_product-spec.md#793a1-problem-statement) channels (the Memory Mod's), the [ledger](#793d1b-terms) (Memory Delivery's), failure classification and the housekeeping [job](#793d1b-terms) (the Job Runner's), the [judgement](#793d1b-terms) kinds (the Judgement Relay's), the [mark file](#793d1b-terms) (Backlog Capture's), the harness-only seam log (fails necessity) and the `claude --version` check (a boundary of Harness Deploy Sync).
 
@@ -424,7 +424,7 @@ Requirement: 793d36b1 Given a [job](#793d1b-terms) as JSON (a kind of lookup, st
 
 Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios)
 
-Verified by: `internal/auto/protocol_test.go`: Test793d36b1; `internal/cli/auto_test.go`: Test793d36b1
+Verified by: `internal/auto/protocol_test.go`: Test793d36b1_TheResponseHasTheNamesTheModReads; `internal/cli/auto_test.go`: Test793d36b1_AutoEnvAndClockReadTheInjectedCapabilities, Test793d36b1_AutoFilesReadWriteWalkAndTellWhatIsThere, Test793d36b1_AutoRunIsATargetOfTheCommand, Test793d36b1_AutoRunPrintsTheResponseOfAJob, Test793d36b1_AutoRunRefusesAJobItCannotRead
 
 ##### 793d36b1a Scenarios
 
@@ -442,7 +442,7 @@ Requirement: 793d36b2 The Job Runner MUST replay a [job](#793d1b-terms) from its
 
 Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios)
 
-Verified by: `internal/auto/protocol_test.go`: Test793d36b2
+Verified by: `internal/auto/protocol_test.go`: Test793d36b2_AJobWhoseRequestChangedBetweenItsRoundsFailsAndDeliversNothing, Test793d36b2_ARoundAnswersFromTheRecordWhatAnEarlierRoundDid, Test793d36b2_AnEffectIsPerformedOnceWhateverTheNumberOfRounds
 
 
 ##### 793d36b2a Scenarios
@@ -460,7 +460,7 @@ Requirement: 793d36b3 The Job Runner MUST contain the failure of every step of a
 
 Supports: [793a4b1a Vault unavailable](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1c No error reaches the agent and the user is warned](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1e No warning when nothing matched](./793a_product-spec.md#793a4b1-uat-scenarios)
 
-Verified by: `internal/auto/failure_test.go`: Test793d36b3; `internal/auto/moment_test.go`: Test793d36b3; `internal/auto/perf_test.go`: Test793d36b3; `internal/cli/auto_test.go`: Test793d36b3
+Verified by: `internal/auto/failure_test.go`: Test793d36b3_AFailedStepIsContainedAndTheUserIsWarnedOfItsClass, Test793d36b3_AFailingBacklogStepIsWarnedAboutNamingTheStep, Test793d36b3_AFailingIndexAndAFailingScanEachWarnNamingTheStepAndTheQueueGoesOn, Test793d36b3_AFailingJobDoesNotStopTheNextJob, Test793d36b3_ALookupThatFindsNothingIsNotAFailure, Test793d36b3_ARelevanceJudgementThatIsCutIsATimeoutAndOneTheProviderRefusedIsAnErrorNeitherDelivers, Test793d36b3_AnUnparseableRelevanceJudgementIsAnErrorAndDeliversNothing, Test793d36b3_TheClassOfAFailureIsWhatTheTextOfTheCommandSays, Test793d36b3_TheWarningIsInTheWarningsAndNeverInWhatTheJobDelivers; `internal/auto/moment_test.go`: Test793d36b3_ACommandThatPassesItsDeadlineWarnsThatTheSystemTimedOut, Test793d36b3_AFailingClassificationWarnsDeliversNothingAndLetsTheSessionGoOn, Test793d36b3_AFailingLookupOfRouteDeliversNothingAndWarns, Test793d36b3_AFailingQueryLeavesThePromptAsTypedAndWarns, Test793d36b3_AJobOfAnUnknownKindAndAJobThatCannotBeReadAreErrors, Test793d36b3_AJudgementThatIsUnansweredWarnsAndDeliversNothing, Test793d36b3_AQueryOutputThatIsNotAQueryIsAnErrorNeverAnEmptyResult, Test793d36b3_TheLookupAndTheRelevanceJudgementHoldThePromptEightSecondsAtMost; `internal/auto/perf_test.go`: Test793d36b3_APromptAtThe95thPercentileStillGetsItsNoteWithinTheHoldCeiling; `internal/cli/auto_test.go`: Test793d36b3_AutoRunClassifiesTheFailureOfACommandByWhatItLeft, Test793d36b3_AutoRunCutsACommandAtItsDeadline
 
 ##### 793d36b3a Scenarios
 
@@ -492,7 +492,7 @@ Requirement: 793d23b1 [Moment](./793a_product-spec.md#793a1-problem-statement) D
 
 Supports: [793a2n1g A subagent receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1h A prompt from any source receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1i Please's orientation receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1j Tier evidence is delivered before a dispatch is routed](./793a_product-spec.md#793a2n1-uat-scenarios)
 
-Verified by: `internal/auto/moment_test.go`: Test793d23b1; `wiring.test.ts` "the result of a tool carries…"; `wiring.test.ts` "a subagent gets nothing…"
+Verified by: `internal/auto/moment_test.go`: Test793d23b1_ATaskNotificationIsLookedUpByItsSummaryNotItsMarkup, Test793d23b1_TheResultOfRouteIsDeliveredWithItsOwnLookupAndAHeldStepNoteWaitsForALaterResult, Test793d23b1_TheResultOfRouteIsDeliveredWithItsOwnLookupAndNoOtherToolIsLookedUp; `wiring.test.ts` "the result of a tool carries…"; `wiring.test.ts` "a subagent gets nothing…"
 
 Gap: the origins of a prompt other than the SDK's are exercised only by the acceptance row [793a2n1h A prompt from any source receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios).
 
@@ -512,7 +512,7 @@ Requirement: 793d23b2 After a top-level step that called a tool, [Moment](./793a
 
 Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2e1c Note the agent retrieved itself is not delivered](./793a_product-spec.md#793a2e1-uat-scenarios), [793a5k1c An intentional recall by the agent is allowed](./793a_product-spec.md#793a5k1-uat-scenarios), [793a5k1e An intentional engram query by the agent is allowed](./793a_product-spec.md#793a5k1-uat-scenarios)
 
-Verified by: `internal/auto/moment_test.go`: Test793d23b2; `wiring.test.ts` "a step that called a tool…"; `wiring.test.ts` "no job is started…"; `wiring.test.ts` "the next tool result waits…"
+Verified by: `internal/auto/moment_test.go`: Test793d23b2_AClassificationIsReadStrictly, Test793d23b2_AClassificationThatNamesNoMomentMakesNoQueryAndDeliversNothing, Test793d23b2_AStepThatRunsMemoryItselfStartsNoJob, Test793d23b2_AStepWithTextAndAToolCallIsClassifiedOnceAndItsNoteRidesTheNextToolResult, Test793d23b2_ATurnThatBeganWithAMemoryCommandStartsNoJob, Test793d23b2_TextThatImitatesThePromptsOwnTagsCannotCloseTheSectionItSitsIn, Test793d23b2_TheRecentTextsReachTheClassificationRedactedAndTheToolResultsNeverDo; `wiring.test.ts` "a step that called a tool…"; `wiring.test.ts` "no job is started…"; `wiring.test.ts` "the next tool result waits…"
 
 Security: [793d19a Security](#793d19a-security), risk (1): the recent texts are redacted and fenced.
 
@@ -543,7 +543,9 @@ Requirement: 793d24b1 For a [moment](./793a_product-spec.md#793a1-problem-statem
 
 Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1e No result, nothing delivered](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1h A prompt from any source receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios)
 
-Verified by: `internal/auto/moment_test.go`: Test793d24b1
+Verified by: `internal/auto/moment_test.go`: Test793d24b1_AJudgementThatSelectsNothingDeliversNothing, Test793d24b1_ALookupSaysInTheDebugLogHowManyCandidatesItFoundAndDelivered, Test793d24b1_ARelevanceReplyIsReadStrictly, Test793d24b1_ARelevantNoteRidesThePromptWithTheApplyInstructionAfterTheQueryAndOneJudgement, Test793d24b1_FreeTextThatStartsWithADashIsAValueOfItsFlagNeverAFlag, Test793d24b1_NothingRelevantIsNothingDeliveredAndAQueryWithNoResultMakesNoJudgement
+
+Security: [793d19a Security](#793d19a-security), mitigation: free text reaches a command only as `--flag=value`, so a query that starts with a dash is a value.
 
 ##### 793d24b1a Scenarios
 
@@ -565,7 +567,7 @@ Requirement: 793d24b2 Memory Delivery MUST NOT deliver a [note](./793a_product-s
 
 Supports: [793a2e1a Note delivered earlier is not delivered again](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1c Note the agent retrieved itself is not delivered](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1d A parent's note is still delivered to a subagent](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1e A note removed by compaction can be delivered again](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1g A resumed session's restored content counts as present](./793a_product-spec.md#793a2e1-uat-scenarios)
 
-Verified by: `internal/auto/moment_test.go`: Test793d24b2; `internal/auto/compaction_test.go`: Test793d24b2; `wiring.test.ts` "names the subagent…"
+Verified by: `internal/auto/moment_test.go`: Test793d24b2_ACompactionDoesNotEmptyTheLedgerOfASubagent, Test793d24b2_ANoteAToolResultShowedIsNotLookedUpByALaterStep, Test793d24b2_ANoteDeliveredOnceIsNotDeliveredAgainInTheSameSession, Test793d24b2_ANoteThatEnteredTheLedgerWhileTheStepJobRanIsNotDelivered, Test793d24b2_ANoteTheAgentAlreadyHoldsIsNotLookedUpAgainAndANoteIsDeliveredOnce, Test793d24b2_ANoteTheContextAlreadyHoldsIsNotDeliveredAndOneACompactionRemovedIs, Test793d24b2_ANoteWhosePathAToolResultShowsIsHeldByTheAgentAndNotDelivered, Test793d24b2_AToolWithNoResultHoldsNothingAndDeliversWhatTheCueHeld, Test793d24b2_TheLedgerOfTheMainAgentIsEmptiedByACompaction, Test793d24b2_TheTranscriptIsNotReadWhenTheJobDoesNotAskForTheContext; `internal/auto/compaction_test.go`: Test793d24b2_CompactingASubagentLeavesTheLedgerOfTheMainAgentAndEmptiesItsOwn, Test793d24b2_CompactingTheMainAgentLeavesTheLedgerOfASubagent; `wiring.test.ts` "names the subagent…"
 
 ##### 793d24b2a Scenarios
 
@@ -588,7 +590,7 @@ Requirement: 793d24b3 Memory Delivery MUST compose the [block](#793d1b-terms) as
 
 Supports: [793a2n1e No result, nothing delivered](./793a_product-spec.md#793a2n1-uat-scenarios), [793a4c1b The prompt is unchanged and the note is separate](./793a_product-spec.md#793a4c1-uat-scenarios), [793a4c1c The only effect on the working agent's context is what is delivered](./793a_product-spec.md#793a4c1-uat-scenarios)
 
-Verified by: `internal/auto/moment_test.go`: Test793d24b3; `internal/auto/security_test.go`: Test793d24b3
+Verified by: `internal/auto/moment_test.go`: Test793d24b3_ABlockHasTheHeaderThenOneLineForTheNoteAndCountsOneDelivery, Test793d24b3_ADeliveredNoteIsFramedAsDataOneLineEachAndNoneIsImitated; `internal/auto/security_test.go`: Test793d24b3_ANoteWhoseNameIsNotANoteNameIsNeverDeliveredOrNamedInACommand
 
 Security: [793d19a Security](#793d19a-security), mitigation: data framing of delivered [notes](./793a_product-spec.md#793a1-problem-statement).
 
@@ -617,7 +619,7 @@ Requirement: 793d25b1 The Judgement Relay MUST build every request with the mode
 
 Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `internal/auto/tiers_test.go`: Test793d25b1; `internal/auto/golden_test.go`: Test793d25b1
+Verified by: `internal/auto/tiers_test.go`: Test793d25b1_AKindWithoutARowIsAnErrorNeverADefaultModel, Test793d25b1_EveryRequestCarriesTheModelOfItsKindAndNotTheSessionModel, Test793d25b1_EveryRequestRunsAtTheLowestAcceptedEffort, Test793d25b1_RaisingOneKindChangesOnlyTheRequestsOfThatKind, Test793d25b1_TheDefaultTableHasARowForExactlyTheFourKinds; `internal/auto/golden_test.go`: Test793d25b1_RequestsAreTheOnesTheGreenPhaseMeasured
 
 Rationale: The cheapest tier is 10 to 15 times cheaper in every kind and its replies are read by the strict parsers almost every time, though it is not faster, so the owner chose it at the lowest accepted effort for all four kinds ([793d18d4 Verdict](#793d18d4-verdict)). The relevance deadline and the lookup's 2 seconds fit the 8 seconds a prompt may be held.
 
@@ -636,7 +638,7 @@ Requirement: 793d25b2 The Judgement Relay MUST state in the capture, classificat
 
 Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `internal/auto/capture_test.go`: Test793d25b2; `internal/auto/differential_test.go`: Test793d19a_ATagImitation, Test793d19a_ADuplicateKey; `internal/auto/security_test.go`: Test793d19a_APlaceholder
+Verified by: `internal/auto/capture_test.go`: Test793d25b2_ThePromptNamesTheExactKeysOfEachKindAndShowsOneLessonOfEach; `internal/auto/differential_test.go`: Test793d19a_ATagImitationOfAnyBracketSpacingOrCaseIsBrokenInEveryPrompt, Test793d19a_ADuplicateKeyIsAnErrorWhereverItIsInAReply; `internal/auto/security_test.go`: Test793d19a_APlaceholderInAnOfferIsNotFilledWithTheNearestNotes, Test793d19a_APlaceholderInTheTextOfAMomentIsNotFilledWithTheCandidates, Test793d19a_APlaceholderInTheWindowIsNotFilledWithTheNearestNotes
 
 Security: [793d19a Security](#793d19a-security), risks (1) and (2): data fencing and strict reading.
 
@@ -655,7 +657,7 @@ Requirement: 793d25b3 The Judgement Relay MUST read `relevance` as an array of d
 
 Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `internal/auto/capture_test.go`: Test793d25b3; `internal/auto/golden_test.go`: Test793d25b3; `internal/auto/differential_test.go`: Test793d25b3
+Verified by: `internal/auto/capture_test.go`: Test793d25b3_AReplyIsReadStrictlyAndAnythingElseWritesNothing, Test793d25b3_AReplyWithNoLessonOrNotAnArrayWritesNothing, Test793d25b3_ExactlyOneDocumentIsAcceptedBareOrInACodeFenceThatWrapsTheReply; `internal/auto/golden_test.go`: Test793d25b3_CurationIsReadStrictly, Test793d25b3_LessonsAreReadStrictly, Test793d25b3_MomentsAreReadStrictly, Test793d25b3_SelectionIsReadStrictly; `internal/auto/differential_test.go`: Test793d25b3_AnInvalidByteInAStringIsAnErrorAndNotAReplacementCharacter, Test793d25b3_NothingBeforeOrAfterTheDocumentIsEverTaken, Test793d25b3_OneDocumentWithOnlyJSONWhiteSpaceAroundItOrInAFenceIsTaken, Test793d25b3_OnlyExactlyOneJSONDocumentIsAReply
 
 Security: [793d19a Security](#793d19a-security), risks (1), (2) and (4): a result names a [nearest note](#793d1b-terms) only by its number.
 
@@ -684,7 +686,7 @@ Requirement: 793d26b1 Secret Redaction MUST replace with `[redacted]` private ke
 
 Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `internal/auto/capture_redact_test.go`: Test793d26b1; `internal/auto/security_test.go`: Test793d26b1
+Verified by: `internal/auto/capture_redact_test.go`: Test793d26b1_ABlockOfWrappedLinesIsHiddenOnlyWhenItHoldsDigitsAndLetters, Test793d26b1_AGitCommitHashIsNotMistakenForASecret, Test793d26b1_ASecretInALessonThatTheJudgeWroteNeverReachesTheCommandLine, Test793d26b1_ASecretInTheWindowNeverReachesTheJudgement, Test793d26b1_ASecretOfAKnownShapeNeverReachesTheModelTheCommandLineOrANote, Test793d26b1_ASecretThatEvadedASinglePatternDoesNotReachTheJudgement, Test793d26b1_RedactNeverReturnsATextHoldingAKnownSecretAndIsIdempotentOnItsOutput, Test793d26b1_RedactionCostsTimeInProportionToTheText, Test793d26b1_SecretsOfTheShapesAReviewProbedDoNotReachTheJudgement; `internal/auto/security_test.go`: Test793d26b1_AnUnusualSpaceDoesNotHideACredentialFromTheRedactor
 
 Security: [793d19a Security](#793d19a-security), risk (3): secrets of other shapes are its residual risk.
 
@@ -715,7 +717,7 @@ Requirement: 793d27b1 Auto Capture MUST build the [window](#793d1b-terms) of a c
 
 Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1g A lesson in a subagent session is captured](./793a_product-spec.md#793a3a1-uat-scenarios)
 
-Verified by: `internal/auto/capture_test.go`: Test793d27b1; `internal/auto/perf_test.go`: Test793d27b1; `internal/auto/queue_test.go`: Test793d27b1
+Verified by: `internal/auto/capture_test.go`: Test793d27b1_ASubagentTranscriptThatIsNotThereIsPolledAndThenNothingIsJudged, Test793d27b1_ASubagentTranscriptThatNeverHoldsTheLastMessageIsJudgedWithItAppendedAfterThePolls, Test793d27b1_ATaskNotificationEntersTheWindowAsItsSummaryNeverAsTheResultItCarries, Test793d27b1_AWindowWithNoWordsOfTheUserIsNothingToJudge, Test793d27b1_TheAnswerOfTheTurnIsAddedWhenTheMessagesLagBehindIt, Test793d27b1_TheWindowIsTheSubagentTranscriptPolledUntilItHoldsTheLastMessage; `internal/auto/perf_test.go`: Test793d27b1_ATranscriptCompleteAfter100msIsReadWithinThatWait; `internal/auto/queue_test.go`: Test793d27b1_ACaptureWithNoEntryIsTheTurnItself
 
 Security: [793d19a Security](#793d19a-security), risks (1) and (3): only speech enters, by role, one line a message, redacted before it is cut.
 
@@ -734,7 +736,7 @@ Requirement: 793d27b2 Given a [window](#793d1b-terms) and a source line, Auto Ca
 
 Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1g A lesson in a subagent session is captured](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1h Two subagents contain the same lesson](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5k1d An intentional learn by the agent is allowed and is not undone](./793a_product-spec.md#793a5k1-uat-scenarios)
 
-Verified by: `internal/auto/capture_test.go`: Test793d27b2; `internal/auto/golden_test.go`: Test793d27b2
+Verified by: `internal/auto/capture_test.go`: Test793d27b2_AFailingJudgementIsContainedAndNothingIsWrittenOrMarked, Test793d27b2_AFailingQueryIsContainedAndNothingIsJudged, Test793d27b2_AFailingWriteIsContained, Test793d27b2_ALessonANearestNoteStatesReinforcesThatNoteAndWritesNothing, Test793d27b2_ALessonNoNoteStatesIsWrittenWithTheAutomaticSource, Test793d27b2_ANoteTheSessionWroteIsANearestNoteOfTheNextWindowWhateverTheQueryReturned, Test793d27b2_ANoteTheSessionWroteIsNotListedTwiceWhenTheQueryReturnsItToo, Test793d27b2_ANoteWrittenFromASubagentNamesTheSubagentInItsSource, Test793d27b2_AQueryThatCannotBeReadIsContainedAndNothingIsJudged, Test793d27b2_TheLessonsOfOneReplyAreWrittenOrAmendedAndTheSameSlugOnlyOnce; `internal/auto/golden_test.go`: Test793d27b2_SourcesNameTheTurnOrThePositionAndTheAutomaticWrite, Test793d27b2_TheNearestNotesAreLookedUpWithWhatTheUserSaidFirst
 
 Security: [793d19a Security](#793d19a-security), mitigation: a provenance line on every automatic [note](./793a_product-spec.md#793a1-problem-statement).
 
@@ -768,7 +770,7 @@ Requirement: 793d37b1 Given a completed top-level turn, the Capture Queue MUST a
 
 Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios)
 
-Verified by: `internal/auto/queue_test.go`: Test793d37b1
+Verified by: `internal/auto/queue_test.go`: Test793d37b1_AFileThatCannotBeWrittenQueuesNothingAndWarnsNoOneSoTheTurnIsCapturedFromMemory, Test793d37b1_ATurnIsAddedAfterTheOnesAlreadyInTheFile, Test793d37b1_ATurnIsRedactedBeforeItIsWrittenToDisk, Test793d37b1_ATurnIsWrittenToTheFileWithItsWindowAndSourceAndNothingIsJudged, Test793d37b1_ATurnWithNoWordsOfTheUserIsNotQueued, Test793d37b1_NoFileAndAFileThatIsNotAQueueAreAnEmptyQueue
 
 Security: [793d19a Security](#793d19a-security), risk (3): the text on disk is redacted.
 
@@ -787,7 +789,7 @@ Requirement: 793d37b2 When a [session](../../GLOSSARY.md#session) starts as `sta
 
 Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios)
 
-Verified by: `internal/auto/queue_test.go`: Test793d37b2
+Verified by: `internal/auto/queue_test.go`: Test793d37b2_ASessionThatIsNotNewTakesNothingAndWritesNothing, Test793d37b2_ASessionThatStartsTakesTheEntriesLeftBehindAndCountsTheTry, Test793d37b2_AnEntryThatHasBeenTakenThreeTimesIsDroppedWithoutBeingTakenAgain
 
 Rationale: A clear or a compaction happens in the process that holds the queue's own [jobs](#793d1b-terms), so taking its entries again would capture them twice; the limit keeps a [window](#793d1b-terms) the judge cannot read from being tried at every start for ever.
 
@@ -806,7 +808,7 @@ Requirement: 793d37b3 The Capture Queue MUST take an entry out of the file when 
 
 Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios)
 
-Verified by: `internal/auto/queue_test.go`: Test793d37b3
+Verified by: `internal/auto/queue_test.go`: Test793d37b3_ACaptureOfAnEntryTakesItOutOfTheFileWhenItEnds, Test793d37b3_ACaptureThatFailsKeepsItsEntryInTheFileForTheNextSession, Test793d37b3_TheFileHoldsExactlyTheTurnsNotYetCapturedWhateverTheOrder
 
 ##### 793d37b3a Scenarios
 
@@ -833,7 +835,7 @@ Requirement: 793d28b1 After a top-level turn's [housekeeping](#793d1b-terms) has
 
 Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5c1c A captured Pi session's transcript is left unchanged](./793a_product-spec.md#793a5c1-uat-scenarios)
 
-Verified by: `internal/auto/backlog_test.go`: Test793d28b1; `internal/auto/golden_test.go`: Test793d28b1
+Verified by: `internal/auto/backlog_test.go`: Test793d28b1_ABrokenManifestOrMarkFileIsReportedAndNothingIsCaptured, Test793d28b1_AMarkFileWithNoCutoffGetsOneAndKeepsItsMarks, Test793d28b1_ASourceMayStillBeRunningIsNotCaptured, Test793d28b1_ASourceThatGrewSinceItWasMarkedIsCapturedAgain, Test793d28b1_ASourceWhoseHashTheMarkHoldsIsNotCapturedAgain, Test793d28b1_AtMostOneSourceIsCapturedPerTurnTheMostRecentlyChangedFirst, Test793d28b1_AtMostTwentySourcesAreLookedAtInOneTurn, Test793d28b1_NoManifestIsAnEmptyBacklogNotAnError, Test793d28b1_OneQuietSourceIsCapturedThenMarked, Test793d28b1_TheChunksDirectoryIsTheOneTheEnvironmentNames, Test793d28b1_TheCutoffDoesNotRollWhateverTheIdleTime, Test793d28b1_TheCutoffIsAFixedPointARunRecordsAndNotAWindow, Test793d28b1_TheCutoffIsRecordedOnceEvenByAFirstRunWithNothingToCapture, Test793d28b1_WhatIsNotASessionTranscriptIsNotASource; `internal/auto/golden_test.go`: Test793d28b1_TheSourcesToCaptureAreTheQuietOnesAfterTheCutoff
 
 Security: [793d19a Security](#793d19a-security), bounds what is read: [sessions](../../GLOSSARY.md#session) that ended after the install time minus 7 days.
 
@@ -857,7 +859,7 @@ Requirement: 793d28b2 Backlog Capture MUST read a source's conversation from the
 
 Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5c1c A captured Pi session's transcript is left unchanged](./793a_product-spec.md#793a5c1-uat-scenarios)
 
-Verified by: `internal/auto/backlog_test.go`: Test793d28b2; `internal/auto/golden_test.go`: Test793d28b2
+Verified by: `internal/auto/backlog_test.go`: Test793d28b2_ALessonBeyondTheWindowsOfOneTurnIsNotLostTheSourceIsMarkedWhenAllAreJudged, Test793d28b2_ALongTranscriptIsJudgedInOverlappingWindowsTheEndFirst, Test793d28b2_ASourceOverThePlatformReadLimitIsReadFromItsTail, Test793d28b2_ASourceThatGrewWhileItsWindowsWereConsumedStartsAgain, Test793d28b2_ASourceWithNoMessageIsMarkedAndNotReadAgain; `internal/auto/golden_test.go`: Test793d28b2_AConversationIsWindowsThatOverlapByAMessage, Test793d28b2_ATranscriptIsReadByTheRolesOfItsRows
 
 Security: [793d19a Security](#793d19a-security), risk (1): a planted [session](../../GLOSSARY.md#session) file is read by role and redacted.
 
@@ -876,7 +878,7 @@ Requirement: 793d28b3 Backlog Capture MUST mark a source with its hash only when
 
 Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5c1c A captured Pi session's transcript is left unchanged](./793a_product-spec.md#793a5c1-uat-scenarios)
 
-Verified by: `internal/auto/backlog_test.go`: Test793d28b3; `internal/auto/capture_redact_test.go`: Test793d28b3; `internal/auto/queue_test.go`: Test793d28b3
+Verified by: `internal/auto/backlog_test.go`: Test793d28b3_ACaptureThatEndsInAWarningLeavesNoMark, Test793d28b3_ALessonANearestNoteStatesReinforcesItAndTheSourceIsMarked, Test793d28b3_ASessionWhoseTurnsTheSystemCapturedIsNotCapturedAgainAsBacklog, Test793d28b3_ASourceThatCannotBeReadDoesNotUseUpTheTurnAndIsNotReadAgain, Test793d28b3_ASourceThatCannotBeReadIsSkippedWithoutAWrite, Test793d28b3_ATurnCaptureOfASessionWithNoTranscriptMarksNoTurn, Test793d28b3_ATurnKilledSoonAfterTheLastCapturedTurnIsStillCaptured, Test793d28b3_TheClosingRowsAHarnessWritesAfterTheLastCapturedTurnAreNotATurn, Test793d28b3_TheNoteIsSourcedFromTheTranscriptAndThePositionInIt; `internal/auto/capture_redact_test.go`: Test793d28b3_ACapturedTurnMarksTheTurnsOfItsSessionByTheNameOfTheFile, Test793d28b3_AMarkThatCannotBeWrittenGoesToTheDebugLogOnlyAndTheUserIsNotWarned, Test793d28b3_ATurnIsNotMarkedWhenNoTranscriptIsNamedOrTheJudgementFailed, Test793d28b3_TheChunksDirectoryFollowsTheVariablesOfTheEngramCommands, Test793d28b3_TheMarksOfAnEarlierRunAreKeptAndTheFirstRunFixesTheCutoffOnce; `internal/auto/queue_test.go`: Test793d28b3_ACaptureOfAnEntryMarksTheSessionTheEntryCameFromNotTheOneRunning
 
 ##### 793d28b3a Scenarios
 
@@ -903,7 +905,9 @@ Requirement: 793d29b1 Auto Curation MUST find pending [offers](../../GLOSSARY.md
 
 Supports: [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios), [793a4j1d The agent is not asked to curate](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `internal/auto/curate_test.go`: Test793d29b1; `internal/auto/golden_test.go`: Test793d29b1
+Verified by: `internal/auto/curate_test.go`: Test793d29b1_AVaultThatDoesNotExistYetHasNoOfferAndIsNoFailure, Test793d29b1_AnOfferThatCannotBeReadIsWarnedAboutOnceAndDoesNotStopTheOffersAfterIt, Test793d29b1_AtMostTenOffersAreSettledInOneRun, Test793d29b1_NoPendingOfferIsNoJudgement, Test793d29b1_OnlyANoteFileNameEngramCouldHaveWrittenIsAPendingOffer, Test793d29b1_OnlyTheNotesWhoseFrontMatterIsPendingAreOffers, Test793d29b1_SkillRegistrationsDoNotCountAgainstTheCapAndAreShownOnceInTheProcess, Test793d29b1_TheVaultIsFoundUnderTheEngramDataDirectoryWhenNoPathIsGiven; `internal/auto/golden_test.go`: Test793d29b1_AnOfferIsReadFromTheHeaderAndFrontMatterOfShow
+
+Security: [793d19a Security](#793d19a-security), mitigation: the note an offer is for is checked as a note name before it is shown or amended.
 
 ##### 793d29b1a Scenarios
 
@@ -920,7 +924,7 @@ Requirement: 793d29b2 For each offer Auto Curation MUST read it with `engram sho
 
 Supports: [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios), [793a4j1d The agent is not asked to curate](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `internal/auto/curate_test.go`: Test793d29b2; `internal/auto/golden_test.go`: Test793d29b2
+Verified by: `internal/auto/curate_test.go`: Test793d29b2_ANoteThatIsNoLongerPendingIsLeftAlone, Test793d29b2_AReplyThatIsNotExactlyOneObjectOfTheExpectedShapeSettlesNothing, Test793d29b2_ARunbookOfferIsLeftToCurate, Test793d29b2_AnExchangeHashIsReadFromTheHeaderOfShowNotFromALineOfTheNote, Test793d29b2_AnOfferForANoteIsJudgedAgainstThatNoteFirst, Test793d29b2_AnOfferIsSettledByTheOutcomeTheJudgementGave, Test793d29b2_AnOfferThatIsASkillRegistrationIsNeverJudgedDiscardedOrAccepted, Test793d29b2_AnOfferWhoseCommandsFailIsNotCounted, Test793d29b2_AnOfferWithoutAnExchangeHashIsSettledWithoutOne, Test793d29b2_TheJudgementIsAskedOfTheCheapModelWithTheOfferAndItsNearestNotes; `internal/auto/golden_test.go`: Test793d29b2_AnOutcomeSettlesWithTheCommandsOfCurate
 
 Security: [793d19a Security](#793d19a-security), risks (2) and (4): a crafted offer cannot reach a [note](./793a_product-spec.md#793a1-problem-statement) it is not judged against; a covered offer is recoverable only from [vault](./793a_product-spec.md#793a1-problem-statement) history.
 
@@ -953,7 +957,7 @@ Requirement: 793d38b1 `engram amend --source <line>` MUST append the line to the
 
 Supports: [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `internal/cli/amend_source_test.go`: Test793d38b1
+Verified by: `internal/cli/amend_source_test.go`: Test793d38b1_AmendSourceAloneChangesNoContentSoNothingIsEmbeddedAgain, Test793d38b1_AmendSourceAppendsAProvenanceLineToTheSourceOfAnyKindOfNote, Test793d38b1_AmendSourceIsAppendedOnceAndNeverReplacesWhatWasThere, Test793d38b1_AmendWithoutSourceLeavesTheSourceAsItWas
 
 Security: [793d19a Security](#793d19a-security), mitigation: a provenance line on every automatic [note](./793a_product-spec.md#793a1-problem-statement).
 
@@ -991,7 +995,7 @@ Requirement: 793d30b1 Activity Report MUST keep the counts of items delivered, [
 
 Supports: [793a5h1a The summary shows the counts after a turn with events](./793a_product-spec.md#793a5h1-uat-scenarios), [793a5h1b Nothing is shown after a turn without events](./793a_product-spec.md#793a5h1-uat-scenarios), [793a5h1e The counts cover the events since the previous summary](./793a_product-spec.md#793a5h1-uat-scenarios)
 
-Verified by: `internal/auto/summary_test.go`: Test793d30b1; `internal/auto/curate_test.go`: Test793d30b1; `wiring.test.ts` "a quiet turn shows nothing…"
+Verified by: `internal/auto/summary_test.go`: Test793d30b1_ATurnWithNoMemoryEventShowsNothingAndAQuietTurnClearsTheLineAPreviousTurnLeft, Test793d30b1_ForAnyTallyTheLineHoldsOnlyConstantsAndCountsThatAddUp, Test793d30b1_OneLineCountsWhatTheSystemDidWithEachCountInItsWords, Test793d30b1_TheCountsAreWhatTheJobsOfTheTurnReported; `internal/auto/curate_test.go`: Test793d30b1_EveryNoteAmendedAndOfferCuratedIsCounted; `wiring.test.ts` "a quiet turn shows nothing…"
 
 ##### 793d30b1a Scenarios
 
@@ -1008,7 +1012,7 @@ Requirement: 793d30b2 When a step reports a failure, Activity Report MUST show i
 
 Supports: [793a5h1c The summary is not in the agent's context](./793a_product-spec.md#793a5h1-uat-scenarios), [793a4b1a Vault unavailable](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1c No error reaches the agent and the user is warned](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4c1c The only effect on the working agent's context is what is delivered](./793a_product-spec.md#793a4c1-uat-scenarios)
 
-Verified by: `internal/auto/summary_test.go`: Test793d30b2; `wiring.test.ts` "the effects of a round…"
+Verified by: `internal/auto/summary_test.go`: Test793d30b2_AFailedStepIsWarnedAboutAndNotCounted, Test793d30b2_OnlyConstantsAndCountsReachTheLineNothingANoteAnOfferOrALessonSays, Test793d30b2_TheWarningsAndTheCountsShareTheOneLine; `wiring.test.ts` "the effects of a round…"
 
 Security: [793d19a Security](#793d19a-security), mitigation: the user-visible activity line, which cannot carry injected text.
 
@@ -1037,7 +1041,7 @@ Requirement: 793d31b1 For every [harness](../../GLOSSARY.md#harness) that takes 
 
 Supports: [793a5j1a Update installs the System for the harness it updates](./793a_product-spec.md#793a5j1-uat-scenarios), [793a5j1d One update serves both harnesses differently](./793a_product-spec.md#793a5j1-uat-scenarios), [793a5c1a Unsupported harness](./793a_product-spec.md#793a5c1-uat-scenarios), [793a5c1b A Pi session on a machine whose Claude Code has the System](./793a_product-spec.md#793a5c1-uat-scenarios)
 
-Verified by: `internal/update/mods_test.go`: Test793e8e1a, 1b, 1c, 1d and 1f
+Verified by: `internal/update/mods_test.go`: Test793d31b1_HarnessSpecs_OnlyClaudeCodeTakesMods, Test793d31b1_PlanModCopies_ClaudeOnlyUnderItsSkillsDirectory, Test793d31b1_PlanModCopies_ListingFailurePropagates, Test793d31b1_PlanModCopies_MissingSourcePlansNothing, Test793d34b1_Run_PiGetsNoModAndNoPiDirectoryIsCreated
 
 ##### 793d31b1a Scenarios
 
@@ -1054,7 +1058,7 @@ Requirement: 793d31b2 Harness Deploy Sync MUST deploy a [mod](#793d1b-terms) int
 
 Supports: [793a5j1a Update installs the System for the harness it updates](./793a_product-spec.md#793a5j1-uat-scenarios), [793a5j1b An existing install gains the System and keeps what it had](./793a_product-spec.md#793a5j1-uat-scenarios), [793a5j1c A preview installs none of the System](./793a_product-spec.md#793a5j1-uat-scenarios), [793a5j1l Running update twice changes nothing](./793a_product-spec.md#793a5j1-uat-scenarios)
 
-Verified by: `internal/update/mods_test.go`: Test793e8e1e, 1g, 1h, 1i
+Verified by: `internal/update/mods_test.go`: Test793d31b2_Run_ARemovedModIsSyncDeletedWithItsLink, Test793d31b2_Run_DeploysTheModAsALinkedSkillsDirectoryPlugin, Test793d34b1_Run_DryRunWritesNothingAndStillReportsTheMod, Test793d34b1_Run_SecondRunChangesNothing
 
 Rationale: One state to reason about: deploying the [mod](#793d1b-terms) turns the [System](./793a_product-spec.md#793a1-problem-statement) on, and removing it from the source turns it off, with everything [intentional memory](./793a_product-spec.md#793a1-problem-statement) relies on left in place.
 
@@ -1073,7 +1077,7 @@ Requirement: 793d31b3 When a [mod](#793d1b-terms) is planned for a [harness](../
 
 Supports: [793a5j1a Update installs the System for the harness it updates](./793a_product-spec.md#793a5j1-uat-scenarios)
 
-Verified by: `internal/update/mods_test.go`: Test793e8e2a, 2b, 2c; `internal/cli/update_mods_test.go`: Test793e8e3a, 3b
+Verified by: `internal/update/mods_test.go`: Test793d31b3_Run_ChecksTheVersionOncePerRunEvenInADryRun, Test793d31b3_Run_NoModInTheSourceMeansNoVersionCheck, Test793d31b3_Run_ReportsWhenClaudeCodeCannotLoadMods; `internal/cli/update_mods_test.go`: Test793d31b3_WriteUpdateReport_ListsTheModBesideTheSkillsItIsDeployedWith, Test793d31b3_WriteUpdateReport_ReportsWhyTheModMayNotRun
 
 
 ##### 793d31b3a Scenarios
@@ -1198,7 +1202,7 @@ Owner: [793d23 Moment Detection](#793d23-moment-detection)
 
 Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios)
 
-Verified by: `internal/auto/moment_test.go`: Test793d23b2; `wiring.test.ts` "a step that called a tool…"
+Verified by: `internal/auto/moment_test.go`: Test793d23b2_AClassificationIsReadStrictly, Test793d23b2_AClassificationThatNamesNoMomentMakesNoQueryAndDeliversNothing, Test793d23b2_AStepThatRunsMemoryItselfStartsNoJob, Test793d23b2_AStepWithTextAndAToolCallIsClassifiedOnceAndItsNoteRidesTheNextToolResult, Test793d23b2_ATurnThatBeganWithAMemoryCommandStartsNoJob, Test793d23b2_TextThatImitatesThePromptsOwnTagsCannotCloseTheSectionItSitsIn, Test793d23b2_TheRecentTextsReachTheClassificationRedactedAndTheToolResultsNeverDo; `wiring.test.ts` "a step that called a tool…"
 
 ##### 793d32b2a Scenarios
 
@@ -1224,7 +1228,7 @@ Owner: [793d24 Memory Delivery](#793d24-memory-delivery)
 
 Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1e No result, nothing delivered](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2e1a Note delivered earlier is not delivered again](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1c Note the agent retrieved itself is not delivered](./793a_product-spec.md#793a2e1-uat-scenarios)
 
-Verified by: `internal/auto/moment_test.go`: Test793d24b1, Test793d24b2
+Verified by: `internal/auto/moment_test.go`: Test793d24b1_AJudgementThatSelectsNothingDeliversNothing, Test793d24b1_ALookupSaysInTheDebugLogHowManyCandidatesItFoundAndDelivered, Test793d24b1_ARelevanceReplyIsReadStrictly, Test793d24b1_ARelevantNoteRidesThePromptWithTheApplyInstructionAfterTheQueryAndOneJudgement, Test793d24b1_FreeTextThatStartsWithADashIsAValueOfItsFlagNeverAFlag, Test793d24b1_NothingRelevantIsNothingDeliveredAndAQueryWithNoResultMakesNoJudgement, Test793d24b2_ACompactionDoesNotEmptyTheLedgerOfASubagent, Test793d24b2_ANoteAToolResultShowedIsNotLookedUpByALaterStep, Test793d24b2_ANoteDeliveredOnceIsNotDeliveredAgainInTheSameSession, Test793d24b2_ANoteThatEnteredTheLedgerWhileTheStepJobRanIsNotDelivered, Test793d24b2_ANoteTheAgentAlreadyHoldsIsNotLookedUpAgainAndANoteIsDeliveredOnce, Test793d24b2_ANoteTheContextAlreadyHoldsIsNotDeliveredAndOneACompactionRemovedIs, Test793d24b2_ANoteWhosePathAToolResultShowsIsHeldByTheAgentAndNotDelivered, Test793d24b2_AToolWithNoResultHoldsNothingAndDeliversWhatTheCueHeld, Test793d24b2_TheLedgerOfTheMainAgentIsEmptiedByACompaction, Test793d24b2_TheTranscriptIsNotReadWhenTheJobDoesNotAskForTheContext
 
 ##### 793d32b3a Scenarios
 
@@ -1376,7 +1380,7 @@ Owner: [793d27 Auto Capture](#793d27-auto-capture)
 
 Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1g A lesson in a subagent session is captured](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1h Two subagents contain the same lesson](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5k1d An intentional learn by the agent is allowed and is not undone](./793a_product-spec.md#793a5k1-uat-scenarios)
 
-Verified by: `internal/auto/capture_test.go`: Test793d27b2; `internal/auto/queue_test.go`: Test793d37b3
+Verified by: `internal/auto/capture_test.go`: Test793d27b2_AFailingJudgementIsContainedAndNothingIsWrittenOrMarked, Test793d27b2_AFailingQueryIsContainedAndNothingIsJudged, Test793d27b2_AFailingWriteIsContained, Test793d27b2_ALessonANearestNoteStatesReinforcesThatNoteAndWritesNothing, Test793d27b2_ALessonNoNoteStatesIsWrittenWithTheAutomaticSource, Test793d27b2_ANoteTheSessionWroteIsANearestNoteOfTheNextWindowWhateverTheQueryReturned, Test793d27b2_ANoteTheSessionWroteIsNotListedTwiceWhenTheQueryReturnsItToo, Test793d27b2_ANoteWrittenFromASubagentNamesTheSubagentInItsSource, Test793d27b2_AQueryThatCannotBeReadIsContainedAndNothingIsJudged, Test793d27b2_TheLessonsOfOneReplyAreWrittenOrAmendedAndTheSameSlugOnlyOnce; `internal/auto/queue_test.go`: Test793d37b3_ACaptureOfAnEntryTakesItOutOfTheFileWhenItEnds, Test793d37b3_ACaptureThatFailsKeepsItsEntryInTheFileForTheNextSession, Test793d37b3_TheFileHoldsExactlyTheTurnsNotYetCapturedWhateverTheOrder
 
 ##### 793d33b2a Scenarios
 
@@ -1420,7 +1424,7 @@ Owner: [793d29 Auto Curation](#793d29-auto-curation)
 
 Supports: [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios), [793a4j1d The agent is not asked to curate](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `internal/auto/curate_test.go`: Test793d29b2
+Verified by: `internal/auto/curate_test.go`: Test793d29b2_ANoteThatIsNoLongerPendingIsLeftAlone, Test793d29b2_AReplyThatIsNotExactlyOneObjectOfTheExpectedShapeSettlesNothing, Test793d29b2_ARunbookOfferIsLeftToCurate, Test793d29b2_AnExchangeHashIsReadFromTheHeaderOfShowNotFromALineOfTheNote, Test793d29b2_AnOfferForANoteIsJudgedAgainstThatNoteFirst, Test793d29b2_AnOfferIsSettledByTheOutcomeTheJudgementGave, Test793d29b2_AnOfferThatIsASkillRegistrationIsNeverJudgedDiscardedOrAccepted, Test793d29b2_AnOfferWhoseCommandsFailIsNotCounted, Test793d29b2_AnOfferWithoutAnExchangeHashIsSettledWithoutOne, Test793d29b2_TheJudgementIsAskedOfTheCheapModelWithTheOfferAndItsNearestNotes
 
 ##### 793d33b3a Scenarios
 
@@ -1446,7 +1450,7 @@ Owner: [793d28 Backlog Capture](#793d28-backlog-capture)
 
 Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5c1c A captured Pi session's transcript is left unchanged](./793a_product-spec.md#793a5c1-uat-scenarios)
 
-Verified by: `internal/auto/backlog_test.go`: Test793d28b1, Test793d28b3
+Verified by: `internal/auto/backlog_test.go`: Test793d28b1_ABrokenManifestOrMarkFileIsReportedAndNothingIsCaptured, Test793d28b1_AMarkFileWithNoCutoffGetsOneAndKeepsItsMarks, Test793d28b1_ASourceMayStillBeRunningIsNotCaptured, Test793d28b1_ASourceThatGrewSinceItWasMarkedIsCapturedAgain, Test793d28b1_ASourceWhoseHashTheMarkHoldsIsNotCapturedAgain, Test793d28b1_AtMostOneSourceIsCapturedPerTurnTheMostRecentlyChangedFirst, Test793d28b1_AtMostTwentySourcesAreLookedAtInOneTurn, Test793d28b1_NoManifestIsAnEmptyBacklogNotAnError, Test793d28b1_OneQuietSourceIsCapturedThenMarked, Test793d28b1_TheChunksDirectoryIsTheOneTheEnvironmentNames, Test793d28b1_TheCutoffDoesNotRollWhateverTheIdleTime, Test793d28b1_TheCutoffIsAFixedPointARunRecordsAndNotAWindow, Test793d28b1_TheCutoffIsRecordedOnceEvenByAFirstRunWithNothingToCapture, Test793d28b1_WhatIsNotASessionTranscriptIsNotASource, Test793d28b3_ACaptureThatEndsInAWarningLeavesNoMark, Test793d28b3_ALessonANearestNoteStatesReinforcesItAndTheSourceIsMarked, Test793d28b3_ASessionWhoseTurnsTheSystemCapturedIsNotCapturedAgainAsBacklog, Test793d28b3_ASourceThatCannotBeReadDoesNotUseUpTheTurnAndIsNotReadAgain, Test793d28b3_ASourceThatCannotBeReadIsSkippedWithoutAWrite, Test793d28b3_ATurnCaptureOfASessionWithNoTranscriptMarksNoTurn, Test793d28b3_ATurnKilledSoonAfterTheLastCapturedTurnIsStillCaptured, Test793d28b3_TheClosingRowsAHarnessWritesAfterTheLastCapturedTurnAreNotATurn, Test793d28b3_TheNoteIsSourcedFromTheTranscriptAndThePositionInIt
 
 ##### 793d33b4a Scenarios
 
@@ -1472,7 +1476,7 @@ Owner: [793d36 Job Runner](#793d36-job-runner)
 
 Supports: [793a4j1a The index catches up after the turn](./793a_product-spec.md#793a4j1-uat-scenarios), [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios)
 
-Verified by: `internal/auto/curate_test.go`: Test793d33b5
+Verified by: `internal/auto/curate_test.go`: Test793d33b5_ABurstWhoseIndexFailsStillCuratesTheOffers, Test793d33b5_HousekeepingIndexesThenCuratesAndLeavesTheBacklogToAnEndedTurn, Test793d33b5_NoBacklogIsLookedAtUnlessTheTurnEnded
 
 ##### 793d33b5a Scenarios
 
@@ -1535,7 +1539,7 @@ Owner: [Self Installer](../../specs/technical/self-installer.md)
 
 Supports: [793a5j1a Update installs the System for the harness it updates](./793a_product-spec.md#793a5j1-uat-scenarios), [793a5j1b An existing install gains the System and keeps what it had](./793a_product-spec.md#793a5j1-uat-scenarios), [793a5j1c A preview installs none of the System](./793a_product-spec.md#793a5j1-uat-scenarios), [793a5j1d One update serves both harnesses differently](./793a_product-spec.md#793a5j1-uat-scenarios), [793a5j1l Running update twice changes nothing](./793a_product-spec.md#793a5j1-uat-scenarios)
 
-Verified by: `internal/update/mods_test.go`: Test793e8e1e, 1f, 1g, 1h, 2a
+Verified by: `internal/update/mods_test.go`: Test793d34b1_Run_DryRunWritesNothingAndStillReportsTheMod, Test793d34b1_Run_PiGetsNoModAndNoPiDirectoryIsCreated, Test793d34b1_Run_SecondRunChangesNothing, Test793d31b2_Run_DeploysTheModAsALinkedSkillsDirectoryPlugin, Test793d31b3_Run_ReportsWhenClaudeCodeCannotLoadMods
 
 ##### 793d34b1a Scenarios
 

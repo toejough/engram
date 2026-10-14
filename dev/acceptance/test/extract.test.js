@@ -4,11 +4,21 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 
-import { extractScenarios, selectScenarios, writeFeatures, PRODUCT_SPEC, TECHNICAL_SPEC } from '../lib/extract.js'
+import {
+  changeDirectory,
+  extractScenarios,
+  productScenarios,
+  productSpecFiles,
+  selectScenarios,
+  specRoot,
+  technicalSpecFiles,
+  technicalText,
+  writeFeatures,
+} from '../lib/extract.js'
 
-const product = extractScenarios(PRODUCT_SPEC)
-const hypothesisOne = extractScenarios(TECHNICAL_SPEC, { idPrefix: '793d17' })
-const hypothesisTwo = extractScenarios(TECHNICAL_SPEC, { idPrefix: '793d18' })
+const product = productScenarios()
+const hypothesisOne = extractScenarios(technicalSpecFiles(), { idPrefix: '793d17' })
+const hypothesisTwo = extractScenarios(technicalSpecFiles(), { idPrefix: '793d18' })
 
 test('the product spec yields exactly its 43 scenario IDs, once each', () => {
   const ids = product.map((scenario) => scenario.id)
@@ -98,5 +108,72 @@ test('a gherkin block under a heading that is not a scenario heading is not extr
     )
   } finally {
     fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+// The gates read the specs where the change leaves them: the change directory now, the canonical files after promotion.
+function promotedRoot() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'promoted-root-'))
+  const productDir = path.join(root, 'docs', 'specs', 'product')
+  const technical = path.join(root, 'docs', 'specs', 'technical')
+  fs.mkdirSync(productDir, { recursive: true })
+  fs.mkdirSync(technical, { recursive: true })
+  const scenario = (id) =>
+    ['### x UAT Scenarios', '', '```gherkin', `Scenario: ${id} A title`, '  Given a thing', '```', ''].join('\n')
+  fs.writeFileSync(path.join(productDir, 'automatic-memory.md'), `# Automatic Memory\n\n${scenario('793a1a1a')}`)
+  fs.writeFileSync(path.join(productDir, 'recall.md'), `# Recall\n\n${scenario('792a1a1a')}`)
+  fs.writeFileSync(path.join(technical, 'judgement-relay.md'), '# Judgement Relay\n\n## 793d25 Judgement Relay\n')
+  fs.writeFileSync(path.join(technical, 'note-amendment.md'), '# Note Amendment\n\n## 792b14a Orientation\n')
+  return root
+}
+
+test('after promotion the product scenarios of the change are read from the canonical files, and only those', () => {
+  const root = promotedRoot()
+  try {
+    assert.deepEqual(
+      productScenarios(root).map((scenario) => scenario.id),
+      ['793a1a1a'],
+    )
+    assert.equal(changeDirectory(root), null)
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('after promotion the technical text is that of the canonical files that hold sections of the change', () => {
+  const root = promotedRoot()
+  try {
+    assert.deepEqual(
+      technicalSpecFiles(root).map((file) => path.basename(file)),
+      ['judgement-relay.md'],
+    )
+    assert.match(technicalText(root), /## 793d25 Judgement Relay/)
+    assert.equal(specRoot({ ENGRAM_SPEC_ROOT: root }), root)
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('while the change exists, its specs are read as well as the canonical files', () => {
+  assert.ok(changeDirectory() !== null)
+  assert.ok(productSpecFiles().some((file) => file.endsWith('793a_product-spec.md')))
+  assert.ok(technicalSpecFiles().some((file) => file.endsWith('793d_technical-spec.md')))
+})
+
+test('a scenario that the change and a canonical file both hold is read once', () => {
+  const root = promotedRoot()
+  try {
+    const change = path.join(root, 'docs', 'changes', '793_parallel-memory-agent')
+    fs.mkdirSync(change, { recursive: true })
+    fs.copyFileSync(
+      path.join(root, 'docs', 'specs', 'product', 'automatic-memory.md'),
+      path.join(change, '793a_product-spec.md'),
+    )
+    assert.deepEqual(
+      productScenarios(root).map((scenario) => scenario.id),
+      ['793a1a1a'],
+    )
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
   }
 })

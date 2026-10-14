@@ -3,7 +3,7 @@
 //   lint [standards|complexity|adapter|types]   eslint over the mod and the harness, the limits, the adapter rules, tsc
 //   budget                              owned lines of each hook file against dev/acceptance/gates/budgets.json
 //   mod-test [green|red] [file-prefix]  the mod's contract tests: tests/*.test.ts, or the gates tests/*.red.ts
-//   spec                                the specs 793d22 onward against the mod's tests, the product spec and the code
+//   spec                                the technical spec against the mod's and Go tests, the product spec, the code
 //   status                              every gate above, in one table
 // Every gate exits non-zero while it is red. The ones that are green are in check-full; the others are on the
 // refactor-red list (793e8l). Each gate's module is loaded when it runs, so that a gate that has not landed does not
@@ -72,8 +72,8 @@ async function modTest(which = 'green', filter = '') {
 async function spec() {
   const specGate = await import('./spec.js')
   const { run } = await import('./mod-test.js')
-  const { extractScenarios, PRODUCT_SPEC, TECHNICAL_SPEC, REPO_ROOT } = await import('../lib/extract.js')
-  const text = fs.readFileSync(TECHNICAL_SPEC, 'utf8')
+  const { productScenarios, technicalText, REPO_ROOT } = await import('../lib/extract.js')
+  const text = technicalText()
   const requirements = specGate.parseSpec(text)
   const { tests } = run({ which: 'green' })
   const hooks = hookFiles().map((name) => fs.readFileSync(path.join(HOOKS, name), 'utf8'))
@@ -82,12 +82,15 @@ async function spec() {
   const problems = [
     ...specGate.check({
       requirements,
-      productIds: extractScenarios(PRODUCT_SPEC).map((scenario) => scenario.id),
+      productIds: productScenarios().map((scenario) => scenario.id),
       tests,
       goFiles: specGate.loadGoFiles(REPO_ROOT, requirements),
     }),
     ...specGate.checkRealizations(specGate.realizations(text), { read, hooks }),
-    ...specGate.checkTestCount(specGate.statedTestCount(text), tests.length),
+    ...specGate.checkSecurity(specGate.securityRows(text), {
+      requirements,
+      goSources: specGate.loadGoTests(REPO_ROOT),
+    }),
   ]
   console.log(
     `spec conformance: ${requirements.length} requirements, ${tests.length} mod tests, ${problems.length} problems`,
