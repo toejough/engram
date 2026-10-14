@@ -14,7 +14,20 @@ import (
 	"github.com/toejough/engram/internal/auto"
 )
 
-func Test793d22b2_ACaptureOfAnEntryMarksTheSessionTheEntryCameFromNotTheOneRunning(t *testing.T) {
+func Test793d27b1_ACaptureWithNoEntryIsTheTurnItself(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := NewWorld()
+
+	world.Do(t, captureOf(turnMessages()))
+
+	g.Expect(world.Requests).To(HaveLen(1))
+	g.Expect(world.Requests[0].Prompt).To(ContainSubstring("User: No, use targ, not go test directly."))
+	g.Expect(world.Written).NotTo(HaveKey(queueFile))
+}
+
+func Test793d28b3_ACaptureOfAnEntryMarksTheSessionTheEntryCameFromNotTheOneRunning(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -31,52 +44,7 @@ func Test793d22b2_ACaptureOfAnEntryMarksTheSessionTheEntryCameFromNotTheOneRunni
 	g.Expect(turns).NotTo(HaveKey("9f1e2d3c.jsonl"))
 }
 
-func Test793d22b2_ACaptureOfAnEntryTakesItOutOfTheFileWhenItEnds(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	world := NewWorld()
-	world.Files[queueFile] = queueText(leftBehind(0), queued{Window: "User: other", Source: "s2"})
-
-	done := world.Do(t, map[string]any{
-		"kind": "capture", "entry": leftBehind(0), "transcript": transcriptPath, "step": "the capture",
-	})
-
-	g.Expect(done.Queued).To(BeNil())
-	g.Expect(world.Requests).To(HaveLen(1))
-	g.Expect(world.Requests[0].Prompt).To(ContainSubstring("User: No, use targ, not go test directly."))
-	g.Expect(queueOf(t, world)).To(Equal([]queued{{Window: "User: other", Source: "s2"}}))
-}
-
-func Test793d22b2_ACaptureThatFailsKeepsItsEntryInTheFileForTheNextSession(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	world := NewWorld()
-	world.Model = func(string, auto.Request) map[string]any { return Unanswered("api-error") }
-	world.Files[queueFile] = queueText(leftBehind(1))
-
-	world.Do(t, map[string]any{"kind": "capture", "entry": leftBehind(1), "step": "the capture"})
-
-	g.Expect(world.Warnings).To(HaveLen(1))
-	g.Expect(queueOf(t, world)).To(Equal([]queued{leftBehind(1)}))
-	g.Expect(world.Writes).To(BeEmpty())
-}
-
-func Test793d22b2_ACaptureWithNoEntryIsTheTurnItself(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	world := NewWorld()
-
-	world.Do(t, captureOf(turnMessages()))
-
-	g.Expect(world.Requests).To(HaveLen(1))
-	g.Expect(world.Requests[0].Prompt).To(ContainSubstring("User: No, use targ, not go test directly."))
-	g.Expect(world.Written).NotTo(HaveKey(queueFile))
-}
-
-func Test793d22b2_AFileThatCannotBeWrittenQueuesNothingAndWarnsNoOneSoTheTurnIsCapturedFromMemory(t *testing.T) {
+func Test793d37b1_AFileThatCannotBeWrittenQueuesNothingAndWarnsNoOneSoTheTurnIsCapturedFromMemory(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -93,46 +61,7 @@ func Test793d22b2_AFileThatCannotBeWrittenQueuesNothingAndWarnsNoOneSoTheTurnIsC
 	g.Expect(strings.Join(world.Logs, "\n")).To(ContainSubstring("permission denied"))
 }
 
-func Test793d22b2_ASessionThatIsNotNewTakesNothingAndWritesNothing(t *testing.T) {
-	t.Parallel()
-
-	// a clear or a compaction happens in the process that holds the queue's own jobs: taking them would capture twice
-	for _, start := range []string{"clear", "compact", ""} {
-		t.Run(start, func(t *testing.T) {
-			t.Parallel()
-
-			g := NewWithT(t)
-			world := NewWorld()
-			world.Files[queueFile] = queueText(leftBehind(0))
-
-			done := world.Do(t, map[string]any{"kind": "resume", "start": start})
-
-			g.Expect(done.Resumed).To(BeEmpty())
-			g.Expect(world.Writes).To(BeEmpty())
-		})
-	}
-}
-
-func Test793d22b2_ASessionThatStartsTakesTheEntriesLeftBehindAndCountsTheTry(t *testing.T) {
-	t.Parallel()
-
-	for _, start := range []string{"startup", "resume"} {
-		t.Run(start, func(t *testing.T) {
-			t.Parallel()
-
-			g := NewWithT(t)
-			world := NewWorld()
-			world.Files[queueFile] = queueText(leftBehind(0), leftBehind(2))
-
-			done := world.Do(t, map[string]any{"kind": "resume", "start": start})
-
-			g.Expect(done.Resumed).To(Equal([]auto.QueueEntry{entryOf(leftBehind(1)), entryOf(leftBehind(3))}))
-			g.Expect(queueOf(t, world)).To(Equal([]queued{leftBehind(1), leftBehind(3)}))
-		})
-	}
-}
-
-func Test793d22b2_ATurnIsAddedAfterTheOnesAlreadyInTheFile(t *testing.T) {
+func Test793d37b1_ATurnIsAddedAfterTheOnesAlreadyInTheFile(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -149,7 +78,7 @@ func Test793d22b2_ATurnIsAddedAfterTheOnesAlreadyInTheFile(t *testing.T) {
 	g.Expect(entries[1].Window).To(ContainSubstring("User: No, use targ"))
 }
 
-func Test793d22b2_ATurnIsRedactedBeforeItIsWrittenToDisk(t *testing.T) {
+func Test793d37b1_ATurnIsRedactedBeforeItIsWrittenToDisk(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -163,7 +92,7 @@ func Test793d22b2_ATurnIsRedactedBeforeItIsWrittenToDisk(t *testing.T) {
 	g.Expect(world.Written[queueFile]).NotTo(ContainSubstring("hunter2hunter2"))
 }
 
-func Test793d22b2_ATurnIsWrittenToTheFileWithItsWindowAndSourceAndNothingIsJudged(t *testing.T) {
+func Test793d37b1_ATurnIsWrittenToTheFileWithItsWindowAndSourceAndNothingIsJudged(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -187,7 +116,7 @@ func Test793d22b2_ATurnIsWrittenToTheFileWithItsWindowAndSourceAndNothingIsJudge
 	g.Expect(world.Commands).To(BeEmpty())
 }
 
-func Test793d22b2_ATurnWithNoWordsOfTheUserIsNotQueued(t *testing.T) {
+func Test793d37b1_ATurnWithNoWordsOfTheUserIsNotQueued(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -201,21 +130,7 @@ func Test793d22b2_ATurnWithNoWordsOfTheUserIsNotQueued(t *testing.T) {
 	g.Expect(world.Writes).To(BeEmpty())
 }
 
-func Test793d22b2_AnEntryThatHasBeenTakenThreeTimesIsDroppedWithoutBeingTakenAgain(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	world := NewWorld()
-	world.Files[queueFile] = queueText(leftBehind(3), leftBehind(0))
-
-	done := world.Do(t, map[string]any{"kind": "resume", "start": "startup"})
-
-	g.Expect(done.Resumed).To(Equal([]auto.QueueEntry{entryOf(leftBehind(1))}))
-	g.Expect(queueOf(t, world)).To(Equal([]queued{leftBehind(1)}))
-	g.Expect(strings.Join(world.Logs, "\n")).To(ContainSubstring("dropped"))
-}
-
-func Test793d22b2_NoFileAndAFileThatIsNotAQueueAreAnEmptyQueue(t *testing.T) {
+func Test793d37b1_NoFileAndAFileThatIsNotAQueueAreAnEmptyQueue(t *testing.T) {
 	t.Parallel()
 
 	for name, text := range map[string]string{
@@ -239,7 +154,92 @@ func Test793d22b2_NoFileAndAFileThatIsNotAQueueAreAnEmptyQueue(t *testing.T) {
 	}
 }
 
-func Test793d22b2_TheFileHoldsExactlyTheTurnsNotYetCapturedWhateverTheOrder(t *testing.T) {
+func Test793d37b2_ASessionThatIsNotNewTakesNothingAndWritesNothing(t *testing.T) {
+	t.Parallel()
+
+	// a clear or a compaction happens in the process that holds the queue's own jobs: taking them would capture twice
+	for _, start := range []string{"clear", "compact", ""} {
+		t.Run(start, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+			world := NewWorld()
+			world.Files[queueFile] = queueText(leftBehind(0))
+
+			done := world.Do(t, map[string]any{"kind": "resume", "start": start})
+
+			g.Expect(done.Resumed).To(BeEmpty())
+			g.Expect(world.Writes).To(BeEmpty())
+		})
+	}
+}
+
+func Test793d37b2_ASessionThatStartsTakesTheEntriesLeftBehindAndCountsTheTry(t *testing.T) {
+	t.Parallel()
+
+	for _, start := range []string{"startup", "resume"} {
+		t.Run(start, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+			world := NewWorld()
+			world.Files[queueFile] = queueText(leftBehind(0), leftBehind(2))
+
+			done := world.Do(t, map[string]any{"kind": "resume", "start": start})
+
+			g.Expect(done.Resumed).To(Equal([]auto.QueueEntry{entryOf(leftBehind(1)), entryOf(leftBehind(3))}))
+			g.Expect(queueOf(t, world)).To(Equal([]queued{leftBehind(1), leftBehind(3)}))
+		})
+	}
+}
+
+func Test793d37b2_AnEntryThatHasBeenTakenThreeTimesIsDroppedWithoutBeingTakenAgain(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := NewWorld()
+	world.Files[queueFile] = queueText(leftBehind(3), leftBehind(0))
+
+	done := world.Do(t, map[string]any{"kind": "resume", "start": "startup"})
+
+	g.Expect(done.Resumed).To(Equal([]auto.QueueEntry{entryOf(leftBehind(1))}))
+	g.Expect(queueOf(t, world)).To(Equal([]queued{leftBehind(1)}))
+	g.Expect(strings.Join(world.Logs, "\n")).To(ContainSubstring("dropped"))
+}
+
+func Test793d37b3_ACaptureOfAnEntryTakesItOutOfTheFileWhenItEnds(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := NewWorld()
+	world.Files[queueFile] = queueText(leftBehind(0), queued{Window: "User: other", Source: "s2"})
+
+	done := world.Do(t, map[string]any{
+		"kind": "capture", "entry": leftBehind(0), "transcript": transcriptPath, "step": "the capture",
+	})
+
+	g.Expect(done.Queued).To(BeNil())
+	g.Expect(world.Requests).To(HaveLen(1))
+	g.Expect(world.Requests[0].Prompt).To(ContainSubstring("User: No, use targ, not go test directly."))
+	g.Expect(queueOf(t, world)).To(Equal([]queued{{Window: "User: other", Source: "s2"}}))
+}
+
+func Test793d37b3_ACaptureThatFailsKeepsItsEntryInTheFileForTheNextSession(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := NewWorld()
+	world.Model = func(string, auto.Request) map[string]any { return Unanswered("api-error") }
+	world.Files[queueFile] = queueText(leftBehind(1))
+
+	world.Do(t, map[string]any{"kind": "capture", "entry": leftBehind(1), "step": "the capture"})
+
+	g.Expect(world.Warnings).To(HaveLen(1))
+	g.Expect(queueOf(t, world)).To(Equal([]queued{leftBehind(1)}))
+	g.Expect(world.Writes).To(BeEmpty())
+}
+
+func Test793d37b3_TheFileHoldsExactlyTheTurnsNotYetCapturedWhateverTheOrder(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {

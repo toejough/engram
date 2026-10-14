@@ -279,7 +279,7 @@ func amendRestampsIdentity(args AmendArgs) bool {
 }
 
 // appendSource adds a provenance line to a note's source: after what is there, once: a line already in it, or none,
-// leaves it as it was (793d29b3).
+// leaves it as it was (793d38b1).
 func appendSource(current, line string) string {
 	if line == "" || strings.Contains(current, line) {
 		return current

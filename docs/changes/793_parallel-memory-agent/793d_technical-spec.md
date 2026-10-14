@@ -45,7 +45,7 @@ The terms **moment**, **delivery**, **lesson**, **working agent**, **context**, 
 - **Hook budget:** the 10 seconds a hook handler's own time may take before Claude Code cuts it off.
 - **Stand-in command:** a program that takes the place of the engram program in an experiment, returning a fixed delivery.
 - **Probe:** a minimal mod module or settings hook that exercises one capability and writes what it observed to a log outside the transcript.
-- **Judgement:** a model decision the System makes about memory. Its **kind** is one of the four the proof of concept has: `classify` (which of recall's four decision moments the agent is about to reach, or none), `relevance` (which candidate notes bear on a moment), `capture` (the lessons in a window of a session, each marked covered by a nearest note or absent) and `curation` (whether a pending offer is covered, near, absent or rejected).
+- **Judgement:** a model decision the System makes about memory. Its **kind** is one of four: `classify` (which of recall's four decision moments the agent is about to reach, or none), `relevance` (which candidate notes bear on a moment), `capture` (the lessons in a window of a session, each marked covered by a nearest note or absent) and `curation` (whether a pending offer is covered, near, absent or rejected).
 - **Session model:** the model the working session is configured with; for H2 on this machine, the sonnet arm, because the acceptance sessions are pinned to it.
 - **Cheapest tier:** the least capable and cheapest model tier available to the session, the `haiku` family, named by an alias and not by a dated id.
 - **`judgeTiers`:** the table from a judgement kind to the model its requests name; every kind defaults to the cheapest tier.
@@ -59,11 +59,14 @@ The terms **moment**, **delivery**, **lesson**, **working agent**, **context**, 
 - **Window:** the lines of what the user and the agent said, labelled by role, that one capture judgement reads.
 - **Nearest notes:** the vault notes closest to a window or an offer by `engram query`, which a judgement compares it with.
 - **Burst:** the jobs in the System's queue at one time; the housekeeping runs after the last of them.
-- **Housekeeping:** the work that follows a burst: the index, the pass over pending offers and, after a top-level turn, one backlog step.
+- **Housekeeping:** the work that follows a burst, one job of the engine: the index, the pass over pending offers and, after a top-level turn, one backlog step.
 - **Backlog source:** a session transcript file of any harness that the chunk index's manifest lists and that no capture has covered.
 - **Mark:** a record in the backlog mark file that a backlog source, by its hash, or the turns of a session were captured.
 - **Cut-off:** the fixed time, the install time minus 7 days, before which a backlog source is history.
 - **Status line:** the one line the mod pins under the prompt, which is not a row of the transcript.
+- **Job:** one unit of the System's work that the mod hands to `engram auto run`: a `kind` (`lookup`, `step`, `tool`, `compact`, `capture`, `subagent`, `housekeeping`, `summary`, `enqueue` or `resume`) and the fields that kind reads.
+- **Round:** one call of `engram auto run` for a job. It ends the job, or asks the mod to relay model requests or to wait; the next round replays the job from the **record** of the effects of the earlier ones (each command's output, each file read, the clock, each reply), which the mod hands back and never reads.
+- **Queue file:** `capture-queue.json` in the chunks directory, which holds an entry for each turn capture that has not ended: the turn's redacted window, its source line, its session's transcript and the number of times a later session has taken it up.
 
 ## 793d17 H1: a Claude Code mod gives a smaller implementation surface and more capability than settings hooks
 
@@ -227,6 +230,22 @@ Ratified by the owner (Joe, 2026-10-13, [793b324 Owner answer 3: the residual-ri
 
 Automatic memory reads the user's and the agent's own messages, from live turns, subagent transcripts and session files on this machine that ended after the install time minus 7 days ([793b323 Owner answer 2: the backlog cut-off is one fixed point, install time minus 7 days](./793b_decision-log.md#793b323-owner-answer-2-the-backlog-cut-off-is-one-fixed-point-install-time-minus-7-days)), and pending offers from linked vaults. It sends them, after pattern-based redaction, to a cheap model that may write or amend notes. Tool inputs and results never reach the model. Speakers are taken from row structure. Replies are parsed strictly, and model output can touch only a note named by number from the nearest set, through fixed engram commands. Remaining risks: (1) an injection in user or agent text, or a planted session file, can become a note that is delivered as memory to later sessions; (2) a crafted offer can be folded into a trusted note's fields; (3) secrets of shapes the patterns do not cover can reach the model provider and the vault; (4) a wrongly judged `covered` discards an offer, recoverable only from vault history. Mitigations: provenance lines on every automatic note, aliases on folded offers, data framing on delivered notes, the user-visible activity line, and owner review of the vault. Model refusal to follow data is not a guarantee.
 
+The mitigations above are each held by a requirement that carries a `Security` line, and by Go tests of `internal/auto` (names are the starts of test names, with the file where it is not `internal/auto`). Each test was written to fail before the code it holds, from the security review of the Go port and the hardening node ([793b375 Three findings of the security review of the Go port, and the mitigations of 793d19a that map to Go tests](./793b_decision-log.md#793b375-three-findings-of-the-security-review-of-the-go-port-and-the-mitigations-of-793d19a-that-map-to-go-tests), [793b396 The answer and the last message of a subagent reached the window as raw lines, and the line breaks were not all of them](./793b_decision-log.md#793b396-the-answer-and-the-last-message-of-a-subagent-reached-the-window-as-raw-lines-and-the-line-breaks-were-not-all-of-them), [793b397 The judge's prompt fences and reply parser accepted forms a reader takes differently](./793b_decision-log.md#793b397-the-judges-prompt-fences-and-reply-parser-accepted-forms-a-reader-takes-differently), [793b398 The persisted queue is a file the engine owns, and the red tests of 793b362 became tests of the jobs the mod hands it](./793b_decision-log.md#793b398-the-persisted-queue-is-a-file-the-engine-owns-and-the-red-tests-of-793b362-became-tests-of-the-jobs-the-mod-hands-it), [793b399 A near fold carries a provenance line, by a new flag of engram amend](./793b_decision-log.md#793b399-a-near-fold-carries-a-provenance-line-by-a-new-flag-of-engram-amend)).
+
+| Mitigation | Requirement | Tests |
+| --- | --- | --- |
+| Speakers from the role of a message; one line a message; a tool's input and result never in a [window](#793d1b-terms) | [793d27b1 Windows](#793d27b1-windows) | `Test793d19a_ASpeakerIsKnownByTheRole`, `Test793d19a_WhatAToolTookIn`, `Test793d27b1_NoLineBreakOfAnyKind`, `Test793d27b1_NoTextOfAnyMessage` |
+| A [backlog source](#793d1b-terms) read by the roles of its rows | [793d28b2 Reading and windows](#793d28b2-reading-and-windows) | `Test793d19a_ABacklogSourceIsReadByTheRoles` |
+| Data fenced: placeholders filled in one pass, the tags of a prompt broken in any form | [793d25b2 Data and replies](#793d25b2-data-and-replies) | `Test793d19a_ATagImitation`, `Test793d19a_APlaceholder`, `Test793d19a_TheWindowCannotCloseTheTag`, `Test793d19a_TextThatImitatesThePromptsTags`, `Test793d19a_AnOfferOrANoteThatHoldsTheTags` |
+| Replies read strictly, with types, ranges and no duplicate key | [793d25b3 Result shapes](#793d25b3-result-shapes) | `Test793d25b3_`, `Test793d19a_ADuplicateKey` |
+| Redaction before the cut, in every shape listed, on the [queue file](#793d1b-terms) too | [793d26b1 Credential shapes](#793d26b1-credential-shapes), [793d37b1 Entries](#793d37b1-entries) | `Test793d26b1_`, `Test793d19a_ASecretInAnOffer`, `Test793d37b1_ATurnIsRedactedBeforeItIsWrittenToDisk` |
+| A result names a [nearest note](#793d1b-terms) only by its number; a [note](./793a_product-spec.md#793a1-problem-statement) name is checked before it reaches a command or a [block](#793d1b-terms) | [793d29b2 Outcomes and guards](#793d29b2-outcomes-and-guards), [793d24b3 Block](#793d24b3-block), [793d29b1 Offers to settle](#793d29b1-offers-to-settle) | `Test793d29b2_`, `Test793d24b3_ANoteWhoseNameIsNotANoteName`, `Test793d19a_TheNoteAnOfferIsFor` |
+| `--expect-hash` read from `engram show`; free text as `--flag=value` | [793d29b2 Outcomes and guards](#793d29b2-outcomes-and-guards), [793d24b1 Lookup and selection](#793d24b1-lookup-and-selection) | `Test793d29b2_AnExchangeHashIsReadFromTheHeader`, `Test793d19a_AnOfferWhoseSituationStartsWithADash`, `Test793d24b1_FreeTextThatStartsWithADash` |
+| Delivered [notes](./793a_product-spec.md#793a1-problem-statement) framed as data, one line each | [793d24b3 Block](#793d24b3-block) | `Test793d24b3_ADeliveredNoteIsFramedAsData` |
+| A folded offer is discarded into its [note](./793a_product-spec.md#793a1-problem-statement), never deleted | [793d29b2 Outcomes and guards](#793d29b2-outcomes-and-guards) | `Test793d19a_AnOfferJudgedCoveredNearOrRejected` |
+| The activity line from constants and counts only | [793d30b2 Warnings and surface](#793d30b2-warnings-and-surface) | `Test793d30b2_OnlyConstantsAndCounts` |
+| A provenance line on every automatic [note](./793a_product-spec.md#793a1-problem-statement), the near fold included | [793d27b2 Reconciliation, writes and provenance](#793d27b2-reconciliation-writes-and-provenance), [793d38b1 Amend provenance](#793d38b1-amend-provenance) | `Test793d19a_ANoteFromATurnOrASubagent`, `Test793d38b1_` in `internal/cli` |
+
 ## 793d20 Traceability to the product spec
 
 Every scenario of [Parallel Memory Agent - Product Spec](./793a_product-spec.md#parallel-memory-agent---product-spec) is listed with the hypothesis scenarios that test the assumption it rests on, or the design [note](./793a_product-spec.md#793a1-problem-statement) that will realise it. The scenario text is not restated here ([793b188 Technical spec structure: flows and components, with the scenario mapping as a table](./793b_decision-log.md#793b188-technical-spec-structure-flows-and-components-with-the-scenario-mapping-as-a-table)).
@@ -277,39 +296,37 @@ Every scenario of [Parallel Memory Agent - Product Spec](./793a_product-spec.md#
 | [793a5c1b A Pi session on a machine whose Claude Code has the System](./793a_product-spec.md#793a5c1-uat-scenarios) | [793b191 engram update installs the mod as a skills-directory plugin](./793b_decision-log.md#793b191-engram-update-installs-the-mod-as-a-skills-directory-plugin), [793d17d1a The mod loads in every session from the install path](#793d17d1-experiments) |
 | [793a5c1c A captured Pi session's transcript is left unchanged](./793a_product-spec.md#793a5c1-uat-scenarios) | [793b231 Backlog capture: the System captures lessons from any swept session transcript after the fact](./793b_decision-log.md#793b231-backlog-capture-the-system-captures-lessons-from-any-swept-session-transcript-after-the-fact) |
 
-## 793d21 System technical specification from the proof of concept
+## 793d21 System technical specification from the refactored system
 
-Canonical targets: the component and flow files named in 793d22 to 793d34, each by its own `Canonical target` line. Sections 793d1 to 793d20 are the change record (hypotheses, method, results, owner conclusions, design pointers, security, traceability) and are not promoted; 793d21 to 793d35 are the part that is promoted ([793b357 The technical specification is derived from the proof of concept as built; 793d21 onward is what is promoted](./793b_decision-log.md#793b357-the-technical-specification-is-derived-from-the-proof-of-concept-as-built-793d21-onward-is-what-is-promoted)).
+Canonical targets: the component and flow files named in 793d22 to 793d38, each by its `Canonical target` line. Sections 793d1 to 793d20 are the change record (hypotheses, results, owner conclusions, design pointers, security, traceability) and are not promoted; 793d21 to 793d38 are ([793b357 The technical specification is derived from the proof of concept as built; 793d21 onward is what is promoted](./793b_decision-log.md#793b357-the-technical-specification-is-derived-from-the-proof-of-concept-as-built-793d21-onward-is-what-is-promoted), [793b402 The component and flow specs are written from the refactored system](./793b_decision-log.md#793b402-the-component-and-flow-specs-are-written-from-the-refactored-system)).
 
 ### 793d21a Orientation
 
-This is the technical specification of the [System](./793a_product-spec.md#793a1-problem-statement) as the proof of concept builds it: the [mod](#793d1b-terms) `agent-instructions/mods/engram-memory` and its deploy in `internal/update` and `internal/cli`. It states only what that code and its tests do; what is not built is marked `Gap` or listed in [793d35c Gaps and what is not built](#793d35c-gaps-and-what-is-not-built). It reuses unchanged the [Query Engine](../../specs/technical/query-engine.md), [Note Authoring](../../specs/technical/note-authoring.md), [Note Amendment](../../specs/technical/note-amendment.md), [Ingestion Source Discovery](../../specs/technical/ingestion-source-discovery.md) (the manifest of `engram ingest --auto`), [Command Line Surface](../../specs/technical/command-line-surface.md) (`engram show`), [Vault Write Lock](../../specs/technical/vault-write-lock.md) (held by learn and amend, which is how the [System](./793a_product-spec.md#793a1-problem-statement) coexists with intentional ingestion) and [Self Installer](../../specs/technical/self-installer.md), and extends [Harness Deploy Sync](../../specs/technical/harness-deploy-sync.md) in [793d31 Harness Deploy Sync (mod additions)](#793d31-harness-deploy-sync-mod-additions).
+This is the technical specification of the [System](./793a_product-spec.md#793a1-problem-statement) as the refactored system builds it, written from its code and tests ([793b402 The component and flow specs are written from the refactored system](./793b_decision-log.md#793b402-the-component-and-flow-specs-are-written-from-the-refactored-system)): the Go engine behind `engram auto run` (`internal/auto`), the thin [mod](#793d1b-terms) `agent-instructions/mods/engram-memory`, and the deploy in `internal/update`. What is not built is marked `Gap` or listed in [793d35c Gaps and what is not built](#793d35c-gaps-and-what-is-not-built). It reuses unchanged [Query Engine](../../specs/technical/query-engine.md), [Note Authoring](../../specs/technical/note-authoring.md), [Ingestion Source Discovery](../../specs/technical/ingestion-source-discovery.md), [Command Line Surface](../../specs/technical/command-line-surface.md), [Vault Write Lock](../../specs/technical/vault-write-lock.md) (held by learn and amend, which is how the System coexists with intentional ingestion) and [Self Installer](../../specs/technical/self-installer.md), and extends [Harness Deploy Sync](../../specs/technical/harness-deploy-sync.md) in [793d31 Harness Deploy Sync (mod additions)](#793d31-harness-deploy-sync-mod-additions) and [Note Amendment](../../specs/technical/note-amendment.md) in [793d38 Note Amendment (additions)](#793d38-note-amendment-additions).
 
-Reading guide. `Verified by` names contract tests: a file under `agent-instructions/mods/engram-memory/tests/` (run by `claude plugin test`; 23 tests) with the start of a test's name, or a Go test in `internal/auto`, `internal/update` or `internal/cli`. The [mod](#793d1b-terms) is an adapter ([793b368 Within reason the logic moves to Go and the mod becomes a thin adapter](./793b_decision-log.md#793b368-within-reason-the-logic-moves-to-go-and-the-mod-becomes-a-thin-adapter)): `wiring.test.ts` registers it under the test engine with the engine of the Go side scripted and the model, clock and files stubbed, and asserts what it hands over and does with the answers (jobs, relayed requests, [block](#793d1b-terms), [status line](#793d1b-terms), the queue); the Go tests of `internal/auto` run each job through `Run` in a fake world of commands, files, environment and clock, with the model played by a function of the request, and the golden tests compare the pure parts with what the JavaScript they replaced answered for a corpus (`internal/auto/testdata/golden`) ([793b359 Flows carry one interaction requirement per calling owner, component tests drive the mod's event interface, and what is not built is marked](./793b_decision-log.md#793b359-flows-carry-one-interaction-requirement-per-calling-owner-component-tests-drive-the-mods-event-interface-and-what-is-not-built-is-marked)). Each product scenario ID is a `targ acceptance` row of `dev/acceptance/scenarios.js`; flow scenarios cite their rows in comments.
+Reading guide. `Verified by` names contract tests: a file under `agent-instructions/mods/engram-memory/tests/` (run by `claude plugin test`; 23 tests) with the start of a test's name, or a Go test with the start of its name. The [mod](#793d1b-terms) is an adapter ([793b368 Within reason the logic moves to Go and the mod becomes a thin adapter](./793b_decision-log.md#793b368-within-reason-the-logic-moves-to-go-and-the-mod-becomes-a-thin-adapter)): its tests register it with the engine scripted. The Go tests run each [job](#793d1b-terms) through `Run` in a fake world of commands, files, environment and clock, with the model played by a function of the request ([793b359 Flows carry one interaction requirement per calling owner, component tests drive the mod's event interface, and what is not built is marked](./793b_decision-log.md#793b359-flows-carry-one-interaction-requirement-per-calling-owner-component-tests-drive-the-mods-event-interface-and-what-is-not-built-is-marked)). Each product scenario ID is a `targ acceptance` row. `targ check-spec-conformance`, in `check-full`, fails when a requirement lacks `Supports` or `Verified by`, a cited test is absent or fails, a product scenario is unsupported, or a `Realization` names absent code.
 
-Components, each with one owner ([793b358 The components that qualify and the candidates that fail](./793b_decision-log.md#793b358-the-components-that-qualify-and-the-candidates-that-fail)): [793d22 Memory Mod](#793d22-memory-mod), [793d23 Moment Detection](#793d23-moment-detection), [793d24 Memory Delivery](#793d24-memory-delivery), [793d25 Judgement Relay](#793d25-judgement-relay), [793d26 Secret Redaction](#793d26-secret-redaction), [793d27 Auto Capture](#793d27-auto-capture), [793d28 Backlog Capture](#793d28-backlog-capture), [793d29 Auto Curation](#793d29-auto-curation), [793d30 Activity Report](#793d30-activity-report), [793d31 Harness Deploy Sync (mod additions)](#793d31-harness-deploy-sync-mod-additions). Flows: [793d32 Moment Delivery Flow](#793d32-moment-delivery-flow), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow), [793d34 Mod Install Flow](#793d34-mod-install-flow).
-
-Parts considered as components and folded into an owner: the [delivery](./793a_product-spec.md#793a1-problem-statement) channels (routing, not a contract apart from the Memory Mod), the delivery [ledger](#793d1b-terms) (state of Memory Delivery's decision), failure classification and the queue (neither can be tested apart from the events that feed them), the four [judgement](#793d1b-terms) kinds (they share the Judgement Relay's tier table, fencing and reading), the mark file (state of Backlog Capture), the harness-only seam log (fails necessity) and the `claude --version` check (a boundary used only by Harness Deploy Sync).
+Components, each with one owner ([793b358 The components that qualify and the candidates that fail](./793b_decision-log.md#793b358-the-components-that-qualify-and-the-candidates-that-fail), [793b402 The component and flow specs are written from the refactored system](./793b_decision-log.md#793b402-the-component-and-flow-specs-are-written-from-the-refactored-system)): [793d22 Memory Mod](#793d22-memory-mod), [793d36 Job Runner](#793d36-job-runner), [793d23 Moment Detection](#793d23-moment-detection), [793d24 Memory Delivery](#793d24-memory-delivery), [793d25 Judgement Relay](#793d25-judgement-relay), [793d26 Secret Redaction](#793d26-secret-redaction), [793d27 Auto Capture](#793d27-auto-capture), [793d37 Capture Queue](#793d37-capture-queue), [793d28 Backlog Capture](#793d28-backlog-capture), [793d29 Auto Curation](#793d29-auto-curation), [793d38 Note Amendment (additions)](#793d38-note-amendment-additions), [793d30 Activity Report](#793d30-activity-report) and [793d31 Harness Deploy Sync (mod additions)](#793d31-harness-deploy-sync-mod-additions). Flows: [793d32 Moment Delivery Flow](#793d32-moment-delivery-flow), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow) and [793d34 Mod Install Flow](#793d34-mod-install-flow). Folded into an owner: the [delivery](./793a_product-spec.md#793a1-problem-statement) channels (the Memory Mod's), the [ledger](#793d1b-terms) (Memory Delivery's), failure classification and the housekeeping [job](#793d1b-terms) (the Job Runner's), the [judgement](#793d1b-terms) kinds (the Judgement Relay's), the [mark file](#793d1b-terms) (Backlog Capture's), the harness-only seam log (fails necessity) and the `claude --version` check (a boundary of Harness Deploy Sync).
 
 ## 793d22 Memory Mod
 
-Canonical target: `docs/specs/technical/memory-mod.md` (title `Memory Mod - Technical Spec`).
+Canonical target: `docs/specs/technical/memory-mod.md`.
 
 ### 793d22a Orientation
 
-Ownership: repository component (the `engram-memory` Claude Code plugin, a [mod](#793d1b-terms)). Responsibility: observes the events of a Claude Code [session](../../GLOSSARY.md#session), adds the [System](./793a_product-spec.md#793a1-problem-statement)'s delivered text to the agent's [context](./793a_product-spec.md#793a1-problem-statement) through the channel that event provides, runs the System's background work off the event, in order, and contains every failure, changing nothing else. Realization: `hooks/register.js` (the events, the channels and the relay), `Run` and `guard` in `internal/auto/relay.go`, `failureKind` in `internal/auto/failure.go`.
+Ownership: repository component (the `engram-memory` plugin, a [mod](#793d1b-terms)). Responsibility: maps [session](../../GLOSSARY.md#session) events to [jobs](#793d1b-terms) of the engine, adds what the engine delivers to the agent's [context](./793a_product-spec.md#793a1-problem-statement) through each event's channel, relays the engine's model requests, runs background jobs in order and contains every failure; it decides nothing about memory. Realization: `hooks/register.js`.
 
 ### 793d22b Behavior Requirements
 
 #### 793d22b1 Events and channels
 
-Requirement: 793d22b1 The Memory Mod MUST add a delivered [block](#793d1b-terms) to the `context` of a `prompt.submit` event, and to the `additionalContext` of a top-level route [skill](../../GLOSSARY.md#skill) result and of a [subagent](../../GLOSSARY.md#subagent) start, returning every other field as received. It MUST NOT deny, drop, answer or alter any event, tool call, permission, model choice or prompt text, MUST pass every other tool result and every other event of a subagent on unchanged, and MUST NOT ask the agent to do anything with a block but apply it.
+Requirement: 793d22b1 The Memory Mod MUST add a delivered [block](#793d1b-terms) to the `context` of a `prompt.submit` event, whatever its origin, and to the `additionalContext` of a top-level tool result and of a [subagent](../../GLOSSARY.md#subagent) start, returning every other field as received. It MUST NOT deny, drop, answer or alter any event, tool call, permission, model choice or prompt text, MUST pass a subagent's tool results and other events on unchanged, and MUST NOT ask the agent to do anything with a block but apply it.
 
-Supports: [793a4c1a Tool calls and permissions unchanged](./793a_product-spec.md#793a4c1-uat-scenarios), [793a4c1b The prompt is unchanged and the note is separate](./793a_product-spec.md#793a4c1-uat-scenarios), [793a4c1c The only effect on the working agent's context is what is delivered](./793a_product-spec.md#793a4c1-uat-scenarios), [793a4c1f The agent is neither required nor asked to run a memory command](./793a_product-spec.md#793a4c1-uat-scenarios)
+Supports: [793a4c1a Tool calls and permissions unchanged](./793a_product-spec.md#793a4c1-uat-scenarios), [793a4c1f The agent is neither required nor asked to run a memory command](./793a_product-spec.md#793a4c1-uat-scenarios), [793a2n1h A prompt from any source receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios)
 
-Verified by: `wiring.test.ts` "the ledger the engine hands back goes with the next job…"; `wiring.test.ts` "a request is relayed as it came…"; `wiring.test.ts` "the result of a tool carries the block of the route lookup…"
+Verified by: `wiring.test.ts` "a request is relayed…"; `wiring.test.ts` "the result of a tool carries…"; `wiring.test.ts` "a subagent gets nothing…"
 
-Rationale: The [mod](#793d1b-terms) adds [context](./793a_product-spec.md#793a1-problem-statement) at every channel, attributable in the [transcript](../../GLOSSARY.md#transcript), and shows the user text outside it ([793d17g4 Verdict](#793d17g4-verdict): the owner's positive result).
+Rationale: The owner kept the [mod](#793d1b-terms) over settings hooks for its capability and efficiency: a model call in process on the [session](../../GLOSSARY.md#session)'s credentials, a [status line](#793d1b-terms) off the [transcript](../../GLOSSARY.md#transcript), the prompt's origin known ([793d17g4 Verdict](#793d17g4-verdict)).
 
 ##### 793d22b1a Scenarios
 
@@ -317,94 +334,168 @@ Rationale: The [mod](#793d1b-terms) adds [context](./793a_product-spec.md#793a1-
 Scenario: 793d22b1a1 The prompt is returned as typed with the block beside it
   Given a note matches the prompt
   When the prompt is submitted
-  Then the returned text equals the typed text
-  And the block is one separate context entry
+  Then the text equals the typed text and the block is a separate context entry
 ```
 
 #### 793d22b2 Background queue and housekeeping
 
-Requirement: 793d22b2 After answering a top-level `turn.complete` or a `classic.SubagentStop`, the Memory Mod MUST queue one capture job and start it from a timer, so the event returns before any of the job's work starts, and MUST run queued jobs one at a time in queue order. It MUST queue nothing for the `turn.complete` of a [subagent](../../GLOSSARY.md#subagent). When the last job of a [burst](#793d1b-terms) ends it MUST run the [housekeeping](#793d1b-terms) in this order: `engram ingest --auto`, the pass over pending [offers](../../GLOSSARY.md#offer) and, only when the burst holds a top-level turn, one backlog step. A failing job or step MUST NOT stop the next.
+Requirement: 793d22b2 After answering a top-level `turn.complete` or a `classic.SubagentStop`, the Memory Mod MUST put one capture [job](#793d1b-terms) in its queue from a timer, so that the event returns before the job's work starts, and run queued jobs one at a time in order. It MUST queue nothing for a [subagent](../../GLOSSARY.md#subagent)'s `turn.complete`. After the last job of a [burst](#793d1b-terms) it MUST hand the engine one housekeeping job, marked ended when the burst holds a top-level turn, and for such a burst only, the summary job. A failing job MUST NOT stop the next.
 
-Supports: [793a4j1a The index catches up after the turn](./793a_product-spec.md#793a4j1-uat-scenarios), [793a4j1e Slow housekeeping does not stall the session](./793a_product-spec.md#793a4j1-uat-scenarios), [793a3a1h Two subagents contain the same lesson](./793a_product-spec.md#793a3a1-uat-scenarios)
+Supports: [793a4j1e Slow housekeeping does not stall the session](./793a_product-spec.md#793a4j1-uat-scenarios), [793a3a1h Two subagents contain the same lesson](./793a_product-spec.md#793a3a1-uat-scenarios)
 
-Verified by: `internal/auto/curate_test.go`: Test793d22b2; `wiring.test.ts` "a turn is queued before it is answered…"; `wiring.test.ts` "the jobs of a burst run one at a time…"; `wiring.test.ts` "the seam file records a job joining the queue…"
-
-Rationale: The event returns first so that no prompt waits for the [System](./793a_product-spec.md#793a1-problem-statement)'s work, and the order lets a later capture see an earlier [note](./793a_product-spec.md#793a1-problem-statement).
+Verified by: `wiring.test.ts` "a turn is queued…"; `wiring.test.ts` "the jobs of a burst…"; `wiring.test.ts` "a job that fails…"
 
 ##### 793d22b2a Scenarios
 
 ```gherkin
-Scenario: 793d22b2a1 The turn is answered before the work, and the index follows the capture
-  Given a turn completes
-  When the Memory Mod handles turn.complete
-  Then the event returns before the capture's first command runs
-  And engram ingest --auto runs once the capture has ended
+Scenario: 793d22b2a1 The turn is answered before the work, and housekeeping follows
+  Given a turn and a subagent stop each queue a capture
+  When the turn completes
+  Then the event returns before any capture starts and one housekeeping job runs after the second
 ```
 
 #### 793d22b3 Failure containment
 
-Requirement: 793d22b3 The Memory Mod MUST contain any failure of a step it runs (a command that cannot start, passes its deadline or exits non-zero, unparseable output, an unreadable [judgement](#793d1b-terms), a thrown error): the event proceeds as without the [mod](#793d1b-terms), no error reaches the agent and no input is lost. It MUST classify the failure as `unavailable` (the engram program cannot start or the [vault](./793a_product-spec.md#793a1-problem-statement) cannot be read), `timeout` (a deadline passed or a model call was cut) or `error`, and give the Activity Report the step and class. Each command MUST have a deadline, the lookup of a [moment](./793a_product-spec.md#793a1-problem-statement) and its relevance judgement together holding the event at most 8 seconds. A lookup that finds nothing is not a failure.
+Requirement: 793d22b3 The Memory Mod MUST contain any failure of its own steps: `engram auto run` that cannot start, passes its 10-minute deadline or exits non-zero, a response that is not JSON, a model call that throws, a [job](#793d1b-terms) that does not end in 200 [rounds](#793d1b-terms). The event MUST proceed as received, no error reach the agent, and the next job run. For a named step it MUST write the cause to the debug log and give the Activity Report the step and a class by what the failure says: `failed to start` is the [vault](./793a_product-spec.md#793a1-problem-statement) unavailable, `still running after` a timeout, else an error.
 
-Supports: [793a4b1a Vault unavailable](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1c No error reaches the agent and the user is warned](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1e No warning when nothing matched](./793a_product-spec.md#793a4b1-uat-scenarios)
+Supports: [793a4b1c No error reaches the agent and the user is warned](./793a_product-spec.md#793a4b1-uat-scenarios)
 
-Verified by: `internal/auto/curate_test.go`: Test793d22b3; `internal/auto/failure_test.go`: Test793d22b3; `internal/auto/golden_test.go`: Test793d22b3; `internal/auto/moment_test.go`: Test793d22b3; `wiring.test.ts` "793d22b3 when the program exits with an error…"; `wiring.test.ts` "a job that fails warns, and the next one still runs…"
+Verified by: `wiring.test.ts` "793d22b3 when the program exits…"; `wiring.test.ts` "793d22b3 when the program cannot…"; `wiring.test.ts` "793d22b3 when the program is cut…"
 
 ##### 793d22b3a Scenarios
 
 ```gherkin
-Scenario: 793d22b3a1 An unreadable vault leaves the prompt as typed
-  Given the vault cannot be read
+Scenario: 793d22b3a1 A program that cannot start leaves the prompt as typed
+  Given engram cannot start
   When a prompt is submitted
-  Then the prompt is returned as typed with no context
-  And the Activity Report receives the step and the class unavailable
+  Then it is returned as typed with no context and the Activity Report receives the step and the class unavailable
 ```
 
 #### 793d22b4 Persisted turn captures
 
-Requirement: 793d22b4 Before a top-level `turn.complete` returns, the Memory Mod MUST have the engine write the turn to the queue file `capture-queue.json` of the chunks directory (`enqueue`), and the capture job it then queues MUST run that entry; a turn the engine could not write MUST be captured from memory, with no warning. The engine MUST write the entry's window redacted, take the entry out of the file only when its capture has ended, and keep it when the capture fails. When a session starts (`startup` or `resume`, not `clear` or `compact`) the mod MUST have the engine hand back the entries a session left (`resume`) and queue a capture for each; the engine MUST count each entry taken up and drop one that has been taken up three times. A `classic.SubagentStop` capture is not queued in the file.
+Requirement: 793d22b4 Before a top-level `turn.complete` returns, the Memory Mod MUST have the engine write the turn to the [queue file](#793d1b-terms) (an `enqueue` [job](#793d1b-terms)) and queue the capture of the entry it hands back, or, when it hands back none, of the turn from memory with no warning. When a [session](../../GLOSSARY.md#session) starts it MUST hand the engine a `resume` job with the start's source and queue one capture for each entry returned. A `classic.SubagentStop` capture is not queued in the file.
 
-Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), [793a4j1e Slow housekeeping does not stall the session](./793a_product-spec.md#793a4j1-uat-scenarios)
+Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios)
 
-Verified by: `internal/auto/queue_test.go`: Test793d22b2; `hardening.test.ts` "793d22b2 a turn is in the queue file before its hook returns"; `hardening.test.ts` "793d22b2 an entry a session left behind is captured at the next start"; `hardening.test.ts` "793d22b2 a turn the file could not take is captured from memory and nobody is warned"
+Verified by: `hardening.test.ts` "793d22b4 a turn is in the queue file…"; `hardening.test.ts` "793d22b4 an entry a session left…"; `hardening.test.ts` "793d22b4 a start that is not…"; `hardening.test.ts` "793d22b4 a turn the file could not take…"
 
-Rationale: [793b398 The persisted queue is a file the engine owns, and the red tests of 793b362 became tests of the jobs the mod hands it](./793b_decision-log.md#793b398-the-persisted-queue-is-a-file-the-engine-owns-and-the-red-tests-of-793b362-became-tests-of-the-jobs-the-mod-hands-it): the file is written before the event returns so that a session that ends at once loses nothing; it is the engine's because the windows, the redaction and the failure handling are.
 
 ##### 793d22b4a Scenarios
 
 ```gherkin
-Scenario: 793d22b4a1 A session that ends before its last capture finished does not lose the turn
-  Given a turn that ended and was written to the queue file
-  And the session ended before the capture ran
+Scenario: 793d22b4a1 A session that ends before its capture finished does not lose the turn
+  Given a turn written to the queue file and a session that ended before the capture ran
   When the next session starts
-  Then the turn is captured from the file, and the file no longer holds it
+  Then the turn is captured from the file
+```
 
-Scenario: 793d22b4a2 A capture that fails stays for the next session
-  Given an entry in the queue file whose capture fails
-  When the capture ends
-  Then the entry is still in the file
+#### 793d22b5 Relay of a job
+
+Requirement: 793d22b5 The Memory Mod MUST run a [job](#793d1b-terms) as [rounds](#793d1b-terms) of `engram auto run`, each with the job as JSON on standard input and a 10-minute deadline, at most 200 rounds. It MUST apply each response's effects as they come: log lines to the debug log, each warning to the [status line](#793d1b-terms) at once, the counts to the [burst](#793d1b-terms)'s tally. Until the response holds `done` it MUST wait the `waitMs` on the [session](../../GLOSSARY.md#session) clock, relay each request exactly as given to the session's model call, and send the job again with the response's `state` and the replies. It MUST hand back, unread, the session state the engine returns, and run the jobs that read or write the [ledger](#793d1b-terms) one at a time in event order.
+
+Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios)
+
+Verified by: `wiring.test.ts` "a request is relayed…"; `wiring.test.ts` "a wait is slept…"; `wiring.test.ts` "the effects of a round…"; `wiring.test.ts` "the ledger the engine hands back…"; `wiring.test.ts` "the jobs that touch the ledger…"
+
+Rationale: The model call is the [mod](#793d1b-terms)'s because only the mod runs on the [session](../../GLOSSARY.md#session)'s credentials, in process, with no token to provision ([793d17g4 Verdict](#793d17g4-verdict)); the engine asks and is called again, so it keeps no state between calls ([793b370 A round is stateless because the job is replayed from a record of its effects](./793b_decision-log.md#793b370-a-round-is-stateless-because-the-job-is-replayed-from-a-record-of-its-effects)).
+
+##### 793d22b5a Scenarios
+
+```gherkin
+Scenario: 793d22b5a1 A request is relayed and its reply goes back
+  Given a job whose first round asks for a model call
+  When the Memory Mod relays it
+  Then the model receives the request as given and the next round carries the reply and the state
+```
+
+## 793d36 Job Runner
+
+Canonical target: `docs/specs/technical/job-runner.md`.
+
+### 793d36a Orientation
+
+Ownership: repository component. Responsibility: advances one [job](#793d1b-terms) by one [round](#793d1b-terms) per call of `engram auto run`, with no state of its own between calls, and contains the failure of any step. Realization: `Run`, `engine` and `guard` in `internal/auto/relay.go`, `exec` and `failureKind` in `internal/auto/failure.go`, and `runAuto` in `internal/cli/auto.go`.
+
+### 793d36b Behavior Requirements
+
+#### 793d36b1 One round per call
+
+Requirement: 793d36b1 Given a [job](#793d1b-terms) as JSON (a kind of lookup, step, tool, compact, capture, [subagent](../../GLOSSARY.md#subagent), [housekeeping](#793d1b-terms), summary, enqueue or resume, with the fields it reads), the [session](../../GLOSSARY.md#session) state, and optionally the record of its earlier [rounds](#793d1b-terms) and the replies to its requests, the Job Runner MUST answer with one JSON response: the log lines, warnings and counts of the round, and either `done` (the result and the session state) or `requests` (model calls to relay), a `waitMs` and the `state` to send back. A job it cannot read, a kind it does not know, or session state it cannot read MUST be an error and no response.
+
+Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios)
+
+Verified by: `internal/auto/protocol_test.go`: Test793d36b1; `internal/cli/auto_test.go`: Test793d36b1
+
+##### 793d36b1a Scenarios
+
+```gherkin
+Scenario: 793d36b1a1 A job that needs the model asks, and the next round ends it
+  Given a lookup job with a candidate note
+  When the first round runs
+  Then the response holds a request and a state and no done
+  And the round with the reply holds done with the block
+```
+
+#### 793d36b2 Effects performed once
+
+Requirement: 793d36b2 The Job Runner MUST replay a [job](#793d1b-terms) from its start on every [round](#793d1b-terms), answer each effect (a command, a file read or write, a clock read, a model reply, a wait) from the record of the earlier rounds, perform the first effect not yet recorded exactly once, and stop at the first effect that needs the [mod](#793d1b-terms). It MUST report the log lines, warnings and counts of an effect only in the round that performs it, and MUST fail a job whose model request differs, at the same place, from the recorded one.
+
+Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios)
+
+Verified by: `internal/auto/protocol_test.go`: Test793d36b2
+
+
+##### 793d36b2a Scenarios
+
+```gherkin
+Scenario: 793d36b2a1 A command is not run again by a later round
+  Given a capture job that took two rounds
+  When both have run
+  Then the query and the learn each ran once and one note is counted as added
+```
+
+#### 793d36b3 Failure containment and classes
+
+Requirement: 793d36b3 The Job Runner MUST contain the failure of every step of a [job](#793d1b-terms) (a command that cannot start, passes its deadline or exits non-zero, output that is not a query's, a reply the strict reading rejects, an unanswered model call, a thrown error) as a warning in the response naming the step and its class, and the job MUST end as without the [mod](#793d1b-terms). A failure whose text says it was cut or timed out is `timeout`, one that says the program could not start or the [vault](./793a_product-spec.md#793a1-problem-statement) could not be read is `unavailable`, any other is `error`. Every command MUST have a deadline (30 seconds; the index 300; the lookup of a [moment](./793a_product-spec.md#793a1-problem-statement) 2; the [nearest notes](#793d1b-terms) of a capture or an offer 25), so that a prompt's lookup and relevance [judgement](#793d1b-terms) hold it 8 seconds at most. A lookup that finds nothing is not a failure. A failure of the [System](./793a_product-spec.md#793a1-problem-statement)'s own bookkeeping, the [queue file](#793d1b-terms) or the marks, MUST go to the debug log and warn no one.
+
+Supports: [793a4b1a Vault unavailable](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1e No warning when nothing matched](./793a_product-spec.md#793a4b1-uat-scenarios)
+
+Verified by: `internal/auto/failure_test.go`: Test793d36b3; `internal/auto/moment_test.go`: Test793d36b3; `internal/auto/perf_test.go`: Test793d36b3; `internal/cli/auto_test.go`: Test793d36b3
+
+##### 793d36b3a Scenarios
+
+```gherkin
+Scenario: 793d36b3a1 A query that times out warns and leaves the prompt as typed
+  Given the query passes its deadline
+  When a prompt lookup runs
+  Then the response holds no block and the warning "Automatic memory was skipped because the System timed out (the prompt lookup)"
+
+Scenario: 793d36b3a2 A query with no result is no failure
+  Given the query finds nothing
+  When a prompt lookup runs
+  Then the response holds no block and no warning
 ```
 
 ## 793d23 Moment Detection
 
-Canonical target: `docs/specs/technical/moment-detection.md` (title `Moment Detection - Technical Spec`).
+Canonical target: `docs/specs/technical/moment-detection.md`.
 
 ### 793d23a Orientation
 
-Ownership: repository component. Responsibility: decides whether an event puts the [working agent](./793a_product-spec.md#793a1-problem-statement) at a [moment](./793a_product-spec.md#793a1-problem-statement) where memory should be delivered, which moment, and what text the lookup is about. Realization: the [cue](#793d1b-terms) wiring of `hooks/register.js`, and `stepJob` in `internal/auto/moment.go`.
+Ownership: repository component. Responsibility: decides whether an event puts the [working agent](./793a_product-spec.md#793a1-problem-statement) at a [moment](./793a_product-spec.md#793a1-problem-statement) where memory should be delivered, which moment, and what the lookup is about. Realization: the [cue](#793d1b-terms) wiring of `hooks/register.js`, and `stepJob` and `momentText` in `internal/auto/moment.go`.
 
 ### 793d23b Behavior Requirements
 
 #### 793d23b1 Event cues
 
-Requirement: 793d23b1 Moment Detection MUST treat each `prompt.submit` as a [moment](./793a_product-spec.md#793a1-problem-statement) whose text is the prompt, or the `<summary>` of a task notification; a route [skill](../../GLOSSARY.md#skill) result of the top-level agent as a route moment whose text is the skill's arguments, then the last prompt; and the Nth dispatch prompt of `agent.spawn` as the moment of the Nth [subagent](../../GLOSSARY.md#subagent) start. A dispatch prompt that no subagent start has taken MUST be dropped when the turn completes. It MUST NOT [cue](#793d1b-terms) on another skill, another tool result, or a subagent's own steps.
+Requirement: 793d23b1 [Moment](./793a_product-spec.md#793a1-problem-statement) Detection MUST treat each `prompt.submit` as a moment whose text is the prompt, or the `<summary>` of a task notification; the `route` [skill](../../GLOSSARY.md#skill) result of the top-level agent as a route moment whose text is the skill's arguments, then the last prompt; and the Nth dispatch prompt of `agent.spawn` as the moment of the Nth [subagent](../../GLOSSARY.md#subagent) start, dropping a dispatch prompt no subagent took when the turn completes. It MUST NOT [cue](#793d1b-terms) on another skill's or tool's result, or on a subagent's own steps.
 
-Supports: [793a2n1g A subagent receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1h A prompt from any source receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1i Please's orientation receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1j Tier evidence is delivered before a dispatch is routed](./793a_product-spec.md#793a2n1-uat-scenarios)
+Supports: [793a2n1g A subagent receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1i Please's orientation receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1j Tier evidence is delivered before a dispatch is routed](./793a_product-spec.md#793a2n1-uat-scenarios)
 
-Verified by: `internal/auto/golden_test.go`: Test793d23b1; `internal/auto/moment_test.go`: Test793d23b1; `wiring.test.ts` "the result of a tool carries the block of the route lookup…"; `wiring.test.ts` "a subagent gets nothing of the main agent…"
+Verified by: `internal/auto/moment_test.go`: Test793d23b1; `wiring.test.ts` "the result of a tool carries…"; `wiring.test.ts` "a subagent gets nothing…"
 
-Gap: the task-notification summary text and prompts of origins other than the SDK have no test.
+Gap: the origins of a prompt other than the SDK's are exercised only by the acceptance row [793a2n1h A prompt from any source receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios).
 
-Rationale: Please's orientation is a prompt, and the prompt lookup already carries recall's four decision [moments](./793a_product-spec.md#793a1-problem-statement), so it needs no [cue](#793d1b-terms) of its own.
 
 ##### 793d23b1a Scenarios
 
@@ -417,11 +508,11 @@ Scenario: 793d23b1a1 A route result is a route moment
 
 #### 793d23b2 In-turn cue
 
-Requirement: 793d23b2 After a top-level step in which the agent wrote text and called a tool, Moment Detection MUST start in the background, at most one at a time, one classification of the last six texts of the user and the agent and the step's text, redacted, with no tool input or result; the reply names at most one of recall's four [moments](./793a_product-spec.md#793a1-problem-statement), each with a subject. When it names any they MUST be looked up as a step moment; when none, no query runs. The [notes](./793a_product-spec.md#793a1-problem-statement) MUST ride the next tool result of the same turn, which waits for the job up to 7 seconds, or a later one while the job is unfinished, MUST be dropped at the turn's end, and MUST NOT reach a [subagent](../../GLOSSARY.md#subagent)'s tool result. It MUST start no job in a turn whose prompt is `/recall`, `/learn`, `/curate`, `/write-memory` or contains an `engram` query, learn, amend, ingest, show or activate command, nor for a step whose tool is such a [skill](../../GLOSSARY.md#skill) or a Bash command running `engram`.
+Requirement: 793d23b2 After a top-level step that called a tool, [Moment](./793a_product-spec.md#793a1-problem-statement) Detection MUST start in the background, at most one at a time, one classification of the last six texts of the user and the agent and the step's text, redacted and cut at 8,000 characters, with no tool input or result; the reply names at most one of recall's four moments, each with a subject, and only then are they looked up as a step moment. The [notes](./793a_product-spec.md#793a1-problem-statement) MUST ride the next tool result of the same turn, which waits for the [job](#793d1b-terms) at most 7 seconds; a job still running MUST ride a later result until it is 25 seconds old, be dropped at the turn's end, and never reach a [subagent](../../GLOSSARY.md#subagent)'s tool result. It MUST start no job in a turn whose prompt is a [memory command](./793a_product-spec.md#793a1-problem-statement) (`/recall`, `/learn`, `/curate`, `/write-memory`, or an `engram` query, learn, amend, ingest, show or activate), nor for a step that called a memory [skill](../../GLOSSARY.md#skill) or ran `engram` in Bash.
 
-Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2e1c Note the agent retrieved itself is not delivered](./793a_product-spec.md#793a2e1-uat-scenarios), [793a5k1c An intentional recall by the agent is allowed](./793a_product-spec.md#793a5k1-uat-scenarios), [793a5k1e An intentional engram query by the agent is allowed](./793a_product-spec.md#793a5k1-uat-scenarios)
+Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a5k1c An intentional recall by the agent is allowed](./793a_product-spec.md#793a5k1-uat-scenarios), [793a5k1e An intentional engram query by the agent is allowed](./793a_product-spec.md#793a5k1-uat-scenarios)
 
-Verified by: `internal/auto/golden_test.go`: Test793d23b2; `internal/auto/moment_test.go`: Test793d23b2; `wiring.test.ts` "a step that called a tool starts the job…"; `wiring.test.ts` "the next tool result waits for the job 7 s at most…"
+Verified by: `internal/auto/moment_test.go`: Test793d23b2; `wiring.test.ts` "a step that called a tool…"; `wiring.test.ts` "no job is started…"; `wiring.test.ts` "the next tool result waits…"
 
 Security: [793d19a Security](#793d19a-security), risk (1): the recent texts are redacted and fenced.
 
@@ -438,21 +529,21 @@ Scenario: 793d23b2a1 A named moment is looked up and rides a later tool result
 
 ## 793d24 Memory Delivery
 
-Canonical target: `docs/specs/technical/memory-delivery.md` (title `Memory Delivery - Technical Spec`).
+Canonical target: `docs/specs/technical/memory-delivery.md`.
 
 ### 793d24a Orientation
 
-Ownership: repository component. Responsibility: given a [moment](./793a_product-spec.md#793a1-problem-statement) and its text, finds the [vault](./793a_product-spec.md#793a1-problem-statement) [notes](./793a_product-spec.md#793a1-problem-statement) that bear on it and that the receiving agent does not already hold, composes the [block](#793d1b-terms), and remembers what each agent was given. Realization: `lookup`, `deliver` and the [ledgers](#793d1b-terms) in `internal/auto/moment.go`.
+Ownership: repository component. Responsibility: given a [moment](./793a_product-spec.md#793a1-problem-statement) and its text, finds the [notes](./793a_product-spec.md#793a1-problem-statement) that bear on it and that the receiving agent does not hold, composes the [block](#793d1b-terms), and remembers what each agent was given. Realization: `lookup`, `deliver`, `toolJob` and `compactJob` in `internal/auto/moment.go`.
 
 ### 793d24b Behavior Requirements
 
 #### 793d24b1 Lookup and selection
 
-Requirement: 793d24b1 For a [moment](./793a_product-spec.md#793a1-problem-statement), Memory Delivery MUST ask the Query Engine for at most 10 items, passing the moment's text (at most 300 characters) as `--text=` and a `--phrase=` beside the moment's phrases (a prompt: recall's four decision moments; a route: "routing a unit of work to a model tier"; a [subagent](../../GLOSSARY.md#subagent): "dispatching a subagent for a task"; a step: the moments named). Free text MUST be passed as `--flag=value`. It MUST consider only [notes](./793a_product-spec.md#793a1-problem-statement) (never chunks) with a situation, a score of at least 0.25 and a direct, cluster-representative or trigger provenance. When none remains after presence it MUST make no [judgement](#793d1b-terms) and deliver nothing; otherwise it MUST make one relevance judgement and deliver exactly the considered notes selected.
+Requirement: 793d24b1 For a [moment](./793a_product-spec.md#793a1-problem-statement), Memory Delivery MUST ask the Query Engine for at most 10 items, passing the text cut at 300 characters as `--text=` and a `--phrase=` for the text and for each of the moment's phrases (a prompt: recall's four decision moments; a route: "routing a unit of work to a model tier"; a [subagent](../../GLOSSARY.md#subagent): "dispatching a subagent for a task"; a step: the moments named), free text always as `--flag=value`. Output that is not a query's MUST be an error, never an empty result. It MUST consider only [notes](./793a_product-spec.md#793a1-problem-statement) (never chunks) with a situation, a name engram could have written, a score of at least 0.25 and a direct, cluster-representative or trigger provenance, make no [judgement](#793d1b-terms) when none remains after presence, and otherwise make one relevance judgement and deliver exactly the notes selected.
 
-Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1e No result, nothing delivered](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1h A prompt from any source receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios)
+Supports: [793a2n1e No result, nothing delivered](./793a_product-spec.md#793a2n1-uat-scenarios)
 
-Verified by: `internal/auto/golden_test.go`: Test793d24b1; `internal/auto/moment_test.go`: Test793d24b1
+Verified by: `internal/auto/moment_test.go`: Test793d24b1
 
 ##### 793d24b1a Scenarios
 
@@ -470,13 +561,11 @@ Scenario: 793d24b1a2 No note, no judgement
 
 #### 793d24b2 Presence and ledgers
 
-Requirement: 793d24b2 Memory Delivery MUST NOT deliver a [note](./793a_product-spec.md#793a1-problem-statement) whose path is in the receiving agent's [ledger](#793d1b-terms) or in that agent's [context](./793a_product-spec.md#793a1-problem-statement). The top-level agent's context is its [transcript](../../GLOSSARY.md#transcript) since the last compaction boundary, the compaction summary excluded, so it holds what the agent retrieved itself and what a resume restored; a [subagent](../../GLOSSARY.md#subagent)'s context is its own task and its ledger its own, so a parent's note is delivered to it. It MUST add to the top-level ledger each note path a top-level tool result shows, MUST empty it on a compaction, and MUST NOT deliver a note that entered the ledger while its lookup ran.
+Requirement: 793d24b2 Memory Delivery MUST NOT deliver a [note](./793a_product-spec.md#793a1-problem-statement) whose path is in the receiving agent's [ledger](#793d1b-terms) or [context](./793a_product-spec.md#793a1-problem-statement). The top-level agent's context is its [transcript](../../GLOSSARY.md#transcript) since the last compaction boundary, the summary excluded, so it holds what the agent retrieved itself and what a resume restored; a [subagent](../../GLOSSARY.md#subagent)'s context is its own task and its ledger its own, so a parent's note is delivered to it. It MUST add to the top-level ledger each note path a top-level tool result shows, empty an agent's ledger, and only that agent's, when it is compacted, and not deliver a note that entered the ledger while its lookup ran.
 
 Supports: [793a2e1a Note delivered earlier is not delivered again](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1c Note the agent retrieved itself is not delivered](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1d A parent's note is still delivered to a subagent](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1e A note removed by compaction can be delivered again](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1g A resumed session's restored content counts as present](./793a_product-spec.md#793a2e1-uat-scenarios)
 
-Verified by: `internal/auto/golden_test.go`: Test793d24b2; `internal/auto/moment_test.go`: Test793d24b2; `wiring.test.ts` "the jobs that touch the ledger run one at a time…"
-
-Gap: a [subagent](../../GLOSSARY.md#subagent)'s compaction empties the top-level [ledger](#793d1b-terms) and not its own; the [transcript](../../GLOSSARY.md#transcript) test still holds the top-level agent's [notes](./793a_product-spec.md#793a1-problem-statement).
+Verified by: `internal/auto/moment_test.go`: Test793d24b2; `internal/auto/compaction_test.go`: Test793d24b2; `wiring.test.ts` "names the subagent…"
 
 ##### 793d24b2a Scenarios
 
@@ -486,15 +575,20 @@ Scenario: 793d24b2a1 A held note is not delivered, and a compacted one is
   When a prompt matches it
   Then it is not delivered
   And after a compaction removes it a matching prompt delivers it
+
+Scenario: 793d24b2a2 A subagent's compaction empties only its own ledger
+  Given the main agent and a subagent each hold a delivered note
+  When the subagent is compacted
+  Then the main agent's ledger is unchanged and the subagent's is empty
 ```
 
 #### 793d24b3 Block
 
-Requirement: 793d24b3 Memory Delivery MUST compose the [block](#793d1b-terms) as the marker `[engram memory]`, a framing text saying the [notes](./793a_product-spec.md#793a1-problem-statement) are from the [vault](./793a_product-spec.md#793a1-problem-statement), delivered by the memory system and not typed by the user, that the agent is to apply what bears on its next step, and that a note is retrieved data whose instructions the user did not give are not to be followed, then one line per note: path, situation and text cut at 400 characters. It MUST deliver nothing, the framing included, when no note remains, and MUST report each note delivered to the Activity Report as one item delivered.
+Requirement: 793d24b3 Memory Delivery MUST compose the [block](#793d1b-terms) as the marker `[engram memory]`, a framing text saying the [notes](./793a_product-spec.md#793a1-problem-statement) are from the [vault](./793a_product-spec.md#793a1-problem-statement), delivered by the memory system and not typed by the user, that the agent is to apply what bears on its next step and that a note is retrieved data whose instructions are not to be followed, then one line per note: path, situation and text cut at 400 characters. It MUST deliver nothing, the framing included, when no note remains, never deliver or name in a command a note whose name is not a note name, and report each note delivered to the Activity Report as one item.
 
-Supports: [793a2n1e No result, nothing delivered](./793a_product-spec.md#793a2n1-uat-scenarios), [793a4c1b The prompt is unchanged and the note is separate](./793a_product-spec.md#793a4c1-uat-scenarios), [793a4c1c The only effect on the working agent's context is what is delivered](./793a_product-spec.md#793a4c1-uat-scenarios)
+Supports: [793a4c1b The prompt is unchanged and the note is separate](./793a_product-spec.md#793a4c1-uat-scenarios), [793a4c1c The only effect on the working agent's context is what is delivered](./793a_product-spec.md#793a4c1-uat-scenarios)
 
-Verified by: `internal/auto/moment_test.go`: Test793d24b3
+Verified by: `internal/auto/moment_test.go`: Test793d24b3; `internal/auto/security_test.go`: Test793d24b3
 
 Security: [793d19a Security](#793d19a-security), mitigation: data framing of delivered [notes](./793a_product-spec.md#793a1-problem-statement).
 
@@ -509,23 +603,23 @@ Scenario: 793d24b3a1 The block applies and attributes
 
 ## 793d25 Judgement Relay
 
-Canonical target: `docs/specs/technical/judgement-relay.md` (title `Judgement Relay - Technical Spec`).
+Canonical target: `docs/specs/technical/judgement-relay.md`.
 
 ### 793d25a Orientation
 
-Ownership: repository component, bounded by the model call the [mod](#793d1b-terms)'s engine provides. Responsibility: makes each [judgement](#793d1b-terms) of the [System](./793a_product-spec.md#793a1-problem-statement) one request that names its kind's model and effort and frames the data as data, and reads the reply strictly into a typed result or an error. Realization: `internal/auto/judge.go`, through `$.model.complete`, which `relay` of `hooks/register.js` calls.
+Ownership: repository component, bounded by the model call the Memory Mod makes. Responsibility: makes each [judgement](#793d1b-terms) one request that names its kind's model, effort, reply size and deadline and frames the data as data, and reads the reply strictly into a typed result or an error. Realization: `Tiers`, `fill`, `fence` and `document` in `internal/auto/judge.go`, and the prompts in `internal/auto/prompts`.
 
 ### 793d25b Behavior Requirements
 
 #### 793d25b1 Tier and request shape
 
-Requirement: 793d25b1 The Judgement Relay MUST build every request with the model that its kind's row of the tier table names (`haiku` for each of `classify`, `relevance`, `capture` and `curation`), the lowest accepted effort (`low`), a reply-size limit and a deadline of its kind, and never the [session](../../GLOSSARY.md#session)'s model. A kind without a row MUST be an error naming the kind, never a default, and changing one row MUST change only that kind's requests.
+Requirement: 793d25b1 The Judgement Relay MUST build every request with the model its kind's row of the tier table names (`haiku` for `classify`, `relevance`, `capture` and `curation`), the lowest accepted effort (`low`) and the reply size and deadline of its kind (classify 300 tokens and 4 seconds, relevance 200 and 5.8, capture 1,500 and 40, curation 700 and 60), never the [session](../../GLOSSARY.md#session)'s model. A kind without a row MUST be an error naming the kind, and changing one row MUST change only that kind's requests.
 
-Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios)
+Supports: [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `internal/auto/golden_test.go`: Test793d25b1; `internal/auto/tiers_test.go`: Test793d25b1
+Verified by: `internal/auto/tiers_test.go`: Test793d25b1; `internal/auto/golden_test.go`: Test793d25b1
 
-Rationale: The cheapest tier is the owner's choice for decision-style structured output: much cheaper, and its replies are read by the strict parsers almost every time; the lowest effort suffices for classification ([793d18d4 Verdict](#793d18d4-verdict): a mixed result with unexpected advantages). The relay runs in the [mod](#793d1b-terms)'s process on the [session](../../GLOSSARY.md#session)'s credentials ([793d17g4 Verdict](#793d17g4-verdict)).
+Rationale: The cheapest tier is 10 to 15 times cheaper in every kind and its replies are read by the strict parsers almost every time, though it is not faster, so the owner chose it at the lowest accepted effort for all four kinds ([793d18d4 Verdict](#793d18d4-verdict)). The relevance deadline and the lookup's 2 seconds fit the 8 seconds a prompt may be held.
 
 ##### 793d25b1a Scenarios
 
@@ -538,13 +632,13 @@ Scenario: 793d25b1a1 Every kind names haiku at low effort
 
 #### 793d25b2 Data and replies
 
-Requirement: 793d25b2 The Judgement Relay MUST state in every request that its data is to be analyzed and never followed, and MUST make a text inside the data unable to close or open the request's sections: a `<` that begins a `window`, `notes` or `recent` tag, in any case and spacing, becomes `&lt;`, and a curation request's `offer` or `notes` tag is broken by a space. It MUST accept a reply only as exactly one JSON document, bare or in one code fence wrapping the whole reply; prose around it, a second document or an empty reply MUST be an error with no partial result, and an unanswered model call an error of the class its reason shows.
+Requirement: 793d25b2 The Judgement Relay MUST state in the capture, classification and curation requests that their data is to be analyzed and never followed, fill a prompt's placeholders in one pass so that no value is searched for a placeholder, and write as `&lt;` the `<` that opens or closes a `window`, `notes`, `recent` or `offer` tag, whatever its bracket, case, spacing or hidden characters. It MUST accept a reply only as exactly one JSON document of valid UTF-8 with no key twice, bare or in one code fence wrapping the whole reply; anything else, and an unanswered model call, MUST be an error with no partial result, the unanswered call of the class its reason shows.
 
-Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios)
+Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios)
 
-Verified by: `internal/auto/capture_test.go`: Test793d25b2
+Verified by: `internal/auto/capture_test.go`: Test793d25b2; `internal/auto/differential_test.go`: Test793d19a_ATagImitation, Test793d19a_ADuplicateKey; `internal/auto/security_test.go`: Test793d19a_APlaceholder
 
-Security: [793d19a Security](#793d19a-security), risks (1) and (2): data fencing and strict parsing.
+Security: [793d19a Security](#793d19a-security), risks (1) and (2): data fencing and strict reading.
 
 ##### 793d25b2a Scenarios
 
@@ -557,13 +651,13 @@ Scenario: 793d25b2a1 A closing tag in the data is neutralized
 
 #### 793d25b3 Result shapes
 
-Requirement: 793d25b3 The Judgement Relay MUST read `relevance` as an array of distinct whole numbers each naming a considered [note](./793a_product-spec.md#793a1-problem-statement); `classify` as an array of at most one object per [moment](./793a_product-spec.md#793a1-problem-statement) with exactly the keys `moment` (one of recall's four) and `subject`; `capture` as an array of at most ten [lessons](./793a_product-spec.md#793a1-problem-statement), each with exactly the keys of its kind (`feedback`: behavior, impact, action; `fact`: subject, predicate, object; beside kind, slug, situation and covered), every string non-empty and bounded, `covered` null or the number of a [nearest note](#793d1b-terms); and `curation` as one object with exactly outcome, into and fields: `covered` gives `into`, `near` gives `into` and exactly its note kind's fields, `absent` and `rejected` give neither, and `into` is a nearest note. Anything else MUST be an error for the whole reply, and every free-text field MUST be redacted.
+Requirement: 793d25b3 The Judgement Relay MUST read `relevance` as an array of distinct whole numbers each naming a considered [note](./793a_product-spec.md#793a1-problem-statement); `classify` as at most one object per [moment](./793a_product-spec.md#793a1-problem-statement) with exactly the keys `moment` (one of recall's four) and `subject`; `capture` as at most ten [lessons](./793a_product-spec.md#793a1-problem-statement), each with exactly the keys of its kind (`feedback`: behavior, impact, action; `fact`: subject, predicate, object; beside kind, slug, situation and covered), every string non-empty and bounded, `covered` null or the number of a [nearest note](#793d1b-terms); and `curation` as one object with exactly outcome, into and fields: `covered` gives `into`, `near` gives `into` and exactly its note kind's fields, `absent` and `rejected` give neither. Anything else MUST be an error for the whole reply, and every free-text field MUST be redacted.
 
-Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios)
+Supports: [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios)
 
-Verified by: `internal/auto/capture_test.go`: Test793d25b3; `internal/auto/golden_test.go`: Test793d25b3
+Verified by: `internal/auto/capture_test.go`: Test793d25b3; `internal/auto/golden_test.go`: Test793d25b3; `internal/auto/differential_test.go`: Test793d25b3
 
-Security: [793d19a Security](#793d19a-security), risks (1), (2) and (4): a result can only name a [nearest note](#793d1b-terms) by number.
+Security: [793d19a Security](#793d19a-security), risks (1), (2) and (4): a result names a [nearest note](#793d1b-terms) only by its number.
 
 ##### 793d25b3a Scenarios
 
@@ -576,23 +670,25 @@ Scenario: 793d25b3a1 A number that names no note is an error
 
 ## 793d26 Secret Redaction
 
-Canonical target: `docs/specs/technical/secret-redaction.md` (title `Secret Redaction - Technical Spec`).
+Canonical target: `docs/specs/technical/secret-redaction.md`.
 
 ### 793d26a Orientation
 
-Ownership: repository component. Responsibility: replaces credential-shaped text with `[redacted]` before it reaches a model request or a [note](./793a_product-spec.md#793a1-problem-statement). Realization: `redact` in `internal/auto/redact.go`.
+Ownership: repository component. Responsibility: replaces credential-shaped text with `[redacted]` before it reaches a model request, a [note](./793a_product-spec.md#793a1-problem-statement) or the [queue file](#793d1b-terms). Realization: `redact` in `internal/auto/redact.go`.
 
 ### 793d26b Behavior Requirements
 
 #### 793d26b1 Credential shapes
 
-Requirement: 793d26b1 Secret Redaction MUST replace with `[redacted]` private keys, JWTs, provider keys (`sk`, `pk`, `rk`, GitHub, npm, GitLab, AWS, Google and Slack shapes), `Bearer` and `Basic` credentials, passwords in URLs, an `Authorization` header, a value assigned to, or following `is` after, a name such as token, secret, password, api key, credential or private key or a name ending in key or pass, a mixed run of 32 or more letters and digits, a token wrapped over lines, and a percent-encoded token that decodes to one of these. It MUST NOT replace a 40-character hexadecimal run (a git commit hash). Secrets of other shapes are the residual risk of [793d19a Security](#793d19a-security).
+Requirement: 793d26b1 Secret Redaction MUST replace with `[redacted]` private keys, JWTs, provider keys (`sk`, `pk`, `rk`, GitHub, npm, GitLab, AWS, Google and Slack shapes), `Bearer` and `Basic` credentials, passwords in URLs, an `Authorization` header, a value assigned to, or following `is` after, a name such as token, secret, password, api key, credential or private key or a name ending in key or pass, a mixed run of 32 or more letters and digits, a token wrapped over lines, and a percent-encoded token that decodes to one of these, whatever Unicode white space surrounds it. It MUST NOT replace a 40-character hexadecimal run (a git commit hash), MUST leave its own output unchanged when redacted again, and MUST take time in proportion to the text.
 
-Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios)
+Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios)
 
-Verified by: `internal/auto/capture_redact_test.go`: Test793d26b1; `internal/auto/golden_test.go`: Test793d26b1
+Verified by: `internal/auto/capture_redact_test.go`: Test793d26b1; `internal/auto/security_test.go`: Test793d26b1
 
-Security: [793d19a Security](#793d19a-security), risk (3).
+Security: [793d19a Security](#793d19a-security), risk (3): secrets of other shapes are its residual risk.
+
+Rationale: The pattern engine is RE2, whose match time is linear, so a crafted text cannot stall a hook.
 
 ##### 793d26b1a Scenarios
 
@@ -600,44 +696,43 @@ Security: [793d19a Security](#793d19a-security), risk (3).
 Scenario: 793d26b1a1 A provider key is redacted and a commit hash is kept
   Given text holding a key of the sk- shape and a 40-character hexadecimal commit hash
   When it is redacted
-  Then the key is replaced by [redacted]
-  And the hash is unchanged
+  Then the key is replaced by [redacted] and the hash is unchanged
 ```
 
 ## 793d27 Auto Capture
 
-Canonical target: `docs/specs/technical/auto-capture.md` (title `Auto Capture - Technical Spec`).
+Canonical target: `docs/specs/technical/auto-capture.md`.
 
 ### 793d27a Orientation
 
-Ownership: repository component. Responsibility: turns a conversation [window](#793d1b-terms) into [vault](./793a_product-spec.md#793a1-problem-statement) writes: reads what the user and the agent said, judges the [lessons](./793a_product-spec.md#793a1-problem-statement) against the vault's [nearest notes](#793d1b-terms), and writes each lesson once or reinforces the [note](./793a_product-spec.md#793a1-problem-statement) that already states it. Realization: `capture` in `internal/auto/capture.go`.
+Ownership: repository component. Responsibility: turns a conversation [window](#793d1b-terms) into [vault](./793a_product-spec.md#793a1-problem-statement) writes: judges the [lessons](./793a_product-spec.md#793a1-problem-statement) in it against the vault's [nearest notes](#793d1b-terms), and writes each once or reinforces the [note](./793a_product-spec.md#793a1-problem-statement) that already states it. Realization: `capture`, `captureJob`, `windowFromMessages` and `learn` in `internal/auto/capture.go`.
 
 ### 793d27b Behavior Requirements
 
 #### 793d27b1 Windows
 
-Requirement: 793d27b1 Auto Capture MUST build the [window](#793d1b-terms) of a completed top-level turn as lines labelled by the speaker's role and never by anything in a message's text: from the assistant message before the turn's last typed prompt through the prompt and everything after it, the answer appended when the messages lag. A message MUST be one line (line breaks shown as `⏎`), redacted and then cut at 1,200 characters, the window cut at 8,000. A tool use MUST enter only as `Agent used <tool>`, a task notification only as its summary, and a tool's input or result never. A [subagent](../../GLOSSARY.md#subagent)'s window MUST be its whole [transcript](../../GLOSSARY.md#transcript), read after its stop until the file holds the agent's last message (at most 20 reads, 500 ms apart), the last message appended if it never does.
+Requirement: 793d27b1 Auto Capture MUST build the [window](#793d1b-terms) of a completed top-level turn as lines labelled by the speaker's role and never by anything in a message's text: from the assistant message before the turn's last typed prompt through the prompt and everything after, the answer appended when the messages lag. A message MUST be one line (a line break of any kind shown as `⏎`), redacted and then cut at 1,200 characters, the window cut at 8,000. A tool use MUST enter only as `Agent used <tool>`, a task notification only as its summary, and text a [harness](../../GLOSSARY.md#harness) injected or a tool's input or result never. A [subagent](../../GLOSSARY.md#subagent)'s window MUST be its whole [transcript](../../GLOSSARY.md#transcript), read after its stop until it holds the agent's last message (at most 24 reads, the first four 100 ms apart, then 500 ms), that message appended if it never does. A capture with no entry takes the turn itself.
 
-Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1g A lesson in a subagent session is captured](./793a_product-spec.md#793a3a1-uat-scenarios)
+Supports: [793a3a1g A lesson in a subagent session is captured](./793a_product-spec.md#793a3a1-uat-scenarios)
 
-Verified by: `internal/auto/capture_redact_test.go`: Test793d27b1; `internal/auto/capture_test.go`: Test793d27b1; `internal/auto/golden_test.go`: Test793d27b1
+Verified by: `internal/auto/capture_test.go`: Test793d27b1; `internal/auto/perf_test.go`: Test793d27b1; `internal/auto/queue_test.go`: Test793d27b1
 
-Security: [793d19a Security](#793d19a-security), risks (1) and (3): only speech enters, by role, redacted before it is cut.
+Security: [793d19a Security](#793d19a-security), risks (1) and (3): only speech enters, by role, one line a message, redacted before it is cut.
 
 ##### 793d27b1a Scenarios
 
 ```gherkin
 Scenario: 793d27b1a1 Only speech enters the window
-  Given a turn with a user correction, an agent reply and a tool call whose result holds a file
+  Given a turn with a correction, a reply and a tool call whose result holds a file
   When the window is built
-  Then it holds the User and Agent lines and "Agent used <tool>" and nothing of the tool's input or result
+  Then it holds User and Agent lines and "Agent used <tool>" and nothing of the tool's input or result
 ```
 
 #### 793d27b2 Reconciliation, writes and provenance
 
-Requirement: 793d27b2 Given a [window](#793d1b-terms) and a source line, Auto Capture MUST do nothing when no line is the user's. Otherwise it MUST ask the Query Engine for the window's [nearest notes](#793d1b-terms) (the user's lines first), add the [notes](./793a_product-spec.md#793a1-problem-statement) the [session](../../GLOSSARY.md#session) already wrote, keep at most 8, and make one capture [judgement](#793d1b-terms). A [lesson](./793a_product-spec.md#793a1-problem-statement) that a nearest note covers MUST only reinforce that note (`engram amend --target <note> --activate`); any other MUST be written with `engram learn <kind> --slug <slug> --position top --source=<source> --situation=<situation>` and its kind's fields, every value redacted, counted as one note added and kept as a nearest note for later windows. An unreadable reply writes nothing, and a failing judgement or write MUST NOT break the turn. The source line MUST say the note was captured from the conversation and written automatically, naming the session and turn (and [subagent](../../GLOSSARY.md#subagent)), or, for a window read after the fact, the file and position.
+Requirement: 793d27b2 Given a [window](#793d1b-terms) and a source line, Auto Capture MUST do nothing when no line is the user's. Otherwise it MUST ask the Query Engine for the window's [nearest notes](#793d1b-terms) (the user's lines first), add the [notes](./793a_product-spec.md#793a1-problem-statement) the [session](../../GLOSSARY.md#session) already wrote, keep at most 8, and make one capture [judgement](#793d1b-terms). A [lesson](./793a_product-spec.md#793a1-problem-statement) a nearest note covers MUST only reinforce that note (`engram amend --target <note> --activate`); any other MUST be written with `engram learn <kind> --slug <slug> --position top --source=<source> --situation=<situation>` and its kind's fields, every value redacted, counted as one note added and kept as a nearest note for later windows. An unreadable reply writes nothing, and a failing judgement or write MUST NOT break the turn. The source line MUST say the note was captured from the conversation and written automatically, naming the session and turn (and [subagent](../../GLOSSARY.md#subagent)) or, after the fact, the file and position.
 
-Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1g A lesson in a subagent session is captured](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1h Two subagents contain the same lesson](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5k1d An intentional learn by the agent is allowed and is not undone](./793a_product-spec.md#793a5k1-uat-scenarios), [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios)
+Supports: [793a3a1h Two subagents contain the same lesson](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5k1d An intentional learn by the agent is allowed and is not undone](./793a_product-spec.md#793a5k1-uat-scenarios)
 
 Verified by: `internal/auto/capture_test.go`: Test793d27b2; `internal/auto/golden_test.go`: Test793d27b2
 
@@ -647,10 +742,9 @@ Security: [793d19a Security](#793d19a-security), mitigation: a provenance line o
 
 ```gherkin
 Scenario: 793d27b2a1 An absent lesson is written once with its provenance
-  Given the window holds the correction "use targ, not go test directly" and no nearest note states it
+  Given the window holds a correction no nearest note states
   When the capture judgement names it
-  Then engram learn writes one feedback note with the automatic source line
-  And one note is counted as added
+  Then engram learn writes one feedback note with the automatic source line, counted as added
 
 Scenario: 793d27b2a2 A covered lesson only reinforces
   Given a nearest note states the lesson
@@ -658,21 +752,86 @@ Scenario: 793d27b2a2 A covered lesson only reinforces
   Then engram amend --activate runs on that note and engram learn does not run
 ```
 
+## 793d37 Capture Queue
+
+Canonical target: `docs/specs/technical/capture-queue.md`.
+
+### 793d37a Orientation
+
+Ownership: repository component. Responsibility: keeps the turns whose capture has not ended in a file that outlives the [session](../../GLOSSARY.md#session): takes a turn in, hands back the entries an earlier session left, and takes an entry out when its capture ends. Realization: `enqueueJob`, `resumeJob`, `dequeue` and `updateQueue` in `internal/auto/queue.go`.
+
+### 793d37b Behavior Requirements
+
+#### 793d37b1 Entries
+
+Requirement: 793d37b1 Given a completed top-level turn, the Capture Queue MUST append to `capture-queue.json` in the chunks directory an entry holding the turn's [window](#793d1b-terms), redacted before it is written, its source line and its [session](../../GLOSSARY.md#session)'s [transcript](../../GLOSSARY.md#transcript), in the order the turns ended, and hand the entry back. A turn with no words of the user MUST NOT be queued. A file that is absent or not a queue MUST be an empty queue, and the file MUST be written only when it changes. A file that cannot be written MUST give no entry and no warning.
+
+Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios)
+
+Verified by: `internal/auto/queue_test.go`: Test793d37b1
+
+Security: [793d19a Security](#793d19a-security), risk (3): the text on disk is redacted.
+
+##### 793d37b1a Scenarios
+
+```gherkin
+Scenario: 793d37b1a1 A turn is in the file, redacted, before anything is judged
+  Given a turn whose user line holds a token
+  When the turn is enqueued
+  Then the file holds an entry with window, source and transcript, the token redacted, and nothing was judged
+```
+
+#### 793d37b2 Resume
+
+Requirement: 793d37b2 When a [session](../../GLOSSARY.md#session) starts as `startup` or `resume`, the Capture Queue MUST hand back every entry in the file and count the try in the file; an entry taken up three times MUST be dropped, with a debug line, not handed back. A start that is a `clear` or a `compact` MUST take nothing and write nothing.
+
+Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios)
+
+Verified by: `internal/auto/queue_test.go`: Test793d37b2
+
+Rationale: A clear or a compaction happens in the process that holds the queue's own [jobs](#793d1b-terms), so taking its entries again would capture them twice; the limit keeps a [window](#793d1b-terms) the judge cannot read from being tried at every start for ever.
+
+##### 793d37b2a Scenarios
+
+```gherkin
+Scenario: 793d37b2a1 A new session takes the entries left behind
+  Given a file with an entry taken up twice
+  When a session starts as startup
+  Then the entry is handed back and the file counts the third try
+```
+
+#### 793d37b3 Leaving the file
+
+Requirement: 793d37b3 The Capture Queue MUST take an entry out of the file when its capture has ended, and keep it when the capture fails, so that the file holds exactly the turns not yet captured, whatever the order they end in.
+
+Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios)
+
+Verified by: `internal/auto/queue_test.go`: Test793d37b3
+
+##### 793d37b3a Scenarios
+
+```gherkin
+Scenario: 793d37b3a1 A capture that fails stays for the next session
+  Given an entry in the queue file whose capture fails
+  When the capture ends
+  Then the entry is still in the file
+```
+
 ## 793d28 Backlog Capture
 
-Canonical target: `docs/specs/technical/backlog-capture.md` (title `Backlog Capture - Technical Spec`).
+Canonical target: `docs/specs/technical/backlog-capture.md`.
 
 ### 793d28a Orientation
 
-Ownership: repository component. Responsibility: captures the [lessons](./793a_product-spec.md#793a1-problem-statement) of [session](../../GLOSSARY.md#session) [transcripts](../../GLOSSARY.md#transcript) nobody captured, from any [harness](../../GLOSSARY.md#harness), one [backlog source](#793d1b-terms) at a time after a turn, writing only its own [marks](#793d1b-terms). Realization: `backlog` and `markTurns` in `internal/auto/backlog.go`.
+Ownership: repository component. Responsibility: captures the [lessons](./793a_product-spec.md#793a1-problem-statement) of [session](../../GLOSSARY.md#session) [transcripts](../../GLOSSARY.md#transcript) nobody captured, from any [harness](../../GLOSSARY.md#harness), one [backlog source](#793d1b-terms) at a time after a turn, writing only its own marks. Realization: `backlog`, `markTurns`, `pending` and `parseManifest` in `internal/auto/backlog.go`.
 
 ### 793d28b Behavior Requirements
 
 #### 793d28b1 Eligible sources and cut-off
 
-Requirement: 793d28b1 After a top-level turn's [housekeeping](#793d1b-terms) has brought the chunk index's manifest up to date, Backlog Capture MUST list the manifest's `.jsonl` entries that are neither a [subagent](../../GLOSSARY.md#subagent)'s [transcript](../../GLOSSARY.md#transcript) nor a duplicate, leaving out the live [session](../../GLOSSARY.md#session)'s file, a source changed in the last 15 minutes, a source whose recorded hash is its present hash, and a session whose turns the [System](./793a_product-spec.md#793a1-problem-statement) captured itself unless the source changed more than 10 seconds after that capture. At its first run it MUST record once the install time and a [cut-off](#793d1b-terms) of that time minus 7 days in the mark file and keep it; no source is eligible before one is recorded, one changed before the cut-off is history and MUST NOT be captured, and one changed after it MUST stay eligible until captured, however long the machine was idle. It MUST take the most recently changed first, look at no more than 20 and capture at most one a turn. An absent manifest is an empty backlog. The manifest and marks are in `ENGRAM_CHUNKS_DIR`, else the data directory's `chunks`.
+Requirement: 793d28b1 After a top-level turn's [housekeeping](#793d1b-terms) has brought the chunk index's manifest up to date, Backlog Capture MUST list the manifest's `.jsonl` entries that are neither a [subagent](../../GLOSSARY.md#subagent)'s [transcript](../../GLOSSARY.md#transcript) nor a duplicate, leaving out the live [session](../../GLOSSARY.md#session)'s file, a source changed in the last 15 minutes, one whose recorded hash is its present hash, and a session whose turns the [System](./793a_product-spec.md#793a1-problem-statement) captured itself unless the source changed more than 10 seconds after that capture. At its first run it MUST record once the install time and a [cut-off](#793d1b-terms) of that time minus 7 days in the [mark file](#793d1b-terms); no source is eligible before one is recorded, one changed before the cut-off MUST NOT be captured, and one changed after it MUST stay eligible until captured, however long the machine was idle. It MUST take the most recently changed first, look at no more than 20 and capture at most one a turn. An absent manifest is an empty backlog. The manifest and marks are in `ENGRAM_CHUNKS_DIR`, else the data directory's `chunks`.
 
-Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5c1c A captured Pi session's transcript is left unchanged](./793a_product-spec.md#793a5c1-uat-scenarios)
+Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5c1c A captured Pi session's transcript is left unchanged](./793a_product-spec.md#793a5c1-uat-scenarios)
 
 Verified by: `internal/auto/backlog_test.go`: Test793d28b1; `internal/auto/golden_test.go`: Test793d28b1
 
@@ -694,9 +853,9 @@ Scenario: 793d28b1a2 History is not mined
 
 #### 793d28b2 Reading and windows
 
-Requirement: 793d28b2 Backlog Capture MUST read a source's conversation from the roles of its rows (Claude Code `user` and `assistant` rows, Pi `message` rows of those roles), so that thinking, tool calls, tool results, compaction summaries and text a [harness](../../GLOSSARY.md#harness) injected never enter. It MUST split the conversation into [windows](#793d1b-terms) of at most 8,000 characters, each starting with the last message of the one before, judge up to six a turn from the end of the conversation backward through Auto Capture with a source naming the file and position, read a file over the platform's 4 MiB limit from its last 3,000,000 bytes without the cut first line, and skip for the rest of the process a source it cannot read.
+Requirement: 793d28b2 Backlog Capture MUST read a source's conversation from the roles of its rows (Claude Code `user` and `assistant` rows, Pi `message` rows of those roles), so that thinking, tool calls and results, compaction summaries and text a [harness](../../GLOSSARY.md#harness) injected never enter. It MUST split the conversation into [windows](#793d1b-terms) of at most 8,000 characters, each starting with the last message of the one before, judge up to six a turn from the end backward through Auto Capture with a source naming the file and position, read a file over 4 MiB from its last 3,000,000 bytes without the cut first line, and skip for the rest of the process a source it cannot read.
 
-Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5c1c A captured Pi session's transcript is left unchanged](./793a_product-spec.md#793a5c1-uat-scenarios)
+Supports: [793a5c1c A captured Pi session's transcript is left unchanged](./793a_product-spec.md#793a5c1-uat-scenarios)
 
 Verified by: `internal/auto/backlog_test.go`: Test793d28b2; `internal/auto/golden_test.go`: Test793d28b2
 
@@ -713,11 +872,11 @@ Scenario: 793d28b2a1 A Pi transcript yields only speech
 
 #### 793d28b3 Marks and read-only sources
 
-Requirement: 793d28b3 Backlog Capture MUST mark a source with its hash only when every [window](#793d1b-terms) has been judged without a failure, keep the count of windows judged otherwise (starting again if the source has grown), mark at once a source with nothing to judge, and leave a failed source unmarked for the next turn. It MUST write nothing of its own but the mark file and never a source, so that a source of another [harness](../../GLOSSARY.md#harness) is not altered.
+Requirement: 793d28b3 Backlog Capture MUST mark a source with its hash only when every [window](#793d1b-terms) has been judged without a failure, keep the count of windows judged otherwise (starting again if the source has grown), mark at once a source with nothing to judge, and leave a failed source unmarked for the next turn. When the capture of a turn ends it MUST record the time on the turns mark of that turn's own [session](../../GLOSSARY.md#session) file, so that the source is not captured again as backlog. It MUST write nothing but the [mark file](#793d1b-terms) and never a source, so that a source of another [harness](../../GLOSSARY.md#harness) is not altered.
 
-Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5c1c A captured Pi session's transcript is left unchanged](./793a_product-spec.md#793a5c1-uat-scenarios)
+Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios)
 
-Verified by: `internal/auto/backlog_test.go`: Test793d28b3; `internal/auto/golden_test.go`: Test793d28b3
+Verified by: `internal/auto/backlog_test.go`: Test793d28b3; `internal/auto/capture_redact_test.go`: Test793d28b3; `internal/auto/queue_test.go`: Test793d28b3
 
 ##### 793d28b3a Scenarios
 
@@ -730,40 +889,40 @@ Scenario: 793d28b3a1 A failed window leaves no mark
 
 ## 793d29 Auto Curation
 
-Canonical target: `docs/specs/technical/auto-curation.md` (title `Auto Curation - Technical Spec`).
+Canonical target: `docs/specs/technical/auto-curation.md`.
 
 ### 793d29a Orientation
 
-Ownership: repository component. Responsibility: settles the [vault](./793a_product-spec.md#793a1-problem-statement)'s pending [offers](../../GLOSSARY.md#offer) as the curate [skill](../../GLOSSARY.md#skill) does, accepting, folding or discarding each. Realization: `curate`, `curateOne` and `nearest` in `internal/auto/curate.go`.
+Ownership: repository component. Responsibility: settles the [vault](./793a_product-spec.md#793a1-problem-statement)'s pending [offers](../../GLOSSARY.md#offer) as the curate [skill](../../GLOSSARY.md#skill) does, accepting, folding or discarding each. Realization: `curate`, `curateOne`, `nearest` and `settleArgvs` in `internal/auto/curate.go`.
 
 ### 793d29b Behavior Requirements
 
 #### 793d29b1 Offers to settle
 
-Requirement: 793d29b1 Auto Curation MUST find pending [offers](../../GLOSSARY.md#offer) by listing the [vault](./793a_product-spec.md#793a1-problem-statement)'s [notes](./793a_product-spec.md#793a1-problem-statement) whose front matter has `pending: true`, in name order, and settle at most 10 a run; the vault is `ENGRAM_VAULT_PATH`, else the vault under the engram data directory, and one that does not exist yet has none and is no failure. It MUST treat only a file name engram could have written as an offer. It MUST leave to curate, without counting it against the cap, an offer that is a [skill](../../GLOSSARY.md#skill) registration or a [runbook](../../GLOSSARY.md#runbook) and a note no longer pending, and MUST NOT look again in this process at an offer it left or one that failed (warned once).
+Requirement: 793d29b1 Auto Curation MUST find pending [offers](../../GLOSSARY.md#offer) by listing the [vault](./793a_product-spec.md#793a1-problem-statement)'s [notes](./793a_product-spec.md#793a1-problem-statement) marked `pending: true`, in name order, and settle at most 10 a run; the vault is `ENGRAM_VAULT_PATH`, else the vault under the engram data directory, and one that does not exist yet has none and is no failure. Only a file name engram could have written is an offer. It MUST leave to curate, without counting it against the cap, an offer that is a [skill](../../GLOSSARY.md#skill) registration or a [runbook](../../GLOSSARY.md#runbook) and a note no longer pending, and MUST NOT look again in this process at an offer it left or one that failed (warned once).
 
-Supports: [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios), [793a4j1d The agent is not asked to curate](./793a_product-spec.md#793a4j1-uat-scenarios)
+Supports: [793a4j1d The agent is not asked to curate](./793a_product-spec.md#793a4j1-uat-scenarios)
 
 Verified by: `internal/auto/curate_test.go`: Test793d29b1; `internal/auto/golden_test.go`: Test793d29b1
 
 ##### 793d29b1a Scenarios
 
 ```gherkin
-Scenario: 793d29b1a1 Pending offers are settled up to the cap, a skill registration is not
+Scenario: 793d29b1a1 Offers are settled up to the cap, a skill registration is not
   Given twelve pending offers, one a skill registration
   When the pass runs
-  Then ten are settled in name order and the registration is not judged or counted
+  Then ten are settled in name order and the registration is neither judged nor counted
 ```
 
 #### 793d29b2 Outcomes and guards
 
-Requirement: 793d29b2 For each [offer](../../GLOSSARY.md#offer) Auto Curation MUST read it with `engram show`, take as [nearest notes](#793d1b-terms) the [note](./793a_product-spec.md#793a1-problem-statement) it amends or else the [vault](./793a_product-spec.md#793a1-problem-statement)'s five nearest by `engram query` (which leaves pending offers out), redact both, make one curation [judgement](#793d1b-terms), and run the commands of the outcome, passing the offer's [exchange hash](../../GLOSSARY.md#exchange-hash) when it has one so that an offer changed since is not settled: `covered`: `engram amend --target <note> --activate`, then the offer `--discard --into <note>`; `near`: the offer `--discard --into <note>`, then the note amended with the rewritten fields and a provenance line (`--source=amended automatically from offer <offer>`, [793d29b3 Amend provenance](#793d29b3-amend-provenance)); `absent`: the offer `--clear-pending`; `rejected`: the offer `--discard`, never `--into`. It MUST count a settled offer as one curated and a `near` note as one amended, and an offer whose commands fail as neither. It MUST pass an offer's text only as `--flag=value`, check a note name before showing or amending it, settle nothing on a reply not exactly of the expected shape, and run only these commands, naming only a nearest note by its number.
+Requirement: 793d29b2 For each offer Auto Curation MUST read it with `engram show`, take as [nearest notes](#793d1b-terms) the [note](./793a_product-spec.md#793a1-problem-statement) it amends or else the [vault](./793a_product-spec.md#793a1-problem-statement)'s five nearest by `engram query` (which leaves pending [offers](../../GLOSSARY.md#offer) out), redact both, make one curation [judgement](#793d1b-terms), and run the commands of the outcome, passing the offer's exchange hash when it has one so that an offer changed since is not settled: `covered`: `engram amend --target <note> --activate`, then the offer `--discard --into <note>`; `near`: the offer `--discard --into <note>`, then the note amended with the rewritten fields and `--source=amended automatically from offer <offer>` ([793d38b1 Amend provenance](#793d38b1-amend-provenance)); `absent`: the offer `--clear-pending`; `rejected`: the offer `--discard`, never `--into`. It MUST count a settled offer as one curated and a `near` note as one amended, an offer whose commands fail as neither, pass an offer's text only as `--flag=value`, check a note name before showing or amending it, settle nothing on a reply not exactly of the expected shape, and name a note only by its number in the nearest set.
 
-Supports: [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios), [793a4j1d The agent is not asked to curate](./793a_product-spec.md#793a4j1-uat-scenarios)
+Supports: [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios)
 
 Verified by: `internal/auto/curate_test.go`: Test793d29b2; `internal/auto/golden_test.go`: Test793d29b2
 
-Security: [793d19a Security](#793d19a-security), risks (2) and (4): a crafted [offer](../../GLOSSARY.md#offer) cannot reach a [note](./793a_product-spec.md#793a1-problem-statement) it is not judged against; a covered offer is recoverable only from [vault](./793a_product-spec.md#793a1-problem-statement) history.
+Security: [793d19a Security](#793d19a-security), risks (2) and (4): a crafted offer cannot reach a [note](./793a_product-spec.md#793a1-problem-statement) it is not judged against; a covered offer is recoverable only from [vault](./793a_product-spec.md#793a1-problem-statement) history.
 
 ##### 793d29b2a Scenarios
 
@@ -780,33 +939,49 @@ Scenario: 793d29b2a2 A malformed reply settles nothing
   Then no amend command runs
 ```
 
-#### 793d29b3 Amend provenance
+## 793d38 Note Amendment (additions)
 
-Requirement: 793d29b3 `engram amend --source <line>` MUST append the line to the `source:` of the note it amends, after what is there and separated from it by `; `, once (a line the `source:` already holds is not added again), and never replace what was there. It MUST do so for a fact, a feedback and a runbook note, and a `--source` alone MUST NOT be a content change, so nothing is embedded again. Auto Curation MUST pass the line `amended automatically from offer <offer>` on the amend of a `near` outcome, so that a [note](./793a_product-spec.md#793a1-problem-statement) whose claim an automatic judgement rewrote from an [offer](../../GLOSSARY.md#offer) says so. This is a revision of the canonical [note-amendment](../../specs/technical/note-amendment.md) component (a new flag beside `--chunk-source`) and of [note-revision](../../specs/product/note-revision.md), applied at promotion ([793b399 A near fold carries a provenance line, by a new flag of engram amend](./793b_decision-log.md#793b399-a-near-fold-carries-a-provenance-line-by-a-new-flag-of-engram-amend)).
+### 793d38a Orientation
+
+Canonical target: [Note Amendment](../../specs/technical/note-amendment.md), as an Added requirement and a Modified Orientation ([793b399 A near fold carries a provenance line, by a new flag of engram amend](./793b_decision-log.md#793b399-a-near-fold-carries-a-provenance-line-by-a-new-flag-of-engram-amend)). The flag `--source` lets a note whose claim an automatic judgement rewrote from an offer say so; before it, the near fold was the one write path with no provenance line. Realization: `RunAmend` in `internal/cli/amend.go`.
+
+### 793d38b Behavior Requirements
+
+#### 793d38b1 Amend provenance
+
+Requirement: 793d38b1 `engram amend --source <line>` MUST append the line to the `source:` of the [note](./793a_product-spec.md#793a1-problem-statement) it amends, after what is there and separated from it by `; `, once (a line the `source:` already holds is not added again), and never replace what was there. It MUST do so for a fact, a feedback and a [runbook](../../GLOSSARY.md#runbook) note, and a `--source` alone MUST NOT be a content change, so nothing is embedded again.
 
 Supports: [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `internal/cli/amend_source_test.go`: Test793d29b3; `internal/auto/curate_test.go`: Test793d29b2
+Verified by: `internal/cli/amend_source_test.go`: Test793d38b1
 
-Security: [793d19a Security](#793d19a-security), mitigation: a provenance line on every automatic [note](./793a_product-spec.md#793a1-problem-statement); the note a near fold rewrites was the one write path that had none.
+Security: [793d19a Security](#793d19a-security), mitigation: a provenance line on every automatic [note](./793a_product-spec.md#793a1-problem-statement).
 
-##### 793d29b3a Scenarios
+##### 793d38b1a Scenarios
 
 ```gherkin
-Scenario: 793d29b3a1 A near fold says where the new claim came from
+Scenario: 793d38b1a1 A near fold says where the new claim came from
   Given a note whose source is "test" and a near offer folded into it
-  When the note is amended with the rewritten fields
-  Then its source is "test; amended automatically from offer <the offer>"
-  And a second amend with the same line leaves it as it was
+  When the note is amended with the rewritten fields and the line
+  Then its source is "test; amended automatically from offer <offer>"
+  And a second amend with the same line changes nothing
 ```
+
+### 793d38c Modified operations
+
+#### 793d38c1 Modified: 792b14a Orientation
+
+Target: [792b14a Orientation](../../specs/technical/note-amendment.md#792b14a-orientation). The Responsibility bullet is replaced by the following; the other bullets are unchanged.
+
+- Responsibility: revises a [note](./793a_product-spec.md#793a1-problem-statement) that already exists. Under the [vault](./793a_product-spec.md#793a1-problem-statement) lock it finds the note, reads it as LF, checks the revision's arguments, applies the field, supersession, chunk-source, source-line and identity changes, writes the note once, and rebuilds its sidecar when what is embedded changed. It rewrites a fact's or feedback note's situation in both of its places, and records a note's use in its sidecar.
 
 ## 793d30 Activity Report
 
-Canonical target: `docs/specs/technical/activity-report.md` (title `Activity Report - Technical Spec`).
+Canonical target: `docs/specs/technical/activity-report.md`.
 
 ### 793d30a Orientation
 
-Ownership: repository component, bounded by the [mod](#793d1b-terms)'s [status line](#793d1b-terms). Responsibility: tells the user what the [System](./793a_product-spec.md#793a1-problem-statement) did and what it skipped, on one status line outside the agent's [context](./793a_product-spec.md#793a1-problem-statement). Realization: `summaryJob` in `internal/auto/summary.go`, `warn` in `internal/auto/relay.go`, and `report` in `hooks/register.js`.
+Ownership: repository component, bounded by the [mod](#793d1b-terms)'s [status line](#793d1b-terms). Responsibility: tells the user what the [System](./793a_product-spec.md#793a1-problem-statement) did and skipped, on one status line outside the agent's [context](./793a_product-spec.md#793a1-problem-statement). Realization: `summaryJob` in `internal/auto/summary.go`, `warning` in `internal/auto/failure.go`, and `report` and `warn` in `hooks/register.js`.
 
 ### 793d30b Behavior Requirements
 
@@ -816,54 +991,53 @@ Requirement: 793d30b1 Activity Report MUST keep the counts of items delivered, [
 
 Supports: [793a5h1a The summary shows the counts after a turn with events](./793a_product-spec.md#793a5h1-uat-scenarios), [793a5h1b Nothing is shown after a turn without events](./793a_product-spec.md#793a5h1-uat-scenarios), [793a5h1e The counts cover the events since the previous summary](./793a_product-spec.md#793a5h1-uat-scenarios)
 
-Verified by: `internal/auto/curate_test.go`: Test793d30b1; `internal/auto/golden_test.go`: Test793d30b1; `internal/auto/summary_test.go`: Test793d30b1; `wiring.test.ts` "a quiet turn shows nothing and clears nothing…"
+Verified by: `internal/auto/summary_test.go`: Test793d30b1; `internal/auto/curate_test.go`: Test793d30b1; `wiring.test.ts` "a quiet turn shows nothing…"
 
 ##### 793d30b1a Scenarios
 
 ```gherkin
 Scenario: 793d30b1a1 The line counts the turn
-  Given 3 items delivered, 1 note added, 1 note amended and 2 offers curated since the last line
+  Given 3 items delivered, 1 note added, 1 amended and 2 offers curated
   When the turn's work has finished
   Then the line is "Memory activity: 3 items delivered, 1 note added, 1 note amended and 2 offers curated"
 ```
 
 #### 793d30b2 Warnings and surface
 
-Requirement: 793d30b2 When a step reports a failure, Activity Report MUST show at once `Automatic memory was skipped because <the vault is unavailable|the System timed out|of an error> (<step>)`; the line after the turn MUST carry each warning of the turn once, then the summary, joined by `. `, and the next turn MUST start clean. It MUST show a line only on the [mod](#793d1b-terms)'s [status line](#793d1b-terms), which is not a row of the [transcript](../../GLOSSARY.md#transcript), MUST NOT put it in any hook result or [context](./793a_product-spec.md#793a1-problem-statement), and MUST build it only from constants and counts, never from the text of a [note](./793a_product-spec.md#793a1-problem-statement), an [offer](../../GLOSSARY.md#offer) or a [lesson](./793a_product-spec.md#793a1-problem-statement).
+Requirement: 793d30b2 When a step reports a failure, Activity Report MUST show its warning at once; the line after the turn MUST carry each warning of the turn once, then the summary, joined by `. `, and the next turn MUST start clean. It MUST show a line only on the [mod](#793d1b-terms)'s [status line](#793d1b-terms), which is not a row of the [transcript](../../GLOSSARY.md#transcript), never in a hook result or [context](./793a_product-spec.md#793a1-problem-statement), and build it only from constants and counts, never from the text of a [note](./793a_product-spec.md#793a1-problem-statement), an offer or a [lesson](./793a_product-spec.md#793a1-problem-statement).
 
-Supports: [793a4b1a Vault unavailable](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1c No error reaches the agent and the user is warned](./793a_product-spec.md#793a4b1-uat-scenarios), [793a5h1c The summary is not in the agent's context](./793a_product-spec.md#793a5h1-uat-scenarios), [793a4c1c The only effect on the working agent's context is what is delivered](./793a_product-spec.md#793a4c1-uat-scenarios)
+Supports: [793a5h1c The summary is not in the agent's context](./793a_product-spec.md#793a5h1-uat-scenarios)
 
-Verified by: `internal/auto/summary_test.go`: Test793d30b2; `wiring.test.ts` "the effects of a round are applied…"
+Verified by: `internal/auto/summary_test.go`: Test793d30b2; `wiring.test.ts` "the effects of a round…"
 
 Security: [793d19a Security](#793d19a-security), mitigation: the user-visible activity line, which cannot carry injected text.
 
-Rationale: The [status line](#793d1b-terms) is a [mod](#793d1b-terms) capability that sits off the [transcript](../../GLOSSARY.md#transcript), so the user sees the [System](./793a_product-spec.md#793a1-problem-statement)'s work without the agent reading it ([793d17g4 Verdict](#793d17g4-verdict)).
+Rationale: The [status line](#793d1b-terms) is a [mod](#793d1b-terms) capability off the [transcript](../../GLOSSARY.md#transcript), so the user sees the [System](./793a_product-spec.md#793a1-problem-statement)'s work without the agent reading it ([793d17g4 Verdict](#793d17g4-verdict)).
 
 ##### 793d30b2a Scenarios
 
 ```gherkin
-Scenario: 793d30b2a1 A timeout is shown with its step and kept out of the transcript
+Scenario: 793d30b2a1 A timeout is shown with its step, off the transcript
   Given a step of the prompt lookup passes its deadline
   When it is reported
-  Then the status line is "Automatic memory was skipped because the System timed out (the prompt lookup)"
-  And no hook result holds it
+  Then the status line is "Automatic memory was skipped because the System timed out (the prompt lookup)" and no hook result holds it
 ```
 
 ## 793d31 Harness Deploy Sync (mod additions)
 
 ### 793d31a Orientation
 
-Canonical target: [harness-deploy-sync](../../specs/technical/harness-deploy-sync.md), as Added requirements; they also Modify its 792b29a Orientation, whose deploy set (skills, and guidance while it is managed) gains the mods of `agent-instructions/mods`. Realization: `planModCopies`, `modNotice` and `HarnessSpec.TakesMods` in `internal/update/update.go`, and `writeSkillRows` in `internal/cli/update.go`. The dependency boundary added is the `claude --version` command.
+Canonical target: [Harness Deploy Sync](../../specs/technical/harness-deploy-sync.md), as Added requirements; they also Modify its 792b29a Orientation, whose deploy set (skills, and guidance while it is managed) gains the mods of `agent-instructions/mods`. Realization: `planModCopies`, `modNotice` and `HarnessSpec.TakesMods` in `internal/update/update.go`, and `writeSkillRows` in `internal/cli/update.go`. The dependency boundary added is the `claude --version` command.
 
 ### 793d31b Behavior Requirements
 
 #### 793d31b1 Mod deploy set
 
-Requirement: 793d31b1 For every [harness](../../GLOSSARY.md#harness) that takes [mods](#793d1b-terms) (Claude Code only), Harness Deploy Sync MUST plan one copy of every file under `agent-instructions/mods/`, keeping its path under the harness's [skills](../../GLOSSARY.md#skill) directory and naming the mod's top-level directory as its unit, so that a folder holding `.claude-plugin/plugin.json` loads as a plugin in every Claude Code [session](../../GLOSSARY.md#session). It MUST plan nothing, without an error, when the source has no mods directory, MUST fail with the cause when the listing fails, and MUST plan no mod for Pi nor create a Pi directory.
+Requirement: 793d31b1 For every [harness](../../GLOSSARY.md#harness) that takes [mods](#793d1b-terms) (Claude Code only), Harness Deploy Sync MUST plan one copy of every file under `agent-instructions/mods/`, keeping its path under the harness's [skills](../../GLOSSARY.md#skill) directory and naming the mod's top-level directory as its unit, so that a folder holding `.claude-plugin/plugin.json` loads as a plugin in every Claude Code [session](../../GLOSSARY.md#session). It MUST plan nothing, without an error, when the source has no mods directory, fail with the cause when the listing fails, and plan no mod for Pi nor create a Pi directory.
 
-Supports: [793a5j1a Update installs the System for the harness it updates](./793a_product-spec.md#793a5j1-uat-scenarios), [793a5j1d One update serves both harnesses differently](./793a_product-spec.md#793a5j1-uat-scenarios), [793a5c1a Unsupported harness](./793a_product-spec.md#793a5c1-uat-scenarios), [793a5c1b A Pi session on a machine whose Claude Code has the System](./793a_product-spec.md#793a5c1-uat-scenarios)
+Supports: [793a5j1d One update serves both harnesses differently](./793a_product-spec.md#793a5j1-uat-scenarios), [793a5c1a Unsupported harness](./793a_product-spec.md#793a5c1-uat-scenarios), [793a5c1b A Pi session on a machine whose Claude Code has the System](./793a_product-spec.md#793a5c1-uat-scenarios)
 
-Verified by: `internal/update/mods_test.go`: Test793e8e1a, 1b, 1c, 1d and 1f (Pi absent and present)
+Verified by: `internal/update/mods_test.go`: Test793e8e1a, 1b, 1c, 1d and 1f
 
 ##### 793d31b1a Scenarios
 
@@ -878,7 +1052,7 @@ Scenario: 793d31b1a1 Only Claude Code receives the mod
 
 Requirement: 793d31b2 Harness Deploy Sync MUST deploy a [mod](#793d1b-terms) into the engram-owned root and link it from the [harness](../../GLOSSARY.md#harness)'s [skills](../../GLOSSARY.md#skill) directory, and keep it synchronized as it keeps a skill: a second run changes nothing, a dry run writes nothing and still reports the mod, a mod removed from the source is removed with its link, and no skill link the update deploys is removed or altered.
 
-Supports: [793a5j1a Update installs the System for the harness it updates](./793a_product-spec.md#793a5j1-uat-scenarios), [793a5j1b An existing install gains the System and keeps what it had](./793a_product-spec.md#793a5j1-uat-scenarios), [793a5j1c A preview installs none of the System](./793a_product-spec.md#793a5j1-uat-scenarios), [793a5j1l Running update twice changes nothing](./793a_product-spec.md#793a5j1-uat-scenarios)
+Supports: [793a5j1b An existing install gains the System and keeps what it had](./793a_product-spec.md#793a5j1-uat-scenarios), [793a5j1c A preview installs none of the System](./793a_product-spec.md#793a5j1-uat-scenarios), [793a5j1l Running update twice changes nothing](./793a_product-spec.md#793a5j1-uat-scenarios)
 
 Verified by: `internal/update/mods_test.go`: Test793e8e1e, 1g, 1h, 1i
 
@@ -895,13 +1069,12 @@ Scenario: 793d31b2a1 The mod is deployed beside the skills
 
 #### 793d31b3 Version check and report rows
 
-Requirement: 793d31b3 When the source holds a [mod](#793d1b-terms), Harness Deploy Sync MUST read `claude --version` once per run, a dry run included, and give the [harness](../../GLOSSARY.md#harness) an empty mod notice when Claude Code is 2.1.287 or later, otherwise a sentence naming the reason: the version is older, the version cannot be read, or `claude` is not on the path. A notice MUST NOT stop the deploy. With no mod in the source it MUST NOT run `claude`. It MUST list each deployed mod in the harness section beside the [skills](../../GLOSSARY.md#skill) as `agent-instructions/mods/<name>/ → <destination>  (<n> files)`, and print a non-empty notice as `mods: <notice>` under them.
+Requirement: 793d31b3 When a [mod](#793d1b-terms) is planned for a [harness](../../GLOSSARY.md#harness), Harness Deploy Sync MUST read `claude --version` once per run, a dry run included, and give the harness an empty mod notice when Claude Code is 2.1.287 or later, otherwise a sentence naming the reason: the version is older, cannot be read, or `claude` is not on the path. A notice MUST NOT stop the deploy. With no mod planned it MUST NOT run `claude`. It MUST list each deployed mod in the harness section beside the [skills](../../GLOSSARY.md#skill) as `agent-instructions/mods/<name>/ → <destination>  (<n> files)`, and print a non-empty notice as `mods: <notice>` under them.
 
 Supports: [793a5j1a Update installs the System for the harness it updates](./793a_product-spec.md#793a5j1-uat-scenarios)
 
 Verified by: `internal/update/mods_test.go`: Test793e8e2a, 2b, 2c; `internal/cli/update_mods_test.go`: Test793e8e3a, 3b
 
-Rationale: The [System](./793a_product-spec.md#793a1-problem-statement) is inactive on a Claude Code that cannot load [mods](#793d1b-terms), so the report says so rather than leaving the user to find out.
 
 ##### 793d31b3a Scenarios
 
@@ -914,9 +1087,9 @@ Scenario: 793d31b3a1 An older Claude Code is reported and the deploy goes on
 
 ## 793d32 Moment Delivery Flow
 
-Canonical target: `docs/specs/technical/moment-delivery-flow.md` (title `Moment Delivery Flow - Technical Spec`).
+Canonical target: `docs/specs/technical/moment-delivery-flow.md`.
 
-A [moment](./793a_product-spec.md#793a1-problem-statement) event of a Claude Code [session](../../GLOSSARY.md#session) (a prompt, a route result, a [subagent](../../GLOSSARY.md#subagent) start, or an agent step) is turned into delivered [vault](./793a_product-spec.md#793a1-problem-statement) [notes](./793a_product-spec.md#793a1-problem-statement) added to the receiving agent's [context](./793a_product-spec.md#793a1-problem-statement), or into nothing. Each interaction requirement has its owning caller; each product scenario ID below is a `targ acceptance` row.
+A [moment](./793a_product-spec.md#793a1-problem-statement) event of a Claude Code [session](../../GLOSSARY.md#session) (a prompt, a route result, a [subagent](../../GLOSSARY.md#subagent) start or an agent step) is turned into delivered [vault](./793a_product-spec.md#793a1-problem-statement) [notes](./793a_product-spec.md#793a1-problem-statement) added to the receiving agent's [context](./793a_product-spec.md#793a1-problem-statement), or into nothing. Each interaction requirement has its owning caller.
 
 ### 793d32a Sequence
 
@@ -925,24 +1098,27 @@ sequenceDiagram
     participant Eng as Claude Code
     participant Mod as Memory Mod
     participant Det as Moment Detection
+    participant Run as Job Runner
     participant Del as Memory Delivery
     participant JR as Judgement Relay
     participant Red as Secret Redaction
     participant QE as Query Engine
     participant Act as Activity Report
 
-    Eng->>Mod: 793d22b1, 793d32b1 prompt, route result, subagent start or step
+    Eng->>Mod: 793d22b1, 793d32b1 prompt, route result, subagent start, step
     Mod->>Det: 793d23b1, 793d32b1 what does this event cue
     alt a prompt, a route result or a subagent start
         Det-->>Mod: 793d23b1 the moment and its text
-        Mod->>Del: 793d24b1, 793d32b1 look up the moment for this agent
-    else a step with text and a tool call
-        Det->>Det: 793d23b2 no job when the agent runs memory itself
-        Det->>Red: 793d26b1, 793d32b2 redact the recent texts
-        Det->>JR: 793d25b1, 793d32b2 classification request
-        JR-->>Det: 793d25b2, 793d25b3 the moments named
-        Det->>Del: 793d24b1, 793d32b2 look up the named moments
-        Note over Det,Del: the notes ride a later tool result of the same turn
+        Mod->>Run: 793d22b5, 793d36b1, 793d32b1 lookup job
+        Run->>Del: 793d24b1, 793d32b1 look up the moment for this agent
+    else a step that called a tool
+        Det->>Det: 793d23b2 no job for the agent's own memory command
+        Det->>Run: 793d22b5, 793d36b1, 793d32b2 step job in the background
+        Run->>Red: 793d26b1, 793d32b2 redact recent texts
+        Run->>JR: 793d25b1, 793d32b2 classification request
+        JR-->>Run: 793d25b2, 793d25b3 the moments named
+        Run->>Del: 793d24b1, 793d32b2 look up the moments named
+        Note over Det,Del: the notes ride a later tool result
     else nothing is cued
         Det-->>Mod: 793d23b1 none
     end
@@ -952,15 +1128,20 @@ sequenceDiagram
     alt a considered note remains
         Del->>JR: 793d25b1, 793d25b2, 793d32b3 relevance request
         JR-->>Del: 793d25b2, 793d25b3 the selection
-        Del-->>Mod: 793d24b3 the block
+        Note over Run,Mod: the mod relays a request and calls the job again
+        Mod->>Run: 793d22b5, 793d36b2 the job again with state and reply
+        Del-->>Run: 793d24b3, 793d32b3 the block
+        Run-->>Mod: 793d36b1 done with the block
         Mod->>Act: 793d30b1 items delivered
         Mod-->>Eng: 793d22b1, 793d32b1 the event with the block added
     else none remains
-        Del-->>Mod: 793d24b1 nothing
+        Del-->>Run: 793d24b1, 793d32b3 nothing
+        Run-->>Mod: 793d36b1 done without a block
         Mod-->>Eng: 793d22b1, 793d32b1 the event as received
     end
     alt any step fails
-        Mod->>Act: 793d30b2, 793d22b3, 793d32b1 warning with step and class
+        Run->>Mod: 793d36b3, 793d32b1 the warning with step and class
+        Mod->>Act: 793d30b2, 793d22b3, 793d32b1 show the warning
         Mod-->>Eng: 793d22b3, 793d32b1 the event as received
     end
 ```
@@ -969,13 +1150,13 @@ sequenceDiagram
 
 #### 793d32b1 Moment routing
 
-Requirement: 793d32b1 On an event the Memory Mod MUST first ask Moment Detection what it [cues](#793d1b-terms), and run no lookup for an event that cues nothing. For a cued [moment](./793a_product-spec.md#793a1-problem-statement) it MUST hand the moment, its text and the agent it is for (the top-level agent, or the starting [subagent](../../GLOSSARY.md#subagent)) to Memory Delivery, return the event with the [block](#793d1b-terms) added by the event's channel (`context` for a prompt, `additionalContext` for a route result or a subagent start) and report the delivered count to the Activity Report. When no [note](./793a_product-spec.md#793a1-problem-statement) is delivered it MUST return the event as received and report nothing. When any step of the lookup fails it MUST return the event as received and report the step and class.
+Requirement: 793d32b1 On an event the Memory Mod MUST first ask [Moment](./793a_product-spec.md#793a1-problem-statement) Detection what it [cues](#793d1b-terms), and run no lookup for an event that cues nothing. For a cued moment it MUST hand the engine the lookup [job](#793d1b-terms) with the moment's text and the agent it is for (the top-level agent, or the starting [subagent](../../GLOSSARY.md#subagent)), return the event with the [block](#793d1b-terms) added by the event's channel (`context` for a prompt, `additionalContext` for a tool result or a subagent start) and tally the delivered count. When no [note](./793a_product-spec.md#793a1-problem-statement) is delivered it MUST return the event as received and tally nothing; when any step of the lookup fails, return it as received and show the warning.
 
-Owner: [Memory Mod](#793d22-memory-mod)
+Owner: [793d22 Memory Mod](#793d22-memory-mod)
 
-Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1e No result, nothing delivered](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1g A subagent receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1h A prompt from any source receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1i Please's orientation receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1j Tier evidence is delivered before a dispatch is routed](./793a_product-spec.md#793a2n1-uat-scenarios), [793a4b1a Vault unavailable](./793a_product-spec.md#793a4b1-uat-scenarios)
+Supports: [793a2n1e No result, nothing delivered](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1h A prompt from any source receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios), [793a4b1a Vault unavailable](./793a_product-spec.md#793a4b1-uat-scenarios)
 
-Verified by: `internal/auto/golden_test.go`: Test793d23b1, Test793d24b1; `internal/auto/moment_test.go`: Test793d23b1, Test793d24b1; `wiring.test.ts` "the result of a tool carries the block of the route lookup…"
+Verified by: `wiring.test.ts` "the result of a tool carries…"; `wiring.test.ts` "793d22b3 when the program exits…"
 
 ##### 793d32b1a Scenarios
 
@@ -983,13 +1164,13 @@ Verified by: `internal/auto/golden_test.go`: Test793d23b1, Test793d24b1; `intern
 Scenario: 793d32b1a1 A prompt delivers a note through the context
   Given a note matches the prompt
   When the prompt event is routed
-  Then the returned event holds the block in context and the Activity Report receives 1 item delivered
+  Then the event holds the block in context and one item delivered is tallied
   # acceptance rows: 793a2n1h, 793a2n1i, 793a4c1b
 
 Scenario Outline: 793d32b1a2 A route result or a subagent start delivers through additionalContext
   Given a note matches the <moment>
   When the <event> is routed
-  Then the returned result holds the block in additionalContext for <agent>
+  Then the result holds the block in additionalContext for <agent>
   # acceptance rows: 793a2n1j, 793a2n1g, 793a2e1d
   Examples:
     | moment | event | agent |
@@ -999,25 +1180,25 @@ Scenario Outline: 793d32b1a2 A route result or a subagent start delivers through
 Scenario: 793d32b1a3 Nothing cued, or nothing selected, delivers nothing
   Given a tool result that cues nothing, or a lookup that selects nothing
   When the event is routed
-  Then no block is added and the Activity Report receives no count
+  Then no block is added and nothing is tallied
   # acceptance rows: 793a2n1e
 
 Scenario: 793d32b1a4 A failed lookup returns the event as received
   Given the query fails
   When a prompt is routed
-  Then the prompt is returned as received and the Activity Report receives the step and class
+  Then the prompt is returned as received and the warning is shown
   # acceptance rows: 793a4b1a
 ```
 
 #### 793d32b2 Step cue sequence
 
-Requirement: 793d32b2 After a top-level step with text and a tool call, Moment Detection MUST redact the recent texts before asking the Judgement Relay for one classification, ask Memory Delivery for a lookup only when the classification names a [moment](./793a_product-spec.md#793a1-problem-statement), and make the [notes](./793a_product-spec.md#793a1-problem-statement) available only to a tool result of the same turn. A classification that fails MUST deliver nothing and let the turn go on.
+Requirement: 793d32b2 After a top-level step that called a tool, [Moment](./793a_product-spec.md#793a1-problem-statement) Detection MUST start the step [job](#793d1b-terms) in the background, which redacts the recent texts before asking the Judgement Relay for one classification, asks Memory Delivery for a lookup only when the classification names a moment, and makes the [notes](./793a_product-spec.md#793a1-problem-statement) available only to a tool result of the same turn. A classification that fails MUST deliver nothing and let the turn go on.
 
-Owner: [Moment Detection](#793d23-moment-detection)
+Owner: [793d23 Moment Detection](#793d23-moment-detection)
 
 Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios)
 
-Verified by: `internal/auto/golden_test.go`: Test793d23b2; `internal/auto/moment_test.go`: Test793d23b2; `wiring.test.ts` "a step that called a tool starts the job…"; `wiring.test.ts` "no job is started for a step of a subagent…"
+Verified by: `internal/auto/moment_test.go`: Test793d23b2; `wiring.test.ts` "a step that called a tool…"
 
 ##### 793d32b2a Scenarios
 
@@ -1037,13 +1218,13 @@ Scenario: 793d32b2a2 A failed classification delivers nothing
 
 #### 793d32b3 Lookup sequence
 
-Requirement: 793d32b3 Memory Delivery MUST query before it judges, drop the [notes](./793a_product-spec.md#793a1-problem-statement) the receiving agent holds before it judges, judge only when a considered note remains, and return to the Memory Mod the [block](#793d1b-terms) of the selected notes, or nothing; a failed query or [judgement](#793d1b-terms) MUST be returned to the caller as a failure and MUST deliver nothing.
+Requirement: 793d32b3 Memory Delivery MUST query before it judges, drop the [notes](./793a_product-spec.md#793a1-problem-statement) the receiving agent holds before it judges, judge only when a considered note remains, and return to the Job Runner the [block](#793d1b-terms) of the selected notes, or nothing; a failed query or [judgement](#793d1b-terms) MUST be returned as a failure and deliver nothing.
 
-Owner: [Memory Delivery](#793d24-memory-delivery)
+Owner: [793d24 Memory Delivery](#793d24-memory-delivery)
 
-Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1e No result, nothing delivered](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2e1a Note delivered earlier is not delivered again](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1c Note the agent retrieved itself is not delivered](./793a_product-spec.md#793a2e1-uat-scenarios)
+Supports: [793a2e1a Note delivered earlier is not delivered again](./793a_product-spec.md#793a2e1-uat-scenarios)
 
-Verified by: `internal/auto/golden_test.go`: Test793d24b1, Test793d24b2; `internal/auto/moment_test.go`: Test793d24b1, Test793d24b2
+Verified by: `internal/auto/moment_test.go`: Test793d24b1, Test793d24b2
 
 ##### 793d32b3a Scenarios
 
@@ -1063,9 +1244,9 @@ Scenario: 793d32b3a2 A considered note is judged and returned
 
 ## 793d33 Turn Memory Work Flow
 
-Canonical target: `docs/specs/technical/turn-memory-work-flow.md` (title `Turn Memory Work Flow - Technical Spec`).
+Canonical target: `docs/specs/technical/turn-memory-work-flow.md`.
 
-A completed top-level turn, or a stopped [subagent](../../GLOSSARY.md#subagent), is followed by the [System](./793a_product-spec.md#793a1-problem-statement)'s background memory work: capture, the index, curation, one [backlog source](#793d1b-terms) and the user's summary line. The event is answered before the work starts. Each product scenario ID below is a `targ acceptance` row.
+A completed top-level turn, or a stopped [subagent](../../GLOSSARY.md#subagent), is followed by the [System](./793a_product-spec.md#793a1-problem-statement)'s background memory work: the turn's entry in the [queue file](#793d1b-terms), capture, the index, curation, one [backlog source](#793d1b-terms) and the summary line; a [session](../../GLOSSARY.md#session) that starts takes up the entries an earlier one left. The event is answered before the work starts.
 
 ### 793d33a Sequence
 
@@ -1073,21 +1254,37 @@ A completed top-level turn, or a stopped [subagent](../../GLOSSARY.md#subagent),
 sequenceDiagram
     participant Eng as Claude Code
     participant Mod as Memory Mod
+    participant Run as Job Runner
+    participant Q as Capture Queue
     participant Cap as Auto Capture
     participant Red as Secret Redaction
     participant JR as Judgement Relay
     participant QE as Query Engine
     participant NA as Note Authoring
     participant NM as Note Amendment
-    participant Ix as Chunk Index
+    participant Ix as Ingestion Source Discovery
     participant CLS as Command Line Surface
     participant Cur as Auto Curation
     participant BL as Backlog Capture
     participant Act as Activity Report
 
+    opt a session starts
+        Eng->>Mod: 793d22b4, 793d33b1 session start
+        Mod->>Run: 793d22b5, 793d36b1, 793d33b1 resume job
+        Run->>Q: 793d37b2, 793d33b1 hand back the entries left
+        Q-->>Run: 793d37b2 the entries
+        Run-->>Mod: 793d36b1 the entries
+    end
     Eng->>Mod: 793d22b2, 793d33b1 turn complete or subagent stop
-    Mod-->>Eng: 793d22b2, 793d33b1 the event answered before any work
-    Mod->>Cap: 793d27b1, 793d33b1 capture job with the turn or subagent window
+    opt a top-level turn
+        Mod->>Run: 793d22b5, 793d36b1, 793d33b1 enqueue job
+        Run->>Q: 793d37b1, 793d33b1 write the redacted turn
+        Q-->>Run: 793d37b1 the entry, or none
+        Run-->>Mod: 793d36b1 the entry or none
+    end
+    Mod-->>Eng: 793d22b2, 793d33b1 event answered before any work
+    Mod->>Run: 793d22b5, 793d36b1, 793d33b1 capture job
+    Run->>Cap: 793d27b1, 793d33b2 build the window
     Cap->>Red: 793d26b1, 793d33b2 redact the window
     Cap->>QE: 792b24c5, 793d33b2 nearest notes of the window
     QE-->>Cap: 792b24c5 items
@@ -1099,24 +1296,29 @@ sequenceDiagram
         Cap->>NA: 792b12c3, 793d27b2, 793d33b2 learn with the source line
         Cap->>Act: 793d30b1 note added
     end
-    Mod->>Ix: 792b17c3, 793d33b1 ingest the new content
-    Mod->>Cur: 793d29b1, 793d33b1 pass over the pending offers
+    Cap->>BL: 793d28b3, 793d33b2 record the session's turns
+    Cap->>Q: 793d37b3, 793d33b2 take the entry out
+    Mod->>Run: 793d22b2, 793d36b1, 793d33b1 housekeeping job after the burst
+    Run->>Ix: 792b17c3, 793d33b5 ingest the new content
+    Run->>Cur: 793d29b1, 793d33b5 pass over the pending offers
     Cur->>CLS: 792b2c7, 793d33b3 show the offer
     Cur->>QE: 792b24c5, 793d33b3 nearest notes of the offer
     Cur->>Red: 793d26b1, 793d33b3 redact the offer and the notes
     Cur->>JR: 793d25b1, 793d25b2, 793d33b3 curation request
     JR-->>Cur: 793d25b2, 793d25b3 the outcome
-    Cur->>NM: 792b14c14, 793d29b2, 793d33b3 settle the offer
+    Cur->>NM: 792b14c14, 793d29b2, 793d38b1, 793d33b3 settle the offer
     Cur->>Act: 793d30b1 offers curated and notes amended
     opt the burst holds a top-level turn
-        Mod->>BL: 793d28b1, 793d33b1 one backlog step
-        BL->>BL: 793d28b2, 793d28b3 read the source and its marks
-        BL->>Cap: 793d27b2, 793d33b4 capture one window of the source
+        Run->>BL: 793d28b1, 793d33b5 one backlog step
+        BL->>BL: 793d28b2, 793d28b3 read the source, its marks
+        BL->>Cap: 793d27b2, 793d33b4 capture a window
     end
-    Mod->>Act: 793d30b1, 793d33b1 the burst's work has finished
-    Act-->>Eng: 793d30b2 the status line
+    Mod->>Run: 793d22b2, 793d36b1, 793d33b1 summary job of the burst
+    Run-->>Mod: 793d30b1 the line
+    Mod-->>Eng: 793d30b2 the status line
     alt a step fails
-        Mod->>Act: 793d30b2, 793d22b3, 793d33b1 warning with step and class
+        Run->>Mod: 793d36b3, 793d33b1 the warning with step and class
+        Mod->>Act: 793d30b2, 793d22b3 show the warning
     end
 ```
 
@@ -1124,23 +1326,17 @@ sequenceDiagram
 
 #### 793d33b1 Burst sequencing
 
-Requirement: 793d33b1 The Memory Mod MUST answer the event before queueing any work, run each queued capture in order, and after the last job of the [burst](#793d1b-terms) run, in this order, the index, the [offer](../../GLOSSARY.md#offer) pass and, if the burst holds a top-level turn, one backlog step, continuing with the next step when one fails. When the burst's work has finished it MUST have the Activity Report show the line once, for a burst that holds a top-level turn. A failure MUST be reported to the Activity Report with its step and class.
+Requirement: 793d33b1 When a [session](../../GLOSSARY.md#session) starts the Memory Mod MUST hand the engine a `resume` [job](#793d1b-terms) and queue a capture for each entry returned. When a top-level turn completes it MUST have the turn written to the [queue file](#793d1b-terms) before the event returns, queue the capture of the entry (of the turn itself when none) and answer the event before any capture starts; it MUST run queued captures in order, after the last job of the [burst](#793d1b-terms) hand the engine one housekeeping job and, for a burst holding a top-level turn, the summary job. A failing job MUST be shown as a warning with its step and class and MUST NOT stop the next.
 
-Owner: [Memory Mod](#793d22-memory-mod)
+Owner: [793d22 Memory Mod](#793d22-memory-mod)
 
-Supports: [793a4j1a The index catches up after the turn](./793a_product-spec.md#793a4j1-uat-scenarios), [793a4j1e Slow housekeeping does not stall the session](./793a_product-spec.md#793a4j1-uat-scenarios), [793a3a1h Two subagents contain the same lesson](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5h1a The summary shows the counts after a turn with events](./793a_product-spec.md#793a5h1-uat-scenarios), [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios)
+Supports: [793a4j1e Slow housekeeping does not stall the session](./793a_product-spec.md#793a4j1-uat-scenarios), [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5h1a The summary shows the counts after a turn with events](./793a_product-spec.md#793a5h1-uat-scenarios)
 
-Verified by: `internal/auto/curate_test.go`: Test793d22b2; `wiring.test.ts` "a turn is queued before it is answered…"; `wiring.test.ts` "the jobs of a burst run one at a time…"
+Verified by: `wiring.test.ts` "a turn is queued…"; `wiring.test.ts` "the jobs of a burst…"; `hardening.test.ts` "793d22b4 a turn is in the queue file…"; `hardening.test.ts` "793d22b4 an entry a session left…"
 
 ##### 793d33b1a Scenarios
 
 ```gherkin
-Scenario: 793d33b1a1 The index catches up after the turn
-  Given a completed turn
-  When its burst ends
-  Then engram ingest --auto runs after the capture and before the offer pass
-  # acceptance rows: 793a4j1a
-
 Scenario: 793d33b1a2 Slow work does not hold the next prompt
   Given the System's work takes 20 seconds
   When the next prompt is submitted at once
@@ -1153,22 +1349,34 @@ Scenario: 793d33b1a3 The summary follows the work
   Then the Activity Report shows one line
   # acceptance rows: 793a5h1a
 
-Scenario: 793d33b1a4 A failing step does not stop the next
-  Given the index step fails
+Scenario: 793d33b1a5 The turn is in the file before the event returns
+  Given a turn that completes
+  When the Memory Mod handles turn.complete
+  Then the enqueue job ran before the event returned and the capture runs on its entry
+  # acceptance rows: 793a3a1k
+
+Scenario: 793d33b1a6 A session that starts captures what an earlier one left
+  Given the queue file holds an entry
+  When a session starts
+  Then a capture of the entry is queued
+  # acceptance rows: 793a3a1k
+
+Scenario: 793d33b1a7 A failing capture does not stop the next job
+  Given a capture job fails
   When the burst ends
-  Then the offer pass still runs and a warning is reported for the index
+  Then the next job still runs and a warning is shown for the capture
   # acceptance rows: 793a4b1b
 ```
 
 #### 793d33b2 Capture sequence
 
-Requirement: 793d33b2 Auto Capture MUST redact before it asks the Query Engine for the [nearest notes](#793d1b-terms) and the Judgement Relay for the [judgement](#793d1b-terms), and write only after the judgement is read: reinforce through Note Amendment a [lesson](./793a_product-spec.md#793a1-problem-statement) a nearest note covers, write through Note Authoring one that none states, and report each [note](./793a_product-spec.md#793a1-problem-statement) written to the Activity Report. A judgement or write that fails MUST stop the capture of that [window](#793d1b-terms), write nothing further from it, and be reported.
+Requirement: 793d33b2 Auto Capture MUST redact before it asks the Query Engine for the [nearest notes](#793d1b-terms) and the Judgement Relay for the [judgement](#793d1b-terms), and write only after the judgement is read: reinforce through Note Amendment a [lesson](./793a_product-spec.md#793a1-problem-statement) a nearest note covers, write through Note Authoring one that none states, and report each [note](./793a_product-spec.md#793a1-problem-statement) written to the Activity Report. When the capture of an entry or a turn ends it MUST have Backlog Capture record the turns of its [session](../../GLOSSARY.md#session) and the Capture Queue take the entry out of the file. A judgement or write that fails MUST stop the capture of that [window](#793d1b-terms), write nothing further, record nothing, leave the entry in the file and be reported.
 
-Owner: [Auto Capture](#793d27-auto-capture)
+Owner: [793d27 Auto Capture](#793d27-auto-capture)
 
-Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1g A lesson in a subagent session is captured](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1h Two subagents contain the same lesson](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5k1d An intentional learn by the agent is allowed and is not undone](./793a_product-spec.md#793a5k1-uat-scenarios)
+Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1h Two subagents contain the same lesson](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5k1d An intentional learn by the agent is allowed and is not undone](./793a_product-spec.md#793a5k1-uat-scenarios)
 
-Verified by: `internal/auto/capture_test.go`: Test793d27b2; `internal/auto/golden_test.go`: Test793d27b2
+Verified by: `internal/auto/capture_test.go`: Test793d27b2; `internal/auto/queue_test.go`: Test793d37b3
 
 ##### 793d33b2a Scenarios
 
@@ -1191,31 +1399,36 @@ Scenario: 793d33b2a3 Two subagents with one lesson make one note
   Then the vault holds one note
   # acceptance rows: 793a3a1h
 
-Scenario: 793d33b2a4 A failed judgement writes nothing
-  Given the capture judgement is unreadable
-  When the window is captured
-  Then nothing is written and the failure is reported
+Scenario: 793d33b2a4 A failed judgement writes nothing and keeps the entry
+  Given the judgement of an entry's window is unreadable
+  When the capture ends
+  Then nothing is written, the entry is still in the file and the failure is reported
   # acceptance rows: 793a4b1b
+
+Scenario: 793d33b2a5 An entry leaves the file when its capture ends
+  Given an entry in the queue file
+  When its capture ends
+  Then the file no longer holds it and its session's turns are recorded
+  # acceptance rows: 793a3a1k
 ```
 
 #### 793d33b3 Curation sequence
 
-Requirement: 793d33b3 For each pending [offer](../../GLOSSARY.md#offer) Auto Curation MUST show the offer, fetch its [nearest notes](#793d1b-terms), redact both, judge, and only then run the commands of the outcome through Note Amendment; an offer that cannot be read, judged or settled MUST be reported once and MUST NOT stop the offers after it. It MUST report each settled offer, and each [note](./793a_product-spec.md#793a1-problem-statement) amended by a `near` outcome, to the Activity Report.
+Requirement: 793d33b3 For each pending offer Auto Curation MUST show the offer, fetch its [nearest notes](#793d1b-terms), redact both, judge, and only then run the commands of the outcome through Note Amendment; an offer that cannot be read, judged or settled MUST be reported once and MUST NOT stop the [offers](../../GLOSSARY.md#offer) after it. It MUST report each settled offer, and each [note](./793a_product-spec.md#793a1-problem-statement) a `near` outcome amended, to the Activity Report.
 
-Owner: [Auto Curation](#793d29-auto-curation)
+Owner: [793d29 Auto Curation](#793d29-auto-curation)
 
-Supports: [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios), [793a4j1d The agent is not asked to curate](./793a_product-spec.md#793a4j1-uat-scenarios)
+Supports: [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `internal/auto/curate_test.go`: Test793d29b2; `internal/auto/golden_test.go`: Test793d29b2
+Verified by: `internal/auto/curate_test.go`: Test793d29b2
 
 ##### 793d33b3a Scenarios
 
 ```gherkin
-Scenario: 793d33b3a1 An offer a note covers is folded and one no note covers is accepted
-  Given a pending offer O1 that a note covers and a pending offer O2 that none covers
+Scenario: 793d33b3a1 A covered offer is folded and an uncovered one accepted
+  Given a pending offer a note covers and another that none covers
   When the pass runs
-  Then O1 is folded into the note and O2 is accepted, neither pending
-  And the agent is asked nothing
+  Then the first is folded into the note, the second accepted, and the agent is asked nothing
   # acceptance rows: 793a4j1c, 793a4j1d
 
 Scenario: 793d33b3a2 A failed offer does not stop the rest
@@ -1227,20 +1440,20 @@ Scenario: 793d33b3a2 A failed offer does not stop the rest
 
 #### 793d33b4 Backlog sequence
 
-Requirement: 793d33b4 After the index has run, Backlog Capture MUST pick an eligible source from the manifest, read its conversation from the file, hand each [window](#793d1b-terms) to Auto Capture with a source naming the file, and mark the source only when every window has been captured without a failure, so that it is tried again at a later turn after a failure.
+Requirement: 793d33b4 After the index has run, Backlog Capture MUST pick an eligible source from the manifest, read its conversation, hand each [window](#793d1b-terms) to Auto Capture with a source naming the file, and mark the source only when every window has been captured without a failure, so that a failed one is tried again at a later turn.
 
-Owner: [Backlog Capture](#793d28-backlog-capture)
+Owner: [793d28 Backlog Capture](#793d28-backlog-capture)
 
-Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5c1c A captured Pi session's transcript is left unchanged](./793a_product-spec.md#793a5c1-uat-scenarios)
+Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5c1c A captured Pi session's transcript is left unchanged](./793a_product-spec.md#793a5c1-uat-scenarios)
 
-Verified by: `internal/auto/backlog_test.go`: Test793d28b1, Test793d28b3; `internal/auto/golden_test.go`: Test793d28b1, Test793d28b3
+Verified by: `internal/auto/backlog_test.go`: Test793d28b1, Test793d28b3
 
 ##### 793d33b4a Scenarios
 
 ```gherkin
 Scenario: 793d33b4a1 An ended session is captured at a later turn
   Given an ended Pi session whose lesson was not saved
-  When a later turn's burst reaches its backlog step
+  When a later burst reaches its backlog step
   Then the vault holds a note stating the lesson and the Pi transcript is unchanged
   # acceptance rows: 793a3a1k, 793a5c1c
 
@@ -1251,11 +1464,42 @@ Scenario: 793d33b4a2 A failure leaves the source for the next turn
   # acceptance rows: 793a3a1k
 ```
 
+#### 793d33b5 Housekeeping sequence
+
+Requirement: 793d33b5 A housekeeping [job](#793d1b-terms) MUST run the index (`engram ingest --auto`), then the pass over the pending [offers](../../GLOSSARY.md#offer), then, only when the [burst](#793d1b-terms) ended with a top-level turn, one backlog step, each as a step of its own, so that a failure of one is warned about by name (`indexing`, `curation`, `the backlog capture`) and the next still runs.
+
+Owner: [793d36 Job Runner](#793d36-job-runner)
+
+Supports: [793a4j1a The index catches up after the turn](./793a_product-spec.md#793a4j1-uat-scenarios)
+
+Verified by: `internal/auto/curate_test.go`: Test793d33b5
+
+##### 793d33b5a Scenarios
+
+```gherkin
+Scenario: 793d33b5a1 The index catches up after the turn
+  Given a completed turn
+  When its housekeeping job runs
+  Then engram ingest --auto runs before the offer pass
+  # acceptance rows: 793a4j1a
+
+Scenario: 793d33b5a2 A failing index does not stop the offer pass
+  Given the index step fails
+  When the housekeeping job runs
+  Then the offer pass still runs and a warning is shown for the index
+  # acceptance rows: 793a4b1b
+
+Scenario: 793d33b5a3 A burst without a top-level turn takes no backlog step
+  Given a burst of subagent captures only
+  When its housekeeping job runs
+  Then no backlog source is looked at
+```
+
 ## 793d34 Mod Install Flow
 
-Canonical target: `docs/specs/technical/mod-install-flow.md` (title `Mod Install Flow - Technical Spec`).
+Canonical target: `docs/specs/technical/mod-install-flow.md`.
 
-`engram update` deploys the engram-memory mod for Claude Code beside the [skills](../../GLOSSARY.md#skill), checks that the installed Claude Code can load it, and reports both. Each product scenario ID below is a `targ acceptance` row.
+`engram update` deploys the engram-memory [mod](#793d1b-terms) for Claude Code beside the [skills](../../GLOSSARY.md#skill), checks that the installed Claude Code can load it, and reports both.
 
 ### 793d34a Sequence
 
@@ -1268,7 +1512,7 @@ sequenceDiagram
 
     Dev->>SI: 793d34b1 engram update, with or without the dry-run flag
     SI->>HDS: 793d31b1, 793d31b2, 793d34b1 deploy the mods with the skills
-    alt the source holds a mod
+    alt a mod is planned for a harness
         HDS->>CC: 793d31b3, 793d34b1 claude --version
         CC-->>HDS: 793d31b3 the version, or no answer
         alt Claude Code 2.1.287 or later
@@ -1289,7 +1533,7 @@ Requirement: 793d34b1 On `engram update` the Self Installer MUST run the harness
 
 Owner: [Self Installer](../../specs/technical/self-installer.md)
 
-Supports: [793a5j1a Update installs the System for the harness it updates](./793a_product-spec.md#793a5j1-uat-scenarios), [793a5j1b An existing install gains the System and keeps what it had](./793a_product-spec.md#793a5j1-uat-scenarios), [793a5j1c A preview installs none of the System](./793a_product-spec.md#793a5j1-uat-scenarios), [793a5j1d One update serves both harnesses differently](./793a_product-spec.md#793a5j1-uat-scenarios), [793a5j1l Running update twice changes nothing](./793a_product-spec.md#793a5j1-uat-scenarios)
+Supports: [793a5j1a Update installs the System for the harness it updates](./793a_product-spec.md#793a5j1-uat-scenarios), [793a5j1c A preview installs none of the System](./793a_product-spec.md#793a5j1-uat-scenarios)
 
 Verified by: `internal/update/mods_test.go`: Test793e8e1e, 1f, 1g, 1h, 2a
 
@@ -1325,36 +1569,30 @@ Scenario: 793d34b1a4 An older Claude Code is reported, not fatal
 
 ### 793d35a Check
 
-All 43 scenarios of the product spec are supported by at least one requirement below, and all 32 requirements (24 behavior requirements of 10 components, 8 interaction requirements of 3 flows) name at least one contract test. Scenario-level support is on each requirement's `Supports` line; the table gives the union per product requirement.
+All 43 scenarios of the product spec are supported by at least one requirement, and every requirement (33 behavior requirements of 13 components, 9 interaction requirements of 3 flows) names at least one contract test; `targ check-spec-conformance` checks both on every `check-full`. Scenario-level support is on each requirement's `Supports` line; the table gives the union per product requirement.
 
 ### 793d35b Product requirements to technical requirements
 
-| Product requirement | Scenarios supported | Supporting requirements |
+| Product requirement | Scenarios supported | Supporting components and flows |
 | --- | --- | --- |
-| [793a2n Relevant memory reaches the agent at the moments](./793a_product-spec.md#793a2n-relevant-memory-reaches-the-agent-at-the-moments) | 6 | [793d23b1 Event cues](#793d23b1-event-cues), [793d23b2 In-turn cue](#793d23b2-in-turn-cue), [793d24b1 Lookup and selection](#793d24b1-lookup-and-selection), [793d24b3 Block](#793d24b3-block), [793d25b1 Tier and request shape](#793d25b1-tier-and-request-shape), [793d25b3 Result shapes](#793d25b3-result-shapes), [793d32b1 Moment routing](#793d32b1-moment-routing), [793d32b2 Step cue sequence](#793d32b2-step-cue-sequence), [793d32b3 Lookup sequence](#793d32b3-lookup-sequence) |
-| [793a2e Nothing already in context is delivered again](./793a_product-spec.md#793a2e-nothing-already-in-context-is-delivered-again) | 5 | [793d23b2 In-turn cue](#793d23b2-in-turn-cue), [793d24b2 Presence and ledgers](#793d24b2-presence-and-ledgers), [793d32b3 Lookup sequence](#793d32b3-lookup-sequence) |
-| [793a3a Lessons are captured without the agent](./793a_product-spec.md#793a3a-lessons-are-captured-without-the-agent) | 5 | [793d22b2 Background queue and housekeeping](#793d22b2-background-queue-and-housekeeping), [793d25b1 Tier and request shape](#793d25b1-tier-and-request-shape), [793d25b2 Data and replies](#793d25b2-data-and-replies), [793d25b3 Result shapes](#793d25b3-result-shapes), [793d26b1 Credential shapes](#793d26b1-credential-shapes), [793d27b1 Windows](#793d27b1-windows), [793d27b2 Reconciliation, writes and provenance](#793d27b2-reconciliation-writes-and-provenance), [793d28b1 Eligible sources and cut-off](#793d28b1-eligible-sources-and-cut-off), [793d28b2 Reading and windows](#793d28b2-reading-and-windows), [793d28b3 Marks and read-only sources](#793d28b3-marks-and-read-only-sources), [793d33b1 Burst sequencing](#793d33b1-burst-sequencing), [793d33b2 Capture sequence](#793d33b2-capture-sequence), [793d33b4 Backlog sequence](#793d33b4-backlog-sequence) |
-| [793a4j Indexing and curation happen after the turn](./793a_product-spec.md#793a4j-indexing-and-curation-happen-after-the-turn) | 4 | [793d22b2 Background queue and housekeeping](#793d22b2-background-queue-and-housekeeping), [793d25b1 Tier and request shape](#793d25b1-tier-and-request-shape), [793d25b2 Data and replies](#793d25b2-data-and-replies), [793d25b3 Result shapes](#793d25b3-result-shapes), [793d26b1 Credential shapes](#793d26b1-credential-shapes), [793d29b1 Offers to settle](#793d29b1-offers-to-settle), [793d29b2 Outcomes and guards](#793d29b2-outcomes-and-guards), [793d33b1 Burst sequencing](#793d33b1-burst-sequencing), [793d33b3 Curation sequence](#793d33b3-curation-sequence) |
-| [793a4c Memory purview only](./793a_product-spec.md#793a4c-memory-purview-only) | 4 | [793d22b1 Events and channels](#793d22b1-events-and-channels), [793d24b3 Block](#793d24b3-block), [793d30b2 Warnings and surface](#793d30b2-warnings-and-surface) |
-| [793a4b The session is never broken or stalled](./793a_product-spec.md#793a4b-the-session-is-never-broken-or-stalled) | 4 | [793d22b3 Failure containment](#793d22b3-failure-containment), [793d30b2 Warnings and surface](#793d30b2-warnings-and-surface), [793d32b1 Moment routing](#793d32b1-moment-routing), [793d33b1 Burst sequencing](#793d33b1-burst-sequencing) |
-| [793a5j Installed by engram update and active in Claude Code](./793a_product-spec.md#793a5j-installed-by-engram-update-and-active-in-claude-code) | 5 | [793d31b1 Mod deploy set](#793d31b1-mod-deploy-set), [793d31b2 Mods are synchronized like skills](#793d31b2-mods-are-synchronized-like-skills), [793d31b3 Version check and report rows](#793d31b3-version-check-and-report-rows), [793d34b1 Update with the mod](#793d34b1-update-with-the-mod) |
-| [793a5h The user sees a summary of the memory activity](./793a_product-spec.md#793a5h-the-user-sees-a-summary-of-the-memory-activity) | 4 | [793d30b1 Counts and summary line](#793d30b1-counts-and-summary-line), [793d30b2 Warnings and surface](#793d30b2-warnings-and-surface), [793d33b1 Burst sequencing](#793d33b1-burst-sequencing) |
-| [793a5k Intentional memory is never blocked or changed](./793a_product-spec.md#793a5k-intentional-memory-is-never-blocked-or-changed) | 3 | [793d23b2 In-turn cue](#793d23b2-in-turn-cue), [793d27b2 Reconciliation, writes and provenance](#793d27b2-reconciliation-writes-and-provenance), [793d33b2 Capture sequence](#793d33b2-capture-sequence) |
-| [793a5c Other harnesses are unchanged](./793a_product-spec.md#793a5c-other-harnesses-are-unchanged) | 3 | [793d28b1 Eligible sources and cut-off](#793d28b1-eligible-sources-and-cut-off), [793d28b2 Reading and windows](#793d28b2-reading-and-windows), [793d28b3 Marks and read-only sources](#793d28b3-marks-and-read-only-sources), [793d31b1 Mod deploy set](#793d31b1-mod-deploy-set), [793d33b4 Backlog sequence](#793d33b4-backlog-sequence) |
+| [793a2n Relevant memory reaches the agent at the moments](./793a_product-spec.md#793a2n-relevant-memory-reaches-the-agent-at-the-moments) | 6 | [793d22 Memory Mod](#793d22-memory-mod), [793d36 Job Runner](#793d36-job-runner), [793d23 Moment Detection](#793d23-moment-detection), [793d24 Memory Delivery](#793d24-memory-delivery), [793d25 Judgement Relay](#793d25-judgement-relay), [793d32 Moment Delivery Flow](#793d32-moment-delivery-flow) |
+| [793a2e Nothing already in context is delivered again](./793a_product-spec.md#793a2e-nothing-already-in-context-is-delivered-again) | 5 | [793d23 Moment Detection](#793d23-moment-detection), [793d24 Memory Delivery](#793d24-memory-delivery), [793d32 Moment Delivery Flow](#793d32-moment-delivery-flow) |
+| [793a3a Lessons are captured without the agent](./793a_product-spec.md#793a3a-lessons-are-captured-without-the-agent) | 5 | [793d22 Memory Mod](#793d22-memory-mod), [793d36 Job Runner](#793d36-job-runner), [793d25 Judgement Relay](#793d25-judgement-relay), [793d26 Secret Redaction](#793d26-secret-redaction), [793d27 Auto Capture](#793d27-auto-capture), [793d37 Capture Queue](#793d37-capture-queue), [793d28 Backlog Capture](#793d28-backlog-capture), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow) |
+| [793a4j Indexing and curation happen after the turn](./793a_product-spec.md#793a4j-indexing-and-curation-happen-after-the-turn) | 4 | [793d22 Memory Mod](#793d22-memory-mod), [793d25 Judgement Relay](#793d25-judgement-relay), [793d26 Secret Redaction](#793d26-secret-redaction), [793d29 Auto Curation](#793d29-auto-curation), [793d38 Note Amendment (additions)](#793d38-note-amendment-additions), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow) |
+| [793a4c Memory purview only](./793a_product-spec.md#793a4c-memory-purview-only) | 4 | [793d22 Memory Mod](#793d22-memory-mod), [793d24 Memory Delivery](#793d24-memory-delivery), [793d30 Activity Report](#793d30-activity-report) |
+| [793a4b The session is never broken or stalled](./793a_product-spec.md#793a4b-the-session-is-never-broken-or-stalled) | 4 | [793d22 Memory Mod](#793d22-memory-mod), [793d36 Job Runner](#793d36-job-runner), [793d30 Activity Report](#793d30-activity-report), [793d32 Moment Delivery Flow](#793d32-moment-delivery-flow), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow) |
+| [793a5j Installed by engram update and active in Claude Code](./793a_product-spec.md#793a5j-installed-by-engram-update-and-active-in-claude-code) | 5 | [793d31 Harness Deploy Sync (mod additions)](#793d31-harness-deploy-sync-mod-additions), [793d34 Mod Install Flow](#793d34-mod-install-flow) |
+| [793a5h The user sees a summary of the memory activity](./793a_product-spec.md#793a5h-the-user-sees-a-summary-of-the-memory-activity) | 4 | [793d30 Activity Report](#793d30-activity-report), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow) |
+| [793a5k Intentional memory is never blocked or changed](./793a_product-spec.md#793a5k-intentional-memory-is-never-blocked-or-changed) | 3 | [793d23 Moment Detection](#793d23-moment-detection), [793d27 Auto Capture](#793d27-auto-capture), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow) |
+| [793a5c Other harnesses are unchanged](./793a_product-spec.md#793a5c-other-harnesses-are-unchanged) | 3 | [793d28 Backlog Capture](#793d28-backlog-capture), [793d31 Harness Deploy Sync (mod additions)](#793d31-harness-deploy-sync-mod-additions), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow) |
 
 ### 793d35c Gaps and what is not built
 
-- `Not run`: [793a5j1d One update serves both harnesses differently](./793a_product-spec.md#793a5j1-uat-scenarios) and [793a5c1b A Pi session on a machine whose Claude Code has the System](./793a_product-spec.md#793a5c1-uat-scenarios) have no headless Pi, so what a Pi agent does (it runs recall before acting, its own ingest and learn run unchanged, nothing is delivered into its [transcript](../../GLOSSARY.md#transcript)) is unverified. What is verified is that no [mod](#793d1b-terms) is deployed for Pi ([793d31b1 Mod deploy set](#793d31b1-mod-deploy-set)) and that Backlog Capture writes only its mark file ([793d28b3 Marks and read-only sources](#793d28b3-marks-and-read-only-sources)).
-- `Red` once: the third example of [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios) in the last full acceptance run (the [judgement](#793d1b-terms) worded the [note](./793a_product-spec.md#793a1-problem-statement) without the corrected cause; 15 of 15 in five reruns). A judgement-quality gap, not a missing requirement.
-- Built and untested, so not required: the task-notification summary and non-SDK prompt origins of [793d23b1 Event cues](#793d23b1-event-cues); the age limit of an unfinished step job ([793d23b2 In-turn cue](#793d23b2-in-turn-cue)).
-- Built differently from the product intent: a [subagent](../../GLOSSARY.md#subagent)'s compaction empties the top-level [ledger](#793d1b-terms) and not its own ([793d24b2 Presence and ledgers](#793d24b2-presence-and-ledgers)).
-- Built, no longer a gap: persistence of queued work ([793b203 Background work is one in-memory queue, and a final turn can be lost on exit](./793b_decision-log.md#793b203-background-work-is-one-in-memory-queue-and-a-final-turn-can-be-lost-on-exit)); the persisted queue is built by [793e8p Hardening](./793e_implementation-plan.md#793e8p-hardening) ([793b398 The persisted queue is a file the engine owns, and the red tests of 793b362 became tests of the jobs the mod hands it](./793b_decision-log.md#793b398-the-persisted-queue-is-a-file-the-engine-owns-and-the-red-tests-of-793b362-became-tests-of-the-jobs-the-mod-hands-it)).
+- `Not run`: [793a5j1d One update serves both harnesses differently](./793a_product-spec.md#793a5j1-uat-scenarios) and [793a5c1b A Pi session on a machine whose Claude Code has the System](./793a_product-spec.md#793a5c1-uat-scenarios) have no headless Pi, so what a Pi agent does (it runs recall before acting, its own ingest and learn run unchanged, nothing is delivered into its [transcript](../../GLOSSARY.md#transcript)) is unverified. What is verified is that no [mod](#793d1b-terms) is deployed for Pi ([793d31b1 Mod deploy set](#793d31b1-mod-deploy-set)) and that Backlog Capture writes only its [mark file](#793d1b-terms) ([793d28b3 Marks and read-only sources](#793d28b3-marks-and-read-only-sources)).
+- [Judgement](#793d1b-terms) quality is not a contract: a model's choice varied between runs of one scenario (a worded [note](./793a_product-spec.md#793a1-problem-statement) without the corrected cause in [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios); a missed offer in [793a4j1d The agent is not asked to curate](./793a_product-spec.md#793a4j1-uat-scenarios)) and was Green on rerun; no requirement is missing.
+- Built and untested: the origins of a prompt other than the SDK's ([793d23b1 Event cues](#793d23b1-event-cues)), exercised only by the acceptance row of [793a2n1h A prompt from any source receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios).
+- Residual, recorded: two processes that write the [queue file](#793d1b-terms) at the same [moment](./793a_product-spec.md#793a1-problem-statement) can lose one write, and a [session](../../GLOSSARY.md#session) that starts while another still runs takes up that other's unfinished entries, which may be captured twice (the second finds the first's note among the nearest and is covered) ([793d37b1 Entries](#793d37b1-entries), [793d37b2 Resume](#793d37b2-resume), [793b398 The persisted queue is a file the engine owns, and the red tests of 793b362 became tests of the jobs the mod hands it](./793b_decision-log.md#793b398-the-persisted-queue-is-a-file-the-engine-owns-and-the-red-tests-of-793b362-became-tests-of-the-jobs-the-mod-hands-it)); the sources and [offers](../../GLOSSARY.md#offer) a process skipped are tried again by the next process ([793d28b2 Reading and windows](#793d28b2-reading-and-windows), [793d29b1 Offers to settle](#793d29b1-offers-to-settle)).
+- Not in the product spec: the line of the product spec of note-revision that [793b399 A near fold carries a provenance line, by a new flag of engram amend](./793b_decision-log.md#793b399-a-near-fold-carries-a-provenance-line-by-a-new-flag-of-engram-amend) names for the `--source` flag ([793d38b1 Amend provenance](#793d38b1-amend-provenance)) is applied at promotion with the rest of the delta.
 - Duplicated: `internal/auto` reads transcript rows by role itself ([793d28b2 Reading and windows](#793d28b2-reading-and-windows)) and not through the [Transcript Reader](../../specs/technical/transcript-reader.md), so the two can drift.
 - Harness-only, so a MAY with no requirement: the seam file named by `ENGRAM_AUTO_SEAM_LOG`, which lets a test wait for the queue (`wiring.test.ts` covers it).
 - The experiment scenarios of 793d17 and 793d18 are not contract tests of these requirements, except [793d18c1a Every request names the model of its kind](#793d18c1-experiments) and [793d18c1b Raising one kind changes only that kind](#793d18c1-experiments), which are the tier tests of [793d25b1 Tier and request shape](#793d25b1-tier-and-request-shape).
-
-### 793d35d Security cross-reference
-
-Risks of [793d19a Security](#793d19a-security): (1) injection into a delivered [note](./793a_product-spec.md#793a1-problem-statement): [793d23b2 In-turn cue](#793d23b2-in-turn-cue), [793d25b2 Data and replies](#793d25b2-data-and-replies), [793d25b3 Result shapes](#793d25b3-result-shapes), [793d27b1 Windows](#793d27b1-windows), [793d28b2 Reading and windows](#793d28b2-reading-and-windows); (2) a crafted [offer](../../GLOSSARY.md#offer): [793d25b2 Data and replies](#793d25b2-data-and-replies), [793d25b3 Result shapes](#793d25b3-result-shapes), [793d29b2 Outcomes and guards](#793d29b2-outcomes-and-guards); (3) secrets: [793d26b1 Credential shapes](#793d26b1-credential-shapes), [793d27b1 Windows](#793d27b1-windows); (4) a wrongly judged `covered`: [793d29b2 Outcomes and guards](#793d29b2-outcomes-and-guards).
-
-Mitigations: provenance lines [793d27b2 Reconciliation, writes and provenance](#793d27b2-reconciliation-writes-and-provenance); aliases on folded [offers](../../GLOSSARY.md#offer) [793d29b2 Outcomes and guards](#793d29b2-outcomes-and-guards); data framing [793d24b3 Block](#793d24b3-block); the activity line [793d30b2 Warnings and surface](#793d30b2-warnings-and-surface).

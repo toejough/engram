@@ -14,16 +14,6 @@ import (
 	"github.com/toejough/engram/internal/auto"
 )
 
-func Test793d22b3_FailuresAreClassifiedByWhatTheyLeft(t *testing.T) {
-	t.Parallel()
-	each(t, "failure_kind", func(g *WithT, input map[string]any, want golden) {
-		g.Expect(auto.FailureKind(field[string](input, "text"))).To(Equal(text(want)))
-	})
-	each(t, "warning", func(g *WithT, input map[string]any, want golden) {
-		g.Expect(auto.Warning(field[string](input, "step"), field[string](input, "kind"))).To(Equal(text(want)))
-	})
-}
-
 func Test793d23b1_ATaskNotificationIsLookedUpByItsSummary(t *testing.T) {
 	t.Parallel()
 	each(t, "moment_text", func(g *WithT, input map[string]any, want golden) {
@@ -411,6 +401,16 @@ func Test793d30b1_TheLineIsBuiltFromConstantsAndCounts(t *testing.T) {
 		}
 
 		g.Expect(response.Done.Line).To(Equal(*expected))
+	})
+}
+
+func Test793d36b3_FailuresAreClassifiedByWhatTheyLeft(t *testing.T) {
+	t.Parallel()
+	each(t, "failure_kind", func(g *WithT, input map[string]any, want golden) {
+		g.Expect(auto.FailureKind(field[string](input, "text"))).To(Equal(text(want)))
+	})
+	each(t, "warning", func(g *WithT, input map[string]any, want golden) {
+		g.Expect(auto.Warning(field[string](input, "step"), field[string](input, "kind"))).To(Equal(text(want)))
 	})
 }
 

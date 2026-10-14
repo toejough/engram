@@ -12,7 +12,7 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
-func Test793d29b3_AmendSourceAloneChangesNoContentSoNothingIsEmbeddedAgain(t *testing.T) {
+func Test793d38b1_AmendSourceAloneChangesNoContentSoNothingIsEmbeddedAgain(t *testing.T) {
 	t.Parallel()
 
 	g := gomega.NewWithT(t)
@@ -30,7 +30,7 @@ func Test793d29b3_AmendSourceAloneChangesNoContentSoNothingIsEmbeddedAgain(t *te
 	g.Expect(embedCalled).To(gomega.BeFalse(), "a provenance line is not a content change")
 }
 
-func Test793d29b3_AmendSourceAppendsAProvenanceLineToTheSourceOfAnyKindOfNote(t *testing.T) {
+func Test793d38b1_AmendSourceAppendsAProvenanceLineToTheSourceOfAnyKindOfNote(t *testing.T) {
 	t.Parallel()
 
 	notes := map[string][]byte{
@@ -52,7 +52,7 @@ func Test793d29b3_AmendSourceAppendsAProvenanceLineToTheSourceOfAnyKindOfNote(t 
 	}
 }
 
-func Test793d29b3_AmendSourceIsAppendedOnceAndNeverReplacesWhatWasThere(t *testing.T) {
+func Test793d38b1_AmendSourceIsAppendedOnceAndNeverReplacesWhatWasThere(t *testing.T) {
 	t.Parallel()
 
 	g := gomega.NewWithT(t)
@@ -65,7 +65,7 @@ func Test793d29b3_AmendSourceIsAppendedOnceAndNeverReplacesWhatWasThere(t *testi
 	g.Expect(twice).To(gomega.ContainSubstring("source: test; "))
 }
 
-func Test793d29b3_AmendWithoutSourceLeavesTheSourceAsItWas(t *testing.T) {
+func Test793d38b1_AmendWithoutSourceLeavesTheSourceAsItWas(t *testing.T) {
 	t.Parallel()
 
 	g := gomega.NewWithT(t)

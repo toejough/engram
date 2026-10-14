@@ -723,7 +723,7 @@ Red gate: `targ check-spec-conformance` (1 problem: the reading guide of [793d21
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |
-| Rewrite [793d21 System technical specification from the proof of concept](./793d_technical-spec.md#793d21-system-technical-specification-from-the-proof-of-concept) to [793d35 Traceability and gaps](./793d_technical-spec.md#793d35-traceability-and-gaps) from the refactored system: components where the refactor made them, every requirement with its direct contract test, each hypothesis conclusion as a `Rationale:` line under the requirements it justifies | Refactor (gate: goal) | [Specification Lifecycle Guide](../../SPECIFICATION-LIFECYCLE-GUIDE.md#change-phases): the specs are written from the refactored system | Not started |
+| Rewrite [793d21 System technical specification from the refactored system](./793d_technical-spec.md#793d21-system-technical-specification-from-the-refactored-system) to [793d35 Traceability and gaps](./793d_technical-spec.md#793d35-traceability-and-gaps) from the refactored system: components where the refactor made them, every requirement with its direct contract test, each hypothesis conclusion as a `Rationale:` line under the requirements it justifies | Refactor (gate: goal) | [Specification Lifecycle Guide](../../SPECIFICATION-LIFECYCLE-GUIDE.md#change-phases): the specs are written from the refactored system | Not started |
 | `check-spec-conformance` reports 0 problems; it is in `check-full` and the refactor-red list is empty | Setup | the gate stays green; the closing node needs the list empty | Not started |
 
 ### 793e8r Refactor review and promotion

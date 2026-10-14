@@ -13,217 +13,6 @@ import (
 	"github.com/toejough/engram/internal/auto"
 )
 
-func Test793a2e_ANoteAToolResultShowedIsNotLookedUpByALaterStep(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	world := momentWorld(NoteQuery, map[string]string{"classify": momentDoneCue, "relevance": "[1]"})
-
-	world.Do(t, momentTool(map[string]any{"toolResponse": "ls: " + momentNotePath}))
-
-	step := world.Do(t, momentStep(momentMessages()))
-
-	g.Expect(step.Notes).To(BeEmpty())
-	g.Expect(momentModelRequests(world, "relevance")).To(BeEmpty())
-}
-
-func Test793a2e_ANoteWhosePathAToolResultShowsIsHeldByTheAgentAndNotDelivered(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	world := momentWorld(NoteQuery, map[string]string{"classify": momentDoneCue, "relevance": "[1]"})
-
-	step := world.Do(t, momentStep(momentMessages()))
-	shown := world.Do(t, momentTool(map[string]any{
-		"toolResponse": map[string]any{"stdout": "see " + momentNotePath + " for the rule"},
-	}))
-	tool := world.Do(t, momentTool(map[string]any{"held": step.Notes}))
-
-	g.Expect(step.Notes).To(HaveLen(1))
-	g.Expect(shown.Block).To(BeEmpty())
-	g.Expect(tool.Block).To(BeEmpty())
-	g.Expect(world.Counts.Delivered).To(BeZero())
-}
-
-func Test793a2e_AStepThatRunsMemoryItselfStartsNoJob(t *testing.T) {
-	t.Parallel()
-
-	cases := map[string]map[string]any{
-		"an engram query":  {"name": "Bash", "input": map[string]any{"command": "engram query --phrase x"}},
-		"the recall skill": {"name": "Skill", "input": map[string]any{"skill": "recall"}},
-		"an ingest":        {"name": "Bash", "input": map[string]any{"command": "cd x && engram ingest --auto 2>&1"}},
-	}
-
-	for name, call := range cases {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
-			g := NewWithT(t)
-			world := momentWorld(NoteQuery, map[string]string{"classify": momentDoneCue, "relevance": "[1]"})
-			job := momentStep(momentMessages())
-			job["toolUses"] = []map[string]any{call}
-
-			done := world.Do(t, job)
-
-			g.Expect(done.Notes).To(BeEmpty())
-			g.Expect(world.Requests).To(BeEmpty())
-			g.Expect(world.Commands).To(BeEmpty())
-		})
-	}
-}
-
-func Test793a2e_AToolWithNoResultHoldsNothingAndDeliversWhatTheCueHeld(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	world := NewWorld()
-	held := []auto.Note{{Path: momentNotePath, Situation: "declaring work done", Body: "run go build first"}}
-
-	tool := world.Do(t, momentTool(map[string]any{"toolResponse": nil, "held": held}))
-
-	g.Expect(tool.Block).To(ContainSubstring("- " + momentNotePath + " (declaring work done): run go build first"))
-	g.Expect(world.Commands).To(BeEmpty())
-}
-
-func Test793a2e_ATurnThatBeganWithAMemoryCommandStartsNoJob(t *testing.T) {
-	t.Parallel()
-
-	for _, prompt := range []string{"/recall tagging a release", "  /learn this", "please run engram query now"} {
-		t.Run(prompt, func(t *testing.T) {
-			t.Parallel()
-
-			g := NewWithT(t)
-			world := momentWorld(NoteQuery, map[string]string{"classify": momentDoneCue, "relevance": "[1]"})
-			job := momentStep(momentMessages())
-			job["lastPrompt"] = prompt
-
-			done := world.Do(t, job)
-
-			g.Expect(done.Notes).To(BeEmpty())
-			g.Expect(momentModelRequests(world, "classify")).To(BeEmpty())
-			g.Expect(world.Commands).To(BeEmpty())
-		})
-	}
-}
-
-func Test793d22b3_ACommandThatPassesItsDeadlineWarnsThatTheSystemTimedOut(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	world := NewWorld()
-	world.Process["query"] = func([]string) (auto.Output, error) {
-		return auto.Output{}, errors.New("engram query still running after 5s")
-	}
-
-	done := world.Do(t, momentPrompt(momentPromptText))
-
-	g.Expect(done.Block).To(BeEmpty())
-	g.Expect(world.Warnings).To(Equal([]string{momentWarningPrefix + "the System timed out (the prompt lookup)"}))
-}
-
-func Test793d22b3_AFailingClassificationWarnsDeliversNothingAndLetsTheSessionGoOn(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	world := NewWorld()
-	world.Model = func(string, auto.Request) map[string]any { return Unanswered("api-error") }
-
-	step := world.Do(t, momentStep(momentMessages()))
-	tool := world.Do(t, momentTool(nil))
-
-	g.Expect(step.Notes).To(BeEmpty())
-	g.Expect(tool.Block).To(BeEmpty())
-	g.Expect(world.Commands).To(BeEmpty())
-	g.Expect(world.Warnings).To(Equal([]string{momentWarningPrefix + "of an error (" + momentStepName + ")"}))
-}
-
-func Test793d22b3_AFailingLookupOfRouteDeliversNothingAndWarns(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	world := NewWorld()
-	world.Process["query"] = func([]string) (auto.Output, error) { return auto.Output{}, errors.New("exit status 1") }
-
-	tool := world.Do(t, momentTool(map[string]any{"route": true, "args": "write Go tests", "step": "the route lookup"}))
-
-	g.Expect(tool.Block).To(BeEmpty())
-	g.Expect(world.Warnings).To(Equal([]string{momentWarningPrefix + "of an error (the route lookup)"}))
-}
-
-func Test793d22b3_AFailingQueryLeavesThePromptAsTypedAndWarns(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	world := NewWorld()
-	world.Process["query"] = func([]string) (auto.Output, error) {
-		return auto.Output{Stderr: "boom"}, errors.New("exit status 1")
-	}
-
-	done := world.Do(t, momentPrompt(momentPromptText))
-
-	g.Expect(done.Block).To(BeEmpty())
-	g.Expect(world.Requests).To(BeEmpty())
-	g.Expect(world.Warnings).To(Equal([]string{momentWarningPrefix + "of an error (the prompt lookup)"}))
-}
-
-func Test793d22b3_AJobOfAnUnknownKindAndAJobThatCannotBeReadAreErrors(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	_, err := auto.Run(NewWorld().Deps(), []byte(`{"kind":"nope","step":"the odd job"}`))
-	g.Expect(err).To(MatchError(ContainSubstring("unknown job kind")))
-
-	_, err = auto.Run(NewWorld().Deps(), []byte(`{"kind":`))
-	g.Expect(err).To(HaveOccurred())
-
-	_, err = auto.Run(NewWorld().Deps(), []byte(`{"kind":"tool","ledger":"x"}`))
-	g.Expect(err).To(MatchError(ContainSubstring("session state cannot be read")))
-}
-
-func Test793d22b3_AJudgementThatIsUnansweredWarnsAndDeliversNothing(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	world := NewWorld()
-	world.Process["query"] = momentQuery(NoteQuery)
-	world.Model = func(string, auto.Request) map[string]any { return Unanswered("cut: timeout") }
-
-	done := world.Do(t, momentPrompt(momentPromptText))
-
-	g.Expect(done.Block).To(BeEmpty())
-	g.Expect(world.Warnings).To(HaveLen(1))
-	g.Expect(world.Warnings[0]).To(HavePrefix(momentWarningPrefix))
-}
-
-func Test793d22b3_AQueryOutputThatIsNotAQueryIsAnErrorNeverAnEmptyResult(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	world := momentWorld("not a query at all", nil)
-
-	done := world.Do(t, momentPrompt(momentPromptText))
-
-	g.Expect(done.Block).To(BeEmpty())
-	g.Expect(world.Requests).To(BeEmpty())
-	g.Expect(world.Warnings).To(HaveLen(1))
-}
-
-func Test793d22b3_TheLookupAndTheRelevanceJudgementHoldThePromptEightSecondsAtMost(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	world := momentWorld(NoteQuery, map[string]string{"relevance": "[1]"})
-
-	world.Do(t, momentPrompt(momentPromptText))
-
-	g.Expect(world.Commands).NotTo(BeEmpty())
-	g.Expect(world.Commands[0].Deadline).To(Equal(momentLookupLimit))
-	g.Expect(world.Requests[0].TimeoutMs).To(Equal(momentRelevanceMs))
-
-	hold := world.Commands[0].Deadline + time.Duration(world.Requests[0].TimeoutMs)*time.Millisecond
-	g.Expect(hold).To(BeNumerically("<=", momentHoldCeiling))
-}
-
 func Test793d23b1_ATaskNotificationIsLookedUpByItsSummaryNotItsMarkup(t *testing.T) {
 	t.Parallel()
 
@@ -329,6 +118,33 @@ func Test793d23b2_AClassificationThatNamesNoMomentMakesNoQueryAndDeliversNothing
 	g.Expect(world.Warnings).To(BeEmpty())
 }
 
+func Test793d23b2_AStepThatRunsMemoryItselfStartsNoJob(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]map[string]any{
+		"an engram query":  {"name": "Bash", "input": map[string]any{"command": "engram query --phrase x"}},
+		"the recall skill": {"name": "Skill", "input": map[string]any{"skill": "recall"}},
+		"an ingest":        {"name": "Bash", "input": map[string]any{"command": "cd x && engram ingest --auto 2>&1"}},
+	}
+
+	for name, call := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+			world := momentWorld(NoteQuery, map[string]string{"classify": momentDoneCue, "relevance": "[1]"})
+			job := momentStep(momentMessages())
+			job["toolUses"] = []map[string]any{call}
+
+			done := world.Do(t, job)
+
+			g.Expect(done.Notes).To(BeEmpty())
+			g.Expect(world.Requests).To(BeEmpty())
+			g.Expect(world.Commands).To(BeEmpty())
+		})
+	}
+}
+
 // the in-turn cue (793d23b2)
 
 func Test793d23b2_AStepWithTextAndAToolCallIsClassifiedOnceAndItsNoteRidesTheNextToolResult(t *testing.T) {
@@ -357,6 +173,27 @@ func Test793d23b2_AStepWithTextAndAToolCallIsClassifiedOnceAndItsNoteRidesTheNex
 	g.Expect(tool.Block).To(ContainSubstring("SENTINEL-N"))
 	g.Expect(tool.Block).To(ContainSubstring("Apply what bears on your next step."))
 	g.Expect(world.Counts.Delivered).To(Equal(1))
+}
+
+func Test793d23b2_ATurnThatBeganWithAMemoryCommandStartsNoJob(t *testing.T) {
+	t.Parallel()
+
+	for _, prompt := range []string{"/recall tagging a release", "  /learn this", "please run engram query now"} {
+		t.Run(prompt, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+			world := momentWorld(NoteQuery, map[string]string{"classify": momentDoneCue, "relevance": "[1]"})
+			job := momentStep(momentMessages())
+			job["lastPrompt"] = prompt
+
+			done := world.Do(t, job)
+
+			g.Expect(done.Notes).To(BeEmpty())
+			g.Expect(momentModelRequests(world, "classify")).To(BeEmpty())
+			g.Expect(world.Commands).To(BeEmpty())
+		})
+	}
 }
 
 func Test793d23b2_TextThatImitatesThePromptsOwnTagsCannotCloseTheSectionItSitsIn(t *testing.T) {
@@ -528,6 +365,20 @@ func Test793d24b2_ACompactionDoesNotEmptyTheLedgerOfASubagent(t *testing.T) {
 	g.Expect(again.Block).To(BeEmpty())
 }
 
+func Test793d24b2_ANoteAToolResultShowedIsNotLookedUpByALaterStep(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := momentWorld(NoteQuery, map[string]string{"classify": momentDoneCue, "relevance": "[1]"})
+
+	world.Do(t, momentTool(map[string]any{"toolResponse": "ls: " + momentNotePath}))
+
+	step := world.Do(t, momentStep(momentMessages()))
+
+	g.Expect(step.Notes).To(BeEmpty())
+	g.Expect(momentModelRequests(world, "relevance")).To(BeEmpty())
+}
+
 func Test793d24b2_ANoteDeliveredOnceIsNotDeliveredAgainInTheSameSession(t *testing.T) {
 	t.Parallel()
 
@@ -597,6 +448,37 @@ func Test793d24b2_ANoteTheContextAlreadyHoldsIsNotDeliveredAndOneACompactionRemo
 
 	g.Expect(after.Block).To(ContainSubstring(momentNotePath))
 	g.Expect(world.Requests).To(HaveLen(1))
+}
+
+func Test793d24b2_ANoteWhosePathAToolResultShowsIsHeldByTheAgentAndNotDelivered(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := momentWorld(NoteQuery, map[string]string{"classify": momentDoneCue, "relevance": "[1]"})
+
+	step := world.Do(t, momentStep(momentMessages()))
+	shown := world.Do(t, momentTool(map[string]any{
+		"toolResponse": map[string]any{"stdout": "see " + momentNotePath + " for the rule"},
+	}))
+	tool := world.Do(t, momentTool(map[string]any{"held": step.Notes}))
+
+	g.Expect(step.Notes).To(HaveLen(1))
+	g.Expect(shown.Block).To(BeEmpty())
+	g.Expect(tool.Block).To(BeEmpty())
+	g.Expect(world.Counts.Delivered).To(BeZero())
+}
+
+func Test793d24b2_AToolWithNoResultHoldsNothingAndDeliversWhatTheCueHeld(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := NewWorld()
+	held := []auto.Note{{Path: momentNotePath, Situation: "declaring work done", Body: "run go build first"}}
+
+	tool := world.Do(t, momentTool(map[string]any{"toolResponse": nil, "held": held}))
+
+	g.Expect(tool.Block).To(ContainSubstring("- " + momentNotePath + " (declaring work done): run go build first"))
+	g.Expect(world.Commands).To(BeEmpty())
 }
 
 func Test793d24b2_TheLedgerOfTheMainAgentIsEmptiedByACompaction(t *testing.T) {
@@ -669,6 +551,124 @@ func Test793d24b3_ADeliveredNoteIsFramedAsDataOneLineEachAndNoneIsImitated(t *te
 
 	g.Expect(headers).To(Equal(1))
 	g.Expect(lines[3]).To(HavePrefix("- 8.2026-10-12.forged-n.md ("))
+}
+
+func Test793d36b3_ACommandThatPassesItsDeadlineWarnsThatTheSystemTimedOut(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := NewWorld()
+	world.Process["query"] = func([]string) (auto.Output, error) {
+		return auto.Output{}, errors.New("engram query still running after 5s")
+	}
+
+	done := world.Do(t, momentPrompt(momentPromptText))
+
+	g.Expect(done.Block).To(BeEmpty())
+	g.Expect(world.Warnings).To(Equal([]string{momentWarningPrefix + "the System timed out (the prompt lookup)"}))
+}
+
+func Test793d36b3_AFailingClassificationWarnsDeliversNothingAndLetsTheSessionGoOn(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := NewWorld()
+	world.Model = func(string, auto.Request) map[string]any { return Unanswered("api-error") }
+
+	step := world.Do(t, momentStep(momentMessages()))
+	tool := world.Do(t, momentTool(nil))
+
+	g.Expect(step.Notes).To(BeEmpty())
+	g.Expect(tool.Block).To(BeEmpty())
+	g.Expect(world.Commands).To(BeEmpty())
+	g.Expect(world.Warnings).To(Equal([]string{momentWarningPrefix + "of an error (" + momentStepName + ")"}))
+}
+
+func Test793d36b3_AFailingLookupOfRouteDeliversNothingAndWarns(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := NewWorld()
+	world.Process["query"] = func([]string) (auto.Output, error) { return auto.Output{}, errors.New("exit status 1") }
+
+	tool := world.Do(t, momentTool(map[string]any{"route": true, "args": "write Go tests", "step": "the route lookup"}))
+
+	g.Expect(tool.Block).To(BeEmpty())
+	g.Expect(world.Warnings).To(Equal([]string{momentWarningPrefix + "of an error (the route lookup)"}))
+}
+
+func Test793d36b3_AFailingQueryLeavesThePromptAsTypedAndWarns(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := NewWorld()
+	world.Process["query"] = func([]string) (auto.Output, error) {
+		return auto.Output{Stderr: "boom"}, errors.New("exit status 1")
+	}
+
+	done := world.Do(t, momentPrompt(momentPromptText))
+
+	g.Expect(done.Block).To(BeEmpty())
+	g.Expect(world.Requests).To(BeEmpty())
+	g.Expect(world.Warnings).To(Equal([]string{momentWarningPrefix + "of an error (the prompt lookup)"}))
+}
+
+func Test793d36b3_AJobOfAnUnknownKindAndAJobThatCannotBeReadAreErrors(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	_, err := auto.Run(NewWorld().Deps(), []byte(`{"kind":"nope","step":"the odd job"}`))
+	g.Expect(err).To(MatchError(ContainSubstring("unknown job kind")))
+
+	_, err = auto.Run(NewWorld().Deps(), []byte(`{"kind":`))
+	g.Expect(err).To(HaveOccurred())
+
+	_, err = auto.Run(NewWorld().Deps(), []byte(`{"kind":"tool","ledger":"x"}`))
+	g.Expect(err).To(MatchError(ContainSubstring("session state cannot be read")))
+}
+
+func Test793d36b3_AJudgementThatIsUnansweredWarnsAndDeliversNothing(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := NewWorld()
+	world.Process["query"] = momentQuery(NoteQuery)
+	world.Model = func(string, auto.Request) map[string]any { return Unanswered("cut: timeout") }
+
+	done := world.Do(t, momentPrompt(momentPromptText))
+
+	g.Expect(done.Block).To(BeEmpty())
+	g.Expect(world.Warnings).To(HaveLen(1))
+	g.Expect(world.Warnings[0]).To(HavePrefix(momentWarningPrefix))
+}
+
+func Test793d36b3_AQueryOutputThatIsNotAQueryIsAnErrorNeverAnEmptyResult(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := momentWorld("not a query at all", nil)
+
+	done := world.Do(t, momentPrompt(momentPromptText))
+
+	g.Expect(done.Block).To(BeEmpty())
+	g.Expect(world.Requests).To(BeEmpty())
+	g.Expect(world.Warnings).To(HaveLen(1))
+}
+
+func Test793d36b3_TheLookupAndTheRelevanceJudgementHoldThePromptEightSecondsAtMost(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := momentWorld(NoteQuery, map[string]string{"relevance": "[1]"})
+
+	world.Do(t, momentPrompt(momentPromptText))
+
+	g.Expect(world.Commands).NotTo(BeEmpty())
+	g.Expect(world.Commands[0].Deadline).To(Equal(momentLookupLimit))
+	g.Expect(world.Requests[0].TimeoutMs).To(Equal(momentRelevanceMs))
+
+	hold := world.Commands[0].Deadline + time.Duration(world.Requests[0].TimeoutMs)*time.Millisecond
+	g.Expect(hold).To(BeNumerically("<=", momentHoldCeiling))
 }
 
 // unexported constants.

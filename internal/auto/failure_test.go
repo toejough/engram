@@ -10,7 +10,7 @@ import (
 	"github.com/toejough/engram/internal/auto"
 )
 
-func Test793d22b3_AFailedStepIsContainedAndTheUserIsWarnedOfItsClass(t *testing.T) {
+func Test793d36b3_AFailedStepIsContainedAndTheUserIsWarnedOfItsClass(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -71,7 +71,7 @@ func Test793d22b3_AFailedStepIsContainedAndTheUserIsWarnedOfItsClass(t *testing.
 	}
 }
 
-func Test793d22b3_AFailingBacklogStepIsWarnedAboutNamingTheStep(t *testing.T) {
+func Test793d36b3_AFailingBacklogStepIsWarnedAboutNamingTheStep(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -84,7 +84,7 @@ func Test793d22b3_AFailingBacklogStepIsWarnedAboutNamingTheStep(t *testing.T) {
 	g.Expect(world.Warnings).To(Equal([]string{failureWarning("of an error", "the backlog capture")}))
 }
 
-func Test793d22b3_AFailingIndexAndAFailingScanEachWarnNamingTheStepAndTheQueueGoesOn(t *testing.T) {
+func Test793d36b3_AFailingIndexAndAFailingScanEachWarnNamingTheStepAndTheQueueGoesOn(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -104,7 +104,7 @@ func Test793d22b3_AFailingIndexAndAFailingScanEachWarnNamingTheStepAndTheQueueGo
 	g.Expect(world.Names()).To(Equal([]string{"ingest"}))
 }
 
-func Test793d22b3_AFailingJobDoesNotStopTheNextJob(t *testing.T) {
+func Test793d36b3_AFailingJobDoesNotStopTheNextJob(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -129,7 +129,7 @@ func Test793d22b3_AFailingJobDoesNotStopTheNextJob(t *testing.T) {
 	g.Expect(world.Find("query")).To(HaveLen(2))
 }
 
-func Test793d22b3_ALookupThatFindsNothingIsNotAFailure(t *testing.T) {
+func Test793d36b3_ALookupThatFindsNothingIsNotAFailure(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -141,7 +141,7 @@ func Test793d22b3_ALookupThatFindsNothingIsNotAFailure(t *testing.T) {
 	g.Expect(world.Warnings).To(BeEmpty())
 }
 
-func Test793d22b3_ARelevanceJudgementThatIsCutIsATimeoutAndOneTheProviderRefusedIsAnErrorNeitherDelivers(t *testing.T) {
+func Test793d36b3_ARelevanceJudgementThatIsCutIsATimeoutAndOneTheProviderRefusedIsAnErrorNeitherDelivers(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -171,7 +171,7 @@ func Test793d22b3_ARelevanceJudgementThatIsCutIsATimeoutAndOneTheProviderRefused
 	}
 }
 
-func Test793d22b3_AnUnparseableRelevanceJudgementIsAnErrorAndDeliversNothing(t *testing.T) {
+func Test793d36b3_AnUnparseableRelevanceJudgementIsAnErrorAndDeliversNothing(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -185,7 +185,7 @@ func Test793d22b3_AnUnparseableRelevanceJudgementIsAnErrorAndDeliversNothing(t *
 	g.Expect(world.Warnings).To(Equal([]string{failureWarning("of an error", failureStep)}))
 }
 
-func Test793d22b3_TheClassOfAFailureIsWhatTheTextOfTheCommandSays(t *testing.T) {
+func Test793d36b3_TheClassOfAFailureIsWhatTheTextOfTheCommandSays(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -222,7 +222,7 @@ func Test793d22b3_TheClassOfAFailureIsWhatTheTextOfTheCommandSays(t *testing.T) 
 	}
 }
 
-func Test793d22b3_TheWarningIsInTheWarningsAndNeverInWhatTheJobDelivers(t *testing.T) {
+func Test793d36b3_TheWarningIsInTheWarningsAndNeverInWhatTheJobDelivers(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)

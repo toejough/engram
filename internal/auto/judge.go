@@ -57,7 +57,7 @@ func (t Tiers) relevanceRequest(moment, text string, candidates []Note) Request 
 }
 
 // request builds the call of a kind from its prompt, with the reply tokens and the deadline of its kind. The
-// relevance judgement holds the agent's prompt: 5.8 s here and 2 s for the lookup are the 8 s hold (793d22b3). The
+// relevance judgement holds the agent's prompt: 5.8 s here and 2 s for the lookup are the 8 s hold (793d36b3). The
 // judgement's deadline sits above its measured 95th percentile of 3.44 s (1.7 times), the lookup's above its 0.59 s
 // with a cold embedder cache (3.4 times).
 func (t Tiers) request(kind, prompt string) Request {

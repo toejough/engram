@@ -15,7 +15,45 @@ import (
 	"github.com/toejough/engram/internal/update"
 )
 
-func Test793d22b2_AutoRunIsATargetOfTheCommand(t *testing.T) {
+func Test793d36b1_AutoEnvAndClockReadTheInjectedCapabilities(t *testing.T) {
+	t.Parallel()
+
+	g := gomega.NewWithT(t)
+	env := cli.NewAutoEnvForTest(func(key string) string { return "value of " + key })
+	now := time.UnixMilli(5)
+
+	g.Expect(env.Get("HOME")).To(gomega.Equal("value of HOME"))
+	g.Expect(cli.NewAutoClockForTest(func() time.Time { return now }).Now()).To(gomega.Equal(now))
+}
+
+func Test793d36b1_AutoFilesReadWriteWalkAndTellWhatIsThere(t *testing.T) {
+	t.Parallel()
+
+	g := gomega.NewWithT(t)
+	root := t.TempDir()
+	files := cli.NewAutoFilesForTest(newTestDeps(&bytes.Buffer{}, &bytes.Buffer{}).FS)
+
+	g.Expect(files.Write(root+"/vault/sub/2.b.md", "x")).To(gomega.Succeed())
+	g.Expect(files.Write(root+"/vault/1.a.md", "pending: true\n")).To(gomega.Succeed())
+
+	text, err := files.Read(root + "/vault/1.a.md")
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(text).To(gomega.Equal("pending: true\n"))
+
+	_, err = files.Read(root + "/vault/missing.md")
+	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("no such file")))
+
+	walked, err := files.Walk(root + "/vault")
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(walked).To(gomega.Equal([]string{root + "/vault/1.a.md", root + "/vault/sub/2.b.md"}))
+
+	_, err = files.Walk(root + "/nowhere")
+	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(files.Exists(root + "/vault")).To(gomega.BeTrue())
+	g.Expect(files.Exists(root + "/nowhere")).To(gomega.BeFalse())
+}
+
+func Test793d36b1_AutoRunIsATargetOfTheCommand(t *testing.T) {
 	t.Parallel()
 
 	g := gomega.NewWithT(t)
@@ -32,7 +70,7 @@ func Test793d22b2_AutoRunIsATargetOfTheCommand(t *testing.T) {
 	g.Expect(stdout.String()).To(gomega.ContainSubstring("Memory activity: 1 note added"))
 }
 
-func Test793d22b2_AutoRunPrintsTheResponseOfAJob(t *testing.T) {
+func Test793d36b1_AutoRunPrintsTheResponseOfAJob(t *testing.T) {
 	t.Parallel()
 
 	g := gomega.NewWithT(t)
@@ -42,7 +80,7 @@ func Test793d22b2_AutoRunPrintsTheResponseOfAJob(t *testing.T) {
 	g.Expect(out).To(gomega.ContainSubstring(`"line":"Memory activity: 2 items delivered"`))
 }
 
-func Test793d22b2_AutoRunRefusesAJobItCannotRead(t *testing.T) {
+func Test793d36b1_AutoRunRefusesAJobItCannotRead(t *testing.T) {
 	t.Parallel()
 
 	g := gomega.NewWithT(t)
@@ -51,7 +89,7 @@ func Test793d22b2_AutoRunRefusesAJobItCannotRead(t *testing.T) {
 	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("auto run")))
 }
 
-func Test793d22b3_AutoRunClassifiesTheFailureOfACommandByWhatItLeft(t *testing.T) {
+func Test793d36b3_AutoRunClassifiesTheFailureOfACommandByWhatItLeft(t *testing.T) {
 	t.Parallel()
 
 	failed := errors.New("exit status 1")
@@ -81,7 +119,7 @@ func Test793d22b3_AutoRunClassifiesTheFailureOfACommandByWhatItLeft(t *testing.T
 	}
 }
 
-func Test793d22b3_AutoRunCutsACommandAtItsDeadline(t *testing.T) {
+func Test793d36b3_AutoRunCutsACommandAtItsDeadline(t *testing.T) {
 	t.Parallel()
 
 	g := gomega.NewWithT(t)
@@ -95,44 +133,6 @@ func Test793d22b3_AutoRunCutsACommandAtItsDeadline(t *testing.T) {
 	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(out.Stdout).To(gomega.BeEmpty())
 	g.Expect(err.Error()).To(gomega.ContainSubstring("still running after"))
-}
-
-func Test793d28b3_AutoEnvAndClockReadTheInjectedCapabilities(t *testing.T) {
-	t.Parallel()
-
-	g := gomega.NewWithT(t)
-	env := cli.NewAutoEnvForTest(func(key string) string { return "value of " + key })
-	now := time.UnixMilli(5)
-
-	g.Expect(env.Get("HOME")).To(gomega.Equal("value of HOME"))
-	g.Expect(cli.NewAutoClockForTest(func() time.Time { return now }).Now()).To(gomega.Equal(now))
-}
-
-func Test793d28b3_AutoFilesReadWriteWalkAndTellWhatIsThere(t *testing.T) {
-	t.Parallel()
-
-	g := gomega.NewWithT(t)
-	root := t.TempDir()
-	files := cli.NewAutoFilesForTest(newTestDeps(&bytes.Buffer{}, &bytes.Buffer{}).FS)
-
-	g.Expect(files.Write(root+"/vault/sub/2.b.md", "x")).To(gomega.Succeed())
-	g.Expect(files.Write(root+"/vault/1.a.md", "pending: true\n")).To(gomega.Succeed())
-
-	text, err := files.Read(root + "/vault/1.a.md")
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(text).To(gomega.Equal("pending: true\n"))
-
-	_, err = files.Read(root + "/vault/missing.md")
-	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("no such file")))
-
-	walked, err := files.Walk(root + "/vault")
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(walked).To(gomega.Equal([]string{root + "/vault/1.a.md", root + "/vault/sub/2.b.md"}))
-
-	_, err = files.Walk(root + "/nowhere")
-	g.Expect(err).To(gomega.HaveOccurred())
-	g.Expect(files.Exists(root + "/vault")).To(gomega.BeTrue())
-	g.Expect(files.Exists(root + "/nowhere")).To(gomega.BeFalse())
 }
 
 // The adapters of `engram auto run` (793e8m): the commands, the files, the environment and the clock a job runs in.

@@ -19,7 +19,7 @@ const LEFT_BEHIND = {
 describe('queued work survives the end of the session (793b203)', () => {
   // Before the queue a capture was held in memory from the moment the turn ended until its job ran; a session that
   // ended in between (the user exits, the process is killed) lost the lesson of its last turn.
-  test('793d22b2 a turn is in the queue file before its hook returns', async ($: Driver, on: On) => {
+  test('793d22b4 a turn is in the queue file before its hook returns', async ($: Driver, on: On) => {
     const order: string[] = []
     const engine = (job: Job): Answer => {
       order.push(job.kind)
@@ -33,7 +33,7 @@ describe('queued work survives the end of the session (793b203)', () => {
     expect(order).toEqual(['enqueue', 'returned', 'capture', 'housekeeping', 'summary'])
   })
 
-  test('793d22b2 an entry a session left behind is captured at the next start', async ($: Driver, on: On) => {
+  test('793d22b4 an entry a session left behind is captured at the next start', async ($: Driver, on: On) => {
     const engine = (job: Job): Answer => (job.kind === 'resume' ? { done: { resumed: [LEFT_BEHIND] } } : { done: {} })
     const { clock, jobs } = world(on, { engine })
     await $.classic.SessionStart({ source: 'startup', transcript_path: '/home/.claude/projects/p/next.jsonl' })
@@ -45,7 +45,7 @@ describe('queued work survives the end of the session (793b203)', () => {
   })
 
   test(
-    '793d22b2 a start that is not a new session is still handed to the engine, which decides',
+    '793d22b4 a start that is not a new session is still handed to the engine, which decides',
     async ($: Driver, on: On) => {
       const { clock, jobs } = world(on)
       await $.classic.SessionStart({ source: 'clear', transcript_path: '/home/.claude/projects/p/next.jsonl' })
@@ -55,7 +55,7 @@ describe('queued work survives the end of the session (793b203)', () => {
   )
 
   test(
-    '793d22b2 a turn the file could not take is captured from memory and nobody is warned',
+    '793d22b4 a turn the file could not take is captured from memory and nobody is warned',
     async ($: Driver, on: On) => {
       const engine = (job: Job): Answer => (job.kind === 'enqueue' ? { exit: 1, stderr: 'disk full' } : { done: {} })
       const { clock, jobs, shown } = world(on, { engine })

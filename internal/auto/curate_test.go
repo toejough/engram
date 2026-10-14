@@ -141,116 +141,6 @@ func Test793d19a_TheNoteAnOfferIsForIsCheckedAsANoteNameBeforeItIsShownOrAmended
 	g.Expect(curateAmends(world)).To(HaveLen(len(hostile)))
 }
 
-func Test793d22b2_ABurstWhoseIndexFailsStillCuratesTheOffers(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	world := curateWorld(curateDecision("absent", nil, nil), curateShow(curateSituation, "", curateHash))
-	world.Process["ingest"] = func([]string) (auto.Output, error) { return auto.Output{}, errors.New("exit status 1") }
-
-	curateHousekeeping(t, world)
-
-	g.Expect(world.Warnings).To(Equal([]string{"Automatic memory was skipped because of an error (indexing)"}))
-	g.Expect(curateAmends(world)).To(HaveLen(1))
-}
-
-func Test793d22b2_HousekeepingIndexesThenCuratesAndLeavesTheBacklogToAnEndedTurn(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	world := curateWorld(curateDecision("absent", nil, nil), curateShow(curateSituation, "", curateHash))
-
-	curateHousekeeping(t, world)
-
-	g.Expect(world.Names()).To(Equal([]string{"ingest", "show", "query", "amend"}))
-	g.Expect(world.Commands[0].Argv).To(Equal([]string{"engram", "ingest", "--auto"}))
-	g.Expect(world.Warnings).To(BeEmpty())
-	g.Expect(world.Rounds).To(Equal(2))
-}
-
-func Test793d22b2_NoBacklogIsLookedAtUnlessTheTurnEnded(t *testing.T) {
-	t.Parallel()
-
-	t.Run("a burst without a top-level turn does not read the backlog", func(t *testing.T) {
-		t.Parallel()
-
-		g := NewWithT(t)
-		world := NewWorld()
-
-		world.Do(t, map[string]any{"kind": "housekeeping", "turnEnded": false})
-
-		g.Expect(world.Warnings).To(BeEmpty())
-		g.Expect(world.Writes).To(BeEmpty())
-	})
-
-	t.Run("a burst with a top-level turn runs the backlog step after the index and the curation", func(t *testing.T) {
-		t.Parallel()
-
-		g := NewWithT(t)
-		world := NewWorld()
-
-		world.Do(t, map[string]any{"kind": "housekeeping", "turnEnded": true})
-
-		// the backlog step writes its marks, which only it does: the step ran
-		g.Expect(world.Writes).NotTo(BeEmpty())
-		g.Expect(world.Names()[0]).To(Equal("ingest"))
-	})
-}
-
-func Test793d22b3_ACurationJudgementThatIsCutSettlesNothingAndIsATimeout(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	world := curateWorld("", curateShow(curateSituation, "", curateHash))
-	world.Model = func(string, auto.Request) map[string]any { return Unanswered("aborted") }
-
-	curateHousekeeping(t, world)
-
-	g.Expect(curateAmends(world)).To(BeEmpty())
-	g.Expect(world.Counts).To(Equal(auto.Counts{}))
-	g.Expect(world.Warnings).To(Equal([]string{"Automatic memory was skipped because the System timed out (curation)"}))
-}
-
-func Test793d22b3_AnOfferWhoseNearestNotesCannotBeFoundIsWarnedAboutAndNotJudged(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	world := curateWorld(curateDecision("absent", nil, nil), curateShow(curateSituation, "", curateHash))
-	world.Process["query"] = func([]string) (auto.Output, error) {
-		return auto.Output{Stderr: "query: scan: open /vault: permission denied"}, errNonZero
-	}
-
-	curateHousekeeping(t, world)
-
-	g.Expect(world.Requests).To(BeEmpty())
-	g.Expect(curateAmends(world)).To(BeEmpty())
-	g.Expect(world.Warnings).To(Equal([]string{curateVaultWarn}))
-}
-
-func Test793d22b3_TheIndexRunsWithItsOwnDeadlineAndTheOthersWithAnother(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	world := curateWorld(curateDecision("covered", 1, nil), curateShow(curateSituation, "", curateHash))
-
-	curateHousekeeping(t, world)
-
-	deadlines := map[string]time.Duration{}
-	for _, command := range world.Commands {
-		deadlines[command.Name()] = command.Deadline
-	}
-
-	const (
-		ingestDeadline  = 300 * time.Second
-		lookupDeadline  = 25 * time.Second
-		commandDeadline = 30 * time.Second
-	)
-
-	g.Expect(deadlines).To(Equal(map[string]time.Duration{
-		"ingest": ingestDeadline, "query": lookupDeadline, "show": commandDeadline, "amend": commandDeadline,
-	}))
-}
-
 func Test793d29b1_AVaultThatDoesNotExistYetHasNoOfferAndIsNoFailure(t *testing.T) {
 	t.Parallel()
 
@@ -667,6 +557,116 @@ func Test793d30b1_EveryNoteAmendedAndOfferCuratedIsCounted(t *testing.T) {
 	curateHousekeeping(t, world)
 
 	g.Expect(world.Counts).To(Equal(auto.Counts{Curated: 1, Amended: 1}))
+}
+
+func Test793d33b5_ABurstWhoseIndexFailsStillCuratesTheOffers(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := curateWorld(curateDecision("absent", nil, nil), curateShow(curateSituation, "", curateHash))
+	world.Process["ingest"] = func([]string) (auto.Output, error) { return auto.Output{}, errors.New("exit status 1") }
+
+	curateHousekeeping(t, world)
+
+	g.Expect(world.Warnings).To(Equal([]string{"Automatic memory was skipped because of an error (indexing)"}))
+	g.Expect(curateAmends(world)).To(HaveLen(1))
+}
+
+func Test793d33b5_HousekeepingIndexesThenCuratesAndLeavesTheBacklogToAnEndedTurn(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := curateWorld(curateDecision("absent", nil, nil), curateShow(curateSituation, "", curateHash))
+
+	curateHousekeeping(t, world)
+
+	g.Expect(world.Names()).To(Equal([]string{"ingest", "show", "query", "amend"}))
+	g.Expect(world.Commands[0].Argv).To(Equal([]string{"engram", "ingest", "--auto"}))
+	g.Expect(world.Warnings).To(BeEmpty())
+	g.Expect(world.Rounds).To(Equal(2))
+}
+
+func Test793d33b5_NoBacklogIsLookedAtUnlessTheTurnEnded(t *testing.T) {
+	t.Parallel()
+
+	t.Run("a burst without a top-level turn does not read the backlog", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+		world := NewWorld()
+
+		world.Do(t, map[string]any{"kind": "housekeeping", "turnEnded": false})
+
+		g.Expect(world.Warnings).To(BeEmpty())
+		g.Expect(world.Writes).To(BeEmpty())
+	})
+
+	t.Run("a burst with a top-level turn runs the backlog step after the index and the curation", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+		world := NewWorld()
+
+		world.Do(t, map[string]any{"kind": "housekeeping", "turnEnded": true})
+
+		// the backlog step writes its marks, which only it does: the step ran
+		g.Expect(world.Writes).NotTo(BeEmpty())
+		g.Expect(world.Names()[0]).To(Equal("ingest"))
+	})
+}
+
+func Test793d36b3_ACurationJudgementThatIsCutSettlesNothingAndIsATimeout(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := curateWorld("", curateShow(curateSituation, "", curateHash))
+	world.Model = func(string, auto.Request) map[string]any { return Unanswered("aborted") }
+
+	curateHousekeeping(t, world)
+
+	g.Expect(curateAmends(world)).To(BeEmpty())
+	g.Expect(world.Counts).To(Equal(auto.Counts{}))
+	g.Expect(world.Warnings).To(Equal([]string{"Automatic memory was skipped because the System timed out (curation)"}))
+}
+
+func Test793d36b3_AnOfferWhoseNearestNotesCannotBeFoundIsWarnedAboutAndNotJudged(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := curateWorld(curateDecision("absent", nil, nil), curateShow(curateSituation, "", curateHash))
+	world.Process["query"] = func([]string) (auto.Output, error) {
+		return auto.Output{Stderr: "query: scan: open /vault: permission denied"}, errNonZero
+	}
+
+	curateHousekeeping(t, world)
+
+	g.Expect(world.Requests).To(BeEmpty())
+	g.Expect(curateAmends(world)).To(BeEmpty())
+	g.Expect(world.Warnings).To(Equal([]string{curateVaultWarn}))
+}
+
+func Test793d36b3_TheIndexRunsWithItsOwnDeadlineAndTheOthersWithAnother(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := curateWorld(curateDecision("covered", 1, nil), curateShow(curateSituation, "", curateHash))
+
+	curateHousekeeping(t, world)
+
+	deadlines := map[string]time.Duration{}
+	for _, command := range world.Commands {
+		deadlines[command.Name()] = command.Deadline
+	}
+
+	const (
+		ingestDeadline  = 300 * time.Second
+		lookupDeadline  = 25 * time.Second
+		commandDeadline = 30 * time.Second
+	)
+
+	g.Expect(deadlines).To(Equal(map[string]time.Duration{
+		"ingest": ingestDeadline, "query": lookupDeadline, "show": commandDeadline, "amend": commandDeadline,
+	}))
 }
 
 // unexported constants.
