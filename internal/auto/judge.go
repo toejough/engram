@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 // Cue is a moment the classification named and what it is about.
@@ -45,9 +46,9 @@ func (t Tiers) classifyRequest(recent string) Request {
 }
 
 func (t Tiers) curationRequest(offer Note, near []Note) Request {
-	offered := neutralize("situation: " + offer.Situation + ". " + offer.Body)
+	offered := fence("situation: " + offer.Situation + ". " + offer.Body)
 
-	return t.request(judgeCuration, fill(curationPrompt, "{offer}", offered, "{notes}", neutralize(numbered(near, true))))
+	return t.request(judgeCuration, fill(curationPrompt, "{offer}", offered, "{notes}", fence(numbered(near, true))))
 }
 
 func (t Tiers) relevanceRequest(moment, text string, candidates []Note) Request {
@@ -76,6 +77,7 @@ func DefaultTiers() Tiers {
 // unexported constants.
 const (
 	cheapest       = "haiku"
+	jsonSpace      = " \t\r\n"
 	judgeCapture   = "capture"
 	judgeClassify  = "classify"
 	judgeCuration  = "curation"
@@ -103,12 +105,14 @@ var relevancePrompt string
 
 // unexported variables.
 var (
-	errJobKind        = errors.New("unknown job kind")
-	errNoTier         = errors.New("no judgement tier for kind")
-	errReply          = errors.New("judgement reply rejected")
-	fencePattern      = regexp.MustCompile(`(?i)<([` + space + `]*/?[` + space + `]*(?:window|notes|recent)\b)`)
-	fencedReply       = regexp.MustCompile("^```(?:json)?[ \\t]*\\r?\\n((?s:.*?))\\r?\\n```$")
-	neutralizePattern = regexp.MustCompile(`(?i)<(/?)[` + space + `]*(offer|notes)\b`)
+	errJobKind  = errors.New("unknown job kind")
+	errNoTier   = errors.New("no judgement tier for kind")
+	errReply    = errors.New("judgement reply rejected")
+	fencedReply = regexp.MustCompile("^```(?:json)?[ \\t]*\\r?\\n((?s:.*?))\\r?\\n```$")
+	// a tag of a prompt as a reader would take it: a bracket of any shape, then white space, format and control
+	// characters around the slash, then the name in any case (793b397)
+	tagPattern = regexp.MustCompile(
+		`(?i)[<＜﹤‹〈⟨]([` + space + `\p{Cf}\p{Cc}]*/?[` + space + `\p{Cf}\p{Cc}]*(?:window|notes|recent|offer)\b)`)
 )
 
 // reply is the answer to one request, as the model call returned it.
@@ -125,29 +129,63 @@ func check(condition bool, what string) {
 	}
 }
 
+// distinctKeys says whether no object of a valid JSON document, at any depth, has the same key twice.
+func distinctKeys(decoder *json.Decoder) bool {
+	token, _ := decoder.Token()
+	delim, nested := token.(json.Delim)
+	seen := map[string]bool{}
+
+	for nested && decoder.More() {
+		if delim == '{' {
+			key, _ := decoder.Token()
+			name, _ := key.(string)
+
+			if seen[name] {
+				return false
+			}
+
+			seen[name] = true
+		}
+
+		if !distinctKeys(decoder) {
+			return false
+		}
+	}
+
+	if nested {
+		_, _ = decoder.Token()
+	}
+
+	return true
+}
+
 // document reads a reply strictly (793b299): the reply is exactly one JSON document. A code fence that opens at the
 // first character and closes at the last one is the only wrapper taken off; prose around the document, a second
 // document, or anything else is an error, never a best guess, so that no text the parser skips can differ from the
-// text a reader sees.
+// text a reader sees. Only the white space of JSON is trimmed (a no-break or a line-separator space is not), the text
+// is valid UTF-8, and no object has a key twice (a reader that keeps the first of two would see another reply than
+// the parser that keeps the last, 793b397).
 func document(text string) any {
-	body := strings.TrimSpace(text)
+	body := strings.Trim(text, jsonSpace)
 	if found := fencedReply.FindStringSubmatch(body); found != nil {
-		body = strings.TrimSpace(found[1])
+		body = strings.Trim(found[1], jsonSpace)
 	}
 
 	var value any
 
-	check(body != "" && json.Unmarshal([]byte(body), &value) == nil, "the reply is not exactly one JSON document")
+	one := body != "" && utf8.ValidString(body) && json.Unmarshal([]byte(body), &value) == nil
+	check(one && distinctKeys(json.NewDecoder(strings.NewReader(body))), "the reply is not exactly one JSON document")
 
 	return value
 }
 
-func fence(text string) string { return fencePattern.ReplaceAllString(text, "&lt;${1}") }
+// fence writes `<` before the name of a tag of a prompt as an entity, so that a text cannot close or open one.
+func fence(text string) string { return tagPattern.ReplaceAllString(text, "&lt;${1}") }
 
 // fill puts the values in the places the prompt names, in one pass over the prompt: a value is data, and a placeholder
 // inside it is not filled (a later placeholder would otherwise be found in an earlier value). A text that sits in a
-// tag of the prompt cannot close or open the tags: `<` before a window, notes or recent tag (in any case, with any
-// spacing) is written as an entity, and every tag of the curation prompt inside a text is broken (793b303).
+// tag of the prompt cannot close or open the tags: the bracket of a window, notes, recent or offer tag (in any case,
+// with any spacing, format or control characters in it, whatever the bracket) is written as an entity (`fence`).
 func fill(prompt string, pairs ...string) string {
 	return strings.NewReplacer(pairs...).Replace(prompt)
 }
@@ -169,8 +207,6 @@ func list(text string, most int) []any {
 
 	return entries
 }
-
-func neutralize(text string) string { return neutralizePattern.ReplaceAllString(text, "< ${1}${2}") }
 
 // noteFields are the free-text fields of the two kinds the System writes, in `engram learn`'s and `engram amend`'s
 // names.

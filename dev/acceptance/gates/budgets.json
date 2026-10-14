@@ -42,7 +42,7 @@
           "relay.go"
         ],
         "basis": "judge.js 161, which holds the prompts (now text files) and the strict readings; the need and done rounds are the relay and have no JavaScript to replace",
-        "ceiling": 435
+        "ceiling": 459
       },
       "capture": {
         "js": 234,
@@ -51,7 +51,7 @@
           "redact.go"
         ],
         "basis": "capture.js 200, capture 18, markTurns 7, settled 9",
-        "ceiling": 426
+        "ceiling": 428
       },
       "backlog": {
         "js": 111,

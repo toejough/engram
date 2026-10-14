@@ -52,7 +52,9 @@ var (
 	// local command
 	harnessText = regexp.MustCompile(
 		`^[` + space + `]*(?:<system-reminder|<local-command-|Base directory for this skill:)`)
-	oneLine     = regexp.MustCompile(`[` + space + `]*[\r\n\v\f\x{85}\x{2028}\x{2029}]+[` + space + `]*`)
+	// every character that breaks a line, or could be read as breaking one: the line feed and its kin, the separators
+	// of the files, groups and records, the control characters, next line, the line and paragraph separators (793b396)
+	oneLine     = regexp.MustCompile(`[` + space + `]*[\x00-\x08\x0a-\x1f\x7f-\x9f\x{2028}\x{2029}]+[` + space + `]*`)
 	slugEdge    = regexp.MustCompile(`^-+|-+$`)
 	slugRun     = regexp.MustCompile(`[^a-z0-9]+`)
 	summaryText = regexp.MustCompile(`<summary>((?s:.*?))</summary>`)
@@ -182,6 +184,12 @@ type workState struct {
 	Written    []Note   `json:"written"`
 	Skipped    []string `json:"skipped"`
 	Unreadable []string `json:"unreadable"`
+}
+
+// agentLine is what the agent said, as one line of a window: redacted before it is cut and kept on one line, whether it
+// is a message of the transcript or the answer or last message the event brought (793b396).
+func agentLine(text string) string {
+	return "Agent: " + clip(oneLined(redact(strings.TrimSpace(text))))
 }
 
 func backlogSourceFor(path, position string) string {
@@ -330,7 +338,7 @@ func recentTexts(messages []Message, answer string) string {
 	}
 
 	lines := linesOf(spoken[max(len(spoken)-recentCount, 0):])
-	lines = withAnswer(lines, answer, func(text string) string { return "Agent: " + clip(oneLined(redact(text))) })
+	lines = withAnswer(lines, answer, agentLine)
 
 	return cutStart(strings.Join(lines, "\n"), windowLimit)
 }
@@ -356,7 +364,7 @@ func render(message Message) []string {
 	}
 
 	for _, use := range message.ToolUses {
-		lines = append(lines, "Agent used "+oneLined(use.Tool))
+		lines = append(lines, clip("Agent used "+oneLined(use.Tool)))
 	}
 
 	return lines
@@ -412,7 +420,7 @@ func windowFromMessages(messages []Message, answer string) string {
 		start--
 	}
 
-	lines := withAnswer(linesOf(messages[start:]), answer, func(text string) string { return "Agent: " + clip(text) })
+	lines := withAnswer(linesOf(messages[start:]), answer, agentLine)
 
 	return window(lines)
 }
@@ -421,7 +429,7 @@ func windowFromMessages(messages []Message, answer string) string {
 func windowFromTranscript(file, last string) string {
 	lines := linesOf(messagesFromTranscript(file))
 	if strings.TrimSpace(last) != "" && !transcriptHolds(file, last) {
-		lines = append(lines, "Agent: "+clip(strings.TrimSpace(last)))
+		lines = append(lines, agentLine(last))
 	}
 
 	return window(lines)
@@ -464,7 +472,7 @@ func windowsFromMessages(messages []Message) []string {
 // withAnswer adds the answer of the turn when the lines lag behind it.
 func withAnswer(lines []string, answer string, format func(string) string) []string {
 	trimmed := strings.TrimSpace(answer)
-	probe := cutEnd(trimmed, answerProbe)
+	probe := cutEnd(oneLined(redact(trimmed)), answerProbe)
 
 	if trimmed == "" || slices.ContainsFunc(lines, func(line string) bool { return strings.Contains(line, probe) }) {
 		return lines
