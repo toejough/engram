@@ -4780,7 +4780,6 @@ ID map: added `793b352` to `793b354` (each checked with `git grep`: unused). Ret
 - **Choice:** no committed text matches a secret scanner: `internal/auto/testdata/golden/redact.json` holds `{{prefix}}` placeholders (`{{AKIA}}`, `{{ghp_}}`, `{{eyJ}}`, `{{-----BEGIN}}`, 13 prefixes) that `unmask` in `golden_test.go` expands when the test loads the file, and the shape tests build their inputs with `unmask` and `strings.Repeat` (the AWS key id is `AKIA` and sixteen letters made at run time). The redactor is still tested against the real shapes, because the expanded text is the old text exactly. Commit `test(793): secret-shaped fixtures are built at runtime`, separate and first; history is not rewritten here.
 - **Rationale:** a fixture that is a secret to a scanner blocks the push and trains people to bypass the scanner.
 
-
 ## 793b396 The answer and the last message of a subagent reached the window as raw lines, and the line breaks were not all of them
 
 - **ID map:** added `793b396` and `793b397` (each checked with `git grep` and `git log --all -S`: unused). Retired: none. No heading is retitled.

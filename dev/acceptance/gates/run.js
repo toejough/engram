@@ -8,7 +8,6 @@
 // Every gate exits non-zero while it is red. The ones that are green are in check-full; the others are on the
 // refactor-red list (793e8l). Each gate's module is loaded when it runs, so that a gate that has not landed does not
 // stop the others.
-import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -18,7 +17,6 @@ const MOD = path.resolve(HERE, '..', '..', '..', 'agent-instructions', 'mods', '
 const HOOKS = path.join(MOD, 'hooks')
 const GO_DIR = path.resolve(HERE, '..', '..', '..', 'internal', 'auto')
 const NAME_WIDTH = 12
-const GO_RED_TAIL_LINES = 12
 const ARGS_FROM = 2
 const USAGE_EXIT = 2
 
@@ -98,21 +96,9 @@ async function spec() {
   return problems.length === 0 ? 0 : 1
 }
 
-// the Go contract tests that are goals, red until their nodes turn them green (793e8o, 793e8p): under a build tag that
-// check-full never sets
-function goRed() {
-  const run = spawnSync('go', ['test', '-count=1', '-tags', 'refactorred', '-run', 'Refactorred', './internal/auto/'], {
-    cwd: path.resolve(HERE, '..', '..', '..'),
-    encoding: 'utf8',
-  })
-  console.log(`${run.stdout}${run.stderr}`.trim().split('\n').slice(-GO_RED_TAIL_LINES).join('\n'))
-  return run.status
-}
-
 // the gates that are still red: the five of nodes 793e8m and 793e8n (complexity, adapter, minimality, standards, types)
 // and the mod's contract tests (793e8p) are green and in check-full
 const GATES = [
-  ['go-red', 'go test -tags refactorred ./internal/auto/', goRed],
   ['spec', 'targ check-spec-conformance', spec],
 ]
 
