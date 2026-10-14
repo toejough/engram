@@ -160,6 +160,20 @@ Do not add a separate red-green-refactor objective to every catalog row. The sha
 tests; each row should describe the contract, classification, rationale, properties when applicable,
 and current status.
 
+## Two-Part Plan
+
+A plan follows the [change phases](./SPECIFICATION-LIFECYCLE-GUIDE.md#change-phases) in two parts.
+The test-driven cycle above governs green; its refactor step moves to part 2.
+
+- **Part 1, green nodes:** the acceptance-suite and hypothesis-experiment entries and the minimal
+  implementation. A green node is complete when every entry reaches `Green-all`; its `Refactor-*`
+  checkpoints and `Done` are reached through the refactor nodes that cover it.
+- **Part 2, refactor nodes:** created from the findings of the consolidated review at the end of green
+  and the [Refactor Checklist](./TECHNICAL-SPEC-GUIDE.md#refactor-checklist). Each node names the
+  findings it addresses and its **red gate** (a test, an enabled linter, or a measured budget that
+  fails before the work), and keeps the acceptance suite green. It is complete when its gate and the
+  suite are green.
+
 ## Test Status
 
 Each test MUST have one status recording its latest verified checkpoint:
@@ -290,6 +304,8 @@ Verify:
 - Every `rapid` entry enumerates its properties.
 - Every impure collaboration uses `imptest`.
 - The shared test cycle appears once and is not duplicated per row.
+- The plan has green nodes and refactor nodes; each refactor node names its findings and red gate and
+  keeps the acceptance suite green.
 - Test and non-test statuses use the approved vocabulary.
 - Every status transition is committed with its evidence.
 - Graph node IDs match catalog Luhmann IDs.
