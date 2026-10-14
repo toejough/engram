@@ -4376,3 +4376,31 @@ ID map for 793b243 to 793b254 (each checked with `git log -S`: unused): `793b243
 - **Choice:** added: `793b343`, `793b344` (each checked with `git grep`: unused). Retired: none. No heading is retitled.
 - **Rationale:** the guide: removed IDs are not reused.
 - **Alternatives:** none.
+
+## 793b345 Owner decides the three carve-outs of the H2 gold
+
+- **Decided by:** Owner (Joe, 2026-10-13), in chat.
+- **Choice:** the answers to the three carve-outs of [793b340 Owner confirms the H2 gold en bloc (high and medium), with three carve-outs](#793b340-owner-confirms-the-h2-gold-en-bloc-high-and-medium-with-three-carve-outs):
+  1. Relevance: `rl-007` is `ok` (bearing, his item 5 of the carve-out) and `rl-058` is `ok` (bearing, his item 6), both as drafted.
+  2. Capture: `cp-073` drops the lesson that was inferred and not in the window (the rule against self-authorised fix-and-rerun cycles on metered trials); the row's gold is the recorded lessons only (the one recorded subagent lesson).
+  3. Curation: the construction label (`near`) is kept for `cu-e006`, `cu-e008`, `cu-e010`, `cu-e011`, `cu-e013`, `cu-e014`, `cu-e022`, `cu-e024`, `cu-e026` and `cu-e028`; the fixtures `cu-e002`, `cu-e023` and `cu-e025` (artifacts of the 400-character cap of [793b341 Applying the confirmation found a duplicate ID, a wrong disagreement count and a 400-character cap](#793b341-applying-the-confirmation-found-a-duplicate-id-a-wrong-disagreement-count-and-a-400-character-cap)) and `cu-e007` (a weak fixture) are dropped.
+- **Rationale:** the owner's.
+- **Alternatives:** none recorded.
+
+## 793b346 The confirmed gold: final fixture counts and the share of drafts the owner changed
+
+- **Decided by:** Author (agent); awaiting owner validation.
+- **Choice:** the owner's answers are applied to the gold files (`ENGRAM_EVAL_DIR/dev/acceptance/h2/gold/*.md`, ephemeral, [793b343 The hypothesis-eval artifacts are ephemeral and kept out of the repository](#793b343-the-hypothesis-eval-artifacts-are-ephemeral-and-kept-out-of-the-repository)) and the fixture sets are built from them (`replay/gold.js`: the mined inputs joined with the label of the owner-confirmed row).
+  - **Final fixture counts** (the first tranche only: the later tranche of [793b332 The H2 fixture plan, the mining, the drafting and what the owner confirms](#793b332-the-h2-fixture-plan-the-mining-the-drafting-and-what-the-owner-confirms) was not drafted, because that would have been another round of owner confirmation and about 25 USD of fable drafting beyond the replay budget the owner confirmed; the sample therefore supports a wider margin than the full sets of [793b329 H2 is sized again for the kinds the PoC has, the spread is stated and the noise floor is a paired bootstrap](#793b329-h2-is-sized-again-for-the-kinds-the-poc-has-the-spread-is-stated-and-the-noise-floor-is-a-paired-bootstrap), and the result reports it):
+
+| Kind | Fixtures (n) | Of which | Gold items |
+| --- | --- | --- | --- |
+| `classify` | 200 | 100 name a moment, 100 are none | 100 fixtures with a moment |
+| `relevance` | 130 | 54 with a bearing note, 76 with none | 69 bearing notes |
+| `capture` | 130 | 47 with a lesson (37 with a subtle lesson), 83 with none | 101 lessons (one covered by a nearest note) |
+| `curation` | 150 | 36 covered, 55 near, 25 absent, 34 rejected (35 restatements, 31 extended, 34 contradictions, 50 natural) | the outcome, and the note for covered and near |
+
+  - **Share of drafts changed.** Of 614 drafted rows (200, 130, 130, 154) the owner changed one drafted label (`cp-073`: one lesson removed) and dropped four fixtures, 5 rows in all: 0.8 percent (0.2 percent for the labels alone). He confirmed `rl-007`, `rl-058` and ten curation rows as drafted; the ten curation rows are ones where fable's blind second judgement said `covered` and the drafted label (the construction's) said `near`, so his ruling overrode fable's second opinion in 10 of the 14 disagreements and dropped the other 4. The rate is a floor: apart from the ten rows he walked ([793b340](#793b340-owner-confirms-the-h2-gold-en-bloc-high-and-medium-with-three-carve-outs)) the high- and medium-confidence rows were confirmed en bloc, not one by one, so it measures the drafts' quality as far as an en bloc confirmation can.
+  - **Strata.** The spec asks for at least 40 `curation` fixtures of each outcome; `absent` has 25 and `covered` has 36, the others 34 and 55. `capture` has one gold lesson covered by a nearest note, so its guard "covered gold lesson written as absent" has one lesson to measure (a finding of [793b332](#793b332-the-h2-fixture-plan-the-mining-the-drafting-and-what-the-owner-confirms) that the later tranche was to repair).
+- **Rationale:** the counts and the rate are the inputs of the sample's supported margin.
+- **Alternatives:** draft and confirm the later tranche first (cost and owner time).
