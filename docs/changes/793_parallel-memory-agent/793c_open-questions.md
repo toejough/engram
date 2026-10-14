@@ -1073,3 +1073,48 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
   - (c) Keep the mod for the parts that need its capabilities (the judgements and the summary) and use hooks for the rest.
 - **Recommendation:** (a). The nine capabilities are matched, but the System's own judgements are what the mod does at a fraction of the cost, and the rebuild costs a node of the plan for a surface that is smaller in the probes and not measured on the System. Reopen if the early-access runtime changes.
 - **Blocks:** nothing now; it decides whether [793b189](./793b_decision-log.md#793b189-the-system-is-a-claude-code-mod-and-a-go-command-with-the-logic-in-go) stands.
+
+## 793c74 Do the three weakened Thens return to the original wording?
+
+- **Status:** answered (Joe, 2026-10-13), in chat; recorded here per the rule that owner answers live in this file.
+- **Context:** the scenarios [793a2n1a](./793a_product-spec.md#793a2n1-uat-scenarios), 793a2n1i and 793a2n1j had been given a generic delivery Then, which dropped the point at which the note is delivered.
+- **Answer:** (a) restore the original, stronger Thens ("before the declaration", "before please's first response or tool call", "before the orchestrator routes the unit"), keep the step vocabulary minimal, re-run the rows, accept the reorder of [793b291 793a5j1b is carried by the capture node; its install Thens run in this node and its Then order is changed](./793b_decision-log.md#793b291-793a5j1b-is-carried-by-the-capture-node-its-install-thens-run-in-this-node-and-its-then-order-is-changed).
+- **Applied in:** [793b322 Owner answer 1: the three weakened Thens are restored to the original wording; the step catalog gains one form](./793b_decision-log.md#793b322-owner-answer-1-the-three-weakened-thens-are-restored-to-the-original-wording-the-step-catalog-gains-one-form).
+- **Options:** (a) restore the original Thens (chosen); keep the generic Then and name the point in the harness only; three new step definitions.
+- **Blocks:** nothing.
+
+## 793c75 What is the cut-off of the backlog scan?
+
+- **Status:** answered (Joe, 2026-10-13), in chat.
+- **Context:** the backlog scan took sessions up to 7 days old, a rolling window.
+- **Answer:** (d) one fixed point, the install time minus 7 days, recorded at the first run; not a rolling window; a source that ended after it stays eligible until captured, whatever the gaps between sessions; nothing before it is mined.
+- **Applied in:** [793b323 Owner answer 2: the backlog cut-off is one fixed point, install time minus 7 days](./793b_decision-log.md#793b323-owner-answer-2-the-backlog-cut-off-is-one-fixed-point-install-time-minus-7-days).
+- **Options:** the rolling 7-day window; the time the mod directory was installed; (d) a fixed point (chosen).
+- **Blocks:** nothing.
+
+## 793c76 Is the residual-risk statement 793d19a ratified, and is the near outcome of curation kept?
+
+- **Status:** answered (Joe, 2026-10-13), in chat.
+- **Context:** [793b315 An opus implementation and security review of the PoC returned "targeted fixes first"](./793b_decision-log.md#793b315-an-opus-implementation-and-security-review-of-the-poc-returned-targeted-fixes-first) left the statement for the owner to ratify.
+- **Answer:** (a) ratify [793d19a](./793d_technical-spec.md#793d19a-security) as written; keep the `near` outcome.
+- **Applied in:** [793b324 Owner answer 3: the residual-risk statement 793d19a is ratified as written, with the near outcome kept](./793b_decision-log.md#793b324-owner-answer-3-the-residual-risk-statement-793d19a-is-ratified-as-written-with-the-near-outcome-kept).
+- **Options:** (a) ratify and keep `near` (chosen); drop `near`; ratify with changes.
+- **Blocks:** nothing.
+
+## 793c77 May a real Pi session file be read to check the fixture and the reader?
+
+- **Status:** answered (Joe, 2026-10-13), in chat.
+- **Context:** the Pi session shape in the harness fixture had not been checked against a real file.
+- **Answer:** (a) read one real `~/.pi` session file read-only, compare it with the fixture builder and the mod's backlog reader, fix what differs, record the shape (structure only, no content); rows 793a5j1d and 793a5c1b stay `Not run`.
+- **Applied in:** [793b325 Owner answer 4: a real Pi session file read, and the fixture and the reader checked against it](./793b_decision-log.md#793b325-owner-answer-4-a-real-pi-session-file-read-and-the-fixture-and-the-reader-checked-against-it).
+- **Options:** (a) read a real file (chosen); none other recorded.
+- **Blocks:** nothing.
+
+## 793c78 Is turn.step on the list of events that could change the session?
+
+- **Status:** answered (Joe, 2026-10-13), in chat.
+- **Context:** the in-turn recall cue ([793b320 The in-turn recall cue is built as 793b238 decided](./793b_decision-log.md#793b320-the-in-turn-recall-cue-is-built-as-793b238-decided)) hooks the step event, which the acceptance check's purview list would otherwise forbid.
+- **Answer:** (a) `turn.step` is not on the list; the contract test that shows the step hook passes everything on is the guard.
+- **Applied in:** [793b326 Owner answer 5: turn.step leaves the purview list; the pass-through contract test is the guard](./793b_decision-log.md#793b326-owner-answer-5-turnstep-leaves-the-purview-list-the-pass-through-contract-test-is-the-guard).
+- **Options:** (a) leave it off the list (chosen); keep it on the list.
+- **Blocks:** nothing.

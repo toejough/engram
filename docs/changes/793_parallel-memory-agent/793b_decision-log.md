@@ -4321,3 +4321,33 @@ ID map for 793b243 to 793b254 (each checked with `git log -S`: unused): `793b243
 - **Choice:** added (each checked with `git log -S`: unused, apart from comments in this node's own code that cite 793b334): `793b334` to `793b339`, `793c73`, `793d17g`, `793d17g1` to `793d17g4`, and rows 14 to 21 of [793d1a What the hypotheses rely on in Claude Code mods](./793d_technical-spec.md#793d1a-what-the-hypotheses-rely-on-in-claude-code-mods). Retired: none. No heading is retitled.
 - **Rationale:** the guide: removed IDs are not reused.
 - **Alternatives:** none.
+
+## 793b340 Owner confirms the H2 gold en bloc (high and medium), with three carve-outs
+
+- **Decided by:** Owner (Joe, 2026-10-13).
+- **Choice:** the owner walked ten drafted rows, five of high and five of medium confidence, and confirmed every one as drafted: relevance `rl-043`, `rl-006`, `rl-012`, `rl-024`; classify `cl-011`, `cl-006`; capture `cp-006` and `cp-009` (with a carve-out, see below); curation `cu-c003` and `cu-n008` (the natural row; see [793b341](#793b341-applying-the-confirmation-found-a-duplicate-id-a-wrong-disagreement-count-and-a-400-character-cap)). On that basis he confirmed all high- and medium-confidence rows of `dev/acceptance/h2/gold/{classify,relevance,capture,curation}.md` en bloc, with three carve-outs that still need his review:
+  1. the two low-confidence relevance rows (`rl-007`, `rl-058`) keep an empty Owner column;
+  2. a capture row holding a lesson that fable drafted and the session did not record (origin `additional`) is confirmed only if the user's or the agent's text of the full window states that lesson; otherwise it is marked `verify: not in window` and listed for him (this is the carve-out of `cp-009`, whose lesson that `engram update` installs from GitHub's default branch is stated in the window);
+  3. the curation rows where fable's blind judgement disagrees with the construction keep an empty Owner column, and the disagreements are tabled for him to decide.
+- **Calibration:** his standard for relevance is inclusive: a candidate whose situation is a close neighbour of the moment's counts as bearing on it, so a draft that includes a close-neighbour situation is right and one that leaves it out is the one to doubt.
+- **Result:** 200 of 200 classify rows, 128 of 130 relevance rows, 129 of 130 capture rows (one is marked `verify: not in window`) and 140 of 154 curation rows carry `ok`; 14 curation rows and 2 relevance rows are left empty for the owner. Rows confirmed in the file are gold ([793b270 793c71 is answered: a third model drafts the gold, fable here, and the owner confirms every label](#793b270-793c71-is-answered-a-third-model-drafts-the-gold-fable-here-and-the-owner-confirms-every-label)); the rest are not until he decides.
+- **Rationale:** the owner's rule, to keep his time to one walkthrough.
+- **Alternatives:** confirming every row one by one (rejected by the owner).
+
+## 793b341 Applying the confirmation found a duplicate ID, a wrong disagreement count and a 400-character cap
+
+- **Decided by:** Author (agent); awaiting owner validation.
+- **Choice:**
+  - **Duplicate fixture IDs.** `mine-curation.js` named a constructed row `cu-` plus the first letter of its mode, so the 35 `near` (extended) rows were `cu-n001` to `cu-n035`, the same IDs as 35 natural rows. The drafts file and the renderer key by ID, so for each of the 35 pairs one draft was shown for both rows: 25 cells (the confidence column, and the outcome of some natural rows) in the file were wrong and are corrected from the paired drafts (paired by the overlap of each draft's note with its offer and nearest notes; no pair was close). The script now names the `near` rows `cu-e001` to `cu-e035` and the 35 rows are renamed in the file. The owner's walked `cu-n008` is read as the natural row, which has no construction to disagree with; the extended row is now `cu-e008` and is among the disagreements.
+  - **Disagreements.** The file had no disagreement mark (the renderer needs the draft file as an extra argument and did not get it), and the count the owner was given (about 30) came from the same ID collision. Compared by construction and paired by ID, 14 rows disagree, all `extended` rows that the blind judgement called `covered`; each now carries `(blind judgement differs: ...)` in its outcome cell and an empty Owner column.
+  - **400-character cap.** Offer and nearest-note bodies in the fixtures are cut at 400 characters, which cuts the added claim of some extended offers; the table given to the owner says per row whether the added claim is visible.
+  - **Capture check.** All 55 additional lessons of 33 capture rows were checked against the uncut text of the window's messages from the source transcript (read-only). 54 are stated by the user or the agent. One (`cp-073`) is not: the rule against self-authorised fix-and-rerun cycles on metered trials, which the window only implies (the agent says "no further amendments authorized" without a user message in the window); the row is marked `verify: not in window`. A minor detail of `cp-109` (the other guidance files named) is not in the window; its core claim is.
+- **Rationale:** the guide: a gold file with duplicate IDs cannot be confirmed row by row.
+- **Alternatives:** keep the IDs and tell the owner (a fixture named twice breaks the draft file and any harness keyed by ID).
+
+## 793b342 ID map for 793b340 to 793b341
+
+- **Decided by:** Author (agent); awaiting owner validation.
+- **Choice:** added: `793b340`, `793b341`, `793b342`, `793c74` to `793c78` (each checked with `git grep`: unused). Fixture IDs `cu-e001` to `cu-e035` replace the extended rows' `cu-n001` to `cu-n035`; the natural rows keep theirs. Retired: none. No heading is retitled.
+- **Rationale:** the guide: removed IDs are not reused.
+- **Alternatives:** none.
