@@ -229,7 +229,7 @@ flowchart TD
   n793e8h["793e8h Hypothesis scenarios updated to the PoC<br/>Complete"]
   n793e8i["793e8i H1 probe harness and verdict<br/>Complete"]
   n793e8j["793e8j H2 eval and verdict<br/>Complete"]
-  n793e8l["793e8l Red gates<br/>In progress: 4/7 entries complete"]
+  n793e8l["793e8l Red gates<br/>In progress: 5/7 entries complete"]
   n793e8m["793e8m Logic in Go<br/>Blocked by: 793e8l"]
   n793e8n["793e8n JavaScript standards<br/>Blocked by: 793e8m"]
   n793e8o["793e8o Performance<br/>Blocked by: 793e8m"]
@@ -578,7 +578,7 @@ Verification: `targ refactor-red` runs every gate and prints one table; `npm tes
 | Complexity and adapter gates: `eslint.complexity.config.js`, `eslint.adapter.config.js` and `targ lint-js complexity` and `adapter` | Setup (goal, red) | 793b364 and [793b368 Within reason the logic moves to Go and the mod becomes a thin adapter](./793b_decision-log.md#793b368-within-reason-the-logic-moves-to-go-and-the-mod-becomes-a-thin-adapter) | Done |
 | Adapter budget gate: `gates/budgets.json`, the owned-lines count and `targ check-mod-budget` | Setup (goal, red) | [793b366 The adapter budget is the wiring counted in register.js, the relay loop and a margin](./793b_decision-log.md#793b366-the-adapter-budget-is-the-wiring-counted-in-registerjs-the-relay-loop-and-a-margin) | Done |
 | Performance gates: `tests/perf.test.ts` (guards) and `tests/perf.red.ts` (goals), the shared stub `tests/world.ts`, `targ test-mod` | Setup (goal, red, and guards) | [793b363 Performance budgets come from the measured baselines and the spec ceilings](./793b_decision-log.md#793b363-performance-budgets-come-from-the-measured-baselines-and-the-spec-ceilings) | Done |
-| Hardening gates: `tests/hardening.test.ts` (guards) and `tests/hardening.red.ts` (goals) | Setup (goal, red, and guards) | [793b362 The queued-work file is chosen by its red test](./793b_decision-log.md#793b362-the-queued-work-file-is-chosen-by-its-red-test) | Not started |
+| Hardening gates: `tests/hardening.test.ts` (guards) and `tests/hardening.red.ts` (goals) | Setup (goal, red, and guards) | [793b362 The queued-work file is chosen by its red test](./793b_decision-log.md#793b362-the-queued-work-file-is-chosen-by-its-red-test) | Done |
 | Spec-conformance gate: `gates/spec.js` and `targ check-spec-conformance` | Setup (goal, red, and guards) | the specs 793d22 onward against the tests, the product spec and the code | Not started |
 | `targ refactor-red` and the record of every classification and probe in 793b361 | Setup | one table of the gates; the record is the owner's acceptance rule | Not started |
 
@@ -638,7 +638,7 @@ Red gate: `targ test-mod red perf` (5 of 5 fail): the relevance deadline of 3.00
 
 ### 793e8p Hardening
 
-Status: Not started (gate: `targ test-mod red hardening`).
+Status: Red (gate: `targ test-mod red hardening`).
 
 Red gate: `targ test-mod red hardening` (5 of 5 fail): queued work is not written before the event returns, a queue left by an ended session is not run at the next start, a failed capture is not kept (the contract is [793b362 The queued-work file is chosen by its red test](./793b_decision-log.md#793b362-the-queued-work-file-is-chosen-by-its-red-test)); a subagent's compaction empties the main agent's ledger and leaves its own (the gap of [793d24b2 Presence and ledgers](./793d_technical-spec.md#793d24b2-presence-and-ledgers)). The 20 guards of `hardening.test.ts` stay green: one per mitigation of [793d19a Security](./793d_technical-spec.md#793d19a-security) (provenance, offers folded and never discarded outright except `rejected`, data framing, the activity line, 11 secret shapes), the compaction of the main agent, and the two behaviors that had no test (the task-notification summary text and the age limit of an unfinished step job). The node follows [793e8m Logic in Go](#793e8m-logic-in-go): the contracts that moved are Go tests with the same meaning, and the persisted queue is Go state. Verification: `targ test-mod red hardening` passes (or its Go twin) and the file is renamed to `hardening.test.ts`; `targ acceptance` (793a3a, 793a2e, 793a4b, then the full suite once); `targ check-full`. Invariant: the acceptance suite stays green.
 
