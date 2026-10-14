@@ -1,0 +1,1 @@
+[{"in":{"chunks":"/c","xdg":"/x","home":"/h"},"out":"/c"},{"in":{"chunks":"","xdg":"/x","home":"/h"},"out":"/x/engram/chunks"},{"in":{"chunks":"","xdg":"","home":"/h"},"out":"/h/.local/share/engram/chunks"}]

@@ -67,6 +67,35 @@ export function compare(sizes, table) {
   }
 }
 
+// goal is the size the owned JavaScript lines a Go component replaces allow at the ratio (793b369).
+export const goal = (row, ratio) => Math.round(row.js * ratio)
+
+// goTable is the budget table of the Go components: a component may not grow past its ceiling, the size it has reached;
+// the goal, the owned JavaScript lines it replaces times the ratio, is what the ceiling is brought down to (793b369).
+export function goTable(go) {
+  const files = Object.fromEntries(
+    Object.entries(go.components).map(([name, row]) => [name, { budget: row.ceiling ?? goal(row, go.ratio) }]),
+  )
+  return { total: Object.values(files).reduce((sum, row) => sum + row.budget, 0), files }
+}
+
+// measureGo reads the non-test Go files of dir and returns { component: ownedLines }; a file that belongs to no component
+// and is not plumbing is listed under its own name, so that the comparison finds it unbudgeted.
+export function measureGo(dir, go) {
+  const owner = new Map(Object.entries(go.components).flatMap(([name, row]) => row.files.map((file) => [file, name])))
+  const sizes = Object.fromEntries(Object.keys(go.components).map((name) => [name, 0]))
+  for (const file of fs
+    .readdirSync(dir)
+    .filter((entry) => entry.endsWith('.go') && !entry.endsWith('_test.go'))
+    .sort()) {
+    if (go.plumbing.includes(file)) continue
+    const owned = ownedLines(fs.readFileSync(path.join(dir, file), 'utf8'))
+    const name = owner.get(file) ?? file
+    sizes[name] = (sizes[name] ?? 0) + owned
+  }
+  return sizes
+}
+
 export function formatTable(result) {
   const lines = ['file             owned lines   budget   over']
   for (const row of result.rows) {

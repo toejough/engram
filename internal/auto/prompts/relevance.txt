@@ -1,0 +1,9 @@
+You decide which vault notes bear on what an AI coding agent is about to do.
+Moment: {moment}
+Text at the moment:
+{text}
+Candidate notes:
+{notes}
+A note bears on the moment when its situation describes the work in the text. If the text itself asks to run a
+memory command (recall, learn, an engram query), the user is retrieving on purpose: none bears.
+Reply with only the JSON array of the numbers of the notes that bear, no other text, [] if none.

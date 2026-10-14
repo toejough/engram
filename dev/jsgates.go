@@ -14,7 +14,9 @@ import (
 
 // unexported constants.
 const (
+	gateAdapter     = "adapter"
 	gateBudget      = "budget"
+	gateComplexity  = "complexity"
 	gateEntry       = "gates/run.js"
 	gateLint        = "lint"
 	gateModProgram  = "claude"
@@ -115,6 +117,14 @@ func runLintJS(ctx context.Context, args lintJSArgs) error {
 	}
 
 	return runJSGate(ctx, gateLint, gateArgs, false)
+}
+
+func runLintJSAdapter(ctx context.Context) error {
+	return runJSGate(ctx, gateLint, []string{gateAdapter}, false)
+}
+
+func runLintJSComplexity(ctx context.Context) error {
+	return runJSGate(ctx, gateLint, []string{gateComplexity}, false)
 }
 
 func runRefactorRed(ctx context.Context) error {

@@ -1,0 +1,1 @@
+[{"in":{"text":""},"out":""},{"in":{"text":"row1\nrow2"},"out":"row1\nrow2"},{"in":{"text":"a\n{\"subtype\":\"compact_boundary\"}\nb\n{\"isCompactSummary\":true}\nc"},"out":"b\nc"},{"in":{"text":"{\"subtype\":\"compact_boundary\"}\nx\n{\"subtype\":\"compact_boundary\"}\ny"},"out":"y"},{"in":{"text":"no boundary\n{\"isCompactSummary\":true}\nz"},"out":"no boundary\nz"}]

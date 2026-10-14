@@ -1,0 +1,1 @@
+[{"in":{"xdg":"","home":"/h","vault":""},"out":{"data":"/h/.local/share/engram","vault":"/h/.local/share/engram/vault"}},{"in":{"xdg":"/x","home":"/h","vault":""},"out":{"data":"/x/engram","vault":"/x/engram/vault"}},{"in":{"xdg":"/x","home":"/h","vault":"/v"},"out":{"data":"/x/engram","vault":"/v"}}]

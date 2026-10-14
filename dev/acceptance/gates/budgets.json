@@ -8,5 +8,75 @@
       "budget": 250,
       "basis": "the 162 owned lines of wiring in register.js today (the event handlers, state, warn, attempt, exec, answered, readTranscript, seam and schedule) plus about 40 for the relay loop of the need and done rounds plus a margin; every other hook file is logic and has no row, so it fails the gate until it is gone or the owner gives it a row"
     }
+  },
+  "go": {
+    "unit": "owned lines: not blank and not a comment, per component of internal/auto (non-test files; the ports and the package comment are DI plumbing and are not counted)",
+    "reference": "793b369: the goal of a component is the owned JavaScript lines it replaces times the ratio; the ceiling is the size it has reached, and the gate holds it from growing",
+    "dir": "internal/auto",
+    "ratio": 1.3,
+    "plumbing": [
+      "doc.go",
+      "ports.go"
+    ],
+    "components": {
+      "failure": {
+        "js": 39,
+        "files": [
+          "failure.go"
+        ],
+        "basis": "failure.js 24, exec 11, answered 4",
+        "ceiling": 55
+      },
+      "moment": {
+        "js": 112,
+        "files": [
+          "moment.go"
+        ],
+        "basis": "moment.js 70, lookup 15, deliver 8, moment 1, stepJob 7, memory-ask and note-path patterns 4, readTranscript 7",
+        "ceiling": 220
+      },
+      "judge-relay": {
+        "js": 161,
+        "files": [
+          "judge.go",
+          "relay.go"
+        ],
+        "basis": "judge.js 161, which holds the prompts (now text files) and the strict readings; the need and done rounds are the relay and have no JavaScript to replace",
+        "ceiling": 439
+      },
+      "capture": {
+        "js": 234,
+        "files": [
+          "capture.go",
+          "redact.go"
+        ],
+        "basis": "capture.js 200, capture 18, markTurns 7, settled 9",
+        "ceiling": 427
+      },
+      "backlog": {
+        "js": 111,
+        "files": [
+          "backlog.go"
+        ],
+        "basis": "backlog.js 49, backlog 35, readSource 9, sourceMessages 8, chunksDir and the marks 10",
+        "ceiling": 182
+      },
+      "curation": {
+        "js": 93,
+        "files": [
+          "curate.go"
+        ],
+        "basis": "housekeeping.js 52, nearest 9, curateOne 13, curate 13, housekeeping 5, skipped 1",
+        "ceiling": 150
+      },
+      "summary": {
+        "js": 27,
+        "files": [
+          "summary.go"
+        ],
+        "basis": "summary.js 19, report 8",
+        "ceiling": 40
+      }
+    }
   }
 }

@@ -135,9 +135,15 @@ func Test794b4a1c_AggregatesMatchTargsApartFromNilTargets(t *testing.T) {
 	// Engram's own additions to the aggregates, appended to the final dependency group: the dev package's tests
 	// and the lint run that covers the dev package's build-tagged files.
 	engramExtras := map[string][]*targ.Target{
-		"check":          {lintDevTarget},
-		"check-for-fail": {testDevTarget, testDevIntegrationTarget, lintDevTarget},
-		"check-full":     {testDevTarget, testDevIntegrationTarget, lintDevTarget},
+		"check": {lintDevTarget},
+		"check-for-fail": {
+			testDevTarget, testDevIntegrationTarget, lintDevTarget, lintJSComplexityTarget, lintJSAdapterTarget,
+			checkModBudgetTarget,
+		},
+		"check-full": {
+			testDevTarget, testDevIntegrationTarget, lintDevTarget, lintJSComplexityTarget, lintJSAdapterTarget,
+			checkModBudgetTarget,
+		},
 	}
 
 	for _, pair := range []struct{ engram, targs *targ.Target }{

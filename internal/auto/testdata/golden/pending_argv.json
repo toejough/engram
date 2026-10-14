@@ -1,0 +1,1 @@
+[{"in":{"vault":"/vault"},"out":["grep","-rl","--include=*.md","-e","^pending: true$","/vault"]}]

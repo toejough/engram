@@ -116,10 +116,13 @@ func Targets(deps Deps) []any {
 
 	return append(
 		append(
-			coreTargets(deps, withLog, errHandler),
-			maintenanceTargets(deps, withLog, errHandler)...,
+			append(
+				coreTargets(deps, withLog, errHandler),
+				maintenanceTargets(deps, withLog, errHandler)...,
+			),
+			serveTargets(deps, withLog, errHandler)...,
 		),
-		serveTargets(deps, withLog, errHandler)...,
+		autoTargets(deps, errHandler),
 	)
 }
 

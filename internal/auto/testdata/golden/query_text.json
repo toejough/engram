@@ -1,0 +1,1 @@
+[{"in":{"window":"User: a\nAgent: b"},"out":"User: a Agent: b"},{"in":{"window":"Agent: b\nUser: a\nUser: c\nAgent used Bash"},"out":"User: a User: c Agent: b Agent used Bash"},{"in":{"window":"no labels here"},"out":"no labels here"},{"in":{"window":""},"out":""}]
