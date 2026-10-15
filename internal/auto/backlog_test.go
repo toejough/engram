@@ -149,6 +149,35 @@ func Test793d28b1_AtMostTwentySourcesAreLookedAtInOneTurn(t *testing.T) {
 	g.Expect(logged).To(Equal(blSourcesInTurn))
 }
 
+func Test793d28b1_AnIndexWhoseNewestSessionIsOlderThanTheCutoffIsReported(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	manifest := blManifest{blPi: blOf(10*blDayMs, "sha256:stale"), blPiTwo: blOf(9*blDayMs, "sha256:staler")}
+	world := blWorld(manifest, map[string]string{blPi: blSaid, blPiTwo: blSaid})
+
+	blHousekeep(t, world, "")
+
+	// nothing is captured, and the user is told why instead of a backlog that silently finds nothing
+	g.Expect(world.Requests).To(BeEmpty())
+	g.Expect(world.Warnings).To(Equal([]string{
+		"Automatic memory was skipped because the index is not caught up (the backlog capture)",
+	}))
+	g.Expect(strings.Join(world.Logs, "\n")).To(ContainSubstring("backlog: index not caught up"))
+}
+
+func Test793d28b1_AnIndexThatHoldsASessionAfterTheCutoffIsNotReported(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	manifest := blManifest{blPi: blOf(10*blDayMs, "sha256:stale"), blPiTwo: blOf(2*blHour, blHashA)}
+	world := blWorld(manifest, map[string]string{blPi: blSaid, blPiTwo: blSaid})
+
+	blHousekeep(t, world, "")
+
+	g.Expect(world.Warnings).To(BeEmpty())
+}
+
 func Test793d28b1_NoManifestIsAnEmptyBacklogNotAnError(t *testing.T) {
 	t.Parallel()
 

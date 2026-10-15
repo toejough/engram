@@ -96,6 +96,16 @@ func (e *engine) backlog() {
 		e.updateMarks(dir, func(stored *Marks) { stored.firstRun(now) })
 	}
 
+	// an index whose newest session is older than the cut-off has not caught up: nothing can be eligible, and the user
+	// is told instead of a backlog that silently finds nothing (793d28b1)
+	if len(sources) > 0 && marks.Cutoff != nil && sources[0].MtimeMs < *marks.Cutoff {
+		e.warn("the backlog capture", &StepError{
+			Message: "backlog: index not caught up: its newest session changed before the cut-off", Kind: kindBehind,
+		})
+
+		return
+	}
+
 	looked := 0
 
 	for _, source := range pending(sources, marks, now, e.job.Transcript) {

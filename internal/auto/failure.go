@@ -22,6 +22,8 @@ const (
 	// the query of the nearest notes of a capture or an offer, which nothing waits for
 	deadlineNearest = 25 * time.Second
 	errorLimit      = 200
+	kindBehind      = "behind"
+	kindBusy        = "busy"
 	kindError       = "error"
 	kindTimeout     = "timeout"
 	kindUnavailable = "unavailable"
@@ -29,6 +31,7 @@ const (
 
 // unexported variables.
 var (
+	busy        = regexp.MustCompile(`(?i)holds the manifest lock`)
 	timedOut    = regexp.MustCompile(`(?i)still running after|timed out|^aborted$`)
 	unavailable = regexp.MustCompile(`(?i)failed to start|ENOENT|permission denied|no such file or directory|` +
 		`read-only file system|input/output error`)
@@ -69,6 +72,8 @@ func (e *engine) show(name string) string {
 // failureKind is the class of a failure from the text it left: the stderr of a command, the reason a model call gave.
 func failureKind(text string) string {
 	switch {
+	case busy.MatchString(text):
+		return kindBusy
 	case timedOut.MatchString(text):
 		return kindTimeout
 	case unavailable.MatchString(text):
@@ -89,7 +94,10 @@ func kindOf(err error) string {
 
 // warning is the one line the user is shown, on the status line and nowhere else: what was skipped and why.
 func warning(step, kind string) string {
-	reason := map[string]string{kindUnavailable: "the vault is unavailable", kindTimeout: "the System timed out"}[kind]
+	reason := map[string]string{
+		kindUnavailable: "the vault is unavailable", kindTimeout: "the System timed out",
+		kindBusy: "another indexing is running", kindBehind: "the index is not caught up",
+	}[kind]
 	if reason == "" {
 		reason = "of an error"
 	}
