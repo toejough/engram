@@ -53,7 +53,7 @@ func (t Tiers) curationRequest(offer Note, near []Note) Request {
 
 func (t Tiers) relevanceRequest(moment, text string, candidates []Note) Request {
 	return t.request(judgeRelevance, fill(relevancePrompt,
-		"{moment}", moment, "{text}", cutEnd(text, relevanceLimit), "{notes}", numbered(candidates, false)))
+		"{moment}", moment, "{text}", fence(cutEnd(text, relevanceLimit)), "{notes}", fence(numbered(candidates, false))))
 }
 
 // request builds the call of a kind from its prompt, with the reply tokens and the deadline of its kind. The
@@ -124,7 +124,7 @@ var (
 	// a tag of a prompt as a reader would take it: a bracket of any shape, then white space, format and control
 	// characters around the slash, then the name in any case (793b397)
 	tagPattern = regexp.MustCompile(
-		`(?i)[<＜﹤‹〈⟨]([` + space + `\p{Cf}\p{Cc}]*/?[` + space + `\p{Cf}\p{Cc}]*(?:window|notes|recent|offer)\b)`)
+		`(?i)[<＜﹤‹〈⟨]([` + space + `\p{Cf}\p{Cc}]*/?[` + space + `\p{Cf}\p{Cc}]*(?:window|notes|recent|offer|text)\b)`)
 )
 
 // reply is the answer to one request, as the model call returned it.

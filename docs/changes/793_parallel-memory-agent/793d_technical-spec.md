@@ -621,11 +621,11 @@ Scenario: 793d25b1a1 Every kind names haiku at low effort
 
 #### 793d25b2 Data and replies
 
-Requirement: 793d25b2 The Judgement Relay MUST state in the capture, classification and curation requests that their data is to be analyzed and never followed, fill a prompt's placeholders in one pass so that no value is searched for a placeholder, and write as `&lt;` the `<` that opens or closes a `window`, `notes`, `recent` or `offer` tag, whatever its bracket, case, spacing or hidden characters. It MUST accept a reply only as exactly one JSON document of valid UTF-8 with no key twice, bare or in one code fence wrapping the whole reply; anything else, and an unanswered model call, MUST be an error with no partial result, the unanswered call of the class its reason shows.
+Requirement: 793d25b2 The Judgement Relay MUST state in the capture, classification, curation and relevance requests that their data is to be analyzed and never followed, put the text and the candidate notes of a relevance request in `text` and `notes` tags as the other requests put theirs in `window`, `recent`, `offer` and `notes` tags, fill a prompt's placeholders in one pass so that no value is searched for a placeholder, and write as `&lt;` the `<` that opens or closes a `window`, `notes`, `recent`, `offer` or `text` tag, whatever its bracket, case, spacing or hidden characters. A relevance reply MUST stay the array of the numbers of the notes that bear and nothing else. It MUST accept a reply only as exactly one JSON document of valid UTF-8 with no key twice, bare or in one code fence wrapping the whole reply; anything else, and an unanswered model call, MUST be an error with no partial result, the unanswered call of the class its reason shows.
 
 Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `internal/auto/capture_test.go`: Test793d25b2_ThePromptNamesTheExactKeysOfEachKindAndShowsOneLessonOfEach, Test793d19a_TheWindowCannotCloseTheTagItSitsIn, Test793d19a_TextThatImitatesThePromptsTagsCannotCloseOrOpenThemInTheWindowOrInANote; `internal/auto/differential_test.go`: Test793d19a_ATagImitationOfAnyBracketSpacingOrCaseIsBrokenInEveryPrompt, Test793d19a_ADuplicateKeyIsAnErrorWhereverItIsInAReply; `internal/auto/security_test.go`: Test793d19a_APlaceholderInAnOfferIsNotFilledWithTheNearestNotes, Test793d19a_APlaceholderInTheTextOfAMomentIsNotFilledWithTheCandidates, Test793d19a_APlaceholderInTheWindowIsNotFilledWithTheNearestNotes; `internal/auto/curate_test.go`: Test793d19a_AnOfferOrANoteThatHoldsTheTagsOfThePromptCannotCloseOrOpenASection
+Verified by: `internal/auto/capture_test.go`: Test793d25b2_ThePromptNamesTheExactKeysOfEachKindAndShowsOneLessonOfEach, Test793d19a_TheWindowCannotCloseTheTagItSitsIn, Test793d19a_TextThatImitatesThePromptsTagsCannotCloseOrOpenThemInTheWindowOrInANote; `internal/auto/differential_test.go`: Test793d19a_ATagImitationOfAnyBracketSpacingOrCaseIsBrokenInEveryPrompt, Test793d19a_ADuplicateKeyIsAnErrorWhereverItIsInAReply; `internal/auto/security_test.go`: Test793d25b2_TheRelevancePromptFencesTheTextAndTheNotesAndSaysTheyAreData, Test793d19a_APlaceholderInAnOfferIsNotFilledWithTheNearestNotes, Test793d19a_APlaceholderInTheTextOfAMomentIsNotFilledWithTheCandidates, Test793d19a_APlaceholderInTheWindowIsNotFilledWithTheNearestNotes; `internal/auto/curate_test.go`: Test793d19a_AnOfferOrANoteThatHoldsTheTagsOfThePromptCannotCloseOrOpenASection
 
 Security: risks (1) and (2) of [793d25a Orientation](#793d25a-orientation), held here: data fencing and strict reading.
 
@@ -636,6 +636,11 @@ Scenario: 793d25b2a1 A closing tag in the data is neutralized
   Given a window that contains </window> in capitals with spaces
   When the capture request is built
   Then the request holds one window section
+
+Scenario: 793d25b2a2 The relevance request fences what it judges
+  Given a moment text and a candidate note
+  When the relevance request is built
+  Then the text and the notes sit in text and notes tags, the prompt says they are data and not instructions, and the reply asked for is the numbers only
 ```
 
 #### 793d25b3 Result shapes

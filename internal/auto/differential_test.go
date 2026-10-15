@@ -258,6 +258,9 @@ func differentialBuilders() map[string]func(string) (auto.Request, error) {
 	return map[string]func(string) (auto.Request, error){
 		"capture":  func(text string) (auto.Request, error) { return auto.CaptureRequest(text, []auto.Note{note(text)}) },
 		"classify": auto.ClassifyRequest,
+		"relevance": func(text string) (auto.Request, error) {
+			return auto.RelevanceRequest("declaring work done", text, []auto.Note{note(text)})
+		},
 		"curation": func(text string) (auto.Request, error) {
 			return auto.CurationRequest(note(text), []auto.Note{note(text)})
 		},
@@ -289,7 +292,7 @@ func drawHostileText(rt *rapid.T) string {
 	gaps := []string{
 		"", " ", "\t", "\n", "\u00a0", "\u2003", "\u3000", "\u200b", "\u200d", "\ufeff", "\u2060", "\u00ad", "\x01",
 	}
-	names := []string{"window", "notes", "recent", "offer"}
+	names := []string{"window", "notes", "recent", "offer", "text"}
 	imitation := rapid.Custom(func(rt *rapid.T) string {
 		name := []rune(rapid.SampledFrom(names).Draw(rt, "name"))
 		for index := range name {

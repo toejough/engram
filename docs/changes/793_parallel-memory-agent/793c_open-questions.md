@@ -1173,3 +1173,11 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 - **Applied in:** [793b420 A near fold amends first, with a check of the note, and folds the offer away after it](./793b_decision-log.md#793b420-a-near-fold-amends-first-with-a-check-of-the-note-and-folds-the-offer-away-after-it).
 - **Blocks:** nothing.
 
+## 793c85 Does the relevance prompt fence the notes and the text it judges?
+
+- **Status:** answered (Joe, 2026-10-14), in chat. It is the question "i" of the owner's list in [793e8r Refactor review and promotion](./793e_implementation-plan.md#793e8r-refactor-review-and-promotion).
+- **Context:** the `relevance` request filled `{text}` and `{notes}` unfenced; the capture, classification and curation requests fence their data and say it is data, not instructions.
+- **Answer:** fence it like the other three (tags and "data, not instructions"); keep the reply numbers-only; no H2 re-measure; add the fencing contract test, seen failing first.
+- **Applied in:** [793b424 The relevance prompt fences the text and the notes like the other three](./793b_decision-log.md#793b424-the-relevance-prompt-fences-the-text-and-the-notes-like-the-other-three).
+- **Blocks:** nothing.
+
