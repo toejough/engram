@@ -1206,3 +1206,11 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 - **Answer:** (b). Decided by: owner. The row stays below the bar, with its measured rate (about 0.8 over 80 runs) and its cause (the classification answers no moment) on an explicit exception list in the completion gate, and a one-line known-limit note in the technical spec where the in-turn cue is specified; it is not a residual-risk item.
 - **Applied in:** [793b426 Row 793a2n1a stays below the 9-of-10 bar as a recorded limit of the cheapest tier's in-turn classification](./793b_decision-log.md#793b426-row-793a2n1a-stays-below-the-9-of-10-bar-as-a-recorded-limit-of-the-cheapest-tiers-in-turn-classification).
 - **Blocks:** nothing.
+
+## 793c89 Do the gaps of 793d35c get follow-up issues?
+
+- **Status:** open, not blocking (asked 2026-10-15, in [793b427](./793b_decision-log.md#793b427-the-promotion-plan-of-793e8r-and-the-decisions-it-takes), decision 4).
+- **Context:** [793d35c Gaps and what is not built](./793d_technical-spec.md#793d35c-gaps-and-what-is-not-built) is not promoted. The follow-ups #850 to #854 exist. Three gaps have no issue: `internal/auto` reads transcript rows by role itself and not through the Transcript Reader, so the two can drift; the origins of a prompt other than the SDK's are covered by one acceptance row only; the two Pi rows (793a5j1d, 793a5c1b) are `Not run` for want of a headless Pi.
+- **Options:** (a) none: the closing comment lists them and the owner files what he wants later; (b) file one issue for the Transcript Reader duplication and one for the Pi verification.
+- **Answer:** none yet. The author's default, taken unless he says otherwise: (a).
+- **Blocks:** nothing.

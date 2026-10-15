@@ -240,7 +240,7 @@ flowchart TD
   n793e8o["793e8o Performance<br/>Complete"]
   n793e8p["793e8p Hardening<br/>Complete"]
   n793e8q["793e8q Spec conformance and the technical specification<br/>Complete"]
-  n793e8r["793e8r Refactor review and promotion<br/>Ready"]
+  n793e8r["793e8r Refactor review and promotion<br/>In progress: 14/16 entries complete"]
   n793e8a --> n793e8b --> n793e8e --> n793e8c
   n793e8c --> n793e8d
   n793e8c --> n793e8g
@@ -750,7 +750,7 @@ Gates at the head of the node: `check-full` 19 of 19 PASS; `targ acceptance --ch
 
 ### 793e8r Refactor review and promotion
 
-Status: In progress (gate: the full acceptance run, the owner's questions answered, and `targ check-full`; the questions are answered, the walkthrough of the decisions marked "awaiting owner validation" and the promotion remain).
+Status: In progress (gate: the full acceptance run, the owner's questions answered, and `targ check-full`; the questions are answered, the walkthrough of the decisions marked "awaiting owner validation" and the promotion remain; the promotion is planned in [793e8r1](#793e8r1-promotion-plan)).
 
 One agent review round of the refactored system and its specs, then the owner walkthrough ([Decisions and Open Questions](../../AGENTS.md#decisions-and-open-questions)), then atomic promotion ([Specification Lifecycle Guide](../../SPECIFICATION-LIFECYCLE-GUIDE.md#atomic-promotion)): the product and technical deltas applied to `docs/specs/`, links and IDs validated, and this change directory deleted in the same integration. Verification: every gate is in `check-full` and green; `targ acceptance` full run green; `targ check-full` passes. Invariant: the acceptance suite stays green.
 
@@ -773,7 +773,7 @@ The review returned "targeted fixes first" ([793b403 The refactor review returne
 | E4 H2 is closed; the relevance prompt is fenced; the lookup that holds the agent asks for notes only and the chunk stubs come from a background pass | Refactor | the owner's decisions | Done: [793b423](./793b_decision-log.md#793b423-h2-is-closed-the-result-stands-as-the-record), [793b424](./793b_decision-log.md#793b424-the-relevance-prompt-fences-the-text-and-the-notes-like-the-other-three), [793b425](./793b_decision-log.md#793b425-chunk-stubs-were-dropped-against-an-owner-decision-the-lookup-that-holds-the-agent-asks-for-notes-only-and-the-stubs-come-from-a-background-pass) |
 | E5 The rate bar: `targ acceptance --runs N`, written into the completion gate and the result vocabulary; the six judgement rows measured once | Setup | the owner's decision | Done: [793b421](./793b_decision-log.md#793b421-a-row-that-depends-on-a-models-judgement-passes-at-9-of-10-runs-with-every-red-attributed-from-the-activity-line); rates: see the result below |
 | Owner walkthrough of the decisions marked "awaiting owner validation", and the questions below | Review | the owner's time is one walkthrough | Not started |
-| Promotion to `docs/specs/product/` and `docs/specs/technical/`, and removal of `docs/changes/793_parallel-memory-agent/` | Setup | atomic promotion | Not started |
+| Promotion to `docs/specs/product/` and `docs/specs/technical/`, and removal of `docs/changes/793_parallel-memory-agent/` | Setup | atomic promotion | Planned: [793e8r1 Promotion plan](#793e8r1-promotion-plan) (decisions: [793b427](./793b_decision-log.md#793b427-the-promotion-plan-of-793e8r-and-the-decisions-it-takes)); not started |
 
 **Result (2026-10-14, Claude Code 2.1.299, nothing installed, token never printed):** after the fixes, `targ check-full` 19 of 19 PASS, `targ acceptance --check` 3 of 3 (43 scenarios, 27 definitions), the link check of the change directory clean, and the full `targ acceptance` run 51 runs: 49 Green, 2 `Not run` (no headless Pi), none Red (cost 1.90 USD by the SDK's estimate). The first full run after the changes had one Red, the row 793a4b1b, from a design of the wording of a failure that was removed ([793b413](./793b_decision-log.md#793b413-the-duplicated-code-of-the-engine-and-the-mod-is-one-and-the-engine-owns-the-wording-of-a-failure)).
 
@@ -820,6 +820,147 @@ The owner's questions and his answers of 2026-10-14 (each is an entry of [the op
 | h. Is the first tranche of the H2 fixtures enough? | Answered (Joe, 2026-10-14): H2 is closed; no residual and no follow-up issue; the result stands as the record ([793c83](./793c_open-questions.md#793c83-is-h2-closed), [793b423](./793b_decision-log.md#793b423-h2-is-closed-the-result-stands-as-the-record)) |
 | i. Does the relevance prompt fence the notes and the text it judges? | Answered (Joe, 2026-10-14): yes, like the other three, with the reply left as the numbers only and no H2 re-measure ([793c85](./793c_open-questions.md#793c85-does-the-relevance-prompt-fence-the-notes-and-the-text-it-judges), [793b424](./793b_decision-log.md#793b424-the-relevance-prompt-fences-the-text-and-the-notes-like-the-other-three)) |
 | j. The query of a prompt's lookup, as the System issues it, includes the chunk index (the System discards the chunks): what is asked of the Query Engine? | As it was: on a copy of the real vault the query takes 12.3 s alone and 18.5 s six at once against a hold of 8 s, and 1.07 s and 1.42 s without the index ([793b408](./793b_decision-log.md#793b408-the-lookup-of-a-moment-was-measured-on-a-copy-of-the-real-vault-and-the-query-as-the-system-issues-it-does-not-fit-the-hold-on-it)) |
+
+#### 793e8r1 Promotion plan
+
+Status: Planned, not started. The promotion starts after the owner's walkthrough of the decisions marked "awaiting owner validation" ([793b427](./793b_decision-log.md#793b427-the-promotion-plan-of-793e8r-and-the-decisions-it-takes) lists the ones this plan adds) and is one integration with the implementation, as the [Specification Lifecycle Guide](../../SPECIFICATION-LIFECYCLE-GUIDE.md#atomic-promotion) requires. Everything below was read from the repository at the commit that recorded this plan (the "tip"); nothing was promoted. `PRE` below is the commit before the first promotion edit.
+
+**What is promoted, and what is not.** Product: 10 requirements (793a2n, 793a2e, 793a3a, 793a4j, 793a4c, 793a4b, 793a5j, 793a5h, 793a5k, 793a5c) and their 44 scenarios, all `Added` operations (the operation sections 793a2 to 793a5 are containers and are not promoted). Technical: 40 requirements (30 behavior requirements of 11 components, 10 interaction requirements of 3 flows) and 69 scenarios, from the sections 793d22 to 793d34 and 793d36. No `Removed` operation exists, and exactly one `Modified` operation remains, [793d31c1 Modified: 792b29a Orientation](./793d_technical-spec.md#793d31c1-modified-792b29a-orientation) (the others, 792b14a, 792b14c5 and the section 793d38, left with [793b419](./793b_decision-log.md#793b419-the---source-flag-of-engram-amend-is-removed-provenance-is-a-parameter-of-the-amend-and-a-near-fold-amends-first-with-a-check-of-the-note)). No product file other than the new one changes: the Modified product operations of 793a6 to 793a9 moved to [#851](https://github.com/toejough/engram/issues/851) ([793b237](./793b_decision-log.md#793b237-the-existing-system-as-is-decision-is-scoped-it-is-not-a-ban-on-modified-operations)), and the line of `note-revision` that [793b399](./793b_decision-log.md#793b399-a-near-fold-carries-a-provenance-line-by-a-new-flag-of-engram-amend) named was never written ([793b419](./793b_decision-log.md#793b419-the---source-flag-of-engram-amend-is-removed-provenance-is-a-parameter-of-the-amend-and-a-near-fold-amends-first-with-a-check-of-the-note)); `install-and-update` is cited by 793a5j and not changed. Not promoted: 793a1 (problem statement, terms), 793d1 to 793d20 (hypotheses H1 and H2, their results and verdicts, the design pointers, the traceability table), 793d21 (the overview), 793d35 (traceability and gaps), and the whole of 793b, 793c and 793e.
+
+**(a) to (b) The file map (source to destination).**
+
+| Source | Destination | Title (H1) | New or existing |
+| --- | --- | --- | --- |
+| `793a_product-spec.md` 793a2 to 793a5 (10 requirements, 44 scenarios) | `docs/specs/product/automatic-memory.md` | `# Automatic Memory - Product Spec` | new |
+| `793d` 793d22 Memory Mod | `docs/specs/technical/memory-mod.md` | `# Memory Mod - Technical Spec` | new |
+| 793d36 Job Runner | `docs/specs/technical/job-runner.md` | `# Job Runner - Technical Spec` | new |
+| 793d23 Moment Detection | `docs/specs/technical/moment-detection.md` | `# Moment Detection - Technical Spec` | new |
+| 793d24 Memory Delivery | `docs/specs/technical/memory-delivery.md` | `# Memory Delivery - Technical Spec` | new |
+| 793d25 Judgement Relay | `docs/specs/technical/judgement-relay.md` | `# Judgement Relay - Technical Spec` | new |
+| 793d26 Secret Redaction | `docs/specs/technical/secret-redaction.md` | `# Secret Redaction - Technical Spec` | new |
+| 793d27 Auto Capture | `docs/specs/technical/auto-capture.md` | `# Auto Capture - Technical Spec` | new |
+| 793d28 Backlog Capture | `docs/specs/technical/backlog-capture.md` | `# Backlog Capture - Technical Spec` | new |
+| 793d29 Auto Curation | `docs/specs/technical/auto-curation.md` | `# Auto Curation - Technical Spec` | new |
+| 793d30 Activity Report | `docs/specs/technical/activity-report.md` | `# Activity Report - Technical Spec` | new |
+| 793d31 Harness Deploy Sync (mod additions): Added 793d31b1 to 793d31b3 | `docs/specs/technical/harness-deploy-sync.md` | title unchanged | existing: the three requirements go under a new heading `## 793d31b Behavior Requirements (mods)` after `792b29c18`; the Modified 792b29a replaces the text of `## 792b29a Orientation` with the complete text of 793d31c1 |
+| 793d32 Moment Delivery Flow | `docs/specs/technical/moment-delivery-flow.md` | `# Moment Delivery Flow - Technical Spec` | new |
+| 793d33 Turn Memory Work Flow | `docs/specs/technical/turn-memory-work-flow.md` | `# Turn Memory Work Flow - Technical Spec` | new |
+| 793d34 Mod Install Flow | `docs/specs/technical/mod-install-flow.md` | `# Mod Install Flow - Technical Spec` | new |
+| Terms of 793a1 and 793d1b that the promoted text links (26 terms) | `docs/GLOSSARY.md`, a new section `## Automatic memory` before `## CLI conventions` | | existing |
+
+13 new technical files (10 components and 3 flows), 1 new product file, 2 existing files edited (`harness-deploy-sync.md`, `GLOSSARY.md`). The component files keep the requirement IDs `793d22b1` and so on; the filenames carry no ID.
+
+**(c) What is stripped, and what is rewritten.** Every item has a command in the verification table below.
+
+| Item | Rule |
+| --- | --- |
+| Operation headings and containers | Delete the `## 793a2` to `## 793a5` "Added: automatic-memory" headings, every `Canonical target:` line (4 in the product spec, 14 in the technical spec), 793d31a (the target paragraph) and 793d31c (the Modified section after its text is applied to 792b29a). Lift every remaining heading one level (`###` to `##`, `####` to `###`, `#####` to `####`) so a requirement group sits under the file's `#` title as in the existing canonical files; the IDs and so the anchors do not change. |
+| Product introduction | The product file opens with a short context paragraph (what automatic memory is, the two channels, the success test) written from 793a1; no measured evidence, no issue numbers, no "Not promised here", no "Preferences", no Terms list. |
+| Rationale history | Keep the reason in one or two sentences, drop history ([Rationale at Promotion](../../SPECIFICATION-LIFECYCLE-GUIDE.md#rationale-at-promotion)). Reword: in the product text 793a2n ("the change is who does it") and 793a4b ("the owner wants to know ..." with its 793b185 link); in the technical text 793d24b4 (the "regression" and the 8.5 s measurement) and 793d28b1 ("which replaced a file of unfinished captures" and the test names). The other `Rationale:` lines (7 in the product text, 9 in the technical text, among them the residual risks the owner accepted in 793d25a) hold no history and stay. The Hypothesis conclusions (H1: positive, H2: mixed with unexpected advantages) survive only as the `Rationale:` lines that already exist under the tier and the mod requirements (793d22b1, 793d25b1); the verdict sections do not. |
+| Links to the change record | Delete every link to `793b_`, `793c_` and `793e_` (2 in the product text: 793a2n's 793c15 and 793a4b's 793b185; 5 in the technical text: 793d23b2's Known limit, 793d24b1's 793b408, 793d24b4's 793c15 and 793b425, 793d28b1's 793b416) and the clause that cites them. Keep the sentence it supports. |
+| Known limit of 793d23b2 | Keep the line, without the link to 793b426: "Known limit: the classification runs on the cheapest tier and for about one acceptance run in five of 793a2n1a it names no moment, so no note is delivered at the step; decided by the owner." It is context for the reader, not a residual risk, and not a `Rationale:` (it is not history). |
+| Terms | The 225 term links (65 in the product text to `#793a1-problem-statement`, 67 in the technical text to `./793a_product-spec.md#793a1-problem-statement`, 93 to `#793d1b-terms`) point at lists that are not promoted. They become links to `docs/GLOSSARY.md#<anchor>` of the section `## Automatic memory`: automatic memory, intentional memory, System (automatic memory) (`#system-automatic-memory`), working agent, moment, lesson, delivery, context, memory command, note, mod, job, round, judgement, window, block, nearest notes, status line, burst, ledger, mark file, housekeeping, cue, backlog source, cut-off, stub. `vault`, `offer`, `session`, `transcript`, `harness`, `skill` and `subagent` already have glossary entries. Definitions are the 793a1 and 793d1b texts, edited only for the removed context; the experiment terms of 793d1b (settings hook, surface, hook budget, stand-in command, probe, session model, cheapest tier, `judgeTiers`, fixture set, gold label, margin, noise) are not used by the promoted text and are not promoted. |
+| Product anchors from the technical files | `./793a_product-spec.md#793aXX...` (125 links) become `../product/automatic-memory.md#793aXX...`. The `Supports:` label text (`[793a2n1a Recall happens ...]`) is unchanged, which is what `dev/acceptance/gates/spec.js` reads. |
+| Cross-component links | A link `#793dNN...` (46) to a section now in another file becomes `./<file>.md#<same anchor>`; a link to the component as a whole (`#793d22-memory-mod`) becomes `./memory-mod.md`. The file by section: 22 memory-mod, 36 job-runner, 23 moment-detection, 24 memory-delivery, 25 judgement-relay, 26 secret-redaction, 27 auto-capture, 28 backlog-capture, 29 auto-curation, 30 activity-report, 31 harness-deploy-sync, 32 moment-delivery-flow, 33 turn-memory-work-flow, 34 mod-install-flow. A link within the same file stays `#anchor`. |
+| Canonical links | `../../specs/product/X.md` becomes `./X.md` in the product file and `../product/X.md` in technical files; `../../specs/technical/X.md` becomes `./X.md` in technical files and `../technical/X.md` in the product file; `../../GLOSSARY.md` links are unchanged (same depth). |
+| Security lines and the map | `Security:` lines stay, their links rewritten as above (the targets `793d25a`, `793d26b1`, `793d25b2`, `793d27b2`, `793d29b2` are promoted); the map of mitigations stays in the Orientation of `judgement-relay.md` with its residual-risk statement, where the gate `checkSecurity` reads it. The change-record section 793d19a (how the statement came to be) is not promoted. |
+| `Supports:`, `Verified by:`, `Realization:` | Kept as they are, with the links rewritten; they are what `targ check-spec-conformance` reads and what lets a reader find the direct contract test of each requirement. |
+| Orientation | Each component's Orientation gains two lines in the form of the existing canonical files, from [793b358](./793b_decision-log.md#793b358-the-components-that-qualify-and-the-candidates-that-fail): `Qualification:` (the five criteria in a sentence) and `Supported capabilities:` (a link to `automatic-memory.md`). The text of the Orientation is otherwise kept. |
+| Flow diagrams | The Mermaid diagrams of 793d32a, 793d33a and 793d34a are promoted as they are: they already show the final system with no added or removed treatment (checked: no `classDef`, no `:::`), and IDs on arrows only. The `# acceptance rows:` comment lines of the scenarios (28) stay: they tie each flow scenario to the acceptance rows. |
+| 793d35 Traceability and gaps | Not promoted. The product-to-technical table is the union of the `Supports:` lines. The gaps move to the closing comment (below); the three that are enduring context are already in the promoted text (the cue's Known limit, the killed-session residual in 793d28b1's Rationale, the Pi rows in the closing comment only). |
+
+**(d) Gates and harness retargeting.** Only two places read the change directory; no `793` literal in `dev/` or the tests names a path that survives the deletion except these:
+
+| File | Change at promotion |
+| --- | --- |
+| `dev/acceptance/lib/extract.js` | Remove `CHANGE_DIRECTORY`, `PRODUCT_CHANGE_FILE`, `TECHNICAL_CHANGE_FILE`, `changeDirectory` and `present`; `productSpecFiles` is `markdownFiles(PRODUCT_DIRECTORY)`; `technicalSpecFiles` is the canonical files that hold a `## 793d<number>` section (the lifted headings `## 793d22a Orientation` and the rest match the existing `TECHNICAL_SECTION`); update the header comment. `ENGRAM_SPEC_ROOT` stays. |
+| `dev/acceptance/test/extract.test.js` | Delete "while the change exists, its specs are read as well as the canonical files" (reads `793a_product-spec.md`), "a scenario that the change and a canonical file both hold is read once" (builds `docs/changes/793_parallel-memory-agent`), and the `changeDirectory` assertion and import in the "after promotion the product scenarios" test. |
+| `dev/acceptance/test/self/vocabulary.test.js` | Delete `CHANGE`, `SKIP_WITHOUT_CHANGE`, the `changeDirectory` import and the test "the step catalog of the plan lists the same 30 definitions" (it reads `793e_implementation-plan.md`); the other test of the file (44 scenarios, 52 runs, 30 definitions, none unused) stays. |
+| `dev/acceptance/gates/spec.js`, `run.js` | Comment only: "the change directory, or the canonical files after promotion" becomes "the canonical files". `run.js` reads the specs through `extract.js` and needs no other change. |
+| `dev/acceptance/gates/budgets.json` | No path in it names the change; the `reference` and `basis` strings cite decisions (793b368, 793b369, 793b417 ...) and stay. |
+
+The comments and test names of the code cite 793b, 793c and 793e IDs 229 times in 95 files (and 793a and 793d IDs 503 times). The 793a and 793d IDs resolve in the canonical files and do not change; the 793b/793c/793e citations resolve through git history only after the deletion ([793b427](./793b_decision-log.md#793b427-the-promotion-plan-of-793e8r-and-the-decisions-it-takes), decision 2), so the closing comment records the last commit that holds the directory.
+
+**(e) Test names.** No test is renamed. The Go tests (`Test793d..._...`), the mod's tests (`wiring.test.ts` names), the acceptance rows (793a IDs) and the harness self-tests keep the IDs of the requirements they verify, which are the canonical IDs. The suite is the same before and after (the only tests removed are the three of the table above).
+
+**(f) The closing comment on [#793](https://github.com/toejough/engram/issues/793)** (posted after the merge reaches `main` and the owner has pushed; the final commit carries `Fixes #793`). Draft, to be completed with the hashes:
+
+> **Automatic memory (the System) is merged.** Product spec `docs/specs/product/automatic-memory.md` (10 requirements, 44 scenarios), technical specs: 10 component files and 3 flow files under `docs/specs/technical/` (40 requirements) and three requirements added to `harness-deploy-sync.md`. The change record (decision log 793b, open questions 793c, the plan 793e, the hypothesis sections) was deleted with `docs/changes/793_parallel-memory-agent/`; it is in git at `<last commit holding it>`.
+>
+> **Intent.** engram remembers for the agent: relevant notes arrive at the moments recall should fire, lessons are captured without the agent, housekeeping runs after the turn, the session is never broken, and the user sees one summary line; intentional memory is unchanged in every harness. Claude Code only, installed by `engram update`.
+>
+> **Hypotheses and the owner's conclusions.** H1 (a mod gives a smaller surface and more capability than settings hooks): surface clause not supported (94 against 107), capability 9 of 9 on both; owner: "more capable in terms of ui ... more efficient. I'd call that a positive result"; the Claude Code side stays a mod. H2 (the cheapest capable model is adequate for every judgement, faster and cheaper): cheaper 10 to 15 times, not faster, agreement at or above sonnet's in three kinds; owner: a mixed result with unexpected advantages; every judgement runs on haiku at the lowest accepted effort; H2 closed.
+>
+> **Decisions of note.** Minimal product set of 10 requirements (793b182); the System is a mod plus a Go engine with the logic in Go and the mod a thin adapter (793b189, 793b368); judgements relayed through the mod's model call (793b196); the engine calls the commands' code in process (793b417); persisted capture queue dropped, Backlog Capture covers it (793b416); `engram amend --source` removed, near fold amends first with a check (793b419, 793b420); chunk stubs delivered through a background lookup (793b425); relevance prompt fenced (793b424); live rows that depend on a judgement pass at 9 of 10 runs (793b421), with row 793a2n1a a recorded limit of about 0.8 (793b426); residual risks ratified (793b324).
+>
+> **Removed from the change.** The persisted queue, the `--source` flag and the Modified operations 792b14a and 792b14c5, the section 793d38, the fault shims (a harness-only seam replaced them), and the product requirements 793a6 to 793a9 (moved to #851).
+>
+> **Not verified.** 793a5j1d and 793a5c1b are `Not run`: there is no headless Pi. Judgement quality is not a contract. Known gaps: a session killed before its last capture waits for Backlog Capture (about 15 minutes); `internal/auto` reads transcript rows itself and not through the Transcript Reader; the origins of a prompt other than the SDK's are covered by one acceptance row.
+>
+> **Follow-ups.** [#850](https://github.com/toejough/engram/issues/850) measurement and evaluation; [#851](https://github.com/toejough/engram/issues/851) remove redundant agent-side memory steps; [#852](https://github.com/toejough/engram/issues/852) recall moments inside a subagent's own loop; [#853](https://github.com/toejough/engram/issues/853) `engram learn` reconciles against the vault; [#854](https://github.com/toejough/engram/issues/854) chunk-index scan cost.
+
+**(g) Deletion and the merge to `main`.** The deletion is `git rm -r docs/changes/793_parallel-memory-agent` in the same integration as the canonical files; `docs/changes/795_vault-init-command` and `docs/changes/796_controlled-vault-readme` are other changes and stay. The branch `docs/parallel-memory-agent-requirements` is 203 commits ahead of `main` and `main` has nothing it lacks at the tip. Protocol ([AGENTS.md](../../../AGENTS.md#worktree--merge-rules)): the promotion and its review finish on the branch; rebase on `main` if `main` moved and run `targ check-full` and the full `targ acceptance` once more; then `git merge --ff-only` from `main`. Nothing is pushed by the promotion; the push, the closing comment and the closing of #793 are the owner's.
+
+The rows:
+
+| Work | Classification | Why | Status |
+| --- | --- | --- | --- |
+| 793e8r1a The owner's walkthrough of the packet of decisions (components 793d21 to 793d36, and the 793b entries from 360 marked "awaiting owner validation" that change behavior); each is marked validated or changed in the log | Review | the owner's time is one walkthrough, and promotion carries the validated text | Not started |
+| 793e8r1b The glossary section `## Automatic memory`: the 26 terms, from the texts of 793a1 and 793d1b | Setup | the term links of the promoted text need a target that outlives the change | Not started |
+| 793e8r1c `docs/specs/product/automatic-memory.md` from 793a2 to 793a5, by the rules of (c) | Setup | atomic promotion, product deltas | Not started |
+| 793e8r1d The ten component files and `harness-deploy-sync.md` (the Added 793d31b1 to 793d31b3 and the Modified 792b29a) | Setup | atomic promotion, technical deltas | Not started |
+| 793e8r1e The three flow files | Setup | atomic promotion, technical deltas, with the diagrams in their final state | Not started |
+| 793e8r1f Retarget `extract.js` and its two tests, and the comments of the two gates | Refactor (gate: guard) | the gates stop reading a directory that is deleted; the guard is that they read the same requirements and scenarios from `docs/specs` alone | Not started |
+| 793e8r1g Scrub: root `AGENTS.md` (the tree gains `agent-instructions/mods/engram-memory/` and `dev/acceptance/`; Key Files gain `docs/specs/product/automatic-memory.md`), `docs/ROADMAP.md` (a Shipped row for #793 with its follow-ups), `docs/GLOSSARY.md` | Setup | a removal or addition is not done until the documents that name the old state are updated | Not started |
+| 793e8r1h Validate against `docs/specs` alone, before the deletion | Review | the lifecycle checklist: stable IDs, traceability, Gherkin coverage and links | Not started |
+| 793e8r1i Review of the promotion by a fresh-context agent, findings answered in the log | Review | [Specification Lifecycle Guide](../../SPECIFICATION-LIFECYCLE-GUIDE.md#change-phases): the refactor review precedes promotion; it is the last review before the merge | Not started |
+| 793e8r1j Delete `docs/changes/793_parallel-memory-agent`; the gates and the full acceptance run on the tree without it | Setup | the change directory is deleted in the same integration | Not started |
+| 793e8r1k Rebase on `main`, run the gates again, `git merge --ff-only`; the closing comment is handed to the owner | Setup | worktree and merge rules | Not started |
+
+The verification of the rows (every command is run from the repository root; `PRE` is the commit before the first promotion edit; `$ROOT` is a scratch directory made by `mktemp -d`):
+
+| Row | Command | Expected |
+| --- | --- | --- |
+| 793e8r1b | `grep -c '^### ' docs/GLOSSARY.md` before and after; `python3 -I <link check> docs/GLOSSARY.md` | 26 more entries; no broken anchor |
+| 793e8r1c, d, e | the ID check below | the sets are equal: 50 requirements (10 product, 40 technical) and 113 scenarios (44 product, 69 technical), none added, none lost, none renamed |
+| 793e8r1c, d, e | `grep -rnE '793[bce]_\|docs/changes\|#793a1-problem-statement\|#793d1b-terms\|Canonical target\|Added:' docs/specs/product/automatic-memory.md docs/specs/technical/{memory-mod,job-runner,moment-detection,memory-delivery,judgement-relay,secret-redaction,auto-capture,backlog-capture,auto-curation,activity-report,moment-delivery-flow,turn-memory-work-flow,mod-install-flow}.md docs/specs/technical/harness-deploy-sync.md` | no output |
+| 793e8r1c, d, e | `grep -nE '[0-9]{4}-[0-9]{2}-[0-9]{2}\|regression\|measured\|owner' <the same files>` | the only hit is the Known limit of `moment-detection.md` ("decided by the owner") and the "owner" in `judgement-relay.md` Orientation ("The owner accepts the risks that remain"), which states a current acceptance and keeps no date |
+| 793e8r1c, d, e | `grep -nE '^#{2,6} ' docs/specs/product/automatic-memory.md docs/specs/technical/{memory-mod,job-runner,moment-detection,memory-delivery,judgement-relay,secret-redaction,auto-capture,backlog-capture,auto-curation,activity-report,moment-delivery-flow,turn-memory-work-flow,mod-install-flow}.md \| grep -vE ':[0-9]+:#{2,6} 793[ad][0-9a-z]+ '` | no output: every heading of the 14 new files starts with its ID |
+| 793e8r1c, d, e | `python3 -I <link check> docs/specs docs/GLOSSARY.md AGENTS.md docs/ROADMAP.md` | `problems: 0` |
+| 793e8r1d | `sed -n '/^## 792b29a Orientation/,/^## 792b29c /p' docs/specs/technical/harness-deploy-sync.md \| grep -c 'mods of `agent-instructions/mods`\|planModCopies'`; `grep -c '^### 793d31b[123] ' docs/specs/technical/harness-deploy-sync.md` | 2 lines (the Responsibility and the realization of the replacement text) and 3 requirement headings |
+| 793e8r1e | `grep -c 'sequenceDiagram' docs/specs/technical/{moment-delivery-flow,turn-memory-work-flow,mod-install-flow}.md` | 1 each; every ID on an arrow exists in the files (the ID check run over the arrows) |
+| 793e8r1f | `ENGRAM_SPEC_ROOT=$ROOT node dev/acceptance/gates/run.js spec` where `$ROOT/docs/specs` is a copy of `docs/specs` and nothing else; `ENGRAM_SPEC_ROOT=$ROOT node dev/acceptance/run.js --dry-run` | `spec conformance: 40 requirements, 27 mod tests, 0 problems` and `vocabulary: 44 scenarios (52 runs), 30 definitions, 0 undefined, 0 ambiguous` (the same numbers as at the tip) |
+| 793e8r1f | `node --test dev/acceptance/test/` | 100 tests pass at the tip and 97 after the edit; the three deleted tests are the only difference |
+| 793e8r1g | `grep -n 'agent-instructions/mods\|dev/acceptance' AGENTS.md`; `grep -n '#793' docs/ROADMAP.md` | the tree names both; the roadmap has the row |
+| 793e8r1h | the checks above, on the tree where the change directory still exists | all green |
+| 793e8r1i | the review's findings and their answers | none open |
+| 793e8r1j | `git rm -r docs/changes/793_parallel-memory-agent`; `ls docs/changes` | `795_vault-init-command` and `796_controlled-vault-readme` only |
+| 793e8r1j | `targ check-full`; `targ test`; `targ acceptance --check`; `node dev/acceptance/gates/run.js spec`; the full `targ acceptance` once | `check-full` 19 of 19 PASS; the spec gate and the self-tests as at the tip; the full run has no Red but the exception list of [793e9](#793e9-completion-gates) (793a2n1a), no undefined or ambiguous step, and the `Not run` rows 793a5j1d and 793a5c1b |
+| 793e8r1j | `grep -rnE '793[bce]_\|docs/changes/793' . --include='*.go' --include='*.js' --include='*.ts' --include='*.json' --include='*.md' --exclude-dir=node_modules --exclude-dir=.git` | no output |
+| 793e8r1k | `git rev-list --count HEAD..main`; after a rebase the commands of row j; `git merge --ff-only docs/parallel-memory-agent-requirements` run on `main` | 0 or the rebased tip passes again; the merge is a fast-forward |
+
+The scripts the verification uses (written to a scratch directory, not to the repository):
+
+```python
+# ID check: python3 -I idsets.py before PRE > before.txt ; python3 -I idsets.py after > after.txt ; diff before.txt after.txt
+import re, subprocess, sys, glob
+LINE = re.compile(r'^(Requirement|Scenario(?: Outline)?): \[?(793[ad][0-9a-z]+)', re.M)
+def ids(text): return {(kind.split()[0], ident) for kind, ident in LINE.findall(text)}
+def show(sha, path): return subprocess.run(['git', 'show', f'{sha}:{path}'], check=True, capture_output=True, text=True).stdout
+def promoted(text):  # sections 793d22 to 793d34 and 793d36
+    return '\n'.join(p for p in re.split(r'(?m)^(?=## 793d\d+ )', text)
+                     if (m := re.match(r'## 793d(\d+) ', p)) and 22 <= int(m.group(1)) <= 36 and m.group(1) != '35')
+if sys.argv[1] == 'before':
+    base = 'docs/changes/793_parallel-memory-agent/'
+    got = ids('## 793a2 ' + show(sys.argv[2], base + '793a_product-spec.md').split('## 793a2 ', 1)[1]) | ids(promoted(show(sys.argv[2], base + '793d_technical-spec.md')))
+else:
+    got = set()
+    for path in glob.glob('docs/specs/product/automatic-memory.md') + glob.glob('docs/specs/technical/*.md'): got |= ids(open(path).read())
+for kind in ('Requirement', 'Scenario'): print(kind, sum(1 for k, _ in got if k == kind))
+for item in sorted(got): print(*item)
+```
+
+The link check is the one used for the change directory so far (every relative link must name an existing file and, with a fragment, an existing heading by the GitHub anchor rule, links in code fences skipped); it is rerun over `docs/specs`, `docs/GLOSSARY.md`, `AGENTS.md` and `docs/ROADMAP.md`.
 
 ## 793e9 Completion gates
 
