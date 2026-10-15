@@ -219,6 +219,7 @@ These are the author's choices so far. They are not requirements of this spec an
 - **The round protocol, with a Go side that keeps no state:** dropped for the PoC by [793b256 The PoC orchestrates in JavaScript inside the mod over the existing engram commands](./793b_decision-log.md#793b256-the-poc-orchestrates-in-javascript-inside-the-mod-over-the-existing-engram-commands); it was [793b197 The Go side is stateless and advances a job one round per call](./793b_decision-log.md#793b197-the-go-side-is-stateless-and-advances-a-job-one-round-per-call).
 - **Relevance, the item limit and the wording of the instruction:** [793b198 Relevance, item limit, chunk content and the wording of the instruction](./793b_decision-log.md#793b198-relevance-item-limit-chunk-content-and-the-wording-of-the-instruction).
 - **Capture:** the window and the redaction (the [System](./793a_product-spec.md#793a1-problem-statement)'s own blocks are attachment rows and never in `$.session.messages()`, so nothing is stripped, [793b319 The PoC drops the code and the references of what does not exist](./793b_decision-log.md#793b319-the-poc-drops-the-code-and-the-references-of-what-does-not-exist)) [793b199 The capture window, redaction and the System's own blocks](./793b_decision-log.md#793b199-the-capture-window-redaction-and-the-systems-own-blocks); reconciliation [793b200 Reconciliation is covered or absent; dispatch outcomes are deduplicated mechanically](./793b_decision-log.md#793b200-reconciliation-is-covered-or-absent-dispatch-outcomes-are-deduplicated-mechanically); curation [793b201 Curation follows curate's table, including the skill-runbook case](./793b_decision-log.md#793b201-curation-follows-curates-table-including-the-skill-runbook-case); the index [793b202 The chunk index is brought up to date with engram ingest --auto after the turn's other work](./793b_decision-log.md#793b202-the-chunk-index-is-brought-up-to-date-with-engram-ingest---auto-after-the-turns-other-work).
+- **The index catches up in slices, and a cut run is normal on first install:** [793b428 Dogfooding: the chunk index of the owner's machine never caught up, so the backlog capture never ran](./793b_decision-log.md#793b428-dogfooding-the-chunk-index-of-the-owners-machine-never-caught-up-so-the-backlog-capture-never-ran), [793b429 The ingest persists its manifest as it goes, works the newest sources first, and an automatic ingest skips when another holds the lock](./793b_decision-log.md#793b429-the-ingest-persists-its-manifest-as-it-goes-works-the-newest-sources-first-and-an-automatic-ingest-skips-when-another-holds-the-lock), [793b430 The backlog reports an index that is not caught up; the first catch-up is not a separate job](./793b_decision-log.md#793b430-the-backlog-reports-an-index-that-is-not-caught-up-the-first-catch-up-is-not-a-separate-job). The first `engram ingest --auto` of a machine with a large history is cut by the deadline of the index (300 seconds) and that is normal: it keeps what it indexed, and each turn's housekeeping continues from there until the index has caught up.
 - **Background work, the activity line and failures:** [793b203 Background work is one in-memory queue, and a final turn can be lost on exit](./793b_decision-log.md#793b203-background-work-is-one-in-memory-queue-and-a-final-turn-can-be-lost-on-exit), [793b204 The memory-activity line is the mod's status line](./793b_decision-log.md#793b204-the-memory-activity-line-is-the-mods-status-line), [793b205 Failures are classified by the mod and the runner, with named deadlines](./793b_decision-log.md#793b205-failures-are-classified-by-the-mod-and-the-runner-with-named-deadlines).
 - **Backlog capture, the watermark and coexistence with intentional ingestion:** [793b231 Backlog capture: the System captures lessons from any swept session transcript after the fact](./793b_decision-log.md#793b231-backlog-capture-the-system-captures-lessons-from-any-swept-session-transcript-after-the-fact), [793b232 Backlog capture is a watermark per transcript source and a scan after each turn's own capture, and the $.store queue is dropped](./793b_decision-log.md#793b232-backlog-capture-is-a-watermark-per-transcript-source-and-a-scan-after-each-turns-own-capture-and-the-store-queue-is-dropped), [793b233 Choices made in applying 793b232, shown to the owner](./793b_decision-log.md#793b233-choices-made-in-applying-793b232-shown-to-the-owner), [793b234 Intentional ingestion in other harnesses continues; the System coexists with it through the write lock](./793b_decision-log.md#793b234-intentional-ingestion-in-other-harnesses-continues-the-system-coexists-with-it-through-the-write-lock).
 - **Validating the mod through the existing integration gate:** [793b236 The mod is validated and tested through the existing integration gate, not a new check target](./793b_decision-log.md#793b236-the-mod-is-validated-and-tested-through-the-existing-integration-gate-not-a-new-check-target).
@@ -448,11 +449,11 @@ Scenario: 793d36b2a1 A command is not run again by a later round
 
 #### 793d36b3 Failure containment and classes
 
-Requirement: 793d36b3 The Job Runner MUST contain the failure of every step of a [job](#793d1b-terms) (an operation of the vault that fails or passes its deadline, output that is not a query's, a reply the strict reading rejects, an unanswered model call, a thrown error) as a warning in the response naming the step and its class, and the job MUST end as without the [mod](#793d1b-terms). A failure whose text says it was cut or timed out is `timeout`, one that says the [vault](./793a_product-spec.md#793a1-problem-statement) could not be read is `unavailable`, any other is `error`. Every operation of the vault MUST have a deadline (30 seconds; the index 300; the lookup of a [moment](./793a_product-spec.md#793a1-problem-statement) that holds the agent 2.2, at least one and a half times the 95th percentile of the query of the notes; the lookup with the chunk index 25; the [nearest notes](#793d1b-terms) of a capture or an offer 25) and every model request its own (classify 4, relevance 5.8), and the deadlines of a prompt's lookup and relevance [judgement](#793d1b-terms) MUST add up to no more than the 8 seconds the Memory Mod holds a prompt ([793d22b3 Failure containment](#793d22b3-failure-containment)). A lookup that finds nothing is not a failure. A failure of the [System](./793a_product-spec.md#793a1-problem-statement)'s own bookkeeping, the marks, MUST go to the debug log and warn no one.
+Requirement: 793d36b3 The Job Runner MUST contain the failure of every step of a [job](#793d1b-terms) (an operation of the vault that fails or passes its deadline, output that is not a query's, a reply the strict reading rejects, an unanswered model call, a thrown error) as a warning in the response naming the step and its class, and the job MUST end as without the [mod](#793d1b-terms). A failure whose text says another ingest holds the manifest lock is `busy` (warned as "another indexing is running"), one whose text says it was cut or timed out is `timeout`, one that says the [vault](./793a_product-spec.md#793a1-problem-statement) could not be read is `unavailable`, any other is `error`; a backlog that finds the index not caught up ([793d28b1 Eligible sources and cut-off](#793d28b1-eligible-sources-and-cut-off)) is warned as `behind`. Every operation of the vault MUST have a deadline (30 seconds; the index 300; the lookup of a [moment](./793a_product-spec.md#793a1-problem-statement) that holds the agent 2.2, at least one and a half times the 95th percentile of the query of the notes; the lookup with the chunk index 25; the [nearest notes](#793d1b-terms) of a capture or an offer 25) and every model request its own (classify 4, relevance 5.8), and the deadlines of a prompt's lookup and relevance [judgement](#793d1b-terms) MUST add up to no more than the 8 seconds the Memory Mod holds a prompt ([793d22b3 Failure containment](#793d22b3-failure-containment)). A lookup that finds nothing is not a failure. A failure of the [System](./793a_product-spec.md#793a1-problem-statement)'s own bookkeeping, the marks, MUST go to the debug log and warn no one.
 
 Supports: [793a4b1a Vault unavailable](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1c No error reaches the agent and the user is warned](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1e No warning when nothing matched](./793a_product-spec.md#793a4b1-uat-scenarios)
 
-Verified by: `internal/auto/failure_test.go`: Test793d36b3_AFailedStepIsContainedAndTheUserIsWarnedOfItsClass, Test793d36b3_AFailingBacklogStepIsWarnedAboutNamingTheStep, Test793d36b3_AFailingIndexAndAFailingScanEachWarnNamingTheStepAndTheQueueGoesOn, Test793d36b3_AFailingJobDoesNotStopTheNextJob, Test793d36b3_ALookupThatFindsNothingIsNotAFailure, Test793d36b3_ARelevanceJudgementThatIsCutIsATimeoutAndOneTheProviderRefusedIsAnErrorNeitherDelivers, Test793d36b3_AnUnparseableRelevanceJudgementIsAnErrorAndDeliversNothing, Test793d36b3_TheClassOfAFailureIsWhatTheTextOfTheCommandSays, Test793d36b3_TheWarningIsInTheWarningsAndNeverInWhatTheJobDelivers; `internal/auto/moment_test.go`: Test793d36b3_ACommandThatPassesItsDeadlineWarnsThatTheSystemTimedOut, Test793d36b3_AFailingClassificationWarnsDeliversNothingAndLetsTheSessionGoOn, Test793d36b3_AFailingLookupOfRouteDeliversNothingAndWarns, Test793d36b3_AFailingQueryLeavesThePromptAsTypedAndWarns, Test793d36b3_AJobOfAnUnknownKindAndAJobThatCannotBeReadAreErrors, Test793d36b3_AJudgementThatIsUnansweredWarnsAndDeliversNothing, Test793d36b3_AQueryOutputThatIsNotAQueryIsAnErrorNeverAnEmptyResult, Test793d36b3_TheLookupAndTheRelevanceJudgementHoldThePromptEightSecondsAtMost; `internal/auto/perf_test.go`: Test793d36b3_APromptAtThe95thPercentileStillGetsItsNoteWithinTheHoldCeiling, Test793d36b3_TheDeadlineOfAMomentQueryIsAtLeastOneAndAHalfTimesItsMeasuredPercentile; `internal/cli/auto_vault_test.go`: Test793d36b3_AutoVaultAFailureCarriesWhatTheCodeOfTheCommandSaid, Test793d36b3_AutoVaultAnOperationPastItsDeadlineIsCutAndSaysItWasStillRunning
+Verified by: `internal/auto/failure_test.go`: Test793d36b3_AFailedStepIsContainedAndTheUserIsWarnedOfItsClass, Test793d36b3_AFailingBacklogStepIsWarnedAboutNamingTheStep, Test793d36b3_AFailingIndexAndAFailingScanEachWarnNamingTheStepAndTheQueueGoesOn, Test793d36b3_AFailingJobDoesNotStopTheNextJob, Test793d36b3_AnIndexAnotherRunHoldsIsSkippedWithItsOwnWarningAndTheQueueGoesOn, Test793d36b3_ALookupThatFindsNothingIsNotAFailure, Test793d36b3_ARelevanceJudgementThatIsCutIsATimeoutAndOneTheProviderRefusedIsAnErrorNeitherDelivers, Test793d36b3_AnUnparseableRelevanceJudgementIsAnErrorAndDeliversNothing, Test793d36b3_TheClassOfAFailureIsWhatTheTextOfTheCommandSays, Test793d36b3_TheWarningIsInTheWarningsAndNeverInWhatTheJobDelivers; `internal/auto/moment_test.go`: Test793d36b3_ACommandThatPassesItsDeadlineWarnsThatTheSystemTimedOut, Test793d36b3_AFailingClassificationWarnsDeliversNothingAndLetsTheSessionGoOn, Test793d36b3_AFailingLookupOfRouteDeliversNothingAndWarns, Test793d36b3_AFailingQueryLeavesThePromptAsTypedAndWarns, Test793d36b3_AJobOfAnUnknownKindAndAJobThatCannotBeReadAreErrors, Test793d36b3_AJudgementThatIsUnansweredWarnsAndDeliversNothing, Test793d36b3_AQueryOutputThatIsNotAQueryIsAnErrorNeverAnEmptyResult, Test793d36b3_TheLookupAndTheRelevanceJudgementHoldThePromptEightSecondsAtMost; `internal/auto/perf_test.go`: Test793d36b3_APromptAtThe95thPercentileStillGetsItsNoteWithinTheHoldCeiling, Test793d36b3_TheDeadlineOfAMomentQueryIsAtLeastOneAndAHalfTimesItsMeasuredPercentile; `internal/cli/auto_vault_test.go`: Test793d36b3_AutoVaultAFailureCarriesWhatTheCodeOfTheCommandSaid, Test793d36b3_AutoVaultAnOperationPastItsDeadlineIsCutAndSaysItWasStillRunning
 
 ##### 793d36b3a Scenarios
 
@@ -806,11 +807,11 @@ Ownership: repository component. Responsibility: captures the [lessons](./793a_p
 
 #### 793d28b1 Eligible sources and cut-off
 
-Requirement: 793d28b1 After a top-level turn's [housekeeping](#793d1b-terms) has brought the chunk index's manifest up to date, Backlog Capture MUST list the manifest's `.jsonl` entries that are neither a [subagent](../../GLOSSARY.md#subagent)'s [transcript](../../GLOSSARY.md#transcript) nor a duplicate, leaving out the live [session](../../GLOSSARY.md#session)'s file, a source changed in the last 15 minutes, one whose recorded hash is its present hash, and a session whose turns the [System](./793a_product-spec.md#793a1-problem-statement) captured itself unless the source changed more than 10 seconds after that capture. At its first run it MUST record once the install time and a [cut-off](#793d1b-terms) of that time minus 7 days in the [mark file](#793d1b-terms); no source is eligible before one is recorded, one changed before the cut-off MUST NOT be captured, and one changed after it MUST stay eligible until captured, however long the machine was idle. It MUST take the most recently changed first, look at no more than 20 and capture at most one a turn. An absent manifest is an empty backlog. The manifest and marks are in `ENGRAM_CHUNKS_DIR`, else the data directory's `chunks`.
+Requirement: 793d28b1 After a top-level turn's [housekeeping](#793d1b-terms) has brought the chunk index's manifest up to date, Backlog Capture MUST list the manifest's `.jsonl` entries that are neither a [subagent](../../GLOSSARY.md#subagent)'s [transcript](../../GLOSSARY.md#transcript) nor a duplicate, leaving out the live [session](../../GLOSSARY.md#session)'s file, a source changed in the last 15 minutes, one whose recorded hash is its present hash, and a session whose turns the [System](./793a_product-spec.md#793a1-problem-statement) captured itself unless the source changed more than 10 seconds after that capture. At its first run it MUST record once the install time and a [cut-off](#793d1b-terms) of that time minus 7 days in the [mark file](#793d1b-terms); no source is eligible before one is recorded, one changed before the cut-off MUST NOT be captured, and one changed after it MUST stay eligible until captured, however long the machine was idle. It MUST take the most recently changed first, look at no more than 20 and capture at most one a turn. An absent manifest is an empty backlog. When the manifest holds sessions and the most recently changed of them changed before the cut-off, the index has not caught up: Backlog Capture MUST capture nothing and MUST warn `the index is not caught up (the backlog capture)`, and write `backlog: index not caught up` to the debug log, instead of finding nothing silently. The manifest and marks are in `ENGRAM_CHUNKS_DIR`, else the data directory's `chunks`.
 
 Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5c1c A captured Pi session's transcript is left unchanged](./793a_product-spec.md#793a5c1-uat-scenarios)
 
-Verified by: `internal/auto/backlog_test.go`: Test793d28b1_ABrokenManifestOrMarkFileIsReportedAndNothingIsCaptured, Test793d28b1_AMarkFileWithNoCutoffGetsOneAndKeepsItsMarks, Test793d28b1_ASourceMayStillBeRunningIsNotCaptured, Test793d28b1_ASourceThatGrewSinceItWasMarkedIsCapturedAgain, Test793d28b1_ASourceWhoseHashTheMarkHoldsIsNotCapturedAgain, Test793d28b1_AtMostOneSourceIsCapturedPerTurnTheMostRecentlyChangedFirst, Test793d28b1_AtMostTwentySourcesAreLookedAtInOneTurn, Test793d28b1_NoManifestIsAnEmptyBacklogNotAnError, Test793d28b1_OneQuietSourceIsCapturedThenMarked, Test793d28b1_TheCutoffDoesNotRollWhateverTheIdleTime, Test793d28b1_TheCutoffIsAFixedPointARunRecordsAndNotAWindow, Test793d28b1_TheCutoffIsRecordedOnceEvenByAFirstRunWithNothingToCapture, Test793d28b1_WhatIsNotASessionTranscriptIsNotASource; `internal/auto/golden_test.go`: Test793d28b1_TheSourcesToCaptureAreTheQuietOnesAfterTheCutoff; `internal/cli/auto_test.go`: Test793d28b3_TheChunksDirectoryFollowsTheVariablesOfTheEngramCommands
+Verified by: `internal/auto/backlog_test.go`: Test793d28b1_ABrokenManifestOrMarkFileIsReportedAndNothingIsCaptured, Test793d28b1_AMarkFileWithNoCutoffGetsOneAndKeepsItsMarks, Test793d28b1_AnIndexThatHoldsASessionAfterTheCutoffIsNotReported, Test793d28b1_AnIndexWhoseNewestSessionIsOlderThanTheCutoffIsReported, Test793d28b1_ASourceMayStillBeRunningIsNotCaptured, Test793d28b1_ASourceThatGrewSinceItWasMarkedIsCapturedAgain, Test793d28b1_ASourceWhoseHashTheMarkHoldsIsNotCapturedAgain, Test793d28b1_AtMostOneSourceIsCapturedPerTurnTheMostRecentlyChangedFirst, Test793d28b1_AtMostTwentySourcesAreLookedAtInOneTurn, Test793d28b1_NoManifestIsAnEmptyBacklogNotAnError, Test793d28b1_OneQuietSourceIsCapturedThenMarked, Test793d28b1_TheCutoffDoesNotRollWhateverTheIdleTime, Test793d28b1_TheCutoffIsAFixedPointARunRecordsAndNotAWindow, Test793d28b1_TheCutoffIsRecordedOnceEvenByAFirstRunWithNothingToCapture, Test793d28b1_WhatIsNotASessionTranscriptIsNotASource; `internal/auto/golden_test.go`: Test793d28b1_TheSourcesToCaptureAreTheQuietOnesAfterTheCutoff; `internal/cli/auto_test.go`: Test793d28b3_TheChunksDirectoryFollowsTheVariablesOfTheEngramCommands
 
 Rationale: a turn whose capture did not end because its [session](../../GLOSSARY.md#session) did (the user exits, the process is killed) is not lost: the turns of its session are not recorded, so its source is captured here once it has been quiet 15 minutes ([793b416](./793b_decision-log.md#793b416-the-persisted-capture-queue-is-dropped-backlog-capture-covers-the-promise), which replaced a file of unfinished captures with this guard; its tests are Test793d28b3_ATurnKilledSoonAfterTheLastCapturedTurnIsStillCaptured and Test793d28b1_OneQuietSourceIsCapturedThenMarked).
 
@@ -828,6 +829,11 @@ Scenario: 793d28b1a2 History is not mined
   Given a source that changed before the cut-off
   When the backlog runs
   Then it is not captured
+
+Scenario: 793d28b1a3 An index that has not caught up is reported
+  Given a manifest whose most recently changed session changed before the cut-off
+  When a top-level turn's housekeeping ends
+  Then nothing is captured and the warning "Automatic memory was skipped because the index is not caught up (the backlog capture)" is shown
 ```
 
 #### 793d28b2 Reading and windows
@@ -1070,6 +1076,108 @@ that provably point into it, the sync can propagate removals without risking use
 through links fails runs in manifest mode, which keeps the same removal semantics by recording the paths it wrote.
 Claude Code's guidance directory is its engram root, so its guidance is linked at the root's top level rather than
 into a separate directory.
+
+## 793d37 Chunk Index Progress
+
+Canonical target: [Chunk Index Store](../../specs/technical/chunk-index-store.md), as an Added requirement (793d37b1); it also Modifies its [792b18c2 Locked reconciliation](../../specs/technical/chunk-index-store.md#792b18c2-locked-reconciliation) ([793d37c1 Modified: 792b18c2 Locked reconciliation](#793d37c1-modified-792b18c2-locked-reconciliation)). Realization: `manifestSaver`, `orderedGroups` and `acquireIngestLock` in `internal/cli/ingest_progress.go`, and `RunIngest` and `reconcileHashGroups` in `internal/cli/ingest.go`. No dependency boundary is added: the clock and the lock are the ones the ingest already takes.
+
+### 793d37a Orientation
+
+The chunk index of a real machine is large: the manifest of the owner's machine holds 229,681 sources in 66 MB, and a first run over a history of hundreds of unindexed sessions takes longer than the deadline of the index. The ingest therefore treats a run as a slice of a longer catch-up: the manifest is its progress record, and what a run completed is kept whether the run finishes or not.
+
+### 793d37b Behavior Requirements
+
+#### 793d37b1 Manifest progress
+
+Requirement: 793d37b1 The chunk-index-store MUST write the manifest as a run progresses: after each group of identical copies it reconciles, when the manifest has changed and at least 10 seconds of the injected clock have passed since it was last written (with no clock, only at the end), and again when the run ends however it ends (finished, failed, or stopped because its context ended), so that a run cut by a deadline or killed has advanced the index by the sources it completed and the next run continues from there. A source MUST be recorded in the manifest only after its index file is written, so that a source cut part-way is not recorded as indexed. It MUST work the groups that hold a new or changed source before the others, the most recently modified first and the lowest path first among equals, and MUST stop before a group once its context has ended. A run that changed nothing MUST write no manifest.
+
+Supports: [793a4j1a The index catches up after the turn](./793a_product-spec.md#793a4j1-uat-scenarios), [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios)
+
+Verified by: `internal/cli/ingest_progress_test.go`: Test793d37b1a1_ACutIngestKeepsTheSourcesItCompleted, Test793d37b1a2_AKilledIngestKeepsTheSourcesItCheckpointed, Test793d37b1a3_TheManifestIsNotRewrittenWithinTheCheckpointInterval, Test793d37b1a4_TheNewestSourceIsIndexedFirst, Test793d37b1a5_ARunThatFindsEverythingIndexedWritesNothing
+
+Rationale: the manifest was written once, after every source, so a run cut at the deadline wrote nothing and the next run started again from the beginning, for ever, on a history longer than the deadline. The interval bounds the cost of writing a manifest of tens of megabytes to a fraction of the run; the newest sources first means a cut run has indexed the sessions the backlog captures first. The index file of a source is written before its manifest entry, so a crash between the two leaves a source that the next run indexes again by the hashes of its chunks, as before.
+
+##### 793d37b1a Scenarios
+
+```gherkin
+Scenario: 793d37b1a1 A cut ingest keeps the sources it completed
+  Given an ingest of three sources whose context ends while the third is being embedded
+  When the ingest returns
+  Then the manifest holds the first two and not the third
+  # acceptance rows: 793a4j1a
+
+Scenario: 793d37b1a2 A killed ingest keeps the sources it checkpointed
+  Given an ingest of three sources, with more than 10 seconds between sources, that is killed while the third is being embedded
+  When the manifest on disk is read
+  Then it holds the first two
+  # acceptance rows: 793a4j1a
+
+Scenario: 793d37b1a3 The manifest is not rewritten within the interval
+  Given an ingest of three sources within one second
+  When it ends
+  Then the manifest was written once
+  # acceptance rows: 793a4j1a
+
+Scenario: 793d37b1a4 The newest source is indexed first
+  Given three new sources of different ages and an ingest cut after its first source
+  When the ingest returns
+  Then the manifest holds the most recently modified source
+  # acceptance rows: 793a3a1k
+
+Scenario: 793d37b1a5 An ingest that finds everything indexed writes nothing
+  Given sources that are all in the manifest and unchanged
+  When they are ingested again
+  Then the manifest is not written
+  # acceptance rows: 793a4j1a
+```
+
+### 793d37c Modified operations
+
+#### 793d37c1 Modified: 792b18c2 Locked reconciliation
+
+Target: [792b18c2 Locked reconciliation](../../specs/technical/chunk-index-store.md#792b18c2-locked-reconciliation). An `engram ingest --auto` that finds the lock held waits a few seconds and skips. Complete replacement text:
+
+Requirement: [792b18c2 Locked reconciliation](#792b18c2-locked-reconciliation) The chunk-index-store MUST create the chunks directory and take the
+[vault-write-lock](./vault-write-lock.md) on `<chunks>/.manifest.lock` ([792b8c1 Exclusive hold](./vault-write-lock.md#792b8c1-exclusive-hold)) before `engram ingest` or `engram prune`
+reads a source or the manifest, MUST hold it through every index-file and manifest write of the run, and MUST
+release it before returning. Its helpers, the manifest write among them, MUST NOT take the lock
+themselves. A failure to create the directory or take the lock MUST be returned with nothing read.
+A named ingest and a prune MUST wait for the lock. An `engram ingest --auto` MUST wait for it at most 5 seconds and,
+if it is still held, MUST return an error saying another ingest holds the manifest lock, having read no source and no
+manifest; a grant of the lock that arrives after that MUST be released at once.
+A missing manifest MUST be read as empty, and a manifest that is not valid JSON MUST be an error.
+
+Supports: [792a5o1a An ingest and a prune at the same time both take effect](../product/chunk-indexing.md#792a5o1-uat-scenarios), [793a4j1a The index catches up after the turn](./793a_product-spec.md#793a4j1-uat-scenarios)
+
+Verified by: `internal/cli/ingest_progress_test.go`: Test793d37c1a1_AnAutomaticIngestSkipsWhenTheManifestLockIsHeld, Test793d37c1a2_ALockGrantedAfterTheSkipIsGivenBack, Test793d37c1a3_ANamedIngestWaitsForTheManifestLock
+
+Rationale: two concurrent runs that each read the manifest would let the later write overwrite the earlier one's
+change, so a lock serializes manifest updates. Creating the directory first lets a prune of a fresh index take its
+lock. The turn's housekeeping of two sessions of one machine runs two automatic ingests over the same backlog: the
+second would wait for the first (up to its whole deadline) and then repeat its work, so it skips, and the next turn
+tries again; a named ingest and a prune are asked for by a person and wait.
+
+The scenarios 792b18c2a1 to 792b18c2a5 are kept. Added scenarios:
+
+##### 793d37c1a Scenarios
+
+```gherkin
+Scenario: 793d37c1a1 An automatic ingest skips when the manifest lock is held
+  Given another run holds the manifest lock
+  When an automatic ingest waits its 5 seconds
+  Then it returns that another ingest holds the lock, and it read no source and no manifest
+  # acceptance rows: 793a4j1a
+
+Scenario: 793d37c1a2 A lock granted after the skip is given back
+  Given an automatic ingest that skipped
+  When the other run lets go and the lock is granted to the skipped ingest
+  Then it is released at once
+
+Scenario: 793d37c1a3 A named ingest waits for the manifest lock
+  Given another run holds the manifest lock
+  When a named ingest asks for it and the other run lets go
+  Then the named ingest runs and indexes its sources
+```
 
 ## 793d32 Moment Delivery Flow
 
@@ -1466,7 +1574,7 @@ Scenario: 793d33b4a2 A failure leaves the source for the next turn
 
 #### 793d33b5 Housekeeping sequence
 
-Requirement: 793d33b5 A housekeeping [job](#793d1b-terms) MUST run the index (`engram ingest --auto`), then the pass over the pending [offers](../../GLOSSARY.md#offer), then, only when the [burst](#793d1b-terms) ended with a top-level turn, one backlog step, each as a step of its own, so that a failure of one is warned about by name (`indexing`, `curation`, `the backlog capture`) and the next still runs.
+Requirement: 793d33b5 A housekeeping [job](#793d1b-terms) MUST run the index (`engram ingest --auto`), then the pass over the pending [offers](../../GLOSSARY.md#offer), then, only when the [burst](#793d1b-terms) ended with a top-level turn, one backlog step, each as a step of its own, so that a failure of one is warned about by name (`indexing`, `curation`, `the backlog capture`) and the next still runs. An index that its deadline cuts keeps what it indexed ([793d37b1 Manifest progress](#793d37b1-manifest-progress)), so the first catch-up of a large history takes several turns, and the backlog says so until it is done ([793d28b1 Eligible sources and cut-off](#793d28b1-eligible-sources-and-cut-off)).
 
 Owner: [793d36 Job Runner](#793d36-job-runner)
 
@@ -1569,7 +1677,7 @@ Scenario: 793d34b1a4 An older Claude Code is reported, not fatal
 
 ### 793d35a Check
 
-All 44 scenarios of the product spec are supported by at least one requirement, and every requirement (30 behavior requirements of 11 components, 10 interaction requirements of 3 flows) names at least one contract test; `targ check-spec-conformance` checks both on every `check-full`. Scenario-level support is on each requirement's `Supports` line; the table gives the union per product requirement.
+All 44 scenarios of the product spec are supported by at least one requirement, and every requirement (31 behavior requirements of 12 components, 10 interaction requirements of 3 flows) names at least one contract test; `targ check-spec-conformance` checks both on every `check-full`. Scenario-level support is on each requirement's `Supports` line; the table gives the union per product requirement.
 
 ### 793d35b Product requirements to technical requirements
 
@@ -1577,8 +1685,8 @@ All 44 scenarios of the product spec are supported by at least one requirement, 
 | --- | --- | --- |
 | [793a2n Relevant memory reaches the agent at the moments](./793a_product-spec.md#793a2n-relevant-memory-reaches-the-agent-at-the-moments) | 7 | [793d22 Memory Mod](#793d22-memory-mod), [793d23 Moment Detection](#793d23-moment-detection), [793d24 Memory Delivery](#793d24-memory-delivery), [793d25 Judgement Relay](#793d25-judgement-relay), [793d36 Job Runner](#793d36-job-runner), [793d32 Moment Delivery Flow](#793d32-moment-delivery-flow) |
 | [793a2e Nothing already in context is delivered again](./793a_product-spec.md#793a2e-nothing-already-in-context-is-delivered-again) | 5 | [793d23 Moment Detection](#793d23-moment-detection), [793d24 Memory Delivery](#793d24-memory-delivery), [793d32 Moment Delivery Flow](#793d32-moment-delivery-flow) |
-| [793a3a Lessons are captured without the agent](./793a_product-spec.md#793a3a-lessons-are-captured-without-the-agent) | 5 | [793d22 Memory Mod](#793d22-memory-mod), [793d25 Judgement Relay](#793d25-judgement-relay), [793d26 Secret Redaction](#793d26-secret-redaction), [793d27 Auto Capture](#793d27-auto-capture), [793d28 Backlog Capture](#793d28-backlog-capture), [793d36 Job Runner](#793d36-job-runner), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow) |
-| [793a4j Indexing and curation happen after the turn](./793a_product-spec.md#793a4j-indexing-and-curation-happen-after-the-turn) | 4 | [793d22 Memory Mod](#793d22-memory-mod), [793d25 Judgement Relay](#793d25-judgement-relay), [793d26 Secret Redaction](#793d26-secret-redaction), [793d29 Auto Curation](#793d29-auto-curation), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow) |
+| [793a3a Lessons are captured without the agent](./793a_product-spec.md#793a3a-lessons-are-captured-without-the-agent) | 5 | [793d22 Memory Mod](#793d22-memory-mod), [793d25 Judgement Relay](#793d25-judgement-relay), [793d26 Secret Redaction](#793d26-secret-redaction), [793d27 Auto Capture](#793d27-auto-capture), [793d28 Backlog Capture](#793d28-backlog-capture), [793d36 Job Runner](#793d36-job-runner), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow), [793d37 Chunk Index Progress](#793d37-chunk-index-progress) |
+| [793a4j Indexing and curation happen after the turn](./793a_product-spec.md#793a4j-indexing-and-curation-happen-after-the-turn) | 4 | [793d22 Memory Mod](#793d22-memory-mod), [793d25 Judgement Relay](#793d25-judgement-relay), [793d26 Secret Redaction](#793d26-secret-redaction), [793d29 Auto Curation](#793d29-auto-curation), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow), [793d37 Chunk Index Progress](#793d37-chunk-index-progress) |
 | [793a4c Memory purview only](./793a_product-spec.md#793a4c-memory-purview-only) | 4 | [793d22 Memory Mod](#793d22-memory-mod), [793d24 Memory Delivery](#793d24-memory-delivery), [793d30 Activity Report](#793d30-activity-report) |
 | [793a4b The session is never broken or stalled](./793a_product-spec.md#793a4b-the-session-is-never-broken-or-stalled) | 4 | [793d22 Memory Mod](#793d22-memory-mod), [793d30 Activity Report](#793d30-activity-report), [793d36 Job Runner](#793d36-job-runner), [793d32 Moment Delivery Flow](#793d32-moment-delivery-flow), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow) |
 | [793a5j Installed by engram update and active in Claude Code](./793a_product-spec.md#793a5j-installed-by-engram-update-and-active-in-claude-code) | 5 | [793d31 Harness Deploy Sync (mod additions)](#793d31-harness-deploy-sync-mod-additions), [793d34 Mod Install Flow](#793d34-mod-install-flow) |

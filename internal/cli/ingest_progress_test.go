@@ -143,9 +143,9 @@ func Test793d37b1a5_ARunThatFindsEverythingIndexedWritesNothing(t *testing.T) {
 	g.Expect(writes).To(gomega.BeZero())
 }
 
-// 793d37b2: an automatic ingest that finds the manifest lock held skips; a named ingest waits.
+// 793d37c1 (Modified: 792b18c2): an automatic ingest that finds the manifest lock held skips; a named ingest waits.
 
-func Test793d37b2a1_AnAutomaticIngestSkipsWhenTheManifestLockIsHeld(t *testing.T) {
+func Test793d37c1a1_AnAutomaticIngestSkipsWhenTheManifestLockIsHeld(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -171,12 +171,25 @@ func Test793d37b2a1_AnAutomaticIngestSkipsWhenTheManifestLockIsHeld(t *testing.T
 	g.Expect(time.Since(started)).To(gomega.BeNumerically("<", time.Second), "it does not wait out a deadline")
 	g.Expect(reads.Load()).To(gomega.BeZero(), "it reads no source and no manifest: the work is not duplicated")
 
-	lock.free()
-	g.Eventually(lock.releases.Load).Should(gomega.BeEquivalentTo(1), "a late grant of the lock is given back")
 	g.Expect(fs.files).NotTo(gomega.HaveKey("/chunks/manifest.json"))
 }
 
-func Test793d37b2a2_ANamedIngestWaitsForTheManifestLock(t *testing.T) {
+func Test793d37c1a2_ALockGrantedAfterTheSkipIsGivenBack(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	lock := newHeldLock()
+	deps := cli.IngestDeps{Lock: lock.lock, ReadFile: progressFS().read, LockWait: 5 * time.Millisecond}
+
+	err := cli.RunIngest(context.Background(), cli.IngestArgs{Auto: true, ChunksDir: "/chunks"}, deps, io.Discard)
+	g.Expect(err).To(gomega.MatchError(cli.ErrIngestBusy))
+
+	lock.free()
+
+	g.Eventually(lock.releases.Load).Should(gomega.BeEquivalentTo(1), "the other run's hold ends, and ours is given back")
+}
+
+func Test793d37c1a3_ANamedIngestWaitsForTheManifestLock(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
