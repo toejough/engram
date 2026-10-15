@@ -3,7 +3,6 @@ package auto
 import (
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 )
 
@@ -63,7 +62,7 @@ func (e *engine) curate() {
 // commands of the outcome. A skill registration (a runbook marked by its skill hash) is authored, never judged, so it
 // is left pending for curate; a note that is not pending (settled meanwhile) is left alone.
 func (e *engine) curateOne(name string) string {
-	offer := parseShow(e.exec([]string{engramCmd, "show", name}, deadlineCommand))
+	offer := parseShow(e.show(name))
 	if !offer.pending || offer.skill || offer.Kind == skillKind {
 		return "skipped"
 	}
@@ -74,8 +73,8 @@ func (e *engine) curateOne(name string) string {
 	decision := judged(e, e.tiers.curationRequest(text, near), judgeCuration, parse)
 	e.logf("curation judged %s %s %s against %d nearest note(s)", name, decision.Outcome, decision.Target, len(near))
 
-	for _, argv := range settleArgvs(decision, name, offer.hash) {
-		e.exec(argv, deadlineCommand)
+	for _, request := range settleRequests(decision, name, offer.hash) {
+		e.amend(request)
 	}
 
 	// a reinforcing activation (covered) is not an amendment: only a near offer changes a note's claim (793b204)
@@ -88,7 +87,9 @@ func (e *engine) curateOne(name string) string {
 // the turn, then the pending offers are settled, then, after a top-level turn, one source of the backlog is captured
 // (793e8g). A failure of one step is reported and the others still run.
 func (e *engine) housekeepingJob() Done {
-	e.attempt("indexing", func() { e.exec([]string{engramCmd, "ingest", "--auto"}, deadlineIngest) })
+	e.attempt("indexing", func() {
+		e.perform("ingest", func() (string, error) { return "", e.deps.Vault.Index(deadlineIngest) })
+	})
 	e.attempt("curation", e.curate)
 
 	if e.job.TurnEnded {
@@ -102,18 +103,18 @@ func (e *engine) housekeepingJob() Done {
 // vault's nearest notes by `engram query`, which leaves pending offers out. Everything the judge reads is redacted.
 func (e *engine) nearest(offer shown, text Note) []Note {
 	if offer.forNote != "" {
-		target := parseShow(e.exec([]string{engramCmd, "show", offer.forNote}, deadlineCommand))
+		target := parseShow(e.show(offer.forNote))
 
 		return []Note{redacted2(offer.forNote, target.Note)}
 	}
 
-	query := []string{
-		engramCmd, "query", "--limit", strconv.Itoa(nearCount), "--text=" + cutEnd(text.Situation+". "+text.Body, textLimit),
-		"--phrase=" + cutEnd(text.Situation, textLimit),
+	query := QueryRequest{
+		Text: cutEnd(text.Situation+". "+text.Body, textLimit), Phrases: []string{cutEnd(text.Situation, textLimit)},
+		Limit: nearCount,
 	}
 	notes := []Note{}
 
-	for _, found := range parseQuery(e.exec(query, deadlineNearest)) {
+	for _, found := range parseQuery(e.query(query, deadlineNearest)) {
 		if found.Kind != chunkKind && found.Situation != "" && len(notes) < nearCount {
 			notes = append(notes, redacted2(found.Path, found))
 		}
@@ -170,36 +171,23 @@ func redacted2(path string, note Note) Note {
 	return Note{Path: path, Kind: note.Kind, Situation: redact(note.Situation), Body: redact(note.Body)}
 }
 
-// settleArgvs are the commands of an outcome, in curate's order: a covered offer reinforces the note and is folded
+// settleRequests are the amends of an outcome, in curate's order: a covered offer reinforces the note and is folded
 // into it (`--discard --into` keeps the offer's identity); a near offer is folded away first and its new claim then
 // written into the note; an absent one clears its own marker; a rejected one is discarded bare, never `--into`. A
 // served offer's exchange hash is passed, as curate does, so that an offer changed since it was read is not settled.
-func settleArgvs(decision Decision, offer, hash string) [][]string {
-	var guard []string
-	if hash != "" {
-		guard = []string{"--expect-hash=" + hash}
-	}
-
-	amend := func(target string, rest ...string) []string {
-		return slices.Concat([]string{engramCmd, amendCmd, targetFlag, target}, rest, guard)
-	}
-	fold := amend(offer, "--discard", "--into", decision.Target)
+func settleRequests(decision Decision, offer, hash string) []AmendRequest {
+	fold := AmendRequest{Target: offer, Discard: true, Into: decision.Target, ExpectHash: hash}
 
 	switch decision.Outcome {
 	case outcomeCovered:
-		return [][]string{{"engram", "amend", "--target", decision.Target, "--activate"}, fold}
+		return []AmendRequest{{Target: decision.Target, Activate: true}, fold}
 	case outcomeNear:
-		set := []string{engramCmd, amendCmd, targetFlag, decision.Target}
-		for _, field := range decision.Fields {
-			set = append(set, "--"+field[0]+"="+field[1])
-		}
-
-		set = append(set, "--source=amended automatically from offer "+offer)
-
-		return [][]string{fold, set}
+		return []AmendRequest{fold, {
+			Target: decision.Target, Fields: decision.Fields, Source: "amended automatically from offer " + offer,
+		}}
 	case outcomeAbsent:
-		return [][]string{amend(offer, "--clear-pending")}
+		return []AmendRequest{{Target: offer, ClearPending: true, ExpectHash: hash}}
 	}
 
-	return [][]string{amend(offer, "--discard")}
+	return []AmendRequest{{Target: offer, Discard: true, ExpectHash: hash}}
 }

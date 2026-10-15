@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -12,20 +11,13 @@ import (
 	"github.com/toejough/targ"
 
 	"github.com/toejough/engram/internal/auto"
-	"github.com/toejough/engram/internal/update"
 )
 
 // unexported constants.
 const (
 	autoDirPerm fs.FileMode = 0o755
-	// the queue file and the marks hold the text of the user's conversations: the user alone reads them
+	// the backlog marks name the user's conversations: the user alone reads them
 	autoFilePerm fs.FileMode = 0o600
-)
-
-// unexported variables.
-var (
-	errAutoCut        = errors.New("still running after")
-	errAutoNotStarted = errors.New("failed to start")
 )
 
 // autoClock is the wall clock of a job.
@@ -76,14 +68,6 @@ func (o autoOffers) Pending(vault string) ([]string, error) {
 	return pendingOfferNames(vault, o.edge.ReadDir, o.edge.ReadFile)
 }
 
-// autoRunner runs the commands of a job.
-type autoRunner func(argv []string, deadline time.Duration) (auto.Output, error)
-
-// Run runs a command within its deadline.
-func (r autoRunner) Run(argv []string, deadline time.Duration) (auto.Output, error) {
-	return r(argv, deadline)
-}
-
 // autoDirectories are where the vault and the chunk index are, resolved as the engram commands resolve them.
 func autoDirectories(deps Deps) (vault, chunks string) {
 	home := homeOrEmpty(deps)
@@ -112,9 +96,7 @@ func runAuto(ctx context.Context, deps Deps) error {
 	vault, chunks := autoDirectories(deps)
 
 	output, err := auto.Run(auto.Deps{
-		Runner: autoRunner(func(argv []string, deadline time.Duration) (auto.Output, error) {
-			return runAutoCommand(ctx, deps.Commander, argv, deadline)
-		}),
+		Vault: newAutoVault(ctx, deps),
 		Files: autoFiles{edge: deps.FS}, Offers: autoOffers{edge: deps.FS}, Clock: autoClock{now: deps.Now},
 		VaultPath: vault, ChunksDir: chunks,
 	}, input)
@@ -128,32 +110,4 @@ func runAuto(ctx context.Context, deps Deps) error {
 	}
 
 	return nil
-}
-
-// runAutoCommand runs a command through the injected Commander within its deadline. What it reports is the text the
-// engine classifies a failure by: the standard error of a command that failed, "failed to start" for one that could
-// not, "still running after" for one that was cut.
-func runAutoCommand(
-	ctx context.Context, cmd update.Commander, argv []string, deadline time.Duration,
-) (auto.Output, error) {
-	limited, cancel := context.WithTimeout(ctx, deadline)
-	defer cancel()
-
-	stdout, stderr, err := cmd.Run(limited, "", argv[0], argv[1:]...)
-	out := auto.Output{Stdout: string(stdout), Stderr: string(stderr)}
-
-	switch {
-	case err == nil:
-		return out, nil
-	case limited.Err() != nil:
-		return out, fmt.Errorf("%w %dms", errAutoCut, deadline.Milliseconds())
-	case errors.Is(err, update.ErrCommandNotFound):
-		return out, fmt.Errorf("%w: %s is not on the path", errAutoNotStarted, argv[0])
-	}
-
-	for errors.Unwrap(err) != nil {
-		err = errors.Unwrap(err)
-	}
-
-	return out, err
 }

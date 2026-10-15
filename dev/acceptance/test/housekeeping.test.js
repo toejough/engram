@@ -1,12 +1,11 @@
-// The readers and fault shims of node 793e8d (housekeeping, purview, failure isolation).
+// The readers and the fault seam of node 793e8d (housekeeping, purview, failure isolation).
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 
-import { installShim, shimCalls } from '../lib/shim.js'
+import { faultCalls, faultEnv } from '../lib/fault.js'
 import { preconditionFailure } from '../lib/turn.js'
 import { MARKER, SKIPPED, rowsMentioning, statusTexts, typedRows } from '../lib/transcript.js'
 
@@ -19,56 +18,30 @@ function temp(body) {
   }
 }
 
-function fakeEngram(dir) {
-  const file = path.join(dir, 'real-engram')
-  fs.writeFileSync(file, '#!/bin/sh\necho "real $*"\n', { mode: 0o755 })
-  return file
-}
-
-test('the error shim exits with a message and logs the call', () => {
-  temp((dir) => {
-    const shim = installShim({ dir, realEngram: fakeEngram(dir), mode: 'error' })
-    assert.throws(
-      () => execFileSync(path.join(shim, 'engram'), ['query', 'x'], { stdio: 'pipe' }),
-      (error) => error.status === 70 && /injected failure/.test(String(error.stderr)),
-    )
-    assert.equal(shimCalls(shim).length, 1)
+test('the fault seam is set by the environment of the scenario: error, hang and a delay of N seconds', () => {
+  assert.deepEqual(faultEnv({ dir: '/s', mode: 'error' }), {
+    ENGRAM_AUTO_FAULT: 'error',
+    ENGRAM_AUTO_FAULT_LOG: '/s/fault.log',
   })
+  assert.equal(faultEnv({ dir: '/s', mode: 'hang' }).ENGRAM_AUTO_FAULT, 'hang')
+  assert.equal(faultEnv({ dir: '/s', mode: 'delay', seconds: 20 }).ENGRAM_AUTO_FAULT, 'delay:20')
 })
 
-test("the delay shim passes a query and the mod's jobs through at once and waits before any other command", () => {
+test('the lines the engine logged are read as seconds and what began, and no log has no calls', () => {
   temp((dir) => {
-    const shim = installShim({ dir, realEngram: fakeEngram(dir), mode: 'delay', seconds: 1 })
-    // the evidence is the shim's own log, not the clock: a loaded machine can make a passed-through query slow
-    assert.equal(execFileSync(path.join(shim, 'engram'), ['query', 'x'], { encoding: 'utf8' }), 'real query x\n')
-    assert.equal(execFileSync(path.join(shim, 'engram'), ['auto', 'run'], { encoding: 'utf8' }), 'real auto run\n')
-    assert.equal(shimCalls(shim).filter((call) => call.what.includes('slept-start')).length, 0)
-    const ingest = Date.now()
-    assert.equal(
-      execFileSync(path.join(shim, 'engram'), ['ingest', '--auto'], { encoding: 'utf8' }),
-      'real ingest --auto\n',
-    )
-    assert.ok(Date.now() - ingest >= 900)
-    assert.equal(shimCalls(shim).filter((call) => call.what.includes('slept-start')).length, 1)
+    const env = faultEnv({ dir, mode: 'delay', seconds: 1 })
+    assert.deepEqual(faultCalls(env), [])
+    fs.writeFileSync(env.ENGRAM_AUTO_FAULT_LOG, '100 slept-start ingest\n101 slept-start learn\n')
+    assert.deepEqual(faultCalls(env), [
+      { seconds: 100, what: 'slept-start ingest' },
+      { seconds: 101, what: 'slept-start learn' },
+    ])
   })
+  assert.deepEqual(faultCalls({}), [])
 })
 
-test('the hang shim lets a lookup run on and passes other commands through', () => {
-  temp((dir) => {
-    const shim = installShim({ dir, realEngram: fakeEngram(dir), mode: 'hang' })
-    assert.equal(execFileSync(path.join(shim, 'engram'), ['learn', 'x'], { encoding: 'utf8' }), 'real learn x\n')
-    assert.throws(
-      () => execFileSync(path.join(shim, 'engram'), ['query', 'x'], { timeout: 300, stdio: 'pipe' }),
-      (error) => error.code === 'ETIMEDOUT',
-    )
-  })
-})
-
-test('an unknown shim mode is refused, and no shim has no calls', () => {
-  temp((dir) => {
-    assert.throws(() => installShim({ dir, realEngram: 'x', mode: 'slow' }), /no shim mode/)
-  })
-  assert.deepEqual(shimCalls(null), [])
+test('an unknown fault mode is refused', () => {
+  assert.throws(() => faultEnv({ dir: '/s', mode: 'slow' }), /no fault mode/)
 })
 
 test('status texts are the ui_status system messages, in order, and nothing else', () => {

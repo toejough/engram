@@ -34,19 +34,36 @@ var (
 		`read-only file system|input/output error`)
 )
 
-// exec runs one engram (or system) command with its deadline; a command that fails, cannot start or passes its
-// deadline fails the step with its class (793b205).
-func (e *engine) exec(argv []string, deadline time.Duration) string {
-	return must(e.step(func() (string, error) {
-		out, err := e.deps.Runner.Run(argv, deadline)
-		if err != nil {
-			text := cutEnd(out.Stderr+err.Error(), errorLimit)
+// amend amends a note, within the deadline of a command.
+func (e *engine) amend(request AmendRequest) {
+	e.perform("amend", func() (string, error) {
+		return "", e.deps.Vault.Amend(request, deadlineCommand)
+	})
+}
 
-			return "", &StepError{Message: argv[1] + " failed: " + text, Kind: failureKind(text)}
+// perform runs one operation of the vault; an operation that fails, cannot start or passes its deadline fails the step
+// with its class (793b205). operation names the operation in the failure.
+func (e *engine) perform(operation string, effect func() (string, error)) string {
+	return must(e.step(func() (string, error) {
+		out, err := effect()
+		if err != nil {
+			text := cutEnd(err.Error(), errorLimit)
+
+			return "", &StepError{Message: operation + " failed: " + text, Kind: failureKind(text)}
 		}
 
-		return out.Stdout, nil
+		return out, nil
 	}))
+}
+
+// query searches the vault and returns its payload.
+func (e *engine) query(request QueryRequest, deadline time.Duration) string {
+	return e.perform("query", func() (string, error) { return e.deps.Vault.Query(request, deadline) })
+}
+
+// show reads a note.
+func (e *engine) show(name string) string {
+	return e.perform("show", func() (string, error) { return e.deps.Vault.Show(name, deadlineCommand) })
 }
 
 // failureKind is the class of a failure from the text it left: the stderr of a command, the reason a model call gave.

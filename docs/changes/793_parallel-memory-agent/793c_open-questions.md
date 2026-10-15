@@ -1147,3 +1147,12 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 - **Applied in:** [793b416 The persisted capture queue is dropped; Backlog Capture covers the promise](./793b_decision-log.md#793b416-the-persisted-capture-queue-is-dropped-backlog-capture-covers-the-promise).
 - **Blocks:** nothing.
 
+## 793c82 How does the engine call the memory operations, and what becomes of --source?
+
+- **Status:** answered (Joe, 2026-10-14), in chat. It covers the questions "c" and "g" of the owner's list in [793e8r Refactor review and promotion](./793e_implementation-plan.md#793e8r-refactor-review-and-promotion) and the question of the process starts of every turn.
+- **Context:** the engine started `engram query`, `show`, `learn`, `amend` and `ingest --auto` as processes, 8 to 16 times a turn; `engram amend --source` existed only so that a near fold could carry a provenance line; the fault shims of the harness keyed on those processes.
+- **Options:** (a) keep the processes and the flag, and ask the owner whether the flag is a promise to the user; (b) call the code of the commands in process, remove the flag from the command line, and make the provenance a parameter of the amend.
+- **Answer:** (b), with the faults of the harness replaced by an injected seam; `--source`, the Modified operations 792b14a and 792b14c5 and the section 793d38 leave the change; the note's source line still gains the line "amended automatically from offer <id>" as a content effect of the amend, not as a command-line surface; the budgets and the timings are measured again.
+- **Applied in:** [793b417 The engine calls the code of the engram commands in process instead of starting the commands](./793b_decision-log.md#793b417-the-engine-calls-the-code-of-the-engram-commands-in-process-instead-of-starting-the-commands) and [793b418 The fault shims are replaced by a harness-only fault seam of the engine](./793b_decision-log.md#793b418-the-fault-shims-are-replaced-by-a-harness-only-fault-seam-of-the-engine) (step A); the flag and the near fold in 793b419 (step B).
+- **Blocks:** nothing.
+

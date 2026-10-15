@@ -186,6 +186,8 @@ func NewDeps(prims Primitives, stdin io.Reader, stdout, stderr io.Writer, exit f
 		Fetch:          limitFetchResponse(prims.HTTP.Fetch),
 		RandRead:       prims.Proc.RandRead,
 		EvalSymlinks:   prims.FS.EvalSymlinks,
+		AutoFault:      envOrEmpty(prims.Proc.Getenv, autoFaultEnvVar),
+		AutoFaultLog:   envOrEmpty(prims.Proc.Getenv, autoFaultLogEnvVar),
 	}
 
 	// The lazy embedder is constructed exactly once, here: NewDeps is the

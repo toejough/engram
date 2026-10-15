@@ -8,6 +8,7 @@ import (
 	"path"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -106,10 +107,17 @@ func NewWorld() *World {
 	}
 }
 
+// Amend amends a note as `engram amend` would.
+func (w *World) Amend(request auto.AmendRequest, deadline time.Duration) error {
+	_, err := w.run(amendArgvOf(request), deadline)
+
+	return err
+}
+
 // Deps are the world as the job sees it.
 func (w *World) Deps() auto.Deps {
 	return auto.Deps{
-		Runner: w, Files: w, Offers: w, Clock: w, VaultPath: w.VaultPath, ChunksDir: w.ChunksDir,
+		Vault: w, Files: w, Offers: w, Clock: w, VaultPath: w.VaultPath, ChunksDir: w.ChunksDir,
 	}
 }
 
@@ -167,6 +175,26 @@ func (w *World) Find(name string) []Command {
 	return found
 }
 
+// Index indexes as `engram ingest --auto` would.
+func (w *World) Index(deadline time.Duration) error {
+	_, err := w.run([]string{"engram", "ingest", "--auto"}, deadline)
+
+	return err
+}
+
+// Learn writes a note as `engram learn` would.
+func (w *World) Learn(request auto.LearnRequest, deadline time.Duration) (string, error) {
+	argv := make([]string, 0, learnArgvBase+len(request.Values))
+	argv = append(argv, "engram", "learn", request.Kind, "--slug", request.Slug, "--position", "top",
+		"--source="+request.Source, "--situation="+request.Situation)
+
+	for _, field := range request.Values {
+		argv = append(argv, "--"+field[0]+"="+field[1])
+	}
+
+	return w.run(argv, deadline)
+}
+
 // Names are the subcommands of the commands the job ran, in order.
 func (w *World) Names() []string {
 	names := make([]string, 0, len(w.Commands))
@@ -200,6 +228,11 @@ func (w *World) Pending(vault string) ([]string, error) {
 	return names, nil
 }
 
+// Query searches as `engram query` would.
+func (w *World) Query(request auto.QueryRequest, deadline time.Duration) (string, error) {
+	return w.run(queryArgvOf(request), deadline)
+}
+
 // Read reads a file of the world.
 func (w *World) Read(path string) (string, error) {
 	text, found := w.Files[path]
@@ -210,26 +243,9 @@ func (w *World) Read(path string) (string, error) {
 	return text, nil
 }
 
-// Run runs the command as the engram program would.
-func (w *World) Run(argv []string, deadline time.Duration) (auto.Output, error) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	command := Command{Argv: argv, Deadline: deadline}
-	w.Commands = append(w.Commands, command)
-
-	if answer, known := w.Process[command.Name()]; known {
-		return answer(argv)
-	}
-
-	switch command.Name() {
-	case "query":
-		return auto.Output{Stdout: EmptyQuery}, nil
-	case "learn":
-		return auto.Output{Stdout: "/vault/9.2026-10-12.written.md\n"}, nil
-	}
-
-	return auto.Output{}, nil
+// Show reads a note as `engram show` would.
+func (w *World) Show(name string, deadline time.Duration) (string, error) {
+	return w.run([]string{"engram", "show", name}, deadline)
 }
 
 // Write writes a file of the world.
@@ -301,6 +317,35 @@ func (w *World) round(t *testing.T, input map[string]any) auto.Response {
 	return response
 }
 
+// run answers the operation as the engram program would, from the command line that is equivalent to it: the failure
+// of an operation carries what the program would have left on its standard error.
+func (w *World) run(argv []string, deadline time.Duration) (string, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	command := Command{Argv: argv, Deadline: deadline}
+	w.Commands = append(w.Commands, command)
+
+	answer, known := w.Process[command.Name()]
+	if !known {
+		switch command.Name() {
+		case "query":
+			return EmptyQuery, nil
+		case "learn":
+			return "/vault/9.2026-10-12.written.md\n", nil
+		}
+
+		return "", nil
+	}
+
+	out, err := answer(argv)
+	if err != nil {
+		return "", errors.New(out.Stderr + err.Error())
+	}
+
+	return out.Stdout, nil
+}
+
 // Answer is a reply of the model.
 func Answer(text string) map[string]any {
 	return map[string]any{"isAnswered": true, "text": text, "usage": map[string]any{}}
@@ -324,13 +369,47 @@ func Unanswered(reason string) map[string]any {
 
 // unexported constants.
 const (
-	maxRounds = 200
+	learnArgvBase = 9
+	maxRounds     = 200
+	queryArgvBase = 5
 )
 
 // unexported variables.
 var (
 	pendingMarker = regexp.MustCompile(`(?m)^pending: true$`)
 )
+
+// amendArgvOf is the command line equivalent to an amend, the form the tests read an operation in.
+func amendArgvOf(request auto.AmendRequest) []string {
+	argv := []string{"engram", "amend", "--target", request.Target}
+
+	for _, flag := range []struct {
+		name string
+		set  bool
+	}{{"--activate", request.Activate}, {"--clear-pending", request.ClearPending}, {"--discard", request.Discard}} {
+		if flag.set {
+			argv = append(argv, flag.name)
+		}
+	}
+
+	if request.Into != "" {
+		argv = append(argv, "--into", request.Into)
+	}
+
+	for _, field := range request.Fields {
+		argv = append(argv, "--"+field[0]+"="+field[1])
+	}
+
+	if request.Source != "" {
+		argv = append(argv, "--source="+request.Source)
+	}
+
+	if request.ExpectHash != "" {
+		argv = append(argv, "--expect-hash="+request.ExpectHash)
+	}
+
+	return argv
+}
 
 // kindOf tells the kind of a request from its prompt.
 func kindOf(prompt string) string {
@@ -344,4 +423,16 @@ func kindOf(prompt string) string {
 	}
 
 	return "curation"
+}
+
+// queryArgvOf is the command line equivalent to a search.
+func queryArgvOf(request auto.QueryRequest) []string {
+	argv := make([]string, 0, queryArgvBase+len(request.Phrases))
+	argv = append(argv, "engram", "query", "--limit", strconv.Itoa(request.Limit), "--text="+request.Text)
+
+	for _, phrase := range request.Phrases {
+		argv = append(argv, "--phrase="+phrase)
+	}
+
+	return argv
 }

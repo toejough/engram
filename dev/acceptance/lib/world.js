@@ -9,7 +9,7 @@ import { REPO_ROOT } from './extract.js'
 import { seedOffer } from './offers.js'
 import { baseEnv } from './run-context.js'
 import { Session } from './session.js'
-import { installShim, shimCalls } from './shim.js'
+import { faultCalls, faultEnv } from './fault.js'
 import { snapshotTree } from './tree.js'
 import { JSON_INDENT } from './units.js'
 import { sentinelFor } from './vault.js'
@@ -57,8 +57,7 @@ export class Scenario {
     this.offers = new Map()
     // the ended sessions written as inputs (793e8g): the transcript, its copy and its time
     this.ended = []
-    this.shimDir = null
-    this.shimSeconds = 0
+    this.faultSeconds = 0
     this.vaultHidden = false
     // the seam of the System's work (793b281): the mod records when its queue is empty, so that a test can wait for it
     this.seamFile = path.join(this.dir, 'seam.log')
@@ -106,8 +105,6 @@ export class Scenario {
       ...baseEnv({ home: this.home, cacheDir: this.context.cacheDir, binDir: this.context.binDir }),
       ...this.extraEnv,
     }
-    // a fault shim stands before the real engram on the PATH of every process of the World (793e8d)
-    if (this.shimDir) env.PATH = `${this.shimDir}${path.delimiter}${env.PATH}`
     return withCredentials ? { ...env, ...this.context.creds.env } : env
   }
 
@@ -154,14 +151,15 @@ export class Scenario {
     return this.offers.get(label)
   }
 
-  // injectFault installs a shim before the real engram (793e8d); `delay` takes the seconds the background work waits.
+  // injectFault sets the fault seam of the System's work for every process of the World (793b418); `delay` takes the
+  // seconds the background work waits.
   injectFault(mode, seconds = 0) {
-    this.shimDir = installShim({ dir: this.dir, realEngram: this.context.engramPath, mode, seconds })
-    this.shimSeconds = seconds
+    this.extraEnv = { ...this.extraEnv, ...faultEnv({ dir: this.dir, mode, seconds }) }
+    this.faultSeconds = seconds
   }
 
-  shimCalls() {
-    return shimCalls(this.shimDir)
+  faultCalls() {
+    return faultCalls(this.extraEnv)
   }
 
   // hideVault makes the vault directory unreadable, a real way for it to be unavailable (793e8d).

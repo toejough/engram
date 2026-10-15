@@ -50,7 +50,7 @@ Given(
   },
 )
 
-// Fault injection by a real mechanism (793e2i step 6): an unreadable vault directory, or an engram shim that fails.
+// Fault injection (793e2i step 6): an unreadable vault directory, or the fault seam of the System's work.
 const DELAY_SECONDS = '(?:takes (\\d+) seconds)'
 Given(
   new RegExp(

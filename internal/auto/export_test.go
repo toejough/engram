@@ -15,11 +15,11 @@ var (
 	MomentText         = momentText
 	ParseShow          = parseShow
 	Pending            = pending
-	QueryArgv          = queryArgv
+	QueryRequestOf     = queryRequest
 	QueryText          = queryText
 	RecentTexts        = recentTexts
 	Redact             = redact
-	SettleArgvs        = settleArgvs
+	SettleRequests     = settleRequests
 	SinceCompaction    = sinceCompaction
 	SourceFor          = sourceFor
 	TranscriptHolds    = transcriptHolds

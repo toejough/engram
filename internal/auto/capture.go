@@ -27,9 +27,7 @@ type Message struct {
 
 // unexported constants.
 const (
-	amendCmd      = "amend"
 	answerProbe   = 80
-	learnArgs     = 9
 	lessonLimit   = 10
 	nearLimit     = 8
 	needleLimit   = 40
@@ -42,7 +40,6 @@ const (
 	roleUser      = "user"
 	slugLimit     = 60
 	sourceNote    = "captured from the conversation"
-	targetFlag    = "--target"
 	windowLimit   = 8000
 )
 
@@ -68,14 +65,14 @@ func (e *engine) capture(conversation, source string) {
 		return
 	}
 
-	near := e.neighbours(parseQuery(e.exec(queryArgv(cueCapture, queryText(text), nil), deadlineNearest)))
+	near := e.neighbours(parseQuery(e.query(queryRequest(cueCapture, queryText(text), nil), deadlineNearest)))
 	parse := func(reply string) []Lesson { return parseLessons(reply, near) }
 	lessons := judged(e, e.tiers.captureRequest(text, near), judgeCapture, parse)
 	e.logf("capture judged %d lesson(s) against %d nearest note(s)", len(lessons), len(near))
 
 	for _, lesson := range lessons {
 		if lesson.Covered != "" {
-			e.exec([]string{engramCmd, amendCmd, targetFlag, lesson.Covered, "--activate"}, deadlineCommand)
+			e.amend(AmendRequest{Target: lesson.Covered, Activate: true})
 		} else {
 			e.learn(lesson, source)
 		}
@@ -95,19 +92,20 @@ func (e *engine) captureJob() Done {
 	return Done{}
 }
 
-// learn writes an absent lesson with the existing `engram learn`; a free-text value is `--flag=value` so that one that
-// starts with a dash is not read as a flag. `engram learn` prints the path of the note, which the session remembers.
+// learn writes an absent lesson as `engram learn` does; `engram learn` prints the path of the note, which the session
+// remembers.
 func (e *engine) learn(lesson Lesson, source string) {
-	argv := make([]string, 0, learnArgs+len(lesson.Values))
-	argv = append(argv, engramCmd, "learn", lesson.Kind, "--slug", lesson.Slug, "--position", "top", "--source="+source)
-	argv = append(argv, "--situation="+lesson.Situation)
+	request := LearnRequest{
+		Kind: lesson.Kind, Slug: lesson.Slug, Source: source, Situation: lesson.Situation, Values: lesson.Values,
+	}
 	values := make([]string, 0, len(lesson.Values))
 
 	for _, field := range lesson.Values {
-		argv, values = append(argv, "--"+field[0]+"="+field[1]), append(values, field[1])
+		values = append(values, field[1])
 	}
 
-	lines := strings.Split(strings.TrimSpace(e.exec(argv, deadlineCommand)), "\n")
+	printed := e.perform("learn", func() (string, error) { return e.deps.Vault.Learn(request, deadlineCommand) })
+	lines := strings.Split(strings.TrimSpace(printed), "\n")
 	e.count(Counts{Added: 1})
 
 	if name := path.Base(lines[len(lines)-1]); strings.HasSuffix(name, ".md") {

@@ -108,11 +108,7 @@ func Targets(deps Deps) []any {
 		return nil
 	}
 
-	logger := debuglog.New(deps.DebugLog, "engram", deps.Now)
-
-	withLog := func(ctx context.Context) context.Context {
-		return debuglog.WithLogger(ctx, logger)
-	}
+	withLog := logContext(deps)
 
 	return append(
 		append(
@@ -124,6 +120,24 @@ func Targets(deps Deps) []any {
 		),
 		autoTargets(deps, errHandler),
 	)
+}
+
+// amendCommand is `engram amend`: the arguments resolved against the environment as the command resolves them, the
+// vault made when it is not there, and the amend. The command and the engine of the memory mod (793b417) both run it.
+func amendCommand(ctx context.Context, deps Deps, a AmendArgs, stdout io.Writer) error {
+	home := homeOrEmpty(deps)
+	a.Vault = resolveVault(a.Vault, home, deps.Getenv)
+	a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
+	a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
+
+	if a.ClearPending {
+		notPending := false
+		a.Pending = &notPending
+	}
+
+	return runInVault(deps, a.Vault, func() error {
+		return RunAmend(ctx, a, newAmendDeps(deps), stdout)
+	})
 }
 
 // amendResituateTargets returns the amend and resituate subcommands. Split out
@@ -143,18 +157,7 @@ func amendResituateTargets(
 			}))
 		}).Name("resituate").Description("Rewrite a note's situation in sync (frontmatter + body + sidecar) (D4/INV-S2)"),
 		targ.Targ(func(ctx context.Context, a AmendArgs) {
-			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-			a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
-			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
-
-			if a.ClearPending {
-				notPending := false
-				a.Pending = &notPending
-			}
-
-			errHandler(runInVault(deps, a.Vault, func() error {
-				return RunAmend(withLog(ctx), a, newAmendDeps(deps), deps.Stdout)
-			}))
+			errHandler(amendCommand(withLog(ctx), deps, a, deps.Stdout))
 		}).Name("amend").Description(
 			"Amend a note in place: supersedes, provenance-merge, field-replacement, activate, discard, fold (--into)"),
 	}
@@ -188,6 +191,17 @@ func homeOrEmpty(deps Deps) string {
 	return home
 }
 
+// ingestCommand is `engram ingest`, shared like amendCommand.
+func ingestCommand(ctx context.Context, deps Deps, a IngestArgs, stdout io.Writer) error {
+	home := homeOrEmpty(deps)
+	a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
+	a.Vault = resolveVault(a.Vault, home, deps.Getenv)
+
+	return runInVault(deps, a.Vault, func() error {
+		return RunIngest(ctx, a, newIngestDeps(deps), stdout)
+	})
+}
+
 // ingestQueryTargets returns the read/write-vault subcommands (query, ingest,
 // prune, query-chunks, plus activate/count/show/show-chunk/check via
 // showActivateTargets). Split from coreTargets to stay within the
@@ -201,24 +215,10 @@ func ingestQueryTargets(
 
 	return append([]any{
 		targ.Targ(func(ctx context.Context, a QueryArgs) {
-			a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
-			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
-
-			errHandler(runInVault(deps, a.VaultPath, func() error {
-				if parent := parentBase(deps); parent != "" {
-					return runMergedQuery(withLog(ctx), deps, parent, a, deps.Stdout)
-				}
-
-				return RunQuery(withLog(ctx), a, newQueryDeps(deps), deps.Stdout)
-			}))
+			errHandler(queryCommand(withLog(ctx), deps, a, deps.Stdout))
 		}).Name("query").Description("Semantic search over vault + chunk index (YAML output)"),
 		targ.Targ(func(ctx context.Context, a IngestArgs) {
-			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
-			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-
-			errHandler(runInVault(deps, a.Vault, func() error {
-				return RunIngest(withLog(ctx), a, newIngestDeps(deps), deps.Stdout)
-			}))
+			errHandler(ingestCommand(withLog(ctx), deps, a, deps.Stdout))
 		}).Name("ingest").Description("Chunk+embed transcripts/markdown into a chunk index (zero-LLM)"),
 		targ.Targ(func(ctx context.Context, a PruneArgs) {
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
@@ -234,6 +234,26 @@ func ingestQueryTargets(
 	}, showActivateTargets(deps, withLog, errHandler, home)...)
 }
 
+// learnFactCommand is `engram learn fact`, shared like amendCommand.
+func learnFactCommand(ctx context.Context, deps Deps, a LearnFactArgs, stdout io.Writer) error {
+	a.Vault = resolveVault(a.Vault, homeOrEmpty(deps), deps.Getenv)
+	a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
+
+	return runInVault(deps, a.Vault, func() error {
+		return runLearnFromFactArgs(ctx, a, deps, stdout)
+	})
+}
+
+// learnFeedbackCommand is `engram learn feedback`, shared like amendCommand.
+func learnFeedbackCommand(ctx context.Context, deps Deps, a LearnFeedbackArgs, stdout io.Writer) error {
+	a.Vault = resolveVault(a.Vault, homeOrEmpty(deps), deps.Getenv)
+	a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
+
+	return runInVault(deps, a.Vault, func() error {
+		return runLearnFromFeedbackArgs(ctx, a, deps, stdout)
+	})
+}
+
 // learnTargets returns the learn group (feedback, fact, runbook, qa). Split
 // out of learnUpdateTargets to stay within the per-function length budget.
 func learnTargets(
@@ -244,20 +264,10 @@ func learnTargets(
 ) any {
 	return targ.Group("learn",
 		targ.Targ(func(ctx context.Context, a LearnFeedbackArgs) {
-			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-			a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
-
-			errHandler(runInVault(deps, a.Vault, func() error {
-				return runLearnFromFeedbackArgs(withLog(ctx), a, deps, deps.Stdout)
-			}))
+			errHandler(learnFeedbackCommand(withLog(ctx), deps, a, deps.Stdout))
 		}).Name("feedback").Description("Write a feedback note to the vault"),
 		targ.Targ(func(ctx context.Context, a LearnFactArgs) {
-			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-			a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
-
-			errHandler(runInVault(deps, a.Vault, func() error {
-				return runLearnFromFactArgs(withLog(ctx), a, deps, deps.Stdout)
-			}))
+			errHandler(learnFactCommand(withLog(ctx), deps, a, deps.Stdout))
 		}).Name("fact").Description("Write a fact note to the vault"),
 		targ.Targ(func(ctx context.Context, a LearnRunbookArgs) {
 			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
@@ -313,6 +323,15 @@ func learnUpdateTargets(
 	}
 }
 
+// logContext returns the function that puts the debug logger of the process in a context.
+func logContext(deps Deps) func(context.Context) context.Context {
+	logger := debuglog.New(deps.DebugLog, "engram", deps.Now)
+
+	return func(ctx context.Context) context.Context {
+		return debuglog.WithLogger(ctx, logger)
+	}
+}
+
 // maintenanceTargets returns the vault-maintenance subcommands (resituate,
 // amend, vocab, register-skills). Split out of Targets to keep each function
 // within the length budget; the wiring mirrors the other targets exactly.
@@ -344,6 +363,22 @@ func newErrHandler(stderr io.Writer, exit func(int)) func(error) {
 
 		exit(1)
 	}
+}
+
+// queryCommand is `engram query`, shared like amendCommand: with a parent configured the query is merged with the
+// parent's.
+func queryCommand(ctx context.Context, deps Deps, a QueryArgs, stdout io.Writer) error {
+	home := homeOrEmpty(deps)
+	a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
+	a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
+
+	return runInVault(deps, a.VaultPath, func() error {
+		if parent := parentBase(deps); parent != "" {
+			return runMergedQuery(ctx, deps, parent, a, stdout)
+		}
+
+		return RunQuery(ctx, a, newQueryDeps(deps), stdout)
+	})
 }
 
 // registerSkillsTargets returns the `engram register-skills` subcommand
@@ -491,6 +526,11 @@ func showActivateTargets(
 	}, showTargets(deps, withLog, errHandler, home)...)
 }
 
+// showCommand is `engram show` of the local vault, shared like amendCommand.
+func showCommand(ctx context.Context, deps Deps, a ShowArgs, stdout io.Writer) error {
+	return dispatchShow(ctx, deps, a, homeOrEmpty(deps), stdout)
+}
+
 // showTargets returns the show/show-chunk subcommands. Split out of
 // showActivateTargets (792a21's --parent branch pushed it over
 // the per-function length budget).
@@ -508,7 +548,7 @@ func showTargets(
 				return
 			}
 
-			errHandler(dispatchShow(withLog(ctx), deps, a, home, deps.Stdout))
+			errHandler(showCommand(withLog(ctx), deps, a, deps.Stdout))
 		}).Name("show").Description("Print a note and its outbound wikilink targets (read-only)"),
 		targ.Targ(func(ctx context.Context, a ShowChunkArgs) {
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)

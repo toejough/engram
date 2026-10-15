@@ -3,7 +3,6 @@ package auto
 import (
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
@@ -36,7 +35,6 @@ const (
 	cueRoute    = "route"
 	cueStep     = "step"
 	cueSubagent = "subagent"
-	engramCmd   = "engram"
 	itemLimit   = 10
 	mainAgent   = "main"
 	minScore    = 0.25
@@ -99,7 +97,7 @@ func (e *engine) deliver(agent string, notes []Note) string {
 // keys the ledger; a subagent's context is its task, so it reads no transcript. `moments` are the phrases the moment
 // names beside the text. Nothing relevant remaining is nothing (793a2n).
 func (e *engine) lookup(agent, kind, text string, readContext bool, moments []string) []Note {
-	items := parseQuery(e.exec(queryArgv(kind, text, moments), deadlineMomentQuery))
+	items := parseQuery(e.query(queryRequest(kind, text, moments), deadlineMomentQuery))
 
 	// a note the agent holds (delivered, or in what its context holds, which covers what the agent retrieved itself and
 	// what a resume restored) is not delivered again (793a2e); the transcript grows between rounds, so the filter is
@@ -262,23 +260,17 @@ func parseQuery(output string) []Note {
 	return items
 }
 
-// queryArgv is the existing `engram query` for the text of a moment and its phrases; free text is `--flag=value` so
-// that a value that starts with a dash is not read as a flag.
-func queryArgv(kind, text string, moments []string) []string {
+// queryRequest is the search for the text of a moment and its phrases: the moments the cue names, then the phrases the
+// kind of cue adds, then the text.
+func queryRequest(kind, text string, moments []string) QueryRequest {
 	clipped := cutEnd(text, textLimit)
 	phrases := map[string][]string{
 		cuePrompt: append(recallMoments(), clipped), cueRoute: {"routing a unit of work to a model tier", clipped},
 		cueSubagent: {"dispatching a subagent for a task", clipped}, cueStep: {clipped},
 		cueCapture: {"capturing a lesson from a conversation", clipped},
 	}[kind]
-	flags := make([]string, 1, 1+len(moments)+len(phrases))
-	flags[0] = "--text=" + clipped
 
-	for _, phrase := range slices.Concat(moments, phrases) {
-		flags = append(flags, "--phrase="+phrase)
-	}
-
-	return append([]string{engramCmd, "query", "--limit", strconv.Itoa(itemLimit)}, flags...)
+	return QueryRequest{Text: clipped, Phrases: slices.Concat(moments, phrases), Limit: itemLimit}
 }
 
 // runsMemory says whether a tool call is the agent running memory itself.

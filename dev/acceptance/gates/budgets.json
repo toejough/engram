@@ -24,8 +24,8 @@
         "files": [
           "failure.go"
         ],
-        "basis": "failure.js 24, exec 11, answered 4",
-        "ceiling": 55
+        "basis": "failure.js 24, exec 11, answered 4; the four operations of the vault the engine performs (perform, amend, query, show) add 11 (793b417)",
+        "ceiling": 66
       },
       "moment": {
         "js": 112,
@@ -33,7 +33,7 @@
           "moment.go"
         ],
         "basis": "moment.js 70, lookup 15, deliver 8, moment 1, stepJob 7, memory-ask and note-path patterns 4, readTranscript 7",
-        "ceiling": 220
+        "ceiling": 213
       },
       "judge-relay": {
         "js": 161,
@@ -51,7 +51,7 @@
           "redact.go"
         ],
         "basis": "capture.js 200, capture 18, markTurns 7, settled 9",
-        "ceiling": 428
+        "ceiling": 426
       },
       "backlog": {
         "js": 111,
@@ -67,7 +67,7 @@
           "curate.go"
         ],
         "basis": "housekeeping.js 52, nearest 9, curateOne 13, curate 13, housekeeping 5, skipped 1",
-        "ceiling": 140
+        "ceiling": 131
       },
       "summary": {
         "js": 27,

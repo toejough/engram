@@ -167,9 +167,9 @@ Then(
   async function (which) {
     await quiesce(this)
     const scenario = this.scenario
-    const delayMs = scenario.shimSeconds * MS_PER_SECOND
+    const delayMs = scenario.faultSeconds * MS_PER_SECOND
     assert.ok(delayMs > 0, 'no slow work was injected: a harness error, a Given is missing')
-    const slow = scenario.shimCalls().filter((call) => call.what.includes('slept-start'))
+    const slow = scenario.faultCalls().filter((call) => call.what.includes('slept-start'))
     assert.ok(slow.length > 0, 'the System did no slow work in this scenario: the delay was never exercised')
     const turns = scenario.session.turns
     const rows = readRows(scenario.session.transcriptPath())

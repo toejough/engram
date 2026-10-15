@@ -81,6 +81,10 @@ type Deps struct {
 	// RandRead fills buf with cryptographically random bytes (production:
 	// crypto/rand.Read) — the vault-ID source (792b5c4 Vault ID stamping).
 	RandRead func(buf []byte) (int, error)
+	// AutoFault is the harness-only fault of the System's work (793b418): "" in production. NewDeps reads it from
+	// ENGRAM_AUTO_FAULT, and `engram auto run` alone looks at it. AutoFaultLog names the file a delay is noted in.
+	AutoFault    string
+	AutoFaultLog string
 	// EvalSymlinks resolves every symlink in path (production:
 	// filepath.EvalSymlinks) — the vault location record's canonical path.
 	EvalSymlinks func(path string) (string, error)

@@ -3,7 +3,6 @@ package cli_test
 import (
 	"bytes"
 	"context"
-	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -13,7 +12,6 @@ import (
 	"github.com/toejough/targ"
 
 	"github.com/toejough/engram/internal/cli"
-	"github.com/toejough/engram/internal/update"
 )
 
 func Test793d28b3_TheChunksDirectoryFollowsTheVariablesOfTheEngramCommands(t *testing.T) {
@@ -112,9 +110,9 @@ func Test793d36b1_AutoFilesAreReadableByTheUserAlone(t *testing.T) {
 	root := t.TempDir()
 	files := cli.NewAutoFilesForTest(newTestDeps(&bytes.Buffer{}, &bytes.Buffer{}).FS)
 
-	g.Expect(files.Write(root+"/chunks/capture-queue.json", "[]")).To(gomega.Succeed())
+	g.Expect(files.Write(root+"/chunks/backlog-marks.json", "[]")).To(gomega.Succeed())
 
-	info, err := os.Stat(root + "/chunks/capture-queue.json")
+	info, err := os.Stat(root + "/chunks/backlog-marks.json")
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	if err != nil {
@@ -166,7 +164,7 @@ func Test793d36b1_AutoRunPrintsTheResponseOfAJob(t *testing.T) {
 	t.Parallel()
 
 	g := gomega.NewWithT(t)
-	out, err := autoRun(t, &autoCommander{}, `{"kind":"summary","tally":[{"delivered":2}]}`)
+	out, err := autoRun(t, `{"kind":"summary","tally":[{"delivered":2}]}`)
 
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	g.Expect(out).To(gomega.ContainSubstring(`"line":"Memory activity: 2 items delivered"`))
@@ -176,86 +174,21 @@ func Test793d36b1_AutoRunRefusesAJobItCannotRead(t *testing.T) {
 	t.Parallel()
 
 	g := gomega.NewWithT(t)
-	_, err := autoRun(t, &autoCommander{}, `{"kind":`)
+	_, err := autoRun(t, `{"kind":`)
 
 	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("auto run")))
 }
 
-func Test793d36b3_AutoRunClassifiesTheFailureOfACommandByWhatItLeft(t *testing.T) {
-	t.Parallel()
-
-	failed := errors.New("exit status 1")
-	missing := errors.Join(update.ErrCommandNotFound, errors.New("executable file not found"))
-	cases := map[string]struct {
-		commander *autoCommander
-		want      string
-	}{
-		"a command that exits with an error": {
-			&autoCommander{err: failed, stderr: "permission denied"}, "the vault is unavailable",
-		},
-		"a command that cannot start":        {&autoCommander{err: missing}, "the vault is unavailable"},
-		"a command that fails for no reason": {&autoCommander{err: failed}, "of an error"},
-	}
-
-	for name, one := range cases {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
-			g := gomega.NewWithT(t)
-			out, err := autoRun(t, one.commander, `{"kind":"housekeeping","step":"the housekeeping"}`)
-
-			g.Expect(err).NotTo(gomega.HaveOccurred())
-			g.Expect(out).To(gomega.ContainSubstring(one.want))
-			g.Expect(one.commander.argv).To(gomega.Equal([]string{"engram", "ingest", "--auto"}))
-		})
-	}
-}
-
-func Test793d36b3_AutoRunCutsACommandAtItsDeadline(t *testing.T) {
-	t.Parallel()
-
-	g := gomega.NewWithT(t)
-	commander := &autoCommander{err: errors.New("signal: killed"), wait: true}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
-
-	defer cancel()
-
-	out, err := cli.AutoCommandForTest(ctx, commander, []string{"engram", "ingest"}, time.Hour)
-
-	g.Expect(err).To(gomega.HaveOccurred())
-	g.Expect(out.Stdout).To(gomega.BeEmpty())
-	g.Expect(err.Error()).To(gomega.ContainSubstring("still running after"))
-}
-
 // The adapters of `engram auto run` (793e8m): the commands, the files, the environment and the clock a job runs in.
 
-// autoCommander answers a command with what the test gives.
-type autoCommander struct {
-	stdout, stderr string
-	err            error
-	wait           bool
-	argv           []string
-}
-
-func (c *autoCommander) Run(ctx context.Context, _, name string, args ...string) ([]byte, []byte, error) {
-	c.argv = append([]string{name}, args...)
-
-	if c.wait {
-		<-ctx.Done()
-	}
-
-	return []byte(c.stdout), []byte(c.stderr), c.err
-}
-
 // autoRun runs the job `summary` with the given commander and returns what it printed.
-func autoRun(t *testing.T, commander update.Commander, stdin string) (string, error) {
+func autoRun(t *testing.T, stdin string) (string, error) {
 	t.Helper()
 
 	var out bytes.Buffer
 
 	deps := newTestDeps(&out, &bytes.Buffer{})
 	deps.Stdin = strings.NewReader(stdin)
-	deps.Commander = commander
 	deps.Now = func() time.Time { return time.UnixMilli(1_700_000_000_000) }
 
 	err := cli.RunAutoForTest(context.Background(), deps)

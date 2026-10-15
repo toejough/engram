@@ -32,7 +32,9 @@ func Test793d23b2_TheRecentTextsAreRedactedAndCut(t *testing.T) {
 func Test793d24b1_QueryArgumentsAreFlagValueForms(t *testing.T) {
 	t.Parallel()
 	each(t, "query_argv", func(g *WithT, input map[string]any, want golden) {
-		got := auto.QueryArgv(field[string](input, "kind"), field[string](input, "text"), convert[[]string](input["moments"]))
+		request := auto.QueryRequestOf(
+			field[string](input, "kind"), field[string](input, "text"), convert[[]string](input["moments"]))
+		got := queryArgvOf(request)
 		g.Expect(asJSON(got)).To(MatchJSON(want.Out))
 	})
 }
@@ -374,7 +376,13 @@ func Test793d29b2_AnOutcomeSettlesWithTheCommandsOfCurate(t *testing.T) {
 			}
 		}
 
-		argvs := auto.SettleArgvs(out, field[string](input, "offer"), field[string](input, "hash"))
+		requests := auto.SettleRequests(out, field[string](input, "offer"), field[string](input, "hash"))
+		argvs := make([][]string, 0, len(requests))
+
+		for _, request := range requests {
+			argvs = append(argvs, amendArgvOf(request))
+		}
+
 		g.Expect(asJSON(argvs)).To(MatchJSON(want.Out))
 	})
 }

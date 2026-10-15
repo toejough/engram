@@ -5,16 +5,9 @@ import (
 	"time"
 
 	"github.com/toejough/engram/internal/auto"
-	"github.com/toejough/engram/internal/update"
 )
 
 // The adapters of `engram auto run`, for their tests.
-
-func AutoCommandForTest(
-	ctx context.Context, cmd update.Commander, argv []string, deadline time.Duration,
-) (auto.Output, error) {
-	return runAutoCommand(ctx, cmd, argv, deadline)
-}
 
 func AutoDirectoriesForTest(home string, env map[string]string) (vault, chunks string) {
 	return autoDirectories(Deps{
@@ -28,5 +21,8 @@ func NewAutoClockForTest(now func() time.Time) auto.Clock { return autoClock{now
 func NewAutoFilesForTest(edge EdgeFS) auto.Files { return autoFiles{edge: edge} }
 
 func NewAutoOffersForTest(edge EdgeFS) auto.Offers { return autoOffers{edge: edge} }
+
+// NewAutoVaultForTest is the vault of a job, with the harness fault the dependencies carry.
+func NewAutoVaultForTest(ctx context.Context, deps Deps) auto.Vault { return newAutoVault(ctx, deps) }
 
 func RunAutoForTest(ctx context.Context, deps Deps) error { return runAuto(ctx, deps) }

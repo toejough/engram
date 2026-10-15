@@ -2,14 +2,26 @@ package auto
 
 import "time"
 
+// AmendRequest is an amend: the note it names, and what is done to it. Fields are the content fields to replace.
+type AmendRequest struct {
+	Target       string
+	Into         string
+	ExpectHash   string
+	Source       string
+	Fields       [][2]string
+	Activate     bool
+	ClearPending bool
+	Discard      bool
+}
+
 // Clock is the wall clock.
 type Clock interface{ Now() time.Time }
 
-// Deps are the impure capabilities of a job, injected at the edge: the commands it runs, the files it reads, the
-// pending offers of the vault as the pending-offer bookkeeping tells them, the clock, and where the vault and the chunk
-// index are, resolved as the engram commands resolve them.
+// Deps are the impure capabilities of a job, injected at the edge: the vault the job reads and writes, the files it
+// reads, the pending offers of the vault as the pending-offer bookkeeping tells them, the clock, and where the vault
+// and the chunk index are, resolved as the engram commands resolve them.
 type Deps struct {
-	Runner    Runner
+	Vault     Vault
 	Files     Files
 	Offers    Offers
 	Clock     Clock
@@ -17,12 +29,18 @@ type Deps struct {
 	ChunksDir string
 }
 
-// Files is the file system the job reads transcripts and the chunk index from, and writes the queue and the backlog
-// marks to.
+// Files is the file system the job reads transcripts and the chunk index from, and writes the backlog marks to.
 type Files interface {
 	Read(path string) (string, error)
 	Write(path, text string) error
 	Exists(path string) bool
+}
+
+// LearnRequest is a note to write: its kind (`feedback` or `fact`), its slug, the source line, the situation and the
+// values of the fields of its kind. The note is written at the top of the vault.
+type LearnRequest struct {
+	Kind, Slug, Source, Situation string
+	Values                        [][2]string
 }
 
 // Offers lists the pending offers of a vault.
@@ -31,12 +49,31 @@ type Offers interface {
 	Pending(vault string) ([]string, error)
 }
 
-// Output is what a command printed.
+// Output is what an operation of the vault printed, and what it left on its standard error.
 type Output struct{ Stdout, Stderr string }
 
-// Runner runs one engram (or system) command by its argument vector, with no shell, within the deadline. A command
-// that exits with a code other than 0, cannot start or passes its deadline is an error whose text says so ("failed to
-// start", "still running after").
-type Runner interface {
-	Run(argv []string, deadline time.Duration) (Output, error)
+// QueryRequest is a search: the text the user said, the phrases to match and how many items to return.
+type QueryRequest struct {
+	Text    string
+	Phrases []string
+	Limit   int
+}
+
+// Vault is the memory of the vault as the job uses it (793b417): the operations the commands `engram query`,
+// `engram show`, `engram learn`, `engram amend` and `engram ingest --auto` perform, called in the process by the code
+// of the commands, with the deadline of the step. An operation that fails, or passes its deadline, is an error whose
+// text says why ("still running after"); the text is what the failure is classified by.
+type Vault interface {
+	// Amend amends a note (or folds, clears, discards or activates it) as `engram amend` does.
+	Amend(request AmendRequest, deadline time.Duration) error
+	// Index brings the chunk index up to date as `engram ingest --auto` does.
+	Index(deadline time.Duration) error
+	// Learn writes a note as `engram learn` does, and returns what it printed: the path of the note.
+	Learn(request LearnRequest, deadline time.Duration) (string, error)
+	// Query searches the vault as `engram query` does, and returns its payload.
+	Query(request QueryRequest, deadline time.Duration) (string, error)
+	// Show reads a note as `engram show` does, and returns what it printed. The text always begins with the exchange
+	// hash line of the note that `engram show` prints for a note that has an exchange identity: here every note has
+	// one, so that an amend can verify that the note it judged is the note it amends.
+	Show(name string, deadline time.Duration) (string, error)
 }
