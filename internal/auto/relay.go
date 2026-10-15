@@ -64,7 +64,6 @@ type Job struct {
 	Messages    []Message       `json:"messages"`
 	Tally       []Counts        `json:"tally"`
 	Warnings    []string        `json:"warnings"`
-	Message     string          `json:"message"`
 }
 
 // Response is what `engram auto run` prints: the effects of the round for the mod to apply (the debug log lines, the
@@ -87,7 +86,7 @@ func Run(deps Deps, input []byte) ([]byte, error) {
 	jobs := map[string]func() Done{
 		"lookup": e.lookupJob, "step": e.stepJob, "tool": e.toolJob, "compact": e.compactJob, "capture": e.captureJob,
 		"subagent": e.subagentJob, "housekeeping": e.housekeepingJob, "summary": e.summaryJob, "enqueue": e.enqueueJob,
-		"resume": e.resumeJob, "failure": e.failureJob,
+		"resume": e.resumeJob,
 	}
 
 	err := json.Unmarshal(input, &e.job)

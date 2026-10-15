@@ -1,0 +1,51 @@
+// The words a failure is shown in are the engine's (internal/auto/failure.go, `warning` and the patterns of a class);
+// the mod words a failure of the engram program itself, which the engine cannot, with the same words (793b413). This
+// test holds the two to each other, so that they cannot drift.
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import path from 'node:path'
+import test from 'node:test'
+
+import { REPO_ROOT } from '../lib/extract.js'
+
+const ENGINE_SOURCE = fs.readFileSync(path.join(REPO_ROOT, 'internal', 'auto', 'failure.go'), 'utf8')
+const MOD_SOURCE = fs.readFileSync(
+  path.join(REPO_ROOT, 'agent-instructions', 'mods', 'engram-memory', 'hooks', 'register.js'),
+  'utf8',
+)
+
+// the engine's words per class, and the words of a failure it cannot class
+const engineReasons = () => {
+  const table = /map\[string\]string\{kindUnavailable: "([^"]+)", kindTimeout: "([^"]+)"\}/.exec(ENGINE_SOURCE)
+  const fallback = /reason = "([^"]+)"/.exec(ENGINE_SOURCE)
+  assert.ok(table && fallback, 'failure.go no longer words a failure the way this test reads it')
+  return { unavailable: table[1], timeout: table[2], error: fallback[1] }
+}
+
+// the engine's patterns per class
+const engineCue = (variable) => {
+  const found = new RegExp(`${variable}\\s*=\\s*regexp\\.MustCompile\\(\`\\(\\?i\\)([^\`|]+)`).exec(ENGINE_SOURCE)
+  assert.ok(found, `failure.go has no pattern ${variable}`)
+  return found[1]
+}
+
+// the mod's table: [text of a failure, words]
+const modReasons = () => {
+  const table = /const REASONS = \[((?:\s*\['[^']+', '[^']+'\],?)+)\s*\]/.exec(MOD_SOURCE)
+  const unclassed = /const UNCLASSED_REASON = '([^']+)'/.exec(MOD_SOURCE)
+  assert.ok(table && unclassed, 'register.js no longer words a failure the way this test reads it')
+  return {
+    pairs: [...table[1].matchAll(/\['([^']+)', '([^']+)'\]/g)].map((match) => [match[1], match[2]]),
+    unclassed: unclassed[1],
+  }
+}
+
+test('the mod words the failures of the engram program as the engine words the failures of its steps', () => {
+  const engine = engineReasons()
+  const mod = modReasons()
+  const wordsOf = Object.fromEntries(mod.pairs)
+  assert.equal(wordsOf[engineCue('timedOut')], engine.timeout)
+  assert.equal(wordsOf[engineCue('unavailable')], engine.unavailable)
+  assert.equal(mod.unclassed, engine.error)
+  assert.equal(mod.pairs.length, 2)
+})

@@ -24,8 +24,13 @@ const STEP = {
 }
 const CAPTURE_STEP = 'the capture'
 const HOUSEKEEPING_STEP = 'the housekeeping'
-// what a failure is worded as when the engine cannot run at all and so cannot word it (it words every other)
-const ENGINE_UNAVAILABLE = 'the vault is unavailable'
+// what a failure of the engram program itself says; the engine words the failures it contains, and a test holds these
+// words to its own (dev/acceptance/test/wording.test.js)
+const REASONS = [
+  ['still running after', 'the System timed out'],
+  ['failed to start', 'the vault is unavailable'],
+]
+const UNCLASSED_REASON = 'of an error'
 
 /** @type {ModState} */
 const mod = {
@@ -58,25 +63,13 @@ async function attempt($, job, step) {
     return await job()
   } catch (/** @type {any} */ error) {
     $.ui.log(`engram-memory: ${step ?? 'internal'}: ${error.message}`, { to: 'debug' })
-    if (step) await told($, step, error.message)
+    if (step) await warn($, `Automatic memory was skipped because ${reasonOf(error.message)} (${step})`)
     return null
   }
 }
 
-// told has the engine word and class a failure of a step, as it does the failures it contains (793d36b3); an engine
-// that cannot run says only that.
-/**
- * @param {Ctx} $
- * @param {string} step
- * @param {string} message
- */
-async function told($, step, message) {
-  try {
-    await relay($, { kind: 'failure', step, message })
-  } catch {
-    await warn($, `Automatic memory was skipped because ${ENGINE_UNAVAILABLE} (${step})`)
-  }
-}
+/** @type {(message: string) => string} */
+const reasonOf = (message) => REASONS.find(([text]) => message.includes(text))?.[1] ?? UNCLASSED_REASON
 
 // warn shows the user, on the status line and nowhere else, that automatic memory was skipped and why. It never fails.
 /**
