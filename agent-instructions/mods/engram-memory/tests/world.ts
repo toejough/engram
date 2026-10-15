@@ -13,6 +13,8 @@ export type Answer = Record<string, unknown> | { exit: number; stderr: string } 
 export interface WorldOptions {
   engine?: (job: Job, call: number) => Answer | Promise<Answer>
   messages?: unknown[]
+  // the session's messages are not answered until this settles: a tool result can arrive while a step is started
+  messagesGate?: Promise<void>
   files?: Record<string, string>
   env?: Record<string, string>
   replies?: (request: Record<string, unknown>) => Record<string, unknown>
@@ -99,7 +101,10 @@ export function world(on: On, options: WorldOptions = {}): World {
   })
   on('session.id', async () => ({ value: 'sess-1' }))
   on('session.turns', async () => ({ value: 3 }))
-  on('session.messages', async () => ({ value: options.messages ?? MESSAGES }))
+  on('session.messages', async () => {
+    await options.messagesGate
+    return { value: options.messages ?? MESSAGES }
+  })
   on('turn.complete', async (_ctx, event) => ({ text: event.answer }))
   on('prompt.submit', async (_ctx, event) => ({ text: event.text, context: event.context }))
   on('agent.spawn', async () => ({ model: 'sonnet' }))

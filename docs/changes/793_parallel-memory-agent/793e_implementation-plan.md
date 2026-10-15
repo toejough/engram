@@ -132,7 +132,7 @@ A precondition retried up to three times ([793b246 Assertions read the transcrip
 
 ### 793e2i Step catalog
 
-The 27 step definitions that every scenario of the product spec is written in ([793b277 The Gherkin step lines of the 43 product scenarios use a fixed vocabulary of 27 steps](./793b_decision-log.md#793b277-the-gherkin-step-lines-of-the-43-product-scenarios-use-a-fixed-vocabulary-of-27-steps)). A phrasing is anchored: it matches exactly one definition, and a line that matches none or two fails the vocabulary check before any session starts. Notation: text in double quotes is a quoted string (a double quote never occurs inside; an inner quotation uses single quotes); `N` is an integer; `(a | b)` is a choice; `[x]` is optional. A quoted label (`"N"`, `"X"`, `"O"`) names a note or offer for later steps; a quoted event or script (`"E"`) is a key into `scenarios.js`, whose entry holds the prompts and the observation that confirms the precondition; the step never branches on its text.
+The 30 step definitions that every scenario of the product spec is written in ([793b277 The Gherkin step lines of the 43 product scenarios use a fixed vocabulary of 27 steps](./793b_decision-log.md#793b277-the-gherkin-step-lines-of-the-43-product-scenarios-use-a-fixed-vocabulary-of-27-steps)). A phrasing is anchored: it matches exactly one definition, and a line that matches none or two fails the vocabulary check before any session starts. Notation: text in double quotes is a quoted string (a double quote never occurs inside; an inner quotation uses single quotes); `N` is an integer; `(a | b)` is a choice; `[x]` is optional. A quoted label (`"N"`, `"X"`, `"O"`) names a note or offer for later steps; a quoted event or script (`"E"`) is a key into `scenarios.js`, whose entry holds the prompts and the observation that confirms the precondition; the step never branches on its text.
 
 | # | Kind | Phrasing | What the definition does |
 | --- | --- | --- | --- |
@@ -141,7 +141,7 @@ The 27 step definitions that every scenario of the product spec is written in ([
 | 3 | Given | `an engram install made before the System existed` | an update of the pre-System tree: skills, guidance and shim, no mod |
 | 4 | Given | `the vault holds (a note "N" whose situation is "S"[ and which says "T"] \| no matching note)` | seeds the note through `engram learn` with a unique sentinel in its body (or the stated text) |
 | 5 | Given | `the vault holds a pending offer "O" that (note "N" covers \| no note covers)` | seeds an offer through the path SP10 finds |
-| 6 | Given | `(the vault cannot be read \| the System's work for a turn (raises an error \| times out \| takes N seconds))` | fault injection by a real mechanism: an unreadable vault directory, or an `engram` shim that exits, hangs or sleeps |
+| 6 | Given | `(the vault cannot be read \| the System's work for a turn (raises an error \| times out \| takes N seconds))` | fault injection: an unreadable vault directory, or the fault seam of the System's work (`ENGRAM_AUTO_FAULT`: the operations of the engine fail, the lookups hang, or the work other than lookups sleeps; [793b418](./793b_decision-log.md#793b418-the-fault-shims-are-replaced-by-a-harness-only-fault-seam-of-the-engine)) |
 | 7 | Given | `(the user has not asked for any memory command \| the agent runs no memory command itself)` | a constraint the turn steps enforce: a precondition about the agent that fails retries the turn (three tries, then a harness error); one about the System fails the row at the first try |
 | 8 | Given | `an ended (Pi \| Claude Code) session in which the user said "S" and (its lesson was not saved \| its agent saved the lesson by running the learn skill \| its lesson was captured by an earlier Claude Code turn)` | writes the ended session's transcript and its copy, and the note or the earlier turn that the third clause names; asserts that no note states the lesson in the first clause |
 | 9 | When | `a turn completes in which "E"` | runs the script of `E` in the session and returns at the SDK result; the readers wait for the System's idle marker |
@@ -163,8 +163,11 @@ The 27 step definitions that every scenario of the product spec is written in ([
 | 25 | Then | `the (Claude Code \| Pi) session behaves identically to (its behavior before the System existed \| a session run after the first update)` | "identical" as in [793e2h Results](#793e2h-results) |
 | 26 | Then | `the Pi (agent runs recall before acting \| agent's own ingest and learn run and write as they would without the System \| transcript is identical to its copy)` | the Pi session's own transcript and writes |
 | 27 | Then | `the transcript shows the results of the agent's own memory command[, the agent's reply to the user] and no error` | the tool result of the agent's own run, and no error row |
+| 28 | Given | `the chunk index holds a chunk "C" that says "T"` | writes a markdown source named with a unique sentinel with one heading and the words `T`, and ingests it through `engram ingest --markdown` ([793b425](./793b_decision-log.md#793b425-chunk-stubs-were-dropped-against-an-owner-decision-the-lookup-that-holds-the-agent-asks-for-notes-only-and-the-stubs-come-from-a-background-pass)) |
+| 29 | Then | `the transcript shows chunk "C" delivered as a stub, with its id and score and none of its content` | a System block names the id of the chunk (its file and heading) with a score and does not hold the words of the chunk |
+| 30 | Then | `the agent can fetch chunk "C" with engram show-chunk` | runs `engram show-chunk` with the id the block named, in the World, and finds the chunk's sentinel in what it prints |
 
-H1's steps ([793e8i H1 probe harness and verdict](#793e8i-h1-probe-harness-and-verdict)) extend this catalog in their own node; the product scenarios use only the 27 above.
+H1's steps ([793e8i H1 probe harness and verdict](#793e8i-h1-probe-harness-and-verdict)) extend this catalog in their own node; the product scenarios use only the 30 above.
 
 ### 793e2j Whole-plan cost estimate
 
@@ -747,7 +750,7 @@ Gates at the head of the node: `check-full` 19 of 19 PASS; `targ acceptance --ch
 
 ### 793e8r Refactor review and promotion
 
-Status: In progress (gate: the full acceptance run, the empty list of the owner's questions, and `targ check-full`).
+Status: In progress (gate: the full acceptance run, the owner's questions answered, and `targ check-full`; the questions are answered, the walkthrough of the decisions marked "awaiting owner validation" and the promotion remain).
 
 One agent review round of the refactored system and its specs, then the owner walkthrough ([Decisions and Open Questions](../../AGENTS.md#decisions-and-open-questions)), then atomic promotion ([Specification Lifecycle Guide](../../SPECIFICATION-LIFECYCLE-GUIDE.md#atomic-promotion)): the product and technical deltas applied to `docs/specs/`, links and IDs validated, and this change directory deleted in the same integration. Verification: every gate is in `check-full` and green; `targ acceptance` full run green; `targ check-full` passes. Invariant: the acceptance suite stays green.
 
@@ -774,7 +777,36 @@ The review returned "targeted fixes first" ([793b403 The refactor review returne
 
 **Result (2026-10-14, Claude Code 2.1.299, nothing installed, token never printed):** after the fixes, `targ check-full` 19 of 19 PASS, `targ acceptance --check` 3 of 3 (43 scenarios, 27 definitions), the link check of the change directory clean, and the full `targ acceptance` run 51 runs: 49 Green, 2 `Not run` (no headless Pi), none Red (cost 1.90 USD by the SDK's estimate). The first full run after the changes had one Red, the row 793a4b1b, from a design of the wording of a failure that was removed ([793b413](./793b_decision-log.md#793b413-the-duplicated-code-of-the-engine-and-the-mod-is-one-and-the-engine-owns-the-wording-of-a-failure)).
 
-The owner's questions, awaiting him, with the state of the code (none is decided; the code is as it was):
+**Result of the owner's decisions (2026-10-14 and 15, Claude Code 2.1.299, nothing installed, token never printed).**
+
+| Decision | State | Evidence |
+| --- | --- | --- |
+| Drop the persisted capture queue | Done | [793b416](./793b_decision-log.md#793b416-the-persisted-capture-queue-is-dropped-backlog-capture-covers-the-promise); `queue.go`, its 16 tests, `hardening.test.ts`, the jobs `enqueue` and `resume`, the budget row removed; the guard is met by Backlog Capture and its tests; `793a3a1` 10 of 10 Green |
+| The engine calls the code of the commands in process; `--source` removed; the fault shims become a seam | Done | [793b417](./793b_decision-log.md#793b417-the-engine-calls-the-code-of-the-engram-commands-in-process-instead-of-starting-the-commands), [793b418](./793b_decision-log.md#793b418-the-fault-shims-are-replaced-by-a-harness-only-fault-seam-of-the-engine), [793b419](./793b_decision-log.md#793b419-the---source-flag-of-engram-amend-is-removed-provenance-is-a-parameter-of-the-amend-and-a-near-fold-amends-first-with-a-check-of-the-note); `793a4` 12 of 12 Green on the seam |
+| The rate bar and `targ acceptance --runs N`; the six rows measured | Done | [793b421](./793b_decision-log.md#793b421-a-row-that-depends-on-a-models-judgement-passes-at-9-of-10-runs-with-every-red-attributed-from-the-activity-line), [793b422](./793b_decision-log.md#793b422-the-six-judgement-rows-were-run-ten-times-each-with-the-rate-bar-five-meet-it-793a2n1a-did-not-at-its-first-measurement): 793a2n1a 0.60 (below the bar; about 0.8 over 80 runs), 793a2n1j 0.90, 793a3a1a 1.00 (30 runs), 793a4j1c 1.00, 793a5h1a 0.90, 793a4c1f 1.00 |
+| A near fold amends first, with a check of the note | Done | [793b420](./793b_decision-log.md#793b420-a-near-fold-amends-first-with-a-check-of-the-note-and-folds-the-offer-away-after-it) |
+| H2 is closed | Done | [793b423](./793b_decision-log.md#793b423-h2-is-closed-the-result-stands-as-the-record) |
+| The relevance prompt is fenced | Done | [793b424](./793b_decision-log.md#793b424-the-relevance-prompt-fences-the-text-and-the-notes-like-the-other-three) |
+| Chunk stubs are delivered (the regression against 793c15, the new row 793a2n1k, red then green) | Done | [793b425](./793b_decision-log.md#793b425-chunk-stubs-were-dropped-against-an-owner-decision-the-lookup-that-holds-the-agent-asks-for-notes-only-and-the-stubs-come-from-a-background-pass); issue [#854](https://github.com/toejough/engram/issues/854) |
+
+The numbers, per turn, on a synthetic vault of 31 notes with the bundled embedder and a model that answers at once (the median of nine turns; processes are the `engram` processes started, `auto run` rounds included):
+
+| Measure | Before (start of this work) | After |
+| --- | --- | --- |
+| Processes of a turn with one step cue and one offer | 19 | 11 (10 before the lookup with the chunk index was added, which is one `auto run` round) |
+| Processes of a turn with three step cues and three offers | 35 | 19 |
+| Commands the engine started itself, per turn | 8 and 16 | 0 |
+| Hold of a prompt, synthetic vault (ms) | 528 and 533 | 508 and 510 |
+| Capture to summary (ms) | 1,035 and 1,609 | 879 and 1,346 |
+| Hold of a prompt, copy of the real vault, one at a time (median / 95th percentile, s) | 2.23 / 4.06, cut at 2.2 s every time and nothing delivered | 1.13 / 1.41, delivered 12 of 12 |
+| Same, six at once | 2.24 / 2.25, cut 12 of 12 | 2.04 / 2.25, cut 6 of 24 |
+| The lookup with the chunk index (background, holds no one), real vault, one at a time / six at once (median s) | not run | 12.5 / 19.6 against its deadline of 25 s |
+
+Owned lines against `budgets.json`: `internal/auto` 1,616 at the start (the ceilings were the sizes) and 1,599 now (the queue 74 gone; the typed port, the pass and the stubs added); `register.js` 271 and 287 (the queue 7 gone; the lookup with the chunk index 21 and the cue created first 2 added); the harness `lib/shim.js` (51 lines) is replaced by `lib/fault.js` (36) and the new `lib/rate.js` (82).
+
+Gates: `targ check-full` 19 of 19 PASS at the head, `targ acceptance --check` green (44 scenarios, 52 runs, 30 definitions), the link check of the change directory clean. The full `targ acceptance` run at the head of the decisions: 52 runs, 48 Green, 2 `Not run` (793a5j1d, 793a5c1b: SP14, no headless Pi), 2 Red (793a2n1a and 793a2n1j, both attributed System misses with no warning on the activity line; under the rate bar 793a2n1j meets it and 793a2n1a does not), 1.926 USD, none retried.
+
+The owner's questions and his answers of 2026-10-14 (each is an entry of [the open questions](./793c_open-questions.md) and a decision of the log):
 
 | Question | State of the code |
 | --- | --- |

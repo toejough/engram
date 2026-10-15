@@ -5215,7 +5215,7 @@ Reserved and unused: the number was skipped when the entries were written and no
 | One step cue, one offer | 19 | 10 | 528 / 509 | 1,035 / 893 |
 | Three step cues, three offers | 35 | 18 | 533 / 519 | 1,609 / 1,387 |
 
-  The engine started 8 (one step cue, one offer) and 16 (three and three) of its own commands per turn, and starts none; the 19 and 35 of "before" include the `enqueue` round the queue added ([793b416](#793b416-the-persisted-capture-queue-is-dropped-backlog-capture-covers-the-promise)), so the saving of this decision alone is 8 and 16 and the rest is the queue's. The hold of a prompt does not move beyond the noise: its time is the embedder and the rounds, which are the same; what moves is the work after the turn.
+  The engine started 8 (one step cue, one offer) and 16 (three and three) of its own commands per turn, and starts none; the 19 and 35 of "before" include the `enqueue` round the queue added ([793b416](#793b416-the-persisted-capture-queue-is-dropped-backlog-capture-covers-the-promise)), so the saving of this decision alone is 8 and 16 and the rest is the queue's. With the lookup of a prompt with the chunk index in the background that [793b425](#793b425-chunk-stubs-were-dropped-against-an-owner-decision-the-lookup-that-holds-the-agent-asks-for-notes-only-and-the-stubs-come-from-a-background-pass) added, which is one `auto run` round, the turns are 11 and 19 processes. The hold of a prompt does not move beyond the noise: its time is the embedder and the rounds, which are the same; what moves is the work after the turn.
 - **Budgets:** the ceilings of `budgets.json` follow the sizes reached (see the file); the lookup deadline of 2.2 s is unchanged (the query runs in the process that holds the loaded embedder, and is not measured faster on the synthetic vault).
 - **Rationale:** a process per operation was a start of the binary, its flag parser and, for a query, a load of the embedder, 8 to 16 times a turn, and could not carry a provenance line without a flag of the command line ([793b419](#793b419-the---source-flag-of-engram-amend-is-removed-provenance-is-a-parameter-of-the-amend-and-a-near-fold-amends-first-with-a-check-of-the-note)).
 - **Alternatives:** run the command tree in process with `targ.Execute` on the argument vectors (rejected: it keeps the vocabulary of flags the owner removes, and cannot carry an internal parameter); a daemon (rejected: not asked).
@@ -5292,3 +5292,34 @@ Reserved and unused: the number was skipped when the entries were written and no
 - **Budgets:** `budgets.json`: `moment` 215 to 277 (the pass, the stubs, the line of a stub and the check of its id, the considered notes), `register.js` 264 to 285 (the background lookup and its hand-over); the prompt hold of the performance tests is the notes-only query (`perfQueryP95` of 1.42 s stands), and the new test holds the background lookup's own deadline above its 23 s.
 - **Rationale:** the owner's decision of 793c15 is kept; the cost of the index scan is moved off the hold instead of being paid by every prompt or dropped with the chunks.
 - **Alternatives:** the full query on the hook with a longer hold (rejected: the owner's ceiling is 8 s); drop stubs and amend 793c15 (rejected by the owner); judge the stubs (rejected: they have no text to judge).
+
+## 793b422 The six judgement rows were run ten times each with the rate bar: five meet it, 793a2n1a did not at its first measurement
+
+- **Decided by:** the measurement is the author's, under the owner's bar ([793b421](#793b421-a-row-that-depends-on-a-models-judgement-passes-at-9-of-10-runs-with-every-red-attributed-from-the-activity-line)); awaiting owner validation of its reading.
+- **Choice:** the rows that depend on a model's judgement (793a2n1a, 793a2n1j, 793a3a1a, 793a4j1c, 793a5h1a, 793a4c1f) were each run ten times with `targ acceptance --runs 10 <row>`, one row at a time, on the commit of [793b425](#793b425-chunk-stubs-were-dropped-against-an-owner-decision-the-lookup-that-holds-the-agent-asks-for-notes-only-and-the-stubs-come-from-a-background-pass) (the in-process engine, the fenced relevance prompt, the lookup with the chunk index in the background), Claude Code 2.1.299, a vault without a chunk index, 2026-10-14 to 15. 793a3a1a is an outline of three examples, so its ten runs are thirty runs of the row; the owner named its third example, which is one of the thirty (the harness groups by ID, and the three examples are in the same table row).
+
+| Row | Runs | Green | Red | Rate | Bar (9 of 10) met | Each Red, attributed from the activity line | Cost of the runs (USD) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 793a2n1a Recall happens without the agent running it | 10 | 6 | 4 | 0.60 | **no** | three System misses (no warning: the judgement missed); one System failure ("the System timed out (the step lookup)", a model call cut) | 0.29 |
+| 793a2n1j Tier evidence is delivered before a dispatch is routed | 10 | 9 | 1 | 0.90 | yes | one System miss: the note was delivered before the route call returned, not at the cue | 0.98 |
+| 793a3a1a A lesson is captured without agent action (3 examples) | 30 | 30 | 0 | 1.00 | yes | none | 0.61 |
+| 793a4j1c Offers are resolved by the System | 10 | 10 | 0 | 1.00 | yes | none | 0.21 |
+| 793a5h1a The summary shows the counts after a turn with events | 10 | 9 | 1 | 0.90 | yes | one System miss: the summary lines showed "1 note amended and 2 offers curated" and "1 note added", not the three counts together | 0.49 |
+| 793a4c1f The agent is neither required nor asked to run a memory command | 10 | 10 | 0 | 1.00 | yes | none | 0.21 |
+
+- **793a2n1a is under the bar at its first measurement (6 of 10); the cause is the cheap model's classification, not the changes of this node.** The three System misses are the in-turn cue: in the debug log of a kept Red both classifications of the turn answered `[]` (2 characters: no moment named), so no step lookup was made and the note could not be delivered; the fourth Red is a model call cut ("the System timed out (the step lookup)"). Because the node changed what runs beside the cue (the lookup with the chunk index in the background, the fenced relevance prompt, the engine in process), the row was run again in ten-run blocks with each change off, one after the other:
+
+| Tree | Runs | Green | Rate |
+| --- | --- | --- | --- |
+| as committed (the first measurement) | 10 | 6 | 0.60 |
+| as committed, again | 10 | 9 | 0.90 |
+| as committed with the cue created before the step is started (the race below) | 10 | 7 | 0.70 |
+| the same, again | 10 | 9 | 0.90 |
+| with the relevance prompt as it was before [793b424](#793b424-the-relevance-prompt-fences-the-text-and-the-notes-like-the-other-three) | 10 | 9 | 0.90 |
+| with the lookup with the chunk index off | 10 | 10 | 1.00 |
+| with the lookup with the chunk index off, again | 10 | 6 | 0.60 |
+
+  The lookup with the chunk index on gives 31 of 40 (0.78), off 16 of 20 (0.80): no difference. The classification is the same text and the same model in every arm, and varies from block to block (0.60 to 1.00 on the same tree). The earlier measurement of the row ([793b409](#793b409-the-rows-793a2n1a-and-793a2n1j-were-run-ten-times-each-with-the-activity-line-kept), 9 of 10) is inside that spread. So the rate of the row is about 0.8 on this machine, below the owner's bar, as a property of the classification judgement; the owner is asked whether the row is to be held to the bar, or the classification (its prompt or its tier) improved. The full run of the node had this row Red once (a classification miss, no warning on the activity line), and 793a2n1j Red once (the note delivered before the route call returned: the judgement at the prompt chose it), both attributed System misses; 793a2n1j is 9 of 10 and meets the bar.
+- **A race was found in the debug log and fixed, with a test that failed first** (`wiring.test.ts` "a tool result that arrives while the step is still being started waits for its cue…"): the in-turn cue was created after two calls to the session (the time and the messages), so a tool result that came in that window found no cue and did not wait for it. The cue now exists before anything is awaited. It did not change the rate of the row (the table above, third and fourth rows); `register.js` is 287 owned lines.
+- **Rationale:** the rate and the attribution of each Red are what the owner asked to be recorded; a row under the bar is reported as it is.
+- **Alternatives:** run 793a2n1a until it passes (rejected: it turns a rate into a lottery).

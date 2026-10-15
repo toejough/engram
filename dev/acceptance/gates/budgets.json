@@ -1,11 +1,11 @@
 {
   "unit": "owned lines: not blank and not a comment, per JavaScript file of agent-instructions/mods/engram-memory",
   "reference": "793b368: the mod is an adapter; 162 owned lines of register.js are wiring today",
-  "total": 285,
+  "total": 287,
   "files": {
     "hooks/register.js": {
       "red": 383,
-      "budget": 285,
+      "budget": 287,
       "basis": "the 162 owned lines of wiring in register.js today (the event handlers, state, warn, attempt, exec, answered, readTranscript, seam and schedule) plus about 40 for the relay loop of the need and done rounds plus a margin, plus 15 for the hold of an event (793b406: the cut of a job at 8 s, the round that is not started after it), plus 2 for the window of the cue (793b415), less 2 for the words of a failure (793b413), less 7 for the persisted queue the owner dropped (793b416); plus 21 for the lookup of a prompt with the chunk index in the background (793b425: start it after the prompt, hand its notes to the next tool result); every other JavaScript file of the mod is logic and has no row, so it fails the gate until it is gone or the owner gives it a row"
     }
   },

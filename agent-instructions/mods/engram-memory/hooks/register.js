@@ -187,11 +187,19 @@ const withBlock = (target, field, block) => (block ? { ...target, [field]: [...(
  * @param {any} result
  */
 async function startStep($, result) {
-  const startedAt = await $.clock.now()
-  const messages = (await $.session.messages()).slice(-STEP_WINDOW).map(({ role, text }) => ({ role, text }))
   if (mod.step && !mod.step.done) return
+  // the cue exists before anything is awaited, so that a tool result that comes while the step is being started waits
+  // for it as a later one does (793b422)
   /** @type {Cue} */
-  const cue = { done: false, notes: [], startedAt }
+  const cue = { done: false, notes: [], startedAt: 0 }
+  /** @type {() => void} */
+  let release = () => {}
+  cue.promise = new Promise((resolve) => {
+    release = resolve
+  })
+  remember({ step: cue })
+  Object.assign(cue, { startedAt: await $.clock.now() })
+  const messages = (await $.session.messages()).slice(-STEP_WINDOW).map(({ role, text }) => ({ role, text }))
   const job = {
     kind: 'step',
     step: STEP.step,
@@ -202,14 +210,11 @@ async function startStep($, result) {
     transcript: mod.transcript,
     messages,
   }
-  cue.promise = new Promise(/** @param {() => void} resolve */ (resolve) => {
-    $.clock.after(0, async () => {
-      cue.notes = (await attempt($, () => relay($, job), STEP.step))?.notes ?? []
-      cue.done = true
-      resolve()
-    })
+  $.clock.after(0, async () => {
+    cue.notes = (await attempt($, () => relay($, job), STEP.step))?.notes ?? []
+    cue.done = true
+    release()
   })
-  mod.step = cue
 }
 
 // startDeep starts the lookup with the chunk index (793b425) in the background, once the lookup that held the prompt

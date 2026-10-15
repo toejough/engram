@@ -261,6 +261,26 @@ describe('the in-turn cue (793d23b2)', () => {
   )
 
   test(
+    'a tool result that arrives while the step is still being started waits for its cue, as a later one does',
+    async ($: Driver, on: On) => {
+      let release = () => {}
+      const messagesGate = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      const { clock, jobs } = world(on, { engine: cue, messagesGate })
+      const stepping = runStep($)
+      await clock.advance(1)
+      const tool = $.classic.PostToolUse(TOOL)
+      await clock.advance(1)
+      release()
+      await stepping
+      await clock.settle()
+      expect((await tool).additionalContext).toEqual([BLOCK])
+      expectHas(jobs.filter((job) => job.kind === 'tool')[0], { held: [NOTE] })
+    },
+  )
+
+  test(
     '793d23b2 a step hands the job the last 50 messages with their role and text, not the whole session',
     async ($: Driver, on: On) => {
       const HUGE = 'x'.repeat(100000)
