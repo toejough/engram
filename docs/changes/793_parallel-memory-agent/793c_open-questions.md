@@ -1129,3 +1129,21 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 - **Answer:** every System judgement (classify, relevance, capture, curation) runs on haiku at the lowest accepted effort (`low`), given H2's result and the effort-floor control ([793b351](./793b_decision-log.md#793b351-the-h2-replay-ran-at-the-pocs-effort-low-and-medium-not-at-the-floor-a-latency-control-at-the-floor-does-not-flip-the-speed-clause)). Option (a) as to the tier; the 793d18 rule is amended for the speed clause accordingly.
 - **Applied in:** [793b353 Owner answer (793c79): every System judgement runs on haiku at the lowest accepted effort](./793b_decision-log.md#793b353-owner-answer-793c79-every-system-judgement-runs-on-haiku-at-the-lowest-accepted-effort).
 - **Blocks (before the answer):** whether `judgeTiers` changes; the H2 entry of the completion gates (793e9) reads the verdict as it is.
+
+## 793c80 Is the persisted capture queue kept or dropped?
+
+- **Status:** answered (Joe, 2026-10-14), in chat; recorded here per the rule that owner answers live in this file. It is the question "b" of the owner's list in [793e8r Refactor review and promotion](./793e_implementation-plan.md#793e8r-refactor-review-and-promotion).
+- **Context:** a turn was written to `capture-queue.json` before its hook returned and taken up by a later session ([793b398](./793b_decision-log.md#793b398-the-persisted-queue-is-a-file-the-engine-owns-and-the-red-tests-of-793b362-became-tests-of-the-jobs-the-mod-hands-it)), at the cost of a component, two jobs, a file of conversation text on disk and a residual risk, for the promise of [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), which Backlog Capture also keeps.
+- **Options:** (a) keep it; (b) drop it, and let Backlog Capture cover the promise.
+- **Answer:** (b) drop the file, the jobs, the mod's hand-off, the lost-write residual and the resume grace; retire the IDs; the guard "queued work survives the end of the session" is met by Backlog Capture and its tests.
+- **Applied in:** [793b416 The persisted capture queue is dropped; Backlog Capture covers the promise](./793b_decision-log.md#793b416-the-persisted-capture-queue-is-dropped-backlog-capture-covers-the-promise).
+- **Blocks:** nothing.
+
+## 793c81 Is the queue file locked against two processes writing at once?
+
+- **Status:** answered (Joe, 2026-10-14), in chat. It is the question "e" of the owner's list in [793e8r Refactor review and promotion](./793e_implementation-plan.md#793e8r-refactor-review-and-promotion).
+- **Context:** two sessions ending a turn together could lose one write of the queue file ([793d35c Gaps and what is not built](./793d_technical-spec.md#793d35c-gaps-and-what-is-not-built)).
+- **Answer:** moot: the file is dropped with [793c80 Is the persisted capture queue kept or dropped?](#793c80-is-the-persisted-capture-queue-kept-or-dropped).
+- **Applied in:** [793b416 The persisted capture queue is dropped; Backlog Capture covers the promise](./793b_decision-log.md#793b416-the-persisted-capture-queue-is-dropped-backlog-capture-covers-the-promise).
+- **Blocks:** nothing.
+

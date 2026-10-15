@@ -64,9 +64,8 @@ The terms **moment**, **delivery**, **lesson**, **working agent**, **context**, 
 - **Mark:** a record in the backlog mark file that a backlog source, by its hash, or the turns of a session were captured.
 - **Cut-off:** the fixed time, the install time minus 7 days, before which a backlog source is history.
 - **Status line:** the one line the mod pins under the prompt, which is not a row of the transcript.
-- **Job:** one unit of the System's work that the mod hands to `engram auto run`: a `kind` (`lookup`, `step`, `tool`, `compact`, `capture`, `subagent`, `housekeeping`, `summary`, `enqueue` or `resume`) and the fields that kind reads.
+- **Job:** one unit of the System's work that the mod hands to `engram auto run`: a `kind` (`lookup`, `step`, `tool`, `compact`, `capture`, `subagent`, `housekeeping` or `summary`) and the fields that kind reads.
 - **Round:** one call of `engram auto run` for a job. It ends the job, or asks the mod to relay model requests or to wait; the next round replays the job from the **record** of the effects of the earlier ones (each command's output, each file read, the clock, each reply), which the mod hands back and never reads.
-- **Queue file:** `capture-queue.json` in the chunks directory, which holds an entry for each turn capture that has not ended: the turn's redacted window, its source line, its session's transcript and the number of times a later session has taken it up.
 
 ## 793d17 H1: a Claude Code mod gives a smaller implementation surface and more capability than settings hooks
 
@@ -290,7 +289,7 @@ This is the technical specification of the [System](./793a_product-spec.md#793a1
 
 Reading guide. `Verified by` names contract tests: a file under `agent-instructions/mods/engram-memory/tests/` (run by `claude plugin test`) with the start of a test's name, or a Go test with its exact function name. The [mod](#793d1b-terms) is an adapter ([793b368 Within reason the logic moves to Go and the mod becomes a thin adapter](./793b_decision-log.md#793b368-within-reason-the-logic-moves-to-go-and-the-mod-becomes-a-thin-adapter)): its tests register it with the engine scripted. The Go tests run each [job](#793d1b-terms) through `Run` in a fake world of commands, files, environment and clock, with the model played by a function of the request ([793b359 Flows carry one interaction requirement per calling owner, component tests drive the mod's event interface, and what is not built is marked](./793b_decision-log.md#793b359-flows-carry-one-interaction-requirement-per-calling-owner-component-tests-drive-the-mods-event-interface-and-what-is-not-built-is-marked)). Each product scenario ID is a `targ acceptance` row. `targ check-spec-conformance`, in `check-full`, fails when a requirement lacks `Supports` or `Verified by`, a cited test is absent or fails, a product scenario is unsupported, or a `Realization` names absent code.
 
-Components, each with one owner ([793b358 The components that qualify and the candidates that fail](./793b_decision-log.md#793b358-the-components-that-qualify-and-the-candidates-that-fail), [793b402 The component and flow specs are written from the refactored system](./793b_decision-log.md#793b402-the-component-and-flow-specs-are-written-from-the-refactored-system)): [793d22 Memory Mod](#793d22-memory-mod), [793d36 Job Runner](#793d36-job-runner), [793d23 Moment Detection](#793d23-moment-detection), [793d24 Memory Delivery](#793d24-memory-delivery), [793d25 Judgement Relay](#793d25-judgement-relay), [793d26 Secret Redaction](#793d26-secret-redaction), [793d27 Auto Capture](#793d27-auto-capture), [793d37 Capture Queue](#793d37-capture-queue), [793d28 Backlog Capture](#793d28-backlog-capture), [793d29 Auto Curation](#793d29-auto-curation), [793d38 Note Amendment (additions)](#793d38-note-amendment-additions), [793d30 Activity Report](#793d30-activity-report) and [793d31 Harness Deploy Sync (mod additions)](#793d31-harness-deploy-sync-mod-additions). Flows: [793d32 Moment Delivery Flow](#793d32-moment-delivery-flow), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow) and [793d34 Mod Install Flow](#793d34-mod-install-flow). Folded into an owner: the [delivery](./793a_product-spec.md#793a1-problem-statement) channels (the Memory Mod's), the [ledger](#793d1b-terms) (Memory Delivery's), failure classification and the housekeeping [job](#793d1b-terms) (the Job Runner's), the [judgement](#793d1b-terms) kinds (the Judgement Relay's), the [mark file](#793d1b-terms) (Backlog Capture's), the harness-only seam log (fails necessity) and the `claude --version` check (a boundary of Harness Deploy Sync).
+Components, each with one owner ([793b358 The components that qualify and the candidates that fail](./793b_decision-log.md#793b358-the-components-that-qualify-and-the-candidates-that-fail), [793b402 The component and flow specs are written from the refactored system](./793b_decision-log.md#793b402-the-component-and-flow-specs-are-written-from-the-refactored-system)): [793d22 Memory Mod](#793d22-memory-mod), [793d36 Job Runner](#793d36-job-runner), [793d23 Moment Detection](#793d23-moment-detection), [793d24 Memory Delivery](#793d24-memory-delivery), [793d25 Judgement Relay](#793d25-judgement-relay), [793d26 Secret Redaction](#793d26-secret-redaction), [793d27 Auto Capture](#793d27-auto-capture), [793d28 Backlog Capture](#793d28-backlog-capture), [793d29 Auto Curation](#793d29-auto-curation), [793d38 Note Amendment (additions)](#793d38-note-amendment-additions), [793d30 Activity Report](#793d30-activity-report) and [793d31 Harness Deploy Sync (mod additions)](#793d31-harness-deploy-sync-mod-additions). Flows: [793d32 Moment Delivery Flow](#793d32-moment-delivery-flow), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow) and [793d34 Mod Install Flow](#793d34-mod-install-flow). Folded into an owner: the [delivery](./793a_product-spec.md#793a1-problem-statement) channels (the Memory Mod's), the [ledger](#793d1b-terms) (Memory Delivery's), failure classification and the housekeeping [job](#793d1b-terms) (the Job Runner's), the [judgement](#793d1b-terms) kinds (the Judgement Relay's), the [mark file](#793d1b-terms) (Backlog Capture's), the harness-only seam log (fails necessity) and the `claude --version` check (a boundary of Harness Deploy Sync).
 
 ## 793d22 Memory Mod
 
@@ -327,7 +326,7 @@ Requirement: 793d22b2 After answering a top-level `turn.complete` or a `classic.
 
 Supports: [793a4j1a The index catches up after the turn](./793a_product-spec.md#793a4j1-uat-scenarios), [793a4j1e Slow housekeeping does not stall the session](./793a_product-spec.md#793a4j1-uat-scenarios), [793a3a1h Two subagents contain the same lesson](./793a_product-spec.md#793a3a1-uat-scenarios)
 
-Verified by: `wiring.test.ts` "a turn is queued…"; `wiring.test.ts` "the jobs of a burst…"; `wiring.test.ts` "a job that fails…"
+Verified by: `wiring.test.ts` "a turn is answered…"; `wiring.test.ts` "the jobs of a burst…"; `wiring.test.ts` "a job that fails…"
 
 ##### 793d22b2a Scenarios
 
@@ -358,24 +357,6 @@ Scenario: 793d22b3a2 A job that holds the prompt too long is cut
   Given the engine does not answer the prompt lookup
   When 8 seconds have passed
   Then the prompt goes on as typed with no context and the Activity Report receives the step and the class timeout
-```
-
-#### 793d22b4 Persisted turn captures
-
-Requirement: 793d22b4 Before a top-level `turn.complete` returns, the Memory Mod MUST have the engine write the turn to the [queue file](#793d1b-terms) (an `enqueue` [job](#793d1b-terms)) and queue the capture of the entry it hands back, or, when it hands back none, of the turn from memory with no warning. When a [session](../../GLOSSARY.md#session) starts it MUST hand the engine a `resume` job with the start's source and queue one capture for each entry returned. A `classic.SubagentStop` capture is not queued in the file.
-
-Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), [793a4j1e Slow housekeeping does not stall the session](./793a_product-spec.md#793a4j1-uat-scenarios)
-
-Verified by: `hardening.test.ts` "793d22b4 a turn is in the queue file…"; `hardening.test.ts` "793d22b4 an entry a session left…"; `hardening.test.ts` "793d22b4 a start that is not…"; `hardening.test.ts` "793d22b4 a turn the file could not take…"
-
-
-##### 793d22b4a Scenarios
-
-```gherkin
-Scenario: 793d22b4a1 A session that ends before its capture finished does not lose the turn
-  Given a turn written to the queue file and a session that ended before the capture ran
-  When the next session starts
-  Then the turn is captured from the file
 ```
 
 #### 793d22b5 Relay of a job
@@ -409,11 +390,11 @@ Ownership: repository component. Responsibility: advances one [job](#793d1b-term
 
 #### 793d36b1 One round per call
 
-Requirement: 793d36b1 Given a [job](#793d1b-terms) as JSON (a kind of lookup, step, tool, compact, capture, [subagent](../../GLOSSARY.md#subagent), [housekeeping](#793d1b-terms), summary, enqueue or resume, with the fields it reads), the [session](../../GLOSSARY.md#session) state, and optionally the record of its earlier [rounds](#793d1b-terms) and the reply to its request, the Job Runner MUST answer with one JSON response: the log lines, warnings and counts of the round, and either `done` (the result and the session state) or a `request` (a model call to relay) or a `waitMs`, with the `state` to send back. A job it cannot read, a kind it does not know, or session state it cannot read MUST be an error and no response.
+Requirement: 793d36b1 Given a [job](#793d1b-terms) as JSON (a kind of lookup, step, tool, compact, capture, [subagent](../../GLOSSARY.md#subagent), [housekeeping](#793d1b-terms) or summary, with the fields it reads), the [session](../../GLOSSARY.md#session) state, and optionally the record of its earlier [rounds](#793d1b-terms) and the reply to its request, the Job Runner MUST answer with one JSON response: the log lines, warnings and counts of the round, and either `done` (the result and the session state) or a `request` (a model call to relay) or a `waitMs`, with the `state` to send back. A job it cannot read, a kind it does not know, or session state it cannot read MUST be an error and no response.
 
 Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios)
 
-Verified by: `internal/auto/protocol_test.go`: Test793d36b1_TheResponseHasTheNamesTheModReads; `internal/cli/auto_test.go`: Test793d36b1_AutoRunIsATargetOfTheCommand, Test793d36b1_AutoRunPrintsTheResponseOfAJob, Test793d36b1_AutoRunRefusesAJobItCannotRead, Test793d36b1_AutoClockReadsTheInjectedCapability, Test793d36b1_AutoFilesReadWriteAndTellWhatIsThere, Test793d36b1_AutoFilesAreReadableByTheUserAlone
+Verified by: `internal/auto/protocol_test.go`: Test793d36b1_TheJobsOfTheRemovedCaptureQueueAreNotJobs, Test793d36b1_TheResponseHasTheNamesTheModReads; `internal/cli/auto_test.go`: Test793d36b1_AutoRunIsATargetOfTheCommand, Test793d36b1_AutoRunPrintsTheResponseOfAJob, Test793d36b1_AutoRunRefusesAJobItCannotRead, Test793d36b1_AutoClockReadsTheInjectedCapability, Test793d36b1_AutoFilesReadWriteAndTellWhatIsThere, Test793d36b1_AutoFilesAreReadableByTheUserAlone
 
 ##### 793d36b1a Scenarios
 
@@ -607,7 +588,7 @@ Rationale: Automatic memory reads the user's and the agent's own messages, from 
 | What is read is bounded to the sessions that ended after the install time minus 7 days | [793d28b1 Eligible sources and cut-off](#793d28b1-eligible-sources-and-cut-off) |
 | Data fenced: placeholders filled in one pass, the tags of a prompt broken in any form | [793d25b2 Data and replies](#793d25b2-data-and-replies) |
 | Replies read strictly, with types, ranges and no duplicate key | [793d25b3 Result shapes](#793d25b3-result-shapes) |
-| Redaction before the cut, in every shape listed, on the [queue file](#793d1b-terms) too | [793d26b1 Credential shapes](#793d26b1-credential-shapes), [793d37b1 Entries](#793d37b1-entries) |
+| Redaction before the cut, in every shape listed | [793d26b1 Credential shapes](#793d26b1-credential-shapes) |
 | A result names a [nearest note](#793d1b-terms) only by its number; a note name is checked before it reaches a command or a [block](#793d1b-terms) | [793d29b2 Outcomes and guards](#793d29b2-outcomes-and-guards), [793d24b3 Block](#793d24b3-block), [793d29b1 Offers to settle](#793d29b1-offers-to-settle) |
 | `--expect-hash` read from `engram show`; free text as `--flag=value` | [793d29b2 Outcomes and guards](#793d29b2-outcomes-and-guards), [793d24b1 Lookup and selection](#793d24b1-lookup-and-selection) |
 | Delivered notes framed as data, one line each | [793d24b3 Block](#793d24b3-block) |
@@ -680,7 +661,7 @@ Canonical target: `docs/specs/technical/secret-redaction.md`.
 
 ### 793d26a Orientation
 
-Ownership: repository component. Responsibility: replaces credential-shaped text with `[redacted]` before it reaches a model request, a [note](./793a_product-spec.md#793a1-problem-statement) or the [queue file](#793d1b-terms). Realization: `redact` in `internal/auto/redact.go`.
+Ownership: repository component. Responsibility: replaces credential-shaped text with `[redacted]` before it reaches a model request or a [note](./793a_product-spec.md#793a1-problem-statement). Realization: `redact` in `internal/auto/redact.go`.
 
 ### 793d26b Behavior Requirements
 
@@ -690,7 +671,7 @@ Requirement: 793d26b1 Secret Redaction MUST replace with `[redacted]` private ke
 
 Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `internal/auto/capture_redact_test.go`: Test793d26b1_ABlockOfWrappedLinesIsHiddenOnlyWhenItHoldsDigitsAndLetters, Test793d26b1_AGitCommitHashIsNotMistakenForASecret, Test793d26b1_ASecretInALessonThatTheJudgeWroteNeverReachesTheCommandLine, Test793d26b1_ASecretInTheWindowNeverReachesTheJudgement, Test793d26b1_ASecretOfAKnownShapeNeverReachesTheModelTheCommandLineOrANote, Test793d26b1_ASecretThatEvadedASinglePatternDoesNotReachTheJudgement, Test793d26b1_RedactNeverReturnsATextHoldingAKnownSecretAndIsIdempotentOnItsOutput, Test793d26b1_RedactionCostsTimeInProportionToTheText, Test793d26b1_SecretsOfTheShapesAReviewProbedDoNotReachTheJudgement, Test793d26b1_AJWTIsHiddenWhateverItsThreeParts, Test793d26b1_ASecretInAnEntryTheQueueFileHeldReachesNeitherTheJudgementNorTheCommands; `internal/auto/security_test.go`: Test793d26b1_AnUnusualSpaceDoesNotHideACredentialFromTheRedactor; `internal/auto/curate_test.go`: Test793d19a_ASecretInAnOfferNeverReachesTheJudgement
+Verified by: `internal/auto/capture_redact_test.go`: Test793d26b1_ABlockOfWrappedLinesIsHiddenOnlyWhenItHoldsDigitsAndLetters, Test793d26b1_AGitCommitHashIsNotMistakenForASecret, Test793d26b1_ASecretInALessonThatTheJudgeWroteNeverReachesTheCommandLine, Test793d26b1_ASecretInTheWindowNeverReachesTheJudgement, Test793d26b1_ASecretOfAKnownShapeNeverReachesTheModelTheCommandLineOrANote, Test793d26b1_ASecretThatEvadedASinglePatternDoesNotReachTheJudgement, Test793d26b1_RedactNeverReturnsATextHoldingAKnownSecretAndIsIdempotentOnItsOutput, Test793d26b1_RedactionCostsTimeInProportionToTheText, Test793d26b1_SecretsOfTheShapesAReviewProbedDoNotReachTheJudgement, Test793d26b1_AJWTIsHiddenWhateverItsThreeParts; `internal/auto/security_test.go`: Test793d26b1_AnUnusualSpaceDoesNotHideACredentialFromTheRedactor; `internal/auto/curate_test.go`: Test793d19a_ASecretInAnOfferNeverReachesTheJudgement
 
 Security: risk (3) of [793d25a Orientation](#793d25a-orientation) is the residual risk of this requirement: secrets of other shapes.
 
@@ -717,11 +698,11 @@ Ownership: repository component. Responsibility: turns a conversation [window](#
 
 #### 793d27b1 Windows
 
-Requirement: 793d27b1 Auto Capture MUST build the [window](#793d1b-terms) of a completed top-level turn as lines labelled by the speaker's role and never by anything in a message's text: from the assistant message before the turn's last typed prompt through the prompt and everything after, the answer appended when the messages lag. A message MUST be one line (a line break of any kind shown as `⏎`), redacted and then cut at 1,200 characters, the window cut at 8,000. A tool use MUST enter only as `Agent used <tool>`, a task notification only as its summary, and text a [harness](../../GLOSSARY.md#harness) injected or a tool's input or result never. A [subagent](../../GLOSSARY.md#subagent)'s window MUST be its whole [transcript](../../GLOSSARY.md#transcript), read after its stop until it holds the agent's last message (at most 24 reads, the first four 100 ms apart, then 500 ms), that message appended if it never does. A capture with no entry takes the turn itself.
+Requirement: 793d27b1 Auto Capture MUST build the [window](#793d1b-terms) of a completed top-level turn as lines labelled by the speaker's role and never by anything in a message's text: from the assistant message before the turn's last typed prompt through the prompt and everything after, the answer appended when the messages lag. A message MUST be one line (a line break of any kind shown as `⏎`), redacted and then cut at 1,200 characters, the window cut at 8,000. A tool use MUST enter only as `Agent used <tool>`, a task notification only as its summary, and text a [harness](../../GLOSSARY.md#harness) injected or a tool's input or result never. A [subagent](../../GLOSSARY.md#subagent)'s window MUST be its whole [transcript](../../GLOSSARY.md#transcript), read after its stop until it holds the agent's last message (at most 24 reads, the first four 100 ms apart, then 500 ms), that message appended if it never does. A turn capture takes the turn itself and writes no file but the mark file.
 
 Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1g A lesson in a subagent session is captured](./793a_product-spec.md#793a3a1-uat-scenarios)
 
-Verified by: `internal/auto/capture_test.go`: Test793d27b1_ASubagentTranscriptThatIsNotThereIsPolledAndThenNothingIsJudged, Test793d27b1_ASubagentTranscriptThatNeverHoldsTheLastMessageIsJudgedWithItAppendedAfterThePolls, Test793d27b1_ATaskNotificationEntersTheWindowAsItsSummaryNeverAsTheResultItCarries, Test793d27b1_AWindowWithNoWordsOfTheUserIsNothingToJudge, Test793d27b1_TheAnswerOfTheTurnIsAddedWhenTheMessagesLagBehindIt, Test793d27b1_TheWindowIsTheSubagentTranscriptPolledUntilItHoldsTheLastMessage, Test793d19a_ASpeakerIsKnownByTheRoleOfTheMessageNotByALabelInItsText, Test793d19a_WhatAToolTookInOrGaveBackNeverEntersTheWindowOnlyTheNameOfTheTool; `internal/auto/perf_test.go`: Test793d27b1_ATranscriptCompleteAfter100msIsReadWithinThatWait; `internal/auto/queue_test.go`: Test793d27b1_ACaptureWithNoEntryIsTheTurnItself; `internal/auto/security_test.go`: Test793d27b1_NoLineBreakOfAnyKindLetsAMessageStartALineOfItsOwn; `internal/auto/differential_test.go`: Test793d27b1_NoTextOfAnyMessageAnswerOrSubagentStartsALineOfItsOwn
+Verified by: `internal/auto/capture_test.go`: Test793d27b1_ASubagentTranscriptThatIsNotThereIsPolledAndThenNothingIsJudged, Test793d27b1_ASubagentTranscriptThatNeverHoldsTheLastMessageIsJudgedWithItAppendedAfterThePolls, Test793d27b1_ATaskNotificationEntersTheWindowAsItsSummaryNeverAsTheResultItCarries, Test793d27b1_AWindowWithNoWordsOfTheUserIsNothingToJudge, Test793d27b1_TheAnswerOfTheTurnIsAddedWhenTheMessagesLagBehindIt, Test793d27b1_TheWindowIsTheSubagentTranscriptPolledUntilItHoldsTheLastMessage, Test793d19a_ASpeakerIsKnownByTheRoleOfTheMessageNotByALabelInItsText, Test793d19a_WhatAToolTookInOrGaveBackNeverEntersTheWindowOnlyTheNameOfTheTool; `internal/auto/perf_test.go`: Test793d27b1_ATranscriptCompleteAfter100msIsReadWithinThatWait; `internal/auto/capture_test.go`: Test793d27b1_ATurnCaptureJudgesTheTurnItself, Test793d27b1_ATurnCaptureWritesNoFileButTheMarksOfItsSession; `internal/auto/security_test.go`: Test793d27b1_NoLineBreakOfAnyKindLetsAMessageStartALineOfItsOwn; `internal/auto/differential_test.go`: Test793d27b1_NoTextOfAnyMessageAnswerOrSubagentStartsALineOfItsOwn
 
 Security: risks (1) and (3) of [793d25a Orientation](#793d25a-orientation), held here and by [793d26b1 Credential shapes](#793d26b1-credential-shapes): only speech enters, by role, one line a message, redacted before it is cut.
 
@@ -758,71 +739,6 @@ Scenario: 793d27b2a2 A covered lesson only reinforces
   Then engram amend --activate runs on that note and engram learn does not run
 ```
 
-## 793d37 Capture Queue
-
-Canonical target: `docs/specs/technical/capture-queue.md`.
-
-### 793d37a Orientation
-
-Ownership: repository component. Responsibility: keeps the turns whose capture has not ended in a file that outlives the [session](../../GLOSSARY.md#session): takes a turn in, hands back the entries an earlier session left, and takes an entry out when its capture ends. Realization: `enqueueJob`, `resumeJob`, `dequeue` and `updateQueue` in `internal/auto/queue.go`.
-
-### 793d37b Behavior Requirements
-
-#### 793d37b1 Entries
-
-Requirement: 793d37b1 Given a completed top-level turn, the Capture Queue MUST append to `capture-queue.json` in the chunks directory an entry holding the turn's [window](#793d1b-terms), redacted before it is written, its source line, the time it was queued and its [session](../../GLOSSARY.md#session)'s [transcript](../../GLOSSARY.md#transcript), in the order the turns ended, and hand the entry back. A turn with no words of the user MUST NOT be queued. A file that is absent or not a queue MUST be an empty queue, and the file MUST be written only when it changes. A file that cannot be written MUST give no entry and no warning, and the file MUST be readable by the user alone.
-
-Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios)
-
-Verified by: `internal/auto/queue_test.go`: Test793d37b1_AFileThatCannotBeWrittenQueuesNothingAndWarnsNoOneSoTheTurnIsCapturedFromMemory, Test793d37b1_ATurnIsAddedAfterTheOnesAlreadyInTheFile, Test793d37b1_ATurnIsRedactedBeforeItIsWrittenToDisk, Test793d37b1_ATurnIsWrittenToTheFileWithItsWindowAndSourceAndNothingIsJudged, Test793d37b1_ATurnWithNoWordsOfTheUserIsNotQueued, Test793d37b1_NoFileAndAFileThatIsNotAQueueAreAnEmptyQueue
-
-Security: risk (3) of [793d25a Orientation](#793d25a-orientation), held here and by [793d26b1 Credential shapes](#793d26b1-credential-shapes): the text on disk is redacted.
-
-##### 793d37b1a Scenarios
-
-```gherkin
-Scenario: 793d37b1a1 A turn is in the file, redacted, before anything is judged
-  Given a turn whose user line holds a token
-  When the turn is enqueued
-  Then the file holds an entry with window, source and transcript, the token redacted, and nothing was judged
-```
-
-#### 793d37b2 Resume
-
-Requirement: 793d37b2 When a [session](../../GLOSSARY.md#session) starts as `startup` or `resume`, the Capture Queue MUST hand back every entry in the file that was queued at least 15 minutes ago, or that has no time, and count the try in the file; an entry queued less than 15 minutes ago MUST stay in the file, not handed back and not counted; an entry taken up three times MUST be dropped, with a debug line, not handed back. A start that is a `clear` or a `compact` MUST take nothing and write nothing.
-
-Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios)
-
-Verified by: `internal/auto/queue_test.go`: Test793d37b2_ASessionThatIsNotNewTakesNothingAndWritesNothing, Test793d37b2_ASessionThatStartsTakesTheEntriesLeftBehindAndCountsTheTry, Test793d37b2_AnEntryThatHasBeenTakenThreeTimesIsDroppedWithoutBeingTakenAgain, Test793d37b2_AnEntryYoungerThanTheGraceBelongsToASessionStillRunningAndIsNeitherTakenNorCounted, Test793d37b2_ASessionStartedWhileAnotherRunsDoesNotCaptureTheOthersTurnTwice
-
-Rationale: A clear or a compaction happens in the process that holds the queue's own [jobs](#793d1b-terms), so taking its entries again would capture them twice, and so would an entry of a session that is still running; such a session finishes its capture within the time a source of the backlog is left alone; the limit keeps a [window](#793d1b-terms) the judge cannot read from being tried at every start for ever.
-
-##### 793d37b2a Scenarios
-
-```gherkin
-Scenario: 793d37b2a1 A new session takes the entries left behind
-  Given a file with an entry taken up twice
-  When a session starts as startup
-  Then the entry is handed back and the file counts the third try
-```
-
-#### 793d37b3 Leaving the file
-
-Requirement: 793d37b3 The Capture Queue MUST take an entry out of the file when its capture has ended, and keep it when the capture fails, so that the file holds exactly the turns not yet captured, whatever the order they end in.
-
-Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios)
-
-Verified by: `internal/auto/queue_test.go`: Test793d37b3_ACaptureOfAnEntryTakesItOutOfTheFileWhenItEnds, Test793d37b3_ACaptureThatFailsKeepsItsEntryInTheFileForTheNextSession, Test793d37b3_TheFileHoldsExactlyTheTurnsNotYetCapturedWhateverTheOrder
-
-##### 793d37b3a Scenarios
-
-```gherkin
-Scenario: 793d37b3a1 A capture that fails stays for the next session
-  Given an entry in the queue file whose capture fails
-  When the capture ends
-  Then the entry is still in the file
-```
-
 ## 793d28 Backlog Capture
 
 Canonical target: `docs/specs/technical/backlog-capture.md`.
@@ -840,6 +756,8 @@ Requirement: 793d28b1 After a top-level turn's [housekeeping](#793d1b-terms) has
 Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5c1c A captured Pi session's transcript is left unchanged](./793a_product-spec.md#793a5c1-uat-scenarios)
 
 Verified by: `internal/auto/backlog_test.go`: Test793d28b1_ABrokenManifestOrMarkFileIsReportedAndNothingIsCaptured, Test793d28b1_AMarkFileWithNoCutoffGetsOneAndKeepsItsMarks, Test793d28b1_ASourceMayStillBeRunningIsNotCaptured, Test793d28b1_ASourceThatGrewSinceItWasMarkedIsCapturedAgain, Test793d28b1_ASourceWhoseHashTheMarkHoldsIsNotCapturedAgain, Test793d28b1_AtMostOneSourceIsCapturedPerTurnTheMostRecentlyChangedFirst, Test793d28b1_AtMostTwentySourcesAreLookedAtInOneTurn, Test793d28b1_NoManifestIsAnEmptyBacklogNotAnError, Test793d28b1_OneQuietSourceIsCapturedThenMarked, Test793d28b1_TheCutoffDoesNotRollWhateverTheIdleTime, Test793d28b1_TheCutoffIsAFixedPointARunRecordsAndNotAWindow, Test793d28b1_TheCutoffIsRecordedOnceEvenByAFirstRunWithNothingToCapture, Test793d28b1_WhatIsNotASessionTranscriptIsNotASource; `internal/auto/golden_test.go`: Test793d28b1_TheSourcesToCaptureAreTheQuietOnesAfterTheCutoff; `internal/cli/auto_test.go`: Test793d28b3_TheChunksDirectoryFollowsTheVariablesOfTheEngramCommands
+
+Rationale: a turn whose capture did not end because its [session](../../GLOSSARY.md#session) did (the user exits, the process is killed) is not lost: the turns of its session are not recorded, so its source is captured here once it has been quiet 15 minutes ([793b416](./793b_decision-log.md#793b416-the-persisted-capture-queue-is-dropped-backlog-capture-covers-the-promise), which replaced a file of unfinished captures with this guard; its tests are Test793d28b3_ATurnKilledSoonAfterTheLastCapturedTurnIsStillCaptured and Test793d28b1_OneQuietSourceIsCapturedThenMarked).
 
 Security: held here: what is read is bounded to [sessions](../../GLOSSARY.md#session) that ended after the install time minus 7 days.
 
@@ -882,7 +800,7 @@ Requirement: 793d28b3 Backlog Capture MUST mark a source with its hash only when
 
 Supports: [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5c1c A captured Pi session's transcript is left unchanged](./793a_product-spec.md#793a5c1-uat-scenarios)
 
-Verified by: `internal/auto/backlog_test.go`: Test793d28b3_ACaptureThatEndsInAWarningLeavesNoMark, Test793d28b3_ALessonANearestNoteStatesReinforcesItAndTheSourceIsMarked, Test793d28b3_ASessionWhoseTurnsTheSystemCapturedIsNotCapturedAgainAsBacklog, Test793d28b3_ASourceThatCannotBeReadDoesNotUseUpTheTurnAndIsNotReadAgain, Test793d28b3_ASourceThatCannotBeReadIsSkippedWithoutAWrite, Test793d28b3_ATurnCaptureOfASessionWithNoTranscriptMarksNoTurn, Test793d28b3_ATurnKilledSoonAfterTheLastCapturedTurnIsStillCaptured, Test793d28b3_TheClosingRowsAHarnessWritesAfterTheLastCapturedTurnAreNotATurn, Test793d28b3_TheNoteIsSourcedFromTheTranscriptAndThePositionInIt; `internal/auto/capture_redact_test.go`: Test793d28b3_ACapturedTurnMarksTheTurnsOfItsSessionByTheNameOfTheFile, Test793d28b3_AMarkThatCannotBeWrittenGoesToTheDebugLogOnlyAndTheUserIsNotWarned, Test793d28b3_ATurnIsNotMarkedWhenNoTranscriptIsNamedOrTheJudgementFailed, Test793d28b3_TheMarksOfAnEarlierRunAreKeptAndTheFirstRunFixesTheCutoffOnce; `internal/auto/queue_test.go`: Test793d28b3_ACaptureOfAnEntryMarksTheSessionTheEntryCameFromNotTheOneRunning; `internal/cli/auto_test.go`: Test793d28b3_TheChunksDirectoryFollowsTheVariablesOfTheEngramCommands
+Verified by: `internal/auto/backlog_test.go`: Test793d28b3_ACaptureThatEndsInAWarningLeavesNoMark, Test793d28b3_ALessonANearestNoteStatesReinforcesItAndTheSourceIsMarked, Test793d28b3_ASessionWhoseTurnsTheSystemCapturedIsNotCapturedAgainAsBacklog, Test793d28b3_ASourceThatCannotBeReadDoesNotUseUpTheTurnAndIsNotReadAgain, Test793d28b3_ASourceThatCannotBeReadIsSkippedWithoutAWrite, Test793d28b3_ATurnCaptureOfASessionWithNoTranscriptMarksNoTurn, Test793d28b3_ATurnKilledSoonAfterTheLastCapturedTurnIsStillCaptured, Test793d28b3_TheClosingRowsAHarnessWritesAfterTheLastCapturedTurnAreNotATurn, Test793d28b3_TheNoteIsSourcedFromTheTranscriptAndThePositionInIt; `internal/auto/capture_redact_test.go`: Test793d28b3_ACapturedTurnMarksTheTurnsOfItsSessionByTheNameOfTheFile, Test793d28b3_AMarkThatCannotBeWrittenGoesToTheDebugLogOnlyAndTheUserIsNotWarned, Test793d28b3_ATurnIsNotMarkedWhenNoTranscriptIsNamedOrTheJudgementFailed, Test793d28b3_TheMarksOfAnEarlierRunAreKeptAndTheFirstRunFixesTheCutoffOnce; `internal/cli/auto_test.go`: Test793d28b3_TheChunksDirectoryFollowsTheVariablesOfTheEngramCommands
 
 ##### 793d28b3a Scenarios
 
@@ -1368,7 +1286,7 @@ Scenario: 793d32b3a2 A considered note is judged and returned
 
 Canonical target: `docs/specs/technical/turn-memory-work-flow.md`.
 
-A completed top-level turn, or a stopped [subagent](../../GLOSSARY.md#subagent), is followed by the [System](./793a_product-spec.md#793a1-problem-statement)'s background memory work: the turn's entry in the [queue file](#793d1b-terms), capture, the index, curation, one [backlog source](#793d1b-terms) and the summary line; a [session](../../GLOSSARY.md#session) that starts takes up the entries an earlier one left. The event is answered before the work starts.
+A completed top-level turn, or a stopped [subagent](../../GLOSSARY.md#subagent), is followed by the [System](./793a_product-spec.md#793a1-problem-statement)'s background memory work: capture, the index, curation, one [backlog source](#793d1b-terms) and the summary line. The event is answered before the work starts; a turn whose capture did not end because its [session](../../GLOSSARY.md#session) did is captured later by Backlog Capture.
 
 ### 793d33a Sequence
 
@@ -1377,7 +1295,6 @@ sequenceDiagram
     participant Eng as Claude Code
     participant Mod as Memory Mod
     participant Run as Job Runner
-    participant Q as Capture Queue
     participant Cap as Auto Capture
     participant Red as Secret Redaction
     participant JR as Judgement Relay
@@ -1390,20 +1307,7 @@ sequenceDiagram
     participant BL as Backlog Capture
     participant Act as Activity Report
 
-    opt a session starts
-        Eng->>Mod: 793d22b4, 793d33b1 session start
-        Mod->>Run: 793d22b5, 793d36b1, 793d33b1 resume job
-        Run->>Q: 793d37b2, 793d33b1 hand back the entries left
-        Q-->>Run: 793d37b2 the entries
-        Run-->>Mod: 793d36b1 the entries
-    end
     Eng->>Mod: 793d22b2, 793d33b1 turn complete or subagent stop
-    opt a top-level turn
-        Mod->>Run: 793d22b5, 793d36b1, 793d33b1 enqueue job
-        Run->>Q: 793d37b1, 793d33b1 write the redacted turn
-        Q-->>Run: 793d37b1 the entry, or none
-        Run-->>Mod: 793d36b1 the entry or none
-    end
     Mod-->>Eng: 793d22b2, 793d33b1 event answered before any work
     Mod->>Run: 793d22b5, 793d36b1, 793d33b1 capture job
     Run->>Cap: 793d27b1, 793d33b2 build the window
@@ -1419,7 +1323,6 @@ sequenceDiagram
         Cap->>Act: 793d30b1 note added
     end
     Cap->>BL: 793d28b3, 793d33b2 record the session's turns
-    Cap->>Q: 793d37b3, 793d33b2 take the entry out
     Mod->>Run: 793d22b2, 793d36b1, 793d33b1 housekeeping job after the burst
     Run->>Ix: 792b17c3, 793d33b5 ingest the new content
     Run->>Cur: 793d29b1, 793d33b5 pass over the pending offers
@@ -1448,13 +1351,13 @@ sequenceDiagram
 
 #### 793d33b1 Burst sequencing
 
-Requirement: 793d33b1 Across the components, a top-level turn MUST reach the [queue file](#793d1b-terms) before the Memory Mod answers its event, the capture it queues MUST start only after that answer, and the captures of a [burst](#793d1b-terms) MUST be followed by one housekeeping [job](#793d1b-terms) and, for a burst holding a top-level turn, the summary job. A [session](../../GLOSSARY.md#session) start MUST hand the entries the file holds to the queue as captures of the queue. A job that fails MUST be shown as a warning with its step and class and MUST NOT stop the next. What the mod itself queues and hands is [793d22b2 Background queue and housekeeping](#793d22b2-background-queue-and-housekeeping) and [793d22b4 Persisted turn captures](#793d22b4-persisted-turn-captures); the file's own rules are [793d37b1 Entries](#793d37b1-entries) and [793d37b2 Resume](#793d37b2-resume).
+Requirement: 793d33b1 Across the components, the capture a top-level turn queues MUST start only after the Memory Mod has answered the turn's event, and the captures of a [burst](#793d1b-terms) MUST be followed by one housekeeping [job](#793d1b-terms) and, for a burst holding a top-level turn, the summary job. A job that fails MUST be shown as a warning with its step and class and MUST NOT stop the next. What the mod itself queues and hands is [793d22b2 Background queue and housekeeping](#793d22b2-background-queue-and-housekeeping).
 
 Owner: [793d22 Memory Mod](#793d22-memory-mod)
 
 Supports: [793a4j1a The index catches up after the turn](./793a_product-spec.md#793a4j1-uat-scenarios), [793a4j1e Slow housekeeping does not stall the session](./793a_product-spec.md#793a4j1-uat-scenarios), [793a3a1h Two subagents contain the same lesson](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5h1a The summary shows the counts after a turn with events](./793a_product-spec.md#793a5h1-uat-scenarios), [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios)
 
-Verified by: `wiring.test.ts` "a turn is queued…"; `wiring.test.ts` "the jobs of a burst…"; `hardening.test.ts` "793d22b4 a turn is in the queue file…"; `hardening.test.ts` "793d22b4 an entry a session left…"
+Verified by: `wiring.test.ts` "a turn is answered…"; `wiring.test.ts` "the jobs of a burst…"; `internal/auto/backlog_test.go`: Test793d28b3_ATurnKilledSoonAfterTheLastCapturedTurnIsStillCaptured
 
 ##### 793d33b1a Scenarios
 
@@ -1471,16 +1374,10 @@ Scenario: 793d33b1a3 The summary follows the work
   Then the Activity Report shows one line
   # acceptance rows: 793a5h1a
 
-Scenario: 793d33b1a5 The turn is in the file before the event returns
-  Given a turn that completes
-  When the Memory Mod handles turn.complete
-  Then the enqueue job ran before the event returned and the capture runs on its entry
-  # acceptance rows: 793a3a1k
-
-Scenario: 793d33b1a6 A session that starts captures what an earlier one left
-  Given the queue file holds an entry
-  When a session starts
-  Then a capture of the entry is queued
+Scenario: 793d33b1a8 A turn whose capture did not end with its session is captured later
+  Given a session that ended before the capture of its last turn ran
+  When a later top-level turn's housekeeping ends and the session's source has been quiet 15 minutes
+  Then Backlog Capture captures the source
   # acceptance rows: 793a3a1k
 
 Scenario: 793d33b1a7 A failing capture does not stop the next job
@@ -1492,13 +1389,13 @@ Scenario: 793d33b1a7 A failing capture does not stop the next job
 
 #### 793d33b2 Capture sequence
 
-Requirement: 793d33b2 Auto Capture MUST redact before it asks the Query Engine for the [nearest notes](#793d1b-terms) and the Judgement Relay for the [judgement](#793d1b-terms), and write only after the judgement is read: reinforce through Note Amendment a [lesson](./793a_product-spec.md#793a1-problem-statement) a nearest note covers, write through Note Authoring one that none states, and report each [note](./793a_product-spec.md#793a1-problem-statement) written to the Activity Report. When the capture of an entry or a turn ends it MUST have Backlog Capture record the turns of its [session](../../GLOSSARY.md#session) and the Capture Queue take the entry out of the file. A judgement or write that fails MUST stop the capture of that [window](#793d1b-terms), write nothing further, record nothing, leave the entry in the file and be reported.
+Requirement: 793d33b2 Auto Capture MUST redact before it asks the Query Engine for the [nearest notes](#793d1b-terms) and the Judgement Relay for the [judgement](#793d1b-terms), and write only after the judgement is read: reinforce through Note Amendment a [lesson](./793a_product-spec.md#793a1-problem-statement) a nearest note covers, write through Note Authoring one that none states, and report each [note](./793a_product-spec.md#793a1-problem-statement) written to the Activity Report. When the capture of a turn ends it MUST have Backlog Capture record the turns of its [session](../../GLOSSARY.md#session). A judgement or write that fails MUST stop the capture of that [window](#793d1b-terms), write nothing further, record nothing, so that Backlog Capture reads the session later, and be reported.
 
 Owner: [793d27 Auto Capture](#793d27-auto-capture)
 
 Supports: [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1g A lesson in a subagent session is captured](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1h Two subagents contain the same lesson](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1j A lesson that is already recorded is not written again](./793a_product-spec.md#793a3a1-uat-scenarios), [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios), [793a5k1d An intentional learn by the agent is allowed and is not undone](./793a_product-spec.md#793a5k1-uat-scenarios)
 
-Verified by: `internal/auto/capture_test.go`: Test793d27b2_AFailingJudgementIsContainedAndNothingIsWrittenOrMarked, Test793d27b2_AFailingQueryIsContainedAndNothingIsJudged, Test793d27b2_AFailingWriteIsContained, Test793d27b2_ALessonANearestNoteStatesReinforcesThatNoteAndWritesNothing, Test793d27b2_ALessonNoNoteStatesIsWrittenWithTheAutomaticSource, Test793d27b2_ANoteTheSessionWroteIsANearestNoteOfTheNextWindowWhateverTheQueryReturned, Test793d27b2_ANoteTheSessionWroteIsNotListedTwiceWhenTheQueryReturnsItToo, Test793d27b2_ANoteWrittenFromASubagentNamesTheSubagentInItsSource, Test793d27b2_AQueryThatCannotBeReadIsContainedAndNothingIsJudged, Test793d27b2_TheLessonsOfOneReplyAreWrittenOrAmendedAndTheSameSlugOnlyOnce; `internal/auto/queue_test.go`: Test793d37b3_ACaptureOfAnEntryTakesItOutOfTheFileWhenItEnds, Test793d37b3_ACaptureThatFailsKeepsItsEntryInTheFileForTheNextSession, Test793d37b3_TheFileHoldsExactlyTheTurnsNotYetCapturedWhateverTheOrder
+Verified by: `internal/auto/capture_test.go`: Test793d27b2_AFailingJudgementIsContainedAndNothingIsWrittenOrMarked, Test793d27b2_AFailingQueryIsContainedAndNothingIsJudged, Test793d27b2_AFailingWriteIsContained, Test793d27b2_ALessonANearestNoteStatesReinforcesThatNoteAndWritesNothing, Test793d27b2_ALessonNoNoteStatesIsWrittenWithTheAutomaticSource, Test793d27b2_ANoteTheSessionWroteIsANearestNoteOfTheNextWindowWhateverTheQueryReturned, Test793d27b2_ANoteTheSessionWroteIsNotListedTwiceWhenTheQueryReturnsItToo, Test793d27b2_ANoteWrittenFromASubagentNamesTheSubagentInItsSource, Test793d27b2_AQueryThatCannotBeReadIsContainedAndNothingIsJudged, Test793d27b2_TheLessonsOfOneReplyAreWrittenOrAmendedAndTheSameSlugOnlyOnce; `internal/auto/capture_redact_test.go`: Test793d28b3_ACapturedTurnMarksTheTurnsOfItsSessionByTheNameOfTheFile, Test793d28b3_ATurnIsNotMarkedWhenNoTranscriptIsNamedOrTheJudgementFailed
 
 ##### 793d33b2a Scenarios
 
@@ -1521,16 +1418,16 @@ Scenario: 793d33b2a3 Two subagents with one lesson make one note
   Then the vault holds one note
   # acceptance rows: 793a3a1h
 
-Scenario: 793d33b2a4 A failed judgement writes nothing and keeps the entry
-  Given the judgement of an entry's window is unreadable
+Scenario: 793d33b2a4 A failed judgement writes nothing and records nothing
+  Given the judgement of a turn's window is unreadable
   When the capture ends
-  Then nothing is written, the entry is still in the file and the failure is reported
+  Then nothing is written, the session's turns are not recorded and the failure is reported
   # acceptance rows: 793a4b1b
 
-Scenario: 793d33b2a5 An entry leaves the file when its capture ends
-  Given an entry in the queue file
+Scenario: 793d33b2a6 The turns of a session are recorded when its capture ends
+  Given a turn of a session with a transcript
   When its capture ends
-  Then the file no longer holds it and its session's turns are recorded
+  Then the session's turns are recorded in the mark file
   # acceptance rows: 793a3a1k
 ```
 
@@ -1699,7 +1596,7 @@ All 43 scenarios of the product spec are supported by at least one requirement, 
 | --- | --- | --- |
 | [793a2n Relevant memory reaches the agent at the moments](./793a_product-spec.md#793a2n-relevant-memory-reaches-the-agent-at-the-moments) | 6 | [793d22 Memory Mod](#793d22-memory-mod), [793d23 Moment Detection](#793d23-moment-detection), [793d24 Memory Delivery](#793d24-memory-delivery), [793d25 Judgement Relay](#793d25-judgement-relay), [793d36 Job Runner](#793d36-job-runner), [793d32 Moment Delivery Flow](#793d32-moment-delivery-flow) |
 | [793a2e Nothing already in context is delivered again](./793a_product-spec.md#793a2e-nothing-already-in-context-is-delivered-again) | 5 | [793d23 Moment Detection](#793d23-moment-detection), [793d24 Memory Delivery](#793d24-memory-delivery), [793d32 Moment Delivery Flow](#793d32-moment-delivery-flow) |
-| [793a3a Lessons are captured without the agent](./793a_product-spec.md#793a3a-lessons-are-captured-without-the-agent) | 5 | [793d22 Memory Mod](#793d22-memory-mod), [793d25 Judgement Relay](#793d25-judgement-relay), [793d26 Secret Redaction](#793d26-secret-redaction), [793d27 Auto Capture](#793d27-auto-capture), [793d28 Backlog Capture](#793d28-backlog-capture), [793d36 Job Runner](#793d36-job-runner), [793d37 Capture Queue](#793d37-capture-queue), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow) |
+| [793a3a Lessons are captured without the agent](./793a_product-spec.md#793a3a-lessons-are-captured-without-the-agent) | 5 | [793d22 Memory Mod](#793d22-memory-mod), [793d25 Judgement Relay](#793d25-judgement-relay), [793d26 Secret Redaction](#793d26-secret-redaction), [793d27 Auto Capture](#793d27-auto-capture), [793d28 Backlog Capture](#793d28-backlog-capture), [793d36 Job Runner](#793d36-job-runner), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow) |
 | [793a4j Indexing and curation happen after the turn](./793a_product-spec.md#793a4j-indexing-and-curation-happen-after-the-turn) | 4 | [793d22 Memory Mod](#793d22-memory-mod), [793d25 Judgement Relay](#793d25-judgement-relay), [793d26 Secret Redaction](#793d26-secret-redaction), [793d29 Auto Curation](#793d29-auto-curation), [793d38 Note Amendment (additions)](#793d38-note-amendment-additions), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow) |
 | [793a4c Memory purview only](./793a_product-spec.md#793a4c-memory-purview-only) | 4 | [793d22 Memory Mod](#793d22-memory-mod), [793d24 Memory Delivery](#793d24-memory-delivery), [793d30 Activity Report](#793d30-activity-report) |
 | [793a4b The session is never broken or stalled](./793a_product-spec.md#793a4b-the-session-is-never-broken-or-stalled) | 4 | [793d22 Memory Mod](#793d22-memory-mod), [793d30 Activity Report](#793d30-activity-report), [793d36 Job Runner](#793d36-job-runner), [793d32 Moment Delivery Flow](#793d32-moment-delivery-flow), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow) |
@@ -1713,7 +1610,7 @@ All 43 scenarios of the product spec are supported by at least one requirement, 
 - `Not run`: [793a5j1d One update serves both harnesses differently](./793a_product-spec.md#793a5j1-uat-scenarios) and [793a5c1b A Pi session on a machine whose Claude Code has the System](./793a_product-spec.md#793a5c1-uat-scenarios) have no headless Pi, so what a Pi agent does (it runs recall before acting, its own ingest and learn run unchanged, nothing is delivered into its [transcript](../../GLOSSARY.md#transcript)) is unverified. What is verified is that no [mod](#793d1b-terms) is deployed for Pi ([793d31b1 Mod deploy set](#793d31b1-mod-deploy-set)) and that Backlog Capture writes only its [mark file](#793d1b-terms) ([793d28b3 Marks and read-only sources](#793d28b3-marks-and-read-only-sources)).
 - [Judgement](#793d1b-terms) quality is not a contract: a model's choice varied between runs of one scenario (a worded [note](./793a_product-spec.md#793a1-problem-statement) without the corrected cause in [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios); a missed offer in [793a4j1d The agent is not asked to curate](./793a_product-spec.md#793a4j1-uat-scenarios)) and was Green on rerun; no requirement is missing.
 - Built and untested: the origins of a prompt other than the SDK's ([793d23b1 Event cues](#793d23b1-event-cues)), exercised only by the acceptance row of [793a2n1h A prompt from any source receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios).
-- Residual, recorded: two processes that write the [queue file](#793d1b-terms) at the same [moment](./793a_product-spec.md#793a1-problem-statement) can lose one write (a lock on the file is the owner's question), and a [session](../../GLOSSARY.md#session) that starts while another still runs takes up that other's entries once they are 15 minutes old, which may then be captured twice if its capture is still running (the second finds the first's note among the nearest and is covered) ([793d37b1 Entries](#793d37b1-entries), [793d37b2 Resume](#793d37b2-resume), [793b398 The persisted queue is a file the engine owns, and the red tests of 793b362 became tests of the jobs the mod hands it](./793b_decision-log.md#793b398-the-persisted-queue-is-a-file-the-engine-owns-and-the-red-tests-of-793b362-became-tests-of-the-jobs-the-mod-hands-it)); the sources and [offers](../../GLOSSARY.md#offer) a process skipped are tried again by the next process ([793d28b2 Reading and windows](#793d28b2-reading-and-windows), [793d29b1 Offers to settle](#793d29b1-offers-to-settle)).
+- Residual, recorded: a [session](../../GLOSSARY.md#session) that is killed before its last capture ends loses that capture until Backlog Capture reads its source, 15 minutes after the source was last changed ([793b416](./793b_decision-log.md#793b416-the-persisted-capture-queue-is-dropped-backlog-capture-covers-the-promise)); the sources and [offers](../../GLOSSARY.md#offer) a process skipped are tried again by the next process ([793d28b2 Reading and windows](#793d28b2-reading-and-windows), [793d29b1 Offers to settle](#793d29b1-offers-to-settle)).
 - Not in the product spec, awaiting the owner: whether the `--source` flag ([793d38b1 Amend provenance](#793d38b1-amend-provenance)) is a promise to the user (an Added requirement of the product spec, with the line of note-revision that [793b399 A near fold carries a provenance line, by a new flag of engram amend](./793b_decision-log.md#793b399-a-near-fold-carries-a-provenance-line-by-a-new-flag-of-engram-amend) names) or a technical requirement only. Until he answers it is a technical requirement only, and no line of the product spec is written ([793b405 The delta operations of the technical spec are complete](./793b_decision-log.md#793b405-the-delta-operations-of-the-technical-spec-are-complete)).
 - Duplicated: `internal/auto` reads transcript rows by role itself ([793d28b2 Reading and windows](#793d28b2-reading-and-windows)) and not through the [Transcript Reader](../../specs/technical/transcript-reader.md), so the two can drift.
 - Harness-only, so a MAY with no requirement: the seam file named by `ENGRAM_AUTO_SEAM_LOG`, which lets a test wait for the queue (`wiring.test.ts` covers it).

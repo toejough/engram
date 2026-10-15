@@ -9,6 +9,25 @@ import (
 	"github.com/toejough/engram/internal/auto"
 )
 
+// 793d36b1: the jobs are those of the kinds listed; the capture queue (owner decision 2026-10-14, 793b416) is gone, so
+// the two jobs it had are no jobs.
+func Test793d36b1_TheJobsOfTheRemovedCaptureQueueAreNotJobs(t *testing.T) {
+	t.Parallel()
+
+	for _, kind := range []string{"enqueue", "resume"} {
+		t.Run(kind, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+			world := NewWorld()
+
+			_, err := auto.Run(world.Deps(), asJSON(map[string]any{"kind": kind, "start": "startup"}))
+
+			g.Expect(err).To(MatchError(ContainSubstring("unknown job kind")))
+		})
+	}
+}
+
 // The wire format the mod reads (793b197, 793b370): `request`, `waitMs` and `state` when a job needs the mod, `done`
 // when it is over, and the effects of the round beside them. The mod's own tests script an engine with these names.
 func Test793d36b1_TheResponseHasTheNamesTheModReads(t *testing.T) {

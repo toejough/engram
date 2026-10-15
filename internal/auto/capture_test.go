@@ -277,6 +277,31 @@ func Test793d27b1_ATaskNotificationEntersTheWindowAsItsSummaryNeverAsTheResultIt
 	g.Expect(world.Requests[0].Prompt).NotTo(ContainSubstring("SECRET-WORDS"))
 }
 
+func Test793d27b1_ATurnCaptureJudgesTheTurnItself(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := NewWorld()
+
+	world.Do(t, captureOf(turnMessages()))
+
+	g.Expect(world.Requests).To(HaveLen(1))
+	g.Expect(world.Requests[0].Prompt).To(ContainSubstring("User: No, use targ, not go test directly."))
+}
+
+func Test793d27b1_ATurnCaptureWritesNoFileButTheMarksOfItsSession(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := NewWorld()
+	job := captureOf(turnMessages())
+	job["transcript"] = "/home/.claude/projects/p/9f1e2d3c.jsonl"
+
+	world.Do(t, job)
+
+	g.Expect(world.Writes).To(Equal([]string{defaultChunks + "/backlog-marks.json"}))
+}
+
 func Test793d27b1_AWindowWithNoWordsOfTheUserIsNothingToJudge(t *testing.T) {
 	t.Parallel()
 

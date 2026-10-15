@@ -28,8 +28,6 @@ type Done struct {
 	Work      json.RawMessage `json:"work,omitempty"`
 	Show      bool            `json:"show,omitempty"`
 	LineShown bool            `json:"lineShown,omitempty"`
-	Queued    *QueueEntry     `json:"queued,omitempty"`
-	Resumed   []QueueEntry    `json:"resumed,omitempty"`
 }
 
 // Job is what the mod hands to `engram auto run`: the event it has, the record of an earlier round of the job and the
@@ -52,8 +50,6 @@ type Job struct {
 	TurnEnded   bool            `json:"turnEnded"`
 	LineShown   bool            `json:"lineShown"`
 	Turn        int             `json:"turn"`
-	Start       string          `json:"start"`
-	Entry       *QueueEntry     `json:"entry"`
 	State       []record        `json:"state"`
 	Reply       *reply          `json:"reply"`
 	Ledger      json.RawMessage `json:"ledger"`
@@ -85,8 +81,7 @@ func Run(deps Deps, input []byte) ([]byte, error) {
 	e := &engine{deps: deps, tiers: DefaultTiers(), ledger: ledger{}}
 	jobs := map[string]func() Done{
 		"lookup": e.lookupJob, "step": e.stepJob, "tool": e.toolJob, "compact": e.compactJob, "capture": e.captureJob,
-		"subagent": e.subagentJob, "housekeeping": e.housekeepingJob, "summary": e.summaryJob, "enqueue": e.enqueueJob,
-		"resume": e.resumeJob,
+		"subagent": e.subagentJob, "housekeeping": e.housekeepingJob, "summary": e.summaryJob,
 	}
 
 	err := json.Unmarshal(input, &e.job)

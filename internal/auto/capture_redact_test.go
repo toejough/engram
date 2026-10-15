@@ -83,26 +83,6 @@ func Test793d26b1_ASecretInALessonThatTheJudgeWroteNeverReachesTheCommandLine(t 
 	g.Expect(world.Find("learn")[0].Line()).NotTo(ContainSubstring("hunter2"))
 }
 
-func Test793d26b1_ASecretInAnEntryTheQueueFileHeldReachesNeitherTheJudgementNorTheCommands(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	world := NewWorld()
-	world.Model = repliesInOrder(lessonsText(lessonWith(nil)))
-
-	world.Do(t, map[string]any{
-		"kind": "capture", "step": "the capture",
-		"entry": map[string]any{
-			"window": "User: No, use targ. password=hunter2hunter2\nAgent used api_key=" + queueSecretTail,
-			"source": "captured from the conversation",
-		},
-	})
-
-	g.Expect(world.Requests).NotTo(BeEmpty())
-	g.Expect(world.Requests[0].Prompt).NotTo(ContainSubstring("hunter2hunter2"))
-	g.Expect(world.Requests[0].Prompt).NotTo(ContainSubstring(queueSecretTail))
-}
-
 func Test793d26b1_ASecretInTheWindowNeverReachesTheJudgement(t *testing.T) {
 	t.Parallel()
 
