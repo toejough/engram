@@ -8,10 +8,11 @@ import (
 
 // unexported constants.
 const (
-	maxOffers = 10
-	nearCount = 5
-	showParts = 3
-	skillKind = "runbook"
+	hashHeader = "# exchange_hash: "
+	maxOffers  = 10
+	nearCount  = 5
+	showParts  = 3
+	skillKind  = "runbook"
 )
 
 // unexported variables.
@@ -73,7 +74,7 @@ func (e *engine) curateOne(name string) string {
 	decision := judged(e, e.tiers.curationRequest(text, near), judgeCuration, parse)
 	e.logf("curation judged %s %s %s against %d nearest note(s)", name, decision.Outcome, decision.Target, len(near))
 
-	for _, request := range settleRequests(decision, name, offer.hash) {
+	for _, request := range settleRequests(decision, name, offer.hash, near) {
 		e.amend(request)
 	}
 
@@ -159,8 +160,16 @@ func parseShow(output string) shown {
 	body, _, _ := strings.Cut(parts[2], "\n# outbound links")
 	forNote := first(forLine, front)
 
+	// the note as it was printed: after the exchange hash line, before the list of its links
+	printed := output
+	if strings.HasPrefix(printed, hashHeader) {
+		_, printed, _ = strings.Cut(printed, "\n")
+	}
+
+	read, _, _ := strings.Cut(printed, "\n# outbound links")
+
 	return shown{
-		Note: Note{Kind: field("type"), Situation: field("situation"), Body: oneSpaced(body)},
+		Note: Note{Kind: field("type"), Situation: field("situation"), Body: oneSpaced(body), raw: read},
 		hash: first(hashLine, parts[0]), pending: pendingLine.MatchString(front), skill: skillHash.MatchString(front),
 		forNote: map[bool]string{true: forNote}[noteName.MatchString(forNote)],
 	}
@@ -168,23 +177,32 @@ func parseShow(output string) shown {
 
 // redacted2 is a note as the judge reads it: every field redacted.
 func redacted2(path string, note Note) Note {
-	return Note{Path: path, Kind: note.Kind, Situation: redact(note.Situation), Body: redact(note.Body)}
+	return Note{Path: path, Kind: note.Kind, Situation: redact(note.Situation), Body: redact(note.Body), raw: note.raw}
 }
 
 // settleRequests are the amends of an outcome, in curate's order: a covered offer reinforces the note and is folded
-// into it (`--discard --into` keeps the offer's identity); a near offer is folded away first and its new claim then
-// written into the note; an absent one clears its own marker; a rejected one is discarded bare, never `--into`. A
-// served offer's exchange hash is passed, as curate does, so that an offer changed since it was read is not settled.
-func settleRequests(decision Decision, offer, hash string) []AmendRequest {
+// into it (`--discard --into` keeps the offer's identity); a near offer amends the note first, with the claim and the
+// line that says where it came from, checked against the note as it was read so that a note changed since is not
+// written, and is folded away after it (793b420); an absent one clears its own marker; a rejected one is discarded
+// bare, never `--into`. A served offer's exchange hash is passed, as curate does, so that an offer changed since it was
+// read is not settled.
+func settleRequests(decision Decision, offer, hash string, near []Note) []AmendRequest {
 	fold := AmendRequest{Target: offer, Discard: true, Into: decision.Target, ExpectHash: hash}
 
 	switch decision.Outcome {
 	case outcomeCovered:
 		return []AmendRequest{{Target: decision.Target, Activate: true}, fold}
 	case outcomeNear:
-		return []AmendRequest{fold, {
-			Target: decision.Target, Fields: decision.Fields, Source: "amended automatically from offer " + offer,
-		}}
+		read := ""
+
+		if at := slices.IndexFunc(near, func(note Note) bool { return note.Path == decision.Target }); at >= 0 {
+			read = near[at].raw
+		}
+
+		return []AmendRequest{{
+			Target: decision.Target, Fields: decision.Fields, ExpectNote: read,
+			Provenance: "amended automatically from offer " + offer,
+		}, fold}
 	case outcomeAbsent:
 		return []AmendRequest{{Target: offer, ClearPending: true, ExpectHash: hash}}
 	}

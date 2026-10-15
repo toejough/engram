@@ -299,6 +299,36 @@ func Test793d29b1_SkillRegistrationsDoNotCountAgainstTheCapAndAreShownOnceInTheP
 	g.Expect(curateAmends(world)).To(HaveLen(curateOfferTot))
 }
 
+func Test793d29b2_ANearOfferIsCheckedAgainstTheNoteAsItWasReadAndNothingIsWrittenOrFoldedWhenItChanged(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := curateWorld(curateDecision("near", 1, curateFields()), curateShow(curateSituation, "", curateHash))
+	world.Process["amend"] = func(argv []string) (auto.Output, error) {
+		if argv[3] == curateNote {
+			return auto.Output{}, errors.New("amend: the note changed since it was judged")
+		}
+
+		return curateOK("")
+	}
+
+	curateHousekeeping(t, world)
+
+	g.Expect(world.AmendRequests).To(HaveLen(1), "the offer was folded away though its claim was not written")
+	g.Expect(world.AmendRequests[0].Target).To(Equal(curateNote))
+	g.Expect(world.AmendRequests[0].ExpectNote).To(ContainSubstring("object: from main (SENTINEL-N)"),
+		"the amend is not checked against the note the judge read")
+	g.Expect(world.Warnings).To(Equal([]string{curateWarning}))
+	g.Expect(world.Counts).To(Equal(auto.Counts{}))
+	g.Expect(curateAmends(world)).NotTo(ContainElement(ContainSubstring("--discard")))
+
+	// the offer stays pending and is not looked at again in this process
+	world.Warnings = nil
+	curateHousekeeping(t, world)
+	g.Expect(world.Warnings).To(BeEmpty())
+	g.Expect(world.AmendRequests).To(HaveLen(1))
+}
+
 func Test793d29b2_ANoteThatIsNoLongerPendingIsLeftAlone(t *testing.T) {
 	t.Parallel()
 
@@ -382,6 +412,33 @@ func Test793d29b2_AnExchangeHashIsReadFromTheHeaderOfShowNotFromALineOfTheNote(t
 	g.Expect(curateAmends(world)).To(Equal([]string{"--target 2.2026-10-12.offer-one.md --clear-pending"}))
 }
 
+func Test793d29b2_AnOfferForANoteIsCheckedAgainstTheNoteItWasShown(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	shown := "# exchange_hash: xh1:note\n---\ntype: fact\nsituation: tagging a release\nsubject: tagging a release\n" +
+		"object: shown (SENTINEL-S)\n---\n\nInformation learned: shown.\n\n" +
+		"# outbound links (fetch with: engram show <basename>)\n(none)\n"
+	world := curateWorld(curateDecision("near", 1, curateFields()),
+		curateShow(curateSituation, "offer:\n    for: "+curateNote+"\n", curateHash))
+	offerShow := world.Process["show"]
+	world.Process["show"] = func(argv []string) (auto.Output, error) {
+		if argv[2] == curateNote {
+			return curateOK(shown)
+		}
+
+		return offerShow(argv)
+	}
+
+	curateHousekeeping(t, world)
+
+	g.Expect(world.AmendRequests).NotTo(BeEmpty())
+	g.Expect(world.AmendRequests[0].ExpectNote).To(HavePrefix("---\ntype: fact"))
+	g.Expect(world.AmendRequests[0].ExpectNote).To(ContainSubstring("object: shown (SENTINEL-S)"))
+	g.Expect(world.AmendRequests[0].ExpectNote).NotTo(ContainSubstring("exchange_hash"))
+	g.Expect(world.AmendRequests[0].ExpectNote).NotTo(ContainSubstring("outbound links"))
+}
+
 func Test793d29b2_AnOfferForANoteIsJudgedAgainstThatNoteFirst(t *testing.T) {
 	t.Parallel()
 
@@ -402,7 +459,8 @@ func Test793d29b2_AnOfferForANoteIsJudgedAgainstThatNoteFirst(t *testing.T) {
 	g.Expect(world.Requests[0].Prompt).To(ContainSubstring("1. kind: fact. situation: tagging a release"))
 	g.Expect(curateShows(world)).To(Equal([]string{curateOffer, curateNote}))
 	g.Expect(world.Find("query")).To(BeEmpty())
-	g.Expect(curateAmends(world)[0]).To(ContainSubstring("--discard --into " + curateNote))
+	g.Expect(curateAmends(world)[0]).To(HavePrefix("--target " + curateNote))
+	g.Expect(curateAmends(world)[1]).To(ContainSubstring("--discard --into " + curateNote))
 }
 
 func Test793d29b2_AnOfferIsSettledByTheOutcomeTheJudgementGave(t *testing.T) {
@@ -424,12 +482,13 @@ func Test793d29b2_AnOfferIsSettledByTheOutcomeTheJudgementGave(t *testing.T) {
 			curated: auto.Counts{Curated: 1},
 		},
 		{
-			name:  "near: the offer is folded away first, then the new claim is written into the note",
+			name:  "near: the note is amended first, with the line that says where the claim came from, then the offer folds",
 			reply: curateDecision("near", 1, curateFields()),
 			amends: []string{
-				curateFolded,
 				"--target 1.2026-10-12.note-n.md --subject=tagging a release --predicate=is recorded as " +
-					"--object=from main and signed --source=amended automatically from offer 2.2026-10-12.offer-one.md",
+					"--object=from main and signed --provenance=amended automatically from offer 2.2026-10-12.offer-one.md " +
+					"--expect-note",
+				curateFolded,
 			},
 			curated: auto.Counts{Curated: 1, Amended: 1},
 		},

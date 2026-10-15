@@ -14,6 +14,46 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+func Test793d29b2_AutoVaultAnAmendCheckedAgainstTheNoteAsItWasReadIsRefusedWhenTheNoteChanged(t *testing.T) {
+	t.Parallel()
+
+	g := gomega.NewWithT(t)
+	vault, deps := autoVaultWithNote(t, "")
+	file := learnedNote(t, deps)
+	name := filepath.Base(file)
+
+	read, err := os.ReadFile(file)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	// the note as `engram show` prints it, less what is not the note: the form the engine keeps it in
+	shown, err := vault.Show(name, time.Minute)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	printed, _, _ := strings.Cut(shown, "\n# outbound links")
+	g.Expect(printed).To(gomega.HavePrefix("---\ntype: fact"))
+
+	for _, asRead := range []string{string(read), printed} {
+		amend := auto.AmendRequest{
+			Target: name, ExpectNote: asRead, Provenance: "amended automatically from offer 9.x.md",
+			Fields: [][2]string{{"object", "changed"}},
+		}
+		g.Expect(vault.Amend(amend, time.Minute)).To(gomega.Succeed())
+
+		// the note has changed since it was read: the same version no longer verifies it, and nothing is written
+		stale := auto.AmendRequest{Target: name, ExpectNote: asRead, Fields: [][2]string{{"object", "later"}}}
+		g.Expect(vault.Amend(stale, time.Minute)).To(
+			gomega.MatchError(gomega.ContainSubstring("changed since it was judged")))
+
+		current, readErr := os.ReadFile(file)
+		g.Expect(readErr).NotTo(gomega.HaveOccurred())
+		g.Expect(string(current)).To(gomega.ContainSubstring("object: changed"))
+		g.Expect(string(current)).To(gomega.ContainSubstring("source: test; amended automatically from offer 9.x.md"))
+
+		restore := auto.AmendRequest{Target: name, Fields: [][2]string{{"object", "v1"}}}
+		g.Expect(vault.Amend(restore, time.Minute)).To(gomega.Succeed())
+	}
+}
+
 // The vault of a job (793b417): the code of the commands, called in the process.
 
 func Test793d36b1_AutoVaultQueryReturnsThePayloadOfTheQueryCommand(t *testing.T) {
@@ -92,36 +132,6 @@ func Test793d36b3_AutoVaultTheHarnessFaultErrorFailsEveryOperation(t *testing.T)
 
 	g.Expect(queryErr).To(gomega.MatchError(gomega.ContainSubstring("injected failure")))
 	g.Expect(vault.Index(time.Minute)).To(gomega.MatchError(gomega.ContainSubstring("injected failure")))
-}
-
-func Test793d38b1_AutoVaultAShownNoteCarriesTheHashAnAmendOfItVerifies(t *testing.T) {
-	t.Parallel()
-
-	g := gomega.NewWithT(t)
-	vault, deps := autoVaultWithNote(t, "")
-	name := filepath.Base(learnedNote(t, deps))
-
-	shown, err := vault.Show(name, time.Minute)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	hash, _, _ := strings.Cut(strings.TrimPrefix(shown, "# exchange_hash: "), "\n")
-	g.Expect(shown).To(gomega.HavePrefix("# exchange_hash: "))
-	g.Expect(hash).NotTo(gomega.BeEmpty())
-
-	amend := auto.AmendRequest{Target: name, ExpectHash: hash, Fields: [][2]string{{"object", "v2"}}}
-	g.Expect(vault.Amend(amend, time.Minute)).To(gomega.Succeed())
-
-	changed, readErr := os.ReadFile(learnedNote(t, deps))
-	g.Expect(readErr).NotTo(gomega.HaveOccurred())
-	g.Expect(string(changed)).To(gomega.ContainSubstring("object: v2"))
-
-	// the note has changed since it was read: the same hash no longer verifies it, and nothing is written
-	stale := auto.AmendRequest{Target: name, ExpectHash: hash, Fields: [][2]string{{"object", "v3"}}}
-	g.Expect(vault.Amend(stale, time.Minute)).To(gomega.MatchError(gomega.ContainSubstring("changed since it was judged")))
-
-	unchanged, readErr := os.ReadFile(learnedNote(t, deps))
-	g.Expect(readErr).NotTo(gomega.HaveOccurred())
-	g.Expect(string(unchanged)).To(gomega.ContainSubstring("object: v2"))
 }
 
 // autoVaultWithNote is a vault of a job on a temporary directory, holding one fact note, with the fault given.

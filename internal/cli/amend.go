@@ -26,8 +26,7 @@ type AmendArgs struct {
 	Target       string   `json:"target"       targ:"flag,name=target,required,desc=note ref: full basename | [[wikilink]] | trailing .md | or bare Luhmann id (required)"`    //nolint:lll // single unbreakable struct-tag string
 	Supersedes   []string `json:"supersedes"   targ:"flag,name=supersedes,desc=supersession: <note>|<type>|<claim> (updates/narrows/refutes)"`                                 //nolint:lll // single unbreakable struct-tag string
 	ChunkSources []string `json:"chunkSources" targ:"flag,name=chunk-source,desc=chunk id (source#anchor) merged into sources: (repeatable)"`                                  //nolint:lll // single unbreakable struct-tag string
-	Source       string   `json:"source"       targ:"flag,name=source,desc=append a provenance line to source: once"`
-	ChunksDir    string   `json:"chunksDir"    targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"` //nolint:lll // single unbreakable struct-tag string
+	ChunksDir    string   `json:"chunksDir"    targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"`                                        //nolint:lll // single unbreakable struct-tag string
 	// Content flags — only supplied fields are overwritten.
 	Situation string `json:"situation" targ:"flag,name=situation,desc=replace situation (optional)"`
 	Subject   string `json:"subject"   targ:"flag,name=subject,desc=replace subject (fact; optional)"`
@@ -76,6 +75,11 @@ type AmendArgs struct {
 	// current exchange hash equals it. It is required for --clear-pending
 	// and --discard on a note carrying offer.origin.
 	ExpectHash string `json:"expectHash" targ:"flag,name=expect-hash,desc=fail unless the note's current exchange hash equals this (shown by engram show)"` //nolint:lll // single unbreakable struct-tag string
+
+	// Provenance is a line appended once to the note's source: (793b419). It is not a flag and is never sent over the
+	// wire: the engine of the memory mod sets it on the amend of a near fold, so that the note says where its new claim
+	// came from. It is not a content change and does not re-stamp identity.
+	Provenance string `json:"-"`
 
 	// Repo carries a served write's client-detected repo: value across the
 	// wire. See LearnArgs.Repo for the full rationale — same
@@ -266,7 +270,7 @@ func amendIdentity(ctx context.Context, args AmendArgs, deps AmendDeps, basename
 
 // amendRestampsIdentity reports whether an amend changes content or
 // relations — any content flag, --supersedes or --chunk-source — and so
-// re-stamps identity. --activate, --clear-pending and --source (a provenance line, 793d38b1) alone are bookkeeping.
+// re-stamps identity. --activate, --clear-pending and a provenance line (793b419) alone are bookkeeping.
 func amendRestampsIdentity(args AmendArgs) bool {
 	contentFlags := []string{
 		args.Situation, args.Subject, args.Predicate, args.Object,
@@ -279,7 +283,7 @@ func amendRestampsIdentity(args AmendArgs) bool {
 }
 
 // appendSource adds a provenance line to a note's source: after what is there, once: a line already in it, or none,
-// leaves it as it was (793d38b1).
+// leaves it as it was (793b419).
 func appendSource(current, line string) string {
 	if line == "" || strings.Contains(current, line) {
 		return current
@@ -411,7 +415,7 @@ func applyRunbookAmend(
 	}
 
 	doc.Sources = mergeChunkSources(doc.Sources, args.ChunkSources)
-	doc.Source = appendSource(doc.Source, args.Source)
+	doc.Source = appendSource(doc.Source, args.Provenance)
 	identity.stampPreservingUser(&doc.Repo, &doc.User, &doc.Vault)
 	fillEmptyVault(&doc.Vault, args.VaultName)
 
@@ -663,7 +667,7 @@ func overrideFactFields(
 	doc *factFrontmatterDoc, args AmendArgs, parsedSupersedes []supersedesEntry, identity *identityStamp,
 ) bool {
 	doc.Sources = mergeChunkSources(doc.Sources, args.ChunkSources)
-	doc.Source = appendSource(doc.Source, args.Source)
+	doc.Source = appendSource(doc.Source, args.Provenance)
 	identity.stampPreservingUser(&doc.Repo, &doc.User, &doc.Vault)
 	fillEmptyVault(&doc.Vault, args.VaultName)
 
@@ -693,7 +697,7 @@ func overrideFeedbackFields(
 	identity *identityStamp,
 ) bool {
 	doc.Sources = mergeChunkSources(doc.Sources, args.ChunkSources)
-	doc.Source = appendSource(doc.Source, args.Source)
+	doc.Source = appendSource(doc.Source, args.Provenance)
 	identity.stampPreservingUser(&doc.Repo, &doc.User, &doc.Vault)
 	fillEmptyVault(&doc.Vault, args.VaultName)
 

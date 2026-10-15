@@ -33,7 +33,7 @@
           "moment.go"
         ],
         "basis": "moment.js 70, lookup 15, deliver 8, moment 1, stepJob 7, memory-ask and note-path patterns 4, readTranscript 7",
-        "ceiling": 213
+        "ceiling": 215
       },
       "judge-relay": {
         "js": 161,
@@ -67,7 +67,7 @@
           "curate.go"
         ],
         "basis": "housekeeping.js 52, nearest 9, curateOne 13, curate 13, housekeeping 5, skipped 1",
-        "ceiling": 131
+        "ceiling": 142
       },
       "summary": {
         "js": 27,

@@ -3,11 +3,16 @@ package auto
 import "time"
 
 // AmendRequest is an amend: the note it names, and what is done to it. Fields are the content fields to replace.
+// Provenance is a line appended to the source of the note once, which is not a change of its content or of who wrote
+// it (793b419). ExpectNote is the note as the job read it: when the note is no longer that version, nothing is written
+// (the check `--expect-hash` makes, from the text read and not from a hash shown); ExpectHash is the hash an offer was
+// shown with.
 type AmendRequest struct {
 	Target       string
 	Into         string
 	ExpectHash   string
-	Source       string
+	ExpectNote   string
+	Provenance   string
 	Fields       [][2]string
 	Activate     bool
 	ClearPending bool
@@ -72,8 +77,6 @@ type Vault interface {
 	Learn(request LearnRequest, deadline time.Duration) (string, error)
 	// Query searches the vault as `engram query` does, and returns its payload.
 	Query(request QueryRequest, deadline time.Duration) (string, error)
-	// Show reads a note as `engram show` does, and returns what it printed. The text always begins with the exchange
-	// hash line of the note that `engram show` prints for a note that has an exchange identity: here every note has
-	// one, so that an amend can verify that the note it judged is the note it amends.
+	// Show reads a note as `engram show` does, and returns what it printed.
 	Show(name string, deadline time.Duration) (string, error)
 }

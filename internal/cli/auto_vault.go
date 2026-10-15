@@ -52,12 +52,21 @@ type autoVault struct {
 // Amend amends a note.
 func (v autoVault) Amend(request auto.AmendRequest, deadline time.Duration) error {
 	args := AmendArgs{
-		Target: request.Target, Into: request.Into, ExpectHash: request.ExpectHash, Source: request.Source,
+		Target: request.Target, Into: request.Into, ExpectHash: request.ExpectHash, Provenance: request.Provenance,
 		Activate: request.Activate, ClearPending: request.ClearPending, Discard: request.Discard,
 	}
 
 	for _, field := range request.Fields {
 		setAmendField(&args, field[0], field[1])
+	}
+
+	if request.ExpectNote != "" {
+		hash, hashErr := exchangeHash([]byte(request.ExpectNote))
+		if hashErr != nil {
+			return fmt.Errorf("amend: the note as it was read: %w", hashErr)
+		}
+
+		args.ExpectHash = hash
 	}
 
 	_, err := v.operation("amend", deadline, func(ctx context.Context, out io.Writer) error {
@@ -111,17 +120,11 @@ func (v autoVault) Query(request auto.QueryRequest, deadline time.Duration) (str
 	})
 }
 
-// Show reads a note. The text begins with the exchange hash line, which `engram show` prints for a note that has an
-// exchange identity: a note without one has the line here too, computed as the amend that verifies it computes it.
+// Show reads a note.
 func (v autoVault) Show(name string, deadline time.Duration) (string, error) {
-	text, err := v.operation("show", deadline, func(ctx context.Context, out io.Writer) error {
+	return v.operation("show", deadline, func(ctx context.Context, out io.Writer) error {
 		return showCommand(logContext(v.deps)(ctx), v.deps, ShowArgs{Ref: name}, out)
 	})
-	if err != nil {
-		return "", err
-	}
-
-	return withExchangeHashLine(text), nil
 }
 
 // noteDelay appends the line the harness reads to know that slow work began: the second, and the operation. The line
@@ -213,21 +216,4 @@ func setAmendField(args *AmendArgs, name, value string) {
 	if target := fields[name]; target != nil {
 		*target = value
 	}
-}
-
-// withExchangeHashLine gives the text `engram show` printed the exchange hash line it begins with when the note has an
-// exchange identity, and one computed the same way when it has none.
-func withExchangeHashLine(text string) string {
-	if strings.HasPrefix(text, exchangeHashHeaderPrefix) {
-		return text
-	}
-
-	note, _, _ := strings.Cut(text, "\n\n# outbound links")
-
-	hash, err := exchangeHash([]byte(note))
-	if err != nil {
-		return text
-	}
-
-	return exchangeHashHeaderPrefix + hash + "\n" + text
 }

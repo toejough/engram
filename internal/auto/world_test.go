@@ -76,6 +76,8 @@ type World struct {
 	Process map[string]func(argv []string) (auto.Output, error)
 	Files   map[string]string
 	Writes  []string
+	// AmendRequests are the amends the job asked for, as it asked for them.
+	AmendRequests []auto.AmendRequest
 	// VaultPath and ChunksDir are where the composition root says the vault and the chunk index are.
 	VaultPath, ChunksDir string
 	// Unwritable are the paths the world refuses to write.
@@ -109,6 +111,10 @@ func NewWorld() *World {
 
 // Amend amends a note as `engram amend` would.
 func (w *World) Amend(request auto.AmendRequest, deadline time.Duration) error {
+	w.mu.Lock()
+	w.AmendRequests = append(w.AmendRequests, request)
+	w.mu.Unlock()
+
 	_, err := w.run(amendArgvOf(request), deadline)
 
 	return err
@@ -400,8 +406,14 @@ func amendArgvOf(request auto.AmendRequest) []string {
 		argv = append(argv, "--"+field[0]+"="+field[1])
 	}
 
-	if request.Source != "" {
-		argv = append(argv, "--source="+request.Source)
+	// a provenance line and the note as it was read are parameters of the amend, not flags of the command line; they are
+	// shown in the form the tests read
+	if request.Provenance != "" {
+		argv = append(argv, "--provenance="+request.Provenance)
+	}
+
+	if request.ExpectNote != "" {
+		argv = append(argv, "--expect-note")
 	}
 
 	if request.ExpectHash != "" {

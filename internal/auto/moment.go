@@ -17,6 +17,8 @@ type Note struct {
 	// the score of the item of a query, and whether it was a direct match
 	score   float64
 	counted bool
+	// the note as the lookup or the show gave it, which an amend of it is checked against
+	raw string
 }
 
 // ToolCall is a tool the agent called in a step.
@@ -254,6 +256,7 @@ func parseQuery(output string) []Note {
 			Path: found.Path, Kind: found.Kind, Situation: first(situation, found.Content),
 			Body:  cutEnd(oneSpaced(after(found.Content, ruleLine, bodyParts, "---")), bodyLimit),
 			score: found.Score, counted: slices.ContainsFunc(found.Provenances, countedProvenance.MatchString),
+			raw: found.Content,
 		})
 	}
 

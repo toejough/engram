@@ -61,6 +61,9 @@ func Items(items []Note) []map[string]any {
 	return out
 }
 
+// NoteAsRead is a note with the text it was read as.
+func NoteAsRead(path, raw string) Note { return Note{Path: path, raw: raw} }
+
 // The parsers, which fail by panic, as functions that return the error.
 func ParseCuration(text string, near []Note) (Decision, error) {
 	return Try(func() Decision { return parseCuration(text, near) })

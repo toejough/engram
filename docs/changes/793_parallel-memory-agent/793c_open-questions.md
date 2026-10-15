@@ -1153,6 +1153,23 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 - **Context:** the engine started `engram query`, `show`, `learn`, `amend` and `ingest --auto` as processes, 8 to 16 times a turn; `engram amend --source` existed only so that a near fold could carry a provenance line; the fault shims of the harness keyed on those processes.
 - **Options:** (a) keep the processes and the flag, and ask the owner whether the flag is a promise to the user; (b) call the code of the commands in process, remove the flag from the command line, and make the provenance a parameter of the amend.
 - **Answer:** (b), with the faults of the harness replaced by an injected seam; `--source`, the Modified operations 792b14a and 792b14c5 and the section 793d38 leave the change; the note's source line still gains the line "amended automatically from offer <id>" as a content effect of the amend, not as a command-line surface; the budgets and the timings are measured again.
-- **Applied in:** [793b417 The engine calls the code of the engram commands in process instead of starting the commands](./793b_decision-log.md#793b417-the-engine-calls-the-code-of-the-engram-commands-in-process-instead-of-starting-the-commands) and [793b418 The fault shims are replaced by a harness-only fault seam of the engine](./793b_decision-log.md#793b418-the-fault-shims-are-replaced-by-a-harness-only-fault-seam-of-the-engine) (step A); the flag and the near fold in 793b419 (step B).
+- **Applied in:** [793b417 The engine calls the code of the engram commands in process instead of starting the commands](./793b_decision-log.md#793b417-the-engine-calls-the-code-of-the-engram-commands-in-process-instead-of-starting-the-commands) and [793b418 The fault shims are replaced by a harness-only fault seam of the engine](./793b_decision-log.md#793b418-the-fault-shims-are-replaced-by-a-harness-only-fault-seam-of-the-engine) (step A); the flag in [793b419 The --source flag of engram amend is removed; provenance is a parameter of the amend, and a near fold amends first with a check of the note](./793b_decision-log.md#793b419-the---source-flag-of-engram-amend-is-removed-provenance-is-a-parameter-of-the-amend-and-a-near-fold-amends-first-with-a-check-of-the-note).
+- **Blocks:** nothing.
+
+## 793c83 Is H2 closed?
+
+- **Status:** answered (Joe, 2026-10-14), in chat. It is the question "h" of the owner's list in [793e8r Refactor review and promotion](./793e_implementation-plan.md#793e8r-refactor-review-and-promotion).
+- **Context:** the verdict of [793d18 H2: the cheapest capable model is adequate for every System judgement, and is faster and cheaper](./793d_technical-spec.md#793d18-h2-the-cheapest-capable-model-is-adequate-for-every-system-judgement-and-is-faster-and-cheaper) rests on the confirmed fixtures; the capture recall bound straddles the margin.
+- **Answer:** H2 is closed. No residual, no follow-up issue, no further fixtures; the result stands as the record.
+- **Applied in:** [793b423 H2 is closed; the result stands as the record](./793b_decision-log.md#793b423-h2-is-closed-the-result-stands-as-the-record).
+- **Blocks:** nothing.
+
+## 793c84 In what order does a near outcome fold the offer and write the claim?
+
+- **Status:** answered (Joe, 2026-10-14), in chat. It is the question "f" of the owner's list in [793e8r Refactor review and promotion](./793e_implementation-plan.md#793e8r-refactor-review-and-promotion).
+- **Context:** the fold came first and the amend of the note second; a failure between the two left the offer folded away and the claim unwritten, and the amend overwrote a note changed since it was judged ([793a5k Intentional memory is never blocked or changed](./793a_product-spec.md#793a5k-intentional-memory-is-never-blocked-or-changed)).
+- **Options:** (a) amend the note first with a check that it is unchanged since it was read, then fold the offer away; (b) the fold first, as it was.
+- **Answer:** (a). If the note changed, nothing is written, the offer stays pending, and the activity line shows a warning.
+- **Applied in:** [793b420 A near fold amends first, with a check of the note, and folds the offer away after it](./793b_decision-log.md#793b420-a-near-fold-amends-first-with-a-check-of-the-note-and-folds-the-offer-away-after-it).
 - **Blocks:** nothing.
 

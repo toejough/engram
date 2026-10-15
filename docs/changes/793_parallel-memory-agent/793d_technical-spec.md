@@ -281,17 +281,17 @@ Every scenario of [Parallel Memory Agent - Product Spec](./793a_product-spec.md#
 
 ## 793d21 System technical specification from the refactored system
 
-Canonical targets: the component and flow files named in [793d22 Memory Mod](#793d22-memory-mod) to [793d38 Note Amendment (additions)](#793d38-note-amendment-additions), each by its `Canonical target` line. Sections [793d1 Orientation](#793d1-orientation) to [793d20 Traceability to the product spec](#793d20-traceability-to-the-product-spec) are the change record (hypotheses, results, owner conclusions, design pointers, security, traceability) and are not promoted; [793d21 System technical specification from the refactored system](#793d21-system-technical-specification-from-the-refactored-system) to [793d38 Note Amendment (additions)](#793d38-note-amendment-additions) are ([793b357 The technical specification is derived from the proof of concept as built; 793d21 onward is what is promoted](./793b_decision-log.md#793b357-the-technical-specification-is-derived-from-the-proof-of-concept-as-built-793d21-onward-is-what-is-promoted), [793b402 The component and flow specs are written from the refactored system](./793b_decision-log.md#793b402-the-component-and-flow-specs-are-written-from-the-refactored-system)).
+Canonical targets: the component and flow files named in [793d22 Memory Mod](#793d22-memory-mod) to [793d34 Mod Install Flow](#793d34-mod-install-flow), each by its `Canonical target` line. Sections [793d1 Orientation](#793d1-orientation) to [793d20 Traceability to the product spec](#793d20-traceability-to-the-product-spec) are the change record (hypotheses, results, owner conclusions, design pointers, security, traceability) and are not promoted; [793d21 System technical specification from the refactored system](#793d21-system-technical-specification-from-the-refactored-system) to [793d34 Mod Install Flow](#793d34-mod-install-flow) are ([793b357 The technical specification is derived from the proof of concept as built; 793d21 onward is what is promoted](./793b_decision-log.md#793b357-the-technical-specification-is-derived-from-the-proof-of-concept-as-built-793d21-onward-is-what-is-promoted), [793b402 The component and flow specs are written from the refactored system](./793b_decision-log.md#793b402-the-component-and-flow-specs-are-written-from-the-refactored-system)).
 
 ### 793d21a Orientation
 
-This is the technical specification of the [System](./793a_product-spec.md#793a1-problem-statement) as the refactored system builds it, written from its code and tests ([793b402 The component and flow specs are written from the refactored system](./793b_decision-log.md#793b402-the-component-and-flow-specs-are-written-from-the-refactored-system)): the Go engine behind `engram auto run` (`internal/auto`), the thin [mod](#793d1b-terms) `agent-instructions/mods/engram-memory`, and the deploy in `internal/update`. What is not built is marked `Gap` or listed in [793d35c Gaps and what is not built](#793d35c-gaps-and-what-is-not-built). It reuses unchanged [Query Engine](../../specs/technical/query-engine.md), [Note Authoring](../../specs/technical/note-authoring.md), [Ingestion Source Discovery](../../specs/technical/ingestion-source-discovery.md), [Command Line Surface](../../specs/technical/command-line-surface.md), [Vault Write Lock](../../specs/technical/vault-write-lock.md) (held by learn and amend, which is how the System coexists with intentional ingestion) and [Self Installer](../../specs/technical/self-installer.md), and extends [Harness Deploy Sync](../../specs/technical/harness-deploy-sync.md) in [793d31 Harness Deploy Sync (mod additions)](#793d31-harness-deploy-sync-mod-additions) and [Note Amendment](../../specs/technical/note-amendment.md) in [793d38 Note Amendment (additions)](#793d38-note-amendment-additions).
+This is the technical specification of the [System](./793a_product-spec.md#793a1-problem-statement) as the refactored system builds it, written from its code and tests ([793b402 The component and flow specs are written from the refactored system](./793b_decision-log.md#793b402-the-component-and-flow-specs-are-written-from-the-refactored-system)): the Go engine behind `engram auto run` (`internal/auto`), the thin [mod](#793d1b-terms) `agent-instructions/mods/engram-memory`, and the deploy in `internal/update`. What is not built is marked `Gap` or listed in [793d35c Gaps and what is not built](#793d35c-gaps-and-what-is-not-built). It reuses unchanged [Query Engine](../../specs/technical/query-engine.md), [Note Authoring](../../specs/technical/note-authoring.md), [Ingestion Source Discovery](../../specs/technical/ingestion-source-discovery.md), [Command Line Surface](../../specs/technical/command-line-surface.md), [Vault Write Lock](../../specs/technical/vault-write-lock.md) (held by learn and amend, which is how the System coexists with intentional ingestion) and [Self Installer](../../specs/technical/self-installer.md), and extends [Harness Deploy Sync](../../specs/technical/harness-deploy-sync.md) in [793d31 Harness Deploy Sync (mod additions)](#793d31-harness-deploy-sync-mod-additions). [Note Amendment](../../specs/technical/note-amendment.md) is reused unchanged: the line that says where the claim of a near offer came from is a parameter of the amend the engine makes, not a flag of the command ([793b419](./793b_decision-log.md#793b419-the---source-flag-of-engram-amend-is-removed-provenance-is-a-parameter-of-the-amend-and-a-near-fold-amends-first-with-a-check-of-the-note)).
 
 The engine performs the operations of `engram query`, `engram show`, `engram learn`, `engram amend` and `engram ingest --auto` in its own process: it calls the code of those commands with the dependencies [`cli.NewDeps`](../../specs/technical/command-line-surface.md) composes, and takes the vault write lock and the manifest lock exactly as the commands do ([793b417](./793b_decision-log.md#793b417-the-engine-calls-the-code-of-the-engram-commands-in-process-instead-of-starting-the-commands)). A command line written in this spec names the operation, as the command line it is equal to; no process of the command is started.
 
 Reading guide. `Verified by` names contract tests: a file under `agent-instructions/mods/engram-memory/tests/` (run by `claude plugin test`) with the start of a test's name, or a Go test with its exact function name. The [mod](#793d1b-terms) is an adapter ([793b368 Within reason the logic moves to Go and the mod becomes a thin adapter](./793b_decision-log.md#793b368-within-reason-the-logic-moves-to-go-and-the-mod-becomes-a-thin-adapter)): its tests register it with the engine scripted. The Go tests run each [job](#793d1b-terms) through `Run` in a fake world of commands, files, environment and clock, with the model played by a function of the request ([793b359 Flows carry one interaction requirement per calling owner, component tests drive the mod's event interface, and what is not built is marked](./793b_decision-log.md#793b359-flows-carry-one-interaction-requirement-per-calling-owner-component-tests-drive-the-mods-event-interface-and-what-is-not-built-is-marked)). Each product scenario ID is a `targ acceptance` row. `targ check-spec-conformance`, in `check-full`, fails when a requirement lacks `Supports` or `Verified by`, a cited test is absent or fails, a product scenario is unsupported, or a `Realization` names absent code.
 
-Components, each with one owner ([793b358 The components that qualify and the candidates that fail](./793b_decision-log.md#793b358-the-components-that-qualify-and-the-candidates-that-fail), [793b402 The component and flow specs are written from the refactored system](./793b_decision-log.md#793b402-the-component-and-flow-specs-are-written-from-the-refactored-system)): [793d22 Memory Mod](#793d22-memory-mod), [793d36 Job Runner](#793d36-job-runner), [793d23 Moment Detection](#793d23-moment-detection), [793d24 Memory Delivery](#793d24-memory-delivery), [793d25 Judgement Relay](#793d25-judgement-relay), [793d26 Secret Redaction](#793d26-secret-redaction), [793d27 Auto Capture](#793d27-auto-capture), [793d28 Backlog Capture](#793d28-backlog-capture), [793d29 Auto Curation](#793d29-auto-curation), [793d38 Note Amendment (additions)](#793d38-note-amendment-additions), [793d30 Activity Report](#793d30-activity-report) and [793d31 Harness Deploy Sync (mod additions)](#793d31-harness-deploy-sync-mod-additions). Flows: [793d32 Moment Delivery Flow](#793d32-moment-delivery-flow), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow) and [793d34 Mod Install Flow](#793d34-mod-install-flow). Folded into an owner: the [delivery](./793a_product-spec.md#793a1-problem-statement) channels (the Memory Mod's), the [ledger](#793d1b-terms) (Memory Delivery's), failure classification and the housekeeping [job](#793d1b-terms) (the Job Runner's), the [judgement](#793d1b-terms) kinds (the Judgement Relay's), the [mark file](#793d1b-terms) (Backlog Capture's), the harness-only seam log (fails necessity) and the `claude --version` check (a boundary of Harness Deploy Sync).
+Components, each with one owner ([793b358 The components that qualify and the candidates that fail](./793b_decision-log.md#793b358-the-components-that-qualify-and-the-candidates-that-fail), [793b402 The component and flow specs are written from the refactored system](./793b_decision-log.md#793b402-the-component-and-flow-specs-are-written-from-the-refactored-system)): [793d22 Memory Mod](#793d22-memory-mod), [793d36 Job Runner](#793d36-job-runner), [793d23 Moment Detection](#793d23-moment-detection), [793d24 Memory Delivery](#793d24-memory-delivery), [793d25 Judgement Relay](#793d25-judgement-relay), [793d26 Secret Redaction](#793d26-secret-redaction), [793d27 Auto Capture](#793d27-auto-capture), [793d28 Backlog Capture](#793d28-backlog-capture), [793d29 Auto Curation](#793d29-auto-curation), [793d30 Activity Report](#793d30-activity-report) and [793d31 Harness Deploy Sync (mod additions)](#793d31-harness-deploy-sync-mod-additions). Flows: [793d32 Moment Delivery Flow](#793d32-moment-delivery-flow), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow) and [793d34 Mod Install Flow](#793d34-mod-install-flow). Folded into an owner: the [delivery](./793a_product-spec.md#793a1-problem-statement) channels (the Memory Mod's), the [ledger](#793d1b-terms) (Memory Delivery's), failure classification and the housekeeping [job](#793d1b-terms) (the Job Runner's), the [judgement](#793d1b-terms) kinds (the Judgement Relay's), the [mark file](#793d1b-terms) (Backlog Capture's), the harness-only seam log (fails necessity) and the `claude --version` check (a boundary of Harness Deploy Sync).
 
 ## 793d22 Memory Mod
 
@@ -596,7 +596,7 @@ Rationale: Automatic memory reads the user's and the agent's own messages, from 
 | Delivered notes framed as data, one line each | [793d24b3 Block](#793d24b3-block) |
 | A folded offer is folded by the canonical fold, which keeps its names as aliases of the note | [793d29b2 Outcomes and guards](#793d29b2-outcomes-and-guards) |
 | The activity line from constants and counts only | [793d30b2 Warnings and surface](#793d30b2-warnings-and-surface) |
-| A provenance line on every automatic note, the near fold included | [793d27b2 Reconciliation, writes and provenance](#793d27b2-reconciliation-writes-and-provenance), [793d38b1 Amend provenance](#793d38b1-amend-provenance) |
+| A provenance line on every automatic note, the near fold included | [793d27b2 Reconciliation, writes and provenance](#793d27b2-reconciliation-writes-and-provenance), [793d29b2 Outcomes and guards](#793d29b2-outcomes-and-guards) |
 
 ### 793d25b Behavior Requirements
 
@@ -725,7 +725,7 @@ Supports: [793a3a1a A lesson is captured without agent action](./793a_product-sp
 
 Verified by: `internal/auto/capture_test.go`: Test793d27b2_AFailingJudgementIsContainedAndNothingIsWrittenOrMarked, Test793d27b2_AFailingQueryIsContainedAndNothingIsJudged, Test793d27b2_AFailingWriteIsContained, Test793d27b2_ALessonANearestNoteStatesReinforcesThatNoteAndWritesNothing, Test793d27b2_ALessonNoNoteStatesIsWrittenWithTheAutomaticSource, Test793d27b2_ANoteTheSessionWroteIsANearestNoteOfTheNextWindowWhateverTheQueryReturned, Test793d27b2_ANoteTheSessionWroteIsNotListedTwiceWhenTheQueryReturnsItToo, Test793d27b2_ANoteWrittenFromASubagentNamesTheSubagentInItsSource, Test793d27b2_AQueryThatCannotBeReadIsContainedAndNothingIsJudged, Test793d27b2_TheLessonsOfOneReplyAreWrittenOrAmendedAndTheSameSlugOnlyOnce, Test793d19a_ANoteFromATurnOrASubagentSaysItWasWrittenAutomatically; `internal/auto/golden_test.go`: Test793d27b2_SourcesNameTheTurnOrThePositionAndTheAutomaticWrite, Test793d27b2_TheNearestNotesAreLookedUpWithWhatTheUserSaidFirst
 
-Security: held here and by [793d38b1 Amend provenance](#793d38b1-amend-provenance): a provenance line on every automatic [note](./793a_product-spec.md#793a1-problem-statement).
+Security: held here and by [793d29b2 Outcomes and guards](#793d29b2-outcomes-and-guards): a provenance line on every automatic [note](./793a_product-spec.md#793a1-problem-statement).
 
 ##### 793d27b2a Scenarios
 
@@ -844,141 +844,32 @@ Scenario: 793d29b1a1 Offers are settled up to the cap, a skill registration is n
 
 #### 793d29b2 Outcomes and guards
 
-Requirement: 793d29b2 For each offer Auto Curation MUST read it with `engram show`, take as [nearest notes](#793d1b-terms) the [note](./793a_product-spec.md#793a1-problem-statement) it amends or else the [vault](./793a_product-spec.md#793a1-problem-statement)'s five nearest by `engram query` (which leaves pending [offers](../../GLOSSARY.md#offer) out), redact both, make one curation [judgement](#793d1b-terms), and run the commands of the outcome, passing the offer's exchange hash when it has one so that an offer changed since is not settled: `covered`: `engram amend --target <note> --activate`, then the offer `--discard --into <note>`; `near`: the offer `--discard --into <note>`, then the note amended with the rewritten fields and `--source=amended automatically from offer <offer>` ([793d38b1 Amend provenance](#793d38b1-amend-provenance)); `absent`: the offer `--clear-pending`; `rejected`: the offer `--discard`, never `--into`. It MUST count a settled offer as one curated and a `near` note as one amended, an offer whose commands fail as neither, pass an offer's text only as `--flag=value`, check a note name before showing or amending it, settle nothing on a reply not exactly of the expected shape, and name a note only by its number in the nearest set.
+Requirement: 793d29b2 For each offer Auto Curation MUST read it as `engram show` does, take as [nearest notes](#793d1b-terms) the [note](./793a_product-spec.md#793a1-problem-statement) it amends or else the [vault](./793a_product-spec.md#793a1-problem-statement)'s five nearest by `engram query` (which leaves pending [offers](../../GLOSSARY.md#offer) out), keep each as it was read, redact both, make one curation [judgement](#793d1b-terms), and make the amends of the outcome, passing the offer's exchange hash when it has one so that an offer changed since is not settled: `covered`: the note amended with `--activate`, then the offer folded into it (`--discard --into <note>`); `near`: the note amended with the rewritten fields and a line added once to its `source:`, "amended automatically from offer <offer>", after what is there and never replacing it (a provenance line is not a content change, so nothing is embedded again, and it does not re-stamp the note's identity), checked against the note as it was read so that a note changed since is not written, and then the offer folded into it; `absent`: the offer `--clear-pending`; `rejected`: the offer `--discard`, never `--into`. When the note of a `near` outcome has changed since it was read, nothing MUST be written or folded, the offer MUST stay pending and the failure MUST be reported. It MUST count a settled offer as one curated and a `near` note as one amended, an offer whose amends fail as neither, pass an offer's text only as a value of its own, check a note name before showing or amending it, settle nothing on a reply not exactly of the expected shape, and name a note only by its number in the nearest set.
 
 Supports: [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios), [793a4j1d The agent is not asked to curate](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `internal/auto/curate_test.go`: Test793d29b2_ANoteThatIsNoLongerPendingIsLeftAlone, Test793d29b2_AReplyThatIsNotExactlyOneObjectOfTheExpectedShapeSettlesNothing, Test793d29b2_ARunbookOfferIsLeftToCurate, Test793d29b2_AnExchangeHashIsReadFromTheHeaderOfShowNotFromALineOfTheNote, Test793d29b2_AnOfferForANoteIsJudgedAgainstThatNoteFirst, Test793d29b2_AnOfferIsSettledByTheOutcomeTheJudgementGave, Test793d29b2_AnOfferThatIsASkillRegistrationIsNeverJudgedDiscardedOrAccepted, Test793d29b2_AnOfferWhoseCommandsFailIsNotCounted, Test793d29b2_AnOfferWithoutAnExchangeHashIsSettledWithoutOne, Test793d29b2_TheJudgementIsAskedOfTheCheapModelWithTheOfferAndItsNearestNotes, Test793d19a_AnOfferJudgedCoveredNearOrRejectedIsFoldedOrDiscardedAndOnlyRejectedIsDiscardedOutright; `internal/auto/golden_test.go`: Test793d29b2_AnOutcomeSettlesWithTheCommandsOfCurate; `internal/cli/amend_fold_test.go`: Test792b34c6a1_RunAmend_DiscardIntoFoldsPulledCopy
+Verified by: `internal/auto/curate_test.go`: Test793d29b2_ANoteThatIsNoLongerPendingIsLeftAlone, Test793d29b2_AReplyThatIsNotExactlyOneObjectOfTheExpectedShapeSettlesNothing, Test793d29b2_ARunbookOfferIsLeftToCurate, Test793d29b2_AnExchangeHashIsReadFromTheHeaderOfShowNotFromALineOfTheNote, Test793d29b2_AnOfferForANoteIsJudgedAgainstThatNoteFirst, Test793d29b2_AnOfferIsSettledByTheOutcomeTheJudgementGave, Test793d29b2_AnOfferThatIsASkillRegistrationIsNeverJudgedDiscardedOrAccepted, Test793d29b2_ANearOfferIsCheckedAgainstTheNoteAsItWasReadAndNothingIsWrittenOrFoldedWhenItChanged, Test793d29b2_AnOfferForANoteIsCheckedAgainstTheNoteItWasShown, Test793d29b2_AnOfferWhoseCommandsFailIsNotCounted, Test793d29b2_AnOfferWithoutAnExchangeHashIsSettledWithoutOne, Test793d29b2_TheJudgementIsAskedOfTheCheapModelWithTheOfferAndItsNearestNotes, Test793d19a_AnOfferJudgedCoveredNearOrRejectedIsFoldedOrDiscardedAndOnlyRejectedIsDiscardedOutright; `internal/auto/golden_test.go`: Test793d29b2_AnOutcomeSettlesWithTheCommandsOfCurate; `internal/cli/amend_provenance_test.go`: Test793d29b2_AmendProvenanceAloneChangesNoContentSoNothingIsEmbeddedAgain, Test793d29b2_AmendProvenanceAloneKeepsTheDeclaredIdentity, Test793d29b2_AmendProvenanceAppendsALineToTheSourceOfAnyKindOfNote, Test793d29b2_AmendProvenanceIsAppendedOnceAndNeverReplacesWhatWasThere, Test793d29b2_AmendWithoutProvenanceLeavesTheSourceAsItWas; `internal/cli/auto_vault_test.go`: Test793d29b2_AutoVaultAnAmendCheckedAgainstTheNoteAsItWasReadIsRefusedWhenTheNoteChanged; `internal/cli/amend_fold_test.go`: Test792b34c6a1_RunAmend_DiscardIntoFoldsPulledCopy
 
-Security: risks (2) and (4) of [793d25a Orientation](#793d25a-orientation), held here: a crafted offer cannot reach a [note](./793a_product-spec.md#793a1-problem-statement) it is not judged against, and a folded offer is folded by the canonical `--discard --into` of [Note Amendment](../../specs/technical/note-amendment.md), which deletes the offer and keeps its names as aliases of the note, so a covered offer is recoverable only from [vault](./793a_product-spec.md#793a1-problem-statement) history.
+Security: risks (2) and (4) of [793d25a Orientation](#793d25a-orientation), held here, and by [793d27b2 Reconciliation, writes and provenance](#793d27b2-reconciliation-writes-and-provenance) for the provenance line: a crafted offer cannot reach a [note](./793a_product-spec.md#793a1-problem-statement) it is not judged against, and a folded offer is folded by the canonical `--discard --into` of [Note Amendment](../../specs/technical/note-amendment.md), which deletes the offer and keeps its names as aliases of the note, so a covered offer is recoverable only from [vault](./793a_product-spec.md#793a1-problem-statement) history.
 
 ##### 793d29b2a Scenarios
 
 ```gherkin
-Scenario: 793d29b2a1 A covered offer reinforces and folds, a near offer folds first
+Scenario: 793d29b2a1 A covered offer reinforces and folds, a near offer amends the note first
   Given a pending offer a note covers and another that adds a claim to a note
   When the judgements say covered and near
   Then the first note is activated and its offer discarded into it
-  And the second offer is discarded into its note before that note is amended
+  And the second note is amended with the rewritten fields and the provenance line before its offer is discarded into it
 
 Scenario: 793d29b2a2 A malformed reply settles nothing
   Given a curation reply with an unknown outcome
   When the offer is judged
   Then no amend command runs
-```
 
-## 793d38 Note Amendment (additions)
-
-### 793d38a Orientation
-
-Canonical target: [Note Amendment](../../specs/technical/note-amendment.md), as an Added requirement ([793d38b1 Amend provenance](#793d38b1-amend-provenance)) and the Modified operations [793d38c1 Modified: 792b14a Orientation](#793d38c1-modified-792b14a-orientation) and [793d38c2 Modified: 792b14c5 Identity re-stamp gating](#793d38c2-modified-792b14c5-identity-re-stamp-gating) ([793b399 A near fold carries a provenance line, by a new flag of engram amend](./793b_decision-log.md#793b399-a-near-fold-carries-a-provenance-line-by-a-new-flag-of-engram-amend)). The flag `--source` lets a note whose claim an automatic judgement rewrote from an offer say so; before it, the near fold was the one write path with no provenance line. Realization: `RunAmend` in `internal/cli/amend.go`.
-
-### 793d38b Behavior Requirements
-
-#### 793d38b1 Amend provenance
-
-Requirement: 793d38b1 `engram amend --source <line>` MUST append the line to the `source:` of the [note](./793a_product-spec.md#793a1-problem-statement) it amends, after what is there and separated from it by `; `, once (a line the `source:` already holds is not added again), and never replace what was there. It MUST do so for a fact, a feedback and a [runbook](../../GLOSSARY.md#runbook) note, and a `--source` alone MUST NOT be a content change, so nothing is embedded again, and MUST NOT re-stamp the note's identity ([793d38c2 Modified: 792b14c5 Identity re-stamp gating](#793d38c2-modified-792b14c5-identity-re-stamp-gating)).
-
-Supports: [793a4j1c Offers are resolved by the System](./793a_product-spec.md#793a4j1-uat-scenarios)
-
-Verified by: `internal/cli/amend_source_test.go`: Test793d38b1_AmendSourceAloneChangesNoContentSoNothingIsEmbeddedAgain, Test793d38b1_AmendSourceAloneKeepsTheDeclaredIdentity, Test793d38b1_AmendSourceAppendsAProvenanceLineToTheSourceOfAnyKindOfNote, Test793d38b1_AmendSourceIsAppendedOnceAndNeverReplacesWhatWasThere, Test793d38b1_AmendWithoutSourceLeavesTheSourceAsItWas
-
-Security: held here and by [793d27b2 Reconciliation, writes and provenance](#793d27b2-reconciliation-writes-and-provenance): a provenance line on every automatic [note](./793a_product-spec.md#793a1-problem-statement), the near fold included.
-
-##### 793d38b1a Scenarios
-
-```gherkin
-Scenario: 793d38b1a1 A near fold says where the new claim came from
-  Given a note whose source is "test" and a near offer folded into it
-  When the note is amended with the rewritten fields and the line
-  Then its source is "test; amended automatically from offer <offer>"
-  And a second amend with the same line changes nothing
-```
-
-### 793d38c Modified operations
-
-#### 793d38c1 Modified: 792b14a Orientation
-
-Target: [792b14a Orientation](../../specs/technical/note-amendment.md#792b14a-orientation). Complete replacement text (the Responsibility bullet and the realization name the source line; the other bullets and the Rationale are the target's own):
-
-- Ownership: Repository component (caller of [wikilink-graph](../../specs/technical/wikilink-graph.md), [note-document-format](../../specs/technical/note-document-format.md),
-  [note-provenance](../../specs/technical/note-provenance.md), [embedding-sidecar](../../specs/technical/embedding-sidecar.md), [durable-file-store](../../specs/technical/durable-file-store.md) and [vault-write-lock](../../specs/technical/vault-write-lock.md)).
-- Responsibility: revises a note that already exists. Under the vault lock it finds the note,
-  reads it as LF, checks the revision's arguments, applies the field, supersession, chunk-source, source-line and
-  identity changes, writes the note once, and rebuilds its sidecar when what is embedded changed. It
-  rewrites a fact's or feedback note's situation in both of its places, and records a note's use
-  in its sidecar.
-- Current realization (informational): `internal/cli/amend.go` (`RunAmend`, `appendSource`), `resituate.go`
-  (`RunResituate`), `supersedes.go` (`replaceSupersedes`, `parseAllSupersedes`), `activate.go`
-  (`RunActivate`, `bumpLastUsed`); the amend and resituate targets in `internal/cli/targets.go`.
-  The curation flags in `amend_fold.go` are curate's ([curate](../../specs/product/curate.md)), the offer hooks are offer-outbox's ([offer-outbox](../../specs/technical/offer-outbox.md)) and
-  the pull-down is parent-vault-client's ([parent-vault-client](../../specs/technical/parent-vault-client.md)).
-- Qualification: responsibility, revising a stored note is stated without naming any function;
-  ownership, it owns the ordering of lookup, validation, edit, write and re-embed, while the format,
-  provenance, sidecar and lock contracts belong to the components it calls; independent
-  verification, `RunAmend`, `RunResituate` and `RunActivate` are tested directly over injected
-  lookup, read, write, lock and embedder fakes; stability, the read-modify-write contract survives any
-  change to the flags that drive it; necessity, every change an agent makes to an existing note
-  goes through it.
-- Supported capabilities: [note-revision](../../specs/product/note-revision.md), [controlled-vocabulary](../../specs/product/controlled-vocabulary.md), [parent-sync](../../specs/product/parent-sync.md) ([792b14c12 Activation against the parent](../../specs/technical/note-amendment.md#792b14c12-activation-against-the-parent),
-  [792b14c13 A discard of a pulled note records its decline](../../specs/technical/note-amendment.md#792b14c13-a-discard-of-a-pulled-note-records-its-decline)), [curate](../../specs/product/curate.md) ([792b14c14 Settling a pending offer](../../specs/technical/note-amendment.md#792b14c14-settling-a-pending-offer)), [write-memory](../../specs/product/write-memory.md), [recall](../../specs/product/recall.md).
-
-Rationale: a revision is a read-modify-write of a note and its sidecar, so two revisions, or a
-revision and a learn, that interleave could each overwrite the other's change. Every revision takes
-the vault's lock at its command's entry point and holds it through the note write, the sidecar
-rebuild and the last-used bump. The helpers it shares with other writers never take the lock
-themselves, because the lock is held per file descriptor and a nested acquire would wait on itself.
-
-#### 793d38c2 Modified: 792b14c5 Identity re-stamp gating
-
-Target: [792b14c5 Identity re-stamp gating](../../specs/technical/note-amendment.md#792b14c5-identity-re-stamp-gating). A provenance line alone is bookkeeping, as `--activate` is: it does not change the claim, so it does not change who stamped it. Complete replacement text, with the scenario 793d38c2a1 added and 792b14c5a4 reworded:
-
-Requirement: 792b14c5 The note-amendment MUST have [note-provenance](../../specs/technical/note-provenance.md) re-stamp a note ([792b11c4 Re-stamp](../../specs/technical/note-provenance.md#792b11c4-re-stamp)) exactly
-when the amend supplies a content flag of any kind, a `--red-flag`, a `--trigger`, a `--supersedes`
-or a `--chunk-source`, detecting the repository from the working directory whatever the note's
-`project:`, and MUST NOT re-stamp it otherwise, an amend that supplies only `--activate`, `--clear-pending` or `--source` included. On every amend it writes, it MUST fill an absent or
-empty `vault:` with the resolved vault name, keep a declared one, and, when no vault name was
-resolved, leave `vault:` out and log a warning.
-
-Supports: [792a4h1a Amend from another environment re-stamps](../../specs/product/note-revision.md#792a4h1-uat-scenarios), [792a4h1b Amend backfills missing identity](../../specs/product/note-revision.md#792a4h1-uat-scenarios), [792a4h1c The project field does not stand in for the repo](../../specs/product/note-revision.md#792a4h1-uat-scenarios), [792a4h1f Without a vault name the default is stamped](../../specs/product/note-revision.md#792a4h1-uat-scenarios), [792a4h1g Recording a use keeps the declared identity](../../specs/product/note-revision.md#792a4h1-uat-scenarios), [792a4i1a A use recorded on a note without vault fills it in](../../specs/product/note-revision.md#792a4i1-uat-scenarios).
-
-Scenarios of the target, with the fourth reworded and one added:
-
-```gherkin
-Scenario: 792b14c5a1 A content, supersession or chunk-source amend re-stamps
-  Given a note whose repo:, user: and vault: differ from the detected ones
-  When an amend supplies a content flag, --supersedes or --chunk-source
-  Then repo:, user: and vault: are the detected ones
-
-Scenario: 792b14c5a2 A note without identity gains it
-  Given a note with no repo:, user: or vault:
-  When an amend supplies --chunk-source
-  Then it gains the detected repo:, user: and vault:
-
-Scenario: 792b14c5a3 The project field is not the repository
-  Given a note whose project: differs from the detected repository
-  When an amend re-stamps it
-  Then repo: is the detected repository
-
-Scenario: 792b14c5a4 Re-stamping follows the flags exactly
-  Given any combination of amend flags on any kind of note
-  When the amend runs
-  Then identity is re-stamped exactly when a content flag of that kind, --supersedes or --chunk-source is present, and is otherwise as declared, whether or not --source is present
-
-Scenario: 792b14c5a5 A bookkeeping amend keeps the declared identity
-  Given a fact, feedback or runbook note with a declared identity
-  When an amend supplies only --activate
-  Then repo:, user: and vault: are unchanged, and the note was rewritten
-
-Scenario: 792b14c5a6 An empty vault is filled, never written empty
-  Given a note with no vault:
-  When an amend that does not re-stamp runs with the vault name personal, and again with no vault name
-  Then the first writes vault: personal with no warning, and the second writes no vault: key and warns naming vault
-
-Scenario: 793d38c2a1 A provenance line alone keeps the declared identity
-  Given a fact, feedback or runbook note with a declared identity
-  When an amend supplies only --source
-  Then the line is appended to source: and repo:, user: and vault: are unchanged
+Scenario: 793d29b2a3 A note changed since it was read is not written and its offer stays
+  Given a near outcome whose note was edited after the judge read it
+  When the amend of the note is made
+  Then nothing is written, the offer is not folded and stays pending, and the user is shown a warning for the curation
 ```
 
 ## 793d30 Activity Report
@@ -1335,7 +1226,8 @@ sequenceDiagram
     Cur->>Red: 793d26b1, 793d33b3 redact the offer and the notes
     Cur->>JR: 793d25b1, 793d25b2, 793d33b3 curation request
     JR-->>Cur: 793d25b2, 793d25b3 the outcome
-    Cur->>NM: 792b14c14, 793d29b2, 793d38b1, 793d33b3 settle the offer
+    Cur->>NM: 793d29b2, 793d33b3 near: amend the note, checked against the note as read, with the provenance line
+    Cur->>NM: 792b14c14, 793d29b2, 793d33b3 then fold the offer into the note, clear its marker or discard it
     Cur->>Act: 793d30b1 offers curated and notes amended
     opt the burst holds a top-level turn
         Run->>BL: 793d28b1, 793d33b5 one backlog step
@@ -1437,7 +1329,7 @@ Scenario: 793d33b2a6 The turns of a session are recorded when its capture ends
 
 #### 793d33b3 Curation sequence
 
-Requirement: 793d33b3 For each pending offer Auto Curation MUST show the offer, fetch its [nearest notes](#793d1b-terms), redact both, judge, and only then run the commands of the outcome through Note Amendment; an offer that cannot be read, judged or settled MUST be reported once and MUST NOT stop the [offers](../../GLOSSARY.md#offer) after it. It MUST report each settled offer, and each [note](./793a_product-spec.md#793a1-problem-statement) a `near` outcome amended, to the Activity Report.
+Requirement: 793d33b3 For each pending offer Auto Curation MUST show the offer, fetch its [nearest notes](#793d1b-terms), redact both, judge, and only then run the amends of the outcome through Note Amendment, in the order of [793d29b2 Outcomes and guards](#793d29b2-outcomes-and-guards) (a `near` offer amends the note first and is folded after); an offer that cannot be read, judged or settled MUST be reported once and MUST NOT stop the [offers](../../GLOSSARY.md#offer) after it. It MUST report each settled offer, and each [note](./793a_product-spec.md#793a1-problem-statement) a `near` outcome amended, to the Activity Report.
 
 Owner: [793d29 Auto Curation](#793d29-auto-curation)
 
@@ -1601,7 +1493,7 @@ All 43 scenarios of the product spec are supported by at least one requirement, 
 | [793a2n Relevant memory reaches the agent at the moments](./793a_product-spec.md#793a2n-relevant-memory-reaches-the-agent-at-the-moments) | 6 | [793d22 Memory Mod](#793d22-memory-mod), [793d23 Moment Detection](#793d23-moment-detection), [793d24 Memory Delivery](#793d24-memory-delivery), [793d25 Judgement Relay](#793d25-judgement-relay), [793d36 Job Runner](#793d36-job-runner), [793d32 Moment Delivery Flow](#793d32-moment-delivery-flow) |
 | [793a2e Nothing already in context is delivered again](./793a_product-spec.md#793a2e-nothing-already-in-context-is-delivered-again) | 5 | [793d23 Moment Detection](#793d23-moment-detection), [793d24 Memory Delivery](#793d24-memory-delivery), [793d32 Moment Delivery Flow](#793d32-moment-delivery-flow) |
 | [793a3a Lessons are captured without the agent](./793a_product-spec.md#793a3a-lessons-are-captured-without-the-agent) | 5 | [793d22 Memory Mod](#793d22-memory-mod), [793d25 Judgement Relay](#793d25-judgement-relay), [793d26 Secret Redaction](#793d26-secret-redaction), [793d27 Auto Capture](#793d27-auto-capture), [793d28 Backlog Capture](#793d28-backlog-capture), [793d36 Job Runner](#793d36-job-runner), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow) |
-| [793a4j Indexing and curation happen after the turn](./793a_product-spec.md#793a4j-indexing-and-curation-happen-after-the-turn) | 4 | [793d22 Memory Mod](#793d22-memory-mod), [793d25 Judgement Relay](#793d25-judgement-relay), [793d26 Secret Redaction](#793d26-secret-redaction), [793d29 Auto Curation](#793d29-auto-curation), [793d38 Note Amendment (additions)](#793d38-note-amendment-additions), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow) |
+| [793a4j Indexing and curation happen after the turn](./793a_product-spec.md#793a4j-indexing-and-curation-happen-after-the-turn) | 4 | [793d22 Memory Mod](#793d22-memory-mod), [793d25 Judgement Relay](#793d25-judgement-relay), [793d26 Secret Redaction](#793d26-secret-redaction), [793d29 Auto Curation](#793d29-auto-curation), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow) |
 | [793a4c Memory purview only](./793a_product-spec.md#793a4c-memory-purview-only) | 4 | [793d22 Memory Mod](#793d22-memory-mod), [793d24 Memory Delivery](#793d24-memory-delivery), [793d30 Activity Report](#793d30-activity-report) |
 | [793a4b The session is never broken or stalled](./793a_product-spec.md#793a4b-the-session-is-never-broken-or-stalled) | 4 | [793d22 Memory Mod](#793d22-memory-mod), [793d30 Activity Report](#793d30-activity-report), [793d36 Job Runner](#793d36-job-runner), [793d32 Moment Delivery Flow](#793d32-moment-delivery-flow), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow) |
 | [793a5j Installed by engram update and active in Claude Code](./793a_product-spec.md#793a5j-installed-by-engram-update-and-active-in-claude-code) | 5 | [793d31 Harness Deploy Sync (mod additions)](#793d31-harness-deploy-sync-mod-additions), [793d34 Mod Install Flow](#793d34-mod-install-flow) |
@@ -1615,7 +1507,7 @@ All 43 scenarios of the product spec are supported by at least one requirement, 
 - [Judgement](#793d1b-terms) quality is not a contract: a model's choice varied between runs of one scenario (a worded [note](./793a_product-spec.md#793a1-problem-statement) without the corrected cause in [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios); a missed offer in [793a4j1d The agent is not asked to curate](./793a_product-spec.md#793a4j1-uat-scenarios)) and was Green on rerun; no requirement is missing.
 - Built and untested: the origins of a prompt other than the SDK's ([793d23b1 Event cues](#793d23b1-event-cues)), exercised only by the acceptance row of [793a2n1h A prompt from any source receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios).
 - Residual, recorded: a [session](../../GLOSSARY.md#session) that is killed before its last capture ends loses that capture until Backlog Capture reads its source, 15 minutes after the source was last changed ([793b416](./793b_decision-log.md#793b416-the-persisted-capture-queue-is-dropped-backlog-capture-covers-the-promise)); the sources and [offers](../../GLOSSARY.md#offer) a process skipped are tried again by the next process ([793d28b2 Reading and windows](#793d28b2-reading-and-windows), [793d29b1 Offers to settle](#793d29b1-offers-to-settle)).
-- Not in the product spec, awaiting the owner: whether the `--source` flag ([793d38b1 Amend provenance](#793d38b1-amend-provenance)) is a promise to the user (an Added requirement of the product spec, with the line of note-revision that [793b399 A near fold carries a provenance line, by a new flag of engram amend](./793b_decision-log.md#793b399-a-near-fold-carries-a-provenance-line-by-a-new-flag-of-engram-amend) names) or a technical requirement only. Until he answers it is a technical requirement only, and no line of the product spec is written ([793b405 The delta operations of the technical spec are complete](./793b_decision-log.md#793b405-the-delta-operations-of-the-technical-spec-are-complete)).
+- Closed by the owner (2026-10-14): a near fold amends first, checked against the note as it was read, so the two failures it had are gone: the offer folded away with its claim never written (a failure between the two writes), and a note the owner edited meanwhile overwritten by the rewritten fields. A note changed since it was read is not written, the offer stays pending and a warning is shown; an amend that succeeds and a fold that fails leave a note that states the claim and an offer that the next pass judges `covered` ([793b420](./793b_decision-log.md#793b420-a-near-fold-amends-first-with-a-check-of-the-note-and-folds-the-offer-away-after-it)).
 - Duplicated: `internal/auto` reads transcript rows by role itself ([793d28b2 Reading and windows](#793d28b2-reading-and-windows)) and not through the [Transcript Reader](../../specs/technical/transcript-reader.md), so the two can drift.
 - Harness-only, so a MAY with no requirement: the seam file named by `ENGRAM_AUTO_SEAM_LOG`, which lets a test wait for the queue (`wiring.test.ts` covers it), and the fault seam named by `ENGRAM_AUTO_FAULT` (`error`, `hang` or `delay:<seconds>`) and `ENGRAM_AUTO_FAULT_LOG`, which `NewDeps` reads and only `engram auto run` looks at, so that the acceptance rows of [793a4b The session is never broken or stalled](./793a_product-spec.md#793a4b-the-session-is-never-broken-or-stalled) and [793a4j1e Slow housekeeping does not stall the session](./793a_product-spec.md#793a4j1-uat-scenarios) can fail the operations the engine performs in its own process ([793b418](./793b_decision-log.md#793b418-the-fault-shims-are-replaced-by-a-harness-only-fault-seam-of-the-engine); `Test793d36b3_AutoVaultTheHarnessFaultErrorFailsEveryOperation` and `Test793d36b3_AutoVaultTheHarnessFaultDelayWaitsOnlyBeforeTheOperationsThatAreNotAQuery` in `internal/cli/auto_vault_test.go` cover it).
 - The experiment scenarios of [793d17 H1: a Claude Code mod gives a smaller implementation surface and more capability than settings hooks](#793d17-h1-a-claude-code-mod-gives-a-smaller-implementation-surface-and-more-capability-than-settings-hooks) and [793d18 H2: the cheapest capable model is adequate for every System judgement, and is faster and cheaper](#793d18-h2-the-cheapest-capable-model-is-adequate-for-every-system-judgement-and-is-faster-and-cheaper) are not contract tests of these requirements, except [793d18c1a Every request names the model of its kind](#793d18c1-experiments) and [793d18c1b Raising one kind changes only that kind](#793d18c1-experiments), which are the tier tests of [793d25b1 Tier and request shape](#793d25b1-tier-and-request-shape).

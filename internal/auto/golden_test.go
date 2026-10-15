@@ -376,7 +376,7 @@ func Test793d29b2_AnOutcomeSettlesWithTheCommandsOfCurate(t *testing.T) {
 			}
 		}
 
-		requests := auto.SettleRequests(out, field[string](input, "offer"), field[string](input, "hash"))
+		requests := auto.SettleRequests(out, field[string](input, "offer"), field[string](input, "hash"), nil)
 		argvs := make([][]string, 0, len(requests))
 
 		for _, request := range requests {

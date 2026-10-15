@@ -93,7 +93,7 @@ func Test792b14c14a8_RunAmend_ClearPendingKeepsOfferAuthor(t *testing.T) {
 // Test792b14c5a4_RunAmend_IdentityRestampProperty: over any combination of amend flags,
 // on any note type, identity is re-stamped exactly when one of that type's
 // content flags, --supersedes or --chunk-source is present; otherwise the
-// declared identity survives, whether or not --source (a provenance line, 793d38b1) is given.
+// declared identity survives, whether or not a provenance line (793b419) is given.
 func Test792b14c5a4_RunAmend_IdentityRestampProperty(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
@@ -101,7 +101,7 @@ func Test792b14c5a4_RunAmend_IdentityRestampProperty(t *testing.T) {
 		args := cli.AmendArgs{Activate: rapid.Bool().Draw(rt, "activate")}
 
 		if rapid.Bool().Draw(rt, "source") {
-			args.Source = identityAmendSource
+			args.Provenance = identityAmendSource
 		}
 
 		if rapid.Bool().Draw(rt, "clearPending") {
