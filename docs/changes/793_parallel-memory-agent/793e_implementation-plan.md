@@ -763,6 +763,8 @@ The review returned "targeted fixes first" ([793b403 The refactor review returne
 | Owner walkthrough of the decisions marked "awaiting owner validation", and the questions below | Review | the owner's time is one walkthrough | Not started |
 | Promotion to `docs/specs/product/` and `docs/specs/technical/`, and removal of `docs/changes/793_parallel-memory-agent/` | Setup | atomic promotion | Not started |
 
+**Result (2026-10-14, Claude Code 2.1.299, nothing installed, token never printed):** after the fixes, `targ check-full` 19 of 19 PASS, `targ acceptance --check` 3 of 3 (43 scenarios, 27 definitions), the link check of the change directory clean, and the full `targ acceptance` run 51 runs: 49 Green, 2 `Not run` (no headless Pi), none Red (cost 1.90 USD by the SDK's estimate). The first full run after the changes had one Red, the row 793a4b1b, from a design of the wording of a failure that was removed ([793b413](./793b_decision-log.md#793b413-the-duplicated-code-of-the-engine-and-the-mod-is-one-and-the-engine-owns-the-wording-of-a-failure)).
+
 The owner's questions, awaiting him, with the state of the code (none is decided; the code is as it was):
 
 | Question | State of the code |
