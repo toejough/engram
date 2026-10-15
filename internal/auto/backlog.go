@@ -96,13 +96,7 @@ func (e *engine) backlog() {
 		e.updateMarks(dir, func(stored *Marks) { stored.firstRun(now) })
 	}
 
-	// an index whose newest session is older than the cut-off has not caught up: nothing can be eligible, and the user
-	// is told instead of a backlog that silently finds nothing (793d28b1)
-	if len(sources) > 0 && marks.Cutoff != nil && sources[0].MtimeMs < *marks.Cutoff {
-		e.warn("the backlog capture", &StepError{
-			Message: "backlog: index not caught up: its newest session changed before the cut-off", Kind: kindBehind,
-		})
-
+	if e.indexBehind(sources, marks) {
 		return
 	}
 
@@ -143,6 +137,21 @@ func (e *engine) backlog() {
 			return
 		}
 	}
+}
+
+// indexBehind says whether the index has not caught up, and warns when it has not: its newest session changed before
+// the cut-off, so nothing can be eligible, and the user is told instead of a backlog that silently finds nothing
+// (793d28b1).
+func (e *engine) indexBehind(sources []Source, marks Marks) bool {
+	if len(sources) == 0 || marks.Cutoff == nil || sources[0].MtimeMs >= *marks.Cutoff {
+		return false
+	}
+
+	e.warn("the backlog capture", &StepError{
+		Message: "backlog: index not caught up: its newest session changed before the cut-off", Kind: kindBehind,
+	})
+
+	return true
 }
 
 // markTurns records that the System captured the turns of this session up to now, so that the backlog does not read

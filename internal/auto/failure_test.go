@@ -104,26 +104,6 @@ func Test793d36b3_AFailingIndexAndAFailingScanEachWarnNamingTheStepAndTheQueueGo
 	g.Expect(world.Names()).To(Equal([]string{"ingest"}))
 }
 
-func Test793d36b3_AnIndexAnotherRunHoldsIsSkippedWithItsOwnWarningAndTheQueueGoesOn(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	world := NewWorld()
-	world.Process["ingest"] = func([]string) (auto.Output, error) {
-		return auto.Output{}, errors.New("ingest: ingest: acquiring manifest lock: ingest: another ingest holds the " +
-			"manifest lock; skipped")
-	}
-	world.Files["/vault/"+curateOffer] = curateOpenFile
-	world.Missing["/vault/walk"] = true
-
-	world.Do(t, map[string]any{"kind": "housekeeping"})
-
-	g.Expect(world.Warnings).To(Equal([]string{
-		failureWarning("another indexing is running", "indexing"),
-		failureWarning("the vault is unavailable", "curation"),
-	}))
-}
-
 func Test793d36b3_AFailingJobDoesNotStopTheNextJob(t *testing.T) {
 	t.Parallel()
 
@@ -189,6 +169,26 @@ func Test793d36b3_ARelevanceJudgementThatIsCutIsATimeoutAndOneTheProviderRefused
 			g.Expect(world.Counts).To(Equal(auto.Counts{}))
 		})
 	}
+}
+
+func Test793d36b3_AnIndexAnotherRunHoldsIsSkippedWithItsOwnWarningAndTheQueueGoesOn(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := NewWorld()
+	world.Process["ingest"] = func([]string) (auto.Output, error) {
+		return auto.Output{}, errors.New("ingest: acquiring manifest lock: another ingest holds the manifest lock; " +
+			"skipped")
+	}
+	world.Files["/vault/"+curateOffer] = curateOpenFile
+	world.Missing["/vault/walk"] = true
+
+	world.Do(t, map[string]any{"kind": "housekeeping"})
+
+	g.Expect(world.Warnings).To(Equal([]string{
+		failureWarning("another indexing is running", "indexing"),
+		failureWarning("the vault is unavailable", "curation"),
+	}))
 }
 
 func Test793d36b3_AnUnparseableRelevanceJudgementIsAnErrorAndDeliversNothing(t *testing.T) {

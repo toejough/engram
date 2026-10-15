@@ -24,8 +24,8 @@
         "files": [
           "failure.go"
         ],
-        "basis": "failure.js 24, exec 11, answered 4; the four operations of the vault the engine performs (perform, amend, query, show) add 11 (793b417)",
-        "ceiling": 66
+        "basis": "failure.js 24, exec 11, answered 4; the four operations of the vault the engine performs (perform, amend, query, show) add 11 (793b417); plus 9 for the words of the two states that are not failures of a command, an index another run holds and one that has not caught up (793b429, 793b430)",
+        "ceiling": 75
       },
       "moment": {
         "js": 112,
@@ -58,8 +58,8 @@
         "files": [
           "backlog.go"
         ],
-        "basis": "backlog.js 49, backlog 35, readSource 9, sourceMessages 8, chunksDir and the marks 10",
-        "ceiling": 178
+        "basis": "backlog.js 49, backlog 35, readSource 9, sourceMessages 8, chunksDir and the marks 10; plus 12 for the report of an index that has not caught up (793b430)",
+        "ceiling": 190
       },
       "curation": {
         "js": 93,

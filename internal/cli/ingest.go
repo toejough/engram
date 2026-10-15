@@ -18,9 +18,10 @@ import (
 	"github.com/toejough/engram/internal/transcript"
 )
 
-// ErrIngestBusy is returned by an --auto ingest that found the manifest lock held by another run for longer than its
-// wait: it skipped, and did none of the work (793d37b2).
-var ErrIngestBusy = errors.New("ingest: another ingest holds the manifest lock; skipped")
+// Exported variables.
+var (
+	ErrIngestBusy = errors.New("ingest: another ingest holds the manifest lock; skipped")
+)
 
 // IngestArgs holds parsed flags for `engram ingest`.
 type IngestArgs struct {
@@ -104,7 +105,7 @@ func ResolveChunksDir(flagValue, home string, getenv func(string) string) string
 func RunIngest(ctx context.Context, args IngestArgs, deps IngestDeps, stdout io.Writer) error {
 	// Acquire the manifest lock before any read-modify-write on manifest.json
 	// so concurrent ingest/prune runs cannot produce lost updates (#660). An
-	// --auto run that finds it held skips (793d37b2), before it reads anything.
+	// --auto run that finds it held skips (793d37c1), before it reads anything.
 	release, lockErr := acquireIngestLock(args.Auto, args.ChunksDir, deps)
 	if lockErr != nil {
 		return fmt.Errorf("ingest: acquiring manifest lock: %w", lockErr)

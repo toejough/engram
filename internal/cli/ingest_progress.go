@@ -1,8 +1,8 @@
 package cli
 
 import (
-	"cmp"
 	"slices"
+	"strings"
 	"time"
 )
 
@@ -10,7 +10,7 @@ import (
 const (
 	// autoLockWait is how long an --auto ingest waits for the manifest lock before it skips: long enough for the run
 	// of another session that is only checking an index that is up to date, short enough that a run that is catching
-	// the index up (minutes) does not hold the turn's other work (793d37b2).
+	// the index up (minutes) does not hold the turn's other work (793d37c1).
 	autoLockWait = 5 * time.Second
 	// manifestCheckpointInterval is the most often a run writes the manifest while it works: the manifest of a real
 	// corpus is tens of megabytes, so a write per source would cost more than the source (793d37b1).
@@ -26,13 +26,6 @@ type manifestSaver struct {
 	deps      IngestDeps
 	lastWrite time.Time
 	dirty     bool
-}
-
-func newManifestSaver(chunksDir string, manifest ingestManifest, deps IngestDeps) *manifestSaver {
-	saver := &manifestSaver{chunksDir: chunksDir, manifest: manifest, deps: deps}
-	saver.lastWrite = saver.now()
-
-	return saver
 }
 
 // checkpoint records that a group changed the manifest, and writes it when the interval has passed.
@@ -68,6 +61,57 @@ func (s *manifestSaver) now() time.Time {
 	}
 
 	return s.deps.Now()
+}
+
+// acquireIngestLock takes the manifest lock for a run. A named ingest waits for it, as it always has. An --auto
+// ingest waits at most its lock wait and then skips with ErrIngestBusy, so that two sessions never index the same
+// backlog twice and a turn does not wait a deadline for another run (793d37c1). A grant that arrives after the skip is
+// given back at once.
+func acquireIngestLock(auto bool, chunksDir string, deps IngestDeps) (func(), error) {
+	if !auto || deps.Lock == nil {
+		return acquireOptionalLock(deps.Lock, chunksDir)
+	}
+
+	type grant struct {
+		release func()
+		err     error
+	}
+
+	granted := make(chan grant, 1)
+
+	go func() {
+		release, err := deps.Lock(chunksDir)
+		granted <- grant{release: release, err: err}
+	}()
+
+	wait := deps.LockWait
+	if wait <= 0 {
+		wait = autoLockWait
+	}
+
+	timer := time.NewTimer(wait)
+
+	defer timer.Stop()
+
+	select {
+	case result := <-granted:
+		return result.release, result.err
+	case <-timer.C:
+		go func() {
+			if late := <-granted; late.err == nil {
+				late.release()
+			}
+		}()
+
+		return nil, ErrIngestBusy
+	}
+}
+
+func newManifestSaver(chunksDir string, manifest ingestManifest, deps IngestDeps) *manifestSaver {
+	saver := &manifestSaver{chunksDir: chunksDir, manifest: manifest, deps: deps}
+	saver.lastWrite = saver.now()
+
+	return saver
 }
 
 // orderedGroups lists the hash groups in the order a run works them: the groups with a source that must be read
@@ -109,7 +153,14 @@ func orderedGroups(hashed []hashedSource, deps IngestDeps) [][]hashedSource {
 			return 1
 		}
 
-		return cmp.Or(cmp.Compare(b.newest, a.newest), cmp.Compare(a.first, b.first))
+		switch {
+		case a.newest > b.newest:
+			return -1
+		case a.newest < b.newest:
+			return 1
+		}
+
+		return strings.Compare(a.first, b.first)
 	})
 
 	ordered := make([][]hashedSource, len(groups))
@@ -118,44 +169,4 @@ func orderedGroups(hashed []hashedSource, deps IngestDeps) [][]hashedSource {
 	}
 
 	return ordered
-}
-
-// acquireIngestLock takes the manifest lock for a run. A named ingest waits for it, as it always has. An --auto
-// ingest waits at most its lock wait and then skips with ErrIngestBusy, so that two sessions never index the same
-// backlog twice and a turn does not wait a deadline for another run (793d37b2). A grant that arrives after the skip is
-// given back at once.
-func acquireIngestLock(auto bool, chunksDir string, deps IngestDeps) (func(), error) {
-	if !auto || deps.Lock == nil {
-		return acquireOptionalLock(deps.Lock, chunksDir)
-	}
-
-	type grant struct {
-		release func()
-		err     error
-	}
-
-	granted := make(chan grant, 1)
-
-	go func() {
-		release, err := deps.Lock(chunksDir)
-		granted <- grant{release: release, err: err}
-	}()
-
-	wait := cmp.Or(deps.LockWait, autoLockWait)
-	timer := time.NewTimer(wait)
-
-	defer timer.Stop()
-
-	select {
-	case result := <-granted:
-		return result.release, result.err
-	case <-timer.C:
-		go func() {
-			if late := <-granted; late.err == nil {
-				late.release()
-			}
-		}()
-
-		return nil, ErrIngestBusy
-	}
 }

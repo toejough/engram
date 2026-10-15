@@ -61,7 +61,9 @@ func Test793d37b1a2_AKilledIngestKeepsTheSourcesItCheckpointed(t *testing.T) {
 
 		return nil
 	}}
-	deps := cli.IngestDeps{ReadFile: fs.read, WriteFile: fs.write, Embedder: embedder, Now: steppingClock(11 * time.Second)}
+	deps := cli.IngestDeps{
+		ReadFile: fs.read, WriteFile: fs.write, Embedder: embedder, Now: steppingClock(11 * time.Second),
+	}
 
 	err := cli.RunIngest(context.Background(), progressArgs(), deps, io.Discard)
 
@@ -206,13 +208,17 @@ func Test793d37c1a3_ANamedIngestWaitsForTheManifestLock(t *testing.T) {
 	g.Expect(manifestSources(fs.files["/chunks/manifest.json"])).To(gomega.ConsistOf(alphaDoc, betaDoc, gammaDoc))
 }
 
+// unexported constants.
 const (
 	alphaDoc = "/docs/alpha.md"
 	betaDoc  = "/docs/beta.md"
 	gammaDoc = "/docs/gamma.md"
 )
 
-var errProgressKilled = errors.New("the process was killed")
+// unexported variables.
+var (
+	errProgressKilled = errors.New("the process was killed")
+)
 
 // heldLock is a manifest lock another process holds until free is called: lock blocks until then.
 type heldLock struct {
@@ -220,8 +226,6 @@ type heldLock struct {
 	once     sync.Once
 	releases atomic.Int64
 }
-
-func newHeldLock() *heldLock { return &heldLock{gate: make(chan struct{})} }
 
 func (h *heldLock) free() { h.once.Do(func() { close(h.gate) }) }
 
@@ -249,18 +253,6 @@ func (p progressEmbedder) Embed(_ context.Context, text string) ([]float32, erro
 
 func (progressEmbedder) ModelID() string { return "fake@2" }
 
-func progressArgs() cli.IngestArgs {
-	return cli.IngestArgs{Markdowns: []string{alphaDoc, betaDoc, gammaDoc}, ChunksDir: "/chunks"}
-}
-
-func progressFS() *memFS {
-	body := func(name string) []byte {
-		return []byte("## " + name + "\nThe " + name + " document holds enough text to form one chunk in the index.\n")
-	}
-
-	return &memFS{files: map[string][]byte{alphaDoc: body("alpha"), betaDoc: body("beta"), gammaDoc: body("gamma")}}
-}
-
 // manifestSources lists the sources a manifest holds; an absent manifest holds none.
 func manifestSources(data []byte) []string {
 	entries := map[string]json.RawMessage{}
@@ -274,6 +266,20 @@ func manifestSources(data []byte) []string {
 	}
 
 	return sources
+}
+
+func newHeldLock() *heldLock { return &heldLock{gate: make(chan struct{})} }
+
+func progressArgs() cli.IngestArgs {
+	return cli.IngestArgs{Markdowns: []string{alphaDoc, betaDoc, gammaDoc}, ChunksDir: "/chunks"}
+}
+
+func progressFS() *memFS {
+	body := func(name string) []byte {
+		return []byte("## " + name + "\nThe " + name + " document holds enough text to form one chunk in the index.\n")
+	}
+
+	return &memFS{files: map[string][]byte{alphaDoc: body("alpha"), betaDoc: body("beta"), gammaDoc: body("gamma")}}
 }
 
 // steppingClock is a clock that moves forward by step at every reading.
