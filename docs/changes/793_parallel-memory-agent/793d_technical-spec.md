@@ -1137,8 +1137,8 @@ Scenario: 793d37b1a5 An ingest that finds everything indexed writes nothing
 
 Target: [792b18c2 Locked reconciliation](../../specs/technical/chunk-index-store.md#792b18c2-locked-reconciliation). An `engram ingest --auto` that finds the lock held waits a few seconds and skips. Complete replacement text:
 
-Requirement: [792b18c2 Locked reconciliation](#792b18c2-locked-reconciliation) The chunk-index-store MUST create the chunks directory and take the
-[vault-write-lock](./vault-write-lock.md) on `<chunks>/.manifest.lock` ([792b8c1 Exclusive hold](./vault-write-lock.md#792b8c1-exclusive-hold)) before `engram ingest` or `engram prune`
+Requirement: [792b18c2 Locked reconciliation](../../specs/technical/chunk-index-store.md#792b18c2-locked-reconciliation) The chunk-index-store MUST create the chunks directory and take the
+[vault-write-lock](../../specs/technical/vault-write-lock.md) on `<chunks>/.manifest.lock` ([792b8c1 Exclusive hold](../../specs/technical/vault-write-lock.md#792b8c1-exclusive-hold)) before `engram ingest` or `engram prune`
 reads a source or the manifest, MUST hold it through every index-file and manifest write of the run, and MUST
 release it before returning. Its helpers, the manifest write among them, MUST NOT take the lock
 themselves. A failure to create the directory or take the lock MUST be returned with nothing read.
@@ -1147,7 +1147,7 @@ if it is still held, MUST return an error saying another ingest holds the manife
 manifest; a grant of the lock that arrives after that MUST be released at once.
 A missing manifest MUST be read as empty, and a manifest that is not valid JSON MUST be an error.
 
-Supports: [792a5o1a An ingest and a prune at the same time both take effect](../product/chunk-indexing.md#792a5o1-uat-scenarios), [793a4j1a The index catches up after the turn](./793a_product-spec.md#793a4j1-uat-scenarios)
+Supports: [792a5o1a An ingest and a prune at the same time both take effect](../../specs/product/chunk-indexing.md#792a5o1-uat-scenarios), [793a4j1a The index catches up after the turn](./793a_product-spec.md#793a4j1-uat-scenarios)
 
 Verified by: `internal/cli/ingest_progress_test.go`: Test793d37c1a1_AnAutomaticIngestSkipsWhenTheManifestLockIsHeld, Test793d37c1a2_ALockGrantedAfterTheSkipIsGivenBack, Test793d37c1a3_ANamedIngestWaitsForTheManifestLock
 
